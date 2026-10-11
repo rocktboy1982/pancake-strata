@@ -2541,6 +2541,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             stamp(l, 19, grp);
             grouped(p_ptr, p_start, p_counts, 0, hit_out, true);
             stamp(l, 20, grp);
+            if (!pcie_off_) {   // with --pcie-frac 0 there is never a PCIe share: no flag-B wait, no empty launches
             if (device_plan_) wait_flag_ge_or(m_flagB_, ring, skip_ + grp, cs);
             else if (m_bal_ != nullptr)   // set_pcie_balance: the PCIe part starts
                 wait_flag_ge_stamped(m_flagB_, ring, m_bal_ + ((l - lb_) * 2 + grp) * 4 + 1, nullptr, cs);
@@ -2552,10 +2553,11 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 fetch_blobs(p_ptr2, p_counts + 2, stage, (int64_t) lay.blob_bytes(l), (int) per, cs, p_dst2);
                 rebase_ptrs((unsigned long long*) p_ptr2, p_counts + 2, stage, (int64_t) lay.blob_bytes(l), cs, p_dst2);
             }
+            }
             stamp(l, 21, grp);
             // the PCIe share is pcie_frac of the misses: a few groups when the cache is cold, usually none (always none at
             // pcie_frac 0), so its launch is kPcieGroupRows block rows striding over the groups, not cap of them
-            grouped(p_ptr2, p_start2, p_counts + 2, kPcieGroupRows, hit_out, false);
+            if (!pcie_off_) grouped(p_ptr2, p_start2, p_counts + 2, kPcieGroupRows, hit_out, false);
             stamp(l, 22, grp);
             // STRATA_VERIFY_DEFER_CPU: no wait, no CPU rows now (late_add adds them later): zeros, plus the hits
             if (deferred(l)) {

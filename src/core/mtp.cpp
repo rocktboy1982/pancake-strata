@@ -47,6 +47,12 @@
 #include <sstream>
 #include <vector>
 #include "strata/platform/cpu_relax.hpp"
+#include <map>
+#if defined(_WIN32)
+#include <intrin.h>
+#elif defined(__x86_64__)
+#include <immintrin.h>
+#endif
 
 #ifdef STRATA_NATIVE_EXPERTS
 #include "ggml.h"   // --mtp-q4: the head rows' and projections' formats, dequantized and requantized at load

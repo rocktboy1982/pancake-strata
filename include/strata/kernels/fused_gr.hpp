@@ -76,6 +76,10 @@ bool fused_gr_read_multi(const FusedGrArgs* a, int n_tok, float* xn_scratch, voi
                          unsigned long long* stamp_buf = nullptr, int stamp_i0 = 0);
 
 /// The bench only: the AMD latency-hidden kernels on (1) or off (0); -1 = STRATA_GR_FAST.
+bool rdna_gr_enabled();
+void rdna_gr_read_multi(const FusedGrArgs* a, int n_tok, float* scratch, void* stream,
+                        unsigned long long* stamp_buf = nullptr, int stamp_i0 = 0);
+
 void fused_gr_set_fast(int on);
 /// The bench only: the v3 read's weight-prefetch kernels (STRATA_GR_V3_PF, bit 0 down / bit 1 up) for every read; -1 = the environment.
 void fused_gr_v3_pf(int mask);

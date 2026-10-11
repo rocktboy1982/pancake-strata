@@ -432,6 +432,7 @@ public:
     /// It gets this verifier's stream; false (with the message in `err`) fails the launch.
     void set_pre_launch(std::function<bool(cudaStream_t cs, std::string& err)> f) { pre_launch_ = std::move(f); }
     /// the pool never plans a PCIe share (--pcie-frac 0): the window skips that path.  Before the first run.
+    void set_pcie_off(bool off) { pcie_off_ = off; }
 
     /// The PCIe count of each layer from measured costs (PcieModel) instead of a fixed share: the spin kernels stamp
     /// each step's GPU work (the plan's arrival, the PCIe part's start, the wait for the CPU's rows; GPU clock), the host
@@ -725,6 +726,7 @@ private:
     PcieModel* bal_ = nullptr;
     bool bal_paused_ = false;
     void pcie_balance_window(int64_t steps, int G);
+    bool pcie_off_ = false;                                       // no PCIe share ever (--pcie-frac 0)
     cudaEvent_t commit_done_ = nullptr;   // recorded after an async commit (set_commit_async); see wait_commit
     bool commit_pending_ = false;
     cudaStream_t copy_ = nullptr;                                 // the copy engine's stream (DMA of missed experts)
