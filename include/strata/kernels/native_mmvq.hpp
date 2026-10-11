@@ -176,6 +176,11 @@ bool native_mmvq_list(int ggml_type, const MmvqList& list, int most, int n_in, i
 // and launch helpers; only the
 // capability query returns false.
 bool native_mmvq_supported(int ggml_type) noexcept;
+/// gfx1100 STRATA_RDNA_Q6K=1: the multi-column Q6_K decode GEMV (rdna_mmvq.cu); false = not taken
+bool rdna_q6k_enabled();
+bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream);
+/// the same layout for Q4_K (12), Q5_K (13), IQ4_XS (23); false = type not handled
+bool rdna_kq_mmvq(int type, const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream);
 std::size_t native_mmvq_weight_bytes(int ggml_type, int n_in, int n_out);
 void native_mmvq(int ggml_type, const void* weights, const void* x_q8_1, float* y,
                  int n_in, int n_out, int ncols, void* stream);
