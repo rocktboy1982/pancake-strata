@@ -99,6 +99,8 @@ void wait_handoff(const uint32_t* flag, uint32_t value, uint32_t* err, unsigned 
 /// into *t_out (either may be null): the verify window's PCIe-share balance, at no extra launch.
 void wait_flag_ge_stamped(const uint32_t* flag, uint32_t value, unsigned long long* t_in, unsigned long long* t_out,
                           void* stream);
+/// STRATA_WAIT_FUSE: wait_flag_ge then copy_i32_from_mapped(dst, src, n) in one launch
+void wait_flag_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n, void* stream);
 /// the GPU's %globaltimer (ns) into buf[i] (a one-thread kernel: the verify window's stage profiler).  Inside a PDL
 /// stretch (pdl.hpp) the stamp passes the early launch on, so a profiled window keeps the chain it measures.
 void gpu_stamp(unsigned long long* buf, int i, void* stream);

@@ -1391,6 +1391,17 @@ __global__ void wait_flag_ge_stamped_kernel(const volatile uint32_t* flag, uint3
     __threadfence_system();
     if (t_out != nullptr) *t_out = strata_now_ns();
 }
+
+__global__ void wait_flag_copy_i32_kernel(const volatile uint32_t* flag, uint32_t value, int32_t* __restrict__ dst,
+                                          const volatile int32_t* src, int n) {
+    if (threadIdx.x == 0) {
+        while (*flag < value) strata_spin_pause();
+        __threadfence_system();
+    }
+    __syncthreads();
+    __threadfence_system();   // every wave's acquire, not only the spinning thread's
+    for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
+}
 }  // namespace
 
 void wait_handoff(const uint32_t* flag, uint32_t value, uint32_t* err, unsigned long long timeout_ns, void* stream) {
@@ -1753,6 +1764,10 @@ void wait_copy_i32_from_mapped(const uint32_t* flag, uint32_t value, int32_t* ds
 void wait_flag_ge(const uint32_t* flag, uint32_t value, void* stream) {
     wait_flag_ge_kernel<<<1, 1, 0, (cudaStream_t) stream>>>(flag, value);
     check("wait_flag_ge");
+}
+void wait_flag_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n, void* stream) {
+    wait_flag_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, (const volatile int32_t*) src, (int) n);
+    check("wait_flag_copy_i32");
 }
 
 void wait_flag_ge_stamped(const uint32_t* flag, uint32_t value, unsigned long long* t_in, unsigned long long* t_out,
