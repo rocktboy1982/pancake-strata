@@ -4142,6 +4142,13 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     if (!wd_q8.data || !wu_q8.data) { err = "prefill: the Q8_0 hyper-connection projections could not be dequantized"; return false; }
                     wd = &wd_q8; wu = &wu_q8;
                 }
+                core::WeightRef wd_l, wu_l;   // STRATA_GR_RDNA_Q8: BF16 images dequantized from the int8 copies
+                if (wd->data == nullptr && wd->hc_r8 != nullptr) {
+                    wd_l = *wd; wd_l.data = strata::kernels::rdna_r8_to_bf16((const int8_t*) wd->hc_r8, wd->ne1, wd->ne0, 0, m.cs); wd = &wd_l;
+                }
+                if (wu->data == nullptr && wu->hc_r8 != nullptr) {
+                    wu_l = *wu; wu_l.data = strata::kernels::rdna_r8_to_bf16((const int8_t*) wu->hc_r8, wu->ne1, wu->ne0, 1, m.cs); wu = &wu_l;
+                }
                 pt.mark(kPfHc, cs);
                 // the xn16 token stride of this chunk (the writers of both halves and of the fused write-backs use it)
                 const int64_t ldx = hc_pad() && T >= std::max<int64_t>(pf_switch_min_t(), 64) && !gr_unfused() &&
