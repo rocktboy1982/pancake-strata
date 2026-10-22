@@ -196,6 +196,15 @@ public:
     /// With `host_works`, `run()` claims jobs itself instead of spinning on `done_`, and the pool is six
     /// threads on six cores. `false` is the A/B arm and exists so the change is measurable rather than
     /// asserted - the counter it moves is `pool phases ... drain`, which is host-side and needs no profiler.
+    /// pancake-strata STRATA_POOL_PREREAD=1 (opt-in, after tandem.cpp's LLAMA_MOE_PREREAD): blobs the router lookahead
+    /// predicts the next layer will compute on the CPU.  Parked workers read them into their caches in 64 KiB chunks,
+    /// checking for new work after every chunk, so a real job waits for one chunk at most.  A read only: no value changes.
+    /// `ptrs` are `n` blobs of `bytes` each (at most kPrereadMax); a newer post replaces an older one.
+    void post_preread(const uint8_t* const* ptrs, int n, size_t bytes);
+    /// The pool that takes pre-reads (the engine's decode pool when STRATA_POOL_PREREAD=1), or null.
+    static ExpertPool* preread_pool();
+    static constexpr int kPrereadMax = 16;
+
     explicit ExpertPool(int n_workers = 0, bool pin = true, bool host_works = true,
                         PoolAffinity affinity = PoolAffinity::All, int tasks = 0);
     /// Batched row phases: 0 keeps three tasks per participating thread; explicit counts are capped by rows.
@@ -340,6 +349,14 @@ private:
     alignas(64) std::atomic<uint32_t> done_{0};
     alignas(64) std::atomic<uint32_t> parked_{0};
     alignas(64) std::atomic<uint32_t> epoch_{0};
+    // STRATA_POOL_PREREAD: the posted blobs, the chunk count, the next chunk to claim, the post's generation
+    const uint8_t* pr_ptr_[kPrereadMax] = {};
+    size_t pr_bytes_ = 0;
+    std::atomic<uint32_t> pr_chunks_{0};
+    alignas(64) std::atomic<uint32_t> pr_next_{0};
+    alignas(64) std::atomic<uint32_t> pr_gen_{0};
+    bool preread_on_ = false;
+    void preread_some(uint32_t seen);
     alignas(64) std::atomic<bool> stop_{false};
     // The sleep after `kSpinBeforeSleep`.  `sleepers_` is how `publish` knows whether anyone needs waking, so the
     // token path pays one uncontended load per publish and never takes the mutex while the workers spin.
