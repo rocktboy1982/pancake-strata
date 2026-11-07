@@ -47,6 +47,8 @@
 #include "strata/kernels/kv_q4.hpp"
 #include "strata/kernels/kv_q8.hpp"
 #include "strata/kernels/native_mmvq.hpp"
+#include "strata/kernels/q5k_head.hpp"
+#include "strata/kernels/iq4xs_head.hpp"
 #include "strata/core/dispatch_stats.hpp"
 #include "strata/kernels/native_gr_postops.hpp"
 #include "strata/kernels/native_ple_postops.hpp"
@@ -2747,6 +2749,29 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             try {
                 float* const hl = head_logits_ + (size_t) h0 * (size_t) n_vocab_;
                 if (!q8_head) native_quantize_q8_1(head_mixed_ + (size_t) h0 * N, xq_, (int) N, HT, cs);   // (else the fused read wrote this chunk's image at xq_)
+#if defined(STRATA_HAVE_Q5K_HEAD)
+                // pancake-strata: basalt's Q5_K head GEMV (a warp a row, the columns' activations in shared memory
+                // once a block): bitwise native_mmvq's output (q5k_head_test), x1.28 at a 5-row window on an RTX
+                // 3060.  STRATA_Q5K_HEAD=0 keeps the kernels below.
+                static const bool q5k_head_on = [] {
+                    const char* v = std::getenv("STRATA_Q5K_HEAD");
+                    return !(v && *v == '0');
+                }();
+                // pancake-strata: the same design for an IQ4_XS head (Flash-Next IQ2_XS), bitwise native_mmvq's too
+                // (iq4xs_head_test); at 3 and 4 columns native_mmvq_il is the faster exact kernel and stays
+                const bool il_ok = g_mmvq_il() && strata::kernels::native_mmvq_il_supported(head_->type(), (int) HT, (int) n_vocab_);
+                if (q5k_head_on && head_->type() == 13 && strata::kernels::q5k_head_supported((int) N, (int) HT)) {
+                    strata::kernels::q5k_head_mmvq(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs);
+                } else if (q5k_head_on && head_->type() == 23 && !(il_ok && (HT == 3 || HT == 4)) &&
+                           strata::kernels::iq4xs_head_mmvq(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs)) {
+                    static bool said = false;
+                    if (!said) {
+                        said = true;
+                        std::fprintf(stderr, "strata verify: the IQ4_XS head on iq4xs_head_mmvq (bitwise native_mmvq; "
+                                             "STRATA_Q5K_HEAD=0 turns it off)\n");
+                    }
+                } else
+#endif
                 if (g_mmvq_il() && strata::kernels::native_mmvq_il_supported(head_->type(), (int) HT, (int) n_vocab_)) {
                     if (HT >= 2) strata::kernels::native_q8_1_interleave(xq_, xil_, (int) N, (int) HT, cs);
                     strata::kernels::native_mmvq_il(head_->type(), head_->weights(), xq_, xil_, hl, (int) N,

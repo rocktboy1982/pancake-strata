@@ -154,7 +154,7 @@ Each lands as its own commit, measured (the bench and, where numbers change, exa
 | 8.8 | Fused flash-attention prompt kernel (D=256, GQA 8, Q8 cache, causal inline); INT8-IMMA attention variant | own; Speedy's IMMA idea | poly | numerics change: KL | the 38% at 42K |
 | 8.9 | Opt-in lossy: cache-aware routing (colibri `CACHE_ROUTE`), SJ-KVaRN-style KV body (keys 8-bit, recent window), mb-MTP | colibri, llamAmpere | poly | no: opt-in, KL | decode / VRAM |
 | 8.10 | RDNA3 kernels, tensor parallel, SDMA, idle-queue parking for the 7900 XT | Strata-rdna3 | main, HIP | per kernel parity | 2-3x stock on gfx1100; waits for the card |
-| 8.11 | basalt's exact two-stage head (owner's request): `q5k_head.cu` on the main engine's native Q5_K head (Flash-Next, 2560 wide) | basalt | main | yes | ~1-2% |
+| 8.11 | basalt's head kernels (owner's request): **done 2026-11-08** - `q5k_head.cu` ported (Q5_K heads: Q2_0 / IQ3_XXS files) and the same designs written for IQ4_XS (the IQ2_XS head in daily use): exact head GEMV, 2-bit two-stage draft pick | basalt | main | yes | +3-5% decode (draft pick), head x1.07-1.27 in its test |
 
 ### Priority change (owner, 2026-11-08): Qwen3.8-Flash-Next for daily use
 

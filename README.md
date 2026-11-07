@@ -30,6 +30,26 @@ Qwen3.6-35B-A3B (UD-Q4_K_XL with its MTP layer) on an RTX 3060 12 GB, greedy, co
 Every test, profile and dead end: [docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md). The plan:
 [MOD_PLAN.md](MOD_PLAN.md).
 
+## What pancake-strata does beyond Strata
+
+Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 3060 12 GB (numbers and method:
+[docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md)). "Exact" means the same tokens as before, checked.
+
+| | Strata | pancake-strata |
+| --- | --- | --- |
+| **Qwen3.6-35B-A3B engine** | `strata` (fp32 KV cache) | adds `strata-poly` (FastStrata's engine): **x1.6 short answers, x3.8 code edits, x7.4 writing after 42K tokens** |
+| **Context on a 12 GB card (Qwen3.6)** | 64K (setup's 131K runs out of VRAM) | **131K** (Q8 KV cache that grows with the conversation) |
+| **Prompt reading (Qwen3.6)** | - | **9-13% faster, exact**: DeltaNet recurrence 4 columns a warp (x1.4), register-tiled router GEMM (x2.0-2.3), attention softmax read once |
+| **Output head (Flash-Next IQ2_XS)** | `native_mmvq` | **IQ4_XS head kernel, exact** (one warp a row, activations in shared memory, after basalt): x1.07-1.27 at 1-2 and 5-8 columns; basalt's Q5_K head kernel for the Q2_0 / IQ3_XXS files |
+| **MTP draft head pick** | GEMV + argmax + probability | **basalt's 2-bit two-stage pick**, ported to IQ4_XS too: every row scored from a 2-bit copy, the near-best rescored exactly; same tokens, same drafts accepted, +3-5% decode (noisy run) |
+| **Default quality** | expert tail skip on (`STRATA_ROUTE_TAIL_SKIP=7`, answers change) | **exact by default**; the tail skip and other lossy switches are opt-in |
+| **Ready presets** | setup's config | `./run-pancake.sh` (exact) and `./run-pancake.sh fast` (Speedy's switches: +13% writing after 42K) |
+| **MTP draft vocabulary** | 106K tokens with CJK | **English/code subset by default** (+5% decode, ~215 MiB more VRAM for experts); Strata-rdna3's 59.6K list included |
+| **Upstream PRs not in Strata** | - | `STRATA_VERIFY_DEFER_CPU` (#2689/#2690, opt-in, lossy) |
+| **Server** | - | sends `turn_at` to `strata-poly`, so a chat's next turn resumes from the cache |
+| **Proof** | - | bench harness (`tools/pancake/bench_engines.py`, every run kept as JSON), bitwise kernel tests (`poly_gdn_cols_test`, `poly_gemm_small_test`, `q5k_head_test`, `iq4xs_head_test`), and a findings log with every test, profile and rejected idea |
+| **Ahead** | - | Qwen 4 plan (Flash-Next is its official architecture preview), RDNA3 / RX 7900 XT port from Strata-rdna3, flash-attention prompt kernel, two-stage prompts |
+
 ## Daily use: Qwen3.8-Flash-Next
 
 The model in daily use is **Qwen3.8-Flash-Next** (125B MoE, 6B active; the official preview of the Qwen 4
@@ -114,7 +134,7 @@ This stack exists because these people shared their work openly. Thank you!
 | **[FastStrata](https://github.com/Jarson1408/FastStrata)** | Jarson1408 | MIT | The `strata-poly` engine for Qwen3.6, its speed options and its measured optimization log |
 | **[PolyStrata](https://github.com/simplexai-labs/PolyStrata)** | simplexai-labs | MIT | FastStrata's parent: the `src/poly` multi-architecture engine |
 | **[llama.cpp / ggml](https://github.com/ggml-org/llama.cpp)** | Georgi Gerganov and the ggml contributors | MIT | MMQ quantized matrix kernels, the GGUF format, the CPU expert dot products |
-| **[basalt](https://github.com/jesdga95/basalt)** | Jesús Gulfo | MIT | Studied: two-stage head, grammar, drafting ideas (planned) |
+| **[basalt](https://github.com/jesdga95/basalt)** | Jesús Gulfo | MIT | The Q5_K head kernels and the 2-bit two-stage draft pick (`q5k_head.cu`, `head_proxy.cuh`), and their design for the IQ4_XS ports; grammar and drafting ideas (planned) |
 | **[colibri](https://github.com/JustVugg/colibri)** | JustVugg and contributors | Apache-2.0 | Studied: cache-aware routing, multitier memory ideas |
 | **[Aviary](https://github.com/SensAI-PT/aviary-hy3)** | SensAI-PT | Apache-2.0 | Studied: distributed expert placement |
 | **[llamAmpere](https://github.com/JakeATX/llamAmpere)** | JakeATX | MIT | Studied: adaptive MTP depth, SJ-KVaRN KV cache, mb-MTP (candidates) |

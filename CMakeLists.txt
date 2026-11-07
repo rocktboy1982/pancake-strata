@@ -559,6 +559,20 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/ngram/ple_reader.cpp
                           src/platform/direct_file.cpp)
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
+  # pancake-strata: basalt's Q5_K head kernels (q5k_head.cu: the head GEMV bitwise equal to native_mmvq, its fused
+  # top-1, and the 2-bit proxy two-stage top-1), CUDA builds; STRATA_HAVE_Q5K_HEAD tells the callers
+  if(STRATA_ENABLE_CUDA AND NOT STRATA_ENABLE_HIP AND NOT STRATA_HIP_GFX906)
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/q5k_head.cu)
+    target_compile_definitions(strata_kernels PUBLIC STRATA_HAVE_Q5K_HEAD=1)
+    add_executable(q5k_head_test src/kernels/cuda/q5k_head_test.cu)
+    target_include_directories(q5k_head_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(q5k_head_test PRIVATE strata_kernels)
+    # pancake-strata: the IQ4_XS head (Flash-Next IQ2_XS's output head and its draft head), basalt's design
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/iq4xs_head.cu)
+    add_executable(iq4xs_head_test src/kernels/cuda/iq4xs_head_test.cu)
+    target_include_directories(iq4xs_head_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(iq4xs_head_test PRIVATE strata_kernels)
+  endif()
   # Exact gfx1100 prompt scorer (PR1825 method port): optional standalone test,
   # also available where the published source omits tests/.
   option(STRATA_PARITY_GFX1100_QSA_SCORES "Build the exact gfx1100 QSA score/ID check" OFF)

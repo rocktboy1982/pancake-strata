@@ -8,6 +8,8 @@
 #include "strata/core/progress.hpp"
 
 #include "strata/core/native_head.hpp"
+#include "strata/kernels/q5k_head.hpp"
+#include "strata/kernels/iq4xs_head.hpp"
 #include "strata/core/peer_experts.hpp"
 #include "strata/platform/memory.hpp"
 #include "strata/kernels/bf16_gemv.hpp"
@@ -63,6 +65,16 @@ bool mtp_draft(int T, const int32_t* tokens, int64_t p, int a, int max_steps, in
 #endif
 
 namespace strata::core {
+namespace {
+// pancake-strata: the draft head's two-stage proxy pick, on unless STRATA_MTP_PROXY=0 (off too under STRATA_MTP_TOP2,
+// whose diagnostic reads the draft head's logits)
+bool mtp_proxy_env() {
+    const char* v = std::getenv("STRATA_MTP_PROXY");
+    const char* top2 = std::getenv("STRATA_MTP_TOP2");
+    return !(v && *v == '0') && !(top2 && *top2 && *top2 != '0');
+}
+}  // namespace
+
 namespace {
 
 constexpr float EPS = 1e-6f;
@@ -177,6 +189,8 @@ MtpDrafter::~MtpDrafter() {
         cudaFree(dhead_);
     }
     if (owns_draft_head_ && dvocab_) cudaFree(dvocab_);
+    if (proxy_) cudaFree(proxy_);
+    if (proxy_scratch_) cudaFree(proxy_scratch_);
     if (ev_chain_) cudaEventDestroy(ev_chain_);
     for (cudaEvent_t e : ev_step_) if (e) cudaEventDestroy(e);
     void* hosts[] = {h_tok_, h_step_, h_pos_, h_row_, h_out_, h_prob_, h_force_, h_floor_};
@@ -842,6 +856,32 @@ bool MtpDrafter::bind(const WeightTable& wt, const NativeHead* head, const float
             dhead_type_ = head->type();
             dhead_plain_ = !q4_head_;
             if (q4_head_ && !make_q4_head(err)) return false;
+#if defined(STRATA_HAVE_Q5K_HEAD)
+            // pancake-strata: basalt's 2-bit proxy of the Q5_K subset (q5k_proxy_pack), for the greedy draft step's
+            // two-stage pick (record_rest).  The pick feeds drafts, which the verify window checks: the text is unchanged.
+            // (an IQ4_XS subset - Flash-Next IQ2_XS - takes pancake-strata's IQ4_XS port of the same proxy)
+            if ((dhead_type_ == 13 || dhead_type_ == 23) && dhead_plain_ && g_->n_embd == 2560 && mtp_proxy_env()) {
+                const bool iq4 = dhead_type_ == 23;
+                const size_t pb = iq4 ? strata::kernels::iq4xs_proxy_bytes(n_dvocab_) : strata::kernels::q5k_proxy_bytes(n_dvocab_);
+                const size_t sb = iq4 ? strata::kernels::iq4xs_proxy_scratch_bytes(n_dvocab_)
+                                      : strata::kernels::q5k_proxy_scratch_bytes(n_dvocab_);
+                if (cudaMalloc(&proxy_, pb) == cudaSuccess && cudaMalloc(&proxy_scratch_, sb) == cudaSuccess &&
+                    cudaMemset(proxy_scratch_, 0, sb) == cudaSuccess) {
+                    if (iq4) strata::kernels::iq4xs_proxy_pack(dhead_, 0, n_dvocab_, proxy_, n_dvocab_, nullptr);
+                    else strata::kernels::q5k_proxy_pack(dhead_, 0, n_dvocab_, proxy_, n_dvocab_, nullptr);
+                    cudaDeviceSynchronize();
+                    vram_ += (uint64_t) (pb + sb);
+                    std::fprintf(stderr, "strata mtp: the draft head's 2-bit proxy (basalt), %.1f MiB: two-stage greedy "
+                                         "draft picks (STRATA_MTP_PROXY=0 turns it off)\n", (double) (pb + sb) / 1048576.0);
+                } else {
+                    (void) cudaGetLastError();
+                    if (proxy_) cudaFree(proxy_);
+                    if (proxy_scratch_) cudaFree(proxy_scratch_);
+                    proxy_ = proxy_scratch_ = nullptr;
+                    std::fprintf(stderr, "strata mtp: no VRAM for the draft head's proxy; the plain pick stays\n");
+                }
+            }
+#endif
             if (dhead_type_ == 14 && strata::kernels::native_q6_k_packed_enabled()) {   // STRATA_Q6_PACKED=1
                 dhead_plain_ = false;
                 strata::kernels::native_q6_k_pack(dhead_, (int) (row_bytes / 210) * 256, (int) n_dvocab_,
@@ -1352,6 +1392,25 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
         if (!q8_head) native_quantize_q8_1(sample_, xq_, (int) N, T, cs);
         const bool sub = dhead_ != nullptr;
         const int64_t nv = sub ? n_dvocab_ : n_vocab_;
+#if defined(STRATA_HAVE_Q5K_HEAD)
+        // pancake-strata: the greedy one-row step's pick through basalt's two-stage proxy (ids and probabilities out,
+        // the ids already mapped to the vocabulary); the coupled sampler and the logits' readers keep the plain path
+        if (proxy_ != nullptr && sub && T == 1 && !coupled_rec_ &&
+            (dhead_type_ == 23 ? strata::kernels::iq4xs_proxy_top1(proxy_, dhead_, xq_, (int) nv, n_dvocab_, dvocab_, out_ids_,
+                                                                   probs_, proxy_scratch_, cs)
+                               : strata::kernels::q5k_proxy_top1(proxy_, dhead_, xq_, (int) nv, n_dvocab_, dvocab_, out_ids_,
+                                                                 probs_, proxy_scratch_, cs))) {
+            g_mp.stamp(14, cs);
+            g_mp.stamp(15, cs);
+            return true;
+        }
+#endif
+#if defined(STRATA_HAVE_Q5K_HEAD)
+        // pancake-strata: an IQ4_XS draft head (Flash-Next IQ2_XS) through iq4xs_head_mmvq, bitwise native_mmvq's
+        const int hty = sub ? dhead_type_ : head_->type();
+        if (!(hty == 23 && (T == 1 || T == 2) && mtp_proxy_env() &&
+              strata::kernels::iq4xs_head_mmvq(sub ? dhead_ : head_->weights(), xq_, head_logits_, (int) N, (int) nv, T, cs)))
+#endif
         native_mmvq(sub ? dhead_type_ : head_->type(), sub ? dhead_ : head_->weights(), xq_, head_logits_, (int) N,
                     (int) nv, T, cs);
         g_mp.stamp(14, cs);

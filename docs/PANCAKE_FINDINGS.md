@@ -196,8 +196,10 @@ Speedy's switches pay after long prompts; short answers are within noise (the ex
 outlier at 41.9). Some of them (`STRATA_PROMPT_ATTN_IMMA` INT8 attention, `STRATA_HC_Q8`) change the numbers slightly,
 so they make the **fast** preset, not the default (`run-pancake.sh fast`).
 
-The output head the engine decodes with is a native Q5_K head (338 MB, 2560 wide) built from the GGUF's IQ4_XS
-`output.weight`: the format and width of basalt's `q5k_head.cu` two-stage head, written for this model family.
+**Correction (2026-11-08):** the engine prints "experimental native Q5_K head", but for IQ2_XS that head is the GGUF's
+**IQ4_XS** `output.weight` (337,715,200 bytes = 248,320 rows x 1,360 B; `native_head.hpp`: Q5_K in the Q2_0 / IQ3_XXS
+files, IQ4_XS in IQ2_XS), and so is the MTP draft head subset (52.6 MiB = 40,525 x 1,360 B). An earlier note here said
+Q5_K; a first A/B of basalt's Q5_K kernels on this model therefore measured unchanged code (noise). See section 10b.
 
 MTP draft vocabulary (exact config, lossless):
 
@@ -212,6 +214,23 @@ head); the 59.6K list helps Chinese text, not this test.
 
 `STRATA_VERIFY_DEFER_CPU` (Strata PRs #2689/#2690 by lask3802, as re-ported by Speedy; applied 3-way onto v0.2.12):
 short 57.7 (+8%), edit 69.0 (-7%) against the exact config; it changes the output. Kept as an opt-in, off by default.
+
+## 10b. basalt's head kernels, and their IQ4_XS ports (2026-11-08)
+
+Ported from basalt (`q5k_head.cu`, `head_proxy.cuh`, MIT) into `src/kernels/cuda/`: the Q5_K head GEMV (bitwise
+`native_mmvq`, one warp a row, activations in shared memory), its fused top-1, and the 2-bit proxy two-stage top-1.
+They engage on Q5_K heads (Flash-Next Q2_0 / IQ3_XXS files). For the IQ2_XS file in daily use, pancake-strata adds the
+same designs for IQ4_XS (`iq4xs_head.cu`):
+
+- **IQ4_XS head GEMV**, bitwise `native_mmvq(23)` and `native_mmvq_il` for 1-8 columns (`iq4xs_head_test`, full head
+  2560 x 248,320): 1 column 1.079 -> 1.006 ms (x1.07), 2: 1.462 -> 1.152 (x1.27), 5: 2.788 -> 2.250 (x1.24),
+  6-8: x1.17-1.02. At 3-4 columns `native_mmvq_il` is faster (1.13 / 1.25 ms) and stays. Used for the verify head and
+  the MTP draft head; `STRATA_Q5K_HEAD=0` / `STRATA_MTP_PROXY=0` turn them off. End to end: greedy tokens identical
+  off / on; the speed difference is below this run's noise (a browser was open, load ~5).
+- **IQ4_XS 2-bit proxy** for the MTP draft head (31.0 MiB): every row scored from the 2-bit copy (basalt's packing
+  and scoring, unchanged), the near-best rescored exactly with the IQ4_XS arithmetic above, the exact best is the
+  pick. Greedy tokens identical off / on in both rounds; drafts accepted the same (short 172 of 231-242, edit
+  456-463 of 466-483); decode short 52.3 -> 54.0 tok/s (+3%), edit 72.8 -> 76.8 (+5%), mean of 2, noisy (load ~5).
 
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
 

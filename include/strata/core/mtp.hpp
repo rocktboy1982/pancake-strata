@@ -336,6 +336,10 @@ private:
     // the draft head: the main head's rows for a token subset (rt/draft_vocab.bin), or the whole head
     uint8_t* dhead_ = nullptr;
     int32_t* dvocab_ = nullptr;
+    // pancake-strata: basalt's 2-bit proxy of a Q5_K draft head (q5k_proxy_*): the greedy one-row draft step's pick
+    // in two stages (every row scored from the proxy, the near-best rescored exactly); STRATA_MTP_PROXY=0 turns it off
+    void* proxy_ = nullptr;
+    void* proxy_scratch_ = nullptr;
     int64_t n_dvocab_ = 0;
     std::string rt_dir_;
     int64_t window_ = 0;        // attention over the last window_ cells (0 = every cell)
