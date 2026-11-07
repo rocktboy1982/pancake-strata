@@ -1150,6 +1150,9 @@ class StrataEngine:
         self.spawn = (exe, list(args), cwd, log, env, False, cpus)   # to start it again after it died (issue #27)
         # the all-cards split engine (sFNX, strata-split-N[-arch]): its GEN parser accepts fewer keys than Strata's engine (tests/split/test_split_gen_keys.py pins them)
         self.split_engine = os.path.basename(str(exe)).startswith("strata-split")
+        # strata-poly (FastStrata's engine) keeps its turn checkpoint where the GEN line's turn_at says; `strata` finds
+        # it itself (--turn-token), so only strata-poly is sent the key
+        self.poly_engine = Path(str(exe)).stem.lower() == "strata-poly"
         self.session_save_reclaim = '--session-save-reclaim' in args
         paths = {k: v for k, v in zip(args, args[1:]) if k in ("--native", "--pack")}
         self.model_path = paths.get("--native") or paths.get("--pack", "pack/full")
@@ -2646,6 +2649,13 @@ class StrataEngine:
     BRANCH_BOUNDARY_MIN = 8192   # the engine's message-boundary checkpoint (STRATA_CACHE_MESSAGE_BOUNDARY) starts at this many tokens
     TURN_ID = 248045        # <|im_start|>: the engine's default --turn-token (its turn checkpoint sits at the last one)
 
+    def turn_key(self, ids) -> str:
+        """strata-poly only: `turn_at=POS`, the prompt's last turn opener (FastStrata df91582's turn_key)."""
+        if not getattr(self, "poly_engine", False):
+            return ""
+        at = next((i for i in range(len(ids) - 1, 0, -1) if ids[i] == self.TURN_ID), None)
+        return f" turn_at={at}" if at is not None else ""
+
     def pick_slot(self, prompt: list[int]) -> int | None:
         """A free slot for `prompt` (the caller holds slot_cv): the one whose held tokens are the longest start of the
         prompt (the engine then reads only the rest), else an empty one, else the one used longest ago - so the
@@ -2771,6 +2781,7 @@ class StrataEngine:
         carry = NO_LINE                  # a line read for a token's LP line, held until it is used
         # an image request takes the same sampling keys as text (#75: it used to decode greedily whatever was asked)
         rid_key = f" rid={rid}" if rid is not None else ""
+        rid_key += self.turn_key(ids)
         head = f"GENI {int(max_new)}{self.sampling_keys(sampling or {})}{rid_key} {embeddings}" if embeddings else \
             f"GEN {int(max_new)}{self.sampling_keys(sampling or {})}{rid_key}"
         if prefill_only:                                 # split serving (serve/split.py): read the prompt, make no token
