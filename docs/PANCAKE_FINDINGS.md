@@ -165,7 +165,38 @@ about once a day) and gains 10-20% decode from a VRAM overclock; others insist o
 comments report gains from 0% (other cards, untuned) to +10% (after tuning) outside its reference machine: forks tuned
 on one machine need re-measuring on ours.
 
-## 10. Next
+## 10. Flash-Next IQ2_XS on the RTX 3060 (main engine, 2026-11-07)
+
+ISTA-DASLab GSQ-RCO IQ2_XS (shard 1 37 GB, n-gram table 27 GB on the SSD), `--expert-cache auto --prefill auto --spec 4
+--spec-min-p 0.5 --kv int8 --kv-resident 32768 --max-context 131072`, single cold runs (`2026-11-07-pancake-flashnext*.jsonl`):
+
+| | base (upstream defaults: `STRATA_ROUTE_TAIL_SKIP=7`, lossy) | exact (`TAIL_SKIP=0`) | exact + Speedy's switches |
+| --- | ---: | ---: | ---: |
+| short, decode | 67.0 | 54.9 | 54.4 |
+| edit, decode | 87.7 | 72.8 | 74.9 |
+| 42K prompt: read / decode | 38.5 s / 52.8 | 38.5 s / 43.4 | 37.1 s / 47.3 |
+| read 4K / 16K | 5.8 / 15.2 s | 5.9 / 15.2 s | 5.5 / 15.7 s |
+
+- Upstream's default tail skip buys 18-22% decode by dropping low-weight experts (answers change). pancake-strata's
+  presets use `STRATA_ROUTE_TAIL_SKIP=0`; the tail skip stays an opt-in.
+- Speedy's switches (prompt scratch, IMMA prompt attention, KV prefetch, pin-by-need, exchange rotation, HC Q8, adapt
+  async/swaps) on this card: within noise to +9%, not the +22-33% prefill measured on 10 GB RTX 3080s. More runs needed.
+
+MTP draft vocabulary (exact config, lossless):
+
+| `--mtp-draft-vocab` | short | edit |
+| --- | ---: | ---: |
+| default (106K tokens, with CJK) | 53.2 | 74.4 |
+| `data/draft_vocab_en.bin` (40.5K) | **55.7** | **78.2** |
+| `data/draft_vocab_zh60k.bin` (59.6K, from Strata-rdna3) | 53.2 | 72.7 |
+
+The English subset is the best choice for English and code on a 12 GB card (+5%, ~215 MiB less VRAM for the draft
+head); the 59.6K list helps Chinese text, not this test.
+
+`STRATA_VERIFY_DEFER_CPU` (Strata PRs #2689/#2690 by lask3802, as re-ported by Speedy; applied 3-way onto v0.2.12):
+short 57.7 (+8%), edit 69.0 (-7%) against the exact config; it changes the output. Kept as an opt-in, off by default.
+
+## 11. Next
 
 0. Adaptive MTP depth (llamAmpere), a learned expert profile at start (llama.cpp MoE cache PR), and an SJ-KVaRN-style KV body (opt-in, keys 8-bit, recent window), each measured.
 1. A fused flash-attention prompt kernel for D=256 / GQA 8 that reads the Q8 cache and masks causally inline

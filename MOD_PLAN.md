@@ -138,6 +138,50 @@ HIP: `--graph-experts` maps to HIP graphs; the tensor-core attention needs a WMM
 - One shared cached prefix (system prompt and tools) across agent conversations, as SGLang's RadixAttention does.
 - basalt's `--idle-sleep`: free VRAM between requests, wake in seconds instead of a cold load.
 
+### 8. Additions from the forks and reports read on 2026-11-07 (owner: "add them to the plan and bring them in")
+
+Each lands as its own commit, measured (the bench and, where numbers change, exactness or KL), credited to its source.
+
+| # | Item | Source | Engine | Exact? | Expected |
+| --- | --- | --- | --- | --- | --- |
+| 8.1 | Flash-Next IQ2_XS running on the 3060 with Speedy's sm_86 presets as the starting config; base numbers | Speedy (DevDock-AI) | main | yes (config) | the plan's first model, finally measured |
+| 8.2 | Turn on the upstream opt-ins Speedy measured, A/B each on this PC: `STRATA_PF_GROUP_SCRATCH`/`_HC_REGION` (#4039), `STRATA_PREFILL_ROUTED_STREAM` (#4283), `STRATA_PROMPT_ATTN_IMMA`, `STRATA_KV_PREFETCH` | Speedy, upstream PRs | main | per its PR | prefill +5-33% on the 3080 |
+| 8.3 | Port the ones upstream lacks: `STRATA_VERIFY_DEFER_CPU` (#2689/#2690, light CPU expert rows a layer late in verify), `STRATA_PSI_SHED` | Speedy | main | KL measured by the PR | decode GPU-wait cut |
+| 8.4 | The 59.6K-token MTP draft vocabulary (English/code + CJK), lossless | Strata-rdna3 | main (and poly's `--draft-vocab`) | yes | draft step ~12% cheaper, decode +4% |
+| 8.5 | Adaptive MTP depth (3-4 by measured cost) | llamAmpere | poly | yes | decode |
+| 8.6 | A learned expert profile loaded at start | llama.cpp MoE cache PR | poly, main | yes | start-of-session decode |
+| 8.7 | Two-stage prompts (`--prompt-split`) | StrataFast | main | check | long prompts 1.24-1.55x there |
+| 8.8 | Fused flash-attention prompt kernel (D=256, GQA 8, Q8 cache, causal inline); INT8-IMMA attention variant | own; Speedy's IMMA idea | poly | numerics change: KL | the 38% at 42K |
+| 8.9 | Opt-in lossy: cache-aware routing (colibri `CACHE_ROUTE`), SJ-KVaRN-style KV body (keys 8-bit, recent window), mb-MTP | colibri, llamAmpere | poly | no: opt-in, KL | decode / VRAM |
+| 8.10 | RDNA3 kernels, tensor parallel, SDMA, idle-queue parking for the 7900 XT | Strata-rdna3 | main, HIP | per kernel parity | 2-3x stock on gfx1100; waits for the card |
+| 8.11 | basalt's exact two-stage head for the 2048-wide Q8_0 head (owner's request) | basalt | poly | yes | ~1-2% |
+
+### 9. Qwen 4 (owner's request, 2026-11-07)
+
+Status, checked on the official pages on 2026-11-07: **no Qwen 4 weights are out.** The Qwen organization on Hugging
+Face lists Qwen3.8 (Flash-Next, 27B, 2.4T-A95B) and Qwen3.6 as its newest models. Qwen3.8-Flash-Next's own model card
+calls it an experimental preview of the architecture that will underpin Qwen4: 125B total / 6B active, 48 layers in 12
+blocks of three Gated DeltaNet + MoE layers and one Qwen Sparse Attention + MoE layer, a 20M-entry n-gram embedding
+table (51B parameters) at layer 2, one MTP layer, 262K native context (1M extended). Third-party reports (not
+confirmed by Alibaba) name Max / Plus / Flash API tiers and a 27B open-weights tier.
+
+So the work is:
+
+1. **Now:** every Flash-Next item of phase 8 (8.1-8.4, 8.7) runs on the Qwen 4 Flash architecture: the main engine's
+   GDN, QSA, n-gram table and MTP paths are what Qwen 4 Flash will need.
+2. **When the weights appear:** read the GGUF's architecture name and tensor list against Flash-Next's
+   (`strata --families`, the layout guards in `src/core`), add the family to setup (`setup.py` families table, hashes),
+   pack it, run the bench and the exactness/KL checks, and add its row to the README. Expected: little new code if the
+   architecture matches the preview.
+3. **A Qwen 4 27B dense tier**, if it ships open: Strata's expert offload does nothing for a dense model; serve it
+   with a dense engine (llamAmpere-style KV and quant tricks are the reference for 12 GB cards) or keep it out of
+   scope, decided when its size is known.
+4. Watch the Qwen organization on Hugging Face and the Qwen blog for the release.
+
+Disk (2026-11-07): Flash-Next IQ2_XS (shard 1 37 GB + n-gram table 27 GB + MTP 6.5 GB) is already in
+`/home/dan/clone-of-d/Strata-data`; `~/Strata-data` on the root disk was a duplicate and is gone; the unused Qwen3.6
+UD-IQ3_S file was deleted. DeepSeek V4.1 (239-274 GB) still does not fit.
+
 ## Risks
 
 - Code drift: FastStrata's options live in `src/poly`, not in `src/qwen35`; porting may mean rewriting, not copying.
