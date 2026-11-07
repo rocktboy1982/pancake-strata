@@ -154,7 +154,15 @@ Each lands as its own commit, measured (the bench and, where numbers change, exa
 | 8.8 | Fused flash-attention prompt kernel (D=256, GQA 8, Q8 cache, causal inline); INT8-IMMA attention variant | own; Speedy's IMMA idea | poly | numerics change: KL | the 38% at 42K |
 | 8.9 | Opt-in lossy: cache-aware routing (colibri `CACHE_ROUTE`), SJ-KVaRN-style KV body (keys 8-bit, recent window), mb-MTP | colibri, llamAmpere | poly | no: opt-in, KL | decode / VRAM |
 | 8.10 | RDNA3 kernels, tensor parallel, SDMA, idle-queue parking for the 7900 XT | Strata-rdna3 | main, HIP | per kernel parity | 2-3x stock on gfx1100; waits for the card |
-| 8.11 | basalt's exact two-stage head for the 2048-wide Q8_0 head (owner's request) | basalt | poly | yes | ~1-2% |
+| 8.11 | basalt's exact two-stage head (owner's request): `q5k_head.cu` on the main engine's native Q5_K head (Flash-Next, 2560 wide) | basalt | main | yes | ~1-2% |
+
+### Priority change (owner, 2026-11-08): Qwen3.8-Flash-Next for daily use
+
+Daily use moves from Qwen3.6 (`strata-poly`) to Qwen3.8-Flash-Next IQ2_XS on the main engine (`run-pancake.sh`).
+Main-engine items come first now: 8.2-8.4 (done or measured), basalt's two-stage head (8.11) on the engine's native
+Q5_K head (`q5k_head.cu`, the same model family and width), 8.7 two-stage prompts, 8.6 a learned expert profile, and
+the Qwen 4 readiness of phase 9. The poly-only items (8.5 adaptive depth: poly already has the cost-based `Guesses`
+rule up to 3 guesses; 8.8 its flash-attention kernel) wait.
 
 ### 9. Qwen 4 (owner's request, 2026-11-07)
 

@@ -30,6 +30,21 @@ Qwen3.6-35B-A3B (UD-Q4_K_XL with its MTP layer) on an RTX 3060 12 GB, greedy, co
 Every test, profile and dead end: [docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md). The plan:
 [MOD_PLAN.md](MOD_PLAN.md).
 
+## Daily use: Qwen3.8-Flash-Next
+
+The model in daily use is **Qwen3.8-Flash-Next** (125B MoE, 6B active; the official preview of the Qwen 4
+architecture), ISTA-DASLab's GSQ-RCO **IQ2_XS** on the RTX 3060 12 GB + 57 GB RAM, on Strata's main engine:
+
+```sh
+./run-pancake.sh          # exact: the same answers as plain decoding (no expert tail skip), English/code draft vocabulary
+./run-pancake.sh fast     # + Speedy's measured switches: ~13% faster writing after long prompts, numbers move slightly
+```
+
+OpenAI API on `http://127.0.0.1:8080/v1` (Anthropic: `/v1/messages`). Measured (cold runs, 2 rounds): short answers
+~50-55 tok/s, code edits ~74 tok/s, after a 42K-token prompt 41-47 tok/s, a 42K prompt read in ~37-38 s. Upstream's
+default expert tail skip would add 18-22% writing speed but changes answers: off here, an opt-in.
+Qwen3.6-35B-A3B on `strata-poly` (below) remains available and is faster (100-150 tok/s) but a smaller model.
+
 ## The layers of the stack, and what each does
 
 ### From FastStrata: the `strata-poly` engine

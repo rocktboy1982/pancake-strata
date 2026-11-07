@@ -95,3 +95,7 @@ node_modules/
 /build-spark/
 /build-vision-spark/
 /.venv-build/
+
+# pancake-strata: local configs written by run-pancake.sh, and their logs
+/pancake-*.json
+/pancake-*.log

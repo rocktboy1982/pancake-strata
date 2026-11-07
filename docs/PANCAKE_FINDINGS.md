@@ -182,6 +182,23 @@ ISTA-DASLab GSQ-RCO IQ2_XS (shard 1 37 GB, n-gram table 27 GB on the SSD), `--ex
 - Speedy's switches (prompt scratch, IMMA prompt attention, KV prefetch, pin-by-need, exchange rotation, HC Q8, adapt
   async/swaps) on this card: within noise to +9%, not the +22-33% prefill measured on 10 GB RTX 3080s. More runs needed.
 
+Second pass, two interleaved rounds each (exact vs exact + Speedy's switches, both with the English draft vocabulary;
+`2026-11-08-pancake-flashnext-preset.jsonl`), decode tok/s and read time, mean of 2:
+
+| | exact | + Speedy's switches |
+| --- | ---: | ---: |
+| short | 49.2 | 54.6 |
+| edit | 74.7 | 73.9 |
+| after 42K: decode / read | 41.4 / 38.39 s | **46.8 / 37.19 s** (+13% / -3%) |
+| read 16K | 16.98 s | 18.65 s |
+
+Speedy's switches pay after long prompts; short answers are within noise (the exact arm's first short run was an
+outlier at 41.9). Some of them (`STRATA_PROMPT_ATTN_IMMA` INT8 attention, `STRATA_HC_Q8`) change the numbers slightly,
+so they make the **fast** preset, not the default (`run-pancake.sh fast`).
+
+The output head the engine decodes with is a native Q5_K head (338 MB, 2560 wide) built from the GGUF's IQ4_XS
+`output.weight`: the format and width of basalt's `q5k_head.cu` two-stage head, written for this model family.
+
 MTP draft vocabulary (exact config, lossless):
 
 | `--mtp-draft-vocab` | short | edit |
@@ -218,6 +235,7 @@ cores with FP32 sums (what gpu-unlock speeds up).
 | 0xShug0/audio.cpp discussion 317 | 7900 XTX, ROCm 7.2.1: sampling moved to the GPU, no per-token readback: -14.5%, bit-identical | Strata already picks greedy tokens on the GPU; keep sampled decoding on the device too (check when profiling the HIP path) |
 | ROCm/amd-rocm-optimization-guide | AMD's HIP optimization guide (coalescing, reductions, multi-GPU) | Reference for the HIP kernels |
 | ROCm/rocm-systems | The ROCm systems super-repo: HIP, ROCr, rocprofiler-sdk / -compute / -systems, roctracer, amdsmi | rocprofiler-compute / -systems are the 7900 XT's equivalent of Nsight for phase 8.10 |
+| jitllm (jitllm/jitllm, Go, Apache-2.0) | "An operating system for LLM inference": own kernels emitted at load for the model's shapes, experts paged across disk / RAM / VRAM, CUDA PTX, Vulkan, Metal; ROCm untested | No Qwen3.8 Flash-Next support, only ratios against other engines published (no tokens/s). Its expert paging is what Strata already does; a Go engine cannot be merged into this C++/CUDA one. Not taken |
 | danielrosehill gist | An AI-written overview of AMD compute stacks (ROCm, Vulkan, ...), for a 7700 XT | General background; its `HSA_ENABLE_SDMA=0` stability tip conflicts with Strata-rdna3's measured SDMA gains: measure, do not copy |
 
 ## 12. Next
