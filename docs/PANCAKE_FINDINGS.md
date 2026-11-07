@@ -285,6 +285,23 @@ card warns of weaker long context. To make room the Avalon Flash-Next model (90 
 Q2_0 is the faster Flash-Next here (writing +5-9%, long reads -6%); a 5070 Ti user reported Q2_0 looping about once a
 day, IQ2_XS not. Qwen3.6 Q3_K_M writes 25-28% faster than Q4_K_XL after long prompts and in edits, at 3-bit quality.
 
+## 10e. Quality of the lossy speed switches (tools/force_check.py, 2026-11-08)
+
+SpecPilot's token-forcing check (`tools/pancake/quality_ab.sh`): 20 requests over code, docs, English, multilingual and
+agent text (`bench/quality/held.jsonl`), 300 greedy tokens each from the exact Flash-Next IQ2_XS preset, then scored
+teacher-forced on each arm's own decode path; two stock arms give the run-to-run noise (the expert cache is not
+deterministic).  Mismatch = the arm's argmax differs from the forced token.
+
+| Arm | Mismatch | vs stock (90% CI) | Large-margin events | Verdict |
+| --- | ---: | ---: | ---: | --- |
+| stock (exact) a / b | 1.17% / 1.30% | - | 0 / 0 | - |
+| fast preset (Speedy's switches) | 1.20% | -0.03 pts (-0.25, +0.16) | 0 | **PASS** |
+| expert tail skip 7 | 2.07% | +0.84 pts (+0.44, +1.24) | 0 | INCONCLUSIVE |
+
+The fast preset is indistinguishable from the engine's own noise, so it becomes the default (`./run-pancake.sh exact`
+keeps the exact one). The tail skip moves more answers (no large-margin errors, but a clear rate increase): it stays an
+opt-in until a larger run decides it.
+
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
 
 **NVIDIA / RTX 3060 (sm_86):** inference-cuda-kernels (step-by-step LLM ops measured on a 3060), cuda-gemm-benchmark (FP32

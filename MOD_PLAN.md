@@ -207,6 +207,20 @@ changes which experts are used: the output stays exact.
 
 Order: 10.1, then 10.2 / 10.3 by their measured hit rates, then 10.4, 10.5.
 
+Predictors to compare (owner, 2026-11-08), all scored offline on one `--dump-routing` trace before any prefetch is built
+(`tools/pancake/predict_experts.py`, branch `exp/expert-prefetch`): recall (predicted & used / used), miss cover (the
+share of the cache's misses predicted) and waste (predicted, not held, not used), per budget of experts per layer.
+1. Historical: the previous window's experts; decayed frequency (an EMA); both topped up.
+2. Next-layer router lookahead (Strata's RouterLookahead; `STRATA_LOOKAHEAD_STATS=1` scores it in the engine).
+3. Dictionary: (layer, last 1-4 tokens incl. the draft tokens) -> expert distribution, learned online from every verify
+   window (EMA), backed off to shorter keys and then to the global frequency (a Beta prior); top-16 experts per layer per
+   key to bound memory.  Strata's suffix index is the model for the lookup.
+4. MTP-based: each main layer's router applied to the draft's hidden state.  Only if 1-3 leave enough misses uncovered:
+   the MTP block's hidden state is not each layer's input, so it is the weakest-founded and the costliest to build.
+5. Hybrid: the best of 1-4 merged by confidence.
+Prior art (reported, not yet read here): SP-MoE, MoE-SpeQ, "Speculating Experts" (2026), DoMoE, and an Oct 2026 study
+of expert bytes per speculative window.  The aim is speed on this PC, not a novelty claim.
+
 Design rules for 10.2 / 10.3 (owner's input, 2026-11-08, adjusted by measurements):
 - Memory: the prefetch window comes only from memory nobody uses now (the KV cache past the current context, idle
   compute buffers: Avalon's lending), never carved out of the expert cache (upstream's Foresight slots lost on every box).

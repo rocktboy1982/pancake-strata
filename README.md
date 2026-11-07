@@ -56,9 +56,9 @@ The model in daily use is **Qwen3.8-Flash-Next** (125B MoE, 6B active; the offic
 architecture), ISTA-DASLab's GSQ-RCO **IQ2_XS** on the RTX 3060 12 GB + 57 GB RAM, on Strata's main engine:
 
 ```sh
-./run-pancake.sh               # Flash-Next IQ2_XS, exact (no expert tail skip), English/code draft vocabulary
+./run-pancake.sh               # Flash-Next IQ2_XS, fast preset (passed the quality check), English/code draft vocabulary
 ./run-pancake.sh q2_0          # Flash-Next Q2_0: the fastest Flash-Next file here (+5-9% writing)
-./run-pancake.sh iq2_xs fast   # + Speedy's measured switches: ~13% faster writing after long prompts, numbers move slightly
+./run-pancake.sh iq2_xs exact  # the exact preset: the same answers as plain decoding (~13% slower after long prompts)
 ./run-pancake.sh qwen36        # Qwen3.6-35B-A3B UD-Q4_K_XL on strata-poly
 ./run-pancake.sh qwen36-q3     # Qwen3.6-35B-A3B UD-Q3_K_M on strata-poly: 150+ tok/s edits, 83 tok/s after 42K
 ./run-pancake.sh qwen38-35b    # Qwen3.8-35B-A3B-Distill Q4_K_M (empero; Qwen3.6 tuned on Qwen3.8 answers): ~98 / 152 / 74 tok/s
