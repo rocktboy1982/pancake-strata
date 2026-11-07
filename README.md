@@ -40,8 +40,8 @@ Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 30
 | **Qwen3.6-35B-A3B engine** | `strata` (fp32 KV cache) | adds `strata-poly` (FastStrata's engine): **x1.6 short answers, x3.8 code edits, x7.4 writing after 42K tokens** |
 | **Context on a 12 GB card (Qwen3.6)** | 64K (setup's 131K runs out of VRAM) | **131K** (Q8 KV cache that grows with the conversation) |
 | **Prompt reading (Qwen3.6)** | - | **9-13% faster, exact**: DeltaNet recurrence 4 columns a warp (x1.4), register-tiled router GEMM (x2.0-2.3), attention softmax read once |
-| **Output head (Flash-Next IQ2_XS)** | `native_mmvq` | **IQ4_XS head kernel, exact** (one warp a row, activations in shared memory, after basalt): x1.07-1.27 at 1-2 and 5-8 columns; basalt's Q5_K head kernel for the Q2_0 / IQ3_XXS files |
-| **MTP draft head pick** | GEMV + argmax + probability | **basalt's 2-bit two-stage pick**, ported to IQ4_XS too: every row scored from a 2-bit copy, the near-best rescored exactly; same tokens, same drafts accepted, +3-5% decode (noisy run) |
+| **Output head** | `native_mmvq` | **a specialized exact kernel per head format** of the Flash-Next files - IQ4_XS (IQ2_XS), Q5_K (Q2_0, IQ3_XXS; basalt's), Q6_K (IQ3_S, Coder), Q4_K (UD-IQ1_M): one warp a row, activations in shared memory, x1.02-1.27 at 1-2 and 5-8 columns |
+| **MTP draft head pick** | GEMV + argmax + probability | **basalt's 2-bit two-stage pick, per head format** (IQ4_XS, Q5_K, Q6_K, Q4_K): x1.6-2.3 against the GEMV alone, the exact argmax 200/200 in tests; end to end the same tokens and drafts accepted, +3-5% decode (noisy run) |
 | **Default quality** | expert tail skip on (`STRATA_ROUTE_TAIL_SKIP=7`, answers change) | **exact by default**; the tail skip and other lossy switches are opt-in |
 | **Ready presets** | setup's config | `./run-pancake.sh` (exact) and `./run-pancake.sh fast` (Speedy's switches: +13% writing after 42K) |
 | **MTP draft vocabulary** | 106K tokens with CJK | **English/code subset by default** (+5% decode, ~215 MiB more VRAM for experts); Strata-rdna3's 59.6K list included |

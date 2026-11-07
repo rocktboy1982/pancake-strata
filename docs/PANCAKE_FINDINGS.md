@@ -232,6 +232,32 @@ same designs for IQ4_XS (`iq4xs_head.cu`):
   pick. Greedy tokens identical off / on in both rounds; drafts accepted the same (short 172 of 231-242, edit
   456-463 of 466-483); decode short 52.3 -> 54.0 tok/s (+3%), edit 72.8 -> 76.8 (+5%), mean of 2, noisy (load ~5).
 
+## 10c. Specialized head kernels for every head format the runnable models use (2026-11-08)
+
+The heads, read from each file's GGUF header on Hugging Face (every Qwen3.8-Flash-Next file: 2560 x 248,320):
+
+| Head format | Files | In 57 GB RAM | Kernels |
+| --- | --- | --- | --- |
+| IQ4_XS | ISTA / Swift IQ2_XS (daily) | yes | `head_fmt.cu` |
+| Q5_K | ISTA / Swift Q2_0, IQ3_XXS | yes | basalt's `q5k_head.cu` |
+| Q6_K | ISTA / Swift IQ3_S, Coder IQ1_M, Unsloth UD-IQ4_XS | IQ3_S, Coder | `head_fmt.cu` |
+| Q4_K | Unsloth UD-IQ1_M | likely | `head_fmt.cu` |
+| Q8_0 | Unsloth UD-Q4_K_XL ... Q8_0 | no (72-136 GB) | - |
+
+`head_fmt.cu`: a traits struct per format (native_mmvq.cu's arithmetic, unchanged) and kernels instantiated per format
+at compile time - no run-time generic path (owner: "no general port needed"). `head_fmt_test`, 2560 x 248,320:
+
+| Format | GEMV, bitwise native_mmvq and native_mmvq_il, 1-8 columns | Draft pick, 40,525 rows: = exact argmax / time vs the GEMV alone |
+| --- | --- | --- |
+| IQ4_XS | x1.07 / x1.27 at 1 / 2 columns, x1.24-1.02 at 5-8 | 200/200, 0.113 vs 0.179 ms (x1.59) |
+| Q6_K | x1.03 / x1.18, x1.17-1.09 | 200/200, 0.114 vs 0.263 ms (x2.31) |
+| Q4_K | x1.02 ..., x1.19-1.07 | 200/200, 0.114 vs 0.182 ms (x1.60) |
+
+At 3-4 columns `native_mmvq_il` is faster and stays. The picks are tested on peaked heads (an activation = a row plus
+noise), as a draft head is; on a flat random head no 2-bit copy can tell the rows apart (basalt's own pick then agrees
+with the exact argmax about half the time, like this one). End to end on IQ2_XS: both kernels engaged, greedy tokens
+identical on / off.
+
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
 
 **NVIDIA / RTX 3060 (sm_86):** inference-cuda-kernels (step-by-step LLM ops measured on a 3060), cuda-gemm-benchmark (FP32

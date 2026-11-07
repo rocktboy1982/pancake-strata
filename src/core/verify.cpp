@@ -48,7 +48,7 @@
 #include "strata/kernels/kv_q8.hpp"
 #include "strata/kernels/native_mmvq.hpp"
 #include "strata/kernels/q5k_head.hpp"
-#include "strata/kernels/iq4xs_head.hpp"
+#include "strata/kernels/head_fmt.hpp"
 #include "strata/core/dispatch_stats.hpp"
 #include "strata/kernels/native_gr_postops.hpp"
 #include "strata/kernels/native_ple_postops.hpp"
@@ -2762,12 +2762,17 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 const bool il_ok = g_mmvq_il() && strata::kernels::native_mmvq_il_supported(head_->type(), (int) HT, (int) n_vocab_);
                 if (q5k_head_on && head_->type() == 13 && strata::kernels::q5k_head_supported((int) N, (int) HT)) {
                     strata::kernels::q5k_head_mmvq(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs);
-                } else if (q5k_head_on && head_->type() == 23 && !(il_ok && (HT == 3 || HT == 4)) &&
-                           strata::kernels::iq4xs_head_mmvq(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs)) {
+                } else if (q5k_head_on && (head_->type() == 23 || head_->type() == 14 || head_->type() == 12) &&
+                           !(il_ok && (HT == 3 || HT == 4)) &&
+                           (head_->type() == 23
+                                ? strata::kernels::iq4xs_head_mmvq(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs)
+                            : head_->type() == 14
+                                ? strata::kernels::q6k_head_mmvq(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs)
+                                : strata::kernels::q4k_head_mmvq(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs))) {
                     static bool said = false;
                     if (!said) {
                         said = true;
-                        std::fprintf(stderr, "strata verify: the IQ4_XS head on iq4xs_head_mmvq (bitwise native_mmvq; "
+                        std::fprintf(stderr, "strata verify: the head on its format's kernel (head_fmt, bitwise native_mmvq; "
                                              "STRATA_Q5K_HEAD=0 turns it off)\n");
                     }
                 } else

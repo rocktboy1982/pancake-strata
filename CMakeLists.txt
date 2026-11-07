@@ -567,11 +567,11 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_executable(q5k_head_test src/kernels/cuda/q5k_head_test.cu)
     target_include_directories(q5k_head_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_link_libraries(q5k_head_test PRIVATE strata_kernels)
-    # pancake-strata: the IQ4_XS head (Flash-Next IQ2_XS's output head and its draft head), basalt's design
-    target_sources(strata_kernels PRIVATE src/kernels/cuda/iq4xs_head.cu)
-    add_executable(iq4xs_head_test src/kernels/cuda/iq4xs_head_test.cu)
-    target_include_directories(iq4xs_head_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-    target_link_libraries(iq4xs_head_test PRIVATE strata_kernels)
+    # pancake-strata: specialized head kernels per head format of the Flash-Next files (IQ4_XS, Q6_K), basalt's design
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/head_fmt.cu)
+    add_executable(head_fmt_test src/kernels/cuda/head_fmt_test.cu)
+    target_include_directories(head_fmt_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(head_fmt_test PRIVATE strata_kernels)
   endif()
   # Exact gfx1100 prompt scorer (PR1825 method port): optional standalone test,
   # also available where the published source omits tests/.
