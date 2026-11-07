@@ -190,6 +190,23 @@ Disk (2026-11-07): Flash-Next IQ2_XS (shard 1 37 GB + n-gram table 27 GB + MTP 6
 `/home/dan/clone-of-d/Strata-data`; `~/Strata-data` on the root disk was a duplicate and is gone; the unused Qwen3.6
 UD-IQ3_S file was deleted. DeepSeek V4.1 (239-274 GB) still does not fit.
 
+### 10. CPU, RAM, PCIe and GPU in sync (owner, 2026-11-08)
+
+Decode on the 3060 is a relay: per layer the router picks experts, the GPU runs the cached ones, the CPU reads the
+missing ones from RAM (33 GB/s), the GPU waits, then the next layer starts; PCIe is mostly idle inside a step.  Everything
+slow starts after the router decides.  Make the parts overlap by knowing earlier which experts come next.  None of these
+changes which experts are used: the output stays exact.
+
+| # | Item | Source | Measure first |
+| --- | --- | --- | --- |
+| 10.1 | Instrument a decode step: GPU idle waiting for the CPU, CPU expert time, PCIe busy, per layer | own (existing STRATA_* timers) | the ceiling on this PC |
+| 10.2 | Router lookahead: predict layer L+1's experts from layer L's output; start the CPU's RAM reads and the PCIe copies early | colibri PILOT (idea) | prediction hit rate |
+| 10.3 | Draft-informed prefetch: the MTP draft tokens' routing predicts the verify window's experts; copy them into VRAM during drafting | new | prediction hit rate |
+| 10.4 | Finish together: when the CPU's share would end later than the GPU's, move one or two missing experts to the GPU | Avalon "hosted MoE" | per-layer finish times |
+| 10.5 | Avalon's VRAM lending: unused KV-cache tail and idle compute buffers lent to the expert cache | Avalon | experts in VRAM |
+
+Order: 10.1, then 10.2 / 10.3 by their measured hit rates, then 10.4, 10.5.
+
 ## Risks
 
 - Code drift: FastStrata's options live in `src/poly`, not in `src/qwen35`; porting may mean rewriting, not copying.
