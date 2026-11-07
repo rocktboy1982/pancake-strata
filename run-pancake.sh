@@ -6,6 +6,8 @@
 #   q2_0        Qwen3.8-Flash-Next, ISTA-DASLab Q2_0   - main engine (Strata's fastest file; basalt's Q5_K head kernels)
 #   qwen36      Qwen3.6-35B-A3B, Unsloth UD-Q4_K_XL    - strata-poly (FastStrata's engine)
 #   qwen36-q3   Qwen3.6-35B-A3B, Unsloth UD-Q3_K_M     - strata-poly, smaller and faster
+#   qwen38-35b  Qwen3.8-35B-A3B-Distill Q4_K_M (empero: Qwen3.6 fine-tuned on Qwen3.8 answers) - strata-poly, the
+#               MTP drafting layer borrowed from the Qwen3.6 Q4_K_XL file
 # fast (Flash-Next only): + Speedy's switches, ~13% faster writing after long prompts; the numbers move slightly.
 # Without it every preset is exact: the same answers as plain decoding (docs/PANCAKE_FINDINGS.md).
 # STRATA_DATA (default /home/dan/clone-of-d/Strata-data) and MODELS (default /home/dan/clone-of-d/models) hold the
@@ -19,8 +21,8 @@ FAST=
 for a in "$@"; do
   case "$a" in
     fast) FAST=-fast ;;
-    iq2_xs|q2_0|qwen36|qwen36-q3) MODEL=$a ;;
-    *) echo "usage: $0 [iq2_xs|q2_0|qwen36|qwen36-q3] [fast]" >&2; exit 2 ;;
+    iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b) MODEL=$a ;;
+    *) echo "usage: $0 [iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b] [fast]" >&2; exit 2 ;;
   esac
 done
 case "$MODEL" in
@@ -28,6 +30,7 @@ case "$MODEL" in
   q2_0) PRESET=flashnext-q2_0$FAST ;;
   qwen36) PRESET=qwen36-ud-q4_k_xl ;;
   qwen36-q3) PRESET=qwen36-ud-q3_k_m ;;
+  qwen38-35b) PRESET=qwen38-35b-distill-q4_k_m ;;
 esac
 [ -f "configs/pancake/$PRESET.json" ] || { echo "no preset configs/pancake/$PRESET.json" >&2; exit 1; }
 CFG="$REPO/pancake-$PRESET.json"

@@ -61,6 +61,7 @@ architecture), ISTA-DASLab's GSQ-RCO **IQ2_XS** on the RTX 3060 12 GB + 57 GB RA
 ./run-pancake.sh iq2_xs fast   # + Speedy's measured switches: ~13% faster writing after long prompts, numbers move slightly
 ./run-pancake.sh qwen36        # Qwen3.6-35B-A3B UD-Q4_K_XL on strata-poly
 ./run-pancake.sh qwen36-q3     # Qwen3.6-35B-A3B UD-Q3_K_M on strata-poly: 150+ tok/s edits, 83 tok/s after 42K
+./run-pancake.sh qwen38-35b    # Qwen3.8-35B-A3B-Distill Q4_K_M (empero; Qwen3.6 tuned on Qwen3.8 answers): ~98 / 152 / 74 tok/s
 ```
 
 OpenAI API on `http://127.0.0.1:8080/v1` (Anthropic: `/v1/messages`). Measured (cold runs, 2 rounds): short answers

@@ -1,0 +1,34 @@
+{
+ "exe": "<REPO>/build-cuda/strata-poly",
+ "args": [
+  "--model",
+  "<MODELS>/qwen38-35b-distill-Q4_K_M/Qwen3.8-35B-A3B-Q4_K_M.gguf",
+  "--draft-model",
+  "<MODELS>/qwen36-UD-Q4_K_XL/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf",
+  "--max-context",
+  "131072",
+  "--threads",
+  "8",
+  "--kv-q8",
+  "--attn-split",
+  "--elastic-prefill",
+  "1024",
+  "--lend-staging",
+  "--stage-next",
+  "--suffix-drafts",
+  "256",
+  "--graph-experts",
+  "--cpu-multi"
+ ],
+ "cwd": "<REPO>",
+ "tokenizer": "<STRATA_DATA>/packs/qwen36-ud-q4_k_xl/tokenizer",
+ "model_name": "qwen3.8-35b-a3b-distill-q4_k_m",
+ "arch": "qwen35moe",
+ "log": "<REPO>/pancake-qwen36.log",
+ "lib_dirs": [
+  "/usr/local/cuda/bin",
+  "/usr/local/cuda/lib64"
+ ],
+ "gpu": 0,
+ "gpus_asked": true
+}

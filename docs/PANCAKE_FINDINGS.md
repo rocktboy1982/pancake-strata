@@ -274,6 +274,14 @@ Presets (`./run-pancake.sh iq2_xs|q2_0|qwen36|qwen36-q3 [fast]`), single cold ru
 | Flash-Next Q2_0 | 56.8 | 73.3 | 45.4 | 36.8 s |
 | Flash-Next IQ2_XS | 52.0 | 75.1 | 42.6 | 39.2 s |
 
+| Qwen3.8-35B-A3B-Distill Q4_K_M (poly, `--draft-model` = Qwen3.6 Q4_K_XL) | 97.9 | 151.6 | 74.3 | 32.3 s |
+
+The **Qwen3.8-35B-A3B-Distill** (empero-ai, Apache-2.0) is Qwen3.6-35B-A3B fine-tuned on Qwen3.8 2.4T / Flash-Next
+answers (not an official Qwen model); its GGUFs (Q4_K_M 21.7 GB, SHA-256 checked) carry no MTP layer, so strata-poly
+borrows Qwen3.6's (`--draft-model`; the text stays exact, drafts hold less often). Trained on 8K-token examples: its
+card warns of weaker long context. To make room the Avalon Flash-Next model (90 GB, the 7900 XT engine's) was deleted
+(owner's choice); `avalon.service` needs it downloaded again to run.
+
 Q2_0 is the faster Flash-Next here (writing +5-9%, long reads -6%); a 5070 Ti user reported Q2_0 looping about once a
 day, IQ2_XS not. Qwen3.6 Q3_K_M writes 25-28% faster than Q4_K_XL after long prompts and in edits, at 3-bit quality.
 
