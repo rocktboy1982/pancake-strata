@@ -129,10 +129,25 @@ cores with FP32 sums (prompt and decode), which pancake-strata already does and 
 (3) it makes moving more of the prompt path onto FP16 tensor cores worth more than before (attention first). It does
 not change decode speed much: decode is bound by the CPU experts and memory.
 
-## 7. Next
+## 7. llamAmpere (JakeATX/llamAmpere v0.6.2, MIT): what fits a MoE engine
 
+A llama.cpp fork tuned for RTX 30 cards, mostly for the dense Qwen 27B (the r/LocalLLaMA 2.3 bpw post). Read at v0.6.2:
+
+| Technique | What it is | For pancake-strata |
+| --- | --- | --- |
+| Adaptive MTP depth (`draft-mtp-adaptive`, 3-4) | The MTP drafter's depth chosen per round instead of fixed | **Candidate, exact.** strata-poly's block always guesses 3; Strata's DraftPolicy already prices windows by measured cost |
+| mb-MTP | Keeps a guessed token when the model rates it at least as likely as its own pick | **Lossy opt-in candidate** (as basalt's relaxed drafting); exact drafting stays the default |
+| SJ-KVaRN KV cache | fp16 "sink" (first 128 tokens) + fp16 recent tail (4-8K) + a 3-4 bit body | **Candidate:** halves the Q8 cache's VRAM again; on a MoE the room goes to experts (131K context: ~0.9 GB, ~500 more experts on the card). Changes attention numerics: opt-in, KL measured |
+| `--kv-gpu-tokens` | Only the recently used part of the context in VRAM | Idea for very long contexts on 12 GB |
+| `--moe-skip` | Skips low router weight experts within a 15% budget, first 5 routes protected | Lossy, the same family as FastStrata's `--tail-skip`: opt-in only |
+| AI+ / AmperInteger+ trellis weight formats, 2.3 bpw 27B | Weight formats and fine-tuned quants for the dense 27B | Not for this engine (dense model, own file format) |
+
+## 8. Next
+
+0. Adaptive MTP depth (llamAmpere) and SJ-KVaRN-style KV body (opt-in), measured.
 1. A fused flash-attention prompt kernel for D=256 / GQA 8 that reads the Q8 cache and masks causally inline
    (target: the 38% at 42K).
 2. Cache-aware routing (colibri's `CACHE_ROUTE`) as a lossy opt-in, with agreement/KL against the true router.
 3. The MMQ expert products (~30% of a read).
 4. basalt's drafting items and grammar inside speculative decoding (MOD_PLAN.md phases 3 and 6).
+5. basalt's two-stage output head, ported for Qwen3.6's 2048-wide Q8_0 head (asked for by the owner; expected ~1-2%).

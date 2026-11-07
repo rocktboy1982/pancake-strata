@@ -102,6 +102,8 @@ This stack exists because these people shared their work openly. Thank you!
 | **[basalt](https://github.com/jesdga95/basalt)** | Jesús Gulfo | MIT | Studied: two-stage head, grammar, drafting ideas (planned) |
 | **[colibri](https://github.com/JustVugg/colibri)** | JustVugg and contributors | Apache-2.0 | Studied: cache-aware routing, multitier memory ideas |
 | **[Aviary](https://github.com/SensAI-PT/aviary-hy3)** | SensAI-PT | Apache-2.0 | Studied: distributed expert placement |
+| **[llamAmpere](https://github.com/JakeATX/llamAmpere)** | JakeATX | MIT | Studied: adaptive MTP depth, SJ-KVaRN KV cache, mb-MTP (candidates) |
+| **[gpu-unlock](https://github.com/Zagitta/gpu-unlock)** | Zagitta | GPL-2.0 | Recommended (not bundled): full-rate FP16 tensor cores on GeForce, which speeds up attention |
 | **[SGLang](https://github.com/sgl-project/sglang)** | the SGLang team | Apache-2.0 | Ideas: tree drafting, speculative sampling, GPU token masks (planned) |
 | **[Unsloth](https://huggingface.co/unsloth)** | Unsloth AI | - | The Qwen3.6 GGUFs with the MTP layer used for every measurement |
 | **[Qwen](https://huggingface.co/Qwen)** | the Qwen team, Alibaba | Apache-2.0 | Qwen3.6-35B-A3B |
