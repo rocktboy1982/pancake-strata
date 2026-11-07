@@ -60,6 +60,9 @@ void native_q2_0_mmvq(const void* weights, const void* x_q8_1, float* y,
 void native_q2_0_f32(const void* weights, const float* x, void* scratch_q8_1,
                      float* y, int n_in, int n_out, int ncols, void* stream);
 
+void native_q2_k_mmvq(const void* weights, const void* x_q8_1, float* y,
+                      int n_in, int n_out, int ncols, void* stream);
+
 void native_q3_k_mmvq(const void* weights, const void* x_q8_1, float* y,
                       int n_in, int n_out, int ncols, void* stream);
 
@@ -138,8 +141,37 @@ void native_iq4_nl_mmvq(const void* weights, const void* x_q8_1, float* y,
 void native_iq4_nl_f32(const void* weights, const float* x, void* scratch_q8_1,
                       float* y, int n_in, int n_out, int ncols, void* stream);
 
+// Up to 8 matrices of one format and shape in one launch: matrix i times its own Q8_1 column x[i] into y[i], as
+// native_mmvq(type, w[i], x[i], y[i], n_in, n_out, 1, stream) would each.  A launch costs the calling thread more
+// than a small product costs the card, which is what this saves.  False, with nothing launched: there is no
+// kernel for it (a format native_mmvq() does not take, or a HIP build), and the caller launches them one by one.
+struct MmvqSlots {
+    const void* w[8];
+    const void* x[8];
+    float* y[8];
+};
+bool native_mmvq_slots(int ggml_type, const MmvqSlots& slots, int count, int n_in, int n_out, void* stream);
+
+// native_mmvq_slots() with the list in device memory, read when the launch runs: a launch recorded once in a CUDA
+// graph serves whatever the list holds then.  Entry j < *count (at most `most`) is the matrix w[j] + w_offset bytes
+// times the Q8_1 column x + c * x_stride bytes, c = x_row[j] (x_row null: j), into y + j * y_stride floats; each
+// entry gives the bits native_mmvq_slots() gives it.  False, with nothing launched, for a format native_mmvq_slots() hands to
+// another kernel (the IQ formats) and on HIP: native_mmvq_list_supported() says which.
+struct MmvqList {
+    const int* count;
+    const void* const* w;
+    std::size_t w_offset;
+    const int* x_row;
+    const void* x;
+    std::size_t x_stride;
+    float* y;
+    std::size_t y_stride;
+};
+bool native_mmvq_list_supported(int ggml_type) noexcept;
+bool native_mmvq_list(int ggml_type, const MmvqList& list, int most, int n_in, int n_out, void* stream);
+
 // Storage/dispatch helpers take stable GGML type IDs, avoiding a ggml runtime
-// dependency in the engine: Q4_0=2, Q5_0=6, Q8_0=8, Q3_K=11, Q4_K=12, Q5_K=13,
+// dependency in the engine: Q4_0=2, Q5_0=6, Q8_0=8, Q2_K=10, Q3_K=11, Q4_K=12, Q5_K=13,
 // Q6_K=14, IQ4_NL=20, IQ4_XS=23, Q2_0=42. Unsupported IDs throw in the byte-count
 // and launch helpers; only the
 // capability query returns false.

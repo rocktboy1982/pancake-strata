@@ -3008,6 +3008,152 @@ if(STRATA_BUILD_TESTS)
   endif()
 endif()
 
+# (copied from FastStrata df91582 CMakeLists.txt; pancake-strata port)
+# ---- strata-poly: GLM 5.3 Flash (llama.cpp's glm5-next), read from its GGUF ----
+#
+# A second engine beside `strata`.  It shares the quantized matvec kernels and the GGUF reader, and takes the
+# CPU experts' dot products from ggml-cpu.  On HIP it is the same CUDA-shaped code through the hip_compat headers
+# (the wave32 RDNA backend; gfx906's wave64 compat layer is not supported here).
+if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT STRATA_HIP_GFX906)
+  # The prompt path's quantized products: llama.cpp's MMQ kernels (ggml-cuda, MIT) for the types the model's
+  # GGUFs keep their matrices in (the list in src/poly/mmq.cu), from the checkout strata_mmq is compiled from and
+  # with the same host symbols.  A library of its own, so that what `strata` multiplies with MMQ stays as it is.
+  if(NOT _strata_mmq)   # a HIP build without STRATA_PREFILL_MMQ has not set these up yet
+    if(STRATA_GGML_DIR)
+      set(_strata_gg ${STRATA_GGML_DIR}/ggml)
+    else()
+      set(_strata_gg ${strata_llamacpp_SOURCE_DIR}/ggml)
+    endif()
+    set(_strata_mmq ${_strata_gg}/src/ggml-cuda)
+  endif()
+  set(_strata_poly_mmq_instances "")
+  foreach(_t q4_0 q4_1 q5_0 q5_1 q8_0 q2_k q3_k q4_k q5_k q6_k iq1_s iq2_xxs iq2_xs iq2_s iq3_xxs iq3_s iq4_nl
+             iq4_xs)
+    list(APPEND _strata_poly_mmq_instances ${_strata_mmq}/template-instances/mmq-instance-${_t}.cu)
+  endforeach()
+  if(STRATA_ENABLE_HIP)
+    # CMake does not infer HIP from the .cu suffixes outside src/ (and drops a .cu source it has no language
+    # for), and ggml's MMQ sources take its native HIP path (vendors/hip.h) instead of the hip_compat headers,
+    # as strata_mmq's does.
+    set_source_files_properties(${_strata_mmq}/quantize.cu ${_strata_poly_mmq_instances} PROPERTIES LANGUAGE HIP)
+  endif()
+  add_library(strata_poly_mmq STATIC src/poly/mmq.cu src/prefill/ggml_cuda_host.cu ${_strata_mmq}/quantize.cu
+              ${_strata_poly_mmq_instances})
+  target_include_directories(strata_poly_mmq PRIVATE ${_strata_gg}/include ${_strata_gg}/src ${_strata_mmq}
+                                                    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_compile_options(strata_poly_mmq PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda -use_fast_math>)
+  if(MSVC)
+    target_compile_options(strata_poly_mmq PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/bigobj>)
+  endif()
+  if(STRATA_ENABLE_HIP)
+    target_compile_definitions(strata_poly_mmq PRIVATE GGML_USE_HIP=1)
+    target_link_libraries(strata_poly_mmq PUBLIC ggml-base hip::host)
+  else()
+    target_link_libraries(strata_poly_mmq PUBLIC ggml-base ${_strata_gpu_runtime_target})
+  endif()
+
+  # the CPU experts' multi-token K-quant rows (--cpu-multi): AVX2, FMA and F16C in this file alone, used behind a
+  # CPUID check; ggml-common.h from the ggml the engine links
+  if(MSVC)
+    set_source_files_properties(src/poly/cpu_kernels_avx2.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX2"
+                                INCLUDE_DIRECTORIES "${_strata_gg}/src")
+  else()
+    set_source_files_properties(src/poly/cpu_kernels_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma;-mf16c"
+                                INCLUDE_DIRECTORIES "${_strata_gg}/src")
+  endif()
+  add_executable(strata-poly src/poly/main.cpp src/poly/engine.cpp src/poly/glm5next.cpp src/poly/qwen35.cpp
+                            src/poly/gemma4.cpp src/poly/deepseek4.cpp src/poly/cpu_experts.cpp
+                            src/poly/cpu_kernels_avx2.cpp src/poly/kernels.cu
+                            src/poly/kernels_dsv4.cu src/core/conversation_memory.cpp
+                            src/poly/conversation_disk.cpp src/core/conversation_file.cpp)
+  target_include_directories(strata-poly PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${_strata_gpu_include_directories})
+  # the driver's virtual memory calls: the attention caches grow with the conversation; on HIP they are HIP's
+  # memory management calls, which the HIP runtime itself provides (hip_compat/cuda.h)
+  if(STRATA_ENABLE_HIP)
+    set(_strata_poly_driver "")
+  else()
+    set(_strata_poly_driver CUDA::cuda_driver)
+  endif()
+  target_link_libraries(strata-poly PRIVATE strata_poly_mmq strata_kernels strata_spec ggml-cpu ggml-base
+                                           ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target}
+                                           ${_strata_poly_driver}
+                                           Threads::Threads)
+  # needs the model file, so it is run by hand: poly_expert_parity MODEL.gguf
+  add_executable(poly_expert_parity src/poly/expert_parity.cpp src/poly/cpu_experts.cpp src/poly/cpu_kernels_avx2.cpp
+                                    src/poly/kernels.cu)
+  target_include_directories(poly_expert_parity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                       ${_strata_gpu_include_directories})
+  target_link_libraries(poly_expert_parity PRIVATE strata_poly_mmq strata_kernels ggml-cpu ggml-base
+                                                  ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target}
+                                                  Threads::Threads)
+  # the CPU's experts' GB/s against a plain read of the RAM, no card; needs the model file, so it is run by hand:
+  # poly_cpu_experts_bench MODEL.gguf [--threads N] [--profile FILE]
+  add_executable(poly_cpu_experts_bench src/poly/cpu_experts_bench.cpp src/poly/cpu_experts.cpp
+                                        src/poly/cpu_kernels_avx2.cpp)
+  target_include_directories(poly_cpu_experts_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${_strata_gg}/include)
+  target_link_libraries(poly_cpu_experts_bench PRIVATE ggml-cpu ggml-base Threads::Threads)
+  if(MSVC)
+    set_source_files_properties(src/poly/cpu_experts_bench.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+  else()
+    set_source_files_properties(src/poly/cpu_experts_bench.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma;-mf16c")
+  endif()
+  # a read with the draft block repeats bit for bit; needs the model file, so it is run by hand:
+  # poly_draft_race_test MODEL.gguf [RUNS] [LAYER_SPLIT]
+  add_executable(poly_draft_race_test src/poly/draft_race_test.cpp src/poly/engine.cpp src/poly/glm5next.cpp
+                                      src/poly/qwen35.cpp src/poly/gemma4.cpp src/poly/deepseek4.cpp
+                                      src/poly/cpu_experts.cpp src/poly/cpu_kernels_avx2.cpp src/poly/kernels.cu
+                                      src/poly/kernels_dsv4.cu
+                                      src/core/conversation_memory.cpp)
+  target_include_directories(poly_draft_race_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                         ${_strata_gpu_include_directories})
+  target_link_libraries(poly_draft_race_test PRIVATE strata_poly_mmq strata_kernels strata_spec ggml-cpu ggml-base
+                                                    ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target}
+                                                    ${_strata_poly_driver} Threads::Threads)
+  # a prompt batch's routing on the card against the hosts' routing; needs a card, so it is run by hand
+  add_executable(poly_route_test src/poly/route_test.cu src/poly/kernels.cu)
+  target_include_directories(poly_route_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                    ${_strata_gpu_include_directories})
+  target_link_libraries(poly_route_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
+  # attend() with --attn-split against the other kernels and the host; needs a card, so it is run by hand
+  add_executable(poly_attend_split_test src/poly/attend_split_test.cu src/poly/kernels.cu)
+  target_include_directories(poly_attend_split_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                           ${_strata_gpu_include_directories})
+  target_link_libraries(poly_attend_split_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
+  # the --kv-q4 caches: store_q4() against ggml's Q4_0, attend_q4() and attend_batch_q4() against the host; needs a
+  # card, so it is run by hand
+  add_executable(poly_kv_q4_test src/poly/kv_q4_test.cu src/poly/kernels.cu)
+  target_include_directories(poly_kv_q4_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                    ${_strata_gpu_include_directories})
+  target_link_libraries(poly_kv_q4_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
+  # native_mmvq_list() (--graph-experts) against native_mmvq_slots(): the same bits, and the time of each; needs a
+  # card, so it is run by hand
+  add_executable(poly_expert_list_test src/poly/expert_list_test.cu)
+  target_include_directories(poly_expert_list_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                          ${_strata_gpu_include_directories})
+  target_link_libraries(poly_expert_list_test PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+  # DeepSeek V4's kernels against the same arithmetic on the host; needs a card, so it is run by hand
+  add_executable(poly_dsv4_test src/poly/dsv4_test.cu src/poly/kernels_dsv4.cu)
+  target_include_directories(poly_dsv4_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                   ${_strata_gpu_include_directories})
+  target_link_libraries(poly_dsv4_test PRIVATE ${_strata_gpu_runtime_target})
+  # the pool of the CPU experts, without a model
+  add_executable(poly_workers_test src/poly/workers_test.cpp src/poly/cpu_experts.cpp src/poly/cpu_kernels_avx2.cpp)
+  target_include_directories(poly_workers_test PRIVATE ${_strata_gg}/include)
+  target_link_libraries(poly_workers_test PRIVATE ggml-cpu ggml-base Threads::Threads)
+  add_test(NAME poly_workers_test COMMAND poly_workers_test)
+  # --cpu-multi's rows and cpu_experts() with them against ggml-cpu's bits on random blocks, without a model
+  add_executable(poly_cpu_kernels_test src/poly/cpu_kernels_test.cpp src/poly/cpu_experts.cpp
+                                       src/poly/cpu_kernels_avx2.cpp)
+  target_include_directories(poly_cpu_kernels_test PRIVATE ${_strata_gg}/include)
+  target_link_libraries(poly_cpu_kernels_test PRIVATE ggml-cpu ggml-base Threads::Threads)
+  add_test(NAME poly_cpu_kernels_test COMMAND poly_cpu_kernels_test)
+  # MXFP4 experts converted to Q5_0 at load, against ggml-cpu's arithmetic on random blocks, without a model
+  add_executable(poly_mxfp4_test src/poly/mxfp4_test.cpp src/poly/cpu_experts.cpp src/poly/cpu_kernels_avx2.cpp)
+  target_include_directories(poly_mxfp4_test PRIVATE ${_strata_gg}/include)
+  target_link_libraries(poly_mxfp4_test PRIVATE ggml-cpu ggml-base Threads::Threads)
+  add_test(NAME poly_mxfp4_test COMMAND poly_mxfp4_test)
+endif()
+
 # ---- HIP gfx906: every CUDA source of the tree (and the ggml-cuda MMQ sources) is compiled as HIP ----
 if(STRATA_HIP_GFX906)
   file(GLOB_RECURSE _strata_cu CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu ${CMAKE_CURRENT_SOURCE_DIR}/bench/micro/*.cu

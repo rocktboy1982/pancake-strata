@@ -135,6 +135,11 @@ double DraftPolicy::mtp_tokens(int t) const {
 }
 
 DraftPolicy::Pick DraftPolicy::choose(int t_mtp, int lookup_k, int match) const {
+    return choose(t_mtp, lookup_k, match, nullptr);
+}
+
+// FastStrata df91582: a lookup that says how sure it is (its suffix index's share of continuations); sure null = choose()
+DraftPolicy::Pick DraftPolicy::choose(int t_mtp, int lookup_k, int match, const double* sure) const {
     Pick p;
     p.t = std::clamp(t_mtp, 1, max_t_);
     if (lookup_k <= 0) return p;
@@ -144,22 +149,23 @@ DraftPolicy::Pick DraftPolicy::choose(int t_mtp, int lookup_k, int match) const 
     int best_t = 0;
     for (int k = 1; k <= std::min(lookup_k, max_t_ - 1); ++k) {
         qi *= q;
-        e += qi;
+        e += sure ? qi * sure[k - 1] : qi;
         if (!allowed(k + 1)) continue;
         const double r = e / cost_ms(k + 1);
         if (r > best) { best = r; best_t = k + 1; }
     }
     const int t_full = fit(std::min(lookup_k, max_t_ - 1) + 1);
+    const double q_full = sure && t_full > 1 ? q * sure[t_full - 2] : q;   // the whole lookup's last token, as sure as it is
     if (best_t > 0 && best > base * (1.0 + margin_)) {
         p.lookup = true;
         p.t = best_t;
         // a wider size whose cost has gone stale is re-measured, so one slow stretch cannot price it out for good
-        if (best_t < t_full && q >= 0.85 && stale(t_full)) p.t = t_full;
+        if (best_t < t_full && q_full >= 0.85 && stale(t_full)) p.t = t_full;
         return p;
     }
     // a guessed cost can keep the policy from ever measuring a size: the first few times a confident lookup would
     // need a size not measured yet, it is tried (verification keeps the output; only the one round's speed is at stake)
-    if (t_full > p.t && t_full > 1 && (cost_n_[bk_][t_full] - delayed_n_[bk_][t_full] + tried_[bk_][t_full] < kProbes || stale(t_full)) && q >= 0.85) {
+    if (t_full > p.t && t_full > 1 && (cost_n_[bk_][t_full] - delayed_n_[bk_][t_full] + tried_[bk_][t_full] < kProbes || stale(t_full)) && q_full >= 0.85) {
         p.lookup = true;
         p.t = t_full;
     }

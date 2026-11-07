@@ -40,6 +40,10 @@ public:
     };
     /// `t_mtp`: the MTP's window; `lookup_k`: the lookup proposal's length (0 = none); `match`: its match length.
     Pick choose(int t_mtp, int lookup_k, int match) const;
+    /// As choose(), for a lookup that says how sure it is: sure[i] is the chance its first i + 1 tokens are right as
+    /// its source counts it (SuffixDecoding's score).  Each q^i is taken times sure[i - 1].  With sure null, or all 1,
+    /// the pick is choose()'s.  (FastStrata df91582)
+    Pick choose(int t_mtp, int lookup_k, int match, const double* sure) const;
     /// After the round: the window it used, the drafts accepted, and the round's time (verify + commit + draft).
     void observe(bool lookup, int t, int accepted, int match, double round_ms);
     /// Gated proposals, inside one generation: a round's committed outcome only, never its time. `t` is the
