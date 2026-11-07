@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -129,6 +130,54 @@ __global__ void gemm_small_kernel(const float* __restrict__ w, const float* __re
     const int t = t0 + tt, o = o0 + oo;
     if (t < rows && o < n_out) y[size_t(t) * n_out + o] = acc;
 }
+
+// pancake-strata: gemm_small_kernel with a thread computing TILE_T tokens x TILE_O outputs from registers.  Each output
+// keeps gemm_small_kernel's one accumulator and its fmaf over k = 0, 1, ... with the same SMALL_K-wide zero padding,
+// so it is the same bits; a value read from shared memory now feeds four products instead of one.  On an RTX 3060
+// gemm_small_kernel ran a prompt's router (2,048 -> 256) at under 1 TFLOP/s, limited by its shared-memory reads.
+constexpr int TILE_T = 4, TILE_O = 4, TILED_TOK = 16 * TILE_T, TILED_OUT = 16 * TILE_O;   // 16 x 16 threads
+
+__global__ void __launch_bounds__(256) gemm_small_tiled_kernel(const float* __restrict__ w,
+                                                               const float* __restrict__ x, float* __restrict__ y,
+                                                               int n_in, int n_out, int rows) {
+    __shared__ float sx[TILED_TOK][SMALL_K + 1], sw[TILED_OUT][SMALL_K + 1];
+    const int t0 = blockIdx.x * TILED_TOK, o0 = blockIdx.y * TILED_OUT;
+    const int ty = threadIdx.x / 16, tx = threadIdx.x % 16;   // tokens ty + 16 i, outputs tx + 16 j
+    float acc[TILE_T][TILE_O] = {};
+    for (int k0 = 0; k0 < n_in; k0 += SMALL_K) {
+        for (int i = threadIdx.x; i < TILED_TOK * SMALL_K; i += blockDim.x) {
+            const int r = i / SMALL_K, c = i % SMALL_K, t = t0 + r, k = k0 + c;
+            sx[r][c] = t < rows && k < n_in ? x[size_t(t) * n_in + k] : 0.0f;
+        }
+        for (int i = threadIdx.x; i < TILED_OUT * SMALL_K; i += blockDim.x) {
+            const int r = i / SMALL_K, c = i % SMALL_K, o = o0 + r, k = k0 + c;
+            sw[r][c] = o < n_out && k < n_in ? w[size_t(o) * n_in + k] : 0.0f;
+        }
+        __syncthreads();
+#pragma unroll 8
+        for (int c = 0; c < SMALL_K; ++c) {
+            float xv[TILE_T], wv[TILE_O];
+#pragma unroll
+            for (int i = 0; i < TILE_T; ++i) xv[i] = sx[ty + 16 * i][c];
+#pragma unroll
+            for (int j = 0; j < TILE_O; ++j) wv[j] = sw[tx + 16 * j][c];
+#pragma unroll
+            for (int i = 0; i < TILE_T; ++i)
+#pragma unroll
+                for (int j = 0; j < TILE_O; ++j) acc[i][j] = fmaf(xv[i], wv[j], acc[i][j]);
+        }
+        __syncthreads();
+    }
+#pragma unroll
+    for (int i = 0; i < TILE_T; ++i)
+#pragma unroll
+        for (int j = 0; j < TILE_O; ++j) {
+            const int t = t0 + ty + 16 * i, o = o0 + tx + 16 * j;
+            if (t < rows && o < n_out) y[size_t(t) * n_out + o] = acc[i][j];
+        }
+}
+
+int g_gemm_small_tiled = -1;   // gemm_f32's small products: 1 the tiled kernel (default), 0 gemm_small_kernel
 
 __global__ void bf16_to_f32_kernel(const uint16_t* __restrict__ w, float* __restrict__ out, size_t n) {
     const size_t i = size_t(blockIdx.x) * blockDim.x + threadIdx.x;
@@ -2227,6 +2276,87 @@ __global__ void gdn_state_reg_kernel(const float* __restrict__ qkv, const float*
     for (int k = 0; k < PER; ++k) col[lane + k * WARP] = c[k];
 }
 
+// pancake-strata: gdn_state_reg_kernel with COLS columns of one head a warp.  Each column's products and sums are
+// gdn_state_reg_kernel's, in its order (the same bits); the columns share the token's query, key, decay and share
+// loads, and their independent chains hide each other's latency.  On a card with few SMs (an RTX 3060: 28) one column
+// a warp walks the prompt in about five waves of blocks; four columns a warp walk it in one.
+template <int PER, int COLS>
+__global__ void gdn_state_cols_kernel(const float* __restrict__ qkv, const float* __restrict__ decay,
+                                      const float* __restrict__ share, float* __restrict__ s, float* __restrict__ out,
+                                      int dim, int n_head, int k_heads, int rows, float* __restrict__ snap,
+                                      size_t stride, unsigned snaps) {
+    const int warps = int(blockDim.x / WARP);
+    const int per_head = (dim + warps * COLS - 1) / (warps * COLS);
+    const int h = blockIdx.x / per_head, hk = h % k_heads;
+    const int j0 = ((blockIdx.x % per_head) * warps + int(threadIdx.x / WARP)) * COLS;
+    const int lane = threadIdx.x & (WARP - 1);
+    if (j0 >= dim) return;
+    const size_t keys = size_t(dim) * k_heads, d_inner = size_t(dim) * n_head, row_n = 2 * keys + d_inner;
+    const size_t mine0 = (size_t(h) * dim + j0) * dim;   // column j0 + cc starts at mine0 + cc * dim
+    float c[COLS][PER];
+#pragma unroll
+    for (int cc = 0; cc < COLS; ++cc)
+#pragma unroll
+        for (int k = 0; k < PER; ++k) c[cc][k] = s[mine0 + size_t(cc) * dim + lane + k * WARP];
+    float qa[PER], ka[PER], va[COLS], da = 0.0f, sa = 0.0f;
+    auto fetch = [&](int row, float* q, float* kk, float* v, float& dc, float& sh) {
+        const float* x = qkv + size_t(row) * row_n;
+#pragma unroll
+        for (int k = 0; k < PER; ++k) {
+            q[k] = x[size_t(hk) * dim + lane + k * WARP];
+            kk[k] = x[keys + size_t(hk) * dim + lane + k * WARP];
+        }
+#pragma unroll
+        for (int cc = 0; cc < COLS; ++cc) v[cc] = x[2 * keys + size_t(h) * dim + j0 + cc];
+        dc = decay[size_t(row) * n_head + h];
+        sh = share[size_t(row) * n_head + h];
+    };
+    if (rows > 0) fetch(0, qa, ka, va, da, sa);
+    for (int row = 0; row < rows; ++row) {
+        float qb[PER], kb[PER], vb[COLS], db = 0.0f, sb = 0.0f;
+        if (row + 1 < rows) fetch(row + 1, qb, kb, vb, db, sb);
+        float sk[COLS];
+#pragma unroll
+        for (int cc = 0; cc < COLS; ++cc) {
+            sk[cc] = 0.0f;
+#pragma unroll
+            for (int k = 0; k < PER; ++k) sk[cc] = __fmaf_rn(__fmul_rn(da, c[cc][k]), ka[k], sk[cc]);
+        }
+#pragma unroll
+        for (int cc = 0; cc < COLS; ++cc) sk[cc] = warp_sum(sk[cc]);
+        float* m = snap_of(snap, stride, snaps, row);
+        float o[COLS];
+#pragma unroll
+        for (int cc = 0; cc < COLS; ++cc) {
+            const float d = __fmul_rn(__fsub_rn(va[cc], sk[cc]), sa);
+            o[cc] = 0.0f;
+#pragma unroll
+            for (int k = 0; k < PER; ++k) {
+                const int i = lane + k * WARP;
+                const float n = __fmaf_rn(da, c[cc][k], __fmul_rn(ka[k], d));
+                c[cc][k] = n;
+                if (m) m[mine0 + size_t(cc) * dim + i] = n;
+                o[cc] = __fmaf_rn(n, qa[k], o[cc]);
+            }
+        }
+#pragma unroll
+        for (int cc = 0; cc < COLS; ++cc) o[cc] = warp_sum(o[cc]);
+        if (lane == 0) {
+#pragma unroll
+            for (int cc = 0; cc < COLS; ++cc) out[size_t(row) * d_inner + size_t(h) * dim + j0 + cc] = o[cc];
+        }
+#pragma unroll
+        for (int k = 0; k < PER; ++k) qa[k] = qb[k], ka[k] = kb[k];
+#pragma unroll
+        for (int cc = 0; cc < COLS; ++cc) va[cc] = vb[cc];
+        da = db, sa = sb;
+    }
+#pragma unroll
+    for (int cc = 0; cc < COLS; ++cc)
+#pragma unroll
+        for (int k = 0; k < PER; ++k) s[mine0 + size_t(cc) * dim + lane + k * WARP] = c[cc][k];
+}
+
 // One block a token and value head: the output's norm, its weights and the gate.
 __global__ void gdn_out_kernel(float* __restrict__ out, const float* __restrict__ z,
                                const float* __restrict__ o_norm, int dim, float norm_eps) {
@@ -2289,6 +2419,16 @@ void gemv_bf16(const uint16_t* w, const float* x, float* y, int n_in, int n_out,
 
 // A buffer of rows is its transpose to cuBLAS, so y[row] = w x[row] is Y = W^T X.  A group's rows of w, its part
 // of every token's x and of every token's y are each a matrix with a stride.
+bool gemm_small_tiled() {
+    if (g_gemm_small_tiled < 0) {
+        const char* v = std::getenv("STRATA_GEMM_SMALL_TILED");
+        g_gemm_small_tiled = v && *v ? (std::atoi(v) != 0) : 1;
+    }
+    return g_gemm_small_tiled != 0;
+}
+
+void gemm_small_set_tiled(bool on) { g_gemm_small_tiled = on ? 1 : 0; }
+
 void gemm_f32(void* blas, const float* w, const float* x, float* y, int n_in, int n_out, int rows_per_x, int rows) {
     const cublasHandle_t h = (cublasHandle_t) blas;
     const float one = 1.0f, zero = 0.0f;
@@ -2296,6 +2436,12 @@ void gemm_f32(void* blas, const float* w, const float* x, float* y, int n_in, in
     if (groups == 1 && n_out <= 8 * SMALL_OUT) {
         cudaStream_t stream = nullptr;
         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+        // tiled only where it has blocks to spare: 2,048 -> 32 at 77 tokens was 0.29 ms tiled, 0.10 plain (RTX 3060)
+        if (gemm_small_tiled() && n_out >= TILED_OUT && rows >= 256) {
+            gemm_small_tiled_kernel<<<dim3((rows + TILED_TOK - 1) / TILED_TOK, (n_out + TILED_OUT - 1) / TILED_OUT),
+                                      256, 0, stream>>>(w, x, y, n_in, n_out, rows);
+            return;
+        }
         gemm_small_kernel<<<dim3((rows + SMALL_TOK - 1) / SMALL_TOK, (n_out + SMALL_OUT - 1) / SMALL_OUT),
                             SMALL_TOK * WARP, 0, stream>>>(w, x, y, n_in, n_out, rows);
         return;
@@ -2904,6 +3050,22 @@ void conv4_silu(const float* x, float* state, const float* w, float* out, int ch
                                                                   snaps);
 }
 
+namespace {
+// columns of a head a warp walks in gdn_step (1: gdn_state_reg_kernel; 2, 4: gdn_state_cols_kernel), from
+// STRATA_GDN_COLS at the first call, or gdn_set_cols()
+int g_gdn_cols = -1;
+}  // namespace
+
+int gdn_cols() {
+    if (g_gdn_cols < 0) {
+        const char* v = std::getenv("STRATA_GDN_COLS");
+        g_gdn_cols = v && *v ? std::atoi(v) : 4;
+    }
+    return g_gdn_cols;
+}
+
+void gdn_set_cols(int cols) { g_gdn_cols = cols; }
+
 void gdn_step(float* qkv, float* alpha, float* beta, const float* dt, const float* a, float* s, const float* z,
               const float* o_norm, float* out, int dim, int n_head, int k_heads, int rows, float norm_eps, void* stream,
               float* snap, size_t stride, unsigned snaps) {
@@ -2914,6 +3076,40 @@ void gdn_step(float* qkv, float* alpha, float* beta, const float* dt, const floa
     gdn_gates_kernel<<<grid(gates, 256), 256, 0, cs(stream)>>>(alpha, beta, dt, a, n_head, gates);
     const int blocks = n_head * ((dim + columns - 1) / columns), threads = columns * WARP;
     const unsigned sn = snap ? snaps : 0u;
+    const int cols = gdn_cols();
+    if ((cols == 2 || cols == 4 || cols == 8) && dim % (cols * WARP) == 0 && (dim / WARP == 1 || dim / WARP == 2 ||
+                                                                  dim / WARP == 4 || dim / WARP == 8)) {
+        // warps a block: 8 (a fixed small block, so several fit on an SM), never more than a head's columns
+        const int warps = std::min(8, dim / cols);
+        const int cb = n_head * ((dim + warps * cols - 1) / (warps * cols)), ct = warps * WARP;
+#define STRATA_GDN_COLS(P, C) gdn_state_cols_kernel<P, C><<<cb, ct, 0, cs(stream)>>>(qkv, alpha, beta, s, out, dim, \
+                                  n_head, k_heads, rows, snap, stride, sn)
+        if (cols == 2) {
+            switch (dim / WARP) {
+            case 1: STRATA_GDN_COLS(1, 2); break;
+            case 2: STRATA_GDN_COLS(2, 2); break;
+            case 4: STRATA_GDN_COLS(4, 2); break;
+            default: STRATA_GDN_COLS(8, 2); break;
+            }
+        } else if (cols == 4) {
+            switch (dim / WARP) {
+            case 1: STRATA_GDN_COLS(1, 4); break;
+            case 2: STRATA_GDN_COLS(2, 4); break;
+            case 4: STRATA_GDN_COLS(4, 4); break;
+            default: STRATA_GDN_COLS(8, 4); break;
+            }
+        } else {
+            switch (dim / WARP) {
+            case 1: STRATA_GDN_COLS(1, 8); break;
+            case 2: STRATA_GDN_COLS(2, 8); break;
+            case 4: STRATA_GDN_COLS(4, 8); break;
+            default: STRATA_GDN_COLS(8, 8); break;
+            }
+        }
+#undef STRATA_GDN_COLS
+        gdn_out_kernel<<<rows * n_head, dim, 0, cs(stream)>>>(out, z, o_norm, dim, norm_eps);
+        return;
+    }
     switch (dim / WARP) {
     case 1: gdn_state_reg_kernel<1><<<blocks, threads, 0, cs(stream)>>>(qkv, alpha, beta, s, out, dim, n_head, k_heads,
                                                                           rows, snap, stride, sn); break;

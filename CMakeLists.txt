@@ -3114,6 +3114,16 @@ if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT S
   target_include_directories(poly_route_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                                     ${_strata_gpu_include_directories})
   target_link_libraries(poly_route_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
+  # pancake-strata: gdn_step's 2 and 4 columns a warp against one, bit for bit, and their times; needs a card
+  add_executable(poly_gdn_cols_test src/poly/gdn_cols_test.cu src/poly/kernels.cu)
+  target_include_directories(poly_gdn_cols_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                       ${_strata_gpu_include_directories})
+  target_link_libraries(poly_gdn_cols_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
+  # pancake-strata: gemm_f32's tiled small kernel against the plain one, bit for bit, and their times; needs a card
+  add_executable(poly_gemm_small_test src/poly/gemm_small_test.cu src/poly/kernels.cu)
+  target_include_directories(poly_gemm_small_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                         ${_strata_gpu_include_directories})
+  target_link_libraries(poly_gemm_small_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
   # attend() with --attn-split against the other kernels and the host; needs a card, so it is run by hand
   add_executable(poly_attend_split_test src/poly/attend_split_test.cu src/poly/kernels.cu)
   target_include_directories(poly_attend_split_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include

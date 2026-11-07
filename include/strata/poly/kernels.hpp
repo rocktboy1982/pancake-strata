@@ -23,6 +23,10 @@ void gemv_bf16(const uint16_t* w, const float* x, float* y, int n_in, int n_out,
 /// for each group of rows_per_x outputs.  It sums in another order than gemv_f32, so a row does not come out
 /// to the last bit as it does there.  Throws std::runtime_error.
 void gemm_f32(void* blas, const float* w, const float* x, float* y, int n_in, int n_out, int rows_per_x, int rows);
+/// pancake-strata: gemm_f32's products with few outputs on the register-tiled kernel (the same bits as the plain
+/// one).  From STRATA_GEMM_SMALL_TILED at the first call (default on); gemm_small_set_tiled() overrides it.
+bool gemm_small_tiled();
+void gemm_small_set_tiled(bool on);
 /// n BF16 values as floats, for gemm_f32.
 void bf16_to_f32(const uint16_t* w, float* out, size_t n, void* stream);
 
@@ -281,6 +285,10 @@ void conv4_silu(const float* x, float* state, const float* w, float* out, int ch
 void gdn_step(float* qkv, float* alpha, float* beta, const float* dt, const float* a, float* s,
               const float* z, const float* o_norm, float* out, int dim, int n_head, int k_heads, int rows,
               float norm_eps, void* stream, float* snap = nullptr, size_t stride = 0, unsigned snaps = 0);
+/// pancake-strata: the state columns of one head a warp walks in gdn_step (1, 2 or 4; the same bits for each).
+/// Read from STRATA_GDN_COLS at the first call (default 4); gdn_set_cols() overrides it (tests, A/B).
+int gdn_cols();
+void gdn_set_cols(int cols);
 
 // ---- DeepSeek V4 (deepseek4): one key head that is its value too, a window of raw rows, rows compressed 4 or 128
 // to one, and an indexer that picks among the 4-to-1 rows

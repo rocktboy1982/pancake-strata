@@ -43,7 +43,13 @@ def cases():
               "src/poly/conversation_disk.cpp", "src/poly/guesses.hpp"]:
         t = (ROOT / f).read_text(encoding="utf-8")
         long_parts.append(f"=== {f} ===\n{t}")
-    return [
+    # read-time sweep: fresh prompts of growing length (a unique tag first, so no cache or checkpoint is reused)
+    corpus = "\n\n".join(long_parts)
+    sweep = []
+    for k in (1, 2, 4, 8, 16):
+        chars = k * 1000 * 3          # ~3 characters a token for source code
+        sweep.append((f"read{k}k", chat(f"[{k}k] " + corpus[:chars] + "\n\nWhat language is this?"), 16))
+    return sweep + [
         ("short", chat("Write a Python function that reverses a singly linked list, with a short docstring and two "
                        "unit tests."), 256),
         ("edit", chat("Rename the class DraftPolicy to WindowPolicy everywhere in this file and return the whole "
