@@ -150,7 +150,22 @@ A llama.cpp fork tuned for RTX 30 cards, mostly for the dense Qwen 27B (the r/Lo
 | KV cache quantization KLD, Qwen 27B (35 quants, 3 engines) | q8_0 KV is essentially free (< 0.00012 KL); 4-bit adds +0.0016-0.0027 KL and grows 15-30% from 4K to 32K context; keys are about twice as sensitive as values; a ~2K recent-token window at higher precision makes 5-6 bit nearly lossless | Confirms `--kv-q8` as the default. Any lower-bit KV (llamAmpere's SJ-KVaRN style) stays opt-in, with keys kept at 8 bits (strata-poly's `--kv-q4` already keeps keys Q8) and a recent high-precision window |
 | DSpine (Tencent, arXiv 2609.36173) | A parallel drafter (DFlash family) with causal conditioning injected at every layer: acceptance length 3.77 -> 4.82 on Qwen3-8B, +23% serving throughput in SGLang | Needs a drafter trained for the target model; released only for Qwen3-4B/8B. None exists for Qwen3.6-35B-A3B, and training one is out of scope now. Watch for a release for our models |
 
-## 9. Next
+## 9. Other Strata forks (read 2026-11-07)
+
+All three tune Strata's **main engine** (Qwen3.8-Flash-Next, also DeepSeek), not the Qwen3.6 `strata-poly` path measured above.
+
+| Fork | Hardware | What it adds | For pancake-strata |
+| --- | --- | --- | --- |
+| [Strata-rdna3](https://github.com/nicejunjie/Strata-rdna3) (nicejunjie, MIT) | 1-2x RX 7900 XTX (gfx1100) | 987 commits on Strata 8183c6b6 (2026-10-24), ~14.7K lines in src: RDNA3 kernels (`rdna_gr.cu`, `rdna_mmvq.cu`), a fused DeltaNet megakernel, fused IQ MoE prompt kernels, 2-GPU tensor parallel (`tp.cpp`), SDMA copies, idle-queue parking (98+91 W -> 5+13 W idle). 2-3x stock Strata on RDNA3; prefill 3,500+ tok/s one card | **The source for the 7900 XT (gfx1100) half of the plan** once that card is detected again. Ported by hand (upstream moved 1,938 commits since its base). Its MTP draft vocabulary (59.6K tokens, ~12% cheaper draft step, lossless) also applies on CUDA |
+| [Speedy](https://github.com/DevDock-AI/Speedy) (DevDock-AI, MIT) | 1-2x RTX 3080 10 GB (sm_86, unlocked) | A squashed import of Strata v0.2.7.1 plus measured defaults and upstream PRs turned on: smaller prompt scratch (#4039: +22-33% prefill), routed prompt stream (#4283: +8-10% on IQ4_XS), INT8-KV prompt attention on IMMA (+2%), KV prefetch, light CPU expert rows a layer late in verify (#2689/#2690), PSI-driven shedding; RDNA3 merged from Strata-rdna3 | Our base (v0.2.12) already has most of these as opt-ins (`STRATA_PF_GROUP_SCRATCH`, `STRATA_PREFILL_ROUTED_STREAM`, `STRATA_PROMPT_ATTN_IMMA`, `STRATA_KV_PREFETCH`, ...): its presets are a ready Flash-Next config for a 3060. Missing here: `STRATA_VERIFY_DEFER_CPU`, `STRATA_KV_RING_ADAPT`, `STRATA_PSI_SHED`. Idea for strata-poly: Q8 KV prompt attention on INT8 tensor cores (IMMA) |
+| [StrataFast / "Lamina"](https://github.com/eddoursul/StrataFast) (eddoursul, MIT) | RTX 3090 + RTX 5070 Ti | 812 commits on Strata e88ee39d (2026-10-19): two-stage prompts (`--prompt-split`, 1.24-1.55x at 32K-128K), a draft layer trained on the model's own output, Q5_0 experts. Reports 1.35-1.7x Strata's prompt reads and 1.3-2.1x its answers (against Strata 0.1.43.1) | Ideas for the Flash-Next phase: two-stage prompts, a self-trained draft layer |
+
+Community reports alongside: a 5070 Ti user finds Flash-Next IQ2_XS the best speed/quality point (~150 tok/s, Q2_0 loops
+about once a day) and gains 10-20% decode from a VRAM overclock; others insist on Q4 for real work. Speedy's own
+comments report gains from 0% (other cards, untuned) to +10% (after tuning) outside its reference machine: forks tuned
+on one machine need re-measuring on ours.
+
+## 10. Next
 
 0. Adaptive MTP depth (llamAmpere), a learned expert profile at start (llama.cpp MoE cache PR), and an SJ-KVaRN-style KV body (opt-in, keys 8-bit, recent window), each measured.
 1. A fused flash-attention prompt kernel for D=256 / GQA 8 that reads the Q8 cache and masks causally inline
