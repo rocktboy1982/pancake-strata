@@ -258,6 +258,25 @@ noise), as a draft head is; on a flat random head no 2-bit copy can tell the row
 with the exact argmax about half the time, like this one). End to end on IQ2_XS: both kernels engaged, greedy tokens
 identical on / off.
 
+## 10d. More files on this PC: Flash-Next Q2_0 and Qwen3.6 UD-Q3_K_M (2026-11-08)
+
+- Flash-Next **Q2_0** (ISTA-DASLab): shard 1 37.6 GB; its n-gram table is the same file as IQ2_XS's (same SHA-256),
+  hard-linked, so it took no extra space. Head Q5_K: basalt's head kernels apply.
+- Qwen3.6 **UD-Q3_K_M** (Unsloth MTP GGUF, 17.1 GB, SHA-256 checked): experts IQ3_XXS, so FastStrata's preset leaves
+  out `--graph-experts` and `--cpu-multi` (neither reads IQ3_XXS).
+
+Presets (`./run-pancake.sh iq2_xs|q2_0|qwen36|qwen36-q3 [fast]`), single cold runs, decode tok/s (load ~4):
+
+| Preset | short | edit | after 42K | read 42K |
+| --- | ---: | ---: | ---: | ---: |
+| Qwen3.6 UD-Q3_K_M (poly) | 82.8 | 153.9 | 83.0 | 32.5 s |
+| Qwen3.6 UD-Q4_K_XL (poly) | 36.8 (outlier; ~100 before) | 120.6 | 66.5 | 32.6 s |
+| Flash-Next Q2_0 | 56.8 | 73.3 | 45.4 | 36.8 s |
+| Flash-Next IQ2_XS | 52.0 | 75.1 | 42.6 | 39.2 s |
+
+Q2_0 is the faster Flash-Next here (writing +5-9%, long reads -6%); a 5070 Ti user reported Q2_0 looping about once a
+day, IQ2_XS not. Qwen3.6 Q3_K_M writes 25-28% faster than Q4_K_XL after long prompts and in edits, at 3-bit quality.
+
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
 
 **NVIDIA / RTX 3060 (sm_86):** inference-cuda-kernels (step-by-step LLM ops measured on a 3060), cuda-gemm-benchmark (FP32

@@ -1,0 +1,45 @@
+{
+ "exe": "<REPO>/build-cuda/strata",
+ "args": [
+  "--pack",
+  "<STRATA_DATA>/packs/q2_0",
+  "--native",
+  "<STRATA_DATA>/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00001-of-00002.gguf",
+  "--ple-gguf",
+  "<STRATA_DATA>/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf",
+  "--expert-profile",
+  "<REPO>/data/expert-profile.bin",
+  "--expert-cache",
+  "auto",
+  "--prefill",
+  "auto",
+  "--spec",
+  "4",
+  "--spec-min-p",
+  "0.5",
+  "--mtp",
+  "<STRATA_DATA>/mtp/rt",
+  "--max-context",
+  "131072",
+  "--kv",
+  "int8",
+  "--kv-resident",
+  "32768",
+  "--mtp-draft-vocab",
+  "<REPO>/data/draft_vocab_en.bin"
+ ],
+ "cwd": "<REPO>",
+ "tokenizer": "<STRATA_DATA>/packs/q2_0/tokenizer",
+ "model_name": "qwen3.8-flash-next-q2_0",
+ "log": "<REPO>/pancake-flashnext.log",
+ "lib_dirs": [
+  "/usr/local/cuda/bin",
+  "/usr/local/cuda/lib64"
+ ],
+ "port": 8080,
+ "gpu": 0,
+ "gpus_asked": true,
+ "env": {
+  "STRATA_ROUTE_TAIL_SKIP": "0"
+ }
+}
