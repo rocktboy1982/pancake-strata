@@ -207,6 +207,18 @@ changes which experts are used: the output stays exact.
 
 Order: 10.1, then 10.2 / 10.3 by their measured hit rates, then 10.4, 10.5.
 
+Design rules for 10.2 / 10.3 (owner's input, 2026-11-08, adjusted by measurements):
+- Memory: the prefetch window comes only from memory nobody uses now (the KV cache past the current context, idle
+  compute buffers: Avalon's lending), never carved out of the expert cache (upstream's Foresight slots lost on every box).
+  A hard floor of free KV room: near it, low-confidence prefetches stop (no OOM, no KV offload).
+- Confidence: prefetch only experts whose predicted routing weight passes a threshold; weight early draft tokens over
+  late ones (token 1 is the most predictable).  The threshold and depth are set from the hit rates measured in 10.1-10.3.
+- Streams: transfers on their own copy stream, apart from compute and KV writes; when verification rejects draft token k,
+  unstarted transfers for tokens > k are dropped.
+- Timing: stage layer N+2 / N+3 while layer N runs; prefetch an expert only when its PCIe time (PCIe 3.0 x16, ~12 GB/s)
+  fits before the layer that needs it.
+
+
 ## Risks
 
 - Code drift: FastStrata's options live in `src/poly`, not in `src/qwen35`; porting may mean rewriting, not copying.
