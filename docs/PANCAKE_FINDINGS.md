@@ -196,7 +196,31 @@ head); the 59.6K list helps Chinese text, not this test.
 `STRATA_VERIFY_DEFER_CPU` (Strata PRs #2689/#2690 by lask3802, as re-ported by Speedy; applied 3-way onto v0.2.12):
 short 57.7 (+8%), edit 69.0 (-7%) against the exact config; it changes the output. Kept as an opt-in, off by default.
 
-## 11. Next
+## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
+
+**NVIDIA / RTX 3060 (sm_86):** inference-cuda-kernels (step-by-step LLM ops measured on a 3060), cuda-gemm-benchmark (FP32
+/ FP16 tensor-core / BF16 GEMM on a 3060), CUDA_performance_optimization (profiling-driven method), rkinas/cuda-learning
+(matching cuBLAS: tiling, vectorized loads, bank-conflict-free shared memory), 100-days-cuda (WMMA, double buffering,
+reductions, FlashAttention). These are teaching material, not engines: nothing to port, but they are the reference
+techniques for item 8.8 (the fused flash-attention prompt kernel: ldmatrix + mma.sync m16n8k16, cp.async double
+buffering, swizzled shared memory). pancake-strata already builds for `sm_86-real` and keeps attention on FP16 tensor
+cores with FP32 sums (what gpu-unlock speeds up).
+
+**AMD / RX 7900 XT (gfx1100), for phase 8.10:**
+
+| Project / link | What it is | For pancake-strata |
+| --- | --- | --- |
+| chelokot/flash-attention-rdna3; ROCm flash-attention (navi branches, e.g. howiejay/navi_support) | FlashAttention-2 for gfx1100 (Triton; CK/WMMA C++) | Algorithm and WMMA layout references for a HIP flash-attention prompt kernel; Triton itself cannot go into this C++/HIP engine |
+| uulong950/qingming-z-image-turbo (ROCm/TheRock discussion 8006) | Native HIP/C++ image model on a 7900 XTX: BF16 WMMA kernels, persistent GEMM scheduling, the whole graph on the GPU | Technique reference (persistent GEMM, GPU-resident graph) for RDNA3; not an LLM |
+| st1vms/bitsandbytes-rocm-gfx1100 | bitsandbytes (LLM.int8, fine-tuning) fixed for RDNA3 | Not relevant: no PyTorch in this engine |
+| charlie12345/vLLM_for_AMD; cadamcat/dual-radeon-vllm (github topic rx7900xt) | vLLM on 7900 XT/XTX, tensor parallel; root cause and fix for an RCCL / PCIe-atomics crash | vLLM is not our engine; the PCIe-atomics finding matters if the 7900 XT shares a PC with another card |
+| PyTorch tips (AOTriton, `TORCH_BLAS_PREFER_HIPBLASLT=0`, TunableOp) | PyTorch env vars | Not for this engine, but the claim that hipBLASLt has poor RDNA3 tables is worth an A/B of Strata's HIP BLAS targets (rocBLAS vs hipBLASLt) on the 7900 XT |
+| 0xShug0/audio.cpp discussion 317 | 7900 XTX, ROCm 7.2.1: sampling moved to the GPU, no per-token readback: -14.5%, bit-identical | Strata already picks greedy tokens on the GPU; keep sampled decoding on the device too (check when profiling the HIP path) |
+| ROCm/amd-rocm-optimization-guide | AMD's HIP optimization guide (coalescing, reductions, multi-GPU) | Reference for the HIP kernels |
+| ROCm/rocm-systems | The ROCm systems super-repo: HIP, ROCr, rocprofiler-sdk / -compute / -systems, roctracer, amdsmi | rocprofiler-compute / -systems are the 7900 XT's equivalent of Nsight for phase 8.10 |
+| danielrosehill gist | An AI-written overview of AMD compute stacks (ROCm, Vulkan, ...), for a 7700 XT | General background; its `HSA_ENABLE_SDMA=0` stability tip conflicts with Strata-rdna3's measured SDMA gains: measure, do not copy |
+
+## 12. Next
 
 0. Adaptive MTP depth (llamAmpere), a learned expert profile at start (llama.cpp MoE cache PR), and an SJ-KVaRN-style KV body (opt-in, keys 8-bit, recent window), each measured.
 1. A fused flash-attention prompt kernel for D=256 / GQA 8 that reads the Q8 cache and masks causally inline
