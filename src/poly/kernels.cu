@@ -2029,6 +2029,52 @@ __global__ void attn_softmax_block_kernel(const float* __restrict__ score, half*
     shrink[blockIdx.x] = f;
 }
 
+// pancake-strata: attn_softmax_block_kernel with a thread's scores held in registers (n_keys <= 128 * PER): the row
+// is read once instead of twice, and a thread's reads are all in flight together.  The same rows go to the same
+// threads in the same order, and the same arithmetic, so the weights, top, sum and shrink are the same bits.
+template <int PER>
+__global__ void __launch_bounds__(128) attn_softmax_reg_kernel(const float* __restrict__ score,
+                                                               half* __restrict__ weight, int n_keys, long long row0,
+                                                               long long pos, int first, int window, int tokens,
+                                                               int per, long long last, float* top, float* sum,
+                                                               float* shrink, bool fresh) {
+    __shared__ float part[8];
+    const int tok = first + (blockIdx.x % (tokens * per)) / per;
+    long long lo;
+    const int n = attn_rows(pos + tok, window, last, &lo);
+    const long long end = lo + n;
+    const int j0 = lo > row0 ? int(lo - row0) : 0, j1 = end - row0 < n_keys ? int(end - row0) : n_keys;
+    const float* row = score + size_t(blockIdx.x) * n_keys;
+    half* w = weight + size_t(blockIdx.x) * n_keys;
+    float v[PER];
+#pragma unroll
+    for (int k = 0; k < PER; ++k) {
+        const int j = threadIdx.x + k * 128;
+        v[k] = j >= j0 && j < j1 ? row[j] : -INFINITY;
+    }
+    float mx = -INFINITY;
+#pragma unroll
+    for (int k = 0; k < PER; ++k) mx = fmaxf(mx, v[k]);
+    mx = block_max(mx, part);
+    const float before = fresh ? -INFINITY : top[blockIdx.x], now = fmaxf(before, mx);
+    float s = 0.0f;
+#pragma unroll
+    for (int k = 0; k < PER; ++k) {
+        const int j = threadIdx.x + k * 128;
+        if (j < n_keys) {
+            const half h = __float2half(j >= j0 && j < j1 ? expf(v[k] - now) : 0.0f);
+            w[j] = h;
+            s += __half2float(h);
+        }
+    }
+    s = block_sum(s, part);
+    if (threadIdx.x != 0) return;
+    const float f = mx == -INFINITY ? 1.0f : expf(before - now);
+    top[blockIdx.x] = now;
+    sum[blockIdx.x] = (fresh ? 0.0f : sum[blockIdx.x] * f) + s;
+    shrink[blockIdx.x] = f;
+}
+
 // A chunk's results in the order of the groups, `dim` values a token and head: times its factor, or divided by it.
 __global__ void attn_scale_kernel(float* out, const float* __restrict__ factor, int dim, bool divide) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -2979,9 +3025,17 @@ void attend_batch_rows(void* blas, const float* q, const half* kcache, const hal
                                                CUDA_R_16F, dim, cols * dim, &zero, score, CUDA_R_32F, m, cols * m,
                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
                     "attention scores");
-            attn_softmax_block_kernel<<<c * n_head, 128, 0, cs(stream)>>>(score, weight, m, lo0 + k0, (long long) pos,
-                                                                         first, window, c, per, last, top, sum,
-                                                                         shrink, k0 == 0);
+            static const bool reg = [] {
+                const char* v = std::getenv("STRATA_SOFTMAX_REG");
+                return !(v && *v == '0');
+            }();
+#define STRATA_SOFTMAX(K) K<<<c * n_head, 128, 0, cs(stream)>>>(score, weight, m, lo0 + k0, (long long) pos, first, \
+                                                                window, c, per, last, top, sum, shrink, k0 == 0)
+            if (reg && m <= 128 * 4) STRATA_SOFTMAX(attn_softmax_reg_kernel<4>);
+            else if (reg && m <= 128 * 8) STRATA_SOFTMAX(attn_softmax_reg_kernel<8>);
+            else if (reg && m <= 128 * 16) STRATA_SOFTMAX(attn_softmax_reg_kernel<16>);
+            else STRATA_SOFTMAX(attn_softmax_block_kernel);
+#undef STRATA_SOFTMAX
             if (k0 > 0)
                 attn_scale_kernel<<<dim3(grid(dim, 256), c * n_head), 256, 0, cs(stream)>>>(og, shrink, dim, false);
             blas_ck(cublasGemmStridedBatchedEx(h, CUBLAS_OP_N, CUBLAS_OP_N, dim, (int) cols, m, &one,

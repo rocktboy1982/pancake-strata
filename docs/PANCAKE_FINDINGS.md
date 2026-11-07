@@ -78,7 +78,9 @@ adds no bandwidth. Keep **one thread per physical core** (8). strata-poly does n
 | DeltaNet: 4 state columns of a head per warp (`gdn_state_cols_kernel`) | `poly_gdn_cols_test` | gdn_step x1.38 (1K tokens), x1.44 (4K); same bits for out, state and snapshots. 2 columns x1.27, 8 columns x1.05 |
 | Small fp32 GEMM register-tiled 4x4 (`gemm_small_tiled_kernel`) | `poly_gemm_small_test` | router 2048->256: x2.26 (4K tokens), x1.99 (1K); same bits. Slower for 32 outputs at few tokens, so used only for >= 64 outputs and >= 256 tokens |
 
-End to end, interleaved old/new/new/old, daily flags (prompt read time):
+| Attention softmax with a thread's scores in registers (`attn_softmax_reg_kernel`) | end to end, fixed placement | read once instead of twice; identical tokens (read16k, edit, long). Read 16K 9.58 -> 9.47 s, 42K 32.78 -> 32.30 s (x1.015), 4K unchanged. `STRATA_SOFTMAX_REG=0` restores the old kernel |
+
+End to end, interleaved old/new/new/old, daily flags (prompt read time, the first two changes):
 
 | | 4K | 16K | 42K | edit (5.3K) |
 | --- | ---: | ---: | ---: | ---: |
@@ -104,7 +106,30 @@ identical old/old, new/new and old/new. Exactness checks must use a fixed placem
 | TensorRT-LLM, vLLM, SGLang, LMDeploy, MLC-LLM, PowerInfer, KTransformers, ExLlamaV2/V3, TGI, LightLLM | Keep the model in VRAM, need far more VRAM/RAM, special model files, or are archived. See MOD_PLAN.md. |
 | IPEX-LLM, FPGA projects (LUT-LLM, llm-oneapi-fpga) | Other hardware. |
 
-## 6. Next
+## 6. gpu-unlock on the RTX 3060
+
+[gpu-unlock](https://github.com/Zagitta/gpu-unlock) (Zagitta, GPL-2.0) is a kernel module that loads before the NVIDIA
+driver and removes GeForce's half-rate cap on FP16/BF16/TF32 tensor math **with FP32 accumulation** (RTX 3060:
+27 -> 51 TFLOPS BF16, per its README). Results are bit-identical; only speed changes. INT8/INT4 math, FP32 CUDA cores and
+memory bandwidth are unchanged.
+
+What it speeds up in strata-poly (from the 42K-token profile):
+
+| Part | Math | With gpu-unlock |
+| --- | --- | --- |
+| Prompt attention, Q.K^T and P.V (cuBLAS, fp16 in, fp32 sums): 8.2 s of 32 s | FP16 MMA, FP32 accumulate | up to 2x faster: about 3-4 s off a 42K read |
+| Decode attention `--attn-split` (mma.sync f16 -> f32) | FP16 MMA, FP32 accumulate | faster writing after long prompts |
+| A future fused flash-attention prompt kernel | FP16 MMA, FP32 accumulate | its whole tensor-core part doubles |
+| MMQ expert and dense products (~30% of a read) | INT8 MMA | no change |
+| DeltaNet recurrence, small fp32 GEMMs, CPU experts, decode bandwidth | FP32 / memory / CPU | no change |
+
+To get the most from it here: (1) install it (it needs root: `make install` in the clone, `gpu_unlock.targets=0000:10:00.0`
+on the kernel command line, reboot, check `journalctl -k -b | grep gpu_unlock`); (2) keep attention on FP16 tensor
+cores with FP32 sums (prompt and decode), which pancake-strata already does and the flash-attention kernel will too;
+(3) it makes moving more of the prompt path onto FP16 tensor cores worth more than before (attention first). It does
+not change decode speed much: decode is bound by the CPU experts and memory.
+
+## 7. Next
 
 1. A fused flash-attention prompt kernel for D=256 / GQA 8 that reads the Q8 cache and masks causally inline
    (target: the 38% at 42K).

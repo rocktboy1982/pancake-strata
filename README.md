@@ -62,6 +62,7 @@ pinned llama.cpp checkout Strata already uses.
 | --- | --- | --- |
 | DeltaNet recurrence, 4 columns a warp | Each warp walks 4 state columns of a head through the prompt, sharing their loads; ~1 wave of blocks instead of ~5 on a 28-SM card | `gdn_step` x1.4, the same bits |
 | Register-tiled small GEMM | The router and gate products computed 4x4 per thread from registers, each output's sum in the same order | Router x2.0-2.3, the same bits |
+| Register softmax for prompt attention | Each thread keeps its scores in registers: a score row is read once, not twice | ~1.5% faster long reads, the same bits |
 | Prompt reads, together | The two above | 9-12% faster prompt reading (16K: 10.7 -> 9.6 s, 42K: 35.8 -> 32.9 s) |
 | `turn_at` in the server | The server tells `strata-poly` where the last chat turn starts | The next turn resumes from the cache |
 | Bench harness `tools/pancake/bench_engines.py` | The same prompts through any engine, every run kept as JSON lines | Every layer is measured before it stays |
