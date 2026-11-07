@@ -142,9 +142,17 @@ A llama.cpp fork tuned for RTX 30 cards, mostly for the dense Qwen 27B (the r/Lo
 | `--moe-skip` | Skips low router weight experts within a 15% budget, first 5 routes protected | Lossy, the same family as FastStrata's `--tail-skip`: opt-in only |
 | AI+ / AmperInteger+ trellis weight formats, 2.3 bpw 27B | Weight formats and fine-tuned quants for the dense 27B | Not for this engine (dense model, own file format) |
 
-## 8. Next
+## 8. Community reports read (r/LocalLLaMA, November 2026)
 
-0. Adaptive MTP depth (llamAmpere) and SJ-KVaRN-style KV body (opt-in), measured.
+| Report | What it says | For pancake-strata |
+| --- | --- | --- |
+| llama.cpp MoE expert cache PR (am17an) | Cache-missed experts computed on the CPU instead of waiting for a PCIe copy; hot experts kept in VRAM from a calibration profile | strata-poly already does both (hybrid CPU/GPU experts, swaps, `--expert-profile`). New test to run: a profile learned on our own agent/coding prompts, loaded at start, against today's start without one |
+| KV cache quantization KLD, Qwen 27B (35 quants, 3 engines) | q8_0 KV is essentially free (< 0.00012 KL); 4-bit adds +0.0016-0.0027 KL and grows 15-30% from 4K to 32K context; keys are about twice as sensitive as values; a ~2K recent-token window at higher precision makes 5-6 bit nearly lossless | Confirms `--kv-q8` as the default. Any lower-bit KV (llamAmpere's SJ-KVaRN style) stays opt-in, with keys kept at 8 bits (strata-poly's `--kv-q4` already keeps keys Q8) and a recent high-precision window |
+| DSpine (Tencent, arXiv 2609.36173) | A parallel drafter (DFlash family) with causal conditioning injected at every layer: acceptance length 3.77 -> 4.82 on Qwen3-8B, +23% serving throughput in SGLang | Needs a drafter trained for the target model; released only for Qwen3-4B/8B. None exists for Qwen3.6-35B-A3B, and training one is out of scope now. Watch for a release for our models |
+
+## 9. Next
+
+0. Adaptive MTP depth (llamAmpere), a learned expert profile at start (llama.cpp MoE cache PR), and an SJ-KVaRN-style KV body (opt-in, keys 8-bit, recent window), each measured.
 1. A fused flash-attention prompt kernel for D=256 / GQA 8 that reads the Q8 cache and masks causally inline
    (target: the 38% at 42K).
 2. Cache-aware routing (colibri's `CACHE_ROUTE`) as a lossy opt-in, with agreement/KL against the true router.
