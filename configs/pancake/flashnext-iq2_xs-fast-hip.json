@@ -87,7 +87,7 @@
   "STRATA_KV_HOST_DMA": "1",
   "STRATA_ADAPT_OVERLAP": "1",
   "STRATA_QSA_ROWS": "1",
-  "STRATA_HIPBLASLT_TUNING": "<REPO>/tools/hip/gfx1100-hipblaslt-100200.txt",
+  "STRATA_HIPBLASLT_TUNING": "<REPO>/tools/hip/gfx1100-hipblaslt-100401.txt",
   "STRATA_RDNA_MMVQ_WAVE": "3",
   "STRATA_GR_RDNA": "1",
   "STRATA_GR_RDNA_Q8": "1",
