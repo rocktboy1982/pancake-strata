@@ -221,6 +221,22 @@ share of the cache's misses predicted) and waste (predicted, not held, not used)
 Prior art (reported, not yet read here): SP-MoE, MoE-SpeQ, "Speculating Experts" (2026), DoMoE, and an Oct 2026 study
 of expert bytes per speculative window.  The aim is speed on this PC, not a novelty claim.
 
+Two more ideas from the owner's reading (2026-11-08), new for this engine and testable on the same trace:
+6. Expert co-activation: per layer, which experts fire together (a conditional-probability graph); when one expert is
+   predicted or seen, its partners are candidates too.  Scored as predictor 6 and as an add-on to 1-3.
+7. Per-layer cache budgets: router entropy differs by layer; give the cache's slots to layers by measured miss cost
+   instead of equally.  Scored in the replay simulation (replay_cache_policy.py), then built if it wins.
+
+Already in Strata or in this plan (the owner's lists checked against the code, 2026-11-08): adaptive draft length and
+the MTP-vs-suffix choice (DraftPolicy prices each window size and source by measured cost and acceptance), early draft
+cut-off (`--spec-min-p`), token-grouped expert execution in a verify window (`native_expert_grouped`; `--cpu-multi` on
+poly), fused dequantization in the matrix kernels (native_mmvq, MMQ), INT8 KV cache (`--kv int8`), prefix / conversation
+caching and checkpoints, staging buffers that overlap copies with compute (prefill; FastStrata's `--stage-next`), an
+adaptive expert tier (usage-based swaps).  FP8 KV: no FP8 tensor cores on sm_86.  Expert-sensitivity mixed-precision
+quantization: needs the BF16 model (~250 GB) to quantize from, out of reach on this disk; Avalon's IQ3_KS hybrid is the
+evidence it pays.  Age-based KV precision is 8.9 (SJ-KVaRN style).  An adaptive controller over all of it: later, once
+each part is measured.
+
 Design rules for 10.2 / 10.3 (owner's input, 2026-11-08, adjusted by measurements):
 - Memory: the prefetch window comes only from memory nobody uses now (the KV cache past the current context, idle
   compute buffers: Avalon's lending), never carved out of the expert cache (upstream's Foresight slots lost on every box).
