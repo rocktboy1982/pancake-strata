@@ -414,31 +414,28 @@ Done 2026-11-08 evening: rounds B/C, presets fast-hip (default) / hip (exact) / 
 INCONCLUSIVE +0.4 pts, 0 large-margin events; strata_bench --long and strata-7900xt bench.py beat Avalon and stock Strata
 (bench/results/2026-11-08-7900xt-final-suites.txt).  VERIFY_DEFER_CPU still non-finite on HIP with the ported kernels.
 
-Next, in order (report section "Ranked plan"):
-1. Finish the CUDA build check for the 3060 line.
-2. Reuse-aware admission: measured in the replay 2026-11-08 - LRU's 89.5% needs ~204 admissions a window (~280 MB of DRAM
-   reads, ~21 ms of PCIe 3.0 per ~24 ms window: the contention --pcie-frac 0 removed); admit-after-3-misses 86.0% at ~10 ms;
-   tier scoring sweeps top out at 84.7%; the engine measured 16 / 32 / 64 swaps a window all ~128 tok/s.  Small on PCIe 3.0:
-   deprioritized (the published LRU wins are PCIe 4.0/5.0 boxes).
-   Profile 2026-11-08 (fast-hip, STRATA_DECODE_TIMING): short windows 24.8 ms = GPU-reach wait 15.9 + CPU experts 5.2 + draft
-   2.2 (2.2 CPU experts a layer, ~28 GB/s effective vs a 42.5 GB/s measured DDR4 read ceiling); code-edit windows 37.4 ms =
-   15.8 + CPU 17.4 + 2.5 (7.4 CPU experts a layer).  The CPU idles ~0.33 ms a layer during the GPU's dense phase: next
-   candidate = L3 prefetch of the next layer's CPU experts from the router lookahead (exact).
-   Measured 2026-11-08 (STRATA_ARENA_WARM=1, opt-in, off): worse - mean 119.8 / 106.5 vs base 126.2 / 125.3; CPU time a window
-   rose and a stage wait appeared: the prefetch reads compete with the pool for DDR4 and its thread shares core 0 with the
-   host thread.  The CPU part is bandwidth-bound overall; earlier reads do not add bandwidth.  Dropped.
-3. Miss-aware MTP window cost (DraftExpert / EcoSpec); then the tail-row drop, simulated in the replay first.
-4. CPU pool, measured 2026-11-08: defaults are best (7 workers 126.4 / 6: 124.1 / 5: 117.7 / 4: 112.3; tasks 8/16/48 equal or
-   worse).  DDR4 read ceiling 42-44 GB/s (2 threads saturate it), but kq_window_bench scales linearly 1 -> 4 threads and
-   kq_cpu_bench is as fast cache-resident as DRAM-cold: the expert kernels are COMPUTE-bound.  Per expert per thread:
-   IQ2_S gate/up 0.205 ms (1 row) / 0.302 (3 rows), Q2_0 down 0.075 / 0.127; IQ2_S decode ~9 cycles per 32 weights (scalar
-   grid loads; the gather path is Intel-only and slower on Zen 3).  -mtune=znver3: no change.  Next: a faster exact IQ2_S
-   decode (ik_llama.cpp IQK-style, or a load-time repack into a shuffle-decodable layout if RAM allows) - up to ~30% of the
-   CPU part.
-   Original item: CPU pool toward ~40 GB/s (STREAM ceiling first, fused phases, row-chunk split); memory at 3600 1:1 FCLK is the owner's call.
-5. Prefill: larger chunks, keep the decode cache resident during prompts.
-6. GPU path (rocprofv3 profile first) only once the CPU wait is hidden.
-7. Final comparison through strata_bench.py --long and the strata-7900xt bench.py.
+Status 2026-11-08 late.  Done: CUDA build check (compiles; GPU run needs the 3060), final comparison (beats Avalon and
+stock Strata), and measured with no gain: reuse-aware admission (PCIe 3.0 cost), L3 prefetch (STRATA_ARENA_WARM, worse), CPU pool
+settings (defaults best), IQ2_S two-half decode (STRATA_IQ2S_PAIR, neutral; the kernels are compute-bound), window thresholds and
+--spec 3/5/6, tandem.cpp's MTP_DEFER (already here).  Added from tandem.cpp: STRATA_POOL_PREREAD (idle pool workers pre-read the
+lookahead's next-layer CPU experts); A/B pending with the Q2_0 model test.
+
+Left, ranked (details of the measurements above stay in this section's history):
+1. GPU path: the GPU's own work is now 15.9 of a 24.8 ms short window - profile (rocprofv3), then GDN megakernel (rdna3),
+   group A switches one at a time, hyper-connection reads (~2.7 ms), the VRAM-hit expert phase (3.3 ms).  Exact.
+2. Keep the decode cache through long prompts: the prompt path borrows 9,412 cache slots (12.6 GiB); decode after an 11.7K
+   prompt drops ~126 -> ~105 tok/s while it refills.  Exact.
+3. Per-conversation expert working set (restore a resumed conversation's hot experts during its prompt).  Exact; needs
+   per-session routing traces first.
+4. Per-domain expert profiles (code / prose / tools, chosen from the prompt).  Exact.
+5. Tail-row drop: replay with real MTP confidences before building.  Exact.
+6. Q2_0 as a 7900 XT preset if its test wins (quality check first; a different quant of the model).
+7. Token-forcing check of turbo-hip on the 7900 XT.
+8. VERIFY_DEFER_CPU on HIP (non-finite with the ported kernels; lossy opt-in).
+9. Phase 7 leftovers: sleep-in-place, automatic disk sessions.
+Blocked: the 3060 GPU run (card out), two-stage prompts (second GPU), DeepSeek V4.1 on gfx1100 (257 GB, D too small).
+Owner's call: merging port/faststrata-poly -> exp/expert-prefetch -> feat/grammar -> port/rdna3-decode into main; BIOS iGPU
+memory 4 -> 2 GB; DDR4-3600 at FCLK 1800.
 
 ## Risks
 
