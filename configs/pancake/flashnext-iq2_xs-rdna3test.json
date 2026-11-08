@@ -93,7 +93,11 @@
   "STRATA_RDNA_Q6K": "1",
   "STRATA_GR_RDNA_A8": "1",
   "STRATA_GR_INJ_UP": "1",
-  "STRATA_GR_FUSED": "1"
+  "STRATA_GR_FUSED": "1",
+  "STRATA_COMBINE_CPU": "1",
+  "STRATA_WAIT_FUSE": "1",
+  "STRATA_ROUTE_PUBLISH": "1",
+  "STRATA_ENGINE_NICE": "0"
  },
  "drafting": "mtp"
 }

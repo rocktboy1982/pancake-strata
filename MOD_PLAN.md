@@ -382,6 +382,44 @@ Results, 2026-11-08 (fast preset, IQ2_XS, 4236 cache slots, 4 prompts; `bench/pr
   under a 42G cap, which fell back to mmap'd experts (the arena needs 45 GiB): speed differs, routing does not.
 
 
+## Phase 11: RX 7900 XT (gfx1100), started 2026-11-08
+
+The owner switched back to the RX 7900 XT. Owner requests this phase (all in scope): resume on the 7900 XT; port Strata-rdna3's
+RDNA3 work ("any percent is good": no fusion skipped); try again everything that was dropped on the 3060; make the CPU side
+faster without losing the fast preset's gain; research in depth (5 layers: survey -> techniques -> mechanisms -> code ->
+expected gain; papers, MIT/Harvard/Stanford/Berkeley/CMU/Tsinghua..., Chinese and Western companies, open-source engines;
+memory, caching, prediction, statistics, direct GPU commands); compare with Avalon and stock Strata (numbers from the owner's
+repos llama-cpp-7900xt-optimization and strata-7900xt-optimization); keep the RTX 3060 (CUDA) line unchanged.
+
+Research report: [reports/Pancake MoE engine speedup.md](reports/Pancake%20MoE%20engine%20speedup.md) (notes in
+research_notes/Pancake MoE engine speedup/).
+
+Done (branch port/rdna3-decode, local):
+- HIP build (`build-hip`, gfx1100); run-pancake.sh picks it when no NVIDIA card is present.
+- Ported from Strata-rdna3: RDNA hyper-connection read (+Q8, A8, INJ_UP, FUSED), wave32 multi-row GEMVs (RDNA_Q6K, MMVQ_WAVE),
+  COMBINE_CPU, WAIT_FUSE, ROUTE_PUBLISH.  rdna_gr.cu / rdna_mmvq.cu build on wave32 HIP only; CUDA gets stubs.  Not ported:
+  long-context top-k (= upstream STRATA_SELECT_LONG), PF_GROUP_RES (= upstream group_resident), PA_KLDS (upstream rewrote the
+  kernel with STRATA_PA_RPF), RDNA_PAIR (neutral, off upstream), GDN megakernel (0.0 ms on one GPU: the window waits on CPU rows).
+- Decode 87-101 -> 104-108 (kernels) -> ~112 tok/s (fusions); Strata-rdna3 itself 109-119; Avalon 95-100; stock Strata 75-77.
+
+Round A (load-gated, base 111.7 / 92.5 after an 11.7K prompt): --pcie-frac 0 118.4 / 104.3; + adapt every window, 160 swaps
+121.2 / 100.1; rdna3's adapt settings 116.4; --kv-resident 8192 114.4; STRATA_SPEC_COST 112.0 / 98.3; DFlash2 115.9 / 84.3;
+lossy: turbo 149.3, tail skip 7 129.7.  Worse: upstream group A switches together 101.2 (bisecting), ADAPT_LAG 87, zh60k vocab
+92.5, rdna3 profile 105.6, upstream HC_Q8 107.2, kv-resident 131072 106.2, mmap tier 108.6.  Flat: --spec 5/6, full vocab,
+SELECT_LONG, mtp-window, hw queues.  VERIFY_DEFER_CPU gave non-finite logits with COMBINE_CPU (fixed: cfuse off when deferring).
+
+Replay ceilings at 10,909 cached experts (44%): engine tier 79.6%, per-layer LRU 89.5%, Belady 94.7%; tier every window x160 85.0%.
+
+Next, in order (report section "Ranked plan"):
+1. Round B: combine the winners, bisect group A; token-forcing quality check (tools/pancake/quality_hip.sh); make the winners
+   the gfx1100 preset; finish the CUDA build check for the 3060 line.
+2. Reuse-aware admission into VRAM, copies while the CPU pool idles (aim: LRU's 89.5% without its PCIe cost).
+3. Miss-aware MTP window cost (DraftExpert / EcoSpec); then the tail-row drop, simulated in the replay first.
+4. CPU pool toward ~40 GB/s (STREAM ceiling first, fused phases, row-chunk split); memory at 3600 1:1 FCLK is the owner's call.
+5. Prefill: larger chunks, keep the decode cache resident during prompts.
+6. GPU path (rocprofv3 profile first) only once the CPU wait is hidden.
+7. Final comparison through strata_bench.py --long and the strata-7900xt bench.py.
+
 ## Risks
 
 - Code drift: FastStrata's options live in `src/poly`, not in `src/qwen35`; porting may mean rewriting, not copying.
