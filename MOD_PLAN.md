@@ -248,6 +248,24 @@ Design rules for 10.2 / 10.3 (owner's input, 2026-11-08, adjusted by measurement
 - Timing: stage layer N+2 / N+3 while layer N runs; prefetch an expert only when its PCIe time (PCIe 3.0 x16, ~12 GB/s)
   fits before the layer that needs it.
 
+Results, 2026-11-08 (fast preset, IQ2_XS, 4236 cache slots, 4 prompts; `bench/prefetch/`):
+- 10.1 done.  A decode window (3.05 tokens) takes 66 ms: verify 63.3 = GPU waiting to reach the CPU's results 17.5 +
+  per-layer host 44.4, of which CPU expert compute 37.7.  Per layer and window: 17 VRAM hits, 7.5-12 CPU experts, 1.2-3.3
+  PCIe copies; PCIe probe 13.4 GB/s.  The CPU's share is the bottleneck, as the plan assumed.
+- 10.2 / 10.3 offline (`predict_experts.py`, tests in `test_predict_experts.py`): of the experts the cache misses, a
+  prefetch of 16 per layer covers transition (routing-keyed dictionary) 29% at 65% waste, hybrid 27%, co-activation 26%,
+  prev+freq 26%, frequency 25%, prev-window 20%.  History-only predictors are weak.
+- The engine's RouterLookahead (`STRATA_LOOKAHEAD_STATS=1`) is about 2x better: its top-8 votes cover 24-35% of the misses
+  at 60-69% precision, top-12 33-46%; k=14 recall 58-69%.  Lookahead is the predictor to build on (10.2 first);
+  transition is the best add-on to test merged with it.
+- Its cost: the predictor thread takes 30-35 ms of CPU per window, on the same cores as the CPU experts (37.7 ms).
+  Before 10.2 can pay, the lookahead must get cheaper or move to the GPU; measure decode with it on vs off.
+- PCIe budget: at 13.4 GB/s a 1.4 ms layer moves ~18 MB, about 12-15 experts, so a prefetch must stay within ~8-12
+  confident experts per layer; the confidence cutoff from the design rules is required, not optional.
+- Memory: a run without `STRATA_RAM_KEEP_GIB` used the whole 57 GB and killed the desktop session.  Runs now use
+  `STRATA_RAM_KEEP_GIB=12` inside `systemd-run --user --scope -p MemoryMax=42G`; that falls back to mmap'd experts (the
+  arena needs 45 GiB), which changes speed but not routing.  For speed runs: a smaller keep (6) with a 46G cap.
+
 
 ## Risks
 

@@ -1,0 +1,26 @@
+219 windows, k=10; the simulated cache held 41.0% of the distinct experts used (per window and layer)
+predictor    budget  recall  miss cover   waste
+transition        4    9.1%       10.2%   51.3%
+hybrid            4    9.1%        9.5%   55.5%
+coact             4    8.6%        8.8%   58.9%
+prev+freq         4    8.5%        8.7%   59.1%
+frequency         4    8.3%        8.2%   61.4%
+prev-window       4    5.1%        6.5%   68.5%
+transition        8   16.4%       17.8%   57.4%
+hybrid            8   16.3%       16.6%   61.0%
+coact             8   15.4%       15.7%   63.1%
+prev+freq         8   15.2%       15.6%   63.5%
+frequency         8   14.6%       14.7%   65.6%
+prev-window       8   10.3%       12.2%   68.7%
+transition       16   27.7%       29.1%   65.1%
+hybrid           16   27.3%       27.4%   67.9%
+coact            16   26.1%       26.2%   69.3%
+prev+freq        16   25.8%       25.8%   69.8%
+frequency        16   24.6%       24.7%   71.0%
+prev-window      16   19.9%       20.4%   68.7%
+transition       32   43.1%       43.9%   73.5%
+hybrid           32   41.9%       42.6%   74.9%
+coact            32   40.6%       40.4%   76.1%
+prev+freq        32   39.7%       39.3%   76.8%
+frequency        32   38.7%       39.1%   76.9%
+prev-window      32   32.5%       27.1%   68.5%
