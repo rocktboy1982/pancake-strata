@@ -1,0 +1,28 @@
+{
+ "requests": 20,
+ "tokens_cand": 5322,
+ "tokens_stock_arms": [
+  5322,
+  5322
+ ],
+ "delta": 2.125,
+ "mismatch_rate_stock_arms_pct": [
+  1.24,
+  1.221
+ ],
+ "mismatch_rate_cand_pct": 1.635,
+ "diff_pts": 0.404,
+ "diff_ci90_pts": [
+  0.198,
+  0.63
+ ],
+ "rate_rule": "INCONCLUSIVE",
+ "events_cand": 0,
+ "events_stock_arms": [
+  0,
+  0
+ ],
+ "events_p": 1.0,
+ "event_rule": "PASS",
+ "verdict": "INCONCLUSIVE"
+}

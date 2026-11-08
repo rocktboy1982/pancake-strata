@@ -26,7 +26,13 @@
   "--kv-resident",
   "32768",
   "--mtp-draft-vocab",
-  "/home/dan/clone-of-d/src/Strata/data/draft_vocab_en.bin"
+  "/home/dan/clone-of-d/src/Strata/data/draft_vocab_en.bin",
+  "--pcie-frac",
+  "0",
+  "--adapt-every",
+  "1",
+  "--adapt-swaps",
+  "32"
  ],
  "cwd": "/home/dan/clone-of-d/src/Strata",
  "tokenizer": "/home/dan/clone-of-d/Strata-data/packs/iq2_xs/tokenizer",

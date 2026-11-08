@@ -46,6 +46,8 @@ else
   export HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-0}  # ROCm GPU 1 is the Vega iGPU
   grep -q strata-poly "configs/pancake/$PRESET.json" && { echo "$MODEL needs strata-poly, which is CUDA-only" >&2; exit 1; }
 fi
+# the 7900 XT has its own measured presets (configs/pancake/*-hip.json, MOD_PLAN phase 11) where one exists
+[ "$BUILD" = build-hip ] && [ -f "configs/pancake/$PRESET-hip.json" ] && PRESET=$PRESET-hip
 CFG="$REPO/pancake-$PRESET.json"
 sed -e "s#<STRATA_DATA>#$DATA#g" -e "s#<REPO>#$REPO#g" -e "s#<MODELS>#$MODELS#g" -e "s#/build-cuda/#/$BUILD/#" \
   "configs/pancake/$PRESET.json" > "$CFG"

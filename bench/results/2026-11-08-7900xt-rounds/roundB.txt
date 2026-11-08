@@ -1,0 +1,14 @@
+pancake B-base (load $L0 before): short/edit decode 87.2 54.3 74.6 97.2 99.7 111.7 mean 87.5 | 11.7K read 1221 tok/s, decode after it 89.1
+pancake B-pcie0-speccost (load $L0 before): short/edit decode 115.7 92.2 111.2 124.1 116.6 121.9 mean 113.6 | 11.7K read 1368 tok/s, decode after it 93.6
+pancake B-W (load $L0 before): short/edit decode 89.6 113.5 108.7 122.4 76.4 126.3 mean 106.1 | 11.7K read 1374 tok/s, decode after it 79.8
+pancake B-W-adapt160 (load $L0 before): short/edit decode 120.1 132.3 105.4 136.0 108.5 137.9 mean 123.4 | 11.7K read 1808 tok/s, decode after it 97.8
+pancake B-W-adapt320 (load $L0 before): short/edit decode 117.0 130.7 106.1 137.7 111.4 140.4 mean 123.9 | 11.7K read 1808 tok/s, decode after it 97.4
+pancake B-W-adaptrdna3 (load $L0 before): short/edit decode 125.7 134.2 121.4 136.2 122.5 136.2 mean 129.4 | 11.7K read 1810 tok/s, decode after it 106.5
+pancake B-W-adapt160-dflash2 (load $L0 before): short/edit decode 111.7 105.0 84.1 140.4 104.3 136.9 mean 113.7 | 11.7K read 1555 tok/s, decode after it 70.3
+pancake B-W-GA1 (load $L0 before): short/edit decode 118.5 132.3 112.0 137.1 113.1 137.3 mean 125.0 | 11.7K read 1804 tok/s, decode after it 102.1
+pancake B-W-GA2 (load $L0 before): short/edit decode 112.4 123.1 107.0 135.1 76.0 113.0 mean 111.1 | 11.7K read 1358 tok/s, decode after it 89.2
+pancake B-W-adapt160-turbo-lossy (load $L0 before): short/edit decode 129.3 186.1 134.8 193.9 137.6 198.3 mean 163.3 | 11.7K read 1819 tok/s, decode after it 113.0
+pancake B-W-adapt160-again (load $L0 before): short/edit decode 116.4 128.7 107.5 126.6 113.5 129.4 mean 120.4 | 11.7K read 1810 tok/s, decode after it 98.2
+pancake B-base-again (load $L0 before): short/edit decode 108.8 110.7 108.7 116.0 108.2 118.6 mean 111.8 | 11.7K read 1811 tok/s, decode after it 91.1
+pancake B-base-rerun (load $L0 before): short/edit decode 108.9 107.9 113.7 120.3 106.0 114.7 mean 111.9 | 11.7K read 1813 tok/s, decode after it 92.2
+pancake B-pcie0-speccost-rerun (load $L0 before): short/edit decode 115.2 113.1 112.8 124.2 113.4 124.3 mean 117.2 | 11.7K read 1806 tok/s, decode after it 103.8

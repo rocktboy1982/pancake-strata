@@ -1,0 +1,52 @@
+== bench.py run 1
+decode mean 110.5 t/s ['103.3', '105.9', '110.0', '122.6'] accept 0.73 | prefill(~22k tok cold) ['2230', '2212'] t/s
+== bench.py run 2
+decode mean 115.9 t/s ['115.4', '114.2', '115.1', '118.8'] accept 0.76 | prefill(~22k tok cold) ['2385', '2367'] t/s
+== needle
+needle FOUND | prompt_n 50756 prefill 2616 t/s | violet-harbor-4821 || R: let-harbor-4821'. So answer violet-
+== strata_bench --long
+16K prompt: 3 fresh prompts of about 16384 tokens, 24 new tokens
+  run 1: 16058 tokens, prompt 2252.2 tok/s (0 reused), first token 7.155 s
+  run 2: 16058 tokens, prompt 2456.2 tok/s (0 reused), first token 6.562 s
+  run 3: 16058 tokens, prompt 2478.0 tok/s (0 reused), first token 6.504 s
+agent: a session of 6 turns with four tools, x 3 runs
+  run 1 turn 0: prompt 609, reused 0, read 609, first token 1.56 s
+  run 1 turn 1: prompt 3513, reused 619, read 2894, first token 3.121 s
+  run 1 turn 2: prompt 5046, reused 3576, read 1470, first token 2.067 s
+  run 1 turn 3: prompt 8290, reused 5109, read 3181, first token 3.213 s
+  run 1 turn 4: prompt 10509, reused 8345, read 2164, first token 2.525 s
+  run 1 turn 5: prompt 13262, reused 10552, read 2710, first token 2.731 s
+  run 2 turn 0: prompt 609, reused 0, read 609, first token 2.108 s
+  run 2 turn 1: prompt 3513, reused 619, read 2894, first token 2.048 s
+  run 2 turn 2: prompt 5046, reused 3576, read 1470, first token 1.438 s
+  run 2 turn 3: prompt 8290, reused 5109, read 3181, first token 2.295 s
+  run 2 turn 4: prompt 10507, reused 8343, read 2164, first token 1.731 s
+  run 2 turn 5: prompt 13270, reused 10560, read 2710, first token 2.054 s
+  run 3 turn 0: prompt 609, reused 0, read 609, first token 1.644 s
+  run 3 turn 1: prompt 3512, reused 618, read 2894, first token 2.037 s
+  run 3 turn 2: prompt 5045, reused 3575, read 1470, first token 1.433 s
+  run 3 turn 3: prompt 8289, reused 5108, read 3181, first token 2.282 s
+  run 3 turn 4: prompt 10513, reused 8349, read 2164, first token 1.728 s
+  run 3 turn 5: prompt 13255, reused 10545, read 2710, first token 2.045 s
+32K prompt: 3 fresh prompts of about 32768 tokens, 24 new tokens
+  run 1: 32049 tokens, prompt 2519.8 tok/s (0 reused), first token 12.764 s
+  run 2: 32049 tokens, prompt 2591.3 tok/s (0 reused), first token 12.401 s
+  run 3: 32049 tokens, prompt 2580.2 tok/s (0 reused), first token 12.454 s
+
+Results (median, range over the runs):
+  chat decode tok/s                    106.90   (82.20 - 130.00, n=9)
+  chat first token (s)                   0.42   (0.38 - 1.19, n=9)
+  4K prompt tok/s                     1756.90   (1419.60 - 1765.70, n=3)
+  4K first token (s)                     2.31   (2.29 - 2.85, n=3)
+  16K prompt tok/s                    2456.20   (2252.20 - 2478.00, n=3)
+  16K first token (s)                    6.56   (6.50 - 7.16, n=3)
+  32K prompt tok/s                    2580.20   (2519.80 - 2591.30, n=3)
+  32K first token (s)                   12.45   (12.40 - 12.76, n=3)
+  agent cache hit %                     69.43   (69.42 - 69.43, n=3)
+  agent re-read tokens/session           5.00   (5.00 - 5.00, n=3)
+  agent turn first token (s)             2.05   (1.43 - 3.21, n=15)
+  agent decode tok/s                   117.00   (93.20 - 145.00, n=15)
+
+Report: bench/results/2026-11-08-community-cpu-qwen3-8-flash-next-iq2-xs/README.md
+Share it: open a pull request that adds the folder bench/results/2026-11-08-community-cpu-qwen3-8-flash-next-iq2-xs (see docs/COMMUNITY_BENCHMARKS.md), or paste README.md into a GitHub issue. Home folders, user and host names and IP addresses are already replaced; read it once before you share it.
+For results other people can compare with, run the standard benchmark: strata bench run (docs/BENCHMARK_PROTOCOL.md).
