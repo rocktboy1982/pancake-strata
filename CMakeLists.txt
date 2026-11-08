@@ -436,6 +436,12 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(adaptive_range_test PRIVATE include)
   add_test(NAME adaptive_range_test COMMAND adaptive_range_test)
 
+  # MOD_PLAN 11 items 3-4: the adaptive tier's seed at a request's start, per-domain profile and conversation working set
+  # (STRATA_DOMAIN_PROFILES, STRATA_CONV_WORKSET; header-only, no GPU)
+  add_executable(expert_seed_test tests/program/expert_seed_test.cpp)
+  target_include_directories(expert_seed_test PRIVATE include)
+  add_test(NAME expert_seed_test COMMAND expert_seed_test)
+
   # P0.1 (lite): STRATA_MANIFEST, the machine-readable record of the selected paths, tensor formats, engine and budgets (header-only, no GPU)
   add_executable(run_manifest_test tests/core/run_manifest_test.cpp)
   target_include_directories(run_manifest_test PRIVATE include)
