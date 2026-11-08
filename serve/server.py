@@ -785,6 +785,50 @@ def restore_point_settings(env=None) -> tuple[bool, int]:
     return whole("STRATA_DS4_RESTORE_POINTS", 4) > 0, whole("STRATA_DS4_RESTORE_TAIL", 512)
 
 
+# MOD_PLAN 11 item 4 (pancake-strata, opt-in): STRATA_DOMAIN_PROFILES=<dir> in the server's environment (the engine reads
+# the same variable; run-pancake.sh passes the shell's environment to both) makes every request carry domain=<name>, the
+# kind of text it is, so the engine seeds its adaptive expert tier from <dir>/<name>.bin
+# (include/strata/program/expert_seed.hpp).  Placement only: the reply is the same with or without it.  The classifier is
+# a few regular expressions over the last messages (well under a millisecond on 12K characters): code when the recent
+# text holds code fences, diffs or many code-shaped lines (an agent's tool results are usually file contents), else tool
+# when the request offers tools or answers a tool call, else prose.
+_DOMAIN_CODE_LINE = re.compile(
+    r"^\s*(?:def |class |import |from \S+ import |#include|#define|fn |func |pub |public |private |static |return\b|"
+    r"if ?\(|for ?\(|while ?\(|\}|const |let |var |@@ |--- a/|\+\+\+ b/|diff --git|<<<<<<< |>>>>>>> )", re.M)
+_DOMAIN_NAME = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def domain_profiles_on(env=None) -> bool:
+    env = os.environ if env is None else env
+    return bool(str(env.get("STRATA_DOMAIN_PROFILES") or "").strip())
+
+
+def classify_domain(messages, tools, tail_chars: int = 12000) -> str:
+    """'code', 'tool' or 'prose' for a chat request (see above)."""
+    parts = []
+    for m in (messages or [])[-4:]:
+        if not isinstance(m, dict):
+            continue
+        c = m.get("content")
+        if isinstance(c, str):
+            parts.append(c)
+        elif isinstance(c, list):
+            for p in c:
+                if isinstance(p, dict) and isinstance(p.get("text"), str):
+                    parts.append(p["text"])
+                elif isinstance(p, dict) and isinstance(p.get("content"), str):   # Anthropic tool_result
+                    parts.append(p["content"])
+    text = "\n".join(parts)[-tail_chars:]
+    lines = text.count("\n") + 1
+    code_lines = len(_DOMAIN_CODE_LINE.findall(text))
+    if text.count("```") >= 2 or code_lines >= 8 or (lines >= 4 and code_lines * 7 >= lines):
+        return "code"
+    recent = [m for m in (messages or [])[-4:] if isinstance(m, dict)]
+    if tools or any(m.get("role") == "tool" or m.get("tool_calls") for m in recent):
+        return "tool"
+    return "prose"
+
+
 def deepseek_restore_points(ids, user_id, system_id=None, tail=512, least=RESTORE_LEAST) -> dict:
     """Where the DeepSeek engine keeps restore points for this prompt -> {"marks": [pos, ...], "tail": pos, "shared":
     pos} (any may be missing; {}: none).  From the prompt's ids as the template wrote them: a turn opens with its role's
@@ -1710,6 +1754,11 @@ class StrataEngine:
         # extends: no conversation checkpoint for it (#830).  It still reuses a cached prefix.  Absent = as before.
         if sampling.get("strata_checkpoint") is False:
             keys += " ckpt=0"
+        # MOD_PLAN 11 item 4: the request's kind for the engine's expert-tier seed (STRATA_DOMAIN_PROFILES; classify_domain).
+        # Engines without it skip the key (unknown keys are skipped); absent = as before.
+        dom = sampling.get("strata_domain")
+        if isinstance(dom, str) and _DOMAIN_NAME.match(dom):
+            keys += f" domain={dom}"
         # #2228: the pictures' keys (hex, in prompt order): the engine matches a picture by them, not by its embeddings
         ik = sampling.get("strata_img_keys")
         if isinstance(ik, list) and ik and all(isinstance(k, str) and k and all(c in "0123456789abcdef" for c in k)
@@ -6044,6 +6093,8 @@ class Service:
             req["strata_prefix"] = self.resolve_prefix(req["strata_prefix"], messages, tools, kwargs, ids, bool(images) or ds_pics)
         if req is not None:
             self.set_restore_points(req, ids, bool(images) or ds_pics)
+            if domain_profiles_on() and "strata_domain" not in req:   # MOD_PLAN 11 item 4 (classify_domain)
+                req["strata_domain"] = classify_domain(messages, tools)
         return ids, kwargs.get("enable_thinking", True) is not False, max_new
 
     def deepseek_turn_ids(self):

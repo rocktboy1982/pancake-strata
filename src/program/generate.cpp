@@ -99,6 +99,7 @@
 #endif
 #include "strata/core/native_dense.hpp"
 #include "strata/program/adapt_decay.hpp"
+#include "strata/program/expert_seed.hpp"
 #include "strata/program/batch_read.hpp"
 #include "strata/program/logits_selection.hpp"
 #include "strata/program/conv_cache.hpp"
@@ -12803,6 +12804,46 @@ int main(int argc, char** argv) {
         }
         if (o.adapt_every > 0 && o.adapt_swaps > 0 && !all_experts_resident)
             drive.d.usage.assign((size_t) (g.n_layers * g.n_expert), 0.0f);
+        // MOD_PLAN 11 items 3-4 (opt-in, placement only): seed the adaptive tier at a request's start from a per-domain
+        // profile (STRATA_DOMAIN_PROFILES=<dir>, the GEN key domain=<name>; STRATA_SEED_SCALE, STRATA_SEED_HOLD) or from
+        // the routing counts a resumed conversation left (STRATA_CONV_WORKSET=N, STRATA_CONV_WORKSET_TOKENS).  The rules,
+        // defaults and replay numbers: include/strata/program/expert_seed.hpp.  The blocking and the asynchronous tier
+        // of this --serve loop take it; the batch slots' and the pipelined loop's rounds do not (no seed, no counts).
+        strata::program::ExpertSeeder seeder;
+        if (!drive.d.usage.empty()) {
+            std::string sdir;
+            const auto scfg = strata::program::ExpertSeeder::from_env(sdir);
+            seeder = strata::program::ExpertSeeder(g.n_layers, g.n_expert, g.n_expert_used, scfg);
+            if (!sdir.empty()) {
+                std::error_code ec;
+                std::vector<std::string> names;
+                // the seed covers as many pairs as the cache holds (replay: the top M = slots beat the top M / 2)
+                const int64_t seed_top = std::count_if(host_res.begin(), host_res.end(), [](int32_t r) { return r >= 0; });
+                for (const auto& f : std::filesystem::directory_iterator(sdir, ec)) {
+                    if (f.path().extension() != ".bin") continue;
+                    std::vector<std::pair<int32_t, int32_t>> ranked;
+                    int64_t pslots = 0;
+                    std::string perr;
+                    if (!strata::core::read_expert_profile(f.path().string(), g.n_layers, g.n_expert, ranked, pslots, perr)) {
+                        std::fprintf(stderr, "strata serve: STRATA_DOMAIN_PROFILES: %s skipped (%s)\n", f.path().string().c_str(),
+                                     perr.c_str());
+                        continue;
+                    }
+                    seeder.add_domain(f.path().stem().string(), ranked, seed_top);
+                    names.push_back(f.path().stem().string());
+                }
+                std::string list;
+                for (const auto& nm : names) list += (list.empty() ? "" : ", ") + nm;
+                std::fprintf(stderr, "strata serve: STRATA_DOMAIN_PROFILES=%s: %zu domain profile%s (%s), seed scale %.2g held %d "
+                                     "rounds over the top %lld pairs%s\n", sdir.c_str(), names.size(), names.size() == 1 ? "" : "s",
+                             list.empty() ? "none" : list.c_str(), (double) scfg.domain_scale, scfg.domain_hold,
+                             (long long) seed_top, ec ? " (the directory could not be read)" : "");
+            }
+            if (seeder.conv_on())
+                std::fprintf(stderr, "strata serve: STRATA_CONV_WORKSET: the routing counts of up to %d conversations are kept "
+                                     "and seed the adaptive tier when one resumes (%.0f tokens' worth)\n",
+                             scfg.conv_slots, (double) scfg.conv_tokens);
+        }
         PcieAuto pcie_auto;
         if (o.pcie_frac_auto && !all_experts_resident && o.batch == 0 && o.peer_device < 0 && (n_stages == 1 || pcie_auto_split_ok())) {
             const auto& pl = strata::kernels::cpu::expert_layout();
@@ -13121,6 +13162,7 @@ int main(int argc, char** argv) {
         // the VRAM tier follows the conversation (the same rule as the speculative loop below)
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
+            if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
             if (remote_opt && !remote_opt->adapt(drive.d.usage, host_res, pending, o.adapt_swaps, *srcp)) return false;
             struct Swap { float gain; int32_t layer, in, out; };
             std::vector<Swap> swaps;
@@ -13290,6 +13332,7 @@ int main(int argc, char** argv) {
                 }
             }
             for (float& v : drive.d.usage) v *= o.adapt_decay;
+            if (seeder.on()) seeder.round_end(drive.d.usage);
             return true;
         };
         // ---- --adapt-async 1: the asynchronous adaptive tier (opt-in; the resident RAM mode, see the checks where
@@ -13579,11 +13622,13 @@ int main(int argc, char** argv) {
                     a_last = a_win;
                     ++a_rounds;
                     a_t0 = Clock::now();
+                    if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp, as in adapt())
                     a_usage = drive.d.usage;
                     a_res = host_res;
                     // #477: the routing counted, as adapt() counts it (--expert-profile-save; else `heat` is empty)
                     for (size_t i = 0; i < heat.size(); ++i) heat[i] += (double) drive.d.usage[i];
                     for (float& v : drive.d.usage) v *= o.adapt_decay;
+                    if (seeder.on()) seeder.round_end(drive.d.usage);
                     if (a_inline) {   // the arena: choose here (no copy back to wait for), then straight on to step 2
                         const Clock::time_point tp0 = Clock::now();
                         a_pick();
@@ -15814,6 +15859,9 @@ int main(int argc, char** argv) {
             // the missed experts and the draft-probability floor, for this request only
             double req_pcie_frac = o.pcie_frac, req_spec_min_p = o.spec_min_p;
             std::string req_draft;   // draft=mtp|dflash2 (--draft auto): which drafter this request uses
+            // domain=<name>: the request's kind (code, prose, tool, ...), from serve/server.py's classify_domain.  Read only
+            // with STRATA_DOMAIN_PROFILES (the adaptive tier's seed, expert_seed.hpp); placement only, never the output
+            std::string req_domain;
             bool req_min_p_set = false;
             double req_pipe = -1.0;   // --prefill-pipe for this request (setup's calibration of a layer split)
             int req_aux_cpus = -1;   // aux_cpus=0|1: --aux-cpus for this request (-1 = the start-up value)
@@ -15865,6 +15913,7 @@ int main(int argc, char** argv) {
                     else if (key == "pcie_frac") { req_pcie_frac = std::clamp((double) fv, 0.0, 1.0); req_pcie_set = true; }
                     else if (key == "spec_min_p") { req_spec_min_p = std::clamp((double) fv, 0.0, 1.0); req_min_p_set = true; }
                     else if (key == "draft") req_draft = tok.substr(eq + 1);
+                    else if (key == "domain") req_domain = tok.substr(eq + 1);
                     else if (key == "pipe") req_pipe = std::max(0.0, (double) fv);
                     else if (key == "aux_cpus") req_aux_cpus = std::atoi(tok.c_str() + eq + 1) != 0 ? 1 : 0;
                     else if (key == "img_keys") {
@@ -16067,6 +16116,14 @@ int main(int argc, char** argv) {
                 wait_before[(size_t) r] = remote_experts[(size_t) r].ms_wait();
             }
             cur = ids;
+            // MOD_PLAN 11 items 3-4 (expert_seed.hpp): the tier's seed for this request, before its prompt is read.  `live`
+            // is still the conversation the previous request left.  A one-shot request (ckpt=0: a title, a probe) is a
+            // side request: it neither keeps the running conversation's counts nor seeds.
+            if (seeder.on() && req_ckpt) {
+                static const std::vector<int32_t> none;
+                const std::string what = seeder.begin_request(drive.d.usage, ids, live_ok ? live : none, req_domain);
+                if (!what.empty()) std::fprintf(stderr, "strata serve: adaptive tier seeded from the %s\n", what.c_str());
+            }
             const Clock::time_point r0 = Clock::now();
             tr("r0");
             strata::core::conversation_checkpoint_join(nullptr);   // STRATA_CKPT_ASYNC: the last save's copy has landed
