@@ -1386,7 +1386,8 @@ private:
     int64_t blobs_ = 0;
     int64_t n_expert_ = 0;
     std::atomic<int64_t> reads_{0};   ///< (a counter only; two threads can read blobs at once)
-    const bool warm_on_ = [] { const char* v = std::getenv("STRATA_ARENA_WARM"); return v != nullptr && v[0] == '1'; }();   ///< STRATA_ARENA_WARM
+    const bool preread_ = [] { const char* v = std::getenv("STRATA_POOL_PREREAD"); return v != nullptr && v[0] == '1'; }();   ///< STRATA_POOL_PREREAD: warm() posts to the pool
+    const bool warm_on_ = preread_ || [] { const char* v = std::getenv("STRATA_ARENA_WARM"); return v != nullptr && v[0] == '1'; }();   ///< STRATA_ARENA_WARM
     std::string note_;
     std::string ram_warning_;
     bool ram_short_ = false;

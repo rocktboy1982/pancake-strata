@@ -93,6 +93,20 @@ inline void row_dot(const uint8_t* row, int nblocks, const block_q8_K* const* y,
         for (int t = 0; t < NT; ++t)
             for (int a = 0; a < A; ++a) acci[t][a] = _mm256_setzero_si256();
         for (int j = 0; j < 4; ++j) {
+            if constexpr (TY == 22) {   // IQ2_S: one index build for both halves (Fmt32<22>::decode2, same bits)
+                __m256i g2[2], sgn2[2], sc2[2];
+                if (iq2s_pair_decode()) Fmt32<22>::decode2(blk, j, g2, sgn2, sc2);
+                else for (int half = 0; half < 2; ++half) Fmt32<22>::decode(blk, j, half, g2[half], sgn2[half], sc2[half]);
+                for (int half = 0; half < 2; ++half) {
+                    const int off = 64 * j + 32 * half;
+                    for (int t = 0; t < NT; ++t) {
+                        const __m256i yv = _mm256_loadu_si256((const __m256i*) (y[t][i].qs + off));
+                        const __m256i ys = _mm256_sign_epi8(yv, sgn2[half]);
+                        acci[t][(2 * j + half) % A] = madd_add(acci[t][(2 * j + half) % A], _mm256_maddubs_epi16(g2[half], ys), sc2[half]);
+                    }
+                }
+                continue;
+            }
             for (int half = 0; half < 2; ++half) {
                 __m256i g, sgn, sc;
                 Fmt32<TY>::decode(blk, j, half, g, sgn, sc);

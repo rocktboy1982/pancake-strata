@@ -5,6 +5,9 @@
 #include "strata/kernels/cpu/expert_layout.hpp"
 #include "strata/kernels/cpu/numa_pool.hpp"
 
+#if defined(__x86_64__) || defined(_M_X64)
+#include <xmmintrin.h>
+#endif
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -740,9 +743,21 @@ void ExpertPool::diag(std::FILE* f) const {
     std::fprintf(f, " for %lld ms\n", (long long) (now_ms() - hstate_ms_.load()));
 }
 
+namespace {
+std::atomic<ExpertPool*> g_preread_pool{nullptr};
+constexpr size_t kPrereadChunk = 64 * 1024;
+}
+
 ExpertPool::ExpertPool(int n_workers, bool pin, bool host_works, PoolAffinity affinity, int tasks)
     : tasks_(tasks), host_works_(host_works), affinity_(affinity), topo_(detect_cpu_topology(true, affinity)) {
     if (tasks < 0 || tasks > kMaxTasks) throw std::invalid_argument("expert pool tasks must be in 0..4096");
+    {   // STRATA_POOL_PREREAD: the first pool constructed while none is registered takes the pre-reads
+        const char* v = std::getenv("STRATA_POOL_PREREAD");
+        if (v != nullptr && v[0] == '1') {
+            ExpertPool* none = nullptr;
+            preread_on_ = g_preread_pool.compare_exchange_strong(none, this);
+        }
+    }
     pinned_ = pin;
     layout_ = logical_cpu_layout();   // now, before anything pins the caller (Linux reads the calling thread's allowed CPUs)
     if (const char* e = std::getenv("STRATA_POOL_SPIN_US"))   // a test knob; see kSpinBeforeSleep
@@ -946,6 +961,10 @@ std::string ExpertPool::placement_line() const {
 }
 
 ExpertPool::~ExpertPool() {
+    {
+        ExpertPool* me = this;
+        g_preread_pool.compare_exchange_strong(me, nullptr);
+    }
     const ExpertPool* self = this;
     g_diag_pool.compare_exchange_strong(self, nullptr);
     if (g_numa_owner == this) {
@@ -968,6 +987,45 @@ void ExpertPool::publish() {
     if (sleepers_.load(std::memory_order_seq_cst) != 0) {
         std::lock_guard<std::mutex> lk(sleep_mu_);
         sleep_cv_.notify_all();
+    }
+}
+
+// ---- pancake-strata STRATA_POOL_PREREAD (tandem.cpp's LLAMA_MOE_PREREAD): parked workers pre-read the lookahead's
+// predicted CPU experts of the next layer.  Prefetch hints only (they cannot fault, so a pointer replaced by a newer post
+// mid-read is harmless); one 64 KiB chunk per claim, the epoch checked between chunks.
+ExpertPool* ExpertPool::preread_pool() { return g_preread_pool.load(std::memory_order_acquire); }
+
+void ExpertPool::post_preread(const uint8_t* const* ptrs, int n, size_t bytes) {
+    if (!preread_on_ || n <= 0 || bytes == 0) return;
+    if (n > kPrereadMax) n = kPrereadMax;
+    pr_chunks_.store(0, std::memory_order_release);   // no new claims on the old list
+    for (int i = 0; i < n; ++i) pr_ptr_[i] = ptrs[i];
+    pr_bytes_ = bytes;
+    pr_next_.store(0, std::memory_order_relaxed);
+    const uint32_t per = (uint32_t) ((bytes + kPrereadChunk - 1) / kPrereadChunk);
+    pr_gen_.fetch_add(1, std::memory_order_relaxed);
+    pr_chunks_.store(per * (uint32_t) n, std::memory_order_release);
+}
+
+void ExpertPool::preread_some(uint32_t seen) {
+    for (;;) {
+        if (epoch_.load(std::memory_order_acquire) != seen) return;   // real work: stop within one chunk
+        const uint32_t total = pr_chunks_.load(std::memory_order_acquire);
+        if (total == 0) return;
+        const uint32_t c = pr_next_.fetch_add(1, std::memory_order_relaxed);
+        if (c >= total) return;
+        const size_t bytes = pr_bytes_;
+        const uint32_t per = (uint32_t) ((bytes + kPrereadChunk - 1) / kPrereadChunk);
+        if (per == 0) return;
+        const uint8_t* b = pr_ptr_[(c / per) % kPrereadMax];
+        if (b == nullptr) continue;
+        const size_t off = (size_t) (c % per) * kPrereadChunk;
+        const size_t end = (std::min)(bytes, off + kPrereadChunk);
+#if defined(__x86_64__) || defined(_M_X64)
+        for (size_t o = off; o < end; o += 64) _mm_prefetch((const char*) (b + o), _MM_HINT_T1);
+#else
+        (void) end;
+#endif
     }
 }
 
@@ -1010,6 +1068,10 @@ void ExpertPool::worker(int id) {
             } else
 #endif
             {
+                if (preread_on_ && pr_next_.load(std::memory_order_relaxed) < pr_chunks_.load(std::memory_order_relaxed)) {
+                    preread_some(seen);   // STRATA_POOL_PREREAD: idle RAM bandwidth between jobs
+                    continue;
+                }
                 strata_cpu_pause();
                 if ((++spins & 1023u) != 0) continue;
             }
