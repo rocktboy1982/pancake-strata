@@ -289,6 +289,14 @@ Results, 2026-11-08 (fast preset, IQ2_XS, 4236 cache slots, 4 prompts; `bench/pr
   themselves (near-tie tokens, e.g. la-off's second short run splits at token 133 from every other arm).
 - 8.7 (two-stage prompts) needs a second GPU: StrataFast's `--prompt-split` runs each chunk's late layers on another
   card while the main one starts the next chunk.  Blocked on hardware, like 8.10.
+- 8.6 done: a profile learned on agent-style requests over source files the bench does not use
+  (`tools/pancake/learn_profile.py`, `data/expert-profile-pancake.bin`) against the shipped one: decode
+  52.8/63.4/75.8/90.0 -> 57.8/70.8/80.9/91.4 tok/s (+6.7%, every run faster, most on the cold first runs).  The IQ2_XS
+  presets use it now; the Q2_0 presets keep the shipped one until measured.
+- Phase 3, measured ceiling: the draft step is 2.5-3.2 ms of a 46-130 ms window (2-5%), so basalt's draft-head items (2-bit
+  screen of a Q8_0 draft head, K/V append beside the draft query) can give 1-2% at most here.  Speculative sampling at
+  temperature > 0 is in the engine (`STRATA_SPEC_PROB`, coupled, Gumbel; measured upstream on a 3060: the default path is
+  as fast or faster), and the MTP/suffix choice is DraftPolicy's.  Lower priority than anything on the CPU experts.
 - 10.3 is covered by 10.2: the GPU lookahead routes every token of the verify window, and those are the MTP draft's
   tokens; the separate MTP-head router predictor (rated weakest above) is not needed.
 - 10.5 does not pay here: `--kv-resident 8192` gives the expert cache the idle KV VRAM a lend would (4188 -> 4406 slots,

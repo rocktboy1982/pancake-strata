@@ -8,7 +8,7 @@
   "--ple-gguf",
   "<STRATA_DATA>/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf",
   "--expert-profile",
-  "<REPO>/data/expert-profile.bin",
+  "<REPO>/data/expert-profile-pancake.bin",
   "--expert-cache",
   "auto",
   "--prefill",
