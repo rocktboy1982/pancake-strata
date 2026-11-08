@@ -71,6 +71,28 @@ engine 0.1.8). Both diverged by thousands of commits, so nothing is merged; each
 - Each case: greedy, 3 runs, interleaved base and mod, median. Record VRAM peak and RAM use.
 - Exactness: greedy text of the base and mod engines compared for 900+ tokens per case.
 
+## Status (2026-11-08, branches exp/expert-prefetch -> feat/grammar)
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| 10.1 decode breakdown | done | CPU experts 38 ms of a 66 ms window; GPU waits 17.5 ms |
+| 10.2 router lookahead | done, on by default on the GPU | same picks, CPU cost 30 -> 0.6 ms/window, +10% decode on mmap'd experts |
+| 10.2 prefetch consumer (Foresight) | measured, off | 0.97 at 4 slots; 8 slots run out of VRAM on long prompts |
+| 10.3 draft-informed prefetch | covered by 10.2 | the lookahead routes the window's draft tokens |
+| 10.4 finish together | already in Strata | PcieAuto, share 0.20-0.25 on all 48 layers |
+| 10.5 VRAM lending, item 7 per-layer budgets | dropped | +5% cache slots: no decode change; cross-layer swaps 48.3% vs 48.4% |
+| 8.6 learned expert profile | done, in the IQ2_XS presets | +6.7% decode, every run faster |
+| 8.7 two-stage prompts | blocked | needs a second GPU |
+| 8.8 fused attention prompt kernel | low ceiling | attention is 6.7% of a 42K prompt on the main engine |
+| 8.9 cache-aware routing | opt-in (`turbo`) | 0.5: +25% decode, 2.9% tokens differ (stock 1.2-1.3%) |
+| 8.9 KV body, mb-MTP | dropped | VRAM does not buy decode here; drafting is 2-5% of a window |
+| 8.10, phase 5 | blocked | the 7900 XT is not detected |
+| phase 3 drafting | in the engine / low ceiling | auto n-gram (DraftPolicy), spec sampling exist; draft step 2-5% |
+| phase 6 grammar in spec decoding | done, on in the IQ2_XS presets | tool calls / strict schemas always valid, 0.1-0.2% per window |
+| phase 7 cache tiers | mostly in the engine | open: sleep-in-place with the RAM complement (basalt 64167ba73), automatic disk sessions |
+| phase 9 Qwen 4 | waiting | no weights published |
+| prompt path kernels | measured, FP16 kept | WMMA worse; fused int8 -7% at 42K but +12% at 5K |
+
 ## Phases
 
 ### 0. Bring-up (after the reboot)
