@@ -1,6 +1,6 @@
 #!/bin/sh
 # pancake-strata: serve a model with its measured preset.
-#   ./run-pancake.sh [MODEL] [fast|exact]
+#   ./run-pancake.sh [MODEL] [fast|exact|turbo]
 # MODEL (default iq2_xs):
 #   iq2_xs      Qwen3.8-Flash-Next, ISTA-DASLab IQ2_XS - main engine (the daily model)
 #   q2_0        Qwen3.8-Flash-Next, ISTA-DASLab Q2_0   - main engine (Strata's fastest file; basalt's Q5_K head kernels)
@@ -10,6 +10,8 @@
 #               MTP drafting layer borrowed from the Qwen3.6 Q4_K_XL file
 # Flash-Next defaults to the fast preset (Speedy's switches: ~13% faster writing after long prompts; it passed the
 # token-forcing quality check, docs/PANCAKE_FINDINGS.md 10e).  `exact`: the same answers as plain decoding.
+# `turbo` (IQ2_XS only, lossy opt-in): fast + cache-aware routing (STRATA_ROUTE_PRIOR=0.5), +25% decode on the 3060
+# but 2.9% of tokens differ from exact decoding (stock noise 1.2-1.3%, no large-margin errors; MOD_PLAN 8.9).
 # STRATA_DATA (default /home/dan/clone-of-d/Strata-data) and MODELS (default /home/dan/clone-of-d/models) hold the
 # files; PORT defaults to 8080.
 cd "$(dirname "$0")" || exit 1
@@ -22,8 +24,9 @@ for a in "$@"; do
   case "$a" in
     fast) FAST=-fast ;;
     exact) FAST= ;;
+    turbo) FAST=-turbo ;;
     iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b) MODEL=$a ;;
-    *) echo "usage: $0 [iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b] [fast|exact]" >&2; exit 2 ;;
+    *) echo "usage: $0 [iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b] [fast|exact|turbo]" >&2; exit 2 ;;
   esac
 done
 case "$MODEL" in

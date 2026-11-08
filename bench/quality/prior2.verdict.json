@@ -1,0 +1,28 @@
+{
+ "requests": 20,
+ "tokens_cand": 5322,
+ "tokens_stock_arms": [
+  5322,
+  5322
+ ],
+ "delta": 2.25,
+ "mismatch_rate_stock_arms_pct": [
+  1.165,
+  1.297
+ ],
+ "mismatch_rate_cand_pct": 9.902,
+ "diff_pts": 8.672,
+ "diff_ci90_pts": [
+  5.71,
+  11.954
+ ],
+ "rate_rule": "REJECT",
+ "events_cand": 8,
+ "events_stock_arms": [
+  0,
+  0
+ ],
+ "events_p": 0.00015,
+ "event_rule": "REJECT",
+ "verdict": "REJECT"
+}

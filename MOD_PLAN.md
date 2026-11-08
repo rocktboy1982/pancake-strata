@@ -148,6 +148,14 @@ off-topic prompts) and a tool call with an enum argument all valid; 0.3-0.8 ms o
 - One shared cached prefix (system prompt and tools) across agent conversations, as SGLang's RadixAttention does.
 - basalt's `--idle-sleep`: free VRAM between requests, wake in seconds instead of a cold load.
 
+Status 2026-11-08: the shared prefix is in the engine (a new conversation that starts inside a parked one borrows its
+checkpoint); conversations to disk exist as session files (`slot_save_path`, `/slots/0?action=save|restore`), by hand
+rather than FastStrata's automatic `--conversation-disk`; VRAM back between requests exists as `--vram-elastic` +
+`POST /v1/vram` (no reload), but the engine refuses it with the pinned RAM complement the daily IQ2_XS preset uses (the
+complement holds only the experts the VRAM cache does not), and `--idle-unload` is a cold reload (~1 min).  basalt's
+sleep-in-place (64167ba73, ~815 lines: drop and redo the RAM copy's registration, refill on wake) is what closes that gap;
+left for after the speed and quality items.
+
 ### 8. Additions from the forks and reports read on 2026-11-07 (owner: "add them to the plan and bring them in")
 
 Each lands as its own commit, measured (the bench and, where numbers change, exactness or KL), credited to its source.
@@ -165,6 +173,18 @@ Each lands as its own commit, measured (the bench and, where numbers change, exa
 | 8.9 | Opt-in lossy: cache-aware routing (colibri `CACHE_ROUTE`), SJ-KVaRN-style KV body (keys 8-bit, recent window), mb-MTP | colibri, llamAmpere | poly | no: opt-in, KL | decode / VRAM |
 | 8.10 | RDNA3 kernels, tensor parallel, SDMA, idle-queue parking for the 7900 XT | Strata-rdna3 | main, HIP | per kernel parity | 2-3x stock on gfx1100; waits for the card |
 | 8.11 | basalt's head kernels (owner's request): **done 2026-11-08** - `q5k_head.cu` ported (Q5_K heads: Q2_0 / IQ3_XXS files) and the same designs written for IQ4_XS (the IQ2_XS head in daily use): exact head GEMV, 2-bit two-stage draft pick | basalt | main | yes | +3-5% decode (draft pick), head x1.07-1.27 in its test |
+
+8.9 measured 2026-11-08, cache-aware routing (`STRATA_ROUTE_PRIOR`, the resident experts' logits get a bonus; changes
+the output), token-forcing check against the exact preset (stock noise 1.17-1.30% mismatch, 0 large-margin events) and
+decode against the learned-profile preset (75.2 tok/s mean, short x2 + edit x2):
+
+| lambda | mismatch | vs stock (90% CI) | large-margin events | verdict | decode |
+| --- | ---: | ---: | ---: | --- | ---: |
+| 2.0 | 9.90% | +8.67 pts (5.71, 11.95) | 8 | REJECT | 88.1 tok/s (+17%) |
+| 0.5 | 2.89% | +1.66 pts (1.00, 2.41) | 0 | REJECT (rate) | 94.1 tok/s (+25%) |
+
+0.5 changes about one token in 60 more than the engine's own noise, never with a confident wrong pick: an opt-in, not a
+default.  `./run-pancake.sh iq2_xs turbo` (configs/pancake/flashnext-iq2_xs-turbo.json) runs it.
 
 ### Priority change (owner, 2026-11-08): Qwen3.8-Flash-Next for daily use
 
