@@ -37,7 +37,17 @@ case "$MODEL" in
   qwen38-35b) PRESET=qwen38-35b-distill-q4_k_m ;;
 esac
 [ -f "configs/pancake/$PRESET.json" ] || { echo "no preset configs/pancake/$PRESET.json" >&2; exit 1; }
+# The GPU picks the build: an NVIDIA card runs build-cuda, otherwise the HIP build (build-hip, RX 7900 XT gfx1100).
+# strata-poly (the Qwen3.6 / 35B presets) is CUDA-only.
+if nvidia-smi -L >/dev/null 2>&1; then
+  BUILD=build-cuda LIBS=/usr/local/cuda/lib64
+else
+  BUILD=build-hip LIBS=/opt/rocm/core-10.0/lib
+  export HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-0}  # ROCm GPU 1 is the Vega iGPU
+  grep -q strata-poly "configs/pancake/$PRESET.json" && { echo "$MODEL needs strata-poly, which is CUDA-only" >&2; exit 1; }
+fi
 CFG="$REPO/pancake-$PRESET.json"
-sed -e "s#<STRATA_DATA>#$DATA#g" -e "s#<REPO>#$REPO#g" -e "s#<MODELS>#$MODELS#g" "configs/pancake/$PRESET.json" > "$CFG"
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+sed -e "s#<STRATA_DATA>#$DATA#g" -e "s#<REPO>#$REPO#g" -e "s#<MODELS>#$MODELS#g" -e "s#/build-cuda/#/$BUILD/#" \
+  "configs/pancake/$PRESET.json" > "$CFG"
+export LD_LIBRARY_PATH=$LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 exec "$REPO/tools/pancake/capped.sh" "$REPO/.venv/bin/python" "$REPO/serve/server.py" --engine strata --config "$CFG" --port "${PORT:-8080}"
