@@ -14,6 +14,7 @@
 #include <cstring>
 #include <thread>
 #include <chrono>
+#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)   // pancake: wave32 RDNA only (DPP / permlanex16 / sudot4)
 
 #ifndef STRATA_GR_WPE
 #define STRATA_GR_WPE 8
@@ -751,3 +752,12 @@ void rdna_gr_read_multi(const FusedGrArgs* a, int n_tok, float* scratch, void* s
     }
 }
 }  // namespace strata::kernels
+#else
+// CUDA and gfx906 builds: the RDNA read does not exist there; every caller keeps its own path.
+namespace strata::kernels {
+bool rdna_gr_enabled() { return false; }
+bool rdna_r8_scratch_init(long long) { return false; }
+const uint16_t* rdna_r8_to_bf16(const int8_t*, long long, long long, int, void*) { return nullptr; }
+void rdna_gr_read_multi(const FusedGrArgs*, int, float*, void*, unsigned long long*, int) {}
+}  // namespace strata::kernels
+#endif

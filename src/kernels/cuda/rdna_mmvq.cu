@@ -2,11 +2,13 @@
 // One wave per output row; per superblock every lane takes 8 consecutive weights (half n, quadrant qd, 8 l's), decodes
 // them once (ql nibble | qh 2 bits, -32) and applies them to every column with two dp4a.  The same products and
 // per-16 scales as ggml's vec_dot_q6_K_q8_1, another summation order (not bitwise the reference kernel).
+#include "strata/kernels/native_mmvq.hpp"
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)   // pancake: wave32 RDNA only (DPP / permlanex16 / sudot4)
 
 namespace strata::kernels {
 namespace {
@@ -214,3 +216,11 @@ bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out,
     return true;
 }
 }  // namespace strata::kernels
+#else
+// CUDA and gfx906 builds: the RDNA GEMVs do not exist there; the callers keep native_mmvq.
+namespace strata::kernels {
+bool rdna_q6k_enabled() { return false; }
+bool rdna_q6k_mmvq(const void*, const void*, float*, int, int, int, void*) { return false; }
+bool rdna_kq_mmvq(int, const void*, const void*, float*, int, int, int, void*) { return false; }
+}  // namespace strata::kernels
+#endif
