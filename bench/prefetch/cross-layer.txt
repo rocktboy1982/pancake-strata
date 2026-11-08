@@ -1,0 +1,10 @@
+== same-layer
+static oracle (top-4236 by this trace's own counts): 0.5900
+profile only, no adaptation: 0.3104
+policy every 4, swaps 96, decay 0.70: share 0.4839, swaps 5184 (23.67/window); miss entries 271513, distinct misses 196113 (27.8% fewer reads)
+slots per layer at the end: 62-110
+== --cross
+static oracle (top-4236 by this trace's own counts): 0.5900
+profile only, no adaptation: 0.3104
+policy every 4, swaps 96, decay 0.70: share 0.4825, swaps 5184 (23.67/window); miss entries 272268, distinct misses 196898 (27.7% fewer reads)
+slots per layer at the end: 50-105

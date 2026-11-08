@@ -1,6 +1,7 @@
 """Offline replay of a --dump-routing trace through the expert cache policies.
 
     python replay_cache_policy.py TRACE.bin PROFILE.bin SLOTS [--every 4 --decay 0.7 --swaps 96 --margin 1.5 --mincand 2.0]
+                                                              [--cross: swaps across layers, MOD_PLAN 10 item 7]
 
 Trace record = int32 layer, int32 k, k int32 ids, k float32 weights; the verify window writes one record per token and
 layer, so a layer group is the run of records with one layer and a window starts when the layer does not rise.
@@ -50,12 +51,16 @@ def load_profile(path, slots):
 
 
 class Policy:
-    def __init__(self, every=4, decay=0.7, swaps=96, margin=1.5, mincand=2.0, mode='entries', mingain=0.0, posw=1.0):
+    def __init__(self, every=4, decay=0.7, swaps=96, margin=1.5, mincand=2.0, mode='entries', mingain=0.0, posw=1.0,
+                 cross=False):
         self.every, self.decay, self.swaps, self.margin, self.mincand = every, decay, swaps, margin, mincand
         self.mode, self.mingain, self.posw = mode, mingain, posw
+        self.cross = cross  # MOD_PLAN 10 item 7: swap across layers, so slots move to the layers that miss most
 
 
 def adapt_round(res, usage, pol):
+    if pol.cross:
+        return adapt_round_cross(res, usage, pol)
     sw = []
     for l in range(NL):
         u = usage[l]
@@ -82,6 +87,24 @@ def adapt_round(res, usage, pol):
     return len(sw)
 
 
+def adapt_round_cross(res, usage, pol):
+    """One pool for all layers: the best non-resident (layer, expert) against the worst resident one, anywhere."""
+    r, u = res.ravel(), usage.ravel()
+    cand = np.flatnonzero(~r & (u >= pol.mincand))
+    vict = np.flatnonzero(r)
+    if len(cand) == 0 or len(vict) == 0:
+        return 0
+    cand = cand[np.argsort(-u[cand], kind="stable")]
+    vict = vict[np.argsort(u[vict], kind="stable")]
+    n = min(len(cand), len(vict), pol.swaps)
+    gain = u[cand[:n]] - u[vict[:n]]
+    bad = np.flatnonzero((u[cand[:n]] < u[vict[:n]] + pol.margin) | (gain < pol.mingain))
+    n = int(bad[0]) if len(bad) else n
+    r[cand[:n]] = True
+    r[vict[:n]] = False
+    return n
+
+
 def simulate(windows, init, pol, reset_every=0):
     res = np.zeros((NL, NE), bool)
     res[init[:, 0], init[:, 1]] = True
@@ -106,8 +129,9 @@ def simulate(windows, init, pol, reset_every=0):
         if (wi + 1) % pol.every == 0:
             swaps += adapt_round(res, usage, pol)
             usage *= pol.decay
+    per_layer = res.sum(1)
     return dict(share=hits / max(1, ent), swaps=swaps, windows=len(windows), entries=ent, miss_ent=miss_ent,
-                miss_dist=miss_dist)
+                miss_dist=miss_dist, slots_min=int(per_layer.min()), slots_max=int(per_layer.max()))
 
 
 def static_oracle(windows, slots):
@@ -127,7 +151,7 @@ if __name__ == "__main__":
         return cast(sys.argv[sys.argv.index(name) + 1]) if name in sys.argv else default
 
     pol = Policy(every=opt("--every", 4, int), decay=opt("--decay", 0.7), swaps=opt("--swaps", 96, int),
-                 margin=opt("--margin", 1.5), mincand=opt("--mincand", 2.0))
+                 margin=opt("--margin", 1.5), mincand=opt("--mincand", 2.0), cross="--cross" in sys.argv)
     windows, k = load_trace(tr)
     print("windows", len(windows), "k", k, "tokens/window", np.mean([len(w[0][1]) for w in windows]))
     init = load_profile(prof, slots)
@@ -139,3 +163,4 @@ if __name__ == "__main__":
           "(%.1f%% fewer reads)" % (pol.every, pol.swaps, pol.decay, cur["share"], cur["swaps"], cur["swaps"] / cur["windows"],
                                     cur["miss_ent"], cur["miss_dist"],
                                     100 * (1 - cur["miss_dist"] / max(1, cur["miss_ent"]))))
+    print("slots per layer at the end: %d-%d" % (cur["slots_min"], cur["slots_max"]))

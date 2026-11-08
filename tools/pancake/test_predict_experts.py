@@ -55,6 +55,17 @@ def test_coact_proposes_partners():
     assert out[("prev-window", 4)][0] < 0.6, out[("prev-window", 4)]
 
 
+def test_cross_layer_swaps_move_slots_to_the_layer_that_misses():
+    # every layer uses expert 0 (cached); layer 0 also uses 7, which only a slot from another layer can hold
+    w = [(0, 7)] + [(0, 0)] * (R.NL - 1)
+    windows = [[(l, np.array([ids])) for l, ids in enumerate(w)]] * 40
+    init = np.array([(l, 0) for l in range(R.NL)] + [(1, 5)])
+    same = R.simulate(windows, init, R.Policy())
+    cross = R.simulate(windows, init, R.Policy(cross=True))
+    assert same["share"] < cross["share"], (same, cross)
+    assert cross["slots_max"] == 2 and cross["slots_min"] == 1, cross
+
+
 def test_rank_drops_zero_scores():
     assert P.rank(np.array([0.0, 2.0, 1.0, 0.0])).tolist() == [1, 2]
 
