@@ -92,6 +92,7 @@ engine 0.1.8). Both diverged by thousands of commits, so nothing is merged; each
 | phase 7 cache tiers | mostly in the engine | open: sleep-in-place with the RAM complement (basalt 64167ba73), automatic disk sessions |
 | phase 9 Qwen 4 | waiting | no weights published |
 | prompt path kernels | measured, FP16 kept | WMMA worse; fused int8 -7% at 42K but +12% at 5K |
+| vs stock Strata (upstream 146df3c46) | measured | Flash-Next IQ2_XS, experts read from disk on both: decode 54.5 -> 69.2 tok/s (+27%), 5.3K edit prompt 23.3 -> 11.0 s; ours with the RAM arena 75.5 |
 
 ## Phases
 

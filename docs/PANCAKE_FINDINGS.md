@@ -302,6 +302,27 @@ The fast preset is indistinguishable from the engine's own noise, so it becomes 
 keeps the exact one). The tail skip moves more answers (no large-margin errors, but a clear rate increase): it stays an
 opt-in until a larger run decides it.
 
+## 10f. Against stock Strata on Flash-Next IQ2_XS (2026-11-08)
+
+Stock = upstream/main 146df3c46 built for sm_86 in a separate worktree, run with the original IQ2_XS preset (its own
+`data/expert-profile.bin`, no `--grammar`, no env overrides, so its defaults).  Ours = `configs/pancake/flashnext-iq2_xs.json`.
+`tools/pancake/bench_engines.py --runs 2 --only short,edit`, every run in `tools/pancake/capped.sh`
+(`bench/prefetch/{stock-mmap,ours-mmap,ours}.jsonl`).
+
+With 12 GiB kept free, stock was killed by systemd-oomd while building its 34 GB expert arena (memory stall time over
+the 50%/30 s limit of `user@.service`, only the capped scope died); later the same happened to our presets, which had
+loaded all morning.  The fair pair therefore keeps 20 GiB free, where both engines read the experts from the GGUF
+(mmap tier):
+
+| Run (decode tok/s) | short 1 (cold) | short 2 | edit 1 | edit 2 | mean | edit prompt (5.3K) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| stock, mmap tier | 43.9 | 65.3 | 54.5 | 54.2 | 54.5 | 23.3 s |
+| ours, mmap tier | 53.1 | 59.8 | 77.4 | 86.6 | 69.2 (+27%) | 11.0 s |
+| ours, RAM arena (12 GiB kept) | 57.9 | 70.2 | 81.9 | 92.1 | 75.5 | 7.6 s |
+
+Code edits gain most (+42% / +60%: drafts, learned profile, GPU lookahead); the warm short chat is 8% slower than
+stock in this pair (one run each).  Prompt reading is 2.1x faster.
+
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
 
 **NVIDIA / RTX 3060 (sm_86):** inference-cuda-kernels (step-by-step LLM ops measured on a 3060), cuda-gemm-benchmark (FP32
