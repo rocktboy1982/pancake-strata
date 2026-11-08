@@ -410,10 +410,20 @@ SELECT_LONG, mtp-window, hw queues.  VERIFY_DEFER_CPU gave non-finite logits wit
 
 Replay ceilings at 10,909 cached experts (44%): engine tier 79.6%, per-layer LRU 89.5%, Belady 94.7%; tier every window x160 85.0%.
 
+Done 2026-11-08 evening: rounds B/C, presets fast-hip (default) / hip (exact) / turbo-hip (commit f0f9c5788); token forcing
+INCONCLUSIVE +0.4 pts, 0 large-margin events; strata_bench --long and strata-7900xt bench.py beat Avalon and stock Strata
+(bench/results/2026-11-08-7900xt-final-suites.txt).  VERIFY_DEFER_CPU still non-finite on HIP with the ported kernels.
+
 Next, in order (report section "Ranked plan"):
-1. Round B: combine the winners, bisect group A; token-forcing quality check (tools/pancake/quality_hip.sh); make the winners
-   the gfx1100 preset; finish the CUDA build check for the 3060 line.
-2. Reuse-aware admission into VRAM, copies while the CPU pool idles (aim: LRU's 89.5% without its PCIe cost).
+1. Finish the CUDA build check for the 3060 line.
+2. Reuse-aware admission: measured in the replay 2026-11-08 - LRU's 89.5% needs ~204 admissions a window (~280 MB of DRAM
+   reads, ~21 ms of PCIe 3.0 per ~24 ms window: the contention --pcie-frac 0 removed); admit-after-3-misses 86.0% at ~10 ms;
+   tier scoring sweeps top out at 84.7%; the engine measured 16 / 32 / 64 swaps a window all ~128 tok/s.  Small on PCIe 3.0:
+   deprioritized (the published LRU wins are PCIe 4.0/5.0 boxes).
+   Profile 2026-11-08 (fast-hip, STRATA_DECODE_TIMING): short windows 24.8 ms = GPU-reach wait 15.9 + CPU experts 5.2 + draft
+   2.2 (2.2 CPU experts a layer, ~28 GB/s effective vs a 42.5 GB/s measured DDR4 read ceiling); code-edit windows 37.4 ms =
+   15.8 + CPU 17.4 + 2.5 (7.4 CPU experts a layer).  The CPU idles ~0.33 ms a layer during the GPU's dense phase: next
+   candidate = L3 prefetch of the next layer's CPU experts from the router lookahead (exact).
 3. Miss-aware MTP window cost (DraftExpert / EcoSpec); then the tail-row drop, simulated in the replay first.
 4. CPU pool toward ~40 GB/s (STREAM ceiling first, fused phases, row-chunk split); memory at 3600 1:1 FCLK is the owner's call.
 5. Prefill: larger chunks, keep the decode cache resident during prompts.
