@@ -189,13 +189,6 @@ int prefetch_distance() {
     return d;
 }
 
-// pancake-strata STRATA_IQ2S_PAIR=1 (opt-in; measured neutral end to end on the 5700G, 2026-11-08): IQ2_S decodes both halves of a 64-value group from
-// one index build (Fmt32<22>::decode2).  The same values either way.
-bool iq2s_pair_decode() {
-    static const bool on = [] { const char* v = std::getenv("STRATA_IQ2S_PAIR"); return v != nullptr && v[0] == '1'; }();
-    return on;
-}
-
 inline void rows_ahead(const uint8_t* blk, int pf) {
     if (pf <= 0) return;
     _mm_prefetch((const char*) blk + pf, _MM_HINT_T0);
@@ -239,27 +232,6 @@ template <> struct Fmt32<17> {   // IQ2_XS: d, qs[32] u16 (9-bit grid index + 7-
 template <> struct Fmt32<22> {   // IQ2_S: d, qs[64] (32 grid bytes, 32 sign bytes), qh[8], scales[8]
     static constexpr int bytes = 82;
     static constexpr float K = 0.125f;
-    // pancake-strata: both halves of 64-value group j from ONE index build - the 8 grid bytes and the two qh bytes'
-    // spread high bits make all 8 indices in one unpack (decode() builds 8 per half and uses 4).  The same indices,
-    // grid entries, signs and scales as decode(j, 0) and decode(j, 1): bit for bit.
-    static inline void decode2(const uint8_t* b, int j, __m256i* g, __m256i* sgn, __m256i* sc) {
-        // indices in general registers: index k of half h = qs byte (4h + k) | bits 2k,2k+1 of qh byte h << 8 - no
-        // store and reload through the stack (the per-half decode's 16-byte store + four 16-bit loads)
-        const uint64_t q = u64(b + 2 + 8 * j);
-        const uint32_t h0 = b[66 + 2 * j], h1 = b[67 + 2 * j];
-        g[0] = _mm256_set_epi64x((long long) iq2s_grid[((q >> 24) & 0xff) | ((h0 << 2) & 0x300)],
-                                 (long long) iq2s_grid[((q >> 16) & 0xff) | ((h0 << 4) & 0x300)],
-                                 (long long) iq2s_grid[((q >> 8) & 0xff) | ((h0 << 6) & 0x300)],
-                                 (long long) iq2s_grid[(q & 0xff) | ((h0 << 8) & 0x300)]);
-        g[1] = _mm256_set_epi64x((long long) iq2s_grid[((q >> 56) & 0xff) | ((h1 << 2) & 0x300)],
-                                 (long long) iq2s_grid[((q >> 48) & 0xff) | ((h1 << 4) & 0x300)],
-                                 (long long) iq2s_grid[((q >> 40) & 0xff) | ((h1 << 6) & 0x300)],
-                                 (long long) iq2s_grid[((q >> 32) & 0xff) | ((h1 << 8) & 0x300)]);
-        sgn[0] = sgn_vec_at(b + 2 + 32 + 8 * j);
-        sgn[1] = sgn_vec_at(b + 2 + 32 + 8 * j + 4);
-        sc[0] = scale_vec(scale_vecs.s16[b[74 + 2 * j]]);
-        sc[1] = scale_vec(scale_vecs.s16[b[75 + 2 * j]]);
-    }
     static inline void decode(const uint8_t* b, int j, int half, __m256i& g, __m256i& sgn, __m256i& sc) {
         // grid_indices reads 8 index bytes; only the first 4 are this half's (the rest stay inside the block)
         alignas(16) uint16_t sp[8];

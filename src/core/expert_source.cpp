@@ -6429,16 +6429,6 @@ void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
     constexpr int64_t kWarmCap = 8;
     const auto& lay = strata::kernels::cpu::expert_layout();
     const uint64_t bytes = lay.blob_bytes(layer);
-    if (preread_) {   // STRATA_POOL_PREREAD: the parked pool workers read them, stopping at the next real job
-        if (strata::kernels::cpu::ExpertPool* pool = strata::kernels::cpu::ExpertPool::preread_pool()) {
-            const uint8_t* ptrs[strata::kernels::cpu::ExpertPool::kPrereadMax];
-            int m = 0;
-            for (int64_t i = 0; i < n && m < strata::kernels::cpu::ExpertPool::kPrereadMax; ++i)
-                if (experts[i] >= 0 && experts[i] < n_expert_) ptrs[m++] = blob_at(layer, experts[i]);
-            pool->post_preread(ptrs, m, (size_t) bytes);
-        }
-        return;
-    }
     for (int64_t i = 0; i < n && i < kWarmCap; ++i) {
         if (experts[i] < 0 || experts[i] >= n_expert_) continue;
         const uint8_t* b = blob_at(layer, experts[i]);
