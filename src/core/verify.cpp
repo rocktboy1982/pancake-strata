@@ -741,6 +741,7 @@ Verifier::~Verifier() {
     if (tap_scratch_) cudaFree(tap_scratch_);
     if (h_tap_) cudaFreeHost(h_tap_);
     if (logit_bias_device_) cudaFree(logit_bias_device_);
+    if (row_bias_device_) cudaFree(row_bias_device_);
     for (float* b : slot_bias_dev_) if (b) cudaFree(b);
     if (slot_hist_d_) cudaFree(slot_hist_d_);
     if (cs_ && cs_ != ext_stream_) cudaStreamDestroy(cs_);   // set_stream: the stage's stream, shared, not ours
@@ -5365,6 +5366,27 @@ void Verifier::note_nonfinite(int T, const int64_t* pos_b) {
     for (int t = 0; t < T && nf_row_ < 0; ++t)
         if ((nf_mask_ >> t) & 1u) nf_row_ = t;
     if (nf_row_ >= 0) nf_pos_ = pos_b != nullptr ? pos_b[nf_row_] : last_pos0_ + nf_row_;
+}
+
+bool Verifier::resample_row(int t, int64_t pos0, const std::vector<float>& bias, int32_t& token, std::string& err) {
+    if (next_ != nullptr) return next_->resample_row(t, pos0, bias, token, err);   // a layer split: the head is on the last stage
+    const OnDevice on_device(device_);
+    if (head_logits_ == nullptr || t < 0 || bias.size() != (size_t) n_vocab_) { err = "resample_row: no such row or a bad bias"; return false; }
+    const size_t bytes = bias.size() * sizeof(float);
+    if ((!row_bias_device_ && cudaMalloc((void**) &row_bias_device_, bytes) != cudaSuccess) ||
+        cudaMemcpy(row_bias_device_, bias.data(), bytes, cudaMemcpyHostToDevice) != cudaSuccess) {
+        err = "resample_row: the bias upload failed";
+        return false;
+    }
+    strata::kernels::SamplerParams sp = sampling_;
+    sp.logit_bias = row_bias_device_;
+    sp.counter = (uint64_t) pos0 + (uint64_t) t;
+    strata::kernels::sample_tokens(head_logits_ + (size_t) t * (size_t) n_vocab_, 1, (int) n_vocab_,
+                  hist_d_ != nullptr ? hist_d_ + (size_t) t * (size_t) hist_len_ : nullptr, hist_d_ != nullptr ? hist_len_ : 0, sp,
+                  m_out_, cs_);
+    if (cudaStreamSynchronize(cs_) != cudaSuccess) { err = "resample_row: the sampling failed"; return false; }
+    token = ((volatile int32_t*) h_out_)[0];
+    return true;
 }
 
 bool Verifier::copy_logits(int t, float* host) const {

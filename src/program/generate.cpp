@@ -1,4 +1,5 @@
 #include "strata/core/logit_bias.hpp"
+#include "strata/program/grammar/guard.hpp"
 // src/program/generate.cpp - P2.S6: `strata generate`.
 //
 // THE DRIVER, and the first program in this project that answers a question.  Everything below it is a
@@ -918,6 +919,9 @@ struct Options {
     bool split_skip_if_fits = false;
     /// Plan v0.3 P8: stay resident and take requests on stdin (see the --serve block in main).
     bool serve = false;
+    /// --grammar on|off (--serve): a request's "grammar" key is enforced on the sampled tokens (the vocabulary is read
+    /// from the pack's tokenizer files at start).  Off: the key is ignored (basalt 011e13d72).
+    bool grammar = false;
     /// The vision path: keep a per-cell (t, h, w) rotary position table so --serve can take GENI requests.
     bool vision = false;
     int adapt_swaps = 96;
@@ -3600,6 +3604,11 @@ int main(int argc, char** argv) {
         else if (a == "--split-skip-if-fits") o.split_skip_if_fits = true;
         else if (a == "--pcie-mode") o.pcie_mode = next("--pcie-mode");
         else if (a == "--serve") o.serve = true;
+        else if (a == "--grammar") {
+            const std::string v = next("--grammar");
+            if (v != "on" && v != "off") { std::fprintf(stderr, "--grammar: on or off\n"); return 2; }
+            o.grammar = v == "on";
+        }
         else if (a == "--vision") o.vision = true;
         else if (a == "--session-save-reclaim") o.session_save_reclaim = true;
         else if (a == "--prompt-cache") o.prompt_cache = std::max(0, std::atoi(next("--prompt-cache")));
@@ -7232,6 +7241,27 @@ int main(int argc, char** argv) {
     const strata::core::WeightRef* wo = wt.find("output.weight");
     if (wo == nullptr) { std::fprintf(stderr, "strata generate: output.weight is missing\n"); return 1; }
     const int64_t n_vocab = wo->ne1;
+    // --grammar on: the token texts the grammar walks, read from the pack's tokenizer files (basalt 011e13d72)
+    std::optional<strata::program::grammar::PackVocab> grammar_vocab;
+    if (o.serve && o.grammar) {
+        auto slurp = [&](const char* name, std::string& s) {
+            std::ifstream f(std::filesystem::path(o.pack) / "tokenizer" / name, std::ios::binary);
+            s.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+            return f.good() || f.eof();
+        };
+        std::string vj, tj, gerr;
+        std::vector<int32_t> ends;
+        for (int64_t e : o.eos_ids) ends.push_back((int32_t) e);
+        strata::program::grammar::PackVocab pv;
+        if (!slurp("vocab.json", vj) || vj.empty() || !slurp("token_type.json", tj) || tj.empty() ||
+            !strata::program::grammar::vocab_from_pack(vj, tj, (size_t) n_vocab, ends, pv, gerr)) {
+            std::fprintf(stderr, "strata generate: --grammar on: the pack's tokenizer files cannot be read%s%s\n",
+                         gerr.empty() ? "" : ": ", gerr.c_str());
+            return 1;
+        }
+        grammar_vocab = std::move(pv);
+        std::fprintf(stderr, "strata generate: --grammar on: requests with a grammar are held to it on every window\n");
+    }
     strata::core::NativeHead native_head;
     if (!o.native_head_gguf.empty() && !multi_gpu) {   // a layer split's head is on its last stage
         const auto head_t0 = std::chrono::steady_clock::now();
@@ -15742,6 +15772,7 @@ int main(int argc, char** argv) {
             long long req_pen_from = -1;   // pen_from=N: this request continues one that began at token N (the last token of the original prompt): the penalty window starts there
             std::string req_bias_text;
             bool req_bias_present = false;
+            std::string req_grammar_text;   // grammar=<compact ASCII JSON, spaces as \u0020> (--grammar on)
             int req_cvec = 1;   // cvec=0|1: a loaded control vector for this request (on when absent)
             // logprobs=K (0..20): after each "T id" an "LP logprob id:logprob ..." line.
             // -1 (absent) = no LP lines, so a server that never asks sees today's output.
@@ -15813,6 +15844,7 @@ int main(int argc, char** argv) {
                     else if (key == "penalty_freq") req_penalty_freq = fv;
                     else if (key == "penalty_present") req_penalty_present = fv;
                     else if (key == "seed") req_seed = std::strtoull(tok.c_str() + eq + 1, nullptr, 10);
+                    else if (key == "grammar") req_grammar_text = tok.substr(eq + 1);
                     else if (key == "pcie_frac") { req_pcie_frac = std::clamp((double) fv, 0.0, 1.0); req_pcie_set = true; }
                     else if (key == "spec_min_p") { req_spec_min_p = std::clamp((double) fv, 0.0, 1.0); req_min_p_set = true; }
                     else if (key == "draft") req_draft = tok.substr(eq + 1);
@@ -15855,6 +15887,21 @@ int main(int argc, char** argv) {
                 continue;
             }
             const int64_t n = (int64_t) ids.size();
+            // grammar=<compact JSON>: the request's grammar, checked on every window's kept picks (basalt 011e13d72)
+            std::unique_ptr<strata::program::grammar::Guard> gguard;
+            if (!req_grammar_text.empty() && grammar_vocab) {
+                std::string gerr;
+                if (o.batch != 0) gerr = "continuous batching is not supported";
+                else {
+                    gguard = std::make_unique<strata::program::grammar::Guard>(*grammar_vocab);
+                    if (!gguard->begin(req_grammar_text, ids.data(), ids.size(), gerr) || !gguard->on()) gguard.reset();
+                }
+                if (!gerr.empty()) { std::printf("ERR grammar: %s\n", gerr.c_str()); continue; }
+            } else if (!req_grammar_text.empty()) {
+                std::fprintf(stderr, "strata grammar: the request has a grammar but this engine runs with --grammar off; ignored\n");
+            }
+            std::vector<float> grammar_bias;
+            int64_t grammar_resamples = 0;
             // --draft auto: this request's drafter.  Without the DFlash2 drafter loaded every request uses the MTP, as before.
             uint64_t bandit_key = 0;
             if (use_df2 && o.draft_auto) {
@@ -19193,6 +19240,26 @@ int main(int argc, char** argv) {
                 }
                 int a = merged ? T - 1 : 0;   // a merged window commits every row, as the prompt windows do
                 while (a < T - 1 && window[(size_t) a + 1] == outv[(size_t) a]) ++a;
+                if (gguard != nullptr && gguard->on()) {
+                    // the first kept pick the grammar refuses is drawn again under its mask, and the window ends at that row
+                    // (a merged window's rows before T - 1 answer prompt tokens: only its last row is an output)
+                    const int g0 = merged ? T - 1 : 0;
+                    const int miss = gguard->scan(outv.data() + g0, a + 1 - g0);
+                    if (miss >= 0) {
+                        const int row = g0 + miss;
+                        gguard->mask_bias(req_bias, grammar_bias);
+                        int32_t gtok = 0;
+                        if (!ver.resample_row(row, p, grammar_bias, gtok, err)) {
+                            std::printf("ERR %s\n", err.c_str());
+                            return 1;
+                        }
+                        outv[(size_t) row] = gtok;
+                        a = row;
+                        if (!gguard->take(gtok))
+                            std::fprintf(stderr, "strata grammar: the masked draw at row %d of %d was token %d\n", row, T, (int) gtok);
+                        ++grammar_resamples;
+                    }
+                }
                 if (fol != nullptr && fol_lp != nullptr) {   // rows 0..a have valid logits (their inputs are the accepted tokens)
                     std::vector<int32_t> fol_tg((size_t) a + 1, -1);
                     for (int i = 0; i <= a; ++i) {
@@ -19611,6 +19678,10 @@ int main(int argc, char** argv) {
                 std::snprintf(chain_txt, sizeof(chain_txt), " %lld %lld %lld %lld %lld", (long long) chain_ok,
                               (long long) chain_drafts, (long long) sfx_ok, (long long) sfx_drafts, (long long) dec_windows);
             if (yielded_at >= 0) std::printf("YIELDED %d %lld\n", yielded_slot, (long long) yielded_at);
+            if (gguard != nullptr)
+                std::fprintf(stderr, "strata grammar: %lld windows checked, %lld masked resamples, %.3f ms in grammar code (%.2f us/window)\n",
+                             (long long) gguard->windows(), (long long) grammar_resamples, gguard->ms(),
+                             gguard->windows() > 0 ? gguard->ms() * 1000.0 / (double) gguard->windows() : 0.0);
             std::printf("DONE %lld %lld %.1f %.1f %s %lld %lld %lld %lld %lld %lld %lld %.1f %lld %lld%s chunk=%lld "
                         "experts_streamed=%lld\n",
                         (long long) produced_n,

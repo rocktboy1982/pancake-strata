@@ -132,6 +132,16 @@ HIP: `--graph-experts` maps to HIP graphs; the tensor-core attention needs a WMM
 - **Done when:** tool calls are always valid JSON for the schema and decode speed with a grammar is within a few
   percent of without.
 
+Status 2026-11-08 (branch `feat/grammar`): **done**.  basalt's grammar engine ported (d64768699 GBNF / JSON-schema /
+tool-call builders and 02e1006fe the per-request guard; the engine credited to llama.cpp, MIT), `Verifier::resample_row`
+(c7813a6c3), the engine's `--grammar on` and request `grammar=` key (011e13d72: after each verify window the first kept pick
+the grammar refuses is drawn again under its mask and the window ends there, so MTP keeps drafting), and the server's key
+for tool calls and JSON response formats (`serve/grammar.py`).  CPU tests: grammar_test, grammar_schema_test,
+grammar_guard_test, serve/test_grammar.py.  On the 3060: 3 strict json_schema requests (enum + required, two of them
+off-topic prompts) and a tool call with an enum argument all valid; 0.3-0.8 ms of grammar code per request, 35-110 us per
+50-130 ms window (0.1-0.2%), 0-1 masked redraws per request.  The IQ2_XS presets run with `--grammar on`.  Not covered:
+`--batch` slots (refused with an error, as basalt's first version), a layer split's head stage (resample_row forwards).
+
 ### 7. Cache tiers
 
 - FastStrata's `--conversation-disk` (70K conversation after a restart: 83 s -> 7.2 s), for all three engines.

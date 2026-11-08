@@ -82,6 +82,7 @@ from serve import ready as ready_file  # noqa: E402
 from serve import owner_guard  # noqa: E402
 from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
+from serve import grammar as grammar_api  # noqa: E402
 from serve import lifeline  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
@@ -1154,6 +1155,8 @@ class StrataEngine:
         # it itself (--turn-token), so only strata-poly is sent the key
         self.poly_engine = Path(str(exe)).stem.lower() == "strata-poly"
         self.session_save_reclaim = '--session-save-reclaim' in args
+        # --grammar on: tool calls and JSON response formats are held to their grammar by the engine (serve/grammar.py)
+        self.grammar = '--grammar' in args and args[args.index('--grammar') + 1:args.index('--grammar') + 2] == ['on']
         paths = {k: v for k, v in zip(args, args[1:]) if k in ("--native", "--pack")}
         self.model_path = paths.get("--native") or paths.get("--pack", "pack/full")
         self.log_path = log
@@ -1730,7 +1733,8 @@ class StrataEngine:
             if ids:
                 # only these ids are printed; the engine's comma-separated list, renormalised below
                 keys += " allowed=" + ",".join(str(i) for i in ids)
-        return keys + StrataEngine.projection_key(sampling) + bias_api.engine_key(sampling.get("logit_bias"))
+        return keys + StrataEngine.projection_key(sampling) + bias_api.engine_key(sampling.get("logit_bias")) + \
+            grammar_api.engine_key(sampling.get("strata_grammar"))
 
     @staticmethod
     def restore_keys(sampling: dict) -> str:
@@ -8637,6 +8641,10 @@ def make_handler(svc: Service):
             messages, validator = prepare_format(req.get("response_format"), messages)
             if validator is not None and (tools or req.get("strata_mcp")):
                 raise ValueError("structured response_format with tools/MCP is not supported")
+            # the engine holds the reply to the tool-call or JSON grammar (--grammar on, or strict: true in the request)
+            req["strata_grammar"] = grammar_api.grammar_spec(getattr(svc.engine, "grammar", False), tools,
+                                                             req.get("tool_choice"), req.get("tools"),
+                                                             req.get("response_format"))
             svc.load()
             max_req = max_new = int(req.get("max_completion_tokens") or req.get("max_tokens") or 0)   # 0/-1: the rest
             # No cap of our own on the reply's length when logprobs are asked for: the reply is already bounded by

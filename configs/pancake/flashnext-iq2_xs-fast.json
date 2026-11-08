@@ -32,7 +32,9 @@
   "--adapt-swaps",
   "80",
   "--pool-affinity",
-  "measure"
+  "measure",
+  "--grammar",
+  "on"
  ],
  "cwd": "<REPO>",
  "tokenizer": "<STRATA_DATA>/packs/iq2_xs/tokenizer",
