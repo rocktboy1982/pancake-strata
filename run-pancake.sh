@@ -12,6 +12,8 @@
 # token-forcing quality check, docs/PANCAKE_FINDINGS.md 10e).  `exact`: the same answers as plain decoding.
 # `turbo` (IQ2_XS only, lossy opt-in): fast + cache-aware routing (STRATA_ROUTE_PRIOR=0.5), +25% decode on the 3060
 # but 2.9% of tokens differ from exact decoding (stock noise 1.2-1.3%, no large-margin errors; MOD_PLAN 8.9).
+# RX 7900 XT (no NVIDIA card): build-hip and the *-hip presets where they exist - iq2_xs fast (default, ~126 tok/s), exact,
+# turbo (~168, lossy); q2_0 fast (~135 tok/s) / turbo: a lower-quality quant (80.6% same top token as Q8_0, docs/QUANTS.md).
 # STRATA_DATA (default /home/dan/clone-of-d/Strata-data) and MODELS (default /home/dan/clone-of-d/models) hold the
 # files; PORT defaults to 8080.
 cd "$(dirname "$0")" || exit 1
