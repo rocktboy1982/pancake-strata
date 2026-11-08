@@ -340,6 +340,11 @@ public:
         always_publish_ = on;
         if (on) device_plan_ = false;
     }
+    /// MOD_PLAN 10.2, the router lookahead on the GPU: after layer l's routing, layer l + 1's router on the same input
+    /// writes each token's top-10 to `out + l * stride` (device pointer of mapped pinned memory, RouterLookahead's
+    /// gpu table) before layer l's doorbell, so the CPU pool's lookahead reads it instead of computing it.  Nothing on
+    /// the window's own path reads these buffers: the output does not change.  Before `init`.
+    void set_lookahead_out(int32_t* out, int64_t stride) { la_out_ = out; la_stride_ = stride; }
     /// 0.1.43: the adaptive tier's overlap gate (see AdaptGate).  Refused (false) with the device-planned layers (E-6),
     /// which never ask the host.  The pointer must outlive the verifier's windows.
     bool set_adapt_gate(AdaptGate* g) {
@@ -765,6 +770,9 @@ private:
     float* tail_snap_ = nullptr;                              // per QSA layer
     int32_t* sel_ = nullptr;
     int32_t* topk_scratch_ = nullptr;   // qsa_block_topk_long's multi-CTA exchange (STRATA_SELECT_LONG=1 only)
+    int32_t* la_out_ = nullptr;           ///< set_lookahead_out (null: off)
+    int64_t la_stride_ = 0;
+    float *la_logits_ = nullptr, *la_w_ = nullptr;   ///< the lookahead's router scratch (only with la_out_)
     float *logits_ = nullptr, *w_ = nullptr, *shared_ = nullptr, *parts_ = nullptr, *hit_out_ = nullptr;
     int32_t *ids_ = nullptr, *hit_slot_ = nullptr, *hit_dst_ = nullptr, *hit_count_ = nullptr;
     int32_t* plan_ = nullptr;                                     // device copy of the plan block

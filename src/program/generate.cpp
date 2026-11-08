@@ -11341,6 +11341,8 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "strata serve: the penalty-history allocation failed\n");
             return 1;
         }
+        // MOD_PLAN 10.2: the router lookahead's table when it runs on the GPU (freed after `ver`, its writer)
+        struct MappedHost { void* p = nullptr; ~MappedHost() { if (p != nullptr) cudaFreeHost(p); } } la_gpu_table;
         strata::core::Verifier ver;
         strata::core::VerifyHits vh;
         vh.d_res = thits.d_res;
@@ -11572,6 +11574,26 @@ int main(int argc, char** argv) {
         if (use_df2) ver.set_taps(df2.tap_layers());
         if (batch_df2) ver.set_batch_taps(true);
 #endif
+        // MOD_PLAN 10.2, STRATA_LOOKAHEAD_GPU=1 (A/B): the lookahead's next-layer router runs in the verify window on the
+        // GPU and its picks reach the pool through mapped memory; the CPU thread no longer computes them.  One stage only
+        // (a layer split's other cards would need tables of their own).
+        if (drive.d.lookahead != nullptr && n_stages == 1 && [] { const char* v = std::getenv("STRATA_LOOKAHEAD_GPU"); return v != nullptr && std::atoi(v) != 0; }()) {
+            const int64_t stride = (int64_t) batch_max_t() * 10;
+            const size_t bytes = (size_t) (g.n_layers * stride) * sizeof(int32_t);
+            void* dptr = nullptr;
+            if (cudaHostAlloc(&la_gpu_table.p, bytes, cudaHostAllocMapped) == cudaSuccess &&
+                cudaHostGetDevicePointer(&dptr, la_gpu_table.p, 0) == cudaSuccess) {
+                std::memset(la_gpu_table.p, 0xff, bytes);   // -1: no pick yet
+                lookahead.set_gpu_table((const int32_t*) la_gpu_table.p, stride, 10);
+                ver.set_lookahead_out((int32_t*) dptr, stride);
+                std::fprintf(stderr, "strata generate: router lookahead on the GPU (STRATA_LOOKAHEAD_GPU): the verify window "
+                                     "routes layer l + 1 on layer l's input, the CPU thread only reads the picks\n");
+            } else {
+                (void) cudaGetLastError();
+                std::fprintf(stderr, "strata generate: STRATA_LOOKAHEAD_GPU: the mapped table could not be allocated, the "
+                                     "lookahead stays on the CPU\n");
+            }
+        }
         if (!ver.init(wt, g, ss, vh, native_head.loaded() || prefill_head_alias_bound ? &native_head : nullptr,
                       batch_max_t(), err) ||
             (use_mtp && !prefill_head_alias_bound && !mtp.bind(last_st && !mtp_first ? last_st->wt : wt, last_st ? &last_st->head : &native_head,

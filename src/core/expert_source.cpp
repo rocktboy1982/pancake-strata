@@ -3104,7 +3104,10 @@ void RouterLookahead::submit(int64_t layer, const float* x, int64_t n_tok, const
         std::lock_guard<std::mutex> lk(mu_);
         if (busy_ || pending_) { skipped_.fetch_add(1, std::memory_order_relaxed); return; }
         n_tok_ = std::min<int64_t>(n_tok, 8);
-        std::memcpy(x_.data(), x, (size_t) (n_tok_ * n_embd_) * sizeof(float));
+        if (gpu_table_ != nullptr)
+            gids_.assign(gpu_table_ + layer * gpu_stride_, gpu_table_ + layer * gpu_stride_ + n_tok_ * gpu_k_);
+        else
+            std::memcpy(x_.data(), x, (size_t) (n_tok_ * n_embd_) * sizeof(float));
         layer_ = layer + 1;
         has_res_ = host_res != nullptr;
         if (has_res_) {   // the rows of layer + 1 .. + depth, as they are now: the table changes while this runs
@@ -3246,6 +3249,17 @@ void RouterLookahead::run() {
         // one (kq_avx1.cpp) or, without AVX, the same sums in plain C++.  From the Strata_Dirigo fork (rwkeyes): an
         // AVX-only Xeon E5-2687W died here (vpmovzxwd) on its first request.  An estimate only (which experts to
         // prefetch); the order of the additions differs between the three, the output does not depend on it.
+        if (gpu_table_ != nullptr) {
+            // the GPU's picks as logits: rank j of a token scores gpu_k_ - j, every other expert below them all
+            // (only the next layer is published: a deeper layer has nothing to rank, depth stays 1 in effect)
+            if (dj > 0) break;
+            std::fill(logits.begin(), logits.begin() + nt * n_expert_, -1.0f);
+            for (int64_t t = 0; t < nt; ++t)
+                for (int j = 0; j < gpu_k_; ++j) {
+                    const int32_t e = gids_[(size_t) (t * gpu_k_ + j)];
+                    if (e >= 0 && e < n_expert_) logits[(size_t) (t * n_expert_ + e)] = (float) (gpu_k_ - j);
+                }
+        } else
 #if defined(__aarch64__) && !defined(STRATA_GPU_METAL)   // Metal (Apple silicon) keeps the plain loop below: its bf16_rows_dot_multi is a stub
         strata::kernels::cpu::bf16_rows_dot_multi(routers_[(size_t) layer].data(), (int) n_expert_, (int) n_embd_,
                                                   x_.data(), (int) nt, logits.data());
@@ -3276,8 +3290,9 @@ void RouterLookahead::run() {
             }
         }
 #endif
-        const int kmax = stats_on_ ? (int) std::min<int64_t>(k_ + 10, n_expert_) : k_;
-        const int ks[3] = {k_, (int) std::min<int64_t>(k_ + 4, n_expert_), kmax};
+        int kmax = stats_on_ ? (int) std::min<int64_t>(k_ + 10, n_expert_) : k_;
+        if (gpu_table_ != nullptr) kmax = std::min(kmax, gpu_k_);   // the GPU publishes its top-gpu_k_ only
+        const int ks[3] = {std::min(k_, kmax), (int) std::min<int64_t>(k_ + 4, kmax), kmax};
         std::vector<uint64_t> sm;
         if (stats_on_) sm.assign((size_t) (3 * words_), 0);
         for (int64_t t = 0; t < nt; ++t) {

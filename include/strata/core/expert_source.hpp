@@ -326,6 +326,13 @@ public:
     /// Layer `layer`'s MoE input for `n_tok` tokens (host floats): predict and warm layer + 1.  Never waits: a
     /// prediction still running for an earlier layer makes this one skip.
     void submit(int64_t layer, const float* x, int64_t n_tok, const int32_t* host_res);
+    /// MOD_PLAN 10.2: the predictions come from the GPU (Verifier::set_lookahead_out writes each token's top-`k` of
+    /// layer l + 1 to `table + l * stride` before layer l's doorbell); submit copies them instead of `x` and the
+    /// thread skips its router GEMVs.  The table is mapped pinned memory that outlives the windows.  Before the first submit.
+    void set_gpu_table(const int32_t* table, int64_t stride, int k) {
+        gpu_table_ = table; gpu_stride_ = stride; gpu_k_ = k;
+        if (k_ > k) k_ = k;   // nothing past the GPU's top-k to rank
+    }
     /// STRATA_IO_PREFETCH_DEPTH: how many layers ahead of `layer` are predicted and warmed (default 1, the next layer).
     /// A deeper one predicts layer + j from layer's input, which is less exact the further it looks.
     void set_depth(int d) { depth_ = d < 1 ? 1 : d > 4 ? 4 : d; }
@@ -357,6 +364,10 @@ private:
     uint64_t sub_gen_ = 0;
     ForesightSwap* fs_ = nullptr;                   ///< (under mu_)
     std::vector<float> x_;
+    const int32_t* gpu_table_ = nullptr;   ///< set_gpu_table (null: the thread computes the routing itself)
+    int64_t gpu_stride_ = 0;
+    int gpu_k_ = 0;
+    std::vector<int32_t> gids_;            ///< the submitted window's GPU picks: [token][gpu_k_]
     std::atomic<int64_t> predicted_{0}, skipped_{0};
     std::atomic<uint64_t> busy_us_{0};
     // STRATA_LOOKAHEAD_STATS

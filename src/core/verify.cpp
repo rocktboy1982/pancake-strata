@@ -1131,6 +1131,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         attn_scratch_ = b.take<float>(T * (uint64_t) attn_scratch_floats_);
         tail_snap_ = b.take<float>(nQ * TS);
         logits_ = b.take<float>(T * (uint64_t) g.n_expert); w_ = b.take<float>(T * K); ids_ = b.take<int32_t>(T * K);
+        if (la_out_ != nullptr) { la_logits_ = b.take<float>(T * (uint64_t) g.n_expert); la_w_ = b.take<float>(T * K); }
         shared_ = b.take<float>(T * N); parts_ = b.take<float>(T * K * N); hit_out_ = b.take<float>(T * K * N);
         hit_slot_ = b.take<int32_t>(T * K); hit_dst_ = b.take<int32_t>(T * K); hit_count_ = b.take<int32_t>(4);
         plan_ = b.take<int32_t>(2 * ((uint64_t) plan_i32_ + 16));
@@ -2346,6 +2347,18 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             MoEBuffers mb = ss.moe;
             mb.logits = logits_ + t * NE; mb.ids = ids_ + t * K; mb.weights = w_ + t * K;
             if (!moe_route(wt, g, l, K, mb, mixed_ + t * N, cs, err, nullptr)) return false;
+        }
+        // MOD_PLAN 10.2: the next layer's routing predicted from this layer's input, published before this layer's
+        // doorbell (the ring is last), so the pool's lookahead finds it in host memory when the doorbell rings
+        if (la_out_ != nullptr && l + 1 < le_ && NE == 512 && K == 10) {
+            const WeightRef* w_next = LayerView(wt, l + 1).get("ffn_gate_inp.weight");
+            if (w_next != nullptr) {
+                try {
+                    bf16_gemv_fp32_mmvf_multi(mixed_ + tb * N, N, (const uint16_t*) w_next->data, la_logits_ + tb * NE, NE,
+                                              N, NE, n, cs);
+                    native_router_top10_multi(la_logits_ + tb * NE, la_out_ + l * la_stride_ + tb * K, la_w_ + tb * K, n, cs);
+                } catch (const std::exception& e) { err = "verify lookahead router: " + std::string(e.what()); return false; }
+            }
         }
         strata::dispatch::notef("router layer: batched native router=%ld, shared-expert gate in the router launch=%ld, route_prior=%ld", (long) (dec_batch && n > 1 && w_router != nullptr && native_router_enabled() && NE == 512 && K == 10), (long) sg_ready, (long) (g_route_prior() > 0.0f));
         // STRATA_ROUTE_PRIOR=lambda (changes the output): the top-10 picked again with a logit bonus for the resident
