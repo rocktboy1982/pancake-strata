@@ -186,6 +186,17 @@ decode against the learned-profile preset (75.2 tok/s mean, short x2 + edit x2):
 0.5 changes about one token in 60 more than the engine's own noise, never with a confident wrong pick: an opt-in, not a
 default.  `./run-pancake.sh iq2_xs turbo` (configs/pancake/flashnext-iq2_xs-turbo.json) runs it.
 
+Prompt reading on the daily preset, measured 2026-11-08 (STRATA_PREFILL_TIMING=1, the 41,818-token prompt): 42.9 s
+(976 tok/s; the 100 s of the RAM-capped trace run read lent experts from the SSD).  GPU timeline: expert GEMMs 29% (gate/up
+17.8, down 8.5, dequant 2.9 - the FP16 path, not MMQ, on this card), GDN ~12%, PLE 10.6% (4.3 s on the host), QSA
+attention 6.7% + projections 5.5% + select 2.6%.  So 8.8's fused attention kernel can give a few % here (it was 38% on
+strata-poly), and the expert GEMMs are the prompt's target.  `--ple-io mmap`: long prompt 42.9 -> 40.4 s, PLE host 4.3 ->
+3.3 s, decode not better (edit 75.9/88.6 vs 80.9/91.4): not adopted.
+The prompt path's other expert kernels, same prompts (time to first token, 5.2K / 41.8K tokens; FP16 default 6.51 /
+42.9 s): `STRATA_PF_WMMA=1` 8.76 / 47.9 s (worse both); `STRATA_PF_FUSED=1` (int8) 7.29 / 40.0 s (+12% / -7%).  Agent turns
+mostly read short deltas after the conversation cache, so the fused kernels stay off; a chunk-size switch between the
+two would be the next step if long cold prompts matter.
+
 ### Priority change (owner, 2026-11-08): Qwen3.8-Flash-Next for daily use
 
 Daily use moves from Qwen3.6 (`strata-poly`) to Qwen3.8-Flash-Next IQ2_XS on the main engine (`run-pancake.sh`).
