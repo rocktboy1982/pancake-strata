@@ -323,6 +323,28 @@ loaded all morning.  The fair pair therefore keeps 20 GiB free, where both engin
 Code edits gain most (+42% / +60%: drafts, learned profile, GPU lookahead); the warm short chat is 8% slower than
 stock in this pair (one run each).  Prompt reading is 2.1x faster.
 
+## 10g. gpu-unlock measured (2026-11-08)
+
+After the reboot `journalctl -k -b | grep gpu_unlock` ends in `unlocked`. A cuBLAS 8192^3 GEMM test (fp16 inputs):
+FP16 sums 48.3 TFLOPS, **FP32 sums 49.7 TFLOPS** (a locked GeForce 3060 runs FP32 sums at about half the FP16 rate,
+~25), so the cap is gone.
+
+Daily preset (`flashnext-iq2_xs-fast`), same bench as 10f (`--runs 2 --only short,edit`, in `capped.sh`), quiet desktop:
+
+| Run (decode tok/s) | short 1 | short 2 | edit 1 | edit 2 | mean | edit prompt (5.3K) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| RAM arena, 12 GiB kept, before (10f) | 57.9 | 70.2 | 81.9 | 92.1 | 75.5 | 7.6 s |
+| RAM arena, 12 GiB kept, gpu-unlock | 58.5 | 69.4 | 80.9 | 90.9 | 74.9 | 6.0 s |
+| 20 GiB kept, before (10f, 28.9 GiB experts in RAM) | 53.1 | 59.8 | 77.4 | 86.6 | 69.2 | 11.0 s |
+| 20 GiB kept, gpu-unlock (31.1 GiB in RAM, fresh boot) | 58.0 | 69.3 | 78.8 | 90.0 | 74.0 | 6.1 s |
+
+Decode is unchanged (CPU experts and memory bound, as predicted in section 6). The prompt read is 21% faster on the
+arena pair (7.6 -> 6.0 s). That pair is the clean one: the 20 GiB rows also differ in how many experts fit in RAM
+(fresh boot), so their decode gain is not from gpu-unlock. No locked run was made in this boot, so part of the prompt
+gain could be run-to-run noise or cache state. A true A/B needs one boot without `gpu_unlock.targets`. Results:
+`bench/prefetch/{ours-unlock,ours-mmap-unlock}.jsonl`. The 12 GiB arena loaded without an oomd kill on the fresh boot
+(47.5 s).
+
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
 
 **NVIDIA / RTX 3060 (sm_86):** inference-cuda-kernels (step-by-step LLM ops measured on a 3060), cuda-gemm-benchmark (FP32
