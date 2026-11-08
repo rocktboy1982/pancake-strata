@@ -1,0 +1,11 @@
+pancake T-base1: mean 126.4 | 11.7K read 1807 tok/s, decode after it 105.3
+pancake T-workers4: mean 112.3 | 11.7K read 1809 tok/s, decode after it 96.9
+pancake T-workers5: mean 117.7 | 11.7K read 1809 tok/s, decode after it 99.6
+pancake T-workers6: mean 124.1 | 11.7K read 1808 tok/s, decode after it 99.5
+pancake T-base2: mean 126.3 | 11.7K read 1807 tok/s, decode after it 102.0
+pancake T-tasks8: mean 121.9 | 11.7K read 1807 tok/s, decode after it 104.7
+pancake T-tasks16: mean 124.9 | 11.7K read 1807 tok/s, decode after it 105.1
+pancake T-tasks48: mean 126.8 | 11.7K read 1809 tok/s, decode after it 104.5
+pancake T-base3: mean 111.3 | 11.7K read 1359 tok/s, decode after it 98.6
+
+[exited with code 0]

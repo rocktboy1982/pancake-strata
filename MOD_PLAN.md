@@ -428,7 +428,14 @@ Next, in order (report section "Ranked plan"):
    rose and a stage wait appeared: the prefetch reads compete with the pool for DDR4 and its thread shares core 0 with the
    host thread.  The CPU part is bandwidth-bound overall; earlier reads do not add bandwidth.  Dropped.
 3. Miss-aware MTP window cost (DraftExpert / EcoSpec); then the tail-row drop, simulated in the replay first.
-4. CPU pool toward ~40 GB/s (STREAM ceiling first, fused phases, row-chunk split); memory at 3600 1:1 FCLK is the owner's call.
+4. CPU pool, measured 2026-11-08: defaults are best (7 workers 126.4 / 6: 124.1 / 5: 117.7 / 4: 112.3; tasks 8/16/48 equal or
+   worse).  DDR4 read ceiling 42-44 GB/s (2 threads saturate it), but kq_window_bench scales linearly 1 -> 4 threads and
+   kq_cpu_bench is as fast cache-resident as DRAM-cold: the expert kernels are COMPUTE-bound.  Per expert per thread:
+   IQ2_S gate/up 0.205 ms (1 row) / 0.302 (3 rows), Q2_0 down 0.075 / 0.127; IQ2_S decode ~9 cycles per 32 weights (scalar
+   grid loads; the gather path is Intel-only and slower on Zen 3).  -mtune=znver3: no change.  Next: a faster exact IQ2_S
+   decode (ik_llama.cpp IQK-style, or a load-time repack into a shuffle-decodable layout if RAM allows) - up to ~30% of the
+   CPU part.
+   Original item: CPU pool toward ~40 GB/s (STREAM ceiling first, fused phases, row-chunk split); memory at 3600 1:1 FCLK is the owner's call.
 5. Prefill: larger chunks, keep the decode cache resident during prompts.
 6. GPU path (rocprofv3 profile first) only once the CPU wait is hidden.
 7. Final comparison through strata_bench.py --long and the strata-7900xt bench.py.
