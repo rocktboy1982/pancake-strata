@@ -1467,7 +1467,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     static const bool g_cfuse = [] { const char* v = std::getenv("STRATA_COMBINE_CPU"); return v != nullptr && v[0] == '1'; }();
     static const bool g_wait_fuse = [] { const char* v = std::getenv("STRATA_WAIT_FUSE"); return v != nullptr && v[0] == '1'; }();
     auto cfuse_on = [&](int n) {
-        return g_cfuse && !ar_on() && !device_plan_ && !remote_opt_ && peer_rows_ == nullptr && K == 10 &&
+        return g_cfuse && !ar_on() && !device_plan_ && !remote_opt_ && K == 10 &&
                native_moe_combine_enabled() && dec_batch && n > 1 && n <= 8 && shared_expert_native_bf16_enabled() &&
                strata::kernels::cpu::expert_layout().native && (N & 3) == 0;
     };
