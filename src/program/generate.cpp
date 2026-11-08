@@ -11574,10 +11574,12 @@ int main(int argc, char** argv) {
         if (use_df2) ver.set_taps(df2.tap_layers());
         if (batch_df2) ver.set_batch_taps(true);
 #endif
-        // MOD_PLAN 10.2, STRATA_LOOKAHEAD_GPU=1 (A/B): the lookahead's next-layer router runs in the verify window on the
-        // GPU and its picks reach the pool through mapped memory; the CPU thread no longer computes them.  One stage only
+        // MOD_PLAN 10.2: the lookahead's next-layer router runs in the verify window on the GPU and its picks reach the
+        // pool through mapped memory; the CPU thread no longer computes them (its router GEMVs took 30-34 ms per window
+        // from the CPU experts' cores).  Measured on an RTX 3060 + Ryzen 7 5700G, mmap'd experts: decode 67.0 -> 73.8 tok/s,
+        // every run faster; the same picks.  On by default; STRATA_LOOKAHEAD_GPU=0 keeps the CPU thread.  One stage only
         // (a layer split's other cards would need tables of their own).
-        if (drive.d.lookahead != nullptr && n_stages == 1 && [] { const char* v = std::getenv("STRATA_LOOKAHEAD_GPU"); return v != nullptr && std::atoi(v) != 0; }()) {
+        if (drive.d.lookahead != nullptr && n_stages == 1 && [] { const char* v = std::getenv("STRATA_LOOKAHEAD_GPU"); return v == nullptr || std::atoi(v) != 0; }()) {
             const int64_t stride = (int64_t) batch_max_t() * 10;
             const size_t bytes = (size_t) (g.n_layers * stride) * sizeof(int32_t);
             void* dptr = nullptr;
@@ -11586,7 +11588,7 @@ int main(int argc, char** argv) {
                 std::memset(la_gpu_table.p, 0xff, bytes);   // -1: no pick yet
                 lookahead.set_gpu_table((const int32_t*) la_gpu_table.p, stride, 10);
                 ver.set_lookahead_out((int32_t*) dptr, stride);
-                std::fprintf(stderr, "strata generate: router lookahead on the GPU (STRATA_LOOKAHEAD_GPU): the verify window "
+                std::fprintf(stderr, "strata generate: router lookahead on the GPU (STRATA_LOOKAHEAD_GPU=0: on the CPU): the verify window "
                                      "routes layer l + 1 on layer l's input, the CPU thread only reads the picks\n");
             } else {
                 (void) cudaGetLastError();
