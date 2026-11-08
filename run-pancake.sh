@@ -37,4 +37,4 @@ esac
 CFG="$REPO/pancake-$PRESET.json"
 sed -e "s#<STRATA_DATA>#$DATA#g" -e "s#<REPO>#$REPO#g" -e "s#<MODELS>#$MODELS#g" "configs/pancake/$PRESET.json" > "$CFG"
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-exec "$REPO/.venv/bin/python" "$REPO/serve/server.py" --engine strata --config "$CFG" --port "${PORT:-8080}"
+exec "$REPO/tools/pancake/capped.sh" "$REPO/.venv/bin/python" "$REPO/serve/server.py" --engine strata --config "$CFG" --port "${PORT:-8080}"
