@@ -424,6 +424,9 @@ Next, in order (report section "Ranked plan"):
    2.2 (2.2 CPU experts a layer, ~28 GB/s effective vs a 42.5 GB/s measured DDR4 read ceiling); code-edit windows 37.4 ms =
    15.8 + CPU 17.4 + 2.5 (7.4 CPU experts a layer).  The CPU idles ~0.33 ms a layer during the GPU's dense phase: next
    candidate = L3 prefetch of the next layer's CPU experts from the router lookahead (exact).
+   Measured 2026-11-08 (STRATA_ARENA_WARM=1, opt-in, off): worse - mean 119.8 / 106.5 vs base 126.2 / 125.3; CPU time a window
+   rose and a stage wait appeared: the prefetch reads compete with the pool for DDR4 and its thread shares core 0 with the
+   host thread.  The CPU part is bandwidth-bound overall; earlier reads do not add bandwidth.  Dropped.
 3. Miss-aware MTP window cost (DraftExpert / EcoSpec); then the tail-row drop, simulated in the replay first.
 4. CPU pool toward ~40 GB/s (STREAM ceiling first, fused phases, row-chunk split); memory at 3600 1:1 FCLK is the owner's call.
 5. Prefill: larger chunks, keep the decode cache resident during prompts.

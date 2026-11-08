@@ -1,0 +1,16 @@
+pancake W-base1: mean 126.2 | 11.7K read 1806 tok/s, decode after it 105.0
+pancake W-warm1: mean 119.8 | 11.7K read 1805 tok/s, decode after it 100.7
+pancake W-base2: mean 125.3 | 11.7K read 1811 tok/s, decode after it 107.8
+pancake W-warm2: mean 106.5 | 11.7K read 1104 tok/s, decode after it 94.9
+pancake W-warm-timing: mean 105.0 | 11.7K read 1360 tok/s, decode after it 95.6
+strata generate: routing-aware prefetch on (the next layer's router, file tier)
+strata generate: router lookahead on the GPU (STRATA_LOOKAHEAD_GPU=0: on the CPU): the verify window routes layer l + 1 on layer l's input, the CPU thread only reads the picks
+strata decode timing: 187 windows, avg T 3.52, 2.74 tokens/window, 24.28 ms/window = adapt wait 0.09 + verify 21.76 (GPU-reach wait 12.07 + per-layer host 8.71 [plan 0.17 actq 0.12 jobs 0.01 CPU 6.65] + stage 1.68) + commit/emit 0.06 + draft 2.33 + adapt join 0.00 + other 0.04; per layer-window: CPU experts 2.52 (3.00 entries), VRAM hits 32.24, PCIe 0.00; 18.1 swaps/window
+strata decode timing: 107 windows, avg T 5.07, 4.79 tokens/window, 39.45 ms/window = adapt wait 0.05 + verify 36.72 (GPU-reach wait 12.10 + per-layer host 23.64 [plan 0.29 actq 0.20 jobs 0.03 CPU 21.86] + stage 1.16) + commit/emit 0.09 + draft 2.54 + adapt join 0.01 + other 0.04; per layer-window: CPU experts 8.49 (10.29 entries), VRAM hits 40.37, PCIe 0.00; 29.9 swaps/window
+strata decode timing: 188 windows, avg T 3.45, 2.72 tokens/window, 24.72 ms/window = adapt wait 0.05 + verify 22.17 (GPU-reach wait 11.26 + per-layer host 10.04 [plan 0.18 actq 0.13 jobs 0.01 CPU 8.25] + stage 1.38) + commit/emit 0.06 + draft 2.39 + adapt join 0.00 + other 0.04; per layer-window: CPU experts 3.14 (3.75 entries), VRAM hits 30.71, PCIe 0.00; 20.0 swaps/window
+strata decode timing: 145 windows, avg T 3.66, 3.53 tokens/window, 46.63 ms/window = adapt wait 0.05 + verify 43.96 (GPU-reach wait 11.10 + per-layer host 31.97 [plan 0.21 actq 0.15 jobs 0.02 CPU 13.91] + stage 17.59) + commit/emit 0.07 + draft 2.51 + adapt join 0.00 + other 0.04; per layer-window: CPU experts 5.28 (6.13 entries), VRAM hits 30.42, PCIe 0.00; 23.0 swaps/window
+strata decode timing: 181 windows, avg T 3.54, 2.83 tokens/window, 33.54 ms/window = adapt wait 0.05 + verify 31.01 (GPU-reach wait 11.37 + per-layer host 18.76 [plan 0.18 actq 0.14 jobs 0.02 CPU 8.32] + stage 10.01) + commit/emit 0.08 + draft 2.36 + adapt join 0.00 + other 0.04; per layer-window: CPU experts 3.15 (3.83 entries), VRAM hits 31.58, PCIe 0.00; 21.3 swaps/window
+strata decode timing: 134 windows, avg T 3.97, 3.82 tokens/window, 30.35 ms/window = adapt wait 0.05 + verify 27.65 (GPU-reach wait 11.39 + per-layer host 15.37 [plan 0.27 actq 0.19 jobs 0.02 CPU 14.79] + stage 0.01) + commit/emit 0.07 + draft 2.54 + adapt join 0.00 + other 0.04; per layer-window: CPU experts 5.66 (6.53 entries), VRAM hits 33.17, PCIe 0.00; 25.6 swaps/window
+strata decode timing: 226 windows, avg T 2.90, 2.27 tokens/window, 23.69 ms/window = adapt wait 0.05 + verify 21.33 (GPU-reach wait 12.22 + per-layer host 8.24 [plan 0.15 actq 0.10 jobs 0.01 CPU 6.38] + stage 1.53) + commit/emit 0.06 + draft 2.22 + adapt join 0.00 + other 0.04; per layer-window: CPU experts 2.43 (2.86 entries), VRAM hits 26.17, PCIe 0.00; 14.5 swaps/window
+
+[exited with code 0]

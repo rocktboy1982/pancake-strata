@@ -33,6 +33,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <cstddef>
 #include <condition_variable>
 #include <deque>
@@ -1326,6 +1327,11 @@ public:
     bool pcie_layer(int64_t layer) const override;
     void prefetch(int64_t layer, int64_t expert) override;
     uint64_t release(int64_t layer, int64_t expert) override;
+    /// pancake-strata STRATA_ARENA_WARM=1 (opt-in): the router lookahead's predicted CPU experts of the next layer are
+    /// pulled into the CPU caches (L3 16 MiB on a 5700G) while this layer's experts and the next layer's GPU phase run,
+    /// so the pool reads them from cache instead of DRAM.  Only moves data; the arithmetic is unchanged.
+    bool warms() const override { return warm_on_; }
+    void warm(int64_t layer, const int64_t* experts, int64_t n) override;
 
     /// Pin by need (STRATA_PIN_BY_NEED=1): BEFORE open(), the (layer, expert) pairs worth pinning, by decreasing
     /// priority - the profile's ranked pairs the GPU cache will NOT hold, then the unranked ones.  open() merges
@@ -1380,6 +1386,7 @@ private:
     int64_t blobs_ = 0;
     int64_t n_expert_ = 0;
     std::atomic<int64_t> reads_{0};   ///< (a counter only; two threads can read blobs at once)
+    const bool warm_on_ = [] { const char* v = std::getenv("STRATA_ARENA_WARM"); return v != nullptr && v[0] == '1'; }();   ///< STRATA_ARENA_WARM
     std::string note_;
     std::string ram_warning_;
     bool ram_short_ = false;

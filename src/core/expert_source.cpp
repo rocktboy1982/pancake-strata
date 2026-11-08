@@ -21,6 +21,9 @@
 #include "strata/kernels/cpu/kq_avx2.hpp"
 #include "strata/kernels/cpu/pool.hpp"
 
+#if defined(__x86_64__) || defined(_M_X64)
+#include <xmmintrin.h>
+#endif
 #include <cuda_runtime.h>
 #ifndef _WIN32
 #include <signal.h>
@@ -6413,6 +6416,27 @@ void ArenaExpertSource::prefetch(int64_t layer, int64_t expert) {
     const uint64_t off = lay.blob_offset(layer, expert) & ~(uint64_t) 4095;
     const uint64_t end = lay.blob_offset(layer, expert) + lay.blob_bytes(layer);
     madvise((uint8_t*) map_ + off, (size_t) (end - off), MADV_WILLNEED);
+#endif
+}
+
+// pancake-strata STRATA_ARENA_WARM: the lookahead thread (the aux CPU, not a pool core) pulls the next layer's predicted
+// CPU experts into the CPU caches.  Software prefetches at the line size, the first experts first (the lookahead lists a
+// token's top picks first), at most kWarmCap experts a call so a wrong guess cannot flush the whole 16 MiB L3.  Data
+// movement only: every expert is still read and computed exactly as before.
+void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
+#if defined(__x86_64__) || defined(_M_X64)
+    if (!warm_on_ || base_ == nullptr || layer < 0) return;
+    constexpr int64_t kWarmCap = 8;
+    const auto& lay = strata::kernels::cpu::expert_layout();
+    const uint64_t bytes = lay.blob_bytes(layer);
+    for (int64_t i = 0; i < n && i < kWarmCap; ++i) {
+        if (experts[i] < 0 || experts[i] >= n_expert_) continue;
+        const uint8_t* b = blob_at(layer, experts[i]);
+        if (b == nullptr) continue;
+        for (uint64_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) (b + o), _MM_HINT_T1);
+    }
+#else
+    (void) layer; (void) experts; (void) n;
 #endif
 }
 
