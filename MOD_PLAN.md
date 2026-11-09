@@ -440,6 +440,7 @@ lookahead's next-layer CPU experts); A/B pending with the Q2_0 model test.
 | Stanford papers 2022-2026 (reports/Lucrări Stanford utile pentru Avalon.md) | research_notes/Lucrări Stanford utile pentru Avalon/ | per-level thinking cap (done, 5dd620fb9); multi-entry prefix cache (RadixAttention); CATS (superseded, item 13); measurement harness |
 | MIT/Harvard papers 2022-2026 (reports/Lucrări MIT Harvard pentru Avalon.md) | research_notes/Lucrări MIT Harvard pentru Avalon/ | TEAL over CATS (item 13); GDN chunk 64 (item 18); XAttention opt-in (item 19); learned thinking stop (item 21); bit allocation guidance (Scaling Laws for Precision) |
 | Rest of US universities 2022-2026: Berkeley, CMU, UW, Princeton, Cornell, UCSD, Duke, Rice, Stevens, ... (reports/Lucrări universități SUA pentru Avalon.md) | research_notes/Lucrări universități SUA pentru Avalon/ | items 13-17, 20, 22; SuffixDrafter/DraftPolicy already cover TurboSpec/Sequoia-style length choice; QTIP/IQ2_KT not worth a requant; Europe, Asia, Canada, Pacific/Africa/Latin America reports follow |
+| European universities 2022-2026: ETH/EPFL, ISTA + Central Europe, UK, France/South/Nordics/Israel (reports/Lucrări Europa pentru Avalon.md) | research_notes/Lucrări Europa pentru Avalon/ | daily files are ISTA-DASLab GSQ-RCO (Q2_0 93.8 vs IQ2_XS 70.3 tok/s on DASLab's card, -0.09 task avg: Q2_0 confirmed); base is 176.9B incl. the 51B n-gram table; "IQ2_XS" experts are IQ2_S/IQ2_XXS/IQ1_M + Q2_0 down; items 23-27; cache-conditional routing (Qualcomm/UvA) = STRATA_ROUTE_PRIOR, finish item 7; security: GGUF-quantization backdoors (ETH "Mind the Gap") -> official files + SHA-256 vs HF |
 
 Development pass done 2026-11-08 night (owner: develop everything first, then test and optimize):
 - items 3-4 merged from feat/pattern-cache and built (HIP and CUDA compile; expert_seed_test ok; 7/7 Python tests);
@@ -501,6 +502,20 @@ Added 2026-11-09 from the university paper series (Stanford, MIT/Harvard, rest o
     Learning How Hard to Think; 20-40% fewer thinking tokens on routine turns, untested on agents).
 22. FreeToken's PCIe/CPU miss split vs --pcie-frac: read the code, very likely the same mechanism - close unless its
     copied experts are also promoted into the cache.
+Added 2026-11-09 from the European report:
+23. AcceptMoE-style depth-graded verify prior (Imperial): no bonus at draft position 0 (the committed token stays exact),
+    growing cache-residency bonus with depth, weighted by DraftPolicy's measured acceptance; lossy opt-in, token forcing.
+    Different from the DraftExpert windows: it changes the verify expert set, not the window length.
+24. IQ1_M expert rows (3 layers of the "IQ2_XS" file's gate/up) take the ggml-cpu path in src/kernels/cpu/iq_avx2.cpp:
+    add a native AVX2 IQ1_M row kernel (1-4% decode on the IQ2_XS preset, 0 on Q2_0; iq_avx512.cpp's comment is wrong).
+25. ISTA-DASLab Coder variant (256 of 512 experts, 29.6 GB resident, SWE-bench Verified 95.7% of BF16, ~3.5 bpw LUT types):
+    A/B one evening; compare shard-2 hash first so only ~29.6 GB is fetched; regenerate profile 8.6 and items 3-4 seeds
+    (expert ids change).  D space competes with the Avalon model (~20 GB short).
+26. Semantic constraint on the edit tool's oldString (must occur in the file) and grammar-constrained tool-call JSON inside
+    speculative decoding (ETH type-constrained decoding, PLDI 2025: >50% fewer compile errors) - fewer failed turns.
+27. Item 14 simulator gets Harmonia/Athena (SAFARI, online-learned placement) and MoE-Infinity (activation-matrix match)
+    as candidate policies; item 13 gets the Polish/Sapienza per-layer thresholds (no new item).
+Also: presence_penalty must stay 0 for tool calling (DASLab MoESQ card: SWE-bench 74.7 -> 70.6 with it on).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
