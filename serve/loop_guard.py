@@ -1,7 +1,8 @@
 # Ported from Project Maya (https://github.com/mw00/project-maya, a Strata fork), serve/loop_guard.py at main 7bf15ac (v1.1.56).
 # MIT License - Copyright (c) 2026 Peasant Smith and the Project Maya contributors;
 #               Copyright (c) 2026 Niko1221 and the Strata contributors.
-# pancake changes: STRATA_* environment names (the MAYA_* ones are still read), no other logic changed.
+# pancake changes: STRATA_* environment names (the MAYA_* ones are still read); the behaviour counters at the end
+# (MOD_PLAN item 33) are pancake's own.  Maya's logic is not changed.
 """serve/loop_guard.py - the loop guard: an answer that has fallen into a loop - the same block of tokens again and
 again until the token cap (a greedy MiniMax-M3.1 Maya-XS answer wrote one number sequence for 12K tokens) - is seen
 as it starts and broken.  It works on the token ids the server reads from the engine, so every engine (GLM,
@@ -35,6 +36,9 @@ and runs it again (GLM-5.3 ran two commands in turn 25 times over opencode, unti
                      its loop, or with what it had already said, and the agent stopped there.  Such an answer - one
                      that says nothing new - goes on (KEEP_NOTE, answered, not thought about), at most KEEP_MAX times
                      in one answer; an answer with anything new in it ends the turn as always.
+    behaviour        (pancake item 33) edits without a build/test/run and reads/searches without an edit, counted
+                     from the request's own messages: logged and counted by default ("log"); a note after the tool
+                     result only when "loop_guard_behaviour" is "note".
 
 Until a loop is seen nothing changes: the engine gets the same calls with the same sampling and writes the same
 tokens (the stream only holds back up to HOLD_MAX tokens of a tail that repeats while it does).  Legit repetition - a table's rows, an array
@@ -688,3 +692,203 @@ def keep_steer(tries: int) -> str:
     """The first words of the model's thinking after it tried to end its turn short (stops_short), worded
     differently each time."""
     return KEEP_STEERS[min(tries, len(KEEP_STEERS)) - 1] + " "
+
+
+# ------------------------------------------------------------------------------------------------ behaviour counters
+# pancake item 33 (MOD_PLAN; UBC/Queen's: failed agent runs cost 1.4-4.4x the tokens of good ones, and agents do not
+# fail fast).  Two shapes of a run that goes nowhere, counted from the request's own messages since the user's last
+# message (a bare "continue" does not start the count over, as in tool_repeat):
+#     edits without a check    EDITS_WITHOUT_CHECK edit/write/patch calls with no build, test or run in between
+#     reads without an edit    READS_WITHOUT_EDIT read/grep/glob/list calls (and bash reads) with no edit in between
+# Phase 1 (the default, "log"): a line in the server window, the /metrics counters and the answer's done["loop_guard"].
+# Phase 2 (opt-in, "note"): also a note after the tool result, like tool_note.  "off": nothing is counted.
+# Settings: STRATA_LOOP_BEHAVIOUR=off|log|note, STRATA_LOOP_BEHAVIOUR_EDITS=N, STRATA_LOOP_BEHAVIOUR_READS=M, or the
+# config's "loop_guard_behaviour": "off"|"log"|"note" or {"mode": .., "edits": N, "reads": M, "tools": {name: kind}}.
+EDITS_WITHOUT_CHECK = 8
+READS_WITHOUT_EDIT = 20
+BEHAVIOUR_MODES = ("off", "log", "note")
+EDIT, CHECK, READ, OTHER, SHELL = "edit", "check", "read", "other", "bash"
+EDITS_KIND, READS_KIND = "edits_without_check", "reads_without_edit"
+
+# A tool's kind by its name, lower case.  opencode (its own database, 2026-11-09: bash, read, edit, grep, glob, write,
+# plus list and patch/apply_patch/multiedit), Claude Code (Edit, MultiEdit, NotebookEdit, Write, Read, Grep, Glob, LS,
+# Bash) and a few common agent names.  Shell tools are read by their command (bash_kind).  A name not here is OTHER: it
+# neither counts nor ends a count (todowrite, task, webfetch, MCP tools).
+TOOL_KINDS = {
+    "edit": EDIT, "write": EDIT, "patch": EDIT, "apply_patch": EDIT, "multiedit": EDIT, "notebookedit": EDIT,
+    "str_replace_editor": EDIT, "str_replace_based_edit_tool": EDIT, "create_file": EDIT, "write_file": EDIT,
+    "edit_file": EDIT, "replace_in_file": EDIT,
+    "read": READ, "grep": READ, "glob": READ, "list": READ, "ls": READ, "read_file": READ, "list_dir": READ,
+    "list_directory": READ, "search_files": READ, "codesearch": READ, "find_file": READ,
+    "lsp_diagnostics": CHECK,
+    "bash": SHELL, "shell": SHELL, "run_shell_command": SHELL, "execute_command": SHELL, "terminal": SHELL,
+}
+
+_CMD_START = (r"(?:^|[;&|(`{]|\bthen\b|\bdo\b|\belse\b)\s*"
+              r"(?:(?:time|nice(?:\s+-n\s*-?\d+)?|timeout\s+\S+|env|sudo|exec|command)\s+|\S+=\S*\s+)*")
+CHECK_CMD = re.compile(
+    _CMD_START + r"(?:make|cmake|ninja|meson|ctest|bazel|pytest|py\.test|tox|nox|"
+    r"cargo\s+(?:build|test|run|check|clippy|nextest)|go\s+(?:build|test|run|vet)|"
+    r"(?:npm|pnpm|yarn|bun)\s+(?:test|run|build|ci)|npx\s+(?:tsc|jest|vitest|mocha|playwright)|"
+    r"tsc|jest|vitest|mocha|mvn|gradle|\./gradlew|dotnet\s+(?:build|test|run)|"
+    r"gcc|g\+\+|clang|clang\+\+|hipcc|nvcc|rustc|javac|swift\s+(?:build|test)|"
+    r"(?:\S*/)?python[\d.]*\s+(?:-[^m\s]\S*\s+)*(?:-m\s+(?:pytest|unittest|mypy|py_compile|compileall)|[^-\s]\S*\.py)|"
+    r"node\s+[^-\s]\S*|deno\s+(?:test|run)|(?:ba)?sh\s+\S+\.sh|uv\s+run|poetry\s+run|"
+    r"\./\S+|bin/\S+)(?=\s|$|[;&|)])")
+EDIT_CMD = re.compile(r"\bsed\s+(?:-[^i\s]\S*\s+)*-i|\bperl\s+-\S*i|\btee\b|\bpatch\s|\bgit\s+apply\b|"
+                      r"(?<![-<>&\d=])>{1,2}\s*(?![&>]|/dev/null)[^\s|;&]")
+READ_CMD = re.compile(_CMD_START + r"(?:cat|head|tail|less|more|grep|egrep|rg|ag|ack|find|fd|ls|tree|wc|file|stat|"
+                      r"sed\s+-n|awk|nl|bat|git\s+(?:log|show|diff|status|grep|blame|ls-files))(?=\s|$)")
+
+
+def bash_kind(command) -> str:
+    """A shell command's kind: a build, test or run anywhere in it (CHECK: "sed -i ... && make" checks the edit), else
+    a write to a file (EDIT: sed -i, a > redirect, tee, patch), else a look (READ: cat, grep, ls, git diff ...), else
+    OTHER (cd, pip install, git commit ...)."""
+    if not isinstance(command, str) or not command.strip():
+        return OTHER
+    if CHECK_CMD.search(command):
+        return CHECK
+    if EDIT_CMD.search(command):
+        return EDIT
+    if READ_CMD.search(command):
+        return READ
+    return OTHER
+
+
+def _arguments(v) -> dict:
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return {"command": v}
+    return v if isinstance(v, dict) else {}
+
+
+def call_kind(name, arguments=None, tools: dict | None = None) -> str:
+    """One tool call's kind (EDIT, CHECK, READ or OTHER) by its name in `tools` (the configured table, it wins) or
+    TOOL_KINDS; a shell tool by its command (bash_kind).  An MCP prefix is not stripped: such names are OTHER."""
+    if not isinstance(name, str):
+        return OTHER
+    key = name.strip().lower()
+    kind = (tools or {}).get(key, TOOL_KINDS.get(key, OTHER))
+    if kind == SHELL:
+        args = _arguments(arguments)
+        cmd = args.get("command", args.get("cmd", args.get("script", "")))
+        if isinstance(cmd, list):
+            cmd = " ".join(str(x) for x in cmd)
+        return bash_kind(cmd)
+    return kind if kind in (EDIT, CHECK, READ) else OTHER
+
+
+class Behaviour(NamedTuple):
+    """The counts at the request's end: `edits` since the last check, `reads` since the last edit; `crossed` the
+    counts (EDITS_KIND, READS_KIND) that reached their threshold - or another multiple of it - in the model's last
+    turn: a streak is logged, counted and noted once per threshold, not again on each later request."""
+    edits: int
+    reads: int
+    crossed: tuple
+
+
+def _streaks(kinds, edits: int, reads: int) -> tuple[int, int]:
+    for k in kinds:
+        if k == EDIT:
+            edits, reads = edits + 1, 0
+        elif k == CHECK:
+            edits = 0
+        elif k == READ:
+            reads += 1
+    return edits, reads
+
+
+def behaviour(messages: list[dict], edits: int = EDITS_WITHOUT_CHECK, reads: int = READS_WITHOUT_EDIT,
+              tools: dict | None = None) -> Behaviour | None:
+    """The template messages (frontend.openai_to_messages / anthropic_to_messages) of a request that ends with tool
+    results: the two counts since the user's last message.  None when it does not end with a tool result (the model
+    answers the user; its last turn was counted by the request that carried that turn's results)."""
+    if not messages or messages[-1].get("role") != "tool":
+        return None
+    turns = []
+    for m in messages:
+        role = m.get("role")
+        if role == "user" and not go_on(m):
+            turns = []
+        elif role == "assistant" and m.get("tool_calls"):
+            turns.append([call_kind((c.get("function") or c).get("name"), (c.get("function") or c).get("arguments"),
+                                    tools) for c in m.get("tool_calls") or [] if isinstance(c, dict)])
+    if not turns:
+        return None
+    e0, r0 = _streaks((k for t in turns[:-1] for k in t), 0, 0)
+    e1, r1 = _streaks(turns[-1], e0, r0)
+    crossed = tuple(kind for kind, before, after, limit in ((EDITS_KIND, e0, e1, edits), (READS_KIND, r0, r1, reads))
+                    if limit and limit > 0 and after >= limit and (after < before or after // limit > before // limit))
+    return Behaviour(e1, r1, crossed)
+
+
+def behaviour_lines(b: Behaviour, edits: int = EDITS_WITHOUT_CHECK, reads: int = READS_WITHOUT_EDIT,
+                    noted: bool = False) -> list[str]:
+    """done["loop_guard"]'s lines: the counts at or over their thresholds (", noted" when phase 2 wrote a note)."""
+    out = []
+    if edits and edits > 0 and b.edits >= edits:
+        out.append(f"behaviour: {b.edits} edits without a build, test or run (threshold {edits})"
+                   + (", noted" if noted and EDITS_KIND in b.crossed else ""))
+    if reads and reads > 0 and b.reads >= reads:
+        out.append(f"behaviour: {b.reads} reads and searches without an edit (threshold {reads})"
+                   + (", noted" if noted and READS_KIND in b.crossed else ""))
+    return out
+
+
+def behaviour_note(b: Behaviour) -> str:
+    """Phase 2 ("note"): the message after the tool result for the counts crossed in the model's last turn."""
+    parts = []
+    if EDITS_KIND in b.crossed:
+        parts.append(f"{b.edits} edits since the last build, test or run. Check what you changed before you edit "
+                     "more: build it, run the tests or run the program, and read what it says")
+    if READS_KIND in b.crossed:
+        parts.append(f"{b.reads} reads and searches since the last edit. You have looked enough to act: make the "
+                     "change you need, or say what is still missing")
+    return "[The server's loop guard, not the user: " + "; ".join(parts) + ".]"
+
+
+class BehaviourSettings(NamedTuple):
+    mode: str = "log"
+    edits: int = EDITS_WITHOUT_CHECK
+    reads: int = READS_WITHOUT_EDIT
+    tools: dict = {}
+
+
+def _count(v, what: str) -> int:
+    if isinstance(v, str) and v.strip().isdigit():
+        v = int(v.strip())
+    if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+        raise ValueError(f"loop guard behaviour {what} must be a whole number >= 0 (0: that count off), not {v!r}")
+    return v
+
+
+def behaviour_settings(cfg: dict | None = None, env=None) -> BehaviourSettings:
+    """The behaviour counters' settings: the config's "loop_guard_behaviour" ("off" | "log" | "note" | true | false,
+    or {"mode", "edits", "reads", "tools"}), then STRATA_LOOP_BEHAVIOUR / _EDITS / _READS (they win).  ValueError on
+    a value it cannot read."""
+    env = os.environ if env is None else env
+    v = (cfg or {}).get("loop_guard_behaviour", "log")
+    if isinstance(v, bool):
+        v = "log" if v else "off"
+    if isinstance(v, str):
+        v = {"mode": v}
+    if not isinstance(v, dict):
+        raise ValueError(f"\"loop_guard_behaviour\" must be \"off\", \"log\", \"note\" or an object, not {v!r}")
+    unknown = set(v) - {"mode", "edits", "reads", "tools"}
+    if unknown:
+        raise ValueError(f"\"loop_guard_behaviour\": unknown key(s) {sorted(unknown)}")
+    mode = str(env.get("STRATA_LOOP_BEHAVIOUR") or v.get("mode", "log")).strip().lower()
+    mode = {"0": "off", "false": "off", "no": "off", "1": "log", "on": "log", "true": "log"}.get(mode, mode)
+    if mode not in BEHAVIOUR_MODES:
+        raise ValueError(f"loop guard behaviour mode must be one of {', '.join(BEHAVIOUR_MODES)}, not {mode!r}")
+    edits = _count(env.get("STRATA_LOOP_BEHAVIOUR_EDITS") or v.get("edits", EDITS_WITHOUT_CHECK), "edits")
+    reads = _count(env.get("STRATA_LOOP_BEHAVIOUR_READS") or v.get("reads", READS_WITHOUT_EDIT), "reads")
+    tools = v.get("tools") or {}
+    if not isinstance(tools, dict) or any(not isinstance(k, str) or t not in (EDIT, CHECK, READ, OTHER, SHELL)
+                                          for k, t in tools.items()):
+        raise ValueError("\"loop_guard_behaviour\".tools must map tool names to \"edit\", \"check\", \"read\", "
+                         "\"bash\" or \"other\"")
+    return BehaviourSettings(mode, edits, reads, {k.strip().lower(): t for k, t in tools.items()})
