@@ -100,6 +100,7 @@
 #include "strata/core/native_dense.hpp"
 #include "strata/program/adapt_decay.hpp"
 #include "strata/program/kmiss_tier.hpp"
+#include "strata/core/window_trace.hpp"
 #include "strata/program/expert_seed.hpp"
 #include "strata/program/batch_read.hpp"
 #include "strata/program/logits_selection.hpp"
@@ -1436,6 +1437,13 @@ void drive_pool_multi_impl(void* user, const float* x_f, const int32_t* ids, int
     // one record per token.  The multi dispatch fuses the router weights into the kernel and does not surface
     // them, so records carry unit weights: tools/make_profile.py ranks pairs by routed frequency, which is the
     // signal that matters; a one-shot --dump-routing run records true weights if a weighted ranking is wanted.
+    // MOD_PLAN item 64 (STRATA_WINDOW_TRACE): the layer's routing, placement and published weights (the GPU plan
+    // sink's mapped copy when it has one), buffered until the window commits (window_trace.hpp)
+    if (strata::core::window_trace().on()) {
+        const float* w = t->d.plan != nullptr ? t->d.plan->route_w : nullptr;
+        strata::core::window_trace().layer((int) layer, (int) n_tok, ids,
+                                           t->d.trace_kind.size() == (size_t) (n_tok * k) ? t->d.trace_kind.data() : nullptr, w);
+    }
     if (t->routing != nullptr && layer >= 0 && layer < 48) {
         for (int64_t tok = 0; tok < n_tok; ++tok) {
             const int32_t rec[2] = {(int32_t) layer, (int32_t) k};
@@ -9118,6 +9126,8 @@ int main(int argc, char** argv) {
         }
         drive.routing = routing;
     }
+    strata::core::window_trace().open((int) g.n_layers, (int) g.n_expert, (int) g.n_expert_used);   // item 64 (opt-in)
+    drive.d.trace_kind_on = strata::core::window_trace().on();
     strata::core::PoolFn pool_fn = o.no_pool ? nullptr : &drive_pool;
     // The hit hook rides the same switch as the pool: with no pool there is no `parts` staging to
     // write into, and a hit path with nowhere to write is a wrong token rather than an error.
@@ -19438,6 +19448,7 @@ int main(int argc, char** argv) {
                     draft_offered += T - 1;
                     draft_accepted += a;
                 }
+                strata::core::window_trace().commit(T, merged ? -1 : a, (int64_t) p);   // item 64
                 const bool initial_round = first_window;   // a single-row window: no proposal to learn from
                 first_window = false;
                 bool eos = false;

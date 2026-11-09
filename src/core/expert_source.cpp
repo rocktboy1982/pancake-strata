@@ -5205,6 +5205,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                         d.dres_check[(size_t) d.layers * (size_t) d.n_expert + (size_t) ids[i]] < 0;
         if (!published) ++d.stale_x;
     }
+    if (d.trace_kind_on) d.trace_kind.assign(kind, kind + n);   // item 64: the window trace's placement field
     const auto c1 = std::chrono::steady_clock::now();
     if (any_cpu) {
         // #578 --remote-expert-opt: a token whose experts all run on a GPU (CUDA0 or a helper) needs no CPU activation

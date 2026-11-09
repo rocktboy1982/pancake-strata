@@ -418,6 +418,9 @@ struct GpuPlanSink {
     /// token * k + j).  With `partial` set and heavy > 0 the pool computes the experts of the CPU entries whose weight is
     /// >= heavy first and calls partial(ctx) before the others.  Null / 0: one pass, as always.
     const float* weights = nullptr;
+    /// item 64 (STRATA_WINDOW_TRACE): the group's published routing weights for the trace (set by the verifier when the
+    /// trace is on; independent of `weights`, which also switches the heavy split)
+    const float* route_w = nullptr;
     float heavy = 0.0f;
     void (*partial)(void* ctx) = nullptr;
 };
@@ -634,6 +637,10 @@ struct ExpertDispatch {
     /// Plan v0.3 P6: the verify window's GPU plan (VRAM hits + the PCIe share of the misses); `pcie_num`/256 of
     /// each layer's distinct missed experts (the last ones in routing order) are read by the GPU over PCIe.
     GpuPlanSink* plan = nullptr;
+    /// MOD_PLAN item 64 (STRATA_WINDOW_TRACE): when set, the multi dispatch leaves each entry's placement here
+    /// (0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped tail), entry token * k + j.
+    bool trace_kind_on = false;
+    std::vector<int32_t> trace_kind;
     int pcie_num = 0;
     PcieModel pcie_model;          ///< Verifier::set_pcie_balance: the PCIe count from measured costs
     int64_t pcie_experts = 0;      ///< distinct experts the GPU read over PCIe in verify windows

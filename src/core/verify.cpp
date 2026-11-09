@@ -11,6 +11,7 @@
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/core/verify.hpp"
 #include "strata/core/defer_rank.hpp"
+#include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/pin_budget.hpp"
@@ -3784,6 +3785,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window: the CPU experts of layer", l);
         if (remote_opt_) remote_opt_->begin(h_w_ + (size_t) tb * ss.k, tb, n);
+        sink_.route_w = strata::core::window_trace().on() ? h_w_ + (size_t) tb * ss.k : nullptr;   // item 64
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW: this layer's split, if post(l) waits for it
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
