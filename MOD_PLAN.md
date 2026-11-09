@@ -381,7 +381,8 @@ Added 2026-11-09 from the decode-path code study (research_notes/Pancake cod dee
 75. [CODED 2026-11-09, default on, STRATA_ADAPT_PERSIST=0 restores the per-window thread; builds hip-mmq + cuda-86; A/B in
     the test phase] Persistent adapt worker: --adapt-every 1 spawns a new std::thread every window (generate.cpp ~19396); reuse JobThread
     (~2125).  Exact, 0.1-0.3%.  [this; generate.cpp outside dan-99's tier block - coordinate]
-76. HIP sync policy A/B: the main device never gets hipDeviceScheduleSpin, so blocking syncs (verify.cpp:3872 head sync) use
+76. [CODED 2026-11-09, opt-in STRATA_DEVICE_SPIN=1 (hipSetDeviceFlags spin|maphost on the primary device before its
+    context, result logged); A/B in the test phase] HIP sync policy A/B: the main device never gets hipDeviceScheduleSpin, so blocking syncs (verify.cpp:3872 head sync) use
     HIP's default; A/B spin vs default, 0.2-0.6%.  [this, measurement]
 77. Hot-path hygiene: getenv("STRATA_LOGITS_DUMP") every window (verify.cpp:3953), scalar exp in SwiGLU (pool.cpp:1302,
     iq_avx2_rows.inl), activation quant serial on the main thread (expert_source.cpp:5209) - small each.  [dan-99 for files they own]

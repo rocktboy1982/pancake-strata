@@ -4051,6 +4051,20 @@ int main(int argc, char** argv) {
         return n > 0 ? n : 0;
     }();
     strata::core::set_primary_device(primary_device);
+    // Item 76 (opt-in A/B): STRATA_DEVICE_SPIN=1 asks the driver to spin instead of yield/sleep in blocking syncs on the
+    // main GPU (the head sync of every verify window, verify.cpp).  Must come before the device's context exists;
+    // the result is logged (a refusal leaves the default policy).
+    if (const char* sp = std::getenv("STRATA_DEVICE_SPIN"); sp != nullptr && sp[0] == '1') {
+        const bool ok = cudaSetDevice(primary_device) == cudaSuccess &&
+#if defined(STRATA_USE_HIP)
+                        hipSetDeviceFlags(hipDeviceScheduleSpin | hipDeviceMapHost) == hipSuccess;
+#else
+                        cudaSetDeviceFlags(cudaDeviceScheduleSpin | cudaDeviceMapHost) == cudaSuccess;
+#endif
+        if (!ok) (void) cudaGetLastError();
+        std::fprintf(stderr, "strata: STRATA_DEVICE_SPIN=1 - device %d scheduling spin: %s\n", primary_device,
+                     ok ? "set" : "refused (context already exists?), default kept");
+    }
     // parking with --layer-split saves every stage (SavedConversation::stage_images)
     // Layer split (multi-GPU): the later stages run layers [K_i, K_i+1) on their own GPUs (--split-device, default
     // the next visible ones); "auto" places the K from each GPU's free VRAM once the weights are in (below).  KV
