@@ -365,6 +365,25 @@ together.  All are opt-in; the default path stays byte-identical until a measure
     Owner: unowned [this or a new GPU owner].  First PR: the I7 rocprofv3 run on an edit window and after 11.7K, plus the
     item 10 draft timing, in one GPU session.
 
+Added 2026-11-09 from the decode-path code study (research_notes/Pancake cod deep research/decode_path.md; Serena/clangd):
+74. Overlap the MTP draft with the idle CPU pool (~3 ms/window idle during head, sync, commit, draft): first the exact quick win -
+    gate min_p on the device so the draft round and all step graphs launch at once (no per-step host round trip, ~0.3-0.5%);
+    item 10 is the larger version.  [this; generate.cpp/mtp.cpp]
+75. Persistent adapt worker: --adapt-every 1 spawns a new std::thread every window (generate.cpp ~19396); reuse JobThread
+    (~2125).  Exact, 0.1-0.3%.  [this; generate.cpp outside dan-99's tier block - coordinate]
+76. HIP sync policy A/B: the main device never gets hipDeviceScheduleSpin, so blocking syncs (verify.cpp:3872 head sync) use
+    HIP's default; A/B spin vs default, 0.2-0.6%.  [this, measurement]
+77. Hot-path hygiene: getenv("STRATA_LOGITS_DUMP") every window (verify.cpp:3953), scalar exp in SwiGLU (pool.cpp:1302,
+    iq_avx2_rows.inl), activation quant serial on the main thread (expert_source.cpp:5209) - small each.  [dan-99 for files they own]
+For dan-99 (their items): deferral (8/28) turns ROUTE_PUBLISH off (verify.cpp:2355) = +1 launch/layer to count in the A/B; pool:
+drop the trailing wait_parked in run_phase (pool.cpp:1373), FUSE_PHASES default A/B (29); 51 needs routing weights published on the
+ROUTE_PUBLISH path; 40 applies (daily Q2_0 down rows, row_multi has no prefetch; IQ prefetch measured -1.3% ms/round on Zen 3);
+row_multi<1> serial FMA chain (0-3% of down, not bit-identical); MWAITX instead of pause-spin for 15 workers (0-3%); fusion
+targets for 48/72: swiglu+quant as expdec_gu epilogue (~49 launches/window), router GEMV + route_publish_res, shared-expert
+swiglu-quant.  Structure: generate.cpp main() is 18,360 lines with three decode loops (apply_pending/adapt duplicated at
+13020/20748, 13172/20782); verify.cpp record_window ~1,480 lines with 6 env-selected post paths; ~45 STRATA_* flags in
+function-local statics (no registry) - see the structure study.  Measured: ~1,360 kernels/window (~28/layer).
+
 Suggested start order (owner's "biggest first", respecting prerequisites): 73, 35, 67 skeleton, 49/50/44 batch, 64 schema
 and 63 probe (no GPU risk) in parallel; then 7 decision, 66 stages (31 -> 11 -> 16 -> 39), 12 in preset, 69/38; dan-cd in
 parallel: bisect -> 8/28, 42 -> 14, 2; then Tier B (68, 65, 72, 63 derivation), then C/D.
