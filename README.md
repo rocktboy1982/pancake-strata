@@ -370,6 +370,9 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_IDLE_ADAPT=N` | off | item 17 (`43e741bc6`): when no request line arrives for 150 ms, the blocking tier runs up to N extra rounds at 4x swaps on the idle GPU |
 | `STRATA_TURN_LOG` | off | item 73 (`1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets |
 | `STRATA_SPEC_COST_TABLE` | off | item 43 (`663107a56`): draft window costs seeded from window traces (`tools/pancake/trace/draft_costs.py`) |
+| `STRATA_LOOP_BEHAVIOUR=off\|log\|note` (+`_EDITS=8`, `_READS=20`) | **log** | item 33 (`c03c905d3`): loop-guard behaviour counters - N edits without a build/test, M reads without an edit; `note` mode (opt-in) adds a note to the prompt |
+| `STRATA_KEEP_REASONING` | off | item 31 (`d44dd5eb2`): keep earlier reasoning in the prompt (opencode 1.19.5 already resends it: leave off there) |
+| `STRATA_HIPBLASLT_DESC_CACHE` | **on** (=0: per call), N = cap 256 | item 80 (`ca2f1eecc`, `997bb0a1c`): hipBLASLt matmul descriptors cached across prompt GEMMs; exact by construction |
 
 ### 6H. CLI flags
 
@@ -399,6 +402,11 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 - Status page (`214c8cd31`): `/status` and `/pancake` in a browser (auto-refresh, hardware, model, switches, tok/s, cache
   and draft rates, last 30 turns), `/status.json` for scripts.
 - `loop_guard_*` Prometheus counters.
+- `"loop_guard_behaviour"`: off | log | note | {mode, edits, reads, tools} (item 33, default log: counters only, prompt unchanged).
+- `"rumination_close"`: threshold | {threshold, checks=3, min_tokens=0} (item 34, `dd8549636`, OFF): closes thinking that
+  repeats itself; the rumination signal itself is always measured (`done["rumination"]`, turn log `rumination_max/mean`).
+- `chat_template_kwargs.preserve_thinking` passes through on chat / messages / responses; `"keep_reasoning": true|N`
+  (item 31, OFF; the prompt is byte-identical when unset).
 
 ### 6J. Presets and launcher
 
@@ -572,6 +580,8 @@ cmake --build build-cuda --target strata strata-poly poly_gdn_cols_test poly_gem
 
 ### Verification gates
 
+- `tools/pancake/hipblaslt_extend.py` (item 80): extends the gfx1100 hipBLASLt table with the agent-turn GEMM shapes
+  (plan / run / merge, 78 cases, GPU ~30 min); then A/B the extended table.
 - `tools/pancake/restore_check.py` (items 35/83): a parked and restored conversation must match a cold re-read token
   for token (gate for the cache/checkpoint items); first step of `tools/pancake/test_phase.sh`.
 - `tools/pancake/test_phase.sh` + `bench/specs/*.json`: the whole A/B test phase in one command; the plan is

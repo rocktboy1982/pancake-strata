@@ -355,7 +355,7 @@ changes a default.
 | 72 GPU-floor package | 1, 32/48, 37, 10, Q2_0-down, 47, triggered by 44+64 | Avoids building kernels whose ms vanish into the combine_cpu spin | 5-10% short chat est., later on edits |
 | 73 Wiring | pancake.service, per-turn log, reasoning_tokens | No engine gain reaches the user without it | 0 itself; prerequisite for everything per-turn |
 
-### 5.5 Current Dev/Test status (from [../PANCAKE_STATUS.md](../PANCAKE_STATUS.md), 2026-11-09 17:09)
+### 5.5 Current Dev/Test status (from [../PANCAKE_STATUS.md](../PANCAKE_STATUS.md), 2026-11-09 17:27)
 
 | Prio | Item | MOD_PLAN | Expected gain | Where it is | Dev | Test |
 | --- | --- | --- | --- | --- | ---: | ---: |
@@ -412,7 +412,7 @@ changes a default.
 | Ph14 | Self-tuning from own sessions (tools/pancake/selftune.py, item 70) | 70 | 1-5% (keeps profiles current) | offline pass built (05e041b9b): traces -> candidate profile -> time model -> abtest spec; dry run: candidate profile +8.6%, + kmiss +23% modeled | 100% | 0% |
 | Ph14 | Diagnostic: decode speed along a reply (tools/pancake/decode_curve.py) | 2 | - | built, used to close item 2 | 100% | - |
 
-## Items by session dan-9f (server, agent, loader, draft area) - merged into port/rdna3-decode
+#### Items by session dan-9f (server, agent, loader, draft area) - merged into port/rdna3-decode
 
 | Item | What | Switch / file | Default | Exact? | Dev | Test |
 | --- | --- | --- | --- | --- | ---: | ---: |
@@ -424,9 +424,11 @@ changes a default.
 | 35/83 | Restore-equivalence test | `tools/pancake/restore_check.py` | first step of test_phase.sh | gate | 100% | 0% |
 | 88 | Agent settings in all Flash-Next presets | env_to_user, effort_position end, grace 512, close retry | on | text | 100% | - |
 | status page | `/status`, `/pancake`, `/status.json` (opencode/Gemini session, `214c8cd31`) | serve/web/status.html | on | - | 100% | tests 13/13 |
-| in progress | 39 disk tier + 86 memory budget; 16/31/90/71 checkpoints and shared prefix; 33/34 loop-guard signals; 79/80 prefill; 93/95b tests and hygiene | branches A-E | - | - | ~50% | - |
-
-Also from this session: `STRATA_HOST_NATIVE` (CMake, host C++ for this CPU) - built as build-hip-native, spec 08-build.
+| 33 | Loop-guard behaviour counters (edits without build/test, reads without edit) | `STRATA_LOOP_BEHAVIOUR`, config `loop_guard_behaviour` | **log** (note opt-in) | exact in log mode | 100% | read counts from real sessions |
+| 34 | Rumination signal (always measured) + opt-in thinking close | config `rumination_close` | measure on, close OFF | lossy only when on | 100% | pick a threshold from turn logs |
+| 31 | preserve_thinking passthrough + keep_reasoning keeper | `chat_template_kwargs.preserve_thinking`, `STRATA_KEEP_REASONING` | off | exact | 100% | opencode already resends reasoning (22/25 exact reuse) |
+| 80 | hipBLASLt descriptor cache + table extender tool | `STRATA_HIPBLASLT_DESC_CACHE` | **on** | exact | 100% | 0% (spec 09-prefill; extender run = GPU ~30 min) |
+| in progress | 39 disk tier + 86 memory budget; 16/90/71 checkpoints and shared prefix; 79 prefill PLE gather; 93/95b tests and hygiene | branches A, B, D, E | - | - | ~50% | - |
 
 Test plan: [../bench/TEST_PLAN.md](../bench/TEST_PLAN.md).
 

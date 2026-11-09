@@ -1,0 +1,17 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "desc-cache-off": {
+   "env": {
+    "STRATA_HIPBLASLT_DESC_CACHE": "0"
+   }
+  }
+ },
+ "cases": [
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": true
+}

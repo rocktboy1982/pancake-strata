@@ -61,6 +61,8 @@ prefill, short decode, edit decode, long-context decode, agent turn latency).
 | 2.9 | 6G-6I server | turn-boundary checkpoints, restore check, loop guard on/off on an agent replay | seconds per turn | restore_check first |
 | 2.10 | loader (item 38) | `STRATA_UNBUFFERED_LOAD=0/1`: start time, `STRATA_VERIFY_ARENA=1`, PSI | start 28-65 s -> 10-14 s | decode unchanged |
 | 2.11 | BFLA (branch) | 32K / 64K / 128K prompt read, needle recall | 3.15x at 128K | branch build |
+| 2.13 | prefill (items 80, 79) | `STRATA_HIPBLASLT_DESC_CACHE` on vs 0 (09-prefill), then the extended table from `hipblaslt_extend.py` vs the shipped one on 1.5-3.2K / 4-4.2K / 16K / 32K | exact; prompt read speed | greedy identity + identical "Lt solution=" lines |
+| 2.14 | agent signals (33, 34, 31) | no A/B: counters and rumination read from real-session turn logs; a rumination threshold, if picked, gets a lossy arm | - | - |
 | 2.12 | sweep | `tools/pancake/sweep.py` over expdec / pool knobs | 1-3% | after 2.3-2.4 |
 
 dan-9f's branches (39 disk tier, 16/31/71 checkpoints, 33/34 loop guard, 79/80 prefill, 93/95b) join phase 2 as

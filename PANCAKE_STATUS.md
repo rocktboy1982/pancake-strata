@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 17:09
+Last update: 2026-11-09 17:27
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -76,7 +76,11 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | 35/83 | Restore-equivalence test | `tools/pancake/restore_check.py` | first step of test_phase.sh | gate | 100% | 0% |
 | 88 | Agent settings in all Flash-Next presets | env_to_user, effort_position end, grace 512, close retry | on | text | 100% | - |
 | status page | `/status`, `/pancake`, `/status.json` (opencode/Gemini session, `214c8cd31`) | serve/web/status.html | on | - | 100% | tests 13/13 |
-| in progress | 39 disk tier + 86 memory budget; 16/31/90/71 checkpoints and shared prefix; 33/34 loop-guard signals; 79/80 prefill; 93/95b tests and hygiene | branches A-E | - | - | ~50% | - |
+| 33 | Loop-guard behaviour counters (edits without build/test, reads without edit) | `STRATA_LOOP_BEHAVIOUR`, config `loop_guard_behaviour` | **log** (note opt-in) | exact in log mode | 100% | read counts from real sessions |
+| 34 | Rumination signal (always measured) + opt-in thinking close | config `rumination_close` | measure on, close OFF | lossy only when on | 100% | pick a threshold from turn logs |
+| 31 | preserve_thinking passthrough + keep_reasoning keeper | `chat_template_kwargs.preserve_thinking`, `STRATA_KEEP_REASONING` | off | exact | 100% | opencode already resends reasoning (22/25 exact reuse) |
+| 80 | hipBLASLt descriptor cache + table extender tool | `STRATA_HIPBLASLT_DESC_CACHE` | **on** | exact | 100% | 0% (spec 09-prefill; extender run = GPU ~30 min) |
+| in progress | 39 disk tier + 86 memory budget; 16/90/71 checkpoints and shared prefix; 79 prefill PLE gather; 93/95b tests and hygiene | branches A, B, D, E | - | - | ~50% | - |
 
 Also from this session: `STRATA_HOST_NATIVE` (CMake, host C++ for this CPU) - built as build-hip-native, spec 08-build.
 
