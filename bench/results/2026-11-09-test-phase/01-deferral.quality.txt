@@ -1,0 +1,26 @@
+  waiting for a quiet machine: load 0.35, foreign CPU 58% [('caveman-proxy', 24), ('claude', 14), ('gnome-shell', 10)]
+  quiet after 10 s
+scoring base (a) ...
+  waiting for a quiet machine: load 8.47, foreign CPU 5% [('claude', 3), ('github', 1), ('pipewire', 0)]
+  quiet after 110 s
+scoring base (b) ...
+  waiting for a quiet machine: load 8.03, foreign CPU 4% [('claude', 2), ('github', 1), ('pipewire', 0)]
+  quiet after 110 s
+scoring defer ...
+  waiting for a quiet machine: load 8.27, foreign CPU 5% [('claude', 4), ('pipewire', 0), ('github', 0)]
+  quiet after 110 s
+scoring defer-top2 ...
+defer                    PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+defer-top2               PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
