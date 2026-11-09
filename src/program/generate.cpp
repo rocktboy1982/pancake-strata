@@ -100,6 +100,7 @@
 #include "strata/core/native_dense.hpp"
 #include "strata/program/adapt_decay.hpp"
 #include "strata/program/kmiss_tier.hpp"
+#include "strata/program/swap_budget.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/program/expert_seed.hpp"
 #include "strata/program/batch_read.hpp"
@@ -10496,15 +10497,16 @@ int main(int argc, char** argv) {
         if (resident_ok) {
             // --adapt-async: twice the exchange buffers - the second half bounces the copies in whose source is not
             // page-locked (an asynchronous copy instead of the driver's staged, synchronous one)
-            if (o.adapt_async && !src.reserve_exchanges(2 * std::min<int64_t>(o.adapt_swaps, 96), err,
-                                                        std::min<int64_t>(o.adapt_swaps, 96)))
+            // item 53: with STRATA_ADAPT_SWAPS_AUTO the online budget may grow to 96 swaps a round
+            const int64_t x_n = std::min<int64_t>(std::getenv("STRATA_ADAPT_SWAPS_AUTO") != nullptr ? 96 : o.adapt_swaps, 96);
+            if (o.adapt_async && !src.reserve_exchanges(2 * x_n, err, x_n))
                 adapt_async_off(err.c_str());
             // pageable buffers would make every copy of a round synchronous (the driver stages them): that is the
             // blocking tier's cost, so the asynchronous tier is not worth running - said, and the blocking tier stays
             if (o.adapt_async && !src.exchange_pinned())
                 adapt_async_off("the exchange buffers could not be page-locked");
             if (o.adapt_every > 0 && o.adapt_swaps > 0 &&
-                !src.reserve_exchanges(std::min<int64_t>(o.adapt_swaps, 96), err)) {
+                !src.reserve_exchanges(x_n, err)) {
                 std::fprintf(stderr, "strata generate: CPU expert residency: %s\n", err.c_str());
                 return 1;
             }
@@ -13175,12 +13177,16 @@ int main(int argc, char** argv) {
         // resident expert unused for the longest.  tools/pancake/time_ceiling.py: +5..16% of a code-edit window in the
         // model, depending on PCIe contention.  Placement only: outputs unchanged.
         strata::program::KMissTier kmiss = strata::program::KMissTier::from_env();
+        // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
+        strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
+        auto swap_cap = [&]() -> int { return sbud.on() ? sbud.swaps() : o.adapt_swaps; };
         if (kmiss.on() && o.adapt_every > 0 && o.adapt_swaps > 0)
             std::fprintf(stderr, "strata serve: STRATA_ADAPT_KMISS=%d,%d: the tier admits an expert after %d misses in %d "
                                  "rounds and evicts the least recently routed\n", kmiss.k(), kmiss.w(), kmiss.k(), kmiss.w());
         // the VRAM tier follows the conversation (the same rule as the speculative loop below)
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
+            sbud.round(o.adapt_every);
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
             if (remote_opt && !remote_opt->adapt(drive.d.usage, host_res, pending, o.adapt_swaps, *srcp)) return false;
@@ -13220,7 +13226,7 @@ int main(int argc, char** argv) {
                 }
             }
             std::sort(swaps.begin(), swaps.end(), [](const Swap& a, const Swap& b) { return a.gain > b.gain; });
-            if ((int) swaps.size() > o.adapt_swaps) swaps.resize((size_t) o.adapt_swaps);
+            if ((int) swaps.size() > swap_cap()) swaps.resize((size_t) swap_cap());
             if (aov) {   // 0.1.43: the copies go in layer order and each layer's landing is told to the verify window
                 std::stable_sort(swaps.begin(), swaps.end(), [](const Swap& a, const Swap& b) { return a.layer < b.layer; });
                 agate.landed.store(-1, std::memory_order_release);
@@ -13436,7 +13442,8 @@ int main(int argc, char** argv) {
         // exchange buffers, no RAM moves (see a_arena below)
         const bool a_arena = srcp == &arena_src;
         // as the blocking tier's exchange buffers; the arena has none, so its rounds are as large as the blocking tier's
-        const int64_t a_cap = a_arena ? o.adapt_swaps : std::min<int64_t>(o.adapt_swaps, 96);
+        const int64_t a_top = sbud.on() ? std::max<int64_t>(o.adapt_swaps, 96) : o.adapt_swaps;   // item 53: room to grow
+        const int64_t a_cap = a_arena ? a_top : std::min<int64_t>(a_top, 96);
         const auto a_env = [](const char* name, int def) {
             const char* v = std::getenv(name);
             return v != nullptr && *v != 0 ? std::atoi(v) : def;
@@ -13512,7 +13519,7 @@ int main(int argc, char** argv) {
             std::sort(all.begin(), all.end(), [](const C& a, const C& b) { return a.gain > b.gain; });
             aswaps.clear();
             for (const C& c : all) {
-                if ((int64_t) aswaps.size() >= a_cap) break;
+                if ((int64_t) aswaps.size() >= std::min<int64_t>(a_cap, swap_cap())) break;
                 const int32_t slot = a_res[(size_t) c.layer * g.n_expert + c.out];
                 if (slot < 0) continue;
                 // an exchange (as resident_stage_swaps): `in` from the RAM copy, `out` held by its slot alone takes its
@@ -13658,6 +13665,7 @@ int main(int argc, char** argv) {
                     a_last = a_win;
                     ++a_rounds;
                     a_t0 = Clock::now();
+                    sbud.round(o.adapt_every);
                     if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // (as in adapt(), before the seeder)
                     if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp, as in adapt())
                     a_usage = drive.d.usage;
