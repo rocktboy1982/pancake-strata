@@ -6002,7 +6002,9 @@ class Service:
         for source in (spawn_env, os.environ):
             for k, v in source.items():
                 if k.startswith(("STRATA_", "MAYA_")):
-                    env[k] = str(v)
+                    # never echo a secret (STRATA_API_KEY, STRATA_OWNER_ATTEST_KEY, ...) into the page
+                    env[k] = "<set>" if re.search(r"(^|_)(API_KEY|ATTEST_KEY|SECRET|PASSWORD|PASS|AUTH)(_|$)", k[k.index("_") + 1:]) \
+                        else str(v)
         switches = {"env": dict(sorted(env.items())),
                     "server": {"loop_guard": self.loop_guard,
                                "reasoning_budget_by_effort": dict(self.reasoning_budget_by_effort),

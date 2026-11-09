@@ -218,3 +218,20 @@ class StatusHtmlNegotiation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StatusSecrets(unittest.TestCase):
+    def test_secret_env_values_are_not_echoed(self):
+        import os
+        from unittest import mock
+        from serve.frontend import ChatTemplate
+        from serve.server import ByteTokenizer, MockEngine, Service
+        root = __import__("pathlib").Path(__file__).resolve().parents[1]
+        tok = ByteTokenizer()
+        svc = Service(MockEngine(tok, "ok", max_context=4096), tok, ChatTemplate(root / "serve/chat_template.jinja"))
+        with mock.patch.dict(os.environ, {"STRATA_API_KEY": "sk-should-not-show", "STRATA_OWNER_ATTEST_KEY": "abc",
+                                          "STRATA_GDN_KEYHEAD": "1"}):
+            env = svc.pancake_status()["switches"]["env"]
+        self.assertEqual(env["STRATA_API_KEY"], "<set>")
+        self.assertEqual(env["STRATA_OWNER_ATTEST_KEY"], "<set>")
+        self.assertEqual(env["STRATA_GDN_KEYHEAD"], "1")              # a switch, not a secret
