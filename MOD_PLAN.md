@@ -133,9 +133,9 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
   none - open.  First PR of item 66.
 - 67 quality/perf harness (I4 + I5, capability-tagged) - 0; gates 7, 8/28, 23, 21, 25, effort default - this (runner) +
   dan-cd (A/B queue) - none - open.
-- 49 + 50 + 44 measurement batch (one GPU session: combine_cpu timer, spin vs row pull, per-layer slack) - 0; calibrates 42,
+- 49 + 50 + 44 measurement batch (one GPU session: combine_cpu timer, spin vs row pull, per-layer slack) - 0; calibrates 42, 49 CODED (7bcb77d5e: combine_cpu stamps waitCPU in-kernel under WAIT_FUSE); dispatch jobs split (expert source sub-timer, c44b1ad7b); 50/44 are runs (test phase).
   decides 51/52, feeds 1/32/48 - exact - unowned [this] - none - open.
-- 64 shared window trace (new) - 0; one GPU trace run answers 14/30, 28's weight CDF, 36, 15, 23, 5, 3-4, 17 offline -
+- 64 shared window trace (new) - 0; one GPU trace run answers 14/30, 28's weight CDF, 36, 15, 23, 5, 3-4, 17 offline - CODED 2026-11-09 (14a4b3373): STRATA_WINDOW_TRACE logger + tools/pancake/trace/wtrace.py reader/converter; DISCO/SpecFit readers still to do (this).
   dan-cd (logger, = I1) + this (readers) - none - open.
 - 42 overlap-aware max-plus simulator - DONE as time_ceiling.py --overlap (751e09b70; serial/defer/guard, alpha DMA contention;
    item 29 +3% modeled); validation to 5-9% error in the test phase - exact -
@@ -189,7 +189,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 72 GPU-floor package triggered by the critical path (new: 1, 32/48, 37, 10, Q2_0-down, 47) - 5-10% short chat est. -
     exact - unowned - 44, 64 - design.  [S7]
 - 48 (= 32 re-rated) fuse the pre-doorbell chains (HC norm/down/up, router+plan+bell) - 1-4% per chain, critical in both
-    window types - exact - unowned - 49 - open.  [S7]
+    window types - exact - dan-cd - 49 - open.  [S7] PART CODED (2aca56777): expdec gate/up + SwiGLU + q8_1 in one launch, STRATA_EXPDEC_SWIGLU=1; HC norm/down/up and router+plan+bell chains open.
 - 63 capability probe + calibration layer (new: 55, 61, 57, 56, 58, 41, 53, 43, 54) - 0-3% here, 6-13% on other platforms
     (static PcieAuto lost that much here) - exact - this (probe) + dan-cd (tier parameters) - none - design.
 - small exact flag stack + --lookup-max-t 12 (P2c) - +2-5% (meas. +1.4..+3.9%, +1% retest) - exact - dan-cd queue - 67/I5 -
@@ -201,10 +201,10 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
     + dan-cd queue (traces) - 64, 35 for resume - code merged.  [S1]
 - 47 warm the Infinity Cache with next-layer pre-doorbell weights during the wait - 0-2 ms/window est. - exact - unowned -
     micro-test (build only at warm/cold < 0.85) - open.  [S7]
-- 53 online swap budget + chunked, stale-dropping promotions - 0-5% over the best fixed --adapt-swaps - exact - unowned
-    (coordinate with dan-cd, touches the tier) - 42 - open.  [S1]
-- 46 single poller in combine_cpu - 0-3% - exact - unowned - 49 - open.  [S1]
-- 40 software prefetch in the Q2_0 row kernel - 0-5% of CPU-expert time - exact - unowned - none - open.  [S1]
+- 53 online swap budget + chunked, stale-dropping promotions - 0-5% over the best fixed --adapt-swaps - exact - dan-cd
+    (coordinate with dan-cd, touches the tier) - 42 - open.  [S1] CODED (6bc9530bc, STRATA_ADAPT_SWAPS_AUTO=1; ForesightSwap stale-drop skipped: FS off in the presets).
+- 46 single poller in combine_cpu - 0-3% - exact - dan-cd - 49 - open.  [S1] CODED (93f7a963d, STRATA_COMBINE_POLL1=1).
+- 40 software prefetch in the Q2_0 row kernel - 0-5% of CPU-expert time - exact - dan-cd - none - open.  [S1] CODED (c44b1ad7b, STRATA_Q2_PREFETCH=<bytes>).
 - 43 DraftPolicy::seed_costs() from traces - 0-5% - exact - unowned (inside 68) - 42, 64 - open.  [S3]
 - 10 MTP draft inside the captured verify graph - 1-3% est. if the 2.2 ms is launch-bound - exact - unowned - draft timing
     (2b run) - waiting.  [S7]
@@ -220,7 +220,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 18 GDN prefill chunk 64 - 5-11% of prefill, cold prompts only (90.8% of turns hit the cache) - exact - unowned - I8 prefill
     timing - parked.
 - 70 closed-loop self-tuning from own sessions (new) - 1-5% est. (keeps profile-type gains current; 8.6 gave +6.7%) - exact -
-    this + dan-cd - 63, 64, 67 - design.
+    this + dan-cd - 63, 64, 67 - design. CODED offline pass (05e041b9b, tools/pancake/selftune.py): traces -> candidate profile -> time model -> abtest spec.
 - 33 behaviour counters (log-only first) - unmeasured (failed runs cost 1.4-4.4x tokens) - exact (log) - this - 73 - open.
 - 34 rumination signal into the soft close and 21 - inside S4 - lossy (text) - this - 73 - open.  [S4]
 - 25 ISTA-DASLab Coder variant A/B - quality candidate (95.7% of BF16 on SWE-bench Verified), speed unknown - n/a - owner -
