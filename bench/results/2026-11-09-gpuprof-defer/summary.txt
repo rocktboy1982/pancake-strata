@@ -1,0 +1,34 @@
+decode phase 5741 ms wall, kernels 3947 ms (69%), 210856 kernels, 412 per token
+top kernels:
+   31.1%   1227.4 ms   11280x   108.8 us  wait_flag_ge_kernel
+    8.8%    346.9 ms    4080x    85.0 us  expdec_gu_kernel<22, 1, 4>
+    7.0%    278.2 ms    5760x    48.3 us  wait_flag_copy_i32_kernel
+    6.1%    239.3 ms    5760x    41.5 us  native_down_multi_kernel<42, true, false>
+    5.5%    216.4 ms   11520x    18.8 us  rdna_kq_kernel<23, 4, 3>
+    3.6%    142.9 ms    6144x    23.3 us  rdna_gr_fused<4>
+    3.3%    132.1 ms    6120x    21.6 us  rdna_kq_kernel<23, 5, 2>
+    2.8%    108.7 ms    1790x    60.7 us  attn_chunk_kernel<1, false, false, false>
+    2.2%     85.7 ms    3264x    26.3 us  rdna_gr_fused<5>
+    2.1%     84.1 ms   11040x     7.6 us  copy_rows_by_weight_kernel
+    1.7%     67.0 ms    1320x    50.8 us  expdec_gu_kernel<16, 1, 4>
+    1.7%     66.4 ms    3059x    21.7 us  rdna_kq_kernel<23, 6, 2>
+    1.5%     60.4 ms    4320x    14.0 us  gdn_step_norm_multi_kernel<true, true>
+    1.4%     54.7 ms    5616x     9.7 us  route_multi
+    1.2%     46.7 ms    1632x    28.6 us  rdna_gr_fused<6>
+    1.1%     45.0 ms     119x   378.1 us  gdn_step_commit_layers_kernel
+    1.1%     42.3 ms    1790x    23.6 us  attn_merge_kernel
+    1.0%     39.5 ms    7808x     5.1 us  bf16_f32_mmvf_multi_kernel<256, 4, true>
+    1.0%     39.5 ms    5760x     6.9 us  doorbell_publish_kernel
+    1.0%     38.0 ms     890x    42.7 us  rdna_kq_kernel<23, 1, 5>
+idle: launch gaps (<50 us) 1111 ms, host stalls (>1 ms) 550 ms of 5741 ms
+largest idle by kernel pair:
+    453.9 ms     81x avg  5604.0 us  __amd_rocclr_copyBuffer -> copy_i32_from_mapped_kernel
+    119.4 ms  11040x avg    10.8 us  wait_flag_ge_kernel -> copy_rows_by_weight_kernel
+     47.0 ms   5751x avg     8.2 us  native_down_multi_kernel<42, true, false> -> wait_flag_ge_kernel
+     44.5 ms    283x avg   157.2 us  __amd_rocclr_copyBuffer -> __amd_rocclr_copyBuffer
+     38.3 ms   5613x avg     6.8 us  route_multi -> doorbell_publish_kernel
+     37.5 ms   4074x avg     9.2 us  expdec_gu_kernel<22, 1, 4> -> swiglu_q8_1_entries_kernel
+     29.6 ms   3834x avg     7.7 us  rdna_gr_fused<4> -> bf16_f32_mmvf_multi_kernel<256, 4, true>
+     22.9 ms    116x avg   197.5 us  logits_nonfinite_kernel -> copy_i32_from_mapped_kernel
+     20.5 ms   5760x avg     3.6 us  swiglu_q8_1_entries_kernel -> native_down_multi_kernel<42, true, false>
+     20.5 ms   5758x avg     3.6 us  sigmoid_scale_rows_vec4_kernel -> wait_flag_copy_i32_kernel
