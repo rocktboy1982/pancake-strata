@@ -199,14 +199,14 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 29 per-expert barriers / STRATA_POOL_FUSE_PHASES - 1-4% - exact - dan-cd - I5 A/B - coded, opt-in.  [S1]
 - 3-4 conversation working set + domain profiles - +0.6-1.5 hit points (~1-2% at request start est.) - exact - this (code)
     + dan-cd queue (traces) - 64, 35 for resume - code merged.  [S1]
-- 47 warm the Infinity Cache with next-layer pre-doorbell weights during the wait - 0-2 ms/window est. - exact - unowned -
-    micro-test (build only at warm/cold < 0.85) - open.  [S7]
+- 47 warm the Infinity Cache with next-layer pre-doorbell weights during the wait - 0-2 ms/window est. - exact - dan-cd -
+    micro-test (build only at warm/cold < 0.85) - open.  [S7] CODED (269a06ed9, STRATA_IC_WARM_MB=<cap>).
 - 53 online swap budget + chunked, stale-dropping promotions - 0-5% over the best fixed --adapt-swaps - exact - dan-cd
     (coordinate with dan-cd, touches the tier) - 42 - open.  [S1] CODED (6bc9530bc, STRATA_ADAPT_SWAPS_AUTO=1; ForesightSwap stale-drop skipped: FS off in the presets).
 - 46 single poller in combine_cpu - 0-3% - exact - dan-cd - 49 - open.  [S1] CODED (93f7a963d, STRATA_COMBINE_POLL1=1).
 - 40 software prefetch in the Q2_0 row kernel - 0-5% of CPU-expert time - exact - dan-cd - none - open.  [S1] CODED (c44b1ad7b, STRATA_Q2_PREFETCH=<bytes>).
-- 43 DraftPolicy::seed_costs() from traces - 0-5% - exact - unowned (inside 68) - 42, 64 - open.  [S3]
-- 10 MTP draft inside the captured verify graph - 1-3% est. if the 2.2 ms is launch-bound - exact - unowned - draft timing
+- 43 DraftPolicy::seed_costs() from traces - 0-5% - exact - dan-cd - 42, 64 - open.  [S3] CODED (663107a56): serve loop reads STRATA_SPEC_COST_TABLE; tools/pancake/trace/draft_costs.py builds it from window traces.
+- 10 MTP draft inside the captured verify graph - 1-3% est. if the 2.2 ms is launch-bound - exact - dan-cd - draft timing
     (2b run) - waiting.  [S7]
     CODE STUDY 2026-11-09 (dan-cd): the draft is already graph-chained (one round graph + step graphs queued at once,
     mtp.cpp chain_launch), so its 2.2-2.5 ms is GPU work, not launches; commit/emit is 0.07 ms.  The real lever found:
@@ -214,16 +214,16 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
     R9700 draft wall 5.8 -> 3.5 ms) defaults on only for gfx12 - off on the 7900 XT -> arm in bench/specs/07.  Item 20
     (ReplaySSM): the commit replays the GDN recurrence over the kept rows (gdn_step_commit_layers, ~1% of GPU time in the
     profile); snapshots per row would be ~2 MB per GDN layer per row - replay stays; with MTP_HIP_PRIO it overlaps the
-    draft.  Both closed by reading.
-- 5 tail-row drop - 0-5% est. - exact per plan - unowned - 64 replay with real MTP confidences - open.  [S1]
-- 20 ReplaySSM audit of the GDN replay - 1-3% decode - exact - unowned (code read, I10) - none - open.
+    draft.  Both closed by reading. CLOSED by code study (9b0081c43): already graph-chained; STRATA_MTP_HIP_PRIO arm instead.
+- 5 tail-row drop - 0-5% est. - exact per plan - dan-cd - 64 replay with real MTP confidences - open.  [S1] Replay built (tools/pancake/trace/tail_replay.py, drafts record in the trace); needs dan-9f's drafts() call (item 74).
+- 20 ReplaySSM audit of the GDN replay - 1-3% decode - exact - dan-cd - none - open. CLOSED by code study (9b0081c43): replay stays (per-row snapshots ~2 MB/layer/row).
 - Q2_0-down expdec kernel (unnumbered; native_down_multi_kernel<42> = 5.8% of GPU kernel time, hidden on edits) - 1-3% short
-    est. - exact - unowned - 49 split - open.  [S7]
-- 51 CPU pre-sums missed rows per token - 0.5-1.5% on edits est. - not bit-identical - unowned - 50 - open.  [S1]
-- 37 coordinate-descent sweep of HIP launch/tile and AVX2 block sizes - 1-3% - exact - unowned - 1 - open.  [S7]
+    est. - exact - unowned - 49 split - open.  [S7] Exists as STRATA_EXPDEC_DOWN=1 (never measured on gfx1100): arm in bench/specs/04 (dan-cd).
+- 51 CPU pre-sums missed rows per token - 0.5-1.5% on edits est. - not bit-identical - dan-cd - 50 - open.  [S1] CODED (cc5499fae, STRATA_CPU_PRESUM=1) + item 52 ReBAR target (4f829da0e, STRATA_PRESUM_VRAM=1).
+- 37 coordinate-descent sweep of HIP launch/tile and AVX2 block sizes - 1-3% - exact - dan-cd - 1 - open.  [S7] TOOL BUILT (7861dc8c1, tools/pancake/sweep.py); running it = test phase.
 - 41 smallest saturating thread count + performance governor - 0-3% each - exact - owner (governor) / 63 - none - open.
-- 17 pre-stage the expected experts while a tool runs - 1-3% of the next turn's decode est. - exact - unowned (inside 66) -
-    simulator - open.  [S6]
+- 17 pre-stage the expected experts while a tool runs - 1-3% of the next turn's decode est. - exact - dan-cd -
+    simulator - open.  [S6] CODED engine-only (43e741bc6, STRATA_IDLE_ADAPT=N: tier catch-up between requests).
 - 18 GDN prefill chunk 64 - 5-11% of prefill, cold prompts only (90.8% of turns hit the cache) - exact - unowned - I8 prefill
     timing - parked.
 - 70 closed-loop self-tuning from own sessions (new) - 1-5% est. (keeps profile-type gains current; 8.6 gave +6.7%) - exact -

@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 15:18
+Last update: 2026-11-09 15:55
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -45,9 +45,18 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | P1 | Parked workers wait with MWAITX (STRATA_POOL_MWAITX) | code study | frees SMT siblings; wake +0.36 us | coded, micro-checked on the 5700G (4de66f87a) | 100% | 0% |
 | meas | waitCPU stamped inside combine_cpu (profile) | 49 | measurement | coded (7bcb77d5e) | 100% | - |
 | meas | dispatch 'jobs' split: expert-source sub-timer | - | measurement (jobs = 1.5 ms/window) | coded (c44b1ad7b) | 100% | - |
-| P1 | CPU pre-sums missed rows | 51 | 0.5-1.5%, not bit-identical | deferred: item 50 measures the pull cost first (built only if > ~3 us/layer) | 0% | 0% |
+| P1 | CPU pre-sums missed rows (STRATA_CPU_PRESUM) | 51 | 0.5-1.5%, not bit-identical | coded, tied to the captured graph (cc5499fae) | 100% | 0% |
+| P1 | Pre-summed rows to VRAM through ReBAR (STRATA_PRESUM_VRAM) | 52 | 1-2% | coded, HIP fine-grained VRAM (4f829da0e) | 100% | 0% |
 | P1 | Tail-row drop | 5 | 0-5% | trace record + offline replay built (0488b80f4, 5c3d8a9fb); dan-9f adds the drafts() call with item 74; engine change only if the replay shows a gain | 60% | 0% |
 | Ph14 | Test phase in one command (bench/specs/01-07 + tools/pancake/test_phase.sh) | 14 | - | built (1fbe4e2b1): abtest + quality gate per spec, resumable | 100% | 0% |
+| P4 | Infinity Cache warm-up during the CPU wait (STRATA_IC_WARM_MB) | 47 | 0-2 ms/window | coded (269a06ed9) | 100% | 0% |
+| P2 | Draft window costs from traces (STRATA_SPEC_COST_TABLE in serve + draft_costs.py) | 43 | 0-5% | coded (663107a56) | 100% | 0% |
+| P2 | Draft stream on its own HW queue (STRATA_MTP_HIP_PRIO, existing, off on gfx1100) | 10 | R9700: draft 5.8 -> 3.5 ms | arm added; item 10 closed by code study | 100% | 0% |
+| closed | ReplaySSM audit | 20 | - | replay stays (code study) | 100% | 100% |
+| P1 | Pool quarter-size tail tasks + down-row prefetch while waiting (basalt ports) | 29-related | 0.5-1.5% | coded (e29bac539) | 100% | 0% |
+| P1 | Tier catch-up while idle between requests (STRATA_IDLE_ADAPT) | 17 | 1-3% next turn | coded (43e741bc6) | 100% | 0% |
+| P4 | Q2_0 down on the EXPDEC kernel (STRATA_EXPDEC_DOWN, existing) | Q2_0-down | 1-3% short | arm added | 100% | 0% |
+| Ph14 | Launch/tile/pool sweep tool (tools/pancake/sweep.py) | 37 | 1-3% | built (7861dc8c1) | 100% | 0% |
 | Ph14 | Application end to end (agent-session timeline, idle-time use, server -> engine turn info) | 14 | per-turn time | needs the per-turn JSONL log of item 73 (serve/, dan-9f, not started) | 0% | 0% |
 | Ph14 | A/B harness with quiet-machine gate + noise monitor (tools/pancake/abtest.py) | 14 | clean numbers | built (f21cc86a1) | 100% | 0% |
 | Ph14 | Quality gate as a process (tools/pancake/quality_gate.py, token forcing per lossy arm) | 14 | - | built (c7c44f2d0) | 100% | 0% |
@@ -55,7 +64,7 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | Ph14 | Self-tuning from own sessions (tools/pancake/selftune.py, item 70) | 70 | 1-5% (keeps profiles current) | offline pass built (05e041b9b): traces -> candidate profile -> time model -> abtest spec; dry run: candidate profile +8.6%, + kmiss +23% modeled | 100% | 0% |
 | Ph14 | Diagnostic: decode speed along a reply (tools/pancake/decode_curve.py) | 2 | - | built, used to close item 2 | 100% | - |
 
-Development order from here: engine side done except 51 (after item 50's measurement) and 5 (needs draft confidences
-from dan-9f's draft area).  Next: agent-session timeline (phase 14).  Then the test phase = tools/pancake/test_phase.sh
-(after the other session stops builds/GPU jobs).  Coordination: dan-9f owns serve/agent items (73, 35, 66, 12, 31, 11,
-16, 39, 71, 21, 33, 34, 38, 69, 74-76); this session owns the engine/CPU/tier items.
+Development: engine side COMPLETE.  Left, by decision or dependency: 5 (engine change only if the trace replay shows a
+gain; needs dan-9f's drafts() call), 18 GDN prefill chunk 64 (parked: cold prompts only, 90.8% of turns hit the cache),
+phase-14 agent timeline (needs item 73's per-turn log, dan-9f).  Next: the test phase = tools/pancake/test_phase.sh
+(8 spec groups incl. 04b) + tools/pancake/sweep.py, after dan-9f stops builds/GPU jobs.
