@@ -2409,7 +2409,21 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         // -4.2% / +11.0%, so it only helps a card that streams most experts).
         const float route_prior = g_route_prior();
         if (route_prior > 0.0f && NE == 512 && K == 10 && hits_.d_res != nullptr)
-            route_prior_top10(logits_ + tb * NE, hits_.d_res + l * g.n_expert, route_prior, ids_ + tb * K, w_ + tb * K, n, cs);
+{
+            // item 23 (opt-in, STRATA_ROUTE_PRIOR_DEPTH=a in (0, 1)): the bonus graded by the row's window position
+            static const float depth_acc = [] {
+                const char* v = std::getenv("STRATA_ROUTE_PRIOR_DEPTH");
+                const float a = v != nullptr ? std::strtof(v, nullptr) : 0.0f;
+                if (v != nullptr && !(a > 0.0f && a < 1.0f))
+                    std::fprintf(stderr, "strata verify: STRATA_ROUTE_PRIOR_DEPTH=%s is not in (0, 1): not graded\n", v);
+                else if (a > 0.0f)
+                    std::fprintf(stderr, "strata verify: STRATA_ROUTE_PRIOR_DEPTH=%g: the residency bonus is 0 at window "
+                                         "position 0 and lambda * (1 - %g^pos) deeper (item 23)\n", a, a);
+                return a > 0.0f && a < 1.0f ? a : 0.0f;
+            }();
+            route_prior_top10(logits_ + tb * NE, hits_.d_res + l * g.n_expert, route_prior, ids_ + tb * K, w_ + tb * K, n, cs,
+                              depth_acc, (int) tb);
+        }
         if (route_resident_cfg().margin > 0.0f && NE == 512 && K == 10 && hits_.d_res != nullptr) {
             // STRATA_ROUTE_RESIDENT: after the router, before the plan/doorbell read ids_/w_ (opt-in, changes the output)
             try {

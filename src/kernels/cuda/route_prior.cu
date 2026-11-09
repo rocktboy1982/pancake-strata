@@ -28,7 +28,8 @@ __device__ __forceinline__ float wsum(float v) {
 
 // one warp per token; 512 experts = 16 values per lane (as the native router)
 __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* __restrict__ res, float lambda,
-                                  int32_t* __restrict__ ids, float* __restrict__ weights) {
+                                  int32_t* __restrict__ ids, float* __restrict__ weights, float depth_acc, int row0) {
+    if (depth_acc > 0.0f) lambda *= 1.0f - powf(depth_acc, (float) (row0 + (int) blockIdx.x));   // item 23: 0 at position 0
     const float* lg = logits + (size_t) blockIdx.x * 512;
     int32_t* id = ids + (size_t) blockIdx.x * 10;
     float* w = weights + (size_t) blockIdx.x * 10;
@@ -71,9 +72,9 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
 }  // namespace
 
 void route_prior_top10(const float* logits, const int32_t* res_layer, float lambda, int32_t* ids, float* weights,
-                             int n_tok, void* stream) {
+                             int n_tok, void* stream, float depth_acc, int row0) {
     if (n_tok <= 0) return;
-    route_prior_k<<<n_tok, 32, 0, (cudaStream_t) stream>>>(logits, res_layer, lambda, ids, weights);
+    route_prior_k<<<n_tok, 32, 0, (cudaStream_t) stream>>>(logits, res_layer, lambda, ids, weights, depth_acc, row0);
 }
 
 }  // namespace strata::kernels
