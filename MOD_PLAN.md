@@ -455,7 +455,7 @@ paths, five config sources; refactor one PR at a time: turn-log module -> shared
 split Service -> one config schema printed at start.  Python overhead est. 60-300 ms/request (1-5% of a 6.2 s median turn).
 
 Added 2026-11-09 from the structure/build-health study (research_notes/Pancake cod deep research/structure_build.md):
-92. Build matrix + pre-push check: tools/pancake/build_matrix.sh rows hip-mmq, hip-nommq (the stub break fixed today went unnoticed:
+92. [DONE 2026-11-09, 635c2a752: tools/pancake/build_matrix.sh, all rows pass; pre-push hook not installed] Build matrix + pre-push check: tools/pancake/build_matrix.sh rows hip-mmq, hip-nommq (the stub break fixed today went unnoticed:
     no build dir has HIP+MMQ off), cuda-86, hip-tests, configure-only set; build dirs on D, install ccache.  S / none.  [this]
 93. Tests build dir (STRATA_BUILD_TESTS=ON; all four build dirs have it OFF, so none of the 293 add_test entries is ever built) with a
     labelled CPU-only ctest subset; parity tests for rdna_gr.cu / rdna_mmvq.cu (none today).  S / low.  [this]
