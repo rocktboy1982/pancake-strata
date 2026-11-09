@@ -562,6 +562,33 @@ Series-wide ranking (all seven university reports; precondition: the revised qua
   (12, 21, 33, 34)  9) time-based cache simulator with candidate policies (14, 27, 30, 3-4, 17)  10) tool reliability (26,
   presence_penalty 0).  Item 6 closed (Q2_0 is the daily file); item 24 gives 0 on Q2_0.  feat/contextpilot: keep off
   (1.6% dedup savings measured on 40 real opencode sessions).
+Added 2026-11-09 from the hardware data-path round (research_notes/Tehnologii drum de date hardware/; report follows):
+38. Linux direct expert-arena loader: experts_unbuffered() returns false on Linux ("buffered (not Windows)", pinned.cu ~1160) and
+    load_experts_direct is _WIN32-only, so the 33 GiB arena is read through the page cache (log: 33.02 GiB at 0.49 GiB/s) and
+    competes with the locked arena on 57 GB (likely oomd trigger, 0.51-1.18 GiB/s spread, no free THP blocks).  Port the direct
+    loader onto src/platform/direct_file.cpp (16-thread O_DIRECT pread; PLE already reads this way on the same ntfs3 partition).
+    Est. start 28-65 s -> ~10-14 s (NVMe at PCIe 3.0 x4).  Stop-gap: POSIX_FADV_DONTNEED after each buffered chunk.
+    (ServerlessLLM OSDI'24, fastsafetensors.)
+39. Automatic disk tier for parked conversations in strata --serve (conversation_file.cpp has direct 16 MiB writes + fsync +
+    atomic rename; today only /slots save/restore by hand; --conversation-disk exists only in strata-poly), restore on start
+    (~0.5-1 s for 1.13 GB est.); keep tool-call-ended conversations in RAM, demote final-answer ones first (Bidaw, FAST'26);
+    cap the tier size (D is 91% full).  Gate on item 35.
+40. Software prefetch 1-2 KB ahead inside the Q2_0 row kernel (q2_avx2_rows.inl row_multi has no _mm_prefetch; hardware
+    prefetchers stop at 4 KB pages, a gate/up row is 720 B): env-tunable, exact, 0-5% of CPU-expert time.
+41. Smallest saturating CPU thread count with FUSE_PHASES (variance of window time), and the cpufreq "performance" governor
+    (owner setting) - 0-3% each.  Q2_0 kernel is already near the bandwidth roofline: no LUT rewrite (T-MAC/Vec-LUT ~0).
+42. Overlap-aware simulator model (spec for the item 14 owner): tools/pancake/time_ceiling.py sums GPU and CPU (max(gpu + cpu +
+    alpha*dma, dma)), so it cannot price items 8, 28, 29, 22 or reordering; per layer cost = max(GPU part, CPU part + sync) with
+    deferral overlapping layer l CPU with layer l+1 GPU; calibrate on window ms and the 38.3% combine_cpu spin, validate to
+    5-9% error (Vidur, LLMServingSim2.0) before the >=5% rule; measure alpha (DDR contention CPU vs DMA) locally.  Edit window
+    37.4 ms is ~ the plain sum of its parts; ideal overlap ~20 ms.
+43. DraftPolicy::seed_costs() from the simulator: cost of each extra draft position = CPU time of the distinct NEW missed
+    experts it adds, per context bucket, from routing traces (MoE-SpeQ, SpecFit), replacing the fixed kShape curve measured
+    on the RTX 5070.  Exact, 0-5%.
+44. Critical-path pass over pancake's per-layer timers: slack per layer and "what if this part were x% faster".
+45. I/O hygiene: STRATA_IO_THREADS sweep against the startup PLE probe; filefrag on experts.bin and the PLE shard; reorder PLE
+    rows by hit frequency only after PLE wait time is measured.  Not worth it: hipFile / BaM direct NVMe->GPU (absent or
+    NVIDIA-only; VRAM fills from RAM anyway), moving models to ext4/xfs (no documented read gain), ntfs-3g (FUSE, avoid).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
