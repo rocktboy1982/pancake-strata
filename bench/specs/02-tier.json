@@ -1,0 +1,34 @@
+{
+ "arms": {
+  "base": {},
+  "async": {
+   "args": {
+    "--adapt-async": "1"
+   }
+  },
+  "async-kmiss28": {
+   "args": {
+    "--adapt-async": "1"
+   },
+   "env": {
+    "STRATA_ADAPT_KMISS": "2,8"
+   }
+  },
+  "async-swapsauto": {
+   "args": {
+    "--adapt-async": "1"
+   },
+   "env": {
+    "STRATA_ADAPT_SWAPS_AUTO": "1"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": false
+}

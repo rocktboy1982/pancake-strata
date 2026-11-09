@@ -1,0 +1,26 @@
+{
+ "arms": {
+  "base": {},
+  "mtpq4-head": {
+   "args": {
+    "--mtp-q4": "head"
+   }
+  },
+  "boundary": {
+   "env": {
+    "STRATA_CACHE_MESSAGE_BOUNDARY": "1"
+   },
+   "args": {
+    "--prompt-cache-tail": ""
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": false
+}

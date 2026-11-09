@@ -1,0 +1,43 @@
+{
+ "arms": {
+  "base": {},
+  "stack": {
+   "env": {
+    "STRATA_SPEC_COST": "1",
+    "STRATA_SPEC_ADAPT_EVERY": "2",
+    "STRATA_SPEC_ADAPT_WARM": "200",
+    "STRATA_SELECT_LONG": "1",
+    "STRATA_SIDE_MIXER": "2",
+    "STRATA_GR_UP75": "1",
+    "STRATA_GU_SWIGLU": "1",
+    "STRATA_B6_MMVQ_ROWS": "1",
+    "STRATA_FUSE_WAIT": "2",
+    "STRATA_FUSE_DECODE": "1",
+    "STRATA_ATTN_LANECELL": "1",
+    "STRATA_ATTN_MERGE_V2": "1",
+    "STRATA_TSUM": "1",
+    "STRATA_SMALL_UNR": "3",
+    "STRATA_GR_Q32_G": "2"
+   },
+   "args": {
+    "--spec-min-p": "0.6",
+    "--kv-resident": "8192",
+    "--pool-tasks": "48",
+    "--vram-reserve-mib": "512"
+   }
+  },
+  "lookup12": {
+   "args": {
+    "--lookup-max-t": "12"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": true
+}

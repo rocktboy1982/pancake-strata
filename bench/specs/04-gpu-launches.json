@@ -1,0 +1,28 @@
+{
+ "arms": {
+  "base": {},
+  "poll1": {
+   "env": {
+    "STRATA_COMBINE_POLL1": "1"
+   }
+  },
+  "expdec-swiglu": {
+   "env": {
+    "STRATA_EXPDEC_SWIGLU": "1"
+   }
+  },
+  "router-fuse": {
+   "env": {
+    "STRATA_ROUTER_FUSE": "1"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": false
+}

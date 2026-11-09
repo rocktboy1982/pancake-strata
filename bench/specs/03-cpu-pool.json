@@ -1,0 +1,33 @@
+{
+ "arms": {
+  "base": {},
+  "fuse-phases": {
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1"
+   }
+  },
+  "lazy-park": {
+   "env": {
+    "STRATA_POOL_LAZY_PARK": "1"
+   }
+  },
+  "q2-prefetch1k": {
+   "env": {
+    "STRATA_Q2_PREFETCH": "1024"
+   }
+  },
+  "mwaitx": {
+   "env": {
+    "STRATA_POOL_MWAITX": "20000"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": false
+}

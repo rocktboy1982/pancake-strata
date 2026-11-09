@@ -1,0 +1,24 @@
+{
+ "arms": {
+  "base": {},
+  "defer": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": "1"
+   }
+  },
+  "defer-top2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": "1",
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": true
+}

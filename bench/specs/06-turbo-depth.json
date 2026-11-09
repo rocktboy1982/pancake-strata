@@ -1,0 +1,24 @@
+{
+ "arms": {
+  "base": {},
+  "turbo": {
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5"
+   }
+  },
+  "turbo-depth75": {
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5",
+    "STRATA_ROUTE_PRIOR_DEPTH": "0.75"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": true
+}
