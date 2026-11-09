@@ -333,7 +333,9 @@ ConversationBudgetPolicy conversation_budget_policy(const char* mode, const char
     const std::string m = mode != nullptr ? mode : "";
     if (m == "ram") p.ram = true;
     else if (m == "legacy") p.ram = false;
-    else p.ram = linux_host && (ram_keep > 0 || p.keep_from_env);
+    // Unset: the RAM rule only when STRATA_CONV_KEEP_GIB names its keep.  The daily start sets STRATA_RAM_KEEP_GIB=12,
+    // with which the rule gives a smaller cache (~2-3.5 GiB) than the 40% rule (~5 GiB): opt-in until measured.
+    else p.ram = linux_host && p.keep_from_env;
     return p;
 }
 

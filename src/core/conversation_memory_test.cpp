@@ -74,8 +74,8 @@ int main() {
     {
         // the switches
         auto p = conversation_budget_policy(nullptr, nullptr, nullptr, nullptr, GiB(12), 2560, true);
-        check(p.ram && p.keep == GiB(12) && !p.keep_from_env && p.margin_mib == 512 && p.cap_mib == 8192,
-              "policy: auto on Linux with --ram-keep-gib: the RAM rule");
+        check(!p.ram && p.keep == GiB(12) && !p.keep_from_env && p.margin_mib == 512 && p.cap_mib == 8192,
+              "policy: auto on Linux with only --ram-keep-gib: still the 40% rule (RAM rule is opt-in)");
         p = conversation_budget_policy(nullptr, nullptr, nullptr, nullptr, 0, 2560, true);
         check(!p.ram, "policy: auto without a RAM to keep: the 40% rule");
         p = conversation_budget_policy("", nullptr, nullptr, nullptr, GiB(12), 2560, false);
