@@ -10,6 +10,7 @@
 #include "strata/core/defaults_026.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/core/verify.hpp"
+#include "strata/core/defer_rank.hpp"
 #include "strata/core/window_evict.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/pin_budget.hpp"
@@ -1388,6 +1389,9 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         h_pflag_ = nullptr;
         m_pflag_ = nullptr;
     }
+    if (defer_heavy_ > 0.0f && strata::core::defer_top() > 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_TOP=%d: a CPU entry among its token's top %d by weight "
+                             "is also kept on time (item 28 rank guard)\n", strata::core::defer_top(), strata::core::defer_top());
     if (defer_heavy_ > 0.0f)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_BELOW=%g%s: a deferred layer waits for its CPU rows "
                              "of routing weight >= %g (the pool computes them first) and combines them; the lighter "
@@ -1510,7 +1514,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if !defined(STRATA_GPU_METAL)
             if (heavy)   // the light rows (the heavy ones are in layer dl's combine already)
                 copy_rows_by_weight(def_parts_, ym, (int64_t) n * K, N, pl + 4 + MT * K + 1, pl + 1, w_ + tb * K,
-                                    defer_heavy_, false, cs);
+                                    defer_heavy_, false, cs, (int) K, strata::core::defer_top());
             else
 #endif
             if (dec_batch)   // the GPU's own rows (p_dst[0, counts[1])) are zeros
@@ -2605,7 +2609,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if !defined(STRATA_GPU_METAL)   // (as late_add's defer_add_rows)
                 if (heavy)
                     copy_rows_by_weight(parts_out, m_ymiss_ + (size_t) tb * K * N, (int64_t) n * K, N, p_dst, p_counts + 1,
-                                        w_ + tb * K, defer_heavy_, true, cs);
+                                        w_ + tb * K, defer_heavy_, true, cs, (int) K, strata::core::defer_top());
                 else
                     fill_zero(parts_out, (long long) n * K * N, cs);
 #endif

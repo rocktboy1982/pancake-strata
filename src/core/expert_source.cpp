@@ -1,5 +1,6 @@
 // src/core/expert_source.cpp - the adapter.  See the header for the three clauses of the contract.
 #include "strata/core/expert_source.hpp"
+#include "strata/core/defer_rank.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_memory.hpp"
 #include "strata/core/foresight_swap.hpp"
@@ -5411,7 +5412,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     if (split && njobs > 0) {
         bool heavy_job[kMaxWindowEntries] = {};
         for (int64_t i = 0; i < n; ++i)
-            if (kind[i] == -1 && ps->weights[i] >= ps->heavy) heavy_job[d.job_of[(size_t) ids[i]]] = true;
+            if (kind[i] == -1 && strata::core::defer_heavy_entry(ps->weights, i, (int) k, ps->heavy, strata::core::defer_top()))
+                heavy_job[d.job_of[(size_t) ids[i]]] = true;
         static thread_local std::vector<ExpertJobMulti> order;
         order.clear();
         for (int pass = 0; pass < 2; ++pass)

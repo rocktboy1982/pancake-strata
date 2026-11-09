@@ -141,7 +141,8 @@ void fill_zero(float* dst, long long n, void* stream);
 /// copied when it is not one of the plan's GPU rows hit_rows[0, *count) and (w[i] >= heavy) == take_heavy, and is
 /// +0.0 otherwise.  width a multiple of 4, both pointers 16-byte aligned.  Graph-capturable.
 void copy_rows_by_weight(float* dst, const float* src, int64_t rows, int64_t width, const int32_t* hit_rows,
-                         const int32_t* count, const float* w, float heavy, bool take_heavy, void* stream);
+                         const int32_t* count, const float* w, float heavy, bool take_heavy, void* stream,
+                         int k = 0, int top = 0);
 
 /// Rows of the S2/S4/S8 embedding for T token ids read from DEVICE memory; out (T, n).  Bitwise `embedding_gather`.
 void embedding_gather_dev(const uint8_t* codes, const float* scales, const float* offsets, const int32_t* tokens,
