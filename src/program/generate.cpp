@@ -13159,9 +13159,39 @@ int main(int argc, char** argv) {
         // --pipeline-windows: set while the tier adapts beside windows in flight (see its use in adapt)
         std::function<void()> adapt_fence;
         int64_t adapt_nswaps = 0;   // the blocking tier's swaps chosen, cumulative (the decode timing line's swaps/window)
+        // MOD_PLAN item 14 (phase 13 P1b), STRATA_ADAPT_KMISS=k,W (opt-in): admission by recent misses instead of the
+        // decayed usage gain - a missing expert enters once it missed in k of the last W rounds (W <= 8), replacing the
+        // resident expert unused for the longest.  tools/pancake/time_ceiling.py: +5..16% of a code-edit window in the
+        // model, depending on PCIe contention.  Placement only: outputs unchanged.
+        static const std::pair<int, int> kmiss = [] {
+            const char* v = std::getenv("STRATA_ADAPT_KMISS");
+            int k = 0, w = 0;
+            if (v != nullptr && std::sscanf(v, "%d,%d", &k, &w) == 2 && k >= 1 && w >= k && w <= 8) return std::make_pair(k, w);
+            return std::make_pair(0, 0);
+        }();
+        std::vector<float> km_prev;      // the counts at the end of the last round: grown since = used in this round
+        std::vector<uint8_t> km_miss;    // per (layer, expert): bit r = missed r rounds ago
+        std::vector<uint32_t> km_last;   // the last round each expert was routed
+        uint32_t km_round = 0;
+        if (kmiss.first > 0 && o.adapt_every > 0 && o.adapt_swaps > 0)
+            std::fprintf(stderr, "strata serve: STRATA_ADAPT_KMISS=%d,%d: the tier admits an expert after %d misses in %d "
+                                 "rounds and evicts the least recently routed\n", kmiss.first, kmiss.second, kmiss.first,
+                         kmiss.second);
         // the VRAM tier follows the conversation (the same rule as the speculative loop below)
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
+            if (kmiss.first > 0) {   // before the seeder raises any count
+                const size_t N = drive.d.usage.size();
+                if (km_prev.size() != N) { km_prev.assign(N, 0.0f); km_miss.assign(N, 0); km_last.assign(N, 0); }
+                ++km_round;
+                for (size_t i = 0; i < N; ++i) {
+                    km_miss[i] = (uint8_t) (km_miss[i] << 1);
+                    if (drive.d.usage[i] > km_prev[i] + 1e-6f) {
+                        km_last[i] = km_round;
+                        if (host_res[i] < 0) km_miss[i] |= 1;
+                    }
+                }
+            }
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
             if (remote_opt && !remote_opt->adapt(drive.d.usage, host_res, pending, o.adapt_swaps, *srcp)) return false;
             struct Swap { float gain; int32_t layer, in, out; };
@@ -13176,6 +13206,30 @@ int main(int argc, char** argv) {
                 vict.clear();
                 const float* u = drive.d.usage.data() + l * g.n_expert;
                 const int32_t* r = host_res.data() + l * g.n_expert;
+                if (kmiss.first > 0) {
+                    const uint8_t mask = (uint8_t) ((1u << kmiss.second) - 1u);
+                    const size_t base = (size_t) (l * g.n_expert);
+                    for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
+                        const size_t i = base + (size_t) e;
+                        if (r[e] < 0) {
+                            const int m = __builtin_popcount((unsigned) (km_miss[i] & mask));
+                            if (m >= kmiss.first && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) &&
+                                !helper_holds(l, e) && !(fetched && srcp->pinned(l, e)))
+                                cand.emplace_back(1000.0f * (float) m + u[e], e);
+                        } else if (km_last[i] != km_round) {
+                            // the longest unused first (larger key), then the least used
+                            vict.emplace_back(-1000.0f * (float) (km_round - km_last[i]) + u[e], e);
+                        }
+                    }
+                    if (cand.empty() || vict.empty()) continue;
+                    std::sort(cand.begin(), cand.end(), [](auto& a, auto& b) { return a.first > b.first; });
+                    const size_t nc = std::min(cand.size(), vict.size());
+                    std::partial_sort(vict.begin(), vict.begin() + (ptrdiff_t) nc, vict.end(),
+                                      [](auto& a, auto& b) { return a.first < b.first; });
+                    for (size_t i = 0; i < nc; ++i)
+                        swaps.push_back({cand[i].first, (int32_t) l, cand[i].second, vict[i].second});
+                    continue;
+                }
                 for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
                     if (r[e] < 0) { if (u[e] >= 2.0f && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) && !(fetched && srcp->pinned(l, e))) cand.emplace_back(u[e], e); }
                     else vict.emplace_back(u[e], e);
@@ -13333,6 +13387,7 @@ int main(int argc, char** argv) {
             }
             for (float& v : drive.d.usage) v *= o.adapt_decay;
             if (seeder.on()) seeder.round_end(drive.d.usage);
+            if (kmiss.first > 0) km_prev = drive.d.usage;
             return true;
         };
         // ---- --adapt-async 1: the asynchronous adaptive tier (opt-in; the resident RAM mode, see the checks where
