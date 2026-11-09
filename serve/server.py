@@ -61,7 +61,7 @@ from urllib.parse import parse_qs, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT))   # run as a script (run-<model>.bat) as well as a module
-from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, anthropic_to_messages, anthropic_tools,  # noqa: E402
+from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, ReasoningKeeper, anthropic_to_messages, anthropic_tools,  # noqa: E402
                             forced_call, images_of, literal_tags, mark_think_literals, openai_to_messages, require_messages,
                             tool_choice_of, unmark_think_literals, CALL_END)
 from serve.mcp import McpCancelled, hub_from_config  # noqa: E402
@@ -419,6 +419,22 @@ ENGINE_READY_S = _timeout_env("STRATA_ENGINE_READY_S", 900.0)
 class Engine(Protocol):
     max_context: int
     def generate(self, ids: list[int], max_new: int, sampling: dict, cancel: threading.Event) -> Iterator[int]: ...
+
+
+def keeper_of(env, value) -> ReasoningKeeper | None:
+    """Item 31: config "keep_reasoning" (or STRATA_KEEP_REASONING) -> the reasoning keeper, or None (off, the default).
+    true / "1" keeps 512 replies; a whole number N > 0 keeps N; false / 0 / unset is off.  Anything else stops the start."""
+    if env not in (None, ""):
+        value = env.strip().lower()
+        value = {"1": True, "true": True, "on": True, "0": False, "false": False, "off": False}.get(
+            value, int(value) if value.isdigit() else value)
+    if value is None or value is False or value == 0:
+        return None
+    if value is True:
+        return ReasoningKeeper()
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return ReasoningKeeper(max_entries=value)
+    raise SystemExit(f"[strata] config \"keep_reasoning\" must be true, false or a number of replies, not {value!r}")
 
 
 class MockEngine:
@@ -4937,6 +4953,7 @@ class Service:
         self.api_monitor = False
         self.turn_log = None                             # item 73: path of the per-turn JSONL log (None: off)
         self.turn_log_lock = threading.Lock()
+        self.reasoning_keeper = None                     # item 31: frontend.ReasoningKeeper ("keep_reasoning"; None: off)
         self.api_requests = collections.deque(maxlen=100)  # bounded I/O in memory; no headers or API keys
         self.request_trace = threading.local()
         self.history = collections.deque(maxlen=500)    # the last finished requests, newest last (GET /metrics)
@@ -6621,10 +6638,30 @@ class Service:
         if ka is not None:
             ka.acquire()
         try:
-            yield from self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            events = self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            keeper = self.reasoning_keeper
+            yield from (events if keeper is None else self._kept(events, keeper))
         finally:
             if ka is not None:
                 ka.release()
+
+    @staticmethod
+    def _kept(events, keeper) -> Iterator[tuple[str, object]]:
+        """Item 31 ("keep_reasoning"): the events pass through unchanged; a reply that ends is remembered (its
+        reasoning, under its text and calls) so a client that sends the turn back without its reasoning gets the
+        prompt the engine cached.  A reply cut off by a cancel or an error is not remembered."""
+        reasoning, content, calls = [], [], []
+        for kind, obj in events:
+            if kind == "event" and isinstance(obj, Event):
+                if obj.kind == "reasoning":
+                    reasoning.append(obj.text)
+                elif obj.kind == "content":
+                    content.append(obj.text)
+                elif obj.kind == "tool_call" and obj.call is not None:
+                    calls.append({"id": obj.call.id, "name": obj.call.name, "arguments": obj.call.arguments})
+            elif kind == "done" and isinstance(obj, dict) and obj.get("finish") in ("stop", "tool_calls", "length"):
+                keeper.remember("".join(content), calls, "".join(reasoning))
+            yield kind, obj
 
     def _run(self, ids, thinking, tools, max_new, sampling, cancel, force=None,
              declared_only=False, deferred=False) -> Iterator[tuple[str, object]]:
@@ -9306,7 +9343,7 @@ def make_handler(svc: Service):
         def _openai(self, req):
             req = svc.with_shared(req, "openai")
             bias_api.normalize(req.get("logit_bias"), len(getattr(svc.tok, "tokens", ())) or None)
-            messages, tools, kw = openai_to_messages(req)
+            messages, tools, kw = openai_to_messages(req, svc.reasoning_keeper)
             require_messages(messages)                # an empty conversation is a 400, as OpenAI answers it, not a reply to nothing
             self._no_local_images(messages)
             if tool_choice_of(req.get("tool_choice"))[0] == "none":   # as the Responses route: no tools are offered
@@ -9513,7 +9550,7 @@ def make_handler(svc: Service):
 
         def _responses_prepare(self, req, cancel=None):
             responses_api.check_request(req)
-            messages = responses_api.input_messages(req)
+            messages = responses_api.input_messages(req, svc.reasoning_keeper)
             tools, names, skipped = responses_api.request_tools(req)
             kw = responses_api.template_kwargs(req, {"reasoning_effort": svc.effort_default()})
             try:
@@ -9579,7 +9616,7 @@ def make_handler(svc: Service):
             """Anthropic's token count, which Claude Code asks for its context figures: the prompt this server would
             read for the same request, rendered and tokenized - the model does not run."""
             req = svc.with_shared(req, "anthropic")
-            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked)
+            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked, svc.reasoning_keeper)
             stop_strings(req)                                 # the same 400 as the request itself would get
             check_request_sampling(req)                       # ... likewise a sampling field of the wrong type
             self._json(200, {"input_tokens": len(svc.encode_prompt(messages, tools, kw, store=False))})
@@ -9587,7 +9624,7 @@ def make_handler(svc: Service):
         def _anthropic(self, req):
             svc.load()
             req = svc.with_shared(req, "anthropic")
-            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked)
+            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked, svc.reasoning_keeper)
             self._no_local_images(messages)
             callable_tools, deferred = anthropic_tools(req)     # #4663: the deferred tools are callable, unlisted
             if tool_choice_of(req.get("tool_choice"))[0] == "none":   # Anthropic's {"type": "none"}: no tools offered
@@ -11042,6 +11079,10 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
                   "Chat settings shared with other apps, can set its own)", flush=True)
     svc.codex_thread_titles = cfg.get("codex_thread_titles") is True    # #923: opt-in, off by default
     svc.codex_compaction_cache = cfg.get("codex_compaction_cache") is True   # #924: opt-in, off by default
+    svc.reasoning_keeper = keeper_of(os.environ.get("STRATA_KEEP_REASONING"), cfg.get("keep_reasoning"))
+    if svc.reasoning_keeper is not None:
+        print(f"[strata] keep_reasoning on: the reasoning of the last {svc.reasoning_keeper.max_entries} replies is kept "
+              f"in memory and put back into histories that come without it", flush=True)
     try:
         svc.set_aliases(cfg.get("aliases"))             # #297: other names the model answers to
     except ValueError as e:
