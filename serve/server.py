@@ -5970,6 +5970,104 @@ class Service:
                 "ram": {"used_gib": scaled(hw.get("ram_used"), 2 ** 30, 1),
                         "total_gib": scaled(hw.get("ram_total"), 2 ** 30, 1)} if hw.get("ram_total") else None}}
 
+    def pancake_status(self) -> dict:
+        """GET /status.json: the whole engine status page's data in one object - what is running, the hardware, the
+        model, the active switches, the live request, the totals, the loop guard and the last turns.  Numbers only:
+        no prompt, answer or tool text (the turn log's rule)."""
+        import statistics
+        eng = self.engine
+        spawn = getattr(eng, "spawn", None)
+        spawn_args = list(spawn[1]) if isinstance(spawn, tuple) and len(spawn) > 1 and spawn[1] is not None else None
+        spawn_env = spawn[4] if isinstance(spawn, tuple) and len(spawn) > 4 and isinstance(spawn[4], dict) else {}
+        proc = getattr(eng, "proc", None)
+        info = dict(getattr(eng, "info", {}) or {})
+        engine = {"binary": os.path.basename(str(spawn[0])) if spawn else None,
+                  "version": info.get("version"), "backend": (getattr(self, "backend", None) or "cuda").upper(),
+                  "pid": proc.pid if proc is not None else None,
+                  "uptime_s": int(time.time() - self.started_at), "max_context": getattr(eng, "max_context", None),
+                  "config_path": self.config_path, "args": spawn_args, "info": info}
+        tel = self.telemetry.snapshot() if getattr(self, "telemetry", None) else {"now": {}, "static": {}}
+        static, now = dict(tel.get("static") or {}), dict(tel.get("now") or {})
+        hardware = {"static": {**static, "ram_total_mib": (now["ram_total"] >> 20) if now.get("ram_total")
+                               else static.get("ram_total_mib")},
+                    "now": {"gpu_util_pct": now.get("gpu_util"), "gpu_temp_c": now.get("gpu_temp"),
+                            "gpu_power_w": now.get("gpu_power"),
+                            "vram_used_mib": (now["gpu_mem_used"] >> 20) if now.get("gpu_mem_used") else None,
+                            "ram_used_mib": (now["ram_used"] >> 20) if now.get("ram_used") else None,
+                            "cpu_pct": now.get("cpu")},
+                    "free_vram_mib": self.free_vram_mib()}
+        model = {"model": self.model, "arch": self.model_arch, "family": self.family,
+                 "model_path": getattr(eng, "model_path", None), "aliases": list(self.aliases)}
+        env = {}
+        for source in (spawn_env, os.environ):
+            for k, v in source.items():
+                if k.startswith(("STRATA_", "MAYA_")):
+                    env[k] = str(v)
+        switches = {"env": dict(sorted(env.items())),
+                    "server": {"loop_guard": self.loop_guard,
+                               "reasoning_budget_by_effort": dict(self.reasoning_budget_by_effort),
+                               "reasoning_budget_grace": self.reasoning_budget_grace, "turn_log": self.turn_log}}
+        with self.status_lock:
+            s = dict(self.status)
+            if self.live_reqs:                          # parallel requests: the newest one's status
+                s = {**s, **dict(list(self.live_reqs.values())[-1][0]), "queued": s.get("queued", 0)}
+            t = dict(self.totals)
+            hist = list(self.history)
+        busy = bool(s.get("busy"))
+        now = time.time()
+        live = {"busy": busy, "phase": s.get("phase") if busy else None,
+                "queued": s.get("queued", 0),
+                "prompt_tokens": s.get("prompt_tokens") if busy else None,
+                "generated": s.get("generated") if busy else None,
+                "max_tokens": s.get("max_tokens") if busy else None,
+                "elapsed_s": round(now - s["started"], 1) if busy and s.get("started") else None,
+                "tokens_per_s": round(self._tok_s(), 1) if busy and s.get("first_token") else None,
+                "prefill_tok_s_mean": getattr(eng, "prefill_tok_s_mean", None) if busy else None}
+        decodes = [h["decode_tok_s"] for h in hist if h.get("decode_tok_s")]
+        hits = [h["hit_rate"] for h in hist if h.get("hit_rate") is not None]
+        prompt_read = t["prompt_tokens"] - t["reused"]
+        stats = {"requests": t["requests"], "prompt_tokens": t["prompt_tokens"], "reused_tokens": t["reused"],
+                 "prefix_reuse_pct": round(100 * t["reused"] / t["prompt_tokens"], 1) if t["prompt_tokens"] else None,
+                 "output_tokens": t["output_tokens"],
+                 "reasoning_tokens": sum(int(h.get("reasoning_tokens") or 0) for h in hist),
+                 "decode_tok_s_mean": round(statistics.fmean(decodes), 1) if decodes else None,
+                 "decode_tok_s_median": round(statistics.median(decodes), 1) if decodes else None,
+                 "decode_tok_s_peak": round(max(decodes), 1) if decodes else None,
+                 "prefill_tok_s_mean": round(prompt_read / (t["prompt_ms"] / 1000), 1) if t["prompt_ms"] > 0 else None,
+                 "drafts_offered": t["drafts_offered"], "drafts_accepted": t["drafts_accepted"],
+                 "draft_accept_pct": round(100 * t["drafts_accepted"] / t["drafts_offered"], 1)
+                 if t["drafts_offered"] else None,
+                 "expert_cache_hit_pct": round(100 * statistics.fmean(hits), 1) if hits else None}
+        with self.status_lock:
+            guard = {"enabled": bool(self.loop_guard), "counts": dict(self.loop_guard_counts)}
+        turns = self._recent_turns(hist, now)
+        return {"engine": engine, "hardware": hardware, "model": model, "switches": switches, "live": live,
+                "stats": stats, "loop_guard": guard, "turns": turns, "time": now}
+
+    def _recent_turns(self, hist: list, now: float) -> list:
+        """The last 30 turns, newest first, from the in-memory history - or the turn log's tail when the history is
+        empty (a server that just came back up).  Same numbers the turn log keeps."""
+        if not hist and self.turn_log:
+            try:
+                with open(self.turn_log, encoding="utf-8") as f:
+                    lines = f.readlines()[-30:]
+                hist = [json.loads(x) for x in lines if x.strip()]
+            except (OSError, ValueError):
+                hist = []
+        turns = []
+        for h in reversed(hist[-30:]):
+            ttft = h.get("first_engine_token_s")
+            turns.append({"time": h.get("time"), "age_s": round(now - h["time"], 1) if h.get("time") else None,
+                          "prompt_tokens": h.get("prompt_tokens"), "reused": h.get("reused"),
+                          "prompt_read": h.get("prompt_read"), "output_tokens": h.get("output_tokens"),
+                          "reasoning_tokens": h.get("reasoning_tokens"),
+                          "ttft_ms": round(ttft * 1000) if isinstance(ttft, (int, float)) else None,
+                          "prompt_ms": h.get("prompt_ms"), "decode_ms": h.get("decode_ms"),
+                          "decode_tok_s": h.get("decode_tok_s"), "hit_rate": h.get("hit_rate"),
+                          "drafts_offered": h.get("drafts_offered"), "drafts_accepted": h.get("drafts_accepted"),
+                          "finish": h.get("finish")})
+        return turns
+
     def render_prompt(self, messages, tools, kwargs) -> str:
         """The template rendered.  #458: with `effort_end`, a request with a non-default effort (low, medium or no
         thinking) is rendered as a default one up to the answer - the same prompt start, so the conversation cache
@@ -8374,6 +8472,12 @@ def make_handler(svc: Service):
             self._json(401, {"error": {"type": "authentication_error", "message": "missing or wrong telemetry key"}})
             return False
 
+        def _wants_html(self) -> bool:
+            """A browser asked for a page: the Accept header names text/html, or the query says ?html=1."""
+            if "text/html" in self.headers.get("Accept", ""):
+                return True
+            return parse_qs(urlsplit(self.path).query).get("html", [""])[0] not in ("", "0", "false")
+
         def do_GET(self):
             path = self.path.split("?")[0].rstrip("/")
             if path.startswith("/tool-media/"):
@@ -8696,8 +8800,23 @@ def make_handler(svc: Service):
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
-            elif path == "/status":
+            elif path in ("/status", "/pancake", "/status.json"):
+                # a browser (Accept: text/html, or ?html=1 on /status) gets the status page, like / and /api-monitor:
+                # no key needed to see the page itself (its /status.json polls ask for the key when one is set);
+                # /pancake is the page's own name and serves it whatever the Accept header says
+                if path == "/pancake" or (path != "/status.json" and self._wants_html()):
+                    body = (ROOT / "serve" / "web" / "status.html").read_bytes()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Security-Policy", PAGE_CSP)
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 if not self._authorized():                  # #212: it shows the end of the last answer
+                    return
+                if path == "/status.json":
+                    self._json(200, svc.pancake_status())
                     return
                 with svc.status_lock:
                     s = dict(svc.status)

@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strata Engine Status</title>
+<link rel="icon" href="/web/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/web/tokens.css">
+<script>
+  // the theme before the first paint: the saved choice, else the system's
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem("strata.theme") ||
+      (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  } catch (e) {}
+</script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--st-bg);color:var(--st-ink);font:15px/1.5 var(--st-font)}
+button,input{font:inherit}
+button{cursor:pointer;color:inherit;background:var(--st-surface-2);border:1px solid var(--st-line);border-radius:9px;padding:8px 13px}
+button:hover{border-color:var(--st-accent)}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--st-focus);outline-offset:3px}
+[hidden]{display:none!important}
+a{color:var(--st-ink-soft);text-decoration:none;border-bottom:1px solid var(--st-line)}
+a:hover{color:var(--st-ink);border-bottom-color:var(--st-accent)}
+header{min-height:70px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--st-line);background:var(--st-surface)}
+.brand{font-size:23px;font-weight:700;letter-spacing:-.5px}
+.brand span{font-size:13px;font-weight:400;margin-left:14px;color:var(--st-ink-muted)}
+.nav{display:flex;gap:18px;font-size:14px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.primary{background:var(--st-accent);color:var(--st-accent-ink);border-color:transparent}
+main{max-width:1440px;margin:auto;padding:28px 32px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:24px}
+h1{margin:0;font-size:29px;letter-spacing:-.7px}
+h2{font-size:17px;margin:0}
+.sub,.muted,.small{color:var(--st-ink-muted)}
+.sub{margin:4px 0 0}
+.small{font-size:13px}
+.notice{margin-top:16px;padding:10px 14px;background:var(--st-danger-tint);color:var(--st-danger-text);border-radius:9px}
+.cards{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:14px;margin:24px 0}
+.card{padding:18px 20px;border:1px solid var(--st-line);border-radius:13px;background:var(--st-surface)}
+.label{font-size:12px;color:var(--st-ink-muted);text-transform:uppercase;letter-spacing:.8px}
+.value{font-size:28px;font-weight:500;line-height:1.4;margin-top:3px;font-variant-numeric:tabular-nums}
+.model{font:12px var(--st-font-mono);overflow-wrap:anywhere;margin-top:4px;color:var(--st-ink-muted)}
+.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 18px;margin-top:10px;font-size:13px}
+.facts div{display:flex;justify-content:space-between;gap:8px}
+.facts span{color:var(--st-ink-muted)}
+.facts b{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
+.dot{display:inline-block;width:9px;height:9px;border-radius:100%;background:var(--st-ink-muted);margin-right:9px}
+.idle .dot{background:var(--st-accent)}
+.busy .dot{background:var(--st-warn)}
+.panel{border:1px solid var(--st-line);border-radius:14px;background:var(--st-surface);overflow:hidden;margin-bottom:24px}
+.panel-bar{padding:15px 20px;border-bottom:1px solid var(--st-line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 20px;border-bottom:1px solid var(--st-line-soft)}
+th{font-size:12px;font-weight:500;color:var(--st-ink-muted);text-transform:uppercase;letter-spacing:.8px}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.k{font:13px var(--st-font-mono);overflow-wrap:anywhere}
+td.v{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.empty{padding:22px 20px;color:var(--st-ink-muted)}
+.args{padding:12px 20px;font:13px var(--st-font-mono);overflow-wrap:anywhere;color:var(--st-ink-soft);border-bottom:1px solid var(--st-line-soft)}
+footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:6px 2px 24px;color:var(--st-ink-muted);font-size:13px}
+.scroll{overflow-x:auto}
+@media(max-width:950px){.cards{grid-template-columns:repeat(2,1fr)}.top{align-items:flex-start}.brand span{display:none}}
+@media(max-width:600px){main{padding:20px 14px}header{padding:8px 16px}.cards{gap:8px}.card{padding:12px}.value{font-size:23px}.facts{grid-template-columns:1fr}th,td{padding:8px 12px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Strata <span>Engine status</span></div>
+  <nav class="nav" aria-label="Pages"><a href="/">Chat</a><a href="/api-monitor">API Monitor</a></nav>
+  <div class="controls">
+    <button id="pause" aria-label="Pause live updates">Pause</button>
+    <button id="refresh" class="primary">Refresh now</button>
+    <button id="theme" aria-label="Switch color theme">Light / dark</button>
+  </div>
+</header>
+<main>
+<div class="top"><div><h1>Engine Status</h1><p class="sub">What the engine is doing, on this machine, right now.</p></div></div>
+<div id="error" class="notice" role="status" aria-live="polite" hidden></div>
+<form id="auth" class="card" style="margin-top:16px" hidden>
+  <label for="api-key">API key</label>
+  <input id="api-key" type="password" autocomplete="off" placeholder="Only needed if the server has a key" style="margin:8px 0;display:block;width:100%;max-width:340px;color:inherit;border:1px solid var(--st-line);background:var(--st-bg);padding:7px 10px;border-radius:8px">
+  <button class="primary">Connect</button>
+</form>
+<div class="cards">
+  <div class="card" id="state-card">
+    <div class="label">Engine</div>
+    <div class="value"><span class="dot"></span><span id="state">Connecting&hellip;</span></div>
+    <div id="model" class="model">&mdash;</div>
+    <div class="facts">
+      <div><span>Binary</span><b id="e-binary">&mdash;</b></div>
+      <div><span>Version</span><b id="e-version">&mdash;</b></div>
+      <div><span>Backend</span><b id="e-backend">&mdash;</b></div>
+      <div><span>PID</span><b id="e-pid">&mdash;</b></div>
+      <div><span>Uptime</span><b id="e-uptime">&mdash;</b></div>
+      <div><span>Context</span><b id="e-ctx">&mdash;</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="label">Decode tok/s</div>
+    <div class="value" id="live-tok-s">&mdash;</div>
+    <div class="small" id="live-detail">Live, while generating</div>
+  </div>
+  <div class="card">
+    <div class="label">GPU</div>
+    <div class="value" id="gpu-util">&mdash;</div>
+    <div class="facts">
+      <div><span>Name</span><b id="gpu-name">&mdash;</b></div>
+      <div><span>Temp</span><b id="gpu-temp">&mdash;</b></div>
+      <div><span>Power</span><b id="gpu-power">&mdash;</b></div>
+      <div><span>VRAM free</span><b id="gpu-free">&mdash;</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="label">Memory</div>
+    <div class="value" id="vram-used">&mdash;</div>
+    <div class="facts">
+      <div><span>VRAM total</span><b id="vram-total">&mdash;</b></div>
+      <div><span>RAM used</span><b id="ram-used">&mdash;</b></div>
+      <div><span>RAM total</span><b id="ram-total">&mdash;</b></div>
+      <div><span>CPU</span><b id="cpu">&mdash;</b></div>
+    </div>
+  </div>
+</div>
+<section class="panel">
+  <div class="panel-bar"><h2>Performance &amp; cache</h2><span class="small">Since the server started</span></div>
+  <div class="scroll"><table>
+    <thead><tr><th scope="col">Metric</th><th scope="col" class="num">Value</th></tr></thead>
+    <tbody id="perf"></tbody>
+  </table></div>
+</section>
+<section class="panel">
+  <div class="panel-bar"><h2>Switches</h2><span class="small">Environment and server settings in effect</span></div>
+  <div id="cli" class="args" hidden></div>
+  <div class="scroll"><table>
+    <thead><tr><th scope="col">Name</th><th scope="col">Value</th></tr></thead>
+    <tbody id="switches"></tbody>
+  </table></div>
+</section>
+<section class="panel">
+  <div class="panel-bar"><h2>Recent turns</h2><span class="small" id="turns-note">Last 30, newest first</span></div>
+  <div class="scroll"><table>
+    <thead><tr><th scope="col">Age</th><th scope="col" class="num">Prompt</th><th scope="col" class="num">Reused</th><th scope="col" class="num">Read</th>
+      <th scope="col" class="num">Output</th><th scope="col" class="num">Reasoning</th><th scope="col" class="num">TTFT ms</th>
+      <th scope="col" class="num">Prompt ms</th><th scope="col" class="num">Decode ms</th><th scope="col" class="num">tok/s</th>
+      <th scope="col" class="num">Hit %</th><th scope="col" class="num">Drafts</th><th scope="col">Finish</th></tr></thead>
+    <tbody id="turns"></tbody>
+  </table></div>
+</section>
+<footer><span>Numbers only: no prompt or answer text is kept or shown.</span><span id="updated">Connecting&hellip;</span></footer>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const dash = "&mdash;";
+let apiKey = sessionStorage.getItem("strata.monitor.key") || "";
+let paused = false, timer = null, lastData = null;
+
+function fmt(v, digits = 1) {
+  if (v === null || v === undefined) return dash;
+  if (typeof v !== "number") return String(v);
+  return v.toLocaleString(undefined, {maximumFractionDigits: digits});
+}
+function pct(v) { return v === null || v === undefined ? dash : fmt(v) + "%"; }
+function mib(v) { return v === null || v === undefined ? dash : fmt(v, 0) + " MiB"; }
+function secs(v) {
+  if (v === null || v === undefined) return dash;
+  const s = Math.round(v);
+  if (s < 90) return s + " s";
+  const m = Math.floor(s / 60);
+  if (m < 90) return m + " min " + (s % 60) + " s";
+  return Math.floor(m / 60) + " h " + (m % 60) + " min";
+}
+function age(v) { return v === null || v === undefined ? dash : secs(v) + " ago"; }
+
+async function fetchStatus() {
+  const r = await fetch("/status.json", {cache: "no-store",
+    headers: apiKey ? {Authorization: "Bearer " + apiKey} : {}});
+  if (r.status === 401) {
+    $("auth").hidden = false;
+    throw new Error("the server has an API key");
+  }
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+function render(d) {
+  const busy = !!d.live.busy;
+  const card = $("state-card");
+  card.classList.toggle("busy", busy);
+  card.classList.toggle("idle", !busy);
+  $("state").textContent = busy ? "Busy" : "Idle";
+  $("model").textContent = [d.model.model, d.model.model_path].filter(Boolean).join(" · ") || dash;
+  $("e-binary").textContent = d.engine.binary || dash;
+  $("e-version").textContent = d.engine.version || dash;
+  $("e-backend").textContent = d.engine.backend || dash;
+  $("e-pid").textContent = d.engine.pid ?? dash;
+  $("e-uptime").textContent = secs(d.engine.uptime_s);
+  $("e-ctx").textContent = d.engine.max_context ? fmt(d.engine.max_context, 0) + " tok" : dash;
+  $("live-tok-s").textContent = d.live.tokens_per_s === null ? dash : fmt(d.live.tokens_per_s);
+  $("live-detail").textContent = busy
+    ? (d.live.phase ? "Phase: " + d.live.phase : "Generating") +
+      (d.live.generated !== null ? " · " + fmt(d.live.generated, 0) + " tok" : "") +
+      (d.live.queued ? " · " + d.live.queued + " queued" : "")
+    : "Live, while generating";
+  const hw = d.hardware;
+  $("gpu-name").textContent = hw.static.gpu_name || "none";
+  $("gpu-util").textContent = pct(hw.now.gpu_util_pct);
+  $("gpu-temp").textContent = hw.now.gpu_temp_c === null || hw.now.gpu_temp_c === undefined ? dash : fmt(hw.now.gpu_temp_c, 0) + " °C";
+  $("gpu-power").textContent = hw.now.gpu_power_w === null || hw.now.gpu_power_w === undefined ? dash : fmt(hw.now.gpu_power_w, 0) + " W";
+  $("gpu-free").textContent = mib(hw.free_vram_mib);
+  $("vram-used").textContent = mib(hw.now.vram_used_mib);
+  $("vram-total").textContent = mib(hw.static.gpu_vram_total_mib);
+  $("ram-used").textContent = mib(hw.now.ram_used_mib);
+  $("ram-total").textContent = mib(hw.static.ram_total_mib);
+  $("cpu").textContent = pct(hw.now.cpu_pct);
+
+  const s = d.stats, rows = [
+    ["Decode tok/s · mean", fmt(s.decode_tok_s_mean)],
+    ["Decode tok/s · median", fmt(s.decode_tok_s_median)],
+    ["Decode tok/s · peak", fmt(s.decode_tok_s_peak)],
+    ["Prefill tok/s · mean", fmt(s.prefill_tok_s_mean)],
+    ["Prefix reuse", pct(s.prefix_reuse_pct) + (s.reused_tokens ? " (" + fmt(s.reused_tokens, 0) + " tok)" : "")],
+    ["Expert cache hit", pct(s.expert_cache_hit_pct)],
+    ["MTP drafts accepted", s.drafts_offered ? fmt(s.drafts_accepted, 0) + " / " + fmt(s.drafts_offered, 0) + " (" + pct(s.draft_accept_pct) + ")" : dash],
+    ["Requests finished", fmt(s.requests, 0)],
+    ["Prompt tokens", fmt(s.prompt_tokens, 0)],
+    ["Output tokens", fmt(s.output_tokens, 0)],
+    ["Reasoning tokens", fmt(s.reasoning_tokens, 0)]
+  ];
+  const g = d.loop_guard.counts;
+  for (const k of Object.keys(g)) rows.push(["Loop guard · " + k.replace(/_/g, " "), fmt(g[k], 0)]);
+  $("perf").innerHTML = rows.map(r =>
+    "<tr><td>" + r[0] + "</td><td class=\"num\">" + r[1] + "</td></tr>").join("");
+
+  const sw = [];
+  for (const [k, v] of Object.entries(d.switches.env)) sw.push([k, v]);
+  sw.push(["loop_guard", String(d.switches.server.loop_guard)]);
+  sw.push(["reasoning_budget_by_effort", JSON.stringify(d.switches.server.reasoning_budget_by_effort)]);
+  sw.push(["reasoning_budget_grace", String(d.switches.server.reasoning_budget_grace)]);
+  sw.push(["turn_log", d.switches.server.turn_log || "off"]);
+  $("switches").innerHTML = sw.length ? sw.map(r =>
+    "<tr><td class=\"k\">" + r[0] + "</td><td class=\"v\">" + r[1] + "</td></tr>").join("")
+    : "<tr><td colspan=\"2\" class=\"empty\">None</td></tr>";
+  const args = d.engine.args;
+  $("cli").hidden = !args || !args.length;
+  $("cli").textContent = args && args.length ? "CLI: " + args.join(" ") : "";
+
+  const turns = d.turns || [];
+  $("turns").innerHTML = turns.length ? turns.map(t => {
+    const drafts = (t.drafts_offered === null || t.drafts_offered === undefined) ? dash
+      : fmt(t.drafts_accepted, 0) + "/" + fmt(t.drafts_offered, 0);
+    const hit = t.hit_rate === null || t.hit_rate === undefined ? dash : fmt(t.hit_rate * 100);
+    return "<tr><td>" + age(t.age_s) + "</td>" +
+      "<td class=\"num\">" + fmt(t.prompt_tokens, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.reused, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.prompt_read, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.output_tokens, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.reasoning_tokens, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.ttft_ms, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.prompt_ms, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.decode_ms, 0) + "</td>" +
+      "<td class=\"num\">" + fmt(t.decode_tok_s) + "</td>" +
+      "<td class=\"num\">" + hit + "</td>" +
+      "<td class=\"num\">" + drafts + "</td>" +
+      "<td>" + (t.finish || dash) + "</td></tr>";
+  }).join("") : "<tr><td colspan=\"13\" class=\"empty\">No turns yet</td></tr>";
+}
+
+async function refresh() {
+  try {
+    const d = await fetchStatus();
+    lastData = d;
+    $("error").hidden = true;
+    $("auth").hidden = true;
+    render(d);
+    $("updated").textContent = "Updated " + new Date().toLocaleTimeString() + (paused ? " · paused" : " · every 2 s");
+  } catch (e) {
+    if (e.message !== "the server has an API key") {
+      $("error").textContent = "The server did not answer: " + e.message;
+      $("error").hidden = false;
+      $("updated").textContent = "Last update failed";
+    }
+  }
+}
+
+function schedule() {
+  clearTimeout(timer);
+  if (!paused) timer = setTimeout(async () => { await refresh(); schedule(); }, 2000);
+}
+
+$("pause").onclick = () => {
+  paused = !paused;
+  $("pause").textContent = paused ? "Resume" : "Pause";
+  $("pause").setAttribute("aria-label", paused ? "Resume live updates" : "Pause live updates");
+  if (!paused) schedule(); else clearTimeout(timer);
+  if (lastData) $("updated").textContent = "Updated " + new Date().toLocaleTimeString() + (paused ? " · paused" : " · every 2 s");
+};
+$("refresh").onclick = async () => { await refresh(); schedule(); };
+$("theme").onclick = () => {
+  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem("strata.theme", theme); } catch (e) {}
+};
+$("auth").onsubmit = async event => {
+  event.preventDefault();
+  apiKey = $("api-key").value.trim();
+  try { sessionStorage.setItem("strata.monitor.key", apiKey); } catch (e) {}
+  $("auth").hidden = true;
+  await refresh();
+  schedule();
+};
+
+refresh();
+schedule();
+</script>
+</body></html>
