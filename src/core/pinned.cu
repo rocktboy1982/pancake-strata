@@ -1,6 +1,7 @@
 // src/core/pinned.cu - P2.S1: the pinned host arena and the parallel expert load.
 #include "strata/core/pinned.hpp"
 #include "strata/platform/memory.hpp"
+#include "strata/platform/mem_pressure.hpp"
 #include "strata/core/pin_budget.hpp"
 #include <cstddef>
 
@@ -1264,6 +1265,7 @@ LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::
     st.bytes = 0;
     for (uint64_t b : layer_bytes) st.bytes += b;
     if (threads < 1) threads = 1;
+    const strata::platform::LoaderPressureScope pressure_scope("expert arena");   // MOD_PLAN 86 (Linux PSI; else nothing)
 
     const auto t0 = std::chrono::steady_clock::now();
     std::vector<uint64_t> layer_hash((size_t) layers, 1469598103934665603ull);
@@ -1312,6 +1314,7 @@ LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::
             }
             while (remaining > 0) {
                 const uint64_t n = remaining < chunk ? remaining : chunk;
+                strata::platform::loader_pressure_check();   // MOD_PLAN 86: held while memory pressure is high
                 const auto t_read = std::chrono::steady_clock::now();
                 const size_t got = std::fread(buf.data(), 1, (size_t) n, f);
                 read_ns += (uint64_t) std::chrono::duration_cast<std::chrono::nanoseconds>(

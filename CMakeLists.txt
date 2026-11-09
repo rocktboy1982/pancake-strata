@@ -471,7 +471,7 @@ target_link_libraries(strata-plan PRIVATE strata_plan)
 # ---- strata_core (GPU runtime) ---------------------------------------------
 # Only built when a GPU backend is on, so the Phase 1 targets keep working without a toolkit.
 if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
-  add_library(strata_core STATIC src/core/device.cu src/core/pinned.cu src/platform/memory.cpp src/platform/io_priority.cpp src/core/graph.cpp src/core/weights.cpp
+  add_library(strata_core STATIC src/core/device.cu src/core/pinned.cu src/platform/memory.cpp src/platform/io_priority.cpp src/platform/mem_pressure.cpp src/core/graph.cpp src/core/weights.cpp
                                src/core/layout.cpp)
   target_include_directories(strata_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
   # the DFlash2 drafter (src/core/dflash2.cpp, src/kernels/cuda/dflash2.cu) exists in the CUDA and HIP builds; the Metal and SYCL builds compile without it
@@ -801,6 +801,14 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_include_directories(memory_guard_test PRIVATE include)
     add_test(NAME memory_guard_test COMMAND memory_guard_test)
     set_tests_properties(memory_guard_test PROPERTIES TIMEOUT 60)
+  endif()
+  # MOD_PLAN 86: PSI parsing, the cgroup path, the switches, the loader guard on fixture files - no GPU
+  if(STRATA_BUILD_TESTS)
+    add_executable(mem_pressure_test tests/platform/mem_pressure_test.cpp src/platform/mem_pressure.cpp)
+    target_include_directories(mem_pressure_test PRIVATE include)
+    target_link_libraries(mem_pressure_test PRIVATE Threads::Threads)
+    add_test(NAME mem_pressure_test COMMAND mem_pressure_test)
+    set_tests_properties(mem_pressure_test PROPERTIES TIMEOUT 60)
   endif()
 
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core/file_expert_source_test.cpp")
