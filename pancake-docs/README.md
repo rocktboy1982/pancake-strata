@@ -13,8 +13,6 @@ the latest LLM inference technologies, each adding speed.
 The target is single-user agent serving (long, growing prompts and tool calls) on ordinary hardware: an
 **RTX 3060 12 GB** (CUDA) and an **RX 7900 XT 20 GB** (HIP), a Ryzen 7 5700G and about 57 GB of RAM.
 
-> The original Strata README is kept as [README.strata.md](README.strata.md); its translations are the `README.*.md` files.
-
 The long-form documents live in the documentation folder [`pancake-docs/`](pancake-docs/):
 
 - [`pancake-docs/RESEARCH_AND_FINDINGS.md`](pancake-docs/RESEARCH_AND_FINDINGS.md): the full research record, the paper
@@ -206,7 +204,7 @@ reason, in the MOD_PLAN "not adopted" ledger.
 | RadixAttention / SGLang | 2023 | [arxiv.org/abs/2312.07104](https://arxiv.org/abs/2312.07104) | Radix-tree prefix cache | Adopted (idea; item 11 family) |
 | Marconi | Princeton, MLSys'25 | [arxiv.org/abs/2411.19379](https://arxiv.org/abs/2411.19379) | FLOP-per-byte eviction, checkpoint triggers | Planned (item 16) |
 | FreeToken | 2026 | [arxiv.org/abs/2608.16157](https://arxiv.org/abs/2608.16157) | Speculation-aware scheduling | Planned (checkpoint-trigger ideas, item 16) |
-| KVFlow | 2025 | [arxiv.org/abs/2507.07400](https://arxiv.org/abs/2507.07400) | Expert pre-staging | Planned (item 17: pre-stage experts during tool runs) |
+| KVFlow | 2025 | [arxiv.org/abs/2507.07400](https://arxiv.org/abs/2507.07400) | Expert pre-staging | Coded (item 17, `STRATA_IDLE_ADAPT=N`, `43e741bc6`): when no request line arrives for 150 ms, the blocking tier runs up to N extra rounds at 4x swaps on the idle GPU |
 | ADRS / Barbarians at the Gate | UC Berkeley, 2025 | [arxiv.org/abs/2510.06189](https://arxiv.org/abs/2510.06189) | LLM-driven cache-policy search | Planned (item 14, stage 2) |
 | SIEVE | NSDI'24 | [github.com/cacheMon/NSDI24-SIEVE](https://github.com/cacheMon/NSDI24-SIEVE) | Simple cache eviction | Candidate (only if >=5% of decode is at stake) |
 | Dynasor / Certaindex | Hao AI Lab, 2024 | [arxiv.org/abs/2412.20993](https://arxiv.org/abs/2412.20993) | Thinking early exit | Superseded by DISCO (learned stop) |
@@ -267,7 +265,7 @@ ports and fusion (section 7, items 2-3), the CPU bucket shrinks with cache admis
 ## 6. Complete Guide to Extra Switches (`STRATA_*` Env Vars, CLI Flags, Server Options & Presets)
 
 Everything below is additive vs upstream Strata v0.2.12. Unless marked lossy, every switch is exact (the same tokens).
-The census: 59 new `STRATA_*` variables on the main line, plus the side-branch families and the server-side set.
+The census: 65 new `STRATA_*` variables on the main line, plus the side-branch families and the server-side set.
 
 ### 6A. RDNA3/HIP kernels (ported from Strata-rdna3, the gfx1100 half)
 
@@ -311,14 +309,17 @@ The census: 59 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_ROUTE_PUBLISH` | `native_router.cu`, `route_row.cuh`, `verify.cpp` | off | exact | top-10 + doorbell publish in one launch | in the fast-hip preset; **off under deferral** (non-finite fix d5b58f669) |
 | `STRATA_ROUTER_FUSE` | `native_bf16.cu`, `bf16_gemv.hpp` (item 48) | off | exact | the router GEMV's last block routes and publishes | ~1% short chat |
 | `STRATA_COMBINE_POLL1` | `native_moe.cu` (item 46) | off | exact | one block polls the host flag over PCIe, the others spin on VRAM | 0-3% |
-| `STRATA_CPU_PRESUM` | `verify.cpp`, `expert_source.hpp` (item 51) | off | not bit-identical | host pre-sums each token's CPU rows | deferred behind the item 50 measurement |
-| `STRATA_PRESUM_VRAM` | `verify.cpp`, `verify.hpp` (item 52, HIP) | off | not bit-identical | pre-summed rows written straight to VRAM through resizable BAR | commit 4f829da0e |
+| `STRATA_CPU_PRESUM` | `verify.cpp`, `expert_source.hpp` (item 51) | off | not bit-identical | host pre-sums each token's CPU rows | coded (`cc5499fae`) |
+| `STRATA_PRESUM_VRAM` | `verify.cpp`, `verify.hpp` (item 52, HIP) | off | not bit-identical | pre-summed rows written straight to VRAM through resizable BAR | coded (`cc5499fae`, `4f829da0e`) |
 | `STRATA_EXPDEC_SWIGLU` | `iq_kernels.cu` (item 48) | off | exact | gate/up + SwiGLU + q8_1 in one expdec launch | ~49 launches per window fewer |
 | `STRATA_MMVF_AUX` | `native_bf16.cu` | off | exact | the aux row rides in the multi-kernel launch | with COMBINE_CPU |
 | `STRATA_VERIFY_PROFILE_SEL=i,j,...` | `verify.cpp` | off | research | selected profile stamps only | profiling |
 | `STRATA_DF2_GATE` / `STRATA_DF2_ROW_MS` | `spec/window_rule.hpp` | off / 3.0 | lossy | DFlash2-calibrated survival window instead of fixed confidence | Mac-measured; opt-in |
 | `STRATA_MTP_PROXY` | `mtp.cpp`, `mtp.hpp` | **on** (=0 off) | exact | two-stage draft-head proxy pick | basalt lineage; ~12% cheaper draft steps |
 | `STRATA_Q5K_HEAD` | `verify.cpp` | **on** (=0 off) | exact | Q5_K/IQ4_XS specialized head kernels | basalt ports; 10b/10c findings |
+| `STRATA_IC_WARM_MB=<cap>` | `verify.cpp`, `verify.hpp` (item 47) | off | exact | warms the Infinity Cache with the next layer's pre-doorbell weights during the CPU wait | coded (`269a06ed9`) |
+| `STRATA_SPEC_COST_TABLE` | `generate.cpp`, `spec/draft_policy.{hpp,cpp}` (item 43) | off | exact | seeds the draft window cost table from window traces (`tools/pancake/trace/draft_costs.py`) | coded (`663107a56`) |
+| `STRATA_MTP_EAGER=1` | `mtp.cpp` (item 74) | off | exact | launches every draft step at once with `--spec-min-p` and cuts the chain on the host (no host round-trip per step); passes the draft counts to `window_trace().drafts()` (item 5) | coded (`5dcd5a83c`) |
 
 ### 6D. CPU thread pool and sync
 
@@ -331,6 +332,7 @@ The census: 59 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_Q2_PREFETCH=<bytes>` | `q2_avx2.cpp` (item 40) | off | exact | prefetch Q2_0 row bytes ahead of the dot | 0-5% of CPU-expert time |
 | `STRATA_IQ2S_PAIR` | `iq_avx2.cpp` | off | exact | IQ2_S decodes both 64-value halves from one table load | **neutral** (2026-11-08) |
 | `STRATA_ACT_DUMP_RAW[_MAX]` | `pool.cpp` (item 13) | off | research | dump raw CPU expert activations for the sparsity study | enabled item 13's closure |
+| `STRATA_POOL_TAIL4=1` | `pool.cpp` (basalt ports, `e29bac539`) | off | exact | quarter-size tail tasks, plus down-row prefetch while a fused down task waits | basalt `553e9290d` / `4e6841265` ports |
 
 ### 6E. `strata-poly` kernels and research
 
@@ -362,6 +364,9 @@ The census: 59 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_LOOP_GUARD_COLLAPSE_MAX` | set in code | caps how much the guard collapses a looping reply |
 | `STRATA_PROMPT_MEMO` (alias `MAYA_PROMPT_MEMO`) | 1 | memoized tool results for re-sent history |
 | `STRATA_DOMAIN_PROFILES` | off | the server classifies each request (`classify_domain`) and passes the domain to the engine seed |
+| `STRATA_IDLE_ADAPT=N` | off | item 17 (`43e741bc6`): when no request line arrives for 150 ms, the blocking tier runs up to N extra rounds at 4x swaps on the idle GPU |
+| `STRATA_TURN_LOG` | off | item 73 (`1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets |
+| `STRATA_SPEC_COST_TABLE` | off | item 43 (`663107a56`): draft window costs seeded from window traces (`tools/pancake/trace/draft_costs.py`) |
 
 ### 6H. CLI flags
 
@@ -387,6 +392,7 @@ The census: 59 new `STRATA_*` variables on the main line, plus the side-branch f
 - Tolerant tool-call parser: accepts undeclared/malformed tool calls instead of failing the turn
   (`serve/test_tolerant_tool_calls.py`).
 - Domain classification for `STRATA_DOMAIN_PROFILES` seeding.
+- `"turn_log"` (item 73, `1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets.
 - `loop_guard_*` Prometheus counters.
 
 ### 6J. Presets and launcher
@@ -417,10 +423,20 @@ The preset set in `configs/pancake/` (one JSON per model, quant, speed level, an
 | `qwen36-ud-q3_k_m` | Qwen3.6-35B-A3B UD-Q3_K_M | CUDA (`strata-poly`) | - |
 | `qwen38-35b-distill-q4_k_m` | Qwen3.8-35B-A3B-Distill Q4_K_M | CUDA (`strata-poly`) | - |
 
+For an always-on setup, `tools/pancake/pancake.service` (item 73/91, `a1683537c`) is a systemd user unit that serves
+on port 11437 with `MemoryMax=54G` and `MemorySwapMax=0`, and `Conflicts=strata/avalon/qwen35b` so only one engine
+holds the RAM at a time. `NOCAP=1` in `run-pancake.sh` skips the memory-capped scope when the unit manages the process.
+
 ## 7. Code Modifications that Diverged `pancake-strata` from Original `Strata` (358 files, +102,103 lines)
 
 Diff vs `Niko1221/Strata` (`upstream/main` = `146df3c46`): 358 files, +102,103 / -363 lines. What follows is the
 subsystem walkthrough.
+
+Latest engine/server commits: `b6e19acc2` (engine development complete: items 47, 43, 51, 52, 37, 17 and the basalt
+ports coded; items 10 and 20 closed by study), `43e741bc6` (item 17, idle-tier catch-up), `1c0f248ae` (item 73,
+per-turn JSONL log), `a1683537c` (item 73/91, systemd user unit), `5dcd5a83c` (item 74, eager MTP draft),
+`e29bac539` (basalt CPU pool ports), `269a06ed9` (item 47, Infinity Cache warm-up), `663107a56` (item 43, draft
+window costs from traces) and `7861dc8c1` (item 37, the sweep tool).
 
 ### 7.1. `src/poly/`: the `strata-poly` engine and its kernels
 
@@ -460,7 +476,9 @@ deferral + kmiss 2/8 at +45-52% on edit windows.
 
 MWAITX parking for parked workers (`STRATA_POOL_MWAITX`, wake +0.36 us, frees SMT siblings), lazy trailing park,
 fused phases (mode 7: gate/up + down in one phase per layer), Q2_0 row prefetch, IQ2_S pair decode (neutral), a raw
-activation dump hook (closed the sparsity question), and NUMA-split-aware planning. Why: the CPU Q2_0 kernel already
+activation dump hook (closed the sparsity question), and NUMA-split-aware planning. The basalt pool ports
+(`e29bac539`) add quarter-size tail tasks (`STRATA_POOL_TAIL4=1`, basalt `553e9290d`) and down-row prefetch while a
+fused down task waits (basalt `4e6841265`). Why: the CPU Q2_0 kernel already
 runs at ~80% of the 33 GB/s DDR4 allows, so only sync and overlap levers remain.
 
 ### 7.6. `src/program/grammar/`, `serve/grammar.py`, `serve/loop_guard.py`, `serve/server.py`: the server and agent layer
@@ -469,7 +487,8 @@ The grammar engine (`grammar`, `guard`, `schema`, `json_value`) with the engine 
 tool-call constraint; fixed bug 89 on the Anthropic/Responses APIs). `loop_guard.py` is a 690-line port of Project
 Maya v1.1.56 (MIT): periodic-block detection, penalise/collapse/stop, tool-repeat blocking. `server.py` adds
 `reasoning_budget_by_effort` + `reasoning_budget_grace` (soft close), `reasoning_tokens` accounting, a tolerant
-tool-call parser, `turn_at` poly checkpoints, and domain classification. Why: opencode history showed turn p99 of
+tool-call parser, `turn_at` poly checkpoints, domain classification, and the per-turn JSONL log
+(`STRATA_TURN_LOG`, item 73, `1c0f248ae`). Why: opencode history showed turn p99 of
 224 s driven by re-reads (~18%) and uncapped thinking, not by tok/s.
 
 ### 7.7. Side branches
@@ -496,7 +515,9 @@ tool-call parser, `turn_at` poly checkpoints, and domain classification. Why: op
 judged in ms; serial and `--overlap` model), `belady_ceiling.py`, `tail_rows.py`, `predict_experts.py`,
 `replay_seeding.py`, `conv_trace.py`, `learn_profile.py` / `learn_domain_profiles.py`, `make_corpus.py`,
 `sparsity_masks.py`, `selftune.py` (item 70 closed loop), `regression_watch.py`, `build_matrix.sh` + `pre-push.sh`
-(item 92), `capped.sh`, `test_phase.sh`, and `trace/{wtrace,tail_replay}.py`. Why: every claim in this README came
+(item 92), `capped.sh`, `test_phase.sh`, `sweep.py` (item 37, `7861dc8c1`: coordinate-descent sweep of the GPU
+expert kernels' launch/tile knobs and the CPU pool knobs), `trace/draft_costs.py` (item 43, `663107a56`), and
+`pancake.service` (item 73/91, `a1683537c`), plus `trace/{wtrace,tail_replay}.py`. Why: every claim in this README came
 out of one of these scripts, and the suite is what makes the stack reproducible.
 
 ## 8. Daily Use (`Qwen3.8-Flash-Next` & `Qwen3.6-35B-A3B`) and Build & Run (HIP + CUDA)
@@ -516,7 +537,10 @@ out of one of these scripts, and the suite is what makes the stack reproducible.
 The server listens on `PORT` (default 8080) with the OpenAI- and Anthropic-compatible API. `STRATA_DATA` holds the
 data directory, `MODELS` the model files, `HIP_VISIBLE_DEVICES` picks the ROCm GPU (default 0; GPU 1 is the Vega
 iGPU). Flash-Next defaults to the fast preset; `exact` gives the same answers as plain decoding; `turbo` is the
-lossy opt-in described in section 6J.
+lossy opt-in described in section 6J. For an always-on setup, `tools/pancake/pancake.service` (item 73/91,
+`a1683537c`) runs the server as a systemd user unit on port 11437 with `MemoryMax=54G` and `MemorySwapMax=0`, and
+`Conflicts=strata/avalon/qwen35b` so only one engine holds the RAM; `NOCAP=1 ./run-pancake.sh` skips the
+memory-capped scope when the unit manages the process.
 
 ### Build for the RX 7900 XT (HIP, gfx1100)
 
