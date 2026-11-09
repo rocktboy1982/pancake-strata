@@ -537,7 +537,7 @@ From the Asia report (BFLA, CityU, arXiv 2605.12193, Apache-2.0); design: docs/B
   hipBLAS scores): opt-in STRATA_BFLA=1 above STRATA_BFLA_MIN (32K), STRATA_BFLA=dense = the same fused WMMA kernel
   with every block (item 8.8 for this engine).  Replaces item 19 (XAttention) as the block-sparse prefill route.
   Code done on feat/bfla-hip (bfla.cu, bfla_test passes on gfx1100).  Test queue (no strata server running; build-hip of
-  the branch; M=/home/dan/clone-of-d/models/qwen36-UD-Q3_K_M/Qwen3.6-35B-A3B-UD-Q3_K_M.gguf,
+  the branch; M=/home/dan/clone-of-d/models/qwen36-UD-Q4_K_XL/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf (the Q3_K_M file is refused by the HIP engine at its MTP block 40),
   export LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib HIP_VISIBLE_DEVICES=0):
     kernel:  build-hip/bfla_test; build-hip/bfla_test --bench 65536; build-hip/bfla_test --bench 131072
     TTFT:    for a in "" STRATA_BFLA=1 STRATA_BFLA=dense; do env $a build-hip/strata --model $M --max-context 135168
@@ -545,6 +545,9 @@ From the Asia report (BFLA, CityU, arXiv 2605.12193, Apache-2.0); design: docs/B
     quality: python3 tools/pancake/bfla_recall.py --exe build-hip/strata --model $M
              --tokenizer /home/dan/clone-of-d/Strata-data/packs/qwen36-ud-q4_k_xl/tokenizer --len 131072 --out /tmp/bfla-131k
              (needles recalled dense vs BFLA, teacher-forced top-1 agreement and KL over 48 tokens; then 65536)
+  Kernel measured 2026-11-09 (bfla_test --bench, one layer, chunks of 4096; engine path / fused dense / fused dense QGLOBAL /
+  BFLA sparse): 32K 1239 / 581 / 515 / 500 ms; 64K 5224 / 2321 / 2066 / 1090 ms; 128K 28287 / 9553 / 8512 / 3335 ms
+  (sparse keeps 31-33% of blocks, selection 10-49 ms).  x10 layers at 128K: 283 s -> 96 s (exact) -> 33 s (BFLA).
   Gate: recall equal to dense and top-1 agreement within the dense engine's own run-to-run noise, else it stays a
   documented opt-in only.
 
