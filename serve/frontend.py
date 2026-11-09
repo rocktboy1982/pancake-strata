@@ -877,6 +877,11 @@ def call_end(text: str, final: bool = False, hold: bool = True) -> int:
             gt = text.find(">", pos)
             if gt < 0:
                 return -1
+            if "<" in text[pos + len("<parameter="):gt]:
+                # (Project Maya #706) an unclosed `<parameter=` tag: malformed - the body ends at the first
+                # `</tool_call>`, as one that is not in the call format (it used to wait for a `</parameter>` that
+                # never came, and every word after it was lost)
+                return text.find(CALL_END, pos)
             end = param_end(text[gt + 1:], final, text[pos:gt].split("=", 1)[1].strip(), hold)
             if end < 0:
                 return -1
@@ -1141,21 +1146,33 @@ def coerce_value(value: str, declared, notes: list | None = None):
     return v
 
 
+class MalformedToolCall(ValueError):
+    """(Project Maya #613) A call body that does not parse.  The message keeps its first 80 characters; `body` is the
+    whole of it, for the server's log."""
+
+    def __init__(self, body: str):
+        super().__init__("malformed tool call: " + body[:80])
+        self.body = body
+
+
 def parse_tool_call(body: str, schema: dict | None = None, notes: list | None = None) -> ToolCall:
     """`<function=NAME>\\n<parameter=P>\\nVALUE\\n</parameter>...</function>` -> ToolCall. Values are JSON-decoded
     when the tool's schema says the parameter is not a string (or, without a schema, when they parse as JSON
     objects/arrays/numbers/booleans)."""
     body = body.strip()
     if not body.startswith("<function=") or ">" not in body:
-        raise ValueError("malformed tool call: " + body[:80])
+        raise MalformedToolCall(body)
     name = body[len("<function="):body.index(">")].strip()      # `<function= capture>`: the model's stray space
     rest = body[body.index(">") + 1:]
     props = ((schema or {}).get("parameters") or {}).get("properties") or {}
     args = {}
     while "<parameter=" in rest:
         rest = rest[rest.index("<parameter=") + len("<parameter="):]
-        pname = rest[:rest.index(">")]
-        rest = rest[rest.index(">") + 1:]
+        close = rest.find(">")
+        if close < 0 or "<" in rest[:close]:     # an unclosed <parameter= tag: malformed (Project Maya #706)
+            raise MalformedToolCall(body)
+        pname = rest[:close]
+        rest = rest[close + 1:]
         end = param_end(rest, final=True, name=pname.strip())
         value = rest[:end] if end >= 0 else rest
         rest = rest[end + len(PARAM_END):] if end >= 0 else ""
@@ -1233,6 +1250,7 @@ class OutputParser:
         # reasoning text before them is tracked (code fence, inline code, current line) to tell an act from a quote.
         self.pending: list[list] = []
         self.rescued = 0             # calls delivered from the reasoning
+        self.malformed: list[str] = []   # (Project Maya #613) the bodies of calls that did not parse, for the log
         self.notes: list[str] = []   # #4427: what was repaired in the arguments of the calls (a damaged JSON array or object)
         self.after_think = False     # #4077: the reasoning ended at a bare `</think>` (a second one in the answer is a stray)
         self.stray_think = 0         # ... and the strays of that kind dropped from the answer
@@ -2052,8 +2070,10 @@ class OutputParser:
         return out
 
     def _finish_call(self, body: str) -> list[Event]:
-        """A whole call body in the template's form -> its tool_call event.  With recover, one that still does not
-        parse is the text it is instead of an error that ends the request."""
+        """A whole call body in the template's form -> its tool_call event.  One that still does not parse never
+        fails the whole answer (Project Maya #613: 24K tokens of work lost to one call): one already announced to the
+        client stays unfinished there, as a call the output ended inside (#211: no tool_call follows it, its text is
+        not repeated); one that never got that far is the text it is.  The answer goes on after it either way."""
         raw_name = body.strip()[len(FUNC_START):].split(">", 1)[0]
         name = raw_name.strip()
         name = self.aliases.get(name, name)
@@ -2064,10 +2084,12 @@ class OutputParser:
             call = parse_tool_call(body, self.schemas.get(name), self.notes)
             call.name = name
         except ValueError:
-            if not self.recover:
-                raise
+            self.malformed.append(body)
+            announced = self.scall is not None and self.stream_tools
             self._reset_scan()
-            self.state = "content"
+            self.state, self.lead = "content", True
+            if announced:
+                return []
             return [Event("content", self._track(body if bare else CALL_START + body + CALL_END))]
         if self.scall is not None:
             call.id = self.scall.id
