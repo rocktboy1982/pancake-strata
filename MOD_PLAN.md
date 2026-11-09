@@ -609,8 +609,10 @@ Feasibility (why the ceiling is low here):
   32K 50 MB, 131K 201 MB, 262K 403 MB per row -> ~0.2 / 0.75 / 1.5 ms a 3-row window (0.8 / 3 / 6%). That, not the
   attention, is the long-context decode lever (a low-bit or fp16 indexer key cache, as DeepSeek's FP8 indexer; the
   header says selections must stay exact, so it would be a lossy opt-in with a selection-agreement test).
-- Attainable gain of BitDecoding's idea here: the WMMA kernel below, ~0.24 ms of a 24.8 ms window (~1% decode),
-  context-independent. Small enough to keep as an opt-in.
+- Attainable gain of BitDecoding's idea here: the WMMA kernel below, ~0.24 ms of a 24.8 ms window (~1% decode) in the
+  main attention, context-independent; plus the MTP drafter's window attention (cap = width = 32,768 consecutive cells
+  once the context passes 32K: 375 us per draft step with the FP32 kernel), which the same switch takes. Small enough
+  to keep as an opt-in.
 
 Done: `STRATA_ATTN_WMMA=1` (default off; HIP gfx11 only; CUDA and other archs: stubs, no change).
 src/kernels/cuda/qsa_decode_attn_wmma.cu replaces the split-K decode attention's chunk pass (attn_chunk_kernel) for int8,
@@ -626,7 +628,9 @@ Tests (RX 7900 XT, gfx1100, ROCm 10, no server running, 2026-11-09):
   mixed 3-row batches, permuted page table with unresident pages (masked cells and whole chunks): PASS 24/24; worst
   relative L2 vs FP64 3.2e-6 (the FP32 kernel 2.6e-6), deterministic (two runs bit-identical).
 - Kernel time (chunk pass + merge, cap 2051, back-to-back launches): n_q 1: FP32 36.0-38.0 us -> WMMA 21.0-21.1 us
-  (x1.71-1.80); n_q 3: 57.2-58.6 -> 36.2-37.2 us (x1.54-1.62); all three formats alike.
+  (x1.71-1.80); n_q 3: 57.2-59.9 -> 36.2-40.6 us (x1.45-1.62); all three formats alike. The drafter's window
+  (`--bench-wide`, int8, cap = width 32,768): n_q 1 375 -> 284 us (x1.32), 4: 895 -> 519, 16: 3,345 -> 1,894, 64:
+  13,007 -> 6,850 us (x1.90).
 - Existing parity tests with STRATA_ATTN_WMMA=0 and =1 (the WMMA path confirmed taken): kv_window_parity (plain and
   graph replays, int8 / q4_0 / K8V4), batch_rows_parity, kv_hybrid_parity (mode-3 attention vs dequant reference
   1.12e-7 -> 1.19e-7), kv_q4_parity, kv_q8_parity, qsa_parity: all PASS.
@@ -634,8 +638,22 @@ Tests (RX 7900 XT, gfx1100, ROCm 10, no server running, 2026-11-09):
   `strata` - prefill.cpp needs moe_fused_iq.cu's dm_f16_used / want_dm_f16 from strata_mmq; not this change) strata_kernels,
   the tests and strata; the two changed .cu files compile with nvcc sm_86.
 
-Unmeasured: end-to-end decode and token forcing (the model was not loaded). Test queue (one server at a time, nothing
-else on the GPU; W=.claude/worktrees/bitdecoding, built with `ninja -C $W/build-hip strata`):
+End to end (same day, nothing else on the GPU; bench/results/2026-11-09-bitdecoding-ab.txt): the fast-hip preset
+from the worktree build, STRATA_DECODE_TIMING=1, one 36,124-token prompt (repo docs) + greedy answer, base / WMMA
+interleaved twice:
+- decode window: base 24.23 / 27.48 ms, WMMA 23.97 / 22.60 ms; GPU-reach wait 11.75 / 11.80 -> 11.64 / 11.64 ms; draft
+  2.78 / 3.00 -> 2.47 / 2.37 ms (the drafter's 32K window attention). tok/s 96.3 / 84.9 -> 90.1 / 95.6: the CPU part of
+  the window (7.8-10.0 ms) moves more between runs than the change, and the two arms write different text (WMMA picks
+  another first token, 296 vs 280 tokens, 2.16 vs 2.33 accepted a window), so tok/s cannot show 1-2% from 2 runs.
+  Both arms repeat their own text exactly. The GPU-side numbers say ~0.1 ms (main attention, partly hidden behind the
+  CPU) + ~0.5 ms (draft) a window, ~2-3% at 36K.
+- prompt read 1,470 / 1,498 -> 857 (first WMMA run; not seen again) / 1,463 tok/s: the prompt path keeps its own
+  kernels (qsa_prompt_attn); only the MTP prompt pass goes through qsa_decode_attn_batch, where WMMA is faster.
+- token forcing (Q=bench/quality-bitdec tools/pancake/quality_hip.sh; stock = WMMA off twice): PASS. Mismatch 1.71% vs
+  stock 1.69 / 1.94%, diff -0.10 pts (90% CI -0.30..+0.08), large-margin events 2 vs 1 / 2.
+
+Still to do for a keep/drop decision (one server at a time, nothing else on the GPU; W=.claude/worktrees/bitdecoding,
+built with `ninja -C $W/build-hip strata`, -DSTRATA_PREFILL_MMQ=ON): more interleaved long-context runs for a decode median:
 
       # A/B at long context: base vs STRATA_ATTN_WMMA=1, interleaved, 3 runs each, same binary
       cd $W && ln -sfn /home/dan/clone-of-d/src/Strata/.venv .venv    # the worktree has no venv (.venv is ignored)
@@ -645,15 +663,12 @@ else on the GPU; W=.claude/worktrees/bitdecoding, built with `ninja -C $W/build-
         .venv/bin/python tools/strata_bench.py --url http://127.0.0.1:8080 --runs 1 --long --out bench/results/bitdec-$arm
         kill $S; wait $S
       done
-      grep -h "QSA layers" /tmp/bitdec-*.log    # "attention" ms/window: expect ~0.74 -> ~0.45
-      # quality (lossless by construction, but not bitwise): token forcing, as tools/pancake/quality_hip.sh
-      mkdir -p bench/quality-bitdec && for a in stock cand; do
-        python3 -c "import json,sys; c=json.load(open('bench/quality-hip/cand.json')); c['exe']='$PWD/build-hip/strata'; \
-          c.setdefault('env',{}); c['env']['STRATA_ATTN_WMMA']='1' if '$a'=='cand' else '0'; \
-          json.dump(c,open('bench/quality-bitdec/$a.json','w'),indent=1)"; done
-      Q=bench/quality-bitdec tools/pancake/quality_hip.sh     # verdict in bench/quality-bitdec/verdict.txt
+      grep -h "decode timing" /tmp/bitdec-*.log   # ms/window, GPU-reach wait and draft per arm
+      # per-stage GPU times ("attention" in the QSA layers, expect ~0.74 -> ~0.45 ms/window) need --stage-timing
+      # --no-capture added to the preset's args (not graph-captured, so only the stage numbers count there)
+      # token forcing is done (PASS above); to repeat: Q=bench/quality-bitdec tools/pancake/quality_hip.sh
 
-Keep only if the long-context decode median is >= 1% faster and token forcing passes; it is not in any preset.
+Keep only if the long-context decode median is >= 1% faster (token forcing passed); it is not in any preset.
 
 ## Phase 12 (future): a second GPU
 

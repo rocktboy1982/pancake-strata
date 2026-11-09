@@ -354,9 +354,12 @@ latency-bound, not memory-bound (it reads ~0.1 ms worth of bytes in 0.69 ms). Th
 context is the indexer (estimated 0.8 / 3 / 6% of a window at 32K / 131K / 262K), not the attention.
 
 What was built: its tensor-core idea on RDNA3 matrix cores, opt-in `STRATA_ATTN_WMMA=1` (int8, q4_0 and K8V4 KV). The
-decode attention's chunk pass got 1.5-1.8x faster (3 rows, cap 2051: 57.2 -> 36.2-37.2 us per layer call), FP32-level
-accuracy (3.2e-6 vs FP64, the old kernel 2.6e-6), deterministic. Expected end to end: ~0.24 ms a window, about 1% decode;
-not measured with the model yet (MOD_PLAN phase 11, "BitDecoding on RDNA3", has the A/B and token-forcing commands).
+decode attention's chunk pass got 1.5-1.8x faster (3 rows, cap 2051: ~58 -> ~37 us per layer call), FP32-level
+accuracy (3.2e-6 vs FP64, the old kernel 2.6e-6), deterministic: ~0.24 ms a window in the main attention (~1%), and
+the same switch also takes the MTP drafter's 32K-window attention (375 -> 284 us a draft step). With the model at a
+36K prompt (two interleaved pairs): draft 2.78 / 3.00 -> 2.47 / 2.37 ms a window and GPU-reach wait 11.8 -> 11.6 ms, so
+~2-3% of a window; tok/s (96.3 / 84.9 -> 90.1 / 95.6) is too noisy at two runs to confirm it. Token forcing: PASS
+(1.71% vs stock 1.69 / 1.94%). bench/results/2026-11-09-bitdecoding-ab.txt; MOD_PLAN phase 11 "BitDecoding on RDNA3".
 4-bit KV itself (`--kv q4_0`, `--kv k8v4`) saves at most ~0.2% of decode time here; its value is VRAM at long context.
 
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)

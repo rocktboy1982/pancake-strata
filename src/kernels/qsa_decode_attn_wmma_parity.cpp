@@ -111,6 +111,56 @@ int main(int argc, char** argv) {
     }
     const k::QsaShapes s = k::qsa_real_shapes();
     const int ps = (int) s.page_size;
+    if (argc > 1 && std::strcmp(argv[1], "--bench-wide") == 0) {
+        // the drafter's window shape: cap = width = 32768 consecutive cells (MTP draft step and its prompt pass), int8
+        const int64_t nc = 32768, np = nc / ps, nr = np * NKV * ps, cap = nc;
+        std::mt19937 r2(7);
+        Pools P;
+        fill_q8(r2, nr, P.kq, P.ks, P.kf);
+        fill_q8(r2, nr, P.vq, P.vs, P.vf);
+        std::vector<int32_t> tab(np);
+        for (int64_t i = 0; i < np; ++i) tab[i] = (int32_t) i;
+        k::QsaAttnPools pools{};
+        pools.page_table = upload(tab);
+        pools.k_q = upload(P.kq); pools.k_scale = upload(P.ks); pools.v_q = upload(P.vq); pools.v_scale = upload(P.vs);
+        for (int nq : {1, 4, 16, 64}) {
+            std::vector<float> q((size_t) nq * NH * HD);
+            std::normal_distribution<float> nd(0.f, 1.f);
+            for (auto& x : q) x = nd(r2);
+            std::vector<int32_t> ids((size_t) nq * cap), steps((size_t) nq * k::kStepCount);
+            for (int z = 0; z < nq; ++z) {
+                for (int64_t i = 0; i < cap; ++i) ids[(size_t) z * cap + i] = (int32_t) i;
+                steps[(size_t) z * k::kStepCount + k::kStepWidth] = (int32_t) cap;
+                steps[(size_t) z * k::kStepCount + k::kStepNKv] = (int32_t) nc;
+            }
+            float* d_q = upload(q);
+            int32_t* d_ids = upload(ids);
+            int32_t* d_steps = upload(steps);
+            const size_t sf = k::qsa_decode_attn_scratch_floats(cap, s);
+            float *d_scr = nullptr, *d_o = nullptr;
+            ck(cudaMalloc((void**) &d_scr, sf * nq * sizeof(float)), "scratch");
+            ck(cudaMalloc((void**) &d_o, (size_t) nq * NH * HD * 4), "o");
+            cudaEvent_t a, b;
+            cudaEventCreate(&a); cudaEventCreate(&b);
+            const int iters = nq >= 16 ? 10 : 50;
+            float t32 = 0, tw = 0;
+            for (int rep = 0; rep < 2; ++rep) {
+                cudaEventRecord(a);
+                for (int i = 0; i < iters; ++i) k::qsa_decode_attn_batch(d_q, pools, d_ids, d_steps, cap, s, d_scr, d_o, nq, nullptr);
+                cudaEventRecord(b); cudaEventSynchronize(b); cudaEventElapsedTime(&t32, a, b);
+                cudaEventRecord(a);
+                for (int i = 0; i < iters; ++i) {
+                    k::qsa_decode_attn_wmma_chunks(d_q, pools, d_ids, d_steps, cap, s, d_scr, nq, nullptr);
+                    k::qsa_decode_attn_merge_only(d_steps, cap, s, d_scr, d_o, nq, 0, nullptr);
+                }
+                cudaEventRecord(b); cudaEventSynchronize(b); cudaEventElapsedTime(&tw, a, b);
+            }
+            std::printf("bench-wide int8 cap/width %lld n_q %d: fp32 %.1f us/call, wmma %.1f us/call (x%.2f)\n",
+                        (long long) cap, nq, 1000.f * t32 / iters, 1000.f * tw / iters, t32 / tw);
+            cudaFree(d_q); cudaFree(d_ids); cudaFree(d_steps); cudaFree(d_scr); cudaFree(d_o);
+        }
+        return 0;
+    }
     const int64_t n_cells = 8192, pages = n_cells / ps, rows = pages * NKV * ps;
     std::mt19937 rng(20261109);
 
