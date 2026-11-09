@@ -1264,8 +1264,15 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
             // Task j of T over R rows of `h` per expert from matrix row `row0`: the whole phase (R = mrows_, h = per,
             // row0 = 0) or, under the NUMA split, this thread's slice (slice-local row g -> expert g / h, matrix row
             // row0 + g % h)
-            const int per = mode_ == 5 ? (int) nfmt_->n_ff : (int) nfmt_->n_embd;
+            // 7 = STRATA_POOL_FUSE_PHASES: one phase per layer, the gate/up tasks [0, fgu_tasks_) then the down tasks;
+            // a down task waits only for its own expert, whose last gate/up task quantized it (item 29, exact)
+            int pm = mode_;
             int64_t R = mrows_, T = mtasks_, j = i;
+            if (mode_ == 7) {
+                if ((int64_t) i < fgu_tasks_) { pm = 5; R = fgu_rows_; T = fgu_tasks_; }
+                else { pm = 6; R = fdn_rows_; T = mtasks_ - fgu_tasks_; j = (int64_t) i - fgu_tasks_; }
+            }
+            const int per = pm == 5 ? (int) nfmt_->n_ff : (int) nfmt_->n_embd;
             int h = per, row0 = 0;
             if (sliced) {
                 const NodeSync& ns = nsync_[(size_t) s];
@@ -1277,8 +1284,10 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                 const int l1 = (int) std::min<int64_t>(h, l0 + (g1 - g));
                 const int r0 = row0 + l0, r1 = row0 + l1;
                 SplitBufMulti& sb = split_multi_[(size_t) e];
+                if (pm == 6 && mode_ == 7)
+                    while (fready_[(size_t) e].load(std::memory_order_acquire) == 0) strata_cpu_pause();
                 const NativeFmt* const nfmt = mjobs_[e].fmt != nullptr ? mjobs_[e].fmt : nfmt_;   // 149-cold: same types and rows
-                if (mode_ == 5 && q2_native_kernels(nfmt->gu_type)) {
+                if (pm == 5 && q2_native_kernels(nfmt->gu_type)) {
                     // a native Q2_0 pack: gate and up rows on the Q2_0 kernels, then SwiGLU
                     thread_local float gbuf[MAXT][FF], ubuf[MAXT][FF];
                     float* gp[MAXT];
@@ -1290,7 +1299,7 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                     for (int t = 0; t < mjobs_[e].nt; ++t)
                         for (int r = r0; r < r1; ++r)
                             sb.ff[t][r] = (gbuf[t][r] / (1.f + std::exp(-gbuf[t][r]))) * ubuf[t][r];
-                } else if (mode_ == 5) {
+                } else if (pm == 5) {
                     float* ff[MAXT];
                     for (int t = 0; t < mjobs_[e].nt; ++t) ff[t] = sb.ff[t];
                     if (narithmetic_ == NativeArithmetic::WindowInvariant)
@@ -1310,6 +1319,13 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                         native_down_rows_invariant(*nfmt, mjobs_[e].blob, hq, mjobs_[e].nt, mjobs_[e].out, r0, r1);
                     else
                         native_down_rows(*nfmt, mjobs_[e].blob, hq, mjobs_[e].nt, mjobs_[e].out, r0, r1);
+                }
+                if (pm == 5 && mode_ == 7) {
+                    const int n = l1 - l0;
+                    if (frows_[(size_t) e].fetch_add(n, std::memory_order_acq_rel) + n == per) {
+                        quant_down_act(e);
+                        fready_[(size_t) e].store(1, std::memory_order_release);
+                    }
                 }
                 g += l1 - l0;
             }
@@ -1424,6 +1440,20 @@ void ExpertPool::run_split_multi(ExpertJobMulti* jobs, int n) {
     ms_drain_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
 
+void ExpertPool::quant_down_act(int e) {
+    // the down projection's input of expert e (all its tokens): Q8_1 for the Q2_0 kernels, the format's own otherwise
+    SplitBufMulti& sb = split_multi_[(size_t) e];
+    for (int t = 0; t < mjobs_[e].nt; ++t)
+        if (q2_native_kernels(nfmt_->d_type)) act_quant_any(sb.ff[t], FF, sb.a2[t]);
+        else native_quant_h(*nfmt_, sb.ff[t], sb.hq[t]);
+}
+
+bool ExpertPool::fuse_phases() const {
+    // STRATA_POOL_FUSE_PHASES=1 (opt-in): not with the NUMA split (its slices plan each phase on their own)
+    static const bool on = [] { const char* e = std::getenv("STRATA_POOL_FUSE_PHASES"); return e && std::atoi(e) != 0; }();
+    return on && numa_n_ == 0;
+}
+
 void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs, int n, NativeArithmetic arithmetic) {
     if (n <= 0) return;
     const auto t0 = std::chrono::steady_clock::now();
@@ -1433,15 +1463,26 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
         mjobs_ = jobs + b0;
         nfmt_ = &f;
         narithmetic_ = arithmetic;
+        if (fuse_phases()) {
+            // item 29: gate/up and down in one phase (same row ranges and kernels as the two phases: output identical)
+            fgu_rows_ = (int64_t) nb * f.n_ff;
+            fdn_rows_ = (int64_t) nb * f.n_embd;
+            fgu_tasks_ = phase_tasks(fgu_rows_);
+            for (int e = 0; e < nb; ++e) {
+                frows_[(size_t) e].store(0, std::memory_order_relaxed);
+                fready_[(size_t) e].store(0, std::memory_order_relaxed);
+            }
+            const auto a = std::chrono::steady_clock::now();
+            run_phase(7, (int) (fgu_tasks_ + phase_tasks(fdn_rows_)));
+            ms_multi_gu += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - a).count();
+            continue;
+        }
         mrows_ = (int64_t) nb * f.n_ff;
         mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_ff, nb) : phase_tasks(mrows_);
         const auto a = std::chrono::steady_clock::now();
         run_phase(5, mtasks_);
         const auto b = std::chrono::steady_clock::now();
-        for (int e = 0; e < nb; ++e)
-            for (int t = 0; t < mjobs_[e].nt; ++t)
-                if (q2_native_kernels(f.d_type)) act_quant_any(split_multi_[(size_t) e].ff[t], FF, split_multi_[(size_t) e].a2[t]);
-                else native_quant_h(f, split_multi_[(size_t) e].ff[t], split_multi_[(size_t) e].hq[t]);
+        for (int e = 0; e < nb; ++e) quant_down_act(e);
         const auto c = std::chrono::steady_clock::now();
         mrows_ = (int64_t) nb * f.n_embd;
         mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_embd, nb) : phase_tasks(mrows_);

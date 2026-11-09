@@ -31,6 +31,7 @@
 #include "strata/kernels/cpu/native_expert.hpp"
 #include "strata/kernels/cpu/pool_plan.hpp"
 
+#include <array>
 #include <atomic>
 #include <cstdio>
 #include <memory>
@@ -378,6 +379,13 @@ private:
     ExpertJobMulti* mjobs_ = nullptr;
     int64_t mrows_ = 0;     // rows of the current multi phase across all its experts (n * FF, then n * H)
     int mtasks_ = 1;        // equal row ranges the phase is cut into
+    // item 29 (STRATA_POOL_FUSE_PHASES): mode 7 runs gate/up and down in one phase; per expert, the gate/up rows done
+    // and a ready flag set by the task that finished them after it quantized the down input
+    int64_t fgu_tasks_ = 0, fgu_rows_ = 0, fdn_rows_ = 0;
+    std::array<std::atomic<int>, 96> frows_{};
+    std::array<std::atomic<uint8_t>, 96> fready_{};
+    void quant_down_act(int e);
+    bool fuse_phases() const;
     struct SplitBufMulti {
         alignas(64) float ff[MAXT][FF];
         ActQ a2[MAXT];
