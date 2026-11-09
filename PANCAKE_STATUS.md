@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 15:55
+Last update: 2026-11-09 17:09
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -63,6 +63,22 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | Ph14 | Regression watch (tools/pancake/regression_watch.py) | 14 | - | built (c7c44f2d0) | 100% | 0% |
 | Ph14 | Self-tuning from own sessions (tools/pancake/selftune.py, item 70) | 70 | 1-5% (keeps profiles current) | offline pass built (05e041b9b): traces -> candidate profile -> time model -> abtest spec; dry run: candidate profile +8.6%, + kmiss +23% modeled | 100% | 0% |
 | Ph14 | Diagnostic: decode speed along a reply (tools/pancake/decode_curve.py) | 2 | - | built, used to close item 2 | 100% | - |
+
+## Items by session dan-9f (server, agent, loader, draft area) - merged into port/rdna3-decode
+
+| Item | What | Switch / file | Default | Exact? | Dev | Test |
+| --- | --- | --- | --- | --- | ---: | ---: |
+| 73 | Per-turn JSONL log | `turn_log` / `pancake-turns.jsonl` | on (Flash-Next presets) | - | 100% | 0% |
+| 74 | Eager MTP draft steps (all launched at once, chain cut on the host) + `window_trace().drafts()` | `STRATA_MTP_EAGER=1` | off | exact | 100% | 0% (spec 07, identity check) |
+| 75 | Persistent adapt worker (one JobThread) | `STRATA_ADAPT_PERSIST=0` restores old | **on** | exact | 100% | 0% (spec 02) |
+| 76 | Device spin scheduling | `STRATA_DEVICE_SPIN=1` | off | exact | 100% | 0% (spec 04, log must say "set") |
+| 38 | Linux O_DIRECT expert-arena load | `STRATA_UNBUFFERED_LOAD=0` restores buffered | **on** (Linux) | exact | 100% | 0% (test plan 2.10) |
+| 35/83 | Restore-equivalence test | `tools/pancake/restore_check.py` | first step of test_phase.sh | gate | 100% | 0% |
+| 88 | Agent settings in all Flash-Next presets | env_to_user, effort_position end, grace 512, close retry | on | text | 100% | - |
+| status page | `/status`, `/pancake`, `/status.json` (opencode/Gemini session, `214c8cd31`) | serve/web/status.html | on | - | 100% | tests 13/13 |
+| in progress | 39 disk tier + 86 memory budget; 16/31/90/71 checkpoints and shared prefix; 33/34 loop-guard signals; 79/80 prefill; 93/95b tests and hygiene | branches A-E | - | - | ~50% | - |
+
+Also from this session: `STRATA_HOST_NATIVE` (CMake, host C++ for this CPU) - built as build-hip-native, spec 08-build.
 
 Development: engine side COMPLETE.  Left, by decision or dependency: 5 (engine change only if the trace replay shows a
 gain; needs dan-9f's drafts() call), 18 GDN prefill chunk 64 (parked: cold prompts only, 90.8% of turns hit the cache),

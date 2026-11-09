@@ -326,6 +326,9 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | Switch | Defined | Default | Exact/Lossy | Does | Measured |
 | --- | --- | --- | --- | --- | --- |
 | `STRATA_POOL_MWAITX=<TSC cycles>` | `pool.cpp` | off (spin) | exact | parked workers wait with Zen MONITORX/MWAITX | wake +0.36 us; frees SMT siblings |
+| `STRATA_ADAPT_PERSIST` | `generate.cpp` (item 75, dan-9f) | **on** (=0: old per-window thread) | exact | the serve adaptive step runs on one persistent JobThread instead of a new std::thread per window | arm in bench/specs/02 |
+| `STRATA_DEVICE_SPIN=1` | `generate.cpp` main (item 76, dan-9f) | off | exact | sets spin + maphost scheduling on the primary device before its context; logs "set" or "refused" | arm in bench/specs/04 (void if "refused") |
+| `STRATA_UNBUFFERED_LOAD` | `expert_source.cpp`, `pinned.cu`, `direct_io.hpp` (item 38, dan-9f) | **on** on Linux (=0: buffered) | exact | the GGUF expert arena loads with O_DIRECT (16 readers) when the page cache cannot keep it; log "expert arena load: mode ..., GiB/s" | start 28-65 s -> ~10-14 s est.; test plan 2.10 |
 | `STRATA_POOL_LAZY_PARK` | `pool.cpp` | off | exact | wait_parked at every phase/batch start, park only after idle | 0-1% |
 | `STRATA_POOL_FUSE_PHASES` | `pool.cpp`, `pool.hpp` (item 29) | off | exact | mode 7: gate/up + down in one phase per layer | overlap model: +3% |
 | `STRATA_POOL_PREREAD` | `pool.hpp`, `expert_source.hpp` (from tandem.cpp) | off | exact | idle workers pre-read the lookahead's next-layer CPU experts | loses even on a noisy machine; stays off |
@@ -393,6 +396,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
   (`serve/test_tolerant_tool_calls.py`).
 - Domain classification for `STRATA_DOMAIN_PROFILES` seeding.
 - `"turn_log"` (item 73, `1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets.
+- Status page (`214c8cd31`): `/status` and `/pancake` in a browser (auto-refresh, hardware, model, switches, tok/s, cache
+  and draft rates, last 30 turns), `/status.json` for scripts.
 - `loop_guard_*` Prometheus counters.
 
 ### 6J. Presets and launcher
@@ -544,6 +549,9 @@ memory-capped scope when the unit manages the process.
 
 ### Build for the RX 7900 XT (HIP, gfx1100)
 
+Optional: `-DSTRATA_HOST_NATIVE=ON` builds Strata's host C++ for this CPU (`-march=native -ffp-contract=off`, device code
+untouched); built separately as `build-hip-native` and compared in `bench/specs/08-build.json` before it becomes the default.
+
 Needs a ROCm driver and runtime, HIP headers and compiler, hipBLAS and hipBLASLt development files, CMake 3.24+, a
 C++20 host compiler:
 
@@ -563,6 +571,11 @@ cmake --build build-cuda --target strata strata-poly poly_gdn_cols_test poly_gem
 ```
 
 ### Verification gates
+
+- `tools/pancake/restore_check.py` (items 35/83): a parked and restored conversation must match a cold re-read token
+  for token (gate for the cache/checkpoint items); first step of `tools/pancake/test_phase.sh`.
+- `tools/pancake/test_phase.sh` + `bench/specs/*.json`: the whole A/B test phase in one command; the plan is
+  `bench/TEST_PLAN.md` (every claim of this README tested one by one).
 
 Nothing goes on the stack without these:
 
