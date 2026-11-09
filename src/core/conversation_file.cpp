@@ -28,6 +28,7 @@
 #include <malloc.h>
 #include <process.h>
 #else
+#include "strata/platform/direct_io.hpp"
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
@@ -443,13 +444,11 @@ private:
     // O_DIRECT is switched on the open descriptor: a filesystem that refuses it (EINVAL, e.g. tmpfs) keeps buffered
     // I/O, and the file is never opened twice
     void try_direct() {
-        if (O_DIRECT == 0 || buffered_forced()) return;
-        const int fl = ::fcntl(fd_, F_GETFL);
-        direct_ = fl >= 0 && ::fcntl(fd_, F_SETFL, fl | O_DIRECT) == 0;
+        if (buffered_forced()) return;
+        direct_ = strata::platform::try_direct(fd_);
     }
     bool leave_direct() {
-        const int fl = ::fcntl(fd_, F_GETFL);
-        if (fl < 0 || ::fcntl(fd_, F_SETFL, fl & ~O_DIRECT) != 0) return false;
+        if (!strata::platform::leave_direct(fd_)) return false;
         direct_ = false;
         return true;
     }
