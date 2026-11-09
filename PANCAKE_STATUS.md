@@ -3,14 +3,14 @@
 Updated as the work moves (owner's request, 2026-11-09).  Percent = how far the item is from "decided and in the default
 preset, or rejected with a measurement".  Order = MOD_PLAN phase 13 (biggest measured gain first).
 
-Last update: 2026-11-09 12:35
+Last update: 2026-11-09 13:05
 
 | Prio | Item | MOD_PLAN | Expected gain | Status | % |
 | --- | --- | --- | --- | --- | ---: |
 | P1a | Expert deferral on HIP (non-finite fix), then rank guard | 8, 28 | up to 1.45x, realistic +10-25% code edit | bisect queued (queue2, 6 runs) | 10% |
 | P1b | Expert cache judged in ms (simulator) | 14, 27, 30 | 0-30% code edit | simulator built and run (tools/pancake/time_ceiling.py): oracle +27..48%, online 2nd-miss +5..16% on code edits | 100% |
 | P1b | Engine: more swaps per window (existing switch) | 14 | +4..9% code edit (model) | engine A/B queued (queue3: --adapt-swaps 64/96/160); measures the real PCIe contention | 30% |
-| P1b | Engine: admit on k-th miss in W windows (new) | 14 | +5..16% code edit (model) | being coded in the adaptive round | 20% |
+| P1b | Engine: admit on k-th miss in W windows (new, STRATA_ADAPT_KMISS) | 14 | +5..16% code edit (model) | coded and syntax-checked (b5f1842f0); A/B 2,8 / 2,4 / 3,8 queued (queue4) | 60% |
 | P1c | CPU sparsity masks (Berkeley gate mask, TEAL, CATS) | 13 | +10-20%, lossy | not started (offline pass on traces first) | 0% |
 | P1d | One CPU pool phase per layer (STRATA_POOL_FUSE_PHASES) | 29 | 1-4%, exact | coded, syntax-checked; build + A/B queued (queue3) | 60% |
 | P1e | Domain / conversation expert seeds | 3-4 | +0.6-1.5 hit points | merged and built; needs traces + multi-turn A/B | 60% |
@@ -29,4 +29,4 @@ Last update: 2026-11-09 12:35
 | Ph14 | Application end to end (agent-session timeline, idle-time use, server -> engine turn info) | 14 | per-turn time | after phase 13 | 0% |
 | Ph14 | New processes: nightly A/B harness, quality-gate process, self-tuning from own sessions, regression watch | 14 | - | after phase 13 (the queue scripts are the seed of the A/B harness) | 5% |
 
-Running now: queue2 (lend sweep, --mtp-q4, deferral bisect, turn checkpoints), then queue3 (swaps sweep, item 29 build + A/B).
+Running now: queue2 (lend sweep, --mtp-q4, deferral bisect, turn checkpoints), then queue3 (swaps sweep, build, item 29 A/B), then queue4 (k-th-miss admission A/B).
