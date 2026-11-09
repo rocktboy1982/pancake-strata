@@ -4943,6 +4943,7 @@ class Service:
         self.reasoning_loop_recovery = False
         self.reasoning_budget_configured = False         # the config named reasoning_budget_tokens (0 included): no family default
         self.reasoning_budget_tokens = 0                 # #123: the config's default thinking budget (0: none)
+        self.reasoning_budget_by_effort = {}             # pancake: {level: budget} for requests without a budget of their own
         self.repeat_stop_tokens = REPEAT_STOP_TOKENS     # #606: one token this many times in a row ends a reply (0: off)
         self.anthropic_think_unasked = True               # #278: "anthropic_thinking": "on_request" -> False
         self.undeclared_tool_calls = "text"               # #4622: config "undeclared_tool_calls": "call" hands a call of an undeclared name to the client
@@ -5187,6 +5188,16 @@ class Service:
         value = req.get("reasoning_budget_tokens")
         if value is None:                                # a null does not hide the other name
             value = req.get("thinking_budget_tokens")
+        if value is None and self.reasoning_budget_by_effort:
+            # pancake: a cap per thinking level (s1, arXiv 2501.19393: a hard cap with the model's own close keeps the
+            # answer and cuts the long tails), so a "low" agent turn stops thinking sooner than an "xhigh" one
+            from serve.frontend import EFFORT
+            level = self.request_effort(req)
+            if level is not None:
+                for name, tokens in self.reasoning_budget_by_effort.items():
+                    if EFFORT.get(name) == level:
+                        value = tokens               # 0: this level has no cap (the global budget does not apply)
+                        break
         if value is None:
             value = self.reasoning_budget_tokens
             if not value and self.family == "deepseek41" and not self.reasoning_budget_configured:
@@ -5196,6 +5207,20 @@ class Service:
         if isinstance(value, bool) or not isinstance(value, int):
             raise ValueError(f"reasoning_budget_tokens={value!r}: expected a whole number of tokens (0: no budget)")
         return value if value > 0 else None
+
+    def request_effort(self, req) -> str | None:
+        """The thinking level a request asks for, in the template's words (low, medium, xhigh, ...; None: thinking off
+        or a level this family does not know), else the server's default level (effort_default)."""
+        from serve.frontend import EFFORT
+        req = req if isinstance(req, dict) else {}
+        reasoning = req.get("reasoning") if isinstance(req.get("reasoning"), dict) else {}
+        ctk = req.get("chat_template_kwargs") if isinstance(req.get("chat_template_kwargs"), dict) else {}
+        output = req.get("output_config") if isinstance(req.get("output_config"), dict) else {}
+        for given in (req.get("reasoning_effort"), reasoning.get("effort"), ctk.get("reasoning_effort"),
+                      output.get("effort"), self.effort_default()):
+            if given is not None and given != "":
+                return EFFORT.get(str(given).strip().lower())
+        return None
 
     def _release_orphan_encoder(self) -> bool:
         """The engine is not running but its picture encoder still is (the engine died under a request; the encoder is a process of its own): stop it,
@@ -9932,6 +9957,24 @@ def undeclared_tool_calls_setting(cfg: dict) -> str:
     return mode
 
 
+def budget_by_effort_setting(value) -> dict:
+    """The config's "reasoning_budget_by_effort": {level: whole number of thinking tokens >= 0 (0: no cap)}.  Levels
+    are the words clients send (low, medium, high, xhigh, max ...); Service.reasoning_budget maps them onto the
+    template's levels when a request arrives (the family's table is chosen after the config is read)."""
+    if not isinstance(value, dict):
+        raise SystemExit("[strata] config \"reasoning_budget_by_effort\" must be an object such as "
+                         "{\"low\": 2048, \"medium\": 8192, \"high\": 0}, not " + repr(value))
+    out = {}
+    for k, v in value.items():
+        if isinstance(v, float) and v.is_integer():
+            v = int(v)
+        if not isinstance(k, str) or not k.strip() or isinstance(v, bool) or not isinstance(v, int) or v < 0:
+            raise SystemExit(f"[strata] config \"reasoning_budget_by_effort\": {k!r}: {v!r} - expected a level name "
+                             "and a whole number of tokens >= 0 (0: no cap)")
+        out[k.strip().lower()] = v
+    return out
+
+
 def tool_call_recovery_setting(cfg: dict) -> bool:
     """The config's "tool_call_recovery" (see OutputParser's recover): ON when the config does not name it (since 0.2.8; 0.2.7 and before: off),
     "tool_call_recovery": false turns it off. Anything but true or false stops the start."""
@@ -10457,6 +10500,13 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         if budget:
             print(f"[strata] thinking budget: {budget} tokens (reasoning_budget_tokens; a request can set its own)",
                   flush=True)
+    by_effort = cfg.get("reasoning_budget_by_effort")   # pancake: {"low": 2048, "medium": 8192, "high": 0}
+    if by_effort is not None:
+        svc.reasoning_budget_by_effort = budget_by_effort_setting(by_effort)
+        if svc.reasoning_budget_by_effort:
+            print("[strata] thinking budget per level: " + ", ".join(
+                f"{k} {v or 'no cap'}" for k, v in svc.reasoning_budget_by_effort.items()) +
+                " (reasoning_budget_by_effort; a request's own budget wins)", flush=True)
     recovery = cfg.get("reasoning_loop_recovery", False)   # #728: false (default) | "stop" | "recover" (true)
     if recovery is True:
         recovery = "recover"
