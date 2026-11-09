@@ -454,6 +454,10 @@ Development pass done 2026-11-08 night (owner: develop everything first, then te
 Test phase queue: scratchpad queue.sh order - GPU profile + draft timing first (they steer development), then the A/B arms:
 hipBLASLt 100401, --lookup-max-t 12/16, pool pre-read, prompt lending/chunks, the small-gains stack, --mtp-q4, item 11
 switches, items 3-4 seeds (needs conv_trace runs), the deferral bisect, then token forcing of the final preset.
+ContextPilot arm (branch feat/contextpilot, see "ContextPilot" below; no engine change, no rebuild): with the daily preset
+running, `python tools/pancake/dedup_savings.py --ab http://127.0.0.1:8080 --top 3 --rounds 3` (cold reads of real
+opencode prompts, "context_dedup" false vs true per request, interleaved); then a quality spot check of a deduped
+opencode session.  STRATA_ADMIT_CACHE_AWARE has no A/B: the daily preset serves solo (no --batch, no admission queue).
 
 Left, ranked (details of the measurements above stay in this section's history):
 1. GPU path: the GPU's own work is now 15.9 of a 24.8 ms short window - profile (rocprofv3), then GDN megakernel (rdna3),
@@ -535,6 +539,45 @@ Server-side only (no engine change, no speed effect until a loop is seen).  Copi
   `"tool_call_recovery": false`): announced -> left unfinished (#211), else text.  Not ported: Maya's resume-the-thinking
   after an end-of-turn token inside it - both Qwen turn-end tokens are the engine's own EOS here, and the empty-answer case
   is already #1053 (`reasoning_close_retry`).
+
+### ContextPilot (Edinburgh, MLSys 2026, arXiv 2511.03475; branch feat/contextpilot, 2026-11-09)
+
+Source: github.com/EfficientContext/ContextPilot b4c80327 (Apache-2.0).  What it is, from its code: a proxy that rewrites
+prompts so the engine's ordinary prefix cache hits more - a context index, reordering of retrieved documents, block
+de-duplication with "see above" references, annotations, and batch scheduling by shared prefix.  It never splices KV
+of non-prefix blocks; its llama.cpp support is an LD_PRELOAD hook on llama_memory_seq_rm that reports slot evictions to
+the proxy, with llama.cpp's own --cache-reuse doing the reuse.  Its 1.5-3x numbers come from RAG and OpenClaw/Hermes
+workloads (26-50% fewer prompt tokens there).
+
+For our hybrid (Gated DeltaNet + attention), only exact-prefix reuse is exact, and pancake already has it (parked
+conversations, message-boundary checkpoints, env_to_user, billing-stamp pinning).  Sorted by exactness:
+
+- **Ported, exact: cache-aware admission** (`STRATA_ADMIT_CACHE_AWARE=1`, --batch only, off by default).  New requests
+  waiting for the control lines go least-uncached-tokens first (prompt minus the longest start a free slot holds);
+  with STRATA_ADMIT_SHORT_FIRST, "short" counts uncached tokens; STRATA_ADMIT_MAX_WAIT_S still bounds the wait.  Only
+  the order changes.  The daily preset serves solo, so it does nothing there; it matters with --batch / sub-agents.
+- **Ported, LOSSY opt-in: block dedup** (`serve/context_dedup.py`; config `"context_dedup": true`,
+  `STRATA_CONTEXT_DEDUP=1`, or a request's `"context_dedup": true|false`; a start-up line says it is lossy).
+  ContextPilot's content-defined chunks (3-40 lines, md5 mod 13, line-number prefixes ignored); a block seen earlier
+  in the same request is replaced by a one-line reference, a whole tool result identical to an earlier one by one
+  line.  Changes from the source: system and assistant turns are sources only (a rewritten reply would no longer match
+  the reply the conversation cache holds); Claude Code's `12→` prefix; stateless.  Prefix-stable: message k depends
+  only on messages 0..k, so the conversation cache still hits (unit test, plus 1,482 prefix checks on the owner's
+  real opencode sessions, 0 mismatches).  Runs after the loop guard has read the messages (its repeated-result
+  detection still sees the copies).  Counters: /metrics JSON `context_dedup`.
+  Measured offline (tools/pancake/dedup_savings.py on 40 local opencode sessions >= 20K chars): it removes only
+  **1.6% of the characters** (1.9% for sessions >= 100K chars; median session 0.1-0.4%, p90 4.8-8.3%, max 15.6%).
+  opencode rarely re-sends the same text, unlike the OpenClaw contract workload.  Expected prefill gain on a cold read:
+  about the same 1-2%; on a warm turn nothing (the old part is cached anyway).  Prefill A/B not run (another agent was
+  running a GPU benchmark): see the test queue.  Leave it off unless the A/B and a quality check say otherwise.
+- **Not ported: reordering and annotations.**  Lossy (changes the order the model reads), and they need separately
+  sent documents (RAG).  Agent prompts only grow by appending, so there is nothing to reorder.
+- **Not ported: reusing the attention layers' KV of a block at another position while recomputing the GDN state.**  No
+  gain and not exact: the GDN state at layer l needs that layer's input for every token of the block, so every layer
+  runs on the block anyway (only the K/V projections of the attention layers would be skipped), and those K/V depend
+  on the whole prefix through the hidden states, so reused ones would be approximations (CacheBlend-style, lossy).
+- **Not needed: the context index and eviction hook.**  pick_slot and the engine's source search already find the
+  longest held prefix; there is no external cache to track.
 
 ### Items 3-4: seeding the adaptive tier at a request's start (branch feat/pattern-cache, 2026-11-08)
 
