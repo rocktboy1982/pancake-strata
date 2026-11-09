@@ -589,6 +589,23 @@ Added 2026-11-09 from the hardware data-path round (research_notes/Tehnologii dr
 45. I/O hygiene: STRATA_IO_THREADS sweep against the startup PLE probe; filefrag on experts.bin and the PLE shard; reorder PLE
     rows by hit frequency only after PLE wait time is measured.  Not worth it: hipFile / BaM direct NVMe->GPU (absent or
     NVIDIA-only; VRAM fills from RAM anyway), moving models to ext4/xfs (no documented read gain), ntfs-3g (FUSE, avoid).
+Added 2026-11-09 from the GPU-sync researcher (data-path round):
+Correction: on edit windows the host "GPU-reach wait" (15.75 ms) and CPU experts (17.41 ms) add up; the VRAM-hit expert kernels
+run hidden behind the CPU, but kernels BEFORE the router doorbell (GDN, attention, hyper-connection, router, shared expert) are
+on the critical path on short and edit windows.  combine_cpu min 5.6 us vs 254 us average: >=97.8% of its 38% is waiting.
+46. Single poller in combine_cpu: with STRATA_WAIT_FUSE every block (~50/window) polls the same host flag over PCIe while the
+    pool uses ~27 of 33 GB/s DDR4; block 0 polls and sets a VRAM flag for the rest.  Exact, ~20 lines; A/B WAIT_FUSE 1 vs 0 on
+    the host "CPU" time, not only tok/s (0-3% est.).
+47. Warm the 80 MiB Infinity Cache with the next layer's pre-doorbell weights during the combine_cpu wait (PRESERVE, Huawei
+    Zurich).  Micro-test first (one layer's pre-doorbell kernels cold vs warm; build only if warm/cold < 0.85); 0-2 ms/window est.
+48. Item 32 re-rated up: fuse the dependent pre-doorbell chains (hyper-connection norm/down/up, router+plan+bell) - on the
+    critical path in both window types, ~1-4% per chain.  Q2_0 down kernel (5.8%) is hit work hidden on edits: get the per-layer
+    hit-vs-CPU split before building it.
+49. Timer inside combine_cpu (thread 0 entry/exit stamps like wait_flag_ge_stamped): with WAIT_FUSE on, "waitCPU" no longer
+    measures the real wait; gives the per-layer split items 1, 32, 48 need.
+Low value / rejected: hipStreamWaitValue32 or host callbacks instead of the spin, CPU writing rows into VRAM via ReBAR (<=0.27 ms),
+megakernels (NVIDIA-only; GDN megakernel 0.0 ms), HW queues 4 vs 6 (re-check only with a concurrent stream; a CU-masked stream
+could isolate spin/prefetch kernels).  PreScope = candidate policy for the item 14 simulator.
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
