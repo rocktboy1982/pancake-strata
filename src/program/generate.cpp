@@ -12598,9 +12598,19 @@ int main(int argc, char** argv) {
                     }
                 std::vector<int64_t> lens;
                 for (const ConvCheckpoint& k : checks) lens.push_back((int64_t) k.ids.size());
+                // MOD_PLAN 16 (opt-in): STRATA_CKPT_EVICT_FLOPS=<alpha> weighs the re-reading a checkpoint saves per byte
+                // against its recency (Marconi; conv_cache.hpp flops_victim); unset or 0 = least recent use as before
+                static const double evict_flops_alpha = [] {
+                    const char* e = std::getenv("STRATA_CKPT_EVICT_FLOPS");
+                    return e != nullptr && e[0] != '\0' ? std::max(0.0, std::atof(e)) : 0.0;
+                }();
                 const size_t victim = o.prompt_cache_spread
                     ? strata::program::conv_cache::spread_victim(lens.data(), stamps.data(), stamps.size(),
                                                                  o.prompt_cache, tail_flags.get(), pin_flags.get())
+                    : evict_flops_alpha > 0.0
+                    ? strata::program::conv_cache::flops_victim(lens.data(), stamps.data(), nullptr, stamps.size(),
+                                                                o.prompt_cache, tail_flags.get(), pin_flags.get(),
+                                                                evict_flops_alpha)
                     : strata::program::conv_cache::eviction_victim(stamps.data(), stamps.size(), o.prompt_cache,
                                                                    tail_flags.get(), pin_flags.get());
                 ckpt_pool.give(std::move(checks[victim]));   // (STRATA_CKPT_POOL; else nothing)
@@ -15943,6 +15953,10 @@ int main(int argc, char** argv) {
             // a parked conversation holding it stays parked) and a later request that resumes from it does not park the
             // branch it leaves: N queries cost one prefix, not N.  Absent = as before.
             int64_t req_pin = 0;
+            // marks=a,b,...: MOD_PLAN 16, the prompt's tool boundaries from serve/server.py (STRATA_CACHE_TOOL_BOUNDARY):
+            // places the read may stop at and checkpoint (tool_checkpoint_marks picks the ones that pay).  Used only with
+            // STRATA_CACHE_TOOL_BOUNDARY set for the engine too; absent = as before.
+            std::vector<int64_t> req_marks;
             // tuning keys (setup's calibration measures settings without restarting the engine): the PCIe share of
             // the missed experts and the draft-probability floor, for this request only
             double req_pcie_frac = o.pcie_frac, req_spec_min_p = o.spec_min_p;
@@ -15976,6 +15990,18 @@ int main(int argc, char** argv) {
                     else if (key == "ckpt") req_ckpt = std::atoi(tok.c_str() + eq + 1) != 0;
                     else if (key == "prefill") req_prefill_only = std::atoi(tok.c_str() + eq + 1) != 0;
                     else if (key == "pin") req_pin = std::max<long long>(0, std::atoll(tok.c_str() + eq + 1));
+                    else if (key == "marks") {
+                        req_marks.clear();
+                        const char* q = tok.c_str() + eq + 1;
+                        while (*q != '\0' && req_marks.size() < 64) {
+                            char* qe = nullptr;
+                            const long long v = std::strtoll(q, &qe, 10);
+                            if (qe == q) break;
+                            if (v > 0) req_marks.push_back((int64_t) v);
+                            if (*qe != ',') break;
+                            q = qe + 1;
+                        }
+                    }
                     else if (key == "temperature") req_temperature = fv;
                     else if (key == "top_p") req_top_p = fv;
                     else if (key == "top_k") req_top_k = std::atoi(tok.c_str() + eq + 1);
@@ -18136,9 +18162,34 @@ int main(int argc, char** argv) {
                     std::fprintf(stderr, "strata serve: pin=%lld: the cache has no checkpoint there to pin (it resumed from "
                                  "%lld)\n", (long long) req_pin, (long long) read_from);
             }
+            // MOD_PLAN 16 (opt-in, STRATA_CACHE_TOOL_BOUNDARY): the server's tool boundaries (marks=) past `resume` that save
+            // at least STRATA_CACHE_TOOL_BOUNDARY_GAP tokens (1024) over the deepest checkpoint below them, at most
+            // STRATA_CACHE_TOOL_BOUNDARY_MAX (2) a request and never more than --prompt-cache leaves room for (the root, the
+            // turn and one more stay): ordinary checkpoints in the same budget and retention.  Not on a layer split (its
+            // mid-prompt checkpoints need every stage's part), not with ckpt=0.  (`resume`, not `read_from`: the
+            // STRATA_CKPT_REREAD arm cuts at the same places.)
+            static const int64_t tool_marks_gap = [] {
+                const char* e = std::getenv("STRATA_CACHE_TOOL_BOUNDARY_GAP");
+                return e != nullptr && e[0] != '\0' ? std::max<int64_t>(0, std::atoll(e)) : int64_t(1024);
+            }();
+            static const int64_t tool_marks_max = [] {
+                const char* on = std::getenv("STRATA_CACHE_TOOL_BOUNDARY");
+                if (on == nullptr || std::atoi(on) <= 0) return int64_t(0);
+                const char* e = std::getenv("STRATA_CACHE_TOOL_BOUNDARY_MAX");
+                return e != nullptr && e[0] != '\0' ? std::clamp<int64_t>(std::atoll(e), 0, 8) : int64_t(2);
+            }();
+            std::vector<int64_t> tool_at;
+            if (tool_marks_max > 0 && !req_marks.empty() && req_ckpt && !multi_gpu && o.prompt_cache >= 3) {
+                std::vector<int64_t> held = {root_at, message_at, turn_at, pin_at};
+                for (const ConvCheckpoint& c : checks) held.push_back((int64_t) c.ids.size());
+                tool_at = strata::program::tool_checkpoint_marks(req_marks, resume, n, held, tool_marks_gap, 64,
+                                                                std::min<int64_t>(tool_marks_max, o.prompt_cache - 3));
+            }
+            auto is_tool_at = [&](int64_t p) { return std::find(tool_at.begin(), tool_at.end(), p) != tool_at.end(); };
             std::vector<int64_t> cuts = {reread_to, root_at, message_at, turn_at, n - 1};
-            if (pin_at >= 0) {
-                cuts.push_back(pin_at);
+            if (pin_at >= 0 || !tool_at.empty()) {
+                if (pin_at >= 0) cuts.push_back(pin_at);
+                cuts.insert(cuts.end(), tool_at.begin(), tool_at.end());
                 std::sort(cuts.begin(), cuts.end());   // the skipped -1s first, n - 1 still last
             }
             int64_t at = read_from;
@@ -18224,7 +18275,7 @@ int main(int argc, char** argv) {
                     break;
                 }
                 at = to;
-                if ((to == turn_at || to == root_at || to == message_at || to == pin_at) &&
+                if ((to == turn_at || to == root_at || to == message_at || to == pin_at || is_tool_at(to)) &&
                     !checkpoint_at(to, nullptr, to == message_at && to != turn_at && to != root_at && to != pin_at)) {   // the tail kind leaves first
                     if (!ckpt_why.empty() || !checkpoint_failure_is_survivable()) {   // #3350: only an unwell GPU ends the request
                         std::printf("ERR saving a conversation checkpoint failed%s\n", ckpt_why.c_str());
@@ -18238,6 +18289,9 @@ int main(int argc, char** argv) {
                 if (trace && to == message_at)
                     std::fprintf(stderr, "strata serve: message boundary checkpoint: %lld tokens, %lld tail\n",
                                  (long long) message_at, (long long) (turn_at - message_at));
+                if (trace && is_tool_at(to))
+                    std::fprintf(stderr, "strata serve: tool boundary checkpoint at %lld (%zu kept)\n", (long long) to,
+                                 checks.size());
             }
             if (!refill(err)) {
                 std::printf("ERR refilling a lent slot failed: %s\n", err.c_str());

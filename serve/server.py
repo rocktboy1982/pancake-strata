@@ -906,6 +906,59 @@ def deepseek_restore_points(ids, user_id, system_id=None, tail=512, least=RESTOR
     return out
 
 
+# MOD_PLAN 16 (pancake, opt-in): STRATA_CACHE_TOOL_BOUNDARY=1 in the server's and the engine's environment (run-pancake.sh
+# passes the shell's environment to both) sends the Qwen engine its prompt's tool boundaries as marks=<pos>,...: the
+# <|im_start|> that opens a tool result's turn (the state after the assistant's call, before its result) and the one
+# right after that turn (after the result).  The engine keeps a checkpoint at the ones that save enough re-reading
+# (src/program/generate.cpp, include/strata/program/message_boundary.hpp: tool_checkpoint_marks) inside its usual
+# checkpoint budget; the GDN state cannot be rolled back, so a checkpoint is the only way back to such a point.  A
+# request that leaves this one at a tool boundary (the same call with another result, a retried step) resumes there.
+# =2 also marks the end of each kept thinking block (</think> of an earlier assistant turn; the template keeps them
+# unless preserve_thinking is false, and then none are rendered, so none are marked).  0 / unset: no key, every GEN
+# line as before.
+TOOL_MARKS_LEAST = 1024        # as RESTORE_LEAST: no mark before this many tokens
+TOOL_THINK_LEAST = 256         # a thinking block shorter than this is read again in about the time a checkpoint costs
+
+
+def tool_boundary_level(env=None) -> int:
+    """0 (off), 1 (tool boundaries) or 2 (and </think>) from STRATA_CACHE_TOOL_BOUNDARY."""
+    env = os.environ if env is None else env
+    try:
+        return max(0, min(2, int(str(env.get("STRATA_CACHE_TOOL_BOUNDARY", "0")).strip() or 0)))
+    except ValueError:
+        return 0
+
+
+def qwen_tool_marks(ids, turn_id, response_id, think_end_id=None, least=TOOL_MARKS_LEAST,
+                    think_least=TOOL_THINK_LEAST) -> list[int]:
+    """The tool boundaries of a Qwen prompt as the template wrote it (sorted positions; [] without any).  A tool
+    result's turn opens `<|im_start|>user\\n<tool_response>`: that <|im_start|> is the tool-call boundary, and the next
+    <|im_start|> (the next assistant turn, or the generation prompt) the tool-result boundary.  With `think_end_id`,
+    also the position right after each </think> of an earlier assistant turn whose thinking is at least `think_least`
+    tokens (the generation prompt's own block is past the last turn and never marked).  The template writes the
+    special tokens itself; the same text inside a message is encoded as text (#537, #2026), so the positions are the
+    template's own.  Positions under `least` are left out."""
+    if turn_id is None or response_id is None or len(ids) < 2:
+        return []
+    turns = [i for i, t in enumerate(ids) if t == turn_id]
+    out = set()
+    for k, i in enumerate(turns):
+        nxt = turns[k + 1] if k + 1 < len(turns) else len(ids)
+        if response_id in ids[i + 1:min(i + 9, nxt)]:   # `user`, `\n`, <tool_response>: a few tokens in
+            out.add(i)
+            if nxt < len(ids):
+                out.add(nxt)
+    if think_end_id is not None and turns:
+        last = turns[-1]
+        for k, i in enumerate(turns[:-1]):
+            for j in range(i + 1, turns[k + 1]):
+                if ids[j] == think_end_id and j + 1 < last:
+                    if j - i >= think_least:
+                        out.add(j + 1)
+                    break
+    return sorted(p for p in out if p >= least)
+
+
 def narrate_start(log_path: str, offset: int, args: list, done: threading.Event, heartbeat=20.0) -> None:
     """While the engine starts, say in the server window what it is doing, from its log: the start reads tens of GB
     into RAM and locks part of it for the GPU, and on many PCs everything is slow or frozen for a minute or more -
@@ -1814,7 +1867,8 @@ class StrataEngine:
             pn = prefix.get("tokens")
             if isinstance(pn, int) and not isinstance(pn, bool) and pn > 0:
                 keys += f" pin={pn}"
-        # restore points (Service.prepare puts them in `_restore`; only the DeepSeek engine gets them)
+        # restore points (Service.prepare puts them in `_restore`: the DeepSeek engine's, and with
+        # STRATA_CACHE_TOOL_BOUNDARY a Qwen prompt's tool boundaries for Strata's own engine - MOD_PLAN 16)
         keys += StrataEngine.restore_keys(sampling)
         # logprobs: the engine writes an `LP` line after each `T` line (an engine without them ignores
         # the key, so an older engine answers exactly as it did).  Absent = no LP lines at all.
@@ -1831,8 +1885,8 @@ class StrataEngine:
     @staticmethod
     def restore_keys(sampling: dict) -> str:
         """`marks=<pos>,...`, `tail=<pos>` and `shared=<pos>`: the DeepSeek engine's restore points for this prompt
-        (Service.prepare puts them in `_restore` with STRATA_DS4_RESTORE_POINTS; no other engine gets them).  "" without:
-        the line as before."""
+        (Service.prepare puts them in `_restore` with STRATA_DS4_RESTORE_POINTS; with STRATA_CACHE_TOOL_BOUNDARY a Qwen
+        prompt's tool boundaries go to Strata's own engine as marks= alone).  "" without: the line as before."""
         pts = sampling.get("_restore")
         if not isinstance(pts, dict):
             return ""
@@ -6388,7 +6442,11 @@ class Service:
         (never a client's own; not with pictures, whose spans the engine reads whole).  The shared start is left to
         strata_prefix (pin=N) where the request has one."""
         req.pop("_restore", None)
-        if self.family != "deepseek41" or has_images:
+        if self.family != "deepseek41":
+            if not has_images:
+                self.set_tool_marks(req, ids)   # MOD_PLAN 16 (STRATA_CACHE_TOOL_BOUNDARY; nothing without it)
+            return
+        if has_images:
             return
         on, tail = restore_point_settings()
         if not on:
@@ -6400,6 +6458,32 @@ class Service:
             pts.pop("shared", None)   # (the system prompt is already the pin's, or STRATA_DS4_RESTORE_SHARED=0: no shared mark)
         if pts:
             req["_restore"] = pts
+
+    def qwen_tool_ids(self):
+        """(<|im_start|>, <tool_response>, </think>) ids of the Qwen template, each None where the vocabulary has no
+        such single token."""
+        got = getattr(self, "_qwen_tool_ids", None)
+        if got is None:
+            def one(text):
+                try:
+                    t = self.tok.encode(text, parse_special=True)
+                except Exception:
+                    return None
+                return int(t[0]) if len(t) == 1 else None
+            got = self._qwen_tool_ids = (one("<|im_start|>"), one("<tool_response>"), one("</think>"))
+        return got
+
+    def set_tool_marks(self, req: dict, ids) -> None:
+        """MOD_PLAN 16 (STRATA_CACHE_TOOL_BOUNDARY): the prompt's tool boundaries as req["_restore"]["marks"] for Strata's
+        own engine (the split engine refuses unknown GEN keys, strata-poly has its own turn_at); the engine decides which
+        of them it checkpoints.  Nothing without the setting: the GEN line as before."""
+        level = tool_boundary_level()
+        if not level or getattr(self.engine, "split_engine", False) or getattr(self.engine, "poly_engine", False):
+            return
+        turn_id, response_id, think_end_id = self.qwen_tool_ids()
+        marks = qwen_tool_marks(ids, turn_id, response_id, think_end_id if level >= 2 else None)
+        if marks:
+            req["_restore"] = {"marks": marks}
 
     @staticmethod
     def deepseek_shared_start(messages) -> int:

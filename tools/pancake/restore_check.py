@@ -12,6 +12,7 @@ point (a partial hit) - and records every greedy answer.  Arm "restore" uses the
 STRATA_CKPT_REREAD=1.  STRATA_SNAPSHOT_VERIFY=1 is set on both (the engine also checks the drafter's snapshot).
 
     python tools/pancake/restore_check.py [--preset flashnext-iq2_xs-hip] [--port 18437] [--max-tokens 48] [--out FILE.json]
+        [--tool-boundary]   # MOD_PLAN 16: both arms with STRATA_CACHE_TOOL_BOUNDARY=1; "tool-retry" resumes at the call
 
 Exit 0 when every turn matches, 1 on a difference, 2 on a setup error.  Needs the GPU for itself: run it only when no
 other engine serves (it refuses when something listens on the port) and outside a benchmark.
@@ -47,10 +48,15 @@ def turns():
               "content": (ROOT / "src/core/mtp.cpp").read_text(errors="replace")[:6000]}
     follow = {"role": "user", "content": "Summarize the min_p handling in two sentences."}
     branch = {"role": "user", "content": "Instead, list three function names you saw."}
+    # MOD_PLAN 16: the same call answered with another result (a retried step).  With STRATA_CACHE_TOOL_BOUNDARY the
+    # engine resumes it at the tool-call boundary checkpoint taken in "after-tool-result" (--tool-boundary)
+    retry = {"role": "tool", "tool_call_id": "c1",
+             "content": (ROOT / "src/core/mtp.cpp").read_text(errors="replace")[6000:9000]}
     return [("first", base),
             ("after-tool-result", base + [call, result]),
             ("follow-up", base + [call, result, {"role": "assistant", "content": "It returns true on success."}, follow]),
-            ("branch-back", base + [call, result, branch])]
+            ("branch-back", base + [call, result, branch]),
+            ("tool-retry", base + [call, retry])]
 
 
 def port_free(port):
@@ -106,6 +112,8 @@ def run_arm(name, env_extra, a):
     cfg_path.write_text(json.dumps({**cfg, "turn_log": None}, indent=1))   # keep the daily turn log clean
     log_out = ROOT / f"restore-check-{name}.log"
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
+    # (STRATA_CACHE_TOOL_BOUNDARY is read by the server too: a config's env reaches only the engine)
+    env.update({k: v for k, v in env_extra.items() if k.startswith("STRATA_CACHE_TOOL_BOUNDARY")})
     with open(log_out, "w") as lf:
         proc = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), str(ROOT / ".venv/bin/python"), "serve/server.py",
                                  "--engine", "strata", "--config", str(cfg_path), "--port", str(a.port)],
@@ -139,12 +147,16 @@ def main():
     ap.add_argument("--port", type=int, default=18437)
     ap.add_argument("--max-tokens", type=int, default=48)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--tool-boundary", action="store_true",
+                    help="MOD_PLAN 16: both arms with STRATA_CACHE_TOOL_BOUNDARY=1 (gap 16, so the short scripted call "
+                         "is checkpointed)")
     a = ap.parse_args()
     if not port_free(a.port):
         print(f"port {a.port} is in use: refusing (one engine at a time on the GPU)", file=sys.stderr)
         return 2
-    restore = run_arm("restore", {}, a)                  # both arms: --adapt-swaps 0 (fixed VRAM expert set)
-    reread = run_arm("reread", {"STRATA_CKPT_REREAD": "1"}, a)
+    tb = {"STRATA_CACHE_TOOL_BOUNDARY": "1", "STRATA_CACHE_TOOL_BOUNDARY_GAP": "16"} if a.tool_boundary else {}
+    restore = run_arm("restore", dict(tb), a)            # both arms: --adapt-swaps 0 (fixed VRAM expert set)
+    reread = run_arm("reread", {"STRATA_CKPT_REREAD": "1", **tb}, a)
     if restore is None or reread is None:
         return 2
     diffs = []
