@@ -209,6 +209,60 @@ void arena() {
     }
     check(exact, "every blob is [gate | up | down] of its expert, layer 1 from both files");
 
+#if defined(__linux__)
+    {   // MOD_PLAN 38: the Linux direct (O_DIRECT) load gives the same bytes as the buffered one, packed and padded;
+        // a refused direct read falls back to the buffered read of every byte.  On tmpfs O_DIRECT is refused at open,
+        // so the direct path reads buffered + DONTNEED; TMPDIR on a disk filesystem exercises real O_DIRECT.
+        ::unsetenv("STRATA_LOAD_DONTNEED");
+        std::vector<uint8_t> dd((size_t) L.total, 0x5A);
+        const strata::core::LoadStats sd = strata::core::load_experts_gguf(A.string(), dd.data(), L, 4, /*unbuffered=*/true);
+        std::printf("  (direct load mode: %s)\n", sd.mode.c_str());
+        check(sd.ok && sd.bytes == L.total && sd.mode.rfind("direct", 0) == 0 && dd == dst,
+              "load_experts_gguf unbuffered (Linux direct) = buffered, byte for byte");
+        ::setenv("STRATA_DIRECT_LOAD_FAULT", "1", 1);
+        std::vector<uint8_t> df((size_t) L.total, 0xA5);
+        const strata::core::LoadStats sf = strata::core::load_experts_gguf(A.string(), df.data(), L, 4, true);
+        ::unsetenv("STRATA_DIRECT_LOAD_FAULT");
+        check(sf.ok && sf.mode == "buffered+dontneed" && df == dst,
+              "a short direct read falls back to the buffered read (+DONTNEED), byte for byte");
+        // the padded layout of pin by need (page-aligned blob stride): buffered and direct agree, and with the packed arena
+        strata::core::PadMap pm;
+        uint64_t at = 0;
+        for (int64_t l = 0; l < 2; ++l) {
+            const uint64_t b = L.blob_bytes(l), s = (b + 4095) & ~(uint64_t) 4095;
+            pm.dst_off.push_back(at);
+            pm.blob.push_back(b);
+            pm.stride.push_back(s);
+            at += s * (uint64_t) NE;
+        }
+        pm.total = at;
+        std::vector<uint8_t> pb((size_t) pm.total, 0x11), pd((size_t) pm.total, 0x22);
+        const auto sb = strata::core::load_experts_gguf(A.string(), pb.data(), L, 3, false, nullptr, &pm);
+        const auto sp = strata::core::load_experts_gguf(A.string(), pd.data(), L, 16, true, nullptr, &pm);
+        bool padded_same = sb.ok && sp.ok;
+        for (int64_t l = 0; l < 2 && padded_same; ++l)
+            for (int64_t e = 0; e < NE && padded_same; ++e)
+                padded_same = std::memcmp(pd.data() + pm.blob_off(l, e), pb.data() + pm.blob_off(l, e), (size_t) L.blob_bytes(l)) == 0 &&
+                              std::memcmp(pd.data() + pm.blob_off(l, e), dst.data() + L.blob_offset(l, e), (size_t) L.blob_bytes(l)) == 0;
+        check(padded_same, "padded layout: direct (16 readers) = buffered = packed arena, blob for blob");
+        // the buffered stop-gap on the experts.bin reader: same bytes with POSIX_FADV_DONTNEED after each chunk
+        const fs::path eb = d.path / "experts-ranges.bin";
+        {
+            std::ofstream o(eb, std::ios::binary);
+            o.write((const char*) dst.data(), (std::streamsize) dst.size());
+        }
+        std::vector<uint64_t> loff, lbytes;
+        for (int64_t l = 0; l < 2; ++l) {
+            loff.push_back(L.blob_offset(l, 0));
+            lbytes.push_back(L.blob_bytes(l) * (uint64_t) NE);
+        }
+        std::vector<uint8_t> dr((size_t) L.total, 0x33);
+        const auto sr = strata::core::load_experts_ranges(eb.string(), dr.data(), loff, lbytes, 2, 1u << 20, nullptr,
+                                                          nullptr, /*drop_cache=*/true);
+        check(sr.ok && sr.mode == "buffered+dontneed" && dr == dst, "load_experts_ranges with DONTNEED: same bytes");
+    }
+#endif
+
     {   // CS-T: the same blobs from FileExpertSource reading the shards in place (no experts.bin in the pack)
         strata::core::FileExpertSource fs;
         fs.set_gguf(A.string());

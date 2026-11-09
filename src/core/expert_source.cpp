@@ -14,6 +14,7 @@
 #include "strata/artifact/gguf_reader.hpp"
 
 #include "strata/core/pinned.hpp"
+#include "strata/platform/direct_io.hpp"
 #include "strata/platform/memory.hpp"
 #include "strata/kernels/elementwise.hpp"
 #include "strata/kernels/quantize_act.hpp"
@@ -5798,6 +5799,154 @@ bool check_experts_gguf(const std::string& gguf, const strata::kernels::cpu::Exp
     }
 }
 
+#if defined(__linux__)
+namespace {
+// MOD_PLAN 38: the Linux twin of load_experts_gguf's Windows unbuffered branch.  Per thread: one descriptor with
+// O_DIRECT (platform::open_read_try_direct; a filesystem that refuses it keeps a buffered descriptor, whose chunks are
+// then dropped from the page cache), one 4 KiB-aligned bounce buffer; each chunk's 4 KiB-aligned window is read with
+// pread (EINTR retried; an EINVAL on a direct descriptor clears O_DIRECT and reads it again) and scattered into the
+// blobs exactly as the buffered path does.  Any short read fails the whole call (ok = false, nothing promised about
+// `dst`): the caller reads every byte again buffered, so no arena is ever partly direct and partly missing.
+// STRATA_DIRECT_LOAD_FAULT=1 (tests) fakes a short first read.
+LoadStats load_experts_gguf_direct_linux(const std::string& gguf, uint8_t* dst,
+                                         const strata::kernels::cpu::ExpertLayout& lay, int threads,
+                                         const std::atomic<int>* ready, const PadMap* pad) {
+    auto dst_blob = [&lay, pad](int64_t l, int64_t e) -> uint64_t {
+        return pad != nullptr ? pad->blob_off(l, e) : lay.blob_offset(l, e);
+    };
+    auto wait_ready = [ready](int64_t l) {
+        if (ready != nullptr)
+            while (ready->load(std::memory_order_acquire) <= l + 1) std::this_thread::yield();
+    };
+    LoadStats st;
+    st.layers = (uint64_t) lay.n_layers;
+    const auto t0 = std::chrono::steady_clock::now();
+    std::atomic<int64_t> next{0};
+    std::atomic<bool> bad{false};
+    std::atomic<int> buffered_fds{0}, direct_fds{0};
+    std::atomic<uint64_t> read_ns_sum{0}, copy_ns_sum{0};
+    const char* fault_env = std::getenv("STRATA_DIRECT_LOAD_FAULT");
+    const bool fault = fault_env != nullptr && fault_env[0] == '1';
+    uint64_t max_chunk = 0;
+    for (int64_t l = 0; l < lay.n_layers; ++l) {
+        const auto& fm = lay.fmt[(size_t) l];
+        max_chunk = std::max<uint64_t>(max_chunk, std::max<uint64_t>(fm.up_off, lay.bytes[(size_t) l] - fm.down_off) * 16);
+    }
+    std::mutex err_mu;
+    std::string err;
+    auto worker = [&]() {
+        constexpr uint64_t kSector = 4096;
+        const uint64_t cap = (max_chunk + 2 * kSector + kSector - 1) / kSector * kSector;
+        void* mem = nullptr;
+        uint8_t* buf = posix_memalign(&mem, (size_t) kSector, (size_t) cap) == 0 ? (uint8_t*) mem : nullptr;
+        int fd = -1;
+        bool direct = false;
+        std::string open_name;
+        uint64_t read_ns = 0, copy_ns = 0;
+        auto fail = [&](const std::string& what) {
+            std::lock_guard<std::mutex> g(err_mu);
+            if (err.empty()) err = what;
+            bad = true;
+        };
+        if (buf == nullptr) fail("cannot allocate a read buffer");
+        for (;;) {
+            const int64_t l = next.fetch_add(1);
+            if (l >= lay.n_layers || bad) break;
+            wait_ready(l);
+            const auto& fm = lay.fmt[(size_t) l];
+            const uint64_t blob = lay.bytes[(size_t) l];
+            const uint64_t per[3] = {fm.up_off, fm.up_off, blob - fm.down_off};
+            const uint64_t at[3] = {0, fm.up_off, fm.down_off};
+            for (int r = 0; r < 3 && !bad; ++r) {
+                // the descriptor is kept while consecutive roles share a file (every layer of a v3 pack)
+                const std::string name = expert_gguf_file(gguf, lay, l, r);
+                if (name != open_name) {
+                    if (fd >= 0) ::close(fd);
+                    fd = strata::platform::open_read_try_direct(name.c_str(), direct);
+                    if (fd < 0) {
+                        fail("cannot open " + name + ": " + std::strerror(errno));
+                        break;
+                    }
+                    ++(direct ? direct_fds : buffered_fds);
+                    if (!direct) ::posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+                    open_name = name;
+                }
+                const uint64_t src = lay.gguf_off[(size_t) (3 * l + r)];
+                const uint64_t total = per[r] * (uint64_t) lay.n_expert;
+                const uint64_t chunk = per[r] * 16;           // 16 experts per read
+                for (uint64_t done = 0; done < total; done += chunk) {
+                    const uint64_t n = std::min<uint64_t>(chunk, total - done);
+                    const uint64_t a0 = (src + done) / kSector * kSector;
+                    const uint64_t a1 = (src + done + n + kSector - 1) / kSector * kSector;
+                    const uint64_t want = a1 - a0;
+                    const auto t_read = std::chrono::steady_clock::now();
+                    uint64_t got = 0;
+                    int read_errno = 0;
+                    while (got < want) {
+                        const ssize_t k = ::pread(fd, buf + got, (size_t) (want - got), (off_t) (a0 + got));
+                        if (k < 0 && errno == EINTR) continue;
+                        if (k < 0 && errno == EINVAL && direct && strata::platform::leave_direct(fd)) {
+                            direct = false;   // a transfer this filesystem refuses direct: nothing was read, go buffered
+                            --direct_fds;
+                            ++buffered_fds;
+                            continue;
+                        }
+                        if (k < 0) read_errno = errno;
+                        if (k <= 0) break;    // EOF (the window may run past the end of the file) or an error
+                        got += (uint64_t) k;
+                    }
+                    read_ns += (uint64_t) std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                   std::chrono::steady_clock::now() - t_read).count();
+                    if (fault && l == 0 && r == 0 && done == 0) got = 0;
+                    // only the tensor's own bytes have to arrive
+                    if (got < src + done - a0 + n) {
+                        fail("short direct read of layer " + std::to_string(l) + " in " + name + " at byte " +
+                             std::to_string(src + done) + ": " + std::to_string(got) + " of " + std::to_string(want) +
+                             " B" + (read_errno != 0 ? std::string(" (") + std::strerror(read_errno) + ")" : std::string()));
+                        break;
+                    }
+                    if (!direct) ::posix_fadvise(fd, (off_t) a0, (off_t) want, POSIX_FADV_DONTNEED);
+                    const auto t_copy = std::chrono::steady_clock::now();
+                    const uint8_t* q = buf + (src + done - a0);
+                    for (uint64_t k = 0; k < n / per[r]; ++k) {
+                        const uint64_t e = done / per[r] + k;
+                        std::memcpy(dst + dst_blob(l, (int64_t) e) + at[r], q + k * per[r], (size_t) per[r]);
+                    }
+                    copy_ns += (uint64_t) std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                   std::chrono::steady_clock::now() - t_copy).count();
+                }
+            }
+        }
+        if (fd >= 0) ::close(fd);
+        std::free(buf);
+        read_ns_sum.fetch_add(read_ns);
+        copy_ns_sum.fetch_add(copy_ns);
+    };
+    if (threads < 1) threads = 1;
+    std::vector<std::thread> pool;
+    for (int i = 1; i < threads; ++i) pool.emplace_back(worker);
+    worker();
+    for (auto& t : pool) t.join();
+    st.read_seconds = (double) read_ns_sum.load() / 1e9;
+    st.copy_seconds = (double) copy_ns_sum.load() / 1e9;
+    st.mode = buffered_fds.load() == 0
+        ? std::string("direct (O_DIRECT)")
+        : "direct, " + std::to_string(buffered_fds.load()) + " of " +
+              std::to_string(direct_fds.load() + buffered_fds.load()) +
+              " descriptors buffered+dontneed (O_DIRECT refused)";
+    if (bad) {
+        st.seconds = -1.0;
+        st.ok = false;
+        st.error = err.empty() ? "unreadable shard while reading the experts from the GGUF" : err;
+        return st;
+    }
+    st.bytes = lay.total;
+    st.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    return st;
+}
+}  // namespace
+#endif
+
 // Plan v0.3 P6: the arena from the model's GGUF shards.  Each layer's gate, up and down tensors hold the 512
 // experts one after another; they are read in chunks and each expert's slice lands at its place in the blob
 // [gate rows | up rows | down rows] - the layout tools/iq_pack.py would have written to experts.bin.  Each role
@@ -5906,11 +6055,26 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
             return st;
         }
         st.bytes = lay.total;
+        st.mode = "unbuffered";
         st.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         return st;
     }
+#elif defined(__linux__)
+    if (unbuffered) {   // MOD_PLAN 38: O_DIRECT; a refused direct read is read again in full by the buffered path below
+        LoadStats d = load_experts_gguf_direct_linux(gguf, dst, lay, threads, ready, pad);
+        if (d.ok) return d;
+        std::fprintf(stderr, "load_experts_gguf: the direct read was refused (%s); reading the experts buffered\n",
+                     d.error.c_str());
+    }
 #else
     (void) unbuffered;
+#endif
+    // MOD_PLAN 38 stop-gap: drop each chunk from the page cache when the cache could not keep the experts anyway
+    // (`unbuffered` asked, the direct read refused); STRATA_LOAD_DONTNEED=1 / 0 forces it
+#if defined(__linux__)
+    const bool drop_cache = load_drop_cache(unbuffered);
+#else
+    const bool drop_cache = false;
 #endif
     auto worker = [&]() {
         // #230: `fread` on a `FILE*`, as load_experts_ranges (#89): MSVC's `std::ifstream::read` splits a request
@@ -5949,6 +6113,9 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
                     // 64-bit seek: a shard is tens of GB
                     if (STRATA_FSEEK64(f, src + done) != 0) { bad = true; return; }
                     if (std::fread(buf.data(), 1, (size_t) n, f) != (size_t) n) { bad = true; return; }
+#if defined(__linux__)
+                    if (drop_cache) ::posix_fadvise(fileno(f), (off_t) (src + done), (off_t) n, POSIX_FADV_DONTNEED);
+#endif
                     for (uint64_t k = 0; k < n / per[r]; ++k) {
                         const uint64_t e = done / per[r] + k;
                         std::memcpy(dst + dst_blob(l, (int64_t) e) + at[r], buf.data() + k * per[r], (size_t) per[r]);
@@ -5961,6 +6128,7 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
     for (int i = 1; i < threads; ++i) pool.emplace_back(worker);
     worker();
     for (auto& t : pool) t.join();
+    st.mode = drop_cache ? "buffered+dontneed" : "buffered";
     if (bad) {
         st.seconds = -1.0;
         st.ok = false;
@@ -6236,11 +6404,13 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
 #else
     const bool deferred = false;
 #endif
+    const auto t_register = std::chrono::steady_clock::now();
     PinnedArena* a = by_need ? new PinnedArena(arena_bytes + (uint64_t) blob, PinnedArena::ByNeed{}, need_ranges,
                                                max_pinned_bytes, shared_arena_file, pack_hash)
                    : deferred ? new PinnedArena(want + (uint64_t) blob, bounds, PinnedArena::Deferred{})
                               : new PinnedArena(want + (uint64_t) blob, bounds, max_pinned_bytes,
                                                 shared_arena_file, pack_hash);
+    const double register_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_register).count();
     if (!a->valid()) {
         const std::string why = a->note;
         delete a;
@@ -6264,6 +6434,7 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
     std::string why;
     const bool unbuffered = experts_unbuffered(files, want + (uint64_t) blob, why);
     const int readers = unbuffered ? std::max(threads, 16) : threads;   // 16 keep a PCIe 5 drive's queue full
+    int load_threads = readers;
     LoadStats st;
     // A shared arena (--shared-expert-arena, the replicas): ONE engine reads the experts into it, the others wait and skip the
     // read.  The state word in the file's header says who: 0 nobody, a pid loading, ~0 filled.  An engine that finds a
@@ -6322,12 +6493,20 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
         st = load_experts_gguf(gguf_, a->data(), lay, readers, unbuffered, rp, padded_ ? &pad_ : nullptr);
     } else {
         if (unbuffered && !padded_) st = load_experts_direct(path, a->data(), loff, lbytes, readers, /*chunk=*/8u << 20, rp);
-        if (!unbuffered || padded_ || (!st.ok && st.error.empty()))   // unaligned ranges / the padded layout: the buffered reader
-            st = load_experts_ranges(path, a->data(), loff, lbytes, threads, /*chunk=*/8u << 20, rp, padded_ ? &pad_ : nullptr);
+        if (!unbuffered || padded_ || (!st.ok && st.error.empty())) {   // unaligned ranges / the padded layout: the buffered reader
+            load_threads = threads;
+            st = load_experts_ranges(path, a->data(), loff, lbytes, threads, /*chunk=*/8u << 20, rp, padded_ ? &pad_ : nullptr,
+                                     /*drop_cache=*/unbuffered);
+        }
     }
     if (reg.joinable()) reg.join();
     std::fprintf(stderr, "strata generate: expert arena read %s (%s)\n", unbuffered ? "unbuffered" : "through the file cache",
                  why.c_str());
+    if (!arena_skip)   // MOD_PLAN 38: which loader ran, how fast, and what the registration before it cost
+        std::fprintf(stderr, "strata generate: expert arena load: mode %s, %d threads, %.2f GiB in %.2f s (%.2f GiB/s); "
+                             "arena reserved/registered/pinned in %.2f s before the read\n",
+                     st.mode.empty() ? "?" : st.mode.c_str(), load_threads, (double) st.bytes / (1ull << 30),
+                     st.seconds, st.gib_per_second(), register_s);
     if (!st.ok) {
         if (arena_leader) arena_state->store(0, std::memory_order_release);   // (somebody else may try)
         delete a;
