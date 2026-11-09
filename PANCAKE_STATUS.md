@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 16:20
+Last update: 2026-11-09 16:50
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -35,6 +35,10 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | P4 | GPU floor: kernel fusion, window-edge host stalls, parameter sweep | 32, 37 | 1-5% each | GPU profile done; code not started | 10% | 0% |
 | P4 | --mtp-q4 draft head | phase 11 | draft cost | flag exists | 100% | 0% |
 | Ph14 | Application end to end (agent-session timeline, idle-time use, server -> engine turn info) | 14 | per-turn time | after phase 13 | 0% | 0% |
-| Ph14 | New processes: A/B harness, quality-gate process, self-tuning, regression watch | 14 | - | queue scripts exist in the scratchpad; repo tool not started | 10% | 0% |
+| Ph14 | A/B harness with quiet-machine gate + noise monitor (tools/pancake/abtest.py) | 14 | clean numbers | built (f21cc86a1) | 100% | 0% |
+| Ph14 | Quality gate as a process (tools/pancake/quality_gate.py, token forcing per lossy arm) | 14 | - | built (c7c44f2d0) | 100% | 0% |
+| Ph14 | Regression watch (tools/pancake/regression_watch.py) | 14 | - | built (c7c44f2d0) | 100% | 0% |
+| Ph14 | Self-tuning from own sessions (traces -> profiles -> simulator -> A/B) | 14 | - | pieces exist (dump-routing, learn_profile, time_ceiling); pipeline not built | 20% | 0% |
+| Ph14 | Diagnostic: decode speed along a reply (tools/pancake/decode_curve.py) | 2 | - | built, used to close item 2 | 100% | - |
 
-Development order from here: P1b simulator policies (27, 30) -> P4 GPU fusions -> phase 14 tools (A/B harness, regression watch).  Then the test phase.
+Development order from here: P1b simulator policies (27, 30) -> P4 GPU fusions -> phase 14 self-tuning pipeline + agent-session timeline.  Then the test phase (abtest.py + quality_gate.py).
