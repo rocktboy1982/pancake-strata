@@ -49,6 +49,7 @@ Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 30
 | **Expert cache admission (RX 7900 XT)** | first-miss LRU churn | **admit on the k-th miss** (`kmiss_tier.hpp`, `STRATA_ADAPT_KMISS`, items 14/27/30): a miss is promoted the second time it is needed, with Belady- and frequency-aware admission, instead of churning the tier on every first miss; the time-ceiling simulator prices online 2nd-miss admission at +5-16% of CPU-expert time saved on code edits (oracle ceiling +27-48%), model, A/B queued |
 | **PCIe split and decode tuning (RX 7900 XT)** | stock PcieAuto share | `--pcie-frac 0` and the tuned `*-hip` presets: +6% short chat (111.7 -> 118.4 tok/s) and +13% code edits (92.5 -> 104.3 tok/s) measured on the RX 7900 XT; the `turbo-hip` preset adds +30-50% decode (111.7 -> 149-168 tok/s), lossy (2.9% token disagreement), quality gate pending |
 | **Flash-Next expert routing** | - | GPU router lookahead on by default (CPU router cost 30 -> 0.6 ms a window, +10% decode on mmap'd experts) and a learned expert profile in the IQ2_XS presets (+6.7% decode, every run faster) |
+| **CPU decode window (verify/CPU files)** | - | **landed exact** (c44b1ad7b, 7bcb77d5e): `STRATA_WAIT_FUSE` with the in-kernel `waitCPU` stamp (item 49), software prefetch in the Q2_0 row kernel (item 40), the lazy trailing park (the final `wait_parked` barrier out of `run_phase`), a dispatch sub-timer, and `getenv` out of the hot paths |
 | **Measurement tooling** | bench harness | **20 tools under `tools/pancake/`**: rocprofv3 kernel profiling (`gpu_profile.py`), the time-budget ceiling simulator (`time_ceiling.py`), paired load-gated A/B (`abtest.py`), token-forcing quality gates (`quality_gate.py`), regression watch (`regression_watch.py`), decode-curve diagnostics (`decode_curve.py`), Belady ceiling replays (`belady_ceiling.py`), expert-routing traces (`conv_trace.py`) |
 | **Server** | - | sends `turn_at` to `strata-poly`, so a chat's next turn resumes from the cache |
 | **Agent robustness** | #606 one-token stop, opt-in #728 | **Project Maya's loop guard** (MIT): exact loops broken as they start (drop + short penalty, close the thinking, stop), repeated tool calls noted then blocked, on by default; tool calls that do not parse never fail or swallow the answer; opt-in soft thinking-budget close at a sentence end |
@@ -127,13 +128,13 @@ Qwen3.6-35B-A3B on `strata-poly` (below) remains available and is faster (100-15
 
 ## Research and plan
 
-- **Plan:** [MOD_PLAN.md](MOD_PLAN.md), items 1-73 across phases 0-14. Phase 11 (RX 7900 XT) holds the research index
+- **Plan:** [MOD_PLAN.md](MOD_PLAN.md), items 1-95b across phases 0-14. Phase 11 (RX 7900 XT) holds the research index
   (one row per report, what each gave the plan) and items 13-62; the development plan is ordered by measured gain
   (phase 13, Tiers A-D, substitute groups S1-S7, combined items 63-73); the **not-adopted ledger** (section
   "Not adopted (ledger, 2026-11-09)") records everything looked at and not taken, with the reason and a reopen trigger.
 - **Status:** [PANCAKE_STATUS.md](PANCAKE_STATUS.md), one row per item: how much of the code exists and builds (Dev)
   and how far it is from decided (Test), ordered by phase 13's expected gain.
-- **Reports** ([reports/](reports/), 14, copies of the owner's research series; most are in Romanian):
+- **Reports** ([reports/](reports/), 15, copies of the owner's research series; most are in Romanian):
   - Engine and platform: [Pancake MoE engine speedup](reports/Pancake%20MoE%20engine%20speedup.md),
     [LLM runtime architectures 2026](reports/LLM%20runtime%20architectures%202026.md),
     [pain points and solutions](reports/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii.md),
@@ -141,6 +142,8 @@ Qwen3.6-35B-A3B on `strata-poly` (below) remains available and is faster (100-15
     [hardware data path](reports/Tehnologii%20drum%20de%20date%20hardware.md) and
     [consumer platform capabilities](reports/Capabilit%C4%83%C8%9Bi%20platforme%20consumer.md).
   - Upstream survey: [Avalon upgrades from upstream projects](reports/Avalon%20upgrades%20from%20upstream%20projects.md).
+  - Code study: [Pancake cod deep research](reports/Pancake%20cod%20deep%20research.md), the code-level study of where
+    decode, prefill, model loading and the server lose time (items 74-95b, no wrong output found, one functional bug).
   - University papers, seven sweeps: [Stanford](reports/Lucr%C4%83ri%20Stanford%20utile%20pentru%20Avalon.md),
     [MIT/Harvard](reports/Lucr%C4%83ri%20MIT%20Harvard%20pentru%20Avalon.md),
     [rest of the US](reports/Lucr%C4%83ri%20universit%C4%83%C8%9Bi%20SUA%20pentru%20Avalon.md),
@@ -156,7 +159,12 @@ Qwen3.6-35B-A3B on `strata-poly` (below) remains available and is faster (100-15
   [rdna3_gpu_decode](research_notes/Pancake%20MoE%20engine%20speedup/rdna3_gpu_decode.md),
   [transfer_and_kv](research_notes/Pancake%20MoE%20engine%20speedup/transfer_and_kv.md)); the pain-point notes
   ([engine](research_notes/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii/engine.md),
-  [server_agent_ops](research_notes/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii/server_agent_ops.md)); and eleven
+  [server_agent_ops](research_notes/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii/server_agent_ops.md)); the code-study
+  notes ([decode_path](research_notes/Pancake%20cod%20deep%20research/decode_path.md),
+  [memory_cache](research_notes/Pancake%20cod%20deep%20research/memory_cache.md),
+  [prefill_path](research_notes/Pancake%20cod%20deep%20research/prefill_path.md),
+  [server_agent](research_notes/Pancake%20cod%20deep%20research/server_agent.md) and
+  [structure_build](research_notes/Pancake%20cod%20deep%20research/structure_build.md)); and eleven
   further folders, one per report above.
 - **What changed in our understanding** (measured vs estimated, with files):
   [docs/PANCAKE_FINDINGS.md section 13](docs/PANCAKE_FINDINGS.md#13-research-series-2026-11-09). In short: a code-edit
