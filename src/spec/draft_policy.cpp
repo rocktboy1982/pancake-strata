@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 
 namespace strata::spec {
 namespace {
@@ -85,6 +86,23 @@ void DraftPolicy::seed_costs(const double* ms, int n, double weight, int bucket)
             cost_[bucket][t] = ms[t - 1];
             cost_n_[bucket][t] = weight;
         }
+}
+
+int DraftPolicy::seed_costs_table(const char* tab, double weight) {
+    if (tab == nullptr || tab[0] == '\0') return 0;
+    double ms[kMaxT] = {};
+    int n = 0, bucket = 0;
+    for (const char* q = tab; *q != '\0' && bucket < kCtxBuckets;) {
+        if (n < kMaxT) ms[n++] = std::atof(q);
+        while (*q != '\0' && *q != ',' && *q != ';') ++q;
+        const bool end_list = *q == ';' || *q == '\0';
+        if (*q != '\0') ++q;
+        if (end_list) {
+            seed_costs(ms, n, weight, bucket++);
+            n = 0;
+        }
+    }
+    return bucket;
 }
 
 void DraftPolicy::set_context(long long pos) {

@@ -74,6 +74,10 @@ public:
     /// A per-card row-cost table (round ms of the windows of 1..n rows, the draft included) counted as `weight` earlier rounds each:
     /// the start of a process that already knows the card (STRATA_SPEC_COST_TABLE; tuning time), replaced by what it then measures.
     void seed_costs(const double* ms, int n, double weight, int bucket = 0);
+    /// MOD_PLAN item 43: seed_costs from a table "T1,T2,..;T1,T2,..;T1,.." (row costs in ms of window sizes 1.. for the
+    /// context buckets < 6K, < 24K, longer; one list seeds the first) - STRATA_SPEC_COST_TABLE, written by
+    /// tools/pancake/trace/draft_costs.py from window traces.  Returns the buckets seeded.
+    int seed_costs_table(const char* table, double weight);
     /// STRATA_SPEC_COST: the context position of the next round; selects the row-cost table of its length (a row of attention costs
     /// more at 16K than at 1K).  A bucket with no measurement yet starts from the nearest one that has.  A no-op without set_robust(true).
     void set_context(long long pos);

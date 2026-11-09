@@ -14180,6 +14180,9 @@ int main(int argc, char** argv) {
         const bool spec_cost = [] { const char* v = std::getenv("STRATA_SPEC_COST"); return v != nullptr && v[0] == '1'; }();   // cost-aware MTP window (A/B arm)
         strata::spec::DraftPolicy::ChainState chain_st;
         int chain_rows = 1;   // the window the cost-aware rule kept in the MTP chain just drafted
+        // item 43: the serve loop takes the measured-cost table too (STRATA_SPEC_COST_TABLE, from window traces)
+        if (spec_cost && policy.seed_costs_table(std::getenv("STRATA_SPEC_COST_TABLE"), 6.0) > 0)
+            std::fprintf(stderr, "strata serve: STRATA_SPEC_COST_TABLE seeds the draft window costs\n");
         policy.set_robust(spec_cost);
         if (spec_cost && use_mtp)
             mtp.set_chain_rule([&](int idx, float pj) {
@@ -20970,21 +20973,7 @@ int main(int argc, char** argv) {
         auto source_policy = policy;   // this generation's: committed outcomes only (observe_committed)
         strata::spec::DraftPolicy::ChainState chain_st;
         int chain_rows = 1;   // STRATA_SPEC_COST: the window the cost-aware rule kept in the MTP chain just drafted
-        if (const char* tab = std::getenv("STRATA_SPEC_COST_TABLE"); spec_cost && tab != nullptr && tab[0] != '\0') {
-            // "T1,T2,..;T1,T2,..;T1,..": the row costs of the 3 context buckets (< 6K, < 24K, longer); one list seeds the first
-            double ms[strata::spec::DraftPolicy::kMaxT] = {};
-            int n = 0, bucket = 0;
-            for (const char* q = tab; *q != '\0' && bucket < strata::spec::DraftPolicy::kCtxBuckets;) {
-                if (n < strata::spec::DraftPolicy::kMaxT) ms[n++] = std::atof(q);
-                while (*q != '\0' && *q != ',' && *q != ';') ++q;
-                const bool end_list = *q == ';' || *q == '\0';
-                if (*q != '\0') ++q;
-                if (end_list) {
-                    policy.seed_costs(ms, n, 6.0, bucket++);
-                    n = 0;
-                }
-            }
-        }
+        if (spec_cost) policy.seed_costs_table(std::getenv("STRATA_SPEC_COST_TABLE"), 6.0);   // (draft_policy.hpp)
         policy.set_robust(spec_cost);
         if (spec_cost && use_mtp)
             mtp.set_chain_rule([&](int idx, float pj) {
