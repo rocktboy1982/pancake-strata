@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 17:15
+Last update: 2026-11-09 17:55
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -15,7 +15,7 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | P1a | Deferral rank guard (STRATA_VERIFY_DEFER_CPU_TOP) | 28 | lossy-small, keeps quality | coded in host pool + GPU copy, builds, probe clean | 100% | 5% |
 | P1b | Expert cache judged in ms (simulator) | 14 | decides the policy | tools/pancake/time_ceiling.py: oracle +27..48%, online 2nd-miss +5..16% (code edits, model) | 100% | - |
 | P1b | More swaps per window (existing --adapt-swaps) | 14 | +4..9% code edit (model) | nothing to build | 100% | 0% |
-| P1b | Admit on k-th miss in W windows (new, STRATA_ADAPT_KMISS) | 14 | +5..16% code edit (model) | coded, builds (b5f1842f0) | 100% | 0% |
+| P1b | Admit on k-th miss in W windows (new, STRATA_ADAPT_KMISS) | 14 | +5..16% serial, +45..52% with deferral (model) | in both tiers (kmiss_tier.hpp); must run with --adapt-async 1: the blocking tier stalls the GPU ~5.6 ms per swap round (profile) | 100% | 0% |
 | closed | Predictor recall / candidate policies | 27, 30 | - | lookahead recall 19-21% of misses (measured): predicted promotions do not pay; 27 covered by kmiss + conversation seeds | 100% | 100% |
 | P1b | Simulator: per-layer GPU/CPU overlap model (--overlap) | 14 | decides 8/28/29 | built: code edit deferral +33%, deferral + kmiss 2/8 +45..52%, item 29 +3% (model, alpha 0.25-0.5) | 100% | - |
 | closed | CPU sparsity masks (Berkeley gate mask, TEAL, CATS) | 13 | +10-20%, lossy | REJECTED offline: at 70% sparsity gate mask cos 0.84 (~54% error), oracle 0.95; experts are dense -> no sparse kernel (bench/results/2026-11-09-sparsity) | 100% | 100% |
@@ -32,7 +32,7 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | P3a | Restore test, preserve_thinking, tool-boundary checkpoints | 35, 31, 16 | seconds per turn | other session (dan-b5) | - | - |
 | closed | Decode speed kept after long prompts | 2 | - | NOT the refill: same reply after a 13.8K prompt decodes as fast as after 2K (tools/pancake/decode_curve.py); the drop is prose content + cache warm-up -> items 3-4, 14 | 100% | 100% |
 | P3c | Effort defaults, learned thinking stop | 12, 21, 33, 34 | tens of s per turn | other session (dan-b5) | - | - |
-| P4 | GPU floor: kernel fusion, window-edge host stalls, parameter sweep | 32, 37 | 1-5% each | GPU profile done; code not started | 10% | 0% |
+| P4 | GPU floor: kernel fusion, window-edge host stalls, parameter sweep | 32, 37 | 1-5% each | deferral profile: GPU still waits for the CPU 31% of kernel time -> fusions wait; the real host stall is the blocking tier's swaps (-> --adapt-async) ; tools/pancake/gpu_profile.py built | 20% | 0% |
 | P4 | --mtp-q4 draft head | phase 11 | draft cost | flag exists | 100% | 0% |
 | Ph14 | Application end to end (agent-session timeline, idle-time use, server -> engine turn info) | 14 | per-turn time | after phase 13 | 0% | 0% |
 | Ph14 | A/B harness with quiet-machine gate + noise monitor (tools/pancake/abtest.py) | 14 | clean numbers | built (f21cc86a1) | 100% | 0% |
@@ -41,4 +41,8 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | Ph14 | Self-tuning from own sessions (traces -> profiles -> simulator -> A/B) | 14 | - | pieces exist (dump-routing, learn_profile, time_ceiling); pipeline not built | 20% | 0% |
 | Ph14 | Diagnostic: decode speed along a reply (tools/pancake/decode_curve.py) | 2 | - | built, used to close item 2 | 100% | - |
 
-Development order from here: P4 GPU fusions -> phase 14 self-tuning pipeline + agent-session timeline.  Then the test phase (abtest.py + quality_gate.py).
+Development order from here: phase 14 self-tuning pipeline + agent-session timeline -> P4 GPU fusions (after deferral
+shifts the bottleneck).  Then the test phase (abtest.py + quality_gate.py), in this order: deferral (+ rank guard),
+--adapt-async 1 with and without STRATA_ADAPT_KMISS=2,8, item 29, small-flags stack, hipBLASLt / lookup 12 retest,
+turbo + depth prior quality gate, seeds (multi-turn), turn-boundary checkpoints, --mtp-q4.  Ask the other sessions to stop
+GPU/CPU jobs first.
