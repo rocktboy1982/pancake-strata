@@ -620,6 +620,15 @@ int selftest(const std::string& dir, uint32_t rb) {
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
         CHECK(rd.snapshot().keepalive_reads == 0, "keep-alive without the worker thread");
     }
+    {   // basalt edd09ff3f: a re-open that opens the file but fails the size check must not wait forever in close()
+        // for reads of the previous open (close() kept max_inflight, so its drain loop waited on slots never in use)
+        ng::PleReader rd;
+        std::string err;
+        CHECK(rd.open(path, HEADER, N, 16, 0, err, true, rb), "open: %s", err.c_str());
+        rd.close();
+        CHECK(!rd.open(path, HEADER, N * 1000, 16, 0, err, true, rb), "a table past the end of the file opened");
+        rd.close();                                        // returned (the hang is a test timeout)
+    }
     std::filesystem::remove(path);
     std::printf("ple_reader selftest (row_bytes=%u): %s\n", rb, g_fail ? "FAILED" : "OK");
     return g_fail ? 1 : 0;

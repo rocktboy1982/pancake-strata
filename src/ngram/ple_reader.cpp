@@ -418,6 +418,7 @@ void PleReader::close() {
     m.delayed.clear();
     m.inflight.clear();
     m.free_slots.clear();
+    m.max_inflight = 0;   // a later open that fails before its reads are set up has none to drain (basalt edd09ff3f)
     m.cache.init(0);
     m.threaded = false;
     m.stop = false;
