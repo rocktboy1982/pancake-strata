@@ -18,6 +18,11 @@
    "env": {
     "STRATA_MTP_HIP_PRIO": "1"
    }
+  },
+  "mtp-eager": {
+   "env": {
+    "STRATA_MTP_EAGER": "1"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",
@@ -27,5 +32,5 @@
   "long"
  ],
  "reps": 3,
- "lossy": false
+ "lossy": true
 }
