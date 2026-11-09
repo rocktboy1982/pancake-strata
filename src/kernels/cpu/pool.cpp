@@ -74,6 +74,36 @@ uint64_t umwait_escalate() {
     return c;
 }
 
+// pancake-strata (code study 2026-11-09, dan-9f finding 6): STRATA_POOL_MWAITX=<TSC cycles> (opt-in; AMD Zen MONITORX/
+// MWAITX, GCC/Clang x86-64): a parked worker waits on the epoch's cache line instead of pause-spinning - the 15 workers
+// otherwise spin through every GPU-only stretch of a window (up to ~20 ms), on the SMT siblings of the host thread.
+// Wakes on the publish's write to epoch_ or after the cycles; 0/unset or no MWAITX: the spin, unchanged.
+#if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__) && !defined(_MSC_VER)
+#define STRATA_HAVE_MWAITX 1
+__attribute__((target("mwaitx"))) inline void strata_monitorx(const void* p) { __builtin_ia32_monitorx(p, 0u, 0u); }
+__attribute__((target("mwaitx"))) inline void strata_mwaitx(unsigned cycles) {
+    __builtin_ia32_mwaitx(2u /* the timer */, 0u /* C1 hint */, cycles);
+}
+uint32_t mwaitx_cycles() {
+    static const uint32_t c = [] {
+        const char* e = std::getenv("STRATA_POOL_MWAITX");
+        if (e == nullptr || std::atoll(e) <= 0) return (uint32_t) 0;
+        unsigned a, b, cx, d;
+        __asm__ __volatile__("cpuid" : "=a"(a), "=b"(b), "=c"(cx), "=d"(d) : "a"(0x80000001u), "c"(0u));
+        if (((cx >> 29) & 1u) == 0) {
+            std::fprintf(stderr, "strata: STRATA_POOL_MWAITX: this CPU has no MONITORX/MWAITX, the workers spin\n");
+            return (uint32_t) 0;
+        }
+        const long long v = std::atoll(e);
+        std::fprintf(stderr, "strata: STRATA_POOL_MWAITX: parked workers wait with MWAITX (%lld cycles)\n", v);
+        return (uint32_t) (v > 0x7fffffffLL ? 0x7fffffffLL : v);
+    }();
+    return c;
+}
+#else
+#define STRATA_HAVE_MWAITX 0
+#endif
+
 constexpr uint64_t pack_head(uint32_t epoch, uint32_t n, uint32_t i) {
     return ((uint64_t) epoch << 32) | ((uint64_t) n << 16) | (uint64_t) i;
 }
@@ -1056,8 +1086,19 @@ void ExpertPool::worker(int id) {
         const uint64_t um_esc = umwait_escalate();
         const uint64_t um_t0 = um != 0 && um_esc != 0 ? __rdtsc() : 0;
 #endif
+#if STRATA_HAVE_MWAITX
+        const uint32_t mx = mwaitx_cycles();
+#endif
         while (epoch_.load(std::memory_order_acquire) == seen) {
             if (stop_.load(std::memory_order_relaxed)) return;
+#if STRATA_HAVE_MWAITX
+            if (mx != 0 && !(preread_on_ && pr_next_.load(std::memory_order_relaxed) < pr_chunks_.load(std::memory_order_relaxed))) {
+                strata_monitorx((const void*) &epoch_);
+                if (epoch_.load(std::memory_order_acquire) != seen) break;
+                strata_mwaitx(mx);
+                if ((++spins & 15u) != 0) continue;   // each wait is ~mx cycles: look at the clock more often
+            } else
+#endif
 #if defined(_MSC_VER) && defined(_M_X64) && !defined(__clang__)   // MSVC proper: clang-cl (the Windows HIP build) has no WAITPKG intrinsics by default
             if (um != 0) {   // STRATA_POOL_UMWAIT: wake on the publish's write to epoch_, or after `um` cycles
                 _umonitor((void*) &epoch_);
