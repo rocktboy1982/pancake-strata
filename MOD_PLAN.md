@@ -606,6 +606,26 @@ on the critical path on short and edit windows.  combine_cpu min 5.6 us vs 254 u
 Low value / rejected: hipStreamWaitValue32 or host callbacks instead of the spin, CPU writing rows into VRAM via ReBAR (<=0.27 ms),
 megakernels (NVIDIA-only; GDN megakernel 0.0 ms), HW queues 4 vs 6 (re-check only with a concurrent stream; a CU-masked stream
 could isolate spin/prefetch kernels).  PreScope = candidate policy for the item 14 simulator.
+Added 2026-11-09 from the PCIe/transfers researcher (data-path round):
+Finding: with --pcie-frac 0 the transfer on the critical path is not the expert upload but combine_cpu_k10_vec4
+(native_moe.cu:145-200) pulling a full fp32 row (2560 floats, 10 KB) per missed (token, expert) slot from mapped host memory
+(h_ymiss_, verify.cpp:516-520/1017) - est. 0.4-0.8 ms per 37.4 ms edit window.  Host path: root port Gen3 x16, ReBAR on (32 GB
+BAR0), IOMMU passthrough, THP madvise; ROCm 10 has no hipMemcpyBatchAsync (STRATA_DMA_BATCH CUDA-only).
+50. Measure first: combine kernel with the flag pre-set (spin vs row pull) and promotion bandwidth with WAIT_FUSE on/off; if the
+    pull is < ~3 us/layer, items 51-52 are worth ~0.
+51. CPU pre-sums the missed rows per token (one weighted row instead of up to 10; fp32, bf16 optional): 2-4x fewer pull bytes,
+    0.5-1.5% on edits est.; fp32 summation order changes (not bit-identical).
+52. CPU pushes rows + flag into fine-grained VRAM through ReBAR (write-combining stores), GPU spins locally: 1-2% est., overlaps
+    item 51; risks: WC ordering, ROCm 10 support on gfx1100.  (Item 46 single poller covers the per-block host polling.)
+53. Online swap budget (Pie, UC Berkeley): raise adapt swaps while window time stays flat instead of fixed --adapt-swaps
+    64/96/160 (0-5% over the best fixed); chunked ~256 KB promotions issued only during CPU compute and stale entries dropped
+    from ForesightSwap::fill_loop (FIFO, no staleness check) (MoE-Lightning paging).
+54. IOMMU guardrail: warn at startup if the GPU IOMMU group stops being passthrough (Fast & Safe IO Memory Protection, SOSP'24).
+    (Faster restart = item 38.)
+Not worth building (PCIe): batch-copy API (absent; promotions already ~93% of link: 115 vs 107 us), wire compression of Q2_0
+(no FP-exponent redundancy at 2 bits; a 5-minute entropy check would settle it), zero-copy reads of missed experts at Gen3
+(CPU path 2.5x cheaper), GPU-initiated transfers (BaM, SCADA, AMD DMA prelaunch not exposed), FloE lossy transfer (belongs
+with lossy F1).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
