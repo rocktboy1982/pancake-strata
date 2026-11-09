@@ -41,5 +41,9 @@
  "gpus_asked": true,
  "env": {
   "STRATA_ROUTE_TAIL_SKIP": "0"
- }
+ },
+ "env_to_user": true,
+ "effort_position": "end",
+ "reasoning_budget_grace": 512,
+ "reasoning_close_retry": true
 }

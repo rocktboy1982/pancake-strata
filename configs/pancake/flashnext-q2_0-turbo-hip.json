@@ -101,5 +101,9 @@
   "STRATA_ENGINE_NICE": "0",
   "STRATA_ROUTE_PRIOR": "0.5"
  },
- "drafting": "mtp"
+ "drafting": "mtp",
+ "env_to_user": true,
+ "effort_position": "end",
+ "reasoning_budget_grace": 512,
+ "reasoning_close_retry": true
 }

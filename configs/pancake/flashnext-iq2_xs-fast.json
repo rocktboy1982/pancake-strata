@@ -59,5 +59,9 @@
   "STRATA_PF_HC_REGION": "1",
   "STRATA_HC_Q8": "1",
   "STRATA_PREFILL_CPU_SHARE": "auto"
- }
+ },
+ "env_to_user": true,
+ "effort_position": "end",
+ "reasoning_budget_grace": 512,
+ "reasoning_close_retry": true
 }

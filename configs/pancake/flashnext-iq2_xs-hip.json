@@ -51,5 +51,9 @@
   "STRATA_ENGINE_NICE": "0",
   "GPU_MAX_HW_QUEUES": "6"
  },
- "drafting": "mtp"
+ "drafting": "mtp",
+ "env_to_user": true,
+ "effort_position": "end",
+ "reasoning_budget_grace": 512,
+ "reasoning_close_retry": true
 }
