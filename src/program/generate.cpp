@@ -19516,9 +19516,11 @@ int main(int argc, char** argv) {
                 }
 #endif
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
+                int mtp_nd = 0;   // item 74: the drafts of this round, for the window trace (item 5)
                 const bool drafted = !draft_on || eos || produced_n >= max_new ||
                                      (req_df2 ? ((!merged && defer_df2(a)) || draft_df2(a)) : mtp.draft_long(T, outv.data(), p, a, drafts.data(), err, dprob.data(), (float) req_spec_min_p,
-                                                                               nullptr, gated_proposal ? &generation : nullptr));
+                                                                               &mtp_nd, gated_proposal ? &generation : nullptr));
+                if (!req_df2 && mtp_nd > 0) strata::core::window_trace().drafts(dprob.data(), mtp_nd);   // before the next window's commit
                 {
                     const Clock::time_point tw3 = Clock::now();
                     auto msd = [](Clock::time_point a0, Clock::time_point b0) { return std::chrono::duration<double, std::milli>(b0 - a0).count(); };

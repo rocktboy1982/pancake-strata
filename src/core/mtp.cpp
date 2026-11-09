@@ -1850,7 +1850,12 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
     };
 
     int n = 0;
-    if (min_p <= 0.0f && !chain_rule_ && max_steps > 0) {
+    // Item 74 (opt-in, exact): STRATA_MTP_EAGER=1 launches every step graph at once with --spec-min-p too, as the
+    // min_p 0 path does, and cuts the chain on the host where a probability first falls below min_p - the same
+    // drafts as the step-by-step chain (the steps it keeps see the same inputs), without a host round trip per step;
+    // the steps past the cut are wasted GPU work.  Not with a chain rule (STRATA_SPEC_COST / DISCO decide per step).
+    static const bool eager = [] { const char* e = std::getenv("STRATA_MTP_EAGER"); return e && e[0] == '1'; }();
+    if ((min_p <= 0.0f || eager) && !chain_rule_ && max_steps > 0) {
         if (cudaGraphLaunch(cp ? round_exec_c_[T] : round_exec_[T], cs_) != cudaSuccess) {
             err = std::string("mtp draft: ") + cudaGetErrorString(cudaGetLastError());
             return false;
@@ -1886,6 +1891,10 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
         if (probs) probs[last] = ((volatile float*) h_prob_)[last];
         prefetch_ple(drafts[last]);
         n = max_steps;
+        if (min_p > 0.0f) {          // eager: keep step j only while step j-1 cleared min_p, as the chain does
+            n = 1;
+            while (n < max_steps && ((volatile float*) h_prob_)[n - 1] >= min_p) ++n;
+        }
     } else if (max_steps > 0) {
         g_dt.init();
         const bool dt = g_dt.on;

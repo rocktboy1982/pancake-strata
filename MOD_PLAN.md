@@ -373,7 +373,9 @@ together.  All are opt-in; the default path stays byte-identical until a measure
     item 10 draft timing, in one GPU session.
 
 Added 2026-11-09 from the decode-path code study (research_notes/Pancake cod deep research/decode_path.md; Serena/clangd):
-74. Overlap the MTP draft with the idle CPU pool (~3 ms/window idle during head, sync, commit, draft): first the exact quick win -
+74. [CODED 2026-11-09, opt-in STRATA_MTP_EAGER=1 (exact by construction: all step graphs launched at once, chain cut on the
+    host at the first prob < min_p; not with a chain rule); window_trace().drafts() hook added for item 5; GPU A/B in the test
+    phase] Overlap the MTP draft with the idle CPU pool (~3 ms/window idle during head, sync, commit, draft): first the exact quick win -
     gate min_p on the device so the draft round and all step graphs launch at once (no per-step host round trip, ~0.3-0.5%);
     item 10 is the larger version.  [this; generate.cpp/mtp.cpp]
 75. Persistent adapt worker: --adapt-every 1 spawns a new std::thread every window (generate.cpp ~19396); reuse JobThread
