@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <utility>
 #include <vector>
@@ -125,6 +126,7 @@ struct LoadStats {
     uint64_t bytes = 0;
     uint64_t layers = 0;
     std::vector<uint64_t> layer_checksums;      // one FNV-1a per layer
+    std::string mode;                           // MOD_PLAN 38: how the bytes were read ("direct", "buffered", ...)
     double gib_per_second() const { return seconds > 0 ? (double) bytes / (1024.0 * 1024 * 1024) / seconds : 0.0; }
     // Aggregate rate of the readers WHILE THEY WERE INSIDE THE READ CALL: `bytes` over the mean per-thread
     // read time.  `gib_per_second()` above divides the same bytes by the wall clock of the whole loop, which
@@ -169,7 +171,14 @@ LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::
 /// (an overload, not a default argument: the SYCL build has its own pinned.dp.cpp that defines the signature above only)
 LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::vector<uint64_t>& layer_off,
                               const std::vector<uint64_t>& layer_bytes, int threads, uint64_t chunk,
-                              const std::atomic<int>* ready, const PadMap* pad);
+                              const std::atomic<int>* ready, const PadMap* pad, bool drop_cache = false);
+/// MOD_PLAN 38 stop-gap: whether a buffered expert load drops each chunk from the page cache after reading it (Linux
+/// POSIX_FADV_DONTNEED; nothing elsewhere).  `dflt`: the caller's default (the file cache cannot keep the experts, so a
+/// cached copy beside the arena only adds memory pressure); STRATA_LOAD_DONTNEED=1 / 0 forces it either way.
+inline bool load_drop_cache(bool dflt) {
+    const char* e = std::getenv("STRATA_LOAD_DONTNEED");
+    return e != nullptr && e[0] != '\0' ? e[0] != '0' : dflt;
+}
 
 /// The same ranges read UNBUFFERED straight into `dst` (Windows): no staging buffer and no file-cache copy - the
 /// drive's DMA lands where the experts live. Every range, `dst` and `chunk` must be 4 KiB aligned; returns ok =
@@ -178,7 +187,8 @@ LoadStats load_experts_direct(const std::string& path, uint8_t* dst, const std::
                               const std::vector<uint64_t>& layer_bytes, int threads, uint64_t chunk,
                               const std::atomic<int>* ready = nullptr);
 
-/// Whether the expert files are better read unbuffered (Windows; false elsewhere): a timed probe of random 64 KiB
+/// Whether the expert files are better read unbuffered (Windows; Linux since MOD_PLAN 38 with the same room rule and no
+/// probe; false elsewhere): a timed probe of random 64 KiB
 /// reads says they are not in the OS file cache (a cached read takes ~10 us, the drive ~80), and the RAM left
 /// beside the arena (`arena_bytes`) could not keep them cached for the next start either - so a warm restart after
 /// an idle unload never gets slower, and only a start that reads the drive anyway skips the cache's copy.

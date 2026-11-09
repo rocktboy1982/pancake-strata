@@ -1433,7 +1433,8 @@ private:
 /// layout's type and dimensions, and inside the file.  `native` is the --native shard (see set_gguf).
 bool check_experts_gguf(const std::string& native, const strata::kernels::cpu::ExpertLayout& lay, std::string& err);
 /// Fills `dst` (lay.total bytes, the experts.bin layout) from the GGUF files, one role at a time.
-/// `unbuffered`: each chunk read past the file cache (Windows); `ready`: layer l is written only once
+/// `unbuffered`: each chunk read past the file cache (Windows: NO_BUFFERING; Linux: O_DIRECT, a refused direct read
+/// falls back to the buffered read with POSIX_FADV_DONTNEED, MOD_PLAN 38); `ready`: layer l is written only once
 /// *ready > l + 1 (an arena that is still being registered).
 /// `pad` (optional): the destination is the page-aligned padded layout (pin by need), see PadMap.
 LoadStats load_experts_gguf(const std::string& native, uint8_t* dst, const strata::kernels::cpu::ExpertLayout& lay,

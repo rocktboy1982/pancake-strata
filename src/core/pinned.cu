@@ -1095,6 +1095,62 @@ LoadStats load_experts_direct(const std::string& path, uint8_t* dst, const std::
     return st;
 }
 
+#if defined(__linux__)
+namespace {
+uint64_t read_u64_file(const std::string& path, bool& ok) {
+    ok = false;
+    std::ifstream f(path);
+    std::string v;
+    if (!(f >> v) || v == "max") return 0;
+    char* end = nullptr;
+    const unsigned long long x = std::strtoull(v.c_str(), &end, 10);
+    ok = end != nullptr && *end == '\0';
+    return (uint64_t) x;
+}
+/// MemAvailable lowered to the room under the tightest cgroup v2 limit of this process's group and its ancestors
+/// (memory.max - memory.current + inactive_file).  detail::host_available_memory (expert_source.cpp) also covers v1 and
+/// has tests, but lives in strata_engine, which strata_core does not link.  0 = unknown.
+uint64_t linux_available_bytes() {
+    uint64_t avail = 0;
+    {
+        std::ifstream mi("/proc/meminfo");
+        std::string key, rest;
+        uint64_t kb = 0;
+        while (mi >> key >> kb) {
+            std::getline(mi, rest);
+            if (key == "MemAvailable:") { avail = kb * 1024; break; }
+        }
+    }
+    if (avail == 0) return 0;
+    std::ifstream cg("/proc/self/cgroup");
+    std::string line, rel;
+    while (std::getline(cg, line))
+        if (line.rfind("0::", 0) == 0) { rel = line.substr(3); break; }
+    if (rel.empty()) return avail;
+    for (std::string dir = rel;;) {
+        const std::string base = "/sys/fs/cgroup" + (dir == "/" ? std::string() : dir);
+        bool has_max = false, has_cur = false;
+        const uint64_t mx = read_u64_file(base + "/memory.max", has_max);
+        const uint64_t cur = read_u64_file(base + "/memory.current", has_cur);
+        if (has_max && has_cur) {
+            uint64_t inactive = 0;
+            std::ifstream st(base + "/memory.stat");
+            std::string k;
+            uint64_t v = 0;
+            while (st >> k >> v)
+                if (k == "inactive_file") { inactive = v; break; }
+            const uint64_t room = (mx > cur ? mx - cur : 0) + inactive;
+            if (room < avail) avail = room;
+        }
+        if (dir == "/" || dir.empty()) break;
+        const size_t slash = dir.find_last_of('/');
+        dir = slash == 0 || slash == std::string::npos ? "/" : dir.substr(0, slash);
+    }
+    return avail;
+}
+}  // namespace
+#endif
+
 bool experts_unbuffered(const std::vector<std::string>& files, uint64_t arena_bytes, std::string& why,
                         bool cache_counts, uint64_t read_bytes) {
     const char* env = std::getenv("STRATA_UNBUFFERED_LOAD");
@@ -1157,9 +1213,32 @@ bool experts_unbuffered(const std::vector<std::string>& files, uint64_t arena_by
                       keepable ? "can" : "cannot");
     why = msg;
     return (!cached || !cache_counts) && !keepable;
+#elif defined(__linux__)
+    // MOD_PLAN 38: the Windows rule without its probe (`cache_counts` is moot: a start whose files the cache cannot
+    // keep reads the drive either way).  On a 57 GB box the arena (33 GiB, already registered when this runs) and a
+    // page-cache copy of the same experts cannot both fit, and the cached copy is charged to the engine's capped scope.
+    (void) cache_counts;
+    uint64_t total_bytes = 0;
+    for (const std::string& f : files) {
+        struct stat sb {};
+        if (::stat(f.c_str(), &sb) == 0) total_bytes += (uint64_t) sb.st_size;
+    }
+    const uint64_t avail = linux_available_bytes();
+    if (avail == 0) {
+        why = "the available RAM is unknown: buffered";
+        return false;
+    }
+    const uint64_t need = read_bytes == kAllFileBytes ? total_bytes : read_bytes;
+    const bool keepable = strata::platform::file_cache_keeps(avail, arena_bytes, need);
+    char msg[256];
+    std::snprintf(msg, sizeof msg, "%.1f GiB available, %.1f GiB of arena, %.1f GiB of files: the file cache %s keep them",
+                  (double) avail / (1ull << 30), (double) arena_bytes / (1ull << 30), (double) need / (1ull << 30),
+                  keepable ? "can" : "cannot");
+    why = msg;
+    return !keepable;
 #else
     (void) files; (void) arena_bytes; (void) cache_counts; (void) read_bytes;
-    why = "buffered (not Windows)";
+    why = "buffered (not Windows or Linux)";
     return false;
 #endif
 }
@@ -1172,8 +1251,14 @@ LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::
 
 LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::vector<uint64_t>& layer_off,
                               const std::vector<uint64_t>& layer_bytes, int threads, uint64_t chunk,
-                              const std::atomic<int>* ready, const PadMap* pad) {
+                              const std::atomic<int>* ready, const PadMap* pad, bool drop_cache) {
     LoadStats st;
+#if defined(__linux__)
+    drop_cache = load_drop_cache(drop_cache);
+#else
+    drop_cache = false;
+#endif
+    st.mode = drop_cache ? "buffered+dontneed" : "buffered";
     const uint64_t layers = (uint64_t) layer_off.size();
     st.layers = layers;
     st.bytes = 0;
@@ -1240,6 +1325,11 @@ LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::
                           + (std::ferror(f) != 0 ? " (ferror set)" : "");
                     return;
                 }
+#if defined(__linux__)
+                // MOD_PLAN 38 stop-gap: the arena holds these bytes now; a cached second copy would only be charged
+                // to the engine's (capped) scope
+                if (drop_cache) ::posix_fadvise(fileno(f), (off_t) (off + pos), (off_t) n, POSIX_FADV_DONTNEED);
+#endif
                 const auto t_copy = std::chrono::steady_clock::now();
                 if (pad == nullptr) {
                     std::memcpy(dst + off + pos, buf.data(), (size_t) n);
