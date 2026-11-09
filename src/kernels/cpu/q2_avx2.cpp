@@ -48,6 +48,19 @@ inline void unpack64(const uint8_t* codes, __m256i& lo, __m256i& hi) {
     hi = _mm256_set_m128i(_mm_unpackhi_epi16(b0, b1), _mm_unpacklo_epi16(b0, b1));  // values 32..63
 }
 
+// MOD_PLAN item 40 (STRATA_Q2_PREFETCH=<bytes>, opt-in, exact): before a row's dot, prefetch the bytes that lie that
+// far ahead in the weights (whole rows; the hardware prefetchers stop at 4 KiB pages and a row is 180-720 B).  0 = off.
+namespace {
+int q2_prefetch_bytes() {
+    static const int v = [] {
+        const char* e = std::getenv("STRATA_Q2_PREFETCH");
+        const int b = e != nullptr ? std::atoi(e) : 0;
+        return b > 0 && b <= 65536 ? b : 0;
+    }();
+    return v;
+}
+}  // namespace
+
 // ---- the row kernel, twice: the AVX2 form and the AVX-VNNI one (q2_avx2_rows.inl)
 namespace plain {
 #define STRATA_ROWS_VNNI 0

@@ -21384,9 +21384,9 @@ int main(int argc, char** argv) {
             std::printf("; numa slices: s0 %.3f ms  s1 %.3f ms", pool.numa_slice_ms(0) / rounds, pool.numa_slice_ms(1) / rounds);
         if (rounds > 0) std::printf("\n");
         if (rounds > 0)
-            std::printf("%-24s plan %.3f  activation quantize %.3f  jobs %.3f  run %.3f ms/round\n", "dispatch",
-                        drive.d.ms_plan / rounds, drive.d.ms_actq / rounds, drive.d.ms_jobs / rounds,
-                        drive.d.ms_run / rounds);
+            std::printf("%-24s plan %.3f  activation quantize %.3f  jobs %.3f (expert source %.3f)  run %.3f ms/round\n",
+                        "dispatch", drive.d.ms_plan / rounds, drive.d.ms_actq / rounds, drive.d.ms_jobs / rounds,
+                        drive.d.ms_jobs_src / rounds, drive.d.ms_run / rounds);
         if (rounds > 0 && !drive.d.usage.empty())
             std::printf("%-24s %lld experts swapped into the VRAM tier (every %d rounds, %.3f ms/round)\n", "adaptive tier",
                         (long long) swaps_total, o.adapt_every, ms_adapt / rounds);

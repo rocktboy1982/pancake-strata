@@ -5236,11 +5236,14 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 std::find(miss.begin(), miss.end(), (int64_t) ids[i]) == miss.end())
                 miss.push_back(ids[i]);
         if (d.cold_mode == 0) {
+            const auto s0 = std::chrono::steady_clock::now();
             d.src->prefetch(d.layers, miss.data(), (int64_t) miss.size());
+            d.ms_jobs_src += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count();
         } else {
             mstate.assign(miss.size(), 0);
             const auto r0 = std::chrono::steady_clock::now();
             npend = d.src->prefetch_begin(d.layers, miss.data(), (int64_t) miss.size(), mstate.data());
+            d.ms_jobs_src += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - r0).count();
             if (npend > 0 && d.cold_mode == 2) {   // measure: every read first, as mode 0 does
                 d.src->prefetch_end();
                 for (uint8_t& s : mstate) if (s == 1) s = 2;
@@ -5297,8 +5300,10 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             int16_t& jo = d.job_of[(size_t) e];
             if (jo < 0) {
                 const uint8_t* zp[3] = {nullptr, nullptr, nullptr};
+                const auto s0 = std::chrono::steady_clock::now();
                 const bool zc = d.cold_mode >= 3 && native && d.src->zc_roles(d.layers, e, zp);
                 const uint8_t* b = zc ? zp[0] : d.src->blob(d.layers, e);
+                d.ms_jobs_src += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count();
                 if (b == nullptr) {
                     d.failed = true;
                     d.fail = "the expert source could not produce a blob";

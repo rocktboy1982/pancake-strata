@@ -1369,7 +1369,11 @@ void ExpertPool::run_phase(int mode, int n_tasks) {
     const uint32_t e = begin_batch(n_tasks);
     if (host_works_) drain(-1, host_scratch_, e);
     wait_done(n_tasks);
-    wait_parked("after a phase");
+    // STRATA_POOL_LAZY_PARK=1 (opt-in, exact; code study 2026-11-09): every phase and batch starts with wait_parked and
+    // `done` (release/acquire) already publishes the tasks' outputs, so the trailing wait only matters for the NUMA
+    // slices' drain stamps read below
+    static const bool lazy_park = [] { const char* v = std::getenv("STRATA_POOL_LAZY_PARK"); return v != nullptr && v[0] == '1'; }();
+    if (!lazy_park || numa_phase()) wait_parked("after a phase");
     // Each slice's stamp is stored after its last `done` increment, so `wait_done` can return before it lands; the
     // thread that stored it has parked again since (it left the park to claim), and that re-park is what the wait
     // above acquired.  So the stamps are read here, not in `wait_done`.

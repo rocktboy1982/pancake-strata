@@ -645,6 +645,7 @@ struct ExpertDispatch {
     int64_t tail_skipped = 0;
     int64_t tail_experts = 0;
     double ms_plan = 0, ms_actq = 0, ms_jobs = 0, ms_run = 0;   ///< verify-window dispatch sections
+    double ms_jobs_src = 0;   ///< part of ms_jobs: the expert source's prefetch calls and blob lookups (item 2026-11-09)
     /// 149-cold STRATA_COLD_OVERLAP: 0 off (the CPU starts once every blob of the layer is read), 1 the blobs that
     /// must be read are read in the background while the pool computes the ready experts, each landed one computed
     /// as it lands; 2 measure only (read everything first, then the ready experts, then the read ones, timed apart).

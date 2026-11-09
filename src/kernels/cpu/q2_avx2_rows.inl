@@ -42,7 +42,12 @@ inline void row_multi(const uint8_t* row, const ActQ* const* a, int nblocks, flo
 template <int NT> STRATA_ROWS_FN
 void rows(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, float* const* out, int r0, int r1) {
     float res[NT];
+    const int pf = q2_prefetch_bytes();   // item 40 (q2_avx2.cpp)
     for (int r = r0; r < r1; ++r) {
+        if (pf > 0) {
+            const char* p = (const char*) (w + (size_t) r * row_bytes) + pf;
+            for (size_t o = 0; o < row_bytes; o += 64) _mm_prefetch(p + o, _MM_HINT_T0);
+        }
         row_multi<NT>(w + (size_t) r * row_bytes, a, nblocks, res);
         for (int t = 0; t < NT; ++t) out[t][r] = res[t];
     }

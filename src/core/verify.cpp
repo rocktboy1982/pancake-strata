@@ -2350,10 +2350,11 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         bool sg_ready = false;
         // STRATA_ROUTE_PUBLISH=1: the top-10 and the doorbell publish in one launch (the path doorbell_publish_res takes)
         static const bool g_rpub = [] { const char* v = std::getenv("STRATA_ROUTE_PUBLISH"); return v != nullptr && v[0] == '1'; }();
+        static const bool g_route_prior_set = std::getenv("STRATA_ROUTE_PRIOR") != nullptr;   // (read once, not per layer)
         const bool rpub = g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
                           NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
                           !defer_ &&   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
-                          std::getenv("STRATA_ROUTE_PRIOR") == nullptr && route_resident_cfg().margin <= 0.0f
+                          !g_route_prior_set && route_resident_cfg().margin <= 0.0f
 #if defined(STRATA_USE_HIP)
                           && !g_doorbell_store
 #endif
@@ -3953,7 +3954,8 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     // the same place STRATA_DBG_NAN copies from).  One record is
     // {int32 magic, int32 T, int32 n_vocab, int32 record, int64 position}, then T * n_vocab FP32 rows; row 0 is
     // the window's first position (the last prompt token of a prefill), which is what a KL comparison wants.
-    if (const char* logits_path = std::getenv("STRATA_LOGITS_DUMP")) {
+    static const char* const g_logits_dump = std::getenv("STRATA_LOGITS_DUMP");   // read once, not every window
+    if (const char* logits_path = g_logits_dump) {
         static std::FILE* lf = std::fopen(logits_path, "wb");
         static int32_t lrec = 0;
         if (lf != nullptr) {
