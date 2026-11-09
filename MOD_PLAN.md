@@ -639,6 +639,19 @@ Added 2026-11-09 from the Intel platform researcher (platform round; matrix in r
 Not adopted (Intel): AMX expert kernels (only Sapphire Rapids W; no pancake path; evidence is a vendor-adjacent blog), Intel
 iGPU/NPU offload (integrated Arc untested, no shared-memory planning, DPAS kernels need Xe2, no NPU code), NVMe through DMI on
 LGA1151/1200 (3.9 GB/s chipset link: keep models on CPU-attached NVMe where possible).
+Added 2026-11-09 from the AMD platform researcher (platform round):
+58. CCD-aware CPU pool on dual-CCD Zen 4/5: each CCD's Infinity Fabric read link caps at ~64 GB/s, so a single-CCD part gains only
+    ~1.2-1.3x over DDR4 for CPU experts; spread pool workers across both CCDs (affinity rule next to item 56).
+59. AVX-512 for verify windows: the DeepSeek CPU path measured little at 1 token but 2.8-4.8x at 16 tokens on Zen 4/5
+    (ds4_gg_cpu.cpp comments); check that the Qwen expert AVX-512 row kernels exploit multi-token verify windows the same way,
+    measure on Zen 4/5 (cpu_avx512_ok passes on every Zen 4/5; AM4 stays AVX2).
+60. Unified-memory preset for Strix Halo (gfx1151, ROCm-supported, up to 128 GB, ~103 GB/s per CCD measured): no PCIe
+    promotion, shared-DRAM bandwidth is the limit, CPU latency rises under GPU load; existing unified path + gfx1151 Docker build.
+Upgrade facts (no code): the 5700G forces PCIe 3.0 on the whole platform; a non-APU Zen 3 on B550/X570 gives PCIe 4.0 x16 to the
+GPU and 4.0 x4 to the CPU M.2 (B450/X470 stay 3.0); the board chipset is not identified yet (sudo dmidecode -t baseboard).
+Promote est. ~58 us at Gen4, ~30 us at Gen5 vs ~42 us CPU (arithmetic, not measured) -> item 55 calibration matters.
+Not adopted (AMD): 8000G APUs as hosts (GPU slot cut to 4.0 x8/x4), X3D cache for expert weights (unproven; L3 prefetch was
+worse here), Vega/780M iGPUs (not in ROCm matrices).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
