@@ -13,6 +13,11 @@
    "args": {
     "--prompt-cache-tail": ""
    }
+  },
+  "mtp-hip-prio": {
+   "env": {
+    "STRATA_MTP_HIP_PRIO": "1"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",

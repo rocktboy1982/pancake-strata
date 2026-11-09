@@ -208,6 +208,13 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 43 DraftPolicy::seed_costs() from traces - 0-5% - exact - unowned (inside 68) - 42, 64 - open.  [S3]
 - 10 MTP draft inside the captured verify graph - 1-3% est. if the 2.2 ms is launch-bound - exact - unowned - draft timing
     (2b run) - waiting.  [S7]
+    CODE STUDY 2026-11-09 (dan-cd): the draft is already graph-chained (one round graph + step graphs queued at once,
+    mtp.cpp chain_launch), so its 2.2-2.5 ms is GPU work, not launches; commit/emit is 0.07 ms.  The real lever found:
+    STRATA_MTP_HIP_PRIO (draft stream on its own hardware queue, so the round no longer waits behind the commit graph;
+    R9700 draft wall 5.8 -> 3.5 ms) defaults on only for gfx12 - off on the 7900 XT -> arm in bench/specs/07.  Item 20
+    (ReplaySSM): the commit replays the GDN recurrence over the kept rows (gdn_step_commit_layers, ~1% of GPU time in the
+    profile); snapshots per row would be ~2 MB per GDN layer per row - replay stays; with MTP_HIP_PRIO it overlaps the
+    draft.  Both closed by reading.
 - 5 tail-row drop - 0-5% est. - exact per plan - unowned - 64 replay with real MTP confidences - open.  [S1]
 - 20 ReplaySSM audit of the GDN replay - 1-3% decode - exact - unowned (code read, I10) - none - open.
 - Q2_0-down expdec kernel (unnumbered; native_down_multi_kernel<42> = 5.8% of GPU kernel time, hidden on edits) - 1-3% short
