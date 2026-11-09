@@ -18,3 +18,10 @@ Profiling note (02): the base hit rate on this benchmark is already ~89% (the mo
 prompts, the cache stays warm), so admission policies have little room here; and any placement change alters the last bits
 of expert arithmetic (GPU vs CPU kernels), so the generated text and the draft acceptance change - short-chat speed between
 placement arms is confounded by different text.  Code edits (acceptance stable at 0.94-0.95) are the fair comparison.
+| 03 CPU pool | STRATA_POOL_TAIL4 / MWAITX / LAZY_PARK / Q2_PREFETCH=1024 | n.s. | n.s. | n.s. | - | opt-in (no measurable gain) |
+| 03 CPU pool | STRATA_POOL_FUSE_PHASES=1 (first run) | -8% | +23% | - | not checked | INVALID: stale mtasks_ bug (wrong down-row ranges); fixed |
+| 03b after fix | FUSE_PHASES=1, no threshold | -1.3% n.s. | **+2.5% +-1.7** | - | PASS | **into fast-hip** |
+| 03b after fix | FUSE_MIN=8 / 12, FUSE_MIN=8 + TAIL4 | n.s. | n.s. / n.s. / +1.6% n.s. | - | PASS | threshold kept in code, default 0 |
+
+Note (03): two whole runs came out ~25% slow (base r2, q2-prefetch r1) with no foreign CPU but kswapd / kcompactd active:
+memory compaction, not the arm.  The harness's foreign-CPU monitor does not see it; such runs show as large intervals.

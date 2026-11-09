@@ -1,0 +1,36 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)
+  short  base                    119.9 +-  43.7  (n=3)
+                              drafts accepted 0.74
+  short  fuse-phases             121.2 +-   2.1  (n=3)   vs base:  +1.1% +- 37.4%  -> no difference
+                              drafts accepted 0.66
+  short  lazy-park               130.4 +-   3.8  (n=3)   vs base:  +8.8% +- 33.4%  -> no difference
+                              drafts accepted 0.74
+  short  q2-prefetch1k           121.1 +-  44.3  (n=3)   vs base:  +1.0% +- 62.2%  -> no difference
+                              drafts accepted 0.74
+  short  mwaitx                  130.9 +-   0.4  (n=3)   vs base:  +9.2% +- 36.1%  -> no difference
+                              drafts accepted 0.74
+  short  tail4                   130.6 +-   4.0  (n=3)   vs base:  +9.0% +- 37.8%  -> no difference
+                              drafts accepted 0.74
+  short  fuse+tail4              121.4 +-  65.5  (n=2)   vs base:  -7.2% +- 42.4%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    123.9 +-  40.1  (n=3)
+                              drafts accepted 0.94
+  edit   fuse-phases             166.5 +-   2.3  (n=3)   vs base: +34.4% +- 33.2%  -> better
+                              drafts accepted 0.95
+  edit   lazy-park               126.3 +-  41.1  (n=3)   vs base:  +2.0% +-  4.4%  -> no difference
+                              drafts accepted 0.94
+  edit   q2-prefetch1k           125.9 +-  40.5  (n=3)   vs base:  +1.7% +- 54.4%  -> no difference
+                              drafts accepted 0.95
+  edit   mwaitx                  136.3 +-   1.9  (n=3)   vs base: +10.0% +- 31.9%  -> no difference
+                              drafts accepted 0.94
+  edit   tail4                   134.5 +-   7.5  (n=3)   vs base:  +8.6% +- 35.4%  -> no difference
+                              drafts accepted 0.95
+  edit   fuse+tail4              142.3 +- 305.0  (n=2)   vs base:  +7.4% +- 221.6%  -> no difference
+                              drafts accepted 0.93
+  long   base                   1705.6 +- 907.4  (n=3)
+  long   fuse-phases            1920.9 +-   2.2  (n=3)   vs base: +12.6% +- 53.2%  -> no difference
+  long   lazy-park              1754.2 +- 699.0  (n=3)   vs base:  +2.8% +- 12.2%  -> no difference
+  long   q2-prefetch1k          1753.0 +- 701.6  (n=3)   vs base:  +2.8% +- 82.1%  -> no difference
+  long   mwaitx                 1913.1 +-   0.3  (n=3)   vs base: +12.2% +- 53.2%  -> no difference
+  long   tail4                  1917.9 +-   3.8  (n=3)   vs base: +12.4% +- 53.4%  -> no difference
+  long   fuse+tail4             1674.3 +- 3093.0  (n=2)   vs base: -14.2% +- 182.0%  -> no difference

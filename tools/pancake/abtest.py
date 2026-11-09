@@ -215,6 +215,8 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port):
                 rows.append({"prompt": int(m[1]), "prompt_tps": float(m[2]), "gen": int(m[3]), "decode_tps": float(m[4]),
                              "accept": acc})
     stop_servers()
+    if len(rows) > len(cases):   # an extra engine line (a retried / re-read request): the last ones are the cases'
+        rows = rows[-len(cases):]
     if len(rows) != len(cases):
         return None, f"expected {len(cases)} engine lines, got {len(rows)}"
     for c, r in zip(cases, rows):

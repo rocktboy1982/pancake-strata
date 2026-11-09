@@ -1,0 +1,21 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)
+  short  base                    131.8 +-   0.4  (n=3)
+                              drafts accepted 0.74
+  short  fuse-min0               130.0 +-   9.0  (n=3)   vs base:  -1.3% +-  6.9%  -> no difference
+                              drafts accepted 0.73
+  short  fuse-min8               128.4 +-  11.7  (n=3)   vs base:  -2.6% +-  9.0%  -> no difference
+                              drafts accepted 0.75
+  short  fuse-min12              121.4 +-  44.9  (n=3)   vs base:  -7.9% +- 34.2%  -> no difference
+                              drafts accepted 0.74
+  short  fuse-min8+tail4         132.0 +-   0.2  (n=3)   vs base:  +0.2% +-  0.4%  -> no difference
+                              drafts accepted 0.74
+  edit   base                    135.2 +-   2.3  (n=3)
+                              drafts accepted 0.94
+  edit   fuse-min0               138.6 +-   0.3  (n=3)   vs base:  +2.5% +-  1.7%  -> better
+                              drafts accepted 0.94
+  edit   fuse-min8               133.5 +-  15.9  (n=3)   vs base:  -1.3% +- 12.9%  -> no difference
+                              drafts accepted 0.94
+  edit   fuse-min12              121.2 +-  67.7  (n=3)   vs base: -10.4% +- 48.6%  -> no difference
+                              drafts accepted 0.94
+  edit   fuse-min8+tail4         137.3 +-  14.9  (n=3)   vs base:  +1.6% +- 10.7%  -> no difference
+                              drafts accepted 0.95

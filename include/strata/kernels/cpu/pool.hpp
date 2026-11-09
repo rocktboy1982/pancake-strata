@@ -385,7 +385,7 @@ private:
     std::array<std::atomic<int>, 96> frows_{};
     std::array<std::atomic<uint8_t>, 96> fready_{};
     void quant_down_act(int e);
-    bool fuse_phases() const;
+    bool fuse_phases(int nb) const;
     struct SplitBufMulti {
         alignas(64) float ff[MAXT][FF];
         ActQ a2[MAXT];
