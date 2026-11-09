@@ -435,13 +435,13 @@ Risks noted (no wrong output found): slot never completes if a ForesightSwap cop
 once; session files keep only the deepest checkpoint (restore loses the shared system-prompt root); vague buffered-loader errors.
 
 Added 2026-11-09 from the server/agent code study (research_notes/Pancake cod deep research/server_agent.md):
-87. reasoning_tokens on chat completions: _run already counts it (server.py:7310); add completion_tokens_details.reasoning_tokens
+87. [DONE 2026-11-09, 2d5d44709] reasoning_tokens on chat completions: _run already counts it (server.py:7310); add completion_tokens_details.reasoning_tokens
     to the usage block in openai_chunks (7767-7770) - one line.  Part of 73.  [this]
 88. Preset-only agent settings (fast-hip preset has engine args only): effort_position "end" (opencode effort switches re-read the
     whole system+tools prefix today; render_prompt renders 3x when on - cut to one render, 5952), env_to_user (date/folder <env>
     block breaks the shared prefix, ~14K tokens / 8-11 s per new day/folder), item 12 caps; note answer_room already caps thinking
     at 24,000 tokens on every opencode turn (max_tokens 32000, 6520).  [this]
-89. BUG: grammar-constrained tool calls only on /v1/chat/completions - applied in _openai (9174), missing in _anthropic (9438) and
+89. [FIXED 2026-11-09, bcbdeb5d2; test serve/test_grammar_routes.py] BUG: grammar-constrained tool calls only on /v1/chat/completions - applied in _openai (9174), missing in _anthropic (9438) and
     _responses_prepare (9369).  Fix by one shared request-building step for the three API paths.  [this]
 90. Item 71 prerequisite: engine does not save the branch it leaves when a request resumes exactly at the pin (generate.cpp:16463);
     for a sub-agent that branch is the parent conversation -> full re-read on return; add a size threshold before enabling the
