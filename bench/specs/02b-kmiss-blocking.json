@@ -1,0 +1,23 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "kmiss28-blocking": {
+   "env": {
+    "STRATA_ADAPT_KMISS": "2,8"
+   }
+  },
+  "kmiss38-blocking": {
+   "env": {
+    "STRATA_ADAPT_KMISS": "3,8"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": false
+}

@@ -1,0 +1,16 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)
+  short  base                    130.6 +-   3.7  (n=3)
+                              drafts accepted 0.74
+  short  kmiss28-blocking        122.2 +-   8.5  (n=3)   vs base:  -6.4% +-  3.7%  -> worse
+                              drafts accepted 0.69
+  short  kmiss38-blocking        123.7 +-  10.7  (n=3)   vs base:  -5.3% +-  9.8%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    134.7 +-   6.8  (n=3)
+                              drafts accepted 0.95
+  edit   kmiss28-blocking        137.3 +-   8.5  (n=3)   vs base:  +2.0% +-  1.6%  -> better
+                              drafts accepted 0.94
+  edit   kmiss38-blocking        124.8 +-  46.4  (n=3)   vs base:  -7.3% +- 38.1%  -> no difference
+                              drafts accepted 0.95
+  long   base                   1918.0 +-   3.2  (n=3)
+  long   kmiss28-blocking       1705.6 +- 902.9  (n=3)   vs base: -11.1% +- 47.2%  -> no difference
+  long   kmiss38-blocking       1824.3 +- 403.0  (n=3)   vs base:  -4.9% +- 21.1%  -> no difference
