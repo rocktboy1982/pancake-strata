@@ -47,6 +47,15 @@ endif()
 if(STRATA_PORTABLE AND MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 endif()
+# pancake-strata (opt-in, local builds only): Strata's own host C++ for THIS CPU (-march=native: AVX2/FMA/BMI in the
+# generic code around the explicit kernels - dispatch, pool, pre-sum, quantizers) with -ffp-contract=off, so the compiler
+# adds no FMA contractions the default build does not have.  The per-file ISA flags below still pin the AVX1/SSE files.
+# HIP/CUDA device code is not touched (CXX only).  A/B: bench/specs/08-build.json (needs its own build directory).
+option(STRATA_HOST_NATIVE "pancake: host C++ built for this CPU (-march=native -ffp-contract=off)" OFF)
+if(STRATA_HOST_NATIVE AND NOT STRATA_PORTABLE AND NOT MSVC AND STRATA_ISA_FLOOR STREQUAL "")
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-march=native> $<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
+  message(STATUS "STRATA_HOST_NATIVE: host C++ with -march=native -ffp-contract=off")
+endif()
 
 # #3202: Windows hands a program its command line in the system's ANSI code page (cp1251 / cp866 on a Russian Windows, cp1252 on an
 # English one), but the engine reads every path as UTF-8 (the run configs and the server write UTF-8). A model folder with

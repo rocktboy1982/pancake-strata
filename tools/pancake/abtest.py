@@ -149,6 +149,9 @@ def make_config(base, arm, path):
             a += [k] + ([str(v)] if v != "" else [])
     if arm.get("drafting"):
         c["drafting"] = arm["drafting"]
+    if arm.get("exe"):   # another build of the engine (e.g. build-hip-native/strata)
+        exe = arm["exe"] if os.path.isabs(arm["exe"]) else str(ROOT / arm["exe"])
+        c["exe"] = exe
     json.dump(c, open(path, "w"), indent=1)
     return c
 

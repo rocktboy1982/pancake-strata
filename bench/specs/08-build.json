@@ -1,0 +1,16 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "host-native": {
+   "exe": "build-hip-native/strata"
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": true
+}
