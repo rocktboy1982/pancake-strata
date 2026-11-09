@@ -37,11 +37,6 @@ bool qsa_prompt_attn_batch_gated(const float* q, const QsaAttnPools& pools, cons
                                  int64_t cap, const QsaShapes& s, const float* qf, uint16_t* o16, int64_t ld16, int64_t n_q,
                                  void* stream);
 
-/// HIP only (false in every other build): the prompt attention runs on the RDNA4 matrix cores on the current device -
-/// the default on gfx12 (STRATA_HIP_WMMA=0 turns it off), STRATA_HIP_WMMA=1 on gfx11 as well.  The prompt path sizes its
-/// expert ring for it (prefill.cpp).
-bool qsa_hip_wmma_active();
-
 /// STRATA_QSA_SPLIT_ATTN=1 (the idea of fork Eddoursul fd23d91): `qsa_decode_attn_batch`'s decode
 /// attention through the int8 tensor-core kernel above with each query's cells split among up to 20 blocks, merged with
 /// the log-sum-exp rescale, its partials in `scratch` (`scratch_floats` available).  False (nothing

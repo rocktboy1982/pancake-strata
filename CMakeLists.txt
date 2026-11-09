@@ -560,8 +560,6 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/kv_stream.cu
                           src/kernels/cuda/kv_q4.cu
                           src/kernels/cuda/fused_gr.cu
-                          src/kernels/cuda/rdna_gr.cu
-                          src/kernels/cuda/rdna_mmvq.cu
                           src/kernels/cuda/cvec.cu
                           src/kernels/cuda/qsa_decode_attn.cu
                           src/kernels/cuda/qsa_prompt_attn.cu
@@ -576,6 +574,13 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/ngram/ple_reader.cpp
                           src/platform/direct_file.cpp)
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
+  # pancake: the RDNA kernels (DPP / permlanex16 / sudot4) build on wave32 HIP only; CUDA and gfx906 builds take their
+  # "not available" answers from rdna_stub.cpp (MOD_PLAN 95b; tools/pancake/check_stubs.py keeps it in step with the headers)
+  if(STRATA_ENABLE_HIP)
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_gr.cu src/kernels/cuda/rdna_mmvq.cu)
+  else()
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_stub.cpp)
+  endif()
   # pancake-strata: basalt's Q5_K head kernels (q5k_head.cu: the head GEMV bitwise equal to native_mmvq, its fused
   # top-1, and the 2-bit proxy two-stage top-1), CUDA builds; STRATA_HAVE_Q5K_HEAD tells the callers
   if(STRATA_ENABLE_CUDA AND NOT STRATA_ENABLE_HIP AND NOT STRATA_HIP_GFX906)
@@ -916,7 +921,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   # what composes them into a token.  No tokenizer - the prompt arrives as ids - because Gate C1 compares logits
   # against llama.cpp on the SAME ids and a tokenizer on one side of that comparison is a second variable.
   # plan v0.3 P5: batched prompt processing (tensor-core GEMMs through cuBLAS).
-  add_library(strata_prefill STATIC src/prefill/gemm.cu src/prefill/kernels.cu src/prefill/prefill.cpp)
+  # moe_*_stub.cpp: the mmq:: / fused:: / ws:: answers of a build without those libraries (MOD_PLAN 95b); each file is
+  # empty when its library is linked (STRATA_PREFILL_MMQ / _FUSED / _WS on strata_prefill, set further down)
+  add_library(strata_prefill STATIC src/prefill/gemm.cu src/prefill/kernels.cu src/prefill/prefill.cpp
+                                    src/prefill/moe_mmq_stub.cpp src/prefill/moe_fused_stub.cpp src/prefill/moe_ws_stub.cpp)
   if(STRATA_ENABLE_HIP)
     # #313: the RDNA3 WMMA GEMMs include hip_runtime.h: AMD builds only (a CUDA build never sees this file)
     target_sources(strata_prefill PRIVATE src/prefill/wmma_gemm.cu)

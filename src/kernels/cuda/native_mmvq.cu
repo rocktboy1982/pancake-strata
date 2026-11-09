@@ -3354,7 +3354,6 @@ void native_q6_k_unpack(const void* weights) {
 void native_mmvq_set_multi_exact(bool exact) { g_multi_exact = exact; }
 bool native_mmvq_multi_exact() { return g_multi_exact; }
 void native_mmvq_set_b6_rows(int mode) { g_b6_rows = mode; }
-int native_mmvq_b6_rows() { return b6_rows_mode(); }
 
 std::size_t native_q8_1_bytes(int n_in, int ncols) {
     validate_shape(n_in, ncols);

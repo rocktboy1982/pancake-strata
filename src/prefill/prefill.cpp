@@ -113,74 +113,8 @@ bool ple_batch_enabled() {
 #include <utility>
 #include <vector>
 
-#ifndef STRATA_PREFILL_MMQ
-// A build without the llama.cpp sources (no STRATA_NATIVE_EXPERTS): no MMQ, the FP16 expert path everywhere.
-namespace strata::prefill::mmq {
-bool built() { return false; }
-bool supported(int) { return false; }
-bool fits(int, int64_t) { return false; }
-size_t matrix_bytes(int, int64_t, int64_t) { return 0; }
-size_t q8_bytes(int64_t, int64_t) { return 0; }
-void quantize(const float*, const int32_t*, void*, int, int64_t, int64_t, int64_t, void*, float*) {}
-bool fp4_activations(int) { return false; }
-void quantize_scatter(const float*, const int32_t*, const int32_t*, void*, int, int64_t, int64_t, int64_t, int, void*) {}
-Context::Context() {}
-Context::~Context() {}
-void Context::run(const Product&, void*) {}
-void gather_native(const void*, const void*, size_t, const void*, size_t, void*, void*, void*, const void*, void*, size_t) {}
-bool gather_native_group(const GatherGroup&, size_t, size_t, size_t, size_t, void*, size_t, void*, size_t, void*, size_t,
-                         void*, size_t) { return false; }
-void gather_strata_q2(const uint8_t*, void*, void*, void*) {}
-void swiglu(const float*, float*, int64_t, int64_t, bool, void*) {}
-bool swiglu_quant_ok(int) { return false; }
-void swiglu_quant(const float*, void*, int64_t, bool, void*) {}
-void swiglu_scaled(const float*, float*, int64_t, int64_t, const int32_t*, int, const float*, int64_t, void*) {}
-void down_row_scales(float*, const int32_t*, int, const float*, int64_t, void*) {}
-void iota(int32_t*, int64_t, void*) {}
-bool tab_built() { return false; }
-bool tab_fits(int, int64_t) { return false; }
-size_t overread_bytes(int, int64_t) { return 0; }
-bool whole_tiles(int, int64_t, int) { return false; }
-int direct_mode() { return 0; }
-size_t direct_slot_guard() { return 0; }
-void prep_group(const GuardTab&, size_t, void*, void*, size_t, void*) {}
-}  // namespace strata::prefill::mmq
-#endif
-#ifndef STRATA_PREFILL_FUSED
-// #136: the fused int8 experts are CUDA-only (HIP and builds without MMQ keep the MMQ / FP16 paths)
-namespace strata::prefill::fused {
-bool built() { return false; }
-bool gfx12_iq2s_default() { return false; }   // AMD-Q: a HIP build without the fused kernels (STRATA_PREFILL_MMQ off) still links prefill.cpp's share-limit call
-bool available() { return false; }
-bool enabled() { return false; }
-bool requested() { return false; }
-size_t act_bytes(int64_t, int64_t) { return 0; }
-size_t group_bytes(int64_t, int) { return 0; }
-void quantize_act(const float*, int64_t, int64_t, void*, void*) {}
-void group(const int32_t*, int64_t, int, int, void*, int32_t*, int32_t*, void*) {}
-void experts(const Batch&, int, int64_t, const void*, const void*, const int32_t*, void*, float*, void*) {}
-bool native_supported(int, int) { return false; }
-void quantize_act_native(const float*, int64_t, int64_t, void*, void*) {}
-void experts_native(const Batch&, const NativeGeom&, int, int64_t, const void*, const void*, const int32_t*, void*,
-                    float*, void*) {}
-bool native_wide() { return false; }
-void experts_native(const WideBatch&, const NativeGeom&, int, int64_t, const void*, const void*, const int32_t*, void*,
-                    float*, void*) {}
-void want_dm_f16(bool) {}                    // STRATA_PF_DM16 (6e31946cb): no fused kernels, the down rows stay FP32
-bool dm_f16_used() { return false; }
-}  // namespace strata::prefill::fused
-#endif
-#ifndef STRATA_PREFILL_WS
-// the weight-stationary experts (moe_ws.hpp) are in the CUDA STRATA_EXPERIMENTAL_SM60 build only
-namespace strata::prefill::ws {
-int mode() { return 0; }
-bool supported(int, int) { return false; }
-bool faster(int, double) { return false; }
-size_t chunks(const int32_t*, size_t, const int32_t*, const int32_t*, Chunk*) { return 0; }
-bool gate_up(const Layer&, void*) { return false; }
-void down(const Layer&, void*) {}
-}  // namespace strata::prefill::ws
-#endif
+// The no-backend answers of mmq::, fused:: and ws:: (built without the MMQ / fused / weight-stationary libraries) are in
+// moe_mmq_stub.cpp, moe_fused_stub.cpp and moe_ws_stub.cpp; tools/pancake/check_stubs.py keeps them in step with the headers.
 
 #if defined(STRATA_GPU_METAL)
 // The Metal backend reads a prompt through its decode window (metal/src/engine/window.cpp): init keeps the chunk, run

@@ -2450,8 +2450,6 @@ bool qsa_prompt_attn_matrix_cores_gfx12() {
 #endif
 }
 
-bool qsa_hip_wmma_active() { return qsa_prompt_attn_matrix_cores_requested(); }
-
 bool qsa_prompt_attn_batch_gated(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps,
                                  int64_t cap, const QsaShapes& s, const float* qf, uint16_t* o16, int64_t ld16, int64_t n_q,
                                  void* stream) {

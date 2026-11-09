@@ -30,13 +30,7 @@ void df2_conv(const float* x, const float* dyn, int dyn_stride, const float* bas
 /// position keeps its precision under fast math).  table: [rows][2][64].
 void df2_rope_table(const int32_t* pos, int rows, float theta, float* table, void* stream);
 
-/// Per (row, head): out = rope(rmsnorm(in) * gamma).  `in` rows are `in_stride` floats apart (heads * 128 contiguous per row).  The
-/// rotation is the neox/rotate_half one over the whole head dim with row r's entry of `rope_table` (null: the norm only).  The result of row r goes to
-/// out + slot(r) * heads * 128 with slot(r) = (slot_mod > 0 ? pos[r] % slot_mod : r).  `rope` false: the norm only.
-void df2_norm_rope(const float* in, int in_stride, const float* gamma, const int32_t* pos, const float* rope_table, float* out, int slot_mod,
-                   int rows, int heads, float eps, void* stream);
-
-/// out[slot(r)][c] = in[r][c], slot as above (the value half of the ring write).
+/// out[slot(r)][c] = in[r][c] with slot(r) = (slot_mod > 0 ? pos[r] % slot_mod : r) (the value half of the ring write).
 void df2_copy_rows(const float* in, float* out, const int32_t* pos, int slot_mod, int rows, int cols, void* stream);
 
 /// Attention of the block's 8 query rows (q: [8][32][128], already normed and rotated) over the context ring (kring, vring:
