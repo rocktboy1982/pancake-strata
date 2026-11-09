@@ -20,6 +20,17 @@
    "env": {
     "STRATA_POOL_MWAITX": "20000"
    }
+  },
+  "tail4": {
+   "env": {
+    "STRATA_POOL_TAIL4": "1"
+   }
+  },
+  "fuse+tail4": {
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_POOL_TAIL4": "1"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",

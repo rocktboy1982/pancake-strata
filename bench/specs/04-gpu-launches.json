@@ -15,6 +15,11 @@
    "env": {
     "STRATA_ROUTER_FUSE": "1"
    }
+  },
+  "ic-warm32": {
+   "env": {
+    "STRATA_IC_WARM_MB": "32"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",
