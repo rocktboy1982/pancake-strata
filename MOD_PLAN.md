@@ -454,6 +454,29 @@ Server structure: Service 2,443 lines (_run ~810 with nested closures), StrataEn
 paths, five config sources; refactor one PR at a time: turn-log module -> shared request builder (fixes 89) -> split _run ->
 split Service -> one config schema printed at start.  Python overhead est. 60-300 ms/request (1-5% of a 6.2 s median turn).
 
+Added 2026-11-09 from the structure/build-health study (research_notes/Pancake cod deep research/structure_build.md):
+92. Build matrix + pre-push check: tools/pancake/build_matrix.sh rows hip-mmq, hip-nommq (the stub break fixed today went unnoticed:
+    no build dir has HIP+MMQ off), cuda-86, hip-tests, configure-only set; build dirs on D, install ccache.  S / none.  [this]
+93. Tests build dir (STRATA_BUILD_TESTS=ON; all four build dirs have it OFF, so none of the 293 add_test entries is ever built) with a
+    labelled CPU-only ctest subset; parity tests for rdna_gr.cu / rdna_mmvq.cu (none today).  S / low.  [this]
+94. Typed flag registry: 872 distinct STRATA_* names read in C++ (1,046 getenv sites; 444 undocumented) + 81 in Python; defaults via
+    setenv(...,0) (arch_defaults.cpp:199) silently lost by any function-local static read before apply_arch_defaults
+    (generate.cpp:3818); inconsistent boolean parsing (STRATA_TSUM =='1' vs STRATA_NO_MULTI_GR !='0').  flags.def X-macro -> config
+    struct filled once after arch defaults -> startup [cfg] line -> flag_lint.py; start with the ~51 preset + 48 pancake flags.
+    Base for 63, 57, 67, 73 config logging.  M / medium.  [this]
+95. Split generate.cpp main() (18,361 lines, 85% of the file; 68.7 s HIP compile; 127 of 143 warnings; 319 env reads): pure moves
+    first - Options/usage/startup-defaults block -> startup.cpp.  M / low.  Extract-on-touch rule for Verifier::record_window (1,479)
+    and Prefill::run_impl (3,224) - only lift a block when an item edits it.  [this; coordinate with dan-99 on generate.cpp]
+95b. Stub blocks (prefill.cpp:116-160 MMQ-off, RDNA CUDA stubs) -> *_stub.cpp + header-parity script.  S / none.
+Quick hygiene: test_keepawake fails by design of the test (KeepAwake._loop is state-driven; the mock acquires+releases before the
+thread wakes, so ON is never sent; fix the assertion or skip off Windows); cache 3 hot getenvs (fused_gr.cu:1537 per launch,
+STRATA_DF_PDL verify.cpp:1537/1542, STRATA_ROUTE_PRIOR 2356); remove dead functions (layer_fused_gr, layer_shared_early,
+stage_mark_begin/end, gdn_buffers_zero_state, native_moe_combine_multi_hits, native_mmvq_b6_rows, df2_norm_rope, qsa_hip_wmma_active +
+~12 declared-never-defined prototypes); still-read rejected flags STRATA_PF_WMMA, STRATA_ARENA_WARM; one boolean env parser; stale
+root pancake-*.json (hipBLASLt 100200 vs template 100401); exclude sycl/ (162K lines, 120/149 files mirror src/) and metal/ from
+search/indexing; clangd fails on src/dsv41/ds4_model.cu (invalid AST) - exclude.  strata-poly builds in build-hip but
+run-pancake.sh:49 calls it CUDA-only.
+
 Suggested start order (owner's "biggest first", respecting prerequisites): 73, 35, 67 skeleton, 49/50/44 batch, 64 schema
 and 63 probe (no GPU risk) in parallel; then 7 decision, 66 stages (31 -> 11 -> 16 -> 39), 12 in preset, 69/38; dan-cd in
 parallel: bisect -> 8/28, 42 -> 14, 2; then Tier B (68, 65, 72, 63 derivation), then C/D.
