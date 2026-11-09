@@ -32,8 +32,8 @@ Every test, profile and dead end: [docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDIN
 
 ## What pancake-strata does beyond Strata
 
-Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 3060 12 GB (numbers and method:
-[docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md)). "Exact" means the same tokens as before, checked.
+Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 3060 12 GB unless the row says RX 7900 XT
+(numbers and method: [docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md), MOD_PLAN phase 11). "Exact" means the same tokens as before, checked.
 
 | | Strata | pancake-strata |
 | --- | --- | --- |
@@ -42,33 +42,70 @@ Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 30
 | **Prompt reading (Qwen3.6)** | - | **9-13% faster, exact**: DeltaNet recurrence 4 columns a warp (x1.4), register-tiled router GEMM (x2.0-2.3), attention softmax read once |
 | **Output head** | `native_mmvq` | **a specialized exact kernel per head format** of the Flash-Next files - IQ4_XS (IQ2_XS), Q5_K (Q2_0, IQ3_XXS; basalt's), Q6_K (IQ3_S, Coder), Q4_K (UD-IQ1_M): one warp a row, activations in shared memory, x1.02-1.27 at 1-2 and 5-8 columns |
 | **MTP draft head pick** | GEMV + argmax + probability | **basalt's 2-bit two-stage pick, per head format** (IQ4_XS, Q5_K, Q6_K, Q4_K): x1.6-2.3 against the GEMV alone, the exact argmax 200/200 in tests; end to end the same tokens and drafts accepted, +3-5% decode (noisy run) |
-| **Default quality** | expert tail skip on (`STRATA_ROUTE_TAIL_SKIP=7`, answers change) | **exact by default**; the tail skip and other lossy switches are opt-in |
-| **Ready presets** | setup's config | `./run-pancake.sh` (exact) and `./run-pancake.sh fast` (Speedy's switches: +13% writing after 42K) |
+| **Default quality** | expert tail skip on (`STRATA_ROUTE_TAIL_SKIP=7`, answers change) | **no expert tail skip**; the default fast preset's switches passed the token-forcing check (within the engine's own run-to-run noise), `exact` is bit-for-bit; the tail skip and other lossy switches are opt-in |
+| **Ready presets** | setup's config | `./run-pancake.sh` (fast, the default: Speedy's switches, +13% writing after 42K) and `./run-pancake.sh exact`; `*-hip` presets on the RX 7900 XT |
 | **MTP draft vocabulary** | 106K tokens with CJK | **English/code subset by default** (+5% decode, ~215 MiB more VRAM for experts); Strata-rdna3's 59.6K list included |
-| **Upstream PRs not in Strata** | - | `STRATA_VERIFY_DEFER_CPU` (#2689/#2690, opt-in, lossy) |
+| **Upstream PRs not in Strata** | - | `STRATA_VERIFY_DEFER_CPU` (#2689/#2690, opt-in, lossy; still non-finite logits on HIP with the ported RDNA3 kernels) |
 | **Server** | - | sends `turn_at` to `strata-poly`, so a chat's next turn resumes from the cache |
 | **Agent robustness** | #606 one-token stop, opt-in #728 | **Project Maya's loop guard** (MIT): exact loops broken as they start (drop + short penalty, close the thinking, stop), repeated tool calls noted then blocked, on by default; tool calls that do not parse never fail or swallow the answer; opt-in soft thinking-budget close at a sentence end |
+| **Thinking caps per effort level** | one `reasoning_budget_tokens` for every request | `reasoning_budget_by_effort` (opt-in, 5dd620fb9): a thinking cap per effort level (s1 budget forcing), a request's own budget still wins; not in any preset yet (opencode sends `xhigh` by default) |
+| **Side branches (on branches, not merged)** | - | `feat/disco`: DISCO, a learned stop rule for the MTP draft chain (opt-in), untested on the GPU. `feat/contextpilot`: ContextPilot block dedup + cache-aware admission; dedup measured 1.6% savings on 40 real opencode sessions, keep off. `feat/bitdecoding-hip`: `STRATA_ATTN_WMMA` decode attention on RDNA3 matrix cores; attention is only ~3% of decode, ~2-3% gain unconfirmed. `feat/bfla-hip`: BFLA block-sparse long-prompt attention, on the `qwen35` engine; Flash-Next keeps its QSA layers |
 | **Proof** | - | bench harness (`tools/pancake/bench_engines.py`, every run kept as JSON), bitwise kernel tests (`poly_gdn_cols_test`, `poly_gemm_small_test`, `q5k_head_test`, `iq4xs_head_test`), and a findings log with every test, profile and rejected idea |
-| **Ahead** | - | Qwen 4 plan (Flash-Next is its official architecture preview), RDNA3 / RX 7900 XT port from Strata-rdna3, flash-attention prompt kernel, two-stage prompts |
+| **RX 7900 XT (HIP)** | gfx1100 builds | Strata-rdna3's RDNA3 kernels and fusions ported (branch `port/rdna3-decode`), `*-hip` presets: ~112 tok/s decode vs Strata-rdna3 109-119, Avalon 95-100, stock Strata 75-77 (MOD_PLAN phase 11) |
+| **Ahead** | - | MOD_PLAN phase 13 by measured gain: CPU-expert time first (expert deferral on HIP, time-based cache simulator), wiring pancake to opencode, Qwen 4 plan (Flash-Next is its official architecture preview) |
 
 ## Daily use: Qwen3.8-Flash-Next
 
-The model in daily use is **Qwen3.8-Flash-Next** (125B MoE, 6B active; the official preview of the Qwen 4
-architecture), ISTA-DASLab's GSQ-RCO **IQ2_XS** on the RTX 3060 12 GB + 57 GB RAM, on Strata's main engine:
+The model in daily use is **Qwen3.8-Flash-Next**, the official preview of the Qwen 4 architecture: a 125B MoE plus a
+51B hashed n-gram (PLE) table plus a ~4B MTP draft layer, **~176.9B parameters in all** (ISTA-DASLab's model cards;
+earlier notes here said "125B"), ~6B active per token. Each block is 3 Gated DeltaNet layers + 1 QSA attention layer;
+each MoE layer has 512 experts, 10 routed + 1 shared per token. The files are ISTA-DASLab's GSQ-RCO GGUFs, run on
+Strata's main engine with the RAM-resident expert arena (RX 7900 XT 20 GB now, RTX 3060 12 GB before; 57 GB RAM):
+
+- **Q2_0** (shard 1 37.6 GB): every routed expert tensor Q2_0. DASLab's card: **93.8 vs 70.3 tok/s decode** for Q2_0 vs
+  IQ2_XS in llama.cpp, task average 89.07 vs 89.16 (**-0.09**). [MOD_PLAN.md](MOD_PLAN.md) treats Q2_0 as the daily
+  file (item 6 closed).
+- **"IQ2_XS"**: the name is the bit budget, not the tensor type. The experts' gate/up are IQ2_S (34
+  layers), IQ2_XXS (11) and IQ1_M (3), and every down projection is Q2_0 (640-wide rows rule out K- and I-quants). The 3
+  IQ1_M layers take the generic ggml-cpu path on CPU misses (item 24).
+- The n-gram table (shard 2, 28.8 GB IQ4_NL) is the same file for every variant and stays on the SSD.
+
+**Known inconsistency:** `run-pancake.sh` still defaults to `iq2_xs` and its comment calls Q2_0 "a lower-quality quant"
+(80.6% same top token as Q8_0, [docs/QUANTS.md](docs/QUANTS.md)); the plan and DASLab's task scores say Q2_0. Pass
+`q2_0` explicitly until the script is changed. Pancake also listens on port 8080, while opencode points at 11437
+(`strata.service` / `avalon.service`): it is not yet wired to opencode.
 
 ```sh
-./run-pancake.sh               # Flash-Next IQ2_XS, fast preset (passed the quality check), English/code draft vocabulary
-./run-pancake.sh q2_0          # Flash-Next Q2_0: the fastest Flash-Next file here (+5-9% writing)
+./run-pancake.sh               # Flash-Next "IQ2_XS" (the script's default), fast preset, English/code draft vocabulary
+./run-pancake.sh q2_0          # Flash-Next Q2_0: the plan's daily file, the fastest Flash-Next file here
 ./run-pancake.sh iq2_xs exact  # the exact preset: the same answers as plain decoding (~13% slower after long prompts)
 ./run-pancake.sh qwen36        # Qwen3.6-35B-A3B UD-Q4_K_XL on strata-poly
 ./run-pancake.sh qwen36-q3     # Qwen3.6-35B-A3B UD-Q3_K_M on strata-poly: 150+ tok/s edits, 83 tok/s after 42K
 ./run-pancake.sh qwen38-35b    # Qwen3.8-35B-A3B-Distill Q4_K_M (empero; Qwen3.6 tuned on Qwen3.8 answers): ~98 / 152 / 74 tok/s
 ```
 
-OpenAI API on `http://127.0.0.1:8080/v1` (Anthropic: `/v1/messages`). Measured (cold runs, 2 rounds): short answers
+OpenAI API on `http://127.0.0.1:8080/v1` (Anthropic: `/v1/messages`). Measured on the RTX 3060 with "IQ2_XS" (cold runs,
+2 rounds; the 7900 XT numbers are in MOD_PLAN phase 11, ~112-135 tok/s decode): short answers
 ~50-55 tok/s, code edits ~74 tok/s, after a 42K-token prompt 41-47 tok/s, a 42K prompt read in ~37-38 s. Upstream's
 default expert tail skip would add 18-22% writing speed but changes answers: off here, an opt-in.
 Qwen3.6-35B-A3B on `strata-poly` (below) remains available and is faster (100-150 tok/s) but a smaller model.
+
+## Research and plan
+
+- **Plan:** [MOD_PLAN.md](MOD_PLAN.md) phase 11 (RX 7900 XT): the research index (one row per report, what each gave
+  the plan), items 13-62, the development plan ordered by measured gain (phase 13) and the **not-adopted ledger**
+  (section "Not adopted (ledger, 2026-11-09)": everything looked at and not taken, with the reason and a reopen trigger).
+- **Reports** ([reports/](reports/), copies of the owner's research series; most are in Romanian): the upstream-projects
+  survey ([Avalon upgrades from upstream projects](reports/Avalon%20upgrades%20from%20upstream%20projects.md)), seven
+  university-paper reports (`reports/Lucrări ...`: Stanford, MIT/Harvard, rest of the US, Europe, Asia, Canada,
+  Pacific/Africa/Latin America), [pain points and solutions](reports/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii.md),
+  [technology families](reports/Tehnologii%20grupate%20pentru%20pancake.md),
+  [hardware data path](reports/Tehnologii%20drum%20de%20date%20hardware.md) and
+  [consumer platform capabilities](reports/Capabilit%C4%83%C8%9Bi%20platforme%20consumer.md).
+- **What changed in our understanding** (measured vs estimated, with files):
+  [docs/PANCAKE_FINDINGS.md section 13](docs/PANCAKE_FINDINGS.md#13-research-series-2026-11-09). In short: a code-edit
+  decode window is the plain sum of GPU, CPU-expert and draft time (a scheduling problem, not a bandwidth one), and
+  pancake is not yet serving opencode.
 
 ## The layers of the stack, and what each does
 
@@ -148,6 +185,8 @@ This stack exists because these people shared their work openly. Thank you!
 | **[Speedy](https://github.com/DevDock-AI/Speedy)** | DevDock-AI | MIT | Studied: RTX 3080 (sm_86) Flash-Next presets and the upstream PRs it measured |
 | **[StrataFast](https://github.com/eddoursul/StrataFast)** | eddoursul | MIT | Studied: two-stage prompts, a self-trained draft layer |
 | **[SGLang](https://github.com/sgl-project/sglang)** | the SGLang team | Apache-2.0 | Ideas: tree drafting, speculative sampling, GPU token masks (planned) |
+| **[ISTA-DASLab](https://huggingface.co/ISTA-DASLab)** | IST Austria DAS Lab | see the model cards | The Qwen3.8-Flash-Next GSQ-RCO GGUFs (Q2_0, "IQ2_XS") in daily use, and the composition and quality numbers quoted here |
+| **[Project Maya](https://github.com/mw00/project-maya)** | mw00 | MIT | The loop guard, soft thinking-budget close and tolerant tool-call parsing in `serve/` |
 | **[Unsloth](https://huggingface.co/unsloth)** | Unsloth AI | - | The Qwen3.6 GGUFs with the MTP layer used for every measurement |
 | **[Qwen](https://huggingface.co/Qwen)** | the Qwen team, Alibaba | Apache-2.0 | Qwen3.6-35B-A3B |
 

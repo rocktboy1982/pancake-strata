@@ -80,6 +80,11 @@ run: byte-identical rows):
 | IQ3_XXS | 84.46% | 0.202 | 2.433 | 4.119 |
 | Q2_0 | 80.60% | 0.315 | 3.643 | 4.475 |
 
+> pancake note (2026-11-09): top-1 agreement and KL rank these quants but stop predicting task scores between close
+> ones (Toronto, "Displacement Is Not Direction"; reports/Lucrări Canada pentru Avalon.md). On tasks ISTA-DASLab's card
+> puts Q2_0 0.09 points below IQ2_XS (89.07 vs 89.16) while decoding 93.8 vs 70.3 tok/s, which is why pancake uses Q2_0
+> daily (reports/Lucrări Europa pentru Avalon.md).
+
 The same file on another backend is not the same answers: UD-Q4_K_XL on an RTX A4000 (CUDA, the RAM
 budget mode of a 62 GB PC) against UD-Q4_K_XL on the R9700 is 94.5% the same top token (KL 0.038), mostly near-ties.
 

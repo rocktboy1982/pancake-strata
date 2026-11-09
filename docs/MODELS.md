@@ -116,6 +116,18 @@ memory or less, on a Ryzen AI Max, and on a single Radeon RX 9000 / AI PRO R9700
 Four ISTA-DASLab sizes are the original model; the versions below are variants or other providers' packs of it.
 Every version in setup's menu reads pictures. [Picture rules](#pictures).
 
+> **pancake note (2026-11-09, from ISTA-DASLab's model cards and tensor-allocation files; see
+> [PANCAKE_FINDINGS.md section 13](PANCAKE_FINDINGS.md#13-research-series-2026-11-09)):**
+> - Size: a 125B MoE + a 51B hashed n-gram/PLE table (shard 2, 28.8 GB IQ4_NL, the same file in every variant) + a ~4B
+>   MTP layer, **~176.9B parameters** in all. Each block is 3 Gated DeltaNet layers + 1 QSA layer; 512 experts per MoE
+>   layer, 10 routed + 1 shared per token.
+> - **Q2_0**: all 144 routed expert tensors Q2_0. **IQ2_XS**: no IQ2_XS expert tensors at all - gate/up are IQ2_S (34
+>   layers), IQ2_XXS (11) and IQ1_M (3), every down is Q2_0 (640-wide down rows rule out K- and I-quants; only Q2_0 or
+>   IQ4_NL fit).
+> - DASLab's card (llama.cpp, 55 prompts): Q2_0 decodes **93.8 vs 70.3 tok/s** for IQ2_XS (prompt 367.5 vs 108.2) with a
+>   task average of 89.07 vs 89.16 (**-0.09**). The "Quality" column below ("good" vs "better") overstates the gap on
+>   tasks; pancake's plan uses Q2_0 as its daily file.
+
 ### Will it fit?
 
 Shard 1 is loaded at start: its experts go into **RAM**, the rest onto the graphics card. The second shard (a 29 GB
@@ -168,6 +180,13 @@ It keeps 256 of each layer's 512 experts, chosen on code (with agentic and image
 report 91% of the full model's SWE-bench Verified score and 99% of LiveCodeBench. There is one size, IQ1_M (experts
 stored like IQ3_S); shard 1 is **29.6 GB**. A 32 GB RAM computer also needs enough GPU memory and room for buffers;
 read the launch plan.
+
+> **pancake note (2026-11-09, not tested here):** the card's 17 Oct 2026 update reports SWE-bench Verified **79.20 vs
+> 82.80 for BF16 (95.7%)**, up from 75.60 (the "91%" above is the earlier number), and LiveCodeBench v6 87.43, level with
+> BF16. RCO picked the 256 of 512 experts per layer on code, agentic tool use and vision data; the kept experts are ~3.5
+> bpw lookup types (IQ2_S / IQ3_XXS / IQ3_S gate/up, IQ4_NL down); shard 1 is 29.6 GB resident, shard 2 is the same
+> n-gram file as the other variants. Expert ids change, so pancake's learned expert profile and seeds would need
+> regenerating (MOD_PLAN item 25).
 
 It is weaker outside code and in languages other than English, Chinese and other CJK text included. For general use,
 or whenever RAM allows, take a size that keeps every expert. More: [details](DETAILS.md#or-the-coder-half-the-experts-for-code).

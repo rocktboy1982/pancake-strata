@@ -5,6 +5,11 @@ Everything measured while building pancake-strata, in the order it was done. Har
 AVX2, 16 MiB L3), **57 GB DDR4** dual channel, Linux (kernel 7.0), NVIDIA driver 595.99, CUDA 13.1, gcc 15.2.
 Model: **Qwen3.6-35B-A3B UD-Q4_K_XL** with its MTP layer (Unsloth), greedy decoding.
 
+> pancake note (2026-11-09): sections 1-12 are the RTX 3060 era. Section 13 is the RX 7900 XT box (gfx1100, 20 GB,
+> ROCm 10.0; same 5700G and 57 GB DDR4): the 5700G forces PCIe 3.0 on the whole platform (root port Gen3 x16), ReBAR on
+> (32 GB BAR0), IOMMU passthrough, THP madvise; ROCm 10 has no `hipMemcpyBatchAsync`, so `STRATA_DMA_BATCH` is CUDA-only
+> (reports/Tehnologii drum de date hardware.md). The 7900 XT measurement rounds themselves are in MOD_PLAN.md phase 11.
+
 Raw results (one JSON line per run, the generated tokens included) are in `bench/results/2026-11-07-pancake-*.jsonl`.
 The harness is `tools/pancake/bench_engines.py`; the kernel tests are `poly_gdn_cols_test` and `poly_gemm_small_test`.
 
@@ -167,7 +172,9 @@ on one machine need re-measuring on ours.
 
 ## 10. Flash-Next IQ2_XS on the RTX 3060 (main engine, 2026-11-07)
 
-ISTA-DASLab GSQ-RCO IQ2_XS (shard 1 37 GB, n-gram table 27 GB on the SSD), `--expert-cache auto --prefill auto --spec 4
+ISTA-DASLab GSQ-RCO IQ2_XS (shard 1 37 GB, n-gram table 27 GB on the SSD; pancake note, 2026-11-09: the file holds no
+IQ2_XS expert tensors - gate/up are IQ2_S in 34 layers, IQ2_XXS in 11, IQ1_M in 3, every down is Q2_0 - and the model
+is ~176.9B parameters with the n-gram table and MTP layer, not "125B"; see section 13), `--expert-cache auto --prefill auto --spec 4
 --spec-min-p 0.5 --kv int8 --kv-resident 32768 --max-context 131072`, single cold runs (`2026-11-07-pancake-flashnext*.jsonl`):
 
 | | base (upstream defaults: `STRATA_ROUTE_TAIL_SKIP=7`, lossy) | exact (`TAIL_SKIP=0`) | exact + Speedy's switches |
@@ -283,7 +290,10 @@ card warns of weaker long context. To make room the Avalon Flash-Next model (90 
 (owner's choice); `avalon.service` needs it downloaded again to run.
 
 Q2_0 is the faster Flash-Next here (writing +5-9%, long reads -6%); a 5070 Ti user reported Q2_0 looping about once a
-day, IQ2_XS not. Qwen3.6 Q3_K_M writes 25-28% faster than Q4_K_XL after long prompts and in edits, at 3-bit quality.
+day, IQ2_XS not. pancake note (2026-11-09): ISTA-DASLab's card measures Q2_0 at 93.8 vs IQ2_XS 70.3 tok/s decode
+(llama.cpp, 55 prompts) with a task average of 89.07 vs 89.16 (-0.09), so MOD_PLAN.md takes Q2_0 as the daily file
+(item 6 closed); a lower top-1 agreement with Q8_0 (docs/QUANTS.md) does not predict task score between close quants
+(reports/Lucrări Europa pentru Avalon.md, reports/Lucrări Canada pentru Avalon.md). Qwen3.6 Q3_K_M writes 25-28% faster than Q4_K_XL after long prompts and in edits, at 3-bit quality.
 
 ## 10e. Quality of the lossy speed switches (tools/force_check.py, 2026-11-08)
 
@@ -379,3 +389,87 @@ cores with FP32 sums (what gpu-unlock speeds up).
 3. The MMQ expert products (~30% of a read).
 4. basalt's drafting items and grammar inside speculative decoding (MOD_PLAN.md phases 3 and 6).
 5. basalt's two-stage output head, ported for Qwen3.6's 2048-wide Q8_0 head (asked for by the owner; expected ~1-2%).
+
+6. pancake note (2026-11-09): the current order of work is MOD_PLAN.md phase 13 (by measured gain); section 13 below
+   says why.
+
+## 13. Research series 2026-11-09
+
+Fourteen reports (in [reports/](../reports/), mostly in Romanian) read the open literature and our own profiles; the
+plan rows and item numbers are in MOD_PLAN.md phase 11 ("Phase 11 research index", items 13-62, "Not adopted (ledger,
+2026-11-09)"). The findings below change how pancake is understood. **[M]** = measured on this box (file given),
+**[C]** = read from the code or a log, **[E]** = estimate or arithmetic, not measured. RX 7900 XT, fast-hip preset,
+"IQ2_XS" file unless noted.
+
+**Engine: where a decode window goes**
+
+- **[M]** A code-edit window (2K prompt) is **37.4 ms ≈ GPU 15.8 + CPU experts 17.4 + draft 2.5 ms** (+~1.7 ms sync):
+  the plain sum of its parts. The short-chat window is 24.8 ms (GPU 15.9, CPU 5.2, draft 2.2).
+  `bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt` ("GPU-reach wait 15.75 + ... CPU 17.41 ... draft 2.50").
+  **[E]** With perfect overlap the same parts fit in **~20 ms**: the edit window is a scheduling/overlap problem, not a
+  bandwidth problem. That makes expert deferral (items 8/28) and an overlap-aware simulator (item 42) the levers, and
+  caps the sum of the small exact items at a few % up to ~10% on edits (gains are not additive).
+  ([Tehnologii drum de date hardware](../reports/Tehnologii%20drum%20de%20date%20hardware.md),
+  [Tehnologii grupate](../reports/Tehnologii%20grupate%20pentru%20pancake.md))
+- **[M]** The CPU Q2_0 expert kernel already runs at **~80% of the 33 GB/s DDR4** (profile-fasthip.txt,
+  `bench/results/2026-11-08-7900xt-rounds/pool-sweep.txt`: pool defaults best). The same 80-90% band Intel reports for
+  the best 2-bit x86 GEMV. **[E]** A LUT rewrite (T-MAC / Vec-LUT) gains ~0: only fewer bytes, overlap or routing help.
+- **[M]** `combine_cpu_k10_vec4` is **38.3% of GPU kernel time** (4,128 calls, avg 254 us, min 5.6 us), so **>=97.8% of
+  it is waiting** for CPU rows (`bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv`, rocprofv3). With
+  `STRATA_WAIT_FUSE` on, the host "waitCPU" timer no longer measures this wait (item 49 adds a timer inside the kernel).
+- **[C/E]** With `--pcie-frac 0` the transfer on the critical path is **not the expert upload but the fp32 row pull**:
+  combine_cpu reads a full 2560-float (10 KB) row per missed (token, expert) slot from mapped host memory
+  (`native_moe.cu`, `verify.cpp` `h_ymiss_`), est. 0.4-0.8 ms per edit window against a <=0.27 ms GPU-side bound;
+  item 50 measures it before items 51-52 are built. **[M]** Promotions already run at ~93% of the Gen3 link (115 us vs
+  107 us theoretical per expert).
+- **[C, from M timers]** GPU kernels **before the router doorbell** (GDN, attention, hyper-connection, router, shared
+  expert) are on the critical path **in both window types**, not only on short chat as earlier notes said; the VRAM-hit
+  expert kernels run hidden behind the CPU on edits (profile-fasthip.txt GPU stages). Item 48 (fuse the pre-doorbell
+  chains) moved up.
+- **[M]** The Q2_0 down projection of VRAM-resident experts runs on the default kernel, `native_down_multi_kernel<42>`:
+  **5.8% of GPU kernel time** (4,224 calls, 37.6 us each; run_kernel_stats.csv). Expdec's Q2_0 down is on by default
+  only on gfx12 ([EXPERTDEC.md](EXPERTDEC.md), `STRATA_EXPDEC_DOWN`). **[E]** An expdec-style kernel at n_ff 640: ~1-2%
+  on short chat, ~0 on edits (hidden behind the CPU). Not started.
+- **[M]** **Item 13, activation sparsity: closed.** STRATA_ACT_DUMP_RAW on the Q2_0 file (5 layers, 11,027 expert-token
+  records): at 70% sparsity the gate mask keeps cos 0.844, CATS 0.818, even the oracle |h| mask 0.954. Flash-Next's
+  fine-grained experts (FF 640) are dense; no sparse CPU kernel. `bench/results/2026-11-09-sparsity/`.
+- **[C]** `tools/pancake/time_ceiling.py` **sums** GPU and CPU time (`max(gpu + cpu + alpha*dma, dma)`) instead of
+  overlapping them per layer, so it cannot price deferral, the rank guard, per-expert barriers or reordering (items 8,
+  28, 29, 22). Item 42 specifies the overlap model (per layer max(GPU part, CPU part + sync), calibrated on window ms).
+
+**Start-up and memory**
+
+- **[C/M]** The Linux expert-arena loader reads **through the page cache**: `experts_unbuffered()` returns false on Linux
+  ("buffered (not Windows)", `pinned.cu` ~1160) and `load_experts_direct` is `_WIN32`-only. Each start logs "expert
+  arena read through the file cache (buffered (not Windows))" and 33.02 GiB at 0.49-1.18 GiB/s depending on what is
+  already cached (`pancake-flashnext.log`; MOD_PLAN item 38); starts take 28-65 s. **[E]** ~66 GiB of demand (page cache + the locked 33 GiB
+  arena) on 57 GB is the likely systemd-oomd trigger seen in section 10f. Item 38: port the direct loader onto
+  `src/platform/direct_file.cpp` (16-thread O_DIRECT, already used for PLE on the same ntfs3 partition), est. start
+  ~10-14 s.
+
+**Agent use**
+
+- **[M, old backend]** opencode history (2,063 Flash-Next turns served by the old Strata/Avalon backend on 11437, not by
+  pancake): turn **median 6.2 s, p90 50 s, p99 224 s**; prompt **re-reads ~18%** of total turn time (a lower bound); 15
+  turns cut at the output cap while thinking (84-340 s each). The tail comes from re-reads and uncapped thinking, not
+  tok/s. (research_notes/Pancake pain points și soluții/server_agent_ops.md, summarized in
+  [Pancake pain points și soluții](../reports/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii.md))
+- **[C]** **Pancake is not yet wired to opencode**: `run-pancake.sh` serves on port 8080, opencode and
+  `strata.service` / `avalon.service` use 11437, there is no pancake unit, and the thinking caps
+  (`reasoning_budget_by_effort`, `reasoning_budget_grace`, `reasoning_close_retry`) are in the code but in no preset.
+  No engine gain reaches the user until this is done; no per-turn lever can be validated without a per-turn log.
+- **[M]** ContextPilot (`feat/contextpilot`): block dedup saved 1.6% on 40 real opencode sessions: keep off.
+
+**Other hardware**
+
+- **[E]** The CPU-compute vs PCIe-promote cost ratio per expert varies **~10x across platforms**: today 42 vs 115 us
+  (1:2.7, measured here); Zen 3 on B550/X570 or Rocket Lake ~1:1.2-1.8; LGA1700/1851 DDR5 ~1:2-4; AM5 + a Gen5 card ~1:1
+  or inverted; Strix Halo no promotion at all. So item 55 must **calibrate on window time** at start-up, not on a static
+  bandwidth table: its acceptance test is finding `--pcie-frac 0` on this 7900 XT by itself (the static PcieAuto picked
+  0.20-0.25 and lost). ([Capabilități platforme consumer](../reports/Capabilit%C4%83%C8%9Bi%20platforme%20consumer.md))
+
+**The model files** (ISTA-DASLab cards, [Lucrări Europa](../reports/Lucr%C4%83ri%20Europa%20pentru%20Avalon.md)):
+Qwen3.8-Flash-Next is a 125B MoE + 51B hashed n-gram/PLE table + ~4B MTP ≈ **176.9B parameters**; 3 GDN + 1 QSA layer
+per block; 512 experts (10 routed + 1 shared). The "IQ2_XS" file's experts are IQ2_S/IQ2_XXS/IQ1_M gate/up with Q2_0
+down; Q2_0 decodes 93.8 vs 70.3 tok/s on DASLab's card at -0.09 task average, and is the plan's daily file
+(`run-pancake.sh` still defaults to `iq2_xs`). Composition and the Coder variant: [MODELS.md](MODELS.md) pancake note.
