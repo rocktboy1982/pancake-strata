@@ -114,3 +114,34 @@ class TheRequestAnswers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ToolArgumentTypes(unittest.TestCase):
+    """Port of Project Maya 00655481c (a parameter whose schema allows a string stays one) and StrataFast 3fbea9882
+    (a boolean / null parameter takes Python's True / False / None in any case)."""
+
+    @staticmethod
+    def call(**params):
+        body = "<function=f>\n" + "".join(f"<parameter={k}>\n{v}\n</parameter>\n" for k, v in params.items()) + "</function>"
+        props = {
+            "s": {"type": "string"},
+            "s_or_null": {"type": ["string", "null"]},
+            "any_s": {"anyOf": [{"type": "string"}, {"type": "integer"}]},
+            "b": {"type": "boolean"},
+            "b_or_null": {"type": ["boolean", "null"]},
+            "n": {"type": "integer"},
+        }
+        return parse_tool_call(body, {"parameters": {"properties": props}}).arguments
+
+    def test_string_unions_keep_text(self):
+        a = self.call(s_or_null="123", any_s="true", s="42")
+        self.assertEqual(a, {"s_or_null": "123", "any_s": "true", "s": "42"})
+
+    def test_python_booleans_and_none(self):
+        self.assertEqual(self.call(b="False"), {"b": False})
+        self.assertEqual(self.call(b="TRUE"), {"b": True})
+        self.assertEqual(self.call(b_or_null="None"), {"b_or_null": None})
+        self.assertEqual(self.call(b="none"), {"b": "none"})        # no null in the declaration: the text, as before
+
+    def test_json_still_first(self):
+        self.assertEqual(self.call(b="true", n="7"), {"b": True, "n": 7})

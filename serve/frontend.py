@@ -1120,15 +1120,42 @@ def lenient_json(text: str):
     return v
 
 
+def declared_type(prop):
+    """A parameter's declared type for coerce_value: the schema's "type", with a union that allows a string ("type":
+    ["string", "null"], or anyOf / oneOf with a string branch) read as "string" - the text stays text, so "123" or
+    "true" in a string parameter is not turned into a number or a boolean (Project Maya 00655481c).  A union of the
+    other types comes back as their list."""
+    if not isinstance(prop, dict):
+        return None
+    t = prop.get("type")
+    types = list(t) if isinstance(t, list) else ([t] if isinstance(t, str) else [])
+    for key in ("anyOf", "oneOf"):
+        for branch in prop.get(key) or []:
+            bt = branch.get("type") if isinstance(branch, dict) else None
+            types += list(bt) if isinstance(bt, list) else ([bt] if isinstance(bt, str) else [])
+    if "string" in types:
+        return "string"
+    if not types:
+        return None
+    return types[0] if len(types) == 1 else types
+
+
 def coerce_value(value: str, declared, notes: list | None = None):
-    """A non-string parameter's text -> its value by the tool's declared type: JSON when it parses; else an array or an
-    object read with lenient_json (a note says so in `notes`); else the text itself, as before.  An array or object that
-    arrived as a JSON string of itself is decoded once more."""
+    """A non-string parameter's text -> its value by the tool's declared type: JSON when it parses; else, for a boolean
+    or null declaration, true/false/none in any case (the model writes Python's False; StrataFast 3fbea9882); else an
+    array or an object read with lenient_json (a note says so in `notes`); else the text itself, as before.  An array
+    or object that arrived as a JSON string of itself is decoded once more."""
     if declared == "string":
         return value
     try:
         v = json.loads(value)
     except ValueError:
+        kinds = declared if isinstance(declared, list) else [declared]
+        lit = value.strip().lower()
+        if lit in ("true", "false") and "boolean" in kinds:
+            return lit == "true"
+        if lit in ("none", "null") and "null" in kinds:
+            return None
         if not value.lstrip().startswith(("[", "{", "`")) or (isinstance(declared, list) and "string" in declared):
             return value
         try:
@@ -1180,7 +1207,7 @@ def parse_tool_call(body: str, schema: dict | None = None, notes: list | None = 
             value = value[1:]
         if value.endswith("\n"):
             value = value[:-1]
-        args[pname] = coerce_value(value, (props.get(pname) or {}).get("type"), notes)
+        args[pname] = coerce_value(value, declared_type(props.get(pname)), notes)
     return ToolCall(name=name, arguments=args)
 
 
@@ -1534,7 +1561,7 @@ class OutputParser:
                     return out
                 self.scall = ToolCall(name=name, arguments={})
                 props = ((self.schemas.get(name) or {}).get("parameters") or {}).get("properties") or {}
-                self.sdeclared = {k: (v or {}).get("type") for k, v in props.items()}
+                self.sdeclared = {k: declared_type(v) for k, v in props.items()}
                 out.append(Event("tool_start", call=self.scall))
                 args("{")
                 self.sp += b + 1
