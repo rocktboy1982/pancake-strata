@@ -226,7 +226,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 25 ISTA-DASLab Coder variant A/B - quality candidate (95.7% of BF16 on SWE-bench Verified), speed unknown - n/a - owner -
     ~29.6 GB on D, 67 - open.
 - 19 [2026-11-09: BFLA kernel on the qwen35 engine done on feat/bfla-hip - 32K layer 1238.7 -> 581.1 ms exact (dense) -> 500.2 ms
-   sparse; 64K 5224 -> 2321 -> 1090 ms (4.8x); 128K 28287 -> 9553 -> 3335 ms (8.5x; 10 layers 283 -> 96 -> 33 s); Flash-Next tile-shared QSA overlap run pending; ceiling ~7-8% of prefill at 128K est.]
+   sparse; 64K 5224 -> 2321 -> 1090 ms (4.8x); 128K 28287 -> 9553 -> 3335 ms (8.5x; 10 layers 283 -> 96 -> 33 s). 2026-11-09 end-to-end on Qwen3.6 UD-Q4_K_XL (noisy machine): 128K prompt 386.9 off -> 1219.8 sparse (3.15x) -> 771.2 dense (2.0x) tok/s; 64K sparse 1284.1, dense 1058.2 (the 64K off arm died silently once - rerun); recall probe top-1 agreement 48/48, mean KL 0.0014 (64K) / 0.0045 (128K). Flash-Next tile-shared QSA overlap measured (STRATA_SEL_OVERLAP=all, 131K): 16-query tiles read 6.3-32% of the KV cells by position, shared set holds 42-74%; prefill 229.1 tok/s; generation refused (--spec needs the residency table) - wiring pending.]
 - 19 BFLA as one shared QSA selection per query tile - long-context TTFT only (paper 1.34-1.44x at 128-256K; our QSA is
     already sparse) - lossy opt-in - this (feat/bfla-hip) - STRATA_SEL_OVERLAP, I8 - prototype.
 

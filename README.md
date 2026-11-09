@@ -46,14 +46,48 @@ Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 30
 | **Ready presets** | setup's config | `./run-pancake.sh` (fast, the default: Speedy's switches, +13% writing after 42K) and `./run-pancake.sh exact`; `*-hip` presets on the RX 7900 XT |
 | **MTP draft vocabulary** | 106K tokens with CJK | **English/code subset by default** (+5% decode, ~215 MiB more VRAM for experts); Strata-rdna3's 59.6K list included |
 | **Upstream PRs not in Strata** | - | `STRATA_VERIFY_DEFER_CPU` (#2689/#2690, opt-in, lossy; non-finite logits on HIP traced to `STRATA_ROUTE_PUBLISH`, now off under deferral (d5b58f669); the overlap model prices deferral at +33% on edits, not yet measured) |
+| **Expert cache admission (RX 7900 XT)** | first-miss LRU churn | **admit on the k-th miss** (`kmiss_tier.hpp`, `STRATA_ADAPT_KMISS`, items 14/27/30): a miss is promoted the second time it is needed, with Belady- and frequency-aware admission, instead of churning the tier on every first miss; the time-ceiling simulator prices online 2nd-miss admission at +5-16% of CPU-expert time saved on code edits (oracle ceiling +27-48%), model, A/B queued |
+| **PCIe split and decode tuning (RX 7900 XT)** | stock PcieAuto share | `--pcie-frac 0` and the tuned `*-hip` presets: +6% short chat (111.7 -> 118.4 tok/s) and +13% code edits (92.5 -> 104.3 tok/s) measured on the RX 7900 XT; the `turbo-hip` preset adds +30-50% decode (111.7 -> 149-168 tok/s), lossy (2.9% token disagreement), quality gate pending |
+| **Flash-Next expert routing** | - | GPU router lookahead on by default (CPU router cost 30 -> 0.6 ms a window, +10% decode on mmap'd experts) and a learned expert profile in the IQ2_XS presets (+6.7% decode, every run faster) |
+| **Measurement tooling** | bench harness | **20 tools under `tools/pancake/`**: rocprofv3 kernel profiling (`gpu_profile.py`), the time-budget ceiling simulator (`time_ceiling.py`), paired load-gated A/B (`abtest.py`), token-forcing quality gates (`quality_gate.py`), regression watch (`regression_watch.py`), decode-curve diagnostics (`decode_curve.py`), Belady ceiling replays (`belady_ceiling.py`), expert-routing traces (`conv_trace.py`) |
 | **Server** | - | sends `turn_at` to `strata-poly`, so a chat's next turn resumes from the cache |
 | **Agent robustness** | #606 one-token stop, opt-in #728 | **Project Maya's loop guard** (MIT): exact loops broken as they start (drop + short penalty, close the thinking, stop), repeated tool calls noted then blocked, on by default; tool calls that do not parse never fail or swallow the answer; opt-in soft thinking-budget close at a sentence end |
 | **Thinking caps per effort level** | one `reasoning_budget_tokens` for every request | `reasoning_budget_by_effort` (opt-in, 5dd620fb9): a thinking cap per effort level (s1 budget forcing), a request's own budget still wins; not in any preset yet (opencode sends `xhigh` by default) |
 | **Route prior graded by draft depth** | - | `STRATA_ROUTE_PRIOR_DEPTH=a` (item 23, AcceptMoE-style, opt-in, lossy; 4f56ce535), quality gate pending |
-| **Side branches (on branches, not merged)** | - | `feat/disco`: DISCO, a learned stop rule for the MTP draft chain (opt-in), untested on the GPU. `feat/contextpilot`: ContextPilot block dedup + cache-aware admission; dedup measured 1.6% savings on 40 real opencode sessions, keep off. `feat/bitdecoding-hip`: `STRATA_ATTN_WMMA` decode attention on RDNA3 matrix cores; attention is only ~3% of decode, ~2-3% gain unconfirmed. `feat/bfla-hip`: BFLA block-sparse long-prompt attention plus a fused RDNA3 flash-attention kernel on the `qwen35` engine (Qwen3.6/3.8-35B): one 32K attention layer 1238.7 ms (hipBLAS path) -> 581.1 ms exact (`STRATA_BFLA=dense`) -> 500.2 ms sparse (`STRATA_BFLA=1`, lossy); at 64K 5224 -> 2321 (dense) -> 1090 ms (sparse, 4.8x); at 128K 28287 -> 9553 (dense, 3.0x) -> 3335 ms (sparse, 8.5x); Flash-Next keeps its QSA layers (64K/128K and end-to-end runs pending) |
+| **Side branches (on branches, not merged)** | - | `feat/disco`: DISCO, a learned stop rule for the MTP draft chain (opt-in), untested on the GPU. `feat/contextpilot`: ContextPilot block dedup + cache-aware admission; dedup measured 1.6% savings on 40 real opencode sessions, keep off. `feat/bitdecoding-hip`: `STRATA_ATTN_WMMA` decode attention on RDNA3 matrix cores; attention is only ~3% of decode, ~2-3% gain unconfirmed. `feat/bfla-hip`: BFLA block-sparse long-prompt attention plus a fused RDNA3 flash-attention kernel on the `qwen35` engine (Qwen3.6/3.8-35B): one 32K attention layer 1238.7 ms (hipBLAS path) -> 581.1 ms exact (`STRATA_BFLA=dense`) -> 500.2 ms sparse (`STRATA_BFLA=1`, lossy); at 64K 5224 -> 2321 (dense) -> 1090 ms (sparse, 4.8x); at 128K 28287 -> 9553 (dense, 3.0x) -> 3335 ms (sparse, 8.5x); Flash-Next keeps its QSA layers (end-to-end on Qwen3.6 UD-Q4_K_XL at 128K: 386.9 off -> 771.2 dense, 2.0x -> 1219.8 sparse tok/s, 3.15x, needle-recall top-1 48/48; Flash-Next 131K tile-shared QSA overlap measured: 42-74% shared cells, 229.1 tok/s prefill) |
 | **Proof** | - | bench harness (`tools/pancake/bench_engines.py`, every run kept as JSON), bitwise kernel tests (`poly_gdn_cols_test`, `poly_gemm_small_test`, `q5k_head_test`, `iq4xs_head_test`), and a findings log with every test, profile and rejected idea |
 | **RX 7900 XT (HIP)** | gfx1100 builds | Strata-rdna3's RDNA3 kernels and fusions ported (branch `port/rdna3-decode`), `*-hip` presets: ~112 tok/s decode vs Strata-rdna3 109-119, Avalon 95-100, stock Strata 75-77 (MOD_PLAN phase 11) |
-| **Ahead** | - | MOD_PLAN phase 13 by measured gain: CPU-expert time first (expert deferral on HIP, time-based cache simulator), wiring pancake to opencode, Qwen 4 plan (Flash-Next is its official architecture preview) |
+| **Ahead** | - | MOD_PLAN phase 13 by measured gain: CPU-expert time first (expert deferral on HIP, time-based cache simulator), wiring pancake to opencode, Qwen 4 plan (Flash-Next is its official architecture preview); then phase 14's processes: nightly A/B, quality gates, self-tuning from the owner's own sessions |
+
+## How pancake-strata is built: the process
+
+Every layer on the stack goes through the same four steps. No switch goes in on a hunch: it is priced first, in
+milliseconds of the real decode window, and kept only if it is faster and just as exact.
+
+1. **Broad survey and deep research, before any code.** Upstream Strata and llama.cpp PRs, every community fork
+   (FastStrata, PolyStrata, Strata-rdna3, Speedy, StrataFast, basalt, colibri, Aviary, llamAmpere, Project Maya,
+   gpu-unlock), seven global university-paper sweeps (Stanford; MIT/Harvard; the rest of the US; Europe; Asia; Canada;
+   Pacific/Africa/Latin America), the 2026 LLM runtime architectures, MoE engine speed-up deep dives (llama.cpp,
+   ik_llama.cpp, KTransformers, SGLang, vLLM, TensorRT-LLM, FlashInfer, BitDecoding), hardware data-path and consumer
+   platform limits, and real `opencode` session telemetry: 2,063 Flash-Next turns analyzed (served by the old
+   Strata/Avalon backend), turn median 6.2 s, p90 50 s, p99 224 s, about 18% of turn time spent re-reading prompts the
+   cache already had.
+2. **Time-budget profiling before coding.** On the RX 7900 XT the actual decode window was measured and decomposed:
+   37.4 ms on a code edit (GPU floor 15.8 ms, CPU expert misses 17.4 ms, MTP draft 2.5 ms) and 24.8 ms on short chat
+   (GPU 15.9, CPU 5.2, draft 2.2). The CPU Q2_0 expert kernel already runs at ~80% of the 33 GB/s DDR4, and the GPU
+   spends 38% of its kernel time in `combine_cpu`, almost all of it waiting for CPU rows. That proved MoE decode on
+   consumer hardware is a scheduling, overlap and cache-admission problem, not a raw CPU-kernel-bandwidth problem, and
+   it set the ~20 ms perfect-overlap floor every candidate is priced against.
+3. **Expected-gain planning and the Not-Adopted Ledger** ([MOD_PLAN.md](MOD_PLAN.md)). Every candidate is ranked into
+   Tiers A-D and substitute groups S1-S7 by measured milliseconds saved per decode window (gains inside a group do not
+   add), combined into items 63-73 where a combination beats its parts, and everything looked at and not taken goes
+   into the Not-Adopted Ledger with the exact reason and a reopen trigger.
+4. **Isolated prototyping behind a two-stage gate.** Heavy or experimental features grow on their own branches
+   (`feat/bfla-hip`, `feat/disco`, `feat/contextpilot`, `feat/bitdecoding-hip`, `exp/expert-prefetch`). Kernels are
+   verified first with bitwise unit tests (`poly_gdn_cols_test`, `poly_gemm_small_test`, `q5k_head_test`,
+   `iq4xs_head_test`), then paired cold A/B benchmarks (`bench_engines.py`, `abtest.py`) and token-forcing quality
+   checks (`quality_gate.py`, `regression_watch.py`) decide. A layer joins the stack only if it is faster on real
+   workloads and keeps the answers exact by default; lossy switches stay strictly opt-in.
 
 ## Daily use: Qwen3.8-Flash-Next
 
@@ -93,16 +127,37 @@ Qwen3.6-35B-A3B on `strata-poly` (below) remains available and is faster (100-15
 
 ## Research and plan
 
-- **Plan:** [MOD_PLAN.md](MOD_PLAN.md) phase 11 (RX 7900 XT): the research index (one row per report, what each gave
-  the plan), items 13-62, the development plan ordered by measured gain (phase 13) and the **not-adopted ledger**
-  (section "Not adopted (ledger, 2026-11-09)": everything looked at and not taken, with the reason and a reopen trigger).
-- **Reports** ([reports/](reports/), copies of the owner's research series; most are in Romanian): the upstream-projects
-  survey ([Avalon upgrades from upstream projects](reports/Avalon%20upgrades%20from%20upstream%20projects.md)), seven
-  university-paper reports (`reports/Lucrări ...`: Stanford, MIT/Harvard, rest of the US, Europe, Asia, Canada,
-  Pacific/Africa/Latin America), [pain points and solutions](reports/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii.md),
-  [technology families](reports/Tehnologii%20grupate%20pentru%20pancake.md),
-  [hardware data path](reports/Tehnologii%20drum%20de%20date%20hardware.md) and
-  [consumer platform capabilities](reports/Capabilit%C4%83%C8%9Bi%20platforme%20consumer.md).
+- **Plan:** [MOD_PLAN.md](MOD_PLAN.md), items 1-73 across phases 0-14. Phase 11 (RX 7900 XT) holds the research index
+  (one row per report, what each gave the plan) and items 13-62; the development plan is ordered by measured gain
+  (phase 13, Tiers A-D, substitute groups S1-S7, combined items 63-73); the **not-adopted ledger** (section
+  "Not adopted (ledger, 2026-11-09)") records everything looked at and not taken, with the reason and a reopen trigger.
+- **Status:** [PANCAKE_STATUS.md](PANCAKE_STATUS.md), one row per item: how much of the code exists and builds (Dev)
+  and how far it is from decided (Test), ordered by phase 13's expected gain.
+- **Reports** ([reports/](reports/), 14, copies of the owner's research series; most are in Romanian):
+  - Engine and platform: [Pancake MoE engine speedup](reports/Pancake%20MoE%20engine%20speedup.md),
+    [LLM runtime architectures 2026](reports/LLM%20runtime%20architectures%202026.md),
+    [pain points and solutions](reports/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii.md),
+    [technology families](reports/Tehnologii%20grupate%20pentru%20pancake.md),
+    [hardware data path](reports/Tehnologii%20drum%20de%20date%20hardware.md) and
+    [consumer platform capabilities](reports/Capabilit%C4%83%C8%9Bi%20platforme%20consumer.md).
+  - Upstream survey: [Avalon upgrades from upstream projects](reports/Avalon%20upgrades%20from%20upstream%20projects.md).
+  - University papers, seven sweeps: [Stanford](reports/Lucr%C4%83ri%20Stanford%20utile%20pentru%20Avalon.md),
+    [MIT/Harvard](reports/Lucr%C4%83ri%20MIT%20Harvard%20pentru%20Avalon.md),
+    [rest of the US](reports/Lucr%C4%83ri%20universit%C4%83%C8%9Bi%20SUA%20pentru%20Avalon.md),
+    [Europe](reports/Lucr%C4%83ri%20Europa%20pentru%20Avalon.md),
+    [Asia](reports/Lucr%C4%83ri%20Asia%20pentru%20Avalon.md),
+    [Canada](reports/Lucr%C4%83ri%20Canada%20pentru%20Avalon.md) and
+    [Pacific/Africa/Latin America](reports/Lucr%C4%83ri%20Pacific%20Africa%20America%20Latin%C4%83.md).
+- **Notes** ([research_notes/](research_notes/), in English, the per-topic layer under the reports): the six MoE
+  engine-speedup deep dives ([cpu_expert_compute](research_notes/Pancake%20MoE%20engine%20speedup/cpu_expert_compute.md),
+  [engines_labs_companies](research_notes/Pancake%20MoE%20engine%20speedup/engines_labs_companies.md),
+  [expert_caching_prediction](research_notes/Pancake%20MoE%20engine%20speedup/expert_caching_prediction.md),
+  [moe_speculative_decoding](research_notes/Pancake%20MoE%20engine%20speedup/moe_speculative_decoding.md),
+  [rdna3_gpu_decode](research_notes/Pancake%20MoE%20engine%20speedup/rdna3_gpu_decode.md),
+  [transfer_and_kv](research_notes/Pancake%20MoE%20engine%20speedup/transfer_and_kv.md)); the pain-point notes
+  ([engine](research_notes/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii/engine.md),
+  [server_agent_ops](research_notes/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii/server_agent_ops.md)); and eleven
+  further folders, one per report above.
 - **What changed in our understanding** (measured vs estimated, with files):
   [docs/PANCAKE_FINDINGS.md section 13](docs/PANCAKE_FINDINGS.md#13-research-series-2026-11-09). In short: a code-edit
   decode window is the plain sum of GPU, CPU-expert and draft time (a scheduling problem, not a bandwidth one), and
@@ -146,12 +201,35 @@ pinned llama.cpp checkout Strata already uses.
 | Bench harness `tools/pancake/bench_engines.py` | The same prompts through any engine, every run kept as JSON lines | Every layer is measured before it stays |
 | Bitwise kernel tests | `poly_gdn_cols_test`, `poly_gemm_small_test` | A speedup only stays when it gives the same bits |
 
-### Studied, and planned or rejected
+### Where the inspiration comes from
+
+Three pillars, each with a different role:
+
+1. **Strata and its community forks**, the code pancake starts from. Strata (`Niko1221/Strata`) is the base;
+   FastStrata (`Jarson1408/FastStrata`) and PolyStrata (`simplexai-labs/PolyStrata`) give the `strata-poly` engine;
+   Strata-rdna3 (`nicejunjie/Strata-rdna3`) the RDNA3 kernels; Speedy (`DevDock-AI/Speedy`), StrataFast
+   (`eddoursul/StrataFast`), basalt (`jesdga95/basalt`), colibri (`JustVugg/colibri`), Aviary (`SensAI-PT/aviary-hy3`),
+   llamAmpere (`JakeATX/llamAmpere`), Project Maya (`mw00/project-maya`) and gpu-unlock (`Zagitta/gpu-unlock`) are
+   measured, studied or ported piece by piece (table below).
+2. **Production inference engines and runtimes**, ideas more than code: `llama.cpp`/`ggml` (MMQ kernels, the CPU
+   expert dot products), `ik_llama.cpp` (repacked MoE quants, fused MoE and DeltaNet ops), `KTransformers` (CPU-GPU
+   hybrid MoE scheduling; its measured deferral ceiling, up to 1.45x, prices item 8), `SGLang` (overlap scheduler, tree
+   drafting, HiCache, GPU grammar masks), `vLLM`, `TensorRT-LLM` (grammar inside speculative decoding, auto n-gram
+   enablement), `FlashInfer` and `BitDecoding` (studied; BitDecoding's HIP port is opt-in on `feat/bitdecoding-hip`).
+3. **Academic research and model labs**, the papers behind the mechanisms and the files in use: ISTA-DASLab (the
+   GSQ-RCO Q2_0 / IQ2_XS GGUFs for Qwen3.8-Flash-Next), Unsloth (UD dynamic quants with the MTP layer), the Qwen team
+   at Alibaba, and the research lines: **AcceptMoE** (depth-graded router prior, item 23), **Belady / k-th-miss cache
+   admission** and the **MoE-Infinity / ProMoE / Pre-gated MoE / ExpertFlow** expert-caching and prefetching line,
+   **Apto (2611.01859) and Apex (2610.23006)** (CPU-GPU hybrid expert serving and caching),
+   **BFLA** (block-sparse flash attention on RDNA3), **DISCO** (learned draft stopping), **ContextPilot** (context-block
+   dedup and cache-aware admission), **SuffixDecoding** (training-free drafts from prompt and history) and **s1**
+   (reasoning budget forcing by effort level).
 
 basalt (two-stage output head, grammar-constrained decoding, drafting), colibri (cache-aware routing, multitier
 memory), SGLang (tree drafting, GPU grammar masks), TensorRT-LLM's blogs (grammar with speculative decoding),
 Aviary and lilt's colibri fork: what was taken, planned or rejected, and why, is in
-[docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md#5-tried-and-rejected-with-the-reason).
+[docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md#5-tried-and-rejected-with-the-reason) and in MOD_PLAN's
+Not-Adopted Ledger.
 
 ## Build and run
 
@@ -186,6 +264,12 @@ This stack exists because these people shared their work openly. Thank you!
 | **[Speedy](https://github.com/DevDock-AI/Speedy)** | DevDock-AI | MIT | Studied: RTX 3080 (sm_86) Flash-Next presets and the upstream PRs it measured |
 | **[StrataFast](https://github.com/eddoursul/StrataFast)** | eddoursul | MIT | Studied: two-stage prompts, a self-trained draft layer |
 | **[SGLang](https://github.com/sgl-project/sglang)** | the SGLang team | Apache-2.0 | Ideas: tree drafting, speculative sampling, GPU token masks (planned) |
+| **[ik_llama.cpp](https://github.com/ikawrakow/ik_llama.cpp)** | ikawrakow | MIT | Studied: repacked MoE quants, fused MoE and DeltaNet ops, DFlash 2 drafting for Flash-Next |
+| **[KTransformers](https://github.com/kvcache-ai/ktransformers)** | the KTransformers team | Apache-2.0 | Studied: CPU-GPU hybrid MoE scheduling; its measured deferral ceiling (up to 1.45x) prices item 8 |
+| **[vLLM](https://github.com/vllm-project/vllm)** | the vLLM team | Apache-2.0 | Studied: checked and rejected as a base engine here (keeps the model in VRAM); overlap-scheduler and KV-store ideas |
+| **[TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)** | NVIDIA | Apache-2.0 | Ideas from the tech blogs: grammar inside speculative decoding, auto n-gram enablement |
+| **[FlashInfer](https://github.com/flashinfer-ai/flashinfer)** | the FlashInfer team | Apache-2.0 | Studied: its ROCm port is CDNA only, so nothing to run here |
+| **[BitDecoding](https://arxiv.org/abs/2503.18773)** | Edinburgh-led, with MSR | - | Studied: NVIDIA tensor-core decode attention; the HIP port is opt-in on `feat/bitdecoding-hip` |
 | **[ISTA-DASLab](https://huggingface.co/ISTA-DASLab)** | IST Austria DAS Lab | see the model cards | The Qwen3.8-Flash-Next GSQ-RCO GGUFs (Q2_0, "IQ2_XS") in daily use, and the composition and quality numbers quoted here |
 | **[Project Maya](https://github.com/mw00/project-maya)** | mw00 | MIT | The loop guard, soft thinking-budget close and tolerant tool-call parsing in `serve/` |
 | **[Unsloth](https://huggingface.co/unsloth)** | Unsloth AI | - | The Qwen3.6 GGUFs with the MTP layer used for every measurement |
