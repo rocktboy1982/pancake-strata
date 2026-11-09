@@ -11,6 +11,8 @@
 #include <windows.h>
 #include <psapi.h>
 #pragma comment(lib, "psapi.lib")
+#else
+#include <sys/resource.h>
 #endif
 
 namespace {
@@ -111,6 +113,18 @@ int main() {
     std::printf("lock_resident: ok=%d locked=%llu MiB (%s)\n", (int) r.ok, (unsigned long long) (r.locked_bytes >> 20),
                 r.note.c_str());
     int fail = !(r.ok && r.locked_bytes == bytes) | fail_keeps;
+#if !defined(_WIN32)
+    // item 93: a lock the account may not take (RLIMIT_MEMLOCK below 256 MiB, the usual 8 MiB default) is a missing
+    // resource, not a failure: exit 77 (ctest SKIP_RETURN_CODE) when everything else passed
+    struct rlimit rl{};
+    if (!r.ok && fail_keeps == 0 && getrlimit(RLIMIT_MEMLOCK, &rl) == 0 && rl.rlim_cur != RLIM_INFINITY &&
+        rl.rlim_cur < bytes) {
+        std::printf("platform_memory_test: SKIP lock_resident (ulimit -l %llu KiB < 256 MiB); the other cases OK\n",
+                    (unsigned long long) (rl.rlim_cur >> 10));
+        std::free(p);
+        return 77;
+    }
+#endif
 #if defined(_WIN32)
     PROCESS_MEMORY_COUNTERS pmc{};
     GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof pmc);

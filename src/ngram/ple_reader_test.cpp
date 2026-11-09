@@ -557,17 +557,20 @@ int selftest(const std::string& dir, uint32_t rb) {
             CHECK(rd.cache_size() <= rd.cache_capacity(), "row cache exceeded its bound");
         }
     }
-    // fault injection: a 3 ms delay must be observed, and must not change the bytes
+    // fault injection: the delay must be observed, and must not change the bytes.  A read is held back only when
+    // its completion arrives before the delay has passed, so the delay must be far above a real read's latency:
+    // 3 ms was not on a loaded machine (item 93: "no read was held back" with 4 compiles running), 50 ms is.
     for (bool thr : {false, true}) {
+        constexpr double kDelayUs = 50000;
         ng::PleReader rd;
         std::string err;
         CHECK(rd.open(path, HEADER, N, 16, 0, err, thr, rb), "open: %s", err.c_str());
-        rd.set_injected_delay_us(3000);
+        rd.set_injected_delay_us(kDelayUs);
         std::vector<uint32_t> rows(16);
         for (auto& r : rows) r = rng() % N;
         const double t0 = now_us();
         check_rows(rd, rows, N, rb, "delayed");
-        CHECK(now_us() - t0 >= 3000, "injected delay not observed (%.0f us)", now_us() - t0);
+        CHECK(now_us() - t0 >= kDelayUs, "injected delay not observed (%.0f us)", now_us() - t0);
         CHECK(rd.stats().late_injected > 0, "no read was held back");
     }
     // keep-alive: while rows are asked for, a page goes out after `period` without a read; it stops once the
@@ -729,13 +732,29 @@ int main(int argc, char** argv) {
         else { std::fprintf(stderr, "usage: ple_reader_test --selftest [--dir D] | --gguf SHARD2 [--rows N] [--tokens F]\n"); return 2; }
     }
     if (self) {
+        // item 93: without --dir, a directory of this run's own under the temp dir (the fixed file names in the
+        // shared temp dir collided between two runs at once), removed afterwards
+        std::filesystem::path own;
+        if (dir == std::filesystem::temp_directory_path().string()) {
+            own = std::filesystem::temp_directory_path() / ("strata-ple-reader-" + std::to_string(std::random_device{}()));
+            std::error_code ec;
+            std::filesystem::create_directories(own, ec);
+            if (!ec) dir = own.string();
+        }
         // ng::ROW_BYTES (90, IQ4_NL, production default) and 110 (#296, OrcaRouter's Q5_0 PLE rows) through the
         // same generic row_bytes path -- see the comment on selftest().
         all_formats_round_trip(dir);               // every format of k::ple_formats(), both readers, vs its dequantizer
-        if (g_fail != 0) return 1;
-        const int r90 = selftest(dir, ng::ROW_BYTES);
-        const int r110 = selftest(dir, 110);
-        return r90 != 0 ? r90 : r110;
+        int rc = 1;
+        if (g_fail == 0) {
+            const int r90 = selftest(dir, ng::ROW_BYTES);
+            const int r110 = selftest(dir, 110);
+            rc = r90 != 0 ? r90 : r110;
+        }
+        if (!own.empty()) {
+            std::error_code ec;
+            std::filesystem::remove_all(own, ec);
+        }
+        return rc;
     }
     if (!make_path.empty()) {                      // a big synthetic table, for timing --ple-io ram's fault-in
         for (int i = 0; i < k::ple_format_count(); ++i) {
