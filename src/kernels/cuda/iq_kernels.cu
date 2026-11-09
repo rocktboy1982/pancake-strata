@@ -2635,6 +2635,86 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_kernel(
     }
 }
 
+__device__ __forceinline__ void q8_1_store(const float xi, block_q8_1* __restrict__ y, const long long i);   // below
+// MOD_PLAN item 48 (STRATA_EXPDEC_SWIGLU=1, opt-in): expdec_gu_kernel with swiglu_q8_1_entries_kernel as its epilogue -
+// one launch fewer per expert call (~49 per window) and no gate/up round trip through memory.  A block owns 32 hidden
+// columns [c0, c0 + 32): its passes compute gate rows c0.. and then up rows c0.. (the same ed_gu_rows calls on the same
+// staged activations as expdec_gu_kernel, so the same floats), keeps them in LDS, and warp c turns entry c's 32 columns
+// into one q8_1 block with q8_1_store - the product rounded on its own (contract off), the warp's lanes the block's 32
+// values in order: bit for bit the separate kernels' blocks.  Needs n_ff % 32 == 0 and 16 R | 32 (R 1 or 2).
+template<int TG, int R, int MINB>
+#if defined(__HIPCC__)
+__global__ void __launch_bounds__(256, MINB * 2) expdec_gu_swiglu_kernel(
+#else
+__global__ void __launch_bounds__(256, MINB) expdec_gu_swiglu_kernel(
+#endif
+                                                                     const unsigned long long* __restrict__ grp_ptr,
+                                                                     const int32_t* __restrict__ grp_start,
+                                                                     const int32_t* __restrict__ n_groups,
+                                                                     const int32_t* __restrict__ ent_tok,
+                                                                     const block_q8_1* __restrict__ xq, NativeExpertLayout L,
+                                                                     block_q8_1* __restrict__ hq) {
+#if defined(__HIPCC__)
+#pragma clang fp contract(off)
+#endif
+    static_assert(32 % (16 * R) == 0, "a pass must tile the block's 32 columns");
+    constexpr int PH = 32 / (16 * R);   // passes per half (gate, then up)
+    const int ng = *n_groups;
+    if (blockIdx.y >= ng) return;
+    __shared__ alignas(16) int4 s_u[ED_NC * 2 * ED_XB];
+    __shared__ float s_ds[ED_NC * ED_XB];
+    __shared__ float s_g[ED_NC][32], s_up[ED_NC][32];
+    STRATA_SHARED_ALIGN16_U32(s_grid_buf, EdGrid<TG>::words);
+    const int tid = threadIdx.x;
+    EdGrid<TG>::copy(s_grid_buf, tid);
+    const int sw = tid >> 4, t = tid & 15, warp = tid >> 5, lane = tid & 31;
+    const int n_ff = (int) L.n_ff;
+    const int c0 = blockIdx.x * 32;
+    for (int g = blockIdx.y; g < ng; g += gridDim.y) {
+        const uint8_t* blob = (const uint8_t*) grp_ptr[g];
+        const int e0 = grp_start[g], e1 = grp_start[g + 1];
+        for (int e = e0; e < e1; e += ED_NC) {
+            const int n = min(ED_NC, e1 - e);
+            if (g > (int) blockIdx.y || e > e0) iq_sync_lds();
+            for (int c = 0; c < n; ++c) ed_stage_entry<ED_XB, true>(s_u, s_ds, c, xq + (size_t) ent_tok[e + c] * ED_XB, tid);
+            iq_sync_lds();
+            for (int p = 0; p < 2 * PH; ++p) {
+                const bool is_up = p >= PH;
+                const int col = (p % PH) * 16 * R + sw * R;   // within the block's 32 columns
+                const uint8_t* wr[R];
+#pragma unroll
+                for (int r = 0; r < R; ++r) wr[r] = blob + (is_up ? L.up_off : 0) + (size_t) (c0 + col + r) * L.gu_row;
+                auto run = [&](auto nc) {
+                    constexpr int NC = decltype(nc)::value;
+                    float sres[R][NC];
+                    ed_gu_rows<TG, R, NC>(wr, s_u, s_ds, s_grid_buf, t, sres);
+#pragma unroll
+                    for (int c = 0; c < NC; ++c)
+                        if (t == c)
+#pragma unroll
+                            for (int r = 0; r < R; ++r) (is_up ? s_up : s_g)[c][col + r] = sres[r][c];
+                };
+                switch (n) {
+                    case 1: run(std::integral_constant<int, 1>{}); break;
+                    case 2: run(std::integral_constant<int, 2>{}); break;
+                    case 3: run(std::integral_constant<int, 3>{}); break;
+                    default: run(std::integral_constant<int, 4>{}); break;
+                }
+            }
+            iq_sync_lds();
+            if (warp < n) {   // warp c: entry c's q8_1 block of these 32 columns (warp-uniform)
+                const float gg = s_g[warp][lane];
+#if defined(__HIPCC__)
+                const float h = (gg / (1.0f + __expf(-gg))) * s_up[warp][lane];
+#else
+                const float h = __fmul_rn(gg / (1.0f + __expf(-gg)), s_up[warp][lane]);
+#endif
+                q8_1_store(h, hq, (long long) (e + warp) * n_ff + c0 + lane);
+            }
+        }
+    }
+}
+
 // R IQ4_NL down rows, lane t of an 8-lane sub-warp: row_dot_40_sub8's tree.  s_p: the block's 8 words together
 // (ed_stage_entry<ED_HB, false>), read as the int2 pairs (iqs, iqs + 1) and (iqs + 4, iqs + 5).
 template<int R, int NC>
@@ -4125,6 +4205,37 @@ void expdec_gu_r(int64_t gy, int64_t cap_groups, cudaStream_t s, const unsigned 
     const int rb = expdec_rows_per_block(nrow, 16 * R, cap_groups, g_expdec_rb);
     const dim3 grid((unsigned) ((nrow + rb - 1) / rb), (unsigned) gy);
     expdec_gu_kernel<TG, R, MINB><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+}
+template<int TG>
+void expdec_gu_swiglu_t(int64_t gy, cudaStream_t s, const unsigned long long* grp_ptr, const int32_t* grp_start,
+                        const int32_t* n_groups, const int32_t* ent_tok, const block_q8_1* X, const NativeExpertLayout& L,
+                        block_q8_1* hq) {
+    const dim3 grid((unsigned) (L.n_ff / 32), (unsigned) gy);
+    const bool b4 = g_expdec_minb >= 4;
+    if (expdec_r() == 2) {
+        if (b4) expdec_gu_swiglu_kernel<TG, 2, 4><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+        else expdec_gu_swiglu_kernel<TG, 2, 2><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+    } else {
+        if (b4) expdec_gu_swiglu_kernel<TG, 1, 4><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+        else expdec_gu_swiglu_kernel<TG, 1, 2><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+    }
+}
+// item 48: STRATA_EXPDEC_SWIGLU=1 - gate/up + SwiGLU + q8_1 in one launch where EXPDEC takes the layout (false: not taken)
+bool expdec_gu_swiglu(const NativeExpertLayout& L, int64_t gy, cudaStream_t s, const unsigned long long* grp_ptr,
+                      const int32_t* grp_start, const int32_t* n_groups, const int32_t* ent_tok, const block_q8_1* X,
+                      block_q8_1* hq) {
+    static const bool on = [] { const char* v = std::getenv("STRATA_EXPDEC_SWIGLU"); return v != nullptr && v[0] == '1'; }();
+    if (!on || !expdec_mode() || g_old_kernels || !expdec_gu_ok(L) || L.n_ff % 32 != 0 || L.had_block > 0) return false;
+    static bool said = false;
+    if (!said) { said = true; std::fprintf(stderr, "strata expdec: STRATA_EXPDEC_SWIGLU: gate/up, SwiGLU and q8_1 in one launch (item 48)\n"); }
+    switch (L.gu_type) {
+        case 16: expdec_gu_swiglu_t<16>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
+        case 17: expdec_gu_swiglu_t<17>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
+        case 18: expdec_gu_swiglu_t<18>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
+        case 21: expdec_gu_swiglu_t<21>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
+        default: expdec_gu_swiglu_t<22>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
+    }
+    return true;
 }
 template<int TG>
 void expdec_gu_t(int64_t gy, int64_t cap_groups, cudaStream_t s, const unsigned long long* grp_ptr, const int32_t* grp_start,
@@ -6424,6 +6535,12 @@ void native_expert_grouped(const NativeExpertLayout& L, const unsigned long long
             default: break;
         }
         if (gs_done) check("native_expert_grouped/gu+swiglu");
+    }
+    // item 48: where EXPDEC takes the gate/up rows, STRATA_EXPDEC_SWIGLU=1 fuses SwiGLU + q8_1 into that kernel
+    if (!gs_done && gs_layout && !nib_layout(L) && g_exp_phase == 0 && !v1 &&
+        expdec_gu_swiglu(L, gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, hq)) {
+        gs_done = true;
+        check("native_expert_grouped/expdec gu+swiglu");
     }
     {   // BW-MEASURE: which gate/up form ran: 1 = fused gate/up/SwiGLU/q8_1 (em 8), 2 = GU_SWIGLU one launch, 3 = separate gate/up + SwiGLU launches
 #if STRATA_EXP_LAYOUTS
