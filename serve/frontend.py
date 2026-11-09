@@ -15,6 +15,7 @@ and the formats change often; the engine boundary is token ids in, text deltas o
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -539,6 +540,116 @@ def tool_arguments(raw) -> dict:
     return {"arguments": json.dumps(raw, ensure_ascii=False)}
 
 
+def template_flags(req: dict, kwargs: dict) -> dict:
+    """Item 31: the template switches a client may set beside enable_thinking / reasoning_effort.  Today only
+    `chat_template_kwargs.preserve_thinking` (a bool): false renders earlier turns' reasoning only after the last user
+    query, as the model card's template does; true (the template's default here) renders all of it.  Not given: the
+    kwargs stay as they were, so the prompt is byte-identical to before.  A value that is not a bool is a 400."""
+    ctk = req.get("chat_template_kwargs")
+    if isinstance(ctk, dict) and "preserve_thinking" in ctk:
+        value = ctk["preserve_thinking"]
+        if not isinstance(value, bool):
+            raise ValueError(f"chat_template_kwargs.preserve_thinking={value!r}: expected true or false")
+        kwargs["preserve_thinking"] = value
+    return kwargs
+
+
+def _hash(*parts) -> str:
+    return hashlib.sha256(json.dumps(parts, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+class ReasoningKeeper:
+    """Item 31 (opt-in, config "keep_reasoning"): the server's own copy of the reasoning it produced for each assistant
+    turn, put back into a history whose client sent that turn without it.  Without this, a client that drops
+    reasoning makes the template render that turn as `<think>\\n\\n</think>` while the engine's conversation cache holds
+    the real thinking tokens, so the prompt leaves the cached one there and everything after it is read again.  With
+    it, the history renders as if the client had sent `reasoning_content` back: the same text the model wrote.
+
+    A turn is found by its tool-call ids first (the server makes them: unique per turn), else by a hash of its text and
+    its calls (name + arguments).  A turn whose reasoning the client did send keeps the client's.  Bounded: an LRU of at
+    most `max_entries` turns and `max_chars` characters of reasoning; the oldest go first."""
+
+    def __init__(self, max_entries: int = 512, max_chars: int = 32 << 20):
+        self.max_entries, self.max_chars = max(1, int(max_entries)), max(1, int(max_chars))
+        self._turns: OrderedDict[str, tuple[str, tuple[str, ...]]] = OrderedDict()   # turn key -> (reasoning, its keys)
+        self._keys: dict[str, str] = {}                                            # lookup key -> turn key
+        self._chars = 0
+        self._lock = threading.Lock()
+        self.hits = self.misses = 0
+
+    @staticmethod
+    def _lookup_keys(content, calls) -> list[str]:
+        """[ids key (when every call carries an id), body key] for one assistant turn; [] for a turn with neither text
+        nor calls (nothing that tells two of them apart)."""
+        text = _text_of(content).strip() if not isinstance(content, str) else content.strip()
+        calls = list(calls or [])
+        if not text and not calls:
+            return []
+        keys = []
+        ids = [c.get("id") for c in calls]
+        if calls and all(isinstance(i, str) and i for i in ids):
+            keys.append("ids:" + _hash(ids))
+        keys.append("body:" + _hash(text, [[c.get("name"), c.get("arguments")] for c in calls]))
+        return keys
+
+    def __len__(self):
+        return len(self._turns)
+
+    def remember(self, content, calls, reasoning: str) -> None:
+        """One finished assistant turn: its answer text, its calls [{"id", "name", "arguments"}], its reasoning."""
+        if not isinstance(reasoning, str) or not reasoning.strip():
+            return
+        keys = tuple(self._lookup_keys(content, calls))
+        if not keys:
+            return
+        turn = keys[0]
+        with self._lock:
+            self._drop(turn)
+            # a body key an older turn shares (same text and calls, other ids) now means this, the newest one; the
+            # older turn stays findable by its own ids
+            self._turns[turn] = (reasoning, keys)
+            for k in keys:
+                self._keys[k] = turn
+            self._chars += len(reasoning)
+            while self._turns and (len(self._turns) > self.max_entries or self._chars > self.max_chars):
+                self._drop(next(iter(self._turns)))
+
+    def _drop(self, turn: str) -> None:
+        entry = self._turns.pop(turn, None)
+        if entry is None:
+            return
+        self._chars -= len(entry[0])
+        for k in entry[1]:
+            if self._keys.get(k) == turn:
+                del self._keys[k]
+
+    def fill(self, messages: list[dict]) -> int:
+        """Put the kept reasoning into the template messages' assistant turns that came without any (call ids still
+        under "_call_id", before _order_chat_tool_results drops them).  Returns how many turns were filled."""
+        filled = 0
+        for m in messages:
+            if not isinstance(m, dict) or m.get("role") != "assistant":
+                continue
+            if isinstance(m.get("reasoning_content"), str) and m["reasoning_content"].strip():
+                continue
+            calls = [{"id": c.get("_call_id"), "name": (c.get("function") or c).get("name"),
+                      "arguments": (c.get("function") or c).get("arguments")}
+                     for c in m.get("tool_calls") or [] if isinstance(c, dict)]
+            keys = self._lookup_keys(m.get("content"), calls)
+            if not keys:
+                continue
+            with self._lock:
+                turn = next((self._keys[k] for k in keys if k in self._keys), None)
+                if turn is None:
+                    self.misses += 1
+                    continue
+                self._turns.move_to_end(turn)
+                m["reasoning_content"] = self._turns[turn][0]
+                self.hits += 1
+            filled += 1
+        return filled
+
+
 def require_messages(messages: list) -> None:
     """A chat request with no message at all is a 400 (OpenAI: "empty array. Expected an array with minimum length 1"); the
     template would otherwise render just the assistant turn and the model would answer nothing."""
@@ -574,8 +685,9 @@ def _order_chat_tool_results(messages: list[dict]) -> None:
             call.pop("_call_id", None)
 
 
-def openai_to_messages(req: dict) -> tuple[list[dict], list[dict] | None, dict]:
-    """OpenAI Chat Completions -> (template messages, template tools, template kwargs)."""
+def openai_to_messages(req: dict, keeper: ReasoningKeeper | None = None) -> tuple[list[dict], list[dict] | None, dict]:
+    """OpenAI Chat Completions -> (template messages, template tools, template kwargs).  `keeper` (item 31, opt-in):
+    the server's kept reasoning goes back into assistant turns the client sent without it."""
     messages = []
     for i, m in enumerate(_object_list(req.get("messages"), "messages")):
         role = m.get("role")
@@ -600,6 +712,8 @@ def openai_to_messages(req: dict) -> tuple[list[dict], list[dict] | None, dict]:
                               "_call_id": c.get("id")})
             out["tool_calls"] = calls
         messages.append(out)
+    if keeper is not None:
+        keeper.fill(messages)
     _order_chat_tool_results(messages)
     tools = [t.get("function", t) if t.get("type") == "function" else t
              for t in _tool_list(req.get("tools"), "function")] or None
@@ -615,6 +729,7 @@ def openai_to_messages(req: dict) -> tuple[list[dict], list[dict] | None, dict]:
             kwargs = {"enable_thinking": False}
         elif k == "reasoning_effort" and "enable_thinking" not in kwargs:
             kwargs.update(effort_kwargs(v))
+    template_flags(req, kwargs)
     return _env_to_user(_late_system_to_user(messages)), tools, kwargs
 
 
@@ -674,7 +789,8 @@ def _tool_references(content, deferred: dict):
             for p in content]
 
 
-def anthropic_to_messages(req: dict, think_unasked: bool = True) -> tuple[list[dict], list[dict] | None, dict]:
+def anthropic_to_messages(req: dict, think_unasked: bool = True,
+                          keeper: ReasoningKeeper | None = None) -> tuple[list[dict], list[dict] | None, dict]:
     """Anthropic Messages -> (template messages, template tools, template kwargs).  `think_unasked`: a request
     without "thinking", an effort or a budget gets the template's default (it thinks), as through 0.1.31; False
     renders it without thinking (#278, the config's "anthropic_thinking": "on_request")."""
@@ -723,6 +839,8 @@ def anthropic_to_messages(req: dict, think_unasked: bool = True) -> tuple[list[d
             if calls:
                 out["tool_calls"] = calls
             messages.append(out)
+    if keeper is not None:                              # item 31 (opt-in): see openai_to_messages
+        keeper.fill(messages)
     # A client may send results in the order its tools finished (Claude Code does for parallel calls)
     _order_chat_tool_results(messages)
     tools = [_anthropic_tool(t) for t in declared if t["name"] not in deferred] or None
@@ -750,6 +868,7 @@ def anthropic_to_messages(req: dict, think_unasked: bool = True) -> tuple[list[d
         # A config's reasoning_effort still applies: Service.with_shared sets output_config before this runs.  A
         # request that gives its own reasoning_budget_tokens (#123) asks for thinking, so it thinks as before.
         kwargs["enable_thinking"] = False
+    template_flags(req, kwargs)
     return _env_to_user(_late_system_to_user(messages)), tools, kwargs
 
 

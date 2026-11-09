@@ -27,7 +27,7 @@ import json
 import time
 import uuid
 
-from serve.frontend import Event, _late_system_to_user, _parts_of, effort_kwargs
+from serve.frontend import Event, _late_system_to_user, _parts_of, effort_kwargs, template_flags
 
 ENCRYPTED_PREFIX = "strata.r1:"                   # our own reasoning replay strings; others' are ignored
 HOSTED_TOOLS = ("web_search", "web_search_preview", "file_search", "computer_use_preview", "computer_use",
@@ -125,8 +125,9 @@ def _tool_output(item, param):
     return out if isinstance(out, str) else _content(out, param + ".output")
 
 
-def input_messages(req: dict) -> list[dict]:
-    """`instructions` + `input` -> the chat template's messages."""
+def input_messages(req: dict, keeper=None) -> list[dict]:
+    """`instructions` + `input` -> the chat template's messages.  `keeper` (item 31, opt-in, a
+    frontend.ReasoningKeeper): the server's kept reasoning goes back into assistant turns sent without it."""
     messages = []
     instructions = req.get("instructions")
     if instructions not in (None, ""):
@@ -199,6 +200,8 @@ def input_messages(req: dict) -> list[dict]:
         else:
             raise ResponsesError(f"input items of type {kind!r} are not supported", param + ".type",
                                  "unsupported_parameter")
+    if keeper is not None:
+        keeper.fill(messages)
     _order_tool_results(messages)
     # leading system/developer messages (Codex: instructions, then its developer message) become one system message
     # at the start; later ones become user messages in place, as on the chat path
@@ -458,9 +461,13 @@ def template_kwargs(req: dict, shared: dict) -> dict:
     if effort is None:
         effort = shared.get("reasoning_effort")      # the Chat settings shared with apps, as on the chat path
     try:
-        return effort_kwargs(effort)
+        kwargs = effort_kwargs(effort)
     except ValueError as e:
         raise ResponsesError(str(e), "reasoning.effort") from None
+    try:
+        return template_flags(req, kwargs)           # item 31: chat_template_kwargs.preserve_thinking, as on chat
+    except ValueError as e:
+        raise ResponsesError(str(e), "chat_template_kwargs.preserve_thinking") from None
 
 
 # ------------------------------------------------------------------------------------------------ output
