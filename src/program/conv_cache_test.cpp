@@ -151,6 +151,40 @@ int main() {
                   restore_fits(full, none, 2, 0),
               "no sample, no cards, no need: do not refuse");
     }
+    std::printf("flops_victim (MOD_PLAN 16, Marconi):\n");
+    {
+        using strata::program::conv_cache::flops_victim;
+        using strata::program::conv_cache::reread_cost;
+        check(reread_cost(0, 1000, 32768) > 1000.0 && reread_cost(30000, 31000, 32768) > reread_cost(0, 1000, 32768) &&
+                  reread_cost(5, 5, 32768) == 0.0 && reread_cost(9, 5, 32768) == 0.0,
+              "re-read cost: grows with length and position, zero for nothing");
+        // root 4K; 24K (guards 20K); 24.3K (guards 300); 40K (guards 15.7K); 40.2K just saved
+        const int64_t lens[] = {4000, 24000, 24300, 40000, 40200};
+        const uint64_t stamps[] = {1, 2, 4, 3, 5};
+        check(eviction_victim(stamps, 5, 4) == 1, "plain LRU: the 20K-guarding item leaves (oldest)");
+        check(flops_victim(lens, stamps, nullptr, 5, 4, nullptr, nullptr, 2.0) == 2,
+              "alpha 2: the item 300 tokens past another leaves, though more recent");
+        check(flops_victim(lens, stamps, nullptr, 5, 4, nullptr, nullptr, 0.0) == eviction_victim(stamps, 5, 4),
+              "alpha 0: the plain policy");
+        check(flops_victim(lens, stamps, nullptr, 5, 4, nullptr, nullptr, 0.01) == 1,
+              "a small alpha: recency decides");
+        const bool pin[] = {false, false, true, false, false};
+        check(flops_victim(lens, stamps, nullptr, 5, 4, nullptr, pin, 2.0) != 2, "a pinned item is never the victim");
+        const bool tail[] = {false, false, false, true, false};
+        check(flops_victim(lens, stamps, nullptr, 5, 4, tail, nullptr, 1.0) == 3, "the tail rule comes first");
+        const int64_t unsorted[] = {4000, 40000, 24300, 24000, 40200};
+        const uint64_t st2[] = {1, 3, 4, 2, 5};
+        check(flops_victim(unsorted, st2, nullptr, 5, 4, nullptr, nullptr, 2.0) == 2, "the chain need not be sorted");
+        const int64_t newest_small[] = {4000, 24000, 40000, 40010};
+        const uint64_t st3[] = {1, 2, 3, 4};
+        check(flops_victim(newest_small, st3, nullptr, 4, 3, nullptr, nullptr, 5.0) != 3,
+              "the newest (just saved) stays, whatever it guards");
+        const uint64_t bytes[] = {1, 1, 1, 1000, 1};
+        check(flops_victim(lens, stamps, bytes, 5, 4, nullptr, nullptr, 1.0) == 3, "worth is per byte: a large item goes first");
+        const int64_t two[] = {4000, 8000};
+        const uint64_t st4[] = {1, 2};
+        check(flops_victim(two, st4, nullptr, 2, 1, nullptr, nullptr, 1.0) == 0, "one slot: the oldest, as before");
+    }
     std::printf(g_fail ? "FAIL\n" : "PASS\n");
     return g_fail ? 1 : 0;
 }

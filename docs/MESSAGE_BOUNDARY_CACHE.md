@@ -64,3 +64,35 @@ including 120K, image-history isolation, and cancellation/recovery.
   related cases with different cost and numerical tradeoffs.
 - Chunk geometry can change floating-point results. No pure-upstream bitwise
   parity or isolated upstream speedup is claimed. Keep draft until validated.
+
+## Tool boundaries (pancake, MOD_PLAN 16, opt-in)
+
+An agent step is one request per tool result. The engine already keeps a
+checkpoint where the new reply starts. It had none where the model's tool call
+ends and the tool's result begins, so a retried step (the same call, another
+result) read the whole call again from the turn before.
+
+Set `STRATA_CACHE_TOOL_BOUNDARY=1` for the server and the engine (run-pancake.sh
+passes the shell's environment to both). The server then sends the Qwen engine
+the prompt's tool-call and tool-result boundaries (`marks=` on the GEN line).
+The engine checkpoints the ones that pay, inside its usual `--prompt-cache` budget:
+
+- only in the part it reads now, never on a layer split, never with `ckpt=0`;
+- at least `STRATA_CACHE_TOOL_BOUNDARY_GAP` tokens (1024) past the deepest
+  checkpoint below, and at least 64 tokens before the next;
+- at most `STRATA_CACHE_TOOL_BOUNDARY_MAX` (2) a request, and never more than
+  `--prompt-cache` minus 3.
+
+`=2` also marks the end of each kept thinking block (`</think>` of an earlier
+assistant turn). The template keeps earlier thinking unless `preserve_thinking`
+is false; then no block is rendered and none is marked.
+
+`STRATA_CKPT_EVICT_FLOPS=<alpha>` (opt-in, try 1-2) changes which checkpoint
+leaves when the budget is full: Marconi's rule, the re-reading a checkpoint
+saves per byte weighed against how recently it was used. The root, pinned
+checkpoints and the newest one never leave by this rule.
+
+Not measured yet. The restore check (`tools/pancake/restore_check.py
+--tool-boundary`) compares a resume at a tool boundary with a full re-read.
+Splitting the read at a mark changes chunk geometry like the message boundary
+does, so bitwise equality with a run without marks is not claimed.
