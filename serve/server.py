@@ -85,6 +85,7 @@ from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
 from serve import grammar as grammar_api  # noqa: E402
 from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
+from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache-2.0; lossy opt-in)
 from serve import lifeline  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
@@ -388,6 +389,12 @@ try:
 except ValueError:
     ADMIT_SHORT_FIRST = 0
 ADMIT_MAX_WAIT_S = _timeout_env("STRATA_ADMIT_MAX_WAIT_S", 30.0) or 0.0
+# STRATA_ADMIT_CACHE_AWARE=1 (--batch, opt-in, exact: only the order changes, never what is read): ContextPilot's cache-aware
+# scheduling (Edinburgh, MLSys 2026; SGLang's longest-prefix-match).  New requests waiting for the control lines are
+# ordered by the tokens they still have to READ - the prompt minus the longest start a free slot already holds - instead
+# of arrival; with STRATA_ADMIT_SHORT_FIRST also set, "short" counts those uncached tokens.  A request that waited
+# STRATA_ADMIT_MAX_WAIT_S goes first whatever its cost.  Solo serving (no --batch) has no admission queue: no effect.
+ADMIT_CACHE_AWARE = os.environ.get("STRATA_ADMIT_CACHE_AWARE", "").strip().lower() in ("1", "on", "true", "yes")
 # STRATA_COALESCE_PREFILL=N (research, PAR-H; needs the engine's BCO / BCOK lines): a request that takes the control lines
 # for its admission also sends the prompts of up to N-1 requests still waiting for them (BCO <slot> <ids>, into free slots
 # it reserves for them); the engine reads all the prompts in ONE layer-major pass, so the experts a layer streams are
@@ -2176,11 +2183,11 @@ class StrataEngine:
                     raise EngineDied("the engine stopped while this request waited; it was not sent")
                 with self.slot_cv:
                     turn = after_epoch is None or self.ctl_epoch > after_epoch or self.waiting <= 1
-                    if turn and new and ADMIT_SHORT_FIRST > 0:
+                    if turn and new and self._admit_ordered():
                         turn = self._admit_next() is entry
                 left = deadline - time.monotonic() if deadline is not None else 0.5
                 if turn and left > 0 and self.ctl.acquire(timeout=min(0.5, left)):
-                    if new and ADMIT_SHORT_FIRST > 0:
+                    if new and self._admit_ordered():
                         with self.slot_cv:              # a shorter one came while this one waited in acquire()
                             first = self._admit_next() is entry
                         if not first:
@@ -2201,7 +2208,7 @@ class StrataEngine:
                         # notification sent in between is gone.  Read it again under the lock and only wait when this
                         # request still has to.
                         eligible = after_epoch is None or self.ctl_epoch > after_epoch or self.waiting <= 1
-                        if eligible and new and ADMIT_SHORT_FIRST > 0:
+                        if eligible and new and self._admit_ordered():
                             eligible = self._admit_next() is entry
                         if not eligible or not self.alive():
                             self.slot_cv.wait(timeout=min(0.5, max(0, left)))
@@ -2216,7 +2223,7 @@ class StrataEngine:
                 self.waiting = max(0, self.waiting - 1)
                 if entry in self.wait_lens:
                     self.wait_lens.remove(entry)
-                if (previous_waiting > 1 and self.waiting <= 1) or (new and ADMIT_SHORT_FIRST > 0):
+                if (previous_waiting > 1 and self.waiting <= 1) or (new and self._admit_ordered()):
                     # a waiter that leaves (cancelled, closed) can make another one the next in turn: tell it
                     self.slot_cv.notify_all()
         with self.slot_cv:
@@ -2288,8 +2295,44 @@ class StrataEngine:
         ordered = [e for e in self.wait_lens if len(e) > 2 and e[2]]
         if not ordered:
             return None
+        if ADMIT_CACHE_AWARE:
+            def key(e):
+                waited = now - e[1] >= ADMIT_MAX_WAIT_S
+                cost = e[0] - self._cached_prefix(e[3] if len(e) > 3 else None)
+                if ADMIT_SHORT_FIRST > 0:
+                    return (0 if cost <= ADMIT_SHORT_FIRST or waited else 1, 0, e[1])
+                return (0 if waited else 1, 0 if waited else cost, e[1])
+            return min(ordered, key=key)
         return min(ordered, key=lambda e: (0 if e[0] <= ADMIT_SHORT_FIRST or now - e[1] >= ADMIT_MAX_WAIT_S else 1,
                                            e[1]))
+
+    @staticmethod
+    def _admit_ordered() -> bool:
+        """New requests are admitted in an order of their own (STRATA_ADMIT_SHORT_FIRST / STRATA_ADMIT_CACHE_AWARE)."""
+        return ADMIT_SHORT_FIRST > 0 or ADMIT_CACHE_AWARE
+
+    def _cached_prefix(self, prompt) -> int:
+        """STRATA_ADMIT_CACHE_AWARE (the caller holds slot_cv): the longest start of `prompt` a free slot holds (0 when
+        the prompt is unknown).  An estimate for ordering only - the engine's own source search decides what it reuses."""
+        if not prompt:
+            return 0
+        best = 0
+        held = getattr(self, "slot_held", None) or []
+        busy = getattr(self, "slot_busy", None) or []
+        for b, h in enumerate(held):
+            if not h or (b < len(busy) and busy[b]):
+                continue
+            lo, hi = 0, min(len(h), len(prompt))
+            if hi <= best:
+                continue
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                if h[:mid] == prompt[:mid]:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            best = max(best, lo)
+        return best
 
     SOLO_AGAIN_MAX = 2      # how often a request left alone in a slot goes back to the solo path
     SOLO_AGAIN_MIN_LEFT = 32  # ... only with at least this many tokens still allowed (max_tokens)
@@ -2340,7 +2383,8 @@ class StrataEngine:
         carry = {}          # #1869: the figures of the legs that ended in a hand-back to the solo path (the final DONE adds to them)
         yielded_legs = []    # prompt reads that gave way before producing output
         ok = yield from self._take_control(cancel, len(prompt), new=True,
-                                           prompt=prompt if (COALESCE_PREFILL > 1 and not embeddings) else None)
+                                           prompt=prompt if ((COALESCE_PREFILL > 1 or ADMIT_CACHE_AWARE) and not embeddings)
+                                           else None)
         if not ok:
             self._release_preslot(cancel)
             return
@@ -4983,6 +5027,10 @@ class Service:
         self.loop_guard = True
         self.loop_guard_counts = {"detected": 0, "penalised": 0, "thinking_closed": 0, "stopped": 0, "tool_repeats": 0,
                                   "tool_blocked": 0, "collapsed": 0, "kept_going": 0}
+        # ContextPilot's block dedup (serve/context_dedup.py; LOSSY opt-in: STRATA_CONTEXT_DEDUP=1 / "context_dedup": true,
+        # or a request's "context_dedup": true|false) and what it saved since the start
+        self.context_dedup = False
+        self.context_dedup_counts = {"requests": 0, "blocks": 0, "results": 0, "chars_saved": 0}
         end = tokenizer.encode(THINK_END, parse_special=True) if hasattr(tokenizer, "encode") else []
         self.think_end_id = int(end[0]) if len(end) == 1 else None   # (the guard closes the thinking with it)
         self.anthropic_think_unasked = True               # #278: "anthropic_thinking": "on_request" -> False
@@ -5841,9 +5889,11 @@ class Service:
         parked = self.conv_log.poll(getattr(self.engine, "log_path", None), getattr(self.engine, "log_start", None))
         with self.status_lock:
             guard = dict(self.loop_guard_counts, on=bool(self.loop_guard))   # (what the loop guard did since start)
+            dedup = dict(self.context_dedup_counts, on=bool(self.context_dedup))
         return {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
                 "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
-                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "hardware": tel["now"],
+                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "context_dedup": dedup,
+                "hardware": tel["now"],
                 "hardware_static":
                 tel["static"], "history": tel["history"], "time": now}
 
@@ -6064,6 +6114,7 @@ class Service:
         guarded = self._loop_guard_on(req)
         if guarded:                                      # the loop guard across turns (Maya's prepare)
             messages, blocked, looping, asked = self._guarded_messages(messages)
+        messages = self._deduped(messages, req)           # ContextPilot block dedup (lossy opt-in; after the loop guard read them)
         fetched = self._note_unreadable_tool_images(messages, cancel)
         ids = encoded_ids = self.encode_prompt(messages, tools, kwargs)
         if isinstance(req, dict):
@@ -6363,6 +6414,28 @@ class Service:
             print(f"[strata] {s['phase']}: {s['generated']} of {limit} tokens, {rate:.1f} tok/s, "
                   f"{el:.0f} s", flush=True)
         return now
+
+    # ---------------------------------------------------------------- ContextPilot block dedup (serve/context_dedup.py)
+    def _dedup_on(self, req) -> bool:
+        own = (req or {}).get("context_dedup") if isinstance(req, dict) else None
+        return own if isinstance(own, bool) else bool(self.context_dedup)
+
+    def _deduped(self, messages, req, count: bool = True):
+        """The messages with blocks repeated from earlier in the request replaced by references (LOSSY, opt-in; off:
+        the same list, untouched)."""
+        if not self._dedup_on(req):
+            return messages
+        out, res = context_dedup.dedup_messages(messages)
+        if count and (res.blocks_deduped or res.results_deduped):
+            with self.status_lock:
+                c = self.context_dedup_counts
+                c["requests"] += 1
+                c["blocks"] += res.blocks_deduped
+                c["results"] += res.results_deduped
+                c["chars_saved"] += res.chars_saved
+            print(f"[strata] context dedup: {res.blocks_deduped} block(s), {res.results_deduped} whole tool result(s) "
+                  f"replaced, {res.chars_saved:,} characters fewer", flush=True)
+        return out
 
     # ---------------------------------------------------------------- the loop guard (serve/loop_guard.py, Maya)
     def _loop_guard_on(self, sampling) -> bool:
@@ -9433,6 +9506,7 @@ def make_handler(svc: Service):
             messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked)
             stop_strings(req)                                 # the same 400 as the request itself would get
             check_request_sampling(req)                       # ... likewise a sampling field of the wrong type
+            messages = svc._deduped(messages, req, count=False)   # the prompt the request itself would read
             self._json(200, {"input_tokens": len(svc.encode_prompt(messages, tools, kw, store=False))})
 
         def _anthropic(self, req):
@@ -10215,6 +10289,14 @@ def check_request_sampling(req) -> None:
             req["loop_guard"] = bool(guard)
         else:
             raise ValueError("loop_guard: true or false")
+    dedup = (req or {}).get("context_dedup")        # ContextPilot block dedup for this request only (lossy opt-in)
+    if dedup is not None and not isinstance(dedup, bool):
+        if isinstance(dedup, str) and dedup.strip().lower() in ("true", "false", "on", "off", "1", "0"):
+            req["context_dedup"] = dedup.strip().lower() in ("true", "on", "1")
+        elif isinstance(dedup, int) and dedup in (0, 1):
+            req["context_dedup"] = bool(dedup)
+        else:
+            raise ValueError("context_dedup: true or false")
 
 
 # the API's model name per model family (the GGUF architecture, "arch" in the config) when the config names none
@@ -10963,6 +11045,14 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         raise SystemExit(f"[strata] config \"repeat_stop_tokens\" must be a whole number >= 0 (0 = off), not {rs!r}")
     svc.repeat_stop_tokens = rs
     svc.loop_guard = loop_guard_setting(cfg)            # (STRATA_LOOP_GUARD=0 or "loop_guard": false: off)
+    try:
+        svc.context_dedup = context_dedup.dedup_setting(cfg)   # LOSSY opt-in (ContextPilot block dedup)
+    except ValueError as e:
+        raise SystemExit(f"[strata] {e}")
+    if svc.context_dedup:
+        print("[strata] context dedup: ON - LOSSY: a block of lines repeated from earlier in a request (a file read again, "
+              "a tool result sent twice) is replaced by a one-line reference to the earlier copy, so the model does not "
+              "see the copy (ContextPilot, serve/context_dedup.py)", flush=True)
     if not svc.loop_guard:
         print("[strata] loop guard: off (a request's \"loop_guard\": true turns it on for that request)", flush=True)
     svc.effort_end = bool(effort_end)                   # #458: "effort_position": "end" with an engine that has it
