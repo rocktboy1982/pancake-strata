@@ -85,6 +85,7 @@ from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
 from serve import grammar as grammar_api  # noqa: E402
 from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
+from serve import rumination  # noqa: E402  (pancake item 34: 5-gram repetition rate in the thinking)
 from serve import lifeline  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
@@ -4979,6 +4980,11 @@ class Service:
         self.reasoning_budget_tokens = 0                 # #123: the config's default thinking budget (0: none)
         self.reasoning_budget_by_effort = {}             # pancake: {level: budget} for requests without a budget of their own
         self.reasoning_budget_grace = 0                  # Maya #613 (opt-in): the budget closes at a sentence's or line's end, this many tokens at most later
+        # pancake item 34 (serve/rumination.py): the thinking's rolling 5-gram repetition rate is measured always (per
+        # request max/mean in done, the history, the turn log and /metrics); "rumination_close" (opt-in) closes the
+        # thinking with the soft budget's wrap-up when it stays high.  None: no close.
+        self.rumination_close = None
+        self.rumination_counts = {"measured": 0, "closed": 0}
         self.repeat_stop_tokens = REPEAT_STOP_TOKENS     # #606: one token this many times in a row ends a reply (0: off)
         # the loop guard (serve/loop_guard.py; STRATA_LOOP_GUARD=0 / "loop_guard": false: off) and what it did since
         # the start (the Monitor's and /metrics' counters)
@@ -5862,9 +5868,11 @@ class Service:
         parked = self.conv_log.poll(getattr(self.engine, "log_path", None), getattr(self.engine, "log_start", None))
         with self.status_lock:
             guard = dict(self.loop_guard_counts, on=bool(self.loop_guard))   # (what the loop guard did since start)
+            rum_view = dict(self.rumination_counts, close=dict(self.rumination_close) if self.rumination_close else None)
         return {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
                 "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
-                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "hardware": tel["now"],
+                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "rumination": rum_view,
+                "hardware": tel["now"],
                 "hardware_static":
                 tel["static"], "history": tel["history"], "time": now}
 
@@ -5874,6 +5882,7 @@ class Service:
         with self.status_lock:
             s, t = dict(self.status), dict(self.totals)
             guard = dict(self.loop_guard_counts)
+            rum_counts = dict(self.rumination_counts)
             running = len(self.live_reqs) or int(bool(s.get("busy")))
             prompt_n = t["prompt_tokens"] - t["reused"]               # what was read, as llama.cpp counts it
             prompt_s, decode_s = t["prompt_ms"] / 1000, t["decode_ms"] / 1000
@@ -5921,6 +5930,11 @@ class Service:
             ("strata:loop_guard_collapsed_total", "counter",
              "Prompts that left out what the model had already written (a conversation that repeats itself)",
              guard["collapsed"]),
+            ("strata:rumination_measured_total", "counter",
+             "Requests whose thinking was long enough for a 5-gram repetition rate (item 34)", rum_counts["measured"]),
+            ("strata:rumination_closed_total", "counter",
+             "Thinking blocks closed because the 5-gram repetition rate stayed high (rumination_close)",
+             rum_counts["closed"]),
         ]
         return "".join(f"# HELP {name} {help_}\n# TYPE {name} {kind}\n{name} {value}\n"
                        for name, kind, help_, value in rows)
@@ -6008,7 +6022,8 @@ class Service:
         switches = {"env": dict(sorted(env.items())),
                     "server": {"loop_guard": self.loop_guard,
                                "reasoning_budget_by_effort": dict(self.reasoning_budget_by_effort),
-                               "reasoning_budget_grace": self.reasoning_budget_grace, "turn_log": self.turn_log}}
+                               "reasoning_budget_grace": self.reasoning_budget_grace,
+                               "rumination_close": self.rumination_close, "turn_log": self.turn_log}}
         with self.status_lock:
             s = dict(self.status)
             if self.live_reqs:                          # parallel requests: the newest one's status
@@ -6703,6 +6718,10 @@ class Service:
         looped, next_loop_check = False, LOOP_CHECK_EVERY       # #728: reasoning that repeats whole passages
         raw_ids = []                                    # every generated id (STRATA_DEBUG: dump raw model text)
         guard = None                                    # this request's loop guard (set once it has the engine)
+        rum_cfg = getattr(self, "rumination_close", None)   # item 34: the rumination meter and its opt-in close
+        rum = rumination.RuminationMeter(rum_cfg["threshold"], rum_cfg["checks"]) if rum_cfg \
+            else rumination.RuminationMeter()
+        rum_due, rum_wait = False, 0                    # the close is due: waiting for a sentence end (tokens waited)
         admission_rejected = False                      # #3040: the engine's batch slots refused it before it read anything
         emb, self.embeddings.path = getattr(self.embeddings, "path", None), None   # this run's to delete now
         img_keys, self.embeddings.keys = getattr(self.embeddings, "keys", None), None
@@ -6823,6 +6842,11 @@ class Service:
                     # reasoning's last characters), at most `grace` tokens later
                     grace = max(0, min(getattr(self, "reasoning_budget_grace", 0),
                                        (max_new - budget - 1) // 2 if max_new else THINK_GRACE)) if budget else 0
+                    # item 34: a rumination close waits the same way for a sentence or line end, at most
+                    # reasoning_budget_grace tokens (THINK_GRACE when that is 0) and half the room left
+                    rum_grace = max(1, min(getattr(self, "reasoning_budget_grace", 0) or THINK_GRACE,
+                                           (max_new - 1) // 2 if max_new else THINK_GRACE)) if rum_cfg else 0
+                    wrap_why = None                     # "rumination": the wrap-up below is the rumination close
                     think_tail = ""
                     guard_stop = False                  # the guard ended the answer (a loop that came back)
                     # across turns (prepare put them in the request): the calls this answer may not make again -
@@ -6912,7 +6936,7 @@ class Service:
                         discards the rest)."""
                         nonlocal thinking_n, run_len, run_tok, repeated, tail, answered, reasoning_text, last_out
                         nonlocal last_print, finish, looped, next_loop_check, repeat_coverage, recover_prompt
-                        nonlocal thought, wrap, force, opens, called, think_tail
+                        nonlocal thought, wrap, force, opens, called, think_tail, rum_due, rum_wait, wrap_why
                         for i, t in enumerate(toks):
                             thinking_n += parser.state in ("reasoning", "rcall")
                             run_len = run_len + 1 if t == run_tok else 1
@@ -6928,8 +6952,15 @@ class Service:
                             for ev in evs:
                                 if self.reasoning_loop_recovery and ev.kind == "reasoning":
                                     reasoning_text += ev.text or ""
-                                if ev.kind == "reasoning" and grace:
+                                if ev.kind == "reasoning" and (grace or rum_cfg):
                                     think_tail = (think_tail + (ev.text or ""))[-16:]
+                                if ev.kind == "reasoning" and rum.feed(ev.text or "") and rum.high and \
+                                        not (rum_due or rum.closed) and thinking_n >= rum_cfg["min_tokens"]:
+                                    rum_due = True      # item 34: the 5-gram rate stayed high: close at a sentence end
+                                    print(f"[strata] rumination: the thinking's 5-gram repetition rate stayed at or "
+                                          f"above {rum_cfg['threshold']} for {rum_cfg['checks']} checks "
+                                          f"({rum.rate:.3f} at {thinking_n} thinking tokens): closing it at the next "
+                                          "sentence or line end (rumination_close)", flush=True)
                                 if ev.kind == "content":
                                     said.append(ev.text or "")
                                 elif ev.kind == "tool_call":
@@ -6962,6 +6993,13 @@ class Service:
                                         recover_prompt = focused_recovery_prompt(self.tok, ids, raw_ids[:len(raw_ids) - unread])
                                         if recover_prompt is not None:
                                             return i + 1
+                            if rum_due and parser.state == "reasoning":
+                                rum_wait += 1
+                                if parser.clean and not detok.pending() and (
+                                        rum_wait >= rum_grace or think_boundary(think_tail)):
+                                    rum_due, rum.closed = False, True
+                                    wrap, wrap_why = True, "rumination"     # the soft budget's own close below
+                                    return i + 1
                             if budget and parser.state == "reasoning":
                                 thought += 1
                                 # at a clean point: no tag held back, no character split across tokens
@@ -7241,7 +7279,7 @@ class Service:
                         # A forced call (tool_choice) is opened the same way: after the wrap-up, or where the
                         # thinking ended, after the blank line the template puts before a call.
                         if wrap:
-                            budget_was = budget
+                            budget_was = budget or 0
                             budget = st["thinking_budget"] = None
                             text = REASONING_WRAP_UP + (force or "")
                         else:
@@ -7250,7 +7288,12 @@ class Service:
                         extra = self.tok.encode(text, parse_special=True)
                         if max_new - n - len(extra) < 1:
                             break                       # no room left to answer: "length", as without a budget
-                        if wrap:
+                        if wrap and wrap_why == "rumination":
+                            with self.status_lock:
+                                self.rumination_counts["closed"] += 1
+                            print(f"[strata] rumination close: wrapping up the thinking at {thinking_n} thinking tokens "
+                                  f"({rum_wait} past the signal)", flush=True)
+                        elif wrap:
                             print(f"[strata] thinking budget reached ({thought} tokens"
                                   f"{f', {thought - budget_was} past it to a sentence or line end' if thought > budget_was else ''}"
                                   "): wrapping up the thinking", flush=True)
@@ -7322,6 +7365,10 @@ class Service:
                                 "prompt_total": len(ids), "prompt_read": last.get("prompt_read"),
                                 "reasoning_recoveries": recovery_count,
                                 "reasoning_repeat_coverage": round(repeat_coverage, 3),
+                                # item 34: the thinking's rolling 5-gram repetition rate (None: under MIN_WORDS words)
+                                "rumination_max": round(rum.rate_max, 3) if rum.checks else None,
+                                "rumination_mean": round(rum.rate_sum / rum.checks, 3) if rum.checks else None,
+                                "rumination_closed": rum.closed,
                                 "engine_generated": last.get("generated"),
                                 "prompt_ms": last.get("prompt_ms"), "decode_ms": last.get("decode_ms"),
                                 "decode_tok_s": round(last["generated"] / (last["decode_ms"] / 1000), 1)
@@ -7332,6 +7379,8 @@ class Service:
                                 "drafts_offered": last.get("drafts_offered"),
                                 "drafts_accepted": last.get("drafts_accepted")})
                             self._write_turn_log(self.history[-1], thinking_n, max_new)
+                            if rum.checks:
+                                self.rumination_counts["measured"] += 1
                             if not admission_rejected:                  # #3040: a refused admission did no work
                                 t = self.totals
                                 t["requests"] += 1
@@ -7433,6 +7482,8 @@ class Service:
                 "reasoning_recoveries": recovery_count}
         if guard is not None and guard.events:          # what the loop guard did in this answer
             done["loop_guard"] = guard.summary()
+        if rum.checks:                                  # item 34: {"max", "mean", "checks", "closed"}
+            done["rumination"] = rum.summary()
         if stops is not None and stops.hit is not None:
             done["stop_sequence"] = stops.hit
         if rejected:
@@ -11141,6 +11192,16 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
     if grace:
         print(f"[strata] thinking budget: closed at a sentence or line end, at most {grace} tokens past it "
               "(reasoning_budget_grace)", flush=True)
+    try:                                                # pancake item 34 (opt-in): 0.4 or {"threshold", "checks", "min_tokens"}
+        svc.rumination_close = rumination.close_setting(cfg.get("rumination_close"))
+    except ValueError as e:
+        raise SystemExit(f"[strata] config {e}")
+    if svc.rumination_close:
+        rc = svc.rumination_close
+        print(f"[strata] rumination close: the thinking closes at a sentence or line end when its 5-gram repetition "
+              f"rate stays at or above {rc['threshold']} for {rc['checks']} checks"
+              + (f" after {rc['min_tokens']} thinking tokens" if rc["min_tokens"] else "") + " (rumination_close)",
+              flush=True)
     by_effort = cfg.get("reasoning_budget_by_effort")   # pancake: {"low": 2048, "medium": 8192, "high": 0}
     if by_effort is not None:
         svc.reasoning_budget_by_effort = budget_by_effort_setting(by_effort)

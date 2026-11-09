@@ -229,7 +229,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 70 closed-loop self-tuning from own sessions (new) - 1-5% est. (keeps profile-type gains current; 8.6 gave +6.7%) - exact -
     this + dan-cd - 63, 64, 67 - design. CODED offline pass (05e041b9b, tools/pancake/selftune.py): traces -> candidate profile -> time model -> abtest spec.
 - 33 behaviour counters (log-only first) - unmeasured (failed runs cost 1.4-4.4x tokens) - exact (log) - this - 73 - open.
-- 34 rumination signal into the soft close and 21 - inside S4 - lossy (text) - this - 73 - open.  [S4]
+- 34 rumination signal into the soft close and 21 - inside S4 - lossy (text) - this - 73 - open.  [S4] CODED log + opt-in close (feat/item-34-rumination); threshold unmeasured.
 - 25 ISTA-DASLab Coder variant A/B - quality candidate (95.7% of BF16 on SWE-bench Verified), speed unknown - n/a - owner -
     ~29.6 GB on D, 67 - open.
 - 19 [2026-11-09: BFLA kernel on the qwen35 engine done on feat/bfla-hip - 32K layer 1238.7 -> 581.1 ms exact (dense) -> 500.2 ms
@@ -956,6 +956,15 @@ Added 2026-11-09 from the Canadian report:
     without a build/test, M reads/searches without an edit - log-only first, then a note like the tool-repeat note.
 34. Rumination signal in thinking (McGill/Mila Thoughtology): rolling 5-gram repetition rate feeding the soft close
     (reasoning_budget_grace) and the learned stop (item 21).
+    2026-11-09 CODED (branch feat/item-34-rumination, serve/rumination.py, serve/test_rumination.py; no engine change).
+    Phase 1, always on (log only, the reply is unchanged): word 5-grams over the last 256 thinking words, a check every
+    32 words from word 128, rate = (grams - distinct) / grams; per request `done["rumination"]` {max, mean, checks,
+    closed}, history/turn log `rumination_max`, `rumination_mean`, `rumination_closed`, /metrics `rumination`, Prometheus
+    `strata:rumination_measured_total` / `_closed_total`.  Phase 2, opt-in config `"rumination_close": 0.4` (or
+    {"threshold", "checks": 3, "min_tokens": 0}): the rate at or above the threshold for K checks in a row -> the soft
+    budget's own close (first sentence or line end, at most reasoning_budget_grace tokens, THINK_GRACE when 0; the
+    REASONING_WRAP_UP text with the model's end of thinking).  The loop guard's exact-loop handling is untouched.  No
+    threshold measured yet: read the turn log's rumination_max on real turns first (the paper gives none).
 Quality gates (revised): token forcing rejects large deviations only; choice between close variants by a fixed task set
 (LiveCodeBench subset + BFCL v4 multi-turn + own-repo checkpoint grading), repeated runs as distributions.
 Added 2026-11-09 from the Pacific/Africa/Latin America report:
