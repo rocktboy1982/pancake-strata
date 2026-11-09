@@ -384,6 +384,30 @@ swiglu-quant.  Structure: generate.cpp main() is 18,360 lines with three decode 
 13020/20748, 13172/20782); verify.cpp record_window ~1,480 lines with 6 env-selected post paths; ~45 STRATA_* flags in
 function-local statics (no registry) - see the structure study.  Measured: ~1,360 kernels/window (~28/layer).
 
+Added 2026-11-09 from the prefill-path code study (research_notes/Pancake cod deep research/prefill_path.md):
+78. Agent re-reads take the staged prefill path: the fast-hip preset's STRATA_PREFILL_CPU_SHARE=0.6 + _MAX=4096 make
+    stream_all_min() 4096 (arm_cpu_share, prefill.cpp:2970-2998), so every <4096-token delta (agent turns are 1.5-3.2K) gets a
+    cudaStreamSynchronize per MoE layer (4928, 48 per chunk), host-side grouping, a new CPU-share thread per layer (5181) and a
+    blocking combine join (6110).  4K reads 1757 vs 2580 tok/s at 32K (2026-11-08-7900xt-final-suites.txt).  First step env-only:
+    A/B CPU_SHARE=0 and SHARE_MAX=1024 on agent sessions; then a persistent CPU-share worker.  Exact.  [this; feeds 66]
+79. PLE (n-gram) gather off the critical path for cold prompts: a 32K prompt is one chunk, its gather (16 direct 4 KiB reads per
+    token + single-threaded decode to FP32) only overlaps embedding + layer 0 before the wait at layer 1 (3608-3664); 10.6% of
+    the GPU timeline at 42K on the 3060.  Start the gather at request admission, slice it, decode on several threads, and add a
+    compact upload that works with --ple-io direct (gather_raw_iq4nl needs mmap, ngram.cpp:714).  Exact.  [this]
+80. hipBLASLt: cache descriptors (created/destroyed every GEMM call, gemm.cu:421-423 - host time on the staged critical path)
+    and extend the gfx1100 tuning table beyond T=8192 (chunks reach 32768) and below 4096 for 1-3K deltas.  Exact.  [this]
+81. GDN occupancy on gfx11: gdn_wmma_scan_kernel (kernels.cu:2006) launches 48 blocks on 84 CUs and walks T/16 chunks serially;
+    combine item 18 (chunk 64) with splitting value columns over 2-4 blocks per head in one rewrite (same FP16 class, bits
+    change; caution: a V100 chunk-64 attempt was 4-6x slower, bench/results/2026-10-02-gdn-chunk).
+82. Prefill instrumentation run (prerequisite): STRATA_PREFILL_TIMING=1 (PfTimer, 27 phases, prefill.cpp:3092) + STRATA_TRACE=1
+    were never run on the 7900 XT; add five opt-in marks (PLE wait, staged host time, CPU-share join, issuer waits, chunk-end
+    callback); prompt set cold 32K/16K/4000 vs 4200 + an agent session; one rocprofv3 pass.
+Smaller (prefill): per-chunk/per-layer thread creation, MTP draft K/V + checkpoints serial after a full sync at chunk end
+(6363, generate.cpp:12595), fixed WMMA GEMM tiles and gfx1151-only fused-expert occupancy (37/72), expert ring 192 vs measured
+512-1024 optimum on CUDA, dense weights dequantized every chunk on HIP (FP16 weight cache CUDA-only), debug hooks with blocking
+syncs inside run_impl (3,224 lines; ~150 env switches); qwen35 engine syncs at every chunk start (BFLA is its lever).
+Order: 78 env A/B -> 82 -> 79 -> 80 -> chunk-end fix -> 81 with 18 -> tile/ring sweep.
+
 Suggested start order (owner's "biggest first", respecting prerequisites): 73, 35, 67 skeleton, 49/50/44 batch, 64 schema
 and 63 probe (no GPU risk) in parallel; then 7 decision, 66 stages (31 -> 11 -> 16 -> 39), 12 in preset, 69/38; dan-cd in
 parallel: bisect -> 8/28, 42 -> 14, 2; then Tier B (68, 65, 72, 63 derivation), then C/D.
