@@ -580,6 +580,8 @@ cmake --build build-cuda --target strata strata-poly poly_gdn_cols_test poly_gem
 
 ### Verification gates
 
+- `pancake-docs/CODE_OPTIMIZATION.md`: the 7-point code-level pass (profiling, algorithms, caching, I/O, async,
+  allocations, static analysis) - four quadratic loops removed from the per-layer expert dispatch.
 - `tools/pancake/hipblaslt_extend.py` (item 80): extends the gfx1100 hipBLASLt table with the agent-turn GEMM shapes
   (plan / run / merge, 78 cases, GPU ~30 min); then A/B the extended table.
 - `tools/pancake/restore_check.py` (items 35/83): a parked and restored conversation must match a cold re-read token
