@@ -90,6 +90,11 @@ class RequestAccounting(unittest.TestCase):
         self.assertEqual(usage["prompt_tokens"], original)
         self.assertEqual(usage["prompt_tokens_details"]["cached_tokens"], self.engine.REUSED)
         self.assertEqual(usage["total_tokens"], original + usage["completion_tokens"])
+        # item 87: chat completions report the thinking tokens too (OpenAI's completion_tokens_details)
+        reasoning = usage["completion_tokens_details"]["reasoning_tokens"]
+        self.assertIsInstance(reasoning, int)
+        self.assertGreater(reasoning, 0, "this request thinks before it answers")
+        self.assertLessEqual(reasoning, usage["completion_tokens"])
 
     def assert_request_work(self, timings, completion_tokens, finish="stop"):
         original = len(self.engine.prompts[0])
