@@ -206,6 +206,72 @@ bool ple_copy_stream_on() {
     static const bool on = [] { const char* v = std::getenv("STRATA_PLE_COPY_STREAM"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
+// MOD_PLAN item 79 (opt-in, the same bytes): the prompt chunk's PLE gather off the critical path.  STRATA_PLE_PIPE=1 turns on
+// all three below at their defaults; each one alone (or overriding PIPE):
+//   STRATA_PLE_GATHER_THREADS=N  the gathered rows decoded to FP32 (or, mapped, faulted in) on N threads (PIPE: 4);
+//   STRATA_PLE_SLICES=N          a chunk's gather in N slices (>= 256 tokens each), layer 1's PLE sub-batches each wait
+//                                only for the slices they read (PIPE: 4);
+//   STRATA_PLE_EARLY=1           the first chunk's gather starts at the top of the run, not after its embedding.
+// 0 / 1 (=off) for any of them restores the old path for that part.  STRATA_PLE_COPY_STREAM is not used with slices.
+bool ple_pipe_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_PLE_PIPE"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+int ple_env_int(const char* name, int pipe_default) {
+    const char* v = std::getenv(name);
+    if (v != nullptr && v[0] != '\0') return std::max(0, std::atoi(v));
+    return ple_pipe_on() ? pipe_default : 0;
+}
+int ple_gather_threads() {
+    static const int n = std::min(16, std::max(1, ple_env_int("STRATA_PLE_GATHER_THREADS", 4)));
+    return n;
+}
+int ple_slices() {
+    static const int n = std::min(64, std::max(1, ple_env_int("STRATA_PLE_SLICES", 4)));
+    return n;
+}
+bool ple_early() {
+    static const bool on = ple_env_int("STRATA_PLE_EARLY", 1) != 0;
+    return on;
+}
+// the gather's own path (gather_sliced) instead of gather_batch / gather_raw_iq4nl: threads or slices asked for
+bool ple_sliced_on() { return ple_gather_threads() > 1 || ple_slices() > 1; }
+// item 82's PLE wait mark (opt-in, diagnostic): STRATA_PLE_WAIT_TRACE=1, or with STRATA_PREFILL_TIMING - one line a chunk:
+// how long the gather ran, how long the host stood at layer 1 waiting for it (and for the first slice)
+bool ple_wait_trace() {
+    static const bool on = [] {
+        const char* v = std::getenv("STRATA_PLE_WAIT_TRACE");
+        return (v != nullptr && v[0] == '1') || std::getenv("STRATA_PREFILL_TIMING") != nullptr;
+    }();
+    return on;
+}
+// the gather thread's progress: tokens of the chunk being gathered that are complete in its pinned buffer
+struct PleProgress {
+    std::mutex mu;
+    std::condition_variable cv;
+    int64_t ready = 0;
+    bool done = false;                                   // the gather returned (ready < T: it failed)
+    std::chrono::steady_clock::time_point started, ended;
+    void reset() {
+        std::lock_guard<std::mutex> lk(mu);
+        ready = 0;
+        done = false;
+        started = ended = std::chrono::steady_clock::now();
+    }
+    void publish(int64_t t) {
+        { std::lock_guard<std::mutex> lk(mu); ready = std::max(ready, t); }
+        cv.notify_all();
+    }
+    void finish() {
+        { std::lock_guard<std::mutex> lk(mu); done = true; ended = std::chrono::steady_clock::now(); }
+        cv.notify_all();
+    }
+    int64_t wait(int64_t need) {
+        std::unique_lock<std::mutex> lk(mu);
+        cv.wait(lk, [&] { return ready >= need || done; });
+        return ready;
+    }
+};
 }  // namespace
 namespace strata::prefill {
 namespace {
@@ -3419,8 +3485,13 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                            (ss.ple.w.key_bf16 != nullptr || ss.ple.w.key_native_data != nullptr) &&
                            m.region_bytes / ((uint64_t) (3 * strata::kernels::NG_HC_DIM + N + 4) * 4 + (uint64_t) N * 2 + 4096) >= 64;
     const int32_t prev0[2] = {prev[0], prev[1]};
-    auto ple_gather = [&m, &ss, tokens, n, prev0, C](int64_t c0, int buf, std::string& e) -> bool {
+    // item 79: the gather thread publishes how many of the chunk's tokens are in the pinned buffer (declared before the
+    // future, which an early return waits for first)
+    const bool ple_sliced = ple_on && ple_sliced_on();
+    PleProgress ple_prog;
+    auto ple_gather = [&m, &ss, tokens, n, prev0, C, ple_sliced, &ple_prog](int64_t c0, int buf, std::string& e) -> bool {
         const int64_t T = std::min(C, n - c0);
+        struct Finish { PleProgress& p; ~Finish() { p.finish(); } } finish{ple_prog};   // on every return
         auto at = [&](int64_t i) { return i < 2 ? prev0[i] : (int32_t) tokens[i - 2]; };   // prev0, then the tokens
         int32_t pv[2] = {at(c0), at(c0 + 1)};
         for (int64_t t = 0; t < T; ++t) {
@@ -3429,6 +3500,19 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                         m.ple_rows[buf].data() + t * strata::kernels::PLE_N_HEADS);
             pv[0] = pv[1];
             pv[1] = tok;
+        }
+        if (ple_sliced) {
+            // item 79: slices (published as they complete) and several decode threads; with STRATA_PLE_COMPACT the raw
+            // rows in either I/O mode (--ple-io direct included: the reader's bytes go straight into the pinned buffer)
+            m.ple_compact[buf] = ple_compact_on() && m.ple_pageable[buf].empty() && m.ple_raw_dev != nullptr &&
+                                 ss.ple.table->raw_iq4nl_ok();
+            strata::kernels::PleTable::SlicePlan plan;
+            const int64_t ns = ple_slices();
+            plan.slice_tokens = ns > 1 ? (size_t) std::max<int64_t>(256, (T + ns - 1) / ns) : 0;
+            plan.threads = ple_gather_threads();
+            plan.raw_iq4nl = m.ple_compact[buf];
+            return ss.ple.table->gather_sliced(m.ple_rows[buf].data(), (size_t) T, m.ple_emb_host[buf], plan,
+                                               [&ple_prog](size_t t1) { ple_prog.publish((int64_t) t1); }, e);
         }
         // STRATA_PLE_COMPACT=1: the raw rows (1,440 bytes a token instead of 10,240 floats' bytes) into the same pinned
         // buffer; ple_land uploads them and dequantizes on the device
@@ -3443,6 +3527,17 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
     std::string ple_next_err;
     std::future<bool> ple_next;             // declared after everything it reads: an early return waits for it
     int ple_buf = 0;
+    auto ple_launch = [&ple_gather, &ple_next_err, &ple_next, &ple_prog](int64_t c, int b) {
+        ple_prog.reset();
+        ple_next = std::async(std::launch::async, [&ple_gather, &ple_next_err, c, b] {
+            strata::aux_cpus::pin_current_thread();
+            return ple_gather(c, b, ple_next_err);
+        });
+    };
+    // STRATA_PLE_EARLY (item 79): the first chunk's gather from here, ahead of the chunk setup and its embedding.  The
+    // buffer's last upload (a previous run's) is done before the thread refills it.
+    if (ple_on && ple_early() && n > 0 && (m.ple_copied[0] == nullptr || cudaEventSynchronize(m.ple_copied[0]) == cudaSuccess))
+        ple_launch(0, 0);
 
     if (hand_in_ == nullptr) stopped_at_ = -1;
 #if defined(STRATA_HAVE_DFLASH2)
@@ -3597,18 +3692,99 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
         // ---- the PLE rows of the whole chunk, one batched SSD request on a thread (see ple_gather).  A later chunk's
         // were read ahead during the previous chunk; the first chunk's are read beside layer 0 - they are needed from
         // layer 1 on, and gathering them here first left the GPU idle for the whole read (~0.4 s of a 32K prompt)
-        if (ple_on && !ple_next.valid())
-            ple_next = std::async(std::launch::async, [&ple_gather, &ple_next_err, c0, b = ple_buf] {
-                strata::aux_cpus::pin_current_thread();
-                return ple_gather(c0, b, ple_next_err);
-            });
+        if (ple_on && !ple_next.valid()) ple_launch(c0, ple_buf);
         bool ple_pending = ple_on;
+        int64_t ple_up = 0;                    // item 79 (slices): the chunk's tokens already uploaded
+        double ple_wait_ms = 0, ple_wait_first_ms = -1;
+        int64_t ple_sb = 0;                    // the batched PLE block's sub-batch (tokens; the trace: SB == T leaves slices only the upload to overlap)
+        // the PLE wait mark (item 82): the gather's span and the host's wait for it, one line a chunk
+        auto ple_trace = [&]() {
+            if (!ple_wait_trace()) return;
+            const double gather_ms = std::chrono::duration<double, std::milli>(ple_prog.ended - ple_prog.started).count();
+            std::fprintf(stderr, "strata ple wait: chunk at %lld (%lld tokens): gather %.1f ms (%s, %d thread(s), %d slice(s)%s), "
+                                 "host waited %.1f ms at layer 1 (first slice %.1f ms), PLE sub-batch %lld\n",
+                         (long long) c0, (long long) T, gather_ms, m.ple_compact[ple_buf] ? "raw IQ4_NL" : "FP32",
+                         ple_sliced ? ple_gather_threads() : 1, ple_sliced ? ple_slices() : 1, ple_early() ? ", early" : "",
+                         ple_wait_ms, ple_wait_first_ms < 0 ? ple_wait_ms : ple_wait_first_ms, (long long) ple_sb);
+        };
+        // item 79 (STRATA_PLE_GATHER_THREADS / STRATA_PLE_SLICES): the rows of tokens [0, need) onto the device - every
+        // slice the gather has finished by then goes up (compact: and is dequantized), on the compute stream; the last
+        // one closes the chunk as ple_land does (the upload event, the next chunk's gather)
+        auto ple_land_to = [&](int64_t need) -> bool {
+            if (!ple_pending) return true;
+            need = std::min<int64_t>(need, T);
+            if (need <= ple_up) return true;
+            const auto tp = Clock::now();
+            const int64_t have = ple_prog.wait(need);
+            const double waited = ms_since(tp);
+            ple_wait_ms += waited;
+            if (ple_wait_first_ms < 0) ple_wait_first_ms = waited;
+            if (have < need) {                 // the gather stopped short of the rows asked for: it failed
+                ple_pending = false;
+                const bool ok = ple_next.get();
+                err = !ok && !ple_next_err.empty() ? ple_next_err : std::string("prefill: the PLE gather ended early");
+                return false;
+            }
+            if (have >= T && !ple_next.get()) {
+                ple_pending = false;
+                err = ple_next_err;
+                return false;
+            }
+            constexpr int64_t HN = strata::kernels::PLE_N_HEADS;
+            const int64_t a = ple_up, b = std::min<int64_t>(have, T);
+            const bool raw = m.ple_compact[ple_buf];
+            const size_t rbytes = (size_t) strata::kernels::PLE_ROW_BYTES;
+            cudaError_t ce;
+            if (raw)
+                ce = cudaMemcpyAsync(m.ple_raw_dev + (size_t) a * HN * rbytes,
+                                     (const uint8_t*) m.ple_emb_host[ple_buf] + (size_t) a * HN * rbytes,
+                                     (size_t) (b - a) * HN * rbytes, cudaMemcpyHostToDevice, m.cs);
+            else if (m.ple_pageable[ple_buf].empty())
+                ce = cudaMemcpyAsync(m.ple_emb + (size_t) a * N, m.ple_emb_host[ple_buf] + (size_t) a * N,
+                                     (size_t) (b - a) * N * 4, cudaMemcpyHostToDevice, m.cs);
+            else
+                ce = m.up_ring.h2d(m.ple_emb + (size_t) a * N, m.ple_emb_host[ple_buf] + (size_t) a * N,
+                                   (size_t) (b - a) * N * 4, m.cs);
+            if (ce != cudaSuccess) {
+                ple_pending = false;
+                err = std::string("prefill: the PLE rows' upload failed: ") + cudaGetErrorString(cudaGetLastError());
+                return false;
+            }
+            if (raw)
+                strata::kernels::ple_iq4nl_dequant(m.ple_raw_dev + (size_t) a * HN * rbytes, (b - a) * HN,
+                                                   m.ple_emb + (size_t) a * N, m.cs);
+            ple_up = b;
+            if (b < T) {
+                stats_.ms_ple += ms_since(tp);
+                return true;
+            }
+            ple_pending = false;
+            if (cudaEventRecord(m.ple_copied[ple_buf], m.cs) != cudaSuccess) {
+                err = std::string("prefill: the PLE rows' upload failed: ") + cudaGetErrorString(cudaGetLastError());
+                return false;
+            }
+            ple_trace();
+            if (c0 + C < n) {
+                // the other buffer's upload (a chunk ago) is done before the SSD thread refills it
+                if (cudaEventSynchronize(m.ple_copied[ple_buf ^ 1]) != cudaSuccess) {
+                    err = std::string("prefill: the PLE rows' upload failed: ") + cudaGetErrorString(cudaGetLastError());
+                    return false;
+                }
+                ple_launch(c0 + C, ple_buf ^ 1);
+            }
+            ple_buf ^= 1;
+            stats_.ms_ple += ms_since(tp);
+            return true;
+        };
         // the chunk's rows onto the device just before layer 1 reads them, and the next chunk's gather started
         auto ple_land = [&]() -> bool {
+            if (ple_sliced) return ple_land_to(T);
             if (!ple_pending) return true;
             ple_pending = false;
             const auto tp = Clock::now();
-            if (!ple_next.get()) {
+            const bool ple_ok = ple_next.get();
+            ple_wait_ms = ms_since(tp);
+            if (!ple_ok) {
                 err = ple_next_err;
                 return false;
             }
@@ -3645,11 +3821,9 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     err = std::string("prefill: the PLE rows' upload failed: ") + cudaGetErrorString(cudaGetLastError());
                     return false;
                 }
-                ple_next = std::async(std::launch::async, [&ple_gather, &ple_next_err, c1 = c0 + C, b = ple_buf ^ 1] {
-                    strata::aux_cpus::pin_current_thread();
-                    return ple_gather(c1, b, ple_next_err);
-                });
+                ple_launch(c0 + C, ple_buf ^ 1);
             }
+            ple_trace();
             ple_buf ^= 1;
             stats_.ms_ple += ms_since(tp);
             return true;
@@ -4054,7 +4228,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
             const bool kva_cap_layer = kva.capture && LB == 0 && (LE < 0 || LE == g.n_layers) && l >= kva_split;
             if (l == std::max<int64_t>(LB, 1)) {   // the PLE rows, read from layer 1 on (a wait for the SSD read of the first chunk lands on "ple")
                 pt.mark(kPfPle, cs);
-                if (!ple_land()) return false;
+                if (!(ple_sliced ? ple_land_to(1) : ple_land())) return false;   // slices: the first one; the block waits per sub-batch
             }
             // ---- the PLE block at layer 1, token by token (its conv reads the previous tokens' rows)
             if (l == 1 && ple_on && ple_batch) {
@@ -4067,6 +4241,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                 constexpr int64_t HD = strata::kernels::NG_HC_DIM;
                 const uint64_t per_token = (uint64_t) (3 * HD + N + 4) * 4 + (uint64_t) N * (bf16x2(m.f16_io) ? 4 : 2) + 4096;
                 const int64_t SB = std::min<int64_t>(T, (int64_t) (m.region_bytes / per_token));
+                ple_sb = SB;
                 for (int64_t s0 = 0; s0 < T; s0 += SB) {
                     const int64_t nb = std::min(SB, T - s0);
                     uint8_t* q = m.region;
@@ -4078,6 +4253,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     float* gate = carve_f((size_t) nb * 4);
                     uint16_t* e16 = (uint16_t*) carve_f((size_t) nb * N / 2);
                     uint16_t* e16_lo = bf16x2(m.f16_io) ? (uint16_t*) carve_f((size_t) nb * N / 2) : nullptr;
+                    if (ple_sliced && !ple_land_to(s0 + nb)) return false;   // item 79: only the slices this sub-batch reads
                     const float* emb = m.ple_emb + s0 * N;
                     if (pw.key_bf16 != nullptr) {
                         to_bf16(emb, e16, nb * N, m.cs, e16_lo);
@@ -4100,6 +4276,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                 pt.mark(kPfPle, cs);
                 const auto tp = Clock::now();
                 for (int64_t t = 0; t < T; ++t) {
+                    if (ple_sliced && !ple_land_to(t + 1)) return false;   // item 79: the slice holding this token
                     strata::kernels::PleOut po;
                     po.normalized = m.ple_norm;
                     po.result = m.R + t * D;
