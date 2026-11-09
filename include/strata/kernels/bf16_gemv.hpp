@@ -67,4 +67,12 @@ bool bf16_gemv_fp32_mmvf_multi_aux(const float* x, int64_t ldx, const uint16_t* 
                                    int64_t n_in, int64_t n_out, int n_tok, const uint16_t* w_aux, float* y_aux,
                                    int64_t ldy_aux, void* stream);
 
+/// MOD_PLAN item 48 (STRATA_ROUTER_FUSE=1): arm route_publish_res (top-10 + doorbell, native_router_top10_publish_res's
+/// arguments) as the epilogue of the NEXT bf16_gemv_fp32_mmvf_multi[_aux] call on this thread; afterwards
+/// bf16_router_publish_used() says whether that call's kernel took it (else the caller launches the publish itself).
+bool bf16_router_publish_arm(const float* logits, int32_t* ids, float* weights, int n_tok, const float* x,
+                             const int32_t* d_res, int n_expert, int64_t n, float* x_out, int32_t* ids_out, uint32_t* seq,
+                             void* stream);
+bool bf16_router_publish_used();
+
 }  // namespace strata::kernels

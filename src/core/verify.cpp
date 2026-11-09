@@ -2362,6 +2362,11 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             ;
         if (dec_batch && n > 1 && w_router != nullptr && native_router_enabled() && NE == 512 && K == 10) {
             try {
+                // item 48 (STRATA_ROUTER_FUSE=1): the publish rides in the router GEMV's last block when its kernel takes it
+                const bool rfuse = rpub && bf16_router_publish_arm(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
+                                                                    hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
+                                                                    (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N,
+                                                                    m_ids_ + tb * K, m_seq_, cs);
                 if (w_sgi != nullptr)
                     sg_ready = bf16_gemv_fp32_mmvf_multi_aux(mixed_ + tb * N, N, (const uint16_t*) w_router->data,
                                                              logits_ + tb * NE, NE, N, NE, n,
@@ -2369,7 +2374,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 if (!sg_ready)
                 bf16_gemv_fp32_mmvf_multi(mixed_ + tb * N, N, (const uint16_t*) w_router->data, logits_ + tb * NE, NE, N,
                                           NE, n, cs);
-                if (rpub)
+                const bool rdone = rfuse && bf16_router_publish_used();
+                if (rdone) {
+                } else if (rpub)
                     native_router_top10_publish_res(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
                                                     hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
                                                     (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N, m_ids_ + tb * K,

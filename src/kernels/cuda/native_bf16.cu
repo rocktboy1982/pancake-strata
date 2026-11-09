@@ -8,6 +8,11 @@
 #include <cuda_runtime.h>
 #include <cstdio>
 #include <cstdlib>
+#include <cfloat>
+#include <cmath>
+#include <cstdint>
+#include <unordered_map>
+#include <mutex>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -113,10 +118,30 @@ __global__ void bf16_f32_mmvf_kernel(const float* __restrict__ x, const uint16_t
 // the same kernel for up to 8 activation rows - the weight row is read ONCE and every
 // token keeps its own accumulator with exactly the single-row kernel's order (pairs, two ordered FMAs, the same warp
 // and block reductions), so each output is bit-identical to a bf16_f32_mmvf_kernel launch of its own.
+#include "route_row.cuh"
+// MOD_PLAN item 48 (STRATA_ROUTER_FUSE=1): the router GEMV's last block to finish runs route_publish_res (top-10 +
+// doorbell) as an epilogue - one launch fewer per layer on the path to the CPU experts.  counter == nullptr: off.
+constexpr int kRoutePubSlots = 64;
+__device__ uint32_t g_route_pub_cnt[kRoutePubSlots];   // per stream slot, 0 between launches (the last block resets it)
+struct RoutePub {
+    int slot = -1;                        // -1: no epilogue
+    const float* logits = nullptr;        // = y (the router's logits, n_tok x 512)
+    int32_t* ids = nullptr;
+    float* weights = nullptr;
+    int n_tok = 0;
+    const float* x = nullptr;
+    const int32_t* d_res = nullptr;
+    int n_expert = 0;
+    int n = 0;
+    float* x_out = nullptr;
+    int32_t* ids_out = nullptr;
+    uint32_t* seq = nullptr;
+};
 template <int BLOCK_SIZE, int NT, bool EXACT_T = true>
 __global__ void bf16_f32_mmvf_multi_kernel(const float* x_, int64_t ldx, const uint16_t* __restrict__ w,
                                           float* y_, int64_t ldy, int n_in, int n_tok, int fast,
-                                          const uint16_t* __restrict__ w_aux, float* y_aux, int64_t ldy_aux, int n_main) {
+                                          const uint16_t* __restrict__ w_aux, float* y_aux, int64_t ldy_aux, int n_main,
+                                          RoutePub pub) {
     // blocks from n_main on: the aux matrix's rows (STRATA_COMBINE_CPU's shared gate row in the router launch), each
     // the same arithmetic as its own launch
     const bool aux = (int) blockIdx.x >= n_main;
@@ -218,6 +243,23 @@ __global__ void bf16_f32_mmvf_multi_kernel(const float* x_, int64_t ldx, const u
 #pragma unroll
         for (int k = 0; k < NT; ++k)
             if (EXACT_T || k < n_tok) y[(size_t) k * ldy + orow] = acc[k];
+    if constexpr (BLOCK_SIZE == 256) {
+        if (pub.slot >= 0) {   // item 48: the last block routes and publishes (route_publish_res's code)
+            uint32_t* const counter = g_route_pub_cnt + pub.slot;
+            __shared__ int last;
+            if (t == 0) {
+                __threadfence();   // this block's logits visible to the block that finishes last
+                last = atomicAdd(counter, 1u) + 1u == gridDim.x;
+            }
+            __syncthreads();
+            if (last) {
+                __threadfence();   // acquire: every block's logits
+                rr_route_publish(pub.logits, pub.ids, pub.weights, pub.n_tok, pub.x, pub.d_res, pub.n_expert, pub.n,
+                                 pub.x_out, pub.ids_out, pub.seq, t);
+                if (t == 0) atomicExch(counter, 0u);
+            }
+        }
+    }
 }
 
 // S25 (STRATA_MMVF_ROWS=1): RPB output rows per block. Each block read its row's weights once but all T activation
@@ -400,6 +442,50 @@ static bool mmvf_aux_multi_enabled() {
     }();
     return on;
 }
+namespace {
+// item 48: the publish armed for the next router GEMV on this thread (bf16_router_publish_arm), taken by a launch of the
+// 256-thread multi kernel; `g_pub_used` tells the caller whether it ran
+thread_local RoutePub g_pub_armed;
+thread_local bool g_pub_used = false;
+RoutePub take_pub(int block) {
+    RoutePub p = g_pub_armed;
+    g_pub_armed = RoutePub{};
+    if (block != 256 || p.slot < 0) return RoutePub{};
+    g_pub_used = true;
+    return p;
+}
+int route_pub_slot(void* stream) {
+    static std::mutex mu;
+    static std::unordered_map<void*, int> slots;
+    std::lock_guard<std::mutex> lk(mu);
+    auto it = slots.find(stream);
+    if (it != slots.end()) return it->second;
+    if ((int) slots.size() >= kRoutePubSlots) return -1;
+    const int sl = (int) slots.size();
+    slots.emplace(stream, sl);
+    return sl;
+}
+}  // namespace
+bool bf16_router_publish_arm(const float* logits, int32_t* ids, float* weights, int n_tok, const float* x,
+                             const int32_t* d_res, int n_expert, int64_t n, float* x_out, int32_t* ids_out, uint32_t* seq,
+                             void* stream) {
+    static const bool on = [] { const char* v = std::getenv("STRATA_ROUTER_FUSE"); return v != nullptr && v[0] == '1'; }();
+    g_pub_used = false;
+    g_pub_armed = RoutePub{};
+    if (!on || n_tok < 2 || n_tok > 8 || n_expert != 512) return false;
+    const int sl = route_pub_slot(stream);
+    if (sl < 0) return false;
+    static bool said = false;
+    if (!said) { said = true; std::fprintf(stderr, "strata: STRATA_ROUTER_FUSE: the router GEMV's last block routes and publishes (item 48)\n"); }
+    g_pub_armed = RoutePub{sl, logits, ids, weights, n_tok, x, d_res, n_expert, (int) n, x_out, ids_out, seq};
+    return true;
+}
+bool bf16_router_publish_used() {
+    const bool u = g_pub_used;
+    g_pub_used = false;
+    g_pub_armed = RoutePub{};
+    return u;
+}
 bool bf16_gemv_fp32_mmvf_multi_aux(const float* x, int64_t ldx, const uint16_t* w, float* y, int64_t ldy,
                                    int64_t n_in, int64_t n_out, int n_tok, const uint16_t* w_aux, float* y_aux,
                                    int64_t ldy_aux, void* stream) {
@@ -410,12 +496,12 @@ bool bf16_gemv_fp32_mmvf_multi_aux(const float* x, int64_t ldx, const uint16_t* 
         const int64_t n_aux = 1;
 #define STRATA_MMVF_M(N) case N: \
     switch (n_tok) { \
-        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
+        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
     } break
         switch (mmvf_block_size(n_in)) {
             STRATA_MMVF_M(32); STRATA_MMVF_M(64); STRATA_MMVF_M(96); STRATA_MMVF_M(128);
@@ -477,7 +563,7 @@ void bf16_gemv_fp32_mmvf_multi(const float* x, int64_t ldx, const uint16_t* w, f
     // 9..16 rows (wide builds only): one exact instantiation per row count, each row's dot independent of the others.  7 and 8
     // rows stay with the default case below, the instantiation they always had.
 #if STRATA_VERIFY_MAX_T > 8
-#define STRATA_MMVF_W(N, T) case T: launch_pdl(bf16_f32_mmvf_multi_kernel<N, T, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break;
+#define STRATA_MMVF_W(N, T) case T: launch_pdl(bf16_f32_mmvf_multi_kernel<N, T, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break;
 #if STRATA_VERIFY_MAX_T > 12
 #define STRATA_MMVF_W13(N) STRATA_MMVF_W(N, 13) STRATA_MMVF_W(N, 14) STRATA_MMVF_W(N, 15) STRATA_MMVF_W(N, 16)
 #else
@@ -492,13 +578,13 @@ void bf16_gemv_fp32_mmvf_multi(const float* x, int64_t ldx, const uint16_t* w, f
 #define STRATA_MMVF_M(N) case N: \
     switch (n_tok) { \
         STRATA_MMVF_WIDE(N) \
-        case 1: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 1, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
-        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out); break; \
+        case 1: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 1, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
     } break
     const uint16_t* w_aux = nullptr; float* y_aux = nullptr; const int64_t ldy_aux = 0; const int64_t n_aux = 0;
     switch (mmvf_block_size(n_in)) {
