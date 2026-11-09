@@ -5466,7 +5466,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     if (presum) {   // item 51: per token, its CPU entries' rows weighted by the published routing weights, in entry order
         const float* w = d.plan->route_w;
         for (int64_t t = 0; t < n_tok; ++t) {
-            float* dst = out + (size_t) (t * k) * H;
+            float* dst = d.plan->presum_dst != nullptr ? d.plan->presum_dst + (size_t) t * H : out + (size_t) (t * k) * H;   // item 52
             bool first = true;
             for (int64_t j = 0; j < k; ++j) {
                 const int64_t i = t * k + j;
@@ -5480,6 +5480,9 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             if (first && std::any_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v == -2; }))
                 std::memset(dst, 0, (size_t) H * sizeof(float));
         }
+#if defined(__x86_64__) || defined(_M_X64)
+        if (d.plan->presum_dst != nullptr) _mm_sfence();   // item 52: the write-combined rows land before the flag
+#endif
     }
     const auto c4 = std::chrono::steady_clock::now();
     pt("ran");

@@ -766,6 +766,7 @@ Verifier::~Verifier() {
         if (e) cudaEventDestroy(e);
     if (arena_) cudaFree(arena_);
     if (hcount_d_) cudaFree(hcount_d_);
+    if (presum_vram_) cudaFree(presum_vram_);
     void* hosts[] = {h_tok_, h_step_, h_pos_, h_commit_, h_ple_, h_out_, h_x_, h_ids_, h_w_, h_seq_, h_flag_, h_ymiss_,
                      h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_};
     for (void* h : hosts)
@@ -1019,6 +1020,21 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
               mapped(T * K * N * 4, (void**) &h_ymiss_, (void**) &m_ymiss_) &&
               (defer_heavy_ <= 0.0f || mapped(64, (void**) &h_pflag_, (void**) &m_pflag_));
     if (!ok) { err = "verify: mapped staging allocation failed " + strata::core::pin_exhausted_hint(); return false; }
+#if defined(STRATA_USE_HIP)
+    {   // item 52 (opt-in, with STRATA_CPU_PRESUM): the pre-summed rows in fine-grained VRAM; the host writes them through the
+        // resizable BAR (write-combined, one thread, sfence before the flag) and the combine reads them locally
+        const char* pv = std::getenv("STRATA_PRESUM_VRAM");
+        const char* ps = std::getenv("STRATA_CPU_PRESUM");
+        if (pv != nullptr && pv[0] == '1' && ps != nullptr && ps[0] == '1' && presum_vram_ == nullptr) {
+            if (hipExtMallocWithFlags((void**) &presum_vram_, (size_t) T * N * 4, hipDeviceMallocFinegrained) != hipSuccess) {
+                presum_vram_ = nullptr;
+                std::fprintf(stderr, "strata verify: STRATA_PRESUM_VRAM: no fine-grained VRAM; pre-summed rows stay in host memory\n");
+            } else {
+                std::fprintf(stderr, "strata verify: STRATA_PRESUM_VRAM: pre-summed CPU rows written to VRAM through the BAR (item 52)\n");
+            }
+        }
+    }
+#endif
     // DFlash2 taps: set_taps (the drafter) or STRATA_TAP_FILE (the research dump); off, and nothing is allocated or captured, otherwise
     const char* tap_path = std::getenv("STRATA_TAP_FILE");
     if (tap_path != nullptr && tap_path[0] == '\0') tap_path = nullptr;
@@ -2690,7 +2706,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                              g_wait_fuse ? m_flag_ : nullptr, ring,
                                              g_wait_fuse && prof_on_ && grp == 0 && ((prof_sel >> 23) & 1) && trace_m_ == nullptr
                                                  ? prof_ + (size_t) (l * kProfPer + 23) : nullptr,
-                                             T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp]);
+                                             T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp],
+                                             presum_vram_ != nullptr ? presum_vram_ + (size_t) tb * N : nullptr);
             } catch (const std::exception& e) { err = "verify combine: " + std::string(e.what()); return false; }
         } else
         if (sg_gated_[grp]) {   // STRATA_LFUSE: the shared expert's gate was not applied: the combine applies it (all rows are hits)
@@ -3798,6 +3815,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         progress_at("verify window: the CPU experts of layer", l);
         if (remote_opt_) remote_opt_->begin(h_w_ + (size_t) tb * ss.k, tb, n);
         sink_.presum = T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp];   // item 51
+        sink_.presum_dst = sink_.presum && presum_vram_ != nullptr ? presum_vram_ + (size_t) tb * g.n_embd : nullptr;   // item 52
         sink_.route_w = strata::core::window_trace().on() || sink_.presum ? h_w_ + (size_t) tb * ss.k : nullptr;   // items 64, 51
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW: this layer's split, if post(l) waits for it
             const bool split = heavy_layer(T, l);

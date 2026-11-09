@@ -749,6 +749,7 @@ private:
     std::function<bool(cudaStream_t, std::string&)> pre_launch_;   // set_pre_launch
     int groups_[strata::kernels::kVerifyLongT + 1] = {};
     float* h_ymiss_ = nullptr;   float* m_ymiss_ = nullptr;     // T * k * n_embd
+    float* presum_vram_ = nullptr;   // item 52 (HIP, STRATA_PRESUM_VRAM=1): fine-grained VRAM the host writes through ReBAR, T * n_embd
     // STRATA_VERIFY_DEFER_CPU=1 (opt-in, changes the output): a decode window's layer l adds the CPU's expert rows to the
     // residual before layer l+1's FFN-side read instead of waiting for them in its own combine (record_window)
     bool defer_ = false;

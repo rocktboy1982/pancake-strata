@@ -37,7 +37,9 @@ void native_moe_combine_multi_hits(const float* hits, const float* weights, cons
 void native_moe_combine_multi_cpu(const float* cpu, const float* hit, const int32_t* hit_rows, const int32_t* count,
                                   const float* weights, const float* shared, const float* shared_gate, float* output,
                                   int64_t n_embd, int n_tok, void* stream, const uint32_t* wait_flag = nullptr,
-                                  uint32_t wait_value = 0, unsigned long long* t_waited = nullptr, bool presum = false);
+                                  uint32_t wait_value = 0, unsigned long long* t_waited = nullptr, bool presum = false,
+                                  const float* presum_rows = nullptr);
+/// (item 52) `presum_rows`: the pre-summed rows are presum_rows + t * n_embd (VRAM) instead of the mapped buffer.
 /// (MOD_PLAN item 51) `presum`: the CPU entries of token t are ONE row, cpu + (t * 10) * n_embd, already weighted and
 /// summed by the host; it is added once (when the token has a CPU entry) after the hits' weighted sum.
 /// (MOD_PLAN item 49) `t_waited`, with `wait_flag`: block (0,0) writes the GPU clock (ns) there once the CPU-share wait

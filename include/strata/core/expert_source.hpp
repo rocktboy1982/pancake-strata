@@ -424,6 +424,8 @@ struct GpuPlanSink {
     /// MOD_PLAN item 51 (STRATA_CPU_PRESUM=1): the window's combine reads ONE row per token for the CPU entries - their
     /// rows weighted by route_w and summed by the host into row token * k (the entries' own rows are not written).
     bool presum = false;
+    /// item 52: where the pre-summed row of token t goes instead (presum_dst + t * n_embd, VRAM through ReBAR); null: the mapped row
+    float* presum_dst = nullptr;
     float heavy = 0.0f;
     void (*partial)(void* ctx) = nullptr;
 };
