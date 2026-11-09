@@ -84,12 +84,16 @@ class KeepAwakeTests(unittest.TestCase):
         svc.keep_awake = ka = KeepAwake(rec)
         kinds = [k for k, _ in svc.run(tok.encode("hi"), False, None, 8, {}, threading.Event())]
         self.assertIn("done", kinds)
-        self.assertTrue(wait_for(lambda: rec.calls == [ON, ES_CONTINUOUS]))
+        self.assertEqual(ka._count, 0)                        # the finished request let go
+        # KeepAwake._loop follows the state, not each acquire/release: a request that ends before the keep-awake
+        # thread first runs is never held (no call), otherwise it is held and released.  Either way the PC is not
+        # left awake (MOD_PLAN quick hygiene: the old [ON, ES_CONTINUOUS] assertion lost this race ~7 runs in 10).
+        self.assertTrue(wait_for(lambda: rec.calls in ([], [ON, ES_CONTINUOUS])))
         gen = svc.run(tok.encode("hi"), False, None, 8, {}, threading.Event())
         next(gen)
-        self.assertTrue(wait_for(lambda: rec.calls[-1] == ON))
+        self.assertTrue(wait_for(lambda: rec.calls[-1:] == [ON]))           # held while the request is open
         gen.close()                                           # the client left
-        self.assertTrue(wait_for(lambda: rec.calls[-1] == ES_CONTINUOUS))
+        self.assertTrue(wait_for(lambda: rec.calls[-1:] == [ES_CONTINUOUS]))
         ka.close()
 
     def test_default_service_has_none(self):
