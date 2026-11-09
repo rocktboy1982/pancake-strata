@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <istream>
 #include <optional>
@@ -75,6 +76,61 @@ inline int64_t auto_conversation_cache_mib(std::optional<uint64_t> available, in
     if (mib > 8192) mib = 8192;
     mib -= mib % 256;
     return mib >= 1024 ? mib : 0;
+}
+
+/// MOD_PLAN 86 (first slice of 69): the conversation cache from a fixed RAM budget instead of 40% of what is free.  After the
+/// arena is loaded (item 38 reads it with O_DIRECT, so no leftover page cache moves the figure between starts), the cache may
+/// take what is available less the RAM to keep and a margin: available - max(keep, min_free) - margin, at most `cap_mib`
+/// (0: no cap), in steps of 256, and 0 (off) under 1024 - the same steps and the same off rule as auto_conversation_cache_mib.
+/// `keep` is --ram-keep-gib / STRATA_RAM_KEEP_GIB (or STRATA_CONV_KEEP_GIB for this rule alone); the parking floor
+/// (--conversation-cache-min-free-mib) is the least that is kept.  Unknown telemetry: 0.
+inline int64_t ram_budget_conversation_cache_mib(std::optional<uint64_t> available, uint64_t keep, int64_t min_free_mib,
+                                                 int64_t margin_mib, int64_t cap_mib) {
+    if (!available) return 0;
+    const int64_t keep_mib = std::max<int64_t>((int64_t) (keep >> 20), std::max<int64_t>(min_free_mib, 0));
+    int64_t mib = (int64_t) (*available >> 20) - keep_mib - std::max<int64_t>(margin_mib, 0);
+    if (mib <= 0) return 0;
+    if (cap_mib > 0 && mib > cap_mib) mib = cap_mib;
+    mib -= mib % 256;
+    return mib >= 1024 ? mib : 0;
+}
+
+/// Which rule sizes the automatic conversation cache, and its inputs.
+struct ConversationBudgetPolicy {
+    bool ram = false;            ///< ram_budget_conversation_cache_mib; false: auto_conversation_cache_mib (#3493)
+    uint64_t keep = 0;           ///< bytes
+    bool keep_from_env = false;  ///< STRATA_CONV_KEEP_GIB gave `keep` (else --ram-keep-gib)
+    int64_t min_free_mib = 2560;
+    int64_t margin_mib = 512;
+    int64_t cap_mib = 8192;
+};
+
+/// From the switches (null = unset; a value that is not a number keeps the default):
+///   STRATA_CONV_BUDGET    "ram" | "legacy"; unset/"auto": the RAM rule on Linux when a RAM to keep is set (--ram-keep-gib,
+///                         STRATA_RAM_KEEP_GIB or STRATA_CONV_KEEP_GIB), else the 40% rule
+///   STRATA_CONV_KEEP_GIB  the RAM to keep for this rule (replaces --ram-keep-gib here only)
+///   STRATA_CONV_BUDGET_MARGIN_MIB (512), STRATA_CONV_BUDGET_CAP_MIB (8192; 0 = no cap)
+ConversationBudgetPolicy conversation_budget_policy(const char* mode, const char* keep_gib, const char* margin_mib,
+                                                    const char* cap_mib, uint64_t ram_keep, int64_t min_free_mib,
+                                                    bool linux_host);
+
+inline int64_t conversation_cache_budget_mib(std::optional<uint64_t> available, const ConversationBudgetPolicy& p) {
+    return p.ram ? ram_budget_conversation_cache_mib(available, p.keep, p.min_free_mib, p.margin_mib, p.cap_mib)
+                 : auto_conversation_cache_mib(available, p.min_free_mib);
+}
+
+/// #4518 under either rule: would `extra` more bytes available (the PLE table's lock given back) make the cache bigger?
+inline bool conversation_budget_grows(std::optional<uint64_t> available, uint64_t extra, const ConversationBudgetPolicy& p) {
+    if (!available || extra == 0 || *available > UINT64_MAX - extra) return false;
+    return conversation_cache_budget_mib(*available + extra, p) > conversation_cache_budget_mib(available, p);
+}
+
+/// The parked-image size model for the log (measured 2026-11-09 on the daily preset: 540 tokens = 243.8 MB, 2584 tokens =
+/// 272.9 MB): about 236 MB fixed (the live state and one checkpoint) plus 14.2 KB per token.  The tokens one image of
+/// `bytes` holds, 0 below the fixed part.
+inline uint64_t parked_tokens_in(uint64_t bytes) {
+    constexpr uint64_t kFixed = 236000000ull, kPerToken = 14200ull;
+    return bytes > kFixed ? (bytes - kFixed) / kPerToken : 0;
 }
 
 std::optional<uint64_t> conversation_mem_available(std::istream& meminfo);

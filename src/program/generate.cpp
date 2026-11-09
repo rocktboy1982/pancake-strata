@@ -18,6 +18,7 @@
 
 #include "strata/platform/memory.hpp"
 #include "strata/platform/io_priority.hpp"
+#include "strata/platform/mem_pressure.hpp"
 #include "strata/core/adapt_async_default.hpp"
 #include "strata/core/arch_defaults.hpp"
 #include "strata/core/gfx12_chunk.hpp"
@@ -12048,12 +12049,21 @@ int main(int argc, char** argv) {
         // its whole prompt again, Reused 0 on 12 of 12).  An explicit value, 0 included, is never touched.
         if (o.conversation_cache_mib < 0) {
             if (o.serve && o.prompt_cache > 0 && o.conversation_cache_slots > 0) {
+                // MOD_PLAN 86: the RAM-budget rule (available - keep - margin) or the 40% rule (strata/core/conversation_memory.hpp)
+#if defined(__linux__)
+                constexpr bool budget_linux = true;
+#else
+                constexpr bool budget_linux = false;
+#endif
+                const auto budget = strata::core::conversation_budget_policy(
+                    std::getenv("STRATA_CONV_BUDGET"), std::getenv("STRATA_CONV_KEEP_GIB"), std::getenv("STRATA_CONV_BUDGET_MARGIN_MIB"),
+                    std::getenv("STRATA_CONV_BUDGET_CAP_MIB"), o.ram_keep, o.conversation_cache_min_free_mib, budget_linux);
                 auto cache_room = strata::core::available_host_bytes();
                 // #4518: the residency policy locked the PLE table before it knew what the rest of the load would take; if the lock is what
                 // leaves the automatic cache too little (or none), the lock is given back (the pages stay cached, the OS may reclaim them)
                 // and the cache is sized again.  --ple-io ram asked for by hand and --conversation-cache-mib N are never touched.
                 if (ple_lock_by_policy && ple_table.locked() &&
-                    strata::core::ple_lock_blocks_cache(cache_room, ple_table.table_bytes(), o.conversation_cache_min_free_mib)) {
+                    strata::core::conversation_budget_grows(cache_room, ple_table.table_bytes(), budget)) {
                     const auto before = cache_room;
                     if (ple_table.unlock()) {
                         cache_room = strata::core::available_host_bytes();
@@ -12062,7 +12072,22 @@ int main(int argc, char** argv) {
                                      before ? (double) *before / (1ull << 30) : 0.0, cache_room ? (double) *cache_room / (1ull << 30) : 0.0);
                     }
                 }
-                o.conversation_cache_mib = strata::core::auto_conversation_cache_mib(cache_room, o.conversation_cache_min_free_mib);
+                o.conversation_cache_mib = strata::core::conversation_cache_budget_mib(cache_room, budget);
+                if (budget.ram) {   // MOD_PLAN 86: the budget and its inputs
+                    const auto mem = strata::core::sample_host_memory();
+                    const int64_t keep_mib = std::max<int64_t>((int64_t) (budget.keep >> 20), budget.min_free_mib);
+                    const uint64_t per_slot = ((uint64_t) o.conversation_cache_mib << 20) / (uint64_t) o.conversation_cache_slots;
+                    std::fprintf(stderr, "strata serve: conversation cache budget (RAM rule): %lld MiB available (%s, MemAvailable %llu MiB) "
+                                         "- keep %lld MiB (%s, at least the %lld MiB floor) - margin %lld MiB, cap %lld -> %lld MiB; a parked "
+                                         "image is ~236 MB + 14.2 KB/token: one of ~%lluK tokens, or %d of ~%lluK each "
+                                         "(STRATA_CONV_BUDGET=legacy: the 40%% rule)\n",
+                                 cache_room ? (long long) (*cache_room >> 20) : -1LL, mem ? strata::core::memory_source_name(mem->source) : "unknown",
+                                 mem ? (unsigned long long) (mem->mem_available >> 20) : 0ULL, (long long) keep_mib,
+                                 budget.keep_from_env ? "STRATA_CONV_KEEP_GIB" : "--ram-keep-gib", (long long) budget.min_free_mib,
+                                 (long long) budget.margin_mib, (long long) budget.cap_mib, (long long) o.conversation_cache_mib,
+                                 (unsigned long long) (strata::core::parked_tokens_in((uint64_t) o.conversation_cache_mib << 20) / 1000),
+                                 o.conversation_cache_slots, (unsigned long long) (strata::core::parked_tokens_in(per_slot) / 1000));
+                }
                 if (o.conversation_cache_mib > 0)
                     std::fprintf(stderr, "strata serve: conversation cache sized from the free RAM: %lld MiB for up to %d parked "
                                          "conversations, so an agent's next turn reuses its prompt (--conversation-cache-mib N sets it, 0 turns it off)\n",
@@ -12370,6 +12395,11 @@ int main(int argc, char** argv) {
                 err.clear();
             }
             estimate += stage_estimate;
+            if (std::string why; strata::platform::memory_pressure_blocks_parking(&why)) {   // MOD_PLAN 86 (Linux PSI)
+                std::fprintf(stderr, "strata serve: conversation cache: skip parking (%s; STRATA_PSI_PARK_PCT, STRATA_PSI_GUARD=0)\n",
+                             why.c_str());
+                return true;
+            }
             // A park carrying its own retained K/V replaces memory the cache
             // already held, so capacity is make_room's call - it runs next either
             // way, and put()'s accounting still bounds the budget. The with-reuse

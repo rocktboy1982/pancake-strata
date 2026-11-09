@@ -506,7 +506,7 @@ target_link_libraries(strata-plan PRIVATE strata_plan)
 # ---- strata_core (GPU runtime) ---------------------------------------------
 # Only built when a GPU backend is on, so the Phase 1 targets keep working without a toolkit.
 if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
-  add_library(strata_core STATIC src/core/device.cu src/core/pinned.cu src/platform/memory.cpp src/platform/io_priority.cpp src/core/graph.cpp src/core/weights.cpp
+  add_library(strata_core STATIC src/core/device.cu src/core/pinned.cu src/platform/memory.cpp src/platform/io_priority.cpp src/platform/mem_pressure.cpp src/core/graph.cpp src/core/weights.cpp
                                src/core/layout.cpp)
   target_include_directories(strata_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
   # the DFlash2 drafter (src/core/dflash2.cpp, src/kernels/cuda/dflash2.cu) exists in the CUDA and HIP builds; the Metal and SYCL builds compile without it
@@ -852,6 +852,15 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(conversation_disk_tier_test PRIVATE Threads::Threads)
     add_test(NAME conversation_disk_tier_test COMMAND conversation_disk_tier_test)
     set_tests_properties(conversation_disk_tier_test PROPERTIES TIMEOUT 60)
+  endif()
+
+  # MOD_PLAN 86: PSI parsing, the cgroup path, the switches, the loader guard on fixture files - no GPU
+  if(STRATA_BUILD_TESTS)
+    add_executable(mem_pressure_test tests/platform/mem_pressure_test.cpp src/platform/mem_pressure.cpp)
+    target_include_directories(mem_pressure_test PRIVATE include)
+    target_link_libraries(mem_pressure_test PRIVATE Threads::Threads)
+    add_test(NAME mem_pressure_test COMMAND mem_pressure_test)
+    set_tests_properties(mem_pressure_test PROPERTIES TIMEOUT 60)
   endif()
 
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core/file_expert_source_test.cpp")
@@ -3364,7 +3373,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
     routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test expert_seed_test run_manifest_test
-    host_limits_test io_priority_test exchange_storage_test memory_guard_test file_expert_source_test
+    host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test file_expert_source_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test

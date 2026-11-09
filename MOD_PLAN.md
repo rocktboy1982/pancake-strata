@@ -438,7 +438,12 @@ cache is charged to the capped.sh scope (MemoryMax=54G) - confirm with one PSI t
     a tie-breaker): give seeded pairs virtual miss bits for the hold period.  [dan-99 owns the tier]
 85. Huge pages: stop requesting THP at registration time, collapse in the background after load (compaction stalls); pipelined
     per-layer registration on Linux reusing the Windows code - measure first (Windows/5070 decoded ~10% slower).  [this, after 38]
-86. 69 first slice: after 38, size the conversation cache from a deterministic RAM budget (today 4096-6144 MiB = 40% of whatever is
+86. [CODE 2026-11-09, branch feat/item-86-mem-budget; GPU start test pending: budget line, PSI line, no oomd.  RAM rule
+    (auto on Linux with --ram-keep-gib: available - max(keep, floor) - 512 MiB margin, cap 8192; STRATA_CONV_BUDGET=ram|legacy,
+    STRATA_CONV_KEEP_GIB, STRATA_CONV_BUDGET_MARGIN_MIB/CAP_MIB); PSI guard in the arena readers (STRATA_PSI_GUARD=0,
+    _PAUSE_PCT 20, _RESUME_PCT 10, _MAX_PAUSE_MS 30000) and parking skipped at some avg10 >= STRATA_PSI_PARK_PCT (20).
+    With keep 12 on this box the RAM rule gives ~avail-12.5 GiB (est. 2-3.5 GiB vs 5 GiB today): STRATA_CONV_KEEP_GIB=8 for more]
+    69 first slice: after 38, size the conversation cache from a deterministic RAM budget (today 4096-6144 MiB = 40% of whatever is
     free, depends on leftover page cache) and pause loader readers on memory pressure (PSI).  Parked size ~236 MB fixed + 14.2 KB per
     token (fit from 540/2584-token parks; ~1.23 GB at 70K est.).  39 sketch: evict_oldest callback -> session_file_write keeping
     deepest AND root checkpoint, per-conversation index file, same validate/restore path as /slots, size cap, strata-poly key

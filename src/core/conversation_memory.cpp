@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <cstdlib>
 #include <charconv>
 #include <filesystem>
 #include <fstream>
@@ -306,6 +307,34 @@ std::optional<HostMemoryReading> sample_host_memory() {
 #else
     return {};
 #endif
+}
+
+ConversationBudgetPolicy conversation_budget_policy(const char* mode, const char* keep_gib, const char* margin_mib,
+                                                    const char* cap_mib, uint64_t ram_keep, int64_t min_free_mib,
+                                                    bool linux_host) {
+    auto number = [](const char* v, double& out) {
+        if (v == nullptr || v[0] == '\0') return false;
+        char* end = nullptr;
+        const double d = std::strtod(v, &end);
+        if (end == v || *end != '\0' || !(d >= 0.0) || d > 1.0e9) return false;
+        out = d;
+        return true;
+    };
+    ConversationBudgetPolicy p;
+    p.min_free_mib = min_free_mib;
+    p.keep = ram_keep;
+    double d = 0.0;
+    if (number(keep_gib, d)) {
+        p.keep = (uint64_t) (d * 1073741824.0);
+        p.keep_from_env = true;
+    }
+    if (number(margin_mib, d)) p.margin_mib = (int64_t) d;
+    if (number(cap_mib, d)) p.cap_mib = (int64_t) d;
+    const std::string m = mode != nullptr ? mode : "";
+    if (m == "ram") p.ram = true;
+    else if (m == "legacy") p.ram = false;
+    else p.ram = linux_host && (ram_keep > 0 || p.keep_from_env);
+    return p;
 }
 
 std::optional<uint64_t> available_host_bytes() {

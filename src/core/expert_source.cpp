@@ -16,6 +16,7 @@
 #include "strata/core/pinned.hpp"
 #include "strata/platform/direct_io.hpp"
 #include "strata/platform/memory.hpp"
+#include "strata/platform/mem_pressure.hpp"
 #include "strata/kernels/elementwise.hpp"
 #include "strata/kernels/quantize_act.hpp"
 #include "strata/kernels/s2_expert_grouped.hpp"
@@ -5904,6 +5905,7 @@ LoadStats load_experts_gguf_direct_linux(const std::string& gguf, uint8_t* dst,
                     const uint64_t a0 = (src + done) / kSector * kSector;
                     const uint64_t a1 = (src + done + n + kSector - 1) / kSector * kSector;
                     const uint64_t want = a1 - a0;
+                    strata::platform::loader_pressure_check();   // MOD_PLAN 86: held while memory pressure is high
                     const auto t_read = std::chrono::steady_clock::now();
                     uint64_t got = 0;
                     int read_errno = 0;
@@ -5993,6 +5995,7 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
     };
     LoadStats st;
     st.layers = (uint64_t) lay.n_layers;
+    const strata::platform::LoaderPressureScope pressure_scope("expert arena");   // MOD_PLAN 86 (Linux PSI; else nothing)
     const auto t0 = std::chrono::steady_clock::now();
     std::atomic<int64_t> next{0};
     std::atomic<bool> bad{false};
@@ -6135,6 +6138,7 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
                 buf.resize((size_t) chunk);
                 for (uint64_t done = 0; done < total; done += chunk) {
                     const uint64_t n = std::min<uint64_t>(chunk, total - done);
+                    strata::platform::loader_pressure_check();   // MOD_PLAN 86: held while memory pressure is high
                     // 64-bit seek: a shard is tens of GB
                     if (STRATA_FSEEK64(f, src + done) != 0) { bad = true; return; }
                     if (std::fread(buf.data(), 1, (size_t) n, f) != (size_t) n) { bad = true; return; }
