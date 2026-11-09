@@ -166,6 +166,8 @@ void experts_native(const Batch&, const NativeGeom&, int, int64_t, const void*, 
 bool native_wide() { return false; }
 void experts_native(const WideBatch&, const NativeGeom&, int, int64_t, const void*, const void*, const int32_t*, void*,
                     float*, void*) {}
+void want_dm_f16(bool) {}                    // STRATA_PF_DM16 (6e31946cb): no fused kernels, the down rows stay FP32
+bool dm_f16_used() { return false; }
 }  // namespace strata::prefill::fused
 #endif
 #ifndef STRATA_PREFILL_WS

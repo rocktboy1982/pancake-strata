@@ -473,3 +473,13 @@ Qwen3.8-Flash-Next is a 125B MoE + 51B hashed n-gram/PLE table + ~4B MTP ≈ **1
 per block; 512 experts (10 routed + 1 shared). The "IQ2_XS" file's experts are IQ2_S/IQ2_XXS/IQ1_M gate/up with Q2_0
 down; Q2_0 decodes 93.8 vs 70.3 tok/s on DASLab's card at -0.09 task average, and is the plan's daily file
 (`run-pancake.sh` still defaults to `iq2_xs`). Composition and the Coder variant: [MODELS.md](MODELS.md) pancake note.
+
+### 13.x Updates later on 2026-11-09
+
+- [M] Item 2 closed: `decode_curve.py` shows no refill cost after long prompts; the decode drop is the prose reply and cache warm-up (c9d9f014c).
+- [M] Item 8: the non-finite logits of `STRATA_VERIFY_DEFER_CPU` on HIP came from `STRATA_ROUTE_PUBLISH`; it is now off under deferral (d5b58f669).
+- [E] `tools/pancake/time_ceiling.py --overlap` (751e09b70) models GPU/CPU overlap layer by layer (serial/defer/guard, alpha = DMA contention). On edit windows (alpha 0.25-0.5): deferral +33%, deferral + k-th-miss admission 2/8 +45-52%, item 29 +3%. Model only; validation against real windows (5-9% error target) is in the test phase.
+- [M] Item 13 closed offline: Flash-Next experts are dense (gate-mask cosine 0.84 at 70% sparsity).
+- [C] Item 23 coded as `STRATA_ROUTE_PRIOR_DEPTH=a` (4f56ce535), opt-in.
+- [M] BFLA on the qwen35 engine (branch feat/bfla-hip): one 32K-prompt attention layer, chunks of 4096: hipBLAS + materialised softmax 1238.7 ms, fused RDNA3 WMMA kernel over every block 581.1 ms (max diff 3.7e-5), Q-from-global variant 515.2 ms, BFLA sparse (33.4% of blocks) 500.2 ms. `bfla_test` passes (dense vs FP64 rel L2 1.3-1.5e-4; sparse-all-blocks bitwise equal to dense). 64K/128K kernel runs, the Flash-Next tile-shared QSA overlap run and the Qwen3.6 end-to-end/recall A/B are pending.
+- [C] `STRATA_PREFILL_MMQ=OFF` HIP builds failed to link (`want_dm_f16`/`dm_f16_used` missing from the no-fused stubs in `src/prefill/prefill.cpp` since 6e31946cb); fixed with two stubs, `strata` now links with MMQ off (verified 2026-11-09).

@@ -225,6 +225,8 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 34 rumination signal into the soft close and 21 - inside S4 - lossy (text) - this - 73 - open.  [S4]
 - 25 ISTA-DASLab Coder variant A/B - quality candidate (95.7% of BF16 on SWE-bench Verified), speed unknown - n/a - owner -
     ~29.6 GB on D, 67 - open.
+- 19 [2026-11-09: BFLA kernel on the qwen35 engine done on feat/bfla-hip - 32K layer 1238.7 -> 581.1 ms exact (dense) -> 500.2 ms
+   sparse; Flash-Next tile-shared QSA overlap run pending; ceiling ~7-8% of prefill at 128K est.]
 - 19 BFLA as one shared QSA selection per query tile - long-context TTFT only (paper 1.34-1.44x at 128-256K; our QSA is
     already sparse) - lossy opt-in - this (feat/bfla-hip) - STRATA_SEL_OVERLAP, I8 - prototype.
 
