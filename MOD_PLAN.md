@@ -515,26 +515,6 @@ Added 2026-11-09 from the European report:
     speculative decoding (ETH type-constrained decoding, PLDI 2025: >50% fewer compile errors) - fewer failed turns.
 27. Item 14 simulator gets Harmonia/Athena (SAFARI, online-learned placement) and MoE-Infinity (activation-matrix match)
     as candidate policies; item 13 gets the Polish/Sapienza per-layer thresholds (no new item).
-Added 2026-11-09 from the Asia report (BFLA, CityU, arXiv 2605.12193, Apache-2.0; design: docs/BFLA_RDNA3.md, branch
-feat/bfla-hip):
-28. Flash-Next: no BFLA.  Pancake's QSA prompt path already attends 2051 cells a query (linear in N); BFLA's budget (V/3
-    up to 32K) would read ~16x more at 128K, and the paper's own QSA baseline is as fast as BFLA (its gain is vs dense
-    FA3).  Transferable idea only: one QSA selection per tile of queries (cuts the N^2 select); measure the overlap with
-    STRATA_SEL_OVERLAP first; lossy, token forcing.
-29. BFLA on the qwen35 engine (Qwen3.6-35B / Qwen3.8-35B-Distill: 10 dense attention layers, GQA 8, today materialised
-    hipBLAS scores): opt-in STRATA_BFLA=1 above STRATA_BFLA_MIN (32K), STRATA_BFLA=dense = the same fused WMMA kernel
-    with every block (item 8.8 for this engine).  Replaces item 19 (XAttention) as the block-sparse prefill route.
-    Code done on feat/bfla-hip (bfla.cu, bfla_test passes on gfx1100).  Test queue (no strata server running; build-hip of
-    the branch; M=/home/dan/clone-of-d/models/qwen36-UD-Q3_K_M/Qwen3.6-35B-A3B-UD-Q3_K_M.gguf,
-    export LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib HIP_VISIBLE_DEVICES=0):
-      kernel:  build-hip/bfla_test; build-hip/bfla_test --bench 65536; build-hip/bfla_test --bench 131072
-      TTFT:    for a in "" STRATA_BFLA=1 STRATA_BFLA=dense; do env $a build-hip/strata --model $M --max-context 135168
-               --bench-pp 131072; done   (and 65536 / --max-context 69632)
-      quality: python3 tools/pancake/bfla_recall.py --exe build-hip/strata --model $M
-               --tokenizer /home/dan/clone-of-d/Strata-data/packs/qwen36-ud-q4_k_xl/tokenizer --len 131072 --out /tmp/bfla-131k
-               (needles recalled dense vs BFLA, teacher-forced top-1 agreement and KL over 48 tokens; then 65536)
-    Gate: recall equal to dense and top-1 agreement within the dense engine's own run-to-run noise, else it stays a
-    documented opt-in only.
 Also: presence_penalty must stay 0 for tool calling (DASLab MoESQ card: SWE-bench 74.7 -> 70.6 with it on).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
@@ -544,6 +524,29 @@ LiveCodeBench -> HELMET RAG/re-rank -> Terminal-Bench subset.
 Blocked: the 3060 GPU run (card out), two-stage prompts (second GPU), DeepSeek V4.1 on gfx1100 (257 GB, D too small).
 Owner's call: merging port/faststrata-poly -> exp/expert-prefetch -> feat/grammar -> port/rdna3-decode into main; BIOS iGPU
 memory 4 -> 2 GB; DDR4-3600 at FCLK 1800.
+
+### BFLA (RDNA3)
+
+From the Asia report (BFLA, CityU, arXiv 2605.12193, Apache-2.0); design: docs/BFLA_RDNA3.md, branch feat/bfla-hip.
+
+- Flash-Next: no BFLA.  Pancake's QSA prompt path already attends 2051 cells a query (linear in N); BFLA's budget (V/3
+  up to 32K) would read ~16x more at 128K, and the paper's own QSA baseline is as fast as BFLA (its gain is vs dense
+  FA3).  Transferable idea only: one QSA selection per tile of queries (cuts the N^2 select); measure the overlap with
+  STRATA_SEL_OVERLAP first; lossy, token forcing.
+- BFLA on the qwen35 engine (Qwen3.6-35B / Qwen3.8-35B-Distill: 10 dense attention layers, GQA 8, today materialised
+  hipBLAS scores): opt-in STRATA_BFLA=1 above STRATA_BFLA_MIN (32K), STRATA_BFLA=dense = the same fused WMMA kernel
+  with every block (item 8.8 for this engine).  Replaces item 19 (XAttention) as the block-sparse prefill route.
+  Code done on feat/bfla-hip (bfla.cu, bfla_test passes on gfx1100).  Test queue (no strata server running; build-hip of
+  the branch; M=/home/dan/clone-of-d/models/qwen36-UD-Q3_K_M/Qwen3.6-35B-A3B-UD-Q3_K_M.gguf,
+  export LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib HIP_VISIBLE_DEVICES=0):
+    kernel:  build-hip/bfla_test; build-hip/bfla_test --bench 65536; build-hip/bfla_test --bench 131072
+    TTFT:    for a in "" STRATA_BFLA=1 STRATA_BFLA=dense; do env $a build-hip/strata --model $M --max-context 135168
+             --bench-pp 131072; done   (and 65536 / --max-context 69632)
+    quality: python3 tools/pancake/bfla_recall.py --exe build-hip/strata --model $M
+             --tokenizer /home/dan/clone-of-d/Strata-data/packs/qwen36-ud-q4_k_xl/tokenizer --len 131072 --out /tmp/bfla-131k
+             (needles recalled dense vs BFLA, teacher-forced top-1 agreement and KL over 48 tokens; then 65536)
+  Gate: recall equal to dense and top-1 agreement within the dense engine's own run-to-run noise, else it stays a
+  documented opt-in only.
 
 ### Agent robustness from Project Maya (MIT, mw00/project-maya main 7bf15ac, v1.1.56; 2026-11-09)
 

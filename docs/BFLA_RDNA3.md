@@ -58,7 +58,7 @@ QSA at 96-128K). BFLA's win there is accuracy (RULER 94.36 vs QSA 92.39, dense 9
 QSA layers, BFLA's budget (V/3 up to 32,768 tokens) would read ~16x more cells per query than QSA's 2051 at 128K.
 So: **no speed ceiling on Flash-Next**; not implemented there. The one transferable idea - one selection per tile of
 queries instead of per query, to cut QSA's N^2 select cost - is a different, lossy change to the model's own sparse
-attention; its overlap can be measured with the existing `STRATA_SEL_OVERLAP` diagnostic first (MOD_PLAN item 28).
+attention; its overlap can be measured with the existing `STRATA_SEL_OVERLAP` diagnostic first (MOD_PLAN phase 11, "BFLA (RDNA3)").
 
 **Qwen3.6-35B-A3B / Qwen3.8-35B-A3B-Distill (src/qwen35 engine, `strata` switches to it for qwen35moe files; builds on
 HIP).** These have 10 dense gated full-attention layers (16 query heads, 2 KV heads, head dim 256, GQA 8). Their
