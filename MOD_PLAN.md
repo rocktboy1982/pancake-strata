@@ -443,6 +443,7 @@ lookahead's next-layer CPU experts); A/B pending with the Q2_0 model test.
 | European universities 2022-2026: ETH/EPFL, ISTA + Central Europe, UK, France/South/Nordics/Israel (reports/Lucrări Europa pentru Avalon.md) | research_notes/Lucrări Europa pentru Avalon/ | daily files are ISTA-DASLab GSQ-RCO (Q2_0 93.8 vs IQ2_XS 70.3 tok/s on DASLab's card, -0.09 task avg: Q2_0 confirmed); base is 176.9B incl. the 51B n-gram table; "IQ2_XS" experts are IQ2_S/IQ2_XXS/IQ1_M + Q2_0 down; items 23-27; cache-conditional routing (Qualcomm/UvA) = STRATA_ROUTE_PRIOR, finish item 7; security: GGUF-quantization backdoors (ETH "Mind the Gap") -> official files + SHA-256 vs HF |
 | Asian universities + labs 2022-2026: Tsinghua/PKU, rest of mainland China, HK/Taiwan/Singapore, Korea/Japan/India, Qwen/DeepSeek/Moonshot/ByteDance/MiniMax/Xiaomi (reports/Lucrări Asia pentru Avalon.md) | research_notes/Lucrări Asia pentru Avalon/ | Qwen3.8 tech report checked against our code: MTP depth already --spec 4 (official 4.07 accepted at 4 steps), drafter has no PLE block and dense SWA attention (SGLang shortcuts already here), PLE via --ple-io direct (not mmap; Europe report corrected), grammar deferred after </think>; Avalon still at --spec-draft-n-max 2 (A/B 3/4); official thinking sampling T=1.0 noted, owner keeps 0.1; items 28-32 |
 | Canadian universities 2022-2026: Mila/McGill/Polytechnique/Concordia, Toronto/Vector, Waterloo, Alberta, UBC, Queen's (reports/Lucrări Canada pentru Avalon.md) | research_notes/Lucrări Canada pentru Avalon/ | little for engine speed; "Displacement Is Not Direction" (Toronto): KLD/top-1 stop predicting task score among near-baseline quants -> token forcing only rejects large deviations, a fixed task set picks between close candidates (quality-gate change for items 8, 13, 23); items 33-34; SpAx = 4th mask in item 13; Cactus parked (does nothing under greedy, ~0 at T=0.1) |
+| Australia/NZ, Africa, Latin America 2022-2026 (reports/Lucrări Pacific Africa America Latină.md) | research_notes/Lucrări Pacific Africa America Latină/ | little fits: SpecFit marginal new-miss cost (DISCO feature), UNSW restore-equivalence test, UFMG coordinate-descent kernel sweep, UBA top-k entropy signal; items 35-37; the report ends with the series-wide ranking below |
 
 Development pass done 2026-11-08 night (owner: develop everything first, then test and optimize):
 - items 3-4 merged from feat/pattern-cache and built (HIP and CUDA compile; expert_seed_test ok; 7/7 Python tests);
@@ -540,6 +541,20 @@ Added 2026-11-09 from the Canadian report:
     (reasoning_budget_grace) and the learned stop (item 21).
 Quality gates (revised): token forcing rejects large deviations only; choice between close variants by a fixed task set
 (LiveCodeBench subset + BFCL v4 multi-turn + own-repo checkpoint grading), repeated runs as distributions.
+Added 2026-11-09 from the Pacific/Africa/Latin America report:
+35. Restore-equivalence test on the real engine: a full-hit restore of a parked Qwen conversation must match a cold recompute
+    token for token (check cache_n/prompt_n off-by-one; UNSW found such a bug in a hybrid-state cache).  Precondition for
+    items 3, 11, 16, 31.
+36. DISCO (feat/disco) features: per-position marginal NEW missed experts (SpecFit, Beihang/Monash; log the variance first)
+    and top-k logprob entropy (UBA Entropy Sentinel), the latter also as a log-only loop-guard signal (items 33-34).
+37. UFMG coordinate-descent sweep of HIP launch/tile parameters and AVX2 block sizes, after the item 1 GPU profile (1-3%).
+Series-wide ranking (all seven university reports; precondition: the revised quality gates):
+  1) GPU profile + kernel tuning (1, 32, 37)  2) turbo-hip decision (7)  3) offline sparsity masks + per-expert pool barriers
+  (13, 29)  4) correct, cheap per-turn cache with the restore test (35, 31, 16, 11)  5) keep the decode cache through long
+  prompts (2)  6) fix item 8, then the rank guard (8, 28)  7) DISCO / SpecFit / AcceptMoE (15, 36, 23)  8) effort and thinking
+  (12, 21, 33, 34)  9) time-based cache simulator with candidate policies (14, 27, 30, 3-4, 17)  10) tool reliability (26,
+  presence_penalty 0).  Item 6 closed (Q2_0 is the daily file); item 24 gives 0 on Q2_0.  feat/contextpilot: keep off
+  (1.6% dedup savings measured on 40 real opencode sessions).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
