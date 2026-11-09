@@ -25,6 +25,10 @@
 #include "strata/kernels/dp4a.hpp"
 #include <cuda_runtime.h>
 #include <atomic>
+#include <cstdlib>
+#include <cstdio>
+#include <unordered_map>
+#include <mutex>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -140,17 +144,39 @@ __global__ void combine_k10_vec4_hits(const float4* __restrict__ parts4, const f
     sum.w += sh.w;
     output4[c4] = sum;
 }
+// MOD_PLAN item 46 (STRATA_COMBINE_POLL1=1, opt-in): one block polls the host flag over PCIe, the others spin on a VRAM
+// word.  Per stream slot: [0] poller elected, [1] flag seen, [2] blocks past the wait (the last one resets the slot, so
+// the next launch on that stream - stream-ordered after this one - starts clean; also inside captured graphs).  The
+// poller is elected by CAS, so it is always a running block: the spinners cannot starve it.
+constexpr int kPollSlots = 64;
+__device__ uint32_t g_poll_state[kPollSlots * 4];
 // STRATA_COMBINE_CPU: combine_k10_vec4 with each part read where the window left it (see native_moe_combine_multi_cpu)
 template <bool GATED>
 __global__ void combine_cpu_k10_vec4(const volatile float4* cpu4, const float4* __restrict__ hit4,
                                      const int32_t* __restrict__ hit_rows, const int32_t* __restrict__ count,
                                      const float* __restrict__ weights, const float4* __restrict__ shared4,
                                      const float* __restrict__ sg, float4* __restrict__ output4, int64_t n4,
-                                     const volatile uint32_t* flag, uint32_t value) {
+                                     const volatile uint32_t* flag, uint32_t value, int poll_slot) {
     const int64_t tk = blockIdx.y;
     __shared__ int hit[10];
-    if (flag != nullptr && threadIdx.x == 0) {   // STRATA_WAIT_FUSE: the CPU-share wait in every block
-        while (*flag < value) strata_spin_pause();
+    if (flag != nullptr && threadIdx.x == 0) {
+        if (poll_slot < 0) {   // STRATA_WAIT_FUSE: the CPU-share wait in every block
+            while (*flag < value) strata_spin_pause();
+        } else {
+            uint32_t* st = g_poll_state + poll_slot * 4;
+            if (atomicCAS(st + 0, 0u, 1u) == 0u) {
+                while (*flag < value) strata_spin_pause();
+                __threadfence();
+                atomicExch(st + 1, 1u);
+            } else {
+                while (atomicAdd(st + 1, 0u) == 0u) strata_spin_pause();
+            }
+            if (atomicAdd(st + 2, 1u) + 1u == gridDim.x * gridDim.y) {   // the last block past the wait resets the slot
+                atomicExch(st + 1, 0u);
+                atomicExch(st + 2, 0u);
+                atomicExch(st + 0, 0u);
+            }
+        }
         __threadfence_system();
     }
     if (threadIdx.x < 10) {
@@ -195,6 +221,21 @@ __global__ void combine_cpu_k10_vec4(const volatile float4* cpu4, const float4* 
         sum.x += sh.x; sum.y += sh.y; sum.z += sh.z; sum.w += sh.w;
     }
     output4[tk * n4 + c4] = sum;
+}
+// item 46: a poll slot per stream (streams live for the session); -1 = every block polls (off, or out of slots)
+int poll_slot_of(void* stream) {
+    static const bool on = [] { const char* v = std::getenv("STRATA_COMBINE_POLL1"); return v != nullptr && v[0] == '1'; }();
+    if (!on) return -1;
+    static std::mutex mu;
+    static std::unordered_map<void*, int> slots;
+    std::lock_guard<std::mutex> lk(mu);
+    auto it = slots.find(stream);
+    if (it != slots.end()) return it->second;
+    if ((int) slots.size() >= kPollSlots) return -1;
+    const int s = (int) slots.size();
+    slots.emplace(stream, s);
+    if (s == 0) std::fprintf(stderr, "strata: STRATA_COMBINE_POLL1: one block per combine polls the CPU-share flag (item 46)\n");
+    return s;
 }
 bool valid_span(const void* p, size_t bytes) {
     const auto address = reinterpret_cast<uintptr_t>(p);
@@ -293,12 +334,13 @@ void native_moe_combine_multi_cpu(const float* cpu, const float* hit, const int3
     const int64_t n4 = n_embd >> 2;
     const dim3 grid(unsigned((n4 + 63) / 64), (unsigned) n_tok);
     cudaStream_t st = static_cast<cudaStream_t>(stream);
+    const int ps = wait_flag != nullptr ? poll_slot_of(stream) : -1;
     if (shared_gate)
         combine_cpu_k10_vec4<true><<<grid, 64, 0, st>>>(reinterpret_cast<const volatile float4*>(cpu), reinterpret_cast<const float4*>(hit),
-            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), shared_gate, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value);
+            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), shared_gate, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value, ps);
     else
         combine_cpu_k10_vec4<false><<<grid, 64, 0, st>>>(reinterpret_cast<const volatile float4*>(cpu), reinterpret_cast<const float4*>(hit),
-            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), nullptr, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value);
+            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), nullptr, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value, ps);
     const auto error = cudaGetLastError();
     if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
 }
