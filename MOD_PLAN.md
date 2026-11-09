@@ -189,7 +189,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 72 GPU-floor package triggered by the critical path (new: 1, 32/48, 37, 10, Q2_0-down, 47) - 5-10% short chat est. -
     exact - unowned - 44, 64 - design.  [S7]
 - 48 (= 32 re-rated) fuse the pre-doorbell chains (HC norm/down/up, router+plan+bell) - 1-4% per chain, critical in both
-    window types - exact - dan-cd - 49 - open.  [S7] PART CODED (2aca56777): expdec gate/up + SwiGLU + q8_1 in one launch, STRATA_EXPDEC_SWIGLU=1; HC norm/down/up and router+plan+bell chains open.
+    window types - exact - dan-cd - 49 - open.  [S7] CODED: expdec gate/up + SwiGLU + q8_1 in one launch (2aca56777, STRATA_EXPDEC_SWIGLU=1); router GEMV + top-10 + doorbell in one launch (7c0f03228, STRATA_ROUTER_FUSE=1); the HC norm/down/up chain was already one kernel (fused_gr_read_multi).
 - 63 capability probe + calibration layer (new: 55, 61, 57, 56, 58, 41, 53, 43, 54) - 0-3% here, 6-13% on other platforms
     (static PcieAuto lost that much here) - exact - this (probe) + dan-cd (tier parameters) - none - design.
 - small exact flag stack + --lookup-max-t 12 (P2c) - +2-5% (meas. +1.4..+3.9%, +1% retest) - exact - dan-cd queue - 67/I5 -
