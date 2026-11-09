@@ -36,7 +36,6 @@ bool native_mmvq_multi_exact();
 // layout). 0 = off (default), 1 = 2 rows per block, 2 / 4 / 8 = that many rows. Q4_K, Q5_K, Q6_K and IQ4_XS only.
 // Set before graph capture.
 void native_mmvq_set_b6_rows(int mode);
-int native_mmvq_b6_rows();
 
 // One quantization may serve multiple weight matrices sharing the same input.
 // Q8_1 stores FP16 scale and FP16 warp sum of the ORIGINAL float inputs; it does

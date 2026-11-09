@@ -91,8 +91,6 @@ struct GdnBuffers {
 uint64_t gdn_buffers_bytes(const ModelGeometry& g);
 /// Carves `base` (which must be DEVICE memory) into `b`.  Returns the bytes used.
 uint64_t gdn_buffers_init(const ModelGeometry& g, void* base, GdnBuffers& b);
-/// Zeroes the recurrent and conv state, so a fresh sequence starts from the reference's own `zeros()`.
-void gdn_buffers_zero_state(const GdnBuffers& b, const ModelGeometry& g, void* stream);
 
 /// `Mixed` (n_embd f32) through one GDN layer to `out` (n_embd f32).  `state` and `conv_state` are updated.
 ///
@@ -196,7 +194,6 @@ bool moe_combine_parts(const ModelGeometry& g, int64_t layer, int64_t k, const M
 /// same inputs in the same stream order relative to their consumers, so the result is bitwise unchanged.
 /// Must be set before capture.  `false` restores the shared expert inside `post[l]` (A/B arm).
 void layer_set_shared_early(bool enabled);
-bool layer_shared_early();
 
 // ================================ the QSA mixer ================================
 
@@ -347,14 +344,6 @@ void qsa_state_zero(const QsaState& st, const ModelGeometry& g, void* stream);
 bool stage_timing_enable();
 void stage_timing_name(int slot, const char* name);
 void stage_timing_report(int64_t n_layers);
-/// The same event pairs, reachable from `session.cpp`, for marks that sit OUTSIDE the captured graphs - the
-/// two `cudaGraphLaunch` calls per layer.  Those are ordinary stream operations, so an event around them is
-/// legal and is not captured, which is what lets the captured path's 1.047 ms/layer be split into the two
-/// graphs' execution and the gap the host spends between them.  Slots 16 and 17 are reserved for it; slots
-/// 0-15 are the in-layer marks and are only meaningful with `--no-capture`.
-void stage_mark_begin(int64_t layer, int slot, void* stream);
-void stage_mark_end(int64_t layer, int slot, void* stream);
-
 /// Scratch for one QSA layer.  Every buffer here is overwritten by every token.
 struct QsaBuffers {
     uint8_t* x_q8_0 = nullptr;     ///< n_embd, block_q8_0 - `attn_q` is Q2_0, whose vec_dot_type is Q8_0
@@ -482,7 +471,6 @@ uint64_t block_buffers_bytes(const ModelGeometry& g);
 /// then lags by one pending write between halves; it is materialised before the layer-1 PLE and after the last
 /// layer.  Set before capture; not for the per-stage or dump measurements.
 void layer_set_fused_gr(bool enabled);
-bool layer_fused_gr();
 
 /// Plan v0.3 P3/P7: QSA attention by the split-K kernel reading the KV pools directly (default ON; `false` keeps
 /// the gather + one-block-per-head kernel).  Set before capture.
