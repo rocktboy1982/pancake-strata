@@ -626,6 +626,19 @@ Not worth building (PCIe): batch-copy API (absent; promotions already ~93% of li
 (no FP-exponent redundancy at 2 bits; a 5-minute entropy check would settle it), zero-copy reads of missed experts at Gen3
 (CPU path 2.5x cheaper), GPU-initiated transfers (BaM, SCADA, AMD DMA prelaunch not exposed), FloE lossy transfer (belongs
 with lossy F1).
+Added 2026-11-09 from the Intel platform researcher (platform round; matrix in research_notes/Capabilități platforme consumer/):
+55. Startup calibration of the CPU-vs-promote ratio: measure CPU us per expert and promote us per expert at start and set the
+    promotion reuse threshold / --pcie-frac from it (DDR5 desktops ~12-18 us CPU vs ~58 us promote on a PCIe 4.0 card in any Gen5
+    slot; Gen5 GPU on Arrow Lake ~1:2; today 42 vs 115 us) instead of one hand-tuned value.  Common work, all platforms.
+56. Hybrid P/E cores: default pool affinity is All (E-cores included) while gathered decode runs on P-cores only (CPUID 0x1A),
+    so equal task splits make P-cores wait at barriers; make --pool-affinity auto the default on hybrid CPUs or weight the split
+    by core class; benchmark p-cores (7 workers, no SMT) vs auto on Arrow Lake.  Planner test already shows 12-16 > 19 workers.
+57. ISA dispatch gaps: cpu_avx512_ok() requires F+BW+VL+VNNI+VBMI, so Skylake-X/Cascade Lake HEDT fall back to AVX2 (consider an
+    AVX-512 path without VBMI); STRATA_FORCE_ISA accepts only avx2/avx/sse (add avx512 / avx-vnni for A/B); old Q2_0 model
+    folders that need AVX-512 run on Intel desktops only on Rocket Lake (document or add an AVX2 path).
+Not adopted (Intel): AMX expert kernels (only Sapphire Rapids W; no pancake path; evidence is a vendor-adjacent blog), Intel
+iGPU/NPU offload (integrated Arc untested, no shared-memory planning, DPAS kernels need Xe2, no NPU code), NVMe through DMI on
+LGA1151/1200 (3.9 GB/s chipset link: keep models on CPU-attached NVMe where possible).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
