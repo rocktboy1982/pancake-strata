@@ -468,6 +468,9 @@ Left, ranked (details of the measurements above stay in this section's history):
    group A switches one at a time, hyper-connection reads (~2.7 ms), the VRAM-hit expert phase (3.3 ms).  Exact.
 2. Keep the decode cache through long prompts: the prompt path borrows 9,412 cache slots (12.6 GiB); decode after an 11.7K
    prompt drops ~126 -> ~105 tok/s while it refills.  Exact.
+   RESULT 2026-11-09 (closed): tools/pancake/decode_curve.py - the same edit reply after a 13.8K prompt decodes as fast as
+   after a 2K one, segment by segment; the drop is the long case's prose reply (acceptance 0.62 vs 0.87, slow start while
+   the cache adapts).  No refill fix needed; the start-up belongs to items 3-4 and 14.  bench/results/2026-11-09-decode-curve.
 3. Per-conversation expert working set (restore a resumed conversation's hot experts during its prompt).  Exact; needs
    per-session routing traces first.  CODE DONE on feat/pattern-cache (STRATA_CONV_WORKSET), see "Items 3-4" below.
 4. Per-domain expert profiles (code / prose / tools, chosen from the prompt).  Exact.  CODE DONE on feat/pattern-cache
