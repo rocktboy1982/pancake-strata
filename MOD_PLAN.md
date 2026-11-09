@@ -454,6 +454,39 @@ Development pass done 2026-11-08 night (owner: develop everything first, then te
 Test phase queue: scratchpad queue.sh order - GPU profile + draft timing first (they steer development), then the A/B arms:
 hipBLASLt 100401, --lookup-max-t 12/16, pool pre-read, prompt lending/chunks, the small-gains stack, --mtp-q4, item 11
 switches, items 3-4 seeds (needs conv_trace runs), the deferral bisect, then token forcing of the final preset.
+Queued 2026-11-09 - DISCO, a learned MTP window (branch feat/disco; Mamou et al., Intel Labs / Weizmann / Hebrew U, arXiv
+2405.04304; paper: ~10% over a tuned static lookahead).  Opt-in, default off: `STRATA_DISCO=<weights>` replaces --spec-min-p /
+STRATA_SPEC_COST for MTP windows with a logistic stop rule per drafted token (features: draft p, -log p, chain product,
+position, recent acceptance, lookup match, expert misses per verify row, measured cost of one more row, context);
+`STRATA_DISCO_TRACE=<csv>` logs its training data; no or a bad weights file = the current rule.  Exactness: disco_test (mock
+target, 36 runs x 600 tokens equal greedy).  NOT MEASURED on the GPU (a server/ablation was running).  Commands (worktree build):
+```sh
+W=/home/dan/clone-of-d/src/Strata/.claude/worktrees/disco; M=/home/dan/clone-of-d/src/Strata; cd $W
+export LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib HIP_VISIBLE_DEVICES=0
+# arm config: fast-hip preset + overrides (the preset file itself is not changed); $1 = name, rest = --flag value / ENV=value
+arm() { n=$1; shift; sed -e "s#<STRATA_DATA>#/home/dan/clone-of-d/Strata-data#g" -e "s#<REPO>#$W#g" \
+  configs/pancake/flashnext-iq2_xs-fast-hip.json | python3 -c 'import json,sys
+c=json.load(sys.stdin); a=c["args"]; it=iter(sys.argv[1:])
+for k in it:
+  if k.startswith("--"):
+    v=next(it); i=a.index(k) if k in a else -1
+    if i>=0: a[i+1]=v
+    else: a+= [k,v]
+  else: e,v=k.split("=",1); c["env"][e]=v
+json.dump(c,open("pancake-disco-'$n'.json","w"),indent=1)' "$@"; }
+serve() { $M/tools/pancake/capped.sh $M/.venv/bin/python serve/server.py --engine strata --config pancake-disco-$1.json --port 8080; }
+# 1. traces: every draft verified (--spec-min-p 0) at --spec 6; run a normal mix (q.py short/edit/long x5 + an opencode
+#    session), >= 2000 rounds; then fit (the replay prints static / --spec-min-p / DISCO tokens per ms, offline)
+arm trace --spec 6 --spec-min-p 0 STRATA_DISCO_TRACE=$W/disco-trace.csv && serve trace
+$M/.venv/bin/python tools/pancake/disco_fit.py disco-trace.csv -o data/disco-weights-7900xt.txt
+# 2. A/B, interleaved, 3 runs each, same q.py mix; decode tok/s from "strata serve: prompt ... generated ... tok/s"
+arm base                                                            # fast-hip as shipped: --spec 4 --spec-min-p 0.5
+arm d4 STRATA_DISCO=$W/data/disco-weights-7900xt.txt                # DISCO at the preset's width
+arm d6 --spec 6 STRATA_DISCO=$W/data/disco-weights-7900xt.txt       # DISCO with room for longer windows
+for r in 1 2 3; do for a in base d4 d6; do serve $a & ...run the mix..., stop; done; done
+# 3. exactness: greedy text of base vs d4 vs d6 for 900+ tokens per case must be identical (the window only changes speed)
+```
+Keep only if d4 or d6 beats base on the short/edit/long decode and the greedy texts match.
 
 Left, ranked (details of the measurements above stay in this section's history):
 1. GPU path: the GPU's own work is now 15.9 of a 24.8 ms short window - profile (rocprofv3), then GDN megakernel (rdna3),

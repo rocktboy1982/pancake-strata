@@ -1961,7 +1961,7 @@ endif()
 #     features, and the fallback exists for tests, exactly as P2.S3 specifies.
 # Plan v0.3 P6: speculation components that need no GPU.
 add_library(strata_spec STATIC src/spec/suffix_drafter.cpp src/spec/controller.cpp src/spec/draft_policy.cpp
-            src/spec/draft_source.cpp)
+            src/spec/draft_source.cpp src/spec/disco.cpp)
 target_include_directories(strata_spec PUBLIC include)
 if(STRATA_BUILD_TESTS)
   add_executable(arch_defaults_test src/core/arch_defaults_test.cpp src/core/arch_defaults.cpp)
@@ -2003,6 +2003,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(draft_policy_test src/spec/draft_policy_test.cpp)
   target_link_libraries(draft_policy_test PRIVATE strata_spec)
   add_test(NAME draft_policy_test COMMAND draft_policy_test)
+  add_executable(disco_test src/spec/disco_test.cpp)   # DISCO: the learned MTP window rule, its trace, exactness on a mock target
+  target_link_libraries(disco_test PRIVATE strata_spec)
+  add_test(NAME disco_test COMMAND disco_test)
   add_executable(window_rule_test src/spec/window_rule_test.cpp)   # which rule picks the window / whose q judges it, by the active draft source
   target_include_directories(window_rule_test PRIVATE include)
   add_test(NAME window_rule_test COMMAND window_rule_test)
