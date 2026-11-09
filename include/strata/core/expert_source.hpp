@@ -421,6 +421,9 @@ struct GpuPlanSink {
     /// item 64 (STRATA_WINDOW_TRACE): the group's published routing weights for the trace (set by the verifier when the
     /// trace is on; independent of `weights`, which also switches the heavy split)
     const float* route_w = nullptr;
+    /// MOD_PLAN item 51 (STRATA_CPU_PRESUM=1): the window's combine reads ONE row per token for the CPU entries - their
+    /// rows weighted by route_w and summed by the host into row token * k (the entries' own rows are not written).
+    bool presum = false;
     float heavy = 0.0f;
     void (*partial)(void* ctx) = nullptr;
 };

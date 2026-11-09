@@ -639,6 +639,7 @@ private:
     int64_t prof_windows_ = 0;
     double prof_t_sum_[strata::kernels::kVerifyLongT + 1][2][kProfPer] = {};   // the same per window size T (1..16), for profile_by_t_report
     int64_t prof_t_win_[strata::kernels::kVerifyLongT + 1] = {};
+    bool presum_[strata::kernels::kVerifyLongT + 1][2] = {};   // item 51: window size T / group whose combine reads pre-summed CPU rows
     bool rs_on_ = false;                      // STRATA_ROUTE_STATS
     unsigned long long* rs_dev_ = nullptr;    // [9 T][n_layers][8 rows]: experts of row r that no earlier row of the window routed to
     int64_t rs_win_[strata::kernels::kVerifyLongT + 1] = {};

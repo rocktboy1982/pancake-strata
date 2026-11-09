@@ -2680,12 +2680,17 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         }
         strata::dispatch::notef("combine layer: kind %ld (0 per-token, 1 multi, 2 multi+hits, 3 multi+hits gated)", (long) (sg_gated_[grp] ? 3 : hits_in_combine ? 2 : (dec_batch && n > 1 && native_moe_combine_enabled()) ? 1 : 0));
         if (!ar_on() && cfuse_on(n)) {
+            // item 51 (STRATA_CPU_PRESUM=1, not bit-identical): the host pre-sums each token's CPU rows (weighted); recorded per
+            // window size and group so the pool writes what this captured combine reads
+            static const bool g_presum = [] { const char* v = std::getenv("STRATA_CPU_PRESUM"); return v != nullptr && v[0] == '1'; }();
+            if (T >= 1 && T <= strata::kernels::kVerifyLongT) presum_[T][grp] = g_presum;
             try {
                 native_moe_combine_multi_cpu(m_ymiss_ + (size_t) tb * K * N, hit_out, p_dst, p_counts + 1, w_ + tb * K,
                                              shared_ + tb * N, sg_gated_[grp] ? sh_g_ + tb : nullptr, bo_ + tb * N, N, n, cs,
                                              g_wait_fuse ? m_flag_ : nullptr, ring,
                                              g_wait_fuse && prof_on_ && grp == 0 && ((prof_sel >> 23) & 1) && trace_m_ == nullptr
-                                                 ? prof_ + (size_t) (l * kProfPer + 23) : nullptr);
+                                                 ? prof_ + (size_t) (l * kProfPer + 23) : nullptr,
+                                             T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp]);
             } catch (const std::exception& e) { err = "verify combine: " + std::string(e.what()); return false; }
         } else
         if (sg_gated_[grp]) {   // STRATA_LFUSE: the shared expert's gate was not applied: the combine applies it (all rows are hits)
@@ -3792,7 +3797,8 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window: the CPU experts of layer", l);
         if (remote_opt_) remote_opt_->begin(h_w_ + (size_t) tb * ss.k, tb, n);
-        sink_.route_w = strata::core::window_trace().on() ? h_w_ + (size_t) tb * ss.k : nullptr;   // item 64
+        sink_.presum = T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp];   // item 51
+        sink_.route_w = strata::core::window_trace().on() || sink_.presum ? h_w_ + (size_t) tb * ss.k : nullptr;   // items 64, 51
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW: this layer's split, if post(l) waits for it
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;

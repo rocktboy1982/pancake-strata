@@ -5261,6 +5261,12 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             if (miss[q] == e) return mstate[q] == want;
         return want == 0;
     };
+    // MOD_PLAN item 51 (STRATA_CPU_PRESUM via the verifier's sink): the CPU rows go to host memory and only one weighted
+    // sum per token crosses PCIe (row token * k of `out`).  Not with a cold layer's batches, peers or helpers.
+    const bool presum = d.plan != nullptr && d.plan->presum && d.plan->route_w != nullptr && npend == 0 &&
+                        d.peer == nullptr && d.remote_count == 0;
+    static thread_local std::vector<float> presum_rows;
+    if (presum && presum_rows.size() < (size_t) (n_tok * k) * (size_t) H) presum_rows.resize((size_t) (n_tok * k) * (size_t) H);
     int njobs = 0, njobs_all = 0;
     bool first_pass = true;
     uint8_t want = 0;
@@ -5342,7 +5348,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             ExpertJobMulti& jb = d.jobs_multi[(size_t) jo];
             jb.act[jb.nt] = &d.act_multi[(size_t) t];
             jb.nact[jb.nt] = native ? d.nact_multi.data() + (size_t) t * kNativeActBytes : nullptr;
-            jb.out[jb.nt] = row;
+            jb.out[jb.nt] = presum ? presum_rows.data() + (size_t) i * H : row;   // item 51: host rows, summed after the run
             ++jb.nt;
             ++d.multi_entries;
         }
@@ -5455,6 +5461,24 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             d.fail = "the peer GPU's experts failed";
             d.fail_layer = d.layers;
             return;
+        }
+    }
+    if (presum) {   // item 51: per token, its CPU entries' rows weighted by the published routing weights, in entry order
+        const float* w = d.plan->route_w;
+        for (int64_t t = 0; t < n_tok; ++t) {
+            float* dst = out + (size_t) (t * k) * H;
+            bool first = true;
+            for (int64_t j = 0; j < k; ++j) {
+                const int64_t i = t * k + j;
+                if (kind[i] != -1) continue;
+                const float* r = presum_rows.data() + (size_t) i * H;
+                const float wi = w[i];
+                if (first) { for (int64_t c = 0; c < H; ++c) dst[c] = wi * r[c]; first = false; }
+                else for (int64_t c = 0; c < H; ++c) dst[c] += wi * r[c];
+            }
+            // the combine adds this row whenever the token has a non-GPU entry: only skipped tails (-2) -> zeros
+            if (first && std::any_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v == -2; }))
+                std::memset(dst, 0, (size_t) H * sizeof(float));
         }
     }
     const auto c4 = std::chrono::steady_clock::now();
