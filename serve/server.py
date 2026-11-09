@@ -4935,6 +4935,8 @@ class Service:
         # #332: the API request monitor (/api-monitor) keeps the last 100 requests' prompts and answers in memory,
         # so it is off unless the config's "api_monitor" (or --api-monitor) turns it on
         self.api_monitor = False
+        self.turn_log = None                             # item 73: path of the per-turn JSONL log (None: off)
+        self.turn_log_lock = threading.Lock()
         self.api_requests = collections.deque(maxlen=100)  # bounded I/O in memory; no headers or API keys
         self.request_trace = threading.local()
         self.history = collections.deque(maxlen=500)    # the last finished requests, newest last (GET /metrics)
@@ -5261,6 +5263,25 @@ class Service:
             if given is not None and given != "":
                 return EFFORT.get(str(given).strip().lower())
         return None
+
+    def _write_turn_log(self, rec: dict, reasoning_tokens: int, max_new) -> None:
+        """Item 73: append one JSON line for a finished request to the "turn_log" file - the history record (numbers
+        only: no prompt, answer or tool text) plus the thinking tokens and the reply cap.  A write error is said once
+        and turns the log off; it never fails the request."""
+        path = self.turn_log
+        if not path:
+            return
+        line = dict(rec)
+        line["reasoning_tokens"] = reasoning_tokens
+        line["max_new"] = max_new
+        line["model"] = getattr(self, "model", None)
+        try:
+            text = json.dumps(line, separators=(",", ":"), default=str)
+            with self.turn_log_lock, open(path, "a", encoding="utf-8") as f:
+                f.write(text + "\n")
+        except (OSError, TypeError, ValueError) as e:
+            print(f"[strata] per-turn log off: {path}: {e}", flush=True)
+            self.turn_log = None
 
     def _release_orphan_encoder(self) -> bool:
         """The engine is not running but its picture encoder still is (the engine died under a request; the encoder is a process of its own): stop it,
@@ -7210,6 +7231,7 @@ class Service:
                                 # #457: the speculative drafts from the DONE line (None: the engine did not say)
                                 "drafts_offered": last.get("drafts_offered"),
                                 "drafts_accepted": last.get("drafts_accepted")})
+                            self._write_turn_log(self.history[-1], thinking_n, max_new)
                             if not admission_rejected:                  # #3040: a refused admission did no work
                                 t = self.totals
                                 t["requests"] += 1
@@ -10927,6 +10949,12 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         print("[strata] Host check off: any name reaches this server (allowed_hosts \"*\")" if "*" in svc.allowed_hosts
               else f"[strata] also answers to the host names {', '.join(svc.allowed_hosts)} (allowed_hosts)", flush=True)
     svc.api_monitor = a.api_monitor or cfg.get("api_monitor") is True
+    tl = os.environ.get("STRATA_TURN_LOG") or cfg.get("turn_log")   # item 73: one JSON line per request, no text
+    if tl:
+        if not isinstance(tl, str):
+            raise SystemExit(f"[strata] config \"turn_log\" must be a file path, not {tl!r}")
+        svc.turn_log = os.path.abspath(os.path.expanduser(tl))
+        print(f"[strata] per-turn log: {svc.turn_log} (numbers only, no prompt or answer text)", flush=True)
     if svc.api_monitor:
         print("[strata] API request monitor on (/api-monitor): the last 100 requests' prompts and answers are kept in "
               "memory" + ("" if svc.api_key else "; anyone who can reach this server can read them (no API key)"),
