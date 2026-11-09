@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 13:35
+Last update: 2026-11-09 13:55
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -16,7 +16,7 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | P1b | More swaps per window (existing --adapt-swaps) | 14 | +4..9% code edit (model) | nothing to build | 100% | 0% |
 | P1b | Admit on k-th miss in W windows (new, STRATA_ADAPT_KMISS) | 14 | +5..16% code edit (model) | coded, builds (b5f1842f0) | 100% | 0% |
 | P1b | Candidate policies in the simulator (Harmonia, MoE-Infinity, ProMoE), predictor recall | 27, 30 | decides further work | not started | 0% | - |
-| P1c | CPU sparsity masks (Berkeley gate mask, TEAL, CATS) | 13 | +10-20%, lossy | raw activation dump in the pool coded (STRATA_ACT_DUMP_RAW); offline analysis tool next; sparse kernel only if masks pass >= 70% | 25% | 0% |
+| closed | CPU sparsity masks (Berkeley gate mask, TEAL, CATS) | 13 | +10-20%, lossy | REJECTED offline: at 70% sparsity gate mask cos 0.84 (~54% error), oracle 0.95; experts are dense -> no sparse kernel (bench/results/2026-11-09-sparsity) | 100% | 100% |
 | P1d | One CPU pool phase per layer (STRATA_POOL_FUSE_PHASES) | 29 | 1-4%, exact | coded, builds (35c512984) | 100% | 0% |
 | P1e | Domain / conversation expert seeds | 3-4 | +0.6-1.5 hit points | merged, builds; needs traces | 100% | 0% |
 | P2a | turbo-hip (lossy router prior) decision | 7 | +30-50% | preset exists; quality gate pending | 100% | 30% |
@@ -34,5 +34,5 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | Ph14 | Application end to end (agent-session timeline, idle-time use, server -> engine turn info) | 14 | per-turn time | after phase 13 | 0% | 0% |
 | Ph14 | New processes: A/B harness, quality-gate process, self-tuning, regression watch | 14 | - | queue scripts exist in the scratchpad; repo tool not started | 10% | 0% |
 
-Development order from here: P1c analysis tool -> P1a deferral fix -> P3b refill after long prompts -> P2b AcceptMoE prior
+Development order from here: P1a deferral fix -> P3b refill after long prompts -> P2b AcceptMoE prior
 -> P1b simulator policies (27, 30) -> P4 GPU fusions -> phase 14 tools (A/B harness, regression watch).  Then the test phase.

@@ -3,6 +3,7 @@
 #include "strata/core/progress.hpp"
 #include "strata/platform/aux_cpus.hpp"
 #include "strata/kernels/cpu/expert_layout.hpp"
+#include <mutex>
 #include "strata/kernels/cpu/numa_pool.hpp"
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -1440,9 +1441,66 @@ void ExpertPool::run_split_multi(ExpertJobMulti* jobs, int n) {
     ms_drain_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
 
+namespace {
+// STRATA_ACT_DUMP_RAW=<file> + STRATA_ACT_DUMP_LAYERS=a,b,... (research, off by default; MOD_PLAN item 13): for each CPU
+// expert and token of those layers, the raw SwiGLU output h (the down input) and, for a Q2_0 gate/up pack, the gate row
+// before SiLU - the input of tools/pancake/sparsity_masks.py.  Records: int32 layer, int32 has_gate, int32 n,
+// float gate[n] (if has_gate), float h[n].  STRATA_ACT_DUMP_RAW_MAX caps the records (default 200000).
+struct RawDump {
+    FILE* f = nullptr;
+    std::vector<int> layers;
+    int64_t left = 0;
+    std::mutex mu;
+    RawDump() {
+        const char* p = std::getenv("STRATA_ACT_DUMP_RAW");
+        const char* l = std::getenv("STRATA_ACT_DUMP_LAYERS");
+        if (p == nullptr || *p == 0 || l == nullptr) return;
+        for (const char* c = l; *c;) {
+            layers.push_back(std::atoi(c));
+            const char* n = std::strchr(c, ',');
+            if (n == nullptr) break;
+            c = n + 1;
+        }
+        const char* m = std::getenv("STRATA_ACT_DUMP_RAW_MAX");
+        left = m ? std::atoll(m) : 200000;
+        f = std::fopen(p, "wb");
+        if (f) std::fprintf(stderr, "strata: STRATA_ACT_DUMP_RAW: raw expert activations of %zu layers -> %s\n", layers.size(), p);
+    }
+    bool want(int layer) const {
+        return f != nullptr && left > 0 && std::find(layers.begin(), layers.end(), layer) != layers.end();
+    }
+    void put(int layer, const float* gate, const float* h, int n) {
+        std::lock_guard<std::mutex> lk(mu);
+        if (left <= 0) return;
+        const int32_t hdr[3] = {layer, gate != nullptr ? 1 : 0, n};
+        std::fwrite(hdr, 4, 3, f);
+        if (gate) std::fwrite(gate, 4, (size_t) n, f);
+        std::fwrite(h, 4, (size_t) n, f);
+        if (--left == 0 || left % 4096 == 0) std::fflush(f);
+    }
+};
+RawDump& raw_dump() {
+    static RawDump* d = new RawDump;
+    return *d;
+}
+}  // namespace
+
 void ExpertPool::quant_down_act(int e) {
     // the down projection's input of expert e (all its tokens): Q8_1 for the Q2_0 kernels, the format's own otherwise
     SplitBufMulti& sb = split_multi_[(size_t) e];
+    if (raw_dump().want(nfmt_->layer)) {
+        const NativeFmt* const nf = mjobs_[e].fmt != nullptr ? mjobs_[e].fmt : nfmt_;
+        const int nff = (int) nf->n_ff;
+        if (q2_native_kernels(nf->gu_type)) {   // recompute the gate rows (research mode only)
+            thread_local float gbuf[MAXT][FF];
+            float* gp[MAXT];
+            for (int t = 0; t < mjobs_[e].nt; ++t) gp[t] = gbuf[t];
+            q2_rows_any(mjobs_[e].blob, nf->gu_row, (int) (nf->n_embd / 64), mjobs_[e].act, mjobs_[e].nt, gp, 0, nff);
+            for (int t = 0; t < mjobs_[e].nt; ++t) raw_dump().put(nf->layer, gbuf[t], sb.ff[t], nff);
+        } else {
+            for (int t = 0; t < mjobs_[e].nt; ++t) raw_dump().put(nf->layer, nullptr, sb.ff[t], nff);
+        }
+    }
     for (int t = 0; t < mjobs_[e].nt; ++t)
         if (q2_native_kernels(nfmt_->d_type)) act_quant_any(sb.ff[t], FF, sb.a2[t]);
         else native_quant_h(*nfmt_, sb.ff[t], sb.hq[t]);

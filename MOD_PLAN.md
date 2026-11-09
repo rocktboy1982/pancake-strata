@@ -487,6 +487,11 @@ Added 2026-11-09 from the university paper series (Stanford, MIT/Harvard, rest o
     dense) and CATS (Stanford; collapses at 40% on Llama-3-8B) - at 50/70/85%, gated by token forcing.  Build the AVX2
     gather kernel (+ W_down repacked n_ff-major at load) only if the gate mask passes at >= 70%.  Ceiling ~1.25x decode
     (8.9 ms of CPU-bound time above the 15.9 ms GPU floor), realistic 10-20%.
+    RESULT 2026-11-09 (closed, offline): STRATA_ACT_DUMP_RAW on the Q2_0 file, layers 4/12/24/36/44, 11,027 expert-token
+    records (short + 2 code edits), tools/pancake/sparsity_masks.py: at 70% sparsity the gate mask keeps cos 0.844 (~54%
+    relative error), CATS 0.818, even the oracle |h| mask 0.954; at 50% gate 0.939, oracle 0.989.  Flash-Next's experts
+    (FF 640, fine-grained) are dense: the screen (gate cos >= 0.99 at >= 70%) fails, no sparse kernel.
+    bench/results/2026-11-09-sparsity/.
 14. Expert cache, time-based ceiling first: extend the replay with PCIe 3.0 promotion cost (~115 us / 1.4 MB vs ~42 us CPU
     compute), DDR contention and GPU slack; compare tier, LRU-with-promotion and a Belady that skips non-paying promotions
     (Baleen).  Only if >= 5% of decode is on the table: SIEVE/S3-FIFO dynamic segment beside the frequency tier, admission
