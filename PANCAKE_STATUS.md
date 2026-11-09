@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 17:49
+Last update: 2026-11-09 18:13
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -81,7 +81,14 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | 34 | Rumination signal (always measured) + opt-in thinking close | config `rumination_close` | measure on, close OFF | lossy only when on | 100% | pick a threshold from turn logs |
 | 31 | preserve_thinking passthrough + keep_reasoning keeper | `chat_template_kwargs.preserve_thinking`, `STRATA_KEEP_REASONING` | off | exact | 100% | opencode already resends reasoning (22/25 exact reuse) |
 | 80 | hipBLASLt descriptor cache + table extender tool | `STRATA_HIPBLASLT_DESC_CACHE` | **on** | exact | 100% | 0% (spec 09-prefill; extender run = GPU ~30 min) |
-| in progress | 39 disk tier + 86 memory budget; 16/90/71 checkpoints and shared prefix; 79 prefill PLE gather; 93/95b tests and hygiene | branches A, B, D, E | - | - | ~50% | - |
+| 90 + 71 | Park the branch at the pin; auto-pin system+tools prefix | `STRATA_PIN_PARK_TOKENS` (on), `STRATA_AUTO_PIN` (off) | see switch | exact | 100% | 0% (sub-agent switch check) |
+| 16 | Tool-boundary checkpoints + FLOPs-per-byte eviction | `STRATA_CACHE_TOOL_BOUNDARY`, `STRATA_CKPT_EVICT_FLOPS` | off | exact vs re-read | 100% | 0% (`restore_check.py --tool-boundary`) |
+| 39 | Disk tier for parked conversations | `STRATA_CONVERSATION_DISK_DIR` | off | exact | 100% | 0% (`restore_check.py --disk`) |
+| 79 | PLE gather off the critical path; compact PLE with direct I/O | `STRATA_PLE_PIPE`, `STRATA_PLE_COMPACT` | off | exact (CPU byte parity) | 100% | 0% (cold 32K TTFT arms) |
+| 86 | RAM-budget conversation cache (opt-in) + PSI guard | `STRATA_CONV_BUDGET`, `STRATA_CONV_KEEP_GIB`, `STRATA_PSI_GUARD` (on) | see switch | exact (timing) | 100% | 0% |
+| 93 | Tests labelled cpu/gpu/model, strata_tests target | `ctest -L cpu` 117/0/6, `ctest -L gpu` 124 (parity tolerances untested) | - | - | 100% | cpu done, gpu in test phase |
+| 95b | Stubs in *_stub.cpp + check_stubs.py; dead code; keepawake flake | - | - | no behaviour change | 100% | 100% |
+| cleanup | STRATA_ARENA_WARM removed (measured worse); native_moe_combine_multi_hits kept (upstream code, unused; removal would only add fork drift) | this session | - | - | 100% | - |
 
 Also from this session: `STRATA_HOST_NATIVE` (CMake, host C++ for this CPU) - built as build-hip-native, spec 08-build.
 

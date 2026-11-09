@@ -373,6 +373,14 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_LOOP_BEHAVIOUR=off\|log\|note` (+`_EDITS=8`, `_READS=20`) | **log** | item 33 (`c03c905d3`): loop-guard behaviour counters - N edits without a build/test, M reads without an edit; `note` mode (opt-in) adds a note to the prompt |
 | `STRATA_KEEP_REASONING` | off | item 31 (`d44dd5eb2`): keep earlier reasoning in the prompt (opencode 1.19.5 already resends it: leave off there) |
 | `STRATA_HIPBLASLT_DESC_CACHE` | **on** (=0: per call), N = cap 256 | item 80 (`ca2f1eecc`, `997bb0a1c`): hipBLASLt matmul descriptors cached across prompt GEMMs; exact by construction |
+| `STRATA_PIN_PARK_TOKENS=2048` | **on** (-1: old rule) | item 90 (`9ca057669`): parks the branch left at the pin, so a sub-agent switch returns to the parent without a re-read |
+| `STRATA_AUTO_PIN=1` | off | item 71 (`35c928729`): auto-pin of the Qwen system + tools prefix (shared by sub-agents) |
+| `STRATA_CACHE_TOOL_BOUNDARY=1\|2` (+`_GAP=1024`, `_MAX=2`) | off | item 16 (`527e06429`): checkpoints at tool-call / tool-result boundaries (server and engine); exact vs re-read, chunk geometry changes |
+| `STRATA_CKPT_EVICT_FLOPS=<alpha>` | off | item 16: Marconi-style eviction by FLOPs saved per byte |
+| `STRATA_CONVERSATION_DISK_DIR` / `--conversation-disk-dir auto\|path` (+`_MAX_GIB=20`, `_MIN_TOKENS=2048`, `_MIN_GAIN=1024`) | off | item 39 (`070fe8512`): parked conversations on disk, survive restarts |
+| `STRATA_PLE_PIPE=1` (+`GATHER_THREADS=4`, `SLICES=4`, `EARLY`) | off | item 79 (`e2b3a3dad`, `3b5338412`): PLE gather off the critical path; `STRATA_PLE_COMPACT=1` now also with `--ple-io direct`; `STRATA_PLE_WAIT_TRACE=1` marks the waits |
+| `STRATA_CONV_BUDGET=ram` / `STRATA_CONV_KEEP_GIB=N` | off (40% rule stays) | item 86 (`ab4fe164b`, `c1b3fec32`): conversation cache sized from free RAM |
+| `STRATA_PSI_GUARD` | **on** (pause at 20%, resume at 10%, 30 s cap) | item 86: pauses loading / skips parking under memory pressure; timing only |
 
 ### 6H. CLI flags
 
@@ -584,7 +592,9 @@ cmake --build build-cuda --target strata strata-poly poly_gdn_cols_test poly_gem
   allocations, static analysis) - four quadratic loops removed from the per-layer expert dispatch.
 - `tools/pancake/hipblaslt_extend.py` (item 80): extends the gfx1100 hipBLASLt table with the agent-turn GEMM shapes
   (plan / run / merge, 78 cases, GPU ~30 min); then A/B the extended table.
-- `tools/pancake/restore_check.py` (items 35/83): a parked and restored conversation must match a cold re-read token
+- `ctest -L cpu` (117 pass, 6 skipped) / `ctest -L gpu` (124 incl. rdna_gr/rdna_mmvq parity) and `tools/pancake/build_matrix.sh --tests`
+  (item 93); `tools/pancake/check_stubs.py` (item 95b).
+- `tools/pancake/restore_check.py` (items 35/83, `--tool-boundary` item 16, `--disk` item 39): a parked and restored conversation must match a cold re-read token
   for token (gate for the cache/checkpoint items); first step of `tools/pancake/test_phase.sh`.
 - `tools/pancake/test_phase.sh` + `bench/specs/*.json`: the whole A/B test phase in one command; the plan is
   `bench/TEST_PLAN.md` (every claim of this README tested one by one).

@@ -6662,14 +6662,12 @@ void ArenaExpertSource::prefetch(int64_t layer, int64_t expert) {
 #endif
 }
 
-// pancake-strata STRATA_ARENA_WARM: the lookahead thread (the aux CPU, not a pool core) pulls the next layer's predicted
-// CPU experts into the CPU caches.  Software prefetches at the line size, the first experts first (the lookahead lists a
-// token's top picks first), at most kWarmCap experts a call so a wrong guess cannot flush the whole 16 MiB L3.  Data
-// movement only: every expert is still read and computed exactly as before.
+// pancake-strata STRATA_POOL_PREREAD: the lookahead's predicted CPU experts of the next layer are posted to the parked
+// pool workers, which read them until the next real job.  (STRATA_ARENA_WARM - the same from the lookahead thread with
+// software prefetches - measured worse on the 7900 XT box, 2026-11-08, and was removed.)  Data movement only.
 void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
 #if defined(__x86_64__) || defined(_M_X64)
     if (!warm_on_ || base_ == nullptr || layer < 0) return;
-    constexpr int64_t kWarmCap = 8;
     const auto& lay = strata::kernels::cpu::expert_layout();
     const uint64_t bytes = lay.blob_bytes(layer);
     if (preread_) {   // STRATA_POOL_PREREAD: the parked pool workers read them, stopping at the next real job
@@ -6680,13 +6678,6 @@ void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
                 if (experts[i] >= 0 && experts[i] < n_expert_) ptrs[m++] = blob_at(layer, experts[i]);
             pool->post_preread(ptrs, m, (size_t) bytes);
         }
-        return;
-    }
-    for (int64_t i = 0; i < n && i < kWarmCap; ++i) {
-        if (experts[i] < 0 || experts[i] >= n_expert_) continue;
-        const uint8_t* b = blob_at(layer, experts[i]);
-        if (b == nullptr) continue;
-        for (uint64_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) (b + o), _MM_HINT_T1);
     }
 #else
     (void) layer; (void) experts; (void) n;

@@ -63,6 +63,10 @@ prefill, short decode, edit decode, long-context decode, agent turn latency).
 | 2.11 | BFLA (branch) | 32K / 64K / 128K prompt read, needle recall | 3.15x at 128K | branch build |
 | 2.13 | prefill (items 80, 79) | `STRATA_HIPBLASLT_DESC_CACHE` on vs 0 (09-prefill), then the extended table from `hipblaslt_extend.py` vs the shipped one on 1.5-3.2K / 4-4.2K / 16K / 32K | exact; prompt read speed | greedy identity + identical "Lt solution=" lines |
 | 2.14 | agent signals (33, 34, 31) | no A/B: counters and rumination read from real-session turn logs; a rumination threshold, if picked, gets a lossy arm | - | - |
+| 2.15 | cache / checkpoints (16, 39, 90, 71) | `restore_check.py`, `--tool-boundary`, `--disk` (all turns MATCH; disk: >= 2 writes and read-backs; tool retry caches more); sub-agent switch: parent P >= 10K -> sub-agent (same system+tools) -> P restores the parked P (prompt time vs PIN_PARK_TOKENS=-1, tokens vs STRATA_CKPT_REREAD=1) | seconds per turn | exact |
+| 2.16 | prefill PLE (79) | cold 32K, `--ple-io direct`, caches dropped: A WAIT_TRACE=1, B + PLE_PIPE=1, C + PLE_COMPACT=1 | TTFT | greedy identity |
+| 2.17 | memory (86, 38) | load line "memory pressure during the expert arena load" ~0 holds; one run with STRATA_CONV_BUDGET=ram STRATA_CONV_KEEP_GIB=8 to read the budget | start time, no stalls | - |
+| 2.18 | GPU tests (93) | `ctest -L gpu --output-on-failure` (124; first run of rdna parity tolerances and 25 hip_* tests) | - | all pass or tolerances fixed |
 | 2.12 | sweep | `tools/pancake/sweep.py` over expdec / pool knobs | 1-3% | after 2.3-2.4 |
 
 dan-9f's branches (39 disk tier, 16/31/71 checkpoints, 33/34 loop guard, 79/80 prefill, 93/95b) join phase 2 as

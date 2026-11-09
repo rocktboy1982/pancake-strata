@@ -355,7 +355,7 @@ changes a default.
 | 72 GPU-floor package | 1, 32/48, 37, 10, Q2_0-down, 47, triggered by 44+64 | Avoids building kernels whose ms vanish into the combine_cpu spin | 5-10% short chat est., later on edits |
 | 73 Wiring | pancake.service, per-turn log, reasoning_tokens | No engine gain reaches the user without it | 0 itself; prerequisite for everything per-turn |
 
-### 5.5 Current Dev/Test status (from [../PANCAKE_STATUS.md](../PANCAKE_STATUS.md), 2026-11-09 17:27)
+### 5.5 Current Dev/Test status (from [../PANCAKE_STATUS.md](../PANCAKE_STATUS.md), 2026-11-09 18:13)
 
 | Prio | Item | MOD_PLAN | Expected gain | Where it is | Dev | Test |
 | --- | --- | --- | --- | --- | ---: | ---: |
@@ -405,6 +405,7 @@ changes a default.
 | P1 | Tier catch-up while idle between requests (STRATA_IDLE_ADAPT) | 17 | 1-3% next turn | coded (43e741bc6) | 100% | 0% |
 | P4 | Q2_0 down on the EXPDEC kernel (STRATA_EXPDEC_DOWN, existing) | Q2_0-down | 1-3% short | arm added | 100% | 0% |
 | Ph14 | Launch/tile/pool sweep tool (tools/pancake/sweep.py) | 37 | 1-3% | built (7861dc8c1) | 100% | 0% |
+| P1 | Per-layer dispatch: 4 quadratic loops -> linear (first_of, miss list, per-expert groups, tail-skip) | code pass (pancake-docs/CODE_OPTIMIZATION.md) | dispatch plan/jobs time | coded, exact by construction, HIP+CUDA build | 100% | 0% |
 | Ph14 | Application end to end (agent-session timeline, idle-time use, server -> engine turn info) | 14 | per-turn time | needs the per-turn JSONL log of item 73 (serve/, dan-9f, not started) | 0% | 0% |
 | Ph14 | A/B harness with quiet-machine gate + noise monitor (tools/pancake/abtest.py) | 14 | clean numbers | built (f21cc86a1) | 100% | 0% |
 | Ph14 | Quality gate as a process (tools/pancake/quality_gate.py, token forcing per lossy arm) | 14 | - | built (c7c44f2d0) | 100% | 0% |
@@ -428,9 +429,16 @@ changes a default.
 | 34 | Rumination signal (always measured) + opt-in thinking close | config `rumination_close` | measure on, close OFF | lossy only when on | 100% | pick a threshold from turn logs |
 | 31 | preserve_thinking passthrough + keep_reasoning keeper | `chat_template_kwargs.preserve_thinking`, `STRATA_KEEP_REASONING` | off | exact | 100% | opencode already resends reasoning (22/25 exact reuse) |
 | 80 | hipBLASLt descriptor cache + table extender tool | `STRATA_HIPBLASLT_DESC_CACHE` | **on** | exact | 100% | 0% (spec 09-prefill; extender run = GPU ~30 min) |
-| in progress | 39 disk tier + 86 memory budget; 16/90/71 checkpoints and shared prefix; 79 prefill PLE gather; 93/95b tests and hygiene | branches A, B, D, E | - | - | ~50% | - |
+| 90 + 71 | Park the branch at the pin; auto-pin system+tools prefix | `STRATA_PIN_PARK_TOKENS` (on), `STRATA_AUTO_PIN` (off) | see switch | exact | 100% | 0% (sub-agent switch check) |
+| 16 | Tool-boundary checkpoints + FLOPs-per-byte eviction | `STRATA_CACHE_TOOL_BOUNDARY`, `STRATA_CKPT_EVICT_FLOPS` | off | exact vs re-read | 100% | 0% (`restore_check.py --tool-boundary`) |
+| 39 | Disk tier for parked conversations | `STRATA_CONVERSATION_DISK_DIR` | off | exact | 100% | 0% (`restore_check.py --disk`) |
+| 79 | PLE gather off the critical path; compact PLE with direct I/O | `STRATA_PLE_PIPE`, `STRATA_PLE_COMPACT` | off | exact (CPU byte parity) | 100% | 0% (cold 32K TTFT arms) |
+| 86 | RAM-budget conversation cache (opt-in) + PSI guard | `STRATA_CONV_BUDGET`, `STRATA_CONV_KEEP_GIB`, `STRATA_PSI_GUARD` (on) | see switch | exact (timing) | 100% | 0% |
+| 93 | Tests labelled cpu/gpu/model, strata_tests target | `ctest -L cpu` 117/0/6, `ctest -L gpu` 124 (parity tolerances untested) | - | - | 100% | cpu done, gpu in test phase |
+| 95b | Stubs in *_stub.cpp + check_stubs.py; dead code; keepawake flake | - | - | no behaviour change | 100% | 100% |
+| cleanup | STRATA_ARENA_WARM removed (measured worse); native_moe_combine_multi_hits kept (upstream code, unused; removal would only add fork drift) | this session | - | - | 100% | - |
 
-Test plan: [../bench/TEST_PLAN.md](../bench/TEST_PLAN.md).
+Test plan: [../bench/TEST_PLAN.md](../bench/TEST_PLAN.md).  Code pass: [CODE_OPTIMIZATION.md](CODE_OPTIMIZATION.md).
 
 ## 6. The complete not-adopted / rejected ledger (with exact reasons and reopen triggers)
 
