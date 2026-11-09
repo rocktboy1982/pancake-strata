@@ -26,6 +26,11 @@
    "env": {
     "STRATA_IDLE_ADAPT": "4"
    }
+  },
+  "adapt-thread-per-window": {
+   "env": {
+    "STRATA_ADAPT_PERSIST": "0"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",
