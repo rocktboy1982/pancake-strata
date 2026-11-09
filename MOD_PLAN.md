@@ -762,6 +762,12 @@ Added 2026-11-09 from the university paper series (Stanford, MIT/Harvard, rest o
     (Baleen).  Only if >= 5% of decode is on the table: SIEVE/S3-FIFO dynamic segment beside the frequency tier, admission
     priced by that cost; then OpenEvolve policy search on the simulator scored on decode time (Berkeley ADRS) or a
     Hawkeye-style Belady-imitation classifier.  (Replay showed tier 79.6% < LRU 89.5% < Belady 94.7%, promotions free.)
+    RESULT 2026-11-09: tools/pancake/time_ceiling.py (bench/results/2026-11-09-time-ceiling/runs.txt).  Serial model
+    (GPU + CPU summed, as the engine runs today): LRU -20% short, oracle admission +8..15% short / +27..48% edit, online
+    2nd-miss-in-8 +5..16% edit -> built as STRATA_ADAPT_KMISS.  Overlap model (--overlap: per layer GPU pre-routing, then
+    VRAM experts beside the CPU pool; calibrated to the measured window; DMA contention alpha 0.25-0.5): code edit -
+    item 29 +3%, deferral (item 8) +33%, deferral + rank guard (half kept on time) +24%, deferral + k-th-miss 2/8
+    +45..52%; short chat - deferral +27%.  Test phase order follows: deferral, then k-th-miss, then 29.
 15. Cross-session suffix index for SuffixDrafter (CMU SuffixDecoding: tree over prompt + all earlier outputs, frequency
     scoring, shared by sub-agents) - simulate with the drafter's --simulate first; check DraftPolicy's learned MTP table
     against Berkeley's measured MTP decay (0.92 / 0.68 / 0.38).
