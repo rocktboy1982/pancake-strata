@@ -430,7 +430,8 @@ conversation_file.cpp:440-452 and give DirectFile::open the same fallback (tmpfs
 buffered fread; log registration time; verify with STRATA_VERIFY_ARENA equal buffered vs direct and PSI ~0 during load (~12-15 s
 est.).  Likely oomd mechanism: pin-by-need registers and pins ~33 GiB (11592 ranges, 33838 MiB) before reading, then ~33 GiB page
 cache is charged to the capped.sh scope (MemoryMax=54G) - confirm with one PSI trace each way.
-83. Item 35 built on existing hooks: STRATA_CKPT_REREAD (re-read instead of restore, compare token for token with --adapt-swaps 0)
+83. [CODED 2026-11-09: tools/pancake/restore_check.py - restore vs STRATA_CKPT_REREAD, --adapt-swaps 0, exact preset, 4 turns incl.
+    tool result and a branch-back; needs the GPU alone - run in the test phase] Item 35 built on existing hooks: STRATA_CKPT_REREAD (re-read instead of restore, compare token for token with --adapt-swaps 0)
     and STRATA_SNAPSHOT_VERIFY; the UNSW off-by-one is already guarded (prefix used only if <= n-1 tokens, generate.cpp:16161-16166;
     saved list never holds the last output, 19419/19611).  [this]
 84. Seeds (3-4) are inert under STRATA_ADAPT_KMISS (k-th-miss admits only pairs with >= k real misses; seeding only raises usage,
