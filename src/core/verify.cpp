@@ -2348,6 +2348,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         static const bool g_rpub = [] { const char* v = std::getenv("STRATA_ROUTE_PUBLISH"); return v != nullptr && v[0] == '1'; }();
         const bool rpub = g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
                           NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
+                          !defer_ &&   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
                           std::getenv("STRATA_ROUTE_PRIOR") == nullptr && route_resident_cfg().margin <= 0.0f
 #if defined(STRATA_USE_HIP)
                           && !g_doorbell_store
