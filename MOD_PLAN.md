@@ -983,6 +983,19 @@ Added 2026-11-09 from the hardware data-path round (research_notes/Tehnologii dr
     atomic rename; today only /slots save/restore by hand; --conversation-disk exists only in strata-poly), restore on start
     (~0.5-1 s for 1.13 GB est.); keep tool-call-ended conversations in RAM, demote final-answer ones first (Bidaw, FAST'26);
     cap the tier size (D is 91% full).  Gate on item 35.
+    [CODED 2026-11-09 on feat/item-39-disk-tier, not GPU-tested; CPU test tests/core/conversation_disk_tier_test.cpp]
+    Opt-in: engine args `--conversation-disk-dir DIR|auto` (auto = <cwd>/conversation-disk) and `--conversation-disk-max-gib N`
+    (default 20, for the whole folder), or the preset's "env": STRATA_CONVERSATION_DISK_DIR / _MAX_GIB.  Presets left alone.
+    ConversationCache::set_disk_tier: evict_oldest moves the entry to ConversationDiskTier (src/core/conversation_disk_tier.cpp)
+    instead of freeing it, final-answer conversations before tool-call ones (<tool_call> after the reply's <|im_start|>,
+    STRATA_TOOL_CALL_TOKEN=248058, -1 = plain oldest-first); a writer thread runs session_file_write keeping the root AND the
+    deepest checkpoint, then c-<serial>.idx (token lists, ~4 B/token).  Subfolder per key = model file + session identity +
+    lossy env switches (STRATA_ROUTE_PRIOR, ROUTE_TAIL_SKIP, ROUTE_RESIDENT*, ...; STRATA_CONVERSATION_DISK_KEY_ENV adds names),
+    key.txt + flock as strata-poly; LRU cap across subfolders; leftovers deleted at open; ENOSPC turns the tier off.  A request
+    whose prompt continues a disk entry by > STRATA_CONVERSATION_DISK_MIN_GAIN (1024) tokens past RAM reads it back with /slots
+    RESTORE's limits + RAM preflight and parks it, so the parked path validates and takes/borrows it.  QUIT hands what is
+    parked to disk.  Shorter than STRATA_CONVERSATION_DISK_MIN_TOKENS (2048) is not written.  One GPU, no --batch.
+    GPU test still to run: restore_check.py-style - resumed-from-disk vs STRATA_CKPT_REREAD, token for token, --adapt-swaps 0.
 40. Software prefetch 1-2 KB ahead inside the Q2_0 row kernel (q2_avx2_rows.inl row_multi has no _mm_prefetch; hardware
     prefetchers stop at 4 KB pages, a gate/up row is 720 B): env-tunable, exact, 0-5% of CPU-expert time.
 41. Smallest saturating CPU thread count with FUSE_PHASES (variance of window time), and the cpufreq "performance" governor
