@@ -103,6 +103,265 @@ engine 0.1.8). Both diverged by thousands of commits, so nothing is merged; each
 3. Merge `port/faststrata-poly -> exp/expert-prefetch -> feat/grammar` when wanted (all pushed, none merged).
 Stock comparison build: `../Strata-stock` (upstream 146df3c46, `build-cuda/strata`); results in FINDINGS 10f.
 
+## Development plan by expected gain (2026-11-09)
+
+All open items of phases 11-13 plus the new combined items 63-72 (next section), in one order: big user-visible gains first.
+Base (fast-hip, 7900 XT): short window 24.8 ms (GPU 15.9, CPU experts 5.2, draft 2.2), edit window 37.4 ms (GPU 15.8, CPU
+experts 17.4, draft 2.5); opencode turns (old backend): median 6.2 s, p90 50 s, re-reads ~18% of turn time, thinking ~6.6%.
+Line format: `item - name - expected gain - exact/lossy - owner - needs - status`.  "est." = estimate, "meas." = measured
+here.  Owners: dan-cd = 2, 8/28, 14/27/30, 29 (13 closed); this = this session (server/agent, feat/disco, feat/bfla-hip,
+feat/bitdecoding-hip); unowned = nobody yet (suggestion in brackets).  Tiers: A >= 10% decode or a large per-turn/TTFT win, or
+a blocker for one; B 3-10%; C 1-3%; D < 1%, hygiene, docs, hardware-gated.
+
+Substitute groups (gains inside a group do NOT add; the ceiling is the group's, not the sum):
+- S1 CPU-expert time (17.4 ms edit / 5.2 ms short; ideal-overlap floor ~20 ms edit window): 7, 8/28, 23, 5, 14/27/30 (+53,
+  3-4, 17), 29, 46-52, 40-41.  Ceiling: lossy +40-60% on edits (turbo + one other), exact-only +15-30% on edits (model),
+  short chat <= 1.27x.  Turbo and deferral must be measured together.
+- S2 verify expert set (one re-selection in verify.cpp): 7 vs 23 (vs OEA/BuddyMoE) - pick ONE; 23 sits 5-15% above fast-hip.
+- S3 window length/source: 15, 36, 43, --spec-min-p, --lookup-max-t - 0-10% combined.
+- S4 thinking tokens: 12, 21, 34, effort default - -20-40% thinking on routine turns (est.) plus the p99 tail; the cap stays.
+- S5 re-reads: 11, 16, 31, 39, 71 (+3 on resume) - ~15% of turn time (~8% in-session + ~7% sub-agent switches).
+- S6 tool-idle window (one GPU slot): 17 vs AsyncFC vs Slipstream compaction.
+- S7 GPU floor: 1, 32/48, 37, 47, Q2_0-down, 10, BitDecoding - pays on short chat now; on edits only after S1 brings the CPU
+  part below ~15.8 ms (until then a faster GPU kernel only lengthens the combine_cpu spin).
+
+**Tier A - prerequisites first (no gain of their own; each unblocks a Tier A lever)**
+- 73 (wiring, I9+I3) - pancake.service on 11437 (Conflicts= strata/avalon, ntfs3 mount wait), strata-coder context
+  131072, reasoning_tokens in chat usage, per-turn JSONL log on D - 0 itself; no engine gain reaches the user without it -
+  exact - this - none - not started (0 opencode sessions on pancake).
+- 35 restore-equivalence test (full + partial hit, every boundary type, MTP on) - 0; gates 3, 11, 16, 31, 39 - exact - this -
+  none - open.  First PR of item 66.
+- 67 quality/perf harness (I4 + I5, capability-tagged) - 0; gates 7, 8/28, 23, 21, 25, effort default - this (runner) +
+  dan-cd (A/B queue) - none - open.
+- 49 + 50 + 44 measurement batch (one GPU session: combine_cpu timer, spin vs row pull, per-layer slack) - 0; calibrates 42,
+  decides 51/52, feeds 1/32/48 - exact - unowned [this] - none - open.
+- 64 shared window trace (new) - 0; one GPU trace run answers 14/30, 28's weight CDF, 36, 15, 23, 5, 3-4, 17 offline -
+  dan-cd (logger, = I1) + this (readers) - none - open.
+- 42 overlap-aware max-plus simulator - 0; prices 8/28, 29, 14, 46-53 before they are built (validate to 5-9% error) - exact -
+  dan-cd (item 14 owner; spec here) - 49/50/44, 64 - spec written.
+- 8 non-finite bisect (6 runs on WAIT_FUSE, ROUTE_PUBLISH, GR_FUSED, QDEDUP, ADAPT_OVERLAP, EXPDEC) - 0; gates 8/28 - dan-cd -
+  none - queued.
+
+**Tier A - levers**
+- 7 turbo-hip default for some modes - +30-50% decode meas. (111.7 -> 149-168 tok/s) - lossy (2.9% tokens differ; upstream
+   agent score 5.6 -> 4.5) - owner decision - 67 - measured, gate pending.  [S1, S2]
+- 66 agent-turn pipeline (new: 35 -> 31/11/16/39 + 12 + 3/17) - 15-25% of agent wall time est. - exact except the caps -
+   this - 73, 35 - design.  [S4, S5, S6 as one feature]
+- 12 thinking caps in the preset (tail above p99 only, grace 512, reasoning_close_retry) - worst turn 84-340 s -> ~1-2 min,
+   ~6.6% of turn time - changes text on the tail only - this - 73 (to read p99) - code done, in no preset.  [S4]
+- 8 + 28 expert deferral with the rank guard - +10-25% on edits est. (ceiling 1.45x, KTransformers) - lossy-small - dan-cd -
+   bisect, 42, 67 - blocked (non-finite on HIP).  [S1; with 7 the combined gain is below the sum]
+- 38 Linux direct expert-arena loader (O_DIRECT via direct_file.cpp; FADV_DONTNEED stop-gap) - start 28-65 s -> ~10-14 s est.,
+   likely removes the oomd trips that force the -8% mmap tier - exact - unowned [this] - none - open.  Part of 69.
+- 2 keep the decode cache through long prompts - ~97 -> ~120 tok/s after an 11.7K prompt (+20% est.) - exact - dan-cd - lend
+   sweep - queued.  Part of 69's VRAM budget.
+- 14/27/30 time-based cache simulator, then the winning policy - 0-30% on edits; best policy band +5-16% est.; build only at
+   >= 5% - exact - dan-cd - 42, 64 - offline.  [S1]
+- 31 preserve_thinking end to end - removes the re-read from the first dropped <think> block every turn (share of the 8%
+   in-session re-reads) - exact - this - one logged request, 35 - open.  [S5]
+- 11 message-boundary checkpoint + --prompt-cache-tail - first edit -33% (author, other hardware) - exact - this - 35 -
+   opt-ins exist, arms queued.  [S5]
+- 16 tool-boundary checkpoints + Marconi FLOP-saved-per-byte eviction - share of S5 (Marconi: TTFT up to -71% on SWE-bench
+    traces) - exact - this (per dan-b5 notes) - 35, 73 log - open.  [S5]
+- 69 memory budget arbiter (new: 38 + 39 + 2 + RAM_KEEP + parking budget) - start time above, arena kept (+8% vs mmap
+    fallback, meas. 75 vs 69 on the 3060), more parked conversations - exact - this + dan-cd (2) - 63 - design.
+- 39 automatic disk tier for parked conversations - resume ~7 s instead of ~83 s at 70K (FastStrata), survives restarts -
+    exact - this - 35 - open (D is 91% full: capped tier).  [S5]
+- 71 shared-prefix store for sub-agents (new) - up to ~7% of turn time (~103 switches, ~5.5M tokens) - exact - this - 35,
+    73 - open.  [S5]
+- 21 learned thinking stop - -20-40% thinking on routine turns est. (untested on agents) - lossy (text) - this - I2 hook,
+    73 log, 67 - open.  [S4, after 12]
+
+**Tier B (3-10%)**
+- 68 miss-cost-aware speculation (new: 15 + 36 + 43 + 23 + 28) - exact part 2-6%, with AcceptMoE 5-15% on edits est. -
+    mixed - this (+ dan-cd for 28) - 64, 63 - design.  [S2, S3]
+- 23 AcceptMoE depth-graded verify prior - 5-15% over fast-hip est. - lossy - unowned [this] - 64 replay, 67 - open.
+    [S2: dropped if 7 ships]
+- 15 + 36 DISCO + SpecFit/entropy features - 0-10% combined - mostly exact - this (feat/disco) - 64 - branch.  [S3]
+- 65 overlap package judged by the simulator (new: 46, 47, 48, 51, 40, 29) - 5-10% on edits, 3-8% short est. - exact (51
+    not bit-identical) - split, see item - 49/50/44, 42 - design.  [S1 + S7]
+- 1 GPU path: rocprofv3 on edit + after 11.7K, group A one at a time, HC reads (~2.7 ms), VRAM-hit phase (3.3 ms) - 3-8% on
+    short chat est., ~0 on edits until S1 - exact - unowned - I7 profile - open.  [S7]
+- 72 GPU-floor package triggered by the critical path (new: 1, 32/48, 37, 10, Q2_0-down, 47) - 5-10% short chat est. -
+    exact - unowned - 44, 64 - design.  [S7]
+- 48 (= 32 re-rated) fuse the pre-doorbell chains (HC norm/down/up, router+plan+bell) - 1-4% per chain, critical in both
+    window types - exact - unowned - 49 - open.  [S7]
+- 63 capability probe + calibration layer (new: 55, 61, 57, 56, 58, 41, 53, 43, 54) - 0-3% here, 6-13% on other platforms
+    (static PcieAuto lost that much here) - exact - this (probe) + dan-cd (tier parameters) - none - design.
+- small exact flag stack + --lookup-max-t 12 (P2c) - +2-5% (meas. +1.4..+3.9%, +1% retest) - exact - dan-cd queue - 67/I5 -
+    queued.  [S3 for lookup]
+
+**Tier C (1-3%)**
+- 29 per-expert barriers / STRATA_POOL_FUSE_PHASES - 1-4% - exact - dan-cd - I5 A/B - coded, opt-in.  [S1]
+- 3-4 conversation working set + domain profiles - +0.6-1.5 hit points (~1-2% at request start est.) - exact - this (code)
+    + dan-cd queue (traces) - 64, 35 for resume - code merged.  [S1]
+- 47 warm the Infinity Cache with next-layer pre-doorbell weights during the wait - 0-2 ms/window est. - exact - unowned -
+    micro-test (build only at warm/cold < 0.85) - open.  [S7]
+- 53 online swap budget + chunked, stale-dropping promotions - 0-5% over the best fixed --adapt-swaps - exact - unowned
+    (coordinate with dan-cd, touches the tier) - 42 - open.  [S1]
+- 46 single poller in combine_cpu - 0-3% - exact - unowned - 49 - open.  [S1]
+- 40 software prefetch in the Q2_0 row kernel - 0-5% of CPU-expert time - exact - unowned - none - open.  [S1]
+- 43 DraftPolicy::seed_costs() from traces - 0-5% - exact - unowned (inside 68) - 42, 64 - open.  [S3]
+- 10 MTP draft inside the captured verify graph - 1-3% est. if the 2.2 ms is launch-bound - exact - unowned - draft timing
+    (2b run) - waiting.  [S7]
+- 5 tail-row drop - 0-5% est. - exact per plan - unowned - 64 replay with real MTP confidences - open.  [S1]
+- 20 ReplaySSM audit of the GDN replay - 1-3% decode - exact - unowned (code read, I10) - none - open.
+- Q2_0-down expdec kernel (unnumbered; native_down_multi_kernel<42> = 5.8% of GPU kernel time, hidden on edits) - 1-3% short
+    est. - exact - unowned - 49 split - open.  [S7]
+- 51 CPU pre-sums missed rows per token - 0.5-1.5% on edits est. - not bit-identical - unowned - 50 - open.  [S1]
+- 37 coordinate-descent sweep of HIP launch/tile and AVX2 block sizes - 1-3% - exact - unowned - 1 - open.  [S7]
+- 41 smallest saturating thread count + performance governor - 0-3% each - exact - owner (governor) / 63 - none - open.
+- 17 pre-stage the expected experts while a tool runs - 1-3% of the next turn's decode est. - exact - unowned (inside 66) -
+    simulator - open.  [S6]
+- 18 GDN prefill chunk 64 - 5-11% of prefill, cold prompts only (90.8% of turns hit the cache) - exact - unowned - I8 prefill
+    timing - parked.
+- 70 closed-loop self-tuning from own sessions (new) - 1-5% est. (keeps profile-type gains current; 8.6 gave +6.7%) - exact -
+    this + dan-cd - 63, 64, 67 - design.
+- 33 behaviour counters (log-only first) - unmeasured (failed runs cost 1.4-4.4x tokens) - exact (log) - this - 73 - open.
+- 34 rumination signal into the soft close and 21 - inside S4 - lossy (text) - this - 73 - open.  [S4]
+- 25 ISTA-DASLab Coder variant A/B - quality candidate (95.7% of BF16 on SWE-bench Verified), speed unknown - n/a - owner -
+    ~29.6 GB on D, 67 - open.
+- 19 BFLA as one shared QSA selection per query tile - long-context TTFT only (paper 1.34-1.44x at 128-256K; our QSA is
+    already sparse) - lossy opt-in - this (feat/bfla-hip) - STRATA_SEL_OVERLAP, I8 - prototype.
+
+**Tier D (< 1%, hygiene, docs, hardware-gated)**
+- 52 CPU pushes rows + flag into VRAM via ReBAR - 1-2% est. but overlaps 51 - parked unless 50 shows > 3 us/layer.
+- feat/bitdecoding-hip as default - attention ~3% of decode - this - opt-in until its ~2-3% (of attention) is confirmed.
+- 45 I/O hygiene (STRATA_IO_THREADS sweep, filefrag, PLE order only after PLE wait is measured) - unowned.
+- 54 IOMMU passthrough guardrail, 57 cheap part (platform log line, STRATA_FORCE_ISA avx512/avx-vnni), 55/61 on this box (0
+    here, they matter elsewhere) - all folded into 63.
+- 22 code read: FreeToken split = --pcie-frac? - close unless copied experts are also promoted - anyone, no GPU.
+- Hygiene: MMQ=OFF stub 2-line fix (want_dm_f16/dm_f16_used), test_keepawake skip off Windows, README 176.9B and daily file
+    (Q2_0 vs iq2_xs, owner), strata-iq2_xs.json CUDA paths, presence_penalty = 0 check, oh-my-openagent version pin.
+- Hardware-gated, 0 on this box: 56 hybrid P/E affinity, 58 CCD-aware pool, 59 AVX-512 verify windows (code read possible
+    now), 60 Strix Halo preset, 62 gfx12 re-measure, rest of 57 (AVX-512 without VBMI, old Q2_0 folders on AVX2).
+Closed / not adopted (ledger): 6 (Q2_0 is the daily file), 13 (experts dense, gate cos 0.844 at 70%), 24 (0 on Q2_0), 19's
+XAttention form (-> BFLA), 12's Dynasor part (-> 21), feat/contextpilot (1.6%), 9's sleep-in-place (parked; its disk half is
+39), 26 (parked: 1 failure in 180 edits); 22 parked pending the code read above.
+
+## Combined improvements (capability-driven evolution, 2026-11-09)
+
+New items that come from combining existing items.  Each says why the combination is worth more than its parts, or costs less
+together.  All are opt-in; the default path stays byte-identical until a measured A/B changes a default (CONTRIBUTING).
+
+63. Capability probe + calibration layer ("the engine sets itself up for the box it is on").  Combines 55 (CPU-vs-promote
+    ratio), 61 (VRAM-class defaults), 57 cheap part (ISA log line), 56/58 (P/E and CCD topology), 41 (thread count), 53 (swap
+    budget start), 43 (draft costs), 54 (IOMMU), 38's NVMe rate.  Mechanism: one start-up probe, cached per machine fingerprint
+    (CPU model, DIMMs, GPU, link, driver/ROCm, model file hash) in `<data>/machine-profile.json`: ISA and core topology
+    (CPUID 0x1A, CCD map), DDR read bandwidth on pool threads, CPU us/expert per quant (PcieAuto's timer), PCIe gen/width
+    (sysfs) and promote us/expert (one timed copy), free VRAM -> pairs per card, NVMe direct-read rate, IOMMU mode.  A
+    derivation step turns it into tier size, --pcie-frac candidates, reuse threshold, thread count/affinity, starting
+    --adapt-swaps, prefetch on/off, DraftPolicy per-position cost, parking budget; then 55's window-time check of 2-3
+    candidates on warm-up windows picks the winner.  Why more than the parts: each item would need its own probe and its own
+    noise handling; one probe + one verification step keeps the derived settings consistent with each other (e.g. a smaller
+    tier on an 8 GB card also changes the draft cost and the reuse threshold).  Gain: 0-3% here (threads, swaps), 6-13% on
+    other platforms (the static PcieAuto choice lost that much here), fewer bad first runs for users.  Effort M-L (staged).
+    Risk: ~20% run-to-run noise (use load gate + medians), probe time at start (cache it).  Acceptance: it finds
+    --pcie-frac 0 on the 7900 XT by itself, and sane values with cache slots capped to emulate 8/12/16 GB.  Tier B.  Owner:
+    this (probe, derivation, log); dan-cd consumes the tier/admission parameters.  First PR: `STRATA_PROBE=1` writes the
+    platform line + machine-profile.json (no setting changed), with a unit test on fake sysfs/CPUID input.
+
+64. Shared window trace + one reader ("one trace run, ten answers").  Combines I1, 14/27/30, 42, 43, 36, 15, 23, 5, 28, 3-4,
+    17 and phase 14's self-tuning.  Mechanism: an engine-side binary ring logger (per window: positions, accepted?, top-10 +
+    weights per layer, resident/CPU/PCIe per pair, per-layer timers from 49), sampled so decode overhead stays < 0.5%,
+    spilled per session to D with a size cap; one Python reader (`tools/pancake/trace/`) that the simulator, DraftPolicy cost
+    fitter, DISCO trainer, AcceptMoE/tail-row replays and seed learner all use.  Why more than the parts: today each tool has
+    its own format (--dump-routing, conv_trace, replay_seeding, predict_experts); with one GPU in the box the scarce resource
+    is GPU queue time, and one trace run replaces ~10.  Recorded from real opencode sessions it also makes every offline
+    decision match the real workload.  Gain: 0 itself; unblocks Tier A items 7/14 decisions and 8/28 pricing.  Effort M.
+    Risk: decode overhead, D space (91% full).  Tier A (prerequisite).  Owner: dan-cd (logger, = I1); this (reader + DISCO/
+    SpecFit consumers).  First PR: schema v1 + a converter from today's --dump-routing/conv_trace output, plus the two missing
+    fields (draft position, accepted).
+
+65. Overlap package with the simulator as judge.  Combines 46 (single poller), 48 (pre-doorbell fusion), 47 (Infinity Cache
+    warm), 51 (CPU pre-sum), 40 (Q2_0 prefetch), 29 (pool barriers), measured by 49/50/44 and priced by 42.  Mechanism: the
+    measurement batch calibrates 42; 42 predicts each change's critical-path ms; only changes with a predicted >= 0.3 ms are
+    built, in that order; then one same-binary factorial A/B, because they interact (46 frees DDR the pool uses, 47 uses the
+    spin slack 46 shortens, 51 shrinks the pull 46 waits on).  Why more than the parts: separately each is 0-3%, under the
+    20% noise and not testable alone; together they are one A/B batch and one model.  Gain: 5-10% on edits, 3-8% short est.
+    (not additive; floor ~20 ms edit window).  Substitute: if deferral (8/28) ships, it overlaps the same CPU time and this
+    package's ceiling shrinks - re-run 42 after 8.  Effort M.  Risk: WC/ordering bugs in 51/52, small effects hidden by noise.
+    Tier B.  Owner: 42 dan-cd; 46/47/48/51 unowned [this: no dan-cd area]; 29 dan-cd.  First PR: item 49 (thread-0 entry/exit
+    stamps in combine_cpu behind STRATA_TIMING) + a 44 slack-report script.
+
+66. Agent-turn pipeline (one feature instead of five switches).  Combines 35, 31, 11, 16, 39, 12, 3, 17, 73's per-turn log,
+    and phase 14.3 (server passes turn state down).  Mechanism: the server knows each boundary (user message, tool call
+    issued, tool result, </think>) and sends one "turn plan" with the request: which checkpoints to take (message, tool),
+    the conversation key (3's working set, 39's parked state), where the state lives after the turn (RAM if the turn ended in
+    a tool call, demote final-answer turns first - Bidaw), the thinking cap for the effort level (12), and an expert pre-stage
+    hint for the tool wait (17).  One eviction rule (Marconi FLOP-saved-per-byte) spans RAM and disk; 35 runs in CI for every
+    checkpoint kind.  Why more than the parts: one conversation key and one lifecycle instead of five env switches that can
+    disagree; a deeper checkpoint makes a shallower one useless on the same turn (S5), so one planner avoids paying twice.
+    Gain: ~15% of turn time (re-reads) + tens of seconds per sub-agent switch + the thinking tail (~6.6%): 15-25% of agent
+    wall time est.  Effort L (staged).  Risk: restore bugs (hence 35 first), RAM vs oomd (69).  Tier A.  Owner: this (server,
+    31, 35, 39); 16 per dan-b5's notes; engine hooks minimal.  First PR: item 35's GPU test + one logged opencode request that
+    answers 31.
+
+67. Capability-aware quality + performance harness.  Combines I4 (revised gates), I5 (load-gated A/B), phase 14's nightly A/B,
+    quality-gate process and regression watch, 63's machine profile, and the decisions it gates (7, 8/28, 23, 5, 21, 34, 25,
+    effort default).  Mechanism: one nightly runner: load gate, same-binary pairs, deterministic mode for exact items and
+    distribution mode for F2 items, quality chain (token forcing for large deviations -> LiveCodeBench subset + BFCL v4
+    multi-turn + own-repo checkpoint grading), every result tagged with the machine profile; output is a Pareto line (tok/s vs
+    task score) per preset; substitutes are run jointly (turbo + deferral, turbo vs AcceptMoE).  Why more than the parts: the
+    three biggest levers (7, 8/28, 21) are all lossy and blocked on the same gate; one runner unblocks all three, and profile
+    tags make community results comparable.  Gain: 0 itself; unblocks +30-50% (7), +10-25% (8/28), -20-40% thinking (21).
+    Effort M-L.  Risk: task-set noise (repeat runs), GPU queue contention with dan-cd.  Tier A (prerequisite).  Owner: this
+    (runner, tasks); dan-cd (queue).  First PR: runner with token forcing + a 30-task BFCL v4 multi-turn subset on
+    two presets, one JSON verdict line, reusing queue.sh's load gate.
+
+68. Miss-cost-aware speculation.  Combines 15 (DISCO), 36 (SpecFit new-miss cost, entropy), 43 (seed_costs), 23 (AcceptMoE),
+    28 (rank guard), with 63's measured CPU us/expert.  Mechanism: the GPU lookahead already routes the draft tokens; per draft
+    position compute the NEW CPU-missed experts against the resident map; DraftPolicy picks the window length with cost = new
+    misses x CPU us/expert and benefit = acceptance (DISCO entropy features); AcceptMoE's residency bonus is applied only at
+    positions >= 1 where that cost is high; 28 reads the same top-2.  Why more than the parts: one per-position cost vector feeds
+    three decisions that today would each estimate it; with 63's calibration it ports to boxes where misses are cheap.  Gain:
+    exact part 2-6%, with AcceptMoE 5-15% on edits est.  Substitute: if 7 becomes default, drop the AcceptMoE part (S2).
+    Effort M.  Risk: lookahead routing differs from verify routing on rejected drafts.  Tier B.  Owner: this (feat/disco; 23
+    unowned [this]); dan-cd for 28.  First PR: log per-position new-miss count + top-k entropy into the 64 trace and fit
+    DISCO offline; no behaviour change.
+
+69. Memory budget arbiter (RAM + VRAM + NVMe).  Combines 38 (direct loader), the RAM_KEEP vs arena decision, the parked-
+    conversation budget (5.4-6.1 GiB today), 39 (disk tier), 2 (prompt lending vs decode cache), 61 (VRAM classes), oomd.
+    Mechanism: at start, from 63's probe, one manager splits RAM into locked arena (filled by O_DIRECT, no page-cache double
+    copy), parked conversations and oomd headroom, and VRAM into tier vs prompt lending (2's sweep as a curve); parked state
+    overflows to the disk tier when NVMe is fast.  Why more than the parts: these four decisions fight over the same 57 GB /
+    20 GB; deciding them apart is how the arena trips oomd and the fallback costs 8%.  Gain: start 28-65 s -> ~10-14 s est.,
+    the arena reliably kept (+8% vs mmap fallback), more parked conversations (fewer switch re-reads), +20% after long prompts
+    via 2.  Effort M.  Risk: ntfs3 + O_DIRECT alignment, D space.  Tier A.  Owner: this (38, 39, policy); dan-cd (2).  First PR:
+    38 on Linux (direct_file.cpp, 16 threads) with the FADV_DONTNEED stop-gap behind an env switch and a load-time log line.
+
+70. Closed-loop self-tuning from the owner's own sessions.  Combines 64 (traces from daily use), 4 (domain profiles), 8.6
+    (expert profile), 43 (draft costs), 14 (policy parameters), 12 (cap values per effort), 63 (profile change detection), 67
+    (promotion gate).  Mechanism: weekly offline job: re-learn profiles, costs, caps from the last week's traces and turn logs ->
+    check in the simulator -> nightly A/B -> promote only on a verdict; re-run 63 when the machine fingerprint changes.  Why
+    more than the parts: profile-type gains decay as the workload drifts (8.6 alone gave +6.7%); one loop keeps all of them
+    current without manual runs.  Gain: 1-5% est., plus no silent decay.  Effort M (after 63/64/67).  Risk: overfitting one
+    week (keep a held-out week).  Tier C.  Owner: this (job), dan-cd (engine profiles).  First PR: script that rebuilds
+    data/domain-profiles from 64 traces and runs replay_seeding.py against the previous week.
+
+71. Shared-prefix store for sub-agents.  Combines 11 (one system/tool prefix shared across sessions), 16, RadixAttention
+    multi-entry store (Stanford), prompt reordering (tool schemas first, agent text after), the oh-my-openagent pin, and
+    opencode's compaction prompt.  Mechanism: a server-side reorder (behind a switch) that puts the stable tool schemas first
+    so all sub-agents share a long exact prefix; the engine keeps that prefix's GDN/KV checkpoint as a pinned entry next to
+    the parked conversations.  Why more than the parts: 19-41K-token agent prompts with no common prefix are re-read cold on a
+    one-slot server; reorder alone or a store alone gains nothing, together they turn switches into suffix reads.  Gain: up to
+    ~7% of turn time (switches), part of compaction's 2-3%.  Effort M.  Risk: reordering may change model behaviour (gate via
+    67), harness version drift.  Tier A (S5 share).  Owner: this.  First PR: measure the common-prefix length across the
+    agents' first requests in the opencode logs; prototype the reorder in the server.
+
+72. GPU-floor package triggered by the critical path.  Combines 1 (profile, group A), 32/48 (fusions), 37 (parameter sweep),
+    10 (MTP in graph), the Q2_0-down kernel, 47, with 44 + 64 as the trigger.  Mechanism: per window type, 44's slack report
+    says whether the GPU or the CPU part sets the window; GPU work starts on short-chat windows now and on edit windows only
+    once S1 items bring the CPU part under ~15.8 ms; 37's coordinate descent then tunes the fused kernels together, not one by
+    one.  Why more than the parts: avoids building kernels whose ms vanish into the combine_cpu spin, and one sweep covers all
+    new kernels.  Gain: 5-10% short chat est., later on edits.  Effort M-L.  Risk: gfx11-only tuning (62 later).  Tier B.
+    Owner: unowned [this or a new GPU owner].  First PR: the I7 rocprofv3 run on an edit window and after 11.7K, plus the
+    item 10 draft timing, in one GPU session.
+
+Suggested start order (owner's "biggest first", respecting prerequisites): 73, 35, 67 skeleton, 49/50/44 batch, 64 schema
+and 63 probe (no GPU risk) in parallel; then 7 decision, 66 stages (31 -> 11 -> 16 -> 39), 12 in preset, 69/38; dan-cd in
+parallel: bisect -> 8/28, 42 -> 14, 2; then Tier B (68, 65, 72, 63 derivation), then C/D.
+
 ## Phases
 
 ### 0. Bring-up (after the reboot)
