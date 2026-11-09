@@ -1,6 +1,7 @@
 // src/platform/direct_file.cpp - see include/strata/platform/direct_file.hpp.
 #include "strata/platform/direct_file.hpp"
 #include "strata/platform/aux_cpus.hpp"
+#include "strata/platform/direct_io.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -310,7 +311,10 @@ bool DirectFile::open(const std::string& path, std::string& err) {
     impl_->fd = ::open(path.c_str(), O_RDONLY);
     if (impl_->fd >= 0 && fcntl(impl_->fd, F_NOCACHE, 1) != 0) { ::close(impl_->fd); impl_->fd = -1; }
 #else
-    impl_->fd = ::open(path.c_str(), O_RDONLY | O_DIRECT);
+    // a filesystem that refuses O_DIRECT (tmpfs, overlayfs, a compressed NTFS file) keeps a buffered descriptor: the
+    // reads are aligned either way, they only go through the page cache
+    bool direct = false;
+    impl_->fd = open_read_try_direct(path.c_str(), direct);
 #endif
     if (impl_->fd < 0) { err = "DirectFile: cannot open " + path; return false; }
     struct stat st;
