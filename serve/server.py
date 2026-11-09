@@ -4985,6 +4985,10 @@ class Service:
         self.loop_guard = True
         self.loop_guard_counts = {"detected": 0, "penalised": 0, "thinking_closed": 0, "stopped": 0, "tool_repeats": 0,
                                   "tool_blocked": 0, "collapsed": 0, "kept_going": 0}
+        # pancake item 33: the behaviour counters across turns (loop_guard.behaviour; "loop_guard_behaviour" in the
+        # config, STRATA_LOOP_BEHAVIOUR=off|log|note): edit streaks without a check, read streaks without an edit
+        self.loop_guard_behaviour = loop_guard.BehaviourSettings()
+        self.loop_guard_behaviour_counts = {"edits_without_check": 0, "reads_without_edit": 0, "notes": 0}
         end = tokenizer.encode(THINK_END, parse_special=True) if hasattr(tokenizer, "encode") else []
         self.think_end_id = int(end[0]) if len(end) == 1 else None   # (the guard closes the thinking with it)
         self.anthropic_think_unasked = True               # #278: "anthropic_thinking": "on_request" -> False
@@ -5862,6 +5866,7 @@ class Service:
         parked = self.conv_log.poll(getattr(self.engine, "log_path", None), getattr(self.engine, "log_start", None))
         with self.status_lock:
             guard = dict(self.loop_guard_counts, on=bool(self.loop_guard))   # (what the loop guard did since start)
+            guard["behaviour"] = self._behaviour_view()
         return {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
                 "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
                 "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "hardware": tel["now"],
@@ -5874,6 +5879,7 @@ class Service:
         with self.status_lock:
             s, t = dict(self.status), dict(self.totals)
             guard = dict(self.loop_guard_counts)
+            behaviour = dict(self.loop_guard_behaviour_counts)
             running = len(self.live_reqs) or int(bool(s.get("busy")))
             prompt_n = t["prompt_tokens"] - t["reused"]               # what was read, as llama.cpp counts it
             prompt_s, decode_s = t["prompt_ms"] / 1000, t["decode_ms"] / 1000
@@ -5921,6 +5927,15 @@ class Service:
             ("strata:loop_guard_collapsed_total", "counter",
              "Prompts that left out what the model had already written (a conversation that repeats itself)",
              guard["collapsed"]),
+            ("strata:loop_guard_edits_without_check_total", "counter",
+             "Edit streaks that reached the threshold with no build, test or run in between (item 33)",
+             behaviour["edits_without_check"]),
+            ("strata:loop_guard_reads_without_edit_total", "counter",
+             "Read and search streaks that reached the threshold with no edit in between (item 33)",
+             behaviour["reads_without_edit"]),
+            ("strata:loop_guard_behaviour_notes_total", "counter",
+             "Notes the behaviour counters wrote after a tool result (loop_guard_behaviour note mode)",
+             behaviour["notes"]),
         ]
         return "".join(f"# HELP {name} {help_}\n# TYPE {name} {kind}\n{name} {value}\n"
                        for name, kind, help_, value in rows)
@@ -6041,7 +6056,8 @@ class Service:
                  if t["drafts_offered"] else None,
                  "expert_cache_hit_pct": round(100 * statistics.fmean(hits), 1) if hits else None}
         with self.status_lock:
-            guard = {"enabled": bool(self.loop_guard), "counts": dict(self.loop_guard_counts)}
+            guard = {"enabled": bool(self.loop_guard), "counts": dict(self.loop_guard_counts),
+                     "behaviour": self._behaviour_view()}
         turns = self._recent_turns(hist, now)
         return {"engine": engine, "hardware": hardware, "model": model, "switches": switches, "live": live,
                 "stats": stats, "loop_guard": guard, "turns": turns, "time": now}
@@ -6185,11 +6201,15 @@ class Service:
         guarded = self._loop_guard_on(req)
         if guarded:                                      # the loop guard across turns (Maya's prepare)
             messages, blocked, looping, asked = self._guarded_messages(messages)
+            messages, behaviour = self._behaviour(asked, messages)
         fetched = self._note_unreadable_tool_images(messages, cancel)
         ids = encoded_ids = self.encode_prompt(messages, tools, kwargs)
         if isinstance(req, dict):
             req.pop("_loop_blocked", None)
             req.pop("_loop_keep", None)
+            req.pop("_loop_behaviour", None)
+            if guarded and behaviour:                    # (item 33: the answer's done["loop_guard"] lines)
+                req["_loop_behaviour"] = behaviour
             if guarded and tools and not force:
                 # a call made again after the guard's notes is answered by the server in this answer (_run), and in a
                 # conversation that repeats itself the answer may not end the turn with nothing new
@@ -6521,6 +6541,41 @@ class Service:
         with self.status_lock:
             self.loop_guard_counts["tool_repeats"] += 1
         return messages + [{"role": "user", "content": loop_guard.tool_note(rep)}]
+
+    def _behaviour_view(self) -> dict:
+        """The behaviour counters for /metrics (called with status_lock held): the settings and the counts."""
+        b = self.loop_guard_behaviour
+        return {"mode": b.mode, "edits": b.edits, "reads": b.reads, **self.loop_guard_behaviour_counts}
+
+    def _behaviour(self, asked, messages):
+        """pancake item 33 (loop_guard.behaviour): the request's own messages (`asked`) counted for edits without a
+        build/test/run and reads without an edit.  A streak that reached its threshold in the model's last turn is a
+        line in the server window and a count in /metrics; in "note" mode also a note after the tool result (none
+        when the tool-repeat note is already there: one note at a time).  -> (messages, done["loop_guard"] lines)."""
+        cfg = self.loop_guard_behaviour
+        if cfg.mode == "off":
+            return messages, []
+        try:
+            b = loop_guard.behaviour(asked, cfg.edits, cfg.reads, cfg.tools)
+        except Exception as e:                      # (a message shape it does not know: nothing counted)
+            print(f"[strata] loop guard: behaviour counters skipped ({type(e).__name__}: {e})", flush=True)
+            return messages, []
+        if b is None:
+            return messages, []
+        note = cfg.mode == "note" and bool(b.crossed) and bool(messages) and messages[-1].get("role") == "tool"
+        if b.crossed:
+            what = "; ".join(f"{b.edits} edits without a build, test or run" if k == loop_guard.EDITS_KIND
+                             else f"{b.reads} reads and searches without an edit" for k in b.crossed)
+            print(f"[strata] loop guard: {what}" + (": a note after it" if note else " (logged only)"), flush=True)
+            with self.status_lock:
+                c = self.loop_guard_behaviour_counts
+                for k in b.crossed:
+                    c[k] += 1
+                c["notes"] += int(note)
+        lines = loop_guard.behaviour_lines(b, cfg.edits, cfg.reads, noted=note)
+        if note:
+            messages = messages + [{"role": "user", "content": loop_guard.behaviour_note(b)}]
+        return messages, lines
 
     def _collapse(self, messages):
         """A conversation that carries a loop across turns (loop_guard.collapse): its prompt without what the model
@@ -7433,6 +7488,8 @@ class Service:
                 "reasoning_recoveries": recovery_count}
         if guard is not None and guard.events:          # what the loop guard did in this answer
             done["loop_guard"] = guard.summary()
+        if (sampling or {}).get("_loop_behaviour"):      # item 33: the behaviour counters at their thresholds
+            done["loop_guard"] = done.get("loop_guard", []) + list(sampling["_loop_behaviour"])
         if stops is not None and stops.hit is not None:
             done["stop_sequence"] = stops.hit
         if rejected:
@@ -11123,6 +11180,12 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
     svc.loop_guard = loop_guard_setting(cfg)            # (STRATA_LOOP_GUARD=0 or "loop_guard": false: off)
     if not svc.loop_guard:
         print("[strata] loop guard: off (a request's \"loop_guard\": true turns it on for that request)", flush=True)
+    try:                                                # item 33: the behaviour counters (default: log only)
+        svc.loop_guard_behaviour = loop_guard.behaviour_settings(cfg)
+    except ValueError as e:
+        raise SystemExit(f"[strata] config: {e}") from None
+    if svc.loop_guard_behaviour.mode != "log":
+        print(f"[strata] loop guard behaviour counters: {svc.loop_guard_behaviour.mode}", flush=True)
     svc.effort_end = bool(effort_end)                   # #458: "effort_position": "end" with an engine that has it
     if cfg.get("reasoning_budget_tokens") is not None:  # #123: a default thinking budget for every request
         svc.reasoning_budget_configured = True

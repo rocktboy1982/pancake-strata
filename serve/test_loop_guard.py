@@ -1060,5 +1060,215 @@ class Collapse(unittest.TestCase):
         self.assertIsNone(LG.collapse(msgs))
 
 
+def calls(*rounds, user="make the parser accept trailing commas"):
+    """A Chat Completions request: the user's message, then rounds of (tool name, arguments) - one call a round, or a
+    list of them for parallel calls - each with a result of its own (all different: no tool-repeat, no echo)."""
+    msgs = [{"role": "user", "content": user}]
+    n = 0
+    for r in rounds:
+        group = r if isinstance(r, list) else [r]
+        tcs = []
+        for name, args in group:
+            tcs.append({"id": f"c{n}", "type": "function", "function": {"name": name, "arguments": json.dumps(args)}})
+            n += 1
+        msgs.append({"role": "assistant", "content": "", "tool_calls": tcs})
+        msgs += [{"role": "tool", "tool_call_id": tc["id"], "content": f"result {tc['id']} ok"} for tc in tcs]
+    names = sorted({c[0] for r in rounds for c in (r if isinstance(r, list) else [r])})
+    return {"messages": msgs, "tools": [{"type": "function", "function": {"name": nm, "parameters": {}}}
+                                        for nm in names]}
+
+
+def edit(i):
+    return ("edit", {"filePath": f"src/p{i}.py", "oldString": f"a{i}", "newString": f"b{i}"})
+
+
+def read(i):
+    return ("read", {"filePath": f"src/r{i}.py"})
+
+
+BUILD = ("bash", {"command": "nice -n 10 python -m unittest tests.test_parser"})
+
+
+class Behaviour(unittest.TestCase):
+    """pancake item 33: edits without a build/test/run and reads without an edit, counted across turns from the
+    request's own messages - log-only by default, a note when "loop_guard_behaviour" is "note"."""
+
+    def messages(self, req):
+        from serve.frontend import openai_to_messages
+        return openai_to_messages(req)[0]
+
+    def test_tool_kinds(self):
+        # opencode's own names (its database, 2026-11-09) and Claude Code's
+        for name in ("edit", "write", "patch", "apply_patch", "multiedit", "Edit", "MultiEdit", "Write", "NotebookEdit"):
+            self.assertEqual(LG.call_kind(name, {}), LG.EDIT, name)
+        for name in ("read", "grep", "glob", "list", "Read", "Grep", "Glob", "LS"):
+            self.assertEqual(LG.call_kind(name, {}), LG.READ, name)
+        for name in ("todowrite", "task", "webfetch", "caveman_caveman_retrieve", None, 3):
+            self.assertEqual(LG.call_kind(name, {}), LG.OTHER, name)
+        for cmd, kind in (("make -j8", LG.CHECK), ("cd build && ninja", LG.CHECK), ("pytest -q tests/", LG.CHECK),
+                          ("nice -n 10 python -m unittest serve.test_server", LG.CHECK), ("cargo test", LG.CHECK),
+                          ("npm test", LG.CHECK), ("./a.out --x", LG.CHECK), ("python3 tools/run.py", LG.CHECK),
+                          ("timeout 60 ./bench.sh", LG.CHECK), ("sed -i s/a/b/ x.c && make", LG.CHECK),
+                          ("sed -i s/a/b/ x.c", LG.EDIT), ("cat <<EOF > f.py", LG.EDIT), ("echo x >> a.txt", LG.EDIT),
+                          ("cat a.c", LG.READ), ("grep -rn foo src | head", LG.READ), ("ls 2>/dev/null", LG.READ),
+                          ("git diff", LG.READ), ("sed -n 1,20p a.c", LG.READ), ("cd src; ls", LG.READ),
+                          ("pip install x", LG.OTHER), ("git commit -m x", LG.OTHER), ("", LG.OTHER)):
+            self.assertEqual(LG.call_kind("bash", {"command": cmd}), kind, cmd)
+            self.assertEqual(LG.call_kind("Bash", json.dumps({"command": cmd})), kind, cmd)   # (arguments as JSON)
+        # the configured table wins: an MCP tool named as a read, a tool taken out
+        tools = {"serena_find_symbol": LG.READ, "grep": LG.OTHER, "run_tests": LG.CHECK}
+        self.assertEqual(LG.call_kind("serena_find_symbol", {}, tools), LG.READ)
+        self.assertEqual(LG.call_kind("grep", {}, tools), LG.OTHER)
+        self.assertEqual(LG.call_kind("run_tests", {}, tools), LG.CHECK)
+
+    def test_edits_without_a_check(self):
+        m = self.messages(calls(*[edit(i) for i in range(LG.EDITS_WITHOUT_CHECK)]))
+        self.assertEqual(LG.behaviour(m), LG.Behaviour(LG.EDITS_WITHOUT_CHECK, 0, (LG.EDITS_KIND,)))
+        m = self.messages(calls(*[edit(i) for i in range(LG.EDITS_WITHOUT_CHECK - 1)]))
+        self.assertEqual(LG.behaviour(m), LG.Behaviour(LG.EDITS_WITHOUT_CHECK - 1, 0, ()))
+        # a build in between starts the count over; reads do not
+        m = self.messages(calls(*[edit(i) for i in range(6)], BUILD, edit(7), read(1), edit(8)))
+        self.assertEqual(LG.behaviour(m), LG.Behaviour(2, 0, ()))
+        # once a threshold: the next request (one more edit) is not counted again, the next multiple is
+        m = self.messages(calls(*[edit(i) for i in range(9)]))
+        self.assertEqual(LG.behaviour(m).crossed, ())
+        m = self.messages(calls(*[edit(i) for i in range(16)]))
+        self.assertEqual(LG.behaviour(m).crossed, (LG.EDITS_KIND,))
+        # parallel calls in one turn cross it too
+        m = self.messages(calls(*[edit(i) for i in range(6)], [edit(6), edit(7), edit(8)]))
+        self.assertEqual(LG.behaviour(m), LG.Behaviour(9, 0, (LG.EDITS_KIND,)))
+        # thresholds of its own; 0 turns a count off
+        m = self.messages(calls(edit(1), edit(2), edit(3)))
+        self.assertEqual(LG.behaviour(m, edits=3).crossed, (LG.EDITS_KIND,))
+        self.assertEqual(LG.behaviour(m, edits=0).crossed, ())
+
+    def test_reads_without_an_edit(self):
+        n = LG.READS_WITHOUT_EDIT
+        m = self.messages(calls(*[read(i) for i in range(n)]))
+        self.assertEqual(LG.behaviour(m), LG.Behaviour(0, n, (LG.READS_KIND,)))
+        mixed = [("grep", {"pattern": f"x{i}"}) if i % 3 == 0 else ("glob", {"pattern": f"*{i}"}) if i % 3 == 1
+                 else ("bash", {"command": f"cat src/f{i}.c"}) for i in range(n)]
+        self.assertEqual(LG.behaviour(self.messages(calls(*mixed))).crossed, (LG.READS_KIND,))
+        # an edit starts the count over; a build or another tool does not
+        m = self.messages(calls(*[read(i) for i in range(n - 1)], edit(1), read(99)))
+        self.assertEqual(LG.behaviour(m), LG.Behaviour(1, 1, ()))
+        m = self.messages(calls(*[read(i) for i in range(n - 2)], BUILD, ("todowrite", {"todos": []}), read(98)))
+        self.assertEqual(LG.behaviour(m), LG.Behaviour(0, n - 1, ()))
+
+    def test_the_user_starts_the_count_over(self):
+        req = calls(*[edit(i) for i in range(5)])
+        req["messages"] += [{"role": "user", "content": "Continue."}] + calls(edit(5), edit(6), edit(7))["messages"][1:]
+        self.assertEqual(LG.behaviour(self.messages(req)), LG.Behaviour(8, 0, (LG.EDITS_KIND,)))
+        req = calls(*[edit(i) for i in range(5)])
+        req["messages"] += [{"role": "user", "content": "now do the lexer"}] + calls(edit(5), edit(6), edit(7))["messages"][1:]
+        self.assertEqual(LG.behaviour(self.messages(req)), LG.Behaviour(3, 0, ()))
+        # a request that does not end with a tool result: the model answers the user, nothing counted
+        req = calls(*[edit(i) for i in range(8)])
+        req["messages"].append({"role": "user", "content": "thanks"})
+        self.assertIsNone(LG.behaviour(self.messages(req)))
+        self.assertIsNone(LG.behaviour([]))
+
+    def test_lines_and_note(self):
+        b = LG.Behaviour(8, 20, (LG.EDITS_KIND, LG.READS_KIND))
+        lines = LG.behaviour_lines(b, noted=True)
+        self.assertEqual(lines, ["behaviour: 8 edits without a build, test or run (threshold 8), noted",
+                                 "behaviour: 20 reads and searches without an edit (threshold 20), noted"])
+        self.assertEqual(LG.behaviour_lines(LG.Behaviour(3, 4, ())), [])
+        note = LG.behaviour_note(b)
+        self.assertTrue(note.startswith("[The server's loop guard, not the user: 8 edits"), note)
+        self.assertIn("20 reads and searches", note)
+
+    def test_settings(self):
+        self.assertEqual(LG.behaviour_settings({}, env={}), LG.BehaviourSettings("log", 8, 20, {}))
+        self.assertEqual(LG.behaviour_settings({"loop_guard_behaviour": "note"}, env={}).mode, "note")
+        self.assertEqual(LG.behaviour_settings({"loop_guard_behaviour": False}, env={}).mode, "off")
+        s = LG.behaviour_settings({"loop_guard_behaviour": {"mode": "note", "edits": 5, "reads": 0,
+                                                            "tools": {"Run_Tests": "check"}}}, env={})
+        self.assertEqual(s, LG.BehaviourSettings("note", 5, 0, {"run_tests": "check"}))
+        s = LG.behaviour_settings({"loop_guard_behaviour": "note"},
+                                  env={"STRATA_LOOP_BEHAVIOUR": "off", "STRATA_LOOP_BEHAVIOUR_EDITS": "3",
+                                       "STRATA_LOOP_BEHAVIOUR_READS": "4"})
+        self.assertEqual(s[:3], ("off", 3, 4))
+        for bad in ("loud", 3, {"mode": "log", "edits": -1}, {"reads": "many"}, {"tools": {"x": "write"}},
+                    {"threshold": 4}):
+            with self.assertRaises(ValueError, msg=bad):
+                LG.behaviour_settings({"loop_guard_behaviour": bad}, env={})
+
+    def _svc(self, mode):
+        svc = Server().service(LoopingEngine(Tok(), HEAD, BLOCK))
+        svc.loop_guard_behaviour = LG.BehaviourSettings(mode)
+        seen = []
+        encode = svc.encode_prompt
+        svc.encode_prompt = lambda messages, *a, **k: seen.append(messages) or encode(messages, *a, **k)
+        return svc, seen
+
+    def _prepare(self, svc, req, own=None):
+        from serve.frontend import openai_to_messages
+        msgs, tools, kw = openai_to_messages(req)
+        own = {} if own is None else own
+        svc.prepare(msgs, tools, dict(kw), 100, req=own)
+        return msgs, own
+
+    def test_log_only_by_default(self):
+        svc, seen = self._svc("log")
+        msgs, own = self._prepare(svc, calls(*[edit(i) for i in range(8)]))
+        self.assertEqual(seen[-1], msgs)                                 # the prompt as sent: log only
+        self.assertEqual(own["_loop_behaviour"], ["behaviour: 8 edits without a build, test or run (threshold 8)"])
+        m = svc.metrics()["loop_guard"]
+        self.assertEqual(m["behaviour"], {"mode": "log", "edits": 8, "reads": 20, "edits_without_check": 1,
+                                          "reads_without_edit": 0, "notes": 0})
+        self.assertNotIn("edits_without_check", m)                       # (the Maya counters keep their shape)
+        self.assertIn("strata:loop_guard_edits_without_check_total 1", svc.prometheus())
+        self.assertIn("strata:loop_guard_behaviour_notes_total 0", svc.prometheus())
+        # the next request of the conversation: still over the threshold (the line), not counted again
+        _, own = self._prepare(svc, calls(*[edit(i) for i in range(9)]))
+        self.assertEqual(own["_loop_behaviour"], ["behaviour: 9 edits without a build, test or run (threshold 8)"])
+        self.assertEqual(svc.metrics()["loop_guard"]["behaviour"]["edits_without_check"], 1)
+        # below the thresholds: no line, and a key left from an earlier prepare of the same dict goes
+        _, own = self._prepare(svc, calls(edit(1), BUILD), own=own)
+        self.assertNotIn("_loop_behaviour", own)
+
+    def test_note_mode(self):
+        svc, seen = self._svc("note")
+        msgs, own = self._prepare(svc, calls(*[read(i) for i in range(20)]))
+        self.assertEqual(seen[-1][:-1], msgs)
+        self.assertEqual(seen[-1][-1], {"role": "user", "content": LG.behaviour_note(LG.Behaviour(0, 20, (LG.READS_KIND,)))})
+        self.assertEqual(own["_loop_behaviour"], ["behaviour: 20 reads and searches without an edit (threshold 20), noted"])
+        b = svc.metrics()["loop_guard"]["behaviour"]
+        self.assertEqual((b["reads_without_edit"], b["notes"]), (1, 1))
+        # the tool-repeat note already follows the result: one note at a time (still counted)
+        req = calls(*[read(i) for i in range(17)], read(1), read(1), read(1))
+        msgs, own = self._prepare(svc, req)
+        self.assertEqual(seen[-1][-1]["content"], LG.tool_note(LG.ToolRepeat("read", 3)))
+        self.assertEqual(svc.metrics()["loop_guard"]["behaviour"]["reads_without_edit"], 2)
+        self.assertEqual(svc.metrics()["loop_guard"]["behaviour"]["notes"], 1)
+
+    def test_off_and_the_request_switch(self):
+        svc, seen = self._svc("off")
+        msgs, own = self._prepare(svc, calls(*[edit(i) for i in range(8)]))
+        self.assertEqual(seen[-1], msgs)
+        self.assertNotIn("_loop_behaviour", own)
+        self.assertEqual(svc.metrics()["loop_guard"]["behaviour"]["edits_without_check"], 0)
+        svc, seen = self._svc("note")
+        msgs, own = self._prepare(svc, calls(*[edit(i) for i in range(8)]), own={"loop_guard": False})
+        self.assertEqual(seen[-1], msgs)                                 # the request's "loop_guard": false
+        self.assertNotIn("_loop_behaviour", own)
+        self.assertEqual(svc.metrics()["loop_guard"]["behaviour"]["edits_without_check"], 0)
+
+    def test_the_answer_carries_the_lines(self):
+        eng = LoopingEngine(Tok(), None, None, script="Done.")
+        svc = Server().service(eng)
+        _, content, done, _ = run(svc, sampling={"_loop_behaviour": ["behaviour: 8 edits without a build, test or "
+                                                                     "run (threshold 8)"]})
+        self.assertEqual(content, "Done.")
+        self.assertEqual(done["loop_guard"], ["behaviour: 8 edits without a build, test or run (threshold 8)"])
+        _, _, done, _ = run(Server().service(LoopingEngine(Tok(), None, None, script="Done.")))
+        self.assertNotIn("loop_guard", done)
+
+    def test_the_default(self):
+        svc = Server().service(LoopingEngine(Tok(), HEAD, BLOCK))
+        self.assertEqual(svc.loop_guard_behaviour, LG.BehaviourSettings())     # the default: log only
+
+
 if __name__ == "__main__":
     unittest.main()
