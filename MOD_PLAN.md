@@ -408,6 +408,52 @@ Smaller (prefill): per-chunk/per-layer thread creation, MTP draft K/V + checkpoi
 syncs inside run_impl (3,224 lines; ~150 env switches); qwen35 engine syncs at every chunk start (BFLA is its lever).
 Order: 78 env A/B -> 82 -> 79 -> 80 -> chunk-end fix -> 81 with 18 -> tile/ring sweep.
 
+Added 2026-11-09 from the memory/cache code study (research_notes/Pancake cod deep research/memory_cache.md):
+Correction to 38: the daily preset (packs/iq2_xs has no experts.bin, STRATA_PIN_BY_NEED=1) loads through load_experts_gguf with
+the padded layout (expert_source.cpp:6287), not load_experts_direct; its unbuffered branch is Windows-only (5792-5876), Linux uses
+buffered fread with 6 threads (generate.cpp:7712) - measured 33.02 GiB at 0.81-1.08 GiB/s (31-41 s).  Implement 38 there: Linux
+branch mirroring Windows (per-thread O_DIRECT fd with EINVAL fallback to buffered, 4 KiB-aligned bounce buffer, EINTR retry, scatter
+into padded blob offsets, 16 readers, short read refuses the arena -> existing fallback), experts_unbuffered() uses the Windows
+rule file_cache_keeps(avail, arena, need), STRATA_UNBUFFERED_LOAD still overrides; factor the try-direct/leave-direct helper from
+conversation_file.cpp:440-452 and give DirectFile::open the same fallback (tmpfs/overlayfs); stop-gap FADV_DONTNEED after each
+buffered fread; log registration time; verify with STRATA_VERIFY_ARENA equal buffered vs direct and PSI ~0 during load (~12-15 s
+est.).  Likely oomd mechanism: pin-by-need registers and pins ~33 GiB (11592 ranges, 33838 MiB) before reading, then ~33 GiB page
+cache is charged to the capped.sh scope (MemoryMax=54G) - confirm with one PSI trace each way.
+83. Item 35 built on existing hooks: STRATA_CKPT_REREAD (re-read instead of restore, compare token for token with --adapt-swaps 0)
+    and STRATA_SNAPSHOT_VERIFY; the UNSW off-by-one is already guarded (prefix used only if <= n-1 tokens, generate.cpp:16161-16166;
+    saved list never holds the last output, 19419/19611).  [this]
+84. Seeds (3-4) are inert under STRATA_ADAPT_KMISS (k-th-miss admits only pairs with >= k real misses; seeding only raises usage,
+    a tie-breaker): give seeded pairs virtual miss bits for the hold period.  [dan-99 owns the tier]
+85. Huge pages: stop requesting THP at registration time, collapse in the background after load (compaction stalls); pipelined
+    per-layer registration on Linux reusing the Windows code - measure first (Windows/5070 decoded ~10% slower).  [this, after 38]
+86. 69 first slice: after 38, size the conversation cache from a deterministic RAM budget (today 4096-6144 MiB = 40% of whatever is
+    free, depends on leftover page cache) and pause loader readers on memory pressure (PSI).  Parked size ~236 MB fixed + 14.2 KB per
+    token (fit from 540/2584-token parks; ~1.23 GB at 70K est.).  39 sketch: evict_oldest callback -> session_file_write keeping
+    deepest AND root checkpoint, per-conversation index file, same validate/restore path as /slots, size cap, strata-poly key
+    invalidation/lock/background writer; ~1-1.5 s resume vs ~70-80 s re-read at 70K est.; gate on 83.
+Risks noted (no wrong output found): slot never completes if a ForesightSwap copy fails; async KMISS may count a late swap as a miss
+once; session files keep only the deepest checkpoint (restore loses the shared system-prompt root); vague buffered-loader errors.
+
+Added 2026-11-09 from the server/agent code study (research_notes/Pancake cod deep research/server_agent.md):
+87. reasoning_tokens on chat completions: _run already counts it (server.py:7310); add completion_tokens_details.reasoning_tokens
+    to the usage block in openai_chunks (7767-7770) - one line.  Part of 73.  [this]
+88. Preset-only agent settings (fast-hip preset has engine args only): effort_position "end" (opencode effort switches re-read the
+    whole system+tools prefix today; render_prompt renders 3x when on - cut to one render, 5952), env_to_user (date/folder <env>
+    block breaks the shared prefix, ~14K tokens / 8-11 s per new day/folder), item 12 caps; note answer_room already caps thinking
+    at 24,000 tokens on every opencode turn (max_tokens 32000, 6520).  [this]
+89. BUG: grammar-constrained tool calls only on /v1/chat/completions - applied in _openai (9174), missing in _anthropic (9438) and
+    _responses_prepare (9369).  Fix by one shared request-building step for the three API paths.  [this]
+90. Item 71 prerequisite: engine does not save the branch it leaves when a request resumes exactly at the pin (generate.cpp:16463);
+    for a sub-agent that branch is the parent conversation -> full re-read on return; add a size threshold before enabling the
+    (DeepSeek-only today) auto-pin for Qwen.  [this; generate.cpp session area - coordinate with dan-99]
+91. pancake.service (73): capped.sh's systemd-run --scope escapes the unit cgroup (Conflicts=/stop/restart miss the engine) - the unit
+    sets MemoryMax itself, NOCAP switch in run-pancake.sh, Conflicts= strata/avalon/qwen35b, port 11437, ntfs3 mount wait; per-turn
+    JSONL log on D (no on-disk record today); strata-coder agent points at qwen3.6-35b-a3b, not Flash-Next; preserve_thinking not
+    passable by clients (frontend.py:605-614) - log one opencode request to see if it resends reasoning_content (31).  [this]
+Server structure: Service 2,443 lines (_run ~810 with nested closures), StrataEngine 2,066, request handler 1,414, three copied API
+paths, five config sources; refactor one PR at a time: turn-log module -> shared request builder (fixes 89) -> split _run ->
+split Service -> one config schema printed at start.  Python overhead est. 60-300 ms/request (1-5% of a 6.2 s median turn).
+
 Suggested start order (owner's "biggest first", respecting prerequisites): 73, 35, 67 skeleton, 49/50/44 batch, 64 schema
 and 63 probe (no GPU risk) in parallel; then 7 decision, 66 stages (31 -> 11 -> 16 -> 39), 12 in preset, 69/38; dan-cd in
 parallel: bisect -> 8/28, 42 -> 14, 2; then Tier B (68, 65, 72, 63 derivation), then C/D.
