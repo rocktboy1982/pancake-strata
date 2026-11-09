@@ -56,6 +56,7 @@ class RequestAccounting(unittest.TestCase):
         tok = ByteTokenizer()
         self.engine = ClockedThinkingEngine(tok)
         self.svc = Service(self.engine, tok, ChatTemplate(Path(__file__).with_name("chat_template.jinja")))
+        self.svc.loop_guard = False  # scripted filler repeats: a loop to the loop guard; these test accounting
         self.httpd = serve(self.svc, port=0)
         self.base = f"http://127.0.0.1:{self.httpd.server_address[1]}"
 

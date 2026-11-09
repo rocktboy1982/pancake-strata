@@ -47,6 +47,7 @@ class MaxTokens(unittest.TestCase):
         tok = ByteTokenizer()
         cls.engine = RecordingEngine(tok, "</think>\n\n" + ANSWER, max_context=CTX)
         cls.svc = Service(cls.engine, tok, ChatTemplate(ROOT / "serve/chat_template.jinja"))
+        cls.svc.loop_guard = False  # scripted filler repeats: a loop to the loop guard; these test accounting
         cls.httpd = serve(cls.svc, port=0)
         cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
 
@@ -258,6 +259,7 @@ class FitMaxTokens(unittest.TestCase):
         tok = ByteTokenizer()
         cls.engine = RecordingEngine(tok, "</think>\n\n" + ANSWER, max_context=CTX)
         cls.svc = Service(cls.engine, tok, ChatTemplate(ROOT / "serve/chat_template.jinja"), fit_max_tokens=True)
+        cls.svc.loop_guard = False  # scripted filler repeats: a loop to the loop guard; these test accounting
         cls.httpd = serve(cls.svc, port=0)
         cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
 
@@ -2534,9 +2536,10 @@ class LearnedProfile(unittest.TestCase):
 class RepeatStop(unittest.TestCase):
     """#606: one token repeated repeat_stop_tokens times in a row ends the reply as "length"; 0 turns it off."""
 
-    def run_reply(self, script, limit=None):
+    def run_reply(self, script, limit=None, guard=True):
         tok = ByteTokenizer()
         svc = Service(MockEngine(tok, script, max_context=CTX), tok, ChatTemplate(ROOT / "serve/chat_template.jinja"))
+        svc.loop_guard = guard
         if limit is not None:
             svc.repeat_stop_tokens = limit
         ids = tok.encode("hi")
@@ -2553,7 +2556,7 @@ class RepeatStop(unittest.TestCase):
     def test_short_runs_and_off(self):
         done, _ = self.run_reply("=" * 255 + " fine")
         self.assertEqual(done["finish"], "stop")
-        done, log = self.run_reply("!" * 1000, limit=0)
+        done, log = self.run_reply("!" * 1000, limit=0, guard=False)   # (with #606 off the loop guard takes the run)
         self.assertEqual((done["finish"], done["completion_tokens"]), ("stop", 1001))
         self.assertNotIn("repeated one token", log)
         done, _ = self.run_reply("ab" * 400, limit=8)       # alternating tokens are not one run
@@ -4282,6 +4285,7 @@ class ThinkingBudget(unittest.TestCase):
         self.tok = ByteTokenizer()
         self.engine = ThinkingEngine(self.tok)
         self.svc = Service(self.engine, self.tok, ChatTemplate(ROOT / "serve/chat_template.jinja"))
+        self.svc.loop_guard = False  # scripted filler repeats: a loop to the loop guard; these test accounting
         self.httpd = serve(self.svc, port=0)
         self.base = f"http://127.0.0.1:{self.httpd.server_address[1]}"
 
@@ -4554,6 +4558,7 @@ class ForcedToolChoice(unittest.TestCase):
         self.tok = ByteTokenizer()
         self.engine = CallingEngine(self.tok)
         self.svc = Service(self.engine, self.tok, ChatTemplate(ROOT / "serve/chat_template.jinja"))
+        self.svc.loop_guard = False  # scripted filler repeats: a loop to the loop guard; these test accounting
         self.httpd = serve(self.svc, port=0)
         self.base = f"http://127.0.0.1:{self.httpd.server_address[1]}"
 
