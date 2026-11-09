@@ -436,6 +436,10 @@ lookahead's next-layer CPU experts); A/B pending with the Q2_0 model test.
 | Avalon upgrades report (owner's /home/dan/reports/Avalon upgrades from upstream projects.md) | this section | for pancake: the gfx1100 hipBLASLt table must match the runtime (the preset loaded 100200 on hipBLASLt 100401 -> untuned; 100401 table A/B queued; Strata measured +32/+78/+82% prompt on a 7900 XTX); longer prompt-lookup windows (--lookup-max-t 12/16, +11-14% on edits per Strata) A/B queued; tool-call recovery, env_to_user, reasoning_close_retry already in serve/; for Avalon itself: source fast-forwarded c24c03d -> 88313b6 (48 commits; rollback branch local/c24c03d-baseline), rebuild after the benchmarks, model needs ~20 GB more free on D |
 | llama.cpp CPU share (PR #30966, merged 2026-11-07; #31888; #31233 ClassLRU; #31286 open) | this section | already here: Strata's PCIe share is the same split (--pcie-frac 0 = their share ~0.95, measured best); ClassLRU's long-memory scoring (half-life 128 tokens) replayed on our tier: decay 0.7..0.986 within 0.5 points at 32 swaps/window - no gain, not ported |
 | Runtime architectures 2026 (disaggregated serving, control/execution plane, heterogeneous runtimes, runtime intelligence, single-node applicability) | reports/LLM runtime architectures 2026.md, research_notes/Arhitecturi runtime LLM 2026/ (notes in English) | pasted overview: names real, details inflated (TokenSpeed "zero runtime errors" unsourced; xLLM = jd-opensource/xllm, Ascend-only benchmarks; Exo = agent runtime, 12-53% not "up to 53%"). For pancake: P/D disaggregation, chunked-prefill interleave, overlap scheduler, distributed KV stores do not apply; adopt items 10-12 below |
+| Project Maya (mw00/project-maya, MIT, a Strata fork; 2026-11-09) | reports/Avalon upgrades from upstream projects.md, research_notes/Avalon upgrades from upstream projects/project_maya.md | not faster for us (its Qwen engine is a Strata 0.1.27 snapshot); ported loop guard, soft budget close, tolerant tool calls (section "Agent robustness from Project Maya"); SSD direct reads and route-share expert skip left as test ideas |
+| Stanford papers 2022-2026 (reports/Lucrări Stanford utile pentru Avalon.md) | research_notes/Lucrări Stanford utile pentru Avalon/ | per-level thinking cap (done, 5dd620fb9); multi-entry prefix cache (RadixAttention); CATS (superseded, item 13); measurement harness |
+| MIT/Harvard papers 2022-2026 (reports/Lucrări MIT Harvard pentru Avalon.md) | research_notes/Lucrări MIT Harvard pentru Avalon/ | TEAL over CATS (item 13); GDN chunk 64 (item 18); XAttention opt-in (item 19); learned thinking stop (item 21); bit allocation guidance (Scaling Laws for Precision) |
+| Rest of US universities 2022-2026: Berkeley, CMU, UW, Princeton, Cornell, UCSD, Duke, Rice, Stevens, ... (reports/Lucrări universități SUA pentru Avalon.md) | research_notes/Lucrări universități SUA pentru Avalon/ | items 13-17, 20, 22; SuffixDrafter/DraftPolicy already cover TurboSpec/Sequoia-style length choice; QTIP/IQ2_KT not worth a requant; Europe, Asia, Canada, Pacific/Africa/Latin America reports follow |
 
 Development pass done 2026-11-08 night (owner: develop everything first, then test and optimize):
 - items 3-4 merged from feat/pattern-cache and built (HIP and CUDA compile; expert_seed_test ok; 7/7 Python tests);
@@ -470,6 +474,37 @@ Left, ranked (details of the measurements above stay in this section's history):
     sessions (with the coding agent's conversation working set, item 3).
 12. Thinking budget with a natural transition phrase, and Dynasor-style early exit of reasoning (opt-in: changes the text,
     shortens replies rather than speeding tokens).
+    2026-11-09: per-level caps (reasoning_budget_by_effort, 5dd620fb9) and Maya's soft close at a sentence end are in;
+    the learned stop (item 21) replaces Dynasor as the early-exit route.
+Added 2026-11-09 from the university paper series (Stanford, MIT/Harvard, rest of the US; reports/ "Lucrări ..."):
+13. CPU-expert activation sparsity, lossy opt-in: one offline FP32 pass on opencode traces with three masks - Berkeley's
+    intra-expert gate mask (arXiv 2605.08575: Qwen3.5 MoE at 84-87% sparsity, 95% of score), TEAL (MIT; holds 40-50% on
+    dense) and CATS (Stanford; collapses at 40% on Llama-3-8B) - at 50/70/85%, gated by token forcing.  Build the AVX2
+    gather kernel (+ W_down repacked n_ff-major at load) only if the gate mask passes at >= 70%.  Ceiling ~1.25x decode
+    (8.9 ms of CPU-bound time above the 15.9 ms GPU floor), realistic 10-20%.
+14. Expert cache, time-based ceiling first: extend the replay with PCIe 3.0 promotion cost (~115 us / 1.4 MB vs ~42 us CPU
+    compute), DDR contention and GPU slack; compare tier, LRU-with-promotion and a Belady that skips non-paying promotions
+    (Baleen).  Only if >= 5% of decode is on the table: SIEVE/S3-FIFO dynamic segment beside the frequency tier, admission
+    priced by that cost; then OpenEvolve policy search on the simulator scored on decode time (Berkeley ADRS) or a
+    Hawkeye-style Belady-imitation classifier.  (Replay showed tier 79.6% < LRU 89.5% < Belady 94.7%, promotions free.)
+15. Cross-session suffix index for SuffixDrafter (CMU SuffixDecoding: tree over prompt + all earlier outputs, frequency
+    scoring, shared by sub-agents) - simulate with the drafter's --simulate first; check DraftPolicy's learned MTP table
+    against Berkeley's measured MTP decay (0.92 / 0.68 / 0.38).
+16. Checkpoint triggers at tool-call and tool-result boundaries (FreeToken, Marconi) and Marconi's FLOP-saved-per-byte
+    eviction across the parked tiers; a checkpoint after </think> only if the template keeps earlier thinking.
+17. Pre-stage the expected expert set while a tool runs (KVFlow applied to experts) - simulator first (L3 prefetch and
+    DraftExpert windows failed; this targets the idle tool window, not the decode window).
+18. GDN prefill: chunk 64 with blockwise 16x16 inverse + fused prep kernels (MIT GDN/FLA line; 5-11% of prefill).
+19. XAttention block-sparse prefill above ~64K, lossy opt-in, gated by code-recall tests (20-40% prefill at 131-262K, est.).
+20. ReplaySSM audit of the GDN replay (1-3% decode; up to 8% on speculation only if a snapshot is copied per draft token).
+21. Learned thinking stop: a linear probe on hidden states trained offline on logged turns (Thought Calibration, OS-Pruner,
+    Learning How Hard to Think; 20-40% fewer thinking tokens on routine turns, untested on agents).
+22. FreeToken's PCIe/CPU miss split vs --pcie-frac: read the code, very likely the same mechanism - close unless its
+    copied experts are also promoted into the cache.
+Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
+external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
+inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
+LiveCodeBench -> HELMET RAG/re-rank -> Terminal-Bench subset.
 (Item 8, VERIFY_DEFER_CPU on HIP, is the highest-ceiling lossy option per both research reports: up to 1.45x in KTransformers.)
 Blocked: the 3060 GPU run (card out), two-stage prompts (second GPU), DeepSeek V4.1 on gfx1100 (257 GB, D too small).
 Owner's call: merging port/faststrata-poly -> exp/expert-prefetch -> feat/grammar -> port/rdna3-decode into main; BIOS iGPU
