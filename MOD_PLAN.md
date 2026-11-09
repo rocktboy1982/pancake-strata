@@ -578,6 +578,83 @@ CPU compute an expert the same way, so no output changes.  Both opt-in, default 
   (compare base vs seeded decode_tok_s per request in <tag>.requests.json; the corpus traces are short decode-only
   replies, so add code-edit traces with long context, e.g. bench_engines.py runs with --dump-routing, as code=TRACE.)
 
+### BitDecoding on RDNA3 (branch feat/bitdecoding-hip, 2026-11-09): low ceiling, minimal opt-in done
+
+Source: BitDecoding (Dayou Du, ..., Luo Mai; University of Edinburgh; HPCA 2026; arXiv 2503.18773;
+github.com/OpenBitSys/BitDecoding at f2caa89, MIT). Low-bit KV decode attention on tensor cores: int4/int2 codes are
+dequantised with lop3 PTX magic-number tricks straight into the mma.sync m16n8k16 B fragment, the pack layout is
+"induced" from the fragment layout (ldmatrix order), cp.async stages tiles, scales stay outside the product, a warp-level
+fp16 residual buffer holds the last tokens until a 128-token group fills, and GQA query heads are folded into M
+("seqlen_q <-> ngroups" swap). Built on FlashAttention-2 / CuTe; reports 3-9x over Flash-Decoding-v2 at 32K-128K dense
+context. Nothing of that code runs on gfx11 (no ldmatrix, cp.async, lop3, mma.sync, CuTe sm80 atoms); the mapping is:
+mma.sync m16n8k16 -> v_wmma_f32_16x16x16_f16 (wave32, A row per lane, B column per lane, lanes 16-31 repeat);
+ldmatrix -> plain per-lane 16-byte loads (a K fragment column is 16 consecutive codes of one cell); lop3 dequant ->
+integer codes converted to exact fp16 (int8 |c| <= 127, q4 -8..7); IU8 WMMA would need an int8 query (extra loss) and
+was not used.
+
+Feasibility (why the ceiling is low here):
+- The full-attention (QSA) layers are SPARSE at decode: the indexer picks at most idx_top_k + idx_block - 1 = 2,051
+  cells (qsa.hpp), whatever the context. So decode attention costs the same at 32K, 131K and 262K; only the indexer
+  (fp32 pooled keys, n_kv/4 x 128 x 4 B per layer) and its top-k grow. BitDecoding's premise (dense attention reading a
+  long KV cache, memory-bound) does not hold.
+- Profile (bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt, 24.81 ms window, 2.97 verify rows): QSA
+  attention 0.74 ms (3.0%), scores+top-k 0.34 (1.4%), kv-resolve 0.32 (1.3%). The kernel bench below gives 57 us per
+  3-row call x 12 layers = 0.69 ms, so the profile already ran at the 2,051-cell saturation: the 0.74 ms is the
+  32K/131K/262K value too.
+- Bytes: int8 K+V of 2,051 cells = 2.2 MB per layer and row, 76 MB a window = ~0.1 ms at ~800 GB/s. The FP32 kernel
+  takes 19 us per layer-row, ~7x that: latency- and ALU-bound (66 blocks on 84 CUs, serial p.V loop), not
+  memory-bound. 4-bit KV (the existing `--kv q4_0` or `--kv k8v4`) saves at most ~0.05 ms a window (0.2%); its real use
+  is VRAM (and kv-resolve PCIe traffic) at 131-262K, not attention speed.
+- Grows with context (estimate from the layout, not measured): the indexer reads 1.5 KB per cell per row (12 layers):
+  32K 50 MB, 131K 201 MB, 262K 403 MB per row -> ~0.2 / 0.75 / 1.5 ms a 3-row window (0.8 / 3 / 6%). That, not the
+  attention, is the long-context decode lever (a low-bit or fp16 indexer key cache, as DeepSeek's FP8 indexer; the
+  header says selections must stay exact, so it would be a lossy opt-in with a selection-agreement test).
+- Attainable gain of BitDecoding's idea here: the WMMA kernel below, ~0.24 ms of a 24.8 ms window (~1% decode),
+  context-independent. Small enough to keep as an opt-in.
+
+Done: `STRATA_ATTN_WMMA=1` (default off; HIP gfx11 only; CUDA and other archs: stubs, no change).
+src/kernels/cuda/qsa_decode_attn_wmma.cu replaces the split-K decode attention's chunk pass (attn_chunk_kernel) for int8,
+q4_0 and K8V4 pools with a matrix-core kernel writing the same partials (the merge kernels are unchanged): 12 GQA heads
+in M (rows 12-15 zero), q and p as fp16 hi+lo pairs (FP32-level), K codes exact in B with the K scale per 64-dim group
+(int8) or 32-dim block (q4_0) applied to the fp32 accumulator, V staged in LDS and its scale folded into p (A operand),
+32 WMMAs a block, 119-121 VGPRs, 34.6 KB LDS, no spills. Covers qsa_decode_attn_step / _batch (verify, MTP) and the
+rows/slots forms through the per-query call. Not bitwise equal to the default kernel (another summation order): greedy
+text may part after many tokens; fp16 pools keep the FP32 kernel.
+
+Tests (RX 7900 XT, gfx1100, ROCm 10, no server running, 2026-11-09):
+- hip_decode_attn_wmma_parity (new, synthetic, no model): int8 / q4_0 / K8V4 x widths 1, 37, 64, 65, 1000, 2051 and
+  mixed 3-row batches, permuted page table with unresident pages (masked cells and whole chunks): PASS 24/24; worst
+  relative L2 vs FP64 3.2e-6 (the FP32 kernel 2.6e-6), deterministic (two runs bit-identical).
+- Kernel time (chunk pass + merge, cap 2051, back-to-back launches): n_q 1: FP32 36.0-38.0 us -> WMMA 21.0-21.1 us
+  (x1.71-1.80); n_q 3: 57.2-58.6 -> 36.2-37.2 us (x1.54-1.62); all three formats alike.
+- Existing parity tests with STRATA_ATTN_WMMA=0 and =1 (the WMMA path confirmed taken): kv_window_parity (plain and
+  graph replays, int8 / q4_0 / K8V4), batch_rows_parity, kv_hybrid_parity (mode-3 attention vs dequant reference
+  1.12e-7 -> 1.19e-7), kv_q4_parity, kv_q8_parity, qsa_parity: all PASS.
+- Build: build-hip (gfx1100, -DSTRATA_PREFILL_MMQ=ON as the main tree: with the option's default OFF, HEAD does not link
+  `strata` - prefill.cpp needs moe_fused_iq.cu's dm_f16_used / want_dm_f16 from strata_mmq; not this change) strata_kernels,
+  the tests and strata; the two changed .cu files compile with nvcc sm_86.
+
+Unmeasured: end-to-end decode and token forcing (the model was not loaded). Test queue (one server at a time, nothing
+else on the GPU; W=.claude/worktrees/bitdecoding, built with `ninja -C $W/build-hip strata`):
+
+      # A/B at long context: base vs STRATA_ATTN_WMMA=1, interleaved, 3 runs each, same binary
+      cd $W && ln -sfn /home/dan/clone-of-d/src/Strata/.venv .venv    # the worktree has no venv (.venv is ignored)
+      for arm in 0 1 0 1 0 1; do
+        STRATA_ATTN_WMMA=$arm STRATA_DECODE_TIMING=1 ./run-pancake.sh iq2_xs fast > /tmp/bitdec-$arm.log 2>&1 &
+        S=$!; until curl -sf localhost:8080/v1/models >/dev/null; do sleep 5; done
+        .venv/bin/python tools/strata_bench.py --url http://127.0.0.1:8080 --runs 1 --long --out bench/results/bitdec-$arm
+        kill $S; wait $S
+      done
+      grep -h "QSA layers" /tmp/bitdec-*.log    # "attention" ms/window: expect ~0.74 -> ~0.45
+      # quality (lossless by construction, but not bitwise): token forcing, as tools/pancake/quality_hip.sh
+      mkdir -p bench/quality-bitdec && for a in stock cand; do
+        python3 -c "import json,sys; c=json.load(open('bench/quality-hip/cand.json')); c['exe']='$PWD/build-hip/strata'; \
+          c.setdefault('env',{}); c['env']['STRATA_ATTN_WMMA']='1' if '$a'=='cand' else '0'; \
+          json.dump(c,open('bench/quality-bitdec/$a.json','w'),indent=1)"; done
+      Q=bench/quality-bitdec tools/pancake/quality_hip.sh     # verdict in bench/quality-bitdec/verdict.txt
+
+Keep only if the long-context decode median is >= 1% faster and token forcing passes; it is not in any preset.
+
 ## Phase 12 (future): a second GPU
 
 The owner plans a second card.  These were judged "does not apply" on one GPU (research reports above) and become the work

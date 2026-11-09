@@ -345,6 +345,20 @@ gain could be run-to-run noise or cache state. A true A/B needs one boot without
 `bench/prefetch/{ours-unlock,ours-mmap-unlock}.jsonl`. The 12 GiB arena loaded without an oomd kill on the fresh boot
 (47.5 s).
 
+## 10h. BitDecoding's low-bit KV attention on the RX 7900 XT (2026-11-09, branch feat/bitdecoding-hip)
+
+BitDecoding (Edinburgh, HPCA 2026, MIT) speeds up dense decode attention over a long low-bit KV cache on NVIDIA tensor
+cores. On Flash-Next it can give little: the full-attention layers attend over at most 2,051 selected cells at any
+context length, so attention is 0.74 ms of a 24.8 ms decode window (3.0%) at 32K, 131K and 262K alike, and the kernel is
+latency-bound, not memory-bound (it reads ~0.1 ms worth of bytes in 0.69 ms). The part of decode that grows with the
+context is the indexer (estimated 0.8 / 3 / 6% of a window at 32K / 131K / 262K), not the attention.
+
+What was built: its tensor-core idea on RDNA3 matrix cores, opt-in `STRATA_ATTN_WMMA=1` (int8, q4_0 and K8V4 KV). The
+decode attention's chunk pass got 1.5-1.8x faster (3 rows, cap 2051: 57.2 -> 36.2-37.2 us per layer call), FP32-level
+accuracy (3.2e-6 vs FP64, the old kernel 2.6e-6), deterministic. Expected end to end: ~0.24 ms a window, about 1% decode;
+not measured with the model yet (MOD_PLAN phase 11, "BitDecoding on RDNA3", has the A/B and token-forcing commands).
+4-bit KV itself (`--kv q4_0`, `--kv k8v4`) saves at most ~0.2% of decode time here; its value is VRAM at long context.
+
 ## 11. CUDA and ROCm learning projects and links (read 2026-11-07)
 
 **NVIDIA / RTX 3060 (sm_86):** inference-cuda-kernels (step-by-step LLM ops measured on a 3060), cuda-gemm-benchmark (FP32

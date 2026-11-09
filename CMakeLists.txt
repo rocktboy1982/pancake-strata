@@ -555,6 +555,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/rdna_mmvq.cu
                           src/kernels/cuda/cvec.cu
                           src/kernels/cuda/qsa_decode_attn.cu
+                          src/kernels/cuda/qsa_decode_attn_wmma.cu
                           src/kernels/cuda/qsa_prompt_attn.cu
                           src/kernels/cuda/fused_gdn.cu
                           src/kernels/cuda/dequant_bf16.cu
@@ -1295,6 +1296,13 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME hip_prompt_attn_wmma COMMAND hip_prompt_attn_wmma 32768 2048 3)
     set_tests_properties(hip_prompt_attn_wmma PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77)
     list(APPEND _strata_hip_tests hip_prompt_attn_wmma)
+    # pancake: the BitDecoding-style decode attention on gfx11 matrix cores (STRATA_ATTN_WMMA) vs the FP32 kernel and
+    # FP64, int8 / q4_0 / K8V4 pools (GPU, synthetic, no model); skips (77) off gfx11
+    add_executable(hip_decode_attn_wmma_parity src/kernels/qsa_decode_attn_wmma_parity.cpp)
+    target_link_libraries(hip_decode_attn_wmma_parity PRIVATE strata_kernels strata_hip_runtime)
+    add_test(NAME hip_decode_attn_wmma_parity COMMAND hip_decode_attn_wmma_parity)
+    set_tests_properties(hip_decode_attn_wmma_parity PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
+    list(APPEND _strata_hip_tests hip_decode_attn_wmma_parity)
     if(STRATA_HIPBLASLT_AVAILABLE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/hip/prefill_hipblaslt_gemm.cpp")
       add_executable(hip_prefill_hipblaslt_gemm tests/hip/prefill_hipblaslt_gemm.cpp)
       target_include_directories(hip_prefill_hipblaslt_gemm PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/prefill")
