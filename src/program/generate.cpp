@@ -16524,9 +16524,18 @@ int main(int argc, char** argv) {
             // (a sibling query of the last one).  What the last query added past it is its private suffix - a few
             // dozen tokens, cheaper to read than the prefix's whole K/V is to copy to the host - so it is not parked:
             // N queries keep one prefix.  A request without pin=, or one that resumes anywhere else, parks as before.
+            // MOD_PLAN 90: a branch longer than STRATA_PIN_PARK_TOKENS past the pin (default 2048; read once) is not a
+            // sibling query but a conversation of its own (an agent's, whose sub-agent shares its system prompt and
+            // tools): it parks as any other, within the cache's budget, so the return to it is a hit, not a re-read of
+            // its whole history.  -1 keeps the old rule (never park at the pin), 0 parks every branch.
+            static const int64_t pin_park_tokens = [] {
+                const char* v = std::getenv("STRATA_PIN_PARK_TOKENS");
+                return v != nullptr && v[0] != '\0' ? (int64_t) std::max(-1LL, std::atoll(v)) : (int64_t) 2048;
+            }();
             bool pin_sibling = false;
             if (req_pin > 0 && req_ckpt && o.prompt_cache >= 3 && !from_live && !incoming && slot_source < 0 &&
-                resume == req_pin && live_ok)
+                resume == req_pin && live_ok &&
+                (pin_park_tokens < 0 || (int64_t) live.size() - resume <= pin_park_tokens))
                 for (const ConvCheckpoint& c : checks)
                     if ((int64_t) c.ids.size() == resume && c.pinned) pin_sibling = true;
             // --conversation-cache-park-gain N: a park now would supersede the entry parked_prefix_tokens() reports (the copy
