@@ -1,7 +1,7 @@
 """abtest.py - pancake-strata A/B harness for the 7900 XT (MOD_PLAN phase 14: "automatic A/B harness").
 
 Runs arms of a server config in interleaved order (A B B A ...), each arm a fresh server, and only on a quiet machine:
-  - before a run: waits until the 1-minute load is below --max-load and no foreign process (not this harness, not the
+  - before a run: waits (if --max-load > 0) for the 1-minute load, while memory reclaim runs, and until no foreign process (not this harness, not the
     server's process tree) used more than --foreign-cpu % of a core over a 5 s sample; prints what it waited for;
   - during a run: samples the CPU time of every foreign process; a run whose foreign load averaged above
     --foreign-cpu % of a core is marked noisy, discarded and repeated (at most --retries times per run);
@@ -91,21 +91,33 @@ def foreign_cpu(seconds, own_roots):
             use[comm] = use.get(comm, 0) + d
     total = sum(use.values()) / CLK / seconds * 100
     top = sorted(use.items(), key=lambda x: -x[1])[:3]
+    reclaim = sum(v for c, v in use.items() if c.startswith(RECLAIM)) / CLK / seconds * 100
+    foreign_cpu.reclaim = reclaim   # memory reclaim / compaction threads' share of the same sample
     return total, [(c, round(v / CLK / seconds * 100)) for c, v in top]
 
 
+# kernel memory reclaim / compaction: little CPU, but a run during it decodes ~25% slower (test phase 03 / 04)
+RECLAIM = ("kswapd", "kcompactd")
+RECLAIM_MAX = 1.0   # % of a core: above it before a run -> wait; averaged above it during a run -> noisy, repeat
+
+
 def quiet_gate(max_load, max_foreign, own_roots, max_wait=3600):
+    """max_load <= 0 (default): no load-average wait.  The 1-minute load right after a run is the finished server's own
+    16 threads decaying (~2 min to fall below 1, 45 of test 04's 70 min) - the foreign-CPU sample already sees any
+    other process, so the load wait only cost time.  Also waits while memory reclaim / compaction is running."""
     t0 = time.time()
     said = False
     while time.time() - t0 < max_wait:
-        load = os.getloadavg()[0]
+        load = os.getloadavg()[0] if max_load > 0 else 0.0
         fc, top = foreign_cpu(5, own_roots)
-        if load < max_load and fc < max_foreign:
+        rc = foreign_cpu.reclaim
+        if load <= max(max_load, 0) and fc < max_foreign and rc < RECLAIM_MAX:
             if said:
                 print(f"  quiet after {time.time() - t0:.0f} s", flush=True)
             return True
         if not said or int(time.time() - t0) % 120 < 6:
-            print(f"  waiting for a quiet machine: load {load:.2f}, foreign CPU {fc:.0f}% {top}", flush=True)
+            print(f"  waiting for a quiet machine: load {load:.2f}, foreign CPU {fc:.0f}% {top}, reclaim {rc:.1f}%",
+                  flush=True)
             said = True
     print("  machine never got quiet: running anyway (the run will likely be marked noisy)", flush=True)
     return False
@@ -119,14 +131,16 @@ class NoiseMonitor(threading.Thread):
     def run(self):
         while not self.stop_ev.is_set():
             fc, top = foreign_cpu(3, self.own_roots)
-            self.samples.append((fc, top))
+            self.samples.append((fc, top, foreign_cpu.reclaim))
 
     def result(self):
         self.stop_ev.set()
         self.join(timeout=10)
         if not self.samples:
+            self.reclaim = 0.0
             return 0.0, []
         avg = sum(s[0] for s in self.samples) / len(self.samples)
+        self.reclaim = sum(s[2] for s in self.samples) / len(self.samples)
         worst = max(self.samples, key=lambda s: s[0])
         return avg, worst[1]
 
@@ -221,7 +235,7 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port):
         return None, f"expected {len(cases)} engine lines, got {len(rows)}"
     for c, r in zip(cases, rows):
         r["case"] = c
-    return {"rows": rows, "noise": noise, "noise_top": top}, None
+    return {"rows": rows, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2)}, None
 
 
 def ci(xs):
@@ -264,7 +278,7 @@ def main():
     ap.add_argument("spec")
     ap.add_argument("--out", required=True)
     ap.add_argument("--reps", type=int)
-    ap.add_argument("--max-load", type=float, default=1.0)
+    ap.add_argument("--max-load", type=float, default=0.0, help="1-minute load to wait for (0 = off)")
     ap.add_argument("--foreign-cpu", type=float, default=25.0, help="%% of one core: above it a machine is not quiet")
     ap.add_argument("--retries", type=int, default=2)
     ap.add_argument("--port", type=int, default=8080)
@@ -293,7 +307,7 @@ def main():
             if err:
                 print(f"rep {r} {arm}: FAILED ({err})", flush=True)
                 break
-            clean = res["noise"] <= a.foreign_cpu
+            clean = res["noise"] <= a.foreign_cpu and res["reclaim"] <= RECLAIM_MAX
             rec = {"t": time.strftime("%Y-%m-%d %H:%M:%S"), "rep": r, "arm": arm, "attempt": attempt, "clean": clean, **res}
             out.write(json.dumps(rec) + "\n")
             out.flush()

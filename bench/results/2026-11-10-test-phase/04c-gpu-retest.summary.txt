@@ -1,0 +1,17 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)
+  short  base                    132.1 +-   0.8  (n=3)
+                              drafts accepted 0.74
+  short  poll1                   131.3 +-   3.6  (n=3)   vs base:  -0.6% +-  3.3%  -> no difference
+                              drafts accepted 0.74
+  short  expdec-down             134.3 +-   0.2  (n=3)   vs base:  +1.7% +-  0.5%  -> better
+                              drafts accepted 0.74
+  short  device-spin             131.2 +-   4.0  (n=3)   vs base:  -0.6% +-  2.6%  -> no difference
+                              drafts accepted 0.74
+  edit   base                    134.7 +-   7.0  (n=3)
+                              drafts accepted 0.94
+  edit   poll1                   136.4 +-   6.5  (n=3)   vs base:  +1.3% +-  1.6%  -> no difference
+                              drafts accepted 0.95
+  edit   expdec-down             142.0 +-   7.0  (n=3)   vs base:  +5.4% +-  7.3%  -> no difference
+                              drafts accepted 0.94
+  edit   device-spin             136.6 +-   5.9  (n=3)   vs base:  +1.4% +-  8.9%  -> no difference
+                              drafts accepted 0.95

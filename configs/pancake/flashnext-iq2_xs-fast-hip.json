@@ -100,7 +100,8 @@
   "STRATA_ROUTE_PUBLISH": "1",
   "STRATA_ENGINE_NICE": "0",
   "STRATA_VERIFY_DEFER_CPU": "1",
-  "STRATA_POOL_FUSE_PHASES": "1"
+  "STRATA_POOL_FUSE_PHASES": "1",
+  "STRATA_EXPDEC_DOWN": "1"
  },
  "drafting": "mtp",
  "env_to_user": true,

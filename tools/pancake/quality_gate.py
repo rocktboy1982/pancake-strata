@@ -41,7 +41,7 @@ def main():
     ap.add_argument("spec")
     ap.add_argument("--out", required=True)
     ap.add_argument("--set", default="bench/quality/set.json")
-    ap.add_argument("--max-load", type=float, default=1.5)
+    ap.add_argument("--max-load", type=float, default=0.0)
     a = ap.parse_args()
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])

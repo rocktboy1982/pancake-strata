@@ -25,3 +25,10 @@ placement arms is confounded by different text.  Code edits (acceptance stable a
 
 Note (03): two whole runs came out ~25% slow (base r2, q2-prefetch r1) with no foreign CPU but kswapd / kcompactd active:
 memory compaction, not the arm.  The harness's foreign-CPU monitor does not see it; such runs show as large intervals.
+| 04 GPU launches | COMBINE_POLL1 / EXPDEC_SWIGLU / ROUTER_FUSE / IC_WARM_MB=32 / EXPDEC_DOWN / DEVICE_SPIN | +0.4..+4.3% n.s. (base run hit by reclaim) | -10..+0.3% n.s. | 0 | PASS (all 6) | retest the best three |
+| 04c retest (new harness, `2026-11-10-test-phase/`) | EXPDEC_DOWN=1 | **+1.7% +-0.5** | +5.4% +-7.3 n.s. | - | PASS (04) | **into fast-hip** |
+| 04c retest | COMBINE_POLL1 / DEVICE_SPIN | -0.6% n.s. | +1.3% / +1.4% n.s. | - | PASS (04) | opt-in (no gain) |
+
+Harness change before 04c: the 1-minute load-average wait is gone (it was the finished server's own threads decaying:
+45 of 04's 70 min); runs during memory reclaim / compaction (kswapd, kcompactd > 1% of a core) wait or are repeated.
+04c: 12 runs in 13.4 min (67 s per run, was ~200 s), no noisy run, intervals tighter (base short +-0.8 vs +-10.3).
