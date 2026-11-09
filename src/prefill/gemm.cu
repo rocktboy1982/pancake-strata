@@ -51,6 +51,7 @@
 #include <hipblaslt/hipblaslt.h>
 #include <hipblaslt/hipblaslt-ext.hpp>
 #include <map>
+#include <mutex>
 #include <set>
 #include <tuple>
 #endif
@@ -195,36 +196,16 @@ struct HipLtCachedAlgo {
     size_t workspace_bytes = 0;
 };
 
-struct HipLtState {
-    hipblasLtHandle_t handle = nullptr;
-    void* workspace = nullptr;
-    size_t workspace_bytes = 0;
-    strata::prefill::hipblaslt::TuningTable table;
-    std::map<HipLtCallKey, HipLtCachedAlgo> cache;
-    uint64_t lt_launches = 0;
-    uint64_t fallbacks = 0;
-    std::set<std::tuple<strata::prefill::hipblaslt::InputType, int, int, int, int>> fallback_shapes;
-
-    ~HipLtState() {
-        if (std::getenv("STRATA_HIPBLASLT_VERBOSE")) {
-            std::fprintf(stderr, "prefill gemm: hipBLASLt summary launches=%llu fallbacks=%llu unique_fallback_shapes=%zu\n",
-                         (unsigned long long) lt_launches, (unsigned long long) fallbacks, fallback_shapes.size());
-            for (const auto& shape : fallback_shapes) {
-                const auto type = std::get<0>(shape);
-                std::fprintf(stderr, "prefill gemm: fallback shape dtype=%s T=%d N=%d K=%d ldy=%d\n",
-                             type == strata::prefill::hipblaslt::InputType::bf16 ? "bf16" : "f16",
-                             std::get<1>(shape), std::get<2>(shape), std::get<3>(shape), std::get<4>(shape));
-            }
-        }
-        if (handle) hipblasLtDestroy(handle);
-    }
-};
-
 struct HipLtDescriptors {
     hipblasLtMatmulDesc_t op = nullptr;
     hipblasLtMatrixLayout_t a = nullptr;
     hipblasLtMatrixLayout_t b = nullptr;
     hipblasLtMatrixLayout_t c = nullptr;
+    std::mutex launch_mu;   // a cached set is shared: one hipblasLtMatmul at a time on it (uncontended in practice)
+
+    HipLtDescriptors() = default;
+    HipLtDescriptors(const HipLtDescriptors&) = delete;
+    HipLtDescriptors& operator=(const HipLtDescriptors&) = delete;
 
     ~HipLtDescriptors() {
         if (op) hipblasLtMatmulDescDestroy(op);
@@ -249,6 +230,122 @@ struct HipLtDescriptors {
         return true;
     }
 };
+
+// MOD_PLAN item 80: the launch descriptors (op + the A/B/C layouts) of one call shape, kept instead of being created and
+// destroyed on every hipBLASLt GEMM (four creates, two attribute sets and four destroys per call, on the host, ~720 calls a
+// chunk).  The key is everything the descriptors encode: dtype, T, N, K, ldy and the activation stride ldb (max(ldx, K)).
+// beta is a launch scalar, not part of a descriptor.  The algorithm still comes from resolve_hipblaslt_algo, unchanged,
+// so a cached set runs the same solution with the same descriptor contents as the per-call set it replaces.
+struct HipLtDescKey {
+    strata::prefill::hipblaslt::InputType type;
+    int t;
+    int n;
+    int k;
+    int ldy;
+    int ldb;
+
+    bool operator<(const HipLtDescKey& other) const {
+        return std::tie(type, n, k, ldy, ldb, t) < std::tie(other.type, other.n, other.k, other.ldy, other.ldb, other.t);
+    }
+};
+
+struct HipLtDescEntry {
+    std::shared_ptr<HipLtDescriptors> desc;   // shared: an entry evicted while a launch still holds it stays alive
+    uint64_t last_use = 0;
+};
+
+// STRATA_HIPBLASLT_DESC_CACHE: unset = on, at most kHipLtDescCacheDefault shapes; 0 / off / false = the per-call
+// descriptors of before; N = at most N shapes.  Read once per hipBLASLt state.
+constexpr size_t kHipLtDescCacheDefault = 256;
+size_t hipblaslt_desc_cache_cap() {
+    const char* v = std::getenv("STRATA_HIPBLASLT_DESC_CACHE");
+    if (v == nullptr || *v == 0) return kHipLtDescCacheDefault;
+    if (std::strcmp(v, "off") == 0 || std::strcmp(v, "false") == 0) return 0;
+    char* end = nullptr;
+    const long long n = std::strtoll(v, &end, 10);
+    if (end == v || *end != 0 || n < 0) {
+        std::fprintf(stderr, "prefill gemm: STRATA_HIPBLASLT_DESC_CACHE=%s is not a number; using %zu\n", v,
+                     kHipLtDescCacheDefault);
+        return kHipLtDescCacheDefault;
+    }
+    return (size_t) std::min<long long>(n, 1 << 16);
+}
+
+struct HipLtState {
+    hipblasLtHandle_t handle = nullptr;
+    void* workspace = nullptr;
+    size_t workspace_bytes = 0;
+    strata::prefill::hipblaslt::TuningTable table;
+    // `mu` guards cache, fallback_shapes and the descriptor cache (desc_cache, desc_tick and its counters): a Gemm may be
+    // reached from more than one host thread.  The launch itself runs outside it.
+    std::mutex mu;
+    std::map<HipLtCallKey, HipLtCachedAlgo> cache;
+    std::atomic<uint64_t> lt_launches{0};
+    std::atomic<uint64_t> fallbacks{0};
+    std::set<std::tuple<strata::prefill::hipblaslt::InputType, int, int, int, int>> fallback_shapes;
+    size_t desc_cap = kHipLtDescCacheDefault;
+    std::map<HipLtDescKey, HipLtDescEntry> desc_cache;
+    uint64_t desc_tick = 0;
+    uint64_t desc_hits = 0;
+    uint64_t desc_misses = 0;
+    uint64_t desc_evictions = 0;
+
+    ~HipLtState() {
+        if (std::getenv("STRATA_HIPBLASLT_VERBOSE")) {
+            std::fprintf(stderr, "prefill gemm: hipBLASLt summary launches=%llu fallbacks=%llu unique_fallback_shapes=%zu\n",
+                         (unsigned long long) lt_launches.load(), (unsigned long long) fallbacks.load(),
+                         fallback_shapes.size());
+            std::fprintf(stderr,
+                         "prefill gemm: hipBLASLt descriptor cache cap=%zu shapes=%zu hits=%llu misses=%llu evictions=%llu\n",
+                         desc_cap, desc_cache.size(), (unsigned long long) desc_hits, (unsigned long long) desc_misses,
+                         (unsigned long long) desc_evictions);
+            for (const auto& shape : fallback_shapes) {
+                const auto type = std::get<0>(shape);
+                std::fprintf(stderr, "prefill gemm: fallback shape dtype=%s T=%d N=%d K=%d ldy=%d\n",
+                             type == strata::prefill::hipblaslt::InputType::bf16 ? "bf16" : "f16",
+                             std::get<1>(shape), std::get<2>(shape), std::get<3>(shape), std::get<4>(shape));
+            }
+        }
+        desc_cache.clear();   // the cached descriptors go before the handle
+        if (handle) hipblasLtDestroy(handle);
+    }
+};
+
+// The launch descriptors for this call: the cached set (made on first use of the shape), or, with the cache off, a fresh
+// set as before.  nullptr when hipBLASLt refuses to create them.
+std::shared_ptr<HipLtDescriptors> hipblaslt_descriptors(HipLtState& state, strata::prefill::hipblaslt::InputType type,
+                                                        int t, int n, int k, int ldy, int ldx) {
+    const hipDataType input_type = type == strata::prefill::hipblaslt::InputType::bf16 ? HIP_R_16BF : HIP_R_16F;
+    const int ldb = ldx > k ? ldx : k;
+    auto make = [&]() -> std::shared_ptr<HipLtDescriptors> {
+        auto d = std::make_shared<HipLtDescriptors>();
+        if (!d->init(input_type, t, n, k, ldy, ldb)) return nullptr;
+        return d;
+    };
+    if (state.desc_cap == 0) return make();
+
+    const HipLtDescKey key{type, t, n, k, ldy, ldb};
+    std::lock_guard<std::mutex> lock(state.mu);
+    const uint64_t now = ++state.desc_tick;
+    if (const auto it = state.desc_cache.find(key); it != state.desc_cache.end()) {
+        it->second.last_use = now;
+        ++state.desc_hits;
+        return it->second.desc;
+    }
+    ++state.desc_misses;
+    auto d = make();
+    if (!d) return nullptr;   // not cached: the next call tries again and falls back the same way
+    if (state.desc_cache.size() >= state.desc_cap) {   // bounded: drop the least recently used shape (a scan, misses only)
+        auto victim = state.desc_cache.begin();
+        for (auto it = state.desc_cache.begin(); it != state.desc_cache.end(); ++it) {
+            if (it->second.last_use < victim->second.last_use) victim = it;
+        }
+        state.desc_cache.erase(victim);
+        ++state.desc_evictions;
+    }
+    state.desc_cache.emplace(key, HipLtDescEntry{d, now});
+    return d;
+}
 
 // The engine package's own tuning folder (<engine folder>/tuning), for a start that did not come through the launcher (a hand-made
 // config, a CLI run): without a table the prompt GEMMs fall back to plain hipBLAS and a Strix Halo reads prompts at half speed
@@ -316,8 +413,13 @@ std::unique_ptr<HipLtState> create_hipblaslt_state(void* workspace, size_t works
         std::fprintf(stderr, "prefill gemm: %s; using hipBLASEx\n", error.c_str());
         return nullptr;
     }
+    state->desc_cap = hipblaslt_desc_cache_cap();
     std::fprintf(stderr, "prefill gemm: hipBLASLt tuning enabled (%zu rows, %s, version %d)\n",
                  state->table.rows().size(), arch.c_str(), version);
+    if (state->desc_cap != kHipLtDescCacheDefault) {
+        std::fprintf(stderr, "prefill gemm: hipBLASLt descriptor cache %s (STRATA_HIPBLASLT_DESC_CACHE)\n",
+                     state->desc_cap == 0 ? "off" : (std::to_string(state->desc_cap) + " shapes").c_str());
+    }
     return state;
 }
 
@@ -327,6 +429,7 @@ HipLtCachedAlgo resolve_hipblaslt_algo(HipLtState& state, strata::prefill::hipbl
     static_assert(sizeof(beta_bits) == sizeof(beta));
     std::memcpy(&beta_bits, &beta, sizeof(beta));
     const HipLtCallKey key{type, t, n, k, ldy, beta_bits};
+    std::lock_guard<std::mutex> lock(state.mu);   // a miss resolves under the lock: once per shape, never on a hit's path
     const auto cached = state.cache.find(key);
     if (cached != state.cache.end()) return cached->second;
 
@@ -403,14 +506,17 @@ bool try_hipblaslt(void* opaque_state, strata::prefill::hipblaslt::InputType typ
         return false;
     }
     const auto resolved = resolve_hipblaslt_algo(*state, type, (int) t, (int) n, (int) k, (int) ldy, beta);
-    if (!resolved.supported) {
+    auto note_fallback = [&] {
         ++state->fallbacks;
+        std::lock_guard<std::mutex> lock(state->mu);
         state->fallback_shapes.emplace(type, (int) t, (int) n, (int) k, (int) ldy);
+    };
+    if (!resolved.supported) {
+        note_fallback();
         return false;
     }
     if (resolved.workspace_bytes > state->workspace_bytes) {
-        ++state->fallbacks;
-        state->fallback_shapes.emplace(type, (int) t, (int) n, (int) k, (int) ldy);
+        note_fallback();
         if (std::getenv("STRATA_HIPBLASLT_VERBOSE")) {
             std::fprintf(stderr, "prefill gemm: Lt fallback; solution needs %zu workspace bytes, have %zu\n",
                          resolved.workspace_bytes, state->workspace_bytes);
@@ -418,13 +524,18 @@ bool try_hipblaslt(void* opaque_state, strata::prefill::hipblaslt::InputType typ
         return false;
     }
 
-    HipLtDescriptors desc;
-    const hipDataType input_type = type == strata::prefill::hipblaslt::InputType::bf16 ? HIP_R_16BF : HIP_R_16F;
-    if (!desc.init(input_type, (int) t, (int) n, (int) k, (int) ldy, (int) ldx)) return false;
+    if (ldx > INT_MAX) return false;
+    const std::shared_ptr<HipLtDescriptors> desc =
+        hipblaslt_descriptors(*state, type, (int) t, (int) n, (int) k, (int) ldy, (int) ldx);
+    if (!desc) return false;
     const float alpha = 1.0f;
-    const hipblasStatus_t status = hipblasLtMatmul(state->handle, desc.op, &alpha, w, desc.a, x, desc.b, &beta, y,
-                                                   desc.c, y, desc.c, &resolved.algo, state->workspace,
-                                                   state->workspace_bytes, (hipStream_t) stream);
+    hipblasStatus_t status;
+    {
+        std::lock_guard<std::mutex> launch(desc->launch_mu);
+        status = hipblasLtMatmul(state->handle, desc->op, &alpha, w, desc->a, x, desc->b, &beta, y, desc->c, y,
+                                 desc->c, &resolved.algo, state->workspace, state->workspace_bytes,
+                                 (hipStream_t) stream);
+    }
     if (status == HIPBLAS_STATUS_SUCCESS) {
         ++state->lt_launches;
         return true;
@@ -435,13 +546,14 @@ bool try_hipblaslt(void* opaque_state, strata::prefill::hipblaslt::InputType typ
         std::fprintf(stderr, "prefill gemm: refusing a fallback after hipBLASLt failed with nonzero beta\n");
         std::exit(1);
     }
-    auto* mutable_state = static_cast<HipLtState*>(opaque_state);
     uint32_t beta_bits = 0;
     std::memcpy(&beta_bits, &beta, sizeof(beta_bits));
-    auto cached = mutable_state->cache.find(HipLtCallKey{type, (int) t, (int) n, (int) k, (int) ldy, beta_bits});
-    if (cached != mutable_state->cache.end()) cached->second.supported = false;
-    ++mutable_state->fallbacks;
-    mutable_state->fallback_shapes.emplace(type, (int) t, (int) n, (int) k, (int) ldy);
+    {
+        std::lock_guard<std::mutex> lock(state->mu);
+        auto cached = state->cache.find(HipLtCallKey{type, (int) t, (int) n, (int) k, (int) ldy, beta_bits});
+        if (cached != state->cache.end()) cached->second.supported = false;
+    }
+    note_fallback();
     return false;
 }
 #endif
