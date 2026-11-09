@@ -25,6 +25,11 @@
    "env": {
     "STRATA_EXPDEC_DOWN": "1"
    }
+  },
+  "device-spin": {
+   "env": {
+    "STRATA_DEVICE_SPIN": "1"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",

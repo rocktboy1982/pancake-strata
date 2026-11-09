@@ -24,4 +24,6 @@ for sp in "${specs[@]}"; do
     $PY tools/pancake/quality_gate.py "$sp" --out "$OUT/$n-quality" 2>&1 | tee "$OUT/$n.quality.txt" | grep -E 'PASS|REJECT|INCONCLUSIVE|FAILED'
   fi
 done
+# item 76: the device-spin arm is void unless the engine log says the scheduling flag was set
+grep -h "STRATA_DEVICE_SPIN=1" "$OUT"/04-gpu-launches/device-spin-*.out 2>/dev/null | sort | uniq -c | sed 's/^/device-spin check: /'
 echo "TEST PHASE DONE: $OUT"
