@@ -653,6 +653,19 @@ GPU and 4.0 x4 to the CPU M.2 (B450/X470 stay 3.0); the board chipset is not ide
 Promote est. ~58 us at Gen4, ~30 us at Gen5 vs ~42 us CPU (arithmetic, not measured) -> item 55 calibration matters.
 Not adopted (AMD): 8000G APUs as hosts (GPU slot cut to 4.0 x8/x4), X3D cache for expert weights (unproven; L3 prefetch was
 worse here), Vega/780M iGPUs (not in ROCm matrices).
+Added 2026-11-09 from the consumer-GPU researcher (platform round):
+61. VRAM-size-aware defaults: from the 20 GB data point (~4.7 GB non-expert, 10,909 of 24,576 pairs) estimate pairs per card
+    (8 GB ~10%, 12 GB ~21%, 16 GB ~33%, 24 GB ~56%, 32 GB ~79%, 48 GB all) and pick tier size / pcie-frac / prefetch defaults by
+    card class instead of one preset; x8 cards (RX 7600, RTX 4060 Ti/5060 Ti, Arc B580) on a PCIe 3.0 host (~6.5 GB/s) force
+    --pcie-frac 0.  Common work, ties into item 55 calibration.
+62. gfx12 (RDNA4) re-measure: pancake *-hip presets and the Strata-rdna3 ports are gfx11-tuned; gfx12 has its own WMMA paths and
+    defaults (pcie-frac 0.15 after upstream measured +9.9%/+25.6% at 8K/32K on R9700).  Only when a gfx12 card is available.
+Upgrade facts (no code): 7900 XTX 24 GB runs the same gfx1100 binary/presets (+~2,900 pairs); R9700 32 GB +~8,600 pairs but needs
+the gfx12 build; RX 9070 XT (640 GB/s, 16 GB) is a step down for VRAM experts; RTX 5090 strongest and enables strata-poly (CUDA).
+Promote break-even ~33 GB/s real link: PCIe 4.0 x16 measured ~28 GB/s just short; only Gen5 x16 card + Gen5 host passes on paper
+(no local Gen5 measurement) - sweep --pcie-frac on such a host rather than assume.
+Not adopted (GPU): RDNA4 FP8/BF8 WMMA and 4:2 sparse SWMMAC (no low-bit FP8 experts here; Flash-Next experts measured dense),
+RDNA2 support (no WMMA, no iu8 dot, untested package, not in the ROCm list).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
