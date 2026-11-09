@@ -632,6 +632,60 @@ CPU compute an expert the same way, so no output changes.  Both opt-in, default 
   (compare base vs seeded decode_tok_s per request in <tag>.requests.json; the corpus traces are short decode-only
   replies, so add code-edit traces with long context, e.g. bench_engines.py runs with --dump-routing, as code=TRACE.)
 
+## Phase 13: priority by measured gain (2026-11-09, owner: biggest gains first, then the rest)
+
+Where a decode window's time goes on the 7900 XT (fast-hip, measured 2026-11-08/09):
+
+| Request | Window | GPU | CPU experts | Draft | Note |
+| --- | ---: | ---: | ---: | ---: | --- |
+| short chat | 24.8 ms | 15.9 | 5.2 | 2.2 | the GPU spends ~42% of its kernel time waiting for CPU rows (rocprofv3, 2026-11-09) |
+| code edit (2K prompt) | 37.4 ms | 15.8 | 17.4 | 2.5 | CPU experts are 47% of the window |
+
+Prompt reading: 1,850-1,920 tok/s at 11.7K with the matching hipBLASLt table (1,345 without it).  In agent use a turn is
+prompt re-read + thinking tokens + answer tokens, so per-turn cache and thinking length weigh as much as tok/s.
+
+Tier P1 - the CPU expert time (the largest block; every ms is a ms of the window):
+| # | Item | Lever | Expected | Exact? |
+| --- | --- | --- | --- | --- |
+| P1a | 8 + 28: expert deferral on HIP (bisect queued), then the rank guard | overlap CPU experts with the next GPU layer | up to 1.45x (KTransformers); realistic +10-25% on code edits | lossy-small (rank guard) |
+| P1b | 14/27/30: time-based cache simulator (PCIe 3.0 cost per promotion), candidate policies, predictor recall | decide whether misses 20.4% -> ~10% (LRU/Belady band) can be bought without paying it back in PCIe | 0-30% on code edits (LRU-band hit rate would halve CPU work); build only at >= 5% | exact |
+| P1c | 13: offline sparsity masks (Berkeley gate mask first) | skip 50-85% of an expert's rows on the CPU | +10-20% (ceiling 1.25x) | lossy, quality gated |
+| P1d | 29: one phase per layer in the CPU pool (coded, opt-in STRATA_POOL_FUSE_PHASES) | 96 fewer park/wake barriers per window | 1-4% | exact |
+| P1e | 3-4: domain / conversation seeds (merged) | warm the right experts at a request start | +0.6-1.5 hit points | exact |
+
+Tier P2 - tokens per window (drafting): 174 of 231 drafts accepted in the profiled run.
+| P2a | 7: turbo-hip decision (ROUTE_PRIOR 0.5, 111.7 -> 149-168 tok/s measured) | quality gates decide default-for-some-modes | +30-50% | lossy |
+| P2b | 15/36/23: DISCO / SpecFit / AcceptMoE on top of MTP | longer accepted runs, fewer missed experts per draft | 0-15% | mostly exact |
+| P2c | stack of small exact flags (measured +1.4..+3.9%) and --lookup-max-t 12 (+1%, retest) | | +2-5% | exact |
+
+Tier P3 - the per-turn cost in agent use (seconds per turn, not ms per token):
+| P3a | 35 -> 31/16/11: restore-equivalence test, preserve_thinking, checkpoints at tool boundaries, turn-boundary checkpoint | no re-read of history already processed | seconds per turn; author: first edit -33% | exact |
+| P3b | 2: keep the decode cache through long prompts (lend sweep queued) | decode after an 11.7K prompt ~97 -> ~120 tok/s | +20% after long prompts | exact |
+| P3c | 12/21/33/34: effort defaults and learned thinking stop (other session) | 20-40% fewer thinking tokens on routine turns | tens of seconds per turn | changes text |
+
+Tier P4 - the GPU floor (15.9 ms): kernel fusion (395 kernels per token, ~5 us gaps), host stalls at window edges,
+32/37 parameter sweeps: 1-5% each, done after P1 because the GPU waits for the CPU anyway.
+
+Order of work: P1a, P1b (simulator first, it is offline), P1d A/B, P2a decision, P3a/P3b, P1c, P2b, P4.  Everything else in
+phases 7-11 stays below this line.
+
+## Phase 14 (after the capabilities exist): the application end to end, and new processes
+
+Goal: the whole loop (opencode -> serve/server.py -> engine -> tools -> next turn) as fast as possible, not only tok/s.
+1. Measure a real agent session as a timeline: per turn prompt re-read, thinking, answer, tool wait, idle GPU.  Rank the
+   turn-level losses the way phase 13 ranks the window-level ones.
+2. Use idle time: tool-run windows (seconds while a build/test runs) for pre-staging the next turn's experts (item 17),
+   prefix warm-up of the expected next prompt, and background compaction.
+3. Server/engine split: the server already knows the conversation, the domain and the tool state; pass that down so the
+   engine picks seeds, checkpoints and draft sources per turn (one request protocol, not more env switches).
+New processes built on these capabilities:
+- Automatic A/B harness: queue + load gate + same-binary pairs + result log, run unattended at night; every opt-in switch
+  gets a verdict line instead of a manual run.
+- Quality gate as a process: token forcing + fixed task set on every candidate preset before it becomes default.
+- Self-tuning from the owner's own sessions: routing traces recorded during normal use -> domain profiles, cache policy
+  and draft settings re-learned offline weekly, checked by the simulator, promoted by the A/B harness.
+- Regression watch: a short benchmark after each build/pull compared with the last good numbers.
+
 ## Phase 12 (future): a second GPU
 
 The owner plans a second card.  These were judged "does not apply" on one GPU (research reports above) and become the work
