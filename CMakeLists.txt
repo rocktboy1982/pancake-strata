@@ -790,7 +790,8 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     src/core/remote_expert_opt.cu
     src/core/expert_cache.cpp src/core/native_head.cpp src/core/native_dense.cpp src/core/verify.cpp src/core/mtp.cpp src/core/dflash2.cpp
     src/core/conversation_snapshot.cpp src/core/conversation_state.cpp src/core/conversation_memory.cpp src/core/peer_experts.cpp
-    src/core/arch_defaults.cpp src/core/nv_defaults.cpp src/core/vmm.cpp src/core/conversation_file.cpp)
+    src/core/arch_defaults.cpp src/core/nv_defaults.cpp src/core/vmm.cpp src/core/conversation_file.cpp
+    src/core/conversation_disk_tier.cpp)
   target_include_directories(strata_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
   target_link_libraries(strata_engine PUBLIC strata_core strata_kernels strata_kernels_cpu ${_strata_gpu_runtime_target})
   if(STRATA_BUILD_TESTS AND STRATA_ENABLE_CUDA AND NOT STRATA_HIP_GFX906)
@@ -815,6 +816,16 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_include_directories(memory_guard_test PRIVATE include)
     add_test(NAME memory_guard_test COMMAND memory_guard_test)
     set_tests_properties(memory_guard_test PROPERTIES TIMEOUT 60)
+  endif()
+  # MOD_PLAN item 39: the disk tier's key, index, choice, eviction policy and size cap, and a write/read round trip on
+  # a temporary folder - no GPU, no CUDA
+  if(STRATA_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core/conversation_disk_tier_test.cpp")
+    add_executable(conversation_disk_tier_test tests/core/conversation_disk_tier_test.cpp src/core/conversation_disk_tier.cpp
+                   src/core/conversation_file.cpp)
+    target_include_directories(conversation_disk_tier_test PRIVATE include)
+    target_link_libraries(conversation_disk_tier_test PRIVATE Threads::Threads)
+    add_test(NAME conversation_disk_tier_test COMMAND conversation_disk_tier_test)
+    set_tests_properties(conversation_disk_tier_test PROPERTIES TIMEOUT 60)
   endif()
 
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core/file_expert_source_test.cpp")

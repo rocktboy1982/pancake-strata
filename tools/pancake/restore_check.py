@@ -11,8 +11,15 @@ Each run starts a fresh server (the preset expanded as run-pancake.sh does, abte
 point (a partial hit) - and records every greedy answer.  Arm "restore" uses the cache as served; arm "reread" sets
 STRATA_CKPT_REREAD=1.  STRATA_SNAPSHOT_VERIFY=1 is set on both (the engine also checks the drafter's snapshot).
 
-    python tools/pancake/restore_check.py [--preset flashnext-iq2_xs-hip] [--port 18437] [--max-tokens 48] [--out FILE.json]
-        [--tool-boundary]   # MOD_PLAN 16: both arms with STRATA_CACHE_TOOL_BOUNDARY=1; "tool-retry" resumes at the call
+--disk adds arm "disk" (MOD_PLAN item 39, the disk tier for parked conversations): one parking slot, the disk tier on
+in a fresh folder with no size thresholds, two side conversations after every turn (the second one's park evicts the main
+conversation to disk) and a server restart before "follow-up" (QUIT hands what is parked to disk; the new engine finds it).  So every
+main turn after the first resumes from a state read back from disk; its answers must match the "reread" arm, and the
+engine log must show the tier writing and reading back.
+
+    python tools/pancake/restore_check.py [--preset flashnext-iq2_xs-hip] [--port 18437] [--max-tokens 48] [--disk] [--tool-boundary]
+                                          [--out FILE.json]
+    (--tool-boundary: MOD_PLAN 16, every arm with STRATA_CACHE_TOOL_BOUNDARY=1; "tool-retry" resumes at the call)
 
 Exit 0 when every turn matches, 1 on a difference, 2 on a setup error.  Needs the GPU for itself: run it only when no
 other engine serves (it refuses when something listens on the port) and outside a benchmark.
@@ -59,6 +66,13 @@ def turns():
             ("tool-retry", base + [call, retry])]
 
 
+SIDE_SYSTEM = ("You are a poet. Answer in one short line. " * 40).strip()   # shares no prefix with SYSTEM
+
+
+def side_turn(k):
+    return [{"role": "system", "content": SIDE_SYSTEM}, {"role": "user", "content": f"Write a line about the number {k}."}]
+
+
 def port_free(port):
     with socket.socket() as s:
         return s.connect_ex(("127.0.0.1", port)) != 0
@@ -101,43 +115,67 @@ def expand_preset(preset, out):
     Path(out).write_text(raw)
 
 
-def run_arm(name, env_extra, a):
+def stop_server(proc):
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)   # the server's Ctrl+C path: QUIT to the engine, then exit
+        proc.wait(timeout=120)
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def run_arm(name, env_extra, a, args_extra=None, side=False, restart_before=None):
     sys.path.insert(0, str(ROOT / "tools/pancake"))
     import abtest                                        # make_config: the same arm overrides abtest uses
     base = ROOT / f"restore-check-base.json"
     expand_preset(a.preset, base)
     cfg_path = ROOT / f"restore-check-{name}.json"
     cfg = abtest.make_config(str(base), {"env": {"STRATA_SNAPSHOT_VERIFY": "1", **env_extra},
-                                         "args": {"--adapt-swaps": "0"}}, str(cfg_path))
+                                         "args": {"--adapt-swaps": "0", **(args_extra or {})}}, str(cfg_path))
     cfg_path.write_text(json.dumps({**cfg, "turn_log": None}, indent=1))   # keep the daily turn log clean
     log_out = ROOT / f"restore-check-{name}.log"
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     # (STRATA_CACHE_TOOL_BOUNDARY is read by the server too: a config's env reaches only the engine)
     env.update({k: v for k, v in env_extra.items() if k.startswith("STRATA_CACHE_TOOL_BOUNDARY")})
-    with open(log_out, "w") as lf:
-        proc = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), str(ROOT / ".venv/bin/python"), "serve/server.py",
-                                 "--engine", "strata", "--config", str(cfg_path), "--port", str(a.port)],
-                                cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env, start_new_session=True)
-    try:
-        if not wait_ready(a.port, proc):
+    lf = open(log_out, "w")
+
+    def start():
+        p = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), str(ROOT / ".venv/bin/python"), "serve/server.py",
+                              "--engine", "strata", "--config", str(cfg_path), "--port", str(a.port)],
+                             cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env, start_new_session=True)
+        if not wait_ready(a.port, p):
             print(f"[{name}] server did not come up (see {log_out})", file=sys.stderr)
+            stop_server(p)
+            return None
+        return p
+
+    proc = start()
+    try:
+        if proc is None:
             return None
         answers = []
-        for label, msgs in turns():
+        for k, (label, msgs) in enumerate(turns()):
+            if label == restart_before:   # QUIT hands what is parked to disk; the next engine must find it there
+                stop_server(proc)
+                proc = start()
+                if proc is None:
+                    return None
             ans = chat(a.port, msgs, a.max_tokens)
             answers.append({"turn": label, **ans})
             print(f"[{name}] {label}: cached={ans['usage'].get('prompt_tokens_details', {}).get('cached_tokens')} "
                   f"out={ans['usage'].get('completion_tokens')}", flush=True)
+            if side:
+                # two side conversations: the first parks the main one (one slot), the second's park evicts it - to
+                # disk - so the next main turn finds it on disk only (a fetch runs before the outgoing state is parked)
+                chat(a.port, side_turn(2 * k), 8)
+                chat(a.port, side_turn(2 * k + 1), 8)
         return answers
     finally:
-        try:
-            os.killpg(proc.pid, signal.SIGTERM)
-            proc.wait(timeout=120)
-        except (ProcessLookupError, subprocess.TimeoutExpired):
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+        if proc is not None:
+            stop_server(proc)
+        lf.close()
 
 
 def main():
@@ -150,23 +188,43 @@ def main():
     ap.add_argument("--tool-boundary", action="store_true",
                     help="MOD_PLAN 16: both arms with STRATA_CACHE_TOOL_BOUNDARY=1 (gap 16, so the short scripted call "
                          "is checkpointed)")
+    ap.add_argument("--disk", action="store_true", help="also arm 'disk': every resume read back from the disk tier")
     a = ap.parse_args()
     if not port_free(a.port):
         print(f"port {a.port} is in use: refusing (one engine at a time on the GPU)", file=sys.stderr)
         return 2
     tb = {"STRATA_CACHE_TOOL_BOUNDARY": "1", "STRATA_CACHE_TOOL_BOUNDARY_GAP": "16"} if a.tool_boundary else {}
-    restore = run_arm("restore", dict(tb), a)            # both arms: --adapt-swaps 0 (fixed VRAM expert set)
+    restore = run_arm("restore", dict(tb), a)            # all arms: --adapt-swaps 0 (fixed VRAM expert set)
     reread = run_arm("reread", {"STRATA_CKPT_REREAD": "1", **tb}, a)
     if restore is None or reread is None:
         return 2
+    arms = {"restore": restore}
+    if a.disk:
+        import shutil
+        disk_dir = ROOT / "restore-check-disk"
+        shutil.rmtree(disk_dir, ignore_errors=True)
+        disk = run_arm("disk", {**tb, "STRATA_CONVERSATION_DISK_DIR": str(disk_dir), "STRATA_CONVERSATION_DISK_MAX_GIB": "8",
+                                "STRATA_CONVERSATION_DISK_MIN_TOKENS": "0", "STRATA_CONVERSATION_DISK_MIN_GAIN": "0"},
+                       a, args_extra={"--conversation-cache-slots": "1"}, side=True, restart_before="follow-up")
+        shutil.rmtree(disk_dir, ignore_errors=True)
+        if disk is None:
+            return 2
+        log = (ROOT / "restore-check-disk.log").read_text(errors="replace")
+        wrote, back = log.count("conversation disk: wrote"), log.count("conversation disk: read back a")
+        print(f"[disk] engine log: {wrote} writes, {back} reads back")
+        if wrote < 2 or back < 2:
+            print("[disk] the disk tier was not exercised (expected >= 2 writes and >= 2 reads back)", file=sys.stderr)
+            return 2
+        arms["disk"] = disk
     diffs = []
-    for r, q in zip(restore, reread):
-        same = r["content"] == q["content"] and r["reasoning"] == q["reasoning"] and r["tool_calls"] == q["tool_calls"]
-        print(f"{r['turn']}: {'MATCH' if same else 'DIFFERENT'}")
-        if not same:
-            diffs.append({"turn": r["turn"], "restore": r, "reread": q})
+    for arm, answers in arms.items():
+        for r, q in zip(answers, reread):
+            same = r["content"] == q["content"] and r["reasoning"] == q["reasoning"] and r["tool_calls"] == q["tool_calls"]
+            print(f"{arm} {r['turn']}: {'MATCH' if same else 'DIFFERENT'}")
+            if not same:
+                diffs.append({"arm": arm, "turn": r["turn"], arm: r, "reread": q})
     if a.out:
-        Path(a.out).write_text(json.dumps({"restore": restore, "reread": reread, "diffs": diffs}, indent=1))
+        Path(a.out).write_text(json.dumps({**arms, "reread": reread, "diffs": diffs}, indent=1))
     return 1 if diffs else 0
 
 
