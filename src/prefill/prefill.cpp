@@ -4490,23 +4490,69 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     }
                     // STRATA_SEL_OVERLAP (debug, D-1's question): how much do neighbouring queries' selections share?
                     // Per tile of 16 queries: the union of their selected cells against the sum of their widths.
-                    if (static const bool ovl = std::getenv("STRATA_SEL_OVERLAP") != nullptr; ovl && qsa_index == 0) {
+                    // pancake (BFLA's tile-shared selection, MOD_PLAN "BFLA (RDNA3)"): also, for tiles of 16 and 64 queries,
+                    // the share of each query's own cells that ONE tile set of the same width would hold - the cells the
+                    // most queries of the tile picked (ties: smaller cell) - over the queries whose selection is sparse.
+                    // STRATA_SEL_OVERLAP=all: every QSA layer (printed at the chunk's last one), else the first layer.
+                    if (static const char* ovl = std::getenv("STRATA_SEL_OVERLAP"); ovl != nullptr &&
+                        (qsa_index == 0 || std::strcmp(ovl, "all") == 0)) {
+                        static const bool all_layers = std::strcmp(ovl, "all") == 0;
                         std::vector<int32_t> ids((size_t) (T * m.cap));
                         cudaMemcpyAsync(ids.data(), m.sel_ids, ids.size() * 4, cudaMemcpyDeviceToHost, m.cs);
                         cudaStreamSynchronize(m.cs);
-                        double sum_w = 0, sum_u = 0;
+                        static double sum_w = 0, sum_u = 0, cov_num[2] = {0, 0}, cov_den[2] = {0, 0};
+                        if (qsa_index == 0) sum_w = sum_u = cov_num[0] = cov_num[1] = cov_den[0] = cov_den[1] = 0;
+                        auto width = [&](int64_t t) {
+                            return m.steps_host[(size_t) (t * strata::kernels::kStepCount + strata::kernels::kStepWidth)];
+                        };
                         for (int64_t t0 = 0; t0 + 16 <= T; t0 += 16) {
                             std::vector<int32_t> u;
                             for (int64_t t = t0; t < t0 + 16; ++t) {
-                                const int64_t w = m.steps_host[(size_t) (t * strata::kernels::kStepCount + strata::kernels::kStepWidth)];
-                                sum_w += (double) w;
-                                u.insert(u.end(), ids.begin() + t * m.cap, ids.begin() + t * m.cap + w);
+                                sum_w += (double) width(t);
+                                u.insert(u.end(), ids.begin() + t * m.cap, ids.begin() + t * m.cap + width(t));
                             }
                             std::sort(u.begin(), u.end());
                             sum_u += (double) (std::unique(u.begin(), u.end()) - u.begin());
                         }
-                        std::fprintf(stderr, "strata prefill: selection overlap at %lld: 16-query tiles read %.1f%% of the "
-                                             "cells one query at a time does\n", (long long) p0, sum_w > 0 ? 100.0 * sum_u / sum_w : 0.0);
+                        const int tiles[2] = {16, 64};
+                        for (int k = 0; k < 2; ++k)
+                            for (int64_t t0 = 0; t0 + tiles[k] <= T; t0 += tiles[k]) {
+                                if (p0 + t0 + 1 <= m.cap) continue;   // dense selections (every cell) say nothing
+                                std::vector<int32_t> all;
+                                int64_t w = 0;
+                                for (int64_t t = t0; t < t0 + tiles[k]; ++t) {
+                                    w = std::max<int64_t>(w, width(t));
+                                    all.insert(all.end(), ids.begin() + t * m.cap, ids.begin() + t * m.cap + width(t));
+                                }
+                                std::sort(all.begin(), all.end());
+                                std::vector<std::pair<int, int32_t>> votes;   // (-count, cell)
+                                for (size_t i = 0; i < all.size();) {
+                                    size_t j = i;
+                                    while (j < all.size() && all[j] == all[i]) ++j;
+                                    votes.push_back({-(int) (j - i), all[i]});
+                                    i = j;
+                                }
+                                std::sort(votes.begin(), votes.end());
+                                std::vector<int32_t> shared;
+                                for (int64_t i = 0; i < w && i < (int64_t) votes.size(); ++i) shared.push_back(votes[(size_t) i].second);
+                                std::sort(shared.begin(), shared.end());
+                                for (int64_t t = t0; t < t0 + tiles[k]; ++t) {
+                                    const int32_t* x = ids.data() + t * m.cap;
+                                    const int64_t n = width(t);
+                                    int64_t c = 0;
+                                    for (int64_t i = 0; i < n; ++i) c += std::binary_search(shared.begin(), shared.end(), x[i]);
+                                    cov_num[k] += (double) c;
+                                    cov_den[k] += (double) n;
+                                }
+                            }
+                        if (!all_layers || qsa_index + 1 == g.n_qsa_layers())
+                            std::fprintf(stderr, "strata prefill: selection overlap at %lld (%s): 16-query tiles read %.1f%% of the "
+                                                 "cells one query at a time does; one shared set of the width holds %.2f%% (16) / "
+                                                 "%.2f%% (64) of each query's cells\n",
+                                         (long long) p0, all_layers ? "all QSA layers" : "QSA layer 0",
+                                         sum_w > 0 ? 100.0 * sum_u / sum_w : 0.0,
+                                         cov_den[0] > 0 ? 100.0 * cov_num[0] / cov_den[0] : 100.0,
+                                         cov_den[1] > 0 ? 100.0 * cov_num[1] / cov_den[1] : 100.0);
                     }
                     // STRATA_IDX_FP16_CHECK: would FP16 pooled indexer keys select the same cells? (the KV-streaming
                     // design's last question). Every query is selected again from the pooled keys and `dead` rounded
