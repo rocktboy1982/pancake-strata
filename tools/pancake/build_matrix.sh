@@ -19,6 +19,10 @@
 #   hip-tests    HIP gfx1100 + STRATA_BUILD_TESTS=ON (builds `strata` only here; `--tests` builds every target)
 #   cuda-86      CUDA sm_86 (RTX 3060 line), skipped when nvcc is missing
 #
+# Every run (also --configure-only) first runs tools/pancake/check_stubs.py (seconds, no compiler): the no-backend stub
+# files (moe_*_stub.cpp, rdna_stub.cpp) against their headers, so a header function without its stub is caught even
+# when the row that links the stub is not built (MOD_PLAN 95b).
+#
 # Uses ccache when it is installed.  Exit status: 0 when every selected row passed, 1 otherwise.  Logs:
 # build-matrix/<row>.log.  Do not run while a benchmark is measuring the machine (tools/pancake/abtest.py marks such
 # runs NOISY and repeats them).
@@ -39,7 +43,7 @@ for a in "$@"; do
     --tests) TESTS=1 ;;
     --head) HEAD_ONLY=1 ;;
     hip-mmq|hip-nommq|hip-tests|cuda-86) ROWS+=("$a") ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     *) echo "unknown argument: $a (rows: hip-mmq hip-nommq hip-tests cuda-86)" >&2; exit 2 ;;
   esac
 done
@@ -60,6 +64,12 @@ if [ $HEAD_ONLY -eq 1 ]; then
 fi
 fail=0
 summary=()
+PY=$REPO/.venv/bin/python; [ -x "$PY" ] || PY=python3
+if "$PY" "$SRC/tools/pancake/check_stubs.py" >"$OUT/check_stubs.log" 2>&1; then
+  summary+=("check_stubs: ok")
+else
+  summary+=("check_stubs: FAILED - $(grep -m1 -v '^check_stubs:' "$OUT/check_stubs.log" || echo "see $OUT/check_stubs.log")"); fail=1
+fi
 for row in "${ROWS[@]}"; do
   tag=$row; [ $HEAD_ONLY -eq 1 ] && tag=head-$row
   dir=$OUT/$tag; log=$OUT/$tag.log; env=(ROCM_PATH="$ROCM"); targets=(--target strata)
