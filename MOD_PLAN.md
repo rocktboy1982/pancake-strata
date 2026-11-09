@@ -515,6 +515,15 @@ Added 2026-11-09 from the European report:
     speculative decoding (ETH type-constrained decoding, PLDI 2025: >50% fewer compile errors) - fewer failed turns.
 27. Item 14 simulator gets Harmonia/Athena (SAFARI, online-learned placement) and MoE-Infinity (activation-matrix match)
     as candidate policies; item 13 gets the Polish/Sapienza per-layer thresholds (no new item).
+Added 2026-11-09 from the Asia report (BFLA, CityU, arXiv 2605.12193, Apache-2.0; design: docs/BFLA_RDNA3.md, branch
+feat/bfla-hip):
+28. Flash-Next: no BFLA.  Pancake's QSA prompt path already attends 2051 cells a query (linear in N); BFLA's budget (V/3
+    up to 32K) would read ~16x more at 128K, and the paper's own QSA baseline is as fast as BFLA (its gain is vs dense
+    FA3).  Transferable idea only: one QSA selection per tile of queries (cuts the N^2 select); measure the overlap with
+    STRATA_SEL_OVERLAP first; lossy, token forcing.
+29. BFLA on the qwen35 engine (Qwen3.6-35B / Qwen3.8-35B-Distill: 10 dense attention layers, GQA 8, today materialised
+    hipBLAS scores): opt-in STRATA_BFLA=1 above STRATA_BFLA_MIN (32K), STRATA_BFLA=dense = the same fused WMMA kernel
+    with every block (item 8.8 for this engine).  Replaces item 19 (XAttention) as the block-sparse prefill route.
 Also: presence_penalty must stay 0 for tool calling (DASLab MoESQ card: SWE-bench 74.7 -> 70.6 with it on).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
