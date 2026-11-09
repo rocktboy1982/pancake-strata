@@ -33,6 +33,7 @@ class Window:
     position: int | None
     ms: float | None
     layers: dict = field(default_factory=dict)
+    drafts: np.ndarray | None = None   # the drafter's probability per draft position (record 3, optional)
 
 
 @dataclass
@@ -77,6 +78,14 @@ def read(path):
                 off += 4 * m
             if cur is not None:
                 cur.layers[layer] = Layer(rec["id"].reshape(nt, k).astype(np.int16), rec["kind"].reshape(nt, k), w)
+        elif typ == 3:
+            _, nd, _ = struct.unpack_from("<BBH", raw, off)
+            off += 4
+            if off + 4 * nd > n:
+                break
+            if cur is not None:
+                cur.drafts = np.frombuffer(raw, dtype="<f4", count=nd, offset=off).copy()
+            off += 4 * nd
         else:
             raise ValueError(f"{path}: bad record type {typ} at {off}")
     return Trace(nl, ne, k, wins)

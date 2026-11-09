@@ -13,6 +13,7 @@
 //           (kind: 0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped tail), then n_tok*k f32 weights if bit0
 //   window: u8 2, u8 rows (T), u8 accepted (255: a merged prompt window, no drafts), u8 0, i64 position, f32 ms since the previous window's commit;
 //           a window record comes first, then its layer records
+//   drafts: u8 3, u8 n, u16 0, n x f32 (the drafter's probability per draft position; optional, item 5)
 // Only the serve verify windows (drive_pool_multi_impl + the commit in the serve loop) write it.
 #include <algorithm>
 #include <chrono>
@@ -85,6 +86,16 @@ public:
                          (long long) (cap_ >> 20));
         }
         buf_.clear();
+    }
+
+    /// The window's draft confidences (the drafter's probability of each drafted token, position 1..n), for the tail-row
+    /// replay (item 5).  Written as a record of its own: u8 3, u8 n, u16 0, then n f32.  Optional.
+    void drafts(const float* p, int n) {
+        if (f_ == nullptr || p == nullptr || n <= 0) return;
+        n = std::min(n, 255);
+        const uint8_t h[4] = {3, (uint8_t) n, 0, 0};
+        put(h, 4);
+        put(p, (size_t) n * 4);
     }
 
     /// A window that ended without a commit (an error, a cancelled request): its layers are dropped.
