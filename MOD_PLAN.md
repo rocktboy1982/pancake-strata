@@ -811,6 +811,12 @@ Added 2026-11-09 from the Asian report:
 30. Offline recall test of three next-expert predictors on routing traces (next-layer router on the current hidden state; the
     pre-attention state; the MTP hidden state), recall@10/16/24; use only with PCIe 3.0 promotion cost counted (feeds item 14).
     ProMoE scheduling (chunked, cancellable transfers; cached -> in-flight -> CPU order) goes into the item 14 simulator first.
+    RESULT 2026-11-09 (predictor 1 measured, item closed): STRATA_LOOKAHEAD_STATS=1 (exists), fast-hip, short + code edit,
+    K 10/16/24: the next-layer router on layer l's input covers 19-21% of layer l+1's non-resident experts (precision
+    13-16%, 3.6-5.8 predicted/layer).  At ~117 us of DMA per promotion vs 23-60 us of CPU per miss, predicted promotions do
+    not pay; predictors 2-3 (pre-attention state, MTP state) are further from the routing than the current layer's state:
+    not built.  Item 27's candidates are covered by k-th-miss admission (online) and the conversation working set
+    (MoE-Infinity-style match).  bench/results/2026-11-09-lookahead-recall/.
 31. preserve_thinking end to end: server and template honour it; check that opencode resends earlier reasoning, else the
     conversation cache re-reads from the first dropped block every turn.
 32. Gated Residual kernel count at batch 1 (SGLang small-M fusion idea) inside the item 1 GPU profile; FP8 irrelevant on RDNA3.

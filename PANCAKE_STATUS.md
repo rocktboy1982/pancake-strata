@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 16:50
+Last update: 2026-11-09 17:15
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
@@ -16,7 +16,7 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | P1b | Expert cache judged in ms (simulator) | 14 | decides the policy | tools/pancake/time_ceiling.py: oracle +27..48%, online 2nd-miss +5..16% (code edits, model) | 100% | - |
 | P1b | More swaps per window (existing --adapt-swaps) | 14 | +4..9% code edit (model) | nothing to build | 100% | 0% |
 | P1b | Admit on k-th miss in W windows (new, STRATA_ADAPT_KMISS) | 14 | +5..16% code edit (model) | coded, builds (b5f1842f0) | 100% | 0% |
-| P1b | Candidate policies in the simulator (Harmonia, MoE-Infinity, ProMoE), predictor recall | 27, 30 | decides further work | not started | 0% | - |
+| closed | Predictor recall / candidate policies | 27, 30 | - | lookahead recall 19-21% of misses (measured): predicted promotions do not pay; 27 covered by kmiss + conversation seeds | 100% | 100% |
 | P1b | Simulator: per-layer GPU/CPU overlap model (--overlap) | 14 | decides 8/28/29 | built: code edit deferral +33%, deferral + kmiss 2/8 +45..52%, item 29 +3% (model, alpha 0.25-0.5) | 100% | - |
 | closed | CPU sparsity masks (Berkeley gate mask, TEAL, CATS) | 13 | +10-20%, lossy | REJECTED offline: at 70% sparsity gate mask cos 0.84 (~54% error), oracle 0.95; experts are dense -> no sparse kernel (bench/results/2026-11-09-sparsity) | 100% | 100% |
 | P1d | One CPU pool phase per layer (STRATA_POOL_FUSE_PHASES) | 29 | 1-4%, exact | coded, builds (35c512984) | 100% | 0% |
@@ -41,4 +41,4 @@ other work ran on the machine during them; the test phase repeats every A/B on a
 | Ph14 | Self-tuning from own sessions (traces -> profiles -> simulator -> A/B) | 14 | - | pieces exist (dump-routing, learn_profile, time_ceiling); pipeline not built | 20% | 0% |
 | Ph14 | Diagnostic: decode speed along a reply (tools/pancake/decode_curve.py) | 2 | - | built, used to close item 2 | 100% | - |
 
-Development order from here: P1b simulator policies (27, 30) -> P4 GPU fusions -> phase 14 self-tuning pipeline + agent-session timeline.  Then the test phase (abtest.py + quality_gate.py).
+Development order from here: P4 GPU fusions -> phase 14 self-tuning pipeline + agent-session timeline.  Then the test phase (abtest.py + quality_gate.py).
