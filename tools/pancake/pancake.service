@@ -1,0 +1,33 @@
+# pancake.service - pancake-strata on 127.0.0.1:11437 for opencode (MOD_PLAN item 73 / 91).
+# Install: cp tools/pancake/pancake.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+# Start:   systemctl --user start pancake      (enable: systemctl --user enable pancake)
+# Model:   PANCAKE_MODEL (iq2_xs | q2_0 ...) and PANCAKE_MODE (fast | exact | turbo) in a drop-in, default iq2_xs fast.
+[Unit]
+Description=pancake-strata LLM server (port 11437)
+After=network-online.target
+# all of them need the whole 7900 XT and/or port 11437
+Conflicts=strata.service avalon.service qwen35b.service
+# stop retrying after 5 failed starts in 10 minutes (avalon.service once looped 1,230 times on a missing model)
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+Environment=PORT=11437 NOCAP=1 PANCAKE_MODEL=iq2_xs PANCAKE_MODE=fast STRATA_RAM_KEEP_GIB=12
+WorkingDirectory=/home/dan/clone-of-d/src/Strata
+# the models live on the NTFS partition (ntfs3) mounted at /home/dan/clone-of-d: wait for it at boot, then for the
+# RAM of a previous run to be given back (run-pancake.sh with NOCAP=1 waits as capped.sh does)
+ExecStartPre=/bin/sh -c 'for i in $(seq 90); do [ -d /home/dan/clone-of-d/Strata-data/packs ] && exit 0; sleep 2; done; echo "model partition not mounted" >&2; exit 1'
+ExecStart=/bin/sh -c 'exec /home/dan/clone-of-d/src/Strata/run-pancake.sh "$PANCAKE_MODEL" "$PANCAKE_MODE"'
+# what capped.sh's scope set: a hard memory backstop for the whole unit, no swap; oomd then kills only this unit
+MemoryMax=54G
+MemorySwapMax=0
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=15min
+TimeoutStopSec=60
+StandardOutput=append:/home/dan/clone-of-d/src/Strata/pancake-service.log
+StandardError=append:/home/dan/clone-of-d/src/Strata/pancake-service.log
+
+[Install]
+WantedBy=default.target

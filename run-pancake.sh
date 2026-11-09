@@ -54,4 +54,12 @@ CFG="$REPO/pancake-$PRESET.json"
 sed -e "s#<STRATA_DATA>#$DATA#g" -e "s#<REPO>#$REPO#g" -e "s#<MODELS>#$MODELS#g" -e "s#/build-cuda/#/$BUILD/#" \
   "configs/pancake/$PRESET.json" > "$CFG"
 export LD_LIBRARY_PATH=$LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+# NOCAP=1: the caller already caps memory (pancake.service sets MemoryMax itself; capped.sh's systemd-run --scope
+# would move the engine out of the unit's cgroup, so stop/restart/Conflicts= would no longer reach it)
+if [ "${NOCAP:-0}" = 1 ]; then
+  # wait until the RAM of a previous run is given back, as capped.sh does
+  for _ in $(seq 120); do [ "$(awk '/MemAvailable/{print int($2/1048576)}' /proc/meminfo)" -ge "${WAIT_GIB:-48}" ] && break; sleep 5; done
+  export STRATA_RAM_KEEP_GIB="${STRATA_RAM_KEEP_GIB:-12}"
+  exec "$REPO/.venv/bin/python" "$REPO/serve/server.py" --engine strata --config "$CFG" --port "${PORT:-8080}"
+fi
 exec "$REPO/tools/pancake/capped.sh" "$REPO/.venv/bin/python" "$REPO/serve/server.py" --engine strata --config "$CFG" --port "${PORT:-8080}"
