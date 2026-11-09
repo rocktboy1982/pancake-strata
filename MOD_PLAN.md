@@ -441,6 +441,7 @@ lookahead's next-layer CPU experts); A/B pending with the Q2_0 model test.
 | MIT/Harvard papers 2022-2026 (reports/Lucrări MIT Harvard pentru Avalon.md) | research_notes/Lucrări MIT Harvard pentru Avalon/ | TEAL over CATS (item 13); GDN chunk 64 (item 18); XAttention opt-in (item 19); learned thinking stop (item 21); bit allocation guidance (Scaling Laws for Precision) |
 | Rest of US universities 2022-2026: Berkeley, CMU, UW, Princeton, Cornell, UCSD, Duke, Rice, Stevens, ... (reports/Lucrări universități SUA pentru Avalon.md) | research_notes/Lucrări universități SUA pentru Avalon/ | items 13-17, 20, 22; SuffixDrafter/DraftPolicy already cover TurboSpec/Sequoia-style length choice; QTIP/IQ2_KT not worth a requant; Europe, Asia, Canada, Pacific/Africa/Latin America reports follow |
 | European universities 2022-2026: ETH/EPFL, ISTA + Central Europe, UK, France/South/Nordics/Israel (reports/Lucrări Europa pentru Avalon.md) | research_notes/Lucrări Europa pentru Avalon/ | daily files are ISTA-DASLab GSQ-RCO (Q2_0 93.8 vs IQ2_XS 70.3 tok/s on DASLab's card, -0.09 task avg: Q2_0 confirmed); base is 176.9B incl. the 51B n-gram table; "IQ2_XS" experts are IQ2_S/IQ2_XXS/IQ1_M + Q2_0 down; items 23-27; cache-conditional routing (Qualcomm/UvA) = STRATA_ROUTE_PRIOR, finish item 7; security: GGUF-quantization backdoors (ETH "Mind the Gap") -> official files + SHA-256 vs HF |
+| Asian universities + labs 2022-2026: Tsinghua/PKU, rest of mainland China, HK/Taiwan/Singapore, Korea/Japan/India, Qwen/DeepSeek/Moonshot/ByteDance/MiniMax/Xiaomi (reports/Lucrări Asia pentru Avalon.md) | research_notes/Lucrări Asia pentru Avalon/ | Qwen3.8 tech report checked against our code: MTP depth already --spec 4 (official 4.07 accepted at 4 steps), drafter has no PLE block and dense SWA attention (SGLang shortcuts already here), PLE via --ple-io direct (not mmap; Europe report corrected), grammar deferred after </think>; Avalon still at --spec-draft-n-max 2 (A/B 3/4); official thinking sampling T=1.0 noted, owner keeps 0.1; items 28-32 |
 
 Development pass done 2026-11-08 night (owner: develop everything first, then test and optimize):
 - items 3-4 merged from feat/pattern-cache and built (HIP and CUDA compile; expert_seed_test ok; 7/7 Python tests);
@@ -516,6 +517,21 @@ Added 2026-11-09 from the European report:
 27. Item 14 simulator gets Harmonia/Athena (SAFARI, online-learned placement) and MoE-Infinity (activation-matrix match)
     as candidate policies; item 13 gets the Polish/Sapienza per-layer thresholds (no new item).
 Also: presence_penalty must stay 0 for tool calling (DASLab MoESQ card: SWE-bench 74.7 -> 70.6 with it on).
+Added 2026-11-09 from the Asian report:
+28. Item 8 rank guard (KTransformers, SOSP'25): STRATA_VERIFY_DEFER_CPU_BELOW (0.1) and "never the last layer" exist; add "always
+    immediate when in the token's top-2", measure at verify windows 1/2/4/8 after the HIP non-finite bisect.  Hand-off stays the
+    doorbell/partial-flag protocol (no HIP graphs).
+29. Per-expert barriers in the CPU pool instead of the global run_phase sync between gate/up and down, SiLU*mul fused into gate/up
+    (Tsinghua OSDI'26) - a few percent of CPU expert time.
+30. Offline recall test of three next-expert predictors on routing traces (next-layer router on the current hidden state; the
+    pre-attention state; the MTP hidden state), recall@10/16/24; use only with PCIe 3.0 promotion cost counted (feeds item 14).
+    ProMoE scheduling (chunked, cancellable transfers; cached -> in-flight -> CPU order) goes into the item 14 simulator first.
+31. preserve_thinking end to end: server and template honour it; check that opencode resends earlier reasoning, else the
+    conversation cache re-reads from the first dropped block every turn.
+32. Gated Residual kernel count at batch 1 (SGLang small-M fusion idea) inside the item 1 GPU profile; FP8 irrelevant on RDNA3.
+Item 13 also gets CHESS per-channel thresholds, union sparsity over verify windows, transposed down layout.  Item 19: BFLA
+(CityU; benchmarks Flash-Next itself, 1.34-1.44x TTFT at 128-256K) is the candidate instead of XAttention - port in progress on
+feat/bfla-hip.  Any-Precision for draft passes does not apply (MTP drafter keeps all 512 experts in VRAM, 835 MiB).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
 inputs, AsyncFC, GEPA on the compaction prompt.  Quality gates for lossy items: token forcing -> BFCL v4 multi-turn +
