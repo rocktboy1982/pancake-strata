@@ -20,6 +20,11 @@
    "env": {
     "STRATA_IC_WARM_MB": "32"
    }
+  },
+  "expdec-down": {
+   "env": {
+    "STRATA_EXPDEC_DOWN": "1"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",

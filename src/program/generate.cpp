@@ -13179,7 +13179,8 @@ int main(int argc, char** argv) {
         strata::program::KMissTier kmiss = strata::program::KMissTier::from_env();
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
-        auto swap_cap = [&]() -> int { return sbud.on() ? sbud.swaps() : o.adapt_swaps; };
+        int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
+        auto swap_cap = [&]() -> int { return (sbud.on() ? sbud.swaps() : o.adapt_swaps) * idle_mult; };
         if (kmiss.on() && o.adapt_every > 0 && o.adapt_swaps > 0)
             std::fprintf(stderr, "strata serve: STRATA_ADAPT_KMISS=%d,%d: the tier admits an expert after %d misses in %d "
                                  "rounds and evicts the least recently routed\n", kmiss.k(), kmiss.w(), kmiss.k(), kmiss.w());
@@ -13900,8 +13901,22 @@ int main(int argc, char** argv) {
             st->eof = true;
             st->cv.notify_one();
         }).detach();
+        // MOD_PLAN item 17 (STRATA_IDLE_ADAPT=N, opt-in): while no request is waiting (a tool runs, the user reads), the
+        // blocking adaptive tier runs up to N extra rounds at 4x the swaps, so the routing counts of the conversation
+        // so far are in VRAM when its next turn starts.  Placement only; stops as soon as a line arrives.
+        static const int idle_rounds = [] { const char* v = std::getenv("STRATA_IDLE_ADAPT"); return v ? std::max(0, std::atoi(v)) : 0; }();
+        std::function<bool()> idle_hook;   // set below, once the tier exists (false: stop)
         auto next_line = [&](std::string& out) -> bool {
             std::unique_lock<std::mutex> lk(in_mu);
+            if (idle_rounds > 0 && idle_hook &&
+                !in_cv.wait_for(lk, std::chrono::milliseconds(150), [&] { return !in_lines.empty() || in_eof; })) {
+                for (int r = 0; r < idle_rounds; ++r) {
+                    lk.unlock();
+                    const bool more = idle_hook();
+                    lk.lock();
+                    if (!more || !in_lines.empty() || in_eof) break;
+                }
+            }
             in_cv.wait(lk, [&] { return !in_lines.empty() || in_eof; });
             if (in_lines.empty()) return false;
             out = std::move(in_lines.front());
@@ -13909,6 +13924,16 @@ int main(int argc, char** argv) {
             return true;
         };
         sp.should_stop = [&] { return stop_req.load(); };
+        if (idle_rounds > 0 && o.adapt_every > 0 && o.adapt_swaps > 0 && !o.adapt_async) {
+            idle_hook = [&]() -> bool {
+                const int64_t before = adapt_nswaps;
+                idle_mult = 4;
+                const bool ok = adapt();
+                idle_mult = 1;
+                return ok && adapt_nswaps > before;   // nothing more worth swapping: stop
+            };
+            std::fprintf(stderr, "strata serve: STRATA_IDLE_ADAPT=%d: the adaptive tier catches up between requests (item 17)\n", idle_rounds);
+        }
         // 149-prefetch STRATA_RAM_ADAPT2: the prompt's routing seeds the RAM policy with a limited weight
         // (STRATA_RAM_ADAPT_PROMPT_W, default 0.25: an expert every prompt token routes to counts like ~5 decode routings),
         // fading by 5% a decode window; the decode's own counts and the GPU tier are untouched

@@ -21,6 +21,11 @@
    "env": {
     "STRATA_ADAPT_SWAPS_AUTO": "1"
    }
+  },
+  "idle-adapt4": {
+   "env": {
+    "STRATA_IDLE_ADAPT": "4"
+   }
   }
  },
  "base": "pancake-flashnext-iq2_xs-rdna3test.json",
