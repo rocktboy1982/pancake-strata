@@ -3938,7 +3938,20 @@ int strata::qwen35::run(int argc, char** argv) {
         }
         return 0;
     }
-    const std::vector<int32_t> prompt = parse_ids(tokens.c_str()), forced = parse_ids(force.c_str());
+    // "@FILE": the ids from a file (a long prompt's ids do not fit one command-line argument, 128 KiB on Linux)
+    auto ids_arg = [](const std::string& v) {
+        if (v.empty() || v[0] != '@') return v;
+        FILE* f = std::fopen(v.c_str() + 1, "rb");
+        if (f == nullptr) { std::fprintf(stderr, "strata-q36: cannot read %s\n", v.c_str() + 1); std::exit(2); }
+        std::string r;
+        char buf[65536];
+        for (size_t n; (n = std::fread(buf, 1, sizeof buf, f)) > 0;) r.append(buf, n);
+        std::fclose(f);
+        for (char& c : r) if (c == '\n' || c == '\r' || c == '\t') c = ' ';
+        return r;
+    };
+    const std::string tokens_s = ids_arg(tokens), force_s = ids_arg(force);
+    const std::vector<int32_t> prompt = parse_ids(tokens_s.c_str()), forced = parse_ids(force_s.c_str());
     if (prompt.empty()) { std::fprintf(stderr, "strata-q36: --tokens, --serve or --bench-pp is required\n"); return 2; }
     if (!forced.empty()) n_gen = (int) forced.size() + 1;
     FILE* ff = dump_full.empty() ? nullptr : std::fopen(dump_full.c_str(), "wb");
