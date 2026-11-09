@@ -106,6 +106,10 @@ void wait_flag_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, cons
 void gpu_stamp(unsigned long long* buf, int i, void* stream);
 /// an empty one-thread kernel (a graph node that does nothing: STRATA_DUMMY_NODES measures what a node costs in a window)
 void gpu_noop(void* stream);
+/// MOD_PLAN item 47: read `n` device spans (segs = {ptr, bytes} pairs, 16-byte aligned starts) once, up to `cap` bytes in
+/// all, so the next kernels that read them hit the GPU's last-level cache (Infinity Cache on RDNA3).  Writes nothing.
+struct WarmSeg { unsigned long long ptr, bytes; };
+void ic_warm(const WarmSeg* segs, int n, unsigned long long cap, void* stream);
 /// dst[r][0, w) = src[r][0, w) for `rows` rows of source stride `src_w` floats (the query half of each q/gate head
 /// pair): the strided device-to-device cudaMemcpy2DAsync as a kernel, so the window's chain stays kernel to kernel.
 /// w and src_w multiples of 4 floats, both pointers 16-byte aligned.

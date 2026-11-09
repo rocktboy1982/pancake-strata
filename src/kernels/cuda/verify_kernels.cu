@@ -1839,6 +1839,28 @@ namespace {
 __global__ void noop_kernel() {}
 }  // namespace
 void gpu_noop(void* stream) { noop_kernel<<<1, 32, 0, (cudaStream_t) stream>>>(); }
+namespace {
+__device__ unsigned int g_ic_warm_sink;
+__global__ void ic_warm_kernel(const WarmSeg* __restrict__ segs, int n, unsigned long long cap) {
+    unsigned int acc = 0;
+    unsigned long long done = 0;
+    const unsigned long long stride = (unsigned long long) gridDim.x * blockDim.x * 16ull;
+    for (int s = 0; s < n && done < cap; ++s) {
+        const unsigned long long len = segs[s].bytes < cap - done ? segs[s].bytes : cap - done;
+        const unsigned char* base = (const unsigned char*) segs[s].ptr;
+        for (unsigned long long o = ((unsigned long long) blockIdx.x * blockDim.x + threadIdx.x) * 16ull; o + 16 <= len; o += stride) {
+            const uint4 v = *(const uint4*) (base + o);
+            acc ^= v.x ^ v.y ^ v.z ^ v.w;
+        }
+        done += len;
+    }
+    if (acc == 0x9e3779b9u && threadIdx.x == 0xffff) g_ic_warm_sink = acc;   // never true: keeps the loads
+}
+}  // namespace
+void ic_warm(const WarmSeg* segs, int n, unsigned long long cap, void* stream) {
+    if (n <= 0 || segs == nullptr) return;
+    ic_warm_kernel<<<64, 256, 0, (cudaStream_t) stream>>>(segs, n, cap);
+}
 void gpu_stamp(unsigned long long* buf, int i, void* stream) {
     if (pdl_scope()) launch_pdl(gpu_stamp_kernel<true>, dim3(1), dim3(1), 0, (cudaStream_t) stream, buf, i);
     else gpu_stamp_kernel<false><<<1, 1, 0, (cudaStream_t) stream>>>(buf, i);

@@ -10,6 +10,7 @@
 #include "strata/core/defaults_026.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/core/verify.hpp"
+#include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
@@ -767,6 +768,10 @@ Verifier::~Verifier() {
     if (arena_) cudaFree(arena_);
     if (hcount_d_) cudaFree(hcount_d_);
     if (presum_vram_) cudaFree(presum_vram_);
+    if (warm_segs_) cudaFree(warm_segs_);
+    if (warm_) cudaStreamDestroy(warm_);
+    if (warm_fork_) cudaEventDestroy(warm_fork_);
+    if (warm_join_) cudaEventDestroy(warm_join_);
     void* hosts[] = {h_tok_, h_step_, h_pos_, h_commit_, h_ple_, h_out_, h_x_, h_ids_, h_w_, h_seq_, h_flag_, h_ymiss_,
                      h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_};
     for (void* h : hosts)
@@ -1020,6 +1025,46 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
               mapped(T * K * N * 4, (void**) &h_ymiss_, (void**) &m_ymiss_) &&
               (defer_heavy_ <= 0.0f || mapped(64, (void**) &h_pflag_, (void**) &m_pflag_));
     if (!ok) { err = "verify: mapped staging allocation failed " + strata::core::pin_exhausted_hint(); return false; }
+    if (const char* wm = std::getenv("STRATA_IC_WARM_MB"); wm != nullptr && std::atoi(wm) > 0 && warm_segs_ == nullptr) {
+        // item 47: per layer, the matrices its window reads before the doorbell (mixer projections, router), as the kernels
+        // read them (the native GGUF copy where there is one)
+        static const char* names[] = {"attn_qkv.weight", "attn_gate.weight", "ssm_out.weight", "ssm_alpha.weight",
+                                      "ssm_beta.weight", "attn_q.weight", "attn_k.weight", "attn_v.weight",
+                                      "attn_output.weight", "indexer.q_proj.weight", "ffn_gate_inp.weight"};
+        std::vector<strata::kernels::WarmSeg> segs;
+        warm_off_.assign((size_t) g.n_layers + 1, 0);
+        for (int64_t l = 0; l < g.n_layers; ++l) {
+            warm_off_[(size_t) l] = (int) segs.size();
+            const LayerView v(wt, l);
+            for (const char* nm : names) {
+                const WeightRef* w = v.get(nm);
+                if (w == nullptr) continue;
+                int be = 0, bb = 0;
+                if (w->native_data != nullptr && w->native_type >= 0 && strata::block_geometry((uint32_t) w->native_type, be, bb) && be > 0)
+                    segs.push_back({(unsigned long long) (uintptr_t) w->native_data,
+                                    (unsigned long long) (w->ne0 * w->ne1 / be * bb)});
+                else if (w->data != nullptr)
+                    segs.push_back({(unsigned long long) (uintptr_t) w->data, (unsigned long long) w->bytes});
+            }
+        }
+        warm_off_[(size_t) g.n_layers] = (int) segs.size();
+        warm_cap_ = (unsigned long long) std::atoi(wm) << 20;
+        if (segs.empty() || cudaMalloc((void**) &warm_segs_, segs.size() * sizeof(segs[0])) != cudaSuccess ||
+            cudaMemcpy(warm_segs_, segs.data(), segs.size() * sizeof(segs[0]), cudaMemcpyHostToDevice) != cudaSuccess ||
+            cudaStreamCreateWithFlags(&warm_, cudaStreamNonBlocking) != cudaSuccess ||
+            cudaEventCreateWithFlags(&warm_fork_, cudaEventDisableTiming) != cudaSuccess ||
+            cudaEventCreateWithFlags(&warm_join_, cudaEventDisableTiming) != cudaSuccess) {
+            std::fprintf(stderr, "strata verify: STRATA_IC_WARM_MB: setup failed, off\n");
+            if (warm_segs_) cudaFree(warm_segs_);
+            warm_segs_ = nullptr;
+        } else {
+            uint64_t tot = 0;
+            for (const auto& sg : segs) tot += sg.bytes;
+            std::fprintf(stderr, "strata verify: STRATA_IC_WARM_MB=%d: the next layer's pre-doorbell weights (%.1f MiB per layer "
+                                 "on average) read during the CPU wait (item 47)\n", std::atoi(wm),
+                         (double) tot / (double) g.n_layers / 1048576.0);
+        }
+    }
 #if defined(STRATA_USE_HIP)
     {   // item 52 (opt-in, with STRATA_CPU_PRESUM): the pre-summed rows in fine-grained VRAM; the host writes them through the
         // resizable BAR (write-combined, one thread, sfence before the flag) and the combine reads them locally
@@ -2695,6 +2740,14 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             cudaStreamWaitEvent(cs, ev_join_, 0);
         }
         strata::dispatch::notef("combine layer: kind %ld (0 per-token, 1 multi, 2 multi+hits, 3 multi+hits gated)", (long) (sg_gated_[grp] ? 3 : hits_in_combine ? 2 : (dec_batch && n > 1 && native_moe_combine_enabled()) ? 1 : 0));
+        // item 47: while the combine below waits for the CPU, warm_ reads layer l+1's pre-doorbell weights (joined after it)
+        const bool warm_now = warm_segs_ != nullptr && grp == 0 && l + 1 < le_ && !ar_on() && cfuse_on(n) &&
+                              cudaEventRecord(warm_fork_, cs) == cudaSuccess && cudaStreamWaitEvent(warm_, warm_fork_, 0) == cudaSuccess;
+        if (warm_now) {
+            strata::kernels::ic_warm(warm_segs_ + warm_off_[(size_t) (l + 1)], warm_off_[(size_t) (l + 2)] - warm_off_[(size_t) (l + 1)],
+                                     warm_cap_, warm_);
+            cudaEventRecord(warm_join_, warm_);
+        }
         if (!ar_on() && cfuse_on(n)) {
             // item 51 (STRATA_CPU_PRESUM=1, not bit-identical): the host pre-sums each token's CPU rows (weighted); recorded per
             // window size and group so the pool writes what this captured combine reads
@@ -2709,6 +2762,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                              T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp],
                                              presum_vram_ != nullptr ? presum_vram_ + (size_t) tb * N : nullptr);
             } catch (const std::exception& e) { err = "verify combine: " + std::string(e.what()); return false; }
+            if (warm_now) cudaStreamWaitEvent(cs, warm_join_, 0);   // item 47: the branch rejoins (graph capture needs it)
         } else
         if (sg_gated_[grp]) {   // STRATA_LFUSE: the shared expert's gate was not applied: the combine applies it (all rows are hits)
             try {

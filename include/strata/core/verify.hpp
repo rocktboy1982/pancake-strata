@@ -659,6 +659,12 @@ private:
     cudaStream_t cs_ = nullptr;
     cudaStream_t sh_cs_ = nullptr;
     cudaEvent_t ev_fork_ = nullptr, ev_join_ = nullptr;
+    // item 47 (STRATA_IC_WARM_MB): the next layer's pre-doorbell weights read on warm_ during the CPU wait
+    cudaStream_t warm_ = nullptr;
+    cudaEvent_t warm_fork_ = nullptr, warm_join_ = nullptr;
+    strata::kernels::WarmSeg* warm_segs_ = nullptr;   // device, all layers' spans
+    std::vector<int> warm_off_;                         // layer l's spans: [warm_off_[l], warm_off_[l + 1])
+    unsigned long long warm_cap_ = 0;
     // STRATA_DF_BRANCH: a layer's mixer work that reads only the layer's input, captured as parallel graph branches
     // on these side streams (record_window); the same kernels on the same inputs, only their order is freer
     bool df_branch_ = false;
