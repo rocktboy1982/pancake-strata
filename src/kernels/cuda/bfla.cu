@@ -359,13 +359,15 @@ __global__ void __launch_bounds__(256) k_select(const float* __restrict__ phi, c
 // ---- block-sparse flash attention on the gfx11 matrix cores.  grid (ceil(T / (64/G)), HKV), block 128 (4 waves).
 // Rows r = 0..63 of a workgroup are (token t0 + r / G, head g*G + r % G); wave w owns rows 16w .. 16w+15 and all 256
 // dims of their output (16 C tiles).  ids == nullptr: every causal block (dense).
-template <int G>
+// QL = false (STRATA_BFLA_QGLOBAL=1, experiment): Q fragments are read from global memory (L0/L1) every step instead of
+// being staged in LDS: 24 KB of LDS a workgroup instead of 57.6 KB, so ~5 waves a SIMD can be resident instead of 2.
+template <int G, bool QL>
 __global__ void __launch_bounds__(128) k_attn(const _Float16* __restrict__ q16, const _Float16* __restrict__ k16,
                                               const _Float16* __restrict__ v16, int T, int64_t p0, int H, int HKV, int64_t P,
                                               const int32_t* __restrict__ ids, const int32_t* __restrict__ counts, int64_t cap,
                                               float scale_log2, float* __restrict__ out) {
     constexpr int WT = 64 / G, TT = kBflaTileRows / G;
-    __shared__ __attribute__((aligned(16))) _Float16 Qs[64 * QS];
+    __shared__ __attribute__((aligned(16))) _Float16 Qs[QL ? 64 * QS : 8];
     __shared__ __attribute__((aligned(16))) _Float16 Ks[16 * QS];
     __shared__ __attribute__((aligned(16))) _Float16 Vt[kBflaDim * VS];
     __shared__ __attribute__((aligned(16))) _Float16 Ps[4][16 * PS];
@@ -373,12 +375,16 @@ __global__ void __launch_bounds__(128) k_attn(const _Float16* __restrict__ q16, 
     const int t0 = blockIdx.x * WT;
     const int tlast = min(T, t0 + WT) - 1;
     const int qa = t0, qb = tlast;   // chunk-local; key positions are compared as (cell - p0)
-    for (int i = tid; i < 64 * (kBflaDim / 8); i += 128) {
-        const int r = i / (kBflaDim / 8), c = (i % (kBflaDim / 8)) * 8;
-        const int t = min(t0 + r / G, T - 1);
-        *reinterpret_cast<bh8*>(&Qs[r * QS + c]) =
-            *reinterpret_cast<const bh8*>(q16 + ((size_t) t * H + g * G + r % G) * kBflaDim + c);
+    if constexpr (QL) {
+        for (int i = tid; i < 64 * (kBflaDim / 8); i += 128) {
+            const int r = i / (kBflaDim / 8), c = (i % (kBflaDim / 8)) * 8;
+            const int t = min(t0 + r / G, T - 1);
+            *reinterpret_cast<bh8*>(&Qs[r * QS + c]) =
+                *reinterpret_cast<const bh8*>(q16 + ((size_t) t * H + g * G + r % G) * kBflaDim + c);
+        }
     }
+    const int my_row = 16 * w + ln;
+    const _Float16* qg = q16 + ((size_t) min(t0 + my_row / G, T - 1) * H + g * G + my_row % G) * kBflaDim;
     int qrel[8];
 #pragma unroll
     for (int i = 0; i < 8; ++i) qrel[i] = min(t0 + (16 * w + 2 * i + hl) / G, tlast);
@@ -419,7 +425,7 @@ __global__ void __launch_bounds__(128) k_attn(const _Float16* __restrict__ q16, 
             }
             __syncthreads();
             bf8 s = bf8{0, 0, 0, 0, 0, 0, 0, 0};
-            const _Float16* qrow = &Qs[(16 * w + ln) * QS];
+            const _Float16* qrow = QL ? &Qs[(16 * w + ln) * QS] : qg;
             const _Float16* krow = &Ks[ln * QS];
 #pragma unroll
             for (int kk = 0; kk < kBflaDim / 16; ++kk) s = wmma16(lds16(qrow + kk * 16), lds16(krow + kk * 16), s);
@@ -460,6 +466,13 @@ __global__ void __launch_bounds__(128) k_attn(const _Float16* __restrict__ q16, 
     }
 }
 
+int g_q_global = -1;   // -1: STRATA_BFLA_QGLOBAL decides
+bool q_global() {
+    if (g_q_global >= 0) return g_q_global != 0;
+    static const bool v = [] { const char* e = std::getenv("STRATA_BFLA_QGLOBAL"); return e != nullptr && e[0] == '1'; }();
+    return v;
+}
+
 bool device_gfx11() {
     static int cached[64];
     static bool init[64];
@@ -482,18 +495,25 @@ bool launch_attn(const uint16_t* q16, const uint16_t* k16, const uint16_t* v16, 
     const auto* v = reinterpret_cast<const _Float16*>(v16);
     const int64_t P = p0 + T;
     const dim3 grid((unsigned) cdiv(T, 64 / G), (unsigned) HKV);
+    const bool ql = !q_global();
+#define BFLA_L(GG)                                                                                                       \
+    (ql ? k_attn<GG, true><<<grid, 128, 0, st>>>(q, k, v, (int) T, p0, H, HKV, P, ids, counts, cap, scale_log2, out)        \
+        : k_attn<GG, false><<<grid, 128, 0, st>>>(q, k, v, (int) T, p0, H, HKV, P, ids, counts, cap, scale_log2, out))
     switch (G) {
-        case 4: k_attn<4><<<grid, 128, 0, st>>>(q, k, v, (int) T, p0, H, HKV, P, ids, counts, cap, scale_log2, out); break;
-        case 8: k_attn<8><<<grid, 128, 0, st>>>(q, k, v, (int) T, p0, H, HKV, P, ids, counts, cap, scale_log2, out); break;
-        case 16: k_attn<16><<<grid, 128, 0, st>>>(q, k, v, (int) T, p0, H, HKV, P, ids, counts, cap, scale_log2, out); break;
+        case 4: BFLA_L(4); break;
+        case 8: BFLA_L(8); break;
+        case 16: BFLA_L(16); break;
         default: return false;
     }
+#undef BFLA_L
     return cudaGetLastError() == cudaSuccess;
 }
 
 }  // namespace
 
 bool bfla_supported(int H, int HKV, int HD) { return geometry_ok(H, HKV, HD) && device_gfx11(); }
+
+void bfla_set_q_global(int on) { g_q_global = on; }
 
 bool bfla_attn_from_lists(const uint16_t* q16, const uint16_t* k16, const uint16_t* v16, int64_t T, int64_t p0, int H,
                           int HKV, const int32_t* ids, const int32_t* counts, int64_t cap, float* out, void* stream) {
@@ -550,5 +570,6 @@ bool bfla_prefill_attn(const uint16_t*, const uint16_t*, const uint16_t*, int64_
                        void*, size_t, float*, void*) {
     return false;
 }
+void bfla_set_q_global(int) {}
 }  // namespace strata::kernels
 #endif

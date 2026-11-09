@@ -84,4 +84,7 @@ BflaLists bfla_lists(const void* scratch, int64_t T, int64_t P, int H, int HKV);
 bool bfla_attn_from_lists(const uint16_t* q16, const uint16_t* k16, const uint16_t* v16, int64_t T, int64_t p0, int H,
                           int HKV, const int32_t* ids, const int32_t* counts, int64_t cap, float* out, void* stream);
 
+/// Tests / bench: the attention kernel's Q from LDS (0) or global memory (1, = STRATA_BFLA_QGLOBAL=1); -1 back to the env.
+void bfla_set_q_global(int on);
+
 }  // namespace strata::kernels

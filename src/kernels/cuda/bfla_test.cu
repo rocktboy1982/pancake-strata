@@ -373,6 +373,10 @@ int correctness() {
     all.kmax = 1 << 30;
     const auto oa = run(d, x, all, std::numeric_limits<int64_t>::max());
     check(std::memcmp(od.data(), oa.data(), od.size() * 4) == 0, "sparse with every block kept == dense mode, bitwise");
+    bfla_set_q_global(1);
+    const auto oq = run(d, x, dense, std::numeric_limits<int64_t>::max());
+    bfla_set_q_global(-1);
+    check(std::memcmp(od.data(), oq.data(), od.size() * 4) == 0, "Q-from-global variant == LDS variant, bitwise");
 
     BflaConfig sp;
     sp.mode = 1;
@@ -546,7 +550,7 @@ int bench(int64_t N, int64_t T) {
     cudaEvent_t e0, e1;
     cudaEventCreate(&e0);
     cudaEventCreate(&e1);
-    double t_gemm = 0, t_dense = 0, t_sparse = 0, t_select = 0;
+    double t_gemm = 0, t_dense = 0, t_dense_qg = 0, t_sparse = 0, t_select = 0;
     const BflaConfig& env = bfla_config();
     BflaConfig sp = env;
     sp.mode = 1;
@@ -575,6 +579,14 @@ int bench(int64_t N, int64_t T) {
             og.resize((size_t) t * H * D);
             CK(cudaMemcpy(og.data(), out, og.size() * 4, cudaMemcpyDeviceToHost));
         }
+        bfla_set_q_global(1);   // the Q-from-global variant first (its output is overwritten by the default below)
+        cudaEventRecord(e0);
+        bfla_prefill_attn(q16, k16, v16, t, p0, H, HKV, dn, INT64_MAX, scratch, sb, out, nullptr);
+        cudaEventRecord(e1);
+        CK(cudaEventSynchronize(e1));
+        cudaEventElapsedTime(&ms, e0, e1);
+        t_dense_qg += ms;
+        bfla_set_q_global(-1);
         cudaEventRecord(e0);
         bfla_prefill_attn(q16, k16, v16, t, p0, H, HKV, dn, INT64_MAX, scratch, sb, out, nullptr);
         cudaEventRecord(e1);
@@ -619,6 +631,7 @@ int bench(int64_t N, int64_t T) {
                 t_gemm == 0 ? " (scores did not fit)" : "");
     std::printf("  fused kernel, every block (STRATA_BFLA=dense):           %9.1f ms  (max |diff| vs engine path, last chunk: %.2e)\n",
                 t_dense, maxdiff);
+    std::printf("  fused kernel, every block, Q from global (QGLOBAL=1):    %9.1f ms\n", t_dense_qg);
     std::printf("  BFLA sparse above %lld (STRATA_BFLA=1):                  %9.1f ms  (selection %.1f ms; kept %.1f%% of visible blocks)\n",
                 (long long) sp.min_len, t_sparse, t_select, vis > 0 ? 100.0 * kept / vis : 100.0);
     std::printf("  x10 layers (Qwen3.6-35B): engine %.2f s, dense %.2f s, sparse %.2f s\n", t_gemm / 100.0, t_dense / 100.0,

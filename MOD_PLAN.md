@@ -524,6 +524,17 @@ feat/bfla-hip):
 29. BFLA on the qwen35 engine (Qwen3.6-35B / Qwen3.8-35B-Distill: 10 dense attention layers, GQA 8, today materialised
     hipBLAS scores): opt-in STRATA_BFLA=1 above STRATA_BFLA_MIN (32K), STRATA_BFLA=dense = the same fused WMMA kernel
     with every block (item 8.8 for this engine).  Replaces item 19 (XAttention) as the block-sparse prefill route.
+    Code done on feat/bfla-hip (bfla.cu, bfla_test passes on gfx1100).  Test queue (no strata server running; build-hip of
+    the branch; M=/home/dan/clone-of-d/models/qwen36-UD-Q3_K_M/Qwen3.6-35B-A3B-UD-Q3_K_M.gguf,
+    export LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib HIP_VISIBLE_DEVICES=0):
+      kernel:  build-hip/bfla_test; build-hip/bfla_test --bench 65536; build-hip/bfla_test --bench 131072
+      TTFT:    for a in "" STRATA_BFLA=1 STRATA_BFLA=dense; do env $a build-hip/strata --model $M --max-context 135168
+               --bench-pp 131072; done   (and 65536 / --max-context 69632)
+      quality: python3 tools/pancake/bfla_recall.py --exe build-hip/strata --model $M
+               --tokenizer /home/dan/clone-of-d/Strata-data/packs/qwen36-ud-q4_k_xl/tokenizer --len 131072 --out /tmp/bfla-131k
+               (needles recalled dense vs BFLA, teacher-forced top-1 agreement and KL over 48 tokens; then 65536)
+    Gate: recall equal to dense and top-1 agreement within the dense engine's own run-to-run noise, else it stays a
+    documented opt-in only.
 Also: presence_penalty must stay 0 for tool calling (DASLab MoESQ card: SWE-bench 74.7 -> 70.6 with it on).
 Agent-harness items from the same reports (opencode, outside the engine): low/medium default effort with escalation on a new
 external signal, ACE-style delta compaction / Slipstream async compaction in tool-idle windows, Recursive-LM tool for huge
