@@ -6357,8 +6357,9 @@ class Service:
             # (an encoder restart, the cache's eviction) with other bits still matches its checkpoints
             self.embeddings.keys = [Path(p).stem[:16] for p, _ in encoded]
             write_temporary(combined, [p for p, _ in encoded])
-        if self.family == "deepseek41" and req is not None and req.get("strata_prefix") is None and not images and not ds_pics:
-            lead = self.deepseek_shared_start(messages)
+        if req is not None and req.get("strata_prefix") is None and not images and not ds_pics:
+            lead = (self.deepseek_shared_start(messages) if self.family == "deepseek41"
+                    else self.auto_shared_start(messages))
             if lead:
                 req["strata_prefix"] = {"messages": lead}
         if req is not None and req.get("strata_prefix") is not None:
@@ -6408,6 +6409,11 @@ class Service:
         instead of reading it again.  0: none (STRATA_DS4_AUTO_PIN=0, no system message, or nothing after it)."""
         if os.environ.get("STRATA_DS4_AUTO_PIN", "1") == "0":
             return 0
+        return Service.system_lead(messages)
+
+    @staticmethod
+    def system_lead(messages) -> int:
+        """How many leading messages are system (or developer) messages; 0 when none, or when nothing follows them."""
         n = 0
         for m in messages:
             if isinstance(m, dict) and m.get("role") in ("system", "developer"):
@@ -6416,6 +6422,18 @@ class Service:
                 break
         return n if 0 < n < len(messages) else 0
 
+    @staticmethod
+    def auto_shared_start(messages) -> int:
+        """MOD_PLAN 71 (opt-in, STRATA_AUTO_PIN=1): the DeepSeek auto-pin for the other families (Qwen3.8-Flash-Next).
+        An agent, its sub-agents of the same kind and its side requests that send the same system prompt and tools
+        start at one pinned checkpoint at the end of the system turn (pin=N) instead of reading it again.  The prompt
+        is the same: only where the engine keeps a checkpoint changes.  The engine parks the branch it leaves at the
+        pin when that branch is longer than STRATA_PIN_PARK_TOKENS (MOD_PLAN 90), so the return to the parent agent
+        is a cache hit.  0: off (the default), no system message, or nothing after it."""
+        if os.environ.get("STRATA_AUTO_PIN", "0") != "1":
+            return 0
+        return Service.system_lead(messages)
+
     PREFIX_END = "\u0001strata-prefix-end\u0001"          # marks where a message's shared part ends in the rendered prompt
 
     def resolve_prefix(self, spec, messages, tools, kwargs, ids, has_images=False) -> dict:
@@ -6423,7 +6441,8 @@ class Service:
         short questions follow.  Three ways to say where it ends: `{"messages": K}` (the first K messages), `{"message":
         I, "chars": N}` (the first N characters of message I's text: a document and its question in one message) or
         `{"tokens": N}`.  The engine reads the prompt in two parts there, keeps the checkpoint at the boundary pinned
-        (never evicted) and does not park the branch it leaves, so N questions cost one prefix.  Returns
+        (never evicted) and does not park the branch it leaves when it is short (STRATA_PIN_PARK_TOKENS, default 2048 tokens
+        past the pin; a longer one parks), so N questions cost one prefix.  Returns
         {"tokens": N} (what the engine's `pin=N` takes: always a prefix of the prompt's ids, the tokenizer's merge across
         the boundary included), or {} when the prefix cannot be marked (said in the log: the request is never refused for
         it).  A malformed field is a 400."""

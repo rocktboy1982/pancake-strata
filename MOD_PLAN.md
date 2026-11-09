@@ -353,7 +353,7 @@ together.  All are opt-in; the default path stays byte-identical until a measure
     week (keep a held-out week).  Tier C.  Owner: this (job), dan-cd (engine profiles).  First PR: script that rebuilds
     data/domain-profiles from 64 traces and runs replay_seeding.py against the previous week.
 
-71. Shared-prefix store for sub-agents.  Combines 11 (one system/tool prefix shared across sessions), 16, RadixAttention
+71. Shared-prefix store for sub-agents.  [2026-11-09, feat/item-90-71-shared-prefix: auto-pin of the system+tools prefix for Qwen behind STRATA_AUTO_PIN=1 (exact); the Qwen template already renders tools before the system text, a schema reorder inside <tools> would change the prompt, so it is left out (gate via 67); GPU check pending]  Combines 11 (one system/tool prefix shared across sessions), 16, RadixAttention
     multi-entry store (Stanford), prompt reordering (tool schemas first, agent text after), the oh-my-openagent pin, and
     opencode's compaction prompt.  Mechanism: a server-side reorder (behind a switch) that puts the stable tool schemas first
     so all sub-agents share a long exact prefix; the engine keeps that prefix's GDN/KV checkpoint as a pinned entry next to
@@ -456,7 +456,7 @@ Added 2026-11-09 from the server/agent code study (research_notes/Pancake cod de
     at 24,000 tokens on every opencode turn (max_tokens 32000, 6520).  [this]
 89. [FIXED 2026-11-09, bcbdeb5d2; test serve/test_grammar_routes.py] BUG: grammar-constrained tool calls only on /v1/chat/completions - applied in _openai (9174), missing in _anthropic (9438) and
     _responses_prepare (9369).  Fix by one shared request-building step for the three API paths.  [this]
-90. Item 71 prerequisite: engine does not save the branch it leaves when a request resumes exactly at the pin (generate.cpp:16463);
+90. [DONE 2026-11-09, feat/item-90-71-shared-prefix: STRATA_PIN_PARK_TOKENS (default 2048) parks a branch that long past the pin; GPU check pending] Item 71 prerequisite: engine does not save the branch it leaves when a request resumes exactly at the pin (generate.cpp:16463);
     for a sub-agent that branch is the parent conversation -> full re-read on return; add a size threshold before enabling the
     (DeepSeek-only today) auto-pin for Qwen.  [this; generate.cpp session area - coordinate with dan-99]
 91. pancake.service (73): capped.sh's systemd-run --scope escapes the unit cgroup (Conflicts=/stop/restart miss the engine) - the unit
