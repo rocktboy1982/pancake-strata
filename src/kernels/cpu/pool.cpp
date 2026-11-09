@@ -1320,14 +1320,38 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                 const NodeSync& ns = nsync_[(size_t) s];
                 R = ns.rows; T = ns.tasks; h = ns.h; row0 = ns.row0; j = ci - ns.base;
             }
-            const int64_t g0 = R * j / T, g1 = R * (j + 1) / T;
+            // STRATA_POOL_TAIL4=1 (basalt 553e9290d, exact - the same rows, cut differently): the last `threads` tasks of
+            // a phase are a quarter the size of the others, so the threads that finish early pick up short tasks and the
+            // phase's tail (the wait for the slowest task) is a quarter of a task.  Not with the NUMA slices.
+            static const bool tail4 = [] { const char* v = std::getenv("STRATA_POOL_TAIL4"); return v != nullptr && v[0] == '1'; }();
+            auto cut = [&](int64_t jj) -> int64_t {
+                if (!tail4 || sliced) return R * jj / T;
+                const int64_t small = (std::min)((int64_t) (n_ + (host_works_ ? 1 : 0)), T / 2), big = T - small;
+                const int64_t units = 4 * (std::min)(jj, big) + (std::max)((int64_t) 0, jj - big);
+                return R * units / (4 * big + small);
+            };
+            const int64_t g0 = cut(j), g1 = cut(j + 1);
             for (int64_t g = g0; g < g1;) {
                 const int e = (int) (g / h), l0 = (int) (g % h);
                 const int l1 = (int) std::min<int64_t>(h, l0 + (g1 - g));
                 const int r0 = row0 + l0, r1 = row0 + l1;
                 SplitBufMulti& sb = split_multi_[(size_t) e];
-                if (pm == 6 && mode_ == 7)
+                if (pm == 6 && mode_ == 7 && fready_[(size_t) e].load(std::memory_order_acquire) == 0) {
+                    // basalt 4e6841265: while the expert's gate/up finishes, pull this task's down rows into the cache
+                    // (checking every 4 KB whether the wait is over), so the bus is not idle during the wait
+                    const NativeFmt* const nf = mjobs_[e].fmt != nullptr ? mjobs_[e].fmt : nfmt_;
+                    const uint8_t* p = mjobs_[e].blob + nf->down_off + (size_t) r0 * nf->d_row;
+                    const size_t bytes = (size_t) (r1 - r0) * nf->d_row;
+#if defined(__x86_64__) || defined(_M_X64)
+                    for (size_t o = 0; o < bytes; o += 64) {
+                        _mm_prefetch((const char*) p + o, _MM_HINT_T1);
+                        if ((o & 4095) == 0 && fready_[(size_t) e].load(std::memory_order_acquire) != 0) break;
+                    }
+#else
+                    (void) p; (void) bytes;
+#endif
                     while (fready_[(size_t) e].load(std::memory_order_acquire) == 0) strata_cpu_pause();
+                }
                 const NativeFmt* const nfmt = mjobs_[e].fmt != nullptr ? mjobs_[e].fmt : nfmt_;   // 149-cold: same types and rows
                 if (pm == 5 && q2_native_kernels(nfmt->gu_type)) {
                     // a native Q2_0 pack: gate and up rows on the Q2_0 kernels, then SwiGLU
