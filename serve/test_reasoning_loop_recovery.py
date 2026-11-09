@@ -60,6 +60,8 @@ class ReasoningLoopRecovery(unittest.TestCase):
         service = Service(engine, self.tok, None)
         service.answer_room = False      # these cases test the loop guards at the cap itself
         service.reasoning_loop_recovery = enabled
+        if not enabled:
+            service.loop_guard = False       # (the loop guard, on by default, would break this exact loop: test_loop_guard)
         events = list(service.run(self.ids, True, [], 40000, {}, threading.Event()))
         return engine, events
 
@@ -143,6 +145,7 @@ class ReasoningLoopRecovery(unittest.TestCase):
         engine = RecordingEngine(self.tok, [self.loop])
         service = Service(engine, self.tok, None)
         service.answer_room = False      # these cases test the loop guards at the cap itself
+        service.loop_guard = False       # (the loop guard, on by default, would break this exact loop: test_loop_guard)
         events = list(service.run(self.ids, True, [], 16384, {}, threading.Event()))
         self.assertEqual(service.repeat_stop_tokens, 256)
         self.assertEqual(events[-1][1]['finish'], 'length')
@@ -165,6 +168,7 @@ class ReasoningLoopRecovery(unittest.TestCase):
         service = Service(engine, self.tok, None)
         service.answer_room = False      # these cases test the loop guards at the cap itself
         service.reasoning_loop_recovery = True
+        service.loop_guard = False       # (the loop guard, on by default, would break this exact loop: test_loop_guard)
         events = list(service.run(self.ids, False, [], 40000, {}, threading.Event()))
         self.assertEqual(len(engine.calls), 1)
         self.assertEqual(events[-1][1]['reasoning_recoveries'], 0)

@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import collections
+import copy
 import base64
 import hashlib
 import hmac
@@ -62,7 +63,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT))   # run as a script (run-<model>.bat) as well as a module
 from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, anthropic_to_messages, anthropic_tools,  # noqa: E402
                             forced_call, images_of, literal_tags, mark_think_literals, openai_to_messages, require_messages,
-                            tool_choice_of, unmark_think_literals)
+                            tool_choice_of, unmark_think_literals, CALL_END)
 from serve.mcp import McpCancelled, hub_from_config  # noqa: E402
 from serve import runconfig  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
@@ -83,6 +84,7 @@ from serve import owner_guard  # noqa: E402
 from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
 from serve import grammar as grammar_api  # noqa: E402
+from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
 from serve import lifeline  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
@@ -238,6 +240,15 @@ LOOP_CHECK_EVERY = 512           # output tokens between two looks at the reason
 LOOP_COVERAGE = 0.25             # the share of the last 2,000 words inside 12-word passages seen three times
 LOOP_HISTORY_WORDS = 30000       # how far back the passages are counted (bounds the cost of a look)
 LOOP_TAIL_CHARS = 2048           # chars at the end of the reasoning also checked for a short period (#1753)
+# The loop guard (serve/loop_guard.py, from Project Maya v1.1.56, MIT): an exact block of tokens repeated back to back is
+# seen as it starts and broken (the repeats not sent yet dropped and a short repetition penalty; a third loop in the
+# thinking closes it; a loop that comes back in the answer ends it).  On by default; nothing changes until a loop is
+# seen.  Precedence with the older guards, so one event is handled once:
+#   - a run of ONE token (#606, repeat_stop_tokens) is left to #606 while that is on: the guard ignores a loop whose
+#     block is a single id repeated (the detector's shortest period is 8, so it would see it first);
+#   - loops in the THINKING are left to #728 when "reasoning_loop_recovery" is configured (opt-in): the guard then
+#     guards the answer and the tool calls only.  With #728 off (the default) the guard handles both.
+LOOP_STOP_NOTE = "(The answer was stopped: the model kept repeating itself.)"
 LOOP_TAIL_PERIOD = 64            # a period at most this long in that tail reads as a fully repeated window
 
 
@@ -2307,6 +2318,9 @@ class StrataEngine:
         pending: list[int] = []
         prompt, left = list(ids), int(max_new)
         orig_len = len(prompt)  # a leg that continues (prompt + what it generated) names where the reply began: pen_from, the penalty window's start
+        rf = (sampling or {}).get("_reply_from")        # the server's own continuation (the loop guard's penalty): where its reply began
+        if isinstance(rf, int) and not isinstance(rf, bool) and 0 < rf < orig_len:
+            orig_len = rf
         reused0 = None      # the first read's reused tokens: a continued leg's count includes this request's own output
         carry = {}          # #1869: the figures of the legs that ended in a hand-back to the solo path (the final DONE adds to them)
         yielded_legs = []    # prompt reads that gave way before producing output
@@ -2835,6 +2849,9 @@ class StrataEngine:
         # an image request takes the same sampling keys as text (#75: it used to decode greedily whatever was asked)
         rid_key = f" rid={rid}" if rid is not None else ""
         rid_key += self.turn_key(ids)
+        rf = (sampling or {}).get("_reply_from")         # the loop guard's penalty in a continued pass: the window counts
+        if isinstance(rf, int) and not isinstance(rf, bool) and 0 < rf < len(ids):   # from the reply's start (pen_from)
+            rid_key += self.pen_from_key(rf, len(ids))
         head = f"GENI {int(max_new)}{self.sampling_keys(sampling or {})}{rid_key} {embeddings}" if embeddings else \
             f"GEN {int(max_new)}{self.sampling_keys(sampling or {})}{rid_key}"
         if prefill_only:                                 # split serving (serve/split.py): read the prompt, make no token
@@ -4945,6 +4962,13 @@ class Service:
         self.reasoning_budget_tokens = 0                 # #123: the config's default thinking budget (0: none)
         self.reasoning_budget_by_effort = {}             # pancake: {level: budget} for requests without a budget of their own
         self.repeat_stop_tokens = REPEAT_STOP_TOKENS     # #606: one token this many times in a row ends a reply (0: off)
+        # the loop guard (serve/loop_guard.py; STRATA_LOOP_GUARD=0 / "loop_guard": false: off) and what it did since
+        # the start (the Monitor's and /metrics' counters)
+        self.loop_guard = True
+        self.loop_guard_counts = {"detected": 0, "penalised": 0, "thinking_closed": 0, "stopped": 0, "tool_repeats": 0,
+                                  "tool_blocked": 0, "collapsed": 0, "kept_going": 0}
+        end = tokenizer.encode(THINK_END, parse_special=True) if hasattr(tokenizer, "encode") else []
+        self.think_end_id = int(end[0]) if len(end) == 1 else None   # (the guard closes the thinking with it)
         self.anthropic_think_unasked = True               # #278: "anthropic_thinking": "on_request" -> False
         self.undeclared_tool_calls = "text"               # #4622: config "undeclared_tool_calls": "call" hands a call of an undeclared name to the client
         self.tool_call_recovery = True                    # default on (0.2.8): tool calls in forms next to the template's; config "tool_call_recovery": false turns it off
@@ -5799,9 +5823,11 @@ class Service:
                   **dict(getattr(self.engine, "info", {}) or {})}
         tel = self.telemetry.snapshot() if getattr(self, "telemetry", None) else {"now": {}, "history": {}, "static": {}}
         parked = self.conv_log.poll(getattr(self.engine, "log_path", None), getattr(self.engine, "log_start", None))
+        with self.status_lock:
+            guard = dict(self.loop_guard_counts, on=bool(self.loop_guard))   # (what the loop guard did since start)
         return {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
                 "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
-                "requests_kept": len(hist), "totals": totals, "hardware": tel["now"],
+                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "hardware": tel["now"],
                 "hardware_static":
                 tel["static"], "history": tel["history"], "time": now}
 
@@ -5810,6 +5836,7 @@ class Service:
         metric names (llamacpp:*) so its dashboards work unchanged; the drafts and requests as strata:*."""
         with self.status_lock:
             s, t = dict(self.status), dict(self.totals)
+            guard = dict(self.loop_guard_counts)
             running = len(self.live_reqs) or int(bool(s.get("busy")))
             prompt_n = t["prompt_tokens"] - t["reused"]               # what was read, as llama.cpp counts it
             prompt_s, decode_s = t["prompt_ms"] / 1000, t["decode_ms"] / 1000
@@ -5841,6 +5868,22 @@ class Service:
             ("strata:tool_args_repaired_total", "counter", "Tool call arguments (a JSON array or object) that were damaged and read as written",
              t.get("tool_args_repaired", 0)),
             ("strata:model_loaded", "gauge", "1 while the model is loaded", int(self.loaded())),
+            ("strata:loop_guard_detected_total", "counter", "Loops the loop guard saw in answers", guard["detected"]),
+            ("strata:loop_guard_penalised_total", "counter",
+             "Loops broken by dropping the repeats and a short repetition penalty", guard["penalised"]),
+            ("strata:loop_guard_thinking_closed_total", "counter", "Loops in the thinking that closed it",
+             guard["thinking_closed"]),
+            ("strata:loop_guard_stopped_total", "counter", "Answers the loop guard ended (a loop that came back)",
+             guard["stopped"]),
+            ("strata:loop_guard_tool_repeats_total", "counter",
+             "Tool calls repeated with the same result that got a note", guard["tool_repeats"]),
+            ("strata:loop_guard_tool_blocked_total", "counter",
+             "Tool calls the loop guard did not let out (made again after its notes)", guard["tool_blocked"]),
+            ("strata:loop_guard_kept_going_total", "counter",
+             "Answers in a looping conversation that would have ended with nothing new and went on", guard["kept_going"]),
+            ("strata:loop_guard_collapsed_total", "counter",
+             "Prompts that left out what the model had already written (a conversation that repeats itself)",
+             guard["collapsed"]),
         ]
         return "".join(f"# HELP {name} {help_}\n# TYPE {name} {kind}\n{name} {value}\n"
                        for name, kind, help_, value in rows)
@@ -6002,8 +6045,23 @@ class Service:
                         part.update(type="text", text=f"[image omitted: {why}]")
                     else:
                         part["source"] = str(image)
+        guarded = self._loop_guard_on(req)
+        if guarded:                                      # the loop guard across turns (Maya's prepare)
+            messages, blocked, looping, asked = self._guarded_messages(messages)
         fetched = self._note_unreadable_tool_images(messages, cancel)
         ids = encoded_ids = self.encode_prompt(messages, tools, kwargs)
+        if isinstance(req, dict):
+            req.pop("_loop_blocked", None)
+            req.pop("_loop_keep", None)
+            if guarded and tools and not force:
+                # a call made again after the guard's notes is answered by the server in this answer (_run), and in a
+                # conversation that repeats itself the answer may not end the turn with nothing new
+                if blocked:
+                    req["_loop_blocked"] = self._block_suffixes(blocked, tools, kwargs)
+                if looping:
+                    keep = self._keep_suffix(tools, kwargs)
+                    if keep is not None:
+                        req["_loop_keep"] = keep + [sorted(loop_guard.said_before(asked))]
         if force and kwargs.get("enable_thinking", True) is False:
             ids = ids + self.tok.encode(force, parse_special=True)
         self.embeddings.path = None
@@ -6290,6 +6348,135 @@ class Service:
                   f"{el:.0f} s", flush=True)
         return now
 
+    # ---------------------------------------------------------------- the loop guard (serve/loop_guard.py, Maya)
+    def _loop_guard_on(self, sampling) -> bool:
+        """The loop guard for this request: its own "loop_guard" when it sends one, else the server's."""
+        own = (sampling or {}).get("loop_guard")
+        return own if isinstance(own, bool) else bool(self.loop_guard)
+
+    def _guard_piece(self):
+        """The text of a token for the loop guard's tool-call markers: incremental (a character split across tokens
+        whole), and a tokenizer without bytes decodes the token alone (no decode of the whole answer a token)."""
+        d = Detokenizer(self.tok)
+        return d.push if getattr(d, "inc", None) is not None else (lambda t: self.tok.decode([t]))
+
+    def _loop_noted(self, act, written: int):
+        """A loop the guard broke: a line in the server window, and the Monitor's count."""
+        print(f"[strata] loop guard: {act.describe()}"
+              f"{' (now ' + format(written, ',') + ' tokens)' if act.kind != loop_guard.STOP else ''}", flush=True)
+        with self.status_lock:
+            c = self.loop_guard_counts
+            c["detected"] += 1
+            c[{loop_guard.PENALTY: "penalised", loop_guard.CLOSE_THINKING: "thinking_closed",
+               loop_guard.STOP: "stopped"}[act.kind]] += 1
+
+    def _tool_repeat(self, messages):
+        """The loop guard across turns (loop_guard.tool_repeat): the request's last tool call, made again and again
+        with the same arguments and the same result - a user message with loop_guard.tool_note() follows its result
+        (inside the result GLM-5.3 ran the call again; as a message of its own it moved on).  Only this prompt changes:
+        the client's conversation stays as it sent it (its next request matches the kept one up to that result, so
+        only the tail is read again)."""
+        rep = loop_guard.tool_repeat(messages)
+        if rep is None:
+            return messages
+        print(f"[strata] loop guard: `{rep.name}` {rep.times} times with the same arguments and result: a note after it",
+              flush=True)
+        with self.status_lock:
+            self.loop_guard_counts["tool_repeats"] += 1
+        return messages + [{"role": "user", "content": loop_guard.tool_note(rep)}]
+
+    def _collapse(self, messages):
+        """A conversation that carries a loop across turns (loop_guard.collapse): its prompt without what the model
+        already wrote - only that prompt changes."""
+        c = loop_guard.collapse(messages)
+        if c is None:
+            return messages
+        print(f"[strata] loop guard: the conversation repeats itself - left out of the prompt: {c.paragraphs} pieces "
+              f"of the model's own text it had written before, {c.rounds} tool rounds that repeat earlier ones",
+              flush=True)
+        with self.status_lock:
+            self.loop_guard_counts["collapsed"] += 1
+        return c.messages
+
+    def _block_suffixes(self, blocked, tools, kwargs):
+        """[[name, args, times, ids, thinks], ...]: for each blocked call (loop_guard.tool_blocked) the prompt that
+        follows the model's completed tool-call block when the server answers it itself - its turn close, the tool
+        result loop_guard.block_result, a user message loop_guard.block_note and the next assistant turn's opening
+        (`thinks`: that opening is an open thinking block, which _run starts with loop_guard.block_steer).  None for
+        a template with no `</tool_call>` boundary (DeepSeek's DSML: notes only) or one that does not render a turn
+        as a prefix of the next.  (Lists, not a dict: it rides in the request, which stays JSON.)"""
+        if self.template is None or self.family == "deepseek41":
+            return None
+        out = []
+        for key, rep in blocked.items():
+            try:
+                args = json.loads(key[1])
+            except ValueError:
+                args = key[1]
+            call = {"id": "call_loop_guard", "type": "function", "function": {"name": key[0], "arguments": args}}
+            head = [{"role": "user", "content": "."}, {"role": "assistant", "content": "", "tool_calls": [call]}]
+            tail = [{"role": "tool", "tool_call_id": "call_loop_guard", "content": loop_guard.block_result(rep)},
+                    {"role": "user", "content": loop_guard.block_note(rep)}]
+            try:
+                p = self.template.render(head, tools=tools, **{**kwargs, "add_generation_prompt": False})
+                f = self.template.render(head + tail, tools=tools, **{**kwargs, "add_generation_prompt": True})
+            except Exception as e:                  # (a template that wants more than this: notes only)
+                print(f"[strata] loop guard: cannot block `{rep.name}` with this template ({e})", flush=True)
+                return None
+            if kwargs.get("enable_thinking") is False and f.rstrip().endswith("<think>"):
+                f = f.rstrip() + "\n\n</think>\n\n"
+            if not f.startswith(p) or CALL_END not in p:
+                return None
+            out.append([key[0], key[1], rep.times,
+                        self.tok.encode(p[p.rindex(CALL_END) + len(CALL_END):] + f[len(p):], parse_special=True),
+                        f.rstrip().endswith("<think>")])
+        return out
+
+    def _keep_suffix(self, tools, kwargs, note=loop_guard.KEEP_NOTE):
+        """[ids, thinks]: the prompt that follows the model's own last words when it would end its turn short in a
+        conversation that repeats itself (loop_guard.stops_short) - the template's turn end, a user message `note`
+        and the next assistant turn's opening (`thinks`: an open thinking block).  None for a template that does not
+        render a turn as a prefix of the next."""
+        if self.template is None:
+            return None
+        mark = "\u2063keep\u2063"                  # (the model's words, wherever the template puts them)
+        head = [{"role": "user", "content": "."}, {"role": "assistant", "content": mark}]
+        try:
+            p = self.template.render(head, tools=tools, **{**kwargs, "add_generation_prompt": False})
+            f = self.template.render(head + [{"role": "user", "content": note}], tools=tools,
+                                     **{**kwargs, "add_generation_prompt": True})
+        except Exception:
+            return None
+        if kwargs.get("enable_thinking") is False and f.rstrip().endswith("<think>"):
+            f = f.rstrip() + "\n\n</think>\n\n"
+        if mark not in p or mark not in f:          # (the template keeps the assistant's words in the next turn)
+            return None
+        tail = f[f.rindex(mark) + len(mark):]
+        if not tail:
+            return None
+        return [self.tok.encode(tail, parse_special=True), f.rstrip().endswith("<think>")]
+
+    def _guarded_messages(self, messages):
+        """prepare()'s template messages with the loop guard's prompt-side steps (Maya's prepare): a note after a tool
+        result the model keeps getting (_tool_repeat), after a user's bare "continue" the calls that are blocked
+        (loop_guard.blocked_note), and a conversation that repeats itself without what the model already wrote
+        (_collapse).  -> (messages, blocked, looping, asked): `blocked` the calls this answer may not make again
+        (loop_guard.tool_blocked), `looping` the conversation carries a loop (keep going applies), `asked` the
+        request's own messages (stops_short's `seen`)."""
+        try:
+            blocked = loop_guard.tool_blocked(messages)
+            looping = bool(blocked) or loop_guard.echoes(messages)
+            asked = messages
+            noted = self._tool_repeat(messages)
+            if blocked and len(noted) == len(messages) and messages and messages[-1].get("role") == "user" \
+                    and loop_guard.go_on(messages[-1]):     # "continue": which calls stay blocked, said at once
+                noted = messages + [{"role": "user", "content": loop_guard.blocked_note(blocked)}]
+            return self._collapse(messages) + noted[len(messages):], blocked, looping, asked
+        except Exception as e:                      # (a message shape the guard does not know: the prompt as sent)
+            print(f"[strata] loop guard: the conversation could not be read ({type(e).__name__}: {e}); "
+                  "the prompt is left as it was", flush=True)
+            return messages, {}, False, messages
+
     def run(self, ids, thinking, tools, max_new, sampling, cancel, force=None,
             declared_only=False, deferred=False) -> Iterator[tuple[str, object]]:
         """The request's events (see _run); with "prevent_sleep" in the config, the PC stays awake while it runs or waits."""
@@ -6339,9 +6526,11 @@ class Service:
                 print(f"[strata] thinking capped at {max_new - reserve} of max_tokens {max_new} to leave room for "
                       f"the answer (budget {budget})", flush=True)
                 budget = max(1, max_new - reserve)
-        parser = self.parser_cls(thinking=thinking, tools=with_history_tools(tools, sampling), stream_tools=True,
-                                 recover=self.tool_call_recovery, declared_only=declared_only,
-                                 deferred=deferred or self.undeclared_tool_calls == "call")   # #4622: opt-in, as for a deferred tool
+        def new_parser(in_thinking):
+            return self.parser_cls(thinking=in_thinking, tools=with_history_tools(tools, sampling), stream_tools=True,
+                                   recover=self.tool_call_recovery, declared_only=declared_only,
+                                   deferred=deferred or self.undeclared_tool_calls == "call")   # #4622: opt-in, as for a deferred tool
+        parser = new_parser(thinking)
         detok, n, finish = Detokenizer(self.tok), 0, "length"
         run_tok, run_len, repeated = None, 0, False     # #606: the current run of one repeated token
         thinking_n = 0                                  # tokens written while thinking (Responses' reasoning_tokens)
@@ -6376,6 +6565,7 @@ class Service:
         recovery_count, reasoning_text, repeat_coverage = 0, "", 0.0
         looped, next_loop_check = False, LOOP_CHECK_EVERY       # #728: reasoning that repeats whole passages
         raw_ids = []                                    # every generated id (STRATA_DEBUG: dump raw model text)
+        guard = None                                    # this request's loop guard (set once it has the engine)
         admission_rejected = False                      # #3040: the engine's batch slots refused it before it read anything
         emb, self.embeddings.path = getattr(self.embeddings, "path", None), None   # this run's to delete now
         img_keys, self.embeddings.keys = getattr(self.embeddings, "keys", None), None
@@ -6485,11 +6675,193 @@ class Service:
                     prompt, thought = ids, 0            # thought: the reasoning tokens so far (the budget's count)
                     for ev in opening:
                         yield "event", ev
+                    # the loop guard (serve/loop_guard.py, Project Maya): every id the engine writes goes through it;
+                    # the parser reads only what lies before the short tail it holds back (`held`, at most HOLD_MAX
+                    # tokens).  Without it (off) each id is read at once, as before.
+                    guard = loop_guard.ToolSafeGuard(self.think_end_id, parser.state == "reasoning",
+                                                     piece=self._guard_piece()) \
+                        if self._loop_guard_on(sampling) else None
+                    held: list[int] = []                # written, held back by the guard (always this pass's tail)
+                    guard_stop = False                  # the guard ended the answer (a loop that came back)
+                    # across turns (prepare put them in the request): the calls this answer may not make again -
+                    # while there are any, the answer's calls are held back (`pending_evs`) until it ends, and one
+                    # that ends it alone with a blocked call never goes out: the server answers it in the prompt and
+                    # the model goes on - and, in a conversation that repeats itself, an answer that would end the
+                    # turn with nothing new goes on (KEEP_NOTE), at most loop_guard.KEEP_MAX times
+                    blocked = {(b[0], b[1]): b for b in ((sampling or {}).get("_loop_blocked") or [])} \
+                        if guard is not None else {}
+                    keep = (sampling or {}).get("_loop_keep") if guard is not None else None
+                    seen_before = set(keep[2]) if keep else set()
+                    said, pending_evs, tries = [], [], {}
+                    kept_n, called, sent_call = 0, False, False
+                    server_next = None                  # (ids, thinks): the server's own words that follow this pass
+                    server_words = 0                    # the server's own tokens in the prompt (not counted in n)
+
+                    def server_turn():
+                        """At the model's end of turn: the server's own continuation, or None (the turn ends).  A
+                        blocked call alone in what was held back is answered by the server (block_result, block_note,
+                        the next thinking steered away from it); an answer with nothing new in a looping conversation
+                        is told to keep going.  Sets the sampling for the next pass (loop_guard.block_sampling)."""
+                        nonlocal kept_n, called, sampling
+                        key = None
+                        try:                            # what the parser still holds (a call waits for its turn's end)
+                            peek = copy.deepcopy(parser).finish("stop")
+                        except Exception:
+                            peek = []
+                        whole = pending_evs + peek
+                        if blocked:
+                            calls = [e for e in whole if e.kind == "tool_call"]
+                            if not sent_call and len(calls) == 1 and calls[0].call is not None and not any(
+                                    e.kind == "content" and (e.text or "").strip() for e in whole):
+                                key = (calls[0].call.name, loop_guard.args_key(calls[0].call.arguments))
+                                key = key if key in blocked else None
+                        text = "".join(said) + "".join(e.text or "" for e in peek if e.kind == "content")
+                        made_call = called or any(e.kind == "tool_call" for e in peek)
+                        if key is None and keep and not made_call and kept_n < loop_guard.KEEP_MAX and \
+                                (not answered or loop_guard.stops_short(text, seen_before)):
+                            kept_n += 1
+                            print(f"[strata] loop guard: the model would end its turn with nothing "
+                                  f"({' '.join(text.split())[:80]!r}): kept going ({kept_n}. time in this answer)",
+                                  flush=True)
+                            with self.status_lock:
+                                self.loop_guard_counts["kept_going"] += 1
+                            ids_k, thinks = list(keep[0]), bool(keep[1])
+                            if answered and thinks and self.think_end_id is not None:
+                                ids_k, thinks = ids_k + [self.think_end_id], False
+                            steer = self.tok.encode(loop_guard.keep_steer(kept_n)) if thinks else []
+                            sampling = loop_guard.block_sampling(sampling, kept_n)
+                            return ids_k + steer, thinks
+                        if key is None:
+                            return None
+                        _, args, times, suffix, thinks = blocked[key]
+                        rep = loop_guard.ToolRepeat(key[0], times)
+                        pending_evs.clear()             # the call never goes out
+                        called = False
+                        tries[key] = tries.get(key, 0) + 1
+                        print(f"[strata] loop guard: `{rep.name}` again after {loop_guard.TOOL_NUDGES} notes "
+                              f"({rep.times} runs, the same result): blocked ({tries[key]}. time in this answer), not "
+                              "run - a note, the thinking steered away and on", flush=True)
+                        with self.status_lock:
+                            self.loop_guard_counts["tool_blocked"] += 1
+                        steer = self.tok.encode(loop_guard.block_steer(rep, args, tries[key])) if thinks else []
+                        sampling = loop_guard.block_sampling(sampling, tries[key])
+                        return list(suffix) + steer, bool(thinks)
+
+                    def flush_pending():
+                        nonlocal sent_call, answered
+                        for ev in pending_evs:
+                            sent_call = sent_call or ev.kind == "tool_call"
+                            answered = answered or ev.kind != "reasoning"
+                            yield "event", ev
+                        pending_evs.clear()
+
+                    def discard(toks):
+                        """Tokens the engine wrote that are not kept (a pass ended before they were read): out of
+                        this pass's ids, the output and the count, as if never written."""
+                        nonlocal n
+                        if toks:
+                            del seg[-len(toks):]
+                            del raw_ids[-len(toks):]
+                            n -= len(toks)
+
+                    def release(toks):
+                        """Reads `toks` (written ids, in order) into the reply: the parser, the events, the checks
+                        that end a pass.  -> None, or the index after the token that ended this pass (the caller
+                        discards the rest)."""
+                        nonlocal thinking_n, run_len, run_tok, repeated, tail, answered, reasoning_text, last_out
+                        nonlocal last_print, finish, looped, next_loop_check, repeat_coverage, recover_prompt
+                        nonlocal thought, wrap, force, opens, called
+                        for i, t in enumerate(toks):
+                            thinking_n += parser.state in ("reasoning", "rcall")
+                            run_len = run_len + 1 if t == run_tok else 1
+                            run_tok = t
+                            if self.repeat_stop_tokens and run_len >= self.repeat_stop_tokens:
+                                repeated = True     # #606: a degenerate output, not an answer: end it here
+                                return i + 1
+                            piece = detok.push(t)
+                            tail = (tail + piece)[-2:]
+                            evs = cut(parser.feed(piece))
+                            self._note(n, evs, st, rate)
+                            last_print = self._progress(last_print, st=st)
+                            for ev in evs:
+                                if self.reasoning_loop_recovery and ev.kind == "reasoning":
+                                    reasoning_text += ev.text or ""
+                                if ev.kind == "content":
+                                    said.append(ev.text or "")
+                                elif ev.kind == "tool_call":
+                                    called = True
+                                if blocked and (pending_evs or ev.kind.startswith("tool")):
+                                    pending_evs.append(ev)      # (a call: held back until the answer ends)
+                                    continue
+                                if ev.kind in ("content", "tool_start", "tool_call"):
+                                    answered = True
+                                yield "event", ev
+                            if evs:
+                                last_out = time.perf_counter()
+                            elif time.perf_counter() - last_out >= KEEPALIVE_S:
+                                last_out = time.perf_counter()
+                                yield "ping", None
+                            if stops is not None and stops.hit is not None:
+                                finish = "stop"         # gen.close() below STOPs the engine, as for a stop token
+                                return i + 1
+                            if (self.reasoning_loop_recovery and not recovery_count and parser.state == "reasoning"
+                                    and n >= next_loop_check and not parser.buf and not parser.pending
+                                    and not detok.pending()):
+                                next_loop_check = n + LOOP_CHECK_EVERY
+                                repeat_coverage = reasoning_repeat_coverage(reasoning_text)
+                                if repeat_coverage >= LOOP_COVERAGE:
+                                    if self.reasoning_loop_recovery == "stop":
+                                        looped = True        # #728: end the reply here, as for a repeated token
+                                        return i + 1
+                                    if not emb:              # "recover": not for a request with pictures
+                                        unread = len(toks) - i - 1 + len(held)   # (written after it: not kept)
+                                        recover_prompt = focused_recovery_prompt(self.tok, ids, raw_ids[:len(raw_ids) - unread])
+                                        if recover_prompt is not None:
+                                            return i + 1
+                            if budget and parser.state == "reasoning":
+                                thought += 1
+                                # at a clean point: no tag held back, no character split across tokens
+                                if thought >= budget and parser.clean and not detok.pending():
+                                    wrap = True
+                                    return i + 1
+                            if force:
+                                if any(ev.kind in ("tool_start", "tool_call") for ev in evs):
+                                    force = None    # the model is writing a call of its own
+                                elif parser.state == "content" and parser.clean and not detok.pending():
+                                    opens = True
+                                    return i + 1
+                        return None
+
+                    def guard_defers(act) -> bool:
+                        """One event is handled once (see LOOP_STOP_NOTE's comment): a run of one id is #606's while
+                        that is on, a loop in the thinking #728's while that is configured.  Then the guard forgets
+                        it (its counts and events as if unseen)."""
+                        thinking_loop = act.where == "thinking" or (guard.think_end is None and act.where == "answer"
+                                                                    and parser.state in ("reasoning", "rcall"))
+                        mine = not (thinking_loop and self.reasoning_loop_recovery)
+                        if mine and self.repeat_stop_tokens:
+                            block = raw_ids[-act.period:]
+                            mine = len(set(block)) > 1
+                        if mine:
+                            return False
+                        guard.events.pop()
+                        if act.where in guard.hits:
+                            guard.hits[act.where] -= 1
+                        return True
+
                     while True:
                         segment_before = getattr(self.engine, "last", None)
                         segments_before = len(segments)     # (#879: a pass sent again leaves no segment)
-                        gen = self.engine.generate(prompt, max_new - n, sampling, cancel, embeddings=emb) if emb \
-                            else self.engine.generate(prompt, max_new - n, sampling, cancel)
+                        left = max_new - n
+                        if server_words:                # the prompt holds the server's own words too: the context caps it
+                            left = max(1, min(left, self.engine.max_context - CTX_SLACK - len(prompt)))
+                        smp_call, n_call = guard.sampling(sampling, n, left) if guard is not None \
+                            else (sampling, left)
+                        if smp_call is not sampling:    # the guard's short penalty: its window counts from the reply's start
+                            smp_call = {**smp_call, "_reply_from": len(ids)}
+                        gen = self.engine.generate(prompt, n_call, smp_call, cancel, embeddings=emb) if emb \
+                            else self.engine.generate(prompt, n_call, smp_call, cancel)
+                        pass_n, act = n, None           # the count before this pass; the guard's action in it
                         recover_prompt = None
                         seg, wrap, leaving = [], False, False   # this pass's tokens; the budget is reached; closed
                         nonfinite = False               # #879: the engine ended this pass on non-finite logits
@@ -6518,64 +6890,47 @@ class Service:
                                     with self.status_lock:
                                         trace["first_token_s"] = round(time.perf_counter() - trace["_clock"], 3)
                                 if t in self.stop_ids:
+                                    if held:            # what the guard still held back is read first
+                                        rel, held[:] = list(held), []
+                                        k = yield from release(rel)
+                                        if k is not None:
+                                            discard(rel[k:])
+                                            n -= 1          # (the stop token: never kept)
+                                            break
                                     if force and parser.state == "reasoning" and parser.buf == THINK_END:
                                         opens = True    # #537: the held </think> was the end: the call opens there
                                         break
+                                    if (blocked or keep) and not cancel.is_set():
+                                        server_next = server_turn()
+                                        if server_next is not None:
+                                            n -= 1      # (the stop token: the server's words take its place)
+                                            break
                                     finish = "stop"
                                     raw_ids.append(t)
                                     break
                                 raw_ids.append(t)
                                 seg.append(t)
-                                thinking_n += parser.state in ("reasoning", "rcall")
-                                run_len = run_len + 1 if t == run_tok else 1
-                                run_tok = t
-                                if self.repeat_stop_tokens and run_len >= self.repeat_stop_tokens:
-                                    repeated = True     # #606: a degenerate output, not an answer: end it here
+                                if guard is None:
+                                    rel = (t,)
+                                else:
+                                    held.append(t)
+                                    act = guard.push(t, n)
+                                    if act is not None and guard_defers(act):
+                                        act = None
+                                    if act is not None:
+                                        break           # (gen.close(): STOP + drain; handled below)
+                                    k = len(held) - guard.hold
+                                    rel = held[:k] if k > 0 else ()
+                                    if k > 0:
+                                        del held[:k]
+                                    elif time.perf_counter() - last_out >= KEEPALIVE_S:
+                                        last_out = time.perf_counter()
+                                        yield "ping", None
+                                k = yield from release(rel)
+                                if k is not None:
+                                    discard(list(rel[k:]) + held)
+                                    held.clear()
                                     break
-                                piece = detok.push(t)
-                                tail = (tail + piece)[-2:]
-                                evs = cut(parser.feed(piece))
-                                self._note(n, evs, st, rate)
-                                last_print = self._progress(last_print, st=st)
-                                for ev in evs:
-                                    if self.reasoning_loop_recovery and ev.kind == "reasoning":
-                                        reasoning_text += ev.text or ""
-                                    if ev.kind in ("content", "tool_start", "tool_call"):
-                                        answered = True
-                                    yield "event", ev
-                                if evs:
-                                    last_out = time.perf_counter()
-                                elif time.perf_counter() - last_out >= KEEPALIVE_S:
-                                    last_out = time.perf_counter()
-                                    yield "ping", None
-                                if stops is not None and stops.hit is not None:
-                                    finish = "stop"         # gen.close() below STOPs the engine, as for a stop token
-                                    break
-                                if (self.reasoning_loop_recovery and not recovery_count and parser.state == "reasoning"
-                                        and n >= next_loop_check and not parser.buf and not parser.pending
-                                        and not detok.pending()):
-                                    next_loop_check = n + LOOP_CHECK_EVERY
-                                    repeat_coverage = reasoning_repeat_coverage(reasoning_text)
-                                    if repeat_coverage >= LOOP_COVERAGE:
-                                        if self.reasoning_loop_recovery == "stop":
-                                            looped = True        # #728: end the reply here, as for a repeated token
-                                            break
-                                        if not emb:              # "recover": not for a request with pictures
-                                            recover_prompt = focused_recovery_prompt(self.tok, ids, raw_ids)
-                                            if recover_prompt is not None:
-                                                break
-                                if budget and parser.state == "reasoning":
-                                    thought += 1
-                                    # at a clean point: no tag held back, no character split across tokens
-                                    if thought >= budget and parser.clean and not detok.pending():
-                                        wrap = True
-                                        break
-                                if force:
-                                    if any(ev.kind in ("tool_start", "tool_call") for ev in evs):
-                                        force = None    # the model is writing a call of its own
-                                    elif parser.state == "content" and parser.clean and not detok.pending():
-                                        opens = True
-                                        break
                         except EngineNonFinite:
                             nonfinite = True
                         except EngineDied as e:
@@ -6606,6 +6961,65 @@ class Service:
                             segment_done = getattr(self.engine, "last", None)
                             if segment_done is not None and segment_done is not segment_before:
                                 segments.append(dict(segment_done))
+                        if server_next is not None and not cancel.is_set():
+                            # the server's own words (a blocked call answered, or keep going) and on from there: a new
+                            # turn of the model's, read by a fresh parser
+                            suffix, thinks = server_next
+                            server_next = None
+                            room = self.engine.max_context - CTX_SLACK - len(prompt) - len(seg) - len(suffix)
+                            if room > 1 and n < max_new:
+                                prompt = prompt + seg + suffix
+                                server_words += len(suffix)
+                                parser, detok = new_parser(bool(thinking and thinks)), Detokenizer(self.tok)
+                                said.clear()
+                                guard.in_think = bool(thinking and thinks) and guard.think_end is not None
+                                guard.det.reset(raw_ids)
+                                continue
+                            finish = "stop"
+                        server_next = None
+                        if held and act is None:
+                            rel, held[:] = list(held), []
+                            if cancel.is_set():
+                                discard(rel)
+                            else:               # the pass ended (max tokens, non-finite logits): the held tail is read now
+                                k = yield from release(rel)
+                                if k is not None:
+                                    discard(rel[k:])
+                        if act is not None:
+                            # the loop guard saw a loop: its repeats not read yet are dropped (what went out stays),
+                            # after a third loop in the thinking the thinking is closed with the model's own
+                            # end-of-thinking token; then on from what is kept with a short repetition penalty
+                            # (guard.sampling) - or, a loop that came back in the answer, the answer ends there
+                            drop = min(act.drop, len(held))
+                            if drop:
+                                del held[-drop:]
+                                discard(seg[-drop:])
+                            rel, held[:] = list(held), []
+                            if act.kind == loop_guard.CLOSE_THINKING and guard.think_end is not None:
+                                rel.append(guard.think_end)
+                                seg.append(guard.think_end)
+                                raw_ids.append(guard.think_end)
+                                n += 1
+                            guard.resume(raw_ids, act)
+                            self._loop_noted(act, n)
+                            k = None if cancel.is_set() else (yield from release(rel))
+                            if k is not None:
+                                discard(rel[k:])
+                            elif not cancel.is_set():
+                                if act.kind == loop_guard.STOP:
+                                    guard_stop, finish = True, "stop"
+                                    if not answered:    # (never a silent end after the thinking)
+                                        yield "event", Event("content", LOOP_STOP_NOTE)
+                                    break
+                                if n < max_new:
+                                    prompt = prompt + seg
+                                    continue
+                        if (guard is not None and act is None and n_call < left and n - pass_n >= n_call
+                                and finish != "stop" and not (wrap or opens or nonfinite or repeated or looped)
+                                and recover_prompt is None and not cancel.is_set()):
+                            # the guard's short penalty ended that call: on with the request's own sampling
+                            prompt = prompt + seg
+                            continue
                         if nonfinite and not cancel.is_set():
                             # #879: the engine emitted none of the poisoned window's tokens and reads its next prompt
                             # from token 0.  Nothing sent yet: the same request once more, unseen by the client
@@ -6639,6 +7053,8 @@ class Service:
                                              for k in ("temperature", "presence_penalty")):
                                 sampling = {**(sampling or {}), "temperature": want[0], "presence_penalty": want[1]}
                             prompt = recover_prompt
+                            if guard is not None:
+                                guard.det.reset(raw_ids)
                             with self.status_lock:
                                 st["reasoning_recoveries"] = recovery_count
                             if trace is not None:
@@ -6668,6 +7084,8 @@ class Service:
                                     for ev in evs:
                                         yield "event", ev
                                 prompt = prompt + seg + extra
+                                if guard is not None:
+                                    guard.thinking_closed(raw_ids)
                                 finish = "length"
                                 continue
                         if not (wrap or opens) or cancel.is_set():
@@ -6701,6 +7119,13 @@ class Service:
                             finish = "stop"
                             break
                         prompt = prompt + seg + extra
+                        if guard is not None:
+                            if wrap:
+                                guard.thinking_closed(raw_ids)
+                            else:
+                                guard.det.reset(raw_ids)
+                    if pending_evs and not cancel.is_set():
+                        yield from flush_pending()      # (the answer ended: its held-back calls go out)
                     if cancel.is_set():
                         finish = "cancel"
                     elif looped:
@@ -6858,6 +7283,8 @@ class Service:
         done = {"finish": finish, "completion_tokens": n, "reused": (timings or {}).get("cache_n", 0),
                 "timings": timings, "reasoning_tokens": thinking_n,
                 "reasoning_recoveries": recovery_count}
+        if guard is not None and guard.events:          # what the loop guard did in this answer
+            done["loop_guard"] = guard.summary()
         if stops is not None and stops.hit is not None:
             done["stop_sequence"] = stops.hit
         if rejected:
@@ -9754,6 +10181,14 @@ def check_request_sampling(req) -> None:
             req[key] = value = num
         if isinstance(value, bool) or not isinstance(value, int if integer else (int, float)):
             raise ValueError(f"{key}: {'an integer' if integer else 'a number'}")
+    guard = (req or {}).get("loop_guard")           # the loop guard for this request only (serve/loop_guard.py)
+    if guard is not None and not isinstance(guard, bool):
+        if isinstance(guard, str) and guard.strip().lower() in ("true", "false", "on", "off", "1", "0"):
+            req["loop_guard"] = guard.strip().lower() in ("true", "on", "1")
+        elif isinstance(guard, int) and guard in (0, 1):
+            req["loop_guard"] = bool(guard)
+        else:
+            raise ValueError("loop_guard: true or false")
 
 
 # the API's model name per model family (the GGUF architecture, "arch" in the config) when the config names none
@@ -9973,6 +10408,18 @@ def budget_by_effort_setting(value) -> dict:
                              "and a whole number of tokens >= 0 (0: no cap)")
         out[k.strip().lower()] = v
     return out
+
+
+def loop_guard_setting(cfg: dict | None, env=None) -> bool:
+    """The loop guard (serve/loop_guard.py), on unless STRATA_LOOP_GUARD (or Maya's MAYA_LOOP_GUARD) says 0 / off /
+    false / no or the run config has "loop_guard": false; the environment, when set, wins over the config."""
+    off = ("0", "off", "false", "no", "none")
+    env = os.environ if env is None else env
+    v = env.get("STRATA_LOOP_GUARD", env.get("MAYA_LOOP_GUARD"))
+    if v is not None and str(v).strip():
+        return str(v).strip().lower() not in off
+    v = (cfg or {}).get("loop_guard")
+    return str(v).strip().lower() not in off if isinstance(v, str) else v is not False and v != 0
 
 
 def tool_call_recovery_setting(cfg: dict) -> bool:
@@ -10489,6 +10936,9 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
     if isinstance(rs, bool) or not isinstance(rs, int) or rs < 0:
         raise SystemExit(f"[strata] config \"repeat_stop_tokens\" must be a whole number >= 0 (0 = off), not {rs!r}")
     svc.repeat_stop_tokens = rs
+    svc.loop_guard = loop_guard_setting(cfg)            # (STRATA_LOOP_GUARD=0 or "loop_guard": false: off)
+    if not svc.loop_guard:
+        print("[strata] loop guard: off (a request's \"loop_guard\": true turns it on for that request)", flush=True)
     svc.effort_end = bool(effort_end)                   # #458: "effort_position": "end" with an engine that has it
     if cfg.get("reasoning_budget_tokens") is not None:  # #123: a default thinking budget for every request
         svc.reasoning_budget_configured = True
