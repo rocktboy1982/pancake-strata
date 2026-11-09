@@ -677,6 +677,37 @@ class Budget(unittest.TestCase):
         self.assertTrue(reasoning.startswith(said.split("\n\nI have thought")[0][:200]))
         self.assertIn("</think>", said)
 
+    def soft(self, grace):
+        from serve.server import REASONING_WRAP_UP
+        tok = Tok()
+        think_end = tok.encode("</think>", parse_special=True)[0]
+        thoughts = "".join(f"Point {i}: the value of the term is {i * 37 % 101} here.\n" for i in range(60))
+        eng = LoopingEngine(tok, "", "", script=thoughts, think_end=think_end, answer="Answer.")
+        svc = Server().service(eng)
+        svc.reasoning_budget_tokens, svc.reasoning_budget_grace = 307, grace
+        run(svc, thinking=True, max_new=4000)
+        p1, p2 = eng.calls[0][0], eng.calls[1][0]
+        said = tok.decode(p2[len(p1):])
+        self.assertTrue(said.endswith(REASONING_WRAP_UP))
+        return said[:-len(REASONING_WRAP_UP)]
+
+    def test_the_soft_budget_closes_at_a_line_end(self):
+        """Maya #613, opt-in in pancake ("reasoning_budget_grace"): past the budget the thinking closes at the end of
+        its sentence or line, not in the middle of it."""
+        from serve.server import think_boundary
+        hard = self.soft(0)
+        self.assertEqual(len(hard), 307)                    # (the byte tokenizer: one token a character)
+        self.assertFalse(think_boundary(hard))              # (mid-line: the old close)
+        soft = self.soft(100)
+        self.assertTrue(soft.startswith(hard) and think_boundary(soft), soft[-40:])
+        self.assertLessEqual(len(soft), 307 + 100)
+
+    def test_think_boundary(self):
+        from serve.server import think_boundary
+        for text, want in (("It is done.", True), ("a line\n", True), ("pi is 3.", False), ("wait...", False),
+                           ("(so it ends.)", True), ("mid sentence", False), ("\u7ed3\u675f\u3002", True)):
+            self.assertEqual(think_boundary(text), want, text)
+
 
 def agent(*rounds, user="find out why the module is offline"):
     """A Chat Completions request: the user's message, then (command, result) rounds of one bash call each."""

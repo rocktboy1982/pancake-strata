@@ -249,6 +249,21 @@ LOOP_TAIL_CHARS = 2048           # chars at the end of the reasoning also checke
 #   - loops in the THINKING are left to #728 when "reasoning_loop_recovery" is configured (opt-in): the guard then
 #     guards the answer and the tool calls only.  With #728 off (the default) the guard handles both.
 LOOP_STOP_NOTE = "(The answer was stopped: the model kept repeating itself.)"
+# Project Maya #613 (soft thinking budget): a reasoning block that reaches its budget (#123) is closed at the end of its
+# sentence or line, not mid-sentence (an agent's turn closed in the middle of a formula, and the answer after it was
+# garbled).  The wrap-up waits for the first boundary past the budget, at most THINK_GRACE tokens (and at most half the
+# room max_tokens leaves after the budget, so the answer keeps the rest).  pancake: opt-in - the config's
+# "reasoning_budget_grace" sets the most it waits (Maya's value is THINK_GRACE, 512); the default 0 closes at the budget
+# itself, as before (the #123 / #984 / DeepSeek small-cap tests pin those exact positions).
+THINK_GRACE = 512
+_THINK_BOUNDARY = re.compile(r"(?:\n|(?<![\d.])[.!?][\"')\]]*|[\u3002\uff01\uff1f])[ \t]*$")
+
+
+def think_boundary(text: str) -> bool:
+    """The reasoning so far (its last characters will do) ends a line or a sentence: a newline, or . ! ? after
+    something other than a digit or another dot (not "3." of "3.0", not "..."), closing quotes or brackets allowed
+    after it.  (Project Maya, serve/server.py.)"""
+    return bool(_THINK_BOUNDARY.search(text))
 LOOP_TAIL_PERIOD = 64            # a period at most this long in that tail reads as a fully repeated window
 
 
@@ -4961,6 +4976,7 @@ class Service:
         self.reasoning_budget_configured = False         # the config named reasoning_budget_tokens (0 included): no family default
         self.reasoning_budget_tokens = 0                 # #123: the config's default thinking budget (0: none)
         self.reasoning_budget_by_effort = {}             # pancake: {level: budget} for requests without a budget of their own
+        self.reasoning_budget_grace = 0                  # Maya #613 (opt-in): the budget closes at a sentence's or line's end, this many tokens at most later
         self.repeat_stop_tokens = REPEAT_STOP_TOKENS     # #606: one token this many times in a row ends a reply (0: off)
         # the loop guard (serve/loop_guard.py; STRATA_LOOP_GUARD=0 / "loop_guard": false: off) and what it did since
         # the start (the Monitor's and /metrics' counters)
@@ -6682,6 +6698,11 @@ class Service:
                                                      piece=self._guard_piece()) \
                         if self._loop_guard_on(sampling) else None
                     held: list[int] = []                # written, held back by the guard (always this pass's tail)
+                    # Maya #613: past the budget the thinking closes at its first sentence or line end (think_tail: the
+                    # reasoning's last characters), at most `grace` tokens later
+                    grace = max(0, min(getattr(self, "reasoning_budget_grace", 0),
+                                       (max_new - budget - 1) // 2 if max_new else THINK_GRACE)) if budget else 0
+                    think_tail = ""
                     guard_stop = False                  # the guard ended the answer (a loop that came back)
                     # across turns (prepare put them in the request): the calls this answer may not make again -
                     # while there are any, the answer's calls are held back (`pending_evs`) until it ends, and one
@@ -6770,7 +6791,7 @@ class Service:
                         discards the rest)."""
                         nonlocal thinking_n, run_len, run_tok, repeated, tail, answered, reasoning_text, last_out
                         nonlocal last_print, finish, looped, next_loop_check, repeat_coverage, recover_prompt
-                        nonlocal thought, wrap, force, opens, called
+                        nonlocal thought, wrap, force, opens, called, think_tail
                         for i, t in enumerate(toks):
                             thinking_n += parser.state in ("reasoning", "rcall")
                             run_len = run_len + 1 if t == run_tok else 1
@@ -6786,6 +6807,8 @@ class Service:
                             for ev in evs:
                                 if self.reasoning_loop_recovery and ev.kind == "reasoning":
                                     reasoning_text += ev.text or ""
+                                if ev.kind == "reasoning" and grace:
+                                    think_tail = (think_tail + (ev.text or ""))[-16:]
                                 if ev.kind == "content":
                                     said.append(ev.text or "")
                                 elif ev.kind == "tool_call":
@@ -6821,8 +6844,9 @@ class Service:
                             if budget and parser.state == "reasoning":
                                 thought += 1
                                 # at a clean point: no tag held back, no character split across tokens
-                                if thought >= budget and parser.clean and not detok.pending():
-                                    wrap = True
+                                if thought >= budget and parser.clean and not detok.pending() and (
+                                        not grace or thought >= budget + grace or think_boundary(think_tail)):
+                                    wrap = True             # (at a sentence's or line's end, Maya #613)
                                     return i + 1
                             if force:
                                 if any(ev.kind in ("tool_start", "tool_call") for ev in evs):
@@ -7096,6 +7120,7 @@ class Service:
                         # A forced call (tool_choice) is opened the same way: after the wrap-up, or where the
                         # thinking ended, after the blank line the template puts before a call.
                         if wrap:
+                            budget_was = budget
                             budget = st["thinking_budget"] = None
                             text = REASONING_WRAP_UP + (force or "")
                         else:
@@ -7105,8 +7130,9 @@ class Service:
                         if max_new - n - len(extra) < 1:
                             break                       # no room left to answer: "length", as without a budget
                         if wrap:
-                            print(f"[strata] thinking budget reached ({thought} tokens): wrapping up the thinking",
-                                  flush=True)
+                            print(f"[strata] thinking budget reached ({thought} tokens"
+                                  f"{f', {thought - budget_was} past it to a sentence or line end' if thought > budget_was else ''}"
+                                  "): wrapping up the thinking", flush=True)
                         for t in extra:
                             n += 1
                             raw_ids.append(t)
@@ -10950,6 +10976,13 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         if budget:
             print(f"[strata] thinking budget: {budget} tokens (reasoning_budget_tokens; a request can set its own)",
                   flush=True)
+    grace = cfg.get("reasoning_budget_grace", 0)      # Maya #613 (opt-in; Maya uses 512): 0 = close at the budget itself
+    if isinstance(grace, bool) or not isinstance(grace, int) or grace < 0:
+        raise SystemExit(f"[strata] config \"reasoning_budget_grace\" must be a whole number >= 0 (0 = off), not {grace!r}")
+    svc.reasoning_budget_grace = grace
+    if grace:
+        print(f"[strata] thinking budget: closed at a sentence or line end, at most {grace} tokens past it "
+              "(reasoning_budget_grace)", flush=True)
     by_effort = cfg.get("reasoning_budget_by_effort")   # pancake: {"low": 2048, "medium": 8192, "high": 0}
     if by_effort is not None:
         svc.reasoning_budget_by_effort = budget_by_effort_setting(by_effort)
