@@ -19436,19 +19436,37 @@ int main(int argc, char** argv) {
                     if (mtp.top2(a) == outv[(size_t) a]) ++t2_hit[a];
                 }
                 const Clock::time_point tw1 = Clock::now();
-                std::thread adapt_thr;   // the adaptive tier beside the commit and the draft (as in generate)
+                // item 75: one persistent worker runs the adaptive tier beside the commit and the draft (a new std::thread
+                // per window before; STRATA_ADAPT_PERSIST=0 restores that).  Same pinning on Linux (aux CPUs).
+                static const bool adapt_persist = [] { const char* e = std::getenv("STRATA_ADAPT_PERSIST"); return !(e && e[0] == '0'); }();
+                static JobThread* adapt_worker = nullptr;   // never freed: lives as long as the server
+                std::thread adapt_thr;
+                bool adapt_posted = false;
+                auto adapt_pending = [&] { return adapt_posted || adapt_thr.joinable(); };
+                auto adapt_join = [&] {
+                    if (adapt_posted) { adapt_worker->wait(); adapt_posted = false; }
+                    if (adapt_thr.joinable()) adapt_thr.join();
+                };
                 bool adapt_ok = true;
                 // (--adapt-async 1: the asynchronous tier above instead, ticked before the window)
                 if (!drive.d.usage.empty() && !ajob && ((rounds + 1) % o.adapt_iv(rounds)) == 0)
-                    adapt_thr = std::thread([&] { strata::platform::name_this_thread("strata-adapt"); strata::aux_cpus::pin_current_thread(); adapt_ok = adapt(); });
+                {
+                    if (adapt_persist) {
+                        if (adapt_worker == nullptr) adapt_worker = new JobThread();
+                        adapt_worker->post([&] { adapt_ok = adapt(); });
+                        adapt_posted = true;
+                    } else {
+                        adapt_thr = std::thread([&] { strata::platform::name_this_thread("strata-adapt"); strata::aux_cpus::pin_current_thread(); adapt_ok = adapt(); });
+                    }
+                }
                 if (!ver.commit(a + 1, err)) {
                     exit_if_gpu_fatal(err);
-                    if (adapt_thr.joinable()) adapt_thr.join();
+                    adapt_join();
                     std::printf("ERR %s\n", err.c_str());
                     return 1;
                 }
                 if (nonfinite_hit(ver, first_window ? "first decode" : "decode")) {   // #879: none of its tokens goes out
-                    if (adapt_thr.joinable()) adapt_thr.join();
+                    adapt_join();
                     if (!adapt_ok) {
                         std::printf("ERR an adaptive refill failed\n");
                         return 1;
@@ -19458,7 +19476,7 @@ int main(int argc, char** argv) {
                 }
                 // a merged window: the drafter's rows of the prompt tokens in it, as the prompt windows give them
                 if (merged && use_mtp && !mtp.prefill(ver.final_R_all(), window.data() + 1, T - 1, p, err)) {
-                    if (adapt_thr.joinable()) adapt_thr.join();
+                    adapt_join();
                     std::printf("ERR %s\n", err.c_str());
                     return 1;
                 }
@@ -19471,10 +19489,10 @@ int main(int argc, char** argv) {
                     const Clock::time_point tk0 = Clock::now();
                     // queued on the idle drafter's own stream, overlapped with the other's draft; keep_sync() below waits before the next window rewrites the taps / rows
                     if (!req_df2) {
-                        if (!df2.context_async(ver.tap_dev(), a + 1, p, err)) { if (adapt_thr.joinable()) adapt_thr.join(); std::printf("ERR %s\n", err.c_str()); return 1; }
+                        if (!df2.context_async(ver.tap_dev(), a + 1, p, err)) { adapt_join(); std::printf("ERR %s\n", err.c_str()); return 1; }
                         keep_pending = true;
                     } else if (use_mtp) {
-                        if (!mtp.prefill(ver.final_R_all(), outv.data(), a + 1, p, err, false)) { if (adapt_thr.joinable()) adapt_thr.join(); std::printf("ERR %s\n", err.c_str()); return 1; }
+                        if (!mtp.prefill(ver.final_R_all(), outv.data(), a + 1, p, err, false)) { adapt_join(); std::printf("ERR %s\n", err.c_str()); return 1; }
                         keep_pending = true;
                     }
                     keep_ms += std::chrono::duration<double, std::milli>(Clock::now() - tk0).count();
@@ -19512,7 +19530,7 @@ int main(int argc, char** argv) {
                 static const bool df2_end_update = std::getenv("STRATA_DF2_END_UPDATE") == nullptr || std::getenv("STRATA_DF2_END_UPDATE")[0] != '0';   // =0: the pre-fix behaviour (diagnostics)
                 if (df2_end_update && use_df2 && req_df2 && !merged && (eos || produced_n >= max_new)) {
                     const float* tp_end = df2_win_taps(a + 1, err);   // (on a layer split: every stage's taps gathered onto the drafter's card)
-                    if (tp_end == nullptr || !df2.context(tp_end, a + 1, p, err)) { if (adapt_thr.joinable()) adapt_thr.join(); std::printf("ERR %s\n", err.c_str()); return 1; }
+                    if (tp_end == nullptr || !df2.context(tp_end, a + 1, p, err)) { adapt_join(); std::printf("ERR %s\n", err.c_str()); return 1; }
                 }
 #endif
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
@@ -19528,9 +19546,9 @@ int main(int argc, char** argv) {
                     ++dec_windows; dec_T += merged ? 1 : T;   // a merged window's prompt rows are not decode rows
                 }
                 pcie_auto_step(req_pcie_frac);   // the default share, refined from the CPU pool's speed (PcieAuto); a request's own share is left alone
-                if (adapt_thr.joinable()) {
+                if (adapt_pending()) {
                     const Clock::time_point taj0 = Clock::now();
-                    adapt_thr.join();
+                    adapt_join();
                     const double asw_join = std::chrono::duration<double, std::milli>(Clock::now() - taj0).count();
                     dt_adapt_join += asw_join;
                     asw_wait_ms += asw_join;

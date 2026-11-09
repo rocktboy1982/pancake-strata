@@ -378,7 +378,8 @@ Added 2026-11-09 from the decode-path code study (research_notes/Pancake cod dee
     phase] Overlap the MTP draft with the idle CPU pool (~3 ms/window idle during head, sync, commit, draft): first the exact quick win -
     gate min_p on the device so the draft round and all step graphs launch at once (no per-step host round trip, ~0.3-0.5%);
     item 10 is the larger version.  [this; generate.cpp/mtp.cpp]
-75. Persistent adapt worker: --adapt-every 1 spawns a new std::thread every window (generate.cpp ~19396); reuse JobThread
+75. [CODED 2026-11-09, default on, STRATA_ADAPT_PERSIST=0 restores the per-window thread; builds hip-mmq + cuda-86; A/B in
+    the test phase] Persistent adapt worker: --adapt-every 1 spawns a new std::thread every window (generate.cpp ~19396); reuse JobThread
     (~2125).  Exact, 0.1-0.3%.  [this; generate.cpp outside dan-99's tier block - coordinate]
 76. HIP sync policy A/B: the main device never gets hipDeviceScheduleSpin, so blocking syncs (verify.cpp:3872 head sync) use
     HIP's default; A/B spin vs default, 0.2-0.6%.  [this, measurement]
