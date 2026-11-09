@@ -47,6 +47,7 @@ Everything below is on top of upstream Strata v0.2.12 and measured on the RTX 30
 | **MTP draft vocabulary** | 106K tokens with CJK | **English/code subset by default** (+5% decode, ~215 MiB more VRAM for experts); Strata-rdna3's 59.6K list included |
 | **Upstream PRs not in Strata** | - | `STRATA_VERIFY_DEFER_CPU` (#2689/#2690, opt-in, lossy) |
 | **Server** | - | sends `turn_at` to `strata-poly`, so a chat's next turn resumes from the cache |
+| **Agent robustness** | #606 one-token stop, opt-in #728 | **Project Maya's loop guard** (MIT): exact loops broken as they start (drop + short penalty, close the thinking, stop), repeated tool calls noted then blocked, on by default; tool calls that do not parse never fail or swallow the answer; opt-in soft thinking-budget close at a sentence end |
 | **Proof** | - | bench harness (`tools/pancake/bench_engines.py`, every run kept as JSON), bitwise kernel tests (`poly_gdn_cols_test`, `poly_gemm_small_test`, `q5k_head_test`, `iq4xs_head_test`), and a findings log with every test, profile and rejected idea |
 | **Ahead** | - | Qwen 4 plan (Flash-Next is its official architecture preview), RDNA3 / RX 7900 XT port from Strata-rdna3, flash-attention prompt kernel, two-stage prompts |
 

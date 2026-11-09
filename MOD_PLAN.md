@@ -475,6 +475,32 @@ Blocked: the 3060 GPU run (card out), two-stage prompts (second GPU), DeepSeek V
 Owner's call: merging port/faststrata-poly -> exp/expert-prefetch -> feat/grammar -> port/rdna3-decode into main; BIOS iGPU
 memory 4 -> 2 GB; DDR4-3600 at FCLK 1800.
 
+### Agent robustness from Project Maya (MIT, mw00/project-maya main 7bf15ac, v1.1.56; 2026-11-09)
+
+Server-side only (no engine change, no speed effect until a loop is seen).  Copied and adapted, tests in
+`serve/test_loop_guard.py` (Maya's module tests as they are + pancake server tests) and `serve/test_tolerant_tool_calls.py`.
+
+- **Loop guard** (`serve/loop_guard.py`, on by default; `STRATA_LOOP_GUARD=0` / `MAYA_LOOP_GUARD=0`, config
+  `"loop_guard": false`, or a request's `"loop_guard": false|true`).  In the token loop: an exact block repeated back to
+  back is seen as it starts; the stream holds back at most 64 tokens of a tail that repeats; 1st loop in the answer
+  (1st/2nd in the thinking): the repeats not sent are dropped and the engine continues with repetition penalty 1.15 over
+  2 x period (GEN `pen_from` so the window counts from the reply's start); 3rd loop in the thinking closes it with
+  `</think>`; a loop that comes back in the answer ends it ("stop", a note if no answer text yet).  Tool calls are never
+  cut.  Across turns: a note after a tool result repeated 3x with the same result, the call blocked (answered by the
+  server in the prompt, thinking steered, slightly hotter) after 3 notes, "keep going" when a looping conversation would
+  end the turn with nothing new (3x max), and the prompt of a looping conversation under 32K chars leaves out what the
+  model already wrote.  Counters: `/metrics` JSON `loop_guard`, Prometheus `strata:loop_guard_*_total`.
+  Precedence: one-token runs stay #606's (`repeat_stop_tokens`, "length"); thinking loops are #728's when
+  `reasoning_loop_recovery` is configured; the guard handles everything else.  DeepSeek (DSML) gets notes but no blocking.
+- **Soft thinking budget** (Maya #613), opt-in `"reasoning_budget_grace": N` (Maya uses 512): past the #123 budget the
+  thinking closes at its first sentence or line end, at most N tokens (and half the remaining room) later.  Default 0
+  keeps the exact #123/#984/DeepSeek small-cap close positions the tests pin.
+- **Tolerant tool calls** (Maya #613/#706): an unclosed `<parameter=` tag is malformed (pancake waited for a
+  `</parameter>` that never came and lost every word after a streamed call); a malformed call never raises (also with
+  `"tool_call_recovery": false`): announced -> left unfinished (#211), else text.  Not ported: Maya's resume-the-thinking
+  after an end-of-turn token inside it - both Qwen turn-end tokens are the engine's own EOS here, and the empty-answer case
+  is already #1053 (`reasoning_close_retry`).
+
 ### Items 3-4: seeding the adaptive tier at a request's start (branch feat/pattern-cache, 2026-11-08)
 
 Why seeding and not longer memory: a replay showed the tier's hit rate within 0.5 points for usage decay 0.7..0.986 a
