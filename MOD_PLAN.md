@@ -137,7 +137,8 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
   decides 51/52, feeds 1/32/48 - exact - unowned [this] - none - open.
 - 64 shared window trace (new) - 0; one GPU trace run answers 14/30, 28's weight CDF, 36, 15, 23, 5, 3-4, 17 offline -
   dan-cd (logger, = I1) + this (readers) - none - open.
-- 42 overlap-aware max-plus simulator - 0; prices 8/28, 29, 14, 46-53 before they are built (validate to 5-9% error) - exact -
+- 42 overlap-aware max-plus simulator - DONE as time_ceiling.py --overlap (751e09b70; serial/defer/guard, alpha DMA contention;
+   item 29 +3% modeled); validation to 5-9% error in the test phase - exact -
   dan-cd (item 14 owner; spec here) - 49/50/44, 64 - spec written.
 - 8 non-finite bisect (6 runs on WAIT_FUSE, ROUTE_PUBLISH, GR_FUSED, QDEDUP, ADAPT_OVERLAP, EXPDEC) - 0; gates 8/28 - dan-cd -
   none - queued.
@@ -150,11 +151,13 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 12 thinking caps in the preset (tail above p99 only, grace 512, reasoning_close_retry) - worst turn 84-340 s -> ~1-2 min,
    ~6.6% of turn time - changes text on the tail only - this - 73 (to read p99) - code done, in no preset.  [S4]
 - 8 + 28 expert deferral with the rank guard - +10-25% on edits est. (ceiling 1.45x, KTransformers) - lossy-small - dan-cd -
-   bisect, 42, 67 - blocked (non-finite on HIP).  [S1; with 7 the combined gain is below the sum]
+   42 (done, model), 67 - UNBLOCKED 2026-11-09: non-finite cause = STRATA_ROUTE_PUBLISH, now off under deferral (d5b58f669);
+   time_ceiling.py --overlap (751e09b70) models deferral +33% on edits, + k-th-miss 2/8 +45-52% (alpha 0.25-0.5; model, not
+   validated).  [S1; with 7 the combined gain is below the sum]
 - 38 Linux direct expert-arena loader (O_DIRECT via direct_file.cpp; FADV_DONTNEED stop-gap) - start 28-65 s -> ~10-14 s est.,
    likely removes the oomd trips that force the -8% mmap tier - exact - unowned [this] - none - open.  Part of 69.
-- 2 keep the decode cache through long prompts - ~97 -> ~120 tok/s after an 11.7K prompt (+20% est.) - exact - dan-cd - lend
-   sweep - queued.  Part of 69's VRAM budget.
+- 2 keep the decode cache through long prompts - CLOSED 2026-11-09 (c9d9f014c): decode_curve.py shows no refill cost; the drop
+   after long prompts is the prose reply and cache warm-up.
 - 14/27/30 time-based cache simulator, then the winning policy - 0-30% on edits; best policy band +5-16% est.; build only at
    >= 5% - exact - dan-cd - 42, 64 - offline.  [S1]
 - 31 preserve_thinking end to end - removes the re-read from the first dropped <think> block every turn (share of the 8%
@@ -175,7 +178,8 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 **Tier B (3-10%)**
 - 68 miss-cost-aware speculation (new: 15 + 36 + 43 + 23 + 28) - exact part 2-6%, with AcceptMoE 5-15% on edits est. -
     mixed - this (+ dan-cd for 28) - 64, 63 - design.  [S2, S3]
-- 23 AcceptMoE depth-graded verify prior - 5-15% over fast-hip est. - lossy - unowned [this] - 64 replay, 67 - open.
+- 23 AcceptMoE depth-graded verify prior - 5-15% over fast-hip est. - lossy - dan-cd - 64 replay, 67 - CODED 2026-11-09 as
+   STRATA_ROUTE_PRIOR_DEPTH=a (4f56ce535), opt-in; quality gate pending.
     [S2: dropped if 7 ships]
 - 15 + 36 DISCO + SpecFit/entropy features - 0-10% combined - mostly exact - this (feat/disco) - 64 - branch.  [S3]
 - 65 overlap package judged by the simulator (new: 46, 47, 48, 51, 40, 29) - 5-10% on edits, 3-8% short est. - exact (51
