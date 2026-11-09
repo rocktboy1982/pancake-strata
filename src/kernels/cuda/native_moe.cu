@@ -149,6 +149,17 @@ __global__ void combine_k10_vec4_hits(const float4* __restrict__ parts4, const f
 // the next launch on that stream - stream-ordered after this one - starts clean; also inside captured graphs).  The
 // poller is elected by CAS, so it is always a running block: the spinners cannot starve it.
 constexpr int kPollSlots = 64;
+__device__ __forceinline__ unsigned long long combine_now_ns() {   // the verify profile's clock (gpu_stamp_kernel)
+    unsigned long long t;
+#if defined(STRATA_HIP_GFX906)
+    t = wall_clock64() * 40ull;
+#elif defined(__HIPCC__)
+    t = wall_clock64() * 10ull;
+#else
+    asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(t));
+#endif
+    return t;
+}
 __device__ uint32_t g_poll_state[kPollSlots * 4];
 // STRATA_COMBINE_CPU: combine_k10_vec4 with each part read where the window left it (see native_moe_combine_multi_cpu)
 template <bool GATED>
@@ -156,7 +167,8 @@ __global__ void combine_cpu_k10_vec4(const volatile float4* cpu4, const float4* 
                                      const int32_t* __restrict__ hit_rows, const int32_t* __restrict__ count,
                                      const float* __restrict__ weights, const float4* __restrict__ shared4,
                                      const float* __restrict__ sg, float4* __restrict__ output4, int64_t n4,
-                                     const volatile uint32_t* flag, uint32_t value, int poll_slot) {
+                                     const volatile uint32_t* flag, uint32_t value, int poll_slot,
+                                     unsigned long long* t_waited) {
     const int64_t tk = blockIdx.y;
     __shared__ int hit[10];
     if (flag != nullptr && threadIdx.x == 0) {
@@ -178,6 +190,7 @@ __global__ void combine_cpu_k10_vec4(const volatile float4* cpu4, const float4* 
             }
         }
         __threadfence_system();
+        if (t_waited != nullptr && blockIdx.x == 0 && blockIdx.y == 0) *t_waited = combine_now_ns();   // item 49
     }
     if (threadIdx.x < 10) {
         const int row = (int) tk * 10 + (int) threadIdx.x, c = *count;
@@ -327,7 +340,8 @@ void native_moe_combine_multi_hits(const float* hits, const float* weights, cons
 }
 void native_moe_combine_multi_cpu(const float* cpu, const float* hit, const int32_t* hit_rows, const int32_t* count,
                                   const float* weights, const float* shared, const float* shared_gate, float* output,
-                                  int64_t n_embd, int n_tok, void* stream, const uint32_t* wait_flag, uint32_t wait_value) {
+                                  int64_t n_embd, int n_tok, void* stream, const uint32_t* wait_flag, uint32_t wait_value,
+                                  unsigned long long* t_waited) {
     if (!stream || n_embd <= 0 || (n_embd & 3) != 0 || n_tok < 1 || !shared ||
         (((uintptr_t) cpu | (uintptr_t) hit | (uintptr_t) shared | (uintptr_t) output) & 15u) != 0)
         throw std::invalid_argument("native MoE combine (cpu) requires a stream, aligned rows of a width of 4s, tokens");
@@ -337,10 +351,12 @@ void native_moe_combine_multi_cpu(const float* cpu, const float* hit, const int3
     const int ps = wait_flag != nullptr ? poll_slot_of(stream) : -1;
     if (shared_gate)
         combine_cpu_k10_vec4<true><<<grid, 64, 0, st>>>(reinterpret_cast<const volatile float4*>(cpu), reinterpret_cast<const float4*>(hit),
-            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), shared_gate, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value, ps);
+            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), shared_gate, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value, ps,
+            wait_flag != nullptr ? t_waited : nullptr);
     else
         combine_cpu_k10_vec4<false><<<grid, 64, 0, st>>>(reinterpret_cast<const volatile float4*>(cpu), reinterpret_cast<const float4*>(hit),
-            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), nullptr, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value, ps);
+            hit_rows, count, weights, reinterpret_cast<const float4*>(shared), nullptr, reinterpret_cast<float4*>(output), n4, wait_flag, wait_value, ps,
+            wait_flag != nullptr ? t_waited : nullptr);
     const auto error = cudaGetLastError();
     if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
 }

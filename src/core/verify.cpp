@@ -2634,7 +2634,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             } else if (cfuse_on(n)) {
                 // the CPU's share is in the mapped rows: the combine reads them (STRATA_WAIT_FUSE: and waits for them)
                 if (!g_wait_fuse) wait_flag_ge(m_flag_, ring, cs);
-                stamp(l, 23, grp);
+                // item 49: with the wait fused, the combine kernel stamps "waitCPU" itself when the wait ends
+                if (!(g_wait_fuse && prof_on_ && grp == 0 && ((prof_sel >> 23) & 1) && trace_m_ == nullptr)) stamp(l, 23, grp);
             } else {
                 const bool fuse_rows = fuse_rows_on() && !prof_on_ && !remote_opt_ && dec_batch && m_bal_ == nullptr;   // 143-amdk
                 if (!fuse_rows) {
@@ -2673,7 +2674,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             try {
                 native_moe_combine_multi_cpu(m_ymiss_ + (size_t) tb * K * N, hit_out, p_dst, p_counts + 1, w_ + tb * K,
                                              shared_ + tb * N, sg_gated_[grp] ? sh_g_ + tb : nullptr, bo_ + tb * N, N, n, cs,
-                                             g_wait_fuse ? m_flag_ : nullptr, ring);
+                                             g_wait_fuse ? m_flag_ : nullptr, ring,
+                                             g_wait_fuse && prof_on_ && grp == 0 && ((prof_sel >> 23) & 1) && trace_m_ == nullptr
+                                                 ? prof_ + (size_t) (l * kProfPer + 23) : nullptr);
             } catch (const std::exception& e) { err = "verify combine: " + std::string(e.what()); return false; }
         } else
         if (sg_gated_[grp]) {   // STRATA_LFUSE: the shared expert's gate was not applied: the combine applies it (all rows are hits)

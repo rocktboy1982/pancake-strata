@@ -37,7 +37,9 @@ void native_moe_combine_multi_hits(const float* hits, const float* weights, cons
 void native_moe_combine_multi_cpu(const float* cpu, const float* hit, const int32_t* hit_rows, const int32_t* count,
                                   const float* weights, const float* shared, const float* shared_gate, float* output,
                                   int64_t n_embd, int n_tok, void* stream, const uint32_t* wait_flag = nullptr,
-                                  uint32_t wait_value = 0);
+                                  uint32_t wait_value = 0, unsigned long long* t_waited = nullptr);
+/// (MOD_PLAN item 49) `t_waited`, with `wait_flag`: block (0,0) writes the GPU clock (ns) there once the CPU-share wait
+/// has ended - the verify profile's "waitCPU" stamp, which the fused wait otherwise folds into "combine".
 void native_moe_combine_multi_hits_gated(const float* hits, const float* weights, const float* shared,
                                          const float* shared_gate, float* output, int64_t n_embd, int64_t k, int n_tok,
                                          void* stream);
