@@ -9386,6 +9386,10 @@ def make_handler(svc: Service):
                 print(f"[strata] /v1/responses: left out the hosted tools {', '.join(sorted(set(skipped) - noted))} "
                       f"(this server cannot run them)", flush=True)
                 noted.update(skipped)
+            # item 89: the engine holds tool calls / JSON to their grammar here too, as on /v1/chat/completions
+            req = {**req, "strata_grammar": grammar_api.grammar_spec(getattr(svc.engine, "grammar", False), tools,
+                                                                    req.get("tool_choice"), req.get("tools"),
+                                                                    responses_api.text_format(req))}
             if req.get("max_output_tokens") is None and "max_tokens" in svc.shared:   # the shared Chat settings
                 req = {**req, "max_output_tokens": svc.shared["max_tokens"]}
             try:
@@ -9446,6 +9450,9 @@ def make_handler(svc: Service):
             if tool_choice_of(req.get("tool_choice"))[0] == "none":   # Anthropic's {"type": "none"}: no tools offered
                 tools = callable_tools = None
             force = svc.force_text(forced_call(req.get("tool_choice"), tools))        # "any" / {"type": "tool", "name": N}
+            # item 89: the tool-call grammar on the Anthropic route too (callable_tools: deferred tools stay callable)
+            req["strata_grammar"] = grammar_api.grammar_spec(getattr(svc.engine, "grammar", False), callable_tools,
+                                                             req.get("tool_choice"), req.get("tools"), None)
             max_new = int(req.get("max_tokens") or 0)                  # 0/-1: the rest of the context
             svc.reasoning_budget(req)                         # a bad value is a 400 before anything is sent
             stop_strings(req)                                 # ... and so is a bad stop / stop_sequences
