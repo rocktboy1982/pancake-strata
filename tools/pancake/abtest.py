@@ -263,7 +263,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--reps", type=int)
     ap.add_argument("--max-load", type=float, default=1.0)
-    ap.add_argument("--foreign-cpu", type=float, default=25.0, help="% of one core: above it a machine is not quiet")
+    ap.add_argument("--foreign-cpu", type=float, default=25.0, help="%% of one core: above it a machine is not quiet")
     ap.add_argument("--retries", type=int, default=2)
     ap.add_argument("--port", type=int, default=8080)
     a = ap.parse_args()
