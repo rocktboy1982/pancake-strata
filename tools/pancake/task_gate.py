@@ -22,8 +22,10 @@ and match the expected name and arguments; multi-turn and parallel calls support
 qa (regex on the answer).  Checkers need no network and no external service.
 
 Per arm the report has: success rate with a 95% Wilson interval (pooled runs), per-kind rates, tool-call validity
-rate, time to success (median, and seconds per success = all request seconds / successes), and the verdict vs base
-(see verdict()).  A server that dies mid-arm discards that attempt and retries the arm once (like abtest.py); a
+rate, time to success (median, and seconds per success = all request seconds / successes), the area under the
+time-to-success curve (A57: time_auc(); one common time axis, the longest run of the batch or --auc-horizon SECONDS; a
+paired bootstrap interval of the difference vs base; information only, it never changes a verdict), and the verdict vs
+base (see verdict()).  A server that dies mid-arm discards that attempt and retries the arm once (like abtest.py); a
 request that times out or returns an HTTP error is a failed run, a refused connection is a dead server.
 """
 import argparse
