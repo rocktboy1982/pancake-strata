@@ -144,9 +144,28 @@ touches drafting or routing). All gains quoted in the plan are fork claims until
 | --- | --- | --- | --- | --- |
 | 4.0.1 | Would PARK_TRUNCATE have saved the ~162 s of cold 54-61K re-reads? Why were those conversations dropped? | read that session's park / evict log lines in `pancake-turns.jsonl` and the server log; replay the park decisions with a "keep the deepest prefix that fits" rule | 15 min | F1, F3 |
 | 4.0.2 | Does opencode send sampled requests (temperature >= 0.7) or greedy ones? | log or inspect one opencode request body | 5 min | F6 (no gain if greedy) |
-| 4.0.3 | Is there headroom for a cumulative draft stop on our traffic? | `tools/pancake/tail_replay.py` on recorded window traces | 15 min | F8 (port only if >= 2%) |
+| 4.0.3 | Is there headroom for a cumulative draft stop on our traffic? | `tools/pancake/trace/tail_replay.py` on a recorded window trace (capture note below) | 15 min | F8 (port only if >= 2%), A22 |
 | 4.0.4 | How much would frequency-gated admission and prompt-fed tier counts change the hit rate? | cache_sim replay of routing traces | 15 min | F10, admission variants |
 | 4.0.5 | How many CPU expert bytes would a sub-2-bit shadow save per token? | byte count from the GGUF tensor table x miss rate from traces | 10 min | F4 (requant only if >= 15%) |
+
+**4.0.3 capture (one short GPU run, then offline).** The serve loop writes, per decode window, the draft confidences when
+the window is built (`window_trace().drafts()` in `src/program/generate.cpp`, only with `STRATA_WINDOW_TRACE` set; the
+default path only tests `window_trace().on()`): per draft row the drafter's probability of the token (NaN for lookup
+rows) and its source; the window record has rows, accepted, ms; the layer records have every expert's placement, so the
+CPU-missed experts each draft row adds (what A22 needs) are read back exactly. Top-1 margin / entropy are not recorded
+(the drafter's kernels return only the chosen token's probability). Capture on a short run of each workload (short chat,
+code edit), the drafter on (the preset's default MTP; not a lookup-only run):
+
+    STRATA_WINDOW_TRACE=/tmp/w-chat.stwt ./run-pancake.sh iq2_xs fast          # serve; stop it with Ctrl-C after the request
+    curl -s localhost:8080/v1/chat/completions -H 'Content-Type: application/json' \
+      -d '{"messages":[{"role":"user","content":"Write a detailed explanation of how a hash map works, with a Python example."}],"max_tokens":400,"temperature":0}' >/dev/null
+    python3 tools/pancake/trace/wtrace.py /tmp/w-chat.stwt                      # summary: windows, acceptance, placement
+    python3 tools/pancake/trace/tail_replay.py /tmp/w-chat.stwt --us-per-miss 23   # code edit: 60 (time_ceiling.py --overlap)
+
+`tail_replay.py` prints the table of draft rows by cumulative confidence (share accepted, new CPU misses per row, whether
+the row pays: A22) and tok/s per stop threshold theta (F8; port only if the best theta is >= +2%). `_EVERY=N` thins the
+windows, `_MAX_MB` caps the file (default 2048 MiB; a few hundred windows are about 100-200 MiB at 48 layers).
+
 
 ### 4.1 Env-only A/Bs (no code; each answers a question on its own GPU)
 

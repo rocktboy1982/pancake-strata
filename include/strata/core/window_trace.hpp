@@ -13,7 +13,12 @@
 //           (kind: 0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped tail), then n_tok*k f32 weights if bit0
 //   window: u8 2, u8 rows (T), u8 accepted (255: a merged prompt window, no drafts), u8 0, i64 position, f32 ms since the previous window's commit;
 //           a window record comes first, then its layer records
-//   drafts: u8 3, u8 n, u16 0, n x f32 (the drafter's probability per draft position; optional, item 5)
+//   drafts: u8 4, u8 n, u16 0, n x f32 prob, n x u8 src.  Written when the window is built (before its layers), so it belongs to the
+//           window record that follows; n = rows - 1, entry j-1 describes row j (the draft token at window[j]).  prob is the
+//           probability the drafter gave that token (NaN for a lookup / chained row: no confidence); src: 0 MTP, 1 DFlash2,
+//           2 suffix/n-gram lookup window, 3 lookup chained after the drafter's rows.  Whether row j was accepted is
+//           j <= the window's `accepted`; the CPU-missed experts a row added are in its layer records (kind -1; wtrace.py new_cpu_miss).
+//           Absent for merged prompt windows.  (Legacy record 3, u8 3, u8 n, u16 0, n x f32 probs, is still read; no longer written.)
 // Only the serve verify windows (drive_pool_multi_impl + the commit in the serve loop) write it.
 #include <algorithm>
 #include <chrono>
@@ -88,14 +93,15 @@ public:
         buf_.clear();
     }
 
-    /// The window's draft confidences (the drafter's probability of each drafted token, position 1..n), for the tail-row
-    /// replay (item 5).  Written as a record of its own: u8 3, u8 n, u16 0, then n f32.  Optional.
-    void drafts(const float* p, int n) {
-        if (f_ == nullptr || p == nullptr || n <= 0) return;
+    /// The window's draft confidences (items 5, F8 STRATA_SPEC_CUM, A22 DISCO): call when the window is built, before it runs.
+    /// `prob[j-1]` and `src[j-1]` describe draft row j = 1..n (see the file format).  Record 4: u8 4, u8 n, u16 0, n f32, n u8.
+    void drafts(const float* prob, const uint8_t* src, int n) {
+        if (f_ == nullptr || prob == nullptr || src == nullptr || n <= 0) return;
         n = std::min(n, 255);
-        const uint8_t h[4] = {3, (uint8_t) n, 0, 0};
+        const uint8_t h[4] = {4, (uint8_t) n, 0, 0};
         put(h, 4);
-        put(p, (size_t) n * 4);
+        put(prob, (size_t) n * 4);
+        put(src, (size_t) n);
     }
 
     /// A window that ended without a commit (an error, a cancelled request): its layers are dropped.
