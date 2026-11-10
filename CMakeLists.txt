@@ -47,6 +47,15 @@ endif()
 if(STRATA_PORTABLE AND MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 endif()
+# pancake-strata (opt-in, local builds only): Strata's own host C++ for THIS CPU (-march=native: AVX2/FMA/BMI in the
+# generic code around the explicit kernels - dispatch, pool, pre-sum, quantizers) with -ffp-contract=off, so the compiler
+# adds no FMA contractions the default build does not have.  The per-file ISA flags below still pin the AVX1/SSE files.
+# HIP/CUDA device code is not touched (CXX only).  A/B: bench/specs/08-build.json (needs its own build directory).
+option(STRATA_HOST_NATIVE "pancake: host C++ built for this CPU (-march=native -ffp-contract=off)" OFF)
+if(STRATA_HOST_NATIVE AND NOT STRATA_PORTABLE AND NOT MSVC AND STRATA_ISA_FLOOR STREQUAL "")
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-march=native> $<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
+  message(STATUS "STRATA_HOST_NATIVE: host C++ with -march=native -ffp-contract=off")
+endif()
 
 # #3202: Windows hands a program its command line in the system's ANSI code page (cp1251 / cp866 on a Russian Windows, cp1252 on an
 # English one), but the engine reads every path as UTF-8 (the run configs and the server write UTF-8). A model folder with
@@ -174,6 +183,32 @@ option(STRATA_WERROR "Treat compiler warnings as errors" OFF)
 # #2027: defined here, before the GPU section reads it to register the native-expert tests (it was defined at the
 # native-experts section far below, so a first configure registered four tests fewer than the second)
 option(STRATA_NATIVE_EXPERTS "Native (IQ) expert support through ggml-cpu" ON)
+
+# MOD_PLAN item 93: every executable a registered test runs (its COMMAND target, or a $<TARGET_FILE:x> inside it) is
+# recorded here, so the end of this file can make `strata_tests` - one target that builds exactly the test binaries
+# (`all` also holds engines that a test build does not need, e.g. strata-poly, which does not compile on HIP) - and
+# give every test its label (cpu / gpu / model).  The wrapper only records; the test is registered as before.
+set_property(GLOBAL PROPERTY STRATA_TEST_EXES "")
+function(add_test)
+  _add_test(${ARGV})
+  set(_cmd OFF)
+  foreach(_a IN LISTS ARGV)
+    if(_a STREQUAL "COMMAND")
+      set(_cmd ON)
+      continue()
+    endif()
+    if(_a MATCHES "^(NAME|WORKING_DIRECTORY|CONFIGURATIONS|COMMAND_EXPAND_LISTS)$")
+      set(_cmd OFF)
+    endif()
+    if(_cmd)
+      if(_a MATCHES "\\$<TARGET_FILE:([^>]+)>")
+        set_property(GLOBAL APPEND PROPERTY STRATA_TEST_EXES "${CMAKE_MATCH_1}")
+      elseif(_a MATCHES "^[A-Za-z0-9_.+-]+$")
+        set_property(GLOBAL APPEND PROPERTY STRATA_TEST_EXES "${_a}")   # filtered by if(TARGET) at the end
+      endif()
+    endif()
+  endforeach()
+endfunction()
 
 if(STRATA_BUILD_CONVERSATION_TESTS)
   enable_testing()
@@ -471,7 +506,7 @@ target_link_libraries(strata-plan PRIVATE strata_plan)
 # ---- strata_core (GPU runtime) ---------------------------------------------
 # Only built when a GPU backend is on, so the Phase 1 targets keep working without a toolkit.
 if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
-  add_library(strata_core STATIC src/core/device.cu src/core/pinned.cu src/platform/memory.cpp src/platform/io_priority.cpp src/core/graph.cpp src/core/weights.cpp
+  add_library(strata_core STATIC src/core/device.cu src/core/pinned.cu src/platform/memory.cpp src/platform/io_priority.cpp src/platform/mem_pressure.cpp src/core/graph.cpp src/core/weights.cpp
                                src/core/layout.cpp)
   target_include_directories(strata_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
   # the DFlash2 drafter (src/core/dflash2.cpp, src/kernels/cuda/dflash2.cu) exists in the CUDA and HIP builds; the Metal and SYCL builds compile without it
@@ -551,8 +586,6 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/kv_stream.cu
                           src/kernels/cuda/kv_q4.cu
                           src/kernels/cuda/fused_gr.cu
-                          src/kernels/cuda/rdna_gr.cu
-                          src/kernels/cuda/rdna_mmvq.cu
                           src/kernels/cuda/cvec.cu
                           src/kernels/cuda/qsa_decode_attn.cu
                           src/kernels/cuda/qsa_prompt_attn.cu
@@ -567,6 +600,13 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/ngram/ple_reader.cpp
                           src/platform/direct_file.cpp)
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
+  # pancake: the RDNA kernels (DPP / permlanex16 / sudot4) build on wave32 HIP only; CUDA and gfx906 builds take their
+  # "not available" answers from rdna_stub.cpp (MOD_PLAN 95b; tools/pancake/check_stubs.py keeps it in step with the headers)
+  if(STRATA_ENABLE_HIP)
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_gr.cu src/kernels/cuda/rdna_mmvq.cu)
+  else()
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_stub.cpp)
+  endif()
   # pancake-strata: basalt's Q5_K head kernels (q5k_head.cu: the head GEMV bitwise equal to native_mmvq, its fused
   # top-1, and the 2-bit proxy two-stage top-1), CUDA builds; STRATA_HAVE_Q5K_HEAD tells the callers
   if(STRATA_ENABLE_CUDA AND NOT STRATA_ENABLE_HIP AND NOT STRATA_HIP_GFX906)
@@ -776,7 +816,8 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     src/core/remote_expert_opt.cu
     src/core/expert_cache.cpp src/core/native_head.cpp src/core/native_dense.cpp src/core/verify.cpp src/core/mtp.cpp src/core/dflash2.cpp
     src/core/conversation_snapshot.cpp src/core/conversation_state.cpp src/core/conversation_memory.cpp src/core/peer_experts.cpp
-    src/core/arch_defaults.cpp src/core/nv_defaults.cpp src/core/vmm.cpp src/core/conversation_file.cpp)
+    src/core/arch_defaults.cpp src/core/nv_defaults.cpp src/core/vmm.cpp src/core/conversation_file.cpp
+    src/core/conversation_disk_tier.cpp)
   target_include_directories(strata_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
   target_link_libraries(strata_engine PUBLIC strata_core strata_kernels strata_kernels_cpu ${_strata_gpu_runtime_target})
   if(STRATA_BUILD_TESTS AND STRATA_ENABLE_CUDA AND NOT STRATA_HIP_GFX906)
@@ -801,6 +842,25 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_include_directories(memory_guard_test PRIVATE include)
     add_test(NAME memory_guard_test COMMAND memory_guard_test)
     set_tests_properties(memory_guard_test PROPERTIES TIMEOUT 60)
+  endif()
+  # MOD_PLAN item 39: the disk tier's key, index, choice, eviction policy and size cap, and a write/read round trip on
+  # a temporary folder - no GPU, no CUDA
+  if(STRATA_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core/conversation_disk_tier_test.cpp")
+    add_executable(conversation_disk_tier_test tests/core/conversation_disk_tier_test.cpp src/core/conversation_disk_tier.cpp
+                   src/core/conversation_file.cpp)
+    target_include_directories(conversation_disk_tier_test PRIVATE include)
+    target_link_libraries(conversation_disk_tier_test PRIVATE Threads::Threads)
+    add_test(NAME conversation_disk_tier_test COMMAND conversation_disk_tier_test)
+    set_tests_properties(conversation_disk_tier_test PROPERTIES TIMEOUT 60)
+  endif()
+
+  # MOD_PLAN 86: PSI parsing, the cgroup path, the switches, the loader guard on fixture files - no GPU
+  if(STRATA_BUILD_TESTS)
+    add_executable(mem_pressure_test tests/platform/mem_pressure_test.cpp src/platform/mem_pressure.cpp)
+    target_include_directories(mem_pressure_test PRIVATE include)
+    target_link_libraries(mem_pressure_test PRIVATE Threads::Threads)
+    add_test(NAME mem_pressure_test COMMAND mem_pressure_test)
+    set_tests_properties(mem_pressure_test PROPERTIES TIMEOUT 60)
   endif()
 
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core/file_expert_source_test.cpp")
@@ -907,7 +967,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   # what composes them into a token.  No tokenizer - the prompt arrives as ids - because Gate C1 compares logits
   # against llama.cpp on the SAME ids and a tokenizer on one side of that comparison is a second variable.
   # plan v0.3 P5: batched prompt processing (tensor-core GEMMs through cuBLAS).
-  add_library(strata_prefill STATIC src/prefill/gemm.cu src/prefill/kernels.cu src/prefill/prefill.cpp)
+  # moe_*_stub.cpp: the mmq:: / fused:: / ws:: answers of a build without those libraries (MOD_PLAN 95b); each file is
+  # empty when its library is linked (STRATA_PREFILL_MMQ / _FUSED / _WS on strata_prefill, set further down)
+  add_library(strata_prefill STATIC src/prefill/gemm.cu src/prefill/kernels.cu src/prefill/prefill.cpp
+                                    src/prefill/moe_mmq_stub.cpp src/prefill/moe_fused_stub.cpp src/prefill/moe_ws_stub.cpp)
   if(STRATA_ENABLE_HIP)
     # #313: the RDNA3 WMMA GEMMs include hip_runtime.h: AMD builds only (a CUDA build never sees this file)
     target_sources(strata_prefill PRIVATE src/prefill/wmma_gemm.cu)
@@ -1710,6 +1773,36 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(hc_persist_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME hc_persist_parity COMMAND hc_persist_parity)
   add_test(NAME hc_persist_default_off COMMAND hc_persist_parity --off)
+  # MOD_PLAN item 93: pancake's RDNA3 kernels against the generic ones on random inputs (bounded, two runs bitwise;
+  # 77 = skip on a wave64 card).  rdna_gr.cu: one test per kernel variant the environment selects (the BF16 read with
+  # 1 / 2 / 4 rows per wave, the int8 read, its int8-activation A8 form, A8 with the inject rows in their own blocks,
+  # and that in one fused launch).  rdna_mmvq.cu: Q4_K / Q5_K / Q6_K / IQ4_XS, 1..8 columns.  Label `gpu`.
+  if(STRATA_BUILD_TESTS AND STRATA_ENABLE_HIP AND NOT STRATA_HIP_GFX906)
+    add_executable(rdna_gr_parity src/kernels/rdna_gr_parity.cpp)
+    target_include_directories(rdna_gr_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(rdna_gr_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME rdna_gr_parity COMMAND rdna_gr_parity)
+    add_test(NAME rdna_gr_parity_rw1 COMMAND rdna_gr_parity)
+    add_test(NAME rdna_gr_parity_rw4 COMMAND rdna_gr_parity)
+    add_test(NAME rdna_gr_parity_q8 COMMAND rdna_gr_parity --q8)
+    add_test(NAME rdna_gr_parity_a8 COMMAND rdna_gr_parity --q8 --tol 3e-2)
+    add_test(NAME rdna_gr_parity_a8_injup COMMAND rdna_gr_parity --q8 --tol 3e-2)
+    add_test(NAME rdna_gr_parity_a8_fused COMMAND rdna_gr_parity --q8 --tol 3e-2)
+    set(_rdna_gr_off "STRATA_GR_RDNA_A8=0;STRATA_GR_INJ_UP=0;STRATA_GR_FUSED=0;STRATA_GR_RDNA_ONLY=0")
+    set_tests_properties(rdna_gr_parity rdna_gr_parity_q8 PROPERTIES ENVIRONMENT "${_rdna_gr_off};STRATA_GR_RDNA_RW=2")
+    set_tests_properties(rdna_gr_parity_rw1 PROPERTIES ENVIRONMENT "${_rdna_gr_off};STRATA_GR_RDNA_RW=1")
+    set_tests_properties(rdna_gr_parity_rw4 PROPERTIES ENVIRONMENT "${_rdna_gr_off};STRATA_GR_RDNA_RW=4")
+    set_tests_properties(rdna_gr_parity_a8 PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=0;STRATA_GR_FUSED=0")
+    set_tests_properties(rdna_gr_parity_a8_injup PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=1;STRATA_GR_FUSED=0")
+    set_tests_properties(rdna_gr_parity_a8_fused PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=1;STRATA_GR_FUSED=1")
+    set_tests_properties(rdna_gr_parity rdna_gr_parity_rw1 rdna_gr_parity_rw4 rdna_gr_parity_q8 rdna_gr_parity_a8
+                         rdna_gr_parity_a8_injup rdna_gr_parity_a8_fused PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    add_executable(rdna_mmvq_parity src/kernels/rdna_mmvq_parity.cpp)
+    target_include_directories(rdna_mmvq_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(rdna_mmvq_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME rdna_mmvq_parity COMMAND rdna_mmvq_parity)
+    set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+  endif()
   if(STRATA_HIP_GFX906)
     # the S6 router (STRATA_HIP_ROUTER_FAST=1 on gfx906) against the portable kernel, bitwise, on wave64
     add_executable(hip_router_fast tests/hip/router_fast.cpp)
@@ -1849,6 +1942,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   add_executable(platform_memory_test src/platform/memory_test.cpp)
   target_link_libraries(platform_memory_test PRIVATE strata_core ${_strata_gpu_runtime_target})
   add_test(NAME platform_memory_test COMMAND platform_memory_test)
+  set_tests_properties(platform_memory_test PROPERTIES SKIP_RETURN_CODE 77)   # 77: ulimit -l below the 256 MiB lock
 
   # The pinned-memory headroom (pin_budget.hpp) against a simulated ceiling; skips without a GPU.
   add_executable(pin_budget_test src/core/pin_budget_test.cpp)
@@ -3259,4 +3353,99 @@ endif()
 option(STRATA_BUILD_SPLIT "Build strata-split: sFNX's split-every-layer engine, host-memory exchange (Linux, CUDA or HIP gfx1201, 2-4 cards)" OFF)
 if(STRATA_BUILD_SPLIT)
   add_subdirectory(src/split)
+endif()
+
+# ---- MOD_PLAN item 93: test labels and the `strata_tests` target ----
+# Every registered test gets exactly one label:
+#   cpu    needs no GPU and no model files.  Run with the GPUs hidden (ROCR_VISIBLE_DEVICES / HIP_VISIBLE_DEVICES /
+#          CUDA_VISIBLE_DEVICES = -1), so a `cpu` test that starts touching a GPU fails instead of using one.
+#   model  needs model files or a model artifact (skips or is unregistered without them).
+#   gpu    everything else: needs a GPU.  The default, so a new test lands here until someone lists it as cpu.
+#   ctest -L cpu --output-on-failure        (tools/pancake/build_matrix.sh --tests hip-tests runs this)
+#   ctest -L gpu --output-on-failure        (on a quiet card, by hand)
+# `strata_tests` builds every executable a registered test runs (and nothing else): cmake --build B --target strata_tests
+if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
+  # The cpu list was measured on a HIP gfx1100 build (2026-11-09): each passed or skipped for a CPU reason (ISA,
+  # Windows only, ulimit -l, ggml without trellis types) with every GPU hidden.  Tests that "pass" by printing that
+  # there is no GPU (vmm_test, pin_budget_test) stay gpu, so they get real coverage in the GPU run.
+  set(_strata_tests_cpu
+    batch_telemetry_test logit_bias_test gguf_reader_test gguf_split_test model_family_test batch_read_test
+    gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
+    split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
+    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test expert_seed_test run_manifest_test
+    host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test file_expert_source_test
+    expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
+    grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
+    ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
+    pcie_share_rule_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
+    adapt_async_default_test uma_cache_test suffix_drafter_test controller_test draft_policy_test window_rule_test
+    draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
+    window_limits_test serve_stop_bound_test lookup_default_test window_evict_test draft_kv_plan_test
+    coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
+    spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test
+    bf16_bits_test batch_rows_test batch_groups_test dequant_q5_1_test native_arithmetic_parity
+    native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
+    native_arithmetic_parity_no512 native_arithmetic_parity_ggml native_arithmetic_parity_nvfp4_avx2
+    native_arithmetic_parity_nvfp4_ggml pool_tasks_test router_dot_parity router_dot_parity_avx
+    iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
+    q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
+    q2_bitplane_parity native_hadamard_test tq_cpu_parity tq_cpu_parity_avx2 tqp_cpu_test tqp_cpu_test_avx2
+    expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
+    pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
+    poly_mxfp4_test
+    # CUDA / conversation-only builds: these hide the GPU themselves (CUDA_VISIBLE_DEVICES=-1) or are CPU-only by design
+    conversation_cache_test conversation_split_failure_test conversation_memory_test conversation_file_test
+    session_save_reclaim_test conversation_validation_test conversation_transfer_test split_lend_complement_test
+  )
+  # model files: ple_parity reads the Flash-Next Q2_0 GGUF + pack/full + bench/micro fixtures (a hard error when absent,
+  # by design); expert_arena_load is registered only where pack/full/experts.bin exists
+  set(_strata_tests_model
+    ple_parity expert_arena_load
+  )
+  get_property(_strata_all_tests DIRECTORY PROPERTY TESTS)
+  set(_strata_n_cpu 0)
+  set(_strata_n_gpu 0)
+  set(_strata_n_model 0)
+  foreach(_t IN LISTS _strata_all_tests)
+    if(_t IN_LIST _strata_tests_model)
+      set_property(TEST ${_t} APPEND PROPERTY LABELS model)
+      math(EXPR _strata_n_model "${_strata_n_model} + 1")
+    elseif(_t IN_LIST _strata_tests_cpu)
+      set_property(TEST ${_t} APPEND PROPERTY LABELS cpu)
+      set_property(TEST ${_t} APPEND PROPERTY ENVIRONMENT
+                   "ROCR_VISIBLE_DEVICES=-1;HIP_VISIBLE_DEVICES=-1;CUDA_VISIBLE_DEVICES=-1")
+      math(EXPR _strata_n_cpu "${_strata_n_cpu} + 1")
+    else()
+      set_property(TEST ${_t} APPEND PROPERTY LABELS gpu)
+      math(EXPR _strata_n_gpu "${_strata_n_gpu} + 1")
+    endif()
+  endforeach()
+  # HIP: the hipBLAS / rocBLAS / hipBLASLt libraries sit in the ROCm lib dir, which the binaries carry no RUNPATH to
+  # (run-pancake.sh sets LD_LIBRARY_PATH for `strata`); without this 25 hip_* tests could not even be loaded
+  if(STRATA_ENABLE_HIP AND NOT WIN32 AND TARGET roc::hipblas AND _strata_all_tests)
+    set_property(TEST ${_strata_all_tests} APPEND PROPERTY ENVIRONMENT_MODIFICATION
+                 "LD_LIBRARY_PATH=path_list_prepend:$<TARGET_FILE_DIR:roc::hipblas>")
+  endif()
+  # the iq_parity fixture generator wants gguf-py: take the fetched llama.cpp's when third_party/ has none
+  if(TEST iq_parity_fixtures AND DEFINED strata_llamacpp_SOURCE_DIR
+     AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/llama.cpp/gguf-py"
+     AND EXISTS "${strata_llamacpp_SOURCE_DIR}/gguf-py")
+    set_property(TEST iq_parity_fixtures APPEND PROPERTY ENVIRONMENT_MODIFICATION
+                 "PYTHONPATH=path_list_prepend:${strata_llamacpp_SOURCE_DIR}/gguf-py")
+  endif()
+  get_property(_strata_test_exes GLOBAL PROPERTY STRATA_TEST_EXES)
+  list(REMOVE_DUPLICATES _strata_test_exes)
+  set(_strata_test_targets "")
+  foreach(_e IN LISTS _strata_test_exes)
+    if(TARGET ${_e})
+      list(APPEND _strata_test_targets ${_e})
+    endif()
+  endforeach()
+  add_custom_target(strata_tests)
+  if(_strata_test_targets)
+    add_dependencies(strata_tests ${_strata_test_targets})
+  endif()
+  list(LENGTH _strata_test_targets _strata_n_exes)
+  message(STATUS "strata tests: ${_strata_n_cpu} cpu, ${_strata_n_gpu} gpu, ${_strata_n_model} model "
+                 "(ctest -L <label>); ${_strata_n_exes} executables in target strata_tests")
 endif()

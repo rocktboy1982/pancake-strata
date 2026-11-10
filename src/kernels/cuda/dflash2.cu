@@ -79,32 +79,6 @@ __global__ void rope_table_inv_kernel(const int32_t* __restrict__ pos, int rows,
     table[(r * 2 + 1) * 64 + i] = s;
 }
 
-// one block per (row, head), 128 threads: out = rope(rmsnorm(in) * gamma)
-__global__ void norm_rope_kernel(const float* __restrict__ in, int in_stride, const float* __restrict__ gamma, const int32_t* __restrict__ pos,
-                                 const float* __restrict__ table, float* __restrict__ out, int slot_mod, int heads, float eps) {
-    const int r = blockIdx.x, h = blockIdx.y, d = threadIdx.x;
-    __shared__ float red[4];
-    __shared__ float y[HD];
-    const float x = in[(size_t) r * in_stride + h * HD + d];
-    float ss = x * x;
-    for (int o = 16; o > 0; o >>= 1) ss += __shfl_xor_sync(0xffffffffu, ss, o);
-    if ((d & 31) == 0) red[d >> 5] = ss;
-    __syncthreads();
-    const float tot = red[0] + red[1] + red[2] + red[3];
-    const float v = x * rsqrtf(tot / (float) HD + eps) * gamma[d];
-    float res = v;
-    if (table != nullptr) {
-        y[d] = v;
-        __syncthreads();
-        const int i = d & 63;
-        const float c = table[(r * 2 + 0) * 64 + i], s = table[(r * 2 + 1) * 64 + i];
-        res = d < 64 ? v * c - y[d + 64] * s : v * c + y[d - 64] * s;
-    }
-    const int slot = slot_mod > 0 ? (int) (pos[r] % slot_mod) : r;
-    // a ring (slot_mod > 0) is head-major [head][slot][128], the block's own keys row-major [row][head][128]
-    out[slot_mod > 0 ? ((size_t) h * slot_mod + slot) * HD + d : ((size_t) slot * heads + h) * HD + d] = res;
-}
-
 __global__ void copy_rows_kernel(const float* __restrict__ in, float* __restrict__ out, const int32_t* __restrict__ pos, int slot_mod, int rows, int cols) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= rows * cols) return;
@@ -941,12 +915,6 @@ void df2_conv(const float* x, const float* dyn, int dyn_stride, const float* bas
 void df2_rope_table(const int32_t* pos, int rows, float theta, float* table, void* stream) {
     rope_table_kernel<<<rows, 64, 0, (cudaStream_t) stream>>>(pos, rows, theta, table);
     check("rope_table");
-}
-
-void df2_norm_rope(const float* in, int in_stride, const float* gamma, const int32_t* pos, const float* rope_table, float* out, int slot_mod,
-                   int rows, int heads, float eps, void* stream) {
-    norm_rope_kernel<<<dim3(rows, heads), HD, 0, (cudaStream_t) stream>>>(in, in_stride, gamma, pos, rope_table, out, slot_mod, heads, eps);
-    check("norm_rope");
 }
 
 void df2_copy_rows(const float* in, float* out, const int32_t* pos, int slot_mod, int rows, int cols, void* stream) {

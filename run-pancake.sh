@@ -54,6 +54,14 @@ CFG="$REPO/pancake-$PRESET.json"
 sed -e "s#<STRATA_DATA>#$DATA#g" -e "s#<REPO>#$REPO#g" -e "s#<MODELS>#$MODELS#g" -e "s#/build-cuda/#/$BUILD/#" \
   "configs/pancake/$PRESET.json" > "$CFG"
 export LD_LIBRARY_PATH=$LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+# Linux memory tuning for the 33 GiB expert arena (tools/pancake/os_tune.sh): without background compaction a long-up
+# machine's fragmented RAM stalls the arena lock and systemd-oomd can kill the engine during its load
+if [ "$MODEL" = iq2_xs ] || [ "$MODEL" = q2_0 ]; then
+  [ "$(cat /proc/sys/vm/compact_unevictable_allowed 2>/dev/null || echo 0)" = 1 ] &&
+    echo "pancake: tip - run 'sudo tools/pancake/os_tune.sh install' once (background memory compaction; prevents the" \
+         "engine being killed while it loads on a long-up PC). 'tools/pancake/os_tune.sh' shows the state and the optional" \
+         "huge-page reservation." >&2
+fi
 # NOCAP=1: the caller already caps memory (pancake.service sets MemoryMax itself; capped.sh's systemd-run --scope
 # would move the engine out of the unit's cgroup, so stop/restart/Conflicts= would no longer reach it)
 if [ "${NOCAP:-0}" = 1 ]; then

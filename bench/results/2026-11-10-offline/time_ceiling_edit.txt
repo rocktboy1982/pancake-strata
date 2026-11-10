@@ -1,0 +1,13 @@
+61 windows, slots 10909; calibration: 731.7 distinct misses/window under the tier = 17.4 ms -> 24 us per missed expert; one promotion = 117 us of DMA
+policy                                     hits  miss/w  promo/w  CPU ms  DMA ms   window ms at alpha 0 / 0.25 / 0.5
+tier every 1 x32 (preset, calibration)    76.7%   731.7     31.8   17.40    3.71   37.40 (+0.0%) / 38.33 (+0.0%) / 39.26 (+0.0%)
+lru (admit every miss)                    88.4%   388.7    388.7    9.24   45.35   47.47 (-21.2%) / 49.16 (-22.0%) / 53.07 (-26.0%)
+belady (admit every miss)                 94.2%   199.4    199.4    4.74   23.26   29.63 (+26.2%) / 32.14 (+19.3%) / 36.37 (+7.9%)
+belady, admit if reused <= 1 windows      90.0%   339.5     73.6    8.07    8.58   28.07 (+33.2%) / 30.22 (+26.8%) / 32.36 (+21.3%)
+belady, admit if reused <= 2 windows      91.8%   280.0     93.1    6.66   10.87   26.92 (+38.9%) / 29.41 (+30.3%) / 32.09 (+22.3%)
+belady, admit if reused <= 4 windows      93.2%   236.1    112.4    5.61   13.11   26.30 (+42.2%) / 28.89 (+32.7%) / 32.17 (+22.0%)
+belady, admit if reused <= 8 windows      93.8%   214.0    127.7    5.09   14.90   26.53 (+41.0%) / 29.06 (+31.9%) / 32.54 (+20.6%)
+online: admit on 2th miss in 2 windows    84.9%   498.0     86.8   11.84   10.13   31.84 (+17.5%) / 34.37 (+11.5%) / 36.91 (+6.4%)
+online: admit on 2th miss in 4 windows    86.5%   448.2    123.5   10.66   14.41   30.66 (+22.0%) / 34.26 (+11.9%) / 37.86 (+3.7%)
+online: admit on 2th miss in 8 windows    86.9%   434.3    145.7   10.33   17.00   30.41 (+23.0%) / 34.58 (+10.8%) / 38.83 (+1.1%)
+online: admit on 3th miss in 8 windows    84.4%   506.8     78.7   12.05    9.18   32.05 (+16.7%) / 34.34 (+11.6%) / 36.64 (+7.1%)

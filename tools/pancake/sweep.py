@@ -46,7 +46,7 @@ def measure(base, env, cases, reps, work, tag, max_load, foreign):
             if err:
                 print(f"  {tag}: {err}")
                 return None
-            if res["noise"] <= foreign:
+            if res["noise"] <= foreign and res.get("reclaim", 0) <= abtest.RECLAIM_MAX:
                 vals += [x["decode_tps"] for x in res["rows"]]
                 break
             print(f"  {tag}: noisy run (foreign CPU {res['noise']:.0f}%), repeated")
@@ -59,7 +59,7 @@ def main():
     ap.add_argument("--cases", default="short,edit")
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--min-gain", type=float, default=1.0)
-    ap.add_argument("--max-load", type=float, default=1.0)
+    ap.add_argument("--max-load", type=float, default=0.0)
     ap.add_argument("--foreign-cpu", type=float, default=25.0)
     ap.add_argument("--base", default="pancake-flashnext-iq2_xs-rdna3test.json")
     ap.add_argument("--out", required=True)

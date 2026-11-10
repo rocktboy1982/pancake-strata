@@ -18,6 +18,7 @@
 
 #include "strata/platform/memory.hpp"
 #include "strata/platform/io_priority.hpp"
+#include "strata/platform/mem_pressure.hpp"
 #include "strata/core/adapt_async_default.hpp"
 #include "strata/core/arch_defaults.hpp"
 #include "strata/core/gfx12_chunk.hpp"
@@ -38,6 +39,7 @@
 #include "strata/core/serve_stop_bound.hpp"
 #endif
 #include "strata/core/conversation_file.hpp"
+#include "strata/core/conversation_disk_tier.hpp"
 #include "strata/core/session_save_reclaim.hpp"
 #include "strata/core/conversation_memory.hpp"
 #include "strata/core/auto_cache.hpp"
@@ -945,6 +947,11 @@ struct Options {
     /// (drop_superseded) after writing the same bytes once more, so on a long single conversation every turn pays a
     /// whole-snapshot copy for nothing.  0 = park every turn, as before.
     int64_t conversation_cache_park_gain = 0;
+    /// --serve (MOD_PLAN item 39, opt-in): the folder of the automatic disk tier for parked conversations ("" = off;
+    /// STRATA_CONVERSATION_DISK_DIR when the flag is absent; "auto" = <working folder>/conversation-disk), and the cap
+    /// of the whole folder in GiB (STRATA_CONVERSATION_DISK_MAX_GIB when the flag is absent)
+    std::string conversation_disk_dir;
+    int64_t conversation_disk_max_gib = -1;
     /// --memory-limit-mib N / STRATA_MEMORY_LIMIT_MIB: the total RAM this engine's container or cgroup may use, for a
     /// container that cannot see its real limit (0 or unset = none; the flag wins over the variable)
     int64_t memory_limit_mib = -1;
@@ -1127,6 +1134,10 @@ void usage() {
                  "  --conversation-cache-park-gain N  --serve: park only after the conversation advanced N tokens past\n"
                  "                       the copy it would supersede, so a turn that grew by a few hundred tokens does not\n"
                  "                       write a whole snapshot that the next turn drops (default 0 = park every turn)\n"
+                 "  --conversation-disk-dir DIR  --serve (opt-in): parked conversations the cache evicts are written to\n"
+                 "                       DIR and read back when a prompt continues one, also after a restart (auto =\n"
+                 "                       ./conversation-disk; also STRATA_CONVERSATION_DISK_DIR)\n"
+                 "  --conversation-disk-max-gib N  --serve: the most the disk tier's folder may hold (default 20)\n"
                  "  --session-min-free-mib N  --serve: disk space a SAVE must leave free (default 4096; 0 = no check)\n"
                  "  --session-save-reclaim  --serve: reclaim unpinned host caches if SAVE needs RAM (opt-in)\n"
                  "  --vram-elastic       --serve (#533, opt-in, NVIDIA): the expert cache in segments (--vram-segment-mib,\n"
@@ -3644,6 +3655,17 @@ int main(int argc, char** argv) {
             else if (a == "--session-min-free-mib") o.session_min_free_mib = number;
             else if (a == "--memory-limit-mib") o.memory_limit_mib = number;
             else o.conversation_cache_slots = (int) number;
+        }
+        else if (a == "--conversation-disk-dir") o.conversation_disk_dir = next("--conversation-disk-dir");
+        else if (a == "--conversation-disk-max-gib") {
+            const std::string value = next("--conversation-disk-max-gib");
+            int64_t number = 0;
+            const auto result = std::from_chars(value.data(), value.data() + value.size(), number);
+            if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || number < 0 || number > (INT64_MAX >> 30)) {
+                std::fprintf(stderr, "--conversation-disk-max-gib needs a nonnegative integer within range\n");
+                return 2;
+            }
+            o.conversation_disk_max_gib = number;
         }
         else if (a == "--prompt-cache-tail") o.prompt_cache_tail = true;
         else if (a == "--prompt-cache-spread") o.prompt_cache_spread = true;
@@ -12027,12 +12049,21 @@ int main(int argc, char** argv) {
         // its whole prompt again, Reused 0 on 12 of 12).  An explicit value, 0 included, is never touched.
         if (o.conversation_cache_mib < 0) {
             if (o.serve && o.prompt_cache > 0 && o.conversation_cache_slots > 0) {
+                // MOD_PLAN 86: the RAM-budget rule (available - keep - margin) or the 40% rule (strata/core/conversation_memory.hpp)
+#if defined(__linux__)
+                constexpr bool budget_linux = true;
+#else
+                constexpr bool budget_linux = false;
+#endif
+                const auto budget = strata::core::conversation_budget_policy(
+                    std::getenv("STRATA_CONV_BUDGET"), std::getenv("STRATA_CONV_KEEP_GIB"), std::getenv("STRATA_CONV_BUDGET_MARGIN_MIB"),
+                    std::getenv("STRATA_CONV_BUDGET_CAP_MIB"), o.ram_keep, o.conversation_cache_min_free_mib, budget_linux);
                 auto cache_room = strata::core::available_host_bytes();
                 // #4518: the residency policy locked the PLE table before it knew what the rest of the load would take; if the lock is what
                 // leaves the automatic cache too little (or none), the lock is given back (the pages stay cached, the OS may reclaim them)
                 // and the cache is sized again.  --ple-io ram asked for by hand and --conversation-cache-mib N are never touched.
                 if (ple_lock_by_policy && ple_table.locked() &&
-                    strata::core::ple_lock_blocks_cache(cache_room, ple_table.table_bytes(), o.conversation_cache_min_free_mib)) {
+                    strata::core::conversation_budget_grows(cache_room, ple_table.table_bytes(), budget)) {
                     const auto before = cache_room;
                     if (ple_table.unlock()) {
                         cache_room = strata::core::available_host_bytes();
@@ -12041,7 +12072,22 @@ int main(int argc, char** argv) {
                                      before ? (double) *before / (1ull << 30) : 0.0, cache_room ? (double) *cache_room / (1ull << 30) : 0.0);
                     }
                 }
-                o.conversation_cache_mib = strata::core::auto_conversation_cache_mib(cache_room, o.conversation_cache_min_free_mib);
+                o.conversation_cache_mib = strata::core::conversation_cache_budget_mib(cache_room, budget);
+                if (budget.ram) {   // MOD_PLAN 86: the budget and its inputs
+                    const auto mem = strata::core::sample_host_memory();
+                    const int64_t keep_mib = std::max<int64_t>((int64_t) (budget.keep >> 20), budget.min_free_mib);
+                    const uint64_t per_slot = ((uint64_t) o.conversation_cache_mib << 20) / (uint64_t) o.conversation_cache_slots;
+                    std::fprintf(stderr, "strata serve: conversation cache budget (RAM rule): %lld MiB available (%s, MemAvailable %llu MiB) "
+                                         "- keep %lld MiB (%s, at least the %lld MiB floor) - margin %lld MiB, cap %lld -> %lld MiB; a parked "
+                                         "image is ~236 MB + 14.2 KB/token: one of ~%lluK tokens, or %d of ~%lluK each "
+                                         "(STRATA_CONV_BUDGET=legacy: the 40%% rule)\n",
+                                 cache_room ? (long long) (*cache_room >> 20) : -1LL, mem ? strata::core::memory_source_name(mem->source) : "unknown",
+                                 mem ? (unsigned long long) (mem->mem_available >> 20) : 0ULL, (long long) keep_mib,
+                                 budget.keep_from_env ? "STRATA_CONV_KEEP_GIB" : "--ram-keep-gib", (long long) budget.min_free_mib,
+                                 (long long) budget.margin_mib, (long long) budget.cap_mib, (long long) o.conversation_cache_mib,
+                                 (unsigned long long) (strata::core::parked_tokens_in((uint64_t) o.conversation_cache_mib << 20) / 1000),
+                                 o.conversation_cache_slots, (unsigned long long) (strata::core::parked_tokens_in(per_slot) / 1000));
+                }
                 if (o.conversation_cache_mib > 0)
                     std::fprintf(stderr, "strata serve: conversation cache sized from the free RAM: %lld MiB for up to %d parked "
                                          "conversations, so an agent's next turn reuses its prompt (--conversation-cache-mib N sets it, 0 turns it off)\n",
@@ -12129,6 +12175,87 @@ int main(int argc, char** argv) {
             id.model = *model_fp;
             id.config = *config_fp;
             return true;
+        };
+        // MOD_PLAN item 39 (opt-in: --conversation-disk-dir / STRATA_CONVERSATION_DISK_DIR): the cache's evictions go to
+        // disk in the background (root + deepest checkpoint, conversation_disk_tier.hpp) instead of being freed, a
+        // final-answer conversation before a tool-call one, and a prompt that continues a disk entry deeper than RAM holds
+        // reads it back (disk_fetch, below).  Where session files work only: one GPU, no --batch.
+        strata::core::ConversationDiskTier disk_tier;
+        int64_t disk_min_gain = 1024;   // STRATA_CONVERSATION_DISK_MIN_GAIN: tokens a disk entry must add over RAM
+        {
+            std::string dir = o.conversation_disk_dir;
+            const char* env_dir = std::getenv("STRATA_CONVERSATION_DISK_DIR");
+            if (dir.empty() && env_dir != nullptr) dir = env_dir;
+            if (dir == "auto") dir = "conversation-disk";
+            const char* env_gib = std::getenv("STRATA_CONVERSATION_DISK_MAX_GIB");
+            const int64_t gib = o.conversation_disk_max_gib >= 0 ? o.conversation_disk_max_gib
+                                : env_gib != nullptr ? std::clamp<long long>(std::atoll(env_gib), 0, INT64_MAX >> 30) : 20;
+            if (const char* v = std::getenv("STRATA_CONVERSATION_DISK_MIN_GAIN")) disk_min_gain = std::max<long long>(0, std::atoll(v));
+            if (!dir.empty() && o.serve) {
+                strata::core::SessionFileIdentity id;
+                std::string why;
+                if (!conversations.enabled() || o.prompt_cache <= 0) why = "the conversation cache is off";
+                else if (!stages.empty() || multi_gpu || o.peer_device >= 1) why = "session files need one GPU";
+                else if (o.batch > 0) why = "session files do not support --batch";
+                else if (!session_identity(id, why, {})) why = "session identity: " + why;
+                if (why.empty()) {
+                    strata::core::ConversationDiskTier::Settings ds;
+                    ds.dir = dir;
+                    ds.model = !o.native_shards.empty() ? o.native_shards[0] : o.pack;
+                    ds.id = id;
+                    ds.key = strata::core::conversation_disk_key(
+                        {id, ds.model, strata::core::conversation_disk_key_env([](const char* n) { return (const char*) std::getenv(n); })});
+                    ds.max_bytes = (uint64_t) gib << 30;
+                    ds.min_free_bytes = (uint64_t) o.session_min_free_mib << 20;
+                    const char* mt = std::getenv("STRATA_CONVERSATION_DISK_MIN_TOKENS");
+                    ds.min_tokens = mt != nullptr ? std::max<long long>(0, std::atoll(mt)) : 2048;
+                    const char* tt = std::getenv("STRATA_TOOL_CALL_TOKEN");   // <tool_call> (Qwen3.x); -1: plain oldest-first
+                    ds.turn_token = o.turn_token;
+                    ds.tool_token = tt != nullptr ? std::atoll(tt) : 248058;
+                    ds.log = [](const std::string& l) { std::fprintf(stderr, "%s\n", l.c_str()); };
+                    if (disk_tier.open(ds))
+                        conversations.set_disk_tier([&disk_tier](strata::core::SavedConversation&& c) { disk_tier.spill(std::move(c)); },
+                                                    [&disk_tier](const strata::core::SavedConversation& c) { return disk_tier.keep_hot(c); });
+                } else {
+                    std::fprintf(stderr, "strata serve: conversation disk: off (%s)\n", why.c_str());
+                }
+            }
+        }
+        // A prompt that continues a disk entry deeper than the live session, a batch slot (`have`) and every parked
+        // conversation (by STRATA_CONVERSATION_DISK_MIN_GAIN tokens) reads it back through /slots RESTORE's checks and
+        // parks it: the parked-restore path below validates it and takes or borrows it as any parked conversation.
+        auto disk_fetch = [&](const auto& prompt, const std::vector<ImgKey>& imgs, bool cvec, int64_t have) {
+            if (!disk_tier.on()) return;
+            const auto m = disk_tier.best(prompt, imgs, cvec);
+            if (m.tokens <= std::max(have, conversations.best(prompt, imgs, cvec).tokens) + disk_min_gain) return;
+            const auto t0 = Clock::now();
+            strata::core::SessionReadLimits limits;
+            const uint64_t floor = (uint64_t) o.conversation_cache_min_free_mib << 20;
+            limits.admit = [floor](uint64_t need, std::string& why) {
+                const auto mem = strata::core::sample_host_memory();
+                if (strata::core::conversation_memory_admit(mem ? std::optional<uint64_t>(mem->available) : std::nullopt, need, floor))
+                    return true;
+                why = "not enough RAM to read it (" + std::to_string(need >> 20) + " MiB plus the floor)";
+                return false;
+            };
+            strata::core::SavedConversation image;
+            size_t bytes = 0;
+            std::string why;
+            try {
+                if (!strata::core::conversation_session_read_limits(limits, ss, g, mtp.kv_state(), (uint64_t) o.max_context,
+                                                                    (uint64_t) std::max(o.prompt_cache, 1), why) ||
+                    !disk_tier.load(m, limits, image, bytes, why)) {
+                    std::fprintf(stderr, "strata serve: conversation disk: cannot read the %lld-token match back (%s)\n",
+                                 (long long) m.tokens, why.c_str());
+                    return;
+                }
+                const bool parked = conversations.put(std::move(image));
+                std::fprintf(stderr, "strata serve: conversation disk: %s a %lld-token match (%zu MiB) in %.1f ms; parked=%zu\n",
+                             parked ? "read back" : "read back but could not park", (long long) m.tokens, bytes >> 20,
+                             std::chrono::duration<double, std::milli>(Clock::now() - t0).count(), conversations.size());
+            } catch (const std::bad_alloc&) {
+                std::fprintf(stderr, "strata serve: conversation disk: allocation failed reading a match back\n");
+            }
         };
         // What a park captures: the main session's conversation (park_current) or an idle batch slot's (park_slot:
         // the reply it decoded, before an admission overwrites it).  One budget / admission / snapshot path for both.
@@ -12268,6 +12395,11 @@ int main(int argc, char** argv) {
                 err.clear();
             }
             estimate += stage_estimate;
+            if (std::string why; strata::platform::memory_pressure_blocks_parking(&why)) {   // MOD_PLAN 86 (Linux PSI)
+                std::fprintf(stderr, "strata serve: conversation cache: skip parking (%s; STRATA_PSI_PARK_PCT, STRATA_PSI_GUARD=0)\n",
+                             why.c_str());
+                return true;
+            }
             // A park carrying its own retained K/V replaces memory the cache
             // already held, so capacity is make_room's call - it runs next either
             // way, and put()'s accounting still bounds the budget. The with-reuse
@@ -12297,6 +12429,7 @@ int main(int argc, char** argv) {
                 size_t evicted = 0;
                 std::optional<strata::core::HostMemoryReading> mem;
                 auto admit = [&] {
+                    disk_tier.drain();   // (item 39: an evicted image holds its RAM until the disk tier has written it)
                     mem = strata::core::sample_host_memory();
                     return strata::core::conversation_memory_admit(
                         mem ? std::optional<uint64_t>(mem->available) : std::nullopt, additional, floor);
@@ -12598,9 +12731,19 @@ int main(int argc, char** argv) {
                     }
                 std::vector<int64_t> lens;
                 for (const ConvCheckpoint& k : checks) lens.push_back((int64_t) k.ids.size());
+                // MOD_PLAN 16 (opt-in): STRATA_CKPT_EVICT_FLOPS=<alpha> weighs the re-reading a checkpoint saves per byte
+                // against its recency (Marconi; conv_cache.hpp flops_victim); unset or 0 = least recent use as before
+                static const double evict_flops_alpha = [] {
+                    const char* e = std::getenv("STRATA_CKPT_EVICT_FLOPS");
+                    return e != nullptr && e[0] != '\0' ? std::max(0.0, std::atof(e)) : 0.0;
+                }();
                 const size_t victim = o.prompt_cache_spread
                     ? strata::program::conv_cache::spread_victim(lens.data(), stamps.data(), stamps.size(),
                                                                  o.prompt_cache, tail_flags.get(), pin_flags.get())
+                    : evict_flops_alpha > 0.0
+                    ? strata::program::conv_cache::flops_victim(lens.data(), stamps.data(), nullptr, stamps.size(),
+                                                                o.prompt_cache, tail_flags.get(), pin_flags.get(),
+                                                                evict_flops_alpha)
                     : strata::program::conv_cache::eviction_victim(stamps.data(), stamps.size(), o.prompt_cache,
                                                                    tail_flags.get(), pin_flags.get());
                 ckpt_pool.give(std::move(checks[victim]));   // (STRATA_CKPT_POOL; else nothing)
@@ -15622,7 +15765,18 @@ int main(int argc, char** argv) {
             if (!heat.empty() && line != "QUIT" && o.expert_profile_save_min > 0 &&
                 Clock::now() - profile_saved_at >= std::chrono::duration<double>(o.expert_profile_save_min * 60.0))
                 save_profile("periodic");
-            if (line == "QUIT") break;
+            if (line == "QUIT") {
+                if (disk_tier.on()) {   // item 39: what is parked goes to disk too, for the next engine
+                    strata::core::conversation_checkpoint_join(nullptr);
+                    strata::core::conversation_park_join();
+                    size_t n = 0;
+                    while (conversations.evict_oldest()) ++n;
+                    disk_tier.drain();
+                    std::fprintf(stderr, "strata serve: conversation disk: %zu parked conversation%s handed to disk at QUIT\n",
+                                 n, n == 1 ? "" : "s");
+                }
+                break;
+            }
             // the watchdog watches a request from here until this iteration ends, whichever way it ends
             struct BusyScope {
                 BusyScope() {
@@ -15762,7 +15916,7 @@ int main(int argc, char** argv) {
                         const uint64_t floor = (uint64_t) o.conversation_cache_min_free_mib << 20;
                         if (o.session_save_reclaim) {
                             const auto freed = strata::core::session_save_reclaim(
-                                checks, conversations, sl, floor, strata::core::available_host_bytes);
+                                checks, conversations, sl, floor, [&] { disk_tier.drain(); return strata::core::available_host_bytes(); });
                             if (freed.bytes || freed.checkpoints || freed.parked) {
                                 // A removed tail must not mark a later checkpoint at this length as a tail.
                                 if (tail_ckpt_len >= 0 && std::none_of(checks.begin(), checks.end(), [&](const auto& c) {
@@ -15943,6 +16097,10 @@ int main(int argc, char** argv) {
             // a parked conversation holding it stays parked) and a later request that resumes from it does not park the
             // branch it leaves: N queries cost one prefix, not N.  Absent = as before.
             int64_t req_pin = 0;
+            // marks=a,b,...: MOD_PLAN 16, the prompt's tool boundaries from serve/server.py (STRATA_CACHE_TOOL_BOUNDARY):
+            // places the read may stop at and checkpoint (tool_checkpoint_marks picks the ones that pay).  Used only with
+            // STRATA_CACHE_TOOL_BOUNDARY set for the engine too; absent = as before.
+            std::vector<int64_t> req_marks;
             // tuning keys (setup's calibration measures settings without restarting the engine): the PCIe share of
             // the missed experts and the draft-probability floor, for this request only
             double req_pcie_frac = o.pcie_frac, req_spec_min_p = o.spec_min_p;
@@ -15976,6 +16134,18 @@ int main(int argc, char** argv) {
                     else if (key == "ckpt") req_ckpt = std::atoi(tok.c_str() + eq + 1) != 0;
                     else if (key == "prefill") req_prefill_only = std::atoi(tok.c_str() + eq + 1) != 0;
                     else if (key == "pin") req_pin = std::max<long long>(0, std::atoll(tok.c_str() + eq + 1));
+                    else if (key == "marks") {
+                        req_marks.clear();
+                        const char* q = tok.c_str() + eq + 1;
+                        while (*q != '\0' && req_marks.size() < 64) {
+                            char* qe = nullptr;
+                            const long long v = std::strtoll(q, &qe, 10);
+                            if (qe == q) break;
+                            if (v > 0) req_marks.push_back((int64_t) v);
+                            if (*qe != ',') break;
+                            q = qe + 1;
+                        }
+                    }
                     else if (key == "temperature") req_temperature = fv;
                     else if (key == "top_p") req_top_p = fv;
                     else if (key == "top_k") req_top_k = std::atoi(tok.c_str() + eq + 1);
@@ -16431,6 +16601,7 @@ int main(int argc, char** argv) {
                                  k + 1, (long long) (k < now.size() ? now[k].start : -1));
                 }
             }
+            if (stages.empty()) disk_fetch(ids, req_imgs, want_cvec, std::max(resume, slot_tokens));   // item 39
             const auto parked = conversations.best(ids, req_imgs, want_cvec);
             std::optional<strata::core::SavedConversation> incoming;
             // A checkpoint inside ANOTHER parked conversation (a sibling subagent's system prompt and tools, say) is
@@ -16524,9 +16695,18 @@ int main(int argc, char** argv) {
             // (a sibling query of the last one).  What the last query added past it is its private suffix - a few
             // dozen tokens, cheaper to read than the prefix's whole K/V is to copy to the host - so it is not parked:
             // N queries keep one prefix.  A request without pin=, or one that resumes anywhere else, parks as before.
+            // MOD_PLAN 90: a branch longer than STRATA_PIN_PARK_TOKENS past the pin (default 2048; read once) is not a
+            // sibling query but a conversation of its own (an agent's, whose sub-agent shares its system prompt and
+            // tools): it parks as any other, within the cache's budget, so the return to it is a hit, not a re-read of
+            // its whole history.  -1 keeps the old rule (never park at the pin), 0 parks every branch.
+            static const int64_t pin_park_tokens = [] {
+                const char* v = std::getenv("STRATA_PIN_PARK_TOKENS");
+                return v != nullptr && v[0] != '\0' ? (int64_t) std::max(-1LL, std::atoll(v)) : (int64_t) 2048;
+            }();
             bool pin_sibling = false;
             if (req_pin > 0 && req_ckpt && o.prompt_cache >= 3 && !from_live && !incoming && slot_source < 0 &&
-                resume == req_pin && live_ok)
+                resume == req_pin && live_ok &&
+                (pin_park_tokens < 0 || (int64_t) live.size() - resume <= pin_park_tokens))
                 for (const ConvCheckpoint& c : checks)
                     if ((int64_t) c.ids.size() == resume && c.pinned) pin_sibling = true;
             // --conversation-cache-park-gain N: a park now would supersede the entry parked_prefix_tokens() reports (the copy
@@ -18127,9 +18307,34 @@ int main(int argc, char** argv) {
                     std::fprintf(stderr, "strata serve: pin=%lld: the cache has no checkpoint there to pin (it resumed from "
                                  "%lld)\n", (long long) req_pin, (long long) read_from);
             }
+            // MOD_PLAN 16 (opt-in, STRATA_CACHE_TOOL_BOUNDARY): the server's tool boundaries (marks=) past `resume` that save
+            // at least STRATA_CACHE_TOOL_BOUNDARY_GAP tokens (1024) over the deepest checkpoint below them, at most
+            // STRATA_CACHE_TOOL_BOUNDARY_MAX (2) a request and never more than --prompt-cache leaves room for (the root, the
+            // turn and one more stay): ordinary checkpoints in the same budget and retention.  Not on a layer split (its
+            // mid-prompt checkpoints need every stage's part), not with ckpt=0.  (`resume`, not `read_from`: the
+            // STRATA_CKPT_REREAD arm cuts at the same places.)
+            static const int64_t tool_marks_gap = [] {
+                const char* e = std::getenv("STRATA_CACHE_TOOL_BOUNDARY_GAP");
+                return e != nullptr && e[0] != '\0' ? std::max<int64_t>(0, std::atoll(e)) : int64_t(1024);
+            }();
+            static const int64_t tool_marks_max = [] {
+                const char* on = std::getenv("STRATA_CACHE_TOOL_BOUNDARY");
+                if (on == nullptr || std::atoi(on) <= 0) return int64_t(0);
+                const char* e = std::getenv("STRATA_CACHE_TOOL_BOUNDARY_MAX");
+                return e != nullptr && e[0] != '\0' ? std::clamp<int64_t>(std::atoll(e), 0, 8) : int64_t(2);
+            }();
+            std::vector<int64_t> tool_at;
+            if (tool_marks_max > 0 && !req_marks.empty() && req_ckpt && !multi_gpu && o.prompt_cache >= 3) {
+                std::vector<int64_t> held = {root_at, message_at, turn_at, pin_at};
+                for (const ConvCheckpoint& c : checks) held.push_back((int64_t) c.ids.size());
+                tool_at = strata::program::tool_checkpoint_marks(req_marks, resume, n, held, tool_marks_gap, 64,
+                                                                std::min<int64_t>(tool_marks_max, o.prompt_cache - 3));
+            }
+            auto is_tool_at = [&](int64_t p) { return std::find(tool_at.begin(), tool_at.end(), p) != tool_at.end(); };
             std::vector<int64_t> cuts = {reread_to, root_at, message_at, turn_at, n - 1};
-            if (pin_at >= 0) {
-                cuts.push_back(pin_at);
+            if (pin_at >= 0 || !tool_at.empty()) {
+                if (pin_at >= 0) cuts.push_back(pin_at);
+                cuts.insert(cuts.end(), tool_at.begin(), tool_at.end());
                 std::sort(cuts.begin(), cuts.end());   // the skipped -1s first, n - 1 still last
             }
             int64_t at = read_from;
@@ -18215,7 +18420,7 @@ int main(int argc, char** argv) {
                     break;
                 }
                 at = to;
-                if ((to == turn_at || to == root_at || to == message_at || to == pin_at) &&
+                if ((to == turn_at || to == root_at || to == message_at || to == pin_at || is_tool_at(to)) &&
                     !checkpoint_at(to, nullptr, to == message_at && to != turn_at && to != root_at && to != pin_at)) {   // the tail kind leaves first
                     if (!ckpt_why.empty() || !checkpoint_failure_is_survivable()) {   // #3350: only an unwell GPU ends the request
                         std::printf("ERR saving a conversation checkpoint failed%s\n", ckpt_why.c_str());
@@ -18229,6 +18434,9 @@ int main(int argc, char** argv) {
                 if (trace && to == message_at)
                     std::fprintf(stderr, "strata serve: message boundary checkpoint: %lld tokens, %lld tail\n",
                                  (long long) message_at, (long long) (turn_at - message_at));
+                if (trace && is_tool_at(to))
+                    std::fprintf(stderr, "strata serve: tool boundary checkpoint at %lld (%zu kept)\n", (long long) to,
+                                 checks.size());
             }
             if (!refill(err)) {
                 std::printf("ERR refilling a lent slot failed: %s\n", err.c_str());

@@ -1,6 +1,7 @@
 // src/core/pinned.cu - P2.S1: the pinned host arena and the parallel expert load.
 #include "strata/core/pinned.hpp"
 #include "strata/platform/memory.hpp"
+#include "strata/platform/mem_pressure.hpp"
 #include "strata/core/pin_budget.hpp"
 #include <cstddef>
 
@@ -491,7 +492,11 @@ void* reserve(uint64_t bytes, PageBacking& got, std::string& note, const std::st
                     ? "; transparent huge pages skipped (STRATA_NO_ARENA_THP)"
                     : "; transparent huge pages are on for every mapping (THP always): MADV_HUGEPAGE not requested";
     } else if (std::getenv("STRATA_NO_LARGEPAGES") == nullptr && std::getenv("STRATA_ARENA_THP") == nullptr &&
-               free_huge_bytes() < bytes / 2) {
+               free_huge_bytes() < bytes + (2ull << 30)) {
+        // pancake 2026-11-10: the threshold was half the arena.  With 29 GiB of free 2 MiB blocks for a 33 GiB arena the
+        // request went out, the last GiBs of faults compacted under the lock (5,000 compaction stalls in seconds), memory
+        // pressure passed systemd-oomd's 50% and the engine was killed while loading, start after start.  Now the free
+        // blocks must hold the whole arena plus 2 GiB of slack; otherwise 4 KB pages (STRATA_ARENA_THP=1 still forces).
         // #2126: THP "madvise" + defrag "madvise" makes every fault of a MADV_HUGEPAGE mapping reclaim and compact
         // until it finds a 2 MiB block.  When less than half of the arena could be backed by blocks that are free
         // now (a 62 GB box holding 47 GB of anonymous memory: 148K failed compactions, 100% system time, the load
@@ -1264,6 +1269,7 @@ LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::
     st.bytes = 0;
     for (uint64_t b : layer_bytes) st.bytes += b;
     if (threads < 1) threads = 1;
+    const strata::platform::LoaderPressureScope pressure_scope("expert arena");   // MOD_PLAN 86 (Linux PSI; else nothing)
 
     const auto t0 = std::chrono::steady_clock::now();
     std::vector<uint64_t> layer_hash((size_t) layers, 1469598103934665603ull);
@@ -1312,6 +1318,7 @@ LoadStats load_experts_ranges(const std::string& path, uint8_t* dst, const std::
             }
             while (remaining > 0) {
                 const uint64_t n = remaining < chunk ? remaining : chunk;
+                strata::platform::loader_pressure_check();   // MOD_PLAN 86: held while memory pressure is high
                 const auto t_read = std::chrono::steady_clock::now();
                 const size_t got = std::fread(buf.data(), 1, (size_t) n, f);
                 read_ns += (uint64_t) std::chrono::duration_cast<std::chrono::nanoseconds>(

@@ -458,11 +458,100 @@ void table_is_consistent_under_concurrent_use(const std::string& dir) {
     if (g_fail == 0) std::printf("ple table shared by a prompt thread, a decode window and a single gather, 9 reader configurations, vs the mapped reader: OK\n");
 }
 
+/// MOD_PLAN item 79: PleTable::gather_sliced (slices, several decode threads, raw IQ4_NL rows in both I/O modes) must give
+/// the bytes the old prompt path gave - gather_batch (FP32) and the mapped gather_raw_iq4nl (raw) - for every format,
+/// with rows past the table, a row cache on and off, and slice sizes that do and do not divide the chunk.  on_slice must
+/// run once a slice, in order, ending at the chunk's token count.
+void sliced_gather_matches_batch(const std::string& dir) {
+    const uint32_t rows = 2000;
+    const size_t nt = 3001, nr = nt * 16;   // 48,016 rows: enough for several threads at 2,048 rows each
+    std::mt19937 rng(79);
+    std::vector<uint32_t> br(nr);
+    for (size_t i = 0; i < nr; ++i) br[i] = rng() % rows;
+    br[0] = rows - 1;
+    br[17] = rows + 3;                      // past the table: both paths' own out-of-range rows
+    br[nr / 2] = rows + 1000;
+    br[nr - 1] = 0xFFFFFFFFu;
+    struct Plan { size_t slice; int threads; };
+    const Plan plans[] = {{0, 1}, {0, 4}, {100, 1}, {100, 4}, {1, 3}, {1000, 8}, {3000, 2}, {9999, 16}, {257, 5}};
+    for (int fi = 0; fi < k::ple_format_count(); ++fi) {
+        const k::PleFormatInfo& f = k::ple_formats()[fi];
+        const std::string path = write_format_table(dir, f, rows);
+        if (path.empty()) { CHECK(false, "%s: no table was written", f.name); continue; }
+        // the reference: the mapped table, gather_batch and (IQ4_NL) gather_raw_iq4nl
+        std::vector<float> ref_mapped(nr * k::PLE_HEAD_DIM);
+        std::vector<uint8_t> ref_raw;
+        {
+            k::PleTable t;
+            std::string err;
+            k::PleIoOptions io;
+            io.mode = k::PleIo::Mmap;
+            CHECK(t.open(path, err, io), "%s: open mapped: %s", f.name, err.c_str());
+            CHECK(t.gather_batch(br.data(), nt, ref_mapped.data(), err), "%s: mapped gather_batch: %s", f.name, err.c_str());
+            const bool iq4 = f.id == k::PleFormat::IQ4_NL;
+            CHECK(t.raw_iq4nl_ok() == iq4, "%s: raw_iq4nl_ok() is %d (mapped)", f.name, (int) t.raw_iq4nl_ok());
+            if (iq4) {
+                ref_raw.resize(nr * k::PLE_ROW_BYTES);
+                CHECK(t.gather_raw_iq4nl(br.data(), nt, ref_raw.data()), "%s: gather_raw_iq4nl", f.name);
+            }
+        }
+        if (g_fail) { std::filesystem::remove(path); return; }
+        for (k::PleIo mode : {k::PleIo::Mmap, k::PleIo::Direct}) {
+            for (uint64_t cache : {(uint64_t) 0, (uint64_t) 1 << 12}) {
+                if (mode == k::PleIo::Mmap && cache != 0) continue;
+                const char* name = mode == k::PleIo::Direct ? (cache ? "direct+cache" : "direct") : "mmap";
+                k::PleTable t;
+                std::string err;
+                k::PleIoOptions io;
+                io.mode = mode;
+                io.max_inflight = 32;
+                io.cache_rows = cache;
+                CHECK(t.open(path, err, io), "%s: open %s: %s", f.name, name, err.c_str());
+                if (g_fail) break;
+                // the old path in this mode (direct: the reader's bytes decoded, a row past the table decodes its zero bytes)
+                std::vector<float> ref(nr * k::PLE_HEAD_DIM);
+                CHECK(t.gather_batch(br.data(), nt, ref.data(), err), "%s: %s: gather_batch: %s", f.name, name, err.c_str());
+                CHECK(t.raw_iq4nl_ok() == (f.id == k::PleFormat::IQ4_NL), "%s: %s: raw_iq4nl_ok() is %d", f.name, name,
+                      (int) t.raw_iq4nl_ok());
+                for (const Plan& p : plans) {
+                    for (int raw = 0; raw <= (f.id == k::PleFormat::IQ4_NL ? 1 : 0); ++raw) {
+                        k::PleTable::SlicePlan sp;
+                        sp.slice_tokens = p.slice;
+                        sp.threads = p.threads;
+                        sp.raw_iq4nl = raw != 0;
+                        const size_t want_slices = p.slice == 0 || p.slice >= nt ? 1 : (nt + p.slice - 1) / p.slice;
+                        std::vector<size_t> marks;
+                        const size_t bytes = raw ? nr * k::PLE_ROW_BYTES : nr * k::PLE_HEAD_DIM * sizeof(float);
+                        std::vector<uint8_t> got(bytes, 0xCD);
+                        const bool ok = t.gather_sliced(br.data(), nt, got.data(), sp, [&](size_t t1) { marks.push_back(t1); }, err);
+                        CHECK(ok, "%s: %s: gather_sliced (slice %zu, %d threads, raw %d): %s", f.name, name, p.slice, p.threads, raw, err.c_str());
+                        const void* want = raw ? (const void*) ref_raw.data() : (const void*) ref.data();
+                        CHECK(std::memcmp(got.data(), want, bytes) == 0, "%s: %s: gather_sliced (slice %zu, %d threads, raw %d) differs from %s",
+                              f.name, name, p.slice, p.threads, raw, raw ? "gather_raw_iq4nl" : "gather_batch");
+                        bool order = marks.size() == want_slices && !marks.empty() && marks.back() == nt;
+                        for (size_t i = 1; i < marks.size(); ++i) order = order && marks[i] > marks[i - 1];
+                        if (p.slice != 0 && p.slice < nt) order = order && marks[0] == p.slice;
+                        CHECK(order, "%s: %s: slice %zu: on_slice ran %zu times (want %zu), last %zu", f.name, name, p.slice,
+                              marks.size(), want_slices, marks.empty() ? (size_t) 0 : marks.back());
+                    }
+                }
+                // the mapped modes agree across readers too (rows past the table aside: direct decodes zero bytes)
+                if (mode == k::PleIo::Mmap)
+                    CHECK(std::memcmp(ref.data(), ref_mapped.data(), ref.size() * sizeof(float)) == 0, "%s: mapped gather_batch is not deterministic", f.name);
+            }
+        }
+        std::filesystem::remove(path);
+        if (g_fail) return;
+    }
+    if (g_fail == 0) std::printf("ple gather_sliced (slices, threads, raw IQ4_NL in direct and mapped mode) vs gather_batch / gather_raw_iq4nl, every format: OK (bit-identical)\n");
+}
+
 void all_formats_round_trip(const std::string& dir) {
     bf16_widening_is_exact();                      // BF16's own claim: a shift, exact for every pattern
     bad_sizes_are_refused(dir);
     prefetched_keys_are_reused(dir);
     table_is_consistent_under_concurrent_use(dir);
+    sliced_gather_matches_batch(dir);             // item 79: the sliced, threaded, raw-in-direct gather = the old bytes
     CHECK(k::ple_format_count() > 0, "no formats");
     for (int i = 0; i < k::ple_format_count(); ++i) {
         const k::PleFormatInfo& f = k::ple_formats()[i];
@@ -557,17 +646,20 @@ int selftest(const std::string& dir, uint32_t rb) {
             CHECK(rd.cache_size() <= rd.cache_capacity(), "row cache exceeded its bound");
         }
     }
-    // fault injection: a 3 ms delay must be observed, and must not change the bytes
+    // fault injection: the delay must be observed, and must not change the bytes.  A read is held back only when
+    // its completion arrives before the delay has passed, so the delay must be far above a real read's latency:
+    // 3 ms was not on a loaded machine (item 93: "no read was held back" with 4 compiles running), 50 ms is.
     for (bool thr : {false, true}) {
+        constexpr double kDelayUs = 50000;
         ng::PleReader rd;
         std::string err;
         CHECK(rd.open(path, HEADER, N, 16, 0, err, thr, rb), "open: %s", err.c_str());
-        rd.set_injected_delay_us(3000);
+        rd.set_injected_delay_us(kDelayUs);
         std::vector<uint32_t> rows(16);
         for (auto& r : rows) r = rng() % N;
         const double t0 = now_us();
         check_rows(rd, rows, N, rb, "delayed");
-        CHECK(now_us() - t0 >= 3000, "injected delay not observed (%.0f us)", now_us() - t0);
+        CHECK(now_us() - t0 >= kDelayUs, "injected delay not observed (%.0f us)", now_us() - t0);
         CHECK(rd.stats().late_injected > 0, "no read was held back");
     }
     // keep-alive: while rows are asked for, a page goes out after `period` without a read; it stops once the
@@ -729,13 +821,29 @@ int main(int argc, char** argv) {
         else { std::fprintf(stderr, "usage: ple_reader_test --selftest [--dir D] | --gguf SHARD2 [--rows N] [--tokens F]\n"); return 2; }
     }
     if (self) {
+        // item 93: without --dir, a directory of this run's own under the temp dir (the fixed file names in the
+        // shared temp dir collided between two runs at once), removed afterwards
+        std::filesystem::path own;
+        if (dir == std::filesystem::temp_directory_path().string()) {
+            own = std::filesystem::temp_directory_path() / ("strata-ple-reader-" + std::to_string(std::random_device{}()));
+            std::error_code ec;
+            std::filesystem::create_directories(own, ec);
+            if (!ec) dir = own.string();
+        }
         // ng::ROW_BYTES (90, IQ4_NL, production default) and 110 (#296, OrcaRouter's Q5_0 PLE rows) through the
         // same generic row_bytes path -- see the comment on selftest().
         all_formats_round_trip(dir);               // every format of k::ple_formats(), both readers, vs its dequantizer
-        if (g_fail != 0) return 1;
-        const int r90 = selftest(dir, ng::ROW_BYTES);
-        const int r110 = selftest(dir, 110);
-        return r90 != 0 ? r90 : r110;
+        int rc = 1;
+        if (g_fail == 0) {
+            const int r90 = selftest(dir, ng::ROW_BYTES);
+            const int r110 = selftest(dir, 110);
+            rc = r90 != 0 ? r90 : r110;
+        }
+        if (!own.empty()) {
+            std::error_code ec;
+            std::filesystem::remove_all(own, ec);
+        }
+        return rc;
     }
     if (!make_path.empty()) {                      // a big synthetic table, for timing --ple-io ram's fault-in
         for (int i = 0; i < k::ple_format_count(); ++i) {

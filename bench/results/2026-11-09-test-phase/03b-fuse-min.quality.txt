@@ -1,0 +1,46 @@
+  waiting for a quiet machine: load 6.74, foreign CPU 11% [('kworker/1:1-events', 3), ('pipewire', 2), ('claude', 2)]
+  quiet after 110 s
+scoring base (a) ...
+  waiting for a quiet machine: load 8.82, foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]
+  quiet after 115 s
+scoring base (b) ...
+  waiting for a quiet machine: load 7.65, foreign CPU 7% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 2)]
+  quiet after 105 s
+scoring fuse-min0 ...
+  waiting for a quiet machine: load 8.54, foreign CPU 7% [('claude', 3), ('pipewire', 1), ('gnome-remote-de', 1)]
+  quiet after 120 s
+scoring fuse-min8 ...
+  waiting for a quiet machine: load 7.83, foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]
+  quiet after 105 s
+scoring fuse-min12 ...
+  waiting for a quiet machine: load 7.75, foreign CPU 8% [('claude', 3), ('pipewire', 1), ('gnome-remote-de', 1)]
+  quiet after 105 s
+scoring fuse-min8+tail4 ...
+fuse-min0                PASS
+      1
+     ],
+     "events_p": 0.7037,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+fuse-min8                PASS
+      1
+     ],
+     "events_p": 0.7037,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+fuse-min12               PASS
+      1
+     ],
+     "events_p": 0.7037,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+fuse-min8+tail4          PASS
+      1
+     ],
+     "events_p": 0.40741,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }

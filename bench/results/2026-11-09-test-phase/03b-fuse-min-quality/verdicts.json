@@ -1,0 +1,6 @@
+{
+ "fuse-min0": "PASS",
+ "fuse-min8": "PASS",
+ "fuse-min12": "PASS",
+ "fuse-min8+tail4": "PASS"
+}

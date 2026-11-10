@@ -13,7 +13,7 @@ arguments to vLLM, SGLang or TGI (`compute/serving.py`).
 
 **What we could use, and the result.**
 - Throughput timed from the first streamed chunk, so dataset loading and engine warm-up stay out of the number
-  (`pipelines/inference_runner.py`, around lines 343-413). `tools/pancake/abtest.py:199` already sends a warm-up request
+  (`pipelines/inference_runner.py`, around lines 343-413). the warm-up request in `tools/pancake/abtest.py` already sends a warm-up request
   that is not counted, so nothing was ported for this. `tools/pancake/bench_win.py` times decode from the first token to
   the last for the same reason.
 - Nothing in it speeds up decode: the tokens per second in this project come from kernels, the expert cache and

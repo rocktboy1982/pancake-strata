@@ -1,0 +1,48 @@
+=== A6 recalibrated model (engine chain), edit window ===
+c = 44.6 us per distinct missed expert (48 layers x 40 us pool barriers inside the 17.41 ms CPU); pre-doorbell GPU 15.75 ms (mixer share mu 0.65); VRAM experts 4.3 ms hidden; alpha 0.5; heavy share 0.4; deferred-layer cost sdef 91 us (fitted to +15.8% deferral)
+serial model 39.26 ms (profile 37.39); bench base 4.7 tok/window / 116.6 tok/s = 40.31 ms -> constant +1.05 ms added to every arm (percentages are on the bench window)
+arm                                          model ms  model %        vs       measured error pts  status
+base (serial, no deferral)                      39.26    +0.0%         -     +0.0 +-0.0            calibration
+deferral (BELOW 0.1)                            33.76   +15.8%      base    +15.8 +-3.9      -0.0  FITTED
+deferral, base of group 02 (136.8 tok/s)        33.76   +15.8%      base    +17.3 +-2.9      -1.5  check
+deferral + rank guard TOP=2                     34.93   +12.0%      base    +20.1 +-3.3      -8.1  predicted
+deferral + KMISS 2,8 (blocking)                 32.85    +2.7%  deferral     +2.0 +-1.6      +0.7  predicted
+deferral + KMISS 3,8 (blocking)                 32.59    +3.5%  deferral           n.s.            predicted
+deferral + FUSE_PHASES                          33.37    +1.1%  deferral     +2.5 +-1.7      -1.4  predicted
+mean |error| of the out-of-sample arms: 3.4 points (the 2026-11-09 model: deferral +33 vs +15.8 = 17.2; deferral + KMISS +14 vs +2.0 = 12.0; FUSE +3 vs +2.5 = 0.5)
+
+where the +33% went (deferral on edits; measured +15.8 +-3.9):
+  0 the 2026-11-09 model (GPU pre-doorbell 11.5 ms, router and pool free during the CPU)    +32.9%
+  1 + GPU pre-doorbell work 15.75 ms (profile), c recalibrated                              +33.9%
+  2 + late rows gate the next router and pool (verify.cpp late_add)                         +26.7%
+  3 + heavy rows kept on time (BELOW 0.1, share 0.4)                                        +26.0%
+  4 + deferred-layer cost 91 us per layer (fitted)                                          +14.3%
+  5 + bench window 1.0 ms longer than the profile's, promotion contention alpha 0.5         +15.8%
+
+=== candidate ranking in the recalibrated model (on top of deferral, edit window; the >= 5% rule of item 14) ===
+sensitivity of the one policy arm we measured (KMISS 2,8) to the DDR contention alpha:
+  alpha 0.0: KMISS 2,8 +9.4% over deferral (measured +2.0 +-1.6)
+  alpha 0.25: KMISS 2,8 +6.2% over deferral (measured +2.0 +-1.6)
+  alpha 0.5: KMISS 2,8 +2.7% over deferral (measured +2.0 +-1.6)
+  alpha 0.75: KMISS 2,8 -0.9% over deferral (measured +2.0 +-1.6)
+A7 ProMoE (chunked, cancellable promotions + reordered execution): upper bounds on the preset tier
+   no contention (alpha 0; the tier moves 26.8 promotions/window = 3.1 ms of DMA): +2.1%
+   in-flight reorder (every promoted expert serves its first use from VRAM, 7.7% fewer CPU misses): +2.6%
+   both: +4.6%   (ProMoE's own claim: 1.09x over LRU on PCIe 4.0; this box is PCIe 3.0)
+A8 Pie, online swap budget on the blocking tier (tier every window; swaps per round):
+   swaps   8: hit 76.3%  window 35.71 ms  -5.3% vs the preset's 32
+   swaps  16: hit 78.5%  window 34.83 ms  -3.0% vs the preset's 32
+   swaps  32: hit 81.2%  window 33.76 ms  +0.0% vs the preset's 32
+   swaps  64: hit 83.5%  window 32.92 ms  +2.5% vs the preset's 32
+   swaps 128: hit 84.7%  window 32.75 ms  +3.0% vs the preset's 32
+   best fixed value 128: +3.0%; an online budget can reach at most this (a per-window oracle is not modelled)
+A46 learned / evolved cache policy: the ceiling is the oracle (Belady with an admission horizon); online k-th miss for reference
+   belady (admit every miss)                    hit 94.7%  promo/w  98.4   +11.8% over the preset tier
+   belady, admit if reused <= 1 windows         hit 90.8%  promo/w  37.1   +14.2% over the preset tier
+   belady, admit if reused <= 2 windows         hit 92.2%  promo/w  44.6   +15.4% over the preset tier
+   belady, admit if reused <= 4 windows         hit 93.3%  promo/w  52.5   +16.0% over the preset tier
+   belady, admit if reused <= 8 windows         hit 94.0%  promo/w  57.7   +16.1% over the preset tier
+   online: admit on 2th miss in 2 windows       hit 84.6%  promo/w  50.9    +3.5% over the preset tier
+   online: admit on 2th miss in 4 windows       hit 86.0%  promo/w  70.6    +3.2% over the preset tier
+   online: admit on 2th miss in 8 windows       hit 86.5%  promo/w  81.6    +2.7% over the preset tier
+   online: admit on 3th miss in 8 windows       hit 83.8%  promo/w  44.1    +3.5% over the preset tier

@@ -22,7 +22,9 @@
 // All of those are asserted observable in `ple_parity.cpp` rather than trusted.
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 
 namespace strata::kernels {
@@ -191,6 +193,22 @@ public:
     /// table: scale 0 and code 8 everywhere, which decode to the +0.0f gather_batch writes) for ple_iq4nl_dequant on the device.  False (nothing
     /// written) unless the table is in memory (--ple-io ram / mmap) and IQ4_NL.
     bool gather_raw_iq4nl(const uint32_t* rows, size_t n_tokens, uint8_t* out) const;
+
+    /// MOD_PLAN item 79: a prompt chunk's rows in slices, the same bytes as `gather_batch` (FP32) or, with `raw_iq4nl`,
+    /// `gather_raw_iq4nl` - in BOTH I/O modes (direct: the reader's raw rows land straight in `out`, a row past the table
+    /// is rewritten to the +0.0f pattern).  Direct mode issues every slice's reads at once (the reader queue serves them
+    /// in order) and decodes slice k while slice k+1 is read; the decode (or, mapped, the page-faulting copy) of a slice
+    /// is spread over `threads`.  `on_slice(t_end)` runs on the calling thread once tokens [0, t_end) are complete in
+    /// `out`, once per slice, in order.  Not while a single-token `issue` is pending.
+    struct SlicePlan {
+        size_t slice_tokens = 0;   ///< tokens a slice; 0 (or >= n_tokens): one slice
+        int threads = 1;           ///< decode/copy threads (1: the calling thread only)
+        bool raw_iq4nl = false;    ///< raw IQ4_NL rows (PLE_ROW_BYTES each) instead of 160 floats a row
+    };
+    bool gather_sliced(const uint32_t* rows, size_t n_tokens, void* out, const SlicePlan& plan,
+                       const std::function<void(size_t)>& on_slice, std::string& err);
+    /// True when `gather_sliced` can deliver raw IQ4_NL rows: an open IQ4_NL table (mapped or direct).
+    bool raw_iq4nl_ok() const;
 
     /// Fault injection (Direct mode): every row read completes no earlier than `us` after issue.
     void set_injected_delay_us(double us);

@@ -1,0 +1,38 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)
+  short  base                 no clean runs
+  short  stack                no clean runs
+  short  lookup12                128.0 +-  28.0  (n=2)
+                              drafts accepted 0.68
+  short  specminp07              127.3 +-   1.9  (n=2)
+                              drafts accepted 0.85
+  short  lookahead0              108.7 +- 293.6  (n=2)
+                              drafts accepted 0.73
+  short  routed-dedupe           125.4 +-  40.7  (n=2)
+                              drafts accepted 0.73
+  short  mmvf-rows                90.4 +- 199.5  (n=2)
+                              drafts accepted 0.76
+  short  gdn-pp2                 125.4 +-  29.2  (n=2)
+                              drafts accepted 0.72
+  edit   base                 no clean runs
+  edit   stack                no clean runs
+  edit   lookup12                169.1 +- 310.1  (n=2)
+                              drafts accepted 0.89
+  edit   specminp07              149.6 +- 153.2  (n=2)
+                              drafts accepted 0.95
+  edit   lookahead0              144.3 +- 439.1  (n=2)
+                              drafts accepted 0.91
+  edit   routed-dedupe            98.4 +- 152.5  (n=2)
+                              drafts accepted 0.95
+  edit   mmvf-rows               127.4 +- 364.8  (n=2)
+                              drafts accepted 0.95
+  edit   gdn-pp2                 146.4 +- 455.0  (n=2)
+                              drafts accepted 0.94
+
+screen verdict (promote: >= +2% on a case and no case below -3%; else drop)
+  stack                  -> drop
+  lookup12               -> drop
+  specminp07             -> drop
+  lookahead0             -> drop
+  routed-dedupe          -> drop
+  mmvf-rows              -> drop
+  gdn-pp2                -> drop

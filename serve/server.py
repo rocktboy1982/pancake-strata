@@ -61,7 +61,7 @@ from urllib.parse import parse_qs, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT))   # run as a script (run-<model>.bat) as well as a module
-from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, anthropic_to_messages, anthropic_tools,  # noqa: E402
+from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, ReasoningKeeper, anthropic_to_messages, anthropic_tools,  # noqa: E402
                             forced_call, images_of, literal_tags, mark_think_literals, openai_to_messages, require_messages,
                             tool_choice_of, unmark_think_literals, CALL_END)
 from serve.mcp import McpCancelled, hub_from_config  # noqa: E402
@@ -85,6 +85,7 @@ from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
 from serve import grammar as grammar_api  # noqa: E402
 from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
+from serve import rumination  # noqa: E402  (pancake item 34: 5-gram repetition rate in the thinking)
 from serve import lifeline  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
@@ -419,6 +420,22 @@ ENGINE_READY_S = _timeout_env("STRATA_ENGINE_READY_S", 900.0)
 class Engine(Protocol):
     max_context: int
     def generate(self, ids: list[int], max_new: int, sampling: dict, cancel: threading.Event) -> Iterator[int]: ...
+
+
+def keeper_of(env, value) -> ReasoningKeeper | None:
+    """Item 31: config "keep_reasoning" (or STRATA_KEEP_REASONING) -> the reasoning keeper, or None (off, the default).
+    true / "1" keeps 512 replies; a whole number N > 0 keeps N; false / 0 / unset is off.  Anything else stops the start."""
+    if env not in (None, ""):
+        value = env.strip().lower()
+        value = {"1": True, "true": True, "on": True, "0": False, "false": False, "off": False}.get(
+            value, int(value) if value.isdigit() else value)
+    if value is None or value is False or value == 0:
+        return None
+    if value is True:
+        return ReasoningKeeper()
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return ReasoningKeeper(max_entries=value)
+    raise SystemExit(f"[strata] config \"keep_reasoning\" must be true, false or a number of replies, not {value!r}")
 
 
 class MockEngine:
@@ -887,6 +904,59 @@ def deepseek_restore_points(ids, user_id, system_id=None, tail=512, least=RESTOR
     if marks:
         out["marks"] = sorted(marks)
     return out
+
+
+# MOD_PLAN 16 (pancake, opt-in): STRATA_CACHE_TOOL_BOUNDARY=1 in the server's and the engine's environment (run-pancake.sh
+# passes the shell's environment to both) sends the Qwen engine its prompt's tool boundaries as marks=<pos>,...: the
+# <|im_start|> that opens a tool result's turn (the state after the assistant's call, before its result) and the one
+# right after that turn (after the result).  The engine keeps a checkpoint at the ones that save enough re-reading
+# (src/program/generate.cpp, include/strata/program/message_boundary.hpp: tool_checkpoint_marks) inside its usual
+# checkpoint budget; the GDN state cannot be rolled back, so a checkpoint is the only way back to such a point.  A
+# request that leaves this one at a tool boundary (the same call with another result, a retried step) resumes there.
+# =2 also marks the end of each kept thinking block (</think> of an earlier assistant turn; the template keeps them
+# unless preserve_thinking is false, and then none are rendered, so none are marked).  0 / unset: no key, every GEN
+# line as before.
+TOOL_MARKS_LEAST = 1024        # as RESTORE_LEAST: no mark before this many tokens
+TOOL_THINK_LEAST = 256         # a thinking block shorter than this is read again in about the time a checkpoint costs
+
+
+def tool_boundary_level(env=None) -> int:
+    """0 (off), 1 (tool boundaries) or 2 (and </think>) from STRATA_CACHE_TOOL_BOUNDARY."""
+    env = os.environ if env is None else env
+    try:
+        return max(0, min(2, int(str(env.get("STRATA_CACHE_TOOL_BOUNDARY", "0")).strip() or 0)))
+    except ValueError:
+        return 0
+
+
+def qwen_tool_marks(ids, turn_id, response_id, think_end_id=None, least=TOOL_MARKS_LEAST,
+                    think_least=TOOL_THINK_LEAST) -> list[int]:
+    """The tool boundaries of a Qwen prompt as the template wrote it (sorted positions; [] without any).  A tool
+    result's turn opens `<|im_start|>user\\n<tool_response>`: that <|im_start|> is the tool-call boundary, and the next
+    <|im_start|> (the next assistant turn, or the generation prompt) the tool-result boundary.  With `think_end_id`,
+    also the position right after each </think> of an earlier assistant turn whose thinking is at least `think_least`
+    tokens (the generation prompt's own block is past the last turn and never marked).  The template writes the
+    special tokens itself; the same text inside a message is encoded as text (#537, #2026), so the positions are the
+    template's own.  Positions under `least` are left out."""
+    if turn_id is None or response_id is None or len(ids) < 2:
+        return []
+    turns = [i for i, t in enumerate(ids) if t == turn_id]
+    out = set()
+    for k, i in enumerate(turns):
+        nxt = turns[k + 1] if k + 1 < len(turns) else len(ids)
+        if response_id in ids[i + 1:min(i + 9, nxt)]:   # `user`, `\n`, <tool_response>: a few tokens in
+            out.add(i)
+            if nxt < len(ids):
+                out.add(nxt)
+    if think_end_id is not None and turns:
+        last = turns[-1]
+        for k, i in enumerate(turns[:-1]):
+            for j in range(i + 1, turns[k + 1]):
+                if ids[j] == think_end_id and j + 1 < last:
+                    if j - i >= think_least:
+                        out.add(j + 1)
+                    break
+    return sorted(p for p in out if p >= least)
 
 
 def narrate_start(log_path: str, offset: int, args: list, done: threading.Event, heartbeat=20.0) -> None:
@@ -1797,7 +1867,8 @@ class StrataEngine:
             pn = prefix.get("tokens")
             if isinstance(pn, int) and not isinstance(pn, bool) and pn > 0:
                 keys += f" pin={pn}"
-        # restore points (Service.prepare puts them in `_restore`; only the DeepSeek engine gets them)
+        # restore points (Service.prepare puts them in `_restore`: the DeepSeek engine's, and with
+        # STRATA_CACHE_TOOL_BOUNDARY a Qwen prompt's tool boundaries for Strata's own engine - MOD_PLAN 16)
         keys += StrataEngine.restore_keys(sampling)
         # logprobs: the engine writes an `LP` line after each `T` line (an engine without them ignores
         # the key, so an older engine answers exactly as it did).  Absent = no LP lines at all.
@@ -1814,8 +1885,8 @@ class StrataEngine:
     @staticmethod
     def restore_keys(sampling: dict) -> str:
         """`marks=<pos>,...`, `tail=<pos>` and `shared=<pos>`: the DeepSeek engine's restore points for this prompt
-        (Service.prepare puts them in `_restore` with STRATA_DS4_RESTORE_POINTS; no other engine gets them).  "" without:
-        the line as before."""
+        (Service.prepare puts them in `_restore` with STRATA_DS4_RESTORE_POINTS; with STRATA_CACHE_TOOL_BOUNDARY a Qwen
+        prompt's tool boundaries go to Strata's own engine as marks= alone).  "" without: the line as before."""
         pts = sampling.get("_restore")
         if not isinstance(pts, dict):
             return ""
@@ -4937,6 +5008,7 @@ class Service:
         self.api_monitor = False
         self.turn_log = None                             # item 73: path of the per-turn JSONL log (None: off)
         self.turn_log_lock = threading.Lock()
+        self.reasoning_keeper = None                     # item 31: frontend.ReasoningKeeper ("keep_reasoning"; None: off)
         self.api_requests = collections.deque(maxlen=100)  # bounded I/O in memory; no headers or API keys
         self.request_trace = threading.local()
         self.history = collections.deque(maxlen=500)    # the last finished requests, newest last (GET /metrics)
@@ -4979,12 +5051,21 @@ class Service:
         self.reasoning_budget_tokens = 0                 # #123: the config's default thinking budget (0: none)
         self.reasoning_budget_by_effort = {}             # pancake: {level: budget} for requests without a budget of their own
         self.reasoning_budget_grace = 0                  # Maya #613 (opt-in): the budget closes at a sentence's or line's end, this many tokens at most later
+        # pancake item 34 (serve/rumination.py): the thinking's rolling 5-gram repetition rate is measured always (per
+        # request max/mean in done, the history, the turn log and /metrics); "rumination_close" (opt-in) closes the
+        # thinking with the soft budget's wrap-up when it stays high.  None: no close.
+        self.rumination_close = None
+        self.rumination_counts = {"measured": 0, "closed": 0}
         self.repeat_stop_tokens = REPEAT_STOP_TOKENS     # #606: one token this many times in a row ends a reply (0: off)
         # the loop guard (serve/loop_guard.py; STRATA_LOOP_GUARD=0 / "loop_guard": false: off) and what it did since
         # the start (the Monitor's and /metrics' counters)
         self.loop_guard = True
         self.loop_guard_counts = {"detected": 0, "penalised": 0, "thinking_closed": 0, "stopped": 0, "tool_repeats": 0,
                                   "tool_blocked": 0, "collapsed": 0, "kept_going": 0}
+        # pancake item 33: the behaviour counters across turns (loop_guard.behaviour; "loop_guard_behaviour" in the
+        # config, STRATA_LOOP_BEHAVIOUR=off|log|note): edit streaks without a check, read streaks without an edit
+        self.loop_guard_behaviour = loop_guard.BehaviourSettings()
+        self.loop_guard_behaviour_counts = {"edits_without_check": 0, "reads_without_edit": 0, "notes": 0}
         end = tokenizer.encode(THINK_END, parse_special=True) if hasattr(tokenizer, "encode") else []
         self.think_end_id = int(end[0]) if len(end) == 1 else None   # (the guard closes the thinking with it)
         self.anthropic_think_unasked = True               # #278: "anthropic_thinking": "on_request" -> False
@@ -5862,9 +5943,12 @@ class Service:
         parked = self.conv_log.poll(getattr(self.engine, "log_path", None), getattr(self.engine, "log_start", None))
         with self.status_lock:
             guard = dict(self.loop_guard_counts, on=bool(self.loop_guard))   # (what the loop guard did since start)
+            guard["behaviour"] = self._behaviour_view()
+            rum_view = dict(self.rumination_counts, close=dict(self.rumination_close) if self.rumination_close else None)
         return {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
                 "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
-                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "hardware": tel["now"],
+                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "rumination": rum_view,
+                "hardware": tel["now"],
                 "hardware_static":
                 tel["static"], "history": tel["history"], "time": now}
 
@@ -5874,6 +5958,8 @@ class Service:
         with self.status_lock:
             s, t = dict(self.status), dict(self.totals)
             guard = dict(self.loop_guard_counts)
+            behaviour = dict(self.loop_guard_behaviour_counts)
+            rum_counts = dict(self.rumination_counts)
             running = len(self.live_reqs) or int(bool(s.get("busy")))
             prompt_n = t["prompt_tokens"] - t["reused"]               # what was read, as llama.cpp counts it
             prompt_s, decode_s = t["prompt_ms"] / 1000, t["decode_ms"] / 1000
@@ -5921,6 +6007,20 @@ class Service:
             ("strata:loop_guard_collapsed_total", "counter",
              "Prompts that left out what the model had already written (a conversation that repeats itself)",
              guard["collapsed"]),
+            ("strata:loop_guard_edits_without_check_total", "counter",
+             "Edit streaks that reached the threshold with no build, test or run in between (item 33)",
+             behaviour["edits_without_check"]),
+            ("strata:loop_guard_reads_without_edit_total", "counter",
+             "Read and search streaks that reached the threshold with no edit in between (item 33)",
+             behaviour["reads_without_edit"]),
+            ("strata:loop_guard_behaviour_notes_total", "counter",
+             "Notes the behaviour counters wrote after a tool result (loop_guard_behaviour note mode)",
+             behaviour["notes"]),
+            ("strata:rumination_measured_total", "counter",
+             "Requests whose thinking was long enough for a 5-gram repetition rate (item 34)", rum_counts["measured"]),
+            ("strata:rumination_closed_total", "counter",
+             "Thinking blocks closed because the 5-gram repetition rate stayed high (rumination_close)",
+             rum_counts["closed"]),
         ]
         return "".join(f"# HELP {name} {help_}\n# TYPE {name} {kind}\n{name} {value}\n"
                        for name, kind, help_, value in rows)
@@ -6002,11 +6102,14 @@ class Service:
         for source in (spawn_env, os.environ):
             for k, v in source.items():
                 if k.startswith(("STRATA_", "MAYA_")):
-                    env[k] = str(v)
+                    # never echo a secret (STRATA_API_KEY, STRATA_OWNER_ATTEST_KEY, ...) into the page
+                    env[k] = "<set>" if re.search(r"(^|_)(API_KEY|ATTEST_KEY|SECRET|PASSWORD|PASS|AUTH)(_|$)", k[k.index("_") + 1:]) \
+                        else str(v)
         switches = {"env": dict(sorted(env.items())),
                     "server": {"loop_guard": self.loop_guard,
                                "reasoning_budget_by_effort": dict(self.reasoning_budget_by_effort),
-                               "reasoning_budget_grace": self.reasoning_budget_grace, "turn_log": self.turn_log}}
+                               "reasoning_budget_grace": self.reasoning_budget_grace,
+                               "rumination_close": self.rumination_close, "turn_log": self.turn_log}}
         with self.status_lock:
             s = dict(self.status)
             if self.live_reqs:                          # parallel requests: the newest one's status
@@ -6039,7 +6142,8 @@ class Service:
                  if t["drafts_offered"] else None,
                  "expert_cache_hit_pct": round(100 * statistics.fmean(hits), 1) if hits else None}
         with self.status_lock:
-            guard = {"enabled": bool(self.loop_guard), "counts": dict(self.loop_guard_counts)}
+            guard = {"enabled": bool(self.loop_guard), "counts": dict(self.loop_guard_counts),
+                     "behaviour": self._behaviour_view()}
         turns = self._recent_turns(hist, now)
         return {"engine": engine, "hardware": hardware, "model": model, "switches": switches, "live": live,
                 "stats": stats, "loop_guard": guard, "turns": turns, "time": now}
@@ -6183,11 +6287,15 @@ class Service:
         guarded = self._loop_guard_on(req)
         if guarded:                                      # the loop guard across turns (Maya's prepare)
             messages, blocked, looping, asked = self._guarded_messages(messages)
+            messages, behaviour = self._behaviour(asked, messages)
         fetched = self._note_unreadable_tool_images(messages, cancel)
         ids = encoded_ids = self.encode_prompt(messages, tools, kwargs)
         if isinstance(req, dict):
             req.pop("_loop_blocked", None)
             req.pop("_loop_keep", None)
+            req.pop("_loop_behaviour", None)
+            if guarded and behaviour:                    # (item 33: the answer's done["loop_guard"] lines)
+                req["_loop_behaviour"] = behaviour
             if guarded and tools and not force:
                 # a call made again after the guard's notes is answered by the server in this answer (_run), and in a
                 # conversation that repeats itself the answer may not end the turn with nothing new
@@ -6303,8 +6411,9 @@ class Service:
             # (an encoder restart, the cache's eviction) with other bits still matches its checkpoints
             self.embeddings.keys = [Path(p).stem[:16] for p, _ in encoded]
             write_temporary(combined, [p for p, _ in encoded])
-        if self.family == "deepseek41" and req is not None and req.get("strata_prefix") is None and not images and not ds_pics:
-            lead = self.deepseek_shared_start(messages)
+        if req is not None and req.get("strata_prefix") is None and not images and not ds_pics:
+            lead = (self.deepseek_shared_start(messages) if self.family == "deepseek41"
+                    else self.auto_shared_start(messages))
             if lead:
                 req["strata_prefix"] = {"messages": lead}
         if req is not None and req.get("strata_prefix") is not None:
@@ -6333,7 +6442,11 @@ class Service:
         (never a client's own; not with pictures, whose spans the engine reads whole).  The shared start is left to
         strata_prefix (pin=N) where the request has one."""
         req.pop("_restore", None)
-        if self.family != "deepseek41" or has_images:
+        if self.family != "deepseek41":
+            if not has_images:
+                self.set_tool_marks(req, ids)   # MOD_PLAN 16 (STRATA_CACHE_TOOL_BOUNDARY; nothing without it)
+            return
+        if has_images:
             return
         on, tail = restore_point_settings()
         if not on:
@@ -6346,6 +6459,32 @@ class Service:
         if pts:
             req["_restore"] = pts
 
+    def qwen_tool_ids(self):
+        """(<|im_start|>, <tool_response>, </think>) ids of the Qwen template, each None where the vocabulary has no
+        such single token."""
+        got = getattr(self, "_qwen_tool_ids", None)
+        if got is None:
+            def one(text):
+                try:
+                    t = self.tok.encode(text, parse_special=True)
+                except Exception:
+                    return None
+                return int(t[0]) if len(t) == 1 else None
+            got = self._qwen_tool_ids = (one("<|im_start|>"), one("<tool_response>"), one("</think>"))
+        return got
+
+    def set_tool_marks(self, req: dict, ids) -> None:
+        """MOD_PLAN 16 (STRATA_CACHE_TOOL_BOUNDARY): the prompt's tool boundaries as req["_restore"]["marks"] for Strata's
+        own engine (the split engine refuses unknown GEN keys, strata-poly has its own turn_at); the engine decides which
+        of them it checkpoints.  Nothing without the setting: the GEN line as before."""
+        level = tool_boundary_level()
+        if not level or getattr(self.engine, "split_engine", False) or getattr(self.engine, "poly_engine", False):
+            return
+        turn_id, response_id, think_end_id = self.qwen_tool_ids()
+        marks = qwen_tool_marks(ids, turn_id, response_id, think_end_id if level >= 2 else None)
+        if marks:
+            req["_restore"] = {"marks": marks}
+
     @staticmethod
     def deepseek_shared_start(messages) -> int:
         """DeepSeek-V4.1 only: how many leading messages are the system prompt (its tools are rendered with them).  An
@@ -6354,6 +6493,11 @@ class Service:
         instead of reading it again.  0: none (STRATA_DS4_AUTO_PIN=0, no system message, or nothing after it)."""
         if os.environ.get("STRATA_DS4_AUTO_PIN", "1") == "0":
             return 0
+        return Service.system_lead(messages)
+
+    @staticmethod
+    def system_lead(messages) -> int:
+        """How many leading messages are system (or developer) messages; 0 when none, or when nothing follows them."""
         n = 0
         for m in messages:
             if isinstance(m, dict) and m.get("role") in ("system", "developer"):
@@ -6362,6 +6506,18 @@ class Service:
                 break
         return n if 0 < n < len(messages) else 0
 
+    @staticmethod
+    def auto_shared_start(messages) -> int:
+        """MOD_PLAN 71 (opt-in, STRATA_AUTO_PIN=1): the DeepSeek auto-pin for the other families (Qwen3.8-Flash-Next).
+        An agent, its sub-agents of the same kind and its side requests that send the same system prompt and tools
+        start at one pinned checkpoint at the end of the system turn (pin=N) instead of reading it again.  The prompt
+        is the same: only where the engine keeps a checkpoint changes.  The engine parks the branch it leaves at the
+        pin when that branch is longer than STRATA_PIN_PARK_TOKENS (MOD_PLAN 90), so the return to the parent agent
+        is a cache hit.  0: off (the default), no system message, or nothing after it."""
+        if os.environ.get("STRATA_AUTO_PIN", "0") != "1":
+            return 0
+        return Service.system_lead(messages)
+
     PREFIX_END = "\u0001strata-prefix-end\u0001"          # marks where a message's shared part ends in the rendered prompt
 
     def resolve_prefix(self, spec, messages, tools, kwargs, ids, has_images=False) -> dict:
@@ -6369,7 +6525,8 @@ class Service:
         short questions follow.  Three ways to say where it ends: `{"messages": K}` (the first K messages), `{"message":
         I, "chars": N}` (the first N characters of message I's text: a document and its question in one message) or
         `{"tokens": N}`.  The engine reads the prompt in two parts there, keeps the checkpoint at the boundary pinned
-        (never evicted) and does not park the branch it leaves, so N questions cost one prefix.  Returns
+        (never evicted) and does not park the branch it leaves when it is short (STRATA_PIN_PARK_TOKENS, default 2048 tokens
+        past the pin; a longer one parks), so N questions cost one prefix.  Returns
         {"tokens": N} (what the engine's `pin=N` takes: always a prefix of the prompt's ids, the tokenizer's merge across
         the boundary included), or {} when the prefix cannot be marked (said in the log: the request is never refused for
         it).  A malformed field is a 400."""
@@ -6520,6 +6677,41 @@ class Service:
             self.loop_guard_counts["tool_repeats"] += 1
         return messages + [{"role": "user", "content": loop_guard.tool_note(rep)}]
 
+    def _behaviour_view(self) -> dict:
+        """The behaviour counters for /metrics (called with status_lock held): the settings and the counts."""
+        b = self.loop_guard_behaviour
+        return {"mode": b.mode, "edits": b.edits, "reads": b.reads, **self.loop_guard_behaviour_counts}
+
+    def _behaviour(self, asked, messages):
+        """pancake item 33 (loop_guard.behaviour): the request's own messages (`asked`) counted for edits without a
+        build/test/run and reads without an edit.  A streak that reached its threshold in the model's last turn is a
+        line in the server window and a count in /metrics; in "note" mode also a note after the tool result (none
+        when the tool-repeat note is already there: one note at a time).  -> (messages, done["loop_guard"] lines)."""
+        cfg = self.loop_guard_behaviour
+        if cfg.mode == "off":
+            return messages, []
+        try:
+            b = loop_guard.behaviour(asked, cfg.edits, cfg.reads, cfg.tools)
+        except Exception as e:                      # (a message shape it does not know: nothing counted)
+            print(f"[strata] loop guard: behaviour counters skipped ({type(e).__name__}: {e})", flush=True)
+            return messages, []
+        if b is None:
+            return messages, []
+        note = cfg.mode == "note" and bool(b.crossed) and bool(messages) and messages[-1].get("role") == "tool"
+        if b.crossed:
+            what = "; ".join(f"{b.edits} edits without a build, test or run" if k == loop_guard.EDITS_KIND
+                             else f"{b.reads} reads and searches without an edit" for k in b.crossed)
+            print(f"[strata] loop guard: {what}" + (": a note after it" if note else " (logged only)"), flush=True)
+            with self.status_lock:
+                c = self.loop_guard_behaviour_counts
+                for k in b.crossed:
+                    c[k] += 1
+                c["notes"] += int(note)
+        lines = loop_guard.behaviour_lines(b, cfg.edits, cfg.reads, noted=note)
+        if note:
+            messages = messages + [{"role": "user", "content": loop_guard.behaviour_note(b)}]
+        return messages, lines
+
     def _collapse(self, messages):
         """A conversation that carries a loop across turns (loop_guard.collapse): its prompt without what the model
         already wrote - only that prompt changes."""
@@ -6619,10 +6811,30 @@ class Service:
         if ka is not None:
             ka.acquire()
         try:
-            yield from self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            events = self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            keeper = self.reasoning_keeper
+            yield from (events if keeper is None else self._kept(events, keeper))
         finally:
             if ka is not None:
                 ka.release()
+
+    @staticmethod
+    def _kept(events, keeper) -> Iterator[tuple[str, object]]:
+        """Item 31 ("keep_reasoning"): the events pass through unchanged; a reply that ends is remembered (its
+        reasoning, under its text and calls) so a client that sends the turn back without its reasoning gets the
+        prompt the engine cached.  A reply cut off by a cancel or an error is not remembered."""
+        reasoning, content, calls = [], [], []
+        for kind, obj in events:
+            if kind == "event" and isinstance(obj, Event):
+                if obj.kind == "reasoning":
+                    reasoning.append(obj.text)
+                elif obj.kind == "content":
+                    content.append(obj.text)
+                elif obj.kind == "tool_call" and obj.call is not None:
+                    calls.append({"id": obj.call.id, "name": obj.call.name, "arguments": obj.call.arguments})
+            elif kind == "done" and isinstance(obj, dict) and obj.get("finish") in ("stop", "tool_calls", "length"):
+                keeper.remember("".join(content), calls, "".join(reasoning))
+            yield kind, obj
 
     def _run(self, ids, thinking, tools, max_new, sampling, cancel, force=None,
              declared_only=False, deferred=False) -> Iterator[tuple[str, object]]:
@@ -6701,6 +6913,10 @@ class Service:
         looped, next_loop_check = False, LOOP_CHECK_EVERY       # #728: reasoning that repeats whole passages
         raw_ids = []                                    # every generated id (STRATA_DEBUG: dump raw model text)
         guard = None                                    # this request's loop guard (set once it has the engine)
+        rum_cfg = getattr(self, "rumination_close", None)   # item 34: the rumination meter and its opt-in close
+        rum = rumination.RuminationMeter(rum_cfg["threshold"], rum_cfg["checks"]) if rum_cfg \
+            else rumination.RuminationMeter()
+        rum_due, rum_wait = False, 0                    # the close is due: waiting for a sentence end (tokens waited)
         admission_rejected = False                      # #3040: the engine's batch slots refused it before it read anything
         emb, self.embeddings.path = getattr(self.embeddings, "path", None), None   # this run's to delete now
         img_keys, self.embeddings.keys = getattr(self.embeddings, "keys", None), None
@@ -6821,6 +7037,11 @@ class Service:
                     # reasoning's last characters), at most `grace` tokens later
                     grace = max(0, min(getattr(self, "reasoning_budget_grace", 0),
                                        (max_new - budget - 1) // 2 if max_new else THINK_GRACE)) if budget else 0
+                    # item 34: a rumination close waits the same way for a sentence or line end, at most
+                    # reasoning_budget_grace tokens (THINK_GRACE when that is 0) and half the room left
+                    rum_grace = max(1, min(getattr(self, "reasoning_budget_grace", 0) or THINK_GRACE,
+                                           (max_new - 1) // 2 if max_new else THINK_GRACE)) if rum_cfg else 0
+                    wrap_why = None                     # "rumination": the wrap-up below is the rumination close
                     think_tail = ""
                     guard_stop = False                  # the guard ended the answer (a loop that came back)
                     # across turns (prepare put them in the request): the calls this answer may not make again -
@@ -6910,7 +7131,7 @@ class Service:
                         discards the rest)."""
                         nonlocal thinking_n, run_len, run_tok, repeated, tail, answered, reasoning_text, last_out
                         nonlocal last_print, finish, looped, next_loop_check, repeat_coverage, recover_prompt
-                        nonlocal thought, wrap, force, opens, called, think_tail
+                        nonlocal thought, wrap, force, opens, called, think_tail, rum_due, rum_wait, wrap_why
                         for i, t in enumerate(toks):
                             thinking_n += parser.state in ("reasoning", "rcall")
                             run_len = run_len + 1 if t == run_tok else 1
@@ -6926,8 +7147,15 @@ class Service:
                             for ev in evs:
                                 if self.reasoning_loop_recovery and ev.kind == "reasoning":
                                     reasoning_text += ev.text or ""
-                                if ev.kind == "reasoning" and grace:
+                                if ev.kind == "reasoning" and (grace or rum_cfg):
                                     think_tail = (think_tail + (ev.text or ""))[-16:]
+                                if ev.kind == "reasoning" and rum.feed(ev.text or "") and rum.high and \
+                                        not (rum_due or rum.closed) and thinking_n >= rum_cfg["min_tokens"]:
+                                    rum_due = True      # item 34: the 5-gram rate stayed high: close at a sentence end
+                                    print(f"[strata] rumination: the thinking's 5-gram repetition rate stayed at or "
+                                          f"above {rum_cfg['threshold']} for {rum_cfg['checks']} checks "
+                                          f"({rum.rate:.3f} at {thinking_n} thinking tokens): closing it at the next "
+                                          "sentence or line end (rumination_close)", flush=True)
                                 if ev.kind == "content":
                                     said.append(ev.text or "")
                                 elif ev.kind == "tool_call":
@@ -6960,6 +7188,13 @@ class Service:
                                         recover_prompt = focused_recovery_prompt(self.tok, ids, raw_ids[:len(raw_ids) - unread])
                                         if recover_prompt is not None:
                                             return i + 1
+                            if rum_due and parser.state == "reasoning":
+                                rum_wait += 1
+                                if parser.clean and not detok.pending() and (
+                                        rum_wait >= rum_grace or think_boundary(think_tail)):
+                                    rum_due, rum.closed = False, True
+                                    wrap, wrap_why = True, "rumination"     # the soft budget's own close below
+                                    return i + 1
                             if budget and parser.state == "reasoning":
                                 thought += 1
                                 # at a clean point: no tag held back, no character split across tokens
@@ -7239,7 +7474,7 @@ class Service:
                         # A forced call (tool_choice) is opened the same way: after the wrap-up, or where the
                         # thinking ended, after the blank line the template puts before a call.
                         if wrap:
-                            budget_was = budget
+                            budget_was = budget or 0
                             budget = st["thinking_budget"] = None
                             text = REASONING_WRAP_UP + (force or "")
                         else:
@@ -7248,7 +7483,12 @@ class Service:
                         extra = self.tok.encode(text, parse_special=True)
                         if max_new - n - len(extra) < 1:
                             break                       # no room left to answer: "length", as without a budget
-                        if wrap:
+                        if wrap and wrap_why == "rumination":
+                            with self.status_lock:
+                                self.rumination_counts["closed"] += 1
+                            print(f"[strata] rumination close: wrapping up the thinking at {thinking_n} thinking tokens "
+                                  f"({rum_wait} past the signal)", flush=True)
+                        elif wrap:
                             print(f"[strata] thinking budget reached ({thought} tokens"
                                   f"{f', {thought - budget_was} past it to a sentence or line end' if thought > budget_was else ''}"
                                   "): wrapping up the thinking", flush=True)
@@ -7320,6 +7560,10 @@ class Service:
                                 "prompt_total": len(ids), "prompt_read": last.get("prompt_read"),
                                 "reasoning_recoveries": recovery_count,
                                 "reasoning_repeat_coverage": round(repeat_coverage, 3),
+                                # item 34: the thinking's rolling 5-gram repetition rate (None: under MIN_WORDS words)
+                                "rumination_max": round(rum.rate_max, 3) if rum.checks else None,
+                                "rumination_mean": round(rum.rate_sum / rum.checks, 3) if rum.checks else None,
+                                "rumination_closed": rum.closed,
                                 "engine_generated": last.get("generated"),
                                 "prompt_ms": last.get("prompt_ms"), "decode_ms": last.get("decode_ms"),
                                 "decode_tok_s": round(last["generated"] / (last["decode_ms"] / 1000), 1)
@@ -7330,6 +7574,8 @@ class Service:
                                 "drafts_offered": last.get("drafts_offered"),
                                 "drafts_accepted": last.get("drafts_accepted")})
                             self._write_turn_log(self.history[-1], thinking_n, max_new)
+                            if rum.checks:
+                                self.rumination_counts["measured"] += 1
                             if not admission_rejected:                  # #3040: a refused admission did no work
                                 t = self.totals
                                 t["requests"] += 1
@@ -7431,6 +7677,10 @@ class Service:
                 "reasoning_recoveries": recovery_count}
         if guard is not None and guard.events:          # what the loop guard did in this answer
             done["loop_guard"] = guard.summary()
+        if (sampling or {}).get("_loop_behaviour"):      # item 33: the behaviour counters at their thresholds
+            done["loop_guard"] = done.get("loop_guard", []) + list(sampling["_loop_behaviour"])
+        if rum.checks:                                  # item 34: {"max", "mean", "checks", "closed"}
+            done["rumination"] = rum.summary()
         if stops is not None and stops.hit is not None:
             done["stop_sequence"] = stops.hit
         if rejected:
@@ -9304,7 +9554,7 @@ def make_handler(svc: Service):
         def _openai(self, req):
             req = svc.with_shared(req, "openai")
             bias_api.normalize(req.get("logit_bias"), len(getattr(svc.tok, "tokens", ())) or None)
-            messages, tools, kw = openai_to_messages(req)
+            messages, tools, kw = openai_to_messages(req, svc.reasoning_keeper)
             require_messages(messages)                # an empty conversation is a 400, as OpenAI answers it, not a reply to nothing
             self._no_local_images(messages)
             if tool_choice_of(req.get("tool_choice"))[0] == "none":   # as the Responses route: no tools are offered
@@ -9511,7 +9761,7 @@ def make_handler(svc: Service):
 
         def _responses_prepare(self, req, cancel=None):
             responses_api.check_request(req)
-            messages = responses_api.input_messages(req)
+            messages = responses_api.input_messages(req, svc.reasoning_keeper)
             tools, names, skipped = responses_api.request_tools(req)
             kw = responses_api.template_kwargs(req, {"reasoning_effort": svc.effort_default()})
             try:
@@ -9577,7 +9827,7 @@ def make_handler(svc: Service):
             """Anthropic's token count, which Claude Code asks for its context figures: the prompt this server would
             read for the same request, rendered and tokenized - the model does not run."""
             req = svc.with_shared(req, "anthropic")
-            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked)
+            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked, svc.reasoning_keeper)
             stop_strings(req)                                 # the same 400 as the request itself would get
             check_request_sampling(req)                       # ... likewise a sampling field of the wrong type
             self._json(200, {"input_tokens": len(svc.encode_prompt(messages, tools, kw, store=False))})
@@ -9585,7 +9835,7 @@ def make_handler(svc: Service):
         def _anthropic(self, req):
             svc.load()
             req = svc.with_shared(req, "anthropic")
-            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked)
+            messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked, svc.reasoning_keeper)
             self._no_local_images(messages)
             callable_tools, deferred = anthropic_tools(req)     # #4663: the deferred tools are callable, unlisted
             if tool_choice_of(req.get("tool_choice"))[0] == "none":   # Anthropic's {"type": "none"}: no tools offered
@@ -11040,6 +11290,10 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
                   "Chat settings shared with other apps, can set its own)", flush=True)
     svc.codex_thread_titles = cfg.get("codex_thread_titles") is True    # #923: opt-in, off by default
     svc.codex_compaction_cache = cfg.get("codex_compaction_cache") is True   # #924: opt-in, off by default
+    svc.reasoning_keeper = keeper_of(os.environ.get("STRATA_KEEP_REASONING"), cfg.get("keep_reasoning"))
+    if svc.reasoning_keeper is not None:
+        print(f"[strata] keep_reasoning on: the reasoning of the last {svc.reasoning_keeper.max_entries} replies is kept "
+              f"in memory and put back into histories that come without it", flush=True)
     try:
         svc.set_aliases(cfg.get("aliases"))             # #297: other names the model answers to
     except ValueError as e:
@@ -11121,6 +11375,12 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
     svc.loop_guard = loop_guard_setting(cfg)            # (STRATA_LOOP_GUARD=0 or "loop_guard": false: off)
     if not svc.loop_guard:
         print("[strata] loop guard: off (a request's \"loop_guard\": true turns it on for that request)", flush=True)
+    try:                                                # item 33: the behaviour counters (default: log only)
+        svc.loop_guard_behaviour = loop_guard.behaviour_settings(cfg)
+    except ValueError as e:
+        raise SystemExit(f"[strata] config: {e}") from None
+    if svc.loop_guard_behaviour.mode != "log":
+        print(f"[strata] loop guard behaviour counters: {svc.loop_guard_behaviour.mode}", flush=True)
     svc.effort_end = bool(effort_end)                   # #458: "effort_position": "end" with an engine that has it
     if cfg.get("reasoning_budget_tokens") is not None:  # #123: a default thinking budget for every request
         svc.reasoning_budget_configured = True
@@ -11139,6 +11399,16 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
     if grace:
         print(f"[strata] thinking budget: closed at a sentence or line end, at most {grace} tokens past it "
               "(reasoning_budget_grace)", flush=True)
+    try:                                                # pancake item 34 (opt-in): 0.4 or {"threshold", "checks", "min_tokens"}
+        svc.rumination_close = rumination.close_setting(cfg.get("rumination_close"))
+    except ValueError as e:
+        raise SystemExit(f"[strata] config {e}")
+    if svc.rumination_close:
+        rc = svc.rumination_close
+        print(f"[strata] rumination close: the thinking closes at a sentence or line end when its 5-gram repetition "
+              f"rate stays at or above {rc['threshold']} for {rc['checks']} checks"
+              + (f" after {rc['min_tokens']} thinking tokens" if rc["min_tokens"] else "") + " (rumination_close)",
+              flush=True)
     by_effort = cfg.get("reasoning_budget_by_effort")   # pancake: {"low": 2048, "medium": 8192, "high": 0}
     if by_effort is not None:
         svc.reasoning_budget_by_effort = budget_by_effort_setting(by_effort)

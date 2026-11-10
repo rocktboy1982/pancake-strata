@@ -21,6 +21,7 @@ The long-form documents live in the documentation folder [`pancake-docs/`](panca
   on every Strata fork and derivative, with a gap analysis.
 - [`MOD_PLAN.md`](MOD_PLAN.md): the master plan, item by item, with the "not adopted" ledger.
 - [`PANCAKE_STATUS.md`](PANCAKE_STATUS.md): what is built, what is tested, and what comes next.
+- [`docs/WINDOWS_CUDA_SM75.md`](docs/WINDOWS_CUDA_SM75.md): the Windows + CUDA 12.8 build on a GTX 1660 Ti (sm_75).
 
 ## 2. What `pancake-strata` does compared to Strata and other forks (Measured Results)
 
@@ -32,14 +33,23 @@ otherwise. "Exact" means the same tokens as stock decoding, checked token for to
 
 Models: **Qwen3.8-Flash-Next** (176.9B total: 125B MoE + 51B PLE + 4B MTP) and **Qwen3.6-35B-A3B**.
 
-Decode speed on Qwen3.8-Flash-Next IQ2_XS (writing speed):
+Decode speed on Qwen3.8-Flash-Next (writing speed). The rows do **not** all use the same quant: read the
+quant and bits columns before comparing speeds.
 
-| Engine | tok/s |
-| --- | ---: |
-| Strata (stock) | 75-77 |
-| Avalon | 95-100 |
-| Strata-rdna3 | 109-119 |
-| **pancake-strata** (exact / fast-hip) | **112-126** |
+| Engine | Quant (expert weights) | Bits per expert weight | tok/s |
+| --- | --- | ---: | ---: |
+| Strata (stock) | IQ2_XS | ~2.31 | 75-77 |
+| Avalon | IQ3_KS / IQ3_K hybrid | ~3.2-3.4 | 95-100 |
+| Strata-rdna3 | IQ2_XS | ~2.31 | 109-119 |
+| **pancake-strata** (exact / fast-hip) | IQ2_XS | ~2.31 | **112-126** |
+
+Note on the Avalon row: it is **not** the same file.  Avalon (a llama.cpp-based engine) was measured on the same PC
+with its own Flash-Next GGUF, a hybrid IQ3_KS / IQ3_K layout (~89 GiB, ~3.2-3.4 bits per expert weight), while the
+Strata rows use the IQ2_XS file (~2.3 bits per expert weight).  Decode on this box is bound by reading expert bytes
+(CPU-side experts from DDR4, GPU-side from VRAM), so Avalon moves roughly 40-50% more expert bytes per token and gets
+a higher-quality model for it.  The row is "what each stack delivers on this card with its own recommended file", not
+an engine-vs-engine comparison at equal quantization; that comparison (Avalon on IQ2_XS, or Strata on an IQ3 file) has
+not been run.
 
 The pancake-strata gain over its own starting point, measured in the final suites: **+6% on chat** (111.7 to
 118.4 tok/s) and **+13% on code edits** (92.5 to 104.3 tok/s) with `--pcie-frac 0`. On the Q2_0 file the same preset
@@ -127,6 +137,88 @@ token-forcing quality gate.
 | [Unsloth](https://huggingface.co/unsloth) | Unsloth (HF) | per model | Evaluated | UD-Q4_K_XL / UD-Q3_K_M packs for Qwen3.6-35B-A3B, used in the daily presets. |
 | [Qwen](https://huggingface.co/Qwen) | Qwen (Alibaba) | Apache-2.0 (models) | Evaluated | The models themselves: Qwen3.8-Flash-Next and Qwen3.6-35B-A3B; the tech report was checked against code. |
 
+### 3A. Fork knowledge base (`tools/forks/fork_kb.py`)
+
+The fork survey above is not a one-off: `tools/forks/fork_kb.py` keeps an incremental knowledge base of every direct
+fork of [Niko1221/Strata](https://github.com/Niko1221/Strata), so the ecosystem can be re-read at any time and new
+work in the forks shows up on the next run.
+
+What one run does:
+
+1. Lists every direct fork through the GitHub API (one call per 100 forks).
+2. Queries GitHub again only for forks that are new or whose `pushed_at` changed since their last successful scan
+   (`FULL=1` rescans all of them). For each one it stores the commits ahead of upstream (`compare` API) and the
+   README.
+3. Writes `runs/<run>-new-commits.csv` with only the commits first seen in this run, and `runs/<run>-errors.csv`.
+   A fork that failed is not marked as scanned, so the next run retries it.
+
+Upstream rewrote its history around early October, so 974 older forks share no commit with it and GitHub's
+`compare` answers "No common ancestor". For those the script takes the commits on the fork's branch dated after the
+fork was created, then marks as `upstream_history = 1` the ones that are really old upstream commits the fork had
+synced (authored by the upstream owner, or present in two or more such forks). Analyses should filter on
+`upstream_history = 0`; the new-commits CSV already does.
+
+The knowledge base is committed in this repo under [`data/fork-kb/`](data/fork-kb/) (`KB_DIR` changes the place):
+
+| Path | Contents |
+| --- | --- |
+| `forks.sqlite.gz` | The committed snapshot of the database (18 MB compressed). The script rewrites it at the end of every run and unpacks it into `forks.sqlite` when that file is missing, so a fresh clone can run an update directly. |
+| `forks.sqlite` | Not in git (`.gitignore`); the working copy. Table `runs` (one row per run with counts), `forks` (branch, `pushed_at`, ahead/behind, last scan, last error), `commits` (one row per fork and commit, with `first_seen_run` and `last_seen_run`; a `last_seen_run` older than the fork's last scan means the commit was force-pushed away or merged), `readmes` (README per fork, with the run in which it last changed). |
+| `readmes/<blob_sha>.md` | README contents, stored once per distinct content (most forks share upstream's). |
+| `runs/` | The per-run CSVs above (the very large first one is gzipped). |
+
+Run and update it (the first run took 70 minutes, including one wait for the GitHub limit of 5,000 calls per hour;
+an update only touches forks that changed: the next run rescanned 22 forks in under a minute):
+
+```bash
+GITHUB_TOKEN=$(gh auth token) python3 tools/forks/fork_kb.py          # first run, and every update after it
+GITHUB_TOKEN=$(gh auth token) FULL=1 python3 tools/forks/fork_kb.py   # rescan every fork
+GITHUB_TOKEN=$(gh auth token) LIMIT=20 python3 tools/forks/fork_kb.py # smoke test on 20 forks
+git add data/fork-kb && git commit -m "fork-kb: update" -- data/fork-kb   # keep the committed snapshot current
+```
+
+Each update adds a new ~18 MB snapshot to the git history, so update when there is something to analyze (for example
+weekly), not on every small change.
+
+Other settings: `KB_DIR` (where the knowledge base lives), `WORKERS` (parallel requests, default 5), `UPSTREAM`
+(default `Niko1221/Strata`). Run it at low priority (`nice -n 19`) while a benchmark is running.
+
+Analyze it (Python's built-in `sqlite3` is enough; the `sqlite3` command-line tool is optional):
+
+```bash
+python3 - <<'PY'
+import sqlite3
+db = sqlite3.connect("data/fork-kb/forks.sqlite")   # run from the repo root after one update, or gunzip the snapshot
+# commits that appeared in the latest run
+for r in db.execute("""select repo, substr(date,1,10), substr(message,1,90) from commits
+                       where upstream_history = 0 and first_seen_run = (select max(id) from runs)
+                       order by date desc"""):
+    print(*r, sep="  ")
+# the forks with the most unique work
+for r in db.execute("select repo, ahead_by, pushed_at from forks where ahead_by > 0 order by ahead_by desc limit 30"):
+    print(*r, sep="  ")
+PY
+```
+
+The new-commits CSV of each run is the input for the next round of fork notes (see the
+[November fork report](reports/Active%20Strata%20forks%20November.md)); anything adopted from it follows the
+credit rule in section 9.
+
+First results (2026-11-10, report: [Strata fork knowledge base](reports/Strata%20fork%20knowledge%20base.md)):
+
+| Measure | Value |
+| --- | ---: |
+| Direct forks | 4,550 (21 return 404 on `compare`, retried every run) |
+| Forks with their own commits | 407 (340 diverged, 66 of the 974 without a common ancestor, 1 ahead) |
+| Own commits in total | 43,685 |
+| Forks with own commits since 2026-11-01 / 2026-11-08 | 140 (2,957 commits) / 60 (666 commits) |
+| Distinct READMEs | 167 (80 MB knowledge base in total) |
+
+Activity peaked in the week after launch (71 forks, ~20,900 commits, week of 2026-09-28) and has slowed since (110
+forks in the last full week). Since 11-01 the commit messages are mostly about the server and agent layer (75 forks),
+the expert cache and offload (71), quantization (55), KV and attention (57), CUDA (54), speculative decoding and MTP
+(51) and HIP/ROCm (40 forks, 238 commits).
+
 ## 4. Academic Research: Papers, Ideas, and Direct URLs
 
 Before building we read. The survey covered **758 arXiv papers across 7 global university regions** (131 US, 97 Asia,
@@ -174,7 +266,7 @@ reason, in the MOD_PLAN "not adopted" ledger.
 | Paper / System | Authors / Venue / Year | Direct URL | Mechanism | Status in `pancake-strata` |
 | --- | --- | --- | --- | --- |
 | BFLA (block-sparse flash attention) | ported work | `feat/bfla-hip` (in-repo) | Block-sparse prompt attention | Prototype on branch: 3.15x end-to-end at 128K, 48/48 needle recall |
-| XAttention | 2025 | [arxiv.org/abs/2502.17421](https://arxiv.org/abs/2502.17421) | Block-sparse attention, antidiagonal scoring | Planned (item 19, lossy opt-in) |
+| XAttention | 2025 | [arxiv.org/abs/2503.16428](https://arxiv.org/abs/2503.16428) | Block-sparse attention, antidiagonal scoring | Planned (item 19, lossy opt-in) |
 | SpargeAttn | Tsinghua, 2024 | [arxiv.org/abs/2411.10958](https://arxiv.org/abs/2411.10958) | Training-free sparse attention | Planned (item 19) |
 | BitDecoding | 2025 | [arxiv.org/abs/2503.18773](https://arxiv.org/abs/2503.18773) | Low-bit KV, decode on matrix cores | Tested on `feat/bitdecoding-hip`: neutral, not adopted |
 | LServe | MIT Han lab, 2025 | [arxiv.org/abs/2502.14866](https://arxiv.org/abs/2502.14866) | Long-context serving with sparse KV | Evaluated (KV design context) |
@@ -326,6 +418,9 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | Switch | Defined | Default | Exact/Lossy | Does | Measured |
 | --- | --- | --- | --- | --- | --- |
 | `STRATA_POOL_MWAITX=<TSC cycles>` | `pool.cpp` | off (spin) | exact | parked workers wait with Zen MONITORX/MWAITX | wake +0.36 us; frees SMT siblings |
+| `STRATA_ADAPT_PERSIST` | `generate.cpp` (item 75, dan-9f) | **on** (=0: old per-window thread) | exact | the serve adaptive step runs on one persistent JobThread instead of a new std::thread per window | arm in bench/specs/02 |
+| `STRATA_DEVICE_SPIN=1` | `generate.cpp` main (item 76, dan-9f) | off | exact | sets spin + maphost scheduling on the primary device before its context; logs "set" or "refused" | arm in bench/specs/04 (void if "refused") |
+| `STRATA_UNBUFFERED_LOAD` | `expert_source.cpp`, `pinned.cu`, `direct_io.hpp` (item 38, dan-9f) | **on** on Linux (=0: buffered) | exact | the GGUF expert arena loads with O_DIRECT (16 readers) when the page cache cannot keep it; log "expert arena load: mode ..., GiB/s" | start 28-65 s -> ~10-14 s est.; test plan 2.10 |
 | `STRATA_POOL_LAZY_PARK` | `pool.cpp` | off | exact | wait_parked at every phase/batch start, park only after idle | 0-1% |
 | `STRATA_POOL_FUSE_PHASES` | `pool.cpp`, `pool.hpp` (item 29) | off | exact | mode 7: gate/up + down in one phase per layer | overlap model: +3% |
 | `STRATA_POOL_PREREAD` | `pool.hpp`, `expert_source.hpp` (from tandem.cpp) | off | exact | idle workers pre-read the lookahead's next-layer CPU experts | loses even on a noisy machine; stays off |
@@ -367,6 +462,17 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_IDLE_ADAPT=N` | off | item 17 (`43e741bc6`): when no request line arrives for 150 ms, the blocking tier runs up to N extra rounds at 4x swaps on the idle GPU |
 | `STRATA_TURN_LOG` | off | item 73 (`1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets |
 | `STRATA_SPEC_COST_TABLE` | off | item 43 (`663107a56`): draft window costs seeded from window traces (`tools/pancake/trace/draft_costs.py`) |
+| `STRATA_LOOP_BEHAVIOUR=off\|log\|note` (+`_EDITS=8`, `_READS=20`) | **log** | item 33 (`c03c905d3`): loop-guard behaviour counters - N edits without a build/test, M reads without an edit; `note` mode (opt-in) adds a note to the prompt |
+| `STRATA_KEEP_REASONING` | off | item 31 (`d44dd5eb2`): keep earlier reasoning in the prompt (opencode 1.19.5 already resends it: leave off there) |
+| `STRATA_HIPBLASLT_DESC_CACHE` | **on** (=0: per call), N = cap 256 | item 80 (`ca2f1eecc`, `997bb0a1c`): hipBLASLt matmul descriptors cached across prompt GEMMs; exact by construction |
+| `STRATA_PIN_PARK_TOKENS=2048` | **on** (-1: old rule) | item 90 (`9ca057669`): parks the branch left at the pin, so a sub-agent switch returns to the parent without a re-read |
+| `STRATA_AUTO_PIN=1` | off | item 71 (`35c928729`): auto-pin of the Qwen system + tools prefix (shared by sub-agents) |
+| `STRATA_CACHE_TOOL_BOUNDARY=1\|2` (+`_GAP=1024`, `_MAX=2`) | off | item 16 (`527e06429`): checkpoints at tool-call / tool-result boundaries (server and engine); exact vs re-read, chunk geometry changes |
+| `STRATA_CKPT_EVICT_FLOPS=<alpha>` | off | item 16: Marconi-style eviction by FLOPs saved per byte |
+| `STRATA_CONVERSATION_DISK_DIR` / `--conversation-disk-dir auto\|path` (+`_MAX_GIB=20`, `_MIN_TOKENS=2048`, `_MIN_GAIN=1024`) | off | item 39 (`070fe8512`): parked conversations on disk, survive restarts |
+| `STRATA_PLE_PIPE=1` (+`GATHER_THREADS=4`, `SLICES=4`, `EARLY`) | off | item 79 (`e2b3a3dad`, `3b5338412`): PLE gather off the critical path; `STRATA_PLE_COMPACT=1` now also with `--ple-io direct`; `STRATA_PLE_WAIT_TRACE=1` marks the waits |
+| `STRATA_CONV_BUDGET=ram` / `STRATA_CONV_KEEP_GIB=N` | off (40% rule stays) | item 86 (`ab4fe164b`, `c1b3fec32`): conversation cache sized from free RAM |
+| `STRATA_PSI_GUARD` | **on** (pause at 20%, resume at 10%, 30 s cap) | item 86: pauses loading / skips parking under memory pressure; timing only |
 
 ### 6H. CLI flags
 
@@ -393,7 +499,14 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
   (`serve/test_tolerant_tool_calls.py`).
 - Domain classification for `STRATA_DOMAIN_PROFILES` seeding.
 - `"turn_log"` (item 73, `1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets.
+- Status page (`214c8cd31`): `/status` and `/pancake` in a browser (auto-refresh, hardware, model, switches, tok/s, cache
+  and draft rates, last 30 turns), `/status.json` for scripts.
 - `loop_guard_*` Prometheus counters.
+- `"loop_guard_behaviour"`: off | log | note | {mode, edits, reads, tools} (item 33, default log: counters only, prompt unchanged).
+- `"rumination_close"`: threshold | {threshold, checks=3, min_tokens=0} (item 34, `dd8549636`, OFF): closes thinking that
+  repeats itself; the rumination signal itself is always measured (`done["rumination"]`, turn log `rumination_max/mean`).
+- `chat_template_kwargs.preserve_thinking` passes through on chat / messages / responses; `"keep_reasoning": true|N`
+  (item 31, OFF; the prompt is byte-identical when unset).
 
 ### 6J. Presets and launcher
 
@@ -534,6 +647,28 @@ out of one of these scripts, and the suite is what makes the stack reproducible.
 ./run-pancake.sh qwen38-35b       # the Qwen3.8-35B distill, MTP layer borrowed from Qwen3.6
 ```
 
+### Linux memory tuning (once, at install)
+
+The Flash-Next presets lock a ~33 GiB expert arena in RAM within seconds of starting. On a PC that has been up for a
+while, free RAM is fragmented: the kernel stalls in compaction during that lock, memory pressure passes systemd-oomd's
+50% limit and the engine is killed while it loads (and below the limit, decoding runs ~25% slower).
+The worst part is that compaction by default also migrates mlock'ed pages: the arena is mlock'ed and registered with
+the GPU driver, so every moved page makes KFD evict and restore the GPU queues (kernel log `svm_range_restore_work
+hogged CPU`); `vm.compact_unevictable_allowed=0` keeps compaction away from it.
+`tools/pancake/os_tune.sh` checks this without root and installs the fix; `run-pancake.sh` prints a one-line tip while
+it is missing.
+
+```sh
+tools/pancake/os_tune.sh                          # state: free RAM in 2 MiB blocks, compaction, huge pages
+sudo tools/pancake/os_tune.sh install             # 1 (recommended): compact_unevictable_allowed=0 + compaction_proactiveness=50
+sudo tools/pancake/os_tune.sh install --hugepages # 1 + 2 (optional): reserve 16,920 x 2 MiB pages at boot for the arena
+sudo tools/pancake/os_tune.sh compact             # one compaction pass now, nothing persistent
+```
+
+Option 2 maps the arena from a reserved hugetlb pool (no fragmentation, fewer TLB misses; two Strata forks measured
++5-7% decode, not yet measured here). The pool is taken out of ordinary RAM (33 GiB) from the next boot, so it suits a
+PC that mostly runs pancake. The engine counts a pool that holds the whole arena outside its RAM budget.
+
 The server listens on `PORT` (default 8080) with the OpenAI- and Anthropic-compatible API. `STRATA_DATA` holds the
 data directory, `MODELS` the model files, `HIP_VISIBLE_DEVICES` picks the ROCm GPU (default 0; GPU 1 is the Vega
 iGPU). Flash-Next defaults to the fast preset; `exact` gives the same answers as plain decoding; `turbo` is the
@@ -543,6 +678,9 @@ lossy opt-in described in section 6J. For an always-on setup, `tools/pancake/pan
 memory-capped scope when the unit manages the process.
 
 ### Build for the RX 7900 XT (HIP, gfx1100)
+
+Optional: `-DSTRATA_HOST_NATIVE=ON` builds Strata's host C++ for this CPU (`-march=native -ffp-contract=off`, device code
+untouched); built separately as `build-hip-native` and compared in `bench/specs/08-build.json` before it becomes the default.
 
 Needs a ROCm driver and runtime, HIP headers and compiler, hipBLAS and hipBLASLt development files, CMake 3.24+, a
 C++20 host compiler:
@@ -562,7 +700,25 @@ cmake -S . -B build-cuda -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_CUDA=ON -DCM
 cmake --build build-cuda --target strata strata-poly poly_gdn_cols_test poly_gemm_small_test -j8
 ```
 
+### Build on Windows (CUDA 12.8, sm_75)
+
+There is a Windows build with MSVC and CUDA 12.8 for a GTX 1660 Ti (sm_75). It runs `strata-poly` on the Qwen3.6-35B-A3B IQ2_XXS file.
+Two changes were needed: one portability line in `kmiss_tier.hpp` (`std::popcount` instead of a GCC builtin) and `-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared` at configure time.
+Four test targets do not compile on MSVC yet: `q5k_head_test`, `flag_order_test`, `gemm_w16_parity`, `poly_kv_q4_test`. They do not block the engine.
+Details, commands and what was not tested: [`docs/WINDOWS_CUDA_SM75.md`](docs/WINDOWS_CUDA_SM75.md).
+
 ### Verification gates
+
+- `pancake-docs/CODE_OPTIMIZATION.md`: the 7-point code-level pass (profiling, algorithms, caching, I/O, async,
+  allocations, static analysis) - four quadratic loops removed from the per-layer expert dispatch.
+- `tools/pancake/hipblaslt_extend.py` (item 80): extends the gfx1100 hipBLASLt table with the agent-turn GEMM shapes
+  (plan / run / merge, 78 cases, GPU ~30 min); then A/B the extended table.
+- `ctest -L cpu` (117 pass, 6 skipped) / `ctest -L gpu` (124 incl. rdna_gr/rdna_mmvq parity) and `tools/pancake/build_matrix.sh --tests`
+  (item 93); `tools/pancake/check_stubs.py` (item 95b).
+- `tools/pancake/restore_check.py` (items 35/83, `--tool-boundary` item 16, `--disk` item 39): a parked and restored conversation must match a cold re-read token
+  for token (gate for the cache/checkpoint items); first step of `tools/pancake/test_phase.sh`.
+- `tools/pancake/test_phase.sh` + `bench/specs/*.json`: the whole A/B test phase in one command; the plan is
+  `bench/TEST_PLAN.md` (every claim of this README tested one by one).
 
 Nothing goes on the stack without these:
 

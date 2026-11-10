@@ -1,0 +1,37 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "fuse-min0": {
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_POOL_FUSE_MIN": "0"
+   }
+  },
+  "fuse-min8": {
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_POOL_FUSE_MIN": "8"
+   }
+  },
+  "fuse-min12": {
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_POOL_FUSE_MIN": "12"
+   }
+  },
+  "fuse-min8+tail4": {
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_POOL_FUSE_MIN": "8",
+    "STRATA_POOL_TAIL4": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": true
+}

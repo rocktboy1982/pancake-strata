@@ -1,0 +1,66 @@
+  waiting for a quiet machine: load 7.46, foreign CPU 9% [('kworker/0:3-events', 4), ('pipewire', 2), ('claude', 2)]
+  quiet after 105 s
+scoring base (a) ...
+  waiting for a quiet machine: load 7.23, foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]
+  quiet after 105 s
+scoring base (b) ...
+  waiting for a quiet machine: load 8.06, foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]
+  quiet after 115 s
+scoring poll1 ...
+  waiting for a quiet machine: load 7.21, foreign CPU 8% [('github', 2), ('pipewire', 2), ('claude', 2)]
+  quiet after 100 s
+scoring expdec-swiglu ...
+  waiting for a quiet machine: load 7.53, foreign CPU 6% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]
+  quiet after 105 s
+scoring router-fuse ...
+  waiting for a quiet machine: load 8.45, foreign CPU 8% [('claude', 4), ('pipewire', 2), ('gnome-remote-de', 2)]
+  quiet after 110 s
+scoring ic-warm32 ...
+  waiting for a quiet machine: load 7.41, foreign CPU 21% [('ptyxis', 9), ('claude', 5), ('gnome-remote-de', 3)]
+  quiet after 115 s
+scoring expdec-down ...
+  waiting for a quiet machine: load 7.63, foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]
+  quiet after 105 s
+scoring device-spin ...
+poll1                    PASS
+      1
+     ],
+     "events_p": 0.80247,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+expdec-swiglu            PASS
+      1
+     ],
+     "events_p": 0.80247,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+router-fuse              PASS
+      1
+     ],
+     "events_p": 0.80247,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+ic-warm32                PASS
+      1
+     ],
+     "events_p": 0.80247,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+expdec-down              PASS
+      1
+     ],
+     "events_p": 0.53909,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+device-spin              PASS
+      1
+     ],
+     "events_p": 0.80247,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }

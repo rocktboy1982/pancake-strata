@@ -39,5 +39,5 @@
   "long"
  ],
  "reps": 3,
- "lossy": false
+ "lossy": true
 }

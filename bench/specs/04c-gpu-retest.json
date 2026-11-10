@@ -1,0 +1,28 @@
+{
+ "arms": {
+  "base": {},
+  "poll1": {
+   "env": {
+    "STRATA_COMBINE_POLL1": "1"
+   }
+  },
+  "expdec-down": {
+   "env": {
+    "STRATA_EXPDEC_DOWN": "1"
+   }
+  },
+  "device-spin": {
+   "env": {
+    "STRATA_DEVICE_SPIN": "1"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "04 retest after the harness fix (no load-average wait, reclaim-aware): were the +2-4% short-chat results real?"
+}

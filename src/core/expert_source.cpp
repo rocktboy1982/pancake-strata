@@ -16,6 +16,7 @@
 #include "strata/core/pinned.hpp"
 #include "strata/platform/direct_io.hpp"
 #include "strata/platform/memory.hpp"
+#include "strata/platform/mem_pressure.hpp"
 #include "strata/kernels/elementwise.hpp"
 #include "strata/kernels/quantize_act.hpp"
 #include "strata/kernels/s2_expert_grouped.hpp"
@@ -404,6 +405,32 @@ bool read_cgroup_memory_stat(const std::filesystem::path& path, uint64_t current
 }  // namespace
 
 namespace detail {
+
+uint64_t hugetlb_arena_credit(uint64_t arena_bytes, const std::string& meminfo) {
+#if defined(__linux__)
+    // A reserved hugetlb pool (vm.nr_hugepages) is not in MemAvailable, and the arena maps all of it from the pool or
+    // none (MAP_HUGETLB, pinned.cu): when the free pool covers the whole arena, the arena takes no ordinary RAM, so the
+    // budget check credits it.  Without this a box that reserved the pool for the arena was refused the arena.
+    if (arena_bytes == 0 || std::getenv("STRATA_NO_LARGEPAGES") != nullptr) return 0;
+    std::ifstream info(meminfo);
+    std::string line;
+    uint64_t free_pages = 0, page_kb = 0;
+    while (std::getline(info, line)) {
+        std::istringstream fields(line);
+        std::string key;
+        uint64_t value = 0;
+        if (!(fields >> key >> value)) continue;
+        if (key == "HugePages_Free:") free_pages = value;
+        else if (key == "Hugepagesize:") page_kb = value;
+    }
+    if (page_kb != 2048) return 0;   // the arena asks for MAP_HUGE_2MB pages
+    const uint64_t page = 2ull << 20, need = (arena_bytes + page - 1) / page;
+    return free_pages >= need ? arena_bytes : 0;
+#else
+    (void) arena_bytes; (void) meminfo;
+    return 0;
+#endif
+}
 
 bool host_available_memory(HostMemory& m, const std::string& meminfo, const std::string& self_cgroup,
                            const std::string& cgroup_root) {
@@ -4969,16 +4996,37 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 if (d.remote[r]->holds(d.layers, e)) return true;
             return false;
         };
+        // first_of[i]: the first entry routed to ids[i] - a per-expert stamp + first index instead of a backward search
+        // per entry (O(n) instead of O(n^2) per layer; the same values; out-of-range ids keep the old pairwise rule)
+        static thread_local std::vector<uint32_t> fo_stamp;
+        static thread_local std::vector<int64_t> fo_first;
+        static thread_local uint32_t fo_gen = 0;
+        if (fo_stamp.size() != (size_t) d.n_expert) { fo_stamp.assign((size_t) d.n_expert, 0); fo_first.assign((size_t) d.n_expert, 0); fo_gen = 0; }
+        if (++fo_gen == 0) { std::fill(fo_stamp.begin(), fo_stamp.end(), 0); fo_gen = 1; }
         for (int64_t i = 0; i < n; ++i) {
             first_of[i] = i;
-            for (int64_t j = 0; j < i; ++j)
-                if (ids[j] == ids[i]) { first_of[i] = first_of[j]; break; }
+            const int32_t ei = ids[i];
+            if (ei >= 0 && ei < d.n_expert) {
+                if (fo_stamp[(size_t) ei] == fo_gen) first_of[i] = fo_first[(size_t) ei];
+                else { fo_stamp[(size_t) ei] = fo_gen; fo_first[(size_t) ei] = i; }
+            } else {
+                for (int64_t j = 0; j < i; ++j)
+                    if (ids[j] == ids[i]) { first_of[i] = first_of[j]; break; }
+            }
             if (first_of[i] == i) {
                 distinct[nd++] = i;
                 const int32_t e = ids[i];
                 if (e >= 0 && e < d.n_expert && d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0 &&
                     !(d.peer != nullptr && d.peer->has(d.layers, e)) && !helper_holds(e)) ++nmiss;
             }
+        }
+        // next_of[i]: the next entry routed to the same expert (-1: none) - walks an expert's entries in increasing order
+        // without scanning the whole window per expert (the loops below were O(distinct x entries))
+        int64_t next_of[kMaxWindowEntries], last_of[kMaxWindowEntries];
+        for (int64_t i = 0; i < n; ++i) {
+            next_of[i] = -1;
+            if (first_of[i] == i) last_of[i] = i;
+            else { next_of[last_of[first_of[i]]] = i; last_of[first_of[i]] = i; }
         }
         // STRATA_ROUTE_TAIL_SKIP=R (default 7 on CUDA serve, =0 off; changes the output): a missed expert that EVERY token of the window routes
         // only at rank >= R (the smallest weights of the top-10) is neither copied nor computed; its contribution is
@@ -4989,10 +5037,11 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         if (tail_rank > 0 && d.peer == nullptr && d.remote_count == 0) {
             int minr[kMaxWindowEntries];
             for (int q = 0; q < nd; ++q) minr[q] = 99;
+            int q_of[kMaxWindowEntries];   // distinct index of each first entry (O(1) lookup instead of a scan per entry)
+            for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
             for (int64_t i = 0; i < n; ++i) {
-                int q = 0;
-                while (q < nd && distinct[q] != first_of[i]) ++q;
-                if (q < nd) minr[q] = std::min(minr[q], (int) (i % k));
+                const int q = q_of[first_of[i]];
+                minr[q] = std::min(minr[q], (int) (i % k));
             }
             for (int q = 0; q < nd; ++q) {
                 const int32_t e = ids[distinct[q]];
@@ -5054,8 +5103,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             int kd = -1;
             unsigned long long ptr = 0;
             if (skip_d[q]) {                       // STRATA_ROUTE_TAIL_SKIP: neither copied nor computed
-                for (int64_t i = i0; i < n; ++i)
-                    if (first_of[i] == i0) kind[i] = -2;
+                for (int64_t i = i0; i >= 0; i = next_of[i]) kind[i] = -2;
                 continue;
             }
             if (e >= 0 && e < d.n_expert) {
@@ -5084,17 +5132,15 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                     ++miss_rank;
                 }
             }
-            for (int64_t i = i0; i < n; ++i)
-                if (first_of[i] == i0) kind[i] = kd;
+            for (int64_t i = i0; i >= 0; i = next_of[i]) kind[i] = kd;
             if (kd != 0) continue;                 // the VRAM groups first; the PCIe groups below
             P.ptr[groups] = ptr;
             P.start[groups] = entries;
-            for (int64_t i = i0; i < n; ++i)
-                if (first_of[i] == i0) {
-                    P.dst[entries] = (int32_t) i;
-                    P.tok[entries] = (int32_t) (i / k);
-                    ++entries;
-                }
+            for (int64_t i = i0; i >= 0; i = next_of[i]) {
+                P.dst[entries] = (int32_t) i;
+                P.tok[entries] = (int32_t) (i / k);
+                ++entries;
+            }
             ++groups;
         }
         P.start[groups] = entries;
@@ -5104,12 +5150,11 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             P.ptr2[q] = P.pcie_mode != 0 ? (unsigned long long) d.src->device_alias(d.layers, ids[i0])
                                  : P.staging + (unsigned long long) q * (unsigned long long) bb;
             P.start2[q] = entries;
-            for (int64_t i = i0; i < n; ++i)
-                if (first_of[i] == i0) {
-                    P.dst[entries] = (int32_t) i;
-                    P.tok[entries] = (int32_t) (i / k);
-                    ++entries;
-                }
+            for (int64_t i = i0; i >= 0; i = next_of[i]) {
+                P.dst[entries] = (int32_t) i;
+                P.tok[entries] = (int32_t) (i / k);
+                ++entries;
+            }
             ++d.pcie_experts;
         }
         if (d.fetch_admit > 0 && P.dst2 != nullptr)
@@ -5233,10 +5278,17 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     int64_t npend = 0;
     double cold_r_ms = 0;
     if (any_cpu) {   // CS-T: the experts the CPU computes, fetched together (the GGUF in place reads them on several threads)
+        // distinct CPU experts in first-routed order: a per-expert stamp instead of a linear search of `miss` per entry
+        // (O(n) instead of O(n^2) per layer; the same list in the same order)
+        static thread_local std::vector<uint32_t> miss_stamp;
+        static thread_local uint32_t miss_gen = 0;
+        if (miss_stamp.size() != (size_t) d.n_expert) { miss_stamp.assign((size_t) d.n_expert, 0); miss_gen = 0; }
+        if (++miss_gen == 0) { std::fill(miss_stamp.begin(), miss_stamp.end(), 0); miss_gen = 1; }
         for (int64_t i = 0; i < n_tok * k; ++i)
-            if (kind[i] == -1 && ids[i] >= 0 && ids[i] < d.n_expert &&
-                std::find(miss.begin(), miss.end(), (int64_t) ids[i]) == miss.end())
+            if (kind[i] == -1 && ids[i] >= 0 && ids[i] < d.n_expert && miss_stamp[(size_t) ids[i]] != miss_gen) {
+                miss_stamp[(size_t) ids[i]] = miss_gen;
                 miss.push_back(ids[i]);
+            }
         if (d.cold_mode == 0) {
             const auto s0 = std::chrono::steady_clock::now();
             d.src->prefetch(d.layers, miss.data(), (int64_t) miss.size());
@@ -5879,6 +5931,7 @@ LoadStats load_experts_gguf_direct_linux(const std::string& gguf, uint8_t* dst,
                     const uint64_t a0 = (src + done) / kSector * kSector;
                     const uint64_t a1 = (src + done + n + kSector - 1) / kSector * kSector;
                     const uint64_t want = a1 - a0;
+                    strata::platform::loader_pressure_check();   // MOD_PLAN 86: held while memory pressure is high
                     const auto t_read = std::chrono::steady_clock::now();
                     uint64_t got = 0;
                     int read_errno = 0;
@@ -5968,6 +6021,7 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
     };
     LoadStats st;
     st.layers = (uint64_t) lay.n_layers;
+    const strata::platform::LoaderPressureScope pressure_scope("expert arena");   // MOD_PLAN 86 (Linux PSI; else nothing)
     const auto t0 = std::chrono::steady_clock::now();
     std::atomic<int64_t> next{0};
     std::atomic<bool> bad{false};
@@ -6110,6 +6164,7 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
                 buf.resize((size_t) chunk);
                 for (uint64_t done = 0; done < total; done += chunk) {
                     const uint64_t n = std::min<uint64_t>(chunk, total - done);
+                    strata::platform::loader_pressure_check();   // MOD_PLAN 86: held while memory pressure is high
                     // 64-bit seek: a shard is tens of GB
                     if (STRATA_FSEEK64(f, src + done) != 0) { bad = true; return; }
                     if (std::fread(buf.data(), 1, (size_t) n, f) != (size_t) n) { bad = true; return; }
@@ -6231,6 +6286,12 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
     ram_short_ = false;
     // (a shared arena, --shared-expert-arena, may already be in RAM for another engine: not checked)
     if (detail::HostMemory hm; shared_arena_file.empty() && detail::host_available_memory(hm)) {
+        // a reserved hugetlb pool that holds the whole arena: the arena takes none of MemAvailable
+        const uint64_t pool_credit = detail::hugetlb_arena_credit(want + (uint64_t) blob);
+        hm.available += pool_credit;
+        if (pool_credit > 0)
+            std::fprintf(stderr, "strata generate: the expert arena (%.2f GiB) fits the reserved hugetlb pool: counted outside "
+                                 "the RAM budget\n", (double) pool_credit / 1073741824.0);
         // --ram-keep-gib W: the arena is chosen only if W GiB stay free after it, so its need here is the arena plus W
         const uint64_t need = arena_need_with_keep(want + (uint64_t) blob, ram_keep_bytes);
         // under a hard limit the arena also needs the headroom (the engine's own memory comes on top of it, and the arena is never given back)
@@ -6273,7 +6334,7 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
             if (wait_s > 0.0) {
                 const bool came = detail::wait_for_ram(
                     need, wait_s, 0.25, 5.0,
-                    [](uint64_t& a) { detail::HostMemory h; if (!detail::host_available_memory(h)) return false; a = h.available; return true; },
+                    [pool_credit](uint64_t& a) { detail::HostMemory h; if (!detail::host_available_memory(h)) return false; a = h.available + pool_credit; return true; },
                     [](double s) { std::this_thread::sleep_for(std::chrono::duration<double>(s)); },
                     [&](double w, uint64_t a) {
                         std::fprintf(stderr, "strata generate: the expert arena needs %.2f GiB of RAM%s and %.2f GiB is "
@@ -6297,7 +6358,7 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
                         std::fprintf(stderr, "strata generate: the expert arena needs %.2f GiB of RAM and %.2f GiB was available: "
                                              "gave back %.2f GiB of locked RAM, %.2f GiB is available now\n",
                                      (double) need / gib, (double) hm.available / gib, (double) freed / gib, (double) h2.available / gib);
-                        hm.available = h2.available;
+                        hm.available = h2.available + pool_credit;
                     }
                 }
             }
@@ -6633,14 +6694,12 @@ void ArenaExpertSource::prefetch(int64_t layer, int64_t expert) {
 #endif
 }
 
-// pancake-strata STRATA_ARENA_WARM: the lookahead thread (the aux CPU, not a pool core) pulls the next layer's predicted
-// CPU experts into the CPU caches.  Software prefetches at the line size, the first experts first (the lookahead lists a
-// token's top picks first), at most kWarmCap experts a call so a wrong guess cannot flush the whole 16 MiB L3.  Data
-// movement only: every expert is still read and computed exactly as before.
+// pancake-strata STRATA_POOL_PREREAD: the lookahead's predicted CPU experts of the next layer are posted to the parked
+// pool workers, which read them until the next real job.  (STRATA_ARENA_WARM - the same from the lookahead thread with
+// software prefetches - measured worse on the 7900 XT box, 2026-11-08, and was removed.)  Data movement only.
 void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
 #if defined(__x86_64__) || defined(_M_X64)
     if (!warm_on_ || base_ == nullptr || layer < 0) return;
-    constexpr int64_t kWarmCap = 8;
     const auto& lay = strata::kernels::cpu::expert_layout();
     const uint64_t bytes = lay.blob_bytes(layer);
     if (preread_) {   // STRATA_POOL_PREREAD: the parked pool workers read them, stopping at the next real job
@@ -6651,13 +6710,6 @@ void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
                 if (experts[i] >= 0 && experts[i] < n_expert_) ptrs[m++] = blob_at(layer, experts[i]);
             pool->post_preread(ptrs, m, (size_t) bytes);
         }
-        return;
-    }
-    for (int64_t i = 0; i < n && i < kWarmCap; ++i) {
-        if (experts[i] < 0 || experts[i] >= n_expert_) continue;
-        const uint8_t* b = blob_at(layer, experts[i]);
-        if (b == nullptr) continue;
-        for (uint64_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) (b + o), _MM_HINT_T1);
     }
 #else
     (void) layer; (void) experts; (void) n;

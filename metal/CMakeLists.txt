@@ -100,7 +100,7 @@ set(STRATA_METAL_HOST_SOURCES
   ${S}/core/conversation_snapshot.cpp ${S}/core/conversation_state.cpp ${S}/core/conversation_memory.cpp
   ${S}/core/peer_experts.cpp ${S}/core/arch_defaults.cpp ${S}/core/vmm.cpp ${S}/core/conversation_file.cpp
   ${S}/kernels/ngram.cpp ${S}/ngram/ple_reader.cpp ${S}/platform/direct_file.cpp ${S}/platform/io_priority.cpp
-  ${S}/prefill/prefill.cpp
+  ${S}/prefill/prefill.cpp ${S}/prefill/moe_mmq_stub.cpp ${S}/prefill/moe_fused_stub.cpp ${S}/prefill/moe_ws_stub.cpp
   ${S}/spec/suffix_drafter.cpp ${S}/spec/controller.cpp ${S}/spec/draft_policy.cpp ${S}/spec/draft_source.cpp
   ${S}/kernels/cpu/pool.cpp ${S}/kernels/cpu/expert_layout.cpp ${S}/kernels/cpu/native_expert.cpp
   ${S}/kernels/cpu/hadamard.cpp ${S}/kernels/cpu/tq_cpu.cpp)   # Gyro: the Hadamard rotation, the scalar trellis rows

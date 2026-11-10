@@ -20,12 +20,17 @@ if [ $# -eq 0 ] && [ ! -s "$OUT/restore-check.txt" ]; then
   echo "== restore check ($(date +%H:%M))"
   $PY tools/pancake/restore_check.py > "$OUT/restore-check.txt" 2>&1; echo "restore check exit $?" | tee -a "$OUT/restore-check.txt"
   tail -n 5 "$OUT/restore-check.txt"
+  for m in --tool-boundary --disk; do   # items 16 and 39 (dan-9f): every turn must MATCH
+    $PY tools/pancake/restore_check.py $m > "$OUT/restore-check$m.txt" 2>&1; echo "restore check $m exit $?" | tee -a "$OUT/restore-check$m.txt"
+  done
+  ( cd build-hip && ctest -L gpu --output-on-failure > "../$OUT/ctest-gpu.txt" 2>&1; echo "ctest -L gpu exit $?" >> "../$OUT/ctest-gpu.txt" )   # item 93
+  tail -n 3 "$OUT/ctest-gpu.txt"
 fi
 for sp in "${specs[@]}"; do
   n=$(basename "$sp" .json)
   if [ -s "$OUT/$n.summary.txt" ]; then echo "== $n: done before, skipped"; continue; fi
   echo "== $n ($(date +%H:%M))"
-  $PY tools/pancake/abtest.py "$sp" --out "$OUT/$n.jsonl" 2>&1 | tee "$OUT/$n.log" | sed -n '/^summary/,$p' > "$OUT/$n.summary.txt"
+  $PY tools/pancake/abtest.py "$sp" --out "$OUT/$n.jsonl" ${ABTEST_ARGS:-} 2>&1 | tee "$OUT/$n.log" | sed -n '/^summary/,$p' > "$OUT/$n.summary.txt"
   cat "$OUT/$n.summary.txt"
   if python3 -c "import json,sys; sys.exit(0 if json.load(open('$sp')).get('lossy') else 1)"; then
     $PY tools/pancake/quality_gate.py "$sp" --out "$OUT/$n-quality" 2>&1 | tee "$OUT/$n.quality.txt" | grep -E 'PASS|REJECT|INCONCLUSIVE|FAILED'

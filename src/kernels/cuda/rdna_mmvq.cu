@@ -216,11 +216,5 @@ bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out,
     return true;
 }
 }  // namespace strata::kernels
-#else
-// CUDA and gfx906 builds: the RDNA GEMVs do not exist there; the callers keep native_mmvq.
-namespace strata::kernels {
-bool rdna_q6k_enabled() { return false; }
-bool rdna_q6k_mmvq(const void*, const void*, float*, int, int, int, void*) { return false; }
-bool rdna_kq_mmvq(int, const void*, const void*, float*, int, int, int, void*) { return false; }
-}  // namespace strata::kernels
+// CUDA and gfx906 builds compile rdna_stub.cpp instead of this file (CMakeLists.txt, MOD_PLAN 95b).
 #endif

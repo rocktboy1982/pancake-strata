@@ -264,7 +264,6 @@ private:
     uint64_t rb_bytes_ = 0;
     void log_stage(int64_t pos0, int n);       ///< an update of rows [pos0, pos0 + n) is queued: remember where its h_log* rows go, mark the slots
     void log_flush();                          ///< after the stream sync: move the staged rows into the lineage's log
-    bool log_row(int64_t pos, const int8_t** q, const float** d) const;
     bool rebuild(int64_t lo, int64_t hi, int64_t* rebuilt, int64_t* missing, std::string& err);
     void stash_push(Lineage&& l);
     void invalidate_ring();                    ///< a new epoch: every slot is stale, the shadow forgets them

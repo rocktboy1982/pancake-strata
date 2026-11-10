@@ -118,4 +118,59 @@ inline size_t spread_victim(const int64_t* lens, const uint64_t* stamps, size_t 
     return eviction_victim(stamps, n, cap, tail, pinned);
 }
 
+/// MOD_PLAN 16, Marconi's eviction (Pan et al., MLSys 2025: prefix caching for hybrid models): what reading the tokens
+/// [a, b) again costs, in units of one token's weight pass.  The full-attention layers add a part that grows with the
+/// position; `attn_tokens` is the position where it equals the weight part (~32K on Qwen3.8-Flash-Next: ~6 GFLOP of
+/// active weights a token vs ~0.2 MFLOP per position over its 12 attention layers).
+inline double reread_cost(int64_t a, int64_t b, double attn_tokens) {
+    if (b <= a) return 0.0;
+    return double(b - a) * (1.0 + 0.5 * double(a + b) / (attn_tokens > 0.0 ? attn_tokens : 1.0));
+}
+
+/// STRATA_CKPT_EVICT_FLOPS=<alpha> (opt-in): Marconi's utility instead of plain least recent use.  An item's worth is the
+/// re-reading it saves per byte it holds - the cost of the tokens between it and the next shorter item in the chain (a
+/// request that leaves the prompt there goes back to that one without it) over its size (`bytes`, null: all equal; the
+/// running state is the same size at every length) - normalised to the candidates' largest, plus its recency (last-use
+/// stamp, normalised to [0, 1] across the candidates).  The lowest `recency + alpha * worth` leaves.  So a checkpoint a
+/// few hundred tokens past another goes before an older one that guards 20K tokens.  The root, the pinned items and the
+/// newest (the one just saved: the next turn's fallback) are never the victim, and the tail rule comes first, as above.
+/// alpha <= 0, or no candidate: the plain policy.  `lens` need not be sorted.
+inline size_t flops_victim(const int64_t* lens, const uint64_t* stamps, const uint64_t* bytes, size_t n, int64_t cap,
+                           const bool* tail, const bool* pinned, double alpha, double attn_tokens = 32768.0) {
+    if (!(alpha > 0.0) || n < 3 || cap < 2) return eviction_victim(stamps, n, cap, tail, pinned);
+    size_t newest = 0;
+    for (size_t i = 1; i < n; ++i)
+        if (stamps[i] > stamps[newest]) newest = i;
+    auto candidate = [&](size_t i) { return i != 0 && i != newest && !(pinned && pinned[i]); };
+    if (tail != nullptr)
+        for (size_t i = 1; i < n; ++i)
+            if (tail[i] && candidate(i)) return i;
+    double worth_max = 0.0;
+    uint64_t s_min = UINT64_MAX, s_max = 0;
+    for (size_t i = 1; i < n; ++i) {
+        if (!candidate(i)) continue;
+        s_min = stamps[i] < s_min ? stamps[i] : s_min;
+        s_max = stamps[i] > s_max ? stamps[i] : s_max;
+    }
+    if (s_min == UINT64_MAX) return eviction_victim(stamps, n, cap, tail, pinned);
+    auto worth = [&](size_t i) {
+        int64_t prev = 0;   // the next shorter item (0: none, the prompt's start)
+        for (size_t j = 0; j < n; ++j)
+            if (lens[j] < lens[i] && lens[j] > prev) prev = lens[j];
+        const double b = bytes != nullptr && bytes[i] > 0 ? double(bytes[i]) : 1.0;
+        return reread_cost(prev, lens[i], attn_tokens) / b;
+    };
+    for (size_t i = 1; i < n; ++i)
+        if (candidate(i)) worth_max = worth(i) > worth_max ? worth(i) : worth_max;
+    size_t v = n;
+    double best = 0.0;
+    for (size_t i = 1; i < n; ++i) {
+        if (!candidate(i)) continue;
+        const double rec = s_max > s_min ? double(stamps[i] - s_min) / double(s_max - s_min) : 1.0;
+        const double u = rec + alpha * (worth_max > 0.0 ? worth(i) / worth_max : 0.0);
+        if (v == n || u < best || (u == best && stamps[i] < stamps[v])) { v = i; best = u; }
+    }
+    return v;
+}
+
 }  // namespace strata::program::conv_cache

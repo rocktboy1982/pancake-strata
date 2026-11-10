@@ -1575,10 +1575,14 @@ void ExpertPool::quant_down_act(int e) {
         else native_quant_h(*nfmt_, sb.ff[t], sb.hq[t]);
 }
 
-bool ExpertPool::fuse_phases() const {
-    // STRATA_POOL_FUSE_PHASES=1 (opt-in): not with the NUMA split (its slices plan each phase on their own)
+bool ExpertPool::fuse_phases(int nb) const {
+    // STRATA_POOL_FUSE_PHASES=1 (opt-in): not with the NUMA split (its slices plan each phase on their own).
+    // STRATA_POOL_FUSE_MIN=N (default 0 = every layer): only layers with at least N CPU experts.  Test phase 03b (after
+    // the mtasks_ fix): no threshold +2.5% on code edits, short chat neutral, token forcing PASS; thresholds 8 / 12 did
+    // not help (the first run's +23% / -8% were the stale-mtasks_ bug)
     static const bool on = [] { const char* e = std::getenv("STRATA_POOL_FUSE_PHASES"); return e && std::atoi(e) != 0; }();
-    return on && numa_n_ == 0;
+    static const int min_nb = [] { const char* e = std::getenv("STRATA_POOL_FUSE_MIN"); return e ? std::max(0, std::atoi(e)) : 0; }();
+    return on && numa_n_ == 0 && nb >= min_nb;
 }
 
 void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs, int n, NativeArithmetic arithmetic) {
@@ -1590,7 +1594,7 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
         mjobs_ = jobs + b0;
         nfmt_ = &f;
         narithmetic_ = arithmetic;
-        if (fuse_phases()) {
+        if (fuse_phases(nb)) {
             // item 29: gate/up and down in one phase (same row ranges and kernels as the two phases: output identical)
             fgu_rows_ = (int64_t) nb * f.n_ff;
             fdn_rows_ = (int64_t) nb * f.n_embd;
@@ -1600,7 +1604,10 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
                 fready_[(size_t) e].store(0, std::memory_order_relaxed);
             }
             const auto a = std::chrono::steady_clock::now();
-            run_phase(7, (int) (fgu_tasks_ + phase_tasks(fdn_rows_)));
+            // mtasks_ = all the phase's tasks: drain() cuts the down tasks as [fgu_tasks_, mtasks_) (it was left stale here:
+            // the down rows were cut from the previous phase's count - wrong ranges, or a division by zero)
+            mtasks_ = (int) (fgu_tasks_ + phase_tasks(fdn_rows_));
+            run_phase(7, mtasks_);
             ms_multi_gu += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - a).count();
             continue;
         }

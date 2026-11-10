@@ -655,6 +655,14 @@ void test_host_memory() {
         require(m.commit == ~0ull, "Linux memory probe retained a commit limit");
         return ok;
     };
+    // a reserved hugetlb pool: credited only when its free 2 MiB pages hold the whole arena (MAP_HUGETLB is all-or-nothing)
+    put("hp", "MemAvailable: 20971520 kB\nHugePages_Total: 16920\nHugePages_Free: 16920\nHugepagesize: 2048 kB\n");
+    const std::string hp = (t.path / "hp").string();
+    require(hugetlb_arena_credit(33 * GiB, hp) == 33 * GiB, "a pool holding the whole arena is credited");
+    require(hugetlb_arena_credit(34 * GiB, hp) == 0, "a pool smaller than the arena is not credited");
+    put("hp1g", "HugePages_Free: 64\nHugepagesize: 1048576 kB\n");
+    require(hugetlb_arena_credit(33 * GiB, (t.path / "hp1g").string()) == 0, "1 GiB pages: the arena maps 2 MiB pages, no credit");
+    require(hugetlb_arena_credit(33 * GiB, mi) == 0, "no pool: no credit");
     // no cgroup line at all: MemAvailable alone (before #633: "cannot determine")
     require(probe("") && m.available == 100 * GiB && m.cgroup_limit == ~0ull, "no cgroup: MemAvailable alone");
     // v2, a 48 GiB limit with 16 GiB charged, 4 GiB of it clean cache

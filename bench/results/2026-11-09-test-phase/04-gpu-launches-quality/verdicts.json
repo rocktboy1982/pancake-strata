@@ -1,0 +1,8 @@
+{
+ "poll1": "PASS",
+ "expdec-swiglu": "PASS",
+ "router-fuse": "PASS",
+ "ic-warm32": "PASS",
+ "expdec-down": "PASS",
+ "device-spin": "PASS"
+}

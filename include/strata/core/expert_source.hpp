@@ -92,6 +92,10 @@ struct HostMemory {
 /// defaults are the real files).  cgroup v2 as before (an unreadable limit of a group that has one fails); cgroup v1's
 /// memory controller (`<root>/memory/<path>`: memory.limit_in_bytes - memory.usage_in_bytes); no cgroup line at all is
 /// MemAvailable alone.  False when the RAM cannot be determined.
+/// Bytes of `arena_bytes` a reserved, free hugetlb pool (vm.nr_hugepages, 2 MiB pages) covers: all of it when the pool
+/// holds the whole arena (MAP_HUGETLB is all-or-nothing), else 0.  The pool is not in MemAvailable.
+uint64_t hugetlb_arena_credit(uint64_t arena_bytes, const std::string& meminfo = "/proc/meminfo");
+
 bool host_available_memory(HostMemory& m, const std::string& meminfo = "/proc/meminfo",
                            const std::string& self_cgroup = "/proc/self/cgroup",
                            const std::string& cgroup_root = "/sys/fs/cgroup");
@@ -1340,9 +1344,8 @@ public:
     bool pcie_layer(int64_t layer) const override;
     void prefetch(int64_t layer, int64_t expert) override;
     uint64_t release(int64_t layer, int64_t expert) override;
-    /// pancake-strata STRATA_ARENA_WARM=1 (opt-in): the router lookahead's predicted CPU experts of the next layer are
-    /// pulled into the CPU caches (L3 16 MiB on a 5700G) while this layer's experts and the next layer's GPU phase run,
-    /// so the pool reads them from cache instead of DRAM.  Only moves data; the arithmetic is unchanged.
+    /// pancake-strata STRATA_POOL_PREREAD=1 (opt-in): the router lookahead's predicted CPU experts of the next layer are
+    /// posted to the parked pool workers, which read them ahead.  Only moves data; the arithmetic is unchanged.
     bool warms() const override { return warm_on_; }
     void warm(int64_t layer, const int64_t* experts, int64_t n) override;
 
@@ -1400,7 +1403,7 @@ private:
     int64_t n_expert_ = 0;
     std::atomic<int64_t> reads_{0};   ///< (a counter only; two threads can read blobs at once)
     const bool preread_ = [] { const char* v = std::getenv("STRATA_POOL_PREREAD"); return v != nullptr && v[0] == '1'; }();   ///< STRATA_POOL_PREREAD: warm() posts to the pool
-    const bool warm_on_ = preread_ || [] { const char* v = std::getenv("STRATA_ARENA_WARM"); return v != nullptr && v[0] == '1'; }();   ///< STRATA_ARENA_WARM
+    const bool warm_on_ = preread_;   ///< STRATA_POOL_PREREAD (STRATA_ARENA_WARM removed 2026-11-09: measured worse)
     std::string note_;
     std::string ram_warning_;
     bool ram_short_ = false;

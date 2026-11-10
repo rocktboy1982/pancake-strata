@@ -29,5 +29,24 @@ int main() {
         message_checkpoint_boundary(ids, 0, 33000, token, 8192, 0) != -1 ||
         message_checkpoint_boundary(ids, 0, 33000, token, -1) != -1) return 1;
     checks += 4;
+    {   // MOD_PLAN 16: tool_checkpoint_marks
+        using strata::program::tool_checkpoint_marks;
+        using V = std::vector<int64_t>;
+        auto same = [&](const V& got, const V& want) { ++checks; return got == want; };
+        // a 30K prompt resumed at 20,002 (the live state past the assistant's call); the call's end at 20,004, the
+        // result's end (the turn) at 29,000; the kept chain 3,000 (root) and 20,000 (the previous turn)
+        const V held = {3000, 20000, 29000};
+        if (!same(tool_checkpoint_marks({20004, 29000}, 20002, 30000, held, 1024, 64, 2), {}) ||   // 4 past a checkpoint
+            !same(tool_checkpoint_marks({20004, 29000}, 20002, 30000, held, 0, 64, 2), {20004}) ||
+            !same(tool_checkpoint_marks({20004, 29000}, 20002, 30000, {3000, 29000}, 1024, 64, 2), {20004}) ||
+            !same(tool_checkpoint_marks({20004}, 20004, 30000, {3000}, 1024, 64, 2), {}) ||          // not past resume
+            !same(tool_checkpoint_marks({29990}, 0, 30000, {}, 1024, 64, 2), {}) ||                   // 9 before the end
+            !same(tool_checkpoint_marks({29999, 30000, -5}, 0, 30000, {}, 0, 0, 2), {}) ||          // junk
+            !same(tool_checkpoint_marks({12000, 9000, 6000, 12000}, 0, 30000, {}, 1024, 64, 2), {9000, 12000}) ||
+            !same(tool_checkpoint_marks({12000, 12500, 6000}, 0, 30000, {}, 1024, 64, 3), {6000, 12500}) ||   // 12,000: 500 below a taken one
+            !same(tool_checkpoint_marks({6000}, 0, 30000, {}, 1024, 64, 0), {}) ||
+            !same(tool_checkpoint_marks({6000}, 0, 30000, {6000}, 0, 0, 2), {}))                      // already held
+            return 1;
+    }
     std::printf("message_boundary_test OK (%d checks)\n", checks);
 }

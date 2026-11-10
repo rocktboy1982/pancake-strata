@@ -584,6 +584,43 @@ class Api(ApiBase):
         svc.prepare([{"role": "system", "content": "s"}, {"role": "user", "content": "u"}], None, {}, 16, req=req)
         self.assertEqual(req, {})
 
+    def test_the_qwen_path_pins_the_shared_start_when_switched_on(self):
+        # MOD_PLAN 71: STRATA_AUTO_PIN=1 gives the Qwen path the same shared start (system prompt and tools); the
+        # prompt itself is the same as without the switch, only the engine's pin=N is added
+        svc = Service(MockEngine(self.tok, "ok"), self.tok, ChatTemplate(ROOT / "serve" / "chat_template.jinja"))
+        sysmsg = {"role": "system", "content": "You are an agent. " * 20}
+        msgs = [sysmsg, {"role": "user", "content": "task one"}]
+        old = os.environ.pop("STRATA_AUTO_PIN", None)
+        self.addCleanup(lambda: os.environ.pop("STRATA_AUTO_PIN", None) if old is None
+                        else os.environ.__setitem__("STRATA_AUTO_PIN", old))
+        plain = {}
+        ids_off = svc.prepare(msgs, [WEATHER], {}, 16, req=plain)[0]
+        self.assertEqual(plain, {})                                         # off by default
+        os.environ["STRATA_AUTO_PIN"] = "1"
+        req = {}
+        ids = svc.prepare(msgs, [WEATHER], {}, 16, req=req)[0]
+        self.assertEqual(list(ids), list(ids_off))                          # the same prompt
+        n = req["strata_prefix"]["tokens"]
+        self.assertTrue(0 < n < len(ids) - 1)
+        self.assertIn("get_weather", self.tok.decode(ids[:n]))              # the tools are in the shared start
+        self.assertIn("You are an agent.", self.tok.decode(ids[:n]))
+        self.assertNotIn("task one", self.tok.decode(ids[:n]))              # the first user message is not
+        # a sub-agent behind the same system prompt and tools (a longer history): the same boundary, the same start
+        req2 = {}
+        ids2 = svc.prepare([sysmsg, {"role": "user", "content": "a different task"},
+                            {"role": "assistant", "content": "done"}, {"role": "user", "content": "next"}],
+                           [WEATHER], {}, 16, req=req2)[0]
+        self.assertEqual(req2["strata_prefix"]["tokens"], n)
+        self.assertEqual(list(ids2[:n]), list(ids[:n]))
+        # no system message: nothing to pin; the DeepSeek switch does not reach the Qwen path
+        req3 = {}
+        svc.prepare([{"role": "user", "content": "u"}], [WEATHER], {}, 16, req=req3)
+        self.assertNotIn("strata_prefix", req3)
+        os.environ["STRATA_AUTO_PIN"] = "0"
+        req4 = {}
+        svc.prepare(msgs, [WEATHER], {}, 16, req=req4)
+        self.assertNotIn("strata_prefix", req4)
+
 
 class SlotEnv(unittest.TestCase):
     """The engine's kept conversations: the folder and the switch reach the DeepSeek engine only."""

@@ -1,0 +1,47 @@
+{
+ "S0 baseline (1280 MiB, 4 slots)": {
+  "prompt_s": 185.8,
+  "cold": 8,
+  "saved_s": 0.0
+ },
+ "S1 PARK_TRUNCATE only": {
+  "prompt_s": 134.3,
+  "cold": 5,
+  "saved_s": 51.5
+ },
+ "S2 --conversation-cache-min-tokens 8192 only": {
+  "prompt_s": 164.0,
+  "cold": 7,
+  "saved_s": 21.8
+ },
+ "S3 PARK_TRUNCATE + min-tokens 8192": {
+  "prompt_s": 54.5,
+  "cold": 1,
+  "saved_s": 131.3
+ },
+ "S1b PARK_TRUNCATE only, a tail checkpoint 2K tokens before the end exists": {
+  "prompt_s": 147.2,
+  "cold": 6,
+  "saved_s": 38.6
+ },
+ "S3b PARK_TRUNCATE + min-tokens 8192, tail checkpoint 2K before the end": {
+  "prompt_s": 43.0,
+  "cold": 1,
+  "saved_s": 142.8
+ },
+ "S4 budget 2048 MiB only": {
+  "prompt_s": 118.2,
+  "cold": 5,
+  "saved_s": 67.6
+ },
+ "S5 budget 2048 MiB + min-tokens 8192": {
+  "prompt_s": 27.7,
+  "cold": 1,
+  "saved_s": 158.1
+ },
+ "S6 budget 1600 MiB + min-tokens 8192": {
+  "prompt_s": 73.5,
+  "cold": 3,
+  "saved_s": 112.3
+ }
+}

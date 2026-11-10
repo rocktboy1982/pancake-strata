@@ -246,6 +246,38 @@ struct PleTable::Impl {
     float scale = 1.0f;               // the FP8 table's one scale
     uint32_t rb = PLE_ROW_BYTES;      // bytes per row
     void decode(const uint8_t* row, float* out160) const { fmt->dequant(row, scale, out160); }
+    /// The mapped table's read-ahead hint for rows [a, b) (b - a <= kHintWin): PrefetchVirtualMemory / MADV_WILLNEED,
+    /// a hint that cannot change a value (an unfetched page is faulted by the read).  gather_batch and gather_sliced.
+    static constexpr size_t kHintWin = 4096;
+    void hint(const uint32_t* rows, size_t a, size_t b) const {
+        if (data == nullptr || !g_ple_prefetch) return;
+#if defined(_WIN32)
+        WIN32_MEMORY_RANGE_ENTRY ranges[kHintWin];
+        ULONG_PTR k = 0;
+        for (size_t i = a; i < b && k < kHintWin; ++i) {
+            if (rows[i] >= n_rows) continue;
+            ranges[k].VirtualAddress = (PVOID) (data + (size_t) rows[i] * rb);
+            ranges[k].NumberOfBytes = rb;
+            ++k;
+        }
+        if (k > 0) (void) PrefetchVirtualMemory(GetCurrentProcess(), k, ranges, 0);
+#else
+        for (size_t i = a; i < b; ++i) {
+            if (rows[i] >= n_rows) continue;
+            const uintptr_t r0 = (uintptr_t) (data + (size_t) rows[i] * rb);
+            const uintptr_t p0 = r0 & ~(uintptr_t) 4095;
+            (void) madvise((void*) p0, (size_t) (r0 + rb - p0), MADV_WILLNEED);
+        }
+#endif
+    }
+    /// read_row's mapped branch without the lock and the byte count (gather_sliced's worker threads): zeros past the table
+    void decode_mapped(uint32_t row, float* out160) const {
+        if (data == nullptr || row >= n_rows) {
+            std::memset(out160, 0, (size_t) PLE_HEAD_DIM * sizeof(float));
+            return;
+        }
+        decode(data + (size_t) row * rb, out160);
+    }
     // STRATA_PLE_CHECK=1 (a diagnostic for #3602, off by default): the file and the table's offset, to re-read a row whose decoded
     // values are not plausible and compare the bytes the direct reader delivered with the file's own
     std::string path;
@@ -680,28 +712,8 @@ bool PleTable::gather_batch(const uint32_t* rows, size_t n_tokens, float* out, s
     // only layer 0 to hide it behind: a cold 27 GB table at ~0.2-1 ms a fault is minutes with no progress mark, which
     // is what the stall watchdog stops.  Ask the OS for the next window's pages in one go (PrefetchVirtualMemory /
     // MADV_WILLNEED, a hint that cannot change a value: an unfetched page is faulted by the read) while this window is read.
-    constexpr size_t kWin = 4096;   // rows a window
-    auto hint = [&](size_t a, size_t b) {
-        if (impl_->data == nullptr || !g_ple_prefetch) return;
-#if defined(_WIN32)
-        WIN32_MEMORY_RANGE_ENTRY ranges[kWin];
-        ULONG_PTR k = 0;
-        for (size_t i = a; i < b; ++i) {
-            if (rows[i] >= impl_->n_rows) continue;
-            ranges[k].VirtualAddress = (PVOID) (impl_->data + (size_t) rows[i] * impl_->rb);
-            ranges[k].NumberOfBytes = impl_->rb;
-            ++k;
-        }
-        if (k > 0) (void) PrefetchVirtualMemory(GetCurrentProcess(), k, ranges, 0);
-#else
-        for (size_t i = a; i < b; ++i) {
-            if (rows[i] >= impl_->n_rows) continue;
-            const uintptr_t r0 = (uintptr_t) (impl_->data + (size_t) rows[i] * impl_->rb);
-            const uintptr_t p0 = r0 & ~(uintptr_t) 4095;
-            (void) madvise((void*) p0, (size_t) (r0 + impl_->rb - p0), MADV_WILLNEED);
-        }
-#endif
-    };
+    constexpr size_t kWin = Impl::kHintWin;   // rows a window
+    auto hint = [&](size_t a, size_t b) { impl_->hint(rows, a, b); };
     hint(0, std::min(n, kWin));
     for (size_t w = 0; w < n; w += kWin) {
         if (w + kWin < n) hint(w + kWin, std::min(n, w + 2 * kWin));
@@ -728,6 +740,134 @@ bool PleTable::gather_raw_iq4nl(const uint32_t* rows, size_t n_tokens, uint8_t* 
         } else std::memcpy(o, impl_->data + (size_t) rows[i] * PLE_ROW_BYTES, PLE_ROW_BYTES);
     }
     impl_->bytes_read += (uint64_t) n * PLE_ROW_BYTES;
+    return true;
+}
+
+bool PleTable::raw_iq4nl_ok() const {
+    std::lock_guard<std::recursive_mutex> lk(impl_->mu);
+    const bool open = impl_->data != nullptr || (impl_->mode == PleIo::Direct && impl_->reader.is_open());
+    return open && impl_->fmt->id == PleFormat::IQ4_NL && impl_->rb == PLE_ROW_BYTES;
+}
+
+namespace {
+/// [a, b) split over up to `threads` threads (at least `min_each` items each); fn(lo, hi) on each part, the first on the
+/// calling thread.  The parts write disjoint ranges, so the order they finish in changes nothing.
+template <class F>
+void ple_parallel(size_t a, size_t b, int threads, size_t min_each, const F& fn) {
+    const size_t n = b - a;
+    size_t k = threads > 1 ? std::min<size_t>((size_t) threads, n / std::max<size_t>(min_each, 1)) : 1;
+    if (k <= 1) {
+        fn(a, b);
+        return;
+    }
+    std::vector<std::thread> ts;
+    ts.reserve(k - 1);
+    const size_t per = n / k, extra = n % k;
+    size_t lo = a + per + (extra > 0 ? 1 : 0);
+    const size_t first_hi = lo;
+    for (size_t i = 1; i < k; ++i) {
+        const size_t hi = lo + per + (i < extra ? 1 : 0);
+        try {
+            ts.emplace_back([&fn, lo, hi] { fn(lo, hi); });
+        } catch (...) {
+            fn(lo, hi);   // no thread to be had: this part on the calling thread, the same bytes
+        }
+        lo = hi;
+    }
+    fn(a, first_hi);
+    for (auto& t : ts) t.join();
+}
+
+/// gather_raw_iq4nl's row past the table: scale 0 and code 8 (value +1) in every nibble decode to +0.0f on the device
+/// (all-zero bytes would decode to -0.0f)
+void ple_raw_zero_row(uint8_t* o) {
+    for (int b = 0; b < PLE_HEAD_DIM / 32; ++b) {
+        uint8_t* blk = o + (size_t) b * 18;
+        std::memset(blk, 0, 2);
+        std::memset(blk + 2, 0x88, 16);
+    }
+}
+}  // namespace
+
+bool PleTable::gather_sliced(const uint32_t* rows, size_t n_tokens, void* out, const SlicePlan& plan,
+                             const std::function<void(size_t)>& on_slice, std::string& err) {
+    std::lock_guard<std::recursive_mutex> lk(impl_->mu);
+    if (impl_->pending) { err = "PleTable::gather_sliced while a token is in flight"; return false; }
+    if (plan.raw_iq4nl && !raw_iq4nl_ok()) { err = "PleTable::gather_sliced: raw rows need an IQ4_NL table"; return false; }
+    if (n_tokens == 0) return true;
+    constexpr size_t H = (size_t) PLE_N_HEADS;
+    const size_t S = plan.slice_tokens == 0 || plan.slice_tokens > n_tokens ? n_tokens : plan.slice_tokens;
+    const size_t n_slices = (n_tokens + S - 1) / S;
+    // STRATA_PLE_CHECK (diagnostic) re-reads and reports from one thread, as gather_batch does
+    const int threads = Impl::check_on() ? 1 : std::max(1, plan.threads);
+    const uint32_t rb = impl_->rb;
+    float* out_f = static_cast<float*>(out);
+    uint8_t* out_b = static_cast<uint8_t*>(out);
+    const Impl& im = *impl_;
+    constexpr size_t kMinRowsEach = 2048;   // rows a thread at least (128 tokens): below that a thread costs more than it saves
+    if (impl_->mode == PleIo::Direct) {
+        wait_prefetches();
+        // raw: the reader writes the rows straight into `out` (PLE_ROW_BYTES = rb each); FP32: into a staging copy
+        std::vector<uint8_t> staging;
+        uint8_t* raw = out_b;
+        if (!plan.raw_iq4nl) {
+            staging.resize(n_tokens * H * rb);
+            raw = staging.data();
+        }
+        std::vector<strata::ngram::PleReader::Ticket> tk(n_slices);
+        for (size_t s = 0; s < n_slices; ++s) {
+            const size_t t0 = s * S, nt = std::min(S, n_tokens - t0);
+            tk[s] = impl_->reader.issue(rows + t0 * H, nt * H, raw + t0 * H * rb);
+        }
+        bool ok = true;
+        for (size_t s = 0; s < n_slices; ++s) {
+            if (!ok) {   // drain: the reader must not write into the staging copy after it is gone
+                std::string ignored;
+                (void) impl_->reader.collect(tk[s], ignored);
+                continue;
+            }
+            if (!impl_->reader.collect(tk[s], err)) { ok = false; continue; }
+            const size_t t0 = s * S, t1 = std::min(n_tokens, t0 + S), r0 = t0 * H, r1 = t1 * H;
+            if (plan.raw_iq4nl) {
+                for (size_t i = r0; i < r1; ++i)
+                    if (rows[i] >= im.n_rows) ple_raw_zero_row(out_b + i * PLE_ROW_BYTES);
+            } else {
+                ple_parallel(r0, r1, threads, kMinRowsEach, [&](size_t a, size_t b) {
+                    for (size_t i = a; i < b; ++i) {
+                        im.decode(raw + i * rb, out_f + i * PLE_HEAD_DIM);
+                        if (Impl::check_on()) im.check_row("gather_sliced", rows[i], raw + i * rb, out_f + i * PLE_HEAD_DIM);
+                    }
+                });
+            }
+            impl_->bytes_read += (uint64_t) (r1 - r0) * rb;
+            if (on_slice) on_slice(t1);
+        }
+        return ok;
+    }
+    // mapped: every part hints its own next window ahead of the reads (the hint cannot change a value), then reads -
+    // several threads fault different pages at once
+    const size_t kWin = Impl::kHintWin;
+    for (size_t s = 0; s < n_slices; ++s) {
+        const size_t t0 = s * S, t1 = std::min(n_tokens, t0 + S), r0 = t0 * H, r1 = t1 * H;
+        ple_parallel(r0, r1, threads, kMinRowsEach, [&](size_t a, size_t b) {
+            im.hint(rows, a, std::min(b, a + kWin));
+            for (size_t w = a; w < b; w += kWin) {
+                if (w + kWin < b) im.hint(rows, w + kWin, std::min(b, w + 2 * kWin));
+                const size_t e = std::min(b, w + kWin);
+                if (plan.raw_iq4nl) {
+                    for (size_t i = w; i < e; ++i) {
+                        uint8_t* o = out_b + i * PLE_ROW_BYTES;
+                        if (im.data == nullptr || rows[i] >= im.n_rows) ple_raw_zero_row(o);
+                        else std::memcpy(o, im.data + (size_t) rows[i] * PLE_ROW_BYTES, PLE_ROW_BYTES);
+                    }
+                } else {
+                    for (size_t i = w; i < e; ++i) im.decode_mapped(rows[i], out_f + i * PLE_HEAD_DIM);
+                }
+            }
+        });
+        impl_->bytes_read += (uint64_t) (r1 - r0) * rb;
+        if (on_slice) on_slice(t1);
+    }
     return true;
 }
 

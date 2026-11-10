@@ -229,7 +229,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 70 closed-loop self-tuning from own sessions (new) - 1-5% est. (keeps profile-type gains current; 8.6 gave +6.7%) - exact -
     this + dan-cd - 63, 64, 67 - design. CODED offline pass (05e041b9b, tools/pancake/selftune.py): traces -> candidate profile -> time model -> abtest spec.
 - 33 behaviour counters (log-only first) - unmeasured (failed runs cost 1.4-4.4x tokens) - exact (log) - this - 73 - open.
-- 34 rumination signal into the soft close and 21 - inside S4 - lossy (text) - this - 73 - open.  [S4]
+- 34 rumination signal into the soft close and 21 - inside S4 - lossy (text) - this - 73 - open.  [S4] CODED log + opt-in close (feat/item-34-rumination); threshold unmeasured.
 - 25 ISTA-DASLab Coder variant A/B - quality candidate (95.7% of BF16 on SWE-bench Verified), speed unknown - n/a - owner -
     ~29.6 GB on D, 67 - open.
 - 19 [2026-11-09: BFLA kernel on the qwen35 engine done on feat/bfla-hip - 32K layer 1238.7 -> 581.1 ms exact (dense) -> 500.2 ms
@@ -353,7 +353,7 @@ together.  All are opt-in; the default path stays byte-identical until a measure
     week (keep a held-out week).  Tier C.  Owner: this (job), dan-cd (engine profiles).  First PR: script that rebuilds
     data/domain-profiles from 64 traces and runs replay_seeding.py against the previous week.
 
-71. Shared-prefix store for sub-agents.  Combines 11 (one system/tool prefix shared across sessions), 16, RadixAttention
+71. Shared-prefix store for sub-agents.  [2026-11-09, feat/item-90-71-shared-prefix: auto-pin of the system+tools prefix for Qwen behind STRATA_AUTO_PIN=1 (exact); the Qwen template already renders tools before the system text, a schema reorder inside <tools> would change the prompt, so it is left out (gate via 67); GPU check pending]  Combines 11 (one system/tool prefix shared across sessions), 16, RadixAttention
     multi-entry store (Stanford), prompt reordering (tool schemas first, agent text after), the oh-my-openagent pin, and
     opencode's compaction prompt.  Mechanism: a server-side reorder (behind a switch) that puts the stable tool schemas first
     so all sub-agents share a long exact prefix; the engine keeps that prefix's GDN/KV checkpoint as a pinned entry next to
@@ -372,7 +372,7 @@ together.  All are opt-in; the default path stays byte-identical until a measure
     Owner: unowned [this or a new GPU owner].  First PR: the I7 rocprofv3 run on an edit window and after 11.7K, plus the
     item 10 draft timing, in one GPU session.
 
-Added 2026-11-09 from the decode-path code study (research_notes/Pancake cod deep research/decode_path.md; Serena/clangd):
+Added 2026-11-09 from the decode-path code study (research_notes/Pancake code deep research/decode_path.md; Serena/clangd):
 74. [CODED 2026-11-09, opt-in STRATA_MTP_EAGER=1 (exact by construction: all step graphs launched at once, chain cut on the
     host at the first prob < min_p; not with a chain rule); window_trace().drafts() hook added for item 5; GPU A/B in the test
     phase] Overlap the MTP draft with the idle CPU pool (~3 ms/window idle during head, sync, commit, draft): first the exact quick win -
@@ -395,7 +395,7 @@ swiglu-quant.  Structure: generate.cpp main() is 18,360 lines with three decode 
 13020/20748, 13172/20782); verify.cpp record_window ~1,480 lines with 6 env-selected post paths; ~45 STRATA_* flags in
 function-local statics (no registry) - see the structure study.  Measured: ~1,360 kernels/window (~28/layer).
 
-Added 2026-11-09 from the prefill-path code study (research_notes/Pancake cod deep research/prefill_path.md):
+Added 2026-11-09 from the prefill-path code study (research_notes/Pancake code deep research/prefill_path.md):
 78. Agent re-reads take the staged prefill path: the fast-hip preset's STRATA_PREFILL_CPU_SHARE=0.6 + _MAX=4096 make
     stream_all_min() 4096 (arm_cpu_share, prefill.cpp:2970-2998), so every <4096-token delta (agent turns are 1.5-3.2K) gets a
     cudaStreamSynchronize per MoE layer (4928, 48 per chunk), host-side grouping, a new CPU-share thread per layer (5181) and a
@@ -419,7 +419,7 @@ Smaller (prefill): per-chunk/per-layer thread creation, MTP draft K/V + checkpoi
 syncs inside run_impl (3,224 lines; ~150 env switches); qwen35 engine syncs at every chunk start (BFLA is its lever).
 Order: 78 env A/B -> 82 -> 79 -> 80 -> chunk-end fix -> 81 with 18 -> tile/ring sweep.
 
-Added 2026-11-09 from the memory/cache code study (research_notes/Pancake cod deep research/memory_cache.md):
+Added 2026-11-09 from the memory/cache code study (research_notes/Pancake code deep research/memory_cache.md):
 Correction to 38: the daily preset (packs/iq2_xs has no experts.bin, STRATA_PIN_BY_NEED=1) loads through load_experts_gguf with
 the padded layout (expert_source.cpp:6287), not load_experts_direct; its unbuffered branch is Windows-only (5792-5876), Linux uses
 buffered fread with 6 threads (generate.cpp:7712) - measured 33.02 GiB at 0.81-1.08 GiB/s (31-41 s).  Implement 38 there: Linux
@@ -438,7 +438,12 @@ cache is charged to the capped.sh scope (MemoryMax=54G) - confirm with one PSI t
     a tie-breaker): give seeded pairs virtual miss bits for the hold period.  [dan-99 owns the tier]
 85. Huge pages: stop requesting THP at registration time, collapse in the background after load (compaction stalls); pipelined
     per-layer registration on Linux reusing the Windows code - measure first (Windows/5070 decoded ~10% slower).  [this, after 38]
-86. 69 first slice: after 38, size the conversation cache from a deterministic RAM budget (today 4096-6144 MiB = 40% of whatever is
+86. [CODE 2026-11-09, branch feat/item-86-mem-budget; GPU start test pending: budget line, PSI line, no oomd.  RAM rule
+    (auto on Linux with --ram-keep-gib: available - max(keep, floor) - 512 MiB margin, cap 8192; STRATA_CONV_BUDGET=ram|legacy,
+    STRATA_CONV_KEEP_GIB, STRATA_CONV_BUDGET_MARGIN_MIB/CAP_MIB); PSI guard in the arena readers (STRATA_PSI_GUARD=0,
+    _PAUSE_PCT 20, _RESUME_PCT 10, _MAX_PAUSE_MS 30000) and parking skipped at some avg10 >= STRATA_PSI_PARK_PCT (20).
+    With keep 12 on this box the RAM rule gives ~avail-12.5 GiB (est. 2-3.5 GiB vs 5 GiB today): STRATA_CONV_KEEP_GIB=8 for more]
+    69 first slice: after 38, size the conversation cache from a deterministic RAM budget (today 4096-6144 MiB = 40% of whatever is
     free, depends on leftover page cache) and pause loader readers on memory pressure (PSI).  Parked size ~236 MB fixed + 14.2 KB per
     token (fit from 540/2584-token parks; ~1.23 GB at 70K est.).  39 sketch: evict_oldest callback -> session_file_write keeping
     deepest AND root checkpoint, per-conversation index file, same validate/restore path as /slots, size cap, strata-poly key
@@ -446,7 +451,7 @@ cache is charged to the capped.sh scope (MemoryMax=54G) - confirm with one PSI t
 Risks noted (no wrong output found): slot never completes if a ForesightSwap copy fails; async KMISS may count a late swap as a miss
 once; session files keep only the deepest checkpoint (restore loses the shared system-prompt root); vague buffered-loader errors.
 
-Added 2026-11-09 from the server/agent code study (research_notes/Pancake cod deep research/server_agent.md):
+Added 2026-11-09 from the server/agent code study (research_notes/Pancake code deep research/server_agent.md):
 87. [DONE 2026-11-09, 2d5d44709] reasoning_tokens on chat completions: _run already counts it (server.py:7310); add completion_tokens_details.reasoning_tokens
     to the usage block in openai_chunks (7767-7770) - one line.  Part of 73.  [this]
 88. [DONE 2026-11-09, 637a71c23: env_to_user, effort_position end, reasoning_budget_grace 512, reasoning_close_retry on every
@@ -456,7 +461,7 @@ Added 2026-11-09 from the server/agent code study (research_notes/Pancake cod de
     at 24,000 tokens on every opencode turn (max_tokens 32000, 6520).  [this]
 89. [FIXED 2026-11-09, bcbdeb5d2; test serve/test_grammar_routes.py] BUG: grammar-constrained tool calls only on /v1/chat/completions - applied in _openai (9174), missing in _anthropic (9438) and
     _responses_prepare (9369).  Fix by one shared request-building step for the three API paths.  [this]
-90. Item 71 prerequisite: engine does not save the branch it leaves when a request resumes exactly at the pin (generate.cpp:16463);
+90. [DONE 2026-11-09, feat/item-90-71-shared-prefix: STRATA_PIN_PARK_TOKENS (default 2048) parks a branch that long past the pin; GPU check pending] Item 71 prerequisite: engine does not save the branch it leaves when a request resumes exactly at the pin (generate.cpp:16463);
     for a sub-agent that branch is the parent conversation -> full re-read on return; add a size threshold before enabling the
     (DeepSeek-only today) auto-pin for Qwen.  [this; generate.cpp session area - coordinate with dan-99]
 91. pancake.service (73): capped.sh's systemd-run --scope escapes the unit cgroup (Conflicts=/stop/restart miss the engine) - the unit
@@ -467,7 +472,7 @@ Server structure: Service 2,443 lines (_run ~810 with nested closures), StrataEn
 paths, five config sources; refactor one PR at a time: turn-log module -> shared request builder (fixes 89) -> split _run ->
 split Service -> one config schema printed at start.  Python overhead est. 60-300 ms/request (1-5% of a 6.2 s median turn).
 
-Added 2026-11-09 from the structure/build-health study (research_notes/Pancake cod deep research/structure_build.md):
+Added 2026-11-09 from the structure/build-health study (research_notes/Pancake code deep research/structure_build.md):
 92. [DONE 2026-11-09, 635c2a752: tools/pancake/build_matrix.sh, all rows pass; pre-push hook not installed] Build matrix + pre-push check: tools/pancake/build_matrix.sh rows hip-mmq, hip-nommq (the stub break fixed today went unnoticed:
     no build dir has HIP+MMQ off), cuda-86, hip-tests, configure-only set; build dirs on D, install ccache.  S / none.  [this]
 93. Tests build dir (STRATA_BUILD_TESTS=ON; all four build dirs have it OFF, so none of the 293 add_test entries is ever built) with a
@@ -826,21 +831,21 @@ lookahead's next-layer CPU experts); A/B pending with the Q2_0 model test.
 | Strategy (where the time goes, ranked steps) | https://claude.ai/artifact/KS4sEzwMLwEGhVEPdi3xyF | the step order below; results log kept there |
 | Avalon upgrades report (owner's /home/dan/reports/Avalon upgrades from upstream projects.md) | this section | for pancake: the gfx1100 hipBLASLt table must match the runtime (the preset loaded 100200 on hipBLASLt 100401 -> untuned; 100401 table A/B queued; Strata measured +32/+78/+82% prompt on a 7900 XTX); longer prompt-lookup windows (--lookup-max-t 12/16, +11-14% on edits per Strata) A/B queued; tool-call recovery, env_to_user, reasoning_close_retry already in serve/; for Avalon itself: source fast-forwarded c24c03d -> 88313b6 (48 commits; rollback branch local/c24c03d-baseline), rebuild after the benchmarks, model needs ~20 GB more free on D |
 | llama.cpp CPU share (PR #30966, merged 2026-11-07; #31888; #31233 ClassLRU; #31286 open) | this section | already here: Strata's PCIe share is the same split (--pcie-frac 0 = their share ~0.95, measured best); ClassLRU's long-memory scoring (half-life 128 tokens) replayed on our tier: decay 0.7..0.986 within 0.5 points at 32 swaps/window - no gain, not ported |
-| Runtime architectures 2026 (disaggregated serving, control/execution plane, heterogeneous runtimes, runtime intelligence, single-node applicability) | reports/LLM runtime architectures 2026.md, research_notes/Arhitecturi runtime LLM 2026/ (notes in English) | pasted overview: names real, details inflated (TokenSpeed "zero runtime errors" unsourced; xLLM = jd-opensource/xllm, Ascend-only benchmarks; Exo = agent runtime, 12-53% not "up to 53%"). For pancake: P/D disaggregation, chunked-prefill interleave, overlap scheduler, distributed KV stores do not apply; adopt items 10-12 below |
+| Runtime architectures 2026 (disaggregated serving, control/execution plane, heterogeneous runtimes, runtime intelligence, single-node applicability) | reports/LLM runtime architectures 2026.md, research_notes/LLM runtime architectures 2026/ (notes in English) | pasted overview: names real, details inflated (TokenSpeed "zero runtime errors" unsourced; xLLM = jd-opensource/xllm, Ascend-only benchmarks; Exo = agent runtime, 12-53% not "up to 53%"). For pancake: P/D disaggregation, chunked-prefill interleave, overlap scheduler, distributed KV stores do not apply; adopt items 10-12 below |
 | Project Maya (mw00/project-maya, MIT, a Strata fork; 2026-11-09) | reports/Avalon upgrades from upstream projects.md, research_notes/Avalon upgrades from upstream projects/project_maya.md | not faster for us (its Qwen engine is a Strata 0.1.27 snapshot); ported loop guard, soft budget close, tolerant tool calls (section "Agent robustness from Project Maya"); SSD direct reads and route-share expert skip left as test ideas |
-| Stanford papers 2022-2026 (reports/Lucrări Stanford utile pentru Avalon.md) | research_notes/Lucrări Stanford utile pentru Avalon/ | per-level thinking cap (done, 5dd620fb9); multi-entry prefix cache (RadixAttention); CATS (superseded, item 13); measurement harness |
-| MIT/Harvard papers 2022-2026 (reports/Lucrări MIT Harvard pentru Avalon.md) | research_notes/Lucrări MIT Harvard pentru Avalon/ | TEAL over CATS (item 13); GDN chunk 64 (item 18); XAttention opt-in (item 19); learned thinking stop (item 21); bit allocation guidance (Scaling Laws for Precision) |
-| Rest of US universities 2022-2026: Berkeley, CMU, UW, Princeton, Cornell, UCSD, Duke, Rice, Stevens, ... (reports/Lucrări universități SUA pentru Avalon.md) | research_notes/Lucrări universități SUA pentru Avalon/ | items 13-17, 20, 22; SuffixDrafter/DraftPolicy already cover TurboSpec/Sequoia-style length choice; QTIP/IQ2_KT not worth a requant; Europe, Asia, Canada, Pacific/Africa/Latin America reports follow |
-| European universities 2022-2026: ETH/EPFL, ISTA + Central Europe, UK, France/South/Nordics/Israel (reports/Lucrări Europa pentru Avalon.md) | research_notes/Lucrări Europa pentru Avalon/ | daily files are ISTA-DASLab GSQ-RCO (Q2_0 93.8 vs IQ2_XS 70.3 tok/s on DASLab's card, -0.09 task avg: Q2_0 confirmed); base is 176.9B incl. the 51B n-gram table; "IQ2_XS" experts are IQ2_S/IQ2_XXS/IQ1_M + Q2_0 down; items 23-27; cache-conditional routing (Qualcomm/UvA) = STRATA_ROUTE_PRIOR, finish item 7; security: GGUF-quantization backdoors (ETH "Mind the Gap") -> official files + SHA-256 vs HF |
-| Asian universities + labs 2022-2026: Tsinghua/PKU, rest of mainland China, HK/Taiwan/Singapore, Korea/Japan/India, Qwen/DeepSeek/Moonshot/ByteDance/MiniMax/Xiaomi (reports/Lucrări Asia pentru Avalon.md) | research_notes/Lucrări Asia pentru Avalon/ | Qwen3.8 tech report checked against our code: MTP depth already --spec 4 (official 4.07 accepted at 4 steps), drafter has no PLE block and dense SWA attention (SGLang shortcuts already here), PLE via --ple-io direct (not mmap; Europe report corrected), grammar deferred after </think>; Avalon still at --spec-draft-n-max 2 (A/B 3/4); official thinking sampling T=1.0 noted, owner keeps 0.1; items 28-32 |
-| Canadian universities 2022-2026: Mila/McGill/Polytechnique/Concordia, Toronto/Vector, Waterloo, Alberta, UBC, Queen's (reports/Lucrări Canada pentru Avalon.md) | research_notes/Lucrări Canada pentru Avalon/ | little for engine speed; "Displacement Is Not Direction" (Toronto): KLD/top-1 stop predicting task score among near-baseline quants -> token forcing only rejects large deviations, a fixed task set picks between close candidates (quality-gate change for items 8, 13, 23); items 33-34; SpAx = 4th mask in item 13; Cactus parked (does nothing under greedy, ~0 at T=0.1) |
-| Australia/NZ, Africa, Latin America 2022-2026 (reports/Lucrări Pacific Africa America Latină.md) | research_notes/Lucrări Pacific Africa America Latină/ | little fits: SpecFit marginal new-miss cost (DISCO feature), UNSW restore-equivalence test, UFMG coordinate-descent kernel sweep, UBA top-k entropy signal; items 35-37; the report ends with the series-wide ranking below |
-| Pancake pain points (2026-11-09; reports/Pancake pain points și soluții.md) | research_notes/Pancake pain points și soluții/ (engine.md, server_agent_ops.md) | edit windows: CPU experts 17.4 of 37.4 ms at ~80% of DDR4 (only fewer bytes / overlap / routing help); GPU spends 38% of kernel time waiting in combine_cpu; Q2_0 down not covered by expdec (native_down_multi_kernel<42> = 5.8% of GPU kernel time, new); opencode history (old backend): turn median 6.2 s, p90 50 s, p99 224 s, re-reads ~18% of turn time, 15 turns cut while thinking; pancake not yet wired to opencode (8080 vs 11437, no unit); order: 0 wiring + thinking caps, 1 measurements, 2a per-turn exact (35, 31, 11, 16), 2b engine exact (dan-cd), 3 lossy behind the revised gates, 4 harness/side branches |
-| Technology families (2026-11-09; reports/Tehnologii grupate pentru pancake.md) | the nine reports + this plan | 10 families by mechanism (F1 fewer expert bytes, F2 placement/movement, F3 overlap, F4 drafting/verify, F5 per-turn cache, F6 thinking, F7 prefill, F8 GPU kernels, F9 quality/measurement, F10 harness/ops); F1-F3 are substitutes for the same 17.4 ms of CPU experts (edit-window floor ~20 ms est.); shared infrastructure: routing-trace format + time simulator, activation/hidden-state dump hook (items 13, 21), per-turn JSONL log with reasoning_tokens, revised quality harness, load-gated deterministic A/B, restore test 35, edit-window profile + 7900 XT prefill timing; one trace run answers items 13, 30, 28, 36, 15, 23, 5, 3-4, 17 offline; unowned: 23, 1/32/37, Q2_0 down kernel, 17 |
-| Hardware data path (2026-11-09; reports/Tehnologii drum de date hardware.md) | research_notes/Tehnologii drum de date hardware/ | items 38-54; edit window ~ sum of parts (scheduling, not bandwidth; overlap floor ~20 ms); CPU Q2_0 at ~80% DDR4, promotions ~93% of Gen3; critical-path transfer = fp32 row pull in combine_cpu (0.4-0.8 ms PCIe est. vs <=0.27 ms GPU bound: item 50 decides); pre-doorbell GPU kernels critical in both windows (item 48 up); waves: 0 = 38, 54, 45 (+42/43 spec to dan-cd); 1 = 49, 50, 44; 2 = 46, 40, 41, 48; 3 = 47, 51, 53, 52 last; 39 after 35; gains not additive, few % up to ~10% on edits; item 8 stays the big lever |
-| Consumer platform capabilities (2026-11-09; reports/Capabilități platforme consumer.md) | research_notes/Capabilități platforme consumer/ | items 55-62; CPU:promote ratio varies ~10x across platforms (today 1:2.7; Zen 3 B550/X570 or Rocket Lake ~1:1.2-1.8; LGA1700/1851 DDR5 ~1:2-4; AM5 + Gen5 card ~1:1 or inverted; Strix Halo no promotion) -> item 55 must calibrate on window time, acceptance test: it finds --pcie-frac 0 on the 7900 XT by itself (static PcieAuto picked 0.20-0.25 and lost); stage 1 (this box): 38, 57 cheap part (ISA/path log line, STRATA_FORCE_ISA avx512/avx-vnni), 49/50/44, 55+61 (emulate small cards by capping cache slots), 46/48/40/41/53, 42/43, 35->39/16/31/11, quality gates; stage 2 (needs hardware): 56, 58, 59, 60, 62, rest of 57, calibration re-check on Gen4/Gen5; 57 partly exists (STRATA_VNNI_TIER=1 AVX-512 without VBMI) |
-| Pancake code deep research (2026-11-09; reports/Pancake cod deep research.md; Serena MCP + clangd) | research_notes/Pancake cod deep research/ (decode_path, prefill_path, memory_cache, server_agent, structure_build) | items 74-95b; no wrong output found, one functional bug (89 grammar on Anthropic/Responses); this session order: stage 0 (no GPU) 87, 89 fix, 88, 92, 95b; stage 1 (env-only GPU session) 82, 78, 76, PSI baseline; stage 2: 91 + 73 turn log, 38, 86, 85; stage 3: 83, 39, 90, 71, decision on 31; stage 4: 75, 74, 79, 80, 94, 95, server refactor, 81 with 18; hand-off list for dan-99 in the report |
-| Commits of 2026-11-09 in source projects (research_notes/Commits azi proiecte sursă/commits_2026-11-09.md) | upstream Strata (214 since base 146df3c46, nothing to port), basalt, Avalon main, llama.cpp, ik_llama, Maya v1.1.57, forks | nothing speeds Flash-Next on gfx1100; ported: basalt edd09ff3f PLE close() hang (62a58f709), Maya 00655481c + StrataFast 3fbea9882 tool-argument types (2f0cee057); to dan-99: basalt 553e9290d (quarter-size last pool tasks), 4e6841265 (down-row prefetch under FUSE_PHASES, with 29), 1fd53a447 (commit queued behind the MTP draft, item 10); parked: llama.cpp 1945793e0 top-level response_format schema (low value), basalt 6370f0ba3 MTP wait pause/yield (~0%, fold into 74), basalt e7bd2d1ae DraftPolicy cost scale (43 owner); idea for 39: key saved sessions by the lossy routing switches (llamAmpere) so an exact preset never resumes a turbo-made state; Qwen official thinking sampling T=1.0/top_p 0.95/top_k 20/presence 0 (owner keeps T=0.1); DF2_GATE retired upstream -> close its ledger entry |
+| Stanford papers 2022-2026 (reports/Stanford papers useful for Avalon.md) | research_notes/Stanford papers useful for Avalon/ | per-level thinking cap (done, 5dd620fb9); multi-entry prefix cache (RadixAttention); CATS (superseded, item 13); measurement harness |
+| MIT/Harvard papers 2022-2026 (reports/MIT Harvard papers for Avalon.md) | research_notes/MIT Harvard papers for Avalon/ | TEAL over CATS (item 13); GDN chunk 64 (item 18); XAttention opt-in (item 19); learned thinking stop (item 21); bit allocation guidance (Scaling Laws for Precision) |
+| Rest of US universities 2022-2026: Berkeley, CMU, UW, Princeton, Cornell, UCSD, Duke, Rice, Stevens, ... (reports/US university papers for Avalon.md) | research_notes/US university papers for Avalon/ | items 13-17, 20, 22; SuffixDrafter/DraftPolicy already cover TurboSpec/Sequoia-style length choice; QTIP/IQ2_KT not worth a requant; Europe, Asia, Canada, Pacific/Africa/Latin America reports follow |
+| European universities 2022-2026: ETH/EPFL, ISTA + Central Europe, UK, France/South/Nordics/Israel (reports/Europe papers for Avalon.md) | research_notes/Europe papers for Avalon/ | daily files are ISTA-DASLab GSQ-RCO (Q2_0 93.8 vs IQ2_XS 70.3 tok/s on DASLab's card, -0.09 task avg: Q2_0 confirmed); base is 176.9B incl. the 51B n-gram table; "IQ2_XS" experts are IQ2_S/IQ2_XXS/IQ1_M + Q2_0 down; items 23-27; cache-conditional routing (Qualcomm/UvA) = STRATA_ROUTE_PRIOR, finish item 7; security: GGUF-quantization backdoors (ETH "Mind the Gap") -> official files + SHA-256 vs HF |
+| Asian universities + labs 2022-2026: Tsinghua/PKU, rest of mainland China, HK/Taiwan/Singapore, Korea/Japan/India, Qwen/DeepSeek/Moonshot/ByteDance/MiniMax/Xiaomi (reports/Asia papers for Avalon.md) | research_notes/Asia papers for Avalon/ | Qwen3.8 tech report checked against our code: MTP depth already --spec 4 (official 4.07 accepted at 4 steps), drafter has no PLE block and dense SWA attention (SGLang shortcuts already here), PLE via --ple-io direct (not mmap; Europe report corrected), grammar deferred after </think>; Avalon still at --spec-draft-n-max 2 (A/B 3/4); official thinking sampling T=1.0 noted, owner keeps 0.1; items 28-32 |
+| Canadian universities 2022-2026: Mila/McGill/Polytechnique/Concordia, Toronto/Vector, Waterloo, Alberta, UBC, Queen's (reports/Canada papers for Avalon.md) | research_notes/Canada papers for Avalon/ | little for engine speed; "Displacement Is Not Direction" (Toronto): KLD/top-1 stop predicting task score among near-baseline quants -> token forcing only rejects large deviations, a fixed task set picks between close candidates (quality-gate change for items 8, 13, 23); items 33-34; SpAx = 4th mask in item 13; Cactus parked (does nothing under greedy, ~0 at T=0.1) |
+| Australia/NZ, Africa, Latin America 2022-2026 (reports/Pacific Africa Latin America papers.md) | research_notes/Pacific Africa Latin America papers/ | little fits: SpecFit marginal new-miss cost (DISCO feature), UNSW restore-equivalence test, UFMG coordinate-descent kernel sweep, UBA top-k entropy signal; items 35-37; the report ends with the series-wide ranking below |
+| Pancake pain points (2026-11-09; reports/Pancake pain points and solutions.md) | research_notes/Pancake pain points and solutions/ (engine.md, server_agent_ops.md) | edit windows: CPU experts 17.4 of 37.4 ms at ~80% of DDR4 (only fewer bytes / overlap / routing help); GPU spends 38% of kernel time waiting in combine_cpu; Q2_0 down not covered by expdec (native_down_multi_kernel<42> = 5.8% of GPU kernel time, new); opencode history (old backend): turn median 6.2 s, p90 50 s, p99 224 s, re-reads ~18% of turn time, 15 turns cut while thinking; pancake not yet wired to opencode (8080 vs 11437, no unit); order: 0 wiring + thinking caps, 1 measurements, 2a per-turn exact (35, 31, 11, 16), 2b engine exact (dan-cd), 3 lossy behind the revised gates, 4 harness/side branches |
+| Technology families (2026-11-09; reports/Grouped technologies for pancake.md) | the nine reports + this plan | 10 families by mechanism (F1 fewer expert bytes, F2 placement/movement, F3 overlap, F4 drafting/verify, F5 per-turn cache, F6 thinking, F7 prefill, F8 GPU kernels, F9 quality/measurement, F10 harness/ops); F1-F3 are substitutes for the same 17.4 ms of CPU experts (edit-window floor ~20 ms est.); shared infrastructure: routing-trace format + time simulator, activation/hidden-state dump hook (items 13, 21), per-turn JSONL log with reasoning_tokens, revised quality harness, load-gated deterministic A/B, restore test 35, edit-window profile + 7900 XT prefill timing; one trace run answers items 13, 30, 28, 36, 15, 23, 5, 3-4, 17 offline; unowned: 23, 1/32/37, Q2_0 down kernel, 17 |
+| Hardware data path (2026-11-09; reports/Hardware data path technologies.md) | research_notes/Hardware data path technologies/ | items 38-54; edit window ~ sum of parts (scheduling, not bandwidth; overlap floor ~20 ms); CPU Q2_0 at ~80% DDR4, promotions ~93% of Gen3; critical-path transfer = fp32 row pull in combine_cpu (0.4-0.8 ms PCIe est. vs <=0.27 ms GPU bound: item 50 decides); pre-doorbell GPU kernels critical in both windows (item 48 up); waves: 0 = 38, 54, 45 (+42/43 spec to dan-cd); 1 = 49, 50, 44; 2 = 46, 40, 41, 48; 3 = 47, 51, 53, 52 last; 39 after 35; gains not additive, few % up to ~10% on edits; item 8 stays the big lever |
+| Consumer platform capabilities (2026-11-09; reports/Consumer platform capabilities.md) | research_notes/Consumer platform capabilities/ | items 55-62; CPU:promote ratio varies ~10x across platforms (today 1:2.7; Zen 3 B550/X570 or Rocket Lake ~1:1.2-1.8; LGA1700/1851 DDR5 ~1:2-4; AM5 + Gen5 card ~1:1 or inverted; Strix Halo no promotion) -> item 55 must calibrate on window time, acceptance test: it finds --pcie-frac 0 on the 7900 XT by itself (static PcieAuto picked 0.20-0.25 and lost); stage 1 (this box): 38, 57 cheap part (ISA/path log line, STRATA_FORCE_ISA avx512/avx-vnni), 49/50/44, 55+61 (emulate small cards by capping cache slots), 46/48/40/41/53, 42/43, 35->39/16/31/11, quality gates; stage 2 (needs hardware): 56, 58, 59, 60, 62, rest of 57, calibration re-check on Gen4/Gen5; 57 partly exists (STRATA_VNNI_TIER=1 AVX-512 without VBMI) |
+| Pancake code deep research (2026-11-09; reports/Pancake code deep research.md; Serena MCP + clangd) | research_notes/Pancake code deep research/ (decode_path, prefill_path, memory_cache, server_agent, structure_build) | items 74-95b; no wrong output found, one functional bug (89 grammar on Anthropic/Responses); this session order: stage 0 (no GPU) 87, 89 fix, 88, 92, 95b; stage 1 (env-only GPU session) 82, 78, 76, PSI baseline; stage 2: 91 + 73 turn log, 38, 86, 85; stage 3: 83, 39, 90, 71, decision on 31; stage 4: 75, 74, 79, 80, 94, 95, server refactor, 81 with 18; hand-off list for dan-99 in the report |
+| Commits of 2026-11-09 in source projects (research_notes/Source project commits today/commits_2026-11-09.md) | upstream Strata (214 since base 146df3c46, nothing to port), basalt, Avalon main, llama.cpp, ik_llama, Maya v1.1.57, forks | nothing speeds Flash-Next on gfx1100; ported: basalt edd09ff3f PLE close() hang (62a58f709), Maya 00655481c + StrataFast 3fbea9882 tool-argument types (2f0cee057); to dan-99: basalt 553e9290d (quarter-size last pool tasks), 4e6841265 (down-row prefetch under FUSE_PHASES, with 29), 1fd53a447 (commit queued behind the MTP draft, item 10); parked: llama.cpp 1945793e0 top-level response_format schema (low value), basalt 6370f0ba3 MTP wait pause/yield (~0%, fold into 74), basalt e7bd2d1ae DraftPolicy cost scale (43 owner); idea for 39: key saved sessions by the lossy routing switches (llamAmpere) so an exact preset never resumes a turbo-made state; Qwen official thinking sampling T=1.0/top_p 0.95/top_k 20/presence 0 (owner keeps T=0.1); DF2_GATE retired upstream -> close its ledger entry |
 
 Development pass done 2026-11-08 night (owner: develop everything first, then test and optimize):
 - items 3-4 merged from feat/pattern-cache and built (HIP and CUDA compile; expert_seed_test ok; 7/7 Python tests);
@@ -880,7 +885,7 @@ Left, ranked (details of the measurements above stay in this section's history):
     shortens replies rather than speeding tokens).
     2026-11-09: per-level caps (reasoning_budget_by_effort, 5dd620fb9) and Maya's soft close at a sentence end are in;
     the learned stop (item 21) replaces Dynasor as the early-exit route.
-Added 2026-11-09 from the university paper series (Stanford, MIT/Harvard, rest of the US; reports/ "Lucrări ..."):
+Added 2026-11-09 from the university paper series (Stanford, MIT/Harvard, rest of the US; reports/ "... papers for Avalon"):
 13. CPU-expert activation sparsity, lossy opt-in: one offline FP32 pass on opencode traces with three masks - Berkeley's
     intra-expert gate mask (arXiv 2605.08575: Qwen3.5 MoE at 84-87% sparsity, 95% of score), TEAL (MIT; holds 40-50% on
     dense) and CATS (Stanford; collapses at 40% on Llama-3-8B) - at 50/70/85%, gated by token forcing.  Build the AVX2
@@ -956,6 +961,15 @@ Added 2026-11-09 from the Canadian report:
     without a build/test, M reads/searches without an edit - log-only first, then a note like the tool-repeat note.
 34. Rumination signal in thinking (McGill/Mila Thoughtology): rolling 5-gram repetition rate feeding the soft close
     (reasoning_budget_grace) and the learned stop (item 21).
+    2026-11-09 CODED (branch feat/item-34-rumination, serve/rumination.py, serve/test_rumination.py; no engine change).
+    Phase 1, always on (log only, the reply is unchanged): word 5-grams over the last 256 thinking words, a check every
+    32 words from word 128, rate = (grams - distinct) / grams; per request `done["rumination"]` {max, mean, checks,
+    closed}, history/turn log `rumination_max`, `rumination_mean`, `rumination_closed`, /metrics `rumination`, Prometheus
+    `strata:rumination_measured_total` / `_closed_total`.  Phase 2, opt-in config `"rumination_close": 0.4` (or
+    {"threshold", "checks": 3, "min_tokens": 0}): the rate at or above the threshold for K checks in a row -> the soft
+    budget's own close (first sentence or line end, at most reasoning_budget_grace tokens, THINK_GRACE when 0; the
+    REASONING_WRAP_UP text with the model's end of thinking).  The loop guard's exact-loop handling is untouched.  No
+    threshold measured yet: read the turn log's rumination_max on real turns first (the paper gives none).
 Quality gates (revised): token forcing rejects large deviations only; choice between close variants by a fixed task set
 (LiveCodeBench subset + BFCL v4 multi-turn + own-repo checkpoint grading), repeated runs as distributions.
 Added 2026-11-09 from the Pacific/Africa/Latin America report:
@@ -972,7 +986,7 @@ Series-wide ranking (all seven university reports; precondition: the revised qua
   (12, 21, 33, 34)  9) time-based cache simulator with candidate policies (14, 27, 30, 3-4, 17)  10) tool reliability (26,
   presence_penalty 0).  Item 6 closed (Q2_0 is the daily file); item 24 gives 0 on Q2_0.  feat/contextpilot: keep off
   (1.6% dedup savings measured on 40 real opencode sessions).
-Added 2026-11-09 from the hardware data-path round (research_notes/Tehnologii drum de date hardware/; report follows):
+Added 2026-11-09 from the hardware data-path round (research_notes/Hardware data path technologies/; report follows):
 38. Linux direct expert-arena loader: experts_unbuffered() returns false on Linux ("buffered (not Windows)", pinned.cu ~1160) and
     load_experts_direct is _WIN32-only, so the 33 GiB arena is read through the page cache (log: 33.02 GiB at 0.49 GiB/s) and
     competes with the locked arena on 57 GB (likely oomd trigger, 0.51-1.18 GiB/s spread, no free THP blocks).  Port the direct
@@ -983,6 +997,19 @@ Added 2026-11-09 from the hardware data-path round (research_notes/Tehnologii dr
     atomic rename; today only /slots save/restore by hand; --conversation-disk exists only in strata-poly), restore on start
     (~0.5-1 s for 1.13 GB est.); keep tool-call-ended conversations in RAM, demote final-answer ones first (Bidaw, FAST'26);
     cap the tier size (D is 91% full).  Gate on item 35.
+    [CODED 2026-11-09 on feat/item-39-disk-tier, not GPU-tested; CPU test tests/core/conversation_disk_tier_test.cpp]
+    Opt-in: engine args `--conversation-disk-dir DIR|auto` (auto = <cwd>/conversation-disk) and `--conversation-disk-max-gib N`
+    (default 20, for the whole folder), or the preset's "env": STRATA_CONVERSATION_DISK_DIR / _MAX_GIB.  Presets left alone.
+    ConversationCache::set_disk_tier: evict_oldest moves the entry to ConversationDiskTier (src/core/conversation_disk_tier.cpp)
+    instead of freeing it, final-answer conversations before tool-call ones (<tool_call> after the reply's <|im_start|>,
+    STRATA_TOOL_CALL_TOKEN=248058, -1 = plain oldest-first); a writer thread runs session_file_write keeping the root AND the
+    deepest checkpoint, then c-<serial>.idx (token lists, ~4 B/token).  Subfolder per key = model file + session identity +
+    lossy env switches (STRATA_ROUTE_PRIOR, ROUTE_TAIL_SKIP, ROUTE_RESIDENT*, ...; STRATA_CONVERSATION_DISK_KEY_ENV adds names),
+    key.txt + flock as strata-poly; LRU cap across subfolders; leftovers deleted at open; ENOSPC turns the tier off.  A request
+    whose prompt continues a disk entry by > STRATA_CONVERSATION_DISK_MIN_GAIN (1024) tokens past RAM reads it back with /slots
+    RESTORE's limits + RAM preflight and parks it, so the parked path validates and takes/borrows it.  QUIT hands what is
+    parked to disk.  Shorter than STRATA_CONVERSATION_DISK_MIN_TOKENS (2048) is not written.  One GPU, no --batch.
+    GPU test still to run: restore_check.py-style - resumed-from-disk vs STRATA_CKPT_REREAD, token for token, --adapt-swaps 0.
 40. Software prefetch 1-2 KB ahead inside the Q2_0 row kernel (q2_avx2_rows.inl row_multi has no _mm_prefetch; hardware
     prefetchers stop at 4 KB pages, a gate/up row is 720 B): env-tunable, exact, 0-5% of CPU-expert time.
 41. Smallest saturating CPU thread count with FUSE_PHASES (variance of window time), and the cpufreq "performance" governor
@@ -1036,7 +1063,7 @@ Not worth building (PCIe): batch-copy API (absent; promotions already ~93% of li
 (no FP-exponent redundancy at 2 bits; a 5-minute entropy check would settle it), zero-copy reads of missed experts at Gen3
 (CPU path 2.5x cheaper), GPU-initiated transfers (BaM, SCADA, AMD DMA prelaunch not exposed), FloE lossy transfer (belongs
 with lossy F1).
-Added 2026-11-09 from the Intel platform researcher (platform round; matrix in research_notes/Capabilități platforme consumer/):
+Added 2026-11-09 from the Intel platform researcher (platform round; matrix in research_notes/Consumer platform capabilities/):
 55. Startup calibration of the CPU-vs-promote ratio: measure CPU us per expert and promote us per expert at start and set the
     promotion reuse threshold / --pcie-frac from it (DDR5 desktops ~12-18 us CPU vs ~58 us promote on a PCIe 4.0 card in any Gen5
     slot; Gen5 GPU on Arrow Lake ~1:2; today 42 vs 115 us) instead of one hand-tuned value.  Common work, all platforms.
@@ -1419,6 +1446,314 @@ New processes built on these capabilities:
 - Self-tuning from the owner's own sessions: routing traces recorded during normal use -> domain profiles, cache policy
   and draft settings re-learned offline weekly, checked by the simulator, promoted by the A/B harness.
 - Regression watch: a short benchmark after each build/pull compared with the last good numbers.
+
+## Phase 16: academic research first, by area of improvement (2026-11-10, owner: develop academic technologies with priority)
+
+### Priority update after the offline tests (2026-11-10, bench/results/2026-11-10-offline/)
+
+Measured offline (no GPU); these change the order of the work below and of Phase 15:
+1. **No-code fix first: `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192`.** The ~162 s of cold
+   54-62K re-reads came from snapshots 0.5-4.8% over the auto 1280 MiB budget and from short side requests evicting the
+   agent's parked conversation. Replay: these two flags save ~158 s of 162.8 s (97%); PARK_TRUNCATE alone 39-52 s.
+   Check RAM headroom (arena 33 GiB on 57 GB) in the screen. F1 (PARK_TRUNCATE, Opus port on trial/opus-park-truncate)
+   stays as the second step behind these flags; F3 showed no effect offline.
+2. **A5 k-th-miss admission confirmed on edit traffic** (trace replay: hit rate 76.7% -> 86.5% on edit windows, +12%
+   window time est.); go for TEST_PLAN 2.2. F10 (prompt-fed counts) low, only with the item-84 fix.
+3. **F6 exact speculative sampling stays:** opencode sends no temperature, so the main agent runs at the model card's
+   T 1.0 (sub-agents T 0.1); acceptance on agent turns 0.69 vs 0.76 on bench turns.
+4. **F8 SPEC_CUM on hold:** oracle ceiling 1.0% short / 7.9% edit; needs a real window trace (`STRATA_WINDOW_TRACE` +
+   a `drafts()` call that nothing makes today).
+5. **F4 shadow pack: conditional,** gate/up IQ1_M only (-18.2% CPU bytes, ~4-12% time), but it adds 17.6 GB of RAM.
+   No IQ2_XXS requant.
+6. **A6 time model recalibrated** (mean error 3.4 points vs 12-17): A7 (ProMoE), A8 (Pie), A46 are not worth a GPU run
+   now; A46 only after agent-session traces show >= 5% over KMISS.
+7. **A17 thinking caps: no change yet** (34 real agent turns, caps save ~0 s); first log the effort level per turn.
+8. **Latent bug found:** `STRATA_VERIFY_DEFER_CPU_BELOW/_TOP` are not in `conversation_disk_key_env_names`
+   (src/core/conversation_disk_tier.cpp), so a disk-parked conversation can be restored under different deferral
+   settings. Fix with a cache-key version bump.
+
+Code ready on branches, waiting for a build and a screen (no GPU while the test phase runs): A4 rank-guard fold
+(work/a4-rank-guard), A55 task gate (work/a55-task-gate, touches abtest.py), F1 PARK_TRUNCATE
+(trial/opus-park-truncate), F7 Q2_0 fast kernel (trial/opus-q2-avx2), F21 WAIT_COPY256 (trial/sonnet-wait-copy256,
+needs STRATA_FUSE_WAIT=1 on gfx1100).
+
+Rules for this phase. Technologies that come from academic papers go first; fork ideas (Phase 15) appear only where a paper
+is the origin. Areas are ordered by their total expected gain on our bottleneck (expert bytes in decode, prompt re-reads in
+agent turns). Inside each area the biggest expected gain comes first. Every gain is the paper's claim on its own hardware
+or our estimate; it is not measured here unless the cell says "meas.". "Exact" = same greedy text; "lossy" = the text may
+change; "rounding" = exact math but GPU-vs-CPU placement or summation order moves the last bits (RESULTS 02: placement
+changes change the text and the draft acceptance). Test tiers are the ones in bench/TEST_PLAN.md "How every test runs": **offline** (replay, no GPU), **screen** (`abtest.py --tier screen`, one A B pass), **confirm** (A B B A with early stop), **rigorous** (confirm + token forcing + the task gate) - rigorous only for lossy items, default changes and anything that changes generated text. Any item promoted to a preset default gets a rigorous run first. Base after the 2026-11-09/10 test phase
+(fast-hip = deferral + FUSE_PHASES + EXPDEC_DOWN): short chat ~132 tok/s, code edit ~135-138 tok/s (meas.). IDs A1..A58
+are global so the Top 10 can point at them. GPU column: both / HIP / CUDA (CPU and server items are "both").
+
+### 16.1 Expert bytes on the critical path: routing, placement and overlap
+
+Budget: CPU experts were 17.4 of 37.4 ms on edits and 5.2 of 24.8 ms on short chat before deferral; ideal-overlap floor
+~20 ms per edit window. Substitute group S1/S2: A1, A2, A4 (and A27 in 16.5) take from the same CPU time; measure them
+together, never sum them.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A1 | Cache-conditional routing (`turbo-hip`, `STRATA_ROUTE_PRIOR 0.5`) | Cache-Conditional Experts, Qualcomm/UvA 2024, https://arxiv.org/abs/2412.00099 | 7 | lossy (2.9% tokens differ) | both | XS (decision) | +30-50% meas. before deferral (111.7 -> 149-168 tok/s); with deferral on the sum is lower - re-measure jointly | rigorous | planned: built, gate pending; F13 guards attach |
+| A2 | Depth-graded verify prior (no bonus at position 0) | AcceptMoE 2026, https://arxiv.org/abs/2608.02989 | 23 (S2) | lossy | both | S | +5-15% over fast-hip (est.); fewer changed tokens than A1 | rigorous | planned: coded `STRATA_ROUTE_PRIOR_DEPTH` (4f56ce535); pick A1 or A2 |
+| A3 | Expert deferral (low-weight misses finish while the next layer runs) | KTransformers, SOSP'25, https://madsys.cs.tsinghua.edu.cn/publication/ktransformers-unleashing-the-full-potential-of-cpu/gpu-hybrid-inference-for-moe-models/SOSP25-chen.pdf | 8 | lossy-small | both | - | +15.8% +-3.9 edit meas., short n.s., token forcing PASS | - | **done** (in fast-hip, d7debf8fd) |
+| A4 | Rank guard "top-2 or weight >= w", then fix its short-chat loss (one pool pass when few rows are deferred) and sweep w 0.1/0.2 at windows 1/2/4/8 | KTransformers (as A3); HOBBIT weight CDF 0.6/0.9, https://arxiv.org/abs/2411.01433 | 28 | lossy-small | both | S | meas. +20.1% edit vs base (+4.3 pts over A3) but -6.9% short; fix est. recovers short, keeps +3-5% edit | confirm, rigorous before default | done opt-in (`_TOP=2`); optimization **new** |
+| A5 | Admission on the k-th miss (probation before VRAM) | Baleen, FAST'24, https://www.usenix.org/conference/fast24/presentation/wong ; SIEVE, NSDI'24, https://www.usenix.org/conference/nsdi24/presentation/zhang-yazhuo | 14 | rounding | both | - | meas. +2.0% +-1.6 edit (2,8 on the blocking tier), -6.4% short (different text); bench hit rate 89% leaves little room | confirm on real agent traces | done opt-in (`STRATA_ADAPT_KMISS`); async variant rejected |
+| A6 | Recalibrate the overlap time model with last night's points (it predicted deferral +33%, meas. +15.8%; deferral + k-th miss +45-52%, meas. ~+2% more), validate to 5-9% error | Baleen method (above); Vidur, MLSys'24, https://arxiv.org/abs/2405.05465 ; LLMServingSim 2.0, https://arxiv.org/abs/2602.23036 | 42 | exact (offline) | - | S | 0 itself; gates A7, A8, A60 (model over-predicts ~2x today) | screen | **done offline 2026-11-10** (`time_ceiling.py --validate`, bench/results/2026-11-10-offline/A6_A17.md): old chain let the next router/pool run during the late CPU rows (late_add gates them) + a per-layer deferral cost (fitted 91 us); after refit deferral +15.8 (fit), KMISS +2.7 vs +2.0, FUSE +1.1 vs +2.5 (3.4 pts mean error); misses rank guard (-8.1) and short chat is unvalidated; ranks A46 > A8 > A7, none worth a GPU screen (all < 5% at the bench's hit rate); needs a trace with non-zero weights |
+| A7 | Chunked, cancellable promotions + reordered execution (cached -> in flight -> CPU) | ProMoE, SJTU 2024, https://arxiv.org/abs/2410.22134 | 30 / 27 | exact | both | S sim, M engine | authors 1.09x over LRU on PCIe 4.0; est. 0-3% here | screen (sim) then confirm | planned (simulator first, after A6) |
+| A8 | Online swap budget on the **blocking** tier | Pie, UC Berkeley 2024, https://arxiv.org/abs/2411.09317 | 53 | rounding | both | XS (coded) | 0-5% over the best fixed `--adapt-swaps` (est.) | confirm | coded (`STRATA_ADAPT_SWAPS_AUTO`); rejected on async (-9.6%), blocking arm **open** |
+| A9 | Pre-stage the next turn's experts while a tool runs | KVFlow 2025, https://arxiv.org/abs/2507.07400 ; InferCept, https://arxiv.org/pdf/2402.01869 | 17 | rounding | both | - | 1-3% of the next turn's decode (est.); bench n.s. because it has no idle gaps | confirm on agent replay (turn log) | coded opt-in (`STRATA_IDLE_ADAPT`) |
+| A10 | Conversation working set / activation-matrix match at request start | MoE-Infinity, Edinburgh 2024, https://arxiv.org/abs/2401.14361 | 3-4 (+84) | rounding | both | S (84) | +0.6-1.5 hit points (est.); inert under k-th miss until item 84 gives seeds virtual misses | confirm | done opt-in; item 84 open |
+
+Rejected, reason still holds: activation sparsity masks (TEAL, CATS, Berkeley gate, CHESS, SpAx; experts dense, cos 0.844
+at 70%, item 13 closed); expert predictors (Fate, SP-MoE, pre-attention; next-layer recall 19-21%, item 30 closed); expert
+load-aware CPU/GPU assignment (Apex https://arxiv.org/abs/2610.23006, DALI https://arxiv.org/abs/2602.03495, Fiddler
+https://arxiv.org/abs/2402.07033: the Q2_0 CPU path is byte-bound, its cost barely grows with tokens per expert, so "GPU if
+m x t_cpu > t_promote" almost never fires at 115 vs 42 us); Apto cancellable tail racing (https://arxiv.org/abs/2611.01859:
+a GPU race needs the same upload); BuddyMoE/MoBiLE/AdapMoE as separate re-selections (one re-selection in verify.cpp: A1/A2
+win or lose for them); OEA sibling-aware routing (measured at batch 16, small ceiling).
+
+### 16.2 Prompt re-reads in agent turns (per-turn cache)
+
+Budget: ~18% of turn time is re-read prefill (8% in-session, 7% sub-agent switches, 2-3% compaction) on the old opencode
+history. All exact; all coded behind opt-ins; what is missing is the confirm runs on agent replays (pancake.service +
+turn log now exist, a1683537c / 1c0f248ae).
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A11 | Checkpoints at tool-call / tool-result boundaries + FLOP-saved-per-byte eviction | Marconi, Princeton, MLSys'25, https://arxiv.org/abs/2411.19379 ; FreeToken 2026, https://arxiv.org/abs/2608.16157 | 16 (+11) | exact | both | - | Marconi TTFT up to -71% on SWE-bench traces; est. share of the 8% in-session re-reads | confirm (agent replay + restore_check --tool-boundary) | done opt-in (527e06429) |
+| A12 | Multi-entry prefix store: pinned system+tools prefix, park the branch left at the pin | RadixAttention / SGLang 2023, https://arxiv.org/abs/2312.07104 | 71 / 90 | exact | both | - | up to ~7% of turn time (sub-agent switches, est.) | confirm | done opt-in (`STRATA_AUTO_PIN`, `STRATA_PIN_PARK_TOKENS`) |
+| A13 | Disk tier for parked conversations, final-answer turns demoted first | Bidaw, FAST'26, https://www.usenix.org/conference/fast26/presentation/hu-shipeng | 39 | exact | both | - | resume ~1-1.5 s vs ~70-80 s re-read at 70K (est.); survives restarts | confirm (disk restore vs `STRATA_CKPT_REREAD`) | done opt-in (070fe8512) |
+| A14 | Restore-equivalence test (full + partial hit, every boundary, MTP on) | Validating Hybrid-State Cache Recovery, UNSW 2026, https://arxiv.org/abs/2609.15030 | 35 / 83 | exact (test) | both | - | 0 itself; gates A11-A15 and any default change | confirm (runs first in the test phase) | done code (restore_check.py); result pending |
+| A15 | TTL / idleness rule for parked sub-agent sessions | Continuum 2025, https://arxiv.org/abs/2511.02230 (MORI, same group) | (US-A8) | exact | both | S | faster sub-agent switches; small add on A12/A13 (est.) | confirm | **new** |
+| A16 | Byte-stable prefix, variable state at the tail | Lost in the Middle, TACL 2024, https://arxiv.org/abs/2307.03172 | 88 (`env_to_user`) | exact | both | - | ~14K tokens / 8-11 s per new day/folder avoided | - | **done** (637a71c23) |
+
+Rejected, reason still holds: non-prefix reuse (ContextPilot 1.6% measured; Prompt Cache https://arxiv.org/abs/2311.04934,
+Entropy Gate https://arxiv.org/abs/2606.03739) - any earlier changed token invalidates the GDN checkpoint; KV eviction and
+compression (H2O, SnapKV, KVQuant, KVzip, ...) - KV lives in 1 of 4 layers and is already q8.
+
+### 16.3 Thinking length (test-time compute)
+
+Budget: ~6.6% of turn time plus the tail (p99 224 s; 15 turns cut at 8-32K cost 2,726 s). Every item here changes the
+generated text, so every item is rigorous and is judged on total time to success, not time per turn.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A17 | Per-effort budget forcing with a graceful close at the cap (tail above p99 only) | s1, Stanford 2025, https://arxiv.org/abs/2501.19393 ; Are LRMs Interruptible?, Berkeley 2025, https://arxiv.org/abs/2510.11713 | 12 / 88 | lossy (tail only) | both | XS | worst turn 84-340 s -> ~1-2 min (est.) | rigorous | grace 512 + close_retry in presets **done**; per-level caps: analysed 2026-11-10 (A6_A17.md): turn log has only 34 agent turns, one session, no effort field, p99 = 1,061 thinking tokens (max 1,154, thinking 22% of turn time), longest turn 64 s (re-reads, not thinking): caps at p99 save 0 s per turn here; provisional `reasoning_budget_by_effort` {low 1024, medium 1536, high 3072} not applied; first add an `effort` field to the turn log |
+| A18 | Effort per task, not per turn: `xhigh` vs `medium` on total time to success | Just Enough Thinking / ALP, https://arxiv.org/abs/2506.05256 ; Danger of Overthinking, https://arxiv.org/abs/2502.08235 ; Don't Overthink it, https://arxiv.org/abs/2505.17813 ; counter-evidence: Qwen3 report, https://arxiv.org/abs/2505.09388 | (Asia-M5) | lossy | both | S (harness) | tens of seconds per turn; -20-40% thinking (est.) | rigorous (area under the time curve, SWE-Effi) | planned (owner decision) |
+| A19 | Learned thinking stop: linear probe on hidden states every 64 tokens / at `\n\n` | Thought Calibration, MIT 2025, https://arxiv.org/abs/2505.18404 ; Learning How Hard to Think, ICLR'25, https://proceedings.iclr.cc/paper_files/paper/2025/hash/ff414825df833edb8b1839e3d5d495e9-Abstract-Conference.html ; OS-Pruner, https://www.alphaxiv.org/abs/2607.11089 | 21 | lossy | both | M (dump hook I2 + training) | -20-40% thinking on routine turns (authors; untested on agents) | rigorous | not started |
+| A20 | Rumination rate (rolling 5-grams) into the soft close; top-k entropy as a second signal | Thoughtology, Mila/McGill 2025, https://arxiv.org/abs/2504.07128 ; Entropy Sentinel 2026, https://arxiv.org/abs/2601.09001 | 34 / 36 | log exact; close lossy | both | XS | unmeasured; threshold from turn-log `rumination_max` | screen (log), rigorous (close) | log + opt-in close coded (feat/item-34-rumination); entropy log **new** |
+
+Parked, reason still holds: Delethink resets (Markovian Thinker, https://arxiv.org/abs/2510.06557) - only with >16K-token
+thinking turns; Dynasor early exit - replaced by A19.
+
+### 16.4 Speculative decoding (tokens per window)
+
+Budget: draft 2.2-2.5 ms per window; acceptance 71% short, 94% edits, 55-66% after 11.7K prompts. `--spec 4` is already the
+official depth. Gains here go through the numerator: more accepted tokens without more new CPU-missed experts.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A21 | Exact speculative sampling for sampled requests (`STRATA_SPEC_PROB=1 ...`); first check whether T=0.1 requests take the sampled path | Leviathan et al., ICML'23, https://arxiv.org/abs/2211.17192 ; Chen et al. 2023, https://arxiv.org/abs/2302.01318 | 15 F6 | exact (in distribution) | both | XS (env) | forks +5.5-13.4%; est. +3-8% on sampled turns only | confirm (+ distribution check) | planned (Phase 15 F6) |
+| A22 | Learned chain stop with drafter entropy and per-position new-miss cost | DISCO, Intel 2024, https://arxiv.org/abs/2405.04304 ; MiMo-V2-Flash, https://arxiv.org/abs/2601.02780 ; SpecFit, https://arxiv.org/abs/2610.15417 | 15 / 36 / 68 | exact | both | M | 0-10% combined (est.); SpecFit authors' ceiling +7-22% | screen (offline fit on window traces), then confirm | spec only on feat/disco; trace logger done (64); feature log **next** |
+| A23 | Draft-position cost = CPU time of new missed experts, fitted from traces | MoE-SpeQ / SpecFit (as A22) | 43 | exact | both | - | 0-5% (est.) | confirm | coded (663107a56), A/B pending |
+| A24 | Cross-session suffix index with frequency scoring, shared by sub-agents | SuffixDecoding, CMU 2024, https://arxiv.org/abs/2411.04975 | 15 | exact | both | S sim, M code | a few % up to ~10% on edits (authors) | screen (`--simulate`), then confirm | planned |
+| A25 | Check DraftPolicy's MTP table against the measured position decay; report in-engine verify share | SD: Performance or Illusion?, Berkeley 2026, https://arxiv.org/abs/2601.11580 | (US-P10) | exact (offline) | both | XS | 0-5% (est.) | screen | **new** (uses window traces) |
+| A26 | Draft source (MTP / lookup / suffix) as a learned action | Context-Aware Assistant Selection, Mila 2024, https://arxiv.org/abs/2408.08470 | 15 | exact | both | S | 0-5% (est.) | confirm | parked: only if DraftPolicy logs show wrong choices |
+
+Rejected, reason still holds: draft trees (Staged SD, SpecInfer, Sequoia), Lookahead/Jacobi, Token Recycling - GDN state
+forks and a larger expert union; Cactus - ~0 at T=0.1; DraftExpert windows - tested, DraftPolicy already optimal; ReplaySSM
+port - closed by code study (replay stays); EAGLE-family drafters - native MTP is better. Parked: typical acceptance on
+thinking (Medusa, https://arxiv.org/abs/2401.10774; lossy, low priority); SSD-lite (Saguaro, https://arxiv.org/abs/2603.03251;
+needs a host-gap profile, CPU busy).
+
+### 16.5 Quantization of the expert miss path and the model file
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A27 | Low-precision copy of experts read only on CPU misses (VRAM hits stay exact) | HOBBIT, SJTU 2024, https://arxiv.org/abs/2411.01433 ; MoBiLE 2025, https://arxiv.org/abs/2510.12357 | 15 F4 | lossy | both (CPU side) | L (25-30 GB requant + D space) | fork claim +3-8%; est. edit +7-10%, chat +3-5% (S1 substitute of A1/A2/A4) | rigorous | **reopened**: ledger said "no bits below Q2_0", but a sub-2-bit pack only for misses has bits to cut; blocked on a requant source and D space |
+| A28 | ISTA-DASLab Coder variant (256 of 512 experts, ~3.5 bpw LUT types) | GSQ, https://arxiv.org/abs/2604.18556 ; RCO, https://arxiv.org/abs/2605.00649 (ISTA 2026) | 25 | different model | both | S (an evening + 29.6 GB) | -10..+20% decode; SWE-bench Verified 95.7% of BF16 (card) | rigorous | planned (D space) |
+| A29 | Entropy check of Q2_0 expert bytes (settles any entropy-coded or compressed miss path) | EntroLLM / Huff-LLM line (HW-cpu notes) | (ledger g) | exact | both | XS | ~0 expected (2.25 bpw); closes the item if < 20% | screen | parked -> **run the 5-minute check** |
+
+Rejected or parked, reason still holds: QuaRot (https://arxiv.org/abs/2404.00456), LQER, any requant from BF16 (354 GB does
+not fit); QTIP/IQ*_KT (no HIP kernel, ~0.2 bpw); Any-Precision / MC-MoE / MxMoE (parked until a >2-bit file such as A28).
+
+### 16.6 Prefill: delta reads in agent turns and cold reads
+
+Budget: 90.8% of turns hit the cache, so the delta path (1.5-3.2K tokens) matters more than cold 64K+ reads. 4K reads run at
+1,757 vs 2,580 tok/s at 32K (meas., final suites).
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A30 | Token-count threshold for the CPU share in prefill (deltas < 4096 skip the staged path) | Fiddler, UW 2024, https://arxiv.org/abs/2402.07033 | 78 | rounding | both | XS (env A/B) | est. up to ~0.4 s per agent turn (3K delta at ~1.75K -> ~2.4K tok/s) | confirm | planned (env A/B: `CPU_SHARE=0`, `SHARE_MAX=1024`) |
+| A31 | GDN prefill chunk 64 with blockwise 16x16 inverse + fused prep, more blocks per head on 84 CUs | Gated DeltaNet, ICLR'25, https://arxiv.org/abs/2412.06464 ; parallel DeltaNet, https://arxiv.org/abs/2406.06484 ; Mamba-2/SSD, ICML'24, https://arxiv.org/abs/2405.21060 | 18 / 81 | rounding (FP16 class) | HIP first | M | 5-11% of cold prefill (est.; a V100 chunk-64 attempt was 4-6x slower) | confirm | parked until item 82 prefill timing on the 7900 XT |
+| A32 | Stream experts to the GPU for large prefill ubatches (check what prefill does today) | weight-streaming prefill, https://arxiv.org/abs/2606.10493 (runtime-architectures report) | - | exact | both | XS (code read) | TTFT at 32K+ only; PCIe 3.0 caps it | screen | **new** (code read first) |
+
+Rejected, reason still holds: BFLA shared QSA selection (closed: a shared set holds only 42-74% of each query's cells);
+XAttention (superseded); SpargeAttn (QSA is already sparse at ~2,051 cells per query).
+
+### 16.7 GPU kernels and launch overhead
+
+Budget: GPU 15.9 ms of a 24.8 ms short window. New since 2026-11-09: deferral now hides part of the CPU time on edits, so
+the GPU floor starts to set the edit window too. Re-run the item 1 / I7 profile with deferral on before building kernels.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A33 | Small-M fusion of the pre-doorbell chains (expdec gate/up+SwiGLU+quant; router+top-10+doorbell) | SGLang small-M fusion, https://arxiv.org/abs/2312.07104 ; Qwen3 report (gated residual), https://arxiv.org/abs/2505.09388 | 32 / 48 | exact | HIP (CUDA port) | - (coded) | 1-4% per chain (est.); 04 run was n.s. with a reclaim-hit base | confirm (new harness) | coded (`STRATA_EXPDEC_SWIGLU`, `STRATA_ROUTER_FUSE`); **retest** |
+| A34 | Coordinate-descent sweep of launch/tile parameters (with the Phase 15 F20 empty-launch probe) | Coordinate-Based Hill Climbing, UFMG 2026, https://arxiv.org/abs/2609.03114 | 37 | exact | both | S (tool built) | 1-3% (est.) | confirm | planned (sweep.py, 7861dc8c1) |
+| A35 | Warm the 80 MiB Infinity Cache with next-layer pre-doorbell weights during the combine wait | PRESERVE, Huawei Zurich 2025, https://arxiv.org/abs/2501.08192 | 47 | exact | HIP | - (coded) | 0-2 ms/window (est.); 04 n.s. | confirm (new harness) | coded (`STRATA_IC_WARM_MB`); **retest** |
+| A36 | Weight-major layout for VRAM-hit experts / Q2_0 down | MonoMoE 2026, https://arxiv.org/abs/2609.04244 | (ledger h) | exact | both | M-L | unknown; pays only if hit kernels reach the critical path | screen (per-layer split) | parked -> **reopen check**: deferral may now expose hit time on edits |
+| A37 | LDS bank-conflict check of the HIP IQ kernels; duplicated LUT if present | FLUTE, MIT 2024, https://arxiv.org/abs/2407.10960 | (MIT-13) | exact | HIP | XS (profile) | 0-10% of GPU expert time if conflicts exist | screen | **new** (part of the re-profile) |
+
+Rejected, reason still holds: BitDecoding WMMA decode attention as default (https://arxiv.org/abs/2503.18773; tested
+neutral, attention ~3% of decode); megakernels / HipKittens / ThunderKittens ports (NVIDIA or CDNA, GDN megakernel 0.0 ms).
+
+### 16.8 Agent loop and serving (harness side, outside the engine)
+
+Turn-level gains; most live in opencode, not in pancake. They change behaviour, so all are rigorous.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A38 | Behaviour counters (edits without test, reads without edit), log first | Beyond Accuracy, UBC/Queen's 2025, https://arxiv.org/abs/2511.11012 | 33 | log exact | both | XS | failed runs cost 1.4-4.4x tokens (authors) | screen (log), rigorous (notes) | branch feat/item-33-behaviour-counters |
+| A39 | Asynchronous compaction in tool windows + delta compaction | Slipstream, https://arxiv.org/abs/2605.08580 ; ACE, Stanford 2025, https://arxiv.org/abs/2510.04618 | (US-A3) | lossy | both | M | Slipstream -39.7% latency (authors) | rigorous | parked: one GPU slot shared with A9 |
+| A40 | Keep decoding while tools run (symbolic futures) | AsyncFC, Berkeley 2026, https://arxiv.org/abs/2605.15077 | (US-A4) | lossy | both | L (opencode fork) | up to 1.4x end to end on code (authors) | rigorous | parked (phase 14 timeline) |
+| A41 | Read-before-edit and test-before-done loop | ECLoop, Concordia 2026, https://arxiv.org/abs/2607.28815 | (Can-A3) | lossy | both | M | +4.8-11.8 pp, -12.1% tokens (authors) | rigorous | not started (check what opencode enforces) |
+| A42 | Externalize huge inputs (logs, diffs) instead of compacting | Recursive Language Models, MIT 2025, https://arxiv.org/abs/2512.24601 | (MIT-8) | lossy | both | M | +26% median vs compaction (authors, GPT-5) | rigorous | not started |
+| A43 | `oldString` substring constraint in the edit tool | Type-Constrained Code Generation, ETH, PLDI'25, https://arxiv.org/abs/2504.09246 | 26 | lossy | both | M | whole failed turns avoided | rigorous | parked: 1 failure in 180 edits |
+
+### 16.9 Self-tuning and learned policies
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A44 | Epoch bandit that turns a "mixed" opt-in on or off per window type (rank guard: +edit/-short; k-th miss: +edit/-short; pool pre-read) | Athena, ETH SAFARI 2026, https://arxiv.org/abs/2601.17615 | (EU-P8) | rounding | both | S | keeps the edit gain of A4/A5 without the short-chat loss: est. +2-5% on mixed sessions | confirm | parked -> **reopened**: trigger met (A4 and A5 A/Bs came out mixed) |
+| A45 | Startup probe + calibration of the CPU-vs-promote ratio, verified on window time | DALI cost model, https://arxiv.org/abs/2602.03495 ; Vidur profiling method (A6) | 55 / 63 | rounding | both | M | 0-3% here, 6-13% on other platforms (static PcieAuto lost that much here) | confirm (must find `--pcie-frac 0` alone) | planned |
+| A46 | LLM-evolved cache policy on the simulator; Belady imitation; admission/migration split | ADRS / Barbarians at the Gate, Berkeley 2025, https://arxiv.org/abs/2510.06189 ; Hawkeye, ISCA'16 (no URL in reports) ; Harmonia, https://arxiv.org/abs/2503.20507 | 14 / 27 | rounding | both | M | Belady-bounded; build only at >= 5% in the recalibrated A6 model | screen | parked (needs A6) |
+
+### 16.10 CPU expert path and DDR4 bandwidth
+
+The Q2_0 pool already reads at ~27 of 33 GB/s. Academic room is small.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A47 | Per-expert barriers + SiLU*mul fused into gate/up | Cloud-Grade SLOs for Local MoE, Tsinghua, OSDI'26, https://www.usenix.org/system/files/osdi26-wang-wenxin.pdf | 29 | exact | both | - | meas. +2.5% +-1.7 edit, token forcing PASS | - | **done** (in fast-hip, 50c6464cd) |
+| A48 | Single-thread and pool GB/s micro-benchmark of the Q2_0 kernel against the best x86 2-bit GEMV (decides whether the Phase 15 F7 kernel or any LUT work has room) | Intel 2-bit GEMV on x86, https://arxiv.org/abs/2508.06753 ; T-MAC, EuroSys'25, https://arxiv.org/abs/2407.00088 | (Asia-M6), 41 | exact | both | XS | decides F7 (fork claim edit +1-3%); LUT rewrite ~0 | screen | planned |
+
+Rejected, reason still holds: T-MAC / Vec-LUT rewrite (kernel at the bandwidth roofline); SparAMX, AMX, near-DRAM
+decompression (hardware absent); L3 / next-layer prefetch (worse here and in forks).
+
+### 16.11 Attention, KV and long-context decode
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A49 | Measure decode at 10K vs 64K vs 128K (attention share of the window) | method from Twilight, https://arxiv.org/abs/2502.02770 (US-M5) | - | exact | both | XS | 0 itself; decides A50/A51 | screen | **new** |
+| A50 | Verify-window attention that reads the prefix K/V once for all window rows | LongSpec, NTU 2025, https://arxiv.org/abs/2502.17421 (+ fork F11) | 15 F11, (Asia-P8) | rounding | both (int8 mma -> gfx11 WMMA) | M | fork: 200K decode 48.6 -> 88.9 tok/s (5080); ~0 at short context | confirm | planned (after A49) |
+| A51 | Query-aware sparse decode attention | Quest, ICML'24, https://arxiv.org/abs/2406.10774 ; Twilight (above) | (ledger h) | lossy | both | M | a few % at 100K+ | rigorous | parked: attention must exceed ~15% of decode (A49) |
+
+### 16.12 Data path: loader, PCIe, NVMe
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A52 | Direct (O_DIRECT, 16-thread) expert-arena loader, no page-cache double copy | ServerlessLLM, OSDI'24, https://www.usenix.org/conference/osdi24/presentation/fu | 38 | exact | both | - | start 28-65 s -> ~10-14 s (est.); removes the likely oomd trigger | confirm (start time, PSI, `STRATA_VERIFY_ARENA`) | done code (184e68e83); measure |
+| A53 | IOMMU passthrough guardrail at start | Fast & Safe IO Memory Protection, SOSP'24, https://experts.illinois.edu/en/publications/fast-amp-safe-io-memory-protection/ | 54 | exact | both | XS | 0 here; avoids a silent PCIe slowdown | screen | planned (folded into 63) |
+
+Rejected, reason still holds: hipFile / BaM / GPU-initiated NVMe (absent or NVIDIA-only; misses come from RAM);
+MoE-Lightning stale-dropping paging (https://arxiv.org/abs/2411.11217; ForesightSwap is off in the presets).
+
+### 16.13 Quality and measurement methods (no gain of their own; they gate 16.1-16.8)
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Status |
+| --- | --- | --- | --- | --- |
+| A54 | KLD / top-1 only reject large deviations; a fixed task set picks between close variants | Displacement Is Not Direction, Toronto 2026, https://arxiv.org/abs/2606.19558 | quality gates | done (rule) |
+| A55 | Task gate runner: BFCL v4 multi-turn + LiveCodeBench subset + own-repo checkpoint grading, repeated runs | BFCL, https://gorilla.cs.berkeley.edu/leaderboard.html ; LiveCodeBench, https://arxiv.org/abs/2403.07974 ; TheAgentCompany, https://arxiv.org/abs/2412.14161 | 67 | planned (blocks A1, A2, A4 default, A17-A20, A27, A28) |
+| A56 | EAR (expected acceptance rate) next to "same top token" in token forcing; predicts MTP acceptance | SLQ, ISTA, https://github.com/IST-DASLab/SLQ | (EU-M1) | **new** (XS) |
+| A57 | Area under the time-to-success curve for agent A/Bs | SWE-Effi, https://www.alphaxiv.org/abs/2509.09853 | (Can-M2) | planned (for A18, A38-A43) |
+| A58 | Repeated runs as distributions; reclaim-aware load gate | SD Illusion (A25); Price Reversal (US-M4) | I5 | done (abtest.py, 04c harness) |
+
+### Top 10 academic items to develop next
+
+1. **A55 + A1/A2/A4 joint quality batch.** Build the task-gate runner, then one night: turbo (A1) vs AcceptMoE (A2), each
+   with deferral + rank guard on. The biggest remaining lever (+30-50% meas. before deferral). Rigorous.
+2. **A4 rank-guard fix.** One pool pass when few rows are deferred, then the w sweep. Keeps +3-5% on edits without the
+   -6.9% on short chat. Confirm, then rigorous for fast-hip.
+3. **A14 then A11/A12/A13 on agent replays.** restore_check first, then the three coded per-turn cache opt-ins on real
+   opencode sessions from the turn log. ~10-15% of turn time, exact. Confirm.
+4. **A30 Fiddler threshold for delta prefill.** Env-only A/B on agent sessions; up to ~0.4 s per turn (est.). Confirm.
+5. **A17 + A18 thinking control.** Per-effort caps from the turn log's p99; `xhigh` vs `medium` on time to success.
+   Rigorous.
+   A17 read 2026-11-10: the log has 34 agent turns and no effort field; add the field first (A6_A17.md).
+6. **A6 recalibrated time model (no GPU).** Fit the overlap model to last night's measured points; then run A7 (ProMoE)
+   and A46 candidates offline; queue the A8 (Pie) blocking-tier arm. Screen.
+   DONE offline 2026-11-10 (A6_A17.md): A46 > A8 > A7, none worth a GPU screen at the bench's hit rate; judge them on real agent traces.
+7. **A44 Athena-style bandit** for mixed opt-ins (rank guard, k-th miss) per window type. Confirm.
+8. **A22 DISCO with entropy and SpecFit features.** Log per-position new misses and entropy into the window trace, fit
+   offline, then A/B; plus A21 exact speculative sampling (env-only) if T=0.1 takes the sampled path. Confirm.
+9. **Re-profile with deferral on, then A33/A35 retests, A37 check and A34 sweep.** The GPU floor now matters on edits too.
+   Confirm.
+10. **A19 learned thinking stop.** Dump hook on hidden states, probe trained on logged turns, the cap stays as a net.
+    Rigorous.
+
+Note: README section 4C lists XAttention at arXiv 2502.17421; the MIT report gives XAttention as 2503.16428 and the Asia
+report gives 2502.17421 to LongSpec (A50). Fix the README link.
+
+## Phase 15: speed ideas from all fork commits (2026-11-10, owner: biggest gains first)
+
+Source: [reports/Speed ideas from all forks.md](reports/Speed%20ideas%20from%20all%20forks.md) and its notes in
+`research_notes/Speed ideas from all forks/` (6 areas: HIP kernels, CUDA kernels, MoE offload and CPU, speculative
+decoding, attention/KV/quant, server and system). Input: the fork knowledge base `data/fork-kb/` (407 forks, 43,685
+own commits, `upstream_history = 0`). Every gain below is the fork author's claim on their hardware or our estimate;
+nothing was measured on our box yet. Items already in Phase 3 of bench/TEST_PLAN.md are not repeated. The report's final table (FK-01..FK-59) is the full list; F1-F22 below are the items selected for development.
+
+Order: (1) ideas useful on BOTH GPUs, (2) env-only A/Bs and probes that decide whether a port is worth writing,
+(3) exact code ports, (4) lossy arms behind the token-forcing and tool-call quality gates.
+"Both" = the idea ports CUDA <-> HIP; the port column says what changes (warp intrinsics -> DPP, mma/IMMA -> WMMA,
+launch cost ~14-16 us on gfx1100 vs ~3 us on sm_86, so fusions are worth more on the 7900 XT).
+
+### 15A. Both GPUs, largest expected gains
+
+| ID | Idea | Area | Exact/lossy | Port / note | Expected gain (claim -> our estimate) | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| F1 | `STRATA_PARK_TRUNCATE`: park the deepest checkpoint prefix that fits instead of dropping a too-large conversation | server | exact | backend-independent | our turn log: one session lost ~162 s on 7 cold 54-61K re-reads -> large TTFT win on long agent sessions | TwoAnts `5ef4fc8b4b` |
+| F2 | `--prompt-cache-spread` on in the presets (flag already in pancake), up to 16 checkpoints per conversation | server | exact | env/preset only | xrip: edited 82K conversation resumed in 10.2 s vs 40 s | xrip; Lamina `13d90a38ec` |
+| F3 | Extra checkpoint cuts (where a prompt leaves the previous one, before the last message end) + borrow before a stashed conversation's newest checkpoint | server | exact | backend-independent | Lamina: 6 agent tasks 412 s -> 369 s | Lamina `ab808b133e`, `83f40aee62` |
+| F4 | Sub-2-bit shadow expert pack (IQ1_M / IQ2_XXS) read only on CPU misses; VRAM hits stay exact | MoE/CPU | lossy | both GPUs (CPU side); needs a ~25-30 GB requant | svgop (5090): solo +3-8%, concurrency up to +21% -> est. edit +7-10%, chat +3-5% | svgop `25bf1b90f6`, `eeca072bb6`; mandoof1 `85b991da79` |
+| F5 | `STRATA_VERIFY_ECAP`: cap the experts read only by draft rows | spec | lossy | backend-independent | jmnargi (2x V100): +2.8% pooled, +11.5% drift-paired -> est. +3-10% on edits; must pass the tool-call gate (a tight cap broke 12/20 tool turns) | jmnargi `24894e676b`, `7c5041c358` |
+| F6 | Exact speculative sampling for sampled requests: `STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top STRATA_SPEC_PROB_DT=0.85` | spec | exact | env only, both | riceharvest (B70) +5.5%; svgop (5090) +5.8% / +13.4% with DT 0.85 -> est. +3-8% on sampled turns only (check opencode's temperature first) | riceharvest `7389a10f2c`; svgop `0355c3164f` |
+| F7 | Faster bit-exact Q2_0 AVX2 kernel (8-op unpack, 4 rows at a time; `STRATA_Q2_LEGACY=1` for A/B) | CPU | exact | both GPUs (CPU path) | imanu86: 1.11-1.45x single thread, Q2_0 layer -17% in a 7-worker pool -> est. edit +1-3%, more on the Q2_0 file | imanu86 `c3fc8f34d3` |
+| F8 | `STRATA_SPEC_CUM`: cumulative-probability draft stop (pair with item 5 `tail_replay.py`) | spec | exact | both; ~150 lines | android-imdad (7900 XTX): +1.8% pinned, +6.4% short chat, +2.1% agent -> est. +1-3% | android-imdad `f1bd09212a`, `ef42c2fde9` |
+| F9 | Faster router publish: write the step number instead of RMW over PCIe, copy MoE rows to host inside the router GEMV, DPP/warp top-10 | kernels | exact | CUDA warp reduce <-> HIP DPP | ours: `route_publish_res` 17.8 us/call, 2.68% of GPU time; est. +1-2% (7900 XT), smaller on sm_86 | android-imdad `caa9b00115` (`STRATA_ROUTE_FAST`); Ben1078 `23d2fc0450` |
+| F10 | `STRATA_ADAPT_PROMPT`: prompt routing feeds the adaptive tier | MoE | exact | backend-independent, ~10 lines | est. +2-5% on the first decode tokens after a long new prompt | zsariboga `4ce19344ff` |
+| F11 | Window decode attention reading K/V once per verify window (`STRATA_ATTN_WINDOW`, int8 MMA) | attention | rounding-level | CUDA int8 mma -> gfx11 WMMA | Asofwar (5080): 200K decode 48.6 -> 88.9 tok/s, 130K 112.6 -> 146.4 -> long-context decode on both GPUs | Asofwar/Strata-Turbo |
+| F12 | Cheaper IQ2/IQ3 sign expansion in the expert GEMVs (port with EXPDEC_V2) | kernels | exact | HIP measured; CUDA drop-in for the `__vcmpne4/__vsub4` sites | boxwrench (7900 XT, GLM engine): IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time -> est. 0-1.5% decode | yqYo1 `6f0bdf665b`; RX5950XT `b9a2111d3f` |
+| F13 | Route-prior guards for turbo (`STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE`, `KEEP`) so turbo can run a stronger lambda without breaking tool JSON; compare turbo against a uniform tail skip at equal KL | MoE | lossy | backend-independent | enables a stronger turbo; no speed by itself | zsariboga `8d7042ad97`; mandoof1 `3e0489e118`; lighttransport `2ea0c1e042` |
+
+### 15B. RTX 3060 (CUDA) first, then port to HIP
+
+| ID | Idea | Exact/lossy | Expected gain | Source |
+| --- | --- | --- | --- | --- |
+| F14 | KhaledElzarw sm86 kernel set: `STRATA_EXP_MODE=9` + `STRATA_EXP9_DOWN=42:10` (Q2_0 down on 4 lanes), GR_DOWN86/UP_HYB/XN/UP_PL/D87, `MMVQ_IL_3090` table (re-tune for 28 SMs); then try the Q2_0 down fold on gfx1100 vs `STRATA_EXPDEC_DOWN` | exact | 3090, same upstream base and model family: +17.3% cumulative over its baseline -> est. 3060 +8-15% (all exact items together, speculative) | KhaledElzarw/Strata |
+| F15 | `STRATA_FETCH_ADMIT` (keep PCIe-copied experts in the VRAM cache), only if the PCIe share stays above 0; check it with `ADAPT_NOWAIT` | exact (KL 0.002) | AdrianBM96 (3060): +5.1/+7.0/+5.1% decode | AdrianBM96/Strata3060 |
+| F16 | Lamina sub-warp grouped expert kernels; router with separate-block copy, one fence, hardware top-10; int8 verify projections/head | exact / rounding | Lamina (3090): +5.7-8.3% e2e; +0.9-2.7%; +2.2-6.3% | eddoursul/Lamina |
+| F17 | Qwen3.6 on strata-poly: RandoTeam `STRATA_FATTN` (prompt flash attention, q8_0 cache) + `STRATA_FDEC` (tensor-core decode attention) = MOD_PLAN 8.8 | fp16 math, KL gate | RandoTeam (4060 Laptop, 118K): 1.62x prompt, 1.60x decode -> est. 3060 prompt +20-35%, decode +10-60% from 4K | RandoTeam/4gbVramStrata `79b1e756`, `67f60c12` |
+| F18 | CUDA-only Flash-Next prefill fusions | exact | zsariboga (5090, same IQ2_XS): -4.0% prompt time at 32K | zsariboga `21107e9d` |
+
+### 15C. RX 7900 XT (HIP) only
+
+| ID | Idea | Exact/lossy | Expected gain | Source |
+| --- | --- | --- | --- | --- |
+| F19 | Qwen3.6 on the 7900 XT: either port RandoTeam's poly HIP work + a gfx11 WMMA flash prompt kernel, or move Qwen3.6 to the in-tree q36 engine with the fork fixes (FP16 K/V, K/V read once per group) | exact / fp16 | storm-ace (gfx1151) 32K prompt 360 -> 938 tok/s; dongnh311 (3060) decode after 16K 12.0 -> 27.5 tok/s | RandoTeam `44b58c6a`...; storm-ace `e4fc07ee`, `4fe0284d`; dongnh311 `62cc598f`; maoyufeng `2f7020f2` |
+| F20 | Empty-block launch probe on gfx1100 (unimatrix `empty_grid.cpp`), then resize launch shapes of the decode graph (upstream gfx12 `grid_pad`) | exact | unimatrix (7900 XTX): a 384x256 launch cost 14-16 us empty; 96 blocks gave +6% there -> 0 to several %, unknown until probed | unimatrix099 `d0c8d6c3e2`; mandoof1 `2b46e4b13d` |
+| F21 | Plan copy with 256 threads and 16-byte reads (`STRATA_WAIT_COPY256`); `STRATA_ADAPT_COPY2`; `multi_block_head_ops()` on gfx1100 | exact | +0.2-0.4%; 0-0.5%; ~0.1% | android-imdad `caa9b00115` |
+| F22 | Port `STRATA_HIP_WMMA_Q4` (gfx12-only) to gfx11 so Q4 KV prompt attention is fast and frees VRAM for experts | exact | VRAM for experts + faster long prompts | upstream / forks (see attention notes) |
+
+### 15D. Measured negatives (do not repeat)
+
+Graph fork/join branches on 7900-class cards -23..-30%; expert kernels inside one persistent launch 2x slower;
+`STRATA_DEQUANT_WIDE=1` 8-14% slower; next-layer expert prefetch -3..-4% (and our ARENA_WARM was worse); SMT siblings
+as pool threads -20%; pools split across CCDs -13..-20%; futex-only parking -14%; polling the stream at window end -3%;
+`GPU_MAX_HW_QUEUES=8` prompts 10-20% slower on a 7900 XTX; 4-bit CPU repack (adds bytes on a byte-bound pool); draft
+trees / deeper chains / eager draft launch (-2.73%); DFlash2 (lost on a 3060); more window-size controllers (same family
+as STRATA_SPEC_COST, flat here); the chunked WY GDN scan (0.73x on a 3060); renormalizing dropped expert weight (worse
+quality); PCIe share on the 7900 XT (off is faster); AVX-512 / VNNI / NUMA work (no hardware).
 
 ## Phase 12 (future): a second GPU
 
