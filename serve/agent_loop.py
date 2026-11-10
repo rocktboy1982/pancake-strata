@@ -275,9 +275,9 @@ def counters(messages: list[dict], tools: dict | None = None) -> dict | None:
                         out["edit_old_" + state] += 1
                         if state == "miss":
                             out["last_round_old_miss"] += 1
-                    if not failed:
+                    if not failed and p in known:      # (a file never read stays "unknown": its other text is not ours)
                         for old, new in pairs:
-                            known.setdefault(p, []).append(new)
+                            known[p].append(new)
                 else:
                     whole = written_text(args)
                     if whole is not None and not failed:
