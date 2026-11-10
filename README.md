@@ -424,6 +424,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_POOL_FUSE_PHASES` | `pool.cpp`, `pool.hpp` (item 29) | off | exact | mode 7: gate/up + down in one phase per layer | overlap model: +3% |
 | `STRATA_POOL_PREREAD` | `pool.hpp`, `expert_source.hpp` (from tandem.cpp) | off | exact | idle workers pre-read the lookahead's next-layer CPU experts | loses even on a noisy machine; stays off |
 | `STRATA_Q2_PREFETCH=<bytes>` | `q2_avx2.cpp` (item 40) | off | exact | prefetch Q2_0 row bytes ahead of the dot | 0-5% of CPU-expert time |
+| `STRATA_Q2_LEGACY=1` | `q2_avx2.cpp`, `q2_avx2_rows.inl` (fork commit `c3fc8f34d3`) | on (new kernel) | exact | Q2_0 AVX2 rows: 8-op code unpack instead of 14, 4 short rows at a time; `=1` runs the old kernel for A/B | fork: 1.11-1.45x one thread, 570,634 outputs bit-identical (imanu86); pancake A/B pending |
 | `STRATA_IQ2S_PAIR` | `iq_avx2.cpp` | off | exact | IQ2_S decodes both 64-value halves from one table load | **neutral** (2026-11-08) |
 | `STRATA_ACT_DUMP_RAW[_MAX]` | `pool.cpp` (item 13) | off | research | dump raw CPU expert activations for the sparsity study | enabled item 13's closure |
 | `STRATA_POOL_TAIL4=1` | `pool.cpp` (basalt ports, `e29bac539`) | off | exact | quarter-size tail tasks, plus down-row prefetch while a fused down task waits | basalt `553e9290d` / `4e6841265` ports |
@@ -736,6 +737,7 @@ Credits, in the order the stack was built:
 - **Niko1221** and the Strata contributors, for the engine everything sits on.
 - **Jarson1408** (FastStrata) and **simplexai-labs** (PolyStrata), for the `strata-poly` engine.
 - **nicejunjie** (Strata-rdna3), for the RDNA3 kernels this project ported and fused.
+- **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX2 row kernel (commit `c3fc8f34d3`), ported as the default CPU row kernel.
 - **jesdga95** (basalt), for the head kernels, the draft proxy and the grammar path.
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.

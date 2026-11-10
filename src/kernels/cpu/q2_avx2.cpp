@@ -161,6 +161,13 @@ const bool kBitplane = [] {
     return e != nullptr && e[0] == '1';
 }();
 
+// STRATA_Q2_LEGACY=1 keeps the row kernel of q2_avx2_rows.inl (row_multi / rows); unset, rows_fast_nt runs.  Both are
+// bitwise the same; the switch is for A/B.
+const bool kQ2Legacy = [] {
+    const char* e = std::getenv("STRATA_Q2_LEGACY");
+    return e != nullptr && e[0] == '1';
+}();
+
 }  // namespace
 
 bool q2_bitplane_enabled() { return kBitplane; }
@@ -182,12 +189,25 @@ void q2_0_gguf_rows_multi_avx2_legacy(const uint8_t* w, size_t row_bytes, int nb
     q2_0_gguf_rows_multi_avx2_v(STRATA_AVXVNNI && cpu_avxvnni_ok(), w, row_bytes, nblocks, a, nt, out, r0, r1);
 }
 
+// The default row kernel (rows_fast_nt in q2_avx2_rows.inl), in the AVX2 or the AVX-VNNI copy as the legacy one.
+static void q2_0_gguf_rows_multi_avx2_fast(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a,
+                                           int nt, float* const* out, int r0, int r1) {
+#if STRATA_AVXVNNI
+    if (STRATA_AVXVNNI && cpu_avxvnni_ok()) {
+        vnni::rows_fast_nt(w, row_bytes, nblocks, a, nt, out, r0, r1);
+        return;
+    }
+#endif
+    plain::rows_fast_nt(w, row_bytes, nblocks, a, nt, out, r0, r1);
+}
+
 void q2_0_gguf_rows_multi_avx2(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
                                float* const* out, int r0, int r1) {
     bool bp = kBitplane && nblocks % 2 == 0;
     for (int t = 0; t < nt && bp; ++t) bp = a[t]->bp_pairs == nblocks / 2;
     if (!bp) {
-        q2_0_gguf_rows_multi_avx2_legacy(w, row_bytes, nblocks, a, nt, out, r0, r1);
+        if (kQ2Legacy) q2_0_gguf_rows_multi_avx2_legacy(w, row_bytes, nblocks, a, nt, out, r0, r1);
+        else q2_0_gguf_rows_multi_avx2_fast(w, row_bytes, nblocks, a, nt, out, r0, r1);
         return;
     }
     const int np = nblocks / 2;
