@@ -5,6 +5,7 @@
 // with deferral (model) - provided the copies do not stall the windows, so it belongs with the asynchronous tier.
 // Placement only: outputs unchanged.  Used by both the blocking and the asynchronous serve tier (generate.cpp).
 #include <algorithm>
+#include <bit>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -57,7 +58,7 @@ public:
         for (int32_t e = 0; e < (int32_t) n_expert; ++e) {
             const size_t i = base + (size_t) e;
             if (r[e] < 0) {
-                const int m = __builtin_popcount((unsigned) (miss_[i] & mask));
+                const int m = std::popcount((unsigned) (miss_[i] & mask));
                 if (m >= k_ && allowed(e)) cand.emplace_back(1000.0f * (float) m + u[e], e);
             } else if (last_[i] != round_) {
                 vict.emplace_back(1000.0f * (float) (round_ - last_[i]) - u[e], e);   // larger = evict first
