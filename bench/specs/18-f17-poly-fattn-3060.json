@@ -1,0 +1,38 @@
+{
+ "base": "pancake-qwen36-ud-q4_k_xl.json",
+ "arms": {
+  "base": {},
+  "fattn": {
+   "env": {
+    "STRATA_FATTN": "1"
+   }
+  },
+  "fdec": {
+   "env": {
+    "STRATA_FDEC": "1"
+   }
+  },
+  "both": {
+   "env": {
+    "STRATA_FATTN": "1",
+    "STRATA_FDEC": "1"
+   }
+  },
+  "fdec-from0": {
+   "env": {
+    "STRATA_FDEC": "1",
+    "STRATA_FDEC_FROM": "0"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "long32k",
+  "long64k"
+ ],
+ "prefill": true,
+ "reps": 3,
+ "lossy": true,
+ "note": "MOD_PLAN F17 (RandoTeam/4gbVramStrata STRATA_FATTN 79b1e756 + STRATA_FDEC 67f60c12), RTX 3060 only (CUDA, sm_86; the kernels are stubs on HIP and run-pancake.sh refuses strata-poly there). The CUDA build must contain branch work/f17-poly-fattn. Order: (1) build-cuda/poly_fattn_test, then 'poly_fattn_test dec' (every line ok, 'all passed'; the dec lines' last column is one layer's time against --attn-split, the preset's decode kernel: that is the real A/B for FDEC, not the fork's 1.6x, which was measured against attend() without a split kernel); (2) ./run-pancake.sh qwen36 once so pancake-qwen36-ud-q4_k_xl.json exists, then 'python tools/pancake/abtest.py bench/specs/18-f17-poly-fattn-3060.json --out bench/results/<day>-f17.jsonl --tier screen'. base = the qwen36 preset (--kv-q8 --attn-split, --max-context 131072, --elastic-prefill 1024). fattn = prompt batches through llama.cpp's flash-attention kernel (judged on long32k / long64k prompt tok/s; with --elastic-prefill the 4,096-row batches go in two slices of 2,048 in score_; the engine logs 'STRATA_FATTN: prompt attention through ...' or why not). fdec = decode attention through the tensor-core kernel in launches sized for more than 4,096 rows: short / edit run below 4K and must be unchanged in speed; its effect is in the long32k / long64k rows' decode_tps (31 tokens each, noisy: read the jsonl), for a real decode-at-context number use a 32K-context conversation (tools/pancake/decode_curve.py style) afterwards. fdec-from0 = the kernel from the first row (the fork measured it slower below ~4K: 0.05-0.06 against 0.02 ms a layer). Every arm changes the numbers in the last bits (sums in halves): lossy true, the text hash is not compared; the default needs the KL gate: 'python tools/pancake/poly_kl.py --config pancake-qwen36-ud-q4_k_xl.json --tokenizer <STRATA_DATA>/packs/qwen36-ud-q4_k_xl/tokenizer --tokens 32000 --new 256 --arm fattn:STRATA_FATTN=1 --arm fdec:STRATA_FDEC=1 --arm both:STRATA_FATTN=1,STRATA_FDEC=1 --out bench/quality/<day>-f17-32k', and again with --tokens 64000. strata-poly prints the 'strata serve: prompt ...' line abtest reads only from this branch on (src/poly/main.cpp)."
+}

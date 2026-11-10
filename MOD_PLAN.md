@@ -83,7 +83,7 @@ engine 0.1.8). Both diverged by thousands of commits, so nothing is merged; each
 | 10.5 VRAM lending, item 7 per-layer budgets | dropped | +5% cache slots: no decode change; cross-layer swaps 48.3% vs 48.4% |
 | 8.6 learned expert profile | done, in the IQ2_XS presets | +6.7% decode, every run faster |
 | 8.7 two-stage prompts | blocked | needs a second GPU |
-| 8.8 fused attention prompt kernel | low ceiling | attention is 6.7% of a 42K prompt on the main engine |
+| 8.8 fused attention prompt kernel | low ceiling on main; on strata-poly coded as F17 (2026-11-10, `work/f17-poly-fattn`, unbuilt) | attention is 6.7% of a 42K prompt on the main engine, ~38% on strata-poly |
 | 8.9 cache-aware routing | opt-in (`turbo`) | 0.5: +25% decode, 2.9% tokens differ (stock 1.2-1.3%) |
 | 8.9 KV body, mb-MTP | dropped | VRAM does not buy decode here; drafting is 2-5% of a window |
 | 8.10, phase 5 | blocked | the 7900 XT is not detected |
@@ -597,7 +597,7 @@ Each lands as its own commit, measured (the bench and, where numbers change, exa
 | 8.5 | Adaptive MTP depth (3-4 by measured cost) | llamAmpere | poly | yes | decode |
 | 8.6 | A learned expert profile loaded at start | llama.cpp MoE cache PR | poly, main | yes | start-of-session decode |
 | 8.7 | Two-stage prompts (`--prompt-split`) | StrataFast | main | check | long prompts 1.24-1.55x there |
-| 8.8 | Fused flash-attention prompt kernel (D=256, GQA 8, Q8 cache, causal inline); INT8-IMMA attention variant | own; Speedy's IMMA idea | poly | numerics change: KL | the 38% at 42K |
+| 8.8 | Fused flash-attention prompt kernel (D=256, GQA 8, Q8 cache, causal inline); INT8-IMMA attention variant. **Coded 2026-11-10 as F17** (RandoTeam's port of llama.cpp's kernel instead of an own one; see "F17 status") | own; Speedy's IMMA idea; RandoTeam `79b1e756` | poly | numerics change: KL | the 38% at 42K |
 | 8.9 | Opt-in lossy: cache-aware routing (colibri `CACHE_ROUTE`), SJ-KVaRN-style KV body (keys 8-bit, recent window), mb-MTP | colibri, llamAmpere | poly | no: opt-in, KL | decode / VRAM |
 | 8.10 | RDNA3 kernels, tensor parallel, SDMA, idle-queue parking for the 7900 XT | Strata-rdna3 | main, HIP | per kernel parity | 2-3x stock on gfx1100; waits for the card |
 | 8.11 | basalt's head kernels (owner's request): **done 2026-11-08** - `q5k_head.cu` ported (Q5_K heads: Q2_0 / IQ3_XXS files) and the same designs written for IQ4_XS (the IQ2_XS head in daily use): exact head GEMV, 2-bit two-stage draft pick | basalt | main | yes | +3-5% decode (draft pick), head x1.07-1.27 in its test |
@@ -1887,7 +1887,7 @@ gfx1100 matrix-core version (design only; would be `STRATA_ATTN_WINDOW=2`, round
 | F14 | KhaledElzarw sm86 kernel set: `STRATA_EXP_MODE=9` + `STRATA_EXP9_DOWN=42:10` (Q2_0 down on 4 lanes), GR_DOWN86/UP_HYB/XN/UP_PL/D87, `MMVQ_IL_3090` table (re-tune for 28 SMs); then try the Q2_0 down fold on gfx1100 vs `STRATA_EXPDEC_DOWN`. **EXP_MODE=9 + EXP9_DOWN coded 2026-11-10 (`work/f14-sm86-exp9`), see "F14 status" below** | exact | 3090, same upstream base and model family: +17.3% cumulative over its baseline -> est. 3060 +8-15% (all exact items together, speculative) | KhaledElzarw/Strata |
 | F15 | `STRATA_FETCH_ADMIT` (keep PCIe-copied experts in the VRAM cache), only if the PCIe share stays above 0; check it with `ADAPT_NOWAIT` | exact (KL 0.002) | AdrianBM96 (3060): +5.1/+7.0/+5.1% decode | AdrianBM96/Strata3060 `50581c24f2`, `3ff40d67e3` (MIT) **done as an alias, branch work/f15-fetch-admit (unbuilt, unmeasured):** this tree already has the engine's own version, `STRATA_ADAPT_FETCH=1|2` (`ExpertDispatch::fetch_admit`, `fetch_can`, dst2 in the plan, `fetch_blobs`/`rebase_ptrs` with a second target; upstream DETAILS.md: PRO 5000, `=1` +5.0%, `=2` +10.2%), so the fork's `fetch_blobs_admit` / `admit2` were NOT ported (they would duplicate it). Change: `STRATA_FETCH_ADMIT=1` is read by `adapt_fetch()` as `STRATA_ADAPT_FETCH=1` (an explicit `STRATA_ADAPT_FETCH` wins; neither set = byte-identical), plus one cumulative serve log line `STRATA_ADAPT_FETCH: N experts kept in the VRAM cache from the PCIe share` (only when on). ADAPT_NOWAIT: the fork refuses to run with it because its device residency table is not updated; upstream's version forces `evict_sync` (tier lagging under NOWAIT/LAG>1) and uploads the table before each window (`res_dirty`), so there is no conflict and nothing is refused; the sm_86 table's NOWAIT=1 / LAG=2 stay on. **The real blocker is `--adapt-async`**: the 3060 preset has `--adapt-async 1`, and ADAPT_FETCH is off under it (log: `STRATA_ADAPT_FETCH is off (--adapt-async)`), so the A/B must run with `--adapt-async 0` and the cost of leaving the async tier is part of the result. Needs a PCIe share above 0: omit `--pcie-frac` (auto; a literal `--pcie-frac auto` parses as 0). HIP: the code is shared and compiles, but the 7900 XT presets run `--pcie-frac 0`, so it is inert there; not worth a HIP arm unless a preset ever turns the share on. Screen `bench/specs/18-f15-fetch-admit.json` (sync control, async preset, admit, fetch=2, margin 2, NOWAIT 0 pair), then token forcing `--path decode` |
 | F16 | Lamina sub-warp grouped expert kernels; router with separate-block copy, one fence, hardware top-10; int8 verify projections/head | exact / rounding | Lamina (3090): +5.7-8.3% e2e; +0.9-2.7%; +2.2-6.3% | eddoursul/Lamina |
-| F17 | Qwen3.6 on strata-poly: RandoTeam `STRATA_FATTN` (prompt flash attention, q8_0 cache) + `STRATA_FDEC` (tensor-core decode attention) = MOD_PLAN 8.8 | fp16 math, KL gate | RandoTeam (4060 Laptop, 118K): 1.62x prompt, 1.60x decode -> est. 3060 prompt +20-35%, decode +10-60% from 4K | RandoTeam/4gbVramStrata `79b1e756`, `67f60c12` |
+| F17 | Qwen3.6 on strata-poly: RandoTeam `STRATA_FATTN` (prompt flash attention, q8_0 cache) + `STRATA_FDEC` (tensor-core decode attention) = MOD_PLAN 8.8. **Coded 2026-11-10 on `work/f17-poly-fattn` (opt-in, CUDA only, not built or measured), see "F17 status"** | fp16 math, KL gate | RandoTeam (4060 Laptop, 118K): 1.62x prompt, 1.60x decode -> est. 3060 prompt +20-35% at 32-128K; decode: the fork's 1.60x is against `attend()` without a split kernel, the qwen36 preset already runs `--attn-split`, so est. 0 for 1-2-token steps and +0-8% at 32-128K for windows of 3+ tokens (code reading) | RandoTeam/4gbVramStrata `79b1e756`, `67f60c12` |
 | F18 | CUDA-only Flash-Next prefill fusions | exact | zsariboga (5090, same IQ2_XS): -4.0% prompt time at 32K | zsariboga `21107e9d` |
 
 #### F14 status (2026-11-10, branch `work/f14-sm86-exp9`: coded, not built, not measured)
@@ -1967,11 +1967,124 @@ F14 follow-ups (KhaledElzarw, not ported yet; all opt-in and bit-identical in th
 
 Env-only arms for TEST_PLAN 4.1.7 (no code): `STRATA_GR_UP_WIDE=1`, `STRATA_GRAPH_PRIO=1`, `STRATA_DOORBELL_STORE=1`.
 
+#### F17 status (2026-11-10, branch `work/f17-poly-fattn`: coded, not built, not measured)
+
+Ported from RandoTeam/4gbVramStrata (MIT: Niko1221 and the Strata contributors, VecSzn and the PolyStrata
+contributors), the last state of its `src/poly/fattn*` before the rename to `src/fourgbvram` (4638045c): 79b1e756
+(`STRATA_FATTN`, Travis Sinclair), 79acffe5 (decided per card and per scratch), 67f60c12 (`STRATA_FDEC`, Travis
+Sinclair), 7fb9d79d (groups of 16), ac6402df (the copy in step with the llama.cpp pin), bee07744 (the 4,096-row start
+of the decode kernel, VecSzn; the fork's default-on part was not taken). Full SHAs from `data/fork-kb/forks.sqlite`,
+diffs read with `gh api`.
+
+What is in the tree:
+- `src/poly/fattn_mma.cuh`: llama.cpp's `fattn-mma-f16.cuh` with three marked changes (the causal mask computed in
+  the kernel from the positions, `mask_ptr` never read; each tile's softmax max and sum written to `dst_meta`;
+  `dst_meta` passed at the tile's first head), up to its host launcher. Our pin is the fork's (`3cf03257f`): the
+  upstream file's sha256 matches the copy's header, and `src/poly/fattn_mma.patch` applied to it gives the copy byte
+  for byte (`STRATA_GGML_DIR=<main checkout>/third_party/llama.cpp python -m unittest tools.test_fattn_sync`: 2 OK).
+- `src/poly/fattn.cu` / `fattn.hpp` (in `strata_poly_mmq`; stubs on HIP): `fattn_q8/_f16` (prompt) and
+  `fdec_q8/_f16` (decode). pancake's changes: (1) pancake's q8_0 row keeps its 512 codes and 16 fp16 scales together
+  (544 bytes), the fork's are two arrays: `Kvq8` carries both row strides and `q8_cache()` makes one for store_q8()'s
+  rows; the dequant kernel and the decode kernel take the strides (for the fork's layout they are width and width/32,
+  the old arithmetic); `fdec_q8` checks the 8-/16-byte alignment of codes and scales and refuses otherwise; (2) a
+  batch whose block does not fit the scratch goes in slices of half as many tokens (whole tiles), each its own batch
+  (see the VRAM check: without this the kernel never runs on our 4,096-row elastic batches).
+- `src/poly/qwen35.cpp`: opt-in. `STRATA_FATTN=1`: prompt batches (>= 32 rows) over a q8_0 or fp16 cache first try
+  `fattn_*`, else `attend_batch*` as before. `STRATA_FDEC=1`: decode calls whose launch is sized for more than 4,096
+  rows (`room(n)` when recorded, else pos + n; `STRATA_FDEC_FROM=N`, 0 = from the first row) first try `fdec_*`, else
+  `attend*` (with `--attn-split` as configured). Decided by the launch's size, not the fork's `pos >= 4096`, so a
+  recorded graph makes the same choice at every replay. `--kv-q4` keeps the old kernels. Both unset: no CUDA call is
+  added and every call is the old one with the old arguments (byte-identical by construction; `g++ -fsyntax-only
+  -std=c++20` clean on qwen35.cpp and main.cpp; nothing else compiled).
+- `src/poly/fattn_test.cu` -> `poly_fattn_test` (CUDA only): the fork's test on pancake's rows and kernels, plus two
+  slice cases (a scratch too small for the batch; a 4,096-token batch in the real 64 MiB score_), the same bits on
+  both q8 layouts, and in `dec` mode the time against `--attn-split` beside the plain kernels.
+- `src/poly/main.cpp`: after each `DONE`, the main engine's `strata serve: prompt ... read in ... generated in ...`
+  line on stderr, so `tools/pancake/abtest.py` (which reads only that line) can run strata-poly specs; tokens unchanged.
+- `tools/pancake/poly_kl.py`: the KL gate for strata-poly (none existed: `force_check.py` drives the main engine):
+  `--tokens @prompt --follow @answer --top-probs 20` for the base twice (noise floor) and each arm; KL on the base's
+  top-20 + the rest, top-1 agreement; `--selftest` passes (no GPU).
+- `bench/specs/18-f17-poly-fattn-3060.json`: base (qwen36 preset) vs `fattn`, `fdec`, `both`, `fdec-from0`; cases
+  short, edit, long32k, long64k, `prefill: true`, lossy.
+
+VRAM check against our setting (qwen36 preset: `--max-context 131072 --kv-q8`; from the GGUF: head_count 16,
+head_count_kv 2, key/value_length 256, 41 blocks with the MTP block, an attention layer every 4):
+- Both kernels work in Qwen35's existing `score_`: chunk_ = 16,777,216 / (16 * 131,072) = 8, so 8 * 16 * 131,072 =
+  16,777,216 floats = 64 MiB. No new allocation: "no VRAM added" holds in code. The old path's buffers (`awork_` ~25
+  MiB at --prompt-batch 1024, `deq_` 4 MiB) stay allocated, so nothing is freed either (follow-up once FATTN is the
+  default: skip them, ~29 MiB more for the expert cache).
+- FATTN's need: a batch of n tokens keeps n * 16 * 256 floats of results + 2 * 2 * n * 16 of max/sum + an int a
+  tile, then K and V of a block as fp16 (512 floats a row). n = 1,024 (--prompt-batch default): blocks of 24,416 key
+  rows, 6 blocks (5 merges) at 131K. n = 2,048: 16,096 rows a block. **n = 4,096 does not fit at all**: its results
+  alone are 16,777,216 floats, the whole score_. The preset's `--elastic-prefill 1024` reads every prompt of >= 1,024
+  tokens in batches of up to 4,096 (--elastic-batch default), so with the fork's code every long prompt (the case
+  FATTN is for) would have fallen back to attend_batch_q8 without a word (the fork decides once at load, with rows_
+  = 1,024, and refuses per call). Hence pancake's slices: a 4,096 batch is two passes of 2,048, each re-dequantizing
+  the prefix (at 131K ~0.4 GB of traffic a layer, ~1 ms on the 3060, against ~0.1-0.2 s of attention a layer).
+- FDEC's need at 131,072: 128 splits * 2 KV heads * 32 rows * (256 + 2) = 2,113,536 floats = 8.06 MiB of score_.
+- The old objection (docs/PANCAKE_FINDINGS.md: ggml's fattn needs a mask buffer and fp16 copies of the Q8 cache,
+  ~130 MB at 42K) does not apply: the mask is computed in the kernel (change 1), the fp16 blocks live in score_.
+- The cache itself: 544 bytes a row for K and for V, 11 attention layers (10 + the MTP block): 11.7 KB a token, 1.46
+  GiB at 131K (VMM, grows with the conversation; both kernels read only rows below pos + n).
+
+Numerics (the fork's measurements; KL gate before any default): llama.cpp's kernel sums the value products in halves
+on NVIDIA (T_C_VKQ), so FATTN is up to 7.7e-3 from doubles on results up to 2.9 (attend_batch 2.3e-3; RTX 3070);
+FDEC within 1.8e-3 (the fork's attend ~1e-6; our `--attn-split` already rounds values to halves, so FDEC is nearer the
+preset's kernel than the fork's). The fork's quality checks: 107K / 247K recall passed, 11 of 12 long-context answers
+with and without, greedy text parts from the old path at near-ties. Gate: `tools/pancake/poly_kl.py` at 32K and 64K;
+proposal PASS = mean KL <= 1e-3 and top-1 >= 99% (q8 KV < 0.00012 and BFLA 0.0014 / 0.0045 for scale).
+
+Expected gain on the 3060 (estimates, code reading):
+- FATTN: the 42K read spends ~12 of 32 s in attention (QK 4.0 s, PV 4.1 s, softmax 3.1 s, dequant/rescale 0.8 s);
+  the fork's 3070 numbers against the same kind of old path (cuBLAS + softmax in memory): 32K +27%, 103K +69%,
+  143K +75%. Est. +20-35% prompt tok/s at 32-64K, more at 128K, ~0 below 8K.
+- FDEC: **smaller than the claim.** The fork's 1.60x is against `attend()`'s three kernels (scores through memory
+  twice); the qwen36 preset runs `--attn-split`, already one tensor-core pass (blocks of 512 rows, 16 queries = 2
+  tokens of a group a launch block). FDEC's blocks take 1,024 rows for up to 4 tokens (32 query rows): K/V are read
+  once per 4 tokens instead of once per 2. No change for 1-2-token steps, half the K/V bytes for windows of 3+
+  tokens. A full K/V read over the 11 layers is 1.46 GiB at 131K (~4.7 ms on the 3060), 0.36 GiB at 32K. Est. +0-8%
+  decode at 32-128K on drafted windows. `poly_fattn_test dec`'s last column (against `--attn-split`) decides it.
+
+Run on the 3060, in this order: (1) build `build-cuda` (strata-poly, poly_fattn_test); `poly_fattn_test`,
+`poly_fattn_test dec`, `poly_fattn_test gqa16` (every line `ok`, `all passed`); (2) `./run-pancake.sh qwen36` once
+(renders pancake-qwen36-ud-q4_k_xl.json), then `abtest.py bench/specs/18-f17-poly-fattn-3060.json --tier screen`;
+(3) `poly_kl.py` at 32K and 64K (the spec note has the command); (4) only with a PASS and a speed gain: on for sm_80+
+in the qwen36 presets (env in the config, not a code default).
+
+gfx1100 (what a WMMA version needs; nothing coded):
+- Prerequisite: strata-poly on HIP at all (F19: RandoTeam `44b58c6a` VMM / cuBLAS shims, `4636dbe3` VMM caveats,
+  `6a991bce` q8 KV on HIP; `run-pancake.sh` refuses poly on HIP today). On HIP poly's decode attention is
+  `attend_rows` (`STRATA_POLY_SPLIT` is CUDA-only), so there the baseline is the fork's kind, and a decode kernel that
+  reads K/V once per window has the fork's kind of headroom, unlike on the 3060.
+- Prompt kernel (FATTN): close. llama.cpp's fattn-mma-f16 at our pin already has an AMD WMMA path:
+  `AMD_WMMA_AVAILABLE` for RDNA3 and RDNA4 (`common.cuh`), a `ggml_cuda_fattn_mma_get_config_rdna` table (D=256, 64
+  columns: 256 threads, occupancy 2, nbatch_fa 64, one stage, no cp.async), and ggml's dispatcher picks it on RDNA for
+  a GQA ratio divisible by 8. Needed: (a) compile `fattn.cu`'s prompt half for HIP through ggml's own HIP path
+  (`vendors/hip.h`, GGML_USE_HIP, `RDNA3` from `__gfx1100__`), which `strata_poly_mmq` already uses for MMQ, and keep
+  FDEC behind `!GGML_USE_HIP`; (b) `make_setup`: `amd_wmma_available(cc)` instead of the NVIDIA/Ampere test; (c)
+  **np**: every RDNA row for D=256 gives np >= 2 (8 waves x 16 columns = 128 > 64), and change 2 writes `dst_meta`
+  only for np == 1, so the launcher would refuse. Either a fourth change (write the combined max and sum, `KQ_cmn` /
+  `KQ_crs`, from the np > 1 combine branch, where the `threadIdx.y % np == 0` waves hold them; patch and sync test
+  updated), or a pancake-only RDNA config row with 128 threads (4 waves x 16 = 64, np = 1) tuned against it; (d)
+  check T_C_VKQ on AMD (a float accumulator would put the numbers nearer attend_batch than on NVIDIA); (e) launch cost
+  (~14-16 us on gfx1100): ~8 blocks x 4 launches x 11 layers a batch at 131K, ~5 ms against seconds of attention; (f)
+  a HIP `poly_fattn_test` run. Size: ~150-250 lines + the build. Alternative: storm-ace `e4fc07ee` (gfx11
+  `v_wmma_f32_16x16x16_f16` flash prompt kernel, q36 engine), F19 route b.
+- Decode kernel (FDEC): a rewrite, not a port. `mma.sync m16n8k16` -> `__builtin_amdgcn_wmma_f32_16x16x16_f16_w32`
+  (16x16x16, wave32; on RDNA3 the A/B operands are 16 halves a lane with lanes 16-31 repeating 0-15, and C is 8
+  floats a lane, rows interleaved by lane half), so S takes 16 keys a WMMA instead of 8 and every fragment index
+  changes; `__byte_perm` -> `__builtin_amdgcn_perm` (v_perm_b32, another selector encoding); the exact int8 -> half
+  trick (0x64XX - 1152) works on any IEEE fp16 unit; `__shfl_xor_sync` is DPP already (`hip_compat`,
+  `STRATA_DPP_SHFL`); LDS ~21.5 KiB a block (Qs 16.5 + Ps 4.5 + red) fits 64 KiB. ~400 lines. Temper the hope:
+  decode attention is bandwidth-bound (800 GB/s on the 7900 XT), pancake's own gfx11 WMMA decode attention
+  (`STRATA_ATTN_WMMA`, feat/bitdecoding-hip) measured neutral on Flash-Next, and the gain is reading K/V once per
+  window, which a CUDA-core kernel can also do (F11 Asofwar, dongnh311 `62cc598f` GQA-shared decode). Prompt first.
+
 ### 15C. RX 7900 XT (HIP) only
 
 | ID | Idea | Exact/lossy | Expected gain | Source |
 | --- | --- | --- | --- | --- |
-| F19 | Qwen3.6 on the 7900 XT: either port RandoTeam's poly HIP work + a gfx11 WMMA flash prompt kernel, or move Qwen3.6 to the in-tree q36 engine with the fork fixes (FP16 K/V, K/V read once per group) | exact / fp16 | storm-ace (gfx1151) 32K prompt 360 -> 938 tok/s; dongnh311 (3060) decode after 16K 12.0 -> 27.5 tok/s | RandoTeam `44b58c6a`...; storm-ace `e4fc07ee`, `4fe0284d`; dongnh311 `62cc598f`; maoyufeng `2f7020f2` |
+| F19 | Qwen3.6 on the 7900 XT: either port RandoTeam's poly HIP work + a gfx11 WMMA flash prompt kernel, or move Qwen3.6 to the in-tree q36 engine with the fork fixes (FP16 K/V, K/V read once per group). What a gfx1100 version of F17's two kernels needs: "F17 status", gfx1100 part (the prompt kernel is close: the copy at our llama.cpp pin already has an RDNA3 WMMA path) | exact / fp16 | storm-ace (gfx1151) 32K prompt 360 -> 938 tok/s; dongnh311 (3060) decode after 16K 12.0 -> 27.5 tok/s | RandoTeam `44b58c6a`...; storm-ace `e4fc07ee`, `4fe0284d`; dongnh311 `62cc598f`; maoyufeng `2f7020f2` |
 | F20 | Empty-block launch probe on gfx1100 (unimatrix `empty_grid.cpp`), then resize launch shapes of the decode graph (upstream gfx12 `grid_pad`) | exact | unimatrix (7900 XTX): a 384x256 launch cost 14-16 us empty; 96 blocks gave +6% there -> 0 to several %, unknown until probed | unimatrix099 `d0c8d6c3e2`; mandoof1 `2b46e4b13d` |
 | F21 | Plan copy with 256 threads and 16-byte reads (`STRATA_WAIT_COPY256`); `STRATA_ADAPT_COPY2`; `multi_block_head_ops()` on gfx1100 | exact | +0.2-0.4%; 0-0.5%; ~0.1% | android-imdad `caa9b00115` |
 | F22 | Port `STRATA_HIP_WMMA_Q4` (gfx12-only) to gfx11 so Q4 KV prompt attention is fast and frees VRAM for experts. **Coded 2026-11-10 on `work/f22-wmma-q4-gfx11`, not built, not measured; see "F22 status" below** | rounding-level vs today's Q4 path (FP32-level with `STRATA_PA_FAST=0`); `--kv q4_0` itself is lossy | VRAM for experts (~180 MiB = ~131 slots at `--kv-resident 32768`) + faster long prompts on Q4 KV | bsorensen110 `19fc0e48` (attention notes) |
