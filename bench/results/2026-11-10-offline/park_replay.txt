@@ -1,0 +1,10 @@
+conv B: 31 requests, actual prompt time 204.5 s, cold re-reads 8 ([(34261, 17.1), (54313, 21.2), (56264, 22.5), (57763, 22.9), (58710, 24.6), (59395, 23.3), (60233, 25.0), (61565, 23.3)])
+S0 baseline (1280 MiB, 4 slots)                  conv-B prompt time  185.8 s  cold re-reads 8  saved vs S0    0.0 s
+S1 PARK_TRUNCATE only                            conv-B prompt time  134.3 s  cold re-reads 5  saved vs S0   51.5 s
+S2 --conversation-cache-min-tokens 8192 only     conv-B prompt time  164.0 s  cold re-reads 7  saved vs S0   21.8 s
+S3 PARK_TRUNCATE + min-tokens 8192               conv-B prompt time   54.5 s  cold re-reads 1  saved vs S0  131.3 s
+S1b PARK_TRUNCATE only, a tail checkpoint 2K tokens before the end exists conv-B prompt time  147.2 s  cold re-reads 6  saved vs S0   38.6 s
+S3b PARK_TRUNCATE + min-tokens 8192, tail checkpoint 2K before the end conv-B prompt time   43.0 s  cold re-reads 1  saved vs S0  142.8 s
+S4 budget 2048 MiB only                          conv-B prompt time  118.2 s  cold re-reads 5  saved vs S0   67.6 s
+S5 budget 2048 MiB + min-tokens 8192             conv-B prompt time   27.7 s  cold re-reads 1  saved vs S0  158.1 s
+S6 budget 1600 MiB + min-tokens 8192             conv-B prompt time   73.5 s  cold re-reads 3  saved vs S0  112.3 s
