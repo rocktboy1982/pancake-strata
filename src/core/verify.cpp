@@ -5636,6 +5636,18 @@ bool Verifier::copy_logits(int t, float* host) const {
                       cudaMemcpyDeviceToHost) == cudaSuccess;
 }
 
+bool Verifier::copy_head_row(int t, float* host) const {
+#if defined(STRATA_GPU_METAL)
+    (void) t; (void) host;
+    return false;   // A19: the Metal window keeps its head input inside metal_engine (not wired)
+#else
+    if (next_ != nullptr) return next_->copy_head_row(t, host);   // a layer split: the head is on the last stage
+    if (head_mixed_ == nullptr || host == nullptr || g_ == nullptr || t < 0 || t >= max_t_) return false;
+    const size_t n = (size_t) g_->n_embd;
+    return cudaMemcpy(host, head_mixed_ + (size_t) t * n, n * sizeof(float), cudaMemcpyDeviceToHost) == cudaSuccess;
+#endif
+}
+
 
 // ================================ PIPELINED WINDOWS (see verify.hpp) ================================
 //
