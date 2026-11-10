@@ -3200,8 +3200,10 @@ if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT S
     # as strata_mmq's does.
     set_source_files_properties(${_strata_mmq}/quantize.cu ${_strata_poly_mmq_instances} PROPERTIES LANGUAGE HIP)
   endif()
-  add_library(strata_poly_mmq STATIC src/poly/mmq.cu src/prefill/ggml_cuda_host.cu ${_strata_mmq}/quantize.cu
-              ${_strata_poly_mmq_instances})
+  # src/poly/fattn.cu (MOD_PLAN F17): llama.cpp's flash-attention MMA kernel for Qwen3.6's attention (opt-in
+  # STRATA_FATTN / STRATA_FDEC); it needs the same ggml-cuda headers and host symbols; on HIP it is stubs
+  add_library(strata_poly_mmq STATIC src/poly/mmq.cu src/poly/fattn.cu src/prefill/ggml_cuda_host.cu
+              ${_strata_mmq}/quantize.cu ${_strata_poly_mmq_instances})
   target_include_directories(strata_poly_mmq PRIVATE ${_strata_gg}/include ${_strata_gg}/src ${_strata_mmq}
                                                     ${CMAKE_CURRENT_SOURCE_DIR}/include)
   target_compile_options(strata_poly_mmq PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda -use_fast_math>)
@@ -3292,6 +3294,17 @@ if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT S
   target_include_directories(poly_attend_split_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                                            ${_strata_gpu_include_directories})
   target_link_libraries(poly_attend_split_test PRIVATE ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
+  # MOD_PLAN F17: fattn_q8() / fattn_f16() (llama.cpp's flash-attention kernel) against attend_batch_q8() /
+  # attend_batch(), and with `dec` fdec_q8() / fdec_f16() against attend_q8() / attend() with and without
+  # --attn-split; CUDA only (the kernels are stubs on HIP); needs a card, run by hand
+  if(NOT STRATA_ENABLE_HIP)
+    add_executable(poly_fattn_test src/poly/fattn_test.cu src/poly/kernels.cu)
+    target_include_directories(poly_fattn_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                      ${CMAKE_CURRENT_SOURCE_DIR}/src/poly
+                                                      ${_strata_gpu_include_directories})
+    target_link_libraries(poly_fattn_test PRIVATE strata_poly_mmq ${_strata_gpu_blas_target}
+                                                  ${_strata_gpu_runtime_target})
+  endif()
   # the --kv-q4 caches: store_q4() against ggml's Q4_0, attend_q4() and attend_batch_q4() against the host; needs a
   # card, so it is run by hand
   add_executable(poly_kv_q4_test src/poly/kv_q4_test.cu src/poly/kernels.cu)

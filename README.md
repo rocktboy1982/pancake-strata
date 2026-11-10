@@ -113,6 +113,7 @@ token-forcing quality gate.
 | [Strata](https://github.com/Niko1221/Strata) | Niko1221 | MIT | Code (base) | The base engine: hybrid CPU/GPU MoE execution, MTP, expert cache, app and terminal. Everything above sits on it. |
 | [FastStrata](https://github.com/Jarson1408/FastStrata) | Jarson1408 | MIT | Code | The `strata-poly` engine (engine, CUDA/AVX2 kernels, conversation disk cache, suffix replay), ported and tuned. |
 | [PolyStrata](https://github.com/simplexai-labs/PolyStrata) | simplexai-labs | MIT | Code | Same lineage as FastStrata's poly engine; ported together with it. |
+| [4gbVramStrata](https://github.com/RandoTeam/4gbVramStrata) | RandoTeam (commits by Travis Sinclair and VecSzn) | MIT | Code | strata-poly's flash-attention prompt kernel (`STRATA_FATTN`, a patched copy of llama.cpp's `fattn-mma-f16`) and tensor-core decode attention (`STRATA_FDEC`), MOD_PLAN F17: ported opt-in, moved to pancake's q8_0 rows, with batch slices for the elastic prompt batches. |
 | [Strata-rdna3](https://github.com/nicejunjie/Strata-rdna3) | nicejunjie | MIT | Code | All RDNA3 wave32 decode and prefill kernels (`rdna_gr.cu`, `rdna_mmvq.cu`, `route_row.cuh`), hand-ported 1,938 upstream commits after their base. Not ported, with reasons: long-context top-k (upstream `STRATA_SELECT_LONG` covers it), PF_GROUP_RES (upstream group-resident), PA_KLDS (upstream rewrote it as `STRATA_PA_RPF`), RDNA_PAIR (neutral), GDN megakernel (0.0 ms on one GPU). |
 | [basalt](https://github.com/jesdga95/basalt) | jesdga95 | MIT | Code | Q5_K/IQ4_XS output-head kernels (`q5k_head`, `head_fmt`), the 2-bit MTP draft proxy (`head_proxy`), the grammar path, idle-sleep ideas. |
 | [Project Maya](https://github.com/mw00/project-maya) | mw00 | MIT | Code | Loop guard (`serve/loop_guard.py`), soft reasoning-budget close (#613), tolerant tool-call parser, prompt memo. |
@@ -452,6 +453,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_ROUTE_TRACE=<file>` | `src/poly/engine.cpp` | off | per-call routing trace for `cache_sim`; feeds all replay tools |
 | `STRATA_SWAP_HALF=N` | `src/poly/engine.cpp` | off | halve recent-uses every N written tokens |
 | `STRATA_CPU_STATS` | `src/poly/cpu_experts.cpp` | off | print what CPU experts read + timing at exit |
+| `STRATA_FATTN=1` | `src/poly/fattn.cu`, `fattn_mma.cuh`, `qwen35.cpp` (MOD_PLAN F17; RandoTeam `79b1e756`) | off | Qwen3.6 prompt batches through llama.cpp's flash-attention MMA kernel (causal mask in the kernel, q8_0 blocks dequantized into the existing 64 MiB score scratch, no new VRAM; 4,096-row elastic batches in two slices). Ampere+ NVIDIA, heads of 256; else the old path. Rounding-level (sums in halves): KL gate (`tools/pancake/poly_kl.py`) before a default. Fork (RTX 3070): prompt +27% at 32K, +69% at 103K; not built or measured here |
+| `STRATA_FDEC=1` (+ `STRATA_FDEC_FROM=N`, default 4096, 0 = always) | `src/poly/fattn.cu`, `qwen35.cpp` (MOD_PLAN F17; RandoTeam `67f60c12`) | off | Qwen3.6 decode attention on the tensor cores: blocks of 1,024 keys for up to 4 tokens (K/V read once per 4 tokens), in launches sized for more than N rows. Same bits alone or in a window. Rounding-level: KL gate. The fork's 1.60x at 118K was against the kernels without `--attn-split`; the qwen36 preset already runs that, so expect less (more on 3+-token windows). Not built or measured here |
 
 ### 6F. Window trace and side-branch switches
 
@@ -572,7 +575,9 @@ About 40 new files ported from PolyStrata/FastStrata: the engine (`engine.cpp`),
 conversation disk cache with suffix replay and index, hybrid CPU/GPU expert execution (`cpu_experts`), and
 parity/bench/test files. Own switches: `STRATA_GDN_COLS`, `STRATA_GEMM_SMALL_TILED`, `STRATA_SOFTMAX_REG`,
 `STRATA_ROUTE_TRACE`, `STRATA_SWAP_HALF`, `STRATA_CPU_STATS`. Why: stock `strata` at 64K context writes at 9.7 tok/s
-on the 3060; `strata-poly` reaches 71.7 on the same prompt.
+on the 3060; `strata-poly` reaches 71.7 on the same prompt. Later (MOD_PLAN F17, from 4gbVramStrata): `fattn.cu`,
+`fattn_mma.cuh` (llama.cpp's flash-attention MMA kernel, kept in step with the pin by `tools/test_fattn_sync.py`),
+`fattn_test.cu`, behind the opt-in `STRATA_FATTN` / `STRATA_FDEC`.
 
 ### 7.2. `src/kernels/cuda/rdna_gr.cu`, `rdna_mmvq.cu`, `route_row.cuh`: the RDNA3 decode and prefill port
 
@@ -827,6 +832,10 @@ Credits, in the order the stack was built:
 - **jmnargi** (Strata-V100, MIT), for the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts (commits `24894e676b`,
   `7c5041c358`, `376355453f`; upstream PR #3545), and for measuring how a too-tight cap breaks tool calls.
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
+- **RandoTeam** (4gbVramStrata, MIT), **Travis Sinclair** and **VecSzn** (PolyStrata), for strata-poly's
+  flash-attention prompt path and tensor-core decode attention (`STRATA_FATTN`, `STRATA_FDEC`; commits `79b1e756`,
+  `79acffe5`, `67f60c12`, `7fb9d79d`, `ac6402df`, `bee07744`), and the community report (issue 107, commit
+  `aa862591`) that measured them on an RTX 4060 Laptop; the kernel underneath is ggml-org's `fattn-mma-f16.cuh`.
 - **RX5950XT** (Strata fork, MIT), for the IQ2/IQ3 sign form without byte compares that `STRATA_IQ_SIGN_FAST` uses (commit
   `b9a2111d3f`, llama.cpp's `ggml_cuda_apply_signs` without its multiply), and **boxwrench** (in yqYo1/Strata, MIT), for
   measuring packed sign expansion on an RX 7900 XT (commit `6f0bdf665b`).

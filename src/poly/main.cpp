@@ -757,6 +757,14 @@ int serve(Session& ss) {
                     r.prompt_ms, r.decode_ms, r.finish, (long long) r.guessed_right, (long long) r.guessed,
                     (long long) r.resume, hits, hits + misses, (long long) r.read);
         std::fflush(stdout);
+        // the request's line in the main engine's words (src/program/generate.cpp), on stderr (the log): the server
+        // echoes it, and tools/pancake/abtest.py reads it, so its specs can run this engine (MOD_PLAN F17)
+        std::fprintf(stderr, "strata serve: prompt %lld tokens = %lld reused + %lld read in %.0f ms (%.1f tok/s), "
+                             "%lld generated in %.0f ms (%.1f tok/s), drafts accepted %lld of %lld\n",
+                     n, (long long) r.resume, (long long) r.read, r.prompt_ms,
+                     r.prompt_ms > 0 ? 1000.0 * (double) r.read / r.prompt_ms : 0.0, (long long) r.produced,
+                     r.decode_ms, r.decode_ms > 0 ? 1000.0 * (double) r.produced / r.decode_ms : 0.0,
+                     (long long) r.guessed_right, (long long) r.guessed);
         ss.say_suffix(r);
         keep_on_disk(ss);
         if (ms_since(saved) >= kProfileSaveMs) {

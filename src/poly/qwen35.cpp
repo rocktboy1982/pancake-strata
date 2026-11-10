@@ -2,12 +2,15 @@
 // llama.cpp's qwen35moe graph.
 #include "qwen35.hpp"
 
+#include "fattn.hpp"
 #include "runtime.hpp"
 #include "strata/poly/kernels.hpp"
 #include "strata/kernels/native_mmvq.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <stdexcept>
 
 namespace strata::poly {
@@ -164,6 +167,51 @@ void Qwen35::assign_scratch() {
     if (rows_ >= kStageRows) awork_ = fbuf(heads + heads / 2 + 1 + 3 * n * n_head_);   // a prompt batch's attention
     if ((opt_.kv_q8 || opt_.kv_q4) && rows_ >= kStageRows)
         deq_ = (uint16_t*) fbuf((size_t) kDeqRows * n_kv_ * head_dim_);
+    attn_switches();
+}
+
+// MOD_PLAN F17, RandoTeam/4gbVramStrata's two attention kernels (fattn.hpp), opt-in: STRATA_FATTN=1 takes a prompt
+// batch through llama.cpp's flash-attention kernel, STRATA_FDEC=1 a few tokens through the tensor-core decode kernel
+// once the launch is sized for more than 4,096 rows (STRATA_FDEC_FROM=N moves that; 0 = from the first row: below
+// ~4K the old kernels were the faster ones in the fork).  Both work in score_ and take no VRAM of their own; both sum
+// in halves, so a token's numbers move in the last bits (the KL gate decides a default).  Unset, nothing is asked of
+// the card and attn() calls the old kernels as before.  Decided once: assign_scratch() runs for every layout of the
+// scratch (load, --elastic-prefill), and the kernels check each call's own fit.
+void Qwen35::attn_switches() {
+    if (switches_said_) return;
+    switches_said_ = true;
+    const char* fa = std::getenv("STRATA_FATTN");
+    const char* fd = std::getenv("STRATA_FDEC");
+    const bool want_fa = fa && std::atoi(fa) == 1, want_fd = fd && std::atoi(fd) == 1;
+    if (!want_fa && !want_fd) return;
+    const size_t score_n = (size_t) chunk_ * n_head_ * opt_.max_context;
+    const bool cache = !opt_.kv_q4;   // a q8_0 or an fp16 cache
+    if (want_fa) {
+        fattn_ = cache && rows_ >= kStageRows && fattn_fits(head_dim_, n_head_, n_kv_, rows_, score_n);
+        std::fprintf(stderr, "strata-poly: STRATA_FATTN: prompt attention %s\n",
+                     fattn_ ? "through llama.cpp's flash-attention kernel (sums in halves: rounding-level)"
+                            : "unchanged (it needs an Ampere or later NVIDIA card, heads of 256 in groups of 8 or "
+                              "16, a q8_0 or fp16 cache and --prompt-batch 32 or more)");
+    }
+    if (want_fd) {
+        const char* from = std::getenv("STRATA_FDEC_FROM");
+        fdec_from_ = from ? std::max<long long>(0, std::atoll(from)) : 4096;
+        fdec_ = cache && fdec_fits(head_dim_, n_head_, n_kv_, (int) opt_.max_context, score_n);
+        if (fdec_)
+            std::fprintf(stderr, "strata-poly: STRATA_FDEC: decode attention through the tensor-core decode kernel "
+                                 "in launches sized for more than %lld rows (sums in halves: rounding-level)\n",
+                         (long long) fdec_from_);
+        else
+            std::fprintf(stderr, "strata-poly: STRATA_FDEC: decode attention unchanged (it needs an Ampere or later "
+                                 "NVIDIA card, heads of 256 in groups of 8 or 16 and a q8_0 or fp16 cache)\n");
+    }
+}
+
+// STRATA_FDEC for a call: by the rows its launch is sized for (room(n) when recorded), so that a recorded launch
+// makes the same choice at every replay.  (The fork asked pos >= 4096 at the time of the call: a graph recorded at
+// position 4,095 for room 8,192 kept the old kernel for every replay up to 8,192.)
+bool Qwen35::fdec_on(int64_t pos, int n, const long long* at) const {
+    return fdec_ && (at ? (int64_t) room(n) : pos + n) > fdec_from_;
 }
 
 // A recurrent layer's convolution and delta-rule state lie one behind the other in state_ (alloc_caches()).
@@ -321,28 +369,40 @@ void Qwen35::attn(Block& B, int64_t pos, int n) {
                    st_, nullptr, axes, sections_, at ? at + 1 : nullptr);
     attn_store(B, pos, n);
     const float scale = 1.f / std::sqrt((float) head_dim_);
-    // a prompt batch through cuBLAS; a few tokens with the kernels that give a token the same bits in any company
+    // a prompt batch through cuBLAS; a few tokens with the kernels that give a token the same bits in any company.
+    // STRATA_FATTN / STRATA_FDEC (attn_switches()): the flash-attention kernels first where they are on and take the
+    // call, the old ones otherwise
     const size_t score_n = (size_t) chunk_ * n_head_ * opt_.max_context;
     const auto* kq = (const uint8_t*) B.keys;
     const auto* vq = (const uint8_t*) B.vals;
+    const int width = n_kv_ * head_dim_;
     if (opt_.kv_q4 && n >= kStageRows)
         attend_batch_q4(blas_, q_, kq, vq, opt_.kv_q4 == 8, deq_, kDeqRows, pos, n, score_, score_n, awork_, att_,
                         head_dim_, n_head_, n_kv_, scale, st_);
     else if (opt_.kv_q4)
         attend_q4(q_, kq, vq, opt_.kv_q4 == 8, pos, n, score_, chunk_, att_, head_dim_, n_head_, n_kv_, scale, st_, 0,
                   0, false, at, at ? room(n) : 0, opt_.attn_split, score_n);
-    else if (opt_.kv_q8 && n >= kStageRows)
-        attend_batch_q8(blas_, q_, kq, vq, deq_, kDeqRows, pos, n, score_, score_n, awork_, att_, head_dim_, n_head_,
-                        n_kv_, scale, st_);
-    else if (opt_.kv_q8)
-        attend_q8(q_, kq, vq, pos, n, score_, chunk_, att_, head_dim_, n_head_, n_kv_, scale, st_, 0, 0, false, at,
-                  at ? room(n) : 0, opt_.attn_split, score_n);
-    else if (n >= kStageRows)
-        attend_batch(blas_, q_, B.keys, B.vals, pos, n, score_, score_n, awork_, att_, head_dim_, n_head_, n_kv_, scale,
-                     st_);
-    else
+    else if (opt_.kv_q8 && n >= kStageRows) {
+        if (!(fattn_ && fattn_q8(q_, q8_cache(kq, width), q8_cache(vq, width), pos, n, att_, head_dim_, n_head_, n_kv_,
+                                 scale, score_, score_n, st_)))
+            attend_batch_q8(blas_, q_, kq, vq, deq_, kDeqRows, pos, n, score_, score_n, awork_, att_, head_dim_,
+                            n_head_, n_kv_, scale, st_);
+    } else if (opt_.kv_q8) {
+        if (!(fdec_on(pos, n, at) && fdec_q8(q_, q8_cache(kq, width), q8_cache(vq, width), pos, n, at,
+                                             at ? room(n) : 0, att_, head_dim_, n_head_, n_kv_, scale, score_, score_n,
+                                             st_)))
+            attend_q8(q_, kq, vq, pos, n, score_, chunk_, att_, head_dim_, n_head_, n_kv_, scale, st_, 0, 0, false, at,
+                      at ? room(n) : 0, opt_.attn_split, score_n);
+    } else if (n >= kStageRows) {
+        if (!(fattn_ && fattn_f16(q_, B.keys, B.vals, pos, n, att_, head_dim_, n_head_, n_kv_, scale, score_, score_n,
+                                  st_)))
+            attend_batch(blas_, q_, B.keys, B.vals, pos, n, score_, score_n, awork_, att_, head_dim_, n_head_, n_kv_,
+                         scale, st_);
+    } else if (!(fdec_on(pos, n, at) && fdec_f16(q_, B.keys, B.vals, pos, n, at, at ? room(n) : 0, att_, head_dim_,
+                                                 n_head_, n_kv_, scale, score_, score_n, st_))) {
         attend(q_, B.keys, B.vals, pos, n, score_, chunk_, att_, head_dim_, n_head_, n_kv_, scale, st_, 0, 0, false,
                at, at ? room(n) : 0, opt_.attn_split, score_n);
+    }
     mul_sigmoid(att_, qg_ + head_dim_, head_dim_, n * n_head_, 2 * head_dim_, false, st_);
     lin(B.wo, att_, ao_, n);
 }
