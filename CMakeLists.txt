@@ -1884,6 +1884,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(kv_q8_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME kv_q8_parity COMMAND kv_q8_parity)
 
+  # upstream #5655: STRATA_ROUTE_PRIOR's top-10 on NaN / -inf logits (valid distinct ids, no OOB) + host reference (GPU, synthetic)
+  add_executable(route_prior_test src/kernels/route_prior_test.cpp)
+  target_include_directories(route_prior_test PRIVATE ${_strata_gpu_include_directories})
+  target_link_libraries(route_prior_test PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+  add_test(NAME route_prior_test COMMAND route_prior_test)
+
   # KV streaming (docs/kv-streaming-design.md): streamed vs resident attention, bitwise (GPU, synthetic, no model).
   add_executable(kv_stream_parity src/kernels/kv_stream_parity.cpp)
   target_include_directories(kv_stream_parity PRIVATE ${_strata_gpu_include_directories})

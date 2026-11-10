@@ -48,13 +48,20 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
         sum += p[i];
     }
     (void) wsum(sum);
+    // Upstream PR #5655 (WilliamStone; Speedy 0.4.0 "route-prior NaN guard"): with every score NaN / -inf the old
+    // `s[i] > best` never fired, the sentinel id 1 << 30 leaked into ids and `s[be >> 5]` wrote 4 MiB past the array
+    // (an abort every ~5 min under STRATA_ROUTE_PRIOR).  Picked experts now live in a bitmask, NaN scores rank as -inf
+    // and the first unpicked expert always qualifies, so all 10 ids are valid and distinct whatever the logits hold.
+    unsigned taken = 0;
     float sel_p = 0.0f, sel_sum = 0.0f;
     for (int rank = 0; rank < 10; ++rank) {
-        float best = -FLT_MAX, bp = 0.0f;
+        float best = -INFINITY, bp = 0.0f;
         int be = 1 << 30;
 #pragma unroll
-        for (int i = 0; i < 16; ++i)
-            if (s[i] > best) { best = s[i]; be = lane + 32 * i; bp = p[i]; }
+        for (int i = 0; i < 16; ++i) {
+            const float v = s[i] == s[i] ? s[i] : -INFINITY;
+            if (!((taken >> i) & 1u) && (be == (1 << 30) || v > best)) { best = v; be = lane + 32 * i; bp = p[i]; }
+        }
 #pragma unroll
         for (int m = 16; m; m >>= 1) {
             const float ob = __shfl_xor_sync(0xffffffffu, best, m, 32);
@@ -62,11 +69,13 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
             const float op = __shfl_xor_sync(0xffffffffu, bp, m, 32);
             if (ob > best || (ob == best && oe < be)) { best = ob; be = oe; bp = op; }
         }
-        if ((be & 31) == lane) s[be >> 5] = -FLT_MAX;
+        if ((be & 31) == lane) taken |= 1u << (be >> 5);
         if (lane == rank) { id[rank] = be; sel_p = bp; }
         sel_sum += bp;                                      // the same on every lane
     }
-    if (lane < 10) w[lane] = sel_p / fmaxf(sel_sum, 1e-30f);
+    // degenerate logits (NaN / all -inf) give NaN probabilities: the 10 picked share the weight equally
+    const bool ok = sel_sum > 0.0f && sel_sum <= FLT_MAX;
+    if (lane < 10) w[lane] = ok ? sel_p / sel_sum : 0.1f;
 }
 
 }  // namespace
