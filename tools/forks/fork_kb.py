@@ -5,8 +5,10 @@ Every run lists all direct forks, then queries GitHub again only for forks whose
 successful scan (new forks included).  Everything goes into one SQLite file, so the knowledge base can be queried
 again at any time, and each run also writes a CSV with only the commits first seen in that run.
 
-Layout under KB_DIR (default /home/dan/clone-of-d/strata-forks-kb):
-  forks.sqlite                tables runs, forks, commits, readmes (see SCHEMA)
+Layout under KB_DIR (default data/fork-kb in this repo):
+  forks.sqlite                tables runs, forks, commits, readmes (see SCHEMA); not in git
+  forks.sqlite.gz             the committed snapshot, rewritten at the end of every run; restored when forks.sqlite
+                              is missing (fresh clone)
   readmes/<blob_sha>.md       README contents, stored once per distinct content (most forks share upstream's)
   runs/<run_id>-new-commits.csv
   runs/<run_id>-errors.csv
@@ -21,7 +23,9 @@ Example query (no sqlite3 CLI needed):
 """
 import base64
 import csv
+import gzip
 import os
+import shutil
 import sqlite3
 import sys
 import threading
@@ -33,7 +37,7 @@ from pathlib import Path
 import requests
 
 UPSTREAM = os.getenv("UPSTREAM", "Niko1221/Strata")
-KB_DIR = Path(os.getenv("KB_DIR", "/home/dan/clone-of-d/strata-forks-kb"))
+KB_DIR = Path(os.getenv("KB_DIR", Path(__file__).resolve().parents[2] / "data" / "fork-kb"))
 WORKERS = int(os.getenv("WORKERS", "5"))
 FULL = os.getenv("FULL", "0") == "1"
 LIMIT = int(os.getenv("LIMIT", "0"))
@@ -226,7 +230,11 @@ def main():
     KB_DIR.mkdir(parents=True, exist_ok=True)
     (KB_DIR / "readmes").mkdir(exist_ok=True)
     (KB_DIR / "runs").mkdir(exist_ok=True)
-    db = sqlite3.connect(KB_DIR / "forks.sqlite")
+    db_path, snapshot = KB_DIR / "forks.sqlite", KB_DIR / "forks.sqlite.gz"
+    if not db_path.exists() and snapshot.exists():
+        with gzip.open(snapshot, "rb") as src, open(db_path, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+    db = sqlite3.connect(db_path)
     db.executescript(SCHEMA)
     if "upstream_history" not in [r[1] for r in db.execute("pragma table_info(commits)")]:
         db.execute("alter table commits add column upstream_history integer default 0")
@@ -290,7 +298,7 @@ def main():
                                                  then readmes.updated_run else excluded.updated_run end,
                                 blob_sha=excluded.blob_sha""",
                            (repo, readme_meta["blob_sha"], readme_meta["name"], readme_meta["html_url"],
-                            str(path), run_id))
+                            str(path.relative_to(KB_DIR)), run_id))
             if readme_error:
                 errors.append({"repo": repo, "error": readme_error})
             db.execute("""update forks set scanned_pushed_at=?, compare_status=?, ahead_by=?, behind_by=?,
@@ -332,7 +340,12 @@ def main():
                   where id=?""", (datetime.now(timezone.utc).isoformat(timespec="seconds"), len(forks),
                                   len(todo), len(new_rows), len(errors), run_id))
     db.commit()
+    db.execute("vacuum")
     db.close()
+    tmp = snapshot.with_suffix(".gz.tmp")
+    with open(db_path, "rb") as src, gzip.open(tmp, "wb", compresslevel=9) as dst:
+        shutil.copyfileobj(src, dst)
+    tmp.replace(snapshot)
     print(f"\nRun {run_id}: {len(todo)} forks scanned, {len(new_rows)} new commits, {len(errors)} errors")
     print(f"Knowledge base: {KB_DIR / 'forks.sqlite'}")
     print(f"New commits:    {new_csv}")

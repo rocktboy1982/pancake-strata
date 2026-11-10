@@ -157,13 +157,14 @@ fork was created, then marks as `upstream_history = 1` the ones that are really 
 synced (authored by the upstream owner, or present in two or more such forks). Analyses should filter on
 `upstream_history = 0`; the new-commits CSV already does.
 
-Layout of the knowledge base (default `KB_DIR=/home/dan/clone-of-d/strata-forks-kb`, kept outside the repo):
+The knowledge base is committed in this repo under [`data/fork-kb/`](data/fork-kb/) (`KB_DIR` changes the place):
 
 | Path | Contents |
 | --- | --- |
-| `forks.sqlite` | Table `runs` (one row per run with counts), `forks` (branch, `pushed_at`, ahead/behind, last scan, last error), `commits` (one row per fork and commit, with `first_seen_run` and `last_seen_run`; a `last_seen_run` older than the fork's last scan means the commit was force-pushed away or merged), `readmes` (README per fork, with the run in which it last changed). |
+| `forks.sqlite.gz` | The committed snapshot of the database (18 MB compressed). The script rewrites it at the end of every run and unpacks it into `forks.sqlite` when that file is missing, so a fresh clone can run an update directly. |
+| `forks.sqlite` | Not in git (`.gitignore`); the working copy. Table `runs` (one row per run with counts), `forks` (branch, `pushed_at`, ahead/behind, last scan, last error), `commits` (one row per fork and commit, with `first_seen_run` and `last_seen_run`; a `last_seen_run` older than the fork's last scan means the commit was force-pushed away or merged), `readmes` (README per fork, with the run in which it last changed). |
 | `readmes/<blob_sha>.md` | README contents, stored once per distinct content (most forks share upstream's). |
-| `runs/` | The per-run CSVs above. |
+| `runs/` | The per-run CSVs above (the very large first one is gzipped) and the run logs. |
 
 Run and update it (the first run took 70 minutes, including one wait for the GitHub limit of 5,000 calls per hour;
 an update only touches forks that changed: the next run rescanned 22 forks in under a minute):
@@ -172,7 +173,11 @@ an update only touches forks that changed: the next run rescanned 22 forks in un
 GITHUB_TOKEN=$(gh auth token) python3 tools/forks/fork_kb.py          # first run, and every update after it
 GITHUB_TOKEN=$(gh auth token) FULL=1 python3 tools/forks/fork_kb.py   # rescan every fork
 GITHUB_TOKEN=$(gh auth token) LIMIT=20 python3 tools/forks/fork_kb.py # smoke test on 20 forks
+git add data/fork-kb && git commit -m "fork-kb: update" -- data/fork-kb   # keep the committed snapshot current
 ```
+
+Each update adds a new ~18 MB snapshot to the git history, so update when there is something to analyze (for example
+weekly), not on every small change.
 
 Other settings: `KB_DIR` (where the knowledge base lives), `WORKERS` (parallel requests, default 5), `UPSTREAM`
 (default `Niko1221/Strata`). Run it at low priority (`nice -n 19`) while a benchmark is running.
@@ -182,7 +187,7 @@ Analyze it (Python's built-in `sqlite3` is enough; the `sqlite3` command-line to
 ```bash
 python3 - <<'PY'
 import sqlite3
-db = sqlite3.connect("/home/dan/clone-of-d/strata-forks-kb/forks.sqlite")
+db = sqlite3.connect("data/fork-kb/forks.sqlite")   # run from the repo root after one update, or gunzip the snapshot
 # commits that appeared in the latest run
 for r in db.execute("""select repo, substr(date,1,10), substr(message,1,90) from commits
                        where upstream_history = 0 and first_seen_run = (select max(id) from runs)

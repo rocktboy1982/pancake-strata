@@ -99,3 +99,5 @@ node_modules/
 # pancake-strata: local configs written by run-pancake.sh, and their logs
 /pancake-*.json
 /pancake-*.log
+/data/fork-kb/forks.sqlite
+/data/fork-kb/forks.sqlite.gz.tmp

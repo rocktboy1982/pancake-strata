@@ -1,7 +1,7 @@
 # Baza de cunoștințe forkuri Strata
 
-Data: 2026-11-10. Instrument: `tools/forks/fork_kb.py`, bază de date în `/home/dan/clone-of-d/strata-forks-kb/forks.sqlite`
-(în afara repo-ului). Cum se rulează și se actualizează: README, secțiunea 3A.
+Data: 2026-11-10. Instrument: `tools/forks/fork_kb.py`, bază de date în repo, în `data/fork-kb/`
+(`forks.sqlite.gz`, instantaneu comprimat de 18 MB, rescris la fiecare rulare). Cum se rulează și se actualizează: README, secțiunea 3A.
 
 ## 1. Ce este
 
