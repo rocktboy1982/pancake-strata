@@ -98,8 +98,21 @@ def test_cost_model_recovers_the_synthetic_costs():
     cost = disco_fit.CostModel(rounds)
     assert cost.coef is not None
     c = cost.coef
-    # T is constant (6) in the MTP windows, so the row term folds into the intercept; the miss terms are identifiable
+    # T is constant (6) in the MTP windows: the per-row ms cannot be told from the intercept and takes the prior;
+    # the miss terms are identifiable
+    assert cost.row_fixed == disco_fit.ROW_MS_PRIOR and c[1] == disco_fit.ROW_MS_PRIOR
     assert abs(c[2] - 0.12) < 0.02 and abs(c[3] - 0.05) < 0.03, c
+    assert disco_fit.CostModel(rounds, row_ms=1.5).coef[1] == 1.5
+    # sizes that vary: the per-row ms is fitted (true 1.5)
+    mixed = []
+    for T in (3, 4, 5, 6):
+        mixed += synth_windows(n_req=8, per_req=40, T=T, seed=T)
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.stwt")
+        write_stwt(p, mixed)
+        rm, _ = disco_fit.read_rounds([p])
+    cm = disco_fit.CostModel(rm)
+    assert cm.row_fixed is None and abs(cm.coef[1] - 1.5) < 0.2 and abs(cm.coef[2] - 0.12) < 0.02, cm.coef
     r = next(r for r in rounds if r["mtp"])
     full = cost.cut_ms(r, r["T"] - 1)
     assert full == r["ms"] and cost.cut_ms(r, 0) < full and cost.cut_ms(r, 2) < full

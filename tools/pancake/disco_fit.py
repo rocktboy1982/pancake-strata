@@ -196,11 +196,16 @@ def read_rounds(paths):
 
 # ---------------------------------------------------------------------------------------------------------------------
 # the window cost model
+ROW_MS_PRIOR = 0.7   # ms of one more row besides its misses: about one MTP draft step (MOD_PLAN 16.4: draft 2.2-2.5 ms / window)
+
+
 class CostModel:
     """ms = c0 + c1 (T - 1) + c2 (new CPU misses of rows 1..T-1) + c3 (row 0's) on windows whose ms is trusted.
+    c1 is fitted only when the window sizes vary enough to tell it from c0 (a trace taken with every draft verified has
+    nearly one size); otherwise it is `row_ms` (--row-ms, default ROW_MS_PRIOR) and said so.
     Without miss counts: the median ms per T, unseen T on a line through the medians."""
 
-    def __init__(self, rounds):
+    def __init__(self, rounds, row_ms=None):
         ok = [r for r in rounds if r["ms_ok"] and r["ms"] > 0]
         self.n = len(ok)
         self.coef = None
@@ -212,10 +217,20 @@ class CostModel:
         if ok:   # drop stalls (a graph capture, an adapt join): over 4x the median of that size
             ok = [r for r in ok if r["ms"] <= 4.0 * self.med[r["T"]]]
         withm = [r for r in ok if r["miss"] is not None and len(r["miss"]) >= r["T"]]
+        self.row_fixed = None
         if len(withm) >= 20:
             A = np.array([[1.0, r["T"] - 1, sum(r["miss"][1:r["T"]]), r["miss"][0]] for r in withm])
             y = np.array([r["ms"] for r in withm])
-            coef, *_ = np.linalg.lstsq(A, y, rcond=None)
+            ts_w = A[:, 1]
+            # c1 apart from c0 needs sizes that vary: at least two sizes with 5% of the windows each
+            sizes = [t for t in set(ts_w.tolist()) if np.mean(ts_w == t) >= 0.05]
+            if row_ms is None and len(sizes) >= 2:
+                coef, *_ = np.linalg.lstsq(A, y, rcond=None)
+            else:
+                self.row_fixed = ROW_MS_PRIOR if row_ms is None else float(row_ms)
+                B = A[:, [0, 2, 3]]
+                c, *_ = np.linalg.lstsq(B, y - self.row_fixed * ts_w, rcond=None)
+                coef = np.array([c[0], self.row_fixed, c[1], c[2]])
             coef[1:] = np.maximum(coef[1:], 0.0)   # a row or a miss never makes a window cheaper
             self.coef = coef
             pred = A @ coef
@@ -255,6 +270,9 @@ class CostModel:
             c = self.coef
             s += (f"\n  ms = {c[0]:.2f} + {c[1]:.3f} x (rows - 1) + {c[2]:.4f} x new CPU misses of the draft rows"
                   f" + {c[3]:.4f} x row 0's  (R^2 {self.r2:.2f})")
+            if self.row_fixed is not None:
+                s += (f"\n  (the window sizes barely vary: the per-row ms is set to {self.row_fixed:.2f}, not fitted;"
+                      " --row-ms to change it)")
         return s
 
 
@@ -533,6 +551,8 @@ def main(argv=None):
     ap.add_argument("-o", "--out", help="weights file to write (fit mode)")
     ap.add_argument("--simulate", metavar="WEIGHTS", help="replay an existing weights file instead of fitting")
     ap.add_argument("--l2", type=float, default=1.0)
+    ap.add_argument("--row-ms", type=float, default=None,
+                    help=f"ms of one more row besides its misses; default: fitted when the sizes vary, else {ROW_MS_PRIOR}")
     ap.add_argument("--holdout", type=float, default=0.25, help="the last share of the windows, held out for the reported numbers")
     ap.add_argument("--min-windows", type=int, default=200, help="refuse to fit on fewer MTP windows")
     ap.add_argument("--features", choices=["auto", "all", "replay"], default="auto",
@@ -545,7 +565,7 @@ def main(argv=None):
         print("disco_fit: no plain MTP windows with draft probabilities in these traces (record 4 needs the drafter on)",
               file=sys.stderr)
         return 2
-    cost = CostModel(rounds)
+    cost = CostModel(rounds, a.row_ms)
     print(f"{len(rounds)} windows ({', '.join(sorted(kinds))}), {len(mtp)} plain MTP windows, "
           f"{sum(len(r['rows']) for r in mtp)} drafts")
     print(cost.describe())
