@@ -265,7 +265,7 @@ reason, in the MOD_PLAN "not adopted" ledger.
 | Paper / System | Authors / Venue / Year | Direct URL | Mechanism | Status in `pancake-strata` |
 | --- | --- | --- | --- | --- |
 | BFLA (block-sparse flash attention) | ported work | `feat/bfla-hip` (in-repo) | Block-sparse prompt attention | Prototype on branch: 3.15x end-to-end at 128K, 48/48 needle recall |
-| XAttention | 2025 | [arxiv.org/abs/2502.17421](https://arxiv.org/abs/2502.17421) | Block-sparse attention, antidiagonal scoring | Planned (item 19, lossy opt-in) |
+| XAttention | 2025 | [arxiv.org/abs/2503.16428](https://arxiv.org/abs/2503.16428) | Block-sparse attention, antidiagonal scoring | Planned (item 19, lossy opt-in) |
 | SpargeAttn | Tsinghua, 2024 | [arxiv.org/abs/2411.10958](https://arxiv.org/abs/2411.10958) | Training-free sparse attention | Planned (item 19) |
 | BitDecoding | 2025 | [arxiv.org/abs/2503.18773](https://arxiv.org/abs/2503.18773) | Low-bit KV, decode on matrix cores | Tested on `feat/bitdecoding-hip`: neutral, not adopted |
 | LServe | MIT Han lab, 2025 | [arxiv.org/abs/2502.14866](https://arxiv.org/abs/2502.14866) | Long-context serving with sparse KV | Evaluated (KV design context) |

@@ -1447,6 +1447,224 @@ New processes built on these capabilities:
   and draft settings re-learned offline weekly, checked by the simulator, promoted by the A/B harness.
 - Regression watch: a short benchmark after each build/pull compared with the last good numbers.
 
+## Phase 16: academic research first, by area of improvement (2026-11-10, owner: develop academic technologies with priority)
+
+Rules for this phase. Technologies that come from academic papers go first; fork ideas (Phase 15) appear only where a paper
+is the origin. Areas are ordered by their total expected gain on our bottleneck (expert bytes in decode, prompt re-reads in
+agent turns). Inside each area the biggest expected gain comes first. Every gain is the paper's claim on its own hardware
+or our estimate; it is not measured here unless the cell says "meas.". "Exact" = same greedy text; "lossy" = the text may
+change; "rounding" = exact math but GPU-vs-CPU placement or summation order moves the last bits (RESULTS 02: placement
+changes change the text and the draft acceptance). Test tiers are the ones in bench/TEST_PLAN.md "How every test runs": **offline** (replay, no GPU), **screen** (`abtest.py --tier screen`, one A B pass), **confirm** (A B B A with early stop), **rigorous** (confirm + token forcing + the task gate) - rigorous only for lossy items, default changes and anything that changes generated text. Any item promoted to a preset default gets a rigorous run first. Base after the 2026-11-09/10 test phase
+(fast-hip = deferral + FUSE_PHASES + EXPDEC_DOWN): short chat ~132 tok/s, code edit ~135-138 tok/s (meas.). IDs A1..A58
+are global so the Top 10 can point at them. GPU column: both / HIP / CUDA (CPU and server items are "both").
+
+### 16.1 Expert bytes on the critical path: routing, placement and overlap
+
+Budget: CPU experts were 17.4 of 37.4 ms on edits and 5.2 of 24.8 ms on short chat before deferral; ideal-overlap floor
+~20 ms per edit window. Substitute group S1/S2: A1, A2, A4 (and A27 in 16.5) take from the same CPU time; measure them
+together, never sum them.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A1 | Cache-conditional routing (`turbo-hip`, `STRATA_ROUTE_PRIOR 0.5`) | Cache-Conditional Experts, Qualcomm/UvA 2024, https://arxiv.org/abs/2412.00099 | 7 | lossy (2.9% tokens differ) | both | XS (decision) | +30-50% meas. before deferral (111.7 -> 149-168 tok/s); with deferral on the sum is lower - re-measure jointly | rigorous | planned: built, gate pending; F13 guards attach |
+| A2 | Depth-graded verify prior (no bonus at position 0) | AcceptMoE 2026, https://arxiv.org/abs/2608.02989 | 23 (S2) | lossy | both | S | +5-15% over fast-hip (est.); fewer changed tokens than A1 | rigorous | planned: coded `STRATA_ROUTE_PRIOR_DEPTH` (4f56ce535); pick A1 or A2 |
+| A3 | Expert deferral (low-weight misses finish while the next layer runs) | KTransformers, SOSP'25, https://madsys.cs.tsinghua.edu.cn/publication/ktransformers-unleashing-the-full-potential-of-cpu/gpu-hybrid-inference-for-moe-models/SOSP25-chen.pdf | 8 | lossy-small | both | - | +15.8% +-3.9 edit meas., short n.s., token forcing PASS | - | **done** (in fast-hip, d7debf8fd) |
+| A4 | Rank guard "top-2 or weight >= w", then fix its short-chat loss (one pool pass when few rows are deferred) and sweep w 0.1/0.2 at windows 1/2/4/8 | KTransformers (as A3); HOBBIT weight CDF 0.6/0.9, https://arxiv.org/abs/2411.01433 | 28 | lossy-small | both | S | meas. +20.1% edit vs base (+4.3 pts over A3) but -6.9% short; fix est. recovers short, keeps +3-5% edit | confirm, rigorous before default | done opt-in (`_TOP=2`); optimization **new** |
+| A5 | Admission on the k-th miss (probation before VRAM) | Baleen, FAST'24, https://www.usenix.org/conference/fast24/presentation/wong ; SIEVE, NSDI'24, https://www.usenix.org/conference/nsdi24/presentation/zhang-yazhuo | 14 | rounding | both | - | meas. +2.0% +-1.6 edit (2,8 on the blocking tier), -6.4% short (different text); bench hit rate 89% leaves little room | confirm on real agent traces | done opt-in (`STRATA_ADAPT_KMISS`); async variant rejected |
+| A6 | Recalibrate the overlap time model with last night's points (it predicted deferral +33%, meas. +15.8%; deferral + k-th miss +45-52%, meas. ~+2% more), validate to 5-9% error | Baleen method (above); Vidur, MLSys'24, https://arxiv.org/abs/2405.05465 ; LLMServingSim 2.0, https://arxiv.org/abs/2602.23036 | 42 | exact (offline) | - | S | 0 itself; gates A7, A8, A60 (model over-predicts ~2x today) | screen | **new** (time_ceiling.py --overlap done, 751e09b70) |
+| A7 | Chunked, cancellable promotions + reordered execution (cached -> in flight -> CPU) | ProMoE, SJTU 2024, https://arxiv.org/abs/2410.22134 | 30 / 27 | exact | both | S sim, M engine | authors 1.09x over LRU on PCIe 4.0; est. 0-3% here | screen (sim) then confirm | planned (simulator first, after A6) |
+| A8 | Online swap budget on the **blocking** tier | Pie, UC Berkeley 2024, https://arxiv.org/abs/2411.09317 | 53 | rounding | both | XS (coded) | 0-5% over the best fixed `--adapt-swaps` (est.) | confirm | coded (`STRATA_ADAPT_SWAPS_AUTO`); rejected on async (-9.6%), blocking arm **open** |
+| A9 | Pre-stage the next turn's experts while a tool runs | KVFlow 2025, https://arxiv.org/abs/2507.07400 ; InferCept, https://arxiv.org/pdf/2402.01869 | 17 | rounding | both | - | 1-3% of the next turn's decode (est.); bench n.s. because it has no idle gaps | confirm on agent replay (turn log) | coded opt-in (`STRATA_IDLE_ADAPT`) |
+| A10 | Conversation working set / activation-matrix match at request start | MoE-Infinity, Edinburgh 2024, https://arxiv.org/abs/2401.14361 | 3-4 (+84) | rounding | both | S (84) | +0.6-1.5 hit points (est.); inert under k-th miss until item 84 gives seeds virtual misses | confirm | done opt-in; item 84 open |
+
+Rejected, reason still holds: activation sparsity masks (TEAL, CATS, Berkeley gate, CHESS, SpAx; experts dense, cos 0.844
+at 70%, item 13 closed); expert predictors (Fate, SP-MoE, pre-attention; next-layer recall 19-21%, item 30 closed); expert
+load-aware CPU/GPU assignment (Apex https://arxiv.org/abs/2610.23006, DALI https://arxiv.org/abs/2602.03495, Fiddler
+https://arxiv.org/abs/2402.07033: the Q2_0 CPU path is byte-bound, its cost barely grows with tokens per expert, so "GPU if
+m x t_cpu > t_promote" almost never fires at 115 vs 42 us); Apto cancellable tail racing (https://arxiv.org/abs/2611.01859:
+a GPU race needs the same upload); BuddyMoE/MoBiLE/AdapMoE as separate re-selections (one re-selection in verify.cpp: A1/A2
+win or lose for them); OEA sibling-aware routing (measured at batch 16, small ceiling).
+
+### 16.2 Prompt re-reads in agent turns (per-turn cache)
+
+Budget: ~18% of turn time is re-read prefill (8% in-session, 7% sub-agent switches, 2-3% compaction) on the old opencode
+history. All exact; all coded behind opt-ins; what is missing is the confirm runs on agent replays (pancake.service +
+turn log now exist, a1683537c / 1c0f248ae).
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A11 | Checkpoints at tool-call / tool-result boundaries + FLOP-saved-per-byte eviction | Marconi, Princeton, MLSys'25, https://arxiv.org/abs/2411.19379 ; FreeToken 2026, https://arxiv.org/abs/2608.16157 | 16 (+11) | exact | both | - | Marconi TTFT up to -71% on SWE-bench traces; est. share of the 8% in-session re-reads | confirm (agent replay + restore_check --tool-boundary) | done opt-in (527e06429) |
+| A12 | Multi-entry prefix store: pinned system+tools prefix, park the branch left at the pin | RadixAttention / SGLang 2023, https://arxiv.org/abs/2312.07104 | 71 / 90 | exact | both | - | up to ~7% of turn time (sub-agent switches, est.) | confirm | done opt-in (`STRATA_AUTO_PIN`, `STRATA_PIN_PARK_TOKENS`) |
+| A13 | Disk tier for parked conversations, final-answer turns demoted first | Bidaw, FAST'26, https://www.usenix.org/conference/fast26/presentation/hu-shipeng | 39 | exact | both | - | resume ~1-1.5 s vs ~70-80 s re-read at 70K (est.); survives restarts | confirm (disk restore vs `STRATA_CKPT_REREAD`) | done opt-in (070fe8512) |
+| A14 | Restore-equivalence test (full + partial hit, every boundary, MTP on) | Validating Hybrid-State Cache Recovery, UNSW 2026, https://arxiv.org/abs/2609.15030 | 35 / 83 | exact (test) | both | - | 0 itself; gates A11-A15 and any default change | confirm (runs first in the test phase) | done code (restore_check.py); result pending |
+| A15 | TTL / idleness rule for parked sub-agent sessions | Continuum 2025, https://arxiv.org/abs/2511.02230 (MORI, same group) | (US-A8) | exact | both | S | faster sub-agent switches; small add on A12/A13 (est.) | confirm | **new** |
+| A16 | Byte-stable prefix, variable state at the tail | Lost in the Middle, TACL 2024, https://arxiv.org/abs/2307.03172 | 88 (`env_to_user`) | exact | both | - | ~14K tokens / 8-11 s per new day/folder avoided | - | **done** (637a71c23) |
+
+Rejected, reason still holds: non-prefix reuse (ContextPilot 1.6% measured; Prompt Cache https://arxiv.org/abs/2311.04934,
+Entropy Gate https://arxiv.org/abs/2606.03739) - any earlier changed token invalidates the GDN checkpoint; KV eviction and
+compression (H2O, SnapKV, KVQuant, KVzip, ...) - KV lives in 1 of 4 layers and is already q8.
+
+### 16.3 Thinking length (test-time compute)
+
+Budget: ~6.6% of turn time plus the tail (p99 224 s; 15 turns cut at 8-32K cost 2,726 s). Every item here changes the
+generated text, so every item is rigorous and is judged on total time to success, not time per turn.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A17 | Per-effort budget forcing with a graceful close at the cap (tail above p99 only) | s1, Stanford 2025, https://arxiv.org/abs/2501.19393 ; Are LRMs Interruptible?, Berkeley 2025, https://arxiv.org/abs/2510.11713 | 12 / 88 | lossy (tail only) | both | XS | worst turn 84-340 s -> ~1-2 min (est.) | rigorous | grace 512 + close_retry in presets **done**; per-level caps planned (read p99 from the turn log) |
+| A18 | Effort per task, not per turn: `xhigh` vs `medium` on total time to success | Just Enough Thinking / ALP, https://arxiv.org/abs/2506.05256 ; Danger of Overthinking, https://arxiv.org/abs/2502.08235 ; Don't Overthink it, https://arxiv.org/abs/2505.17813 ; counter-evidence: Qwen3 report, https://arxiv.org/abs/2505.09388 | (Asia-M5) | lossy | both | S (harness) | tens of seconds per turn; -20-40% thinking (est.) | rigorous (area under the time curve, SWE-Effi) | planned (owner decision) |
+| A19 | Learned thinking stop: linear probe on hidden states every 64 tokens / at `\n\n` | Thought Calibration, MIT 2025, https://arxiv.org/abs/2505.18404 ; Learning How Hard to Think, ICLR'25, https://proceedings.iclr.cc/paper_files/paper/2025/hash/ff414825df833edb8b1839e3d5d495e9-Abstract-Conference.html ; OS-Pruner, https://www.alphaxiv.org/abs/2607.11089 | 21 | lossy | both | M (dump hook I2 + training) | -20-40% thinking on routine turns (authors; untested on agents) | rigorous | not started |
+| A20 | Rumination rate (rolling 5-grams) into the soft close; top-k entropy as a second signal | Thoughtology, Mila/McGill 2025, https://arxiv.org/abs/2504.07128 ; Entropy Sentinel 2026, https://arxiv.org/abs/2601.09001 | 34 / 36 | log exact; close lossy | both | XS | unmeasured; threshold from turn-log `rumination_max` | screen (log), rigorous (close) | log + opt-in close coded (feat/item-34-rumination); entropy log **new** |
+
+Parked, reason still holds: Delethink resets (Markovian Thinker, https://arxiv.org/abs/2510.06557) - only with >16K-token
+thinking turns; Dynasor early exit - replaced by A19.
+
+### 16.4 Speculative decoding (tokens per window)
+
+Budget: draft 2.2-2.5 ms per window; acceptance 71% short, 94% edits, 55-66% after 11.7K prompts. `--spec 4` is already the
+official depth. Gains here go through the numerator: more accepted tokens without more new CPU-missed experts.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A21 | Exact speculative sampling for sampled requests (`STRATA_SPEC_PROB=1 ...`); first check whether T=0.1 requests take the sampled path | Leviathan et al., ICML'23, https://arxiv.org/abs/2211.17192 ; Chen et al. 2023, https://arxiv.org/abs/2302.01318 | 15 F6 | exact (in distribution) | both | XS (env) | forks +5.5-13.4%; est. +3-8% on sampled turns only | confirm (+ distribution check) | planned (Phase 15 F6) |
+| A22 | Learned chain stop with drafter entropy and per-position new-miss cost | DISCO, Intel 2024, https://arxiv.org/abs/2405.04304 ; MiMo-V2-Flash, https://arxiv.org/abs/2601.02780 ; SpecFit, https://arxiv.org/abs/2610.15417 | 15 / 36 / 68 | exact | both | M | 0-10% combined (est.); SpecFit authors' ceiling +7-22% | screen (offline fit on window traces), then confirm | spec only on feat/disco; trace logger done (64); feature log **next** |
+| A23 | Draft-position cost = CPU time of new missed experts, fitted from traces | MoE-SpeQ / SpecFit (as A22) | 43 | exact | both | - | 0-5% (est.) | confirm | coded (663107a56), A/B pending |
+| A24 | Cross-session suffix index with frequency scoring, shared by sub-agents | SuffixDecoding, CMU 2024, https://arxiv.org/abs/2411.04975 | 15 | exact | both | S sim, M code | a few % up to ~10% on edits (authors) | screen (`--simulate`), then confirm | planned |
+| A25 | Check DraftPolicy's MTP table against the measured position decay; report in-engine verify share | SD: Performance or Illusion?, Berkeley 2026, https://arxiv.org/abs/2601.11580 | (US-P10) | exact (offline) | both | XS | 0-5% (est.) | screen | **new** (uses window traces) |
+| A26 | Draft source (MTP / lookup / suffix) as a learned action | Context-Aware Assistant Selection, Mila 2024, https://arxiv.org/abs/2408.08470 | 15 | exact | both | S | 0-5% (est.) | confirm | parked: only if DraftPolicy logs show wrong choices |
+
+Rejected, reason still holds: draft trees (Staged SD, SpecInfer, Sequoia), Lookahead/Jacobi, Token Recycling - GDN state
+forks and a larger expert union; Cactus - ~0 at T=0.1; DraftExpert windows - tested, DraftPolicy already optimal; ReplaySSM
+port - closed by code study (replay stays); EAGLE-family drafters - native MTP is better. Parked: typical acceptance on
+thinking (Medusa, https://arxiv.org/abs/2401.10774; lossy, low priority); SSD-lite (Saguaro, https://arxiv.org/abs/2603.03251;
+needs a host-gap profile, CPU busy).
+
+### 16.5 Quantization of the expert miss path and the model file
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A27 | Low-precision copy of experts read only on CPU misses (VRAM hits stay exact) | HOBBIT, SJTU 2024, https://arxiv.org/abs/2411.01433 ; MoBiLE 2025, https://arxiv.org/abs/2510.12357 | 15 F4 | lossy | both (CPU side) | L (25-30 GB requant + D space) | fork claim +3-8%; est. edit +7-10%, chat +3-5% (S1 substitute of A1/A2/A4) | rigorous | **reopened**: ledger said "no bits below Q2_0", but a sub-2-bit pack only for misses has bits to cut; blocked on a requant source and D space |
+| A28 | ISTA-DASLab Coder variant (256 of 512 experts, ~3.5 bpw LUT types) | GSQ, https://arxiv.org/abs/2604.18556 ; RCO, https://arxiv.org/abs/2605.00649 (ISTA 2026) | 25 | different model | both | S (an evening + 29.6 GB) | -10..+20% decode; SWE-bench Verified 95.7% of BF16 (card) | rigorous | planned (D space) |
+| A29 | Entropy check of Q2_0 expert bytes (settles any entropy-coded or compressed miss path) | EntroLLM / Huff-LLM line (HW-cpu notes) | (ledger g) | exact | both | XS | ~0 expected (2.25 bpw); closes the item if < 20% | screen | parked -> **run the 5-minute check** |
+
+Rejected or parked, reason still holds: QuaRot (https://arxiv.org/abs/2404.00456), LQER, any requant from BF16 (354 GB does
+not fit); QTIP/IQ*_KT (no HIP kernel, ~0.2 bpw); Any-Precision / MC-MoE / MxMoE (parked until a >2-bit file such as A28).
+
+### 16.6 Prefill: delta reads in agent turns and cold reads
+
+Budget: 90.8% of turns hit the cache, so the delta path (1.5-3.2K tokens) matters more than cold 64K+ reads. 4K reads run at
+1,757 vs 2,580 tok/s at 32K (meas., final suites).
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A30 | Token-count threshold for the CPU share in prefill (deltas < 4096 skip the staged path) | Fiddler, UW 2024, https://arxiv.org/abs/2402.07033 | 78 | rounding | both | XS (env A/B) | est. up to ~0.4 s per agent turn (3K delta at ~1.75K -> ~2.4K tok/s) | confirm | planned (env A/B: `CPU_SHARE=0`, `SHARE_MAX=1024`) |
+| A31 | GDN prefill chunk 64 with blockwise 16x16 inverse + fused prep, more blocks per head on 84 CUs | Gated DeltaNet, ICLR'25, https://arxiv.org/abs/2412.06464 ; parallel DeltaNet, https://arxiv.org/abs/2406.06484 ; Mamba-2/SSD, ICML'24, https://arxiv.org/abs/2405.21060 | 18 / 81 | rounding (FP16 class) | HIP first | M | 5-11% of cold prefill (est.; a V100 chunk-64 attempt was 4-6x slower) | confirm | parked until item 82 prefill timing on the 7900 XT |
+| A32 | Stream experts to the GPU for large prefill ubatches (check what prefill does today) | weight-streaming prefill, https://arxiv.org/abs/2606.10493 (runtime-architectures report) | - | exact | both | XS (code read) | TTFT at 32K+ only; PCIe 3.0 caps it | screen | **new** (code read first) |
+
+Rejected, reason still holds: BFLA shared QSA selection (closed: a shared set holds only 42-74% of each query's cells);
+XAttention (superseded); SpargeAttn (QSA is already sparse at ~2,051 cells per query).
+
+### 16.7 GPU kernels and launch overhead
+
+Budget: GPU 15.9 ms of a 24.8 ms short window. New since 2026-11-09: deferral now hides part of the CPU time on edits, so
+the GPU floor starts to set the edit window too. Re-run the item 1 / I7 profile with deferral on before building kernels.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A33 | Small-M fusion of the pre-doorbell chains (expdec gate/up+SwiGLU+quant; router+top-10+doorbell) | SGLang small-M fusion, https://arxiv.org/abs/2312.07104 ; Qwen3 report (gated residual), https://arxiv.org/abs/2505.09388 | 32 / 48 | exact | HIP (CUDA port) | - (coded) | 1-4% per chain (est.); 04 run was n.s. with a reclaim-hit base | confirm (new harness) | coded (`STRATA_EXPDEC_SWIGLU`, `STRATA_ROUTER_FUSE`); **retest** |
+| A34 | Coordinate-descent sweep of launch/tile parameters (with the Phase 15 F20 empty-launch probe) | Coordinate-Based Hill Climbing, UFMG 2026, https://arxiv.org/abs/2609.03114 | 37 | exact | both | S (tool built) | 1-3% (est.) | confirm | planned (sweep.py, 7861dc8c1) |
+| A35 | Warm the 80 MiB Infinity Cache with next-layer pre-doorbell weights during the combine wait | PRESERVE, Huawei Zurich 2025, https://arxiv.org/abs/2501.08192 | 47 | exact | HIP | - (coded) | 0-2 ms/window (est.); 04 n.s. | confirm (new harness) | coded (`STRATA_IC_WARM_MB`); **retest** |
+| A36 | Weight-major layout for VRAM-hit experts / Q2_0 down | MonoMoE 2026, https://arxiv.org/abs/2609.04244 | (ledger h) | exact | both | M-L | unknown; pays only if hit kernels reach the critical path | screen (per-layer split) | parked -> **reopen check**: deferral may now expose hit time on edits |
+| A37 | LDS bank-conflict check of the HIP IQ kernels; duplicated LUT if present | FLUTE, MIT 2024, https://arxiv.org/abs/2407.10960 | (MIT-13) | exact | HIP | XS (profile) | 0-10% of GPU expert time if conflicts exist | screen | **new** (part of the re-profile) |
+
+Rejected, reason still holds: BitDecoding WMMA decode attention as default (https://arxiv.org/abs/2503.18773; tested
+neutral, attention ~3% of decode); megakernels / HipKittens / ThunderKittens ports (NVIDIA or CDNA, GDN megakernel 0.0 ms).
+
+### 16.8 Agent loop and serving (harness side, outside the engine)
+
+Turn-level gains; most live in opencode, not in pancake. They change behaviour, so all are rigorous.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A38 | Behaviour counters (edits without test, reads without edit), log first | Beyond Accuracy, UBC/Queen's 2025, https://arxiv.org/abs/2511.11012 | 33 | log exact | both | XS | failed runs cost 1.4-4.4x tokens (authors) | screen (log), rigorous (notes) | branch feat/item-33-behaviour-counters |
+| A39 | Asynchronous compaction in tool windows + delta compaction | Slipstream, https://arxiv.org/abs/2605.08580 ; ACE, Stanford 2025, https://arxiv.org/abs/2510.04618 | (US-A3) | lossy | both | M | Slipstream -39.7% latency (authors) | rigorous | parked: one GPU slot shared with A9 |
+| A40 | Keep decoding while tools run (symbolic futures) | AsyncFC, Berkeley 2026, https://arxiv.org/abs/2605.15077 | (US-A4) | lossy | both | L (opencode fork) | up to 1.4x end to end on code (authors) | rigorous | parked (phase 14 timeline) |
+| A41 | Read-before-edit and test-before-done loop | ECLoop, Concordia 2026, https://arxiv.org/abs/2607.28815 | (Can-A3) | lossy | both | M | +4.8-11.8 pp, -12.1% tokens (authors) | rigorous | not started (check what opencode enforces) |
+| A42 | Externalize huge inputs (logs, diffs) instead of compacting | Recursive Language Models, MIT 2025, https://arxiv.org/abs/2512.24601 | (MIT-8) | lossy | both | M | +26% median vs compaction (authors, GPT-5) | rigorous | not started |
+| A43 | `oldString` substring constraint in the edit tool | Type-Constrained Code Generation, ETH, PLDI'25, https://arxiv.org/abs/2504.09246 | 26 | lossy | both | M | whole failed turns avoided | rigorous | parked: 1 failure in 180 edits |
+
+### 16.9 Self-tuning and learned policies
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A44 | Epoch bandit that turns a "mixed" opt-in on or off per window type (rank guard: +edit/-short; k-th miss: +edit/-short; pool pre-read) | Athena, ETH SAFARI 2026, https://arxiv.org/abs/2601.17615 | (EU-P8) | rounding | both | S | keeps the edit gain of A4/A5 without the short-chat loss: est. +2-5% on mixed sessions | confirm | parked -> **reopened**: trigger met (A4 and A5 A/Bs came out mixed) |
+| A45 | Startup probe + calibration of the CPU-vs-promote ratio, verified on window time | DALI cost model, https://arxiv.org/abs/2602.03495 ; Vidur profiling method (A6) | 55 / 63 | rounding | both | M | 0-3% here, 6-13% on other platforms (static PcieAuto lost that much here) | confirm (must find `--pcie-frac 0` alone) | planned |
+| A46 | LLM-evolved cache policy on the simulator; Belady imitation; admission/migration split | ADRS / Barbarians at the Gate, Berkeley 2025, https://arxiv.org/abs/2510.06189 ; Hawkeye, ISCA'16 (no URL in reports) ; Harmonia, https://arxiv.org/abs/2503.20507 | 14 / 27 | rounding | both | M | Belady-bounded; build only at >= 5% in the recalibrated A6 model | screen | parked (needs A6) |
+
+### 16.10 CPU expert path and DDR4 bandwidth
+
+The Q2_0 pool already reads at ~27 of 33 GB/s. Academic room is small.
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A47 | Per-expert barriers + SiLU*mul fused into gate/up | Cloud-Grade SLOs for Local MoE, Tsinghua, OSDI'26, https://www.usenix.org/system/files/osdi26-wang-wenxin.pdf | 29 | exact | both | - | meas. +2.5% +-1.7 edit, token forcing PASS | - | **done** (in fast-hip, 50c6464cd) |
+| A48 | Single-thread and pool GB/s micro-benchmark of the Q2_0 kernel against the best x86 2-bit GEMV (decides whether the Phase 15 F7 kernel or any LUT work has room) | Intel 2-bit GEMV on x86, https://arxiv.org/abs/2508.06753 ; T-MAC, EuroSys'25, https://arxiv.org/abs/2407.00088 | (Asia-M6), 41 | exact | both | XS | decides F7 (fork claim edit +1-3%); LUT rewrite ~0 | screen | planned |
+
+Rejected, reason still holds: T-MAC / Vec-LUT rewrite (kernel at the bandwidth roofline); SparAMX, AMX, near-DRAM
+decompression (hardware absent); L3 / next-layer prefetch (worse here and in forks).
+
+### 16.11 Attention, KV and long-context decode
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A49 | Measure decode at 10K vs 64K vs 128K (attention share of the window) | method from Twilight, https://arxiv.org/abs/2502.02770 (US-M5) | - | exact | both | XS | 0 itself; decides A50/A51 | screen | **new** |
+| A50 | Verify-window attention that reads the prefix K/V once for all window rows | LongSpec, NTU 2025, https://arxiv.org/abs/2502.17421 (+ fork F11) | 15 F11, (Asia-P8) | rounding | both (int8 mma -> gfx11 WMMA) | M | fork: 200K decode 48.6 -> 88.9 tok/s (5080); ~0 at short context | confirm | planned (after A49) |
+| A51 | Query-aware sparse decode attention | Quest, ICML'24, https://arxiv.org/abs/2406.10774 ; Twilight (above) | (ledger h) | lossy | both | M | a few % at 100K+ | rigorous | parked: attention must exceed ~15% of decode (A49) |
+
+### 16.12 Data path: loader, PCIe, NVMe
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A52 | Direct (O_DIRECT, 16-thread) expert-arena loader, no page-cache double copy | ServerlessLLM, OSDI'24, https://www.usenix.org/conference/osdi24/presentation/fu | 38 | exact | both | - | start 28-65 s -> ~10-14 s (est.); removes the likely oomd trigger | confirm (start time, PSI, `STRATA_VERIFY_ARENA`) | done code (184e68e83); measure |
+| A53 | IOMMU passthrough guardrail at start | Fast & Safe IO Memory Protection, SOSP'24, https://experts.illinois.edu/en/publications/fast-amp-safe-io-memory-protection/ | 54 | exact | both | XS | 0 here; avoids a silent PCIe slowdown | screen | planned (folded into 63) |
+
+Rejected, reason still holds: hipFile / BaM / GPU-initiated NVMe (absent or NVIDIA-only; misses come from RAM);
+MoE-Lightning stale-dropping paging (https://arxiv.org/abs/2411.11217; ForesightSwap is off in the presets).
+
+### 16.13 Quality and measurement methods (no gain of their own; they gate 16.1-16.8)
+
+| ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Status |
+| --- | --- | --- | --- | --- |
+| A54 | KLD / top-1 only reject large deviations; a fixed task set picks between close variants | Displacement Is Not Direction, Toronto 2026, https://arxiv.org/abs/2606.19558 | quality gates | done (rule) |
+| A55 | Task gate runner: BFCL v4 multi-turn + LiveCodeBench subset + own-repo checkpoint grading, repeated runs | BFCL, https://gorilla.cs.berkeley.edu/leaderboard.html ; LiveCodeBench, https://arxiv.org/abs/2403.07974 ; TheAgentCompany, https://arxiv.org/abs/2412.14161 | 67 | planned (blocks A1, A2, A4 default, A17-A20, A27, A28) |
+| A56 | EAR (expected acceptance rate) next to "same top token" in token forcing; predicts MTP acceptance | SLQ, ISTA, https://github.com/IST-DASLab/SLQ | (EU-M1) | **new** (XS) |
+| A57 | Area under the time-to-success curve for agent A/Bs | SWE-Effi, https://www.alphaxiv.org/abs/2509.09853 | (Can-M2) | planned (for A18, A38-A43) |
+| A58 | Repeated runs as distributions; reclaim-aware load gate | SD Illusion (A25); Price Reversal (US-M4) | I5 | done (abtest.py, 04c harness) |
+
+### Top 10 academic items to develop next
+
+1. **A55 + A1/A2/A4 joint quality batch.** Build the task-gate runner, then one night: turbo (A1) vs AcceptMoE (A2), each
+   with deferral + rank guard on. The biggest remaining lever (+30-50% meas. before deferral). Rigorous.
+2. **A4 rank-guard fix.** One pool pass when few rows are deferred, then the w sweep. Keeps +3-5% on edits without the
+   -6.9% on short chat. Confirm, then rigorous for fast-hip.
+3. **A14 then A11/A12/A13 on agent replays.** restore_check first, then the three coded per-turn cache opt-ins on real
+   opencode sessions from the turn log. ~10-15% of turn time, exact. Confirm.
+4. **A30 Fiddler threshold for delta prefill.** Env-only A/B on agent sessions; up to ~0.4 s per turn (est.). Confirm.
+5. **A17 + A18 thinking control.** Per-effort caps from the turn log's p99; `xhigh` vs `medium` on time to success.
+   Rigorous.
+6. **A6 recalibrated time model (no GPU).** Fit the overlap model to last night's measured points; then run A7 (ProMoE)
+   and A46 candidates offline; queue the A8 (Pie) blocking-tier arm. Screen.
+7. **A44 Athena-style bandit** for mixed opt-ins (rank guard, k-th miss) per window type. Confirm.
+8. **A22 DISCO with entropy and SpecFit features.** Log per-position new misses and entropy into the window trace, fit
+   offline, then A/B; plus A21 exact speculative sampling (env-only) if T=0.1 takes the sampled path. Confirm.
+9. **Re-profile with deferral on, then A33/A35 retests, A37 check and A34 sweep.** The GPU floor now matters on edits too.
+   Confirm.
+10. **A19 learned thinking stop.** Dump hook on hidden states, probe trained on logged turns, the cap stays as a net.
+    Rigorous.
+
+Note: README section 4C lists XAttention at arXiv 2502.17421; the MIT report gives XAttention as 2503.16428 and the Asia
+report gives 2502.17421 to LongSpec (A50). Fix the README link.
+
 ## Phase 15: speed ideas from all fork commits (2026-11-10, owner: biggest gains first)
 
 Source: [reports/Speed ideas from all forks.md](reports/Speed%20ideas%20from%20all%20forks.md) and its notes in
