@@ -426,6 +426,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_POOL_FUSE_PHASES` | `pool.cpp`, `pool.hpp` (item 29) | off | exact | mode 7: gate/up + down in one phase per layer | overlap model: +3% |
 | `STRATA_POOL_PREREAD` | `pool.hpp`, `expert_source.hpp` (from tandem.cpp) | off | exact | idle workers pre-read the lookahead's next-layer CPU experts | loses even on a noisy machine; stays off |
 | `STRATA_Q2_PREFETCH=<bytes>` | `q2_avx2.cpp` (item 40) | off | exact | prefetch Q2_0 row bytes ahead of the dot | 0-5% of CPU-expert time |
+| `STRATA_Q2_FAST=1` | `q2_avx2.cpp`, `q2_avx2_rows.inl` (imanu86 `c3fc8f34d3`, MOD_PLAN F7) | off (becomes the default once `q2_fast_parity_test` passes) | exact (bitwise the legacy kernel) | AVX-2 Q2_0 rows: 8-op code unpack instead of ~14-17, d broadcast once per block, 4 rows at a time on short (down) rows; AVX-VNNI copy too; `STRATA_Q2_BITPLANE=1` still wins | imanu86: 1.11-1.45x one thread, Q2_0 layer -17% in a 7-worker pool; not yet measured here |
+| `STRATA_Q2_LEGACY=1` | `q2_avx2.cpp` | off | exact | forces the legacy AVX-2 Q2_0 kernel even with `STRATA_Q2_FAST=1` (and after FAST becomes the default): the A/B switch | A/B control |
 | `STRATA_IQ2S_PAIR` | `iq_avx2.cpp` | off | exact | IQ2_S decodes both 64-value halves from one table load | **neutral** (2026-11-08) |
 | `STRATA_ACT_DUMP_RAW[_MAX]` | `pool.cpp` (item 13) | off | research | dump raw CPU expert activations for the sparsity study | enabled item 13's closure |
 | `STRATA_POOL_TAIL4=1` | `pool.cpp` (basalt ports, `e29bac539`) | off | exact | quarter-size tail tasks, plus down-row prefetch while a fused down task waits | basalt `553e9290d` / `4e6841265` ports |
@@ -749,6 +751,7 @@ Credits, in the order the stack was built:
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
 - **android-imdad** (Strata-7900xtx), for the 256-thread, 16-byte plan copy (`STRATA_WAIT_COPY256`, commit caa9b00115).
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
+- **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.

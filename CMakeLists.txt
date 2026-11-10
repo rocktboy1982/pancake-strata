@@ -2999,6 +2999,11 @@ if(STRATA_BUILD_TESTS)
     target_link_libraries(q2_bitplane_parity PRIVATE strata_kernels_cpu)
     add_test(NAME q2_bitplane_parity COMMAND q2_bitplane_parity)
     set_tests_properties(q2_bitplane_parity PROPERTIES ENVIRONMENT "STRATA_Q2_BITPLANE=1")
+    # imanu86 c3fc8f34d3: the opt-in fast exact AVX-2 Q2_0 kernel (STRATA_Q2_FAST=1) against the legacy one, bitwise
+    add_executable(q2_fast_parity_test tests/core/q2_fast_parity_test.cpp)
+    target_link_libraries(q2_fast_parity_test PRIVATE strata_kernels_cpu)
+    add_test(NAME q2_fast_parity_test COMMAND q2_fast_parity_test)
+    set_tests_properties(q2_fast_parity_test PROPERTIES SKIP_RETURN_CODE 77)   # no AVX2: skipped
   endif()
 
   if(STRATA_NATIVE_EXPERTS)

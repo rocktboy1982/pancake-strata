@@ -108,6 +108,14 @@ void q2_0_gguf_rows_multi_avx2_legacy(const uint8_t*, size_t, int, const ActQ* c
 void q2_0_gguf_rows_multi_avx2_v(bool, const uint8_t*, size_t, int, const ActQ* const*, int, float* const*, int, int) {
     unsupported("the Q2_0 GGUF row kernel");
 }
+bool q2_fast_enabled() { return false; }
+void q2_0_gguf_rows_multi_avx2_fast(const uint8_t*, size_t, int, const ActQ* const*, int, float* const*, int, int) {
+    unsupported("the Q2_0 GGUF row kernel");
+}
+void q2_0_gguf_rows_multi_avx2_fast_v(bool, const uint8_t*, size_t, int, const ActQ* const*, int, float* const*, int,
+                                      int) {
+    unsupported("the Q2_0 GGUF row kernel");
+}
 void s2_expert_scalar(const uint8_t*, const float*, float*, bool) { unsupported("the Q2_0 scalar oracle"); }
 
 void iq512_gu_rows(int, const uint8_t*, size_t, size_t, int, const void* const*, int, float* const*, int, int) {
