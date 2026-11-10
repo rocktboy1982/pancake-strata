@@ -7,12 +7,15 @@
 // (18), IQ3_S (21), IQ2_S (22); down IQ4_NL (20), Q2_0 (42).  `pairs` is a comma list of gu/down type ids ("21/20,16/42")
 // or "all" (the 10 pairs).  `choices` is a comma list of kernel choices:
 //   def                     the default kernels (STRATA_EXPDEC off); the reference for the bitwise check
-//   dec[:r<n>][:d<n>][:b<n>][:w<n>][:x<n>][:g<n>][:h<n>][:m<n>]
+//   dec[:r<n>][:d<n>][:b<n>][:w<n>][:x<n>][:g<n>][:h<n>][:m<n>][:s<n>]
 //                           EXPDEC with r = gate/up rows per lane (1, 2), d = down rows per lane (1, 2, 4), b = the
 //                           gate/up kernel's min blocks per SM (2 | 4), w = 1 EXPDEC for the down too (the engine's
 //                           default is the gate/up only), x = 1 also for the IQ4_NL down, g / h = gate/up / down rows
-//                           per block (0 = auto), m = the auto rule's minimum blocks; a missing field takes the
-//                           engine's value (the environment's STRATA_EXPDEC_* or its default)
+//                           per block (0 = auto), m = the auto rule's minimum blocks, s = 1 the F12 sign form in the
+//                           IQ2_XXS / IQ2_XS / IQ2_S gate/up (STRATA_IQ_SIGN_FAST; s0 forces it off); a missing field
+//                           takes the engine's value (the environment's STRATA_EXPDEC_* / STRATA_IQ_SIGN_FAST or its
+//                           default).  F12 A/B, per format:  expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1
+//                           (both must print `identical`; compare their gu_us)
 // `shape`: real = every token picks 10 experts out of `groups` distinct ones (as fp_expert_bench: T=1 10 groups x 1
 // entry, T=2 20 x 1, T=4 20 groups with 40 entries); single = 10 T groups of one entry each (the same entries as `real`
 // spread over distinct experts); both = the two, plus the decomposition at the end: per-expert cost a = (single T=4 -
@@ -78,10 +81,11 @@ K::NativeExpertExpdecParams resolve_choice_params(const K::NativeExpertExpdecPar
     if (c.p.gu_rows_per_block >= 0) p.gu_rows_per_block = c.p.gu_rows_per_block;
     if (c.p.down_rows_per_block >= 0) p.down_rows_per_block = c.p.down_rows_per_block;
     if (c.p.min_blocks > 0) p.min_blocks = c.p.min_blocks;
+    if (c.p.sign_fast >= 0) p.sign_fast = c.p.sign_fast;
     return p;
 }
 
-// "def" | "dec[:r<n>][:d<n>][:b<n>][:x<n>][:g<n>][:h<n>][:m<n>]"; false on anything else
+// "def" | "dec[:r<n>][:d<n>][:b<n>][:x<n>][:g<n>][:h<n>][:m<n>][:s<n>]"; false on anything else
 bool parse_choice(const std::string& s, Choice& c) {
     c = Choice{};
     c.name = s;
@@ -105,6 +109,7 @@ bool parse_choice(const std::string& s, Choice& c) {
             case 'g': if (v < 0) return false; c.p.gu_rows_per_block = v; break;
             case 'h': if (v < 0) return false; c.p.down_rows_per_block = v; break;
             case 'm': if (v <= 0) return false; c.p.min_blocks = v; break;
+            case 's': if (v != 0 && v != 1) return false; c.p.sign_fast = v; break;   // F12 sign form (STRATA_IQ_SIGN_FAST)
             default: return false;
         }
         i = j;
@@ -395,7 +400,7 @@ int main(int argc, char** argv) {
     for (const std::string& s : split_commas(argc > 5 ? argv[5] : "def,dec,dec:r2,dec:b4,dec:r2:b4")) {
         Choice c;
         if (!parse_choice(s, c)) {
-            std::printf("expdec_bench: choice '%s' is not def or dec[:r<1|2>][:d<1|2|4>][:b<2|4>][:x<0|1>][:g<n>][:h<n>][:m<n>]\n", s.c_str());
+            std::printf("expdec_bench: choice '%s' is not def or dec[:r<1|2>][:d<1|2|4>][:b<2|4>][:x<0|1>][:g<n>][:h<n>][:m<n>][:s<0|1>]\n", s.c_str());
             return 1;
         }
         choices.push_back(c);
@@ -449,9 +454,9 @@ int main(int argc, char** argv) {
     for (const Choice& c : choices) {
         if (c.dec) {
             const K::NativeExpertExpdecParams cp = resolve_choice_params(banner_params, c);
-            std::printf(" %s(gu R %d minb %d, down %d R %d iq4_nl %d, rb %d drb %d, min blocks %d)", c.name.c_str(),
+            std::printf(" %s(gu R %d minb %d, down %d R %d iq4_nl %d, rb %d drb %d, min blocks %d, F12 sign mask 0x%x (1: types 16, 17, 22))", c.name.c_str(),
                         cp.gu_rows_per_lane, cp.gu_min_blocks_per_sm, cp.down, cp.down_rows_per_lane, cp.down_iq4_nl,
-                        cp.gu_rows_per_block, cp.down_rows_per_block, cp.min_blocks);
+                        cp.gu_rows_per_block, cp.down_rows_per_block, cp.min_blocks, (unsigned) cp.sign_fast);
         } else {
             std::printf(" %s", c.name.c_str());
         }

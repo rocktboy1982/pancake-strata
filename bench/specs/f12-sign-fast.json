@@ -1,0 +1,23 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "sign-fast": {
+   "env": {
+    "STRATA_IQ_SIGN_FAST": "1"
+   }
+  },
+  "sign-fast-iq2s": {
+   "env": {
+    "STRATA_IQ_SIGN_FAST": "22"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "lossy": false,
+ "note": "MOD_PLAN F12, branch work/f12-sign-expand (the build must contain it; the base preset has STRATA_EXPDEC=1, which F12 needs). Before this screen: (1) iq_multi_parity must pass (it now also runs EXPDEC with the F12 sign form, bitwise vs the old kernels); (2) expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1 must print 'identical' for every cell and gives the per-format gate/up time (gu_us), which decides the arm set: keep a format only where dec:s1 beats dec:s0 (RX5950XT's static count says expdec_gu can lose 1-2 waves; check VGPRs/occupancy of expdec_gu_kernel<22,1,4,true> vs <22,1,4,false> in the ISA if it loses). sign-fast = IQ2_XXS + IQ2_XS + IQ2_S gate/up, sign-fast-iq2s = IQ2_S only (expdec_gu<22>, 5.83% of GPU time; <16> is 1.6%). Exact: the text hash of every arm must equal base on every case; any difference is a bug, not noise. Expected 0-1.5% decode, below the screen's +2% promote bar: if expdec_bench shows a gate/up gain, run --tier confirm with --reps 6 instead of trusting the screen verdict. The engine log line 'strata expdec: ... gate/up type 22 ... F12 sign form' proves the arm took the new kernels."
+}

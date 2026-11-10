@@ -183,7 +183,10 @@ preset on an agent replay with interleaved short requests (watch free RAM); it r
 
 1. F1 PARK_TRUNCATE (+ F3 checkpoint cuts) - exact, both GPUs.
 2. F7 Q2_0 AVX2 kernel - exact, both GPUs.
-3. F9 router publish (HIP DPP first), F12 sign expansion with EXPDEC_V2 - exact.
+3. F9 router publish (HIP DPP first), F12 sign expansion with EXPDEC_V2 - exact. F12 is coded alone on
+   `work/f12-sign-expand` (EXPDEC_V2 is not in the tree): run `iq_multi_parity`, then
+   `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1` on each GPU (every cell `identical`; keep a format only
+   where `dec:s1` has the lower gu_us), then `bench/specs/f12-sign-fast.json` (text identical to base on every case).
 4. F14 KhaledElzarw sm86 set on the 3060, then the Q2_0 down fold on gfx1100 - exact.
 5. F8 SPEC_CUM (if 4.0.3 >= 2%), F10 ADAPT_PROMPT - exact.
 6. F11 window decode attention (CUDA first, then WMMA), F17 / F19 Qwen3.6 attention - rounding-level, KL gate.

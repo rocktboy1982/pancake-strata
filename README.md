@@ -376,6 +376,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_RDNA_MMVQ_WAVE` | `native_mmvq.cu` | unset | exact | wave-shaped multi-row GEMV (preset uses 3) | in the fast-hip preset |
 | `STRATA_RDNA_KQ_ALL` | `rdna_mmvq.cu` | off | tuning | allow the KQ kernel below 4 columns | tuning |
 | `STRATA_MMVQ_R` | `native_mmvq.cu` | 1 | exact | rows per wave (2/4), shared activation loads | tuning |
+| `STRATA_IQ_SIGN_FAST=1` (or a type list, e.g. `22`, `16,22`) | `iq_kernels.cu` (`iq_signed`, MOD_PLAN F12; RX5950XT `b9a2111d3f`, boxwrench in yqYo1 `6f0bdf665b`) | off | exact (bitwise; both GPUs) | the EXPDEC gate/up kernels (`expdec_gu`, and `expdec_gu_swiglu` with `STRATA_EXPDEC_SWIGLU`) put the IQ2_XXS / IQ2_XS / IQ2_S grid signs on with 7 plain 32-bit ops (no multiply) instead of the emulated byte compare + byte subtract (~13 ops and a multiply on HIP); needs `STRATA_EXPDEC=1`. Other kernels keep the old form (native_gu_multi loses waves with it, fork static count) | coded on `work/f12-sign-expand`, not built or measured yet; parity in `iq_multi_parity`, per-format A/B `expdec_bench ... def,dec:s0,dec:s1`, screen `bench/specs/f12-sign-fast.json`. Fork: -29% (IQ2_XXS gate/up) / -35% (IQ2_S down) kernel time on an RX 7900 XT in a GLM engine; est. 0-1.5% decode here |
 | `STRATA_PCIE_OFF` | `generate.cpp` | off | tuning | force the PCIe share off | Round A: +6/+13% with `--pcie-frac 0` |
 
 ### 6B. Expert cache, routing and deferral
@@ -784,6 +785,9 @@ Credits, in the order the stack was built:
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
 - **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
+- **RX5950XT** (Strata fork, MIT), for the IQ2/IQ3 sign form without byte compares that `STRATA_IQ_SIGN_FAST` uses (commit
+  `b9a2111d3f`, llama.cpp's `ggml_cuda_apply_signs` without its multiply), and **boxwrench** (in yqYo1/Strata, MIT), for
+  measuring packed sign expansion on an RX 7900 XT (commit `6f0bdf665b`).
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
