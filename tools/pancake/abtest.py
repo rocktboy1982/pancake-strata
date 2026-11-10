@@ -349,6 +349,11 @@ def make_config(base, arm, path):
             a += [k] + ([str(v)] if v != "" else [])
     if arm.get("drafting"):
         c["drafting"] = arm["drafting"]
+    for k, v in (arm.get("config") or {}).items():   # server config keys (reasoning_budget_by_effort, rumination_close ...)
+        if v is None:
+            c.pop(k, None)
+        else:
+            c[k] = v
     if arm.get("exe"):   # another build of the engine (e.g. build-hip-native/strata)
         exe = arm["exe"] if os.path.isabs(arm["exe"]) else str(ROOT / arm["exe"])
         c["exe"] = exe
