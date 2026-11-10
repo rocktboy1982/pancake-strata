@@ -1762,10 +1762,35 @@ __global__ void wait_copy_i32_kernel(const volatile uint32_t* flag, uint32_t val
     __syncthreads();
     for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
 }
+// STRATA_WAIT_COPY256=1 (fork android-imdad/Strata-7900xtx caa9b00115): the same wait and the same fences as above, then
+// 16-byte reads where both pointers allow (else the 4-byte loop); a word tail (n % 4) is copied one word per thread.
+// Launched with 256 threads: a 568-word verify plan is 142 int4 reads, one round over PCIe.
+__global__ void wait_copy_i32_wide_kernel(const volatile uint32_t* flag, uint32_t value, int32_t* __restrict__ dst,
+                                          const volatile int32_t* src, int n) {
+    if (threadIdx.x == 0) {
+        while (*flag < value) strata_spin_pause();
+        __threadfence_system();
+    }
+    __syncthreads();
+    if (((reinterpret_cast<uintptr_t>(dst) | reinterpret_cast<uintptr_t>(src)) & 15) == 0) {
+        const int n4 = n >> 2;
+        const int4* s4 = reinterpret_cast<const int4*>(const_cast<const int32_t*>(src));
+        int4* d4 = reinterpret_cast<int4*>(dst);
+        for (int i = threadIdx.x; i < n4; i += blockDim.x) d4[i] = s4[i];
+        for (int i = 4 * n4 + threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
+        return;
+    }
+    for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
+}
 }  // namespace
 void wait_copy_i32_from_mapped(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
                                void* stream) {
-    wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    static const bool wide = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
+    if (wide && n > 512) {
+        wait_copy_i32_wide_kernel<<<1, 256, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    } else {
+        wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    }
     check("wait_copy_i32_from_mapped");
 }
 
