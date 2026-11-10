@@ -120,6 +120,7 @@
 #include "strata/program/prefill_plan.hpp"
 #include "strata/program/draft_kv_plan.hpp"
 #include "strata/program/message_boundary.hpp"
+#include "strata/spec/disco.hpp"
 #include "strata/spec/draft_policy.hpp"
 #include "strata/spec/draft_vocab.hpp"
 #include "strata/spec/window_rule.hpp"
@@ -14606,6 +14607,17 @@ int main(int argc, char** argv) {
                 chain_rows = chain_st.best_rows;
                 return k;
             });
+        // DISCO (spec/disco.hpp, opt-in): STRATA_DISCO=<weights> - a learned stop rule for the MTP chain, replacing the cost rule and
+        // the request's spec_min_p for MTP windows (DFlash2 requests keep theirs); STRATA_DISCO_TRACE=<csv> - its training data
+        strata::spec::DiscoPolicy disco;
+        disco.init_from_env("strata serve");
+        const bool disco_on = disco.active() && use_mtp;
+        if (disco_on)
+            mtp.set_chain_rule([&](int idx, float pj) {
+                const bool k = disco.keep_draft(idx, pj, S_mtp);
+                chain_rows = disco.rows();
+                return k;
+            });
         policy.set_sizes(lookup_size_mask(o));
         // a layer split's hand-off buffers hold kVerifyNarrowT rows: its windows stay at that
         if (n_stages > 1) policy.set_sizes(policy.sizes() & ((2u << strata::kernels::kVerifyNarrowT) - 1u));
@@ -18450,7 +18462,7 @@ int main(int argc, char** argv) {
             if (use_mtp) mtp.set_draft_sampling(req_sp);   // STRATA_SPEC_COUPLED=1: sampled drafts (a no-op otherwise)
             const bool gated_proposal = use_mtp && mtp.prob() && strata::core::spec_gate_pick() &&
                 gated_proposal_usable(o.pipeline_windows < 2 && o.batch == 0 && n_stages == 1 && !multi_gpu && drive.d.remote_count == 0,
-                                      o.lookup_chain, o.adapt_swaps, req_pcie_frac != 0.0 || o.pcie_frac_auto, spec_cost || req_df2, S,
+                                      o.lookup_chain, o.adapt_swaps, req_pcie_frac != 0.0 || o.pcie_frac_auto, spec_cost || disco_on || req_df2, S,
                                       req_spec_min_p);
             {   // aux_cpus=0|1: where the non-pool, non-host threads run for this request (-1 = the start-up --aux-cpus); moves
                 // threads only.  An enabled placement is swept at every request: it catches threads created since.
@@ -19574,7 +19586,7 @@ int main(int argc, char** argv) {
                     {   // the window rule of this request's ACTIVE source (spec/window_rule.hpp), as in the CLI loop: the MTP chain's cost rule
                         // and probabilities do not govern DFlash2's candidates, though the MTP may stay loaded beside it
                         strata::spec::WindowRuleIn wr;
-                        wr.use_mtp = use_mtp; wr.draft_on = draft_on; wr.df2_active = req_df2; wr.spec_cost = spec_cost; wr.first_window = first_window;
+                        wr.use_mtp = use_mtp; wr.draft_on = draft_on; wr.df2_active = req_df2; wr.spec_cost = spec_cost || disco_on; wr.first_window = first_window;
                         wr.chain_rows = chain_rows; wr.cap = S_mtp; wr.start = T; wr.spec_min_p = req_spec_min_p;
                         wr.draft_conf = o.draft_conf; wr.dprob = dprob.data();
                         T = strata::spec::choose_window(wr);
@@ -20029,6 +20041,15 @@ int main(int argc, char** argv) {
                     if (tp_end == nullptr || !df2.context(tp_end, a + 1, p, err)) { adapt_join(); std::printf("ERR %s\n", err.c_str()); return 1; }
                 }
 #endif
+                if (disco.enabled()) {   // DISCO: this window's trace lines, then the state the next chain's stop rule reads
+                    strata::spec::DiscoPolicy::Round dr;
+                    dr.p = dwin_s.data(); dr.T = std::min(T_mtp, (int) dwin_s.size() + 1); dr.accepted = std::min(a, dr.T - 1);
+                    dr.mtp_window = use_mtp && draft_on && !req_df2 && !from_sfx && !merged && chain_n == 0 && !initial_round && !gated_proposal;
+                    dr.round_ms = std::chrono::duration<double, std::milli>(Clock::now() - round0).count();
+                    dr.match = sfx_match; dr.misses_total = drive.d.multi_misses; dr.n_layers = (int) g.n_layers;
+                    dr.pos = (long long) p; dr.policy = &policy;
+                    disco.end_round(dr);
+                }
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
                 int mtp_nd = 0;   // item 74: the drafts of this round (the window trace records them when the window is built, above)
                 const bool drafted = !draft_on || eos || produced_n >= max_new ||
@@ -21487,10 +21508,15 @@ int main(int argc, char** argv) {
 #else
         const bool spec_uses_df2 = false;   // no DFlash2 drafter in this build (Metal)
 #endif
+        // DISCO (spec/disco.hpp, opt-in): STRATA_DISCO=<weights> picks the MTP window with a learned per-draft stop rule;
+        // STRATA_DISCO_TRACE=<csv> logs the training data.  Neither set: nothing changes.
+        strata::spec::DiscoPolicy disco;
+        disco.init_from_env("strata generate");
+        const bool disco_on = disco.active() && use_mtp && !spec_uses_df2;
         const bool gated_proposal = use_mtp && mtp.prob() && strata::core::spec_gate_pick() &&
             gated_proposal_usable(o.pipeline_windows < 2 && o.batch == 0 && !multi_gpu && drive.d.remote_count == 0,
                                   o.lookup_chain, o.adapt_swaps, o.pcie_frac != 0.0 || o.pcie_frac_auto,
-                                  spec_cost || spec_uses_df2 || !t_cycle.empty() || o.spec_corrupt > 0, o.spec, o.spec_min_p);
+                                  spec_cost || disco_on || spec_uses_df2 || !t_cycle.empty() || o.spec_corrupt > 0, o.spec, o.spec_min_p);
         if (gated_proposal && !follow.empty())
             std::fprintf(stderr, "strata generate: --spec-follow replaces outputs before acceptance (teacher-forced diagnostic, not sampling-law evidence)\n");
         strata::core::MtpDrafter::DraftResult generation;
@@ -21526,6 +21552,12 @@ int main(int argc, char** argv) {
             mtp.set_chain_rule([&](int idx, float pj) {
                 const bool k = policy.keep_draft(chain_st, idx, pj, S_mtp);
                 chain_rows = chain_st.best_rows;
+                return k;
+            });
+        if (disco_on)   // DISCO's rule replaces the cost rule and --spec-min-p for the MTP chain (DraftPolicy still picks lookup vs MTP)
+            mtp.set_chain_rule([&](int idx, float pj) {
+                const bool k = disco.keep_draft(idx, pj, S_mtp);
+                chain_rows = disco.rows();
                 return k;
             });
         policy.set_sizes(lookup_size_mask(o));
@@ -21666,7 +21698,7 @@ int main(int argc, char** argv) {
             {   // the window rule of the round's ACTIVE source (spec/window_rule.hpp): the MTP chain's cost rule and probabilities do not
                 // govern DFlash2's candidates, though the MTP may stay loaded beside it as the fallback (use_mtp)
                 strata::spec::WindowRuleIn wr;
-                wr.use_mtp = use_mtp; wr.draft_on = draft_on; wr.df2_active = spec_uses_df2; wr.spec_cost = spec_cost; wr.first_window = first_window;
+                wr.use_mtp = use_mtp; wr.draft_on = draft_on; wr.df2_active = spec_uses_df2; wr.spec_cost = spec_cost || disco_on; wr.first_window = first_window;
                 wr.chain_rows = chain_rows; wr.cap = S_mtp; wr.start = T; wr.spec_min_p = o.spec_min_p;
                 wr.draft_conf = o.draft_conf; wr.dprob = dprob.data();
                 T = strata::spec::choose_window(wr);
@@ -21846,6 +21878,16 @@ int main(int argc, char** argv) {
                 if (adapt_thr.joinable()) adapt_thr.join();
                 total_ms += std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
                 break;
+            }
+            if (disco.enabled()) {   // DISCO: this window's trace lines, then the state the next chain's stop rule reads
+                strata::spec::DiscoPolicy::Round dr;
+                dr.p = dwin.data(); dr.T = T_mtp; dr.accepted = std::min(a, T_mtp - 1);
+                dr.mtp_window = use_mtp && draft_on && !spec_uses_df2 && !from_sfx && chain_n == 0 && !initial_round &&
+                                !gated_proposal && o.spec_corrupt <= 0 && follow.empty();
+                dr.round_ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+                dr.match = sfx_match; dr.misses_total = drive.d.multi_misses; dr.n_layers = (int) g.n_layers;
+                dr.pos = (long long) p; dr.policy = &policy;
+                disco.end_round(dr);
             }
             generation = {};
             const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
