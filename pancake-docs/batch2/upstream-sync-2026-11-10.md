@@ -17,8 +17,9 @@ for our cards: the only "perf" engine commits flip launcher speed switches into 
 GDN_TC / GDN_CONVL2, HC_Q8 on UD files, gfx12 chunked GDN, hipBLASLt table on gfx1151 only). Those switches already
 exist in our tree as opt-ins, so taking the flips would only change our default path, which the fork policy forbids.
 
-Counts: 209 other, 48 bugfix, 12 perf (10 of them default flips or Windows-only), 38 merges. Taken: 8 upstream commits
-(1 partial, 2 by hand), as 8 commits on the branch. None of them was already in our tree (`git cherry` shows no
+Counts: 209 other, 48 bugfix, 12 perf (10 of them default flips or Windows-only), 38 merges. Taken: 8 upstream commits,
+as 8 commits on the branch: 2 applied by hand (`e396ce821` only its bug-fix part, `8e69b84dd`), `38ad0bcbd` without
+its snapshot goldens, the other 5 as clean `cherry-pick -x`. None of them was already in our tree (`git cherry` shows no
 patch-equivalent commit; the hand-ported upstream fixes we had - #5655 route_prior guard, the fork-scan ports - are
 not in this range of upstream main).
 
