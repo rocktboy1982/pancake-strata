@@ -75,4 +75,13 @@ bool bf16_router_publish_arm(const float* logits, int32_t* ids, float* weights, 
                              void* stream);
 bool bf16_router_publish_used();
 
+/// STRATA_ROUTE_FAST (F9): arm a copy of the router GEMV's activation rows - x[0, n_tok * n_in), rows contiguous
+/// (ldx == n_in), 16-byte aligned, n_in % 4 == 0, 2-8 rows - to x_pub (the verify window's mapped MoE-input buffer)
+/// inside the NEXT bf16_gemv_fp32_mmvf_multi[_aux] launch on this thread whose x is this x; its threads fence the
+/// stores before the grid ends.  The GEMV's outputs are unchanged.  False: nothing armed (the shape does not qualify).
+/// Afterwards bf16_router_xpub_used() says whether that launch copied the rows (else the caller copies them) and
+/// disarms.  Only the multi kernel takes it (not the STRATA_MMVF_ROWS kernels).
+bool bf16_router_xpub_arm(const float* x, int64_t ldx, int64_t n_in, int n_tok, float* x_pub);
+bool bf16_router_xpub_used();
+
 }  // namespace strata::kernels

@@ -2420,7 +2420,28 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         // STRATA_ROUTE_PUBLISH=1: the top-10 and the doorbell publish in one launch (the path doorbell_publish_res takes)
         static const bool g_rpub = [] { const char* v = std::getenv("STRATA_ROUTE_PUBLISH"); return v != nullptr && v[0] == '1'; }();
         static const bool g_route_prior_set = std::getenv("STRATA_ROUTE_PRIOR") != nullptr;   // (read once, not per layer)
-        const bool rpub = g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
+        // STRATA_ROUTE_FAST=1 (F9, opt-in): the router GEMV copies the MoE input rows to the host, and one launch makes the
+        // top-10, publishes ids AND weights and STORES this step's ring (native_router_top10_publish_fast); every other
+        // publish below is skipped.  It publishes what doorbell_publish does (every row, the ids, the weights), so unlike
+        // ROUTE_PUBLISH it also runs under STRATA_VERIFY_DEFER_CPU: route_publish_res publishes no weights (the pool's
+        // heavy split reads them), and with the split on its ring came on top of doorbell_publish's - two rings a step
+        // (a reading of the code behind the 2026-11-09 non-finite bisect, d5b58f669).  The ring value is the step's
+        // number, as doorbell_publish_value / device_plan_ use it: the host resets the ring to 0 in stage_inputs and
+        // waits for k + 1 at step k.  Not with the lookahead router (its rows must be published before the ring).
+        static const bool g_rfast = native_router_fast_enabled();
+        const bool rfast = g_rfast && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
+                           NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
+                           la_out_ == nullptr && !g_route_prior_set && route_resident_cfg().margin <= 0.0f;
+        const uint32_t ring_step = (uint32_t) ((l - lb_) * G + grp + 1);
+        if (rfast) {
+            static bool said = false;
+            if (!said) {
+                said = true;
+                std::fprintf(stderr, "strata verify: STRATA_ROUTE_FAST=1: top-10, ids + weights to the host and the step's "
+                                     "ring stored in one launch, the rows copied by the router GEMV (F9)\n");
+            }
+        }
+        const bool rpub = !rfast && g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
                           NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
                           !defer_ &&   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
                           !g_route_prior_set && route_resident_cfg().margin <= 0.0f
@@ -2435,6 +2456,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                                                     hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
                                                                     (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N,
                                                                     m_ids_ + tb * K, m_seq_, cs);
+                // STRATA_ROUTE_FAST: the router GEMV's blocks copy the rows (xm = its x) to the host when its kernel can
+                // (the multi kernel, contiguous aligned rows); else the publish launch below copies them
+                if (rfast) bf16_router_xpub_arm(xm, N, N, n, m_x_ + tb * N);
                 if (w_sgi != nullptr)
                     sg_ready = bf16_gemv_fp32_mmvf_multi_aux(mixed_ + tb * N, N, (const uint16_t*) w_router->data,
                                                              logits_ + tb * NE, NE, N, NE, n,
@@ -2443,8 +2467,13 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 bf16_gemv_fp32_mmvf_multi(mixed_ + tb * N, N, (const uint16_t*) w_router->data, logits_ + tb * NE, NE, N,
                                           NE, n, cs);
                 const bool rdone = rfuse && bf16_router_publish_used();
+                const bool rows_on_host = rfast && bf16_router_xpub_used();
                 if (rdone) {
-                } else if (rpub)
+                } else if (rfast)
+                    native_router_top10_publish_fast(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n,
+                                                     rows_on_host ? nullptr : xm, (int64_t) n * N, m_x_ + tb * N,
+                                                     m_ids_ + tb * K, m_w_ + tb * K, m_seq_, ring_step, cs);
+                else if (rpub)
                     native_router_top10_publish_res(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
                                                     hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
                                                     (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N, m_ids_ + tb * K,
@@ -2521,6 +2550,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                               hits_.cache_base, slot_off_d_, (long long) hits_.blob,
                               plan_ + (size_t) grp * (size_t) (plan_i32_ + 16), (long long) max_t_ * K, skip_ + grp,
                               (uint32_t) ((l - lb_) * G + grp + 1), cs);
+            if (rfast) {
+                // STRATA_ROUTE_FAST: the router's launch published this step (rows, ids, weights) and stored its ring
+            } else
 #if defined(STRATA_USE_HIP)
             if (g_doorbell_store)   // #649 A/B: the step's ring stored, not incremented over PCIe
                 doorbell_publish_value(xm, ids_ + tb * K, w_ + tb * K, (int64_t) n * N, (int64_t) n * K, m_x_ + tb * N,

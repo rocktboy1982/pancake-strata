@@ -1,0 +1,23 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "doorbell-store": {
+   "env": {
+    "STRATA_DOORBELL_STORE": "1"
+   }
+  },
+  "route-fast": {
+   "env": {
+    "STRATA_ROUTE_FAST": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN F9 (fast router publish), 7900 XT; the HIP build must contain branch work/f9-route-fast. Run with --tier screen. base = fast-hip with deferral on: ROUTE_PUBLISH is off under deferral, so the base path is route_multi + doorbell_publish (every row, ids, weights, then a read-modify-write of the ring over PCIe; the 2026-11-09 deferral profile: route_multi 9.7 us + doorbell_publish 6.9 us + a 6.8 us gap between them, per layer). doorbell-store = the existing HIP opt-in #649 (the same publish kernel, the ring stored instead of read-modify-written): isolates the PCIe read. route-fast = the router GEMV copies the rows, one launch does top-10 + ids/weights publish + stored ring. Both arms are exact: the text must be identical to base on every case (abtest's text check); a different text is a bug. Before the screen run build-hip/native_multi_parity (the ROUTE_FAST rows must say bitwise). Promote to confirm if >= +2% on a case."
+}

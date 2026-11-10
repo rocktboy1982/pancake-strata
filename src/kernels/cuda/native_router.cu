@@ -26,6 +26,7 @@
 #include <cfloat>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <stdexcept>
 
 namespace strata::kernels {
@@ -219,6 +220,142 @@ __global__ void route_publish_res(const float* __restrict__ logits, int32_t* __r
     rr_route_publish(logits, ids, weights, n_tok, x, d_res, n_expert, n, x_out, ids_out, seq,
                      (int) (threadIdx.y * 32 + threadIdx.x));
 }
+// STRATA_ROUTE_FAST (opt-in, MOD_PLAN F9; after android-imdad/Strata-7900xtx caa9b00115 and Ben1078/Strata 23d2fc0450,
+// both MIT): the window's top-10 and the CPU pool's doorbell in one launch, cheaper than route_publish_res or
+// route_multi + doorbell_publish[_res]:
+//   * The routing is route_multi's arithmetic step for step: the same loads, the same max and sum trees (masks 16, 8, 4,
+//     2, 1), the same expf / reciprocal / NaN rule, the same per-lane scan and the same exchange (higher probability,
+//     then the lower expert index), the same per-lane selected sums.  Every id and weight is bitwise route_multi's.
+//     The one change: lane r writes rank r's id from its own copy of that rank's winner instead of the owner lane
+//     writing it inside the loop.  After the xor butterfly every lane holds the same (probability, id) pair - the
+//     exchange keeps the larger of two pairs under a strict total order (no NaN reaches it: the router maps NaN to
+//     -FLT_MAX), so both partners of a step keep the same pair - which is also what route_multi's weights already rely
+//     on (`if (rank == lane) selected = best`).  So the ids go out as one store per warp, not ten single-lane stores.
+//   * The exchanges are rf_xor<M>: on gfx11 the DPP row_xmask / v_permlanex16 moves of hip_compat/intrinsics.hpp
+//     (shfl_xor_fast; the default build's __shfl_xor_sync already maps to them there, so this part is not new on the
+//     7900 XT), elsewhere __shfl_xor_sync.  Either way each lane receives lane ^ M's 32-bit word: the same bits.
+//   * Each token's warp publishes its ids and weights (lanes 0-9) right after its routing.  The weights too:
+//     route_publish_res never published them, so this path also serves STRATA_VERIFY_DEFER_CPU's weight split, which
+//     ran doorbell_publish (a second, 1024-thread launch) after route_multi.
+//   * The MoE input rows: x == nullptr when the router GEMV launch before this one copied every row to the host
+//     (bf16_router_xpub_arm; its threads fence their stores before that grid ends).  Otherwise every row here, issued
+//     first so the stores travel while the warps route, 16 bytes a store when both ends allow it.  Always every row:
+//     doorbell_publish's rule, a superset of doorbell_publish_res's (which skipped the copy when the device table held
+//     every routed expert).
+//   * The ring is STORED as seq_value, the step's number ((l - lb) * G + grp + 1: the value the read-modify-write of a
+//     ring the host resets to 0 before each window leaves, the steps ringing 1, 2, ... in stream order), not read back
+//     across PCIe and incremented (#649's doorbell_publish_value, Ben1078's stored ring).
+// Ordering: every thread that wrote host-visible words (rows, ids, weights) fences them (__threadfence_system), the
+// block barrier orders those fences before thread 0, and thread 0 fences once more after the barrier - a fence is
+// cumulative, so every write that precedes it (its own, and the other threads' through the barrier) is ordered before
+// the ring store that follows it for every observer, the host included.  The GEMV's row copy precedes it too: that
+// grid ended (its writers fenced) before this one started, in stream order.  On HIP a fence after the store pushes the
+// ring out of L2 (#697, RDNA4), as doorbell_publish_value does.
+template <int M, typename T>
+__device__ __forceinline__ T rf_xor(T value) {
+    static_assert(M == 1 || M == 2 || M == 4 || M == 8 || M == 16, "a wave32 butterfly partner");
+#if defined(STRATA_DPP_SHFL)
+    return ::strata::hip_compat::shfl_xor_fast(value, M, 32);   // gfx11: DPP row_xmask (1-8) / v_permlanex16 (16)
+#else
+    return __shfl_xor_sync(0xffffffffu, value, M, 32);
+#endif
+}
+__device__ __forceinline__ float rf_warp_sum(float value) {   // warp_sum's tree: masks 16, 8, 4, 2, 1
+    value += rf_xor<16>(value); value += rf_xor<8>(value); value += rf_xor<4>(value); value += rf_xor<2>(value);
+    value += rf_xor<1>(value);
+    return value;
+}
+__device__ __forceinline__ float rf_warp_max(float value) {   // warp_max's tree
+    value = fmaxf(value, rf_xor<16>(value)); value = fmaxf(value, rf_xor<8>(value)); value = fmaxf(value, rf_xor<4>(value));
+    value = fmaxf(value, rf_xor<2>(value)); value = fmaxf(value, rf_xor<1>(value));
+    return value;
+}
+template <int M>
+__device__ __forceinline__ void rf_top1_step(float& best, int& expert) {   // route_multi's exchange, one mask
+    const float other = rf_xor<M>(best);
+    const int other_id = rf_xor<M>(expert);
+    if (other > best || (other == best && other_id < expert)) { best = other; expert = other_id; }
+}
+__launch_bounds__(256, 1)
+__global__ void route_publish_fast(const float* __restrict__ logits, int32_t* __restrict__ ids, float* __restrict__ weights,
+                                   int n_tok, const float* __restrict__ x, int n4, int n1, float* x_out, int32_t* ids_out,
+                                   float* w_out, uint32_t* seq, uint32_t seq_value) {
+    const int tk = (int) threadIdx.y, lane = (int) threadIdx.x, tid = tk * 32 + lane;
+    bool wrote = false;
+    if (x != nullptr) {   // the rows (the router GEMV did not copy them): issued first, they travel while the warps route
+        if (n4 > 0) {
+            for (int i = tid; i < n4; i += 256) {
+                reinterpret_cast<float4*>(x_out)[i] = reinterpret_cast<const float4*>(x)[i];
+                wrote = true;
+            }
+        } else {
+            for (int i = tid; i < n1; i += 256) {
+                x_out[i] = x[i];
+                wrote = true;
+            }
+        }
+    }
+    if (tk < n_tok) {   // route_multi's body for token tk (see above), the ids written by rank
+        const float* __restrict__ row = logits + (size_t) tk * 512;
+        float values[16];
+#pragma unroll
+        for (int i = 0; i < 16; ++i) values[i] = row[lane + i * 32];
+        __syncwarp();
+        float maximum = -INFINITY;
+#pragma unroll
+        for (int i = 0; i < 16; ++i) maximum = max(maximum, values[i]);
+        maximum = rf_warp_max(maximum);
+        float sum = 0.0f;
+#pragma unroll
+        for (int i = 0; i < 16; ++i) {
+            values[i] = expf(values[i] - maximum);
+            sum += values[i];
+        }
+        const float reciprocal = 1.0f / rf_warp_sum(sum);
+#pragma unroll
+        for (int i = 0; i < 16; ++i) {
+            values[i] *= reciprocal;
+            if (__isnanf(values[i])) values[i] = -FLT_MAX;
+        }
+        float selected = 0.0f, selected_sum = 0.0f;
+        int selected_id = 0;
+        for (int rank = 0; rank < 10; ++rank) {
+            float best = values[0];
+            int expert = lane;
+#pragma unroll
+            for (int i = 1; i < 16; ++i) {
+                if (values[i] > best) { best = values[i]; expert = lane + i * 32; }
+            }
+            rf_top1_step<16>(best, expert); rf_top1_step<8>(best, expert); rf_top1_step<4>(best, expert);
+            rf_top1_step<2>(best, expert); rf_top1_step<1>(best, expert);
+            if ((expert & 31) == lane) {
+                values[expert / 32] = -INFINITY;
+                selected_sum += best;   // by winning-expert lane, in selection order (route_multi's sum)
+            }
+            if (rank == lane) { selected = best; selected_id = expert; }
+        }
+        selected_sum = max(rf_warp_sum(selected_sum), 6.103515625e-5f);
+        const float inverse_selected_sum = 1.0f / selected_sum;
+        if (lane < 10) {   // this token's ids and weights, on the device and to the host
+            const float weight = selected * inverse_selected_sum;
+            const int o = tk * 10 + lane;
+            ids[o] = selected_id;
+            weights[o] = weight;
+            ids_out[o] = selected_id;
+            if (w_out != nullptr) w_out[o] = weight;
+            wrote = true;
+        }
+    }
+    if (wrote) __threadfence_system();
+    __syncthreads();
+    if (tid == 0) {
+        __threadfence_system();   // after the barrier: every thread's fenced words before the ring (cumulative)
+        *(volatile uint32_t*) seq = seq_value;
+#if defined(__HIPCC__)  // #697: HIP only; on RDNA4 the volatile store alone can sit in L2 until the stream syncs
+        __threadfence_system();
+#endif
+    }
+}
 bool valid(const void* p, size_t bytes) {
     const auto address = reinterpret_cast<uintptr_t>(p);
     return p && address % 4 == 0 && bytes <= UINTPTR_MAX - address;
@@ -347,6 +484,28 @@ void native_router_top10_publish_res(const float* logits, int32_t* ids, float* w
         throw std::invalid_argument("native router + publish requires a stream and 1..8 tokens");
     route_publish_res<<<1, dim3(32, 8), 0, static_cast<cudaStream_t>(stream)>>>(logits, ids, weights, n_tok, x, d_res,
                                                                               n_expert, (int) n, x_out, ids_out, seq);
+    const auto error = cudaGetLastError();
+    if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
+}
+bool native_router_fast_enabled() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_ROUTE_FAST"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+void native_router_top10_publish_fast(const float* logits, int32_t* ids, float* weights, int n_tok, const float* x,
+                                      int64_t n, float* x_out, int32_t* ids_out, float* w_out, uint32_t* d_seq,
+                                      uint32_t seq_value, void* stream) {
+    if (!stream || n_tok < 1 || n_tok > 8 || !valid(logits, (size_t) n_tok * 512 * 4) ||
+        !valid(ids, (size_t) n_tok * 10 * 4) || !valid(weights, (size_t) n_tok * 10 * 4) || !ids_out || !d_seq ||
+        seq_value == 0u || (x != nullptr && (!x_out || n < 0 || n > (int64_t) INT32_MAX)))
+        throw std::invalid_argument("native router + fast publish requires a stream, 1..8 rows, the publish buffers and a "
+                                    "nonzero ring value");
+    // x null: the rows are on the host already (the router GEMV copied them); else 16-byte stores when both ends allow
+    const bool vec = x != nullptr && (n & 3) == 0 &&
+                     ((reinterpret_cast<uintptr_t>(x) | reinterpret_cast<uintptr_t>(x_out)) & 15u) == 0;
+    const int n4 = vec ? (int) (n / 4) : 0;
+    const int n1 = x != nullptr && !vec ? (int) n : 0;
+    route_publish_fast<<<1, dim3(32, 8), 0, static_cast<cudaStream_t>(stream)>>>(logits, ids, weights, n_tok, x, n4, n1,
+                                                                               x_out, ids_out, w_out, d_seq, seq_value);
     const auto error = cudaGetLastError();
     if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
 }
