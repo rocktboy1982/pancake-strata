@@ -21,6 +21,13 @@
 #                                            (MAP_HUGETLB: no fragmentation, fewer TLB misses; two forks measured +5-7%
 #                                            decode).  The pool is taken out of ordinary RAM (33 GiB): only for a PC
 #                                            that runs pancake most of the time.  Applied at the next boot.
+#   sudo tools/pancake/os_tune.sh cpu        CPU clocks for decode (now, until reboot): the APU's iGPU (Vega, it drives the
+#                                            desktop) to its low clock state - at its 2000 MHz top state it takes package
+#                                            power the 8 cores need, and the cores fell to 3.4-3.7 GHz under the engine's
+#                                            AVX2 load (4.2 GHz all-core without it) - and the deepest core idle state C3
+#                                            (350 us wake-up) off, so pool threads wake fast.  'cpu-off' undoes both.  The
+#                                            bigger lever is in the BIOS: Precision Boost Overdrive (raises PPT/TDC/EDC;
+#                                            Tctl stays at 56-63 C under the engine, so there is room).
 #   sudo tools/pancake/os_tune.sh uninstall  removes /etc/sysctl.d/90-pancake.conf (the pool is freed at the next boot)
 #   sudo tools/pancake/os_tune.sh compact    one compaction pass now (seconds; nothing persistent)
 CONF=/etc/sysctl.d/90-pancake.conf
@@ -56,10 +63,32 @@ check() {
     fi
 }
 
+igpus() {   # the APU's own GPU (Renoir / Cezanne / Barcelo ids), never the discrete card
+    for c in /sys/class/drm/card[0-9]*; do
+        case "$(cat "$c/device/device" 2>/dev/null)" in 0x1636|0x1638|0x15e7) echo "$c/device" ;; esac
+    done
+}
+
+cpu_state() {
+    for g in $(igpus); do echo "  iGPU $(basename "$(readlink -f "$g")"): $(cat "$g/power_dpm_force_performance_level") (sclk now: $(grep '\*' "$g/pp_dpm_sclk" | awk '{print $2}'))"; done
+    c3=$(cat /sys/devices/system/cpu/cpu0/cpuidle/state3/disable 2>/dev/null || echo "?")
+    echo "  core idle state C3 disabled: $c3   (pancake: 1 during benchmarks / daily decode)"
+}
+
 need_root() { [ "$(id -u)" = 0 ] || { echo "$0 $1: run it with sudo" >&2; exit 1; }; }
 
 case "${1:-check}" in
-    check) check ;;
+    check) check; cpu_state ;;
+    cpu)
+        need_root cpu
+        for g in $(igpus); do echo low > "$g/power_dpm_force_performance_level"; done
+        for d in /sys/devices/system/cpu/cpu[0-9]*/cpuidle/state3/disable; do echo 1 > "$d"; done
+        echo "cpu: iGPU at its low clock, C3 off (until reboot; 'cpu-off' undoes)"; cpu_state ;;
+    cpu-off)
+        need_root cpu-off
+        for g in $(igpus); do echo auto > "$g/power_dpm_force_performance_level"; done
+        for d in /sys/devices/system/cpu/cpu[0-9]*/cpuidle/state3/disable; do echo 0 > "$d"; done
+        cpu_state ;;
     compact)
         need_root compact
         echo 1 > /proc/sys/vm/compact_memory && echo "compacted: $(big_free_gib) GiB free in blocks of 2 MiB or more" ;;
@@ -81,5 +110,5 @@ case "${1:-check}" in
     uninstall)
         need_root uninstall
         rm -f "$CONF" && sysctl -q -w vm.compaction_proactiveness=20 vm.compact_unevictable_allowed=1 && echo "removed $CONF" ;;
-    *) sed -n '2,20p' "$0"; exit 2 ;;
+    *) sed -n '2,32p' "$0"; exit 2 ;;
 esac

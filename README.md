@@ -666,7 +666,13 @@ tools/pancake/os_tune.sh                          # state: free RAM in 2 MiB blo
 sudo tools/pancake/os_tune.sh install             # 1 (recommended): compact_unevictable_allowed=0 + compaction_proactiveness=50
 sudo tools/pancake/os_tune.sh install --hugepages # 1 + 2 (optional): reserve 16,920 x 2 MiB pages at boot for the arena
 sudo tools/pancake/os_tune.sh compact             # one compaction pass now, nothing persistent
+sudo tools/pancake/os_tune.sh cpu                 # APU: iGPU to its low clock + core idle C3 off (until reboot; cpu-off undoes)
 ```
+
+On an APU (Ryzen 5700G) the Vega iGPU that drives the desktop shares the package power with the cores: under the
+engine's AVX2 expert load the cores ran 3.4-3.7 GHz in the slow runs (4.2 GHz all-core on plain integer load), and the
+~25% slower runs follow that clock. `os_tune.sh cpu` keeps the iGPU at its low clock while decoding; the larger lever
+is Precision Boost Overdrive in the BIOS (temperatures stay at 56-63 C under the engine).
 
 Option 2 maps the arena from a reserved hugetlb pool (no fragmentation, fewer TLB misses; two Strata forks measured
 +5-7% decode, not yet measured here). The pool is taken out of ordinary RAM (33 GiB) from the next boot, so it suits a
