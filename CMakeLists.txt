@@ -2111,6 +2111,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(disco_test src/spec/disco_test.cpp)   # DISCO: the learned MTP window rule, its trace, exactness on a mock target
   target_link_libraries(disco_test PRIVATE strata_spec)
   add_test(NAME disco_test COMMAND disco_test)
+  add_executable(row_miss_test src/core/row_miss_test.cpp)   # A22: the new CPU misses per window row and the window trace's record 5
+  target_include_directories(row_miss_test PRIVATE include)
+  add_test(NAME row_miss_test COMMAND row_miss_test)
   add_executable(window_rule_test src/spec/window_rule_test.cpp)   # which rule picks the window / whose q judges it, by the active draft source
   target_include_directories(window_rule_test PRIVATE include)
   add_test(NAME window_rule_test COMMAND window_rule_test)
@@ -3429,7 +3432,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
     pcie_share_rule_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
-    adapt_async_default_test uma_cache_test suffix_drafter_test controller_test draft_policy_test window_rule_test
+    adapt_async_default_test uma_cache_test suffix_drafter_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
     window_limits_test serve_stop_bound_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test

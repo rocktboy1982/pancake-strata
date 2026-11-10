@@ -19,7 +19,14 @@
 //           2 suffix/n-gram lookup window, 3 lookup chained after the drafter's rows.  Whether row j was accepted is
 //           j <= the window's `accepted`; the CPU-missed experts a row added are in its layer records (kind -1; wtrace.py new_cpu_miss).
 //           Absent for merged prompt windows.  (Legacy record 3, u8 3, u8 n, u16 0, n x f32 probs, is still read; no longer written.)
+//   rowmiss: u8 5, u8 n, u16 0, n x u16: the CPU-missed experts each row of the window added over the rows before it (row 0
+//           the committed row, row j draft j; distinct per layer, summed over the window's layer records; core/row_miss.hpp).
+//           Written right after its window record when the window has layer records (MOD_PLAN A22 DISCO / A23: the price of
+//           a draft position).  The same numbers wtrace.py new_cpu_miss() derives from the layer records; the record keeps
+//           them when a reader only wants the outcome.  Readers older than A22 stop at it (unknown record type 5).
 // Only the serve verify windows (drive_pool_multi_impl + the commit in the serve loop) write it.
+#include "strata/core/row_miss.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -67,6 +74,7 @@ public:
             put(&kd, 1);
         }
         if (w != nullptr) put(w, (size_t) n * 4);
+        rm_.layer(n_tok, k_, ids, kind);   // A22: the rows' new CPU misses (record 5 at commit)
     }
 
     /// The window committed: `rows` rows were verified, `accepted` drafts kept, at sequence position `pos`.
@@ -76,21 +84,31 @@ public:
         const float ms = (float) std::chrono::duration<double, std::milli>(now - last_).count();
         last_ = now;
         const bool keep = (windows_++ % every_) == 0;
-        if (keep && !buf_.empty() && bytes_ + (int64_t) buf_.size() + 16 <= cap_) {
-            // the window record first, then its layers (straight to the file: buf_ holds the layers)
+        const int nrm = rm_.layers() > 0 ? std::min(rm_.rows(), 255) : 0;   // record 5: the rows' new CPU misses
+        const int64_t extra = 16 + (nrm > 0 ? 4 + 2 * (int64_t) nrm : 0);
+        if (keep && !buf_.empty() && bytes_ + (int64_t) buf_.size() + extra <= cap_) {
+            // the window record first, then its row misses, then its layers (straight to the file: buf_ holds the layers)
             const uint8_t h[4] = {2, (uint8_t) std::min(rows, 255), (uint8_t) (accepted < 0 ? 255 : std::min(accepted, 254)), 0};
             std::fwrite(h, 1, 4, f_);
             std::fwrite(&pos, 8, 1, f_);
             std::fwrite(&ms, 4, 1, f_);
+            if (nrm > 0) {
+                const uint8_t h5[4] = {5, (uint8_t) nrm, 0, 0};
+                uint16_t rm[255];
+                for (int r = 0; r < nrm; ++r) rm[r] = (uint16_t) std::min(rm_.at(r), 65535);
+                std::fwrite(h5, 1, 4, f_);
+                std::fwrite(rm, 2, (size_t) nrm, f_);
+            }
             std::fwrite(buf_.data(), 1, buf_.size(), f_);
-            bytes_ += 16 + (int64_t) buf_.size();
+            bytes_ += extra + (int64_t) buf_.size();
             if ((windows_ & 63) == 0) std::fflush(f_);
-        } else if (keep && bytes_ + (int64_t) buf_.size() + 16 > cap_ && !capped_) {
+        } else if (keep && bytes_ + (int64_t) buf_.size() + extra > cap_ && !capped_) {
             capped_ = true;
             std::fprintf(stderr, "strata: STRATA_WINDOW_TRACE reached its cap (%lld MiB): no more windows written\n",
                          (long long) (cap_ >> 20));
         }
         buf_.clear();
+        rm_.reset();
     }
 
     /// The window's draft confidences (items 5, F8 STRATA_SPEC_CUM, A22 DISCO): call when the window is built, before it runs.
@@ -105,7 +123,10 @@ public:
     }
 
     /// A window that ended without a commit (an error, a cancelled request): its layers are dropped.
-    void drop() { buf_.clear(); }
+    void drop() {
+        buf_.clear();
+        rm_.reset();
+    }
 
     ~WindowTrace() {
         if (f_ != nullptr) std::fclose(f_);
@@ -122,6 +143,7 @@ private:
     int64_t cap_ = (int64_t) 2048 << 20, bytes_ = 0, windows_ = 0;
     std::vector<uint8_t> buf_;
     std::chrono::steady_clock::time_point last_{};
+    RowMissCounter rm_;   // the current window's new CPU misses per row (record 5)
 };
 
 inline WindowTrace& window_trace() {
