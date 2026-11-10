@@ -16,11 +16,19 @@ that: the same phrases coming back with other words between them.
                       (reasoning_budget_grace: at the first sentence or line end, the wrap-up and the model's own
                       end-of-thinking).
 
+A second signal (A20, opt-in, config "rumination_entropy": K): the entropy of the engine's top-K distribution at every
+thinking token (EntropyMeter; the engine prints the K best logprobs when asked, see emit_lp_line).  A model that
+ruminates is usually sure of itself (low entropy) while one that explores is not; "rumination_close" may carry
+"entropy_below": H, and the close then needs the rate high AND the rolling mean entropy at or below H.  The engine's
+logprobs path copies the logits of every token to the host and sorts the vocabulary, so it costs decode speed: it is not
+free, it stays off by default and the per-token cost must be measured before it is left on.
+
 The paper gives no threshold (its budget figures are only in plots), so the close is opt-in and its threshold must be
 measured on our own turn logs first (the per-request max and mean rates are logged without it).
 """
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter, deque
 
@@ -45,17 +53,100 @@ def close_setting(value) -> dict | None:
         value = {"threshold": value}
     if not isinstance(value, dict):
         raise ValueError(f"\"rumination_close\" must be a number in (0, 1] or an object, not {value!r}")
-    unknown = set(value) - {"threshold", "checks", "min_tokens"}
+    unknown = set(value) - {"threshold", "checks", "min_tokens", "entropy_below"}
     if unknown:
         raise ValueError(f"\"rumination_close\" has unknown keys: {', '.join(sorted(unknown))}")
     t, k, m = value.get("threshold"), value.get("checks", CHECKS), value.get("min_tokens", 0)
+    h = value.get("entropy_below")
     if isinstance(t, bool) or not isinstance(t, (int, float)) or not 0 < t <= 1:
         raise ValueError(f"\"rumination_close\" threshold must be a number in (0, 1], not {t!r}")
     if isinstance(k, bool) or not isinstance(k, int) or k < 1:
         raise ValueError(f"\"rumination_close\" checks must be a whole number >= 1, not {k!r}")
     if isinstance(m, bool) or not isinstance(m, int) or m < 0:
         raise ValueError(f"\"rumination_close\" min_tokens must be a whole number >= 0, not {m!r}")
-    return {"threshold": float(t), "checks": k, "min_tokens": m}
+    if h is not None and (isinstance(h, bool) or not isinstance(h, (int, float)) or not h > 0):
+        raise ValueError(f"\"rumination_close\" entropy_below must be a number > 0 (nats), not {h!r}")
+    out = {"threshold": float(t), "checks": k, "min_tokens": m}
+    if h is not None:
+        out["entropy_below"] = float(h)     # A20: the second signal (needs "rumination_entropy")
+    return out
+
+
+ENTROPY_WINDOW = 64     # tokens in the rolling mean of the top-K entropy
+
+
+def entropy_setting(value) -> int | None:
+    """The config's "rumination_entropy": K, the number of top logprobs the engine prints per token (2..20).  None, 0 or
+    false: off.  Raises ValueError otherwise."""
+    if value is None or value is False or value == 0:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 2 <= value <= 20:
+        raise ValueError(f"\"rumination_entropy\" must be a whole number 2..20 (top-K), not {value!r}")
+    return value
+
+
+def lp_entropy(line: str) -> float | None:
+    """The entropy in nats of the top-K distribution on an engine `LP <logprob> [id:logprob ...]` line, renormalised over
+    the K listed ids (the head logprob is the chosen token's own; it is used alone when the list is empty).  None for a
+    line that cannot be read (`LP nan`, a cut line)."""
+    f = line.split()
+    if len(f) < 2 or f[0] != "LP":
+        return None
+    try:
+        vals = [float(x.partition(":")[2]) for x in f[2:]]
+        head = float(f[1])
+    except ValueError:
+        return None
+    if not vals:
+        vals = [head]
+    if not all(math.isfinite(v) for v in vals):
+        return None
+    mx = max(vals)
+    w = [math.exp(v - mx) for v in vals]
+    z = sum(w)
+    return max(0.0, -sum((x / z) * math.log(x / z) for x in w if x > 0))
+
+
+class EntropyMeter:
+    """One request's top-K entropy of the thinking tokens: the mean over all of them, the lowest rolling mean (a window of
+    ENTROPY_WINDOW tokens, once one is full) and the current rolling mean.  `low(h)`: the window is full and its mean is at
+    or below h (the second signal of the rumination close)."""
+
+    def __init__(self, window: int = ENTROPY_WINDOW):
+        self.window = window
+        self.recent: deque = deque(maxlen=window)
+        self.total, self.tokens = 0.0, 0
+        self.min_window = None
+
+    def add(self, h: float) -> None:
+        self.recent.append(h)
+        self.total += h
+        self.tokens += 1
+        if len(self.recent) == self.window:
+            m = self.rolling()
+            if self.min_window is None or m < self.min_window:
+                self.min_window = m
+
+    def feed_line(self, line: str) -> bool:
+        h = lp_entropy(line)
+        if h is None:
+            return False
+        self.add(h)
+        return True
+
+    def rolling(self) -> float | None:
+        return sum(self.recent) / len(self.recent) if self.recent else None
+
+    def low(self, h: float) -> bool:
+        return len(self.recent) == self.window and self.rolling() <= h
+
+    def summary(self) -> dict | None:
+        """{"mean", "min_window", "tokens"} (nats), or None when no thinking token had a line."""
+        if not self.tokens:
+            return None
+        return {"mean": round(self.total / self.tokens, 3),
+                "min_window": round(self.min_window, 3) if self.min_window is not None else None,
+                "tokens": self.tokens}
 
 
 class RuminationMeter:
