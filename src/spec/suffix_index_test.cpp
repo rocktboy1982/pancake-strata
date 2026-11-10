@@ -3,6 +3,11 @@
 //   suffix_index_test        insert, longest match, frequency scoring, the draft limits, eviction, the lead, the
 //                            shared wrapper under concurrent proposals and inserts, the restart log
 //                            (STRATA_SUFFIX_INDEX_FILE: reload, cut-off tail, compaction, foreign file), the opt-in switch
+//   suffix_index_test --simulate FILE [--k 11] [--mib 64] [--min-prob 0.1] [--factor 1]
+//                            replays recorded agent outputs through the index alone, as tools/pancake/suffix_sim.py's
+//                            "index" arm does (FILE from suffix_sim.py --dump: per request "L lead ids" then "O output
+//                            ids"): per round a draft of up to K tokens after the last kDepth tokens, the matching prefix
+//                            plus one token taken; each output joins the index when it is done
 #include "strata/spec/suffix_index.hpp"
 
 #include <atomic>
@@ -10,7 +15,9 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -271,7 +278,68 @@ void test_switch() {
 }
 }  // namespace
 
-int main() {
+static V parse_ids(const std::string& s, size_t from) {
+    V v;
+    long long x = -1;
+    for (size_t i = from; i <= s.size(); ++i) {
+        const char c = i < s.size() ? s[i] : ',';
+        if (c >= '0' && c <= '9') x = (x < 0 ? 0 : x * 10) + (c - '0');
+        else if (x >= 0) { v.push_back((int32_t) x); x = -1; }
+    }
+    return v;
+}
+
+static int simulate(int argc, char** argv) {
+    int K = 11;
+    double mib = 64, min_prob = 0.1, factor = 1.0;
+    for (int i = 3; i + 1 < argc; i += 2) {
+        if (std::strcmp(argv[i], "--k") == 0) K = std::atoi(argv[i + 1]);
+        else if (std::strcmp(argv[i], "--mib") == 0) mib = std::atof(argv[i + 1]);
+        else if (std::strcmp(argv[i], "--min-prob") == 0) min_prob = std::atof(argv[i + 1]);
+        else if (std::strcmp(argv[i], "--factor") == 0) factor = std::atof(argv[i + 1]);
+    }
+    std::ifstream in(argv[2]);
+    if (!in) { std::fprintf(stderr, "cannot read %s\n", argv[2]); return 2; }
+    SuffixIndex idx((size_t) (mib * 1048576.0), params(min_prob, factor));
+    long long reqs = 0, tokens = 0, rounds = 0, windows = 0, offered = 0, accepted = 0;
+    double us = 0;
+    V lead, pat, buf((size_t) std::max(1, K));
+    for (std::string line; std::getline(in, line);) {
+        if (line.size() < 2) continue;
+        if (line[0] == 'L') { lead = parse_ids(line, 2); continue; }
+        if (line[0] != 'O') continue;
+        const V out = parse_ids(line, 2);
+        for (size_t i = 0; i < out.size();) {
+            const size_t from_out = std::min(i, (size_t) SuffixIndex::kDepth);
+            const size_t from_lead = std::min(lead.size(), (size_t) SuffixIndex::kDepth - from_out);
+            pat.assign(lead.end() - (std::ptrdiff_t) from_lead, lead.end());
+            pat.insert(pat.end(), out.begin() + (std::ptrdiff_t) (i - from_out), out.begin() + (std::ptrdiff_t) i);
+            int m = 0;
+            const auto t0 = std::chrono::steady_clock::now();
+            const int k = idx.propose(pat.data(), (int) pat.size(), K, buf.data(), &m);
+            us += std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count();
+            int a = 0;
+            while (a < k && i + (size_t) a < out.size() && buf[(size_t) a] == out[i + (size_t) a]) ++a;
+            ++rounds;
+            windows += k > 0;
+            offered += k;
+            accepted += a;
+            i += (size_t) a + 1;
+        }
+        tokens += (long long) out.size();
+        ++reqs;
+        idx.insert(lead.data(), lead.size(), out.data(), out.size());
+    }
+    std::printf("suffix_index --simulate: %lld requests, %lld tokens, index cap %zu tokens, k %d, min_prob %.2f, factor %.2f\n"
+                "  index  rounds %lld tok/round %.3f windows %lld offered %lld accepted %lld (%.1f%%), %.2f us a lookup\n",
+                reqs, tokens, idx.capacity(), K, min_prob, factor, rounds, rounds ? (double) tokens / (double) rounds : 0.0,
+                windows, offered, accepted, offered ? 100.0 * (double) accepted / (double) offered : 0.0,
+                rounds ? us / (double) rounds : 0.0);
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    if (argc > 2 && std::strcmp(argv[1], "--simulate") == 0) return simulate(argc, argv);
     test_insert_and_match();
     test_longest_match();
     test_frequency_scoring();

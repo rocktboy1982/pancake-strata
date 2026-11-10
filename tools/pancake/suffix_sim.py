@@ -38,6 +38,10 @@ draft is accepted exactly where it equals it.  Arms:
                 --min-prob or after --factor x the match length tokens (the paper's MAX_SPEC = alpha * p)
   fallback      lookup, and the index only where lookup has no draft (STRATA_SUFFIX_INDEX=1's rule in the engine)
   longest       the draft with the longer match of the two (propose_from_sources' rule)
+--dump FILE writes each request's lead and output for suffix_index_test --simulate FILE, which replays the index arm
+through the C++ SuffixIndex (its rounds / offered / accepted should match this tool's index arm within the C++ hash
+table's collisions).
+
 Per arm: rounds, tokens per round (the ceiling speed-up when a window costs what a one-token step costs), draft tokens
 offered and accepted, acceptance; the index's own gain = accepted tokens the combined arm adds over lookup.
 """
@@ -457,6 +461,16 @@ def self_test():
     return 0
 
 
+def dump(rt, path):
+    """'L <lead ids>' and 'O <output ids>' per request, in order (comma-separated)."""
+    tail = {}
+    with open(path, "w") as f:
+        for sid, _, delta, out in rt:
+            h = (tail.get(sid, []) + delta)[-LEAD:]
+            f.write("L " + ",".join(map(str, h)) + "\nO " + ",".join(map(str, out)) + "\n")
+            tail[sid] = (h + out)[-LEAD:]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog=__doc__.split("\n\n", 1)[1])
@@ -471,6 +485,8 @@ def main():
                     "than this between two requests (a stand-in for a server restart; 0: never)")
     ap.add_argument("--tokenizer", default=os.environ.get("STRATA_TOKENIZER", str(DEFAULT_TOK)))
     ap.add_argument("--json", help="write the totals here")
+    ap.add_argument("--dump", help="write each request's lead (its prompt's last 64 tokens) and output as 'L ids' / "
+                    "'O ids' lines, in order, for the C++ index's replay (suffix_index_test --simulate FILE)")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
@@ -484,6 +500,8 @@ def main():
     print(f"suffix_sim: {len(rt)} requests in {n_sess} sessions ({n_sub} sub-agent sessions), output "
           f"{sum(len(r[3]) for r in rt)} tokens, prompt deltas {sum(len(r[2]) for r in rt)} tokens; {tok.why}; "
           f"loaded in {time.time() - t0:.1f}s")
+    if a.dump:
+        dump(rt, a.dump)
     cap = cap_tokens(a.mib)
     t1 = time.time()
     times = [r[0] / 1000.0 for r in reqs]          # opencode stores milliseconds
