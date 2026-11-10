@@ -19640,6 +19640,19 @@ int main(int argc, char** argv) {
                                          : from_sfx ? sbuf[(size_t) i - 1]
                                                     : drafts[(size_t) i - 1];
                 for (int i = 0; i < chain_n; ++i) window[(size_t) (T_mtp + i)] = cbuf[(size_t) i];
+                if (strata::core::window_trace().on()) strata::core::window_trace().drop();   // a window that never committed leaves no stale records
+                if (!merged && T > 1 && strata::core::window_trace().on()) {   // STRATA_WINDOW_TRACE: this window's draft confidences (item 5, F8 / A22); off: one branch
+                    // row i (1..T-1) is a draft; its probability is the drafter's for the token (none for a lookup or chained row), src says whose
+                    float tp[255];
+                    uint8_t ts[255];
+                    const int nd = std::min(T - 1, 255);
+                    for (int i = 1; i <= nd; ++i) {
+                        const bool drafter_row = i < T_mtp && !from_sfx && (size_t) (i - 1) < dprob.size();
+                        tp[i - 1] = drafter_row ? dprob[(size_t) i - 1] : std::numeric_limits<float>::quiet_NaN();
+                        ts[i - 1] = i >= T_mtp ? 3 : from_sfx ? 2 : req_df2 ? 1 : 0;
+                    }
+                    strata::core::window_trace().drafts(tp, ts, nd);
+                }
                 if (!keep_sync()) { std::printf("ERR %s\n", err.c_str()); return 1; }
                 drive.d.layers = 0;
                 drive.d.experts = 0;
@@ -20009,11 +20022,10 @@ int main(int argc, char** argv) {
                 }
 #endif
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
-                int mtp_nd = 0;   // item 74: the drafts of this round, for the window trace (item 5)
+                int mtp_nd = 0;   // item 74: the drafts of this round (the window trace records them when the window is built, above)
                 const bool drafted = !draft_on || eos || produced_n >= max_new ||
                                      (req_df2 ? ((!merged && defer_df2(a)) || draft_df2(a)) : mtp.draft_long(T, outv.data(), p, a, drafts.data(), err, dprob.data(), (float) req_spec_min_p,
                                                                                &mtp_nd, gated_proposal ? &generation : nullptr));
-                if (!req_df2 && mtp_nd > 0) strata::core::window_trace().drafts(dprob.data(), mtp_nd);   // before the next window's commit
                 {
                     const Clock::time_point tw3 = Clock::now();
                     auto msd = [](Clock::time_point a0, Clock::time_point b0) { return std::chrono::duration<double, std::milli>(b0 - a0).count(); };
