@@ -4,8 +4,11 @@
 // among the token's top STRATA_VERIFY_DEFER_CPU_TOP entries by weight (0 / unset: off).  The host pool (which experts run
 // first) and the GPU's row copy (copy_rows_by_weight_kernel, which repeats this rule) must agree, so both use this rank:
 // the entries of the same token with a larger weight, ties broken by the lower index.
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
+
+#include "strata/core/live_knobs.hpp"
 
 namespace strata::core {
 
@@ -16,6 +19,16 @@ inline int defer_top() {
         return t > 0 && t < 64 ? t : 0;
     }();
     return top;
+}
+
+// MOD_PLAN A44 (STRATA_BANDIT=top, core/epoch_bandit.hpp): the rank guard of the window being staged - defer_top(),
+// unless the epoch bandit set it for the next windows (live_knobs().top >= 0: 0 = off, n = on with top n).  Read at a
+// window's staging only (Verifier::stage_inputs copies it to the window's mapped word, which its graph's row copy reads,
+// and to the plan sink, which the host pool reads), so the GPU and the host agree within a window.  LOSSY (small) when
+// it moves: it changes which CPU rows join one layer late.
+inline int defer_top_now() {
+    const int live = live_knobs().top.load(std::memory_order_relaxed);
+    return live < 0 ? defer_top() : live;
 }
 
 inline bool defer_heavy_entry(const float* w, int64_t i, int k, float heavy, int top) {

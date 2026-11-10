@@ -2975,6 +2975,19 @@ class CancelledRead(unittest.TestCase):
         self.assertNotIn("chunk", e.last)
         self.assertNotIn("other", e.last)
 
+    def test_parse_done_bandit_field(self):
+        """MOD_PLAN A44: with STRATA_BANDIT the engine appends bandit=<type>:<arm>*<windows>,... (a string); without it
+        the line has no such field and the record no such key."""
+        e = SimpleNamespace()
+        StrataEngine._parse_done(e, "DONE 5 12000 900.0 80.0 stop 3 4 0 7 9 0 0 0.0 12000 2 chunk=1536 "
+                                    "experts_streamed=0 bandit=chat:off*12,top*30/copy:top+kmiss*41")
+        self.assertEqual(e.last["bandit"], "chat:off*12,top*30/copy:top+kmiss*41")
+        self.assertEqual(e.last["chunk"], 1536)
+        StrataEngine._parse_done(e, "DONE 5 12000 900.0 80.0 stop 3 4 0 7 9 0 0 0.0 12000 2 chunk=1536 experts_streamed=0")
+        self.assertNotIn("bandit", e.last)
+        self.assertEqual(request_stats([{"prompt_ms": 1.0}, {"prompt_ms": 1.0, "bandit": "chat:off*3"}])["bandit"],
+                         "chat:off*3")
+
     def test_request_stats_chunk_fields(self):
         """Across a request's continuations the streamed blobs add up; the chunk is the request's own read's."""
         stats = request_stats([{"prompt_ms": 10.0, "chunk": 1536, "experts_streamed": 100},

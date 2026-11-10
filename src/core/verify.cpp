@@ -12,6 +12,7 @@
 #include "strata/core/verify.hpp"
 #include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/defer_rank.hpp"
+#include "strata/core/epoch_bandit.hpp"
 #include "strata/core/verify_ecap.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
@@ -774,7 +775,7 @@ Verifier::~Verifier() {
     if (warm_fork_) cudaEventDestroy(warm_fork_);
     if (warm_join_) cudaEventDestroy(warm_join_);
     void* hosts[] = {h_tok_, h_step_, h_pos_, h_commit_, h_ple_, h_out_, h_x_, h_ids_, h_w_, h_seq_, h_flag_, h_ymiss_,
-                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_};
+                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_, h_top_};
     for (void* h : hosts)
         if (h) cudaFreeHost(h);
 }
@@ -1041,8 +1042,12 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
               mapped(64, (void**) &h_flagB_, (void**) &m_flagB_) &&
               mapped(64, (void**) &h_plan_err_, (void**) &m_plan_err_) &&
               mapped(T * K * N * 4, (void**) &h_ymiss_, (void**) &m_ymiss_) &&
-              (defer_heavy_ <= 0.0f || mapped(64, (void**) &h_pflag_, (void**) &m_pflag_));
+              (defer_heavy_ <= 0.0f || mapped(64, (void**) &h_pflag_, (void**) &m_pflag_)) &&
+              // MOD_PLAN A44: the rank guard's mapped word, only when STRATA_BANDIT may move it
+              (defer_heavy_ <= 0.0f || strata::core::defer_top() <= 0 || !strata::core::bandit_requested(strata::core::kBanditTop) ||
+               mapped(64, (void**) &h_top_, (void**) &m_top_));
     if (!ok) { err = "verify: mapped staging allocation failed " + strata::core::pin_exhausted_hint(); return false; }
+    if (h_top_ != nullptr) *(volatile int32_t*) h_top_ = strata::core::defer_top();   // (as captured, until a window stages it)
     if (const char* wm = std::getenv("STRATA_IC_WARM_MB"); wm != nullptr && std::atoi(wm) > 0 && warm_segs_ == nullptr) {
         // item 47: per layer, the matrices its window reads before the doorbell (mixer projections, router), as the kernels
         // read them (the native GGUF copy where there is one)
@@ -1468,10 +1473,19 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         cudaFreeHost(h_pflag_);   // (nothing raises or waits for it then: as if it had never been allocated)
         h_pflag_ = nullptr;
         m_pflag_ = nullptr;
+        if (h_top_ != nullptr) cudaFreeHost(h_top_);   // (A44: no heavy split, no rank guard to move)
+        h_top_ = nullptr;
+        m_top_ = nullptr;
     }
     if (defer_heavy_ > 0.0f && strata::core::defer_top() > 0)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_TOP=%d: a CPU entry among its token's top %d by weight "
                              "is also kept on time (item 28 rank guard)\n", strata::core::defer_top(), strata::core::defer_top());
+    if (h_top_ != nullptr) {   // MOD_PLAN A44: the serve loop's epoch bandit may turn the rank guard on or off between windows
+        strata::core::live_knobs().top_word.store(true, std::memory_order_relaxed);
+        std::fprintf(stderr, "strata verify: STRATA_BANDIT=top: the window graphs read the rank guard from a mapped word "
+                             "staged with each window (lossy, small: the bandit decides which windows keep top %d on time)\n",
+                     strata::core::defer_top());
+    }
     if (defer_heavy_ > 0.0f && strata::core::defer_fold() > 0)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_FOLD=%d: a layer with heavy CPU rows and at most %d "
                              "light expert(s) runs them in one pool pass (the same rows join late; MOD_PLAN A4)\n",
@@ -1608,7 +1622,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if !defined(STRATA_GPU_METAL)
             if (heavy)   // the light rows (the heavy ones are in layer dl's combine already)
                 copy_rows_by_weight(def_parts_, ym, (int64_t) n * K, N, pl + 4 + MT * K + 1, pl + 1, w_ + tb * K,
-                                    defer_heavy_, false, cs, (int) K, strata::core::defer_top());
+                                    defer_heavy_, false, cs, (int) K, strata::core::defer_top(), m_top_);
             else
 #endif
             if (dec_batch)   // the GPU's own rows (p_dst[0, counts[1])) are zeros
@@ -2757,7 +2771,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if !defined(STRATA_GPU_METAL)   // (as late_add's defer_add_rows)
                 if (heavy)
                     copy_rows_by_weight(parts_out, m_ymiss_ + (size_t) tb * K * N, (int64_t) n * K, N, p_dst, p_counts + 1,
-                                        w_ + tb * K, defer_heavy_, true, cs, (int) K, strata::core::defer_top());
+                                        w_ + tb * K, defer_heavy_, true, cs, (int) K, strata::core::defer_top(), m_top_);
                 else
                     fill_zero(parts_out, (long long) n * K * N, cs);
 #endif
@@ -3516,6 +3530,11 @@ void Verifier::stage_inputs(int T, const int32_t* tokens, int64_t pos0) {
     if (herr_h_ != nullptr) *(volatile uint32_t*) herr_h_ = 0;
     if (hdrop_h_ != nullptr) *(volatile uint32_t*) hdrop_h_ = (g_test_drop > 0 && windows + 1 == g_test_drop) ? 1u : 0u;
     if (h_pflag_ != nullptr) *(volatile uint32_t*) h_pflag_ = 0;
+    if (h_top_ != nullptr) {   // MOD_PLAN A44 (STRATA_BANDIT=top): this window's rank guard, one value for the GPU and the pool
+        const int top = strata::core::defer_top_now();
+        *(volatile int32_t*) h_top_ = top;
+        sink_.top = top;
+    }
     std::atomic_thread_fence(std::memory_order_seq_cst);
     strata_store_fence();
     last_t_ = T;

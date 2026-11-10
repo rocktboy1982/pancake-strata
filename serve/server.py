@@ -1733,6 +1733,8 @@ class StrataEngine:
                     self.last[key] = int(value)
                 except ValueError:
                     pass
+            elif eq and key == "bandit":              # MOD_PLAN A44 (STRATA_BANDIT only): windows by type and arm
+                self.last[key] = value
 
     @contextlib.contextmanager
     def _exclusive_control(self):
@@ -7719,7 +7721,9 @@ class Service:
                                 "file_blobs": last.get("file_blobs"), "file_mb": last.get("file_mb"),
                                 # #457: the speculative drafts from the DONE line (None: the engine did not say)
                                 "drafts_offered": last.get("drafts_offered"),
-                                "drafts_accepted": last.get("drafts_accepted")})
+                                "drafts_accepted": last.get("drafts_accepted"),
+                                # MOD_PLAN A44: the epoch bandit's windows by type and arm (only with STRATA_BANDIT)
+                                **({"bandit": last["bandit"]} if last.get("bandit") else {})})
                             # A17: the level this turn asked for (`sampling` is the request, as in reasoning_budget above)
                             if ent is not None and ent.tokens:      # A20 (new keys only with "rumination_entropy")
                                 self.history[-1]["entropy_mean"] = round(ent.total / ent.tokens, 3)

@@ -1706,10 +1706,14 @@ namespace {
 // copy_rows_from_mapped_kernel (elementwise.cu) with the routing weight's test: block = row
 __global__ void copy_rows_by_weight_kernel(float4* __restrict__ dst, const volatile float4* src, int64_t row4,
                                            const int32_t* __restrict__ hit_rows, const int32_t* __restrict__ count,
-                                           const float* __restrict__ w, float heavy, int take_heavy, int k, int top) {
+                                           const float* __restrict__ w, float heavy, int take_heavy, int k, int top,
+                                           const volatile int32_t* top_live) {
     const int row = blockIdx.x;
     __shared__ int take;
     if (threadIdx.x == 0) {
+        // MOD_PLAN A44 (STRATA_BANDIT=top): the window's rank guard from the mapped word the host staged before the
+        // launch (the graph bakes `top` in at capture); null: `top` as captured (every other run)
+        if (top_live != nullptr) top = *top_live;
         int h = 0;
         const int c = *count;
         for (int i = 0; i < c; ++i) h |= hit_rows[i] == row;
@@ -1734,14 +1738,16 @@ __global__ void copy_rows_by_weight_kernel(float4* __restrict__ dst, const volat
 }
 }  // namespace
 void copy_rows_by_weight(float* dst, const float* src, int64_t rows, int64_t width, const int32_t* hit_rows,
-                         const int32_t* count, const float* w, float heavy, bool take_heavy, void* stream, int k, int top) {
+                         const int32_t* count, const float* w, float heavy, bool take_heavy, void* stream, int k, int top,
+                         const int32_t* top_live) {
     if (rows <= 0) return;
     if ((width & 3) != 0 || ((uintptr_t) dst & 15) != 0 || ((uintptr_t) src & 15) != 0) {
         std::fprintf(stderr, "copy_rows_by_weight: width must be a multiple of 4 and both pointers 16-byte aligned\n");
         std::exit(1);
     }
     copy_rows_by_weight_kernel<<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
-        (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count, w, heavy, take_heavy ? 1 : 0, k, top);
+        (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count, w, heavy, take_heavy ? 1 : 0, k, top,
+        (const volatile int32_t*) top_live);
     check("copy_rows_by_weight");
 }
 void defer_add_rows(const float* parts, const float* w, const float* inject, float* R, int64_t n_embd, int k, int hc,
