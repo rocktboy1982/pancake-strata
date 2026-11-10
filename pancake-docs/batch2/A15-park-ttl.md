@@ -65,7 +65,11 @@ small enough that evictions happen.
 
 ## Tests run
 
-See the final section (filled after the run).
+Nothing was compiled or run: `wait_quiet.sh` returned 1 (a benchmark, `abtest.py 09-prefill`, was running) on three
+calls in a row, so per the brief the code was only re-read (syntax, types, includes, test expectations traced by hand).
+Run at 02:00: `cmake --build <dir> --target conversation_cache_test && ctest -R conversation_cache_test` (header-only
+test, no GPU; expect `conversation_cache_test: N checks passed`), and `python -m pytest tools/pancake/test_replay_turns.py`
+(`py_compile` of both python files passed).
 
 ## Spec to run
 
