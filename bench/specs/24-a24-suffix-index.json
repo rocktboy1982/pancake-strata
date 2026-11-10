@@ -1,0 +1,19 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "sidx": {"env": {"STRATA_SUFFIX_INDEX": "1"}},
+  "sidx-fallback": {"env": {"STRATA_SUFFIX_INDEX": "1", "STRATA_SUFFIX_INDEX_RULE": "fallback"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": true,
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "pancake-turns.jsonl",
+  "arms": ["base", "sidx"],
+  "reps": 1,
+  "note": "Read by tools/pancake/replay_turns.py only (abtest ignores it). The 11-09 agent session replayed per arm in a fresh server: the index fills with the server's own replies turn after turn, as it would under opencode. Compare total turn time and the 'strata serve: suffix index:' lines (windows that took an index draft, drafts accepted)."
+ },
+ "note": "MOD_PLAN A24 (SuffixDecoding, arXiv 2411.04975): a cross-session suffix index over every finished output (STRATA_SUFFIX_INDEX=1, 64 MiB), its frequency-voted draft beside --lookup's in the serve loop (rule longest: the longer match wins; sidx-fallback: the index only where lookup has none). Exact as an algorithm (drafts only), but it changes window shapes like --lookup-max-t 12 did, so a rounding-level text difference vs base is possible: hence lossy true (quality gate only if the text differs). CAVEAT FOR ABTEST: each case sends 2 identical requests per server, so the 2nd request is drafted whole from the 1st one's output (an exact repeat, a ceiling, not agent traffic); judge on the FIRST request of each case per server (the index then holds only the other case's output) or, better, on the replay block. Offline (tools/pancake/suffix_sim.py over 2045 recorded Qwen3.8 agent requests): rounds -2.4% vs lookup alone (main agent -1.6%, sub-agents -7.5%), accepted draft tokens +2.0%; so a few % on agent traffic at best, ~0 on single short/edit requests. Watch the per-request 'suffix index' stderr line (us a lookup) for host overhead."
+}
