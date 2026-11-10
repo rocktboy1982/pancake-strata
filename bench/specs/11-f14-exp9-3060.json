@@ -1,0 +1,41 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast.json",
+ "arms": {
+  "base": {},
+  "exp9": {
+   "env": {
+    "STRATA_EXP_MODE": "9"
+   }
+  },
+  "exp9-down4": {
+   "env": {
+    "STRATA_EXP_MODE": "9",
+    "STRATA_EXP9_DOWN": "42:10"
+   }
+  },
+  "expdec-down4": {
+   "env": {
+    "STRATA_EXP_MODE": "9",
+    "STRATA_EXP9_GU": "16:0,22:0",
+    "STRATA_EXP9_DOWN": "42:10"
+   }
+  },
+  "expdec-down": {
+   "env": {
+    "STRATA_EXPDEC_DOWN": "1"
+   }
+  },
+  "no-expdec": {
+   "env": {
+    "STRATA_EXPDEC": null
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN F14 (KhaledElzarw sm86 expert kernels), RTX 3060 only; the CUDA build must contain branch work/f14-sm86-exp9. Run with --tier screen. base = the 3060 fast preset (STRATA_EXPDEC=1: EXPDEC gate/up, Q2_0 down on the default row_dot_20_sub16 kernel). exp9 = the fork's per-format table (IQ2_S/IQ2_XXS gate/up on mode 8's fused kernel, Q2_0 down on mode 8's LDS rows); exp9-down4 = the fork's adopted setting (Q2_0 down on 4 lanes); expdec-down4 = EXPDEC gate/up kept, only the 4-lane down; expdec-down = pancake's 16-lane R=4 down for comparison; no-expdec = EXPDEC off (the fork measured EXPDEC -3.0% on a 3090; TEST_PLAN 4.1.7). Every arm is exact: its text must be identical to base on every case (abtest's text check); a DIFFERENT text is a bug, not a quality question. First run native_expert_bench (all 48 layers, mode 0 vs 9, with and without STRATA_EXP9_DOWN=42:10, see MOD_PLAN F14) and stop if it prints DIFFERS."
+}

@@ -410,6 +410,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_CPU_PRESUM` | `verify.cpp`, `expert_source.hpp` (item 51) | off | not bit-identical | host pre-sums each token's CPU rows | coded (`cc5499fae`) |
 | `STRATA_PRESUM_VRAM` | `verify.cpp`, `verify.hpp` (item 52, HIP) | off | not bit-identical | pre-summed rows written straight to VRAM through resizable BAR | coded (`cc5499fae`, `4f829da0e`) |
 | `STRATA_EXPDEC_SWIGLU` | `iq_kernels.cu` (item 48) | off | exact | gate/up + SwiGLU + q8_1 in one expdec launch | ~49 launches per window fewer |
+| `STRATA_EXP_MODE=9` (+ `STRATA_EXP9_GU` / `STRATA_EXP9_DOWN` = `type:mode,...`) | `iq_kernels.cu` `exp9_mode` (KhaledElzarw `9af8f1fa14`, MOD_PLAN F14) | off | exact (every layout is bitwise mode 0's) | the VRAM experts' kernel layout per format and phase: IQ2_S / IQ2_XXS / IQ3_S / IQ3_XXS gate/up take mode 8's fused gate/up + SwiGLU + q8_1 kernel, the Q2_0 down mode 8's shared-memory rows, every other format mode 0; for those formats it replaces `STRATA_EXPDEC`'s gate/up unless `STRATA_EXP9_GU=16:0,22:0` | fork (RTX 3090, IQ3_XXS): expert kernel time -11..-17%, little end to end; not built or measured here |
+| `STRATA_EXP9_DOWN=42:10` (with `STRATA_EXP_MODE=9`; or `STRATA_EXP_MODE=10`) | `iq_kernels.cu` `native_down_q2_sub4_kernel` (KhaledElzarw `4d462ccff3`, MOD_PLAN F14) | off | exact (`row_dot_20_sub16`'s sums, folded onto 4 lanes) | the Q2_0 down rows (n_ff 640) on 4 lanes instead of 16: every lane busy, the butterfly's first two levels as in-lane adds in the same order, weights decoded once per chunk of entries, 64 rows a block; wins over `STRATA_EXPDEC_DOWN` when both are set; CUDA and HIP (not gfx906) | fork: down time 0.52-0.78x mode 0, +2.0% paired on 57 real agent turns (RTX 3090); screen `bench/specs/11-f14-exp9-3060.json`; not built or measured here |
 | `STRATA_MMVF_AUX` | `native_bf16.cu` | off | exact | the aux row rides in the multi-kernel launch | with COMBINE_CPU |
 | `STRATA_VERIFY_PROFILE_SEL=i,j,...` | `verify.cpp` | off | research | selected profile stamps only | profiling |
 | `STRATA_DF2_GATE` / `STRATA_DF2_ROW_MS` | `spec/window_rule.hpp` | off / 3.0 | lossy | DFlash2-calibrated survival window instead of fixed confidence | Mac-measured; opt-in |
@@ -791,6 +793,8 @@ Credits, in the order the stack was built:
 - **zsariboga** (Strata fork), for the route-prior guards (`STRATA_ROUTE_PRIOR_PROTECT`, `_KEEP_P`, `_SCOPE`, commit `8d7042ad97`), and **mandoof1**
   (Strata fork), for `STRATA_ROUTE_PRIOR_KEEP` (commit `3e0489e118`); **lighttransport** (Strata fork), whose MiniMax study (commit `2ea0c1e042`) set the
   equal-KL comparison against a uniform tail skip.
+- **KhaledElzarw** (Strata fork "STRATA sm86", MIT), for the per-format expert layout table and the 4-lane Q2_0 down
+  rows (`STRATA_EXP_MODE=9`, `STRATA_EXP9_DOWN`, commits `9af8f1fa14` and `4d462ccff3`).
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.

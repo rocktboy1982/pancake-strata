@@ -1737,11 +1737,88 @@ launch cost ~14-16 us on gfx1100 vs ~3 us on sm_86, so fusions are worth more on
 
 | ID | Idea | Exact/lossy | Expected gain | Source |
 | --- | --- | --- | --- | --- |
-| F14 | KhaledElzarw sm86 kernel set: `STRATA_EXP_MODE=9` + `STRATA_EXP9_DOWN=42:10` (Q2_0 down on 4 lanes), GR_DOWN86/UP_HYB/XN/UP_PL/D87, `MMVQ_IL_3090` table (re-tune for 28 SMs); then try the Q2_0 down fold on gfx1100 vs `STRATA_EXPDEC_DOWN` | exact | 3090, same upstream base and model family: +17.3% cumulative over its baseline -> est. 3060 +8-15% (all exact items together, speculative) | KhaledElzarw/Strata |
+| F14 | KhaledElzarw sm86 kernel set: `STRATA_EXP_MODE=9` + `STRATA_EXP9_DOWN=42:10` (Q2_0 down on 4 lanes), GR_DOWN86/UP_HYB/XN/UP_PL/D87, `MMVQ_IL_3090` table (re-tune for 28 SMs); then try the Q2_0 down fold on gfx1100 vs `STRATA_EXPDEC_DOWN`. **EXP_MODE=9 + EXP9_DOWN coded 2026-11-10 (`work/f14-sm86-exp9`), see "F14 status" below** | exact | 3090, same upstream base and model family: +17.3% cumulative over its baseline -> est. 3060 +8-15% (all exact items together, speculative) | KhaledElzarw/Strata |
 | F15 | `STRATA_FETCH_ADMIT` (keep PCIe-copied experts in the VRAM cache), only if the PCIe share stays above 0; check it with `ADAPT_NOWAIT` | exact (KL 0.002) | AdrianBM96 (3060): +5.1/+7.0/+5.1% decode | AdrianBM96/Strata3060 |
 | F16 | Lamina sub-warp grouped expert kernels; router with separate-block copy, one fence, hardware top-10; int8 verify projections/head | exact / rounding | Lamina (3090): +5.7-8.3% e2e; +0.9-2.7%; +2.2-6.3% | eddoursul/Lamina |
 | F17 | Qwen3.6 on strata-poly: RandoTeam `STRATA_FATTN` (prompt flash attention, q8_0 cache) + `STRATA_FDEC` (tensor-core decode attention) = MOD_PLAN 8.8 | fp16 math, KL gate | RandoTeam (4060 Laptop, 118K): 1.62x prompt, 1.60x decode -> est. 3060 prompt +20-35%, decode +10-60% from 4K | RandoTeam/4gbVramStrata `79b1e756`, `67f60c12` |
 | F18 | CUDA-only Flash-Next prefill fusions | exact | zsariboga (5090, same IQ2_XS): -4.0% prompt time at 32K | zsariboga `21107e9d` |
+
+#### F14 status (2026-11-10, branch `work/f14-sm86-exp9`: coded, not built, not measured)
+
+Coded, the largest exact piece (fork commits `9af8f1fa14` and `4d462ccff3`, MIT, same upstream base `146df3c46`;
+all in `src/kernels/cuda/iq_kernels.cu`):
+- `STRATA_EXP_MODE=9`: the VRAM experts' kernel layout per format and phase (`exp9_mode`). Gate/up IQ2_S, IQ2_XXS,
+  IQ3_S, IQ3_XXS take mode 8's fused gate/up + SwiGLU + q8_1 kernel; the Q2_0 down takes mode 8's shared-memory rows;
+  every other format keeps mode 0. `STRATA_EXP9_GU` / `STRATA_EXP9_DOWN` = `type:mode,...` override single formats.
+  Only calls that do not stride take it (the verify window's PCIe call keeps mode 0, as for every AMD layout).
+- `STRATA_EXP9_DOWN=42:10` (the fork's adopted setting): `native_down_q2_sub4_kernel`, the Q2_0 down rows at n_ff 640
+  on 4 lanes instead of 16. `STRATA_EXP_MODE=10` = mode 0's gate/up + this down. It wins over `STRATA_EXPDEC_DOWN`.
+- Our IQ2_XS file: gate/up IQ2_S / IQ2_XXS and the Q2_0 down in all 48 layers, so the table covers every expert (the
+  fork's IQ3_XXS file had Q2_0 downs in 30 layers).
+- Default path unchanged: with `STRATA_EXP_MODE` unset (or any value but 9 / 10) every branch is the old one.
+  The same source builds for HIP (the switch works on every target but gfx906); neither backend was built.
+
+Exactness. Mode 0's Q2_0 down is `row_dot_20_sub16`: lane t of 16 sums call t (and call t + 16 for t < 4, into s16)
+from 0, joins them with `__fadd_rn` (+ 0.0f where there is no second call), then adds lanes t ^ 8, t ^ 4, t ^ 2, t ^ 1.
+In the new kernel lane u of 4 holds the sums of the 16-lane lanes u, u + 4, u + 8, u + 12, does the same `__fadd_rn`
+joins, adds the xor 8 and xor 4 partners in-lane with its own value first (as the shuffle adds), then shuffles xor 2
+and xor 1 inside the 4-lane group: the same float additions on the same values in the same order. Float addition is
+commutative, so after every level both partners hold the same value and the storing lane does not matter. Each call
+uses our own `Split<42>::load` / `apply_u` (= `apply` on the same words, the EXPDEC kernels' basis) and the same
+`* sd`. The `0 + d * sumi` contraction is the same expression in both kernels. The fork checked it bitwise on every
+Q2_0 layer at 1-8 entries a group and with a whole-engine forced decode, on an RTX 3090, which is sm_86 like the 3060.
+Caveat for `STRATA_EXP_MODE=9`'s gate/up half: mode 8's fused kernel forms the SwiGLU product without `__fmul_rn`
+(the fork's decision 0002 lists it); it was bitwise in the fork's build, so recheck it with our nvcc. The
+`expdec-down4` arm below does not use it.
+
+Run on the 3060, in this order:
+1. Parity, all 48 layers, several shapes (every line must say `bitwise equal`, exit 0):
+   `for gt in "24 1" "24 2" "16 1" "8 3" "8 4" "8 8"; do build-cuda/native_expert_bench <IQ2_XS shard 1> $(seq -s, 0 47) $gt 0 9; STRATA_EXP9_DOWN=42:10 build-cuda/native_expert_bench <IQ2_XS shard 1> $(seq -s, 0 47) $gt 0 9; done`
+   (the `down` column is the per-phase time; add `STRATA_EXPDEC=1 STRATA_EXPDEC_DOWN=1 STRATA_EXP9_GU=16:0,22:0` to
+   time the 4-lane down against pancake's EXPDEC down).
+2. `python tools/pancake/abtest.py bench/specs/11-f14-exp9-3060.json --out bench/results/<day>/11-f14-exp9.jsonl --tier screen`:
+   base (fast preset, EXPDEC=1) vs `exp9`, `exp9-down4`, `expdec-down4` (EXPDEC gate/up + 4-lane down),
+   `expdec-down`, `no-expdec`. Every arm must give the same text as base.
+
+gfx1100 assessment (from the code; nothing measured):
+- Correction: `STRATA_EXPDEC_DOWN` is measured on gfx1100. Test phase 04c gave +1.7% +-0.5 short, edit +5.4% +-7.3
+  n.s., token forcing PASS, and it is in the fast-hip preset since `f15ad2b51`. "Never measured" in this row, in the
+  research notes and in docs/EXPERTDEC.md is out of date.
+- The fold applies on gfx1100, on the same terms as EXPDEC_DOWN. It needs no ISA property, only the same float
+  operations in the same order. On the wave32 HIP build `__fadd_rn` is clang's plain `x + y` (`__clang_hip_math.h`;
+  only the gfx906 shim `strata_hip.h` adds `contract(off)`), so the joins and the `0 + d * sumi` contraction rely on
+  the same expression trees as `row_dot_20_sub16` and `ed_d42_rows`, exactly as EXPDEC_DOWN does. The xor 1 / xor 2
+  shuffles stay inside the 4-lane group. Check it with `native_expert_bench` (mode 0 vs 9) on the HIP build and with
+  the screen's text check.
+- Work per (row, entry), counted from the code (wave32): dp4a wave instructions 8 for mode 0 and for EXPDEC_DOWN (both
+  keep `row_dot_20_sub16`'s lane map: 20 of 32 call slots busy), 5 for the 4-lane kernel. Cross-lane shuffles: 2, 2,
+  0.25. On the gfx11 build these shuffles are already DPP (row_xmask, and permlanex16 for 16;
+  `include/strata/hip_compat/intrinsics.hpp`, `STRATA_DPP_SHFL`), not `ds_bpermute`, so fewer shuffles save VALU
+  slots, not LDS round trips. Shared-memory reads: ~9 (mode 0), ~0.75 (EXPDEC: an activation word serves 4 rows),
+  ~1.9 (4 lanes: the 8 rows of a wave broadcast-read the same words, one read per row). Blocks per group row: 160,
+  20 (rb 128 at 40 groups), 40. So against EXPDEC_DOWN it trades fewer VALU instructions for more shared-memory reads;
+  which one the down is bound by on gfx1100 is not known.
+- Size of the prize: before EXPDEC_DOWN the whole Q2_0 down was 5.79% of GPU kernel time (rocprofv3, 2026-11-09), and
+  EXPDEC_DOWN has already taken part of it. VRAM-hit expert kernels hide behind the CPU wait on edit windows.
+  Estimate against fast-hip: 0 to +1% on short chat, about 0 on edits.
+- Verdict: worth one screen arm on the 7900 XT and no more until it shows a gain; it needs no new code: fast-hip vs
+  `STRATA_EXP_MODE=9 STRATA_EXP9_GU=16:0,22:0 STRATA_EXP9_DOWN=42:10` (EXPDEC gate/up kept, the 4-lane down replaces
+  EXPDEC_DOWN). Text must be identical. A per-phase check first: `native_expert_bench` with `STRATA_EXPDEC=1
+  STRATA_EXPDEC_DOWN=1 STRATA_EXP9_GU=16:0,22:0 STRATA_EXP9_DOWN=42:10`, mode 0 vs 9 (the `down` column). Low priority
+  next to the CPU-side items.
+
+F14 follow-ups (KhaledElzarw, not ported yet; all opt-in and bit-identical in the fork):
+
+| Item | Fork commit | What | Fork result (RTX 3090) | Note for us |
+| --- | --- | --- | --- | --- |
+| `STRATA_GR_DOWN82` (+ `GR_UP8`, `FETCH_FORK`) | `8817a1651d` (+313/-10) | HC down read on 80 blocks x 136 threads by lane quarters, the group's last block does the warp_sum; PCIe fetch on its own stream | phase-2 bundle with `GR_UP_WIDE` + `GRAPH_PRIO`: +1.0% | `GR_UP_WIDE` and `GRAPH_PRIO` are already in pancake (env-only arms); `FETCH_FORK` only matters with a PCIe share |
+| piped-MTP guard | `c089f11af5` | DOWN82 / DOWN86 / GR_RES off for any `STRATA_PIPED_MTP` (one combine scratch per device) | fix | take it together with DOWN82 / DOWN86 |
+| `STRATA_GR_DOWN86`, `STRATA_GR_UP_HYB=n`, `STRATA_GR_XN=1` | `857158c66d` (+297/-21, `fused_gr.cu`) | DOWN82's partition with a cp.async shared-memory ring (3-4 stages); UP75 from n tokens; the up kernels read the norm's xn | +2.3% paired (CI 1.015-1.042) | cp.async: CUDA only (no async LDS copy on gfx11); the 3060 has 100 KB shared memory per SM like the 3090, recheck the stage count |
+| tier 5: `STRATA_GR_UP_PL`, `STRATA_GR_D87=8`, `STRATA_ACTQ_SKIP`, `STRATA_DOORBELL_STORE`, `STRATA_FUSE_HITS` (`STRATA_GR_RES` neutral) | `20f1fa1a95` (+929/-34) | HC read variants; skip the CPU activation of tokens with no CPU entry; doorbell store instead of a PCIe read-modify-write; add_hits folded into the combine on CUDA | +4.0% median / +4.7% geo-mean together | `DOORBELL_STORE` is in pancake; `FUSE_HITS` is HIP-only here (`fuse_hits_on()` returns false on CUDA although `combine_k10_vec4_hits` exists); UP_PL, D87, ACTQ_SKIP are new |
+| `STRATA_MMVQ_IL_3090` | `ca1edf8786` (+43, `native_mmvq.cu`) | the 2-4, 5-8 and one-column rows-per-warp tables read off `mmvq_il_parity --bench` | +1.8% | re-read the tables on the 3060 (28 SMs) with `mmvq_il_parity --bench`, the 3% rule |
+| not taken | `0af4328ec8`, `691fa9d191`, `287cd207ad` | ROUTE_BELL, POOL_DAG=1/2 | bundle +1.1% (CI -0.3..+2.5), not adopted by the author | skip |
+
+Env-only arms for TEST_PLAN 4.1.7 (no code): `STRATA_GR_UP_WIDE=1`, `STRATA_GRAPH_PRIO=1`, `STRATA_DOORBELL_STORE=1`.
 
 ### 15C. RX 7900 XT (HIP) only
 
