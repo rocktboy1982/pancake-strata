@@ -13884,6 +13884,8 @@ int main(int argc, char** argv) {
                                      "shows the swaps hold the windows up (--adapt-async 0 or STRATA_ADAPT_ASYNC=0: never)\n");
             }
         }
+        if (a_pc_chunk > 0 && o.adapt_async == 0)   // A7: the switch is set but the asynchronous tier was not asked for
+            std::fprintf(stderr, "strata serve: STRATA_PROMO_CHUNK=%zu: off (needs --adapt-async 1)\n", a_pc_chunk);
         strata::core::AdaptAsyncSelf asw;   // the session's choice between the two tiers (adapt_async_default.hpp)
         if (a_self && !ahomes.empty()) asw.arm();
         // the pipelined loop's side (see above): whether stage `st` has no window in flight; per home, the copies back
