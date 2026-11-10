@@ -1,0 +1,14 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "share0": {"env": {"STRATA_PREFILL_CPU_SHARE": "0"}},
+  "max1024": {"env": {"STRATA_PREFILL_CPU_SHARE_MAX": "1024"}},
+  "max2048": {"env": {"STRATA_PREFILL_CPU_SHARE_MAX": "2048"}}
+ },
+ "cases": ["short", "long1k", "long3k", "edit"],
+ "reps": 4,
+ "prefill": true,
+ "lossy": true,
+ "note": "MOD_PLAN A30 (Fiddler, token-count threshold for the CPU share in prefill). The preset arms the CPU share (STRATA_PREFILL_CPU_SHARE 0.6) for every chunk below STRATA_PREFILL_CPU_SHARE_MAX 4096 tokens: the decode CPU pool computes part of the experts while the GPU streams the rest. Agent turns are deltas of ~1-3K tokens, the window where the row estimates up to ~0.4 s per turn. share0 = share off (the GPU takes every expert), max1024 / max2048 = the share only below 1024 / 2048 tokens (a 3K delta then skips it), base = share up to 4096. long1k / long3k are cold 1000 / 3000-token prompts (abtest cases added for this; metric = prompt tok/s of the engine's own log line, one request per server, placed after a 'short' warm-up so the first request does not pay the cold start); edit (~2K tokens of C++) also records its prompt tok/s in the jsonl rows. Lossy: the staged CPU experts differ from the GPU path by rounding (mean KL ~0.004 below 1024 tokens, ~0.011 at 1-3K, per the engine's own start-up note), so a faster arm that changes the text needs the token-forcing gate; an arm that is not faster than base is dropped. Decide on long3k (and long1k): promote only an arm with >= +2% prompt tok/s and no case below -3% (screen thresholds); short is the decode sanity case (the share does not touch decode)."
+}

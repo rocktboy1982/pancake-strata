@@ -14,7 +14,8 @@ Spec (JSON):
    "arms": {"base": {}, "kmiss": {"env": {"STRATA_ADAPT_KMISS": "2,8"}, "args": {"--adapt-swaps": "96"}}},
    "cases": ["short", "edit", "long"], "reps": 3}
   cases: short, edit (decode tok/s); long (~12K tokens), long32k, long64k (prompt tok/s, see below); longdec32k,
-  longdec64k, longdec128k (decode tok/s AFTER a long cold prompt, see below).  "prefill": true marks a spec whose arms
+  longdec64k, longdec128k (decode tok/s AFTER a long cold prompt, see below); long1k, long3k (prompt tok/s of a cold
+  1000- / 3000-token prompt, A30), longdec10k (decode after a 10K read, A49).  "prefill": true marks a spec whose arms
   change prompt reading (see --tier screen).
   args: "--flag": "value" sets, "--flag": "" a bare switch, "--flag": null removes.  env: "KEY": null removes.
   Optional top-level "temperature" (default 0 = greedy), "top_p", "seed": sampling of every request, for arms that only
@@ -73,9 +74,11 @@ T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 
 
 LONG_CPT = 2.85                                          # chars per token of this repo's C++ (Qwen tokenizer; 'long': 34264 chars = 11978 tokens)
 LONG_TARGET = {"long32k": 32000, "long64k": 64000,       # prompt tokens (fit the 131072 context; 32K stays under --kv-resident 32768)
+               "long1k": 1000, "long3k": 3000,           # A30: agent-sized prompt deltas (the CPU-share window), prompt tok/s
+               "longdec10k": 10000,                      # A49: decode after a 10K read (attention share of the window vs 64K / 128K)
                "longdec32k": 32000, "longdec64k": 64000, "longdec128k": 120000}   # decode after the read (F11)
-LONG_DEC = ("longdec32k", "longdec64k", "longdec128k")   # long* cases judged on the decode tok/s of the reply after the read
-MAXTOK = {"long32k": 32, "long64k": 32,                  # prefill-only cases: no 512-token decode at 32K / 64K context
+LONG_DEC = ("longdec10k", "longdec32k", "longdec64k", "longdec128k")   # long* cases judged on the decode tok/s of the reply after the read
+MAXTOK = {"long32k": 32, "long64k": 32, "long1k": 32, "long3k": 32, "longdec10k": 256,                # prefill-only cases: no 512-token decode at 32K / 64K context
           "longdec32k": 256, "longdec64k": 256, "longdec128k": 256}
 SUMMARIZE = "Summarize what each of these source files does, one paragraph per file.\n\n"
 
