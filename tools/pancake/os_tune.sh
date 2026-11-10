@@ -74,6 +74,21 @@ igpus() {   # the APU's own GPU (Renoir / Cezanne / Barcelo ids), never the disc
     done
 }
 
+iommu_check() {   # A53: the dGPU's IOMMU group type (identity = passthrough, DMA / DMA-FQ = translated); sysfs reads only
+    found=0
+    for d in /sys/bus/pci/devices/*; do
+        case "$(cat "$d/class" 2>/dev/null)" in 0x03*) ;; *) continue ;; esac
+        case "$(cat "$d/device" 2>/dev/null)" in 0x1636|0x1638|0x15e7) continue ;; esac   # not the APU's own graphics
+        t=$(cat "$d/iommu_group/type" 2>/dev/null || echo "none")
+        found=1
+        echo "  IOMMU group of GPU $(basename "$d"): $t   (identity = passthrough, DMA / DMA-FQ = translated)"
+        case "$t" in
+            DMA|DMA-FQ) echo "  -> translated: PCIe DMA is address-translated and can cost throughput; 'iommu=pt' on the kernel command line avoids it (boot loader option + reboot; not for a PC that passes GPUs to VMs)" ;;
+        esac
+    done
+    [ "$found" = 1 ] || echo "  IOMMU: no GPU device found in sysfs ($(ls /sys/class/iommu 2>/dev/null | wc -l) IOMMU units)"
+}
+
 cpu_state() {
     for g in $(igpus); do echo "  iGPU $(basename "$(readlink -f "$g")"): $(cat "$g/power_dpm_force_performance_level") (sclk now: $(grep '\*' "$g/pp_dpm_sclk" | awk '{print $2}'))"; done
     c3=$(cat /sys/devices/system/cpu/cpu0/cpuidle/state3/disable 2>/dev/null || echo "?")
@@ -84,7 +99,7 @@ cpu_state() {
 need_root() { [ "$(id -u)" = 0 ] || { echo "$0 $1: run it with sudo" >&2; exit 1; }; }
 
 case "${1:-check}" in
-    check) check; cpu_state ;;
+    check) check; cpu_state; iommu_check ;;
     cpu)
         need_root cpu
         for g in $(igpus); do echo low > "$g/power_dpm_force_performance_level"; done

@@ -11173,6 +11173,13 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         igpu_line = igpu_split_warning(cfg)
         if igpu_line:
             print(igpu_line, flush=True)
+        try:
+            from serve.iommu_check import note as iommu_note        # A53: a log line only, nothing is changed
+            iommu_line = iommu_note()
+        except Exception:                                            # a start-up note must never stop a start
+            iommu_line = None
+        if iommu_line:
+            print(iommu_line, flush=True)
         if layer_split_of(cfg):
             try:
                 split = layer_split_value(cfg)          # #644: before the (minutes-long) start
