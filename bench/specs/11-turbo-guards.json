@@ -1,0 +1,18 @@
+{
+ "note": "MOD_PLAN F13 screen: do the route-prior guards let turbo run a stronger lambda without breaking tool JSON, and is turbo any better than a uniform tail skip at equal KL?  One spec, three tools: tools/pancake/abtest.py (speed: cases short / edit / long), tools/pancake/quality_gate.py (token forcing; keep the default --path decode: the guards' scope gate reads the committed tokens of the decode windows and is closed while a prompt is read, so --path prompt measures nothing for the scope arms unless STRATA_ROUTE_PRIOR_ON_PROMPT=1 is added, which then tests the kernel guards alone) and tools/pancake/task_gate.py (agent tasks incl. tool_call JSON; run it with --reps 5). Every arm except base is lossy and needs the token-forcing verdict AND the task gate before it is a candidate for any default; the speed screen only orders them. Read the arms at EQUAL KL / mismatch rate against the two stock scores, not at equal speed (lighttransport's MiniMax study found miss-targeted dropping no better than uniform top-k at equal quality): plot decode tok/s against the token-forcing mismatch rate and the large-margin events, one point per arm; turbo and its guards must sit above the tail-skip points to be worth keeping. Arms: base = fast-hip (exact); turbo = A1, lambda 0.5; turbo-guards = lambda 0.5 + the router's top 2 kept + picks with p >= 0.5 of the top kept + no bonus inside tool calls or code fences (scope answer); turbo-l07-guards = the same guards with lambda 0.7 (the 'stronger turbo' F13 is for); tailskip7 / tailskip6 = STRATA_ROUTE_TAIL_SKIP (the uniform baseline, upstream's default 7 gave +18-22% decode; the fast-hip preset pins it to 0, so these arms set it, no prior). Stage-2 candidates if the screen says so: lambda 1.0 + guards, PROTECT alone and SCOPE alone (to see which guard buys the quality), tailskip5.",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "turbo": {"env": {"STRATA_ROUTE_PRIOR": "0.5"}},
+  "turbo-guards": {"env": {"STRATA_ROUTE_PRIOR": "0.5", "STRATA_ROUTE_PRIOR_PROTECT": "2", "STRATA_ROUTE_PRIOR_KEEP_P": "0.5", "STRATA_ROUTE_PRIOR_SCOPE": "answer"}},
+  "turbo-l07-guards": {"env": {"STRATA_ROUTE_PRIOR": "0.7", "STRATA_ROUTE_PRIOR_PROTECT": "2", "STRATA_ROUTE_PRIOR_KEEP_P": "0.5", "STRATA_ROUTE_PRIOR_SCOPE": "answer"}},
+  "tailskip7": {"env": {"STRATA_ROUTE_TAIL_SKIP": "7"}},
+  "tailskip6": {"env": {"STRATA_ROUTE_TAIL_SKIP": "6"}}
+ },
+ "cases": ["short", "edit", "long"],
+ "reps": 3,
+ "lossy": true,
+ "tasks": "bench/tasks/default.json",
+ "temperature": 0.2,
+ "margin": 0.05
+}

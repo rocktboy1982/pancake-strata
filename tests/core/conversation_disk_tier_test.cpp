@@ -141,6 +141,11 @@ void test_key() {
     check(extra.size() == conversation_disk_key_env_names().size() + 1 && extra.back().first == "STRATA_FOO" &&
           extra.back().second == "1", "key: STRATA_CONVERSATION_DISK_KEY_ENV adds names once");
     check(get({}).front().second == "-", "key: an unset switch is '-'");
+    // MOD_PLAN F13: the route-prior guards enter the key only when set (older session files keep their key)
+    check(get({}).size() == conversation_disk_key_env_names().size(), "key: an unset route-prior guard is not in the key");
+    const std::string guarded = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_ROUTE_PRIOR", "0.5"}, {"STRATA_ROUTE_PRIOR_PROTECT", "2"}})});
+    check(guarded != turbo && guarded != exact, "key: a route-prior guard changes the key");
+    check(get({{"STRATA_ROUTE_PRIOR_SCOPE", "answer"}}).size() == conversation_disk_key_env_names().size() + 1, "key: a set guard is added once");
 }
 
 void test_choice() {
