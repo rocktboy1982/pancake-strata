@@ -1,0 +1,15 @@
+  WARNING: only 0 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 31% [('kworker/1:2-mm_percpu_wq', 12), ('gnome-shell', 8), ('kworker/0:1-rcu_gp', 3)], reclaim 1.2%
+  quiet after 10 s
+scoring base (a) ...
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+scoring base (b) ...
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+scoring lookup12 ...
+lookup12                 PASS
+      1
+     ],
+     "events_p": 0.7037,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }

@@ -259,7 +259,7 @@ name in README.md section 9 "License & Credits" in the same commit that adopts i
 | llamAmpere | https://github.com/JakeATX/llamAmpere | MIT | Ideas: adaptive MTP depth (candidate, exact), SJ-KVaRN KV body (candidate, opt-in), `--kv-gpu-tokens` idea | mb-MTP and `--moe-skip` lossy opt-ins parked; trellis weight formats not for this engine | SJ-KVaRN would free ~0.9 GB at 131K (~500 more experts); VRAM does not buy decode here (drafting is 2-5% of a window) |
 | Project Maya | https://github.com/mw00/project-maya | MIT | Loop guard (`serve/loop_guard.py`, 690 lines), soft thinking budget close (#613), tolerant tool calls (#613/#706) | Not faster for us (its Qwen engine is a Strata 0.1.27 snapshot); resume-thinking-after-EOS not ported (both turn-end tokens are EOS here) | Server-side only; tests in `serve/test_loop_guard.py`, `serve/test_tolerant_tool_calls.py` |
 | gpu-unlock | https://github.com/Zagitta/gpu-unlock | GPL-2.0 | Adopted on the 3060: removes GeForce's half-rate FP16/BF16/TF32 cap with FP32 accumulation | Does not change decode (CPU/memory bound) | cuBLAS 8192^3: FP32 sums 49.7 TFLOPS (locked ~25); prompt read 7.6 -> 6.0 s (-21%) on the arena pair |
-| Avalon | (owner's install, source fast-forwarded c24c03d -> 88313b6) | (see repo) | Comparison target; its hipBLASLt table finding adopted | Its Flash-Next model (90 GB) was deleted to make room (owner's choice); `avalon.service` needs it re-downloaded | 7900 XT: Avalon 95-100 tok/s vs pancake ~112 |
+| Avalon | (owner's install, source fast-forwarded c24c03d -> 88313b6) | (see repo) | Comparison target; its hipBLASLt table finding and `--lookup-max-t 12` adopted (05c: edit +8.8%, quality PASS) | Its Flash-Next model (90 GB) was deleted to make room (owner's choice); `avalon.service` needs it re-downloaded | 7900 XT: Avalon 95-100 tok/s vs pancake ~112 |
 | tandem.cpp | https://github.com/ewhacc/tandem.cpp (+ itlab-cl/tandem.cpp-amd) | MIT | `STRATA_POOL_PREREAD` ported verbatim (idle pool workers pre-read the lookahead's next-layer CPU experts) | MTP_DEFER already here; MTP head Q4_K requant not needed (ours is ~2-bit, 787 MB) | A/B pending; loses even on a noisy machine so far (stays off) |
 | qwen38-megakernel | (cutlerbenjamin1-cmd) | AGPL | Ideas only (AGPL vs MIT): in-context draft-vocab tokens | Draft-vocab test: full vs en vs zh60k, no gain | zh60k vocab measured worse (92.5 vs 111.7 base) |
 | llama.cpp | https://github.com/ggml-org/llama.cpp | MIT | PR watch: #30966 CPU share (same split as `--pcie-frac 0`), #31233 ClassLRU, #31888, #31286 | ClassLRU long-memory scoring replayed: decay 0.7..0.986 within 0.5 points, no gain; upstream expert-cache PRs #29887-#31888 rejected (pancake's tier + pcie-frac already do this; #30594 hurts MTP verify) | `--pcie-frac 0` = their share ~0.95, measured best (+6/+13%) |
@@ -378,7 +378,7 @@ changes a default.
 | P2b | BFLA block-sparse prompt attention (feat/bfla-hip) | 19 | long-context TTFT (paper 1.34-1.44x at 128-256K) | e2e measured on Qwen3.6 UD-Q4_K_XL: 128K prompt 386.9 -> 1219.8 sparse (3.15x) -> 771.2 dense tok/s; recall top-1 48/48, KL 0.0014/0.0045; branch unmerged, HIP only | 100% | 10% |
 | P2b | SpecFit missed-expert feature | 36 | 0-10% | belongs to DISCO (other session, feat/disco) | - | - |
 | P2c | Small exact flags stack | phase 11 | +1.4..3.9% (provisional) | flags exist; A/B won 3/3 (noisy machine) | 100% | 50% |
-| P2c | --lookup-max-t 12 | Avalon report | +1% (noise) | flag exists | 100% | 30% |
+| done | --lookup-max-t 12 | Avalon report | edit +8.8% +-6.8, short -3.5% +-3.6 n.s., quality PASS (test 05c, 2026-11-10) | in fast-hip | 100% | 100% |
 | done | Matching hipBLASLt table (100401) | Avalon report | +38% prompt (provisional) | in the 7900 XT presets | 100% | 80% |
 | done | Pool pre-read (tandem.cpp) | phase 11 | - | loses even on a noisy machine; stays off | 100% | 90% |
 | P3a | Turn-boundary checkpoints (existing switches) | 11 | seconds per turn | nothing to build | 100% | 0% |
@@ -407,7 +407,7 @@ changes a default.
 | closed | ReplaySSM audit | 20 | - | replay stays (code study) | 100% | 100% |
 | P1 | Pool quarter-size tail tasks + down-row prefetch while waiting (basalt ports) | 29-related | 0.5-1.5% | coded (e29bac539) | 100% | 0% |
 | P1 | Tier catch-up while idle between requests (STRATA_IDLE_ADAPT) | 17 | 1-3% next turn | coded (43e741bc6) | 100% | 0% |
-| P4 | Q2_0 down on the EXPDEC kernel (STRATA_EXPDEC_DOWN, existing) | Q2_0-down | 1-3% short | arm added | 100% | 0% |
+| done | Q2_0 down on the EXPDEC kernel (STRATA_EXPDEC_DOWN, existing) | Q2_0-down | short +1.7% +-0.5, quality PASS (test 04c) | in fast-hip | 100% | 100% |
 | Ph14 | Launch/tile/pool sweep tool (tools/pancake/sweep.py) | 37 | 1-3% | built (7861dc8c1) | 100% | 0% |
 | P1 | Per-layer dispatch: 4 quadratic loops -> linear (first_of, miss list, per-expert groups, tail-skip) | code pass (pancake-docs/CODE_OPTIMIZATION.md) | dispatch plan/jobs time | coded, exact by construction, HIP+CUDA build | 100% | 0% |
 | Ph14 | Application end to end (agent-session timeline, idle-time use, server -> engine turn info) | 14 | per-turn time | needs the per-turn JSONL log of item 73 (serve/, dan-9f, not started) | 0% | 0% |

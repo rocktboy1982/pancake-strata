@@ -1,0 +1,12 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    130.8 +-   2.0  (n=4)
+                              drafts accepted 0.74
+  short  lookup12                126.3 +-   3.6  (n=4)   vs base:  -3.5% +-  3.6%  -> no difference
+                              drafts accepted 0.67
+  edit   base                    125.1 +-   6.1  (n=4)
+                              drafts accepted 0.94
+  edit   lookup12                136.1 +-  12.3  (n=4)   vs base:  +8.8% +-  6.8%  -> better
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed)
+  lookup12             DIFFERENT text -> lossy or placement-dependent: quality gate

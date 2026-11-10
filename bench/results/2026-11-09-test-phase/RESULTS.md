@@ -45,3 +45,4 @@ Note (05s): the harness's own verdict dropped every arm because the base had no 
 session's python3 above the 25%-of-a-core foreign limit on all three attempts); noise did not move the base numbers
 (41% vs 74% foreign: same tok/s).  Fix: when every attempt is noisy, abtest keeps the quietest one instead of none.
 Arms with a single slow attempt at 3.2-3.6 GHz CPU (routed-dedupe, mmvf-rows) carry the CPU-clock effect, not the arm.
+| 05c confirm (`2026-11-10-test-phase/`, 4 reps) | --lookup-max-t 12 | -3.5% +-3.6 n.s. | **+8.8% +-6.8** | - | **PASS** (events p 0.70) | **into fast-hip** (Avalon report; credited) |
