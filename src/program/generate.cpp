@@ -28,6 +28,7 @@
 #include "strata/core/batch_telemetry.hpp"
 #include "strata/core/dma_batch.hpp"
 #include "strata/program/adaptive_range.hpp"
+#include "strata/program/promo_chunk.hpp"
 #include "strata/program/route_prior_scope.hpp"
 #include "strata/kernels/route_prior.hpp"
 #include "strata/core/run_manifest.hpp"
@@ -14089,6 +14090,13 @@ int main(int argc, char** argv) {
         std::atomic<bool> a_err{false};
         double a_pick_ms = 0;             // the arena's inline choice, summed (the stats line)
         strata::program::AdaptiveCopyRange a_rng;   // the batch being copied in (a_copy_in), and where the next one starts
+        // A7 (STRATA_PROMO_CHUNK, opt-in; promo_chunk.hpp): per swap of the round, its chunk progress (empty when off), and
+        // the chunks planned at a tick for the job thread (the job reads them only between its post and the next a_ready)
+        struct APcJob { uint8_t* dst; const uint8_t* src; size_t len; int home; int32_t layer; };
+        std::vector<strata::program::PromoProgress> a_pc;
+        std::vector<APcJob> a_pc_jobs;
+        int64_t a_pc_cancels = 0, a_pc_restored = 0, a_pc_lost = 0;
+        uint64_t a_pc_bytes = 0;
         std::vector<AHome> ahomes;   // [0] = CUDA0's cache, [k] = layer split stage k's
         std::unique_ptr<JobThread> ajob;
         // the arena mode (srcp == &arena_src): every expert is in the arena already, so a round is a copy in only - no
@@ -14106,6 +14114,13 @@ int main(int argc, char** argv) {
         const bool a_inline = a_arena && a_env("STRATA_ADAPT_PICK_INLINE", 1) != 0;
         const bool a_wait = a_arena && a_env("STRATA_ADAPT_ASYNC_WAIT", 1) != 0;
         const size_t a_batch = a_arena ? (size_t) std::max(0, a_env("STRATA_ADAPT_ASYNC_BATCH", 0)) : 0;
+        // A7 (STRATA_PROMO_CHUNK=<bytes>, opt-in, exact): the arena's copies in go one chunk per swap per tick, a swap lands
+        // when its own last chunk has, and one whose incoming expert was not routed since the pick while the evicted one
+        // was is cancelled between chunks (only the bytes written go back).  The serial loop only: the pipelined loop's
+        // copies wait for each card's gap (a_gap), and STRATA_ADAPT_FETCH admits into slots from inside the windows.
+        const size_t a_pc_chunk = strata::program::promo_chunk_env();
+        const bool a_pc_on = a_pc_chunk > 0 && a_arena && o.adapt_async != 0 && o.pipeline_windows < 2 &&
+                             drive.d.fetch_admit == 0;
         // o.adapt_async_self (arena, one GPU, nothing explicit): the homes are set up, the job thread is created only when the
         // session's measurement turns the asynchronous tier on (asw_*, in the decode loop)
         const bool a_self = o.adapt_async_self && !o.adapt_async && a_arena && !drive.d.usage.empty();
@@ -14118,11 +14133,20 @@ int main(int argc, char** argv) {
                 std::fprintf(stderr, "strata serve: adaptive tier asynchronous (--adapt-async 1): up to %lld swaps per round, "
                                      "a round every %d windows%s\n", (long long) a_cap, o.adapt_every,
                              a_arena ? " (arena: copy-in only)" : "");
+                if (a_pc_on)
+                    std::fprintf(stderr, "strata serve: adaptive tier: promotions in chunks of %zu bytes, one per swap per "
+                                         "window, cancelled between chunks when the incoming expert was not routed since the "
+                                         "pick and the evicted one was (STRATA_PROMO_CHUNK, A7)\n", a_pc_chunk);
+                else if (a_pc_chunk > 0)
+                    std::fprintf(stderr, "strata serve: STRATA_PROMO_CHUNK=%zu: off (needs the arena, --adapt-async 1, no "
+                                         "--pipeline-windows 2 and no STRATA_ADAPT_FETCH)\n", a_pc_chunk);
             } else {
                 std::fprintf(stderr, "strata serve: adaptive tier: blocking, and the asynchronous tier is tried once the session "
                                      "shows the swaps hold the windows up (--adapt-async 0 or STRATA_ADAPT_ASYNC=0: never)\n");
             }
         }
+        if (a_pc_chunk > 0 && o.adapt_async == 0)   // A7: the switch is set but the asynchronous tier was not asked for
+            std::fprintf(stderr, "strata serve: STRATA_PROMO_CHUNK=%zu: off (needs --adapt-async 1)\n", a_pc_chunk);
         strata::core::AdaptAsyncSelf asw;   // the session's choice between the two tiers (adapt_async_default.hpp)
         if (a_self && !ahomes.empty()) asw.arm();
         // the pipelined loop's side (see above): whether stage `st` has no window in flight; per home, the copies back
@@ -14257,6 +14281,116 @@ int main(int argc, char** argv) {
             a_rng.next_batch(aswaps.size(), a_batch);
             ajob->post(a_copy_in);
         };
+        // A7 (STRATA_PROMO_CHUNK): the chunks planned at this tick, copied on the job thread (as a_copy_in, one chunk each)
+        auto a_pc_copy = [&]() {
+            std::vector<uint8_t> used(ahomes.size(), 0);
+            for (const APcJob& c : a_pc_jobs) {
+                AHome& h = ahomes[(size_t) c.home];
+                const strata::core::OnDevice on(h.dev);
+                nib::guard_raw(c.layer, "the async adaptive tier's chunked copy in (STRATA_PROMO_CHUNK)");
+                if (const cudaError_t e = cudaMemcpyAsync(c.dst, c.src, c.len, cudaMemcpyHostToDevice, h.stream);
+                    e != cudaSuccess) {
+                    std::fprintf(stderr, "strata serve: adaptive tier: chunk copy of layer %d (%zu bytes, CUDA%d) failed: %s\n",
+                                 (int) c.layer, c.len, h.dev, cudaGetErrorString(e));
+                    a_err = true;
+                }
+                used[(size_t) c.home] = 1;
+            }
+            for (size_t hi = 0; hi < ahomes.size(); ++hi)
+                if (used[hi]) a_mark(ahomes[hi]);
+        };
+        // A7, this thread at a tick: the next chunk of every swap still moving (the incoming expert's while it copies, the
+        // evicted one's while a cancel puts its bytes back), at the same offset in the blob and in the slot; posted to the
+        // job thread.  `all`: the rest at once (a drain).  False when nothing was posted.
+        auto a_pc_post = [&](bool all) -> bool {
+            a_pc_jobs.clear();
+            for (size_t i = 0; i < aswaps.size() && i < a_pc.size(); ++i) {
+                strata::program::PromoProgress& p = a_pc[i];
+                const size_t len = strata::program::promo_next_len(p, a_pc_chunk, all);
+                if (len == 0) continue;
+                const ASwap& w = aswaps[i];
+                const int32_t e = p.st == strata::program::PromoState::Copying ? w.in : w.out;
+                const uint8_t* b = arena_src.blob_at(w.layer, e);
+                uint8_t* d = ahomes[(size_t) w.home].cache->device_slot(w.slot);
+                if (b == nullptr || d == nullptr) {
+                    std::fprintf(stderr, "strata serve: adaptive tier: layer %d expert %d or slot %d is not there (chunked copy)\n",
+                                 (int) w.layer, (int) e, (int) w.slot);
+                    a_err = true;
+                    return false;
+                }
+                a_pc_jobs.push_back({d + p.done, b + p.done, len, w.home, w.layer});
+                p.posted = len;
+                a_pc_bytes += len;
+            }
+            if (a_pc_jobs.empty()) return false;
+            for (AHome& h : ahomes) h.used = false;
+            ajob->post(a_pc_copy);
+            return true;
+        };
+        // A7: a cancelled swap's evicted expert is whole in its slot again: resident (it left the plan at step 2)
+        auto a_pc_restore = [&](const ASwap& w) -> bool {
+            const size_t at = (size_t) w.layer * g.n_expert + w.out;
+            if (host_res[at] != strata::core::kNotResident) {   // (cannot happen: nothing else moves the table mid-round)
+                ++a_pc_lost;
+                return false;
+            }
+            host_res[at] = w.slot;
+            srcp->release(w.layer, w.out);
+            ++a_pc_restored;
+            return true;
+        };
+        // A7, step 2 on the serial loop: every swap of the round starts copying; the routing counts now are the base of
+        // the cancel rule
+        auto a_pc_start = [&](bool drain) {
+            a_pc.assign(aswaps.size(), strata::program::PromoProgress{});
+            for (size_t i = 0; i < aswaps.size(); ++i) {
+                const ASwap& w = aswaps[i];
+                strata::program::PromoProgress& p = a_pc[i];
+                p.total = (size_t) strata::kernels::cpu::expert_layout().blob_bytes(w.layer);
+                p.base_in = drive.d.usage[(size_t) w.layer * g.n_expert + w.in];
+                p.base_out = drive.d.usage[(size_t) w.layer * g.n_expert + w.out];
+            }
+            a_rng.whole_round(aswaps.size());   // (save_profile and a later serial step 3 see the whole round)
+            a_pc_post(drain);
+        };
+        // A7, step 3 at a tick (the chunks posted last tick have landed: a_ready): each swap whose last chunk landed is
+        // resident now (the incoming expert, or the evicted one back after a cancel); between windows, the cancel rule;
+        // then the next chunks.  True while chunks are still moving.
+        auto a_pc_tick = [&](bool drain) -> bool {
+            bool dirty = false;
+            for (size_t i = 0; i < aswaps.size() && i < a_pc.size(); ++i) {
+                strata::program::PromoProgress& p = a_pc[i];
+                if (!strata::program::promo_chunk_landed(p)) continue;
+                const ASwap& w = aswaps[i];
+                if (p.st == strata::program::PromoState::Restored) {
+                    dirty = a_pc_restore(w) || dirty;
+                    continue;
+                }
+                const size_t at = (size_t) w.layer * g.n_expert + w.in;
+                if (host_res[at] != strata::core::kNotResident) {   // resident elsewhere meanwhile: put the evicted one back
+                    ++a_pc_cancels;
+                    if (strata::program::promo_cancel(p)) dirty = a_pc_restore(w) || dirty;
+                    continue;
+                }
+                host_res[at] = w.slot;
+                srcp->release(w.layer, w.in);
+                ++a_swapped;
+                dirty = true;
+            }
+            if (!drain)
+                for (size_t i = 0; i < aswaps.size() && i < a_pc.size(); ++i) {
+                    strata::program::PromoProgress& p = a_pc[i];
+                    if (p.st != strata::program::PromoState::Copying) continue;
+                    const ASwap& w = aswaps[i];
+                    const float fi = drive.d.usage[(size_t) w.layer * g.n_expert + w.in] - p.base_in;
+                    const float fo = drive.d.usage[(size_t) w.layer * g.n_expert + w.out] - p.base_out;
+                    if (!strata::program::promo_should_cancel(fi, fo)) continue;
+                    ++a_pc_cancels;
+                    if (strata::program::promo_cancel(p)) dirty = a_pc_restore(w) || dirty;   // no byte written yet
+                }
+            if (dirty) res_upload();
+            return a_pc_post(drain);
+        };
         auto a_stage_in = [&]() {   // step 2's host part on the job thread (the pipelined loop: a_in queues the copies)
             for (ASwap& w : aswaps) w.from = a_from(w);
         };
@@ -14386,7 +14520,8 @@ int main(int argc, char** argv) {
                     } else {
                         res_upload();
                         a_rng.clear();
-                        a_post_batch();
+                        if (a_pc_on) a_pc_start(drain);   // A7: chunk by chunk (STRATA_PROMO_CHUNK)
+                        else a_post_batch();
                     }
                     astate = AState::SwapIn;
                     if (!drain) return true;
@@ -14396,6 +14531,20 @@ int main(int argc, char** argv) {
                     if (a_due(a_in_due)) return true;   // (pipelined) a card not seen idle since step 2
                     if (!a_ready(drain || a_wait)) return true;
                     if (a_err.load()) return false;
+                    if (!a_pc.empty()) {   // A7 (STRATA_PROMO_CHUNK): each swap lands, or is put back, on its own
+                        if (pl) {   // (a_pc_on keeps the pipelined loop off: its copies must wait for each card's gap)
+                            std::fprintf(stderr, "strata serve: adaptive tier: chunked promotions under the pipelined loop\n");
+                            a_err = true;
+                            return false;
+                        }
+                        if (a_pc_tick(drain)) {
+                            if (!drain) return true;
+                            continue;
+                        }
+                        if (a_err.load()) return false;
+                        astate = AState::RamFence;   // (the arena: RamFence and step 4 pass through)
+                        continue;
+                    }
                     for (size_t i = a_rng.landed_begin(pl); i < a_rng.landed_end(pl, aswaps.size()); ++i) {   // (the batch just landed)
                         const ASwap& w = aswaps[i];
                         host_res[(size_t) w.layer * g.n_expert + w.in] = w.slot;
@@ -14438,6 +14587,7 @@ int main(int argc, char** argv) {
                     if (!a_arena) src.commit_flip();
                     a_ms += std::chrono::duration<double, std::milli>(Clock::now() - a_t0).count();
                     aswaps.clear();
+                    a_pc.clear();   // (A7; empty when off)
                     astate = AState::Idle;
                     continue;   // a round due now starts at this same boundary
                 }
@@ -14482,7 +14632,9 @@ int main(int argc, char** argv) {
             for (size_t i = 0; i < host_res.size(); ++i) resident[i] = host_res[i] >= 0;
             for (const auto& p : pending) resident[(size_t) p.first] = 1;
             if (astate == AState::SwapIn)   // --adapt-async: the same for a round past its step 2
-                for (const ASwap& w : aswaps) resident[(size_t) w.layer * g.n_expert + w.in] = 1;
+                for (size_t i = 0; i < aswaps.size(); ++i)   // (A7: not a cancelled one - its evicted expert is back)
+                    if (i >= a_pc.size() || !strata::program::promo_cancelled(a_pc[i]))
+                        resident[(size_t) aswaps[i].layer * g.n_expert + aswaps[i].in] = 1;
             std::string e;
             const auto ranked = strata::core::rank_learned_profile(g.n_layers, g.n_expert, resident, heat,
                                                                    profile_loaded);
@@ -20811,6 +20963,11 @@ int main(int argc, char** argv) {
                                  (int) a_wait, a_inline ? "inline" : "on the job", a_rounds > 0 ? a_pick_ms / (double) a_rounds : 0.0);
                 else
                     std::fprintf(stderr, "\n");
+                if (a_pc_on)   // A7, cumulative
+                    std::fprintf(stderr, "strata serve: chunked promotions (STRATA_PROMO_CHUNK=%zu): %lld cancelled, %lld evicted "
+                                         "experts put back, %lld slots lost, %.1f MB copied\n", a_pc_chunk,
+                                 (long long) a_pc_cancels, (long long) a_pc_restored, (long long) a_pc_lost,
+                                 (double) a_pc_bytes / 1e6);
             }
             if (src.exchange_rotation())
                 std::fprintf(stderr, "strata serve: exchange rotation: %llu blocks, %llu host memcpy bytes avoided (cumulative payload)\n",

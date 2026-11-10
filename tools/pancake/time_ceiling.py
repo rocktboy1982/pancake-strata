@@ -14,6 +14,8 @@ the DMA does not fit in the window (then it gates the window).  Policies:
              promotions that do not pay) - an oracle, the target
   kmiss k/W  online (what the engine can run): admit an expert after its k-th miss in the last W windows, evict LRU
 The decision rule of item 14: build a new policy in the engine only if it saves >= 5% of the window over `tier`.
+A46 (MOD_PLAN 16) extends this replay in tools/pancake/cache_learn.py: Belady with bypass (the optimum), OPTgen labels,
+online Hawkeye and an offline Belady-imitation model, scored in hit points against lru / k-th miss.
 
     python tools/pancake/time_ceiling.py TRACE.bin PROFILE.bin SLOTS [--cpu-ms 5.2] [--gpu-ms 18.1] [--every 1]
                                          [--swaps 32] [--mb 1.4] [--gbps 12] [--horizons 1,2,4,8]
