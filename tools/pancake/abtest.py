@@ -131,6 +131,31 @@ def _gpu_dir():
 
 
 GPU_DIR = _gpu_dir()
+IGPU_DIR = next((d for d in sorted(Path("/sys/class/drm").glob("card*/device"))
+                 if d != GPU_DIR and (d / "gpu_busy_percent").exists()), None)
+CPU_FREQ = sorted(Path("/sys/devices/system/cpu").glob("cpu[0-9]*/cpufreq/scaling_cur_freq"))
+K10 = next((h for h in Path("/sys/class/hwmon").glob("hwmon*") if (h / "name").read_text().strip() == "k10temp"), None)
+
+
+def host_sample():
+    """APU side (Ryzen 7 5700G): the iGPU drives the desktop / remote desktop and shares the package power and the
+    DDR4 with the CPU expert threads - mean core clock (MHz), iGPU busy %, iGPU video-engine busy %, fabric clock, Tctl."""
+    def num(p, div=1):
+        try:
+            return int(p.read_text().split()[0]) / div
+        except (OSError, ValueError, IndexError):
+            return 0.0
+    out = {"cpu_mhz": round(sum(num(f, 1000) for f in CPU_FREQ) / max(1, len(CPU_FREQ))),
+           "tctl": num(K10 / "temp1_input", 1000) if K10 else 0.0}
+    if IGPU_DIR is not None:
+        out["igpu_busy"] = num(IGPU_DIR / "gpu_busy_percent")
+        out["igpu_vcn"] = num(IGPU_DIR / "vcn_busy_percent")
+        try:
+            out["fclk"] = next(int("".join(c for c in l.split(":")[1] if c.isdigit()))
+                               for l in (IGPU_DIR / "pp_dpm_fclk").read_text().splitlines() if l.strip().endswith("*"))
+        except (OSError, StopIteration, ValueError):
+            out["fclk"] = 0
+    return out
 
 
 def gpu_sample():
@@ -176,13 +201,16 @@ class NoiseMonitor(threading.Thread):
         top = lambda k: round(max(g[k] for g in busy))
         return {"sclk": mean("sclk"), "mclk": mean("mclk"), "t_junc_max": top("t_junc"), "t_mem_max": top("t_mem"),
                 "watt": mean("watt"), "link": sorted({g["link"] for g in busy}), "n": len(busy),
-                "vram_mib_max": top("vram_mib"), "gtt_mib_max": top("gtt_mib")}   # GTT growth = VRAM evicted to RAM
+                "vram_mib_max": top("vram_mib"), "gtt_mib_max": top("gtt_mib"),
+                "cpu_mhz": mean("cpu_mhz"), "tctl_max": top("tctl"),
+                **({"igpu_busy": mean("igpu_busy"), "igpu_vcn": mean("igpu_vcn"), "fclk_min": min(g["fclk"] for g in busy)}
+                   if "igpu_busy" in busy[0] else {})}   # GTT growth = VRAM evicted to RAM
 
     def run(self):
         while not self.stop_ev.is_set():
             fc, top = foreign_cpu(3, self.own_roots)
             self.samples.append((fc, top, foreign_cpu.reclaim))
-            self.gpu.append(gpu_sample())
+            self.gpu.append({**gpu_sample(), **host_sample()})
 
     def result(self):
         self.stop_ev.set()
@@ -365,7 +393,9 @@ def main():
             desc = " ".join(f"{x['case']} {x['decode_tps']:.1f}" + (f"/{x['prompt_tps']:.0f}p" if x["case"] == "long" else "")
                             for x in res["rows"])
             g = res.get("gpu") or {}
-            gd = f"  gpu {g['sclk']}/{g['mclk']} MHz {g['t_junc_max']}C {g['watt']}W gtt {g.get('gtt_mib_max', 0)}M" if g else ""
+            gd = (f"  gpu {g['sclk']}/{g['mclk']} MHz {g['t_junc_max']}C {g['watt']}W gtt {g.get('gtt_mib_max', 0)}M"
+                  f" cpu {g.get('cpu_mhz', 0)}MHz {g.get('tctl_max', 0)}C igpu {g.get('igpu_busy', 0)}%/vcn {g.get('igpu_vcn', 0)}%"
+                  f" fclk {g.get('fclk_min', 0)}") if g else ""
             print(f"rep {r} {arm:20s} {desc}  foreign CPU {res['noise']:.0f}% {res['noise_top']}{gd}"
                   f"{'' if clean else '  NOISY -> repeat'}", flush=True)
             if clean:

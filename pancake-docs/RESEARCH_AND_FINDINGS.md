@@ -93,6 +93,7 @@ combined items 63-95b.
 | [Lucrări Europa pentru Avalon](../reports/Lucr%C4%83ri%20Europa%20pentru%20Avalon.md) | [Lucrări Europa pentru Avalon/](../research_notes/Lucr%C4%83ri%20Europa%20pentru%20Avalon/) | 69 papers. ISTA-DASLab cards: Q2_0 decodes 93.8 vs IQ2_XS 70.3 tok/s at -0.09 task average (Q2_0 confirmed as daily file); base is 176.9B incl. the 51B n-gram table; "IQ2_XS" experts are IQ2_S/IQ2_XXS/IQ1_M + Q2_0 down; ETH "Mind the Gap" GGUF backdoors. | Items 23-27; daily file decision (item 6 closed); security practice: official files + SHA-256 vs HF |
 | [Lucrări Asia pentru Avalon](../reports/Lucr%C4%83ri%20Asia%20pentru%20Avalon.md) | [Lucrări Asia pentru Avalon/](../research_notes/Lucr%C4%83ri%20Asia%20pentru%20Avalon/) | 97 papers. Qwen3.8 tech report checked against our code: MTP depth already `--spec 4` (official 4.07 accepted at 4 steps); drafter has no PLE block and dense SWA attention; PLE via `--ple-io direct`. | Items 28-32; KTransformers rank guard (item 28); Tsinghua OSDI'26 pool barriers (item 29) |
 | [Lucrări Canada pentru Avalon](../reports/Lucr%C4%83ri%20Canada%20pentru%20Avalon.md) | [Lucrări Canada pentru Avalon/](../research_notes/Lucr%C4%83ri%20Canada%20pentru%20Avalon/) | 56 papers. "Displacement Is Not Direction" (Toronto): KLD/top-1 stop predicts task score among near-baseline quants, so token forcing only rejects large deviations and a fixed task set picks between close candidates. | Quality-gate revision for items 8, 13, 23; items 33-34; SpAx as 4th mask; Cactus parked |
+| [Forkuri Strata câștig viteză](../reports/Forkuri%20Strata%20c%C3%A2%C8%99tig%20vitez%C4%83.md) | [Forkuri Strata câștig viteză/](../research_notes/Forkuri%20Strata%20c%C3%A2%C8%99tig%20vitez%C4%83/) | 2026-11-10: 40 forks and tools from the owner's list; no large exact jump; env-only arms (GDN_PP=2, DENSE_MMQ, PREFILL_LAYER_MAJOR, kv-grow, adapt-decay, vram reserve), small ports (route_prior #5655, PCIe staging off, POOL_GUIDED, Argon AVX2, rdna3 `1799c0a3a`/`3dbb40516`), HotRod fragile-token recheck over turbo-hip | bench/TEST_PLAN.md phase 3 (specs 10-14) |
 | [Lucrări Pacific Africa America Latină](../reports/Lucr%C4%83ri%20Pacific%20Africa%20America%20Latin%C4%83.md) | [Lucrări Pacific Africa America Latină/](../research_notes/Lucr%C4%83ri%20Pacific%20Africa%20America%20Latin%C4%83/) | 63 papers. SpecFit marginal new-miss cost (DISCO feature); UNSW restore-equivalence test; UFMG coordinate-descent kernel sweep; UBA top-k entropy signal. | Items 35-37; ends with the series-wide ranking (GPU profile first, then turbo decision, sparsity, per-turn cache...) |
 
 ### 2.2 The 14 note folders in `research_notes/`
@@ -240,6 +241,9 @@ item 37), and the GGUF security practice (adopted).
 
 Every project and fork examined, with URL, license, what was adopted, what was rejected,
 and measured numbers where they exist.
+
+Rule: an idea or code taken from a fork gets a row here (what was taken, the commit, our measured result) **and** a
+name in README.md section 9 "License & Credits" in the same commit that adopts it.
 
 | Project | URL | License | Adopted | Rejected / notes | Measured numbers |
 | --- | --- | --- | --- | --- | --- |

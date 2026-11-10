@@ -87,4 +87,7 @@ About 1 h per group with 3 reps; one group at a time, results and decisions writ
 | 3.4 | 13-small-ports | upstream #5655 route_prior fix (first, mandatory), PCIe staging off at `--pcie-frac 0` (strata-slim 0003), DraftPolicy clip (gfx1030), `POOL_GUIDED` (Strata-GLM), Argon AVX2 accumulators / row granularity, rdna3 `1799c0a3a` + `3dbb40516` | small ports, exact |
 | 3.5 | 14-larger | routed-only prompt expert streaming (gfx1030 `PF_STREAM_ROUTED`, check `PIN_BY_NEED` first), `VRAM_CALIB` (#5691), fragile-token recheck over turbo-hip (HotRod) with a momoe-style quality gate | medium / large |
 
+Credits: every candidate that is adopted gets its author in README.md section 9 and a row in
+pancake-docs/RESEARCH_AND_FINDINGS.md section 4 (commit, what was taken, measured result), in the adopting commit.
+
 Rebase hazard noted: upstream v0.2.13 enables the hipBLASLt table automatically only on gfx1151 - keep `STRATA_HIPBLASLT_TABLE=on` in the -hip presets.
