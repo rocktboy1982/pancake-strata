@@ -80,7 +80,13 @@ tools/pancake/test_task_gate_effort.py, bench/specs/taskgate-{effort,caps,rumina
 
 ## Tests run
 
-See the end of this note (filled in after the run).
+NOT RUN. `wait_quiet.sh` returned 1 three times (a benchmark, `abtest.py bench/specs/09-prefill.json`, ran from 23:11 to past
+23:44), so by the rules no test was executed. Done instead: `python -m py_compile` on every touched Python file (all OK, parse
+only) and a line-by-line trace of every new test against the code. The coordinator should run, at 02:00:
+
+    nice -n 19 python -m pytest tools/pancake/test_thinking_caps.py tools/pancake/test_task_gate_effort.py tools/pancake/test_task_gate.py -q
+    nice -n 19 python -m unittest serve.test_rumination serve.test_budget_by_effort serve.test_turn_log -v
+    python tools/pancake/task_gate.py bench/specs/taskgate-effort.json --dry-run     (also -caps, -rumination)
 
 ## Spec to run (needs the GPU, not run tonight)
 
