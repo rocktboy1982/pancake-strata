@@ -9,5 +9,13 @@
  "cases": ["short", "edit"],
  "reps": 3,
  "lossy": false,
- "note": "MOD_PLAN 16 priority item 1 / TEST_PLAN 4.1 (first in line). ABTEST ONLY CHECKS THE SIDE EFFECTS: its short and edit cases send one independent request after another, so they never park a long agent conversation and never interleave short side requests; the gain these flags are meant to give (cold 54-62K re-reads: ~158 of 162.8 s saved offline) does NOT show here. Screen = 'does it cost decode speed or RAM' (expected: no difference; watch free RAM, the arena locks 33 GiB of 57). The real test needs an agent-replay workload: see TEST_PLAN 4.1 'Agent replay for the cache arms'. Exact (the cache restores a parked prefix): same text as base on short/edit."
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "pancake-turns.jsonl",
+  "arms": ["base", "cache2048-min8192"],
+  "reps": 1,
+  "add_arms": {"base1280": {"args": {"--conversation-cache-mib": "1280"}}},
+  "note": "Read by tools/pancake/replay_turns.py only (abtest ignores it). The 11-09 16:13-16:43 agent session (75 requests: conversation B's 7 cold 54-62K re-reads between short decodes and 3-4K prefill probes) replayed per arm in a fresh server. Default pair base vs cache2048-min8192; --arms base,cache2048,min8192,cache2048-min8192 says which flag carries it. base1280 pins the 11-09 budget (1280 MiB, then sized from the free RAM): run it too when today's base prints a different auto budget, else base no longer reproduces the misses."
+ },
+ "note": "MOD_PLAN 16 priority item 1 / TEST_PLAN 4.1 (first in line). ABTEST ONLY CHECKS THE SIDE EFFECTS: its short and edit cases send one independent request after another, so they never park a long agent conversation and never interleave short side requests; the gain these flags are meant to give (cold 54-62K re-reads: ~158 of 162.8 s saved offline) does NOT show here. Screen = 'does it cost decode speed or RAM' (expected: no difference; watch free RAM, the arena locks 33 GiB of 57). The real test is the agent replay: python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out bench/results/<day>-conv-cache-replay (the 'replay' block; TEST_PLAN 4.1 'Agent replay for the cache arms'). Exact (the cache restores a parked prefix): same text as base on short/edit."
 }

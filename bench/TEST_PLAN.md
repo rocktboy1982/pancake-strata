@@ -173,19 +173,51 @@ greedy as before); sampled text differs per run, so its text-hash line is meanin
 nothing in decode, so its screen only proves "no side effect"; its real verdict comes from the agent replay below.
 Lossy arms (`14b`, `15`, `16`) go to the rigorous tier if they promote.
 
-**Agent replay for the cache arms (proposal, not built).** abtest's cases are independent one-shot requests, so they
-cannot park a conversation or evict it with a short side request. `pancake-turns.jsonl` has no prompt text, only
-per-request sizes and timing (`time`, `prompt_total`, `reused`, `prompt_read`, `output_tokens`, `prompt_ms`), which is
-enough to rebuild the traffic shape. A replayer (`tools/pancake/replay_turns.py`, sharing abtest's server start / stop
-and noise gate) would: (1) take one recorded session window and split requests into conversations: `reused > 0`
-continues the previous long prompt, a small `prompt_total` with `reused == 0` is a side request, a large one with
-`reused == 0` starts a conversation; (2) synthesize each conversation's text deterministically (pinned seed over the
-repo sources, as abtest's `prompts()` does) so turn N+1 extends turn N exactly and the engine can reuse the prefix, with
-`max_tokens = output_tokens` and the recorded order and interleaving, think time compressed to a few seconds; (3) run
-it per arm in a fresh server and report, per request class, the sum of `prompt_ms`, the count of cold re-reads (a long
-prompt with `prompt_read` close to `prompt_total`), and the minimum free RAM seen. The cache arms win when the cold
-re-reads and their seconds drop (offline estimate: ~158 of 162.8 s); `base` vs `cache2048-min8192` is the pair to run,
-and the single-flag arms say which flag carries it. The replay is deterministic enough for one A B pass per arm.
+**Agent replay for the cache arms (built 2026-11-10, `tools/pancake/replay_turns.py`; dry runs only so far).**
+abtest's cases are independent one-shot requests, so they cannot park a conversation or evict it with a short side
+request. `pancake-turns.jsonl` has no prompt text, only per-request sizes and timing (`time`, `prompt_total`, `reused`,
+`output_tokens`, `max_new`, `reasoning_tokens`, `prompt_ms`), which is enough to rebuild the traffic shape. The replayer
+takes one session (a time window, `sN` from `--list-sessions`, or a request id) and, per arm, starts a fresh server
+(abtest's `start_server`, `quiet_gate`, `NoiseMonitor`, `make_config`; the run's engine log and turn log go to the out
+directory, not the daily files) and sends the requests as real streamed chat requests in the recorded order:
+- conversations: a request of >= 8,192 tokens extends the open conversation it can grow from (last prompt <= it <= last
+  + output + 16K); a re-read with `reused == 0` stays in the SAME conversation (it is the cold re-read the arms should
+  turn warm; the first proposal would have made each one a new conversation, which no cache can help). Smaller
+  requests are side requests, one-message conversations; one with `reused > 0` repeats the text of the latest side
+  request of the same size (thinking-off prompts count 2 tokens less), else new text.
+- text: lines of the repo's C++ sources, a fixed start per conversation. Agent turn N+1 = turn N's messages + the reply
+  the server really returned (reasoning + content, as opencode sends it back; the template keeps the thinking) + a
+  `<tool_response>` user message sized so the prompt is the recorded `prompt_total` to within 2 tokens. Counts come from
+  the server's own tokenizer and template imported locally (`tools/strata_tokenizer.py`, `serve/frontend.ChatTemplate`,
+  `effort_position: end` rendering); each response's `usage.prompt_tokens` corrects any offset for the next request.
+- `max_tokens` = the recorded output tokens (`--max-new recorded` for the recorded max_new; agent turns had 32768),
+  thinking on/off as recorded, greedy, think time capped at `--max-gap` (2 s).
+Per request: prompt tokens, reused (the engine's `prompt N tokens = R reused` line), prompt time, client time to first
+token, decode tok/s, wall time and the engine's cache lines in that request's window (parked / skip parking (why) /
+restored / evicted). Per arm run: cold re-reads (a non-first agent turn > 8K with reuse < 50%) and their seconds, total
+prompt time, total turn time, peak RSS of the server tree, lowest MemAvailable, the auto cache budget line. Verdict vs
+the first arm on total prompt time (paired 95% interval with `--reps` >= 2, else deltas). `--synthetic` replaces the log
+with a built-in 4.0.1-shaped session (one conversation 40K -> 62K in 18 turns; turns 7-15 each after a group of side
+requests: 69-token decodes x3, a 3,058-token probe x6, three ~4.1K probes, 75-token decodes, a thinking off/on pair).
+
+```sh
+# from the main checkout, engine on 8080 stopped, nothing else on the GPU (the run stops any Strata server first)
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out /tmp/rp --dry-run      # plan, sizes, duration; no server
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out bench/results/<day>-conv-cache-replay
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out ... --arms base,cache2048,min8192,cache2048-min8192
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out ... --synthetic        # without the log
+```
+
+Spec 11's `replay` block names the session (2026-11-09 16:13-16:43), the default pair (`base` vs `cache2048-min8192`)
+and an extra `base1280` arm (`--conversation-cache-mib 1280`, the 11-09 auto budget): run it as well when today's base
+prints a different auto budget (`conversation cache: N MiB / 4 slots (auto)` at the start of each arm), else base may
+not reproduce the misses. Dry runs (2026-11-10, `nice -n 19`, < 1 s of sizing each): the log session is 75 requests
+(34 agent turns: A 3 turns 70,082 -> 72,465, B 31 turns 34,261 -> 62,943 with the 7 recorded cold re-reads = 162.7 s;
+41 side requests: 20 decodes, 21 probes, 9 repeats), 1.81M prompt tokens, every request built within 2 tokens of its
+recorded size; expected ~13.5 min per arm as recorded (11.7 min of requests, 0.3 min of gaps, ~1.5 min start), ~8.7
+min if every agent turn is warm; the pair ~27 min. The synthetic session is 48 requests (18 agent, 30 side), 0.98M
+prompt tokens, 6.2 min per arm all warm to 9.4 min with every interleaved turn cold. One A B pass per arm is the
+first step; `--reps 2` (A B B A) gives the interval.
 
 | # | GPU | Arms | Unlocks / kills |
 | --- | --- | --- | --- |

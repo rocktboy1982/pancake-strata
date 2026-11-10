@@ -637,9 +637,10 @@ tool-call parser, `turn_at` poly checkpoints, domain classification, and the per
 - **`feat/pattern-cache`** (63 commits): the item 3-4 seeding switches, Q2_0 7900-XT presets, `STRATA_POOL_PREREAD`
   and `STRATA_IQ2S_PAIR`, and a GDN megakernel prototype (reverted: 0.0 ms on one GPU).
 
-### 7.8. `tools/pancake/`: the measurement suite (31 scripts)
+### 7.8. `tools/pancake/`: the measurement suite (32 scripts)
 
-`abtest.py` (quiet-machine interleaved A/B), `quality_gate.py` (token-forcing gate as a process), `task_gate.py` (A55, see below), `quality_ab.sh` /
+`abtest.py` (quiet-machine interleaved A/B), `replay_turns.py` (agent-traffic replay for the conversation-cache arms, see
+below), `quality_gate.py` (token-forcing gate as a process), `task_gate.py` (A55, see below), `quality_ab.sh` /
 `quality_hip.sh`, `bench_engines.py`, `gpu_profile.py` (rocprofv3), `decode_curve.py`, `time_ceiling.py` (the cache
 judged in ms; serial and `--overlap` model), `belady_ceiling.py`, `tail_rows.py`, `predict_experts.py`,
 `replay_seeding.py`, `conv_trace.py`, `learn_profile.py` / `learn_domain_profiles.py`, `make_corpus.py`,
@@ -676,6 +677,28 @@ is a REJECT and a close arm comes back INCONCLUSIVE: use `--reps 10-20` for clos
 of the same shape; every task needs a reference answer that must pass and a wrong one that must fail, checked by
 `--dry-run`). The shipped set is a smoke-sized stand-in; the BFCL v4 multi-turn / LiveCodeBench subsets and own-repo
 checkpoint grading of A55 are not in it yet.
+
+`replay_turns.py` (branch `work/replay-turns`, dry runs only so far) judges the conversation-cache arms
+(`--conversation-cache-mib`, `--conversation-cache-min-tokens`, later PARK_TRUNCATE), which `abtest.py` cannot: its
+cases are independent one-shot requests that never park a long conversation and never evict it with a short side
+request. It replays one recorded session of `pancake-turns.jsonl` (sizes and timing only, no text) as real streamed
+chat requests against a fresh server per arm of an `abtest.py` spec: each agent turn sends the whole conversation (the
+previous turn's messages, the reply the server returned, a tool-result message sized to the recorded prompt to within
+2 tokens, counted with the server's own tokenizer and template), side requests (short decodes, prefill probes) run in
+the recorded order as separate conversations, with the recorded output length and thinking setting. Per request it
+records prompt tokens, tokens reused (engine line), prompt time, time to first token, decode speed and the engine's
+park / skip / restore / evict lines; per arm the cold re-reads (a non-first agent turn > 8K tokens with < 50% reused),
+total prompt and turn time, peak RSS and lowest free RAM; the verdict is on total prompt time vs the first arm (95%
+interval with `--reps 2+`). `--synthetic` runs a built-in session of the same shape (one conversation 40K -> 62K with
+interleaved side requests) without the log. Spec `bench/specs/11-conv-cache.json` carries the `replay` block (the
+2026-11-09 16:13-16:43 session: 75 requests, 7 cold 54-62K re-reads = 162.7 s; ~13.5 min per arm). Details:
+bench/TEST_PLAN.md 4.1.
+
+```sh
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out /tmp/rp --dry-run     # plan + sizes, no server
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out bench/results/<day>-conv-cache-replay [--reps 2]
+python tools/pancake/replay_turns.py SPEC.json --out DIR --synthetic | --session 2026-11-09T16:13/16:43 | --list-sessions
+```
 
 ## 8. Daily Use (`Qwen3.8-Flash-Next` & `Qwen3.6-35B-A3B`) and Build & Run (HIP + CUDA)
 
