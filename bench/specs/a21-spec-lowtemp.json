@@ -3,6 +3,7 @@
  "arms": {
   "base": {},
   "coupled": {"env": {"STRATA_SPEC_COUPLED": "1"}},
+  "gumbel": {"env": {"STRATA_SPEC_GUMBEL": "1"}},
   "f6-dt100": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_PROB_DT": "1.0"}},
   "f6-dt050": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_PROB_DT": "0.5"}},
   "f6-min07": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_MIN_TEMP": "0.7"}}

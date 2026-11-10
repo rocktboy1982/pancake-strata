@@ -1,0 +1,14 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "expdec-swiglu": {"env": {"STRATA_EXPDEC_SWIGLU": "1"}},
+  "ic-warm32": {"env": {"STRATA_IC_WARM_MB": "32"}},
+  "ic-warm64": {"env": {"STRATA_IC_WARM_MB": "64"}},
+  "swiglu+warm32": {"env": {"STRATA_EXPDEC_SWIGLU": "1", "STRATA_IC_WARM_MB": "32"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN A33 (STRATA_EXPDEC_SWIGLU) and A35 (STRATA_IC_WARM_MB) retest on the CURRENT fast-hip preset (deferral on: STRATA_VERIFY_DEFER_CPU=1, STRATA_EXPDEC_DOWN=1, STRATA_POOL_FUSE_PHASES=1); the first run (04-gpu-launches) was n.s. on a base with reclaim hits. Both are exact (same text expected: the text-hash line must say identical for every arm). expdec-swiglu fuses gate/up + SwiGLU + q8_1 into one launch where EXPDEC takes the layout (needs STRATA_EXPDEC=1, a gate/up type of IQ2_XXS/IQ2_XS/IQ3_XXS/IQ3_S/IQ2_S; layers whose gate/up type is IQ1_M keep the old path, and the model has such layers, so expect a partial effect). ic-warm reads the next layer's pre-doorbell weights (mixer projections, router: the engine prints their MiB per layer at start) on a side stream while the combine waits for the CPU rows, to keep them in the 80 MiB Infinity Cache: 32 / 64 = the cap in MiB per layer. With the deferral on the combine waits less (deferred rows are not waited for in their own layer), so the warm window is short; if ic-warm does nothing here it is not worth more work. Order: abtest.py --tier screen first (promote >= +2% on a case, none below -3%), then --tier confirm. STRATA_ROUTER_FUSE (A33, second half) is INERT on this preset: bf16_router_publish_arm is only taken when the window has no deferral (verify.cpp: rpub requires !defer_), so it has its own spec, a33-router-fuse-nodefer.json."
+}
