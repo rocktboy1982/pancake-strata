@@ -35,8 +35,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <mutex>
 #include <shared_mutex>
+#include <string>
 #include <vector>
 
 namespace strata::spec {
@@ -105,9 +107,22 @@ private:
 class SharedSuffixIndex {
 public:
     SharedSuffixIndex(size_t bytes, SuffixIndex::Params p) : idx_(bytes, p) {}
+    ~SharedSuffixIndex();
+    SharedSuffixIndex(const SharedSuffixIndex&) = delete;
+    SharedSuffixIndex& operator=(const SharedSuffixIndex&) = delete;
+
+    /// STRATA_SUFFIX_INDEX_FILE: the index outlives the process.  `path` is an append-only log of the inserted outputs
+    /// ("SXI1", then per output: uint32 lead tokens, uint32 output tokens, the int32 tokens).  Its newest outputs that
+    /// fit in the ring are inserted now, and every later insert is appended.  A log with a cut-off last record (the
+    /// process was killed while writing) or above twice the ring's capacity is rewritten first with just the outputs
+    /// that were loaded.  Call once, before any insert.  Returns false and sets `err` when the log cannot be used (the
+    /// index then runs in memory only); *loaded gets the outputs read.
+    bool attach_log(const char* path, std::string& err, uint64_t* loaded = nullptr);
+
     void insert(const int32_t* lead, size_t n_lead, const int32_t* out, size_t n_out) {
         std::unique_lock<std::shared_mutex> lk(mu_);
         idx_.insert(lead, n_lead, out, n_out);
+        if (log_ != nullptr) append_log(lead, n_lead, out, n_out);
     }
     int propose(const int32_t* pat, int n_pat, int max_k, int32_t* out, int* match, double* prob = nullptr) const {
         std::shared_lock<std::shared_mutex> lk(mu_);
@@ -121,8 +136,11 @@ public:
     size_t bytes() const { return idx_.bytes(); }   // fixed at construction
 
 private:
+    void append_log(const int32_t* lead, size_t n_lead, const int32_t* out, size_t n_out);
+
     mutable std::shared_mutex mu_;
     SuffixIndex idx_;
+    std::FILE* log_ = nullptr;
 };
 
 /// STRATA_SUFFIX_INDEX=1 (opt-in, default off): the engine's shared index, made at the first call; nullptr when off.
@@ -131,6 +149,7 @@ private:
 ///   STRATA_SUFFIX_INDEX_FACTOR     a draft is at most factor x match tokens (default 1, the paper's max_spec_factor)
 ///   STRATA_SUFFIX_INDEX_RULE       "longest" (default: the index's draft replaces --lookup's when its match is longer)
 ///                                  or "fallback" (the index drafts only where --lookup has none)
+///   STRATA_SUFFIX_INDEX_FILE       a log file that keeps the index across restarts (attach_log); unset: memory only
 SharedSuffixIndex* shared_suffix_index();
 /// STRATA_SUFFIX_INDEX_RULE=fallback
 bool suffix_index_fallback_only();

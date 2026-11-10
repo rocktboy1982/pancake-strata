@@ -142,6 +142,119 @@ int SuffixIndex::propose(const int32_t* pat, int n_pat, int max_k, int32_t* out,
     return k;
 }
 
+// ---------------------------------------------------------------------------------------- the log (STRATA_SUFFIX_INDEX_FILE)
+namespace {
+constexpr char kLogMagic[4] = {'S', 'X', 'I', '1'};
+constexpr uint32_t kLogMaxOut = 1u << 24;   // a record claiming more output tokens than this is damage, not an output
+
+struct LogRecord {
+    size_t at;       // offset of its first token in the file's bytes
+    uint32_t lead;   // tokens
+    uint32_t out;
+};
+
+bool write_record(std::FILE* f, const int32_t* lead, size_t n_lead, const int32_t* out, size_t n_out) {
+    const size_t keep = std::min<size_t>(n_lead, (size_t) SuffixIndex::kLead);
+    const uint32_t hdr[2] = {(uint32_t) keep, (uint32_t) n_out};
+    return std::fwrite(hdr, sizeof(hdr), 1, f) == 1 &&
+           (keep == 0 || std::fwrite(lead + (n_lead - keep), sizeof(int32_t), keep, f) == keep) &&
+           (n_out == 0 || std::fwrite(out, sizeof(int32_t), n_out, f) == n_out);
+}
+}  // namespace
+
+SharedSuffixIndex::~SharedSuffixIndex() {
+    if (log_ != nullptr) std::fclose(log_);
+}
+
+void SharedSuffixIndex::append_log(const int32_t* lead, size_t n_lead, const int32_t* out, size_t n_out) {
+    if (n_out == 0 || n_out > kLogMaxOut) return;
+    if (!write_record(log_, lead, n_lead, out, n_out) || std::fflush(log_) != 0) {
+        std::fprintf(stderr, "strata: STRATA_SUFFIX_INDEX_FILE: a write failed; the index keeps running in memory only\n");
+        std::fclose(log_);
+        log_ = nullptr;
+    }
+}
+
+bool SharedSuffixIndex::attach_log(const char* path, std::string& err, uint64_t* loaded) {
+    std::unique_lock<std::shared_mutex> lk(mu_);
+    if (loaded != nullptr) *loaded = 0;
+    if (log_ != nullptr) { err = "a log is attached already"; return false; }
+    // the whole log (2x the ring at most once it was compacted: 8 MiB at the default 64 MiB index)
+    std::vector<char> bytes;
+    if (std::FILE* f = std::fopen(path, "rb")) {
+        char buf[1 << 16];
+        for (size_t n; (n = std::fread(buf, 1, sizeof(buf), f)) > 0;) bytes.insert(bytes.end(), buf, buf + n);
+        std::fclose(f);
+    }
+    std::vector<LogRecord> recs;
+    bool damaged = false;
+    uint64_t tokens = 0;
+    if (!bytes.empty()) {
+        if (bytes.size() < sizeof(kLogMagic) || std::memcmp(bytes.data(), kLogMagic, sizeof(kLogMagic)) != 0) {
+            err = std::string("not a suffix index log (no SXI1 header): ") + path;
+            return false;   // never overwrite a file that is not ours
+        }
+        size_t at = sizeof(kLogMagic);
+        while (at < bytes.size()) {
+            uint32_t hdr[2];
+            if (bytes.size() - at < sizeof(hdr)) { damaged = true; break; }
+            std::memcpy(hdr, bytes.data() + at, sizeof(hdr));
+            const uint64_t need = ((uint64_t) hdr[0] + hdr[1]) * sizeof(int32_t);
+            if (hdr[0] > (uint32_t) SuffixIndex::kLead || hdr[1] == 0 || hdr[1] > kLogMaxOut ||
+                bytes.size() - at - sizeof(hdr) < need) {
+                damaged = true;
+                break;
+            }
+            recs.push_back({at + sizeof(hdr), hdr[0], hdr[1]});
+            tokens += (uint64_t) hdr[0] + hdr[1] + 1;
+            at += sizeof(hdr) + (size_t) need;
+        }
+    }
+    // the newest records that fit in the ring (older ones would be overwritten at once)
+    size_t first = recs.size();
+    uint64_t fit = 0;
+    while (first > 0 && fit + recs[first - 1].lead + recs[first - 1].out + 1 <= idx_.capacity()) {
+        --first;
+        fit += recs[first].lead + recs[first].out + 1;
+    }
+    std::vector<int32_t> lead, out;
+    for (size_t r = first; r < recs.size(); ++r) {
+        lead.resize(recs[r].lead);
+        out.resize(recs[r].out);
+        if (recs[r].lead > 0) std::memcpy(lead.data(), bytes.data() + recs[r].at, recs[r].lead * sizeof(int32_t));
+        std::memcpy(out.data(), bytes.data() + recs[r].at + recs[r].lead * sizeof(int32_t), recs[r].out * sizeof(int32_t));
+        idx_.insert(lead.data(), lead.size(), out.data(), out.size());
+    }
+    if (loaded != nullptr) *loaded = recs.size() - first;
+    // a cut-off tail or a log twice the ring: rewrite it with the loaded records (a new file, then renamed over it)
+    if (damaged || tokens > 2 * (uint64_t) idx_.capacity() || bytes.empty()) {
+        const std::string tmp = std::string(path) + ".tmp";
+        std::FILE* f = std::fopen(tmp.c_str(), "wb");
+        bool ok = f != nullptr && std::fwrite(kLogMagic, sizeof(kLogMagic), 1, f) == 1;
+        for (size_t r = first; ok && r < recs.size(); ++r) {
+            lead.resize(recs[r].lead);
+            out.resize(recs[r].out);
+            if (recs[r].lead > 0) std::memcpy(lead.data(), bytes.data() + recs[r].at, recs[r].lead * sizeof(int32_t));
+            std::memcpy(out.data(), bytes.data() + recs[r].at + recs[r].lead * sizeof(int32_t), recs[r].out * sizeof(int32_t));
+            ok = write_record(f, lead.data(), lead.size(), out.data(), out.size());
+        }
+        if (f != nullptr) ok = std::fclose(f) == 0 && ok;
+        // (Windows' rename does not replace an existing file: the old log goes first; it was read in full above)
+        if (ok && std::rename(tmp.c_str(), path) != 0) ok = std::remove(path) == 0 && std::rename(tmp.c_str(), path) == 0;
+        if (!ok) {
+            std::remove(tmp.c_str());
+            err = std::string("cannot rewrite ") + path;
+            return false;
+        }
+    }
+    log_ = std::fopen(path, "ab");
+    if (log_ == nullptr) {
+        err = std::string("cannot open ") + path + " for appending";
+        return false;
+    }
+    return true;
+}
+
 namespace {
 double env_num(const char* name, double def, double lo, double hi) {
     const char* s = std::getenv(name);
@@ -170,13 +283,22 @@ SharedSuffixIndex* shared_suffix_index() {
         p.min_prob = env_num("STRATA_SUFFIX_INDEX_MIN_PROB", 0.1, 0.0, 1.0);
         p.factor = env_num("STRATA_SUFFIX_INDEX_FACTOR", 1.0, 0.1, 32.0);
         auto* s = new SharedSuffixIndex((size_t) (mb * 1048576.0), p);   // lives as long as the process
+        std::string log_txt = "memory only";
+        if (const char* f = std::getenv("STRATA_SUFFIX_INDEX_FILE"); f != nullptr && f[0] != '\0') {
+            std::string err;
+            uint64_t loaded = 0;
+            log_txt = s->attach_log(f, err, &loaded)
+                          ? "log " + std::string(f) + ", " + std::to_string(loaded) + " earlier outputs loaded"
+                          : "memory only (STRATA_SUFFIX_INDEX_FILE: " + err + ")";
+        }
         size_t held = 0, cap = 0;
         uint64_t outs = 0;
         s->stats(&held, &cap, &outs);
         std::fprintf(stderr,
                      "strata: STRATA_SUFFIX_INDEX=1: cross-session suffix index (A24), %zu tokens in %zu MiB, min_prob %.2f, "
-                     "factor %.2f, rule %s\n",
-                     cap, s->bytes() >> 20, p.min_prob, p.factor, suffix_index_fallback_only() ? "fallback" : "longest");
+                     "factor %.2f, rule %s, %s\n",
+                     cap, s->bytes() >> 20, p.min_prob, p.factor, suffix_index_fallback_only() ? "fallback" : "longest",
+                     log_txt.c_str());
         return s;
     }();
     return idx;

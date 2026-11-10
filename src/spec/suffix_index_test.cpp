@@ -1,13 +1,17 @@
 // src/spec/suffix_index_test.cpp - MOD_PLAN A24: the cross-session suffix index (strata/spec/suffix_index.hpp).
 //
 //   suffix_index_test        insert, longest match, frequency scoring, the draft limits, eviction, the lead, the
-//                            shared wrapper under concurrent proposals and inserts, the opt-in switch
+//                            shared wrapper under concurrent proposals and inserts, the restart log
+//                            (STRATA_SUFFIX_INDEX_FILE: reload, cut-off tail, compaction, foreign file), the opt-in switch
 #include "strata/spec/suffix_index.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -198,6 +202,69 @@ void test_shared_concurrent() {
     std::printf("suffix_index concurrent: %ld drafts while inserting\n", drafts.load());
 }
 
+void test_log() {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() /
+                         ("suffix_index_test_" + std::to_string((long long) std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directories(dir);
+    const std::string path = (dir / "sfx.log").string();
+    std::string err;
+    uint64_t loaded = 99;
+    int32_t out[4];
+    int m = 0;
+    {
+        SharedSuffixIndex a(1 << 20, params(0.1, 4.0));
+        check(a.attach_log(path.c_str(), err, &loaded) && loaded == 0, "a new log attaches");
+        a.insert(V{1, 2}.data(), 2, V{7, 8, 9, 10, 11}.data(), 5);
+        a.insert(nullptr, 0, V{20, 21, 22, 23}.data(), 4);
+        check(!a.attach_log(path.c_str(), err), "a second attach is refused");
+    }
+    {
+        SharedSuffixIndex b(1 << 20, params(0.1, 4.0));
+        check(b.attach_log(path.c_str(), err, &loaded) && loaded == 2, "the log reloads both outputs");
+        check(b.propose(V{8, 9, 10}.data(), 3, 1, out, &m) == 1 && out[0] == 11, "a reloaded output drafts");
+        check(b.propose(V{1, 2, 7}.data(), 3, 2, out, &m) == 2 && out[0] == 8 && out[1] == 9, "a reloaded lead is matched into");
+    }
+    {   // a record cut off by a kill: dropped, the log rewritten, and later appends load again
+        std::FILE* f = std::fopen(path.c_str(), "ab");
+        const uint32_t junk = 5;
+        check(f != nullptr && std::fwrite(&junk, sizeof(junk), 1, f) == 1, "the test appends a cut-off record");
+        if (f != nullptr) std::fclose(f);
+        SharedSuffixIndex c(1 << 20, params(0.1, 4.0));
+        check(c.attach_log(path.c_str(), err, &loaded) && loaded == 2, "a cut-off record is ignored");
+        c.insert(nullptr, 0, V{30, 31, 32}.data(), 3);
+    }
+    {
+        SharedSuffixIndex d(1 << 20, params(0.1, 4.0));
+        check(d.attach_log(path.c_str(), err, &loaded) && loaded == 3, "appends after a repaired tail load");
+    }
+    // compaction: a log above twice the ring keeps only the newest outputs that fit
+    const std::string path2 = (dir / "big.log").string();
+    V o(1000);
+    for (int i = 0; i < 1000; ++i) o[(size_t) i] = 50000 + i;
+    {
+        SharedSuffixIndex e(0, params(0.1, 4.0));   // 4096 tokens
+        check(e.attach_log(path2.c_str(), err, &loaded), "a second log attaches");
+        for (int r = 0; r < 12; ++r) e.insert(nullptr, 0, o.data(), o.size());   // 12 x 1001 tokens > 2 x 4096
+    }
+    const auto before = fs::file_size(path2);
+    {
+        SharedSuffixIndex f(0, params(0.1, 4.0));
+        check(f.attach_log(path2.c_str(), err, &loaded) && loaded == 4, "only the outputs that fit the ring load");
+        check(fs::file_size(path2) < before, "the oversized log is compacted");
+        check(f.propose(V{50000, 50001, 50002}.data(), 3, 2, out, &m) == 2 && out[0] == 50003, "a compacted log drafts");
+    }
+    // a file that is not a log: refused and left alone
+    const std::string path3 = (dir / "other.txt").string();
+    if (std::FILE* f = std::fopen(path3.c_str(), "wb")) { std::fputs("hello", f); std::fclose(f); }
+    {
+        SharedSuffixIndex g(1 << 20, params(0.1, 4.0));
+        check(!g.attach_log(path3.c_str(), err) && fs::file_size(path3) == 5, "a foreign file is refused and kept");
+    }
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+}
+
 void test_switch() {
     // the process here never sets STRATA_SUFFIX_INDEX: the engine's index is off by default
     if (std::getenv("STRATA_SUFFIX_INDEX") == nullptr) check(strata::spec::shared_suffix_index() == nullptr, "off by default");
@@ -212,6 +279,7 @@ int main() {
     test_eviction();
     test_lead();
     test_shared_concurrent();
+    test_log();
     test_switch();
     std::printf("suffix_index unit tests: %s\n", g_fail ? "FAILED" : "OK");
     return g_fail ? 1 : 0;
