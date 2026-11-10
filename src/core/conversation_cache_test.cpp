@@ -745,5 +745,116 @@ int main() {
         check(cache.drop_superseded(slot_ids, {}, slot_chain, true) == 1 && cache.size() == 0,
               "the slot's chain supersedes the richer copy");
     }
+    {
+        // STRATA_PARK_TRUNCATE (from TwoAnts/Strata 5ef4fc8b4b): the eviction-side mirror of truncated parking shrinks
+        // the oldest movable entry to one of its own checkpoints instead of dropping it whole.  One K/V layer with an
+        // indexer (idx_block 4, page 8), a 40-token conversation, checkpoints at 32 and 16 (stored deepest first: the
+        // shrink must not rely on the chain's order); each checkpoint's GDN bytes carry its depth.
+        auto build = [](int32_t seed) {
+            SavedConversation s;
+            s.live.ids.assign(40, seed);
+            s.live.gdn.resize(1000, 40);
+            ConversationKv kv;
+            kv.cells = 40; kv.page_size = 8; kv.pooled_rows = 40 / 4 + 1; kv.idx_dim = 4;
+            kv.k.resize(40 * 16, 3); kv.v.resize(40 * 16, 4);
+            kv.pooled.resize((size_t) kv.pooled_rows * 4 * 4, 5);
+            s.kv.push_back(std::move(kv));
+            for (int64_t d : {32, 16}) {
+                ConversationCheckpoint ck;
+                ck.ids.assign((size_t) d, seed);
+                ck.gdn.resize(1000, (uint8_t) d);
+                s.checkpoints.push_back(std::move(ck));
+            }
+            return s;
+        };
+        auto prompt = [](int32_t seed) { return std::vector<int32_t>(41, seed); };
+        auto entry = [&](const ConversationCache& c, int32_t seed) {
+            return c.find(c.best(prompt(seed), {}, true).serial);
+        };
+
+        ConversationCache c(1 << 20, 4, 10, 4, true);
+        check(c.put(build(5)), "truncate: a checkpointed conversation parks");
+        const size_t full = c.bytes();
+        check(c.truncate_oldest(1) > 0 && c.size() == 1 && c.truncations() == 1,
+              "truncate: a small need shrinks the entry instead of dropping it");
+        const SavedConversation* e = entry(c, 5);
+        check(e != nullptr && c.best(prompt(5), {}, true).tokens == 32 && e->live.ids.size() == 32,
+              "truncate: the deepest landing that frees enough wins (32 of 40 tokens)");
+        check(e->live.gdn.size() == 1000 && e->live.gdn[0] == 32, "truncate: the landing's running state became live");
+        check(e->checkpoints.size() == 1 && e->checkpoints[0].ids.size() == 16,
+              "truncate: the shallower checkpoint stays, the landing left the chain");
+        check(e->kv[0].cells == 32 && e->kv[0].k.size() == 32 * 16 && e->kv[0].v.size() == 32 * 16 &&
+              e->kv[0].pooled_rows == 32 / 4 + 1 && e->kv[0].pooled.size() == (size_t) (32 / 4 + 1) * 16,
+              "truncate: K/V pages and pooled rows cut to the extent layout() gives for 32 tokens");
+        check(c.bytes() < full, "truncate: the cache's byte count follows the shrink");
+        const size_t t32 = c.bytes();
+
+        ConversationCache deep(1 << 20, 4, 10, 4, true);
+        check(deep.put(build(6)) && deep.truncate_oldest(full) > 0 && deep.size() == 1,
+              "truncate: asked for more than any landing frees, it walks down to the shallowest landing, not out");
+        check(deep.best(prompt(6), {}, true).tokens == 16 && entry(deep, 6)->kv[0].cells == 16 &&
+              entry(deep, 6)->checkpoints.empty(), "truncate: only the 16-token prefix is left");
+        check(deep.truncate_oldest(1) == 0 && deep.size() == 1, "truncate: no landing left: refused, the caller evicts");
+
+        ConversationCache flr(1 << 20, 4, 33, 4, true);
+        check(flr.put(build(7)) && flr.truncate_oldest(1) == 0 && flr.size() == 1 && entry(flr, 7)->kv[0].cells == 40,
+              "truncate: every landing below --conversation-cache-min-tokens: refused untouched");
+        ConversationCache off(1 << 20, 4, 10, 4, false);
+        check(off.put(build(8)) && off.truncate_oldest(1) == 0 && entry(off, 8)->kv[0].cells == 40,
+              "truncate: the switch off refuses (the old rule)");
+        ConversationCache pin(1 << 20, 4, 0, 4, true);
+        auto pinned = build(9);
+        pinned.checkpoints.back().pinned = true;
+        check(pin.put(std::move(pinned)) && pin.truncate_oldest(1) == 0, "truncate: a pinned entry is never truncated");
+        ConversationCache noblk(1 << 20, 4, 10, 0, true);
+        check(noblk.put(build(10)) && noblk.truncate_oldest(1) == 0 && entry(noblk, 10)->kv[0].cells == 40,
+              "truncate: pooled rows without a known idx_block: refused untouched");
+
+        // the guarded (borrowed) donor is never shrunk mid-restore; the next movable entry is
+        ConversationCache gd(1 << 20, 4, 10, 4, true);
+        check(gd.put(build(11)) && gd.put(build(12)), "truncate: two conversations parked");
+        gd.guard(gd.best(prompt(11), {}, true).serial);
+        check(gd.truncate_oldest(1) > 0 && gd.best(prompt(11), {}, true).tokens == 40 &&
+              gd.best(prompt(12), {}, true).tokens == 32, "truncate: the guarded donor stays whole, the next one shrinks");
+        gd.unguard();
+        check(gd.truncate_oldest(1) > 0 && gd.best(prompt(11), {}, true).tokens == 32,
+              "truncate: unguarded, the former donor shrinks like any entry");
+
+        // pancake's background copies: a sole token is joined (its deleter runs, the VRAM slot tag goes), a token
+        // another owner shares cannot be joined from the cache: refused untouched
+        int joined = 0;
+        auto async_img = build(13);
+        async_img.pending = std::shared_ptr<void>(new char, [&joined](void* p) { ++joined; delete (char*) p; });
+        async_img.kv[0].dev_tag = 77;
+        ConversationCache as(1 << 20, 4, 10, 4, true);
+        check(as.put(std::move(async_img)) && as.truncate_oldest(1) > 0 && joined == 1 &&
+              entry(as, 13)->kv[0].dev_tag == 0 && !entry(as, 13)->pending,
+              "truncate: a sole background-copy token is joined first and the VRAM slot tag cleared");
+        auto shared_img = build(14);
+        std::shared_ptr<void> other(new char, [](void* p) { delete (char*) p; });
+        shared_img.live_pending = other;
+        ConversationCache sh(1 << 20, 4, 10, 4, true);
+        check(sh.put(std::move(shared_img)) && sh.truncate_oldest(1) == 0 && entry(sh, 14)->kv[0].cells == 40,
+              "truncate: a shared background-copy token: refused untouched");
+
+        // the disk tier keeps a whole evicted entry: no truncation beside it
+        ConversationCache dt(1 << 20, 4, 10, 4, true);
+        dt.set_disk_tier([](SavedConversation&&) {}, {});
+        check(dt.put(build(15)) && dt.truncate_oldest(1) == 0, "truncate: off beside the disk tier");
+
+        // make_room under byte pressure shrinks the oldest before evicting it whole; with the switch off it evicts
+        ConversationCache room(full + t32, 4, 10, 4, true);
+        check(room.put(build(16)) && room.put(build(17)) && room.size() == 2 && room.evictions() == 0,
+              "truncate: the second conversation parks beside the shrunk first one");
+        check(room.best(prompt(16), {}, true).tokens == 32 && room.best(prompt(17), {}, true).tokens == 40,
+              "truncate: the first still answers its 32-token prefix");
+        ConversationCache room_off(full + t32, 4, 10, 4, false);
+        check(room_off.put(build(16)) && room_off.put(build(17)) && room_off.size() == 1 && room_off.evictions() == 1,
+              "truncate off: the same pressure evicts the first whole, as before");
+        // slot-count pressure cannot be relieved by a shrink: evicted whole
+        ConversationCache slotp(full * 4, 1, 10, 4, true);
+        check(slotp.put(build(18)) && slotp.put(build(19)) && slotp.size() == 1 && slotp.evictions() == 1 &&
+              slotp.truncations() == 0, "truncate: slot-count pressure still evicts whole");
+    }
     std::printf("conversation_cache_test: %d checks passed\n", checks);
 }

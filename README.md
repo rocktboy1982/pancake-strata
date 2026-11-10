@@ -472,6 +472,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_PLE_PIPE=1` (+`GATHER_THREADS=4`, `SLICES=4`, `EARLY`) | off | item 79 (`e2b3a3dad`, `3b5338412`): PLE gather off the critical path; `STRATA_PLE_COMPACT=1` now also with `--ple-io direct`; `STRATA_PLE_WAIT_TRACE=1` marks the waits |
 | `STRATA_CONV_BUDGET=ram` / `STRATA_CONV_KEEP_GIB=N` | off (40% rule stays) | item 86 (`ab4fe164b`, `c1b3fec32`): conversation cache sized from free RAM |
 | `STRATA_PSI_GUARD` | **on** (pause at 20%, resume at 10%, 30 s cap) | item 86: pauses loading / skips parking under memory pressure; timing only |
+| `STRATA_PARK_TRUNCATE=1` | off | from TwoAnts/Strata `5ef4fc8b4b`: a conversation too large to park (cache budget or RAM floor) parks its deepest checkpoint prefix that fits instead of being dropped, so the next request re-reads only the tail, not from token 0; a parked entry asked to make room is first shrunk to one of its own checkpoints (not below `--conversation-cache-min-tokens`, not beside the disk tier); exact |
 
 ### 6H. CLI flags
 
@@ -739,6 +740,7 @@ Credits, in the order the stack was built:
 - **jesdga95** (basalt), for the head kernels, the draft proxy and the grammar path.
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
+- **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
