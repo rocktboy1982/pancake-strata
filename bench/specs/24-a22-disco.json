@@ -1,0 +1,12 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "disco": {"env": {"STRATA_DISCO": "/home/dan/clone-of-d/src/Strata/data/disco-weights.txt"}},
+  "spec-cost": {"env": {"STRATA_SPEC_COST": "1"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN A22 (DISCO learned MTP chain stop + SpecFit per-position miss cost), branch work/a22-disco; note pancake-docs/batch2/A22-disco.md. NEEDS A FITTED WEIGHTS FILE FIRST: (1) one trace run on the build: STRATA_WINDOW_TRACE=/home/dan/clone-of-d/disco/w.stwt STRATA_DISCO_TRACE=/home/dan/clone-of-d/disco/d.csv STRATA_SPEC_TRACE=/home/dan/clone-of-d/disco/s.txt STRATA_DECODE_TIMING=1 with the preset's --spec-min-p 0.5 replaced by 0 (every draft verified, so every draft is labelled), over the abtest short/edit prompts or replay_turns.py; (2) .venv/bin/python tools/pancake/disco_fit.py /home/dan/clone-of-d/disco/w.stwt -o data/disco-weights.txt (prints the offline gain vs the logged rule, static lengths, --spec-min-p and the oracle cut; skip this spec if DISCO's held-out gain is under ~2%); (3) this spec, --tier screen first. base = the preset's static --spec-min-p 0.5 rule; spec-cost = DraftPolicy's existing cost-aware chain rule (A23 cost table not set) for comparison; disco replaces both for MTP windows. Exact: the stop rule only decides how many drafts are verified, so the text hash must equal base on every case (a different hash is a bug, not a quality question). Expected 0-10% decode (est.); the cost of the rule itself is one dot product of 9 features per draft on the host plus a per-row miss count per layer (host)."
+}

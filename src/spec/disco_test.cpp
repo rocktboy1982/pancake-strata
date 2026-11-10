@@ -129,6 +129,19 @@ int main() {
         check(!m.parse("disco 2\nw 1 2 3 4 5 6 7 8 9\nthreshold 1.5\n", err), "threshold > 1: rejected");
         check(m.parse("# fitted\ndisco 2\nfeatures 9\nbias -0.5\nw 1 0 0 0 0 0 0 0 0  # p only\nthreshold 0.4\nauc 0.8\n", err) && m.loaded,
               "valid file parses (comments, unknown keys)");
+        {   // a file exactly as tools/pancake/disco_fit.py writes it (window-trace fit: features 5 and 7 at weight 0)
+            DiscoModel f;
+            const std::string py =
+                "# DISCO weights for STRATA_DISCO (include/strata/spec/disco.hpp), written by tools/pancake/disco_fit.py\n"
+                "# features: p surprise chain pos recent match miss dcost ctx\n# traces: big.stwt\n# windows: 20200\n"
+                "# features: replay\n# held_out_gain_vs_logged: +52.58%\ndisco 2\nfeatures 9\nbias 0.74541118\n"
+                "w 0.94187313 -0.33575577 -0.036808659 -0.36760734 -0.015138027 0 0.049366073 0 -0.019906234\n"
+                "mean 0.71340469 0.075151949 0.59918195 0.093008676 0.620444 0 0.43131525 0 0.88239035\n"
+                "scale 0.17555735 0.059226316 0.20452057 0.097127673 0.10213207 1 0.16206926 1 0.082108433\n"
+                "threshold 0.825\nthresholds 3 0.7 0.925 0.825\n";
+            check(f.parse(py, err) && f.loaded && f.n_thr_pos == 3 && f.threshold_at(1) == 0.925 && f.w[5] == 0.0,
+                  "disco_fit.py's output parses");
+        }
         float x[9] = {0.5f, 0, 0, 0, 0, 0, 0, 0, 0};
         check(std::fabs(m.score(x) - 1.0 / (1.0 + std::exp(0.0))) < 1e-9, "score = sigmoid(bias + w.x)");
 
