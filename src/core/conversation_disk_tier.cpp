@@ -223,6 +223,16 @@ const std::vector<std::string>& conversation_disk_key_env_names() {
     return names;
 }
 
+namespace {
+// switches that join the key only when they are set, so adding one leaves every key of a run without it as it was
+// (no re-key of the files already parked).  MOD_PLAN F5 STRATA_VERIFY_ECAP: an accepted draft row's K/V and recurrent
+// state are computed under the cap.
+const std::vector<std::string>& conversation_disk_key_env_names_if_set() {
+    static const std::vector<std::string> names = {"STRATA_VERIFY_ECAP"};
+    return names;
+}
+}  // namespace
+
 std::vector<std::pair<std::string, std::string>>
 conversation_disk_key_env(const std::function<const char*(const char*)>& get_env) {
     std::vector<std::pair<std::string, std::string>> out;
@@ -231,6 +241,10 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
         out.emplace_back(name, v ? std::string(v) : std::string("-"));
     };
     for (const auto& n : conversation_disk_key_env_names()) add(n);
+    for (const auto& n : conversation_disk_key_env_names_if_set()) {
+        const char* v = get_env ? get_env(n.c_str()) : nullptr;
+        if (v != nullptr && v[0] != '\0') out.emplace_back(n, std::string(v));
+    }
     std::set<std::string> extra;
     if (const char* x = get_env ? get_env("STRATA_CONVERSATION_DISK_KEY_ENV") : nullptr) {
         std::stringstream ss(x);
@@ -238,7 +252,9 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
             n.erase(0, n.find_first_not_of(" \t"));
             n.erase(n.find_last_not_of(" \t") + 1);
             if (!n.empty() && std::find(conversation_disk_key_env_names().begin(), conversation_disk_key_env_names().end(),
-                                        n) == conversation_disk_key_env_names().end())
+                                        n) == conversation_disk_key_env_names().end() &&
+                std::find(conversation_disk_key_env_names_if_set().begin(), conversation_disk_key_env_names_if_set().end(),
+                          n) == conversation_disk_key_env_names_if_set().end())
                 extra.insert(n);
         }
     }

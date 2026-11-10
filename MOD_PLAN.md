@@ -1475,7 +1475,10 @@ Measured offline (no GPU); these change the order of the work below and of Phase
 Code ready on branches, waiting for a build and a screen (no GPU while the test phase runs): A4 rank-guard fold
 (work/a4-rank-guard), A55 task gate (work/a55-task-gate, touches abtest.py), F1 PARK_TRUNCATE
 (trial/opus-park-truncate), F7 Q2_0 fast kernel (trial/opus-q2-avx2), F21 WAIT_COPY256 (trial/sonnet-wait-copy256,
-needs STRATA_FUSE_WAIT=1 on gfx1100).
+needs STRATA_FUSE_WAIT=1 on gfx1100), F5 VERIFY_ECAP (work/f5-verify-ecap, lossy: screen
+`abtest.py bench/specs/11-verify-ecap.json --tier screen`, then `quality_gate.py` and `task_gate.py --reps 5` on the same
+spec before any default; `STRATA_VERIFY_ECAP` joins the conversation disk key only when set, so parked files of runs
+without it keep their key).
 
 Rules for this phase. Technologies that come from academic papers go first; fork ideas (Phase 15) appear only where a paper
 is the origin. Areas are ordered by their total expected gain on our bottleneck (expert bytes in decode, prompt re-reads in
@@ -1720,7 +1723,7 @@ launch cost ~14-16 us on gfx1100 vs ~3 us on sm_86, so fusions are worth more on
 | F2 | `--prompt-cache-spread` on in the presets (flag already in pancake), up to 16 checkpoints per conversation | server | exact | env/preset only | xrip: edited 82K conversation resumed in 10.2 s vs 40 s | xrip; Lamina `13d90a38ec` |
 | F3 | Extra checkpoint cuts (where a prompt leaves the previous one, before the last message end) + borrow before a stashed conversation's newest checkpoint | server | exact | backend-independent | Lamina: 6 agent tasks 412 s -> 369 s | Lamina `ab808b133e`, `83f40aee62` |
 | F4 | Sub-2-bit shadow expert pack (IQ1_M / IQ2_XXS) read only on CPU misses; VRAM hits stay exact | MoE/CPU | lossy | both GPUs (CPU side); needs a ~25-30 GB requant | svgop (5090): solo +3-8%, concurrency up to +21% -> est. edit +7-10%, chat +3-5% | svgop `25bf1b90f6`, `eeca072bb6`; mandoof1 `85b991da79` |
-| F5 | `STRATA_VERIFY_ECAP`: cap the experts read only by draft rows | spec | lossy | backend-independent | jmnargi (2x V100): +2.8% pooled, +11.5% drift-paired -> est. +3-10% on edits; must pass the tool-call gate (a tight cap broke 12/20 tool turns) | jmnargi `24894e676b`, `7c5041c358` |
+| F5 | `STRATA_VERIFY_ECAP`: cap the experts read only by draft rows | spec | lossy | backend-independent; **coded 2026-11-10 on work/f5-verify-ecap, not built**: host side in the expert pool (`core/verify_ecap.hpp`), per draft row and only for CPU-missed experts (jmnargi caps the whole tail on the GPU): each draft row reads at most n missed experts that row 0 and the earlier rows do not read, by routing rank, the rest are skipped as kind -2 (zero rows); row 0, prompt reads, merged first windows, batch/pipelined windows and grammar-enforced spans are never capped; no graph change, so it composes with the deferral; spec bench/specs/11-verify-ecap.json (n 2/1/0 on fast-hip), then token forcing + task gate | jmnargi (2x V100): +2.8% pooled, +11.5% drift-paired -> est. +3-10% on edits; must pass the tool-call gate (a tight cap broke 12/20 tool turns) | jmnargi `24894e676b`, `7c5041c358`, `376355453f` |
 | F6 | Exact speculative sampling for sampled requests: `STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top STRATA_SPEC_PROB_DT=0.85` | spec | exact | env only, both | riceharvest (B70) +5.5%; svgop (5090) +5.8% / +13.4% with DT 0.85 -> est. +3-8% on sampled turns only (check opencode's temperature first) | riceharvest `7389a10f2c`; svgop `0355c3164f` |
 | F7 | Faster bit-exact Q2_0 AVX2 kernel (8-op unpack, 4 rows at a time; `STRATA_Q2_LEGACY=1` for A/B) | CPU | exact | both GPUs (CPU path) | imanu86: 1.11-1.45x single thread, Q2_0 layer -17% in a 7-worker pool -> est. edit +1-3%, more on the Q2_0 file | imanu86 `c3fc8f34d3` |
 | F8 | `STRATA_SPEC_CUM`: cumulative-probability draft stop (pair with item 5 `tail_replay.py`) | spec | exact | both; ~150 lines | android-imdad (7900 XTX): +1.8% pinned, +6.4% short chat, +2.1% agent -> est. +1-3% | android-imdad `f1bd09212a`, `ef42c2fde9` |

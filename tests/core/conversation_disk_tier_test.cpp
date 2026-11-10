@@ -141,6 +141,13 @@ void test_key() {
     check(extra.size() == conversation_disk_key_env_names().size() + 1 && extra.back().first == "STRATA_FOO" &&
           extra.back().second == "1", "key: STRATA_CONVERSATION_DISK_KEY_ENV adds names once");
     check(get({}).front().second == "-", "key: an unset switch is '-'");
+    // MOD_PLAN F5: STRATA_VERIFY_ECAP joins the key only when set (the keys of runs without it do not move)
+    check(get({}).size() == conversation_disk_key_env_names().size(), "key: an unset STRATA_VERIFY_ECAP adds nothing");
+    const std::string ecap = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "1"}})});
+    check(ecap != exact && ecap != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "2"}})}),
+          "key: STRATA_VERIFY_ECAP changes the key, and each cap has its own");
+    check(exact == conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", ""}})}),
+          "key: an empty STRATA_VERIFY_ECAP is unset");
 }
 
 void test_choice() {

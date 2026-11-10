@@ -1,0 +1,31 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "ecap2": {
+   "env": {
+    "STRATA_VERIFY_ECAP": "2"
+   }
+  },
+  "ecap1": {
+   "env": {
+    "STRATA_VERIFY_ECAP": "1"
+   }
+  },
+  "ecap0": {
+   "env": {
+    "STRATA_VERIFY_ECAP": "0"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": true,
+ "tasks": "bench/tasks/default.json",
+ "temperature": 0.2,
+ "margin": 0.05,
+ "note": "MOD_PLAN F5 (branch work/f5-verify-ecap; the build must contain it). base = fast-hip as test_phase.sh writes it (STRATA_VERIFY_DEFER_CPU=1, _BELOW 0.1), so every arm runs ECAP on top of the deferral. Order: (1) abtest.py --tier screen (promote only an arm with >= +2% on edit and no case below -3%); (2) token forcing on the promoted arms, quality_gate.py SPEC (path decode, the default: --path prompt never reaches the cap because prompt windows are not capped); (3) the task gate, task_gate.py SPEC --reps 5 (tool_call kind included: jmnargi's too-tight cap ended 12 of 20 tool turns with no call); only an arm that passes all three may become a preset default. Expect text hashes to differ from base in every ECAP arm (lossy). ecap0 is the ceiling (a draft row reads no CPU expert of its own); the engine log prints 'STRATA_VERIFY_ECAP: N draft-only CPU experts skipped' per request. Compose with STRATA_VERIFY_DEFER_CPU_TOP=2 / _FOLD only after spec 10 decides A4 (cap >= _TOP keeps every rank-guarded draft entry)."
+}

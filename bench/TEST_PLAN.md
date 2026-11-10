@@ -189,3 +189,5 @@ preset on an agent replay with interleaved short requests (watch free RAM); it r
 6. F11 window decode attention (CUDA first, then WMMA), F17 / F19 Qwen3.6 attention - rounding-level, KL gate.
 7. Lossy arms: F5 VERIFY_ECAP, F13 route-prior guards + stronger turbo vs uniform tail skip at equal KL, F4 shadow
    pack (after 4.0.5 and a requant that fits the disk).
+   F5 is coded (work/f5-verify-ecap): bench/specs/11-verify-ecap.json, screen first, then token forcing (decode path)
+   and the task gate (tool_call tasks included) on the same spec; no default before all three pass.
