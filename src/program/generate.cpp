@@ -30,6 +30,7 @@
 #include "strata/program/adaptive_range.hpp"
 #include "strata/program/promo_chunk.hpp"
 #include "strata/program/route_prior_scope.hpp"
+#include "strata/program/think_probe.hpp"
 #include "strata/kernels/route_prior.hpp"
 #include "strata/core/run_manifest.hpp"
 #include "strata/core/device.hpp"
@@ -7599,6 +7600,87 @@ int main(int argc, char** argv) {
         }
         grammar_vocab = std::move(pv);
         std::fprintf(stderr, "strata generate: --grammar on: requests with a grammar are held to it on every window\n");
+    }
+    // MOD_PLAN Phase 16 A19 (strata/program/think_probe.hpp): STRATA_HIDDEN_DUMP=<dir>[,every=N] writes the head's input at the
+    // thinking's check points (exact: the output does not change); STRATA_THINK_PROBE=<weights>,<threshold>[,k=K][,min=M] scores
+    // a linear probe there and asks the server to close the thinking (lossy).  Both opt-in: unset, nothing below runs.  The
+    // serial serve loop only (batch slots and --pipeline-windows are not hooked).  A malformed value is ignored with a line.
+    namespace tpb = strata::program::think_probe;
+    tpb::DumpConfig tp_dump;
+    tpb::ProbeConfig tp_cfg;
+    tpb::Probe tp_probe;
+    std::optional<strata::program::grammar::PackVocab> tp_vocab_own;   // the pack's token texts when --grammar did not read them
+    const strata::program::grammar::PackVocab* tp_vocab = nullptr;
+    strata::program::PriorMarks tp_marks;                              // <think> / </think> (Flash-Next's ids by default)
+    int tp_every = tpb::kDefaultEvery;                                 // the check points' spacing (STRATA_HIDDEN_DUMP's every=)
+    if (o.serve && ((std::getenv("STRATA_HIDDEN_DUMP") && std::getenv("STRATA_HIDDEN_DUMP")[0]) ||
+                    (std::getenv("STRATA_THINK_PROBE") && std::getenv("STRATA_THINK_PROBE")[0]))) {
+        std::string terr;
+        if (!tpb::parse_dump_config(std::getenv("STRATA_HIDDEN_DUMP"), tp_dump, terr))
+            std::fprintf(stderr, "strata serve: %s: ignored\n", terr.c_str());
+        terr.clear();
+        if (!tpb::parse_probe_config(std::getenv("STRATA_THINK_PROBE"), tp_cfg, terr))
+            std::fprintf(stderr, "strata serve: %s: ignored\n", terr.c_str());
+        terr.clear();
+        if (tp_cfg.on() && !tp_probe.load(tp_cfg.path, (size_t) g.n_embd, terr)) {
+            std::fprintf(stderr, "strata serve: STRATA_THINK_PROBE: %s: the probe is off\n", terr.c_str());
+            tp_cfg = tpb::ProbeConfig();
+        }
+        if (tp_dump.on()) {
+            std::error_code ec;
+            std::filesystem::create_directories(tp_dump.dir, ec);
+            if (ec || !std::filesystem::is_directory(tp_dump.dir, ec)) {
+                std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP: %s is not a directory that can be made: the dump is off\n",
+                             tp_dump.dir.c_str());
+                tp_dump = tpb::DumpConfig();
+            }
+        }
+        if (tp_dump.on() || tp_cfg.on()) {
+            if (grammar_vocab) {
+                tp_vocab = &*grammar_vocab;
+            } else {
+                auto slurp = [&](const char* name, std::string& s) {
+                    std::ifstream f(std::filesystem::path(o.pack) / "tokenizer" / name, std::ios::binary);
+                    s.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+                    return f.good() || f.eof();
+                };
+                std::string vj, tj, gerr;
+                std::vector<int32_t> ends;
+                for (int64_t e : o.eos_ids) ends.push_back((int32_t) e);
+                strata::program::grammar::PackVocab pv;
+                if (slurp("vocab.json", vj) && !vj.empty() && slurp("token_type.json", tj) && !tj.empty() &&
+                    strata::program::grammar::vocab_from_pack(vj, tj, (size_t) n_vocab, ends, pv, gerr)) {
+                    tp_vocab_own = std::move(pv);
+                    tp_vocab = &*tp_vocab_own;
+                } else {
+                    std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE: the pack's tokenizer files cannot be "
+                                         "read%s%s: both are off\n", gerr.empty() ? "" : ": ", gerr.c_str());
+                    tp_dump = tpb::DumpConfig();
+                    tp_cfg = tpb::ProbeConfig();
+                }
+            }
+        }
+        if (tp_vocab != nullptr) {
+            if (tp_vocab->think_open >= 0) tp_marks.think_open = tp_vocab->think_open;
+            if (tp_vocab->think_close >= 0) tp_marks.think_close = tp_vocab->think_close;
+            std::string merr;   // the route prior's marker ids, when named, apply here too
+            if (!strata::program::parse_prior_marks(std::getenv("STRATA_ROUTE_PRIOR_MARKS"), tp_marks, merr))
+                std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR_MARKS: %s (A19 keeps the default ids)\n", merr.c_str());
+        }
+        if (tp_dump.on()) tp_every = tp_dump.every;
+        if (tp_dump.on())
+            std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP: the head's input (%lld floats) at every %d thinking tokens, after "
+                                 "each blank line and at </think> goes to %s (one file per request)\n",
+                         (long long) g.n_embd, tp_dump.every, tp_dump.dir.c_str());
+        if (tp_cfg.on())
+            std::fprintf(stderr, "strata serve: STRATA_THINK_PROBE (lossy): %s, %s link, the thinking closes after %d checks in a row "
+                                 "at or above %.4g%s (the server's soft close; the effort budget stays the net)\n",
+                         tp_cfg.path.c_str(), tp_probe.link() == tpb::kIdentity ? "identity" : "logistic", tp_cfg.checks,
+                         (double) tp_cfg.threshold,
+                         tp_cfg.min_tokens > 0 ? (", from " + std::to_string(tp_cfg.min_tokens) + " thinking tokens").c_str() : "");
+        if ((tp_dump.on() || tp_cfg.on()) && (o.batch > 0 || o.pipeline_windows > 0))
+            std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE act on the serial decode loop only: batch-slot "
+                                 "and pipelined windows are not hooked\n");
     }
     strata::core::NativeHead native_head;
     if (!o.native_head_gguf.empty() && !multi_gpu) {   // a layer split's head is on its last stage
@@ -19197,6 +19279,36 @@ int main(int argc, char** argv) {
             // MOD_PLAN F13 (STRATA_ROUTE_PRIOR_SCOPE): the reply's think / tool-call / fence state, read from `consumed`, decides each window's gate;
             // the gate is closed again when this request's decode ends (the next prompt read starts closed)
             strata::program::PriorScopeState prior_scope_state(prior_guard().marks);
+            // A19 (think_probe.hpp): this request's check points - the think state (as the route prior's gate reads it), the
+            // thinking's paragraph ends and token count, the probe's stop rule and the dump file (opened at its first record)
+            struct ThinkProbeRequest {
+                bool on = false;
+                strata::program::PriorScopeState scope;
+                tpb::ParagraphTracker para;
+                tpb::StopRule rule;
+                tpb::DumpWriter dump;
+                long long think_n = 0;     // thinking tokens committed so far
+                std::vector<float> row;    // one copied head input (n_embd floats)
+            } tpr;
+            if (tp_dump.on() || tp_cfg.on()) {
+                static uint32_t tp_seq = 0;   // the requests of this process, in order (the dump file names)
+                tpr.on = true;
+                tpr.scope = strata::program::PriorScopeState(tp_marks);
+                tpr.rule = tpb::StopRule(tp_cfg.threshold, tp_cfg.checks, tp_cfg.min_tokens);
+                tpr.row.assign((size_t) g.n_embd, 0.0f);
+                if (tp_dump.on()) {
+#if defined(_WIN32)
+                    const long tp_pid = (long) GetCurrentProcessId();
+#else
+                    const long tp_pid = (long) getpid();
+#endif
+                    const auto tp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count();
+                    tpr.dump.begin(tp_dump.dir, (uint32_t) g.n_embd, (uint32_t) tp_every, (uint64_t) tp_ms, (uint32_t) ids.size(),
+                                   tp_seq, tp_pid);
+                }
+                ++tp_seq;
+            }
             struct PriorGateRequest {
                 int64_t open = 0, total = 0;
                 ~PriorGateRequest() {
@@ -20336,6 +20448,46 @@ int main(int argc, char** argv) {
                         return std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) y) != o.eos_ids.end();
                     }) - 1;
 #endif
+                // A19 (STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE): the rows this window commits, in the order the T lines below emit
+                // them.  Row i's head input produced outv[i] after reading window[0..i]; inside the thinking, a check point copies
+                // that one row (n_embd floats) to the host.  Nothing else is copied, and with both unset nothing runs.
+                long long tp_fire_n = -1;
+                float tp_fire_score = 0.0f;
+                if (tpr.on) {
+                    tpr.scope.sync(consumed.data(), consumed.size());
+                    strata::program::PriorScopeState rs = tpr.scope;   // the rows' states (`consumed` takes them at the commit)
+                    const int r0 = merged ? a : 0;                     // (a merged window's rows before T - 1 are prompt tokens)
+                    int64_t pn = produced_n;
+                    for (int i = 0; i <= a && pn < max_new; ++i) {
+                        rs.feed(window[(size_t) i]);
+                        if (i < r0) continue;
+                        const int32_t y = outv[(size_t) i];
+                        if (rs.think()) {
+                            const bool is_close = y == tp_marks.think_close;
+                            const uint32_t fl = tpb::point_flags(tpr.think_n, tpr.para.at_boundary(), is_close, tp_every);
+                            if (fl != 0 && ver.copy_head_row(i, tpr.row.data())) {
+                                float score = NAN;
+                                uint32_t flags = fl;
+                                if (tp_cfg.on() && !is_close) {
+                                    score = tp_probe.score(tpr.row.data());
+                                    if (tpr.rule.check(score, tpr.think_n)) {
+                                        flags |= tpb::kFired;
+                                        tp_fire_n = tpr.think_n;
+                                        tp_fire_score = score;
+                                    }
+                                }
+                                if (tp_dump.on()) tpr.dump.record((uint32_t) tpr.think_n, y, flags, score, tpr.row.data());
+                            }
+                            if (!is_close) {
+                                tpr.para.feed(tp_vocab->vocab->bytes(y));
+                                if (tp_dump.on()) tpr.dump.note_id(y);
+                                ++tpr.think_n;
+                            }
+                        }
+                        ++pn;
+                        if (std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) y) != o.eos_ids.end()) break;
+                    }
+                }
                 if (from_sfx) { ++sfx_windows; sfx_drafts += T - 1; sfx_ok += a; }
                 if (chain_n > 0) { ++chain_windows; chain_drafts += chain_n; chain_ok += std::max(0, a - (T_mtp - 1)); }
                 if (!from_sfx && !first_window)
@@ -20423,6 +20575,12 @@ int main(int argc, char** argv) {
                     if (sfx_on) sfx.append(outv[(size_t) i]);
                     if (o.lookup_chain > 0) extra_sources_append(&outv[(size_t) i], 1);
                     eos = std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) outv[(size_t) i]) != o.eos_ids.end();
+                }
+                if (tp_fire_n >= 0) {   // A19: after the window's T (and LP) lines: the server closes the thinking (serve/server.py)
+                    std::printf("%s\n", tpb::tprobe_line(tp_fire_n, tp_fire_score).c_str());
+                    std::fprintf(stderr, "strata serve: think probe (lossy): score %.3f at or above %.4g for %d checks at %lld thinking "
+                                         "tokens: the server closes the thinking (STRATA_THINK_PROBE)\n",
+                                 (double) tp_fire_score, (double) tp_cfg.threshold, tp_cfg.checks, tp_fire_n);
                 }
                 std::fflush(stdout);
                 ++rounds;

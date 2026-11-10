@@ -304,7 +304,7 @@ class ServerEntropy(unittest.TestCase):
         svc.rumination_entropy = R.entropy_setting(entropy)
         return svc, eng
 
-    def run(self, svc, sampling=None, patched=True):
+    def run_svc(self, svc, sampling=None, patched=True):
         done = None
         with mock.patch.object(S, "StrataEngine", LPEngine if patched else S.StrataEngine):
             for kind, val in svc.run(svc.tok.encode("go"), True, None, 20000, sampling or {}, threading.Event()):
@@ -314,7 +314,7 @@ class ServerEntropy(unittest.TestCase):
 
     def test_off_by_default_nothing_is_asked_or_logged(self):
         svc, eng = self.service(ruminating(20), entropy=None)
-        done = self.run(svc)
+        done = self.run_svc(svc)
         self.assertNotIn("logprobs", eng.sampling_seen[0])
         self.assertNotIn("thinking_entropy", done)
         self.assertNotIn("entropy_mean", svc.history[-1])
@@ -323,7 +323,7 @@ class ServerEntropy(unittest.TestCase):
         svc, eng = self.service(ruminating(20), entropy=4)
         with tempfile.TemporaryDirectory() as d:
             svc.turn_log = str(Path(d) / "turns.jsonl")
-            done = self.run(svc)
+            done = self.run_svc(svc)
             line = json.loads(Path(svc.turn_log).read_text().splitlines()[-1])
         self.assertEqual((eng.sampling_seen[0]["logprobs"], eng.sampling_seen[0]["top_logprobs"]), (True, 4))
         ent = done["thinking_entropy"]
@@ -334,31 +334,31 @@ class ServerEntropy(unittest.TestCase):
 
     def test_a_client_asking_for_logprobs_keeps_its_lines(self):
         svc, eng = self.service(ruminating(20), entropy=4)
-        done = self.run(svc, {"logprobs": True, "top_logprobs": 2})
+        done = self.run_svc(svc, {"logprobs": True, "top_logprobs": 2})
         self.assertEqual(eng.sampling_seen[0]["top_logprobs"], 2)       # the client's own K
         self.assertNotIn("thinking_entropy", done)
         self.assertTrue(eng.lp_lines)                                    # not drained by the meter
 
     def test_not_for_another_engine_class(self):
         svc, eng = self.service(ruminating(20), entropy=4)
-        done = self.run(svc, patched=False)                              # a MockEngine-like engine is not StrataEngine
+        done = self.run_svc(svc, patched=False)                              # a MockEngine-like engine is not StrataEngine
         self.assertNotIn("logprobs", eng.sampling_seen[0])
         self.assertNotIn("thinking_entropy", done)
 
     def test_close_needs_low_entropy_when_entropy_below_is_set(self):
         close = {"threshold": 0.3, "entropy_below": 0.5}
         svc, eng = self.service(ruminating(100), LPEngine, close=close)          # repeats AND sure of itself: closes
-        self.run(svc)
+        self.run_svc(svc)
         self.assertEqual(len(eng.calls), 2)
         svc, eng = self.service(ruminating(100), UnsureEngine, close=close)      # repeats but unsure (ln 4): kept open
-        done = self.run(svc)
+        done = self.run_svc(svc)
         self.assertEqual(len(eng.calls), 1)
         self.assertFalse(done["rumination"]["closed"])
         self.assertGreater(done["thinking_entropy"]["min_window"], 1.0)
 
     def test_entropy_below_without_a_meter_never_closes(self):
         svc, eng = self.service(ruminating(100), LPEngine, close={"threshold": 0.3, "entropy_below": 0.5}, entropy=None)
-        self.run(svc)
+        self.run_svc(svc)
         self.assertEqual(len(eng.calls), 1)
 
     def test_status_page_shows_the_switch(self):

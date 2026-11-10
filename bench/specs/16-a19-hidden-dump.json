@@ -1,0 +1,11 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "dump": {"env": {"STRATA_HIDDEN_DUMP": "/home/dan/clone-of-d/Strata-data/a19-dumps,every=64"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN A19 (branch work/a19-thinking-probe, the build must contain it). The dump arm is exact: the text hashes must equal base's; its cost is one device->host copy of one n_embd row per check point (every 64 thinking tokens, after each blank line, at </think>) - expect no measurable change. Only requests that think write files (hd-*.bin + hd-*.ids in the dump dir); check that the dir holds files after the run if the cases think, and remove it afterwards (the D drive is tight). The probe arm (STRATA_THINK_PROBE=<probe.sprb>,<thr>,k=3) is lossy and needs weights trained with tools/pancake/thinking_probe.py on real agent dumps first; judge it with the task gate (A55), not with this speed spec."
+}

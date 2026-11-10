@@ -2916,6 +2916,7 @@ class StrataEngine:
             return
         self.progress, self.progress_ms, self.reused = None, 0, 0
         self.prefill_tok_s_mean = None
+        self.think_probe_hit = None      # A19: (thinking tokens, score) of this pass's TPROBE line (engine STRATA_THINK_PROBE)
         # DeepSeek --parallel: the engine holds several conversations; this request is one of them (GEN ... rid=<id>), its
         # lines come on a queue of their own and its STOP names it.  One at a time (self.multi 0): the one queue, as before.
         rid, lines_q, stop_line = None, self.lines, "STOP\n"
@@ -3031,6 +3032,12 @@ class StrataEngine:
                 elif line.startswith("RESUME "):          # the reused tokens: the first chunk starts after them
                     try:
                         read_to = self.reused = int(line.split()[1])
+                    except (IndexError, ValueError):
+                        pass
+                elif line.startswith("TPROBE "):          # A19 (lossy, the engine's opt-in STRATA_THINK_PROBE): close the thinking
+                    f = line.split()
+                    try:
+                        self.think_probe_hit = (int(f[1]), float(f[2]))
                     except (IndexError, ValueError):
                         pass
                 elif line.startswith("DONE"):
@@ -6933,6 +6940,8 @@ class Service:
             and not getattr(self.engine, "batch", 0) and not getattr(self.engine, "split_engine", False)
             and top_logprobs(sampling or {}) is None) else None
         ent = rumination.EntropyMeter() if ent_k else None
+        # A19 (lossy, opt-in on the engine: STRATA_THINK_PROBE): the engine's TPROBE line asks for the same soft close
+        probe_due, probe_wait, probe_closed = False, 0, False
         admission_rejected = False                      # #3040: the engine's batch slots refused it before it read anything
         emb, self.embeddings.path = getattr(self.embeddings, "path", None), None   # this run's to delete now
         img_keys, self.embeddings.keys = getattr(self.embeddings, "keys", None), None
@@ -7057,7 +7066,10 @@ class Service:
                     # reasoning_budget_grace tokens (THINK_GRACE when that is 0) and half the room left
                     rum_grace = max(1, min(getattr(self, "reasoning_budget_grace", 0) or THINK_GRACE,
                                            (max_new - 1) // 2 if max_new else THINK_GRACE)) if rum_cfg else 0
-                    wrap_why = None                     # "rumination": the wrap-up below is the rumination close
+                    # A19: a probe close waits the same way (reasoning_budget_grace, else THINK_GRACE; half the room left)
+                    probe_grace = max(1, min(getattr(self, "reasoning_budget_grace", 0) or THINK_GRACE,
+                                             (max_new - 1) // 2 if max_new else THINK_GRACE))
+                    wrap_why = None                     # "rumination" / "probe": the wrap-up below is that close
                     think_tail = ""
                     guard_stop = False                  # the guard ended the answer (a loop that came back)
                     # across turns (prepare put them in the request): the calls this answer may not make again -
@@ -7148,6 +7160,7 @@ class Service:
                         nonlocal thinking_n, run_len, run_tok, repeated, tail, answered, reasoning_text, last_out
                         nonlocal last_print, finish, looped, next_loop_check, repeat_coverage, recover_prompt
                         nonlocal thought, wrap, force, opens, called, think_tail, rum_due, rum_wait, wrap_why
+                        nonlocal probe_due, probe_wait, probe_closed
                         for i, t in enumerate(toks):
                             thinking_n += parser.state in ("reasoning", "rcall")
                             run_len = run_len + 1 if t == run_tok else 1
@@ -7157,13 +7170,20 @@ class Service:
                                 return i + 1
                             piece = detok.push(t)
                             tail = (tail + piece)[-2:]
+                            if not (probe_due or probe_closed) and parser.state == "reasoning" and \
+                                    getattr(self.engine, "think_probe_hit", None) is not None:
+                                probe_due, probe_wait = True, 0     # A19: the engine's probe fired (TPROBE): close at a sentence end
+                                ph = self.engine.think_probe_hit
+                                print(f"[strata] think probe: score {ph[1]:.3f} at {ph[0]} thinking tokens (engine "
+                                      "STRATA_THINK_PROBE, lossy): closing the thinking at the next sentence or line end",
+                                      flush=True)
                             evs = cut(parser.feed(piece))
                             self._note(n, evs, st, rate)
                             last_print = self._progress(last_print, st=st)
                             for ev in evs:
                                 if self.reasoning_loop_recovery and ev.kind == "reasoning":
                                     reasoning_text += ev.text or ""
-                                if ev.kind == "reasoning" and (grace or rum_cfg):
+                                if ev.kind == "reasoning" and (grace or rum_cfg or probe_due):
                                     think_tail = (think_tail + (ev.text or ""))[-16:]
                                 if ev.kind == "reasoning" and rum.feed(ev.text or "") and rum.high and \
                                         not (rum_due or rum.closed) and thinking_n >= rum_cfg["min_tokens"] and (
@@ -7212,6 +7232,13 @@ class Service:
                                         rum_wait >= rum_grace or think_boundary(think_tail)):
                                     rum_due, rum.closed = False, True
                                     wrap, wrap_why = True, "rumination"     # the soft budget's own close below
+                                    return i + 1
+                            if probe_due and parser.state == "reasoning":
+                                probe_wait += 1
+                                if parser.clean and not detok.pending() and (
+                                        probe_wait >= probe_grace or think_boundary(think_tail)):
+                                    probe_due, probe_closed = False, True
+                                    wrap, wrap_why = True, "probe"          # the soft budget's own close below
                                     return i + 1
                             if budget and parser.state == "reasoning":
                                 thought += 1
@@ -7514,6 +7541,9 @@ class Service:
                                 self.rumination_counts["closed"] += 1
                             print(f"[strata] rumination close: wrapping up the thinking at {thinking_n} thinking tokens "
                                   f"({rum_wait} past the signal)", flush=True)
+                        elif wrap and wrap_why == "probe":
+                            print(f"[strata] think probe close: wrapping up the thinking at {thinking_n} thinking tokens "
+                                  f"({probe_wait} past the signal)", flush=True)
                         elif wrap:
                             print(f"[strata] thinking budget reached ({thought} tokens"
                                   f"{f', {thought - budget_was} past it to a sentence or line end' if thought > budget_was else ''}"
@@ -7590,6 +7620,7 @@ class Service:
                                 "rumination_max": round(rum.rate_max, 3) if rum.checks else None,
                                 "rumination_mean": round(rum.rate_sum / rum.checks, 3) if rum.checks else None,
                                 "rumination_closed": rum.closed,
+                                "think_probe_closed": probe_closed,     # A19: the engine's probe closed the thinking
                                 "engine_generated": last.get("generated"),
                                 "prompt_ms": last.get("prompt_ms"), "decode_ms": last.get("decode_ms"),
                                 "decode_tok_s": round(last["generated"] / (last["decode_ms"] / 1000), 1)

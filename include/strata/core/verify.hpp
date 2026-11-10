@@ -126,6 +126,10 @@ public:
     bool prepare(int T, bool& no_vram, std::string& err);
     /// Diagnostics: row `t` of the last window's head logits (n_vocab floats) to the host. Valid after run().
     bool copy_logits(int t, float* host) const;
+    /// A19 (STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE): row `t` of the last window's head input - the final hyper-connection read
+    /// with output_hc_norm, the n_embd floats the LM head reads (head_mixed_) - to the host.  Valid after run(), before the
+    /// next window; on the stage with the head (a layer split asks the last stage).  false: no such row (Metal: not wired).
+    bool copy_head_row(int t, float* host) const;
     int64_t vocab() const { return next_ ? next_->vocab() : n_vocab_; }
     /// #879 GUARD: the first row of the last finished window (run, run_slot_rows, batch_poll, pl_finish) whose head
     /// logits held a NaN or an infinity, else -1; nonfinite_pos() is that row's position.  Every window graph
