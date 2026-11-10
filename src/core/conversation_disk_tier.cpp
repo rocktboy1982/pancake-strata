@@ -213,12 +213,19 @@ void drop_lock(void* h) { if (h) CloseHandle((HANDLE) h); }
 const std::vector<std::string>& conversation_disk_key_env_names() {
     // the routing and numerics switches that change the computed state but are read from the environment, not from
     // the arguments the config fingerprint covers (generate.cpp session_identity)
+    // STRATA_VERIFY_DEFER_CPU_FOLD is NOT here: it only changes which pool pass computes a row (exact vs the same
+    // _TOP/_BELOW run, defer_rank.hpp), not any value.  A new name here changes every key: bump the version line in
+    // conversation_disk_key() with it, so entries written under the old name set are not found again.
     static const std::vector<std::string> names = {
         "STRATA_ROUTE_PRIOR",        "STRATA_ROUTE_PRIOR_DEPTH", "STRATA_ROUTE_RESIDENT",
         "STRATA_ROUTE_RESIDENT_RANKS", "STRATA_ROUTE_RESIDENT_MTP", "STRATA_ROUTE_TAIL_SKIP",
-        "STRATA_VERIFY_DEFER_CPU",   "STRATA_PF_FUSED_F16",      "STRATA_HC_Q8",
-        "STRATA_HC_REQ8",            "STRATA_EXPDEC",            "STRATA_EXPDEC_SWIGLU",
-        "STRATA_EXPDEC_DOWN",        "STRATA_ROUTER_FUSE",       "STRATA_QFUSE",
+        "STRATA_VERIFY_DEFER_CPU",   "STRATA_VERIFY_DEFER_CPU_BELOW", "STRATA_VERIFY_DEFER_CPU_TOP",
+        "STRATA_PF_FUSED_F16",       "STRATA_PF_F16",            "STRATA_PF_DM16",
+        "STRATA_HIP_PROMPT_F16",     "STRATA_HC_Q8",             "STRATA_HC_REQ8",
+        "STRATA_HC_Q8_INJECT",       "STRATA_GR_RDNA_Q8",        "STRATA_GR_RDNA_A8",
+        "STRATA_CPU_PRESUM",         "STRATA_PRESUM_VRAM",       "STRATA_EXPDEC",
+        "STRATA_EXPDEC_SWIGLU",      "STRATA_EXPDEC_DOWN",       "STRATA_ROUTER_FUSE",
+        "STRATA_QFUSE",
     };
     return names;
 }
@@ -247,7 +254,7 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
 }
 
 std::string conversation_disk_key(const ConversationDiskKeyInputs& in) {
-    std::string k = "strata conversation disk 1\n";
+    std::string k = "strata conversation disk 2\n";
     k += "model " + in.model + "\n";
     k += "model_fingerprint " + hex16(in.id.model) + "\n";
     k += "config_fingerprint " + hex16(in.id.config) + "\n";

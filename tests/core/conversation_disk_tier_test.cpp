@@ -131,6 +131,18 @@ void test_key() {
     check(exact == conversation_disk_key({id, "/m/a.gguf", get({})}), "key: same inputs, same key");
     check(exact != turbo && exact != tail && turbo != tail, "key: a lossy routing switch changes the key");
     check(exact != conversation_disk_key({id, "/m/b.gguf", get({})}), "key: another model file, another key");
+    for (const char* n : {"STRATA_VERIFY_DEFER_CPU", "STRATA_VERIFY_DEFER_CPU_BELOW", "STRATA_VERIFY_DEFER_CPU_TOP",
+                          "STRATA_GR_RDNA_Q8", "STRATA_GR_RDNA_A8", "STRATA_CPU_PRESUM", "STRATA_PRESUM_VRAM",
+                          "STRATA_HIP_PROMPT_F16", "STRATA_PF_F16", "STRATA_PF_DM16", "STRATA_HC_Q8_INJECT"})
+    {
+        const std::string label = std::string("key: ") + n + " changes the key";
+        check(exact != conversation_disk_key({id, "/m/a.gguf", get({{n, "1"}})}), label.c_str());
+    }
+    // the fold only moves a row between pool passes (exact vs the same run): same key
+    check(exact == conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_DEFER_CPU_FOLD", "2"}})}),
+          "key: STRATA_VERIFY_DEFER_CPU_FOLD does not change the key");
+    check(exact.rfind("strata conversation disk 2\n", 0) == 0, "key: format version 2 (deferral switches added)");
+
     check(exact != conversation_disk_key({{1, 3}, "/m/a.gguf", get({})}), "key: another config fingerprint, another key");
     check(conversation_disk_subfolder("/d", "/m/a.gguf", exact) != conversation_disk_subfolder("/d", "/m/a.gguf", turbo),
           "key: exact and turbo states live in different subfolders");
