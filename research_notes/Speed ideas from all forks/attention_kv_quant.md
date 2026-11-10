@@ -240,6 +240,9 @@ tqt/hq, NVFP4) exist but were covered before or are Blackwell-only.
 
 ### Gaps
 - How many extra expert slots Q4 KV would free in pancake's 131072-context Flash-Next config was not computed.
+  (2026-11-10, F22, computed not measured: at `--kv-resident 32768`, 12 QSA layers x 32768 cells x (1,056 - 576) B =
+  180 MiB = ~131 slots of 1.37 MiB; the prompt staging pool lends ~44 fewer slots. The kernel turned out to be fork-only
+  and gfx12-only only in its host gate: MOD_PLAN "F22 status".)
 
 ## Q4. Prefix / prompt / conversation caching
 

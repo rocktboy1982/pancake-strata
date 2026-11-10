@@ -1,0 +1,14 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "q4-fp32": {"args": {"--kv": "q4_0"}},
+  "q4-wmma": {"args": {"--kv": "q4_0"}, "env": {"STRATA_HIP_WMMA_Q4": "1"}},
+  "q4-wmma-split": {"args": {"--kv": "q4_0"}, "env": {"STRATA_HIP_WMMA_Q4": "1", "STRATA_PA_FAST": "0"}},
+  "int8-daily": {}
+ },
+ "cases": ["edit", "long32k", "long64k"],
+ "prefill": true,
+ "reps": 3,
+ "lossy": true,
+ "note": "MOD_PLAN F22 (RX 7900 XT, gfx1100): the Q4_0-KV prompt attention on matrix cores (STRATA_HIP_WMMA_Q4=1, port of fork bsorensen110 19fc0e48 to gfx11). The FIRST arm is the reference: q4-fp32 = the daily fast-hip preset with --kv q4_0 and today's gfx1100 Q4 prompt path (qsa_decode_attn_batch, the FP32 kernel, 32 queries a call). q4-wmma = the new kernel as the preset runs it (STRATA_PA_FAST=1: one FP16 image of q and p, like the int8 kernel in the preset); q4-wmma-split = the FP32-level variant (hi + lo split, PA_FAST=0), the one the parity test bounds. int8-daily = the unchanged daily preset (--kv int8): the trade Q4 KV vs today, prompt speed and decode. Read: long32k / long64k prompt tok/s of q4-wmma vs q4-fp32 is the kernel's gain (32K stays under --kv-resident 32768; 64K streams through the one-layer staging pool); edit is the decode check (the prompt kernel does not run in decode windows, so edit should be flat between the three q4 arms). Also read the engine log's expert-cache line ('N slots, X GiB of VRAM') per arm: q4 arms vs int8-daily = the VRAM Q4 KV frees (est. +180 MiB = ~131 slots at --kv-resident 32768). Before this: hip_prompt_attn_wmma (build-hip; the q4_0 cases must say PASS, STRATA_PARITY_SKIP_Q4=1 skips them). Text: the q4 arms differ from each other at rounding level (another summation order; PA_FAST FP16) and from int8-daily by the 4-bit KV itself (lossy: bench/results/2026-09-27-kv-q4, document ppl +8-12%), so Q4 KV on the daily preset needs the quality gate (token forcing, needles at 32K/128K, tool-call task gate) whatever the speed says. Run '--tier screen' first, then '--tier confirm --reps 2' if q4-wmma is promoted."
+}
