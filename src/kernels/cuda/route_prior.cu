@@ -72,22 +72,27 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
         sum += p[i];
     }
     (void) wsum(sum);
-    float sel_p = 0.0f, sel_sum = 0.0f;
-    // guards: while `own_phase` the router's own picks come first - its first `protect` ranks and every expert whose
+    // Upstream PR #5655 (WilliamStone; Speedy 0.4.0 "route-prior NaN guard"): with every score NaN / -inf the old
+    // `s[i] > best` never fired, the sentinel id 1 << 30 leaked into ids and `s[be >> 5]` wrote 4 MiB past the array
+    // (an abort every ~5 min under STRATA_ROUTE_PRIOR).  Picked experts live in a bitmask (`taken`, bit i = this lane's
+    // expert lane + 32 * i), NaN scores rank as -inf and the first unpicked expert of a lane always qualifies, so all 10
+    // ids are valid and distinct whatever the logits hold (on top of the input clamp above).
+    // Guards: while `own_phase` the router's own picks come first - its first `protect` ranks and every expert whose
     // probability is at least `keep_p` of the top one's (p is exp(logit - max): the top one is 1.0) - in the router's
-    // order; the first pick that is neither ends the phase and the rest are chosen by the biased score.  A taken expert
-    // has s = -FLT_MAX in either phase.  Both guards off: own_phase is false from the start (the earlier kernel).
+    // order; the first pick that is neither ends the phase and the rest are chosen by the biased score.  Both guards off:
+    // own_phase is false from the start (the earlier kernel).  Finite logits select exactly as before.
+    unsigned taken = 0;
+    float sel_p = 0.0f, sel_sum = 0.0f;
     bool own_phase = protect > 0 || keep_p > 0.0f;
-    unsigned taken = 0;   // bit i: this lane's expert lane + 32 * i is picked (s == -FLT_MAX alone cannot tell "picked" from "scored -FLT_MAX")
     for (int rank = 0; rank < 10; ++rank) {
-        float best = -FLT_MAX, bp = 0.0f;
+        float best = -INFINITY, bp = 0.0f;
         int be = 1 << 30;
         bool picked = false;
         if (own_phase) {
 #pragma unroll
             for (int i = 0; i < 16; ++i) {
-                const float key = s[i] == -FLT_MAX ? -FLT_MAX : p[i];
-                if (key > best) { best = key; be = lane + 32 * i; bp = p[i]; }
+                const float v = p[i] == p[i] ? p[i] : -INFINITY;
+                if (!((taken >> i) & 1u) && (be == (1 << 30) || v > best)) { best = v; be = lane + 32 * i; bp = p[i]; }
             }
 #pragma unroll
             for (int m = 16; m; m >>= 1) {
@@ -97,12 +102,14 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
                 if (ob > best || (ob == best && oe < be)) { best = ob; be = oe; bp = op; }
             }
             if (rank < protect || (keep_p > 0.0f && bp >= keep_p)) picked = true;   // (the same on every lane)
-            else { own_phase = false; best = -FLT_MAX; bp = 0.0f; be = 1 << 30; }
+            else { own_phase = false; best = -INFINITY; bp = 0.0f; be = 1 << 30; }
         }
         if (!picked) {
 #pragma unroll
-            for (int i = 0; i < 16; ++i)
-                if (s[i] > best) { best = s[i]; be = lane + 32 * i; bp = p[i]; }
+            for (int i = 0; i < 16; ++i) {
+                const float v = s[i] == s[i] ? s[i] : -INFINITY;
+                if (!((taken >> i) & 1u) && (be == (1 << 30) || v > best)) { best = v; be = lane + 32 * i; bp = p[i]; }
+            }
 #pragma unroll
             for (int m = 16; m; m >>= 1) {
                 const float ob = __shfl_xor_sync(0xffffffffu, best, m, 32);
@@ -111,29 +118,13 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
                 if (ob > best || (ob == best && oe < be)) { best = ob; be = oe; bp = op; }
             }
         }
-        if (be >= 512) {
-            // No candidate scored above -FLT_MAX (every remaining logit clamped to -FLT_MAX, or lambda overflowed): take the
-            // lowest-index expert not yet picked, with its own probability.  Never reached for finite logits above -FLT_MAX,
-            // where the winner always lies in 0..511 (so their ids and weights are unchanged).
-            be = 1 << 30;
-            bp = 0.0f;
-            float fb = -1.0f;
-#pragma unroll
-            for (int i = 15; i >= 0; --i)
-                if (!((taken >> i) & 1u)) { fb = 0.0f; be = lane + 32 * i; bp = p[i]; }
-#pragma unroll
-            for (int m = 16; m; m >>= 1) {
-                const float ob = __shfl_xor_sync(0xffffffffu, fb, m, 32);
-                const int oe = __shfl_xor_sync(0xffffffffu, be, m, 32);
-                const float op = __shfl_xor_sync(0xffffffffu, bp, m, 32);
-                if (ob > fb || (ob == fb && oe < be)) { fb = ob; be = oe; bp = op; }
-            }
-        }
-        if ((be & 31) == lane) { s[be >> 5] = -FLT_MAX; taken |= 1u << (be >> 5); }
+        if ((be & 31) == lane) taken |= 1u << (be >> 5);
         if (lane == rank) { id[rank] = be; sel_p = bp; }
         sel_sum += bp;                                      // the same on every lane
     }
-    if (lane < 10) w[lane] = sel_p / fmaxf(sel_sum, 1e-30f);
+    // degenerate logits (NaN / all -inf) give NaN probabilities: the 10 picked share the weight equally
+    const bool ok = sel_sum > 0.0f && sel_sum <= FLT_MAX;
+    if (lane < 10) w[lane] = ok ? sel_p / sel_sum : 0.1f;
 }
 
 const float* g_prior_gate = nullptr;   // set once, before any window graph is captured (launch arguments are baked in)

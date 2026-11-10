@@ -1,0 +1,34 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "note": "Phase 3b (2026-11-10, owner request): Q2_0 vs IQ2_XS on the 7900 XT. base = iq2_xs fast-hip with the adopted items; q2_0 = the same preset on the Q2_0 file (head-to-head, quality gate vs IQ2_XS = how far the answers move); q2_0-stock = Q2_0 without the four adopted items (do they transfer?). Screen first, confirm the q2_0 arm.",
+ "arms": {
+  "base": {},
+  "q2_0": {
+   "args": {
+    "--pack": "/home/dan/clone-of-d/Strata-data/packs/q2_0",
+    "--native": "/home/dan/clone-of-d/Strata-data/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00001-of-00002.gguf",
+    "--ple-gguf": "/home/dan/clone-of-d/Strata-data/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf"
+   }
+  },
+  "q2_0-stock": {
+   "args": {
+    "--pack": "/home/dan/clone-of-d/Strata-data/packs/q2_0",
+    "--native": "/home/dan/clone-of-d/Strata-data/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00001-of-00002.gguf",
+    "--ple-gguf": "/home/dan/clone-of-d/Strata-data/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf",
+    "--lookup-max-t": null
+   },
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null,
+    "STRATA_POOL_FUSE_PHASES": null,
+    "STRATA_EXPDEC_DOWN": null
+   }
+  }
+ }
+}

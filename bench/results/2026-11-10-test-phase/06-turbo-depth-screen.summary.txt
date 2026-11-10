@@ -1,0 +1,21 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    128.9 +-  29.2  (n=2)
+                              drafts accepted 0.68
+  short  turbo                   126.3 +-   9.5  (n=2)   vs base:  -2.0% +- 30.1%  -> no difference
+                              drafts accepted 0.69
+  short  turbo-depth75           128.5 +-  72.4  (n=2)   vs base:  -0.3% +- 33.5%  -> no difference
+                              drafts accepted 0.73
+  edit   base                    140.2 +- 148.1  (n=2)
+                              drafts accepted 0.90
+  edit   turbo                   185.6 +-  26.1  (n=2)   vs base: +32.4% +- 124.2%  -> no difference
+                              drafts accepted 0.90
+  edit   turbo-depth75           138.4 +- 222.4  (n=2)   vs base:  -1.3% +- 53.0%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed)
+  turbo                DIFFERENT text -> lossy or placement-dependent: quality gate
+  turbo-depth75        DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: >= +2% on a case and no case below -3%; else drop)
+  turbo                short -2.0%  edit +32.4%  -> PROMOTE to confirm
+  turbo-depth75        short -0.3%  edit -1.3%  -> drop

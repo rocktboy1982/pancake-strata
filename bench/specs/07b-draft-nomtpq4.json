@@ -1,0 +1,32 @@
+{
+ "arms": {
+  "base": {},
+  "boundary": {
+   "env": {
+    "STRATA_CACHE_MESSAGE_BOUNDARY": "1"
+   },
+   "args": {
+    "--prompt-cache-tail": ""
+   }
+  },
+  "mtp-hip-prio": {
+   "env": {
+    "STRATA_MTP_HIP_PRIO": "1"
+   }
+  },
+  "mtp-eager": {
+   "env": {
+    "STRATA_MTP_EAGER": "1"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": true,
+ "note": "07 without mtpq4-head: on HIP --mtp-q4 head exits at start (\"mtp: writing the draft head\", cudaMemcpy fails; 2026-11-10 screen), bug to investigate separately"
+}

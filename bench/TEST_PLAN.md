@@ -126,6 +126,14 @@ gfx11 lighter barrier, DPP shuffles, sampler loads in flight) and bundle B (ACTQ
 PARK_REWIND_MAX, POOL_DAG=2); fixes before testing: prompt-cache root < 2048 (ElXreno a18d4668ec), kv_stream bound
 (kllmagn e3056ec81b), layer-major group-scratch cap (Spark-NV 8a3475b6d2, before PREFILL_LAYER_MAJOR).
 
+Phase 3b - Q2_0 vs IQ2_XS (owner request, 2026-11-10; after 06-09, before the 3.x ports): spec `15-q2_0`.
+Q2_0 is the other Flash-Next file (36 GB vs 64 GB on disk; ISTA-DASLab task score 89.07 vs 89.16; ~135 vs ~126 tok/s
+in the run-pancake presets, never measured side by side here).  Arms: base (iq2_xs fast-hip with the adopted items),
+q2_0 (same preset on the Q2_0 file), q2_0-stock (Q2_0 without deferral / fuse-phases / EXPDEC_DOWN / lookup12: do
+the adopted items transfer?).  Screen, then confirm + quality gate on q2_0.  Also read: start time and the load's
+memory pressure (smaller arena -> fewer oomd risks?).  Outcome: the adopted items go into flashnext-q2_0-fast-hip if
+they transfer; if Q2_0 is faster at equal quality, it becomes run-pancake's default (owner decides).
+
 Credits: every candidate that is adopted gets its author in README.md section 9 and a row in
 pancake-docs/RESEARCH_AND_FINDINGS.md section 4 (commit, what was taken, measured result), in the adopting commit.
 

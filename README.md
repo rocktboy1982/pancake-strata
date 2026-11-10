@@ -124,7 +124,10 @@ token-forcing quality gate.
 | [Aviary](https://github.com/SensAI-PT/aviary-hy3) | SensAI-PT | Apache-2.0 | Evaluated | Distributed expert placement across nodes; surveyed, single-machine focus here. |
 | [llamAmpere](https://github.com/JakeATX/llamAmpere) | JakeATX | MIT | Idea | Head and kernel specialization ideas for consumer NVIDIA cards; cross-checked our head work. |
 | [gpu-unlock](https://github.com/Zagitta/gpu-unlock) | Zagitta | GPL-2.0 | Idea | Power and VRAM tuning context for the 7900 XT presets. |
-| [Avalon](https://github.com/freriadoc/Avalon) | freriadoc | MIT | Idea / Evaluated | Its 48-commit delta and our audit gave the gfx1100 hipBLASLt 100401 table match (+38% prompt, in the 7900 XT presets) and `--lookup-max-t 12`. |
+| [Avalon](https://github.com/freriadoc/Avalon) | freriadoc | MIT | Idea / Evaluated | Its 48-commit delta and our audit gave the gfx1100 hipBLASLt 100401 table match (+38% prompt, in the 7900 XT presets) and `--lookup-max-t 12` (in fast-hip since test 05c: edit +8.8%, short n.s., quality PASS). |
+| [Strata PR #5655](https://github.com/Niko1221/Strata/pull/5655) | WilliamStone | MIT | Code (fix) | `route_prior` NaN / -inf guard: valid distinct expert ids and no out-of-bounds write on degenerate router logits (our version: picked bitmask; `route_prior_test`, 445 checks). |
+| [Spark-NV/Strata](https://github.com/Spark-NV/Strata) | Spark-NV | MIT | Code (fix) | `8a3475b6d2`: layer-major prefill caps a group at the group-scratch rows (`STRATA_PF_GROUP_SCRATCH=1`; NaN rows on ~29K+ prompts). |
+| [kllmagn/Strata](https://github.com/kllmagn/Strata) | kllmagn | MIT | Code (fix) | `e3056ec81b`: KV streaming's miss list bounded by the slot count (our version reports through the existing overflow flag instead of trapping). |
 | [qwen38-megakernel](https://github.com/cutlerbenjamin1-cmd/qwen38-megakernel) | cutlerbenjamin1-cmd | AGPL-3.0 | Evaluated (ideas only, license) | Megakernel and draft-vocab experiments studied; no code taken (AGPL-3.0), and our own GDN megakernel prototype measured 0.0 ms on one GPU. |
 | [llama.cpp / ggml](https://github.com/ggml-org/llama.cpp) | ggml-org | MIT | Code | The quantization formats (Q2_0, IQ2_XS, Q5_K, IQ4_XS), GGUF, and the MMVQ kernel lineage the RDNA3 ports build on. |
 | [ik_llama.cpp](https://github.com/ikawrakow/ik_llama.cpp) | ikawrakow | MIT | Idea | DFlash2 (PR 2761) calibrated survival window, now `STRATA_DF2_GATE` / `STRATA_DF2_ROW_MS`. |
@@ -736,7 +739,14 @@ tools/pancake/os_tune.sh                          # state: free RAM in 2 MiB blo
 sudo tools/pancake/os_tune.sh install             # 1 (recommended): compact_unevictable_allowed=0 + compaction_proactiveness=50
 sudo tools/pancake/os_tune.sh install --hugepages # 1 + 2 (optional): reserve 16,920 x 2 MiB pages at boot for the arena
 sudo tools/pancake/os_tune.sh compact             # one compaction pass now, nothing persistent
+sudo tools/pancake/os_tune.sh cpu                 # APU: iGPU to its low clock + core idle C3 off (until reboot; cpu-off undoes)
+sudo tools/pancake/os_tune.sh cpu-install         # the same, permanent: pancake-cpu.service applies it at every boot (cpu-uninstall removes)
 ```
+
+On an APU (Ryzen 5700G) the Vega iGPU that drives the desktop shares the package power with the cores: under the
+engine's AVX2 expert load the cores ran 3.4-3.7 GHz in the slow runs (4.2 GHz all-core on plain integer load), and the
+~25% slower runs follow that clock. `os_tune.sh cpu` keeps the iGPU at its low clock while decoding; the larger lever
+is Precision Boost Overdrive in the BIOS (temperatures stay at 56-63 C under the engine).
 
 Option 2 maps the arena from a reserved hugetlb pool (no fragmentation, fewer TLB misses; two Strata forks measured
 +5-7% decode, not yet measured here). The pool is taken out of ordinary RAM (33 GiB) from the next boot, so it suits a

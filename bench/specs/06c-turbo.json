@@ -1,0 +1,23 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 4,
+ "lossy": true,
+ "note": "confirm of screen 06 (2026-11-10): turbo (STRATA_ROUTE_PRIOR=0.5) short -2.0%, edit +32.4% over fast-hip with lookup12; lossy -> quality gate decides (3060: 2.9% tokens differ); + mtp-eager from screen 07b (short -0.6%, edit +15.4%); boundary and mtp-hip-prio dropped, mtpq4-head fails to start on HIP",
+ "arms": {
+  "base": {},
+  "turbo": {
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5"
+   }
+  },
+  "mtp-eager": {
+   "env": {
+    "STRATA_MTP_EAGER": "1"
+   }
+  }
+ }
+}

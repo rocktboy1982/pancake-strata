@@ -1,0 +1,17 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.4 +-  32.0  (n=4)
+                              drafts accepted 0.68
+  short  turbo                   121.2 +-  19.8  (n=4)   vs base:  +4.1% +- 10.6%  -> no difference
+                              drafts accepted 0.68
+  short  mtp-eager               126.5 +-   1.5  (n=4)   vs base:  +8.6% +- 27.3%  -> no difference
+                              drafts accepted 0.67
+  edit   base                    133.8 +-   7.5  (n=4)
+                              drafts accepted 0.92
+  edit   turbo                   173.6 +-  71.0  (n=4)   vs base: +29.7% +- 53.6%  -> no difference
+                              drafts accepted 0.90
+  edit   mtp-eager               136.0 +-  12.5  (n=4)   vs base:  +1.6% +-  5.2%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed)
+  turbo                DIFFERENT text -> lossy or placement-dependent: quality gate
+  mtp-eager            DIFFERENT text -> lossy or placement-dependent: quality gate

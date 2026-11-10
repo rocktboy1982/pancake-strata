@@ -45,3 +45,14 @@ Note (05s): the harness's own verdict dropped every arm because the base had no 
 session's python3 above the 25%-of-a-core foreign limit on all three attempts); noise did not move the base numbers
 (41% vs 74% foreign: same tok/s).  Fix: when every attempt is noisy, abtest keeps the quietest one instead of none.
 Arms with a single slow attempt at 3.2-3.6 GHz CPU (routed-dedupe, mmvf-rows) carry the CPU-clock effect, not the arm.
+| 05c confirm (`2026-11-10-test-phase/`, 4 reps) | --lookup-max-t 12 | -3.5% +-3.6 n.s. | **+8.8% +-6.8** | - | **PASS** (events p 0.70) | **into fast-hip** (Avalon report; credited) |
+| 06 screen (`2026-11-10-test-phase/`, base = fast-hip + lookup12) | turbo (STRATA_ROUTE_PRIOR=0.5) | -2.0% | **+32.4%** | - | (lossy) | promote -> 06c confirm + quality gate |
+| 06 screen | turbo + ROUTE_PRIOR_DEPTH=0.75 | -0.3% | -1.3% | - | - | drop |
+| 07 screen | --mtp-q4 head | - | - | - | - | **fails to start on HIP** ("mtp: writing the draft head": cudaMemcpy of the Q4_0 head fails, exit 1); bug, not tested |
+| 07b screen | STRATA_MTP_EAGER=1 | -0.6% | +15.4% | - | - | promote -> 06c confirm |
+| 07b screen | STRATA_CACHE_MESSAGE_BOUNDARY=1 + --prompt-cache-tail / STRATA_MTP_HIP_PRIO=1 | -2.3% / -17.7% | -11.0% / +14.5% | - | - | drop |
+| 06c confirm (4 reps) | turbo (ROUTE_PRIOR=0.5) on fast-hip + lookup12 | +4.1% n.s. | +29.7% +-53.6 (3 of 4 runs +45%: 194-199 vs 130-140; one whole run slow) | - | **INCONCLUSIVE** (2.65% tokens differ vs stock 1.8%, diff +0.83 pts, CI90 upper 1.27 vs bound 1.25; 0 large-margin events) | stays the opt-in lossy `turbo` preset; turbo-hip synced with the adopted items |
+| 06c confirm | STRATA_MTP_EAGER=1 | +8.6% n.s. | +1.6% +-5.2 n.s. | - | PASS | opt-in (the screen's +15% was noise) |
+| 07c short check (2 reps) | STRATA_MTP_HIP_PRIO=1 | -11% n.s. (runs bimodal: 85 or 128) | -1.1% n.s. | - | - | drop: no edit gain to protect, so no acceptance-gated priority switch (the 07b screen gain was noise, like MTP_EAGER) |
+| 07d recheck after `os_tune.sh cpu` (iGPU low clock, C3 off; 2 reps, 3 attempts each) | base | 126.6 +-6.4 (6 of 6 runs 120-127) | 136.9 (6 of 6 runs 132-139) | - | - | CPU 3.98-4.13 GHz on every run (was 3.2-4.1); no slow base run: the cpu mode removes the bimodal runs |
+| 07d | STRATA_MTP_HIP_PRIO=1 | +1.5% n.s. | -10.6% n.s. | - | - | **drop for good**: its slow runs (85-108) stay with the CPU at 4.0-4.1 GHz -> the priority queue itself causes them; no gain for an adaptive switch to keep |

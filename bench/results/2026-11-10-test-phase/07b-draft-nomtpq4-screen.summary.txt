@@ -1,0 +1,27 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    128.9 +-  29.2  (n=2)
+                              drafts accepted 0.68
+  short  boundary                125.9 +-  35.6  (n=2)   vs base:  -2.3% +-  4.9%  -> no difference
+                              drafts accepted 0.68
+  short  mtp-hip-prio            106.1 +-  42.6  (n=2)   vs base: -17.7% +- 10.4%  -> worse
+                              drafts accepted 0.68
+  short  mtp-eager               128.1 +-  28.0  (n=2)   vs base:  -0.6% +-  1.0%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    137.8 +-  65.5  (n=2)
+                              drafts accepted 0.92
+  edit   boundary                122.7 +- 484.9  (n=2)   vs base: -11.0% +- 304.5%  -> no difference
+                              drafts accepted 0.89
+  edit   mtp-hip-prio            157.7 +- 362.2  (n=2)   vs base: +14.5% +- 215.4%  -> no difference
+                              drafts accepted 0.89
+  edit   mtp-eager               158.9 +- 361.0  (n=2)   vs base: +15.4% +- 214.5%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed)
+  boundary             identical on every case -> exact
+  mtp-hip-prio         identical on every case -> exact
+  mtp-eager            identical on every case -> exact
+
+screen verdict (promote: >= +2% on a case and no case below -3%; else drop)
+  boundary             short -2.3%  edit -11.0%  -> drop
+  mtp-hip-prio         short -17.7%  edit +14.5%  -> drop
+  mtp-eager            short -0.6%  edit +15.4%  -> PROMOTE to confirm

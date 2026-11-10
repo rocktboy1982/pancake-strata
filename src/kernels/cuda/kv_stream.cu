@@ -107,7 +107,10 @@ __global__ void __launch_bounds__(RT) resolve_kernel(KvStreamMap m, const int32_
                 m.slot_stamp[sl] = epoch;
                 m.slot_ref[sl] = 1;
             } else if (sl == -1 && atomicCAS(&m.page_table[b], -1, -2) == -1) {
-                m.miss_block[atomicAdd(&s_nmiss, 1)] = b;
+                // bounded (kllmagn e3056ec81b): more misses than slots would write past miss_block; the claim is
+                // undone (the block stays unresident) and ctl[3] reports the overflow below
+                const int miss = atomicAdd(&s_nmiss, 1);
+                if (miss < (int) m.n_slots) m.miss_block[miss] = b; else m.page_table[b] = -1;
             }
         }
     }
@@ -141,7 +144,7 @@ __global__ void __launch_bounds__(RT) resolve_kernel(KvStreamMap m, const int32_
     }
     // 3. re-point the table; the copy kernel fills the slots
     const int placed = got < need ? got : need;
-    for (int k = threadIdx.x; k < need; k += RT) {
+    for (int k = threadIdx.x; k < (need < n ? need : n); k += RT) {   // (misses past n were never recorded)
         const int b = m.miss_block[k];
         if (k >= placed) { m.page_table[b] = -1; continue; }   // overflow: never happens with a legal n_slots
         const int sl = m.miss_slot[k];

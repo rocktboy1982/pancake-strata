@@ -1,0 +1,13 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    109.8 +- 167.8  (n=2)
+                              drafts accepted 0.68
+  short  mtpq4-head           no clean runs
+  short  boundary             no clean runs
+  short  mtp-hip-prio         no clean runs
+  short  mtp-eager            no clean runs
+  edit   base                    129.9 +- 374.3  (n=2)
+                              drafts accepted 0.89
+  edit   mtpq4-head           no clean runs
+  edit   boundary             no clean runs
+  edit   mtp-hip-prio         no clean runs
+  edit   mtp-eager            no clean runs

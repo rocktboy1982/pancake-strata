@@ -36,7 +36,9 @@
   "--pcie-frac",
   "0",
   "--adapt-every",
-  "1"
+  "1",
+  "--lookup-max-t",
+  "12"
  ],
  "cwd": "<REPO>",
  "tokenizer": "<STRATA_DATA>/packs/iq2_xs/tokenizer",

@@ -1,0 +1,12 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    120.4 +- 110.6  (n=2)
+                              drafts accepted 0.67
+  short  mtp-hip-prio            106.8 +- 282.2  (n=2)   vs base: -11.3% +- 142.5%  -> no difference
+                              drafts accepted 0.67
+  edit   base                    134.3 +- 150.6  (n=2)
+                              drafts accepted 0.91
+  edit   mtp-hip-prio            132.9 +- 188.1  (n=2)   vs base:  -1.1% +- 27.9%  -> no difference
+                              drafts accepted 0.92
+
+generated text vs base (identical = exact: no quality gate needed)
+  mtp-hip-prio         DIFFERENT text -> lossy or placement-dependent: quality gate
