@@ -1,0 +1,18 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "lossy": false,
+ "note": "07c rerun after os_tune.sh cpu (iGPU low clock, C3 off): are the slow runs gone, does MTP_HIP_PRIO gain on edit?",
+ "arms": {
+  "base": {},
+  "mtp-hip-prio": {
+   "env": {
+    "STRATA_MTP_HIP_PRIO": "1"
+   }
+  }
+ }
+}
