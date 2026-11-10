@@ -169,6 +169,32 @@ preset on an agent replay with interleaved short requests (watch free RAM); it r
 | 4.2.3 | both | expert GEMV achieved bandwidth vs peak (IQ2_S / IQ2_XXS gate/up, Q2_0 down) | F12, F14, F16: little headroom above ~85% of peak |
 | 4.2.4 | both | CPU pool: Q2_0 unpack cost per row, single thread, old vs imanu86 kernel (microbenchmark, no engine) | F7 |
 
+Probes (all in `tools/pancake/probes/`; each file's header says question, build, run, how to read the result; written
+offline on 2026-11-10, the Python parsers and the CPU probe were smoke-tested on synthetic input, the GPU probe only
+syntax-checked). Run them from the repo root with the GPU idle, one at a time; a trace needs the engine under
+`rocprofv3` (it decodes ~1.6x slower, read shares and counts, not tok/s).
+
+- 4.2.1 empty-grid launch cost (7900 XT, ~2 min):
+  `hipcc -O2 --offload-arch=gfx1100 tools/pancake/probes/empty_grid.hip.cpp -o /tmp/empty_grid && HIP_VISIBLE_DEVICES=0 /tmp/empty_grid --csv /tmp/sweep.csv`
+  (or `cmake -DSTRATA_BUILD_PROBES=ON` on the HIP build, target `empty_grid_probe`; `--step 8` for a 10 s look).
+  Then the decode graph's shapes from a trace (step 4.2.2 makes it): `python3 tools/pancake/probes/launch_shapes.py /tmp/prof/run_kernel_trace.csv --sweep /tmp/sweep.csv`
+  (`--static` lists literal launch sites without a trace). Close F20 when the "EXCESS" line is ~0.
+- 4.2.2 router publish and top-10 (7900 XT, one profiled request):
+  `python3 tools/pancake/gpu_profile.py configs/pancake/flashnext-iq2_xs-fast-hip.json /tmp/prof --case short`
+  then `python3 tools/pancake/probes/kernel_share.py /tmp/prof/run_kernel_trace.csv` (the `TARGET` line is
+  route_publish_res: mean us, share of kernel and wall time, gap after it). F9 only if >= 2% of wall time.
+- 4.2.3 expert GEMV bandwidth (both GPUs, same trace as 4.2.2; 3060: `nsys stats --report cuda_gpu_kern_trace --format csv`):
+  `python3 tools/pancake/probes/expert_bw.py /tmp/prof/run_kernel_trace.csv --gpu 7900xt --hit-rate 0.6 --floor-us 3`
+  (`--gpu 3060` for the 3060; bytes per expert come from `bench/results/2026-11-10-offline/gguf_table.json`). The trace does not
+  say how many experts a launch computes, so the table gives GB/s for K = 1..10 experts per launch and the K needed for
+  85% of peak; take the real K from the cache hit rate (10 x hit rate).
+- 4.2.4 CPU Q2_0 row kernel, legacy vs `STRATA_Q2_FAST` (5700G, ~20 s, no GPU, no engine; do not run during a measurement):
+  `cmake -S . -B build-probes -DSTRATA_BUILD_PROBES=ON && cmake --build build-probes --target q2_rows_bench && taskset -c 3 build-probes/q2_rows_bench`
+  (or the four-line `g++` recipe in the file header). It prints ns/row for legacy, fast, the dispatcher and a read-only floor,
+  in L2 and in DRAM, and checks the outputs are bitwise equal. First numbers on the 5700G (Zen 3, no VNNI, 0.08 s runs, one
+  core): down rows 30.5 -> 22.8 ns (x1.33), gate/up rows 106 -> 86 ns (x1.23), both compute-bound (DRAM figures within ~6%
+  of the L2 ones; a read-only pass is 8-32 ns), outputs bitwise equal.
+
 ### 4.3 What transfers between the GPUs
 
 - Transfers (measure once, on either GPU): server and prompt-cache items (F1-F3), drafting and acceptance (F6, F8,
