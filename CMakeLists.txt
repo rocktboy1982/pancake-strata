@@ -2066,7 +2066,7 @@ endif()
 #     features, and the fallback exists for tests, exactly as P2.S3 specifies.
 # Plan v0.3 P6: speculation components that need no GPU.
 add_library(strata_spec STATIC src/spec/suffix_drafter.cpp src/spec/controller.cpp src/spec/draft_policy.cpp
-            src/spec/draft_source.cpp)
+            src/spec/draft_source.cpp src/spec/suffix_index.cpp)
 target_include_directories(strata_spec PUBLIC include)
 if(STRATA_BUILD_TESTS)
   add_executable(arch_defaults_test src/core/arch_defaults_test.cpp src/core/arch_defaults.cpp)
@@ -2102,6 +2102,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(suffix_drafter_test src/spec/suffix_drafter_test.cpp)
   target_link_libraries(suffix_drafter_test PRIVATE strata_spec)
   add_test(NAME suffix_drafter_test COMMAND suffix_drafter_test)
+  add_executable(suffix_index_test src/spec/suffix_index_test.cpp)   # A24: the cross-session suffix index (STRATA_SUFFIX_INDEX)
+  target_link_libraries(suffix_index_test PRIVATE strata_spec Threads::Threads)
+  add_test(NAME suffix_index_test COMMAND suffix_index_test)
   add_executable(controller_test src/spec/controller_test.cpp)
   target_link_libraries(controller_test PRIVATE strata_spec)
   add_test(NAME controller_test COMMAND controller_test)
@@ -3426,7 +3429,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
     pcie_share_rule_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
-    adapt_async_default_test uma_cache_test suffix_drafter_test controller_test draft_policy_test window_rule_test
+    adapt_async_default_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
     window_limits_test serve_stop_bound_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
