@@ -471,6 +471,11 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(adaptive_range_test PRIVATE include)
   add_test(NAME adaptive_range_test COMMAND adaptive_range_test)
 
+  # MOD_PLAN 16 A7 (STRATA_PROMO_CHUNK): chunked, cancellable promotions of the async adaptive tier (header-only, no GPU)
+  add_executable(promo_chunk_test tests/program/promo_chunk_test.cpp)
+  target_include_directories(promo_chunk_test PRIVATE include)
+  add_test(NAME promo_chunk_test COMMAND promo_chunk_test)
+
   # MOD_PLAN 11 items 3-4: the adaptive tier's seed at a request's start, per-domain profile and conversation working set
   # (STRATA_DOMAIN_PROFILES, STRATA_CONV_WORKSET; header-only, no GPU)
   add_executable(expert_seed_test tests/program/expert_seed_test.cpp)
@@ -3420,7 +3425,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     batch_telemetry_test logit_bias_test gguf_reader_test gguf_split_test model_family_test batch_read_test
     gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
-    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test expert_seed_test route_prior_scope_test run_manifest_test
+    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test run_manifest_test
     host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test file_expert_source_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
