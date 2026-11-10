@@ -472,6 +472,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_PLE_PIPE=1` (+`GATHER_THREADS=4`, `SLICES=4`, `EARLY`) | off | item 79 (`e2b3a3dad`, `3b5338412`): PLE gather off the critical path; `STRATA_PLE_COMPACT=1` now also with `--ple-io direct`; `STRATA_PLE_WAIT_TRACE=1` marks the waits |
 | `STRATA_CONV_BUDGET=ram` / `STRATA_CONV_KEEP_GIB=N` | off (40% rule stays) | item 86 (`ab4fe164b`, `c1b3fec32`): conversation cache sized from free RAM |
 | `STRATA_PSI_GUARD` | **on** (pause at 20%, resume at 10%, 30 s cap) | item 86: pauses loading / skips parking under memory pressure; timing only |
+| `STRATA_PARK_TRUNCATE=1` | off | TwoAnts/Strata `5ef4fc8b4b`, adapted: a conversation too large to park whole (cache byte budget or RAM floor) is parked at its deepest checkpoint prefix that fits instead of being dropped, so the next request re-reads only the tail, not token 0. Single GPU only; park side only (the fork's shrink-an-already-parked-entry half is not ported); exact (same K/V and running state as a checkpoint resume); unset or 0 = old behaviour |
 
 ### 6H. CLI flags
 
@@ -741,6 +742,8 @@ Credits, in the order the stack was built:
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
+- **TwoAnts** (TwoAnts/Strata), for `STRATA_PARK_TRUNCATE`: park the deepest checkpoint prefix that fits instead of
+  dropping a conversation too large for the cache.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
 - **kvcache-ai** (KTransformers), **sgl-project** (SGLang), **vllm-project** (vLLM), **NVIDIA** (TensorRT-LLM),
   **flashinfer-ai** (FlashInfer), for ideas and reference points.

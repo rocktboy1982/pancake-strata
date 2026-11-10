@@ -238,6 +238,27 @@ int64_t conversation_prefix(const ConversationCheckpoint& c, const std::vector<T
     return (int64_t) n;
 }
 
+/// STRATA_PARK_TRUNCATE: when a conversation of `ids` (with `images`) is too large to park whole, the checkpoints it
+/// could be parked at instead, deepest first: the indices into `checkpoints` of those whose ids are a strict prefix of
+/// `ids` (conversation_prefix: the same pictures below that length, so the K/V [0, L) the session holds is exactly the
+/// checkpoint's prefix) and that are worth a slot (`min_tokens`, as ConversationCache::wants; 0 = any).  The caller
+/// tries them in order and parks the first one whose snapshot is admitted; empty = nothing to truncate to.
+template<class Token>
+std::vector<size_t> conversation_truncation_landings(const std::vector<Token>& ids,
+                                                     const std::vector<ConversationImageKey>& images,
+                                                     const std::vector<ConversationCheckpoint>& checkpoints,
+                                                     int64_t min_tokens = 0) {
+    std::vector<size_t> out;
+    for (size_t i = 0; i < checkpoints.size(); ++i) {
+        const int64_t n = conversation_prefix(checkpoints[i], ids, images);
+        if (n > 0 && (min_tokens <= 0 || n >= min_tokens)) out.push_back(i);
+    }
+    std::stable_sort(out.begin(), out.end(), [&](size_t a, size_t b) {
+        return checkpoints[a].ids.size() > checkpoints[b].ids.size();
+    });
+    return out;
+}
+
 class ConversationCache {
 public:
     struct Match {

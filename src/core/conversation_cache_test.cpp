@@ -745,5 +745,44 @@ int main() {
         check(cache.drop_superseded(slot_ids, {}, slot_chain, true) == 1 && cache.size() == 0,
               "the slot's chain supersedes the richer copy");
     }
+    {
+        // STRATA_PARK_TRUNCATE: a conversation too large for the cache is parked at the deepest checkpoint prefix that
+        // fits.  conversation_truncation_landings names the candidates (deepest first); the cache admits the shorter image.
+        auto cp = [](std::vector<int32_t> ids, size_t gdn = 64) {
+            ConversationCheckpoint c; c.ids = std::move(ids); c.gdn.resize(gdn, 1); return c;
+        };
+        const std::vector<int32_t> ids{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        const std::vector<ConversationCheckpoint> chain{cp({1, 2, 3}), cp({1, 2, 3, 4, 5, 6}), cp({1, 2, 3, 4, 5, 6, 7, 8}),
+                                                        cp({1, 2, 9, 4}),            // another branch: not a prefix
+                                                        cp(ids),                      // the whole conversation: no truncation
+                                                        cp({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})};   // deeper than the live ids
+        auto landings = conversation_truncation_landings(ids, {}, chain);
+        check(landings.size() == 3 && landings[0] == 2 && landings[1] == 1 && landings[2] == 0,
+              "landings are the strict-prefix checkpoints, deepest first");
+        landings = conversation_truncation_landings(ids, {}, chain, 5);
+        check(landings.size() == 2 && landings[0] == 2 && landings[1] == 1,
+              "a landing below --conversation-cache-min-tokens is not offered");
+        check(conversation_truncation_landings(ids, {}, std::vector<ConversationCheckpoint>{}).empty(),
+              "no checkpoints, nothing to truncate to");
+        ConversationImageKey pic;
+        pic.start = 7;
+        const auto with_pic = conversation_truncation_landings(ids, std::vector<ConversationImageKey>{pic}, chain);
+        check(with_pic.size() == 2 && with_pic[0] == 1,
+              "a picture the checkpoint's prefix lacks rules that checkpoint out (here the 8-token one)");
+        // the cache: the whole image does not fit, the landing's does
+        auto build = [&](size_t n) {
+            SavedConversation s;
+            s.live.ids.assign(ids.begin(), ids.begin() + (std::ptrdiff_t) n);
+            s.live.gdn.resize(4096, 2);
+            return s;
+        };
+        ConversationCache cache(build(10).bytes() + 100, 4);
+        SavedConversation whole = build(10);
+        whole.live.gdn.resize(1 << 16, 2);
+        check(!cache.make_room(whole.bytes()) && !cache.put(std::move(whole)) && cache.size() == 0,
+              "the whole conversation is refused by the byte budget");
+        check(cache.put(build(6)) && cache.size() == 1 && cache.best(std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7}, {}, true).tokens == 6,
+              "the truncated image parks and the next request finds its 6-token prefix");
+    }
     std::printf("conversation_cache_test: %d checks passed\n", checks);
 }
