@@ -37,3 +37,11 @@ Harness change before 04c: the 1-minute load-average wait is gone (it was the fi
 Note (04b-04e): the ~25% slow runs line up with the CPU clock in the new APU telemetry (slow 3.43-3.67 GHz, normal
 3.9-4.1 GHz; GPU clocks equal).  04e also hit the oomd load kills (fixed in a595222ca: THP only when the free 2 MiB
 blocks hold the whole arena; os_tune.sh compact_unevictable_allowed=0) and other sessions' CPU load (most runs repeated).
+| 05s screen (`2026-11-10-test-phase/`, 1 pass, every attempt counted) | README small-flag stack | **-20%** | -1..+1% | - | - | drop (the stack is slower on the 7900 XT) |
+| 05s screen | --lookup-max-t 12 | -1.5..+2% | **+10..+12%** | - | (text differs) | promote -> 05c confirm + quality gate |
+| 05s screen | --spec-min-p 0.7 / LOOKAHEAD=0 / ROUTED_STREAM+COPY_WAIT_DEDUPE / MMVF_ROWS=1 / GDN_PP=2 | -2..-20% | -19..+4% | - | - | drop |
+
+Note (05s): the harness's own verdict dropped every arm because the base had no clean run (caveman-proxy and another
+session's python3 above the 25%-of-a-core foreign limit on all three attempts); noise did not move the base numbers
+(41% vs 74% foreign: same tok/s).  Fix: when every attempt is noisy, abtest keeps the quietest one instead of none.
+Arms with a single slow attempt at 3.2-3.6 GHz CPU (routed-dedupe, mmvf-rows) carry the CPU-clock effect, not the arm.
