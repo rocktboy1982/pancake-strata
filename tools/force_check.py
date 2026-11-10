@@ -15,8 +15,17 @@ argmax is not the forced token.  Nothing here depends on a drafter; it serves an
         --env STRATA_FORCE_FAULT=7:0.3 is the test fault (adds 0.3 to every 7th token's logit in the scored rows).
   force_check.py check --stock A.tsv B.tsv [...] --cand C.tsv [--delta D] [--json out.json]
         the two rules of the paper against the stock arms (>= 2 stock arms: the noise): exit 0 pass, 1 reject, 2 inconclusive
+  force_check.py ear     --stock A.tsv --cand C.tsv [--topk K] [--json out.json]
+         A56: the expected acceptance rate EAR (SLQ, IST-DASLab) and the "same top token" rate of CAND against the STOCK arm A on the same
+         forced positions.  Needs no engine.  check ... --ear adds the same numbers (stock arm 1 vs the candidate, and stock 1 vs stock 2 as noise).
   force_check.py selftest      the statistics on synthetic rows (no engine)
 
+EAR (A56): per position, p = the reference arm's next-token distribution renormalised over ITS top-K ids, q = the other arm's probabilities
+at those ids, renormalised; EAR_pos = sum_k min(p_k, q_k), EAR = the mean over all scored positions (SLQ's src/metrics/evaluation.py:
+compute_kl_and_ear, K = 10 there).  It is the chance that a draft from the reference's distribution survives rejection sampling against the
+other's, so it predicts the speculative acceptance of an approximation better than the 0/1 "same top token" rate.  The TSV holds only the top-K
+ids that STRATA_LOGPOS_TOPK asked for (`score --topk K`; the default stays 2, which makes EAR a top-2 figure): an id of the reference's list
+that the other arm's list lacks gets that list's smallest listed probability (an upper bound), and the count of such substitutions is printed.
 An "arm" = one scored TSV.  Which engine produced the continuation and which scored it is the caller's choice:
   - a change of the scorer (a different expert format, kernel, KV type): same SET.json, `score` with the candidate build/flags;
   - a change of the decode path (tree verify, a drafter): `gen` with the candidate, `score` with the STOCK scorer (the paper's way).
@@ -171,14 +180,14 @@ def cmd_score(a):
         with open(follow, "w") as ff:
             for it in items:
                 ff.write(",".join(map(str, it["cont"])) + chr(10))
-        env.update({"STRATA_FOLLOW": follow, "STRATA_FOLLOW_LOGPOS": str(out), "STRATA_LOGPOS_TOPK": "2"})
+        env.update({"STRATA_FOLLOW": follow, "STRATA_FOLLOW_LOGPOS": str(out), "STRATA_LOGPOS_TOPK": str(a.topk)})
         args = list(cfg["args"])
         if "--prompt-cache" in args:
             i = args.index("--prompt-cache")
             del args[i:i + 2]
         args += ["--prompt-cache", "0"] + extra
     else:
-        env.update({"STRATA_LOGPOS": str(out), "STRATA_LOGPOS_TOPK": "2", "STRATA_ROUTE_TAIL_SKIP": env.get("STRATA_ROUTE_TAIL_SKIP", "0")})
+        env.update({"STRATA_LOGPOS": str(out), "STRATA_LOGPOS_TOPK": str(a.topk), "STRATA_ROUTE_TAIL_SKIP": env.get("STRATA_ROUTE_TAIL_SKIP", "0")})
         args = scorer_args(cfg, total, extra)
     if mem_available_gb() < a.min_free_gb:
         raise SystemExit("only %.0f GB available (< %d): not starting an engine" % (mem_available_gb(), a.min_free_gb))
@@ -238,6 +247,95 @@ def load_arm(tsv):
             rows.append((am != tgt, max(0.0, lp_am - lp_t), (lp_am - lp2) if lp2 is not None else float("nan")))
         out[it["id"]] = rows
     return out
+
+
+# ------------------------------------------------------------------------------------------------ EAR (A56)
+def load_dists(tsv):
+    """-> {request id: {position: (argmax id, {id: probability})}}: the listed ids of every scored continuation position (the forced token
+    and the argmax from the fixed columns, the STRATA_LOGPOS_TOPK list from column 8 on)."""
+    meta = json.load(open(tsv + ".meta.json"))
+    lines = open(tsv).read().splitlines()
+    out = {}
+    for it in meta["items"]:
+        ids, P = it["ids"], it["prompt_len"]
+        rows = {}
+        for ln in lines[it["first_line"]:it["end_line"]]:
+            f = ln.split("\t")
+            pos = int(f[0])
+            if pos < P - 1 or pos + 1 >= len(ids):
+                continue
+            d = {int(f[1]): math.exp(float(f[2])), int(f[3]): math.exp(float(f[4]))}
+            for x in f[8:]:
+                i, _, v = x.partition(":")
+                if v:
+                    d[int(i)] = math.exp(float(v))
+            rows[pos] = (int(f[3]), d)
+        out[it["id"]] = rows
+    return out
+
+
+def ear_position(ref, cand, k):
+    """One position: (EAR_pos, substitutions).  ref / cand = {id: probability} of the listed ids.  S = the reference's k most likely listed ids;
+    p, q renormalised over S; an id of S that cand does not list gets cand's smallest listed probability (an upper bound)."""
+    top = sorted(ref, key=ref.get, reverse=True)[:k]
+    floor = min(cand.values())
+    miss = sum(1 for v in top if v not in cand)
+    p = [ref[v] for v in top]
+    q = [cand.get(v, floor) for v in top]
+    sp, sq = sum(p), sum(q)
+    if sp <= 0 or sq <= 0:
+        return 0.0, miss
+    return sum(min(a / sp, b / sq) for a, b in zip(p, q)), miss
+
+
+def ear_compare(ref, cand, k=10, seed=1, boots=2000):
+    """ref, cand: load_dists() results over the same set.  -> dict: EAR and the same-top-token rate, token-weighted over the positions both
+    arms scored, with a 95% bootstrap interval over requests."""
+    per = []   # per request: (positions, sum EAR, same-top count, substitutions)
+    for rid, rrows in ref.items():
+        crows = cand.get(rid)
+        if not crows:
+            continue
+        n = e = same = miss = 0
+        for pos, (am_r, dr) in rrows.items():
+            if pos not in crows:
+                continue
+            am_c, dc = crows[pos]
+            ep, m = ear_position(dr, dc, k)
+            n += 1
+            e += ep
+            same += am_r == am_c
+            miss += m
+        if n:
+            per.append((n, e, same, miss))
+    if not per:
+        raise SystemExit("ear: no position scored by both arms")
+    tot = sum(x[0] for x in per)
+
+    def agg(sel):
+        t = sum(per[j][0] for j in sel)
+        return sum(per[j][1] for j in sel) / t, sum(per[j][2] for j in sel) / t
+    ear, same = agg(range(len(per)))
+    rng = random.Random(seed)
+    es, ss = [], []
+    for _ in range(boots):
+        a, b = agg([rng.randrange(len(per)) for _ in per])
+        es.append(a)
+        ss.append(b)
+    es.sort()
+    ss.sort()
+    lo, hi = int(0.025 * boots), int(0.975 * boots) - 1
+    return {"requests": len(per), "positions": tot, "topk": k, "ear": round(ear, 5), "ear_ci95": [round(es[lo], 5), round(es[hi], 5)],
+            "same_top_token": round(same, 5), "same_top_token_ci95": [round(ss[lo], 5), round(ss[hi], 5)],
+            "substituted_ids": sum(x[3] for x in per)}
+
+
+def cmd_ear(a):
+    r = ear_compare(load_dists(a.stock), load_dists(a.cand), a.topk)
+    print(json.dumps(r, indent=1))
+    if a.json:
+        json.dump(r, open(a.json, "w"), indent=1)
+    return 0
 
 
 def ceil8(x):
@@ -310,6 +408,11 @@ def cmd_check(a):
     if len(stock) < 2:
         print("warning: one stock arm only: the noise between stock runs is not measured", file=sys.stderr)
     r = check(stock, cand, a.delta)
+    if a.ear:   # A56: the candidate vs stock arm 1 (and stock 1 vs stock 2: the noise), next to the mismatch rates
+        d0 = load_dists(a.stock[0])
+        r["ear"] = ear_compare(d0, load_dists(a.cand), a.topk)
+        if len(a.stock) > 1:
+            r["ear_stock1_vs_stock2"] = ear_compare(d0, load_dists(a.stock[1]), a.topk)
     print(json.dumps(r, indent=1))
     if a.json:
         json.dump(r, open(a.json, "w"), indent=1)
@@ -352,11 +455,16 @@ def main():
     s = sp.add_parser("score"); s.add_argument("config"); s.add_argument("set"); s.add_argument("out")
     s.add_argument("--path", choices=["decode", "prompt"], default="decode", help="decode: the real verify windows with the forced tokens (STRATA_FOLLOW); prompt: the text read as a prompt (STRATA_LOGPOS)")
     s.add_argument("--env", action="append"); s.add_argument("--arg", action="append"); s.add_argument("--min-free-gb", type=int, default=20)
+    s.add_argument("--topk", type=int, default=2, help="top-K ids and log-probabilities per position in the TSV (2: the gate's need; 10: EAR as SLQ defines it)")
     c = sp.add_parser("check"); c.add_argument("--stock", nargs="+", required=True); c.add_argument("--cand", required=True)
     c.add_argument("--delta", type=float); c.add_argument("--json")
+    c.add_argument("--ear", action="store_true", help="also print EAR and the same-top-token rate (A56)")
+    c.add_argument("--topk", type=int, default=10, help="with --ear: the K of EAR (the TSV must hold that many ids; see score --topk)")
+    e = sp.add_parser("ear"); e.add_argument("--stock", required=True); e.add_argument("--cand", required=True)
+    e.add_argument("--topk", type=int, default=10); e.add_argument("--json")
     sp.add_parser("selftest")
     a = ap.parse_args()
-    return {"gen": cmd_gen, "score": cmd_score, "check": cmd_check, "selftest": cmd_selftest}[a.cmd](a)
+    return {"gen": cmd_gen, "score": cmd_score, "check": cmd_check, "ear": cmd_ear, "selftest": cmd_selftest}[a.cmd](a)
 
 
 if __name__ == "__main__":

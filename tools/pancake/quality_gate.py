@@ -22,13 +22,13 @@ ROOT = abtest.ROOT
 PY = abtest.PY
 
 
-def score(cfg_path, set_path, tsv):
+def score(cfg_path, set_path, tsv, topk=2):
     cfg = json.load(open(cfg_path))
     envs = []
     for k, v in (cfg.get("env") or {}).items():
         envs += ["--env", f"{k}={v}"]
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
-    cmd = [str(ROOT / "tools/pancake/capped.sh"), PY, "tools/force_check.py", "score", cfg_path, set_path, tsv] + envs
+    cmd = [str(ROOT / "tools/pancake/capped.sh"), PY, "tools/force_check.py", "score", cfg_path, set_path, tsv] + (["--topk", str(topk)] if topk != 2 else []) + envs
     r = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True)
     if r.returncode != 0:
         sys.stderr.write(r.stdout[-2000:] + r.stderr[-2000:])
@@ -42,6 +42,8 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--set", default="bench/quality/set.json")
     ap.add_argument("--max-load", type=float, default=0.0)
+    ap.add_argument("--ear", action="store_true", help="A56: also report EAR (SLQ) and the same-top-token rate of every arm against stock 1; "
+                    "scores with the top-10 ids per position (--topk 10) so EAR has SLQ's K")
     a = ap.parse_args()
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
@@ -58,7 +60,7 @@ def main():
         abtest.make_config(base, spec["arms"][arm], cfg_path)
         path = str(out / f"{arm}{'-' + tag if tag else ''}.tsv")
         print(f"scoring {arm}{' (' + tag + ')' if tag else ''} ...", flush=True)
-        if not score(cfg_path, set_path, path):
+        if not score(cfg_path, set_path, path, 10 if a.ear else 2):
             print(f"  {arm}: scoring FAILED", flush=True)
             continue
         tsv.setdefault(arm, []).append(path)
@@ -72,7 +74,7 @@ def main():
             verdicts[arm] = "not scored"
             continue
         vj = str(out / f"{arm}.verdict.json")
-        r = subprocess.run([PY, "tools/force_check.py", "check", "--stock", *stock, "--cand", tsv[arm][0], "--json", vj],
+        r = subprocess.run([PY, "tools/force_check.py", "check", "--stock", *stock, "--cand", tsv[arm][0], "--json", vj] + (["--ear"] if a.ear else []),
                            cwd=ROOT, capture_output=True, text=True)
         verdicts[arm] = {0: "PASS", 1: "REJECT", 2: "INCONCLUSIVE"}.get(r.returncode, f"error {r.returncode}")
         (out / f"{arm}.verdict.txt").write_text(r.stdout)
