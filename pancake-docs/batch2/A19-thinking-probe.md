@@ -100,8 +100,9 @@ papers report (-20-40% of the thinking on routine turns) need the ground truth.
 On held-out requests (split by request, never by row): AUC, Brier, log loss, ECE (10 bins) and the reliability table; then the
 engine's stop rule (K in a row, min tokens) replayed per request for a threshold grid: fires, premature fires (a fire on a
 label-0 point), thinking tokens saved. The recommended threshold is the lowest whose premature-fire rate's Hoeffding upper
-bound stays under `--risk` (default 0.1, at `--delta` 0.1). This is a simple form of the paper's risk control (it uses
-Learn-then-Test).
+bound stays under `--risk` (default 0.1, at `--delta` 0.1). This is a simplified stand-in for Thought Calibration's own
+risk-controlled threshold choice (a Learn-then-Test style calibration); it bounds one threshold at a time, not the whole grid.
+With few requests the bound is loose: 40 fires with no premature fire give 0.17 at delta 0.1.
 
 ## Files changed
 
@@ -118,13 +119,18 @@ Learn-then-Test).
 
 ## Tests run
 
-See the coordinator report for the exact results of this branch:
-- `think_probe_test` (host-only C++, built with g++ alone outside CMake).
-- `python -m pytest tools/pancake/test_thinking_probe.py`.
-- `python -m pytest serve/test_think_probe.py serve/test_rumination.py`.
-
-Not built: the engine (`strata`, HIP and CUDA). `generate.cpp` and `verify.cpp` were only re-read for syntax, types and
-includes. Not run: any GPU test, the spec.
+**None ran.** A GPU A/B run (`abtest.py bench/specs/09-prefill.json --tier screen`) was active the whole evening, and
+`wait_quiet.sh` said busy three times, so per the batch rules nothing was compiled or executed. The only check was a
+syntax-only `ast.parse` of the four changed or new Python files: passed. Everything else was reviewed by reading only:
+- `think_probe_test` (host-only C++): not built, not run.
+  Run it with `cmake --build <dir> --target think_probe_test && ctest -R think_probe_test`.
+- `python -m pytest tools/pancake/test_thinking_probe.py`: not run (9 tests).
+- `python -m pytest serve/test_think_probe.py serve/test_rumination.py`: not run (3 new tests; the rumination tests check
+  that the shared soft-close code still works).
+- Not built: the engine (`strata`, HIP and CUDA). `generate.cpp` and `verify.cpp` were re-read for syntax, types and
+  includes (`copy_head_row` copies `copy_logits`'s pattern; `cudaMemcpyDeviceToHost` is already used in that file on HIP).
+- SYCL keeps its own `sycl/include/strata/core/verify.hpp` and `sycl/src/program/generate.cpp`: untouched, not hooked.
+- Not run: any GPU test, the spec.
 
 ## Spec to run
 
