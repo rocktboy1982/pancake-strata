@@ -65,7 +65,7 @@ def test_engine_lines():
 def test_shared_system_prompt_is_opt_in():
     C = RT.Counter("/nonexistent")
     plan = RT.plan_synthetic()
-    side = next(e for e in plan if e["kind"] == "side" and not e["repeat"])
+    side = max((e for e in plan if e["kind"] == "side" and not e["repeat"]), key=lambda e: e["target"])   # room for the shared text
     agent = plan[[e["kind"] for e in plan].index("agent")]
     try:
         RT.SHARED_SYSTEM = 0
@@ -73,7 +73,7 @@ def test_shared_system_prompt_is_opt_in():
         off_agent, _ = off.build(agent)
         off_side, _ = off.build(side)
         assert off.shared is None and off_side[0]["role"] == "user"          # the default: nothing changed
-        RT.SHARED_SYSTEM = 600
+        RT.SHARED_SYSTEM = min(600, side["target"] // 2)   # the shared system text must fit in the shortest side request
         on = RT.Conversations(C, RT.Corpus(RT.ROOT))
         on_agent, n1 = on.build(agent)
         on_side, n2 = on.build(side)
