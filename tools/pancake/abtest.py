@@ -123,15 +123,66 @@ def quiet_gate(max_load, max_foreign, own_roots, max_wait=3600):
     return False
 
 
+def _gpu_dir():
+    for d in sorted(Path("/sys/class/drm").glob("card*/device")):
+        if (d / "pp_dpm_sclk").exists() and list(d.glob("hwmon/hwmon*")):
+            return d
+    return None
+
+
+GPU_DIR = _gpu_dir()
+
+
+def gpu_sample():
+    """GPU telemetry (amdgpu sysfs): current shader / memory clock (MHz), edge / junction / memory temperature (C),
+    power (W), PCIe link speed.  Test 04b showed bimodal runs (~25% slower decode AND prompt read, no foreign CPU,
+    no reclaim): this tells a clock / thermal / link state apart from a host-side cause."""
+    if GPU_DIR is None:
+        return {}
+    def rd(n):
+        try:
+            return (GPU_DIR / n).read_text()
+        except OSError:
+            return ""
+    def cur_mhz(n):
+        for line in rd(n).splitlines():
+            if line.strip().endswith("*"):
+                return int("".join(ch for ch in line.split(":")[1] if ch.isdigit()) or 0)
+        return 0
+    h = next(GPU_DIR.glob("hwmon/hwmon*"))
+    def hw(n, div):
+        try:
+            return int((h / n).read_text()) / div
+        except (OSError, ValueError):
+            return 0.0
+    return {"sclk": cur_mhz("pp_dpm_sclk"), "mclk": cur_mhz("pp_dpm_mclk"), "t_edge": hw("temp1_input", 1000),
+            "t_junc": hw("temp2_input", 1000), "t_mem": hw("temp3_input", 1000), "watt": hw("power1_average", 1e6),
+            "link": rd("current_link_speed").strip(),
+            "vram_mib": int(rd("mem_info_vram_used") or 0) >> 20, "gtt_mib": int(rd("mem_info_gtt_used") or 0) >> 20}
+
+
 class NoiseMonitor(threading.Thread):
     def __init__(self, own_roots):
         super().__init__(daemon=True)
         self.own_roots, self.samples, self.stop_ev = own_roots, [], threading.Event()
+        self.gpu = []
+
+    def gpu_summary(self):
+        """Busy samples only (sclk above idle): mean shader / memory clock, max temperatures, mean power, link."""
+        busy = [g for g in self.gpu if g and g["sclk"] > 500] or [g for g in self.gpu if g]
+        if not busy:
+            return {}
+        mean = lambda k: round(sum(g[k] for g in busy) / len(busy))
+        top = lambda k: round(max(g[k] for g in busy))
+        return {"sclk": mean("sclk"), "mclk": mean("mclk"), "t_junc_max": top("t_junc"), "t_mem_max": top("t_mem"),
+                "watt": mean("watt"), "link": sorted({g["link"] for g in busy}), "n": len(busy),
+                "vram_mib_max": top("vram_mib"), "gtt_mib_max": top("gtt_mib")}   # GTT growth = VRAM evicted to RAM
 
     def run(self):
         while not self.stop_ev.is_set():
             fc, top = foreign_cpu(3, self.own_roots)
             self.samples.append((fc, top, foreign_cpu.reclaim))
+            self.gpu.append(gpu_sample())
 
     def result(self):
         self.stop_ev.set()
@@ -235,7 +286,7 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port):
         return None, f"expected {len(cases)} engine lines, got {len(rows)}"
     for c, r in zip(cases, rows):
         r["case"] = c
-    return {"rows": rows, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2)}, None
+    return {"rows": rows, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2), "gpu": mon.gpu_summary()}, None
 
 
 def ci(xs):
@@ -313,7 +364,9 @@ def main():
             out.flush()
             desc = " ".join(f"{x['case']} {x['decode_tps']:.1f}" + (f"/{x['prompt_tps']:.0f}p" if x["case"] == "long" else "")
                             for x in res["rows"])
-            print(f"rep {r} {arm:20s} {desc}  foreign CPU {res['noise']:.0f}% {res['noise_top']}"
+            g = res.get("gpu") or {}
+            gd = f"  gpu {g['sclk']}/{g['mclk']} MHz {g['t_junc_max']}C {g['watt']}W gtt {g.get('gtt_mib_max', 0)}M" if g else ""
+            print(f"rep {r} {arm:20s} {desc}  foreign CPU {res['noise']:.0f}% {res['noise_top']}{gd}"
                   f"{'' if clean else '  NOISY -> repeat'}", flush=True)
             if clean:
                 results.setdefault(arm, []).append(res)

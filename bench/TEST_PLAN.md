@@ -76,3 +76,15 @@ they merge, each with its own arm.
 
 Phase 0 (~1 h) -> 1 (~1.5 h) -> 2.1, 2.2 (largest modeled gains) -> 2.3-2.5 -> 2.6-2.8 -> 2.9-2.12.
 About 1 h per group with 3 reps; one group at a time, results and decisions written after each.
+
+## Phase 3 - candidates from the Strata fork survey (reports/Forkuri Strata câștig viteză.md, 2026-11-10)
+
+| # | Spec | Items | Kind |
+|---|---|---|---|
+| 3.1 | 10-measure | `STRATA_DUMMY_NODES=10/40` (graph node cost), per-run AnonHugePages / VRAM / GTT / clocks (harness telemetry, done), `strata_bench.py --runs 3 --long` median [min-max] | measurement |
+| 3.2 | 11-env-prefill | `STRATA_GDN_PP=2`, `STRATA_PREFILL_LAYER_MAJOR=1`, `STRATA_DENSE_MMQ=1` (after checking the MMQ `% 256` gate), `--vram-reserve-mib` 444 / 1000 | env only, exact |
+| 3.3 | 12-env-tier | `--kv-grow`, `--adapt-decay` x `--adapt-swaps` grid, `--spec-min-p 0.7` | env only |
+| 3.4 | 13-small-ports | upstream #5655 route_prior fix (first, mandatory), PCIe staging off at `--pcie-frac 0` (strata-slim 0003), DraftPolicy clip (gfx1030), `POOL_GUIDED` (Strata-GLM), Argon AVX2 accumulators / row granularity, rdna3 `1799c0a3a` + `3dbb40516` | small ports, exact |
+| 3.5 | 14-larger | routed-only prompt expert streaming (gfx1030 `PF_STREAM_ROUTED`, check `PIN_BY_NEED` first), `VRAM_CALIB` (#5691), fragile-token recheck over turbo-hip (HotRod) with a momoe-style quality gate | medium / large |
+
+Rebase hazard noted: upstream v0.2.13 enables the hipBLASLt table automatically only on gfx1151 - keep `STRATA_HIPBLASLT_TABLE=on` in the -hip presets.
