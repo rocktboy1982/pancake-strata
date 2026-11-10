@@ -178,6 +178,17 @@ if(NOT STRATA_CPU_X86)
   set(_strata_tests_default OFF)
 endif()
 option(STRATA_BUILD_TESTS "Build the test suite" ${_strata_tests_default})
+# A test that needs a model file (a real expert blob from a pack, which is not in the source tree): registered as the real test
+# when the file is there, and otherwise as a stated skip that ctest lists as "Skipped" with this reason, never as a pass of nothing
+# and not as a failure on a machine that has no pack.  (upstream e396ce821, the pack-test part only)
+function(strata_add_pack_test name needs)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${needs}")
+    add_test(NAME ${name} COMMAND ${ARGN} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  else()
+    add_test(NAME ${name} COMMAND ${CMAKE_COMMAND} -E echo "SKIPPED: ${name} needs ${needs} (a Q2_0 expert pack, a model file), which is not in this tree")
+    set_tests_properties(${name} PROPERTIES SKIP_REGULAR_EXPRESSION "SKIPPED: ")
+  endif()
+endfunction()
 option(STRATA_BUILD_CONVERSATION_TESTS "Build standalone conversation cache tests" OFF)
 option(STRATA_WERROR "Treat compiler warnings as errors" OFF)
 # #2027: defined here, before the GPU section reads it to register the native-expert tests (it was defined at the
@@ -2213,6 +2224,17 @@ else()
               src/kernels/cpu/expert_layout.cpp src/kernels/cpu/hadamard.cpp)
 endif()
 target_include_directories(strata_kernels_cpu PUBLIC include)
+# expert_layout.cpp (above) names the AVX1 rung of the Q2_0 rows and the activation quantizer; with STRATA_NATIVE_EXPERTS=ON
+# q2_avx1.cpp joins the library in the native-experts section below (default, release builds).  Without it the library has
+# to carry that file itself, or every program that links it fails with undefined *_avx1 symbols.  (upstream e396ce821)
+if(STRATA_CPU_X86 AND NOT STRATA_NATIVE_EXPERTS)
+  target_sources(strata_kernels_cpu PRIVATE src/kernels/cpu/q2_avx1.cpp)
+  if(MSVC)
+    set_source_files_properties(src/kernels/cpu/q2_avx1.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX")
+  else()
+    set_source_files_properties(src/kernels/cpu/q2_avx1.cpp PROPERTIES COMPILE_OPTIONS "-msse4.2;-mavx;-mno-avx2;-mno-fma;-mno-f16c")
+  endif()
+endif()
 # Plan v0.3 P6: only the kernel files get the AVX-512 / AVX2 flags; the pool and the probe run on any x86-64,
 # and the engine picks the kernels at run time (cpu_avx512_ok).
 if(MSVC)
@@ -3063,12 +3085,11 @@ if(STRATA_BUILD_TESTS)
   target_link_libraries(expert_parity PRIVATE strata_kernels_cpu)
   # The pack is a REQUIRED input, not an optional one: this test compares against a real expert blob, and a
   # missing file would otherwise be reported as a pass by a test that skipped everything.
-  add_test(NAME expert_parity COMMAND expert_parity --selftest
-           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  strata_add_pack_test(expert_parity pack/full/experts.bin expert_parity --selftest)
 
   add_executable(pool_test src/kernels/cpu/pool_test.cpp)
   target_link_libraries(pool_test PRIVATE strata_kernels_cpu)
-  add_test(NAME pool_test COMMAND pool_test --selftest WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  strata_add_pack_test(pool_test pack/full/experts.bin pool_test --selftest)
   # where the workers are placed (one per physical core by default) and --pool-cores (real pools, no model)
   add_executable(pool_cores_test src/kernels/cpu/pool_cores_test.cpp)
   target_link_libraries(pool_cores_test PRIVATE strata_kernels_cpu)
