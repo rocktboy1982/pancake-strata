@@ -28,7 +28,7 @@ any rule that only stops earlier).  DISCO can only cut a logged chain, never ext
 chains: requests with "spec_min_p": 0 (and no STRATA_SPEC_COST), so every draft the MTP made is verified and labelled.
 
 Offline estimate only: a cut window moves where the next windows start, which the replay ignores, and the cost model is a
-linear fit.  Measure the result with the A/B spec (bench/specs/24-disco.json) before trusting it.
+linear fit.  Measure the result with the A/B spec (bench/specs/24-a22-disco.json) before trusting it.
 """
 import argparse
 import csv
