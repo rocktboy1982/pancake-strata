@@ -51,3 +51,5 @@ Arms with a single slow attempt at 3.2-3.6 GHz CPU (routed-dedupe, mmvf-rows) ca
 | 07 screen | --mtp-q4 head | - | - | - | - | **fails to start on HIP** ("mtp: writing the draft head": cudaMemcpy of the Q4_0 head fails, exit 1); bug, not tested |
 | 07b screen | STRATA_MTP_EAGER=1 | -0.6% | +15.4% | - | - | promote -> 06c confirm |
 | 07b screen | STRATA_CACHE_MESSAGE_BOUNDARY=1 + --prompt-cache-tail / STRATA_MTP_HIP_PRIO=1 | -2.3% / -17.7% | -11.0% / +14.5% | - | - | drop |
+| 06c confirm (4 reps) | turbo (ROUTE_PRIOR=0.5) on fast-hip + lookup12 | +4.1% n.s. | +29.7% +-53.6 (3 of 4 runs +45%: 194-199 vs 130-140; one whole run slow) | - | **INCONCLUSIVE** (2.65% tokens differ vs stock 1.8%, diff +0.83 pts, CI90 upper 1.27 vs bound 1.25; 0 large-margin events) | stays the opt-in lossy `turbo` preset; turbo-hip synced with the adopted items |
+| 06c confirm | STRATA_MTP_EAGER=1 | +8.6% n.s. | +1.6% +-5.2 n.s. | - | PASS | opt-in (the screen's +15% was noise) |

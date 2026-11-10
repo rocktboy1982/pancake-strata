@@ -1,0 +1,18 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "lossy": false,
+ "note": "short check (owner: keep it short) of MTP_HIP_PRIO after 06c: the screen-07b edit gain sat in the same noisy row where MTP_EAGER also showed +15% that the 06c confirm did not reproduce (+1.6%). Decides whether an acceptance-gated priority switch is worth building.",
+ "arms": {
+  "base": {},
+  "mtp-hip-prio": {
+   "env": {
+    "STRATA_MTP_HIP_PRIO": "1"
+   }
+  }
+ }
+}
