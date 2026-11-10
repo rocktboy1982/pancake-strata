@@ -14,7 +14,7 @@ every item, even env-only and exact ones, got the full 3-rep A B B A treatment p
 | Tier | When | How (`tools/pancake/abtest.py`) | Time per arm |
 | --- | --- | --- | --- |
 | 0. offline | anything a replay or a byte count can answer (cache policy, drafting headroom, park decisions) | cache_sim, `tail_replay.py`, log replays; no GPU | 0 GPU minutes |
-| 1. screen | every candidate, first | `--tier screen`: one A B pass, short + edit, 2 requests per case in the same server; promote if >= +2% on a case and no case below -3%, else drop | ~2-3 min |
+| 1. screen | every candidate, first | `--tier screen`: one A B pass, short + edit, 2 requests per case in the same server; promote if >= +2% on a case and no case below -3%, else drop. A spec with `"prefill": true` (arms that change prompt reading) also keeps its `long*` cases, one request each, judged on prompt tok/s with the same thresholds | ~2-3 min (+ ~20-60 s per long read) |
 | 2. confirm | only screen winners | `--tier confirm` (default): A B B A up to 3 reps with **early stop** (stops once every arm/case is decided or its interval is below 1.5% of base) | ~5-12 min |
 | 3. rigorous | only: lossy items, a change of a preset default, anything whose generated text differs from base, long-context claims | confirm + `--no-early-stop` + `quality_gate.py` (token forcing: rejects only large deviations) + **`task_gate.py`** (A55: fixed task set, repeated, decides between close variants; includes the tool-call validity check, so no separate tool-call gate) + 32K/64K/128K cases | 20-60 min (+ ~15-25 min per arm for the task gate at 5 reps; est., first run pending) |
 
@@ -36,8 +36,12 @@ Rules:
 - One decision per item: if an item comes back "no difference" from confirm, it is opt-in or removed; re-test it
   only after a code change, not to try again.
 - Batch arms: put all env-only arms of one area in one spec (one base, many arms) instead of one spec per arm.
-- Workloads: short chat, code edit (2K prompt); the 11.7K read case and 32K / 64K / 128K only in the rigorous tier
-  or for prefill items.
+- Workloads: short chat, code edit (2K prompt); the read cases `long` (11.7K tokens), `long32k`, `long64k` (prompt tok/s) only
+  for prefill items (spec key `"prefill": true`, then also in the screen) or the rigorous tier; 128K is not an abtest case.
+  Every `long*` request starts with a unique `[run <nonce>-<n>]` line, so prompt reading is always cold (no prompt cache,
+  in memory or on disk, can serve a repeat or another arm) and its text hash is not compared between arms; `long32k` /
+  `long64k` are ~32000 / ~64000 tokens of `src/**/*.cpp` (deterministic; the engine's token count is printed per run and
+  checked against the target) and request 32 tokens only.
 - Machine: the engine on 8080 is stopped during the test.
 - Result per item: one line in `bench/results/<day>-test-plan/RESULTS.md`: claim, tier reached, measured, verdict,
   action.
@@ -161,7 +165,7 @@ then `--tier confirm` on a copy of the spec trimmed to the promoted arms (plus b
 | 3 | `12-spec-sampling.json` | `f6-dt100`, `f6-dt085` (SPEC_PROB + COUPLED + GATE=top, DT 1.0 / 0.85), run at T 1.0, top_p 0.95 | short, edit | 4.1.2 (4.0.2 answered: opencode is sampled) |
 | 4 | `13-lookup.json` | `lookup-t16`, `lookup-chain3` | short, edit | 4.1.3 |
 | 5 | `14-hip-env.json` | `sh-stream1`, `hwq4`, `hwq8`, `aux-auto` | short, edit | 4.1.4, 4.1.6 |
-| 6 | `14b-hip-prefill.json` | `automax24576`, `wmma-gemm`, `hcdown0` | edit, long | 4.1.5, 4.1.8; screen cannot see prefill (drops long): go straight to `confirm --reps 2` |
+| 6 | `14b-hip-prefill.json` | `automax24576`, `wmma-gemm`, `hcdown0` | edit, long32k | 4.1.5, 4.1.8; `"prefill": true`: the screen keeps long32k (one cold ~32K read per arm, prompt tok/s), so the 32K claim is tested in the screen itself; promoted arms then `confirm --reps 2` |
 | 7 | `16-3060-env.json` | `expdec0`, `hcq8-0`, `pf-fused1`, `pcie0`, `pcie-auto`, `pcie-balance` | short, edit, long | 4.1.7, only when the 3060 is back; regenerate its base file first (spec note) |
 
 Notes: `12` needs `temperature` in the spec, a new optional abtest key (`temperature`, `top_p`, `seed`; absent =
@@ -189,7 +193,7 @@ and the single-flag arms say which flag carries it. The replay is deterministic 
 | 4.1.2 | both | F6 arms (`STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top`, DT 1.0 / 0.85), only if 4.0.2 says sampled | F6 |
 | 4.1.3 | both | `--lookup-max-t 16`, `--lookup-chain 3` on code-edit turns | lookup settings |
 | 4.1.4 | 7900 XT | `STRATA_SH_STREAM=1` (xyzzing: +4.0% on gfx1100; our preset sets 0 with no recorded A/B) | preset change |
-| 4.1.5 | 7900 XT | `STRATA_PREFILL_AUTO_MAX=24576` at 32K (rxr2: +15% on a 64 GB box); `STRATA_WMMA_GEMM=1` prompt | preset change |
+| 4.1.5 | 7900 XT | `STRATA_PREFILL_AUTO_MAX=24576` at 32K (rxr2: +15% on a 64 GB box); `STRATA_WMMA_GEMM=1` prompt; case `long32k` (cold ~32K read, prompt tok/s), spec 14b | preset change |
 | 4.1.6 | 7900 XT | `GPU_MAX_HW_QUEUES` 4 / 6 / 8; `--aux-cpus auto` | preset change |
 | 4.1.7 | 3060 (when installed) | `STRATA_EXPDEC` 1 vs 0, `STRATA_HC_Q8` 1 vs 0 (KhaledElzarw: EXPDEC -3.0%, HC_Q8 +0.9% and lossy on a 3090), `STRATA_PF_FUSED=1` (AdrianBM96: +5.2% prompt on a 3060), `--pcie-frac` 0 / auto / `STRATA_PCIE_BALANCE=1` | 3060 preset; F15 only if PCIe share > 0 wins |
 | 4.1.8 | 7900 XT | quality check of `STRATA_PF_HCDOWN=1` (rxr2: doubled first-token KL at 16K for +1.3% prompt) | keep or drop in the preset |

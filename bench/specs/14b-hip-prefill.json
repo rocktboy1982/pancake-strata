@@ -6,8 +6,9 @@
   "wmma-gemm": {"env": {"STRATA_WMMA_GEMM": "1"}},
   "hcdown0": {"env": {"STRATA_PF_HCDOWN": "0"}}
  },
- "cases": ["edit", "long"],
+ "cases": ["edit", "long32k"],
+ "prefill": true,
  "reps": 3,
  "lossy": true,
- "note": "TEST_PLAN 4.1.5 / 4.1.8, prefill-side hip env arms. Metric for 'long' is prompt tok/s (the ~16K-token read); 'edit' = 2K prompt + decode. SCREEN CAVEAT: --tier screen drops the long case, so for these arms it only checks decode (edit); to see prefill run '--tier confirm --reps 2' straight away (as 09-prefill). AUTO_MAX = ceiling of the auto prefill chunk (preset 32768): the long case is ~16K tokens, and the claimed +15% at 32K (rxr2, 64 GB box) needs a 32K prompt: add one in the rigorous run if 24576 wins here. hcdown0 is the quality arm of 4.1.8: the preset has PF_HCDOWN=1 (rxr2: doubled first-token KL at 16K for +1.3% prompt); this arm measures the speed given up by turning it off, the KL comes from quality_gate.py on the 1-vs-0 pair. WMMA_GEMM and HCDOWN change the text (lossy: true): expect a different hash."
+ "note": "TEST_PLAN 4.1.5 / 4.1.8, prefill-side hip env arms. 'prefill': true makes --tier screen keep long32k (one request per server, prompt tok/s, same promote/drop thresholds as decode); 'edit' = 2K prompt + decode. long32k = ~32000 prompt tokens of src/**/*.cpp, read COLD (unique first line per request, so no prompt cache can help), max_tokens 32. It tests the rxr2 claim directly: AUTO_MAX = ceiling of the auto prefill chunk (preset 32768), +15% claimed at 32K on a 64 GB box with 24576. Run '--tier screen' first, then '--tier confirm --reps 2' on the promoted arms; add long64k for a context-scaling check on a winner. hcdown0 is the quality arm of 4.1.8: the preset has PF_HCDOWN=1 (rxr2: doubled first-token KL at 16K for +1.3% prompt); this arm measures the speed given up by turning it off, the KL comes from quality_gate.py on the 1-vs-0 pair. WMMA_GEMM and HCDOWN change the text (lossy: true); the text hash of long* cases is not compared (unique prefix), edit's is."
 }
