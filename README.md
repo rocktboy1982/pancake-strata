@@ -397,6 +397,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | --- | --- | --- | --- | --- | --- |
 | `STRATA_COMBINE_CPU` | `verify.cpp`, `native_moe.hpp` | off | exact | verify combine reads CPU rows straight from mapped host memory | ported; conflict with deferral fixed |
 | `STRATA_WAIT_FUSE` | `verify_kernels.hpp`, `verify.cpp`, `native_moe.cu` | off | exact | wait_flag_ge + mapped copy in one launch | in the fast-hip preset |
+| `STRATA_WAIT_COPY256=1` | `verify_kernels.cu` (android-imdad, `caa9b00115`) | off | exact | the wait-flag plan copy with 256 threads and 16-byte reads when aligned (4-byte loop otherwise) | upstream: host write -> plan 4.47 -> 3.57 us on an RX 7900 XTX; not re-measured here |
 | `STRATA_ROUTE_PUBLISH` | `native_router.cu`, `route_row.cuh`, `verify.cpp` | off | exact | top-10 + doorbell publish in one launch | in the fast-hip preset; **off under deferral** (non-finite fix d5b58f669) |
 | `STRATA_ROUTER_FUSE` | `native_bf16.cu`, `bf16_gemv.hpp` (item 48) | off | exact | the router GEMV's last block routes and publishes | ~1% short chat |
 | `STRATA_COMBINE_POLL1` | `native_moe.cu` (item 46) | off | exact | one block polls the host flag over PCIe, the others spin on VRAM | 0-3% |
@@ -737,6 +738,7 @@ Credits, in the order the stack was built:
 - **Jarson1408** (FastStrata) and **simplexai-labs** (PolyStrata), for the `strata-poly` engine.
 - **nicejunjie** (Strata-rdna3), for the RDNA3 kernels this project ported and fused.
 - **jesdga95** (basalt), for the head kernels, the draft proxy and the grammar path.
+- **android-imdad** (Strata-7900xtx, MIT), for the 256-thread 16-byte expert plan copy (`STRATA_WAIT_COPY256`).
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**

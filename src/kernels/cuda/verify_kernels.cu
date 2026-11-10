@@ -1754,18 +1754,32 @@ void defer_add_rows(const float* parts, const float* w, const float* inject, flo
 
 namespace {
 __global__ void wait_copy_i32_kernel(const volatile uint32_t* flag, uint32_t value, int32_t* __restrict__ dst,
-                                     const volatile int32_t* src, int n) {
+                                     const volatile int32_t* src, int n, bool vec4) {
     if (threadIdx.x == 0) {
         while (*flag < value) strata_spin_pause();
         __threadfence_system();
     }
     __syncthreads();
+    // STRATA_WAIT_COPY256=1: 16-byte reads of the mapped plan (vec4 = both pointers 16-byte aligned and n % 4 == 0, set
+    // by the host); the same words, read after the same flag and fence as the 4-byte loop below
+    if (vec4) {
+        const int n4 = n >> 2;
+        const volatile int4* s4 = reinterpret_cast<const volatile int4*>(src);
+        int4* d4 = reinterpret_cast<int4*>(dst);
+        for (int i = threadIdx.x; i < n4; i += blockDim.x) d4[i] = const_cast<const int4*>(s4)[i];
+        return;
+    }
     for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
 }
 }  // namespace
 void wait_copy_i32_from_mapped(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
                                void* stream) {
-    wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    // STRATA_WAIT_COPY256 (opt-in, read once): 256 threads instead of 128, and 16-byte reads when the copy is aligned
+    // (else the 4-byte loop). Upstream measured host write -> plan on the GPU 4.47 -> 3.57 us on an RX 7900 XTX.
+    static const bool wide = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
+    const bool vec4 = wide && (n & 3) == 0 &&
+                      ((reinterpret_cast<uintptr_t>(dst) | reinterpret_cast<uintptr_t>(src)) & 15) == 0;
+    wait_copy_i32_kernel<<<1, wide ? 256 : 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n, vec4);
     check("wait_copy_i32_from_mapped");
 }
 
