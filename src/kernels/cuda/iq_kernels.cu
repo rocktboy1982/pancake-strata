@@ -6281,6 +6281,93 @@ __global__ void __launch_bounds__(256) native_gu_fused_kernel(const unsigned lon
     }
 }
 
+// ---- 10 (MOD_PLAN F14, from KhaledElzarw/Strata 4d462ccff3, MIT), down Q2_0 at n_ff 640 (20 calls a row):
+// native_down_multi_kernel's row_dot_20_sub16 tree on 4 lanes instead of 16.  There lane t (of 16) sums call t (and
+// call t + 16 for t < 4, into s16) from 0, joins the two with __fadd_rn (+ 0.0f where there is no second call: -0
+// becomes +0), then adds lane t ^ 8, t ^ 4, t ^ 2, t ^ 1.  Here lane u (of 4) holds the values of the 16-lane lanes
+// u, u + 4, u + 8, u + 12 (calls u, u + 4, u + 8, u + 12 and u + 16: every lane busy, against 20 of 32 call slots
+// there), adds them in the butterfly's own first two levels ((u + (u + 8)) + ((u + 4) + (u + 12)), own value first as
+// the shuffle adds), then shuffles the last two (xor 2, xor 1: inside the 4-lane group): the same additions on the same
+// values in the same order, so every (row, entry) sum is the same bits.  A call's weights are decoded once
+// (Split<42>::load) for every entry of the chunk (apply_u = apply on the same words, as the EXPDEC kernels); the
+// chunk's q8_1 blocks sit in shared memory as two int4 planes and the float block scale.  64 rows a block.
+// The fork (RTX 3090, sm_86 like the 3060): bitwise equal to mode 0 / 8 on every Q2_0 layer at 1-8 entries a group
+// (native_expert_bench), whole-engine forced decode identical, down time 0.52-0.78 of mode 0's, real-turn A/B +2.0%.
+// Selected by STRATA_EXP_MODE=9 + STRATA_EXP9_DOWN=42:10 (exp9_mode) or STRATA_EXP_MODE=10; opt-in.
+__global__ void __launch_bounds__(256) native_down_q2_sub4_kernel(const unsigned long long* __restrict__ grp_ptr,
+                                                                  const int32_t* __restrict__ grp_start,
+                                                                  const int32_t* __restrict__ n_groups,
+                                                                  const int32_t* __restrict__ ent_dst,
+                                                                  const block_q8_1* __restrict__ hq, NativeExpertLayout L,
+                                                                  float* __restrict__ out) {
+    using S = Split<42>;
+    static_assert(GRP_NC == 4, "the n switch below and the u == c store cover four entries a chunk");
+    const int ng = *n_groups;
+    if ((int) blockIdx.y >= ng) return;
+    __shared__ int4 s_lo[GRP_NC * 20], s_hi[GRP_NC * 20];
+    __shared__ float s_d8[GRP_NC * 20];
+    const int u = threadIdx.x & 3;
+    const int r = blockIdx.x * 64 + (threadIdx.x >> 2);
+    const bool valid_r = r < L.n_embd;
+    const size_t w_off = L.down_off + (size_t) (valid_r ? r : 0) * L.d_row;
+    for (int g = blockIdx.y; g < ng; g += gridDim.y) {
+        const uint8_t* wr = (const uint8_t*) grp_ptr[g] + w_off;
+        const float sd = L.tail_off ? ((const float*) (grp_ptr[g] + L.tail_off))[2] : 1.0f;   // NVFP4: s_down (as mode 0)
+        const int e0 = grp_start[g], e1 = grp_start[g + 1];
+        for (int e = e0; e < e1; e += GRP_NC) {
+            const int n = min(GRP_NC, e1 - e);
+            if (g > (int) blockIdx.y || e > e0) iq_sync_lds();   // the previous chunk's reads are done
+            for (int i = threadIdx.x; i < n * 20; i += 256) {
+                const block_q8_1* src = hq + (size_t) e * 20 + i;   // the chunk's entries are contiguous (entry e at e * 20)
+                const int* w = (const int*) src->qs;
+                s_lo[i] = make_int4(w[0], w[1], w[2], w[3]);
+                s_hi[i] = make_int4(w[4], w[5], w[6], w[7]);
+                s_d8[i] = __low2float(src->ds);
+            }
+            iq_sync_lds();
+            // (a row past n_embd computes row 0's sums and stores nothing: every lane reaches the shuffles)
+            auto pass = [&](auto ntc) {
+                constexpr int NC = decltype(ntc)::value;
+                float v[5][NC];   // v[i]: call u + 4 i summed from 0 (v[4] = call u + 16, the 16-lane lane u's s16)
+#pragma unroll
+                for (int i = 0; i < 5; ++i)
+#pragma unroll
+                    for (int c = 0; c < NC; ++c) v[i][c] = 0.0f;
+#pragma unroll
+                for (int i = 0; i < 5; ++i) {
+                    const int k = u + 4 * i;   // Fmt<42>: ipb 2, step 1, so kbx = k / 2, iqs = k % 2 and its q8_1 block is k
+                    const S::W w = S::load(wr, k >> 1, k & 1);
+#pragma unroll
+                    for (int c = 0; c < NC; ++c) {
+                        const int4 p = s_lo[c * 20 + k], q = s_hi[c * 20 + k];
+                        const int uu[8] = { p.x, p.y, p.z, p.w, q.x, q.y, q.z, q.w };
+                        v[i][c] += S::apply_u(w, uu, s_d8[c * 20 + k]);
+                    }
+                }
+#pragma unroll
+                for (int c = 0; c < NC; ++c) {
+                    const float a0 = __fadd_rn(v[0][c], v[4][c]);   // 16-lane lane u: s + s16
+                    const float a4 = __fadd_rn(v[1][c], 0.0f);      // lanes u + 4, u + 8, u + 12: s + 0.0f
+                    const float a8 = __fadd_rn(v[2][c], 0.0f);
+                    const float a12 = __fadd_rn(v[3][c], 0.0f);
+                    const float b0 = a0 + a8;                       // xor 8 (own value first, as the shuffle adds)
+                    const float b4 = a4 + a12;
+                    float x = b0 + b4;                              // xor 4
+                    x += __shfl_xor_sync(0xffffffffu, x, 2);
+                    x += __shfl_xor_sync(0xffffffffu, x, 1);
+                    if (valid_r && u == c) out[(size_t) ent_dst[e + c] * L.n_embd + r] = x * sd;   // lane c stores entry c
+                }
+            };
+            switch (n) {
+                case 1: pass(std::integral_constant<int, 1>{}); break;
+                case 2: pass(std::integral_constant<int, 2>{}); break;
+                case 3: pass(std::integral_constant<int, 3>{}); break;
+                default: pass(std::integral_constant<int, 4>{}); break;
+            }
+        }
+    }
+}
+
 // dflash2-kern: Strix Halo (gfx1151) takes mode 8 (gate/up + SwiGLU + q8_1 in one launch, the group's activations in LDS) for the
 // IQ packs' gate/up: native_expert_bench on the IQ3_S pack's real rows, 45 groups of one entry (a 8-token verify window's call),
 // gate/up -25% (IQ2_S), -8% (IQ3_XXS), -6% (IQ3_S), bitwise equal to mode 0.  STRATA_GFX1151_EXP8=0 keeps the old layout.
@@ -6342,6 +6429,35 @@ int exp_mode() {
     }
     return per_dev[dev] - 1;
 #endif
+}
+#endif
+#if STRATA_EXP_LAYOUTS && !defined(STRATA_HIP_GFX906)
+// MOD_PLAN F14 (from KhaledElzarw/Strata 9af8f1fa14, MIT): STRATA_EXP_MODE=9 (opt-in) picks the layout per FORMAT and
+// per phase instead of one for the whole call.  The fork's table, read off native_expert_bench on an RTX 3090 (all 48
+// layers of Flash-Next IQ3_XXS, groups x entries 16x1 / 24x2 / 32x3, every layer bitwise equal to mode 0): gate/up
+// IQ3_S (21) takes mode 8's fused kernel (0.70-0.79 of mode 0's time), IQ2_S (22) 0.90-0.94, IQ2_XXS (16) 0.87-0.96,
+// IQ3_XXS (18) 0.94-0.95; IQ2_XS (17) and the other formats keep mode 0; down Q2_0 (42) takes mode 8's LDS rows
+// (0.80-0.84), IQ4_NL and the others keep mode 0.  Every layout is bitwise mode 0's (native_expert_bench checks each
+// call), so mixing them per phase changes only the time.  STRATA_EXP9_GU / STRATA_EXP9_DOWN = "type:mode,..." override
+// single formats: STRATA_EXP9_DOWN=42:10 is the Q2_0 down on 4 lanes (native_down_q2_sub4_kernel, the fork's adopted
+// setting); STRATA_EXP9_GU=16:0,22:0 keeps mode 0 for the IQ2 gate/up (and so STRATA_EXPDEC's gate/up where it is on).
+// Only a call that does not stride takes it (em_call below), as every AMD layout.
+static int exp9_parse(const char* env, int type, int dflt) {
+    if (env == nullptr) return dflt;
+    for (const char* q = env; *q;) {
+        int t = 0, m = 0, used = 0;
+        if (std::sscanf(q, "%d:%d%n", &t, &m, &used) != 2) break;
+        if (t == type) return m;
+        q += used;
+        while (*q == ',' || *q == ' ') ++q;
+    }
+    return dflt;
+}
+static int exp9_mode(bool down, int type) {
+    static const char* gu_env = std::getenv("STRATA_EXP9_GU");
+    static const char* dn_env = std::getenv("STRATA_EXP9_DOWN");
+    if (down) return exp9_parse(dn_env, type, type == 42 ? 8 : 0);
+    return exp9_parse(gu_env, type, (type == 21 || type == 22 || type == 16 || type == 18) ? 8 : 0);
 }
 #endif
 int g_exp_phase = 0;   // the bench: 0 all, 1 gate/up + swiglu + quantize only, 2 down only, 3 gate/up only
@@ -6501,7 +6617,8 @@ void native_expert_grouped(const NativeExpertLayout& L, const unsigned long long
 #else
     // CUDA: the AMD layouts launch a block row per possible group, so a call that strides (a verify window's PCIe
     // call, grid_groups 1..cap) keeps the CUDA layout: V100, 0 groups 11.3 vs 6.5 us, 1 group of 2 29.6 vs 21.3
-    const int em0 = (grid_groups > 0 && grid_groups < cap_groups) ? 0 : exp_mode();
+    const int em_call = (grid_groups > 0 && grid_groups < cap_groups) ? 0 : exp_mode();
+    const int em0 = em_call == 9 ? exp9_mode(false, L.gu_type) : em_call;   // F14: STRATA_EXP_MODE=9, per format (exp9_mode)
 #endif
 #endif
 #if STRATA_EXP_LAYOUTS
@@ -6523,7 +6640,8 @@ void native_expert_grouped(const NativeExpertLayout& L, const unsigned long long
     // 147-verify STRATA_GU_SWIGLU=1: gate/up + SwiGLU + q8_1 in one launch where the CUDA layout's 16-lane kernel would run
     bool gs_done = false;
 #if STRATA_EXP_LAYOUTS
-    const bool gs_layout = !fused_gu && em0 == 0;
+    // F14 mode 10 has no gate/up layout of its own: its gate/up is mode 0's (the fork's review fix)
+    const bool gs_layout = !fused_gu && (em0 == 0 || em0 == 10);
 #else
     const bool gs_layout = true;
 #endif
@@ -6637,11 +6755,23 @@ void native_expert_grouped(const NativeExpertLayout& L, const unsigned long long
     }
 #endif
 #if STRATA_EXP_LAYOUTS
+#if defined(STRATA_HIP_GFX906)
     const int em0d = sm75_down_em(em0, cap_groups);
+#else
+    const int em0d = em_call == 9 ? exp9_mode(true, L.d_type) : sm75_down_em(em0, cap_groups);   // F14: per format
+#endif
     int dev_d = 0;
     cudaGetDevice(&dev_d);
     // gfx1151: the LDS down kernel is slower than the CUDA layout for IQ4_NL (86 vs 63 us, 24 groups) and faster for Q2_0 (-18%)
     const bool lds_down_ok = L.d_type == 42 || (L.d_type == 20 && !gfx1151_exp8(dev_d));
+    // F14 mode 10: the Q2_0 down rows on 4 lanes (native_down_q2_sub4_kernel) where mode 0 takes row_dot_20_sub16;
+    // ahead of STRATA_EXPDEC_DOWN, which an explicit mode 10 overrides
+    if (em0d == 10 && L.d_type == 42 && L.n_ff == 640 && !g_old_kernels && !g_no_sub16_gu) {
+        const dim3 gq((unsigned) ((L.n_embd + 63) / 64), (unsigned) gy);
+        native_down_q2_sub4_kernel<<<gq, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_dst, hq, L, out);
+        check("native_expert_grouped/down q2 sub4");
+        return;
+    }
     if ((em0d == 7 || em0d == 8) && lds_down_ok) {
         const dim3 gl((unsigned) ((L.n_embd + LDS_RB - 1) / LDS_RB), (unsigned) cap_groups);
         const size_t sh = (size_t) LDS_NT * (size_t) (L.n_ff / 32) * sizeof(block_q8_1);
