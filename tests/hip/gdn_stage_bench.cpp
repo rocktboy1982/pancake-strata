@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <random>
 #include <vector>
 
@@ -188,6 +189,20 @@ int main(int argc, char** argv) {
         }
         std::printf("STAGE T=%lld gates_conv_ms=%.4f rec_out_ms=%.4f sum_ms=%.4f y_hash=%016llx state_hash=%016llx split_same=%d\n",
                     (long long) T, cm, rm, cm + rm, (unsigned long long) hy, (unsigned long long) hs, same);
+        // MOD_PLAN A31's decision number (pancake-docs/batch2/A37-gpu-kernels.md): the gfx11 chunked scan
+        // (gdn_wmma_scan_kernel, STRATA_GDN_CHUNKED=1) does 26 WMMAs per wave and 16-token chunk, 8 waves per head; at
+        // 32 clocks per 16x16x16 WMMA on a SIMD32 and 4 SIMDs per WGP that is >= 1664 clocks per chunk, times the
+        // heads a WGP must take (ceil(48 / WGPs); WGP = 2 CUs).  rec_out near the floor: WMMA-bound (chunk 64 adds WMMAs);
+        // >= 2x the floor: latency/barrier-bound (chunk 64's shorter chain can pay).  Only on that path (gfx11, STRATA_GDN_CHUNKED
+        // set and not 0; prompts of 64+ tokens take it).
+        const char* gch = std::getenv("STRATA_GDN_CHUNKED");
+        if (gch != nullptr && std::atoi(gch) != 0 && T >= 64 && std::strncmp(props.gcnArchName, "gfx11", 5) == 0 &&
+            props.clockRate > 0 && props.multiProcessorCount >= 2) {
+            const int64_t wgps = props.multiProcessorCount / 2, per_wgp = (HV + wgps - 1) / wgps;
+            const double floor_ms = (double) ((T + 15) / 16) * 1664.0 * (double) per_wgp / (double) props.clockRate;   // clockRate: kHz
+            std::printf("A31 T=%lld wmma_floor_ms=%.4f (%lld head(s) per WGP, %d MHz) rec_out_over_floor=%.2f\n", (long long) T,
+                        floor_ms, (long long) per_wgp, props.clockRate / 1000, floor_ms > 0 ? rm / floor_ms : 0.0);
+        }
     }
     return 0;
 }
