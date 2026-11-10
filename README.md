@@ -646,12 +646,15 @@ out of one of these scripts, and the suite is what makes the stack reproducible.
 The Flash-Next presets lock a ~33 GiB expert arena in RAM within seconds of starting. On a PC that has been up for a
 while, free RAM is fragmented: the kernel stalls in compaction during that lock, memory pressure passes systemd-oomd's
 50% limit and the engine is killed while it loads (and below the limit, decoding runs ~25% slower).
+The worst part is that compaction by default also migrates mlock'ed pages: the arena is mlock'ed and registered with
+the GPU driver, so every moved page makes KFD evict and restore the GPU queues (kernel log `svm_range_restore_work
+hogged CPU`); `vm.compact_unevictable_allowed=0` keeps compaction away from it.
 `tools/pancake/os_tune.sh` checks this without root and installs the fix; `run-pancake.sh` prints a one-line tip while
 it is missing.
 
 ```sh
 tools/pancake/os_tune.sh                          # state: free RAM in 2 MiB blocks, compaction, huge pages
-sudo tools/pancake/os_tune.sh install             # 1 (recommended): vm.compaction_proactiveness=50, /etc/sysctl.d/90-pancake.conf
+sudo tools/pancake/os_tune.sh install             # 1 (recommended): compact_unevictable_allowed=0 + compaction_proactiveness=50
 sudo tools/pancake/os_tune.sh install --hugepages # 1 + 2 (optional): reserve 16,920 x 2 MiB pages at boot for the arena
 sudo tools/pancake/os_tune.sh compact             # one compaction pass now, nothing persistent
 ```

@@ -8,8 +8,14 @@
 # threshold, made runs ~25% slower.
 #
 #   tools/pancake/os_tune.sh                 check: prints the current state and what to do (no root, changes nothing)
-#   sudo tools/pancake/os_tune.sh install    1 (recommended): background compaction, vm.compaction_proactiveness=50,
+#   sudo tools/pancake/os_tune.sh install    1 (recommended): vm.compact_unevictable_allowed=0 (compaction leaves the
+#                                            locked arena alone) + vm.compaction_proactiveness=50 (background compaction),
 #                                            in /etc/sysctl.d/90-pancake.conf, applied now; also compacts once
+#
+# compact_unevictable_allowed=0 matters most: by default the kernel's compaction also migrates mlock'ed pages.  The
+# arena's pages are mlock'ed AND registered with the GPU driver (KFD); every migrated page fires an MMU notifier, KFD
+# evicts the GPU's queues and restores them (kernel log: "svm_range_restore_work hogged CPU ... 2051 times").  During
+# the load that storm kept memory pressure above oomd's limit; during decode it stalls the GPU (the ~25% slow runs).
 #   sudo tools/pancake/os_tune.sh install --hugepages
 #                                            1 + 2 (optional): reserve 16920 x 2 MiB huge pages at boot for the arena
 #                                            (MAP_HUGETLB: no fragmentation, fewer TLB misses; two forks measured +5-7%
@@ -27,6 +33,7 @@ big_free_gib() {   # GiB of free memory in blocks of 2 MiB or more (buddy order 
 
 check() {
     pro=$(cat /proc/sys/vm/compaction_proactiveness 2>/dev/null || echo "?")
+    unev=$(cat /proc/sys/vm/compact_unevictable_allowed 2>/dev/null || echo "?")
     hp=$(cat /proc/sys/vm/nr_hugepages)
     hpf=$(awk '/HugePages_Free/{print $2}' /proc/meminfo)
     avail=$(awk '/MemAvailable/{printf "%d", $2 / 1048576}' /proc/meminfo)
@@ -34,10 +41,11 @@ check() {
     echo "pancake memory check:"
     echo "  RAM available:                       $avail GiB"
     echo "  free in blocks of 2 MiB or more:     $big GiB   (the arena locks 33 GiB; low = fragmented)"
+    echo "  vm.compact_unevictable_allowed:      $unev         (pancake needs 0: compaction must not move the locked arena)"
     echo "  vm.compaction_proactiveness:         $pro        (pancake recommends 50; the kernel default is 20)"
     echo "  vm.nr_hugepages:                     $hp ($hpf free)   (optional: $PAGES holds the IQ2_XS arena)"
     [ -f "$CONF" ] && echo "  $CONF: present" || echo "  $CONF: not installed"
-    if [ "$pro" != "?" ] && [ "$pro" -lt 50 ]; then
+    if [ "$unev" = 1 ] || { [ "$pro" != "?" ] && [ "$pro" -lt 50 ]; }; then
         echo "  -> recommended: sudo $0 install      (background compaction; prevents the oomd kill during the load)"
     fi
     if [ "$hp" -lt "$PAGES" ]; then
@@ -59,18 +67,19 @@ case "${1:-check}" in
         need_root install
         {
             echo "# pancake-strata (tools/pancake/os_tune.sh): keep free RAM in large blocks for the 33 GiB expert arena"
+            echo "vm.compact_unevictable_allowed = 0"
             echo "vm.compaction_proactiveness = 50"
             if [ "$2" = "--hugepages" ]; then
                 echo "# optional: 2 MiB huge pages reserved at boot for the expert arena (taken out of ordinary RAM)"
                 echo "vm.nr_hugepages = $PAGES"
             fi
         } > "$CONF"
-        sysctl -q -w vm.compaction_proactiveness=50
+        sysctl -q -w vm.compact_unevictable_allowed=0 vm.compaction_proactiveness=50
         echo 1 > /proc/sys/vm/compact_memory
         echo "installed $CONF (compaction_proactiveness=50 now$( [ "$2" = "--hugepages" ] && echo ", $PAGES huge pages from the next boot"))"
         check ;;
     uninstall)
         need_root uninstall
-        rm -f "$CONF" && sysctl -q -w vm.compaction_proactiveness=20 && echo "removed $CONF" ;;
+        rm -f "$CONF" && sysctl -q -w vm.compaction_proactiveness=20 vm.compact_unevictable_allowed=1 && echo "removed $CONF" ;;
     *) sed -n '2,20p' "$0"; exit 2 ;;
 esac

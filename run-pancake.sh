@@ -57,7 +57,7 @@ export LD_LIBRARY_PATH=$LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 # Linux memory tuning for the 33 GiB expert arena (tools/pancake/os_tune.sh): without background compaction a long-up
 # machine's fragmented RAM stalls the arena lock and systemd-oomd can kill the engine during its load
 if [ "$MODEL" = iq2_xs ] || [ "$MODEL" = q2_0 ]; then
-  [ "$(cat /proc/sys/vm/compaction_proactiveness 2>/dev/null || echo 50)" -lt 50 ] && [ ! -f /etc/sysctl.d/90-pancake.conf ] &&
+  [ "$(cat /proc/sys/vm/compact_unevictable_allowed 2>/dev/null || echo 0)" = 1 ] &&
     echo "pancake: tip - run 'sudo tools/pancake/os_tune.sh install' once (background memory compaction; prevents the" \
          "engine being killed while it loads on a long-up PC). 'tools/pancake/os_tune.sh' shows the state and the optional" \
          "huge-page reservation." >&2
