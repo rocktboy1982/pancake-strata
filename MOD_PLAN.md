@@ -1471,6 +1471,9 @@ Measured offline (no GPU); these change the order of the work below and of Phase
 8. **Latent bug found:** `STRATA_VERIFY_DEFER_CPU_BELOW/_TOP` are not in `conversation_disk_key_env_names`
    (src/core/conversation_disk_tier.cpp), so a disk-parked conversation can be restored under different deferral
    settings. Fix with a cache-key version bump.
+   **FIXED 2026-11-10 (work/diskkey-effortlog):** `_BELOW` and `_TOP` added, key header "disk 1" -> "disk 2" (old
+   subfolders are never matched); `_FOLD` stays out (exact vs the same run); also added `GR_RDNA_Q8/_A8`,
+   `HC_Q8_INJECT`, `CPU_PRESUM`, `PRESUM_VRAM`, `PF_F16`, `PF_DM16`, `HIP_PROMPT_F16` (lossy / not bit-identical).
 
 Code ready on branches, waiting for a build and a screen (no GPU while the test phase runs): A4 rank-guard fold
 (work/a4-rank-guard), A55 task gate (work/a55-task-gate, touches abtest.py), F1 PARK_TRUNCATE
@@ -1539,7 +1542,7 @@ generated text, so every item is rigorous and is judged on total time to success
 
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A17 | Per-effort budget forcing with a graceful close at the cap (tail above p99 only) | s1, Stanford 2025, https://arxiv.org/abs/2501.19393 ; Are LRMs Interruptible?, Berkeley 2025, https://arxiv.org/abs/2510.11713 | 12 / 88 | lossy (tail only) | both | XS | worst turn 84-340 s -> ~1-2 min (est.) | rigorous | grace 512 + close_retry in presets **done**; per-level caps: analysed 2026-11-10 (A6_A17.md): turn log has only 34 agent turns, one session, no effort field, p99 = 1,061 thinking tokens (max 1,154, thinking 22% of turn time), longest turn 64 s (re-reads, not thinking): caps at p99 save 0 s per turn here; provisional `reasoning_budget_by_effort` {low 1024, medium 1536, high 3072} not applied; first add an `effort` field to the turn log |
+| A17 | Per-effort budget forcing with a graceful close at the cap (tail above p99 only) | s1, Stanford 2025, https://arxiv.org/abs/2501.19393 ; Are LRMs Interruptible?, Berkeley 2025, https://arxiv.org/abs/2510.11713 | 12 / 88 | lossy (tail only) | both | XS | worst turn 84-340 s -> ~1-2 min (est.) | rigorous | grace 512 + close_retry in presets **done**; per-level caps: analysed 2026-11-10 (A6_A17.md): turn log has only 34 agent turns, one session, no effort field, p99 = 1,061 thinking tokens (max 1,154, thinking 22% of turn time), longest turn 64 s (re-reads, not thinking): caps at p99 save 0 s per turn here; provisional `reasoning_budget_by_effort` {low 1024, medium 1536, high 3072} not applied; `effort` field **added to the turn log 2026-11-10** (work/diskkey-effortlog, `_write_turn_log`, new key only, None when thinking is off); caps wait for a day of agent turns that carry it |
 | A18 | Effort per task, not per turn: `xhigh` vs `medium` on total time to success | Just Enough Thinking / ALP, https://arxiv.org/abs/2506.05256 ; Danger of Overthinking, https://arxiv.org/abs/2502.08235 ; Don't Overthink it, https://arxiv.org/abs/2505.17813 ; counter-evidence: Qwen3 report, https://arxiv.org/abs/2505.09388 | (Asia-M5) | lossy | both | S (harness) | tens of seconds per turn; -20-40% thinking (est.) | rigorous (area under the time curve, SWE-Effi) | planned (owner decision) |
 | A19 | Learned thinking stop: linear probe on hidden states every 64 tokens / at `\n\n` | Thought Calibration, MIT 2025, https://arxiv.org/abs/2505.18404 ; Learning How Hard to Think, ICLR'25, https://proceedings.iclr.cc/paper_files/paper/2025/hash/ff414825df833edb8b1839e3d5d495e9-Abstract-Conference.html ; OS-Pruner, https://www.alphaxiv.org/abs/2607.11089 | 21 | lossy | both | M (dump hook I2 + training) | -20-40% thinking on routine turns (authors; untested on agents) | rigorous | not started |
 | A20 | Rumination rate (rolling 5-grams) into the soft close; top-k entropy as a second signal | Thoughtology, Mila/McGill 2025, https://arxiv.org/abs/2504.07128 ; Entropy Sentinel 2026, https://arxiv.org/abs/2601.09001 | 34 / 36 | log exact; close lossy | both | XS | unmeasured; threshold from turn-log `rumination_max` | screen (log), rigorous (close) | log + opt-in close coded (feat/item-34-rumination); entropy log **new** |
@@ -1684,7 +1687,7 @@ MoE-Lightning stale-dropping paging (https://arxiv.org/abs/2411.11217; Foresight
 4. **A30 Fiddler threshold for delta prefill.** Env-only A/B on agent sessions; up to ~0.4 s per turn (est.). Confirm.
 5. **A17 + A18 thinking control.** Per-effort caps from the turn log's p99; `xhigh` vs `medium` on time to success.
    Rigorous.
-   A17 read 2026-11-10: the log has 34 agent turns and no effort field; add the field first (A6_A17.md).
+   A17 read 2026-11-10: the log has 34 agent turns and no effort field (A6_A17.md); the field is now written (`effort`, work/diskkey-effortlog); re-read the caps once new turns exist.
 6. **A6 recalibrated time model (no GPU).** Fit the overlap model to last night's measured points; then run A7 (ProMoE)
    and A46 candidates offline; queue the A8 (Pie) blocking-tier arm. Screen.
    DONE offline 2026-11-10 (A6_A17.md): A46 > A8 > A7, none worth a GPU screen at the bench's hit rate; judge them on real agent traces.
