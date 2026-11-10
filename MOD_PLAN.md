@@ -1467,7 +1467,7 @@ marked "meas." are fork/paper claims or estimates.
 | A4 fix | `STRATA_VERIFY_DEFER_CPU_FOLD=<n>` (one pool pass when few light rows) | batch (43b384aa1) | not built; spec 10-rank-guard-fold | build, screen |
 | A5 | k-th-miss admission `STRATA_ADAPT_KMISS=2,8` | existing switch, opt-in | meas. edit +2.0% +-1.6 (bench, 89% hit rate); offline trace replay: edit hit rate 76.7% -> 86.5% (+12% est.) | screen 15-kmiss on agent traffic |
 | - | async tier, POOL_TAIL4/MWAITX/LAZY_PARK/Q2_PREFETCH, COMBINE_POLL1, DEVICE_SPIN | existing switches | meas. rejected or n.s. | closed |
-| 4.0.1 | conversation cache `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` | flags exist (no code) | offline replay: saves ~158 of 162.8 s lost to cold re-reads (97%) | replay test (replay_turns.py, in progress), check RAM |
+| 4.0.1 | conversation cache `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` | flags exist (no code) | offline replay: saves ~158 of 162.8 s lost to cold re-reads (97%) | replay test ready: `tools/pancake/replay_turns.py` (batch fd425ee2b; dry run rebuilds the 11-09 session, 75 requests, the 7 cold re-reads = 162.7 s; ~27 min for base vs flags), check RAM |
 | F1 | `STRATA_PARK_TRUNCATE` | batch (Opus port, e55886ed8) | unit tests written, not run; offline: 39-52 s of 162.8 s alone | build, unit test, replay |
 | F7 | fast bit-exact Q2_0 AVX2 kernel `STRATA_Q2_FAST=1` | batch (600ca5032) | **meas. CPU microbench: bit-exact, down rows x1.33, gate/up x1.23** (q2_rows_bench, 5700G) | build, engine screen |
 | F21 | `STRATA_WAIT_COPY256=1` (needs `STRATA_FUSE_WAIT=1` on gfx1100) | batch (0573c36b6) | not built | build, screen with FUSE_WAIT |
@@ -1479,7 +1479,7 @@ marked "meas." are fork/paper claims or estimates.
 | A55 | task gate `tools/pancake/task_gate.py` | batch (ae3bafde4) | 13 unit tests pass, dry run OK | first live run |
 | - | disk cache key: deferral and lossy switches added, key v2 | batch (d9b8d4f79) | unit test 95 checks pass | merge with batch |
 | A17 | turn log records the effort level | batch (f1df90c5a) | 8 Python tests pass | collect 200+ turns, then caps |
-| - | test tooling: screen tier, early stop, fail fast, text check, long32k/64k cold cases, temperature key, probes, screen specs 11-17 | batch + port | probes: CPU probe ran; others need the GPU | use in the batch tests |
+| - | test tooling: screen tier, early stop, fail fast, text check, long32k/64k cold cases, temperature key, probes, screen specs 11-17, agent-traffic replay | batch + port | probes: CPU probe ran; others need the GPU | use in the batch tests |
 | F6 | exact speculative sampling (env only) | switches exist | offline: opencode sends no temperature -> T 1.0 on main agent | screen 12-spec-sampling |
 | F8 | `STRATA_SPEC_CUM` | not ported | offline ceiling 1.0% short / 7.9% edit | on hold (needs window trace) |
 | F4 | sub-2-bit shadow pack | not started | offline: IQ1_M gate/up -18.2% CPU bytes, +17.6 GB RAM | conditional on RAM |
