@@ -5487,6 +5487,9 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         nfirst = 0;
         for (int j = 0; j < njobs; ++j) nfirst += heavy_job[j] ? 1 : 0;
         std::copy(order.begin(), order.end(), d.jobs_multi.begin());
+        // STRATA_VERIFY_DEFER_CPU_FOLD (MOD_PLAN A4, defer_rank.hpp): at most n light jobs after some heavy ones run in
+        // the heavy pass - one pool pass, the partial flag after it; post(l) and late_add read the same rows as split
+        if (strata::core::defer_fold_light(nfirst, njobs - nfirst, strata::core::defer_fold())) nfirst = njobs;
     }
     const auto c3 = std::chrono::steady_clock::now();
     if (d.plan != nullptr) d.plan->cpu_jobs = njobs;
