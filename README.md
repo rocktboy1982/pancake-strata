@@ -164,7 +164,7 @@ The knowledge base is committed in this repo under [`data/fork-kb/`](data/fork-k
 | `forks.sqlite.gz` | The committed snapshot of the database (18 MB compressed). The script rewrites it at the end of every run and unpacks it into `forks.sqlite` when that file is missing, so a fresh clone can run an update directly. |
 | `forks.sqlite` | Not in git (`.gitignore`); the working copy. Table `runs` (one row per run with counts), `forks` (branch, `pushed_at`, ahead/behind, last scan, last error), `commits` (one row per fork and commit, with `first_seen_run` and `last_seen_run`; a `last_seen_run` older than the fork's last scan means the commit was force-pushed away or merged), `readmes` (README per fork, with the run in which it last changed). |
 | `readmes/<blob_sha>.md` | README contents, stored once per distinct content (most forks share upstream's). |
-| `runs/` | The per-run CSVs above (the very large first one is gzipped) and the run logs. |
+| `runs/` | The per-run CSVs above (the very large first one is gzipped). |
 
 Run and update it (the first run took 70 minutes, including one wait for the GitHub limit of 5,000 calls per hour;
 an update only touches forks that changed: the next run rescanned 22 forks in under a minute):
