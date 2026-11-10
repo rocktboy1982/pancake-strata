@@ -164,7 +164,23 @@ same `agent_loop.excerpt()` is a ten-line plugin.
 
 ## Tests run
 
-See the end of this note (filled in after the run).
+**Not run.**  `tools/pancake/abtest.py` (the 09-prefill screen) held the machine for the whole session and
+`wait_quiet.sh` returned 1 (busy) four times between 23:11 and 23:52, so by the brief the tests were not run.  Only
+`python3 -m py_compile serve/agent_loop.py serve/test_agent_loop.py serve/server.py` was run (OK).  The code was
+re-read for syntax, types and the nonlocal / variable scoping of `server_turn`.  To run:
+
+    nice -n 19 python3 -m unittest serve.test_agent_loop -v          # 25 cases, mock engines, no GPU
+    nice -n 19 python3 -m unittest serve.test_loop_guard serve.test_turn_log serve.test_prometheus   # regression
+
+`serve/test_agent_loop.py` covers: every counter (kinds, streaks, max streaks, turn reset, bare "continue", doc-only
+edits, unread edits, Claude Code names, agreement with item 33's `loop_guard.behaviour`), the oldString states with
+the three read-output line-number styles, text written by earlier edits / writes, multi-edit, settings parsing
+(including the bad values), `externalize` (stored file equals the result, excerpt shape, determinism and idempotence,
+skip list, limit boundary, unwritable directory), and the server wiring: default path untouched (no keys, no
+metrics), the `agent` object in the turn log only with the switch, the A43 log and note modes, the A41 continuation
+(prompt prefix kept, the note in the next engine prompt, once per answer, not when checked / docs only / switch off
+/ the answer already calls a tool), A42 in the prompt only.  If a case fails, the most likely suspects are the
+template-dependent ones (`_keep_suffix` rendering for the A41 test; the exact text the mock template gives).
 
 ## Spec to run
 
