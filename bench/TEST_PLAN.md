@@ -140,6 +140,9 @@ touches drafting or routing). All gains quoted in the plan are fork claims until
 
 ### 4.1 Env-only A/Bs (no code; each answers a question on its own GPU)
 
+First in line (from 4.0.1): screen `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` against the
+preset on an agent replay with interleaved short requests (watch free RAM); it replayed as 97% of the lost re-read time.
+
 | # | GPU | Arms | Unlocks / kills |
 | --- | --- | --- | --- |
 | 4.1.1 | both | `--prompt-cache-spread` on vs off on a multi-turn agent replay | F2 |

@@ -1449,6 +1449,34 @@ New processes built on these capabilities:
 
 ## Phase 16: academic research first, by area of improvement (2026-11-10, owner: develop academic technologies with priority)
 
+### Priority update after the offline tests (2026-11-10, bench/results/2026-11-10-offline/)
+
+Measured offline (no GPU); these change the order of the work below and of Phase 15:
+1. **No-code fix first: `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192`.** The ~162 s of cold
+   54-62K re-reads came from snapshots 0.5-4.8% over the auto 1280 MiB budget and from short side requests evicting the
+   agent's parked conversation. Replay: these two flags save ~158 s of 162.8 s (97%); PARK_TRUNCATE alone 39-52 s.
+   Check RAM headroom (arena 33 GiB on 57 GB) in the screen. F1 (PARK_TRUNCATE, Opus port on trial/opus-park-truncate)
+   stays as the second step behind these flags; F3 showed no effect offline.
+2. **A5 k-th-miss admission confirmed on edit traffic** (trace replay: hit rate 76.7% -> 86.5% on edit windows, +12%
+   window time est.); go for TEST_PLAN 2.2. F10 (prompt-fed counts) low, only with the item-84 fix.
+3. **F6 exact speculative sampling stays:** opencode sends no temperature, so the main agent runs at the model card's
+   T 1.0 (sub-agents T 0.1); acceptance on agent turns 0.69 vs 0.76 on bench turns.
+4. **F8 SPEC_CUM on hold:** oracle ceiling 1.0% short / 7.9% edit; needs a real window trace (`STRATA_WINDOW_TRACE` +
+   a `drafts()` call that nothing makes today).
+5. **F4 shadow pack: conditional,** gate/up IQ1_M only (-18.2% CPU bytes, ~4-12% time), but it adds 17.6 GB of RAM.
+   No IQ2_XXS requant.
+6. **A6 time model recalibrated** (mean error 3.4 points vs 12-17): A7 (ProMoE), A8 (Pie), A46 are not worth a GPU run
+   now; A46 only after agent-session traces show >= 5% over KMISS.
+7. **A17 thinking caps: no change yet** (34 real agent turns, caps save ~0 s); first log the effort level per turn.
+8. **Latent bug found:** `STRATA_VERIFY_DEFER_CPU_BELOW/_TOP` are not in `conversation_disk_key_env_names`
+   (src/core/conversation_disk_tier.cpp), so a disk-parked conversation can be restored under different deferral
+   settings. Fix with a cache-key version bump.
+
+Code ready on branches, waiting for a build and a screen (no GPU while the test phase runs): A4 rank-guard fold
+(work/a4-rank-guard), A55 task gate (work/a55-task-gate, touches abtest.py), F1 PARK_TRUNCATE
+(trial/opus-park-truncate), F7 Q2_0 fast kernel (trial/opus-q2-avx2), F21 WAIT_COPY256 (trial/sonnet-wait-copy256,
+needs STRATA_FUSE_WAIT=1 on gfx1100).
+
 Rules for this phase. Technologies that come from academic papers go first; fork ideas (Phase 15) appear only where a paper
 is the origin. Areas are ordered by their total expected gain on our bottleneck (expert bytes in decode, prompt re-reads in
 agent turns). Inside each area the biggest expected gain comes first. Every gain is the paper's claim on its own hardware
