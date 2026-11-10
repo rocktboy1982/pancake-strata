@@ -1762,10 +1762,36 @@ __global__ void wait_copy_i32_kernel(const volatile uint32_t* flag, uint32_t val
     __syncthreads();
     for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
 }
+// STRATA_WAIT_COPY256=1 (port of android-imdad/Strata-7900xtx caa9b00115): the same wait, then 16-byte (int4) reads.
+// The spin, the __threadfence_system and the __syncthreads are exactly wait_copy_i32_kernel's, and the words are read
+// only after the barrier, as there.  The int4 loads drop `volatile` (CUDA/HIP have no volatile int4 copy), as the fork
+// does: they sit after the fence and the barrier, which the compiler does not move loads across.  The launcher picks
+// this kernel only when dst and src are both 16-byte aligned; the n % 4 leftover words take the 4-byte volatile path.
+__global__ void wait_copy_i32_v4_kernel(const volatile uint32_t* flag, uint32_t value, int32_t* __restrict__ dst,
+                                        const volatile int32_t* src, int n) {
+    if (threadIdx.x == 0) {
+        while (*flag < value) strata_spin_pause();
+        __threadfence_system();
+    }
+    __syncthreads();
+    const int n4 = n >> 2;
+    const int4* s4 = reinterpret_cast<const int4*>(const_cast<const int32_t*>(src));
+    int4* d4 = reinterpret_cast<int4*>(dst);
+    for (int i = threadIdx.x; i < n4; i += blockDim.x) d4[i] = s4[i];
+    for (int i = 4 * n4 + threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];   // tail: the n % 4 last words
+}
 }  // namespace
 void wait_copy_i32_from_mapped(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
                                void* stream) {
-    wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    // STRATA_WAIT_COPY256=1: 16-byte reads, and 256 threads once 128 threads would need a second round of them
+    // (n > 512 words; the verify plan is 568 words a group): one PCIe round of reads instead of four or five. The fork
+    // measured host write -> plan on the GPU 4.47 -> 3.57 us (RX 7900 XTX). Unaligned pointers keep the 4-byte kernel.
+    static const bool wide = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && std::atoi(v) != 0; }();
+    if (wide && ((reinterpret_cast<uintptr_t>(dst) | reinterpret_cast<uintptr_t>(src)) & 15) == 0) {
+        wait_copy_i32_v4_kernel<<<1, n > 512 ? 256 : 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    } else {
+        wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    }
     check("wait_copy_i32_from_mapped");
 }
 
