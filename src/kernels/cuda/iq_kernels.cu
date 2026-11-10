@@ -953,12 +953,28 @@ __device__ __forceinline__ void iq_sync_lds() {
 #endif
 }
 
+// MOD_PLAN A37 (STRATA_IQ_LUT_DUP, opt-in, exact): the staged codebook in DUPB-bank-pair copies (FLUTE's duplicated
+// LUT).  Slot s of the 16-slot-wide (128-byte) rows holds entry ((s >> 4) * DUPB) | (s & (DUPB - 1)) of copy
+// (s & 15) / DUPB, so copy g lives only in bank pairs [g DUPB, (g + 1) DUPB) of a 32 x 4-byte bank LDS.  A lane whose
+// base pointer is already offset by its copy reads entry i at lut_dup_slot<DUPB>(i); DUPB = 1 (16 copies) gives every
+// lane of a 16-lane sub-warp its own bank pair, so its 8-byte lookups never conflict.  The values read are the same.
+// (DUPB = 0: the plain layout, slot = entry)
+template<int DUPB>
+__device__ __forceinline__ int lut_dup_slot(int i) {
+    static_assert(DUPB == 0 || DUPB == 1 || DUPB == 2, "lut_dup_slot: the plain layout, 16 or 8 copies");
+    if constexpr (DUPB == 0) return i;
+    else return ((i / DUPB) << 4) | (i & (DUPB - 1));
+}
+
 template<> inline constexpr bool kSplit<16> = true;
 template<> struct Split<16> {   // IQ2_XXS
     struct W { int g[8]; int ls; float dw; };
     // SF: the grid signs by iq_signed<true> (F12; the same words); every load<...> of the five IQ2/IQ3 Splits takes it
-    template<bool STAGE_GRID = false, bool SF = false>
+    // DUPB (A37, STAGE_GRID only): 0 = the plain staged codebook; 1 / 2 = the lut_dup_slot layout, s_grid already
+    // offset by the lane's copy (expdec_gu_kernel's DUPC)
+    template<bool STAGE_GRID = false, bool SF = false, int DUPB = 0>
     __device__ static W load(const void* __restrict__ vbq, int kbx, int iqs, const uint32_t* __restrict__ s_grid = nullptr) {
+        static_assert(DUPB == 0 || STAGE_GRID, "the duplicated codebook is a staged one");
         const block_iq2_xxs* bq2 = (const block_iq2_xxs*) vbq + kbx;
         const int q2 = get_int_b2(bq2->qs, iqs);
         const uint8_t* aux8 = (const uint8_t*) &q2;
@@ -969,7 +985,7 @@ template<> struct Split<16> {   // IQ2_XXS
         W r;
 #pragma unroll
         for (int k0 = 0; k0 < 8; k0 += 2) {
-            const uint2 grid_pos = grid_lut[aux8[k0 / 2]];
+            const uint2 grid_pos = grid_lut[lut_dup_slot<DUPB>(aux8[k0 / 2])];
             const uint32_t signs = unpack_ksigns(aux32 >> (7 * k0 / 2));
             r.g[k0 + 0] = iq_signed<SF>(grid_pos.x, signs & 0x08040201);
             r.g[k0 + 1] = iq_signed<SF>(grid_pos.y, signs & 0x80402010);
@@ -2507,6 +2523,18 @@ template<> struct EdGrid<21> { static constexpr int words = 1024;
         stage_iq3s_masks(s, tid, 256);
     } };
 
+// MOD_PLAN A37 (STRATA_IQ_LUT_DUP): the IQ2_XXS codebook (256 entries of 8 bytes) as DUPC copies in lut_dup_slot's
+// layout, 256 * DUPC slots (16 copies: 32 KB, 8 copies: 16 KB).  Consecutive threads write consecutive slots (no bank
+// conflict); the DUPC threads whose slots hold the same entry read the same global word.  All threads; sync after.
+template<int DUPC>
+__device__ __forceinline__ void ed_grid_copy_dup_iq2xxs(uint32_t* s, int tid) {
+    static_assert(DUPC == 8 || DUPC == 16, "8 or 16 copies");
+    constexpr int B = 16 / DUPC;   // bank pairs per copy (lut_dup_slot's DUPB)
+    const uint2* src = (const uint2*) iq2xxs_grid;
+    uint2* dst = (uint2*) s;
+    for (int i = tid; i < 256 * DUPC; i += 256) dst[i] = src[((i >> 4) * B) | (i & (B - 1))];
+}
+
 // One entry's q8_1 row (XB blocks of 36 bytes, 4-byte aligned) into shared memory as entry c: the 8 words of block k
 // in planes (HALVES: s_u[(2 c + h) XB + k] = words 4h..4h+3, two 16-byte loads per call, conflict-free over 16
 // consecutive k; else s_u[(c XB + k) 2 + h], the block's 32 bytes together, for the IQ4_NL pairs) and the fp16 scale
@@ -2539,8 +2567,9 @@ __device__ __forceinline__ void ed_load_u(const int4* __restrict__ s_u, int c, i
 // R gate/up rows against the NC staged entries, lane t of a 16-lane sub-warp: row_dot_80_sub16's tree (calls t,
 // t+32, t+64 into s; t+16, t+48 into s16; s = __fadd_rn(s, s16); xor 8-4-2-1), every call's weight part decoded once
 // per row and the entry's block loaded once per NC x R products.  SF: Split<TG>::load<true, SF>, the F12 sign form
-// (STRATA_IQ_SIGN_FAST; the same words, so the same sums).
-template<int TG, int R, int NC, bool SF = false>
+// (STRATA_IQ_SIGN_FAST; the same words, so the same sums).  DUPB > 0 (A37, STRATA_IQ_LUT_DUP, IQ2_XXS only): s_grid is
+// the lane's copy of the duplicated codebook (lut_dup_slot; the same words, so the same sums).
+template<int TG, int R, int NC, bool SF = false, int DUPB = 0>
 __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4* __restrict__ s_u,
                                            const float* __restrict__ s_ds, const uint32_t* __restrict__ s_grid, int t,
                                            float (&s)[R][NC]) {
@@ -2557,7 +2586,10 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
         const int kbx = k / F::ipb, iqs = F::step * (k % F::ipb);
         typename S::W w[R];
 #pragma unroll
-        for (int r = 0; r < R; ++r) w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
+        for (int r = 0; r < R; ++r) {
+            if constexpr (DUPB > 0) w[r] = S::template load<true, SF, DUPB>(wr[r], kbx, iqs, s_grid);
+            else w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
+        }
 #pragma unroll
         for (int c = 0; c < NC; ++c) {
             int u[8];
@@ -2573,7 +2605,10 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
         const int kbx = k / F::ipb, iqs = F::step * (k % F::ipb);
         typename S::W w[R];
 #pragma unroll
-        for (int r = 0; r < R; ++r) w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
+        for (int r = 0; r < R; ++r) {
+            if constexpr (DUPB > 0) w[r] = S::template load<true, SF, DUPB>(wr[r], kbx, iqs, s_grid);
+            else w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
+        }
 #pragma unroll
         for (int c = 0; c < NC; ++c) {
             int u[8];
@@ -2596,7 +2631,9 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
 // gate/up: 16 sub-warps of 16 lanes, R rows each = 16 R rows per pass, `rb` rows per block (a multiple of 16 R; 2 n_ff
 // is one too, so a pass is whole or absent for the entire block).  Group stride as native_gu_multi_kernel.
 // SF: the F12 sign form (STRATA_IQ_SIGN_FAST; instantiated for IQ2_XXS / IQ2_XS / IQ2_S only, kIqSignFast below).
-template<int TG, int R, int MINB, bool SF = false>
+// DUPC (A37, STRATA_IQ_LUT_DUP; IQ2_XXS at R 1 only): 1 = the plain staged codebook; 8 / 16 = that many copies
+// (ed_grid_copy_dup_iq2xxs), lane t of a sub-warp reading copy t / (16 / DUPC) - bitwise the same outputs, more LDS.
+template<int TG, int R, int MINB, bool SF = false, int DUPC = 1>
 #if defined(__HIPCC__)
 __global__ void __launch_bounds__(256, MINB * 2) expdec_gu_kernel(
 #else
@@ -2610,12 +2647,18 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_kernel(
                                                                             float* __restrict__ gate, float* __restrict__ up, int rb) {
     const int ng = *n_groups;
     if (blockIdx.y >= ng) return;
+    static_assert(DUPC == 1 || ((DUPC == 8 || DUPC == 16) && TG == 16 && R == 1), "A37: the duplicated codebook is IQ2_XXS, R 1");
+    constexpr int DUPB = DUPC == 1 ? 0 : 16 / DUPC;   // lut_dup_slot's bank pairs per copy (0: plain layout)
     __shared__ alignas(16) int4 s_u[ED_NC * 2 * ED_XB];
     __shared__ float s_ds[ED_NC * ED_XB];
-    STRATA_SHARED_ALIGN16_U32(s_grid_buf, EdGrid<TG>::words);
+    STRATA_SHARED_ALIGN16_U32(s_grid_buf, EdGrid<TG>::words * DUPC);
     const int tid = threadIdx.x;
-    EdGrid<TG>::copy(s_grid_buf, tid);   // visible after the staging's iq_sync_lds
+    if constexpr (DUPC > 1) ed_grid_copy_dup_iq2xxs<DUPC>(s_grid_buf, tid);   // visible after the staging's iq_sync_lds
+    else EdGrid<TG>::copy(s_grid_buf, tid);   // visible after the staging's iq_sync_lds
     const int sw = tid >> 4, t = tid & 15;
+    // a duplicated codebook: the lane's copy starts at slot t - t % DUPB (uint2), i.e. 2 (t - t % DUPB) words in
+    constexpr int DUPM = DUPB > 0 ? DUPB : 1;
+    const uint32_t* s_grid_lane = DUPB > 0 ? s_grid_buf + 2 * (t - t % DUPM) : s_grid_buf;
     const int nrow = 2 * (int) L.n_ff, n_ff = (int) L.n_ff;
     const int row_base = blockIdx.x * rb;
     for (int g = blockIdx.y; g < ng; g += gridDim.y) {
@@ -2638,7 +2681,7 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_kernel(
                 auto run = [&](auto nc) {
                     constexpr int NC = decltype(nc)::value;
                     float s[R][NC];
-                    ed_gu_rows<TG, R, NC, SF>(wr, s_u, s_ds, s_grid_buf, t, s);
+                    ed_gu_rows<TG, R, NC, SF, DUPB>(wr, s_u, s_ds, s_grid_lane, t, s);
 #pragma unroll
                     for (int c = 0; c < NC; ++c)
                         if (t == c)
@@ -4235,6 +4278,28 @@ uint32_t iq_sign_fast_mask() {
 }
 bool iq_sign_fast(int ty) { return ty >= 0 && ty < 32 && ((iq_sign_fast_mask() >> ty) & 1u) != 0; }
 
+// MOD_PLAN A37 (STRATA_IQ_LUT_DUP, opt-in, exact): the IQ2_XXS gate/up EXPDEC kernel (expdec_gu_kernel at R 1) with
+// its 2 KB codebook staged as 16 (32 KB) or 8 (16 KB) copies, FLUTE-style, so the 16 lanes of a sub-warp, which look
+// up random entries, hit their own bank pairs (16 copies: never a conflict; 8: two lanes per copy).  A static model of
+// the 8-byte lookups on 32 x 4-byte banks puts the plain table at ~6.1 LDS clocks per wave lookup against an ideal 2
+// (pancake-docs/batch2/A37-gpu-kernels.md); the copies cost LDS per block (13.5 -> 43.5 / 27.5 KB), i.e. occupancy,
+// so only the screen says whether it pays.  Not for IQ2_S / IQ2_XS: their 8 / 4 KB tables cannot be copied 16 times
+// (128 / 64 KB), and fewer copies barely help (balls in bins: 4 copies of IQ2_S, 32 KB, ~5.3 clocks).  Value: unset
+// or 0 = off; 16 (or 1) = 16 copies; 8 = 8 copies; anything else = off with a note.  Read at first use;
+// native_expert_set_expdec_params (lut_dup) overrides.  Set before graph capture.  Other routes ignore it: R 2, the
+// item-48 SwiGLU kernel and the default (non-EXPDEC) kernels keep the plain table.
+int g_iq_lut_dup = -1;   // copies in force: 0, 8 or 16 (-1: not read yet)
+int iq_lut_dup_norm(int v) { return v == 1 || v == 16 ? 16 : v == 8 ? 8 : 0; }
+int iq_lut_dup() {
+    if (g_iq_lut_dup < 0) {
+        const int v = env_int_or("STRATA_IQ_LUT_DUP", 0);
+        g_iq_lut_dup = iq_lut_dup_norm(v);
+        if (v != 0 && g_iq_lut_dup == 0)
+            std::fprintf(stderr, "strata expdec: STRATA_IQ_LUT_DUP=%d is not 1, 8 or 16: the plain codebook runs\n", v);
+    }
+    return g_iq_lut_dup;
+}
+
 bool expdec_gu_ok(const NativeExpertLayout& L) {
     const bool fmt = L.gu_type == 16 || L.gu_type == 17 || L.gu_type == 18 || L.gu_type == 21 || L.gu_type == 22;
     return fmt && L.n_embd == 32 * ED_XB && L.n_ff % 64 == 0 && L.n_ff > 0;
@@ -4263,6 +4328,20 @@ void expdec_gu_r(int64_t gy, int64_t cap_groups, cudaStream_t s, const unsigned 
     const int nrow = 2 * (int) L.n_ff;
     const int rb = expdec_rows_per_block(nrow, 16 * R, cap_groups, g_expdec_rb);
     const dim3 grid((unsigned) ((nrow + rb - 1) / rb), (unsigned) gy);
+    if constexpr (TG == 16 && R == 1) {   // A37: STRATA_IQ_LUT_DUP (the F12 sign form combines with it)
+        const int dup = iq_lut_dup();
+        if (dup != 0) {
+            const bool sf = iq_sign_fast(TG);
+            if (dup == 16) {
+                if (sf) expdec_gu_kernel<TG, R, MINB, true, 16><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+                else expdec_gu_kernel<TG, R, MINB, false, 16><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+            } else {
+                if (sf) expdec_gu_kernel<TG, R, MINB, true, 8><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+                else expdec_gu_kernel<TG, R, MINB, false, 8><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+            }
+            return;
+        }
+    }
     if constexpr (kIqSignFast<TG>) {
         if (iq_sign_fast(TG)) {
             expdec_gu_kernel<TG, R, MINB, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
@@ -4350,10 +4429,13 @@ void expdec_note(const NativeExpertLayout& L, bool gu, bool taken, cudaStream_t 
     }
     if (gu) {
         const int R = expdec_r(), rb = expdec_rows_per_block(2 * (int) L.n_ff, 16 * R, cap_groups, g_expdec_rb);
+        const int dup = ty == 16 ? iq_lut_dup() : 0;   // A37
+        const char* dup_note = dup == 0 ? "" : R != 1 ? ", STRATA_IQ_LUT_DUP ignored at R 2 (plain codebook)"
+                                     : dup == 16 ? ", codebook x16 in LDS (STRATA_IQ_LUT_DUP)" : ", codebook x8 in LDS (STRATA_IQ_LUT_DUP)";
         std::fprintf(stderr, "strata expdec: CUDA%d gate/up type %d: expdec_gu_kernel R %d MINB %d, %d rows per block, grid %d x %lld "
-                             "(cap %lld groups)%s%s\n", dev, ty, R, g_expdec_minb >= 4 ? 4 : 2, rb, (2 * (int) L.n_ff + rb - 1) / rb,
+                             "(cap %lld groups)%s%s%s\n", dev, ty, R, g_expdec_minb >= 4 ? 4 : 2, rb, (2 * (int) L.n_ff + rb - 1) / rb,
                      (long long) gy, (long long) cap_groups, cs != cudaStreamCaptureStatusNone ? ", captured into a graph" : "",
-                     iq_sign_fast(ty) ? ", F12 sign form (STRATA_IQ_SIGN_FAST)" : "");
+                     iq_sign_fast(ty) ? ", F12 sign form (STRATA_IQ_SIGN_FAST)" : "", dup_note);
     } else {
         const int R = expdec_dr(), lanes = ty == 20 ? 8 : 16;
         const int rb = expdec_rows_per_block((int) L.n_embd, (256 / lanes) * R, cap_groups, g_expdec_drb);
@@ -4372,6 +4454,12 @@ bool expdec_gu(const NativeExpertLayout& L, int64_t gy, int64_t cap_groups, cuda
         if (!warned && iq_sign_fast_mask() != 0) {
             warned = true;
             std::fprintf(stderr, "strata expdec: STRATA_IQ_SIGN_FAST has no effect here: it acts on the EXPDEC gate/up kernels "
+                                 "(STRATA_EXPDEC=1, not STRATA_OLD_IQ_MMVQ)\n");
+        }
+        static bool warned_dup = false;   // the same for A37's STRATA_IQ_LUT_DUP
+        if (!warned_dup && iq_lut_dup() != 0) {
+            warned_dup = true;
+            std::fprintf(stderr, "strata expdec: STRATA_IQ_LUT_DUP has no effect here: it acts on the EXPDEC IQ2_XXS gate/up kernel "
                                  "(STRATA_EXPDEC=1, not STRATA_OLD_IQ_MMVQ)\n");
         }
         return false;
@@ -6593,6 +6681,7 @@ void native_expert_set_expdec_params(const NativeExpertExpdecParams& p) {
     if (p.down_rows_per_block >= 0) g_expdec_drb = p.down_rows_per_block;
     if (p.min_blocks > 0) g_expdec_minblk = p.min_blocks;
     if (p.sign_fast >= 0) g_iq_sign_fast = p.sign_fast == 1 ? kIqSignFastAll : ((uint32_t) p.sign_fast & kIqSignFastAll);
+    if (p.lut_dup >= 0) g_iq_lut_dup = iq_lut_dup_norm(p.lut_dup);   // A37
 }
 NativeExpertExpdecParams native_expert_expdec_params() {
     NativeExpertExpdecParams p;
@@ -6605,6 +6694,7 @@ NativeExpertExpdecParams native_expert_expdec_params() {
     p.down_rows_per_block = g_expdec_drb;
     p.min_blocks = g_expdec_minblk;
     p.sign_fast = (int) iq_sign_fast_mask();
+    p.lut_dup = iq_lut_dup();
     return p;
 }
 bool native_expert_expdec_takes(const NativeExpertLayout& L, bool& gu, bool& down) {
