@@ -1454,6 +1454,13 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
     if (defer_heavy_ > 0.0f && strata::core::defer_top() > 0)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_TOP=%d: a CPU entry among its token's top %d by weight "
                              "is also kept on time (item 28 rank guard)\n", strata::core::defer_top(), strata::core::defer_top());
+    if (defer_heavy_ > 0.0f && strata::core::defer_fold() > 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_FOLD=%d: a layer with heavy CPU rows and at most %d "
+                             "light expert(s) runs them in one pool pass (the same rows join late; MOD_PLAN A4)\n",
+                     strata::core::defer_fold(), strata::core::defer_fold());
+    else if (strata::core::defer_fold() > 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_FOLD=%d ignored (no heavy/light split: it needs "
+                             "STRATA_VERIFY_DEFER_CPU=1 or check with a weight below 1)\n", strata::core::defer_fold());
     if (defer_heavy_ > 0.0f)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_BELOW=%g%s: a deferred layer waits for its CPU rows "
                              "of routing weight >= %g (the pool computes them first) and combines them; the lighter "

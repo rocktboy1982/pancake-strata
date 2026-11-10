@@ -384,7 +384,9 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | --- | --- | --- | --- | --- | --- |
 | `STRATA_ADAPT_KMISS=k,W` | `kmiss_tier.hpp` (item 14) | off | exact | tier admits an expert after k misses in W windows (2,8) | online +5..16% edit (sim); run with `--adapt-async 1` |
 | `STRATA_ADAPT_SWAPS_AUTO` | `swap_budget.hpp` (item 53) | off | exact | swaps per round chosen online in [x,96] | built, A/B queued |
-| `STRATA_VERIFY_DEFER_CPU` (+`_BELOW=<w>`, `_TOP=<n>`) | `defer_rank.hpp`, `verify.cpp` (item 28) | off | **lossy** | heavy CPU entries kept on time in their own layer instead of joining late | +33% edit (overlap sim); highest-ceiling lossy item |
+| `STRATA_VERIFY_DEFER_CPU` (+`_BELOW=<w>`) | `verify.cpp`, `expert_source.cpp` (item 28, MOD_PLAN A3) | off (on in fast-hip; `_BELOW` 0.1) | **lossy** | a layer's light CPU expert rows (routing weight < w) join the residual one layer late; the heavy ones stay on time | 7900 XT, test phase 01: +15.8% +-3.9 edit, short chat n.s., token forcing PASS; in the fast-hip preset |
+| `STRATA_VERIFY_DEFER_CPU_TOP=<n>` | `defer_rank.hpp` (item 28 rank guard, A4) | off | **lossy** | a CPU entry among its token's top n by weight is also kept on time | 01, `_TOP=2` vs fast-hip base: +20.1% +-3.3 edit but -6.9% +-3.5 short chat, token forcing PASS; opt-in |
+| `STRATA_VERIFY_DEFER_CPU_FOLD=<n>` | `defer_rank.hpp`, `expert_source.cpp` (A4 fix) | off | exact vs the same `_TOP`/`_BELOW` run | a layer with heavy CPU rows and at most n light experts runs one pool pass instead of two (the same rows still join late) | coded on `work/a4-rank-guard`, screen pending (`bench/specs/10-rank-guard-fold.json`) |
 | `STRATA_ROUTE_PRIOR_DEPTH=a` | `route_prior.hpp` (item 23, AcceptMoE-style) | off | lossy | residency bonus graded by window position | coded, probes clean |
 | `STRATA_DOMAIN_PROFILES=<dir>` | `expert_seed.hpp`, `server.py` (item 4) | off | exact | per-domain expert profiles seeded per request kind | needs per-domain traces |
 | `STRATA_CONV_WORKSET=N` / `_TOKENS=T` | `expert_seed.hpp` (item 3) | off / 32 | exact | keep the last N conversations' routing counts; seed resumed ones | coded on `feat/pattern-cache`, merged |
@@ -579,7 +581,7 @@ near-best. `STRATA_Q5K_HEAD` and `STRATA_MTP_PROXY` are on by default; the draft
 New headers and their engines: `include/strata/program/kmiss_tier.hpp` (`STRATA_ADAPT_KMISS`, admit on the k-th miss
 in W windows), `swap_budget.hpp` (`STRATA_ADAPT_SWAPS_AUTO`, online swap budget), `expert_seed.hpp`
 (`STRATA_DOMAIN_PROFILES`, `STRATA_CONV_WORKSET*`, `STRATA_SEED_SCALE/HOLD`: domain and conversation seeding),
-`include/strata/core/defer_rank.hpp` (`STRATA_VERIFY_DEFER_CPU/_BELOW/_TOP`, the KTransformers-style rank guard),
+`include/strata/core/defer_rank.hpp` (`STRATA_VERIFY_DEFER_CPU/_BELOW/_TOP/_FOLD`, the KTransformers-style rank guard),
 `route_prior.hpp` (`STRATA_ROUTE_PRIOR_DEPTH`, AcceptMoE-style depth grading), plus `src/core/verify.cpp` and
 `expert_source.cpp` wiring and the GPU lookahead default (`STRATA_LOOKAHEAD_GPU`). Why: replay showed the tier at
 79.6% hit vs LRU 89.5% and Belady 94.7% at 44% residency, and the overlap model priced deferral +33% and
