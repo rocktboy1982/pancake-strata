@@ -2039,8 +2039,16 @@ bool adapt_overlap() {
 /// STRATA_ADAPT_FETCH (opt-in): 1 = the PCIe share also admits into the VRAM tier (ExpertDispatch::fetch_admit), beside
 /// the tier's own copies from RAM; 2 = instead of them (the tier's counts still decay).  STRATA_ADAPT_FETCH_MIN and
 /// STRATA_ADAPT_FETCH_MARGIN: the admission's thresholds (default 1 and 0.5).
+/// STRATA_FETCH_ADMIT=1 (MOD_PLAN F15, AdrianBM96/Strata3060 `50581c24f2`) is the same idea under that fork's name and is
+/// an alias of STRATA_ADAPT_FETCH=1: this tree already holds the engine's own version of it, which also copes with
+/// STRATA_ADAPT_NOWAIT / STRATA_ADAPT_LAG (the pre-launch residency upload), where the fork's refuses to run.  An explicit
+/// STRATA_ADAPT_FETCH wins; neither set: 0, byte-identical.
 int adapt_fetch() {
-    static const int v = [] { const char* e = std::getenv("STRATA_ADAPT_FETCH"); return e ? std::max(0, std::min(2, std::atoi(e))) : 0; }();
+    static const int v = [] {
+        if (const char* e = std::getenv("STRATA_ADAPT_FETCH")) return std::max(0, std::min(2, std::atoi(e)));
+        const char* a = std::getenv("STRATA_FETCH_ADMIT");
+        return a != nullptr && a[0] == '1' ? 1 : 0;
+    }();
     return v;
 }
 
@@ -20501,6 +20509,9 @@ int main(int argc, char** argv) {
             if (drive.d.ecap_experts > 0)   // MOD_PLAN F5 STRATA_VERIFY_ECAP, cumulative
                 std::fprintf(stderr, "strata serve: STRATA_VERIFY_ECAP: %lld draft-only CPU experts skipped (%lld entries) "
                                      "since the start\n", (long long) drive.d.ecap_experts, (long long) drive.d.ecap_entries);
+            if (drive.d.fetch_admit > 0)   // STRATA_ADAPT_FETCH / STRATA_FETCH_ADMIT (MOD_PLAN F15), cumulative: 0 = an arm that is a base run
+                std::fprintf(stderr, "strata serve: STRATA_ADAPT_FETCH: %lld experts kept in the VRAM cache from the PCIe share "
+                                     "since the start\n", (long long) drive.d.fetch_admitted);
             // the resident RAM mode, cumulative: experts read from experts.bin since the copy was made (what the plain
             // mmap mode reads through the OS file cache, from the SSD when the RAM could not keep it)
             if (src.complement_ready())
