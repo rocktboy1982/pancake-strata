@@ -87,6 +87,13 @@ About 1 h per group with 3 reps; one group at a time, results and decisions writ
 | 3.4 | 13-small-ports | upstream #5655 route_prior fix (first, mandatory), PCIe staging off at `--pcie-frac 0` (strata-slim 0003), DraftPolicy clip (gfx1030), `POOL_GUIDED` (Strata-GLM), Argon AVX2 accumulators / row granularity, rdna3 `1799c0a3a` + `3dbb40516` | small ports, exact |
 | 3.5 | 14-larger | routed-only prompt expert streaming (gfx1030 `PF_STREAM_ROUTED`, check `PIN_BY_NEED` first), `VRAM_CALIB` (#5691), fragile-token recheck over turbo-hip (HotRod) with a momoe-style quality gate | medium / large |
 
+Additions from the active-fork scan (reports/Forkuri Strata active noiembrie.md): spec 11/12 gain env arms
+`STRATA_LOOKAHEAD=0`, `STRATA_PREFILL_ROUTED_STREAM=1` x `STRATA_PREFILL_COPY_WAIT_DEDUPE=1`, `STRATA_MMVF_ROWS=1`,
+`STRATA_MMVQ_R=2/4` (token forcing), `--spec-min-p 0.7`; spec 13 gains build bundle A (global-vs-flat load hint,
+gfx11 lighter barrier, DPP shuffles, sampler loads in flight) and bundle B (ACTQ_SKIP, FUSE_DECODE on HIP,
+PARK_REWIND_MAX, POOL_DAG=2); fixes before testing: prompt-cache root < 2048 (ElXreno a18d4668ec), kv_stream bound
+(kllmagn e3056ec81b), layer-major group-scratch cap (Spark-NV 8a3475b6d2, before PREFILL_LAYER_MAJOR).
+
 Credits: every candidate that is adopted gets its author in README.md section 9 and a row in
 pancake-docs/RESEARCH_AND_FINDINGS.md section 4 (commit, what was taken, measured result), in the adopting commit.
 
