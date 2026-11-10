@@ -1689,7 +1689,7 @@ decompression (hardware absent); L3 / next-layer prefetch (worse here and in for
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | A49 | Measure decode at 10K vs 64K vs 128K (attention share of the window) | method from Twilight, https://arxiv.org/abs/2502.02770 (US-M5) | - | exact | both | XS | 0 itself; decides A50/A51 | screen | **new** |
-| A50 | Verify-window attention that reads the prefix K/V once for all window rows | LongSpec, NTU 2025, https://arxiv.org/abs/2502.17421 (+ fork F11) | 15 F11, (Asia-P8) | rounding | both (int8 mma -> gfx11 WMMA) | M | fork: 200K decode 48.6 -> 88.9 tok/s (5080); ~0 at short context | confirm | planned (after A49) |
+| A50 | Verify-window attention that reads the prefix K/V once for all window rows | LongSpec, NTU 2025, https://arxiv.org/abs/2502.17421 (+ fork F11) | 15 F11, (Asia-P8) | rounding | both (int8 mma -> gfx11 WMMA) | M | fork: 200K decode 48.6 -> 88.9 tok/s (5080); ~0 at short context | confirm | Flash-Next: not built (QSA caps it at ~1%); Qwen3.6 engine: coded on work/f11-attn-window, exact by design (Phase 15 "F11 status"); abtest longdec32k/64k/128k cases also serve A49 |
 | A51 | Query-aware sparse decode attention | Quest, ICML'24, https://arxiv.org/abs/2406.10774 ; Twilight (above) | (ledger h) | lossy | both | M | a few % at 100K+ | rigorous | parked: attention must exceed ~15% of decode (A49) |
 
 ### 16.12 Data path: loader, PCIe, NVMe
@@ -1769,11 +1769,116 @@ launch cost ~14-16 us on gfx1100 vs ~3 us on sm_86, so fusions are worth more on
 | F8 | `STRATA_SPEC_CUM`: cumulative-probability draft stop (pair with item 5 `tail_replay.py`) | spec | exact | both; ~150 lines | android-imdad (7900 XTX): +1.8% pinned, +6.4% short chat, +2.1% agent -> est. +1-3% | android-imdad `f1bd09212a`, `ef42c2fde9` |
 | F9 | Faster router publish: write the step number instead of RMW over PCIe, copy MoE rows to host inside the router GEMV, DPP/warp top-10 | kernels | exact | CUDA warp reduce <-> HIP DPP | ours: `route_publish_res` 17.8 us/call, 2.68% of GPU time; est. +1-2% (7900 XT), smaller on sm_86 | android-imdad `caa9b00115` (`STRATA_ROUTE_FAST`); Ben1078 `23d2fc0450` **coded, branch work/f9-route-fast (unbuilt, unmeasured):** `STRATA_ROUTE_FAST=1`, CUDA and HIP. Path check first: the 17.8 us `route_publish_res` profile predates deferral in the preset; ROUTE_PUBLISH is off under deferral (d5b58f669), so fast-hip runs `route_multi` + `doorbell_publish` (every row, ids, weights, ring read-modify-written over PCIe; deferral profile: 9.7 + 6.9 us + a 6.8 us gap per layer); `STRATA_DOORBELL_STORE` exists (HIP only, #649) but is not in the preset; the CUDA preset runs `route_multi` + `doorbell_publish_res`. The change: the router GEMV (`bf16_f32_mmvf_multi_kernel`) copies the rows to the host; one launch (`route_publish_fast`) does route_multi's top-10 (same ids/weights), publishes ids + weights, stores the step number as the ring; it replaces all three old paths, also under deferral (it publishes the weights the heavy split needs; ROUTE_PUBLISH's ring plus doorbell_publish's gave two rings a step there, the likely cause of the 11-09 non-finite logits). DPP: pancake's `__shfl_xor_sync` is already DPP on gfx11 (`89da64b93`), so no new gain from that part. Parity in `native_multi_parity`, screen `bench/specs/17-f9-route-fast.json` (base / doorbell-store / route-fast) |
 | F10 | `STRATA_ADAPT_PROMPT`: prompt routing feeds the adaptive tier | MoE | exact | backend-independent, ~10 lines | est. +2-5% on the first decode tokens after a long new prompt | zsariboga `4ce19344ff` |
-| F11 | Window decode attention reading K/V once per verify window (`STRATA_ATTN_WINDOW`, int8 MMA) | attention | rounding-level | CUDA int8 mma -> gfx11 WMMA | Asofwar (5080): 200K decode 48.6 -> 88.9 tok/s, 130K 112.6 -> 146.4 -> long-context decode on both GPUs | Asofwar/Strata-Turbo |
+| F11 | Window decode attention reading K/V once per verify window (`STRATA_ATTN_WINDOW`, int8 MMA) | attention | rounding-level (fork); **exact by design** (our q36 port) | CUDA int8 mma -> gfx11 WMMA | Asofwar (5080): 200K decode 48.6 -> 88.9 tok/s, 130K 112.6 -> 146.4 -> long-context decode on both GPUs | Asofwar/Strata-Turbo `6ebe841e2e`, `540f801a9a`, `f43c719740` (MIT) **2026-11-10, branch work/f11-attn-window (unbuilt, unmeasured):** the fork's code does not rebase (a SPLIT instance of a dense int8 prompt kernel pancake lacks, hooked where Flash-Next has no indexer, GQA 8 only); on Flash-Next the idea is capped at ~1% (QSA reads <= 2,051 cells a row, attention 3% of a window). Ported instead to the engine with the fork's shape, the Qwen3.6 engine (`q36_engine.cu`): `STRATA_ATTN_WINDOW=1` -> `k_attn_window`, K/V read once per KV head and pair of rows (decode step 1x instead of 8x, 3-row window 2x instead of 24x), designed bitwise `k_attn_part` (host emulation: bitwise in 6 cases). Spec `bench/specs/18-f11-attn-window.json`; gfx1100 WMMA design in "F11 status" below |
 | F12 | Cheaper IQ2/IQ3 sign expansion in the expert GEMVs (port with EXPDEC_V2) | kernels | exact | HIP measured; CUDA drop-in for the `__vcmpne4/__vsub4` sites | boxwrench (7900 XT, GLM engine): IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time -> est. 0-1.5% decode | yqYo1 `6f0bdf665b`; RX5950XT `b9a2111d3f` |
 | F13 | Route-prior guards for turbo (`STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE`, `KEEP`) so turbo can run a stronger lambda without breaking tool JSON; compare turbo against a uniform tail skip at equal KL | MoE | lossy | backend-independent | enables a stronger turbo; no speed by itself | zsariboga `8d7042ad97`; mandoof1 `3e0489e118`; lighttransport `2ea0c1e042` **coded, branch work/f13-prior-guards (unbuilt, unmeasured):** `STRATA_ROUTE_PRIOR_PROTECT` (alias `_KEEP`) and `_KEEP_P` in `route_prior.cu` (one kernel for CUDA and HIP), `STRATA_ROUTE_PRIOR_SCOPE=answer|think|all` (+ `_ON_PROMPT`, `_MARKS`) through a mapped per-window gate float written by the serve decode loop from a token-state machine (`include/strata/program/route_prior_scope.hpp`: think / tool call / fence, Qwen 3.8 marker ids checked against the GGUF vocabulary); all opt-in, unset = byte-identical, also to plain turbo. Screen: `bench/specs/19-turbo-guards.json` (turbo, turbo + guards, lambda 0.7 + guards, tail skip 7 / 6; read at equal KL, token forcing `--path decode` then the task gate). WARM (mandoof1) not ported: no page-cache tier in pancake. |
 | F12 | Cheaper IQ2/IQ3 sign expansion in the expert GEMVs (port with EXPDEC_V2) | kernels | exact | HIP measured; CUDA drop-in for the `__vcmpne4/__vsub4` sites | boxwrench (7900 XT, GLM engine): IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time -> est. 0-1.5% decode | yqYo1 `6f0bdf665b`; RX5950XT `b9a2111d3f` **coded, branch work/f12-sign-expand (unbuilt, unmeasured):** `STRATA_IQ_SIGN_FAST=1` (or a type list, `22`, `16,22`), runtime switch, CUDA and HIP: `iq_signed<SF>` = RX5950XT's multiply-free form, bitwise (host check: 5 codebooks x every sign field, 22,229 cases, 0 differences); only the EXPDEC gate/up kernels for IQ2_XXS / IQ2_XS / IQ2_S take it (expdec_gu, expdec_gu_swiglu); native_gu_multi (fork count: 16 -> 10-12 waves), DotG, s26 and vec_dot_* stay on the old form; EXPDEC_V2 is not in this tree, so F12 went alone (redo the A/B once V2 lands). Parity in `iq_multi_parity`, per-format A/B `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1`, screen `bench/specs/22-f12-sign-fast.json` |
 | F13 | Route-prior guards for turbo (`STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE`, `KEEP`) so turbo can run a stronger lambda without breaking tool JSON; compare turbo against a uniform tail skip at equal KL | MoE | lossy | backend-independent | enables a stronger turbo; no speed by itself | zsariboga `8d7042ad97`; mandoof1 `3e0489e118`; lighttransport `2ea0c1e042` |
+
+#### F11 status (2026-11-10, branch `work/f11-attn-window`: coded for the Qwen3.6 engine, not built, not measured)
+
+Fork commits (fork DB, `upstream_history = 0`; Asofwar/Strata-Turbo, MIT): `6ebe841e2e` (`STRATA_ATTN_WINDOW`, +140/-7
+in `qsa_prompt_attn.cu`, hooks in `verify.cpp` / `mtp.cpp`, `attn_window_parity.cpp`), `540f801a9a`
+(`STRATA_ATTN_WINDOW_SMALL`, `decode_attn_window_small_kernel`), `f43c719740` (small windows up to 4 queries only,
+`_SPLITS` and precision mode 3 removed). Both kernels are dense attention for qwen35moe run on the fork's MAIN engine:
+the hook is `!idx && qsa_decode_attn_window(...)` (no indexer), the guard `s.n_head == 8 * s.n_head_kv`, int8 KV in
+Flash-Next's paged pool layout, and the window kernel is a `SPLIT` instance of the fork's `prompt_attn_dense_kernel`
+(int8 tensor cores, cp.async, sm_80+; HIP returns false).
+
+Why it does not rebase on pancake (read from the code):
+1. pancake has no `prompt_attn_dense_kernel` (its QSA prompt kernels take a selection id list), so the window kernel has
+   nothing to be an instance of; the fork's whole dense INT8 prompt kernel would come first.
+2. Nothing would call it. pancake's main engine runs only Flash-Next (`model_family_runs`), which always has the
+   indexer; a qwen35moe file goes to `src/qwen35` (the family switch at the top of main) or to strata-poly.
+3. Flash-Next has 24 query heads over 2 KV heads (12 a KV head): the shape guard fails.
+4. The gain mechanism is missing on Flash-Next. QSA selects at most 2,051 cells a row at any context; decode attention is
+   0.74 ms of a 24.8 ms window (3.0%) at 32K / 131K / 262K alike and latency-bound (~0.1 ms of it is bytes; profile in
+   `c19f82b53`), and `STRATA_ATTN_WMMA` (gfx11 matrix-core decode attention) measured neutral with the model (`8860719dd`).
+   Sharing K/V among a window's rows needs the union of the rows' own top-k selections and saves part of those ~0.1 ms:
+   ceiling about 1% of decode. Not built.
+
+The part that fits: pancake's own Qwen3.6 engine (`src/qwen35/q36_engine.cu`, reached through `strata`'s family switch;
+the 7900 XT's Qwen3.6 path, since strata-poly is CUDA-only) has exactly the fork's shape: dense attention, 16 query heads
+over 2 KV heads (8 a KV head), head dim 256, verify windows of up to 8 rows (`kVerify`) with `--mtp N`. Its decode
+attention `k_attn_part` runs one block per (256-cell chunk, row x query head), so a T-row window reads every K/V chunk
+8 T times per KV head (no GQA sharing either), from an FP32 cache (2 KB of K + V per cell and KV head). At 128K that is
+512 MB per layer per read and 8 reads per decode row (~4 GB per layer, ~40 GB per token over the 10 attention layers,
+less what L2 / MALL catch; from the code, not profiled).
+
+Coded: `STRATA_ATTN_WINDOW=1` -> `k_attn_window<8, NR>` (NR = 2 rows a block when the batch has 2 or more rows, else 1).
+One block per (chunk, KV head, pair of rows) computes the 16 (row, head) pairs' partials with each K row and V row of
+the chunk loaded once; partials in `k_attn_part`'s layout, `k_attn_merge` unchanged. Reads per KV head and chunk:
+decode step 1 (was 8), 3-row window 2 (was 24), 8-row window 4 (was 64). One source for CUDA and HIP (no warp
+intrinsics, 32 KB static shared memory, 256 threads). One session's rows only (batch rows keep `k_attn_part`), and only
+the 8-per-KV-head, 256-dim shape. Unset: the old launch, unchanged (byte-identical default).
+
+Exactness: designed to be bitwise `k_attn_part`, not rounding-level. Each pair's q.k dot runs over i ascending from 0 in
+the same `a += q * k` form; `s = a * scale` (-inf past the row's cells); `block_max`'s and `block_sum`'s shared-memory
+trees are replayed for every pair over the same thread -> cell map (level h adds cell i + h into cell i); `e = expf(s -
+m)`; the V sum runs over the row's cells ascending in the same `acc += e * v` form. The float4 loads only change how the
+values arrive. Host check in this commit (no GPU): both kernels compiled together for the CPU (256 std::threads a block,
+a barrier for `__syncthreads`, static locals as shared memory) give bitwise equal acc, m and l in 6 cases (T 1-5, 1-2 KV
+heads, rows across a chunk edge, a dead and a live row in one block, odd T, NaN in every cell past the window, never
+read), with `-ffp-contract=fast` and `=off`. On the GPU the same holds if nvcc / hipcc make the same contraction choices
+in both kernels (the open point: `s = a * scale` feeding `expf(s - m)` across the reduction loop). Run, in order:
+1. Bitwise check per backend: `strata-q36 --model <UD-Q4_K_XL> --max-context 131072 --tokens "$(cat ids40k.txt)" --n 64
+   --dump-full-logits a.bin`, again with `STRATA_ATTN_WINDOW=1` into b.bin, `cmp a.bin b.bin` silent; repeat with
+   `--mtp 2` (verify windows: both kernel shapes) and with `--no-graph`. ids40k.txt = 40,000 random ids
+   (`python3 -c "import random; random.seed(1); print(','.join(str(random.randrange(1000, 150000)) for _ in range(40000)))"`).
+   Equal: exact, the screen's text check is the only gate. Not equal: rounding-level, token forcing with
+   `tools/qwen35/kl.py` before any preset.
+2. Kernel-level speed: `strata-q36 ... --bench-pp 32768 --bench-tg 128` (and 65536, 120000), base vs the switch.
+3. Served: `python tools/pancake/abtest.py bench/specs/18-f11-attn-window.json --out bench/results/<day>/18-f11.jsonl
+   --tier screen` (short, edit, longdec32k / 64k / 128k, `--mtp 2`; the base config's sed line is in the spec).
+
+Expected gain (estimate from bytes only): K/V traffic per decode token at 128K from ~8 to 1 cache reads per layer (T = 1)
+and from 24 to 2 for a 3-row window; the wall-time share depends on what L2 / MALL caught before and on the CPU expert
+side in hybrid mode. Fork data on this engine (GQA sharing only, not windows): dongnh311 `62cc598f3b` (RTX 3060) 16K
+attention 2.37 -> 0.227 ms/layer, decode after 16K 12.0 -> 27.5 tok/s; storm-ace `4fe0284da5` (gfx1151) ~35K 11.4-12.5
+-> 27.1 tok/s. F11 adds the window sharing on top for MTP windows.
+
+Tools in this commit: abtest.py long-context decode cases `longdec32k`, `longdec64k`, `longdec128k` (cold 32K / 64K /
+120K-token prompt, then a 256-token reply; metric = decode tok/s of the reply; 120K so prompt + reply fit 131072 even
+with LONG_CPT 8% off; they also serve A49); abtest also reads the Qwen3.6 engine's log line (`strata serve: session S:
+prompt ...`). Base config template `configs/pancake/qwen36-ud-q4_k_xl-q36.json` (UD-Q4_K_XL on build-hip/strata,
+`--mtp 2`; not a run-pancake.sh preset).
+
+gfx1100 matrix-core version (design only; would be `STRATA_ATTN_WINDOW=2`, rounding-level):
+- Why: the exact kernel needs a pass per 2 rows (its per-pair reduction trees take 2 x 16 KB of LDS per 16 pairs), so an
+  8-row window still reads K/V 4 times and every MAC is a VALU FMA. A WMMA kernel holds all T x 8 <= 64 (row, head)
+  pairs of a KV head in one pass: K/V read once per window.
+- Instruction: `v_wmma_f32_16x16x16_f16` (`__builtin_amdgcn_wmma_f32_16x16x16_f16_w32`), not `v_wmma_i32_16x16x16_iu8`.
+  On gfx1100 both do 16x16x16 per instruction at the same rate, so int8 buys no MACs (the fork used IMMA because sm_80+
+  runs it at twice the HMMA rate); f16 keeps FP32 accumulation and takes int8 codes or fp16 values exactly as B. With
+  the q36 engine's FP32 cache: A = q hi + lo, B = K hi + lo (fp16 splits), three WMMAs a k-step (qh.kh + ql.kh + qh.kl;
+  the dropped ql.kl is ~2^-22 relative), about the FP32 kernel's accuracy. With an fp16 cache (follow-up
+  `STRATA_Q36_KV16`, half the bytes, 2.7 GB less VRAM at 131K) two WMMAs (qh.k + ql.k), B exact.
+- Tiles: M-tile = the 8 query heads of 2 consecutive rows (16 pairs, the fork's small-window tile), NT = ceil(T / 2)
+  <= 4; N = 16 cells; K = 16 dims (16 steps a head). Workgroup = 4 waves (wave32) on one KV head and a range of 256-cell
+  chunks (persistent; ranges for ~2 workgroups per WGP, 42 WGPs on the 7900 XT).
+- Per 32-cell sub-chunk: K staged in LDS as fp16 hi / lo (32 KB), the scores S (64 pairs x 32 cells, 8 KB), P as fp16
+  hi / lo (8 KB), then V transposed (Vt[dim][cell], hi / lo) into K's 32 KB: ~48 KB a workgroup (with an fp16 cache
+  16 KB each, double-buffered). A fragments (q hi / lo) from a pre-split fp16 image of q in global, written once per
+  window (L0 / L1-resident; BFLA's Q-from-global variant was 11% faster than LDS-resident q on this card, `6c68d7586`).
+- Scores: the 4 waves split the (M-tile, N-tile) pairs (NT x 2 per sub-chunk), 16 k-steps x 3 WMMAs each; C fragments
+  (lane l: cell l % 16, pairs 2i + l / 16) to LDS.
+- Softmax: online inside each 256-cell chunk (running m, l per pair, acc rescaled per sub-chunk), so each chunk ends with
+  `k_attn_part`'s (m, l, acc) contract and `k_attn_merge` stays; a wave takes 16 pair rows, max and sum by DPP row
+  reductions, p = expf(s - m) in FP32, written as fp16 hi / lo.
+- P.V: wave w owns dims 64w .. 64w + 63 (4 N-tiles) for all NT M-tiles: NT x 4 x 8 accumulator floats a lane (<= 128
+  VGPRs); 3 WMMAs per 16-cell k-step (ph.vh + pl.vh + ph.vl), 2 with an fp16 cache. Chunk end: acc (lane l = dim 16n + l
+  % 16), m, l to pacc / pm / pl.
+- Cost of a 3-row window at 128K (estimate): 512 MB of K + V per layer once (0.64 ms at 800 GB/s) against the exact
+  kernel's 2 reads (1.3 ms); ~25 GFLOP of WMMA per layer at NT = 2 with the splits (~0.25 ms of the ~103 TFLOPS fp16
+  peak): bandwidth-bound, the splits are free.
+- Exactness: not bitwise (another summation order, split products): token forcing and the KL gate (`tools/qwen35/kl.py`,
+  the 1.5x-of-floor rule) before any default. A decode step must take the same kernel as the windows, so that a verify
+  row stays bitwise a decode row (MTP text = plain greedy text, the engine's existing rule).
+- Flash-Next form, not recommended: the rows' QSA selections merged into a sorted union with a row mask per cell, the
+  same tiles over the union through the page table, int8 codes as exact fp16 B and the per-64 scales in FP32
+  (`STRATA_ATTN_WMMA`'s arithmetic, M = T x 12 pairs); ceiling ~1% of decode (above).
+- RTX 3060: its Qwen3.6 engine is strata-poly (own q8 KV, `attend_q8`), which the fork's kernel does not fit either; the
+  window kernel for that engine is F17's `STRATA_FDEC` (RandoTeam: mma decode attention reading keys once per 4 tokens).
 
 ### 15B. RTX 3060 (CUDA) first, then port to HIP
 

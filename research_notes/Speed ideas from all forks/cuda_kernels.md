@@ -158,6 +158,12 @@ The one big NEW item is **Asofwar/Strata-Turbo's window decode attention**: each
 
 ### Gaps
 - I did not open the Asofwar kernel diffs. Size, exact files and whether they rebase on 0.1.58 are unknown; Strata-Turbo forked around 0.1.45-0.2.x.
+- Update 2026-11-10 (diffs opened, MOD_PLAN F11 status): the window kernel is a `SPLIT` instance of the fork's dense int8
+  `prompt_attn_dense_kernel`, called from the main engine only where there is no indexer (qwen35moe on the fork's main
+  engine), GQA 8 only. It does not rebase: pancake has no dense prompt kernel, Flash-Next always has the QSA indexer
+  (<= 2,051 cells a row, attention ~3% of a window), and pancake runs qwen35moe on `src/qwen35` or strata-poly. The second
+  inference above is answered: the dense path is not the one Flash-Next takes. The idea was rewritten for the Qwen3.6
+  engine (`k_attn_window`, branch work/f11-attn-window).
 - No measurements exist below 130K context, nor on Ampere. The 5080 has a different int8 MMA rate than the 3060.
 
 ---

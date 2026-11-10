@@ -465,6 +465,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_DISCO` / `STRATA_DISCO_TRACE` | `feat/disco` | learned stop rule for the MTP draft chain (replaces Dynasor, item 21) | replaces fixed draft windows |
 | `STRATA_CONTEXT_DEDUP=1` | `feat/contextpilot` | lossy block dedup of repeated context | 1.6% on 40 real sessions; **keep off** |
 | `STRATA_ATTN_WMMA=1` | `feat/bitdecoding-hip` | BitDecoding-style decode attention on gfx11 matrix cores | neutral; not adopted |
+| `STRATA_ATTN_WINDOW=1` | `work/f11-attn-window` (`src/qwen35/q36_engine.cu` `k_attn_window`, MOD_PLAN F11, from Asofwar/Strata-Turbo) | Qwen3.6 engine only: decode and verify-window attention reads each K/V chunk once per KV head and pair of rows (a decode step once instead of 8 times, a 3-row MTP window twice instead of 24 times); meant to be bit-for-bit the old kernel (bitwise in a host emulation), CUDA and HIP; not read by Flash-Next (its QSA selection already caps attention at 2,051 cells) | not built or measured; spec `bench/specs/18-f11-attn-window.json` (decode after 32K / 64K / 120K prompts). Fork claim (RTX 5080, int8 tensor cores, main-engine port): 200K decode 48.6 -> 88.9 tok/s |
 
 ### 6G. Server env vars (`serve/`)
 
@@ -830,6 +831,9 @@ Credits, in the order the stack was built:
 - **jmnargi** (Strata-V100, MIT), for the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts (commits `24894e676b`,
   `7c5041c358`, `376355453f`; upstream PR #3545), and for measuring how a too-tight cap breaks tool calls.
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
+- **Asofwar** (Strata-Turbo, MIT), for window decode attention, each K/V chunk read once for a whole verify window
+  (`STRATA_ATTN_WINDOW`, `STRATA_ATTN_WINDOW_SMALL`; commits `6ebe841e2e`, `540f801a9a`). `STRATA_ATTN_WINDOW` here is
+  the idea rewritten for the Qwen3.6 engine (`k_attn_window`); no fork code was copied.
 - **RX5950XT** (Strata fork, MIT), for the IQ2/IQ3 sign form without byte compares that `STRATA_IQ_SIGN_FAST` uses (commit
   `b9a2111d3f`, llama.cpp's `ggml_cuda_apply_signs` without its multiply), and **boxwrench** (in yqYo1/Strata, MIT), for
   measuring packed sign expansion on an RX 7900 XT (commit `6f0bdf665b`).

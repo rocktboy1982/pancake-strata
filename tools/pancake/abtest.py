@@ -13,8 +13,9 @@ Spec (JSON):
   {"base": "pancake-flashnext-iq2_xs-rdna3test.json",
    "arms": {"base": {}, "kmiss": {"env": {"STRATA_ADAPT_KMISS": "2,8"}, "args": {"--adapt-swaps": "96"}}},
    "cases": ["short", "edit", "long"], "reps": 3}
-  cases: short, edit (decode tok/s); long (~12K tokens), long32k, long64k (prompt tok/s, see below).  "prefill": true marks a
-  spec whose arms change prompt reading (see --tier screen).
+  cases: short, edit (decode tok/s); long (~12K tokens), long32k, long64k (prompt tok/s, see below); longdec32k,
+  longdec64k, longdec128k (decode tok/s AFTER a long cold prompt, see below).  "prefill": true marks a spec whose arms
+  change prompt reading (see --tier screen).
   args: "--flag": "value" sets, "--flag": "" a bare switch, "--flag": null removes.  env: "KEY": null removes.
   Optional top-level "temperature" (default 0 = greedy), "top_p", "seed": sampling of every request, for arms that only
   matter when sampling (speculative sampling, STRATA_SPEC_PROB*).  Sampled text is not reproducible, so the text-hash
@@ -25,7 +26,8 @@ Spec (JSON):
 Test tiers (bench/TEST_PLAN.md "How every test runs"):
   --tier screen   one A B pass, cases short + edit, 2 requests per case in the same server; verdict per arm:
                   promote (>= +2% on a case, no case below -3%) or drop.  Minutes per arm.  Use it first, always.
-                  The long* cases are dropped (tens of seconds per read, and the plain screens judge decode), unless the spec sets "prefill": true:
+                  The long* cases are dropped (tens of seconds per read, and the plain screens judge decode), except the longdec*
+                  ones (they judge decode; one request each), unless the spec sets "prefill": true:
                   then every case of the spec is kept, the long* ones with ONE request each (short / edit keep two), and
                   the long* cases are compared on prompt tok/s with the same promote / drop thresholds.
   --tier confirm  (default) A B B A ... up to --reps, with early stop: after every full A B B A pair, stop once every
@@ -41,6 +43,11 @@ and is not checked (short / edit still are).  long32k / long64k request max_toke
 count_tokens endpoint is asked once per server for the prompt size of each long* case before the first request, and
 the engine's reported prompt tokens are printed per run (a warning if more than 8% off the target).  Needs
 --max-context above 64K for long64k (the base configs use 131072).
+Long-context decode cases (longdec32k, longdec64k, longdec128k; MOD_PLAN F11): the same kind of cold source-text prompt
+as long32k / long64k (32000 / 64000 tokens; longdec128k reads 120000 so that the prompt plus the 256-token reply stays
+under --max-context 131072 even when LONG_CPT is 8% off), then a 256-token reply; metric = the decode tok/s of that
+reply (the engine's own log line), so the attention over the long cache is in every token.  One request per server,
+never read warm, text not compared (the unique first line), like the other long* cases.
 Every run also records a hash of the generated text: an arm whose text is identical to base on every case is exact,
 so it needs no quality gate.  A server that dies before ready is retried once; a second death aborts the batch
 (memory fragmentation / oomd: see the free-2MiB-block line) instead of continuing with too few runs.
@@ -65,8 +72,11 @@ T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 
 
 
 LONG_CPT = 2.85                                          # chars per token of this repo's C++ (Qwen tokenizer; 'long': 34264 chars = 11978 tokens)
-LONG_TARGET = {"long32k": 32000, "long64k": 64000}       # prompt tokens (fit the 131072 context; 32K stays under --kv-resident 32768)
-MAXTOK = {"long32k": 32, "long64k": 32}                  # prefill-only cases: no 512-token decode at 32K / 64K context
+LONG_TARGET = {"long32k": 32000, "long64k": 64000,       # prompt tokens (fit the 131072 context; 32K stays under --kv-resident 32768)
+               "longdec32k": 32000, "longdec64k": 64000, "longdec128k": 120000}   # decode after the read (F11)
+LONG_DEC = ("longdec32k", "longdec64k", "longdec128k")   # long* cases judged on the decode tok/s of the reply after the read
+MAXTOK = {"long32k": 32, "long64k": 32,                  # prefill-only cases: no 512-token decode at 32K / 64K context
+          "longdec32k": 256, "longdec64k": 256, "longdec128k": 256}
 SUMMARIZE = "Summarize what each of these source files does, one paragraph per file.\n\n"
 
 
@@ -76,7 +86,7 @@ def is_long(c):
 
 
 def metric(c):
-    return "prompt_tps" if is_long(c) else "decode_tps"
+    return "prompt_tps" if is_long(c) and c not in LONG_DEC else "decode_tps"
 
 
 def corpus(chars):
@@ -445,7 +455,8 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1):
     if log and Path(log).exists():
         for line in Path(log).read_text(errors="replace").splitlines()[n0:]:
             m = LINE.search(line)
-            if m and "strata serve: prompt" in line:
+            # Flash-Next: "strata serve: prompt N tokens ..."; the Qwen3.6 (q36) engine: "strata serve: session S: prompt N tokens ..."
+            if m and ("strata serve: prompt" in line or "strata serve: session" in line):
                 acc = int(m[5]) / int(m[6]) if m[5] and int(m[6]) > 0 else None
                 rows.append({"prompt": int(m[1]), "prompt_tps": float(m[2]), "gen": int(m[3]), "decode_tps": float(m[4]),
                              "accept": acc})
@@ -525,7 +536,7 @@ def text_check(results, arms, cases):
 
 def summary(results, arms, cases):
     base = arms[0]
-    print("\nsummary (decode tok/s; prompt tok/s for long*; mean +- 95% interval over clean runs, or the quietest attempt)")
+    print("\nsummary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)")
     for c in cases:
         key = metric(c)
         vals = {a: [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c] for a in arms}
@@ -569,7 +580,7 @@ def main():
     per_run = 1
     if a.tier == "screen":
         if not spec.get("prefill"):   # a prefill spec keeps its long* cases (one request each, see n_requests)
-            cases = [c for c in cases if not is_long(c)] or ["short"]
+            cases = [c for c in cases if not is_long(c) or c in LONG_DEC] or ["short"]
         reps, per_run = 1, 2
     base = str(ROOT / spec["base"]) if not os.path.isabs(spec["base"]) else spec["base"]
     for k in ("temperature", "top_p", "seed"):   # optional sampling, for arms that only matter at T > 0

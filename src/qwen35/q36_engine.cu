@@ -358,6 +358,137 @@ __global__ void k_attn_merge(const float* pacc, const float* pm, const float* pl
     out[gi] = num / den * sigm(gate[gi]);
 }
 
+/// STRATA_ATTN_WINDOW=1 (opt-in, MOD_PLAN F11; the idea of Asofwar/Strata-Turbo's window decode attention, 6ebe841e2e /
+/// 540f801a9a, MIT, no code taken): k_attn_part's partials for the G query heads of one KV head in NR consecutive rows
+/// at once.  One block per (256-cell chunk, KV head, group of NR rows) instead of one per (chunk, row x head), so each
+/// K row and V row of the chunk is read from memory once for NP = NR x G (row, head) pairs instead of once per pair:
+/// a decode step (one row) reads the chunk once for its 8 heads instead of 8 times, a verify window of T rows
+/// ceil(T / 2) times instead of 8 T times.
+/// Every pair's arithmetic is k_attn_part's, in k_attn_part's order and with the same expression forms: the q.k dot
+/// over i ascending from 0, s = a * scale (-inf past the row's cells), block_max's and block_sum's shared-memory trees
+/// over the same thread -> cell map (the same pairs added level by level), e = expf(s - m), the V sum over the row's
+/// cells of the chunk ascending from 0.  The partials, and so k_attn_merge's output, are meant to be k_attn_part's bit
+/// for bit (to be confirmed on each backend: --dump-full-logits with the switch on and off must be equal byte for
+/// byte, see MOD_PLAN F11); a decode step and a verify window still compute every row the same way.
+/// q [rows][H][256], kc / vc [HKV][ctx][256] (one session's cache: batch rows keep k_attn_part); rows t0 .. t0 + nt - 1
+/// at cells *pos0 + t; pacc / pm / pl indexed as k_attn_part's (row (t - t0) * H + h, chunk c).
+/// grid (n_chunk, HKV, ceil(nt / NR)), block kThreads (== kChunkCells == HD == 256).
+template <int G, int NR>
+__global__ void __launch_bounds__(kThreads) k_attn_window(const float* q, const float* kc, const float* vc,
+                                                          const int32_t* pos0, int t0, int nt, int H, int ctx, float scale,
+                                                          int n_chunk, float* pacc, float* pm, float* pl) {
+    constexpr int HD = 256, NP = G * NR;
+    static_assert(kThreads == HD && kChunkCells == kThreads, "one thread per cell and per dim");
+    __shared__ __align__(16) float buf[NP][HD];   // the pairs' queries, then their e over the chunk's cells
+    __shared__ float red[NP][kThreads];           // the pairs' block_max / block_sum trees
+    const int c = blockIdx.x, kvh = blockIdx.y, r0 = blockIdx.z * NR;   // r0: the group's first row of the batch
+    const int j = threadIdx.x, p0 = c * kChunkCells;
+    int npos[NR];   // cells row r0 + rr sees (0 for a row past the batch: it writes nothing)
+    int nmax = 0;
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr) {
+        npos[rr] = r0 + rr < nt ? *pos0 + t0 + r0 + rr + 1 : 0;
+        nmax = max(nmax, npos[rr]);
+    }
+    if (p0 >= nmax) return;   // past every row's cells (graph mode: the grid covers the whole context)
+    // pair pr = rr * G + g: query head kvh * G + g of row r0 + rr
+    for (int k = j; k < NP * HD; k += kThreads) {
+        const int pr = k / HD, i = k - pr * HD, rr = pr / G;
+        buf[pr][i] = r0 + rr < nt ? q[((size_t) (t0 + r0 + rr) * H + kvh * G + pr % G) * HD + i] : 0.f;
+    }
+    __syncthreads();
+    const int p = p0 + j;
+    float s[NP];   // k_attn_part's `a`, then its `s`
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) s[pr] = 0.f;
+    if (p < nmax) {   // the K row is read once for every pair (k_attn_part: once per pair)
+        const float4* kp = reinterpret_cast<const float4*>(kc + ((size_t) kvh * ctx + p) * HD);
+        for (int i4 = 0; i4 < HD / 4; ++i4) {
+            const float4 kv = kp[i4];
+#pragma unroll
+            for (int pr = 0; pr < NP; ++pr) {   // a += qs[i] * kp[i], i ascending
+                const float4 qv = *reinterpret_cast<const float4*>(&buf[pr][4 * i4]);
+                s[pr] += qv.x * kv.x;
+                s[pr] += qv.y * kv.y;
+                s[pr] += qv.z * kv.z;
+                s[pr] += qv.w * kv.w;
+            }
+        }
+    }
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) s[pr] = p < npos[pr / G] ? s[pr] * scale : -INFINITY;
+    // m = block_max(s): the same tree for every pair (level h: cell i takes max(cell i, cell i + h) for i < h)
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) red[pr][j] = s[pr];
+    __syncthreads();
+    for (int h = kThreads / 2; h > 0; h >>= 1) {
+        for (int k = j; k < NP * h; k += kThreads) {
+            const int pr = k / h, i = k - pr * h;
+            red[pr][i] = fmaxf(red[pr][i], red[pr][i + h]);
+        }
+        __syncthreads();
+    }
+    float m[NP];
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) m[pr] = red[pr][0];
+    __syncthreads();   // every thread holds the maxima before red is refilled (buf's queries are no longer read)
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) {
+        const float e = p < npos[pr / G] ? expf(s[pr] - m[pr]) : 0.f;
+        buf[pr][j] = e;
+        red[pr][j] = e;
+    }
+    __syncthreads();
+    // l = block_sum(e): the same tree (level h: cell i += cell i + h for i < h)
+    for (int h = kThreads / 2; h > 0; h >>= 1) {
+        for (int k = j; k < NP * h; k += kThreads) {
+            const int pr = k / h, i = k - pr * h;
+            red[pr][i] += red[pr][i + h];
+        }
+        __syncthreads();
+    }
+    // acc (dim j) = sum over the row's cells k of the chunk, ascending from 0, of e[k] * V[k][j]; the V row is read once
+    // for every pair.  Cells every live row sees take no per-row test; the chunk's last cells are tested per row.
+    int nlo = kChunkCells;
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr)
+        if (npos[rr] > p0) nlo = min(nlo, npos[rr] - p0);
+    const int nhi = min(kChunkCells, nmax - p0);
+    const float* vp = vc + ((size_t) kvh * ctx + p0) * HD + j;
+    float acc[NP];
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) acc[pr] = 0.f;
+    int k = 0;
+    for (; k + 4 <= nlo; k += 4) {
+        const float v0 = vp[(size_t) k * HD], v1 = vp[(size_t) (k + 1) * HD];
+        const float v2 = vp[(size_t) (k + 2) * HD], v3 = vp[(size_t) (k + 3) * HD];
+#pragma unroll
+        for (int pr = 0; pr < NP; ++pr) {
+            const float4 ev = *reinterpret_cast<const float4*>(&buf[pr][k]);
+            acc[pr] += ev.x * v0;
+            acc[pr] += ev.y * v1;
+            acc[pr] += ev.z * v2;
+            acc[pr] += ev.w * v3;
+        }
+    }
+    for (; k < nhi; ++k) {
+        const float v = vp[(size_t) k * HD];
+#pragma unroll
+        for (int pr = 0; pr < NP; ++pr)
+            if (k < npos[pr / G] - p0) acc[pr] += buf[pr][k] * v;
+    }
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) {
+        if (p0 >= npos[pr / G]) continue;   // k_attn_part writes nothing for a chunk past the row's cells
+        const size_t o = (size_t) ((r0 + pr / G) * H + kvh * G + pr % G) * n_chunk + c;
+        pacc[o * HD + j] = acc[pr];
+        if (j == 0) {
+            pm[o] = m[pr];
+            pl[o] = red[pr][0];
+        }
+    }
+}
+
 /// The routed entries (T tokens x K picks, entry e = t * K + k) grouped per expert, on the device: one group per
 /// expert used (ascending id), its blob address, its entries in entry order.  One block.
 __global__ void k_group(const int32_t* ids, int n_ent, int K_, int n_expert, const uint8_t* blobs, unsigned long long blob,
@@ -1986,11 +2117,27 @@ struct Engine {
             } else {
                 // split-K over 256-cell chunks; the chunk grid covers every cell a row can see (graph mode: the whole
                 // context, past-the-end chunks return at once)
+                // STRATA_ATTN_WINDOW=1 (opt-in, F11): k_attn_window writes the same partials with each K / V chunk read
+                // once per KV head and pair of rows (k_attn_part: once per row and query head); one session's rows only
+                // (batch rows read each slot's own cache) and the 8-heads-per-KV-head, 256-dim shape it is built for.
+                // Unset: the k_attn_part launch below, unchanged.
+                static const bool attn_window = [] {
+                    const char* v = std::getenv("STRATA_ATTN_WINDOW");
+                    return v != nullptr && std::atoi(v) != 0;
+                }();
+                const bool window = attn_window && !rows_mode && H == 8 * HKV && HD == 256;
                 const int rows_per = att_rows / H;
                 for (int t0 = 0; t0 < T; t0 += rows_per) {
                     const int nt = std::min(rows_per, T - t0);
                     const int nc = graph_mode ? n_chunk
                                               : (int) std::min<int64_t>(n_chunk, (p0 + t0 + nt + kChunkCells - 1) / kChunkCells);
+                    if (window && nt >= 2)
+                        k_attn_window<8, 2><<<dim3(nc, HKV, (nt + 1) / 2), kThreads, 0, st>>>(
+                            q, kc[li], vc[li], dpos, t0, nt, H, ctx, 1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl);
+                    else if (window)
+                        k_attn_window<8, 1><<<dim3(nc, HKV, nt), kThreads, 0, st>>>(
+                            q, kc[li], vc[li], dpos, t0, nt, H, ctx, 1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl);
+                    else
                     k_attn_part<<<dim3(nc, nt * H), kChunkCells, 0, st>>>(q, rows_mode ? nullptr : kc[li],
                                                                          rows_mode ? nullptr : vc[li], dpos, t0, H, HKV, ctx,
                                                                          1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl, rs);
