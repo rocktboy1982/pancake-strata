@@ -151,6 +151,12 @@ What one run does:
 3. Writes `runs/<run>-new-commits.csv` with only the commits first seen in this run, and `runs/<run>-errors.csv`.
    A fork that failed is not marked as scanned, so the next run retries it.
 
+Upstream rewrote its history around early October, so 974 older forks share no commit with it and GitHub's
+`compare` answers "No common ancestor". For those the script takes the commits on the fork's branch dated after the
+fork was created, then marks as `upstream_history = 1` the ones that are really old upstream commits the fork had
+synced (authored by the upstream owner, or present in two or more such forks). Analyses should filter on
+`upstream_history = 0`; the new-commits CSV already does.
+
 Layout of the knowledge base (default `KB_DIR=/home/dan/clone-of-d/strata-forks-kb`, kept outside the repo):
 
 | Path | Contents |
@@ -159,8 +165,8 @@ Layout of the knowledge base (default `KB_DIR=/home/dan/clone-of-d/strata-forks-
 | `readmes/<blob_sha>.md` | README contents, stored once per distinct content (most forks share upstream's). |
 | `runs/` | The per-run CSVs above. |
 
-Run and update it (the first run takes about 2 hours because of the GitHub limit of 5,000 calls per hour; later runs
-only touch forks that changed and take minutes):
+Run and update it (the first run took 70 minutes, including one wait for the GitHub limit of 5,000 calls per hour;
+an update only touches forks that changed: the next run rescanned 22 forks in under a minute):
 
 ```bash
 GITHUB_TOKEN=$(gh auth token) python3 tools/forks/fork_kb.py          # first run, and every update after it
@@ -179,7 +185,8 @@ import sqlite3
 db = sqlite3.connect("/home/dan/clone-of-d/strata-forks-kb/forks.sqlite")
 # commits that appeared in the latest run
 for r in db.execute("""select repo, substr(date,1,10), substr(message,1,90) from commits
-                       where first_seen_run = (select max(id) from runs) order by date desc"""):
+                       where upstream_history = 0 and first_seen_run = (select max(id) from runs)
+                       order by date desc"""):
     print(*r, sep="  ")
 # the forks with the most unique work
 for r in db.execute("select repo, ahead_by, pushed_at from forks where ahead_by > 0 order by ahead_by desc limit 30"):
@@ -190,6 +197,21 @@ PY
 The new-commits CSV of each run is the input for the next round of fork notes (see the
 [November fork report](reports/Forkuri%20Strata%20active%20noiembrie.md)); anything adopted from it follows the
 credit rule in section 9.
+
+First results (2026-11-10, report: [Baza de cunoștințe forkuri Strata](reports/Baza%20de%20cuno%C8%99tin%C8%9Be%20forkuri%20Strata.md)):
+
+| Measure | Value |
+| --- | ---: |
+| Direct forks | 4,550 (21 return 404 on `compare`, retried every run) |
+| Forks with their own commits | 407 (340 diverged, 66 of the 974 without a common ancestor, 1 ahead) |
+| Own commits in total | 43,685 |
+| Forks with own commits since 2026-11-01 / 2026-11-08 | 140 (2,957 commits) / 60 (666 commits) |
+| Distinct READMEs | 167 (80 MB knowledge base in total) |
+
+Activity peaked in the week after launch (71 forks, ~20,900 commits, week of 2026-09-28) and has slowed since (110
+forks in the last full week). Since 11-01 the commit messages are mostly about the server and agent layer (75 forks),
+the expert cache and offload (71), quantization (55), KV and attention (57), CUDA (54), speculative decoding and MTP
+(51) and HIP/ROCm (40 forks, 238 commits).
 
 ## 4. Academic Research: Papers, Ideas, and Direct URLs
 
