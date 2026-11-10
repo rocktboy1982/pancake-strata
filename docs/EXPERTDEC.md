@@ -37,11 +37,13 @@ enables it, since in an RTX 2080 Ti 131k decode the `Q2_0` down with EXPDEC was 
 kernel although the micro-bench alone had it at 0.78x). The `IQ4_NL` down projection remains opt-in (`STRATA_EXPDEC_D20=1`)
 on all architectures.
 
-pancake note (2026-11-09): on the RX 7900 XT (gfx1100) the Q2_0 down of VRAM-resident experts therefore runs on the
-default `native_down_multi_kernel<42>`, 5.8% of GPU kernel time in a rocprofv3 run
+pancake note (2026-11-09): on the RX 7900 XT (gfx1100), with `STRATA_EXPDEC_DOWN` unset, the Q2_0 down of VRAM-resident
+experts runs on the default `native_down_multi_kernel<42>`, 5.8% of GPU kernel time in a rocprofv3 run
 (`bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv`); both the Q2_0 and the "IQ2_XS" Flash-Next GSQ-RCO
-files have Q2_0 down projections. Whether `STRATA_EXPDEC_DOWN=1` helps on gfx1100 is not measured
-([PANCAKE_FINDINGS.md section 13](PANCAKE_FINDINGS.md#13-research-series-2026-11-09)).
+files have Q2_0 down projections. `STRATA_EXPDEC_DOWN=1` is measured on gfx1100 (test phase 04c,
+`bench/results/2026-11-09-test-phase/RESULTS.md`): +1.7% +-0.5 on short chat, the code edit +5.4% +-7.3 (not
+significant), token forcing PASS. It is in the `flashnext-iq2_xs-fast-hip` preset since f15ad2b51; the Q2_0 fast-hip
+preset does not set it ([PANCAKE_FINDINGS.md section 13](PANCAKE_FINDINGS.md#13-research-series-2026-11-09)).
 
 The first time `STRATA_EXPDEC=1` meets a (role, format) the engine writes one line, e.g.
 `strata expdec: CUDA1 gate/up type 21: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups), captured into a graph`
