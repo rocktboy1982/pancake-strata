@@ -46,3 +46,8 @@ session's python3 above the 25%-of-a-core foreign limit on all three attempts); 
 (41% vs 74% foreign: same tok/s).  Fix: when every attempt is noisy, abtest keeps the quietest one instead of none.
 Arms with a single slow attempt at 3.2-3.6 GHz CPU (routed-dedupe, mmvf-rows) carry the CPU-clock effect, not the arm.
 | 05c confirm (`2026-11-10-test-phase/`, 4 reps) | --lookup-max-t 12 | -3.5% +-3.6 n.s. | **+8.8% +-6.8** | - | **PASS** (events p 0.70) | **into fast-hip** (Avalon report; credited) |
+| 06 screen (`2026-11-10-test-phase/`, base = fast-hip + lookup12) | turbo (STRATA_ROUTE_PRIOR=0.5) | -2.0% | **+32.4%** | - | (lossy) | promote -> 06c confirm + quality gate |
+| 06 screen | turbo + ROUTE_PRIOR_DEPTH=0.75 | -0.3% | -1.3% | - | - | drop |
+| 07 screen | --mtp-q4 head | - | - | - | - | **fails to start on HIP** ("mtp: writing the draft head": cudaMemcpy of the Q4_0 head fails, exit 1); bug, not tested |
+| 07b screen | STRATA_MTP_EAGER=1 | -0.6% | +15.4% | - | - | promote -> 06c confirm |
+| 07b screen | STRATA_CACHE_MESSAGE_BOUNDARY=1 + --prompt-cache-tail / STRATA_MTP_HIP_PRIO=1 | -2.3% / -17.7% | -11.0% / +14.5% | - | - | drop |
