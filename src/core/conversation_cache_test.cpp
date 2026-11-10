@@ -856,5 +856,119 @@ int main() {
         check(slotp.put(build(18)) && slotp.put(build(19)) && slotp.size() == 1 && slotp.evictions() == 1 &&
               slotp.truncations() == 0, "truncate: slot-count pressure still evicts whole");
     }
+    {
+        // MOD_PLAN A15 (opt-in park TTL, Continuum 2025): an idle sub-agent branch leaves before the main agent's parked
+        // conversation, and a branch waiting for a tool result is kept for the hold.  Cache policy only: what an entry
+        // holds is untouched.
+        auto img = [](std::vector<int32_t> ids, bool cvec = true) {
+            SavedConversation s;
+            s.live.ids = std::move(ids);
+            s.live.gdn.resize(64, 7);
+            s.cvec = cvec;
+            return s;
+        };
+        const std::vector<int32_t> main_ids{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};           // the main agent: system prompt 1..4 + history
+        const std::vector<int32_t> sub_a{1, 2, 3, 4, 20, 21};                           // a sub-agent: shares 1..4, stays short
+        const std::vector<int32_t> sub_b{1, 2, 3, 4, 30, 31};
+        const std::vector<int32_t> sub_tool{1, 2, 3, 4, 40, 99};                        // ends in a tool call (99)
+        const std::vector<int32_t> other{50, 51, 52, 53, 54, 55};                       // an unrelated conversation
+        const std::vector<int32_t> sub_c{1, 2, 3, 4, 60, 61};
+        auto has = [](const ConversationCache& c, const std::vector<int32_t>& ids) {
+            std::vector<int32_t> p = ids;
+            p.push_back(-5);   // the last prompt token always starts the next window: a prefix hit needs one more token
+            return c.best(p, {}, true).tokens == (int64_t) ids.size();
+        };
+        int64_t now = 0;
+        auto tool = [](const SavedConversation& e) { return !e.live.ids.empty() && e.live.ids.back() == 99; };
+        ConversationCache::ParkTtl ttl;
+        ttl.ttl_ms = 1000; ttl.hold_ms = 500; ttl.share_min = 3; ttl.sub_ratio = 0.7;
+
+        // off (the default): the old rule, the oldest entry (the main agent) goes first
+        ConversationCache off(1 << 20, 3);
+        check(off.put(img(main_ids)) && off.put(img(sub_a)) && off.put(img(sub_b)) && off.put(img(sub_c)) && off.size() == 3,
+              "ttl off: four conversations, three slots");
+        check(!has(off, main_ids) && has(off, sub_a) && off.evictions() == 1 && off.ttl_evictions() == 0 && !off.park_ttl().enabled(),
+              "ttl off: oldest-first as before: the main agent is evicted");
+
+        // on: the sub-agent branch goes first although the main agent is older
+        ConversationCache on(1 << 20, 3);
+        on.set_park_ttl(ttl, tool, [&] { return now; });
+        check(on.put(img(main_ids)), "ttl on: main agent parked");
+        now = 10;
+        check(on.put(img(sub_a)) && on.put(img(sub_b)) && on.size() == 3, "ttl on: two branches parked");
+        now = 20;
+        check(on.put(img(sub_c)) && on.size() == 3 && on.evictions() == 1, "ttl on: a fourth conversation evicts one");
+        check(has(on, main_ids) && !has(on, sub_a) && has(on, sub_b) && has(on, sub_c),
+              "ttl on: the oldest branch went, the older main agent stays");
+        check(on.ttl_evictions() == 0, "ttl on: that branch was not idle for the TTL yet (rank 1)");
+        now = 5000;   // every branch idle past the TTL: rank 0, oldest first, still before the main agent
+        check(on.put(img({1, 2, 3, 4, 70, 71})) && has(on, main_ids) && !has(on, sub_b) && on.ttl_evictions() == 1,
+              "ttl on: an idle branch (rank 0) is evicted before the main agent and counted");
+
+        // unrelated conversations (no shared prefix, no length ratio): no branch, the old oldest-first order
+        ConversationCache plain(1 << 20, 2);
+        plain.set_park_ttl(ttl, tool, [&] { return now; });
+        check(plain.put(img(main_ids)) && plain.put(img(other)) && plain.put(img({60, 61, 62, 63, 64, 65, 66, 67})),
+              "ttl on: unrelated conversations");
+        check(!has(plain, main_ids) && has(plain, other), "ttl on: no branch among them: oldest-first as before");
+
+        // a branch waiting for a tool result is kept for the hold, then it ranks as a branch again
+        now = 0;
+        ConversationCache hold(1 << 20, 3);
+        hold.set_park_ttl(ttl, tool, [&] { return now; });
+        check(hold.put(img(sub_tool)) && hold.put(img(main_ids)), "hold: tool-pending branch (oldest) and the main agent");
+        now = 100;
+        check(hold.put(img(sub_b)) && hold.put(img(sub_a)) && hold.size() == 3, "hold: a fourth conversation");
+        check(has(hold, sub_tool) && has(hold, main_ids) && !has(hold, sub_b) && has(hold, sub_a),
+              "hold: the plain branch goes first, the tool-pending branch (oldest) and the main agent stay");
+        now = 2000;   // the hold (500 ms) is over and the branch idle past the TTL: the oldest idle branch goes
+        check(hold.put(img(sub_c)) && !has(hold, sub_tool) && has(hold, main_ids), "hold: expired, the idle branch goes before main");
+        // ... and a tool-pending entry is held over a main agent that waits for nothing
+        now = 0;
+        ConversationCache hm(1 << 20, 2);
+        hm.set_park_ttl(ttl, tool, [&] { return now; });
+        check(hm.put(img({1, 2, 3, 4, 5, 6, 7, 8, 9, 99})) && hm.put(img(other)) && hm.put(img(sub_a)),
+              "hold: main (tool-pending), an unrelated one and a branch");
+        check(has(hm, {1, 2, 3, 4, 5, 6, 7, 8, 9, 99}) && !has(hm, other) && has(hm, sub_a),
+              "hold: the tool-pending conversation outranks a plain one");
+
+        // exactness: a pinned shared prefix and the guarded donor are never taken; the disk tier gets the evicted branch;
+        // the entries that stay are byte-for-byte what was parked
+        now = 0;
+        std::vector<std::vector<int32_t>> spilled;
+        ConversationCache dt(1 << 20, 2);
+        dt.set_disk_tier([&](SavedConversation&& e) { spilled.push_back(e.live.ids); }, {});
+        dt.set_park_ttl(ttl, tool, [&] { return now; });
+        auto pinned_main = img(main_ids);
+        pinned_main.checkpoints.push_back(ConversationCheckpoint{});
+        pinned_main.checkpoints.back().ids = {1, 2, 3, 4};
+        pinned_main.checkpoints.back().pinned = true;
+        const size_t main_bytes = pinned_main.bytes();
+        check(dt.put(std::move(pinned_main)) && dt.put(img(sub_a)) && dt.put(img(sub_b)) && dt.size() == 2 &&
+              spilled.size() == 1 && spilled[0] == sub_a && has(dt, main_ids), "disk tier: the branch is demoted, the pinned main stays");
+        const auto b = dt.best(std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -5}, {}, true);
+        check(b.tokens == 10 && dt.find(b.serial)->bytes() == main_bytes, "exactness: the kept entry is unchanged");
+        ConversationCache gd(1 << 20, 2);
+        gd.set_park_ttl(ttl, tool, [&] { return now; });
+        check(gd.put(img(sub_a)) && gd.put(img(main_ids)), "guard: a branch and the main agent");
+        gd.guard(gd.best(std::vector<int32_t>{1, 2, 3, 4, 20, 21, -5}, {}, true).serial);
+        check(gd.put(img(sub_b)) && has(gd, sub_a) && !has(gd, main_ids), "guard: the guarded branch is skipped, the next one goes");
+        gd.unguard();
+        // steering mode: a branch of another mode is not a branch of this one
+        ConversationCache cv(1 << 20, 2);
+        cv.set_park_ttl(ttl, tool, [&] { return now; });
+        check(cv.put(img(main_ids)) && cv.put(img(sub_a, false)) && cv.put(img(other)) && !has(cv, main_ids),
+              "cvec: a sub-agent-shaped entry of another steering mode does not shield the main agent");
+        // set_park_ttl with a bad ratio and no clock falls back to safe defaults; ttl <= 0 stays off
+        ConversationCache dflt(1 << 20, 2);
+        ConversationCache::ParkTtl bad; bad.ttl_ms = 10; bad.sub_ratio = 7.0; bad.share_min = -4; bad.hold_ms = -1;
+        dflt.set_park_ttl(bad);
+        check(dflt.park_ttl().sub_ratio == 0.5 && dflt.park_ttl().share_min == 1 && dflt.park_ttl().hold_ms == 0 &&
+              dflt.put(img(main_ids)) && dflt.put(img({1, 2, 3, 4, 20})) && dflt.put(img(other)) && has(dflt, main_ids),
+              "defaults: bad settings clamp; the real clock works");
+        ConversationCache zero(1 << 20, 2);
+        zero.set_park_ttl(ConversationCache::ParkTtl{});
+        check(!zero.park_ttl().enabled(), "ttl_ms 0: off");
+    }
     std::printf("conversation_cache_test: %d checks passed\n", checks);
 }

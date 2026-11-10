@@ -12336,6 +12336,33 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        // MOD_PLAN A15 (opt-in, STRATA_PARK_TTL_S=N seconds, N > 0; Continuum 2025, arXiv 2511.02230): a TTL / idleness rule
+        // for the parked conversations of sub-agent sessions.  Cache policy only (which parked entry leaves first when the
+        // cache needs room; the disk tier, when on, demotes it as always): outputs are unchanged.  An entry that shares
+        // its leading STRATA_PARK_TTL_SHARE tokens (default 512; the agent's system prompt and tools) with a longer parked
+        // entry at least 1/STRATA_PARK_TTL_SUB_RATIO times its length (default 0.5) is a sub-agent branch: an idle one
+        // goes before the main agent's conversation.  One whose last reply ended in a tool call is held for
+        // STRATA_PARK_TTL_HOLD_S seconds (default 60: the predicted tool duration) and goes last.  See
+        // ConversationCache::set_park_ttl.  Unset or 0: the old rule.
+        if (const char* ttl_s = std::getenv("STRATA_PARK_TTL_S"); ttl_s != nullptr && std::atof(ttl_s) > 0.0 && conversations.enabled()) {
+            auto env_num = [](const char* name, double dflt) {
+                const char* v = std::getenv(name);
+                return v != nullptr && v[0] != '\0' ? std::atof(v) : dflt;
+            };
+            strata::core::ConversationCache::ParkTtl pt;
+            pt.ttl_ms = (int64_t) std::max(1.0, std::atof(ttl_s) * 1000.0);
+            pt.hold_ms = (int64_t) std::max(0.0, env_num("STRATA_PARK_TTL_HOLD_S", 60.0) * 1000.0);
+            pt.share_min = (int64_t) std::max(1.0, env_num("STRATA_PARK_TTL_SHARE", 512.0));
+            pt.sub_ratio = env_num("STRATA_PARK_TTL_SUB_RATIO", 0.5);
+            const char* ptt = std::getenv("STRATA_TOOL_CALL_TOKEN");   // <tool_call> (Qwen3.x); -1: no tool hold
+            const int64_t park_turn_token = o.turn_token, park_tool_token = ptt != nullptr ? std::atoll(ptt) : 248058;
+            conversations.set_park_ttl(pt, [park_turn_token, park_tool_token](const strata::core::SavedConversation& c) {
+                return strata::core::conversation_ended_in_tool_call(c.live.ids, park_turn_token, park_tool_token);
+            });
+            std::fprintf(stderr, "strata serve: conversation cache: park TTL on (STRATA_PARK_TTL_S): an idle sub-agent branch "
+                                 "(idle >= %lld ms) is evicted before the main agent's conversation, a tool-pending one is held "
+                                 "%lld ms (exact: eviction order only)\n", (long long) pt.ttl_ms, (long long) pt.hold_ms);
+        }
         // A prompt that continues a disk entry deeper than the live session, a batch slot (`have`) and every parked
         // conversation (by STRATA_CONVERSATION_DISK_MIN_GAIN tokens) reads it back through /slots RESTORE's checks and
         // parks it: the parked-restore path below validates it and takes or borrows it as any parked conversation.

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -419,15 +420,12 @@ public:
     // False when none can go (empty, or only entries that hold a pinned shared prefix are left).
     bool evict_oldest() {
         // the oldest entry that holds no pinned shared prefix and is not the guarded (borrowed) donor; with the disk
-        // tier's keep-hot rule, the oldest such entry it does not keep first (item 39)
-        auto movable = [&](size_t i) { return !entries_[i].pinned() && !(guarded_ != 0 && serials_[i] == guarded_); };
-        size_t victim = SIZE_MAX;
-        if (keep_hot_)
-            for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
-                if (movable(i) && !keep_hot_(entries_[i])) victim = i;
-        for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
-            if (movable(i)) victim = i;
+        // tier's keep-hot rule, the oldest such entry it does not keep first (item 39); with the park TTL (A15) an
+        // idle sub-agent branch first (pick_victim)
+        int rank = -1;
+        const size_t victim = pick_victim(&rank);
         if (victim == SIZE_MAX) return false;
+        if (rank == 0) ++ttl_evictions_;
         bytes_ -= entries_[victim].bytes();
         if (spill_) {
             SavedConversation out = std::move(entries_[victim]);
@@ -453,13 +451,7 @@ public:
     // owner shares, or a K/V layout the shrink does not recognize.
     size_t truncate_oldest(size_t need) {
         if (!park_truncate_ || spill_) return 0;
-        auto movable = [&](size_t i) { return !entries_[i].pinned() && !(guarded_ != 0 && serials_[i] == guarded_); };
-        size_t vi = SIZE_MAX;
-        if (keep_hot_)
-            for (size_t i = 0; i < entries_.size() && vi == SIZE_MAX; ++i)
-                if (movable(i) && !keep_hot_(entries_[i])) vi = i;
-        for (size_t i = 0; i < entries_.size() && vi == SIZE_MAX; ++i)
-            if (movable(i)) vi = i;
+        const size_t vi = pick_victim();
         if (vi == SIZE_MAX) return 0;
         SavedConversation& victim = entries_[vi];
         const size_t before = victim.bytes();
@@ -489,12 +481,48 @@ public:
         keep_hot_ = std::move(keep_hot);
     }
 
+    /// MOD_PLAN item A15 (opt-in, STRATA_PARK_TTL_S; Continuum 2025, arXiv 2511.02230): a time-to-live / idleness rule
+    /// for the parked conversations of sub-agent sessions.  CACHE POLICY ONLY: which entry make_room() / evict_oldest()
+    /// / truncate_oldest() takes first changes; what an entry holds and what a restore reads do not, so outputs are
+    /// unchanged (exact).  The rule ranks the movable entries (a pinned shared prefix and the guarded donor stay out, as
+    /// before) and takes the lowest rank first, the oldest within a rank:
+    ///   0  an idle sub-agent branch: idle for `ttl_ms` or more, and not waiting for a tool result;
+    ///   1  a sub-agent branch that is not yet idle that long (still oldest-first among the branches);
+    ///   2  any other conversation (the main agent's: the long one the branches share a prefix with);
+    ///   3  a conversation whose last reply ended in a tool call and was parked less than `hold_ms` ago (Continuum:
+    ///      the client comes straight back with the tool's result; the hold is a fixed prediction of the tool's
+    ///      duration, after which the entry ranks as any other).
+    /// A "branch" is an entry that shares at least min(`share_min`, half its length) leading tokens with a longer
+    /// parked entry at least 1/`sub_ratio` times its length (a sub-agent starts from the main agent's system prompt and
+    /// tools and stays shorter than it).  A mis-classification only changes the eviction order.  With the disk tier
+    /// the evicted branch is demoted to disk (spill) as always.  `tool_pending`: the entry's last reply ended in a tool
+    /// call (when empty, the disk tier's keep-hot rule).  `clock`: milliseconds on any monotonic scale (default:
+    /// steady_clock; a test passes its own).  ttl_ms <= 0 (the default): off, the old rule exactly.
+    struct ParkTtl {
+        int64_t ttl_ms = 0, hold_ms = 0, share_min = 512;
+        double sub_ratio = 0.5;
+        bool enabled() const { return ttl_ms > 0; }
+    };
+    void set_park_ttl(ParkTtl ttl, std::function<bool(const SavedConversation&)> tool_pending = {},
+                      std::function<int64_t()> clock = {}) {
+        ttl.hold_ms = std::max<int64_t>(0, ttl.hold_ms);
+        ttl.share_min = std::max<int64_t>(1, ttl.share_min);
+        ttl.sub_ratio = ttl.sub_ratio > 0.0 && ttl.sub_ratio <= 1.0 ? ttl.sub_ratio : 0.5;
+        park_ttl_ = ttl;
+        tool_pending_ = std::move(tool_pending);
+        clock_ = std::move(clock);
+        parked_at_.assign(entries_.size(), park_ttl_.enabled() ? now_ms() : 0);   // entries parked before: idle from now
+    }
+    const ParkTtl& park_ttl() const { return park_ttl_; }
+    size_t ttl_evictions() const { return ttl_evictions_; }   // rank-0 victims (idle sub-agent branches)
+
     // #879: every parked conversation (pinned ones too) and the retained K/V go - after non-finite logits any of them
     // may carry the poison.  Returns how many were parked.
     size_t clear() {
         const size_t n = entries_.size();
         entries_.clear();
         serials_.clear();
+        parked_at_.clear();
         bytes_ = 0;
         reuse_ = {};
         return n;
@@ -592,6 +620,7 @@ public:
         if (!make_room(n, held)) return false;
         entries_.push_back(std::move(image));
         serials_.push_back(next_serial_++);
+        parked_at_.push_back(park_ttl_.enabled() ? now_ms() : 0);
         bytes_ += n;
         return true;
     }
@@ -674,6 +703,61 @@ private:
     void erase(size_t index) {
         entries_.erase(entries_.begin() + (std::ptrdiff_t) index);
         serials_.erase(serials_.begin() + (std::ptrdiff_t) index);
+        parked_at_.erase(parked_at_.begin() + (std::ptrdiff_t) index);
+    }
+
+    int64_t now_ms() const {
+        if (clock_) return clock_();
+        return (int64_t) std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
+    // A15: whether entries_[i] is a sub-agent branch (see set_park_ttl)
+    bool is_branch(size_t i) const {
+        const auto& a = entries_[i].live.ids;
+        const size_t na = a.size();
+        if (na == 0) return false;
+        const size_t need = (size_t) std::min<int64_t>(park_ttl_.share_min, (int64_t) std::max<size_t>(1, na / 2));
+        for (size_t j = 0; j < entries_.size(); ++j) {
+            if (j == i || entries_[j].cvec != entries_[i].cvec) continue;
+            const auto& b = entries_[j].live.ids;
+            if (b.size() <= na || (double) na > park_ttl_.sub_ratio * (double) b.size()) continue;
+            size_t same = 0;
+            while (same < na && a[same] == b[same]) ++same;
+            if (same >= need) return true;
+        }
+        return false;
+    }
+
+    // The entry make_room / evict_oldest / truncate_oldest take first (SIZE_MAX: none can go).  Default: the oldest
+    // entry that holds no pinned shared prefix and is not the guarded (borrowed) donor; with the disk tier's keep-hot
+    // rule, the oldest such entry it does not keep first (item 39).  With the park TTL (A15) the rank of set_park_ttl.
+    size_t pick_victim(int* rank_out = nullptr) {
+        auto movable = [&](size_t i) { return !entries_[i].pinned() && !(guarded_ != 0 && serials_[i] == guarded_); };
+        if (park_ttl_.enabled() && parked_at_.size() == entries_.size()) {
+            const int64_t now = now_ms();
+            size_t best = SIZE_MAX;
+            int best_rank = 4;
+            for (size_t i = 0; i < entries_.size() && best_rank > 0; ++i) {
+                if (!movable(i)) continue;
+                const int64_t idle = now - parked_at_[i];
+                const bool tool = tool_pending_ ? tool_pending_(entries_[i]) : (keep_hot_ && keep_hot_(entries_[i]));
+                int rank;
+                if (tool && idle < park_ttl_.hold_ms) rank = 3;
+                else if (is_branch(i)) rank = idle >= park_ttl_.ttl_ms ? 0 : 1;
+                else rank = 2;
+                if (rank < best_rank) { best_rank = rank; best = i; }   // strict: the oldest wins within a rank
+            }
+            if (rank_out) *rank_out = best == SIZE_MAX ? -1 : best_rank;
+            return best;
+        }
+        size_t victim = SIZE_MAX;
+        if (keep_hot_)
+            for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
+                if (movable(i) && !keep_hot_(entries_[i])) victim = i;
+        for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
+            if (movable(i)) victim = i;
+        return victim;
     }
     size_t budget_ = 0, slots_ = 0, bytes_ = 0, evictions_ = 0, superseded_ = 0, borrowed_ = 0;
     int64_t min_tokens_ = 0;   // --conversation-cache-min-tokens: 0 parks every conversation, whatever its size
@@ -682,6 +766,11 @@ private:
     size_t truncations_ = 0;
     std::deque<SavedConversation> entries_; // least recently active first
     std::deque<uint64_t> serials_;          // entries_[i]'s identity, never reused
+    std::deque<int64_t> parked_at_;         // entries_[i]'s park time, ms (A15; 0 while the park TTL is off)
+    ParkTtl park_ttl_;                      // A15: off by default
+    size_t ttl_evictions_ = 0;
+    std::function<bool(const SavedConversation&)> tool_pending_;
+    std::function<int64_t()> clock_;
     uint64_t next_serial_ = 1, guarded_ = 0;
     bool guard_blocked_ = false;
     ConversationKvReuse reuse_;

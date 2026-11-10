@@ -60,3 +60,24 @@ def test_engine_lines():
     assert p["prompt_lines"][0]["reused"] == 4079 and p["prompt_lines"][0]["read_ms"] == 200
     assert p["events"] == ["skip (snapshot 1286 MiB exceeds available budget)", "restored 66 (checkpoint, 38 ms)",
                            "parked 4084 (284 MiB)"] and p["evictions"] == 19
+
+
+def test_shared_system_prompt_is_opt_in():
+    C = RT.Counter("/nonexistent")
+    plan = RT.plan_synthetic()
+    side = next(e for e in plan if e["kind"] == "side" and not e["repeat"])
+    agent = plan[[e["kind"] for e in plan].index("agent")]
+    try:
+        RT.SHARED_SYSTEM = 0
+        off = RT.Conversations(C, RT.Corpus(RT.ROOT))
+        off_agent, _ = off.build(agent)
+        off_side, _ = off.build(side)
+        assert off.shared is None and off_side[0]["role"] == "user"          # the default: nothing changed
+        RT.SHARED_SYSTEM = 600
+        on = RT.Conversations(C, RT.Corpus(RT.ROOT))
+        on_agent, n1 = on.build(agent)
+        on_side, n2 = on.build(side)
+        assert on_agent[0] == on_side[0] and on_agent[0]["role"] == "system" and on.shared
+        assert abs(n1 - agent["target"]) <= RT.TOL + 1 and abs(n2 - side["target"]) <= RT.TOL + 1
+    finally:
+        RT.SHARED_SYSTEM = 0
