@@ -2075,6 +2075,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(pcie_share_rule_test src/core/pcie_share_rule_test.cpp)
   target_include_directories(pcie_share_rule_test PRIVATE include)
   add_test(NAME pcie_share_rule_test COMMAND pcie_share_rule_test)
+  add_executable(calibrate_ratio_test src/core/calibrate_ratio_test.cpp)
+  target_include_directories(calibrate_ratio_test PRIVATE include)
+  add_test(NAME calibrate_ratio_test COMMAND calibrate_ratio_test)
   # STRATA_AMD_COMMUNITY_TUNING: the switch turns each community-made AMD change off (header only; run from the source tree)
   add_executable(amd_community_test src/core/amd_community_test.cpp)
   target_include_directories(amd_community_test PRIVATE include)
@@ -3425,7 +3428,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
-    pcie_share_rule_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
+    pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test uma_cache_test suffix_drafter_test controller_test draft_policy_test window_rule_test
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
     window_limits_test serve_stop_bound_test lookup_default_test window_evict_test draft_kv_plan_test

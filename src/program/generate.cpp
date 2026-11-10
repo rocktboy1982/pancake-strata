@@ -2839,6 +2839,175 @@ strata::kernels::cpu::PoolAffinity measure_pool_affinity(strata::core::ExpertSou
     return take_p ? cpu::PoolAffinity::PCores : cpu::PoolAffinity::All;
 }
 
+// MOD_PLAN A45, STRATA_CALIBRATE=1 (opt-in; policy only, no result changes except which lane computes a missed expert): what one missed expert
+// costs on each lane of the decode miss split, measured on this machine instead of assumed (include/strata/core/calibrate_ratio.hpp has the
+// derivation, the cache file and the reasoning).  Timed after the CPU pool is up and before the GPU's expert cache is filled:
+//   cpu     the decode's own call (run_split_multi_native: kExperts distinct missed experts x kTok tokens per layer, every layer, ~150 us of host
+//           spin between two layers as on the GPU's flags), alone and again while the PCIe link is kept busy by host->device copies
+//   copy    kCopyN blob-sized copies from pinned host memory, alone (host-timed, one synchronize) and, as bytes done over wall time, while the CPU runs
+//   gpu     a device-to-device copy of the same blobs: a VRAM read-bound stand-in for a hit's expert kernel (it also writes, so it is an upper bound)
+// All of it is host-timed (no events bracket the work: the Windows HIP build cannot rely on them, see probe_pcie_h2d_gbps).  Each figure is the
+// best of two passes (a disturbance only slows).  Needs a native pack with its experts in RAM; otherwise `ok` stays false and the caller keeps the
+// static share.  Takes under a second.
+struct CalibProbeOut {
+    strata::CalibMeasure m;
+    bool ok = false;
+    std::string why;
+};
+CalibProbeOut calibrate_probe(strata::core::ExpertSource* src, strata::kernels::cpu::ExpertPool& pool) {
+    namespace cpu = strata::kernels::cpu;
+    using Clk = std::chrono::steady_clock;
+    CalibProbeOut r;
+    const cpu::ExpertLayout& lay = cpu::expert_layout();
+    constexpr int kExperts = 2, kTok = 4, kRounds = 10, kChunk = 8, kCopyN = 32;
+    const int64_t nl = lay.n_layers;
+    bool have = src != nullptr && lay.native && (int64_t) lay.fmt.size() >= nl && nl > 0;
+    std::vector<const uint8_t*> blobs((size_t) std::max<int64_t>(nl, 1) * kExperts, nullptr);
+    double bsum = 0.0;
+    uint32_t seed = 12345u;
+    for (int64_t l = 0; have && l < nl; ++l) {
+        bsum += (double) lay.blob_bytes(l);
+        for (int j = 0; j < kExperts; ++j) {
+            seed = seed * 1664525u + 1013904223u;
+            const uint8_t* b = src->blob(l, (int64_t) ((seed >> 8) % (uint32_t) lay.n_expert));
+            if (b == nullptr) { have = false; break; }
+            blobs[(size_t) l * kExperts + (size_t) j] = b;
+        }
+    }
+    const size_t bb = have ? (size_t) (bsum / (double) nl) : 0;
+    if (!have || bb == 0) {
+        r.why = "it needs a native pack with its experts in RAM";
+        return r;
+    }
+    r.m.blob_bytes = (double) bb;
+    std::vector<uint8_t> nact((size_t) nl * kTok * cpu::kNativeActBytes);
+    std::vector<cpu::ActQ> qact((size_t) nl * kTok);
+    std::vector<float> x((size_t) cpu::H), out((size_t) kExperts * kTok * cpu::H);
+    for (int64_t l = 0; l < nl; ++l)
+        for (int t = 0; t < kTok; ++t) {
+            for (int i = 0; i < cpu::H; ++i) x[(size_t) i] = std::sin((float) (i + 13 * t + 7 * (int) l) * 0.031f);
+            const size_t at = (size_t) l * kTok + (size_t) t;
+            if (cpu::q2_native_kernels(lay.fmt[(size_t) l].gu_type)) cpu::act_quant_any(x.data(), cpu::H, qact[at]);
+            else cpu::native_quant_act(lay.fmt[(size_t) l], x.data(), nact.data() + at * cpu::kNativeActBytes);
+        }
+
+    // the GPU side: a pinned source of kCopyN blobs, two device buffers of the same size, one stream
+    cudaStream_t st = nullptr;
+    void* h = nullptr;
+    uint8_t* d = nullptr;
+    uint8_t* d2 = nullptr;
+    const size_t tot = (size_t) kCopyN * bb;
+    bool gpu_ok = cudaStreamCreateWithFlags(&st, cudaStreamNonBlocking) == cudaSuccess;
+    if (gpu_ok) gpu_ok = cudaMallocHost(&h, tot) == cudaSuccess;
+    if (gpu_ok) gpu_ok = cudaMalloc((void**) &d, tot) == cudaSuccess;
+    if (gpu_ok) gpu_ok = cudaMalloc((void**) &d2, tot) == cudaSuccess;
+    if (!gpu_ok) (void) cudaGetLastError();
+    auto timed_copies = [&](bool d2d, uint8_t* dst, const uint8_t* from) -> double {
+        double best = 1e30;
+        for (int rep = -1; rep < 4; ++rep) {   // rep -1 is the warm-up
+            const Clk::time_point t0 = Clk::now();
+            for (int i = 0; i < kCopyN; ++i)
+                cudaMemcpyAsync(dst + (size_t) i * bb, from + (size_t) i * bb, bb, d2d ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice, st);
+            if (cudaStreamSynchronize(st) != cudaSuccess) return -1.0;
+            const double us = std::chrono::duration<double, std::micro>(Clk::now() - t0).count() / kCopyN;
+            if (rep >= 0) best = std::min(best, us);
+        }
+        return best;
+    };
+    if (gpu_ok) {
+        std::memset(h, 1, tot);   // fault the pages in before timing
+        const double c = timed_copies(false, d, (const uint8_t*) h);
+        const double g = c > 0.0 ? timed_copies(true, d2, d) : -1.0;
+        if (c > 0.0) r.m.copy_us = c;
+        if (g > 0.0) r.m.gpu_us = g;
+        if (c <= 0.0) (void) cudaGetLastError();
+    }
+
+    // the keep-the-link-busy side of the contended pass: two chunks of kChunk copies in flight, each with an event; a chunk counts when its
+    // event has completed by the time it is polled, which happens every layer (every ~250 us, a chunk is ~0.4-1 ms of link time)
+    cudaEvent_t ev[2] = {nullptr, nullptr};
+    const bool ev_ok = gpu_ok && r.m.copy_us > 0.0 && cudaEventCreate(&ev[0]) == cudaSuccess && cudaEventCreate(&ev[1]) == cudaSuccess;
+    bool pend[2] = {false, false};
+    int64_t chunks = 0;
+    auto pump = [&](bool issue) {
+        for (int k = 0; k < 2; ++k) {
+            if (pend[k] && cudaEventQuery(ev[k]) == cudaSuccess) { pend[k] = false; ++chunks; }
+            if (issue && !pend[k]) {
+                for (int i = 0; i < kChunk; ++i)
+                    cudaMemcpyAsync(d + (size_t) i * bb, (const uint8_t*) h + (size_t) i * bb, bb, cudaMemcpyHostToDevice, st);
+                cudaEventRecord(ev[k], st);
+                pend[k] = true;
+            }
+        }
+    };
+
+    // the CPU passes
+    const int host = cpu::planned_host_core(pool.affinity());
+    cpu::ThreadAffinity prev;
+    if (host >= 0) prev = cpu::pin_current_thread(host);
+    auto cpu_pass = [&](bool contend, double* copy_c_us) -> double {
+        cpu::ExpertJobMulti jobs[kExperts];
+        double ms = 0.0;
+        Clk::time_point w0 = Clk::now();
+        for (int rr = -1; rr < kRounds; ++rr) {   // round -1 is not timed: the workers start and the rows are touched
+            if (rr == 0) { w0 = Clk::now(); chunks = 0; }
+            for (int64_t l = 0; l < nl; ++l) {
+                for (int j = 0; j < kExperts; ++j) {
+                    jobs[j].blob = blobs[(size_t) l * kExperts + (size_t) j];
+                    jobs[j].nt = kTok;
+                    for (int t = 0; t < kTok; ++t) {
+                        const size_t at = (size_t) l * kTok + (size_t) t;
+                        jobs[j].act[t] = &qact[at];
+                        jobs[j].nact[t] = nact.data() + at * cpu::kNativeActBytes;
+                        jobs[j].out[t] = out.data() + ((size_t) j * kTok + (size_t) t) * cpu::H;
+                    }
+                }
+                if (contend) pump(true);
+                const Clk::time_point t0 = Clk::now();
+                pool.run_split_multi_native(lay.fmt[(size_t) l], jobs, kExperts);
+                const Clk::time_point t1 = Clk::now();
+                if (rr >= 0) ms += std::chrono::duration<double, std::milli>(t1 - t0).count();
+                if (contend) pump(true);
+                while (std::chrono::duration<double, std::micro>(Clk::now() - t1).count() < 150.0) {}
+            }
+        }
+        if (contend) {
+            const double wall_us = std::chrono::duration<double, std::micro>(Clk::now() - w0).count();
+            pump(false);
+            if (chunks > 0 && copy_c_us != nullptr) *copy_c_us = wall_us / (double) (chunks * kChunk);
+            (void) cudaStreamSynchronize(st);
+            pend[0] = pend[1] = false;
+        }
+        return ms * 1000.0 / (double) ((int64_t) kRounds * nl * kExperts);
+    };
+    double cpu_best = 1e30, cpu_c_best = 1e30, copy_c_best = 1e30;
+    for (int pass = 0; pass < 2; ++pass) {
+        cpu_best = std::min(cpu_best, cpu_pass(false, nullptr));
+        if (ev_ok) {
+            double cc = 0.0;
+            const double t = cpu_pass(true, &cc);
+            cpu_c_best = std::min(cpu_c_best, t);
+            if (cc > 0.0) copy_c_best = std::min(copy_c_best, cc);
+        }
+    }
+    if (host >= 0) cpu::restore_thread_affinity(prev);
+    r.m.cpu_us = cpu_best < 1e29 ? cpu_best : 0.0;
+    if (cpu_c_best < 1e29 && copy_c_best < 1e29) {
+        r.m.cpu_c_us = cpu_c_best;
+        r.m.copy_c_us = copy_c_best;
+    }
+    for (int k = 0; k < 2; ++k)
+        if (ev[k] != nullptr) cudaEventDestroy(ev[k]);
+    if (d2 != nullptr) cudaFree(d2);
+    if (d != nullptr) cudaFree(d);
+    if (h != nullptr) cudaFreeHost(h);
+    if (st != nullptr) cudaStreamDestroy(st);
+    (void) cudaGetLastError();
+    r.ok = r.m.cpu_us > 0.0 && r.m.copy_us > 0.0;
+    if (!r.ok) r.why = !gpu_ok ? "the copy buffers could not be allocated" : "a timing came out zero";
+    return r;
+}
+
 // HIP: the thread that warms hipBLAS's libraries while the expert arena loads (see warm_gemm_libraries); joined at exit.
 std::thread g_warm_thr;
 struct WarmJoin { ~WarmJoin() { if (g_warm_thr.joinable()) g_warm_thr.join(); } } g_warm_join;
@@ -7995,6 +8164,71 @@ int main(int argc, char** argv) {
         const size_t nw = std::min<size_t>((size_t) pool.workers(), wc.size());
         std::fprintf(stderr, "%s\n",
                      strata::aux_cpus::set_topology(ht.host_core, std::vector<int>(wc.begin(), wc.begin() + (long) nw)).c_str());
+    }
+    // MOD_PLAN A45, STRATA_CALIBRATE=1 (opt-in, policy only): the PCIe share of the decode's missed experts from a start-up measurement of the
+    // CPU pool, the link and the GPU (calibrate_probe above; the rule and the cache file: strata/core/calibrate_ratio.hpp) instead of the static
+    // start value and PcieAuto's assumed pool rate.  Only where the static share would be chosen: one GPU, a native pack, no --pcie-frac (a given
+    // share always wins).  The result replaces o.pcie_frac before the verifier decides whether it needs the PCIe path at all (a share of 0 leaves
+    // that path out, as --pcie-frac 0 does) and switches PcieAuto's refinement off, so the measured share is the one the run uses.
+    // STRATA_CALIBRATE_CACHE=<file> keeps the figures: a file written for the same GPU, pool size and pack is read instead of probing again.
+    // STRATA_CALIBRATE_MIN_SHARE (default 0.35) is the smallest raw share that is worth the PCIe path's fixed cost; below it the share is 0.
+    if (strata::calib_enabled(std::getenv("STRATA_CALIBRATE"))) {
+        if (pcie_given || !native_pack || multi_gpu || !o.layer_split.empty() || o.peer_device >= 0) {
+            std::fprintf(stderr, "strata generate: STRATA_CALIBRATE ignored: %s\n",
+                         pcie_given ? "--pcie-frac was given" : !native_pack ? "not a native pack" : "not a single-GPU run");
+        } else {
+            const auto& cl = strata::kernels::cpu::expert_layout();
+            double bsum = 0.0;
+            for (int64_t l = 0; l < cl.n_layers; ++l) bsum += (double) cl.blob_bytes(l);
+            std::string gname = "gpu";
+            {
+                int cdev = 0;
+                cudaDeviceProp cprop{};
+                if (cudaGetDevice(&cdev) == cudaSuccess && cudaGetDeviceProperties(&cprop, cdev) == cudaSuccess) gname = cprop.name;
+            }
+            const std::string ckey = "gpu=" + gname + " workers=" + std::to_string(pool.workers()) + " host=" +
+                                     std::to_string(pool.host_works() ? 1 : 0) + " layers=" + std::to_string((long long) cl.n_layers) +
+                                     " blob=" + std::to_string((long long) (cl.n_layers > 0 ? bsum / (double) cl.n_layers : 0.0));
+            const char* cpath = std::getenv("STRATA_CALIBRATE_CACHE");
+            strata::CalibMeasure cm;
+            bool from_cache = false;
+            if (cpath != nullptr && cpath[0] != 0) {
+                std::ifstream cf(cpath);
+                std::stringstream css;
+                css << cf.rdbuf();
+                from_cache = cf.is_open() && strata::calib_cache_parse(css.str(), ckey, &cm);
+            }
+            if (!from_cache) {
+                const CalibProbeOut pr = calibrate_probe(srcp, pool);
+                if (pr.ok) {
+                    cm = pr.m;
+                    if (cpath != nullptr && cpath[0] != 0) {
+                        std::error_code cec;
+                        const std::filesystem::path cp(cpath);
+                        if (cp.has_parent_path()) std::filesystem::create_directories(cp.parent_path(), cec);
+                        std::ofstream cof(cpath, std::ios::trunc);
+                        cof << strata::calib_cache_format(cm, ckey);
+                        std::fprintf(stderr, "strata generate: STRATA_CALIBRATE: figures %s %s\n", cof.good() ? "saved to" : "could not be saved to", cpath);
+                    }
+                } else {
+                    std::fprintf(stderr, "strata generate: STRATA_CALIBRATE: the probe did not run (%s); the static share stays (%.2f)\n",
+                                 pr.why.c_str(), o.pcie_frac);
+                }
+            }
+            const strata::CalibResult cr = strata::calib_derive(cm, pcie_share_max(), strata::calib_min_share(std::getenv("STRATA_CALIBRATE_MIN_SHARE")));
+            if (cr.valid) {
+                std::fprintf(stderr, "strata generate: STRATA_CALIBRATE (%s, expert blob %.2f MB): CPU pool %.1f us per expert alone, %.1f with the link busy; "
+                                     "copy %.1f us alone, %.1f with the CPU busy (%.1f GB/s); GPU read %.1f us\n",
+                             from_cache ? "from the cache file" : "probed", cm.blob_bytes / 1e6, cm.cpu_us, cm.cpu_c_us, cm.copy_us, cm.copy_c_us,
+                             cm.copy_c_us > 0.0 ? cm.blob_bytes / (cm.copy_c_us * 1e-6) / 1e9 : cm.blob_bytes / (cm.copy_us * 1e-6) / 1e9, cm.gpu_us);
+                std::fprintf(stderr, "strata generate: STRATA_CALIBRATE: cpu/copy ratio %.2f, balance share %.3f -> pcie_frac %.2f (static %.2f; a share below %.2f "
+                                     "is not worth the PCIe path); a promoted expert repays its copy after %s hits\n",
+                             cr.ratio, cr.share_raw, cr.share, o.pcie_frac, strata::calib_min_share(std::getenv("STRATA_CALIBRATE_MIN_SHARE")),
+                             cr.break_even_reuse < 0.0 ? "no number of" : std::to_string(cr.break_even_reuse).substr(0, 4).c_str());
+                o.pcie_frac = cr.share;
+                o.pcie_frac_auto = false;
+            }
+        }
     }
     if (o.no_ple_prefetch) strata::kernels::ple_prefetch_enable(false);
     // ---- R4's slot storage.  Allocated AFTER the weights and the session, so `cudaMemGetInfo` inside `open`
