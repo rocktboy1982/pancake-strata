@@ -237,11 +237,13 @@ namespace {
 // state are computed under the cap.
 const std::vector<std::string>& conversation_disk_key_env_names_if_set() {
     // F5 and F13: these change the computed state but enter the key only when set, so session files written without them keep
-    // their key
+    // their key.  MOD_PLAN A44: STRATA_BANDIT (with top or kmiss) decodes windows under arms its timings choose, so its
+    // states are kept apart from a fixed run's; STRATA_BANDIT_EXACT says which arms it may use.
     static const std::vector<std::string> names = {"STRATA_VERIFY_ECAP",        "STRATA_ROUTE_PRIOR_PROTECT",
                                                    "STRATA_ROUTE_PRIOR_KEEP",   "STRATA_ROUTE_PRIOR_KEEP_P",
                                                    "STRATA_ROUTE_PRIOR_SCOPE",  "STRATA_ROUTE_PRIOR_ON_PROMPT",
-                                                   "STRATA_ROUTE_PRIOR_MARKS"};
+                                                   "STRATA_ROUTE_PRIOR_MARKS",  "STRATA_BANDIT",
+                                                   "STRATA_BANDIT_EXACT"};
     return names;
 }
 }  // namespace

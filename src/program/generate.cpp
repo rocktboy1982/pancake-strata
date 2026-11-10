@@ -20,6 +20,9 @@
 #include "strata/platform/io_priority.hpp"
 #include "strata/platform/mem_pressure.hpp"
 #include "strata/core/adapt_async_default.hpp"
+#include "strata/core/defer_rank.hpp"
+#include "strata/core/epoch_bandit.hpp"
+#include "strata/core/live_knobs.hpp"
 #include "strata/core/arch_defaults.hpp"
 #include "strata/core/gfx12_chunk.hpp"
 #include "strata/core/nv_chunk.hpp"
@@ -13594,7 +13597,7 @@ int main(int argc, char** argv) {
                 vict.clear();
                 const float* u = drive.d.usage.data() + l * g.n_expert;
                 const int32_t* r = host_res.data() + l * g.n_expert;
-                if (kmiss.on()) {
+                if (kmiss.admits()) {   // (A44: on() unless STRATA_BANDIT paused it between windows)
                     kmiss.select(l, g.n_expert, u, r, [&](int32_t e) {
                         return !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) &&
                                !(fetched && srcp->pinned(l, e));
@@ -13888,7 +13891,7 @@ int main(int argc, char** argv) {
                 vict.clear();
                 const float* u = a_usage.data() + l * g.n_expert;
                 const int32_t* r = a_res.data() + l * g.n_expert;
-                if (kmiss.on()) {   // item 14: k-th-miss admission (kmiss_tier.hpp), the same rule as the blocking tier
+                if (kmiss.admits()) {   // (A44: STRATA_BANDIT may pause it) item 14: k-th-miss admission (kmiss_tier.hpp), the same rule as the blocking tier
                     kmiss.select(l, g.n_expert, u, r, [&](int32_t e) { return !helper_holds(l, e); }, cand, vict);
                     const size_t nc = std::min(cand.size(), vict.size());
                     for (size_t i = 0; i < nc; ++i) all.push_back({cand[i].first, (int32_t) l, cand[i].second, vict[i].second});
@@ -14590,6 +14593,52 @@ int main(int argc, char** argv) {
         bool policy_is_df2 = use_df2;   // which drafter's costs `policy` holds (the engine's first drafter; swapped with policy_idle when a request uses the other one)
         struct DraftBandit { double tps[2] = {0, 0}; int n[2] = {0, 0}; int64_t reqs = 0; };   // [1] = DFlash2, [0] = MTP: decode tok/s of finished requests (--draft-rule learn)
         std::unordered_map<uint64_t, DraftBandit> bandit;
+        // MOD_PLAN A44 STRATA_BANDIT=<top,kmiss,preread> (opt-in, core/epoch_bandit.hpp; Athena, ETH SAFARI 2026): the
+        // "mixed" opt-ins (each still enabled by its own env var) turned on or off per window type by an epoch bandit
+        // on the measured round time per committed token.  The serial decode loop only (a pipelined request or --batch
+        // runs with every switch as configured); the knobs (core/live_knobs.hpp) move only between windows.  top is
+        // LOSSY (small), kmiss exact up to rounding (placement), preread bitwise exact: with top or kmiss in the
+        // bandit the text depends on timings (STRATA_BANDIT_EXACT=1 / 2 restricts it to the exact arms).
+        std::string ebandit_msg;
+        const uint32_t ebandit_avail =
+            (strata::core::live_knobs().top_word.load() && strata::core::defer_top() > 0 ? (uint32_t) strata::core::kBanditTop : 0u) |
+            (kmiss.on() && o.adapt_every > 0 && o.adapt_swaps > 0 ? (uint32_t) strata::core::kBanditKmiss : 0u) |
+            (strata::kernels::cpu::ExpertPool::preread_pool() != nullptr ? (uint32_t) strata::core::kBanditPreread : 0u);
+        const strata::core::BanditConfig ebandit_cfg =
+            strata::core::bandit_config([](const char* nm) { return std::getenv(nm); }, ebandit_avail, &ebandit_msg);
+        strata::core::BanditTyper ebandit_typer(ebandit_cfg.type_mode, ebandit_cfg.type_arg);
+        strata::core::EpochBandit ebandit(ebandit_cfg, ebandit_typer.types());
+        uint32_t ebandit_arm_now = ebandit_cfg.switches;   // the knobs' defaults: every switch as its own env var says
+        auto ebandit_apply = [&](uint32_t arm) {   // between windows only
+            if (arm == ebandit_arm_now) return;
+            strata::core::LiveKnobs& kn = strata::core::live_knobs();
+            if (ebandit_cfg.switches & strata::core::kBanditTop)
+                kn.top.store((arm & strata::core::kBanditTop) ? strata::core::defer_top() : 0, std::memory_order_relaxed);
+            if (ebandit_cfg.switches & strata::core::kBanditKmiss)
+                kn.kmiss_off.store(!(arm & strata::core::kBanditKmiss), std::memory_order_relaxed);
+            if (ebandit_cfg.switches & strata::core::kBanditPreread)
+                kn.preread_off.store(!(arm & strata::core::kBanditPreread), std::memory_order_relaxed);
+            ebandit_arm_now = arm;
+        };
+        if (ebandit_cfg.requested != 0) {
+            if (!ebandit_msg.empty()) std::fprintf(stderr, "strata serve: STRATA_BANDIT: %s\n", ebandit_msg.c_str());
+            if (ebandit.on())
+                std::fprintf(stderr, "strata serve: STRATA_BANDIT=%s: %d arms (%s), window types by %s, epochs of %d windows "
+                                     "(+%d not counted), rule %s %.2f, decay %.2f, seed %llu%s\n",
+                             strata::core::bandit_arm_name(ebandit_cfg.switches).c_str(), ebandit.n_arms(),
+                             strata::core::bandit_arm_class(ebandit_cfg.switches) == 2 ? "lossy: rank guard"
+                             : strata::core::bandit_arm_class(ebandit_cfg.switches) == 1 ? "exact up to rounding" : "bitwise exact",
+                             ebandit_cfg.type_mode == strata::core::kTypeReq ? "the request's lookup share"
+                             : ebandit_cfg.type_mode == strata::core::kTypeSrc ? "the draft source"
+                             : ebandit_cfg.type_mode == strata::core::kTypeSize ? "the window size"
+                             : ebandit_cfg.type_mode == strata::core::kTypeCtx ? "the context length" : "nothing (one type)",
+                             ebandit_cfg.epoch, ebandit_cfg.skip, ebandit_cfg.ucb ? "ucb" : "eps",
+                             ebandit_cfg.ucb ? ebandit_cfg.ucb_c : ebandit_cfg.eps, ebandit_cfg.decay,
+                             (unsigned long long) ebandit_cfg.seed,
+                             o.batch > 0 ? " (inactive: --batch windows)" : "");
+            else
+                std::fprintf(stderr, "strata serve: STRATA_BANDIT: no switch left to turn: off\n");
+        }
         static const bool draft_log = std::getenv("STRATA_DRAFT_LOG") != nullptr;   // one stderr line per request: drafter, tokens, rounds, ms, upkeep ms
         static const bool draft_keep_off = std::getenv("STRATA_DRAFT_KEEP") != nullptr && std::atoi(std::getenv("STRATA_DRAFT_KEEP")) == 0;   // diagnostic: do not keep the idle drafter current
         int64_t draft_req_count = 0;
@@ -18780,6 +18829,10 @@ int main(int argc, char** argv) {
                 return true;
             };
             const int64_t rounds_at_start = rounds;
+            if (ebandit.on()) {   // MOD_PLAN A44: the request's lookup share and its window counts start at 0
+                ebandit_typer.begin_request();
+                ebandit.begin_request();
+            }
             for (int64_t i = 0; i < p; ++i) consumed.push_back((int32_t) ids[(size_t) i]);
             // MOD_PLAN F13 (STRATA_ROUTE_PRIOR_SCOPE): the reply's think / tool-call / fence state, read from `consumed`, decides each window's gate;
             // the gate is closed again when this request's decode ends (the next prompt read starts closed)
@@ -18845,6 +18898,7 @@ int main(int argc, char** argv) {
             }
             if (pl_want && pl_serial == nullptr && !cancelled && produced_n < max_new) {
                 pl_ran = true;
+                ebandit_apply(ebandit_cfg.switches);   // A44: pipelined windows overlap, so no bandit: every switch as configured
                 if (!pl_prepare(err)) {
                     std::printf("ERR %s\n", err.c_str());
                     return 1;
@@ -19843,6 +19897,14 @@ int main(int argc, char** argv) {
                     ++prior_gate_req.total;
                     prior_gate_req.open += open ? 1 : 0;
                 }
+                // MOD_PLAN A44 STRATA_BANDIT: the window's type (known now: its source, size and position) and its type's
+                // epoch arm, set before ver.run stages the window - the knobs never move inside a window.  A first or merged
+                // window keeps the arm the last window had and is not counted.
+                int eb_type = -1;
+                if (ebandit.on() && !first_window && !merged) {
+                    eb_type = ebandit_typer.type(from_sfx || chain_n > 0, T, p);
+                    ebandit_apply(ebandit.begin(eb_type));
+                }
                 tr("window", p, T);
                 const Clock::time_point tw0 = Clock::now();
                 // STRATA_SPEC_PROB: the MTP drafts' distributions q, judged by rejection sampling (core/spec_prob.hpp);
@@ -20108,6 +20170,19 @@ int main(int argc, char** argv) {
                 else if (timed_round && !eos)   // a chained window: its MTP part, its chain, its cost
                     policy.observe_chain(T_mtp, chain_n, a, cm,
                                          std::chrono::duration<double, std::milli>(Clock::now() - round0).count());
+                if (eb_type >= 0) {   // MOD_PLAN A44: the whole round (adapt wait, window, commit, next draft) per committed token
+                    // (the request's last round drafts nothing: not counted, as its time is not a round's)
+                    if (!eos && produced_n < max_new &&
+                        ebandit.end(eb_type, std::chrono::duration<double, std::milli>(Clock::now() - round0).count(), a + 1) &&
+                        ebandit_cfg.log) {
+                        const strata::core::EpochBandit::Decision& dn = ebandit.last_decision();
+                        std::fprintf(stderr, "strata bandit: %s epoch %lld: %s %.3f ms/token over %d windows (mean %.3f) -> %s (%s)\n",
+                                     ebandit_typer.name(dn.type), (long long) dn.epoch,
+                                     strata::core::bandit_arm_name(dn.arm).c_str(), dn.cost, dn.windows, dn.mean,
+                                     strata::core::bandit_arm_name(dn.next).c_str(), dn.why);
+                    }
+                    ebandit_typer.note(from_sfx || chain_n > 0);
+                }
                 if (eos) { finish = "stop"; break; }
                 if (stop_req.load()) { finish = "cancel"; break; }
                 x = outv[(size_t) a];
@@ -20346,15 +20421,23 @@ int main(int argc, char** argv) {
                 std::fprintf(stderr, "strata grammar: %lld windows checked, %lld masked resamples, %.3f ms in grammar code (%.2f us/window)\n",
                              (long long) gguard->windows(), (long long) grammar_resamples, gguard->ms(),
                              gguard->windows() > 0 ? gguard->ms() * 1000.0 / (double) gguard->windows() : 0.0);
+            //      bandit=<type>:<arm>*<windows>,.../...   (MOD_PLAN A44, only with STRATA_BANDIT: this request's decode
+            //      windows by window type and the arm they ran; the turn log keeps it)
+            std::string ebandit_txt;
+            if (ebandit.on()) {
+                ebandit_txt = " bandit=" + ebandit.request_summary(ebandit_typer);
+                std::fprintf(stderr, "strata bandit: request windows %s (lookup share %.2f)%s\n", ebandit_txt.c_str() + 8,
+                             ebandit_typer.share(), pl_ran ? " (pipelined: every switch as configured)" : "");
+            }
             std::printf("DONE %lld %lld %.1f %.1f %s %lld %lld %lld %lld %lld %lld %lld %.1f %lld %lld%s chunk=%lld "
-                        "experts_streamed=%lld\n",
+                        "experts_streamed=%lld%s\n",
                         (long long) produced_n,
                         (long long) n, prompt_ms, decode_ms, finish, (long long) draft_accepted, (long long) draft_offered,
                         (long long) resume, (long long) req_hits, (long long) req_look,
                         (long long) (src.ram_reads() - ram0), (long long) (src.file_reads() - files0),
                         (double) (src.file_read_bytes() - file_bytes0) / 1e6, (long long) read_n,
                         (long long) req_offload, chain_txt, (long long) req_chunk,
-                        (long long) (sp.chain_experts_streamed() - streamed0));
+                        (long long) (sp.chain_experts_streamed() - streamed0), ebandit_txt.c_str());
             std::fflush(stdout);
             if (admit_slot >= 0) {   // --batch: BADM <slot> <1 = continues in the batch windows | 0 = done>
                 bool cont = !cancelled && produced_n == 1 && admit_max_new > 1 && std::strcmp(finish, "length") == 0 &&
