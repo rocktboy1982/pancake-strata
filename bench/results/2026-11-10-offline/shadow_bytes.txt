@@ -1,0 +1,7 @@
+bytes per expert (gate+up+down), mean over the 48 layers: cur 1443 KB, gateup-IQ2_XXS 1298 KB, all-IQ2_XXS 1259 KB, gateup-IQ1_M 1178 KB, all-IQ1_M 1075 KB
+request     miss/win   tok/win | cur            | gateup-IQ2_XXS | all-IQ2_XXS    | gateup-IQ1_M   | all-IQ1_M     
+read4k         240.5      4.82 |   71.9 MB  -0.0% |   64.8 MB  -9.9% |   62.9 MB -12.6% |   58.8 MB -18.3% |   53.7 MB -25.4%
+short chat     243.0      3.78 |   92.5 MB  -0.0% |   83.5 MB  -9.7% |   81.1 MB -12.4% |   75.8 MB -18.1% |   69.2 MB -25.2%
+code edit      758.6      9.07 |  120.5 MB  -0.0% |  108.6 MB  -9.8% |  105.4 MB -12.5% |   98.5 MB -18.2% |   90.0 MB -25.3%
+long           169.4      2.73 |   89.7 MB  -0.0% |   80.7 MB -10.0% |   78.3 MB -12.7% |   73.2 MB -18.4% |   66.8 MB -25.5%
+ALL            365.7      5.00 |  105.2 MB  -0.0% |   94.9 MB  -9.8% |   92.0 MB -12.5% |   86.0 MB -18.2% |   78.6 MB -25.3%

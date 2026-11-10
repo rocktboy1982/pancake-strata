@@ -1,0 +1,76 @@
+219 windows, k 10, 10909 slots, swaps 32/round every 1, decay 0.7
+requests: code 11w/53t, prose 85w/321t, code 61w/553t, code 62w/169t
+plain tier                         all 81.17  seeded 81.17  | per request  83.1  85.6  77.3  84.7
+
+== item 4: domain seed at each request's start (profile from the OTHER requests of its domain)
+top 5454 S 4 hold 0                all 82.20  seeded 80.78  | per request  83.0  85.6  78.3  88.3
+top 5454 S 4 hold 4                all 82.34  seeded 80.98  | per request  82.6  85.6  78.5  88.4
+top 5454 S 4 hold 16               all 82.70  seeded 81.48  | per request  82.3  85.7  79.1  89.1
+top 5454 S 8 hold 0                all 82.29  seeded 80.93  | per request  82.8  85.6  78.5  88.4
+top 5454 S 8 hold 4                all 82.51  seeded 81.22  | per request  82.1  85.6  78.9  88.5
+top 5454 S 8 hold 16               all 82.75  seeded 81.54  | per request  81.7  85.7  79.2  89.0
+top 5454 S 16 hold 0               all 82.48  seeded 81.18  | per request  82.4  85.6  78.8  88.5
+top 5454 S 16 hold 4               all 82.54  seeded 81.27  | per request  81.9  85.6  79.0  88.6
+top 5454 S 16 hold 16              all 82.59  seeded 81.32  | per request  81.0  85.7  79.0  89.1
+top 5454 S 32 hold 0               all 82.56  seeded 81.28  | per request  82.0  85.6  79.0  88.5
+top 5454 S 32 hold 4               all 82.52  seeded 81.23  | per request  81.7  85.6  78.9  88.6
+top 5454 S 32 hold 16              all 82.31  seeded 80.96  | per request  80.6  85.6  78.4  89.5
+top 10909 S 4 hold 0               all 82.29  seeded 80.90  | per request  83.3  85.7  78.0  89.5
+top 10909 S 4 hold 4               all 82.53  seeded 81.25  | per request  82.7  85.6  78.5  89.9
+top 10909 S 4 hold 16              all 83.01  seeded 81.88  | per request  82.4  85.7  79.3  90.3
+top 10909 S 8 hold 0               all 82.37  seeded 81.05  | per request  82.9  85.5  78.3  89.6
+top 10909 S 8 hold 4               all 82.70  seeded 81.50  | per request  82.3  85.6  78.8  89.9
+top 10909 S 8 hold 16              all 82.83  seeded 81.63  | per request  81.8  85.7  79.1  89.9
+top 10909 S 16 hold 0              all 82.59  seeded 81.36  | per request  82.7  85.6  78.6  89.9
+top 10909 S 16 hold 4              all 82.74  seeded 81.55  | per request  81.9  85.6  78.9  89.9
+top 10909 S 16 hold 16             all 82.38  seeded 81.01  | per request  81.0  85.7  78.2  90.2
+top 10909 S 32 hold 0              all 82.76  seeded 81.58  | per request  82.4  85.6  78.9  89.9
+top 10909 S 32 hold 4              all 82.82  seeded 81.63  | per request  81.8  85.7  79.0  90.1
+top 10909 S 32 hold 16             all 82.13  seeded 80.71  | per request  80.7  85.6  77.8  90.3
+oracle rank S 16 hold 0            all 82.88  seeded 82.88  | per request  85.2  87.5  78.8  86.8
+oracle rank S 16 hold 16           all 84.03  seeded 84.03  | per request  88.3  88.6  79.8  87.8
+oracle rank S 32 hold 16           all 84.14  seeded 84.14  | per request  88.3  88.7  79.9  88.0
+
+== item 3: conversation resumes (A1, other request, A2 seeded from A1's counts)
+-- code request 2 split at 30 windows, request 1 (prose) between
+  no seed                          all 80.27  seeded 79.89  | per request  83.1  73.2  86.3  79.9
+  counts x8 tokens hold 0          all 80.45  seeded 80.51  | per request  83.1  73.2  86.3  80.5
+  counts x8 tokens hold 4          all 80.46  seeded 80.53  | per request  83.1  73.2  86.3  80.5
+  counts x8 tokens hold 16         all 80.47  seeded 80.57  | per request  83.1  73.2  86.3  80.6
+  counts x32 tokens hold 0         all 80.49  seeded 80.62  | per request  83.1  73.2  86.3  80.6
+  counts x32 tokens hold 4         all 80.48  seeded 80.62  | per request  83.1  73.2  86.3  80.6
+  counts x32 tokens hold 16        all 80.49  seeded 80.63  | per request  83.1  73.2  86.3  80.6
+  counts x128 tokens hold 0        all 80.50  seeded 80.66  | per request  83.1  73.2  86.3  80.7
+  counts x128 tokens hold 4        all 80.45  seeded 80.50  | per request  83.1  73.2  86.3  80.5
+  counts x128 tokens hold 16       all 80.34  seeded 80.14  | per request  83.1  73.2  86.3  80.1
+  rank S 16 hold 0                 all 80.47  seeded 80.56  | per request  83.1  73.2  86.3  80.6
+  rank S 16 hold 16                all 80.11  seeded 79.36  | per request  83.1  73.2  86.3  79.4
+  oracle (A2's own counts) x32 h16 all 80.68  seeded 81.29  | per request  83.1  73.2  86.3  81.3
+-- code request 3 split at 31 windows, request 1 (prose) between
+  no seed                          all 86.55  seeded 90.46  | per request  83.1  92.1  84.6  90.5
+  counts x8 tokens hold 0          all 86.68  seeded 91.26  | per request  83.1  92.1  84.6  91.3
+  counts x8 tokens hold 4          all 86.68  seeded 91.25  | per request  83.1  92.1  84.6  91.2
+  counts x8 tokens hold 16         all 86.68  seeded 91.25  | per request  83.1  92.1  84.6  91.3
+  counts x32 tokens hold 0         all 86.71  seeded 91.43  | per request  83.1  92.1  84.6  91.4
+  counts x32 tokens hold 4         all 86.71  seeded 91.45  | per request  83.1  92.1  84.6  91.4
+  counts x32 tokens hold 16        all 86.72  seeded 91.52  | per request  83.1  92.1  84.6  91.5
+  counts x128 tokens hold 0        all 86.73  seeded 91.56  | per request  83.1  92.1  84.6  91.6
+  counts x128 tokens hold 4        all 86.75  seeded 91.71  | per request  83.1  92.1  84.6  91.7
+  counts x128 tokens hold 16       all 86.76  seeded 91.75  | per request  83.1  92.1  84.6  91.8
+  rank S 16 hold 0                 all 86.79  seeded 91.99  | per request  83.1  92.1  84.6  92.0
+  rank S 16 hold 16                all 86.77  seeded 91.86  | per request  83.1  92.1  84.6  91.9
+  oracle (A2's own counts) x32 h16 all 86.99  seeded 93.21  | per request  83.1  92.1  84.6  93.2
+-- prose request 1 split at 42 windows, request 2 (code) between
+  no seed                          all 79.89  seeded 86.20  | per request  83.1  85.0  76.3  86.2
+  counts x8 tokens hold 0          all 80.01  seeded 86.89  | per request  83.1  85.0  76.3  86.9
+  counts x8 tokens hold 4          all 80.01  seeded 86.87  | per request  83.1  85.0  76.3  86.9
+  counts x8 tokens hold 16         all 80.02  seeded 86.94  | per request  83.1  85.0  76.3  86.9
+  counts x32 tokens hold 0         all 80.03  seeded 87.02  | per request  83.1  85.0  76.3  87.0
+  counts x32 tokens hold 4         all 80.02  seeded 86.97  | per request  83.1  85.0  76.3  87.0
+  counts x32 tokens hold 16        all 80.04  seeded 87.07  | per request  83.1  85.0  76.3  87.1
+  counts x128 tokens hold 0        all 80.03  seeded 87.00  | per request  83.1  85.0  76.3  87.0
+  counts x128 tokens hold 4        all 80.00  seeded 86.84  | per request  83.1  85.0  76.3  86.8
+  counts x128 tokens hold 16       all 79.87  seeded 86.10  | per request  83.1  85.0  76.3  86.1
+  rank S 16 hold 0                 all 80.04  seeded 87.07  | per request  83.1  85.0  76.3  87.1
+  rank S 16 hold 16                all 79.76  seeded 85.45  | per request  83.1  85.0  76.3  85.5
+  oracle (A2's own counts) x32 h16 all 80.28  seeded 88.43  | per request  83.1  85.0  76.3  88.4
