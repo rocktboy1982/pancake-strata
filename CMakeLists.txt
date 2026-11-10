@@ -2970,6 +2970,21 @@ if(STRATA_ENABLE_CUDA AND STRATA_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_
   target_link_libraries(hit_cpu_order_parity PRIVATE strata_kernels strata_kernels_cpu ${_strata_gpu_runtime_target})
 endif()
 
+# bench/TEST_PLAN.md 4.2 probes (tools/pancake/probes/): OFF by default, never part of "all"; each has its build line in
+# its header.  q2_rows_bench = 4.2.4 (x86 CPU, no engine), empty_grid_probe = 4.2.1 (HIP build, needs a GPU to run).
+option(STRATA_BUILD_PROBES "Add the 4.2 probe targets (q2_rows_bench, empty_grid_probe) to the build graph" OFF)
+if(STRATA_BUILD_PROBES)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64|x64|X86")
+    add_executable(q2_rows_bench EXCLUDE_FROM_ALL tools/pancake/probes/q2_rows_bench.cpp)
+    target_link_libraries(q2_rows_bench PRIVATE strata_kernels_cpu)
+  endif()
+  if(STRATA_ENABLE_HIP)
+    add_executable(empty_grid_probe EXCLUDE_FROM_ALL tools/pancake/probes/empty_grid.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/empty_grid.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(empty_grid_probe PRIVATE strata_hip_runtime)
+  endif()
+endif()
+
 if(STRATA_BUILD_TESTS)
   if(WIN32)
     add_executable(pool_affinity_test src/kernels/cpu/pool_affinity_test.cpp)
