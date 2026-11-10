@@ -1,0 +1,18 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 4,
+ "lossy": true,
+ "note": "confirm of screen 05s (2026-11-10): lookup12 was the only arm above +2% (edit +10..12%, short -1.5..+2%) when every attempt is counted; its edit text differs from base -> lossy: quality gate",
+ "arms": {
+  "base": {},
+  "lookup12": {
+   "args": {
+    "--lookup-max-t": "12"
+   }
+  }
+ }
+}

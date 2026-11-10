@@ -415,7 +415,7 @@ def text_check(results, arms, cases):
 
 def summary(results, arms, cases):
     base = arms[0]
-    print("\nsummary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)")
+    print("\nsummary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)")
     for c in cases:
         key = "prompt_tps" if c == "long" else "decode_tps"
         vals = {a: [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c] for a in arms}
@@ -477,6 +477,7 @@ def main():
                 and decided(results, arms, cases)):
             print(f"early stop after {r} reps: every arm/case decided or below 1.5% of base", flush=True)
             break
+        quietest = None   # least noisy attempt: kept when every attempt was noisy, so the base never ends with no runs
         for attempt in range(a.retries + 1):
             quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             cfg_path = str(work / f"{arm}.json")
@@ -509,6 +510,12 @@ def main():
             if clean:
                 results.setdefault(arm, []).append(res)
                 break
+            if quietest is None or res["noise"] < quietest["noise"]:
+                quietest = res
+        else:
+            if quietest is not None:   # 2026-11-10 screen 05: caveman-proxy + a foreign python3 left the base with 0 runs -> all arms dropped
+                print(f"rep {r} {arm}: every attempt noisy, keeping the quietest ({quietest['noise']:.0f}% foreign CPU)", flush=True)
+                results.setdefault(arm, []).append(quietest)
     summary(results, arms, cases)
     text_check(results, arms, cases)
     if a.tier == "screen":
