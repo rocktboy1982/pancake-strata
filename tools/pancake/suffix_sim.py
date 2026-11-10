@@ -4,7 +4,7 @@ frequency scoring (SuffixDecoding, Oliaro et al., arXiv 2411.04975) would propos
 per-request --lookup drafter the engine has now.  No model, no GPU, no server.
 
     python tools/pancake/suffix_sim.py [--db ~/.local/share/opencode/opencode.db] [--model REGEX] [--k 11]
-           [--mib 64] [--min-prob 0.1] [--factor 1.0] [--limit N] [--json OUT] [--tokenizer DIR]
+           [--mib 64] [--min-prob 0.1] [--factor 1.0] [--limit N] [--reset-gap MIN] [--json OUT] [--tokenizer DIR]
     python tools/pancake/suffix_sim.py --self-test
 
 Input: opencode's own session store (SQLite, read-only), which holds the text of every agent turn the engine served:
@@ -327,14 +327,20 @@ def accept(draft, out, i):
     return a
 
 
-def simulate(reqs_tok, k=11, cap_tokens=1 << 21, min_prob=0.1, factor=1.0):
-    """reqs_tok: [(session, is_sub, prompt_delta_ids, output_ids)] in order.  Returns per-arm totals."""
+def simulate(reqs_tok, k=11, cap_tokens=1 << 21, min_prob=0.1, factor=1.0, times=None, reset_gap_s=0.0):
+    """reqs_tok: [(session, is_sub, prompt_delta_ids, output_ids)] in order.  Returns per-arm totals.  With `times`
+    (request start, seconds) and reset_gap_s > 0 the index starts empty after every pause longer than that (the
+    engine's index lives in memory: a pause stands in for a server restart)."""
     look = {}
     idx = Index(cap_tokens, min_prob, factor)
     zero = lambda: {"tokens": 0, "rounds": 0, "windows": 0, "offered": 0, "accepted": 0}  # noqa: E731
     tot = {g: {a: zero() for a in ARMS} for g in ("all", "main", "sub")}
-    src = {"index_only_windows": 0, "index_only_accepted": 0, "index_proposals": 0, "index_sure_sum": 0.0}
-    for sid, sub, delta, out in reqs_tok:
+    src = {"index_only_windows": 0, "index_only_accepted": 0, "index_proposals": 0, "index_sure_sum": 0.0,
+           "index_resets": 0}
+    for ri, (sid, sub, delta, out) in enumerate(reqs_tok):
+        if reset_gap_s > 0 and times is not None and ri > 0 and times[ri] - times[ri - 1] > reset_gap_s:
+            idx = Index(cap_tokens, min_prob, factor)
+            src["index_resets"] += 1
         L = look.setdefault(sid, Lookup())
         L.extend(delta)
         base = len(L.h)
@@ -406,6 +412,8 @@ def report(tot, src, out=sys.stdout):
             print(f"  {a}: +{c['accepted'] - base['accepted']} accepted draft tokens over lookup "
                   f"({(c['accepted'] - base['accepted']) / max(1, base['accepted']):+.1%}), rounds "
                   f"{(c['rounds'] - base['rounds']) / base['rounds']:+.2%}", file=out)
+    if src.get("index_resets"):
+        print(f"  index reset {src['index_resets']} times (pauses above --reset-gap)", file=out)
     if src["index_only_windows"]:
         print(f"  windows where only the index drafts (fallback): {src['index_only_windows']}, accepted "
               f"{src['index_only_accepted']} ({src['index_only_accepted'] / src['index_only_windows']:.2f} a window)",
@@ -459,6 +467,8 @@ def main():
     ap.add_argument("--min-prob", type=float, default=0.1, help="a draft ends where its probability falls under this")
     ap.add_argument("--factor", type=float, default=1.0, help="a draft is at most factor x match tokens long")
     ap.add_argument("--limit", type=int, default=0, help="the first N requests only")
+    ap.add_argument("--reset-gap", type=float, default=0, help="minutes: the index starts empty after a pause longer "
+                    "than this between two requests (a stand-in for a server restart; 0: never)")
     ap.add_argument("--tokenizer", default=os.environ.get("STRATA_TOKENIZER", str(DEFAULT_TOK)))
     ap.add_argument("--json", help="write the totals here")
     ap.add_argument("--self-test", action="store_true")
@@ -476,7 +486,8 @@ def main():
           f"loaded in {time.time() - t0:.1f}s")
     cap = cap_tokens(a.mib)
     t1 = time.time()
-    tot, src = simulate(rt, a.k, cap, a.min_prob, a.factor)
+    times = [r[0] / 1000.0 for r in reqs]          # opencode stores milliseconds
+    tot, src = simulate(rt, a.k, cap, a.min_prob, a.factor, times, a.reset_gap * 60.0)
     print(f"suffix_sim: k {a.k}, index cap {cap} tokens ({a.mib:g} MiB), min-prob {a.min_prob}, factor {a.factor}; "
           f"replayed in {time.time() - t1:.1f}s")
     report(tot, src)
