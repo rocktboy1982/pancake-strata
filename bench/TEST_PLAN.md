@@ -301,11 +301,11 @@ syntax-checked). Run them from the repo root with the GPU idle, one at a time; a
 3. F9 router publish (HIP DPP first), F12 sign expansion with EXPDEC_V2 - exact. F12 is coded alone on
    `work/f12-sign-expand` (EXPDEC_V2 is not in the tree): run `iq_multi_parity`, then
    `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1` on each GPU (every cell `identical`; keep a format only
-   where `dec:s1` has the lower gu_us), then `bench/specs/f12-sign-fast.json` (text identical to base on every case).
+   where `dec:s1` has the lower gu_us), then `bench/specs/22-f12-sign-fast.json` (text identical to base on every case).
 4. F14 KhaledElzarw sm86 set on the 3060, then the Q2_0 down fold on gfx1100 - exact.
 5. F8 SPEC_CUM (if 4.0.3 >= 2%), F10 ADAPT_PROMPT - exact.
 6. F11 window decode attention (CUDA first, then WMMA), F17 / F19 Qwen3.6 attention - rounding-level, KL gate.
 7. Lossy arms: F5 VERIFY_ECAP, F13 route-prior guards + stronger turbo vs uniform tail skip at equal KL, F4 shadow
    pack (after 4.0.5 and a requant that fits the disk).
-   F5 is coded (work/f5-verify-ecap): bench/specs/11-verify-ecap.json, screen first, then token forcing (decode path)
+   F5 is coded (work/f5-verify-ecap): bench/specs/20-verify-ecap.json, screen first, then token forcing (decode path)
    and the task gate (tool_call tasks included) on the same spec; no default before all three pass.
