@@ -90,6 +90,9 @@ RunStats run_spec(const std::vector<int32_t>& prompt, int n_new, int S, float mi
             DiscoPolicy::Round r;
             r.p = probs.data(); r.T = T; r.accepted = a; r.mtp_window = true; r.round_ms = 10.0 + 3.0 * T;
             r.misses_total = st.rounds * 40; r.n_layers = 48; r.pos = (long long) ctx.size(); r.policy = policy;
+            int32_t rm[16];
+            for (int i = 0; i < 16; ++i) rm[i] = (int32_t) (mix((uint64_t) st.rounds * 16 + (uint64_t) i) % 90);
+            r.row_miss = rm; r.row_miss_n = T;
             disco->end_round(r);
         }
     }
@@ -105,7 +108,7 @@ std::vector<int32_t> greedy(const std::vector<int32_t>& prompt, int n_new) {
 DiscoModel model_on_p(double threshold) {   // a hand-set model: the score follows the draft's probability
     DiscoModel m;
     std::string err;
-    const std::string txt = "disco 1\nfeatures 9\nbias 0\nw 8 0 0 0 0 0 0 0 0\nmean 0.5 0 0 0 0 0 0 0 0\n"
+    const std::string txt = "disco 2\nfeatures 9\nbias 0\nw 8 0 0 0 0 0 0 0 0\nmean 0.5 0 0 0 0 0 0 0 0\n"
                             "scale 1 1 1 1 1 1 1 1 1\nthreshold " + std::to_string(threshold) + "\n";
     check(m.parse(txt, err), "hand-set model parses");
     return m;
@@ -118,11 +121,13 @@ int main() {
         std::string err;
         check(!m.load("/nonexistent/disco.txt", err) && !m.loaded, "missing file: not loaded");
         check(!m.parse("bias 1\nw 1 2 3 4 5 6 7 8 9\n", err), "no header: rejected");
-        check(!m.parse("disco 1\nw 1 2 3\n", err), "short w: rejected");
-        check(!m.parse("disco 2\nw 1 2 3 4 5 6 7 8 9\n", err), "wrong version: rejected");
-        check(!m.parse("disco 1\nw 1 2 3 4 5 6 7 8 9\nscale 1 1 1 0 1 1 1 1 1\n", err), "zero scale: rejected");
-        check(!m.parse("disco 1\nw 1 2 3 4 5 6 7 8 9\nthreshold 1.5\n", err), "threshold > 1: rejected");
-        check(m.parse("# fitted\ndisco 1\nfeatures 9\nbias -0.5\nw 1 0 0 0 0 0 0 0 0  # p only\nthreshold 0.4\nauc 0.8\n", err) && m.loaded,
+        check(!m.parse("disco 2\nw 1 2 3\n", err), "short w: rejected");
+        check(!m.parse("disco 3\nw 1 2 3 4 5 6 7 8 9\n", err), "wrong version: rejected");
+        check(!m.parse("disco 1\nw 1 2 3 4 5 6 7 8 9\n", err) && err.find("refit") != std::string::npos,
+              "version 1 (old feature 6): rejected, asks for a refit");
+        check(!m.parse("disco 2\nw 1 2 3 4 5 6 7 8 9\nscale 1 1 1 0 1 1 1 1 1\n", err), "zero scale: rejected");
+        check(!m.parse("disco 2\nw 1 2 3 4 5 6 7 8 9\nthreshold 1.5\n", err), "threshold > 1: rejected");
+        check(m.parse("# fitted\ndisco 2\nfeatures 9\nbias -0.5\nw 1 0 0 0 0 0 0 0 0  # p only\nthreshold 0.4\nauc 0.8\n", err) && m.loaded,
               "valid file parses (comments, unknown keys)");
         float x[9] = {0.5f, 0, 0, 0, 0, 0, 0, 0, 0};
         check(std::fabs(m.score(x) - 1.0 / (1.0 + std::exp(0.0))) < 1e-9, "score = sigmoid(bias + w.x)");
@@ -144,6 +149,22 @@ int main() {
         check(pol.keep_draft(0, 0.9f, 3) && pol.rows() == 2, "cap 3: first kept, room for one more");
         check(!pol.keep_draft(1, 0.9f, 3) && pol.rows() == 3, "cap 3: second kept, no room for a third");
         check(!pol.keep_draft(0, 0.99f, 2) && pol.rows() == 2, "cap 2: one draft at most");
+        // per-position thresholds (A22): position 0 keeps everything, position 1 needs 0.95, deeper ones nothing
+        DiscoModel mt;
+        std::string err;
+        check(mt.parse("disco 2\nbias 0\nw 8 0 0 0 0 0 0 0 0\nmean 0.5 0 0 0 0 0 0 0 0\nthreshold 0.5\nthresholds 3 0 0.95 1\n", err) &&
+              mt.n_thr_pos == 3 && mt.threshold_at(0) == 0.0 && mt.threshold_at(1) == 0.95 && mt.threshold_at(9) == 1.0,
+              "thresholds line parses; deeper positions take the last");
+        check(!mt.parse("disco 2\nw 1 2 3 4 5 6 7 8 9\nthresholds 2 0.5\n", err), "short thresholds line: rejected");
+        check(!mt.parse("disco 2\nw 1 2 3 4 5 6 7 8 9\nthresholds 1 1.2\n", err), "threshold table > 1: rejected");
+        check(!mt.parse("disco 2\nw 1 2 3 4 5 6 7 8 9\nthresholds 17 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n", err), "17 positions: rejected");
+        check(mt.parse("disco 2\nbias 0\nw 8 0 0 0 0 0 0 0 0\nmean 0.5 0 0 0 0 0 0 0 0\nthresholds 3 0 0.95 1\n", err), "table parses");
+        DiscoPolicy pt;
+        pt.set_model(mt);
+        check(pt.keep_draft(0, 0.05f, 8) && pt.rows() == 2, "position 0 at threshold 0: even an unsure draft is kept");
+        check(!pt.keep_draft(1, 0.6f, 8) && pt.rows() == 2, "position 1 at 0.95: a 0.6 draft (score 0.69) stops the chain");
+        check(pt.keep_draft(0, 0.5f, 8) && pt.keep_draft(1, 0.99f, 8) && !pt.keep_draft(2, 0.999f, 8) && pt.rows() == 3,
+              "position 2 at threshold 1: never kept");
         // the window rule takes the chain's rows exactly as it takes STRATA_SPEC_COST's
         WindowRuleIn in;
         in.use_mtp = true; in.draft_on = true; in.spec_cost = true; in.chain_rows = pol.rows(); in.cap = 4; in.start = 4;
@@ -176,6 +197,47 @@ int main() {
         }
         std::remove(path.c_str());
     }
+    {   // 3b. feature 6 (A22): the expected new CPU misses of the draft's row, learned per window row from MTP windows
+        DiscoPolicy pol;
+        pol.set_model(model_on_p(0.5));
+        float x[9];
+        pol.features(0, 0.9f, 0.9, x);
+        check(x[6] == 0.0f && pol.row_miss_expect(1) == 0.0, "no window yet: feature 6 is 0");
+        const float p[3] = {0.9f, 0.8f, 0.7f};
+        const int32_t rm[4] = {120, 64, 32, 16};   // row 0 (committed) .. row 3
+        DiscoPolicy::Round r; r.p = p; r.T = 4; r.accepted = 1; r.mtp_window = true; r.row_miss = rm; r.row_miss_n = 4;
+        pol.end_round(r);
+        check(pol.row_miss_expect(1) == 64.0 && pol.row_miss_expect(3) == 16.0, "first window seeds every verified row");
+        check(pol.row_miss_expect(6) == 16.0, "a row not seen yet: the nearest shallower row");
+        pol.features(1, 0.8f, 0.72, x);
+        check(std::fabs(x[6] - 32.0f / 64.0f) < 1e-6f, "feature 6 of draft 1 = row 2's expectation / 64");
+        const int32_t rm2[3] = {100, 0, 0};
+        DiscoPolicy::Round r2; r2.p = p; r2.T = 3; r2.accepted = 2; r2.mtp_window = true; r2.row_miss = rm2; r2.row_miss_n = 3;
+        pol.end_round(r2);
+        check(std::fabs(pol.row_miss_expect(1) - 0.9 * 64.0) < 1e-9 && std::fabs(pol.row_miss_expect(2) - 0.9 * 32.0) < 1e-9 &&
+              pol.row_miss_expect(3) == 16.0, "EMA (alpha 0.1) per row; rows the window did not verify keep theirs");
+        DiscoPolicy::Round rl; rl.p = p; rl.T = 4; rl.accepted = 0; rl.mtp_window = false; rl.row_miss = rm; rl.row_miss_n = 4;
+        pol.end_round(rl);   // a lookup window: its rows are not MTP draft rows
+        check(std::fabs(pol.row_miss_expect(1) - 0.9 * 64.0) < 1e-9, "a non-MTP window leaves feature 6 alone");
+        // the trace's nmiss column: the row's own new misses
+        const std::string path = "disco_test_trace_nmiss.csv";
+        std::remove(path.c_str());
+        {
+            DiscoPolicy tp;
+            check(tp.open_trace(path), "trace opens");
+            DiscoPolicy::Round rt; rt.p = p; rt.T = 3; rt.accepted = 2; rt.mtp_window = true; rt.row_miss = rm; rt.row_miss_n = 4;
+            tp.end_round(rt);
+        }
+        std::ifstream f(path);
+        std::vector<std::string> lines;
+        for (std::string l; std::getline(f, l);) lines.push_back(l);
+        check(lines.size() == 3 && lines[0].size() > 6 && lines[0].substr(lines[0].size() - 6) == ",nmiss", "header ends with nmiss");
+        if (lines.size() == 3) {
+            check(lines[1].substr(lines[1].rfind(',')) == ",64", "draft 0's row 1 woke 64");
+            check(lines[2].substr(lines[2].rfind(',')) == ",32", "draft 1's row 2 woke 32");
+        }
+        std::remove(path.c_str());
+    }
     {   // 4. exactness on the mock target
         const int S = 6, n_new = 600;
         int64_t runs = 0;
@@ -204,11 +266,25 @@ int main() {
                     std::printf("threshold %.2f: %lld rounds, %lld drafts verified, %lld accepted (static 0.5: %lld rounds)\n", thr,
                                 (long long) ds.rounds, (long long) ds.drafts, (long long) ds.accepted, (long long) st.rounds);
             }
+            {   // a per-position threshold table: still exact
+                DiscoPolicy pol;
+                DiscoModel m;
+                std::string err;
+                check(m.parse("disco 2\nbias 0\nw 8 0 0 0 0 0 0 0 0\nmean 0.5 0 0 0 0 0 0 0 0\nthresholds 4 0.2 0.5 0.8 0.9\n", err),
+                      "table model parses");
+                pol.set_model(m);
+                DraftPolicy dp(S);
+                const RunStats ds = run_spec(prompt, n_new, S, 0.5f, salt,
+                                             [&](int idx, float pj) { return pol.keep_draft(idx, pj, S); },
+                                             [&](const float*, int) { return pol.rows(); }, &pol, &dp);
+                check(ds.out == ref, "DISCO per-position table = greedy");
+                ++runs;
+            }
             {   // a model on every feature (the trained shape): still exact
                 DiscoPolicy pol;
                 DiscoModel m;
                 std::string err;
-                check(m.parse("disco 1\nbias 0.3\nw 2 -1 1.5 -0.4 1.2 0.5 -0.8 -0.6 0.1\nmean 0.6 0.1 0.4 0.2 0.7 0.1 0.5 0.3 0.5\n"
+                check(m.parse("disco 2\nbias 0.3\nw 2 -1 1.5 -0.4 1.2 0.5 -0.8 -0.6 0.1\nmean 0.6 0.1 0.4 0.2 0.7 0.1 0.5 0.3 0.5\n"
                               "scale 0.2 0.1 0.3 0.15 0.1 0.2 0.5 0.2 0.1\nthreshold 0.55\n", err), "full model parses");
                 pol.set_model(m);
                 DraftPolicy dp(S);
@@ -216,7 +292,8 @@ int main() {
                                              [&](int idx, float pj) { return pol.keep_draft(idx, pj, S); },
                                              [&](const float*, int) { return pol.rows(); }, &pol, &dp);
                 check(ds.out == ref, "DISCO full-feature model = greedy");
-                check(pol.miss_rate() > 0.0, "miss feature tracks the pool's misses");
+                check(pol.miss_rate() > 0.0, "the pool's miss rate is tracked");
+                check(pol.row_miss_expect(1) > 0.0, "feature 6 tracks the rows' new misses");
                 ++runs;
             }
         }

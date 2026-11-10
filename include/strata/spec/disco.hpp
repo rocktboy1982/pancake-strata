@@ -7,7 +7,7 @@
 // (tools/pancake/disco_fit.py) on traces this file's logger writes during normal decoding:
 //
 //   s_j = sigmoid(b + sum_i w_i * (x_ij - mean_i) / scale_i)    = P(draft j accepted | drafts 0..j-1 accepted)
-//   draft j is kept and the chain goes on while s_j >= threshold; the first draft under it ends the chain and is
+//   draft j is kept and the chain goes on while s_j >= threshold_j; the first draft under it ends the chain and is
 //   left out of the window.
 //
 // Features of draft j (all known on the host when the MTP returns draft j; DiscoPolicy::features):
@@ -17,16 +17,25 @@
 //   3 pos      j / 8
 //   4 recent   EMA of the acceptance of MTP drafts that were reached (alpha 0.1, prior 0.7)
 //   5 match    log1p(the prompt-lookup match length of the context at the round) / 3 (0 without --suffix-draft)
-//   6 miss     EMA of missed experts per verify row and layer (the offloaded-MoE part: what one more row wakes)
+//   6 miss     the CPU-missed experts row idx + 1 is expected to add (A22, version 2): an EMA, per window row, of the new
+//              CPU misses that row added in earlier MTP windows (core/row_miss.hpp; the window trace's record 5), / 64.
+//              The SpecFit cost of a draft position (arXiv 2610.15417): the CPU time of the experts it wakes.  A row not
+//              seen yet takes the nearest shallower row's value (0 before any window).
 //   7 dcost    cost(j + 2) / cost(j + 1) - 1: the measured price of verifying one more row (DraftPolicy's row costs)
 //   8 ctx      log2(1 + position) / 17
 //
 // The policy only decides how many of the drafts are verified; the verifier still accepts exactly the drafts the
 // target would have produced, so greedy output is unchanged (src/spec/disco_test.cpp checks this on a mock target).
 //
+// The drafter's entropy (DISCO's and MiMo-V2-Flash's signal) is not exposed: the MTP's selection kernel returns the top-1
+// probability only (and its two-stage proxy pick never forms the full softmax), so features 0-2 carry the confidence.
+//
 // Switches:  STRATA_DISCO=<weights file>        the learned rule replaces --spec-min-p / STRATA_SPEC_COST for MTP windows
 //            STRATA_DISCO_TRACE=<csv file>      log one line per drafted token of every plain MTP window (training data)
 // A missing or malformed weights file prints one warning and keeps the current rule (DraftPolicy / --spec-min-p).
+// Weights are fitted by tools/pancake/disco_fit.py, from these CSV traces or from window traces (STRATA_WINDOW_TRACE),
+// whose fits leave the features a window trace cannot replay (5 match, 7 dcost) at weight 0.  Version 1 files (feature 6
+// was a window-level miss rate) are refused: refit.
 #pragma once
 
 #include <array>
@@ -40,13 +49,23 @@ class DraftPolicy;
 
 struct DiscoModel {
     static constexpr int kF = 9;
-    static constexpr int kVersion = 1;
+    static constexpr int kVersion = 2;   // 2: feature 6 = the row's expected new CPU misses (A22)
     double bias = 0.0;
     std::array<double, kF> w{}, mean{}, scale{};
     double threshold = 0.5;
+    /// Optional per-position thresholds ("thresholds n t_0 .. t_n-1", A22): draft j is judged against t_j (the last one
+    /// for deeper drafts), so the table carries what each position costs (SpecFit) on top of how likely it holds (DISCO).
+    /// 0 keeps every draft at that position, 1 none.  Absent: `threshold` everywhere.
+    static constexpr int kMaxPos = 16;
+    std::array<double, kMaxPos> thr_pos{};
+    int n_thr_pos = 0;
+    double threshold_at(int idx) const {
+        return n_thr_pos > 0 ? thr_pos[(size_t) (idx < n_thr_pos ? (idx < 0 ? 0 : idx) : n_thr_pos - 1)] : threshold;
+    }
     bool loaded = false;
 
-    /// Parse the text weights file ("disco 1", "bias b", "w ..", "mean ..", "scale ..", "threshold t"; '#' comments).
+    /// Parse the text weights file ("disco 2", "bias b", "w ..", "mean ..", "scale ..", "threshold t", optional
+    /// "thresholds n t..", '#' comments).
     bool load(const std::string& path, std::string& err);
     bool parse(const std::string& text, std::string& err);
     /// P(accepted) for one feature vector.
@@ -89,6 +108,8 @@ public:
         int n_layers = 1;
         long long pos = 0;            ///< the context position of the round's first row
         const DraftPolicy* policy = nullptr;   ///< its row costs (dcost); null keeps the last snapshot
+        const int32_t* row_miss = nullptr;     ///< the new CPU misses of each verified row (core/row_miss.hpp; null: unknown)
+        int row_miss_n = 0;                    ///< rows in row_miss
     };
     /// After a verified round, before the next chain is drafted: the trace lines of this round's drafts (features
     /// as they were when the chain was drafted), then the state the next chain's features read.
@@ -96,6 +117,8 @@ public:
 
     double recent() const { return recent_; }
     double miss_rate() const { return miss_; }
+    /// Feature 6 before its / 64: the expected new CPU misses of window row `row` (1 = the first draft).
+    double row_miss_expect(int row) const;
     int64_t rounds_logged() const { return logged_; }
 
 private:
@@ -107,6 +130,8 @@ private:
     // state read by features()
     double recent_ = 0.7, miss_ = 0.0, match_f_ = 0.0, ctx_f_ = 0.0;
     std::array<double, kMaxT + 2> cost_{};    // cost_[t]: round ms of a window of t rows (0: unknown)
+    std::array<double, kMaxT + 1> nm_{};      // nm_[r]: EMA of the new CPU misses window row r added (MTP windows)
+    std::array<int, kMaxT + 1> nm_n_{};       // windows that measured row r
     int64_t misses_last_ = -1;
 };
 

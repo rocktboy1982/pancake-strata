@@ -106,6 +106,7 @@
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
 #include "strata/core/window_trace.hpp"
+#include "strata/core/row_miss.hpp"
 #include "strata/program/expert_seed.hpp"
 #include "strata/program/batch_read.hpp"
 #include "strata/program/logits_selection.hpp"
@@ -1465,6 +1466,10 @@ void drive_pool_multi_impl(void* user, const float* x_f, const int32_t* ids, int
         strata::core::window_trace().layer((int) layer, (int) n_tok, ids,
                                            t->d.trace_kind.size() == (size_t) (n_tok * k) ? t->d.trace_kind.data() : nullptr, w);
     }
+    // MOD_PLAN A22 (STRATA_DISCO / STRATA_DISCO_TRACE): the CPU-missed experts each row of the window adds, the stop rule's
+    // per-position cost (core/row_miss.hpp; read and reset by the loop after the commit).  Off: one branch.
+    if (strata::core::row_misses().on() && t->d.trace_kind.size() == (size_t) (n_tok * k))
+        strata::core::row_misses().layer((int) n_tok, (int) k, ids, t->d.trace_kind.data());
     if (t->routing != nullptr && layer >= 0 && layer < 48) {
         for (int64_t tok = 0; tok < n_tok; ++tok) {
             const int32_t rec[2] = {(int32_t) layer, (int32_t) k};
@@ -14612,6 +14617,10 @@ int main(int argc, char** argv) {
         strata::spec::DiscoPolicy disco;
         disco.init_from_env("strata serve");
         const bool disco_on = disco.active() && use_mtp;
+        if (disco.enabled()) {   // A22: the rows' new CPU misses (feature 6); the pool then also keeps each entry's placement (host bookkeeping)
+            strata::core::row_misses().enable();
+            drive.d.trace_kind_on = true;
+        }
         if (disco_on)
             mtp.set_chain_rule([&](int idx, float pj) {
                 const bool k = disco.keep_draft(idx, pj, S_mtp);
@@ -20048,7 +20057,9 @@ int main(int argc, char** argv) {
                     dr.round_ms = std::chrono::duration<double, std::milli>(Clock::now() - round0).count();
                     dr.match = sfx_match; dr.misses_total = drive.d.multi_misses; dr.n_layers = (int) g.n_layers;
                     dr.pos = (long long) p; dr.policy = &policy;
+                    dr.row_miss = strata::core::row_misses().data(); dr.row_miss_n = strata::core::row_misses().rows();
                     disco.end_round(dr);
+                    strata::core::row_misses().reset();   // the next window counts from zero
                 }
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
                 int mtp_nd = 0;   // item 74: the drafts of this round (the window trace records them when the window is built, above)
@@ -21513,6 +21524,10 @@ int main(int argc, char** argv) {
         strata::spec::DiscoPolicy disco;
         disco.init_from_env("strata generate");
         const bool disco_on = disco.active() && use_mtp && !spec_uses_df2;
+        if (disco.enabled()) {   // A22: the rows' new CPU misses (feature 6); the pool then also keeps each entry's placement (host bookkeeping)
+            strata::core::row_misses().enable();
+            drive.d.trace_kind_on = true;
+        }
         const bool gated_proposal = use_mtp && mtp.prob() && strata::core::spec_gate_pick() &&
             gated_proposal_usable(o.pipeline_windows < 2 && o.batch == 0 && !multi_gpu && drive.d.remote_count == 0,
                                   o.lookup_chain, o.adapt_swaps, o.pcie_frac != 0.0 || o.pcie_frac_auto,
@@ -21887,7 +21902,9 @@ int main(int argc, char** argv) {
                 dr.round_ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
                 dr.match = sfx_match; dr.misses_total = drive.d.multi_misses; dr.n_layers = (int) g.n_layers;
                 dr.pos = (long long) p; dr.policy = &policy;
+                dr.row_miss = strata::core::row_misses().data(); dr.row_miss_n = strata::core::row_misses().rows();
                 disco.end_round(dr);
+                strata::core::row_misses().reset();   // the next window counts from zero
             }
             generation = {};
             const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
