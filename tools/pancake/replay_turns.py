@@ -37,6 +37,11 @@ structure come from the log):
     thinking on/off as recorded, greedy unless the spec sets "temperature"; think time between requests is the
     recorded gap capped at --max-gap s.
 
+  - --shared-system N (opt-in; default each conversation its own system text, as above): every conversation, the
+    agent's and the side requests, starts with the same ~N-token system prompt, so the parked conversations share a
+    prefix the way a main agent and its sub-agents do (MOD_PLAN A15's park TTL classifies a short entry that shares
+    its prefix with a longer one as a sub-agent branch).  The sizes still match the recorded prompts.
+
 Per request: prompt tokens, tokens reused (the engine's "prompt N tokens = R reused + ..." line), prompt-read time,
 time to first token (client, streamed), decode tok/s, wall time, and the engine's conversation-cache lines in that
 request's window (parked / skip parking (why) / restored / evicted).  Per arm run: cold re-reads (a non-first agent
@@ -65,6 +70,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import abtest  # noqa: E402
 
 ROOT = abtest.ROOT
+SHARED_SYSTEM = 0          # --shared-system N: every conversation starts with the same ~N-token system prompt (0: off)
 COLD_MIN = 8192            # a cold re-read: a non-first agent turn above this many tokens ...
 COLD_REUSE = 0.5           # ... with less than this share of its prompt reused
 PLACEHOLDER = "(continued)"   # an assistant reply cut inside its thinking has no content; an empty one is dropped by
@@ -333,6 +339,9 @@ class Conversations:
         self.msgs, self.pos, self.reply = {}, {}, {}
         self.offset = {True: 0, False: 0}      # the server's count minus the local one (should stay 0)
         self.offset_seen = set()
+        self.shared = None                     # --shared-system: the one system text every conversation starts with
+        if SHARED_SYSTEM > 0:
+            self.shared, _ = corpus.take(corpus.start("shared-system"), SHARED_SYSTEM, self.C.block)
 
     def fit(self, prefix, wrap, target, thinking, key):
         goal = target - self.offset[thinking]
@@ -362,12 +371,14 @@ class Conversations:
             if k in self.msgs:
                 msgs = self.msgs[k]
                 return msgs, self.C.prompt(msgs, think) + self.offset[think]
-            msgs, n = self.fit([], lambda t: {"role": "user", "content": f"{k}: {t}"}, target, think, k)
+            lead = [{"role": "system", "content": self.shared}] if self.shared else []
+            msgs, n = self.fit(lead, lambda t: {"role": "user", "content": f"{k}: {t}"}, target, think, k)
             self.msgs[k] = msgs
             return msgs, n
         if e["first"] or k not in self.msgs:
-            system = {"role": "system", "content": f"You are a coding agent working in a C++ repository (replayed "
-                                                   f"conversation {k}). Read what the tools return and answer briefly."}
+            system = {"role": "system", "content": self.shared or
+                      f"You are a coding agent working in a C++ repository (replayed "
+                      f"conversation {k}). Read what the tools return and answer briefly."}
             msgs, n = self.fit([system], lambda t: {"role": "user", "content": f"Task {k}: review these sources and "
                                                     f"list what to change.\n\n{t}"}, target, think, k)
         else:
@@ -818,6 +829,11 @@ def main():
     ap.add_argument("--max-gap", type=float, default=2.0, help="s: think time between requests is capped at this")
     ap.add_argument("--max-new", choices=("output", "recorded"), default="output",
                     help="output (default): max_tokens = the recorded output tokens; recorded: the recorded max_new")
+    ap.add_argument("--shared-system", type=int, help="tokens: every conversation (the agent's and the side requests) "
+                                                      "starts with the same system prompt of about this size, so they "
+                                                      "share a prefix as a main agent and its sub-agents do (default: "
+                                                      "spec replay.shared_system, else 0 = each its own, as before; "
+                                                      "needed to see MOD_PLAN A15's park TTL)")
     ap.add_argument("--start-s", type=float, default=90, help="s per server start, for the duration estimate")
     ap.add_argument("--dry-run", action="store_true", help="build and print the plan; no server")
     ap.add_argument("--port", type=int, default=8080)
@@ -838,6 +854,8 @@ def main():
     if bad:
         raise SystemExit(f"unknown arm(s) {bad}; the spec has {list(all_arms)}")
     reps = a.reps or rp.get("reps", 1)
+    global SHARED_SYSTEM
+    SHARED_SYSTEM = max(0, a.shared_system if a.shared_system is not None else int(rp.get("shared_system", 0)))
     base_cfg = a.base or spec["base"]
     base_cfg = base_cfg if os.path.isabs(base_cfg) else str(ROOT / base_cfg)
     try:
