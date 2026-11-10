@@ -36,8 +36,10 @@ not in this range of upstream main).
 | `5e8652196` | `3e1fcaaf6` | `serve/`: `Server.server_bind` skips http.server's `socket.getfqdn` reverse lookup (a stalled lookup delayed every server start; 35 s on GitHub's macOS runner). Nothing in `serve/` reads `server_name` (grepped). Tests in `serve/test_security.py` | server start only |
 | `088057b80` | `38ad0bcbd` (snapshot goldens dropped) | Every child the server / launcher starts gets `GGML_NO_BACKTRACE=1` (`strata_control/childenv.py`): ggml's abort path forks `gdb --batch -ex attach`, which writes into the engine's stdout (the pipe the server reads as its protocol) and holds the dying engine before a restart. `STRATA_BACKTRACE=1`, or `GGML_NO_BACKTRACE` set in the config's env, keeps the backtrace for a developer. Test `tests/terminal/test_no_debugger_children.py` | crash path only; tokens unchanged |
 
-Every cherry-pick keeps the original author and has `(cherry picked from commit ...)`; the partial / by-hand ones say
-so in the message.
+Every cherry-pick has `(cherry picked from commit ...)`; the partial / by-hand ones say so in the message. The clean
+picks keep the original author (pjgmobile for `28bd0185f`/`41e20da53`, Niko1221 for the others). `088057b80` shows our
+name as author because it was picked with `--no-commit` to drop the goldens; its author upstream is Niko1221
+(`38ad0bcbd`), and the branch was already pushed, so it was not rewritten (no force-push).
 
 ## Not taken although bugfix / perf (the ones worth a second look)
 
@@ -84,6 +86,19 @@ specific to them; the standard default-path token parity of the batch build cove
 | `088057b80` | python: `python -m pytest tests/terminal/test_no_debugger_children.py` | helper, engine env, spawn-site census |
 | `5e8652196`, `088057b80` | python: `python -m pytest serve/test_server.py -q` (child_env, server start) | the server builds the engine env through `quiet_crash_env` |
 | `9d80536f9` | none (`git ls-files --eol '*.jinja'` already all LF) | attributes only |
+
+## Tests run here (exact results)
+
+- No compile and no test run: `wait_quiet.sh` returned 1 three times (23:32-23:50, `abtest.py bench/specs/09-prefill.json`
+  was running), so per the brief the code was reviewed instead.
+- Static only: the 13 touched Python files parse (`ast.parse`, nothing imported or run); the spawn-site census of
+  `tests/terminal/test_no_debugger_children.py`, counted statically with the test's own rules against our tree, finds
+  no file over its table (our `serve/server.py` has exactly the 7 sites it lists), so that test should pass as is.
+- C++ reviewed by hand: every identifier the picks use exists in our tree with the same meaning (`hm.cgroup_limit`,
+  `pin_by_need_`, `pin_pairs_`, `arena_mmap`, `shared_arena_file`, `lay.blob_bytes`, `ram_warning_`, `o.serve`,
+  `waited`, `keep_note`, `gib`, `buf`); includes added where needed (`<iterator>`, `<sstream>`, `<string>`); the
+  caller already prints `ram_warning()` on stderr (generate.cpp:7928); `ple_residency_test.cpp` is header-only.
+- `git cherry 99a745af5 upstream/main 146df3c46`: no upstream commit of the range is patch-equivalent to one of ours.
 
 ## Risks
 
