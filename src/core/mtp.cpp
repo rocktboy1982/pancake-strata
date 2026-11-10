@@ -265,6 +265,12 @@ bool MtpDrafter::make_q4_head(std::string& err) {
     const auto* tt = ggml_get_type_traits((ggml_type) head_->type());
     if (tt == nullptr || tt->to_float == nullptr || N % 32 != 0) { err = "mtp: --mtp-q4 cannot read the head's format"; return false; }
     const size_t in_row = head_->row_bytes(), out_row = (size_t) (N / 32) * 18;
+    if (out_row >= in_row) {   // already 4.5 bits or less (IQ4_XS: 4.25): Q4_0 reads no fewer bytes and would not fit in place
+        std::fprintf(stderr, "strata mtp: --mtp-q4: the draft head (ggml type %d, %zu B/row) is not larger than Q4_0 (%zu B/row): kept as is\n",
+                     (int) head_->type(), in_row, out_row);
+        dhead_plain_ = true;
+        return true;
+    }
     std::vector<uint8_t> src((size_t) n_dvocab_ * in_row), dst((size_t) n_dvocab_ * out_row);
     if (cudaMemcpy(src.data(), dhead_, src.size(), cudaMemcpyDeviceToHost) != cudaSuccess) { err = "mtp: reading the draft head"; return false; }
     std::vector<float> row((size_t) N);
@@ -272,7 +278,7 @@ bool MtpDrafter::make_q4_head(std::string& err) {
         tt->to_float(src.data() + (size_t) r * in_row, row.data(), N);
         ggml_quantize_chunk(GGML_TYPE_Q4_0, row.data(), dst.data() + (size_t) r * out_row, 0, 1, N, nullptr);
     }
-    // the Q4_0 rows replace the subset in place (they are smaller)
+    // the Q4_0 rows replace the subset in place (smaller: checked above)
     if (cudaMemcpy(dhead_, dst.data(), dst.size(), cudaMemcpyHostToDevice) != cudaSuccess) { err = "mtp: writing the draft head"; return false; }
     dhead_type_ = GGML_Q4_0;
     std::fprintf(stderr, "strata mtp: --mtp-q4: draft head over %lld tokens as Q4_0 (%.1f MiB read per step, was %.1f)\n",

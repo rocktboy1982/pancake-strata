@@ -1,0 +1,17 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "mtpq4-head": {
+   "args": {
+    "--mtp-q4": "head"
+   }
+  }
+ },
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "lossy": false,
+ "note": "07e (2026-11-11): --mtp-q4 head after the fix (an IQ4_XS head is not larger than Q4_0: kept as is) - the server must start; same speed as base expected"
+}

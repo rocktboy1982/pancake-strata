@@ -1,0 +1,20 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "lossy": true,
+ "note": "Phase 3b confirm (2026-11-11): q2_0 (Q2_0 file, fast-hip preset with the adopted items) vs base (IQ2_XS); screen said short +8.6%, edit +4.5%. Quality gate: how far Q2_0's answers move from IQ2_XS's.",
+ "arms": {
+  "base": {},
+  "q2_0": {
+   "args": {
+    "--pack": "/home/dan/clone-of-d/Strata-data/packs/q2_0",
+    "--native": "/home/dan/clone-of-d/Strata-data/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00001-of-00002.gguf",
+    "--ple-gguf": "/home/dan/clone-of-d/Strata-data/models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf"
+   }
+  }
+ }
+}
