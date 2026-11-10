@@ -1,0 +1,16 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)
+  short  base                    124.6 +-  41.4  (n=3)
+                              drafts accepted 0.74
+  short  presum                  111.1 +-  37.7  (n=3)   vs base: -10.9% +- 29.7%  -> no difference
+                              drafts accepted 0.73
+  short  presum-vram             127.5 +-  26.2  (n=3)   vs base:  +2.3% +- 12.2%  -> no difference
+                              drafts accepted 0.74
+  edit   base                    128.8 +-  42.6  (n=3)
+                              drafts accepted 0.94
+  edit   presum                  119.6 +-  31.5  (n=3)   vs base:  -7.1% +- 25.3%  -> no difference
+                              drafts accepted 0.94
+  edit   presum-vram             119.4 +-  65.5  (n=3)   vs base:  -7.3% +- 25.3%  -> no difference
+                              drafts accepted 0.94
+  long   base                   1735.3 +- 393.5  (n=3)
+  long   presum                 1434.9 +-   7.5  (n=3)   vs base: -17.3% +- 22.5%  -> no difference
+  long   presum-vram            1544.3 +- 830.5  (n=3)   vs base: -11.0% +- 65.3%  -> no difference

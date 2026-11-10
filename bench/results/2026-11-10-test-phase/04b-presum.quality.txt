@@ -1,0 +1,18 @@
+scoring base (a) ...
+scoring base (b) ...
+scoring presum ...
+scoring presum-vram ...
+presum                   PASS
+      1
+     ],
+     "events_p": 0.7037,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+presum-vram              PASS
+      1
+     ],
+     "events_p": 0.7037,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }

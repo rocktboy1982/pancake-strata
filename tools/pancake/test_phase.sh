@@ -30,7 +30,7 @@ for sp in "${specs[@]}"; do
   n=$(basename "$sp" .json)
   if [ -s "$OUT/$n.summary.txt" ]; then echo "== $n: done before, skipped"; continue; fi
   echo "== $n ($(date +%H:%M))"
-  $PY tools/pancake/abtest.py "$sp" --out "$OUT/$n.jsonl" 2>&1 | tee "$OUT/$n.log" | sed -n '/^summary/,$p' > "$OUT/$n.summary.txt"
+  $PY tools/pancake/abtest.py "$sp" --out "$OUT/$n.jsonl" ${ABTEST_ARGS:-} 2>&1 | tee "$OUT/$n.log" | sed -n '/^summary/,$p' > "$OUT/$n.summary.txt"
   cat "$OUT/$n.summary.txt"
   if python3 -c "import json,sys; sys.exit(0 if json.load(open('$sp')).get('lossy') else 1)"; then
     $PY tools/pancake/quality_gate.py "$sp" --out "$OUT/$n-quality" 2>&1 | tee "$OUT/$n.quality.txt" | grep -E 'PASS|REJECT|INCONCLUSIVE|FAILED'

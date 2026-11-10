@@ -1,0 +1,13 @@
+{
+ "arms": {
+  "base": {}
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "lossy": false,
+ "note": "sanity after os_tune (compact_unevictable_allowed=0)"
+}

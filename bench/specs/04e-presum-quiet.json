@@ -1,0 +1,25 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "presum": {
+   "env": {
+    "STRATA_CPU_PRESUM": "1"
+   }
+  },
+  "presum-vram": {
+   "env": {
+    "STRATA_CPU_PRESUM": "1",
+    "STRATA_PRESUM_VRAM": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 4,
+ "lossy": false,
+ "note": "04e: presum retest on a quiet machine with GPU + APU telemetry (slow-run cause)"
+}

@@ -1,0 +1,69 @@
+{
+ "arms": {
+  "base": {},
+  "stack": {
+   "env": {
+    "STRATA_SPEC_COST": "1",
+    "STRATA_SPEC_ADAPT_EVERY": "2",
+    "STRATA_SPEC_ADAPT_WARM": "200",
+    "STRATA_SELECT_LONG": "1",
+    "STRATA_SIDE_MIXER": "2",
+    "STRATA_GR_UP75": "1",
+    "STRATA_GU_SWIGLU": "1",
+    "STRATA_B6_MMVQ_ROWS": "1",
+    "STRATA_FUSE_WAIT": "2",
+    "STRATA_FUSE_DECODE": "1",
+    "STRATA_ATTN_LANECELL": "1",
+    "STRATA_ATTN_MERGE_V2": "1",
+    "STRATA_TSUM": "1",
+    "STRATA_SMALL_UNR": "3",
+    "STRATA_GR_Q32_G": "2"
+   },
+   "args": {
+    "--spec-min-p": "0.6",
+    "--kv-resident": "8192",
+    "--pool-tasks": "48",
+    "--vram-reserve-mib": "512"
+   }
+  },
+  "lookup12": {
+   "args": {
+    "--lookup-max-t": "12"
+   }
+  },
+  "specminp07": {
+   "args": {
+    "--spec-min-p": "0.7"
+   }
+  },
+  "lookahead0": {
+   "env": {
+    "STRATA_LOOKAHEAD": "0"
+   }
+  },
+  "routed-dedupe": {
+   "env": {
+    "STRATA_PREFILL_ROUTED_STREAM": "1",
+    "STRATA_PREFILL_COPY_WAIT_DEDUPE": "1"
+   }
+  },
+  "mmvf-rows": {
+   "env": {
+    "STRATA_MMVF_ROWS": "1"
+   }
+  },
+  "gdn-pp2": {
+   "env": {
+    "STRATA_GDN_PP": "2"
+   }
+  }
+ },
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "lossy": false,
+ "note": "05 screen: README small-flag stack, lookup12, plus env-only candidates from the fork surveys (spec-min-p 0.7, LOOKAHEAD=0, routed stream + copy-wait dedupe, MMVF_ROWS=1, GDN_PP=2). Promoted arms go to confirm (+ text-identical check / quality gate)."
+}

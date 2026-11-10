@@ -32,3 +32,8 @@ memory compaction, not the arm.  The harness's foreign-CPU monitor does not see 
 Harness change before 04c: the 1-minute load-average wait is gone (it was the finished server's own threads decaying:
 45 of 04's 70 min); runs during memory reclaim / compaction (kswapd, kcompactd > 1% of a core) wait or are repeated.
 04c: 12 runs in 13.4 min (67 s per run, was ~200 s), no noisy run, intervals tighter (base short +-0.8 vs +-10.3).
+| 04b / 04d / 04e presum (`2026-11-10-test-phase/`) | STRATA_CPU_PRESUM=1, + PRESUM_VRAM=1 | not decided (runs bimodal, then noisy) | not decided | not decided | PASS (both) | opt-in: no gain shown in three tries; not retried |
+
+Note (04b-04e): the ~25% slow runs line up with the CPU clock in the new APU telemetry (slow 3.43-3.67 GHz, normal
+3.9-4.1 GHz; GPU clocks equal).  04e also hit the oomd load kills (fixed in a595222ca: THP only when the free 2 MiB
+blocks hold the whole arena; os_tune.sh compact_unevictable_allowed=0) and other sessions' CPU load (most runs repeated).
