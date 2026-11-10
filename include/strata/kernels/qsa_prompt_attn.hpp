@@ -16,6 +16,8 @@
 // Not bitwise equal to `qsa_decode_attn_batch`; `qsa_prompt_attn_parity` bounds the difference and the prompt
 // quality gate (needles, teacher-forced top-1) checks it end to end. Q4_0 KV (mode 4): each block's codes enter
 // exactly as int8 and its scale (one per 32 values) in FP32, as int8 KV's do (STRATA_PROMPT_ATTN_Q4=0: the old kernel).
+// HIP: Q4_0 KV runs the FP32 kernel unless STRATA_HIP_WMMA_Q4=1 (MOD_PLAN F22, opt-in): then the int8 matrix-core
+// kernel's Q4_0 twin (one WMMA partial per q4_0 block times its scale) on gfx11 and gfx12, FP32-level as above.
 #pragma once
 
 #include "strata/kernels/qsa_decode_attn.hpp"

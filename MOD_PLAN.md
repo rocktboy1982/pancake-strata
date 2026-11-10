@@ -1869,7 +1869,72 @@ Env-only arms for TEST_PLAN 4.1.7 (no code): `STRATA_GR_UP_WIDE=1`, `STRATA_GRAP
 | F19 | Qwen3.6 on the 7900 XT: either port RandoTeam's poly HIP work + a gfx11 WMMA flash prompt kernel, or move Qwen3.6 to the in-tree q36 engine with the fork fixes (FP16 K/V, K/V read once per group) | exact / fp16 | storm-ace (gfx1151) 32K prompt 360 -> 938 tok/s; dongnh311 (3060) decode after 16K 12.0 -> 27.5 tok/s | RandoTeam `44b58c6a`...; storm-ace `e4fc07ee`, `4fe0284d`; dongnh311 `62cc598f`; maoyufeng `2f7020f2` |
 | F20 | Empty-block launch probe on gfx1100 (unimatrix `empty_grid.cpp`), then resize launch shapes of the decode graph (upstream gfx12 `grid_pad`) | exact | unimatrix (7900 XTX): a 384x256 launch cost 14-16 us empty; 96 blocks gave +6% there -> 0 to several %, unknown until probed | unimatrix099 `d0c8d6c3e2`; mandoof1 `2b46e4b13d` |
 | F21 | Plan copy with 256 threads and 16-byte reads (`STRATA_WAIT_COPY256`); `STRATA_ADAPT_COPY2`; `multi_block_head_ops()` on gfx1100 | exact | +0.2-0.4%; 0-0.5%; ~0.1% | android-imdad `caa9b00115` |
-| F22 | Port `STRATA_HIP_WMMA_Q4` (gfx12-only) to gfx11 so Q4 KV prompt attention is fast and frees VRAM for experts | exact | VRAM for experts + faster long prompts | upstream / forks (see attention notes) |
+| F22 | Port `STRATA_HIP_WMMA_Q4` (gfx12-only) to gfx11 so Q4 KV prompt attention is fast and frees VRAM for experts. **Coded 2026-11-10 on `work/f22-wmma-q4-gfx11`, not built, not measured; see "F22 status" below** | rounding-level vs today's Q4 path (FP32-level with `STRATA_PA_FAST=0`); `--kv q4_0` itself is lossy | VRAM for experts (~180 MiB = ~131 slots at `--kv-resident 32768`) + faster long prompts on Q4 KV | bsorensen110 `19fc0e48` (attention notes) |
+
+#### F22 status (2026-11-10, branch `work/f22-wmma-q4-gfx11` from `origin/dev/batch-1` `dd8bf619b`: coded, not built, not measured)
+
+What was there: nothing. `STRATA_HIP_WMMA_Q4` was not in pancake (no hit in `src/` or `include/`); it lives only in fork
+bsorensen110 `19fc0e48` (cherry-pick of `b9820dd56`), read from GitHub. On gfx1100 `--kv q4_0` today makes
+`qsa_prompt_attn_batch` return false on HIP, so the prompt runs `qsa_decode_attn_batch` (the FP32 decode kernel, 32
+queries a call), the slow path the int8 preset left behind with `STRATA_HIP_WMMA=1`.
+
+Why the fork's kernel was gfx12-only: only its host gate (`hip_wmma_arch(dev) == 2`). The kernel uses no FP8 and no gfx12
+builtin; every fragment goes through `qsa_prompt_attn.cu`'s S6 macros (`PA_KL`, `PA_KOFF`, `PA_ROW`, `wmma_f16` =
+`v_wmma_f32_16x16x16_f16`, `_w32` on gfx11 / `_w32_gfx12` on gfx12), the ones the int8 kernel uses, and the int8 kernel
+runs on the 7900 XT every day (fast-hip preset). Built for gfx11 those macros give the duplicated-half layout gfx11's
+wave32 WMMA needs (lanes 16..31 carry the same A row / B column as lanes 0..15, 16 k each; C row 2i + lane / 16). Each
+access was checked for it: q's A fragment, K's B fragment (column cell by `__shfl(row, nt * 16 + col)`, all 16 code bytes
+of the block: low nibbles k-step 2b, high 2b + 1), p's A fragment (cells ks * 16 + 0..15 of row col), V's B fragment and
+the C rows.
+
+The change (`src/kernels/cuda/qsa_prompt_attn.cu`):
+- `prompt_attn_wmma_q4_kernel<SPLIT, RPF, TR>`: the fork's kernel, its math unchanged: a wave's 64 dims are the q4_0
+  blocks 2w and 2w + 1; q.k = block 2w's WMMA partial times its K scale, then block 2w + 1's added with an fma; the four
+  waves' partials summed in the int8 kernel's fixed order; p.v folds the two V scales into p against one shared
+  magnitude (`fabsf`: q4_0 scales are signed); nibbles enter as exact FP16; q and p split hi + lo (SPLIT).
+- Added beyond the fork: the int8 kernel's `STRATA_PA_TRIM` (default 2: padding rows out of LDS, 72-byte V rows) and
+  `STRATA_PA_RPF` (default on: next chunk's ids read ahead) variants, same names and defaults, same arithmetic in the
+  same order (the fork's kernel is TR 0, RPF off); `STRATA_PA_FAST=1` / `STRATA_PF_SWITCH_MIN_T` choose SPLIT as for int8.
+- `hip_wmma_q4_usable()`: `STRATA_HIP_WMMA_Q4=1` on arch 1 (gfx11, the `PA_GFX11` list) or 2 (gfx12), one stderr line;
+  its own failure flag (a failed launch falls back to the FP32 kernel for the process and leaves the int8 path alone);
+  independent of `STRATA_HIP_WMMA`. Dispatch in `qsa_prompt_attn_batch`'s HIP block after the int8 check.
+- Default: unset, the new code is never reached past `pools.k_q4 != nullptr` (int8 pools take the int8 branch or skip on
+  `k_q4 == nullptr`); the int8 kernels are untouched, so the default path is byte-identical (code reading; nothing built).
+- `qsa_prompt_attn_parity` / `hip_prompt_attn_wmma`: on AMD also the three q4_0 cases (ctx, 1500, 2100) with
+  `STRATA_HIP_WMMA_Q4=1` (`STRATA_PARITY_SKIP_Q4=1` skips them).
+
+Exact or not: not bitwise, rounding-level against today's gfx1100 Q4 path. With `STRATA_PA_FAST=0` it is FP32-level
+(another summation order and exp2 rounding than the FP32 kernel; the parity test's bounds: error vs FP64 at most 4x the
+FP32 kernel's, new vs old within 1e-4 of the output scale). The fast-hip preset sets `STRATA_PA_FAST=1`, so the kernel would
+run with one FP16 image of q and p: FP16 attention, as the int8 WMMA kernel already runs in that preset. The KV format is
+the larger difference: `--kv q4_0` vs the preset's `--kv int8` is lossy by itself (bench/results/2026-09-27-kv-q4:
+document perplexity +8% at 1K, +12% at 8K, KL 2.6-4.2x int8's; needles 5/5 with `--kv-resident 32768`).
+
+Preset change to use it: in `configs/pancake/flashnext-iq2_xs-fast-hip.json` `--kv int8` -> `--kv q4_0` and env
+`STRATA_HIP_WMMA_Q4=1` (keep `--kv-resident 32768`, `--max-context 131072`). VRAM at 131072 context (12 QSA layers;
+1,056 B per cell and layer int8, 576 B q4_0):
+- resident K/V (32768 cells): 396 MiB -> 216 MiB, **180 MiB freed = ~131 expert slots** (1.37 MiB a slot: 10,735
+  slots in 14.38 GiB in the daily log), +1.2% slots. The 2026-09-27 run (Q2_0, 128K, same streaming) saw 4,044 -> 4,190.
+- prompt staging pool (one layer, all 131072 cells, lent from expert slots during a streamed prompt): 132 -> 72 MiB, so
+  ~44 fewer slots lent while a long prompt is read.
+- pinned RAM for the host K/V copy: 1,584 -> 864 MiB.
+- without streaming the whole 131072 context would take 864 MiB with q4_0 (1,584 int8): more VRAM than today's streamed
+  int8 (396 MiB), so keep `--kv-resident`. Option: `--kv q4_0 --kv-resident 65536` = 432 MiB (36 MiB more than today)
+  with twice the resident window.
+
+Run on the 7900 XT, in this order: (1) build-hip, `hip_prompt_attn_wmma 32768 2048 3`: every line PASS, the q4_0 ones
+included; repeat with `STRATA_PA_TRIM=0 STRATA_PA_RPF=0` and compare the q4_0 checksums (must be equal: TR/RPF keep the
+bits). (2) `python tools/pancake/abtest.py bench/specs/18-f22-wmma-q4-gfx11.json --out bench/results/<day>/18-f22.jsonl
+--tier screen` (reference arm q4-fp32 = today's Q4 path; q4-wmma, q4-wmma-split, int8-daily). (3) If Q4 KV is wanted on
+the daily preset: token forcing, needles at 32K / 128K and the tool-call task gate on int8 vs q4_0 (the format, not the
+kernel, decides).
+
+Risks: unbuilt (a compile error is possible; gfx11 register pressure is lower than the int8 kernel's: the Chunk holds
+~40 VGPRs vs ~53); K is read with 2-byte loads (q4_0 blocks are 18 bytes), so on gfx11, where both half-waves need all
+16 bytes, a lane issues 8 16-bit loads per block (follow-up if it is load-bound: 9 dword loads for a wave's two blocks
+at their 4-byte-aligned 36-byte offset); the kernel is unmeasured on any gfx11 part (fork speed: gfx1200 only); the gain
+needs Q4 KV, which costs precision; the decode-side Q4 attention on gfx1100 in this preset is unmeasured too (the
+2026-09-27 run was not on this card).
 
 ### 15D. Measured negatives (do not repeat)
 
