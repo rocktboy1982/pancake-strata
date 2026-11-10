@@ -5056,6 +5056,10 @@ class Service:
         # thinking with the soft budget's wrap-up when it stays high.  None: no close.
         self.rumination_close = None
         self.rumination_counts = {"measured": 0, "closed": 0}
+        # A20 (opt-in, the config's "rumination_entropy": K): the engine prints the top-K logprobs of every thinking
+        # token and the request's top-K entropy (mean, lowest rolling mean) goes to the history and the turn log; it is
+        # the second signal of "rumination_close" ("entropy_below").  The engine's logprobs path costs decode speed.
+        self.rumination_entropy = None
         self.repeat_stop_tokens = REPEAT_STOP_TOKENS     # #606: one token this many times in a row ends a reply (0: off)
         # the loop guard (serve/loop_guard.py; STRATA_LOOP_GUARD=0 / "loop_guard": false: off) and what it did since
         # the start (the Monitor's and /metrics' counters)
@@ -6112,7 +6116,8 @@ class Service:
                     "server": {"loop_guard": self.loop_guard,
                                "reasoning_budget_by_effort": dict(self.reasoning_budget_by_effort),
                                "reasoning_budget_grace": self.reasoning_budget_grace,
-                               "rumination_close": self.rumination_close, "turn_log": self.turn_log}}
+                               "rumination_close": self.rumination_close,
+                               "rumination_entropy": self.rumination_entropy, "turn_log": self.turn_log}}
         with self.status_lock:
             s = dict(self.status)
             if self.live_reqs:                          # parallel requests: the newest one's status
@@ -6920,6 +6925,14 @@ class Service:
         rum = rumination.RuminationMeter(rum_cfg["threshold"], rum_cfg["checks"]) if rum_cfg \
             else rumination.RuminationMeter()
         rum_due, rum_wait = False, 0                    # the close is due: waiting for a sentence end (tokens waited)
+        # A20: the top-K entropy of the thinking tokens.  Only Strata's own engine one request at a time (the batch slots'
+        # `BT` lines carry no logprobs, the split engine has none) and only when the client asked for no logprobs itself
+        # (the engine's LP lines are one stream: the client's reader would find them gone).
+        ent_k = self.rumination_entropy if (
+            self.rumination_entropy and thinking and isinstance(self.engine, StrataEngine)
+            and not getattr(self.engine, "batch", 0) and not getattr(self.engine, "split_engine", False)
+            and top_logprobs(sampling or {}) is None) else None
+        ent = rumination.EntropyMeter() if ent_k else None
         admission_rejected = False                      # #3040: the engine's batch slots refused it before it read anything
         emb, self.embeddings.path = getattr(self.embeddings, "path", None), None   # this run's to delete now
         img_keys, self.embeddings.keys = getattr(self.embeddings, "keys", None), None
@@ -7153,7 +7166,9 @@ class Service:
                                 if ev.kind == "reasoning" and (grace or rum_cfg):
                                     think_tail = (think_tail + (ev.text or ""))[-16:]
                                 if ev.kind == "reasoning" and rum.feed(ev.text or "") and rum.high and \
-                                        not (rum_due or rum.closed) and thinking_n >= rum_cfg["min_tokens"]:
+                                        not (rum_due or rum.closed) and thinking_n >= rum_cfg["min_tokens"] and (
+                                        "entropy_below" not in rum_cfg
+                                        or (ent is not None and ent.low(rum_cfg["entropy_below"]))):
                                     rum_due = True      # item 34: the 5-gram rate stayed high: close at a sentence end
                                     print(f"[strata] rumination: the thinking's 5-gram repetition rate stayed at or "
                                           f"above {rum_cfg['threshold']} for {rum_cfg['checks']} checks "
@@ -7240,6 +7255,8 @@ class Service:
                             else (sampling, left)
                         if smp_call is not sampling:    # the guard's short penalty: its window counts from the reply's start
                             smp_call = {**smp_call, "_reply_from": len(ids)}
+                        if ent_k:                       # A20: the engine prints the top-K logprobs (read below)
+                            smp_call = {**(smp_call or {}), "logprobs": True, "top_logprobs": ent_k}
                         gen = self.engine.generate(prompt, n_call, smp_call, cancel, embeddings=emb) if emb \
                             else self.engine.generate(prompt, n_call, smp_call, cancel)
                         pass_n, act = n, None           # the count before this pass; the guard's action in it
@@ -7260,6 +7277,12 @@ class Service:
                                     yield "ping", None
                                     continue
                                 n += 1
+                                if ent is not None:     # A20: this token's LP line (written before the token)
+                                    lp_q = getattr(self.engine, "lp_lines", None)
+                                    while lp_q:
+                                        lp_tok, lp_text = lp_q.popleft()
+                                        if parser.state in ("reasoning", "rcall") and lp_tok not in self.stop_ids:
+                                            ent.feed_line(lp_text)
                                 if first_engine_token_s is None:
                                     first_engine_token_s = round(time.perf_counter() - waiting, 3)
                                     with self.status_lock:
@@ -7577,6 +7600,10 @@ class Service:
                                 "drafts_offered": last.get("drafts_offered"),
                                 "drafts_accepted": last.get("drafts_accepted")})
                             # A17: the level this turn asked for (`sampling` is the request, as in reasoning_budget above)
+                            if ent is not None and ent.tokens:      # A20 (new keys only with "rumination_entropy")
+                                self.history[-1]["entropy_mean"] = round(ent.total / ent.tokens, 3)
+                                self.history[-1]["entropy_min_window"] = \
+                                    round(ent.min_window, 3) if ent.min_window is not None else None
                             self._write_turn_log(self.history[-1], thinking_n, max_new,
                                                  self.request_effort(sampling) if thinking else None)
                             if rum.checks:
@@ -7686,6 +7713,8 @@ class Service:
             done["loop_guard"] = done.get("loop_guard", []) + list(sampling["_loop_behaviour"])
         if rum.checks:                                  # item 34: {"max", "mean", "checks", "closed"}
             done["rumination"] = rum.summary()
+        if ent is not None and ent.tokens:              # A20: {"mean", "min_window", "tokens"} (nats)
+            done["thinking_entropy"] = ent.summary()
         if stops is not None and stops.hit is not None:
             done["stop_sequence"] = stops.hit
         if rejected:
@@ -11421,6 +11450,17 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
               f"rate stays at or above {rc['threshold']} for {rc['checks']} checks"
               + (f" after {rc['min_tokens']} thinking tokens" if rc["min_tokens"] else "") + " (rumination_close)",
               flush=True)
+    try:                                                # A20 (opt-in): the top-K entropy of the thinking, K = 2..20
+        svc.rumination_entropy = rumination.entropy_setting(cfg.get("rumination_entropy"))
+    except ValueError as e:
+        raise SystemExit(f"[strata] config {e}")
+    if svc.rumination_close and "entropy_below" in svc.rumination_close and not svc.rumination_entropy:
+        raise SystemExit("[strata] config \"rumination_close\": entropy_below needs \"rumination_entropy\" (the top-K "
+                         "logprobs the entropy is read from)")
+    if svc.rumination_entropy:
+        print(f"[strata] rumination entropy: the engine prints the top-{svc.rumination_entropy} logprobs of every thinking "
+              "token and the request's top-K entropy goes to the history and the turn log (rumination_entropy; costs "
+              "decode speed: the engine copies the logits to the host for each token)", flush=True)
     by_effort = cfg.get("reasoning_budget_by_effort")   # pancake: {"low": 2048, "medium": 8192, "high": 0}
     if by_effort is not None:
         svc.reasoning_budget_by_effort = budget_by_effort_setting(by_effort)

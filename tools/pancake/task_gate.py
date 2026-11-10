@@ -8,6 +8,13 @@ VERIFY_ECAP, deferral rank guard, a different quant) are judged here, by pass ra
 Same spec as tools/pancake/abtest.py: {"base": PRESET.json, "arms": {"base": {}, "turbo": {"env": {...}, "args": {...}}}}.
 The first arm is the base.  Optional spec keys: "tasks" (task set path), "reps" (default 5), "temperature" (0.2),
 "max_tokens" (1024), "thinking" (false), "margin" (0.05), "validity_margin" (0.03).
+Per arm (A18, A17, A20): "request": {"thinking": true, "reasoning_effort": "xhigh", "max_tokens": 8192, "temperature": 0.2}
+overrides those request settings for that arm only (an arm per effort level = time to success per level), and
+"config": {"reasoning_budget_by_effort": {...}, "rumination_close": 0.4, ...} sets top-level keys of the server config for
+that arm (abtest.make_config; a null removes a key).  "time_curve": true (spec key) adds, per arm, the share of runs that
+succeeded within each of "time_budgets" seconds (default 10 30 60 120 300) and the area under that curve up to
+"time_horizon_s" (default 120): mean over runs of max(0, 1 - t / T) for a success, 0 for a failure (SWE-Effi's idea, A57).
+The default report is unchanged without it.
 
     python tools/pancake/task_gate.py SPEC.json --out bench/results/<day>-taskgate [--tasks bench/tasks/default.json]
                                       [--reps 5] [--only code_edit,tool_call] [--max-load 1.0]
@@ -49,7 +56,9 @@ ROOT = abtest.ROOT
 DEFAULT_TASKS = "bench/tasks/default.json"
 KINDS = ("code_edit", "tool_call", "qa")
 SEED0 = 1000
-DEFAULTS = {"reps": 5, "temperature": 0.2, "max_tokens": 1024, "thinking": False, "margin": 0.05, "validity_margin": 0.03}
+DEFAULTS = {"reps": 5, "temperature": 0.2, "max_tokens": 1024, "thinking": False, "margin": 0.05, "validity_margin": 0.03,
+            "time_curve": False, "time_horizon_s": 120.0, "time_budgets": [10, 30, 60, 120, 300]}
+REQUEST_KEYS = ("thinking", "reasoning_effort", "max_tokens", "temperature")     # an arm's "request" may set these
 
 
 # ---- JSON-schema subset (tool parameters): no dependency, no network
@@ -466,7 +475,19 @@ def med(xs):
     return float("nan") if not xs else xs[len(xs) // 2] if len(xs) % 2 else (xs[len(xs) // 2 - 1] + xs[len(xs) // 2]) / 2
 
 
-def arm_stats(runs):
+def time_curve(runs, horizon, budgets):
+    """A18 / A57: the share of runs that succeeded within each budget (seconds), and the area under that curve to `horizon`:
+    the mean over all runs of max(0, 1 - elapsed / horizon) for a success and 0 for a failure (so a slow success counts
+    less than a fast one, a failure nothing)."""
+    n = len(runs)
+    if not n:
+        return None
+    within = {str(b): sum(1 for r in runs if r["ok"] and r["elapsed"] <= b) / n for b in budgets}
+    auc = sum(max(0.0, 1.0 - r["elapsed"] / horizon) for r in runs if r["ok"]) / n
+    return {"within": within, "auc": auc, "horizon": horizon}
+
+
+def arm_stats(runs, curve=None):
     ok = [r for r in runs if r["ok"]]
     tc = [r for r in runs if r.get("valid") is not None]
     lo, hi = wilson(len(ok), len(runs))
@@ -480,7 +501,8 @@ def arm_stats(runs):
             "t_success_median": med([r["elapsed"] for r in ok]),
             "s_per_success": sum(r["elapsed"] for r in runs) / len(ok) if ok else float("nan"),
             "tokens_per_run": sum(r.get("completion_tokens") or 0 for r in runs) / len(runs) if runs else float("nan"),
-            "errors": sum(1 for r in runs if r.get("error"))}
+            "errors": sum(1 for r in runs if r.get("error")),
+            **({"time_curve": time_curve(runs, *curve)} if curve and runs else {})}
 
 
 def time_auc(runs, horizon):
@@ -507,13 +529,14 @@ def task_auc_scores(runs, horizon):
     return out
 
 
-def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resample_tasks=True, noisy=None, base_drift=None, auc_horizon=None):
+def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resample_tasks=True, noisy=None, base_drift=None, auc_horizon=None,
+                 curve=None):
     """arms: arm names, arms[0] = base.  runs_by_arm: {name: [run records]} (base pooled over its repeats; base_drift:
     (runs_a, runs_b) of the two base runs).  Returns a JSON-able dict."""
     base = arms[0]
     rep = {"arms": {}, "margin": margin, "validity_margin": vmargin, "resample_tasks": resample_tasks, "warnings": []}
     for a in arms:
-        rep["arms"][a] = {"stats": arm_stats(runs_by_arm[a]) if runs_by_arm.get(a) else None}
+        rep["arms"][a] = {"stats": arm_stats(runs_by_arm[a], curve) if runs_by_arm.get(a) else None}
     # A57: area under the time-to-success curve, one horizon for every arm (information, never part of the verdict)
     horizon = auc_horizon or max((r["elapsed"] for rs in runs_by_arm.values() for r in rs or []), default=0.0)
     if horizon > 0:
@@ -592,6 +615,10 @@ def format_report(rep):
                      + (f"  vs base {e['auc_diff']['diff']:+.3f} [{e['auc_diff']['lo']:+.3f}, {e['auc_diff']['hi']:+.3f}]" if "auc_diff" in e else ""))
         L.append(f"{'':22s} by kind: " + "  ".join(f"{k} {v['rate'] * 100:.0f}% (n={v['n']})" for k, v in s["kinds"].items())
                  + (f"  request errors {s['errors']}" if s["errors"] else ""))
+        if s.get("time_curve"):
+            c = s["time_curve"]
+            L.append(f"{'':22s} succeeded within: " + "  ".join(f"{b}s {v * 100:.0f}%" for b, v in c["within"].items())
+                     + f"  | area under the curve to {c['horizon']:g} s: {c['auc']:.3f}  | tokens/run {s['tokens_per_run']:.0f}")
         for f in e.get("task_flips", []):
             L.append(f"{'':22s}   {f['task']:22s} arm {f['arm'] * 100:3.0f}%  base {f['base'] * 100:3.0f}%")
     if "base_noise" in rep:
@@ -619,6 +646,8 @@ def chat(url, task, spec, rep, timeout):
     body = {"model": "x", "messages": messages_of(task, spec), "max_tokens": task.get("max_tokens", spec["max_tokens"]),
             "temperature": spec["temperature"], "seed": SEED0 + rep,
             "chat_template_kwargs": {"enable_thinking": bool(spec["thinking"])}}
+    if spec.get("reasoning_effort"):                 # A18: the level this arm asks for (low, medium, high, xhigh ...)
+        body["reasoning_effort"] = spec["reasoning_effort"]
     if task.get("tools"):
         body["tools"] = task["tools"]
         body["tool_choice"] = "auto"
@@ -707,6 +736,16 @@ def conf(spec_path):
     return spec, s
 
 
+def arm_settings(s, arm):
+    """The run settings of one arm: the spec's, with the arm's "request" overrides on top (A18)."""
+    return {**s, **{k: v for k, v in (arm.get("request") or {}).items() if k in REQUEST_KEYS}}
+
+
+def curve_of(s):
+    """(horizon, budgets) for build_report when the spec asks for the time curve, else None (the report stays as it was)."""
+    return (float(s["time_horizon_s"]), list(s["time_budgets"])) if s.get("time_curve") else None
+
+
 def label_name(arm, tag):
     return f"{arm}#{tag}" if tag else arm
 
@@ -752,7 +791,7 @@ def main():
             regrade(runs, tasks)
         by, drift = arrange(arms, runs)
         print(format_report(build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample,
-                                         base_drift=drift, auc_horizon=a.auc_horizon)))
+                                         base_drift=drift, auc_horizon=a.auc_horizon, curve=curve_of(s))))
         return 0
 
     arms = list(spec["arms"])
@@ -765,9 +804,16 @@ def main():
         if not Path(base).exists():
             problems.append(f"base preset {base} not found")
     for n, arm in spec["arms"].items():
-        for k in ("env", "args"):
+        for k in ("env", "args", "request", "config"):
             if arm.get(k) is not None and not isinstance(arm[k], dict):
                 problems.append(f"arm {n}: {k} must be an object")
+        bad = sorted(set(arm.get("request") or {}) - set(REQUEST_KEYS)) if isinstance(arm.get("request"), dict) else []
+        if bad:
+            problems.append(f"arm {n}: request has unknown keys {bad} (allowed: {', '.join(REQUEST_KEYS)})")
+    if s["time_curve"] and (not isinstance(s["time_horizon_s"], (int, float)) or s["time_horizon_s"] <= 0
+                            or not isinstance(s["time_budgets"], list)
+                            or not all(isinstance(b, (int, float)) and b > 0 for b in s["time_budgets"])):
+        problems.append("time_curve: time_horizon_s must be > 0 and time_budgets a list of seconds > 0")
     if base and not problems:   # the arm configs themselves (env / args edits applied to the preset), in a temp dir
         with tempfile.TemporaryDirectory(prefix="taskgate-cfg-") as d:
             for n, arm in spec["arms"].items():
@@ -787,6 +833,9 @@ def main():
         print(f"spec: base {spec.get('base')}, arms {arms}, reps {s['reps']}, temperature {s['temperature']}, "
               f"margin {s['margin']}, validity margin {s['validity_margin']}")
         print(f"tasks: {len(tasks)} from {tpath} ({', '.join(f'{k} {n}' for k, n in kinds.items())})")
+        for n, arm in spec["arms"].items():
+            if arm.get("request") or arm.get("config"):
+                print(f"arm {n}: request {arm.get('request') or {}}, server config {arm.get('config') or {}}")
         print(f"plan: {n_servers} server starts ({'base twice, ' if not a.no_base_repeat else ''}{len(arms) - 1} other arm(s)), "
               f"{runs_per_arm} requests per start, {runs_per_arm * n_servers} in all; order "
               + " -> ".join([label_name(arms[0], "a" if not a.no_base_repeat else "")] + arms[1:]
@@ -827,14 +876,15 @@ def main():
                     break
                 continue
             url = f"http://127.0.0.1:{a.port}"
+            sa = arm_settings(s, spec["arms"][arm])
             try:
-                chat(url, {"id": "warm", "kind": "qa", "prompt": "Say hello."}, s, 0, a.timeout)   # warm-up, not counted
+                chat(url, {"id": "warm", "kind": "qa", "prompt": "Say hello."}, sa, 0, a.timeout)   # warm-up, not counted
             except ConnectionError:
                 pass
             mon = abtest.NoiseMonitor([srv.pid])
             mon.start()
             with open(out / f"runs-{label}.jsonl", "w") as sink:
-                recs = run_tasks(url, tasks, s, label, s["reps"], a.timeout, sink, srv)
+                recs = run_tasks(url, tasks, sa, label, s["reps"], a.timeout, sink, srv)
             noise, top = mon.result()
             abtest.stop_servers()
             if recs is None:
@@ -850,7 +900,8 @@ def main():
             break
     runs = load_runs(out)
     by, drift = arrange(arms, runs)
-    rep = build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample, noisy, drift, a.auc_horizon)
+    rep = build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample, noisy, drift, a.auc_horizon,
+                       curve_of(s))
     text = format_report(rep)
     print("\n" + text)
     (out / "summary.json").write_text(json.dumps(rep, indent=1))
