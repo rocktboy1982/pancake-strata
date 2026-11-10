@@ -20,13 +20,15 @@ Policies (all per layer, the same budgets and initial residents):
                test); an oracle, the ceiling of every admission + eviction policy
   label        "perfect imitation": admit a miss iff OPTgen says Belady keeps it until its next use (future knowledge),
                evict averse-then-LRU.  The ceiling of an admission predictor on top of LRU eviction
-  hawkeye[-K]  online Hawkeye: OPTgen on the past windows labels each reuse friendly/averse, a 3-bit counter per key
-               learns it, a miss is admitted iff its key's counter is friendly, eviction averse-then-LRU.  Keys:
+  hawkeye-K-hH online Hawkeye: OPTgen on the past windows labels each reuse friendly/averse, an access not reused
+               within H windows leaves the history as averse, a 3-bit counter per key learns it, a miss is admitted
+               iff its key's counter is friendly, eviction averse-then-LRU (H = 8 and 16 for pc, 8 otherwise).  Keys:
                pc (= the expert: the "PC" of a load), pcr (expert x recent-use bucket), glob (per layer, recent-use x
                gap buckets, no expert identity: transfers across experts and requests)
   imit         offline imitation: a logistic model on the access's past-only features (uses in the last 1/4/16 windows,
                gap since the last use, tokens routed to it now, long-run frequency) fitted to the OPTgen labels of the
-               OTHER traces (leave one trace out), admission at p >= --imit-thr, eviction averse-then-LRU
+               OTHER traces (leave one trace out, class-balanced), admission at p >= a threshold picked on those
+               training traces (--imit-thr auto) or given, eviction averse-then-LRU
 CPU-side cost per window (A6's calibration, serial window): 48.7 us per distinct missed expert (the CPU pool) + alpha x
 117 us per promotion (1.4 MB at 12 GB/s, DDR4 contention alpha 0.5).  The A46 decision rule (MOD_PLAN 16): describe an
 engine port only if a learned (online or held-out) policy beats k-th miss by >= 5 hit points on agent traces.
@@ -278,11 +280,12 @@ class Hawkeye:
     """Online OPTgen + 3-bit counters.  The reuse that ends at window t is labelled when t is reached (no future), and
     trains the key the expert had at its previous use."""
 
-    def __init__(self, tr, budgets, key="pc", init=4):
-        self.tr, self.budgets, self.key, self.init = tr, budgets, key, init
+    def __init__(self, tr, budgets, key="pc", init=4, horizon=8):
+        self.tr, self.budgets, self.key, self.init, self.h = tr, budgets, key, init, horizon
         self.ctr = {}
         self.occ = [np.zeros(tr.n + 1, int) for _ in range(tr.nl)]
         self.last = [dict() for _ in range(tr.nl)]       # e -> (window of its last use, key then)
+        self.expire = [dict() for _ in range(tr.nl)]     # window -> [(e, its use then)]: leaves the history unreused
 
     def k(self, l, e, t):
         if self.key == "pc":
@@ -313,6 +316,16 @@ class Hawkeye:
                 v = self.ctr.get(key, self.init)
                 self.ctr[key] = min(7, v + 1) if ok else max(0, v - 1)
             last[e] = (t, self.k(l, e, t))
+            if self.h > 0:
+                self.expire[l].setdefault(t + self.h, []).append((e, t))
+        # Hawkeye's history is finite: an access not reused within `h` windows leaves it and trains its key averse (it
+        # would not have paid for its copy); a later reuse then has no previous access in the history
+        for e, p in self.expire[l].pop(t, []):
+            pk = last.get(e)
+            if pk is not None and pk[0] == p:
+                v = self.ctr.get(pk[1], self.init)
+                self.ctr[pk[1]] = max(0, v - 1)
+                del last[e]
 
 
 def run_all(tr, budgets, inits, init_pairs, kmiss=((2, 4), (2, 8)), imit_w=None, imit_thr=0.5, with_tier=True):
@@ -336,15 +349,33 @@ def run_all(tr, budgets, inits, init_pairs, kmiss=((2, 4), (2, 8)), imit_w=None,
     out["opt"] = run_opt(tr, budgets, inits)
     labels = optgen_labels(tr, budgets)
     out["label"] = run_predicted(tr, budgets, inits, lambda l, e, t: labels[l][(t, e)])
-    for key in ("pc", "pcr", "glob"):
-        hk = Hawkeye(tr, budgets, key)
-        out[f"hawkeye-{key}"] = run_predicted(tr, budgets, inits, hk.predict, hk.learn)
+    for key, hz in HAWKEYES:
+        hk = Hawkeye(tr, budgets, key, horizon=hz)
+        out[f"hawkeye-{key}-h{hz}"] = run_predicted(tr, budgets, inits, hk.predict, hk.learn)
     if imit_w is not None:
-        def pr(l, e, t):
-            z = float(features(tr, l, e, t) @ imit_w)
-            return 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, z)))) >= imit_thr
-        out["imit"] = run_predicted(tr, budgets, inits, pr)
+        out["imit"] = run_predicted(tr, budgets, inits, imit_predictor(tr, imit_w, imit_thr))
     return out
+
+
+HAWKEYES = (("pc", 8), ("pc", 16), ("pcr", 8), ("glob", 8))
+THRS = (0.2, 0.3, 0.4, 0.5, 0.6)
+
+
+def imit_predictor(tr, w, thr):
+    def pr(l, e, t):
+        z = float(features(tr, l, e, t) @ w)
+        return 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, z)))) >= thr
+    return pr
+
+
+def pick_thr(trains, budgets, inits, w, thrs=THRS):
+    """The admission threshold with the best mean hit rate on the training traces (never the held-out one)."""
+    best, best_h = thrs[0], -1.0
+    for thr in thrs:
+        h = float(np.mean([run_predicted(tr, budgets, inits, imit_predictor(tr, w, thr))["hits"] for tr in trains]))
+        if h > best_h + 1e-12:
+            best, best_h = thr, h
+    return best
 
 
 def cpu_ms(r, alpha):
@@ -374,7 +405,8 @@ def main(argv=None):
     ap.add_argument("--interleave", type=int, default=0, help="add a synthetic round-robin trace with N-window turns")
     ap.add_argument("--kmiss", nargs="*", default=["2,4", "2,8"])
     ap.add_argument("--alpha", type=float, default=0.5)
-    ap.add_argument("--imit-thr", type=float, default=0.5)
+    ap.add_argument("--imit-thr", default="auto",
+                    help="imit's admission threshold on p(friendly); auto = the best mean hit rate on the training traces")
     ap.add_argument("--no-tier", action="store_true", help="skip the engine tier (slow on long traces)")
     ap.add_argument("--json", default="")
     a = ap.parse_args(argv)
@@ -396,26 +428,31 @@ def main(argv=None):
 
     # imitation: per part, a model fitted on the other parts' OPTgen labels
     sets = [training_set(p, budgets) for p in parts]
-    models = []
+    models, thrs = [], []
+    fixed = None if a.imit_thr == "auto" else float(a.imit_thr)
     for i in range(len(parts)):
         X = np.concatenate([s[0] for j, s in enumerate(sets) if j != i] or [np.zeros((0, NF))])
         y = np.concatenate([s[1] for j, s in enumerate(sets) if j != i] or [np.zeros(0)])
-        models.append(fit_logistic(X, y) if len(y) else None)
+        w = fit_logistic(X, y) if len(y) else None
+        models.append(w)
+        trains = [p for j, p in enumerate(parts) if j != i]
+        thrs.append(fixed if fixed is not None or w is None else pick_thr(trains, budgets, inits, w))
     w_all = fit_logistic(np.concatenate([s[0] for s in sets]), np.concatenate([s[1] for s in sets]))
+    thr_all = fixed if fixed is not None else pick_thr(parts, budgets, inits, w_all)
 
     report = {}
     print(f"slots {a.slots}, {len(parts)} traces; CPU-side ms = {US_MISS} us x miss/w + {a.alpha} x {US_DMA:.0f} us x promo/w")
-    for name, tr, w in zip(names, parts, models):
-        res = run_all(tr, budgets, inits, init, kmiss, w, a.imit_thr, not a.no_tier)
+    for name, tr, w, thr in zip(names, parts, models, thrs):
+        res = run_all(tr, budgets, inits, init, kmiss, w, thr, not a.no_tier)
         report[name] = res
-        print(table(f"{name} ({tr.n} windows; imit fitted on the other traces)", res, a.alpha))
+        print(table(f"{name} ({tr.n} windows; imit fitted on the other traces, threshold {thr})", res, a.alpha))
     if a.cuts:
-        res = run_all(whole[0], budgets, inits, init, kmiss, w_all, a.imit_thr, not a.no_tier)
+        res = run_all(whole[0], budgets, inits, init, kmiss, w_all, thr_all, not a.no_tier)
         report["whole"] = res
         print(table(f"whole first trace ({whole[0].n} windows; imit in-sample)", res, a.alpha))
     if a.interleave > 0 and len(parts) > 1:
         tr = interleave(parts, a.interleave)
-        res = run_all(tr, budgets, inits, init, kmiss, w_all, a.imit_thr, not a.no_tier)
+        res = run_all(tr, budgets, inits, init, kmiss, w_all, thr_all, not a.no_tier)
         report[f"interleave{a.interleave}"] = res
         print(table(f"SYNTHETIC interleave, {a.interleave}-window turns round-robin ({tr.n} windows; imit in-sample)", res,
                     a.alpha))

@@ -118,9 +118,24 @@ def test_label_oracle_and_hawkeye_beat_lru_on_a_scan_with_a_hot_set():
     finally:
         rp.NL = old
     assert res["label"]["hits"] > res["lru"]["hits"]
-    assert res["hawkeye-pc"]["hits"] > res["lru"]["hits"]
-    assert res["opt"]["hits"] >= res["hawkeye-pc"]["hits"] - 1e-9
-    assert res["hawkeye-pc"]["promo_w"] < res["lru"]["promo_w"]   # the one-offs are bypassed, not copied
+    assert res["hawkeye-pc-h8"]["hits"] > res["lru"]["hits"]
+    assert res["opt"]["hits"] >= res["hawkeye-pc-h8"]["hits"] - 1e-9
+    assert res["hawkeye-pc-h8"]["promo_w"] < res["lru"]["promo_w"]   # the one-offs are bypassed, not copied
+
+
+def test_hawkeye_history_horizon_trains_averse():
+    # expert 5 at window 0, again only at window 20; expert 6 every window.  Horizon 4: 5 leaves the history unreused at
+    # window 4 (its key goes averse once) and its late reuse trains nothing; 6's reuses fit (friendly).
+    wins = [[6, 5]] + [[6]] * 19 + [[6, 5]]
+    tr = mk([wins])
+    hk = C.Hawkeye(tr, [4], "pc", horizon=4)
+    for t in range(tr.n):
+        hk.learn(0, t)
+        if t == 4:
+            assert hk.ctr[(0, 5)] == 3 and 5 not in hk.last[0]
+    assert hk.ctr[(0, 5)] == 3
+    assert hk.ctr[(0, 6)] == 7
+    assert not hk.predict(0, 5, 20) and hk.predict(0, 6, 20)
 
 
 def test_features_use_the_past_only():
@@ -180,7 +195,7 @@ def test_command_line_on_a_synthetic_trace():
                       "--json", str(out)])
         assert set(rep) == {"a", "b", "whole", "interleave1"}
         for res in rep.values():
-            assert {"tier", "lru", "belady", "opt", "label", "kmiss 2/4", "kmiss 2/8", "hawkeye-pc", "imit"} <= set(res)
+            assert {"tier", "lru", "belady", "opt", "label", "kmiss 2/4", "kmiss 2/8", "hawkeye-pc-h8", "hawkeye-pc-h16", "imit"} <= set(res)
             for r in res.values():
                 assert 0.0 <= r["hits"] <= 1.0
             assert res["opt"]["miss_w"] <= min(r["miss_w"] for r in res.values()) + 1e-9
