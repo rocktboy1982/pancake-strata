@@ -14,6 +14,9 @@ Spec (JSON):
    "arms": {"base": {}, "kmiss": {"env": {"STRATA_ADAPT_KMISS": "2,8"}, "args": {"--adapt-swaps": "96"}}},
    "cases": ["short", "edit", "long"], "reps": 3}
   args: "--flag": "value" sets, "--flag": "" a bare switch, "--flag": null removes.  env: "KEY": null removes.
+  Optional top-level "temperature" (default 0 = greedy), "top_p", "seed": sampling of every request, for arms that only
+  matter when sampling (speculative sampling, STRATA_SPEC_PROB*).  Sampled text is not reproducible, so the text-hash
+  check means nothing there.
 
     python tools/pancake/abtest.py SPEC.json --out bench/results/<day>-<name>.jsonl [--reps 3] [--max-load 1.0]
 
@@ -296,9 +299,12 @@ def stop_servers():
         time.sleep(2)
 
 
+SAMPLING = {"temperature": 0}   # the spec's "temperature" / "top_p" / "seed" keys replace it (see main)
+
+
 def request(url, text):
     """Returns the generated text."""
-    body = {"model": "x", "messages": [{"role": "user", "content": text}], "max_tokens": 512, "temperature": 0,
+    body = {"model": "x", "messages": [{"role": "user", "content": text}], "max_tokens": 512, **SAMPLING,
             "chat_template_kwargs": {"enable_thinking": False}}
     req = urllib.request.Request(url + "/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
     r = json.load(urllib.request.urlopen(req, timeout=1800))
@@ -470,8 +476,14 @@ def main():
         cases = [c for c in cases if c != "long"] or ["short"]
         reps, per_run = 1, 2
     base = str(ROOT / spec["base"]) if not os.path.isabs(spec["base"]) else spec["base"]
+    for k in ("temperature", "top_p", "seed"):   # optional sampling, for arms that only matter at T > 0
+        if spec.get(k) is not None:
+            SAMPLING[k] = spec[k]
+    if SAMPLING["temperature"] > 0:
+        print(f"sampling: {SAMPLING} (sampled text is not reproducible: the text-hash check below is not meaningful)",
+              flush=True)
     P = prompts()
-    work = Path(a.out).with_suffix("")
+    work =Path(a.out).with_suffix("")
     work.mkdir(parents=True, exist_ok=True)
     order = []
     for r in range(reps):   # A B B A, then B A A B, ... : each arm sees early and late slots equally

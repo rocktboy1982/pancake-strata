@@ -1,0 +1,12 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "lookup-t16": {"args": {"--lookup-max-t": "16"}},
+  "lookup-chain3": {"args": {"--lookup-chain": "3"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "note": "TEST_PLAN 4.1.3. The preset sets neither flag (engine defaults: --lookup-max-t unset, --lookup-chain 0). 05s-screen tried --lookup-max-t 12; this goes to 16 and tests the chain on its own. The edit case (rewrite of a source file) is where prompt lookup finds drafts; short is the regression check. Greedy: text should be identical to base if lookup is exact; a different hash goes to the quality gate."
+}

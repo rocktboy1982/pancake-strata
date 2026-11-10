@@ -1,0 +1,14 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "f6-dt100": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_PROB_DT": "1.0"}},
+  "f6-dt085": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_PROB_DT": "0.85"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "temperature": 1.0,
+ "top_p": 0.95,
+ "lossy": false,
+ "note": "F6 exact speculative sampling (MOD_PLAN 16 priority item 3: opencode sends no temperature, so the main agent runs at the model card's T 1.0). These switches only act on a SAMPLED request: abtest sent temperature 0 always, so this spec uses the new optional 'temperature' key (top_p and seed also honoured) = T 1.0, top_p 0.95. Sampled text differs run to run: ignore the text-hash line ('DIFFERENT text' is expected for every arm, base included); exactness is by construction (rejection sampling, include/strata/core/spec_prob.hpp), not by hash. Sampled decode speed is noisier than greedy (random acceptance): screen is a first look, confirm needs its reps (--no-early-stop --reps 4 if intervals stay wide). Compare 'accept' as well as tok/s in the jsonl rows."
+}
