@@ -388,6 +388,9 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_VERIFY_DEFER_CPU_TOP=<n>` | `defer_rank.hpp` (item 28 rank guard, A4) | off | **lossy** | a CPU entry among its token's top n by weight is also kept on time | 01, `_TOP=2` vs fast-hip base: +20.1% +-3.3 edit but -6.9% +-3.5 short chat, token forcing PASS; opt-in |
 | `STRATA_VERIFY_DEFER_CPU_FOLD=<n>` | `defer_rank.hpp`, `expert_source.cpp` (A4 fix) | off | exact vs the same `_TOP`/`_BELOW` run | a layer with heavy CPU rows and at most n light experts runs one pool pass instead of two (the same rows still join late) | coded on `work/a4-rank-guard`, screen pending (`bench/specs/10-rank-guard-fold.json`) |
 | `STRATA_ROUTE_PRIOR_DEPTH=a` | `route_prior.hpp` (item 23, AcceptMoE-style) | off | lossy | residency bonus graded by window position | coded, probes clean |
+| `STRATA_ROUTE_PRIOR_PROTECT=N` (alias `_KEEP=N`) | `route_prior.cu` (MOD_PLAN F13; zsariboga `8d7042ad97`, mandoof1 `3e0489e118`) | off | lossy only through turbo (needs `STRATA_ROUTE_PRIOR`); unset: byte-identical | the router's own first N picks are never displaced by the residency bonus, it only reorders ranks N..9 | coded on `work/f13-prior-guards`, screen pending (`bench/specs/11-turbo-guards.json`); CUDA and HIP share the kernel |
+| `STRATA_ROUTE_PRIOR_KEEP_P=x` | `route_prior.cu` (F13; zsariboga) | off | lossy only through turbo | picks with p >= x * p_top (the router's probability) are kept too: more protected when the router is sure | as above |
+| `STRATA_ROUTE_PRIOR_SCOPE=answer\|think\|all` (+ `_ON_PROMPT=1`, `_MARKS=`, `STRATA_ROUTE_PRIOR_STATS=1`) | `route_prior_scope.hpp`, `generate.cpp`, `route_prior.cu` (F13; zsariboga) | off | lossy only through turbo | the bonus is off in verify windows inside `<tool_call>` or a code fence (answer; think: on only inside `<think>`), in windows whose rows hold a think / tool / fence / `<|im_end|>` token, and while the prompt is read; a mapped float written per window, read by the kernel inside the captured graphs. Serial serve loop only: with `--batch` / `--pipeline-windows` the bonus stays off | as above; unit test `route_prior_scope_test`; token forcing must use `--path decode` |
 | `STRATA_DOMAIN_PROFILES=<dir>` | `expert_seed.hpp`, `server.py` (item 4) | off | exact | per-domain expert profiles seeded per request kind | needs per-domain traces |
 | `STRATA_CONV_WORKSET=N` / `_TOKENS=T` | `expert_seed.hpp` (item 3) | off / 32 | exact | keep the last N conversations' routing counts; seed resumed ones | coded on `feat/pattern-cache`, merged |
 | `STRATA_SEED_SCALE=S` / `STRATA_SEED_HOLD=R` | `expert_seed.hpp` | 2 / 16 | exact | domain-seed top score / tier rounds | `replay_seeding.py` |
@@ -586,7 +589,9 @@ New headers and their engines: `include/strata/program/kmiss_tier.hpp` (`STRATA_
 in W windows), `swap_budget.hpp` (`STRATA_ADAPT_SWAPS_AUTO`, online swap budget), `expert_seed.hpp`
 (`STRATA_DOMAIN_PROFILES`, `STRATA_CONV_WORKSET*`, `STRATA_SEED_SCALE/HOLD`: domain and conversation seeding),
 `include/strata/core/defer_rank.hpp` (`STRATA_VERIFY_DEFER_CPU/_BELOW/_TOP/_FOLD`, the KTransformers-style rank guard),
-`route_prior.hpp` (`STRATA_ROUTE_PRIOR_DEPTH`, AcceptMoE-style depth grading), plus `src/core/verify.cpp` and
+`route_prior.hpp` (`STRATA_ROUTE_PRIOR_DEPTH`, AcceptMoE-style depth grading; F13's `_PROTECT/_KEEP/_KEEP_P/_SCOPE` guards in
+`route_prior.cu` and `route_prior_scope.hpp`, judged by `bench/specs/11-turbo-guards.json`: turbo, turbo + guards, a stronger lambda + guards
+and a uniform tail skip, at equal KL, through token forcing and the task gate), plus `src/core/verify.cpp` and
 `expert_source.cpp` wiring and the GPU lookahead default (`STRATA_LOOKAHEAD_GPU`). Why: replay showed the tier at
 79.6% hit vs LRU 89.5% and Belady 94.7% at 44% residency, and the overlap model priced deferral +33% and
 deferral + kmiss 2/8 at +45-52% on edit windows.
@@ -783,6 +788,9 @@ Credits, in the order the stack was built:
 - **android-imdad** (Strata-7900xtx), for the 256-thread, 16-byte plan copy (`STRATA_WAIT_COPY256`, commit caa9b00115).
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
 - **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
+- **zsariboga** (Strata fork), for the route-prior guards (`STRATA_ROUTE_PRIOR_PROTECT`, `_KEEP_P`, `_SCOPE`, commit `8d7042ad97`), and **mandoof1**
+  (Strata fork), for `STRATA_ROUTE_PRIOR_KEEP` (commit `3e0489e118`); **lighttransport** (Strata fork), whose MiniMax study (commit `2ea0c1e042`) set the
+  equal-KL comparison against a uniform tail skip.
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.

@@ -10,6 +10,7 @@
 #include "strata/core/conversation_disk_tier.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
@@ -238,6 +239,12 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
         out.emplace_back(name, v ? std::string(v) : std::string("-"));
     };
     for (const auto& n : conversation_disk_key_env_names()) add(n);
+    // MOD_PLAN F13: the route-prior guards change the computed state too, but they enter the key only when set, so a session file written
+    // before they existed (or by a run that does not use them) keeps its key
+    static const char* const kWhenSet[] = {"STRATA_ROUTE_PRIOR_PROTECT", "STRATA_ROUTE_PRIOR_KEEP", "STRATA_ROUTE_PRIOR_KEEP_P",
+                                           "STRATA_ROUTE_PRIOR_SCOPE", "STRATA_ROUTE_PRIOR_ON_PROMPT", "STRATA_ROUTE_PRIOR_MARKS"};
+    for (const char* n : kWhenSet)
+        if (get_env && get_env(n) != nullptr) add(n);
     std::set<std::string> extra;
     if (const char* x = get_env ? get_env("STRATA_CONVERSATION_DISK_KEY_ENV") : nullptr) {
         std::stringstream ss(x);
@@ -245,7 +252,8 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
             n.erase(0, n.find_first_not_of(" \t"));
             n.erase(n.find_last_not_of(" \t") + 1);
             if (!n.empty() && std::find(conversation_disk_key_env_names().begin(), conversation_disk_key_env_names().end(),
-                                        n) == conversation_disk_key_env_names().end())
+                                        n) == conversation_disk_key_env_names().end() &&
+                std::find_if(std::begin(kWhenSet), std::end(kWhenSet), [&](const char* w) { return n == w; }) == std::end(kWhenSet))
                 extra.insert(n);
         }
     }

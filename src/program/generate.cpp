@@ -28,6 +28,8 @@
 #include "strata/core/batch_telemetry.hpp"
 #include "strata/core/dma_batch.hpp"
 #include "strata/program/adaptive_range.hpp"
+#include "strata/program/route_prior_scope.hpp"
+#include "strata/kernels/route_prior.hpp"
 #include "strata/core/run_manifest.hpp"
 #include "strata/core/device.hpp"
 #include "strata/core/remote_expert_opt.hpp"
@@ -2144,6 +2146,101 @@ int32_t* res_pairs_alloc(size_t cap, const std::vector<int>& devs) {
         }
     }
     return (int32_t*) p;
+}
+
+// MOD_PLAN F13 (route-prior guards for turbo; all opt-in, nothing set = turbo exactly as before).  STRATA_ROUTE_PRIOR's residency
+// bonus changes which experts run, so one displaced pick inside a tool call's JSON or a code fence can break it.  The guards:
+//   STRATA_ROUTE_PRIOR_PROTECT=N (also _KEEP=N, mandoof1)  the router's first N picks are never displaced (route_prior.cu)
+//   STRATA_ROUTE_PRIOR_KEEP_P=x                            picks with p >= x * p_top are never displaced either
+//   STRATA_ROUTE_PRIOR_SCOPE=answer|think|all              the bonus is off in windows inside a tool call / a code fence / (think) outside
+//                                                          the thinking, and while the prompt is read (route_prior_scope.hpp has the rules)
+//   STRATA_ROUTE_PRIOR_ON_PROMPT=1                         measurement: the bonus stays on while the prompt is read
+//   STRATA_ROUTE_PRIOR_MARKS=name=id,...                   marker token ids (default: Qwen 3.8 / Flash-Next)
+// The scope is a mapped float (1 = bonus on, 0 = the router's own top-10 stands) that the serve loop writes before each verify
+// window and route_prior.cu reads on the GPU, so it works inside the captured window graphs.  Needs the serial serve loop:
+// --batch and --pipeline-windows (windows in flight share the one float) and `strata generate` keep the bonus OFF when a scope is asked for.
+struct PriorGuard {
+    volatile float* host = nullptr;   ///< the gate float (null: no scope)
+    strata::program::PriorScope scope = strata::program::PriorScope::Everywhere;
+    strata::program::PriorMarks marks;
+    bool on_prompt = false;
+    bool loop_gates = false;          ///< the decode loop of this run writes the gate per window
+};
+PriorGuard& prior_guard() { static PriorGuard g; return g; }
+inline void prior_gate(bool open) {
+    PriorGuard& g = prior_guard();
+    if (g.host != nullptr) *g.host = open ? 1.0f : 0.0f;
+}
+/// Before the first verifier is initialised (a window graph bakes the kernel's arguments in).  false: a setting that cannot be honoured
+/// (the caller stops); true with nothing done when STRATA_ROUTE_PRIOR is off.
+bool prior_guards_init(bool loop_gates, const char* why_not) {
+    const char* names[] = {"STRATA_ROUTE_PRIOR_PROTECT", "STRATA_ROUTE_PRIOR_KEEP", "STRATA_ROUTE_PRIOR_KEEP_P",
+                           "STRATA_ROUTE_PRIOR_SCOPE", "STRATA_ROUTE_PRIOR_ON_PROMPT", "STRATA_ROUTE_PRIOR_MARKS"};
+    const char* set_name = nullptr;
+    for (const char* n : names)
+        if (std::getenv(n) != nullptr && std::getenv(n)[0] != 0) { set_name = n; break; }
+    if (set_name == nullptr) return true;   // no guard asked for: not a call, not a log line
+    const float lambda = strata::route_prior_resolve(std::getenv("STRATA_ROUTE_PRIOR"), false, false, 0.0);
+    if (!(lambda > 0.0f)) {
+        std::fprintf(stderr, "strata serve: %s is ignored: STRATA_ROUTE_PRIOR is not on (the guards only act on its bonus)\n", set_name);
+        return true;
+    }
+    int protect = 0;
+    for (const char* n : {"STRATA_ROUTE_PRIOR_PROTECT", "STRATA_ROUTE_PRIOR_KEEP"})
+        if (const char* v = std::getenv(n); v != nullptr && v[0] != 0) protect = std::max(protect, std::atoi(v));
+    if (protect < 0) protect = 0;
+    if (protect > 10) {
+        std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR_PROTECT/_KEEP %d is more than the 10 picks: 10\n", protect);
+        protect = 10;
+    }
+    float keep_p = 0.0f;
+    if (const char* v = std::getenv("STRATA_ROUTE_PRIOR_KEEP_P"); v != nullptr && v[0] != 0) {
+        keep_p = (float) std::atof(v);
+        if (!(keep_p > 0.0f && keep_p <= 1.0f)) {
+            std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR_KEEP_P=%s is not in (0, 1]: not used\n", v);
+            keep_p = 0.0f;
+        }
+    }
+    PriorGuard& g = prior_guard();
+    bool known = true;
+    g.scope = strata::program::parse_prior_scope(std::getenv("STRATA_ROUTE_PRIOR_SCOPE"), &known);
+    if (!known)
+        std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR_SCOPE=%s is not answer, think or all: no scope\n",
+                     std::getenv("STRATA_ROUTE_PRIOR_SCOPE"));
+    std::string merr;
+    if (!strata::program::parse_prior_marks(std::getenv("STRATA_ROUTE_PRIOR_MARKS"), g.marks, merr)) {
+        std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR_MARKS: %s\n", merr.c_str());
+        return false;
+    }
+    const char* op = std::getenv("STRATA_ROUTE_PRIOR_ON_PROMPT");
+    g.on_prompt = op != nullptr && op[0] != 0 && op[0] != '0';
+    g.loop_gates = loop_gates;
+    const float* d_gate = nullptr;
+    if (g.scope != strata::program::PriorScope::Everywhere) {
+        void* h = nullptr;
+        void* d = nullptr;
+        if (cudaHostAlloc(&h, 64, cudaHostAllocMapped | cudaHostAllocPortable) != cudaSuccess ||
+            cudaHostGetDevicePointer(&d, h, 0) != cudaSuccess || d != h) {
+            (void) cudaGetLastError();
+            std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR_SCOPE: the mapped gate word could not be set up (every card must "
+                                 "read it at the host's address); unset it or STRATA_ROUTE_PRIOR\n");
+            return false;
+        }
+        *(volatile float*) h = 0.0f;   // closed until a window opens it: an unwired path is routed exactly
+        g.host = (volatile float*) h;
+        d_gate = (const float*) d;
+    }
+    strata::kernels::route_prior_configure(d_gate, protect, keep_p);
+    std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR %.2f guards (MOD_PLAN F13, change the output): router's first %d picks kept, "
+                         "keep_p %.2f, scope %s%s\n", lambda, protect, keep_p,
+                 g.scope == strata::program::PriorScope::All ? "all (gated, off while the prompt is read)"
+                 : g.scope == strata::program::PriorScope::Answer ? "answer (off inside tool calls and code fences)"
+                 : g.scope == strata::program::PriorScope::Think ? "think (on only inside the thinking)" : "everywhere (no gate)",
+                 g.on_prompt ? ", bonus kept on while the prompt is read" : "");
+    if (g.host != nullptr && !loop_gates)
+        std::fprintf(stderr, "strata serve: STRATA_ROUTE_PRIOR_SCOPE is not supported with %s: the bonus stays OFF (exact routing)\n",
+                     why_not);
+    return true;
 }
 
 /// --adapt-async: one background job at a time (the asynchronous adaptive tier's copies and memcpys).  `post` hands
@@ -11460,6 +11557,9 @@ int main(int argc, char** argv) {
         vh.blob = thits.blob;
         vh.slot_off = xcache.slot_offsets();   // E-6: the device plan's pointers
         vh.n_slots = xcache.slots();
+        // MOD_PLAN F13: the route-prior guards (opt-in), before any verifier's window graph exists
+        if (!prior_guards_init(o.batch == 0 && o.pipeline_windows == 0, "--batch / --pipeline-windows (windows in flight share one gate)"))
+            return 1;
         // Layer split: `ver` runs layers [0, K1) and hands its residual to the next stage's verifier, and so on; the
         // last runs the head.  The hand-offs are mapped pinned memory, portable: a stage on another GPU reads it.
         // (--split-device 0: the second stage on this GPU, sharing its weights, session and cache - the A/B.)
@@ -17414,6 +17514,7 @@ int main(int argc, char** argv) {
                 } no_head_sampling(ver);
                 std::vector<int32_t> win((size_t) S), outw((size_t) S), nxt((size_t) S);
                 pp_exact = true;   // between windows the session is exactly at `a`
+                prior_gate(prior_guard().on_prompt);   // MOD_PLAN F13: the prompt's K/V is the router's own (STRATA_ROUTE_PRIOR_ON_PROMPT=1: measurement)
                 for (int64_t q = a; q < b;) {
                     if (stop_req.load()) { e = "cancelled"; return false; }
                     pp_exact = false;   // until this window and the drafter's rows are in
@@ -18672,6 +18773,19 @@ int main(int argc, char** argv) {
             };
             const int64_t rounds_at_start = rounds;
             for (int64_t i = 0; i < p; ++i) consumed.push_back((int32_t) ids[(size_t) i]);
+            // MOD_PLAN F13 (STRATA_ROUTE_PRIOR_SCOPE): the reply's think / tool-call / fence state, read from `consumed`, decides each window's gate;
+            // the gate is closed again when this request's decode ends (the next prompt read starts closed)
+            strata::program::PriorScopeState prior_scope_state(prior_guard().marks);
+            struct PriorGateRequest {
+                int64_t open = 0, total = 0;
+                ~PriorGateRequest() {
+                    prior_gate(false);
+                    static const bool stats = std::getenv("STRATA_ROUTE_PRIOR_STATS") != nullptr;
+                    if (stats && prior_guard().host != nullptr && total > 0)
+                        std::fprintf(stderr, "strata serve: route prior scope: the bonus was on in %lld of %lld verify windows\n",
+                                     (long long) open, (long long) total);
+                }
+            } prior_gate_req;
             // #4590: where the penalty window may start in `consumed` (see pen_prompt above): the end of the prompt without its
             // last token, which joins the window as the fed-back head `x`.
             size_t pen_gen0 = strata::kernels::penalty_window_from(consumed.size(), pen_prompt);
@@ -19698,6 +19812,15 @@ int main(int argc, char** argv) {
                     !kvg_ensure(p + T + 64, adapt_quiesce)) {
                     std::printf("ERR the K/V cannot grow: no VRAM is left\n");
                     return 1;
+                }
+                if (prior_guard().host != nullptr && prior_guard().loop_gates) {
+                    // MOD_PLAN F13: this window's gate.  Merged windows hold prompt tokens (the prompt's K/V stays exact); a decode window is
+                    // open when its head's state is in scope and no row is a think / tool / fence boundary (route_prior_scope.hpp)
+                    prior_scope_state.sync(consumed.data(), consumed.size());
+                    const bool open = !merged && prior_scope_state.window_open(prior_guard().scope, window.data(), T);
+                    prior_gate(open);
+                    ++prior_gate_req.total;
+                    prior_gate_req.open += open ? 1 : 0;
                 }
                 tr("window", p, T);
                 const Clock::time_point tw0 = Clock::now();
@@ -21005,6 +21128,7 @@ int main(int argc, char** argv) {
         vh.blob = thits.blob;
         vh.slot_off = xcache.slot_offsets();   // E-6: the device plan's pointers
         vh.n_slots = xcache.slots();
+        if (!prior_guards_init(false, "`strata generate` (no per-window gate)")) return 1;   // MOD_PLAN F13
         if (pcie_balance()) ver.set_pcie_balance(&drive.d.pcie_model);
 #if defined(STRATA_HAVE_DFLASH2)
         if (use_df2) ver.set_taps(df2.tap_layers());
