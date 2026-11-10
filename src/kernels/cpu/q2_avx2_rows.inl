@@ -96,7 +96,10 @@ inline void rows_fast_group(const uint8_t* w, size_t row_bytes, int nblocks, con
                                             _mm256_cvtepi32_ps(s0), acc[k][t]);
                 acc[k][t] = _mm256_fmadd_ps(_mm256_mul_ps(dv, _mm256_broadcast_ss(&a[t]->scale[2 * b + 1])),
                                             _mm256_cvtepi32_ps(s1), acc[k][t]);
-                corr[k][t] += d * (a[t]->hx[2 * b] + a[t]->hx[2 * b + 1]);
+                // explicit fma: under GCC's default -ffp-contract=fast row_multi's `corr += d * (...)` is contracted to an
+                // fma, but the grouped loop here was not (q2_fast_parity_test: 2240 of 584676 outputs differed at nb 10,
+                // nt 1). A build with -ffp-contract=off (STRATA_HOST_NATIVE) must re-run the parity test.
+                corr[k][t] = std::fma(d, a[t]->hx[2 * b] + a[t]->hx[2 * b + 1], corr[k][t]);
             }
         }
     }
