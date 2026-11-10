@@ -1486,6 +1486,39 @@ marked "meas." are fork/paper claims or estimates.
 | A6 | time model recalibrated (`time_ceiling.py --validate`) | port/rdna3-decode | mean error 3.4 points (was 12-17) | used for ranking |
 | A7/A8/A46 | ProMoE / Pie / oracle admission | not started | offline model: not worth a GPU run now | parked |
 
+### Batch 2: every remaining academic item coded (2026-11-11, branch dev/batch-2)
+
+dev/batch-2 = dev/batch-1 + the merge of port/rdna3-decode (one route_prior guard) + the items below, each opt-in and off
+by default. Coded 2026-11-10 23:00-00:05 by 12 agents while the GPU ran tests 09/15, so **no C++ was compiled before
+the 02:00 night run**; Python tests: 250+ pass. Notes (what, switch, tests, spec, risk): `pancake-docs/batch2/`.
+
+| Item | Switch / tool | Exact? | Offline result | Spec / next |
+| --- | --- | --- | --- | --- |
+| A15 park TTL | `STRATA_PARK_TTL_S` (+`_HOLD_S`, `_SHARE`, `_SUB_RATIO`) | exact (eviction order) | - | 24-a15-park-ttl (replay) |
+| A17/A18/A20 thinking control | `thinking_caps.py`; task-gate `request`/`time_curve`; `rumination_entropy`, `entropy_below` | caps/close lossy | caps need 200+ effort-tagged turns | taskgate-effort / -caps / -rumination |
+| A19 thinking probe | `STRATA_HIDDEN_DUMP`, `STRATA_THINK_PROBE`; `thinking_probe.py` | dump exact, close lossy | no dumps yet | 16-a19-hidden-dump (hash must match) |
+| A21 | finding: T 0.1 requests take the sampled path | - | add `STRATA_SPEC_MIN_TEMP=0.7` with PROB/COUPLED | a21-spec-lowtemp |
+| A22/A25/A26 DISCO | `STRATA_DISCO` v2 (per-row new misses, per-position thresholds); `disco_fit.py`; `draft_report.py`; trace record 5 | exact | synthetic only | collect traces at `--spec-min-p 0`, fit, 24-a22-disco |
+| A24 suffix index | `STRATA_SUFFIX_INDEX` (+`_MB`, `_RULE`, `_FILE`); `suffix_sim.py` | exact (drafts) | 2,045 real opencode requests: rounds -2.4% (sub-agents -7.5%) vs lookup alone | 24-a24-suffix-index (judge 1st request per case) |
+| A29 entropy check | `expert_entropy.py` | - | Q2_0 down max 12% compressible, IQ <= 3.4% -> **closed** | - |
+| A30, A49, A33-A35, A52 | specs, `load_time.py`, `sweep-knobs-fast-hip.json` | A30 lossy | ROUTER_FUSE is skipped while deferral is on | a30 / a49 / a33-a35 / a33-nodefer |
+| A31 GDN chunk 64 | design + rule; stage bench prints the WMMA floor | - | build only if rec/floor >= 2 at 32K and GDN >= 6% of prefill | hip_gdn_stage_bench |
+| A36 weight-major | rule tool `probes/hit_critical.py` | - | build only if the 25%-faster-hit ceiling >= 2% | decode trace |
+| A37 LDS LUT | `STRATA_IQ_LUT_DUP=16|8` (IQ2_XXS gate/up) | bitwise | bank model 5.8 -> 2.0 clocks per lookup; <= 0.5% of GPU time | 24-a37-lut-dup + rocprof counters |
+| A38/A41/A42/A43 agent loop | `STRATA_AGENT_COUNTERS`, `STRATA_TEST_BEFORE_DONE`, `STRATA_EXTERNALIZE_TOKENS`, `STRATA_EDIT_OLDSTRING_CHECK`; A39 design only | counters exact, nudge/externalize lossy | - | log-only switches on real sessions first |
+| A44 bandit | `STRATA_BANDIT=top,kmiss,preread` (+`_EXACT`, `_RULE`, `_TYPE`) | top lossy-small | - | 24-a44-bandit |
+| A45 calibration | `STRATA_CALIBRATE` (+`_MIN_SHARE`, `_CACHE`) | exact (policy) | expected share 0 on this box | 24-a45-calibrate |
+| A46 learned admission | `cache_learn.py` (Belady, Hawkeye, imitation) | - | best online +3.2 hit points but 2-3x promotions, slower than k-th miss -> **closed** on bench traces | recheck on agent traces |
+| A53 IOMMU guard | start-up note, `os_tune.sh check` | exact | GPU already in passthrough | - |
+| A56 / A57 | EAR in `force_check.py` / `quality_gate.py --ear`; AUC in `task_gate.py` | - | - | used by the quality gates |
+| A7 chunked promotions | `STRATA_PROMO_CHUNK` (needs `--adapt-async 1`) | rounding | A6 bound < 5% | 22-a7-promo-chunk (vs the async arm) |
+| upstream sync | 8 of 307 upstream commits (bugfix/perf on our paths) | exact | table in upstream-sync-2026-11-10.md | build + ple_residency_test |
+
+Not coded: A27 (= F4, lossy shadow pack, 25-30 GB requant, +17.6 GB RAM) and A28 (another model, 29.6 GB download):
+both need the owner's decision. A40 (opencode fork), A50/A51 (attention caps them; A49 decides) stay parked.
+Found while merging: the batch preset used on 2026-11-10 lacked deferral / FUSE_PHASES / EXPDEC_DOWN, so the batch-1
+speed runs had another base than fast-hip and the `top2` arms were no-ops; rebuilt from configs/pancake.
+
 ### Priority update after the offline tests (2026-11-10, bench/results/2026-11-10-offline/)
 
 Measured offline (no GPU); these change the order of the work below and of Phase 15:
