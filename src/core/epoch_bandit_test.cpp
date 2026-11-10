@@ -62,9 +62,14 @@ static void test_parse() {
     CHECK(msg.find("top dropped") != std::string::npos);
     CHECK(msg.find("preread dropped") != std::string::npos);
 
-    // the exactness limit: 1 drops the lossy rank guard, 2 the rounding k-th miss too
-    c = cfg_of({{"STRATA_BANDIT", "all"}, {"STRATA_BANDIT_EXACT", "1"}}, kBanditAll);
+    // the exactness limit: 1 drops the lossy rank guard, 2 the rounding k-th miss too (said as the reason, before
+    // availability: verify.cpp keeps no rank-guard word then, so top is also unavailable)
+    msg.clear();
+    c = cfg_of({{"STRATA_BANDIT", "all"}, {"STRATA_BANDIT_EXACT", "1"}}, kBanditKmiss | kBanditPreread, &msg);
     CHECK(c.exact == 1);
+    CHECK(c.switches == (kBanditKmiss | kBanditPreread));
+    CHECK(msg.find("top dropped: STRATA_BANDIT_EXACT=1 (lossy)") != std::string::npos);
+    c = cfg_of({{"STRATA_BANDIT", "all"}, {"STRATA_BANDIT_EXACT", "1"}}, kBanditAll);
     CHECK(c.switches == (kBanditKmiss | kBanditPreread));
     c = cfg_of({{"STRATA_BANDIT", "all"}, {"STRATA_BANDIT_EXACT", "2"}}, kBanditAll);
     CHECK(c.switches == kBanditPreread);
@@ -192,7 +197,7 @@ static void test_determinism() {
 static void test_mixed_session(bool ucb) {
     Env env = {{"STRATA_BANDIT", "top,kmiss"}, {"STRATA_BANDIT_EPOCH", "16"}, {"STRATA_BANDIT_SKIP", "2"},
                {"STRATA_BANDIT_SEED", "3"}};
-    if (ucb) env["STRATA_BANDIT_RULE"] = "ucb:0.3";
+    if (ucb) env["STRATA_BANDIT_RULE"] = "ucb";   // the default c = 0.1
     const BanditConfig c = cfg_of(env, kBanditAll);
     auto cost = [](int t, uint32_t arm) {   // ms per committed token
         double x = t == 0 ? 30.0 : 12.0;

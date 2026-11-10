@@ -15,7 +15,8 @@
 // caches).  At the end of an epoch its cost - the window time per committed token, summed over its counted windows - is
 // folded into the arm's discounted mean (every arm of the type decays by `decay` per epoch: sessions drift) and the next
 // arm is picked: each arm once in order ("off" first), then epsilon-greedy (STRATA_BANDIT_RULE=eps:<e>, the default
-// eps:0.1) or UCB1 for a cost (STRATA_BANDIT_RULE=ucb:<c>, c scaled by the mean cost so it has no unit).  The arms change
+// eps:0.1) or UCB1 for a cost (STRATA_BANDIT_RULE=ucb[:c], c = 0.1, scaled by the mean cost so it has no unit; the
+// bonus counts undiscounted epochs).  The arms change
 // only between windows: the serve loop sets the next window's arm before the window is staged.
 //
 // With a lossy or rounding arm the text depends on which arm ran which window, i.e. on timings: it is not reproducible
@@ -77,7 +78,7 @@ struct BanditConfig {
     int skip = 2;             ///< STRATA_BANDIT_SKIP: windows at an epoch's start that are not counted (0..epoch)
     bool ucb = false;         ///< STRATA_BANDIT_RULE=ucb[:c] (else eps[:e])
     double eps = 0.1;
-    double ucb_c = 0.5;
+    double ucb_c = 0.1;
     double decay = 0.9;       ///< STRATA_BANDIT_DECAY: per-epoch discount of every arm's statistics, (0, 1]
     uint64_t seed = 1;        ///< STRATA_BANDIT_SEED: the explorer's random stream (deterministic)
     int type_mode = kTypeReq; ///< STRATA_BANDIT_TYPE
@@ -115,12 +116,12 @@ BanditConfig bandit_config(Get get, uint32_t available, std::string* msg) {
     uint32_t s = c.requested;
     for (uint32_t b = 1; b <= kBanditPreread; b <<= 1) {
         if (!(s & b)) continue;
-        if (!(available & b)) {
-            say(std::string(bandit_switch_name(b)) + " dropped: its own switch is not on here");
-            s &= ~b;
-        } else if (bandit_switch_class(b) > 2 - c.exact) {
+        if (bandit_switch_class(b) > 2 - c.exact) {
             say(std::string(bandit_switch_name(b)) + " dropped: STRATA_BANDIT_EXACT=" + std::to_string(c.exact) +
                 (bandit_switch_class(b) == 2 ? " (lossy)" : " (rounding)"));
+            s &= ~b;
+        } else if (!(available & b)) {
+            say(std::string(bandit_switch_name(b)) + " dropped: its own switch is not on here");
             s &= ~b;
         }
     }
@@ -358,9 +359,13 @@ private:
             *why = "greedy";
             return best;
         }
+        // UCB1 for a cost: the discounted mean minus c * scale * sqrt(ln(epochs) / epochs of the arm).  The bonus counts
+        // the undiscounted epochs: with the discounted counts an arm left alone for a few epochs (0.9^k) would look
+        // unexplored again and the rule would keep trying every arm.  scale = the mean of the arm means (c has no unit;
+        // an epoch's cost is noisy by a few percent, hence the small default c = 0.1).
         double N = 0.0, scale = 0.0;
         for (int i = 0; i < A; ++i) {
-            N += s.n[(size_t) i];
+            N += (double) s.pulls[(size_t) i];
             scale += mean_of(i);
         }
         scale /= (double) A;
@@ -368,7 +373,7 @@ private:
         int pick = 0;
         double bs = 0.0;
         for (int i = 0; i < A; ++i) {
-            const double sc = mean_of(i) - c_.ucb_c * scale * std::sqrt(lnN / s.n[(size_t) i]);
+            const double sc = mean_of(i) - c_.ucb_c * scale * std::sqrt(lnN / (double) s.pulls[(size_t) i]);
             if (i == 0 || sc < bs) {
                 bs = sc;
                 pick = i;
