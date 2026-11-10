@@ -481,13 +481,46 @@ def arm_stats(runs):
             "errors": sum(1 for r in runs if r.get("error"))}
 
 
-def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resample_tasks=True, noisy=None, base_drift=None):
+def time_auc(runs, horizon):
+    """A57: the area under the time-to-success curve, normalised to 0..1.  S(t) = the share of runs that succeeded within t seconds
+    (a failed or errored run never counts); AUC = (1 / horizon) * integral of S over 0..horizon = the mean over ALL runs of
+    ok * (horizon - elapsed) / horizon.  A fast success counts nearly 1, a success at the horizon 0, a failure 0, so one number
+    holds both the success rate and how fast the successes came (SWE-Effi's effectiveness-under-a-budget idea).  The horizon must be
+    the same for the arms that are compared (build_report: the longest run of all arms, or --auc-horizon).  Returns None for no runs."""
+    if not runs or horizon <= 0:
+        return None
+    return sum(max(0.0, horizon - min(r["elapsed"], horizon)) for r in runs if r["ok"]) / (len(runs) * horizon)
+
+
+def success_within(runs, t):
+    return sum(1 for r in runs if r["ok"] and r["elapsed"] <= t) / len(runs) if runs else None
+
+
+def task_auc_scores(runs, horizon):
+    """{task: [ok * (horizon - elapsed) / horizon, ...]}, for boot_diff (a paired interval on the AUC difference)."""
+    out = {}
+    for r in runs:
+        v = max(0.0, horizon - min(r["elapsed"], horizon)) / horizon if r["ok"] else 0.0
+        out.setdefault(r["task"], []).append(v)
+    return out
+
+
+def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resample_tasks=True, noisy=None, base_drift=None, auc_horizon=None):
     """arms: arm names, arms[0] = base.  runs_by_arm: {name: [run records]} (base pooled over its repeats; base_drift:
     (runs_a, runs_b) of the two base runs).  Returns a JSON-able dict."""
     base = arms[0]
     rep = {"arms": {}, "margin": margin, "validity_margin": vmargin, "resample_tasks": resample_tasks, "warnings": []}
     for a in arms:
         rep["arms"][a] = {"stats": arm_stats(runs_by_arm[a]) if runs_by_arm.get(a) else None}
+    # A57: area under the time-to-success curve, one horizon for every arm (information, never part of the verdict)
+    horizon = auc_horizon or max((r["elapsed"] for rs in runs_by_arm.values() for r in rs or []), default=0.0)
+    if horizon > 0:
+        rep["auc_horizon_s"] = round(horizon, 2)
+        for a in arms:
+            if rep["arms"][a]["stats"]:
+                rs = runs_by_arm[a]
+                rep["arms"][a]["auc"] = {"auc": time_auc(rs, horizon),
+                                         "within": {f"{f:g}": success_within(rs, f * horizon) for f in (0.25, 0.5, 0.75, 1.0)}}
     bs = rep["arms"][base]["stats"]
     if bs and bs["rate"] < 0.3:
         rep["warnings"].append(f"the base passes only {bs['rate'] * 100:.0f}% of its runs: a gate that fails everything cannot "
@@ -510,6 +543,10 @@ def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resampl
             e["verdict"] = "not run"
             continue
         e["success_diff"] = {"diff": ra[0], "lo": ra[1], "hi": ra[2], "tasks": ra[3]}
+        if horizon > 0 and runs_by_arm.get(base):
+            rauc = boot_diff(task_auc_scores(runs_by_arm[a], horizon), task_auc_scores(runs_by_arm[base], horizon), boots, seed, resample_tasks)
+            if rauc:
+                e["auc_diff"] = {"diff": rauc[0], "lo": rauc[1], "hi": rauc[2]}
         v = verdict(ra[1], ra[2], margin)
         e["success_verdict"] = v
         if rv:
@@ -546,6 +583,11 @@ def format_report(rep):
         elif "verdict" in e:
             line += f"  => {e['verdict']}"
         L.append(line)
+        if e.get("auc") and e["auc"]["auc"] is not None:
+            w = e["auc"]["within"]
+            L.append(f"{'':22s} time-AUC {e['auc']['auc']:.3f} (horizon {rep['auc_horizon_s']:.0f} s; success within 25% / 50% / 75% / 100% of it: "
+                     + " / ".join(pc(w[k]).strip() for k in ("0.25", "0.5", "0.75", "1")) + ")"
+                     + (f"  vs base {e['auc_diff']['diff']:+.3f} [{e['auc_diff']['lo']:+.3f}, {e['auc_diff']['hi']:+.3f}]" if "auc_diff" in e else ""))
         L.append(f"{'':22s} by kind: " + "  ".join(f"{k} {v['rate'] * 100:.0f}% (n={v['n']})" for k, v in s["kinds"].items())
                  + (f"  request errors {s['errors']}" if s["errors"] else ""))
         for f in e.get("task_flips", []):
@@ -680,6 +722,7 @@ def main():
     ap.add_argument("--no-base-repeat", action="store_true", help="run the base arm once (no drift check)")
     ap.add_argument("--no-task-resample", action="store_true", help="interval from repetition noise only (tasks held fixed)")
     ap.add_argument("--boots", type=int, default=2000)
+    ap.add_argument("--auc-horizon", type=float, help="seconds: the time axis of the time-to-success AUC (A57); default the longest run of the batch")
     ap.add_argument("--timeout", type=int, default=600, help="seconds per request")
     ap.add_argument("--max-load", type=float, default=0.0)
     ap.add_argument("--foreign-cpu", type=float, default=25.0)
@@ -707,7 +750,7 @@ def main():
             regrade(runs, tasks)
         by, drift = arrange(arms, runs)
         print(format_report(build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample,
-                                         base_drift=drift)))
+                                         base_drift=drift, auc_horizon=a.auc_horizon)))
         return 0
 
     arms = list(spec["arms"])
@@ -805,7 +848,7 @@ def main():
             break
     runs = load_runs(out)
     by, drift = arrange(arms, runs)
-    rep = build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample, noisy, drift)
+    rep = build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample, noisy, drift, a.auc_horizon)
     text = format_report(rep)
     print("\n" + text)
     (out / "summary.json").write_text(json.dumps(rep, indent=1))

@@ -185,6 +185,47 @@ def test_validity_guard_overrides_success():
     assert rep["arms"]["arm"]["verdict"] in ("REJECT", "INCONCLUSIVE")
 
 
+def run(ok, elapsed, task="t0"):
+    return {"arm": "x", "rep": 0, "task": task, "kind": "qa", "ok": ok, "valid": None, "reason": "", "elapsed": elapsed,
+            "completion_tokens": 1, "error": None, "message": {}}
+
+
+def test_time_auc_definition():
+    # A57: AUC = mean over all runs of ok * (horizon - elapsed) / horizon
+    assert T.time_auc([run(True, 0.0)], 10.0) == 1.0                       # instant success
+    assert T.time_auc([run(True, 10.0)], 10.0) == 0.0                      # success at the horizon
+    assert T.time_auc([run(False, 1.0)], 10.0) == 0.0                      # a failure never counts
+    assert abs(T.time_auc([run(True, 2.0), run(False, 3.0)], 10.0) - 0.4) < 1e-12   # (0.8 + 0) / 2
+    assert T.time_auc([run(True, 15.0)], 10.0) == 0.0                      # beyond the horizon: clipped, not negative
+    assert T.time_auc([], 10.0) is None and T.time_auc([run(True, 1.0)], 0.0) is None
+    # step curve S(t): the area equals the integral of the share of runs that succeeded within t
+    rs = [run(True, 2.0), run(True, 6.0), run(False, 9.0), run(True, 4.0)]
+    ts = [i * 0.001 for i in range(10001)]
+    area = sum(T.success_within(rs, t) * 0.001 for t in ts[:-1]) / 10.0
+    assert abs(area - T.time_auc(rs, 10.0)) < 2e-3
+    assert T.success_within(rs, 4.0) == 0.5 and T.success_within(rs, 100.0) == 0.75
+
+
+def test_auc_ranks_a_faster_equal_success_arm_higher_and_is_not_part_of_the_verdict():
+    tasks = {f"t{i}": 0.8 for i in range(18)}
+    slow = mkruns("slow", tasks, 10, 5, "qa")                               # same success draw as fast (same seed)
+    fast = mkruns("fast", tasks, 10, 5, "qa")
+    base = mkruns("base", tasks, 10, 6, "qa")
+    for r in fast:
+        r["elapsed"] = r["elapsed"] * 0.5
+    arms = ["base", "fast", "slow"]
+    rep = T.build_report(arms, {"base": base, "fast": fast, "slow": slow}, 0.05, 0.03, boots=300)
+    a_fast, a_slow = rep["arms"]["fast"]["auc"]["auc"], rep["arms"]["slow"]["auc"]["auc"]
+    assert a_fast > a_slow
+    assert rep["arms"]["fast"]["success_verdict"] == rep["arms"]["slow"]["success_verdict"]   # identical successes: same verdict
+    assert rep["arms"]["fast"]["auc_diff"]["diff"] > rep["arms"]["slow"]["auc_diff"]["diff"]
+    assert rep["auc_horizon_s"] == 7.0                                      # the longest run of all arms (a failed base run)
+    text = T.format_report(rep)
+    assert "time-AUC" in text and "horizon 7 s" in text
+    rep2 = T.build_report(arms, {"base": base, "fast": fast, "slow": slow}, 0.05, 0.03, boots=300, auc_horizon=20.0)
+    assert rep2["auc_horizon_s"] == 20.0 and rep2["arms"]["slow"]["auc"]["auc"] > a_slow   # a wider axis rewards both successes
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
