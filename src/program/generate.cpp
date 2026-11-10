@@ -125,6 +125,7 @@
 #include "strata/spec/window_rule.hpp"
 #include "strata/spec/draft_source.hpp"
 #include "strata/spec/suffix_drafter.hpp"
+#include "strata/spec/suffix_index.hpp"
 #include "strata/spec/spec_start.hpp"
 #include "strata/program/batch_groups.hpp"
 #include "strata/program/par_counters.hpp"
@@ -14585,6 +14586,13 @@ int main(int argc, char** argv) {
         // --pipeline-windows 2 loads the drafter with 8 rows: the serial loop's chain keeps its own length
         else if (use_mtp && mtp.max_t() > S_mtp) mtp.set_max_drafts(S_mtp - 1);
         strata::spec::SuffixDrafter sfx(std::max(1, o.suffix_draft), 64, (size_t) o.max_context + 4096);
+        // MOD_PLAN A24 (STRATA_SUFFIX_INDEX=1, off by default): the cross-session suffix index over every finished output;
+        // --lookup-chain also asks it after the MTP's drafts (draft_source.hpp's extra sources)
+        if (strata::spec::SharedSuffixIndex* si = strata::spec::shared_suffix_index(); si != nullptr && o.lookup_chain > 0) {
+            bool have = false;
+            for (const auto& src : strata::spec::extra_draft_sources()) have = have || (src && std::strcmp(src->name(), "suffix-index") == 0);
+            if (!have) strata::spec::extra_draft_sources().push_back(std::make_unique<strata::spec::SuffixIndexSource>(*si));
+        }
         strata::spec::DraftPolicy policy(S);   // MTP or lookup window, learned over the whole process
         strata::spec::DraftPolicy policy_idle(S);   // --draft auto: the other drafter's learned costs; swapped in with it when a request uses the other drafter
         bool policy_is_df2 = use_df2;   // which drafter's costs `policy` holds (the engine's first drafter; swapped with policy_idle when a request uses the other one)
@@ -18781,6 +18789,35 @@ int main(int argc, char** argv) {
             };
             const int64_t rounds_at_start = rounds;
             for (int64_t i = 0; i < p; ++i) consumed.push_back((int32_t) ids[(size_t) i]);
+            // MOD_PLAN A24 (STRATA_SUFFIX_INDEX=1): the cross-session suffix index's draft beside --lookup's, and this
+            // request's output joins the index when it is done.  Off: sidx is null and nothing below runs.
+            strata::spec::SharedSuffixIndex* const sidx = strata::spec::shared_suffix_index();
+            const size_t sidx_out0 = consumed.size();   // where this request's output starts in `consumed`
+            int64_t sidx_lookups = 0, sidx_offers = 0, sidx_windows = 0, sidx_drafts = 0, sidx_ok = 0;
+            double sidx_ms = 0;
+            std::vector<int32_t> sidx_buf;
+            // the index's draft after the committed context (prompt + output so far) in place of --lookup's `k_look`
+            // tokens in `buf` when lookup has none or (STRATA_SUFFIX_INDEX_RULE=longest, the default) a shorter match;
+            // returns the draft's length and sets `match` and `taken`
+            auto sidx_offer = [&](int k_look, int32_t* buf, int max_k, int& match, bool& taken) -> int {
+                taken = false;
+                if (sidx == nullptr || max_k <= 0) return k_look;
+                const Clock::time_point t0 = Clock::now();
+                ++sidx_lookups;
+                const std::vector<int32_t>& h = sfx.history();
+                const size_t n_pat = std::min<size_t>(h.size(), (size_t) strata::spec::SuffixIndex::kDepth);
+                sidx_buf.resize((size_t) max_k);
+                int m = 0;
+                const int k = sidx->propose(h.data() + (h.size() - n_pat), (int) n_pat, max_k, sidx_buf.data(), &m);
+                sidx_ms += std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+                if (k <= 0) return k_look;
+                ++sidx_offers;
+                if (k_look > 0 && (strata::spec::suffix_index_fallback_only() || m <= match)) return k_look;
+                std::copy(sidx_buf.begin(), sidx_buf.begin() + k, buf);
+                match = m;
+                taken = true;
+                return k;
+            };
             // MOD_PLAN F13 (STRATA_ROUTE_PRIOR_SCOPE): the reply's think / tool-call / fence state, read from `consumed`, decides each window's gate;
             // the gate is closed again when this request's decode ends (the next prompt read starts closed)
             strata::program::PriorScopeState prior_scope_state(prior_guard().marks);
@@ -19539,6 +19576,7 @@ int main(int argc, char** argv) {
                 policy.set_context(p);
                 const bool merged = first_window && merge_T > 0;   // the prompt's last tokens and the first token
                 bool from_sfx = false;
+                bool from_sidx = false;   // A24: the lookup draft in sbuf is the cross-session index's
                 int sfx_match = 0;
                 bool dfr_lookup = false;
                 int dfr_T = 0, dfr_match = 0;
@@ -19584,8 +19622,9 @@ int main(int argc, char** argv) {
                     // a repeat of earlier context (prompt lookup) where the MTP's own first guess agrees: the policy takes it
                     // when its expected tokens per ms, from the measured acceptance and window costs, beat the MTP window's
                     if (o.suffix_draft > 0 && !first_window) {
-                        const int k = sfx.propose(S_look - 1, sbuf.data());
+                        int k = sfx.propose(S_look - 1, sbuf.data());
                         sfx_match = sfx.last_match();
+                        if (sidx != nullptr) k = sidx_offer(k, sbuf.data(), S_look - 1, sfx_match, from_sidx);   // A24
                         if (df2_trace != nullptr) {
                             tr_k = std::min(k, 16);
                             tr_match = sfx_match;
@@ -19609,6 +19648,7 @@ int main(int argc, char** argv) {
                 if (dfr_lookup) {   // the lookup window chosen before the draft (the draft was skipped)
                     sfx.propose(S_look - 1, sbuf.data());
                     T = dfr_T; from_sfx = true; sfx_match = dfr_match;
+                    from_sidx = false;   // sbuf holds --lookup's draft again
                     if (o.lookup_max_t > 0) {
                         const int t = graph_fits(T);
                         if (t < 0) { std::printf("ERR %s\n", err.c_str()); return 1; }
@@ -19924,6 +19964,7 @@ int main(int argc, char** argv) {
                     }) - 1;
 #endif
                 if (from_sfx) { ++sfx_windows; sfx_drafts += T - 1; sfx_ok += a; }
+                if (from_sfx && from_sidx) { ++sidx_windows; sidx_drafts += T - 1; sidx_ok += a; }   // A24: the index's windows among them
                 if (chain_n > 0) { ++chain_windows; chain_drafts += chain_n; chain_ok += std::max(0, a - (T_mtp - 1)); }
                 if (!from_sfx && !first_window)
                     for (int d = 0; d < T_mtp - 1 && d < 8 && d <= a; ++d) { ++dp_tested[d]; dp_ok[d] += d < a; }
@@ -20173,6 +20214,11 @@ int main(int argc, char** argv) {
                 }
             }
             if (drive.d.fs) std::fprintf(stderr, "strata serve: %s\n", drive.d.fs->report().c_str());
+            if (sidx != nullptr && !cancelled && consumed.size() > sidx_out0) {
+                // A24: the finished output joins the cross-session index, after its prompt's last tokens (whole, under the
+                // index's lock: a concurrent request never interleaves with it); a cancelled request's partial output stays out
+                sidx->insert(consumed.data(), sidx_out0, consumed.data() + sidx_out0, consumed.size() - sidx_out0);
+            }
             if (!cancelled) {
                 // a prompt stopped halfway leaves the session somewhere between two chunks: nothing to continue from
                 // (the checkpoints taken while reading it are still good)
@@ -20656,6 +20702,16 @@ int main(int argc, char** argv) {
             if (sfx_windows > 0)
                 std::fprintf(stderr, "strata serve: suffix drafts: %lld windows, %lld of %lld drafts accepted\n",
                              (long long) sfx_windows, (long long) sfx_ok, (long long) sfx_drafts);
+            if (sidx != nullptr) {   // A24: what the cross-session index gave this request, and what it holds now
+                size_t held = 0, cap = 0;
+                uint64_t outs = 0;
+                sidx->stats(&held, &cap, &outs);
+                std::fprintf(stderr, "strata serve: suffix index: %lld lookups, %lld drafts, %lld windows took one, %lld of %lld "
+                                     "drafts accepted, %.1f us a lookup; holds %zu of %zu tokens (%llu outputs)\n",
+                             (long long) sidx_lookups, (long long) sidx_offers, (long long) sidx_windows, (long long) sidx_ok,
+                             (long long) sidx_drafts, sidx_lookups > 0 ? 1000.0 * sidx_ms / (double) sidx_lookups : 0.0, held, cap,
+                             (unsigned long long) outs);
+            }
             if (o.lookup_chain > 0)
                 std::fprintf(stderr, "strata serve: lookup chain: %lld of %lld windows, %lld of %lld chained drafts accepted\n",
                              (long long) chain_windows, (long long) dec_windows, (long long) chain_ok, (long long) chain_drafts);
