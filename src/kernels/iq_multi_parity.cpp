@@ -10,7 +10,7 @@
 //     guard, not the contract.
 // (2) native_expert_grouped, every gate/up format with the down formats: groups of 0..11 entries (more than a pass
 //     of GRP_NC), unused grid rows (cap_groups > groups), scattered destinations; bitwise, new vs old, the rows it
-//     must not write included.
+//     must not write included.  The EXPDEC kernels run twice: llama.cpp's sign form and the F12 one (STRATA_IQ_SIGN_FAST).
 //
 // Random bytes are valid codes for every format here (all grid indices are in range); only the fp16 block scales
 // are set, small enough that the grouped path's SwiGLU output keeps a finite fp16 q8_1 scale.
@@ -268,25 +268,30 @@ void check_grouped(int gu, int dt, int64_t H, int64_t FF, cudaStream_t s, std::m
     k::NativeExpertExpdecParams ed_p = saved_p;
     ed_p.down = 1;
     ed_p.down_iq4_nl = 1;
+    ed_p.sign_fast = 0;
     k::native_expert_set_expdec(1);
     k::native_expert_set_expdec_params(ed_p);
     const auto c = G.result(false, s);
+    ed_p.sign_fast = 1;   // MOD_PLAN F12 (STRATA_IQ_SIGN_FAST): EXPDEC's IQ2_XXS / IQ2_XS / IQ2_S gate/up signs without vcmpne4/vsub4
+    k::native_expert_set_expdec_params(ed_p);
+    const auto d = G.result(false, s);
     k::native_expert_set_expdec(saved_ed);
     k::native_expert_set_expdec_params(saved_p);
-    size_t diff = 0, diff_ed = 0;
+    size_t diff = 0, diff_ed = 0, diff_sf = 0;
     bool finite = true;
     for (size_t i = 0; i < a.size(); ++i) {
         diff += std::memcmp(&a[i], &b[i], 4) != 0;
         diff_ed += std::memcmp(&a[i], &c[i], 4) != 0;
-        if (i < (size_t) G.n_ent * H) { finite = finite && std::isfinite(b[i]) && std::isfinite(c[i]); }
+        diff_sf += std::memcmp(&a[i], &d[i], 4) != 0;
+        if (i < (size_t) G.n_ent * H) { finite = finite && std::isfinite(b[i]) && std::isfinite(c[i]) && std::isfinite(d[i]); }
     }
-    const bool ok = diff == 0 && diff_ed == 0 && finite;
+    const bool ok = diff == 0 && diff_ed == 0 && diff_sf == 0 && finite;
     std::printf("%-8s/%-7s %5lld x %4lld  native_expert_grouped, %d groups, %d entries: %s\n", name_of(gu),
                 name_of(dt), (long long) H, (long long) FF, G.n_groups, G.n_ent,
                 ok ? "bitwise equal to the old kernels" : "FAIL");
     if (!ok) {
-        std::printf("  %zu (multi) / %zu (expdec) of %zu floats differ%s\n", diff, diff_ed, a.size(),
-                    finite ? "" : ", non-finite outputs");
+        std::printf("  %zu (multi) / %zu (expdec) / %zu (expdec + F12 sign form) of %zu floats differ%s\n", diff, diff_ed,
+                    diff_sf, a.size(), finite ? "" : ", non-finite outputs");
         ++g_fail;
     }
 }

@@ -56,6 +56,33 @@ __device__ __forceinline__ uint32_t unpack_ksigns(const uint8_t v) {
     const uint32_t s = v ^ p << 7;
     return s * 0x01010101;
 }
+// The IQ2/IQ3 grid signs: g (four codebook bytes) with the bytes negated (mod 256) where t has a bit; t holds at most
+// one set bit per byte.  SF = false is llama.cpp's form, s = __vcmpne4(t, 0), __vsub4(g ^ s, s) - two byte-SIMD video
+// instructions, emulated on HIP by the generic SWAR helpers (hip_compat/intrinsics.hpp: vcmpne4 ~6 ops with a 32-bit
+// multiply, vsub4 ~7) and by several instructions on sm_50+.  SF = true (MOD_PLAN F12, STRATA_IQ_SIGN_FAST, EXPDEC
+// gate/up only) gives the same word with 7 plain 32-bit ops and no multiply, exactly:
+//   m = (t + 0x7F7F7F7F) & 0x80808080: a byte of t is 0 or a single bit (<= 0x80), so byte + 0x7F <= 0xFF carries into
+//       no other byte, and its top bit is set iff the byte was nonzero: m is 0x80 in exactly the bytes to negate;
+//   c = m >> 7 is 0x01 there; m - c is 0x7F there and 0 elsewhere (no borrow: each byte of m is >= that of c), so
+//       m | (m - c) is 0xFF there and 0 elsewhere - the very mask s __vcmpne4 returns;
+//   (g ^ s) + c: a negated byte becomes (g ^ 0xFF) + 1 = 256 - g, which is <= 0xFF - no carry into the next byte - because
+//       no IQ2/IQ3 codebook byte is 0 (iq2xxs / iq2xs / iq2s: 0x08 0x19 0x2b; iq3xxs >= 0x04; iq3s odd); the other bytes
+//       add 0.  Every byte is __vsub4's wrapped byte, so the word, and every dp4a after it, is bit for bit the same.
+// Checked on the host for every codebook word of the five grids and every sign field the formats produce, against both
+// the CUDA semantics and the HIP emulation (22,229 cases, 0 differences).  The form is llama.cpp's ggml_cuda_apply_signs
+// without its multiply, as in RX5950XT/Strata b9a2111d3f (MIT); boxwrench (yqYo1/Strata 6f0bdf665b, MIT) measured the same
+// packed-sign idea in a GLM engine on an RX 7900 XT: IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time, byte-identical.
+template<bool SF>
+__device__ __forceinline__ int iq_signed(const uint32_t g, const uint32_t t) {
+    if constexpr (SF) {
+        const uint32_t m = (t + 0x7F7F7F7Fu) & 0x80808080u;
+        const uint32_t c = m >> 7;
+        return (int) ((g ^ (m | (m - c))) + c);
+    } else {
+        const int s = __vcmpne4(t, 0);
+        return __vsub4(g ^ s, s);
+    }
+}
 __device__ __forceinline__ int2 get_int_from_table_16(const int& q4, const int8_t* table) {
 #if defined(STRATA_HIP_GFX906)
     // AMD: llama.cpp's HIP lookup (vecdotq.cuh) - v_perm_b32 takes 3-bit byte indices, so the low and high halves
@@ -929,7 +956,8 @@ __device__ __forceinline__ void iq_sync_lds() {
 template<> inline constexpr bool kSplit<16> = true;
 template<> struct Split<16> {   // IQ2_XXS
     struct W { int g[8]; int ls; float dw; };
-    template<bool STAGE_GRID = false>
+    // SF: the grid signs by iq_signed<true> (F12; the same words); every load<...> of the five IQ2/IQ3 Splits takes it
+    template<bool STAGE_GRID = false, bool SF = false>
     __device__ static W load(const void* __restrict__ vbq, int kbx, int iqs, const uint32_t* __restrict__ s_grid = nullptr) {
         const block_iq2_xxs* bq2 = (const block_iq2_xxs*) vbq + kbx;
         const int q2 = get_int_b2(bq2->qs, iqs);
@@ -943,10 +971,8 @@ template<> struct Split<16> {   // IQ2_XXS
         for (int k0 = 0; k0 < 8; k0 += 2) {
             const uint2 grid_pos = grid_lut[aux8[k0 / 2]];
             const uint32_t signs = unpack_ksigns(aux32 >> (7 * k0 / 2));
-            const int signs0 = __vcmpne4(signs & 0x08040201, 0);
-            r.g[k0 + 0] = __vsub4(grid_pos.x ^ signs0, signs0);
-            const int signs1 = __vcmpne4(signs & 0x80402010, 0);
-            r.g[k0 + 1] = __vsub4(grid_pos.y ^ signs1, signs1);
+            r.g[k0 + 0] = iq_signed<SF>(grid_pos.x, signs & 0x08040201);
+            r.g[k0 + 1] = iq_signed<SF>(grid_pos.y, signs & 0x80402010);
         }
         r.ls = aux32 >> 27 | 1;
         r.dw = __half2float(bq2->d);
@@ -997,7 +1023,7 @@ struct SplitLs2 {
 };
 template<> inline constexpr bool kSplit<17> = true;
 template<> struct Split<17> : SplitLs2 {   // IQ2_XS
-    template<bool STAGE_GRID = false>
+    template<bool STAGE_GRID = false, bool SF = false>
     __device__ static W load(const void* __restrict__ vbq, int kbx, int iqs, const uint32_t* __restrict__ s_grid = nullptr) {
         const block_iq2_xs* bq2 = (const block_iq2_xs*) vbq + kbx;
         const int2 q2_packed = make_int2(get_int_b2(bq2->qs, iqs + 0), get_int_b2(bq2->qs, iqs + 1));
@@ -1012,10 +1038,8 @@ template<> struct Split<17> : SplitLs2 {   // IQ2_XS
         for (int l0 = 0; l0 < 8; l0 += 2) {
             const uint2 grid_pos = grid_lut[q2[l0 / 2] & 0x1FF];
             const uint32_t signs = unpack_ksigns(q2[l0 / 2] >> 9);
-            const int signs0 = __vcmpne4(signs & 0x08040201, 0);
-            r.g[l0 + 0] = __vsub4(grid_pos.x ^ signs0, signs0);
-            const int signs1 = __vcmpne4(signs & 0x80402010, 0);
-            r.g[l0 + 1] = __vsub4(grid_pos.y ^ signs1, signs1);
+            r.g[l0 + 0] = iq_signed<SF>(grid_pos.x, signs & 0x08040201);
+            r.g[l0 + 1] = iq_signed<SF>(grid_pos.y, signs & 0x80402010);
         }
         r.dw = __half2float(bq2->d);
         return r;
@@ -1023,7 +1047,7 @@ template<> struct Split<17> : SplitLs2 {   // IQ2_XS
 };
 template<> inline constexpr bool kSplit<22> = true;
 template<> struct Split<22> : SplitLs2 {   // IQ2_S
-    template<bool STAGE_GRID = false>
+    template<bool STAGE_GRID = false, bool SF = false>
     __device__ static W load(const void* __restrict__ vbq, int kbx, int iqs, const uint32_t* __restrict__ s_grid = nullptr) {
         const block_iq2_s* bq2 = (const block_iq2_s*) vbq + kbx;
         const int qs_packed = get_int_b2(bq2->qs, iqs / 2);
@@ -1040,10 +1064,8 @@ template<> struct Split<22> : SplitLs2 {   // IQ2_S
 #pragma unroll
         for (int l0 = 0; l0 < 8; l0 += 2) {
             const int* grid_pos = (const int*) (grid_lut + (qs[l0 / 2] | ((qh << (8 - l0)) & 0x300)));
-            const int signs0 = __vcmpne4(((signs_packed_8[l0 / 2] & 0x03) << 7) | ((signs_packed_8[l0 / 2] & 0x0C) << 21), 0x00000000);
-            const int signs1 = __vcmpne4(((signs_packed_8[l0 / 2] & 0x30) << 3) | ((signs_packed_8[l0 / 2] & 0xC0) << 17), 0x00000000);
-            r.g[l0 + 0] = __vsub4(grid_pos[0] ^ signs0, signs0);
-            r.g[l0 + 1] = __vsub4(grid_pos[1] ^ signs1, signs1);
+            r.g[l0 + 0] = iq_signed<SF>(grid_pos[0], ((signs_packed_8[l0 / 2] & 0x03) << 7) | ((signs_packed_8[l0 / 2] & 0x0C) << 21));
+            r.g[l0 + 1] = iq_signed<SF>(grid_pos[1], ((signs_packed_8[l0 / 2] & 0x30) << 3) | ((signs_packed_8[l0 / 2] & 0xC0) << 17));
         }
         r.dw = __half2float(bq2->d);
         return r;
@@ -1052,7 +1074,8 @@ template<> struct Split<22> : SplitLs2 {   // IQ2_S
 template<> inline constexpr bool kSplit<18> = true;
 template<> struct Split<18> {   // IQ3_XXS
     struct W { int g[8]; int ls; float dw; };
-    template<bool STAGE_GRID = false>
+    // (STAGE_GRID: the staged sign-mask tables, no compare / subtract to replace; SF acts on the global-grid path only)
+    template<bool STAGE_GRID = false, bool SF = false>
     __device__ static W load(const void* __restrict__ vbq, int kbx, int iqs, const uint32_t* __restrict__ s_grid = nullptr) {
         const block_iq3_xxs* bq3 = (const block_iq3_xxs*) vbq + kbx;
         const int2 q3_packed = make_int2(get_int_b2(bq3->qs, iqs), get_int_b2(bq3->qs, iqs + 1));
@@ -1072,10 +1095,8 @@ template<> struct Split<18> {   // IQ3_XXS
                 r.g[l0 + 1] = (int) ((grid_pos.y ^ mh) + (mh & 0x01010101u));
             } else {
                 const uint32_t signs = unpack_ksigns(aux32 >> (7 * l0 / 2));
-                const int signs0 = __vcmpne4(signs & 0x08040201, 0);
-                r.g[l0 + 0] = __vsub4(grid_pos.x ^ signs0, signs0);
-                const int signs1 = __vcmpne4(signs & 0x80402010, 0);
-                r.g[l0 + 1] = __vsub4(grid_pos.y ^ signs1, signs1);
+                r.g[l0 + 0] = iq_signed<SF>(grid_pos.x, signs & 0x08040201);
+                r.g[l0 + 1] = iq_signed<SF>(grid_pos.y, signs & 0x80402010);
             }
         }
         r.ls = aux32 >> 28;
@@ -1102,7 +1123,7 @@ template<> struct Split<18> {   // IQ3_XXS
 template<> inline constexpr bool kSplit<21> = true;
 template<> struct Split<21> {   // IQ3_S
     struct W { int g[8]; int ls; float dw; };
-    template<bool STAGE_GRID = false>
+    template<bool STAGE_GRID = false, bool SF = false>   // (SF: the global-grid path only, as Split<18>)
     __device__ static W load(const void* __restrict__ vbq, int kbx, int iqs, const uint32_t* __restrict__ s_grid = nullptr) {
         const block_iq3_s* bq3 = (const block_iq3_s*) vbq + kbx;
         const int2 qs_packed = make_int2(get_int_b2(bq3->qs, iqs + 0), get_int_b2(bq3->qs, iqs + 1));
@@ -1123,10 +1144,8 @@ template<> struct Split<21> {   // IQ3_S
                 r.g[l0 + 0] = (int) (((uint32_t) grid_pos.x ^ ml) + (ml & 0x01010101u));
                 r.g[l0 + 1] = (int) (((uint32_t) grid_pos.y ^ mh) + (mh & 0x01010101u));
             } else {
-                const int signs0 = __vcmpne4(((signs_packed_8[l0 / 2] & 0x03) << 7) | ((signs_packed_8[l0 / 2] & 0x0C) << 21), 0x00000000);
-                const int signs1 = __vcmpne4(((signs_packed_8[l0 / 2] & 0x30) << 3) | ((signs_packed_8[l0 / 2] & 0xC0) << 17), 0x00000000);
-                r.g[l0 + 0] = __vsub4(grid_pos.x ^ signs0, signs0);
-                r.g[l0 + 1] = __vsub4(grid_pos.y ^ signs1, signs1);
+                r.g[l0 + 0] = iq_signed<SF>(grid_pos.x, ((signs_packed_8[l0 / 2] & 0x03) << 7) | ((signs_packed_8[l0 / 2] & 0x0C) << 21));
+                r.g[l0 + 1] = iq_signed<SF>(grid_pos.y, ((signs_packed_8[l0 / 2] & 0x30) << 3) | ((signs_packed_8[l0 / 2] & 0xC0) << 17));
             }
         }
         r.ls = 1 + 2 * ((bq3->scales[iqs / 4] >> ((iqs << 1) & 0x04)) & 0x0F);
@@ -2519,8 +2538,9 @@ __device__ __forceinline__ void ed_load_u(const int4* __restrict__ s_u, int c, i
 
 // R gate/up rows against the NC staged entries, lane t of a 16-lane sub-warp: row_dot_80_sub16's tree (calls t,
 // t+32, t+64 into s; t+16, t+48 into s16; s = __fadd_rn(s, s16); xor 8-4-2-1), every call's weight part decoded once
-// per row and the entry's block loaded once per NC x R products.
-template<int TG, int R, int NC>
+// per row and the entry's block loaded once per NC x R products.  SF: Split<TG>::load<true, SF>, the F12 sign form
+// (STRATA_IQ_SIGN_FAST; the same words, so the same sums).
+template<int TG, int R, int NC, bool SF = false>
 __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4* __restrict__ s_u,
                                            const float* __restrict__ s_ds, const uint32_t* __restrict__ s_grid, int t,
                                            float (&s)[R][NC]) {
@@ -2537,7 +2557,7 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
         const int kbx = k / F::ipb, iqs = F::step * (k % F::ipb);
         typename S::W w[R];
 #pragma unroll
-        for (int r = 0; r < R; ++r) w[r] = S::template load<true>(wr[r], kbx, iqs, s_grid);
+        for (int r = 0; r < R; ++r) w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
 #pragma unroll
         for (int c = 0; c < NC; ++c) {
             int u[8];
@@ -2553,7 +2573,7 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
         const int kbx = k / F::ipb, iqs = F::step * (k % F::ipb);
         typename S::W w[R];
 #pragma unroll
-        for (int r = 0; r < R; ++r) w[r] = S::template load<true>(wr[r], kbx, iqs, s_grid);
+        for (int r = 0; r < R; ++r) w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
 #pragma unroll
         for (int c = 0; c < NC; ++c) {
             int u[8];
@@ -2575,7 +2595,8 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
 
 // gate/up: 16 sub-warps of 16 lanes, R rows each = 16 R rows per pass, `rb` rows per block (a multiple of 16 R; 2 n_ff
 // is one too, so a pass is whole or absent for the entire block).  Group stride as native_gu_multi_kernel.
-template<int TG, int R, int MINB>
+// SF: the F12 sign form (STRATA_IQ_SIGN_FAST; instantiated for IQ2_XXS / IQ2_XS / IQ2_S only, kIqSignFast below).
+template<int TG, int R, int MINB, bool SF = false>
 #if defined(__HIPCC__)
 __global__ void __launch_bounds__(256, MINB * 2) expdec_gu_kernel(
 #else
@@ -2617,7 +2638,7 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_kernel(
                 auto run = [&](auto nc) {
                     constexpr int NC = decltype(nc)::value;
                     float s[R][NC];
-                    ed_gu_rows<TG, R, NC>(wr, s_u, s_ds, s_grid_buf, t, s);
+                    ed_gu_rows<TG, R, NC, SF>(wr, s_u, s_ds, s_grid_buf, t, s);
 #pragma unroll
                     for (int c = 0; c < NC; ++c)
                         if (t == c)
@@ -2642,7 +2663,8 @@ __device__ __forceinline__ void q8_1_store(const float xi, block_q8_1* __restric
 // staged activations as expdec_gu_kernel, so the same floats), keeps them in LDS, and warp c turns entry c's 32 columns
 // into one q8_1 block with q8_1_store - the product rounded on its own (contract off), the warp's lanes the block's 32
 // values in order: bit for bit the separate kernels' blocks.  Needs n_ff % 32 == 0 and 16 R | 32 (R 1 or 2).
-template<int TG, int R, int MINB>
+// SF: as expdec_gu_kernel.
+template<int TG, int R, int MINB, bool SF = false>
 #if defined(__HIPCC__)
 __global__ void __launch_bounds__(256, MINB * 2) expdec_gu_swiglu_kernel(
 #else
@@ -2687,7 +2709,7 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_swiglu_kernel(
                 auto run = [&](auto nc) {
                     constexpr int NC = decltype(nc)::value;
                     float sres[R][NC];
-                    ed_gu_rows<TG, R, NC>(wr, s_u, s_ds, s_grid_buf, t, sres);
+                    ed_gu_rows<TG, R, NC, SF>(wr, s_u, s_ds, s_grid_buf, t, sres);
 #pragma unroll
                     for (int c = 0; c < NC; ++c)
                         if (t == c)
@@ -4176,6 +4198,43 @@ int g_expdec_minblk = env_int_or("STRATA_EXPDEC_MINBLK", 800);   // auto: the mo
 int expdec_r() { return g_expdec_r == 2 ? 2 : 1; }
 int expdec_dr() { return g_expdec_dr == 1 || g_expdec_dr == 2 ? g_expdec_dr : 4; }
 
+// MOD_PLAN F12 (STRATA_IQ_SIGN_FAST, opt-in, exact): the EXPDEC gate/up kernels (expdec_gu_kernel and item 48's
+// expdec_gu_swiglu_kernel) with the grid signs by iq_signed<true> - the same words, so bitwise the same outputs.  Only
+// the formats whose staged load still expands the signs by byte compare + subtract take it: IQ2_XXS (16), IQ2_XS (17),
+// IQ2_S (22); the staged IQ3_XXS / IQ3_S loads read LDS sign-mask tables instead.  The other kernels with the same sign
+// code (native_gu_multi and the rest of the multi family, native_gu_amd / _lds / _fused (DotG), the s26 kernels, the
+// vec_dot_* GEMVs) keep llama.cpp's form: in RX5950XT's static count (ROCm 7.2.4, gfx1100 / gfx1201) the fast form costs
+// registers, native_gu_multi dropping from 16 to 10-12 waves and expdec_gu by 1-2, so even here it is a per-format A/B
+// (expdec_bench choice `dec:s1`).  Value: unset or 0 = off; 1 = the three formats; or a comma list of type ids ("22",
+// "16,22") so a format that measures slower stays on the old form.  Read at first use; native_expert_set_expdec_params
+// (sign_fast: 0, 1 or a type-id mask) overrides.  Set before graph capture; captured graphs keep the kernels they captured.
+// Not EXPDEC_V2 (this-cute-world a67b3790d5 / 522f76739a / 92983a7405, which also expands these signs in registers): that
+// port is not in this tree yet; when it lands, its IQ2_S gate/up should take iq_signed<true> or measure against it.
+template<int TG> inline constexpr bool kIqSignFast = TG == 16 || TG == 17 || TG == 22;
+constexpr uint32_t kIqSignFastAll = (1u << 16) | (1u << 17) | (1u << 22);
+int64_t g_iq_sign_fast = -1;   // bit TG: expdec_gu<TG> takes the fast form (-1: not read yet)
+uint32_t iq_sign_fast_mask() {
+    if (g_iq_sign_fast < 0) {
+        uint32_t m = 0;
+        const char* v = std::getenv("STRATA_IQ_SIGN_FAST");
+        if (v != nullptr && v[0] == '1' && v[1] == '\0') {
+            m = kIqSignFastAll;
+        } else if (v != nullptr) {
+            for (const char* p = v; *p != '\0';) {
+                char* end = nullptr;
+                const long ty = std::strtol(p, &end, 10);
+                if (end == p) { ++p; continue; }
+                if (ty >= 0 && ty < 32) m |= 1u << ty;
+                p = end;
+            }
+            m &= kIqSignFastAll;
+        }
+        g_iq_sign_fast = m;
+    }
+    return (uint32_t) g_iq_sign_fast;
+}
+bool iq_sign_fast(int ty) { return ty >= 0 && ty < 32 && ((iq_sign_fast_mask() >> ty) & 1u) != 0; }
+
 bool expdec_gu_ok(const NativeExpertLayout& L) {
     const bool fmt = L.gu_type == 16 || L.gu_type == 17 || L.gu_type == 18 || L.gu_type == 21 || L.gu_type == 22;
     return fmt && L.n_embd == 32 * ED_XB && L.n_ff % 64 == 0 && L.n_ff > 0;
@@ -4204,7 +4263,25 @@ void expdec_gu_r(int64_t gy, int64_t cap_groups, cudaStream_t s, const unsigned 
     const int nrow = 2 * (int) L.n_ff;
     const int rb = expdec_rows_per_block(nrow, 16 * R, cap_groups, g_expdec_rb);
     const dim3 grid((unsigned) ((nrow + rb - 1) / rb), (unsigned) gy);
+    if constexpr (kIqSignFast<TG>) {
+        if (iq_sign_fast(TG)) {
+            expdec_gu_kernel<TG, R, MINB, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+            return;
+        }
+    }
     expdec_gu_kernel<TG, R, MINB><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+}
+template<int TG, int R, int MINB>
+void expdec_gu_swiglu_l(dim3 grid, cudaStream_t s, const unsigned long long* grp_ptr, const int32_t* grp_start,
+                        const int32_t* n_groups, const int32_t* ent_tok, const block_q8_1* X, const NativeExpertLayout& L,
+                        block_q8_1* hq) {
+    if constexpr (kIqSignFast<TG>) {
+        if (iq_sign_fast(TG)) {
+            expdec_gu_swiglu_kernel<TG, R, MINB, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+            return;
+        }
+    }
+    expdec_gu_swiglu_kernel<TG, R, MINB><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
 }
 template<int TG>
 void expdec_gu_swiglu_t(int64_t gy, cudaStream_t s, const unsigned long long* grp_ptr, const int32_t* grp_start,
@@ -4213,11 +4290,11 @@ void expdec_gu_swiglu_t(int64_t gy, cudaStream_t s, const unsigned long long* gr
     const dim3 grid((unsigned) (L.n_ff / 32), (unsigned) gy);
     const bool b4 = g_expdec_minb >= 4;
     if (expdec_r() == 2) {
-        if (b4) expdec_gu_swiglu_kernel<TG, 2, 4><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
-        else expdec_gu_swiglu_kernel<TG, 2, 2><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+        if (b4) expdec_gu_swiglu_l<TG, 2, 4>(grid, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+        else expdec_gu_swiglu_l<TG, 2, 2>(grid, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
     } else {
-        if (b4) expdec_gu_swiglu_kernel<TG, 1, 4><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
-        else expdec_gu_swiglu_kernel<TG, 1, 2><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+        if (b4) expdec_gu_swiglu_l<TG, 1, 4>(grid, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+        else expdec_gu_swiglu_l<TG, 1, 2>(grid, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
     }
 }
 // item 48: STRATA_EXPDEC_SWIGLU=1 - gate/up + SwiGLU + q8_1 in one launch where EXPDEC takes the layout (false: not taken)
@@ -4227,7 +4304,11 @@ bool expdec_gu_swiglu(const NativeExpertLayout& L, int64_t gy, cudaStream_t s, c
     static const bool on = [] { const char* v = std::getenv("STRATA_EXPDEC_SWIGLU"); return v != nullptr && v[0] == '1'; }();
     if (!on || !expdec_mode() || g_old_kernels || !expdec_gu_ok(L) || L.n_ff % 32 != 0 || L.had_block > 0) return false;
     static bool said = false;
-    if (!said) { said = true; std::fprintf(stderr, "strata expdec: STRATA_EXPDEC_SWIGLU: gate/up, SwiGLU and q8_1 in one launch (item 48)\n"); }
+    if (!said) {
+        said = true;
+        std::fprintf(stderr, "strata expdec: STRATA_EXPDEC_SWIGLU: gate/up, SwiGLU and q8_1 in one launch (item 48)%s\n",
+                     iq_sign_fast_mask() != 0 ? ", F12 sign form (STRATA_IQ_SIGN_FAST) for the types it names" : "");
+    }
     switch (L.gu_type) {
         case 16: expdec_gu_swiglu_t<16>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
         case 17: expdec_gu_swiglu_t<17>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
@@ -4270,8 +4351,9 @@ void expdec_note(const NativeExpertLayout& L, bool gu, bool taken, cudaStream_t 
     if (gu) {
         const int R = expdec_r(), rb = expdec_rows_per_block(2 * (int) L.n_ff, 16 * R, cap_groups, g_expdec_rb);
         std::fprintf(stderr, "strata expdec: CUDA%d gate/up type %d: expdec_gu_kernel R %d MINB %d, %d rows per block, grid %d x %lld "
-                             "(cap %lld groups)%s\n", dev, ty, R, g_expdec_minb >= 4 ? 4 : 2, rb, (2 * (int) L.n_ff + rb - 1) / rb,
-                     (long long) gy, (long long) cap_groups, cs != cudaStreamCaptureStatusNone ? ", captured into a graph" : "");
+                             "(cap %lld groups)%s%s\n", dev, ty, R, g_expdec_minb >= 4 ? 4 : 2, rb, (2 * (int) L.n_ff + rb - 1) / rb,
+                     (long long) gy, (long long) cap_groups, cs != cudaStreamCaptureStatusNone ? ", captured into a graph" : "",
+                     iq_sign_fast(ty) ? ", F12 sign form (STRATA_IQ_SIGN_FAST)" : "");
     } else {
         const int R = expdec_dr(), lanes = ty == 20 ? 8 : 16;
         const int rb = expdec_rows_per_block((int) L.n_embd, (256 / lanes) * R, cap_groups, g_expdec_drb);
@@ -4285,7 +4367,15 @@ void expdec_note(const NativeExpertLayout& L, bool gu, bool taken, cudaStream_t 
 bool expdec_gu(const NativeExpertLayout& L, int64_t gy, int64_t cap_groups, cudaStream_t s, const unsigned long long* grp_ptr,
                const int32_t* grp_start, const int32_t* n_groups, const int32_t* ent_tok, const block_q8_1* X, float* gate,
                float* up) {
-    if (!expdec_mode() || g_old_kernels) return false;
+    if (!expdec_mode() || g_old_kernels) {
+        static bool warned = false;   // an A/B arm with STRATA_IQ_SIGN_FAST alone would otherwise run the base kernels unseen
+        if (!warned && iq_sign_fast_mask() != 0) {
+            warned = true;
+            std::fprintf(stderr, "strata expdec: STRATA_IQ_SIGN_FAST has no effect here: it acts on the EXPDEC gate/up kernels "
+                                 "(STRATA_EXPDEC=1, not STRATA_OLD_IQ_MMVQ)\n");
+        }
+        return false;
+    }
     if (!expdec_gu_ok(L)) { expdec_note(L, true, false, s, gy, cap_groups); return false; }
     expdec_note(L, true, true, s, gy, cap_groups);
     switch (L.gu_type) {
@@ -6502,6 +6592,7 @@ void native_expert_set_expdec_params(const NativeExpertExpdecParams& p) {
     if (p.gu_rows_per_block >= 0) g_expdec_rb = p.gu_rows_per_block;
     if (p.down_rows_per_block >= 0) g_expdec_drb = p.down_rows_per_block;
     if (p.min_blocks > 0) g_expdec_minblk = p.min_blocks;
+    if (p.sign_fast >= 0) g_iq_sign_fast = p.sign_fast == 1 ? kIqSignFastAll : ((uint32_t) p.sign_fast & kIqSignFastAll);
 }
 NativeExpertExpdecParams native_expert_expdec_params() {
     NativeExpertExpdecParams p;
@@ -6513,6 +6604,7 @@ NativeExpertExpdecParams native_expert_expdec_params() {
     p.gu_rows_per_block = g_expdec_rb;
     p.down_rows_per_block = g_expdec_drb;
     p.min_blocks = g_expdec_minblk;
+    p.sign_fast = (int) iq_sign_fast_mask();
     return p;
 }
 bool native_expert_expdec_takes(const NativeExpertLayout& L, bool& gu, bool& down) {

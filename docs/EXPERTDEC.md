@@ -51,6 +51,14 @@ API (`include/strata/kernels/iq_kernels.hpp`): `native_expert_set_expdec`, `nati
 `native_expert_expdec_params` (`NativeExpertExpdecParams`), `native_expert_expdec_takes`. The knobs are read from the
 environment at startup; captured graphs keep the kernels they captured.
 
+pancake, MOD_PLAN F12 (opt-in, not yet built or measured): `STRATA_IQ_SIGN_FAST=1` (or a list of type ids such as `22`
+or `16,22`) makes the gate/up kernels put the IQ2_XXS / IQ2_XS / IQ2_S grid signs on with `iq_signed<true>`: seven plain
+32-bit operations instead of `__vcmpne4` + `__vsub4`, which HIP emulates with the generic byte helpers. The words are
+the same bit for bit (the argument is in the comment above `iq_signed` in `iq_kernels.cu`; it rests on no codebook byte
+being 0), so the sums above are unchanged. IQ3_XXS / IQ3_S are not affected: their staged loads already read sign-mask
+tables. The gate/up log line ends in `, F12 sign form (STRATA_IQ_SIGN_FAST)` when a format takes it. In `expdec_bench`
+the choice field `s1` / `s0` switches it (`def,dec:s0,dec:s1`); `iq_multi_parity` runs EXPDEC with both forms.
+
 ## Bit for bit
 
 For every (row, entry) the sum is the default kernel's tree - `row_dot_80_sub16` for gate/up (lane t of a 16-lane
