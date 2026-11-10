@@ -431,6 +431,9 @@ struct GpuPlanSink {
     /// item 52: where the pre-summed row of token t goes instead (presum_dst + t * n_embd, VRAM through ReBAR); null: the mapped row
     float* presum_dst = nullptr;
     float heavy = 0.0f;
+    /// MOD_PLAN A44 (STRATA_BANDIT=top): the rank guard of this window as its graph's row copy reads it (the verifier
+    /// stages both at once, defer_rank.hpp defer_top_now()); -1 (the default, the bandit not owning it): defer_top().
+    int top = -1;
     void (*partial)(void* ctx) = nullptr;
     /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (verify.cpp, opt-in, changes the output; core/verify_ecap.hpp): >= 0 when this
     /// call is one token group of a decode window whose rows from `ecap_first` on are drafts.  Each draft row then reads

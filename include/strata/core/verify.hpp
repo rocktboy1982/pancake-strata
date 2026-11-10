@@ -777,6 +777,9 @@ private:
     // combines those rows, the lighter ones join late.  Not with STRATA_VERIFY_DEVICE_PLAN.
     float defer_heavy_ = 0.0f;
     uint32_t* h_pflag_ = nullptr; uint32_t* m_pflag_ = nullptr;  // the pool has written the heavy CPU rows (partial flag)
+    // MOD_PLAN A44 (STRATA_BANDIT=top with STRATA_VERIFY_DEFER_CPU_TOP and the heavy split): the window's rank guard,
+    // staged by stage_inputs (defer_top_now()) and read by the graph's copy_rows_by_weight at run time; null otherwise
+    int32_t* h_top_ = nullptr; int32_t* m_top_ = nullptr;
     bool defer_ok(int T, std::string* why) const;   ///< the T-token window may be captured with deferral
     bool heavy_layer(int T, int64_t l) const;       ///< STRATA_VERIFY_DEFER_CPU_BELOW: post(l) waits for the partial flag
     // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output): host side only (sink_.ecap per layer in run); the

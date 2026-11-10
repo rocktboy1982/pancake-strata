@@ -5508,8 +5508,9 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     int nfirst = njobs;
     if (split && njobs > 0) {
         bool heavy_job[kMaxWindowEntries] = {};
+        const int top = ps->top >= 0 ? ps->top : strata::core::defer_top();   // A44: the window's staged rank guard
         for (int64_t i = 0; i < n; ++i)
-            if (kind[i] == -1 && strata::core::defer_heavy_entry(ps->weights, i, (int) k, ps->heavy, strata::core::defer_top()))
+            if (kind[i] == -1 && strata::core::defer_heavy_entry(ps->weights, i, (int) k, ps->heavy, top))
                 heavy_job[d.job_of[(size_t) ids[i]]] = true;
         static thread_local std::vector<ExpertJobMulti> order;
         order.clear();
@@ -6737,7 +6738,9 @@ void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
     if (!warm_on_ || base_ == nullptr || layer < 0) return;
     const auto& lay = strata::kernels::cpu::expert_layout();
     const uint64_t bytes = lay.blob_bytes(layer);
-    if (preread_) {   // STRATA_POOL_PREREAD: the parked pool workers read them, stopping at the next real job
+    // STRATA_POOL_PREREAD: the parked pool workers read them, stopping at the next real job (MOD_PLAN A44: unless
+    // STRATA_BANDIT=preread turned the posts off for these windows; data movement only, bitwise exact either way)
+    if (preread_ && !strata::core::live_knobs().preread_off.load(std::memory_order_relaxed)) {
         if (strata::kernels::cpu::ExpertPool* pool = strata::kernels::cpu::ExpertPool::preread_pool()) {
             const uint8_t* ptrs[strata::kernels::cpu::ExpertPool::kPrereadMax];
             int m = 0;
