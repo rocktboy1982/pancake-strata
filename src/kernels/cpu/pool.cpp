@@ -1581,7 +1581,7 @@ bool ExpertPool::fuse_phases(int nb) const {
     // the mtasks_ fix): no threshold +2.5% on code edits, short chat neutral, token forcing PASS; thresholds 8 / 12 did
     // not help (the first run's +23% / -8% were the stale-mtasks_ bug)
     static const bool on = [] { const char* e = std::getenv("STRATA_POOL_FUSE_PHASES"); return e && std::atoi(e) != 0; }();
-    static const int min_nb = [] { const char* e = std::getenv("STRATA_POOL_FUSE_MIN"); return e ? std::max(0, std::atoi(e)) : 0; }();
+    static const int min_nb = [] { const char* e = std::getenv("STRATA_POOL_FUSE_MIN"); return e ? (std::max)(0, std::atoi(e)) : 0; }();
     return on && numa_n_ == 0 && nb >= min_nb;
 }
 
