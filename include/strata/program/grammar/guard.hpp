@@ -37,6 +37,9 @@ public:
     /// A request whose grammar is null (tool_choice "none") leaves the guard off.
     bool begin(const std::string& grammar_json, const int64_t* prompt, size_t n_prompt, std::string& err);
     bool on() const { return on_; }
+    /// The grammar holds the next token now: on, no thinking block open and, for a lazy grammar (the tool-call one), its
+    /// trigger has fired - a tool call or a JSON reply is in progress (MOD_PLAN F5: STRATA_VERIFY_ECAP is not applied).
+    bool enforcing() const { return on_ && !thinking_ && st_.active(); }
 
     /// Feeds out[0..rows) in order and returns the first row the grammar does not allow, or -1. The state has then
     /// advanced over every row before it.

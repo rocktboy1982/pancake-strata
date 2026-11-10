@@ -432,6 +432,13 @@ struct GpuPlanSink {
     float* presum_dst = nullptr;
     float heavy = 0.0f;
     void (*partial)(void* ctx) = nullptr;
+    /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (verify.cpp, opt-in, changes the output; core/verify_ecap.hpp): >= 0 when this
+    /// call is one token group of a decode window whose rows from `ecap_first` on are drafts.  Each draft row then reads
+    /// at most `ecap` missed experts that the committed row and the earlier rows do not read anyway; the others are
+    /// skipped like a tail expert (kind -2).  `ecap_first` is 1 when the group holds the window's row 0, else 0.
+    /// -1 (the default, and every prompt, batch and pipelined window): off.
+    int ecap = -1;
+    int ecap_first = 1;
 };
 
 /// Verifier::set_pcie_balance: a verify window's costs, fitted to each layer's measured times (ms, least squares with
@@ -647,7 +654,8 @@ struct ExpertDispatch {
     /// each layer's distinct missed experts (the last ones in routing order) are read by the GPU over PCIe.
     GpuPlanSink* plan = nullptr;
     /// MOD_PLAN item 64 (STRATA_WINDOW_TRACE): when set, the multi dispatch leaves each entry's placement here
-    /// (0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped tail), entry token * k + j.
+    /// (0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped: a tail expert or an F5 STRATA_VERIFY_ECAP draft-only one),
+    /// entry token * k + j.
     bool trace_kind_on = false;
     std::vector<int32_t> trace_kind;
     int pcie_num = 0;
@@ -660,6 +668,10 @@ struct ExpertDispatch {
     /// and the distinct experts behind them (neither copied nor computed)
     int64_t tail_skipped = 0;
     int64_t tail_experts = 0;
+    /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n>: entries skipped because only draft rows over the cap named their expert, and
+    /// the distinct experts behind them (neither copied nor computed; not in tail_skipped / tail_experts)
+    int64_t ecap_entries = 0;
+    int64_t ecap_experts = 0;
     double ms_plan = 0, ms_actq = 0, ms_jobs = 0, ms_run = 0;   ///< verify-window dispatch sections
     double ms_jobs_src = 0;   ///< part of ms_jobs: the expert source's prefetch calls and blob lookups (item 2026-11-09)
     /// 149-cold STRATA_COLD_OVERLAP: 0 off (the CPU starts once every blob of the layer is read), 1 the blobs that

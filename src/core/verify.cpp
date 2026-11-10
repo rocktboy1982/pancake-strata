@@ -12,6 +12,7 @@
 #include "strata/core/verify.hpp"
 #include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/defer_rank.hpp"
+#include "strata/core/verify_ecap.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
 #include "strata/core/expert_nibble.hpp"
@@ -1005,6 +1006,23 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             defer_heavy_ = 0.0f;
         }
     }
+    {   // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): host side only, the
+        // start-up line is below with the deferral's
+        const char* v = std::getenv("STRATA_VERIFY_ECAP");
+        const int c = strata::core::verify_ecap_parse(v);
+        ecap_ = -1;
+        if (c == -2)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%s is not a count in 0..63: off\n", v);
+        else if (c >= (int) ss.k)   // a row names k experts: a cap of k or more never drops one
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d: a token routes %d experts, so nothing is ever "
+                                 "capped: off\n", c, (int) ss.k);
+        else if (c >= 0 && (pool_gpu_helper() != nullptr || remote_opt_ != nullptr))
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d is not taken with %s (its rows are claimed outside "
+                                 "the window's plan): off\n", c,
+                         pool_gpu_helper() != nullptr ? pool_gpu_helper() : "--remote-expert-opt");
+        else
+            ecap_ = c;
+    }
     // ---- mapped staging
     bool ok = mapped(T * 4, (void**) &h_tok_, (void**) &m_tok_) &&
               mapped(T * strata::kernels::kStepCount * 4, (void**) &h_step_, (void**) &m_step_) &&
@@ -1467,6 +1485,13 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                              "ones join late\n", defer_heavy_, below_set ? "" : " (the default)", defer_heavy_);
     else if (defer_ && below >= 1.0f)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_BELOW=%g: every CPU row joins late\n", below);
+    if (ecap_ >= 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d (changes the output; MOD_PLAN F5): in a decode window each "
+                             "draft row (rows 1..T-1, never row 0) reads at most %d CPU expert(s) that row 0 and the rows "
+                             "before it do not read anyway, by routing rank; the rest add zero%s.  Not in a prompt read, a "
+                             "merged first window, a batch or pipelined window, or while the request's grammar is "
+                             "enforcing\n", ecap_, ecap_,
+                     defer_ ? " (STRATA_VERIFY_DEFER_CPU then defers what is left)" : "");
     return true;
 }
 
@@ -3612,6 +3637,10 @@ bool Verifier::prelaunch(int T, const int32_t* tokens, int64_t pos0, std::string
 
 bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool, void* user, int32_t* out,
                    std::string& err) {
+    // MOD_PLAN F5 STRATA_VERIFY_ECAP: set_ecap_window is this run's borrow, cleared here on every path (a later stage
+    // clears its own in its run).  Never a prompt read (head sampling off: every row is committed) or a one-token window.
+    const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= 2 && head_sampling_;
+    ecap_next_ = false;
     const bool measure = spec_measure_;
     // Clear this borrow and propagated stage borrows on every exit.
     struct ProposalBorrow {
@@ -3630,6 +3659,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     if (measure) { err = "verify: proposal unsupported on Metal"; return false; }
     (void) pool;
     (void) user;
+    (void) ecap_win;   // (the Metal window has no host expert pool)
     {   // a sampled, penalised or biased request: the head rows are sampled on the GPU (metal/kernels/sample.metal), Philox(seed, pos0 + t) as the CUDA head
         const bool sampled_m = !sampling_.greedy && sampling_.temperature > 0.0f;
         if (head_sampling_ && (sampled_m || hist_d_ != nullptr || sampling_.logit_bias != nullptr)) {
@@ -3878,6 +3908,9 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         sink_.presum = T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp];   // item 51
         sink_.presum_dst = sink_.presum && presum_vram_ != nullptr ? presum_vram_ + (size_t) tb * g.n_embd : nullptr;   // item 52
         sink_.route_w = strata::core::window_trace().on() || sink_.presum ? h_w_ + (size_t) tb * ss.k : nullptr;   // items 64, 51
+        // MOD_PLAN F5 STRATA_VERIFY_ECAP: this group's draft rows; the window's row 0 (committed) leads the group at tb 0
+        sink_.ecap = ecap_win ? ecap_ : -1;
+        sink_.ecap_first = tb == 0 ? 1 : 0;
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW: this layer's split, if post(l) waits for it
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
@@ -5177,6 +5210,7 @@ bool Verifier::run_slot_rows(const int* rows, int S, const int32_t* tokens, cons
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
         sink_.weights = nullptr;   // (STRATA_VERIFY_DEFER_CPU_BELOW: a batch window never defers - one pass)
         sink_.partial = nullptr;
+        sink_.ecap = -1;           // (MOD_PLAN F5 STRATA_VERIFY_ECAP: a batch window's rows are every slot's committed row)
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, l);
         if (remote_opt_) remote_opt_->end();
         progress_tick();
@@ -5394,6 +5428,7 @@ int Verifier::batch_serve(PoolMultiFn pool, void* user) {
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
         sink_.weights = nullptr;   // (as run_slot_rows)
         sink_.partial = nullptr;
+        sink_.ecap = -1;
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, lb_ + k);
         if (remote_opt_) remote_opt_->end();
         progress_tick();
@@ -5767,6 +5802,7 @@ int Verifier::service(PoolMultiFn pool, void* user, std::string& err) {
         set_plan_slot(grp);
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window (pipelined): the CPU experts of layer", l);
+        sink_.ecap = -1;   // MOD_PLAN F5 STRATA_VERIFY_ECAP: not here (no decode loop opts a pipelined window in)
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW (as run)
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;

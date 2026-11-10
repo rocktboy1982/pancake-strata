@@ -201,6 +201,15 @@ public:
     /// or sync and never read a history staged for another position.
     void set_head_sampling(bool on) { head_sampling_ = on; if (next_) next_->set_head_sampling(on); }
 
+    /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the NEXT run's rows 1..T-1
+    /// are drafts, so the expert pool may skip the CPU experts that only those rows name past the cap.  The decode loop
+    /// says so per window: not for a merged first window (its rows are prompt tokens) and not while the request's grammar
+    /// is enforcing (a tool call or a JSON reply in progress).  A borrow for that run only, like set_spec_q: run clears it
+    /// on every path, so a window whose caller says nothing (a prompt read, a batch or pipelined window) is never capped.
+    void set_ecap_window(bool drafts) { ecap_next_ = drafts; if (next_) next_->set_ecap_window(drafts); }
+    /// STRATA_VERIFY_ECAP as init took it: the cap per draft row, -1 off.
+    int ecap() const { return ecap_; }
+
     /// LAYER SPLIT (multi-GPU): this verifier runs layers [layer_begin, layer_end) of every window.  A stage that
     /// does not start at layer 0 takes its residual from `handoff_in` instead of embedding the tokens; a stage that
     /// does not end at the last layer writes its residual to `handoff_out` and has no head.  The hand-off holds,
@@ -770,6 +779,10 @@ private:
     uint32_t* h_pflag_ = nullptr; uint32_t* m_pflag_ = nullptr;  // the pool has written the heavy CPU rows (partial flag)
     bool defer_ok(int T, std::string* why) const;   ///< the T-token window may be captured with deferral
     bool heavy_layer(int T, int64_t l) const;       ///< STRATA_VERIFY_DEFER_CPU_BELOW: post(l) waits for the partial flag
+    // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output): host side only (sink_.ecap per layer in run); the
+    // captured graphs do not change, so it costs no new capture and composes with the deferral above
+    int ecap_ = -1;                        ///< init: the cap per draft row, -1 off
+    bool ecap_next_ = false;               ///< set_ecap_window: the next run's draft rows may be capped
 
     // device
     void* arena_ = nullptr;

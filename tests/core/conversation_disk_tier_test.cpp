@@ -158,6 +158,13 @@ void test_key() {
     const std::string guarded = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_ROUTE_PRIOR", "0.5"}, {"STRATA_ROUTE_PRIOR_PROTECT", "2"}})});
     check(guarded != turbo && guarded != exact, "key: a route-prior guard changes the key");
     check(get({{"STRATA_ROUTE_PRIOR_SCOPE", "answer"}}).size() == conversation_disk_key_env_names().size() + 1, "key: a set guard is added once");
+    // MOD_PLAN F5: STRATA_VERIFY_ECAP joins the key only when set (the keys of runs without it do not move)
+    check(get({}).size() == conversation_disk_key_env_names().size(), "key: an unset STRATA_VERIFY_ECAP adds nothing");
+    const std::string ecap = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "1"}})});
+    check(ecap != exact && ecap != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "2"}})}),
+          "key: STRATA_VERIFY_ECAP changes the key, and each cap has its own");
+    check(exact == conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", ""}})}),
+          "key: an empty STRATA_VERIFY_ECAP is unset");
 }
 
 void test_choice() {

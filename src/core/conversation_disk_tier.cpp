@@ -231,6 +231,21 @@ const std::vector<std::string>& conversation_disk_key_env_names() {
     return names;
 }
 
+namespace {
+// switches that join the key only when they are set, so adding one leaves every key of a run without it as it was
+// (no re-key of the files already parked).  MOD_PLAN F5 STRATA_VERIFY_ECAP: an accepted draft row's K/V and recurrent
+// state are computed under the cap.
+const std::vector<std::string>& conversation_disk_key_env_names_if_set() {
+    // F5 and F13: these change the computed state but enter the key only when set, so session files written without them keep
+    // their key
+    static const std::vector<std::string> names = {"STRATA_VERIFY_ECAP",        "STRATA_ROUTE_PRIOR_PROTECT",
+                                                   "STRATA_ROUTE_PRIOR_KEEP",   "STRATA_ROUTE_PRIOR_KEEP_P",
+                                                   "STRATA_ROUTE_PRIOR_SCOPE",  "STRATA_ROUTE_PRIOR_ON_PROMPT",
+                                                   "STRATA_ROUTE_PRIOR_MARKS"};
+    return names;
+}
+}  // namespace
+
 std::vector<std::pair<std::string, std::string>>
 conversation_disk_key_env(const std::function<const char*(const char*)>& get_env) {
     std::vector<std::pair<std::string, std::string>> out;
@@ -239,12 +254,10 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
         out.emplace_back(name, v ? std::string(v) : std::string("-"));
     };
     for (const auto& n : conversation_disk_key_env_names()) add(n);
-    // MOD_PLAN F13: the route-prior guards change the computed state too, but they enter the key only when set, so a session file written
-    // before they existed (or by a run that does not use them) keeps its key
-    static const char* const kWhenSet[] = {"STRATA_ROUTE_PRIOR_PROTECT", "STRATA_ROUTE_PRIOR_KEEP", "STRATA_ROUTE_PRIOR_KEEP_P",
-                                           "STRATA_ROUTE_PRIOR_SCOPE", "STRATA_ROUTE_PRIOR_ON_PROMPT", "STRATA_ROUTE_PRIOR_MARKS"};
-    for (const char* n : kWhenSet)
-        if (get_env && get_env(n) != nullptr) add(n);
+    for (const auto& n : conversation_disk_key_env_names_if_set()) {
+        const char* v = get_env ? get_env(n.c_str()) : nullptr;
+        if (v != nullptr && v[0] != '\0') out.emplace_back(n, std::string(v));
+    }
     std::set<std::string> extra;
     if (const char* x = get_env ? get_env("STRATA_CONVERSATION_DISK_KEY_ENV") : nullptr) {
         std::stringstream ss(x);
@@ -253,7 +266,8 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
             n.erase(n.find_last_not_of(" \t") + 1);
             if (!n.empty() && std::find(conversation_disk_key_env_names().begin(), conversation_disk_key_env_names().end(),
                                         n) == conversation_disk_key_env_names().end() &&
-                std::find_if(std::begin(kWhenSet), std::end(kWhenSet), [&](const char* w) { return n == w; }) == std::end(kWhenSet))
+                std::find(conversation_disk_key_env_names_if_set().begin(), conversation_disk_key_env_names_if_set().end(),
+                          n) == conversation_disk_key_env_names_if_set().end())
                 extra.insert(n);
         }
     }
