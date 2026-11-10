@@ -458,9 +458,11 @@ int main(int argc, char** argv) {
     for (const Choice& c : choices) {
         if (c.dec) {
             const K::NativeExpertExpdecParams cp = resolve_choice_params(banner_params, c);
-            std::printf(" %s(gu R %d minb %d, down %d R %d iq4_nl %d, rb %d drb %d, min blocks %d, F12 sign mask 0x%x (1: types 16, 17, 22))", c.name.c_str(),
+            std::printf(" %s(gu R %d minb %d, down %d R %d iq4_nl %d, rb %d drb %d, min blocks %d, F12 sign mask 0x%x (1: types 16, 17, 22), "
+                        "A37 IQ2_XXS codebook copies %d)", c.name.c_str(),
                         cp.gu_rows_per_lane, cp.gu_min_blocks_per_sm, cp.down, cp.down_rows_per_lane, cp.down_iq4_nl,
-                        cp.gu_rows_per_block, cp.down_rows_per_block, cp.min_blocks, (unsigned) cp.sign_fast);
+                        cp.gu_rows_per_block, cp.down_rows_per_block, cp.min_blocks, (unsigned) cp.sign_fast,
+                        cp.lut_dup == 1 ? 16 : cp.lut_dup);
         } else {
             std::printf(" %s", c.name.c_str());
         }
