@@ -48,6 +48,24 @@ inline void unpack64(const uint8_t* codes, __m256i& lo, __m256i& hi) {
     hi = _mm256_set_m128i(_mm_unpackhi_epi16(b0, b1), _mm_unpacklo_epi16(b0, b1));  // values 32..63
 }
 
+// STRATA_Q2_FAST=1 (imanu86, c3fc8f34d3): the same codes with 8 vector ops instead of ~14.  The 16 code bytes are
+// broadcast to both 128-bit lanes and zero-extended to 16-bit words in the order (bytes 0-3, 8-11 | 4-7, 12-15);
+// with x = w | w << 6, word i of x & 0x0303 holds the codes of values 4i, 4i+1 (low, high byte) and word i of
+// (x >> 4) & 0x0303 those of 4i+2, 4i+3; the two 16-bit interleaves give values 0..31 and 32..63 in order.  Output
+// is byte for byte unpack64's.
+inline void unpack64_fast(const uint8_t* codes, __m256i& lo, __m256i& hi) {
+    const __m256i idx = _mm256_setr_epi8(0, -128, 1, -128, 2, -128, 3, -128, 8, -128, 9, -128, 10, -128, 11, -128,
+                                         4, -128, 5, -128, 6, -128, 7, -128, 12, -128, 13, -128, 14, -128, 15, -128);
+    const __m256i m = _mm256_set1_epi16(0x0303);
+    const __m256i x2 = _mm256_broadcastsi128_si256(_mm_loadu_si128((const __m128i*) codes));
+    const __m256i w = _mm256_shuffle_epi8(x2, idx);
+    const __m256i x = _mm256_or_si256(w, _mm256_slli_epi16(w, 6));
+    const __m256i c01 = _mm256_and_si256(x, m);                        // word i: codes of 4i, 4i+1
+    const __m256i c23 = _mm256_and_si256(_mm256_srli_epi16(x, 4), m);  // word i: codes of 4i+2, 4i+3
+    lo = _mm256_unpacklo_epi16(c01, c23);   // values 0..15 | 16..31
+    hi = _mm256_unpackhi_epi16(c01, c23);   // values 32..47 | 48..63
+}
+
 // MOD_PLAN item 40 (STRATA_Q2_PREFETCH=<bytes>, opt-in, exact): before a row's dot, prefetch the bytes that lie that
 // far ahead in the weights (whole rows; the hardware prefetchers stop at 4 KiB pages and a row is 180-720 B).  0 = off.
 namespace {
@@ -156,6 +174,14 @@ void rows_bp(const uint8_t* w, size_t row_bytes, int npairs, const ActQ* const* 
     }
 }
 
+// STRATA_Q2_FAST=1: opt-in for now (AGENTS.md); it becomes the default once q2_fast_parity passes on the target CPUs.
+// STRATA_Q2_LEGACY=1 (the fork's A/B name) forces the pre-fast kernel and wins over STRATA_Q2_FAST.
+const bool kFast = [] {
+    const char* f = std::getenv("STRATA_Q2_FAST");
+    const char* l = std::getenv("STRATA_Q2_LEGACY");
+    return f != nullptr && f[0] == '1' && !(l != nullptr && l[0] == '1');
+}();
+
 const bool kBitplane = [] {
     const char* e = std::getenv("STRATA_Q2_BITPLANE");
     return e != nullptr && e[0] == '1';
@@ -164,6 +190,20 @@ const bool kBitplane = [] {
 }  // namespace
 
 bool q2_bitplane_enabled() { return kBitplane; }
+
+bool q2_fast_enabled() { return kFast; }
+
+void q2_0_gguf_rows_multi_avx2_fast_v(bool vnni_rows, const uint8_t* w, size_t row_bytes, int nblocks,
+                                      const ActQ* const* a, int nt, float* const* out, int r0, int r1) {
+#if STRATA_AVXVNNI
+    if (vnni_rows) {
+        vnni::rows_nt_fast(w, row_bytes, nblocks, a, nt, out, r0, r1);
+        return;
+    }
+#endif
+    (void) vnni_rows;
+    plain::rows_nt_fast(w, row_bytes, nblocks, a, nt, out, r0, r1);
+}
 
 void q2_0_gguf_rows_multi_avx2_v(bool vnni_rows, const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a,
                                  int nt, float* const* out, int r0, int r1) {
@@ -186,6 +226,10 @@ void q2_0_gguf_rows_multi_avx2(const uint8_t* w, size_t row_bytes, int nblocks, 
                                float* const* out, int r0, int r1) {
     bool bp = kBitplane && nblocks % 2 == 0;
     for (int t = 0; t < nt && bp; ++t) bp = a[t]->bp_pairs == nblocks / 2;
+    if (!bp && kFast) {
+        q2_0_gguf_rows_multi_avx2_fast_v(STRATA_AVXVNNI && cpu_avxvnni_ok(), w, row_bytes, nblocks, a, nt, out, r0, r1);
+        return;
+    }
     if (!bp) {
         q2_0_gguf_rows_multi_avx2_legacy(w, row_bytes, nblocks, a, nt, out, r0, r1);
         return;

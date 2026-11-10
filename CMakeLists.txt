@@ -3001,6 +3001,14 @@ if(STRATA_BUILD_TESTS)
     set_tests_properties(q2_bitplane_parity PROPERTIES ENVIRONMENT "STRATA_Q2_BITPLANE=1")
   endif()
 
+  # opt-in STRATA_Q2_FAST AVX-2 Q2_0 kernel (imanu86 c3fc8f34d3) against the legacy one, bitwise (exit 77 without AVX2)
+  if(STRATA_BUILD_TESTS AND CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64|x64|X86")
+    add_executable(q2_fast_parity src/kernels/cpu/q2_fast_parity.cpp)
+    target_link_libraries(q2_fast_parity PRIVATE strata_kernels_cpu)
+    add_test(NAME q2_fast_parity COMMAND q2_fast_parity)
+    set_tests_properties(q2_fast_parity PROPERTIES SKIP_RETURN_CODE 77)
+  endif()
+
   if(STRATA_NATIVE_EXPERTS)
     # APR port: a Hadamard-folded trellis expert (TQ2_T / TQK6 / TQK7) on the CPU path vs llama.cpp's graph for the
     # same weights (synthetic; needs STRATA_GGML_DIR = a ggml with the trellis types, else it reports and fails)
@@ -3389,7 +3397,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity native_hadamard_test tq_cpu_parity tq_cpu_parity_avx2 tqp_cpu_test tqp_cpu_test_avx2
+    q2_bitplane_parity q2_fast_parity native_hadamard_test tq_cpu_parity tq_cpu_parity_avx2 tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
     poly_mxfp4_test
