@@ -136,6 +136,61 @@ token-forcing quality gate.
 | [Unsloth](https://huggingface.co/unsloth) | Unsloth (HF) | per model | Evaluated | UD-Q4_K_XL / UD-Q3_K_M packs for Qwen3.6-35B-A3B, used in the daily presets. |
 | [Qwen](https://huggingface.co/Qwen) | Qwen (Alibaba) | Apache-2.0 (models) | Evaluated | The models themselves: Qwen3.8-Flash-Next and Qwen3.6-35B-A3B; the tech report was checked against code. |
 
+### 3A. Fork knowledge base (`tools/forks/fork_kb.py`)
+
+The fork survey above is not a one-off: `tools/forks/fork_kb.py` keeps an incremental knowledge base of every direct
+fork of [Niko1221/Strata](https://github.com/Niko1221/Strata), so the ecosystem can be re-read at any time and new
+work in the forks shows up on the next run.
+
+What one run does:
+
+1. Lists every direct fork through the GitHub API (one call per 100 forks).
+2. Queries GitHub again only for forks that are new or whose `pushed_at` changed since their last successful scan
+   (`FULL=1` rescans all of them). For each one it stores the commits ahead of upstream (`compare` API) and the
+   README.
+3. Writes `runs/<run>-new-commits.csv` with only the commits first seen in this run, and `runs/<run>-errors.csv`.
+   A fork that failed is not marked as scanned, so the next run retries it.
+
+Layout of the knowledge base (default `KB_DIR=/home/dan/clone-of-d/strata-forks-kb`, kept outside the repo):
+
+| Path | Contents |
+| --- | --- |
+| `forks.sqlite` | Table `runs` (one row per run with counts), `forks` (branch, `pushed_at`, ahead/behind, last scan, last error), `commits` (one row per fork and commit, with `first_seen_run` and `last_seen_run`; a `last_seen_run` older than the fork's last scan means the commit was force-pushed away or merged), `readmes` (README per fork, with the run in which it last changed). |
+| `readmes/<blob_sha>.md` | README contents, stored once per distinct content (most forks share upstream's). |
+| `runs/` | The per-run CSVs above. |
+
+Run and update it (the first run takes about 2 hours because of the GitHub limit of 5,000 calls per hour; later runs
+only touch forks that changed and take minutes):
+
+```bash
+GITHUB_TOKEN=$(gh auth token) python3 tools/forks/fork_kb.py          # first run, and every update after it
+GITHUB_TOKEN=$(gh auth token) FULL=1 python3 tools/forks/fork_kb.py   # rescan every fork
+GITHUB_TOKEN=$(gh auth token) LIMIT=20 python3 tools/forks/fork_kb.py # smoke test on 20 forks
+```
+
+Other settings: `KB_DIR` (where the knowledge base lives), `WORKERS` (parallel requests, default 5), `UPSTREAM`
+(default `Niko1221/Strata`). Run it at low priority (`nice -n 19`) while a benchmark is running.
+
+Analyze it (Python's built-in `sqlite3` is enough; the `sqlite3` command-line tool is optional):
+
+```bash
+python3 - <<'PY'
+import sqlite3
+db = sqlite3.connect("/home/dan/clone-of-d/strata-forks-kb/forks.sqlite")
+# commits that appeared in the latest run
+for r in db.execute("""select repo, substr(date,1,10), substr(message,1,90) from commits
+                       where first_seen_run = (select max(id) from runs) order by date desc"""):
+    print(*r, sep="  ")
+# the forks with the most unique work
+for r in db.execute("select repo, ahead_by, pushed_at from forks where ahead_by > 0 order by ahead_by desc limit 30"):
+    print(*r, sep="  ")
+PY
+```
+
+The new-commits CSV of each run is the input for the next round of fork notes (see the
+[November fork report](reports/Forkuri%20Strata%20active%20noiembrie.md)); anything adopted from it follows the
+credit rule in section 9.
+
 ## 4. Academic Research: Papers, Ideas, and Direct URLs
 
 Before building we read. The survey covered **758 arXiv papers across 7 global university regions** (131 US, 97 Asia,
@@ -563,6 +618,25 @@ out of one of these scripts, and the suite is what makes the stack reproducible.
 ./run-pancake.sh qwen36-q3        # the smaller Qwen3.6 file
 ./run-pancake.sh qwen38-35b       # the Qwen3.8-35B distill, MTP layer borrowed from Qwen3.6
 ```
+
+### Linux memory tuning (once, at install)
+
+The Flash-Next presets lock a ~33 GiB expert arena in RAM within seconds of starting. On a PC that has been up for a
+while, free RAM is fragmented: the kernel stalls in compaction during that lock, memory pressure passes systemd-oomd's
+50% limit and the engine is killed while it loads (and below the limit, decoding runs ~25% slower).
+`tools/pancake/os_tune.sh` checks this without root and installs the fix; `run-pancake.sh` prints a one-line tip while
+it is missing.
+
+```sh
+tools/pancake/os_tune.sh                          # state: free RAM in 2 MiB blocks, compaction, huge pages
+sudo tools/pancake/os_tune.sh install             # 1 (recommended): vm.compaction_proactiveness=50, /etc/sysctl.d/90-pancake.conf
+sudo tools/pancake/os_tune.sh install --hugepages # 1 + 2 (optional): reserve 16,920 x 2 MiB pages at boot for the arena
+sudo tools/pancake/os_tune.sh compact             # one compaction pass now, nothing persistent
+```
+
+Option 2 maps the arena from a reserved hugetlb pool (no fragmentation, fewer TLB misses; two Strata forks measured
++5-7% decode, not yet measured here). The pool is taken out of ordinary RAM (33 GiB) from the next boot, so it suits a
+PC that mostly runs pancake. The engine counts a pool that holds the whole arena outside its RAM budget.
 
 The server listens on `PORT` (default 8080) with the OpenAI- and Anthropic-compatible API. `STRATA_DATA` holds the
 data directory, `MODELS` the model files, `HIP_VISIBLE_DEVICES` picks the ROCm GPU (default 0; GPU 1 is the Vega

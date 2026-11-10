@@ -406,6 +406,32 @@ bool read_cgroup_memory_stat(const std::filesystem::path& path, uint64_t current
 
 namespace detail {
 
+uint64_t hugetlb_arena_credit(uint64_t arena_bytes, const std::string& meminfo) {
+#if defined(__linux__)
+    // A reserved hugetlb pool (vm.nr_hugepages) is not in MemAvailable, and the arena maps all of it from the pool or
+    // none (MAP_HUGETLB, pinned.cu): when the free pool covers the whole arena, the arena takes no ordinary RAM, so the
+    // budget check credits it.  Without this a box that reserved the pool for the arena was refused the arena.
+    if (arena_bytes == 0 || std::getenv("STRATA_NO_LARGEPAGES") != nullptr) return 0;
+    std::ifstream info(meminfo);
+    std::string line;
+    uint64_t free_pages = 0, page_kb = 0;
+    while (std::getline(info, line)) {
+        std::istringstream fields(line);
+        std::string key;
+        uint64_t value = 0;
+        if (!(fields >> key >> value)) continue;
+        if (key == "HugePages_Free:") free_pages = value;
+        else if (key == "Hugepagesize:") page_kb = value;
+    }
+    if (page_kb != 2048) return 0;   // the arena asks for MAP_HUGE_2MB pages
+    const uint64_t page = 2ull << 20, need = (arena_bytes + page - 1) / page;
+    return free_pages >= need ? arena_bytes : 0;
+#else
+    (void) arena_bytes; (void) meminfo;
+    return 0;
+#endif
+}
+
 bool host_available_memory(HostMemory& m, const std::string& meminfo, const std::string& self_cgroup,
                            const std::string& cgroup_root) {
     m = HostMemory{};
@@ -6260,6 +6286,12 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
     ram_short_ = false;
     // (a shared arena, --shared-expert-arena, may already be in RAM for another engine: not checked)
     if (detail::HostMemory hm; shared_arena_file.empty() && detail::host_available_memory(hm)) {
+        // a reserved hugetlb pool that holds the whole arena: the arena takes none of MemAvailable
+        const uint64_t pool_credit = detail::hugetlb_arena_credit(want + (uint64_t) blob);
+        hm.available += pool_credit;
+        if (pool_credit > 0)
+            std::fprintf(stderr, "strata generate: the expert arena (%.2f GiB) fits the reserved hugetlb pool: counted outside "
+                                 "the RAM budget\n", (double) pool_credit / 1073741824.0);
         // --ram-keep-gib W: the arena is chosen only if W GiB stay free after it, so its need here is the arena plus W
         const uint64_t need = arena_need_with_keep(want + (uint64_t) blob, ram_keep_bytes);
         // under a hard limit the arena also needs the headroom (the engine's own memory comes on top of it, and the arena is never given back)
@@ -6302,7 +6334,7 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
             if (wait_s > 0.0) {
                 const bool came = detail::wait_for_ram(
                     need, wait_s, 0.25, 5.0,
-                    [](uint64_t& a) { detail::HostMemory h; if (!detail::host_available_memory(h)) return false; a = h.available; return true; },
+                    [pool_credit](uint64_t& a) { detail::HostMemory h; if (!detail::host_available_memory(h)) return false; a = h.available + pool_credit; return true; },
                     [](double s) { std::this_thread::sleep_for(std::chrono::duration<double>(s)); },
                     [&](double w, uint64_t a) {
                         std::fprintf(stderr, "strata generate: the expert arena needs %.2f GiB of RAM%s and %.2f GiB is "
@@ -6326,7 +6358,7 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
                         std::fprintf(stderr, "strata generate: the expert arena needs %.2f GiB of RAM and %.2f GiB was available: "
                                              "gave back %.2f GiB of locked RAM, %.2f GiB is available now\n",
                                      (double) need / gib, (double) hm.available / gib, (double) freed / gib, (double) h2.available / gib);
-                        hm.available = h2.available;
+                        hm.available = h2.available + pool_credit;
                     }
                 }
             }

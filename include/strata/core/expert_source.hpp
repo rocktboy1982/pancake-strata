@@ -92,6 +92,10 @@ struct HostMemory {
 /// defaults are the real files).  cgroup v2 as before (an unreadable limit of a group that has one fails); cgroup v1's
 /// memory controller (`<root>/memory/<path>`: memory.limit_in_bytes - memory.usage_in_bytes); no cgroup line at all is
 /// MemAvailable alone.  False when the RAM cannot be determined.
+/// Bytes of `arena_bytes` a reserved, free hugetlb pool (vm.nr_hugepages, 2 MiB pages) covers: all of it when the pool
+/// holds the whole arena (MAP_HUGETLB is all-or-nothing), else 0.  The pool is not in MemAvailable.
+uint64_t hugetlb_arena_credit(uint64_t arena_bytes, const std::string& meminfo = "/proc/meminfo");
+
 bool host_available_memory(HostMemory& m, const std::string& meminfo = "/proc/meminfo",
                            const std::string& self_cgroup = "/proc/self/cgroup",
                            const std::string& cgroup_root = "/sys/fs/cgroup");

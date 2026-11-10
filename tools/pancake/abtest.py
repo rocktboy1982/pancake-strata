@@ -101,12 +101,31 @@ RECLAIM = ("kswapd", "kcompactd")
 RECLAIM_MAX = 1.0   # % of a core: above it before a run -> wait; averaged above it during a run -> noisy, repeat
 
 
+def big_free_gib():
+    """GiB of free RAM in blocks of 2 MiB or more (/proc/buddyinfo, order >= 9).  The engine locks a 33 GiB arena in a
+    few seconds; with this low the kernel stalls in compaction during the load (slow runs, or systemd-oomd kills the
+    engine: 2026-11-10).  tools/pancake/os_tune.sh compacts / installs background compaction."""
+    try:
+        total = 0
+        for line in open("/proc/buddyinfo"):
+            f = line.split()
+            if f[3] in ("Normal", "DMA32"):
+                total += sum(int(n) * (4096 << o) for o, n in enumerate(f[4:]) if o >= 9)
+        return total / 2**30
+    except (OSError, ValueError, IndexError):
+        return -1.0
+
+
 def quiet_gate(max_load, max_foreign, own_roots, max_wait=3600):
     """max_load <= 0 (default): no load-average wait.  The 1-minute load right after a run is the finished server's own
     16 threads decaying (~2 min to fall below 1, 45 of test 04's 70 min) - the foreign-CPU sample already sees any
     other process, so the load wait only cost time.  Also waits while memory reclaim / compaction is running."""
     t0 = time.time()
     said = False
+    big = big_free_gib()
+    if 0 <= big < 20:
+        print(f"  WARNING: only {big:.0f} GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or "
+              f"killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)", flush=True)
     while time.time() - t0 < max_wait:
         load = os.getloadavg()[0] if max_load > 0 else 0.0
         fc, top = foreign_cpu(5, own_roots)
@@ -314,7 +333,8 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port):
         return None, f"expected {len(cases)} engine lines, got {len(rows)}"
     for c, r in zip(cases, rows):
         r["case"] = c
-    return {"rows": rows, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2), "gpu": mon.gpu_summary()}, None
+    return {"rows": rows, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2), "gpu": mon.gpu_summary(),
+            "big_free_gib": round(big_free_gib(), 1)}, None
 
 
 def ci(xs):
