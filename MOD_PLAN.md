@@ -1449,6 +1449,43 @@ New processes built on these capabilities:
 
 ## Phase 16: academic research first, by area of improvement (2026-11-10, owner: develop academic technologies with priority)
 
+### Implementation and test status (2026-11-10, branch dev/batch-1)
+
+"In preset" = measured on the RX 7900 XT and switched on in fast-hip. "Batch" = coded on dev/batch-1 (16 commits), opt-in,
+default path byte-identical, **not built yet** (no GPU/CPU window while the test phase ran); build, parity tests and
+screens come next, then only the items that compile and gain are cherry-picked into port/rdna3-decode. All gains not
+marked "meas." are fork/paper claims or estimates.
+
+| Item | What | Implemented | Tested / result | Next |
+| --- | --- | --- | --- | --- |
+| A3 | expert deferral `STRATA_VERIFY_DEFER_CPU=1` | **in preset** (d7debf8fd) | meas. edit **+15.8% +-3.9**, short n.s., token forcing PASS | done |
+| - | `STRATA_POOL_FUSE_PHASES=1` | **in preset** | meas. edit **+2.5% +-1.7**, PASS | done |
+| - | `STRATA_EXPDEC_DOWN=1` | **in preset** (f15ad2b51) | meas. short **+1.7% +-0.5**, PASS | done |
+| - | `--lookup` window 12 (test 05) | port/rdna3-decode (dan-99) | meas. screen: edit **+10-12%**; confirm + quality gate running (05c) | decide after 05c |
+| - | small-flag stack, LOOKAHEAD=0, routed-dedupe, MMVF_ROWS, GDN_PP=2, spec-min-p 0.7 (test 05) | existing switches | meas. screen: dropped (stack -20%) | closed |
+| A4 | rank guard `_TOP=2` | existing switch, opt-in | meas. edit **+20.1%**, short **-6.9%** | fix below |
+| A4 fix | `STRATA_VERIFY_DEFER_CPU_FOLD=<n>` (one pool pass when few light rows) | batch (43b384aa1) | not built; spec 10-rank-guard-fold | build, screen |
+| A5 | k-th-miss admission `STRATA_ADAPT_KMISS=2,8` | existing switch, opt-in | meas. edit +2.0% +-1.6 (bench, 89% hit rate); offline trace replay: edit hit rate 76.7% -> 86.5% (+12% est.) | screen 15-kmiss on agent traffic |
+| - | async tier, POOL_TAIL4/MWAITX/LAZY_PARK/Q2_PREFETCH, COMBINE_POLL1, DEVICE_SPIN | existing switches | meas. rejected or n.s. | closed |
+| 4.0.1 | conversation cache `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` | flags exist (no code) | offline replay: saves ~158 of 162.8 s lost to cold re-reads (97%) | replay test (replay_turns.py, in progress), check RAM |
+| F1 | `STRATA_PARK_TRUNCATE` | batch (Opus port, e55886ed8) | unit tests written, not run; offline: 39-52 s of 162.8 s alone | build, unit test, replay |
+| F7 | fast bit-exact Q2_0 AVX2 kernel `STRATA_Q2_FAST=1` | batch (600ca5032) | **meas. CPU microbench: bit-exact, down rows x1.33, gate/up x1.23** (q2_rows_bench, 5700G) | build, engine screen |
+| F21 | `STRATA_WAIT_COPY256=1` (needs `STRATA_FUSE_WAIT=1` on gfx1100) | batch (0573c36b6) | not built | build, screen with FUSE_WAIT |
+| F9 | `STRATA_ROUTE_FAST=1` router publish fast path | batch (9409a228c) | not built; parity test extended | build, native_multi_parity, screen 17 |
+| F12 | `STRATA_IQ_SIGN_FAST=1` IQ2 sign expansion | batch (3e1583773) | host exhaustive check 22,229 cases identical; not built | expdec_bench, iq_multi_parity, confirm (small gain) |
+| F13 | turbo guards `STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE` | batch (3dd7c27b8) | scope unit test passes (CPU) | build, token forcing + task gate |
+| F5 | `STRATA_VERIFY_ECAP=<n>` (lossy) | batch (2d44d31ec) | unit test written, not run | build, screen, token forcing, task gate |
+| F14 | `STRATA_EXP_MODE=9` / `STRATA_EXP9_DOWN=42:10` (RTX 3060) | batch (3c74ef8a3) | not built; 3060 not installed | 3060 parity + screen; one 7900 XT arm |
+| A55 | task gate `tools/pancake/task_gate.py` | batch (ae3bafde4) | 13 unit tests pass, dry run OK | first live run |
+| - | disk cache key: deferral and lossy switches added, key v2 | batch (d9b8d4f79) | unit test 95 checks pass | merge with batch |
+| A17 | turn log records the effort level | batch (f1df90c5a) | 8 Python tests pass | collect 200+ turns, then caps |
+| - | test tooling: screen tier, early stop, fail fast, text check, long32k/64k cold cases, temperature key, probes, screen specs 11-17 | batch + port | probes: CPU probe ran; others need the GPU | use in the batch tests |
+| F6 | exact speculative sampling (env only) | switches exist | offline: opencode sends no temperature -> T 1.0 on main agent | screen 12-spec-sampling |
+| F8 | `STRATA_SPEC_CUM` | not ported | offline ceiling 1.0% short / 7.9% edit | on hold (needs window trace) |
+| F4 | sub-2-bit shadow pack | not started | offline: IQ1_M gate/up -18.2% CPU bytes, +17.6 GB RAM | conditional on RAM |
+| A6 | time model recalibrated (`time_ceiling.py --validate`) | port/rdna3-decode | mean error 3.4 points (was 12-17) | used for ranking |
+| A7/A8/A46 | ProMoE / Pie / oracle admission | not started | offline model: not worth a GPU run now | parked |
+
 ### Priority update after the offline tests (2026-11-10, bench/results/2026-11-10-offline/)
 
 Measured offline (no GPU); these change the order of the work below and of Phase 15:
