@@ -82,8 +82,10 @@ its copy (`s_grid_lane`), and `Split<16>::load<true, SF, DUPB>` reads entry i at
 bytes as from the plain table, so W, the products and the sums are bitwise identical (it composes with the F12 sign form).
 
 Cost: LDS per block 13.5 KB -> 43.5 KB (16 copies) / 27.5 KB (8 copies), i.e. 2 / 4 blocks per WGP instead of up to 8
-(the kernel's launch bounds target 4); the copy is 16 / 8 LDS stores per thread per block instead of 1. Only the screen
-can say whether 2.0 vs 5.8 clocks per lookup beats the lost occupancy; 8 copies keeps the target occupancy.
+(the kernel's launch bounds target 4); the copy is 16 / 8 LDS stores per thread per block instead of 1 (per block of
+32 rows: ~256 LDS clocks of copy against ~1,850 -> ~640 clocks of lookups saved). Only the screen can say whether 2.0 vs
+5.8 clocks per lookup beats the lost occupancy; 8 copies keeps the target occupancy, and larger blocks
+(`STRATA_EXPDEC_RB=128`, bitwise) amortize the copy (spec arm `lut16-rb128`).
 
 Scope limits (logged): only R = 1 (the default; at `STRATA_EXPDEC_R=2` the log says "ignored at R 2"), not the item-48
 SwiGLU kernel, not the default (non-EXPDEC) kernels; with EXPDEC off a one-time note says it has no effect. IQ2_S and
