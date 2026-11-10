@@ -1,0 +1,10 @@
+{
+ "base": "pancake-qwen36-ud-q4_k_xl-q36.json",
+ "arms": {
+  "base": {},
+  "window": {"env": {"STRATA_ATTN_WINDOW": "1"}}
+ },
+ "cases": ["short", "edit", "longdec32k", "longdec64k", "longdec128k"],
+ "reps": 3,
+ "note": "MOD_PLAN F11 (Asofwar/Strata-Turbo window decode attention, ported to the Qwen3.6 engine, src/qwen35/q36_engine.cu k_attn_window). RX 7900 XT, build-hip with the work/f11-attn-window commit. Base = Qwen3.6-35B-A3B UD-Q4_K_XL on strata's own Qwen3.6 engine (the family switch), --max-context 131072, --mtp 2 (verify windows of 3 rows: the 2-row and 1-row window kernels both run). Generate the base config first (not tracked, like run-pancake.sh does): sed -e \"s#<STRATA_DATA>#/home/dan/clone-of-d/Strata-data#g\" -e \"s#<REPO>#$PWD#g\" -e \"s#<MODELS>#/home/dan/clone-of-d/models#g\" configs/pancake/qwen36-ud-q4_k_xl-q36.json > pancake-qwen36-ud-q4_k_xl-q36.json. Cases: short / edit (decode, text compared: k_attn_window is meant to be bitwise k_attn_part, so the text must be identical) and longdec32k / longdec64k / longdec128k (decode tok/s of a 256-token reply after a cold 32K / 64K / 120K-token prompt; the read is ~330 s at 120K on this engine without BFLA, so a full ABBA pass is ~2 h; --tier screen keeps the longdec cases, one request each). Before the A/B: the bitwise check of MOD_PLAN F11 (strata-q36 --dump-full-logits with and without STRATA_ATTN_WINDOW=1, cmp equal). If the logits are not bit-equal on this backend, the switch is rounding-level: token forcing (tools/qwen35/kl.py) before it goes into any preset. STRATA_ATTN_WINDOW is not read by Flash-Next's engine (its QSA selection bounds attention at 2,051 cells; see MOD_PLAN F11 status), so no Flash-Next arm."
+}
