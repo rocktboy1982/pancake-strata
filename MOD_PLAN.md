@@ -1453,7 +1453,7 @@ Source: [reports/Speed ideas from all forks.md](reports/Speed%20ideas%20from%20a
 `research_notes/Speed ideas from all forks/` (6 areas: HIP kernels, CUDA kernels, MoE offload and CPU, speculative
 decoding, attention/KV/quant, server and system). Input: the fork knowledge base `data/fork-kb/` (407 forks, 43,685
 own commits, `upstream_history = 0`). Every gain below is the fork author's claim on their hardware or our estimate;
-nothing was measured on our box yet. Items already in Phase 3 of bench/TEST_PLAN.md are not repeated.
+nothing was measured on our box yet. Items already in Phase 3 of bench/TEST_PLAN.md are not repeated. The report's final table (FK-01..FK-59) is the full list; F1-F22 below are the items selected for development.
 
 Order: (1) ideas useful on BOTH GPUs, (2) env-only A/Bs and probes that decide whether a port is worth writing,
 (3) exact code ports, (4) lossy arms behind the token-forcing and tool-call quality gates.
