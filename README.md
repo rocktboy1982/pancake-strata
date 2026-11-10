@@ -367,6 +367,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_IDLE_ADAPT=N` | off | item 17 (`43e741bc6`): when no request line arrives for 150 ms, the blocking tier runs up to N extra rounds at 4x swaps on the idle GPU |
 | `STRATA_TURN_LOG` | off | item 73 (`1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets |
 | `STRATA_SPEC_COST_TABLE` | off | item 43 (`663107a56`): draft window costs seeded from window traces (`tools/pancake/trace/draft_costs.py`) |
+| `STRATA_PARK_TRUNCATE=1` | off | `--serve` conversation cache: when a conversation is too big to park (cache byte budget or RAM floor), park its deepest checkpoint prefix that fits instead of dropping it whole, so the next request re-reads only the tail; an oldest parked entry is shrunk to one of its checkpoints before it is evicted whole. Ported from TwoAnts/Strata `5ef4fc8b4b` (MIT) |
 
 ### 6H. CLI flags
 
@@ -598,3 +599,5 @@ Credits, in the order the stack was built:
   **flashinfer-ai** (FlashInfer), for ideas and reference points.
 - The authors of every paper in section 4, and the university groups behind the 758-paper survey.
 - **Qwen** (Alibaba) for the models, **ISTA-DASLab** and **Unsloth** for the quant packs.
+- **TwoAnts** (Strata fork, MIT), for `STRATA_PARK_TRUNCATE`: park the deepest checkpoint prefix that fits instead of
+  dropping an oversized conversation whole (commit `5ef4fc8b4b`).
