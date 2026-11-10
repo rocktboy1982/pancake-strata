@@ -200,10 +200,10 @@ PY
 ```
 
 The new-commits CSV of each run is the input for the next round of fork notes (see the
-[November fork report](reports/Forkuri%20Strata%20active%20noiembrie.md)); anything adopted from it follows the
+[November fork report](reports/Active%20Strata%20forks%20November.md)); anything adopted from it follows the
 credit rule in section 9.
 
-First results (2026-11-10, report: [Baza de cunoștințe forkuri Strata](reports/Baza%20de%20cuno%C8%99tin%C8%9Be%20forkuri%20Strata.md)):
+First results (2026-11-10, report: [Strata fork knowledge base](reports/Strata%20fork%20knowledge%20base.md)):
 
 | Measure | Value |
 | --- | ---: |

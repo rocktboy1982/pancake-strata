@@ -8,7 +8,7 @@ Model: **Qwen3.6-35B-A3B UD-Q4_K_XL** with its MTP layer (Unsloth), greedy decod
 > pancake note (2026-11-09): sections 1-12 are the RTX 3060 era. Section 13 is the RX 7900 XT box (gfx1100, 20 GB,
 > ROCm 10.0; same 5700G and 57 GB DDR4): the 5700G forces PCIe 3.0 on the whole platform (root port Gen3 x16), ReBAR on
 > (32 GB BAR0), IOMMU passthrough, THP madvise; ROCm 10 has no `hipMemcpyBatchAsync`, so `STRATA_DMA_BATCH` is CUDA-only
-> (reports/Tehnologii drum de date hardware.md). The 7900 XT measurement rounds themselves are in MOD_PLAN.md phase 11.
+> (reports/Hardware data path technologies.md). The 7900 XT measurement rounds themselves are in MOD_PLAN.md phase 11.
 
 Raw results (one JSON line per run, the generated tokens included) are in `bench/results/2026-11-07-pancake-*.jsonl`.
 The harness is `tools/pancake/bench_engines.py`; the kernel tests are `poly_gdn_cols_test` and `poly_gemm_small_test`.
@@ -293,7 +293,7 @@ Q2_0 is the faster Flash-Next here (writing +5-9%, long reads -6%); a 5070 Ti us
 day, IQ2_XS not. pancake note (2026-11-09): ISTA-DASLab's card measures Q2_0 at 93.8 vs IQ2_XS 70.3 tok/s decode
 (llama.cpp, 55 prompts) with a task average of 89.07 vs 89.16 (-0.09), so MOD_PLAN.md takes Q2_0 as the daily file
 (item 6 closed); a lower top-1 agreement with Q8_0 (docs/QUANTS.md) does not predict task score between close quants
-(reports/Lucrări Europa pentru Avalon.md, reports/Lucrări Canada pentru Avalon.md). Qwen3.6 Q3_K_M writes 25-28% faster than Q4_K_XL after long prompts and in edits, at 3-bit quality.
+(reports/Europe papers for Avalon.md, reports/Canada papers for Avalon.md). Qwen3.6 Q3_K_M writes 25-28% faster than Q4_K_XL after long prompts and in edits, at 3-bit quality.
 
 ## 10e. Quality of the lossy speed switches (tools/force_check.py, 2026-11-08)
 
@@ -409,8 +409,8 @@ plan rows and item numbers are in MOD_PLAN.md phase 11 ("Phase 11 research index
   **[E]** With perfect overlap the same parts fit in **~20 ms**: the edit window is a scheduling/overlap problem, not a
   bandwidth problem. That makes expert deferral (items 8/28) and an overlap-aware simulator (item 42) the levers, and
   caps the sum of the small exact items at a few % up to ~10% on edits (gains are not additive).
-  ([Tehnologii drum de date hardware](../reports/Tehnologii%20drum%20de%20date%20hardware.md),
-  [Tehnologii grupate](../reports/Tehnologii%20grupate%20pentru%20pancake.md))
+  ([Hardware data path technologies](../reports/Hardware%20data%20path%20technologies.md),
+  [Grouped technologies](../reports/Grouped%20technologies%20for%20pancake.md))
 - **[M]** The CPU Q2_0 expert kernel already runs at **~80% of the 33 GB/s DDR4** (profile-fasthip.txt,
   `bench/results/2026-11-08-7900xt-rounds/pool-sweep.txt`: pool defaults best). The same 80-90% band Intel reports for
   the best 2-bit x86 GEMV. **[E]** A LUT rewrite (T-MAC / Vec-LUT) gains ~0: only fewer bytes, overlap or routing help.
@@ -452,8 +452,8 @@ plan rows and item numbers are in MOD_PLAN.md phase 11 ("Phase 11 research index
 - **[M, old backend]** opencode history (2,063 Flash-Next turns served by the old Strata/Avalon backend on 11437, not by
   pancake): turn **median 6.2 s, p90 50 s, p99 224 s**; prompt **re-reads ~18%** of total turn time (a lower bound); 15
   turns cut at the output cap while thinking (84-340 s each). The tail comes from re-reads and uncapped thinking, not
-  tok/s. (research_notes/Pancake pain points și soluții/server_agent_ops.md, summarized in
-  [Pancake pain points și soluții](../reports/Pancake%20pain%20points%20%C8%99i%20solu%C8%9Bii.md))
+  tok/s. (research_notes/Pancake pain points and solutions/server_agent_ops.md, summarized in
+  [Pancake pain points and solutions](../reports/Pancake%20pain%20points%20and%20solutions.md))
 - **[C]** **Pancake is not yet wired to opencode**: `run-pancake.sh` serves on port 8080, opencode and
   `strata.service` / `avalon.service` use 11437, there is no pancake unit, and the thinking caps
   (`reasoning_budget_by_effort`, `reasoning_budget_grace`, `reasoning_close_retry`) are in the code but in no preset.
@@ -466,9 +466,9 @@ plan rows and item numbers are in MOD_PLAN.md phase 11 ("Phase 11 research index
   (1:2.7, measured here); Zen 3 on B550/X570 or Rocket Lake ~1:1.2-1.8; LGA1700/1851 DDR5 ~1:2-4; AM5 + a Gen5 card ~1:1
   or inverted; Strix Halo no promotion at all. So item 55 must **calibrate on window time** at start-up, not on a static
   bandwidth table: its acceptance test is finding `--pcie-frac 0` on this 7900 XT by itself (the static PcieAuto picked
-  0.20-0.25 and lost). ([Capabilități platforme consumer](../reports/Capabilit%C4%83%C8%9Bi%20platforme%20consumer.md))
+  0.20-0.25 and lost). ([Consumer platform capabilities](../reports/Consumer%20platform%20capabilities.md))
 
-**The model files** (ISTA-DASLab cards, [Lucrări Europa](../reports/Lucr%C4%83ri%20Europa%20pentru%20Avalon.md)):
+**The model files** (ISTA-DASLab cards, [Europe papers](../reports/Europe%20papers%20for%20Avalon.md)):
 Qwen3.8-Flash-Next is a 125B MoE + 51B hashed n-gram/PLE table + ~4B MTP ≈ **176.9B parameters**; 3 GDN + 1 QSA layer
 per block; 512 experts (10 routed + 1 shared). The "IQ2_XS" file's experts are IQ2_S/IQ2_XXS/IQ1_M gate/up with Q2_0
 down; Q2_0 decodes 93.8 vs 70.3 tok/s on DASLab's card at -0.09 task average, and is the plan's daily file
