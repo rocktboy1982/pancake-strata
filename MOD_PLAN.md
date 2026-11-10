@@ -1636,7 +1636,7 @@ MoE-Lightning stale-dropping paging (https://arxiv.org/abs/2411.11217; Foresight
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Status |
 | --- | --- | --- | --- | --- |
 | A54 | KLD / top-1 only reject large deviations; a fixed task set picks between close variants | Displacement Is Not Direction, Toronto 2026, https://arxiv.org/abs/2606.19558 | quality gates | done (rule) |
-| A55 | Task gate runner: BFCL v4 multi-turn + LiveCodeBench subset + own-repo checkpoint grading, repeated runs | BFCL, https://gorilla.cs.berkeley.edu/leaderboard.html ; LiveCodeBench, https://arxiv.org/abs/2403.07974 ; TheAgentCompany, https://arxiv.org/abs/2412.14161 | 67 | planned (blocks A1, A2, A4 default, A17-A20, A27, A28) |
+| A55 | Task gate runner: BFCL v4 multi-turn + LiveCodeBench subset + own-repo checkpoint grading, repeated runs | BFCL, https://gorilla.cs.berkeley.edu/leaderboard.html ; LiveCodeBench, https://arxiv.org/abs/2403.07974 ; TheAgentCompany, https://arxiv.org/abs/2412.14161 | 67 | coded, branch work/a55-task-gate, first run pending (`tools/pancake/task_gate.py` + `bench/tasks/default.json`: 18 offline tasks, not the BFCL / LiveCodeBench subsets yet; blocks A1, A2, A4 default, A17-A20, A27, A28) |
 | A56 | EAR (expected acceptance rate) next to "same top token" in token forcing; predicts MTP acceptance | SLQ, ISTA, https://github.com/IST-DASLab/SLQ | (EU-M1) | **new** (XS) |
 | A57 | Area under the time-to-success curve for agent A/Bs | SWE-Effi, https://www.alphaxiv.org/abs/2509.09853 | (Can-M2) | planned (for A18, A38-A43) |
 | A58 | Repeated runs as distributions; reclaim-aware load gate | SD Illusion (A25); Price Reversal (US-M4) | I5 | done (abtest.py, 04c harness) |
@@ -1645,6 +1645,8 @@ MoE-Lightning stale-dropping paging (https://arxiv.org/abs/2411.11217; Foresight
 
 1. **A55 + A1/A2/A4 joint quality batch.** Build the task-gate runner, then one night: turbo (A1) vs AcceptMoE (A2), each
    with deferral + rank guard on. The biggest remaining lever (+30-50% meas. before deferral). Rigorous.
+   The runner is coded (A55, branch work/a55-task-gate, first run pending): `python tools/pancake/task_gate.py
+   bench/specs/taskgate-lossy.json --out bench/results/<day>-taskgate`, after token forcing has not rejected the arm.
 2. **A4 rank-guard fix.** One pool pass when few rows are deferred, then the w sweep. Keeps +3-5% on edits without the
    -6.9% on short chat. Confirm, then rigorous for fast-hip.
 3. **A14 then A11/A12/A13 on agent replays.** restore_check first, then the three coded per-turn cache opt-ins on real

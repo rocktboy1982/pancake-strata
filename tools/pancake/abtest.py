@@ -312,20 +312,29 @@ LINE = re.compile(r"prompt (\d+) tokens.*?read in \d+ ms \(([\d.]+) tok/s\), (\d
                   r"(?:, drafts accepted (\d+) of (\d+))?")
 
 
-def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1):
-    log = cfg.get("log")
+def start_server(cfg_path, log_out, port, ready_wait=900):
+    """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
+    (None, "server died before ready" / "server not ready ...") - the caller stops the servers."""
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     with open(log_out, "w") as lf:
         srv = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), PY, "serve/server.py", "--engine", "strata", "--config",
                                 cfg_path, "--port", str(port)], cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env)
     t0 = time.time()
-    while time.time() - t0 < 900:
+    while time.time() - t0 < ready_wait:
         txt = Path(log_out).read_text(errors="replace")
         if "ready: http" in txt:
-            break
+            return srv, None
         if srv.poll() is not None or "EngineDied" in txt:
             return None, "server died before ready"
         time.sleep(3)
+    return srv, None   # as before: not ready after ready_wait, carry on (the first request waits for it)
+
+
+def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1):
+    log = cfg.get("log")
+    srv, err = start_server(cfg_path, log_out, port)
+    if err:
+        return None, err
     url = f"http://127.0.0.1:{port}"
     request(url, P["short"])                          # warm-up, not counted
     n0 = len(Path(log).read_text(errors="replace").splitlines()) if log and Path(log).exists() else 0

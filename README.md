@@ -621,9 +621,9 @@ tool-call parser, `turn_at` poly checkpoints, domain classification, and the per
 - **`feat/pattern-cache`** (63 commits): the item 3-4 seeding switches, Q2_0 7900-XT presets, `STRATA_POOL_PREREAD`
   and `STRATA_IQ2S_PAIR`, and a GDN megakernel prototype (reverted: 0.0 ms on one GPU).
 
-### 7.8. `tools/pancake/`: the measurement suite (30 scripts)
+### 7.8. `tools/pancake/`: the measurement suite (31 scripts)
 
-`abtest.py` (quiet-machine interleaved A/B), `quality_gate.py` (token-forcing gate as a process), `quality_ab.sh` /
+`abtest.py` (quiet-machine interleaved A/B), `quality_gate.py` (token-forcing gate as a process), `task_gate.py` (A55, see below), `quality_ab.sh` /
 `quality_hip.sh`, `bench_engines.py`, `gpu_profile.py` (rocprofv3), `decode_curve.py`, `time_ceiling.py` (the cache
 judged in ms; serial and `--overlap` model), `belady_ceiling.py`, `tail_rows.py`, `predict_experts.py`,
 `replay_seeding.py`, `conv_trace.py`, `learn_profile.py` / `learn_domain_profiles.py`, `make_corpus.py`,
@@ -632,6 +632,34 @@ judged in ms; serial and `--overlap` model), `belady_ceiling.py`, `tail_rows.py`
 expert kernels' launch/tile knobs and the CPU pool knobs), `trace/draft_costs.py` (item 43, `663107a56`), and
 `pancake.service` (item 73/91, `a1683537c`), plus `trace/{wtrace,tail_replay}.py`. Why: every claim in this README came
 out of one of these scripts, and the suite is what makes the stack reproducible.
+
+`task_gate.py` (A55, branch `work/a55-task-gate`, first run pending) is the second half of the quality gate for lossy
+arms. Token forcing only rejects arms that deviate a lot; among near-baseline variants KLD and top-1 agreement do not
+predict the task score ("Displacement Is Not Direction", arXiv 2606.19558), so a fixed task set decides. It takes the
+`abtest.py` spec (base preset plus env / args per arm; optional `tasks`, `reps` (5), `temperature` (0.2), `margin` (0.05),
+`validity_margin` (0.03)), starts one fresh server per arm (the base arm twice, first and last, as the drift check) and
+sends the 18 tasks of `bench/tasks/default.json` `reps` times each with the same seeds in every arm: 8 code edits (the
+answer's python block is run against a test with CPU / memory limits and no network where `unshare -rn` works), 7 tool
+calls (JSON schemas; the call must parse, validate and match the expected name and arguments; parallel, multi-turn and
+"no call" cases), 3 short QA items. Per arm it reports the success rate with a 95% Wilson interval, per-kind rates, the
+tool-call validity rate, time to success (median, seconds per success) and a verdict against base: the paired
+per-task difference of the success rate with a 95% bootstrap interval (tasks and repetitions resampled), judged by
+non-inferiority: BETTER (lower bound above 0), PASS (lower bound within the margin), REJECT (upper bound below
+minus the margin), else INCONCLUSIVE; the tool-call validity rate gets the same test with its own margin and the
+worse of the two verdicts counts. Time to success is reported, not judged (speed is `abtest.py`'s job).
+
+```sh
+python tools/pancake/task_gate.py bench/specs/taskgate-lossy.json --dry-run --out /tmp/tg   # spec + task set + every checker, no server
+python tools/pancake/task_gate.py bench/specs/taskgate-lossy.json --out bench/results/<day>-taskgate [--reps 10] [--only tool_call]
+python tools/pancake/task_gate.py --from-runs bench/results/<day>-taskgate [--regrade]     # report again from the stored runs
+python -m pytest tools/pancake/test_task_gate.py                                            # statistics + checkers, no server
+```
+
+At 18 tasks x 5 reps the interval on the success difference is about +-15 points (synthetic check), so only a large loss
+is a REJECT and a close arm comes back INCONCLUSIVE: use `--reps 10-20` for close variants, or add tasks (a JSON file
+of the same shape; every task needs a reference answer that must pass and a wrong one that must fail, checked by
+`--dry-run`). The shipped set is a smoke-sized stand-in; the BFCL v4 multi-turn / LiveCodeBench subsets and own-repo
+checkpoint grading of A55 are not in it yet.
 
 ## 8. Daily Use (`Qwen3.8-Flash-Next` & `Qwen3.6-35B-A3B`) and Build & Run (HIP + CUDA)
 

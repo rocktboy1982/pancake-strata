@@ -16,9 +16,15 @@ every item, even env-only and exact ones, got the full 3-rep A B B A treatment p
 | 0. offline | anything a replay or a byte count can answer (cache policy, drafting headroom, park decisions) | cache_sim, `tail_replay.py`, log replays; no GPU | 0 GPU minutes |
 | 1. screen | every candidate, first | `--tier screen`: one A B pass, short + edit, 2 requests per case in the same server; promote if >= +2% on a case and no case below -3%, else drop | ~2-3 min |
 | 2. confirm | only screen winners | `--tier confirm` (default): A B B A up to 3 reps with **early stop** (stops once every arm/case is decided or its interval is below 1.5% of base) | ~5-12 min |
-| 3. rigorous | only: lossy items, a change of a preset default, anything whose generated text differs from base, long-context claims | confirm + `--no-early-stop` + `quality_gate.py` (token forcing) + 32K/64K/128K cases; tool-call gate for drafting/routing items | 20-60 min |
+| 3. rigorous | only: lossy items, a change of a preset default, anything whose generated text differs from base, long-context claims | confirm + `--no-early-stop` + `quality_gate.py` (token forcing: rejects only large deviations) + **`task_gate.py`** (A55: fixed task set, repeated, decides between close variants; includes the tool-call validity check, so no separate tool-call gate) + 32K/64K/128K cases | 20-60 min (+ ~15-25 min per arm for the task gate at 5 reps; est., first run pending) |
 
 Rules:
+- Lossy arms: token forcing first (a REJECT there ends it), then the task gate on the survivors:
+  `python tools/pancake/task_gate.py SPEC.json --out bench/results/<day>-<name>` (`--dry-run` checks the spec and the task set
+  without a server; the base arm runs twice as the drift check; verdict per arm: BETTER / PASS / INCONCLUSIVE / REJECT, see
+  README 7.8). Why a task set and not more KLD: near the baseline, KLD / top-1 do not predict the task score
+  ("Displacement Is Not Direction", arXiv 2606.19558). INCONCLUSIVE means more repetitions (`--reps 10-20`) or more
+  tasks, not a re-run of the same size.
 - Exactness is checked for free: every run hashes the generated text; "identical on every case" = exact, no quality
   gate. Placement changes (GPU vs CPU expert kernels) can change the last bits and the text without being lossy;
   those go to the quality gate only if they are candidates for a default.
