@@ -98,3 +98,63 @@ Credits: every candidate that is adopted gets its author in README.md section 9 
 pancake-docs/RESEARCH_AND_FINDINGS.md section 4 (commit, what was taken, measured result), in the adopting commit.
 
 Rebase hazard noted: upstream v0.2.13 enables the hipBLASLt table automatically only on gfx1151 - keep `STRATA_HIPBLASLT_TABLE=on` in the -hip presets.
+
+## Phase 4 - speed ideas from all fork commits (reports/Speed ideas from all forks.md, 2026-11-10)
+
+Plan items F1-F22 are in MOD_PLAN.md Phase 15. The order below is chosen so that each test answers the most: first
+the tests that need no GPU, then env-only arms and short probes that decide whether a port is worth writing, then the
+ports. Same rules as above (pinned prompts, token forcing for anything lossy, tool-call gate for anything that
+touches drafting or routing). All gains quoted in the plan are fork claims until a row here says otherwise.
+
+### 4.0 Offline, no GPU (can run while the GPU is busy; short, low priority `nice -n 19`)
+
+| # | Question | Method | Cost | Unlocks / kills |
+| --- | --- | --- | --- | --- |
+| 4.0.1 | Would PARK_TRUNCATE have saved the ~162 s of cold 54-61K re-reads? Why were those conversations dropped? | read that session's park / evict log lines in `pancake-turns.jsonl` and the server log; replay the park decisions with a "keep the deepest prefix that fits" rule | 15 min | F1, F3 |
+| 4.0.2 | Does opencode send sampled requests (temperature >= 0.7) or greedy ones? | log or inspect one opencode request body | 5 min | F6 (no gain if greedy) |
+| 4.0.3 | Is there headroom for a cumulative draft stop on our traffic? | `tools/pancake/tail_replay.py` on recorded window traces | 15 min | F8 (port only if >= 2%) |
+| 4.0.4 | How much would frequency-gated admission and prompt-fed tier counts change the hit rate? | cache_sim replay of routing traces | 15 min | F10, admission variants |
+| 4.0.5 | How many CPU expert bytes would a sub-2-bit shadow save per token? | byte count from the GGUF tensor table x miss rate from traces | 10 min | F4 (requant only if >= 15%) |
+
+### 4.1 Env-only A/Bs (no code; each answers a question on its own GPU)
+
+| # | GPU | Arms | Unlocks / kills |
+| --- | --- | --- | --- |
+| 4.1.1 | both | `--prompt-cache-spread` on vs off on a multi-turn agent replay | F2 |
+| 4.1.2 | both | F6 arms (`STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top`, DT 1.0 / 0.85), only if 4.0.2 says sampled | F6 |
+| 4.1.3 | both | `--lookup-max-t 16`, `--lookup-chain 3` on code-edit turns | lookup settings |
+| 4.1.4 | 7900 XT | `STRATA_SH_STREAM=1` (xyzzing: +4.0% on gfx1100; our preset sets 0 with no recorded A/B) | preset change |
+| 4.1.5 | 7900 XT | `STRATA_PREFILL_AUTO_MAX=24576` at 32K (rxr2: +15% on a 64 GB box); `STRATA_WMMA_GEMM=1` prompt | preset change |
+| 4.1.6 | 7900 XT | `GPU_MAX_HW_QUEUES` 4 / 6 / 8; `--aux-cpus auto` | preset change |
+| 4.1.7 | 3060 (when installed) | `STRATA_EXPDEC` 1 vs 0, `STRATA_HC_Q8` 1 vs 0 (KhaledElzarw: EXPDEC -3.0%, HC_Q8 +0.9% and lossy on a 3090), `STRATA_PF_FUSED=1` (AdrianBM96: +5.2% prompt on a 3060), `--pcie-frac` 0 / auto / `STRATA_PCIE_BALANCE=1` | 3060 preset; F15 only if PCIe share > 0 wins |
+| 4.1.8 | 7900 XT | quality check of `STRATA_PF_HCDOWN=1` (rxr2: doubled first-token KL at 16K for +1.3% prompt) | keep or drop in the preset |
+
+### 4.2 Probes before writing a port (minutes each; decide yes/no)
+
+| # | GPU | Probe | Decides |
+| --- | --- | --- | --- |
+| 4.2.1 | 7900 XT | unimatrix `empty_grid.cpp`: empty-launch cost vs block count on 42 WGPs; compare with the block counts in our decode graph | F20 |
+| 4.2.2 | 7900 XT | per-kernel timing of `route_publish_res` and the top-10 (rocprofv3) | F9 (worth it if >= 2% of GPU time stays) |
+| 4.2.3 | both | expert GEMV achieved bandwidth vs peak (IQ2_S / IQ2_XXS gate/up, Q2_0 down) | F12, F14, F16: little headroom above ~85% of peak |
+| 4.2.4 | both | CPU pool: Q2_0 unpack cost per row, single thread, old vs imanu86 kernel (microbenchmark, no engine) | F7 |
+
+### 4.3 What transfers between the GPUs
+
+- Transfers (measure once, on either GPU): server and prompt-cache items (F1-F3), drafting and acceptance (F6, F8,
+  lookup settings), routing and cache policy (F10, F13), CPU-side kernels (F7, F4). They do not depend on the GPU
+  backend; re-check only the size of the gain.
+- Must be re-measured on each GPU: every GPU kernel port (F9, F11, F12, F14, F16, F17, F20-F22). Launch cost
+  (~14-16 us on gfx1100 vs ~3 us on sm_86), wave32 DPP vs warp intrinsics, WMMA vs mma/IMMA and the different
+  VRAM bandwidth change the result. A CUDA win predicts a HIP win only for fusions that remove launches (worth more
+  on the 7900 XT) and only after the probe in 4.2.3 shows headroom.
+
+### 4.4 Ports, in order (after 4.0-4.2)
+
+1. F1 PARK_TRUNCATE (+ F3 checkpoint cuts) - exact, both GPUs.
+2. F7 Q2_0 AVX2 kernel - exact, both GPUs.
+3. F9 router publish (HIP DPP first), F12 sign expansion with EXPDEC_V2 - exact.
+4. F14 KhaledElzarw sm86 set on the 3060, then the Q2_0 down fold on gfx1100 - exact.
+5. F8 SPEC_CUM (if 4.0.3 >= 2%), F10 ADAPT_PROMPT - exact.
+6. F11 window decode attention (CUDA first, then WMMA), F17 / F19 Qwen3.6 attention - rounding-level, KL gate.
+7. Lossy arms: F5 VERIFY_ECAP, F13 route-prior guards + stronger turbo vs uniform tail skip at equal KL, F4 shadow
+   pack (after 4.0.5 and a requant that fits the disk).

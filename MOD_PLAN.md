@@ -1447,6 +1447,66 @@ New processes built on these capabilities:
   and draft settings re-learned offline weekly, checked by the simulator, promoted by the A/B harness.
 - Regression watch: a short benchmark after each build/pull compared with the last good numbers.
 
+## Phase 15: speed ideas from all fork commits (2026-11-10, owner: biggest gains first)
+
+Source: [reports/Speed ideas from all forks.md](reports/Speed%20ideas%20from%20all%20forks.md) and its notes in
+`research_notes/Speed ideas from all forks/` (6 areas: HIP kernels, CUDA kernels, MoE offload and CPU, speculative
+decoding, attention/KV/quant, server and system). Input: the fork knowledge base `data/fork-kb/` (407 forks, 43,685
+own commits, `upstream_history = 0`). Every gain below is the fork author's claim on their hardware or our estimate;
+nothing was measured on our box yet. Items already in Phase 3 of bench/TEST_PLAN.md are not repeated.
+
+Order: (1) ideas useful on BOTH GPUs, (2) env-only A/Bs and probes that decide whether a port is worth writing,
+(3) exact code ports, (4) lossy arms behind the token-forcing and tool-call quality gates.
+"Both" = the idea ports CUDA <-> HIP; the port column says what changes (warp intrinsics -> DPP, mma/IMMA -> WMMA,
+launch cost ~14-16 us on gfx1100 vs ~3 us on sm_86, so fusions are worth more on the 7900 XT).
+
+### 15A. Both GPUs, largest expected gains
+
+| ID | Idea | Area | Exact/lossy | Port / note | Expected gain (claim -> our estimate) | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| F1 | `STRATA_PARK_TRUNCATE`: park the deepest checkpoint prefix that fits instead of dropping a too-large conversation | server | exact | backend-independent | our turn log: one session lost ~162 s on 7 cold 54-61K re-reads -> large TTFT win on long agent sessions | TwoAnts `5ef4fc8b4b` |
+| F2 | `--prompt-cache-spread` on in the presets (flag already in pancake), up to 16 checkpoints per conversation | server | exact | env/preset only | xrip: edited 82K conversation resumed in 10.2 s vs 40 s | xrip; Lamina `13d90a38ec` |
+| F3 | Extra checkpoint cuts (where a prompt leaves the previous one, before the last message end) + borrow before a stashed conversation's newest checkpoint | server | exact | backend-independent | Lamina: 6 agent tasks 412 s -> 369 s | Lamina `ab808b133e`, `83f40aee62` |
+| F4 | Sub-2-bit shadow expert pack (IQ1_M / IQ2_XXS) read only on CPU misses; VRAM hits stay exact | MoE/CPU | lossy | both GPUs (CPU side); needs a ~25-30 GB requant | svgop (5090): solo +3-8%, concurrency up to +21% -> est. edit +7-10%, chat +3-5% | svgop `25bf1b90f6`, `eeca072bb6`; mandoof1 `85b991da79` |
+| F5 | `STRATA_VERIFY_ECAP`: cap the experts read only by draft rows | spec | lossy | backend-independent | jmnargi (2x V100): +2.8% pooled, +11.5% drift-paired -> est. +3-10% on edits; must pass the tool-call gate (a tight cap broke 12/20 tool turns) | jmnargi `24894e676b`, `7c5041c358` |
+| F6 | Exact speculative sampling for sampled requests: `STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top STRATA_SPEC_PROB_DT=0.85` | spec | exact | env only, both | riceharvest (B70) +5.5%; svgop (5090) +5.8% / +13.4% with DT 0.85 -> est. +3-8% on sampled turns only (check opencode's temperature first) | riceharvest `7389a10f2c`; svgop `0355c3164f` |
+| F7 | Faster bit-exact Q2_0 AVX2 kernel (8-op unpack, 4 rows at a time; `STRATA_Q2_LEGACY=1` for A/B) | CPU | exact | both GPUs (CPU path) | imanu86: 1.11-1.45x single thread, Q2_0 layer -17% in a 7-worker pool -> est. edit +1-3%, more on the Q2_0 file | imanu86 `c3fc8f34d3` |
+| F8 | `STRATA_SPEC_CUM`: cumulative-probability draft stop (pair with item 5 `tail_replay.py`) | spec | exact | both; ~150 lines | android-imdad (7900 XTX): +1.8% pinned, +6.4% short chat, +2.1% agent -> est. +1-3% | android-imdad `f1bd09212a`, `ef42c2fde9` |
+| F9 | Faster router publish: write the step number instead of RMW over PCIe, copy MoE rows to host inside the router GEMV, DPP/warp top-10 | kernels | exact | CUDA warp reduce <-> HIP DPP | ours: `route_publish_res` 17.8 us/call, 2.68% of GPU time; est. +1-2% (7900 XT), smaller on sm_86 | android-imdad `caa9b00115` (`STRATA_ROUTE_FAST`); Ben1078 `23d2fc0450` |
+| F10 | `STRATA_ADAPT_PROMPT`: prompt routing feeds the adaptive tier | MoE | exact | backend-independent, ~10 lines | est. +2-5% on the first decode tokens after a long new prompt | zsariboga `4ce19344ff` |
+| F11 | Window decode attention reading K/V once per verify window (`STRATA_ATTN_WINDOW`, int8 MMA) | attention | rounding-level | CUDA int8 mma -> gfx11 WMMA | Asofwar (5080): 200K decode 48.6 -> 88.9 tok/s, 130K 112.6 -> 146.4 -> long-context decode on both GPUs | Asofwar/Strata-Turbo |
+| F12 | Cheaper IQ2/IQ3 sign expansion in the expert GEMVs (port with EXPDEC_V2) | kernels | exact | HIP measured; CUDA drop-in for the `__vcmpne4/__vsub4` sites | boxwrench (7900 XT, GLM engine): IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time -> est. 0-1.5% decode | yqYo1 `6f0bdf665b`; RX5950XT `b9a2111d3f` |
+| F13 | Route-prior guards for turbo (`STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE`, `KEEP`) so turbo can run a stronger lambda without breaking tool JSON; compare turbo against a uniform tail skip at equal KL | MoE | lossy | backend-independent | enables a stronger turbo; no speed by itself | zsariboga `8d7042ad97`; mandoof1 `3e0489e118`; lighttransport `2ea0c1e042` |
+
+### 15B. RTX 3060 (CUDA) first, then port to HIP
+
+| ID | Idea | Exact/lossy | Expected gain | Source |
+| --- | --- | --- | --- | --- |
+| F14 | KhaledElzarw sm86 kernel set: `STRATA_EXP_MODE=9` + `STRATA_EXP9_DOWN=42:10` (Q2_0 down on 4 lanes), GR_DOWN86/UP_HYB/XN/UP_PL/D87, `MMVQ_IL_3090` table (re-tune for 28 SMs); then try the Q2_0 down fold on gfx1100 vs `STRATA_EXPDEC_DOWN` | exact | 3090, same upstream base and model family: +17.3% cumulative over its baseline -> est. 3060 +8-15% (all exact items together, speculative) | KhaledElzarw/Strata |
+| F15 | `STRATA_FETCH_ADMIT` (keep PCIe-copied experts in the VRAM cache), only if the PCIe share stays above 0; check it with `ADAPT_NOWAIT` | exact (KL 0.002) | AdrianBM96 (3060): +5.1/+7.0/+5.1% decode | AdrianBM96/Strata3060 |
+| F16 | Lamina sub-warp grouped expert kernels; router with separate-block copy, one fence, hardware top-10; int8 verify projections/head | exact / rounding | Lamina (3090): +5.7-8.3% e2e; +0.9-2.7%; +2.2-6.3% | eddoursul/Lamina |
+| F17 | Qwen3.6 on strata-poly: RandoTeam `STRATA_FATTN` (prompt flash attention, q8_0 cache) + `STRATA_FDEC` (tensor-core decode attention) = MOD_PLAN 8.8 | fp16 math, KL gate | RandoTeam (4060 Laptop, 118K): 1.62x prompt, 1.60x decode -> est. 3060 prompt +20-35%, decode +10-60% from 4K | RandoTeam/4gbVramStrata `79b1e756`, `67f60c12` |
+| F18 | CUDA-only Flash-Next prefill fusions | exact | zsariboga (5090, same IQ2_XS): -4.0% prompt time at 32K | zsariboga `21107e9d` |
+
+### 15C. RX 7900 XT (HIP) only
+
+| ID | Idea | Exact/lossy | Expected gain | Source |
+| --- | --- | --- | --- | --- |
+| F19 | Qwen3.6 on the 7900 XT: either port RandoTeam's poly HIP work + a gfx11 WMMA flash prompt kernel, or move Qwen3.6 to the in-tree q36 engine with the fork fixes (FP16 K/V, K/V read once per group) | exact / fp16 | storm-ace (gfx1151) 32K prompt 360 -> 938 tok/s; dongnh311 (3060) decode after 16K 12.0 -> 27.5 tok/s | RandoTeam `44b58c6a`...; storm-ace `e4fc07ee`, `4fe0284d`; dongnh311 `62cc598f`; maoyufeng `2f7020f2` |
+| F20 | Empty-block launch probe on gfx1100 (unimatrix `empty_grid.cpp`), then resize launch shapes of the decode graph (upstream gfx12 `grid_pad`) | exact | unimatrix (7900 XTX): a 384x256 launch cost 14-16 us empty; 96 blocks gave +6% there -> 0 to several %, unknown until probed | unimatrix099 `d0c8d6c3e2`; mandoof1 `2b46e4b13d` |
+| F21 | Plan copy with 256 threads and 16-byte reads (`STRATA_WAIT_COPY256`); `STRATA_ADAPT_COPY2`; `multi_block_head_ops()` on gfx1100 | exact | +0.2-0.4%; 0-0.5%; ~0.1% | android-imdad `caa9b00115` |
+| F22 | Port `STRATA_HIP_WMMA_Q4` (gfx12-only) to gfx11 so Q4 KV prompt attention is fast and frees VRAM for experts | exact | VRAM for experts + faster long prompts | upstream / forks (see attention notes) |
+
+### 15D. Measured negatives (do not repeat)
+
+Graph fork/join branches on 7900-class cards -23..-30%; expert kernels inside one persistent launch 2x slower;
+`STRATA_DEQUANT_WIDE=1` 8-14% slower; next-layer expert prefetch -3..-4% (and our ARENA_WARM was worse); SMT siblings
+as pool threads -20%; pools split across CCDs -13..-20%; futex-only parking -14%; polling the stream at window end -3%;
+`GPU_MAX_HW_QUEUES=8` prompts 10-20% slower on a 7900 XTX; 4-bit CPU repack (adds bytes on a byte-bound pool); draft
+trees / deeper chains / eager draft launch (-2.73%); DFlash2 (lost on a 3060); more window-size controllers (same family
+as STRATA_SPEC_COST, flat here); the chunked WY GDN scan (0.73x on a 3060); renormalizing dropped expert weight (worse
+quality); PCIe share on the 7900 XT (off is faster); AVX-512 / VNNI / NUMA work (no hardware).
+
 ## Phase 12 (future): a second GPU
 
 The owner plans a second card.  These were judged "does not apply" on one GPU (research reports above) and become the work
