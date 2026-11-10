@@ -16,7 +16,18 @@ Spec (JSON):
   args: "--flag": "value" sets, "--flag": "" a bare switch, "--flag": null removes.  env: "KEY": null removes.
 
     python tools/pancake/abtest.py SPEC.json --out bench/results/<day>-<name>.jsonl [--reps 3] [--max-load 1.0]
+
+Test tiers (bench/TEST_PLAN.md "How every test runs"):
+  --tier screen   one A B pass, cases short + edit, 2 requests per case in the same server; verdict per arm:
+                  promote (>= +2% on a case, no case below -3%) or drop.  Minutes per arm.  Use it first, always.
+  --tier confirm  (default) A B B A ... up to --reps, with early stop: after every full A B B A pair, stop once every
+                  arm/case is decided (interval excludes 0) or its interval is below 1.5% of base (no effect worth
+                  having).  --no-early-stop runs all reps.
+Every run also records a hash of the generated text: an arm whose text is identical to base on every case is exact,
+so it needs no quality gate.  A server that dies before ready is retried once; a second death aborts the batch
+(memory fragmentation / oomd: see the free-2MiB-block line) instead of continuing with too few runs.
 """
+import hashlib
 import argparse
 import json
 import math
@@ -286,17 +297,22 @@ def stop_servers():
 
 
 def request(url, text):
+    """Returns the generated text."""
     body = {"model": "x", "messages": [{"role": "user", "content": text}], "max_tokens": 512, "temperature": 0,
             "chat_template_kwargs": {"enable_thinking": False}}
     req = urllib.request.Request(url + "/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
-    return json.load(urllib.request.urlopen(req, timeout=1800))
+    r = json.load(urllib.request.urlopen(req, timeout=1800))
+    try:
+        return r["choices"][0]["message"]["content"] or ""
+    except (KeyError, IndexError, TypeError):
+        return ""
 
 
 LINE = re.compile(r"prompt (\d+) tokens.*?read in \d+ ms \(([\d.]+) tok/s\), (\d+) generated in \d+ ms \(([\d.]+) tok/s\)"
                   r"(?:, drafts accepted (\d+) of (\d+))?")
 
 
-def run_arm(name, cfg_path, cfg, cases, P, log_out, port):
+def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1):
     log = cfg.get("log")
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     with open(log_out, "w") as lf:
@@ -315,8 +331,10 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port):
     n0 = len(Path(log).read_text(errors="replace").splitlines()) if log and Path(log).exists() else 0
     mon = NoiseMonitor([srv.pid])
     mon.start()
+    texts = {}
     for c in cases:
-        request(url, P[c])
+        for _ in range(per_run):
+            texts[c] = hashlib.sha1(request(url, P[c]).encode()).hexdigest()[:16]
     noise, top = mon.result()
     rows = []
     if log and Path(log).exists():
@@ -327,13 +345,14 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port):
                 rows.append({"prompt": int(m[1]), "prompt_tps": float(m[2]), "gen": int(m[3]), "decode_tps": float(m[4]),
                              "accept": acc})
     stop_servers()
-    if len(rows) > len(cases):   # an extra engine line (a retried / re-read request): the last ones are the cases'
-        rows = rows[-len(cases):]
-    if len(rows) != len(cases):
-        return None, f"expected {len(cases)} engine lines, got {len(rows)}"
-    for c, r in zip(cases, rows):
+    want = len(cases) * per_run
+    if len(rows) > want:   # an extra engine line (a retried / re-read request): the last ones are the cases'
+        rows = rows[-want:]
+    if len(rows) != want:
+        return None, f"expected {want} engine lines, got {len(rows)}"
+    for c, r in zip([c for c in cases for _ in range(per_run)], rows):
         r["case"] = c
-    return {"rows": rows, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2), "gpu": mon.gpu_summary(),
+    return {"rows": rows, "texts": texts, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2), "gpu": mon.gpu_summary(),
             "big_free_gib": round(big_free_gib(), 1)}, None
 
 
@@ -344,6 +363,54 @@ def ci(xs):
         return m, float("nan")
     sd = math.sqrt(sum((x - m) ** 2 for x in xs) / (n - 1))
     return m, T95.get(n - 1, 2.0) * sd / math.sqrt(n)
+
+
+def decided(results, arms, cases, floor=1.5):
+    """True when every arm/case either has an interval that excludes 0 or one narrower than floor % of base."""
+    base = arms[0]
+    for c in cases:
+        key = "prompt_tps" if c == "long" else "decode_tps"
+        vals = {a: [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c] for a in arms}
+        if len(vals[base]) < 2:
+            return False
+        bm = sum(vals[base]) / len(vals[base])
+        for a in arms[1:]:
+            n = min(len(vals[a]), len(vals[base]))
+            if n < 2:
+                return False
+            dm, dh = ci([x - y for x, y in zip(vals[a][:n], vals[base][:n])])
+            if not (abs(dm) > dh or dh / bm * 100 < floor):
+                return False
+    return True
+
+
+def screen_verdict(results, arms, cases):
+    base = arms[0]
+    print("\nscreen verdict (promote: >= +2% on a case and no case below -3%; else drop)")
+    for a in arms[1:]:
+        deltas = {}
+        for c in cases:
+            key = "prompt_tps" if c == "long" else "decode_tps"
+            b = [r[key] for res in results.get(base, []) for r in res["rows"] if r["case"] == c]
+            x = [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c]
+            if b and x:
+                deltas[c] = (sum(x) / len(x)) / (sum(b) / len(b)) * 100 - 100
+        ok = deltas and max(deltas.values()) >= 2.0 and min(deltas.values()) > -3.0
+        print(f"  {a:20s} " + "  ".join(f"{c} {d:+.1f}%" for c, d in deltas.items()) + f"  -> {'PROMOTE to confirm' if ok else 'drop'}")
+
+
+def text_check(results, arms, cases):
+    base = arms[0]
+    bt = [res.get("texts", {}) for res in results.get(base, [])]
+    if not bt:
+        return
+    print("\ngenerated text vs base (identical = exact: no quality gate needed)")
+    for a in arms[1:]:
+        at = [res.get("texts", {}) for res in results.get(a, [])]
+        if not at:
+            continue
+        same = all(t.get(c) == bt[0].get(c) for t in at for c in cases)
+        print(f"  {a:20s} {'identical on every case -> exact' if same else 'DIFFERENT text -> lossy or placement-dependent: quality gate'}")
 
 
 def summary(results, arms, cases):
@@ -381,11 +448,18 @@ def main():
     ap.add_argument("--foreign-cpu", type=float, default=25.0, help="%% of one core: above it a machine is not quiet")
     ap.add_argument("--retries", type=int, default=2)
     ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--tier", choices=("screen", "confirm"), default="confirm")
+    ap.add_argument("--no-early-stop", action="store_true")
+    ap.add_argument("--max-wait", type=int, default=600, help="seconds to wait for a quiet machine before running anyway")
     a = ap.parse_args()
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
     cases = spec.get("cases", ["short", "edit", "long"])
     reps = a.reps or spec.get("reps", 3)
+    per_run = 1
+    if a.tier == "screen":
+        cases = [c for c in cases if c != "long"] or ["short"]
+        reps, per_run = 1, 2
     base = str(ROOT / spec["base"]) if not os.path.isabs(spec["base"]) else spec["base"]
     P = prompts()
     work = Path(a.out).with_suffix("")
@@ -397,14 +471,28 @@ def main():
     results = {}
     out = open(a.out, "a")
     stop_servers()
-    for r, arm in order:
+    deaths = 0
+    for i, (r, arm) in enumerate(order):
+        if (not a.no_early_stop and a.tier == "confirm" and r >= 2 and r % 2 == 0 and order[i - 1][0] != r
+                and decided(results, arms, cases)):
+            print(f"early stop after {r} reps: every arm/case decided or below 1.5% of base", flush=True)
+            break
         for attempt in range(a.retries + 1):
-            quiet_gate(a.max_load, a.foreign_cpu, [])
+            quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
-            res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port)
+            res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run)
             if err:
                 print(f"rep {r} {arm}: FAILED ({err})", flush=True)
+                if "died" in err:
+                    deaths += 1
+                    if deaths >= 2:
+                        print(f"ABORT: the server died twice before ready (free RAM in 2 MiB blocks: {big_free_gib():.0f} GiB;"
+                              f" fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.",
+                              flush=True)
+                        summary(results, arms, cases)
+                        return 2
+                    continue   # one retry
                 break
             clean = res["noise"] <= a.foreign_cpu and res["reclaim"] <= RECLAIM_MAX
             rec = {"t": time.strftime("%Y-%m-%d %H:%M:%S"), "rep": r, "arm": arm, "attempt": attempt, "clean": clean, **res}
@@ -422,6 +510,9 @@ def main():
                 results.setdefault(arm, []).append(res)
                 break
     summary(results, arms, cases)
+    text_check(results, arms, cases)
+    if a.tier == "screen":
+        screen_verdict(results, arms, cases)
 
 
 if __name__ == "__main__":

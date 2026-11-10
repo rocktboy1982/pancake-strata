@@ -4,15 +4,37 @@ Source of the claims: README.md section 2 (Table 2A, 2C) and section 6 (every sw
 Rule for every item: measure it alone against the preset it sits in; **keep** it if the gain is larger than its
 95% interval; if it shows **no real gain**, run the optimization loop (below) before deciding; only then move on.
 
-## How every test runs
+## How every test runs (tiers, 2026-11-10: rigorous testing only where it is needed)
 
-- Harness: `tools/pancake/abtest.py` (fresh server per run, A B B A order, 3 reps, quiet-machine gate, noisy runs
-  repeated, 95% intervals); lossy items also `tools/pancake/quality_gate.py` (token forcing); cache/checkpoint items
-  also `tools/pancake/restore_check.py`.
-- Workloads (the same as the published references): short chat, code edit (2K prompt), 11.7K prompt (read speed +
-  decode after it); for long-context items 32K / 64K / 128K prompts.
-- Machine: the other sessions pause builds; the engine on 8080 is stopped during the test.
-- Result per item: one line in `bench/results/<day>-test-plan/RESULTS.md`: claim, measured, verdict, action.
+Why: the night of 11-09/10 spent ~17 h for 4 decisions. Where the time went: a 1-minute load-average wait (45 of
+test 04's 70 min, removed); runs during memory compaction / oomd kills while loading the 33 GiB arena (n = 1-2 per
+arm, intervals of +-30% to +-265%); the same item re-tested three times (04b / 04d / 04e presum) without a decision;
+every item, even env-only and exact ones, got the full 3-rep A B B A treatment plus the quality gate.
+
+| Tier | When | How (`tools/pancake/abtest.py`) | Time per arm |
+| --- | --- | --- | --- |
+| 0. offline | anything a replay or a byte count can answer (cache policy, drafting headroom, park decisions) | cache_sim, `tail_replay.py`, log replays; no GPU | 0 GPU minutes |
+| 1. screen | every candidate, first | `--tier screen`: one A B pass, short + edit, 2 requests per case in the same server; promote if >= +2% on a case and no case below -3%, else drop | ~2-3 min |
+| 2. confirm | only screen winners | `--tier confirm` (default): A B B A up to 3 reps with **early stop** (stops once every arm/case is decided or its interval is below 1.5% of base) | ~5-12 min |
+| 3. rigorous | only: lossy items, a change of a preset default, anything whose generated text differs from base, long-context claims | confirm + `--no-early-stop` + `quality_gate.py` (token forcing) + 32K/64K/128K cases; tool-call gate for drafting/routing items | 20-60 min |
+
+Rules:
+- Exactness is checked for free: every run hashes the generated text; "identical on every case" = exact, no quality
+  gate. Placement changes (GPU vs CPU expert kernels) can change the last bits and the text without being lossy;
+  those go to the quality gate only if they are candidates for a default.
+- Fail fast: a server that dies before ready is retried once, then the batch aborts with the free-2MiB-block number.
+  Fix the machine (`sudo tools/pancake/os_tune.sh compact` / `install`), do not keep running.
+- Before a batch: `tools/pancake/os_tune.sh` (free RAM in 2 MiB blocks; abtest warns below 20 GiB, the arena locks 33 GiB), CPU clock at 3.9-4.1 GHz in the per-run
+  telemetry (slow runs line up with 3.4-3.7 GHz), no other session running builds, agents or long jobs
+  (`pgrep -f test_phase.sh` tells other sessions a test is running).
+- One decision per item: if an item comes back "no difference" from confirm, it is opt-in or removed; re-test it
+  only after a code change, not to try again.
+- Batch arms: put all env-only arms of one area in one spec (one base, many arms) instead of one spec per arm.
+- Workloads: short chat, code edit (2K prompt); the 11.7K read case and 32K / 64K / 128K only in the rigorous tier
+  or for prefill items.
+- Machine: the engine on 8080 is stopped during the test.
+- Result per item: one line in `bench/results/<day>-test-plan/RESULTS.md`: claim, tier reached, measured, verdict,
+  action.
 
 ## The optimization loop (for an item with no real gain)
 
