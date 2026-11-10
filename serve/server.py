@@ -81,6 +81,7 @@ from strata_control import user_args  # noqa: E402
 from strata_control import gpu_roles  # noqa: E402
 from serve import ready as ready_file  # noqa: E402
 from serve import owner_guard  # noqa: E402
+from serve import agent_loop  # noqa: E402
 from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
 from serve import grammar as grammar_api  # noqa: E402
@@ -5077,6 +5078,10 @@ class Service:
         # config, STRATA_LOOP_BEHAVIOUR=off|log|note): edit streaks without a check, read streaks without an edit
         self.loop_guard_behaviour = loop_guard.BehaviourSettings()
         self.loop_guard_behaviour_counts = {"edits_without_check": 0, "reads_without_edit": 0, "notes": 0}
+        # pancake MOD_PLAN A38/A41/A42/A43 (serve/agent_loop.py): all opt-in through STRATA_* (see its docstring)
+        self.agent_loop = agent_loop.Settings()
+        self.agent_loop_counts = {"counted": 0, "finish_nudges": 0, "oldstring_flagged": 0, "oldstring_notes": 0,
+                                  "externalized": 0, "externalized_files": 0, "externalized_chars": 0}
         end = tokenizer.encode(THINK_END, parse_special=True) if hasattr(tokenizer, "encode") else []
         self.think_end_id = int(end[0]) if len(end) == 1 else None   # (the guard closes the thinking with it)
         self.anthropic_think_unasked = True               # #278: "anthropic_thinking": "on_request" -> False
@@ -5356,7 +5361,8 @@ class Service:
                 return EFFORT.get(str(given).strip().lower())
         return None
 
-    def _write_turn_log(self, rec: dict, reasoning_tokens: int, max_new, effort: str | None = None) -> None:
+    def _write_turn_log(self, rec: dict, reasoning_tokens: int, max_new, effort: str | None = None,
+                        agent: dict | None = None) -> None:
         """Item 73: append one JSON line for a finished request to the "turn_log" file - the history record (numbers
         only: no prompt, answer or tool text) plus the thinking tokens, the reply cap and (MOD_PLAN A17) the request's
         thinking level, `effort` (low, medium, ...; None: thinking off or a level the family does not know).  Older
@@ -5370,6 +5376,8 @@ class Service:
         line["max_new"] = max_new
         line["effort"] = effort
         line["model"] = getattr(self, "model", None)
+        if agent:                                        # A38 (STRATA_AGENT_COUNTERS=1): the request's behaviour counters
+            line["agent"] = agent
         try:
             text = json.dumps(line, separators=(",", ":"), default=str)
             with self.turn_log_lock, open(path, "a", encoding="utf-8") as f:
@@ -5959,12 +5967,16 @@ class Service:
             guard = dict(self.loop_guard_counts, on=bool(self.loop_guard))   # (what the loop guard did since start)
             guard["behaviour"] = self._behaviour_view()
             rum_view = dict(self.rumination_counts, close=dict(self.rumination_close) if self.rumination_close else None)
-        return {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
-                "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
-                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "rumination": rum_view,
-                "hardware": tel["now"],
-                "hardware_static":
-                tel["static"], "history": tel["history"], "time": now}
+            agent_view = dict(self.agent_loop_counts, **self.agent_loop._asdict()) if self.agent_loop.active else None
+        out = {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
+               "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
+               "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "rumination": rum_view,
+               "hardware": tel["now"],
+               "hardware_static":
+               tel["static"], "history": tel["history"], "time": now}
+        if agent_view is not None:                       # A38-A43: only when one of the opt-in switches is on
+            out["agent_loop"] = agent_view
+        return out
 
     def prometheus(self) -> str:
         """GET /metrics/prometheus: the totals and what is running in Prometheus' text format, under llama-server's
@@ -5974,6 +5986,7 @@ class Service:
             guard = dict(self.loop_guard_counts)
             behaviour = dict(self.loop_guard_behaviour_counts)
             rum_counts = dict(self.rumination_counts)
+            agent_counts = dict(self.agent_loop_counts) if self.agent_loop.active else None
             running = len(self.live_reqs) or int(bool(s.get("busy")))
             prompt_n = t["prompt_tokens"] - t["reused"]               # what was read, as llama.cpp counts it
             prompt_s, decode_s = t["prompt_ms"] / 1000, t["decode_ms"] / 1000
@@ -6036,6 +6049,9 @@ class Service:
              "Thinking blocks closed because the 5-gram repetition rate stayed high (rumination_close)",
              rum_counts["closed"]),
         ]
+        if agent_counts is not None:                     # A38-A43: only when one of the opt-in switches is on
+            rows += [(f"strata:agent_loop_{k}_total", "counter", f"Agent-loop helpers (serve/agent_loop.py): {k}", v)
+                     for k, v in agent_counts.items()]
         return "".join(f"# HELP {name} {help_}\n# TYPE {name} {kind}\n{name} {value}\n"
                        for name, kind, help_, value in rows)
 
@@ -6300,15 +6316,24 @@ class Service:
                     else:
                         part["source"] = str(image)
         guarded = self._loop_guard_on(req)
+        agent = None                                     # A38-A43 (opt-in): this request's counters, from the client's own messages
+        if self.agent_loop.active:
+            messages, agent = self._agent_loop_before(messages, req)
         if guarded:                                      # the loop guard across turns (Maya's prepare)
             messages, blocked, looping, asked = self._guarded_messages(messages)
             messages, behaviour = self._behaviour(asked, messages)
+        if agent is not None:
+            messages = self._agent_loop_notes(messages, agent)
         fetched = self._note_unreadable_tool_images(messages, cancel)
         ids = encoded_ids = self.encode_prompt(messages, tools, kwargs)
         if isinstance(req, dict):
             req.pop("_loop_blocked", None)
             req.pop("_loop_keep", None)
             req.pop("_loop_behaviour", None)
+            req.pop("_loop_finish", None)
+            req.pop("_agent_counters", None)
+            if agent is not None:
+                req["_agent_counters"] = agent
             if guarded and behaviour:                    # (item 33: the answer's done["loop_guard"] lines)
                 req["_loop_behaviour"] = behaviour
             if guarded and tools and not force:
@@ -6320,6 +6345,12 @@ class Service:
                     keep = self._keep_suffix(tools, kwargs)
                     if keep is not None:
                         req["_loop_keep"] = keep + [sorted(loop_guard.said_before(asked))]
+                if agent is not None and self.agent_loop.finish_nudge and agent.get("ends_unchecked"):
+                    # A41 (opt-in, LOSSY): at the end of this answer without a tool call the model is told once to
+                    # check what it changed (agent_loop.FINISH_NOTE); _run's server_turn continues the answer
+                    fin = self._keep_suffix(tools, kwargs, note=agent_loop.FINISH_NOTE)
+                    if fin is not None:
+                        req["_loop_finish"] = fin
         if force and kwargs.get("enable_thinking", True) is False:
             ids = ids + self.tok.encode(force, parse_special=True)
         self.embeddings.path = None
@@ -6727,6 +6758,48 @@ class Service:
             messages = messages + [{"role": "user", "content": loop_guard.behaviour_note(b)}]
         return messages, lines
 
+    def _agent_loop_before(self, messages, req):
+        """A38-A43 (serve/agent_loop.py, all opt-in): the request's counters from the client's own messages (exact),
+        then A42's externalized tool results (LOSSY).  -> (messages, counters or None).  Nothing here may fail the
+        request: an error is said once in the server window and the step is skipped."""
+        cfg = self.agent_loop
+        agent = None
+        try:
+            if cfg.needs_counters:
+                agent = agent_loop.counters(messages, self.loop_guard_behaviour.tools)
+                if agent is not None:
+                    with self.status_lock:
+                        c = self.agent_loop_counts
+                        c["counted"] += 1
+                        c["oldstring_flagged"] += agent["last_round_old_miss"] if cfg.oldstring != "off" else 0
+            if cfg.externalize_tokens:
+                ext = agent_loop.externalize(messages, cfg)
+                if ext.count:
+                    messages = ext.messages
+                    with self.status_lock:
+                        c = self.agent_loop_counts
+                        c["externalized"] += ext.new_files
+                        c["externalized_files"] += ext.count
+                        c["externalized_chars"] += ext.chars_saved if ext.new_files else 0
+                    if ext.new_files:
+                        print(f"[strata] externalized {ext.new_files} long tool result(s) to {cfg.externalize_dir} "
+                              f"({ext.chars_saved:,} characters left out of the prompt, lossy)", flush=True)
+        except Exception as e:
+            print(f"[strata] agent-loop helpers skipped ({type(e).__name__}: {e})", flush=True)
+        return messages, agent
+
+    def _agent_loop_notes(self, messages, agent):
+        """A43 "note" mode: after the tool result of a failed edit whose oldString was in nothing the model read.  The
+        loop guard's own notes (item 33) are counted first, so this one comes after them."""
+        if (agent_loop.wants_oldstring_note(agent, self.agent_loop.oldstring) and messages
+                and messages[-1].get("role") in ("tool", "user")):
+            with self.status_lock:
+                self.agent_loop_counts["oldstring_notes"] += 1
+            print("[strata] agent loop: an edit's oldString is in none of the texts the model read of that file: "
+                  "a note after its result", flush=True)
+            return messages + [{"role": "user", "content": agent_loop.oldstring_note(agent)}]
+        return messages
+
     def _collapse(self, messages):
         """A conversation that carries a loop across turns (loop_guard.collapse): its prompt without what the model
         already wrote - only that prompt changes."""
@@ -7081,6 +7154,8 @@ class Service:
                         if guard is not None else {}
                     keep = (sampling or {}).get("_loop_keep") if guard is not None else None
                     seen_before = set(keep[2]) if keep else set()
+                    nudge = (sampling or {}).get("_loop_finish") if guard is not None else None   # A41 (opt-in)
+                    nudged = False
                     said, pending_evs, tries = [], [], {}
                     kept_n, called, sent_call = 0, False, False
                     server_next = None                  # (ids, thinks): the server's own words that follow this pass
@@ -7091,7 +7166,7 @@ class Service:
                         blocked call alone in what was held back is answered by the server (block_result, block_note,
                         the next thinking steered away from it); an answer with nothing new in a looping conversation
                         is told to keep going.  Sets the sampling for the next pass (loop_guard.block_sampling)."""
-                        nonlocal kept_n, called, sampling
+                        nonlocal kept_n, called, sampling, nudged
                         key = None
                         try:                            # what the parser still holds (a call waits for its turn's end)
                             peek = copy.deepcopy(parser).finish("stop")
@@ -7119,6 +7194,19 @@ class Service:
                                 ids_k, thinks = ids_k + [self.think_end_id], False
                             steer = self.tok.encode(loop_guard.keep_steer(kept_n)) if thinks else []
                             sampling = loop_guard.block_sampling(sampling, kept_n)
+                            return ids_k + steer, thinks
+                        if key is None and nudge and not made_call and not nudged:
+                            # A41 (opt-in, LOSSY): the model would end its turn after code edits with no build, test
+                            # or run since: once per answer it is told to check (agent_loop.FINISH_NOTE) and goes on
+                            nudged = True
+                            print("[strata] agent loop: the model would end its turn after edits with no build, test "
+                                  "or run since: told once to check (STRATA_TEST_BEFORE_DONE)", flush=True)
+                            with self.status_lock:
+                                self.agent_loop_counts["finish_nudges"] += 1
+                            ids_k, thinks = list(nudge[0]), bool(nudge[1])
+                            if answered and thinks and self.think_end_id is not None:
+                                ids_k, thinks = ids_k + [self.think_end_id], False
+                            steer = self.tok.encode(agent_loop.FINISH_STEER + " ") if thinks else []
                             return ids_k + steer, thinks
                         if key is None:
                             return None
@@ -7331,7 +7419,7 @@ class Service:
                                     if force and parser.state == "reasoning" and parser.buf == THINK_END:
                                         opens = True    # #537: the held </think> was the end: the call opens there
                                         break
-                                    if (blocked or keep) and not cancel.is_set():
+                                    if (blocked or keep or nudge) and not cancel.is_set():
                                         server_next = server_turn()
                                         if server_next is not None:
                                             n -= 1      # (the stop token: the server's words take its place)
@@ -7636,7 +7724,9 @@ class Service:
                                 self.history[-1]["entropy_min_window"] = \
                                     round(ent.min_window, 3) if ent.min_window is not None else None
                             self._write_turn_log(self.history[-1], thinking_n, max_new,
-                                                 self.request_effort(sampling) if thinking else None)
+                                                 self.request_effort(sampling) if thinking else None,
+                                                 (sampling or {}).get("_agent_counters")
+                                                 if self.agent_loop.counters else None)
                             if rum.checks:
                                 self.rumination_counts["measured"] += 1
                             if not admission_rejected:                  # #3040: a refused admission did no work
@@ -11453,6 +11543,18 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         raise SystemExit(f"[strata] config: {e}") from None
     if svc.loop_guard_behaviour.mode != "log":
         print(f"[strata] loop guard behaviour counters: {svc.loop_guard_behaviour.mode}", flush=True)
+    try:                                                # A38/A41/A42/A43: opt-in agent-loop helpers (default: all off)
+        svc.agent_loop = agent_loop.settings()
+    except ValueError as e:
+        raise SystemExit(f"[strata] {e}") from None
+    if svc.agent_loop.active:
+        a = svc.agent_loop
+        print("[strata] agent-loop helpers: " + ", ".join(
+            (["counters in the turn log"] if a.counters else []) +
+            (["test-before-done nudge (lossy)"] if a.finish_nudge else []) +
+            ([f"oldString check ({a.oldstring})"] if a.oldstring != "off" else []) +
+            ([f"externalize tool results over {a.externalize_tokens} tokens to {a.externalize_dir} (lossy)"]
+             if a.externalize_tokens else [])), flush=True)
     svc.effort_end = bool(effort_end)                   # #458: "effort_position": "end" with an engine that has it
     if cfg.get("reasoning_budget_tokens") is not None:  # #123: a default thinking budget for every request
         svc.reasoning_budget_configured = True

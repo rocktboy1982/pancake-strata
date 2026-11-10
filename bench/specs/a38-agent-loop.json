@@ -1,0 +1,13 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {"env": {"STRATA_AGENT_COUNTERS": "1"}},
+  "finish-nudge": {"env": {"STRATA_AGENT_COUNTERS": "1", "STRATA_TEST_BEFORE_DONE": "1"}},
+  "oldstring-note": {"env": {"STRATA_AGENT_COUNTERS": "1", "STRATA_EDIT_OLDSTRING_CHECK": "note"}},
+  "externalize8k": {"env": {"STRATA_AGENT_COUNTERS": "1", "STRATA_EXTERNALIZE_TOKENS": "8000"}}
+ },
+ "cases": ["short"],
+ "reps": 3,
+ "lossy": true,
+ "note": "MOD_PLAN A38/A41/A42/A43 (serve/agent_loop.py; pancake-docs/batch2/A38-agent-loop.md). Server-side prompt/answer changes, no engine change: the speed screen only has to show no regression. The verdict is a task gate / agent replay (tools/pancake/task_gate.py with a multi-turn edit-then-test task set, SWE-Effi style time-to-success, A57), not this spec. base has the counters on so the turn log carries comparable 'agent' numbers in every arm. Every arm is lossy (a different prompt or an extra continuation): expect a hash difference on agent traffic; the 'short' case sends no tool calls, so it only checks that the arms start and cost no speed."
+}
