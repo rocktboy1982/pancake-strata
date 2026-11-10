@@ -5345,9 +5345,11 @@ class Service:
                 return EFFORT.get(str(given).strip().lower())
         return None
 
-    def _write_turn_log(self, rec: dict, reasoning_tokens: int, max_new) -> None:
+    def _write_turn_log(self, rec: dict, reasoning_tokens: int, max_new, effort: str | None = None) -> None:
         """Item 73: append one JSON line for a finished request to the "turn_log" file - the history record (numbers
-        only: no prompt, answer or tool text) plus the thinking tokens and the reply cap.  A write error is said once
+        only: no prompt, answer or tool text) plus the thinking tokens, the reply cap and (MOD_PLAN A17) the request's
+        thinking level, `effort` (low, medium, ...; None: thinking off or a level the family does not know).  Older
+        lines have no "effort" key.  A write error is said once
         and turns the log off; it never fails the request."""
         path = self.turn_log
         if not path:
@@ -5355,6 +5357,7 @@ class Service:
         line = dict(rec)
         line["reasoning_tokens"] = reasoning_tokens
         line["max_new"] = max_new
+        line["effort"] = effort
         line["model"] = getattr(self, "model", None)
         try:
             text = json.dumps(line, separators=(",", ":"), default=str)
@@ -7573,7 +7576,9 @@ class Service:
                                 # #457: the speculative drafts from the DONE line (None: the engine did not say)
                                 "drafts_offered": last.get("drafts_offered"),
                                 "drafts_accepted": last.get("drafts_accepted")})
-                            self._write_turn_log(self.history[-1], thinking_n, max_new)
+                            # A17: the level this turn asked for (`sampling` is the request, as in reasoning_budget above)
+                            self._write_turn_log(self.history[-1], thinking_n, max_new,
+                                                 self.request_effort(sampling) if thinking else None)
                             if rum.checks:
                                 self.rumination_counts["measured"] += 1
                             if not admission_rejected:                  # #3040: a refused admission did no work
