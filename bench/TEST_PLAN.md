@@ -203,7 +203,7 @@ and the single-flag arms say which flag carries it. The replay is deterministic 
 | # | GPU | Probe | Decides |
 | --- | --- | --- | --- |
 | 4.2.1 | 7900 XT | unimatrix `empty_grid.cpp`: empty-launch cost vs block count on 42 WGPs; compare with the block counts in our decode graph | F20 |
-| 4.2.2 | 7900 XT | per-kernel timing of `route_publish_res` and the top-10 (rocprofv3) | F9 (worth it if >= 2% of GPU time stays) |
+| 4.2.2 | 7900 XT | per-kernel timing of `route_publish_res` and the top-10 (rocprofv3). Note: with deferral in the preset the path is `route_multi` + `doorbell_publish` (ROUTE_PUBLISH is off under deferral), so time those two and the gap between them. F9 is coded (`work/f9-route-fast`): run `native_multi_parity` (the ROUTE_FAST lines must say bitwise), then `bench/specs/17-f9-route-fast.json` (doorbell-store isolates the PCIe read, route-fast is the whole change; text identical to base) | F9 (worth it if >= 2% of GPU time stays) |
 | 4.2.3 | both | expert GEMV achieved bandwidth vs peak (IQ2_S / IQ2_XXS gate/up, Q2_0 down) | F12, F14, F16: little headroom above ~85% of peak |
 | 4.2.4 | both | CPU pool: Q2_0 unpack cost per row, single thread, old vs imanu86 kernel (microbenchmark, no engine) | F7 |
 

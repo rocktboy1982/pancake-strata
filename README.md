@@ -406,8 +406,9 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_COMBINE_CPU` | `verify.cpp`, `native_moe.hpp` | off | exact | verify combine reads CPU rows straight from mapped host memory | ported; conflict with deferral fixed |
 | `STRATA_WAIT_FUSE` | `verify_kernels.hpp`, `verify.cpp`, `native_moe.cu` | off | exact | wait_flag_ge + mapped copy in one launch | in the fast-hip preset |
 | `STRATA_WAIT_COPY256` | `verify_kernels.cu` | off | exact | the fused wait + plan copy (`wait_copy_i32_from_mapped`) with 256 threads and 16-byte reads (4-byte fallback if unaligned, word tail) instead of 128 threads and 4-byte reads; only takes effect where `wait_copy_i32_from_mapped` runs (`STRATA_FUSE_WAIT=1` on gfx11; default on gfx12 / sm75); from android-imdad | fork: host write -> plan on GPU 4.47 -> 3.57 us (7900 XTX); not yet measured here |
-| `STRATA_ROUTE_PUBLISH` | `native_router.cu`, `route_row.cuh`, `verify.cpp` | off | exact | top-10 + doorbell publish in one launch | in the fast-hip preset; **off under deferral** (non-finite fix d5b58f669) |
+| `STRATA_ROUTE_PUBLISH` | `native_router.cu`, `route_row.cuh`, `verify.cpp` | off | exact | top-10 + doorbell publish in one launch | in the fast-hip preset; **off under deferral** (non-finite fix d5b58f669), so with deferral in the preset it never runs: the preset's path is `route_multi` + `doorbell_publish` (read-modify-write of the ring over PCIe) |
 | `STRATA_ROUTER_FUSE` | `native_bf16.cu`, `bf16_gemv.hpp` (item 48) | off | exact | the router GEMV's last block routes and publishes | ~1% short chat |
+| `STRATA_ROUTE_FAST` | `native_router.cu`, `native_bf16.cu`, `verify.cpp` (MOD_PLAN F9) | off | exact | the router GEMV's blocks copy the MoE input rows to the host; one launch then does the top-10 (route_multi's arithmetic, same ids and weights), publishes ids + weights and **stores** the step's ring number instead of a read-modify-write over PCIe. Replaces `route_multi` + `doorbell_publish` under deferral (where ROUTE_PUBLISH cannot run) and ROUTE_PUBLISH / `doorbell_publish_res` without it; wins over ROUTE_PUBLISH and ROUTER_FUSE; not with the lookahead router, route prior or route-resident. From android-imdad and Ben1078 | not yet measured (screen spec `bench/specs/17-f9-route-fast.json`); estimate +1-2% decode on the 7900 XT; parity check in `native_multi_parity` |
 | `STRATA_COMBINE_POLL1` | `native_moe.cu` (item 46) | off | exact | one block polls the host flag over PCIe, the others spin on VRAM | 0-3% |
 | `STRATA_CPU_PRESUM` | `verify.cpp`, `expert_source.hpp` (item 51) | off | not bit-identical | host pre-sums each token's CPU rows | coded (`cc5499fae`) |
 | `STRATA_PRESUM_VRAM` | `verify.cpp`, `verify.hpp` (item 52, HIP) | off | not bit-identical | pre-summed rows written straight to VRAM through resizable BAR | coded (`cc5499fae`, `4f829da0e`) |
@@ -789,7 +790,10 @@ Credits, in the order the stack was built:
 - **nicejunjie** (Strata-rdna3), for the RDNA3 kernels this project ported and fused.
 - **jesdga95** (basalt), for the head kernels, the draft proxy and the grammar path.
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
-- **android-imdad** (Strata-7900xtx), for the 256-thread, 16-byte plan copy (`STRATA_WAIT_COPY256`, commit caa9b00115).
+- **android-imdad** (Strata-7900xtx, MIT), for the 256-thread, 16-byte plan copy (`STRATA_WAIT_COPY256`) and the fast
+  router publish (`STRATA_ROUTE_FAST`: rows copied by the router GEMV, stored step number, DPP exchanges), commit caa9b00115.
+- **Ben1078** (Strata fork, MIT), for the stored doorbell ring in the router's publish (commit `23d2fc0450`, part of
+  `STRATA_ROUTE_FAST`).
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
 - **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
 - **zsariboga** (Strata fork), for the route-prior guards (`STRATA_ROUTE_PRIOR_PROTECT`, `_KEEP_P`, `_SCOPE`, commit `8d7042ad97`), and **mandoof1**

@@ -136,6 +136,10 @@ struct RoutePub {
     float* x_out = nullptr;
     int32_t* ids_out = nullptr;
     uint32_t* seq = nullptr;
+    // STRATA_ROUTE_FAST (independent of the epilogue above, slot may be -1): the blocks copy x's n_pub4 float4 (its
+    // rows contiguous) to x_pub, mapped host memory (bf16_router_xpub_arm); null: no copy
+    float* x_pub = nullptr;
+    int n_pub4 = 0;
 };
 template <int BLOCK_SIZE, int NT, bool EXACT_T = true>
 __global__ void bf16_f32_mmvf_multi_kernel(const float* x_, int64_t ldx, const uint16_t* __restrict__ w,
@@ -170,6 +174,18 @@ __global__ void bf16_f32_mmvf_multi_kernel(const float* x_, int64_t ldx, const u
         wpre[q] = pair < n_in / 2 ? __ldg(weights2 + pair) : 0u;
     }
     pdl_wait();
+    // STRATA_ROUTE_FAST (pub.x_pub, the router call only): the window's MoE input rows - this launch's x - go to mapped
+    // host memory for the CPU pool, 16 bytes a store, spread over the first blocks and issued before their own work so
+    // the stores travel meanwhile (after pdl_wait: x is the kernel before's output).  The threads that stored fence them
+    // before the grid ends (below), so the top-10 launch after this one rings the doorbell without copying them.  The
+    // GEMV's arithmetic is untouched.
+    bool x_pub_wrote = false;
+    if (pub.x_pub != nullptr) {
+        for (int i = (int) blockIdx.x * BLOCK_SIZE + t; i < pub.n_pub4; i += (int) gridDim.x * BLOCK_SIZE) {
+            reinterpret_cast<float4*>(pub.x_pub)[i] = reinterpret_cast<const float4*>(x)[i];
+            x_pub_wrote = true;
+        }
+    }
     if (BLOCK_SIZE == 256 && fast != 0 && n_in == 2560) {
         // BW-DENSE (STRATA_SMALL_UNR bit 0): the router-shaped read (2560 inputs, 256 threads: five passes of one weight pair each, all
         // in range) with constant trip counts, so the activation loads of every pass are in flight together instead of one memory
@@ -243,6 +259,7 @@ __global__ void bf16_f32_mmvf_multi_kernel(const float* x_, int64_t ldx, const u
 #pragma unroll
         for (int k = 0; k < NT; ++k)
             if (EXACT_T || k < n_tok) y[(size_t) k * ldy + orow] = acc[k];
+    if (x_pub_wrote) __threadfence_system();   // STRATA_ROUTE_FAST: this thread's row stores reach host memory first
     if constexpr (BLOCK_SIZE == 256) {
         if (pub.slot >= 0) {   // item 48: the last block routes and publishes (route_publish_res's code)
             uint32_t* const counter = g_route_pub_cnt + pub.slot;
@@ -447,11 +464,26 @@ namespace {
 // 256-thread multi kernel; `g_pub_used` tells the caller whether it ran
 thread_local RoutePub g_pub_armed;
 thread_local bool g_pub_used = false;
-RoutePub take_pub(int block) {
+// STRATA_ROUTE_FAST: the row copy armed for the next multi-kernel launch on this thread whose x is `x` (any block size)
+struct XPub {
+    const float* x = nullptr;
+    float* x_pub = nullptr;
+    int n4 = 0;
+};
+thread_local XPub g_xpub_armed;
+thread_local bool g_xpub_used = false;
+RoutePub take_pub(int block, const float* x) {
     RoutePub p = g_pub_armed;
     g_pub_armed = RoutePub{};
-    if (block != 256 || p.slot < 0) return RoutePub{};
-    g_pub_used = true;
+    if (block != 256 || p.slot < 0) p = RoutePub{};
+    else g_pub_used = true;
+    const XPub xp = g_xpub_armed;
+    g_xpub_armed = XPub{};
+    if (xp.x_pub != nullptr && xp.x == x) {
+        p.x_pub = xp.x_pub;
+        p.n_pub4 = xp.n4;
+        g_xpub_used = true;
+    }
     return p;
 }
 int route_pub_slot(void* stream) {
@@ -486,6 +518,27 @@ bool bf16_router_publish_used() {
     g_pub_armed = RoutePub{};
     return u;
 }
+bool bf16_router_xpub_arm(const float* x, int64_t ldx, int64_t n_in, int n_tok, float* x_pub) {
+    g_xpub_used = false;
+    g_xpub_armed = XPub{};
+    if (x == nullptr || x_pub == nullptr || n_tok < 2 || n_tok > 8 || n_in <= 0 || ldx != n_in || (n_in & 3) != 0 ||
+        ((reinterpret_cast<uintptr_t>(x) | reinterpret_cast<uintptr_t>(x_pub)) & 15u) != 0 ||
+        (int64_t) n_tok * n_in / 4 > (int64_t) std::numeric_limits<int>::max())
+        return false;
+    static bool said = false;
+    if (!said) {
+        said = true;
+        std::fprintf(stderr, "strata: STRATA_ROUTE_FAST: the router GEMV copies the MoE input rows to the host (F9)\n");
+    }
+    g_xpub_armed = XPub{x, x_pub, (int) ((int64_t) n_tok * n_in / 4)};
+    return true;
+}
+bool bf16_router_xpub_used() {
+    const bool u = g_xpub_used;
+    g_xpub_used = false;
+    g_xpub_armed = XPub{};
+    return u;
+}
 bool bf16_gemv_fp32_mmvf_multi_aux(const float* x, int64_t ldx, const uint16_t* w, float* y, int64_t ldy,
                                    int64_t n_in, int64_t n_out, int n_tok, const uint16_t* w_aux, float* y_aux,
                                    int64_t ldy_aux, void* stream) {
@@ -496,12 +549,12 @@ bool bf16_gemv_fp32_mmvf_multi_aux(const float* x, int64_t ldx, const uint16_t* 
         const int64_t n_aux = 1;
 #define STRATA_MMVF_M(N) case N: \
     switch (n_tok) { \
-        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
     } break
         switch (mmvf_block_size(n_in)) {
             STRATA_MMVF_M(32); STRATA_MMVF_M(64); STRATA_MMVF_M(96); STRATA_MMVF_M(128);
@@ -563,7 +616,7 @@ void bf16_gemv_fp32_mmvf_multi(const float* x, int64_t ldx, const uint16_t* w, f
     // 9..16 rows (wide builds only): one exact instantiation per row count, each row's dot independent of the others.  7 and 8
     // rows stay with the default case below, the instantiation they always had.
 #if STRATA_VERIFY_MAX_T > 8
-#define STRATA_MMVF_W(N, T) case T: launch_pdl(bf16_f32_mmvf_multi_kernel<N, T, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break;
+#define STRATA_MMVF_W(N, T) case T: launch_pdl(bf16_f32_mmvf_multi_kernel<N, T, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break;
 #if STRATA_VERIFY_MAX_T > 12
 #define STRATA_MMVF_W13(N) STRATA_MMVF_W(N, 13) STRATA_MMVF_W(N, 14) STRATA_MMVF_W(N, 15) STRATA_MMVF_W(N, 16)
 #else
@@ -578,13 +631,13 @@ void bf16_gemv_fp32_mmvf_multi(const float* x, int64_t ldx, const uint16_t* w, f
 #define STRATA_MMVF_M(N) case N: \
     switch (n_tok) { \
         STRATA_MMVF_WIDE(N) \
-        case 1: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 1, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
-        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N)); break; \
+        case 1: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 1, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 2: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 2, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 3: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 3, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
     } break
     const uint16_t* w_aux = nullptr; float* y_aux = nullptr; const int64_t ldy_aux = 0; const int64_t n_aux = 0;
     switch (mmvf_block_size(n_in)) {
