@@ -21,6 +21,7 @@ The long-form documents live in the documentation folder [`pancake-docs/`](panca
   on every Strata fork and derivative, with a gap analysis.
 - [`MOD_PLAN.md`](MOD_PLAN.md): the master plan, item by item, with the "not adopted" ledger.
 - [`PANCAKE_STATUS.md`](PANCAKE_STATUS.md): what is built, what is tested, and what comes next.
+- [`docs/WINDOWS_CUDA_SM75.md`](docs/WINDOWS_CUDA_SM75.md): the Windows + CUDA 12.8 build on a GTX 1660 Ti (sm_75).
 
 ## 2. What `pancake-strata` does compared to Strata and other forks (Measured Results)
 
@@ -698,6 +699,13 @@ cmake --build build-hip --target strata -j2
 cmake -S . -B build-cuda -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=86-real
 cmake --build build-cuda --target strata strata-poly poly_gdn_cols_test poly_gemm_small_test -j8
 ```
+
+### Build on Windows (CUDA 12.8, sm_75)
+
+There is a Windows build with MSVC and CUDA 12.8 for a GTX 1660 Ti (sm_75). It runs `strata-poly` on the Qwen3.6-35B-A3B IQ2_XXS file.
+Two changes were needed: one portability line in `kmiss_tier.hpp` (`std::popcount` instead of a GCC builtin) and `-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared` at configure time.
+Four test targets do not compile on MSVC yet: `q5k_head_test`, `flag_order_test`, `gemm_w16_parity`, `poly_kv_q4_test`. They do not block the engine.
+Details, commands and what was not tested: [`docs/WINDOWS_CUDA_SM75.md`](docs/WINDOWS_CUDA_SM75.md).
 
 ### Verification gates
 

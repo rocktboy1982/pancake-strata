@@ -61,7 +61,7 @@ Earlier runs on the same file, same card:
 
 Speed rises about ten times over the first few requests. The likely causes are the file cache and the expert swaps into
 VRAM; they were not separated. A number taken from the first requests is not the steady speed, so benchmark after
-warm-up (abtest.py does this, `abtest.py:199`).
+warm-up (the warm-up request in `tools/pancake/abtest.py` does this).
 
 ## Not tested
 
