@@ -32,14 +32,15 @@ otherwise. "Exact" means the same tokens as stock decoding, checked token for to
 
 Models: **Qwen3.8-Flash-Next** (176.9B total: 125B MoE + 51B PLE + 4B MTP) and **Qwen3.6-35B-A3B**.
 
-Decode speed on Qwen3.8-Flash-Next IQ2_XS (writing speed):
+Decode speed on Qwen3.8-Flash-Next (writing speed). The rows do **not** all use the same quant: read the
+quant and bits columns before comparing speeds.
 
-| Engine | tok/s |
-| --- | ---: |
-| Strata (stock) | 75-77 |
-| Avalon | 95-100 |
-| Strata-rdna3 | 109-119 |
-| **pancake-strata** (exact / fast-hip) | **112-126** |
+| Engine | Quant (expert weights) | Bits per expert weight | tok/s |
+| --- | --- | ---: | ---: |
+| Strata (stock) | IQ2_XS | ~2.31 | 75-77 |
+| Avalon | IQ3_KS / IQ3_K hybrid | ~3.2-3.4 | 95-100 |
+| Strata-rdna3 | IQ2_XS | ~2.31 | 109-119 |
+| **pancake-strata** (exact / fast-hip) | IQ2_XS | ~2.31 | **112-126** |
 
 Note on the Avalon row: it is **not** the same file.  Avalon (a llama.cpp-based engine) was measured on the same PC
 with its own Flash-Next GGUF, a hybrid IQ3_KS / IQ3_K layout (~89 GiB, ~3.2-3.4 bits per expert weight), while the
