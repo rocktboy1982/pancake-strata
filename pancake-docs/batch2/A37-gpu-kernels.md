@@ -115,8 +115,11 @@ Duplication cannot reach it. Options, in order of cost, for the case the counter
 
 - Bank model on real rows and uniform indices: numbers above (`lds_lut_conflicts.py`, python, no GPU); its test
   `python tools/pancake/test_lds_lut_conflicts.py` passed.
-- Front-end compile of iq_kernels.cu for gfx1100 (`clang++ -x hip -fsyntax-only`, the build-hip flags): see the
-  commit message / final report for the result (it depends on the machine being quiet).
+- No compile at all: the 09-prefill screen kept the machine busy through four wait_quiet.sh calls (23:26-00:04), so per
+  the brief nothing was compiled, not even `-fsyntax-only`. The C++/HIP changes were reviewed by hand (types, template
+  defaults, `if constexpr` discards, static LDS 44,288 B < 48 KB CUDA / 64 KB HIP, format strings). First build step for
+  the coordinator: `ninja strata_kernels iq_multi_parity expdec_bench hip_gdn_stage_bench` in build-hip.
+- `python tools/pancake/test_hit_critical.py` (A36) passed.
 - Not run: iq_multi_parity, expdec_bench, the engine (GPU busy, no builds allowed).
 
 ### For the coordinator (night run, GPU free)
