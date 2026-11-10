@@ -2902,11 +2902,12 @@ CalibProbeOut calibrate_probe(strata::core::ExpertSource* src, strata::kernels::
     if (gpu_ok) gpu_ok = cudaMalloc((void**) &d, tot) == cudaSuccess;
     if (gpu_ok) gpu_ok = cudaMalloc((void**) &d2, tot) == cudaSuccess;
     if (!gpu_ok) (void) cudaGetLastError();
-    auto timed_copies = [&](cudaMemcpyKind kind, uint8_t* dst, const uint8_t* from) -> double {
+    auto timed_copies = [&](bool d2d, uint8_t* dst, const uint8_t* from) -> double {
         double best = 1e30;
         for (int rep = -1; rep < 4; ++rep) {   // rep -1 is the warm-up
             const Clk::time_point t0 = Clk::now();
-            for (int i = 0; i < kCopyN; ++i) cudaMemcpyAsync(dst + (size_t) i * bb, from + (size_t) i * bb, bb, kind, st);
+            for (int i = 0; i < kCopyN; ++i)
+                cudaMemcpyAsync(dst + (size_t) i * bb, from + (size_t) i * bb, bb, d2d ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice, st);
             if (cudaStreamSynchronize(st) != cudaSuccess) return -1.0;
             const double us = std::chrono::duration<double, std::micro>(Clk::now() - t0).count() / kCopyN;
             if (rep >= 0) best = std::min(best, us);
@@ -2915,8 +2916,8 @@ CalibProbeOut calibrate_probe(strata::core::ExpertSource* src, strata::kernels::
     };
     if (gpu_ok) {
         std::memset(h, 1, tot);   // fault the pages in before timing
-        const double c = timed_copies(cudaMemcpyHostToDevice, d, (const uint8_t*) h);
-        const double g = c > 0.0 ? timed_copies(cudaMemcpyDeviceToDevice, d2, d) : -1.0;
+        const double c = timed_copies(false, d, (const uint8_t*) h);
+        const double g = c > 0.0 ? timed_copies(true, d2, d) : -1.0;
         if (c > 0.0) r.m.copy_us = c;
         if (g > 0.0) r.m.gpu_us = g;
         if (c <= 0.0) (void) cudaGetLastError();
