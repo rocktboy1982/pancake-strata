@@ -50,7 +50,18 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
     float p[16], s[16];
     float mx = -INFINITY;
 #pragma unroll
-    for (int i = 0; i < 16; ++i) { p[i] = lg[lane + 32 * i]; mx = fmaxf(mx, p[i]); }
+    for (int i = 0; i < 16; ++i) {
+        float v = lg[lane + 32 * i];
+        // Non-finite logits (all-ones exponent: NaN, -inf, +inf) are clamped like the native router maps NaN to -FLT_MAX
+        // (native_router.cu route_multi); a finite logit passes through bit for bit.  Tested on the bits, not with
+        // isnan / fmaxf, so --use_fast_math (finite-math assumptions) cannot fold it away.  Without this a window whose
+        // 512 logits are all NaN / -inf left `be` at its 1<<30 sentinel below and wrote s[be >> 5] out of bounds
+        // (upstream PR #5655, "fall back to the router's own top-10"; this is our own variant of that fix).
+        const unsigned u = __float_as_uint(v);
+        if ((u & 0x7f800000u) == 0x7f800000u) v = ((u & 0x7fffffffu) > 0x7f800000u || (u >> 31)) ? -FLT_MAX : FLT_MAX;
+        p[i] = v;
+        mx = fmaxf(mx, v);
+    }
     mx = wmax(mx);
     float sum = 0.0f;
 #pragma unroll
@@ -67,6 +78,7 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
     // order; the first pick that is neither ends the phase and the rest are chosen by the biased score.  A taken expert
     // has s = -FLT_MAX in either phase.  Both guards off: own_phase is false from the start (the earlier kernel).
     bool own_phase = protect > 0 || keep_p > 0.0f;
+    unsigned taken = 0;   // bit i: this lane's expert lane + 32 * i is picked (s == -FLT_MAX alone cannot tell "picked" from "scored -FLT_MAX")
     for (int rank = 0; rank < 10; ++rank) {
         float best = -FLT_MAX, bp = 0.0f;
         int be = 1 << 30;
@@ -99,7 +111,25 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
                 if (ob > best || (ob == best && oe < be)) { best = ob; be = oe; bp = op; }
             }
         }
-        if ((be & 31) == lane) s[be >> 5] = -FLT_MAX;
+        if (be >= 512) {
+            // No candidate scored above -FLT_MAX (every remaining logit clamped to -FLT_MAX, or lambda overflowed): take the
+            // lowest-index expert not yet picked, with its own probability.  Never reached for finite logits above -FLT_MAX,
+            // where the winner always lies in 0..511 (so their ids and weights are unchanged).
+            be = 1 << 30;
+            bp = 0.0f;
+            float fb = -1.0f;
+#pragma unroll
+            for (int i = 15; i >= 0; --i)
+                if (!((taken >> i) & 1u)) { fb = 0.0f; be = lane + 32 * i; bp = p[i]; }
+#pragma unroll
+            for (int m = 16; m; m >>= 1) {
+                const float ob = __shfl_xor_sync(0xffffffffu, fb, m, 32);
+                const int oe = __shfl_xor_sync(0xffffffffu, be, m, 32);
+                const float op = __shfl_xor_sync(0xffffffffu, bp, m, 32);
+                if (ob > fb || (ob == fb && oe < be)) { fb = ob; be = oe; bp = op; }
+            }
+        }
+        if ((be & 31) == lane) { s[be >> 5] = -FLT_MAX; taken |= 1u << (be >> 5); }
         if (lane == rank) { id[rank] = be; sel_p = bp; }
         sel_sum += bp;                                      // the same on every lane
     }
