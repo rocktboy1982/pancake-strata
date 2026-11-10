@@ -41,6 +41,14 @@ Decode speed on Qwen3.8-Flash-Next IQ2_XS (writing speed):
 | Strata-rdna3 | 109-119 |
 | **pancake-strata** (exact / fast-hip) | **112-126** |
 
+Note on the Avalon row: it is **not** the same file.  Avalon (a llama.cpp-based engine) was measured on the same PC
+with its own Flash-Next GGUF, a hybrid IQ3_KS / IQ3_K layout (~89 GiB, ~3.2-3.4 bits per expert weight), while the
+Strata rows use the IQ2_XS file (~2.3 bits per expert weight).  Decode on this box is bound by reading expert bytes
+(CPU-side experts from DDR4, GPU-side from VRAM), so Avalon moves roughly 40-50% more expert bytes per token and gets
+a higher-quality model for it.  The row is "what each stack delivers on this card with its own recommended file", not
+an engine-vs-engine comparison at equal quantization; that comparison (Avalon on IQ2_XS, or Strata on an IQ3 file) has
+not been run.
+
 The pancake-strata gain over its own starting point, measured in the final suites: **+6% on chat** (111.7 to
 118.4 tok/s) and **+13% on code edits** (92.5 to 104.3 tok/s) with `--pcie-frac 0`. On the Q2_0 file the same preset
 reaches **135 tok/s**. The opt-in lossy `turbo-hip` preset (cache-aware routing, see section 6) reaches **149-168 tok/s**
