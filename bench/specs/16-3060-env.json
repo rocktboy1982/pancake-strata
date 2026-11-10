@@ -1,0 +1,16 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast.json",
+ "arms": {
+  "base": {},
+  "expdec0": {"env": {"STRATA_EXPDEC": "0"}},
+  "hcq8-0": {"env": {"STRATA_HC_Q8": "0"}},
+  "pf-fused1": {"env": {"STRATA_PF_FUSED": "1"}},
+  "pcie0": {"args": {"--pcie-frac": "0"}},
+  "pcie-auto": {"args": {"--pcie-frac": "auto"}},
+  "pcie-balance": {"env": {"STRATA_PCIE_BALANCE": "1"}}
+ },
+ "cases": ["short", "edit", "long"],
+ "reps": 3,
+ "lossy": true,
+ "note": "TEST_PLAN 4.1.7, for when the RTX 3060 is back (out since 2026-11-08). Base = the 3060 preset configs/pancake/flashnext-iq2_xs-fast.json (build-cuda, EXPDEC=1, HC_Q8=1, no --pcie-frac, --adapt-async). The file named in 'base' is the one run-pancake.sh GENERATES at the repo root (placeholders filled, build-cuda path): the copy there now is stale and points at build-hip; regenerate it on the 3060 box with the sed line of run-pancake.sh (do not start the server for that). expdec0 / hcq8-0 flip the preset's 1 to 0 (KhaledElzarw: EXPDEC -3.0%, HC_Q8 +0.9% and lossy on a 3090); pf-fused1 is prompt-side (AdrianBM96 +5.2% on a 3060): the long case carries it, --tier screen does not see it (it drops long). STRATA_PCIE_BALANCE only acts when no --pcie-frac is given, so it is its own arm against base, not combined with pcie0 / pcie-auto. abtest.py is HIP-first (start_server sets the ROCm LD_LIBRARY_PATH and HIP_VISIBLE_DEVICES=0, telemetry reads amdgpu sysfs): check on the 3060 box that a server starts through it and CUDA libraries resolve before trusting a batch."
+}

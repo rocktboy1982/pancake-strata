@@ -149,6 +149,40 @@ touches drafting or routing). All gains quoted in the plan are fork claims until
 First in line (from 4.0.1): screen `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` against the
 preset on an agent replay with interleaved short requests (watch free RAM); it replayed as 97% of the lost re-read time.
 
+**Specs for this block (prepared 2026-11-10; base = the generated `pancake-flashnext-iq2_xs-fast-hip.json` at the main
+checkout's root, the daily preset; one base + all arms of an area per spec).** Run from the main checkout, engine on
+8080 stopped: `python tools/pancake/abtest.py bench/specs/<spec>.json --tier screen --out bench/results/<day>-<name>.jsonl`;
+then `--tier confirm` on a copy of the spec trimmed to the promoted arms (plus base).
+
+| Run order | Spec | Arms (besides base) | Cases | Row |
+| --- | --- | --- | --- | --- |
+| 1 | `11-conv-cache.json` | `cache2048`, `min8192`, `cache2048-min8192` | short, edit | first in line; side effects only, see below |
+| 2 | `15-kmiss.json` | `kmiss28` (`STRATA_ADAPT_KMISS=2,8`) | short, edit | 2.2 / A5 |
+| 3 | `12-spec-sampling.json` | `f6-dt100`, `f6-dt085` (SPEC_PROB + COUPLED + GATE=top, DT 1.0 / 0.85), run at T 1.0, top_p 0.95 | short, edit | 4.1.2 (4.0.2 answered: opencode is sampled) |
+| 4 | `13-lookup.json` | `lookup-t16`, `lookup-chain3` | short, edit | 4.1.3 |
+| 5 | `14-hip-env.json` | `sh-stream1`, `hwq4`, `hwq8`, `aux-auto` | short, edit | 4.1.4, 4.1.6 |
+| 6 | `14b-hip-prefill.json` | `automax24576`, `wmma-gemm`, `hcdown0` | edit, long | 4.1.5, 4.1.8; screen cannot see prefill (drops long): go straight to `confirm --reps 2` |
+| 7 | `16-3060-env.json` | `expdec0`, `hcq8-0`, `pf-fused1`, `pcie0`, `pcie-auto`, `pcie-balance` | short, edit, long | 4.1.7, only when the 3060 is back; regenerate its base file first (spec note) |
+
+Notes: `12` needs `temperature` in the spec, a new optional abtest key (`temperature`, `top_p`, `seed`; absent =
+greedy as before); sampled text differs per run, so its text-hash line is meaningless. `11` is exact and costs
+nothing in decode, so its screen only proves "no side effect"; its real verdict comes from the agent replay below.
+Lossy arms (`14b`, `15`, `16`) go to the rigorous tier if they promote.
+
+**Agent replay for the cache arms (proposal, not built).** abtest's cases are independent one-shot requests, so they
+cannot park a conversation or evict it with a short side request. `pancake-turns.jsonl` has no prompt text, only
+per-request sizes and timing (`time`, `prompt_total`, `reused`, `prompt_read`, `output_tokens`, `prompt_ms`), which is
+enough to rebuild the traffic shape. A replayer (`tools/pancake/replay_turns.py`, sharing abtest's server start / stop
+and noise gate) would: (1) take one recorded session window and split requests into conversations: `reused > 0`
+continues the previous long prompt, a small `prompt_total` with `reused == 0` is a side request, a large one with
+`reused == 0` starts a conversation; (2) synthesize each conversation's text deterministically (pinned seed over the
+repo sources, as abtest's `prompts()` does) so turn N+1 extends turn N exactly and the engine can reuse the prefix, with
+`max_tokens = output_tokens` and the recorded order and interleaving, think time compressed to a few seconds; (3) run
+it per arm in a fresh server and report, per request class, the sum of `prompt_ms`, the count of cold re-reads (a long
+prompt with `prompt_read` close to `prompt_total`), and the minimum free RAM seen. The cache arms win when the cold
+re-reads and their seconds drop (offline estimate: ~158 of 162.8 s); `base` vs `cache2048-min8192` is the pair to run,
+and the single-flag arms say which flag carries it. The replay is deterministic enough for one A B pass per arm.
+
 | # | GPU | Arms | Unlocks / kills |
 | --- | --- | --- | --- |
 | 4.1.1 | both | `--prompt-cache-spread` on vs off on a multi-turn agent replay | F2 |
