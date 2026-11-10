@@ -133,10 +133,15 @@ int native_expert_expdec();
 /// signs without the byte compare + subtract, bitwise the same outputs.  0 = off, 1 = all three formats, any other
 /// value a mask of ggml type ids (bit 16 / 17 / 22; other bits ignored), < 0 keeps the current value.  The getter
 /// returns the mask in force (0 when off), so a saved value restores exactly.
+/// `lut_dup` (STRATA_IQ_LUT_DUP, MOD_PLAN A37, default off): the IQ2_XXS gate/up kernel (R 1) with its codebook staged
+/// as 16 or 8 copies in LDS (FLUTE's duplicated LUT, no bank conflicts on the lookups), bitwise the same outputs.
+/// 0 = off, 16 (or 1) = 16 copies, 8 = 8 copies, any other value off, < 0 keeps the current value.  The getter returns
+/// the copies in force (0, 8 or 16).
 struct NativeExpertExpdecParams {
     int gu_rows_per_lane = 0, down_rows_per_lane = 0, gu_min_blocks_per_sm = 0, down_iq4_nl = -1, down = -1;
     int gu_rows_per_block = -1, down_rows_per_block = -1, min_blocks = 0;
     int sign_fast = -1;
+    int lut_dup = -1;
 };
 void native_expert_set_expdec_params(const NativeExpertExpdecParams& p);
 NativeExpertExpdecParams native_expert_expdec_params();

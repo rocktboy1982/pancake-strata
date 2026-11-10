@@ -61,6 +61,17 @@ being 0), so the sums above are unchanged. IQ3_XXS / IQ3_S are not affected: the
 tables. The gate/up log line ends in `, F12 sign form (STRATA_IQ_SIGN_FAST)` when a format takes it. In `expdec_bench`
 the choice field `s1` / `s0` switches it (`def,dec:s0,dec:s1`); `iq_multi_parity` runs EXPDEC with both forms.
 
+pancake, MOD_PLAN A37 (opt-in, not yet built or measured): `STRATA_IQ_LUT_DUP=16` (or `1`) / `=8` stages the IQ2_XXS
+gate/up codebook (256 entries of 8 bytes) as 16 / 8 copies in LDS, FLUTE-style (arXiv 2407.10960): copy g lives only in
+bank pairs [g B, (g + 1) B), B = 16 / copies, and lane t of a 16-lane sub-warp reads copy t / B, so with 16 copies the
+sub-warp's random lookups never share a bank pair. On real rows of this model's IQ2_XXS experts the plain table costs
+5.8 LDS clocks per wave lookup against an ideal 2 (32 banks x 4 bytes, a 64-bit read served 16 lanes a clock), 8
+copies 4.0, 16 copies 2.0. The price is LDS per block (13.5 KB -> 27.5 KB with 8 copies, 43.5 KB with 16), so the A/B
+decides. Only `expdec_gu_kernel` at R 1 takes it (not R 2, the item-48 SwiGLU kernel or the default kernels); IQ2_S and
+IQ2_XS keep the plain table (16 copies would be 128 / 64 KB, and 2-4 copies remove only 3-11% of the clocks). The values
+read are the same, so the sums are unchanged. Log line suffix: `, codebook x16 in LDS (STRATA_IQ_LUT_DUP)`. In
+`expdec_bench` the choice field `l0` / `l8` / `l16` switches it; `iq_multi_parity` runs EXPDEC with 16 and 8 copies.
+
 ## Bit for bit
 
 For every (row, entry) the sum is the default kernel's tree - `row_dot_80_sub16` for gate/up (lane t of a 16-lane
