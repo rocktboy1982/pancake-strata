@@ -28,9 +28,14 @@
 #                                            (350 us wake-up) off, so pool threads wake fast.  'cpu-off' undoes both.  The
 #                                            bigger lever is in the BIOS: Precision Boost Overdrive (raises PPT/TDC/EDC;
 #                                            Tctl stays at 56-63 C under the engine, so there is room).
+#   sudo tools/pancake/os_tune.sh cpu-install   makes 'cpu' permanent: copies this script to /usr/local/sbin and installs
+#                                            pancake-cpu.service (runs 'cpu' at every boot), applied now; 'cpu-uninstall'
+#                                            removes both and undoes the setting
 #   sudo tools/pancake/os_tune.sh uninstall  removes /etc/sysctl.d/90-pancake.conf (the pool is freed at the next boot)
 #   sudo tools/pancake/os_tune.sh compact    one compaction pass now (seconds; nothing persistent)
 CONF=/etc/sysctl.d/90-pancake.conf
+UNIT=/etc/systemd/system/pancake-cpu.service
+SBIN=/usr/local/sbin/pancake-os-tune
 PAGES=16920   # the IQ2_XS arena: 33.02 GiB in 2 MiB pages (the engine's "needed N 2 MiB pages" log line)
 
 big_free_gib() {   # GiB of free memory in blocks of 2 MiB or more (buddy order >= 9): what the arena can get unfragmented
@@ -73,6 +78,7 @@ cpu_state() {
     for g in $(igpus); do echo "  iGPU $(basename "$(readlink -f "$g")"): $(cat "$g/power_dpm_force_performance_level") (sclk now: $(grep '\*' "$g/pp_dpm_sclk" | awk '{print $2}'))"; done
     c3=$(cat /sys/devices/system/cpu/cpu0/cpuidle/state3/disable 2>/dev/null || echo "?")
     echo "  core idle state C3 disabled: $c3   (pancake: 1 during benchmarks / daily decode)"
+    [ -f "$UNIT" ] && echo "  $UNIT: present (applied at boot)" || echo "  $UNIT: not installed (cpu setting lasts until reboot)"
 }
 
 need_root() { [ "$(id -u)" = 0 ] || { echo "$0 $1: run it with sudo" >&2; exit 1; }; }
@@ -88,6 +94,30 @@ case "${1:-check}" in
         need_root cpu-off
         for g in $(igpus); do echo auto > "$g/power_dpm_force_performance_level"; done
         for d in /sys/devices/system/cpu/cpu[0-9]*/cpuidle/state3/disable; do echo 0 > "$d"; done
+        cpu_state ;;
+    cpu-install)
+        need_root cpu-install
+        install -m 755 "$0" "$SBIN"
+        cat > "$UNIT" <<UNIT_EOF
+[Unit]
+Description=pancake-strata: iGPU low clock + core C3 off, so the CPU keeps its clocks during decode
+After=systemd-modules-load.service systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=$SBIN cpu
+ExecStop=$SBIN cpu-off
+
+[Install]
+WantedBy=multi-user.target
+UNIT_EOF
+        systemctl daemon-reload && systemctl enable --now pancake-cpu.service && echo "installed $UNIT (applied now and at every boot)"
+        cpu_state ;;
+    cpu-uninstall)
+        need_root cpu-uninstall
+        systemctl disable --now pancake-cpu.service 2>/dev/null
+        rm -f "$UNIT" "$SBIN"; systemctl daemon-reload; echo "removed $UNIT"
         cpu_state ;;
     compact)
         need_root compact
@@ -110,5 +140,5 @@ case "${1:-check}" in
     uninstall)
         need_root uninstall
         rm -f "$CONF" && sysctl -q -w vm.compaction_proactiveness=20 vm.compact_unevictable_allowed=1 && echo "removed $CONF" ;;
-    *) sed -n '2,32p' "$0"; exit 2 ;;
+    *) sed -n '2,35p' "$0"; exit 2 ;;
 esac

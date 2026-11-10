@@ -667,6 +667,7 @@ sudo tools/pancake/os_tune.sh install             # 1 (recommended): compact_une
 sudo tools/pancake/os_tune.sh install --hugepages # 1 + 2 (optional): reserve 16,920 x 2 MiB pages at boot for the arena
 sudo tools/pancake/os_tune.sh compact             # one compaction pass now, nothing persistent
 sudo tools/pancake/os_tune.sh cpu                 # APU: iGPU to its low clock + core idle C3 off (until reboot; cpu-off undoes)
+sudo tools/pancake/os_tune.sh cpu-install         # the same, permanent: pancake-cpu.service applies it at every boot (cpu-uninstall removes)
 ```
 
 On an APU (Ryzen 5700G) the Vega iGPU that drives the desktop shares the package power with the cores: under the
