@@ -157,7 +157,8 @@ void test_decisions_that_must_hold() {
         check(keyed(n), std::string(n) + " is in the key when set");
     // switches the sources read by presence alone (getenv != nullptr): an empty value turns them on, so it must change the key
     for (const char* n : {"STRATA_CPU_YMM", "STRATA_IQ3S_MT1", "STRATA_NO_IQ512", "STRATA_NO_IQ4NL", "STRATA_PROMPT_ATTN_V1", "STRATA_SELECT_OLD",
-                          "STRATA_INDEXER_PER_TOKEN", "STRATA_ROUTE_PROJ_PER_TOKEN", "STRATA_HIP_ROUTER_OLD", "STRATA_HIP_ROUTER_FAST", "STRATA_EXP_MODE"})
+                          "STRATA_INDEXER_PER_TOKEN", "STRATA_ROUTE_PROJ_PER_TOKEN", "STRATA_HIP_ROUTER_OLD", "STRATA_HIP_ROUTER_FAST", "STRATA_EXP_MODE",
+                          "STRATA_NO_IQ128", "STRATA_NO_IQ256"})
         check(keyed(n) && key_with({{n, ""}}) != key_with({}), std::string(n) + " set but empty is in the key");
     // the master switch and the defaults that are another summation order: a run with and without them shares a key otherwise
     for (const char* n : {"STRATA_DEFAULTS", "STRATA_GR_V3", "STRATA_PROMPT_ATTN_IMMA", "STRATA_SM120_PERF", "STRATA_GFX12_DEFAULTS"})
