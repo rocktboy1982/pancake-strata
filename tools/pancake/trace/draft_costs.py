@@ -29,6 +29,9 @@ def new_misses_per_row(windows):
     add = defaultdict(list)
     for w in windows:
         per_row = defaultdict(int)
+        if not w.layers and w.row_miss is not None:   # a trace without layer records: the engine's own row counts (record 5)
+            for j, v in enumerate(w.row_miss):
+                per_row[j] += int(v)
         for lay in w.layers.values():
             seen = set()
             for j in range(lay.ids.shape[0]):
@@ -38,6 +41,38 @@ def new_misses_per_row(windows):
         for j, v in per_row.items():
             add[j].append(v)
     return {j: float(np.mean(v)) for j, v in add.items()}
+
+
+def build_tables(wins, us_per_miss=40.0, max_t=8, min_n=20, out=None):
+    """-> (lists, adds): per context bucket a list of the window cost (ms) of sizes 1..max_t (None: no size measured enough
+    in that bucket), and the mean new misses per extra row.  Prints the per-bucket lines when `out` is a stream."""
+    adds = new_misses_per_row(wins)
+    lists = []
+    for b in range(3):
+        bw = [w for w in wins if bucket(w.position) == b]
+        by_t = defaultdict(list)
+        for w in bw:
+            by_t[w.rows].append(w.ms)
+        meas = {t: float(np.median(v)) for t, v in by_t.items() if len(v) >= min_n and 1 <= t <= max_t}
+        if not meas:
+            if out is not None:
+                print(f"bucket {b}: no window size with >= {min_n} windows", file=out)
+            lists.append(None)
+            continue
+        row = []
+        for t in range(1, max_t + 1):
+            if t in meas:
+                row.append(meas[t])
+                continue
+            u = min(meas, key=lambda x: abs(x - t))   # nearest measured size, then the extra rows' new misses
+            lo, hi = (u, t) if u < t else (t, u)
+            extra = sum(adds.get(j, 0.0) for j in range(lo, hi)) * us_per_miss / 1e3
+            row.append(meas[u] + extra if t > u else max(0.1, meas[u] - extra))
+        lists.append(row)
+        if out is not None:
+            print(f"bucket {b} ({len(bw)} windows): " +
+                  "  ".join(f"T{t}={v:.1f}{'' if t in meas else '*'}" for t, v in enumerate(row, 1)), file=out)
+    return lists, adds
 
 
 def main():
@@ -53,28 +88,8 @@ def main():
     if not wins:
         print("no decode windows with timing in these traces")
         return 2
-    adds = new_misses_per_row(wins)
-    lists = []
-    for b in range(3):
-        bw = [w for w in wins if bucket(w.position) == b]
-        by_t = defaultdict(list)
-        for w in bw:
-            by_t[w.rows].append(w.ms)
-        meas = {t: float(np.median(v)) for t, v in by_t.items() if len(v) >= a.min_n and 1 <= t <= a.max_t}
-        if not meas:
-            print(f"bucket {b}: no window size with >= {a.min_n} windows")
-            continue
-        row = []
-        for t in range(1, a.max_t + 1):
-            if t in meas:
-                row.append(meas[t])
-                continue
-            u = min(meas, key=lambda x: abs(x - t))   # nearest measured size, then the extra rows' new misses
-            lo, hi = (u, t) if u < t else (t, u)
-            extra = sum(adds.get(j, 0.0) for j in range(lo, hi)) * a.us_per_miss / 1e3
-            row.append(meas[u] + extra if t > u else max(0.1, meas[u] - extra))
-        lists.append(row)
-        print(f"bucket {b} ({len(bw)} windows): " + "  ".join(f"T{t}={v:.1f}{'' if t in meas else '*'}" for t, v in enumerate(row, 1)))
+    lists, adds = build_tables(wins, a.us_per_miss, a.max_t, a.min_n, out=sys.stdout)
+    lists = [r for r in lists if r is not None]
     if not lists:
         return 2
     table = ";".join(",".join(f"{v:.2f}" for v in r) for r in lists)

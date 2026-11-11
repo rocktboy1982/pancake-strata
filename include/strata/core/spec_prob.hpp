@@ -72,6 +72,12 @@ inline float spec_min_temp() {
     return s;
 }
 
+/// Does a request draft by sampling (coupled / probabilistic drafting) instead of by argmax?  "Greedy" is temperature <= 0
+/// only, so a request at T 0.1 (the opencode sub-agents) IS sampled; STRATA_SPEC_MIN_TEMP keeps it on the argmax drafter.
+inline bool spec_sampled_drafts(bool greedy, float temperature, float min_temp) {
+    return !greedy && temperature > 0.0f && temperature >= min_temp;
+}
+
 /// One q row = 128 int32 slots: 64 token ids (-1 ends the list), then the 64 probabilities as float bits.
 inline constexpr int kSpecQEntries = 64;
 inline constexpr int kSpecQStride = 2 * kSpecQEntries;

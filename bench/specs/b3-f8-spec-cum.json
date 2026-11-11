@@ -1,0 +1,28 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "cum02": {
+   "env": {
+    "STRATA_SPEC_CUM": "0.2"
+   }
+  },
+  "cum03": {
+   "env": {
+    "STRATA_SPEC_CUM": "0.3"
+   }
+  },
+  "cum05": {
+   "env": {
+    "STRATA_SPEC_CUM": "0.5"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN F8 (STRATA_SPEC_CUM, android-imdad f1bd09212a, ported as a DISCO model on the chain feature: include/strata/spec/disco.hpp DiscoModel::cumulative; note pancake-docs/batch3/disco-suffix.md). The MTP chain stops where the product of the drafts' probabilities falls under S; it replaces the preset's --spec-min-p 0.5 for MTP windows (S >= 0.5 implies the same per-draft floor; for 0.2 and 0.3 the floor is gone, as in the fork's rule without --spec-min-p). Exact: the rule only decides how many drafts are verified, so the text hash must equal base on every case (a different hash is a bug). The fork measured +1.8% (S 0.5) pinned and +6.4% short chat on an RX 7900 XTX; the offline ceiling here (tail_ceiling: oracle cut) is 1.0% short / 7.9% edit, so expect 0-3%. Replay it first offline: tools/pancake/disco_fit.py on a window trace taken with --spec-min-p 0 prints the SPEC_CUM arms next to the static lengths, --spec-min-p and the oracle cut; skip this spec if no SPEC_CUM arm is >= 2% over `--spec-min-p 0.5` there. With STRATA_SPEC_PROB (sampled requests) use STRATA_SPEC_PROB_GATE=top: the default pick gate makes the draft's probability depend on the draw, and a window rule that sees it is inexact."
+}

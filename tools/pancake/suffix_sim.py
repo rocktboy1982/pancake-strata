@@ -4,7 +4,7 @@ frequency scoring (SuffixDecoding, Oliaro et al., arXiv 2411.04975) would propos
 per-request --lookup drafter the engine has now.  No model, no GPU, no server.
 
     python tools/pancake/suffix_sim.py [--db ~/.local/share/opencode/opencode.db] [--model REGEX] [--k 11]
-           [--mib 64] [--min-prob 0.1] [--factor 1.0] [--limit N] [--reset-gap MIN] [--json OUT] [--tokenizer DIR]
+           [--mib 64] [--min-prob 0.1] [--factor 1.0] [--rule longest|score] [--limit N] [--reset-gap MIN] [--json OUT] [--tokenizer DIR]
     python tools/pancake/suffix_sim.py --self-test
 
 Input: opencode's own session store (SQLite, read-only), which holds the text of every agent turn the engine served:
@@ -64,6 +64,7 @@ DEPTH = 64                     # a match is compared back this far at most
 WALK = 64                      # places looked at on a chain
 LEAD = 64                      # prompt tokens before an output in the index (matched into, not indexed)
 MARK = -1
+PATTERN_LENGTHS = (3, 4, 6, 8, 12, 16, 24, 32, 48, 64)   # the score rule's candidate pattern lengths (the paper tries every p up to its maximum)
 
 
 def cap_tokens(mib):
@@ -157,12 +158,12 @@ class Index:
             b.append(hd.get(key, -1))
             hd[key] = at
 
-    def propose(self, pat, k):
-        """Draft after `pat` (the context's last <= DEPTH tokens): (tokens, match, probabilities)."""
-        if k <= 0 or len(pat) < LEVELS[-1]:
-            return [], 0, []
+    def _places(self, pat, all_levels):
+        """The places (newest first within a chain) where the ring matches the pattern's end, each with its match length.
+        The engine walks the longest chain that has a place and keeps the deepest matches (all_levels False); the score
+        rule needs every chain's places (all_levels True), as the paper's tree holds every occurrence of a pattern."""
         ring, low, n_pat = self.ring, self.low(), len(pat)
-        places, match = [], 0
+        found = {}
         for li, kk in enumerate(LEVELS):
             if n_pat < kk:
                 continue
@@ -171,20 +172,20 @@ class Index:
             b = self.back[li]
             while p >= 0 and walked < WALK and p >= low:
                 walked += 1
-                most = min(n_pat, DEPTH, p - low + 1)
-                m = kk                               # the chain's key matched kk tokens exactly
-                while m < most and ring[p - m] == pat[n_pat - 1 - m]:
-                    m += 1
-                if m > match:
-                    match, places = m, [p]
-                elif m == match:
-                    places.append(p)
+                if p not in found:
+                    most = min(n_pat, DEPTH, p - low + 1)
+                    m = kk                               # the chain's key matched kk tokens exactly
+                    while m < most and ring[p - m] == pat[n_pat - 1 - m]:
+                        m += 1
+                    found[p] = m
                 p = b[p]
-            if places:
+            if found and not all_levels:
                 break
-        if not places:
-            return [], 0, []
-        k = min(k, max(1, int(self.factor * match)))
+        return found
+
+    def _chain(self, places, k):
+        """The frequency-voted draft after `places` (the ends of the matches): (tokens, probabilities)."""
+        ring = self.ring
         out, probs, sure, end = [], [], 1.0, len(ring)
         for i in range(k):
             nxt = {}
@@ -209,7 +210,32 @@ class Index:
             out.append(best)
             probs.append(sure)
             places = [q for q in live if ring[q + 1 + i] == best]
-        return out, (match if out else 0), probs
+        return out, probs
+
+    def propose(self, pat, k, rule="longest"):
+        """Draft after `pat` (the context's last <= DEPTH tokens): (tokens, match, probabilities).
+        rule longest: the engine's rule - the deepest match, a draft of at most factor x match tokens.
+        rule score:   SuffixDecoding's rule (Alg. 1) - for each pattern length p the draft of at most factor x p tokens over
+                      the places that match >= p tokens; the p whose draft has the highest SCORE (the sum of its tokens'
+                      cumulative probabilities = the expected accepted tokens) wins, a longer p on ties."""
+        if k <= 0 or len(pat) < LEVELS[-1]:
+            return [], 0, []
+        found = self._places(pat, rule == "score")
+        if not found:
+            return [], 0, []
+        top = max(found.values())
+        if rule == "longest":
+            places = [p for p, m in found.items() if m == top]
+            out, probs = self._chain(places, min(k, max(1, int(self.factor * top))))
+            return out, (top if out else 0), probs
+        best = ([], 0, [])
+        best_score = 0.0
+        for p in sorted({t for t in PATTERN_LENGTHS if t <= top} | {top}):
+            places = sorted((q for q, m in found.items() if m >= p), reverse=True)
+            out, probs = self._chain(places, min(k, max(1, int(self.factor * p))))
+            if out and sum(probs) >= best_score:
+                best, best_score = (out, p, probs), sum(probs)
+        return best
 
 
 # ------------------------------------------------------------------------------------------------ the turns
@@ -331,7 +357,7 @@ def accept(draft, out, i):
     return a
 
 
-def simulate(reqs_tok, k=11, cap_tokens=1 << 21, min_prob=0.1, factor=1.0, times=None, reset_gap_s=0.0):
+def simulate(reqs_tok, k=11, cap_tokens=1 << 21, min_prob=0.1, factor=1.0, times=None, reset_gap_s=0.0, rule="longest"):
     """reqs_tok: [(session, is_sub, prompt_delta_ids, output_ids)] in order.  Returns per-arm totals.  With `times`
     (request start, seconds) and reset_gap_s > 0 the index starts empty after every pause longer than that (the
     engine's index lives in memory: a pause stands in for a server restart)."""
@@ -360,7 +386,7 @@ def simulate(reqs_tok, k=11, cap_tokens=1 << 21, min_prob=0.1, factor=1.0, times
         def q_idx(i):
             if i not in cache_i:
                 n = base + i
-                d, m, pr = idx.propose(L.h[max(0, n - DEPTH):n], k)
+                d, m, pr = idx.propose(L.h[max(0, n - DEPTH):n], k, rule)
                 cache_i[i] = (d, m)
                 if d:
                     src["index_proposals"] += 1
@@ -450,6 +476,15 @@ def self_test():
     idx.insert([40, 41, 42, 43], [50, 51, 52])
     assert idx.propose([41, 42, 43], 3)[0] == [50, 51, 52]
     assert idx.propose([40, 41, 42], 3)[0] == [], "a lead place drafted"
+    # the paper's score rule (Alg. 1) against the engine's deepest match: one place matches 4 tokens and then ends, four
+    # places match 3 tokens and agree on a long continuation - the deepest match drafts 1 token, the score rule 5
+    idx = Index(1 << 16, min_prob=0.1, factor=4.0)
+    idx.insert([], [50, 1, 2, 3, 77])
+    for _ in range(4):
+        idx.insert([], [60, 1, 2, 3, 20, 21, 22, 23, 24])
+    assert idx.propose([50, 1, 2, 3], 11)[0] == [77]
+    d, m, pr = idx.propose([50, 1, 2, 3], 11, "score")
+    assert d == [20, 21, 22, 23, 24] and m == 3 and abs(pr[0] - 0.8) < 1e-9, (d, m, pr)
     # a full replay on synthetic turns: the index helps where sessions repeat one another's outputs
     reqs = []
     for s in range(6):
@@ -480,6 +515,9 @@ def main():
     ap.add_argument("--mib", type=float, default=64, help="index memory cap (MiB, 40 bytes a token)")
     ap.add_argument("--min-prob", type=float, default=0.1, help="a draft ends where its probability falls under this")
     ap.add_argument("--factor", type=float, default=1.0, help="a draft is at most factor x match tokens long")
+    ap.add_argument("--rule", choices=("longest", "score"), default="longest",
+                    help="how the index picks the match: longest (the engine) or score (SuffixDecoding's Alg. 1: the pattern "
+                    "length whose draft has the highest expected accepted tokens)")
     ap.add_argument("--limit", type=int, default=0, help="the first N requests only")
     ap.add_argument("--reset-gap", type=float, default=0, help="minutes: the index starts empty after a pause longer "
                     "than this between two requests (a stand-in for a server restart; 0: never)")
@@ -505,8 +543,8 @@ def main():
     cap = cap_tokens(a.mib)
     t1 = time.time()
     times = [r[0] / 1000.0 for r in reqs]          # opencode stores milliseconds
-    tot, src = simulate(rt, a.k, cap, a.min_prob, a.factor, times, a.reset_gap * 60.0)
-    print(f"suffix_sim: k {a.k}, index cap {cap} tokens ({a.mib:g} MiB), min-prob {a.min_prob}, factor {a.factor}; "
+    tot, src = simulate(rt, a.k, cap, a.min_prob, a.factor, times, a.reset_gap * 60.0, a.rule)
+    print(f"suffix_sim: k {a.k}, index cap {cap} tokens ({a.mib:g} MiB), min-prob {a.min_prob}, factor {a.factor}, rule {a.rule}; "
           f"replayed in {time.time() - t1:.1f}s")
     report(tot, src)
     if a.json:
