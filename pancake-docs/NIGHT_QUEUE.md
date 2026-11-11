@@ -26,8 +26,8 @@ Owner rule (2026-11-11): development by day, GPU testing by night.  The night cr
    `26-stack-small-exact.json:--no-early-stop` (run `ctest -R 'native_multi_parity|iq_multi_parity|hip_wait_copy|iq_sign_fast|q2_fast'` first),
    `25-f1-park-truncate.json`, `25-a11-a13-cache.json`, `a30-fiddler-cpu-share.json`, the selftune candidate spec, `a49-decode-context.json`.
    Use block mode (`--block`) and `--outlier robust` once harness-core's branch is merged and its tests pass.
-4. Kernel level (minutes each, GPU alone): `expdec_bench`, `hip_gdn_stage_bench 4096 16384 32768`, `empty_grid` probe; feed `kernel_gate.py`.
-5. One real-trace recording session if `record_session.py` is merged (see its notes).
+4. Kernel level (minutes each, GPU alone), then `python3 tools/pancake/kernel_gate.py item KEY ...` with each measurement BEFORE any end-to-end screen: F7 `q2_rows_bench --threads 8 --nt 1` and `--nt 2` (taskset -c 0-7, idle box); F12 and flat loads `expdec_bench 16/42,22/42 def,dec:s0,dec:s1` (and a `-DSTRATA_HIP_GLOBAL_WEIGHTS=1` build); F9 and A33 `gpu_profile.py --env STRATA_ROUTE_FAST=1` / `STRATA_EXPDEC_SWIGLU=1`; A36 `hit_critical.py` on gpu_profile traces with deferral on; A31 `hip_gdn_stage_bench 4096 16384 32768`; `empty_grid` probe.
+5. Real-trace recording: smoke `python3 /home/dan/clone-of-d/src/Strata-p16/tools/pancake/record_session.py plan --preset flashnext-iq2_xs-fast-hip --out <DIR> --repo /home/dan/clone-of-d/src/Strata-p16 --run` (few minutes, Ctrl-C, then `check <DIR> --min-windows 5 --min-turns 1`); if no real weights, the owner of verify.cpp applies pancake-docs/batch4/corpus-recorder-engine.patch; then a ~1 hour session, `check`, `convert`, and the printed replay commands (FineMoE, HOBBIT proxy, REAP, EcoSpec, A44/A46 re-judged on real traces).
 
 ## 2. After the queue
 - `python3 tools/pancake/promote.py <items.json>` on every result; commit results to `dev/phase16-academic` by path; update the plan table
