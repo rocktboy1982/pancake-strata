@@ -20,6 +20,7 @@
 #include "strata/platform/io_priority.hpp"
 #include "strata/platform/mem_pressure.hpp"
 #include "strata/core/adapt_async_default.hpp"
+#include "strata/core/calibrate_ratio.hpp"
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/epoch_bandit.hpp"
 #include "strata/core/live_knobs.hpp"
