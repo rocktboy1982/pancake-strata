@@ -139,6 +139,6 @@ def test_main_prints_the_scenario_table(tmp_path, capsys):
     f.write_text("\n".join(json.dumps(r) for r in turn_rows()) + "\n")
     S.main(["--turns", str(f), "--session", "s0"])
     out = capsys.readouterr().out
-    assert "S0 legacy" in out and "S3 4.0.1 flags" in out and "RAM rule (86), 5632 MiB" in out
+    assert "S0 legacy" in out and "S3 4.0.1 flags" in out and "RAM rule (86), 3584 MiB" in out
     S.main(["--turns", str(f), "--session", "s0", "--budget", "2048", "--min-tokens", "8192"])
     assert "budget 2048 MiB, 4 slots, min-tokens 8192" in capsys.readouterr().out

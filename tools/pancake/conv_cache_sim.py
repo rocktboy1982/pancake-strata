@@ -6,7 +6,7 @@ save on a recorded session, and what do they cost on the requests they touch?  N
 the per-turn log (`pancake-turns.jsonl`) with the same conversation grouping as tools/pancake/replay_turns.py.
 
     python tools/pancake/conv_cache_sim.py [--turns pancake-turns.jsonl] [--session 2026-11-09T16:13/16:43]
-           [--avail-gib 18 --keep-gib 12]                  the RAM rule's inputs (MOD_PLAN 86), for the "ram-rule" budget
+           [--avail-gib 16 --keep-gib 12]                  the RAM rule's inputs (MOD_PLAN 86), for the "ram-rule" budget
            [--budget MIB --slots N --min-tokens N]         one scenario, else the built-in table
            [--ms-per-token 0.414 --restore-s 0.9 --snapshot-mib 111,14.9,113]
 
@@ -172,7 +172,7 @@ def main(argv=None):
     ap.add_argument("--session-gap", type=float, default=600)
     ap.add_argument("--conv-min", type=int, default=8192)
     ap.add_argument("--max-growth", type=int, default=16384)
-    ap.add_argument("--avail-gib", type=float, default=18.0, help="MemAvailable once the arena is loaded (this box: ~51 - 33)")
+    ap.add_argument("--avail-gib", type=float, default=16.0, help="MemAvailable once the arena is loaded (this box: ~49 - 33; the budget steps 1.5 / 2.5 / 3.5 GiB at 14 / 15 / 16)")
     ap.add_argument("--keep-gib", type=float, default=12.0, help="STRATA_RAM_KEEP_GIB (run-pancake.sh sets 12)")
     ap.add_argument("--budget", type=int, default=None, help="one scenario: budget in MiB (with --slots, --min-tokens)")
     ap.add_argument("--slots", type=int, default=4)
