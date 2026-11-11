@@ -1,5 +1,5 @@
 """Tests for percache_sim.py: the store loader on a synthetic opencode database, the cause labels, the park model's rules
-(budget, pinned entries never leave, disk tier) and the chain micro model.  No real history needed."""
+(budget, pinned entries never leave or, in the evict-last arm, leave last, disk tier) and the chain micro model.  No real history needed."""
 import json
 import os
 import sqlite3
@@ -89,6 +89,34 @@ class Model(unittest.TestCase):
             out[nm] = st[-1]["sim_src"]
         self.assertIn(out["base"], ("cold", "root"))                     # slots 4: A was the oldest and left
         self.assertEqual(out["pin"], "parked")                           # the first four stay, whatever comes later
+
+    def test_pinned_entries_leave_last_in_the_evict_last_arm(self):
+        import collections
+        ev = {k: collections.defaultdict(list) for k in ("users", "comp", "prune")}
+        mk = lambda sid, t, tot, out=100: P._mk(sid, sid.lower(), t, tot, 0, out)   # noqa: E731
+        # the hazard: six pinned sessions, then a return to the fifth.  pin: E was never parked (only pinned entries were
+        # left), so it reads again; evict-last parks it as base does (the oldest pinned entry left instead)
+        steps = [mk(s, i, 20000) for i, s in enumerate("ABCDEF")] + [mk("E", 6, 20200)]
+        P.annotate(steps, ev)
+        roots = P.family_roots(steps)
+        out = {}
+        for nm in ("base", "pin", "pin-evict-last"):
+            st = [dict(s) for s in steps]
+            P.simulate(st, P.ARMS[nm](), roots)
+            out[nm] = st[-1]["sim_src"]
+        self.assertEqual(out["base"], "parked")
+        self.assertIn(out["pin"], ("cold", "root"))
+        self.assertEqual(out["pin-evict-last"], "parked")
+        # a pinned entry outlives an unpinned one when the slots are short: X's family has no root (it pins nothing), so
+        # X goes before A, the oldest (a budget that is never short: the four slots decide)
+        steps = [mk("A", 0, 20000), mk("X", 1, 20000)] + [mk(s, 2 + i, 20000) for i, s in enumerate("BCD")] + \
+                [mk("Y", 5, 20000), mk("A", 6, 20200)]
+        P.annotate(steps, ev)
+        roots = dict(P.family_roots(steps), x=0)
+        for pin, want in ((False, False), ("evict-last", True)):
+            st = [dict(s) for s in steps]
+            P.simulate(st, P.Arm("slots", budget=1e9, pin=pin), roots)
+            self.assertEqual(st[-1]["sim_src"] == "parked", want, pin)
 
     def test_disk_tier_catches_what_ram_evicted(self):
         import collections

@@ -206,6 +206,8 @@ ARMS = {
     "pin-newest+flags": lambda: Arm("pin-newest+flags", budget=2048.0, min_tokens=8192, pin="newest"),
     "pin-last": lambda: Arm("pin-last", pin="last"),                             # a pinned entry stays only as the last holder of its pin
     "pin-last+flags": lambda: Arm("pin-last+flags", budget=2048.0, min_tokens=8192, pin="last"),
+    "pin-evict-last": lambda: Arm("pin-evict-last", pin="evict-last"),           # pinned entries are evicted last, not never
+    "pin-evict-last+flags": lambda: Arm("pin-evict-last+flags", budget=2048.0, min_tokens=8192, pin="evict-last"),
     "roots": lambda: Arm("roots", roots=True),
     "roots+flags": lambda: Arm("roots+flags", budget=2048.0, min_tokens=8192, roots=True),
     "keep-all": lambda: Arm("keep-all", budget=1e9, slots=10 ** 6, min_tokens=0),
@@ -255,6 +257,8 @@ def simulate(steps, arm, roots):
         parked[:] = [x for x in parked if x["sid"] != e["sid"]]
         while sum(x["size"] for x in parked) + e["size"] > arm.budget or len(parked) >= arm.slots:
             movable = [x for x in parked if not immovable(x)]
+            if not movable and arm.pin == "evict-last":
+                movable = parked                        # the fix: pinned entries leave last (oldest first), not never
             if not movable:
                 return                                  # only pinned entries left: the new image is not parked
             v = min(movable, key=lambda x: x["stamp"])
