@@ -1546,6 +1546,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   set_tests_properties(iq_multi_parity_kq_swiglu PROPERTIES ENVIRONMENT "STRATA_KQ_SPLIT=1;STRATA_GU_SWIGLU=1")
   add_test(NAME iq_multi_parity_kq_nosub16 COMMAND iq_multi_parity)
   set_tests_properties(iq_multi_parity_kq_nosub16 PROPERTIES ENVIRONMENT "STRATA_KQ_SPLIT=1;STRATA_NO_SUB16_GU=1")
+  # A33 / item 48: the EXPDEC runs with STRATA_EXPDEC_SWIGLU=1 take expdec_gu_swiglu_kernel (gate/up + SwiGLU + q8_1 in one
+  # launch): the grouped output must stay bitwise the old kernels' (its runs with LUT copies take the SwiGLU kernel too)
+  add_test(NAME iq_multi_parity_expdec_swiglu COMMAND iq_multi_parity)
+  set_tests_properties(iq_multi_parity_expdec_swiglu PROPERTIES ENVIRONMENT "STRATA_EXPDEC_SWIGLU=1")
   # the prompt path's DeltaNet recurrence: gdn_rec_kh_kernel against gdn_rec_cols_pipe_kernel, bitwise (GPU,
   # synthetic, no model; --bench adds timings).  NVIDIA only: cp.async and the CUDA occupancy API (not on gfx906)
   if(STRATA_ENABLE_CUDA AND NOT STRATA_HIP_GFX906)
