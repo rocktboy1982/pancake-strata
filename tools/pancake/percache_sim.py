@@ -189,10 +189,11 @@ def n_checkpoints(length, root, resume):
 
 class Arm:
     def __init__(self, name, budget=1280.0, slots=4, min_tokens=0, disk=False, disk_gib=20.0, pin=False, keep_all=False,
-                 disk_gbps=1.5, copy_s=0.9):
+                 disk_gbps=1.5, copy_s=0.9, roots=False):
         self.name, self.budget, self.slots, self.min_tokens = name, budget, slots, min_tokens
         self.disk, self.disk_gib, self.pin, self.keep_all = disk, disk_gib, pin, keep_all
         self.disk_gbps, self.copy_s = disk_gbps, copy_s
+        self.roots = roots      # A12 as the plan means it: a prefix store that keeps every family's root, beside the parked set
 
 
 ARMS = {
@@ -201,6 +202,12 @@ ARMS = {
     "flags+disk": lambda: Arm("flags+disk", budget=2048.0, min_tokens=8192, disk=True),
     "pin": lambda: Arm("pin", pin=True),
     "pin+flags": lambda: Arm("pin+flags", budget=2048.0, min_tokens=8192, pin=True),
+    "pin-newest": lambda: Arm("pin-newest", pin="newest"),                       # a pinned entry stays only for the family in use
+    "pin-newest+flags": lambda: Arm("pin-newest+flags", budget=2048.0, min_tokens=8192, pin="newest"),
+    "pin-last": lambda: Arm("pin-last", pin="last"),                             # a pinned entry stays only as the last holder of its pin
+    "pin-last+flags": lambda: Arm("pin-last+flags", budget=2048.0, min_tokens=8192, pin="last"),
+    "roots": lambda: Arm("roots", roots=True),
+    "roots+flags": lambda: Arm("roots+flags", budget=2048.0, min_tokens=8192, roots=True),
     "keep-all": lambda: Arm("keep-all", budget=1e9, slots=10 ** 6, min_tokens=0),
 }
 
@@ -209,12 +216,17 @@ def simulate(steps, arm, roots):
     """Replay the requests through the conversation cache; returns per-request sim tokens read, restore seconds and the
     agreement with the recorded cold/hit outcome of the continuing requests."""
     live = None                     # dict(sid, fam, L, ck, pinned)
+    cur_fam = None
     parked = []                     # dicts as live + size, stamp
     disk = collections.OrderedDict()   # sid -> dict (L, size)
     clock = 0
     res = []
 
+    seen = set()
+
     def root_ok(fam):
+        if arm.roots and fam in seen:
+            return True
         if live and live["fam"] == fam:
             return True
         return any(e["fam"] == fam for e in parked)
@@ -224,7 +236,16 @@ def simulate(steps, arm, roots):
         if e["L"] < arm.min_tokens:
             return
         e["size"] = snapshot_mib(e["L"], e["ck"])
-        immovable = lambda x: arm.pin and x["pinned"]   # noqa: E731  (conversation_cache.hpp: a pinned entry never leaves)
+        # conversation_cache.hpp: an entry holding a pinned prefix never leaves ("newest": a proposed rule, only the family in use)
+        def immovable(x):
+            if not (arm.pin and x["pinned"]):
+                return False
+            if arm.pin == "newest":
+                return x["fam"] == cur_fam
+            if arm.pin == "last":     # proposed: the pinned prefix survives while another parked entry or the live state holds it
+                others = [y for y in parked if y is not x and y["pinned"] and y["fam"] == x["fam"]]
+                return not others and not (live and live["pinned"] and live["fam"] == x["fam"] and live["sid"] != x["sid"])
+            return True
         if arm.keep_all:
             clock += 1
             parked[:] = [x for x in parked if x["sid"] != e["sid"]] + [dict(e, stamp=clock)]
@@ -264,12 +285,16 @@ def simulate(steps, arm, roots):
         else:                       # no state of its own: the family root when a live or parked state still holds it
             resume = root if (root and root < n and root_ok(fam)) else 0
             src, restore_s = ("root" if resume else "cold"), (arm.copy_s * 0.1 if resume else 0.0)
-        # park the outgoing live state, then drop what this request takes
-        if live and live["sid"] != s["sid"]:
+        # park the outgoing live state, then drop what this request takes.  pin=N: a request that resumes exactly at the pin
+        # of the live state's family, whose live branch past the pin is short (STRATA_PIN_PARK_TOKENS, 2048), parks nothing
+        cur_fam = fam
+        sibling = bool(arm.pin and live and live["fam"] == fam and root and resume == root and live["L"] - root <= 2048)
+        if live and live["sid"] != s["sid"] and not sibling:
             park(live)
         if src == "parked":
             parked[:] = [x for x in parked if x["sid"] != s["sid"]]
         pinned = bool(arm.pin and root and n > root)
+        seen.add(fam)
         live = dict(sid=s["sid"], fam=fam, L=n + s["out"], ck=n_checkpoints(n, root, resume), pinned=pinned)
         s["sim_resume"], s["sim_src"], s["sim_restore_s"] = resume, src, restore_s
         s["sim_read"] = max(0, n - resume)
