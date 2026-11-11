@@ -93,14 +93,39 @@ double DiscoModel::score(const float* x) const {
     return 1.0 / (1.0 + std::exp(-z));
 }
 
+DiscoModel DiscoModel::cumulative(double s) {
+    DiscoModel m;
+    m.scale.fill(1.0);
+    m.w[2] = 1.0;                              // feature 2: the chain product
+    m.threshold = 1.0 / (1.0 + std::exp(-s));  // sigmoid(chain) >= sigmoid(s)  <=>  chain >= s
+    m.loaded = true;
+    return m;
+}
+
 void DiscoPolicy::init_from_env(const char* who) {
-    if (const char* wf = std::getenv("STRATA_DISCO"); wf != nullptr && wf[0] != '\0' && std::string(wf) != "0") {
+    const char* cum = std::getenv("STRATA_SPEC_CUM");
+    const char* wf0 = std::getenv("STRATA_DISCO");
+    const bool disco_file = wf0 != nullptr && wf0[0] != '\0' && std::string(wf0) != "0";
+    if (cum != nullptr && cum[0] != '\0' && std::string(cum) != "0") {
+        char* end = nullptr;
+        const double s = std::strtod(cum, &end);
+        if (end == cum || *end != '\0' || !(s > 0.0 && s <= 1.0)) {
+            std::fprintf(stderr, "%s: STRATA_SPEC_CUM=%s: expected a number in (0, 1] - ignored\n", who, cum);
+        } else if (disco_file) {
+            std::fprintf(stderr, "%s: STRATA_SPEC_CUM and STRATA_DISCO are both set: STRATA_DISCO wins\n", who);
+        } else {
+            model_ = DiscoModel::cumulative(s);
+            std::fprintf(stderr, "%s: STRATA_SPEC_CUM=%.3g: the MTP chain stops where the product of the drafts' probabilities "
+                                 "falls under it; it replaces --spec-min-p and STRATA_SPEC_COST for MTP windows\n", who, s);
+        }
+    }
+    if (disco_file) {
         std::string err;
         DiscoModel m;
-        if (m.load(wf, err)) {
+        if (m.load(wf0, err)) {
             model_ = m;
             std::fprintf(stderr, "%s: STRATA_DISCO: learned MTP window rule from %s (threshold %.3f%s); it replaces --spec-min-p "
-                                 "and STRATA_SPEC_COST for MTP windows\n", who, wf, m.threshold,
+                                 "and STRATA_SPEC_COST for MTP windows\n", who, wf0, m.threshold,
                          m.n_thr_pos > 0 ? ", per-position table" : "");
         } else {
             std::fprintf(stderr, "%s: STRATA_DISCO: %s - keeping the current window rule\n", who, err.c_str());

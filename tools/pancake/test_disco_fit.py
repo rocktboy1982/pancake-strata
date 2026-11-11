@@ -198,8 +198,34 @@ def test_replay_arithmetic():
     assert v["tokens"] == 3 and v["ms"] == 12.0
 
 
+def test_spec_cum_arm_is_the_chain_threshold():
+    """F8 STRATA_SPEC_CUM s keeps the leading drafts whose probability product is >= s; s >= min_p makes the floor redundant."""
+    wins = synth_windows(seed=5)
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "t.stwt")
+        write_stwt(p, wins)
+        rounds, _ = disco_fit.read_rounds([p])
+    mtp = [r for r in rounds if r["mtp"]]
+    assert mtp
+    for s in (0.1, 0.3, 0.5, 0.7):
+        for r in mtp:
+            want = 0
+            for idx, _, x in r["rows"]:
+                if x[2] < s:
+                    break
+                want += 1
+            assert disco_fit.cut_cum(s)(r) == want
+            if s >= 0.5:
+                assert disco_fit.cut_cum(s, 0.5)(r) == want, "chain <= p, so s >= min_p already implies the floor"
+    cost = disco_fit.CostModel(rounds)
+    buf = io.StringIO()
+    disco_fit.report_arms(rounds, cost, out=buf)
+    assert "STRATA_SPEC_CUM 0.3" in buf.getvalue() and "STRATA_SPEC_CUM 0.3 + --spec-min-p 0.5" in buf.getvalue()
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
             fn()
             print("ok", name)
+

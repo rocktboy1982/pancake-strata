@@ -151,6 +151,56 @@ int main() {
         pol.end_round(r);   // a no-op
         check(pol.recent() == 0.7, "inactive policy keeps no state");
     }
+    {   // F8 STRATA_SPEC_CUM: the chain stops where p_0 * .. * p_j < s (a model on the chain feature alone)
+        DiscoPolicy pol;
+        pol.set_model(DiscoModel::cumulative(0.5));
+        check(pol.active(), "cumulative model: active");
+        check(pol.keep_draft(0, 0.9f, 6) && pol.rows() == 2, "cum 0.5: 0.9 kept");
+        check(pol.keep_draft(1, 0.7f, 6) && pol.rows() == 3, "cum 0.5: 0.9 * 0.7 = 0.63 kept");
+        check(!pol.keep_draft(2, 0.7f, 6) && pol.rows() == 3, "cum 0.5: 0.63 * 0.7 = 0.44 stops the chain, the draft is left out");
+        check(!pol.keep_draft(0, 0.45f, 6) && pol.rows() == 1, "cum 0.5: a first draft under 0.5 gives a one-row window");
+        // the same decisions as the product rule, for many chains (a chain within 1e-5 of s is a float tie: skipped)
+        long long bad = 0, tested = 0;
+        for (double s : {0.1, 0.3, 0.5, 0.8}) {
+            DiscoPolicy cp;
+            cp.set_model(DiscoModel::cumulative(s));
+            for (int t = 0; t < 2000; ++t) {
+                double chain = 1.0;
+                int want = 0;
+                bool alive = true, tie = false;
+                std::vector<float> p;
+                for (int j = 0; j < 5; ++j) {
+                    p.push_back((float) (0.35 + 0.65 * (double) (mix((uint64_t) (t * 7 + j) + 11) % 100000) / 100000.0));
+                    chain *= (double) p.back();
+                    if (std::fabs(chain - s) < 1e-5) tie = true;
+                    if (alive && chain >= s) ++want; else alive = false;
+                }
+                if (tie) continue;
+                for (int j = 0; j < 5; ++j)
+                    if (!cp.keep_draft(j, p[(size_t) j], 16)) break;
+                ++tested;
+                if (cp.rows() - 1 != want) ++bad;
+            }
+        }
+        check(bad == 0 && tested > 7000, "cumulative model keeps exactly the leading drafts with chain >= s");
+        // the env switch
+        setenv("STRATA_SPEC_CUM", "0.3", 1);
+        unsetenv("STRATA_DISCO");
+        DiscoPolicy ep;
+        ep.init_from_env("disco_test");
+        check(ep.active(), "STRATA_SPEC_CUM=0.3: active");
+        check(ep.keep_draft(0, 0.5f, 6) && ep.keep_draft(1, 0.7f, 6) && !ep.keep_draft(2, 0.8f, 6) && ep.rows() == 3,
+              "STRATA_SPEC_CUM=0.3: 0.5, 0.35 kept; 0.28 stops");
+        setenv("STRATA_SPEC_CUM", "1.5", 1);
+        DiscoPolicy bp;
+        bp.init_from_env("disco_test");
+        check(!bp.active(), "STRATA_SPEC_CUM=1.5: ignored");
+        setenv("STRATA_SPEC_CUM", "abc", 1);
+        DiscoPolicy ap;
+        ap.init_from_env("disco_test");
+        check(!ap.active(), "STRATA_SPEC_CUM=abc: ignored");
+        unsetenv("STRATA_SPEC_CUM");
+    }
     {   // 2. the chain rule
         DiscoPolicy pol;
         pol.set_model(model_on_p(0.5));
@@ -292,6 +342,19 @@ int main() {
                                              [&](const float*, int) { return pol.rows(); }, &pol, &dp);
                 check(ds.out == ref, "DISCO per-position table = greedy");
                 ++runs;
+            }
+            for (double cs : {0.1, 0.3, 0.5}) {   // F8 STRATA_SPEC_CUM: the cumulative stop is exact too
+                DiscoPolicy pol;
+                pol.set_model(DiscoModel::cumulative(cs));
+                DraftPolicy dp(S);
+                const RunStats ds = run_spec(prompt, n_new, S, 0.5f, salt,
+                                             [&](int idx, float pj) { return pol.keep_draft(idx, pj, S); },
+                                             [&](const float*, int) { return pol.rows(); }, &pol, &dp);
+                check(ds.out == ref, "SPEC_CUM rule = greedy");
+                ++runs;
+                if (salt == 1)
+                    std::printf("SPEC_CUM %.2f: %lld rounds, %lld drafts verified, %lld accepted (static 0.5: %lld rounds)\n", cs,
+                                (long long) ds.rounds, (long long) ds.drafts, (long long) ds.accepted, (long long) st.rounds);
             }
             {   // a model on every feature (the trained shape): still exact
                 DiscoPolicy pol;
