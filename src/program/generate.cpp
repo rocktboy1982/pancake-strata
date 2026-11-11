@@ -12657,7 +12657,12 @@ int main(int argc, char** argv) {
                     ds.model = !o.native_shards.empty() ? o.native_shards[0] : o.pack;
                     ds.id = id;
                     ds.key = strata::core::conversation_disk_key(
-                        {id, ds.model, strata::core::conversation_disk_key_env([](const char* n) { return (const char*) std::getenv(n); })});
+                        {id, ds.model, strata::core::conversation_disk_key_env([](const char* n) -> const char* {
+                             // the small-card prompt path turns the fused prompt experts off in-process (pf_fused_override), not through the
+                             // environment: the key sees it as STRATA_PF_FUSED=0.  STRATA_PREFILL_LAYER_MAJOR it setenv()s, so getenv has it.
+                             if (std::strcmp(n, "STRATA_PF_FUSED") == 0 && strata::prefill::pf_fused_override().load() == 0) return "0";
+                             return std::getenv(n);
+                         })});
                     ds.max_bytes = (uint64_t) gib << 30;
                     ds.min_free_bytes = (uint64_t) o.session_min_free_mib << 20;
                     const char* mt = std::getenv("STRATA_CONVERSATION_DISK_MIN_TOKENS");

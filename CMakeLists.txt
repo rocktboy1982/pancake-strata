@@ -503,6 +503,25 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(defer_rank_test PRIVATE include)
   add_test(NAME defer_rank_test COMMAND defer_rank_test)
 
+  # MOD_PLAN item 39: the disk tier's key, index, choice, eviction policy and size cap, and a write/read round trip on
+  # a temporary folder - no GPU, no CUDA (here, not with the GPU targets, so a CPU-only build runs it too)
+  add_executable(conversation_disk_tier_test tests/core/conversation_disk_tier_test.cpp src/core/conversation_disk_tier.cpp
+                 src/core/conversation_file.cpp)
+  target_include_directories(conversation_disk_tier_test PRIVATE include)
+  target_link_libraries(conversation_disk_tier_test PRIVATE Threads::Threads)
+  add_test(NAME conversation_disk_tier_test COMMAND conversation_disk_tier_test)
+  set_tests_properties(conversation_disk_tier_test PROPERTIES TIMEOUT 60)
+
+  # MOD_PLAN 16b disk-key: every STRATA_* string in src/ and include/ is classified in src/core/conversation_disk_env.def (a new switch
+  # without a line fails), and the class and the disk tier's key agree - no GPU, no model
+  add_executable(conversation_disk_env_test tests/core/conversation_disk_env_test.cpp src/core/conversation_disk_tier.cpp
+                 src/core/conversation_file.cpp)
+  target_include_directories(conversation_disk_env_test PRIVATE include)
+  target_compile_definitions(conversation_disk_env_test PRIVATE STRATA_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+  target_link_libraries(conversation_disk_env_test PRIVATE Threads::Threads)
+  add_test(NAME conversation_disk_env_test COMMAND conversation_disk_env_test)
+  set_tests_properties(conversation_disk_env_test PROPERTIES TIMEOUT 60)
+
   # MOD_PLAN "Project features discovered" item 1: the once-only "strata switch:" lines (format, once per kind, threads; header-only, no GPU)
   add_executable(switch_report_test tests/core/switch_report_test.cpp)
   target_include_directories(switch_report_test PRIVATE include)
@@ -886,16 +905,6 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_include_directories(memory_guard_test PRIVATE include)
     add_test(NAME memory_guard_test COMMAND memory_guard_test)
     set_tests_properties(memory_guard_test PROPERTIES TIMEOUT 60)
-  endif()
-  # MOD_PLAN item 39: the disk tier's key, index, choice, eviction policy and size cap, and a write/read round trip on
-  # a temporary folder - no GPU, no CUDA
-  if(STRATA_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/core/conversation_disk_tier_test.cpp")
-    add_executable(conversation_disk_tier_test tests/core/conversation_disk_tier_test.cpp src/core/conversation_disk_tier.cpp
-                   src/core/conversation_file.cpp)
-    target_include_directories(conversation_disk_tier_test PRIVATE include)
-    target_link_libraries(conversation_disk_tier_test PRIVATE Threads::Threads)
-    add_test(NAME conversation_disk_tier_test COMMAND conversation_disk_tier_test)
-    set_tests_properties(conversation_disk_tier_test PROPERTIES TIMEOUT 60)
   endif()
 
   # MOD_PLAN 86: PSI parsing, the cgroup path, the switches, the loader guard on fixture files - no GPU
@@ -3513,8 +3522,8 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
     routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test defer_rank_test think_probe_test run_manifest_test
+    host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test conversation_disk_env_test file_expert_source_test
     switch_report_test
-    host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test file_expert_source_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test

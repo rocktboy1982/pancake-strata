@@ -141,7 +141,7 @@ void test_key() {
     // the fold only moves a row between pool passes (exact vs the same run): same key
     check(exact == conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_DEFER_CPU_FOLD", "2"}})}),
           "key: STRATA_VERIFY_DEFER_CPU_FOLD does not change the key");
-    check(exact.rfind("strata conversation disk 2\n", 0) == 0, "key: format version 2 (deferral switches added)");
+    check(exact.rfind("strata conversation disk 3\n", 0) == 0, "key: format version 3 (the classified switch table of conversation_disk_env.def)");
 
     check(exact != conversation_disk_key({{1, 3}, "/m/a.gguf", get({})}), "key: another config fingerprint, another key");
     check(conversation_disk_subfolder("/d", "/m/a.gguf", exact) != conversation_disk_subfolder("/d", "/m/a.gguf", turbo),
@@ -163,8 +163,8 @@ void test_key() {
     const std::string ecap = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "1"}})});
     check(ecap != exact && ecap != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "2"}})}),
           "key: STRATA_VERIFY_ECAP changes the key, and each cap has its own");
-    check(exact == conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", ""}})}),
-          "key: an empty STRATA_VERIFY_ECAP is unset");
+    check(exact != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", ""}})}),
+          "key: an empty STRATA_VERIFY_ECAP is keyed as set (the presence-only switches need it; an extra miss for this one)");
     // MOD_PLAN A44: STRATA_BANDIT joins the key only when set, as do its exactness limit
     const std::string bandit = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_BANDIT", "top"}})});
     check(bandit != exact, "key: STRATA_BANDIT changes the key");
