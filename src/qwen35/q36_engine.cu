@@ -1518,9 +1518,13 @@ struct Engine {
                 bfla_ok = cudaMalloc(&bfla_scratch, bfla_bytes) == cudaSuccess;
                 if (!bfla_ok) (void) cudaGetLastError();
             }
-            std::fprintf(stderr, "strata-q36: %s %s%s\n", strata::kernels::bfla_switch_name(bm), bfla_ok ? "on" : "off - ",
-                         bfla_ok ? (bfla_bytes ? " (selection scratch allocated)" : "")
-                                 : "needs head dim 256, 4 / 8 / 16 query heads a KV head and a gfx11 GPU (or its scratch did not fit)");
+            if (bfla_ok)
+                std::fprintf(stderr, "strata-q36: %s on%s\n", strata::kernels::bfla_switch_name(bm),
+                             bfla_bytes ? " (selection scratch allocated)" : "");
+            else   // the line tools/pancake/switch_report.py reads
+                std::fprintf(stderr, "strata switch: %s will not act: needs head dim 256, 4 / 8 / 16 query heads a KV head and "
+                                     "a gfx11 GPU (or its scratch did not fit)\n",
+                             strata::kernels::bfla_switch_name(bm));
         }
         use_mmq = MMQ::built() && std::getenv("STRATA_Q36_NO_MMQ") == nullptr;
         auto mmq_ok = [&](const Layer& L) {
@@ -2118,7 +2122,7 @@ struct Engine {
                                                                    full_from, bfla_scratch, bfla_bytes, att, st);
                     if (bfla_done && !bfla_acted) {   // once: the log proves the arm acted
                         bfla_acted = true;
-                        std::fprintf(stderr, "strata-q36: %s acted: prompt attention of positions %lld..%d by the fused kernel\n",
+                        std::fprintf(stderr, "strata switch: %s acted: prompt attention of positions %lld..%d by the fused kernel\n",
                                      strata::kernels::bfla_switch_name(bc.mode), (long long) p0, P - 1);
                     }
                 }

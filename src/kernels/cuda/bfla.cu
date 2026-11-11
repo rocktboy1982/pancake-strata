@@ -21,8 +21,8 @@ const BflaConfig& bfla_config() {
     static const BflaConfig c = [] {
         const BflaConfig r = bfla_config_from([](const char* name) { return std::getenv(name); });
         if (r.legacy)
-            std::fprintf(stderr, "strata: STRATA_BFLA is ignored (split in two): STRATA_BFLA_DENSE=1 for the exact fused prompt "
-                                 "attention, STRATA_BFLA_SPARSE=1 for the lossy block-sparse BFLA\n");
+            std::fprintf(stderr, "strata switch: STRATA_BFLA will not act: ignored (split in two): STRATA_BFLA_DENSE=1 for the "
+                                 "exact fused prompt attention, STRATA_BFLA_SPARSE=1 for the lossy block-sparse BFLA\n");
         if (r.mode == 2)
             std::fprintf(stderr, "strata: STRATA_BFLA_DENSE=1 - fused prompt attention over every causal block (exact, not "
                                  "bitwise the GEMM path) on the dense attention layers from %lld tokens\n",

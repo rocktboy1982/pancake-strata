@@ -80,8 +80,10 @@ def test_arm_env_and_acted():
     e = B.arm_env({"HIP_VISIBLE_DEVICES": "0"}, "dense", {"STRATA_BFLA_MIN": "4096"})
     assert e == {"HIP_VISIBLE_DEVICES": "0", "STRATA_BFLA_DENSE": "1", "STRATA_BFLA_MIN": "4096"}
     assert B.arm_env({}, "sparse", {}) == {"STRATA_BFLA_SPARSE": "1"}
-    log = "strata-q36: STRATA_BFLA_SPARSE acted: prompt attention of positions 32768..36863 by the fused kernel\n"
+    log = "strata switch: STRATA_BFLA_SPARSE acted: prompt attention of positions 32768..36863 by the fused kernel\n"
     assert B.acted(log, "sparse") and not B.acted(log, "dense") and not B.acted("", "sparse")
+    refused = "strata switch: STRATA_BFLA_DENSE will not act: needs head dim 256, 4 / 8 / 16 query heads a KV head and a gfx11 GPU\n"
+    assert not B.acted(refused, "dense")
 
 
 if __name__ == "__main__":
