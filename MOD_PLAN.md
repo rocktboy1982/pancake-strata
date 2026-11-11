@@ -1496,6 +1496,44 @@ IQ2_XS experts, and the d, thresholds and cache sizes that fit 20 GB VRAM on PCI
 Rules for development (owner, 2026-11-11): CPU/offline tests only until the GPU is released; each agent works in its own worktree
 and branch (dev/p16/<name>), commits are merged into dev/phase16-academic; agents run on sonnet, opus and haiku at xhigh effort.
 
+### Phase 16 development run, status per item (started 2026-11-11; integration branch dev/phase16-academic)
+
+Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Tested** (measured; GPU runs wait until the GPU is free),
+**Cut** (PROMOTE = cherry-picked into port/rdna3-decode, HOLD, REJECT).  Only PROMOTE items go into the rdna3 branch.  Agent notes:
+`pancake-docs/batch3/<name>.md` on each branch.
+
+| Agent / branch | Items | Dev | Tested | Cut |
+| --- | --- | --- | --- | --- |
+| citecheck / dev/p16/citecheck | citations of Phase 15/16 and README 4C | done, merged (c4660fcbe) | 85 arXiv ids + 12 URLs checked | n/a (corrections below) |
+| compilegate | CPU/HIP compile baseline of dev/batch-2, ctest -L cpu | running | - | - |
+| rankguard | A4 fold, A4 rank guard, F5, F13, HOBBIT proxy (offline), ROUTER_FUSE warning | running | - | - |
+| disco-suffix | A22/A25/A26 DISCO, A24 suffix index, A21/F6, F8, EcoSpec | running | - | - |
+| policy | A44 bandit, A45, A15 park TTL, F1 park truncate | running | - | - |
+| finemoe | FineMoE replay + PRI eviction, MoE-Infinity baseline, A7/A8/A46 on agent traces | running | - | - |
+| agentloop | A17-A20, A30, A38-A43, A55 | running | - | - |
+| shadowpack | F4 shadow pack, REAP saliency, S2-MoE rollback (design) | running | - | - |
+| percache | A11-A14, A16, 90+71, 31, 39 | running | - | - |
+| selftune | item 70 selftune, A6, A49, sweep knobs | running | - | - |
+| phase15 | Phase 15 fork ideas triage | running | - | - |
+| speclint | static validation of bench/specs | running | - | - |
+| promotion | promote.py, spec map for every item | running | - | - |
+| kern-cpu | F7 Q2_0 AVX2, F12 IQ sign, CPU pool floor | running (kernel wave, merges last) | - | - |
+| kern-hip | F21, F9, A37 (HIP compile-only) | running (kernel wave, merges last) | - | - |
+| kern-gdn | A31 GDN chunk 64, A36, 16.11 attention/KV | running (kernel wave, merges last) | - | - |
+| datapath | 16.12 loader/PCIe/NVMe, 16.6 cold reads | running | - | - |
+
+#### Citation corrections (citecheck, 2026-11-11; full table in pancake-docs/batch3/citecheck.md)
+
+All 85 arXiv ids resolve.  Wrong or misquoted, fix before anyone relies on them: README 4C (pancake-docs/README.md:180 and
+RESEARCH_AND_FINDINGS.md:208) gives XAttention as 2502.17421, which is LongSpec; XAttention is **2503.16428** (the top-level README is right).
+SpargeAttn is cited as 2411.10958 (that is SageAttention2); SpargeAttention is **2502.18137**.  A38 "Beyond Accuracy" 2511.11012: abstract says
+33%-440% more input tokens (1.33x-5.4x), not 1.4-4.4x.  A24 SuffixDecoding 2411.04975: authors report up to 5.3x on SWE-Bench and Text-to-SQL, not "a few % up to ~10%".
+A19 Thought Calibration 2505.18404: 60% fewer thinking tokens in-distribution, up to 20% out-of-distribution, not 20-40%.  A33 "SGLang small-M fusion" 2312.07104:
+the paper makes no fusion claim.  A2 AcceptMoE 2608.02989: the abstract describes a commitment-weighted expert selector with cache residency, not a depth-graded prior.
+A28 GSQ 2604.18556: model and numbers (95.7% SWE-bench, 256/512 experts) are not in the source.  Figures not found in the cited abstract (check the paper
+body or drop them): ProMoE "1.09x over LRU", HOBBIT "CDF 0.6/0.9" and "r=0.99", DALI "6-13%", FreeToken "FLOP-per-byte eviction" (Marconi's idea), MoE-Lightning
+"stale-dropping".  Phase 15 cites only fork commits, whose hashes were not checked.
+
 ### Implementation and test status (2026-11-10, branch dev/batch-1)
 
 "In preset" = measured on the RX 7900 XT and switched on in fast-hip. "Batch" = coded on dev/batch-1 (16 commits), opt-in,
