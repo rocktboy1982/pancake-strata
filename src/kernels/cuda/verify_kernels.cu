@@ -1795,7 +1795,14 @@ __global__ void wait_copy_i32_wide_kernel(const volatile uint32_t* flag, uint32_
 // STRATA_WAIT_COPY256=1 (opt-in, read once): plans of more than 512 words go through wait_copy_i32_wide_kernel
 bool wait_copy_wide(int64_t n) {
     static const bool on = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
-    return on && n > 512;
+    const bool wide = on && n > 512;
+    // once: the log proves the arm acted (an invisible switch is how the copy256 arms of specs 18/23 measured nothing)
+    static bool said = false;
+    if (wide && !said) {
+        said = true;
+        std::fprintf(stderr, "strata: STRATA_WAIT_COPY256 on: plans of %lld words use the 256-thread wide copy\n", (long long) n);
+    }
+    return wide;
 }
 }  // namespace
 void wait_copy_i32_from_mapped(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
