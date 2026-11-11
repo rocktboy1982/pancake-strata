@@ -1,0 +1,50 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "lookahead0": {
+   "env": {
+    "STRATA_LOOKAHEAD": "0"
+   }
+  },
+  "dedupe": {
+   "env": {
+    "STRATA_PREFILL_COPY_WAIT_DEDUPE": "1"
+   }
+  },
+  "routed": {
+   "env": {
+    "STRATA_PREFILL_ROUTED_STREAM": "1"
+   }
+  },
+  "routed-dedupe": {
+   "env": {
+    "STRATA_PREFILL_ROUTED_STREAM": "1",
+    "STRATA_PREFILL_COPY_WAIT_DEDUPE": "1"
+   }
+  },
+  "mmvf-rows": {
+   "env": {
+    "STRATA_MMVF_ROWS": "1"
+   }
+  },
+  "gdn-pp2": {
+   "env": {
+    "STRATA_GDN_PP": "2"
+   }
+  },
+  "specminp07": {
+   "args": {
+    "--spec-min-p": "0.7"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "Phase 15 re-run of the 05s screen's no-code arms (MOD_PLAN 'closed' row of 2026-11-10: small-flag stack, LOOKAHEAD=0, routed-dedupe, MMVF_ROWS, GDN_PP=2, spec-min-p 0.7). That screen had no clean base run (05s-screen.summary.txt: 'base no clean runs', every arm n=2 with +-100..+450 tok/s intervals, the harness verdict was 'drop' for every arm including lookup12, which 05c then confirmed at +8.8%), so those arms were never measured; only the stack (-20%) is a result. This spec drops the stack and lookup12 (already in the preset), splits the 05s 'routed-dedupe' arm into its two switches (batch-2 note: bsorensen turns the dedupe on only with the routed walk off, so the cross is needed) and keeps the rest. lookahead0 is the one with a reason: the fast-hip log shows 'routing-aware prefetch on' while the pinned RAM complement already holds every expert the GPU cache does not, so the look-ahead only warms GGUF pages the decode never reads (Spark-NV 0b88bd1a66: decode window 17.4 -> 15.8 ms with the look-ahead detached when the complement is whole; its detach rule is not in this tree, only the gpu_holds_all one). If it wins, port the complement_whole gate (about 25 lines in generate.cpp). Read 'long' as prompt tok/s (routed, dedupe, gdn-pp2) and short / edit as decode tok/s; keep abtest's quiet-machine rules (max-load, foreign-cpu), the first run showed CPU clock swings of 3.2-3.6 vs 3.9-4.1 GHz. Needs the GPU; not run in this branch."
+}
