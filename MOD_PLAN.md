@@ -1516,7 +1516,7 @@ Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Te
 | selftune | item 70 selftune, A6, A49, sweep knobs | running | - | - |
 | phase15 | Phase 15 fork ideas triage | running | - | - |
 | speclint | static validation of bench/specs (tools/pancake/spec_lint.py) | done, merged (13e44064d); 19 tests pass; 60 specs: 2 errors, 7 warnings | static only | tool kept (not an engine item) |
-| promotion | promote.py, spec map for every item | running | - | - |
+| promotion | promote.py, spec map for every item | done, merged (`tools/pancake/promote.py`, 36 tests, read-only by test; `bench/promotion/phase16.json` 35 items; 5 new specs 25-f1-park-truncate, 25-a11-a13-cache, 25-a8-swaps-auto-blocking, 25-a4-w-sweep, taskgate-a19-probe, spec_lint: 65 specs 2 errors) | real-data check on 2026-11-09/10 results: A3 deferral PROMOTE, A4 `_TOP=2` HOLD (short -6.9%), lookup12 HOLD (5 of 8 runs noisy), expdec-down HOLD (no text hashes), turbo HOLD (token forcing inconclusive) | the decision tool: PROMOTE needs 95% lower bound of paired gain >= 1% (exact) / 3% (lossy), Student-t paired by repetition, Bonferroni, >= 3 clean pairs, text hash equal to base for exact items, token forcing PASS + task gate PASS for lossy |
 | kern-cpu | F7 Q2_0 AVX2, F12 IQ sign, CPU pool floor | running (kernel wave, merges last) | - | - |
 | kern-hip | F21, F9, A37 (HIP compile-only) | running (kernel wave, merges last) | - | - |
 | kern-gdn | A31 GDN chunk 64, A36, 16.11 attention/KV | done, merged (tools + tests only, 13 py tests; gdn_stage_bench.cpp.o and q36_engine.cu compile HIP) | A31: blocked-on-GPU (stage bench `hip_gdn_stage_bench 4096 16384 32768` then `probes/gdn_chunk64_rule.py`; static read expects WMMA-bound); A36: ceiling 1.58/2.47/0.30% of wall on a pre-deferral profile; XAttention, Quest/Twilight, KV compression: not built; BFLA: exact dense mode first, sparse stays opt-in/lossy | A31 HOLD (needs stage bench), A36 HOLD (re-check with deferral-on trace), XAttention/KV items REJECT |
@@ -1537,6 +1537,15 @@ Plan text to fix (kern-gdn): A31 "5-11% of prefill" has no source and the only G
 A36 "weight-major" in MonoMoE is a SwapAB tile mapping inside a persistent megakernel, not a weight layout; BFLA "3.15x" at 128K is against a materialised-softmax baseline
 (fused dense alone is 2.0x, exact; sparse adds 1.58x at 128K) and its KL 0.0014/0.0045 is above the plan's own 1e-3 gate (48 tokens is too few, ~300 needed);
 README 4C marks Mamba-2/Mamba-3 "adopted (GDN chunk-64 line)" though chunk 64 is not built.
+
+#### Test-protocol findings (promotion, 2026-11-11) - apply in the GPU phase
+
+- **Task gate is underpowered**: 18 tasks x 5 reps passes an identical arm ~3% of the time and rejects a true 10-point loss ~3% of the time; 100+ tasks x 10 reps passes an identical arm ~85%.  No lossy item can reach PROMOTE until the task set is ~100 tasks or the per-item `gates` are narrowed.
+- **Token-forcing set is too small** (`bench/quality/set.json`: 20 requests, 5,322 tokens): an arm identical to stock is INCONCLUSIVE 22% of the time and a real +1.0 pt deviation is rejected only 62%; 40 requests brings both to ~92%.
+- **Small gains need many repeats**: paired SD median 3.9% of base (p25 1.6%); the default 3-4 reps only prove gains above ~5%.  Exact items with a 1-3% claim run with `ABTEST_ARGS="--no-early-stop --reps 8"`.
+- `test_phase.sh` never runs `task_gate.py` or `replay_turns.py`: run them by hand (commands in pancake-docs/batch3/promotion.md); promote.py reads `<results>/<stem>-taskgate` and `<stem>-replay`.
+- Already in port/rdna3-decode: A11 527e06429, A13 070fe8512, A2 4f56ce535, A23 663107a56.
+- Items with no deciding test today: A9 idle adapt, A41/A42/A43 nudges, A52 loader (gain = start time), F6/A21 (no distribution check; parity waived).
 
 #### Citation corrections (citecheck, 2026-11-11; full table in pancake-docs/batch3/citecheck.md)
 
