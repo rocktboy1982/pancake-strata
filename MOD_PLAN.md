@@ -1462,6 +1462,40 @@ New processes built on these capabilities:
 
 ## Phase 16: academic research first, by area of improvement (2026-11-10, owner: develop academic technologies with priority)
 
+### Method-validity research and development order (2026-11-11, deep-research: 104 agents, 22 sources, 20 of 25 verified claims kept)
+
+Every published gain below was measured on NVIDIA GPUs over PCIe 4.0 with fp16/bf16/Q4 experts on Mixtral-class or 16B-class
+MoEs. None used IQ2_XS/Q2_0 experts, gfx1100, PCIe 3.0 or DDR4, so **no paper's speedup is assumed to transfer**: each item is
+built as an offline/CPU-testable piece first and only gets an engine switch if the replay shows a gain.  The research covered the
+cache/prefetch, mixed-precision, speculative-MoE and pruning papers; it did not cover 16.7, 16.10 or the Q2_0/IQ kernel items
+(those still need their own source checks, done by the kernel wave).
+
+| Order | Item | Source and verdict | Exact? | Offline test (no GPU) | Branch / agent |
+| --- | --- | --- | --- | --- | --- |
+| 1 | FineMoE expert-map prefetch + PRI eviction | FineMoE, EuroSys'26 (2502.05370): sound, best specified; semantic match on first d=3 layers, trajectory match later, delta = clip(1 - sim, 0, 1), eviction 1/(p * freq); 47% latency is an upper bound (6x RTX 3090) | exact | hit rate and time model on recorded gate traces | dev/p16/finemoe |
+| 2 | HOBBIT gate-magnitude importance proxy | HOBBIT (2411.01433): proxy r = 0.99 and T1/T2 split measured on 8-expert top-2 only; precision swap does NOT transfer (no copy below IQ2_XS); layer-ahead prefetch weak on PCIe 3.0 | lossy (skip only) | correlation and threshold re-fit on a many-expert top-k trace | dev/p16/rankguard |
+| 3 | EcoSpec cost-aware draft selection | EcoSpec (2026): S = P(path) / (new-expert cost + eps); output identical; gains from 235B models, modest | exact | replay draft trees + routing traces: unique experts per verify, accepted tokens | dev/p16/disco-suffix |
+| 4 | S2-MoE KV rollback, context-aligned drafting | S2-MoE (2608.15018, llama.cpp based): shared-KV drafting with rollback is the exact part | exact | acceptance on recorded traces | dev/p16/shadowpack (design note) |
+| 5 | REAP expert pruning | REAP (2510.13999): router gate x activation norm saliency; needs calibration set | lossy, offline | saliency scoring on routing traces only | dev/p16/shadowpack |
+| 6 | S2-MoE reuse-aware gating | same paper | lossy | needs KL / top-1 / PPL gate | not started |
+| 7 | DraftExpert | trains one draft expert per layer | exact output, training cost | - | not started (training) |
+| 8 | Kernels and core: 16.7, 16.10, Q2_0/IQ (F7, F12, F21, A37, A31, F9) | last, as the owner asked | exact | bit-exact CPU microbench, parity tests | second wave, after 1-7 are merged |
+
+Skip unless an offline replay shows value for single-user decode: OD-MoE shadow model (needs the whole model re-run ahead; recall
+measured on Mixtral only), MoE-Infinity EAM collection (needs 30-50 requests of warm-up; kept only as the FineMoE baseline).
+Do not build naive shared-expert + top-r self-drafting: in the DraftExpert paper it was slower than autoregressive once exact
+verification and repair were counted.  HybriMoE is a design reference only (scheduler depends on measured CPU/GPU latencies;
+"exact and offline-simulable" was refuted 0-3).  SP-MoE (draft-stage expert prediction) was measured at batch 1, greedy,
+sequential drafting, PCIe 4.0: reference for A22/A26, no gain assumed.
+
+Claims that must not be repeated as facts (refuted in the verification): MoE-Infinity's smallest gains on Mixtral with a 17% vs 21%
+buffer hit rate; OD-MoE being unusable on 20 GB because of a 45 GB shadow node; HybriMoE being exact; EcoSpec's "about 11% relative";
+SP-MoE's speedup min/max summary.  Open: whether the HOBBIT proxy and FineMoE matching hold on a many-expert Qwen-class MoE with
+IQ2_XS experts, and the d, thresholds and cache sizes that fit 20 GB VRAM on PCIe 3.0.
+
+Rules for development (owner, 2026-11-11): CPU/offline tests only until the GPU is released; each agent works in its own worktree
+and branch (dev/p16/<name>), commits are merged into dev/phase16-academic; agents run on sonnet, opus and haiku at xhigh effort.
+
 ### Implementation and test status (2026-11-10, branch dev/batch-1)
 
 "In preset" = measured on the RX 7900 XT and switched on in fast-hip. "Batch" = coded on dev/batch-1 (16 commits), opt-in,
