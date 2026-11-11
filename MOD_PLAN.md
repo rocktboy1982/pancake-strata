@@ -2455,10 +2455,24 @@ Priority 1 (owner, 2026-11-11, replaces the earlier priority 1): 17.0, TTFT at l
 prose 5-10% faster than pancake on the same weights and swings less; on prompts pancake already leads it 1.6-1.7x at 12-25K tokens, so
 the TTFT view makes it second). 17.5 (the 70-100K long-prompt check) is part of 17.0's baseline.
 Order: 17.0 first (baseline, then levers), 17.2 (the profile shows what is wrong), then 17.3 (finds the combination; 17.1 and 17.4 run
-inside it). Finding so far from the Strata-rdna3 investigation (Q2_0, warm pass): expert deferral (`STRATA_VERIFY_DEFER_CPU`) costs
-prose about 8% and gains code about 3%; spec 2 is slower than spec 4 on pancake (-5%); pancake with Strata-rdna3's engine arguments
-+2-3% (noise); acceptance 64% vs 69% unexplained (vocabulary and lookup runs queued).
-All of it needs the GPU: it waits for the Q2_0 / IQ2_XS matrix of 2026-11-11 to finish.
+inside it). Findings from the Strata-rdna3 investigation (warm passes): expert deferral (`STRATA_VERIFY_DEFER_CPU`) off was +7-8% decode
+on Q2_0 (prose +8-9%, code -1..-3%, reproduced: 111.0 and 110.3 vs 102.7) but -3% on IQ2_XS (code -8%, prose flat): model-dependent, and the
+IQ2_XS runs overlapped with agent activity, so it is NOT established; spec 2 is slower than spec 4 on both pancake and Strata-rdna3 (-5%);
+Strata-rdna3's engine arguments +2% on pancake (noise); draft vocabulary (59.6K, 38-language) and lookup windows: no effect on decode or
+acceptance; acceptance 64% vs 69% unexplained (the counters may not mean the same thing across engines).
+
+**Night queue (owner, 2026-11-11: stop all benchmarks during the day, develop only; run these on a quiet machine at night, one engine at a
+time, nothing else running: no agents, builds or tests; `renice`/stop anything else first):**
+1. Deferral retest, the owner suspects development activity distorted it: `fast-hip` with `STRATA_VERIFY_DEFER_CPU` on vs removed, both
+   models (IQ2_XS, Q2_0), alternate A B B A with at least 3 passes per arm, keep the last 2 passes of each server, decode on the 5-prompt set
+   (`bench/results/2026-11-11-vs-avalon/raw/cmp_bench.py`) and the agent edit case; report per content class (code vs prose).
+2. TTFT baseline (17.0): `tools/pancake/ttft_bench.py` single prompts 8K / 32K / 64K / 100K (the 100K case with `STRATA_TRACE=1` for the
+   chunk-handoff fault check) and the 10-turn session, on pancake; then Strata-rdna3 and Avalon for comparison.
+3. TTFT lever 1: `--conversation-cache-min-tokens 8192`, a budget floor, `STRATA_PARK_TRUNCATE=1`; lever 2: `STRATA_PARK_REWIND_MAX=8192` and the
+   divergence log; read with `tools/pancake/ttft_audit.py`.
+4. KV ring: `--kv-resident 49152` with `STRATA_KV_RING_ADAPT` on/off vs static 32768 and 49152 at 1K / 32K / 64K / 128K.
+5. Then 17.2 (prose profile with `prose_gap.py`) and 17.3 (`ablate_greedy.py`, core group).
+Daytime work until then is code only: the integration branch, the deferral gate, the park rewind, docs.
 
 ## Risks
 
