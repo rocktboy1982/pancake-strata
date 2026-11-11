@@ -953,6 +953,10 @@ Credits, in the order the stack was built:
 - **jmnargi** (Strata-V100, MIT), for the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts (commits `24894e676b`,
   `7c5041c358`, `376355453f`; upstream PR #3545), and for measuring how a too-tight cap breaks tool calls.
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
+- **xyzzing** (author of upstream Strata PR #3919, and of the measurement repo `xyzzing/rdna3-inference-ledger`, CC-BY-4.0), for the
+  depth-adaptive resident K/V ring (`STRATA_KV_RING_ADAPT`): the 32768-cell floor and the "cap only from 2 x cap cells" rule, PR commits
+  `2e435af79c`, `0ffb5926ed`, `3db7b83729`, `aa782aa980`. Re-implemented here as a pure function (`strata/core/kv_ring.hpp`), no PR code copied;
+  its 7900 XTX numbers (128K +23.9%, 64K flat) are theirs, not yet measured on our card.
 - **Asofwar** (Strata-Turbo, MIT), for window decode attention, each K/V chunk read once for a whole verify window
   (`STRATA_ATTN_WINDOW`, `STRATA_ATTN_WINDOW_SMALL`; commits `6ebe841e2e`, `540f801a9a`). `STRATA_ATTN_WINDOW` here is
   the idea rewritten for the Qwen3.6 engine (`k_attn_window`); no fork code was copied.

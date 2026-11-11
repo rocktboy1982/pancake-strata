@@ -2574,6 +2574,10 @@ built with `ninja -C $W/build-hip strata`, -DSTRATA_PREFILL_MMQ=ON): more interl
 
 Keep only if the long-context decode median is >= 1% faster (token forcing passed); it is not in any preset.
 
+## Phase 17 notes (item 17.4, part 1: adaptive KV ring)
+
+Coded, NOT measured, C++ not yet built (2026-11-11). `STRATA_KV_RING_ADAPT=1` (opt-in, default path unchanged): `--kv-resident` becomes a cap; the ring is `max(qsa_kv_resident_min(), 32768)` and becomes the cap only when the run needs at least 2 x cap cells (generate: prompt + `--max-new`; serve: `--max-context`). Pure rule `strata::core::kv_ring_adapt` in `include/strata/core/kv_ring.hpp` (test `src/core/kv_ring_test.cpp`, ctest `kv_ring_test`); hook in `src/program/generate.cpp` right after `--kv-resident` is validated, so the split-gate, session arena and graphs all see the ring (it overwrites `o.kv_resident`; upstream PR #3919 only set the global and left `o.kv_resident` at the cap). Source: xyzzing, PR #3919 / rdna3-inference-ledger (credited in README section 9 and RESEARCH_AND_FINDINGS section 4). Their figures on a 7900 XTX: 128K +23.9%, 64K flat; ours are not known. Plan for the measurement: paired runs with and without the switch at 1K, 32K, 64K and 128K on the preset's `--kv-resident 32768`, which is already the floor, so the switch can only differ from today with a larger cap (e.g. `--kv-resident 49152`); compare against the static 49152 and the static 32768, record acceptance and the ring line the engine prints. Related but different: `--kv-grow`. Not ported to the SYCL tree.
+
 ## Phase 12 (future): a second GPU
 
 The owner plans a second card.  These were judged "does not apply" on one GPU (research reports above) and become the work
