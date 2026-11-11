@@ -35,7 +35,7 @@ Owner rule (2026-11-11): development by day, GPU testing by night.  The night cr
 - `quality_gate.py <spec> --out bench/quality-hip/<day>-fill --set bench/quality/set-v2.json --fill` (one engine start, ~10 min), commit `set.filled.json` as set-v2.json, flip the `--set` default literal in quality_gate.py.
 - A base-only task run (3 reps, `task_gate.py --tasks bench/tasks/repo-history.json --limit 110`) to measure real request time; add `"tasks": "bench/tasks/repo-history.json"` to bench/specs/taskgate-*.json; use `--tasks-only` for lossy items.
 - Run the pin-hazard confirm in BOTH orders: `A B C D E F A B` (the old rule wins: it keeps A-D forever) and `A B C D E F E F` (the hazard shows: newer sessions return) with `STRATA_AUTO_PIN=1` (now evict-last) vs base.
-- Never run a fake-engine abtest test while a real run is active (`stop_servers` kills every strata server until the abtest-safety follow-up lands).
+- abtest (abtest-safety, merged) now REFUSES to start (exit 3, lists the pids) while any real engine / server.py --engine strata / abtest / restore_check runs: STOP the pancake server (the owner's Copilot test on port 11437) before the queue starts, or every spec exits 3; the fake-engine e2e tests skip while a real server runs: run `python3 -I -m pytest -q tools/pancake/test_abtest_e2e.py` once the GPU is free. quality_gate.py / task_gate.py / sweep.py / restore_check.py have no busy refusal of their own.
 
 ## 2. After the queue
 - `python3 tools/pancake/promote.py <items.json>` on every result; commit results to `dev/phase16-academic` by path; update the plan table
