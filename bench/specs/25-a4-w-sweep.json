@@ -1,0 +1,15 @@
+{
+ "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "top2-fold2": {"env": {"STRATA_VERIFY_DEFER_CPU_TOP": "2", "STRATA_VERIFY_DEFER_CPU_FOLD": "2"}},
+  "top2-fold2-w005": {"env": {"STRATA_VERIFY_DEFER_CPU_TOP": "2", "STRATA_VERIFY_DEFER_CPU_FOLD": "2", "STRATA_VERIFY_DEFER_CPU_BELOW": "0.05"}},
+  "top2-fold2-w020": {"env": {"STRATA_VERIFY_DEFER_CPU_TOP": "2", "STRATA_VERIFY_DEFER_CPU_FOLD": "2", "STRATA_VERIFY_DEFER_CPU_BELOW": "0.2"}},
+  "top2-fold4-w010": {"env": {"STRATA_VERIFY_DEFER_CPU_TOP": "2", "STRATA_VERIFY_DEFER_CPU_FOLD": "4"}},
+  "top2-fold8-w010": {"env": {"STRATA_VERIFY_DEFER_CPU_TOP": "2", "STRATA_VERIFY_DEFER_CPU_FOLD": "8"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 4,
+ "lossy": true,
+ "note": "MOD_PLAN A4 'then sweep w 0.1/0.2 at windows 1/2/4/8': runs AFTER 10-rank-guard-fold.json has shown which FOLD recovers the short-chat loss (01: top2 +20.1% edit, -6.9% short). w = STRATA_VERIFY_DEFER_CPU_BELOW (the preset default is 0.1, kept in the arms that do not set it); the 'window' of the plan = FOLD, the number of light jobs one pool pass may take (1 and 2 are in spec 10; 4 and 8 here). base = fast-hip with deferral (the reference); every arm keeps the rank guard top-2. Lossy-small: token forcing, then the task gate before any default. The item is PROMOTE only when an arm keeps its edit gain and shows no short-chat regression (tools/pancake/promote.py regression rule)."
+}
