@@ -6,8 +6,12 @@ import contextlib
 import io
 import json
 import math
+import os
 import re
+import signal
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -15,6 +19,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import abtest as A  # noqa: E402
 import abtest_replay as R  # noqa: E402
+
+REAL_BUSY_PROCESSES = A.busy_processes
+
+
+@pytest.fixture(autouse=True)
+def nothing_else_runs(monkeypatch):
+    """main() refuses to start while another test or engine runs on the machine (exit 3): what these tests check must not depend on it."""
+    monkeypatch.setattr(A, "busy_processes", lambda: [])
 
 
 def rec(arm, rep, attempt=0, clean=True, noise=2.0, reclaim=0.0, rows=None, **kw):
@@ -410,6 +422,179 @@ def test_main_rejects_block_and_robust_on_a_screen(monkeypatch, tmp_path):
     for extra in (["--block", "2"], ["--outlier", "robust"]):
         with pytest.raises(SystemExit):
             run_main(monkeypatch, tmp_path, ["--tier", "screen"] + extra, noisy_first)
+
+
+# ---------------------------------------------------------------------------------------------------- stop only what abtest started
+def test_busy_is_the_anchored_pattern_of_queue_run_sh():
+    """One test for "another test or engine runs" in both tools: if tier-tools changes queue_run.sh's BUSY, this fails until abtest follows."""
+    text = (A.ROOT / "tools/pancake/queue_run.sh").read_text()
+    assert re.search(r'^BUSY=\$\{BUSY_PATTERN:-"(.*)"\}$', text, re.M)[1] == A.BUSY
+
+
+@pytest.mark.parametrize("cmd", [
+    ".venv/bin/python tools/pancake/abtest.py bench/specs/x.json --out o.jsonl --tier screen",
+    "/home/dan/Strata/.venv/bin/python3.12 -u /home/dan/Strata/tools/pancake/restore_check.py --x 1",
+    "python3 tools/pancake/abtest.py",
+    "/home/dan/Strata/build-hip/strata --serve --pack /data/packs/iq2_xs",
+    "/build-hip/strata",
+])
+def test_busy_matches_a_real_test_or_engine(cmd):
+    assert re.search(A.BUSY, cmd)
+
+
+@pytest.mark.parametrize("cmd", [
+    "bash -c until ! pgrep -f tools/pancake/abtest.py; do sleep 20; done",   # the watcher that matched itself
+    "python3 -I -m pytest -q tools/pancake/test_abtest_core.py",
+    "python3 tools/pancake/abtest_replay.py bench/results/x.jsonl",
+    "python3 tools/pancake/abtest.pyc",
+    "vim tools/pancake/abtest.py",
+    "tail -f /home/dan/Strata/build-hip/strata.log",
+    "/home/dan/Strata/build-hip/strata-host --serve",
+    "bash tools/pancake/queue_run.sh out spec.json",
+])
+def test_busy_ignores_a_command_line_that_only_mentions_one(cmd):
+    assert not re.search(A.BUSY, cmd)
+
+
+@pytest.mark.parametrize("cmd, is_server", [
+    (".venv/bin/python serve/server.py --engine strata --config c.json --port 8080", True),
+    ("/home/dan/Strata/.venv/bin/python /home/dan/Strata/serve/server.py --engine strata --config c.json", True),
+    ("python3 serve/server.py --config c.json --engine strata --port 1", True),
+    ("python3 serve/server.py --engine llama --config c.json", False),
+    ("bash -c python serve/server.py --engine strata", False),
+    ("tail -f serve/server.py --engine strata", False),
+])
+def test_server_pattern_is_the_python_server_of_the_strata_engine(cmd, is_server):
+    assert bool(re.search(A.SERVER, cmd)) is is_server
+
+
+def orphan(argv0):
+    """pid of a `sleep` whose command line starts with argv0 and whose parent is gone: it is not a child of this process."""
+    r = subprocess.run(["bash", "-c", f"exec -a '{argv0}' sleep 60 > /dev/null 2>&1 & echo $!"], capture_output=True, text=True, timeout=10)
+    return int(r.stdout)
+
+
+def test_busy_processes_lists_others_but_not_its_own_tree():
+    pid = orphan("python3 tools/pancake/abtest.py")
+    shell = orphan("bash -c sleep 60  # python3 tools/pancake/abtest.py")                              # a mention
+    child = subprocess.Popen(["bash", "-c", "exec -a '/x/build-hip/strata' sleep 60"])                 # a child of this process
+    try:
+        time.sleep(0.3)
+        found = dict(REAL_BUSY_PROCESSES())
+        assert found[pid] == "python3 tools/pancake/abtest.py 60"
+        assert shell not in found and child.pid not in found and os.getpid() not in found
+    finally:
+        child.kill()
+        child.wait()
+        os.kill(pid, signal.SIGKILL)
+        os.kill(shell, signal.SIGKILL)
+
+
+SERVER_SCRIPT = """
+import signal, subprocess, sys, time
+engine = subprocess.Popen(["sleep", "60"])
+def stop(*_):
+    time.sleep(0.5)                       # the server drains and stops its engine, then exits
+    engine.terminate(); engine.wait(); sys.exit(0)
+signal.signal(signal.SIGTERM, stop)
+print(engine.pid, flush=True)
+while True:
+    time.sleep(0.1)
+"""
+STUCK_SCRIPT = "import signal, time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('up', flush=True)\ntime.sleep(60)\n"
+
+
+def start_own(monkeypatch, script):
+    p = subprocess.Popen([sys.executable, "-c", script], stdout=subprocess.PIPE, text=True)
+    first = p.stdout.readline().strip()
+    monkeypatch.setattr(A, "OWN", [p])
+    return p, first
+
+
+def test_stop_servers_ends_its_own_server_and_the_engine_below_it_and_nothing_else(monkeypatch, tmp_path):
+    foreign_server = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "serve/server.py", "--engine", "strata"])
+    (tmp_path / "strata").write_text(f"#!{sys.executable}\nimport time\ntime.sleep(60)\n")
+    (tmp_path / "strata").chmod(0o755)
+    foreign_engine = subprocess.Popen([str(tmp_path / "strata")])   # a process named strata: the old wait looked for these
+    time.sleep(0.2)
+    assert Path(f"/proc/{foreign_engine.pid}/comm").read_text().strip() == "strata"
+    assert Path(f"/proc/{foreign_engine.pid}/comm").read_text().strip() == "strata"
+    ours, engine = start_own(monkeypatch, SERVER_SCRIPT)
+    try:
+        time.sleep(0.3)
+        t0 = time.time()
+        A.stop_servers()
+        assert time.time() - t0 < 10                          # the old wait would have sat on the foreign `strata` for 2 minutes
+        assert ours.poll() == 0 and not A.running(int(engine)) and A.OWN == []
+        assert foreign_server.poll() is None and foreign_engine.poll() is None
+    finally:
+        for p in (foreign_server, foreign_engine, ours):
+            p.kill()
+            p.wait()
+
+
+def test_stop_servers_kills_its_own_server_that_ignores_sigterm_after_the_wait(monkeypatch, capsys):
+    stuck, _ = start_own(monkeypatch, STUCK_SCRIPT)
+    A.stop_servers(wait=2)
+    assert stuck.poll() == -signal.SIGKILL and "still running 2 s after SIGTERM: killing it" in capsys.readouterr().out
+
+
+def test_stop_servers_with_nothing_started_signals_nobody(monkeypatch):
+    other = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "serve/server.py", "--engine", "strata"])
+    monkeypatch.setattr(A, "OWN", [])
+    try:
+        A.stop_servers()
+        assert other.poll() is None
+    finally:
+        other.kill()
+        other.wait()
+
+
+def test_start_server_registers_the_popen_it_started(monkeypatch, tmp_path):
+    started = []
+    monkeypatch.setattr(A, "OWN", [])
+    monkeypatch.setattr(A.subprocess, "Popen", lambda *a, **k: started.append((a, k)) or type("P", (), {"pid": 1, "poll": lambda s: 0})())
+    log = tmp_path / "s.out"
+    srv, err = A.start_server("cfg.json", str(log), 1234, ready_wait=0)
+    assert err is None and A.OWN == [srv] and started[0][0][0][-4:] == ["--config", "cfg.json", "--port", "1234"]
+
+
+def run_main_argv(monkeypatch, tmp_path, argv):
+    spec = tmp_path / "spec.json"
+    spec.write_text(json.dumps({"base": str(tmp_path / "base.json"), "arms": {"base": {}}, "cases": ["short"]}))
+    monkeypatch.setattr(sys, "argv", ["abtest.py", str(spec), "--out", str(tmp_path / "res.jsonl")] + argv)
+    return A.main()
+
+
+def test_main_refuses_to_start_while_another_test_or_engine_runs(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(A, "busy_processes", lambda: [(4242, "/x/build-hip/strata --serve --pack p")])
+    ran = []
+    monkeypatch.setattr(A, "run_arm", lambda *a, **k: ran.append(a))
+    assert run_main_argv(monkeypatch, tmp_path, []) == 3
+    err = capsys.readouterr().err
+    assert "pid 4242: /x/build-hip/strata --serve --pack p" in err and "--force-busy" in err and "never stops what it did not start" in err
+    assert not ran and not (tmp_path / "res.jsonl").exists() and not (tmp_path / "res").exists()   # nothing was touched
+
+
+def test_main_force_busy_goes_on_and_says_so(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(A, "busy_processes", lambda: [(4242, "x"), (4243, "y")])
+    monkeypatch.setattr(A, "run_arm", lambda *a, **k: (None, "stop here"))
+    monkeypatch.setattr(A, "quiet_gate", lambda *a, **k: True)
+    monkeypatch.setattr(A, "summary", lambda *a, **k: None)
+    (tmp_path / "base.json").write_text(json.dumps({"env": {}, "args": [], "log": str(tmp_path / "e.log")}))
+    assert run_main_argv(monkeypatch, tmp_path, ["--force-busy"]) is None
+    out = capsys.readouterr()
+    assert "--force-busy: running beside 2 other test / engine process(es)" in out.out and "not starting" not in out.err
+
+
+def test_main_says_nothing_extra_when_the_machine_is_free(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(A, "run_arm", lambda *a, **k: (None, "stop here"))
+    monkeypatch.setattr(A, "quiet_gate", lambda *a, **k: True)
+    monkeypatch.setattr(A, "summary", lambda *a, **k: None)
+    (tmp_path / "base.json").write_text(json.dumps({"env": {}, "args": [], "log": str(tmp_path / "e.log")}))
+    run_main_argv(monkeypatch, tmp_path, [])
+    out = capsys.readouterr()
+    assert "force-busy" not in out.out and "abtest:" not in out.out and out.err == ""
 
 
 # ---------------------------------------------------------------------------------------------------- replay of the real 2026-11-11 data

@@ -83,6 +83,11 @@ capped.sh's "capped: tier=..." guess; guess: capped.sh's rule on keep_gib and bi
 (the STRATA_RAM_KEEP_GIB the engine used), "big_free_gib_start" and "opts" (the abtest options), so that promote.py can
 refuse mixed-tier or mixed-option comparisons.  select() decides which attempts and requests a summary uses (tools/pancake/
 abtest_replay.py feeds recorded jsonl files through it).
+Safety (other sessions share this machine and its one GPU): abtest stops only the servers IT started (the Popen it created and the engine
+below it, never found by name), so a second abtest's, another session's or a crashed run's leftover server is not touched.  It refuses to
+start (exit 3, naming the processes) while another real abtest / restore_check / engine runs - the same anchored test as tools/pancake/
+queue_run.sh's BUSY pattern - or while a `serve/server.py --engine strata` is up that it did not start (a leftover is reported, not killed:
+stop it yourself).  --force-busy starts anyway (for the fake-engine tests: two fake abtests side by side).
 """
 import hashlib
 import argparse
@@ -90,6 +95,7 @@ import json
 import math
 import os
 import re
+import signal
 import statistics
 import subprocess
 import sys
@@ -398,21 +404,60 @@ def make_config(base, arm, path):
     return c
 
 
-def stop_servers():
-    for pid, (_, comm, _) in proc_table().items():
+OWN = []   # the server processes (Popen) this abtest started: stop_servers() ends these and what runs below them, nothing else
+# "Another test or engine is running": the SAME anchored test as tools/pancake/queue_run.sh's BUSY pattern (test_abtest_core pins that it is the
+# same string) - a real python running abtest.py / restore_check.py, or the build-hip engine binary - not a shell whose command line only
+# mentions them.  SERVER adds the Python server of an engine, the process a crashed run leaves behind.  Both are matched against the command
+# line with the arguments joined by single spaces, as pgrep -f does.
+BUSY = r"^[^ ]*python[0-9.]* ([^ ]+ )*[^ ]*tools/pancake/(abtest|restore_check)\.py( |$)|^[^ ]*/build-hip/strata( |$)"
+SERVER = r"^[^ ]*python[0-9.]* ([^ ]+ )*[^ ]*serve/server\.py ([^ ]+ )*--engine strata( |$)"
+
+
+def busy_processes():
+    """(pid, command line) of the processes that make a start unsafe: a real abtest / restore_check / engine, or a server, that this
+    abtest did not start (itself and what it started are skipped)."""
+    tab = proc_table()
+    mine, found, busy = tree(tab, [os.getpid()]), [], re.compile(f"{BUSY}|{SERVER}")
+    for pid in sorted(set(tab) - mine):
         try:
-            cmd = open(f"/proc/{pid}/cmdline", "rb").read().replace(b"\0", b" ").decode("utf-8", "replace")
+            cmd = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace").rstrip()
         except OSError:
             continue
-        if comm.startswith("python") and "server.py --engine strata" in cmd and pid != os.getpid():
-            try:
-                os.kill(pid, 15)
-            except OSError:
-                pass
-    for _ in range(60):
-        if not any(c == "strata" for _, c, _ in proc_table().values()):
-            return
+        if busy.search(cmd):
+            found.append((pid, cmd))
+    return found
+
+
+def running(pid):
+    try:
+        st = Path(f"/proc/{pid}/stat").read_text()
+    except OSError:
+        return False
+    return st[st.rindex(")") + 2] not in "ZX"   # a zombie is over
+
+
+def stop_servers(wait=120):
+    """Ends the servers THIS abtest started and waits until they and the engines below them are gone (at most `wait` s, then the server is
+    killed).  A signal goes only to a Popen of ours, never to a process found by name: another abtest's server, another session's server
+    and a crashed run's leftover are left alone (before 2026-11-11 it ended every `server.py --engine strata` of the machine and waited
+    for any process named strata)."""
+    servers = [p for p in OWN if p.poll() is None]
+    below = tree(proc_table(), [p.pid for p in servers]) - {p.pid for p in servers} if servers else set()   # the engine exe
+    t0 = time.time()
+    for p in servers:
+        p.terminate()   # the server stops its engine and exits
+    for p in servers:
+        try:
+            p.wait(max(1, wait - (time.time() - t0)))
+        except subprocess.TimeoutExpired:
+            print(f"  WARNING: server pid {p.pid} still running {wait} s after SIGTERM: killing it", flush=True)
+            p.kill()
+            p.wait()
+    OWN.clear()
+    while time.time() - t0 < wait and any(running(pid) for pid in below):
         time.sleep(2)
+    for pid in sorted(x for x in below if running(x)):
+        print(f"  WARNING: engine pid {pid} of this abtest's server still running {wait} s after it", flush=True)
 
 
 SAMPLING = {"temperature": 0}   # the spec's "temperature" / "top_p" / "seed" keys replace it (see main)
@@ -484,6 +529,7 @@ def start_server(cfg_path, log_out, port, ready_wait=900):
     with open(log_out, "w") as lf:
         srv = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), PY, "serve/server.py", "--engine", "strata", "--config",
                                 cfg_path, "--port", str(port)], cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env)
+    OWN.append(srv)
     t0 = time.time()
     while time.time() - t0 < ready_wait:
         txt = Path(log_out).read_text(errors="replace")
@@ -875,9 +921,21 @@ def main():
     ap.add_argument("--outlier", choices=("gate", "robust"), default="gate",
                     help="gate: repeat an attempt the noise proxies call noisy (default); robust: keep every attempt, drop only "
                          "a pass in which a request's tok/s is a robust outlier within its arm (median / MAD, see the module doc)")
+    ap.add_argument("--force-busy", action="store_true",
+                    help="start although another abtest / restore_check / engine runs (only for the fake-engine tests: it stops "
+                         "its own servers only, but a real run beside it is disturbed all the same)")
     a = ap.parse_args()
     if a.tier == "screen" and (a.block or a.outlier == "robust"):
         ap.error("--block and --outlier robust are for --tier confirm (a screen has one start and 1-2 values per arm)")
+    busy = busy_processes()
+    if busy and not a.force_busy:
+        print("abtest: another test or engine is already running on this machine: not starting (a second run would disturb it, and "
+              "its numbers would be wrong).  Running:\n" + "\n".join(f"  pid {pid}: {cmd[:200]}" for pid, cmd in busy)
+              + "\nWait for it, or stop it yourself if it is a leftover of a crashed run (abtest never stops what it did not start).  "
+              "--force-busy starts anyway (fake-engine tests only).", file=sys.stderr, flush=True)
+        return 3
+    if busy:
+        print(f"abtest: --force-busy: running beside {len(busy)} other test / engine process(es)", flush=True)
     RECLAIM_MAX = a.reclaim_max
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
@@ -912,7 +970,6 @@ def main():
     robust, deff = a.outlier == "robust", design_effect(passes)
     records = []   # every attempt of this batch (the jsonl rows); select() picks what the summary uses
     out = open(a.out, "a")
-    stop_servers()
     deaths = 0
 
     def next_attempt(rep, arm):   # (a death is not recorded but used its number: the files are named by it)
@@ -984,4 +1041,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(128 + signal.SIGTERM))   # `kill` ends the servers too (a leftover would stop the next start)
+    try:
+        sys.exit(main())
+    finally:
+        stop_servers()   # Ctrl-C, a crash, an abort: no server of this abtest is left behind
