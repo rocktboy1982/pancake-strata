@@ -15,8 +15,10 @@ The result is printed and written as an env block for the preset.
 Knob sets (--knobs): default = tools/pancake/sweep-knobs-fast-hip.json; or a JSON file {"ENV": ["v1", ...]} (a key starting
 with "--" is an engine argument).  The start point is the base config's own value of a knob, else the first value listed
 (which must be the engine's default).
-Power: with three runs of two cases (6 samples per point) and a 3% run-to-run spread the test finds effects of about 5% and
-more; a 1-3% knob needs ~25 samples per point (--reps 12) or the confirm tier of abtest.py.  Cost: ~20 points x 3 runs.
+Power (simulated, 3% run-to-run spread, alpha 0.05, one comparison): 6 samples per point (--reps 3 x short, edit) detect a
+real 3% knob 42% of the time, 5% 85%, 8% 95%; 24 samples (--reps 12) detect 2% 65%, 3% 92%; a 1% knob is out of reach either way
+(15% / 28%).  On a flat landscape the old rule (one run per point, `t > best`) left the start in 95% of sweeps and reported
++4.7% for nothing; this rule left it in a third of them and the confirmation accepted none of 30.  Cost: ~25 points x 3 servers.
 """
 import argparse
 import itertools
