@@ -1519,7 +1519,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
 #if defined(STRATA_USE_HIP)
                         : g_doorbell_store                              ? "STRATA_DOORBELL_STORE is on"
 #endif
-                        : strata::kernels::native_router_fast_enabled() ? "STRATA_ROUTE_FAST=1 takes the router step first"
+                        : strata::kernels::native_router_fast_enabled() && la_out_ == nullptr ? "STRATA_ROUTE_FAST=1 takes the router step first"
                                                                         : nullptr;
         static bool said = false;
         if (why != nullptr && !said) {
