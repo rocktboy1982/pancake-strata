@@ -42,9 +42,26 @@ namespace strata::core {
 
 // ---- the key ----------------------------------------------------------------------------------------------------
 
+/// How a STRATA_* environment switch relates to the key (src/core/conversation_disk_env.def, the audit of every name in src/
+/// and include/; tests/core/conversation_disk_env_test.cpp keeps the table complete).
+enum class EnvClass {
+    Key,        ///< changes what a state holds; always in the key ("-" when unset)
+    KeyIfSet,   ///< changes what a state holds; in the key only when set, so a run without it keeps its key
+    Unsure,     ///< may change what a state holds, unverified: keyed like KeyIfSet
+    InConfig,   ///< changes what a state holds but is in the session config fingerprint already
+    Speed,      ///< placement, scheduling, drafting policy or documented bit-identical: never in the key
+    Inert,      ///< diagnostics, test hooks, paths, limits, io, tools, other engines: never in the key
+};
+struct EnvSwitch {
+    const char* name;
+    EnvClass cls;
+    const char* note;
+};
+const std::vector<EnvSwitch>& conversation_env_switches();
+
 /// The environment switches that change what a state holds without being in the session config fingerprint: the
-/// lossy routing of the turbo presets and the output-changing numerics.  STRATA_CONVERSATION_DISK_KEY_ENV (a comma
-/// list) adds names.
+/// lossy routing of the turbo presets and the output-changing numerics (the Key class of the table above; the KeyIfSet and
+/// Unsure ones join conversation_disk_key_env only when set).  STRATA_CONVERSATION_DISK_KEY_ENV (a comma list) adds names.
 const std::vector<std::string>& conversation_disk_key_env_names();
 /// (name, value) of every key switch, "-" for an unset one, in a fixed order (names, then the extra ones sorted).
 std::vector<std::pair<std::string, std::string>>
