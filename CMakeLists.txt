@@ -498,6 +498,11 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(route_prior_scope_test PRIVATE include)
   add_test(NAME route_prior_scope_test COMMAND route_prior_scope_test)
 
+  # MOD_PLAN 17.1: STRATA_ROUTE_PRIOR's bonus only in lookup (suffix-draft) windows (STRATA_ROUTE_PRIOR_AUTO; header-only, no GPU)
+  add_executable(route_prior_auto_test tests/program/route_prior_auto_test.cpp)
+  target_include_directories(route_prior_auto_test PRIVATE include)
+  add_test(NAME route_prior_auto_test COMMAND route_prior_auto_test)
+
   # MOD_PLAN 28 / A4: the deferral's heavy rule, rank guard and pool split with STRATA_VERIFY_DEFER_CPU_FOLD (header-only, no GPU)
   add_executable(defer_rank_test tests/core/defer_rank_test.cpp)
   target_include_directories(defer_rank_test PRIVATE include)
@@ -3550,7 +3555,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     batch_telemetry_test logit_bias_test gguf_reader_test gguf_split_test model_family_test batch_read_test
     gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
-    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test defer_rank_test think_probe_test run_manifest_test
+    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test route_prior_auto_test defer_rank_test think_probe_test run_manifest_test
     host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test conversation_disk_env_test file_expert_source_test
     switch_report_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
