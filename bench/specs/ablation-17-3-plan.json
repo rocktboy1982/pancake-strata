@@ -22,7 +22,7 @@
  "lossy_policy": "exact-first",
  "retest_benched": false,
  "final_check": true,
- "note": "MOD_PLAN Phase 17 item 17.3. NOTHING HAS BEEN MEASURED with this plan. Written 2026-11-11 on dev/p17/ablate. Every env name and flag below was grepped in src/ include/ serve/ (python3 tools/pancake/ablate_greedy.py THIS_FILE --dry-run prints the check); the preset already has STRATA_VERIFY_DEFER_CPU=1, STRATA_EXPDEC_DOWN=1, STRATA_POOL_FUSE_PHASES=1, --spec 4, --adapt-swaps 32, --adapt-every 1, --lookup-max-t 12, STRATA_ROUTE_TAIL_SKIP=0. Cost: round 1 = (candidates + 1) arms x 3 starts (reps 9, block 3): --group core is 9 candidates = 30 starts, all groups = 19 candidates = 60 starts; each later round is smaller; --only / --exclude trim further. Groups: core = the items named in the Phase 17 task (router-fuse is core but disabled), extra = the other coded-and-untested items with a verified switch, disabled = listed with the reason they cannot be tested on this preset. kv-grow / STRATA_KV_RING_ADAPT (17.4) are not here: the adaptive ring is not in this tree (grep finds no STRATA_KV_RING_ADAPT), and the ring is a long-context item that needs its own 64K / 100K runs.",
+ "note": "MOD_PLAN Phase 17 item 17.3. NOTHING HAS BEEN MEASURED with this plan. Written 2026-11-11 on dev/p17/ablate. Every env name and flag below was grepped in src/ include/ serve/ (python3 tools/pancake/ablate_greedy.py THIS_FILE --dry-run prints the check); the preset already has STRATA_VERIFY_DEFER_CPU=1, STRATA_EXPDEC_DOWN=1, STRATA_POOL_FUSE_PHASES=1, --spec 4, --adapt-swaps 32, --adapt-every 1, --lookup-max-t 12, STRATA_ROUTE_TAIL_SKIP=0. Cost: round 1 = (candidates + 1) arms x 3 starts (reps 9, block 3): --group core is 9 candidates = 30 starts, all groups = 19 candidates = 60 starts (22 candidates = 69 starts since the three p17-new ones below were added); each later round is smaller; --only / --exclude trim further. Groups: core = the items named in the Phase 17 task (router-fuse is core but disabled), extra = the other coded-and-untested items with a verified switch, disabled = listed with the reason they cannot be tested on this preset. 2026-11-11 (dev/p17/nightqueue): four candidates from the other Phase 17 branches were added in group p17-new (kv-ring-adapt, route-prior-auto, verify-defer-auto; every env name grepped in src/ include/ serve/) and group ttft-only (park-rewind-max, listed as disabled: it only acts on a session's park decision, so the short/edit decode cases cannot score it; its TTFT effect is the night queue's job, group 3-lever). The ring is a long-context item: the short/edit cases at a depth of about 1K cannot show the 64K / 128K effect the upstream PR measured, the night queue's group 4-kvring does (tools/pancake/night_queue_plan.json). --kv-grow is not a candidate here.",
  "candidates": [
   {
    "name": "swaps-auto",
@@ -257,6 +257,54 @@
    },
    "lossy": false,
    "disabled": "bench/specs/07b-draft-nomtpq4.json: on HIP the --mtp-q4 head exited at start ('mtp: writing the draft head', cudaMemcpy failed, 2026-11-10 screen), bug not investigated since. Retest the flag alone before listing it."
+  },
+  {
+   "name": "kv-ring-adapt",
+   "group": "p17-new",
+   "env": {
+    "STRATA_KV_RING_ADAPT": "1"
+   },
+   "args": {
+    "--kv-resident": "49152"
+   },
+   "lossy": false,
+   "note": "MOD_PLAN 17.4 (branch dev/p17/kvring, upstream PR #3919 / xyzzing, credited in README section 9): STRATA_KV_RING_ADAPT=1 makes --kv-resident a CAP; it needs a cap above the 32768 floor, so the arm also sets --kv-resident 49152 (with the preset's 32768 the switch would do nothing). Declared exact (the ring size does not change what the model computes; a different ring may still change rounding, check with the equivalence gate). CAUTION: under --serve the rule uses --max-context, not the request's depth (src/program/generate.cpp, the 'KV ring adaptive' line): with the preset's --max-context 131072 the ring is 49152 for every request, so this arm is a static 49152 ring at the short/edit depth (about 1K), where the PR reports a bigger ring LOWERS draft acceptance; expect a loss or noise here. The depth effect needs the night queue's group 4-kvring (1K / 32K / 64K / 120K, arms S T R P). Source: include/strata/core/kv_ring.hpp, src/program/generate.cpp."
+  },
+  {
+   "name": "route-prior-auto",
+   "group": "p17-new",
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5",
+    "STRATA_ROUTE_PRIOR_AUTO": "1"
+   },
+   "lossy": true,
+   "substitutes_of": [
+    "turbo",
+    "acceptmoe-depth"
+   ],
+   "note": "MOD_PLAN 17.1 (branch dev/p17/turbogate, pancake-docs/ROUTE_PRIOR_AUTO.md): turbo's route prior (0.5) only in lookup (suffix-draft) windows of 2+ rows, exact routing in the others. A substitute of turbo and of the depth-graded prior (they set the same STRATA_ROUTE_PRIOR key), lossy like turbo. Setting STRATA_ROUTE_PRIOR at all turns off ROUTE_PUBLISH / ROUTE_FAST / ROUTER_FUSE, a no-op on this preset (deferral already does). Its own gate spec is bench/specs/p17-route-prior-auto.json (arms base, turbo, auto, auto-min5, auto-closed); this arm is the plain auto one. Source: include/strata/program/route_prior_auto.hpp, src/program/generate.cpp."
+  },
+  {
+   "name": "verify-defer-auto",
+   "group": "p17-new",
+   "env": {
+    "STRATA_VERIFY_DEFER_AUTO": "1"
+   },
+   "lossy": true,
+   "interacts_with": [
+    "route-prior-auto"
+   ],
+   "note": "MOD_PLAN 17.1 (branch dev/p17/defergate, pancake-docs/VERIFY_DEFER_AUTO.md): with the preset's STRATA_VERIFY_DEFER_CPU=1 already on, AUTO=1 defers CPU rows only in lookup (suffix-draft) windows of 2+ rows and keeps every CPU row on time in the others (the engine's start-up line says it acted; a log without it voids the arm). The registry marks it as changing the output against plain deferral (src/core/conversation_disk_env.def), so it is lossy here. Its own gate spec is bench/specs/p17-defer-auto.json (arms base, nodefer, auto, auto-min5, auto-closed); the night queue runs base / nodefer / auto-closed as item 1. Source: src/core/verify.cpp, include/strata/core/defer_auto.hpp."
+  },
+  {
+   "name": "park-rewind-max",
+   "group": "ttft-only",
+   "env": {
+    "STRATA_PARK_REWIND_MAX": "8192"
+   },
+   "lossy": false,
+   "disabled": "ttft-only, not for the decode ablation: STRATA_PARK_REWIND_MAX=8192 skips the park when a request resumes from the live conversation's own checkpoint (MOD_PLAN 17.0 lever 2, pancake-docs/batch5/park-rewind.md). Decode is unaffected (exact), and the short / edit cases send one request each and never park, so this driver cannot score it (its arm would never act). Test it with the session scenario: night queue group 3-lever, arm F (with STRATA_PARK_DIVERGENCE_LOG=1), read with tools/pancake/ttft_audit.py.",
+   "note": "Listed so the plan names every Phase 17 switch; never tested by ablate_greedy."
   }
  ]
 }
