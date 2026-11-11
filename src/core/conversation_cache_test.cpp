@@ -720,6 +720,90 @@ int main() {
         check(tiny.put(std::move(p2)), "a pinned one fits an empty cache");
         check(!tiny.put(image({7,8,9})) && tiny.size() == 1, "nothing else fits beside it: parking is refused, the pin stays");
     }
+    {   // set_pin_evict_last (the caller's STRATA_AUTO_PIN=1, MOD_PLAN 71 / 90): a conversation holding a pinned shared prefix is
+        // evicted last, not never.  With the old rule every session that pins its own system prompt keeps a slot for good, and once
+        // the slots (or the budget) hold only pinned entries no new conversation is parked (percache_sim: -1.32% as coded)
+        auto pinned_img = [](std::vector<int32_t> ids, size_t pin_len, size_t extra = 0) {
+            SavedConversation s;
+            s.live.ids = ids;
+            s.live.gdn.resize(64 + extra, 7);
+            s.checkpoints.push_back(ConversationCheckpoint{});
+            s.checkpoints.back().ids.assign(ids.begin(), ids.begin() + (std::ptrdiff_t) pin_len);
+            s.checkpoints.back().pinned = true;
+            s.checkpoints.back().gdn.resize(64, 1);
+            return s;
+        };
+        auto has = [](const ConversationCache& c, std::vector<int32_t> ids) { return c.holds(ids, {}, true); };
+        ConversationCache never(1 << 20, 3), last(1 << 20, 3);
+        last.set_pin_evict_last(true);
+        check(!never.pin_evict_last() && last.pin_evict_last(), "pin evict-last: off by default");
+        for (int32_t s = 1; s <= 3; ++s) {
+            check(never.put(pinned_img({s, s, s, 9}, 3)) && last.put(pinned_img({s, s, s, 9}, 3)), "pin evict-last: three pinned sessions");
+        }
+        check(!never.put(pinned_img({4, 4, 4, 9}, 3)) && never.size() == 3 && never.evictions() == 0 && !has(never, {4, 4, 4, 9}),
+              "old rule: the slots hold only pinned entries, the fourth session is not parked");
+        check(last.put(pinned_img({4, 4, 4, 9}, 3)) && last.size() == 3 && last.evictions() == 1 && !has(last, {1, 1, 1, 9}) &&
+                  has(last, {2, 2, 2, 9}) && has(last, {4, 4, 4, 9}),
+              "evict-last: the oldest pinned session goes, the fourth is parked");
+        check(last.best(std::vector<int32_t>{2, 2, 2, 5}, {}, true).tokens == 3, "evict-last: the pins that stay are still found");
+
+        // the order: every unpinned entry first (oldest first), the pinned ones only after them
+        ConversationCache mix(1 << 20, 3);
+        mix.set_pin_evict_last(true);
+        check(mix.put(pinned_img({1, 1, 1, 9}, 3)) && mix.put(image({5, 5, 5})) && mix.put(pinned_img({2, 2, 2, 9}, 3)),
+              "evict-last: a pinned (the oldest), an unpinned and a pinned entry");
+        check(mix.put(image({6, 6, 6})) && has(mix, {1, 1, 1, 9}) && !has(mix, {5, 5, 5}), "evict-last: the unpinned one goes before the older pinned one");
+        check(mix.put(image({7, 7, 7})) && has(mix, {1, 1, 1, 9}) && !has(mix, {6, 6, 6}), "evict-last: and the next unpinned one again");
+
+        // bytes: the old test's tiny cache - a pinned entry alone fills it; the next conversation now takes its place
+        const size_t pin_bytes = pinned_img({1, 2, 3}, 2).bytes();
+        ConversationCache tiny_last(pin_bytes + 8, 2);
+        tiny_last.set_pin_evict_last(true);
+        check(tiny_last.put(pinned_img({1, 2, 3}, 2)) && tiny_last.put(image({7, 8, 9})) && tiny_last.size() == 1 &&
+                  has(tiny_last, {7, 8, 9}) && tiny_last.evictions() == 1,
+              "evict-last, bytes: the pinned entry goes when nothing else can make the room");
+
+        // evict_oldest alone (the physical-RAM gate, QUIT's hand-off to the disk tier): pinned ones go too, oldest first, then false
+        ConversationCache ram(1 << 20, 4);
+        ram.set_pin_evict_last(true);
+        check(ram.put(pinned_img({1, 1, 1, 9}, 3)) && ram.put(pinned_img({2, 2, 2, 9}, 3)), "evict-last: two pinned entries");
+        check(ram.evict_oldest() && !has(ram, {1, 1, 1, 9}) && ram.evict_oldest() && ram.size() == 0 && !ram.evict_oldest(),
+              "evict-last: evict_oldest takes the pinned ones oldest first, then has nothing left");
+
+        // the guarded (borrowed) donor still stays, pinned or not; its pre-check counts the pinned entries as movable now
+        ConversationCache gd(1 << 20, 2);
+        gd.set_pin_evict_last(true);
+        check(gd.put(pinned_img({1, 1, 1, 9}, 3)) && gd.put(pinned_img({2, 2, 2, 9}, 3)), "evict-last: two pinned entries, two slots");
+        gd.guard(gd.best(std::vector<int32_t>{2, 2, 2, 9, 5}, {}, true).serial);
+        check(gd.put(image({3, 3, 3})) && !gd.guard_blocked() && has(gd, {2, 2, 2, 9}) && !has(gd, {1, 1, 1, 9}),
+              "evict-last + guard: the other pinned entry goes, the guarded donor stays");
+        gd.unguard();
+        ConversationCache gd_old(1 << 20, 2);   // (the old rule: both stay, so the image is refused before anything goes)
+        check(gd_old.put(pinned_img({1, 1, 1, 9}, 3)) && gd_old.put(pinned_img({2, 2, 2, 9}, 3)), "old rule: two pinned entries");
+        gd_old.guard(gd_old.best(std::vector<int32_t>{2, 2, 2, 9, 5}, {}, true).serial);
+        check(!gd_old.put(image({3, 3, 3})) && gd_old.guard_blocked() && gd_old.size() == 2, "old rule + guard: refused, nothing evicted");
+        gd_old.unguard();
+
+        // a truncation still never shrinks a pinned entry
+        ConversationCache tr(1 << 20, 4, 0, 0, true);
+        tr.set_pin_evict_last(true);
+        auto deep = pinned_img({1, 2, 3, 4, 5, 6, 7, 8}, 2);
+        deep.checkpoints.push_back(ConversationCheckpoint{});
+        deep.checkpoints.back().ids = {1, 2, 3, 4, 5, 6};
+        deep.checkpoints.back().gdn.resize(64, 2);
+        check(tr.put(std::move(deep)) && tr.truncate_oldest(1) == 0 && tr.truncations() == 0, "evict-last: a pinned entry is still never truncated");
+
+        // with the park TTL on as well: the ranks pick among the unpinned entries; the pinned ones after them
+        int64_t now = 0;
+        ConversationCache ttl_pin(1 << 20, 2);
+        ConversationCache::ParkTtl ttl;
+        ttl.ttl_ms = 1000; ttl.hold_ms = 500;
+        ttl_pin.set_park_ttl(ttl, {}, [&] { return now; });
+        ttl_pin.set_pin_evict_last(true);
+        check(ttl_pin.put(pinned_img({1, 1, 1, 9}, 3)) && ttl_pin.put(pinned_img({2, 2, 2, 9}, 3)) &&
+                  ttl_pin.put(image({3, 3, 3})) && ttl_pin.size() == 2 && !has(ttl_pin, {1, 1, 1, 9}) && ttl_pin.ttl_evictions() == 0,
+              "evict-last + ttl: only pinned entries left, the oldest goes");
+    }
     {
         // #4420: a batch slot's chain holds one checkpoint (its admission's): parking it must not drop (#342) the main session's copy of the
         // same conversation that also holds the root a sibling borrows from (an agent's system prompt and tools) - supersedes_richer()

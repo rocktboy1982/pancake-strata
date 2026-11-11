@@ -32,7 +32,8 @@ struct ConversationCheckpoint {
     // only writer of a checkpoint's GDN bytes besides a whole copy (which keeps them equal, so it keeps the tag).
     uint64_t dev_tag = 0;
     // A shared-prefix pin (the request key pin=N): this checkpoint is the read-only prefix many suffix queries branch
-    // from, so retention never evicts it (conv_cache.hpp) and a parked conversation holding it stays parked.  A run-time
+    // from, so retention never evicts it (conv_cache.hpp) and a parked conversation holding it stays parked (evicted
+    // last instead with ConversationCache::set_pin_evict_last).  A run-time
     // mark only: it is not in the session file, a request that pins the same prefix again sets it.
     bool pinned = false;
     // --prefill-pipe on a layer split: the plan a prompt segment [from, to) is read in - its chunk (0: none), the loan
@@ -389,10 +390,12 @@ public:
     // with take() but still alive during the exchange; count it against RAM too.
     bool make_room(size_t incoming, size_t held = 0) {
         if (!enabled() || held > budget_ || incoming > budget_ - held) return false;
-        auto stays = [&](size_t i) { return entries_[i].pinned() || (guarded_ != 0 && serials_[i] == guarded_); };
+        auto stays = [&](size_t i) {
+            return (entries_[i].pinned() && !pin_evict_last_) || (guarded_ != 0 && serials_[i] == guarded_);
+        };
         if (guarded_ != 0 && index_of(guarded_) != SIZE_MAX) {
             // with everything else gone, would it fit beside the entries that stay (the guarded donor and any pinned
-            // shared prefix)?  If not, evict nothing
+            // shared prefix, unless set_pin_evict_last)?  If not, evict nothing
             size_t kept = 0, kept_bytes = 0;
             for (size_t i = 0; i < entries_.size(); ++i)
                 if (stays(i)) { ++kept; kept_bytes += entries_[i].bytes(); }
@@ -407,7 +410,8 @@ public:
             if (park_truncate_ && entries_.size() < slots_ && truncate_oldest(shortfall) > 0)
                 continue;
             // the oldest entry that does not hold a pinned shared prefix leaves; with only pinned ones left the new
-            // image does not fit (the caller skips parking it - the pinned prefix is what the queries come back to)
+            // image does not fit (the caller skips parking it - the pinned prefix is what the queries come back to),
+            // unless set_pin_evict_last: then the oldest pinned one leaves
             if (!evict_oldest(shortfall)) return false;
         }
         return true;
@@ -418,15 +422,18 @@ public:
     // gate in generate.cpp).  A ConversationBuffer is a list of 16 MiB segments and each segment is its
     // own allocation, far above glibc's mmap threshold, so dropping an entry returns the whole footprint
     // to the kernel at once - the next admission check reads it back from /proc/meminfo.
-    // False when none can go (empty, or only entries that hold a pinned shared prefix are left).  `shortfall`: the
-    // bytes make_room still has to free (0: unknown, or only a slot is short); the park TTL's tool-pending rank uses it
-    // (pick_victim).
+    // False when none can go (empty, or only entries that hold a pinned shared prefix are left and set_pin_evict_last
+    // is off).  `shortfall`: the bytes make_room still has to free (0: unknown, or only a slot is short); the park TTL's
+    // tool-pending rank uses it (pick_victim).
     bool evict_oldest(size_t shortfall = 0) {
         // the oldest entry that holds no pinned shared prefix and is not the guarded (borrowed) donor; with the disk
         // tier's keep-hot rule, the oldest such entry it does not keep first (item 39); with the park TTL (A15) an
-        // idle sub-agent branch first (pick_victim)
+        // idle sub-agent branch first (pick_victim); with set_pin_evict_last, when none is left, the oldest pinned one
         int rank = -1;
-        const size_t victim = pick_victim(&rank, shortfall);
+        size_t victim = pick_victim(&rank, shortfall);
+        if (victim == SIZE_MAX && pin_evict_last_)
+            for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
+                if (!(guarded_ != 0 && serials_[i] == guarded_)) victim = i;
         if (victim == SIZE_MAX) return false;
         if (rank == 0) ++ttl_evictions_;
         bytes_ -= entries_[victim].bytes();
@@ -522,6 +529,16 @@ public:
     }
     const ParkTtl& park_ttl() const { return park_ttl_; }
     size_t ttl_evictions() const { return ttl_evictions_; }   // rank-0 victims (idle sub-agent branches)
+
+    /// MOD_PLAN 71 / 90 (opt-in, the caller sets it with STRATA_AUTO_PIN=1): a parked conversation that holds a pinned
+    /// shared prefix is evicted LAST, not never.  The old rule (off, the default) keeps it whatever comes: with several
+    /// sessions that each pin their own system prompt (an agent kind each, Qwen's auto-pin) the pinned entries fill the
+    /// slots or the budget and every new conversation is not parked (percache_sim on the real opencode history:
+    /// -1.32% of request time as coded, +0.00% with this rule).  On: make_room / evict_oldest take the unpinned entries
+    /// first in the usual order, then the oldest pinned one; truncate_oldest still never shrinks a pinned entry, and the
+    /// guarded donor still stays.  Cache policy only: what an entry holds and what a restore reads do not change.
+    void set_pin_evict_last(bool on) { pin_evict_last_ = on; }
+    bool pin_evict_last() const { return pin_evict_last_; }
 
     // #879: every parked conversation (pinned ones too) and the retained K/V go - after non-finite logits any of them
     // may carry the poison.  Returns how many were parked.
@@ -796,6 +813,7 @@ private:
     std::function<int64_t()> clock_;
     uint64_t next_serial_ = 1, guarded_ = 0;
     bool guard_blocked_ = false;
+    bool pin_evict_last_ = false;           // set_pin_evict_last: off by default (a pinned entry is never evicted)
     ConversationKvReuse reuse_;
     std::function<void(SavedConversation&&)> spill_;            // item 39: see set_disk_tier
     std::function<bool(const SavedConversation&)> keep_hot_;
