@@ -39,3 +39,18 @@ On identical weights Avalon decodes as fast as or slightly faster than the Strat
 the 10-17 tok/s spread), but its prompt speed stays flat at ~1.5-1.6K tok/s while the Strata engines keep climbing to 2.4-2.8K tok/s
 at 12-25K tokens. The first table above (Avalon on its own IQ3_KS hybrid) is therefore mostly a quant difference for decode and an
 engine difference for long prompts.
+
+## Strata-rdna3 re-test on the latest upstream (2b19d510, 11 commits newer than e2151f1b)
+
+Rebuilt `build-hip/strata` from `nicejunjie/Strata-rdna3` main (2026-11-11 02:21: prefill grid above 32K, review fixes, megakernel
+stall check, refill tuning; mostly multi-GPU / >32K paths). Same preset, same client, run 1 discarded.
+
+| Strata-rdna3 | e2151f1b | 2b19d510 pass 1 (cold) | 2b19d510 pass 2 (warm server) |
+| --- | ---: | ---: | ---: |
+| decode, all prompts (tok/s) | 106.5 | 90.9 | 106.5 |
+| prompt 3.2K / 12.7K / 25.3K (tok/s) | 1544 / 2360 / 2624 | 1547 / 2374 / 2649 | 1623 / 2432 / 2667 |
+
+Pass 1 ran right after Avalon's 92 GB of model files had filled the page cache (server load 95 s instead of 50 s, I/O pressure high)
+and its decode climbed over the rounds (MoE prompt 74 -> 85 -> 100 tok/s): a cold-start effect, not a regression. Discarding run 1
+is not enough after a heavy file load; run the client twice on the same server and keep the second pass. The new upstream commits
+change nothing measurable for 1-GPU decode and add ~0-5% on prompts.
