@@ -185,6 +185,67 @@ int main() {
         const uint64_t st4[] = {1, 2};
         check(flops_victim(two, st4, nullptr, 2, 1, nullptr, nullptr, 1.0) == 0, "one slot: the oldest, as before");
     }
+    std::printf("rewind_no_park (STRATA_PARK_REWIND_MAX, MOD_PLAN 17.0):\n");
+    {
+        using strata::program::conv_cache::RewindFacts;
+        using strata::program::conv_cache::rewind_no_park;
+        // an agent turn at 60,000 tokens: the live conversation is 60,900 tokens (prompt + reply), the template renders the
+        // last reply without its reasoning, so the request resumes from the turn checkpoint at 60,000 and leaves 900 behind
+        RewindFacts base;
+        base.max = 4096;
+        base.live_ok = true;
+        base.own_checkpoint = true;
+        base.resume = 60000;
+        base.live_tokens = 60900;
+        check(rewind_no_park(base), "a request resuming from the live conversation's own checkpoint 900 back: no park");
+        RewindFacts f = base;
+        f.max = 0;
+        check(!rewind_no_park(f), "max 0 (unset): the switch is off, the park happens as before");
+        f.max = -5;
+        check(!rewind_no_park(f), "a negative max is off too");
+        f = base;
+        f.max = 900;
+        check(rewind_no_park(f), "exactly max tokens left behind: still no park");
+        f.max = 899;
+        check(!rewind_no_park(f), "one token more than max: the park stays");
+        f = base;
+        f.from_live = true;
+        check(!rewind_no_park(f), "an exact continuation never parked: nothing to skip, decided elsewhere");
+        f = base;
+        f.own_checkpoint = false;
+        check(!rewind_no_park(f), "a checkpoint that is not a prefix of the live tokens (another conversation): park");
+        f = base;
+        f.incoming = true;
+        check(!rewind_no_park(f), "a parked conversation comes in: the outgoing one parks");
+        f = base;
+        f.borrow = true;
+        check(!rewind_no_park(f), "a borrow from a parked conversation: park");
+        f = base;
+        f.slot_source = true;
+        check(!rewind_no_park(f), "a batch slot holds a longer start: park");
+        f = base;
+        f.lent_slot = true;
+        check(!rewind_no_park(f), "the checkpoint is one a batch slot keeps: park");
+        f = base;
+        f.live_ok = false;
+        check(!rewind_no_park(f), "no live conversation: nothing to skip");
+        f = base;
+        f.live_has_images = true;
+        check(!rewind_no_park(f), "a live conversation with pictures is never rewound");
+        f = base;
+        f.resume = 0;
+        check(!rewind_no_park(f), "resume 0 (a cold read): not a rewind");
+        f = base;
+        f.resume = 61000;   // past the live length: cannot be a checkpoint of it
+        check(!rewind_no_park(f), "a checkpoint longer than the live conversation: park");
+        f = base;
+        f.resume = f.live_tokens;
+        check(rewind_no_park(f), "resume at the live length with a checkpoint there: nothing left behind, no park");
+        f = base;
+        f.max = 1 << 30;
+        f.live_tokens = 200000;
+        check(rewind_no_park(f), "a large max: any distance back to an own checkpoint skips the park");
+    }
     std::printf(g_fail ? "FAIL\n" : "PASS\n");
     return g_fail ? 1 : 0;
 }

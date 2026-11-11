@@ -388,6 +388,15 @@ bool admit_merge_first_env() {
 // checkpoints it drops (evicted, pruned, a batch slot's old one) and saves the next checkpoint into them, so a save
 // resizes nothing (no zero-fill of ~118 MB of fresh vectors) and a slot's copy reuses their pages.  Every byte is
 // overwritten by the copy, so the checkpoints are the same
+// STRATA_PARK_REWIND_MAX=N (opt-in, tokens, read once; unset or <= 0: off, the default): see rewind_no_park in
+// strata/program/conv_cache.hpp and the park decision of the serve loop
+int64_t park_rewind_max() {
+    static const int64_t v = [] {
+        const char* e = std::getenv("STRATA_PARK_REWIND_MAX");
+        return e != nullptr && e[0] != '\0' ? (int64_t) std::max(0LL, std::atoll(e)) : (int64_t) 0;
+    }();
+    return v;
+}
 bool park_async_env() {   // STRATA_PARK_ASYNC (strata/core/conversation_snapshot.hpp)
     static const bool on = [] { const char* v = std::getenv("STRATA_PARK_ASYNC"); return v != nullptr && v[0] == '1'; }();
     return on;
@@ -17608,6 +17617,40 @@ int main(int argc, char** argv) {
                     return drops_all || (int64_t) c.ids.size() > resume || !starts_with(c.ids, c.imgs);
                 };
             }
+            // STRATA_PARK_REWIND_MAX=N (opt-in): a request that resumes from one of the live conversation's OWN checkpoints
+            // and leaves at most N of its tokens behind does not park the live conversation first (rewind_no_park).  That
+            // is the agent turn whose chat template renders the past replies without their reasoning: the prompt matches the
+            // live session up to the checkpoint before the last generation prompt, the park copies the whole conversation's
+            // K/V to the host inside this request's prompt time, and the next turn drops that copy as superseded.  A request
+            // for ANOTHER conversation, a restore, a borrow and an exact continuation decide as before.  Given up: the
+            // tokens past the checkpoint (the last reply) are not kept, so a client that returns to that branch reads them
+            // again.  The state is rewound the way pin_sibling's is: the cells below `resume` are the prompt's own
+            const bool rewind_skip = [&] {
+                const int64_t mx = park_rewind_max();
+                if (mx <= 0) return false;   // (off: nothing below runs)
+                strata::program::conv_cache::RewindFacts f;
+                f.max = mx;
+                f.from_live = from_live;
+                f.incoming = incoming.has_value();
+                f.borrow = borrow;
+                f.slot_source = slot_source >= 0;
+                f.lent_slot = lent_slot >= 0 || moved_in >= 0;
+                f.live_ok = live_ok;
+                f.live_has_images = !live_imgs.empty();
+                f.resume = resume;
+                f.live_tokens = (int64_t) live.size();
+                if (resume > 0 && resume <= (int64_t) live.size())
+                    for (const ConvCheckpoint& c : checks)
+                        if ((int64_t) c.ids.size() == resume && c.imgs.empty() &&
+                            std::equal(c.ids.begin(), c.ids.end(), live.begin()))
+                            f.own_checkpoint = true;
+                return strata::program::conv_cache::rewind_no_park(f);
+            }();
+            if (rewind_skip)
+                std::fprintf(stderr, "strata serve: conversation cache: not parked (STRATA_PARK_REWIND_MAX): the request "
+                                     "continues the live conversation from its checkpoint at %lld of %zu tokens (%lld "
+                                     "left behind)\n", (long long) resume, live.size(),
+                             (long long) ((int64_t) live.size() - resume));
             if (borrow && !pin_sibling && park_worth) {
                 conversations.guard(parked.serial);   // parking the outgoing conversation must not evict the donor
                 const bool parked_ok = park_current(0);
@@ -17630,7 +17673,7 @@ int main(int argc, char** argv) {
                         return 1;
                     }
                 }
-            } else if ((!from_live || incoming || slot_source >= 0) && !pin_sibling && park_worth &&
+            } else if ((!from_live || incoming || slot_source >= 0) && !pin_sibling && park_worth && !rewind_skip &&
                        !park_current(incoming ? incoming->bytes() : 0)) {
                 std::printf("ERR %s\n", err.c_str());
                 return 1;

@@ -2641,3 +2641,31 @@ All of it needs the GPU: it waits for the Q2_0 / IQ2_XS matrix of 2026-11-11 to 
 - The 7900 XT is not detected today; AMD work is compile-only until it is back.
 - Disk: the root disk is tight; builds, models and caches go on the D drive (`/home/dan/clone-of-d`).
 - Upstream moves fast (thousands of commits a month); rebase on Strata releases, not on every commit.
+
+## Phase 17 item 17.0 note (park rewind)
+
+2026-11-11, branch `dev/p17/parkrewind` (from `dev/phase16-academic` `a4500666e`), lever 2 and measurement M3 of
+[pancake-docs/TTFT_LEVERS.md](pancake-docs/TTFT_LEVERS.md); full note [pancake-docs/batch5/park-rewind.md](pancake-docs/batch5/park-rewind.md).
+**Coded, NOT built, NOT measured**: no compiler, engine or server was started (the GPU was busy with benchmarks).
+
+- `STRATA_PARK_REWIND_MAX=N` (opt-in, tokens, default off): a request that resumes from one of the live conversation's own
+  checkpoints and leaves at most N tokens of it behind does not park the live conversation first. The park runs inside the next
+  request's prompt time on HIP (0.1 s below 4K tokens, 0.2 s at 25K, 0.3-1.4 s at 50-77K [log]) and the next turn drops the copy as
+  superseded. Cost: the last reply past the checkpoint is not kept in the cache. The decision is a pure function
+  (`conv_cache::rewind_no_park`, `include/strata/program/conv_cache.hpp`) with 17 checks in `src/program/conv_cache_test.cpp`;
+  the engine path is `generate.cpp`, search `rewind_skip`. Log line: `not parked (STRATA_PARK_REWIND_MAX) ... (Z left behind)`.
+  Idea from 0xluk `53cecdeee9` (also Xiaomi2008 `8e4ccbe90d`, UltimateBoomer `5d0a9e786c`); credits added to README section 9 and
+  `RESEARCH_AND_FINDINGS.md` section 4; written from the description, no fork code copied.
+- Measure (note, section 3): baseline `ttft_bench --scenario b` (10 turns, 3 sessions) plus `ttft_audit.py`; the effect exists only if
+  the baseline has `fallback` turns. Then the same session with a side request between turns, with and without
+  `STRATA_PARK_REWIND_MAX=8192`. Keep only if at least 2 s are saved per fallback turn or at least 2% of the session's total TTFT,
+  replies identical at temperature 0.
+- Unverified: all C++ (no build), and that the state left in place is what a checkpoint restore expects (same situation as the
+  existing `pin_sibling` path, which skips the park in the same way).
+- `STRATA_PARK_DIVERGENCE_LOG=1` (opt-in, default off; measurement M3, server side, no rebuild): one line per request that does not
+  continue the engine's last conversation: first diverging token index, live and prompt lengths, previous reply length, where
+  (`history` / `reply-start` / `reply-middle` / `reply-end`), the engine's `resume`, and a short window of both token streams as ids and
+  text, plus a labelled guess whether the reasoning was dropped. **The line contains prompt and reply text**
+  (`STRATA_PARK_DIVERGENCE_CHARS`, default 48, 0 = ids only). `serve/park_divergence.py`, 21 tests in `serve/test_park_divergence.py`
+  (run: pass). Follows only the plain one-engine path (not `--batch`, `--parallel`, pictures, split). Use: run the baseline session of the
+  plan above with it on, then decide lever 3 (`keep_reasoning` vs a template fix vs client edits) from the `where` counts.

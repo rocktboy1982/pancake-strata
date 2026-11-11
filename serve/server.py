@@ -67,6 +67,7 @@ from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, Reason
                             tool_choice_of, unmark_think_literals, CALL_END)
 from serve.mcp import McpCancelled, hub_from_config  # noqa: E402
 from serve import runconfig  # noqa: E402
+from serve import park_divergence  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
 from strata_control import engine_component  # noqa: E402
 from strata_control import tls  # noqa: E402
@@ -1323,6 +1324,7 @@ class StrataEngine:
         self.progress = None             # (read, total) prompt tokens while a prompt is read, from PP lines
         self.progress_ms = 0             # PP's own milliseconds since the prompt started (its third field)
         self.reused = 0                  # RESUME: prompt tokens not read again (a client takes them out of the work)
+        self.divergence = park_divergence.tracker_from_env()   # M3: None unless STRATA_PARK_DIVERGENCE_LOG=1 (default off)
         self.silent_note = None
         self.last_err = None
         try:                            # a ready-made engine's BUILD.json says its version
@@ -2994,6 +2996,12 @@ class StrataEngine:
             if embeddings or int(max_new) != 0:
                 raise ValueError("prefill_only is a text prompt and max_new 0")
             head = f"GEN 0 prefill=1{rid_key}"
+        div = getattr(self, "divergence", None)          # M3 (opt-in STRATA_PARK_DIVERGENCE_LOG=1): serve/park_divergence.py
+        if div is not None:
+            if rid is None and not embeddings and not prefill_only:
+                div.begin(id(self.proc), ids)
+            else:
+                div.forget()                             # a request the log cannot follow: the next one has nothing to compare
         try:
             if rid is not None:                          # several requests write to the engine at once
                 self._send(f"{head} {','.join(str(int(t)) for t in ids)}")
@@ -3064,6 +3072,8 @@ class StrataEngine:
                         if isinstance(carry, str) and carry.startswith("LP "):
                             self.lp_lines.append((t, carry))
                             carry = NO_LINE
+                    if div is not None:
+                        div.token(t)
                     yield t
                 elif line.startswith("PP "):
                     f = line.split()
@@ -3083,6 +3093,9 @@ class StrataEngine:
                         read_to = self.reused = int(line.split()[1])
                     except (IndexError, ValueError):
                         pass
+                    else:
+                        if div is not None:
+                            div.resumed(self.reused)      # M3: says where the prompt parts from the last conversation
                 elif line.startswith("TPROBE "):          # A19 (lossy, the engine's opt-in STRATA_THINK_PROBE): close the thinking
                     f = line.split()
                     try:
@@ -3101,6 +3114,8 @@ class StrataEngine:
                     self._swallow_trailing_done(lines_q)  # an engine that ended the request on ERR may still print its DONE
                     raise ValueError(line[4:].strip())
         finally:
+            if div is not None:
+                div.end()                                 # M3: what the engine now holds (prompt + the tokens streamed back)
             if not done:                                  # the consumer stopped early: stop the engine, drain to DONE
                 if self.can_stop:
                     try:
@@ -5007,6 +5022,7 @@ class Service:
                  vision: Vision | None = None, sampling_defaults: dict | None = None,
                  fit_max_tokens: bool = True):
         self.engine, self.tok, self.template, self.model, self.vision = engine, tokenizer, template, model_name, vision
+        park_divergence.attach_decoder(engine, tokenizer)   # M3: the text windows of STRATA_PARK_DIVERGENCE_LOG (no-op when off)
         self.literals = literal_tags(getattr(tokenizer, "control_tokens", ()))   # texts that stay text inside a message
         self.fit_max_tokens = fit_max_tokens          # default: clamp the output cap to the room left; False (--no-fit-max-tokens) = 400
         self.aliases: list[str] = []                  # #297: other names of the model (the config's `aliases`)

@@ -594,6 +594,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_CONV_BUDGET=ram` / `STRATA_CONV_KEEP_GIB=N` | off (40% rule stays) | item 86 (`ab4fe164b`, `c1b3fec32`): conversation cache sized from free RAM |
 | `STRATA_PSI_GUARD` | **on** (pause at 20%, resume at 10%, 30 s cap) | item 86: pauses loading / skips parking under memory pressure; timing only |
 | `STRATA_PARK_TRUNCATE=1` | opt-in, default off | from TwoAnts/Strata `5ef4fc8b4b`: a conversation too large to park (cache budget or RAM floor) parks its deepest checkpoint prefix that fits instead of being dropped, so the next request re-reads only the tail, not from token 0; a parked entry asked to make room is first shrunk to one of its own checkpoints (not below `--conversation-cache-min-tokens`, not beside the disk tier); exact; not measured yet |
+| `STRATA_PARK_REWIND_MAX=N` | opt-in (tokens), default off | MOD_PLAN 17.0, idea from 0xluk/Strata `53cecdeee9`: a request that resumes from one of the live conversation's OWN checkpoints and leaves at most N of its tokens behind (an agent turn whose template re-renders the last reply without its reasoning) does not park the live conversation first. The park runs inside the next request's prompt time and the next turn drops the copy as superseded. Cost: the tokens past the checkpoint (the last reply) are not kept, so a client that returns to that exact branch reads them again. Engine log: `conversation cache: not parked (STRATA_PARK_REWIND_MAX) ... (N left behind)`. Choose N from that number (the last reply's length plus its header); exact; coded, not built, not measured |
+| `STRATA_PARK_DIVERGENCE_LOG=1` | opt-in, default off | MOD_PLAN 17.0 (M3): the server logs one line when a request does not continue the engine's last conversation: the first token index where the new prompt differs, the sizes of the last prompt and reply, and a short truncated window of both token streams as ids and as text. **The line contains prompt and reply text** (`STRATA_PARK_DIVERGENCE_CHARS`, default 48, characters per window; 0 = ids only). Nothing is logged when it is off. Coded, not measured |
 
 ### 6H. CLI flags
 
@@ -958,6 +960,9 @@ Credits, in the order the stack was built:
   depth-adaptive resident K/V ring (`STRATA_KV_RING_ADAPT`): the 32768-cell floor and the "cap only from 2 x cap cells" rule, PR commits
   `2e435af79c`, `0ffb5926ed`, `3db7b83729`, `aa782aa980`. Re-implemented here as a pure function (`strata/core/kv_ring.hpp`), no PR code copied;
   its 7900 XTX numbers (128K +23.9%, 64K flat) are theirs, not yet measured on our card.
+- **0xluk** (Strata fork, MIT, commit `53cecdeee9`), with **Xiaomi2008** (`8e4ccbe90d`) and **UltimateBoomer** (`5d0a9e786c`), for the
+  idea behind `STRATA_PARK_REWIND_MAX`: do not park the live conversation when a request resumes from one of its own checkpoints.
+  Written here from the description, no fork code was copied.
 - **Asofwar** (Strata-Turbo, MIT), for window decode attention, each K/V chunk read once for a whole verify window
   (`STRATA_ATTN_WINDOW`, `STRATA_ATTN_WINDOW_SMALL`; commits `6ebe841e2e`, `540f801a9a`). `STRATA_ATTN_WINDOW` here is
   the idea rewritten for the Qwen3.6 engine (`k_attn_window`); no fork code was copied.
