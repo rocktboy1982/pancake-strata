@@ -1,0 +1,97 @@
+--- a/src/core/verify.cpp
++++ b/src/core/verify.cpp
+@@ -2518,6 +2518,7 @@
+         const bool rpub = !rfast && g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
+                           NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
+                           !defer_ &&   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
++                          !strata::core::window_trace().on() &&   // STRATA_WINDOW_TRACE records the weights: route_publish_res publishes none
+                           !g_route_prior_set && route_resident_cfg().margin <= 0.0f
+ #if defined(STRATA_USE_HIP)
+                           && !g_doorbell_store
+@@ -2636,7 +2637,7 @@
+             // #578: the helper GPUs reduce with the routing weights - publish them; set_always_publish: the rows
+             // whatever the device's residency table says (pipelined windows)
+             // (STRATA_VERIFY_DEFER_CPU_BELOW: the pool reads the weights too)
+-            if (remote_opt_ || always_publish_ || heavy)
++            if (remote_opt_ || always_publish_ || heavy || strata::core::window_trace().on())   // trace: doorbell_publish_res publishes no weights
+                 doorbell_publish(xm, ids_ + tb * K, w_ + tb * K, (int64_t) n * N, (int64_t) n * K, m_x_ + tb * N,
+                                  m_ids_ + tb * K, m_w_ + tb * K, m_seq_, cs);
+             else if (!rpub) {
+--- a/include/strata/core/window_trace.hpp
++++ b/include/strata/core/window_trace.hpp
+@@ -19,6 +19,9 @@
+ //           2 suffix/n-gram lookup window, 3 lookup chained after the drafter's rows.  Whether row j was accepted is
+ //           j <= the window's `accepted`; the CPU-missed experts a row added are in its layer records (kind -1; wtrace.py new_cpu_miss).
+ //           Absent for merged prompt windows.  (Legacy record 3, u8 3, u8 n, u16 0, n x f32 probs, is still read; no longer written.)
++//   norms:  u8 6, u8 layer, u8 n_tok, u8 0, n_tok*k x f32: the L2 norm of each entry's expert output, NaN where the host did not compute it.
++//           Written right after its layer record when STRATA_WINDOW_TRACE_NORMS=1 (generate.cpp drive_pool_multi_impl); readers older
++//           than this stop at it (unknown record type 6), as for record 5.
+ //   rowmiss: u8 5, u8 n, u16 0, n x u16: the CPU-missed experts each row of the window added over the rows before it (row 0
+ //           the committed row, row j draft j; distinct per layer, summed over the window's layer records; core/row_miss.hpp).
+ //           Written right after its window record when the window has layer records (MOD_PLAN A22 DISCO / A23: the price of
+@@ -77,6 +80,16 @@
+         rm_.layer(n_tok, k_, ids, kind);   // A22: the rows' new CPU misses (record 5 at commit)
+     }
+ 
++    /// Record 6 (STRATA_WINDOW_TRACE_NORMS=1): the L2 norm of each entry's expert output (unweighted, as the pool wrote it), NaN where the
++    /// host did not compute the entry.  Call right after layer() for the same layer; buffered with it, dropped with the window.
++    /// u8 6, u8 layer, u8 n_tok, u8 0, n_tok * k x f32.
++    void norms(int layer, int n_tok, const float* v) {
++        if (f_ == nullptr || v == nullptr || n_tok <= 0 || n_tok > 255 || layer < 0 || layer > 255) return;
++        const uint8_t h[4] = {6, (uint8_t) layer, (uint8_t) n_tok, 0};
++        put(h, 4);
++        put(v, (size_t) n_tok * k_ * 4);
++    }
++
+     /// The window committed: `rows` rows were verified, `accepted` drafts kept, at sequence position `pos`.
+     void commit(int rows, int accepted, int64_t pos) {
+         if (f_ == nullptr) return;
+--- a/src/program/generate.cpp
++++ b/src/program/generate.cpp
+@@ -1472,6 +1472,21 @@
+         const float* w = t->d.plan != nullptr ? t->d.plan->route_w : nullptr;
+         strata::core::window_trace().layer((int) layer, (int) n_tok, ids,
+                                            t->d.trace_kind.size() == (size_t) (n_tok * k) ? t->d.trace_kind.data() : nullptr, w);
++        // STRATA_WINDOW_TRACE_NORMS=1 (opt-in): ||expert output|| per entry the host computed (kind -1; `out` rows are unweighted, one per entry).
++        // Not with STRATA_CPU_PRESUM=1 (the rows are then pre-summed, the entries' own rows are not written).
++        static const bool norms_on = [] { const char* v = std::getenv("STRATA_WINDOW_TRACE_NORMS"); return v != nullptr && v[0] == '1'; }();
++        if (norms_on && t->d.trace_kind.size() == (size_t) (n_tok * k) && !(t->d.plan != nullptr && t->d.plan->presum)) {
++            constexpr int64_t H = strata::kernels::cpu::H;
++            static thread_local std::vector<float> nrm;
++            nrm.assign((size_t) (n_tok * k), std::nanf(""));
++            for (int64_t i = 0; i < n_tok * k; ++i) {
++                if (t->d.trace_kind[(size_t) i] != -1) continue;
++                double s = 0;
++                for (int64_t h = 0; h < H; ++h) s += (double) out[i * H + h] * (double) out[i * H + h];
++                nrm[(size_t) i] = (float) std::sqrt(s);
++            }
++            strata::core::window_trace().norms((int) layer, (int) n_tok, nrm.data());
++        }
+     }
+     // MOD_PLAN A22 (STRATA_DISCO / STRATA_DISCO_TRACE): the CPU-missed experts each row of the window adds, the stop rule's
+     // per-position cost (core/row_miss.hpp; read and reset by the loop after the commit).  Off: one branch.
+--- a/tools/pancake/trace/wtrace.py
++++ b/tools/pancake/trace/wtrace.py
+@@ -26,6 +26,7 @@
+     ids: np.ndarray
+     kind: np.ndarray
+     weights: np.ndarray | None
++    norms: np.ndarray | None = None   # record 6 (STRATA_WINDOW_TRACE_NORMS): ||expert output|| per entry, NaN where the host did not compute it
+ 
+ 
+ @dataclass
+@@ -99,6 +100,14 @@
+             if cur is not None:
+                 cur.row_miss = np.frombuffer(raw, dtype="<u2", count=nr, offset=off).astype(np.int64)
+             off += 2 * nr
++        elif typ == 6:   # expert output norms of the layer record just before it: n_tok * k f32
++            _, layer, nt, _ = struct.unpack_from("<BBBB", raw, off)
++            off += 4
++            if off + 4 * nt * k > n:
++                break
++            if cur is not None and layer in cur.layers:
++                cur.layers[layer].norms = np.frombuffer(raw, dtype="<f4", count=nt * k, offset=off).reshape(nt, k)
++            off += 4 * nt * k
+         elif typ == 3:   # legacy: n f32 probs only
+             _, nd, _ = struct.unpack_from("<BBH", raw, off)
+             off += 4

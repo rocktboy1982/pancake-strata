@@ -14,11 +14,17 @@ every item, even env-only and exact ones, got the full 3-rep A B B A treatment p
 | Tier | When | How (`tools/pancake/abtest.py`) | Time per arm |
 | --- | --- | --- | --- |
 | 0. offline | anything a replay or a byte count can answer (cache policy, drafting headroom, park decisions) | cache_sim, `tail_replay.py`, log replays; no GPU | 0 GPU minutes |
-| 1. screen | every candidate, first | `--tier screen`: one A B pass, short + edit, 2 requests per case in the same server; promote if >= +2% on a case and no case below -3%, else drop | ~2-3 min |
+| 1. screen | every candidate, first | `--tier screen`: one A B pass, short + edit, 2 requests per case in the same server; promote if >= +2% on a case and no case below -3%, else drop. A spec with `"prefill": true` (arms that change prompt reading) also keeps its `long*` cases, one request each, judged on prompt tok/s with the same thresholds | ~2-3 min (+ ~20-60 s per long read) |
 | 2. confirm | only screen winners | `--tier confirm` (default): A B B A up to 3 reps with **early stop** (stops once every arm/case is decided or its interval is below 1.5% of base) | ~5-12 min |
-| 3. rigorous | only: lossy items, a change of a preset default, anything whose generated text differs from base, long-context claims | confirm + `--no-early-stop` + `quality_gate.py` (token forcing) + 32K/64K/128K cases; tool-call gate for drafting/routing items | 20-60 min |
+| 3. rigorous | only: lossy items, a change of a preset default, anything whose generated text differs from base, long-context claims | confirm + `--no-early-stop` + `quality_gate.py` (token forcing: rejects only large deviations) + **`task_gate.py`** (A55: fixed task set, repeated, decides between close variants; includes the tool-call validity check, so no separate tool-call gate) + 32K/64K/128K cases | 20-60 min (+ ~15-25 min per arm for the task gate at 5 reps; est., first run pending) |
 
 Rules:
+- Lossy arms: token forcing first (a REJECT there ends it), then the task gate on the survivors:
+  `python tools/pancake/task_gate.py SPEC.json --out bench/results/<day>-<name>` (`--dry-run` checks the spec and the task set
+  without a server; the base arm runs twice as the drift check; verdict per arm: BETTER / PASS / INCONCLUSIVE / REJECT, see
+  README 7.8). Why a task set and not more KLD: near the baseline, KLD / top-1 do not predict the task score
+  ("Displacement Is Not Direction", arXiv 2606.19558). INCONCLUSIVE means more repetitions (`--reps 10-20`) or more
+  tasks, not a re-run of the same size.
 - Exactness is checked for free: every run hashes the generated text; "identical on every case" = exact, no quality
   gate. Placement changes (GPU vs CPU expert kernels) can change the last bits and the text without being lossy;
   those go to the quality gate only if they are candidates for a default.
@@ -30,8 +36,12 @@ Rules:
 - One decision per item: if an item comes back "no difference" from confirm, it is opt-in or removed; re-test it
   only after a code change, not to try again.
 - Batch arms: put all env-only arms of one area in one spec (one base, many arms) instead of one spec per arm.
-- Workloads: short chat, code edit (2K prompt); the 11.7K read case and 32K / 64K / 128K only in the rigorous tier
-  or for prefill items.
+- Workloads: short chat, code edit (2K prompt); the read cases `long` (11.7K tokens), `long32k`, `long64k` (prompt tok/s) only
+  for prefill items (spec key `"prefill": true`, then also in the screen) or the rigorous tier; 128K is not an abtest case.
+  Every `long*` request starts with a unique `[run <nonce>-<n>]` line, so prompt reading is always cold (no prompt cache,
+  in memory or on disk, can serve a repeat or another arm) and its text hash is not compared between arms; `long32k` /
+  `long64k` are ~32000 / ~64000 tokens of `src/**/*.cpp` (deterministic; the engine's token count is printed per run and
+  checked against the target) and request 32 tokens only.
 - Machine: the engine on 8080 is stopped during the test.
 - Result per item: one line in `bench/results/<day>-test-plan/RESULTS.md`: claim, tier reached, measured, verdict,
   action.
@@ -142,14 +152,99 @@ touches drafting or routing). All gains quoted in the plan are fork claims until
 | --- | --- | --- | --- | --- |
 | 4.0.1 | Would PARK_TRUNCATE have saved the ~162 s of cold 54-61K re-reads? Why were those conversations dropped? | read that session's park / evict log lines in `pancake-turns.jsonl` and the server log; replay the park decisions with a "keep the deepest prefix that fits" rule | 15 min | F1, F3 |
 | 4.0.2 | Does opencode send sampled requests (temperature >= 0.7) or greedy ones? | log or inspect one opencode request body | 5 min | F6 (no gain if greedy) |
-| 4.0.3 | Is there headroom for a cumulative draft stop on our traffic? | `tools/pancake/tail_replay.py` on recorded window traces | 15 min | F8 (port only if >= 2%) |
+| 4.0.3 | Is there headroom for a cumulative draft stop on our traffic? | `tools/pancake/trace/tail_replay.py` on a recorded window trace (capture note below) | 15 min | F8 (port only if >= 2%), A22 |
 | 4.0.4 | How much would frequency-gated admission and prompt-fed tier counts change the hit rate? | cache_sim replay of routing traces | 15 min | F10, admission variants |
 | 4.0.5 | How many CPU expert bytes would a sub-2-bit shadow save per token? | byte count from the GGUF tensor table x miss rate from traces | 10 min | F4 (requant only if >= 15%) |
+
+**4.0.3 capture (one short GPU run, then offline).** The serve loop writes, per decode window, the draft confidences when
+the window is built (`window_trace().drafts()` in `src/program/generate.cpp`, only with `STRATA_WINDOW_TRACE` set; the
+default path only tests `window_trace().on()`): per draft row the drafter's probability of the token (NaN for lookup
+rows) and its source; the window record has rows, accepted, ms; the layer records have every expert's placement, so the
+CPU-missed experts each draft row adds (what A22 needs) are read back exactly. Top-1 margin / entropy are not recorded
+(the drafter's kernels return only the chosen token's probability). Capture on a short run of each workload (short chat,
+code edit), the drafter on (the preset's default MTP; not a lookup-only run):
+
+    STRATA_WINDOW_TRACE=/tmp/w-chat.stwt ./run-pancake.sh iq2_xs fast          # serve; stop it with Ctrl-C after the request
+    curl -s localhost:8080/v1/chat/completions -H 'Content-Type: application/json' \
+      -d '{"messages":[{"role":"user","content":"Write a detailed explanation of how a hash map works, with a Python example."}],"max_tokens":400,"temperature":0}' >/dev/null
+    python3 tools/pancake/trace/wtrace.py /tmp/w-chat.stwt                      # summary: windows, acceptance, placement
+    python3 tools/pancake/trace/tail_replay.py /tmp/w-chat.stwt --us-per-miss 23   # code edit: 60 (time_ceiling.py --overlap)
+
+`tail_replay.py` prints the table of draft rows by cumulative confidence (share accepted, new CPU misses per row, whether
+the row pays: A22) and tok/s per stop threshold theta (F8; port only if the best theta is >= +2%). `_EVERY=N` thins the
+windows, `_MAX_MB` caps the file (default 2048 MiB; a few hundred windows are about 100-200 MiB at 48 layers).
+
 
 ### 4.1 Env-only A/Bs (no code; each answers a question on its own GPU)
 
 First in line (from 4.0.1): screen `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` against the
 preset on an agent replay with interleaved short requests (watch free RAM); it replayed as 97% of the lost re-read time.
+
+**Specs for this block (prepared 2026-11-10; base = the generated `pancake-flashnext-iq2_xs-fast-hip.json` at the main
+checkout's root, the daily preset; one base + all arms of an area per spec).** Run from the main checkout, engine on
+8080 stopped: `python tools/pancake/abtest.py bench/specs/<spec>.json --tier screen --out bench/results/<day>-<name>.jsonl`;
+then `--tier confirm` on a copy of the spec trimmed to the promoted arms (plus base).
+
+| Run order | Spec | Arms (besides base) | Cases | Row |
+| --- | --- | --- | --- | --- |
+| 1 | `11-conv-cache.json` | `cache2048`, `min8192`, `cache2048-min8192` | short, edit | first in line; side effects only, see below |
+| 2 | `15-kmiss.json` | `kmiss28` (`STRATA_ADAPT_KMISS=2,8`) | short, edit | 2.2 / A5 |
+| 3 | `12-spec-sampling.json` | `f6-dt100`, `f6-dt085` (SPEC_PROB + COUPLED + GATE=top, DT 1.0 / 0.85), run at T 1.0, top_p 0.95 | short, edit | 4.1.2 (4.0.2 answered: opencode is sampled) |
+| 4 | `13-lookup.json` | `lookup-t16`, `lookup-chain3` | short, edit | 4.1.3 |
+| 5 | `14-hip-env.json` | `sh-stream1`, `hwq4`, `hwq8`, `aux-auto` | short, edit | 4.1.4, 4.1.6 |
+| 6 | `14b-hip-prefill.json` | `automax24576`, `wmma-gemm`, `hcdown0` | edit, long32k | 4.1.5, 4.1.8; `"prefill": true`: the screen keeps long32k (one cold ~32K read per arm, prompt tok/s), so the 32K claim is tested in the screen itself; promoted arms then `confirm --reps 2` |
+| 7 | `16-3060-env.json` | `expdec0`, `hcq8-0`, `pf-fused1`, `pcie0`, `pcie-auto`, `pcie-balance` | short, edit, long | 4.1.7, only when the 3060 is back; regenerate its base file first (spec note) |
+
+Notes: `12` needs `temperature` in the spec, a new optional abtest key (`temperature`, `top_p`, `seed`; absent =
+greedy as before); sampled text differs per run, so its text-hash line is meaningless. `11` is exact and costs
+nothing in decode, so its screen only proves "no side effect"; its real verdict comes from the agent replay below.
+Lossy arms (`14b`, `15`, `16`) go to the rigorous tier if they promote.
+
+**Agent replay for the cache arms (built 2026-11-10, `tools/pancake/replay_turns.py`; dry runs only so far).**
+abtest's cases are independent one-shot requests, so they cannot park a conversation or evict it with a short side
+request. `pancake-turns.jsonl` has no prompt text, only per-request sizes and timing (`time`, `prompt_total`, `reused`,
+`output_tokens`, `max_new`, `reasoning_tokens`, `prompt_ms`), which is enough to rebuild the traffic shape. The replayer
+takes one session (a time window, `sN` from `--list-sessions`, or a request id) and, per arm, starts a fresh server
+(abtest's `start_server`, `quiet_gate`, `NoiseMonitor`, `make_config`; the run's engine log and turn log go to the out
+directory, not the daily files) and sends the requests as real streamed chat requests in the recorded order:
+- conversations: a request of >= 8,192 tokens extends the open conversation it can grow from (last prompt <= it <= last
+  + output + 16K); a re-read with `reused == 0` stays in the SAME conversation (it is the cold re-read the arms should
+  turn warm; the first proposal would have made each one a new conversation, which no cache can help). Smaller
+  requests are side requests, one-message conversations; one with `reused > 0` repeats the text of the latest side
+  request of the same size (thinking-off prompts count 2 tokens less), else new text.
+- text: lines of the repo's C++ sources, a fixed start per conversation. Agent turn N+1 = turn N's messages + the reply
+  the server really returned (reasoning + content, as opencode sends it back; the template keeps the thinking) + a
+  `<tool_response>` user message sized so the prompt is the recorded `prompt_total` to within 2 tokens. Counts come from
+  the server's own tokenizer and template imported locally (`tools/strata_tokenizer.py`, `serve/frontend.ChatTemplate`,
+  `effort_position: end` rendering); each response's `usage.prompt_tokens` corrects any offset for the next request.
+- `max_tokens` = the recorded output tokens (`--max-new recorded` for the recorded max_new; agent turns had 32768),
+  thinking on/off as recorded, greedy, think time capped at `--max-gap` (2 s).
+Per request: prompt tokens, reused (the engine's `prompt N tokens = R reused` line), prompt time, client time to first
+token, decode tok/s, wall time and the engine's cache lines in that request's window (parked / skip parking (why) /
+restored / evicted). Per arm run: cold re-reads (a non-first agent turn > 8K with reuse < 50%) and their seconds, total
+prompt time, total turn time, peak RSS of the server tree, lowest MemAvailable, the auto cache budget line. Verdict vs
+the first arm on total prompt time (paired 95% interval with `--reps` >= 2, else deltas). `--synthetic` replaces the log
+with a built-in 4.0.1-shaped session (one conversation 40K -> 62K in 18 turns; turns 7-15 each after a group of side
+requests: 69-token decodes x3, a 3,058-token probe x6, three ~4.1K probes, 75-token decodes, a thinking off/on pair).
+
+```sh
+# from the main checkout, engine on 8080 stopped, nothing else on the GPU (the run stops any Strata server first)
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out /tmp/rp --dry-run      # plan, sizes, duration; no server
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out bench/results/<day>-conv-cache-replay
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out ... --arms base,cache2048,min8192,cache2048-min8192
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out ... --synthetic        # without the log
+```
+
+Spec 11's `replay` block names the session (2026-11-09 16:13-16:43), the default pair (`base` vs `cache2048-min8192`)
+and an extra `base1280` arm (`--conversation-cache-mib 1280`, the 11-09 auto budget): run it as well when today's base
+prints a different auto budget (`conversation cache: N MiB / 4 slots (auto)` at the start of each arm), else base may
+not reproduce the misses. Dry runs (2026-11-10, `nice -n 19`, < 1 s of sizing each): the log session is 75 requests
+(34 agent turns: A 3 turns 70,082 -> 72,465, B 31 turns 34,261 -> 62,943 with the 7 recorded cold re-reads = 162.7 s;
+41 side requests: 20 decodes, 21 probes, 9 repeats), 1.81M prompt tokens, every request built within 2 tokens of its
+recorded size; expected ~13.5 min per arm as recorded (11.7 min of requests, 0.3 min of gaps, ~1.5 min start), ~8.7
+min if every agent turn is warm; the pair ~27 min. The synthetic session is 48 requests (18 agent, 30 side), 0.98M
+prompt tokens, 6.2 min per arm all warm to 9.4 min with every interleaved turn cold. One A B pass per arm is the
+first step; `--reps 2` (A B B A) gives the interval.
 
 | # | GPU | Arms | Unlocks / kills |
 | --- | --- | --- | --- |
@@ -157,7 +252,7 @@ preset on an agent replay with interleaved short requests (watch free RAM); it r
 | 4.1.2 | both | F6 arms (`STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top`, DT 1.0 / 0.85), only if 4.0.2 says sampled | F6 |
 | 4.1.3 | both | `--lookup-max-t 16`, `--lookup-chain 3` on code-edit turns | lookup settings |
 | 4.1.4 | 7900 XT | `STRATA_SH_STREAM=1` (xyzzing: +4.0% on gfx1100; our preset sets 0 with no recorded A/B) | preset change |
-| 4.1.5 | 7900 XT | `STRATA_PREFILL_AUTO_MAX=24576` at 32K (rxr2: +15% on a 64 GB box); `STRATA_WMMA_GEMM=1` prompt | preset change |
+| 4.1.5 | 7900 XT | `STRATA_PREFILL_AUTO_MAX=24576` at 32K (rxr2: +15% on a 64 GB box); `STRATA_WMMA_GEMM=1` prompt; case `long32k` (cold ~32K read, prompt tok/s), spec 14b | preset change |
 | 4.1.6 | 7900 XT | `GPU_MAX_HW_QUEUES` 4 / 6 / 8; `--aux-cpus auto` | preset change |
 | 4.1.7 | 3060 (when installed) | `STRATA_EXPDEC` 1 vs 0, `STRATA_HC_Q8` 1 vs 0 (KhaledElzarw: EXPDEC -3.0%, HC_Q8 +0.9% and lossy on a 3090), `STRATA_PF_FUSED=1` (AdrianBM96: +5.2% prompt on a 3060), `--pcie-frac` 0 / auto / `STRATA_PCIE_BALANCE=1` | 3060 preset; F15 only if PCIe share > 0 wins |
 | 4.1.8 | 7900 XT | quality check of `STRATA_PF_HCDOWN=1` (rxr2: doubled first-token KL at 16K for +1.3% prompt) | keep or drop in the preset |
@@ -167,9 +262,35 @@ preset on an agent replay with interleaved short requests (watch free RAM); it r
 | # | GPU | Probe | Decides |
 | --- | --- | --- | --- |
 | 4.2.1 | 7900 XT | unimatrix `empty_grid.cpp`: empty-launch cost vs block count on 42 WGPs; compare with the block counts in our decode graph | F20 |
-| 4.2.2 | 7900 XT | per-kernel timing of `route_publish_res` and the top-10 (rocprofv3) | F9 (worth it if >= 2% of GPU time stays) |
+| 4.2.2 | 7900 XT | per-kernel timing of `route_publish_res` and the top-10 (rocprofv3). Note: with deferral in the preset the path is `route_multi` + `doorbell_publish` (ROUTE_PUBLISH is off under deferral), so time those two and the gap between them. F9 is coded (`work/f9-route-fast`): run `native_multi_parity` (the ROUTE_FAST lines must say bitwise), then `bench/specs/17-f9-route-fast.json` (doorbell-store isolates the PCIe read, route-fast is the whole change; text identical to base) | F9 (worth it if >= 2% of GPU time stays) |
 | 4.2.3 | both | expert GEMV achieved bandwidth vs peak (IQ2_S / IQ2_XXS gate/up, Q2_0 down) | F12, F14, F16: little headroom above ~85% of peak |
 | 4.2.4 | both | CPU pool: Q2_0 unpack cost per row, single thread, old vs imanu86 kernel (microbenchmark, no engine) | F7 |
+
+Probes (all in `tools/pancake/probes/`; each file's header says question, build, run, how to read the result; written
+offline on 2026-11-10, the Python parsers and the CPU probe were smoke-tested on synthetic input, the GPU probe only
+syntax-checked). Run them from the repo root with the GPU idle, one at a time; a trace needs the engine under
+`rocprofv3` (it decodes ~1.6x slower, read shares and counts, not tok/s).
+
+- 4.2.1 empty-grid launch cost (7900 XT, ~2 min):
+  `hipcc -O2 --offload-arch=gfx1100 tools/pancake/probes/empty_grid.hip.cpp -o /tmp/empty_grid && HIP_VISIBLE_DEVICES=0 /tmp/empty_grid --csv /tmp/sweep.csv`
+  (or `cmake -DSTRATA_BUILD_PROBES=ON` on the HIP build, target `empty_grid_probe`; `--step 8` for a 10 s look).
+  Then the decode graph's shapes from a trace (step 4.2.2 makes it): `python3 tools/pancake/probes/launch_shapes.py /tmp/prof/run_kernel_trace.csv --sweep /tmp/sweep.csv`
+  (`--static` lists literal launch sites without a trace). Close F20 when the "EXCESS" line is ~0.
+- 4.2.2 router publish and top-10 (7900 XT, one profiled request):
+  `python3 tools/pancake/gpu_profile.py configs/pancake/flashnext-iq2_xs-fast-hip.json /tmp/prof --case short`
+  then `python3 tools/pancake/probes/kernel_share.py /tmp/prof/run_kernel_trace.csv` (the `TARGET` line is
+  route_publish_res: mean us, share of kernel and wall time, gap after it). F9 only if >= 2% of wall time.
+- 4.2.3 expert GEMV bandwidth (both GPUs, same trace as 4.2.2; 3060: `nsys stats --report cuda_gpu_kern_trace --format csv`):
+  `python3 tools/pancake/probes/expert_bw.py /tmp/prof/run_kernel_trace.csv --gpu 7900xt --hit-rate 0.6 --floor-us 3`
+  (`--gpu 3060` for the 3060; bytes per expert come from `bench/results/2026-11-10-offline/gguf_table.json`). The trace does not
+  say how many experts a launch computes, so the table gives GB/s for K = 1..10 experts per launch and the K needed for
+  85% of peak; take the real K from the cache hit rate (10 x hit rate).
+- 4.2.4 CPU Q2_0 row kernel, legacy vs `STRATA_Q2_FAST` (5700G, ~20 s, no GPU, no engine; do not run during a measurement):
+  `cmake -S . -B build-probes -DSTRATA_BUILD_PROBES=ON && cmake --build build-probes --target q2_rows_bench && taskset -c 3 build-probes/q2_rows_bench`
+  (or the four-line `g++` recipe in the file header). It prints ns/row for legacy, fast, the dispatcher and a read-only floor,
+  in L2 and in DRAM, and checks the outputs are bitwise equal. First numbers on the 5700G (Zen 3, no VNNI, 0.08 s runs, one
+  core): down rows 30.5 -> 22.8 ns (x1.33), gate/up rows 106 -> 86 ns (x1.23), both compute-bound (DRAM figures within ~6%
+  of the L2 ones; a read-only pass is 8-32 ns), outputs bitwise equal.
 
 ### 4.3 What transfers between the GPUs
 
@@ -185,9 +306,26 @@ preset on an agent replay with interleaved short requests (watch free RAM); it r
 
 1. F1 PARK_TRUNCATE (+ F3 checkpoint cuts) - exact, both GPUs.
 2. F7 Q2_0 AVX2 kernel - exact, both GPUs.
-3. F9 router publish (HIP DPP first), F12 sign expansion with EXPDEC_V2 - exact.
+3. F9 router publish (HIP DPP first), F12 sign expansion with EXPDEC_V2 - exact. F12 is coded alone on
+   `work/f12-sign-expand` (EXPDEC_V2 is not in the tree): run `iq_multi_parity`, then
+   `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1` on each GPU (every cell `identical`; keep a format only
+   where `dec:s1` has the lower gu_us), then `bench/specs/22-f12-sign-fast.json` (text identical to base on every case).
 4. F14 KhaledElzarw sm86 set on the 3060, then the Q2_0 down fold on gfx1100 - exact.
 5. F8 SPEC_CUM (if 4.0.3 >= 2%), F10 ADAPT_PROMPT - exact.
 6. F11 window decode attention (CUDA first, then WMMA), F17 / F19 Qwen3.6 attention - rounding-level, KL gate.
 7. Lossy arms: F5 VERIFY_ECAP, F13 route-prior guards + stronger turbo vs uniform tail skip at equal KL, F4 shadow
    pack (after 4.0.5 and a requant that fits the disk).
+   F5 is coded (work/f5-verify-ecap): bench/specs/20-verify-ecap.json, screen first, then token forcing (decode path)
+   and the task gate (tool_call tasks included) on the same spec; no default before all three pass.
+
+## Phase 16 test procedure (2026-11-11, from the first GPU phase)
+
+Order of evidence, cheapest first; an item advances only if it passes the stage before.
+1. Offline: unit tests, parity tests (`ctest -L cpu`, 130/0/8 baseline; `ctest -L gpu` 122/125 with 3 pre-existing failures), trace replays, simulators.
+2. Kernel level (minutes, low noise): `expdec_bench`, `q2_rows_bench`, rocprof kernel times; kernel gain x the kernel's share of the window = expected end-to-end gain.  End-to-end only if >= 2%.
+3. Screen (`abtest --tier screen`): finds big effects only; n=2 per arm gave +-100..+450 tok/s intervals, so a screen "promote to confirm" is a hint, never a result (25-kern-hip: +2.9% in the screen, +0.7% [-6.9, +8.3] in the confirm).
+4. Confirm: 6 reps, `--no-early-stop`, same tier for every arm.  Exact items need 12+ pairs to prove a 2% gain at a paired SD of 1.5%.
+5. Lossy items: token forcing (grown to ~40 requests) + the task gate (grown to ~100 tasks, or per-item gates).
+6. Verdict: `python3 tools/pancake/promote.py <items.json>`; only PROMOTE items are cherry-picked into port/rdna3-decode.
+
+Rules learned: one GPU job at a time and nothing else running during a run (this session's own CPU use disqualified an attempt); every arm of a comparison runs the same tier (arena vs mmap differ by ~8%); `abtest --reclaim-max 3.0` (kernel reclaim up to 3% of a core did not slow decode in 62 attempts; the default 1.0 discarded 48% of attempts); text identity cannot be used as an exactness check while run-to-run output differs (use the noise-aware gate); a switch that never logged "acted" voids its arm; run specs back to back with `/home/dan/clone-of-d/src/Strata-p16/tools/pancake/queue_run.sh OUTDIR SPEC[:abtest args] ...` (add `-n` to preview).

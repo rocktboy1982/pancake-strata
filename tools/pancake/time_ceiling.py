@@ -14,6 +14,8 @@ the DMA does not fit in the window (then it gates the window).  Policies:
              promotions that do not pay) - an oracle, the target
   kmiss k/W  online (what the engine can run): admit an expert after its k-th miss in the last W windows, evict LRU
 The decision rule of item 14: build a new policy in the engine only if it saves >= 5% of the window over `tier`.
+A46 (MOD_PLAN 16) extends this replay in tools/pancake/cache_learn.py: Belady with bypass (the optimum), OPTgen labels,
+online Hawkeye and an offline Belady-imitation model, scored in hit points against lru / k-th miss.
 
     python tools/pancake/time_ceiling.py TRACE.bin PROFILE.bin SLOTS [--cpu-ms 5.2] [--gpu-ms 18.1] [--every 1]
                                          [--swaps 32] [--mb 1.4] [--gbps 12] [--horizons 1,2,4,8]
@@ -156,7 +158,10 @@ def replay(seqs, uses, budgets, inits, kind, horizon=0, kmiss=(2, 4)):
     return hits / max(1, ent), miss, promo, ml
 
 
-def main():
+def parse(argv=None):
+    """The command line (also used by finemoe_replay.py to get the A6 model's defaults); --validate sets its edit-window
+    defaults unless the option is given."""
+    argv = sys.argv[1:] if argv is None else list(argv)
     ap = argparse.ArgumentParser()
     ap.add_argument("trace")
     ap.add_argument("profile")
@@ -190,12 +195,16 @@ def main():
     ap.add_argument("--bench-tps", type=float, default=116.6, help="validate: measured base edit decode tok/s (01-deferral)")
     ap.add_argument("--extra-ms", type=float, default=None, help="validate: fixed bench-vs-profile constant (use the main trace's value for other traces)")
     ap.add_argument("--tok-per-win", type=float, default=4.70, help="validate: tokens per window of the edit run")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     if a.validate:   # defaults of the edit window the model is fitted to (profile-fasthip.txt, 109 windows)
-        a.alpha = a.alpha if "--alpha" in sys.argv else 0.5
-        a.cpu_ms = a.cpu_ms if "--cpu-ms" in sys.argv else 17.41
-        a.draft_ms = a.draft_ms if "--draft-ms" in sys.argv else 2.5
+        a.alpha = a.alpha if "--alpha" in argv else 0.5
+        a.cpu_ms = a.cpu_ms if "--cpu-ms" in argv else 17.41
+        a.draft_ms = a.draft_ms if "--draft-ms" in argv else 2.5
+    return a
 
+
+def main():
+    a = parse()
     windows, _k = rp.load_trace(a.trace)
     init = rp.load_profile(a.profile, a.slots)
     budgets = np.bincount(init[:, 0], minlength=rp.NL)
@@ -336,32 +345,47 @@ def window_ms2(ml_row, promo, p, mode, heavy=0.4, sdef=0.0, ps_cut=0.0, keep=1.0
     return post + p["draft"]
 
 
+def model_ms(p, run, mode, heavy, sdef=0.0, cut=0.0, alpha=None, keep=1.0):
+    """Mean window_ms2 over a run's windows (run = (name, hits, miss/window, promo/window, per-layer misses))."""
+    q = p if alpha is None else {**p, "alpha": alpha}
+    return float(np.mean([window_ms2(r, pr, q, mode, heavy, sdef, cut, keep) for r, pr in zip(run[4], run[3])]))
+
+
+def fit_model(a, base):
+    """The A6 calibration on the preset tier's run `base`: the model parameters p, the deferred-layer cost sdef (fitted to
+    --fit-gain unless --sdef-us is given) and the bench-vs-profile constant extra (ms added to every window)."""
+    ps = a.ps_us / 1e3
+    c = a.c_us / 1e3 if a.c_us > 0 else (a.cpu_ms - rp.NL * ps) / base[2].mean()
+    p = dict(pre=a.pre_ms, mu=a.mu, E=a.e_ms, ps=ps, sync=a.sync_us / 1e3, draft=a.draft_ms, c=c, alpha=a.alpha,
+             dma_per=a.mb / 1e3 / a.gbps * 1e3)
+    s0 = model_ms(p, base, "serial", a.heavy)
+    meas_base = a.tok_per_win / a.bench_tps * 1e3
+    extra = meas_base - s0 if a.extra_ms is None else a.extra_ms  # what the profile window lacks vs the bench (host stalls at window edges, ...)
+    if a.sdef_us >= 0:
+        return p, a.sdef_us / 1e3, extra
+    lo, hi = 0.0, 0.5
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        g = ((s0 + extra) / (model_ms(p, base, "defer", a.heavy, mid) + extra) - 1) * 100
+        lo, hi = (mid, hi) if g > a.fit_gain else (lo, mid)
+    return p, (lo + hi) / 2, extra
+
+
 def validate_report(a, runs, windows, init):
     nl = rp.NL
     pick = lambda prefix: next(r for r in runs if r[0].startswith(prefix))
     base = runs[0]                                      # run = (name, hits, miss/window, promo/window, per-layer misses)
     km28, km38 = pick("online: admit on 2th miss in 8"), pick("online: admit on 3th miss in 8")
     ps = a.ps_us / 1e3
-    c = a.c_us / 1e3 if a.c_us > 0 else (a.cpu_ms - nl * ps) / base[2].mean()
-    p = dict(pre=a.pre_ms, mu=a.mu, E=a.e_ms, ps=ps, sync=a.sync_us / 1e3, draft=a.draft_ms, c=c, alpha=a.alpha,
-             dma_per=a.mb / 1e3 / a.gbps * 1e3)
+    p, sdef, extra = fit_model(a, base)
+    c = p["c"]
 
     def win(run, mode, heavy=a.heavy, sdef=0.0, cut=0.0, alpha=None, keep=1.0):
-        q = p if alpha is None else {**p, "alpha": alpha}
-        return float(np.mean([window_ms2(r, pr, q, mode, heavy, sdef, cut, keep) for r, pr in zip(run[4], run[3])]))
+        return model_ms(p, run, mode, heavy, sdef, cut, alpha, keep)
 
     s0 = win(base, "serial")
     meas_base = a.tok_per_win / a.bench_tps * 1e3
-    extra = meas_base - s0 if a.extra_ms is None else a.extra_ms  # what the profile window lacks vs the bench (host stalls at window edges, ...)
     pct = lambda ref, x: ((ref + extra) / (x + extra) - 1) * 100
-    if a.sdef_us >= 0:
-        sdef = a.sdef_us / 1e3
-    else:
-        lo, hi = 0.0, 0.5
-        for _ in range(40):
-            mid = (lo + hi) / 2
-            lo, hi = (mid, hi) if pct(s0, win(base, "defer", sdef=mid)) > a.fit_gain else (lo, mid)
-        sdef = (lo + hi) / 2
     d0 = win(base, "defer", sdef=sdef)
     print("\n=== A6 recalibrated model (engine chain), edit window ===")
     print(f"c = {c * 1e3:.1f} us per distinct missed expert ({nl} layers x {a.ps_us:.0f} us pool barriers inside the {a.cpu_ms} ms CPU); "

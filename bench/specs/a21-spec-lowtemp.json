@@ -1,0 +1,16 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "coupled": {"env": {"STRATA_SPEC_COUPLED": "1"}},
+  "gumbel": {"env": {"STRATA_SPEC_GUMBEL": "1"}},
+  "f6-dt100": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_PROB_DT": "1.0"}},
+  "f6-dt050": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_PROB_DT": "0.5"}},
+  "f6-min07": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_MIN_TEMP": "0.7"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "temperature": 0.1,
+ "lossy": false,
+ "note": "MOD_PLAN A21 (note pancake-docs/batch2/A-small-items.md): opencode sub-agents send temperature 0.1. By code reading a request with temperature 0.1 IS sampled (the engine's greedy test is temperature <= 0 only: generate.cpp req_sp.greedy, MtpDrafter::set_draft_sampling), so the sampled speculative paths apply to it: the plain sampled verify rule (a draft is kept only if it equals the token the target SAMPLED for the row; at T 0.1 that is the argmax almost always, so argmax drafts accept well) and, only with STRATA_SPEC_COUPLED / STRATA_SPEC_PROB, the coupled or probabilistic drafter. Earlier 3060 / 5070 measurements: sampled drafting gains at T 1.0 and loses below ~0.7 (docs/DETAILS.md, STRATA_SPEC_MIN_TEMP). This spec checks that at T 0.1 on the 7900 XT: expected base best, coupled / f6-dt100 slower, f6-min07 == base within noise (the MIN_TEMP guard keeps the argmax drafter at T 0.1: it is the control; if it does not match base the guard is not taking effect). f6-dt050 sharpens the drafter's chain (x0.5 temperature) to see whether it recovers the loss. Sampled text differs run to run: ignore the text-hash line. Compare 'drafts accepted' as well as tok/s. If base wins everywhere, the recommendation is STRATA_SPEC_MIN_TEMP=0.7 whenever STRATA_SPEC_PROB / COUPLED is turned on for the main agent (T 1.0): the sub-agents then keep the argmax drafter."
+}

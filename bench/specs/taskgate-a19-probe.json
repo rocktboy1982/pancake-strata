@@ -1,0 +1,15 @@
+{
+ "_note": "A19: the learned thinking stop (STRATA_THINK_PROBE, a linear probe on the hidden state at the thinking's check points; the dump hook is spec 16-a19-hidden-dump.json). LOSSY, opt-in, and it cannot run until the probe is TRAINED: take dumps on real agent turns (STRATA_HIDDEN_DUMP=<dir>,every=64), train with tools/pancake/thinking_probe.py (labels, probe, calibration, SPRB export), then put the weights file and threshold in the arm below (STRATA_THINK_PROBE=<weights>,<threshold>[,k=K][,min=M]; the path here is where thinking_probe.py's export is expected, not an existing file). Judged on time to success (A57 area under the curve) with success within 5 pts of the base: thinking is where the time goes (6.6% of turn time plus the tail). The close needs the soft-close grace of the presets (reasoning_budget_grace 512).",
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {"request": {"thinking": true, "reasoning_effort": "high"}, "config": {"reasoning_budget_grace": 512}},
+  "probe": {"request": {"thinking": true, "reasoning_effort": "high"}, "config": {"reasoning_budget_grace": 512},
+            "env": {"STRATA_THINK_PROBE": "/home/dan/clone-of-d/Strata-data/a19-probe/probe.sprb,0.8,k=2,min=256"}}
+ },
+ "tasks": "bench/tasks/default.json",
+ "reps": 5,
+ "temperature": 0.2,
+ "max_tokens": 8192,
+ "margin": 0.05,
+ "time_curve": true
+}

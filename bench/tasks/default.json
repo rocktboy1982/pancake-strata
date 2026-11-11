@@ -1,0 +1,844 @@
+{
+ "name": "pancake default task set",
+ "version": 1,
+ "about": "18 tasks: 8 code edits (python block run against a test, no network), 7 tool calls (JSON schemas, parse + schema + expected call; parallel, multi-turn, no-call), 3 short QA. Every task carries a reference answer that must pass and a wrong answer that must fail (task_gate.py --dry-run runs both).",
+ "tasks": [
+  {
+   "id": "ce-window-sum",
+   "kind": "code_edit",
+   "prompt": "This function should return the sum of every window of k consecutive items, but it misses the last window.\n\n```python\ndef window_sums(xs, k):\n    out = []\n    for i in range(len(xs) - k):\n        out.append(sum(xs[i:i + k]))\n    return out\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "assert window_sums([1, 2, 3, 4], 2) == [3, 5, 7]\nassert window_sums([5], 1) == [5]\nassert window_sums([1, 2], 3) == []",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\ndef window_sums(xs, k):\n    out = []\n    for i in range(len(xs) - k + 1):\n        out.append(sum(xs[i:i + k]))\n    return out\n```"
+   },
+   "wrong": {
+    "content": "```python\ndef window_sums(xs, k):\n    return [sum(xs[i:i + k]) for i in range(len(xs) - k)]\n```"
+   }
+  },
+  {
+   "id": "ce-mutable-default",
+   "kind": "code_edit",
+   "prompt": "Calling `add_tag` twice without a list shares state between calls. Fix it without changing the signature's meaning.\n\n```python\ndef add_tag(tag, tags=[]):\n    tags.append(tag)\n    return tags\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "a = add_tag(\"x\")\nb = add_tag(\"y\")\nassert a == [\"x\"] and b == [\"y\"], (a, b)\nc = [\"p\"]\nassert add_tag(\"q\", c) is c and c == [\"p\", \"q\"]",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\ndef add_tag(tag, tags=None):\n    if tags is None:\n        tags = []\n    tags.append(tag)\n    return tags\n```"
+   },
+   "wrong": {
+    "content": "```python\ndef add_tag(tag, tags=[]):\n    tags.append(tag)\n    return list(tags)\n```"
+   }
+  },
+  {
+   "id": "ce-add-parameter",
+   "kind": "code_edit",
+   "prompt": "Add an optional parameter `sep` (default \",\") to `join_ids` so callers can choose the separator. Existing calls must keep working.\n\n```python\ndef join_ids(ids):\n    return \",\".join(str(i) for i in ids)\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "assert join_ids([1, 2, 3]) == \"1,2,3\"\nassert join_ids([1, 2, 3], sep=\";\") == \"1;2;3\"\nassert join_ids([], sep=\"-\") == \"\"\nassert join_ids([\"a\"], \"|\") == \"a\"",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\ndef join_ids(ids, sep=\",\"):\n    return sep.join(str(i) for i in ids)\n```"
+   },
+   "wrong": {
+    "content": "```python\ndef join_ids(ids, sep):\n    return sep.join(str(i) for i in ids)\n```"
+   }
+  },
+  {
+   "id": "ce-dedupe-order",
+   "kind": "code_edit",
+   "prompt": "`dedupe` must remove duplicates but keep the first occurrence of each item in its original order. It currently scrambles the order.\n\n```python\ndef dedupe(items):\n    return list(set(items))\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "assert dedupe([3, 1, 3, 2, 1]) == [3, 1, 2]\nassert dedupe([]) == []\nassert dedupe([\"b\", \"a\", \"b\"]) == [\"b\", \"a\"]",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\ndef dedupe(items):\n    seen = set()\n    out = []\n    for x in items:\n        if x not in seen:\n            seen.add(x)\n            out.append(x)\n    return out\n```"
+   },
+   "wrong": {
+    "content": "```python\ndef dedupe(items):\n    return sorted(set(items))\n```"
+   }
+  },
+  {
+   "id": "ce-parse-kv",
+   "kind": "code_edit",
+   "prompt": "`parse_kv` turns \"a=1;b=2\" into {\"a\": \"1\", \"b\": \"2\"}. It breaks when a value contains \"=\" and it keeps spaces around keys and values. Fix both; empty segments are ignored.\n\n```python\ndef parse_kv(text):\n    out = {}\n    for part in text.split(\";\"):\n        k, v = part.split(\"=\")\n        out[k] = v\n    return out\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "assert parse_kv(\"a=1;b=2\") == {\"a\": \"1\", \"b\": \"2\"}\nassert parse_kv(\"a=1=2\") == {\"a\": \"1=2\"}\nassert parse_kv(\" a = 1 ; b=2 ;\") == {\"a\": \"1\", \"b\": \"2\"}\nassert parse_kv(\"\") == {}",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\ndef parse_kv(text):\n    out = {}\n    for part in text.split(\";\"):\n        if not part.strip():\n            continue\n        k, v = part.split(\"=\", 1)\n        out[k.strip()] = v.strip()\n    return out\n```"
+   },
+   "wrong": {
+    "content": "```python\ndef parse_kv(text):\n    out = {}\n    for part in text.split(\";\"):\n        k, v = part.split(\"=\", 1)\n        out[k] = v\n    return out\n```"
+   }
+  },
+  {
+   "id": "ce-top-words",
+   "kind": "code_edit",
+   "prompt": "Add a function `top_words(text, n)` that returns the n most frequent words as a list of (word, count) tuples, highest count first, ties broken alphabetically. Words are lower-cased. Keep `word_counts` as it is.\n\n```python\ndef word_counts(text):\n    counts = {}\n    for w in text.lower().split():\n        counts[w] = counts.get(w, 0) + 1\n    return counts\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "assert word_counts(\"a b a\") == {\"a\": 2, \"b\": 1}\nassert top_words(\"the cat the dog The end\", 2) == [(\"the\", 3), (\"cat\", 1)]\nassert top_words(\"b a b a c\", 3) == [(\"a\", 2), (\"b\", 2), (\"c\", 1)]\nassert top_words(\"\", 3) == []",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\ndef word_counts(text):\n    counts = {}\n    for w in text.lower().split():\n        counts[w] = counts.get(w, 0) + 1\n    return counts\n\n\ndef top_words(text, n):\n    items = sorted(word_counts(text).items(), key=lambda kv: (-kv[1], kv[0]))\n    return items[:n]\n```"
+   },
+   "wrong": {
+    "content": "```python\ndef word_counts(text):\n    counts = {}\n    for w in text.lower().split():\n        counts[w] = counts.get(w, 0) + 1\n    return counts\n\n\ndef top_words(text, n):\n    return sorted(word_counts(text).items(), key=lambda kv: kv[1], reverse=True)[:n]\n```"
+   }
+  },
+  {
+   "id": "ce-binary-search",
+   "kind": "code_edit",
+   "prompt": "This binary search sometimes loops forever. Fix it; it must return the index of the target or -1.\n\n```python\ndef bsearch(xs, target):\n    lo, hi = 0, len(xs) - 1\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if xs[mid] == target:\n            return mid\n        if xs[mid] < target:\n            lo = mid\n        else:\n            hi = mid\n    return -1\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "xs = [1, 3, 5, 7, 9, 11]\nassert [bsearch(xs, x) for x in xs] == [0, 1, 2, 3, 4, 5]\nassert bsearch(xs, 4) == -1 and bsearch(xs, 0) == -1 and bsearch(xs, 12) == -1\nassert bsearch([], 1) == -1 and bsearch([2], 2) == 0 and bsearch([2], 3) == -1",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\ndef bsearch(xs, target):\n    lo, hi = 0, len(xs) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if xs[mid] == target:\n            return mid\n        if xs[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n```"
+   },
+   "wrong": {
+    "content": "```python\ndef bsearch(xs, target):\n    lo, hi = 0, len(xs) - 1\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if xs[mid] == target:\n            return mid\n        if xs[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid\n    return -1\n```"
+   }
+  },
+  {
+   "id": "ce-stack-peek",
+   "kind": "code_edit",
+   "prompt": "Add a `peek` method (returns the top item without removing it, raises IndexError when empty) and `__len__` to this class.\n\n```python\nclass Stack:\n    def __init__(self):\n        self._items = []\n\n    def push(self, x):\n        self._items.append(x)\n\n    def pop(self):\n        return self._items.pop()\n```\n\nAnswer with the complete corrected code in one python code block, no tests, no explanation needed.",
+   "expect": {
+    "test": "s = Stack()\nassert len(s) == 0\ns.push(1); s.push(2)\nassert s.peek() == 2 and len(s) == 2\nassert s.pop() == 2 and s.peek() == 1 and len(s) == 1\ns.pop()\ntry:\n    s.peek()\n    raise SystemExit(\"peek on empty did not raise\")\nexcept IndexError:\n    pass",
+    "timeout": 10
+   },
+   "reference": {
+    "content": "Here is the fix.\n\n```python\nclass Stack:\n    def __init__(self):\n        self._items = []\n\n    def push(self, x):\n        self._items.append(x)\n\n    def pop(self):\n        return self._items.pop()\n\n    def peek(self):\n        if not self._items:\n            raise IndexError(\"peek from empty stack\")\n        return self._items[-1]\n\n    def __len__(self):\n        return len(self._items)\n```"
+   },
+   "wrong": {
+    "content": "```python\nclass Stack:\n    def __init__(self):\n        self._items = []\n\n    def push(self, x):\n        self._items.append(x)\n\n    def pop(self):\n        return self._items.pop()\n\n    def peek(self):\n        return self._items[-1] if self._items else None\n```"
+   }
+  },
+  {
+   "id": "tc-single",
+   "kind": "tool_call",
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "get_weather",
+      "description": "Current weather for a city.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "city": {
+         "type": "string"
+        },
+        "unit": {
+         "type": "string",
+         "enum": [
+          "celsius",
+          "fahrenheit"
+         ]
+        }
+       },
+       "required": [
+        "city"
+       ],
+       "additionalProperties": false
+      }
+     }
+    }
+   ],
+   "prompt": "What's the weather in Lisbon right now? I want celsius.",
+   "expect": {
+    "calls": [
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Lisbon",
+       "unit": "celsius"
+      }
+     }
+    ]
+   },
+   "reference": {
+    "content": null,
+    "calls": [
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Lisbon",
+       "unit": "celsius"
+      }
+     }
+    ]
+   },
+   "wrong": {
+    "content": null,
+    "calls": [
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Lisbon",
+       "unit": "kelvin"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "tc-nested-types",
+   "kind": "tool_call",
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "create_event",
+      "description": "Create a calendar event.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "title": {
+         "type": "string",
+         "minLength": 1
+        },
+        "date": {
+         "type": "string",
+         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "duration_minutes": {
+         "type": "integer",
+         "minimum": 5,
+         "maximum": 480
+        },
+        "attendees": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "title",
+        "date",
+        "duration_minutes"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "get_weather",
+      "description": "Current weather for a city.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "city": {
+         "type": "string"
+        },
+        "unit": {
+         "type": "string",
+         "enum": [
+          "celsius",
+          "fahrenheit"
+         ]
+        }
+       },
+       "required": [
+        "city"
+       ],
+       "additionalProperties": false
+      }
+     }
+    }
+   ],
+   "prompt": "Schedule a 45 minute meeting called 'Design review' on 2026-03-14 with ana@example.com and bo@example.com.",
+   "expect": {
+    "calls": [
+     {
+      "name": "create_event",
+      "args": {
+       "title": {
+        "re": "^design review$"
+       },
+       "date": "2026-03-14",
+       "duration_minutes": 45,
+       "attendees": {
+        "set": [
+         "ana@example.com",
+         "bo@example.com"
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "reference": {
+    "content": null,
+    "calls": [
+     {
+      "name": "create_event",
+      "args": {
+       "title": "Design review",
+       "date": "2026-03-14",
+       "duration_minutes": 45,
+       "attendees": [
+        "bo@example.com",
+        "ana@example.com"
+       ]
+      }
+     }
+    ]
+   },
+   "wrong": {
+    "content": null,
+    "calls": [
+     {
+      "name": "create_event",
+      "args": {
+       "title": "Design review",
+       "date": "14 March 2026",
+       "duration_minutes": "45 minutes",
+       "attendees": [
+        "ana@example.com"
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "tc-parallel",
+   "kind": "tool_call",
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "get_weather",
+      "description": "Current weather for a city.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "city": {
+         "type": "string"
+        },
+        "unit": {
+         "type": "string",
+         "enum": [
+          "celsius",
+          "fahrenheit"
+         ]
+        }
+       },
+       "required": [
+        "city"
+       ],
+       "additionalProperties": false
+      }
+     }
+    }
+   ],
+   "prompt": "Compare today's weather in Oslo and Madrid.",
+   "expect": {
+    "calls": [
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Oslo"
+      }
+     },
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Madrid"
+      }
+     }
+    ]
+   },
+   "reference": {
+    "content": null,
+    "calls": [
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Madrid"
+      }
+     },
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Oslo"
+      }
+     }
+    ]
+   },
+   "wrong": {
+    "content": null,
+    "calls": [
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Oslo"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "tc-pick-tool",
+   "kind": "tool_call",
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "search_files",
+      "description": "Find files by glob pattern.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "pattern": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "pattern"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "read_file",
+      "description": "Read a text file.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "path": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "path"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "run_tests",
+      "description": "Run the tests of one module.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "target": {
+         "type": "string"
+        },
+        "verbose": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "target"
+       ],
+       "additionalProperties": false
+      }
+     }
+    }
+   ],
+   "prompt": "Run the tests for the billing module.",
+   "expect": {
+    "calls": [
+     {
+      "name": "run_tests",
+      "args": {
+       "target": {
+        "re": "billing"
+       }
+      }
+     }
+    ]
+   },
+   "reference": {
+    "content": null,
+    "calls": [
+     {
+      "name": "run_tests",
+      "args": {
+       "target": "billing"
+      }
+     }
+    ]
+   },
+   "wrong": {
+    "content": null,
+    "calls": [
+     {
+      "name": "search_files",
+      "args": {
+       "pattern": "billing*"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "tc-no-call",
+   "kind": "tool_call",
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "get_weather",
+      "description": "Current weather for a city.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "city": {
+         "type": "string"
+        },
+        "unit": {
+         "type": "string",
+         "enum": [
+          "celsius",
+          "fahrenheit"
+         ]
+        }
+       },
+       "required": [
+        "city"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "search_files",
+      "description": "Find files by glob pattern.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "pattern": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "pattern"
+       ],
+       "additionalProperties": false
+      }
+     }
+    }
+   ],
+   "prompt": "What is 12 times 12? No tools needed.",
+   "expect": {
+    "calls": [],
+    "answer_re": "(?<!\\d)144(?!\\d)"
+   },
+   "reference": {
+    "content": "12 times 12 is 144.",
+    "calls": []
+   },
+   "wrong": {
+    "content": "I do not know.",
+    "calls": [
+     {
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "tc-multi-turn",
+   "kind": "tool_call",
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "search_files",
+      "description": "Find files by glob pattern.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "pattern": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "pattern"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "read_file",
+      "description": "Read a text file.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "path": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "path"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "run_tests",
+      "description": "Run the tests of one module.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "target": {
+         "type": "string"
+        },
+        "verbose": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "target"
+       ],
+       "additionalProperties": false
+      }
+     }
+    }
+   ],
+   "messages": [
+    {
+     "role": "user",
+     "content": "Find the TOML config file in this repo and show me its contents."
+    },
+    {
+     "role": "assistant",
+     "content": null,
+     "tool_calls": [
+      {
+       "id": "call_1",
+       "type": "function",
+       "function": {
+        "name": "search_files",
+        "arguments": "{\"pattern\": \"*.toml\"}"
+       }
+      }
+     ]
+    },
+    {
+     "role": "tool",
+     "tool_call_id": "call_1",
+     "content": "{\"matches\": [\"config/app.toml\"]}"
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "read_file",
+      "args": {
+       "path": "config/app.toml"
+      }
+     }
+    ]
+   },
+   "reference": {
+    "content": null,
+    "calls": [
+     {
+      "name": "read_file",
+      "args": {
+       "path": "config/app.toml"
+      }
+     }
+    ]
+   },
+   "wrong": {
+    "content": null,
+    "calls": [
+     {
+      "name": "read_file",
+      "args": {
+       "path": "app.toml"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "tc-nested-object",
+   "kind": "tool_call",
+   "tools": [
+    {
+     "type": "function",
+     "function": {
+      "name": "set_alarm",
+      "description": "Set an alarm.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "time": {
+         "type": "object",
+         "properties": {
+          "hour": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 23
+          },
+          "minute": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 59
+          }
+         },
+         "required": [
+          "hour",
+          "minute"
+         ]
+        },
+        "label": {
+         "type": "string"
+        },
+        "repeat": {
+         "type": "string",
+         "enum": [
+          "once",
+          "daily",
+          "weekdays",
+          "weekends"
+         ]
+        }
+       },
+       "required": [
+        "time"
+       ],
+       "additionalProperties": false
+      }
+     }
+    }
+   ],
+   "prompt": "Wake me at 6:30 every weekday, label it gym.",
+   "expect": {
+    "calls": [
+     {
+      "name": "set_alarm",
+      "args": {
+       "time": {
+        "hour": 6,
+        "minute": 30
+       },
+       "label": {
+        "re": "^gym$"
+       },
+       "repeat": "weekdays"
+      }
+     }
+    ]
+   },
+   "reference": {
+    "content": null,
+    "calls": [
+     {
+      "name": "set_alarm",
+      "args": {
+       "time": {
+        "hour": 6,
+        "minute": 30
+       },
+       "label": "gym",
+       "repeat": "weekdays"
+      }
+     }
+    ]
+   },
+   "wrong": {
+    "content": null,
+    "calls": [
+     {
+      "name": "set_alarm",
+      "args": {
+       "time": "06:30",
+       "label": "gym",
+       "repeat": "weekdays"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "qa-arithmetic",
+   "kind": "qa",
+   "prompt": "What is 17 * 23? Answer with just the number.",
+   "max_tokens": 256,
+   "expect": {
+    "answer_re": "(?<!\\d)391(?!\\d)"
+   },
+   "reference": {
+    "content": "391"
+   },
+   "wrong": {
+    "content": "381"
+   }
+  },
+  {
+   "id": "qa-capital",
+   "kind": "qa",
+   "prompt": "What is the capital of Australia? Answer in one word.",
+   "max_tokens": 256,
+   "expect": {
+    "answer_re": "\\bCanberra\\b"
+   },
+   "reference": {
+    "content": "Canberra"
+   },
+   "wrong": {
+    "content": "Sydney"
+   }
+  },
+  {
+   "id": "qa-order",
+   "kind": "qa",
+   "prompt": "Anna is older than Ben. Ben is older than Cleo. Who is the youngest? Answer with just the name.",
+   "max_tokens": 256,
+   "expect": {
+    "answer_re": "\\bCleo\\b"
+   },
+   "reference": {
+    "content": "Cleo"
+   },
+   "wrong": {
+    "content": "Anna"
+   }
+  }
+ ]
+}

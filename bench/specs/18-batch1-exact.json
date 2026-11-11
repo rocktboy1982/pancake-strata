@@ -1,0 +1,51 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "note": "dev/batch-1 exact opt-ins, one screen. 'port' = the daily binary (sanity: same text, same speed as base).",
+ "arms": {
+  "base": {},
+  "port": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+  },
+  "q2fast": {
+   "env": {
+    "STRATA_Q2_FAST": "1"
+   }
+  },
+  "routefast": {
+   "env": {
+    "STRATA_ROUTE_FAST": "1"
+   }
+  },
+  "signfast": {
+   "env": {
+    "STRATA_IQ_SIGN_FAST": "1"
+   }
+  },
+  "fusewait": {
+   "env": {
+    "STRATA_FUSE_WAIT": "1"
+   }
+  },
+  "fusewait-copy256": {
+   "env": {
+    "STRATA_FUSE_WAIT": "1",
+    "STRATA_WAIT_COPY256": "1"
+   }
+  },
+  "top2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2"
+   }
+  },
+  "top2-fold2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2",
+    "STRATA_VERIFY_DEFER_CPU_FOLD": "2"
+   }
+  }
+ }
+}

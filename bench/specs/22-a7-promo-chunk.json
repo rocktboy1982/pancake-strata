@@ -1,0 +1,13 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "async": {"args": {"--adapt-async": "1"}},
+  "async-chunk256k": {"args": {"--adapt-async": "1"}, "env": {"STRATA_PROMO_CHUNK": "262144"}},
+  "async-chunk512k": {"args": {"--adapt-async": "1"}, "env": {"STRATA_PROMO_CHUNK": "524288"}},
+  "async-kmiss28-chunk256k": {"args": {"--adapt-async": "1"}, "env": {"STRATA_ADAPT_KMISS": "2,8", "STRATA_PROMO_CHUNK": "262144"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": true,
+ "note": "MOD_PLAN 16 A7 (ProMoE): chunked, cancellable promotions of the asynchronous adaptive tier (pancake-docs/batch2/A7-A46-promotions.md). Compare each chunk arm with the 'async' arm, not with base (the preset is the blocking tier; --adapt-async was -9.6% there before). Placement only, exact arithmetic, but rounding-level different text like any tier timing change (which window first runs an expert on the GPU moves). Check the engine log for 'promotions in chunks of' (on) or 'STRATA_PROMO_CHUNK=...: off' (needs the arena, no --pipeline-windows 2, no STRATA_ADAPT_FETCH), and the end line 'chunked promotions (...): N cancelled'. The A6 model bounds A7 at +2-5% at the bench's hit rate: a screen at +-1.7-3 noise is unlikely to resolve it; run only if a slot is free."
+}

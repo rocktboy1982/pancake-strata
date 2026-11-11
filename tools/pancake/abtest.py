@@ -13,16 +13,42 @@ Spec (JSON):
   {"base": "pancake-flashnext-iq2_xs-rdna3test.json",
    "arms": {"base": {}, "kmiss": {"env": {"STRATA_ADAPT_KMISS": "2,8"}, "args": {"--adapt-swaps": "96"}}},
    "cases": ["short", "edit", "long"], "reps": 3}
+  cases: short, edit (decode tok/s); long (~12K tokens), long32k, long64k (prompt tok/s, see below); longdec32k,
+  longdec64k, longdec128k (decode tok/s AFTER a long cold prompt, see below); long1k, long3k (prompt tok/s of a cold
+  1000- / 3000-token prompt, A30), longdec10k (decode after a 10K read, A49).  "prefill": true marks a spec whose arms
+  change prompt reading (see --tier screen).
   args: "--flag": "value" sets, "--flag": "" a bare switch, "--flag": null removes.  env: "KEY": null removes.
+  Optional top-level "temperature" (default 0 = greedy), "top_p", "seed": sampling of every request, for arms that only
+  matter when sampling (speculative sampling, STRATA_SPEC_PROB*).  Sampled text is not reproducible, so the text-hash
+  check means nothing there.
 
     python tools/pancake/abtest.py SPEC.json --out bench/results/<day>-<name>.jsonl [--reps 3] [--max-load 1.0]
 
 Test tiers (bench/TEST_PLAN.md "How every test runs"):
   --tier screen   one A B pass, cases short + edit, 2 requests per case in the same server; verdict per arm:
                   promote (>= +2% on a case, no case below -3%) or drop.  Minutes per arm.  Use it first, always.
+                  The long* cases are dropped (tens of seconds per read, and the plain screens judge decode), except the longdec*
+                  ones (they judge decode; one request each), unless the spec sets "prefill": true:
+                  then every case of the spec is kept, the long* ones with ONE request each (short / edit keep two), and
+                  the long* cases are compared on prompt tok/s with the same promote / drop thresholds.
   --tier confirm  (default) A B B A ... up to --reps, with early stop: after every full A B B A pair, stop once every
                   arm/case is decided (interval excludes 0) or its interval is below 1.5% of base (no effect worth
                   having).  --no-early-stop runs all reps.
+Prefill cases (long, long32k, long64k; metric = prompt tok/s of the engine's own log line): the prompt is source text
+from src/ (long: src/spec, ~12K tokens, content unchanged; long32k / long64k: the first non-test src/**/*.cpp files in
+sorted order, sized to 32000 / 64000 tokens at LONG_CPT chars per token).  Prompt reading is always COLD: every long*
+request starts with a unique line ("[run <batch nonce>-<n>]") at the very first characters of the user message, so no
+prompt cache (in memory, or on disk across server restarts) can share more than the few template tokens before it:
+repeats and arms never read a warm prompt.  Consequence: the text hash of a long* case is not comparable between arms
+and is not checked (short / edit still are).  long32k / long64k request max_tokens 32 (prefill only).  The server's
+count_tokens endpoint is asked once per server for the prompt size of each long* case before the first request, and
+the engine's reported prompt tokens are printed per run (a warning if more than 8% off the target).  Needs
+--max-context above 64K for long64k (the base configs use 131072).
+Long-context decode cases (longdec32k, longdec64k, longdec128k; MOD_PLAN F11): the same kind of cold source-text prompt
+as long32k / long64k (32000 / 64000 tokens; longdec128k reads 120000 so that the prompt plus the 256-token reply stays
+under --max-context 131072 even when LONG_CPT is 8% off), then a 256-token reply; metric = the decode tok/s of that
+reply (the engine's own log line), so the attention over the long cache is in every token.  One request per server,
+never read warm, text not compared (the unique first line), like the other long* cases.
 Every run also records a hash of the generated text: an arm whose text is identical to base on every case is exact,
 so it needs no quality gate.  A server that dies before ready is retried once; a second death aborts the batch
 (memory fragmentation / oomd: see the free-2MiB-block line) instead of continuing with too few runs.
@@ -46,15 +72,69 @@ CLK = os.sysconf("SC_CLK_TCK")
 T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 9: 2.26, 10: 2.23}
 
 
-def prompts():
+LONG_CPT = 2.85                                          # chars per token of this repo's C++ (Qwen tokenizer; 'long': 34264 chars = 11978 tokens)
+LONG_TARGET = {"long32k": 32000, "long64k": 64000,       # prompt tokens (fit the 131072 context; 32K stays under --kv-resident 32768)
+               "long1k": 1000, "long3k": 3000,           # A30: agent-sized prompt deltas (the CPU-share window), prompt tok/s
+               "longdec10k": 10000,                      # A49: decode after a 10K read (attention share of the window vs 64K / 128K)
+               "longdec32k": 32000, "longdec64k": 64000, "longdec128k": 120000}   # decode after the read (F11)
+LONG_DEC = ("longdec10k", "longdec32k", "longdec64k", "longdec128k")   # long* cases judged on the decode tok/s of the reply after the read
+MAXTOK = {"long32k": 32, "long64k": 32, "long1k": 32, "long3k": 32, "longdec10k": 256,                # prefill-only cases: no 512-token decode at 32K / 64K context
+          "longdec32k": 256, "longdec64k": 256, "longdec128k": 256}
+SUMMARIZE = "Summarize what each of these source files does, one paragraph per file.\n\n"
+
+
+def is_long(c):
+    """A prefill case: judged on prompt tok/s, one request per server, unique cold prefix per request."""
+    return c.startswith("long")
+
+
+def metric(c):
+    return "prompt_tps" if is_long(c) and c not in LONG_DEC else "decode_tps"
+
+
+def corpus(chars):
+    """Deterministic source text of `chars` characters: src/**/*.cpp (not *_test.cpp) in sorted order, each file cut at
+    20000 characters and headed by its path."""
+    out, n = [], 0
+    for f in sorted((ROOT / "src").rglob("*.cpp")):
+        if f.name.endswith("_test.cpp"):
+            continue
+        part = f"// ==== {f.relative_to(ROOT)}\n" + f.read_text(errors="replace")[:20000] + "\n"
+        out.append(part)
+        n += len(part)
+        if n >= chars:
+            return "".join(out)[:chars]
+    raise SystemExit(f"abtest: src/ has only {n} characters of non-test .cpp, {chars} needed for the long* cases")
+
+
+def prompts(cases=()):
     src = (ROOT / "src/spec/draft_policy.cpp").read_text()
     files = sorted((ROOT / "src/spec").glob("*.cpp"))[:4]
     long_text = "".join(f.read_text()[:20000] for f in files)[:64000]
-    return {
+    P = {
         "short": "Write a detailed explanation of how a hash map works, with an example in Python.",
         "edit": "Rewrite the following C++ file, renaming every variable to snake_case. Output only the full code.\n\n" + src[:6000],
-        "long": "Summarize what each of these source files does, one paragraph per file.\n\n" + long_text,
+        "long": SUMMARIZE + long_text,
     }
+    want = [c for c in cases if c in LONG_TARGET]   # built only when a spec asks for them (up to 190K characters)
+    if want:
+        big = corpus(int(max(LONG_TARGET[c] for c in want) * LONG_CPT))
+        for c in want:
+            P[c] = SUMMARIZE + big[:int(LONG_TARGET[c] * LONG_CPT)]
+    return P
+
+
+NONCE = f"{os.getpid():x}{time.time_ns() // 1000:x}"
+_SEQ = [0]
+
+
+def case_text(P, c):
+    """The prompt text of one request of case c.  A long* case gets a unique first line, so its prompt is always read cold
+    (never from a prompt cache): the id is never reused within a batch, across arms, reps or servers."""
+    if not is_long(c):
+        return P[c]
+    _SEQ[0] += 1
+    return f"[run {NONCE}-{_SEQ[0]}]\n" + P[c]
 
 
 # ---- processes: the server's tree vs everything else
@@ -272,6 +352,11 @@ def make_config(base, arm, path):
             a += [k] + ([str(v)] if v != "" else [])
     if arm.get("drafting"):
         c["drafting"] = arm["drafting"]
+    for k, v in (arm.get("config") or {}).items():   # server config keys (reasoning_budget_by_effort, rumination_close ...)
+        if v is None:
+            c.pop(k, None)
+        else:
+            c[k] = v
     if arm.get("exe"):   # another build of the engine (e.g. build-hip-native/strata)
         exe = arm["exe"] if os.path.isabs(arm["exe"]) else str(ROOT / arm["exe"])
         c["exe"] = exe
@@ -296,9 +381,12 @@ def stop_servers():
         time.sleep(2)
 
 
-def request(url, text):
+SAMPLING = {"temperature": 0}   # the spec's "temperature" / "top_p" / "seed" keys replace it (see main)
+
+
+def request(url, text, max_tokens=512):
     """Returns the generated text."""
-    body = {"model": "x", "messages": [{"role": "user", "content": text}], "max_tokens": 512, "temperature": 0,
+    body = {"model": "x", "messages": [{"role": "user", "content": text}], "max_tokens": max_tokens, **SAMPLING,
             "chat_template_kwargs": {"enable_thinking": False}}
     req = urllib.request.Request(url + "/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
     r = json.load(urllib.request.urlopen(req, timeout=1800))
@@ -312,46 +400,86 @@ LINE = re.compile(r"prompt (\d+) tokens.*?read in \d+ ms \(([\d.]+) tok/s\), (\d
                   r"(?:, drafts accepted (\d+) of (\d+))?")
 
 
-def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1):
-    log = cfg.get("log")
+def start_server(cfg_path, log_out, port, ready_wait=900):
+    """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
+    (None, "server died before ready" / "server not ready ...") - the caller stops the servers."""
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     with open(log_out, "w") as lf:
         srv = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), PY, "serve/server.py", "--engine", "strata", "--config",
                                 cfg_path, "--port", str(port)], cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env)
     t0 = time.time()
-    while time.time() - t0 < 900:
+    while time.time() - t0 < ready_wait:
         txt = Path(log_out).read_text(errors="replace")
         if "ready: http" in txt:
-            break
+            return srv, None
         if srv.poll() is not None or "EngineDied" in txt:
             return None, "server died before ready"
         time.sleep(3)
+    return srv, None   # as before: not ready after ready_wait, carry on (the first request waits for it)
+
+
+def token_check(url, P, cases):
+    """Prints the server's own token count (count_tokens: renders and tokenizes, the model does not run) of each long* case
+    before it is sent.  Best effort: a server without the endpoint, or a failure, only prints a note."""
+    for c in cases:
+        if not is_long(c):
+            continue
+        try:
+            body = {"model": "x", "messages": [{"role": "user", "content": P[c]}]}
+            req = urllib.request.Request(url + "/v1/messages/count_tokens", json.dumps(body).encode(),
+                                         {"Content-Type": "application/json"})
+            n = json.load(urllib.request.urlopen(req, timeout=300))["input_tokens"]
+            tgt = LONG_TARGET.get(c)
+            off = f" (target {tgt}{'' if abs(n / tgt - 1) <= 0.08 else ', MORE THAN 8% OFF'})" if tgt else ""
+            print(f"  {c}: {n} prompt tokens by count_tokens{off}", flush=True)
+        except Exception as e:   # noqa: BLE001 - informational only
+            print(f"  {c}: count_tokens unavailable ({type(e).__name__})", flush=True)
+
+
+def n_requests(c, per_run):
+    """Requests per server for case c: a prefill case is read once (minutes each), the others per_run times."""
+    return 1 if is_long(c) else per_run
+
+
+def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1):
+    log = cfg.get("log")
+    srv, err = start_server(cfg_path, log_out, port)
+    if err:
+        return None, err
     url = f"http://127.0.0.1:{port}"
     request(url, P["short"])                          # warm-up, not counted
+    token_check(url, P, cases)
     n0 = len(Path(log).read_text(errors="replace").splitlines()) if log and Path(log).exists() else 0
     mon = NoiseMonitor([srv.pid])
     mon.start()
     texts = {}
     for c in cases:
-        for _ in range(per_run):
-            texts[c] = hashlib.sha1(request(url, P[c]).encode()).hexdigest()[:16]
+        for _ in range(n_requests(c, per_run)):
+            t = request(url, case_text(P, c), MAXTOK.get(c, 512))
+            if not is_long(c):   # a long* prompt has a unique first line: its text is not comparable between arms
+                texts[c] = hashlib.sha1(t.encode()).hexdigest()[:16]
     noise, top = mon.result()
     rows = []
     if log and Path(log).exists():
         for line in Path(log).read_text(errors="replace").splitlines()[n0:]:
             m = LINE.search(line)
-            if m and "strata serve: prompt" in line:
+            # Flash-Next: "strata serve: prompt N tokens ..."; the Qwen3.6 (q36) engine: "strata serve: session S: prompt N tokens ..."
+            if m and ("strata serve: prompt" in line or "strata serve: session" in line):
                 acc = int(m[5]) / int(m[6]) if m[5] and int(m[6]) > 0 else None
                 rows.append({"prompt": int(m[1]), "prompt_tps": float(m[2]), "gen": int(m[3]), "decode_tps": float(m[4]),
                              "accept": acc})
     stop_servers()
-    want = len(cases) * per_run
+    plan = [c for c in cases for _ in range(n_requests(c, per_run))]
+    want = len(plan)
     if len(rows) > want:   # an extra engine line (a retried / re-read request): the last ones are the cases'
         rows = rows[-want:]
     if len(rows) != want:
         return None, f"expected {want} engine lines, got {len(rows)}"
-    for c, r in zip([c for c in cases for _ in range(per_run)], rows):
+    for c, r in zip(plan, rows):
         r["case"] = c
+        if is_long(c) and LONG_TARGET.get(c) and abs(r["prompt"] / LONG_TARGET[c] - 1) > 0.08:
+            print(f"  WARNING {c}: the engine read {r['prompt']} prompt tokens, target {LONG_TARGET[c]} (more than 8% off: adjust LONG_CPT)",
+                  flush=True)
     return {"rows": rows, "texts": texts, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2), "gpu": mon.gpu_summary(),
             "big_free_gib": round(big_free_gib(), 1)}, None
 
@@ -369,7 +497,7 @@ def decided(results, arms, cases, floor=1.5):
     """True when every arm/case either has an interval that excludes 0 or one narrower than floor % of base."""
     base = arms[0]
     for c in cases:
-        key = "prompt_tps" if c == "long" else "decode_tps"
+        key = metric(c)
         vals = {a: [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c] for a in arms}
         if len(vals[base]) < 2:
             return False
@@ -390,7 +518,7 @@ def screen_verdict(results, arms, cases):
     for a in arms[1:]:
         deltas = {}
         for c in cases:
-            key = "prompt_tps" if c == "long" else "decode_tps"
+            key = metric(c)
             b = [r[key] for res in results.get(base, []) for r in res["rows"] if r["case"] == c]
             x = [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c]
             if b and x:
@@ -404,20 +532,21 @@ def text_check(results, arms, cases):
     bt = [res.get("texts", {}) for res in results.get(base, [])]
     if not bt:
         return
-    print("\ngenerated text vs base (identical = exact: no quality gate needed)")
+    print("\ngenerated text vs base (identical = exact: no quality gate needed; long* cases are not compared:"
+          " unique prompt prefix per request)")
     for a in arms[1:]:
         at = [res.get("texts", {}) for res in results.get(a, [])]
         if not at:
             continue
-        same = all(t.get(c) == bt[0].get(c) for t in at for c in cases)
+        same = all(t.get(c) == bt[0].get(c) for t in at for c in cases if c in bt[0])
         print(f"  {a:20s} {'identical on every case -> exact' if same else 'DIFFERENT text -> lossy or placement-dependent: quality gate'}")
 
 
 def summary(results, arms, cases):
     base = arms[0]
-    print("\nsummary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)")
+    print("\nsummary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)")
     for c in cases:
-        key = "prompt_tps" if c == "long" else "decode_tps"
+        key = metric(c)
         vals = {a: [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c] for a in arms}
         bm, _ = ci(vals[base]) if vals[base] else (float("nan"), 0)
         for a in arms:
@@ -433,13 +562,14 @@ def summary(results, arms, cases):
                 verdict = "better" if dm - dh > 0 else "worse" if dm + dh < 0 else "no difference"
                 line += f"   vs {base}: {dm / bm * 100:+5.1f}% +- {dh / bm * 100:4.1f}%  -> {verdict}"
             print(line)
-            if c != "long":
+            if not is_long(c):
                 accs = [r["accept"] for res in results.get(a, []) for r in res["rows"] if r["case"] == c and r["accept"]]
                 if accs:
                     print(f"  {'':6s} {'':20s} drafts accepted {sum(accs) / len(accs):.2f}")
 
 
 def main():
+    global RECLAIM_MAX
     ap = argparse.ArgumentParser()
     ap.add_argument("spec")
     ap.add_argument("--out", required=True)
@@ -451,18 +581,37 @@ def main():
     ap.add_argument("--tier", choices=("screen", "confirm"), default="confirm")
     ap.add_argument("--no-early-stop", action="store_true")
     ap.add_argument("--max-wait", type=int, default=600, help="seconds to wait for a quiet machine before running anyway")
+    ap.add_argument("--reclaim-max", type=float, default=RECLAIM_MAX,
+                    help="%% of one core of kswapd/kcompactd above which a run is noisy and repeated (default 1.0; "
+                         "2026-11-11 data, 62 attempts: up to 3 decoded as fast as below 1, above 3 edits were ~8%% slower, "
+                         "while 1.0 discarded 48%% of all attempts)")
     a = ap.parse_args()
+    RECLAIM_MAX = a.reclaim_max
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
     cases = spec.get("cases", ["short", "edit", "long"])
     reps = a.reps or spec.get("reps", 3)
     per_run = 1
     if a.tier == "screen":
-        cases = [c for c in cases if c != "long"] or ["short"]
+        if not spec.get("prefill"):   # a prefill spec keeps its long* cases (one request each, see n_requests)
+            cases = [c for c in cases if not is_long(c) or c in LONG_DEC] or ["short"]
         reps, per_run = 1, 2
     base = str(ROOT / spec["base"]) if not os.path.isabs(spec["base"]) else spec["base"]
-    P = prompts()
-    work = Path(a.out).with_suffix("")
+    for k in ("temperature", "top_p", "seed"):   # optional sampling, for arms that only matter at T > 0
+        if spec.get(k) is not None:
+            SAMPLING[k] = spec[k]
+    if SAMPLING["temperature"] > 0:
+        print(f"sampling: {SAMPLING} (sampled text is not reproducible: the text-hash check below is not meaningful)",
+              flush=True)
+    P = prompts(cases)
+    for c in cases:
+        if c not in P:
+            raise SystemExit(f"abtest: unknown case {c!r} (short, edit, long, {', '.join(LONG_TARGET)})")
+        if is_long(c):
+            print(f"case {c}: {len(P[c])} chars, sha1 {hashlib.sha1(P[c].encode()).hexdigest()[:12]}"
+                  + (f", target {LONG_TARGET[c]} tokens" if c in LONG_TARGET else "") + " (a unique run line is prepended to every request)",
+                  flush=True)
+    work =Path(a.out).with_suffix("")
     work.mkdir(parents=True, exist_ok=True)
     order = []
     for r in range(reps):   # A B B A, then B A A B, ... : each arm sees early and late slots equally
@@ -499,7 +648,7 @@ def main():
             rec = {"t": time.strftime("%Y-%m-%d %H:%M:%S"), "rep": r, "arm": arm, "attempt": attempt, "clean": clean, **res}
             out.write(json.dumps(rec) + "\n")
             out.flush()
-            desc = " ".join(f"{x['case']} {x['decode_tps']:.1f}" + (f"/{x['prompt_tps']:.0f}p" if x["case"] == "long" else "")
+            desc = " ".join(f"{x['case']} {x['decode_tps']:.1f}" + (f"/{x['prompt_tps']:.0f}p {x['prompt']}t" if is_long(x["case"]) else "")
                             for x in res["rows"])
             g = res.get("gpu") or {}
             gd = (f"  gpu {g['sclk']}/{g['mclk']} MHz {g['t_junc_max']}C {g['watt']}W gtt {g.get('gtt_mib_max', 0)}M"

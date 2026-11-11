@@ -1,0 +1,24 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "ttl30": {"env": {"STRATA_PARK_TTL_S": "30", "STRATA_PARK_TTL_SHARE": "512"}},
+  "ttl5": {"env": {"STRATA_PARK_TTL_S": "5", "STRATA_PARK_TTL_SHARE": "512"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "pancake-turns.jsonl",
+  "arms": ["base", "ttl30"],
+  "reps": 1,
+  "shared_system": 1024,
+  "add_arms": {
+   "base1280": {"args": {"--conversation-cache-mib": "1280"}},
+   "ttl30-1280": {"args": {"--conversation-cache-mib": "1280"}, "env": {"STRATA_PARK_TTL_S": "30", "STRATA_PARK_TTL_SHARE": "512"}}
+  },
+  "note": "Read by tools/pancake/replay_turns.py only (abtest ignores it). The 11-09 16:13-16:43 agent session (conversation B's 7 cold 54-62K re-reads between short decodes and 3-4K prefill probes), replayed with shared_system 1024 (every conversation, the agent's and the side requests, starts with the same ~1K-token system prompt, so the side requests are sub-agent-shaped: short, sharing the prefix of the long conversation). Without it the replay's conversations share nothing and the park TTL has nothing to classify. Default pair base vs ttl30; add --arms base1280,ttl30-1280 to pin the 11-09 budget, which is where the side requests evicted B."
+ },
+ "note": "MOD_PLAN A15 (park TTL, STRATA_PARK_TTL_S), branch work/a15-park-ttl (the build must contain it). ABTEST ONLY CHECKS THE SIDE EFFECTS: its short and edit cases send independent one-shot requests, so they never park a long conversation and the rule never decides anything; screen = 'does it cost decode speed or RAM' (expected: no difference). The real test is the agent replay: python tools/pancake/replay_turns.py bench/specs/24-a15-park-ttl.json --out bench/results/<day>-a15-replay (reads the 'replay' block, incl. shared_system). Gain = fewer cold re-reads of the long conversation and their seconds in the per-arm summary (ttl30 vs base); exact: the cache only changes which parked entry is evicted, the text must equal base on short/edit. Also compare 'evictions=' in the engine's park lines: with the rule the evicted entries are the short side conversations."
+}

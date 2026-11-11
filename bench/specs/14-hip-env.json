@@ -1,0 +1,14 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "sh-stream1": {"env": {"STRATA_SH_STREAM": "1"}},
+  "hwq4": {"env": {"GPU_MAX_HW_QUEUES": "4"}},
+  "hwq8": {"env": {"GPU_MAX_HW_QUEUES": "8"}},
+  "aux-auto": {"args": {"--aux-cpus": "auto"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "note": "TEST_PLAN 4.1.4 / 4.1.6, decode-side hip env arms (7900 XT). Preset today: STRATA_SH_STREAM=0 (no recorded A/B; xyzzing +4.0% on gfx1100), GPU_MAX_HW_QUEUES=6, no --aux-cpus. The prefill-side arms (AUTO_MAX, WMMA_GEMM, PF_HCDOWN) are in 14b-hip-prefill.json, which needs the long case. Placement / queue changes can move the last bits: a different text hash goes to the quality gate only if the arm is a default candidate."
+}

@@ -1,0 +1,17 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "calibrate": {
+   "args": {"--pcie-frac": null},
+   "env": {"STRATA_CALIBRATE": "1"}
+  },
+  "static-default": {
+   "args": {"--pcie-frac": null}
+  }
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN A45 (startup probe + calibration of the CPU-vs-promote ratio), branch work/a45-calibrate. base = fast-hip with its explicit --pcie-frac 0 (what the daily engine runs). calibrate removes --pcie-frac and sets STRATA_CALIBRATE=1: the engine measures CPU us/expert, PCIe copy us/expert (alone and with the CPU busy) and a GPU read, and picks the share itself; the expected result on this box is 'pcie_frac 0.00' (check the server log for the STRATA_CALIBRATE lines), which is then the same run as base (same text hash, speed within noise). static-default drops --pcie-frac with no calibration: the static start value (0.55 on a non-gfx12 native pack), the loss the row quotes (6-13%); it is the control showing that the calibrated arm has to find 0 alone. Policy only (which lane computes a miss), so exact up to the CPU lane's own rounding: if calibrate picks 0, expect the same text hash as base; if it picks a share, a hash difference is the CPU/GPU lane rounding, not a regression. Screen tier first. Optional: STRATA_CALIBRATE_CACHE=/tmp/calib.txt in the calibrate arm env makes the 2nd..nth start read the figures instead of probing."
+}

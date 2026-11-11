@@ -1,0 +1,92 @@
+slots 10909, 4 traces; CPU-side ms = 48.7 us x miss/w + 0.5 x 117 us x promo/w
+== read4k (11 windows; imit fitted on the other traces, threshold 0.2)
+policy            hits vs kmiss 2/8   miss/w  promo/w  CPU-side ms/w vs kmiss 2/8
+tier            83.12%       +0.94p    231.5     27.2          12.86      -1.54
+lru             85.35%       +3.17p    213.6    213.6          22.87      +8.46
+belady          89.05%       +6.87p    158.8    158.8          17.00      +2.59
+belady-h4       87.77%       +5.59p    173.0    129.2          15.96      +1.56
+kmiss 2/4       81.95%       -0.23p    235.5     47.6          14.25      -0.16
+kmiss 2/8       82.18%       +0.00p    234.3     51.4          14.41      +0.00
+opt             89.05%       +6.87p    158.8     53.1          10.83      -3.57
+label           87.86%       +5.68p    175.7     63.9          12.29      -2.12
+hawkeye-pc-h8   85.35%       +3.17p    213.6    213.6          22.87      +8.46
+hawkeye-pc-h16  85.35%       +3.17p    213.6    213.6          22.87      +8.46
+hawkeye-pcr-h8  85.35%       +3.17p    213.6    213.6          22.87      +8.46
+hawkeye-glob-h8  85.30%       +3.12p    214.8    185.3          21.27      +6.86
+imit            85.35%       +3.17p    213.6    213.6          22.87      +8.46
+== short (85 windows; imit fitted on the other traces, threshold 0.2)
+policy            hits vs kmiss 2/8   miss/w  promo/w  CPU-side ms/w vs kmiss 2/8
+tier            85.90%       -3.24p    223.5     24.9          12.34      +0.96
+lru             92.32%       +3.17p    123.4    123.4          13.21      +1.83
+belady          95.70%       +6.56p     70.0     70.0           7.49      -3.89
+belady-h4       93.50%       +4.36p    105.8     41.8           7.59      -3.79
+kmiss 2/4       88.29%       -0.85p    184.2     45.5          11.62      +0.24
+kmiss 2/8       89.15%       +0.00p    171.0     52.4          11.38      +0.00
+opt             95.71%       +6.57p     69.8     49.8           6.31      -5.08
+label           94.67%       +5.52p     85.8     62.5           7.83      -3.55
+hawkeye-pc-h8   89.31%       +0.17p    167.4    117.0          14.98      +3.60
+hawkeye-pc-h16  91.12%       +1.98p    141.5    116.9          13.71      +2.33
+hawkeye-pcr-h8  90.02%       +0.87p    157.2    130.6          15.27      +3.89
+hawkeye-glob-h8  88.45%       -0.70p    180.4    110.7          15.24      +3.86
+imit            92.30%       +3.15p    123.6    123.6          13.23      +1.85
+== edit (61 windows; imit fitted on the other traces, threshold 0.2)
+policy            hits vs kmiss 2/8   miss/w  promo/w  CPU-side ms/w vs kmiss 2/8
+tier            76.68%      -10.19p    731.7     31.8          37.49      +7.84
+lru             88.40%       +1.54p    388.7    388.7          41.60     +11.95
+belady          94.19%       +7.32p    199.4    199.4          21.34      -8.31
+belady-h4       93.17%       +6.30p    236.1    112.4          18.05     -11.60
+kmiss 2/4       86.47%       -0.40p    448.2    123.5          29.03      -0.62
+kmiss 2/8       86.87%       +0.00p    434.3    145.7          29.65      +0.00
+opt             94.43%       +7.56p    190.8    132.0          17.00     -12.66
+label           93.24%       +6.37p    228.6    161.0          20.53      -9.12
+hawkeye-pc-h8   87.62%       +0.75p    414.1    309.5          38.22      +8.57
+hawkeye-pc-h16  88.15%       +1.29p    396.2    341.6          39.22      +9.57
+hawkeye-pcr-h8  87.81%       +0.94p    407.9    339.3          39.66     +10.01
+hawkeye-glob-h8  86.50%       -0.37p    444.2    292.8          38.71      +9.06
+imit            88.34%       +1.47p    390.9    390.9          41.84     +12.19
+== long (62 windows; imit fitted on the other traces, threshold 0.2)
+policy            hits vs kmiss 2/8   miss/w  promo/w  CPU-side ms/w vs kmiss 2/8
+tier            92.97%       +0.22p     78.1     12.5           4.53      -0.56
+lru             94.16%       +1.41p     63.7     63.7           6.82      +1.72
+belady          96.66%       +3.91p     36.8     36.8           3.94      -1.15
+belady-h4       95.70%       +2.95p     47.6     15.6           3.23      -1.87
+kmiss 2/4       92.75%       -0.00p     78.7     17.8           4.87      -0.23
+kmiss 2/8       92.75%       +0.00p     78.5     21.9           5.10      +0.00
+opt             96.66%       +3.91p     36.8     18.4           2.86      -2.23
+label           96.30%       +3.55p     40.6     21.6           3.24      -1.86
+hawkeye-pc-h8   91.79%       -0.96p     90.0     66.9           8.28      +3.19
+hawkeye-pc-h16  93.33%       +0.58p     73.6     66.5           7.46      +2.36
+hawkeye-pcr-h8  92.12%       -0.63p     86.3     73.0           8.47      +3.37
+hawkeye-glob-h8  91.48%       -1.27p     92.8     59.2           7.97      +2.87
+imit            94.16%       +1.41p     63.7     63.7           6.82      +1.72
+== whole first trace (219 windows; imit in-sample)
+policy            hits vs kmiss 2/8   miss/w  promo/w  CPU-side ms/w vs kmiss 2/8
+tier            81.17%       -5.34p    346.9     26.8          18.46      +1.57
+lru             89.46%       +2.95p    196.3    196.3          21.01      +4.12
+belady          94.75%       +8.24p     98.4     98.4          10.54      -6.35
+belady-h4       93.30%       +6.79p    129.5     52.5           9.37      -7.52
+kmiss 2/4       85.96%       -0.55p    260.1     70.6          16.78      -0.11
+kmiss 2/8       86.51%       +0.00p    249.0     81.6          16.89      +0.00
+opt             94.92%       +8.41p     95.3     73.6           8.94      -7.95
+label           94.22%       +7.71p    108.8     83.1          10.15      -6.74
+hawkeye-pc-h8   85.51%       -1.00p    269.7    136.2          21.08      +4.19
+hawkeye-pc-h16  87.53%       +1.02p    231.9    155.3          20.35      +3.46
+hawkeye-pcr-h8  86.46%       -0.05p    253.3    175.7          22.58      +5.69
+hawkeye-glob-h8  85.80%       -0.71p    263.8    170.5          22.79      +5.90
+imit            89.42%       +2.91p    197.1    197.1          21.09      +4.20
+== SYNTHETIC interleave, 8-window turns round-robin (219 windows; imit in-sample)
+policy            hits vs kmiss 2/8   miss/w  promo/w  CPU-side ms/w vs kmiss 2/8
+tier            81.83%       -2.21p    334.1     26.5          17.81      -2.00
+lru             84.81%       +0.77p    288.5    288.5          30.87     +11.06
+belady          93.54%       +9.50p    126.5    126.5          13.54      -6.28
+belady-h4       92.01%       +7.97p    155.9     56.7          10.90      -8.91
+kmiss 2/4       83.97%       -0.06p    299.9     76.1          19.05      -0.77
+kmiss 2/8       84.04%       +0.00p    298.4     90.6          19.82      +0.00
+opt             93.86%       +9.82p    120.3     85.7          10.86      -8.96
+label           92.89%       +8.85p    138.1     97.2          12.40      -7.42
+hawkeye-pc-h8   82.49%       -1.55p    330.1    140.8          24.29      +4.47
+hawkeye-pc-h16  84.23%       +0.19p    298.2    182.0          25.14      +5.32
+hawkeye-pcr-h8  83.39%       -0.65p    315.0    206.0          27.36      +7.54
+hawkeye-glob-h8  80.22%       -3.82p    359.6    192.1          28.72      +8.90
+imit            84.71%       +0.67p    290.0    290.0          31.04     +11.22
+imitation model (all parts): -0.45 +0.08 +0.40 +1.07 -0.48 +0.59 +1.25  [bias, used t-1, uses/4w, uses/16w, log gap, tokens now, freq]

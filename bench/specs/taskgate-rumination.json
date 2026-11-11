@@ -1,0 +1,20 @@
+{
+ "_note": "A20: the rumination close (5-gram rate) and its entropy second signal. LOSSY, opt-in. Thresholds are placeholders: take the rate threshold above the p99 of rumination_max and entropy_below under the p10 of entropy_mean, both printed by tools/pancake/thinking_caps.py on real agent turns. rumination_entropy makes the engine copy the logits of every thinking token to the host (a decode-speed cost): the arm entropy-log only measures that cost (no close). Success must stay within 5 pts of the base; s/success and tokens/run show the saving.",
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {"request": {"thinking": true, "reasoning_effort": "high"}},
+  "entropy-log": {"request": {"thinking": true, "reasoning_effort": "high"},
+                  "config": {"rumination_entropy": 8}},
+  "rate-close": {"request": {"thinking": true, "reasoning_effort": "high"},
+                 "config": {"rumination_close": {"threshold": 0.4, "checks": 3, "min_tokens": 400}, "reasoning_budget_grace": 512}},
+  "rate+entropy-close": {"request": {"thinking": true, "reasoning_effort": "high"},
+                         "config": {"rumination_entropy": 8, "reasoning_budget_grace": 512,
+                                    "rumination_close": {"threshold": 0.4, "checks": 3, "min_tokens": 400, "entropy_below": 0.6}}}
+ },
+ "tasks": "bench/tasks/default.json",
+ "reps": 5,
+ "temperature": 0.2,
+ "max_tokens": 8192,
+ "margin": 0.05,
+ "time_curve": true
+}

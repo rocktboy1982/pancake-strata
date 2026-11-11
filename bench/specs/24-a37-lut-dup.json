@@ -1,0 +1,34 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "lut16": {
+   "env": {
+    "STRATA_IQ_LUT_DUP": "16"
+   }
+  },
+  "lut8": {
+   "env": {
+    "STRATA_IQ_LUT_DUP": "8"
+   }
+  },
+  "lut16-rb128": {
+   "env": {
+    "STRATA_IQ_LUT_DUP": "16",
+    "STRATA_EXPDEC_RB": "128"
+   }
+  },
+  "r2": {
+   "env": {
+    "STRATA_EXPDEC_R": "2"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "lossy": false,
+ "note": "MOD_PLAN A37, branch work/a37-gpu-kernels (pancake-docs/batch2/A37-gpu-kernels.md). Exact arms: every text hash must equal base; a difference is a bug. Before the screen: (1) iq_multi_parity must pass (it runs EXPDEC with 16 and 8 codebook copies, bitwise vs the old kernels); (2) expdec_bench 300 0 20 16/42,22/42 def,dec:l0,dec:l8,dec:l16,dec:r2 must print 'identical' everywhere and gives gu_us per arm; (3) the counter run in the note (rocprofv3 --pmc SQC_LDS_BANK_CONFLICT SQC_LDS_IDX_ACTIVE on expdec_bench) shows how much LDS time the conflicts take. lut16/lut8 act only on the IQ2_XXS gate/up kernel (expdec_gu<16>, ~1.7% of decode GPU time), so the screen's +2% bar cannot be reached by them alone: promote only on a gate/up gain in expdec_bench, and treat the screen as a no-regression check. r2 (2 gate/up rows per lane, existing knob, bitwise) halves the activation LDS reads per row of both IQ2 gate/up kernels and is the cheaper LDS lever for IQ2_S (expdec_gu<22>, 5.8-8.8%); it was measured only on NVIDIA (R=1 won on the 2080 Ti). lut16-rb128: each block copies the 32 KB codebook once, so fewer, larger blocks (128 gate/up rows per block, STRATA_EXPDEC_RB, bitwise, applies to every gate/up format) amortize the copy; compare it with lut16. Engine log proof: 'strata expdec: ... gate/up type 16 ... codebook x16 in LDS (STRATA_IQ_LUT_DUP)'."
+}

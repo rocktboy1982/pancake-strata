@@ -1,0 +1,11 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "kmiss28": {"env": {"STRATA_ADAPT_KMISS": "2,8"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": true,
+ "note": "TEST_PLAN 2.2 / MOD_PLAN A5 (k-th-miss admission, confirmed on edit traces offline: hit rate 76.7 -> 86.5% on edit windows). The preset is the blocking tier (no --adapt-async, which was rejected); the earlier blocking A/B (02b) gave +2.0% +-1.6 edit and -6.4% short with different text, on the rdna3test base before FUSE_PHASES / EXPDEC_DOWN. Rounding-level lossy (different text): expect a hash difference; short is the risk case. If it promotes, confirm with --no-early-stop and the task gate."
+}

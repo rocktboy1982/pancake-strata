@@ -1,0 +1,45 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "dedupe": {
+   "env": {
+    "STRATA_PREFILL_COPY_WAIT_DEDUPE": "1"
+   }
+  },
+  "routed": {
+   "env": {
+    "STRATA_PREFILL_ROUTED_STREAM": "1"
+   }
+  },
+  "routed-dedupe": {
+   "env": {
+    "STRATA_PREFILL_ROUTED_STREAM": "1",
+    "STRATA_PREFILL_COPY_WAIT_DEDUPE": "1"
+   }
+  },
+  "mmvf-rows": {
+   "env": {
+    "STRATA_MMVF_ROWS": "1"
+   }
+  },
+  "gdn-pp2": {
+   "env": {
+    "STRATA_GDN_PP": "2"
+   }
+  },
+  "specminp07": {
+   "args": {
+    "--spec-min-p": "0.7"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "long"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "mmap-tier sibling of 25-f-env-rerun.json: the same arms without lookahead0, which is arena tier only (it assumes the pinned RAM complement holds every expert; under the mmap tier the look-ahead warms pages decode reads, so it would measure the wrong thing). The remaining arms do not depend on the tier (GPU phase log 2026-11-11), so this spec runs under queue_run.sh's default STRATA_RAM_KEEP_GIB=20 (about 8% lower tok/s than the arena: compare only runs of one tier). The reasoning for every arm, and how to read each case, is in the note of 25-f-env-rerun.json. Needs the GPU; not run in this branch."
+}

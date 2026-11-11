@@ -1,0 +1,608 @@
+{
+ "items": [
+  {
+   "name": "F1-park-truncate",
+   "spec": "bench/specs/25-f1-park-truncate.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [
+    "e55886ed8"
+   ],
+   "arms": [
+    "park-truncate"
+   ],
+   "decides": "replay",
+   "parity": [
+    "text",
+    {
+     "restore": "restore-check.txt"
+    }
+   ]
+  },
+  {
+   "name": "F7-q2-fast",
+   "spec": "bench/specs/23-batch1-confirm.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [
+    "600ca5032"
+   ],
+   "arms": [
+    "q2fast"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "CPU kernel: bit-exact by q2_rows_bench; the claim is edit (fork +1-3%)"
+  },
+  {
+   "name": "F9-route-fast",
+   "spec": "bench/specs/17-f9-route-fast.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [
+    "9409a228c"
+   ],
+   "arms": [
+    "route-fast"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "parity": [
+    "text",
+    {
+     "ctest": "ctest-gpu.txt",
+     "tests": [
+      "native_multi_parity"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "F12-sign-fast",
+   "spec": "bench/specs/22-f12-sign-fast.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [
+    "3e1583773"
+   ],
+   "arms": [
+    "sign-fast",
+    "sign-fast-iq2s"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "parity": [
+    "text",
+    {
+     "ctest": "ctest-gpu.txt",
+     "tests": [
+      "iq_multi_parity"
+     ]
+    }
+   ],
+   "note": "spec reps is 1: run it with --reps 4"
+  },
+  {
+   "name": "F21-wait-copy256",
+   "spec": "bench/specs/23-batch1-confirm.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [
+    "0573c36b6"
+   ],
+   "arms": [
+    "fusewait-copy256"
+   ],
+   "vs": "fusewait",
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "measured on top of STRATA_FUSE_WAIT=1 (gfx1100 needs it)"
+  },
+  {
+   "name": "F13-turbo-guards",
+   "spec": "bench/specs/19-turbo-guards.json",
+   "exact": false,
+   "branch": "dev/batch-1",
+   "commits": [
+    "3dd7c27b8"
+   ],
+   "arms": [
+    "turbo-guards",
+    "turbo-l07-guards"
+   ],
+   "claim": [
+    "edit"
+   ]
+  },
+  {
+   "name": "F5-verify-ecap",
+   "spec": "bench/specs/20-verify-ecap.json",
+   "exact": false,
+   "branch": "dev/batch-1",
+   "commits": [
+    "2d44d31ec"
+   ],
+   "arms": [
+    "ecap2",
+    "ecap1",
+    "ecap0"
+   ],
+   "claim": [
+    "edit"
+   ]
+  },
+  {
+   "name": "F14-exp9-3060",
+   "spec": "bench/specs/21-f14-exp9-3060.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [
+    "3c74ef8a3"
+   ],
+   "arms": [
+    "exp9",
+    "exp9-down4",
+    "expdec-down4"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "needs the RTX 3060 (not installed); the base preset is the CUDA one"
+  },
+  {
+   "name": "A4-fold",
+   "spec": "bench/specs/10-rank-guard-fold.json",
+   "exact": false,
+   "branch": "dev/batch-1",
+   "commits": [
+    "43b384aa1"
+   ],
+   "arms": [
+    "top2-fold1",
+    "top2-fold2"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "PROMOTE only if the edit gain stays and short chat does not regress (the A4 acceptance rule)"
+  },
+  {
+   "name": "A2-depth-prior",
+   "spec": "bench/specs/06-turbo-depth.json",
+   "exact": false,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "turbo-depth75"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "4f56ce535 is already an ancestor of port/rdna3-decode (checked 2026-11-11 with git merge-base --is-ancestor): PROMOTE here means switching it on by default, not a merge"
+  },
+  {
+   "name": "A23-spec-cost",
+   "spec": "bench/specs/24-a22-disco.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "spec-cost"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "663107a56 is already an ancestor of port/rdna3-decode (checked 2026-11-11 with git merge-base --is-ancestor): PROMOTE here means switching it on by default, not a merge"
+  },
+  {
+   "name": "A1-turbo",
+   "spec": "bench/specs/06-turbo-depth.json",
+   "exact": false,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "turbo"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "existing switch (STRATA_ROUTE_PRIOR); no commits: a preset decision"
+  },
+  {
+   "name": "A5-kmiss",
+   "spec": "bench/specs/15-kmiss.json",
+   "exact": false,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "kmiss28"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "existing switch; rounding-level, judged as lossy"
+  },
+  {
+   "name": "4.0.1-conversation-cache",
+   "spec": "bench/specs/11-conv-cache.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "cache2048-min8192"
+   ],
+   "decides": "replay",
+   "parity": [
+    "text",
+    {
+     "restore": "restore-check.txt"
+    }
+   ],
+   "note": "two existing flags: a preset change, no commits"
+  },
+  {
+   "name": "F6-spec-sampling",
+   "spec": "bench/specs/12-spec-sampling.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "f6-dt100",
+    "f6-dt085"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "parity": [
+    {
+     "waived": "exact in distribution (Leviathan 2023); sampled text cannot be compared and no tool checks the distribution"
+    }
+   ]
+  },
+  {
+   "name": "A11-tool-boundary",
+   "spec": "bench/specs/25-a11-a13-cache.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "tool-boundary"
+   ],
+   "decides": "replay",
+   "parity": [
+    "text",
+    {
+     "restore": "restore-check--tool-boundary.txt"
+    }
+   ],
+   "note": "527e06429 is already an ancestor of port/rdna3-decode (checked 2026-11-11 with git merge-base --is-ancestor): PROMOTE here means switching it on by default, not a merge"
+  },
+  {
+   "name": "A12-auto-pin",
+   "spec": "bench/specs/25-a11-a13-cache.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "auto-pin"
+   ],
+   "decides": "replay",
+   "parity": [
+    "text",
+    {
+     "restore": "restore-check.txt"
+    }
+   ],
+   "note": "MOD_PLAN 71 / 90: commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A12' and check each with git show --stat"
+  },
+  {
+   "name": "A13-disk-tier",
+   "spec": "bench/specs/25-a11-a13-cache.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "disk"
+   ],
+   "decides": "replay",
+   "parity": [
+    "text",
+    {
+     "restore": "restore-check--disk.txt"
+    }
+   ],
+   "note": "070fe8512 is already an ancestor of port/rdna3-decode (checked 2026-11-11 with git merge-base --is-ancestor): PROMOTE here means switching it on by default, not a merge"
+  },
+  {
+   "name": "A15-park-ttl",
+   "spec": "bench/specs/24-a15-park-ttl.json",
+   "exact": true,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "ttl30",
+    "ttl5"
+   ],
+   "decides": "replay",
+   "parity": [
+    "text",
+    {
+     "restore": "restore-check.txt"
+    }
+   ],
+   "note": "commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A15' and check each with git show --stat"
+  },
+  {
+   "name": "A7-promo-chunk",
+   "spec": "bench/specs/22-a7-promo-chunk.json",
+   "exact": false,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "async-chunk256k",
+    "async-chunk512k",
+    "async-kmiss28-chunk256k"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "reference = the async arm; commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A7' and check each with git show --stat"
+  },
+  {
+   "name": "A8-swaps-auto",
+   "spec": "bench/specs/25-a8-swaps-auto-blocking.json",
+   "exact": false,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "swaps-auto"
+   ],
+   "vs": "base",
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "also add a copy with vs = the best fixed --adapt-swaps arm of the run"
+  },
+  {
+   "name": "A17-caps",
+   "spec": "bench/specs/taskgate-caps.json",
+   "exact": false,
+   "branch": "dev/batch-2",
+   "commits": [
+    "b429ce7ee"
+   ],
+   "arms": [
+    "cap-p99"
+   ],
+   "decides": "taskgate",
+   "note": "policy: reasoning_budget_by_effort in the presets"
+  },
+  {
+   "name": "A18-effort",
+   "spec": "bench/specs/taskgate-effort.json",
+   "exact": false,
+   "branch": "dev/batch-2",
+   "commits": [
+    "fda15b975"
+   ],
+   "arms": [
+    "low",
+    "xhigh",
+    "off"
+   ],
+   "decides": "taskgate",
+   "note": "policy: the default effort"
+  },
+  {
+   "name": "A20-rumination",
+   "spec": "bench/specs/taskgate-rumination.json",
+   "exact": false,
+   "branch": "dev/batch-2",
+   "commits": [
+    "f996bc6a3"
+   ],
+   "arms": [
+    "rate-close",
+    "rate+entropy-close"
+   ],
+   "decides": "taskgate"
+  },
+  {
+   "name": "A19-think-probe",
+   "spec": "bench/specs/taskgate-a19-probe.json",
+   "exact": false,
+   "branch": "dev/batch-2",
+   "commits": [
+    "96182311d",
+    "5a78043c6",
+    "d1d49f671"
+   ],
+   "arms": [
+    "probe"
+   ],
+   "decides": "taskgate",
+   "note": "the dump hook and the probe go in together, only when the trained probe shows value; the spec needs trained weights"
+  },
+  {
+   "name": "A21-spec-lowtemp",
+   "spec": "bench/specs/a21-spec-lowtemp.json",
+   "exact": true,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "coupled",
+    "gumbel",
+    "f6-dt100",
+    "f6-dt050",
+    "f6-min07"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "parity": [
+    {
+     "waived": "exact in distribution; T 0.1 text is sampled and cannot be compared"
+    }
+   ],
+   "note": "commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A21' and check each with git show --stat"
+  },
+  {
+   "name": "A22-disco",
+   "spec": "bench/specs/24-a22-disco.json",
+   "exact": true,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "disco"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A22' and check each with git show --stat"
+  },
+  {
+   "name": "A24-suffix-index",
+   "spec": "bench/specs/24-a24-suffix-index.json",
+   "exact": true,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "sidx",
+    "sidx-fallback"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "the spec says lossy: if the text differs, set exact to false and the lossy gates apply; commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A24' and check each with git show --stat"
+  },
+  {
+   "name": "A30-prefill-cpu-share",
+   "spec": "bench/specs/a30-fiddler-cpu-share.json",
+   "exact": false,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "share0",
+    "max1024",
+    "max2048"
+   ],
+   "claim": [
+    "long1k",
+    "long3k"
+   ],
+   "note": "rounding-level"
+  },
+  {
+   "name": "A33-expdec-swiglu",
+   "spec": "bench/specs/a33-a35-fusion-retest.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "expdec-swiglu"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "existing switch STRATA_EXPDEC_SWIGLU"
+  },
+  {
+   "name": "A33-router-fuse",
+   "spec": "bench/specs/a33-router-fuse-nodefer.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "nodefer+router-fuse"
+   ],
+   "vs": "defer-preset",
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "skipped while deferral is on: it must beat the deferral preset to be worth anything"
+  },
+  {
+   "name": "A35-ic-warm",
+   "spec": "bench/specs/a33-a35-fusion-retest.json",
+   "exact": true,
+   "branch": "dev/batch-1",
+   "commits": [],
+   "arms": [
+    "nodefer+ic-warm32",
+    "nodefer+ic-warm64"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "existing switch STRATA_IC_WARM_MB; kern-hip (2026-11-11): the warm needs the fused CPU combine that deferral turns off, so the arms run without deferral and are compared with the no-deferral arm",
+   "vs": "nodefer"
+  },
+  {
+   "name": "A37-lut-dup",
+   "spec": "bench/specs/24-a37-lut-dup.json",
+   "exact": true,
+   "branch": "dev/batch-2",
+   "commits": [
+    "d11a9ca09"
+   ],
+   "arms": [
+    "lut16",
+    "lut8",
+    "lut16-rb128"
+   ],
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "spec reps is 1: run it with --reps 4"
+  },
+  {
+   "name": "A44-bandit",
+   "spec": "bench/specs/24-a44-bandit.json",
+   "exact": false,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "bandit-top",
+    "bandit-top-kmiss",
+    "bandit-exact"
+   ],
+   "claim": [
+    "edit"
+   ],
+   "note": "reference = defer; short chat must not regress; commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A44' and check each with git show --stat"
+  },
+  {
+   "name": "A45-calibrate",
+   "spec": "bench/specs/24-a45-calibrate.json",
+   "exact": true,
+   "branch": "dev/batch-2",
+   "commits": [],
+   "arms": [
+    "calibrate"
+   ],
+   "vs": "static-default",
+   "claim": [
+    "short",
+    "edit"
+   ],
+   "note": "shows value only where the static --pcie-frac default loses; the presets set --pcie-frac 0, expected: no gain here; commits: git log --reverse --oneline dev/batch-1..dev/batch-2 --grep '^A45' and check each with git show --stat"
+  }
+ ]
+}

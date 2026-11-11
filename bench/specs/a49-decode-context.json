@@ -1,0 +1,16 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {}
+ },
+ "cases": [
+  "short",
+  "longdec10k",
+  "longdec32k",
+  "longdec64k",
+  "longdec128k"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "MOD_PLAN A49 (decode at 10K vs 64K vs 128K: how much of the decode window is attention over the cache). One arm, measurement only: every longdec* case is a cold source-text prompt of 10000 / 32000 / 64000 / 120000 tokens followed by a 256-token reply, metric = decode tok/s of that reply (the engine's own log line); short is the empty-context reference. Read the table as ms per token = 1000 / tok/s; the slope of ms per token over the context length is the attention cost (the rest, the intercept, is expert reads + dense layers). Analysis: python tools/pancake/decode_context.py <out.jsonl> fits ms per token = a + b x context through every clean request and prints the attention share (b x context / ms) per case; the plan's rule (A51 parked unless attention exceeds ~15% of decode): share at 120K >= 15% builds A50 / A51, < 10% closes them, between is a judgement call (it also prints draft acceptance per case: a reply that is easier to draft is faster for a reason that is not attention). 128K needs --max-context 131072 (the preset has it); each longdec case reads its prompt cold (tens of seconds to a few minutes at 120K), so run it with --tier confirm --reps 3 --no-early-stop only when the GPU is free for ~1 h. Add arms (for example STRATA_ATTN_DAILY=0, or --kv fp16) to see how the slope changes; with two or more arms the usual A/B verdict is printed per case."
+}

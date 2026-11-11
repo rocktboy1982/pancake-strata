@@ -1,0 +1,11 @@
+{
+ "STRATA_EXPDEC_RB": ["0", "32", "64", "128"],
+ "STRATA_EXPDEC_MINBLK": ["800", "400", "1600"],
+ "STRATA_EXPDEC_R": ["1", "2"],
+ "STRATA_EXPDEC_MINB": ["4", "2"],
+ "STRATA_EXPDEC_DRB": ["0", "64", "128"],
+ "STRATA_EXPDEC_DR": ["4", "2", "1"],
+ "STRATA_Q2_PREFETCH": ["0", "512", "1024", "2048"],
+ "STRATA_IQ_PREFETCH": ["2048", "0", "1024", "4096"],
+ "--pool-tasks": ["0", "32", "64", "96"]
+}

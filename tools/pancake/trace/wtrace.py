@@ -6,6 +6,8 @@
         lay = w.layers[12]               # Layer(ids [n_tok, k] int16, kind [n_tok, k] int8, weights [n_tok, k] or None)
 
 kind: 0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped tail.  accepted is None for a merged prompt window.
+Window.row_miss (record 5, A22): the CPU-missed experts each row added over the rows before it, as the engine counted them
+(None in traces written before A22); `row_new_miss(w)` gives it, or new_cpu_miss(w) from the layer records when absent.
 `from_dump_routing(path)` converts today's --dump-routing file (layer, k, ids, weights records) to the same objects
 (windows split where the layer index goes back; rows/accepted/position/kind unknown -> None / CPU).
 `to_replay_windows(tr)` gives the [(layer, ids[n_tok, k])...] lists tools/replay_cache_policy.py simulates.
@@ -33,7 +35,9 @@ class Window:
     position: int | None
     ms: float | None
     layers: dict = field(default_factory=dict)
-    drafts: np.ndarray | None = None   # the drafter's probability per draft position (record 3, optional)
+    drafts: np.ndarray | None = None   # prob per draft row 1..T-1 (float32, NaN: lookup / chained row, no confidence)
+    draft_src: np.ndarray | None = None   # source per draft row (uint8): 0 MTP, 1 DFlash2, 2 lookup window, 3 chained lookup; None in a legacy record 3
+    row_miss: np.ndarray | None = None    # record 5 (A22): new CPU-missed experts per row 0..T-1 (uint16), None before A22
 
 
 @dataclass
@@ -78,7 +82,24 @@ def read(path):
                 off += 4 * m
             if cur is not None:
                 cur.layers[layer] = Layer(rec["id"].reshape(nt, k).astype(np.int16), rec["kind"].reshape(nt, k), w)
-        elif typ == 3:
+        elif typ == 4:   # drafts, written when the window is built: n f32 probs, then n u8 sources
+            _, nd, _ = struct.unpack_from("<BBH", raw, off)
+            off += 4
+            if off + 5 * nd > n:
+                break
+            if cur is not None:
+                cur.drafts = np.frombuffer(raw, dtype="<f4", count=nd, offset=off).copy()
+                cur.draft_src = np.frombuffer(raw, dtype="u1", count=nd, offset=off + 4 * nd).copy()
+            off += 5 * nd
+        elif typ == 5:   # row misses (A22): n u16, the new CPU misses of rows 0..n-1
+            _, nr, _ = struct.unpack_from("<BBH", raw, off)
+            off += 4
+            if off + 2 * nr > n:
+                break
+            if cur is not None:
+                cur.row_miss = np.frombuffer(raw, dtype="<u2", count=nr, offset=off).astype(np.int64)
+            off += 2 * nr
+        elif typ == 3:   # legacy: n f32 probs only
             _, nd, _ = struct.unpack_from("<BBH", raw, off)
             off += 4
             if off + 4 * nd > n:
@@ -89,6 +110,28 @@ def read(path):
         else:
             raise ValueError(f"{path}: bad record type {typ} at {off}")
     return Trace(nl, ne, k, wins)
+
+
+def new_cpu_miss(w):
+    """CPU-missed experts (kind -1) each row of window `w` adds over the rows before it, summed over layers (distinct
+    expert per layer).  Index 0 is the committed row, index j draft row j.  Exact: the verifier records the placement of
+    every entry, so the per-row count is read back from the layer records (A22 DISCO prices a draft row with it)."""
+    n = int(w.rows or 0)
+    out = np.zeros(max(n, 1), dtype=np.int64)
+    for lay in w.layers.values():
+        seen = set()
+        for r in range(min(n, lay.ids.shape[0])):
+            cpu = set(lay.ids[r][lay.kind[r] == -1].tolist())
+            out[r] += len(cpu - seen)
+            seen |= cpu
+    return out
+
+
+def row_new_miss(w):
+    """The new CPU misses per row of window `w`: the engine's record 5 when the trace has it, else new_cpu_miss(w)."""
+    if w.row_miss is not None and len(w.row_miss) > 0:
+        return w.row_miss
+    return new_cpu_miss(w)
 
 
 def from_dump_routing(path, n_layers=48, n_expert=512):
@@ -121,6 +164,9 @@ def summary(tr):
     acc = [w.accepted for w in tr.windows if w.accepted is not None and w.rows]
     rows = [w.rows for w in tr.windows if w.accepted is not None and w.rows]
     if acc:
+        nd = sum(1 for w in tr.windows if w.drafts is not None)
+        if nd:
+            print(f"  {nd} windows carry draft confidences (see tail_replay.py)")
         print(f"  drafts accepted {sum(acc)} of {sum(r - 1 for r in rows)} ({sum(acc) / max(1, sum(r - 1 for r in rows)):.2f}),"
               f" mean window {np.mean([w.ms for w in tr.windows if w.ms]):.1f} ms")
     names = {0: "VRAM", 1: "PCIe", 2: "peer", -1: "CPU", -2: "skip"}
@@ -140,6 +186,8 @@ def _selftest():
     with tempfile.NamedTemporaryFile(delete=False) as f:
         f.write(b"STWT" + struct.pack("<4I", 1, nl, 512, k))
         f.write(struct.pack("<BBBBqf", 2, 2, 1, 0, 100, 25.0))
+        f.write(struct.pack("<BBH", 5, 2, 0) + np.array([14, 6], "<u2").tobytes())
+        f.write(struct.pack("<BBBB", 4, 1, 0, 0) + np.array([0.75], "<f4").tobytes() + bytes([0]))
         for l in range(nl):
             f.write(struct.pack("<BBBB", 1, l, 2, 1))
             for i in range(2 * k):
@@ -153,6 +201,13 @@ def _selftest():
     lay = tr.windows[0].layers[2]
     assert lay.ids.shape == (2, k) and lay.ids[0, 1] == 41 and lay.kind[0, 0] == 0 and lay.kind[0, 1] == -1
     assert lay.weights is not None and lay.weights[1, 0] == 10.0
+    d = tr.windows[0].drafts
+    assert d is not None and d.shape == (1,) and d[0] == 0.75 and tr.windows[0].draft_src[0] == 0 and tr.windows[1].drafts is None
+    nm = new_cpu_miss(tr.windows[0])   # ids are distinct per entry, so every CPU-kind entry (i % 3 != 0) is a new miss
+    assert nm.shape == (2,) and nm.sum() == sum(1 for _ in range(nl) for i in range(2 * k) if i % 3), nm
+    assert tr.windows[0].row_miss is not None and list(tr.windows[0].row_miss) == [14, 6] and tr.windows[1].row_miss is None
+    assert list(row_new_miss(tr.windows[0])) == [14, 6]
+    assert list(row_new_miss(Window(2, 1, 0, 1.0, {0: Layer(np.array([[1, 2], [2, 3]], np.int16), np.full((2, 2), -1, np.int8), None)}))) == [2, 1]
     print("selftest ok")
 
 

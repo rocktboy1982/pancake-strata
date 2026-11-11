@@ -1,0 +1,49 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "note": "dev/batch-1 confirm on a quiet machine (after the noisy screen 18). Text hashes are not a test of exactness on this engine (the daily binary also differed); exactness comes from the parity tests.",
+ "arms": {
+  "base": {},
+  "q2fast": {
+   "env": {
+    "STRATA_Q2_FAST": "1"
+   }
+  },
+  "routefast": {
+   "env": {
+    "STRATA_ROUTE_FAST": "1"
+   }
+  },
+  "signfast": {
+   "env": {
+    "STRATA_IQ_SIGN_FAST": "1"
+   }
+  },
+  "fusewait": {
+   "env": {
+    "STRATA_FUSE_WAIT": "1"
+   }
+  },
+  "fusewait-copy256": {
+   "env": {
+    "STRATA_FUSE_WAIT": "1",
+    "STRATA_WAIT_COPY256": "1"
+   }
+  },
+  "top2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2"
+   }
+  },
+  "top2-fold2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2",
+    "STRATA_VERIFY_DEFER_CPU_FOLD": "2"
+   }
+  }
+ },
+ "reps": 3
+}
