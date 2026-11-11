@@ -2449,7 +2449,9 @@ after a heavy file load cost one build 15% in pass 1); paired block harness, pro
 | 17.6 | Ship bundles, not switches: exact / fast / lossy presets, every switch default-off until a paired test promotes it, plus a small interaction table (what substitutes for what) | MOD_PLAN 13: turbo and deferral must be measured together | table in `bench/results/<day>/RESULTS.md` per ablation | open |
 | 17.7 | Skip what cannot pay: sources already merged with no new upstream commits; the ledger's rejects (DFlash2, megakernel, Sequoia tree verification) match ours | owner rule 2026-11-11 | none | rule |
 
-Order: 17.2 (the profile shows what is wrong), then 17.3 (finds the combination; 17.1 and 17.4 run inside it), 17.5 as a quick check.
+Priority 1 (owner, 2026-11-11): 17.2, the Avalon finding (Avalon decodes prose 5-10% faster than pancake on the same weights and swings
+less; every Avalon mechanism that is not CUDA-only is ported or rejected with a measurement before anything else in this phase).
+Order: 17.2 first (the profile shows what is wrong), then 17.3 (finds the combination; 17.1 and 17.4 run inside it), 17.5 as a quick check.
 All of it needs the GPU: it waits for the Q2_0 / IQ2_XS matrix of 2026-11-11 to finish.
 
 ## Risks
