@@ -210,6 +210,9 @@ def test_build_on_a_throw_away_repository_makes_valid_tasks_of_every_family():
         path = Path(d) / "set.json"
         json.dump({"name": "x", "version": 1, "tasks": tasks}, open(path, "w"))
         assert B.check(str(path), str(root)) == 0
+        assert B.whole_module(hist, B.git(root, "show", f"{rev}:tools/m.py")) == "pass"
+        assert B.whole_module(hist, "import numpy_not_here\n" + B.git(root, "show", f"{rev}:tools/m.py")) == "skipped"
+        assert B.whole_module(hist, B.git(root, "show", f"{rev}:tools/m.py").replace("return 1", "return 7")) == "fail"
         tasks[0]["reference"]["content"] = tasks[0]["wrong"]["content"]
         json.dump({"name": "x", "version": 1, "tasks": tasks}, open(path, "w"))
         assert B.check(str(path), str(root)) > 0

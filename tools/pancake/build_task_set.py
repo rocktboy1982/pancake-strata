@@ -16,7 +16,8 @@ the real checker in the real sandbox).
 
     python tools/pancake/build_task_set.py --count 120 --out bench/tasks/repo-history.json [--seed 1] [--rev HEAD] [--jobs 4]
                                            [--families history,bugfix,implement] [--per-file 8] [--max-history 40]
-    python tools/pancake/build_task_set.py --check bench/tasks/repo-history.json     self-test an existing set (and, with git, its references)
+    python tools/pancake/build_task_set.py --check bench/tasks/repo-history.json     self-test an existing set; with git also that every reference is
+                                           the function the pinned commit holds and that the checker passes on that commit's whole module
 
 --count N: emit at most N validated tasks, ordered so that every prefix is a mix of the families (task_gate.py --limit N).  The funnel
 (functions seen -> with tests -> context ok -> recorded -> built -> validated -> emitted) is printed and stored in the file.
@@ -711,11 +712,28 @@ def about(rev, cnt, a):
             "that must fail (task_gate.py --dry-run runs both).")
 
 
+def is_main_guard(st):
+    return isinstance(st, ast.If) and isinstance(st.test, ast.Compare) and isinstance(st.test.left, ast.Name) and st.test.left.id == "__name__"
+
+
+def whole_module(task, src):
+    """The checker against the real module at the pinned commit (its `if __name__ == "__main__":` block dropped): "pass", "fail", or
+    "skipped" when the module itself does not run in the sandbox (a non-stdlib import, a relative import, module-level work)."""
+    tree = ast.parse(src)
+    tree.body = [st for st in tree.body if not is_main_guard(st)]
+    code = ast.unparse(tree)
+    if TG.run_python(code, 20)[0] != 0:
+        return "skipped"
+    return "pass" if TG.run_python(code + "\n\n" + task["expect"]["test"], 20)[0] == 0 else "fail"
+
+
 def check(path, root):
-    """Self-test an existing set: the schema, every checker on its reference and wrong answer and, where git has the pinned commit, that the
-    reference is the function that commit holds.  Returns the number of problems."""
+    """Self-test an existing set: the schema; every checker on its reference and wrong answer; and, where git has the pinned commit, that the
+    reference is the function that commit holds and that the checker also passes on the whole module of that commit (modules that do not run in
+    the sandbox are counted apart).  Returns the number of problems."""
     ts, tasks = TG.load_tasks(path)
     probs = TG.validate_tasks(tasks) or TG.selftest(tasks)
+    whole = collections.Counter()
     for t in tasks:
         m = t.get("meta") or {}
         src = git(root, "show", f"{m.get('rev')}:{m.get('path')}") if m.get("rev") else None
@@ -725,9 +743,14 @@ def check(path, root):
         cur = function_at(src, m["function"])
         if ref is None or cur is None or ast.dump(ref) != ast.dump(cur):
             probs.append(f"{t['id']}: the reference is not {m['function']} as {m['rev']} has it")
+        r = whole_module(t, src)
+        whole[r] += 1
+        if r == "fail":
+            probs.append(f"{t['id']}: the checker fails on the whole module of {m['rev']}")
     for p in probs:
         print("PROBLEM: " + p)
-    print(f"{path}: {len(tasks)} tasks, {len(probs)} problem(s)")
+    print(f"{path}: {len(tasks)} tasks, {len(probs)} problem(s); on the whole original module: "
+          + ", ".join(f"{k} {v}" for k, v in sorted(whole.items())))
     return len(probs)
 
 
