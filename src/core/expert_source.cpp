@@ -5513,17 +5513,11 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         for (int64_t i = 0; i < n; ++i)
             if (kind[i] == -1 && strata::core::defer_heavy_entry(ps->weights, i, (int) k, ps->heavy, top))
                 heavy_job[d.job_of[(size_t) ids[i]]] = true;
+        // heavy jobs first; STRATA_VERIFY_DEFER_CPU_FOLD (MOD_PLAN A4, defer_rank.hpp): at most n light jobs after some
+        // heavy ones run in the heavy pass - one pool pass, the partial flag after it; post(l) and late_add read the same
+        // rows as split
         static thread_local std::vector<ExpertJobMulti> order;
-        order.clear();
-        for (int pass = 0; pass < 2; ++pass)
-            for (int j = 0; j < njobs; ++j)
-                if (heavy_job[j] == (pass == 0)) order.push_back(d.jobs_multi[(size_t) j]);
-        nfirst = 0;
-        for (int j = 0; j < njobs; ++j) nfirst += heavy_job[j] ? 1 : 0;
-        std::copy(order.begin(), order.end(), d.jobs_multi.begin());
-        // STRATA_VERIFY_DEFER_CPU_FOLD (MOD_PLAN A4, defer_rank.hpp): at most n light jobs after some heavy ones run in
-        // the heavy pass - one pool pass, the partial flag after it; post(l) and late_add read the same rows as split
-        if (strata::core::defer_fold_light(nfirst, njobs - nfirst, strata::core::defer_fold())) nfirst = njobs;
+        nfirst = strata::core::defer_order_jobs(d.jobs_multi.data(), heavy_job, njobs, strata::core::defer_fold(), order);
     }
     const auto c3 = std::chrono::steady_clock::now();
     if (d.plan != nullptr) d.plan->cpu_jobs = njobs;
