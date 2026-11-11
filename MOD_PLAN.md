@@ -1509,7 +1509,7 @@ Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Te
 | rankguard | A4 fold, A4 rank guard, F5, F13, HOBBIT proxy (offline), ROUTER_FUSE warning | done (5 commits on dev/p16/rankguard, 3/3 ctest, HIP compile-only ok for verify.cpp), opus review running | GPU screens specs 10, 11-verify-ecap, 11-turbo-guards pending | pending review + screens |
 | disco-suffix | A22/A25/A26 DISCO, A24 suffix index, A21/F6, F8, EcoSpec | running | - | - |
 | policy | A44 bandit, A45, A15 park TTL, F1 park truncate | running | - | - |
-| finemoe | FineMoE replay + PRI eviction, MoE-Infinity baseline, A7/A8/A46 on agent traces | running | - | - |
+| finemoe | FineMoE replay + PRI eviction, MoE-Infinity baseline, A7/A8/A46 on agent traces | done, merged (tools/pancake/finemoe_replay.py, 13 tests, time_ceiling --validate byte-identical); no C++ | offline replay on the only trace (bench/prefetch/routing.bin, 219 windows, no weights): FineMoE prefetch -14.1% (best variant -0.6%), PRI eviction <= +0.3 hit points, MoE-Infinity -19..-32%, A7 +4.6% upper bound, A46 +1.0 point, **A8 Pie +3.0% whole / +12.2% edit** | FineMoE REJECT (cache already holds 44% of experts at 81-89% hits; prefetch sets cover 0-5% of misses; 74% of prefetches land late on PCIe 3.0); A7 parked, A46 closed; **A8: env-only screen `--adapt-swaps 64\|128` queued for the GPU phase** |
 | agentloop | A17-A20, A30, A38-A43, A55 | running | - | - |
 | shadowpack | F4 shadow pack, REAP saliency, S2-MoE rollback (design) | running | - | - |
 | percache | A11-A14, A16, 90+71, 31, 39 | running | - | - |
@@ -1519,7 +1519,7 @@ Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Te
 | promotion | promote.py, spec map for every item | running | - | - |
 | kern-cpu | F7 Q2_0 AVX2, F12 IQ sign, CPU pool floor | running (kernel wave, merges last) | - | - |
 | kern-hip | F21, F9, A37 (HIP compile-only) | running (kernel wave, merges last) | - | - |
-| kern-gdn | A31 GDN chunk 64, A36, 16.11 attention/KV | running (kernel wave, merges last) | - | - |
+| kern-gdn | A31 GDN chunk 64, A36, 16.11 attention/KV | done, merged (tools + tests only, 13 py tests; gdn_stage_bench.cpp.o and q36_engine.cu compile HIP) | A31: blocked-on-GPU (stage bench `hip_gdn_stage_bench 4096 16384 32768` then `probes/gdn_chunk64_rule.py`; static read expects WMMA-bound); A36: ceiling 1.58/2.47/0.30% of wall on a pre-deferral profile; XAttention, Quest/Twilight, KV compression: not built; BFLA: exact dense mode first, sparse stays opt-in/lossy | A31 HOLD (needs stage bench), A36 HOLD (re-check with deferral-on trace), XAttention/KV items REJECT |
 | datapath | 16.12 loader/PCIe/NVMe, 16.6 cold reads | running | - | - |
 
 #### Findings that change the GPU test plan (2026-11-11 night)
@@ -1532,6 +1532,11 @@ Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Te
 - Item 23 depth prior is NOT AcceptMoE (2608.02989): theirs is a per-block commitment-weighted expert set; ours is a fixed geometric logit bonus, so the plan's +5-15% has no source number.
 - HOBBIT proxy: no usable routing trace with weights exists (the 219-window trace has zero weights); a real measurement needs one `--dump-routing` run.
 - `generate.cpp` misses `#include "strata/core/calibrate_ratio.hpp"` (A45, owner: policy): HIP compile fails until added.
+
+Plan text to fix (kern-gdn): A31 "5-11% of prefill" has no source and the only GDN prefill timing (recurrence 6.0%, GDN 11.9%) is an RTX 3060 log, not the 7900 XT;
+A36 "weight-major" in MonoMoE is a SwapAB tile mapping inside a persistent megakernel, not a weight layout; BFLA "3.15x" at 128K is against a materialised-softmax baseline
+(fused dense alone is 2.0x, exact; sparse adds 1.58x at 128K) and its KL 0.0014/0.0045 is above the plan's own 1e-3 gate (48 tokens is too few, ~300 needed);
+README 4C marks Mamba-2/Mamba-3 "adopted (GDN chunk-64 line)" though chunk 64 is not built.
 
 #### Citation corrections (citecheck, 2026-11-11; full table in pancake-docs/batch3/citecheck.md)
 
