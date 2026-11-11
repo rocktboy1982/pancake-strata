@@ -239,6 +239,93 @@ static void test_mixed_session(bool ucb) {
     CHECK(b.arm(k1) == (kBanditTop | kBanditKmiss));
 }
 
+// nothing is better than anything else (every arm's true cost is the same, 15% jitter per window): how often does the bandit run a
+// lossy arm (one that holds `top`)?  Over 60 seeds x 40 epochs of 18 windows.  Pure cost lets measurement noise put the text on the
+// rank guard about as often as on any other arm; the margin keeps it to the exploration epochs and the rare noisy "win".
+static double lossy_share(double margin, bool ucb, double jitter) {
+    double lossy = 0.0, total = 0.0;
+    for (uint64_t seed = 1; seed <= 60; ++seed) {
+        Env env = {{"STRATA_BANDIT", "top,kmiss"}, {"STRATA_BANDIT_SEED", std::to_string(seed)},
+                   {"STRATA_BANDIT_MARGIN", std::to_string(margin)}};
+        if (ucb) env["STRATA_BANDIT_RULE"] = "ucb";
+        EpochBandit b(cfg_of(env, kBanditAll), 1);
+        Lcg rng{seed * 7919 + 1};
+        for (int e = 0; e < 40; ++e) {
+            if (b.begin(0) & kBanditTop) lossy += 1.0;
+            total += 1.0;
+            feed_epoch(b, 0, 18, 10.0, rng, jitter);
+        }
+    }
+    return lossy / total;
+}
+
+static void test_margin() {
+    // parse
+    std::string msg;
+    CHECK(cfg_of({{"STRATA_BANDIT", "top"}}, kBanditAll).margin == 0.02);
+    CHECK(cfg_of({{"STRATA_BANDIT", "top"}, {"STRATA_BANDIT_MARGIN", "0"}}, kBanditAll).margin == 0.0);
+    CHECK(cfg_of({{"STRATA_BANDIT", "top"}, {"STRATA_BANDIT_MARGIN", "0.05"}}, kBanditAll).margin == 0.05);
+    CHECK(cfg_of({{"STRATA_BANDIT", "top"}, {"STRATA_BANDIT_MARGIN", "0.9"}}, kBanditAll, &msg).margin == 0.02);
+    CHECK(msg.find("STRATA_BANDIT_MARGIN") != std::string::npos);
+
+    // a lossy arm that is only 3% cheaper than "off" is not chosen at the default margin (needs 4%), one that is 6% cheaper is
+    for (const double saving : {0.03, 0.06}) {
+        BanditConfig c = cfg_of({{"STRATA_BANDIT", "top"}, {"STRATA_BANDIT_EPOCH", "2"}, {"STRATA_BANDIT_SKIP", "0"},
+                                 {"STRATA_BANDIT_RULE", "eps:0"}}, kBanditAll);
+        EpochBandit b(c, 1);
+        Lcg rng{3};
+        feed_epoch(b, 0, 2, 10.0, rng, 0.0);               // off
+        feed_epoch(b, 0, 2, 10.0 * (1.0 - saving), rng, 0.0);   // top
+        CHECK((b.begin(0) == kBanditTop) == (saving > 0.04));
+    }
+    // an exact arm (preread) needs nothing: any gain wins, as before
+    {
+        BanditConfig c = cfg_of({{"STRATA_BANDIT", "preread"}, {"STRATA_BANDIT_EPOCH", "2"}, {"STRATA_BANDIT_SKIP", "0"},
+                                 {"STRATA_BANDIT_RULE", "eps:0"}}, kBanditAll);
+        EpochBandit b(c, 1);
+        Lcg rng{3};
+        feed_epoch(b, 0, 2, 10.0, rng, 0.0);
+        feed_epoch(b, 0, 2, 9.99, rng, 0.0);
+        CHECK(b.begin(0) == kBanditPreread);
+    }
+    const double pure = lossy_share(0.0, false, 0.15), dflt = lossy_share(0.02, false, 0.15), strict = lossy_share(0.05, false, 0.15);
+    const double pure_u = lossy_share(0.0, true, 0.15), dflt_u = lossy_share(0.02, true, 0.15);
+    std::printf("no true effect, 15%% jitter: lossy windows pure %.3f, margin 0.02 %.3f, margin 0.05 %.3f; ucb pure %.3f, margin 0.02 %.3f\n",
+                pure, dflt, strict, pure_u, dflt_u);
+    CHECK(pure > 0.40);               // without the margin noise picks the lossy arms about as often as any other
+    CHECK(dflt < 0.75 * pure);        // the default margin takes a large share of that away
+    CHECK(strict <= dflt + 1e-9);     // and more margin never runs the lossy arms more
+}
+
+// the horizon of a real session is short: two requests of ~100 windows per type (~12 epochs of 18 windows) with 4 arms means a third of
+// the session is exploration.  What does that cost on a type where "off" is best, and what does it keep on a type where top+kmiss saves 20%?
+static void test_short_horizon() {
+    double chat = 0.0, copy = 0.0;
+    const int kSeeds = 60, kEpochs = 12;
+    for (uint64_t seed = 1; seed <= (uint64_t) kSeeds; ++seed) {
+        Env env = {{"STRATA_BANDIT", "top,kmiss"}, {"STRATA_BANDIT_SEED", std::to_string(seed)}};
+        EpochBandit b(cfg_of(env, kBanditAll), 2);
+        Lcg rng{seed * 104729 + 3};
+        double c_cost = 0.0, p_cost = 0.0;
+        for (int e = 0; e < kEpochs; ++e)
+            for (int t = 0; t < 2; ++t) {
+                const uint32_t arm = b.begin(t);
+                double x = t == 0 ? 30.0 : 12.0;   // chat, copy: ms per token
+                if (arm & kBanditTop) x *= t == 0 ? 1.07 : 0.83;
+                if (arm & kBanditKmiss) x *= t == 0 ? 1.06 : 0.96;
+                (t == 0 ? c_cost : p_cost) += x;
+                feed_epoch(b, t, 18, x, rng, 0.08);
+            }
+        chat += c_cost / (kEpochs * 30.0);
+        copy += p_cost / (kEpochs * 12.0);
+    }
+    chat /= kSeeds;
+    copy /= kSeeds;
+    std::printf("short session (12 epochs per type, 4 arms): cost vs the fixed off arm: chat %.3f, copy %.3f\n", chat, copy);
+    CHECK(chat < 1.10);   // exploring the lossy arms on chat costs less than 10% of a short session ...
+    CHECK(copy < 0.95);   // ... and the copy windows still save more than 5% of it (20% at best)
+}
+
 static void test_typer() {
     BanditTyper req(kTypeReq, 0.30);
     CHECK(req.types() == 2);
@@ -286,6 +373,8 @@ int main() {
     test_determinism();
     test_mixed_session(false);
     test_mixed_session(true);
+    test_margin();
+    test_short_horizon();
     test_typer();
     test_summary();
     if (g_fail == 0) std::printf("epoch_bandit_test: all passed\n");

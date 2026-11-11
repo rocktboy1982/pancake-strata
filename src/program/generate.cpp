@@ -15144,7 +15144,7 @@ int main(int argc, char** argv) {
             if (!ebandit_msg.empty()) std::fprintf(stderr, "strata serve: STRATA_BANDIT: %s\n", ebandit_msg.c_str());
             if (ebandit.on())
                 std::fprintf(stderr, "strata serve: STRATA_BANDIT=%s: %d arms (%s), window types by %s, epochs of %d windows "
-                                     "(+%d not counted), rule %s %.2f, decay %.2f, seed %llu%s\n",
+                                     "(+%d not counted), rule %s %.2f, decay %.2f, margin %.2f per exactness class, seed %llu%s\n",
                              strata::core::bandit_arm_name(ebandit_cfg.switches).c_str(), ebandit.n_arms(),
                              strata::core::bandit_arm_class(ebandit_cfg.switches) == 2 ? "lossy: rank guard"
                              : strata::core::bandit_arm_class(ebandit_cfg.switches) == 1 ? "exact up to rounding" : "bitwise exact",
@@ -15153,7 +15153,7 @@ int main(int argc, char** argv) {
                              : ebandit_cfg.type_mode == strata::core::kTypeSize ? "the window size"
                              : ebandit_cfg.type_mode == strata::core::kTypeCtx ? "the context length" : "nothing (one type)",
                              ebandit_cfg.epoch, ebandit_cfg.skip, ebandit_cfg.ucb ? "ucb" : "eps",
-                             ebandit_cfg.ucb ? ebandit_cfg.ucb_c : ebandit_cfg.eps, ebandit_cfg.decay,
+                             ebandit_cfg.ucb ? ebandit_cfg.ucb_c : ebandit_cfg.eps, ebandit_cfg.decay, ebandit_cfg.margin,
                              (unsigned long long) ebandit_cfg.seed,
                              o.batch > 0 ? " (inactive: --batch windows)" : "");
             else
