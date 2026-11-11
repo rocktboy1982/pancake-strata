@@ -115,7 +115,7 @@ The 11-09 trace (agent prompt time = conversation A and B), budget 1280 MiB (the
 | F1 | 172.5 | 4 (97.1) | -52 s |
 | min-tokens 8192 (flag, no code) | 202.6 | 6 (145.5) | -22 s |
 | F1 + min-tokens 8192 | 107.8 | 1 (17.8) | -116 s |
-| A15 (any setting) | 224.2 | 7 (168.8) | no change |
+| A15 alone (any setting) | 224.2 | 7 (168.8) | no change; A15 + F1 with a shared prefix and tool-ending turns: 153.0 s (F1 alone 172.5) |
 | budget 2048 | 156.9 | 4 (97.1) | -67 s |
 | budget 2048 + min-tokens 8192 | 66.7 | 0 | -158 s |
 
@@ -123,8 +123,8 @@ Budget 2048, same trace, with the shared 1024-token system prompt and agent turn
 A15 with the hold 87.6 s (cold 1), A15 + F1 74.8 s (cold 0); with no shared prefix and no tool call A15 does nothing (156.9 s).
 
 Reading it:
-1. A15 cannot help the 11-09 run. Its 7 cold re-reads are 5-6 "skip parking, snapshot 1286-1574 MiB exceeds the 1280 MiB budget" and one
-   eviction; an eviction order cannot make an oversized image fit. The A15 note's sentence that 1280 MiB "is where the side requests evicted B"
+1. A15 cannot help the 11-09 run by itself. 6 of its 7 cold re-reads follow a "skip parking, snapshot 1286-1574 MiB exceeds the 1280 MiB
+   budget" and 1 an eviction (RESULTS.md 4.0.1; the sim agrees); an eviction order cannot make an oversized image fit. The A15 note's sentence that 1280 MiB "is where the side requests evicted B"
    is true for one turn only (54,313 -> 56,264).
 2. F1 saves about 52 s of 163 s here, in line with the plan's 39-52 s, and is dominated by two settings that need no code: a 2048 MiB budget
    and `--conversation-cache-min-tokens 8192` (-158 s together). F1 is insurance for the case where the snapshot is larger than any budget.
