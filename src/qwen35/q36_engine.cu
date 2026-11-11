@@ -51,7 +51,6 @@
 #include <deque>
 #include <functional>
 #include <iostream>
-#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -1317,11 +1316,12 @@ struct Engine {
     size_t kAttScoreFloats = (size_t) 64 << 20;   // 256 MB (16 M floats when the experts' fit is close)
     // pancake, opt-in (strata/kernels/bfla.hpp): the prompt attention of long chunks as the fused gfx11 kernel, over every
     // block (STRATA_BFLA_DENSE=1, exact) or block-sparse (STRATA_BFLA_SPARSE=1, BFLA, lossy); the selection scratch
-    // (sparse only), whether this forward() is the prompt's last chunk (the tail rule: its last 1024 / G positions keep
-    // every block) and whether the switch has acted yet (logged once)
+    // (sparse only), where the prompt being read ends (the tail rule: its last 1024 / G positions keep every block, in
+    // whichever chunk they fall, as in the paper) and whether the switch has acted yet (logged once)
     void* bfla_scratch = nullptr;
     size_t bfla_bytes = 0;
-    bool bfla_ok = false, bfla_final = false, bfla_acted = false;
+    int64_t bfla_end = 0;
+    bool bfla_ok = false, bfla_acted = false;
     // the prompt's MMQ experts
     bool use_mmq = false;
     std::unique_ptr<MMQ::Context> mctx;
@@ -2111,7 +2111,7 @@ struct Engine {
                 if (bfla_ok && !rows_mode && !verify && P >= strata::kernels::bfla_config().min_len) {
                     const auto& bc = strata::kernels::bfla_config();
                     const int64_t tail = bc.tail >= 0 ? bc.tail : (int64_t) (1024 / std::max(1, H / HKV));
-                    const int64_t full_from = bfla_final ? (int64_t) P - tail : std::numeric_limits<int64_t>::max();
+                    const int64_t full_from = bfla_end - tail;
                     bfla_done = strata::kernels::bfla_prefill_attn(reinterpret_cast<const uint16_t*>(q16),
                                                                    reinterpret_cast<const uint16_t*>(k16),
                                                                    reinterpret_cast<const uint16_t*>(v16), T, p0, H, HKV, bc,
@@ -2272,7 +2272,6 @@ struct Engine {
                 if (lhy(l)) seq.push_back((int) l);
             stream_begin(seq);
         }
-        bfla_final = heads > 0;
         K::iq_embed_rows(m->embd_type, m->embd, m->embd_row, tok, T, N, x, st);
         if (map_on) k_put_rows<<<T, kThreads, 0, st>>>(x, d_img, d_map, N);   // a picture's cells take its rows
         k_rms<<<T, kThreads, 0, st>>>(x, m->layers[0].attn_norm, h, N, m->eps);   // later layers: from k_moe_out
@@ -2647,6 +2646,7 @@ struct Engine {
             on_chunk(1);
             return 1;
         }
+        bfla_end = pos + n;   // STRATA_BFLA_SPARSE's tail rule: the prompt's last positions, not the last chunk's
         for (int64_t i = 0; i < n; i += tmax) {
             const int T = (int) std::min<int64_t>(tmax, n - i);
             CK(cudaStreamSynchronize(st));
