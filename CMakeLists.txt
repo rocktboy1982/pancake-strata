@@ -3091,6 +3091,14 @@ if(STRATA_BUILD_TESTS)
     target_link_libraries(native_hadamard_test PRIVATE strata_kernels_cpu strata_artifact)
     add_test(NAME native_hadamard_test COMMAND native_hadamard_test)
     set_tests_properties(native_hadamard_test PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
+    # MOD_PLAN 16.5 A27 / F4: the sub-2-bit shadow pack (offline converter) and its read-back through the pack loader
+    # and the CPU expert kernels (synthetic, no model)
+    add_executable(strata_shadow_pack src/artifact/shadow_pack.cpp)
+    target_link_libraries(strata_shadow_pack PRIVATE strata_artifact ggml-base)
+    add_executable(shadow_pack_test src/artifact/shadow_pack_test.cpp)
+    target_link_libraries(shadow_pack_test PRIVATE strata_kernels_cpu strata_artifact)
+    add_test(NAME shadow_pack_test COMMAND shadow_pack_test)
+    set_tests_properties(shadow_pack_test PROPERTIES TIMEOUT 300)
     # the CPU trellis kernels (tq_cpu.hpp): AVX2 / AVX-512 vs the scalar kernel bit for bit, vs ggml-cpu's vec_dot
     # and to_float, plain and with the Hadamard rotation; `tq_cpu_parity --bench` is the micro-benchmark
     add_executable(tq_cpu_parity src/kernels/cpu/tq_cpu_parity.cpp)
@@ -3484,7 +3492,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity native_hadamard_test tq_cpu_parity tq_cpu_parity_avx2 tqp_cpu_test tqp_cpu_test_avx2
+    q2_bitplane_parity native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2 tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
     poly_mxfp4_test
