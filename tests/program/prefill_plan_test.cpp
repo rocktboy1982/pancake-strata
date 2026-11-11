@@ -123,6 +123,84 @@ int main() {
         CHECK(c <= 3840);
         CHECK(n <= (t + 3839) / 3840 + 1);
     }
+
+    // MOD_PLAN 17.5: the chunks of one segment (Prefill::run_impl: full chunks, then the rest)
+    CHECK(chunk_lengths(0, 32768).empty());
+    CHECK(chunk_lengths(100, 0).empty());
+    CHECK((chunk_lengths(32765, 32768) == std::vector<int64_t>{32765}));
+    CHECK((chunk_lengths(99997, 32768) == std::vector<int64_t>{32768, 32768, 32768, 1693}));   // a 100,000-token prompt today
+    CHECK((chunk_lengths(102397, 32768) == std::vector<int64_t>{32768, 32768, 32768, 4093}));  // ttft_bench's "100K" (102,400)
+    CHECK((chunk_lengths(69997, 32768) == std::vector<int64_t>{32768, 32768, 4461}));
+    for (int64_t n = 1; n < 140000; n += 997) {
+        const auto v = chunk_lengths(n, 32768);
+        int64_t sum = 0;
+        for (size_t i = 0; i < v.size(); ++i) {
+            sum += v[i];
+            CHECK(v[i] > 0 && (i + 1 == v.size() || v[i] == 32768));
+        }
+        CHECK(sum == n);
+    }
+
+    // STRATA_PREFILL_EQUAL_TAIL: the pancake preset's chunk 32768 and staged limit 4096 (STRATA_PREFILL_CPU_SHARE_MAX); a
+    // single-message prompt of N tokens reads a segment of N - 3 (the assistant header goes through the windows)
+    const int64_t C = 32768, S = 4096;
+    CHECK(equal_tail_chunk(99997, C, S) == 25088);                 // 32768 x 3 + 1,693 staged -> 25,088 x 3 + 24,733
+    CHECK((chunk_lengths(99997, 25088) == std::vector<int64_t>{25088, 25088, 25088, 24733}));
+    CHECK(equal_tail_chunk(102397, C, S) == 25600);                // 32768 x 3 + 4,093 staged -> 25,600 x 3 + 25,597
+    CHECK(equal_tail_chunk(65997, C, S) == 22016);                 // 32768 x 2 + 461 staged -> 22,016 x 2 + 21,965
+    CHECK(equal_tail_chunk(34997, C, S) == 17664);                 // 32768 + 2,229 staged -> 17,664 + 17,333
+    CHECK((chunk_lengths(34997, 17664) == std::vector<int64_t>{17664, 17333}));
+    CHECK(equal_tail_chunk(32765, C, S) == 0);                     // one chunk
+    CHECK(equal_tail_chunk(32768, C, S) == 0);
+    CHECK(equal_tail_chunk(49149, C, S) == 0);                     // the last chunk (16,381) streams: STRATA_PREFILL_EQUAL's case
+    CHECK(equal_tail_chunk(69997, C, S) == 0);                     // 4,461 streams too
+    CHECK(equal_tail_chunk(127997, C, S) == 0);
+    CHECK(equal_tail_chunk(65537, C, S) == 0);                     // a 1-token tail is left alone (kEqualTailMinTail)
+    CHECK(equal_tail_chunk(98305, C, S) == 0);
+    CHECK(equal_tail_chunk(2 * C + 255, C, S) == 0);               // 255 < 256
+    CHECK(equal_tail_chunk(2 * C + 256, C, S) == 22016);           // 256: evened
+    CHECK(equal_tail_chunk(65537, C, S, 1) == 22016);              // STRATA_PREFILL_EQUAL_TAIL_MIN=1 takes even a 1-token tail
+    CHECK(equal_tail_chunk(8192 + 1000, 8192, 1024) == 0);         // evened chunks of 4,608 < kEqualTailMinChunk: left alone
+    CHECK(equal_tail_chunk(8192 + 25, 8192, 1024) == 0);           // upstream's 25%-slower case stays as it was
+    CHECK(equal_tail_chunk(2 * C + 5000, C, 20000) == 23552);      // a large staged limit: the evened chunks still stream
+    CHECK(equal_tail_chunk(2 * C + 5000, C, 24000) == 0);          // ...and when they would not, nothing changes
+    CHECK(equal_tail_chunk(0, C, S) == 0 && equal_tail_chunk(-5, C, S) == 0 && equal_tail_chunk(70000, 0, S) == 0);
+    CHECK(equal_tail_chunk(99997, C, S, 0) == 0);                  // a minimum tail below 1 is off
+    // another start's auto chunk (11-09: 31,488): the plan moves with it
+    CHECK(equal_tail_chunk(99997, 31488, S) == 0);                 // 31488 x 3 + 5,533: the tail streams
+    CHECK(equal_tail_chunk(3 * 31488 + 2000, 31488, S) == 24320);  // 31488 x 3 + 2,000 staged -> 24,320 x 3 + 23,504
+    CHECK((chunk_lengths(3 * 31488 + 2000, 24320) == std::vector<int64_t>{24320, 24320, 24320, 23504}));
+    for (const int64_t cap : {8192, 16384, 31488, 32768}) {
+        for (const int64_t smin : {1024, 4096}) {
+            for (int64_t n = 1; n < 140000; n += 13) {
+                const int64_t c = equal_tail_chunk(n, cap, smin);
+                const int64_t k = (n + cap - 1) / cap, last = n - (k - 1) * cap;
+                const bool staged_tail = k >= 2 && last < smin && last >= kEqualTailMinTail;
+                if (c == 0) {
+                    // only where the rule does not apply, or the evened chunks would be too short to stream well
+                    const int64_t even = std::min(cap, ((n + k - 1) / k + 255) / 256 * 256);
+                    CHECK(!staged_tail || even < kEqualTailMinChunk || even < smin || n - (k - 1) * even < smin);
+                    continue;
+                }
+                CHECK(staged_tail);
+                CHECK(c % 256 == 0 && c <= cap && c >= kEqualTailMinChunk && c >= smin);
+                const int64_t k2 = (n + c - 1) / c, last2 = n - (k2 - 1) * c;
+                CHECK(k2 == k);                     // the same number of passes
+                CHECK(last2 >= smin && last2 <= c); // every chunk streams
+            }
+        }
+    }
+
+    // the switches as set
+    CHECK(equal_tail_min_from(nullptr, nullptr) == 0);
+    CHECK(equal_tail_min_from("0", "512") == 0);
+    CHECK(equal_tail_min_from("", nullptr) == 0);
+    CHECK(equal_tail_min_from("1", nullptr) == kEqualTailMinTail);
+    CHECK(equal_tail_min_from("1", "") == kEqualTailMinTail);
+    CHECK(equal_tail_min_from("1", "1024") == 1024);
+    CHECK(equal_tail_min_from("1", "1") == 1);
+    CHECK(equal_tail_min_from("1", "0") == kEqualTailMinTail);
+    CHECK(equal_tail_min_from("1", "x") == kEqualTailMinTail);
     std::printf("%s\n", failed ? "FAILED" : "prefill_plan_test: ok");
     return failed ? 1 : 0;
 }

@@ -129,6 +129,8 @@ STRATA_ENV("STRATA_PREFILL_BF16X2", KeyIfSet, "differs from the old path in the 
 STRATA_ENV("STRATA_PREFILL_CPU_SHARE", KeyIfSet, "prompt experts computed on the CPU pool (mean KL ~0.004-0.011); default on gfx12")
 STRATA_ENV("STRATA_PREFILL_CPU_SHARE_MAX", KeyIfSet, "limit of the CPU share")
 STRATA_ENV("STRATA_PREFILL_EQUAL", KeyIfSet, "equal-size chunks: changes rounding")
+STRATA_ENV("STRATA_PREFILL_EQUAL_TAIL", KeyIfSet, "equal chunks instead of a staged short last chunk (MOD_PLAN 17.5): chunk geometry, changes rounding")
+STRATA_ENV("STRATA_PREFILL_EQUAL_TAIL_MIN", KeyIfSet, "the shortest last chunk STRATA_PREFILL_EQUAL_TAIL evens out: chunk geometry, changes rounding")
 STRATA_ENV("STRATA_PREFILL_HELP", KeyIfSet, "idle stage computes a share of streamed experts (not bit-identical)")
 STRATA_ENV("STRATA_PREFILL_HELP_FRAC", KeyIfSet, "fixes the share of the idle stage in PREFILL_HELP")
 STRATA_ENV("STRATA_PREFILL_LAYER_MAJOR", KeyIfSet, "layer-major prompt walk: the routed experts' sum is added in id order, not the router's k order (FP32 rounding, prefill.cpp layer-major comment); the small-card rule sets it in-process when free VRAM allows")
