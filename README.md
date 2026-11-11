@@ -185,6 +185,22 @@ row on one thread, but at one token per expert the 6-core pool is already DDR4-b
 (`STRATA_HIP_GLOBAL_WEIGHTS`, builds, not yet timed); the Q2_0 file with the four adopted items (`flashnext-q2_0-fast-hip-adopted.json`, earlier screen: short +8.6%, edit +4.5%);
 a stack of seven exact switches in one run (`bench/specs/26-stack-small-exact.json`); the full RAM arena (about 8% over the mmap tier) once memory is defragmented.
 
+### Table 2F: Other models on this engine, RX 7900 XT (HIP), measured 2026-11-11
+
+Same card, greedy, mmap tier, `--mtp 2`, speed = generated tokens per second after the prompt was read (3 runs; the first runs of a prompt are noisy because
+the draft cache warms up). Prompt reading is the time to the first token. One load of each file, not a paired test: read it as a size, not a ranking.
+
+| Model (file) | Engine | Short prompt: decode tok/s | 4K-token prompt: reading, decode tok/s |
+| --- | --- | ---: | ---: |
+| Qwen3.8-Flash-Next IQ2_XS (176.9B total) | `strata` (this repo, fast-hip) | 112-126 | see Table 2A |
+| Qwen3.6-35B-A3B UD-Q4_K_XL (22 GB) | `strata`, `q36` engine | 72-93 | 3.3 s, 72-73 |
+| Qwen3.6-35B-A3B UD-Q3_K_M (16 GB) | `strata`, `q36` engine | **does not load**: its experts are Q3_K / Q4_K, which the native expert kernels do not take | - |
+| Qwen3.8-35B-A3B-Distill Q4_K_M (21 GB) | `strata-poly` only | not run: `strata-poly` is CUDA-only | - |
+
+What this says: a model that fits in memory (Qwen3.6-35B, 22 GB) decodes about 40% slower than Flash-Next IQ2_XS on this card, because this engine's
+Flash-Next path keeps the hot experts in VRAM and drafts with a trained MTP layer; the smaller model is not the faster one here. Only the families the
+native kernels handle run on HIP: Qwen3.5 / 3.6 / 3.8 MoE (`qwen35moe`) with IQ2_XS, Q2_0 and Q4_K_XL experts. Other architectures (Llama, Mistral, ...) need new code.
+
 ## 3. Research on Open-Source Projects & Forks (What We Took as Code or Idea, and Licenses)
 
 Before writing a line we surveyed the whole Strata fork ecosystem and the major open-source inference engines. The
