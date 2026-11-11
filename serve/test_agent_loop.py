@@ -163,6 +163,14 @@ class OldString(unittest.TestCase):
         conv = Conv().read("a.py", style="opencode").edit("a.py", "def parse(x):\n    items = x.split(',')")
         self.assertEqual(conv.counters()["edit_old_exact"], 1)
 
+    def test_a_file_line_that_looks_like_a_line_number_keeps_its_own_digits(self):
+        # the read tool's prefix comes off once per line; the file's own "10: 'a'," line is not another prefix
+        src = "table = {\n    10: 'a',\n    20: 'b',\n}\n"
+        for style in ("opencode", "new", "cc"):
+            text = AL.known_text(numbered(src, style))
+            self.assertIn("    10: 'a',\n    20: 'b',", text, style)
+            self.assertEqual(AL.edit_old_state("    10: 'a',\n    20: 'b',", [text]), "exact", style)
+
     def test_miss_loose_unknown_counted_and_the_failure_seen(self):
         fail = "Error: Could not find oldString in the file. It must match exactly, including whitespace."
         c = (Conv().read("a.py").edit("a.py", "return [i.strip() for i in items]").edit("a.py", "return  [i.strip()")

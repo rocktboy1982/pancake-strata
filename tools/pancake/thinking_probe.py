@@ -28,8 +28,11 @@ Labels (see pancake-docs/batch2/A19-thinking-probe.md for the full procedure)
 Training: features standardised on the training split; logistic regression (L2, full-batch accelerated gradient) or ridge
 (closed form).  The split is by request (file), never by row.  The report: AUC, Brier, log loss, ECE (10 bins) and the
 reliability table on held-out requests, then the engine's stop rule replayed on them for a threshold grid (fires,
-premature fires = a fire on a label-0 point, thinking saved); the recommended threshold is the lowest whose premature
-rate's Hoeffding upper bound stays under --risk.  The export folds the standardisation into w and b (SPRB v1).
+premature fires = a fire on a label-0 point, thinking saved); the recommended threshold is the lowest one reached walking
+down from the highest while the premature rate's Hoeffding upper bound stays under --risk (fixed-sequence testing, which is how
+Thought Calibration picks its threshold; the walk ends at the first threshold that fails).  The held-out requests are both
+the calibration set and the report set: there is no independent test split.  The export folds the standardisation into w and
+b (SPRB v1).
 
 Only numpy.  Tests: python -m pytest tools/pancake/test_thinking_probe.py
 """
@@ -362,6 +365,21 @@ def hoeffding_upper(bad, n, delta=0.1):
     return 1.0 if n == 0 else bad / n + math.sqrt(math.log(1 / delta) / (2 * n))
 
 
+def pick_threshold(sweep, risk=0.1, delta=0.1):
+    """Fixed-sequence testing, as Thought Calibration calibrates its threshold (Learn then Test, arXiv 2505.18404): walk the
+    sweep from the highest threshold down; a threshold passes when its premature-fire rate's Hoeffding upper bound is <= risk
+    (one that never fires has nothing to bound and passes); the first that fails ends the walk.  -> the lowest threshold that
+    fired and passed before that, or None.  Taking the lowest passing threshold of the whole sweep instead would pick the
+    luckiest of ~50 correlated tests and the bound would not hold."""
+    best = None
+    for r in sorted(sweep, key=lambda r: -r["threshold"]):
+        if r["fires"] and hoeffding_upper(r["premature"], r["fires"], delta) > risk:
+            break
+        if r["fires"]:
+            best = r["threshold"]
+    return best
+
+
 # ---------------------------------------------------------------- training run
 def collect(dumps, table=None, tail=128, frac=0.9):
     """-> X, y, group index per row, per-request (dump, mask) kept."""
@@ -423,8 +441,7 @@ def train(dumps, table=None, model="logreg", l2=1.0, holdout=0.25, seed=0, k=3, 
             np.quantile(m.predict(X[evalset]), np.linspace(0.5, 0.99, 50))
     sweep = [simulate_stop(groups, t, k, min_tokens) for t in thresholds]
     rep["stop_rule"] = {"k": k, "min_tokens": min_tokens, "sweep": sweep}
-    ok = [r for r in sweep if r["fires"] and hoeffding_upper(r["premature"], r["fires"], delta) <= risk]
-    rep["recommended_threshold"] = min((r["threshold"] for r in ok), default=None)
+    rep["recommended_threshold"] = pick_threshold(sweep, risk, delta)
     rep["risk"], rep["delta"] = risk, delta
     return m, rep
 

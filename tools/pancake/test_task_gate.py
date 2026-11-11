@@ -157,6 +157,46 @@ def mkruns(arm, p_by_task, reps, seed, kind="qa", valid=None):
     return out
 
 
+def _boot_diff_two_stage_as_it_was(arm, base, boots, seed, resample_tasks=True):
+    """boot_diff before resample_reps existed (the default path must keep giving these numbers)."""
+    tasks = [t for t in arm if t in base and arm[t] and base[t]]
+    rng = random.Random(seed)
+    mean = lambda xs: sum(xs) / len(xs)
+    d = mean([mean(arm[t]) - mean(base[t]) for t in tasks])
+    ds = []
+    for _ in range(boots):
+        pick = [rng.choice(tasks) for _ in tasks] if resample_tasks else tasks
+        s = 0.0
+        for t in pick:
+            a, b = arm[t], base[t]
+            s += mean(rng.choices(a, k=len(a))) - mean(rng.choices(b, k=len(b)))
+        ds.append(s / len(pick))
+    ds.sort()
+    return d, ds[int(0.025 * boots)], ds[min(boots - 1, int(0.975 * boots))], len(tasks)
+
+
+def test_boot_diff_default_is_unchanged_and_tasks_only_is_the_narrower_one_stage_interval():
+    rng = random.Random(3)
+    ps = [0.97] * 10 + [0.75] * 5 + [0.4] * 3
+    base = {f"t{i}": [1 if rng.random() < p else 0 for _ in range(5)] for i, p in enumerate(ps)}
+    arm = {f"t{i}": [1 if rng.random() < p else 0 for _ in range(5)] for i, p in enumerate(ps)}
+    for rt in (True, False):
+        assert T.boot_diff(arm, base, 300, 5, rt) == _boot_diff_two_stage_as_it_was(arm, base, 300, 5, rt)
+    two = T.boot_diff(arm, base, 1000, 5)
+    one = T.boot_diff(arm, base, 1000, 5, resample_reps=False)
+    assert one[0] == two[0] and one[3] == two[3]                       # the same point estimate
+    assert one[2] - one[1] < two[2] - two[1]                           # repetition noise counted once, not twice
+    assert one[1] <= one[0] <= one[2]
+    # tasks held fixed: the repetitions are the only noise, so resample_reps=False cannot switch them off
+    assert T.boot_diff(arm, base, 200, 5, resample_tasks=False, resample_reps=False) == \
+        T.boot_diff(arm, base, 200, 5, resample_tasks=False)
+    runs = [{"task": f"t{i}", "ok": bool(v), "valid": None, "elapsed": 1.0, "kind": "qa"}
+            for i, p in enumerate(ps) for v in base[f"t{i}"]]
+    rep = T.build_report(["a"], {"a": runs}, 0.05, 0.03, resample_reps=False)
+    assert "over tasks only" in T.format_report(rep)
+    assert "over tasks and repetitions" in T.format_report(T.build_report(["a"], {"a": runs}, 0.05, 0.03))
+
+
 def test_report_from_runs_dir():
     tasks = {f"t{i}": 0.8 for i in range(18)}
     with tempfile.TemporaryDirectory() as d:

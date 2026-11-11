@@ -169,6 +169,19 @@ def test_stop_rule_replay_matches_the_engine_rule():
     assert P.hoeffding_upper(0, 0) == 1.0
 
 
+def test_threshold_walk_is_fixed_sequence_not_the_lowest_passing_one():
+    def row(thr, fires, premature):
+        return {"threshold": thr, "fires": fires, "premature": premature}
+    # 0.9: 40 fires, 0 bad (bound 0.17); 0.8: 40 fires, 12 bad (0.30 + 0.17: fails); 0.7: 40 fires, 0 bad (a lucky pass)
+    sweep = [row(0.7, 40, 0), row(0.8, 40, 12), row(0.9, 40, 0)]
+    assert P.pick_threshold(sweep, risk=0.2, delta=0.1) == 0.9          # the old "lowest passing" rule gave 0.7
+    # a threshold that never fires passes without a bound; the walk goes on below it
+    assert P.pick_threshold([row(0.99, 0, 0), row(0.9, 40, 0), row(0.8, 40, 0)], risk=0.2, delta=0.1) == 0.8
+    assert P.pick_threshold([row(0.99, 0, 0), row(0.9, 40, 12)], risk=0.2, delta=0.1) is None   # the first fire already fails
+    assert P.pick_threshold([row(0.9, 5, 0)], risk=0.2, delta=0.1) is None                       # 5 fires: the bound is 0.55
+    assert P.pick_threshold([], risk=0.2) is None
+
+
 def test_cli_train_info_and_plan():
     with tempfile.TemporaryDirectory() as d:
         write_requests(d, make_requests(12))
