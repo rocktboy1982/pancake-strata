@@ -932,6 +932,65 @@ int main() {
         check(has(hm, {1, 2, 3, 4, 5, 6, 7, 8, 9, 99}) && !has(hm, other) && has(hm, sub_a),
               "hold: the tool-pending conversation outranks a plain one");
 
+        // two tool-pending entries held at once (a main agent waiting for its sub-agents' Task tool, a sub-agent waiting for its own
+        // tool): the shortest goes first, not the oldest - the main agent's re-read is the long one (found by park_replay_sim)
+        now = 0;
+        const std::vector<int32_t> main_tool{1, 2, 3, 4, 5, 6, 7, 8, 9, 99};
+        const std::vector<int32_t> sub_tool2{1, 2, 3, 4, 40, 99};
+        ConversationCache pair(1 << 20, 2);
+        pair.set_park_ttl(ttl, tool, [&] { return now; });
+        check(pair.put(img(main_tool)) && pair.put(img(sub_tool2)) && pair.size() == 2, "hold pair: both tool-pending, the main agent older");
+        now = 10;
+        check(pair.put(img(other)) && has(pair, main_tool) && !has(pair, sub_tool2) && has(pair, other),
+              "hold pair: the shortest tool-pending entry goes, the older main agent stays");
+        ConversationCache pair_off(1 << 20, 2);   // (the rule off: oldest-first, the main agent goes)
+        check(pair_off.put(img(main_tool)) && pair_off.put(img(sub_tool2)) && pair_off.put(img(other)) && !has(pair_off, main_tool),
+              "hold pair: with the rule off the older main agent goes (the old order)");
+
+        // STRATA_PARK_TRUNCATE follows the same ranking: the shrink goes to the entry the TTL rule would evict (the idle-to-be
+        // branch), not to the oldest (the main agent), which keeps its whole state
+        {
+            auto ck_img = [](std::vector<int32_t> ids, std::vector<int64_t> depths) {
+                SavedConversation e;
+                e.live.ids = ids;
+                e.live.gdn.resize(1000, 40);
+                ConversationKv kv;
+                kv.cells = (int64_t) ids.size(); kv.page_size = 8;
+                kv.k.resize(ids.size() * 16, 3); kv.v.resize(ids.size() * 16, 4);
+                e.kv.push_back(std::move(kv));
+                for (int64_t d : depths) {
+                    ConversationCheckpoint c;
+                    c.ids.assign(ids.begin(), ids.begin() + d);
+                    c.gdn.resize(1000, (uint8_t) d);
+                    e.checkpoints.push_back(std::move(c));
+                }
+                return e;
+            };
+            std::vector<int32_t> mn(40), br(24);
+            for (size_t i = 0; i < mn.size(); ++i) mn[i] = i < 4 ? (int32_t) i + 1 : 100 + (int32_t) i;
+            for (size_t i = 0; i < br.size(); ++i) br[i] = i < 4 ? (int32_t) i + 1 : 200 + (int32_t) i;
+            now = 0;
+            ConversationCache tt(1 << 20, 4, 4, 0, true);
+            tt.set_park_ttl(ttl, tool, [&] { return now; });
+            check(tt.put(ck_img(mn, {32, 16})) && tt.put(ck_img(br, {16, 8})), "truncate + ttl: a main agent and a branch parked");
+            check(tt.truncate_oldest(1) > 0 && tt.truncations() == 1, "truncate + ttl: a shrink happened");
+            auto n_of = [&](const std::vector<int32_t>& ids) {
+                std::vector<int32_t> p = ids;
+                p.push_back(-5);
+                return tt.best(p, {}, true).tokens;
+            };
+            check(n_of(mn) == 40 && n_of(br) == 16, "truncate + ttl: the branch shrank to its 16-token checkpoint, the main agent stayed whole");
+            ConversationCache plain_t(1 << 20, 4, 4, 0, true);   // the rule off: the oldest (the main agent) shrinks
+            check(plain_t.put(ck_img(mn, {32, 16})) && plain_t.put(ck_img(br, {16, 8})) && plain_t.truncate_oldest(1) > 0,
+                  "truncate, rule off: a shrink happened");
+            auto n_plain = [&](const std::vector<int32_t>& ids) {
+                std::vector<int32_t> p = ids;
+                p.push_back(-5);
+                return plain_t.best(p, {}, true).tokens;
+            };
+            check(n_plain(mn) == 32 && n_plain(br) == 24, "truncate, rule off: the older main agent shrank to 32 tokens, the branch stayed");
+        }
+
         // exactness: a pinned shared prefix and the guarded donor are never taken; the disk tier gets the evicted branch;
         // the entries that stay are byte-for-byte what was parked
         now = 0;

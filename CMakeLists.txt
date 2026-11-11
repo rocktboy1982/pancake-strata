@@ -2124,6 +2124,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(epoch_bandit_test src/core/epoch_bandit_test.cpp)   # MOD_PLAN A44: STRATA_BANDIT's epoch bandit
   target_include_directories(epoch_bandit_test PRIVATE include)
   add_test(NAME epoch_bandit_test COMMAND epoch_bandit_test)
+  # MOD_PLAN A15 / F1: a recorded request trace through the real ConversationCache (tools/pancake/park_sim.py drives it offline)
+  add_executable(park_replay_sim src/core/park_replay_sim.cpp)
+  target_include_directories(park_replay_sim PRIVATE include)
+  add_test(NAME park_replay_sim_test COMMAND park_replay_sim --selftest)
   add_executable(uma_cache_test src/core/uma_cache_test.cpp)
   target_include_directories(uma_cache_test PRIVATE include)
   add_test(NAME uma_cache_test COMMAND uma_cache_test)
@@ -3473,7 +3477,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
-    adapt_async_default_test epoch_bandit_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
+    adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
     window_limits_test serve_stop_bound_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
