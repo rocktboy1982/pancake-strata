@@ -617,6 +617,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/native_rope.cu
                           src/kernels/cuda/native_ple_postops.cu
                           src/kernels/cuda/native_flash_attn.cu
+                          src/kernels/cuda/bfla.cu
                           src/kernels/cuda/native_qsa_indexer.cu
                           src/kernels/cuda/native_qsa_score.cu
                           src/kernels/cuda/ple.cu
@@ -676,6 +677,18 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   endif()
   # perf-review D-1: the tensor-core prompt attention vs the FP32 kernel and FP64 (GPU, synthetic, no model); with
   # the tests, or alone with -DSTRATA_PARITY_PROMPT_ATTN=ON.  CUDA only: HIP compiles the tensor-core kernel out.
+  # pancake: BFLA block-sparse prompt attention (bfla.cu, gfx11 WMMA) against an FP64 reference, its selection against a
+  # host copy of the rule, and a microbench (--bench); GPU, synthetic, no model.  HIP wave32 only (CUDA has the stubs).
+  if(STRATA_ENABLE_HIP AND NOT STRATA_HIP_GFX906)
+    add_executable(bfla_test src/kernels/cuda/bfla_test.cu)
+    target_include_directories(bfla_test PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(bfla_test PRIVATE strata_kernels ${_strata_gpu_runtime_target} ${STRATA_HIP_BLAS_TARGETS})
+    if(STRATA_BUILD_TESTS)
+      enable_testing()
+      add_test(NAME bfla_test COMMAND bfla_test)
+      set_tests_properties(bfla_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
+    endif()
+  endif()
   if((STRATA_BUILD_TESTS OR STRATA_PARITY_PROMPT_ATTN) AND STRATA_ENABLE_CUDA)
     add_executable(qsa_prompt_attn_parity src/kernels/qsa_prompt_attn_parity.cpp)
     target_include_directories(qsa_prompt_attn_parity PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
