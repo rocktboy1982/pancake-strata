@@ -94,13 +94,25 @@ engine 0.1.8). Both diverged by thousands of commits, so nothing is merged; each
 | prompt path kernels | measured, FP16 kept | WMMA worse; fused int8 -7% at 42K but +12% at 5K |
 | vs stock Strata (upstream 146df3c46) | measured | Flash-Next IQ2_XS, experts read from disk on both: decode 54.5 -> 69.2 tok/s (+27%), 5.3K edit prompt 23.3 -> 11.0 s; ours with the RAM arena 75.5 |
 
-**Next session (left 2026-11-08):**
-1. Decide the load default: building the 34 GB expert arena now often trips systemd-oomd (`user@.service`
-   memory-pressure limit 50% for 30 s; only the capped scope dies). `STRATA_RAM_KEEP_GIB=20` (mmap tier) loads every
-   time but decodes ~8% slower (69 vs 75 tok/s). Either make 20 the default in `capped.sh`, or keep the arena and pin
-   it in smaller steps so the stall time stays under the limit.
-2. Phase 7 sleep-in-place (basalt 64167ba73, ~815 lines): only if the GPU is wanted for other work while idle.
-3. Merge `port/faststrata-poly -> exp/expert-prefetch -> feat/grammar` when wanted (all pushed, none merged).
+**State 2026-11-11 (after the reboot; plan re-read and audited against the code at port/rdna3-decode d251be8f5):**
+- The checkout was restored from `~/backup-pancake-2026-11-11/` (branch, 47 tracked files, 110 untracked results); the
+  ntfs3 writeback hang is gone (Dirty 11 MB). `os_tune.sh install` (compaction) and `cpu-install` (iGPU low clock, C3 off,
+  pancake-cpu.service at boot) are applied; 46 GiB free in 2 MiB blocks.
+- Audit: all 24 commits of PANCAKE_STATUS are ancestors of HEAD; every switch exists and its default matches the table.
+  Gaps are noted at items 48, 53 and 28 and below (kmiss, Q2_0 configs).
+- `build-hip` was rebuilt from scratch (no binary survived the hang); the test phase restarts from item 1 below.
+
+**Next session (updated 2026-11-11):**
+1. Redo 15c (Q2_0 vs IQ2_XS, `bench/specs/15c-q2_0.json`, then `quality_gate.py`): the 2026-11-10 run is unusable (intervals
+   +-100%, scoring BrokenPipe, 15 GiB free in 2 MiB blocks). Only 15-q2_0-screen is valid evidence. If it passes, add the 4
+   adopted items (`STRATA_VERIFY_DEFER_CPU`, `STRATA_POOL_FUSE_PHASES`, `STRATA_EXPDEC_DOWN`, `--lookup-max-t 12`) to
+   `configs/pancake/flashnext-q2_0-fast-hip.json` and the q2_0 turbo preset; both lack them today (iq2_xs presets have them).
+2. Load default (open, owner): the oomd kills at arena load came from fragmentation, now treated by `os_tune.sh install`.
+   `capped.sh` stays at `STRATA_RAM_KEEP_GIB=12`; 20 (mmap tier, ~8% slower, 69 vs 75 tok/s) only if oomd kills a load again.
+3. Run `ctest -L cpu` (status claims 117/0/6) and `ctest -L gpu` (124): neither was re-run after the restore.
+4. kmiss: the blocking tier is measured (+2.0% edit, -6.4% short, A5), not the modeled +5..16%; the async arm is the open one.
+5. Phase 7 sleep-in-place (basalt 64167ba73, ~815 lines): only if the GPU is wanted for other work while idle.
+6. Merge `port/faststrata-poly -> exp/expert-prefetch -> feat/grammar` when wanted (all pushed, none merged).
 Stock comparison build: `../Strata-stock` (upstream 146df3c46, `build-cuda/strata`); results in FINDINGS 10f.
 
 ## Development plan by expected gain (2026-11-09)
@@ -189,7 +201,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 72 GPU-floor package triggered by the critical path (new: 1, 32/48, 37, 10, Q2_0-down, 47) - 5-10% short chat est. -
     exact - unowned - 44, 64 - design.  [S7]
 - 48 (= 32 re-rated) fuse the pre-doorbell chains (HC norm/down/up, router+plan+bell) - 1-4% per chain, critical in both
-    window types - exact - dan-cd - 49 - open.  [S7] CODED: expdec gate/up + SwiGLU + q8_1 in one launch (2aca56777, STRATA_EXPDEC_SWIGLU=1); router GEMV + top-10 + doorbell in one launch (7c0f03228, STRATA_ROUTER_FUSE=1); the HC norm/down/up chain was already one kernel (fused_gr_read_multi).
+    window types - exact - dan-cd - 49 - open.  [S7] CODED: expdec gate/up + SwiGLU + q8_1 in one launch (2aca56777, STRATA_EXPDEC_SWIGLU=1); router GEMV + top-10 + doorbell in one launch (7c0f03228, STRATA_ROUTER_FUSE=1; audit 2026-11-11: only active with STRATA_ROUTE_PUBLISH=1, no deferral, no STRATA_ROUTE_PRIOR (so not in the turbo arms), router margin <= 0 and no doorbell store on HIP - verify.cpp:2413-2425; otherwise a silent no-op); the HC norm/down/up chain was already one kernel (fused_gr_read_multi).
 - 63 capability probe + calibration layer (new: 55, 61, 57, 56, 58, 41, 53, 43, 54) - 0-3% here, 6-13% on other platforms
     (static PcieAuto lost that much here) - exact - this (probe) + dan-cd (tier parameters) - none - design.
 - small exact flag stack + --lookup-max-t 12 (P2c) - +2-5% (meas. +1.4..+3.9%, +1% retest) - exact - dan-cd queue - 67/I5 -
@@ -202,7 +214,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 47 warm the Infinity Cache with next-layer pre-doorbell weights during the wait - 0-2 ms/window est. - exact - dan-cd -
     micro-test (build only at warm/cold < 0.85) - open.  [S7] CODED (269a06ed9, STRATA_IC_WARM_MB=<cap>).
 - 53 online swap budget + chunked, stale-dropping promotions - 0-5% over the best fixed --adapt-swaps - exact - dan-cd
-    (coordinate with dan-cd, touches the tier) - 42 - open.  [S1] CODED (6bc9530bc, STRATA_ADAPT_SWAPS_AUTO=1; ForesightSwap stale-drop skipped: FS off in the presets).
+    (coordinate with dan-cd, touches the tier) - 42 - open.  [S1] CODED (6bc9530bc, STRATA_ADAPT_SWAPS_AUTO=1; ForesightSwap stale-drop skipped: FS off in the presets).  Audit 2026-11-11: only the swap-budget controller is coded (both tiers); chunked promotion and stale-drop are not; rejected on the async tier (-9.6%, A8), blocking arm still open.
 - 46 single poller in combine_cpu - 0-3% - exact - dan-cd - 49 - open.  [S1] CODED (93f7a963d, STRATA_COMBINE_POLL1=1).
 - 40 software prefetch in the Q2_0 row kernel - 0-5% of CPU-expert time - exact - dan-cd - none - open.  [S1] CODED (c44b1ad7b, STRATA_Q2_PREFETCH=<bytes>).
 - 43 DraftPolicy::seed_costs() from traces - 0-5% - exact - dan-cd - 42, 64 - open.  [S3] CODED (663107a56): serve loop reads STRATA_SPEC_COST_TABLE; tools/pancake/trace/draft_costs.py builds it from window traces.
@@ -490,7 +502,7 @@ Quick hygiene: test_keepawake fails by design of the test (KeepAwake._loop is st
 thread wakes, so ON is never sent; fix the assertion or skip off Windows); cache 3 hot getenvs (fused_gr.cu:1537 per launch,
 STRATA_DF_PDL verify.cpp:1537/1542, STRATA_ROUTE_PRIOR 2356); remove dead functions (layer_fused_gr, layer_shared_early,
 stage_mark_begin/end, gdn_buffers_zero_state, native_moe_combine_multi_hits, native_mmvq_b6_rows, df2_norm_rope, qsa_hip_wmma_active +
-~12 declared-never-defined prototypes); still-read rejected flags STRATA_PF_WMMA, STRATA_ARENA_WARM; one boolean env parser; stale
+~12 declared-never-defined prototypes); still-read rejected flag STRATA_PF_WMMA (STRATA_ARENA_WARM: code removed, 2026-11-09); one boolean env parser; stale
 root pancake-*.json (hipBLASLt 100200 vs template 100401); exclude sycl/ (162K lines, 120/149 files mirror src/) and metal/ from
 search/indexing; clangd fails on src/dsv41/ds4_model.cu (invalid AST) - exclude.  strata-poly builds in build-hip but
 run-pancake.sh:49 calls it CUDA-only.
@@ -938,7 +950,8 @@ Also: presence_penalty must stay 0 for tool calling (DASLab MoESQ card: SWE-benc
 Added 2026-11-09 from the Asian report:
 28. Item 8 rank guard (KTransformers, SOSP'25): STRATA_VERIFY_DEFER_CPU_BELOW (0.1) and "never the last layer" exist; add "always
     immediate when in the token's top-2", measure at verify windows 1/2/4/8 after the HIP non-finite bisect.  Hand-off stays the
-    doorbell/partial-flag protocol (no HIP graphs).
+    doorbell/partial-flag protocol (no HIP graphs).  CODED (STRATA_VERIFY_DEFER_CPU_TOP, defer_rank.hpp, host pool + GPU copy,
+    default off); not yet measured at windows 1/2/4/8.
 29. Per-expert barriers in the CPU pool instead of the global run_phase sync between gate/up and down, SiLU*mul fused into gate/up
     (Tsinghua OSDI'26) - a few percent of CPU expert time.
 30. Offline recall test of three next-expert predictors on routing traces (next-layer router on the current hidden state; the
@@ -1129,7 +1142,7 @@ Everything the research series and the measurement rounds looked at and did not 
 - Cache-aware routing at lambda 2.0 (MP 8.9) - 9.9% mismatch, 8 large-margin events: REJECT (0.5 stays the opt-in `turbo`). [closed]
 - ClassLRU long-memory scoring (llama.cpp #31233, MP 11 index) - replayed decay 0.7..0.986 within 0.5 points at 32 swaps. [closed]
 - Reuse-aware admission (MP 11 late) - a PCIe 3.0 promotion (~115 us) costs ~3 CPU computes of the same expert. [closed; k-th-miss admission goes through the item 14 simulator]
-- L3 prefetch `STRATA_ARENA_WARM` (MP 11 late) - worse; DDR4 already at ~80%. [closed]
+- L3 prefetch `STRATA_ARENA_WARM` (MP 11 late) - worse; DDR4 already at ~80%. [closed, code removed]
 - CPU pool settings sweep (MP 11 late) - defaults best. [closed]
 - IQ2_S two-half decode `STRATA_IQ2S_PAIR` (MP 11 late) - neutral; the kernels are compute-bound. [closed]
 - `--spec 3/5/6`, window thresholds (MP 11 round A / late) - flat; `--spec 4` is also the official 4.07-accepted depth. [closed]
