@@ -99,5 +99,45 @@ class Exercised(unittest.TestCase):
         self.assertEqual(rc.never_hit([ans(t) for t in rc.HIT_TURNS]), [])
 
 
+TOKDIR = Path(__import__("os").environ.get("STRATA_TEST_TOKENIZER",
+                                           "/home/dan/clone-of-d/Strata-data/packs/iq2_xs/tokenizer"))
+
+
+@unittest.skipUnless((TOKDIR / "chat_template.jinja").exists() and (TOKDIR / "vocab.json").exists(),
+                     "needs a pack's tokenizer folder (STRATA_TEST_TOKENIZER)")
+class RealTemplate(unittest.TestCase):
+    """The scripted conversation, rendered by the pack's own template and tokenizer as the server does: the call boundary
+    must be a tool-boundary mark (>= 1024 tokens in) that both prompts of the retry share, or --tool-boundary tests nothing."""
+
+    def test_the_retry_resumes_at_a_mark(self):
+        import json
+        sys.path.insert(0, str(rc.ROOT))
+        sys.path.insert(0, str(rc.ROOT / "tools"))
+        import strata_tokenizer as ST
+        from serve import frontend as F
+        from serve.server import qwen_tool_marks
+        vocab = json.loads((TOKDIR / "vocab.json").read_text())
+        tokens = [None] * len(vocab)
+        for tk, i in vocab.items():
+            tokens[i] = tk
+        tcfg = json.loads((TOKDIR / "tokenizer.json").read_text())
+        tok = ST.Tokenizer(tokens, (TOKDIR / "merges.txt").read_text().split("\n"),
+                           json.loads((TOKDIR / "token_type.json").read_text()), tcfg.get("pre") or "qwen35",
+                           tcfg.get("special_ids") or None)
+        tpl = F.ChatTemplate(TOKDIR / "chat_template.jinja")
+        turns = dict(rc.turns())
+        ids = {}
+        for k in ("after-tool-result", "tool-retry"):
+            msgs, tools, kw = F.openai_to_messages({"messages": turns[k], "tools": rc.TOOLS})
+            kw = {a: b for a, b in (kw or {}).items() if a != "enable_thinking"}
+            ids[k] = tok.encode(tpl.render(msgs, tools=tools, add_generation_prompt=True, enable_thinking=True, **kw),
+                                parse_special=True)
+        marks = {k: qwen_tool_marks(v, vocab["<|im_start|>"], vocab["<tool_response>"]) for k, v in ids.items()}
+        call_mark = marks["tool-retry"][0]
+        self.assertGreaterEqual(call_mark, 1024)
+        self.assertEqual(marks["after-tool-result"][0], call_mark)
+        self.assertEqual(ids["after-tool-result"][:call_mark], ids["tool-retry"][:call_mark])
+
+
 if __name__ == "__main__":
     unittest.main()

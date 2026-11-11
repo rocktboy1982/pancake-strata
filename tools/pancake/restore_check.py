@@ -28,7 +28,7 @@ repeat (the previous prompt sent again: a COMPLETE hit - the UNSW case, where th
 and the engine must still read its last token).  Greedy answers must match the re-read arm token for token, the
 "repeat" answer must also equal the "tool-retry" answer inside every arm, and an arm in which the cache never served a
 hit (cached_tokens 0 where a hit is expected) is refused, not passed: a cache that does nothing matches a re-read
-trivially.
+trivially.  With --tool-boundary the engine log must also show a tool-boundary checkpoint (STRATA_TRACE=1 is set for it).
 
 Exit 0 when every turn matches, 1 on a difference, 2 on a setup error or a cache that was never exercised.  Needs the
 GPU for itself: run it only when no other engine serves (it refuses when something listens on the port) and outside a
@@ -242,7 +242,9 @@ def main():
     if not port_free(a.port):
         print(f"port {a.port} is in use: refusing (one engine at a time on the GPU)", file=sys.stderr)
         return 2
-    tb = {"STRATA_CACHE_TOOL_BOUNDARY": "1", "STRATA_CACHE_TOOL_BOUNDARY_GAP": "16"} if a.tool_boundary else {}
+    # (STRATA_TRACE makes the engine say where it took a tool-boundary checkpoint, so the run can prove it exercised one)
+    tb = ({"STRATA_CACHE_TOOL_BOUNDARY": "1", "STRATA_CACHE_TOOL_BOUNDARY_GAP": "16", "STRATA_TRACE": "1"}
+          if a.tool_boundary else {})
     restore = run_arm("restore", dict(tb), a)            # all arms: --adapt-swaps 0 (fixed VRAM expert set)
     reread = run_arm("reread", {"STRATA_CKPT_REREAD": "1", **tb}, a)
     if restore is None or reread is None:
@@ -270,6 +272,13 @@ def main():
         if turns_:
             print(f"[{arm}] no cached token on {', '.join(turns_)}: the cache was never exercised there; the result "
                   f"would prove nothing", file=sys.stderr)
+    if a.tool_boundary:
+        marks = (ROOT / "restore-check-restore.log").read_text(errors="replace").count("tool boundary checkpoint at")
+        print(f"[restore] engine log: {marks} tool-boundary checkpoint(s) taken")
+        if marks < 1:
+            print("[restore] no tool-boundary checkpoint was taken: the retry resumed from an older one, so --tool-boundary "
+                  "tested nothing (check STRATA_CACHE_TOOL_BOUNDARY reached the engine and the GAP)", file=sys.stderr)
+            idle["restore"] = idle.get("restore", []) + ["tool-boundary"]
     diffs = compare(arms, reread)
     if any(idle.values()):
         if a.out:
