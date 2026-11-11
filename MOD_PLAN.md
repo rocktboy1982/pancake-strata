@@ -2669,3 +2669,23 @@ All of it needs the GPU: it waits for the Q2_0 / IQ2_XS matrix of 2026-11-11 to 
   (`STRATA_PARK_DIVERGENCE_CHARS`, default 48, 0 = ids only). `serve/park_divergence.py`, 21 tests in `serve/test_park_divergence.py`
   (run: pass). Follows only the plain one-engine path (not `--batch`, `--parallel`, pictures, split). Use: run the baseline session of the
   plan above with it on, then decide lever 3 (`keep_reasoning` vs a template fix vs client edits) from the `where` counts.
+
+## Phase 17 item 17.1 note (deferral gate)
+
+Status: **coded, NOT built, NOT measured** (branch `dev/p17/defergate`, 2026-11-11; the GPU and CPU were busy with benchmarks).
+Design note: `pancake-docs/VERIFY_DEFER_AUTO.md`. Our own idea; the deferral (Strata #2689/#2690, lask3802) and the rank guard
+(KTransformers) are credited already, nothing added.
+
+- Why: 2026-11-11, RX 7900 XT, Q2_0 fast-hip, warm pass: removing `STRATA_VERIFY_DEFER_CPU` gave prose +8-9% and code -1..-3%
+  (decode 102.7 -> 111.0 / 110.3); the 11-09 test phase had edit +15.8% +- 3.9 and short no difference with it.
+- `STRATA_VERIFY_DEFER_AUTO=1` (+ `_MIN_T=<n>`): only the serve loop's lookup windows (from_sfx, or a chained lookup tail) of
+  at least max(2, n) rows defer; every other window stages the A44 rank-guard word at k, so every CPU row is kept on time
+  (exact by reading). No new graph, kernel or pool change. Pure functions in `include/strata/core/defer_auto.hpp`, test
+  `tests/core/defer_auto_test.cpp` (registered, not run). Default path unchanged by reading; both variables are KeyIfSet.
+- Finding (unconfirmed, read from code): which rows join late can change per window at run time; the graph shape cannot.
+  Deferred-or-not is baked per window size at capture, and the deferral turns `COMBINE_CPU`, `WAIT_FUSE`, `ROUTE_PUBLISH`,
+  `ROUTER_FUSE`, `IC_WARM` off for the whole process. So the gate's exact windows keep those losses. If they are what costs
+  prose, the gate cannot win; the fix is two graph sets (design note section 5).
+- Next: build, `ctest -R defer_auto_test`, then `bench/specs/p17-defer-auto.json` (base, nodefer, auto, auto-min5,
+  auto-closed; `auto-closed` vs `nodefer` tells the two readings apart), bar >= 2% per content class, then quality_gate.py
+  and task_gate.py --reps 5 for any arm that passes.

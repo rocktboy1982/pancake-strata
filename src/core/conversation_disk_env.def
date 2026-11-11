@@ -153,6 +153,8 @@ STRATA_ENV("STRATA_SM120_PERF", KeyIfSet, "gates sm_120 defaults incl. GR_V3 (an
 STRATA_ENV("STRATA_SM121_PERF", KeyIfSet, "gates the sm_121 table: PF_FUSED, PREFILL_NVFP4=w4a4 (round differently)")
 STRATA_ENV("STRATA_TAIL_SKIP_MAX_CACHED", KeyIfSet, "limit of ROUTE_TAIL_SKIP (decides which tails are skipped)")
 STRATA_ENV("STRATA_VERIFY_ECAP", KeyIfSet, "caps CPU experts only draft rows need (lossy)")
+STRATA_ENV("STRATA_VERIFY_DEFER_AUTO", KeyIfSet, "which windows defer CPU rows (MOD_PLAN 17.1 note): changes the output vs plain deferral")
+STRATA_ENV("STRATA_VERIFY_DEFER_AUTO_MIN_T", KeyIfSet, "the smallest lookup window that defers (with STRATA_VERIFY_DEFER_AUTO)")
 
 // ---- Unsure: may change what a state holds and no bit-equality claim was found or verified; treated as KeyIfSet (a stale hit is silent, a miss costs one prefill) (107) ----
 STRATA_ENV("STRATA_ATTN_V3", Unsure, "decode attention v3")

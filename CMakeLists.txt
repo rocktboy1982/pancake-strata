@@ -508,6 +508,11 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(defer_rank_test PRIVATE include)
   add_test(NAME defer_rank_test COMMAND defer_rank_test)
 
+  # MOD_PLAN 17.1 note: STRATA_VERIFY_DEFER_AUTO, which verify windows defer and the rank guard they stage (header-only, no GPU)
+  add_executable(defer_auto_test tests/core/defer_auto_test.cpp)
+  target_include_directories(defer_auto_test PRIVATE include)
+  add_test(NAME defer_auto_test COMMAND defer_auto_test)
+
   # MOD_PLAN item 39: the disk tier's key, index, choice, eviction policy and size cap, and a write/read round trip on
   # a temporary folder - no GPU, no CUDA (here, not with the GPU targets, so a CPU-only build runs it too)
   add_executable(conversation_disk_tier_test tests/core/conversation_disk_tier_test.cpp src/core/conversation_disk_tier.cpp
