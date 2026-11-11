@@ -14,8 +14,8 @@ Every task states the module-level definitions the function needs (expect.setup,
 stay hidden in the checker.  A candidate survives only if its checker passes the reference answer and fails the broken one (task_gate.selftest,
 the real checker in the real sandbox).
 
-    python tools/pancake/build_task_set.py --count 120 --out bench/tasks/repo-history.json [--seed 1] [--rev HEAD] [--jobs 4]
-                                           [--families history,bugfix,implement] [--per-file 8] [--max-history 40]
+    python tools/pancake/build_task_set.py --count 150 --rev 0dd7ef2e8151 --out bench/tasks/repo-history.json [--seed 1] [--jobs 4]
+                                           [--families history,bugfix,implement] [--per-file 8] [--max-history 300]
     python tools/pancake/build_task_set.py --check bench/tasks/repo-history.json     self-test an existing set; with git also that every reference is
                                            the function the pinned commit holds and that the checker passes on that commit's whole module
 
@@ -568,9 +568,9 @@ def tasks_for(mod, name, calls, a, rev, seed):
             setup_h, _ = context_for(mod, old_src + "\n\n" + fn_src, name)     # the old body may need a helper the new one dropped
             if setup_h is None:
                 continue
-            bad = failing(kept, record(setup_h, old_src, name, [c for c, _ in kept]))
+            rec_old = record(setup_h, old_src, name, [c for c, _ in kept])
+            bad = failing(kept, rec_old)
             if bad:
-                rec_old = record(setup_h, old_src, name, [c for c, _ in kept])
                 picks = fail_picks(bad, 2)
                 add(make_task("history", f"hist-{base}", name, mod.path, setup_h, test, fn_src, old_src,
                               prompt_of("history", name, mod.path, setup_h, old_src, examples_text(name, kept, picks, rec_old), subjects),
@@ -766,7 +766,7 @@ def main():
     ap.add_argument("--families", default=",".join(FAMILIES), type=lambda s: s.split(","))
     ap.add_argument("--per-file", type=int, default=8, help="at most this many tasks from one source file")
     ap.add_argument("--per-function", type=int, default=2, help="at most this many tasks on one function")
-    ap.add_argument("--max-history", type=int, default=40, help="commits to look back through for the history family")
+    ap.add_argument("--max-history", type=int, default=300, help="commits to look back through for the history family")
     ap.add_argument("--mutants-tried", type=int, default=10, help="mutation sites tried per function")
     ap.add_argument("--mutants-per-function", type=int, default=2)
     a = ap.parse_args()
