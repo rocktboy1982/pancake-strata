@@ -91,6 +91,7 @@
 #include "strata/core/native_head.hpp"
 #include "strata/core/spill_gate.hpp"
 #include "strata/core/pcie_share_rule.hpp"
+#include "strata/core/calibrate_ratio.hpp"
 #include "strata/core/verify.hpp"
 #include "strata/core/mtp.hpp"
 #include "strata/core/gated_proposal.hpp"
@@ -2920,7 +2921,7 @@ CalibProbeOut calibrate_probe(strata::core::ExpertSource* src, strata::kernels::
         for (int rep = -1; rep < 4; ++rep) {   // rep -1 is the warm-up
             const Clk::time_point t0 = Clk::now();
             for (int i = 0; i < kCopyN; ++i)
-                cudaMemcpyAsync(dst + (size_t) i * bb, from + (size_t) i * bb, bb, d2d ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice, st);
+                (void) cudaMemcpyAsync(dst + (size_t) i * bb, from + (size_t) i * bb, bb, d2d ? cudaMemcpyDeviceToDevice : cudaMemcpyHostToDevice, st);
             if (cudaStreamSynchronize(st) != cudaSuccess) return -1.0;
             const double us = std::chrono::duration<double, std::micro>(Clk::now() - t0).count() / kCopyN;
             if (rep >= 0) best = std::min(best, us);
@@ -2947,8 +2948,8 @@ CalibProbeOut calibrate_probe(strata::core::ExpertSource* src, strata::kernels::
             if (pend[k] && cudaEventQuery(ev[k]) == cudaSuccess) { pend[k] = false; ++chunks; }
             if (issue && !pend[k]) {
                 for (int i = 0; i < kChunk; ++i)
-                    cudaMemcpyAsync(d + (size_t) i * bb, (const uint8_t*) h + (size_t) i * bb, bb, cudaMemcpyHostToDevice, st);
-                cudaEventRecord(ev[k], st);
+                    (void) cudaMemcpyAsync(d + (size_t) i * bb, (const uint8_t*) h + (size_t) i * bb, bb, cudaMemcpyHostToDevice, st);
+                (void) cudaEventRecord(ev[k], st);
                 pend[k] = true;
             }
         }
@@ -3010,11 +3011,11 @@ CalibProbeOut calibrate_probe(strata::core::ExpertSource* src, strata::kernels::
         r.m.copy_c_us = copy_c_best;
     }
     for (int k = 0; k < 2; ++k)
-        if (ev[k] != nullptr) cudaEventDestroy(ev[k]);
-    if (d2 != nullptr) cudaFree(d2);
-    if (d != nullptr) cudaFree(d);
-    if (h != nullptr) cudaFreeHost(h);
-    if (st != nullptr) cudaStreamDestroy(st);
+        if (ev[k] != nullptr) (void) cudaEventDestroy(ev[k]);
+    if (d2 != nullptr) (void) cudaFree(d2);
+    if (d != nullptr) (void) cudaFree(d);
+    if (h != nullptr) (void) cudaFreeHost(h);
+    if (st != nullptr) (void) cudaStreamDestroy(st);
     (void) cudaGetLastError();
     r.ok = r.m.cpu_us > 0.0 && r.m.copy_us > 0.0;
     if (!r.ok) r.why = !gpu_ok ? "the copy buffers could not be allocated" : "a timing came out zero";
@@ -15144,7 +15145,7 @@ int main(int argc, char** argv) {
             if (!ebandit_msg.empty()) std::fprintf(stderr, "strata serve: STRATA_BANDIT: %s\n", ebandit_msg.c_str());
             if (ebandit.on())
                 std::fprintf(stderr, "strata serve: STRATA_BANDIT=%s: %d arms (%s), window types by %s, epochs of %d windows "
-                                     "(+%d not counted), rule %s %.2f, decay %.2f, seed %llu%s\n",
+                                     "(+%d not counted), rule %s %.2f, decay %.2f, margin %.2f per exactness class, seed %llu%s\n",
                              strata::core::bandit_arm_name(ebandit_cfg.switches).c_str(), ebandit.n_arms(),
                              strata::core::bandit_arm_class(ebandit_cfg.switches) == 2 ? "lossy: rank guard"
                              : strata::core::bandit_arm_class(ebandit_cfg.switches) == 1 ? "exact up to rounding" : "bitwise exact",
@@ -15153,7 +15154,7 @@ int main(int argc, char** argv) {
                              : ebandit_cfg.type_mode == strata::core::kTypeSize ? "the window size"
                              : ebandit_cfg.type_mode == strata::core::kTypeCtx ? "the context length" : "nothing (one type)",
                              ebandit_cfg.epoch, ebandit_cfg.skip, ebandit_cfg.ucb ? "ucb" : "eps",
-                             ebandit_cfg.ucb ? ebandit_cfg.ucb_c : ebandit_cfg.eps, ebandit_cfg.decay,
+                             ebandit_cfg.ucb ? ebandit_cfg.ucb_c : ebandit_cfg.eps, ebandit_cfg.decay, ebandit_cfg.margin,
                              (unsigned long long) ebandit_cfg.seed,
                              o.batch > 0 ? " (inactive: --batch windows)" : "");
             else

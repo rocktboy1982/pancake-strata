@@ -81,3 +81,29 @@ def test_shared_system_prompt_is_opt_in():
         assert abs(n1 - agent["target"]) <= RT.TOL + 1 and abs(n2 - side["target"]) <= RT.TOL + 1
     finally:
         RT.SHARED_SYSTEM = 0
+
+
+def test_shared_system_prompt_is_cut_for_short_prompts():
+    """The A15 spec replays the 11-09 trace with shared_system 1024; its side requests are 55-90 tokens and must stay that size
+    (the sizing check printed 1026 tokens of error before the shared text was cut to what a prompt has room for)."""
+    C = RT.Counter("/nonexistent")
+    plan = RT.plan_synthetic()
+    try:
+        RT.SHARED_SYSTEM = 1024
+        convs = RT.Conversations(C, RT.Corpus(RT.ROOT))
+        sides = [e for e in plan if e["kind"] == "side" and not e["repeat"]]
+        assert min(e["target"] for e in sides) < 1024 + RT.SHARED_ROOM          # the synthetic session has short ones too
+        for e in sides:
+            msgs, n = convs.build(e)
+            assert abs(n - e["target"]) <= RT.TOL + 1, (e["target"], n)
+            if e["target"] >= 1024 + RT.SHARED_ROOM:
+                assert msgs[0]["content"] == convs.shared                          # the whole text
+            elif msgs[0]["role"] == "system":
+                assert len(msgs[0]["content"]) < len(convs.shared)                 # a leading part of it
+        agent = [e for e in plan if e["kind"] == "agent"][0]
+        msgs, n = convs.build(agent)
+        assert msgs[0]["content"] == convs.shared and abs(n - agent["target"]) <= RT.TOL + 1
+        # a 70-token request has no room for the shared text: none, as without the switch
+        assert convs.shared_for(70) is None and convs.shared_for(70 + RT.SHARED_ROOM) is not None
+    finally:
+        RT.SHARED_SYSTEM = 0

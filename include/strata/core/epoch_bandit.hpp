@@ -19,6 +19,9 @@
 // bonus counts undiscounted epochs).  The arms change
 // only between windows: the serve loop sets the next window's arm before the window is staged.
 //
+// A lossy or rounding arm must also beat the exact ones by STRATA_BANDIT_MARGIN (default 2%) per exactness class (the choice, not the
+// logged cost, is charged), so measurement noise alone does not move the text onto the rank guard.
+//
 // With a lossy or rounding arm the text depends on which arm ran which window, i.e. on timings: it is not reproducible
 // run to run.  STRATA_BANDIT_EXACT=1 drops the lossy switch (top), =2 the rounding one too (kmiss): only bitwise-exact
 // arms are left, and the text is the switches-off text.
@@ -80,6 +83,8 @@ struct BanditConfig {
     double eps = 0.1;
     double ucb_c = 0.1;
     double decay = 0.9;       ///< STRATA_BANDIT_DECAY: per-epoch discount of every arm's statistics, (0, 1]
+    double margin = 0.02;     ///< STRATA_BANDIT_MARGIN: an arm is preferred only if it beats "off" by margin x its exactness class (0 exact,
+                              ///< 1 rounding, 2 lossy), as a fraction of the cost: 0.02 asks a lossy arm for 4%, 0 = pure cost (0..0.5)
     uint64_t seed = 1;        ///< STRATA_BANDIT_SEED: the explorer's random stream (deterministic)
     int type_mode = kTypeReq; ///< STRATA_BANDIT_TYPE
     double type_arg = 0.30;
@@ -153,6 +158,11 @@ BanditConfig bandit_config(Get get, uint32_t available, std::string* msg) {
         const double d = std::atof(e);
         if (d > 0.0 && d <= 1.0) c.decay = d;
         else say("STRATA_BANDIT_DECAY=" + std::string(e) + " is not in (0, 1]: 0.9");
+    }
+    if (const char* e = get("STRATA_BANDIT_MARGIN")) {
+        const double d = std::atof(e);
+        if (d >= 0.0 && d <= 0.5 && e[0] != '\0') c.margin = d;
+        else say("STRATA_BANDIT_MARGIN=" + std::string(e) + " is not in [0, 0.5]: 0.02");
     }
     if (const char* e = get("STRATA_BANDIT_SEED")) c.seed = std::strtoull(e, nullptr, 10);
     if (const char* e = get("STRATA_BANDIT_TYPE")) {
@@ -347,7 +357,11 @@ private:
                 *why = "untried";
                 return i;
             }
-        auto mean_of = [&](int i) { return s.sum[(size_t) i] / s.n[(size_t) i]; };
+        // the arm's cost for the choice: its discounted mean, charged `margin` per exactness class (a lossy arm is not worth a
+        // gain the measurement noise alone can produce: Athena's actions are all exact, ours are not)
+        auto mean_of = [&](int i) {
+            return s.sum[(size_t) i] / s.n[(size_t) i] * (1.0 + c_.margin * (double) bandit_arm_class(arms_[(size_t) i]));
+        };
         int best = 0;
         for (int i = 1; i < A; ++i)
             if (mean_of(i) < mean_of(best)) best = i;

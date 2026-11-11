@@ -491,7 +491,9 @@ public:
     ///   2  any other conversation (the main agent's: the long one the branches share a prefix with);
     ///   3  a conversation whose last reply ended in a tool call and was parked less than `hold_ms` ago (Continuum:
     ///      the client comes straight back with the tool's result; the hold is a fixed prediction of the tool's
-    ///      duration, after which the entry ranks as any other).
+    ///      duration, after which the entry ranks as any other).  Among these the SHORTEST goes first (the cheapest to
+    ///      re-read), not the oldest: a main agent waiting for its sub-agents and the sub-agents waiting for their
+    ///      tools are all held, and the main agent's re-read is the long one.
     /// A "branch" is an entry that shares at least min(`share_min`, half its length) leading tokens with a longer
     /// parked entry at least 1/`sub_ratio` times its length (a sub-agent starts from the main agent's system prompt and
     /// tools and stays shorter than it).  A mis-classification only changes the eviction order.  With the disk tier
@@ -746,7 +748,14 @@ private:
                 if (tool && idle < park_ttl_.hold_ms) rank = 3;
                 else if (is_branch(i)) rank = idle >= park_ttl_.ttl_ms ? 0 : 1;
                 else rank = 2;
-                if (rank < best_rank) { best_rank = rank; best = i; }   // strict: the oldest wins within a rank
+                // strict: the oldest wins within a rank - except rank 3, where the shortest does: every entry there is expected
+                // back within the hold, so what an eviction costs is its re-read (Continuum's benefit term is the reload cost), and
+                // the main agent's 60K tokens must not go before a sub-agent's 8K just because it was parked first
+                if (rank < best_rank ||
+                    (rank == 3 && best_rank == 3 && entries_[i].live.ids.size() < entries_[best].live.ids.size())) {
+                    best_rank = rank;
+                    best = i;
+                }
             }
             if (rank_out) *rank_out = best == SIZE_MAX ? -1 : best_rank;
             return best;
