@@ -2501,6 +2501,19 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 std::fprintf(stderr, "strata verify: STRATA_ROUTE_FAST=1: top-10, ids + weights to the host and the step's "
                                      "ring stored in one launch, the rows copied by the router GEMV (F9)\n");
             }
+        } else if (g_rfast) {   // said once when a condition of the session (not the window's row count) keeps it off
+            static bool said_off = false;
+            const char* why = g_route_prior_set                  ? "STRATA_ROUTE_PRIOR is set"
+                            : route_resident_cfg().margin > 0.0f ? "the STRATA_ROUTE_RESIDENT margin is above 0"
+                            : device_plan_                       ? "the device plan is on"
+                            : remote_opt_ != nullptr             ? "--remote-expert-opt is set"
+                            : always_publish_                    ? "the windows always publish (pipelined)"
+                            : la_out_ != nullptr                 ? "the lookahead router is on"
+                                                                 : nullptr;
+            if (why != nullptr && !said_off) {
+                said_off = true;
+                std::fprintf(stderr, "strata verify: STRATA_ROUTE_FAST=1 will not act: %s (F9)\n", why);
+            }
         }
         const bool rpub = !rfast && g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
                           NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&

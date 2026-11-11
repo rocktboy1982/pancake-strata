@@ -1316,6 +1316,13 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
       add_test(NAME hip_handoff COMMAND hip_handoff)
       list(APPEND _strata_hip_tests hip_handoff)
     endif()
+    # F21: the plan copy after a host flag, with the default kernels and with STRATA_WAIT_COPY256=1's 16-byte kernel
+    add_executable(hip_wait_copy tests/hip/wait_copy.cpp)
+    target_link_libraries(hip_wait_copy PRIVATE strata_kernels strata_hip_runtime)
+    add_test(NAME hip_wait_copy COMMAND hip_wait_copy)
+    add_test(NAME hip_wait_copy_256 COMMAND hip_wait_copy)
+    set_tests_properties(hip_wait_copy_256 PROPERTIES ENVIRONMENT "STRATA_WAIT_COPY256=1")
+    list(APPEND _strata_hip_tests hip_wait_copy hip_wait_copy_256)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/hip/mapped_alias.cpp")
       # #325: reports what a hipHostGetDevicePointer alias is on this stack (on Windows: the host pointer, and a
       # D2D copy into it does not land - hip_handoff's timeout there). A diagnosis: exits 0 whenever it ran.
@@ -1544,6 +1551,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   set_tests_properties(iq_multi_parity_kq_swiglu PROPERTIES ENVIRONMENT "STRATA_KQ_SPLIT=1;STRATA_GU_SWIGLU=1")
   add_test(NAME iq_multi_parity_kq_nosub16 COMMAND iq_multi_parity)
   set_tests_properties(iq_multi_parity_kq_nosub16 PROPERTIES ENVIRONMENT "STRATA_KQ_SPLIT=1;STRATA_NO_SUB16_GU=1")
+  # A33 / item 48: the EXPDEC runs with STRATA_EXPDEC_SWIGLU=1 take expdec_gu_swiglu_kernel (gate/up + SwiGLU + q8_1 in one
+  # launch): the grouped output must stay bitwise the old kernels' (its runs with LUT copies take the SwiGLU kernel too)
+  add_test(NAME iq_multi_parity_expdec_swiglu COMMAND iq_multi_parity)
+  set_tests_properties(iq_multi_parity_expdec_swiglu PROPERTIES ENVIRONMENT "STRATA_EXPDEC_SWIGLU=1")
   # the prompt path's DeltaNet recurrence: gdn_rec_kh_kernel against gdn_rec_cols_pipe_kernel, bitwise (GPU,
   # synthetic, no model; --bench adds timings).  NVIDIA only: cp.async and the CUDA occupancy API (not on gfx906)
   if(STRATA_ENABLE_CUDA AND NOT STRATA_HIP_GFX906)
