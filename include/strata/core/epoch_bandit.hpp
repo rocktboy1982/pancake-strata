@@ -160,8 +160,9 @@ BanditConfig bandit_config(Get get, uint32_t available, std::string* msg) {
         else say("STRATA_BANDIT_DECAY=" + std::string(e) + " is not in (0, 1]: 0.9");
     }
     if (const char* e = get("STRATA_BANDIT_MARGIN")) {
-        const double d = std::atof(e);
-        if (d >= 0.0 && d <= 0.5 && e[0] != '\0') c.margin = d;
+        char* end = nullptr;
+        const double d = std::strtod(e, &end);
+        if (end != e && *end == '\0' && d >= 0.0 && d <= 0.5) c.margin = d;
         else say("STRATA_BANDIT_MARGIN=" + std::string(e) + " is not in [0, 0.5]: 0.02");
     }
     if (const char* e = get("STRATA_BANDIT_SEED")) c.seed = std::strtoull(e, nullptr, 10);
