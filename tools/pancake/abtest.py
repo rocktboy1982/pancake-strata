@@ -569,6 +569,7 @@ def summary(results, arms, cases):
 
 
 def main():
+    global RECLAIM_MAX
     ap = argparse.ArgumentParser()
     ap.add_argument("spec")
     ap.add_argument("--out", required=True)
@@ -580,7 +581,12 @@ def main():
     ap.add_argument("--tier", choices=("screen", "confirm"), default="confirm")
     ap.add_argument("--no-early-stop", action="store_true")
     ap.add_argument("--max-wait", type=int, default=600, help="seconds to wait for a quiet machine before running anyway")
+    ap.add_argument("--reclaim-max", type=float, default=RECLAIM_MAX,
+                    help="%% of one core of kswapd/kcompactd above which a run is noisy and repeated (default 1.0; "
+                         "2026-11-11 data, 62 attempts: up to 3 decoded as fast as below 1, above 3 edits were ~8%% slower, "
+                         "while 1.0 discarded 48%% of all attempts)")
     a = ap.parse_args()
+    RECLAIM_MAX = a.reclaim_max
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
     cases = spec.get("cases", ["short", "edit", "long"])

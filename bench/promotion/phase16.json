@@ -543,15 +543,15 @@
    "branch": "dev/batch-1",
    "commits": [],
    "arms": [
-    "ic-warm32",
-    "ic-warm64",
-    "swiglu+warm32"
+    "nodefer+ic-warm32",
+    "nodefer+ic-warm64"
    ],
    "claim": [
     "short",
     "edit"
    ],
-   "note": "existing switch STRATA_IC_WARM_MB"
+   "note": "existing switch STRATA_IC_WARM_MB; kern-hip (2026-11-11): the warm needs the fused CPU combine that deferral turns off, so the arms run without deferral and are compared with the no-deferral arm",
+   "vs": "nodefer"
   },
   {
    "name": "A37-lut-dup",
