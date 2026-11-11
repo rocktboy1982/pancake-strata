@@ -4,7 +4,7 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-11 17:15 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
+Last update: 2026-11-11 17:40 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
 
 ## Current status (2026-11-11): Phase 17, owner priority 1 = TTFT at long context
 
@@ -17,7 +17,7 @@ by day only code is written, the measurements are in the night queue (MOD_PLAN P
 | 17.0 | TTFT harness (`ttft_bench.py`: single prompts 8K-100K, 10-turn session, side requests, sub-agent switch, warm-delta sweep, engine-log attach) and audit (`ttft_audit.py`) | 100% | harness 41 fake-server tests; 0% on a real engine | `dev/p17/ttftbench`, `ttftscen`, `ttftlevers` |
 | 17.0 | Lever analysis: cache misses are the only multi-second loss (warm turns re-read ~1% of the prompt, TTFT ~1 s; a lost 54-62K conversation costs 21-25 s per turn) | analysis | - | `pancake-docs/TTFT_LEVERS.md` |
 | 17.0 | `STRATA_PARK_REWIND_MAX` (skip the park when resuming from the live conversation's own checkpoint) + `STRATA_PARK_DIVERGENCE_LOG` | 100% | `conv_cache_test` PASS, 21 Python tests; 0% on a real engine | `dev/p17/parkrewind` |
-| 17.0 | Prefill levers: chunk plans 32K-128K, equal-tail guard, staged-path floor, long-context fault check (#5539) | in flight | 0% | `dev/p17/prefilllevers` |
+| 17.0 | Prefill levers: chunk plans 32K-128K, equal-tail guard, staged-path floor, long-context fault check (#5539) | in flight (agent working) | 0% | `dev/p17/prefilllevers` |
 | 17.0 | Prefix stability of opencode / Copilot requests (M4): `prefix_check.py` (about 40 divergence kinds, redaction) + opt-in `STRATA_REQUEST_CAPTURE=DIR` | 100% | 28 tests PASS (fake and mock-engine server); no real client captured yet | `dev/p17/prefixcheck` |
 | 17.1 | `STRATA_ROUTE_PRIOR_AUTO` (route prior only in lookup windows, via the F13 gate float) | 100% | unit test PASS; 0% on a real engine | `dev/p17/turbogate` |
 | 17.1 | `STRATA_VERIFY_DEFER_AUTO` (deferral only in lookup windows); finding: deferral turns off six fused paths for the whole process | 100% | `defer_auto_test` 7,171 checks PASS; 0% on a real engine | `dev/p17/defergate` |
