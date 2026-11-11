@@ -1,0 +1,47 @@
+requests 2036 in 25 sessions; summed request time 38,911 s; tokens read 14,300,656
+re-read (read beyond new content; first requests counted whole): 12,666,113 tokens = 4,750 s = 12.2% of request time
+cause                                        steps      tokens        s  % busy
+other (no event in the store)                  169   4,073,454     1528    3.9%
+switch (another session ran between)            63   3,625,383     1360    3.5%
+after a new user message                        45   1,684,513      632    1.6%
+compaction or prune (prompt shrank)             29   1,375,569      516    1.3%
+prompt shrank, no event in the store            36   1,365,335      512    1.3%
+first request of a session                      25     541,859      203    0.5%
+family shared prefixes (estimated): {'Prometheus - Plan Builder': 27916, 'Sisyphus - ultraworker': 0, 'Sisyphus-Junior': 39534, 'build': 10707, 'compaction': 468, 'explore': 18001, 'librarian': 29182, 'strata-coder': 27627}
+
+park model (continuing requests only; base reads 3,787,707 tokens)
+arm           read tokens restore s  saved s  % busy  agreement with the recorded hit/miss
+base            3,787,707        22        0   0.00%  1811/1937
+flags           1,749,377        52      734   1.89%  1784/1937
+flags+disk      1,617,424        60      777   2.00%  1782/1937
+roots           3,080,064        24      264   0.68%  1798/1937
+roots+flags     1,692,279        52      756   1.94%  1783/1937
+pin             5,214,099         1     -513  -1.32%  1836/1937
+pin+flags       5,150,348         2     -490  -1.26%  1835/1937
+pin-newest      4,205,608        17     -151  -0.39%  1818/1937
+pin-last        5,214,099         1     -513  -1.32%  1836/1937
+keep-all        1,617,424        55      781   2.01%  1782/1937
+
+chain micro model, 120K conversation, --prompt-cache 6, grown by agent steps (a turn checkpoint each request): tokens read again per edit
+policy                      random place  tool boundary   last 8K
+lru                              105,524        102,409    30,662
+lru +tool marks                  105,524        102,409    30,662
+flops a=1                         87,727         87,282     7,300
+flops a=1 +tool marks             87,727         87,282     7,300
+flops a=2                         73,253         70,322     9,663
+flops a=1 linear                  85,875         84,245    12,194
+flops a=2 linear                  76,781         74,034     7,522
+spread                            78,506         76,217     7,780
+spread +tool marks                78,506         76,217     7,780
+
+chain micro model, 120K conversation, --prompt-cache 6, after ONE cold read of the whole history: tokens read again per edit
+policy                      random place  tool boundary   last 8K
+lru                               72,780         70,588    11,196
+lru +tool marks                   88,511         87,840     7,911
+flops a=1                         70,937         68,745    11,196
+flops a=1 +tool marks             82,572         81,491     7,911
+flops a=2                         70,937         68,745    11,196
+flops a=1 linear                  70,937         68,745    11,196
+flops a=2 linear                  70,937         68,745    11,196
+spread                            70,937         68,745    11,196
+spread +tool marks                82,572         81,491     7,911

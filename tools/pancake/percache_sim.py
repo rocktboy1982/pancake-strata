@@ -334,13 +334,14 @@ def arm_report(steps, roots, names):
 
 
 # --------------------------------------------------------------------------------------------------- the chain micro model
-def micro(policy, marks, n_final=120000, step_tokens=1500, alpha=1.0, trials=400, seed=1, cold=False):
+def micro(policy, marks, n_final=120000, step_tokens=1500, alpha=1.0, trials=400, seed=1, cold=False, attn=32768.0):
     """One conversation retained under --prompt-cache 6.  cold=False: grown by agent steps (a tool result of `step_tokens`
     + a ~300-token reply each, one turn checkpoint a request).  cold=True: one request reads the whole history from
     the system prompt's end (a re-read after a switch, a prune or an eviction).  `marks`: the A11 checkpoints at tool
     boundaries (tool_checkpoint_marks: >= 1024 tokens past the deepest held point, >= 64 before the next, at most 2 a
     request).  Returns the mean tokens read again for an edit at a uniformly random place, at a random tool-result
-    boundary, and within the last 8K."""
+    boundary, and within the last 8K.  attn: reread_cost's attention scale (conv_cache.hpp; 1e12 = cost linear in tokens,
+    which is what the 11-09 cold reads show: 0.67 ms/token at 3K falling to 0.39 at 60K)."""
     import random
     ROOT = 11000
     chain = [dict(L=ROOT, used=0)]
@@ -348,7 +349,7 @@ def micro(policy, marks, n_final=120000, step_tokens=1500, alpha=1.0, trials=400
     rng = random.Random(seed)
 
     def reread(a, b):
-        return (b - a) * (1.0 + 0.5 * (a + b) / 32768.0)
+        return (b - a) * (1.0 + 0.5 * (a + b) / attn)
 
     def evict():
         while len(chain) > PROMPT_CACHE:
@@ -436,10 +437,12 @@ def micro(policy, marks, n_final=120000, step_tokens=1500, alpha=1.0, trials=400
 
 def micro_table(cold):
     rows = []
-    for pol, marks, alpha in (("lru", False, 0), ("lru", True, 0), ("flops", False, 1.0), ("flops", True, 1.0),
-                              ("flops", True, 2.0), ("spread", False, 0), ("spread", True, 0)):
-        u, t, nr = micro(pol, marks, alpha=alpha, cold=cold)
-        rows.append((f"{pol}{'' if pol != 'flops' else ' a=%g' % alpha}{' +tool marks' if marks else ''}", u, t, nr))
+    for pol, marks, alpha, attn in (("lru", False, 0, 32768.0), ("lru", True, 0, 32768.0), ("flops", False, 1.0, 32768.0),
+                                    ("flops", True, 1.0, 32768.0), ("flops", False, 2.0, 32768.0), ("flops", False, 1.0, 1e12),
+                                    ("flops", False, 2.0, 1e12), ("spread", False, 0, 32768.0), ("spread", True, 0, 32768.0)):
+        u, t, nr = micro(pol, marks, alpha=alpha, cold=cold, attn=attn)
+        name = pol if pol != "flops" else f"flops a={alpha:g}" + (" linear" if attn > 1e9 else "")
+        rows.append((f"{name}{' +tool marks' if marks else ''}", u, t, nr))
     return rows
 
 

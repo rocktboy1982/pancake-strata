@@ -1,0 +1,136 @@
+{
+ "classify": {
+  "busy_s": 38911.313,
+  "input": 14300656,
+  "reread": {
+   "first request of a session": 541859,
+   "other (no event in the store)": 4073454,
+   "prompt shrank, no event in the store": 1365335,
+   "after a new user message": 1684513,
+   "compaction or prune (prompt shrank)": 1375569,
+   "switch (another session ran between)": 3625383
+  },
+  "steps": {
+   "first request of a session": 25,
+   "other (no event in the store)": 169,
+   "prompt shrank, no event in the store": 36,
+   "after a new user message": 45,
+   "compaction or prune (prompt shrank)": 29,
+   "switch (another session ran between)": 63
+  },
+  "sessions": 25,
+  "n": 2036
+ },
+ "arms": {
+  "base": {
+   "read_tokens": 3787707,
+   "restore_s": 22.28937158322315,
+   "first_shrink_read": 3375656,
+   "agree": {
+    "agree": 1811,
+    "n": 1937
+   },
+   "saved_s": 0.0,
+   "saved_pct": 0.0
+  },
+  "flags": {
+   "read_tokens": 1749377,
+   "restore_s": 52.300780654050556,
+   "first_shrink_read": 3297056,
+   "agree": {
+    "agree": 1784,
+    "n": 1937
+   },
+   "saved_s": 734.3623409291725,
+   "saved_pct": 1.8872720664275
+  },
+  "flags+disk": {
+   "read_tokens": 1617424,
+   "restore_s": 59.53651312678818,
+   "first_shrink_read": 3297056,
+   "agree": {
+    "agree": 1782,
+    "n": 1937
+   },
+   "saved_s": 776.608983456435,
+   "saved_pct": 1.9958436855020414
+  },
+  "roots": {
+   "read_tokens": 3080064,
+   "restore_s": 23.99937158322315,
+   "first_shrink_read": 3283016,
+   "agree": {
+    "agree": 1798,
+    "n": 1937
+   },
+   "saved_s": 263.65612500000003,
+   "saved_pct": 0.6775821854173876
+  },
+  "roots+flags": {
+   "read_tokens": 1692279,
+   "restore_s": 52.480780654050555,
+   "first_shrink_read": 3283016,
+   "agree": {
+    "agree": 1783,
+    "n": 1937
+   },
+   "saved_s": 755.5940909291726,
+   "saved_pct": 1.941836532036769
+  },
+  "pin": {
+   "read_tokens": 5214099,
+   "restore_s": 0.7200000000000001,
+   "first_shrink_read": 3441152,
+   "agree": {
+    "agree": 1836,
+    "n": 1937
+   },
+   "saved_s": -513.3276284167769,
+   "saved_pct": -1.3192246389032847
+  },
+  "pin+flags": {
+   "read_tokens": 5150348,
+   "restore_s": 1.6701788960791295,
+   "first_shrink_read": 3455192,
+   "agree": {
+    "agree": 1835,
+    "n": 1937
+   },
+   "saved_s": -490.3711823128559,
+   "saved_pct": -1.2602277962526114
+  },
+  "pin-newest": {
+   "read_tokens": 4205608,
+   "restore_s": 16.60539482843013,
+   "first_shrink_read": 3371444,
+   "agree": {
+    "agree": 1818,
+    "n": 1937
+   },
+   "saved_s": -151.02889824520696,
+   "saved_pct": -0.3881362169536838
+  },
+  "pin-last": {
+   "read_tokens": 5214099,
+   "restore_s": 0.7200000000000001,
+   "first_shrink_read": 3539387,
+   "agree": {
+    "agree": 1836,
+    "n": 1937
+   },
+   "saved_s": -513.3276284167769,
+   "saved_pct": -1.3192246389032847
+  },
+  "keep-all": {
+   "read_tokens": 1617424,
+   "restore_s": 55.41167940939026,
+   "first_shrink_read": 3283016,
+   "agree": {
+    "agree": 1782,
+    "n": 1937
+   },
+   "saved_s": 780.7338171738329,
+   "saved_pct": 2.0064442882557905
+  }
+ }
+}
