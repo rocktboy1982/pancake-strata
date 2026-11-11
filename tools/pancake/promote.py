@@ -37,7 +37,8 @@ Thresholds (constants below; each cites where it comes from):
               is Student-t over runs paired by repetition, Bonferroni over (arms x claim cases).
   no gain     every claim case has an upper bound below MIN_GAIN -> REJECT (abtest's own stop rule: "no effect worth having").
   open        otherwise HOLD, with the number of pairs that would settle it at the observed paired SD, or a note that it is too many.
-  pairs       at least MIN_PAIRS (3) clean pairs per claim case; a run with foreign CPU or memory reclaim noise (abtest's flag) is not clean.
+  pairs       at least MIN_PAIRS (3) clean pairs per claim case; a run with foreign CPU or memory reclaim noise (abtest's flag) is not clean
+              (except in an --outlier robust file, see robust).
   regression  on every case: upper bound below -1% (REGRESS_CI) or point estimate <= -3% (REGRESS_POINT, abtest --tier screen's rule)
               -> HOLD (mixed result: fix it or the owner decides).
   parity      exact item: the generated text hash must equal base on every run (abtest texts) -> else REJECT ("declared exact, text
@@ -51,6 +52,16 @@ Thresholds (constants below; each cites where it comes from):
               (switch_report.py; abtest keeps the log per attempt).  No run logged it -> the arm is VOID: HOLD "switch never acted: the arm
               measured nothing", and nothing else is judged (its numbers, parity and gates measured the base).  Some runs only, or no engine
               log kept (a result from before abtest kept it) -> HOLD.  Exempt: the names in bench/promotion/switch-exempt.json (no log line yet).
+  options     the runs of a comparison must come from abtest runs with the same block / passes / warm-up / outlier options (the `opts` of the
+              jsonl rows; rows without it are the old defaults): block and warm-up passes read a warm engine, an old run reads the first request
+              after a start, which differ by a few % -> HOLD, nothing else judged.
+  robust      an --outlier robust file (abtest.select picks the runs: slow starts run again and left out, outlier passes dropped whole): `clean`
+              only records the proxies there and decides nothing, so no run is held for proxy noise.  What the rule dropped is printed per arm.
+  block       a --block N file: the passes of one engine start share that start's effect, so a start is ONE pair (the mean of its passes, t with
+              starts - 1 degrees of freedom) and MIN_PAIRS starts per arm are needed: run with reps >= 3 x N (abtest runs max(2, ceil(reps / N))
+              starts per arm, so --block 3 --reps 6 gives 2 pairs and always HOLDs).  abtest's own summary counts every pass as a pair and widens
+              its interval by the design effect; promote.py does not: on the simulated noise of this box that reading promotes a true 0% item
+              1-7% of the time (35 of 64 cells above 1%), this one 0.9% at most (block_reading_sim.py, pancake-docs/batch5/promote-block.md).
   tier        a comparison whose arms ran on different tiers (arena vs mmap differ by ~8%) -> HOLD, nothing else judged.  The tier is the
               `tier` field of the abtest jsonl rows; rows without it (before abtest recorded it) are unknown: one warning, no check.
   --noise     per case: base CV, paired SD per arm, and the pairs needed to see a 1% / 3% gain, from existing abtest jsonl files.
@@ -77,6 +88,8 @@ STOCK_SPREAD = 0.5                   # points: token forcing's rate-rule margin
 HEX = re.compile(r"[0-9a-f]{7,40}")
 NAME = re.compile(r"[A-Za-z0-9._/+-]+")
 ORDER = ["REJECT", "HOLD", "PROMOTE"]   # worst first
+OLD_MODE = {"block": 0, "passes": 1, "warmup": 0, "outlier": "gate"}   # the abtest options that change what a row measures: their values in
+                                                                       # a row written before abtest recorded `opts` (the old default run)
 
 
 # ------------------------------------------------------------------------------------------------ statistics
@@ -147,24 +160,44 @@ def fmt(g, unit="%"):
 
 
 # ------------------------------------------------------------------------------------------------ readers
-def read_runs(path):
-    """abtest jsonl -> ({arm: {rep: record}}, discarded, problems): the record abtest used per (arm, rep) = the first clean
-    attempt, else the quietest (tools/pancake/abtest.py main)."""
-    attempts, problems = {}, []
+def read_records(path):
+    """abtest jsonl -> ([attempt record in file order], problems).  An attempt that appears twice (a rerun appended to the file) counts once, the later."""
+    by_key, problems = {}, []
     for line in Path(path).read_text().splitlines():
         if line.strip():
             r = json.loads(line)
-            slot = attempts.setdefault((r["arm"], r["rep"]), {})
-            if r["attempt"] in slot:
+            key = (r["arm"], r["rep"], r["attempt"])
+            if key in by_key:
                 problems.append(f"{r['arm']} rep {r['rep']} attempt {r['attempt']} appears twice (a rerun was appended to the file)")
-            slot[r["attempt"]] = r
-    runs, discarded = {}, 0
-    for (arm, rep), slot in attempts.items():
-        recs = [slot[k] for k in sorted(slot)]
-        used = next((r for r in recs if r["clean"]), None) or min(recs, key=lambda r: r["noise"])
-        runs.setdefault(arm, {})[rep] = used
-        discarded += len(recs) - 1
-    return runs, discarded, problems
+            by_key[key] = r
+    return list(by_key.values()), problems
+
+
+def select_runs(records):
+    """The attempts abtest's own summary uses (abtest.select, by the --outlier mode of the run) -> ({arm: {rep: record}}, dropped), where dropped
+    lists what the robust rule left out (slow starts: "pass" None; outlier passes)."""
+    used, dropped = abtest.select(records)
+    return {arm: {r["rep"]: r for r in recs} for arm, recs in used.items()}, dropped
+
+
+def read_runs(path):
+    """abtest jsonl -> ({arm: {rep: record}}, attempts not used, problems)."""
+    records, problems = read_records(path)
+    runs, _ = select_runs(records)
+    return runs, len(records) - sum(len(v) for v in runs.values()), problems
+
+
+def regime(rec):
+    """The abtest options of a record that change what its rows measure (OLD_MODE values for a row without opts)."""
+    opts = rec.get("opts") or {}
+    return {k: opts.get(k, v) for k, v in OLD_MODE.items()}
+
+
+def drops_text(dropped, arms):
+    """What the robust rule left out of the given arms: 'all3 slow starts 1, outlier passes 0; base ...'."""
+    by = {arm: [sum(d["arm"] == arm and d["pass"] is None for d in dropped), sum(d["arm"] == arm and d["pass"] is not None for d in dropped)]
+          for arm in arms}
+    return "; ".join(f"{arm} slow starts {s}, outlier passes {p}" for arm, (s, p) in by.items())
 
 
 def case_value(rec, case):
@@ -216,8 +249,11 @@ class Arm:
         return "REJECT" if self.reject else "HOLD" if self.hold else "PROMOTE"
 
 
-def settle_gain(a, labelled, claim, need, min_pairs, alpha, unit="%"):
-    """labelled: {label: gain_ci dict}.  Records the gain finding on arm a from the claim labels, the regressions from all."""
+def settle_gain(a, labelled, claim, need, min_pairs, alpha, unit="%", passes=1):
+    """labelled: {label: gain_ci dict}.  Records the gain finding on arm a from the claim labels, the regressions from all.
+    passes: passes per engine start of a --block run (1 otherwise): a pair is a start there, which the messages say."""
+    pair = "pairs" if passes == 1 else f"pairs (engine starts of {passes} passes)"
+    reps_for = lambda n: "" if passes == 1 else f"; run with reps >= {n} x {passes}"   # abtest: max(2, ceil(reps / passes)) starts per arm
     for label, g in labelled.items():
         a.lines.append(f"{'claim ' if label in claim else 'other '} {label:14s} {fmt(g, unit)}")
         if g["n"] >= 2 and (g["hi"] < -REGRESS_CI or g["gain"] <= -REGRESS_POINT):
@@ -227,7 +263,7 @@ def settle_gain(a, labelled, claim, need, min_pairs, alpha, unit="%"):
     a.gain = max((g["lo"] for g in cl.values()), default=-math.inf)
     if not cl:
         have = ", ".join(f"{k} n={labelled[k]['n']}" for k in claim if k in labelled) or "no runs"
-        a.hold.append(f"fewer than {min_pairs} clean pairs on every claim case ({have})")
+        a.hold.append(f"fewer than {min_pairs} clean {pair} on every claim case ({have}){reps_for(min_pairs)}")
     elif any(g["lo"] >= need for g in cl.values()):
         a.lines.append(f"gain   lower bound >= {need:g}{unit}: shown")
     elif all(g["hi"] < need for g in cl.values()):
@@ -240,7 +276,7 @@ def settle_gain(a, labelled, claim, need, min_pairs, alpha, unit="%"):
             todo = "more tasks or repetitions"
         else:
             n = pairs_needed(g["sd"], far, alpha) if far > 0 else None
-            todo = (f"about {n} pairs would settle it at the observed paired SD {g['sd']:.1f}{unit}" if n else
+            todo = (f"about {n} {pair} would settle it at the observed paired SD {g['sd']:.1f}{unit}{reps_for(n)}" if n else
                     f"more than 200 pairs at the observed paired SD {g['sd']:.1f}{unit}: too close to the threshold, the noise is too high, or both")
         a.hold.append(f"gain open on {k}: {fmt(g, unit)} straddles {need:g}{unit}; {todo}")
 
@@ -369,6 +405,17 @@ def judge_tiers(a, runs, names, file):
     return False
 
 
+def judge_options(a, runs, names):
+    """Every run the comparison uses (the arms in names) must come from one measurement regime (OLD_MODE keys).  True when not."""
+    seen = {k: {n: sorted({str(regime(r)[k]) for r in runs[n].values()}) for n in names} for k in OLD_MODE}
+    bad = [k for k, per in seen.items() if len({v for vs in per.values() for v in vs}) > 1]
+    if bad:
+        a.hold.append("abtest options differ between the runs compared (" + "; ".join(
+            f"{k}: " + ", ".join(f"{n} {'/'.join(vs)}" for n, vs in seen[k].items()) for k in bad)
+            + "): block and warm-up passes read a warm engine, an old run the first request after a start: run both arms in one abtest run")
+    return bool(bad)
+
+
 def judge_switches(a, spec, runs, found, arm, exempt):
     """Every switch the arm turns on must have logged "acted" (switch_report.py).  True when one never did: the arm is VOID."""
     logs = [sw.read_log(found["runs"].with_suffix(""), arm, rec["rep"], rec["attempt"]) for rec in runs[arm].values()]
@@ -398,21 +445,29 @@ def judge_arm(item, spec, found, arm, need, min_pairs, m, exempt=None):
     alpha = ALPHA / m
     decides = item.get("decides", "abtest")
     gates = item.get("gates", ["task_gate"] if decides == "taskgate" else [] if item["exact"] else ["token_forcing", "task_gate"])
-    runs = None
+    runs, robust, passes = None, False, 1
+    names = sorted({base, ref, arm})
     if found["runs"]:
-        runs, discarded, problems = read_runs(found["runs"])
+        records, problems = read_records(found["runs"])
+        runs, dropped = select_runs(records)
         a.hold += problems
-        missing = [x for x in {base, ref, arm} if x not in runs]
+        missing = [x for x in names if x not in runs]
         if missing:
-            a.hold.append(f"no abtest runs of {', '.join(sorted(missing))} in {found['runs'].name}")
+            a.hold.append(f"no abtest runs of {', '.join(missing)} in {found['runs'].name}")
             runs = None
-        elif discarded:
-            a.lines.append(f"abtest   {discarded} noisy attempts were discarded and repeated")
-    if runs is not None:   # an arm that measured nothing, or a comparison across tiers, has no numbers worth judging
-        invalid = [judge_tiers(a, runs, sorted({base, ref, arm}), found["runs"].name),
+        else:
+            robust = {regime(r)["outlier"] for rs in runs.values() for r in rs.values()} == {"robust"}
+            discarded = len(records) - sum(len(rs) for rs in runs.values())
+            if robust:   # abtest.select ran the outlier rule: no attempt was repeated for its proxies, slow starts were
+                a.lines.append("abtest   outlier rule robust, left out: " + drops_text(dropped, names))
+            elif discarded:
+                a.lines.append(f"abtest   {discarded} noisy attempts were discarded and repeated")
+    if runs is not None:   # an arm that measured nothing, or a comparison across tiers or options, has no numbers worth judging
+        invalid = [judge_options(a, runs, names), judge_tiers(a, runs, names, found["runs"].name),
                    judge_switches(a, spec, runs, found, arm, exempt or {})]
         if any(invalid):
             return a
+        passes = regime(next(iter(runs[arm].values())))["passes"]
     if decides == "abtest":
         if runs is None:
             a.hold.append("no abtest result" if not found["runs"] else "abtest result incomplete")
@@ -422,8 +477,11 @@ def judge_arm(item, spec, found, arm, need, min_pairs, m, exempt=None):
                 pairs = case_pairs(runs[ref], runs[arm], c)
                 if pairs:
                     labelled[c] = gain_ci(pairs, alpha if c in claim else ALPHA)
-            settle_gain(a, labelled, claim, need, min_pairs, alpha)
-            noisy_runs(a, list(runs[ref].values()) + list(runs[arm].values()))
+            if passes > 1:   # the passes of a start share its effect: the start is the pair
+                a.lines.append(f"block  {passes} passes per engine start: a start is one pair (the mean of its passes), t over starts - 1")
+            settle_gain(a, labelled, claim, need, min_pairs, alpha, passes=passes)
+            if not robust:   # a robust file's `clean` records the proxies only: its rule judges the runs by their figures
+                noisy_runs(a, list(runs[ref].values()) + list(runs[arm].values()))
     elif decides == "replay":
         rbase, rruns = read_replay(found["replay"]) if found["replay"] else (None, {})
         rbase = item.get("vs", rbase)
@@ -576,7 +634,10 @@ def noise_report(paths):
         runs, _, _ = read_runs(p)
         base = json.loads(Path(p).read_text().splitlines()[0])["arm"]   # the reference arm runs first in rep 0
         cases = sorted({r["case"] for rs in runs.values() for rec in rs.values() for r in rec["rows"]})
-        out.append(Path(p).name)
+        passes = regime(next(iter(runs[base].values())))["passes"] if base in runs else 1   # (a robust file can leave an arm with no start)
+        out.append(Path(p).name + (f"  (block of {passes} passes per start: n counts engine starts)" if passes > 1 else ""))
+        if base not in runs:
+            continue
         for c in cases:
             bv = [case_value(rec, c) for rec in runs[base].values()]
             bv = [v for v in bv if v is not None]
