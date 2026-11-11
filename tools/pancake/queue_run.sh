@@ -43,7 +43,9 @@ export STRATA_RAM_KEEP_GIB=${STRATA_RAM_KEEP_GIB:-20}
 PYTHON=${PYTHON:-.venv/bin/python}
 ABTEST=${ABTEST:-tools/pancake/abtest.py}
 DROP_CACHE=${DROP_CACHE:-tools/pancake/drop_cache.py}
-BUSY=${BUSY_PATTERN:-"tools/pancake/abtest.py|restore_check.py|bin/strata "}   # a process matching this stops the queue
+# a process matching this stops the queue.  Anchored to a real python / engine process: a bare substring also matched any shell whose
+# command line merely MENTIONS abtest.py (a `until ! pgrep -f abtest.py` watcher matched itself and blocked the queue forever)
+BUSY=${BUSY_PATTERN:-"^[^ ]*python[0-9.]* ([^ ]+ )*[^ ]*tools/pancake/(abtest|restore_check)\.py( |$)|^[^ ]*/build-hip/strata( |$)"}
 avail() { awk '/MemAvailable/{print int($2/1048576)}' /proc/meminfo; }
 say() { echo "[$(date +%H:%M)] $*" | tee -a "$OUT/queue.log"; }
 in_window() {   # true when the local hour is in the window HH-HH

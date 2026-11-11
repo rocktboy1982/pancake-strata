@@ -162,13 +162,22 @@ expect "...and its line is in the summary" grep -q '^a exit=0 ' "$T/out11/queue.
 
 echo "== a running test or engine stops the queue"
 reset
-bash -c 'sleep 60; :' _ tools/pancake/abtest.py &
+python3 -c 'import time; time.sleep(60)' tools/pancake/abtest.py &   # a real python process running abtest.py
 busy=$!
+# and a shell that only MENTIONS abtest.py must NOT block the queue (the watcher that blocked it on 2026-11-11)
+bash -c 'sleep 60; :' _ tools/pancake/abtest.py &
+mention=$!
 sleep 1
 expect_rc 3 "another abtest running (default pattern): exit 3" env -u BUSY_PATTERN PYTHON=python3 \
   ABTEST="$T/fake_abtest.py" MIN_GIB=0 "$QR" "$T/out12" "$S/a.json"
 kill "$busy" 2>/dev/null; busy=""
 expect "...and nothing was started" test "$(calls)" = 0
+echo "== a shell that only mentions abtest.py does not stop the queue"
+reset
+expect_rc 0 "mention-only shell: the queue runs (default pattern)" env -u BUSY_PATTERN PYTHON=python3 \
+  ABTEST="$T/fake_abtest.py" MIN_GIB=0 "$QR" "$T/out13" "$S/a.json"
+expect "...and the spec was started" test "$(calls)" = 1
+kill "$mention" 2>/dev/null; mention=""
 
 echo "== capped.sh (dry run: no wait, no start)"
 line=$(STRATA_RAM_KEEP_GIB=20 timeout 20 "$CAPPED" -n true 2>&1 | head -1)
