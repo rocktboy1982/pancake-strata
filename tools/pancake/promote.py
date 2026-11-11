@@ -425,6 +425,8 @@ def validate(item, root):
         raise ValueError(f"item {item['name']}: exact must be true/false, branch a branch name, commits hex hashes")
     spec = json.loads((root / item["spec"]).read_text())
     arms = list(spec["arms"])
+    if not item.get("arms") and len(arms) < 2:
+        raise ValueError(f"item {item['name']}: {item['spec']} has only the reference arm, nothing to judge")
     if "vs" in item and item["vs"] not in arms:
         raise ValueError(f"item {item['name']}: vs {item['vs']!r} is not an arm of {item['spec']}")
     for k in item.get("arms", []):

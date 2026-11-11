@@ -438,7 +438,8 @@ def test_malformed_items_are_refused_before_anything_is_printed():
         w.runs("s", GOOD)
         spec = w.spec("s")
         for bad in (item(spec, commits=["abc1234; rm -rf ~"]), item(spec, branch="x y"), item(spec, exact="yes"), item(spec, arms=["nope"]),
-                    item(spec, claim=["long"]), item(spec, vs="nope"), {"name": "n", "spec": spec}):
+                    item(spec, claim=["long"]), item(spec, vs="nope"), {"name": "n", "spec": spec},
+                    item(w.spec("only-base", arms=("base",)))):
             try:
                 P.evaluate(bad, w.root)
             except ValueError:
