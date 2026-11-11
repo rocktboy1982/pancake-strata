@@ -61,20 +61,24 @@ def fake_abtest(tps):
 
 
 def test_main_stores_first_run_compares_later_ones_and_refuses_empty_runs():
-    with tempfile.TemporaryDirectory() as d:
-        root = Path(d)
-        rw.ROOT, rw.GOOD, rw.HISTORY = root, root / "good.json", root / "history.jsonl"
-        steady = [run_record(True, 100 + i, 120 - i, 900 + i) for i in range(4)]
-        rw.subprocess.run = fake_abtest(steady)
-        assert rw.main(["--accept"]) == 0 and rw.GOOD.exists()                    # the first run stores itself
-        assert rw.main([]) == 0                                                     # the same numbers again
-        slow = [run_record(True, 70 + i, 120 - i, 900 + i) for i in range(4)]      # short -30%
-        rw.subprocess.run = fake_abtest(slow)
-        assert rw.main([]) == 1
-        before = rw.GOOD.read_text()
-        rw.subprocess.run = fake_abtest([run_record(False, 1, 1, 1)])
-        assert rw.main(["--accept"]) == 2 and rw.GOOD.read_text() == before         # no clean data: nothing compared or stored
-        assert len(rw.HISTORY.read_text().splitlines()) == 3                         # the empty run is not recorded
+    saved = rw.ROOT, rw.GOOD, rw.HISTORY, rw.subprocess.run   # subprocess is the shared module: put it back
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            rw.ROOT, rw.GOOD, rw.HISTORY = root, root / "good.json", root / "history.jsonl"
+            steady = [run_record(True, 100 + i, 120 - i, 900 + i) for i in range(4)]
+            rw.subprocess.run = fake_abtest(steady)
+            assert rw.main(["--accept"]) == 0 and rw.GOOD.exists()                    # the first run stores itself
+            assert rw.main([]) == 0                                                     # the same numbers again
+            slow = [run_record(True, 70 + i, 120 - i, 900 + i) for i in range(4)]      # short -30%
+            rw.subprocess.run = fake_abtest(slow)
+            assert rw.main([]) == 1
+            before = rw.GOOD.read_text()
+            rw.subprocess.run = fake_abtest([run_record(False, 1, 1, 1)])
+            assert rw.main(["--accept"]) == 2 and rw.GOOD.read_text() == before         # no clean data: nothing compared or stored
+            assert len(rw.HISTORY.read_text().splitlines()) == 3                         # the empty run is not recorded
+    finally:
+        rw.ROOT, rw.GOOD, rw.HISTORY, rw.subprocess.run = saved
 
 
 if __name__ == "__main__":
