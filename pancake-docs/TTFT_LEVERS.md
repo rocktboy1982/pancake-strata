@@ -336,6 +336,7 @@ Ranked by expected seconds saved per 10-call workflow (size of the effect x how 
   prompts for its incremental tokenizer and sees the generated ids [code]). Without it, lever 3 is guessing.
 - **M4, two consecutive request bodies from opencode and from Copilot** (OpenAI endpoint): does the client resend
   `reasoning_content`, the tool calls as sent, a byte-stable system prompt and tool list?
+  Tooling written (not yet run on a real client): `tools/pancake/prefix_check.py`, `STRATA_REQUEST_CAPTURE`, `pancake-docs/PREFIX_CHECK.md`.
 - **M5, the warm-delta sweep for lever 4**: 100 / 300 / 1,000 / 3,000 new tokens at 32K and 64K depth, with
   `STRATA_PREFILL_TIMING=1`, share 0.6 vs `auto`.
 
