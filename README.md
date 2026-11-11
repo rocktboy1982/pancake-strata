@@ -149,6 +149,42 @@ item can be promoted. Details: `MOD_PLAN.md` (Phase 16), `bench/TEST_PLAN.md`, `
 thresholds on a cumulative gate score and its r = 0.99 is inflated because the weight sits on both sides; Athena (A44) is a state-aware SARSA agent, our A44 is the
 paper's stateless baseline; ProMoE's 1.09x is a llama.cpp number on an RTX 4090 over PCIe 4.0 where misses block, not ours (CPU-computed misses).
 
+### Table 2E: Speed gains at a glance (2026-11-11)
+
+One ledger of every speed result, each with how it was measured. Decode tok/s on the RX 7900 XT, Flash-Next IQ2_XS, greedy; "edit" is a ~2K-token
+code-edit prompt, "short" a chat. Gains with an interval are paired A/B runs on a quiet machine; the rest are single comparisons and say so.
+
+**In the preset today (measured):**
+
+| Change | Gain | How measured | Preset |
+| --- | --- | --- | --- |
+| Expert deferral (`STRATA_VERIFY_DEFER_CPU`, A3) | edit **+15.8% +-3.9**, short no difference | test phase 2026-11-10, token forcing PASS | fast-hip |
+| Draft window 12 (`--lookup-max-t 12`) | edit **+8.8%** (confirm), +10-12% in the screen | tests 05 / 05c | fast-hip |
+| `STRATA_POOL_FUSE_PHASES` (one CPU pool phase per layer) | edit **+2.5% +-1.7** | test phase, PASS | fast-hip |
+| `STRATA_EXPDEC_DOWN` (Q2_0 down on the EXPDEC kernel) | short **+1.7% +-0.5** | test phase, PASS | fast-hip |
+| Matching hipBLASLt table (100401) | prompt reading **+38%** (provisional: other work ran on the machine) | Avalon report, test 09 | 7900 XT presets (the descriptor cache: no gain, stays on) |
+| Learned expert profile | **+6.7%** decode (older engine, no deferral); +5.4% modeled on the bench trace, mostly a cold-start gain | profile training run, offline model | IQ2_XS presets |
+| GPU router look-ahead | **+10%** decode on mmap'd experts, same picks, CPU cost 30 -> 0.6 ms per window | engine A/B | on by default on the GPU |
+| Opt-in `turbo-hip` (lossy cache-aware routing) | **149-168 tok/s**, 2.9% of tokens differ from exact decoding (stock noise 1.2-1.3%) | quality gate | opt-in |
+| BFLA fused dense prompt attention (`feat/bfla-hip`) | 128K prompt **386.9 -> 771.2 tok/s (2.0x)**, exact; sparse adds 1.58x (lossy) | stage bench, end to end | branch, opt-in |
+
+Against stock Strata (upstream 146df3c46, same IQ2_XS file, both on the mmap tier): decode **54.5 -> 69.2 tok/s (+27%)** and a 5.3K-token edit prompt
+**23.3 -> 11.0 s**; with the RAM arena 75.5 tok/s (docs/PANCAKE_FINDINGS.md 10f).
+
+**Phase 16 (2026-11-11): measured, and not a speed gain yet.** Every small kernel and policy item that was coded in the Phase 16 round was tested on the same card:
+`STRATA_WAIT_COPY256`, `STRATA_ROUTE_FAST` and `STRATA_EXPDEC_SWIGLU` (n = 6 confirm: short +0.6% [-1.6, +2.8], edit +1.1% [-4.7, +6.9]; the +2% in the
+2-run screen was noise), the A4 rank guard and its fold (nothing once deferral is on). They stay on the development branches. Reading their results correctly
+needed new tooling: a 45-minute spec is 20-30 engine starts of about two minutes each, 13 s of which is measurement, and the quiet-machine gate discarded 48% of the
+attempts although the discarded ones decoded as fast as the kept ones; a gain below about 3% cannot be settled by an end-to-end run in a night, which is why
+`tools/pancake/kernel_gate.py` decides kernels from microbenchmarks first.
+
+**Candidates still to be measured** (none counted until a night run confirms it): the A8 swap budget (`--adapt-swaps 64|128`: modeled +12% on edits, the n = 2 screen
+looked positive, the confirm run was invalid because agents were compiling and is rerun at night); the conversation-cache flags `--conversation-cache-mib 2048
+--conversation-cache-min-tokens 8192` (+1.89% of request time modeled on the real opencode history); the fast Q2_0 AVX2 kernel (`STRATA_Q2_FAST`: 1.17-1.47x per
+row on one thread, but at one token per expert the 6-core pool is already DDR4-bound, so at most about 22% of CPU-expert time); flat weight loads
+(`STRATA_HIP_GLOBAL_WEIGHTS`, builds, not yet timed); the Q2_0 file with the four adopted items (`flashnext-q2_0-fast-hip-adopted.json`, earlier screen: short +8.6%, edit +4.5%);
+a stack of seven exact switches in one run (`bench/specs/26-stack-small-exact.json`); the full RAM arena (about 8% over the mmap tier) once memory is defragmented.
+
 ## 3. Research on Open-Source Projects & Forks (What We Took as Code or Idea, and Licenses)
 
 Before writing a line we surveyed the whole Strata fork ecosystem and the major open-source inference engines. The
