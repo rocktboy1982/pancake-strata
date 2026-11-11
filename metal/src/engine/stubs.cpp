@@ -309,7 +309,7 @@ namespace strata::kernels { void resident_plan(const int32_t * p0, int p1, int p
 namespace strata::kernels { void rms_norm_weighted(float * p0, const float * p1, int64_t p2, int64_t p3, float p4, void * p5) { strata::metal_engine::missing("strata::kernels::rms_norm_weighted"); } }
 namespace strata::kernels { void rope_neox_apply(const float * p0, float * p1, int64_t p2, int p3, int p4, const float * p5, const float * p6, const int * p7, void * p8) { strata::metal_engine::missing("strata::kernels::rope_neox_apply"); } }
 namespace strata::kernels { void route_prior_configure(const float * p0, int p1, float p2) { strata::metal_engine::missing("strata::kernels::route_prior_configure"); } }
-namespace strata::kernels { void route_prior_top10(const float * p0, const int32_t * p1, float p2, int32_t * p3, float * p4, int p5, void * p6) { strata::metal_engine::missing("strata::kernels::route_prior_top10"); } }
+namespace strata::kernels { void route_prior_top10(const float * p0, const int32_t * p1, float p2, int32_t * p3, float * p4, int p5, void * p6, float p7, int p8) { strata::metal_engine::missing("strata::kernels::route_prior_top10"); } }
 namespace strata::kernels { void router_top10(const float * p0, int p1, int p2, int p3, int * p4, float * p5, void * p6) { strata::metal_engine::missing("strata::kernels::router_top10"); } }
 namespace strata::kernels { void row_top_prob(const float * p0, int p1, int p2, const int32_t * p3, float * p4, void * p5) { strata::metal_engine::missing("strata::kernels::row_top_prob"); } }
 namespace strata::kernels { void row_top_prob_split(const float * p0, int p1, int p2, const int32_t * p3, float * p4, void * p5, void * p6) { strata::metal_engine::missing("strata::kernels::row_top_prob_split"); } }
