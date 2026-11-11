@@ -62,6 +62,7 @@
 #include "strata/core/remote_experts.hpp"
 #include "strata/core/on_device.hpp"
 #include "strata/core/peer_experts.hpp"
+#include "strata/core/kv_ring.hpp"
 #include "strata/core/layer.hpp"
 #include "strata/core/layout.hpp"
 #include "strata/core/session.hpp"
@@ -1082,6 +1083,8 @@ void usage() {
                  "  --kv-resident N      KV streaming: keep N cells of each QSA layer in VRAM (min 20480) and the\n"
                  "                       whole K/V in pinned RAM; the freed VRAM goes to expert slots. 0 (default):\n"
                  "                       all of it in VRAM. A context of N cells or fewer is not streamed\n"
+                 "                       STRATA_KV_RING_ADAPT=1 (opt-in) makes N a cap: a ring of 32768 cells, N only when\n"
+                 "                       the context is 2 x N cells or more\n"
                  "  --kv-grow            the K/V takes VRAM only for the cells the requests reach and the expert\n"
                  "                       cache holds the rest, giving slots back as the context grows (one GPU, with\n"
                  "                       --expert-profile; STRATA_KV_GROW=1/0 also). Default: the whole --max-context\n"
@@ -4637,6 +4640,23 @@ int main(int argc, char** argv) {
     if (o.kv_resident < 0) {
         std::fprintf(stderr, "strata generate: --kv-resident must be >= 0\n");
         return 2;
+    }
+    // STRATA_KV_RING_ADAPT=1 (opt-in; unset, empty or 0 changes nothing): --kv-resident is a CAP and the ring is sized from this
+    // run's depth (strata/core/kv_ring.hpp: the floor 32768, the cap only from 2 x cap cells; upstream PR #3919, xyzzing).  It
+    // runs here, before the layer-split search, the session arena (the K/V pool is sized by its slot count) and the graph capture
+    // read o.kv_resident, and it overwrites o.kv_resident with the ring so every later user (the split gate, the saved
+    // conversation config, the INFO line) sees the ring that is really allocated.  The depth: a --serve process has no CLI prompt
+    // and its sessions live for the whole process, so there it is --max-context; generate takes prompt + the tokens it may produce.
+    if (strata::core::kv_ring_adapt_enabled(std::getenv("STRATA_KV_RING_ADAPT")) && o.kv_resident > 0) {
+        const int64_t depth = o.serve ? o.max_context : (int64_t) o.tokens.size() + o.max_new;
+        const int64_t ring_floor = std::max<int64_t>(strata::core::qsa_kv_resident_min(), strata::core::kKvRingFloorCells);
+        const int64_t ring = strata::core::kv_ring_adapt(true, o.kv_resident, ring_floor, depth);
+        char depth_desc[64];
+        if (o.serve) std::snprintf(depth_desc, sizeof depth_desc, "serve --max-context %lld", (long long) o.max_context);
+        else std::snprintf(depth_desc, sizeof depth_desc, "prompt %zu + %lld new", o.tokens.size(), (long long) o.max_new);
+        std::fprintf(stderr, "strata generate: KV ring adaptive: cap %lld, floor %lld, %s -> ring %lld cells\n",
+                     (long long) o.kv_resident, (long long) ring_floor, depth_desc, (long long) ring);
+        o.kv_resident = ring;
     }
     strata::core::qsa_set_kv_resident(o.kv_resident);
     // Prompt lookup (the suffix drafter, on by default): the MTP keeps its --spec windows and a lookup window may be
