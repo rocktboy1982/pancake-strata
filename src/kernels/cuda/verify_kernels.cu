@@ -7,6 +7,7 @@
 #include "strata/core/geometry.hpp"
 #include "strata/core/emulate.hpp"
 #include "strata/core/sm120_series.hpp"
+#include "strata/core/switch_report.hpp"
 #define STRATA_Q81_FASTMATH_DIV 1   // #3948: the q8_1 stores divide as native_mmvq.cu (--use_fast_math) does, see q8_1_finite.hpp
 #include "strata/kernels/q8_1_finite.hpp"   // #606: q8_1_ds
 #include "strata/kernels/window_start.hpp"  // KVA: the draft layer's window floor
@@ -1796,12 +1797,12 @@ __global__ void wait_copy_i32_wide_kernel(const volatile uint32_t* flag, uint32_
 bool wait_copy_wide(int64_t n) {
     static const bool on = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
     const bool wide = on && n > 512;
-    // once: the log proves the arm acted (an invisible switch is how the copy256 arms of specs 18/23 measured nothing)
-    static bool said = false;
-    if (wide && !said) {
-        said = true;
-        std::fprintf(stderr, "strata: STRATA_WAIT_COPY256 on: plans of %lld words use the 256-thread wide copy\n", (long long) n);
-    }
+    // the log proves the arm acted (an invisible switch is how the copy256 arms of specs 18/23 measured nothing)
+    if (wide)
+        switch_report::acted(switch_report::wait_copy256, "plans of %lld words use the 256-thread wide copy", (long long) n);
+    else if (on)
+        switch_report::will_not_act(switch_report::wait_copy256, "a plan of %lld words (it takes plans of more than 512)",
+                                    (long long) n);
     return wide;
 }
 }  // namespace
