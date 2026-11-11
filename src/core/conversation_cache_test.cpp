@@ -1077,9 +1077,10 @@ int main() {
                   "slots only: the shortest held entry goes (the oldest of the equal ones), the main agent stays");
         }
 
-        // property: random states of held entries (rank 3) and a random incoming image; whenever one entry covers the byte shortfall,
-        // the rule evicts exactly one entry and never more than the rule off (oldest-first) does for the same state and image.  Both
-        // always make the room (nothing is pinned) and stay within the budget.
+        // property: random sequences of held entries (rank 3: each ends in a tool call and is parked well inside the hold).  Before
+        // every put the same cache with the rule off (oldest-first) gets the same image: whenever one parked entry covers the byte
+        // shortfall, the rule evicts exactly one entry and never more than the rule off; with no byte shortfall both evict the same
+        // number (the one a full set of slots needs, or none).  Both always make the room (nothing is pinned) within the budget.
         {
             uint64_t rng = 0x9e3779b97f4a7c15ull;
             auto rnd = [&](uint64_t n) {   // splitmix64, [0, n)
@@ -1090,49 +1091,45 @@ int main() {
                 return (z ^ (z >> 31)) % n;
             };
             int covered = 0, uncovered = 0, slot_only = 0;
-            for (int trial = 0; trial < 3000; ++trial) {
-                const size_t budget = 20000 + rnd(200000), slots = 2 + rnd(9);
+            for (int trial = 0; trial < 1000; ++trial) {
+                const size_t budget = 20000 + rnd(200000), slots = 2 + rnd(9), n = 2 + rnd(2 * slots);
                 now = 0;
                 ConversationCache on_c(budget, slots);
                 on_c.set_park_ttl(ttl, tool, [&] { return now; });
-                const size_t n = 1 + rnd(slots);
-                std::vector<std::pair<std::vector<int32_t>, size_t>> parked;   // every image put, and its bytes
+                std::vector<std::pair<std::vector<int32_t>, size_t>> put_so_far;   // every image put, and its bytes
                 for (size_t k = 0; k < n; ++k) {
                     std::vector<int32_t> ids{1, 2, 3, 4};
                     const size_t len = 1 + rnd(40);
-                    for (size_t t = 0; t < len; ++t) ids.push_back(1000 * (int32_t) trial + 100 * (int32_t) k + (int32_t) t + 5);
-                    ids.push_back(99);   // every entry ends in a tool call: all held (rank 3)
-                    SavedConversation s = img(ids);
-                    s.live.gdn.resize(64 + rnd(budget / 2), 7);
-                    parked.emplace_back(ids, s.bytes());
-                    on_c.put(std::move(s));
+                    for (size_t t = 0; t < len; ++t) ids.push_back(1000 * (int32_t) trial + 50 * (int32_t) k + (int32_t) t + 5);
+                    ids.push_back(99);
+                    SavedConversation s;   // exact capacities: a copy of the cache (the rule-off twin) sees the same bytes()
+                    s.live.ids = ids;
+                    s.live.gdn.assign(64 + rnd(budget), 7);
+                    const size_t in_bytes = s.bytes();
+                    if (in_bytes > budget) continue;
+                    const size_t limit = budget - in_bytes;
+                    const size_t shortfall = on_c.bytes() > limit ? on_c.bytes() - limit : 0;
+                    bool one_covers = false;   // an entry still parked that frees the shortfall by itself
+                    for (const auto& [p_ids, p_bytes] : put_so_far)
+                        if (shortfall > 0 && p_bytes >= shortfall && on_c.holds(p_ids, {}, true)) one_covers = true;
+                    ConversationCache off_c = on_c;   // the same state, the rule off
+                    off_c.set_park_ttl(ConversationCache::ParkTtl{});
+                    const size_t e_on = on_c.evictions(), e_off = off_c.evictions();
+                    SavedConversation s_copy = s;
+                    check(on_c.put(std::move(s)) && off_c.put(std::move(s_copy)), "property: both park the image (nothing pinned)");
+                    check(on_c.bytes() <= budget && off_c.bytes() <= budget && on_c.size() <= slots, "property: both stay within the budget");
+                    const size_t d_on = on_c.evictions() - e_on, d_off = off_c.evictions() - e_off;
+                    if (shortfall > 0 && one_covers) {
+                        ++covered;
+                        check(d_on == 1 && d_on <= d_off, "property: one entry covers the shortfall: exactly one eviction, never more than oldest-first");
+                    } else if (shortfall == 0) {
+                        ++slot_only;
+                        check(d_on == d_off && d_on <= 1, "property: no byte shortfall: the same evictions as the rule off (one for a full set of slots, or none)");
+                    } else {
+                        ++uncovered;
+                    }
+                    put_so_far.emplace_back(ids, in_bytes);
                     now += 1 + (int64_t) rnd(5);   // well inside the 500 ms hold
-                }
-                ConversationCache off_c = on_c;   // the same state, the rule off
-                off_c.set_park_ttl(ConversationCache::ParkTtl{});
-                std::vector<int32_t> in_ids{7, 7, 7, (int32_t) trial};
-                SavedConversation incoming = img(in_ids);
-                incoming.live.gdn.resize(64 + rnd(budget), 7);
-                const size_t in_bytes = incoming.bytes();
-                if (in_bytes > budget) continue;
-                const size_t limit = budget - in_bytes;
-                const size_t shortfall = on_c.bytes() > limit ? on_c.bytes() - limit : 0;
-                bool one_covers = false;   // an entry still parked that frees the shortfall by itself
-                for (const auto& [ids, bytes] : parked)
-                    if (shortfall > 0 && bytes >= shortfall && on_c.holds(ids, {}, true)) one_covers = true;
-                const size_t e_on = on_c.evictions(), e_off = off_c.evictions();
-                SavedConversation in_copy = incoming;
-                check(on_c.put(std::move(incoming)) && off_c.put(std::move(in_copy)), "property: both park the image (nothing pinned)");
-                check(on_c.bytes() <= budget && off_c.bytes() <= budget && on_c.size() <= slots, "property: both stay within the budget");
-                const size_t d_on = on_c.evictions() - e_on, d_off = off_c.evictions() - e_off;
-                if (shortfall > 0 && one_covers) {
-                    ++covered;
-                    check(d_on == 1 && d_on <= d_off, "property: one entry covers the shortfall: exactly one eviction, never more than oldest-first");
-                } else if (shortfall == 0) {
-                    ++slot_only;
-                    check(d_on == d_off && d_on <= 1, "property: no byte shortfall: at most the one eviction a full set of slots needs, as the rule off");
-                } else {
-                    ++uncovered;
                 }
             }
             check(covered > 300 && slot_only > 100 && uncovered > 100, "property: the random states reach every case");
