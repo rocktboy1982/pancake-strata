@@ -1579,6 +1579,55 @@ A28 GSQ 2604.18556: model and numbers (95.7% SWE-bench, 256/512 experts) are not
 body or drop them): ProMoE "1.09x over LRU", HOBBIT "CDF 0.6/0.9" and "r=0.99", DALI "6-13%", FreeToken "FLOP-per-byte eviction" (Marconi's idea), MoE-Lightning
 "stale-dropping".  Phase 15 cites only fork commits, whose hashes were not checked.
 
+### Remaining academics: development plan (2026-11-11, after the first GPU phase)
+
+State: every table item was source-checked, coded or decided offline, reviewed and merged; GPU-measured so far: A3 deferral (in preset), F21/F9/A33 (no gain), A4 rank guard (no gain over deferral), A8 (confirm running).  What is left, in order of expected value per test hour.
+Each line: item - what remains - how - decided by (spec / tool) - gate.
+
+| Order | Item | What remains | How | Decided by | Gate to port/rdna3-decode |
+| --- | --- | --- | --- | --- | --- |
+| 1 | A8 Pie swap budget (`--adapt-swaps`, `STRATA_ADAPT_SWAPS_AUTO`) | confirm result (running: 25-a8-confirm, n=6), quality gate, then the preset value | env/flag only, no code | 25-a8-confirm + quality_gate | lossy: lower bound >= 3%, token forcing PASS, task gate on the grown set |
+| 2 | F1 park-truncate + `--conversation-cache-min-tokens 8192` (+ budget) | GPU restore check in its noise-aware form; replay arms | replay_turns + 25-f1-park-truncate, 25-a11-a13-cache | promote.py replay metric | exact: restore equivalent (control arm), gain >= 1% lower bound |
+| 3 | Q2_0 vs IQ2_XS (15c) | redo on the iq2_xs fast-hip base (the old base made the `q2_0-stock` arm a no-op), then the 4 adopted items into the q2_0 presets | 15-q2_0 (base fixed), quality_gate | abtest + gate | owner decides the default model |
+| 4 | F13 turbo guards, F5 ECAP, item 23 depth prior | measure on the arena tier; item 23 is NOT AcceptMoE (fixed geometric bonus): rename or reimplement as the paper's commitment-weighted selector | 19-turbo-guards, 20-verify-ecap, quality_gate + grown task gate | lossy gate | lossy: needs the ~100-task set first |
+| 5 | A22 DISCO, F8 SPEC_CUM, A24 suffix index, EcoSpec | one window-trace GPU run (`STRATA_WINDOW_TRACE`, `--spec-min-p 0`) -> `disco_fit.py` -> screens b3-f8-spec-cum, 24-a24-suffix-index; EcoSpec simulator on the same trace, engine switch only if eco-ema >= +2% | trace first, then one screen each | ecospec_sim, disco_fit, abtest | exact (greedy): text parity needs the noise-aware check; STRATA_SPEC_PROB_GATE=top with SPEC_PROB |
+| 6 | A17/A18/A20 thinking control, A19 | collect 200+ effort-tagged turns; xhigh vs medium time-to-success A/B (A18); A19 forced-stop replay driver or drop; A20 stays a measuring arm | task_gate request/time_curve/caps | thinking_caps, task_gate | lossy; the cap stays as a net |
+| 7 | A30 Fiddler | screen the new `auto` arm (a30-fiddler-cpu-share); break-even ~4.5 tokens/expert | abtest | abtest | exact |
+| 8 | F7 Q2_0 AVX2, F12 IQ sign, flat loads (`STRATA_HIP_GLOBAL_WEIGHTS`), A31, A36, F20, F18 | kernel-level first: `q2_rows_bench --threads 8` on an idle box, `expdec_bench`, `iq_multi_parity` bitwise, `hip_gdn_stage_bench 4096 16384 32768` (A31 rule), two gpu_profile traces with deferral on then `hit_critical` (A36), empty_grid probe (F20), 32K-prompt rocprofv3 table (F18); end-to-end only for the ones whose kernel gain x window share >= 2% | kernel_gate (new, see project features) | kernel timings x share | exact: parity bitwise |
+| 9 | BFLA (16.11) | merge the exact fused dense mode first; sparse stays opt-in and lossy; recall on 300+ tokens (the 48-token KL 0.0014/0.0045 is above the plan's 1e-3 gate) | bfla_test, recall run, 128K prompt | stage bench + quality | dense: exact; sparse: lossy gate |
+| 10 | selftune candidate profile (+4.6% modeled), sweep.py knobs, regression_watch | A/B of the candidate profile; first sweep with the Mann-Whitney + A B B A rule; baseline regression record | selftune.py --out spec | abtest + gate | lossy-small: gate |
+| 11 | A44 bandit, A45 calibrate, A15 park TTL | A15: fix rank-3 eviction (smallest entry whose bytes cover the shortfall) with a test BEFORE any benchmark; A45: run the probe once on the GPU; A44: needs real agent traces | tests first | park_replay_sim, probe | HOLD until traces exist |
+| 12 | Parked on purpose | S2-MoE reuse-aware gating (lossy, KL gate), DraftExpert (training), REAP (offline saliency on real traces), HybriMoE (design reference), F4 shadow pack (needs an imatrix + KL/task gate), A27/A28 (29.6 GB download, owner decision), F14/F17/F18/F22 (RTX 3060 not installed) | revisit after real traces and the arena are available | - | - |
+
+Source-check debts (do before relying on a figure): paper bodies for ProMoE "1.09x over LRU", HOBBIT "r=0.99" and "CDF 0.6/0.9", DALI "6-13%", FreeToken "FLOP-per-byte eviction", MoE-Lightning "stale-dropping"; abstract-only items Quest, Twilight, LServe, ShadowKV, DuoAttention; Phase 15 fork commit hashes; the README 4C ids (pancake-docs/README.md:180 and RESEARCH_AND_FINDINGS.md:208 give XAttention as 2502.17421: it is 2503.16428; SpargeAttn 2411.10958 is SageAttention2: it is 2502.18137).
+
+### Project features discovered (planning, 2026-11-11)
+
+Features the work showed the project needs (not paper items).  Each: why (the evidence) - what - first step.
+
+1. **Switch-acted evidence for every opt-in** (evidence: COPY256, IC_WARM_MB and ROUTER_FUSE were silent no-ops under deferral, so earlier arms measured nothing).  Every switch prints one once-only line when it first acts (or why it will not act); abtest marks an arm VOID when its switch never logged "acted".  First step: a shared helper `strata_switch_acted(name)` used by the 6 switches already audited; abtest checks the engine log.
+2. **Noise-aware equivalence gate** (evidence: restore_check says DIFFERENT on every turn on the base binary too: run-to-run noise 1.2-1.3% of tokens).  A control arm (second re-read) plus a comparison of the divergence position, or a teacher-forced comparison of logits.  First step: `restore_check.py --control` and a decision rule from the control's own divergence.
+3. **Faster test harness** (evidence below, "Testing: why 45-minute windows"): `--reclaim-max` (done), block mode (several reps per engine start, A B B A blocks), outcome-based outlier rule, stack-then-bisect, one warm-up per start, `tools/pancake/queue_run.sh` (done).
+4. **Tier-aware test runs** (evidence: the arena vs mmap tier differ by ~8% and change which switches matter, e.g. lookahead0): capped.sh / abtest record the tier (arena or mmap, KEEP_GIB) in every result and refuse to compare across tiers; `os_tune.sh` check becomes a precondition that chooses the tier.  First step: results carry `tier`; promote.py rejects mixed-tier pairs.
+5. **Non-root cache eviction helper** (evidence: free 2 MiB blocks 10 -> 13 GiB and free RAM 19 -> 32 GiB with posix_fadvise DONTNEED on the large files): `tools/pancake/drop_cache.py` (the script used on 2026-11-11), documented as the fallback when `sudo os_tune.sh compact` is not available.
+6. **Real agent traces with router weights** (evidence: every offline verdict - FineMoE, HOBBIT, REAP, EcoSpec, A44, A46 - rests on one 219-window bench trace with zero weights): a one-command session recorder (STRATA_WINDOW_TRACE + turn log + `--dump-routing` with weights and output norms) and a 100+ turn corpus.
+7. **Larger quality sets** (evidence: 18 tasks x 5 reps passes an identical arm ~3% of the time; 20-request token forcing is INCONCLUSIVE 22% for an identical arm): build the ~100-task set and the 40-request token-forcing set from real opencode sessions.
+8. **Conversation cache defaults** (evidence: min-tokens 8192 carries +1.89%; AUTO_PIN is unsafe for Qwen because pinned parked entries are never evicted): make min-tokens 8192 the default after the noise-aware restore gate passes; fix the pin (multi-entry prefix store or evict pinned entries last, not never).
+9. **Kernel gate tool** (evidence: kernel-level numbers are minutes and low noise; the A33/F9/F21 end-to-end tests cost 3 hours for +-1%): `tools/pancake/kernel_gate.py` = kernel microbench gain x share of the window from the profile -> go / no-go before an end-to-end screen.
+10. **Disk-key completeness** (evidence: percache): add STRATA_EXP_MODE and STRATA_EXP9_DOWN to the conversation disk key before F14.
+11. **Preset hygiene**: add the four adopted items to the q2_0 presets; make the preset engine log path per run so tools read the right log (restore_check bug); guard `docs` text that still lists STRATA_ARENA_WARM.
+12. **Plan/doc hygiene**: fix the unsourced figures listed in the citation corrections; keep `plan.html` regenerated on every plan commit.
+
+### Testing: why 45-minute windows, and what changes (measured 2026-11-11)
+
+Measured on five runs (62 engine starts):
+- One attempt = one engine start + one measurement.  Median 118-126 s per attempt; the measurement itself is 13 s in the confirm specs (512 tokens at ~125-140 tok/s plus the prompt): **about 90% of every attempt is engine start-up and warm-up**.
+- A 4-6 arm, 4-6 rep spec is 20-30 attempts = 45-65 min.
+- **48% of the attempts (30 of 62) were discarded** by the quiet-machine gate and repeated with a full restart (25 of the 30 because kswapd0/kcompactd0 exceeded `RECLAIM_MAX` = 1.0% of a core: kernel threads reacting to the engine's own memory use on fragmented RAM, big_free 0.2 GiB).  The discarded attempts are as fast as the kept ones: short 122.1 +-9.0 vs 123.7 +-6.0 tok/s, edit 153.0 vs 149.8.  By reclaim level: 0-1% 123.7, 1-2% 122.9, 2-3% 121.0, >3% 122.6 (edit median 132 vs 143: the only sign of harm, n=4).
+- Outliers up to 528 s are quiet-gate waits.  One discard was this session's own CPU (claude 12%): do not run other work during a run.
+
+Changes (D = done): D `abtest --reclaim-max` (use 3.0 for new runs, default 1.0 kept so old results keep their meaning); D `tools/pancake/queue_run.sh` (no idle GPU between specs); block mode = several reps inside one engine start (A B B A blocks, 2 starts per arm kept for start-to-start variance) - about 6x fewer starts; an outcome-based outlier rule (drop an attempt only if its tok/s is a robust outlier within its arm) instead of proxy thresholds; one warm-up per start, measure warm passes only; stack-then-bisect for the small exact flags; kernel-level gates before end-to-end screens; and the fragmentation fix itself (`sudo tools/pancake/os_tune.sh compact` or `drop_cache.py`) which removes the cause of most discards.  Target: a 45-minute spec in about 5-8 minutes.
+
 ### Implementation and test status (2026-11-10, branch dev/batch-1)
 
 "In preset" = measured on the RX 7900 XT and switched on in fast-hip. "Batch" = coded on dev/batch-1 (16 commits), opt-in,

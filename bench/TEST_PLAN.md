@@ -317,3 +317,15 @@ syntax-checked). Run them from the repo root with the GPU idle, one at a time; a
    pack (after 4.0.5 and a requant that fits the disk).
    F5 is coded (work/f5-verify-ecap): bench/specs/20-verify-ecap.json, screen first, then token forcing (decode path)
    and the task gate (tool_call tasks included) on the same spec; no default before all three pass.
+
+## Phase 16 test procedure (2026-11-11, from the first GPU phase)
+
+Order of evidence, cheapest first; an item advances only if it passes the stage before.
+1. Offline: unit tests, parity tests (`ctest -L cpu`, 130/0/8 baseline; `ctest -L gpu` 122/125 with 3 pre-existing failures), trace replays, simulators.
+2. Kernel level (minutes, low noise): `expdec_bench`, `q2_rows_bench`, rocprof kernel times; kernel gain x the kernel's share of the window = expected end-to-end gain.  End-to-end only if >= 2%.
+3. Screen (`abtest --tier screen`): finds big effects only; n=2 per arm gave +-100..+450 tok/s intervals, so a screen "promote to confirm" is a hint, never a result (25-kern-hip: +2.9% in the screen, +0.7% [-6.9, +8.3] in the confirm).
+4. Confirm: 6 reps, `--no-early-stop`, same tier for every arm.  Exact items need 12+ pairs to prove a 2% gain at a paired SD of 1.5%.
+5. Lossy items: token forcing (grown to ~40 requests) + the task gate (grown to ~100 tasks, or per-item gates).
+6. Verdict: `python3 tools/pancake/promote.py <items.json>`; only PROMOTE items are cherry-picked into port/rdna3-decode.
+
+Rules learned: one GPU job at a time and nothing else running during a run (this session's own CPU use disqualified an attempt); every arm of a comparison runs the same tier (arena vs mmap differ by ~8%); `abtest --reclaim-max 3.0` (kernel reclaim up to 3% of a core did not slow decode in 62 attempts; the default 1.0 discarded 48% of attempts); text identity cannot be used as an exactness check while run-to-run output differs (use the noise-aware gate); a switch that never logged "acted" voids its arm; run specs back to back with `/home/dan/clone-of-d/src/Strata-p16/tools/pancake/queue_run.sh OUTDIR SPEC[:abtest args] ...` (add `-n` to preview).
