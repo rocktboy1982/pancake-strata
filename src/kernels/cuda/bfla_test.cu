@@ -629,10 +629,10 @@ int bench(int64_t N, int64_t T) {
                 (long long) T);
     std::printf("  engine path (hipBLAS FP16 GEMMs + materialised softmax): %9.1f ms%s\n", t_gemm,
                 t_gemm == 0 ? " (scores did not fit)" : "");
-    std::printf("  fused kernel, every block (STRATA_BFLA=dense):           %9.1f ms  (max |diff| vs engine path, last chunk: %.2e)\n",
+    std::printf("  fused kernel, every block (STRATA_BFLA_DENSE=1):         %9.1f ms  (max |diff| vs engine path, last chunk: %.2e)\n",
                 t_dense, maxdiff);
     std::printf("  fused kernel, every block, Q from global (QGLOBAL=1):    %9.1f ms\n", t_dense_qg);
-    std::printf("  BFLA sparse above %lld (STRATA_BFLA=1):                  %9.1f ms  (selection %.1f ms; kept %.1f%% of visible blocks)\n",
+    std::printf("  BFLA sparse from %lld (STRATA_BFLA_SPARSE=1, lossy):     %9.1f ms  (selection %.1f ms; kept %.1f%% of visible blocks)\n",
                 (long long) sp.min_len, t_sparse, t_select, vis > 0 ? 100.0 * kept / vis : 100.0);
     std::printf("  x10 layers (Qwen3.6-35B): engine %.2f s, dense %.2f s, sparse %.2f s\n", t_gemm / 100.0, t_dense / 100.0,
                 t_sparse / 100.0);

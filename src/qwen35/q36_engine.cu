@@ -1315,12 +1315,13 @@ struct Engine {
     __half* att_p16 = nullptr;         // the probabilities in FP16 (kAttScoreFloats halves)
     __half *k16 = nullptr, *v16 = nullptr, *q16 = nullptr;   // the prompt attention's FP16 operands
     size_t kAttScoreFloats = (size_t) 64 << 20;   // 256 MB (16 M floats when the experts' fit is close)
-    // pancake, opt-in STRATA_BFLA (lossy, docs/BFLA_RDNA3.md): the prompt attention of long chunks as the fused gfx11 kernel,
-    // block-sparse (=1) or over every block (=dense); its selection scratch (sparse only) and whether this forward() is
-    // the prompt's last chunk (the tail rule: its last 1024 / G positions keep every block)
+    // pancake, opt-in (strata/kernels/bfla.hpp): the prompt attention of long chunks as the fused gfx11 kernel, over every
+    // block (STRATA_BFLA_DENSE=1, exact) or block-sparse (STRATA_BFLA_SPARSE=1, BFLA, lossy); the selection scratch
+    // (sparse only), whether this forward() is the prompt's last chunk (the tail rule: its last 1024 / G positions keep
+    // every block) and whether the switch has acted yet (logged once)
     void* bfla_scratch = nullptr;
     size_t bfla_bytes = 0;
-    bool bfla_ok = false, bfla_final = false;
+    bool bfla_ok = false, bfla_final = false, bfla_acted = false;
     // the prompt's MMQ experts
     bool use_mmq = false;
     std::unique_ptr<MMQ::Context> mctx;
@@ -1510,14 +1511,14 @@ struct Engine {
         k16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         v16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         q16 = dalloc_t<__half>(T * g.n_head * g.head_dim);
-        if (strata::kernels::bfla_config().mode != 0) {
+        if (const int bm = strata::kernels::bfla_config().mode; bm != 0) {
             bfla_ok = strata::kernels::bfla_supported((int) g.n_head, (int) g.n_head_kv, (int) g.head_dim);
-            if (bfla_ok && strata::kernels::bfla_config().mode == 1) {
+            if (bfla_ok && bm == 1) {
                 bfla_bytes = strata::kernels::bfla_scratch_bytes(T, ctx, (int) g.n_head, (int) g.n_head_kv);
                 bfla_ok = cudaMalloc(&bfla_scratch, bfla_bytes) == cudaSuccess;
                 if (!bfla_ok) (void) cudaGetLastError();
             }
-            std::fprintf(stderr, "strata-q36: STRATA_BFLA %s%s\n", bfla_ok ? "on" : "off - ",
+            std::fprintf(stderr, "strata-q36: %s %s%s\n", strata::kernels::bfla_switch_name(bm), bfla_ok ? "on" : "off - ",
                          bfla_ok ? (bfla_bytes ? " (selection scratch allocated)" : "")
                                  : "needs head dim 256, 4 / 8 / 16 query heads a KV head and a gfx11 GPU (or its scratch did not fit)");
         }
@@ -2103,8 +2104,9 @@ struct Engine {
                 const float one = 1.0f, zero = 0.0f;
                 k_kv_f16<<<grid1((int64_t) HKV * P * HD), kThreads, 0, st>>>(kc[li], vc[li], k16, v16, ctx, P, HD, HKV);
                 k_to_f16<<<grid1((int64_t) T * H * HD), kThreads, 0, st>>>(q, q16, (int64_t) T * H * HD);
-                // STRATA_BFLA (opt-in, off by default): chunks reaching STRATA_BFLA_MIN positions take the fused kernel
-                // instead of the GEMMs below (false: nothing launched, the GEMM path runs as before)
+                // STRATA_BFLA_DENSE / STRATA_BFLA_SPARSE (opt-in, off by default): chunks reaching STRATA_BFLA_MIN
+                // positions take the fused kernel instead of the GEMMs below (false: nothing launched, the GEMM path runs
+                // as before)
                 bool bfla_done = false;
                 if (bfla_ok && !rows_mode && !verify && P >= strata::kernels::bfla_config().min_len) {
                     const auto& bc = strata::kernels::bfla_config();
@@ -2114,6 +2116,11 @@ struct Engine {
                                                                    reinterpret_cast<const uint16_t*>(k16),
                                                                    reinterpret_cast<const uint16_t*>(v16), T, p0, H, HKV, bc,
                                                                    full_from, bfla_scratch, bfla_bytes, att, st);
+                    if (bfla_done && !bfla_acted) {   // once: the log proves the arm acted
+                        bfla_acted = true;
+                        std::fprintf(stderr, "strata-q36: %s acted: prompt attention of positions %lld..%d by the fused kernel\n",
+                                     strata::kernels::bfla_switch_name(bc.mode), (long long) p0, P - 1);
+                    }
                 }
                 for (int t0 = 0; t0 < T && !bfla_done; t0 += tq) {
                     const int nt = std::min(tq, T - t0);

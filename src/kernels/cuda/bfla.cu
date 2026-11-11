@@ -1,6 +1,7 @@
-// src/kernels/cuda/bfla.cu - BFLA block-sparse prompt attention (pancake, opt-in, lossy).  See include/strata/kernels/bfla.hpp
-// and docs/BFLA_RDNA3.md.  BFLA: Chong Wu et al., arXiv 2605.12193 (CityU); reference code Apache-2.0
-// (github.com/Alicewithrabbit/BFLA), read for the algorithm only - this file is written from the paper's equations.
+// src/kernels/cuda/bfla.cu - fused prompt attention, exact over every block (STRATA_BFLA_DENSE=1) or BFLA block-sparse
+// (STRATA_BFLA_SPARSE=1, lossy); pancake, opt-in.  See include/strata/kernels/bfla.hpp and docs/BFLA_RDNA3.md.
+// BFLA: Chong Wu et al., arXiv 2605.12193 (CityU); reference code Apache-2.0 (github.com/Alicewithrabbit/BFLA), read for
+// the algorithm only - this file is written from the paper's equations.
 //
 // HIP wave32 gfx11 only (v_wmma_f32_16x16x16_f16 with the gfx11 fragment layout, documented and checked on the card in
 // qsa_prompt_attn.cu S6).  The CUDA and gfx906 builds compile the stubs at the end: every entry point returns false.
@@ -13,40 +14,24 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
-#include <string>
 
 namespace strata::kernels {
 
 const BflaConfig& bfla_config() {
     static const BflaConfig c = [] {
-        BflaConfig r;
-        if (const char* e = std::getenv("STRATA_BFLA")) {
-            const std::string v(e);
-            if (v == "1" || v == "sparse" || v == "on") r.mode = 1;
-            else if (v == "dense" || v == "2") r.mode = 2;
-        }
-        auto num = [](const char* name, auto& dst) {
-            if (const char* e = std::getenv(name); e != nullptr && *e != '\0') dst = (std::remove_reference_t<decltype(dst)>) std::atof(e);
-        };
-        num("STRATA_BFLA_MIN", r.min_len);
-        num("STRATA_BFLA_ETA", r.eta);
-        num("STRATA_BFLA_KMIN", r.kmin);
-        num("STRATA_BFLA_KMAX", r.kmax);
-        num("STRATA_BFLA_SINK", r.sink);
-        num("STRATA_BFLA_LOCAL", r.local);
-        num("STRATA_BFLA_TAIL", r.tail);
-        if (r.eta <= 0.0 || r.eta > 1.0) r.eta = 1.0 / 3.0;
-        r.kmin = std::max<int64_t>(r.kmin, kBflaBlock);
-        r.kmax = std::max<int64_t>(r.kmax, r.kmin);
-        r.sink = std::max(r.sink, 1);   // block 0 keeps every row's softmax non-empty
-        r.local = std::max(r.local, 0);
-        if (r.mode != 0)
+        const BflaConfig r = bfla_config_from([](const char* name) { return std::getenv(name); });
+        if (r.legacy)
+            std::fprintf(stderr, "strata: STRATA_BFLA is ignored (split in two): STRATA_BFLA_DENSE=1 for the exact fused prompt "
+                                 "attention, STRATA_BFLA_SPARSE=1 for the lossy block-sparse BFLA\n");
+        if (r.mode == 2)
+            std::fprintf(stderr, "strata: STRATA_BFLA_DENSE=1 - fused prompt attention over every causal block (exact, not "
+                                 "bitwise the GEMM path) on the dense attention layers from %lld tokens\n",
+                         (long long) r.min_len);
+        if (r.mode == 1)
             std::fprintf(stderr,
-                         "strata: STRATA_BFLA=%s - %s prompt attention on the dense attention layers above %lld tokens%s "
-                         "(eta %.3f, K %lld..%lld, sink %d, local %d blocks of %d)\n",
-                         r.mode == 1 ? "sparse" : "dense", r.mode == 1 ? "LOSSY block-sparse (BFLA)" : "fused (every block)",
-                         (long long) r.min_len, r.mode == 1 ? ": answers can change" : "", r.eta, (long long) r.kmin,
-                         (long long) r.kmax, r.sink, r.local, kBflaBlock);
+                         "strata: STRATA_BFLA_SPARSE=1 - LOSSY block-sparse prompt attention (BFLA) on the dense attention layers "
+                         "from %lld tokens: answers can change (eta %.3f, K %lld..%lld, sink %d, local %d blocks of %d)\n",
+                         (long long) r.min_len, r.eta, (long long) r.kmin, (long long) r.kmax, r.sink, r.local, kBflaBlock);
         return r;
     }();
     return c;
@@ -133,6 +118,8 @@ __device__ __forceinline__ bf8 wmma16(bh16 a, bh16 b, bf8 c) {
 #if STRATA_BFLA_GFX11
     return __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a, b, c);
 #else
+    (void) a;
+    (void) b;
     __builtin_trap();
     return c;
 #endif
@@ -267,22 +254,13 @@ __global__ void __launch_bounds__(256) k_select(const float* __restrict__ phi, c
     const int64_t ta = (int64_t) tile * a.tile_tokens;
     const int64_t tb = std::min<int64_t>(a.T, ta + a.tile_tokens) - 1;
     const int64_t qa = a.p0 + ta, qb = a.p0 + tb;
-    const int n_vis = (int) (qb / kBflaBlock) + 1;
     const size_t row = (size_t) tile * a.HKV + g;
     int32_t* out = ids + row * a.cap;
-    // the Ratio-K budget (bfla_budget_blocks)
-    const double ev = a.eta * (double) (qb + 1);
-    int64_t e = (int64_t) ev;
-    if ((double) e < ev) ++e;
-    int64_t kt = std::min<int64_t>(e, a.kmax);
-    kt = std::max<int64_t>(kt, a.kmin);
-    kt = std::min<int64_t>(kt, qb + 1);
-    const int64_t k = (kt + kBflaBlock - 1) / kBflaBlock;
-    const int sinkc = std::min(a.sink, n_vis);
-    const int lo_b = std::max<int>(sinkc, (int) (qa / kBflaBlock) - a.local);   // [lo_b, n_vis) mandatory, own + local
-    const int nc = lo_b - sinkc;                                                   // candidates [sinkc, lo_b)
-    const int64_t free_q = k - (int64_t) (n_vis - nc);
-    if (qb >= a.full_from || k >= n_vis || free_q >= nc) {
+    // the Ratio-K budget and the mandatory blocks (bfla_tile_plan, shared with the host tests)
+    const BflaTilePlan pl = bfla_tile_plan(qa, qb, a.full_from, a.eta, a.kmin, a.kmax, a.sink, a.local);
+    const int n_vis = pl.n_vis, sinkc = pl.sinkc, lo_b = pl.lo_b;   // [lo_b, n_vis) mandatory; candidates [sinkc, lo_b)
+    const int64_t free_q = pl.free_q;
+    if (pl.all) {
         for (int j = tid; j < n_vis; j += 256) out[j] = j;
         if (tid == 0) counts[row] = n_vis;
         return;
