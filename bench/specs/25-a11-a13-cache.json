@@ -1,0 +1,21 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "tool-boundary": {"env": {"STRATA_CACHE_TOOL_BOUNDARY": "1"}},
+  "auto-pin": {"env": {"STRATA_AUTO_PIN": "1"}},
+  "disk": {"args": {"--conversation-cache-slots": "1"}, "env": {"STRATA_CONVERSATION_DISK_DIR": "/home/dan/clone-of-d/Strata-data/conversation-disk-test", "STRATA_CONVERSATION_DISK_MAX_GIB": "8", "STRATA_CONVERSATION_DISK_MIN_TOKENS": "0", "STRATA_CONVERSATION_DISK_MIN_GAIN": "0"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "pancake-turns.jsonl",
+  "arms": ["base", "tool-boundary", "auto-pin", "disk"],
+  "reps": 3,
+  "shared_system": 1024,
+  "note": "Read by tools/pancake/replay_turns.py only (abtest ignores it). The 11-09 agent session with shared_system 1024 so that the side requests are sub-agent shaped (A12's pinned prefix and the parked branch have something to share). One arm per item: tool-boundary = A11 (527e06429), auto-pin = A12 (MOD_PLAN 71 / 90), disk = A13 (070fe8512; one parking slot so that the side requests push the main conversation to disk, the setting restore_check.py --disk uses). Run the replay with --arms for the items under test; each arm is a fresh server (about 13 min per arm and rep). The replay's own think time is capped at 2 s, so it shows the cache effects of the traffic shape, not idle gaps while a tool runs."
+ },
+ "note": "MOD_PLAN A11 (checkpoints at tool boundaries), A12 (pinned system+tools prefix, parked branch), A13 (disk tier): all exact, all opt-in, all gated by restore_check.py (A14) FIRST: restore_check.py, restore_check.py --tool-boundary, restore_check.py --disk must print MATCH on every turn (test_phase.sh writes them to restore-check*.txt). ABTEST ONLY CHECKS THE SIDE EFFECTS (decode speed and RAM; the text must equal base). The gain is the replay's total prompt time (cold re-reads become warm): python tools/pancake/replay_turns.py bench/specs/25-a11-a13-cache.json --out bench/results/<day>-test-phase/25-a11-a13-cache-replay --arms base,tool-boundary,auto-pin,disk --reps 3. The disk arm writes under Strata-data/conversation-disk-test (8 GiB cap): delete it afterwards. Decide with tools/pancake/promote.py (decides: replay, one item per arm)."
+}
