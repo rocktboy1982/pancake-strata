@@ -498,6 +498,12 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(route_prior_scope_test PRIVATE include)
   add_test(NAME route_prior_scope_test COMMAND route_prior_scope_test)
 
+  # MOD_PLAN Phase 15 F12 / F14: host proofs that two GPU kernel rewrites keep their bits (the IQ2/IQ3 sign form without
+  # vcmpne4 / vsub4, the Q2_0 down row on 4 lanes instead of 16), tied to the kernel source by a text guard; no GPU, no model
+  add_executable(gpu_rewrite_parity_test tests/core/gpu_rewrite_parity_test.cpp)
+  target_compile_definitions(gpu_rewrite_parity_test PRIVATE STRATA_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+  add_test(NAME gpu_rewrite_parity_test COMMAND gpu_rewrite_parity_test)
+
   # MOD_PLAN A19: the learned thinking stop's host side (STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE: settings, check points, stop
   # rule, probe file, dump file bytes; header-only, no GPU)
   add_executable(think_probe_test tests/program/think_probe_test.cpp)
@@ -3488,6 +3494,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
     poly_mxfp4_test
+    gpu_rewrite_parity_test
     # CUDA / conversation-only builds: these hide the GPU themselves (CUDA_VISIBLE_DEVICES=-1) or are CPU-only by design
     conversation_cache_test conversation_split_failure_test conversation_memory_test conversation_file_test
     session_save_reclaim_test conversation_validation_test conversation_transfer_test split_lend_complement_test
