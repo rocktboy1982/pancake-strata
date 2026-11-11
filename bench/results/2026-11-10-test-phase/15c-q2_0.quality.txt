@@ -1,0 +1,24 @@
+  WARNING: only 0 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+scoring base (a) ...
+agent-0: 250 positions
+agent-1: 185 positions
+agent-2: 185 positions
+agent-3: 28 positions
+code-0: 300 positions
+the engine closed its output
+Exception ignored while finalizing file <_io.TextIOWrapper name=5 encoding='UTF-8'>:
+BrokenPipeError: [Errno 32] Broken pipe
+  base: scoring FAILED
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+scoring base (b) ...
+the engine closed its output
+Exception ignored while finalizing file <_io.TextIOWrapper name=5 encoding='UTF-8'>:
+BrokenPipeError: [Errno 32] Broken pipe
+  base: scoring FAILED
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+scoring q2_0 ...
+the engine closed its output
+Exception ignored while finalizing file <_io.TextIOWrapper name=5 encoding='UTF-8'>:
+BrokenPipeError: [Errno 32] Broken pipe
+  q2_0: scoring FAILED
+stock not scored twice: no verdicts

@@ -1,0 +1,12 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                     96.3 +- 103.6  (n=2)
+                              drafts accepted 0.67
+  short  q2_0                     94.4 +-  48.9  (n=2)   vs base:  -2.0% +- 158.3%  -> no difference
+                              drafts accepted 0.67
+  edit   base                    100.4 +- 118.8  (n=2)
+                              drafts accepted 0.91
+  edit   q2_0                    156.2 +-  61.6  (n=2)   vs base: +55.6% +- 56.9%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed)
+  q2_0                 DIFFERENT text -> lossy or placement-dependent: quality gate

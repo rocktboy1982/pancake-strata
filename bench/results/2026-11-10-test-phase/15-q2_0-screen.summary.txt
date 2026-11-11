@@ -1,0 +1,21 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    126.2 +-   9.5  (n=2)
+                              drafts accepted 0.69
+  short  q2_0                    137.1 +-  68.0  (n=2)   vs base:  +8.6% +- 46.3%  -> no difference
+                              drafts accepted 0.72
+  short  q2_0-stock              137.7 +-  11.4  (n=2)   vs base:  +9.1% +-  1.5%  -> better
+                              drafts accepted 0.69
+  edit   base                    167.4 +- 354.6  (n=2)
+                              drafts accepted 0.88
+  edit   q2_0                    174.9 +-  44.5  (n=2)   vs base:  +4.5% +- 185.3%  -> no difference
+                              drafts accepted 0.92
+  edit   q2_0-stock              144.3 +- 194.5  (n=2)   vs base: -13.8% +- 95.7%  -> no difference
+                              drafts accepted 0.94
+
+generated text vs base (identical = exact: no quality gate needed)
+  q2_0                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  q2_0-stock           DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: >= +2% on a case and no case below -3%; else drop)
+  q2_0                 short +8.6%  edit +4.5%  -> PROMOTE to confirm
+  q2_0-stock           short +9.1%  edit -13.8%  -> drop

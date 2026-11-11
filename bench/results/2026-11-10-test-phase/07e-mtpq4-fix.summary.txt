@@ -1,0 +1,11 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    130.7 +-  27.3  (n=2)
+                              drafts accepted 0.68
+  short  mtpq4-head              128.0 +-  29.2  (n=2)   vs base:  -2.0% +-  1.5%  -> worse
+                              drafts accepted 0.68
+
+generated text vs base (identical = exact: no quality gate needed)
+  mtpq4-head           identical on every case -> exact
+
+screen verdict (promote: >= +2% on a case and no case below -3%; else drop)
+  mtpq4-head           short -2.0%  -> drop

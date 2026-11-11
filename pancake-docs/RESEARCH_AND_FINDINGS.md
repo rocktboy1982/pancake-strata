@@ -205,8 +205,8 @@ not built), **Rejected** (with the reason), **Context** (informed reasoning, no 
 | Mamba-2 / SSD | https://arxiv.org/abs/2405.21060 | MIT (FLA line) | State-space duality | Context for the GDN chunk-64 prefill item (18) |
 | Mamba-3 | https://arxiv.org/abs/2603.15569 | MIT | Next SSM iteration | Context for item 18 |
 | Mamba in the Llama | https://arxiv.org/abs/2408.15237 | MIT | Distilled hybrid | Context for item 18 |
-| XAttention | https://arxiv.org/html/2502.17421 | Tsinghua | Block-sparse attention with antidiagonal scoring | Superseded: BFLA (CityU) benchmarks Flash-Next itself and won item 19 |
-| SpargeAttn | https://arxiv.org/html/2411.10958v3 | Tsinghua | Training-free sparse attention | Context for item 19 |
+| XAttention | https://arxiv.org/html/2503.16428 | Tsinghua | Block-sparse attention with antidiagonal scoring | Superseded: BFLA (CityU) benchmarks Flash-Next itself and won item 19 |
+| SpargeAttn | https://arxiv.org/html/2502.18137 | Tsinghua | Training-free sparse attention | Context for item 19 |
 | Mirage MPK | https://arxiv.org/html/2512.22219v1 | 2025 | Megakernel persistent kernels | Rejected: NVIDIA-only; our GDN megakernel prototype measured 0.0 ms on one GPU and was reverted |
 | AutoMegaKernel | https://arxiv.org/html/2606.09682v1 | 2026 | Auto-generated megakernels | Same as above |
 | Fleet | https://arxiv.org/html/2604.15379v1 | AMD | Fleet kernels | Context for the GPU floor (item 72) |

@@ -1,0 +1,11 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs, or the quietest attempt)
+  edit   base                    152.3 +- 333.6  (n=2)
+                              drafts accepted 0.87
+  edit   desc-cache-off          140.4 +-  28.0  (n=2)   vs base:  -7.8% +- 200.6%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed)
+  desc-cache-off       identical on every case -> exact
+
+screen verdict (promote: >= +2% on a case and no case below -3%; else drop)
+  desc-cache-off       edit -7.8%  -> drop
