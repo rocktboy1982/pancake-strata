@@ -20,6 +20,16 @@ Scenario B, agent session.  The system prompt and the four tools of tools/agent_
 model's own earlier replies, as agent clients do (the same shape as the agent test of tools/strata_bench.py).  Per turn:
 TTFT, prompt tokens, tokens reused from the server's cache and tokens read again.
 
+Scenario C (--scenario c), session with side requests: the scenario B session, with short UNRELATED side requests
+(own system prompt, 1-2 short messages, like a title request) sent between turns at --side-after 3,6 and optionally one
+sub-agent switch (--switch-after N: a second long conversation with another system prompt and tools, then back).  Each
+main turn records TTFT, reused and re-read tokens and whether it followed a side request or the switch.  Scenario D
+(tight budget) is scenario C against a server started with a small conversation cache; --note-cache-budget-mib N records
+that budget in the JSON and --compare prints it.  Scenario E (--scenario e), warm-delta sweep: one conversation of about
+30K tokens (--delta-base) built once, then 50, 100, 300, 1000 and 3000 new tokens appended, 3 repeats each, unique
+content; TTFT per delta size plus a least-squares floor and slope.  --prefill-timing-log PATH attaches, to every
+request, the engine-log lines added while it ran (STRATA_PREFILL_TIMING=1 breakdown, conversation-cache lines, RESUME).
+
 TTFT is measured on the client: the time from just before the request is sent to the first streamed delta with
 content, reasoning, or a tool call (empty keep-alive and role-only deltas are ignored).  The engine's own timings
 (prompt_ms, prompt_per_second) are recorded next to it when the server reports them.  Cache reuse comes from
@@ -47,6 +57,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from ab_engine import long_prompt  # noqa: E402  the word list the other benches use
 from agent_turns_bench import SYSTEM, TOOLS  # noqa: E402  the same agent system prompt and tool list
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ttft_audit import PARK_RE, SKIP_RE, FILE_RE  # noqa: E402  the conversation-cache log lines the audit already parses
 
 SCHEMA = 1
 DEFAULT_SIZES = "8k,32k,64k,100k"
@@ -55,6 +67,19 @@ PROMPT_OVERHEAD_TOKENS = 40      # template + the fixed question around the word
 LOAD_WARN = 2.0
 CONTEXT_RE = re.compile(r"context|exceed|too long|too many tokens|n_ctx|maximum length|input length|max_position",
                         re.IGNORECASE)
+DEFAULT_DELTAS = "50,100,300,1000,3000"
+DEFAULT_DELTA_BASE = "30k"
+SIDE_SYSTEM = "You write short titles and one-line summaries for notes. Answer with the title only unless asked for more."
+SUB_SYSTEM = ("You are a read-only code-search sub-agent. You are given one question about a repository and the files "
+              "found so far; answer with the file names and one line of evidence each. You never edit anything.")
+SUB_TOOLS = [
+    {"type": "function", "function": {
+        "name": "search_symbols", "description": "Find where a function, class or constant is defined.",
+        "parameters": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}}},
+    {"type": "function", "function": {
+        "name": "list_dir", "description": "List the files of a directory of the repository.",
+        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}},
+]
 DOC_CANDIDATES = ("README.md", "docs/HOW_IT_WORKS.md", "docs/DETAILS.md", "docs/INSTALL.md", "docs/MODELS.md",
                   "docs/COMMUNITY_BENCHMARKS.md", "docs/AI_REFERENCE.md", "docs/TROUBLESHOOTING.md",
                   "docs/TERMINAL.md", "docs/AMD_HIP.md", "docs/QUANTS.md", "docs/BATCHING.md")
@@ -123,6 +148,7 @@ class Client:
                  model: str = "default", path: str = "/v1/chat/completions"):
         self.host, self.port, self.key, self.think = host, port, key, think
         self.timeout, self.model, self.path = timeout, model, path
+        self.tap = None          # a LogTap when --prefill-timing-log is given
 
     def get_json(self, path: str, timeout: float = 10):
         try:
@@ -234,6 +260,135 @@ def digest(r: dict) -> dict:
             "finish": r.get("finish")}
 
 
+# ------------------------------------------------------------------------------------------------ engine log tap
+# What the engine prints (read from the code, src/prefill/prefill.cpp, src/split/src/session.cpp, src/program/generate.cpp):
+#   strata prefill timing: N tokens, GPU timeline X ms, wall Y ms, host staging Z ms: <phase> ms (pct%) ...   (STRATA_PREFILL_TIMING=1)
+#   strata prefill timing: host: chunk setup (...) A ms, waiting for each chunk B ms, after each chunk (...) C ms, PLE D ms
+#   strata prefill timing (layer-major): N tokens, GPU timeline X ms: <phase> ms (pct%) ...
+#   strata ple wait: chunk at ...                      (STRATA_PLE_WAIT_TRACE=1, or any STRATA_PREFILL_TIMING)
+#   conversation cache: parked N tokens in X ms, ... / skip parking (...) / restored N tokens in X ms / evicted N tokens
+#   strata serve: file tier I/O this request: the OS read X MB from storage ...
+#   RESUME N                                           (stdout of the engine process: N prompt tokens are reused)
+#   strata prefill: N tokens in M-token chunks over S stages (--prefill-pipe ...)   (the chunk plan; only when the plan is chunked)
+INTEREST_RE = re.compile(r"strata prefill timing|strata ple wait|conversation cache|file tier I/O|^RESUME \d+|"
+                         r"strata prefill: \d+ tokens in \d+-token chunks")
+PLAN_RE = re.compile(r"strata prefill: (\d+) tokens in (\d+)-token chunks over (\d+) stages")
+TIMING_RE = re.compile(r"strata prefill timing( \(layer-major\))?: (\d+) tokens, GPU timeline (\d+) ms"
+                       r"(?:, wall (\d+) ms, host staging (\d+) ms)?:(.*)$")
+PHASE_RE = re.compile(r"([A-Za-z][^()]*?) (\d+) \(([0-9.]+)%\)")
+HOST_RE = re.compile(r"strata prefill timing: host: chunk setup \([^)]*\) ([0-9.]+) ms, waiting for each chunk ([0-9.]+) ms, "
+                     r"after each chunk \([^)]*\) ([0-9.]+) ms, PLE ([0-9.]+) ms")
+RESTORE_RE = re.compile(r"conversation cache: restored (\d+) tokens.*? in ([0-9.]+) ms")
+EVICT_RE = re.compile(r"conversation cache: evicted (\d+) tokens")
+RESUME_RE = re.compile(r"^RESUME (\d+)")
+
+
+def parse_engine_lines(lines: list[str]) -> dict:
+    """The structured numbers of the engine-log lines of one request (see the format list above); a field stays empty
+    when its line is not there, nothing is guessed."""
+    out: dict = {"prefill_timing": [], "chunk_plan": [], "parks": [], "skips": [], "restores": [], "evicted": [],
+                 "resume": [], "file_tier_mb": [], "ple_wait_lines": 0}
+    for line in lines:
+        m = PLAN_RE.search(line)
+        if m:
+            out["chunk_plan"].append({"tokens": int(m.group(1)), "chunk": int(m.group(2)), "stages": int(m.group(3))})
+            continue
+        m = TIMING_RE.search(line)
+        if m:
+            out["prefill_timing"].append({
+                "layer_major": bool(m.group(1)), "tokens": int(m.group(2)), "gpu_ms": int(m.group(3)),
+                "wall_ms": int(m.group(4)) if m.group(4) else None,
+                "host_staging_ms": int(m.group(5)) if m.group(5) else None,
+                "phases": {n.strip(): {"ms": int(ms), "pct": float(pc)} for n, ms, pc in PHASE_RE.findall(m.group(6))},
+                "host": None})
+            continue
+        m = HOST_RE.search(line)
+        if m:
+            if out["prefill_timing"]:
+                out["prefill_timing"][-1]["host"] = {
+                    "chunk_setup_ms": float(m.group(1)), "waiting_for_chunks_ms": float(m.group(2)),
+                    "after_each_chunk_ms": float(m.group(3)), "ple_ms": float(m.group(4))}
+            continue
+        m = PARK_RE.search(line)
+        if m:
+            out["parks"].append({"tokens": int(m.group(1)), "ms": float(m.group(2))})
+            continue
+        m = SKIP_RE.search(line)
+        if m:
+            out["skips"].append(m.group(1))
+            continue
+        m = RESTORE_RE.search(line)
+        if m:
+            out["restores"].append({"tokens": int(m.group(1)), "ms": float(m.group(2))})
+            continue
+        m = EVICT_RE.search(line)
+        if m:
+            out["evicted"].append(int(m.group(1)))
+            continue
+        m = RESUME_RE.search(line)
+        if m:
+            out["resume"].append(int(m.group(1)))
+            continue
+        m = FILE_RE.search(line)
+        if m:
+            out["file_tier_mb"].append(float(m.group(1)))
+            continue
+        if "strata ple wait" in line:
+            out["ple_wait_lines"] += 1
+    return out
+
+
+class LogTap:
+    """Reads the part of an engine log file that was added between two points (a byte offset taken before a request
+    and the end of the file after it).  The engine log has no timestamps, so this is by position; a settle pause lets
+    the last lines of a request reach the file.  On HIP the conversation-cache park of a conversation is printed while
+    the NEXT request is being served, so those lines land on the next request, which is where their time is spent."""
+
+    def __init__(self, path: str, settle_s: float = 0.3, max_lines: int = 120):
+        self.path, self.settle_s, self.max_lines = str(path), settle_s, max_lines
+
+    def mark(self) -> int:
+        try:
+            return os.path.getsize(self.path)
+        except OSError:
+            return 0
+
+    def since(self, offset: int) -> dict:
+        if self.settle_s > 0:
+            time.sleep(self.settle_s)
+        try:
+            with open(self.path, "rb") as f:
+                size = f.seek(0, os.SEEK_END)
+                truncated = size < offset
+                f.seek(0 if truncated else offset)
+                raw = f.read().decode("utf-8", "replace")
+        except OSError as e:
+            return {"error": f"engine log not readable: {e}"}
+        lines = [x.rstrip() for x in raw.splitlines()]
+        kept = [x for x in lines if INTEREST_RE.search(x)]
+        rec = {"bytes": len(raw.encode("utf-8")), "lines_total": len(lines), "lines_matched": len(kept),
+               "lines": kept[:self.max_lines], "truncated_file": truncated or None}
+        rec.update(parse_engine_lines(kept))
+        return rec
+
+
+def tapped(cl: "Client", messages: list, max_tokens: int, tools=None) -> tuple[dict, dict]:
+    """cl.chat + digest, with the engine-log lines of this request attached as d['engine_log'] when cl.tap is set."""
+    tap = getattr(cl, "tap", None)
+    off = tap.mark() if tap else None
+    r = cl.chat(messages, max_tokens, tools=tools)
+    d = digest(r)
+    if tap is not None:
+        d["engine_log"] = tap.since(off)
+    return r, d
+
+
+def random_words(n: int, rng: random.Random) -> str:
+    """n random words of the long_prompt vocabulary (about 1.06 tokens each)."""
+    vocab = sorted(set(long_prompt(400).split("\n")[1].split()))
+    return " ".join(rng.choice(vocab) for _ in range(max(1, n)))
+
+
 # ------------------------------------------------------------------------------------------------ scenario A
 def run_a(cl: Client, sizes: list[int], runs: int, max_tokens: int, calibrate: bool, tpw: float, seed: int,
           log=print) -> dict:
@@ -253,7 +408,7 @@ def run_a(cl: Client, sizes: list[int], runs: int, max_tokens: int, calibrate: b
         words = max(10, round((target - PROMPT_OVERHEAD_TOKENS) / ratio))
         for run in range(runs):
             prompt = unique_variant(words, rng)
-            d = digest(cl.chat([{"role": "user", "content": prompt}], max_tokens))
+            _, d = tapped(cl, [{"role": "user", "content": prompt}], max_tokens)
             d.update(run=run + 1, discarded=run == 0, words=words)
             entry["runs"].append(d)
             if d["context_limit"] and not d["ok"]:
@@ -290,7 +445,11 @@ def run_a(cl: Client, sizes: list[int], runs: int, max_tokens: int, calibrate: b
 
 
 # ------------------------------------------------------------------------------------------------ scenario B
-def agent_session(cl: Client, turns: int, words: int, max_tokens: int, rng_nonce: str, chunks, log=print) -> dict:
+def agent_session(cl: Client, turns: int, words: int, max_tokens: int, rng_nonce: str, chunks, log=print,
+                  between=None) -> dict:
+    """between(t) -> dict, when given, runs after main turn t (not after the last) and its dict is merged into the NEXT
+    main turn's row (scenario C uses it for side requests and the sub-agent switch)."""
+    pending: dict = {}
     msgs = [{"role": "system", "content": f"(session {rng_nonce})\n{SYSTEM}"},
             {"role": "user", "content": "I will show you files from a project one at a time. After each file, answer in "
                                         "one or two sentences what it is for. Do not call tools."}]
@@ -298,9 +457,9 @@ def agent_session(cl: Client, turns: int, words: int, max_tokens: int, rng_nonce
     for t in range(1, turns + 1):
         name, body = chunks[t - 1]
         msgs.append({"role": "user", "content": f"File {name}:\n{body}\n\nWhat is this file for? Two sentences."})
-        r = cl.chat(msgs, max_tokens, tools=TOOLS)
-        d = digest(r)
+        r, d = tapped(cl, msgs, max_tokens, tools=TOOLS)
         d["turn"] = t
+        d.update(pending)
         if rows and rows[-1]["prompt_tokens"] is not None and d["reused_tokens"] is not None:
             # earlier conversation read again: what the previous turn held (prompt + its reply) minus what this turn reused
             d["reread_tokens"] = max(0, rows[-1]["prompt_tokens"] + (rows[-1]["generated_tokens"] or 0) - d["reused_tokens"])
@@ -311,6 +470,7 @@ def agent_session(cl: Client, turns: int, words: int, max_tokens: int, rng_nonce
             break
         log(f"B turn {t}: prompt {d['prompt_tokens']}, reused {d['reused_tokens']}, read {d['read_tokens']}, TTFT {d['ttft_s']} s")
         msgs.append({"role": "assistant", "content": r["text"] or "Understood."})
+        pending = between(t) if between and t < turns else {}
     return {"turns": rows, "stopped": stopped}
 
 
@@ -356,9 +516,310 @@ def run_b(cl: Client, turns: int, words: int, max_tokens: int, sessions: int, lo
             "sessions": ss, "summary": summarize_b(ss)}
 
 
+# ------------------------------------------------------------------------------------------------ scenario C
+def parse_positions(text: str) -> list[int]:
+    """'3,6' -> [3, 6]; '' -> []."""
+    out = sorted({int(x) for x in text.split(",") if x.strip()})
+    if any(x < 1 for x in out):
+        raise ValueError("positions count from 1")
+    return out
+
+
+def side_messages(rng: random.Random, words: int, n_messages: int) -> list:
+    """A short UNRELATED request of the kind an agent client sends between turns (a title / a summary): its own system
+    prompt, 1 or 2 short user messages, unique text every time."""
+    nonce = uuid.UUID(int=rng.getrandbits(128)).hex[:12]
+    msgs = [{"role": "system", "content": SIDE_SYSTEM},
+            {"role": "user", "content": f"Write a title of at most six words for this note ({nonce}):\n{random_words(words, rng)}"}]
+    if n_messages >= 2:
+        msgs += [{"role": "assistant", "content": "Understood."},
+                 {"role": "user", "content": "Now give a one-sentence summary of the same note."}]
+    return msgs
+
+
+def subagent_run(cl: Client, rng: random.Random, turns: int, chunks, max_tokens: int, log=print) -> list[dict]:
+    """A second long conversation (own system prompt and tools, own files) run for `turns` turns, then left."""
+    msgs = [{"role": "system", "content": f"(sub-agent {uuid.UUID(int=rng.getrandbits(128)).hex[:12]})\n{SUB_SYSTEM}"},
+            {"role": "user", "content": "Question: which files describe how the server answers a request? I will show you "
+                                        "candidate files one at a time; after each, say in one sentence if it is relevant."}]
+    rows = []
+    for k in range(1, turns + 1):
+        name, body = chunks[k - 1]
+        msgs.append({"role": "user", "content": f"Candidate {name}:\n{body}\n\nRelevant? One sentence."})
+        r, d = tapped(cl, msgs, max_tokens, tools=SUB_TOOLS)
+        d["sub_turn"] = k
+        rows.append(d)
+        log(f"C sub-agent turn {k}: prompt {d['prompt_tokens']}, reused {d['reused_tokens']}, TTFT {d['ttft_s']} s"
+            + ("" if d["ok"] else f"  FAILED {d['err']}"))
+        if not d["ok"]:
+            break
+        msgs.append({"role": "assistant", "content": r["text"] or "Understood."})
+    return rows
+
+
+def session_side(cl: Client, turns: int, words: int, max_tokens: int, nonce: str, chunks, side_after: list[int],
+                 side_messages_n: int, side_words: int, switch_after: int, sub_turns: int, seed: int, log=print) -> dict:
+    """Scenario C: the 10-turn agent session of scenario B with, between turns, unrelated side requests (after the
+    turns in side_after) and optionally ONE sub-agent switch (after turn switch_after; 0 = none).  Both go out after the
+    main turn's reply is in the conversation and before the next main turn; when both sit after the same turn, the side
+    request goes first.  The main conversation itself is byte-identical to scenario B's, so the two are comparable.
+    Each main row says whether it followed a side request (after_side = how many) or the switch (after_switch)."""
+    rng = random.Random(seed)
+    extra: list[dict] = []
+
+    def between(t: int) -> dict:
+        flags = {"after_side": 0, "after_switch": False}
+        if t in side_after:
+            r, d = tapped(cl, side_messages(rng, side_words, side_messages_n), 32)
+            d.update(kind="side", after_turn=t)
+            extra.append(d)
+            flags["after_side"] += 1
+            log(f"C side request after turn {t}: prompt {d['prompt_tokens']}, reused {d['reused_tokens']}, "
+                f"TTFT {d['ttft_s']} s" + ("" if d["ok"] else f"  FAILED {d['err']}"))
+        if t == switch_after:
+            for d in subagent_run(cl, rng, sub_turns, chunks[turns:turns + sub_turns], 32, log):
+                d.update(kind="subagent", after_turn=t)
+                extra.append(d)
+            flags["after_switch"] = True
+        return flags
+
+    s = agent_session(cl, turns, words, max_tokens, nonce, chunks, log, between=between)
+    for r in s["turns"]:
+        r.setdefault("after_side", 0)
+        r.setdefault("after_switch", False)
+    s["other_requests"] = extra
+    return s
+
+
+def turn_group(r: dict) -> str:
+    return "after_switch" if r.get("after_switch") else "after_side" if r.get("after_side") else "plain"
+
+
+def summarize_c(sessions: list[dict]) -> dict:
+    base = summarize_b(sessions)
+    first = sessions[0]["turns"] if sessions else []
+    for p in base["per_turn"]:
+        row = next((r for r in first if r["turn"] == p["turn"]), None)
+        p["after_side"] = (row or {}).get("after_side", 0)
+        p["after_switch"] = bool((row or {}).get("after_switch"))
+    groups = {}
+    for g in ("plain", "after_side", "after_switch"):
+        rows = [t for s in sessions for t in s["turns"] if t["turn"] > 1 and t["ok"] and turn_group(t) == g]
+        groups[g] = {"n": len(rows), "ttft_s_median": rnd(median(t["ttft_s"] for t in rows)),
+                     "reused_tokens_median": median(t["reused_tokens"] for t in rows),
+                     "read_tokens_median": median(t["read_tokens"] for t in rows),
+                     "reread_tokens_median": median(t.get("reread_tokens") for t in rows)}
+    others = [d for s in sessions for d in s.get("other_requests", [])]
+    side = [d for d in others if d.get("kind") == "side" and d["ok"]]
+    sub = [d for d in others if d.get("kind") == "subagent" and d["ok"]]
+    base["groups"] = groups
+    base["other_requests"] = {"side_n": len(side), "side_ttft_s_median": rnd(median(d["ttft_s"] for d in side)),
+                              "subagent_n": len(sub), "subagent_ttft_s_median": rnd(median(d["ttft_s"] for d in sub)),
+                              "failed": sum(1 for d in others if not d["ok"])}
+    return base
+
+
+def run_c(cl: Client, turns: int, words: int, max_tokens: int, sessions: int, side_after: list[int], side_messages_n: int,
+          side_words: int, switch_after: int, sub_turns: int, seed: int, log=print) -> dict:
+    if any(t >= turns for t in side_after) or switch_after >= turns:
+        raise ValueError(f"--side-after / --switch-after must be before the last turn ({turns}): a request after the last "
+                         "turn has no main turn to disturb")
+    chunks = agent_chunks(turns + (sub_turns if switch_after else 0), words)
+    ss = [session_side(cl, turns, words, max_tokens, uuid.uuid4().hex[:12], chunks, side_after, side_messages_n, side_words,
+                       switch_after, sub_turns, seed + k, log) for k in range(sessions)]
+    return {"turns": turns, "words_per_turn": words, "max_tokens": max_tokens, "side_after": side_after,
+            "side_messages": side_messages_n, "side_words": side_words, "switch_after": switch_after or None,
+            "subagent_turns": sub_turns if switch_after else 0, "chunks": [c[0] for c in chunks[:turns]],
+            "sessions": ss, "summary": summarize_c(ss)}
+
+
+# ------------------------------------------------------------------------------------------------ scenario E
+def linfit(points: list[tuple[float, float]]) -> dict | None:
+    """Least squares y = a + b*x over (x, y); None with fewer than 2 distinct x."""
+    n = len(points)
+    if n < 2 or len({x for x, _ in points}) < 2:
+        return None
+    mx, my = sum(x for x, _ in points) / n, sum(y for _, y in points) / n
+    sxx = sum((x - mx) ** 2 for x, _ in points)
+    b = sum((x - mx) * (y - my) for x, y in points) / sxx
+    return {"n": n, "slope_ms_per_token": rnd(b * 1000, 4), "intercept_s": rnd(my - b * mx, 3)}
+
+
+def run_e(cl: Client, base_tokens: int, deltas: list[int], repeats: int, tpw: float, max_tokens: int, seed: int,
+          log=print) -> dict:
+    """Scenario E, warm-delta sweep (TTFT_LEVERS M5).  One long conversation (about base_tokens) is built once; then, in
+    `repeats` rounds, each delta size (ascending) is appended as a new user message with unique content and the reply
+    is kept, so every request is the live warm path of an agent turn.  The conversation grows by the deltas and
+    replies, so depth drifts upward over rounds (prompt_tokens is recorded per request); a round runs every size once, so
+    sizes are compared at nearly the same depth.  new_tokens_est = prompt_tokens - (previous prompt_tokens + previous
+    generated tokens): the new message plus a few chat-template tokens, client-side, valid for every server."""
+    rng = random.Random(seed)
+    nonce = uuid.uuid4().hex[:12]
+    words = max(10, round((base_tokens - PROMPT_OVERHEAD_TOKENS) / tpw))
+    msgs = [{"role": "system", "content": f"(session {nonce})\n{SYSTEM}"},
+            {"role": "user", "content": unique_variant(words, rng)}]
+    out: dict = {"base_target_tokens": base_tokens, "deltas": deltas, "repeats": repeats, "max_tokens": max_tokens,
+                 "status": "measured", "base": None, "rows": [],
+                 "note": "new_tokens_est includes a few chat-template tokens; depth grows by the deltas and replies"}
+    r, d = tapped(cl, msgs, max_tokens, tools=TOOLS)
+    d["words"] = words
+    out["base"] = d
+    if not d["ok"]:
+        out["status"] = ("skipped: context limit: " if d["context_limit"] else "failed building the base: ") + (d["err"] or "")[:160]
+        log(f"E base: {out['status']}")
+        out["summary"] = summarize_e(out)
+        return out
+    log(f"E base: {d['prompt_tokens']} tokens, TTFT {d['ttft_s']} s")
+    msgs.append({"role": "assistant", "content": r["text"] or "Understood."})
+    ratio = (d["prompt_tokens"] - PROMPT_OVERHEAD_TOKENS) / words if d["prompt_tokens"] else tpw
+    prev_prompt, prev_gen = d["prompt_tokens"], d["generated_tokens"] or 0
+    stop = False
+    for rep in range(1, repeats + 1):
+        for size in deltas:
+            w = max(1, round(size / ratio))
+            msgs.append({"role": "user", "content": f"Further notes {uuid.UUID(int=rng.getrandbits(128)).hex[:12]}: "
+                                                    f"{random_words(w, rng)}\nReply with one word."})
+            r, d = tapped(cl, msgs, max_tokens, tools=TOOLS)
+            d.update(delta_target=size, repeat=rep, words=w)
+            if d["prompt_tokens"] is not None and prev_prompt is not None:
+                d["new_tokens_est"] = d["prompt_tokens"] - (prev_prompt + prev_gen)
+            out["rows"].append(d)
+            if not d["ok"]:
+                out["status"] = ("skipped: context limit: " if d["context_limit"] else f"failed at delta {size} repeat {rep}: ") \
+                    + (d["err"] or "")[:160]
+                log(f"E delta {size} repeat {rep}: {out['status']}")
+                stop = True
+                break
+            log(f"E delta {size:>5} repeat {rep}: prompt {d['prompt_tokens']}, new ~{d.get('new_tokens_est')}, "
+                f"read {d['read_tokens']}, TTFT {d['ttft_s']} s")
+            if w >= 200 and d.get("new_tokens_est"):
+                ratio = max(0.5, d["new_tokens_est"] / w)
+            msgs.append({"role": "assistant", "content": r["text"] or "Understood."})
+            prev_prompt, prev_gen = d["prompt_tokens"], d["generated_tokens"] or 0
+        if stop:
+            break
+    out["summary"] = summarize_e(out)
+    return out
+
+
+def summarize_e(e: dict) -> dict:
+    rows = [r for r in e["rows"] if r["ok"]]
+    per = []
+    for size in e["deltas"]:
+        rr = [r for r in rows if r["delta_target"] == size]
+        per.append({"delta": size, "n": len(rr), "ttft_s": {"median": rnd(median(r["ttft_s"] for r in rr)),
+                                                            "min": min((r["ttft_s"] for r in rr), default=None),
+                                                            "max": max((r["ttft_s"] for r in rr), default=None)} if rr else None,
+                    "new_tokens_est": median(r.get("new_tokens_est") for r in rr),
+                    "read_tokens": median(r["read_tokens"] for r in rr),
+                    "reused_tokens": median(r["reused_tokens"] for r in rr),
+                    "prompt_tokens": median(r["prompt_tokens"] for r in rr),
+                    "engine_prompt_ms": rnd(median(r["engine_prompt_ms"] for r in rr), 1)})
+    pts = [(r["new_tokens_est"], r["ttft_s"]) for r in rows if r.get("new_tokens_est") is not None]
+    return {"per_delta": per, "fit_all": linfit(pts), "fit_ge_1000": linfit([p for p in pts if p[0] >= 1000]),
+            "fit_note": "TTFT s = intercept_s + slope * new tokens, least squares over the kept requests; the staged-path "
+                        "floor is the intercept only if the small deltas sit on the line, so read the table too",
+            "base_prompt_tokens": (e["base"] or {}).get("prompt_tokens"), "base_ttft_s": (e["base"] or {}).get("ttft_s")}
+
+
 # ------------------------------------------------------------------------------------------------ text summary
 def fmt(x, digits=2, unit=""):
     return "-" if x is None else f"{x:.{digits}f}{unit}"
+
+
+def budget_text(res: dict) -> str | None:
+    b = res.get("cache_budget_mib")
+    return None if b is None else f"conversation-cache budget noted by the operator: {b} MiB (the harness did not read it from the server)"
+
+
+def iter_requests(res: dict):
+    """Every request digest of a result file that may carry an engine_log."""
+    for e in ((res.get("scenario_a") or {}).get("sizes") or []):
+        yield from e.get("runs", [])
+    for key in ("scenario_b", "scenario_c"):
+        for s in ((res.get(key) or {}).get("sessions") or []):
+            yield from s.get("turns", [])
+            yield from s.get("other_requests", [])
+    e = res.get("scenario_e") or {}
+    if e.get("base"):
+        yield e["base"]
+    yield from e.get("rows", [])
+
+
+def engine_log_text(res: dict) -> list[str]:
+    if not (res.get("args") or {}).get("prefill_timing_log"):
+        return []
+    reqs = [r for r in iter_requests(res) if r.get("engine_log") is not None]
+    L = ["", "engine log lines attached per request (--prefill-timing-log; the prefill breakdown needs STRATA_PREFILL_TIMING=1)"]
+    n_timing = sum(len(r["engine_log"].get("prefill_timing") or []) for r in reqs)
+    errs = {r["engine_log"]["error"] for r in reqs if r["engine_log"].get("error")}
+    if errs:
+        L.append("  " + "; ".join(sorted(errs)))
+    if not n_timing:
+        L.append("  no 'strata prefill timing' line found in the log lines added during the requests: was the engine started "
+                 "with STRATA_PREFILL_TIMING=1, and is this the file its stderr goes to?")
+    for e in ((res.get("scenario_a") or {}).get("sizes") or []):
+        kept = [r for r in e.get("runs", []) if r.get("ok") and not r.get("discarded")
+                and (r.get("engine_log") or {}).get("prefill_timing")]
+        if not kept:
+            continue
+        pt = max(kept[-1]["engine_log"]["prefill_timing"], key=lambda x: x["tokens"])
+        top = sorted(pt["phases"].items(), key=lambda kv: -kv[1]["ms"])[:4]
+        L.append(f"  A {e['label']:>5}: {pt['tokens']} tok, GPU {pt['gpu_ms']} ms, wall {fmt(pt['wall_ms'], 0)} ms, host staging "
+                 f"{fmt(pt['host_staging_ms'], 0)} ms; top: " + ", ".join(f"{n} {v['ms']} ms ({v['pct']:.0f}%)" for n, v in top))
+    parks = sum(len(r["engine_log"].get("parks") or []) for r in reqs)
+    skips = sum(len(r["engine_log"].get("skips") or []) for r in reqs)
+    rest = sum(len(r["engine_log"].get("restores") or []) for r in reqs)
+    L.append(f"  over {len(reqs)} requests: {n_timing} prefill timing line(s), {parks} park(s), {skips} skipped park(s), "
+             f"{rest} restore(s); full lines are in the JSON (engine_log per request)")
+    return L
+
+
+def summary_c_text(c: dict) -> list[str]:
+    s = c["summary"]
+    side = ",".join(map(str, c["side_after"])) or "none"
+    L = ["", f"C. session with side requests: {c['turns']} turns x about {c['words_per_turn']} words, side requests after turn(s) "
+             f"{side} ({c['side_messages']} message(s), {c['side_words']} words), sub-agent switch "
+             f"{('after turn %d for %d turns' % (c['switch_after'], c['subagent_turns'])) if c['switch_after'] else 'none'}; "
+             f"{s['sessions']} session(s)",
+         f"{'turn':>4} {'after':>6} {'prompt':>8} {'reused':>8} {'read':>8} {'re-read':>8} {'reuse %':>8} {'TTFT s':>8}"]
+    for p in s["per_turn"]:
+        pct = None if p["reused_tokens"] is None or not p["prompt_tokens"] else 100 * p["reused_tokens"] / p["prompt_tokens"]
+        flag = "switch" if p["after_switch"] else "side" if p["after_side"] else "-"
+        L.append(f"{p['turn']:>4} {flag:>6} {fmt(p['prompt_tokens'], 0):>8} {fmt(p['reused_tokens'], 0):>8} "
+                 f"{fmt(p['read_tokens'], 0):>8} {fmt(p['reread_tokens'], 0):>8} {fmt(pct, 1):>8} {fmt(p['ttft_s']):>8}")
+    L.append(f"total TTFT over the main turns (median of {s['complete_sessions']} complete): {fmt(s['total_ttft_s'])} s")
+    for g, v in s["groups"].items():
+        if v["n"]:
+            L.append(f"  turns 2+ {g:<12} n={v['n']:>2}: median TTFT {fmt(v['ttft_s_median'])} s, read {fmt(v['read_tokens_median'], 0)}, "
+                     f"re-read {fmt(v['reread_tokens_median'], 0)} tokens")
+    o = s["other_requests"]
+    L.append(f"  side requests: n={o['side_n']} median TTFT {fmt(o['side_ttft_s_median'])} s; sub-agent turns: n={o['subagent_n']} "
+             f"median TTFT {fmt(o['subagent_ttft_s_median'])} s; failed {o['failed']}")
+    if not s["reuse_reported"]:
+        L.append("cache reuse: not reported by this server; reused/read/re-read columns are empty")
+    stops = [x["stopped"] for x in c["sessions"] if x["stopped"]]
+    if stops:
+        L.append("stopped early: " + "; ".join(stops[:2]))
+    return L
+
+
+def summary_e_text(e: dict) -> list[str]:
+    s = e["summary"]
+    L = ["", f"E. warm-delta sweep: base about {size_label(e['base_target_tokens'])} tokens built once (actual "
+             f"{fmt(s['base_prompt_tokens'], 0)}, TTFT {fmt(s['base_ttft_s'])} s), deltas {e['deltas']} x {e['repeats']} repeats; "
+             f"status: {e['status']}",
+         f"{'delta':>6} {'n':>2} {'new tok':>8} {'read':>8} {'depth':>8} {'TTFT s':>8} {'min-max s':>13} {'engine ms':>10}"]
+    for p in s["per_delta"]:
+        t = p["ttft_s"]
+        L.append(f"{p['delta']:>6} {p['n']:>2} {fmt(p['new_tokens_est'], 0):>8} {fmt(p['read_tokens'], 0):>8} "
+                 f"{fmt(p['prompt_tokens'], 0):>8} " + (f"{t['median']:>8.2f} {t['min']:>5.2f}-{t['max']:<7.2f}" if t else f"{'-':>8} {'-':>13}")
+                 + f" {fmt(p['engine_prompt_ms'], 0):>10}")
+    for key, name in (("fit_all", "all deltas"), ("fit_ge_1000", "deltas of 1000+")):
+        f = s[key]
+        L.append(f"fit ({name}): " + (f"TTFT = {f['intercept_s']:.2f} s + {f['slope_ms_per_token']:.3f} ms per new token (n={f['n']})"
+                                      if f else "not enough points"))
+    return L
 
 
 def summary_text(res: dict) -> str:
@@ -366,6 +827,8 @@ def summary_text(res: dict) -> str:
          f"{'on' if res['args']['think'] == 'on' else 'off'})",
          f"load average 1 min: start {fmt(res['load']['start'], 2)}, end {fmt(res['load']['end'], 2)}"
          + ("  WARNING: above 2.0, the numbers are not clean" if res["load"]["warning"] else "")]
+    if budget_text(res):
+        L.append(budget_text(res))
     a = res.get("scenario_a")
     if a:
         L += ["", "A. single long prompts (run 1 discarded, median of the rest; TTFT = client, stream=true)",
@@ -402,6 +865,11 @@ def summary_text(res: dict) -> str:
         stops = [x["stopped"] for x in b["sessions"] if x["stopped"]]
         if stops:
             L.append("stopped early: " + "; ".join(stops[:2]))
+    if res.get("scenario_c"):
+        L += summary_c_text(res["scenario_c"])
+    if res.get("scenario_e"):
+        L += summary_e_text(res["scenario_e"])
+    L += engine_log_text(res)
     return "\n".join(L)
 
 
@@ -418,6 +886,10 @@ def compare_text(a: dict, b: dict) -> str:
     for r, tag in ((a, "A"), (b, "B")):
         if r["load"]["warning"]:
             L.append(f"WARNING: run {tag} ({r['label']}) had a 1-minute load average above 2.0")
+    if a.get("cache_budget_mib") is not None or b.get("cache_budget_mib") is not None:
+        def bud(r):
+            return "not noted" if r.get("cache_budget_mib") is None else f"{r['cache_budget_mib']} MiB"
+        L.append(f"conversation-cache budget (noted by the operator): A {bud(a)}, B {bud(b)}")
     if a.get("scenario_a") and b.get("scenario_a"):
         L += ["", "A. single long prompts: median TTFT in seconds",
               f"{'size':>6} {'A tok':>8} {'B tok':>8} {'A TTFT':>8} {'B TTFT':>8} {'change':>8} {'A eng tok/s':>11} {'B eng tok/s':>11}"]
@@ -454,6 +926,41 @@ def compare_text(a: dict, b: dict) -> str:
         L.append(f"prompt tokens reused (turns 2+): A {fmt(pa['reuse_pct_follow_up_turns'], 1)} %"
                  f"{'' if pa['reuse_reported'] else ' (not reported)'}, B {fmt(pb['reuse_pct_follow_up_turns'], 1)} %"
                  f"{'' if pb['reuse_reported'] else ' (not reported)'}")
+    if a.get("scenario_c") and b.get("scenario_c"):
+        pa, pb = a["scenario_c"]["summary"], b["scenario_c"]["summary"]
+        L += ["", "C. session with side requests: median TTFT per main turn in seconds (side = followed a side request, "
+                  "switch = followed the sub-agent run)",
+              f"{'turn':>4} {'A after':>8} {'B after':>8} {'A TTFT':>8} {'B TTFT':>8} {'change':>8} {'A re-read':>10} {'B re-read':>10}"]
+        for i in range(max(len(pa["per_turn"]), len(pb["per_turn"]))):
+            x = pa["per_turn"][i] if i < len(pa["per_turn"]) else None
+            y = pb["per_turn"][i] if i < len(pb["per_turn"]) else None
+
+            def fl(p):
+                return "-" if p is None else "switch" if p.get("after_switch") else "side" if p.get("after_side") else "-"
+            L.append(f"{i + 1:>4} {fl(x):>8} {fl(y):>8} {fmt(x and x['ttft_s']):>8} {fmt(y and y['ttft_s']):>8} "
+                     f"{pct_change(x and x['ttft_s'], y and y['ttft_s']):>8} {fmt(x and x['reread_tokens'], 0):>10} "
+                     f"{fmt(y and y['reread_tokens'], 0):>10}")
+        L.append(f"total TTFT over the main turns: A {fmt(pa['total_ttft_s'])} s, B {fmt(pb['total_ttft_s'])} s "
+                 f"({pct_change(pa['total_ttft_s'], pb['total_ttft_s'])})")
+        for g in ("plain", "after_side", "after_switch"):
+            ga, gb = pa["groups"][g], pb["groups"][g]
+            if ga["n"] or gb["n"]:
+                L.append(f"  turns 2+ {g:<12} median TTFT: A {fmt(ga['ttft_s_median'])} s (n={ga['n']}), B {fmt(gb['ttft_s_median'])} s "
+                         f"(n={gb['n']}) {pct_change(ga['ttft_s_median'], gb['ttft_s_median'])}")
+    if a.get("scenario_e") and b.get("scenario_e"):
+        pa, pb = a["scenario_e"]["summary"], b["scenario_e"]["summary"]
+        L += ["", "E. warm-delta sweep: median TTFT in seconds by delta size",
+              f"{'delta':>6} {'A new':>7} {'B new':>7} {'A TTFT':>8} {'B TTFT':>8} {'change':>8}"]
+        bm = {p["delta"]: p for p in pb["per_delta"]}
+        for p in pa["per_delta"]:
+            o = bm.get(p["delta"])
+            ta, tb = (p["ttft_s"] or {}).get("median"), ((o or {}).get("ttft_s") or {}).get("median")
+            L.append(f"{p['delta']:>6} {fmt(p['new_tokens_est'], 0):>7} {fmt(o and o['new_tokens_est'], 0):>7} {fmt(ta):>8} "
+                     f"{fmt(tb):>8} {pct_change(ta, tb):>8}" + ("" if o else "  (delta missing in B)"))
+        for key, name in (("fit_all", "fit, all deltas"), ("fit_ge_1000", "fit, deltas of 1000+")):
+            fa, fb = pa[key], pb[key]
+            L.append(f"  {name}: A " + (f"{fa['intercept_s']:.2f} s + {fa['slope_ms_per_token']:.3f} ms/token" if fa else "-")
+                     + ", B " + (f"{fb['intercept_s']:.2f} s + {fb['slope_ms_per_token']:.3f} ms/token" if fb else "-"))
     if len(L) == 1:
         L.append("nothing to compare: the two files share no scenario")
     return "\n".join(L)
@@ -496,7 +1003,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--out", default="", help="result JSON file (default ttft_<label>.json)")
     ap.add_argument("--api-key", default=os.environ.get("TTFT_BENCH_API_KEY", ""), help="bearer key (never written to the JSON)")
     ap.add_argument("--model", default="default", help="model name sent in the request")
-    ap.add_argument("--scenario", choices=("a", "b", "both"), default="both")
+    ap.add_argument("--scenario", choices=("a", "b", "both", "c", "e", "all"), default="both",
+                    help="a: long prompts, b: agent session, both: a+b (default), c: session with side requests and "
+                         "an optional sub-agent switch, e: warm-delta sweep, all: a+b+c+e")
     ap.add_argument("--sizes", default=DEFAULT_SIZES, help="scenario A prompt sizes in tokens, K = 1024 (default %(default)s)")
     ap.add_argument("--runs", type=int, default=4, help="scenario A runs per size; run 1 is discarded (default 4)")
     ap.add_argument("--max-tokens", type=int, default=16, help="scenario A max_tokens (default 16)")
@@ -509,6 +1018,25 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--think", choices=("off", "on"), default="off", help="off sends chat_template_kwargs enable_thinking=false")
     ap.add_argument("--timeout", type=float, default=3600, help="seconds per request")
     ap.add_argument("--seed", type=int, default=0, help="seed of the prompt variation (0: random)")
+    ap.add_argument("--side-after", default="3,6", help="scenario C: send a short unrelated side request after these main "
+                                                       "turns, e.g. 3,6 (default %(default)s; empty: none)")
+    ap.add_argument("--side-messages", type=int, choices=(1, 2), default=1, help="scenario C: messages in a side request (1 or 2)")
+    ap.add_argument("--side-words", type=int, default=60, help="scenario C: words of text in a side request (default 60)")
+    ap.add_argument("--switch-after", type=int, default=0, help="scenario C: after this main turn run a sub-agent (a second "
+                                                               "long conversation, other system prompt and tools), then return; 0: none")
+    ap.add_argument("--subagent-turns", type=int, default=2, help="scenario C: sub-agent turns (default 2)")
+    ap.add_argument("--delta-base", default=DEFAULT_DELTA_BASE, help="scenario E: size of the conversation built once, K = 1024 "
+                                                                    "(default %(default)s)")
+    ap.add_argument("--deltas", default=DEFAULT_DELTAS, help="scenario E: new tokens per request (default %(default)s)")
+    ap.add_argument("--delta-repeats", type=int, default=3, help="scenario E: repeats of each delta (default 3)")
+    ap.add_argument("--delta-max-tokens", type=int, default=16, help="scenario E max_tokens (default 16)")
+    ap.add_argument("--note-cache-budget-mib", type=int, default=None, metavar="N",
+                    help="scenario D (tight budget): record the server's conversation-cache budget in MiB in the JSON, "
+                         "and print it in --compare; the harness cannot set or read it")
+    ap.add_argument("--prefill-timing-log", default="", metavar="PATH",
+                    help="the engine's log file: after each request the lines added since it started (STRATA_PREFILL_TIMING=1 "
+                         "prefill breakdown, conversation-cache park/skip/restore, RESUME) are attached to its record")
+    ap.add_argument("--log-settle-s", type=float, default=0.3, help="seconds to wait before reading the engine log after a request")
     return ap
 
 
@@ -522,7 +1050,19 @@ def main(argv=None) -> int:
     if a.runs < 2:
         print("--runs must be at least 2: run 1 is discarded", file=sys.stderr)
         return 2
+    try:
+        side_after = parse_positions(a.side_after)
+        deltas = [parse_size(x) for x in a.deltas.split(",") if x.strip()]
+        delta_base = parse_size(a.delta_base)
+    except ValueError as e:
+        print(f"bad option: {e}", file=sys.stderr)
+        return 2
+    if a.scenario in ("c", "all") and (any(t >= a.turns for t in side_after) or a.switch_after >= a.turns):
+        print(f"--side-after / --switch-after must be before the last turn ({a.turns})", file=sys.stderr)
+        return 2
     cl = Client(a.host, a.port, a.api_key, think=a.think == "on", timeout=a.timeout, model=a.model)
+    if a.prefill_timing_log:
+        cl.tap = LogTap(a.prefill_timing_log, settle_s=a.log_settle_s)
     try:
         import socket
         socket.create_connection((a.host, a.port), timeout=5).close()
@@ -537,13 +1077,19 @@ def main(argv=None) -> int:
     res = {"schema": SCHEMA, "tool": "ttft_bench", "label": a.label, "base": f"http://{a.host}:{a.port}",
            "started": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
            "args": {k: v for k, v in vars(a).items() if k not in ("api_key", "compare")}, "server": info,
-           "model_reported": info.get("model_reported"), "model": a.model, "load": {"start": rnd(load0, 2), "end": None, "warning": False}}
+           "model_reported": info.get("model_reported"), "model": a.model, "cache_budget_mib": a.note_cache_budget_mib,
+           "load": {"start": rnd(load0, 2), "end": None, "warning": False}}
     seed = a.seed or random.SystemRandom().randrange(1, 2**31)
     res["args"]["seed"] = seed
-    if a.scenario in ("a", "both"):
+    if a.scenario in ("a", "both", "all"):
         res["scenario_a"] = run_a(cl, sizes, a.runs, a.max_tokens, not a.no_calibrate, a.tokens_per_word, seed)
-    if a.scenario in ("b", "both"):
+    if a.scenario in ("b", "both", "all"):
         res["scenario_b"] = run_b(cl, a.turns, a.agent_words, a.agent_max_tokens, a.sessions)
+    if a.scenario in ("c", "all"):
+        res["scenario_c"] = run_c(cl, a.turns, a.agent_words, a.agent_max_tokens, a.sessions, side_after, a.side_messages,
+                                  a.side_words, a.switch_after, a.subagent_turns, seed)
+    if a.scenario in ("e", "all"):
+        res["scenario_e"] = run_e(cl, delta_base, deltas, a.delta_repeats, a.tokens_per_word, a.delta_max_tokens, seed)
     load1 = load_avg()
     res["load"]["end"] = rnd(load1, 2)
     res["load"]["warning"] = any(x is not None and x > LOAD_WARN for x in (load0, load1))
