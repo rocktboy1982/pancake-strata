@@ -1,0 +1,262 @@
+{
+ "name": "ablation-17-3",
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "claim": [
+  "short",
+  "edit"
+ ],
+ "reps": 9,
+ "block": 3,
+ "warmup": 1,
+ "tier": "confirm",
+ "outlier": "robust",
+ "reclaim_max": 3.0,
+ "min_gain": 2.0,
+ "min_gain_lossy": 3.0,
+ "min_pairs": 3,
+ "max_rounds": 8,
+ "lossy_policy": "exact-first",
+ "retest_benched": false,
+ "final_check": true,
+ "note": "MOD_PLAN Phase 17 item 17.3. NOTHING HAS BEEN MEASURED with this plan. Written 2026-11-11 on dev/p17/ablate. Every env name and flag below was grepped in src/ include/ serve/ (python3 tools/pancake/ablate_greedy.py THIS_FILE --dry-run prints the check); the preset already has STRATA_VERIFY_DEFER_CPU=1, STRATA_EXPDEC_DOWN=1, STRATA_POOL_FUSE_PHASES=1, --spec 4, --adapt-swaps 32, --adapt-every 1, --lookup-max-t 12, STRATA_ROUTE_TAIL_SKIP=0. Cost: round 1 = (candidates + 1) arms x 3 starts (reps 9, block 3): --group core is 9 candidates = 30 starts, all groups = 19 candidates = 60 starts; each later round is smaller; --only / --exclude trim further. Groups: core = the items named in the Phase 17 task (router-fuse is core but disabled), extra = the other coded-and-untested items with a verified switch, disabled = listed with the reason they cannot be tested on this preset. kv-grow / STRATA_KV_RING_ADAPT (17.4) are not here: the adaptive ring is not in this tree (grep finds no STRATA_KV_RING_ADAPT), and the ring is a long-context item that needs its own 64K / 100K runs.",
+ "candidates": [
+  {
+   "name": "swaps-auto",
+   "group": "core",
+   "env": {
+    "STRATA_ADAPT_SWAPS_AUTO": "1"
+   },
+   "lossy": true,
+   "interacts_with": [
+    "kmiss-async"
+   ],
+   "note": "MOD_PLAN A8 (Pie): online swap budget; bench/specs/25-a8-confirm.json flags it lossy (cache placement changes the CPU/GPU split under deferral). Source: include/strata/program/swap_budget.hpp, src/program/generate.cpp. Rejected on the async tier in test 02 (-9.6% short), screen n=2 on the blocking tier looked positive."
+  },
+  {
+   "name": "kmiss-async",
+   "group": "core",
+   "env": {
+    "STRATA_ADAPT_KMISS": "2,8"
+   },
+   "args": {
+    "--adapt-async": "1"
+   },
+   "lossy": true,
+   "interacts_with": [
+    "swaps-auto"
+   ],
+   "note": "MOD_PLAN A5: admit on the k-th miss in W windows; needs the async tier (the blocking tier stalls the GPU about 5.6 ms per swap round, PANCAKE_STATUS). --adapt-async 1 on a HIP build is opt-in and the engine turns STRATA_ADAPT_OVERLAP (in the preset) off when it is given (src/program/generate.cpp near the 'o.adapt_async ? \"--adapt-async\"' line), so this arm also changes that. bench/specs/15-kmiss.json flags it lossy (rounding-level, different text). Source: include/strata/program/kmiss_tier.hpp."
+  },
+  {
+   "name": "acceptmoe-depth",
+   "group": "core",
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5",
+    "STRATA_ROUTE_PRIOR_DEPTH": "0.75"
+   },
+   "lossy": true,
+   "substitutes_of": [
+    "turbo"
+   ],
+   "note": "MOD_PLAN 23 (AcceptMoE depth-graded verify prior): STRATA_ROUTE_PRIOR_DEPTH only acts together with STRATA_ROUTE_PRIOR > 0 (src/core/verify.cpp: the graded call sits inside 'route_prior > 0'), so the arm sets both, as bench/specs/06-turbo-depth.json does. Source: src/core/verify.cpp, include/strata/kernels/route_prior.hpp."
+  },
+  {
+   "name": "turbo",
+   "group": "core",
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5"
+   },
+   "lossy": true,
+   "substitutes_of": [
+    "acceptmoe-depth"
+   ],
+   "note": "The lossy router prior (turbo). MOD_PLAN Phase 17 evidence: -8% decode overall on 2026-11-11 (+9% code, -15..-25% prose), so it is expected to lose here; it is in the plan because the turbo / AcceptMoE substitution has to be measured, not assumed. Source: src/core/verify.cpp STRATA_ROUTE_PRIOR."
+  },
+  {
+   "name": "tailskip7",
+   "group": "core",
+   "env": {
+    "STRATA_ROUTE_TAIL_SKIP": "7"
+   },
+   "lossy": true,
+   "note": "Tail-row drop (PANCAKE_STATUS P1 'Tail-row drop'); the preset sets STRATA_ROUTE_TAIL_SKIP=0, this sets 7 (arm tailskip7 of bench/specs/19-turbo-guards.json, flagged lossy there). The ledger says --lookup-chain 2 pays only after tail skip. Source: src/core/expert_source.cpp:4927, src/program/generate.cpp."
+  },
+  {
+   "name": "lookup-chain2",
+   "group": "core",
+   "args": {
+    "--lookup-chain": "2"
+   },
+   "lossy": false,
+   "interacts_with": [
+    "tailskip7"
+   ],
+   "note": "MOD_PLAN 17.4: --lookup-chain 2 (xyzzing rdna3-inference-ledger: paid only after tail skip, +6% at 1K, +20% at 128K on their 7900 XTX). The preset leaves it at the engine default 0; bench/specs/13-lookup.json tests 3. Declared exact (bench/specs/13-lookup.json). Source: src/program/generate.cpp ('--lookup-chain', clamp 0..7). Credit rule: if it is adopted, README section 9 + RESEARCH_AND_FINDINGS section 4 in the same commit."
+  },
+  {
+   "name": "spec5",
+   "group": "core",
+   "args": {
+    "--spec": "5"
+   },
+   "lossy": false,
+   "note": "MOD_PLAN 17.4: --spec 5 (the preset has 4). Draft length does not change what the target accepts, so it is declared exact; a different verify batch shape can still change rounding, so check it with the equivalence gate before calling it exact. Source: src/program/generate.cpp ('--spec')."
+  },
+  {
+   "name": "combine-poll1",
+   "group": "core",
+   "env": {
+    "STRATA_COMBINE_POLL1": "1"
+   },
+   "lossy": false,
+   "note": "MOD_PLAN 46: a single poller in combine_cpu (0-3% by estimate); bench/specs/04c-gpu-retest.json, never confirmed. Source: src/kernels/cuda/native_moe.cu:268."
+  },
+  {
+   "name": "expdec-swiglu",
+   "group": "core",
+   "env": {
+    "STRATA_EXPDEC_SWIGLU": "1"
+   },
+   "lossy": false,
+   "note": "MOD_PLAN A33 (item 48): expdec gate/up + SwiGLU + q8_1 in one launch, bitwise by construction; acts WITH the deferral (25-kern-hip screen: short +1.3%, edit +2.0%, n=2; the 6-rep confirm did not decide). Source: src/kernels/cuda/iq_kernels.cu:4403; it logs 'strata switch: ... acted'."
+  },
+  {
+   "name": "wait-copy256",
+   "group": "extra",
+   "env": {
+    "STRATA_WAIT_COPY256": "1"
+   },
+   "lossy": false,
+   "note": "F21: verify-plan copy with 256 threads and 16-byte reads (about 0.6% of a short window at most, by the profile estimate); 25-kern-hip screen: no difference. Source: src/kernels/cuda/verify_kernels.cu:1798, src/core/verify.cpp:1583."
+  },
+  {
+   "name": "route-fast",
+   "group": "extra",
+   "env": {
+    "STRATA_ROUTE_FAST": "1"
+   },
+   "lossy": false,
+   "note": "F9: route_multi + doorbell_publish fused; 25-kern-hip screen: no difference. Source: src/kernels/cuda/native_router.cu:491."
+  },
+  {
+   "name": "iq-sign-fast",
+   "group": "extra",
+   "env": {
+    "STRATA_IQ_SIGN_FAST": "1"
+   },
+   "lossy": false,
+   "note": "F12: IQ grid-sign expansion trick (kernel level -29..-35% in the donor repo, 7900 XT, ROCm 7.2.1); 22-f12-sign-fast.json never decided. Source: src/kernels/cuda/iq_kernels.cu:4282."
+  },
+  {
+   "name": "pool-tail4",
+   "group": "extra",
+   "env": {
+    "STRATA_POOL_TAIL4": "1"
+   },
+   "lossy": false,
+   "note": "Pool quarter-size tail tasks (basalt port, 0.5-1.5% by estimate); 03-cpu-pool: within +-1.5% of base. Source: src/kernels/cpu/pool.cpp:1326."
+  },
+  {
+   "name": "pool-lazy-park",
+   "group": "extra",
+   "env": {
+    "STRATA_POOL_LAZY_PARK": "1"
+   },
+   "lossy": false,
+   "note": "Lazy trailing park in the CPU pool (0-1% by estimate); 03-cpu-pool: n.s. Source: src/kernels/cpu/pool.cpp:1440."
+  },
+  {
+   "name": "pool-mwaitx",
+   "group": "extra",
+   "env": {
+    "STRATA_POOL_MWAITX": "20000"
+   },
+   "lossy": false,
+   "note": "Parked pool workers wait with MWAITX (frees the SMT siblings; micro-checked on the 5700G); 03-cpu-pool arm value 20000. Source: src/kernels/cpu/pool.cpp:89."
+  },
+  {
+   "name": "idle-adapt",
+   "group": "extra",
+   "env": {
+    "STRATA_IDLE_ADAPT": "4"
+   },
+   "lossy": false,
+   "note": "MOD_PLAN 17: tier catch-up while idle between requests (1-3% on the next turn by estimate); value 4 as in bench/specs/02-tier.json. Placement only. The harness passes run back to back, so the effect, if any, shows on the pass after an idle gap. Source: src/program/generate.cpp:14826."
+  },
+  {
+   "name": "device-spin",
+   "group": "extra",
+   "env": {
+    "STRATA_DEVICE_SPIN": "1"
+   },
+   "lossy": false,
+   "note": "Item 76: ask the driver to spin instead of yield in blocking syncs (PANCAKE_STATUS: exact, spec 04 log must say 'set'); bench/specs/04c-gpu-retest.json. Source: src/program/generate.cpp:4369, src/core/conversation_disk_env.def."
+  },
+  {
+   "name": "cpu-presum",
+   "group": "extra",
+   "env": {
+    "STRATA_CPU_PRESUM": "1"
+   },
+   "lossy": true,
+   "substitutes_of": [
+    "presum-vram"
+   ],
+   "note": "MOD_PLAN 51: CPU pre-sums the missed rows (0.5-1.5% by estimate), 'not bit-identical' (PANCAKE_STATUS), hence lossy here. Source: src/core/verify.cpp:1096, src/core/expert_source.cpp."
+  },
+  {
+   "name": "presum-vram",
+   "group": "extra",
+   "env": {
+    "STRATA_CPU_PRESUM": "1",
+    "STRATA_PRESUM_VRAM": "1"
+   },
+   "lossy": true,
+   "substitutes_of": [
+    "cpu-presum"
+   ],
+   "note": "MOD_PLAN 52: the pre-summed rows go to VRAM through ReBAR (needs STRATA_CPU_PRESUM; arm presum-vram of 04e-presum-quiet.json); a superset of cpu-presum, so the two substitute for each other. Source: src/core/verify.cpp, include/strata/core/verify.hpp."
+  },
+  {
+   "name": "router-fuse",
+   "group": "core",
+   "env": {
+    "STRATA_ROUTER_FUSE": "1"
+   },
+   "lossy": false,
+   "disabled": "does nothing on this preset: the engine takes it only without expert deferral (src/core/verify.cpp: rpub needs !defer_), and the preset has STRATA_VERIFY_DEFER_CPU=1 (bench/specs/a33-router-fuse-nodefer.json). Its arm would be VOID (the switch line says it did not act). Test it only inside a no-deferral bundle, or after the deferred rows go through the fused publish (a code change)."
+  },
+  {
+   "name": "ic-warm",
+   "group": "disabled",
+   "env": {
+    "STRATA_IC_WARM_MB": "32"
+   },
+   "lossy": false,
+   "disabled": "does nothing under deferral (warm_now needs cfuse_on, which needs !defer_; kern-hip 2026-11-11, bench/specs/a33-a35-fusion-retest.json), same reason as router-fuse."
+  },
+  {
+   "name": "q2-fast",
+   "group": "disabled",
+   "env": {
+    "STRATA_Q2_FAST": "1",
+    "STRATA_Q2_PREFETCH": "1024"
+   },
+   "lossy": false,
+   "disabled": "Q2_0 CPU row kernels only (src/kernels/cpu/q2_avx2.cpp); the preset is IQ2_XS, so both switches are inert here and, being exempt from the switch check, would not even be voided: a noise gain would be accepted. Use them in a Q2_0 plan (flashnext-q2_0-fast-hip-adopted.json)."
+  },
+  {
+   "name": "mtp-q4",
+   "group": "disabled",
+   "args": {
+    "--mtp-q4": "all"
+   },
+   "lossy": false,
+   "disabled": "bench/specs/07b-draft-nomtpq4.json: on HIP the --mtp-q4 head exited at start ('mtp: writing the draft head', cudaMemcpy failed, 2026-11-10 screen), bug not investigated since. Retest the flag alone before listing it."
+  }
+ ]
+}
