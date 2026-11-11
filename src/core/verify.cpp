@@ -1008,6 +1008,31 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             defer_heavy_ = 0.0f;
         }
     }
+    {   // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO=1 (+ _MIN_T=<n>; opt-in, core/defer_auto.hpp): read before the mapped
+        // allocations, which keep the rank guard's word for it.  It needs the heavy split: the word only reaches the split's
+        // row copies (copy_rows_by_weight) and the pool's heavy pass.  The start-up line is below with the deferral's.
+        const char* a = std::getenv("STRATA_VERIFY_DEFER_AUTO");
+        const char* mt = std::getenv("STRATA_VERIFY_DEFER_AUTO_MIN_T");
+        bool a_known = true, mt_known = true;
+        const bool want = strata::core::parse_defer_auto(a, &a_known);
+        defer_auto_ = strata::core::DeferAutoConfig{};
+        defer_auto_.min_t = strata::core::parse_defer_auto_min_t(mt, &mt_known);
+        defer_auto_want_ = false;
+        if (!a_known)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO=%s is not 1 or 0: off\n", a);
+        if (!mt_known)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO_MIN_T=%s is not a whole number in 0..%d: 0 (any "
+                                 "lookup window)\n", mt, strata::core::kDeferAutoMaxMinT);
+        if (want && !defer_)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO ignored (it needs STRATA_VERIFY_DEFER_CPU=1 or "
+                                 "check)\n");
+        else if (want && defer_heavy_ <= 0.0f)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO ignored (it needs the deferral's heavy split: "
+                                 "STRATA_VERIFY_DEFER_CPU_BELOW below 1 and no helper GPU): the deferral acts in every "
+                                 "window it can\n");
+        else
+            defer_auto_want_ = want;
+    }
     {   // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): host side only, the
         // start-up line is below with the deferral's
         const char* v = std::getenv("STRATA_VERIFY_ECAP");
@@ -1044,8 +1069,10 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
               mapped(64, (void**) &h_plan_err_, (void**) &m_plan_err_) &&
               mapped(T * K * N * 4, (void**) &h_ymiss_, (void**) &m_ymiss_) &&
               (defer_heavy_ <= 0.0f || mapped(64, (void**) &h_pflag_, (void**) &m_pflag_)) &&
-              // MOD_PLAN A44: the rank guard's mapped word, only when STRATA_BANDIT may move it
-              (defer_heavy_ <= 0.0f || strata::core::defer_top() <= 0 || !strata::core::bandit_requested(strata::core::kBanditTop) ||
+              // MOD_PLAN A44: the rank guard's mapped word, only when STRATA_BANDIT may move it (or, MOD_PLAN 17.1 note,
+              // STRATA_VERIFY_DEFER_AUTO moves it; without it the test is the A44 one, term for term)
+              (defer_heavy_ <= 0.0f ||
+               !(defer_auto_want_ || (strata::core::defer_top() > 0 && strata::core::bandit_requested(strata::core::kBanditTop))) ||
                mapped(64, (void**) &h_top_, (void**) &m_top_));
     if (!ok) { err = "verify: mapped staging allocation failed " + strata::core::pin_exhausted_hint(); return false; }
     if (h_top_ != nullptr) *(volatile int32_t*) h_top_ = strata::core::defer_top();   // (as captured, until a window stages it)
@@ -1481,12 +1508,27 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
     if (defer_heavy_ > 0.0f && strata::core::defer_top() > 0)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_TOP=%d: a CPU entry among its token's top %d by weight "
                              "is also kept on time (item 28 rank guard)\n", strata::core::defer_top(), strata::core::defer_top());
-    if (h_top_ != nullptr) {   // MOD_PLAN A44: the serve loop's epoch bandit may turn the rank guard on or off between windows
+    // MOD_PLAN A44: the serve loop's epoch bandit may turn the rank guard on or off between windows (the word may also be
+    // here for STRATA_VERIFY_DEFER_AUTO alone: the bandit is told only when it asked for the word, as before)
+    if (h_top_ != nullptr && strata::core::defer_top() > 0 && strata::core::bandit_requested(strata::core::kBanditTop)) {
         strata::core::live_knobs().top_word.store(true, std::memory_order_relaxed);
         std::fprintf(stderr, "strata verify: STRATA_BANDIT=top: the window graphs read the rank guard from a mapped word "
                              "staged with each window (lossy, small: the bandit decides which windows keep top %d on time)\n",
                      strata::core::defer_top());
     }
+    // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: on only with the word (STRATA_VERIFY_DEVICE_PLAN freed it above)
+    defer_auto_.on = defer_auto_want_ && h_top_ != nullptr && defer_heavy_ > 0.0f;
+    if (defer_auto_want_ && !defer_auto_.on)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO ignored (STRATA_VERIFY_DEVICE_PLAN=1 turns the "
+                             "deferral's heavy split off): the deferral acts in every window it can\n");
+    if (defer_auto_.on)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO=1 (MOD_PLAN 17.1 note, changes the output only through "
+                             "the deferral): only the serve loop's lookup (suffix-draft or chained) decode windows of %d rows "
+                             "or more defer their light CPU rows; every other window keeps every CPU row on time (it stages "
+                             "the rank guard at %d).  The window graphs stay the deferral's: STRATA_COMBINE_CPU, "
+                             "STRATA_WAIT_FUSE and STRATA_ROUTE_PUBLISH stay off in every window.  Prompt reads, pipelined "
+                             "and batch windows and strata generate never defer under it\n",
+                     defer_auto_.min_t > 2 ? defer_auto_.min_t : 2, (int) ss.k);
     if (defer_heavy_ > 0.0f && strata::core::defer_fold() > 0)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_FOLD=%d: a layer with heavy CPU rows and at most %d "
                              "light expert(s) runs them in one pool pass (the same rows join late; MOD_PLAN A4)\n",
@@ -3598,7 +3640,9 @@ void Verifier::stage_inputs(int T, const int32_t* tokens, int64_t pos0) {
     if (hdrop_h_ != nullptr) *(volatile uint32_t*) hdrop_h_ = (g_test_drop > 0 && windows + 1 == g_test_drop) ? 1u : 0u;
     if (h_pflag_ != nullptr) *(volatile uint32_t*) h_pflag_ = 0;
     if (h_top_ != nullptr) {   // MOD_PLAN A44 (STRATA_BANDIT=top): this window's rank guard, one value for the GPU and the pool
-        const int top = strata::core::defer_top_now();
+        // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: a window no caller marked with set_defer_window stages k, so every CPU
+        // entry is heavy and kept on time (core/defer_auto.hpp); without the switch, defer_top_now() as before
+        const int top = strata::core::defer_staged_top(defer_auto_.on, defer_next_, strata::core::defer_top_now(), (int) ss_->k);
         *(volatile int32_t*) h_top_ = top;
         sink_.top = top;
     }
@@ -3759,6 +3803,14 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     // clears its own in its run).  Never a prompt read (head sampling off: every row is committed) or a one-token window.
     const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= 2 && head_sampling_;
     ecap_next_ = false;
+    // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: set_defer_window is this run's borrow too.  stage_inputs reads it below
+    // (or prelaunch read it already, for a stage the previous one launched), so it is cleared at the exit of every path,
+    // not here - for this stage and the later ones, whose runs and prelaunch helper (joined by NextLaunch, which is
+    // destroyed before this) all end inside this run.  A window the next caller does not mark then keeps every row on time.
+    struct DeferBorrow {
+        Verifier& v;
+        ~DeferBorrow() { v.set_defer_window(false); }
+    } defer_borrow{*this};
     const bool measure = spec_measure_;
     // Clear this borrow and propagated stage borrows on every exit.
     struct ProposalBorrow {

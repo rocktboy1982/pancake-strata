@@ -21,6 +21,7 @@
 #include "strata/platform/mem_pressure.hpp"
 #include "strata/core/adapt_async_default.hpp"
 #include "strata/core/calibrate_ratio.hpp"
+#include "strata/core/defer_auto.hpp"
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/epoch_bandit.hpp"
 #include "strata/core/live_knobs.hpp"
@@ -19355,6 +19356,8 @@ int main(int argc, char** argv) {
             }();
 #endif
             int64_t chain_windows = 0, chain_drafts = 0, chain_ok = 0;   // --lookup-chain's own counts
+            int64_t defer_auto_windows = 0, defer_auto_deferred = 0;   // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: the request's
+                                                                         // decode windows, and those that deferred
             int64_t t2_rej[8] = {}, t2_hit[8] = {};   // STRATA_MTP_TOP2: rejections inside the MTP drafts by depth, runner-up hits
             int64_t dp_tested[8] = {}, dp_ok[8] = {};   // STRATA_SPEC_DEPTH=1: MTP drafts tested / accepted by depth
             std::vector<int32_t> cbuf((size_t) S, 0), ctail;
@@ -20526,6 +20529,16 @@ int main(int argc, char** argv) {
                 // first window (its rows are prompt tokens); no cap while the request's grammar is enforcing (a tool call or
                 // a JSON reply in progress: the guard's state is the one after the last committed token)
                 if (ver.ecap() >= 0) ver.set_ecap_window(!merged && T >= 2 && !(gguard != nullptr && gguard->enforcing()));
+                // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO (opt-in; core/defer_auto.hpp): this window defers its light CPU
+                // rows only when its drafts are a lookup copy (the draft policy picked it, or a chained lookup tail) of at least
+                // max(2, _MIN_T) rows; any other window keeps every CPU row on time.  A borrow for this run only.
+                if (ver.defer_auto().on) {
+                    const bool dw = strata::core::defer_window_on(
+                        ver.defer_auto(), strata::core::defer_window_kind(merged, from_sfx, chain_n, T), T);
+                    ver.set_defer_window(dw);
+                    ++defer_auto_windows;
+                    defer_auto_deferred += dw ? 1 : 0;
+                }
                 exit_if_gpu_fatal("");   // (the test hook counts windows here)
                 if (!ver.run(T, window.data(), p, decode_pool_fn, win_pool_user, outv.data(), err) || drive.d.failed) {
                     exit_if_gpu_fatal(drive.d.failed && drive.d.fail ? drive.d.fail : err);
@@ -21416,6 +21429,9 @@ int main(int argc, char** argv) {
             if (sfx_windows > 0)
                 std::fprintf(stderr, "strata serve: suffix drafts: %lld windows, %lld of %lld drafts accepted\n",
                              (long long) sfx_windows, (long long) sfx_ok, (long long) sfx_drafts);
+            if (defer_auto_windows > 0)   // MOD_PLAN 17.1 note (STRATA_VERIFY_DEFER_AUTO): how many windows the gate let defer
+                std::fprintf(stderr, "strata serve: STRATA_VERIFY_DEFER_AUTO: %lld of the decode loop's %lld verify windows "
+                             "deferred their light CPU rows\n", (long long) defer_auto_deferred, (long long) defer_auto_windows);
             if (sidx != nullptr) {   // A24: what the cross-session index gave this request, and what it holds now
                 size_t held = 0, cap = 0;
                 uint64_t outs = 0;
