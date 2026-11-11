@@ -8,7 +8,7 @@
            INCONCLUSIVE / REJECT) for a true loss of 0 / 5 / 10 points, by number of tasks and repetitions, for two difficulty mixes.
 
     python tools/pancake/gate_power.py tokens [--trials 300] [--new-len 240] [--model ties,iid] [--seed 1]
-    python tools/pancake/gate_power.py tasks  [--trials 100] [--tasks 18,100,150] [--reps 3,5,10] [--boots 1000] [--seed 1]
+    python tools/pancake/gate_power.py tasks  [--trials 100] [--tasks 18,100,150] [--reps 3,5,10] [--boots 1000] [--tasks-only] [--seed 1]
 
 (tools/pancake/power_sim.py is another tool: the speed rule of promote.py on abtest's noise.)
 
@@ -96,13 +96,14 @@ def draw(rng, rates, reps):
     return {f"t{i}": [1 if rng.random() < p else 0 for _ in range(reps)] for i, p in enumerate(rates)}
 
 
-def task_power(mix, n_tasks, reps, loss_pts, trials, rng, boots=1000, margin=0.05):
-    """Shares {"PASS": n (PASS or BETTER), "INCONCLUSIVE": n, "REJECT": n} of task_gate.verdict over `trials` draws."""
+def task_power(mix, n_tasks, reps, loss_pts, trials, rng, boots=1000, margin=0.05, resample_reps=True):
+    """Shares {"PASS": n (PASS or BETTER), "INCONCLUSIVE": n, "REJECT": n} of task_gate.verdict over `trials` draws (resample_reps False =
+    task_gate.py --tasks-only: the interval from resampling the tasks alone)."""
     base = mix_rates(mix, n_tasks)
     scale = 1.0 - (loss_pts / 100.0) / (sum(base) / len(base))
     got = {"PASS": 0, "INCONCLUSIVE": 0, "REJECT": 0}
     for _ in range(trials):
-        r = TG.boot_diff(draw(rng, [p * scale for p in base], reps), draw(rng, base, reps), boots, rng.randrange(1 << 30))
+        r = TG.boot_diff(draw(rng, [p * scale for p in base], reps), draw(rng, base, reps), boots, rng.randrange(1 << 30), resample_reps=resample_reps)
         v = TG.verdict(r[1], r[2], margin)
         got["PASS" if v in ("PASS", "BETTER") else v] += 1
     return {k: v / trials for k, v in got.items()}
@@ -130,11 +131,11 @@ def report_tasks(a):
     lines = []
     for name, mix in (("promotion.md mix (56% of tasks at 95%, 17% at 80%, 17% at 50%, 11% at 10%)", MIX_PROMOTION),
                       ("balanced mix (20% of the tasks at 95%, 20% at 80%, 40% at 50%, 20% at 20%)", MIX_BALANCED)):
-        lines += [f"\ntask gate, {name}: share of PASS(+BETTER)/INCONCLUSIVE/REJECT in %, {a.trials} trials, margin 5 pts, boots {a.boots}",
+        lines += [f"\ntask gate{', --tasks-only' if a.tasks_only else ''}, {name}: share of PASS(+BETTER)/INCONCLUSIVE/REJECT in %, {a.trials} trials, margin 5 pts, boots {a.boots}",
                   f"{'tasks x reps':>14s}" + "".join(f"{'loss ' + str(d) + ' pts':>14s}" for d in a.loss)]
         for n in a.tasks:
             for reps in a.reps:
-                lines.append(f"{f'{n} x {reps}':>14s}" + "".join(f"{cell(task_power(mix, n, reps, d, a.trials, rng, a.boots)):>14s}" for d in a.loss))
+                lines.append(f"{f'{n} x {reps}':>14s}" + "".join(f"{cell(task_power(mix, n, reps, d, a.trials, rng, a.boots, resample_reps=not a.tasks_only)):>14s}" for d in a.loss))
     return "\n".join(lines)
 
 
@@ -154,6 +155,7 @@ def main(argv=None):
     k.add_argument("--reps", type=lambda s: [int(x) for x in s.split(",")], default=[3, 5, 10])
     k.add_argument("--loss", type=lambda s: [float(x) for x in s.split(",")], default=[0.0, 5.0, 10.0])
     k.add_argument("--boots", type=int, default=1000)
+    k.add_argument("--tasks-only", action="store_true", help="the interval of task_gate.py --tasks-only (resample the tasks, not the repetitions)")
     k.add_argument("--seed", type=int, default=1)
     a = ap.parse_args(argv)
     print(report_tokens(a) if a.cmd == "tokens" else report_tasks(a))

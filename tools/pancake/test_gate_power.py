@@ -48,6 +48,13 @@ def test_task_power_small_sets_cannot_decide_and_big_balanced_sets_can():
     assert big_loss["PASS"] == 0 and big_loss["REJECT"] > 0.3
 
 
+def test_tasks_only_interval_is_the_narrower_one():
+    kw = dict(mix=P.MIX_PROMOTION, n_tasks=100, reps=5, loss_pts=0.0, trials=30, boots=300)
+    wide = P.task_power(rng=random.Random(4), **kw)["PASS"]
+    narrow = P.task_power(rng=random.Random(4), resample_reps=False, **kw)["PASS"]
+    assert narrow >= wide
+
+
 def test_runs_are_reproducible_from_the_seed():
     a = P.task_power(P.MIX_PROMOTION, 20, 3, 5.0, 8, random.Random(9), boots=200)
     assert a == P.task_power(P.MIX_PROMOTION, 20, 3, 5.0, 8, random.Random(9), boots=200)
