@@ -2602,3 +2602,13 @@ list once two cards are in the box.  Each needs its own A/B on the real pair; th
 - The 7900 XT is not detected today; AMD work is compile-only until it is back.
 - Disk: the root disk is tight; builds, models and caches go on the D drive (`/home/dan/clone-of-d`).
 - Upstream moves fast (thousands of commits a month); rebase on Strata releases, not on every commit.
+
+## Phase 17: Avalon comparison follow-ups (started 2026-11-11, branch dev/p17/prosegap)
+
+### 17.2 Why Avalon decodes prose 5-10% faster than pancake (owner priority 1) - analysis and harness written, nothing measured
+
+Evidence: bench/results/2026-11-11-vs-avalon/ (port/rdna3-decode), same IQ2_XS GGUF: story 98.0 / 88.2 / 93.5, 15 tips 102.8 / 94.3 / 101.9, MoE explanation 110.6 / 106.5 / 101.8 tok/s (Avalon / Strata-rdna3 / pancake); code prompts pancake ahead.
+Written (no engine started, no build, no GPU): `pancake-docs/PROSE_GAP_AVALON.md` (read-only code analysis, every engine-code statement tagged unconfirmed) and `tools/pancake/prose_gap.py` (+ `test_prose_gap.py`, fake-server pytest, passes) to run later: one fixed prose prompt N times, run 1 discarded, tok/s, tokens per window, draft acceptance, text hash, `/metrics` + `/v1/status` before/after for pancake, Avalon's own `mean len` from its log.
+What the saved counters already suggest (derived, not measured; assumption: a window commits 1 + accepted tokens): on prose pancake's window is as cheap as Avalon's (19.5-20.7 ms against 20.8-21.8) but commits fewer tokens per window (story 1.83 against 2.13, tips 2.11 against 2.21, MoE 2.04 against 2.30); Strata-rdna3 matches pancake, so the difference is the drafter, not the engine kernels.
+Open questions, ranked: (1) MTP head quality (ours Q2_0 0.71 GB + 40.5k draft vocab, Avalon IQ3_K/IQ4_NL 1.48 GB + 65k); (2) draft depth and the 0.5 early stop (Avalon always 2 drafts; pancake 1.6-1.7 drafted per window on prose; cost of one extra row on the 7900 XT unknown); (3) control: Avalon's default lossy tail skip 7 vs our preset 0, different texts. Port feasibility and exact commands: the analysis note, sections 2 and 4.
+Next (needs a free machine): run the harness on both engines (command in the note), then the flag-only pancake variants (`--spec-min-p 0`, `--spec 2 --spec-min-p 0`, `STRATA_SPEC_COST=1`). Credits (README section 9, RESEARCH_AND_FINDINGS section 4) are added when an Avalon idea is adopted, not before.
