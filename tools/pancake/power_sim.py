@@ -7,7 +7,7 @@ REJECT is the upper bound below MIN_GAIN, HOLD is everything else (promote.py: j
 
     python tools/pancake/power_sim.py [--results GLOB ...] [--cases short,edit] [--gains 0,1,2,3,5,10] [--trials 20000]
         [--old 3,6,10,20,40] [--starts 2,3,4,6] [--passes 4] [--bonferroni 1] [--seed 1]
-        [--sd-between PCT] [--sd-within PCT] [--outlier-prob P]      (the last three replace the fitted value: sensitivity runs)
+        [--icc SHARE] [--sd-between PCT] [--sd-within PCT] [--outlier-prob P]      (sensitivity runs: replace the fitted value)
 
 Noise model, per case (fit_case; all relative to the arm's level, so the base figure does not matter):
   start value  = (1 + N(0, sd_between)) * slow factor          one draw per engine start (start-to-start variance)
@@ -29,7 +29,9 @@ Designs and analyses (what each reads of the same data):
            naive     every pass a pair, no widening: what a reader that ignores starts would do.
 Limits: starts are independent (pairing by repetition and ABBA drift cancellation are not credited: conservative); the engine's warm-pass
 regime (a second identical `edit` request decodes ~35% faster) is not modeled, only relative noise; the data are 60 attempts and 45
-usable starts per case, so run the --sd-* / --outlier-prob sensitivities before trusting a verdict near a threshold.
+usable starts per case, and the split of a pass's variance into between / within starts (--icc) is the weakest part of the fit
+(the only data with two requests per start are screens, and their second request is a warm-pass regime): run --icc 0.3 / 0.6 / 0.9 and
+--outlier-prob before trusting a verdict near a threshold.
 """
 import argparse
 import glob
@@ -126,6 +128,19 @@ def fit_case(attempts, case, gates="recorded"):
     return {"case": case, "gates": gates, "starts": len(devs), "pairs": sum(len(r) for r in ratios), "sd_total_pct": total * 100,
             "sd_within_pct": within * 100, "sd_between_pct": math.sqrt(total ** 2 - within ** 2) * 100,
             "outlier_prob": len(slow) / len(devs), "outlier_factors": slow or [0.8]}
+
+
+def override(fit, between=None, within=None, outlier_prob=None, icc=None):
+    """A copy of fit with the sensitivity settings applied: icc = the share of a single pass's variance that is between starts (abtest
+    assumes 0.3): it re-splits sd_total into sd_between = sd_total sqrt(icc) and sd_within = sd_total sqrt(1 - icc), which is what the
+    data cannot tell well; the explicit sds and the slow-start probability replace the fitted values."""
+    f = dict(fit)
+    if icc is not None:
+        f["sd_between_pct"], f["sd_within_pct"] = f["sd_total_pct"] * math.sqrt(icc), f["sd_total_pct"] * math.sqrt(1 - icc)
+    for key, v in (("sd_between_pct", between), ("sd_within_pct", within), ("outlier_prob", outlier_prob)):
+        if v is not None:
+            f[key] = v
+    return f
 
 
 def discard_rates(attempts):
@@ -258,10 +273,7 @@ def report(a):
     for case in a.cases:
         fits = {}
         for gates in ("recorded", "none"):
-            f = fits[gates] = fit_case(attempts, case, gates)
-            for k, v in (("sd_between_pct", a.sd_between), ("sd_within_pct", a.sd_within), ("outlier_prob", a.outlier_prob)):
-                if v is not None:
-                    f[k] = v
+            f = fits[gates] = override(fit_case(attempts, case, gates), a.sd_between, a.sd_within, a.outlier_prob, a.icc)
             print(f"\n=== case {case} ({abtest.metric(case)}), gates {gates}: {f['starts']} starts, {f['pairs']} first/second pairs; sd between "
                   f"starts {f['sd_between_pct']:.2f}%, within a start {f['sd_within_pct']:.2f}% (one pass per start {f['sd_total_pct']:.2f}%); "
                   f"slow starts {f['outlier_prob'] * 100:.0f}% x {statistics.median(f['outlier_factors']):.2f}")
@@ -302,6 +314,8 @@ def parse(argv=None):
     ap.add_argument("--trials", type=int, default=20000)
     ap.add_argument("--bonferroni", type=int, default=1, help="M of promote.py: alpha / (arms x claim cases)")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--icc", type=float, help="share (0-1) of a single pass's variance that is between starts, instead of the fit's split "
+                    "(abtest assumes 0.3); the total sd stays the fitted one")
     ap.add_argument("--sd-between", type=float, help="%% sd between starts, instead of the fit")
     ap.add_argument("--sd-within", type=float, help="%% sd between passes of a start, instead of the fit")
     ap.add_argument("--outlier-prob", type=float, help="probability of a slow start, instead of the fit")

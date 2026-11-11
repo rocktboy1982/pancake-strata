@@ -5,6 +5,7 @@ Run: python -m pytest tools/pancake/test_power_sim.py"""
 import contextlib
 import io
 import json
+import math
 import random
 import sys
 from pathlib import Path
@@ -176,6 +177,16 @@ def test_min_units():
     assert P.min_units(rng, fit(sd_between_pct=8.0, sd_within_pct=8.0), "old", 2.0, 1.0, 500, cap=10) is None   # not within the cap
     k = P.min_units(rng, fit(sd_between_pct=1.0, sd_within_pct=1.0), "block", 5.0, 1.0, 2000, passes=4)
     assert k is not None and k >= promote.MIN_PAIRS
+
+
+def test_override_resplits_the_variance_and_keeps_the_total():
+    f = {"sd_total_pct": 2.0, "sd_between_pct": 0.0, "sd_within_pct": 2.0, "outlier_prob": 0.1, "outlier_factors": [0.8]}
+    g = P.override(f, icc=0.25)
+    assert g["sd_between_pct"] == pytest.approx(1.0) and g["sd_within_pct"] == pytest.approx(math.sqrt(3)) and f["sd_between_pct"] == 0.0
+    assert math.hypot(g["sd_between_pct"], g["sd_within_pct"]) == pytest.approx(2.0)
+    h = P.override(f, between=0.5, within=1.5, outlier_prob=0.0, icc=0.9)
+    assert (h["sd_between_pct"], h["sd_within_pct"], h["outlier_prob"]) == (0.5, 1.5, 0.0)      # explicit values win over the split
+    assert P.override(f) == f and P.parse(["--icc", "0.3"]).icc == 0.3
 
 
 def test_shares_minutes_and_labels():
