@@ -18,14 +18,17 @@ spread of single-request starts is sd_between^2 + sd_within^2.  Slow starts (mor
 are counted apart and kept out of the core spreads.  Two procedures, each fitted on the starts it keeps:
   gate     abtest's default: a start whose foreign CPU or kernel reclaim crossed a threshold is run again, so the data are the "clean"
            starts (fit "recorded"); the discarded starts cost time (the cost column).  Old mode: n pairs = n starts per arm, one pass each.
-  robust   abtest --outlier robust: nothing is repeated, every start stays (fit "none") and a pass that is a robust outlier among its
-           arm's passes (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median), at least 3 values) is dropped, with its pair.
+  robust   abtest --outlier robust: no start is repeated because of a proxy, so every start is a candidate (fit "none"); then two outcome
+           rules: a start more than SLOW_START (8.75%) below its arm's reference start (the faster of two starts, the median from
+           three on) is run again in its slot (up to `retries` = 2 times; the cost column counts the reruns), and a pass that is a
+           robust outlier among its arm's passes (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median), at least 3 values) is
+           dropped, with its pair.
 Designs and analyses (what each reads of the same data):
   old      n starts per arm, one pass each, paired by repetition (abtest default).
   block    k starts per arm x m passes (abtest --block m, k = max(2, ceil(reps / m)) starts per arm).  Analyses:
            start     promote.py: one record per start, the mean of its passes is the unit, k pairs (t with k - 1 degrees of freedom):
                      passes of a start share its start effect, so they do not add pairs.
-           pass      abtest's own summary: every pass a pair, the interval widened by sqrt(1 + (m - 1) x ICC) with abtest.BLOCK_ICC (0.3).
+           pass      abtest's own summary: every pass a pair, the interval widened by sqrt(1 + (m - 1) x ICC) with abtest.BLOCK_ICC (0.45).
            naive     every pass a pair, no widening: what a reader that ignores starts would do.
 Limits: starts are independent (pairing by repetition and ABBA drift cancellation are not credited: conservative); the engine's warm-pass
 regime (a second identical `edit` request decodes ~35% faster) is not modeled, only relative noise; the data are 60 attempts and 45
@@ -58,7 +61,9 @@ OUT_Z, OUT_MIN_PCT = 3.0, 5.0     # slow start of the FIT: below the median by m
 ROBUST_Z = getattr(abtest, "ROBUST_Z", 3.5)         # the outlier rule of abtest --outlier robust (modified z-score, Iglewicz & Hoaglin)
 ROBUST_FLOOR = getattr(abtest, "ROBUST_FLOOR", 0.025)
 ROBUST_MIN = getattr(abtest, "ROBUST_MIN", 3)
-BLOCK_ICC = getattr(abtest, "BLOCK_ICC", 0.3)       # abtest's assumed share of the variance that passes of one start have in common
+SLOW_START = getattr(abtest, "SLOW_START", 0.0875)  # a start this far below its arm's reference start is run again (abtest --outlier robust)
+RETRIES = 2                                          # abtest --retries
+BLOCK_ICC = getattr(abtest, "BLOCK_ICC", 0.45)       # abtest's assumed share of the variance that passes of one start have in common
 START_S, PASS_S = 109, 13  # seconds: engine start + warm-up (122 s attempt median minus its 13 s measurement), one pass (both cases)
 NEED_PCT = {"exact": promote.MIN_GAIN[True], "lossy": promote.MIN_GAIN[False]}
 CAP = 60                 # largest n / k searched for 80% power
@@ -199,14 +204,34 @@ def outlier_flags(x, z=ROBUST_Z, floor=ROBUST_FLOOR, least=ROBUST_MIN):
     return np.abs(x - med) > z * spread
 
 
+def rerun_slow_starts(rng, fit, x, gain_pct, retries=RETRIES):
+    """abtest's slow-start rule on x (trials, starts, passes): a start whose mean is more than SLOW_START below its arm's reference
+    start (the faster of two starts, the median from three on) is drawn again, up to `retries` times.  Returns (x, reruns per trial)."""
+    reruns = np.zeros(x.shape[0])
+    if x.shape[1] < 2:
+        return x, reruns
+    for _ in range(retries):
+        means = x.mean(axis=2)
+        ref = means.max(axis=1) if x.shape[1] == 2 else np.median(means, axis=1)
+        slow = means < ref[:, None] * (1 - SLOW_START)
+        if not slow.any():
+            break
+        x = np.where(slow[:, :, None], draw_passes(rng, fit, *x.shape, gain_pct), x)
+        reruns += slow.sum(axis=1)
+    return x, reruns
+
+
 def simulate(rng, fit, design, size, gain_pct, need, trials, passes=1, robust=False, analysis="start", alpha=promote.ALPHA):
-    """Verdict array of one cell.  design: old (size = n starts per arm, one pass each) or block (size = k starts x `passes`);
-    robust: drop the passes the outlier rule flags among the arm's passes; analysis: start | pass | naive (see the module docstring)."""
+    """(verdict array, mean engine starts per arm) of one cell.  design: old (size = n starts per arm, one pass each) or block
+    (size = k starts x `passes`); robust: abtest --outlier robust (rerun slow starts, drop the passes flagged among the arm's passes);
+    analysis: start | pass | naive (see the module docstring)."""
     passes = 1 if design == "old" else passes
-    arms = []
+    arms, reruns = [], 0.0
     for g in (0.0, gain_pct):
         x = draw_passes(rng, fit, trials, size, passes, g)
         if robust:
+            x, r = rerun_slow_starts(rng, fit, x, g)
+            reruns += r.mean() / 2
             flat = x.reshape(trials, -1)
             x = np.where(outlier_flags(flat), np.nan, flat).reshape(x.shape)
         arms.append(x)
@@ -214,13 +239,13 @@ def simulate(rng, fit, design, size, gain_pct, need, trials, passes=1, robust=Fa
         with warnings.catch_warnings():   # a start whose passes were all dropped is NaN: its pair is dropped
             warnings.simplefilter("ignore", RuntimeWarning)
             a, b = (np.nanmean(x, axis=2) for x in arms)
-        return verdicts(a, b, need, alpha)
+        return verdicts(a, b, need, alpha), size + reruns
     a, b = (x.reshape(trials, -1) for x in arms)
-    return verdicts(a, b, need, alpha, inflate=math.sqrt(1 + (passes - 1) * BLOCK_ICC) if analysis == "pass" else 1.0)
+    return verdicts(a, b, need, alpha, inflate=math.sqrt(1 + (passes - 1) * BLOCK_ICC) if analysis == "pass" else 1.0), size + reruns
 
 
 def power(rng, fit, design, size, gain_pct, need, trials, **kw):
-    return shares(simulate(rng, fit, design, size, gain_pct, need, trials, **kw))[0]
+    return shares(simulate(rng, fit, design, size, gain_pct, need, trials, **kw)[0])[0]
 
 
 def min_units(rng, fit, design, gain_pct, need, trials, target=0.8, cap=CAP, **kw):
@@ -238,9 +263,10 @@ def min_units(rng, fit, design, gain_pct, need, trials, target=0.8, cap=CAP, **k
     return lo
 
 
-def minutes(design, size, passes=1, discard=0.0):
-    """Wall minutes of one two-arm comparison: engine starts (and the reruns the gates cause) x (start + warm-up + the passes)."""
-    return 2 * size * (START_S + (1 if design == "old" else passes) * PASS_S) / (1 - discard) / 60
+def minutes(design, size, passes=1, discard=0.0, reruns=0.0):
+    """Wall minutes of one two-arm comparison: engine starts (+ the reruns the slow-start rule asks for, per arm) x (start + warm-up +
+    the passes), and the starts the gates discard on top."""
+    return 2 * (size + reruns) * (START_S + (1 if design == "old" else passes) * PASS_S) / (1 - discard) / 60
 
 
 # ------------------------------------------------------------------------------------------------ report
@@ -286,7 +312,7 @@ def report(a):
             table(rng, fits["none"], need, a, alpha, f"P(PROMOTE) %, robust procedure, block mode, k starts x {m} passes",
                   [("block", k, m, True, an) for an in ("start", "pass") for k in a.starts] + [("block", a.starts[-1], m, True, "naive")])
         print(f"\nminimum for 80% power, {case} (n pairs / k starts per arm; - = never within {CAP}, or the gain is not above the need);"
-              f" minutes = two arms, {dis['recorded'] * 100:.0f}% discards counted for the gate procedure")
+              f" minutes = two arms, {dis['recorded'] * 100:.0f}% discards counted for the gate procedure, the slow-start reruns for robust")
         print("  gain%  item   old gate n   old robust n   block start k   block pass-level k   minutes: old gate / old robust / block")
         for g in a.gains:
             for kind, need in NEED_PCT.items():
@@ -297,8 +323,14 @@ def report(a):
                 k0, k1 = (min_units(rng, fits["none"], "block", g, need, a.trials // 2, passes=m, robust=True, analysis=an, alpha=alpha)
                           for an in ("start", "pass"))
                 f = lambda x: "-" if x is None else str(x)
-                t = [("-" if n is None else f"{minutes('old', n, 1, d):.0f}") for n, d in ((n0, dis["recorded"]), (n1, 0.0))]
-                t.append("-" if k0 is None else f"{minutes('block', k0, m):.0f}")
+
+                def mins(design, size, discard=0.0, passes=1):
+                    if size is None:
+                        return "-"
+                    kw = {"robust": True, "passes": passes} if discard == 0.0 else {}
+                    reruns = simulate(rng, fits["none"], design, size, g, need, 2000, **kw)[1] - size if kw else 0.0
+                    return f"{minutes(design, size, passes, discard, reruns):.0f}"
+                t = (mins("old", n0, dis["recorded"]), mins("old", n1), mins("block", k0, passes=m))
                 print(f"  {g:5g}  {kind:6s} {f(n0):>10s}   {f(n1):>12s}   {f(k0):>13s}   {f(k1):>18s}   {t[0]:>5s} / {t[1]:>5s} / {t[2]:>5s}")
     return 0
 

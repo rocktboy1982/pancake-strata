@@ -198,6 +198,23 @@ def test_block_mode_passes_per_start_in_abba_order_and_cold_passes(root):
     assert summary_n(r.stdout, "edit", "base")[1] == 6
 
 
+def test_promote_reads_a_block_start_as_one_pair_so_three_starts_per_arm_are_needed(root):
+    """promote.py pairs by (arm, rep) and averages the rows of a case inside a record: one pair per start.  Its MIN_PAIRS is 3, abtest's
+    default is max(2, ceil(reps / N)) starts per arm, so --block 3 --reps 6 can never PROMOTE (2 pairs): ask for reps >= 3 x N."""
+    need(root, "--block")
+    arms = {"base": {}, "fast": {"env": {"FAKE_GAIN_PCT": "10"}}}
+    found = {}
+    for reps in (6, 9):
+        base = config(root, f"pairs{reps}", **LOW_NOISE)
+        out = root / f"pairs{reps}.jsonl"
+        assert run_abtest(root, spec(root, f"pairs{reps}", base, arms, reps=reps), out, "--block", "3", "--no-early-stop").returncode == 0
+        runs, _, _ = promote.read_runs(out)
+        found[reps] = promote.case_pairs(runs["base"], runs["fast"], "short")
+        rows = [r["decode_tps"] for r in records(out)[0]["rows"] if r["case"] == "short"]
+        assert promote.case_value(next(iter(runs[records(out)[0]["arm"]].values())), "short") == pytest.approx(sum(rows) / len(rows))
+    assert len(found[6]) == 2 < promote.MIN_PAIRS <= len(found[9]) == 3
+
+
 def test_warmup_passes_are_thrown_away(root):
     need(root, "--warmup")
     base = config(root, "warm", cold_pct=[40.0, 10.0], **LOW_NOISE)
@@ -211,7 +228,7 @@ def test_warmup_passes_are_thrown_away(root):
     assert len(engine_lines(root, "warm")) == 4 * (1 + 2) * 2                                # no single short warm-up request in its place
 
 
-def test_robust_outlier_rule_drops_a_slow_start_the_gate_keeps(root):
+def test_robust_rule_runs_a_slow_start_again_where_the_gate_keeps_it(root):
     need(root, "--outlier")
     arms = {"base": {}, "fast": {"env": {"FAKE_GAIN_PCT": "10"}}}
     runs = {}
@@ -221,9 +238,21 @@ def test_robust_outlier_rule_drops_a_slow_start_the_gate_keeps(root):
     gate, robust = runs["gate"], runs["robust"]
     assert gate.returncode == 0 and robust.returncode == 0, robust.stdout[-2000:]
     (m_gate, n_gate), (m_robust, n_robust) = summary_n(gate.stdout, "short", "base"), summary_n(robust.stdout, "short", "base")
-    assert n_gate == 4 and n_robust == 3                                                      # the 60% start is dropped, nothing is run again
-    assert m_robust > m_gate + 10 and len(records(root / "robust-robust.jsonl")) == 8
-    assert "robust" in robust.stdout and "dropped 1" in robust.stdout
+    assert n_gate == 4 and n_robust == 4 and m_robust > m_gate + 10                           # the gate averages the 60% start in; robust replaces it
+    recs = records(root / "robust-robust.jsonl")
+    assert len(recs) == 9 and [(x["rep"], x["arm"], x["attempt"]) for x in recs if x["rep"] == 2 and x["arm"] == "base"] == [(2, "base", 0), (2, "base", 1)]
+    assert all(x["clean"] for x in recs) and "1 slow starts left out" in robust.stdout       # no proxy flagged it: the outcome did
+
+
+def test_robust_rule_tells_the_slow_start_apart_with_two_starts_per_arm(root):
+    need(root, "--outlier")
+    base = config(root, "robust-two", slow_starts=[3], slow_factor=0.6, **LOW_NOISE)         # base's second start (A B | B A)
+    r = run_abtest(root, spec(root, "robust-two", base, {"base": {}, "fast": {"env": {"FAKE_GAIN_PCT": "10"}}}, reps=4), root / "robust-two.jsonl",
+                   "--block", "2", "--no-early-stop", "--outlier", "robust")
+    assert r.returncode == 0, r.stdout[-2000:]
+    recs = records(root / "robust-two.jsonl")
+    assert [(x["rep"], x["arm"], x["attempt"]) for x in recs] == [(0, "base", 0), (0, "fast", 0), (1, "fast", 0), (1, "base", 0), (1, "base", 1)]
+    assert "1 slow starts left out" in r.stdout and summary_n(r.stdout, "short", "base") == (pytest.approx(121.5 * 1.02, rel=0.03), 4)   # 2 starts x 2 passes
 
 
 def test_tier_is_recorded_from_the_engine_line_and_capped_sh(root):

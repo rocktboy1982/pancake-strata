@@ -163,6 +163,22 @@ def test_the_outlier_rule_pulls_slow_starts_out_and_costs_pairs():
     assert x.shape == (1, 6, 4) and np.allclose(x[0].mean() / 100, 1, atol=0.3)
 
 
+def test_slow_start_rule_reruns_the_slower_of_two_and_costs_starts():
+    rng = np.random.default_rng(8)
+    f = fit(sd_between_pct=0.5, sd_within_pct=0.5, outlier_prob=0.3, outlier_factors=[0.7])
+    x = P.draw_passes(rng, f, 4000, 2, 3, 0.0)
+    after, reruns = P.rerun_slow_starts(rng, f, x, 0.0)
+    ref = x.mean(axis=2).max(axis=1)
+    slow_before = (x.mean(axis=2) < ref[:, None] * (1 - P.SLOW_START)).any(axis=1)
+    assert slow_before.mean() > 0.3 and slow_before.mean() <= reruns.mean() < 1.5 * slow_before.mean()   # a rerun per slow start, a second one when the rerun is slow again
+    assert (after.mean(axis=2).min(axis=1) < after.mean(axis=2).max(axis=1) * (1 - P.SLOW_START)).mean() < 0.5 * slow_before.mean()
+    one, none = P.rerun_slow_starts(rng, f, x[:, :1], 0.0)                                        # a single start has no reference
+    assert (one == x[:, :1]).all() and none.sum() == 0
+    v, starts = P.simulate(rng, f, "old", 2, 5, 1.0, 3000, robust=True)
+    assert starts > 2 and P.simulate(rng, f, "old", 2, 5, 1.0, 3000)[1] == 2                      # reruns are counted, a plain run has none
+    assert P.minutes("old", 3, reruns=1) == pytest.approx(2 * 4 * (P.START_S + P.PASS_S) / 60)
+
+
 def test_verdicts_are_hold_when_every_pair_is_dropped():
     nan = np.full((1, 4), np.nan)
     assert P.verdicts(nan, nan, 1.0)[0] == 1
