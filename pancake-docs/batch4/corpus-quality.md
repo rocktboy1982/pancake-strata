@@ -17,7 +17,7 @@ true 10-point loss ~3%; the 20-request token-forcing set is INCONCLUSIVE 22% of 
 | `bench/quality/set-v2.json` | 48 requests: the 20 old ones verbatim (first) + 28 new with `"cont": null` (see "What the night run must do"). 2.1 MB. |
 | `tools/pancake/quality_gate.py` | `set_problems / set_summary / pending / merge_conts` (pure), `--fill`, `--dry-run`, a refusal for a set with pending continuations. The `--set` default is unchanged (bench/quality/set.json). |
 | `tools/pancake/gate_power.py` | Monte Carlo of both gates with their own code (`force_check.check`, `task_gate.boot_diff + verdict`). |
-| tests | `test_build_task_set.py` (12), `test_quality_gate.py` (11), `test_gate_power.py` (5). |
+| tests | `test_build_task_set.py` (12), `test_quality_gate.py` (11), `test_gate_power.py` (6). |
 
 `tools/pancake/power_sim.py` (harness-sim, commit 1216cf60f on `dev/p16b/harness-sim`) is the speed rule of promote.py on abtest's noise; it does not cover
 the two quality gates, so `gate_power.py` is separate and uses the gates' real functions.
