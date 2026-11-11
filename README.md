@@ -593,6 +593,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_CONV_BUDGET=ram` / `STRATA_CONV_KEEP_GIB=N` | off (40% rule stays) | item 86 (`ab4fe164b`, `c1b3fec32`): conversation cache sized from free RAM |
 | `STRATA_PSI_GUARD` | **on** (pause at 20%, resume at 10%, 30 s cap) | item 86: pauses loading / skips parking under memory pressure; timing only |
 | `STRATA_PARK_TRUNCATE=1` | opt-in, default off | from TwoAnts/Strata `5ef4fc8b4b`: a conversation too large to park (cache budget or RAM floor) parks its deepest checkpoint prefix that fits instead of being dropped, so the next request re-reads only the tail, not from token 0; a parked entry asked to make room is first shrunk to one of its own checkpoints (not below `--conversation-cache-min-tokens`, not beside the disk tier); exact; not measured yet |
+| `STRATA_PARK_REWIND_MAX=N` | opt-in (tokens), default off | MOD_PLAN 17.0, idea from 0xluk/Strata `53cecdeee9`: a request that resumes from one of the live conversation's OWN checkpoints and leaves at most N of its tokens behind (an agent turn whose template re-renders the last reply without its reasoning) does not park the live conversation first. The park runs inside the next request's prompt time and the next turn drops the copy as superseded. Cost: the tokens past the checkpoint (the last reply) are not kept, so a client that returns to that exact branch reads them again. Engine log: `conversation cache: not parked (STRATA_PARK_REWIND_MAX) ... (N left behind)`. Choose N from that number (the last reply's length plus its header); exact; coded, not built, not measured |
 
 ### 6H. CLI flags
 
@@ -953,6 +954,9 @@ Credits, in the order the stack was built:
 - **jmnargi** (Strata-V100, MIT), for the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts (commits `24894e676b`,
   `7c5041c358`, `376355453f`; upstream PR #3545), and for measuring how a too-tight cap breaks tool calls.
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
+- **0xluk** (Strata fork, MIT, commit `53cecdeee9`), with **Xiaomi2008** (`8e4ccbe90d`) and **UltimateBoomer** (`5d0a9e786c`), for the
+  idea behind `STRATA_PARK_REWIND_MAX`: do not park the live conversation when a request resumes from one of its own checkpoints.
+  Written here from the description, no fork code was copied.
 - **Asofwar** (Strata-Turbo, MIT), for window decode attention, each K/V chunk read once for a whole verify window
   (`STRATA_ATTN_WINDOW`, `STRATA_ATTN_WINDOW_SMALL`; commits `6ebe841e2e`, `540f801a9a`). `STRATA_ATTN_WINDOW` here is
   the idea rewritten for the Qwen3.6 engine (`k_attn_window`); no fork code was copied.

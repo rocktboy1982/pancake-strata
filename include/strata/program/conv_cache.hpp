@@ -173,4 +173,34 @@ inline size_t flops_victim(const int64_t* lens, const uint64_t* stamps, const ui
     return v;
 }
 
+/// STRATA_PARK_REWIND_MAX=N (opt-in; the idea of 0xluk/Strata `53cecdeee9`, written here from its description): what the
+/// request's park decision needs to know.  Every field is a fact the serve loop has before it parks the outgoing state.
+struct RewindFacts {
+    int64_t max = 0;               ///< N: the most tokens the request may leave behind; <= 0: the switch is off
+    bool from_live = false;        ///< the request continues the live state exactly (it never parked)
+    bool incoming = false;         ///< a parked conversation is restored for this request
+    bool borrow = false;           ///< a checkpoint inside another parked conversation is borrowed
+    bool slot_source = false;      ///< a batch slot holds a longer start of the prompt
+    bool lent_slot = false;        ///< the checkpoint resumed from is one a batch slot keeps (STRATA_SLOT_CKPT_MOVE)
+    bool live_ok = false;          ///< the session holds a conversation at all
+    bool live_has_images = false;  ///< the live conversation has pictures (their cells carry embeddings: never rewound)
+    int64_t resume = 0;            ///< prompt tokens the request reuses (the checkpoint's length)
+    int64_t live_tokens = 0;       ///< the live conversation's length
+    bool own_checkpoint = false;   ///< a main-session checkpoint of exactly `resume` tokens, text only, is a prefix of the live tokens
+};
+
+/// Whether the request skips parking the live conversation: it resumes from one of that conversation's OWN checkpoints and
+/// leaves at most `max` of its tokens behind.  Such a request rewrites every cell from `resume` on, so the parked copy would
+/// hold a branch the client has already left - typically the last reply, re-rendered by the chat template without its
+/// reasoning - and the next turn drops it as superseded.  Skipping saves the copy (it runs inside this request's prompt
+/// time on HIP: ~0.1 s at 2K tokens, 0.2 s at 25K, 0.3-1.4 s at 50-77K in the 2026-11-11 log) and costs the cache the
+/// tokens past the checkpoint: a client that comes back to that exact branch reads them again.  Another conversation's
+/// request, an exact continuation and any restore, borrow or slot copy are not touched.  Pure, so conv_cache_test.cpp covers it.
+inline bool rewind_no_park(const RewindFacts& f) {
+    if (f.max <= 0 || f.from_live || f.incoming || f.borrow || f.slot_source || f.lent_slot) return false;
+    if (!f.live_ok || f.live_has_images || !f.own_checkpoint) return false;
+    if (f.resume <= 0 || f.resume > f.live_tokens) return false;
+    return f.live_tokens - f.resume <= f.max;
+}
+
 }  // namespace strata::program::conv_cache
