@@ -229,8 +229,9 @@ std::vector<std::string> names_of(std::initializer_list<EnvClass> classes) {
         if (std::find(classes.begin(), classes.end(), s.cls) != classes.end()) names.push_back(s.name);
     return names;
 }
-// switches that join the key only when they are set, so a run without them keeps the key it had (no re-key of the files
-// already parked): the value-changing ones that were never in the key, and the ones nobody could settle (Unsure)
+// switches that join the key only when they are set (an empty value is set: a good number are read by presence alone), so a run
+// without them keeps the key it had (no re-key of the files already parked): the value-changing ones that were never in the
+// key, and the ones nobody could settle (Unsure)
 const std::vector<std::string>& conversation_disk_key_env_names_if_set() {
     static const std::vector<std::string> names = names_of({EnvClass::KeyIfSet, EnvClass::Unsure});
     return names;
@@ -255,7 +256,7 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
     for (const auto& n : conversation_disk_key_env_names()) add(n);
     for (const auto& n : conversation_disk_key_env_names_if_set()) {
         const char* v = get_env ? get_env(n.c_str()) : nullptr;
-        if (v != nullptr && v[0] != '\0') out.emplace_back(n, std::string(v));
+        if (v != nullptr) out.emplace_back(n, std::string(v));   // presence, not value: many are read as getenv != nullptr, so "" is a setting
     }
     std::set<std::string> extra;
     if (const char* x = get_env ? get_env("STRATA_CONVERSATION_DISK_KEY_ENV") : nullptr) {

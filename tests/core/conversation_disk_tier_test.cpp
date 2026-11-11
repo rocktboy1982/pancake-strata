@@ -163,8 +163,8 @@ void test_key() {
     const std::string ecap = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "1"}})});
     check(ecap != exact && ecap != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "2"}})}),
           "key: STRATA_VERIFY_ECAP changes the key, and each cap has its own");
-    check(exact == conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", ""}})}),
-          "key: an empty STRATA_VERIFY_ECAP is unset");
+    check(exact != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", ""}})}),
+          "key: an empty STRATA_VERIFY_ECAP is keyed as set (the presence-only switches need it; an extra miss for this one)");
     // MOD_PLAN A44: STRATA_BANDIT joins the key only when set, as do its exactness limit
     const std::string bandit = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_BANDIT", "top"}})});
     check(bandit != exact, "key: STRATA_BANDIT changes the key");

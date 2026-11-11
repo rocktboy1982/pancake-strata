@@ -46,7 +46,7 @@ namespace strata::core {
 /// and include/; tests/core/conversation_disk_env_test.cpp keeps the table complete).
 enum class EnvClass {
     Key,        ///< changes what a state holds; always in the key ("-" when unset)
-    KeyIfSet,   ///< changes what a state holds; in the key only when set, so a run without it keeps its key
+    KeyIfSet,   ///< changes what a state holds; in the key only when set (an empty value counts), so a run without it keeps its key
     Unsure,     ///< may change what a state holds, unverified: keyed like KeyIfSet
     InConfig,   ///< changes what a state holds but is in the session config fingerprint already
     Speed,      ///< placement, scheduling, drafting policy or documented bit-identical: never in the key

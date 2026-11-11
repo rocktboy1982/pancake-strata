@@ -123,7 +123,8 @@ void test_classes_against_key() {
             case EnvClass::Unsure:
                 ++n_if_set;
                 check(set != base && set != other, name + " (KeyIfSet/Unsure) changes the key when set, value by value");
-                check(empty == base, name + " (KeyIfSet/Unsure) set but empty is as unset");
+                // presence counts: CPU_YMM, IQ3S_MT1, NO_IQ512, SELECT_OLD, EXP_MODE ... are read as getenv != nullptr, so "" is a setting
+                check(empty != base && empty != set, name + " (KeyIfSet/Unsure) set but empty is keyed as set, apart from unset and from other values");
                 break;
             case EnvClass::InConfig:
             case EnvClass::Speed:
@@ -149,6 +150,15 @@ void test_decisions_that_must_hold() {
     };
     // F14's per-format expert layouts (bitwise by bench on one card only, not gated at run time)
     for (const char* n : {"STRATA_EXP_MODE", "STRATA_EXP9_DOWN", "STRATA_EXP9_GU"}) check(keyed(n), std::string(n) + " is in the key when set");
+    // the layer-major walk adds the routed experts in id order (FP32 rounding; the small-card rule turns it on by default), and its
+    // siblings and the 128-bit IQ kernel (rel <= 1e-5 against ggml, not bitwise) change the geometry / the sum order too
+    for (const char* n : {"STRATA_PREFILL_LAYER_MAJOR", "STRATA_PREFILL_LM_FORCE", "STRATA_PREFILL_LM_TOKENS", "STRATA_PREFILL_LM_EVEN",
+                          "STRATA_PREFILL_LM_R", "STRATA_PREFILL_LM_MARGIN_MIB", "STRATA_NO_IQ128", "STRATA_NO_IQ256"})
+        check(keyed(n), std::string(n) + " is in the key when set");
+    // switches the sources read by presence alone (getenv != nullptr): an empty value turns them on, so it must change the key
+    for (const char* n : {"STRATA_CPU_YMM", "STRATA_IQ3S_MT1", "STRATA_NO_IQ512", "STRATA_NO_IQ4NL", "STRATA_PROMPT_ATTN_V1", "STRATA_SELECT_OLD",
+                          "STRATA_INDEXER_PER_TOKEN", "STRATA_ROUTE_PROJ_PER_TOKEN", "STRATA_HIP_ROUTER_OLD", "STRATA_HIP_ROUTER_FAST", "STRATA_EXP_MODE"})
+        check(keyed(n) && key_with({{n, ""}}) != key_with({}), std::string(n) + " set but empty is in the key");
     // the master switch and the defaults that are another summation order: a run with and without them shares a key otherwise
     for (const char* n : {"STRATA_DEFAULTS", "STRATA_GR_V3", "STRATA_PROMPT_ATTN_IMMA", "STRATA_SM120_PERF", "STRATA_GFX12_DEFAULTS"})
         check(keyed(n), std::string(n) + " is in the key when set");
