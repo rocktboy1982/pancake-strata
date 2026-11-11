@@ -69,6 +69,12 @@ Long-context prompt reading, `feat/bfla-hip` on Qwen3.6-35B-A3B UD-Q4_K_XL (bloc
 
 Quality held: 48/48 top-1 needle-recall agreement with the exact path, KL 0.0014/0.0045.
 
+*Correction (2026-11-11, Phase 16 review):* the 3.15x is against this repo's own materialised-softmax prompt path; the exact fused dense mode
+alone is 2.0x and the lossy sparse mode adds 1.58x at 128K (1.21x at 64K) over dense. The quality line above is not reproduced yet:
+the committed `bfla_recall.py` cannot have produced 48 tokens / KL 0.0014/0.0045 as written, and that KL is above the plan's own 1e-3
+gate; the dense and sparse modes now have separate switches (`STRATA_BFLA_DENSE`, `STRATA_BFLA_SPARSE`, on `dev/phase16-academic`) and a
+320-token recall run is queued.
+
 ### Table 2B: RTX 3060 12 GB (CUDA, sm_86)
 
 Qwen3.6-35B-A3B (UD-Q4_K_XL with its MTP layer), stock `strata` vs `strata-poly`:
@@ -101,6 +107,47 @@ writing after a 42K prompt.
 | Learned stop rule for drafts (DISCO) | - | - | - | - | - | - | Yes (`feat/disco`) |
 | Expert-cache admission research (k-th miss, swap budget, deferral rank guard) | - | - | - | - | - | - | Yes |
 | Quality gates + 30-script measurement suite | - | - | - | - | - | - | Yes (`tools/pancake/`) |
+
+### Table 2D: Phase 16 results, verdicts and testing findings (2026-11-11)
+
+**Where the code is.** This branch (`port/rdna3-decode`) is the main line. Phase 16 engine work (opt-in, default path byte-identical) lives on
+`dev/phase16-academic` and its `dev/p16/*` and `dev/p16b/*` branches and is kept for re-testing; only tested non-engine material was brought
+here: `tools/pancake` (tests included), `bench/` specs, catalog and results, `configs/pancake`, `pancake-docs`, `MOD_PLAN.md`. Nothing from
+the engine moves here without a `tools/pancake/promote.py` PROMOTE verdict (95% lower bound of the paired gain >= 1% exact, >= 3% lossy,
+same memory tier for every arm, switch proven to have acted).
+
+**GPU results so far** (RX 7900 XT, fast-hip preset, short and edit cases; RAM was fragmented, so these ran on the mmap tier):
+
+| Item | Result | Verdict |
+| --- | --- | --- |
+| A3 expert deferral (`STRATA_VERIFY_DEFER_CPU`) | edit +15.8% +-3.9, short no difference (earlier test phase) | in the preset |
+| F21 `STRATA_WAIT_COPY256`, F9 `STRATA_ROUTE_FAST`, A33 `STRATA_EXPDEC_SWIGLU` | confirm n=6: swiglu short +0.6% [-1.6, +2.8], edit +1.1% [-4.7, +6.9]; all three together +0.7% / +1.3% (the 2% in the n=2 screen was noise) | HOLD; F21 rejected |
+| A4 rank guard `_TOP=2`, fold | no gain once deferral is on (the earlier +20% was against a no-deferral base) | HOLD |
+| A8 swap budget (`--adapt-swaps`) | n=2 screen suggestive (edit +17..21%, intervals huge); the daytime confirm was invalid (base 1 clean of 6 attempts while agents were compiling) | rerun at night |
+| Noise-aware restore gate | free-running greedy text differs across engine starts even with no cache (stock noise ~1.2% of tokens; the base binary behaves the same); a control arm and an exact divergence-rate test replace the text comparison | gate built, GPU run pending |
+
+A robust-outlier replay of the same 60 attempts moves the all-three short result to +3.1% +-1.1%; that contradicts the HOLD above and is the first
+thing rerun at night.
+
+**Offline verdicts (one 219-window bench trace, no router weights):** FineMoE-style prefetch -14% (rejected: the cache already holds 44% of the experts at 81-89%
+hits, prefetch sets cover 0-5% of the misses, 74% land late on PCIe 3.0); HOBBIT precision swap does not transfer (no copy below IQ2_XS);
+F4 IQ1_M shadow pack rejected (weight error 0.53, kernel only 8-10% faster for 32% fewer bytes); EcoSpec engine switch not built; A31, A36, XAttention and the
+KV-compression papers not built on Flash-Next (attention + KV selection is 5.6% of a short window, ~8.7% derived at 128K); conversation-cache flags
+`--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` are the only cache lever above 1% (+1.89% modeled on the real opencode history);
+`STRATA_AUTO_PIN` is unsafe for Qwen (pinned parked entries are never evicted).
+
+**Testing findings that change how this repo is tested.** A 45-minute spec is ~20-30 engine starts of ~2 minutes each, of which 13 s is measurement; 48%
+of 62 attempts were discarded by the quiet-machine gate (25 of 30 by kernel reclaim threads reacting to the engine's own memory use on fragmented RAM)
+although the discarded attempts decoded as fast as the kept ones (short 122.1 vs 123.7 tok/s). New: `abtest --reclaim-max`, block mode (several passes per
+engine start, A B B A; 4.2x faster at the same reps, 2.2x at the same power), a robust outlier rule, per-attempt engine logs and tier recording,
+`tools/pancake/queue_run.sh` (unattended night queue), `drop_cache.py` (non-root cache eviction), `promote.py` (void-switch and mixed-tier rules),
+`kernel_gate.py` (kernel gain x window share before any end-to-end screen), `record_session.py` (real-trace recorder: the default window trace carries zero
+router weights). The task gate (18 tasks) passes an identical arm only ~3% of the time: ~100 tasks and a 40-request token-forcing set are needed before a lossy
+item can be promoted. Details: `MOD_PLAN.md` (Phase 16), `bench/TEST_PLAN.md`, `pancake-docs/batch2-4/`.
+
+**Source corrections found by reading the paper bodies:** DALI's "6-13%" is not in the paper; Marconi's "-71% TTFT" merges two datasets; HOBBIT's "CDF 0.6/0.9" are
+thresholds on a cumulative gate score and its r = 0.99 is inflated because the weight sits on both sides; Athena (A44) is a state-aware SARSA agent, our A44 is the
+paper's stateless baseline; ProMoE's 1.09x is a llama.cpp number on an RTX 4090 over PCIe 4.0 where misses block, not ours (CPU-computed misses).
 
 ## 3. Research on Open-Source Projects & Forks (What We Took as Code or Idea, and Licenses)
 
@@ -270,7 +317,7 @@ reason, in the MOD_PLAN "not adopted" ledger.
 | --- | --- | --- | --- | --- |
 | BFLA (block-sparse flash attention) | ported work | `feat/bfla-hip` (in-repo) | Block-sparse prompt attention | Prototype on branch: 3.15x end-to-end at 128K, 48/48 needle recall |
 | XAttention | 2025 | [arxiv.org/abs/2503.16428](https://arxiv.org/abs/2503.16428) | Block-sparse attention, antidiagonal scoring | Planned (item 19, lossy opt-in) |
-| SpargeAttn | Tsinghua, 2024 | [arxiv.org/abs/2411.10958](https://arxiv.org/abs/2411.10958) | Training-free sparse attention | Planned (item 19) |
+| SpargeAttn | Tsinghua, 2025 | [arxiv.org/abs/2502.18137](https://arxiv.org/abs/2502.18137) | Training-free sparse attention | Planned (item 19) |
 | BitDecoding | 2025 | [arxiv.org/abs/2503.18773](https://arxiv.org/abs/2503.18773) | Low-bit KV, decode on matrix cores | Tested on `feat/bitdecoding-hip`: neutral, not adopted |
 | LServe | MIT Han lab, 2025 | [arxiv.org/abs/2502.14866](https://arxiv.org/abs/2502.14866) | Long-context serving with sparse KV | Evaluated (KV design context) |
 | ShadowKV | 2024 | [arxiv.org/abs/2410.21465](https://arxiv.org/abs/2410.21465) | Low-rank KV + offload | Evaluated (KV context) |
@@ -624,7 +671,7 @@ tool-call parser, `turn_at` poly checkpoints, domain classification, and the per
 - **`feat/pattern-cache`** (63 commits): the item 3-4 seeding switches, Q2_0 7900-XT presets, `STRATA_POOL_PREREAD`
   and `STRATA_IQ2S_PAIR`, and a GDN megakernel prototype (reverted: 0.0 ms on one GPU).
 
-### 7.8. `tools/pancake/`: the measurement suite (30 scripts)
+### 7.8. `tools/pancake/`: the measurement suite (60 scripts plus their tests)
 
 `abtest.py` (quiet-machine interleaved A/B), `quality_gate.py` (token-forcing gate as a process), `quality_ab.sh` /
 `quality_hip.sh`, `bench_engines.py`, `gpu_profile.py` (rocprofv3), `decode_curve.py`, `time_ceiling.py` (the cache
@@ -635,6 +682,12 @@ judged in ms; serial and `--overlap` model), `belady_ceiling.py`, `tail_rows.py`
 expert kernels' launch/tile knobs and the CPU pool knobs), `trace/draft_costs.py` (item 43, `663107a56`), and
 `pancake.service` (item 73/91, `a1683537c`), plus `trace/{wtrace,tail_replay}.py`. Why: every claim in this README came
 out of one of these scripts, and the suite is what makes the stack reproducible.
+
+Added in Phase 16 (2026-11-11): `queue_run.sh` (specs back to back, night window, resumable), `gen_bases.sh` (the base configs the specs name), `drop_cache.py`
+(non-root page-cache eviction), `promote.py` + `switch_report.py` (PROMOTE / HOLD / REJECT from the results, void-switch and mixed-tier rules),
+`spec_lint.py` (static spec check), `kernel_gate.py`, `record_session.py` + `trace/recording.py`, `restore_check.py --control/--teacher-forced` (noise-aware
+restore gate), `abtest.py --reclaim-max` (block mode and the robust outlier rule are on `dev/p16b/harness-core`), and the offline analyses `finemoe_replay.py`,
+`percache_sim.py`, `park_sim.py`, `conv_cache_sim.py`, `ecospec_sim.py`, `reap_saliency.py`, `gate_importance.py`, `load_time.py`, `decode_context.py`.
 
 ## 8. Daily Use (`Qwen3.8-Flash-Next` & `Qwen3.6-35B-A3B`) and Build & Run (HIP + CUDA)
 

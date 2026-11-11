@@ -83,7 +83,7 @@ engine 0.1.8). Both diverged by thousands of commits, so nothing is merged; each
 | 10.5 VRAM lending, item 7 per-layer budgets | dropped | +5% cache slots: no decode change; cross-layer swaps 48.3% vs 48.4% |
 | 8.6 learned expert profile | done, in the IQ2_XS presets | +6.7% decode, every run faster |
 | 8.7 two-stage prompts | blocked | needs a second GPU |
-| 8.8 fused attention prompt kernel | low ceiling | attention is 6.7% of a 42K prompt on the main engine |
+| 8.8 fused attention prompt kernel | low ceiling on main; on strata-poly coded as F17 (2026-11-10, `work/f17-poly-fattn`, unbuilt) | attention is 6.7% of a 42K prompt on the main engine, ~38% on strata-poly |
 | 8.9 cache-aware routing | opt-in (`turbo`) | 0.5: +25% decode, 2.9% tokens differ (stock 1.2-1.3%) |
 | 8.9 KV body, mb-MTP | dropped | VRAM does not buy decode here; drafting is 2-5% of a window |
 | 8.10, phase 5 | blocked | the 7900 XT is not detected |
@@ -94,13 +94,25 @@ engine 0.1.8). Both diverged by thousands of commits, so nothing is merged; each
 | prompt path kernels | measured, FP16 kept | WMMA worse; fused int8 -7% at 42K but +12% at 5K |
 | vs stock Strata (upstream 146df3c46) | measured | Flash-Next IQ2_XS, experts read from disk on both: decode 54.5 -> 69.2 tok/s (+27%), 5.3K edit prompt 23.3 -> 11.0 s; ours with the RAM arena 75.5 |
 
-**Next session (left 2026-11-08):**
-1. Decide the load default: building the 34 GB expert arena now often trips systemd-oomd (`user@.service`
-   memory-pressure limit 50% for 30 s; only the capped scope dies). `STRATA_RAM_KEEP_GIB=20` (mmap tier) loads every
-   time but decodes ~8% slower (69 vs 75 tok/s). Either make 20 the default in `capped.sh`, or keep the arena and pin
-   it in smaller steps so the stall time stays under the limit.
-2. Phase 7 sleep-in-place (basalt 64167ba73, ~815 lines): only if the GPU is wanted for other work while idle.
-3. Merge `port/faststrata-poly -> exp/expert-prefetch -> feat/grammar` when wanted (all pushed, none merged).
+**State 2026-11-11 (after the reboot; plan re-read and audited against the code at port/rdna3-decode d251be8f5):**
+- The checkout was restored from `~/backup-pancake-2026-11-11/` (branch, 47 tracked files, 110 untracked results); the
+  ntfs3 writeback hang is gone (Dirty 11 MB). `os_tune.sh install` (compaction) and `cpu-install` (iGPU low clock, C3 off,
+  pancake-cpu.service at boot) are applied; 46 GiB free in 2 MiB blocks.
+- Audit: all 24 commits of PANCAKE_STATUS are ancestors of HEAD; every switch exists and its default matches the table.
+  Gaps are noted at items 48, 53 and 28 and below (kmiss, Q2_0 configs).
+- `build-hip` was rebuilt from scratch (no binary survived the hang); the test phase restarts from item 1 below.
+
+**Next session (updated 2026-11-11):**
+1. Redo 15c (Q2_0 vs IQ2_XS, `bench/specs/15c-q2_0.json`, then `quality_gate.py`): the 2026-11-10 run is unusable (intervals
+   +-100%, scoring BrokenPipe, 15 GiB free in 2 MiB blocks). Only 15-q2_0-screen is valid evidence. If it passes, add the 4
+   adopted items (`STRATA_VERIFY_DEFER_CPU`, `STRATA_POOL_FUSE_PHASES`, `STRATA_EXPDEC_DOWN`, `--lookup-max-t 12`) to
+   `configs/pancake/flashnext-q2_0-fast-hip.json` and the q2_0 turbo preset; both lack them today (iq2_xs presets have them).
+2. Load default (open, owner): the oomd kills at arena load came from fragmentation, now treated by `os_tune.sh install`.
+   `capped.sh` stays at `STRATA_RAM_KEEP_GIB=12`; 20 (mmap tier, ~8% slower, 69 vs 75 tok/s) only if oomd kills a load again.
+3. Run `ctest -L cpu` (status claims 117/0/6) and `ctest -L gpu` (124): neither was re-run after the restore.
+4. kmiss: the blocking tier is measured (+2.0% edit, -6.4% short, A5), not the modeled +5..16%; the async arm is the open one.
+5. Phase 7 sleep-in-place (basalt 64167ba73, ~815 lines): only if the GPU is wanted for other work while idle.
+6. Merge `port/faststrata-poly -> exp/expert-prefetch -> feat/grammar` when wanted (all pushed, none merged).
 Stock comparison build: `../Strata-stock` (upstream 146df3c46, `build-cuda/strata`); results in FINDINGS 10f.
 
 ## Development plan by expected gain (2026-11-09)
@@ -189,7 +201,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 72 GPU-floor package triggered by the critical path (new: 1, 32/48, 37, 10, Q2_0-down, 47) - 5-10% short chat est. -
     exact - unowned - 44, 64 - design.  [S7]
 - 48 (= 32 re-rated) fuse the pre-doorbell chains (HC norm/down/up, router+plan+bell) - 1-4% per chain, critical in both
-    window types - exact - dan-cd - 49 - open.  [S7] CODED: expdec gate/up + SwiGLU + q8_1 in one launch (2aca56777, STRATA_EXPDEC_SWIGLU=1); router GEMV + top-10 + doorbell in one launch (7c0f03228, STRATA_ROUTER_FUSE=1); the HC norm/down/up chain was already one kernel (fused_gr_read_multi).
+    window types - exact - dan-cd - 49 - open.  [S7] CODED: expdec gate/up + SwiGLU + q8_1 in one launch (2aca56777, STRATA_EXPDEC_SWIGLU=1); router GEMV + top-10 + doorbell in one launch (7c0f03228, STRATA_ROUTER_FUSE=1; audit 2026-11-11: only active with STRATA_ROUTE_PUBLISH=1, no deferral, no STRATA_ROUTE_PRIOR (so not in the turbo arms), router margin <= 0 and no doorbell store on HIP - verify.cpp:2413-2425; otherwise a silent no-op); the HC norm/down/up chain was already one kernel (fused_gr_read_multi).
 - 63 capability probe + calibration layer (new: 55, 61, 57, 56, 58, 41, 53, 43, 54) - 0-3% here, 6-13% on other platforms
     (static PcieAuto lost that much here) - exact - this (probe) + dan-cd (tier parameters) - none - design.
 - small exact flag stack + --lookup-max-t 12 (P2c) - +2-5% (meas. +1.4..+3.9%, +1% retest) - exact - dan-cd queue - 67/I5 -
@@ -202,7 +214,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 47 warm the Infinity Cache with next-layer pre-doorbell weights during the wait - 0-2 ms/window est. - exact - dan-cd -
     micro-test (build only at warm/cold < 0.85) - open.  [S7] CODED (269a06ed9, STRATA_IC_WARM_MB=<cap>).
 - 53 online swap budget + chunked, stale-dropping promotions - 0-5% over the best fixed --adapt-swaps - exact - dan-cd
-    (coordinate with dan-cd, touches the tier) - 42 - open.  [S1] CODED (6bc9530bc, STRATA_ADAPT_SWAPS_AUTO=1; ForesightSwap stale-drop skipped: FS off in the presets).
+    (coordinate with dan-cd, touches the tier) - 42 - open.  [S1] CODED (6bc9530bc, STRATA_ADAPT_SWAPS_AUTO=1; ForesightSwap stale-drop skipped: FS off in the presets).  Audit 2026-11-11: only the swap-budget controller is coded (both tiers); chunked promotion and stale-drop are not; rejected on the async tier (-9.6%, A8), blocking arm still open.
 - 46 single poller in combine_cpu - 0-3% - exact - dan-cd - 49 - open.  [S1] CODED (93f7a963d, STRATA_COMBINE_POLL1=1).
 - 40 software prefetch in the Q2_0 row kernel - 0-5% of CPU-expert time - exact - dan-cd - none - open.  [S1] CODED (c44b1ad7b, STRATA_Q2_PREFETCH=<bytes>).
 - 43 DraftPolicy::seed_costs() from traces - 0-5% - exact - dan-cd - 42, 64 - open.  [S3] CODED (663107a56): serve loop reads STRATA_SPEC_COST_TABLE; tools/pancake/trace/draft_costs.py builds it from window traces.
@@ -490,7 +502,7 @@ Quick hygiene: test_keepawake fails by design of the test (KeepAwake._loop is st
 thread wakes, so ON is never sent; fix the assertion or skip off Windows); cache 3 hot getenvs (fused_gr.cu:1537 per launch,
 STRATA_DF_PDL verify.cpp:1537/1542, STRATA_ROUTE_PRIOR 2356); remove dead functions (layer_fused_gr, layer_shared_early,
 stage_mark_begin/end, gdn_buffers_zero_state, native_moe_combine_multi_hits, native_mmvq_b6_rows, df2_norm_rope, qsa_hip_wmma_active +
-~12 declared-never-defined prototypes); still-read rejected flags STRATA_PF_WMMA, STRATA_ARENA_WARM; one boolean env parser; stale
+~12 declared-never-defined prototypes); still-read rejected flag STRATA_PF_WMMA (STRATA_ARENA_WARM: code removed, 2026-11-09); one boolean env parser; stale
 root pancake-*.json (hipBLASLt 100200 vs template 100401); exclude sycl/ (162K lines, 120/149 files mirror src/) and metal/ from
 search/indexing; clangd fails on src/dsv41/ds4_model.cu (invalid AST) - exclude.  strata-poly builds in build-hip but
 run-pancake.sh:49 calls it CUDA-only.
@@ -597,7 +609,7 @@ Each lands as its own commit, measured (the bench and, where numbers change, exa
 | 8.5 | Adaptive MTP depth (3-4 by measured cost) | llamAmpere | poly | yes | decode |
 | 8.6 | A learned expert profile loaded at start | llama.cpp MoE cache PR | poly, main | yes | start-of-session decode |
 | 8.7 | Two-stage prompts (`--prompt-split`) | StrataFast | main | check | long prompts 1.24-1.55x there |
-| 8.8 | Fused flash-attention prompt kernel (D=256, GQA 8, Q8 cache, causal inline); INT8-IMMA attention variant | own; Speedy's IMMA idea | poly | numerics change: KL | the 38% at 42K |
+| 8.8 | Fused flash-attention prompt kernel (D=256, GQA 8, Q8 cache, causal inline); INT8-IMMA attention variant. **Coded 2026-11-10 as F17** (RandoTeam's port of llama.cpp's kernel instead of an own one; see "F17 status") | own; Speedy's IMMA idea; RandoTeam `79b1e756` | poly | numerics change: KL | the 38% at 42K |
 | 8.9 | Opt-in lossy: cache-aware routing (colibri `CACHE_ROUTE`), SJ-KVaRN-style KV body (keys 8-bit, recent window), mb-MTP | colibri, llamAmpere | poly | no: opt-in, KL | decode / VRAM |
 | 8.10 | RDNA3 kernels, tensor parallel, SDMA, idle-queue parking for the 7900 XT | Strata-rdna3 | main, HIP | per kernel parity | 2-3x stock on gfx1100; waits for the card |
 | 8.11 | basalt's head kernels (owner's request): **done 2026-11-08** - `q5k_head.cu` ported (Q5_K heads: Q2_0 / IQ3_XXS files) and the same designs written for IQ4_XS (the IQ2_XS head in daily use): exact head GEMV, 2-bit two-stage draft pick | basalt | main | yes | +3-5% decode (draft pick), head x1.07-1.27 in its test |
@@ -938,7 +950,8 @@ Also: presence_penalty must stay 0 for tool calling (DASLab MoESQ card: SWE-benc
 Added 2026-11-09 from the Asian report:
 28. Item 8 rank guard (KTransformers, SOSP'25): STRATA_VERIFY_DEFER_CPU_BELOW (0.1) and "never the last layer" exist; add "always
     immediate when in the token's top-2", measure at verify windows 1/2/4/8 after the HIP non-finite bisect.  Hand-off stays the
-    doorbell/partial-flag protocol (no HIP graphs).
+    doorbell/partial-flag protocol (no HIP graphs).  CODED (STRATA_VERIFY_DEFER_CPU_TOP, defer_rank.hpp, host pool + GPU copy,
+    default off); not yet measured at windows 1/2/4/8.
 29. Per-expert barriers in the CPU pool instead of the global run_phase sync between gate/up and down, SiLU*mul fused into gate/up
     (Tsinghua OSDI'26) - a few percent of CPU expert time.
 30. Offline recall test of three next-expert predictors on routing traces (next-layer router on the current hidden state; the
@@ -1129,7 +1142,7 @@ Everything the research series and the measurement rounds looked at and did not 
 - Cache-aware routing at lambda 2.0 (MP 8.9) - 9.9% mismatch, 8 large-margin events: REJECT (0.5 stays the opt-in `turbo`). [closed]
 - ClassLRU long-memory scoring (llama.cpp #31233, MP 11 index) - replayed decay 0.7..0.986 within 0.5 points at 32 swaps. [closed]
 - Reuse-aware admission (MP 11 late) - a PCIe 3.0 promotion (~115 us) costs ~3 CPU computes of the same expert. [closed; k-th-miss admission goes through the item 14 simulator]
-- L3 prefetch `STRATA_ARENA_WARM` (MP 11 late) - worse; DDR4 already at ~80%. [closed]
+- L3 prefetch `STRATA_ARENA_WARM` (MP 11 late) - worse; DDR4 already at ~80%. [closed, code removed]
 - CPU pool settings sweep (MP 11 late) - defaults best. [closed]
 - IQ2_S two-half decode `STRATA_IQ2S_PAIR` (MP 11 late) - neutral; the kernels are compute-bound. [closed]
 - `--spec 3/5/6`, window thresholds (MP 11 round A / late) - flat; `--spec 4` is also the official 4.07-accepted depth. [closed]
@@ -1449,6 +1462,278 @@ New processes built on these capabilities:
 
 ## Phase 16: academic research first, by area of improvement (2026-11-10, owner: develop academic technologies with priority)
 
+### Method-validity research and development order (2026-11-11, deep-research: 104 agents, 22 sources, 20 of 25 verified claims kept)
+
+Every published gain below was measured on NVIDIA GPUs over PCIe 4.0 with fp16/bf16/Q4 experts on Mixtral-class or 16B-class
+MoEs. None used IQ2_XS/Q2_0 experts, gfx1100, PCIe 3.0 or DDR4, so **no paper's speedup is assumed to transfer**: each item is
+built as an offline/CPU-testable piece first and only gets an engine switch if the replay shows a gain.  The research covered the
+cache/prefetch, mixed-precision, speculative-MoE and pruning papers; it did not cover 16.7, 16.10 or the Q2_0/IQ kernel items
+(those still need their own source checks, done by the kernel wave).
+
+| Order | Item | Source and verdict | Exact? | Offline test (no GPU) | Branch / agent |
+| --- | --- | --- | --- | --- | --- |
+| 1 | FineMoE expert-map prefetch + PRI eviction | FineMoE, EuroSys'26 (2502.05370): sound, best specified; semantic match on first d=3 layers, trajectory match later, delta = clip(1 - sim, 0, 1), eviction 1/(p * freq); 47% latency is an upper bound (6x RTX 3090) | exact | hit rate and time model on recorded gate traces | dev/p16/finemoe |
+| 2 | HOBBIT gate-magnitude importance proxy | HOBBIT (2411.01433): proxy r = 0.99 and T1/T2 split measured on 8-expert top-2 only; precision swap does NOT transfer (no copy below IQ2_XS); layer-ahead prefetch weak on PCIe 3.0 | lossy (skip only) | correlation and threshold re-fit on a many-expert top-k trace | dev/p16/rankguard |
+| 3 | EcoSpec cost-aware draft selection | EcoSpec (2026): S = P(path) / (new-expert cost + eps); output identical; gains from 235B models, modest | exact | replay draft trees + routing traces: unique experts per verify, accepted tokens | dev/p16/disco-suffix |
+| 4 | S2-MoE KV rollback, context-aligned drafting | S2-MoE (2608.15018, llama.cpp based): shared-KV drafting with rollback is the exact part | exact | acceptance on recorded traces | dev/p16/shadowpack (design note) |
+| 5 | REAP expert pruning | REAP (2510.13999): router gate x activation norm saliency; needs calibration set | lossy, offline | saliency scoring on routing traces only | dev/p16/shadowpack |
+| 6 | S2-MoE reuse-aware gating | same paper | lossy | needs KL / top-1 / PPL gate | not started |
+| 7 | DraftExpert | trains one draft expert per layer | exact output, training cost | - | not started (training) |
+| 8 | Kernels and core: 16.7, 16.10, Q2_0/IQ (F7, F12, F21, A37, A31, F9) | last, as the owner asked | exact | bit-exact CPU microbench, parity tests | second wave, after 1-7 are merged |
+
+Skip unless an offline replay shows value for single-user decode: OD-MoE shadow model (needs the whole model re-run ahead; recall
+measured on Mixtral only), MoE-Infinity EAM collection (needs 30-50 requests of warm-up; kept only as the FineMoE baseline).
+Do not build naive shared-expert + top-r self-drafting: in the DraftExpert paper it was slower than autoregressive once exact
+verification and repair were counted.  HybriMoE is a design reference only (scheduler depends on measured CPU/GPU latencies;
+"exact and offline-simulable" was refuted 0-3).  SP-MoE (draft-stage expert prediction) was measured at batch 1, greedy,
+sequential drafting, PCIe 4.0: reference for A22/A26, no gain assumed.
+
+Claims that must not be repeated as facts (refuted in the verification): MoE-Infinity's smallest gains on Mixtral with a 17% vs 21%
+buffer hit rate; OD-MoE being unusable on 20 GB because of a 45 GB shadow node; HybriMoE being exact; EcoSpec's "about 11% relative";
+SP-MoE's speedup min/max summary.  Open: whether the HOBBIT proxy and FineMoE matching hold on a many-expert Qwen-class MoE with
+IQ2_XS experts, and the d, thresholds and cache sizes that fit 20 GB VRAM on PCIe 3.0.
+
+Rules for development (owner, 2026-11-11): CPU/offline tests only until the GPU is released; each agent works in its own worktree
+and branch (dev/p16/<name>), commits are merged into dev/phase16-academic; agents run on sonnet, opus and haiku at xhigh effort.
+
+### Phase 16 development run, status per item (started 2026-11-11; integration branch dev/phase16-academic)
+
+Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Tested** (measured; GPU runs wait until the GPU is free),
+**Cut** (PROMOTE = cherry-picked into port/rdna3-decode, HOLD, REJECT).  Only PROMOTE items go into the rdna3 branch.  Agent notes:
+`pancake-docs/batch3/<name>.md` on each branch.
+
+| Agent / branch | Items | Dev | Tested | Cut |
+| --- | --- | --- | --- | --- |
+| citecheck / dev/p16/citecheck | citations of Phase 15/16 and README 4C | done, merged (c4660fcbe) | 85 arXiv ids + 12 URLs checked | n/a (corrections below) |
+| compilegate | CPU/HIP compile baseline of dev/batch-2, ctest -L cpu | done, merged (notes) + the one-line `generate.cpp` include fix cherry-picked (d38bed345) | baseline: exactly ONE file of the 62 changed src/include files failed to compile (generate.cpp, A45 missing include; clean in HIP 77 s and CUDA 86 s with it); `ctest -L cpu`: CPU-only 102/0/7, HIP gfx1100 configure **124 pass / 0 fail / 8 skip** (status claimed 117/0/6; 9 new cpu tests all pass); skips are environmental (no AVX-512, no pack/full/experts.bin, pinned llama.cpp has no trellis types, ulimit -l); src/poly/engine.cpp needs CUDA (not a batch-2 issue) | GPU parity tests (`ctest -L gpu`) not run | baseline for every later merge (merge must keep 124/0/8) |
+| rankguard | A4 fold, A4 rank guard, F5, F13, HOBBIT proxy (offline), ROUTER_FUSE warning | done (5 commits on dev/p16/rankguard, 3/3 ctest, HIP compile-only ok for verify.cpp), reviewed MERGE (default path byte-identical, tests failed on 10/10 hand mutations), merged + one-line warning fix | GPU screens specs 10, 11-verify-ecap, 11-turbo-guards pending | pending screens: A4 FOLD (exact vs `_TOP`), F5 ECAP, F13 turbo guards |
+| disco-suffix | A22/A25/A26 DISCO, A24 suffix index, A21/F6, F8, EcoSpec | done (6 commits on dev/p16/disco-suffix; generate.cpp/mtp.cpp compile HIP; 10/10 spec ctest, 25 python tests, sanitizers clean), reviewed MERGE (default path byte-identical, 10/10 spec ctest, 25 py tests, 4/4 mutations caught) and merged | A22: ceiling 1.0% short / 7.9% edit / 3.4% long (no stop rule beats it), paper's FFN-on-dense-model headroom does not carry to --spec 4; A24: score rule = same rounds as the simple rule on 2,045 real requests (-2.45% vs -2.44%), expect 0-2%; F8 SPEC_CUM ported (opt-in); EcoSpec: engine switch NOT built (needs draft tree + trained predictor; ceiling small), simulator only | A22 HOLD (needs a window trace run), A24 HOLD (screen pending), F8 pending screen, EcoSpec REJECT; note STRATA_SPEC_PROB needs STRATA_SPEC_PROB_GATE=top with DISCO/SPEC_CUM/--spec-min-p to stay exact (warned at runtime, reason text names the wrong switches: generate.cpp:3482); low follow-ups: if STRATA_DISCO file fails to load, SPEC_CUM is not used as fallback (disco.cpp:114-131); ecospec_sim fits its cost model on held-out rounds too (fit on train only) |
+| policy | A44 bandit, A45, A15 park TTL, F1 park truncate | done (6 commits on dev/p16/policy; HIP compile-only ok incl. generate.cpp after the A45 include fix; conversation_cache_test 4897 checks, cpu subset 8/8), reviewed MERGE (bandit default path byte-identical over 640 configs, 3/3 mutations caught) and merged | offline park replay on the 11-09 session (75 requests, 7 cold re-reads = 162.7 s): F1 -52 s, min-tokens 8192 -22 s, F1+min-tokens -116 s, budget 2048 + min-tokens 66.7 s (-158 s, no code); **A15 alone: no change** (6 of 7 cold re-reads are over-budget skips); A44: the plan cites Athena (SARSA) but the code is the stateless MAB baseline, lossy arm ran 44.5-49.6% of epochs, `STRATA_BANDIT_MARGIN` 0.02 cuts it to 10.3-31.4%; A45: matches DALI's warm-up balance only, static share, "finds 0" true by construction; bug fixed: A15 rank-3 eviction cancelled the branch ranking | F1 + `--conversation-cache-min-tokens 8192`/budget 2048 promising (GPU restore_check first), A15 HOLD, A44 HOLD, A45 HOLD; **open issue (medium, A15 hold path only, opt-in)**: rank-3 eviction takes the shortest entry first, which under a byte shortfall evicts the whole held set (4 evictions vs 1; conversation_cache.hpp:754) - fix before A15 is benchmarked: within rank 3 take the smallest entry whose bytes cover the shortfall |
+| finemoe | FineMoE replay + PRI eviction, MoE-Infinity baseline, A7/A8/A46 on agent traces | done, merged (tools/pancake/finemoe_replay.py, 13 tests, time_ceiling --validate byte-identical); no C++ | offline replay on the only trace (bench/prefetch/routing.bin, 219 windows, no weights): FineMoE prefetch -14.1% (best variant -0.6%), PRI eviction <= +0.3 hit points, MoE-Infinity -19..-32%, A7 +4.6% upper bound, A46 +1.0 point, **A8 Pie +3.0% whole / +12.2% edit** | FineMoE REJECT (cache already holds 44% of experts at 81-89% hits; prefetch sets cover 0-5% of misses; 74% of prefetches land late on PCIe 3.0); A7 parked, A46 closed; **A8: env-only screen `--adapt-swaps 64\|128` queued for the GPU phase** |
+| agentloop | A17-A20, A30, A38-A43, A55 | done, merged (python/spec only; `pytest serve` 1712 passed, tools 181 passed; think_probe_test builds CPU-only; HIP compile-only verify.cpp ok) | offline only; no agent calibration data yet (34 turns, thinking p99 1,061 tokens, no cap fittable) | A17 keep (512-cap stress arm); **A18 "-20-40%" has no source number** (A/B on time to success still valid); A20 measure-only (host logprobs cost 1.84 ms/token, no GPU entropy path); A19 HOLD (probe differs from Thought Calibration, <= ~4% of turn time); A30 already in the engine per expert (break-even ~4.5 tokens/expert), `auto` arm added to spec a30; A38 log-only; A41/A42/A43 opt-in, mismatched sources; A55 needs 100+ tasks or a 10-15 pt margin (18 tasks x 5 reps: 95% CI ~25 pts) |
+| shadowpack | F4 shadow pack, REAP saliency, S2-MoE rollback (design) | done, merged (F4 converter `strata_shadow_pack` + CPU read-back test shadow_pack_test, REAP tool `reap_saliency.py` 5 tests; CMake change is test-only) | F4 on 16 experts x layers 0,1,8,24,47: IQ1_M shadow weight error 0.53 (0.44 with `--flat`), expert output error 0.55-0.91; CPU kernel 8-10% faster per expert for 32% fewer bytes (compute-bound), so the 3.8-8.5% in RESULTS.md is an upper bound, likely 1-3%; RAM 16.5 GB; REAP on the 11-08 trace held out: 25% pruning removes 2.4% of routed entries and cuts CPU misses 6.3-18.5% (lossy, trace has 1000x fewer tokens than the paper and no gate weights) | F4 REJECT as an engine switch (needs imatrix + KL/task gate first), REAP HOLD (A28 256-of-512 file is the cheaper test), S2-MoE KV rollback = what native MTP already does (design note only), HOBBIT precision swap does not transfer (no copy below IQ2_XS) |
+| percache | A11-A14, A16, 90+71, 31, 39 | done, merged (python tools only: percache_sim.py over the real opencode.db 2,036 requests / 25 sessions, restore_check.py fixes; no engine C++ changed; 20 py tests, 8 of 8 conversation tests with GPUs hidden) | offline: history re-reads 12.2% of request time (no event in the store 3.9%, switch to another session 3.5%, compaction/prune 2.6%, after a new user message 1.6%, first request 0.5%), ceiling for any parked store 2.0%; **only `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` is above 1%: +1.89% (734 s)**; A11 tool-boundary marks expected ~0 (keep off); A11 FLOP eviction 0.5-0.8% at best (try `--prompt-cache-spread` first); A13 disk tier +0.11% beyond the flags; item 31 closed (template keeps thinking by default) | A14 restore_check = the gate (fixed: it could pass without using the cache; now exit 2 if a turn that should hit reports 0 cached tokens); **do NOT enable STRATA_AUTO_PIN for Qwen** (pinned parked entries are never evicted, 6 sessions: new ones are not parked, -1.3% modeled); A11 marks, FLOP eviction, A13 HOLD/REJECT as engine items; disk key lacks STRATA_EXP_MODE / EXP9_DOWN (decide before F14) |
+| selftune | item 70 selftune, A6, A49, sweep knobs | done, merged (python only: selftune.py + chain_model.py, sweep.py with Mann-Whitney + fresh A B B A confirm, regression_watch.py with intervals, load_time.py, decode_context.py, time_model_bootstrap.py; whole `tools/pancake` suite on the integration branch: 293 passed, 1 skipped) | the 2026-11-09 dry run (+8.6% profile, +23.1% with k-th miss) used the serial model that A6 refuted; with the A6 chain model: candidate profile +4.6% mean over 4 held-out blocks (+1.4, +8.2, +11.5, -2.5) so it goes to the A/B; k-th miss +2.0% with 1 of 4 blocks gaining so it does not; learning curve needs ~100-200 decode windows; A6 vs measured: deferral +15.8 (fitted), k-th miss +2.7 vs +2.0, FUSE_PHASES +1.1 vs +2.5, **rank guard +12.0 vs +20.1 (model miss -8.1)**, mean error 3.4 points on n=3; learned expert profile +5.4% modeled, mostly cold-start (~0 at 93% tier hit rate); the old sweep.py claimed +4.7% for nothing on a flat landscape in 95% of sweeps | selftune candidate profile: pending A/B + quality_gate (`selftune.py --routing ... --out` writes the spec); regression_watch catches ~10% regressions at 4 reps, not 5%; A49 own measurement (no batch-1 source) |
+| phase15 | Phase 15 fork ideas triage | done (5 commits on dev/p16/phase15; F14 host equivalence test 4.0 M rows bitwise equal, `STRATA_HIP_GLOBAL_WEIGHTS` opt-in kernel switch, spec 25-f-env-rerun), reviewed FIX FIRST and merged with the fix (the ON variant did not build: host pass rejected the address_space(1) cast; now device-pass only, both variants compile HIP host+device; default kernels byte-identical: 571 kernels HIP, 566 CUDA) | triage of F1-F22: covered by another agent: F1, F4, F5, F6, F7/F12, F8, F9/F21, F11, F13; skip: F3, F10, F15, F16, 15D; blocked-on-GPU: F2, F14 (3060), F17, F18, F19, F20, F22; research notes: LDS-only barrier low, ACTQ_SKIP skip (0.1-0.3%), FUSE_DECODE on HIP inert with --native, POOL_DAG/CPU_POOL_COST/DPP_XOR/MMVQ_R skip; **flat loads: PORT (kernel wave)** - 13,119 flat_load in iq_kernels.cu on gfx1100, cast of 25 grp_ptr sites to address_space(1) gives 108 flat, default off, device asm identical when off | **the 2026-11-10 05s screen that closed LOOKAHEAD=0, routed-dedupe, MMVF_ROWS, GDN_PP=2, spec-min-p 0.7 had no clean base (n=2, intervals +-100 to +-450 tok/s): those arms were never measured; re-run `25-f-env-rerun.json`, `lookahead0` first = strongest zero-code candidate (fork 162 -> 183 tok/s when the complement is whole)**; F18 needs one 32K-prompt rocprofv3 table first; the box is PCIe 3.0, research-note batches assume 4.0; **STRATA_HIP_GLOBAL_WEIGHTS=1 effects (device-only compile): flat_load 13,119 -> 108, global_load 16,593 -> 29,538; 3 kernels gain scratch (expdec_gu_swiglu<22,1,2,true> 0->52 B, expdec_gu<22,1,2,true,1> 0->48 B, native_gu_multi<145,true,true> 8->28 B) = a speed risk, not correctness; the cast is safe on all tiers (host-mapped, pinned, VRAM, peer are global addresses on gfx1100)**; low follow-ups: gpu_rewrite_parity_test's source guard checks that lines exist, not their order (reversing the butterfly inside row_dot_20_sub16 still passes), and it passes if the source file cannot be read; one weight read missed (native_down_ws_kernel) |
+| speclint | static validation of bench/specs (tools/pancake/spec_lint.py) | done, merged (13e44064d); 19 tests pass; 60 specs: 2 errors, 7 warnings | static only | tool kept (not an engine item) |
+| promotion | promote.py, spec map for every item | done, merged (`tools/pancake/promote.py`, 36 tests, read-only by test; `bench/promotion/phase16.json` 35 items; 5 new specs 25-f1-park-truncate, 25-a11-a13-cache, 25-a8-swaps-auto-blocking, 25-a4-w-sweep, taskgate-a19-probe, spec_lint: 65 specs 2 errors) | real-data check on 2026-11-09/10 results: A3 deferral PROMOTE, A4 `_TOP=2` HOLD (short -6.9%), lookup12 HOLD (5 of 8 runs noisy), expdec-down HOLD (no text hashes), turbo HOLD (token forcing inconclusive) | the decision tool: PROMOTE needs 95% lower bound of paired gain >= 1% (exact) / 3% (lossy), Student-t paired by repetition, Bonferroni, >= 3 clean pairs, text hash equal to base for exact items, token forcing PASS + task gate PASS for lossy |
+| kern-cpu | F7 Q2_0 AVX2, F12 IQ sign, CPU pool floor | done, reviewed FIX FIRST and merged with both fixes (F7 probe never runs without AVX2; iq_sign_fast_test uses std::popcount); F7 had a real bug: in `STRATA_HOST_NATIVE` / -O0/-O1 builds 114,605 of 584,676 outputs differed (the correction term is only exact when GCC fuses the multiply-add) - fixed with a runtime probe that picks the fused or unfused form and falls back to legacy; legacy path byte-identical (op sequences identical); F12 device code identical (HIP asm, CUDA 566/566 SASS) | CPU only: F7 parity 1.9M outputs (957K edge) 0 differ, ctest -L cpu q2/iq 9/9 also with STRATA_Q2_FAST=1; F12 exhaustive 28,553,472 cases 0 failures (mutation: 25,380,864 failures); DDR4 floor: Q2_0 gate/up row 720 B = 21.8 ns, down 180 B = 5.45 ns, expert 1,382,400 B = 41.9 us at 33 GB/s; 1 thread from DRAM legacy 4-6x floor, fast ~4x (x1.17-1.47 per row); at 1 token/expert the 6+ core pool is DDR4-bound for either kernel (room <= 22% from 27 -> 33 GB/s); at 2+ tokens/expert legacy is near compute-bound so F7 has room; 8-core pool number still to measure on an idle box (`q2_rows_bench --threads 8`); Q2_PREFETCH/POOL_TAIL4/MWAITX/LAZY_PARK confirmed n.s. (+-1.5%) | F7 engine screen on the GPU box pending (`STRATA_Q2_FAST=1`; author's -17%/layer does not transfer as is); F12 `STRATA_IQ_SIGN_FAST` GPU A/B after iq_multi_parity (MINB=2 adds up to 72 VGPRs: per-format A/B); A48 closed (x86 2-bit GEMV literature needs AVX-VNNI/offline layout: not Zen 3); low follow-ups: probe reference runs a constprop clone, NaN payloads differ in some builds, q2_rows_bench g_sink race |
+| kern-hip | F21, F9, A37 (HIP compile-only) | done, reviewed MERGE and merged (default kernels identical: 77/77 functions HIP gfx1100, 72/72 CUDA sm_86; F21 memory ordering checked in the ISA; spec_lint 0 errors on the 3 specs) + a once-only log line when COPY256 first acts | compile/ISA only: F21 wide copy 10 VGPRs, F9 `route_publish_fast` 67 VGPRs no LDS no spill; **three earlier results were no-ops under deferral: COPY256 (the preset's wait path used another kernel), IC_WARM_MB (needs the fused CPU combine that deferral turns off), ROUTER_FUSE** | F21 est. ~0.6% of a short window, ~0 on edits; F9 `STRATA_ROUTE_FAST` est. +1-2% (3 launches -> 1, ~12 us/layer) - GPU spec `25-kern-hip.json --tier confirm` decides; A37 not worth keeping (kernel is 1.7% of GPU time, ceiling 0.15-0.55%; 16 copies halve occupancy; MINB=2 + SIGN_FAST + 8 copies spills) - revert d11a9ca09 unless one expdec_bench shows >=10% on 16/42 gate/up; A33 SwiGLU ~1%; low follow-ups: F9 'will not act' reasons incomplete (verify.cpp:2482), rankguard and F9 notes can contradict in a pipelined session |
+| kern-gdn | A31 GDN chunk 64, A36, 16.11 attention/KV | done, merged (tools + tests only, 13 py tests; gdn_stage_bench.cpp.o and q36_engine.cu compile HIP) | A31: blocked-on-GPU (stage bench `hip_gdn_stage_bench 4096 16384 32768` then `probes/gdn_chunk64_rule.py`; static read expects WMMA-bound); A36: ceiling 1.58/2.47/0.30% of wall on a pre-deferral profile; XAttention, Quest/Twilight, KV compression: not built; BFLA: exact dense mode first, sparse stays opt-in/lossy | A31 HOLD (needs stage bench), A36 HOLD (re-check with deferral-on trace), XAttention/KV items REJECT |
+| datapath | 16.12 loader/PCIe/NVMe, 16.6 cold reads | done, merged (tools + specs only, 55 py tests; CPU conversation tests pass; HIP compile-only ok) | **item 38 O_DIRECT loader is default-on on this box** (auto: avail - arena - 4 GiB < shard bytes), the gain is memory pressure not speed (disk is a DRAM-less PCIe3 x4 NVMe: floor 16.9 s for 35.45 GB, not the plan's 10-14 s); **conversation cache: `--conversation-cache-min-tokens 8192` carries the gain, not the 2048 MiB budget** (budget >= ~1.8 GiB gives the full 158.4 s upper bound; item 86 already sizes ~3.5 GiB at 16 GiB free); hugetlb +5-7% does not fit this box (models 1.3% short / 2.9% edit); ReBAR push <= 2.1%; A32 already implemented; A29 closed (Q2_0 11.7-12.0%, IQ 0-3%); A53 IOMMU ok as information | spec 11-conv-cache replay arms base / min8192 / cache2048-min8192 pending GPU restore_check; hugetlb, ReBAR push, THP collapse: not built; A28 needs a 29.6 GB download on a 94%-full volume (owner decision) |
+
+#### GPU phase log (2026-11-11, from 05:30; integration branch dev/phase16-academic, HIP gfx1100 build in ~/.cache/strata-p16-final-hip2)
+
+- **Gate before GPU**: `ctest -L cpu` on the final HIP configure: 138 tests, **130 passed, 0 failed, 8 skipped** (same 8 environmental skips as the 124/0/8 baseline; 6 new tests pass).
+- **`ctest -L gpu` (kernel parity, no model, one at a time)**: 125 tests, 122 passed, 3 not passing, **all three pre-existing on the base d251be8f5** (not caused by any Phase 16 merge): `hip_flag_order_test` (fails under ctest on the base build too), `conversation_copy_streams_test` (151,552 KiB for the first copy stream + event, over the 16 MiB bound, identical on the base), `rdna_mmvq_parity` (the test passes a null stream and the base `native_mmvq.cu:2555` throws "requires an explicit non-null CUDA stream"; the test was never validated: item 93 note "parity tolerances untested").
+- **Memory condition**: after the agents' builds only 10-13 GiB of RAM were free in blocks of 2 MiB or more (the arena needs 33); the proper fix is `sudo tools/pancake/os_tune.sh compact` (needs root, not run). Page cache of the big files was evicted without root (posix_fadvise), free RAM 19 -> 32 GiB, blocks 10 -> 13 GiB. **Model runs therefore use `STRATA_RAM_KEEP_GIB=20` (mmap tier, ~8% slower than the arena: 69 vs 75 tok/s)**; every arm of a comparison runs the same tier, so A/B gains are valid, absolute tok/s are not comparable with the earlier arena numbers.
+- **A14 restore_check (tool-boundary + disk), mmap tier, new binary: exit 1, NOT decisive.**  Fixed first: the tool counted its disk/tool-boundary evidence in a per-arm log the engine never wrote to (the engine log is the preset's shared file), so it said "disk tier not exercised"; each arm now has its own per-run engine log (commit on this branch; 13 tests pass).  Evidence the engine did exercise everything: tool-boundary checkpoint at token 1245, disk tier 3 writes and 1 read-back of a 1208-token match.  Result: every turn DIFFERENT from the re-read arm, including `first` (no cache involved) and `reread repeat vs tool-retry` (same prompt twice in one engine run) - free-running greedy text is not reproducible here (README: stock run-to-run noise 1.2-1.3% of tokens; over a 96-token continuation a divergence is likely).  **The base binary (port/rdna3-decode d251be8f5) gives the identical pattern, so no Phase 16 merge broke determinism.**  What does hold: `restore repeat == tool-retry` and `disk repeat == tool-retry` MATCH (a complete cache hit reproduces the retry turn exactly).  A14 gate needs a noise-aware form (a second re-read arm as the control; compare divergence position) or a teacher-forced comparison; until then no item is blocked or cleared by it.
+- **Tier-dependent screens wait for the arena**: `25-f-env-rerun` arm `lookahead0` assumes the pinned RAM complement holds every expert (the arena); under the mmap tier the look-ahead warms pages decode reads (+10% there), so it would measure the wrong thing.  It needs `sudo tools/pancake/os_tune.sh compact` (owner) and an arena load; the other arms of that spec are tier-independent.
+- **`25-kern-hip` (F21 COPY256, F9 ROUTE_FAST, A33 EXPDEC_SWIGLU, mmap tier, fast-hip base, short + edit)**: screen n=2: copy256 short -1.2% edit -4.8% (drop), route-fast +0.0% / -1.7% (drop, no difference), expdec-swiglu +1.3% +-1.0 / +2.0% +-1.5, all3 +2.9% +-1.5 / +0.2% +-18.6 (promote to confirm).  **Confirm (`25-kern-hip-confirm.json`, n=6, no early stop): expdec-swiglu short +0.6% [-1.6, +2.8], edit +1.1% [-4.7, +6.9]; all3 short +0.7% [-6.9, +8.3], edit +1.3% [-5.6, +8.1]: no difference.**  The screen's +2% was noise (9 noisy attempts were discarded and repeated; kcompactd0/kswapd0 busy on the fragmented RAM).  promote.py: **HOLD** for A33-expdec-swiglu and for all3 (gain interval straddles the 1% threshold; base text differs between runs so text parity is not checkable).  Cut: F21 COPY256 REJECT (no gain, edit negative), F9 ROUTE_FAST HOLD (no measurable gain on this tier; est. +1-2% not seen), A33 SWIGLU HOLD (about +1% at best), A37 not kept.  Nothing promoted to port/rdna3-decode.
+- **`10-rank-guard-fold` (A4 `_TOP=2`, FOLD 1 / 2 on the fast-hip base, short + edit, screen n=2, mmap tier)**: top2 short +0.1% / edit -2.6%, top2-fold1 -0.0% / -3.0%, top2-fold2 +0.5% / -4.2%: no difference, screen verdict drop for all three.  The earlier "+20.1% edit, -6.9% short" for `_TOP=2` was measured against a base WITHOUT deferral; with deferral on (the fast-hip preset) the guard changes nothing measurable (as the rankguard review predicted: at `_BELOW 0.1` it only defers a token's second expert when its weight is < 0.1).  Cut: A4 rank guard and FOLD HOLD (no gain over deferral alone; FOLD stays exact vs `_TOP`), nothing promoted.
+- **`25-a8` (A8 swap budget): the screen is a hint only (n=2, base 110 +-123 looked like a slow outlier); the daytime confirm (`25-a8-confirm.json`, n=6 planned) is INVALID and was stopped at 09:50**: it ran while 15 agents were compiling, the base arm had 5 discarded attempts and 1 clean one out of 6 (also noisy: this session's own tool calls); lesson recorded in TEST_PLAN: no GPU job during daytime development.  A8 is rerun at night (pancake-docs/NIGHT_QUEUE.md item 2).
+- Jobs so far: ctest -L gpu, restore_check x2 (new binary, base binary), 25-kern-hip screen + confirm, 10-rank-guard-fold screen; next: the rank-guard fold spec (10), ECAP (11-verify-ecap), turbo guards (11-turbo-guards), A8 swap budget, 15c Q2_0 redo.
+
+#### Findings that change the GPU test plan (2026-11-11 night)
+
+- **15c base is wrong** (spec_lint): `bench/specs/15-q2_0.json` / 15c use base `pancake-flashnext-iq2_xs-rdna3test.json`, which sets none of `STRATA_VERIFY_DEFER_CPU`,
+  `STRATA_POOL_FUSE_PHASES`, `STRATA_EXPDEC_DOWN` and has no `--lookup-max-t 12`, so the `q2_0-stock` arm equals the `q2_0` arm.  The base must be the iq2_xs fast-hip config.  Fix before the 15c redo.
+- Specs 18-f11-attn-window and 18-f17-poly-fattn-3060: their base configs (`qwen36-ud-q4_k_xl*.json`) have no `env` object, `abtest.make_config` raises KeyError.
+- `STRATA_ROUTER_FUSE` never acts in fast-hip or the turbo arms (needs ROUTE_PUBLISH=1, no deferral, no route prior, no DOORBELL_STORE); an A33 retest must run without deferral and without ROUTE_FAST.
+- Rank guard: with 10 weights summing to 1 the top weight is >= 0.1, so at the default `_BELOW 0.1` `_TOP=1` changes nothing and `_TOP=2` only defers a token's second expert when its weight is < 0.1; the measured A4 result comes from those rows only.  FOLD is exact against the same `_TOP` run (random-window test).
+- Item 23 depth prior is NOT AcceptMoE (2608.02989): theirs is a per-block commitment-weighted expert set; ours is a fixed geometric logit bonus, so the plan's +5-15% has no source number.
+- HOBBIT proxy: no usable routing trace with weights exists (the 219-window trace has zero weights); a real measurement needs one `--dump-routing` run.
+- `generate.cpp` misses `#include "strata/core/calibrate_ratio.hpp"` (A45, owner: policy): HIP compile fails until added.
+
+Plan text to fix (kern-gdn): A31 "5-11% of prefill" has no source and the only GDN prefill timing (recurrence 6.0%, GDN 11.9%) is an RTX 3060 log, not the 7900 XT;
+A36 "weight-major" in MonoMoE is a SwapAB tile mapping inside a persistent megakernel, not a weight layout; BFLA "3.15x" at 128K is against a materialised-softmax baseline
+(fused dense alone is 2.0x, exact; sparse adds 1.58x at 128K) and its KL 0.0014/0.0045 is above the plan's own 1e-3 gate (48 tokens is too few, ~300 needed);
+README 4C marks Mamba-2/Mamba-3 "adopted (GDN chunk-64 line)" though chunk 64 is not built.
+
+#### Test-protocol findings (promotion, 2026-11-11) - apply in the GPU phase
+
+- **Task gate is underpowered**: 18 tasks x 5 reps passes an identical arm ~3% of the time and rejects a true 10-point loss ~3% of the time; 100+ tasks x 10 reps passes an identical arm ~85%.  No lossy item can reach PROMOTE until the task set is ~100 tasks or the per-item `gates` are narrowed.
+- **Token-forcing set is too small** (`bench/quality/set.json`: 20 requests, 5,322 tokens): an arm identical to stock is INCONCLUSIVE 22% of the time and a real +1.0 pt deviation is rejected only 62%; 40 requests brings both to ~92%.
+- **Small gains need many repeats**: paired SD median 3.9% of base (p25 1.6%); the default 3-4 reps only prove gains above ~5%.  Exact items with a 1-3% claim run with `ABTEST_ARGS="--no-early-stop --reps 8"`.
+- `test_phase.sh` never runs `task_gate.py` or `replay_turns.py`: run them by hand (commands in pancake-docs/batch3/promotion.md); promote.py reads `<results>/<stem>-taskgate` and `<stem>-replay`.
+- Already in port/rdna3-decode: A11 527e06429, A13 070fe8512, A2 4f56ce535, A23 663107a56.
+- Items with no deciding test today: A9 idle adapt, A41/A42/A43 nudges, A52 loader (gain = start time), F6/A21 (no distribution check; parity waived).
+
+#### GPU queue from the agents (consolidated, run in this order when development stops)
+
+1. Build HIP from dev/phase16-academic; `ctest -L cpu` must keep 124/0/8; `ctest -L gpu` (kernel parity incl. `hip_wait_copy`, `iq_multi_parity_expdec_swiglu`, `native_multi_parity`).
+2. `restore_check.py --tool-boundary --disk` alone on the GPU (exit 0 = pass; exit 2 = cache not exercised; exit 1 = real difference); once more without the flags.
+3. Pin-hazard confirm (6 sessions, same short system text, 12K private tokens each, order A B C D E F A B; base vs STRATA_AUTO_PIN=1) before anyone sets the pin.
+4. `25-f-env-rerun.json` (lookahead0 first), then the 15c Q2_0 redo on the iq2_xs fast-hip base, then `25-kern-hip.json --tier confirm`, `a33-a35-fusion-retest.json --tier screen`, spec 10 (A4 fold), 11-verify-ecap, 11-turbo-guards, `25-a8-swaps-auto-blocking`, `--adapt-swaps 64|128` (A8 Pie).
+5. Kernel items: `expdec_bench`, STRATA_HIP_GLOBAL_WEIGHTS A/B after `iq_multi_parity` bitwise, `hip_gdn_stage_bench 4096 16384 32768` (A31), `empty_grid` probe (F20), a 32K-prompt rocprofv3 table (F18), two gpu_profile traces with deferral on then `hit_critical` (A36).
+6. Lossy items need the grown task set (~100 tasks) and the 40-request token-forcing set before PROMOTE is reachable.
+
+#### Citation corrections (citecheck, 2026-11-11; full table in pancake-docs/batch3/citecheck.md)
+
+All 85 arXiv ids resolve.  Wrong or misquoted, fix before anyone relies on them: README 4C (pancake-docs/README.md:180 and
+RESEARCH_AND_FINDINGS.md:208) gives XAttention as 2502.17421, which is LongSpec; XAttention is **2503.16428** (the top-level README is right).
+SpargeAttn is cited as 2411.10958 (that is SageAttention2); SpargeAttention is **2502.18137**.  A38 "Beyond Accuracy" 2511.11012: abstract says
+33%-440% more input tokens (1.33x-5.4x), not 1.4-4.4x.  A24 SuffixDecoding 2411.04975: authors report up to 5.3x on SWE-Bench and Text-to-SQL, not "a few % up to ~10%".
+A19 Thought Calibration 2505.18404: 60% fewer thinking tokens in-distribution, up to 20% out-of-distribution, not 20-40%.  A33 "SGLang small-M fusion" 2312.07104:
+the paper makes no fusion claim.  A2 AcceptMoE 2608.02989: the abstract describes a commitment-weighted expert selector with cache residency, not a depth-graded prior.
+A28 GSQ 2604.18556: model and numbers (95.7% SWE-bench, 256/512 experts) are not in the source.  Figures not found in the cited abstract (check the paper
+body or drop them): ProMoE "1.09x over LRU", HOBBIT "CDF 0.6/0.9" and "r=0.99", DALI "6-13%", FreeToken "FLOP-per-byte eviction" (Marconi's idea), MoE-Lightning
+"stale-dropping".  Phase 15 cites only fork commits, whose hashes were not checked.
+
+### Remaining academics: development plan (2026-11-11, after the first GPU phase)
+
+State: every table item was source-checked, coded or decided offline, reviewed and merged; GPU-measured so far: A3 deferral (in preset), F21/F9/A33 (no gain), A4 rank guard (no gain over deferral), A8 (confirm running).  What is left, in order of expected value per test hour.
+Each line: item - what remains - how - decided by (spec / tool) - gate.
+
+| Order | Item | What remains | How | Decided by | Gate to port/rdna3-decode |
+| --- | --- | --- | --- | --- | --- |
+| 1 | A8 Pie swap budget (`--adapt-swaps`, `STRATA_ADAPT_SWAPS_AUTO`) | confirm result (running: 25-a8-confirm, n=6), quality gate, then the preset value | env/flag only, no code | 25-a8-confirm + quality_gate | lossy: lower bound >= 3%, token forcing PASS, task gate on the grown set |
+| 2 | F1 park-truncate + `--conversation-cache-min-tokens 8192` (+ budget) | GPU restore check in its noise-aware form; replay arms | replay_turns + 25-f1-park-truncate, 25-a11-a13-cache | promote.py replay metric | exact: restore equivalent (control arm), gain >= 1% lower bound |
+| 3 | Q2_0 vs IQ2_XS (15c) | redo on the iq2_xs fast-hip base (the old base made the `q2_0-stock` arm a no-op), then the 4 adopted items into the q2_0 presets | 15-q2_0 (base fixed), quality_gate | abtest + gate | owner decides the default model |
+| 4 | F13 turbo guards, F5 ECAP, item 23 depth prior | measure on the arena tier; item 23 is NOT AcceptMoE (fixed geometric bonus): rename or reimplement as the paper's commitment-weighted selector | 19-turbo-guards, 20-verify-ecap, quality_gate + grown task gate | lossy gate | lossy: needs the ~100-task set first |
+| 5 | A22 DISCO, F8 SPEC_CUM, A24 suffix index, EcoSpec | one window-trace GPU run (`STRATA_WINDOW_TRACE`, `--spec-min-p 0`) -> `disco_fit.py` -> screens b3-f8-spec-cum, 24-a24-suffix-index; EcoSpec simulator on the same trace, engine switch only if eco-ema >= +2% | trace first, then one screen each | ecospec_sim, disco_fit, abtest | exact (greedy): text parity needs the noise-aware check; STRATA_SPEC_PROB_GATE=top with SPEC_PROB |
+| 6 | A17/A18/A20 thinking control, A19 | collect 200+ effort-tagged turns; xhigh vs medium time-to-success A/B (A18); A19 forced-stop replay driver or drop; A20 stays a measuring arm | task_gate request/time_curve/caps | thinking_caps, task_gate | lossy; the cap stays as a net |
+| 7 | A30 Fiddler | screen the new `auto` arm (a30-fiddler-cpu-share); break-even ~4.5 tokens/expert | abtest | abtest | exact |
+| 8 | F7 Q2_0 AVX2, F12 IQ sign, flat loads (`STRATA_HIP_GLOBAL_WEIGHTS`), A31, A36, F20, F18 | kernel-level first: `q2_rows_bench --threads 8` on an idle box, `expdec_bench`, `iq_multi_parity` bitwise, `hip_gdn_stage_bench 4096 16384 32768` (A31 rule), two gpu_profile traces with deferral on then `hit_critical` (A36), empty_grid probe (F20), 32K-prompt rocprofv3 table (F18); end-to-end only for the ones whose kernel gain x window share >= 2% | kernel_gate (new, see project features) | kernel timings x share | exact: parity bitwise |
+| 9 | BFLA (16.11) | merge the exact fused dense mode first; sparse stays opt-in and lossy; recall on 300+ tokens (the 48-token KL 0.0014/0.0045 is above the plan's 1e-3 gate) | bfla_test, recall run, 128K prompt | stage bench + quality | dense: exact; sparse: lossy gate |
+| 10 | selftune candidate profile (+4.6% modeled), sweep.py knobs, regression_watch | A/B of the candidate profile; first sweep with the Mann-Whitney + A B B A rule; baseline regression record | selftune.py --out spec | abtest + gate | lossy-small: gate |
+| 11 | A44 bandit, A45 calibrate, A15 park TTL | A15: fix rank-3 eviction (smallest entry whose bytes cover the shortfall) with a test BEFORE any benchmark; A45: run the probe once on the GPU; A44: needs real agent traces | tests first | park_replay_sim, probe | HOLD until traces exist |
+| 12 | Parked on purpose | S2-MoE reuse-aware gating (lossy, KL gate), DraftExpert (training), REAP (offline saliency on real traces), HybriMoE (design reference), F4 shadow pack (needs an imatrix + KL/task gate), A27/A28 (29.6 GB download, owner decision), F14/F17/F18/F22 (RTX 3060 not installed) | revisit after real traces and the arena are available | - | - |
+
+Source-check debts (do before relying on a figure): paper bodies for ProMoE "1.09x over LRU", HOBBIT "r=0.99" and "CDF 0.6/0.9", DALI "6-13%", FreeToken "FLOP-per-byte eviction", MoE-Lightning "stale-dropping"; abstract-only items Quest, Twilight, LServe, ShadowKV, DuoAttention; Phase 15 fork commit hashes; the README 4C ids (pancake-docs/README.md:180 and RESEARCH_AND_FINDINGS.md:208 give XAttention as 2502.17421: it is 2503.16428; SpargeAttn 2411.10958 is SageAttention2: it is 2502.18137).
+
+### Project features discovered (planning, 2026-11-11)
+
+Features the work showed the project needs (not paper items).  Each: why (the evidence) - what - first step.
+
+1. **Switch-acted evidence for every opt-in** (evidence: COPY256, IC_WARM_MB and ROUTER_FUSE were silent no-ops under deferral, so earlier arms measured nothing).  Every switch prints one once-only line when it first acts (or why it will not act); abtest marks an arm VOID when its switch never logged "acted".  First step: a shared helper `strata_switch_acted(name)` used by the 6 switches already audited; abtest checks the engine log.
+2. **Noise-aware equivalence gate** (evidence: restore_check says DIFFERENT on every turn on the base binary too: run-to-run noise 1.2-1.3% of tokens).  A control arm (second re-read) plus a comparison of the divergence position, or a teacher-forced comparison of logits.  First step: `restore_check.py --control` and a decision rule from the control's own divergence.
+3. **Faster test harness** (evidence below, "Testing: why 45-minute windows"): `--reclaim-max` (done), block mode (several reps per engine start, A B B A blocks), outcome-based outlier rule, stack-then-bisect, one warm-up per start, `tools/pancake/queue_run.sh` (done).
+4. **Tier-aware test runs** (evidence: the arena vs mmap tier differ by ~8% and change which switches matter, e.g. lookahead0): capped.sh / abtest record the tier (arena or mmap, KEEP_GIB) in every result and refuse to compare across tiers; `os_tune.sh` check becomes a precondition that chooses the tier.  First step: results carry `tier`; promote.py rejects mixed-tier pairs.
+5. **Non-root cache eviction helper** (evidence: free 2 MiB blocks 10 -> 13 GiB and free RAM 19 -> 32 GiB with posix_fadvise DONTNEED on the large files): `tools/pancake/drop_cache.py` (the script used on 2026-11-11), documented as the fallback when `sudo os_tune.sh compact` is not available.
+6. **Real agent traces with router weights** (evidence: every offline verdict - FineMoE, HOBBIT, REAP, EcoSpec, A44, A46 - rests on one 219-window bench trace with zero weights): a one-command session recorder (STRATA_WINDOW_TRACE + turn log + `--dump-routing` with weights and output norms) and a 100+ turn corpus.
+7. **Larger quality sets** (evidence: 18 tasks x 5 reps passes an identical arm ~3% of the time; 20-request token forcing is INCONCLUSIVE 22% for an identical arm): build the ~100-task set and the 40-request token-forcing set from real opencode sessions.
+8. **Conversation cache defaults** (evidence: min-tokens 8192 carries +1.89%; AUTO_PIN is unsafe for Qwen because pinned parked entries are never evicted): make min-tokens 8192 the default after the noise-aware restore gate passes; fix the pin (multi-entry prefix store or evict pinned entries last, not never).
+9. **Kernel gate tool** (evidence: kernel-level numbers are minutes and low noise; the A33/F9/F21 end-to-end tests cost 3 hours for +-1%): `tools/pancake/kernel_gate.py` = kernel microbench gain x share of the window from the profile -> go / no-go before an end-to-end screen.
+10. **Disk-key completeness** (evidence: percache): add STRATA_EXP_MODE and STRATA_EXP9_DOWN to the conversation disk key before F14.
+11. **Preset hygiene**: add the four adopted items to the q2_0 presets; make the preset engine log path per run so tools read the right log (restore_check bug); guard `docs` text that still lists STRATA_ARENA_WARM.
+12. **Plan/doc hygiene**: fix the unsourced figures listed in the citation corrections; keep `plan.html` regenerated on every plan commit.
+
+### Testing: why 45-minute windows, and what changes (measured 2026-11-11)
+
+Measured on five runs (62 engine starts):
+- One attempt = one engine start + one measurement.  Median 118-126 s per attempt; the measurement itself is 13 s in the confirm specs (512 tokens at ~125-140 tok/s plus the prompt): **about 90% of every attempt is engine start-up and warm-up**.
+- A 4-6 arm, 4-6 rep spec is 20-30 attempts = 45-65 min.
+- **48% of the attempts (30 of 62) were discarded** by the quiet-machine gate and repeated with a full restart (25 of the 30 because kswapd0/kcompactd0 exceeded `RECLAIM_MAX` = 1.0% of a core: kernel threads reacting to the engine's own memory use on fragmented RAM, big_free 0.2 GiB).  The discarded attempts are as fast as the kept ones: short 122.1 +-9.0 vs 123.7 +-6.0 tok/s, edit 153.0 vs 149.8.  By reclaim level: 0-1% 123.7, 1-2% 122.9, 2-3% 121.0, >3% 122.6 (edit median 132 vs 143: the only sign of harm, n=4).
+- Outliers up to 528 s are quiet-gate waits.  One discard was this session's own CPU (claude 12%): do not run other work during a run.
+
+Changes (D = done): D `abtest --reclaim-max` (use 3.0 for new runs, default 1.0 kept so old results keep their meaning); D `tools/pancake/queue_run.sh` (no idle GPU between specs); block mode = several reps inside one engine start (A B B A blocks, 2 starts per arm kept for start-to-start variance) - about 6x fewer starts; an outcome-based outlier rule (drop an attempt only if its tok/s is a robust outlier within its arm) instead of proxy thresholds; one warm-up per start, measure warm passes only; stack-then-bisect for the small exact flags; kernel-level gates before end-to-end screens; and the fragmentation fix itself (`sudo tools/pancake/os_tune.sh compact` or `drop_cache.py`) which removes the cause of most discards.  Target: a 45-minute spec in about 5-8 minutes.
+
+### Source check of the paper bodies (sourcecheck-a, 2026-11-11; notes: pancake-docs/batch4/sourcecheck-a.md)
+
+citecheck read abstracts; these six bodies were read (arXiv HTML, key figures re-asked for verbatim quotes; figure-only values were not readable).
+
+| Figure in the plan | What the body says | Transfers to our setting? | Plan text change |
+| --- | --- | --- | --- |
+| ProMoE (A7) "1.09x over LRU" | in the body: decode 1.09x average (max 1.17x) in llama.cpp only (1.31x in transformers); LRU = per-layer reactive whole-expert LRU, misses fetched over PCIe on the critical path; RTX 4090, PCIe 4.0, batch 1 | no, as a number: the gain is hidden blocking loads, ours run on the CPU; in ProMoE's own llama.cpp runs a CPU-compute baseline beat it on Mixtral and at low cache rates; at best an upper bound | state codebase, baseline and hardware; drop "even on PCIe 4.0"; do not use the abstract's 2.07x (averages two codebases) |
+| HOBBIT "r = 0.99" and "CDF 0.6/0.9" | both in the body but mis-worded: r = Pearson(gate weight, weight x ||E||) on Mixtral-8x7B only, the weight sits on both sides (it only needs the expert-norm CV to be ~4.5% at top-2, ~9% at top-10); T1 0.6 / T2 0.9 are thresholds on the cumulative normalised gate score of higher-ranked experts (not a CDF), split 67/30/3% high/low/skip, applied to cache-miss loads | no: at top-10 the last entry always scores >= 0.9 so T2 = 0.9 skips >= 10% of entries (vs 3% in the paper); needs a refit | write "Pearson(w, w x ||E||), Mixtral only" and "cumulative-score thresholds"; drop "CDF" |
+| DALI (A45) "6-13%" | NOT in the body; real numbers: assignment alone 23% faster than HybriMoE's, decode 1.32-3.97x, prefill 2.00-7.62x over four baselines; one platform (EPYC 7532, RTX 3090, PCIe 4.0 x16); workload-aware assignment = per-layer run-time greedy over per-expert token counts and warm-up timings; smallest batch in the text 4 | mostly no: in single-user decode each expert has ~1-5 tokens and the Q2_0 CPU cost is flat, so the rule collapses; A45 as built is a static share, which DALI argues against | remove "6-13% on other platforms" as a DALI figure (it is our own estimate) |
+| Athena (A44) | state-aware SARSA, 4 actions, 2K-instruction epochs, alpha 0.6, gamma 0.6, epsilon 0, 3 KB Q store, ChampSim; +5.0/+5.2/+6.4/+7.0% geomean IPC over MAB (stateless DUCB); stateless Athena is slightly worse than MAB: the gain is the 4 state features (+1.4/+1.7/+0.8/+0.1) and the reward correction (+1.0) | no: A44 is the MAB baseline without state or reward correction | say Athena is not built; do not quote +5.0%; the +2-5% is our own estimate |
+| Continuum (A15) tool-call TTL | pins the KV of a tool-ending request for tau* = argmax P(tau, f) x (T x eta + PrefillReload) - tau (P = empirical CDF of that tool's durations, T = queueing delay); multi-user vLLM + LMCache, A100/H100/B200; delay 1.12-3.66x lower, up to 8.18x on a real SWE-agent deployment | the gain is queueing on a busy server: with one user T ~ 0 and only the reload term is left; sub-agents only appear as future work; "MORI" is not in the paper | drop "(MORI, same group)"; Continuum covers the tool hold only, the sub-agent ranks are ours |
+| Marconi (A11) eviction alpha | no alpha numbers in the body: alpha = 0 is LRU; after the first eviction it waits 5-15x the requests seen so far, then picks alpha by replay grid search; eviction alone vs LRU with the same admission: hit rate +19.0% to +219.7%, P95 TTFT -24.7% on SWE-Bench; the abstract's "-71%" merges two datasets (71.1% is ShareGPT, 617 ms / 46.8% SWE-Bench, by order in the sentence) | the idea yes, the numbers no; 7B hybrid, 4xA100, many sessions, 60-140 GB cache, gain peaks at moderate contention; our fixed alpha has no paper number behind it | fix "TTFT up to -71% on SWE-bench"; note alpha is fitted by replay |
+
+Still open (figure-only values and two papers outside this task): ProMoE Fig. 11, HOBBIT Fig. 5b, DALI Fig. 12, Continuum Fig. 16, Marconi Fig. 11; FreeToken and MoE-Lightning (sourcecheck-b).
+
+### Source check of the remaining sources and the preset/spec fixes (2026-11-11; notes pancake-docs/batch4/sourcecheck-b.md, presets-specs.md)
+
+**Quest, Twilight, LServe, ShadowKV, DuoAttention (bodies read).** All are dense 7-9B models on A100/4090/Ada, none MoE.  Quest batch 1 at 32K (KV load 53% of a step); Twilight end-to-end at batch 32-256; LServe batch 1 Llama-3-8B 1.09x at 64K and 1.28x at 128K; ShadowKV's 3.04x is a 6x batch ratio and ties full attention at batch 2; DuoAttention needs trained gates.  The "attention is 3.0%" figure is solid but short-context: attention 0.74 ms of a 24.81 ms short window (2.7% on the edit case); the KV-related time is larger: attention + scores/top-k + kv-resolve = 5.6% short, derived 6.4% at 32K, 7.2% at 64K, 8.7% at 128K, 11.7% at 262K (nobody measured the PCIe cost for cells beyond `--kv-resident 32768`; worst case ~1.6 ms a row at 12.2 GB/s).  KV bytes at 128K on Flash-Next (12 QSA layers, 2 KV heads, head dim 256, int8): whole cache 1.66 GB, what QSA reads (2,051 cells) 26 MB (1.6%), the indexer's pooled keys 201 MB per row.  QSA already is a query-aware top-k at these papers' budgets, so upper bounds at 128K against the 2% gate: Twilight <= 1.0%, ShadowKV negative, DuoAttention < 0.5%: **still do not build on Flash-Next**.  The one sizeable idea is LServe-style selector reuse (skip scores + top-k on 3 of 4 steps: at most 3.3% at 128K, 2.2% at 64K, 1.6% at 32K, derived and lossy because the engine treats the selected ids as an exact contract): price it in A49.  **Overturned (kern-gdn's A49 line): the Qwen3.6 q36 engine holds K/V as FP32** (`q36_engine.cu` ~1429, `dalloc` returns `float*`), 5.37 GB at 128K with an 8x per-query-head re-read, and fork logs show decode falling from 25-36 tok/s at short/9K context to ~12 at 16-35K: the KV-bound premise HOLDS on that engine; order there: GQA sharing and FP16 K/V (F19) or F11 first, then A49 at 64K/128K, then Quest-style selection.  No blanket "do not build" for the Qwen3.6 engine.
+
+**FreeToken 2608.16157 s3.1 (A11 marks):** checkpoints the recurrent state only (not KV) at thinking/tool-call/tool-output/turn boundaries, restores from the deepest surviving checkpoint with LRU slots; it measures nothing about the checkpoints (the only ablation is double-buffered loading, -19 to -26% prefill throughput on an RTX 5090): A11 has a mechanism source but no gain source.  **MoE-Lightning 2411.11217:** the body has no stale/drop/cancel mechanism (static paged weights from an offline MILP, for batch throughput); the "stale-dropping" idea is the repo's own (`pcie_transfers.md:101` credits ProMoE for it and MoE-Lightning only for the chunking; MOD_PLAN merged the two); does not apply to our tier (ForesightSwap off in the presets, the async tier lost 9.6% in A8).
+
+**Phase 15 hashes (768 distinct hex tokens checked):** of the 68 in MOD_PLAN Phase 15: 8 are commits in our repo, 9 resolve only in PolyStrata, 3 only in StrataFast, 1 in llamAmpere, 46 only in the fork KB (`data/fork-kb/forks.sqlite.gz`) under the named author, 1 unresolvable (`b9820dd56`, line 2307; it is the cherry-pick source in bsorensen110's `19fc0e48` trailer, full id b9820dd56755e8a18f0b879eedcf50f322cbe854).  Fixes for the plan text: F13 cites lighttransport `2ea0c1e042` (residency-aware pruning that does not beat uniform top-3) - the guards are zsariboga `8d7042ad97` and mandoof1 `3e0489e118`; MOD_PLAN lines 1985-1988 list F12, F13, F12, F13 (each row twice); `research_notes/Speed ideas from all forks/attention_kv_quant.md:382` Cudila link has a wrong sha (the KB has 911187e249dfba1a61c66dc3c4beaf9b307ab32f).
+
+**presets-specs (merged):** new presets `flashnext-q2_0-fast-hip-adopted.json` and `flashnext-q2_0-turbo-hip-adopted.json` (the four adopted items; byte-identical to their iq2_xs twins after the name swap; `run-pancake.sh` does not select them: the owner decides after the 15c redo); `tools/pancake/gen_bases.sh` regenerates every `pancake-*.json` base the specs name; `15-q2_0` base fixed (the arms were less broken than reported: real runs via test_phase.sh had the items; queue_run wrote no base and spec_lint/selftune fell back to the stale checked-in template); `"env": {}` added to four poly/qwen36 presets (18-f11 and 18-f17 now build); **19-turbo-guards and the five taskgate specs named an unexpanded template as base (nothing expands `<REPO>`/`<STRATA_DATA>` there), so the engine would have failed to start: now pointed at the generated fast-hip file**; new specs `25-f-env-rerun-mmap.json` (no lookahead0) and `26-stack-small-exact.json` (base vs a stack of seven exact switches: EXPDEC_SWIGLU, ROUTE_FAST, WAIT_COPY256, IQ_SIGN_FAST, Q2_FAST, POOL_TAIL4, POOL_LAZY_PARK; reps 8; precondition `ctest -R 'native_multi_parity|iq_multi_parity|hip_wait_copy|iq_sign_fast|q2_fast'`; Q2_FAST acts on this preset because the IQ2_XS file has 48 `ffn_down_exps` tensors of type 42 (Q2_0)); spec_lint 72 specs, 0 errors, 8 warnings (run outputs or by design).  Seven old specs (01, 03, 04, 04c, 05, 05c, 05s) measured the adoption of items now in the preset: do not re-run them (a bare `test_phase.sh` runs every spec).  Open: harness-core should make `abtest.make_config` expand `<REPO>`, `<STRATA_DATA>`, `<MODELS>` in a template base.
+
+### Noise-aware restore gate (equiv-gate, merged 2026-11-11; notes pancake-docs/batch4/equiv-gate.md)
+
+Replaces the free-running text comparison that said DIFFERENT on every turn (the stock engine has ~1.2% run-to-run token noise): `restore_check.py --control` adds a second independent re-read arm so the noise floor is measured in the same run; the decision rule is an exposure-weighted exact one-sided test of two divergence rates (level 0.05), replacing the plan's majority rule (which falsely failed an equivalent cache arm 9% / 17.5% / 20% of the time at h/2, h, 2h in the Monte Carlo).  False failure 0.7-1.3% per cache arm (2-3% per run); power: a split after three units in every turn caught 98-100%, 11x the divergence rate 96-97%, 4x only ~57%.  Exact evidence is reported apart (`repeat == tool-retry` inside restore and disk must MATCH, exit 1 otherwise); exit 3 = the control splits too early to judge (repeat the run); `--teacher-forced` requests logprobs on every request and compares the shared-context tokens (a cache arm must stay within max(0.05 nats, 2x the control's own deviation); the 0.05 / 2x / 32-token settings are uncalibrated: `--analyze --lp-tol` re-judges a saved file); `--analyze FILE [--control-from OTHER]` and `--simulate FILE...` work offline.  On the two real runs (new and base binary, each judged with the other's re-read as the control): exit 0, consistent with noise (new binary restore p=0.507, disk 0.515; base restore and disk 0.673); planting a split at unit 3 gives exit 1.  Limits: positions are in text units (~1.3 per token), the logprob request shape was checked against `serve/server.py` and a stand-in server, not a live one; asking for logprobs may change the engine's decode path (every arm of a run asks the same).  Night command: `restore_check.py --tool-boundary --disk --control --teacher-forced --out <dir>/restore-check-noise.json` (four engine starts plus the disk restart, GPU alone).
+
+### Session recorder and kernel gate (corpus-recorder, kernel-gate; merged 2026-11-11; notes pancake-docs/batch4/corpus-recorder.md, kernel-gate.md)
+
+**record_session.py** (`plan` / `check` / `convert`): one command to turn on every recorder the offline tools need (window trace cap 4096 MiB, turn log, `--dump-routing`, engine log, `STRATA_AGENT_COUNTERS=1`; opt-in `--hidden-dump`, `--norms`, `--publish-weights`, `--every`), validate a recording (window counts, weights verdict per layer record, placement, turn starts, dump vs trace, sha256 manifest) and convert it to the formats `time_ceiling`, `finemoe_replay`, `cache_learn`, `reap_saliency`, `gate_importance` (routing.bin) and `replay_turns` (turns.jsonl) read.  It starts nothing unless `--run`; preflight FAILS strata-poly, `--no-pool` and routing-biasing switches (the turbo presets set `STRATA_ROUTE_PRIOR=0.5`, which makes every replay circular; `--allow-biased-routing` overrides).  **Source findings: the window trace carries ZERO router weights on the default path** (weights come from `h_w_`, a zero-initialised host buffer only `doorbell_publish` / `_value` / ROUTE_FAST write; the default `doorbell_publish_res` and `route_publish_res` publish none); real weights appear only in windows captured with `STRATA_VERIFY_DEFER_CPU=1` (the fast presets have it, the exact presets do not): `check` does not trust the flag bit, a layer record counts as real only if finite, non-negative, no zero row and not a bit-for-bit copy of the previous record.  **Per-expert output norms are recorded nowhere** (they exist on the host only for CPU-computed entries, ~19% at an 81% tier hit rate, and not with `STRATA_CPU_PRESUM=1`).  `pancake-docs/batch4/corpus-recorder-engine.patch` (4 files, off by default) publishes weights whenever the trace is on and adds record type 6 for the norms: needs the verify.cpp/generate.cpp owner and a compile (the window_trace.hpp part compiles; the other hunks were not compiled).  Bugs found, not fixed: `wtrace.read` overwrites duplicate layer records in a window (token groups lose their first rows; T above 16 or `--spec-split`); `draft_costs.py` and `tail_replay.py` use a window's `ms` without checking continuity (the first window of a turn includes idle and prompt time, the file's first window the model load).  Night: smoke run `record_session.py plan --preset flashnext-iq2_xs-fast-hip --out DIR --repo /home/dan/clone-of-d/src/Strata-p16 --run` for a few minutes, stop with Ctrl-C, then `check DIR --min-windows 5 --min-turns 1` (the "layer records carry real weights" line says whether the patch is needed); then a real session of about an hour.
+
+**kernel_gate.py** (`table` / `item KEY ...`): kernel microbench gain x the kernel's share of the window through the lane model (`time_ceiling.window_ms2`, fast-hip preset): exposure of a 1 ms saving on edit / short windows: router 100/100%, mixer 79/99%, hit 38/91%; a 22% CPU-time saving is worth +7.1% on edit and +0.5% on short; removing all VRAM-hit GPU work gains only +1.99% on an edit window.  Verdict at the 2% bar: GO = a measured saving clears it, NO-GO = even the optimistic bound is under it, MEASURE = only an estimate clears it (the missing number is named).  Table now: **F21 NO-GO, A37 NO-GO, BFLA dense GO (prefill +99.3% measured), F7 / F12 / F9 / A33 / flat loads / A36 / A31 MEASURE** (no GPU kernel item has a kernel-level number yet; every point value except BFLA is a static estimate).  Resolving +-1% end to end needs 122 starts at a paired SD of 3.9% (~4 h; 244 for 80% power), 2% needs 36 starts (64): a screen cannot decide a 1% item.  Flags: the paired SD of 3.9% could not be reproduced (25-kern-hip-confirm groups give 1.7, 4.5, 5.3, 5.9%, median 4.9%: every start count x1.6); the short window is 24.8 ms in the plan but 32.6 ms in kern-hip's data (`--short-ms 32.6` flips A33 to NO-GO); A6 never validated short windows; whether `STRATA_EXPDEC_SWIGLU` is already active in the preset is unchecked (if so A33 is a no-op).
+
+### Implementation and test status (2026-11-10, branch dev/batch-1)
+
+"In preset" = measured on the RX 7900 XT and switched on in fast-hip. "Batch" = coded on dev/batch-1 (16 commits), opt-in,
+default path byte-identical, **not built yet** (no GPU/CPU window while the test phase ran); build, parity tests and
+screens come next, then only the items that compile and gain are cherry-picked into port/rdna3-decode. All gains not
+marked "meas." are fork/paper claims or estimates.
+
+| Item | What | Implemented | Tested / result | Next |
+| --- | --- | --- | --- | --- |
+| A3 | expert deferral `STRATA_VERIFY_DEFER_CPU=1` | **in preset** (d7debf8fd) | meas. edit **+15.8% +-3.9**, short n.s., token forcing PASS | done |
+| - | `STRATA_POOL_FUSE_PHASES=1` | **in preset** | meas. edit **+2.5% +-1.7**, PASS | done |
+| - | `STRATA_EXPDEC_DOWN=1` | **in preset** (f15ad2b51) | meas. short **+1.7% +-0.5**, PASS | done |
+| - | `--lookup` window 12 (test 05) | port/rdna3-decode (dan-99) | meas. screen: edit **+10-12%**; confirm + quality gate running (05c) | decide after 05c |
+| - | small-flag stack, LOOKAHEAD=0, routed-dedupe, MMVF_ROWS, GDN_PP=2, spec-min-p 0.7 (test 05) | existing switches | meas. screen: dropped (stack -20%) | closed |
+| A4 | rank guard `_TOP=2` | existing switch, opt-in | meas. edit **+20.1%**, short **-6.9%** | fix below |
+| A4 fix | `STRATA_VERIFY_DEFER_CPU_FOLD=<n>` (one pool pass when few light rows) | batch (43b384aa1) | not built; spec 10-rank-guard-fold | build, screen |
+| A5 | k-th-miss admission `STRATA_ADAPT_KMISS=2,8` | existing switch, opt-in | meas. edit +2.0% +-1.6 (bench, 89% hit rate); offline trace replay: edit hit rate 76.7% -> 86.5% (+12% est.) | screen 15-kmiss on agent traffic |
+| - | async tier, POOL_TAIL4/MWAITX/LAZY_PARK/Q2_PREFETCH, COMBINE_POLL1, DEVICE_SPIN | existing switches | meas. rejected or n.s. | closed |
+| 4.0.1 | conversation cache `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` | flags exist (no code) | offline replay: saves ~158 of 162.8 s lost to cold re-reads (97%) | replay test ready: `tools/pancake/replay_turns.py` (batch fd425ee2b; dry run rebuilds the 11-09 session, 75 requests, the 7 cold re-reads = 162.7 s; ~27 min for base vs flags), check RAM |
+| F1 | `STRATA_PARK_TRUNCATE` | batch (Opus port, e55886ed8) | unit tests written, not run; offline: 39-52 s of 162.8 s alone | build, unit test, replay |
+| F7 | fast bit-exact Q2_0 AVX2 kernel `STRATA_Q2_FAST=1` | batch (600ca5032) | **meas. CPU microbench: bit-exact, down rows x1.33, gate/up x1.23** (q2_rows_bench, 5700G) | build, engine screen |
+| F21 | `STRATA_WAIT_COPY256=1` (needs `STRATA_FUSE_WAIT=1` on gfx1100) | batch (0573c36b6) | not built | build, screen with FUSE_WAIT |
+| F9 | `STRATA_ROUTE_FAST=1` router publish fast path | batch (9409a228c) | not built; parity test extended | build, native_multi_parity, screen 17 |
+| F12 | `STRATA_IQ_SIGN_FAST=1` IQ2 sign expansion | batch (3e1583773) | host exhaustive check 22,229 cases identical; not built | expdec_bench, iq_multi_parity, confirm (small gain) |
+| F13 | turbo guards `STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE` | batch (3dd7c27b8) | scope unit test passes (CPU) | build, token forcing + task gate |
+| F5 | `STRATA_VERIFY_ECAP=<n>` (lossy) | batch (2d44d31ec) | unit test written, not run | build, screen, token forcing, task gate |
+| F14 | `STRATA_EXP_MODE=9` / `STRATA_EXP9_DOWN=42:10` (RTX 3060) | batch (3c74ef8a3) | not built; 3060 not installed | 3060 parity + screen; one 7900 XT arm |
+| A55 | task gate `tools/pancake/task_gate.py` | batch (ae3bafde4) | 13 unit tests pass, dry run OK | first live run |
+| - | disk cache key: deferral and lossy switches added, key v2 | batch (d9b8d4f79) | unit test 95 checks pass | merge with batch |
+| A17 | turn log records the effort level | batch (f1df90c5a) | 8 Python tests pass | collect 200+ turns, then caps |
+| - | test tooling: screen tier, early stop, fail fast, text check, long32k/64k cold cases, temperature key, probes, screen specs 11-17, agent-traffic replay | batch + port | probes: CPU probe ran; others need the GPU | use in the batch tests |
+| F6 | exact speculative sampling (env only) | switches exist | offline: opencode sends no temperature -> T 1.0 on main agent | screen 12-spec-sampling |
+| F8 | `STRATA_SPEC_CUM` | not ported | offline ceiling 1.0% short / 7.9% edit | on hold (needs window trace) |
+| F4 | sub-2-bit shadow pack | not started | offline: IQ1_M gate/up -18.2% CPU bytes, +17.6 GB RAM | conditional on RAM |
+| A6 | time model recalibrated (`time_ceiling.py --validate`) | port/rdna3-decode | mean error 3.4 points (was 12-17) | used for ranking |
+| A7/A8/A46 | ProMoE / Pie / oracle admission | not started | offline model: not worth a GPU run now | parked |
+
+### Batch 2: every remaining academic item coded (2026-11-11, branch dev/batch-2)
+
+dev/batch-2 = dev/batch-1 + the merge of port/rdna3-decode (one route_prior guard) + the items below, each opt-in and off
+by default. Coded 2026-11-10 23:00-00:05 by 12 agents while the GPU ran tests 09/15, so **no C++ was compiled before
+the 02:00 night run**; Python tests: 250+ pass. Notes (what, switch, tests, spec, risk): `pancake-docs/batch2/`.
+
+| Item | Switch / tool | Exact? | Offline result | Spec / next |
+| --- | --- | --- | --- | --- |
+| A15 park TTL | `STRATA_PARK_TTL_S` (+`_HOLD_S`, `_SHARE`, `_SUB_RATIO`) | exact (eviction order) | - | 24-a15-park-ttl (replay) |
+| A17/A18/A20 thinking control | `thinking_caps.py`; task-gate `request`/`time_curve`; `rumination_entropy`, `entropy_below` | caps/close lossy | caps need 200+ effort-tagged turns | taskgate-effort / -caps / -rumination |
+| A19 thinking probe | `STRATA_HIDDEN_DUMP`, `STRATA_THINK_PROBE`; `thinking_probe.py` | dump exact, close lossy | no dumps yet | 16-a19-hidden-dump (hash must match) |
+| A21 | finding: T 0.1 requests take the sampled path | - | add `STRATA_SPEC_MIN_TEMP=0.7` with PROB/COUPLED | a21-spec-lowtemp |
+| A22/A25/A26 DISCO | `STRATA_DISCO` v2 (per-row new misses, per-position thresholds); `disco_fit.py`; `draft_report.py`; trace record 5 | exact | synthetic only | collect traces at `--spec-min-p 0`, fit, 24-a22-disco |
+| A24 suffix index | `STRATA_SUFFIX_INDEX` (+`_MB`, `_RULE`, `_FILE`); `suffix_sim.py` | exact (drafts) | 2,045 real opencode requests: rounds -2.4% (sub-agents -7.5%) vs lookup alone | 24-a24-suffix-index (judge 1st request per case) |
+| A29 entropy check | `expert_entropy.py` | - | Q2_0 down max 12% compressible, IQ <= 3.4% -> **closed** | - |
+| A30, A49, A33-A35, A52 | specs, `load_time.py`, `sweep-knobs-fast-hip.json` | A30 lossy | ROUTER_FUSE is skipped while deferral is on | a30 / a49 / a33-a35 / a33-nodefer |
+| A31 GDN chunk 64 | design + rule; stage bench prints the WMMA floor | - | build only if rec/floor >= 2 at 32K and GDN >= 6% of prefill | hip_gdn_stage_bench |
+| A36 weight-major | rule tool `probes/hit_critical.py` | - | build only if the 25%-faster-hit ceiling >= 2% | decode trace |
+| A37 LDS LUT | `STRATA_IQ_LUT_DUP=16|8` (IQ2_XXS gate/up) | bitwise | bank model 5.8 -> 2.0 clocks per lookup; <= 0.5% of GPU time | 24-a37-lut-dup + rocprof counters |
+| A38/A41/A42/A43 agent loop | `STRATA_AGENT_COUNTERS`, `STRATA_TEST_BEFORE_DONE`, `STRATA_EXTERNALIZE_TOKENS`, `STRATA_EDIT_OLDSTRING_CHECK`; A39 design only | counters exact, nudge/externalize lossy | - | log-only switches on real sessions first |
+| A44 bandit | `STRATA_BANDIT=top,kmiss,preread` (+`_EXACT`, `_RULE`, `_TYPE`) | top lossy-small | - | 24-a44-bandit |
+| A45 calibration | `STRATA_CALIBRATE` (+`_MIN_SHARE`, `_CACHE`) | exact (policy) | expected share 0 on this box | 24-a45-calibrate |
+| A46 learned admission | `cache_learn.py` (Belady, Hawkeye, imitation) | - | best online +3.2 hit points but 2-3x promotions, slower than k-th miss -> **closed** on bench traces | recheck on agent traces |
+| A53 IOMMU guard | start-up note, `os_tune.sh check` | exact | GPU already in passthrough | - |
+| A56 / A57 | EAR in `force_check.py` / `quality_gate.py --ear`; AUC in `task_gate.py` | - | - | used by the quality gates |
+| A7 chunked promotions | `STRATA_PROMO_CHUNK` (needs `--adapt-async 1`) | rounding | A6 bound < 5% | 22-a7-promo-chunk (vs the async arm) |
+| upstream sync | 8 of 307 upstream commits (bugfix/perf on our paths) | exact | table in upstream-sync-2026-11-10.md | build + ple_residency_test |
+
+Not coded: A27 (= F4, lossy shadow pack, 25-30 GB requant, +17.6 GB RAM) and A28 (another model, 29.6 GB download):
+both need the owner's decision. A40 (opencode fork), A50/A51 (attention caps them; A49 decides) stay parked.
+Found while merging: the batch preset used on 2026-11-10 lacked deferral / FUSE_PHASES / EXPDEC_DOWN, so the batch-1
+speed runs had another base than fast-hip and the `top2` arms were no-ops; rebuilt from configs/pancake.
+
 ### Priority update after the offline tests (2026-11-10, bench/results/2026-11-10-offline/)
 
 Measured offline (no GPU); these change the order of the work below and of Phase 15:
@@ -1471,11 +1756,17 @@ Measured offline (no GPU); these change the order of the work below and of Phase
 8. **Latent bug found:** `STRATA_VERIFY_DEFER_CPU_BELOW/_TOP` are not in `conversation_disk_key_env_names`
    (src/core/conversation_disk_tier.cpp), so a disk-parked conversation can be restored under different deferral
    settings. Fix with a cache-key version bump.
+   **FIXED 2026-11-10 (work/diskkey-effortlog):** `_BELOW` and `_TOP` added, key header "disk 1" -> "disk 2" (old
+   subfolders are never matched); `_FOLD` stays out (exact vs the same run); also added `GR_RDNA_Q8/_A8`,
+   `HC_Q8_INJECT`, `CPU_PRESUM`, `PRESUM_VRAM`, `PF_F16`, `PF_DM16`, `HIP_PROMPT_F16` (lossy / not bit-identical).
 
 Code ready on branches, waiting for a build and a screen (no GPU while the test phase runs): A4 rank-guard fold
 (work/a4-rank-guard), A55 task gate (work/a55-task-gate, touches abtest.py), F1 PARK_TRUNCATE
 (trial/opus-park-truncate), F7 Q2_0 fast kernel (trial/opus-q2-avx2), F21 WAIT_COPY256 (trial/sonnet-wait-copy256,
-needs STRATA_FUSE_WAIT=1 on gfx1100).
+needs STRATA_FUSE_WAIT=1 on gfx1100), F5 VERIFY_ECAP (work/f5-verify-ecap, lossy: screen
+`abtest.py bench/specs/20-verify-ecap.json --tier screen`, then `quality_gate.py` and `task_gate.py --reps 5` on the same
+spec before any default; `STRATA_VERIFY_ECAP` joins the conversation disk key only when set, so parked files of runs
+without it keep their key).
 
 Rules for this phase. Technologies that come from academic papers go first; fork ideas (Phase 15) appear only where a paper
 is the origin. Areas are ordered by their total expected gain on our bottleneck (expert bytes in decode, prompt re-reads in
@@ -1494,10 +1785,10 @@ together, never sum them.
 
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A1 | Cache-conditional routing (`turbo-hip`, `STRATA_ROUTE_PRIOR 0.5`) | Cache-Conditional Experts, Qualcomm/UvA 2024, https://arxiv.org/abs/2412.00099 | 7 | lossy (2.9% tokens differ) | both | XS (decision) | +30-50% meas. before deferral (111.7 -> 149-168 tok/s); with deferral on the sum is lower - re-measure jointly | rigorous | planned: built, gate pending; F13 guards attach |
+| A1 | Cache-conditional routing (`turbo-hip`, `STRATA_ROUTE_PRIOR 0.5`) | Cache-Conditional Experts, Qualcomm/UvA 2024, https://arxiv.org/abs/2412.00099 | 7 | lossy (2.9% tokens differ) | both | XS (decision) | +30-50% meas. before deferral (111.7 -> 149-168 tok/s); with deferral on the sum is lower - re-measure jointly | rigorous | planned: built, gate pending; F13 guards coded on `work/f13-prior-guards` (spec `bench/specs/19-turbo-guards.json`) |
 | A2 | Depth-graded verify prior (no bonus at position 0) | AcceptMoE 2026, https://arxiv.org/abs/2608.02989 | 23 (S2) | lossy | both | S | +5-15% over fast-hip (est.); fewer changed tokens than A1 | rigorous | planned: coded `STRATA_ROUTE_PRIOR_DEPTH` (4f56ce535); pick A1 or A2 |
 | A3 | Expert deferral (low-weight misses finish while the next layer runs) | KTransformers, SOSP'25, https://madsys.cs.tsinghua.edu.cn/publication/ktransformers-unleashing-the-full-potential-of-cpu/gpu-hybrid-inference-for-moe-models/SOSP25-chen.pdf | 8 | lossy-small | both | - | +15.8% +-3.9 edit meas., short n.s., token forcing PASS | - | **done** (in fast-hip, d7debf8fd) |
-| A4 | Rank guard "top-2 or weight >= w", then fix its short-chat loss (one pool pass when few rows are deferred) and sweep w 0.1/0.2 at windows 1/2/4/8 | KTransformers (as A3); HOBBIT weight CDF 0.6/0.9, https://arxiv.org/abs/2411.01433 | 28 | lossy-small | both | S | meas. +20.1% edit vs base (+4.3 pts over A3) but -6.9% short; fix est. recovers short, keeps +3-5% edit | confirm, rigorous before default | done opt-in (`_TOP=2`); optimization **new** |
+| A4 | Rank guard "top-2 or weight >= w", then fix its short-chat loss (one pool pass when few rows are deferred) and sweep w 0.1/0.2 at windows 1/2/4/8 | KTransformers (as A3); HOBBIT weight CDF 0.6/0.9, https://arxiv.org/abs/2411.01433 | 28 | lossy-small | both | S | meas. +20.1% edit vs base (+4.3 pts over A3) but -6.9% short; fix est. recovers short, keeps +3-5% edit | confirm, rigorous before default | done opt-in (`_TOP=2`); fix **coded, branch work/a4-rank-guard, screen pending**: `STRATA_VERIFY_DEFER_CPU_FOLD=<n>` (default off) runs a layer's heavy jobs and at most n light jobs in one pool pass, partial flag after it; exact vs the same `_TOP` run (the GPU picks the late rows by weight, not by pass); spec bench/specs/10-rank-guard-fold.json (base, top2, top2+fold 1/2); w sweep after it |
 | A5 | Admission on the k-th miss (probation before VRAM) | Baleen, FAST'24, https://www.usenix.org/conference/fast24/presentation/wong ; SIEVE, NSDI'24, https://www.usenix.org/conference/nsdi24/presentation/zhang-yazhuo | 14 | rounding | both | - | meas. +2.0% +-1.6 edit (2,8 on the blocking tier), -6.4% short (different text); bench hit rate 89% leaves little room | confirm on real agent traces | done opt-in (`STRATA_ADAPT_KMISS`); async variant rejected |
 | A6 | Recalibrate the overlap time model with last night's points (it predicted deferral +33%, meas. +15.8%; deferral + k-th miss +45-52%, meas. ~+2% more), validate to 5-9% error | Baleen method (above); Vidur, MLSys'24, https://arxiv.org/abs/2405.05465 ; LLMServingSim 2.0, https://arxiv.org/abs/2602.23036 | 42 | exact (offline) | - | S | 0 itself; gates A7, A8, A60 (model over-predicts ~2x today) | screen | **done offline 2026-11-10** (`time_ceiling.py --validate`, bench/results/2026-11-10-offline/A6_A17.md): old chain let the next router/pool run during the late CPU rows (late_add gates them) + a per-layer deferral cost (fitted 91 us); after refit deferral +15.8 (fit), KMISS +2.7 vs +2.0, FUSE +1.1 vs +2.5 (3.4 pts mean error); misses rank guard (-8.1) and short chat is unvalidated; ranks A46 > A8 > A7, none worth a GPU screen (all < 5% at the bench's hit rate); needs a trace with non-zero weights |
 | A7 | Chunked, cancellable promotions + reordered execution (cached -> in flight -> CPU) | ProMoE, SJTU 2024, https://arxiv.org/abs/2410.22134 | 30 / 27 | exact | both | S sim, M engine | authors 1.09x over LRU on PCIe 4.0; est. 0-3% here | screen (sim) then confirm | planned (simulator first, after A6) |
@@ -1539,7 +1830,7 @@ generated text, so every item is rigorous and is judged on total time to success
 
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A17 | Per-effort budget forcing with a graceful close at the cap (tail above p99 only) | s1, Stanford 2025, https://arxiv.org/abs/2501.19393 ; Are LRMs Interruptible?, Berkeley 2025, https://arxiv.org/abs/2510.11713 | 12 / 88 | lossy (tail only) | both | XS | worst turn 84-340 s -> ~1-2 min (est.) | rigorous | grace 512 + close_retry in presets **done**; per-level caps: analysed 2026-11-10 (A6_A17.md): turn log has only 34 agent turns, one session, no effort field, p99 = 1,061 thinking tokens (max 1,154, thinking 22% of turn time), longest turn 64 s (re-reads, not thinking): caps at p99 save 0 s per turn here; provisional `reasoning_budget_by_effort` {low 1024, medium 1536, high 3072} not applied; first add an `effort` field to the turn log |
+| A17 | Per-effort budget forcing with a graceful close at the cap (tail above p99 only) | s1, Stanford 2025, https://arxiv.org/abs/2501.19393 ; Are LRMs Interruptible?, Berkeley 2025, https://arxiv.org/abs/2510.11713 | 12 / 88 | lossy (tail only) | both | XS | worst turn 84-340 s -> ~1-2 min (est.) | rigorous | grace 512 + close_retry in presets **done**; per-level caps: analysed 2026-11-10 (A6_A17.md): turn log has only 34 agent turns, one session, no effort field, p99 = 1,061 thinking tokens (max 1,154, thinking 22% of turn time), longest turn 64 s (re-reads, not thinking): caps at p99 save 0 s per turn here; provisional `reasoning_budget_by_effort` {low 1024, medium 1536, high 3072} not applied; `effort` field **added to the turn log 2026-11-10** (work/diskkey-effortlog, `_write_turn_log`, new key only, None when thinking is off); caps wait for a day of agent turns that carry it |
 | A18 | Effort per task, not per turn: `xhigh` vs `medium` on total time to success | Just Enough Thinking / ALP, https://arxiv.org/abs/2506.05256 ; Danger of Overthinking, https://arxiv.org/abs/2502.08235 ; Don't Overthink it, https://arxiv.org/abs/2505.17813 ; counter-evidence: Qwen3 report, https://arxiv.org/abs/2505.09388 | (Asia-M5) | lossy | both | S (harness) | tens of seconds per turn; -20-40% thinking (est.) | rigorous (area under the time curve, SWE-Effi) | planned (owner decision) |
 | A19 | Learned thinking stop: linear probe on hidden states every 64 tokens / at `\n\n` | Thought Calibration, MIT 2025, https://arxiv.org/abs/2505.18404 ; Learning How Hard to Think, ICLR'25, https://proceedings.iclr.cc/paper_files/paper/2025/hash/ff414825df833edb8b1839e3d5d495e9-Abstract-Conference.html ; OS-Pruner, https://www.alphaxiv.org/abs/2607.11089 | 21 | lossy | both | M (dump hook I2 + training) | -20-40% thinking on routine turns (authors; untested on agents) | rigorous | not started |
 | A20 | Rumination rate (rolling 5-grams) into the soft close; top-k entropy as a second signal | Thoughtology, Mila/McGill 2025, https://arxiv.org/abs/2504.07128 ; Entropy Sentinel 2026, https://arxiv.org/abs/2601.09001 | 34 / 36 | log exact; close lossy | both | XS | unmeasured; threshold from turn-log `rumination_max` | screen (log), rigorous (close) | log + opt-in close coded (feat/item-34-rumination); entropy log **new** |
@@ -1646,7 +1937,7 @@ decompression (hardware absent); L3 / next-layer prefetch (worse here and in for
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | A49 | Measure decode at 10K vs 64K vs 128K (attention share of the window) | method from Twilight, https://arxiv.org/abs/2502.02770 (US-M5) | - | exact | both | XS | 0 itself; decides A50/A51 | screen | **new** |
-| A50 | Verify-window attention that reads the prefix K/V once for all window rows | LongSpec, NTU 2025, https://arxiv.org/abs/2502.17421 (+ fork F11) | 15 F11, (Asia-P8) | rounding | both (int8 mma -> gfx11 WMMA) | M | fork: 200K decode 48.6 -> 88.9 tok/s (5080); ~0 at short context | confirm | planned (after A49) |
+| A50 | Verify-window attention that reads the prefix K/V once for all window rows | LongSpec, NTU 2025, https://arxiv.org/abs/2502.17421 (+ fork F11) | 15 F11, (Asia-P8) | rounding | both (int8 mma -> gfx11 WMMA) | M | fork: 200K decode 48.6 -> 88.9 tok/s (5080); ~0 at short context | confirm | Flash-Next: not built (QSA caps it at ~1%); Qwen3.6 engine: coded on work/f11-attn-window, exact by design (Phase 15 "F11 status"); abtest longdec32k/64k/128k cases also serve A49 |
 | A51 | Query-aware sparse decode attention | Quest, ICML'24, https://arxiv.org/abs/2406.10774 ; Twilight (above) | (ledger h) | lossy | both | M | a few % at 100K+ | rigorous | parked: attention must exceed ~15% of decode (A49) |
 
 ### 16.12 Data path: loader, PCIe, NVMe
@@ -1664,7 +1955,7 @@ MoE-Lightning stale-dropping paging (https://arxiv.org/abs/2411.11217; Foresight
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Status |
 | --- | --- | --- | --- | --- |
 | A54 | KLD / top-1 only reject large deviations; a fixed task set picks between close variants | Displacement Is Not Direction, Toronto 2026, https://arxiv.org/abs/2606.19558 | quality gates | done (rule) |
-| A55 | Task gate runner: BFCL v4 multi-turn + LiveCodeBench subset + own-repo checkpoint grading, repeated runs | BFCL, https://gorilla.cs.berkeley.edu/leaderboard.html ; LiveCodeBench, https://arxiv.org/abs/2403.07974 ; TheAgentCompany, https://arxiv.org/abs/2412.14161 | 67 | planned (blocks A1, A2, A4 default, A17-A20, A27, A28) |
+| A55 | Task gate runner: BFCL v4 multi-turn + LiveCodeBench subset + own-repo checkpoint grading, repeated runs | BFCL, https://gorilla.cs.berkeley.edu/leaderboard.html ; LiveCodeBench, https://arxiv.org/abs/2403.07974 ; TheAgentCompany, https://arxiv.org/abs/2412.14161 | 67 | coded, branch work/a55-task-gate, first run pending (`tools/pancake/task_gate.py` + `bench/tasks/default.json`: 18 offline tasks, not the BFCL / LiveCodeBench subsets yet; blocks A1, A2, A4 default, A17-A20, A27, A28) |
 | A56 | EAR (expected acceptance rate) next to "same top token" in token forcing; predicts MTP acceptance | SLQ, ISTA, https://github.com/IST-DASLab/SLQ | (EU-M1) | **new** (XS) |
 | A57 | Area under the time-to-success curve for agent A/Bs | SWE-Effi, https://www.alphaxiv.org/abs/2509.09853 | (Can-M2) | planned (for A18, A38-A43) |
 | A58 | Repeated runs as distributions; reclaim-aware load gate | SD Illusion (A25); Price Reversal (US-M4) | I5 | done (abtest.py, 04c harness) |
@@ -1673,14 +1964,18 @@ MoE-Lightning stale-dropping paging (https://arxiv.org/abs/2411.11217; Foresight
 
 1. **A55 + A1/A2/A4 joint quality batch.** Build the task-gate runner, then one night: turbo (A1) vs AcceptMoE (A2), each
    with deferral + rank guard on. The biggest remaining lever (+30-50% meas. before deferral). Rigorous.
+   The runner is coded (A55, branch work/a55-task-gate, first run pending): `python tools/pancake/task_gate.py
+   bench/specs/taskgate-lossy.json --out bench/results/<day>-taskgate`, after token forcing has not rejected the arm.
 2. **A4 rank-guard fix.** One pool pass when few rows are deferred, then the w sweep. Keeps +3-5% on edits without the
    -6.9% on short chat. Confirm, then rigorous for fast-hip.
+   Coded (2026-11-10, branch work/a4-rank-guard): `STRATA_VERIFY_DEFER_CPU_FOLD=<n>`; screen with
+   `abtest.py bench/specs/10-rank-guard-fold.json --tier screen` when the GPU is free.
 3. **A14 then A11/A12/A13 on agent replays.** restore_check first, then the three coded per-turn cache opt-ins on real
    opencode sessions from the turn log. ~10-15% of turn time, exact. Confirm.
 4. **A30 Fiddler threshold for delta prefill.** Env-only A/B on agent sessions; up to ~0.4 s per turn (est.). Confirm.
 5. **A17 + A18 thinking control.** Per-effort caps from the turn log's p99; `xhigh` vs `medium` on time to success.
    Rigorous.
-   A17 read 2026-11-10: the log has 34 agent turns and no effort field; add the field first (A6_A17.md).
+   A17 read 2026-11-10: the log has 34 agent turns and no effort field (A6_A17.md); the field is now written (`effort`, work/diskkey-effortlog); re-read the caps once new turns exist.
 6. **A6 recalibrated time model (no GPU).** Fit the overlap model to last night's measured points; then run A7 (ProMoE)
    and A46 candidates offline; queue the A8 (Pie) blocking-tier arm. Screen.
    DONE offline 2026-11-10 (A6_A17.md): A46 > A8 > A7, none worth a GPU screen at the bench's hit rate; judge them on real agent traces.
@@ -1716,34 +2011,396 @@ launch cost ~14-16 us on gfx1100 vs ~3 us on sm_86, so fusions are worth more on
 | F2 | `--prompt-cache-spread` on in the presets (flag already in pancake), up to 16 checkpoints per conversation | server | exact | env/preset only | xrip: edited 82K conversation resumed in 10.2 s vs 40 s | xrip; Lamina `13d90a38ec` |
 | F3 | Extra checkpoint cuts (where a prompt leaves the previous one, before the last message end) + borrow before a stashed conversation's newest checkpoint | server | exact | backend-independent | Lamina: 6 agent tasks 412 s -> 369 s | Lamina `ab808b133e`, `83f40aee62` |
 | F4 | Sub-2-bit shadow expert pack (IQ1_M / IQ2_XXS) read only on CPU misses; VRAM hits stay exact | MoE/CPU | lossy | both GPUs (CPU side); needs a ~25-30 GB requant | svgop (5090): solo +3-8%, concurrency up to +21% -> est. edit +7-10%, chat +3-5% | svgop `25bf1b90f6`, `eeca072bb6`; mandoof1 `85b991da79` |
-| F5 | `STRATA_VERIFY_ECAP`: cap the experts read only by draft rows | spec | lossy | backend-independent | jmnargi (2x V100): +2.8% pooled, +11.5% drift-paired -> est. +3-10% on edits; must pass the tool-call gate (a tight cap broke 12/20 tool turns) | jmnargi `24894e676b`, `7c5041c358` |
+| F5 | `STRATA_VERIFY_ECAP`: cap the experts read only by draft rows | spec | lossy | backend-independent; **coded 2026-11-10 on work/f5-verify-ecap, not built**: host side in the expert pool (`core/verify_ecap.hpp`), per draft row and only for CPU-missed experts (jmnargi caps the whole tail on the GPU): each draft row reads at most n missed experts that row 0 and the earlier rows do not read, by routing rank, the rest are skipped as kind -2 (zero rows); row 0, prompt reads, merged first windows, batch/pipelined windows and grammar-enforced spans are never capped; no graph change, so it composes with the deferral; spec bench/specs/20-verify-ecap.json (n 2/1/0 on fast-hip), then token forcing + task gate | jmnargi (2x V100): +2.8% pooled, +11.5% drift-paired -> est. +3-10% on edits; must pass the tool-call gate (a tight cap broke 12/20 tool turns) | jmnargi `24894e676b`, `7c5041c358`, `376355453f` |
 | F6 | Exact speculative sampling for sampled requests: `STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top STRATA_SPEC_PROB_DT=0.85` | spec | exact | env only, both | riceharvest (B70) +5.5%; svgop (5090) +5.8% / +13.4% with DT 0.85 -> est. +3-8% on sampled turns only (check opencode's temperature first) | riceharvest `7389a10f2c`; svgop `0355c3164f` |
 | F7 | Faster bit-exact Q2_0 AVX2 kernel (8-op unpack, 4 rows at a time; `STRATA_Q2_LEGACY=1` for A/B) | CPU | exact | both GPUs (CPU path) | imanu86: 1.11-1.45x single thread, Q2_0 layer -17% in a 7-worker pool -> est. edit +1-3%, more on the Q2_0 file | imanu86 `c3fc8f34d3` |
 | F8 | `STRATA_SPEC_CUM`: cumulative-probability draft stop (pair with item 5 `tail_replay.py`) | spec | exact | both; ~150 lines | android-imdad (7900 XTX): +1.8% pinned, +6.4% short chat, +2.1% agent -> est. +1-3% | android-imdad `f1bd09212a`, `ef42c2fde9` |
-| F9 | Faster router publish: write the step number instead of RMW over PCIe, copy MoE rows to host inside the router GEMV, DPP/warp top-10 | kernels | exact | CUDA warp reduce <-> HIP DPP | ours: `route_publish_res` 17.8 us/call, 2.68% of GPU time; est. +1-2% (7900 XT), smaller on sm_86 | android-imdad `caa9b00115` (`STRATA_ROUTE_FAST`); Ben1078 `23d2fc0450` |
+| F9 | Faster router publish: write the step number instead of RMW over PCIe, copy MoE rows to host inside the router GEMV, DPP/warp top-10 | kernels | exact | CUDA warp reduce <-> HIP DPP | ours: `route_publish_res` 17.8 us/call, 2.68% of GPU time; est. +1-2% (7900 XT), smaller on sm_86 | android-imdad `caa9b00115` (`STRATA_ROUTE_FAST`); Ben1078 `23d2fc0450` **coded, branch work/f9-route-fast (unbuilt, unmeasured):** `STRATA_ROUTE_FAST=1`, CUDA and HIP. Path check first: the 17.8 us `route_publish_res` profile predates deferral in the preset; ROUTE_PUBLISH is off under deferral (d5b58f669), so fast-hip runs `route_multi` + `doorbell_publish` (every row, ids, weights, ring read-modify-written over PCIe; deferral profile: 9.7 + 6.9 us + a 6.8 us gap per layer); `STRATA_DOORBELL_STORE` exists (HIP only, #649) but is not in the preset; the CUDA preset runs `route_multi` + `doorbell_publish_res`. The change: the router GEMV (`bf16_f32_mmvf_multi_kernel`) copies the rows to the host; one launch (`route_publish_fast`) does route_multi's top-10 (same ids/weights), publishes ids + weights, stores the step number as the ring; it replaces all three old paths, also under deferral (it publishes the weights the heavy split needs; ROUTE_PUBLISH's ring plus doorbell_publish's gave two rings a step there, the likely cause of the 11-09 non-finite logits). DPP: pancake's `__shfl_xor_sync` is already DPP on gfx11 (`89da64b93`), so no new gain from that part. Parity in `native_multi_parity`, screen `bench/specs/17-f9-route-fast.json` (base / doorbell-store / route-fast) |
 | F10 | `STRATA_ADAPT_PROMPT`: prompt routing feeds the adaptive tier | MoE | exact | backend-independent, ~10 lines | est. +2-5% on the first decode tokens after a long new prompt | zsariboga `4ce19344ff` |
-| F11 | Window decode attention reading K/V once per verify window (`STRATA_ATTN_WINDOW`, int8 MMA) | attention | rounding-level | CUDA int8 mma -> gfx11 WMMA | Asofwar (5080): 200K decode 48.6 -> 88.9 tok/s, 130K 112.6 -> 146.4 -> long-context decode on both GPUs | Asofwar/Strata-Turbo |
+| F11 | Window decode attention reading K/V once per verify window (`STRATA_ATTN_WINDOW`, int8 MMA) | attention | rounding-level (fork); **exact by design** (our q36 port) | CUDA int8 mma -> gfx11 WMMA | Asofwar (5080): 200K decode 48.6 -> 88.9 tok/s, 130K 112.6 -> 146.4 -> long-context decode on both GPUs | Asofwar/Strata-Turbo `6ebe841e2e`, `540f801a9a`, `f43c719740` (MIT) **2026-11-10, branch work/f11-attn-window (unbuilt, unmeasured):** the fork's code does not rebase (a SPLIT instance of a dense int8 prompt kernel pancake lacks, hooked where Flash-Next has no indexer, GQA 8 only); on Flash-Next the idea is capped at ~1% (QSA reads <= 2,051 cells a row, attention 3% of a window). Ported instead to the engine with the fork's shape, the Qwen3.6 engine (`q36_engine.cu`): `STRATA_ATTN_WINDOW=1` -> `k_attn_window`, K/V read once per KV head and pair of rows (decode step 1x instead of 8x, 3-row window 2x instead of 24x), designed bitwise `k_attn_part` (host emulation: bitwise in 6 cases). Spec `bench/specs/18-f11-attn-window.json`; gfx1100 WMMA design in "F11 status" below |
 | F12 | Cheaper IQ2/IQ3 sign expansion in the expert GEMVs (port with EXPDEC_V2) | kernels | exact | HIP measured; CUDA drop-in for the `__vcmpne4/__vsub4` sites | boxwrench (7900 XT, GLM engine): IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time -> est. 0-1.5% decode | yqYo1 `6f0bdf665b`; RX5950XT `b9a2111d3f` |
+| F13 | Route-prior guards for turbo (`STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE`, `KEEP`) so turbo can run a stronger lambda without breaking tool JSON; compare turbo against a uniform tail skip at equal KL | MoE | lossy | backend-independent | enables a stronger turbo; no speed by itself | zsariboga `8d7042ad97`; mandoof1 `3e0489e118`; lighttransport `2ea0c1e042` **coded, branch work/f13-prior-guards (unbuilt, unmeasured):** `STRATA_ROUTE_PRIOR_PROTECT` (alias `_KEEP`) and `_KEEP_P` in `route_prior.cu` (one kernel for CUDA and HIP), `STRATA_ROUTE_PRIOR_SCOPE=answer|think|all` (+ `_ON_PROMPT`, `_MARKS`) through a mapped per-window gate float written by the serve decode loop from a token-state machine (`include/strata/program/route_prior_scope.hpp`: think / tool call / fence, Qwen 3.8 marker ids checked against the GGUF vocabulary); all opt-in, unset = byte-identical, also to plain turbo. Screen: `bench/specs/19-turbo-guards.json` (turbo, turbo + guards, lambda 0.7 + guards, tail skip 7 / 6; read at equal KL, token forcing `--path decode` then the task gate). WARM (mandoof1) not ported: no page-cache tier in pancake. |
+| F12 | Cheaper IQ2/IQ3 sign expansion in the expert GEMVs (port with EXPDEC_V2) | kernels | exact | HIP measured; CUDA drop-in for the `__vcmpne4/__vsub4` sites | boxwrench (7900 XT, GLM engine): IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time -> est. 0-1.5% decode | yqYo1 `6f0bdf665b`; RX5950XT `b9a2111d3f` **coded, branch work/f12-sign-expand (unbuilt, unmeasured):** `STRATA_IQ_SIGN_FAST=1` (or a type list, `22`, `16,22`), runtime switch, CUDA and HIP: `iq_signed<SF>` = RX5950XT's multiply-free form, bitwise (host check: 5 codebooks x every sign field, 22,229 cases, 0 differences); only the EXPDEC gate/up kernels for IQ2_XXS / IQ2_XS / IQ2_S take it (expdec_gu, expdec_gu_swiglu); native_gu_multi (fork count: 16 -> 10-12 waves), DotG, s26 and vec_dot_* stay on the old form; EXPDEC_V2 is not in this tree, so F12 went alone (redo the A/B once V2 lands). Parity in `iq_multi_parity`, per-format A/B `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1`, screen `bench/specs/22-f12-sign-fast.json` |
 | F13 | Route-prior guards for turbo (`STRATA_ROUTE_PRIOR_PROTECT/KEEP_P/SCOPE`, `KEEP`) so turbo can run a stronger lambda without breaking tool JSON; compare turbo against a uniform tail skip at equal KL | MoE | lossy | backend-independent | enables a stronger turbo; no speed by itself | zsariboga `8d7042ad97`; mandoof1 `3e0489e118`; lighttransport `2ea0c1e042` |
+
+#### F11 status (2026-11-10, branch `work/f11-attn-window`: coded for the Qwen3.6 engine, not built, not measured)
+
+Fork commits (fork DB, `upstream_history = 0`; Asofwar/Strata-Turbo, MIT): `6ebe841e2e` (`STRATA_ATTN_WINDOW`, +140/-7
+in `qsa_prompt_attn.cu`, hooks in `verify.cpp` / `mtp.cpp`, `attn_window_parity.cpp`), `540f801a9a`
+(`STRATA_ATTN_WINDOW_SMALL`, `decode_attn_window_small_kernel`), `f43c719740` (small windows up to 4 queries only,
+`_SPLITS` and precision mode 3 removed). Both kernels are dense attention for qwen35moe run on the fork's MAIN engine:
+the hook is `!idx && qsa_decode_attn_window(...)` (no indexer), the guard `s.n_head == 8 * s.n_head_kv`, int8 KV in
+Flash-Next's paged pool layout, and the window kernel is a `SPLIT` instance of the fork's `prompt_attn_dense_kernel`
+(int8 tensor cores, cp.async, sm_80+; HIP returns false).
+
+Why it does not rebase on pancake (read from the code):
+1. pancake has no `prompt_attn_dense_kernel` (its QSA prompt kernels take a selection id list), so the window kernel has
+   nothing to be an instance of; the fork's whole dense INT8 prompt kernel would come first.
+2. Nothing would call it. pancake's main engine runs only Flash-Next (`model_family_runs`), which always has the
+   indexer; a qwen35moe file goes to `src/qwen35` (the family switch at the top of main) or to strata-poly.
+3. Flash-Next has 24 query heads over 2 KV heads (12 a KV head): the shape guard fails.
+4. The gain mechanism is missing on Flash-Next. QSA selects at most 2,051 cells a row at any context; decode attention is
+   0.74 ms of a 24.8 ms window (3.0%) at 32K / 131K / 262K alike and latency-bound (~0.1 ms of it is bytes; profile in
+   `c19f82b53`), and `STRATA_ATTN_WMMA` (gfx11 matrix-core decode attention) measured neutral with the model (`8860719dd`).
+   Sharing K/V among a window's rows needs the union of the rows' own top-k selections and saves part of those ~0.1 ms:
+   ceiling about 1% of decode. Not built.
+
+The part that fits: pancake's own Qwen3.6 engine (`src/qwen35/q36_engine.cu`, reached through `strata`'s family switch;
+the 7900 XT's Qwen3.6 path, since strata-poly is CUDA-only) has exactly the fork's shape: dense attention, 16 query heads
+over 2 KV heads (8 a KV head), head dim 256, verify windows of up to 8 rows (`kVerify`) with `--mtp N`. Its decode
+attention `k_attn_part` runs one block per (256-cell chunk, row x query head), so a T-row window reads every K/V chunk
+8 T times per KV head (no GQA sharing either), from an FP32 cache (2 KB of K + V per cell and KV head). At 128K that is
+512 MB per layer per read and 8 reads per decode row (~4 GB per layer, ~40 GB per token over the 10 attention layers,
+less what L2 / MALL catch; from the code, not profiled).
+
+Coded: `STRATA_ATTN_WINDOW=1` -> `k_attn_window<8, NR>` (NR = 2 rows a block when the batch has 2 or more rows, else 1).
+One block per (chunk, KV head, pair of rows) computes the 16 (row, head) pairs' partials with each K row and V row of
+the chunk loaded once; partials in `k_attn_part`'s layout, `k_attn_merge` unchanged. Reads per KV head and chunk:
+decode step 1 (was 8), 3-row window 2 (was 24), 8-row window 4 (was 64). One source for CUDA and HIP (no warp
+intrinsics, 32 KB static shared memory, 256 threads). One session's rows only (batch rows keep `k_attn_part`), and only
+the 8-per-KV-head, 256-dim shape. Unset: the old launch, unchanged (byte-identical default).
+
+Exactness: designed to be bitwise `k_attn_part`, not rounding-level. Each pair's q.k dot runs over i ascending from 0 in
+the same `a += q * k` form; `s = a * scale` (-inf past the row's cells); `block_max`'s and `block_sum`'s shared-memory
+trees are replayed for every pair over the same thread -> cell map (level h adds cell i + h into cell i); `e = expf(s -
+m)`; the V sum runs over the row's cells ascending in the same `acc += e * v` form. The float4 loads only change how the
+values arrive. Host check in this commit (no GPU): both kernels compiled together for the CPU (256 std::threads a block,
+a barrier for `__syncthreads`, static locals as shared memory) give bitwise equal acc, m and l in 6 cases (T 1-5, 1-2 KV
+heads, rows across a chunk edge, a dead and a live row in one block, odd T, NaN in every cell past the window, never
+read), with `-ffp-contract=fast` and `=off`. On the GPU the same holds if nvcc / hipcc make the same contraction choices
+in both kernels (the open point: `s = a * scale` feeding `expf(s - m)` across the reduction loop). Run, in order:
+1. Bitwise check per backend: `strata-q36 --model <UD-Q4_K_XL> --max-context 131072 --tokens "$(cat ids40k.txt)" --n 64
+   --dump-full-logits a.bin`, again with `STRATA_ATTN_WINDOW=1` into b.bin, `cmp a.bin b.bin` silent; repeat with
+   `--mtp 2` (verify windows: both kernel shapes) and with `--no-graph`. ids40k.txt = 40,000 random ids
+   (`python3 -c "import random; random.seed(1); print(','.join(str(random.randrange(1000, 150000)) for _ in range(40000)))"`).
+   Equal: exact, the screen's text check is the only gate. Not equal: rounding-level, token forcing with
+   `tools/qwen35/kl.py` before any preset.
+2. Kernel-level speed: `strata-q36 ... --bench-pp 32768 --bench-tg 128` (and 65536, 120000), base vs the switch.
+3. Served: `python tools/pancake/abtest.py bench/specs/18-f11-attn-window.json --out bench/results/<day>/18-f11.jsonl
+   --tier screen` (short, edit, longdec32k / 64k / 128k, `--mtp 2`; the base config's sed line is in the spec).
+
+Expected gain (estimate from bytes only): K/V traffic per decode token at 128K from ~8 to 1 cache reads per layer (T = 1)
+and from 24 to 2 for a 3-row window; the wall-time share depends on what L2 / MALL caught before and on the CPU expert
+side in hybrid mode. Fork data on this engine (GQA sharing only, not windows): dongnh311 `62cc598f3b` (RTX 3060) 16K
+attention 2.37 -> 0.227 ms/layer, decode after 16K 12.0 -> 27.5 tok/s; storm-ace `4fe0284da5` (gfx1151) ~35K 11.4-12.5
+-> 27.1 tok/s. F11 adds the window sharing on top for MTP windows.
+
+Tools in this commit: abtest.py long-context decode cases `longdec32k`, `longdec64k`, `longdec128k` (cold 32K / 64K /
+120K-token prompt, then a 256-token reply; metric = decode tok/s of the reply; 120K so prompt + reply fit 131072 even
+with LONG_CPT 8% off; they also serve A49); abtest also reads the Qwen3.6 engine's log line (`strata serve: session S:
+prompt ...`). Base config template `configs/pancake/qwen36-ud-q4_k_xl-q36.json` (UD-Q4_K_XL on build-hip/strata,
+`--mtp 2`; not a run-pancake.sh preset).
+
+gfx1100 matrix-core version (design only; would be `STRATA_ATTN_WINDOW=2`, rounding-level):
+- Why: the exact kernel needs a pass per 2 rows (its per-pair reduction trees take 2 x 16 KB of LDS per 16 pairs), so an
+  8-row window still reads K/V 4 times and every MAC is a VALU FMA. A WMMA kernel holds all T x 8 <= 64 (row, head)
+  pairs of a KV head in one pass: K/V read once per window.
+- Instruction: `v_wmma_f32_16x16x16_f16` (`__builtin_amdgcn_wmma_f32_16x16x16_f16_w32`), not `v_wmma_i32_16x16x16_iu8`.
+  On gfx1100 both do 16x16x16 per instruction at the same rate, so int8 buys no MACs (the fork used IMMA because sm_80+
+  runs it at twice the HMMA rate); f16 keeps FP32 accumulation and takes int8 codes or fp16 values exactly as B. With
+  the q36 engine's FP32 cache: A = q hi + lo, B = K hi + lo (fp16 splits), three WMMAs a k-step (qh.kh + ql.kh + qh.kl;
+  the dropped ql.kl is ~2^-22 relative), about the FP32 kernel's accuracy. With an fp16 cache (follow-up
+  `STRATA_Q36_KV16`, half the bytes, 2.7 GB less VRAM at 131K) two WMMAs (qh.k + ql.k), B exact.
+- Tiles: M-tile = the 8 query heads of 2 consecutive rows (16 pairs, the fork's small-window tile), NT = ceil(T / 2)
+  <= 4; N = 16 cells; K = 16 dims (16 steps a head). Workgroup = 4 waves (wave32) on one KV head and a range of 256-cell
+  chunks (persistent; ranges for ~2 workgroups per WGP, 42 WGPs on the 7900 XT).
+- Per 32-cell sub-chunk: K staged in LDS as fp16 hi / lo (32 KB), the scores S (64 pairs x 32 cells, 8 KB), P as fp16
+  hi / lo (8 KB), then V transposed (Vt[dim][cell], hi / lo) into K's 32 KB: ~48 KB a workgroup (with an fp16 cache
+  16 KB each, double-buffered). A fragments (q hi / lo) from a pre-split fp16 image of q in global, written once per
+  window (L0 / L1-resident; BFLA's Q-from-global variant was 11% faster than LDS-resident q on this card, `6c68d7586`).
+- Scores: the 4 waves split the (M-tile, N-tile) pairs (NT x 2 per sub-chunk), 16 k-steps x 3 WMMAs each; C fragments
+  (lane l: cell l % 16, pairs 2i + l / 16) to LDS.
+- Softmax: online inside each 256-cell chunk (running m, l per pair, acc rescaled per sub-chunk), so each chunk ends with
+  `k_attn_part`'s (m, l, acc) contract and `k_attn_merge` stays; a wave takes 16 pair rows, max and sum by DPP row
+  reductions, p = expf(s - m) in FP32, written as fp16 hi / lo.
+- P.V: wave w owns dims 64w .. 64w + 63 (4 N-tiles) for all NT M-tiles: NT x 4 x 8 accumulator floats a lane (<= 128
+  VGPRs); 3 WMMAs per 16-cell k-step (ph.vh + pl.vh + ph.vl), 2 with an fp16 cache. Chunk end: acc (lane l = dim 16n + l
+  % 16), m, l to pacc / pm / pl.
+- Cost of a 3-row window at 128K (estimate): 512 MB of K + V per layer once (0.64 ms at 800 GB/s) against the exact
+  kernel's 2 reads (1.3 ms); ~25 GFLOP of WMMA per layer at NT = 2 with the splits (~0.25 ms of the ~103 TFLOPS fp16
+  peak): bandwidth-bound, the splits are free.
+- Exactness: not bitwise (another summation order, split products): token forcing and the KL gate (`tools/qwen35/kl.py`,
+  the 1.5x-of-floor rule) before any default. A decode step must take the same kernel as the windows, so that a verify
+  row stays bitwise a decode row (MTP text = plain greedy text, the engine's existing rule).
+- Flash-Next form, not recommended: the rows' QSA selections merged into a sorted union with a row mask per cell, the
+  same tiles over the union through the page table, int8 codes as exact fp16 B and the per-64 scales in FP32
+  (`STRATA_ATTN_WMMA`'s arithmetic, M = T x 12 pairs); ceiling ~1% of decode (above).
+- RTX 3060: its Qwen3.6 engine is strata-poly (own q8 KV, `attend_q8`), which the fork's kernel does not fit either; the
+  window kernel for that engine is F17's `STRATA_FDEC` (RandoTeam: mma decode attention reading keys once per 4 tokens).
 
 ### 15B. RTX 3060 (CUDA) first, then port to HIP
 
 | ID | Idea | Exact/lossy | Expected gain | Source |
 | --- | --- | --- | --- | --- |
-| F14 | KhaledElzarw sm86 kernel set: `STRATA_EXP_MODE=9` + `STRATA_EXP9_DOWN=42:10` (Q2_0 down on 4 lanes), GR_DOWN86/UP_HYB/XN/UP_PL/D87, `MMVQ_IL_3090` table (re-tune for 28 SMs); then try the Q2_0 down fold on gfx1100 vs `STRATA_EXPDEC_DOWN` | exact | 3090, same upstream base and model family: +17.3% cumulative over its baseline -> est. 3060 +8-15% (all exact items together, speculative) | KhaledElzarw/Strata |
-| F15 | `STRATA_FETCH_ADMIT` (keep PCIe-copied experts in the VRAM cache), only if the PCIe share stays above 0; check it with `ADAPT_NOWAIT` | exact (KL 0.002) | AdrianBM96 (3060): +5.1/+7.0/+5.1% decode | AdrianBM96/Strata3060 |
+| F14 | KhaledElzarw sm86 kernel set: `STRATA_EXP_MODE=9` + `STRATA_EXP9_DOWN=42:10` (Q2_0 down on 4 lanes), GR_DOWN86/UP_HYB/XN/UP_PL/D87, `MMVQ_IL_3090` table (re-tune for 28 SMs); then try the Q2_0 down fold on gfx1100 vs `STRATA_EXPDEC_DOWN`. **EXP_MODE=9 + EXP9_DOWN coded 2026-11-10 (`work/f14-sm86-exp9`), see "F14 status" below** | exact | 3090, same upstream base and model family: +17.3% cumulative over its baseline -> est. 3060 +8-15% (all exact items together, speculative) | KhaledElzarw/Strata |
+| F15 | `STRATA_FETCH_ADMIT` (keep PCIe-copied experts in the VRAM cache), only if the PCIe share stays above 0; check it with `ADAPT_NOWAIT` | exact (KL 0.002) | AdrianBM96 (3060): +5.1/+7.0/+5.1% decode | AdrianBM96/Strata3060 `50581c24f2`, `3ff40d67e3` (MIT) **done as an alias, branch work/f15-fetch-admit (unbuilt, unmeasured):** this tree already has the engine's own version, `STRATA_ADAPT_FETCH=1|2` (`ExpertDispatch::fetch_admit`, `fetch_can`, dst2 in the plan, `fetch_blobs`/`rebase_ptrs` with a second target; upstream DETAILS.md: PRO 5000, `=1` +5.0%, `=2` +10.2%), so the fork's `fetch_blobs_admit` / `admit2` were NOT ported (they would duplicate it). Change: `STRATA_FETCH_ADMIT=1` is read by `adapt_fetch()` as `STRATA_ADAPT_FETCH=1` (an explicit `STRATA_ADAPT_FETCH` wins; neither set = byte-identical), plus one cumulative serve log line `STRATA_ADAPT_FETCH: N experts kept in the VRAM cache from the PCIe share` (only when on). ADAPT_NOWAIT: the fork refuses to run with it because its device residency table is not updated; upstream's version forces `evict_sync` (tier lagging under NOWAIT/LAG>1) and uploads the table before each window (`res_dirty`), so there is no conflict and nothing is refused; the sm_86 table's NOWAIT=1 / LAG=2 stay on. **The real blocker is `--adapt-async`**: the 3060 preset has `--adapt-async 1`, and ADAPT_FETCH is off under it (log: `STRATA_ADAPT_FETCH is off (--adapt-async)`), so the A/B must run with `--adapt-async 0` and the cost of leaving the async tier is part of the result. Needs a PCIe share above 0: omit `--pcie-frac` (auto; a literal `--pcie-frac auto` parses as 0). HIP: the code is shared and compiles, but the 7900 XT presets run `--pcie-frac 0`, so it is inert there; not worth a HIP arm unless a preset ever turns the share on. Screen `bench/specs/18-f15-fetch-admit.json` (sync control, async preset, admit, fetch=2, margin 2, NOWAIT 0 pair), then token forcing `--path decode` |
 | F16 | Lamina sub-warp grouped expert kernels; router with separate-block copy, one fence, hardware top-10; int8 verify projections/head | exact / rounding | Lamina (3090): +5.7-8.3% e2e; +0.9-2.7%; +2.2-6.3% | eddoursul/Lamina |
-| F17 | Qwen3.6 on strata-poly: RandoTeam `STRATA_FATTN` (prompt flash attention, q8_0 cache) + `STRATA_FDEC` (tensor-core decode attention) = MOD_PLAN 8.8 | fp16 math, KL gate | RandoTeam (4060 Laptop, 118K): 1.62x prompt, 1.60x decode -> est. 3060 prompt +20-35%, decode +10-60% from 4K | RandoTeam/4gbVramStrata `79b1e756`, `67f60c12` |
+| F17 | Qwen3.6 on strata-poly: RandoTeam `STRATA_FATTN` (prompt flash attention, q8_0 cache) + `STRATA_FDEC` (tensor-core decode attention) = MOD_PLAN 8.8. **Coded 2026-11-10 on `work/f17-poly-fattn` (opt-in, CUDA only, not built or measured), see "F17 status"** | fp16 math, KL gate | RandoTeam (4060 Laptop, 118K): 1.62x prompt, 1.60x decode -> est. 3060 prompt +20-35% at 32-128K; decode: the fork's 1.60x is against `attend()` without a split kernel, the qwen36 preset already runs `--attn-split`, so est. 0 for 1-2-token steps and +0-8% at 32-128K for windows of 3+ tokens (code reading) | RandoTeam/4gbVramStrata `79b1e756`, `67f60c12` |
 | F18 | CUDA-only Flash-Next prefill fusions | exact | zsariboga (5090, same IQ2_XS): -4.0% prompt time at 32K | zsariboga `21107e9d` |
+
+#### F14 status (2026-11-10, branch `work/f14-sm86-exp9`: coded, not built, not measured)
+
+Coded, the largest exact piece (fork commits `9af8f1fa14` and `4d462ccff3`, MIT, same upstream base `146df3c46`;
+all in `src/kernels/cuda/iq_kernels.cu`):
+- `STRATA_EXP_MODE=9`: the VRAM experts' kernel layout per format and phase (`exp9_mode`). Gate/up IQ2_S, IQ2_XXS,
+  IQ3_S, IQ3_XXS take mode 8's fused gate/up + SwiGLU + q8_1 kernel; the Q2_0 down takes mode 8's shared-memory rows;
+  every other format keeps mode 0. `STRATA_EXP9_GU` / `STRATA_EXP9_DOWN` = `type:mode,...` override single formats.
+  Only calls that do not stride take it (the verify window's PCIe call keeps mode 0, as for every AMD layout).
+- `STRATA_EXP9_DOWN=42:10` (the fork's adopted setting): `native_down_q2_sub4_kernel`, the Q2_0 down rows at n_ff 640
+  on 4 lanes instead of 16. `STRATA_EXP_MODE=10` = mode 0's gate/up + this down. It wins over `STRATA_EXPDEC_DOWN`.
+- Our IQ2_XS file: gate/up IQ2_S / IQ2_XXS and the Q2_0 down in all 48 layers, so the table covers every expert (the
+  fork's IQ3_XXS file had Q2_0 downs in 30 layers).
+- Default path unchanged: with `STRATA_EXP_MODE` unset (or any value but 9 / 10) every branch is the old one.
+  The same source builds for HIP (the switch works on every target but gfx906); neither backend was built.
+
+Exactness. Mode 0's Q2_0 down is `row_dot_20_sub16`: lane t of 16 sums call t (and call t + 16 for t < 4, into s16)
+from 0, joins them with `__fadd_rn` (+ 0.0f where there is no second call), then adds lanes t ^ 8, t ^ 4, t ^ 2, t ^ 1.
+In the new kernel lane u of 4 holds the sums of the 16-lane lanes u, u + 4, u + 8, u + 12, does the same `__fadd_rn`
+joins, adds the xor 8 and xor 4 partners in-lane with its own value first (as the shuffle adds), then shuffles xor 2
+and xor 1 inside the 4-lane group: the same float additions on the same values in the same order. Float addition is
+commutative, so after every level both partners hold the same value and the storing lane does not matter. Each call
+uses our own `Split<42>::load` / `apply_u` (= `apply` on the same words, the EXPDEC kernels' basis) and the same
+`* sd`. The `0 + d * sumi` contraction is the same expression in both kernels. The fork checked it bitwise on every
+Q2_0 layer at 1-8 entries a group and with a whole-engine forced decode, on an RTX 3090, which is sm_86 like the 3060.
+Caveat for `STRATA_EXP_MODE=9`'s gate/up half: mode 8's fused kernel forms the SwiGLU product without `__fmul_rn`
+(the fork's decision 0002 lists it); it was bitwise in the fork's build, so recheck it with our nvcc. The
+`expdec-down4` arm below does not use it.
+
+Run on the 3060, in this order:
+1. Parity, all 48 layers, several shapes (every line must say `bitwise equal`, exit 0):
+   `for gt in "24 1" "24 2" "16 1" "8 3" "8 4" "8 8"; do build-cuda/native_expert_bench <IQ2_XS shard 1> $(seq -s, 0 47) $gt 0 9; STRATA_EXP9_DOWN=42:10 build-cuda/native_expert_bench <IQ2_XS shard 1> $(seq -s, 0 47) $gt 0 9; done`
+   (the `down` column is the per-phase time; add `STRATA_EXPDEC=1 STRATA_EXPDEC_DOWN=1 STRATA_EXP9_GU=16:0,22:0` to
+   time the 4-lane down against pancake's EXPDEC down).
+2. `python tools/pancake/abtest.py bench/specs/21-f14-exp9-3060.json --out bench/results/<day>/11-f14-exp9.jsonl --tier screen`:
+   base (fast preset, EXPDEC=1) vs `exp9`, `exp9-down4`, `expdec-down4` (EXPDEC gate/up + 4-lane down),
+   `expdec-down`, `no-expdec`. Every arm must give the same text as base.
+
+gfx1100 assessment (from the code; nothing measured):
+- Correction: `STRATA_EXPDEC_DOWN` is measured on gfx1100. Test phase 04c gave +1.7% +-0.5 short, edit +5.4% +-7.3
+  n.s., token forcing PASS, and it is in the fast-hip preset since `f15ad2b51`. "Never measured" in this row, in the
+  research notes and in docs/EXPERTDEC.md is out of date.
+- The fold applies on gfx1100, on the same terms as EXPDEC_DOWN. It needs no ISA property, only the same float
+  operations in the same order. On the wave32 HIP build `__fadd_rn` is clang's plain `x + y` (`__clang_hip_math.h`;
+  only the gfx906 shim `strata_hip.h` adds `contract(off)`), so the joins and the `0 + d * sumi` contraction rely on
+  the same expression trees as `row_dot_20_sub16` and `ed_d42_rows`, exactly as EXPDEC_DOWN does. The xor 1 / xor 2
+  shuffles stay inside the 4-lane group. Check it with `native_expert_bench` (mode 0 vs 9) on the HIP build and with
+  the screen's text check.
+- Work per (row, entry), counted from the code (wave32): dp4a wave instructions 8 for mode 0 and for EXPDEC_DOWN (both
+  keep `row_dot_20_sub16`'s lane map: 20 of 32 call slots busy), 5 for the 4-lane kernel. Cross-lane shuffles: 2, 2,
+  0.25. On the gfx11 build these shuffles are already DPP (row_xmask, and permlanex16 for 16;
+  `include/strata/hip_compat/intrinsics.hpp`, `STRATA_DPP_SHFL`), not `ds_bpermute`, so fewer shuffles save VALU
+  slots, not LDS round trips. Shared-memory reads: ~9 (mode 0), ~0.75 (EXPDEC: an activation word serves 4 rows),
+  ~1.9 (4 lanes: the 8 rows of a wave broadcast-read the same words, one read per row). Blocks per group row: 160,
+  20 (rb 128 at 40 groups), 40. So against EXPDEC_DOWN it trades fewer VALU instructions for more shared-memory reads;
+  which one the down is bound by on gfx1100 is not known.
+- Size of the prize: before EXPDEC_DOWN the whole Q2_0 down was 5.79% of GPU kernel time (rocprofv3, 2026-11-09), and
+  EXPDEC_DOWN has already taken part of it. VRAM-hit expert kernels hide behind the CPU wait on edit windows.
+  Estimate against fast-hip: 0 to +1% on short chat, about 0 on edits.
+- Verdict: worth one screen arm on the 7900 XT and no more until it shows a gain; it needs no new code: fast-hip vs
+  `STRATA_EXP_MODE=9 STRATA_EXP9_GU=16:0,22:0 STRATA_EXP9_DOWN=42:10` (EXPDEC gate/up kept, the 4-lane down replaces
+  EXPDEC_DOWN). Text must be identical. A per-phase check first: `native_expert_bench` with `STRATA_EXPDEC=1
+  STRATA_EXPDEC_DOWN=1 STRATA_EXP9_GU=16:0,22:0 STRATA_EXP9_DOWN=42:10`, mode 0 vs 9 (the `down` column). Low priority
+  next to the CPU-side items.
+
+F14 follow-ups (KhaledElzarw, not ported yet; all opt-in and bit-identical in the fork):
+
+| Item | Fork commit | What | Fork result (RTX 3090) | Note for us |
+| --- | --- | --- | --- | --- |
+| `STRATA_GR_DOWN82` (+ `GR_UP8`, `FETCH_FORK`) | `8817a1651d` (+313/-10) | HC down read on 80 blocks x 136 threads by lane quarters, the group's last block does the warp_sum; PCIe fetch on its own stream | phase-2 bundle with `GR_UP_WIDE` + `GRAPH_PRIO`: +1.0% | `GR_UP_WIDE` and `GRAPH_PRIO` are already in pancake (env-only arms); `FETCH_FORK` only matters with a PCIe share |
+| piped-MTP guard | `c089f11af5` | DOWN82 / DOWN86 / GR_RES off for any `STRATA_PIPED_MTP` (one combine scratch per device) | fix | take it together with DOWN82 / DOWN86 |
+| `STRATA_GR_DOWN86`, `STRATA_GR_UP_HYB=n`, `STRATA_GR_XN=1` | `857158c66d` (+297/-21, `fused_gr.cu`) | DOWN82's partition with a cp.async shared-memory ring (3-4 stages); UP75 from n tokens; the up kernels read the norm's xn | +2.3% paired (CI 1.015-1.042) | cp.async: CUDA only (no async LDS copy on gfx11); the 3060 has 100 KB shared memory per SM like the 3090, recheck the stage count |
+| tier 5: `STRATA_GR_UP_PL`, `STRATA_GR_D87=8`, `STRATA_ACTQ_SKIP`, `STRATA_DOORBELL_STORE`, `STRATA_FUSE_HITS` (`STRATA_GR_RES` neutral) | `20f1fa1a95` (+929/-34) | HC read variants; skip the CPU activation of tokens with no CPU entry; doorbell store instead of a PCIe read-modify-write; add_hits folded into the combine on CUDA | +4.0% median / +4.7% geo-mean together | `DOORBELL_STORE` is in pancake; `FUSE_HITS` is HIP-only here (`fuse_hits_on()` returns false on CUDA although `combine_k10_vec4_hits` exists); UP_PL, D87, ACTQ_SKIP are new |
+| `STRATA_MMVQ_IL_3090` | `ca1edf8786` (+43, `native_mmvq.cu`) | the 2-4, 5-8 and one-column rows-per-warp tables read off `mmvq_il_parity --bench` | +1.8% | re-read the tables on the 3060 (28 SMs) with `mmvq_il_parity --bench`, the 3% rule |
+| not taken | `0af4328ec8`, `691fa9d191`, `287cd207ad` | ROUTE_BELL, POOL_DAG=1/2 | bundle +1.1% (CI -0.3..+2.5), not adopted by the author | skip |
+
+Env-only arms for TEST_PLAN 4.1.7 (no code): `STRATA_GR_UP_WIDE=1`, `STRATA_GRAPH_PRIO=1`, `STRATA_DOORBELL_STORE=1`.
+
+#### F17 status (2026-11-10, branch `work/f17-poly-fattn`: coded, not built, not measured)
+
+Ported from RandoTeam/4gbVramStrata (MIT: Niko1221 and the Strata contributors, VecSzn and the PolyStrata
+contributors), the last state of its `src/poly/fattn*` before the rename to `src/fourgbvram` (4638045c): 79b1e756
+(`STRATA_FATTN`, Travis Sinclair), 79acffe5 (decided per card and per scratch), 67f60c12 (`STRATA_FDEC`, Travis
+Sinclair), 7fb9d79d (groups of 16), ac6402df (the copy in step with the llama.cpp pin), bee07744 (the 4,096-row start
+of the decode kernel, VecSzn; the fork's default-on part was not taken). Full SHAs from `data/fork-kb/forks.sqlite`,
+diffs read with `gh api`.
+
+What is in the tree:
+- `src/poly/fattn_mma.cuh`: llama.cpp's `fattn-mma-f16.cuh` with three marked changes (the causal mask computed in
+  the kernel from the positions, `mask_ptr` never read; each tile's softmax max and sum written to `dst_meta`;
+  `dst_meta` passed at the tile's first head), up to its host launcher. Our pin is the fork's (`3cf03257f`): the
+  upstream file's sha256 matches the copy's header, and `src/poly/fattn_mma.patch` applied to it gives the copy byte
+  for byte (`STRATA_GGML_DIR=<main checkout>/third_party/llama.cpp python -m unittest tools.test_fattn_sync`: 2 OK).
+- `src/poly/fattn.cu` / `fattn.hpp` (in `strata_poly_mmq`; stubs on HIP): `fattn_q8/_f16` (prompt) and
+  `fdec_q8/_f16` (decode). pancake's changes: (1) pancake's q8_0 row keeps its 512 codes and 16 fp16 scales together
+  (544 bytes), the fork's are two arrays: `Kvq8` carries both row strides and `q8_cache()` makes one for store_q8()'s
+  rows; the dequant kernel and the decode kernel take the strides (for the fork's layout they are width and width/32,
+  the old arithmetic); `fdec_q8` checks the 8-/16-byte alignment of codes and scales and refuses otherwise; (2) a
+  batch whose block does not fit the scratch goes in slices of half as many tokens (whole tiles), each its own batch
+  (see the VRAM check: without this the kernel never runs on our 4,096-row elastic batches).
+- `src/poly/qwen35.cpp`: opt-in. `STRATA_FATTN=1`: prompt batches (>= 32 rows) over a q8_0 or fp16 cache first try
+  `fattn_*`, else `attend_batch*` as before. `STRATA_FDEC=1`: decode calls whose launch is sized for more than 4,096
+  rows (`room(n)` when recorded, else pos + n; `STRATA_FDEC_FROM=N`, 0 = from the first row) first try `fdec_*`, else
+  `attend*` (with `--attn-split` as configured). Decided by the launch's size, not the fork's `pos >= 4096`, so a
+  recorded graph makes the same choice at every replay. `--kv-q4` keeps the old kernels. Both unset: no CUDA call is
+  added and every call is the old one with the old arguments (byte-identical by construction; `g++ -fsyntax-only
+  -std=c++20` clean on qwen35.cpp and main.cpp; nothing else compiled).
+- `src/poly/fattn_test.cu` -> `poly_fattn_test` (CUDA only): the fork's test on pancake's rows and kernels, plus two
+  slice cases (a scratch too small for the batch; a 4,096-token batch in the real 64 MiB score_), the same bits on
+  both q8 layouts, and in `dec` mode the time against `--attn-split` beside the plain kernels.
+- `src/poly/main.cpp`: after each `DONE`, the main engine's `strata serve: prompt ... read in ... generated in ...`
+  line on stderr, so `tools/pancake/abtest.py` (which reads only that line) can run strata-poly specs; tokens unchanged.
+- `tools/pancake/poly_kl.py`: the KL gate for strata-poly (none existed: `force_check.py` drives the main engine):
+  `--tokens @prompt --follow @answer --top-probs 20` for the base twice (noise floor) and each arm; KL on the base's
+  top-20 + the rest, top-1 agreement; `--selftest` passes (no GPU).
+- `bench/specs/18-f17-poly-fattn-3060.json`: base (qwen36 preset) vs `fattn`, `fdec`, `both`, `fdec-from0`; cases
+  short, edit, long32k, long64k, `prefill: true`, lossy.
+
+VRAM check against our setting (qwen36 preset: `--max-context 131072 --kv-q8`; from the GGUF: head_count 16,
+head_count_kv 2, key/value_length 256, 41 blocks with the MTP block, an attention layer every 4):
+- Both kernels work in Qwen35's existing `score_`: chunk_ = 16,777,216 / (16 * 131,072) = 8, so 8 * 16 * 131,072 =
+  16,777,216 floats = 64 MiB. No new allocation: "no VRAM added" holds in code. The old path's buffers (`awork_` ~25
+  MiB at --prompt-batch 1024, `deq_` 4 MiB) stay allocated, so nothing is freed either (follow-up once FATTN is the
+  default: skip them, ~29 MiB more for the expert cache).
+- FATTN's need: a batch of n tokens keeps n * 16 * 256 floats of results + 2 * 2 * n * 16 of max/sum + an int a
+  tile, then K and V of a block as fp16 (512 floats a row). n = 1,024 (--prompt-batch default): blocks of 24,416 key
+  rows, 6 blocks (5 merges) at 131K. n = 2,048: 16,096 rows a block. **n = 4,096 does not fit at all**: its results
+  alone are 16,777,216 floats, the whole score_. The preset's `--elastic-prefill 1024` reads every prompt of >= 1,024
+  tokens in batches of up to 4,096 (--elastic-batch default), so with the fork's code every long prompt (the case
+  FATTN is for) would have fallen back to attend_batch_q8 without a word (the fork decides once at load, with rows_
+  = 1,024, and refuses per call). Hence pancake's slices: a 4,096 batch is two passes of 2,048, each re-dequantizing
+  the prefix (at 131K ~0.4 GB of traffic a layer, ~1 ms on the 3060, against ~0.1-0.2 s of attention a layer).
+- FDEC's need at 131,072: 128 splits * 2 KV heads * 32 rows * (256 + 2) = 2,113,536 floats = 8.06 MiB of score_.
+- The old objection (docs/PANCAKE_FINDINGS.md: ggml's fattn needs a mask buffer and fp16 copies of the Q8 cache,
+  ~130 MB at 42K) does not apply: the mask is computed in the kernel (change 1), the fp16 blocks live in score_.
+- The cache itself: 544 bytes a row for K and for V, 11 attention layers (10 + the MTP block): 11.7 KB a token, 1.46
+  GiB at 131K (VMM, grows with the conversation; both kernels read only rows below pos + n).
+
+Numerics (the fork's measurements; KL gate before any default): llama.cpp's kernel sums the value products in halves
+on NVIDIA (T_C_VKQ), so FATTN is up to 7.7e-3 from doubles on results up to 2.9 (attend_batch 2.3e-3; RTX 3070);
+FDEC within 1.8e-3 (the fork's attend ~1e-6; our `--attn-split` already rounds values to halves, so FDEC is nearer the
+preset's kernel than the fork's). The fork's quality checks: 107K / 247K recall passed, 11 of 12 long-context answers
+with and without, greedy text parts from the old path at near-ties. Gate: `tools/pancake/poly_kl.py` at 32K and 64K;
+proposal PASS = mean KL <= 1e-3 and top-1 >= 99% (q8 KV < 0.00012 and BFLA 0.0014 / 0.0045 for scale).
+
+Expected gain on the 3060 (estimates, code reading):
+- FATTN: the 42K read spends ~12 of 32 s in attention (QK 4.0 s, PV 4.1 s, softmax 3.1 s, dequant/rescale 0.8 s);
+  the fork's 3070 numbers against the same kind of old path (cuBLAS + softmax in memory): 32K +27%, 103K +69%,
+  143K +75%. Est. +20-35% prompt tok/s at 32-64K, more at 128K, ~0 below 8K.
+- FDEC: **smaller than the claim.** The fork's 1.60x is against `attend()`'s three kernels (scores through memory
+  twice); the qwen36 preset runs `--attn-split`, already one tensor-core pass (blocks of 512 rows, 16 queries = 2
+  tokens of a group a launch block). FDEC's blocks take 1,024 rows for up to 4 tokens (32 query rows): K/V are read
+  once per 4 tokens instead of once per 2. No change for 1-2-token steps, half the K/V bytes for windows of 3+
+  tokens. A full K/V read over the 11 layers is 1.46 GiB at 131K (~4.7 ms on the 3060), 0.36 GiB at 32K. Est. +0-8%
+  decode at 32-128K on drafted windows. `poly_fattn_test dec`'s last column (against `--attn-split`) decides it.
+
+Run on the 3060, in this order: (1) build `build-cuda` (strata-poly, poly_fattn_test); `poly_fattn_test`,
+`poly_fattn_test dec`, `poly_fattn_test gqa16` (every line `ok`, `all passed`); (2) `./run-pancake.sh qwen36` once
+(renders pancake-qwen36-ud-q4_k_xl.json), then `abtest.py bench/specs/18-f17-poly-fattn-3060.json --tier screen`;
+(3) `poly_kl.py` at 32K and 64K (the spec note has the command); (4) only with a PASS and a speed gain: on for sm_80+
+in the qwen36 presets (env in the config, not a code default).
+
+gfx1100 (what a WMMA version needs; nothing coded):
+- Prerequisite: strata-poly on HIP at all (F19: RandoTeam `44b58c6a` VMM / cuBLAS shims, `4636dbe3` VMM caveats,
+  `6a991bce` q8 KV on HIP; `run-pancake.sh` refuses poly on HIP today). On HIP poly's decode attention is
+  `attend_rows` (`STRATA_POLY_SPLIT` is CUDA-only), so there the baseline is the fork's kind, and a decode kernel that
+  reads K/V once per window has the fork's kind of headroom, unlike on the 3060.
+- Prompt kernel (FATTN): close. llama.cpp's fattn-mma-f16 at our pin already has an AMD WMMA path:
+  `AMD_WMMA_AVAILABLE` for RDNA3 and RDNA4 (`common.cuh`), a `ggml_cuda_fattn_mma_get_config_rdna` table (D=256, 64
+  columns: 256 threads, occupancy 2, nbatch_fa 64, one stage, no cp.async), and ggml's dispatcher picks it on RDNA for
+  a GQA ratio divisible by 8. Needed: (a) compile `fattn.cu`'s prompt half for HIP through ggml's own HIP path
+  (`vendors/hip.h`, GGML_USE_HIP, `RDNA3` from `__gfx1100__`), which `strata_poly_mmq` already uses for MMQ, and keep
+  FDEC behind `!GGML_USE_HIP`; (b) `make_setup`: `amd_wmma_available(cc)` instead of the NVIDIA/Ampere test; (c)
+  **np**: every RDNA row for D=256 gives np >= 2 (8 waves x 16 columns = 128 > 64), and change 2 writes `dst_meta`
+  only for np == 1, so the launcher would refuse. Either a fourth change (write the combined max and sum, `KQ_cmn` /
+  `KQ_crs`, from the np > 1 combine branch, where the `threadIdx.y % np == 0` waves hold them; patch and sync test
+  updated), or a pancake-only RDNA config row with 128 threads (4 waves x 16 = 64, np = 1) tuned against it; (d)
+  check T_C_VKQ on AMD (a float accumulator would put the numbers nearer attend_batch than on NVIDIA); (e) launch cost
+  (~14-16 us on gfx1100): ~8 blocks x 4 launches x 11 layers a batch at 131K, ~5 ms against seconds of attention; (f)
+  a HIP `poly_fattn_test` run. Size: ~150-250 lines + the build. Alternative: storm-ace `e4fc07ee` (gfx11
+  `v_wmma_f32_16x16x16_f16` flash prompt kernel, q36 engine), F19 route b.
+- Decode kernel (FDEC): a rewrite, not a port. `mma.sync m16n8k16` -> `__builtin_amdgcn_wmma_f32_16x16x16_f16_w32`
+  (16x16x16, wave32; on RDNA3 the A/B operands are 16 halves a lane with lanes 16-31 repeating 0-15, and C is 8
+  floats a lane, rows interleaved by lane half), so S takes 16 keys a WMMA instead of 8 and every fragment index
+  changes; `__byte_perm` -> `__builtin_amdgcn_perm` (v_perm_b32, another selector encoding); the exact int8 -> half
+  trick (0x64XX - 1152) works on any IEEE fp16 unit; `__shfl_xor_sync` is DPP already (`hip_compat`,
+  `STRATA_DPP_SHFL`); LDS ~21.5 KiB a block (Qs 16.5 + Ps 4.5 + red) fits 64 KiB. ~400 lines. Temper the hope:
+  decode attention is bandwidth-bound (800 GB/s on the 7900 XT), pancake's own gfx11 WMMA decode attention
+  (`STRATA_ATTN_WMMA`, feat/bitdecoding-hip) measured neutral on Flash-Next, and the gain is reading K/V once per
+  window, which a CUDA-core kernel can also do (F11 Asofwar, dongnh311 `62cc598f` GQA-shared decode). Prompt first.
 
 ### 15C. RX 7900 XT (HIP) only
 
 | ID | Idea | Exact/lossy | Expected gain | Source |
 | --- | --- | --- | --- | --- |
-| F19 | Qwen3.6 on the 7900 XT: either port RandoTeam's poly HIP work + a gfx11 WMMA flash prompt kernel, or move Qwen3.6 to the in-tree q36 engine with the fork fixes (FP16 K/V, K/V read once per group) | exact / fp16 | storm-ace (gfx1151) 32K prompt 360 -> 938 tok/s; dongnh311 (3060) decode after 16K 12.0 -> 27.5 tok/s | RandoTeam `44b58c6a`...; storm-ace `e4fc07ee`, `4fe0284d`; dongnh311 `62cc598f`; maoyufeng `2f7020f2` |
+| F19 | Qwen3.6 on the 7900 XT: either port RandoTeam's poly HIP work + a gfx11 WMMA flash prompt kernel, or move Qwen3.6 to the in-tree q36 engine with the fork fixes (FP16 K/V, K/V read once per group). What a gfx1100 version of F17's two kernels needs: "F17 status", gfx1100 part (the prompt kernel is close: the copy at our llama.cpp pin already has an RDNA3 WMMA path) | exact / fp16 | storm-ace (gfx1151) 32K prompt 360 -> 938 tok/s; dongnh311 (3060) decode after 16K 12.0 -> 27.5 tok/s | RandoTeam `44b58c6a`...; storm-ace `e4fc07ee`, `4fe0284d`; dongnh311 `62cc598f`; maoyufeng `2f7020f2` |
 | F20 | Empty-block launch probe on gfx1100 (unimatrix `empty_grid.cpp`), then resize launch shapes of the decode graph (upstream gfx12 `grid_pad`) | exact | unimatrix (7900 XTX): a 384x256 launch cost 14-16 us empty; 96 blocks gave +6% there -> 0 to several %, unknown until probed | unimatrix099 `d0c8d6c3e2`; mandoof1 `2b46e4b13d` |
 | F21 | Plan copy with 256 threads and 16-byte reads (`STRATA_WAIT_COPY256`); `STRATA_ADAPT_COPY2`; `multi_block_head_ops()` on gfx1100 | exact | +0.2-0.4%; 0-0.5%; ~0.1% | android-imdad `caa9b00115` |
-| F22 | Port `STRATA_HIP_WMMA_Q4` (gfx12-only) to gfx11 so Q4 KV prompt attention is fast and frees VRAM for experts | exact | VRAM for experts + faster long prompts | upstream / forks (see attention notes) |
+| F22 | Port `STRATA_HIP_WMMA_Q4` (gfx12-only) to gfx11 so Q4 KV prompt attention is fast and frees VRAM for experts. **Coded 2026-11-10 on `work/f22-wmma-q4-gfx11`, not built, not measured; see "F22 status" below** | rounding-level vs today's Q4 path (FP32-level with `STRATA_PA_FAST=0`); `--kv q4_0` itself is lossy | VRAM for experts (~180 MiB = ~131 slots at `--kv-resident 32768`) + faster long prompts on Q4 KV | bsorensen110 `19fc0e48` (attention notes) |
+
+#### F22 status (2026-11-10, branch `work/f22-wmma-q4-gfx11` from `origin/dev/batch-1` `dd8bf619b`: coded, not built, not measured)
+
+What was there: nothing. `STRATA_HIP_WMMA_Q4` was not in pancake (no hit in `src/` or `include/`); it lives only in fork
+bsorensen110 `19fc0e48` (cherry-pick of `b9820dd56`), read from GitHub. On gfx1100 `--kv q4_0` today makes
+`qsa_prompt_attn_batch` return false on HIP, so the prompt runs `qsa_decode_attn_batch` (the FP32 decode kernel, 32
+queries a call), the slow path the int8 preset left behind with `STRATA_HIP_WMMA=1`.
+
+Why the fork's kernel was gfx12-only: only its host gate (`hip_wmma_arch(dev) == 2`). The kernel uses no FP8 and no gfx12
+builtin; every fragment goes through `qsa_prompt_attn.cu`'s S6 macros (`PA_KL`, `PA_KOFF`, `PA_ROW`, `wmma_f16` =
+`v_wmma_f32_16x16x16_f16`, `_w32` on gfx11 / `_w32_gfx12` on gfx12), the ones the int8 kernel uses, and the int8 kernel
+runs on the 7900 XT every day (fast-hip preset). Built for gfx11 those macros give the duplicated-half layout gfx11's
+wave32 WMMA needs (lanes 16..31 carry the same A row / B column as lanes 0..15, 16 k each; C row 2i + lane / 16). Each
+access was checked for it: q's A fragment, K's B fragment (column cell by `__shfl(row, nt * 16 + col)`, all 16 code bytes
+of the block: low nibbles k-step 2b, high 2b + 1), p's A fragment (cells ks * 16 + 0..15 of row col), V's B fragment and
+the C rows.
+
+The change (`src/kernels/cuda/qsa_prompt_attn.cu`):
+- `prompt_attn_wmma_q4_kernel<SPLIT, RPF, TR>`: the fork's kernel, its math unchanged: a wave's 64 dims are the q4_0
+  blocks 2w and 2w + 1; q.k = block 2w's WMMA partial times its K scale, then block 2w + 1's added with an fma; the four
+  waves' partials summed in the int8 kernel's fixed order; p.v folds the two V scales into p against one shared
+  magnitude (`fabsf`: q4_0 scales are signed); nibbles enter as exact FP16; q and p split hi + lo (SPLIT).
+- Added beyond the fork: the int8 kernel's `STRATA_PA_TRIM` (default 2: padding rows out of LDS, 72-byte V rows) and
+  `STRATA_PA_RPF` (default on: next chunk's ids read ahead) variants, same names and defaults, same arithmetic in the
+  same order (the fork's kernel is TR 0, RPF off); `STRATA_PA_FAST=1` / `STRATA_PF_SWITCH_MIN_T` choose SPLIT as for int8.
+- `hip_wmma_q4_usable()`: `STRATA_HIP_WMMA_Q4=1` on arch 1 (gfx11, the `PA_GFX11` list) or 2 (gfx12), one stderr line;
+  its own failure flag (a failed launch falls back to the FP32 kernel for the process and leaves the int8 path alone);
+  independent of `STRATA_HIP_WMMA`. Dispatch in `qsa_prompt_attn_batch`'s HIP block after the int8 check.
+- Default: unset, the new code is never reached past `pools.k_q4 != nullptr` (int8 pools take the int8 branch or skip on
+  `k_q4 == nullptr`); the int8 kernels are untouched, so the default path is byte-identical (code reading; nothing built).
+- `qsa_prompt_attn_parity` / `hip_prompt_attn_wmma`: on AMD also the three q4_0 cases (ctx, 1500, 2100) with
+  `STRATA_HIP_WMMA_Q4=1` (`STRATA_PARITY_SKIP_Q4=1` skips them).
+
+Exact or not: not bitwise, rounding-level against today's gfx1100 Q4 path. With `STRATA_PA_FAST=0` it is FP32-level
+(another summation order and exp2 rounding than the FP32 kernel; the parity test's bounds: error vs FP64 at most 4x the
+FP32 kernel's, new vs old within 1e-4 of the output scale). The fast-hip preset sets `STRATA_PA_FAST=1`, so the kernel would
+run with one FP16 image of q and p: FP16 attention, as the int8 WMMA kernel already runs in that preset. The KV format is
+the larger difference: `--kv q4_0` vs the preset's `--kv int8` is lossy by itself (bench/results/2026-09-27-kv-q4:
+document perplexity +8% at 1K, +12% at 8K, KL 2.6-4.2x int8's; needles 5/5 with `--kv-resident 32768`).
+
+Preset change to use it: in `configs/pancake/flashnext-iq2_xs-fast-hip.json` `--kv int8` -> `--kv q4_0` and env
+`STRATA_HIP_WMMA_Q4=1` (keep `--kv-resident 32768`, `--max-context 131072`). VRAM at 131072 context (12 QSA layers;
+1,056 B per cell and layer int8, 576 B q4_0):
+- resident K/V (32768 cells): 396 MiB -> 216 MiB, **180 MiB freed = ~131 expert slots** (1.37 MiB a slot: 10,735
+  slots in 14.38 GiB in the daily log), +1.2% slots. The 2026-09-27 run (Q2_0, 128K, same streaming) saw 4,044 -> 4,190.
+- prompt staging pool (one layer, all 131072 cells, lent from expert slots during a streamed prompt): 132 -> 72 MiB, so
+  ~44 fewer slots lent while a long prompt is read.
+- pinned RAM for the host K/V copy: 1,584 -> 864 MiB.
+- without streaming the whole 131072 context would take 864 MiB with q4_0 (1,584 int8): more VRAM than today's streamed
+  int8 (396 MiB), so keep `--kv-resident`. Option: `--kv q4_0 --kv-resident 65536` = 432 MiB (36 MiB more than today)
+  with twice the resident window.
+
+Run on the 7900 XT, in this order: (1) build-hip, `hip_prompt_attn_wmma 32768 2048 3`: every line PASS, the q4_0 ones
+included; repeat with `STRATA_PA_TRIM=0 STRATA_PA_RPF=0` and compare the q4_0 checksums (must be equal: TR/RPF keep the
+bits). (2) `python tools/pancake/abtest.py bench/specs/18-f22-wmma-q4-gfx11.json --out bench/results/<day>/18-f22.jsonl
+--tier screen` (reference arm q4-fp32 = today's Q4 path; q4-wmma, q4-wmma-split, int8-daily). (3) If Q4 KV is wanted on
+the daily preset: token forcing, needles at 32K / 128K and the tool-call task gate on int8 vs q4_0 (the format, not the
+kernel, decides).
+
+Risks: unbuilt (a compile error is possible; gfx11 register pressure is lower than the int8 kernel's: the Chunk holds
+~40 VGPRs vs ~53); K is read with 2-byte loads (q4_0 blocks are 18 bytes), so on gfx11, where both half-waves need all
+16 bytes, a lane issues 8 16-bit loads per block (follow-up if it is load-bound: 9 dword loads for a wave's two blocks
+at their 4-byte-aligned 36-byte offset); the kernel is unmeasured on any gfx11 part (fork speed: gfx1200 only); the gain
+needs Q4 KV, which costs precision; the decode-side Q4 attention on gfx1100 in this preset is unmeasured too (the
+2026-09-27 run was not on this card).
 
 ### 15D. Measured negatives (do not repeat)
 
