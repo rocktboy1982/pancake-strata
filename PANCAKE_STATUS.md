@@ -4,7 +4,36 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-09 18:13
+Last update: 2026-11-11 17:15 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
+
+## Current status (2026-11-11): Phase 17, owner priority 1 = TTFT at long context
+
+Working branch: `dev/p17/integration` (pushed; `dev/phase16-academic` plus the agent branches below). Full HIP build of it: OK; new unit tests
+(`kv_ring_test`, `route_prior_auto_test`, `conv_cache_test`, `defer_auto_test`, `defer_rank_test`) pass under ctest. No GPU run of any new switch yet:
+by day only code is written, the measurements are in the night queue (MOD_PLAN Phase 17, `tools/pancake/night_queue.py` when the agent finishes).
+
+| Item | What | Dev | Test | Where |
+| --- | --- | ---: | ---: | --- |
+| 17.0 | TTFT harness (`ttft_bench.py`: single prompts 8K-100K, 10-turn session, side requests, sub-agent switch, warm-delta sweep, engine-log attach) and audit (`ttft_audit.py`) | 100% | harness 41 fake-server tests; 0% on a real engine | `dev/p17/ttftbench`, `ttftscen`, `ttftlevers` |
+| 17.0 | Lever analysis: cache misses are the only multi-second loss (warm turns re-read ~1% of the prompt, TTFT ~1 s; a lost 54-62K conversation costs 21-25 s per turn) | analysis | - | `pancake-docs/TTFT_LEVERS.md` |
+| 17.0 | `STRATA_PARK_REWIND_MAX` (skip the park when resuming from the live conversation's own checkpoint) + `STRATA_PARK_DIVERGENCE_LOG` | 100% | `conv_cache_test` PASS, 21 Python tests; 0% on a real engine | `dev/p17/parkrewind` |
+| 17.0 | Prefill levers: chunk plans 32K-128K, equal-tail guard, staged-path floor, long-context fault check (#5539) | in flight | 0% | `dev/p17/prefilllevers` |
+| 17.0 | Prefix stability of opencode / Copilot requests (M4) + opt-in request capture | in flight | 0% | `dev/p17/prefixcheck` |
+| 17.1 | `STRATA_ROUTE_PRIOR_AUTO` (route prior only in lookup windows, via the F13 gate float) | 100% | unit test PASS; 0% on a real engine | `dev/p17/turbogate` |
+| 17.1 | `STRATA_VERIFY_DEFER_AUTO` (deferral only in lookup windows); finding: deferral turns off six fused paths for the whole process | 100% | `defer_auto_test` 7,171 checks PASS; 0% on a real engine | `dev/p17/defergate` |
+| 17.2 | Prose gap to Avalon: analysis + `prose_gap.py` (Avalon commits more tokens per window on prose; its MTP head is larger) | 100% | 11 fake-server tests; 0% measured | `dev/p17/prosegap` |
+| 17.3 | Greedy ablation driver `ablate_greedy.py` + plan of 23 candidates | 100% | 19 fake-engine tests; 0% real | `dev/p17/ablate` |
+| 17.4 | `STRATA_KV_RING_ADAPT` (adaptive resident KV ring; credit xyzzing / upstream PR #3919) | 100% | `kv_ring_test` PASS; speed 0% | `dev/p17/kvring` |
+| 17.8 | Draft vocabulary from real code (38 languages, 60,895 rows): held-out misses 4.3% -> 1.55%; **no effect on decode or acceptance** | closed | measured (no gain) | `bench/results/2026-11-11-vs-avalon/` |
+| review | Correctness review of all the unrun C++ above | in flight | - | `dev/p17/review` |
+| night | Night queue runner (deferral retest, TTFT baseline, lever arms, KV ring, prose profile) | in flight | - | `dev/p17/nightqueue` |
+
+Measured 2026-11-11 (same client, same ISTA files, warm second pass; `bench/results/2026-11-11-vs-avalon/REPORT.md`): long prompts are the
+difference (Strata family 2.4-2.8K tok/s at 12-25K tokens vs Avalon 1.5-1.6K; exact `hip` preset 0.8K); decode is a near tie (104-111 tok/s);
+Q2_0 = IQ2_XS; turbo -4..-8% (not a default); Avalon cannot run the Q2_0 file. Open: expert deferral (Q2_0 off +7-8% reproduced, IQ2_XS off -3%,
+partly overlapped with agent activity): retest at night on a quiet machine.
+
+
 
 Mode now: **development first** (owner, 13:15).  Test queues stopped.  All speed numbers measured today are provisional:
 other work ran on the machine during them; the test phase repeats every A/B on a quiet machine.
