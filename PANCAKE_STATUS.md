@@ -26,7 +26,7 @@ by day only code is written, the measurements are in the night queue (MOD_PLAN P
 | 17.4 | `STRATA_KV_RING_ADAPT` (adaptive resident KV ring; credit xyzzing / upstream PR #3919) | 100% | `kv_ring_test` PASS; speed 0% | `dev/p17/kvring` |
 | 17.8 | Draft vocabulary from real code (38 languages, 60,895 rows): held-out misses 4.3% -> 1.55%; **no effect on decode or acceptance** | closed | measured (no gain) | `bench/results/2026-11-11-vs-avalon/` |
 | review | Correctness review of all the unrun C++ above | in flight | - | `dev/p17/review` |
-| night | Night queue runner (deferral retest, TTFT baseline, lever arms, KV ring, prose profile) | in flight | - | `dev/p17/nightqueue` |
+| night | Night queue runner `night_queue.py` (43 engine starts, quiet-machine guard, resume, RESULTS.md; deferral retest, TTFT baseline, lever arms, KV ring, prose profile; estimate 7 h 26 min, a guess) | 100% | 22 fake-engine tests PASS; never run on a real engine | `dev/p17/nightqueue`, `pancake-docs/NIGHT_QUEUE_RUNNER.md` |
 
 Measured 2026-11-11 (same client, same ISTA files, warm second pass; `bench/results/2026-11-11-vs-avalon/REPORT.md`): long prompts are the
 difference (Strata family 2.4-2.8K tok/s at 12-25K tokens vs Avalon 1.5-1.6K; exact `hip` preset 0.8K); decode is a near tie (104-111 tok/s);

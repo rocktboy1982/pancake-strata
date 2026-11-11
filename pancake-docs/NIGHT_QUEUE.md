@@ -3,6 +3,10 @@
 Owner rule (2026-11-11): development by day, GPU testing by night.  The night cron (21:07) follows this file; edit this file
 (not the cron) when the queue changes.  Repo root for every command: `/home/dan/clone-of-d/src/Strata-p16`.
 
+Phase 17 night items (deferral retest, TTFT baseline and levers, KV ring, prose profile) have their own one-command runner with a
+quiet-machine guard, resume and a results table: `pancake-docs/NIGHT_QUEUE_RUNNER.md` (`tools/pancake/night_queue.py`). Do not run
+both at once.
+
 ## 0. Preconditions (stop and report if any fails)
 - No `abtest.py`, `restore_check.py` or `strata` process running; `MemAvailable >= 40 GiB`; nobody else using the GPU.
 - Rebuild the HIP binary if C++ merged since the last build (build dir `/home/dan/.cache/strata-p16-final-hip2`, configure flags in
