@@ -137,6 +137,12 @@ def stop_server(proc):
             pass
 
 
+def engine_log(name):
+    """The engine's own stderr of this arm: the preset's `log` is one shared file, so the evidence checks (tool-boundary
+    checkpoint, disk writes and read-backs) would count another arm's lines or none; per run so a rerun cannot inflate them."""
+    return ROOT / f"restore-check-{name}.engine.{os.getpid()}.log"
+
+
 def run_arm(name, env_extra, a, args_extra=None, side=False, restart_before=None):
     sys.path.insert(0, str(ROOT / "tools/pancake"))
     import abtest                                        # make_config: the same arm overrides abtest uses
@@ -145,7 +151,7 @@ def run_arm(name, env_extra, a, args_extra=None, side=False, restart_before=None
     cfg_path = ROOT / f"restore-check-{name}.json"
     cfg = abtest.make_config(str(base), {"env": {"STRATA_SNAPSHOT_VERIFY": "1", **env_extra},
                                          "args": {"--adapt-swaps": "0", **(args_extra or {})}}, str(cfg_path))
-    cfg_path.write_text(json.dumps({**cfg, "turn_log": None}, indent=1))   # keep the daily turn log clean
+    cfg_path.write_text(json.dumps({**cfg, "turn_log": None, "log": str(engine_log(name))}, indent=1))   # keep the daily turn log clean
     log_out = ROOT / f"restore-check-{name}.log"
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     # (STRATA_CACHE_TOOL_BOUNDARY is read by the server too: a config's env reaches only the engine)
@@ -260,7 +266,7 @@ def main():
         shutil.rmtree(disk_dir, ignore_errors=True)
         if disk is None:
             return 2
-        log = (ROOT / "restore-check-disk.log").read_text(errors="replace")
+        log = engine_log("disk").read_text(errors="replace")
         wrote, back = log.count("conversation disk: wrote"), log.count("conversation disk: read back a")
         print(f"[disk] engine log: {wrote} writes, {back} reads back")
         if wrote < 2 or back < 2:
@@ -273,7 +279,7 @@ def main():
             print(f"[{arm}] no cached token on {', '.join(turns_)}: the cache was never exercised there; the result "
                   f"would prove nothing", file=sys.stderr)
     if a.tool_boundary:
-        marks = (ROOT / "restore-check-restore.log").read_text(errors="replace").count("tool boundary checkpoint at")
+        marks = engine_log("restore").read_text(errors="replace").count("tool boundary checkpoint at")
         print(f"[restore] engine log: {marks} tool-boundary checkpoint(s) taken")
         if marks < 1:
             print("[restore] no tool-boundary checkpoint was taken: the retry resumed from an older one, so --tool-boundary "
