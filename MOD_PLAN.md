@@ -1506,7 +1506,7 @@ Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Te
 | --- | --- | --- | --- | --- |
 | citecheck / dev/p16/citecheck | citations of Phase 15/16 and README 4C | done, merged (c4660fcbe) | 85 arXiv ids + 12 URLs checked | n/a (corrections below) |
 | compilegate | CPU/HIP compile baseline of dev/batch-2, ctest -L cpu | running | - | - |
-| rankguard | A4 fold, A4 rank guard, F5, F13, HOBBIT proxy (offline), ROUTER_FUSE warning | running | - | - |
+| rankguard | A4 fold, A4 rank guard, F5, F13, HOBBIT proxy (offline), ROUTER_FUSE warning | done (5 commits on dev/p16/rankguard, 3/3 ctest, HIP compile-only ok for verify.cpp), opus review running | GPU screens specs 10, 11-verify-ecap, 11-turbo-guards pending | pending review + screens |
 | disco-suffix | A22/A25/A26 DISCO, A24 suffix index, A21/F6, F8, EcoSpec | running | - | - |
 | policy | A44 bandit, A45, A15 park TTL, F1 park truncate | running | - | - |
 | finemoe | FineMoE replay + PRI eviction, MoE-Infinity baseline, A7/A8/A46 on agent traces | running | - | - |
@@ -1515,12 +1515,23 @@ Columns follow the owner's rule: **Dev** (built, compiled, offline-tested), **Te
 | percache | A11-A14, A16, 90+71, 31, 39 | running | - | - |
 | selftune | item 70 selftune, A6, A49, sweep knobs | running | - | - |
 | phase15 | Phase 15 fork ideas triage | running | - | - |
-| speclint | static validation of bench/specs | running | - | - |
+| speclint | static validation of bench/specs (tools/pancake/spec_lint.py) | done, merged (13e44064d); 19 tests pass; 60 specs: 2 errors, 7 warnings | static only | tool kept (not an engine item) |
 | promotion | promote.py, spec map for every item | running | - | - |
 | kern-cpu | F7 Q2_0 AVX2, F12 IQ sign, CPU pool floor | running (kernel wave, merges last) | - | - |
 | kern-hip | F21, F9, A37 (HIP compile-only) | running (kernel wave, merges last) | - | - |
 | kern-gdn | A31 GDN chunk 64, A36, 16.11 attention/KV | running (kernel wave, merges last) | - | - |
 | datapath | 16.12 loader/PCIe/NVMe, 16.6 cold reads | running | - | - |
+
+#### Findings that change the GPU test plan (2026-11-11 night)
+
+- **15c base is wrong** (spec_lint): `bench/specs/15-q2_0.json` / 15c use base `pancake-flashnext-iq2_xs-rdna3test.json`, which sets none of `STRATA_VERIFY_DEFER_CPU`,
+  `STRATA_POOL_FUSE_PHASES`, `STRATA_EXPDEC_DOWN` and has no `--lookup-max-t 12`, so the `q2_0-stock` arm equals the `q2_0` arm.  The base must be the iq2_xs fast-hip config.  Fix before the 15c redo.
+- Specs 18-f11-attn-window and 18-f17-poly-fattn-3060: their base configs (`qwen36-ud-q4_k_xl*.json`) have no `env` object, `abtest.make_config` raises KeyError.
+- `STRATA_ROUTER_FUSE` never acts in fast-hip or the turbo arms (needs ROUTE_PUBLISH=1, no deferral, no route prior, no DOORBELL_STORE); an A33 retest must run without deferral and without ROUTE_FAST.
+- Rank guard: with 10 weights summing to 1 the top weight is >= 0.1, so at the default `_BELOW 0.1` `_TOP=1` changes nothing and `_TOP=2` only defers a token's second expert when its weight is < 0.1; the measured A4 result comes from those rows only.  FOLD is exact against the same `_TOP` run (random-window test).
+- Item 23 depth prior is NOT AcceptMoE (2608.02989): theirs is a per-block commitment-weighted expert set; ours is a fixed geometric logit bonus, so the plan's +5-15% has no source number.
+- HOBBIT proxy: no usable routing trace with weights exists (the 219-window trace has zero weights); a real measurement needs one `--dump-routing` run.
+- `generate.cpp` misses `#include "strata/core/calibrate_ratio.hpp"` (A45, owner: policy): HIP compile fails until added.
 
 #### Citation corrections (citecheck, 2026-11-11; full table in pancake-docs/batch3/citecheck.md)
 
