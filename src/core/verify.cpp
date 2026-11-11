@@ -1506,6 +1506,28 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                              "merged first window, a batch or pipelined window, or while the request's grammar is "
                              "enforcing\n", ecap_, ecap_,
                      defer_ ? " (STRATA_VERIFY_DEFER_CPU then defers what is left)" : "");
+    // item 48 audit (2026-11-11): STRATA_ROUTER_FUSE only arms on the STRATA_ROUTE_PUBLISH launch (`rpub` at the window's
+    // router step), else it is a silent no-op.  The parts of that condition known here, said once.
+    if (const char* f = std::getenv("STRATA_ROUTER_FUSE"); f != nullptr && f[0] == '1') {
+        const char* p = std::getenv("STRATA_ROUTE_PUBLISH");
+        const char* why = p == nullptr || p[0] != '1'                   ? "it needs STRATA_ROUTE_PUBLISH=1"
+                        : defer_                                        ? "STRATA_VERIFY_DEFER_CPU is on"
+                        : std::getenv("STRATA_ROUTE_PRIOR") != nullptr  ? "STRATA_ROUTE_PRIOR is set"
+                        : route_resident_cfg().margin > 0.0f            ? "the STRATA_ROUTE_RESIDENT margin is above 0"
+                        : device_plan_                                  ? "STRATA_VERIFY_DEVICE_PLAN is on"
+                        : remote_opt_ != nullptr                        ? "--remote-expert-opt is set"
+#if defined(STRATA_USE_HIP)
+                        : g_doorbell_store                              ? "STRATA_DOORBELL_STORE is on"
+#endif
+                        : strata::kernels::native_router_fast_enabled() ? "STRATA_ROUTE_FAST=1 takes the router step first"
+                                                                        : nullptr;
+        static bool said = false;
+        if (why != nullptr && !said) {
+            said = true;
+            std::fprintf(stderr, "strata verify: STRATA_ROUTER_FUSE=1 will not act: %s (item 48 rides on the "
+                                 "STRATA_ROUTE_PUBLISH launch)\n", why);
+        }
+    }
     return true;
 }
 
