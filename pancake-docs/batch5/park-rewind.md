@@ -51,13 +51,42 @@ conversation and is not parked), which has been in use, but nothing here has run
 
 ## 2. `STRATA_PARK_DIVERGENCE_LOG=1` (opt-in, default off; the M3 diagnostic)
 
-See the second half of this note (added with the divergence commit).
+Code: `serve/park_divergence.py` (pure helpers and a tracker), hooked into `StrataEngine.generate` in `serve/server.py`
+(search `self.divergence`). Tests: `serve/test_park_divergence.py` (21 tests, including `StrataEngine.generate` with a fake
+engine pipe). It is in the server, not the engine, because the engine only sees token ids; the server also has the tokenizer.
+
+What it does. The server remembers the last request's prompt plus the tokens the engine streamed back. When the engine
+reports `RESUME n` for the next request and the new prompt does not start with all of those tokens, it prints one line:
+
+    [strata] park divergence {"diverge_at":61234,"live_len":61902,"prompt_len":62500,"prev_prompt_len":61200,
+      "prev_gen_len":702,"reply_offset":34,"where":"reply-start","resume":58880,"live_ids":[...],"new_ids":[...],
+      "live_text":"...","new_text":"...","reply_has_think_close":true,"reasoning_dropped_guess":true}
+
+(one line in the log; wrapped here.) `where` says whether the prompts part inside the old history (`history`: an earlier message
+changed, or this is another conversation, such as a side request) or inside the old reply (`reply-start`, `reply-middle`,
+`reply-end`). `reasoning_dropped_guess` is a guess, not a measurement: the previous reply had a think-close tag and its first
+24 characters are not in the new prompt's version of that reply. The engine's own `resume` is next to it, so a line with
+`resume` far below `diverge_at` is a fallback to a checkpoint.
+
+This log contains prompt and reply text. `live_text` and `new_text` are decoded windows of 4 tokens before and 12 tokens after
+the divergence, cut to `STRATA_PARK_DIVERGENCE_CHARS` characters (default 48; 0 prints ids only). Look at the file before it is
+shared. Nothing is recorded or printed when the switch is off.
+
+Limits: only the plain one-engine path is followed. `--batch`, DeepSeek `--parallel`, picture requests and split serving are
+not; the next request after one of those is compared with nothing. The "live" tokens are the prompt plus the tokens streamed
+back; if a client stops a reply early the engine may hold a few more. An error inside the log turns the log off and never
+changes a request.
+
+How to read it for lever 3: collect the lines of a session with fallbacks (the `fallback` class of `ttft_audit.py`). A cluster of
+`reply-start` lines with `reasoning_dropped_guess: true` means the client or template drops the reasoning (`keep_reasoning`
+is the lever); `reply-end` lines of one or two tokens mean a whitespace or end-of-turn token rendered differently (a template
+fix); `history` lines from a main conversation mean the client edited an earlier message. None of this has been seen yet.
 
 ## 3. Measurement plan
 
 Question: does the skipped park save time, and how often does the case happen?
 
-1. Baseline first, no new switch. Run `tools/pancake/ttft_bench.py --scenario b --turns 10 --sessions 3` (the 10-turn agent
+1. Baseline first, no rewind switch (the divergence log may be on: it changes no request). Run `tools/pancake/ttft_bench.py --scenario b --turns 10 --sessions 3` (the 10-turn agent
    session; item 17.0's harness, branch `dev/p17/ttftbench`) against the daily engine. Then run `tools/pancake/ttft_audit.py` on
    the turn log and the engine log. The effect can only appear if the baseline shows turns of class `fallback` (the request
    continued the previous conversation from a checkpoint at or after the previous prompt end) or parks followed by
@@ -67,7 +96,7 @@ Question: does the skipped park save time, and how often does the case happen?
    the live state, which is when the fallback and its park happen.
 3. Same session with `STRATA_PARK_REWIND_MAX=8192` (and, to read Z, the engine log). Compare per turn: TTFT of the
    fallback turns (`ttft_bench` per-turn medians), the number of `parked N tokens in X ms` lines in the engine log, and the
-   audit's class counts.
+   audit's class counts. The divergence lines of the baseline say which fallbacks exist and why.
 4. Exactness: the replies of the two runs must match token for token at temperature 0 with the same seed (a skipped park
    changes no state the request reads).
 5. Bar to keep it: at least 2 s saved on each fallback turn, or at least 2% of the total session TTFT (`ttft_bench` prints the
@@ -80,9 +109,13 @@ frequent.
 
 ## What ran
 
-Nothing built. The unit test (`conv_cache_test`) is written and registered already (it is an existing target); build and
-run it later:
+Python only, at low priority: `python3 -I -m pytest -q serve/test_park_divergence.py` (21 passed), `serve/test_logprobs.py` and
+`serve/test_think_probe.py` (35 passed, they exercise `StrataEngine.generate`). Nothing in C++ was compiled or run. Build and run
+the C++ test later (`conv_cache_test` is an existing target):
 
-    cmake --build <build-dir> --target conv_cache_test && <build-dir>/conv_cache_test
+    cmake -S . -B build-hip -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_HIP=ON -DSTRATA_ENABLE_CUDA=OFF \
+          -DCMAKE_HIP_ARCHITECTURES=gfx1100 -DSTRATA_BUILD_TESTS=ON
+    cmake --build build-hip --target conv_cache_test -j2 && build-hip/conv_cache_test    # expect PASS
+    cmake --build build-hip --target strata -j2                                           # the engine, for the real switch
 
-The server has to be rebuilt too (`strata serve` in the HIP build) before the engine path can be tried.
+The divergence log needs no rebuild (the server is Python): `STRATA_PARK_DIVERGENCE_LOG=1`.

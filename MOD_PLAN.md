@@ -2619,3 +2619,10 @@ list once two cards are in the box.  Each needs its own A/B on the real pair; th
   replies identical at temperature 0.
 - Unverified: all C++ (no build), and that the state left in place is what a checkpoint restore expects (same situation as the
   existing `pin_sibling` path, which skips the park in the same way).
+- `STRATA_PARK_DIVERGENCE_LOG=1` (opt-in, default off; measurement M3, server side, no rebuild): one line per request that does not
+  continue the engine's last conversation: first diverging token index, live and prompt lengths, previous reply length, where
+  (`history` / `reply-start` / `reply-middle` / `reply-end`), the engine's `resume`, and a short window of both token streams as ids and
+  text, plus a labelled guess whether the reasoning was dropped. **The line contains prompt and reply text**
+  (`STRATA_PARK_DIVERGENCE_CHARS`, default 48, 0 = ids only). `serve/park_divergence.py`, 21 tests in `serve/test_park_divergence.py`
+  (run: pass). Follows only the plain one-engine path (not `--batch`, `--parallel`, pictures, split). Use: run the baseline session of the
+  plan above with it on, then decide lever 3 (`keep_reasoning` vs a template fix vs client edits) from the `where` counts.
