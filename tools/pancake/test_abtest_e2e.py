@@ -7,13 +7,16 @@ Each test builds on a fake repo root (a copy of abtest.py / queue_run.sh with RO
 (FAKE_TIME_SCALE, default 0.05).  The tests under test come from this checkout; point them at another build with
     ABTEST_UNDER_TEST=/path/abtest.py QUEUE_RUN_UNDER_TEST=/path/queue_run.sh python -m pytest tools/pancake/test_abtest_e2e.py
 
-HAZARD: abtest.stop_servers() ends every process named "server.py --engine strata" on the machine.  The tests refuse to run (skip)
-while a real abtest / engine / queue runs (fake_engine.real_run_active()).
+SAFETY: the abtest under test stops only the servers it started (the old stop_servers() ended every "server.py --engine strata" of the machine)
+and refuses to start (exit 3) while another test or engine runs; the tests of that change (side by side, refusal, leftover, SIGTERM) skip
+for an abtest without --force-busy.  Even so the tests refuse to run (skip) while a real abtest / engine / queue runs
+(fake_engine.real_run_active()): a fake run must never share the machine with a real one.
 
 Run: python -m pytest tools/pancake/test_abtest_e2e.py"""
 import json
 import os
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -70,11 +73,49 @@ def spec(root, name, base, arms, cases=("short", "edit"), reps=2, **extra):
     return path
 
 
-def run_abtest(root, spec_path, out, *flags, port=None, timeout=240):
-    refuse_when_real_run()
-    return subprocess.run([str(root / ".venv/bin/python"), "tools/pancake/abtest.py", str(spec_path), "--out", str(out),
-                           "--port", str(port or free_port()), *QUIET, *flags], cwd=root, capture_output=True, text=True, timeout=timeout,
+def abtest_cmd(root, spec_path, out, flags, port):
+    return [str(root / ".venv/bin/python"), "tools/pancake/abtest.py", str(spec_path), "--out", str(out),
+            "--port", str(port or free_port()), *QUIET, *flags]
+
+
+def run_abtest(root, spec_path, out, *flags, port=None, timeout=240, guard=True):
+    """guard=False: no check for a real run (a test that has started a fake process of its own, which the check would take for one)."""
+    if guard:
+        refuse_when_real_run()
+    return subprocess.run(abtest_cmd(root, spec_path, out, flags, port), cwd=root, capture_output=True, text=True, timeout=timeout,
                           env={**os.environ, "FAKE_TIME_SCALE": SCALE})
+
+
+def start_abtest(root, spec_path, out, *flags, port=None):
+    """abtest in the background (stdout and stderr in one pipe): for a test that needs something to happen while it runs."""
+    refuse_when_real_run()
+    return subprocess.Popen(abtest_cmd(root, spec_path, out, flags, port), cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                            env={**os.environ, "FAKE_TIME_SCALE": SCALE})
+
+
+def servers_of(fragment):
+    """pids of the python `serve/server.py --engine strata` processes whose command line has `fragment` (a unique config path)."""
+    found = []
+    for d in os.listdir("/proc"):
+        if not d.isdigit():
+            continue
+        try:
+            cmd = Path(f"/proc/{d}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+            comm = Path(f"/proc/{d}/comm").read_text().strip()
+        except OSError:
+            continue
+        if comm.startswith("python") and "serve/server.py --engine strata" in cmd and fragment in cmd:
+            found.append(int(d))
+    return found
+
+
+def wait_for(cond, seconds=30):
+    t0 = time.time()
+    while time.time() - t0 < seconds:
+        if cond():
+            return True
+        time.sleep(0.05)
+    return False
 
 
 def records(out):
@@ -277,6 +318,110 @@ def test_every_start_keeps_its_engine_log_with_the_switch_lines(root):
     log_on, log_base = (work / "on-r0-a0.engine.log").read_text(), (work / "base-r0-a0.engine.log").read_text()
     assert "strata switch: STRATA_FAKE_ON acted:" in log_on and "STRATA_FAKE_QUIET" not in log_on     # a silent no-op says nothing
     assert "STRATA_FAKE" not in log_base and "engine started" in log_base                            # only this start's lines
+
+
+# ------------------------------------------------------------------------------------------------------------ stop only what abtest started
+def slow(seconds):
+    """A fake profile whose every request takes `seconds` of real time (the fake's sleeps are scaled by FAKE_TIME_SCALE)."""
+    return {"latency_s": seconds / float(SCALE), **LOW_NOISE}
+
+
+def test_two_abtests_side_by_side_stop_only_their_own_server(root):
+    """The old stop_servers() ended every `server.py --engine strata` of the machine: B's first stop killed A's server in mid-run."""
+    need(root, "--force-busy")
+    out_a, out_b = root / "side-a.jsonl", root / "side-b.jsonl"
+    frag_a, frag_b = str(out_a.with_suffix("")), str(out_b.with_suffix(""))
+    a = start_abtest(root, spec(root, "side-a", config(root, "side-a", **slow(2.0)), {"base": {}}, reps=1), out_a, "--force-busy")
+    try:
+        assert wait_for(lambda: servers_of(frag_a)), "A's server did not come up"
+        arms_b = {"base": {}, "fast": {"env": {"FAKE_GAIN_PCT": "10"}}}
+        b = run_abtest(root, spec(root, "side-b", config(root, "side-b", **LOW_NOISE), arms_b, reps=1), out_b, "--force-busy", guard=False)   # A is ours: no "real run"
+        overlapped = bool(servers_of(frag_a))                   # A was still being served when B had started and stopped two servers
+        out_a_text = a.communicate(timeout=120)[0]
+    finally:
+        if a.poll() is None:   # SIGTERM, not kill: abtest then ends its own server (a killed one would leave it for the next test)
+            a.terminate()
+            a.communicate(timeout=60)
+    assert a.returncode == 0 and "FAILED" not in out_a_text, "A lost its server to B?\n" + out_a_text[-1500:]
+    assert len(records(out_a)) == 1 and [x["case"] for x in records(out_a)[0]["rows"]] == ["short", "edit"]
+    assert len(engine_lines(root, "side-a")) == 3               # warm-up + short + edit, none lost to B
+    assert b.returncode == 0 and "--force-busy: running beside" in b.stdout and "FAILED" not in b.stdout, b.stdout[-1500:]
+    assert [x["arm"] for x in records(out_b)] == ["base", "fast"]
+    assert overlapped, "the runs did not overlap: nothing was tested (the machine is too slow for the 6 s window?)"
+    assert servers_of(frag_a) == [] and servers_of(frag_b) == []   # each ended its own server
+
+
+@pytest.mark.parametrize("n, argv0", [("abtest", "python3 tools/pancake/abtest.py"), ("restore", "python3 tools/pancake/restore_check.py"),
+                                      ("engine", "/opt/x/build-hip/strata")])
+def test_abtest_refuses_to_start_while_another_test_or_engine_runs(root, n, argv0):
+    need(root, "--force-busy")
+    sp, out = spec(root, f"busy-{n}", config(root, f"busy-{n}", **LOW_NOISE), {"base": {}}, reps=1), root / f"busy-{n}.jsonl"
+    decoy = subprocess.Popen(["bash", "-c", f"exec -a '{argv0}' sleep 60"])   # argv[0] only: its command line is that of the real thing
+    try:
+        time.sleep(0.3)
+        r = run_abtest(root, sp, out)
+        assert r.returncode == 3 and "another test or engine is already running" in r.stderr, r.stdout + r.stderr
+        assert f"pid {decoy.pid}: {argv0} 60" in r.stderr and "--force-busy" in r.stderr
+        assert not out.exists() and not out.with_suffix("").exists() and not (root / "logs" / f"busy-{n}.log").exists()   # nothing was started
+        forced = run_abtest(root, sp, out, "--force-busy")
+        assert forced.returncode == 0 and "--force-busy: running beside 1 other" in forced.stdout, forced.stdout[-1500:]
+        assert len(records(out)) == 1 and decoy.poll() is None   # it ran, and the other process was left alone
+    finally:
+        decoy.kill()
+        decoy.wait()
+
+
+def test_a_shell_that_only_mentions_abtest_does_not_stop_a_start(root):
+    need(root, "--force-busy")
+    decoy = subprocess.Popen(["bash", "-c", "sleep 60; true  # python3 tools/pancake/abtest.py"])
+    try:
+        time.sleep(0.3)
+        out = root / "mention.jsonl"
+        r = run_abtest(root, spec(root, "mention", config(root, "mention", **LOW_NOISE), {"base": {}}, reps=1), out)
+        assert r.returncode == 0 and "force-busy" not in r.stdout and len(records(out)) == 1, r.stdout + r.stderr
+    finally:
+        decoy.kill()
+        decoy.wait()
+
+
+def test_a_leftover_server_is_reported_and_never_killed(root):
+    """A `server.py --engine strata` that abtest did not start (a crashed run's, or another session's): reported with its pid, left running."""
+    need(root, "--force-busy")
+    refuse_when_real_run()
+    stale_cfg = config(root, "stale", **LOW_NOISE)
+    stale = subprocess.Popen([str(root / ".venv/bin/python"), "serve/server.py", "--engine", "strata", "--config", str(stale_cfg),
+                              "--port", str(free_port())], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             env={**os.environ, "FAKE_TIME_SCALE": SCALE})
+    try:
+        assert wait_for(lambda: servers_of(str(stale_cfg))), "the leftover fake server did not come up"
+        sp, out = spec(root, "leftover", config(root, "leftover", **LOW_NOISE), {"base": {}}, reps=1), root / "leftover.jsonl"
+        r = run_abtest(root, sp, out, guard=False)
+        assert r.returncode == 3 and f"pid {stale.pid}: " in r.stderr and "serve/server.py --engine strata" in r.stderr, r.stdout + r.stderr
+        assert stale.poll() is None and not out.exists()
+        forced = run_abtest(root, sp, out, "--force-busy", guard=False)   # its own port: the leftover is no obstacle to the fake
+        assert forced.returncode == 0 and len(records(out)) == 1, forced.stdout[-1500:]
+        assert stale.poll() is None and servers_of(str(stale_cfg)) == [stale.pid]   # abtest ended its own server and left this one
+    finally:
+        stale.kill()
+        stale.wait()
+
+
+def test_sigterm_ends_abtest_and_the_server_it_started(root):
+    """A killed abtest must not leave its server behind: the next start would refuse (a leftover), and before it was killed by name."""
+    need(root, "--force-busy")
+    out = root / "term.jsonl"
+    a = start_abtest(root, spec(root, "term", config(root, "term", **slow(2.0)), {"base": {}}, reps=1), out)
+    frag = str(out.with_suffix(""))
+    try:
+        assert wait_for(lambda: servers_of(frag)), "the server did not come up"
+        a.send_signal(signal.SIGTERM)
+        a.communicate(timeout=60)
+        assert a.returncode == 128 + signal.SIGTERM
+        assert servers_of(frag) == []
+    finally:
+        if a.poll() is None:   # SIGTERM, not kill: abtest then ends its own server (a killed one would leave it for the next test)
+            a.terminate()
+            a.communicate(timeout=60)
 
 
 # ------------------------------------------------------------------------------------------------------------ queue_run.sh
