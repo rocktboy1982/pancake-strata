@@ -92,7 +92,14 @@ void test_rule() {
     const BflaTilePlan a = bfla_tile_plan(6000, 6015, none, 1.0 / 3.0, 256, 1024, 2, 4);
     check(a.n_vis == 94 && a.sinkc == 2 && a.lo_b == 89 && a.free_q == 16 - (94 - 87) && !a.all,
           "sparse tile: mandatory sink + own/local blocks counted in the quota of 16, 9 left for the 87 candidates");
-    check(bfla_tile_plan(6000, 6015, 6010, 1.0 / 3.0, 256, 1024, 2, 4).all, "tail rule: a tile reaching full_from keeps every block");
+    // the tail rule, three-valued around qb = 6015: past full_from, exactly at it (>=, not >), one before it
+    check(bfla_tile_plan(6000, 6015, 6010, 1.0 / 3.0, 256, 1024, 2, 4).all, "tail rule: full_from < qb keeps every block");
+    check(bfla_tile_plan(6000, 6015, 6015, 1.0 / 3.0, 256, 1024, 2, 4).all, "tail rule: full_from == qb keeps every block");
+    check(!bfla_tile_plan(6000, 6015, 6016, 1.0 / 3.0, 256, 1024, 2, 4).all, "tail rule: full_from == qb + 1 stays sparse");
+    // the budget, three-valued around the 94 visible blocks of qb 6015 (K = 5952 is exactly 93 blocks of 64)
+    check(!bfla_tile_plan(6000, 6015, none, 1.0 / 3.0, 5952, 5952, 2, 4).all, "budget of 93 of 94 visible blocks stays sparse");
+    check(bfla_tile_plan(6000, 6015, none, 1.0 / 3.0, 5953, 5953, 2, 4).all, "budget of 94 of 94 visible blocks keeps every block");
+    check(bfla_tile_plan(6000, 6015, none, 1.0 / 3.0, 6016, 6016, 2, 4).all, "budget of 94 of 94 (Kmin = V) keeps every block");
     check(bfla_tile_plan(6000, 6015, none, 1.0 / 3.0, int64_t(1) << 30, int64_t(1) << 30, 2, 4).all,
           "a budget of every visible cell keeps every block");
     const BflaTilePlan m = bfla_tile_plan(6000, 6015, none, 1.0 / 3.0, 64, 64, 2, 4);

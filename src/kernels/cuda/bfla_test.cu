@@ -290,16 +290,15 @@ HostSel host_select(const Data& d, const BflaConfig& c, int64_t full_from) {
         for (int g = 0; g < d.HKV; ++g) {
             const int64_t ta = tile * TT, tb = std::min<int64_t>(d.T, ta + TT) - 1;
             const int64_t qa = d.p0 + ta, qb = d.p0 + tb;
-            const int n_vis = (int) (qb / 64) + 1;
-            const int64_t k = bfla_budget_blocks(qb + 1, c);
-            const int sinkc = std::min(c.sink, n_vis);
-            const int lo_b = std::max<int>(sinkc, (int) (qa / 64) - c.local);
-            const int nc = lo_b - sinkc;
-            const int64_t fq = k - (n_vis - nc);
+            // the plan is the kernel's own function (include/strata/kernels/bfla.hpp); its cases are hand-checked in
+            // bfla_cpu_test, so this reference differs from the kernel only in the scores and the ranking below
+            const BflaTilePlan pl = bfla_tile_plan(qa, qb, full_from, c.eta, c.kmin, c.kmax, c.sink, c.local);
+            const int n_vis = pl.n_vis, sinkc = pl.sinkc, lo_b = pl.lo_b;
+            const int64_t fq = pl.free_q;
             auto& L = hs.lists[(size_t) tile * d.HKV + g];
             auto& S = hs.score[(size_t) tile * d.HKV + g];
             S.assign((size_t) n_vis, 0.0);
-            if (qb >= full_from || k >= n_vis || fq >= nc) {
+            if (pl.all) {
                 for (int j = 0; j < n_vis; ++j) L.push_back(j);
                 continue;
             }
