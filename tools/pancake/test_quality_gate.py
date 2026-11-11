@@ -104,6 +104,49 @@ def test_a_set_with_pending_continuations_is_refused_without_fill(monkeypatch, c
         assert "prompt must be" in capsys.readouterr().out
 
 
+def fake_gen(argv, **kw):
+    """Stands in for capped.sh -> force_check.py gen: writes a continuation for every row of the corpus file it is given."""
+    class R:
+        returncode, stdout, stderr = 0, "", ""
+    out, corpus = argv[argv.index("gen") + 2], argv[argv.index("--corpus") + 1]
+    rows = [json.loads(l) for l in open(corpus)]
+    json.dump({"items": [{"id": r["id"], "kind": r["kind"], "prompt": r["ids"], "cont": [7, 8, 9]} for r in rows]}, open(out, "w"))
+    fake_gen.argv = argv
+    return R()
+
+
+def test_fill_generates_only_the_pending_requests_with_the_stock_config(monkeypatch):
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d)
+        st = tiny_set(pending_ids=("r0", "r2"))
+        monkeypatch.setattr(G.subprocess, "run", fake_gen)
+        full = G.fill(st, "stock.json", out)
+        argv = fake_gen.argv
+        assert argv[argv.index("gen") + 1] == "stock.json" and argv[argv.index("--per-kind") + 1] == "2" and argv[argv.index("--offset") + 1] == "0"
+        assert [json.loads(l)["id"] for l in open(out / "pending.jsonl")] == ["r0", "r2"]
+        assert G.pending(full) == [] and full["items"][0]["cont"] == [7, 8, 9] and full["items"][1]["cont"] == [4, 5]
+        assert json.load(open(out / "set.filled.json")) == full
+        monkeypatch.setattr(G.subprocess, "run", lambda argv, **kw: type("R", (), {"returncode": 1, "stdout": "", "stderr": "boom"})())
+        assert G.fill(st, "stock.json", out) is None
+
+
+def test_main_with_fill_scores_with_the_filled_set(monkeypatch, capsys):
+    with tempfile.TemporaryDirectory() as d:
+        spec, out = write_spec(d), Path(d) / "out"
+        s2 = Path(d) / "set.json"
+        s2.write_text(json.dumps(tiny_set(pending_ids=("r1",))))
+        seen = []
+        monkeypatch.setattr(sys, "argv", ["quality_gate.py", str(spec), "--out", str(out), "--set", str(s2), "--fill"])
+        monkeypatch.setattr(G.abtest, "stop_servers", lambda: None)
+        monkeypatch.setattr(G.abtest, "quiet_gate", lambda *a, **k: None)
+        monkeypatch.setattr(G.subprocess, "run", fake_gen)
+        monkeypatch.setattr(G, "score", lambda cfg, set_path, tsv, topk=2: seen.append(set_path) or False)
+        assert G.main() == 2                                              # nothing scored here: "stock not scored twice"
+        assert seen and all(p == str(out / "set.filled.json") for p in seen)
+        assert G.pending(json.load(open(out / "set.filled.json"))) == []
+        assert "commit it as the set" in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------------------------------- build_quality_set.py
 def test_pick_ident_and_local_name_and_read_result():
     rng = random.Random(1)
