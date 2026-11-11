@@ -208,8 +208,11 @@ void fast_rows(bool vnni_rows, const uint8_t* w, size_t row_bytes, int nblocks, 
 // q2_fast_corr_form: 5 rows of 2 blocks, d = 1 and 1 + 2^-10, zero codes and activations, hx sums -(1 + 2^-11) and
 // 1 + 2^-14, so a row is -corr: one FMA gives -(2^-11 + 2^-14 + 2^-24); a rounded product (1 + 2^-10 + 2^-14 + 2^-24,
 // a tie, to even) plus the add gives -(2^-11 + 2^-14).  At 1-4 tokens (row_multi<NT> are separate instances) and on
-// the 4-row group and the single row of the fast kernel.
+// the 4-row group and the single row of the fast kernel.  The three row functions are called through volatile
+// pointers: the probe must run the out-of-line code the engine runs, not a copy folded against its constant inputs.
 int corr_form_probe(bool vnni_rows) {
+    using RowsFn = void (*)(bool, const uint8_t*, size_t, int, const ActQ* const*, int, float* const*, int, int);
+    RowsFn volatile ref_rows = q2_0_gguf_rows_multi_avx2_v, fma_rows = fast_rows<true>, rounded_rows = fast_rows<false>;
     constexpr int kRows = 5, kBlocks = 2;
     uint8_t w[kRows * kBlocks * BB] = {};
     for (int r = 0; r < kRows; ++r) {
@@ -230,9 +233,9 @@ int corr_form_probe(bool vnni_rows) {
         float* pr[4] = {ref[0], ref[1], ref[2], ref[3]};
         float* p1[4] = {f1[0], f1[1], f1[2], f1[3]};
         float* p0[4] = {f0[0], f0[1], f0[2], f0[3]};
-        q2_0_gguf_rows_multi_avx2_v(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, pr, 0, kRows);
-        fast_rows<true>(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, p1, 0, kRows);
-        fast_rows<false>(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, p0, 0, kRows);
+        ref_rows(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, pr, 0, kRows);
+        fma_rows(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, p1, 0, kRows);
+        rounded_rows(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, p0, 0, kRows);
         for (int t = 0; t < nt; ++t) {
             fma_ok &= std::memcmp(ref[t], f1[t], sizeof ref[t]) == 0;
             rounded_ok &= std::memcmp(ref[t], f0[t], sizeof ref[t]) == 0;
@@ -297,7 +300,7 @@ void q2_0_gguf_rows_multi_avx2_fast(const uint8_t* w, size_t row_bytes, int nblo
     q2_0_gguf_rows_multi_avx2_fast_v(STRATA_AVXVNNI && cpu_avxvnni_ok(), w, row_bytes, nblocks, a, nt, out, r0, r1);
 }
 
-// The exact (non-bit-plane) path: STRATA_Q2_FAST=1 selects the fast kernel (bitwise the legacy one, see
+// The exact (non-bit-plane) path: STRATA_Q2_FAST=1 selects the fast kernel (bitwise the legacy one, NaN payloads aside; see
 // q2_avx2_rows.inl), unless STRATA_Q2_LEGACY=1 forces the legacy one.  Default (neither set): legacy, byte-identical
 // to before.  Once tests/core/q2_fast_parity_test.cpp has passed on the AVX2 machines, FAST becomes the default and
 // STRATA_Q2_LEGACY=1 stays the A/B switch back (imanu86's semantics).  STRATA_Q2_BITPLANE=1 (lossy, its own switch)

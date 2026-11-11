@@ -29,6 +29,7 @@
 #include "strata/kernels/cpu/expert.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -84,7 +85,7 @@ void fill_rows(Rng& g, uint8_t* w, size_t rows, int nblocks) {   // random Q2_0 
 }
 
 using Clock = std::chrono::steady_clock;
-volatile uint64_t g_sink;
+std::atomic<uint64_t> g_sink;   // atomic: the threaded pass adds to it from every worker
 
 using RowsFn = void (*)(const uint8_t*, size_t, int, const c::ActQ* const*, int, float* const*, int, int);
 

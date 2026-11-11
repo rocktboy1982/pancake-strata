@@ -1,5 +1,6 @@
 // tests/core/q2_fast_parity_test.cpp - the fast exact AVX-2 Q2_0 row kernel (STRATA_Q2_FAST=1, ported from imanu86
-// c3fc8f34d3) against the legacy one (q2_0_gguf_rows_multi_avx2_legacy): every output must be BITWISE the same.
+// c3fc8f34d3) against the legacy one (q2_0_gguf_rows_multi_avx2_legacy): every output must be BITWISE the same, except the
+// payload of a NaN output (a NaN in both; see the summary line).
 //
 // Random Q2_0 rows (all 256 code-byte values, fp16 scales over a wide range with zeros and subnormals), activations
 // quantized by act_quant_q8_1_avx2 (zero chunks and magnitudes 2^-12..2^11), 1-9 tokens (the >4 split), the model's
@@ -194,7 +195,8 @@ int main() {
     }
     // A NaN output (a NaN or infinite scale in the inputs) is NaN in both kernels, but its payload can differ: x86 passes
     // on the first NaN operand, and the compiler orders a commutative add or an FMA form as it likes (seen with
-    // STRATA_HOST_NATIVE, not in the default build).  Nothing downstream reads a payload, so it is reported, not failed.
+    // STRATA_HOST_NATIVE and in the default clang build).  So the parity is bitwise except for NaN payloads, whatever the flags.
+    // Nothing downstream reads a payload, so it is reported, not failed.
     std::printf("q2_fast_parity_test (%s): %lld cases, %lld row outputs (%lld with edge inputs), %lld differ, "
                 "%lld NaN outputs with another payload -> %s\n", vnni ? "plain + AVX-VNNI" : "plain AVX-2", cases, values,
                 edge_values, differ, nan_payload, differ ? "FAIL" : "PASS");
