@@ -1,0 +1,708 @@
+{
+ "name": "night-queue-2026-11-11",
+ "schema": 1,
+ "version": 1,
+ "note": "MOD_PLAN Phase 17 'Night queue', items 1-5 (item 5's ablate_greedy core group is NOT in this plan: it starts its own servers, see pancake-docs/NIGHT_QUEUE_RUNNER.md). Estimated minutes are the plan's own guesses (engine start + client passes + stop), not measurements; the first start after a cold page cache can be much slower. Written 2026-11-11, never run on a GPU.",
+ "paths": {
+  "data": "/home/dan/clone-of-d/Strata-data",
+  "models": "/home/dan/clone-of-d/models",
+  "avalon": "/home/dan/clone-of-d/Avalon",
+  "avalon_models": "/home/dan/clone-of-d/Avalon-models",
+  "rdna3": "/home/dan/clone-of-d/src/Strata-rdna3"
+ },
+ "defaults": {
+  "load_max": 1.0,
+  "mem_gib": 48,
+  "guard_wait_min": 30,
+  "start_timeout_min": 25
+ },
+ "engines": {
+  "pancake-iq2xs": {
+   "template": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+   "argv": [
+    "{repo}/tools/pancake/capped.sh",
+    "{venv_py}",
+    "{repo}/serve/server.py",
+    "--engine",
+    "strata",
+    "--config",
+    "{config}",
+    "--port",
+    "{port}"
+   ],
+   "cwd": "{repo}",
+   "env": {
+    "HIP_VISIBLE_DEVICES": "0",
+    "LD_LIBRARY_PATH": "/opt/rocm/core-10.0/lib"
+   },
+   "port": 8080,
+   "start_est_min": 4
+  },
+  "pancake-q2": {
+   "template": "configs/pancake/flashnext-q2_0-fast-hip-adopted.json",
+   "argv": [
+    "{repo}/tools/pancake/capped.sh",
+    "{venv_py}",
+    "{repo}/serve/server.py",
+    "--engine",
+    "strata",
+    "--config",
+    "{config}",
+    "--port",
+    "{port}"
+   ],
+   "cwd": "{repo}",
+   "env": {
+    "HIP_VISIBLE_DEVICES": "0",
+    "LD_LIBRARY_PATH": "/opt/rocm/core-10.0/lib"
+   },
+   "port": 8080,
+   "start_est_min": 4
+  },
+  "rdna3-iq2xs": {
+   "config": "bench/results/2026-11-11-vs-avalon/raw/r3-q2.json",
+   "replace": [
+    [
+     "packs/q2_0",
+     "packs/iq2_xs"
+    ],
+    [
+     "models/Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-",
+     "models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-"
+    ]
+   ],
+   "argv": [
+    "{venv_py}",
+    "serve/server.py",
+    "--engine",
+    "strata",
+    "--config",
+    "{config}",
+    "--port",
+    "{port}"
+   ],
+   "cwd": "{rdna3}",
+   "env": {
+    "HIP_VISIBLE_DEVICES": "0",
+    "LD_LIBRARY_PATH": "/opt/rocm/core-10.0/lib",
+    "STRATA_RAM_KEEP_GIB": "12"
+   },
+   "port": 8082,
+   "start_est_min": 4
+  },
+  "avalon-iq2xs": {
+   "argv": [
+    "{avalon}/build/bin/llama-server",
+    "-m",
+    "{data}/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf",
+    "-c",
+    "131072",
+    "-b",
+    "4096",
+    "-ub",
+    "4096",
+    "-fa",
+    "on",
+    "-ctk",
+    "q8_0",
+    "-ctv",
+    "q4_0",
+    "--jinja",
+    "--parallel",
+    "1",
+    "-md",
+    "{avalon_models}/Qwen3.8-Flash-Next-Avalon-GGUF/MTP/mtp-Qwen3.8-Flash-Next-shared-IQ3K-IQ4NL-FR65k.gguf",
+    "--spec-type",
+    "ngram-simple,draft-mtp",
+    "--spec-draft-n-max",
+    "2",
+    "-ubd",
+    "256",
+    "-ctkd",
+    "q8_0",
+    "-ctvd",
+    "q8_0",
+    "--chat-template-file",
+    "{avalon_models}/avalon-chat-template.jinja",
+    "--port",
+    "{port}",
+    "--host",
+    "127.0.0.1"
+   ],
+   "cwd": "{avalon}",
+   "env": {
+    "HIP_VISIBLE_DEVICES": "0",
+    "LD_LIBRARY_PATH": "/opt/rocm/core-10.0/lib"
+   },
+   "port": 8081,
+   "start_est_min": 3
+  }
+ },
+ "jobs": [
+  {
+   "name": "defer-iq2xs",
+   "group": "1-defer",
+   "item": 1,
+   "engine": "pancake-iq2xs",
+   "arms": {
+    "A": {
+     "label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+     "env": {}
+    },
+    "B": {
+     "label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+     "env": {
+      "STRATA_VERIFY_DEFER_CPU": null
+     }
+    },
+    "C": {
+     "label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+     "env": {
+      "STRATA_VERIFY_DEFER_AUTO": "1",
+      "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+     }
+    }
+   },
+   "sequence": "ABCCBAABC",
+   "client": {
+    "kind": "decode",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/nq_clients.py",
+     "decode",
+     "--port",
+     "{port}",
+     "--out",
+     "{out}"
+    ],
+    "passes": 4,
+    "warmup_passes": 1,
+    "keep_last": 2,
+    "est_min": 0.8
+   }
+  },
+  {
+   "name": "defer-q2",
+   "group": "1-defer",
+   "item": 1,
+   "engine": "pancake-q2",
+   "arms": {
+    "A": {
+     "label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+     "env": {}
+    },
+    "B": {
+     "label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+     "env": {
+      "STRATA_VERIFY_DEFER_CPU": null
+     }
+    },
+    "C": {
+     "label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+     "env": {
+      "STRATA_VERIFY_DEFER_AUTO": "1",
+      "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+     }
+    }
+   },
+   "sequence": "ABCCBAABC",
+   "client": {
+    "kind": "decode",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/nq_clients.py",
+     "decode",
+     "--port",
+     "{port}",
+     "--out",
+     "{out}"
+    ],
+    "passes": 4,
+    "warmup_passes": 1,
+    "keep_last": 2,
+    "est_min": 0.8
+   }
+  },
+  {
+   "name": "ttft-pancake-iq2xs-a",
+   "group": "2-ttft",
+   "item": 2,
+   "engine": "pancake-iq2xs",
+   "client": {
+    "kind": "ttft",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/ttft_bench.py",
+     "--port",
+     "{port}",
+     "--label",
+     "{job}",
+     "--out",
+     "{out}",
+     "--sizes",
+     "8k,32k,64k",
+     "--scenario",
+     "both",
+     "--sessions",
+     "3"
+    ],
+    "passes": 1,
+    "est_min": 10
+   }
+  },
+  {
+   "name": "ttft-pancake-iq2xs-100k-trace",
+   "group": "2-ttft",
+   "item": 2,
+   "engine": "pancake-iq2xs",
+   "env": {
+    "STRATA_TRACE": "1"
+   },
+   "client": {
+    "kind": "ttft",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/ttft_bench.py",
+     "--port",
+     "{port}",
+     "--label",
+     "{job}",
+     "--out",
+     "{out}",
+     "--sizes",
+     "100k",
+     "--scenario",
+     "a",
+     "--sessions",
+     "1"
+    ],
+    "passes": 1,
+    "est_min": 6
+   }
+  },
+  {
+   "name": "ttft-rdna3-iq2xs",
+   "group": "2-ttft",
+   "item": 2,
+   "engine": "rdna3-iq2xs",
+   "client": {
+    "kind": "ttft",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/ttft_bench.py",
+     "--port",
+     "{port}",
+     "--label",
+     "{job}",
+     "--out",
+     "{out}",
+     "--sizes",
+     "8k,32k,64k,100k",
+     "--scenario",
+     "both",
+     "--sessions",
+     "3"
+    ],
+    "passes": 1,
+    "est_min": 16
+   }
+  },
+  {
+   "name": "ttft-avalon-iq2xs",
+   "group": "2-ttft",
+   "item": 2,
+   "engine": "avalon-iq2xs",
+   "client": {
+    "kind": "ttft",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/ttft_bench.py",
+     "--port",
+     "{port}",
+     "--label",
+     "{job}",
+     "--out",
+     "{out}",
+     "--sizes",
+     "8k,32k,64k,100k",
+     "--scenario",
+     "both",
+     "--sessions",
+     "3"
+    ],
+    "passes": 1,
+    "est_min": 16
+   }
+  },
+  {
+   "name": "lever",
+   "group": "3-lever",
+   "item": 3,
+   "engine": "pancake-iq2xs",
+   "client": {
+    "kind": "session",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/nq_clients.py",
+     "session",
+     "--port",
+     "{port}",
+     "--out",
+     "{out}",
+     "--turns",
+     "10",
+     "--sessions",
+     "3",
+     "--side",
+     "1"
+    ],
+    "passes": 1,
+    "est_min": 6
+   },
+   "post": [
+    [
+     "{py}",
+     "{repo}/tools/pancake/ttft_audit.py",
+     "--turns",
+     "{turn_log}",
+     "--engine-log",
+     "{engine_log}",
+     "--json",
+     "{run_dir}/raw/{job}-audit.json"
+    ]
+   ],
+   "arms": {
+    "A": {
+     "label": "control: the preset (conversation cache as it is)",
+     "env": {}
+    },
+    "B": {
+     "label": "lever 1a: --conversation-cache-min-tokens 8192",
+     "args": {
+      "--conversation-cache-min-tokens": "8192"
+     }
+    },
+    "C": {
+     "label": "lever 1b: budget floor --conversation-cache-mib 6144",
+     "args": {
+      "--conversation-cache-mib": "6144"
+     }
+    },
+    "D": {
+     "label": "lever 1c: STRATA_PARK_TRUNCATE=1",
+     "env": {
+      "STRATA_PARK_TRUNCATE": "1"
+     }
+    },
+    "E": {
+     "label": "lever 1 together: min-tokens 8192 + cache-mib 6144 + PARK_TRUNCATE=1",
+     "env": {
+      "STRATA_PARK_TRUNCATE": "1"
+     },
+     "args": {
+      "--conversation-cache-min-tokens": "8192",
+      "--conversation-cache-mib": "6144"
+     }
+    },
+    "F": {
+     "label": "lever 2: STRATA_PARK_REWIND_MAX=8192 + STRATA_PARK_DIVERGENCE_LOG=1",
+     "env": {
+      "STRATA_PARK_REWIND_MAX": "8192",
+      "STRATA_PARK_DIVERGENCE_LOG": "1"
+     }
+    }
+   },
+   "sequence": "ABCDEFA"
+  },
+  {
+   "name": "kvring",
+   "group": "4-kvring",
+   "item": 4,
+   "engine": "pancake-iq2xs",
+   "client": {
+    "kind": "depth",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/nq_clients.py",
+     "depth",
+     "--port",
+     "{port}",
+     "--out",
+     "{out}",
+     "--sizes",
+     "{sizes}",
+     "--runs",
+     "3",
+     "--max-tokens",
+     "256"
+    ],
+    "passes": 1,
+    "est_min": 8
+   },
+   "vars": {
+    "sizes": "1k,32k,64k,120k"
+   },
+   "arms": {
+    "S": {
+     "label": "static --kv-resident 32768 (the preset)",
+     "env": {}
+    },
+    "T": {
+     "label": "static --kv-resident 49152",
+     "args": {
+      "--kv-resident": "49152"
+     }
+    },
+    "R": {
+     "label": "STRATA_KV_RING_ADAPT=1 --kv-resident 49152, --max-context 131072 (the rule gives the cap here: expected = T)",
+     "env": {
+      "STRATA_KV_RING_ADAPT": "1"
+     },
+     "args": {
+      "--kv-resident": "49152"
+     }
+    },
+    "P": {
+     "label": "STRATA_KV_RING_ADAPT=1 --kv-resident 49152, --max-context 65536 (the rule gives the 32768 floor: expected = S at 64K)",
+     "env": {
+      "STRATA_KV_RING_ADAPT": "1"
+     },
+     "args": {
+      "--kv-resident": "49152",
+      "--max-context": "65536"
+     },
+     "vars": {
+      "sizes": "1k,32k,56k"
+     }
+    }
+   },
+   "sequence": "STRPPRTS"
+  },
+  {
+   "name": "prose-base",
+   "group": "5-prose",
+   "item": 5,
+   "engine": "pancake-iq2xs",
+   "client": {
+    "kind": "prose",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/prose_gap.py",
+     "--port",
+     "{port}",
+     "--label",
+     "{label}",
+     "--runs",
+     "6",
+     "--out",
+     "{out}"
+    ],
+    "passes": [
+     {
+      "label": "story",
+      "extra": [
+       "--prompt-name",
+       "story"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "tips",
+      "extra": [
+       "--prompt-name",
+       "tips"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "moe",
+      "extra": [
+       "--prompt-name",
+       "moe"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "js",
+      "extra": [
+       "--prompt-name",
+       "js"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "lru",
+      "extra": [
+       "--prompt-name",
+       "lru"
+      ],
+      "est_min": 0.7
+     }
+    ]
+   },
+   "arms": {
+    "A": {
+     "label": "preset (spec 4, min-p 0.5)",
+     "env": {}
+    }
+   },
+   "sequence": "A"
+  },
+  {
+   "name": "prose-avalon",
+   "group": "5-prose",
+   "item": 5,
+   "engine": "avalon-iq2xs",
+   "client": {
+    "kind": "prose",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/prose_gap.py",
+     "--port",
+     "{port}",
+     "--label",
+     "{label}",
+     "--runs",
+     "6",
+     "--out",
+     "{out}",
+     "--engine",
+     "llama",
+     "--server-log",
+     "{server_log}"
+    ],
+    "passes": [
+     {
+      "label": "story",
+      "extra": [
+       "--prompt-name",
+       "story"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "tips",
+      "extra": [
+       "--prompt-name",
+       "tips"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "moe",
+      "extra": [
+       "--prompt-name",
+       "moe"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "js",
+      "extra": [
+       "--prompt-name",
+       "js"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "lru",
+      "extra": [
+       "--prompt-name",
+       "lru"
+      ],
+      "est_min": 0.7
+     }
+    ]
+   }
+  },
+  {
+   "name": "prose-var",
+   "group": "5-prose",
+   "item": 5,
+   "engine": "pancake-iq2xs",
+   "client": {
+    "kind": "prose",
+    "cmd": [
+     "{py}",
+     "{repo}/tools/pancake/prose_gap.py",
+     "--port",
+     "{port}",
+     "--label",
+     "{label}",
+     "--runs",
+     "6",
+     "--out",
+     "{out}"
+    ],
+    "passes": [
+     {
+      "label": "story",
+      "extra": [
+       "--prompt-name",
+       "story"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "tips",
+      "extra": [
+       "--prompt-name",
+       "tips"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "moe",
+      "extra": [
+       "--prompt-name",
+       "moe"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "js",
+      "extra": [
+       "--prompt-name",
+       "js"
+      ],
+      "est_min": 0.7
+     },
+     {
+      "label": "lru",
+      "extra": [
+       "--prompt-name",
+       "lru"
+      ],
+      "est_min": 0.7
+     }
+    ]
+   },
+   "arms": {
+    "A": {
+     "label": "preset again (drift check)",
+     "env": {}
+    },
+    "B": {
+     "label": "--spec-min-p 0",
+     "args": {
+      "--spec-min-p": "0"
+     }
+    },
+    "C": {
+     "label": "--spec 2 --spec-min-p 0",
+     "args": {
+      "--spec": "2",
+      "--spec-min-p": "0"
+     }
+    },
+    "D": {
+     "label": "STRATA_SPEC_COST=1",
+     "env": {
+      "STRATA_SPEC_COST": "1"
+     }
+    }
+   },
+   "sequence": "BCDA"
+  }
+ ]
+}
