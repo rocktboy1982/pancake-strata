@@ -2591,6 +2591,29 @@ list once two cards are in the box.  Each needs its own A/B on the real pair; th
 | GDN megakernel (one persistent kernel per GDN layer) | Strata-rdna3 megakernel_gdn.cu | 0.0 ms on one GPU while CPU experts gate the window; measured 1.6% on rdna3's TP config | revisit with TP |
 | Heterogeneous-accelerator decoupling (xLLM service/engine split, vLLM platform plugins) | jd-opensource/xllm, vllm-ascend | single AMD card | only for a non-AMD second card |
 
+## Phase 17: combining what we have (2026-11-11, owner: positive performance impact from the existing technologies)
+
+Evidence (same neutral client for all engines, same IQ2_XS file, run 1 discarded, warm second pass kept; results in
+`bench/results/2026-11-11-vs-avalon/`): decode is a tie across Avalon / Strata-rdna3 / pancake (104-111 tok/s, draft acceptance 69-71% on
+all), prompts favour the Strata family (2.4-2.8K vs 1.5-1.6K tok/s above 12K tokens), pancake wins code decode by 10-18%, Avalon wins
+prose by 5-10%.  Turbo (`STRATA_ROUTE_PRIOR=0.5`) measured -8% decode overall (+9% on a copy-heavy code prompt, -15..-25% on two prose
+prompts, same acceptance); text similarity cannot judge its quality because the exact engine is already not run-to-run deterministic
+(0 of 6 outputs identical exact-vs-exact).  Method rules: run the client twice per server and keep the second pass (a cold page cache
+after a heavy file load cost one build 15% in pass 1); paired block harness, promotion bar >= 2% end to end.
+
+| # | Strategy | Evidence | Work | Status |
+| --- | --- | --- | --- | --- |
+| 17.1 | Lossy modes only where they win: route prior (turbo) only while suffix/lookup matches fire (code edits, tool-call JSON), exact otherwise | turbo +9% code, -15..-25% prose, acceptance unchanged | find out whether the prior can switch per window/request; if not, two presets chosen per session; optionally `STRATA_ROUTE_PRIOR_AUTO` gated by the draft policy | open |
+| 17.2 | Close the prose gap to Avalon | Avalon 98-111 vs pancake 93-102 tok/s on prose, same acceptance, steadier (sd 8.6-12 vs 17) | profile one prose prompt on both (`gpu_profile.py`, `time_ceiling.py`); read Avalon's non-CUDA-only commits (MoE down-proj summed in one MUL_MAT_ID, MTP draft pass from device rows, expert-cache preload) | open |
+| 17.3 | Greedy ablation over the coded-but-untested items as one bundle, not one by one | status board: ~12 items at Dev 100% / Test 0% (adaptive swap budget, k-th-miss admission + async, AcceptMoE, depth-graded prior, ...); substitutes (turbo vs AcceptMoE, deferral + turbo) must be measured together | start from the exact preset, add the strongest candidate, keep it only if paired block runs (`--block 3 --warmup 1 --outlier robust --reclaim-max 3`, reps >= 9) clear 2%; ~6-8 runs instead of a grid | open |
+| 17.4 | Deep-context ideas from xyzzing/rdna3-inference-ledger (CC-BY-4.0; adopt = credit in README section 9 + RESEARCH_AND_FINDINGS section 4 in the same commit): adaptive KV ring (`STRATA_KV_RING_ADAPT`, upstream Strata PR #3919: 128K +24%, 64K flat; our `--kv-resident 32768` is fixed, `--kv-grow` is related), `--spec 5`, `--lookup-chain 2` (paid only after tail skip: +6% at 1K, +20% at 128K) | their 7900 XTX / IQ3_S numbers, not ours | test `--kv-grow` on/off at 64K and 100K first; port the adaptive ring only if it still wins; spec 5 and lookup-chain inside the 17.3 ablation | open |
+| 17.5 | Guard long contexts before tuning them | ledger issue: device memory fault at the 3x32K chunked-prefill handoff (upstream #5539); our `PREFILL_AUTO_MAX` is 32768 and no benchmark went past 25K tokens | one 70-100K prompt on pancake, exact preset | open |
+| 17.6 | Ship bundles, not switches: exact / fast / lossy presets, every switch default-off until a paired test promotes it, plus a small interaction table (what substitutes for what) | MOD_PLAN 13: turbo and deferral must be measured together | table in `bench/results/<day>/RESULTS.md` per ablation | open |
+| 17.7 | Skip what cannot pay: sources already merged with no new upstream commits; the ledger's rejects (DFlash2, megakernel, Sequoia tree verification) match ours | owner rule 2026-11-11 | none | rule |
+
+Order: 17.2 (the profile shows what is wrong), then 17.3 (finds the combination; 17.1 and 17.4 run inside it), 17.5 as a quick check.
+All of it needs the GPU: it waits for the Q2_0 / IQ2_XS matrix of 2026-11-11 to finish.
+
 ## Risks
 
 - Code drift: FastStrata's options live in `src/poly`, not in `src/qwen35`; porting may mean rewriting, not copying.
