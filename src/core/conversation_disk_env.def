@@ -747,7 +747,7 @@ STRATA_ENV("STRATA_WAIT_COPY256", Speed, "bitwise: documented (docs/README/code 
 STRATA_ENV("STRATA_WAIT_FUSE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_XN_F16", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 
-// ---- Inert: diagnostics, test hooks, paths, limits, io, tools and other engines; must not be in the key (273) ----
+// ---- Inert: diagnostics, test hooks, paths, limits, io, tools and other engines; must not be in the key (274) ----
 STRATA_ENV("STRATA_ACT_DUMP", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_ACT_DUMP_COV", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_ACT_DUMP_LAYERS", Inert, "diagnostic/test hook")
@@ -867,6 +867,7 @@ STRATA_ENV("STRATA_HC_UPMIX_CHECK", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_HIDDEN_DUMP", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_HIPBLASLT_TUNING_V1", Inert, "file magic, not an environment variable")
 STRATA_ENV("STRATA_HIPBLASLT_VERBOSE", Inert, "diagnostic/test hook")
+STRATA_ENV("STRATA_HIP_GLOBAL_WEIGHTS", Inert, "build macro (-DSTRATA_HIP_GLOBAL_WEIGHTS=1), not an environment variable: cannot be keyed")
 STRATA_ENV("STRATA_HIP_VMM", Inert, "io/memory/limits/paths")
 STRATA_ENV("STRATA_IDX_FP16_CHECK", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_INJECT_FATAL", Inert, "diagnostic/test hook")
