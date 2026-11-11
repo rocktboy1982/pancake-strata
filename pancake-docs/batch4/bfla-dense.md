@@ -30,9 +30,19 @@ Files: `include/strata/kernels/bfla.hpp`, `src/kernels/cuda/bfla.cu`, `src/kerne
 | `STRATA_BFLA` (old) | turns nothing on; prints that it was split in two | - |
 | `STRATA_BFLA_MIN`, sparse only: `_ETA`, `_KMIN`, `_KMAX`, `_SINK`, `_LOCAL`, `_TAIL`; `STRATA_BFLA_QGLOBAL=1` | as before | - |
 
-Both modes print `strata-q36: STRATA_BFLA_<MODE> acted: ...` once, on the first chunk that took the fused kernel, so an
-arm whose prompt stayed below `STRATA_BFLA_MIN` (or ran on a non-gfx11 GPU) is visible as VOID. The engine computes
-`bfla_config()` at start-up in every run. With nothing set that only reads the environment: no output, no allocation.
+Log lines, in the format `tools/pancake/switch_report.py` reads (`^strata switch: (STRATA_[A-Z0-9_]+) (acted|will not act): (.*)$`):
+
+- `strata switch: STRATA_BFLA_<MODE> acted: prompt attention of positions A..B by the fused kernel`, once, on the first
+  chunk that took the fused kernel. An arm whose prompt stayed below `STRATA_BFLA_MIN` writes no line and is VOID.
+- `strata switch: STRATA_BFLA_<MODE> will not act: needs head dim 256, ...`, at start-up, when the geometry, the GPU or the
+  scratch does not fit (the success line stays the engine's own `strata-q36: STRATA_BFLA_<MODE> on`).
+- `strata switch: STRATA_BFLA will not act: ignored (split in two): ...` for the old switch (`bfla.cu`).
+
+The lines are printed with `fprintf` here because `include/strata/core/switch_report.hpp` (switch-cpp) is not on this branch;
+after the merge they can move to `switch_report::acted()` / `will_not_act()` (same text, same once-only rule).
+`bfla_recall.py`'s `acted()` still matches the substring `NAME acted` (tested on the new line and on a `will not act` line).
+The engine computes `bfla_config()` at start-up in every run. With nothing set that only reads the environment: no output,
+no allocation.
 
 ## Source check: BFLA (arXiv 2605.12193 v2, 2026-10-26, HTML body read) against the code
 
@@ -86,9 +96,12 @@ of dense over off is our own kernel, not a paper claim.
 | --- | --- |
 | `bfla_cpu_test` (new; build-cpu, CPU-only configure; and build-hip, HIP configure) via `ctest -L cpu -R bfla` | pass, 1.0 s (labelled cpu; HIP configure: bfla_cpu_test cpu, bfla_test gpu) |
 | Mutations of its host model (mask off by one, mask condition, rescale dropped) | each fails the test (12-15 FAIL lines) |
-| `python -m pytest tools/pancake/test_bfla_recall.py` (new, 6 tests) | pass |
+| Mutations of `bfla_tile_plan` in `bfla.hpp` (restored after each): `qb >= full_from` -> `qb > full_from`; -> `qb + 1 >= full_from`; `k >= n_vis` and `free_q >= nc` both `>` | fail: the `full_from == qb` case, the `full_from == qb + 1` case, the budget 94-of-94 cases (2 / 2 / 5 FAIL lines). Changing only `k >= n_vis` to `>` is an equivalent mutant: `free_q >= nc` is the same condition (`k - (n_vis - nc) >= nc`) |
+| `python -m pytest tools/pancake/test_bfla_recall.py` (new, 6 tests; the log line in it is the new `strata switch:` format, plus a `will not act` line) | pass |
+| The engine's three line formats against `tools/pancake/switch_report.py` (read-only copy from `dev/phase16-academic`) and the regex above | all three match; `parse()` gives `acted` for `BFLA_DENSE`, `will not act` for `BFLA_SPARSE` and for `BFLA` |
 | `bfla_recall.build_prompt` with the real Qwen3.6 tokenizer pack, 4,096 tokens | 4,096 ids, 6 / 6 needles in the decoded prompt |
 | HIP gfx1100, the compilegate's recorded commands rewritten to this worktree (`-fsyntax-only` then objects): `bfla.cu`, `bfla_test.cu`, `q36_engine.cu`, `prefill.cpp` | 0 errors. bfla.cu 0 warnings. bfla_test.cu: 60 unchecked-`hipError_t` warnings (the branch's test code, the repo's usual class). q36_engine.cu: only the old sign-compare / unused `D`, `k_add`, `k_gate_rows`. prefill.cpp: only the old nodiscard ones. Objects: bfla.cu 3 s, bfla_test.cu 5 s, q36_engine.cu 13 s |
+| After the fix-first changes (switch lines, `bfla_test.cu`'s `host_select` calling `bfla_tile_plan`, new plan cases): `bfla_cpu_test` via `ctest -L cpu -R bfla` in build-cpu (CPU configure); HIP gfx1100 `-fsyntax-only` of `bfla.cu`, `bfla_test.cu`, `q36_engine.cu` through this worktree's recorded build-hip commands | pass; 0 errors, no new warnings (bfla_test.cu still the 60 `hipError_t` ones). `bfla_test.cu` is compiled only, not run (GPU) |
 | CUDA sm_86 (nvcc 13.1), same method: `bfla.cu` (stubs + config), `q36_engine.cu` | 0 errors; old warnings only |
 | CMake HIP configure of this branch (gfx1100, tests on) | ok: 139 cpu / 129 gpu / 1 model tests |
 | Not run: `bfla_test`, any engine run, the link of `strata` | GPU / RAM rules |
@@ -181,5 +194,19 @@ Decision rules:
   "a start-up warning says the option is lossy" holds for SPARSE only.
 - Plan text: the "3.15x" needs its baseline (materialised GEMM path); like-for-like with the paper is sparse / dense 1.58x
   (128K) / 1.21x (64K).
-- switch-cpp's planned `strata_switch_acted()` helper: the engine prints its own `<switch> acted` line now. It can move to
-  the helper when that lands.
+- **At merge, `tools/pancake/kernel_gate.py:544`** (not on this branch): the candidate's label `"STRATA_BFLA=dense"` must become
+  `"STRATA_BFLA_DENSE=1"` (the old switch is ignored now).
+- **`bench/promotion/switch-exempt.json`** (not on this branch; on `dev/phase16-academic` it is `{"note", "exempt": {"no
+  strata switch line yet": [111 names, sorted]}}` and has no BFLA name): `STRATA_BFLA_DENSE` and `STRATA_BFLA_SPARSE` log
+  `acted`, so they need no entry. Their knobs print nothing, so an arm that sets one of them is VOID for that key in
+  `switch_report.py` unless it is listed. Add to the list (alphabetical place: after `STRATA_BANDIT_LOG`):
+  `STRATA_BFLA_ETA`, `STRATA_BFLA_KMAX`, `STRATA_BFLA_KMIN`, `STRATA_BFLA_LOCAL`, `STRATA_BFLA_MIN`, `STRATA_BFLA_QGLOBAL`,
+  `STRATA_BFLA_SINK`, `STRATA_BFLA_TAIL` (the night commands above set `_MIN`, `_SINK`, `_LOCAL` through `--test-env`), and
+  `STRATA_SEL_OVERLAP` if an arm ever sets it (debug output of `prefill.cpp`, no switch line). A preset arm that sets only
+  `STRATA_BFLA_DENSE=1` needs nothing.
+- What `bfla_cpu_test` covers: the switches, `bfla_tile_plan` and a host model of the kernel's arithmetic (schedule, mask,
+  online softmax). It does not compile `bfla.cu`, so a mutation of the real kernel (a mask or rescale slip in `k_attn`,
+  a changed budget in `k_select`) is caught only by `bfla_test` on the GPU (night step 1). `bfla_test`'s `host_select` now
+  takes the plan from `bfla_tile_plan` (same function as `k_select`), so the plan itself is tested only by the hand-computed
+  cases in `bfla_cpu_test`; `host_select` still checks the scores, ranking and tie rule independently.
+- The `switch-cpp` helper (`include/strata/core/switch_report.hpp`) can replace the three `fprintf` calls after the merge.
