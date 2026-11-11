@@ -109,6 +109,7 @@ void q2_0_gguf_rows_multi_avx2_v(bool, const uint8_t*, size_t, int, const ActQ* 
     unsupported("the Q2_0 GGUF row kernel");
 }
 bool q2_fast_enabled() { return false; }
+int q2_fast_corr_form(bool) { return -1; }
 void q2_0_gguf_rows_multi_avx2_fast(const uint8_t*, size_t, int, const ActQ* const*, int, float* const*, int, int) {
     unsupported("the Q2_0 GGUF row kernel");
 }
