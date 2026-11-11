@@ -1,23 +1,16 @@
-// MOD_PLAN Phase 15 (F12, F14): host proofs that two GPU kernel rewrites keep their bits.  No GPU, no model, no engine.
+// MOD_PLAN Phase 15 (F14): host proof that the Q2_0 down row on 4 lanes keeps its bits.  No GPU, no model, no engine.
 //
-// F12  iq_signed<true> (STRATA_IQ_SIGN_FAST): the IQ2/IQ3 grid signs without __vcmpne4 / __vsub4,
-//        m = (t + 0x7F7F7F7F) & 0x80808080; c = m >> 7; (g ^ (m | (m - c))) + c
-//      against the reference the CUDA video instructions define, per byte: s = 0xFF where the byte of t is not 0, and
-//      (g ^ s) - s wrapped to the byte.  Domain of the kernels: a byte of t holds at most one set bit (the formats mask
-//      signs with 0x08040201 / 0x80402010), and no codebook byte of the five IQ2/IQ3 grids is 0 (so the +1 of a negated
-//      byte never carries into the next one).  Every (g byte, t byte) pair is checked in isolation, then random words for
-//      the lane interplay, and a control shows the zero-byte precondition is real (without it the forms differ).
+// native_down_q2_sub4_kernel (STRATA_EXP_MODE=9 + STRATA_EXP9_DOWN=42:10): the Q2_0 down row at n_ff 640 sums 20 calls.
+// Mode 0 (row_dot_20_sub16) puts call t on lane t of 16 (call t + 16 for t < 4), joins the two with a plain add, then
+// runs the xor 8, 4, 2, 1 butterfly.  The 4-lane kernel gives lane u of 4 the calls u, u + 4, ... u + 16 and adds them
+// in the butterfly's own first two levels, then shuffles xor 2 and xor 1.  Both trees are modelled with the lanes as
+// arrays and compared BITWISE on random call values (zeros, negative zeros, subnormals, cancellations, wide scales).
+// (F12's sign form has its own host test, iq_sign_fast_test, on the shared header the kernels include.)
 //
-// F14  native_down_q2_sub4_kernel (STRATA_EXP_MODE=9 + STRATA_EXP9_DOWN=42:10): the Q2_0 down row at n_ff 640 sums 20 calls.
-//      Mode 0 (row_dot_20_sub16) puts call t on lane t of 16 (call t + 16 for t < 4), joins the two with a plain add, then
-//      runs the xor 8, 4, 2, 1 butterfly.  The 4-lane kernel gives lane u of 4 the calls u, u + 4, ... u + 16 and adds them
-//      in the butterfly's own first two levels, then shuffles xor 2 and xor 1.  Both trees are modelled with the lanes as
-//      arrays and compared BITWISE on random call values (zeros, negative zeros, subnormals, cancellations, wide scales).
-//
-// Not a compile of the kernels: the host models transcribe the arithmetic the kernels spell out.  Two things keep that
+// Not a compile of the kernel: the host model transcribes the arithmetic the kernel spells out.  Two things keep that
 // honest: the transcription is checked against the kernel SOURCE (the lines that carry the arithmetic must still be
-// there, or the test fails and the model has to be re-derived), and the kernels' own parity runs on the GPU
-// (native_expert_bench, iq_multi_parity) stay the proof for the compiled code (contraction choices, the HIP emulation).
+// there, or the test fails and the model has to be re-derived), and the kernel's own parity run on the GPU
+// (native_expert_bench) stays the proof for the compiled code (contraction choices, the HIP emulation).
 // Exit 0 = PASS, 1 = FAIL.
 #include <cmath>
 #include <cstdint>
@@ -53,56 +46,6 @@ struct Rng {
         return s;
     }
 };
-
-// ---------------------------------------------------------------------------------------------------------- F12
-uint32_t sign_ref(uint32_t g, uint32_t t) {   // __vcmpne4(t, 0) then __vsub4(g ^ s, s), byte by byte
-    uint32_t r = 0;
-    for (int b = 0; b < 4; ++b) {
-        const uint32_t gb = (g >> (8 * b)) & 0xFF, tb = (t >> (8 * b)) & 0xFF;
-        const uint32_t sb = tb != 0 ? 0xFF : 0;
-        r |= (((gb ^ sb) - sb) & 0xFF) << (8 * b);
-    }
-    return r;
-}
-uint32_t sign_fast(uint32_t g, uint32_t t) {   // iq_signed<true>
-    const uint32_t m = (t + 0x7F7F7F7Fu) & 0x80808080u;
-    const uint32_t c = m >> 7;
-    return (g ^ (m | (m - c))) + c;
-}
-const uint32_t kBits[9] = {0, 1, 2, 4, 8, 16, 32, 64, 128};   // a byte of t: no sign, or one sign bit
-
-void test_signs() {
-    // every (g byte, t byte) pair in each lane, the other lanes at their worst neighbours (0xFF below, 0x01 / 0x80 above)
-    long cases = 0;
-    for (int lane = 0; lane < 4; ++lane)
-        for (uint32_t gb = 1; gb < 256; ++gb)
-            for (uint32_t tb : kBits)
-                for (uint32_t other_g : {0x01010101u, 0xFFFFFFFFu, 0x80808080u, 0x7F7F7F7Fu})
-                    for (uint32_t other_t : {0x00000000u, 0x80808080u, 0x01010101u, 0x80402010u}) {
-                        const uint32_t sh = 8 * lane, mask = ~(0xFFu << sh);
-                        const uint32_t g = (other_g & mask) | (gb << sh), t = (other_t & mask) | (tb << sh);
-                        ++cases;
-                        CHECK(sign_fast(g, t) == sign_ref(g, t), "lane %d g %08x t %08x: fast %08x ref %08x", lane, g, t,
-                              sign_fast(g, t), sign_ref(g, t));
-                        if (failed) return;
-                    }
-    // random words: nonzero codebook bytes, a sign bit or none in each byte of t
-    Rng rng;
-    for (long i = 0; i < 20000000; ++i) {
-        uint32_t g = 0, t = 0;
-        for (int b = 0; b < 4; ++b) {
-            const uint64_t r = rng.next();
-            g |= (uint32_t) (1 + (r % 255)) << (8 * b);
-            t |= kBits[(r >> 20) % 9] << (8 * b);
-        }
-        ++cases;
-        CHECK(sign_fast(g, t) == sign_ref(g, t), "g %08x t %08x: fast %08x ref %08x", g, t, sign_fast(g, t), sign_ref(g, t));
-        if (failed) return;
-    }
-    // control: a zero codebook byte under a sign breaks the form (the carry), so "no codebook byte is 0" is load-bearing
-    CHECK(sign_fast(0x01010100u, 0x00000001u) != sign_ref(0x01010100u, 0x00000001u), "the control must differ");
-    std::printf("F12 sign form: %ld cases, bitwise equal to the vcmpne4/vsub4 reference (zero-byte control differs, as it must)\n", cases);
-}
 
 // ---------------------------------------------------------------------------------------------------------- F14
 float fadd(float a, float b) {   // one rounding per add; the volatile keeps the compiler from regrouping a chain of them
@@ -216,9 +159,6 @@ void test_source_guard() {
         std::printf("source guard: %s not readable here, skipped\n", path.c_str());
         return;
     }
-    need(src, "F12 m", "const uint32_t m = (t + 0x7F7F7F7Fu) & 0x80808080u;");
-    need(src, "F12 c", "const uint32_t c = m >> 7;");
-    need(src, "F12 word", "return (int) ((g ^ (m | (m - c))) + c);");
     // mode 0's tree (row_dot_20_sub16)
     need(src, "mode 0 join", "s[c] = __fadd_rn(s[c], s16[c]);");
     need(src, "mode 0 butterfly", "for (int o = 8; o > 0; o >>= 1) s[c] += __shfl_xor_sync(0xffffffffu, s[c], o);");
@@ -240,8 +180,7 @@ void test_source_guard() {
 }  // namespace
 
 int main() {
-    test_signs();
-    if (!failed) test_down_fold();
+    test_down_fold();
     test_source_guard();
     if (failed) {
         std::fprintf(stderr, "gpu_rewrite_parity_test: FAIL (%d)\n", failed);

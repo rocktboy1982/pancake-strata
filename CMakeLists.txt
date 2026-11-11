@@ -498,8 +498,8 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(route_prior_scope_test PRIVATE include)
   add_test(NAME route_prior_scope_test COMMAND route_prior_scope_test)
 
-  # MOD_PLAN Phase 15 F12 / F14: host proofs that two GPU kernel rewrites keep their bits (the IQ2/IQ3 sign form without
-  # vcmpne4 / vsub4, the Q2_0 down row on 4 lanes instead of 16), tied to the kernel source by a text guard; no GPU, no model
+  # MOD_PLAN Phase 15 F14: host proof that the Q2_0 down row on 4 lanes keeps the 16-lane tree's bits (the sub4 kernel's sum order
+  # modelled on the host), tied to the kernel source by a text guard; no GPU, no model
   add_executable(gpu_rewrite_parity_test tests/core/gpu_rewrite_parity_test.cpp)
   target_compile_definitions(gpu_rewrite_parity_test PRIVATE STRATA_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME gpu_rewrite_parity_test COMMAND gpu_rewrite_parity_test)
