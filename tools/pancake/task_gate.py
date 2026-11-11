@@ -423,24 +423,31 @@ def task_rates(runs, key="ok"):
     return out
 
 
-def boot_diff(arm, base, boots=2000, seed=0, resample_tasks=True):
+def boot_diff(arm, base, boots=2000, seed=0, resample_tasks=True, resample_reps=True):
     """Paired difference of the mean per-task rate, arm minus base, with a 95% bootstrap interval.  arm / base:
     {task: [0/1,...]}.  Only tasks present in both count.  Each draw resamples the tasks (with replacement; off with
     resample_tasks=False: then the interval is the repetition noise on this fixed task set only) and, inside a task,
-    the repetitions of each arm.  Returns (diff, lo, hi, n_tasks) or None when no common task."""
+    the repetitions of each arm (off with resample_reps=False, tasks only: a task's rate already carries its repetition
+    noise, so resampling both levels counts it twice - in a simulation of 18 tasks x 5 repetitions the default interval
+    was ~35% wider than the tasks-only one and covered the true difference 97-100% of the time for a nominal 95%).
+    Returns (diff, lo, hi, n_tasks) or None when no common task."""
     tasks = [t for t in arm if t in base and arm[t] and base[t]]
     if not tasks:
         return None
     rng = random.Random(seed)
     mean = lambda xs: sum(xs) / len(xs)
-    d = mean([mean(arm[t]) - mean(base[t]) for t in tasks])
+    per_task = {t: mean(arm[t]) - mean(base[t]) for t in tasks}
+    d = mean(list(per_task.values()))
     ds = []
     for _ in range(boots):
         pick = [rng.choice(tasks) for _ in tasks] if resample_tasks else tasks
-        s = 0.0
-        for t in pick:
-            a, b = arm[t], base[t]
-            s += mean(rng.choices(a, k=len(a))) - mean(rng.choices(b, k=len(b)))
+        if resample_reps or not resample_tasks:     # (tasks fixed and reps fixed would not be an interval at all)
+            s = 0.0
+            for t in pick:
+                a, b = arm[t], base[t]
+                s += mean(rng.choices(a, k=len(a))) - mean(rng.choices(b, k=len(b)))
+        else:
+            s = sum(per_task[t] for t in pick)
         ds.append(s / len(pick))
     ds.sort()
     return d, ds[int(0.025 * boots)], ds[min(boots - 1, int(0.975 * boots))], len(tasks)
@@ -479,12 +486,10 @@ def time_curve(runs, horizon, budgets):
     """A18 / A57: the share of runs that succeeded within each budget (seconds), and the area under that curve to `horizon`:
     the mean over all runs of max(0, 1 - elapsed / horizon) for a success and 0 for a failure (so a slow success counts
     less than a fast one, a failure nothing)."""
-    n = len(runs)
-    if not n:
+    if not runs:
         return None
-    within = {str(b): sum(1 for r in runs if r["ok"] and r["elapsed"] <= b) / n for b in budgets}
-    auc = sum(max(0.0, 1.0 - r["elapsed"] / horizon) for r in runs if r["ok"]) / n
-    return {"within": within, "auc": auc, "horizon": horizon}
+    within = {str(b): success_within(runs, b) for b in budgets}
+    return {"within": within, "auc": time_auc(runs, horizon), "horizon": horizon}
 
 
 def arm_stats(runs, curve=None):
@@ -530,11 +535,11 @@ def task_auc_scores(runs, horizon):
 
 
 def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resample_tasks=True, noisy=None, base_drift=None, auc_horizon=None,
-                 curve=None):
+                 curve=None, resample_reps=True):
     """arms: arm names, arms[0] = base.  runs_by_arm: {name: [run records]} (base pooled over its repeats; base_drift:
     (runs_a, runs_b) of the two base runs).  Returns a JSON-able dict."""
     base = arms[0]
-    rep = {"arms": {}, "margin": margin, "validity_margin": vmargin, "resample_tasks": resample_tasks, "warnings": []}
+    rep = {"arms": {}, "margin": margin, "validity_margin": vmargin, "resample_tasks": resample_tasks, "resample_reps": resample_reps, "warnings": []}
     for a in arms:
         rep["arms"][a] = {"stats": arm_stats(runs_by_arm[a], curve) if runs_by_arm.get(a) else None}
     # A57: area under the time-to-success curve, one horizon for every arm (information, never part of the verdict)
@@ -551,7 +556,7 @@ def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resampl
         rep["warnings"].append(f"the base passes only {bs['rate'] * 100:.0f}% of its runs: a gate that fails everything cannot "
                                "show a loss; check the checkers (--dry-run) and the preset before reading the verdicts")
     if base_drift:
-        r = boot_diff(task_rates(base_drift[1]), task_rates(base_drift[0]), boots, seed, resample_tasks)
+        r = boot_diff(task_rates(base_drift[1]), task_rates(base_drift[0]), boots, seed, resample_tasks, resample_reps)
         if r:
             rep["base_noise"] = {"diff": r[0], "lo": r[1], "hi": r[2]}
             if r[1] > 0 or r[2] < 0:
@@ -562,14 +567,14 @@ def build_report(arms, runs_by_arm, margin, vmargin, boots=2000, seed=0, resampl
         if not e["stats"] or not runs_by_arm.get(base):
             e["verdict"] = "not run"
             continue
-        ra = boot_diff(task_rates(runs_by_arm[a]), task_rates(runs_by_arm[base]), boots, seed, resample_tasks)
-        rv = boot_diff(task_rates(runs_by_arm[a], "valid"), task_rates(runs_by_arm[base], "valid"), boots, seed, resample_tasks)
+        ra = boot_diff(task_rates(runs_by_arm[a]), task_rates(runs_by_arm[base]), boots, seed, resample_tasks, resample_reps)
+        rv = boot_diff(task_rates(runs_by_arm[a], "valid"), task_rates(runs_by_arm[base], "valid"), boots, seed, resample_tasks, resample_reps)
         if not ra:
             e["verdict"] = "not run"
             continue
         e["success_diff"] = {"diff": ra[0], "lo": ra[1], "hi": ra[2], "tasks": ra[3]}
         if horizon > 0 and runs_by_arm.get(base):
-            rauc = boot_diff(task_auc_scores(runs_by_arm[a], horizon), task_auc_scores(runs_by_arm[base], horizon), boots, seed, resample_tasks)
+            rauc = boot_diff(task_auc_scores(runs_by_arm[a], horizon), task_auc_scores(runs_by_arm[base], horizon), boots, seed, resample_tasks, resample_reps)
             if rauc:
                 e["auc_diff"] = {"diff": rauc[0], "lo": rauc[1], "hi": rauc[2]}
         v = verdict(ra[1], ra[2], margin)
@@ -625,7 +630,7 @@ def format_report(rep):
         n = rep["base_noise"]
         L.append(f"base run 2 vs run 1: {n['diff'] * 100:+.1f} pts [{n['lo'] * 100:+.1f}, {n['hi'] * 100:+.1f}]")
     L.append(f"verdict: success non-inferior within {rep['margin'] * 100:.0f} pts, tool-call validity within "
-             f"{rep['validity_margin'] * 100:.0f} pts; paired by task, bootstrap {'over tasks and repetitions' if rep['resample_tasks'] else 'over repetitions only'}")
+             f"{rep['validity_margin'] * 100:.0f} pts; paired by task, bootstrap {'over repetitions only' if not rep['resample_tasks'] else 'over tasks and repetitions' if rep.get('resample_reps', True) else 'over tasks only'}")
     L += [f"WARNING: {w}" for w in rep["warnings"]]
     return "\n".join(L)
 
@@ -762,6 +767,8 @@ def main():
     ap.add_argument("--regrade", action="store_true", help="with --from-runs: grade the stored answers again with the current checkers")
     ap.add_argument("--no-base-repeat", action="store_true", help="run the base arm once (no drift check)")
     ap.add_argument("--no-task-resample", action="store_true", help="interval from repetition noise only (tasks held fixed)")
+    ap.add_argument("--tasks-only", action="store_true", help="interval from resampling the tasks alone (a task's rate already holds its repetition "
+                    "noise; the default resamples the repetitions too, which counts it twice and is ~35%% wider)")
     ap.add_argument("--boots", type=int, default=2000)
     ap.add_argument("--auc-horizon", type=float, help="seconds: the time axis of the time-to-success AUC (A57); default the longest run of the batch")
     ap.add_argument("--timeout", type=int, default=600, help="seconds per request")
@@ -791,7 +798,8 @@ def main():
             regrade(runs, tasks)
         by, drift = arrange(arms, runs)
         print(format_report(build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample,
-                                         base_drift=drift, auc_horizon=a.auc_horizon, curve=curve_of(s))))
+                                         base_drift=drift, auc_horizon=a.auc_horizon, curve=curve_of(s),
+                                         resample_reps=not a.tasks_only)))
         return 0
 
     arms = list(spec["arms"])
@@ -901,7 +909,7 @@ def main():
     runs = load_runs(out)
     by, drift = arrange(arms, runs)
     rep = build_report(arms, by, s["margin"], s["validity_margin"], a.boots, 0, not a.no_task_resample, noisy, drift, a.auc_horizon,
-                       curve_of(s))
+                       curve_of(s), resample_reps=not a.tasks_only)
     text = format_report(rep)
     print("\n" + text)
     (out / "summary.json").write_text(json.dumps(rep, indent=1))
