@@ -71,6 +71,11 @@ def test_gate():
     assert not B.gate(res(recall_test=5))[0]
 
 
+def test_clean_env_keeps_the_ram_cap_only():
+    e = B.clean_env({"PATH": "/bin", "STRATA_BFLA_SPARSE": "1", "STRATA_ATTN_WINDOW": "1", "STRATA_RAM_KEEP_GIB": "12"})
+    assert e == {"PATH": "/bin", "STRATA_RAM_KEEP_GIB": "12"}
+
+
 def test_arm_env_and_acted():
     e = B.arm_env({"HIP_VISIBLE_DEVICES": "0"}, "dense", {"STRATA_BFLA_MIN": "4096"})
     assert e == {"HIP_VISIBLE_DEVICES": "0", "STRATA_BFLA_DENSE": "1", "STRATA_BFLA_MIN": "4096"}

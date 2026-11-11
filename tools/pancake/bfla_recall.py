@@ -92,16 +92,38 @@ def acted(log_text, mode):
     return f"{SWITCH[mode]} acted" in log_text
 
 
+def clean_env(environ):
+    """The caller's environment without STRATA_* switches (a stray one would change an arm), except the RAM cap that
+    tools/pancake/capped.sh sets for the engine."""
+    return {k: v for k, v in environ.items() if not k.startswith("STRATA_") or k == "STRATA_RAM_KEEP_GIB"}
+
+
+def wait_ram(min_gib=None, tries=120):
+    """capped.sh's start rule before every engine run: wait (up to 10 min, WAIT_GIB, default 48) for the previous run's
+    RAM to come back."""
+    if min_gib is None:
+        min_gib = float(os.environ.get("WAIT_GIB", "48"))
+    for _ in range(tries):
+        try:
+            with open("/proc/meminfo") as f:
+                kb = next(int(line.split()[1]) for line in f if line.startswith("MemAvailable:"))
+        except (OSError, StopIteration, ValueError):
+            return
+        if kb / 1048576 >= min_gib:
+            return
+        time.sleep(5)
+
+
 def run(exe, model, ids_file, ctx, n_new, env_extra, force_file=None, dump=None, log=None):
-    env = {k: v for k, v in os.environ.items() if not k.startswith("STRATA_")}
+    wait_ram()
+    env = clean_env(os.environ)
     env.update(env_extra)
     cmd = [exe, "--model", model, "--max-context", str(ctx), "--tokens", "@" + str(ids_file), "--n", str(n_new)]
     if force_file:
         cmd += ["--force", "@" + str(force_file)]
     if dump:
         cmd += ["--dump-full-logits", str(dump)]
-    t0 = time.time()
-    p = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    p = subprocess.run(cmd, env=env, capture_output=True, text=True, check=False)
     if log:
         Path(log).write_text(p.stderr)
     if p.returncode != 0:
