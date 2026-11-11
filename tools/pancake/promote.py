@@ -18,12 +18,15 @@ ITEMS.json: {"items": [ITEM, ...]}.  ITEM keys (the first five are required; the
   gates        lossy items, default ["token_forcing", "task_gate"] ("task_gate" only when decides is "taskgate"); exact: []
   parity       exact items, default ["text"]; also {"restore": FILE}, {"ctest": FILE, "tests": [names]}, {"waived": "reason"}
   min_gain, min_pairs   per-item override of the thresholds below (printed when used)
+  switch_exempt  {"reason": ["STRATA_NAME", ...]}: switches of this item's arms that print no "strata switch:" line (added to
+               bench/promotion/switch-exempt.json, see switch_report.py)
   tested_rev   short hash the results must come from (rev.txt of the result directory); runs, quality, taskgate, replay: paths or
                globs relative to the repo (default: the newest bench/results/*/<spec stem>.jsonl, -quality, -taskgate, -replay)
 
 Result layout read (tools/pancake/test_phase.sh writes the first two; run task_gate.py / replay_turns.py with
 --out <results dir>/<stem>-taskgate and <stem>-replay):  <stem>.jsonl (abtest), <stem>-quality/verdicts.json and <arm>.verdict.json
-(quality_gate), <stem>-taskgate/summary.json, <stem>-replay/summary.json, rev.txt, restore-check*.txt, ctest-gpu.txt.
+(quality_gate), <stem>-taskgate/summary.json, <stem>-replay/summary.json, rev.txt, restore-check*.txt, ctest-gpu.txt,
+<stem>/<arm>-r<rep>-a<attempt>.engine.log (abtest: the engine's log of each attempt, for the switch check).
 
 Verdict.  Any REJECT reason -> REJECT; else any HOLD reason -> HOLD; else PROMOTE.  An item with several arms gets its best arm.
 Thresholds (constants below; each cites where it comes from):
@@ -44,6 +47,12 @@ Thresholds (constants below; each cites where it comes from):
               PASS only means "no large deviation".  HOLD when the stock-vs-stock spread exceeds the 0.5-point margin.
   task gate   (task_gate.py) BETTER or PASS needed (success non-inferior within its margin and tool-call validity): "Displacement Is Not
               Direction" (arXiv 2606.19558) shows KLD / top-1 do not rank close variants, so lossy arms are judged by task score too.
+  switch      every STRATA_* key an arm's env turns on must have logged "strata switch: NAME acted" in the engine log of the runs
+              (switch_report.py; abtest keeps the log per attempt).  No run logged it -> the arm is VOID: HOLD "switch never acted: the arm
+              measured nothing", and nothing else is judged (its numbers, parity and gates measured the base).  Some runs only, or no engine
+              log kept (a result from before abtest kept it) -> HOLD.  Exempt: the names in bench/promotion/switch-exempt.json (no log line yet).
+  tier        a comparison whose arms ran on different tiers (arena vs mmap differ by ~8%) -> HOLD, nothing else judged.  The tier is the
+              `tier` field of the abtest jsonl rows; rows without it (before abtest recorded it) are unknown: one warning, no check.
   --noise     per case: base CV, paired SD per arm, and the pairs needed to see a 1% / 3% gain, from existing abtest jsonl files.
 """
 import argparse
@@ -56,6 +65,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import abtest  # noqa: E402   (metric(): which engine figure judges a case; importing it reads sysfs only)
+import switch_report as sw  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ALPHA = 0.05
@@ -200,6 +210,7 @@ def read_ctest(path):
 class Arm:
     def __init__(self, name):
         self.name, self.lines, self.reject, self.hold, self.gain = name, [], [], [], None
+        self.warn = []   # printed once per distinct text at the end of the report
 
     def verdict(self):
         return "REJECT" if self.reject else "HOLD" if self.hold else "PROMOTE"
@@ -335,8 +346,51 @@ def judge_task_gate(a, summary, arm):
             a.hold.append("task gate: " + w)
 
 
-def judge_arm(item, spec, found, arm, need, min_pairs, m):
-    """One arm of the item -> Arm.  found: the located result paths; m: number of comparisons for the Bonferroni correction."""
+def tier_of(rec):
+    """The tier an abtest row ran on (arena / mmap), or None when it carries none (a row from before abtest recorded it)."""
+    t = rec.get("tier")
+    return None if t in (None, "", "unknown") else t if isinstance(t, str) else json.dumps(t, sort_keys=True)
+
+
+def judge_tiers(a, runs, names, file):
+    """Every run the comparison uses (the arms in names) must be on one tier.  True when they are not: the numbers compare tiers."""
+    by = {n: {tier_of(r) for r in runs[n].values()} for n in names}
+    known = set().union(*by.values()) - {None}
+    unknown = [r for n in names for r in runs[n].values() if tier_of(r) is None]
+    if len(known) > 1:
+        a.hold.append("tiers differ: " + ", ".join(f"{n} on {'/'.join(sorted(map(str, t - {None}))) or 'unknown'}" for n, t in by.items())
+                      + ": arena and mmap differ by ~8% and change which switches matter; repeat both arms on one tier")
+        return True
+    if unknown:
+        a.warn.append(f"{file}: {len(unknown)} of {sum(len(runs[n]) for n in names)} runs carry no tier (written before abtest recorded it): "
+                      "arena vs mmap mixing was not checked")
+    else:
+        a.lines.append(f"tier {next(iter(known))} on every run")
+    return False
+
+
+def judge_switches(a, spec, runs, found, arm, exempt):
+    """Every switch the arm turns on must have logged "acted" (switch_report.py).  True when one never did: the arm is VOID."""
+    logs = [sw.read_log(found["runs"].with_suffix(""), arm, rec["rep"], rec["attempt"]) for rec in runs[arm].values()]
+    status = sw.arm_status(spec["arms"][arm].get("env"), logs, exempt)
+    for name, (s, text) in status.items():
+        if s == sw.ACTED:
+            a.lines.append(f"switch {name} acted in {len(logs)} of {len(logs)} runs: {text}")
+        elif s == sw.VOID:
+            a.hold.append(f"switch never acted: the arm measured nothing ({name}: {text})")
+        elif s == sw.NO_LOG:
+            a.hold.append(f"switch {name} not verified: {text} (rerun with an abtest that keeps the engine log of every attempt)")
+        elif s == sw.PARTIAL:
+            a.hold.append(f"switch {name} {text}: the other runs measured nothing or are unverified")
+    for reason in sorted({text for s, text in status.values() if s == sw.EXEMPT}):
+        names = [n for n, (s, text) in status.items() if s == sw.EXEMPT and text == reason]
+        a.lines.append(f"switch not checked ({reason}): {', '.join(names)}")
+    return any(s == sw.VOID for s, _ in status.values())
+
+
+def judge_arm(item, spec, found, arm, need, min_pairs, m, exempt=None):
+    """One arm of the item -> Arm.  found: the located result paths; m: number of comparisons for the Bonferroni correction;
+    exempt: {short switch name: reason} (switch_report.load_exempt)."""
     a = Arm(arm)
     base = next(iter(spec["arms"]))         # stock: parity and token forcing compare with it
     ref = item.get("vs", base)              # the gain is measured against it
@@ -354,6 +408,11 @@ def judge_arm(item, spec, found, arm, need, min_pairs, m):
             runs = None
         elif discarded:
             a.lines.append(f"abtest   {discarded} noisy attempts were discarded and repeated")
+    if runs is not None:   # an arm that measured nothing, or a comparison across tiers, has no numbers worth judging
+        invalid = [judge_tiers(a, runs, sorted({base, ref, arm}), found["runs"].name),
+                   judge_switches(a, spec, runs, found, arm, exempt or {})]
+        if any(invalid):
+            return a
     if decides == "abtest":
         if runs is None:
             a.hold.append("no abtest result" if not found["runs"] else "abtest result incomplete")
@@ -435,6 +494,9 @@ def validate(item, root):
     for k in item.get("claim", []):
         if k not in spec.get("cases", []):
             raise ValueError(f"item {item['name']}: claim case {k!r} is not a case of {item['spec']}")
+    for reason, names in item.get("switch_exempt", {}).items():
+        if not (isinstance(names, list) and all(isinstance(n, str) for n in names)):
+            raise ValueError(f"item {item['name']}: switch_exempt must be {{\"reason\": [\"STRATA_NAME\", ...]}}")
     return spec
 
 
@@ -463,7 +525,8 @@ def evaluate(item, root):
     m = len(arms) * (len(claim) if decides == "abtest" else 1)   # comparisons the Bonferroni correction counts
     need = item.get("min_gain", MIN_GAIN[item["exact"]])
     min_pairs = item.get("min_pairs", MIN_PAIRS)
-    res = [judge_arm(item, spec, found, arm, need, min_pairs, m) for arm in arms]
+    exempt = sw.load_exempt(root, item)
+    res = [judge_arm(item, spec, found, arm, need, min_pairs, m, exempt) for arm in arms]
     rev_file = found["dir"] / "rev.txt" if found["dir"] else None
     rev = rev_file.read_text().strip() if rev_file and rev_file.is_file() else None
     want = item.get("tested_rev")
@@ -492,6 +555,8 @@ def render(results):
             out += [f"      REJECT: {x}" for x in a.reject] + [f"      HOLD: {x}" for x in a.hold]
         if r["verdict"] == "PROMOTE":
             out.append(f"  winning arm {r['best'].name}: {json.dumps(r['arm_spec'])}")
+    warnings = list(dict.fromkeys(w for r in results for a in r["arms"] for w in a.warn))
+    out += ["\nWARNING: " + w for w in warnings]
     counts = {v: sum(r["verdict"] == v for r in results) for v in ORDER[::-1]}
     out.append("\n" + ", ".join(f"{n} {v}" for v, n in counts.items()))
     cmds = [r for r in results if r["verdict"] == "PROMOTE"]
