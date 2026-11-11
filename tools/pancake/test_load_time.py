@@ -77,6 +77,20 @@ def test_meminfo_reads_this_machine():
     assert mi == {} or ("MemAvailable" in mi and mi["MemAvailable"] > 0)
 
 
+
+def test_wait_for_ram_returns_at_once_when_enough_and_gives_up_at_the_timeout():
+    saved = L.meminfo_gib
+    try:
+        L.meminfo_gib = lambda: {"MemAvailable": 50.0}
+        assert L.wait_for_ram(48.0, timeout=5, poll=0.01) < 0.5
+        L.meminfo_gib = lambda: {"MemAvailable": 10.0}
+        assert 0.05 <= L.wait_for_ram(48.0, timeout=0.1, poll=0.01) < 1.0   # never enough: stops at the timeout
+        L.meminfo_gib = lambda: {}
+        assert L.wait_for_ram(48.0, timeout=5, poll=0.01) < 0.5            # no /proc/meminfo: do not wait on nothing
+    finally:
+        L.meminfo_gib = saved
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

@@ -26,8 +26,13 @@ Arms (default: cold and warm cache for each mode; --modes picks):
     python tools/pancake/load_time.py --from-rows bench/results/<day>-load-time/rows.jsonl     print the table again
 
 The machine must be quiet and the GPU free (it starts the real server, like abtest.py): run it in the coordinator's window.
-Expected (README row): start 28-65 s -> 10-14 s with the direct loader on a cold cache.  Decide: direct is better when its cold start is
-shorter than buffered's by more than the run-to-run spread and its psi_full_s / cached_peak_gib are lower; the checksums must match.
+Plan estimate, NOT measured: start 28-65 s -> 10-14 s with the direct loader on a cold cache.  The source (ServerlessLLM, OSDI'24,
+arXiv 2401.14351) measured loading 3.6-4.7x faster than Safetensors and 6-8.2x faster than PyTorch on 12 GB/s RAID0 NVMe, with
+direct I/O 2.1x, multi-threading 2.3x, a pinned chunk pool 1.4x and pipelining 1.5x in its ablation from per-tensor reads; this
+engine's buffered path already reads in 8 MiB chunks on several threads, so the gain here is the smaller direct-I/O part plus the
+page-cache pressure it avoids.  Decide: direct is better when its cold start is shorter than buffered's by more than the
+run-to-run spread and its psi_full_s / cached_peak_gib are lower; the checksums must match.  waited_s (the RAM give-back wait
+of capped.sh, moved out of start_s) and after (the loader of the run before) are in every row.
 """
 from __future__ import annotations
 
@@ -92,6 +97,15 @@ def meminfo_gib() -> dict:
     except OSError:
         pass
     return out
+
+
+def wait_for_ram(gib: float = 48.0, timeout: float = 600.0, poll: float = 5.0) -> float:
+    """Seconds spent until MemAvailable is at least `gib` (capped.sh waits for the same 48 GiB before it starts the engine; that
+    wait is moved out of the timed start, so a slow RAM give-back of the previous run is not charged to this one)."""
+    t0 = time.time()
+    while meminfo_gib().get("MemAvailable", gib) < gib and time.time() - t0 < timeout:
+        time.sleep(poll)
+    return time.time() - t0
 
 
 class MemSampler(threading.Thread):
@@ -188,13 +202,14 @@ def one_run(base: str, mode: str, cache: str, verify: bool, work: Path, port: in
     if cache == "cold":
         cache_drop.drop(model_paths(cfg))
     time.sleep(2)
+    waited = wait_for_ram(float(os.environ.get("WAIT_GIB", 48)))
     eng_log = Path(cfg["log"]) if cfg.get("log") else None
     off = eng_log.stat().st_size if eng_log is not None and eng_log.exists() else 0
     log_out = work / f"{mode}-{cache}.server.log"
     psi0 = read_psi()
     sampler = MemSampler()
     sampler.start()
-    env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
+    env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0", WAIT_GIB="0")   # waited above
     t0 = time.time()
     with open(log_out, "w") as lf:
         srv = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), abtest.PY, "serve/server.py", "--engine", "strata", "--config",
@@ -215,7 +230,7 @@ def one_run(base: str, mode: str, cache: str, verify: bool, work: Path, port: in
             fh.seek(off)
             text += fh.read().decode("utf-8", "replace")
     abtest.stop_servers()
-    row = {"mode": mode, "cache": cache, "start_s": None if ready is None else round(ready, 2),
+    row = {"mode": mode, "cache": cache, "waited_s": round(waited, 1), "start_s": None if ready is None else round(ready, 2),
            "cached_peak_gib": round(sampler.cached_peak, 2), "avail_min_gib": round(sampler.avail_min, 2),
            "psi_some_s": round((psi1.get("some", 0) - psi0.get("some", 0)) / 1e6, 3) if psi0 else None,
            "psi_full_s": round((psi1.get("full", 0) - psi0.get("full", 0)) / 1e6, 3) if psi0 else None}
@@ -252,7 +267,7 @@ def main(argv=None) -> int:
     work = Path(a.out)
     work.mkdir(parents=True, exist_ok=True)
     base = a.base if os.path.isabs(a.base) else str(ROOT / a.base)
-    rows = []
+    rows, last = [], None
     with open(work / "rows.jsonl", "a") as sink:
         for rep in range(a.reps):
             for cache in caches:
@@ -260,6 +275,8 @@ def main(argv=None) -> int:
                 for mode in seq:
                     row = one_run(base, mode, cache, not a.no_verify, work, a.port, a.ready_wait)
                     row["rep"] = rep
+                    row["after"] = last   # the loader of the run before: a "warm" start is only as warm as that run left the page cache
+                    last = row.get("loader")
                     print(json.dumps(row), flush=True)
                     sink.write(json.dumps(row) + "\n")
                     sink.flush()
