@@ -1,5 +1,6 @@
 // src/kernels/cuda/qsa_decode_attn.cu - see include/strata/kernels/qsa_decode_attn.hpp.
 #include "strata/kernels/qsa_decode_attn.hpp"
+#include "strata/kernels/qsa_decode_attn_wmma.hpp"
 #include "strata/core/sm75_series.hpp"
 #include "strata/core/sm120_series.hpp"
 #include "strata/core/geometry.hpp"
@@ -24,6 +25,7 @@ constexpr int HD = 256;          // head_dim
 constexpr int G = 12;            // query heads per KV head (24 / 2)
 static_assert(HD == strata::core::kCompiledGeometry.head_dim && G == strata::core::kCompiledGeometry.n_head / strata::core::kCompiledGeometry.n_head_kv, "qsa_decode_attn is compiled for core/geometry.hpp");
 constexpr int CHUNK = 64;        // cells per block
+static_assert(CHUNK == kQsaDecodeAttnChunk, "qsa_decode_attn_wmma.cu writes the same partials");
 constexpr int THREADS = 256;
 constexpr int WARPS = THREADS / 32;
 
@@ -947,6 +949,9 @@ void launch_merge(int v2, const float* part_acc, const float* part_m, const floa
 // kernel where it is built (the parity harness: never the environment).
 void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps,
                          int64_t cap, const QsaShapes& s, float* scratch, int64_t n_q, cudaStream_t st, int kernel) {
+    // pancake: STRATA_ATTN_WMMA=1 - the chunk pass on gfx11 matrix cores (qsa_decode_attn_wmma.hpp; int8, q4_0, K8V4)
+    if (kernel < 0 && qsa_decode_attn_wmma_on() && qsa_decode_attn_wmma_chunks(q, pools, ids, steps, cap, s, scratch, n_q, st))
+        return;
     const int kv_mode = pools.k_q4 != nullptr ? 2 : (pools.k_q != nullptr && pools.v_q4 != nullptr ? 3
                         : (pools.k_q != nullptr ? 1 : 0));
     const int n_chunks = (int) ((cap + CHUNK - 1) / CHUNK);
@@ -1073,6 +1078,7 @@ bool qsa_decode_attn_slots(const float* q, const QsaAttnSlotPools& pools, const 
                            int64_t cap, const QsaShapes& s, float* scratch, float* attn, int64_t n_q, void* stream) {
     if (n_q <= 0) return true;
     if (n_q > kQsaAttnMaxSlots) return false;
+    if (qsa_decode_attn_wmma_on()) return false;   // pancake: the per-query calls take the matrix-core chunk pass
     if (s.head_dim != HD || s.n_head != (int64_t) G * s.n_head_kv || cap <= 0 || !scratch || !ids || !steps) {
         std::fprintf(stderr, "qsa_decode_attn_slots: unsupported geometry or missing buffers\n");
         std::exit(1);
@@ -1156,6 +1162,7 @@ void qsa_decode_attn_batch_rows(const float* q, const QsaAttnPoolsRows& rows, co
 #if defined(STRATA_HIP_GFX906)
     per_row = true;
 #endif
+    per_row = per_row || qsa_decode_attn_wmma_on();   // pancake: each row through the matrix-core chunk pass
     if (per_row) {
         for (int64_t r = 0; r < n_q; ++r)
             qsa_decode_attn_batch(q + (size_t) r * s.n_head * HD, rows.p[r], ids + (size_t) r * cap,
@@ -1206,6 +1213,10 @@ void qsa_decode_attn_step(const float* q, const QsaAttnPools& pools, const int32
     const float scale = 1.0f / sqrtf((float) HD);
     const dim3 grid((unsigned) n_chunks, (unsigned) s.n_head_kv);
     cudaStream_t st = (cudaStream_t) stream;
+    // pancake: STRATA_ATTN_WMMA=1 - the chunk pass on gfx11 matrix cores; the merge below is the same
+    const bool wmma_done = qsa_decode_attn_wmma_on() && qsa_decode_attn_wmma_chunks(q, pools, ids, step, cap, s, scratch, 1, st);
+    if (wmma_done) {
+    } else
 #if !defined(__HIPCC__)
     if (kv_mode == 1 && attn_v3_on())
         attn_chunk_q8_v3_kernel<<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size,

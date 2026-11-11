@@ -4,7 +4,7 @@
 # Reuses bench/quality/set.json (fixed text).  Output: bench/quality-hip/*.tsv and verdict.txt.
 cd "$(dirname "$0")/../.." || exit 1
 export LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib HIP_VISIBLE_DEVICES=0
-Q=bench/quality-hip; PY=.venv/bin/python; SET=bench/quality/set.json
+Q=${Q:-bench/quality-hip}; PY=.venv/bin/python; SET=bench/quality/set.json
 envs(){ python3 -c "import json; print(' '.join('--env '+k+'='+v for k,v in (json.load(open('$1')).get('env') or {}).items()))"; }
 run(){ tools/pancake/capped.sh $PY tools/force_check.py score "$1" $SET "$2" $(envs "$1"); }
 run $Q/stock.json $Q/stock-a.tsv
