@@ -18,6 +18,7 @@
 // [--force IDS] [--dump-full-logits F] (tools/qwen35/kl.py's reference interface), --bench-pp N / --bench-tg N.
 #include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/family_layout.hpp"
+#include "strata/kernels/bfla.hpp"
 #include "strata/kernels/fused_gdn.hpp"
 #include "strata/kernels/iq_kernels.hpp"
 #include "strata/kernels/native_mmvq.hpp"
@@ -1313,6 +1314,14 @@ struct Engine {
     __half* att_p16 = nullptr;         // the probabilities in FP16 (kAttScoreFloats halves)
     __half *k16 = nullptr, *v16 = nullptr, *q16 = nullptr;   // the prompt attention's FP16 operands
     size_t kAttScoreFloats = (size_t) 64 << 20;   // 256 MB (16 M floats when the experts' fit is close)
+    // pancake, opt-in (strata/kernels/bfla.hpp): the prompt attention of long chunks as the fused gfx11 kernel, over every
+    // block (STRATA_BFLA_DENSE=1, exact) or block-sparse (STRATA_BFLA_SPARSE=1, BFLA, lossy); the selection scratch
+    // (sparse only), where the prompt being read ends (the tail rule: its last 1024 / G positions keep every block, in
+    // whichever chunk they fall, as in the paper) and whether the switch has acted yet (logged once)
+    void* bfla_scratch = nullptr;
+    size_t bfla_bytes = 0;
+    int64_t bfla_end = 0;
+    bool bfla_ok = false, bfla_acted = false;
     // the prompt's MMQ experts
     bool use_mmq = false;
     std::unique_ptr<MMQ::Context> mctx;
@@ -1502,6 +1511,21 @@ struct Engine {
         k16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         v16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         q16 = dalloc_t<__half>(T * g.n_head * g.head_dim);
+        if (const int bm = strata::kernels::bfla_config().mode; bm != 0) {
+            bfla_ok = strata::kernels::bfla_supported((int) g.n_head, (int) g.n_head_kv, (int) g.head_dim);
+            if (bfla_ok && bm == 1) {
+                bfla_bytes = strata::kernels::bfla_scratch_bytes(T, ctx, (int) g.n_head, (int) g.n_head_kv);
+                bfla_ok = cudaMalloc(&bfla_scratch, bfla_bytes) == cudaSuccess;
+                if (!bfla_ok) (void) cudaGetLastError();
+            }
+            if (bfla_ok)
+                std::fprintf(stderr, "strata-q36: %s on%s\n", strata::kernels::bfla_switch_name(bm),
+                             bfla_bytes ? " (selection scratch allocated)" : "");
+            else   // the line tools/pancake/switch_report.py reads
+                std::fprintf(stderr, "strata switch: %s will not act: needs head dim 256, 4 / 8 / 16 query heads a KV head and "
+                                     "a gfx11 GPU (or its scratch did not fit)\n",
+                             strata::kernels::bfla_switch_name(bm));
+        }
         use_mmq = MMQ::built() && std::getenv("STRATA_Q36_NO_MMQ") == nullptr;
         auto mmq_ok = [&](const Layer& L) {
             return MMQ::supported(L.L.gu_type) && MMQ::supported(L.L.d_type) && MMQ::fits(L.L.gu_type, 2 * g.n_ff) &&
@@ -2084,7 +2108,25 @@ struct Engine {
                 const float one = 1.0f, zero = 0.0f;
                 k_kv_f16<<<grid1((int64_t) HKV * P * HD), kThreads, 0, st>>>(kc[li], vc[li], k16, v16, ctx, P, HD, HKV);
                 k_to_f16<<<grid1((int64_t) T * H * HD), kThreads, 0, st>>>(q, q16, (int64_t) T * H * HD);
-                for (int t0 = 0; t0 < T; t0 += tq) {
+                // STRATA_BFLA_DENSE / STRATA_BFLA_SPARSE (opt-in, off by default): chunks reaching STRATA_BFLA_MIN
+                // positions take the fused kernel instead of the GEMMs below (false: nothing launched, the GEMM path runs
+                // as before)
+                bool bfla_done = false;
+                if (bfla_ok && !rows_mode && !verify && P >= strata::kernels::bfla_config().min_len) {
+                    const auto& bc = strata::kernels::bfla_config();
+                    const int64_t tail = bc.tail >= 0 ? bc.tail : (int64_t) (1024 / std::max(1, H / HKV));
+                    const int64_t full_from = bfla_end - tail;
+                    bfla_done = strata::kernels::bfla_prefill_attn(reinterpret_cast<const uint16_t*>(q16),
+                                                                   reinterpret_cast<const uint16_t*>(k16),
+                                                                   reinterpret_cast<const uint16_t*>(v16), T, p0, H, HKV, bc,
+                                                                   full_from, bfla_scratch, bfla_bytes, att, st);
+                    if (bfla_done && !bfla_acted) {   // once: the log proves the arm acted
+                        bfla_acted = true;
+                        std::fprintf(stderr, "strata switch: %s acted: prompt attention of positions %lld..%d by the fused kernel\n",
+                                     strata::kernels::bfla_switch_name(bc.mode), (long long) p0, P - 1);
+                    }
+                }
+                for (int t0 = 0; t0 < T && !bfla_done; t0 += tq) {
                     const int nt = std::min(tq, T - t0);
                     for (int kvh = 0; kvh < HKV; ++kvh) {
                         const __half* Kh = k16 + (size_t) kvh * P * HD;
@@ -2608,6 +2650,7 @@ struct Engine {
             on_chunk(1);
             return 1;
         }
+        bfla_end = pos + n;   // STRATA_BFLA_SPARSE's tail rule: the prompt's last positions, not the last chunk's
         for (int64_t i = 0; i < n; i += tmax) {
             const int T = (int) std::min<int64_t>(tmax, n - i);
             CK(cudaStreamSynchronize(st));
@@ -4053,7 +4096,20 @@ int strata::qwen35::run(int argc, char** argv) {
         }
         return 0;
     }
-    const std::vector<int32_t> prompt = parse_ids(tokens.c_str()), forced = parse_ids(force.c_str());
+    // "@FILE": the ids from a file (a long prompt's ids do not fit one command-line argument, 128 KiB on Linux)
+    auto ids_arg = [](const std::string& v) {
+        if (v.empty() || v[0] != '@') return v;
+        FILE* f = std::fopen(v.c_str() + 1, "rb");
+        if (f == nullptr) { std::fprintf(stderr, "strata-q36: cannot read %s\n", v.c_str() + 1); std::exit(2); }
+        std::string r;
+        char buf[65536];
+        for (size_t n; (n = std::fread(buf, 1, sizeof buf, f)) > 0;) r.append(buf, n);
+        std::fclose(f);
+        for (char& c : r) if (c == '\n' || c == '\r' || c == '\t') c = ' ';
+        return r;
+    };
+    const std::string tokens_s = ids_arg(tokens), force_s = ids_arg(force);
+    const std::vector<int32_t> prompt = parse_ids(tokens_s.c_str()), forced = parse_ids(force_s.c_str());
     if (prompt.empty()) { std::fprintf(stderr, "strata-q36: --tokens, --serve or --bench-pp is required\n"); return 2; }
     if (!forced.empty()) n_gen = (int) forced.size() + 1;
     FILE* ff = dump_full.empty() ? nullptr : std::fopen(dump_full.c_str(), "wb");

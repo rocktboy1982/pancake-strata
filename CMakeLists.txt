@@ -642,6 +642,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/native_rope.cu
                           src/kernels/cuda/native_ple_postops.cu
                           src/kernels/cuda/native_flash_attn.cu
+                          src/kernels/cuda/bfla.cu
                           src/kernels/cuda/native_qsa_indexer.cu
                           src/kernels/cuda/native_qsa_score.cu
                           src/kernels/cuda/ple.cu
@@ -698,6 +699,17 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME qsa_scores_gfx1100_parity COMMAND qsa_scores_gfx1100_parity --full)
     set_tests_properties(qsa_scores_gfx1100_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180
       ENVIRONMENT "STRATA_SCORES_THREAD=1;STRATA_SCORES_THREAD_TRACE=1")
+  endif()
+  # pancake: the fused prompt attention (bfla.cu, gfx11 WMMA; STRATA_BFLA_DENSE exact, STRATA_BFLA_SPARSE lossy) against
+  # an FP64 reference, its selection against a host copy of the rule, and a microbench (--bench); GPU, synthetic, no
+  # model.  HIP wave32 only (CUDA has the stubs).  With the tests.
+  if(STRATA_BUILD_TESTS AND STRATA_ENABLE_HIP AND NOT STRATA_HIP_GFX906)
+    add_executable(bfla_test src/kernels/cuda/bfla_test.cu)
+    target_include_directories(bfla_test PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(bfla_test PRIVATE strata_kernels ${_strata_gpu_runtime_target} ${STRATA_HIP_BLAS_TARGETS})
+    enable_testing()
+    add_test(NAME bfla_test COMMAND bfla_test)
+    set_tests_properties(bfla_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
   endif()
   # perf-review D-1: the tensor-core prompt attention vs the FP32 kernel and FP64 (GPU, synthetic, no model); with
   # the tests, or alone with -DSTRATA_PARITY_PROMPT_ATTN=ON.  CUDA only: HIP compiles the tensor-core kernel out.
@@ -2273,6 +2285,11 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(bf16_bits_test src/kernels/bf16_bits_test.cpp)
   target_include_directories(bf16_bits_test PRIVATE include)
   add_test(NAME bf16_bits_test COMMAND bf16_bits_test)
+  # pancake BFLA (bfla.hpp): STRATA_BFLA_DENSE / _SPARSE parse, the Ratio-K rule, and a host model of the fused dense
+  # kernel's arithmetic against plain softmax attention in FP64 (header-only, CPU; the kernel itself: bfla_test, GPU)
+  add_executable(bfla_cpu_test src/kernels/bfla_cpu_test.cpp)
+  target_include_directories(bfla_cpu_test PRIVATE include)
+  add_test(NAME bfla_cpu_test COMMAND bfla_cpu_test)
   # the batch window's row layout (a slot's group of proposed rows, the layer split's hand-off capacity; header-only, CPU)
   add_executable(batch_rows_test tests/core/batch_rows_test.cpp)
   target_include_directories(batch_rows_test PRIVATE include)
@@ -3545,6 +3562,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
     poly_mxfp4_test
     gpu_rewrite_parity_test
+    bfla_cpu_test
     # CUDA / conversation-only builds: these hide the GPU themselves (CUDA_VISIBLE_DEVICES=-1) or are CPU-only by design
     conversation_cache_test conversation_split_failure_test conversation_memory_test conversation_file_test
     session_save_reclaim_test conversation_validation_test conversation_transfer_test split_lend_complement_test
