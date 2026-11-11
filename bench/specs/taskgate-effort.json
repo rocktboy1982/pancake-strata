@@ -1,6 +1,6 @@
 {
  "_note": "A18: effort per task, not per turn. Same preset, same tasks, one arm per thinking level; the report's time columns (t_success median, s/success, share succeeded within 10-300 s, area under the time curve) say whether xhigh pays for its thinking on total time to success. Not a non-inferiority gate on the default: medium is the base, xhigh the arm that should win on success and lose on time. Nothing changes in the engine; a lower level changes the answers (lossy by choice of level). max_tokens 8192 so the thinking is not cut by the reply cap.",
- "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "medium": {"request": {"thinking": true, "reasoning_effort": "medium"}},
   "xhigh": {"request": {"thinking": true, "reasoning_effort": "xhigh"}},

@@ -1,0 +1,24 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "stack": {
+   "env": {
+    "STRATA_EXPDEC_SWIGLU": "1",
+    "STRATA_ROUTE_FAST": "1",
+    "STRATA_WAIT_COPY256": "1",
+    "STRATA_IQ_SIGN_FAST": "1",
+    "STRATA_Q2_FAST": "1",
+    "STRATA_POOL_TAIL4": "1",
+    "STRATA_POOL_LAZY_PARK": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 8,
+ "lossy": false,
+ "note": "Stack-then-bisect for the small exact opt-in switches that never resolved one by one (MOD_PLAN 'Features discovered' 3: the screens were +-1.7% wide, 2026-11-10 batch-1 screens were noise (q2fast +0.2% / +6.3%, signfast -11.3% / +5.3%), and 25-kern-hip-confirm n=6 gave all3 short +0.7% [-6.9, +8.3]); one run decides the whole group against the fast-hip preset (deferral on, EXPDEC=1). stack = STRATA_EXPDEC_SWIGLU, STRATA_ROUTE_FAST, STRATA_WAIT_COPY256, STRATA_IQ_SIGN_FAST (GPU, pancake-docs/batch3/kern-hip.md and kern-cpu.md) and STRATA_Q2_FAST, STRATA_POOL_TAIL4, STRATA_POOL_LAZY_PARK (CPU; the pool switches were n.s. in 03-cpu-pool, every arm within +-1.5% of base). Each is exact, opt-in, read by the source and acts on this preset; STRATA_Q2_FAST acts because the IQ2_XS file holds 48 expert tensors of GGUF type 42 (Q2_0: the down rows), so the F7 arms of specs 18 and 23 were not inert. Expected effects are 0.5-2% each, so the run needs reps 8: ABTEST_ARGS=\"--no-early-stop --reps 8\" on a quiet machine, both arms on one RAM tier (the members are tier-independent). Log proof for the stack arm: 'STRATA_ROUTE_FAST=1: top-10, ids + weights', 'STRATA_EXPDEC_SWIGLU: gate/up, SwiGLU and q8_1 in one launch', 'STRATA_WAIT_COPY256 on', 'F12 sign form (STRATA_IQ_SIGN_FAST)'; the three CPU switches print no line when they act (STRATA_Q2_FAST prints only when it is ignored: 'STRATA_Q2_FAST=1 ignored'). Decision: promote the group only if the 95% lower bound of the paired gain is >= 1% on short or edit (tools/pancake/promote.py); a decided gain is bisected by halves (GPU four, CPU three), no gain closes all seven. Before the run these must pass: ctest -R 'native_multi_parity|iq_multi_parity|hip_wait_copy|iq_sign_fast|q2_fast'; the one member with no kernel-level number yet is IQ_SIGN_FAST (expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1: keep it only if dec:s1 is not slower). Left out on purpose: STRATA_COMBINE_POLL1, STRATA_ROUTER_FUSE and STRATA_IC_WARM_MB (inert under deferral: they need the fused CPU combine), STRATA_IQ_LUT_DUP (<= 0.5%, x16 halves occupancy), STRATA_MMVF_AUX (already on through STRATA_COMBINE_CPU), STRATA_Q2_PREFETCH (acts on the same rows, but one core is compute-bound and it needs a tuned byte count), STRATA_IQ2S_PAIR (measured neutral), STRATA_POOL_MWAITX (a wake-latency trade that needs a tuned cycle count) and STRATA_MTP_EAGER (wastes the draft steps past the cut; 06c / 07 measured +1.6% / 0%)."
+}
