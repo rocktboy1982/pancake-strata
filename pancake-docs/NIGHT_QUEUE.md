@@ -20,7 +20,7 @@ Owner rule (2026-11-11): development by day, GPU testing by night.  The night cr
 ## 1. Order (one GPU job at a time; the lead makes NO other tool calls while a job runs, only a check every ~25 min)
 1. `restore_check.py --tool-boundary --disk --control --teacher-forced --out bench/results/<date>-night/restore-check-noise.json`
    (noise-aware gate; exit 0 clears the cache arms, exit 3 = repeat, exit 1 = real difference; then calibrate LP_TOL and re-judge with `--analyze`).
-2. A8 swap budget quality side: `25-a8-confirm.json` result is in `bench/results/2026-11-11-gpu/`; run `quality_gate.py` for the winning arm.
+2. A8 swap budget: the daytime confirm of 2026-11-11 is INVALID (stopped at 09:50: it ran while 15 agents compiled, base had 1 clean attempt of 6, 5 discarded). Rerun `25-a8-confirm.json:--no-early-stop` (arms base / swaps64 / swaps-auto) on a quiet night machine, ideally in block mode; only if an arm wins, run `quality_gate.py` for it. Do not start any daytime GPU job while agents build.
 3. Queue (use `/home/dan/clone-of-d/src/Strata-p16/tools/pancake/queue_run.sh --night-only 21-06 --drop-cache <OUTDIR> <specs...>`):
    `19-turbo-guards.json`, `20-verify-ecap.json`, `15-q2_0.json`, `25-f-env-rerun.json` (arena tier) or `25-f-env-rerun-mmap.json` (mmap tier),
    `26-stack-small-exact.json:--no-early-stop` (run `ctest -R 'native_multi_parity|iq_multi_parity|hip_wait_copy|iq_sign_fast|q2_fast'` first),
