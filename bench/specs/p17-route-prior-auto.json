@@ -1,0 +1,17 @@
+{
+ "note": "MOD_PLAN 17.1 (pancake-docs/ROUTE_PRIOR_AUTO.md): STRATA_ROUTE_PRIOR=0.5 (turbo) only in lookup (suffix-draft) verify windows, exact routing in every other window.  Coded, not measured.  Run with --block 3 --warmup 1 --outlier robust --reclaim-max 3 (reps >= 9).  Arms: base = fast-hip (exact); turbo = 0.5 everywhere; auto = 0.5 in lookup windows; auto-min5 = only lookup windows of 5+ rows (wider than any MTP window at --spec 4); auto-closed = the gate never opens (MIN_T 256): exact routing with all of turbo's plumbing, it prices the extra launch + gate read alone and must sit within noise of base.  Keep AUTO only if edit is >= 2% over base and short is not below base beyond the interval; then token forcing (quality_gate.py, decode path) and the task gate (task_gate.py --reps 5) against base.  Check the engine log for the 'STRATA_ROUTE_PRIOR_AUTO (MOD_PLAN 17.1' start-up line and the per-request 'route prior auto: the bonus was on in X of Y verify windows' line (STRATA_ROUTE_PRIOR_STATS=1).",
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "turbo": {"env": {"STRATA_ROUTE_PRIOR": "0.5"}},
+  "auto": {"env": {"STRATA_ROUTE_PRIOR": "0.5", "STRATA_ROUTE_PRIOR_AUTO": "1", "STRATA_ROUTE_PRIOR_STATS": "1"}},
+  "auto-min5": {"env": {"STRATA_ROUTE_PRIOR": "0.5", "STRATA_ROUTE_PRIOR_AUTO": "1", "STRATA_ROUTE_PRIOR_AUTO_MIN_T": "5", "STRATA_ROUTE_PRIOR_STATS": "1"}},
+  "auto-closed": {"env": {"STRATA_ROUTE_PRIOR": "0.5", "STRATA_ROUTE_PRIOR_AUTO": "1", "STRATA_ROUTE_PRIOR_AUTO_MIN_T": "256", "STRATA_ROUTE_PRIOR_STATS": "1"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 9,
+ "lossy": true,
+ "tasks": "bench/tasks/default.json",
+ "temperature": 0.2,
+ "margin": 0.05
+}

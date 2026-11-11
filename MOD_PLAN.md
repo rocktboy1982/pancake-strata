@@ -2603,13 +2603,25 @@ after a heavy file load cost one build 15% in pass 1); paired block harness, pro
 
 | # | Strategy | Evidence | Work | Status |
 | --- | --- | --- | --- | --- |
-| 17.1 | Lossy modes only where they win: route prior (turbo) only while suffix/lookup matches fire (code edits, tool-call JSON), exact otherwise | turbo +9% code, -15..-25% prose, acceptance unchanged | find out whether the prior can switch per window/request; if not, two presets chosen per session; optionally `STRATA_ROUTE_PRIOR_AUTO` gated by the draft policy | open |
+| 17.1 | Lossy modes only where they win: route prior (turbo) only while suffix/lookup matches fire (code edits, tool-call JSON), exact otherwise | turbo +9% code, -15..-25% prose, acceptance unchanged | find out whether the prior can switch per window/request; if not, two presets chosen per session; optionally `STRATA_ROUTE_PRIOR_AUTO` gated by the draft policy | **coded, NOT built, NOT measured** (branch `dev/p17/turbogate`, note below) |
 | 17.2 | Close the prose gap to Avalon | Avalon 98-111 vs pancake 93-102 tok/s on prose, same acceptance, steadier (sd 8.6-12 vs 17) | profile one prose prompt on both (`gpu_profile.py`, `time_ceiling.py`); read Avalon's non-CUDA-only commits (MoE down-proj summed in one MUL_MAT_ID, MTP draft pass from device rows, expert-cache preload) | open |
 | 17.3 | Greedy ablation over the coded-but-untested items as one bundle, not one by one | status board: ~12 items at Dev 100% / Test 0% (adaptive swap budget, k-th-miss admission + async, AcceptMoE, depth-graded prior, ...); substitutes (turbo vs AcceptMoE, deferral + turbo) must be measured together | start from the exact preset, add the strongest candidate, keep it only if paired block runs (`--block 3 --warmup 1 --outlier robust --reclaim-max 3`, reps >= 9) clear 2%; ~6-8 runs instead of a grid | open |
 | 17.4 | Deep-context ideas from xyzzing/rdna3-inference-ledger (CC-BY-4.0; adopt = credit in README section 9 + RESEARCH_AND_FINDINGS section 4 in the same commit): adaptive KV ring (`STRATA_KV_RING_ADAPT`, upstream Strata PR #3919: 128K +24%, 64K flat; our `--kv-resident 32768` is fixed, `--kv-grow` is related), `--spec 5`, `--lookup-chain 2` (paid only after tail skip: +6% at 1K, +20% at 128K) | their 7900 XTX / IQ3_S numbers, not ours | test `--kv-grow` on/off at 64K and 100K first; port the adaptive ring only if it still wins; spec 5 and lookup-chain inside the 17.3 ablation | open |
 | 17.5 | Guard long contexts before tuning them | ledger issue: device memory fault at the 3x32K chunked-prefill handoff (upstream #5539); our `PREFILL_AUTO_MAX` is 32768 and no benchmark went past 25K tokens | one 70-100K prompt on pancake, exact preset | open |
 | 17.6 | Ship bundles, not switches: exact / fast / lossy presets, every switch default-off until a paired test promotes it, plus a small interaction table (what substitutes for what) | MOD_PLAN 13: turbo and deferral must be measured together | table in `bench/results/<day>/RESULTS.md` per ablation | open |
 | 17.7 | Skip what cannot pay: sources already merged with no new upstream commits; the ledger's rejects (DFlash2, megakernel, Sequoia tree verification) match ours | owner rule 2026-11-11 | none | rule |
+
+**17.1 note (2026-11-11, branch `dev/p17/turbogate`): coded, NOT built, NOT measured.** Design and plan:
+`pancake-docs/ROUTE_PRIOR_AUTO.md`.  Code reading: `lambda` (and `_DEPTH`, `_PROTECT`, `_KEEP_P`) is read once and baked into the
+captured window graphs as a launch argument, so it cannot change per window by itself; the F13 scope gate (a mapped float the kernel
+reads at run time, written by the serial serve loop before each window, 0 = the router's own top-10 stands) can, and AUTO reuses it.
+Not per window: the `route_prior_k` launch stays in every graph, and `STRATA_ROUTE_PRIOR` set (even `=0`) turns off ROUTE_PUBLISH /
+ROUTE_FAST / ROUTER_FUSE for the process (no effect on fast-hip: its deferral already turns ROUTE_PUBLISH off).  `STRATA_ROUTE_PRIOR_AUTO=1`
+(+ `_AUTO_MIN_T=N`): the bonus only in lookup (suffix-draft, `from_sfx`) windows of >= max(2, N) rows; MTP, chained, first and prompt
+windows exact; AND with `_SCOPE`.  Decision in `include/strata/program/route_prior_auto.hpp` (pure), unit test `route_prior_auto_test`
+(cpu label).  Unset = byte-identical by reading (not by a binary comparison).  Measure: `bench/specs/p17-route-prior-auto.json` (base /
+turbo / auto / auto-min5 / auto-closed, edit vs short, `--block 3 --warmup 1 --outlier robust --reclaim-max 3`) plus the 11-11 client's
+prose prompts; >= 2% on edit and no loss on prose, then token forcing + task gate.  Our idea: no credits rows.
 
 Order: 17.2 (the profile shows what is wrong), then 17.3 (finds the combination; 17.1 and 17.4 run inside it), 17.5 as a quick check.
 All of it needs the GPU: it waits for the Q2_0 / IQ2_XS matrix of 2026-11-11 to finish.
