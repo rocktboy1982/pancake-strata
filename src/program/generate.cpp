@@ -12701,6 +12701,13 @@ int main(int argc, char** argv) {
                                  "(idle >= %lld ms) is evicted before the main agent's conversation, a tool-pending one is held "
                                  "%lld ms (exact: eviction order only)\n", (long long) pt.ttl_ms, (long long) pt.hold_ms);
         }
+        // MOD_PLAN 71 / 90 (STRATA_AUTO_PIN=1, the server's opt-in auto-pin for Qwen): a parked conversation that holds a pinned
+        // shared prefix is evicted last, not never (ConversationCache::set_pin_evict_last).  Each agent kind pins its own system
+        // prompt, so with the old rule a few sessions filled the cache with pinned entries and no new one was parked.  Unset: as before.
+        if (const char* ap = std::getenv("STRATA_AUTO_PIN"); ap != nullptr && std::strcmp(ap, "1") == 0 && conversations.enabled()) {
+            conversations.set_pin_evict_last(true);
+            std::fprintf(stderr, "strata serve: conversation cache: a pinned shared prefix is evicted last, not never (STRATA_AUTO_PIN)\n");
+        }
         // A prompt that continues a disk entry deeper than the live session, a batch slot (`have`) and every parked
         // conversation (by STRATA_CONVERSATION_DISK_MIN_GAIN tokens) reads it back through /slots RESTORE's checks and
         // parks it: the parked-restore path below validates it and takes or borrows it as any parked conversation.
