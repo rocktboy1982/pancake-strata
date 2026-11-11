@@ -2665,3 +2665,36 @@ Phase 17 exists only on main's commits 13758be06 and later, not on this base bra
 Item 17.0 (owner priority 1): a harness for time to first token (TTFT) at long context and over agent sessions. An agent of 10 sequential calls multiplies every second of TTFT by 10, so TTFT can matter more than a 5-10% decode gain.
 
 Status: **harness written, nothing measured.** `tools/pancake/ttft_bench.py` (stdlib only, any OpenAI-compatible server on `/v1/chat/completions` with `stream=true`; `--port`, `--label`, JSON output, one-screen summary, `--compare A.json B.json`), `tools/pancake/test_ttft_bench.py` (fake streaming server: TTFT clock, discard of run 1, reuse accounting for the `usage.prompt_tokens_details.cached_tokens` and `timings.cache_n` field styles and for a server with neither, context-limit skip, `--compare`), and `pancake-docs/TTFT_BENCH.md` (how to run it against pancake, Avalon's llama-server and Strata-rdna3). Scenario A: 8K/32K/64K/100K prompts, unique first line, 4 runs, run 1 discarded, medians, engine `prompt_ms` next to the client TTFT. Scenario B: 10 agent turns with the whole conversation resent, per-turn TTFT, prompt tokens, reused versus re-read tokens, total TTFT, reuse share. Reuse fields verified by reading code: the Strata server and Avalon's llama-server both send `usage.prompt_tokens_details.cached_tokens` and `timings.cache_n`/`prompt_n`; Strata-rdna3 not checked. No claim about any engine's TTFT is made until the runs in `pancake-docs/TTFT_BENCH.md` are done on a quiet machine.
+
+## Phase 17 item 17.0 note (TTFT levers)
+
+2026-11-11, branch `dev/p17/ttftlevers`, analysis only (no build, no engine, no GPU); full note
+[pancake-docs/TTFT_LEVERS.md](pancake-docs/TTFT_LEVERS.md); log reader `tools/pancake/ttft_audit.py` (read only, 6 CPU
+tests).  Labels: [log] = the 7900 XT engine/turn logs of real traffic, [meas.] = a benchmark, [code] = unconfirmed
+(read from code), [est.] = extrapolation.
+
+- When the cache holds the conversation, pancake already re-reads ~1% of the prompt: 46 warm agent turns at 34-82K
+  (35 live, 6 turn-checkpoint fallbacks, 5 parked restores) re-read 1.02% of their tokens, TTFT median ~1 s
+  (0.26-3.4 s) [log].  The large losses are misses: on 11-09 one
+  54-62K conversation was re-read from token 0 on 7 turns (21-25 s each) after "skip parking (snapshot 1574 MiB exceeds
+  available budget)" [log] (the 4.0.1 case).
+- A warm turn's floor is ~0.55-0.75 s (one prompt pass touches nearly every expert; reads <= 64 tokens use decode
+  windows at ~9 ms/token) [log]; parks are synchronous on HIP and sit in the next TTFT: ~0.1 s below 4K, 0.2 s at 25K,
+  0.3-1.4 s at 50-77K [log]; 6 of 46 warm turns fell back to the turn checkpoint (re-read the last assistant turn and
+  parked a state they never reuse) [log].
+- Depth: 54-62K cold reads at 2,388-2,647 tok/s [log]; est. 64K ~26 s, 100K ~38-45 s.  BFLA does not apply (QSA is
+  already sparse).  The first long prompt after a start read 53.7 GB from the NVMe (file tier): 34.9 s for 57K [log].
+- Chunking reaches the #5539 handoff (3 chunks from 65,537 tokens, 4 from 98,305) [code]; that fault was reported with
+  `STRATA_KVA=1` and `--kv-resident 49152`; our 70K 3-chunk read passed [log]; no 4-chunk read with the preset exists.
+- Ranked (exact unless noted): 1 cache admission (`--conversation-cache-min-tokens 8192`, a budget floor, then
+  `STRATA_PARK_TRUNCATE=1`; -20 to -45 s per lost turn); 2 parks off the critical path (`--conversation-cache-park-gain`,
+  `PARK_REWIND_MAX` port, idle or async park); 3 checkpoint fallbacks (divergence log, `keep_reasoning` for clients that
+  drop reasoning); 4 staged-path floor (share `auto`/0.65/0.7, `PF_AHEAD`, `REFILL_ASYNC`; est. -0.1 to -0.3 s per warm
+  turn); 5 cold-read file tier; 6 disk tier / prefix store for session starts; 7 depth (49,152 grid + equal tail + refill
+  head from Strata-rdna3 791cca4b/5906629d/2b19d510, `STRATA_PREFILL_EQUAL`, `STRATA_PREFILL_LAYER_MAJOR`; est. 2-4% at
+  64-100K).  Not levers: BFLA on Flash-Next, context dedup (1-2% of cold reads, lossy), Avalon's prompt path,
+  `--short-read`.
+- Test first: levers 1, 2+3, 4.  Before any code: M1 single prompt 8K/32K/64K/100K with park, chunk plan, file-tier and
+  `STRATA_PREFILL_TIMING=1` lines; M2 a 10-turn session alone, with a side request and a sub-agent switch, and with a
+  tight budget; M3 a divergence line on fallbacks; M4 two consecutive request bodies from opencode and Copilot;
+  M5 a warm-delta sweep (100-3,000 tokens at 32K/64K depth, share 0.6 vs auto).
