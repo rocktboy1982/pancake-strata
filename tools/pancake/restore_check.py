@@ -17,12 +17,22 @@ conversation to disk) and a server restart before "follow-up" (QUIT hands what i
 main turn after the first resumes from a state read back from disk; its answers must match the "reread" arm, and the
 engine log must show the tier writing and reading back.
 
-    python tools/pancake/restore_check.py [--preset flashnext-iq2_xs-hip] [--port 18437] [--max-tokens 48] [--disk] [--tool-boundary]
+    python tools/pancake/restore_check.py [--preset flashnext-iq2_xs-hip] [--port 18437] [--max-tokens 96] [--disk] [--tool-boundary]
                                           [--out FILE.json]
     (--tool-boundary: MOD_PLAN 16, every arm with STRATA_CACHE_TOOL_BOUNDARY=1; "tool-retry" resumes at the call)
 
-Exit 0 when every turn matches, 1 on a difference, 2 on a setup error.  Needs the GPU for itself: run it only when no
-other engine serves (it refuses when something listens on the port) and outside a benchmark.
+Turns (each a continuation or a branch of an earlier one): first (cold), after-tool-result (the parked state, a full
+continuation), follow-up (the template re-renders the last reply: a partial hit at the turn checkpoint), branch-back (a
+partial hit deeper), tool-retry (the same call, another result: the tool-boundary checkpoint with --tool-boundary) and
+repeat (the previous prompt sent again: a COMPLETE hit - the UNSW case, where the restored state covers the whole prompt
+and the engine must still read its last token).  Greedy answers must match the re-read arm token for token, the
+"repeat" answer must also equal the "tool-retry" answer inside every arm, and an arm in which the cache never served a
+hit (cached_tokens 0 where a hit is expected) is refused, not passed: a cache that does nothing matches a re-read
+trivially.
+
+Exit 0 when every turn matches, 1 on a difference, 2 on a setup error or a cache that was never exercised.  Needs the
+GPU for itself: run it only when no other engine serves (it refuses when something listens on the port) and outside a
+benchmark.
 """
 import argparse
 import json
@@ -63,7 +73,8 @@ def turns():
             ("after-tool-result", base + [call, result]),
             ("follow-up", base + [call, result, {"role": "assistant", "content": "It returns true on success."}, follow]),
             ("branch-back", base + [call, result, branch]),
-            ("tool-retry", base + [call, retry])]
+            ("tool-retry", base + [call, retry]),
+            ("repeat", base + [call, retry])]   # the previous prompt again: a complete hit (the UNSW off-by-one case)
 
 
 SIDE_SYSTEM = ("You are a poet. Answer in one short line. " * 40).strip()   # shares no prefix with SYSTEM
@@ -178,12 +189,50 @@ def run_arm(name, env_extra, a, args_extra=None, side=False, restart_before=None
         lf.close()
 
 
+HIT_TURNS = ("after-tool-result", "follow-up", "branch-back", "tool-retry", "repeat")   # turns that must reuse something
+
+
+def cached_tokens(answer):
+    return int(((answer.get("usage") or {}).get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+
+
+def never_hit(answers):
+    """The turns of an arm that were expected to resume from the cache and report no cached token: a restore check on
+    them proves nothing (a cache that does nothing matches a re-read)."""
+    return [r["turn"] for r in answers if r["turn"] in HIT_TURNS and cached_tokens(r) <= 0]
+
+
+def same_answer(a, b):
+    return a["content"] == b["content"] and a["reasoning"] == b["reasoning"] and a["tool_calls"] == b["tool_calls"]
+
+
+def compare(arms, reread):
+    """The differences: each arm's answer vs the re-read arm's, and (inside every arm, re-read included) the complete-hit
+    "repeat" vs the "tool-retry" it repeats.  A list of dicts, empty when everything matches."""
+    diffs = []
+    for arm, answers in arms.items():
+        for r, q in zip(answers, reread):
+            same = same_answer(r, q)
+            print(f"{arm} {r['turn']}: {'MATCH' if same else 'DIFFERENT'}")
+            if not same:
+                diffs.append({"arm": arm, "turn": r["turn"], arm: r, "reread": q})
+    for arm, answers in {**arms, "reread": reread}.items():
+        by = {r["turn"]: r for r in answers}
+        if "repeat" in by and "tool-retry" in by:
+            same = same_answer(by["repeat"], by["tool-retry"])
+            print(f"{arm} repeat vs tool-retry: {'MATCH' if same else 'DIFFERENT'}")
+            if not same:
+                diffs.append({"arm": arm, "turn": "repeat", "tool-retry": by["tool-retry"], "repeat": by["repeat"]})
+    return diffs
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--preset", default="flashnext-iq2_xs-hip",
                     help="configs/pancake preset (the exact HIP preset keeps decoding deterministic)")
     ap.add_argument("--port", type=int, default=18437)
-    ap.add_argument("--max-tokens", type=int, default=48)
+    ap.add_argument("--max-tokens", type=int, default=96,
+                    help="greedy tokens compared per turn (the UNSW paper compared 64-256)")
     ap.add_argument("--out", default=None)
     ap.add_argument("--tool-boundary", action="store_true",
                     help="MOD_PLAN 16: both arms with STRATA_CACHE_TOOL_BOUNDARY=1 (gap 16, so the short scripted call "
@@ -216,13 +265,16 @@ def main():
             print("[disk] the disk tier was not exercised (expected >= 2 writes and >= 2 reads back)", file=sys.stderr)
             return 2
         arms["disk"] = disk
-    diffs = []
-    for arm, answers in arms.items():
-        for r, q in zip(answers, reread):
-            same = r["content"] == q["content"] and r["reasoning"] == q["reasoning"] and r["tool_calls"] == q["tool_calls"]
-            print(f"{arm} {r['turn']}: {'MATCH' if same else 'DIFFERENT'}")
-            if not same:
-                diffs.append({"arm": arm, "turn": r["turn"], arm: r, "reread": q})
+    idle = {arm: never_hit(answers) for arm, answers in arms.items()}
+    for arm, turns_ in idle.items():
+        if turns_:
+            print(f"[{arm}] no cached token on {', '.join(turns_)}: the cache was never exercised there; the result "
+                  f"would prove nothing", file=sys.stderr)
+    diffs = compare(arms, reread)
+    if any(idle.values()):
+        if a.out:
+            Path(a.out).write_text(json.dumps({**arms, "reread": reread, "diffs": diffs, "never_hit": idle}, indent=1))
+        return 2
     if a.out:
         Path(a.out).write_text(json.dumps({**arms, "reread": reread, "diffs": diffs}, indent=1))
     return 1 if diffs else 0
