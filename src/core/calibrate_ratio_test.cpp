@@ -1,6 +1,7 @@
 // src/core/calibrate_ratio_test.cpp - MOD_PLAN A45: the CPU-vs-promote ratio derived from a probe, and its cache file (no GPU needed).
 #include "strata/core/calibrate_ratio.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -85,6 +86,23 @@ int main() {
         const double bytes = 1.4e6, link = bytes / (m.copy_us * 1e-6) / 1e9, rate = bytes / (m.cpu_us * 1e-6) / 1e9;
         CHECK(near(calib_derive(m, 0.95, 0.0).share_raw, link / (link + rate)));
     }
+
+    // the objective behind the share (DALI, arXiv 2602.03495, Eq. 3, for one layer of m equal-workload missed experts): the CPU lane and
+    // the link lane finish together when n* = m * cpu / (cpu + copy) experts go over the link; the layer then takes m*cpu*copy/(cpu+copy),
+    // which saves exactly `share_raw` of the CPU-only time m*cpu, and the best integer split is floor(n*) or ceil(n*)
+    for (double cpu = 5.0; cpu <= 2000.0; cpu *= 1.7)
+        for (double copy = 5.0; copy <= 2000.0; copy *= 1.7) {
+            CalibMeasure m;
+            m.cpu_us = cpu; m.copy_us = copy;
+            const double f = calib_derive(m, 0.95, 0.0).share_raw;
+            for (int n = 2; n <= 16; ++n) {
+                auto makespan = [&](int link) { return std::max((double) (n - link) * cpu, (double) link * copy); };
+                int best = 0;
+                for (int g = 1; g <= n; ++g) if (makespan(g) < makespan(best)) best = g;
+                CHECK(best == (int) std::floor(n * f) || best == (int) std::ceil(n * f));
+                CHECK(std::fabs(1.0 - (n * cpu * copy / (cpu + copy)) / (n * cpu) - f) < 1e-9);
+            }
+        }
 
     // cache file: round trip, key mismatch, damaged file
     {
