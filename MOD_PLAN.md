@@ -2598,3 +2598,11 @@ list once two cards are in the box.  Each needs its own A/B on the real pair; th
 - The 7900 XT is not detected today; AMD work is compile-only until it is back.
 - Disk: the root disk is tight; builds, models and caches go on the D drive (`/home/dan/clone-of-d`).
 - Upstream moves fast (thousands of commits a month); rebase on Strata releases, not on every commit.
+
+## Phase 17 item 17.0 note (ttft_bench)
+
+Phase 17 exists only on main's commits 13758be06 and later, not on this base branch (`dev/phase16-academic`), so this note is a separate block at the end of the file for the lead to merge into Phase 17.
+
+Item 17.0 (owner priority 1): a harness for time to first token (TTFT) at long context and over agent sessions. An agent of 10 sequential calls multiplies every second of TTFT by 10, so TTFT can matter more than a 5-10% decode gain.
+
+Status: **harness written, nothing measured.** `tools/pancake/ttft_bench.py` (stdlib only, any OpenAI-compatible server on `/v1/chat/completions` with `stream=true`; `--port`, `--label`, JSON output, one-screen summary, `--compare A.json B.json`), `tools/pancake/test_ttft_bench.py` (fake streaming server: TTFT clock, discard of run 1, reuse accounting for the `usage.prompt_tokens_details.cached_tokens` and `timings.cache_n` field styles and for a server with neither, context-limit skip, `--compare`), and `pancake-docs/TTFT_BENCH.md` (how to run it against pancake, Avalon's llama-server and Strata-rdna3). Scenario A: 8K/32K/64K/100K prompts, unique first line, 4 runs, run 1 discarded, medians, engine `prompt_ms` next to the client TTFT. Scenario B: 10 agent turns with the whole conversation resent, per-turn TTFT, prompt tokens, reused versus re-read tokens, total TTFT, reuse share. Reuse fields verified by reading code: the Strata server and Avalon's llama-server both send `usage.prompt_tokens_details.cached_tokens` and `timings.cache_n`/`prompt_n`; Strata-rdna3 not checked. No claim about any engine's TTFT is made until the runs in `pancake-docs/TTFT_BENCH.md` are done on a quiet machine.

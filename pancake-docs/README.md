@@ -523,6 +523,9 @@ expert kernels' launch/tile knobs and the CPU pool knobs), `trace/draft_costs.py
 `pancake.service` (item 73/91, `a1683537c`), plus `trace/{wtrace,tail_replay}.py`. Why: every claim in this README came
 out of one of these scripts, and the suite is what makes the stack reproducible.
 
+`ttft_bench.py` (MOD_PLAN Phase 17 item 17.0) measures time to first token at 8K-100K tokens and over a 10-turn agent session for any
+OpenAI-compatible server; see [TTFT_BENCH.md](TTFT_BENCH.md). Harness written, nothing measured yet.
+
 ## 8. Daily Use (`Qwen3.8-Flash-Next` & `Qwen3.6-35B-A3B`) and Build & Run (HIP + CUDA)
 
 ### Daily use
