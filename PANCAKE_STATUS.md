@@ -6,6 +6,14 @@ Order = MOD_PLAN phase 13 (biggest expected gain first).
 
 Last update: 2026-11-11 17:40 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
 
+## BLOCKER (2026-11-11 19:58): ntfs3 deadlock on the D drive, repo must move
+
+At ~17:15 a `git reset --hard` (7 parallel checkout workers) deadlocked in the ntfs3 driver (`ntfs_extend_mft`, `ntfs_look_free_mft`, `ntfs_mark_rec_free`; kernel hung-task log 17:23). D is 97% full (27 GB free). Processes stuck in D state until reboot; I/O pressure idle, so a lock deadlock, not a disk fault. Same class as the earlier hang that lost `.git/config`.
+- Status of the work: nothing known lost. Last pushed state: `dev/p17/integration`. The `prefilllevers` and `review` agent reports may be lost (agents were running at the hang).
+- After reboot: `git status` + `git fsck` here, fresh `git bundle create --all` on the root disk (old bundle: /home/dan/backup-pancake-2026-11-11/all-refs.bundle), then move the repo to an ext4 drive (target not chosen yet; root has 16 GB, USB NVUNLOCK 32 GB), re-add remotes and user.
+- Until moved: no checkout / reset / worktree operations on the D mount.
+- Details: memory note `project_ntfs-hang-2026-11-11-evening.md`.
+
 ## Current status (2026-11-11): Phase 17, owner priority 1 = TTFT at long context
 
 Working branch: `dev/p17/integration` (pushed; `dev/phase16-academic` plus the agent branches below). Full HIP build of it: OK; new unit tests
