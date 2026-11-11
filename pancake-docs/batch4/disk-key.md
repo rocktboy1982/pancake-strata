@@ -16,17 +16,20 @@ the key, so `STRATA_DEFAULTS=026` or `STRATA_PROMPT_ATTN_IMMA=0` gave different 
 ## What changed
 
 - `src/core/conversation_disk_env.def` (new, the table): one line `STRATA_ENV("STRATA_X", Class, "why")` for each of the **994**
-  distinct `"STRATA_..."` strings in `src/` and `include/` (984 in product files, 10 only in tests).
+  distinct `"STRATA_..."` strings in `src/` and `include/` (985 in product files, 10 only in tests; the 994 of the first audit plus
+  `STRATA_HIP_GLOBAL_WEIGHTS`, which arrived with the merge of `dev/p16b/switch-cpp`).
 - `conversation_disk_tier.cpp` builds the two key lists from the table (`Key` = always in the key, `KeyIfSet` and `Unsure` = in the key
-  when set and not empty) and exposes the table as `conversation_env_switches()` (declared in `conversation_disk_tier.hpp`).
+  when set, **an empty value included**: many switches are read as `getenv(...) != nullptr`) and exposes the table as `conversation_env_switches()` (declared in `conversation_disk_tier.hpp`).
   The key text starts `strata conversation disk 3` (was 2): entries written by the old key are never found, never mismatched.
   All 34 names that were keyed before are still keyed (checked by diff); the always-present list is the same 25 names.
 - `tests/core/conversation_disk_env_test.cpp` (new): see "Tests".
-- `tests/core/conversation_disk_tier_test.cpp`: the version check only (2 -> 3). The 97 checks are otherwise unchanged and pass.
+- `tests/core/conversation_disk_tier_test.cpp`: the version check (2 -> 3) and, after the review, the empty `STRATA_VERIFY_ECAP` check (an
+  empty value is now keyed as set). The 97 checks pass.
 - `CMakeLists.txt`: the existing `conversation_disk_tier_test` block moved out of the `if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)`
   section (it needs no GPU, and a CPU-only build never ran it) next to `defer_rank_test`, with the new test beside it, and the new test
   added to the `cpu` label list. This is the only edit outside the owned files; it touches only those two blocks and one list entry.
-- `generate.cpp` is **not** changed.
+- `generate.cpp`: the one call that builds the key (`conversation_disk_key_env(...)`) now answers `STRATA_PF_FUSED=0` when the small-card
+  rule turned the fused prompt experts off in-process (`pf_fused_override`); nothing else (see "Review round").
 
 ## What the key promises (and what it does not)
 
@@ -60,8 +63,11 @@ touching arithmetic; nothing was re-measured (no GPU). Where no claim exists for
 | --- | --- | --- |
 | `STRATA_EXP_MODE`, `STRATA_EXP9_DOWN`, `STRATA_EXP9_GU` (F14) | KeyIfSet | documented bitwise to mode 0 (native_expert_bench on one RTX 3090, `gpu_rewrite_parity_test` for the Q2_0 4-lane sum order) but not gated at run time and not seen on any other card. Cost of keying when set: none. Flip to Speed by editing one word if the owner trusts the bench |
 | `STRATA_VERIFY_DEFER_CPU_BELOW/_TOP` | Key | were added by batch-1 (key v2); kept. MOD_PLAN 16 item 8 is closed |
+| `STRATA_PREFILL_LAYER_MAJOR` | KeyIfSet | (review) the layer-major walk adds the routed experts per expert group in id order, not in the router's k order (`prefill.cpp` comment above `lm_env_text`: FP32 rounding), and the small-card rule turns it on by default (`generate.cpp` small-card block, `sm120_series.hpp` `small_card_prompt_path`), which flips with free VRAM. The rule `setenv`s it before the key is built, so the key sees the effective value. Was Speed ("order of work, not arithmetic"): wrong |
+| `STRATA_PREFILL_LM_FORCE`, `_LM_TOKENS`, `_LM_EVEN`, `_LM_R`, `_LM_MARGIN_MIB` | Unsure | (review) they decide the super-chunk geometry (`fit()` in `prefill.cpp`: the largest super-chunk that fits, a multiple of the chunk), which the project already treats as a rounding difference for `NV_CHUNK`. The brief named the first three; `LM_R` (residual rows in VRAM or host) and `LM_MARGIN_MIB` (free-VRAM margin) change the same number through `fit(true)` / `fit(false)` and `room`, so they follow |
+| `STRATA_NO_IQ128` | Unsure | (review) `iq_avx1_parity.cpp` checks the 128-bit kernels against ggml's `vec_dot` only to rel <= 1e-5 (and each against its own one-token row, bit for bit), not bitwise to the scalar path the switch falls back to; as `NO_IQ256`. Only matters on an AVX1-only CPU |
 | `STRATA_VERIFY_DEFER_CPU_FOLD` | Speed | only moves a row between pool passes (`defer_rank.hpp`); the existing key test asserts it stays out |
-| `STRATA_HIP_GLOBAL_WEIGHTS` | not an environment variable | a compile-time macro (`-DSTRATA_HIP_GLOBAL_WEIGHTS=1`, `iq_kernels.cu`), bitwise by design; it cannot be in an env key. Two builds of one version with and without it share `STRATA_VERSION`, so share a key (see "Open")|
+| `STRATA_HIP_GLOBAL_WEIGHTS` | Inert | a compile-time macro (`-DSTRATA_HIP_GLOBAL_WEIGHTS=1`, `iq_kernels.cu`), bitwise by design; it cannot be in an env key (switch-cpp's `switch_report.hpp` spells the name as a string, so the scan sees it: it has an `Inert` line saying so). Two builds of one version with and without it share `STRATA_VERSION`, so share a key (see "Open") |
 | `STRATA_Q2_FAST` (+ `_LEGACY`) | Speed | `kQ2Fast` runs `corr_form_probe`: it compares the fast kernel with the legacy one with `memcmp` on probe data at start and falls back to legacy on any mismatch, so the switch cannot change a bit that matters |
 | `STRATA_EXPDEC_SWIGLU`, `STRATA_ROUTER_FUSE`, `STRATA_EXPDEC`, `_EXPDEC_DOWN`, `STRATA_QFUSE` | Key (kept) | all five are documented exact (README); they were keyed by batch-1 and removing a name from the key is the one change this audit does not make without the owner. If dropped, they are Speed |
 | `STRATA_ROUTE_FAST` | Speed | `native_router.cu:223`: "every id and weight is bitwise route_multi's"; `native_multi_parity` passed (kern-hip.md) |
@@ -98,12 +104,17 @@ touching arithmetic; nothing was re-measured (no GPU). Where no claim exists for
   macro such as `STRATA_HIP_GLOBAL_WEIGHTS`) reads another build's states. Hashing the executable once at start would close this for
   every build-time difference and for every dev build. Not done: it touches start-up and session identity.
 - **CLI arguments that are not in the fingerprint.** `--prefill N` / the auto chunk (rounding: see above), `--adapt-swaps`,
-  `--pcie-frac`, `--ram-keep-gib` (placement) and the auto decisions made from free VRAM (`small_card_prompt_path`,
-  `pf_fused_override`, the chunk scan) are not seen by an environment key. Chunk geometry is the only one of these that the project
-  itself calls a rounding change; it is not covered, apart from the `Unsure` chunk-ceiling switches that name it.
+  `--pcie-frac`, `--ram-keep-gib` (placement) and the auto decisions made from free VRAM (the chunk scan) are not seen by an
+  environment key. Chunk geometry is the only one of these that the project itself calls a rounding change; it is not covered, apart
+  from the `Unsure` chunk and super-chunk switches (`NV_CHUNK`, `PREFILL_LM_*`) that name it. Deliberately not added to the key: the
+  effective chunk and the layer-major super-chunk size come from the free VRAM at start, so keying them would re-key the whole tier
+  whenever a browser or another process moves free VRAM by a few hundred MiB, to separate states that differ by KL <= 5e-5. If the
+  owner wants that, the place is the lambda at `generate.cpp` where `conversation_disk_key_env` is called (append one `("prefill_chunk",
+  n)` pair). What the small-card rule decides is covered: it `setenv`s `STRATA_PREFILL_LAYER_MAJOR` before the key is built (the key
+  sees it through `getenv`) and the key lambda answers `STRATA_PF_FUSED=0` for `pf_fused_override() == 0`.
 - `metal/`, `sycl/`, `serve/` (Python), `apps/` and `tools/` read other `STRATA_*` names; they are not scanned (the disk tier is built
   only into the CUDA/HIP `strata_engine`). `strata-dsv41` and `strata-poly` have their own stores and keys (their names are Inert here).
-- 101 names are `Unsure`: the cheap way to shrink the list is a bit-compare of each on a GPU (`restore_check.py`-style, same prompt,
+- 107 names are `Unsure`: the cheap way to shrink the list is a bit-compare of each on a GPU (`restore_check.py`-style, same prompt,
   switch on/off): every one that compares equal moves to Speed by editing one word.
 - Names assembled at run time (`"STRATA_" + x`) would not be seen by the scan; none exists in `src/` or `include/` today (grep).
 
@@ -111,21 +122,52 @@ touching arithmetic; nothing was re-measured (no GPU). Where no claim exists for
 
 Build: `cmake -S . -B build-cpu -G Ninja -DSTRATA_ENABLE_HIP=OFF -DSTRATA_ENABLE_CUDA=OFF -DSTRATA_BUILD_TESTS=ON -DSTRATA_BUILD_CONVERSATION_TESTS=ON
 -DFETCHCONTENT_SOURCE_DIR_STRATA_LLAMACPP=<pinned llama.cpp-src>`, then `ninja -j2 conversation_disk_tier_test conversation_disk_env_test`
-under `systemd-run --user --scope -p MemoryMax=6G`.
+under `systemd-run --user --scope -p MemoryMax=6G`. **`-DSTRATA_BUILD_TESTS=ON` is required**: the two tests (and `switch_report_test`) are
+registered inside `if(STRATA_BUILD_TESTS)` in `CMakeLists.txt`, and that option defaults to OFF here (`CMakeLists.txt:172`: it is ON by
+default only when `tests/CMakeLists.txt` and `bench/micro` exist, and the published tree has neither). A configure without it builds and
+registers nothing (`ctest -R conversation_disk` then says "No tests were found"). `-DSTRATA_BUILD_CONVERSATION_TESTS=ON` adds the
+standalone conversation cache tests next to them.
 
-- `conversation_disk_tier_test`: **97 checks passed** (the existing test, unchanged but for the key version).
-- `conversation_disk_env_test` (new): **4209 checks passed**, 994 switches. It
+- `conversation_disk_tier_test`: **97 checks passed** (the existing test, with the key version and the empty-`ECAP` check changed).
+- `conversation_disk_env_test` (new): **4239 checks passed**, 995 switches (the first audit's 4209 checks were for 994). It
   1. scans every `.cpp .hpp .h .cu .cuh .inc .inl .c .cc .mm` under `src/` and `include/` for `"STRATA_NAME"` string literals (not the
      table itself) and fails with the file name for every one that has no line in the table, and for every line whose string is gone;
   2. for each line checks the class against the real key: Key changes the key value by value, KeyIfSet / Unsure change it when set
-     (and set-but-empty is unset), Speed / Inert / InConfig never change it;
+     (and set-but-empty is keyed as set, apart from unset and from the other values), Speed / Inert / InConfig never change it;
   3. pins the decisions above (F14, the master switch, the other-summation-order defaults, the arch-table bit changers, the old key
      names, FOLD and Q2_FAST out, KV_ROT in the fingerprint).
   Shown to fail: a line `std::getenv("STRATA_ZZZ_NEW_SWITCH")` appended to `src/core/layer.cpp` gives `ADD A LINE for: STRATA_ZZZ_NEW_SWITCH
   (src/core/layer.cpp)`; a stale line gives `REMOVE: STRATA_ZZZ_STALE` (both reverted).
 - `ctest -L cpu -R conversation_disk`: both pass (the new test is in the `cpu` label list).
-- Not run: the GPU build (the change is host code; `strata_engine` compiles `conversation_disk_tier.cpp` and the new `.def` is next to
-  it), the engine, any model.
+- Not run: the engine, any model, any GPU.
+
+## Review round (2026-11-11, after the reviewer's findings)
+
+1. **`STRATA_PREFILL_LAYER_MAJOR` Speed -> KeyIfSet** (the walk adds the routed experts in id order, not the router's k order, an FP32
+   rounding change, and the small-card rule turns it on by default from free VRAM). `PREFILL_LM_FORCE`, `_LM_TOKENS`, `_LM_EVEN` (the
+   reviewer's three) and `_LM_R`, `_LM_MARGIN_MIB` (my addition: same `fit()` number) Speed -> Unsure.
+2. **`STRATA_NO_IQ128` Speed -> Unsure** (parity test: rel <= 1e-5 against ggml's `vec_dot`, not bitwise).
+3. **Presence, not value.** `conversation_disk_key_env` keyed a KeyIfSet / Unsure name only when `v != nullptr && v[0] != '\0'`, but
+   at least 13 are read as `getenv(...) != nullptr` (`CPU_YMM`, `IQ3S_MT1`, `NO_IQ512`, `NO_IQ4NL`, `PROMPT_ATTN_V1`, `SELECT_OLD`,
+   `INDEXER_PER_TOKEN`, `ROUTE_PROJ_PER_TOKEN`, `HIP_ROUTER_OLD`, `HIP_ROUTER_FAST`, `EXP_MODE`, `NO_IQ128`, `NO_IQ256`; 13 checked one by one at
+   the read site): `VAR= strata serve`
+   turned the kernel on and left the key unchanged. Now `v != nullptr`: an empty value is keyed as `env STRATA_X=`. The price is one extra
+   miss for a name that treats "" as unset (`PREFILL_LAYER_MAJOR`, `VERIFY_ECAP`); the key stays conservative. Key v3 already misses every
+   older entry, so no new version. The assertion that pinned "set but empty is as unset" (`conversation_disk_env_test`, and the `VERIFY_ECAP`
+   one in `conversation_disk_tier_test`) now pins the opposite, and a new check names those 13 presence-only switches.
+4. **Merge of `dev/p16b/switch-cpp`** (no source conflict; `CMakeLists.txt` conflicted in two places, both sides kept: the test block after
+   `defer_rank_test`, and the `cpu` label list). The scan after the merge found exactly one new name, `STRATA_HIP_GLOBAL_WEIGHTS`
+   (`switch_report.hpp` spells it as a string): a build macro, `Inert`. 995 names now.
+5. **Effective `pf_fused_override` in the key** (3 lines in the key lambda at the `conversation_disk_key_env` call in `generate.cpp`: the
+   lambda answers `"0"` for `STRATA_PF_FUSED` when the small-card rule turned the fused experts off in-process). The effective prefill
+   chunk is **not** added, on purpose: see "Open".
+6. **Tests and notes**: the configure line above; the stale "4209 checks" is 4239 (995 switches) now.
+
+Verification after the merge (this branch, CPU-only configure `build-cpu`, `systemd-run MemoryMax=6G`, `-j2`): `conversation_disk_tier_test` 97
+checks, `conversation_disk_env_test` 4239 checks, `switch_report_test` passes; `ctest -R 'conversation_disk|switch_report'` 3 of 3;
+`ctest -L cpu`: **123 tests, 116 passed, 7 skipped by their own guard (io_priority_test, expert_multi_test, native_hadamard_test,
+tq_cpu_parity, tq_cpu_parity_avx2, expert_parity, pool_test), 0 failed**. HIP configure (`gfx1100`, compile only, no link): `generate.cpp.o`
+(the key lambda), `verify.cpp.o`, `conversation_disk_tier.cpp.o` and `iq_kernels.cu.o` (the two switch-cpp files) compile without errors.
 
 ## Adding a switch
 
@@ -136,7 +178,7 @@ tell: `Unsure` and say why; if it only moves work or documented bitwise: `Speed`
 ## The audited table
 
 Every name below has one line in `src/core/conversation_disk_env.def` (that file is the table the tests read; this section is a copy
-for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, Inert 273.
+for reading). Counts: Key 25, KeyIfSet 96, Unsure 107, InConfig 1, Speed 492, Inert 274.
 
 ### Key (25, as before the audit)
 
@@ -168,7 +210,7 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 | `STRATA_VERIFY_DEFER_CPU_BELOW` | deferral threshold |
 | `STRATA_VERIFY_DEFER_CPU_TOP` | deferral top-k |
 
-### KeyIfSet (95; value-changing, new to the key except the 9 older ones)
+### KeyIfSet (96; value-changing, new to the key except the 9 older ones)
 
 | switch | why |
 | --- | --- |
@@ -246,6 +288,7 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 | `STRATA_PREFILL_EQUAL` | equal-size chunks: changes rounding |
 | `STRATA_PREFILL_HELP` | idle stage computes a share of streamed experts (not bit-identical) |
 | `STRATA_PREFILL_HELP_FRAC` | fixes the share of the idle stage in PREFILL_HELP |
+| `STRATA_PREFILL_LAYER_MAJOR` | layer-major prompt walk: the routed experts' sum is added in id order, not the router's k order (FP32 rounding, prefill.cpp layer-major comment); the small-card rule sets it in-process when free VRAM allows |
 | `STRATA_PREFILL_NVFP4` | NVFP4 prompt MMQ with FP4 activations (rounds differently) |
 | `STRATA_PROMPT_ATTN_IMMA` | int8 tensor-core prompt attention, another summation order; default ON on cc>=80 |
 | `STRATA_PROMPT_ATTN_OLD` | old prompt attention kernel (not bitwise to the current one) |
@@ -268,7 +311,7 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 | `STRATA_TAIL_SKIP_MAX_CACHED` | limit of ROUTE_TAIL_SKIP (decides which tails are skipped) |
 | `STRATA_VERIFY_ECAP` | caps CPU experts only draft rows need (lossy) |
 
-### Unsure (101; keyed when set)
+### Unsure (107; keyed when set)
 
 | switch | why |
 | --- | --- |
@@ -319,6 +362,7 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 | `STRATA_MMVQ_IL_T1` | IL kernel for one token |
 | `STRATA_MMVQ_IL_WIDE` | wide IL kernels |
 | `STRATA_MMVQ_R` | rows per wave; README exact but phase15.md: MMVQ_R=2 + RDNA_MMVQ_WAVE=3 is a rounding change |
+| `STRATA_NO_IQ128` | turns off the 128-bit (AVX1) multi-token IQ kernels; iq_avx1_parity checks them against ggml's vec_dot only to rel <= 1e-5, not bitwise (as NO_IQ256) |
 | `STRATA_NO_IQ256` | turns off the AVX2 multi-token IQ kernels (sum order vs ggml dot not claimed) |
 | `STRATA_NO_IQ4NL` | IQ4_NL multi-token kernel vs ggml single-token dot |
 | `STRATA_NO_IQ512` | AVX-512 IQ kernels (16-lane sums) vs ggml dot |
@@ -337,6 +381,11 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 | `STRATA_PF_WMMA2` | second WMMA expert kernel |
 | `STRATA_PREFILL_AUTO_MAX` | chunk geometry changes the rounding (generate.cpp:10263, percache.md: restore equals a re-read only for the same geometry; 32768 vs 16384 measured KL <= 5e-5) |
 | `STRATA_PREFILL_HOST_PLAN` | chunk shape (generate.cpp:10454: only the chunk shape, i.e. rounding) |
+| `STRATA_PREFILL_LM_EVEN` | even vs largest-that-fits super-chunks: changes the super-chunk geometry (like NV_CHUNK) |
+| `STRATA_PREFILL_LM_FORCE` | layer-major walk even for a prompt under two chunks: changes the super-chunk geometry (like NV_CHUNK); restore equals a re-read only for the same geometry |
+| `STRATA_PREFILL_LM_MARGIN_MIB` | VRAM margin left free: decides the largest super-chunk that fits, so the geometry (like NV_CHUNK) |
+| `STRATA_PREFILL_LM_R` | residual rows in VRAM or pinned host: decides the largest super-chunk that fits (fit(true) vs fit(false)), so the geometry (like NV_CHUNK) |
+| `STRATA_PREFILL_LM_TOKENS` | layer-major super-chunk target size: changes the super-chunk geometry (like NV_CHUNK) |
 | `STRATA_PREFILL_MMQ` | int8 MMQ experts for the prompt (on by default on some cards) |
 | `STRATA_PREFILL_PLAN_TOKS` | chunk geometry changes the rounding (generate.cpp:10263, percache.md: restore equals a re-read only for the same geometry; 32768 vs 16384 measured KL <= 5e-5) |
 | `STRATA_PROMPT_ATTN_Q4_TC` | Q4 tensor-core prompt attention |
@@ -380,14 +429,14 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 | --- | --- |
 | `STRATA_KV_ROT` | covered by the config fingerprint (session_identity: c.kv_rot) |
 
-### Speed (499; names without the `STRATA_` prefix, grouped by why)
+### Speed (492; names without the `STRATA_` prefix, grouped by why)
 
-- **bitwise: documented (docs/README/code comment/parity test)** (155): `ARGMAX_MULTI` `ARGMAX_ROWS` `ARGMAX_ROWS_SM70` `ATTN_DAILY` `ATTN_LANECELL` `ATTN_MERGE_V2` `ATTN_PRE75` `B6_MMVQ_ROWS` `BATCH_ATTN_ROWS` `BATCH_GDN_GROUPS` `BATCH_SELF_COMMIT` `COMBINE_CPU` `COMBINE_POLL1` `COMMIT_BATCH` `CPU_IQ_ALL_EXACT1` `CVEC_FUSE` `DEC_BATCH` `DENSE_F32` `DEQUANT_SIDE` `DEQUANT_WIDE` `DF2_GEMM` `DF2_GEMM4` `DF2_HEAD_IL` `DF_PDL` `DF_PLE` `DOWN_WS` `EMBED_VRAM` `EXPDEC_R` `EXPDEC_RB` `EXPERT_V2` `EXPERT_V2K` `FUSE_DECODE` `GDN_CONV_SERIAL` `GDN_HEAD` `GDN_KEYHEAD` `GDN_NOY` `GDN_PIPELINE` `GDN_PP` `GDN_REC_HEADS` `GDN_SPLIT` `GFX1151_EXP8` `GROUPED_PAIR_MIN_HITS` `GR_FAST` `GR_FUSED` `GR_INJ_UP` `GR_Q32_G` `GR_Q8_PFS` `GR_UP75` `GR_UP_WIDE` `GR_V3_PF` `GU_SWIGLU` `HCD_EXACT` `HC_PERSIST` `HEAD_MIX_MULTI` `HIPBLASLT_DESC_CACHE` `HIP_SWIGLU_FUSED` `IL_PAD` `IQ256_GATHER` `IQ2S_PAIR` `IQ4XS512_MIN` `IQ_GATHER` `IQ_LUT_DUP` `IQ_SIGN_FAST` `IQ_STAGE_GRID` `IQ_STAGE_GRID_MMVQ` `IQ_STAGE_TABLES` `KQ256` `KQ_SPLIT` `LFUSE` `LFUSE_GATE` `LFUSE_PAIR` `LOOKAHEAD_GPU` `MMQ_GROUP_SORT` `MMQ_RESIDENT_SORT_NE` `MMVF_AUX` `MMVF_ROWS` `MMVQ_IL` `MMVQ_IL_89` `MMVQ_IL_PF` `MMVQ_IL_ROWS` `MMVQ_IL_SM80` `MMVQ_WAVE` `MULTI_BLOCK_ARGMAX` `NIB_GU_PROTO` `NORM_ROPE` `NO_AVXVNNI` `NO_IQ128` `NO_IQ4XS512` `NO_IQ512X1` `NO_MULTI_GR` `NO_NORM_ROPE` `NO_NVFP4_256` `NO_NVFP4_512` `NO_Q50_512` `NO_Q8K_AVX1` `NO_Q8K_AVX2` `NO_SUB16_GU` `OLD_IQ_MMVQ` `PATTN_SM60` `PA_RPF` `PA_TRIM` `PA_V1_PREFETCH` `PF_BATCH` `PF_BK64` `PF_FUSED_NT` `PF_PAD` `PF_W16_CACHE_MIB` `PLE_BATCH` `PLE_COMPACT` `PLE_COPY_STREAM` `PLE_PIPE` `Q2_FAST` `Q2_LEGACY` `Q50_512_MIN` `Q5K_HEAD` `Q6_PACKED` `Q8_PACKED` `QFUSE_HC` `QSA_EARLY_EXIT` `QSA_FUSE_NR` `QSA_ROWS` `QSA_SLOTS` `RDNA2_SGEMM` `RDNA_KQ_ALL` `RDNA_MMVQ_WAVE` `RDNA_Q6K` `ROUTE_PUBLISH` `SCORES_DX` `SCORES_MULTI` `SCORES_THREAD` `SELECT_LONG` `SELECT_LONG_AT` `SELECT_TWO_PASS` `SELECT_TWO_PASS_MIN` `SIDE_MIXER` `SM60_PERF` `SM60_TABLE` `SM61_TABLE` `SM70_TABLE` `SM75_EXP` `SM75_IL` `SM75_PERF` `SM86_PERF` `SMALL_UNR` `TC_SM75` `TOPK_ACTIVE_ANY` `TOPK_MULTI` `TOPK_MULTI_N` `TOPK_OLD` `TOPK_REG_MIN_BLOCKS` `TSUM` `VERIFY_QDEDUP` `WAIT_COPY256` `WAIT_FUSE` `XN_F16`
+- **bitwise: documented (docs/README/code comment/parity test)** (154): `ARGMAX_MULTI` `ARGMAX_ROWS` `ARGMAX_ROWS_SM70` `ATTN_DAILY` `ATTN_LANECELL` `ATTN_MERGE_V2` `ATTN_PRE75` `B6_MMVQ_ROWS` `BATCH_ATTN_ROWS` `BATCH_GDN_GROUPS` `BATCH_SELF_COMMIT` `COMBINE_CPU` `COMBINE_POLL1` `COMMIT_BATCH` `CPU_IQ_ALL_EXACT1` `CVEC_FUSE` `DEC_BATCH` `DENSE_F32` `DEQUANT_SIDE` `DEQUANT_WIDE` `DF2_GEMM` `DF2_GEMM4` `DF2_HEAD_IL` `DF_PDL` `DF_PLE` `DOWN_WS` `EMBED_VRAM` `EXPDEC_R` `EXPDEC_RB` `EXPERT_V2` `EXPERT_V2K` `FUSE_DECODE` `GDN_CONV_SERIAL` `GDN_HEAD` `GDN_KEYHEAD` `GDN_NOY` `GDN_PIPELINE` `GDN_PP` `GDN_REC_HEADS` `GDN_SPLIT` `GFX1151_EXP8` `GROUPED_PAIR_MIN_HITS` `GR_FAST` `GR_FUSED` `GR_INJ_UP` `GR_Q32_G` `GR_Q8_PFS` `GR_UP75` `GR_UP_WIDE` `GR_V3_PF` `GU_SWIGLU` `HCD_EXACT` `HC_PERSIST` `HEAD_MIX_MULTI` `HIPBLASLT_DESC_CACHE` `HIP_SWIGLU_FUSED` `IL_PAD` `IQ256_GATHER` `IQ2S_PAIR` `IQ4XS512_MIN` `IQ_GATHER` `IQ_LUT_DUP` `IQ_SIGN_FAST` `IQ_STAGE_GRID` `IQ_STAGE_GRID_MMVQ` `IQ_STAGE_TABLES` `KQ256` `KQ_SPLIT` `LFUSE` `LFUSE_GATE` `LFUSE_PAIR` `LOOKAHEAD_GPU` `MMQ_GROUP_SORT` `MMQ_RESIDENT_SORT_NE` `MMVF_AUX` `MMVF_ROWS` `MMVQ_IL` `MMVQ_IL_89` `MMVQ_IL_PF` `MMVQ_IL_ROWS` `MMVQ_IL_SM80` `MMVQ_WAVE` `MULTI_BLOCK_ARGMAX` `NIB_GU_PROTO` `NORM_ROPE` `NO_AVXVNNI` `NO_IQ4XS512` `NO_IQ512X1` `NO_MULTI_GR` `NO_NORM_ROPE` `NO_NVFP4_256` `NO_NVFP4_512` `NO_Q50_512` `NO_Q8K_AVX1` `NO_Q8K_AVX2` `NO_SUB16_GU` `OLD_IQ_MMVQ` `PATTN_SM60` `PA_RPF` `PA_TRIM` `PA_V1_PREFETCH` `PF_BATCH` `PF_BK64` `PF_FUSED_NT` `PF_PAD` `PF_W16_CACHE_MIB` `PLE_BATCH` `PLE_COMPACT` `PLE_COPY_STREAM` `PLE_PIPE` `Q2_FAST` `Q2_LEGACY` `Q50_512_MIN` `Q5K_HEAD` `Q6_PACKED` `Q8_PACKED` `QFUSE_HC` `QSA_EARLY_EXIT` `QSA_FUSE_NR` `QSA_ROWS` `QSA_SLOTS` `RDNA2_SGEMM` `RDNA_KQ_ALL` `RDNA_MMVQ_WAVE` `RDNA_Q6K` `ROUTE_PUBLISH` `SCORES_DX` `SCORES_MULTI` `SCORES_THREAD` `SELECT_LONG` `SELECT_LONG_AT` `SELECT_TWO_PASS` `SELECT_TWO_PASS_MIN` `SIDE_MIXER` `SM60_PERF` `SM60_TABLE` `SM61_TABLE` `SM70_TABLE` `SM75_EXP` `SM75_IL` `SM75_PERF` `SM86_PERF` `SMALL_UNR` `TC_SM75` `TOPK_ACTIVE_ANY` `TOPK_MULTI` `TOPK_MULTI_N` `TOPK_OLD` `TOPK_REG_MIN_BLOCKS` `TSUM` `VERIFY_QDEDUP` `WAIT_COPY256` `WAIT_FUSE` `XN_F16`
 - **placement/tiering of experts (same math, GPU vs CPU)** (79): `ADAPT_ASYNC` `ADAPT_ASYNC_BATCH` `ADAPT_ASYNC_WAIT` `ADAPT_CALLBACK_WARMUP` `ADAPT_CHECKRES` `ADAPT_EVICT_SYNC` `ADAPT_FETCH` `ADAPT_FETCH_MARGIN` `ADAPT_FETCH_MIN` `ADAPT_JOB_CPU` `ADAPT_KMISS` `ADAPT_LAG` `ADAPT_NOWAIT` `ADAPT_OVERLAP` `ADAPT_OVERLAP_RESIDENT` `ADAPT_OVERLAP_SLOW_US` `ADAPT_PERSIST` `ADAPT_PICK_INLINE` `ADAPT_SIGNAL` `ADAPT_SWAPS_AUTO` `CALIBRATE` `CALIBRATE_CACHE` `CALIBRATE_MIN_SHARE` `COLD_OVERLAP` `DISJOINT_ADAPT` `EARLY_REMOTE_CONTEXTS` `EXCHANGE_ROTATE` `FETCH_ADMIT` `FETCH_PVM` `FETCH_THREADS` `FILL_AHEAD` `FS_ADMIT` `FS_AHEAD` `FS_BUDGET` `FS_DEPTH` `FS_SLOTS` `FS_VERIFY` `IDLE_ADAPT` `PARTIAL_PIN` `PARTIAL_PIN_GIB` `PCIE_AUTO_CANON` `PCIE_AUTO_SPLIT` `PCIE_BALANCE` `PCIE_FRAC_DEFAULT` `PCIE_K_RULE` `PCIE_MIN1` `PCIE_OFF` `PCIE_SHARE_MAX` `PCIE_START` `PEER_DIRECT` `PEER_HOT` `PEER_HOT_AT` `PEER_NO_P2P` `PIN_BY_NEED` `PIN_BY_NEED_SKIP` `PIN_GUARD` `PIN_PARK_TOKENS` `PIN_RESERVE_GIB` `PIN_RESERVE_MIB` `PIPE_ADAPT_EVERY` `PROMO_CHUNK` `RAM_ADAPT` `RAM_ADAPT2` `RAM_ADAPT_CACHED_W` `RAM_ADAPT_PER_LAYER` `RAM_ADAPT_PROMPT_W` `RAM_ADAPT_QUEUE` `RAM_ADAPT_SKIP_TOP` `REFILL_BLOCKING` `REFILL_PARTS` `REFILL_SERIAL` `RESIDENT_HEADROOM_GIB` `RESIDENT_PIN` `SPEC_ADAPT_EVERY` `SPEC_ADAPT_SM86` `SPEC_ADAPT_WARM` `STAGE_PIN` `STAGE_TRIM` `VERIFY_COMPLEMENT`
 - **drafting/stop policy: the tokens change, the state of given tokens does not** (67): `BATCH_DF2` `BATCH_DF2_CONF` `BATCH_DF2_DEFER` `BATCH_DF2_MAXX` `BATCH_MTP` `BATCH_MTP_SERIAL` `DF2_END_UPDATE` `DF2_FORK` `DF2_GATE` `DF2_HEAD` `DF2_LOG_MIB` `DF2_LOOKUP_SKIP` `DF2_PRIO` `DF2_ROW_MS` `DF2_SHARE_HEAD_OFF` `DF2_SKIP` `DF2_STAGE` `DF2_WAITCOMMIT` `DISCO` `DRAFT_KEEP` `FOLLOW` `KVA_DRAFT_FLOOR` `LOOKAHEAD` `LOOKAHEAD_K` `LOOKUP_CHAIN_FIXED` `LOOKUP_MAX_T` `MTP_BATCH` `MTP_BATCH_F16` `MTP_BATCH_RING` `MTP_CATCHUP_ALL` `MTP_EAGER` `MTP_FULL_HEAD` `MTP_HIP_PRIO` `MTP_KEEP` `MTP_MULTI_COPY` `MTP_PREFILL_SYNC` `MTP_PRIORITY` `MTP_PROXY` `MTP_Q8_SM60` `MTP_ROOM_MIN` `MTP_SHARED_BRANCH` `MTP_SIDE_STREAM` `MTP_STAGE0` `MTP_TOP2` `NO_BATCH_KV_STEP` `PIPED_MTP` `PIPELINE_SPEC_DEPTH` `SERVE_STOP_BOUND` `SPEC_COST` `SPEC_COST_TABLE` `SPEC_COUPLED` `SPEC_CUM` `SPEC_DEPTH` `SPEC_GUMBEL` `SPEC_MIN_TEMP` `SPEC_PROB` `SPEC_PROB_DT` `SPEC_PROB_GATE` `SPEC_T_CYCLE` `SPEC_WATCH` `SUFFIX_INDEX` `SUFFIX_INDEX_FACTOR` `SUFFIX_INDEX_FILE` `SUFFIX_INDEX_MB` `SUFFIX_INDEX_MIN_PROB` `SUFFIX_INDEX_RULE` `THINK_PROBE`
 - **cache/threads/park policy** (48): `ADMIT_MERGE_FIRST` `AUX_CPUS` `AUX_STAGER` `CACHE_MESSAGE_BOUNDARY` `CACHE_TOOL_BOUNDARY` `CACHE_TOOL_BOUNDARY_GAP` `CACHE_TOOL_BOUNDARY_MAX` `CKPT_ASYNC` `CKPT_EVICT_FLOPS` `CKPT_GATHER` `CKPT_POOL` `CKPT_POOL_READY` `CKPT_REREAD` `CKPT_THREADS` `CKPT_VRAM_SLOTS` `CONV_BUDGET` `CONV_BUDGET_CAP_MIB` `CONV_BUDGET_MARGIN_MIB` `CONV_KEEP_GIB` `CONV_WORKSET` `CONV_WORKSET_TOKENS` `HOST_CORE` `NUMA_POOL` `NUMA_SPLIT` `PARK_ASYNC` `PARK_TRUNCATE` `PARK_TTL_HOLD_S` `PARK_TTL_S` `PARK_TTL_SHARE` `PARK_TTL_SUB_RATIO` `PARK_VRAM_MIB` `POOL_CORES` `POOL_FUSE_MIN` `POOL_FUSE_PHASES` `POOL_LAZY_PARK` `POOL_MWAITX` `POOL_PREREAD` `POOL_SPIN_US` `POOL_TAIL4` `POOL_UMWAIT` `POOL_UMWAIT_C02` `POOL_UMWAIT_ESC` `SLOT_CKPT_MOVE` `SLOT_COPY_BATCHSYNC` `SLOT_COPY_DIRECT` `SNAPSHOT_FULL_CAPTURE` `TG_FLUSH_US` `TOOL_CALL_TOKEN`
 - **multi-GPU / batch / layer-split planning (the disk tier needs one GPU and no --batch)** (46): `BATCH_CONCURRENT_READ` `BATCH_DECODE_SHARE` `BATCH_GROUPS_NV_SERIAL` `BATCH_YIELD_CHUNKS` `GFX12_RING` `KEEP_MAPPING` `LAYER_SPLIT_GATE` `LAYER_SPLIT_PROBE` `PIPED_CONCURRENT` `PIPED_CONCURRENT_MIN` `PIPED_CONCURRENT_PRIO` `PIPED_CONCURRENT_UNPIN` `PIPED_DECODE_MAX_MS` `PIPED_DECODE_MIN_MS` `PIPED_READ_PIECE` `PIPELINE_ADAPT_ASYNC` `PIPELINE_AGREE` `PIPELINE_AUTO` `PIPELINE_AUTO_MIN_STAGES` `PIPELINE_DOOM_SKIP` `PIPELINE_FORCE_MISS` `PIPELINE_LOOKUP_PON` `PIPELINE_PRESTAGE` `PIPELINE_SNAP_OVERLAP` `PIPELINE_SWITCH` `PIPELINE_THETA` `PRIMARY_DEVICE` `PW_WITH_BATCH` `SPILL_OFF` `SPLIT_CHUNK16K` `SPLIT_COVER_B` `SPLIT_EARLY_OFF` `SPLIT_LINK_ABS` `SPLIT_MISS_MS` `SPLIT_MTP_BATCH` `SPLIT_NEAR_TIE_PCT` `SPLIT_OVERLAP` `SPLIT_OWN` `SPLIT_OWN_BUFFERS` `SPLIT_OWN_PLACE` `SPLIT_RING` `SPLIT_SMALL_MAX` `SPLIT_SPEED_SCALE` `SPLIT_UNIFORM` `SPLIT_WAIT_MS` `STACK_ISOLATE`
-- **prompt path scheduling/staging/chunk sizing** (36): `GROUP_COPY` `HANDOFF_PIPE` `HANDOFF_PIPE_WORKER` `LM_PREFETCH` `PF_GROUP_CAP` `PF_GROUP_SCRATCH` `PF_HC_REGION` `PF_OCC` `PF_OCC_W` `PF_OWN_PROBE_OFF` `PF_STEP_SYNC` `PREFILL_BORROW` `PREFILL_COPY_EVENT_EVERY` `PREFILL_COPY_WAIT_DEDUPE` `PREFILL_CPU_SHARE_BATCH` `PREFILL_GROUP_GATHER` `PREFILL_HELPER_SOURCE` `PREFILL_ISSUER` `PREFILL_LEND_PCT` `PREFILL_LM_EVEN` `PREFILL_LM_FORCE` `PREFILL_LM_MARGIN_MIB` `PREFILL_LM_R` `PREFILL_LM_TOKENS` `PREFILL_PIPE` `PREFILL_RING` `PREFILL_ROUTED_STREAM` `PREFILL_ROUTED_STREAM_DEPTH` `PREFILL_STREAM_AHEAD` `PREFILL_STREAM_MIN` `PREFILL_WARM` `STAGER_BATCH` `STAGER_RING` `STAGER_SLEEP` `STAGER_SSD` `STAGER_THREADS`
+- **prompt path scheduling/staging/chunk sizing** (31): `GROUP_COPY` `HANDOFF_PIPE` `HANDOFF_PIPE_WORKER` `LM_PREFETCH` `PF_GROUP_CAP` `PF_GROUP_SCRATCH` `PF_HC_REGION` `PF_OCC` `PF_OCC_W` `PF_OWN_PROBE_OFF` `PF_STEP_SYNC` `PREFILL_BORROW` `PREFILL_COPY_EVENT_EVERY` `PREFILL_COPY_WAIT_DEDUPE` `PREFILL_CPU_SHARE_BATCH` `PREFILL_GROUP_GATHER` `PREFILL_HELPER_SOURCE` `PREFILL_ISSUER` `PREFILL_LEND_PCT` `PREFILL_PIPE` `PREFILL_RING` `PREFILL_ROUTED_STREAM` `PREFILL_ROUTED_STREAM_DEPTH` `PREFILL_STREAM_AHEAD` `PREFILL_STREAM_MIN` `PREFILL_WARM` `STAGER_BATCH` `STAGER_RING` `STAGER_SLEEP` `STAGER_SSD` `STAGER_THREADS`
 - **graph/stream/doorbell plumbing** (26): `COMMIT_SYNC` `COPY_HIP_PRIO` `DEVICE_SPIN` `DF_BRANCH` `DF_QB_Q4` `DOORBELL_STORE` `DUMMY_NODES` `FUSE_HITS` `FUSE_WAIT` `GRAPH_PRIO` `HEAD_HOST` `HEAD_HOST_OFF` `HIP_ADAPT_KERNEL_COPY` `HIP_QUEUE_PRIME` `IC_WARM_MB` `LAUNCH_PROBE` `SH_FORK_LATE` `SH_STREAM` `TAP_FILE` `TAP_LAYERS` `VERIFY_ALL_RESIDENT` `VERIFY_ASYNC_LAUNCH` `VERIFY_COHERENT` `VERIFY_DEVICE_PLAN` `VERIFY_EARLY_PLE_FLAG` `VERIFY_NODES`
 - **KV placement/growth** (12): `KV_GROW` `KV_GROW_FLOOR` `KV_GROW_HOLD` `KV_GROW_INIT` `KV_GROW_STEP` `KV_HOST_DMA` `KV_HOST_REGISTER` `KV_MAIN_OFF` `KV_PREFETCH` `KV_RESIDENT_MIN` `KV_RING_OFF` `KV_STAGE_OWN`
 - **multi-GPU peer prompt path (the disk tier needs one GPU; PF_PEER_F16/CPU/SUMS would be value-changing there)** (10): `PF_PEER_COMPACT` `PF_PEER_CPU` `PF_PEER_F16` `PF_PEER_GATHER` `PF_PEER_HOST` `PF_PEER_OUT_PIPE` `PF_PEER_RING` `PF_PEER_STREAM` `PF_PEER_SUMS` `PF_PEER_XSTREAM`
@@ -400,7 +449,6 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 - **sampling path: tokens change, the state of given tokens does not** (1): `OLD_SAMPLER`
 - **sampling penalty counts (same note)** (1): `PENALTY_PROMPT`
 - **batch scheduling** (1): `PIPE_BYIELD_NODRAIN`
-- **layer-major walk of a prompt (order of work, not arithmetic)** (1): `PREFILL_LAYER_MAJOR`
 - **prompt io** (1): `PROMPT_DIRECT`
 - **staging ring size** (1): `RING_BYTES`
 - **bitwise by design: every id and weight is route_multi's (native_router.cu:223), native_multi_parity passed (kern-hip.md)** (1): `ROUTE_FAST`
@@ -408,7 +456,7 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 - **expert arena placement** (1): `VERIFY_ARENA`
 - **only moves a row between pool passes (defer_rank.hpp); asserted by the key test** (1): `VERIFY_DEFER_CPU_FOLD`
 
-### Inert (273; names without the `STRATA_` prefix, grouped by why)
+### Inert (274; names without the `STRATA_` prefix, grouped by why)
 
 - **diagnostic/test hook** (111): `ACT_DUMP` `ACT_DUMP_COV` `ACT_DUMP_LAYERS` `ACT_DUMP_RAW` `ACT_DUMP_RAW_MAX` `ADAPT_FETCH_VERIFY` `BANDIT_LOG` `BATCH_TELEMETRY` `COLD_TRACE` `COMMIT_TIMING` `CRASH_BT` `CVEC_FUSE_CHECK` `DBG_CPU_GATE` `DBG_FEAT` `DBG_FEAT_LAYERS` `DBG_GDN` `DBG_NAN` `DECODE_TIMING` `DF2_PROFILE` `DF2_RING_LOG` `DF2_RING_STATS` `DF2_TAP_DUMP` `DF2_TIMING` `DISCO_TRACE` `DISPATCH_REPORT` `DISPATCH_STATS` `DRAFT_LOG` `DRAFT_TIMING` `DUMP_FIRST_LOGITS` `DUMP_MOE_INPUT` `DUMP_MOE_LAYER` `FOLLOW_LOGPOS` `FORCE_FAULT` `GFX906_ATTN_QUERY_SWIZZLE_TRACE` `GFX906_ATTN_REDUCE12_TRACE` `GR_INJ_CHECK` `HC_UPMIX_CHECK` `HIDDEN_DUMP` `HIPBLASLT_VERBOSE` `IDX_FP16_CHECK` `INJECT_FATAL` `INJECT_FATAL_ONCE` `IO_STATS` `LOGITS_DUMP` `LOGPOS` `LOGPOS_EXTRA` `LOGPOS_TOPK` `LOOKAHEAD_STATS` `MANIFEST` `MMQ_DIRECT_LOG` `MMVF_CHECK` `MTP_PROFILE` `NAN_GUARD` `P4_TIMING` `P4_TRACE` `PARK_TRACE` `PF_ALLOC_TRACE` `PF_OWN_CHECK` `PF_TILE_DEBUG` `PIPELINE_DEBUG` `PIPELINE_LOG` `PIPELINE_TRACE` `PLE_CHECK` `PLE_WAIT_TRACE` `POOL_TRACE` `PREFILL_DUMP_R` `PREFILL_DUMP_R_ALL` `PREFILL_TIMING` `Q6P_SELFTEST` `QSA_DUMP` `QSA_DUMP_LAST` `QSA_DUMP_LAYER` `QSA_DUMP_STEPS` `ROCBLAS_VERBOSE` `ROUTE_DUMP` `ROUTE_PRIOR_STATS` `ROUTE_STATS` `RSS_TRACE` `SCORES_THREAD_TRACE` `SELECT_TWO_PASS_CHECK` `SNAPSHOT_VERIFY` `SPEC_TRACE` `SPEC_TRACE_NOPICK` `SPLIT_TIMING` `STALL_STACKS` `STATE_HASH` `STATE_HASH_GDN` `TEST_BELL_SLEEP_US` `TEST_CACHE_FAIL` `TEST_CONC_ON_HOST_CPU` `TEST_COPY_FAIL_AT` `TEST_HANDOFF_DROP` `TEST_PAGEABLE` `TEST_PINNED_SHARE` `TEST_PIN_BUDGET_MIB` `TEST_PIN_LEFT_KIB` `TEST_SLOW_COPY_US` `TEST_SYSFS_ROOT` `TEST_UNMAP_GGUF` `TEST_VERIFY_STALL` `TRACE` `TRACE_ADAPT` `VERIFY_DEBUG` `VERIFY_PROFILE` `VERIFY_PROFILE_SEL` `VERIFY_TRACE` `WATCHDOG_IO_S` `WATCHDOG_S` `WINDOW_TRACE` `WINDOW_TRACE_EVERY` `WINDOW_TRACE_MAX_MB`
 - **io/memory/limits/paths** (71): `ARENA_FALLBACK_RESIDENT` `ARENA_FILE_CACHE` `ARENA_LOCK` `ARENA_MMAP` `ARENA_PIN_GIB` `ARENA_RAM_FALLBACK` `ARENA_RAM_WAIT_S` `ARENA_RELEASE` `ARENA_THP` `COMMIT_GROWTH` `CONVERSATION_DISK_DIR` `CONVERSATION_DISK_MAX_GIB` `CONVERSATION_DISK_MIN_GAIN` `CONVERSATION_DISK_MIN_TOKENS` `DEFERRED_REGISTER` `DIRECT_LOAD_FAULT` `EMULATE_CC` `EXPERT_NIBBLE_RECHECK` `FILE_CACHE_OLD_RULE` `FILE_RELEASE` `FILE_TIER_HONEST` `FILE_TIER_IDLE` `FILE_TIER_PROBE` `HIP_VMM` `IO_PF_AHEAD` `IO_PF_BUDGET_FRAC` `IO_PF_BUDGET_MB` `IO_PF_GATE` `IO_PF_GATE_HI` `IO_PF_GATE_LO` `IO_PF_GATE_USEFUL` `IO_PF_MINCONF` `IO_PF_SCHED` `IO_PF_STAGE` `IO_PF_TARGET` `IO_PF_THREADS` `IO_PREFETCH` `IO_PREFETCH_DEPTH` `IO_THREADS` `KEEP_IO_PRIORITY` `LOAD_DONTNEED` `MEMORY_LIMIT_MIB` `NO_ARENA_THP` `NO_LARGEPAGES` `OWNED_PRICE` `PAR_COUNTERS` `PLE_AUTO_MMAP` `PLE_AUTO_RAM` `PLE_EARLY` `PLE_GATHER_THREADS` `PLE_PROBE` `PLE_SLICES` `PSI_GUARD` `PSI_MAX_PAUSE_MS` `PSI_PARK_PCT` `PSI_PAUSE_PCT` `PSI_RESUME_PCT` `RAM_KEEP_GIB` `READ_AHEAD` `REMOTE_SPIN` `REMOTE_ZEROCOPY` `SESSION_BUFFERED` `SSD_GBPS` `SSD_KEEPALIVE` `SSD_KEEPALIVE_WINDOW` `STARTUP_UNBUFFERED` `UMA_HEADROOM_GIB` `UMA_REGISTER` `UMA_RESERVE_GIB` `UNBUFFERED_LOAD` `WDDM_BUDGET`
@@ -422,6 +470,7 @@ for reading). Counts: Key 25, KeyIfSet 95, Unsure 101, InConfig 1, Speed 499, In
 - **diagnostic** (1): `F16_RANGE`
 - **profiling** (1): `GDN_CHUNK_PROF`
 - **bench selector** (1): `GR_RDNA_ONLY`
+- **build macro (-DSTRATA_HIP_GLOBAL_WEIGHTS=1), not an environment variable: cannot be keyed** (1): `HIP_GLOBAL_WEIGHTS`
 - **calibration dump (read stays exact while capturing)** (1): `KVA_CAPTURE`
 - **calibration dump** (1): `KVA_CAPTURE_FP32`
 - **parity check run** (1): `KVA_PARITY`
