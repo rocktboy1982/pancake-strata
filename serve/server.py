@@ -68,6 +68,7 @@ from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, Reason
 from serve.mcp import McpCancelled, hub_from_config  # noqa: E402
 from serve import runconfig  # noqa: E402
 from serve import park_divergence  # noqa: E402
+from serve import request_capture  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
 from strata_control import engine_component  # noqa: E402
 from strata_control import tls  # noqa: E402
@@ -5081,6 +5082,7 @@ class Service:
         self.turn_log = None                             # item 73: path of the per-turn JSONL log (None: off)
         self.turn_log_lock = threading.Lock()
         self.reasoning_keeper = None                     # item 31: frontend.ReasoningKeeper ("keep_reasoning"; None: off)
+        self.request_capture = None                      # M4 (opt-in STRATA_REQUEST_CAPTURE=DIR): serve/request_capture.py; None: off
         self.api_requests = collections.deque(maxlen=100)  # bounded I/O in memory; no headers or API keys
         self.request_trace = threading.local()
         self.history = collections.deque(maxlen=500)    # the last finished requests, newest last (GET /metrics)
@@ -8703,6 +8705,7 @@ def make_handler(svc: Service):
         protocol_version = "HTTP/1.0"                       # SSE ends by closing the connection
 
         record = None                                       # #332: this request's monitor record, if kept
+        capture = None                                      # M4: this request's STRATA_REQUEST_CAPTURE entry, if any
         watch_done = None                                   # #430 #431: stops this request's disconnect watcher
         cancel_event = None                                 # active generation owned by this handler
         body_read = False                                   # whether a handler took this request's body
@@ -8930,6 +8933,8 @@ def make_handler(svc: Service):
             self.end_headers()
 
         def _json(self, code, obj, headers=None, retry_after=None):
+            if self.capture is not None:
+                self.capture["http_status"] = code
             if self.record is not None:
                 with svc.status_lock:
                     self.record["http_status"] = code
@@ -9484,6 +9489,7 @@ def make_handler(svc: Service):
                     return
                 if path in ("/v1/chat/completions", "/v1/messages", "/v1/responses"):
                     self.record = svc.begin_request(path, req)
+                self.capture = svc.request_capture.begin(path, req, self.headers) if svc.request_capture else None
                 if path == "/v1/responses":
                     self._responses(req)
                 elif path.startswith("/slots/"):
@@ -9560,6 +9566,9 @@ def make_handler(svc: Service):
                 if self.cancel_event is not None:
                     with svc.status_lock:
                         svc.active_cancels.discard(self.cancel_event)
+                if self.capture is not None:                 # M4: one JSON line, full text, local file only
+                    svc.request_capture.finish(self.capture)
+                    self.capture = None
                 record = self.record
                 if record is not None:
                     with svc.status_lock:
@@ -9753,6 +9762,8 @@ def make_handler(svc: Service):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.send_header("X-Accel-Buffering", "no")   # nginx and similar proxies pass each event at once
+            if self.capture is not None:
+                self.capture["http_status"] = 200
             self._cors()
             self.end_headers()
             if STREAM_WRITE_TIMEOUT_S > 0:
@@ -9763,10 +9774,20 @@ def make_handler(svc: Service):
 
         def _capture(self, items, api):
             """Retain bounded input/output for the monitor without changing the API response (the items as they
-            are when the monitor is off)."""
+            are when the monitor is off).  M4: with STRATA_REQUEST_CAPTURE the items are also copied to that entry."""
+            if self.capture is not None:
+                items = self._tee_capture(items, api)
             if self.record is None:
                 return items
             return self._captured(items, api)
+
+        def _tee_capture(self, items, api):
+            try:
+                for item in items:
+                    svc.request_capture.observe(self.capture, api, item)    # never raises
+                    yield item
+            finally:
+                items.close()
 
         def _captured(self, items, api):
             try:
@@ -11600,6 +11621,15 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
             raise SystemExit(f"[strata] config \"turn_log\" must be a file path, not {tl!r}")
         svc.turn_log = os.path.abspath(os.path.expanduser(tl))
         print(f"[strata] per-turn log: {svc.turn_log} (numbers only, no prompt or answer text)", flush=True)
+    try:
+        svc.request_capture = request_capture.from_env()     # M4: opt-in STRATA_REQUEST_CAPTURE=DIR; unset = nothing changes
+    except OSError as e:
+        raise SystemExit(f"[strata] STRATA_REQUEST_CAPTURE: cannot use that directory: {e}")
+    if svc.request_capture:
+        print(f"[strata] request capture ON: {svc.request_capture.path} - FULL request bodies (your prompts and code) and the "
+              f"replies, one JSON line per chat request, written to this local file only (mode 0600, nothing is sent anywhere, "
+              f"at most {svc.request_capture.max_bytes >> 20} MiB); delete it when done; share only after "
+              f"tools/pancake/prefix_check.py --redact", flush=True)
     if svc.api_monitor:
         print("[strata] API request monitor on (/api-monitor): the last 100 requests' prompts and answers are kept in "
               "memory" + ("" if svc.api_key else "; anyone who can reach this server can read them (no API key)"),
