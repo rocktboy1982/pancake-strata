@@ -32,7 +32,6 @@
 #include "strata/core/batch_telemetry.hpp"
 #include "strata/core/dma_batch.hpp"
 #include "strata/program/adaptive_range.hpp"
-#include "strata/core/calibrate_ratio.hpp"
 #include "strata/program/promo_chunk.hpp"
 #include "strata/program/route_prior_scope.hpp"
 #include "strata/program/think_probe.hpp"
