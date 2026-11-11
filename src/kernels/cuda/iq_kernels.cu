@@ -10,6 +10,7 @@
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/sm75_series.hpp"
 #include "strata/core/sm120_series.hpp"
+#include "strata/core/switch_report.hpp"
 #include "strata/core/dispatch_stats.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/kernels/dp4a.hpp"
@@ -52,6 +53,19 @@
 
 namespace strata::kernels {
 namespace {
+
+#if defined(STRATA_HIP_GLOBAL_WEIGHTS)
+// STRATA_HIP_GLOBAL_WEIGHTS is a build macro (STRATA_GBLOB above): said once at start-up, from the setting of this build
+[[maybe_unused]] const bool g_global_weights_said = [] {
+#if defined(__HIPCC__) && !defined(STRATA_HIP_GFX906)
+    return switch_report::acted(switch_report::hip_global_weights, "built with it: the grouped expert kernels read the "
+                                "weights through global-address-space pointers (Phase 15)");
+#else
+    return switch_report::will_not_act(switch_report::hip_global_weights, "built with it, but only a HIP build that is not "
+                                       "gfx906 reads the weights that way");
+#endif
+}();
+#endif
 
 void check(const char* what) {
     const cudaError_t e = cudaGetLastError();
@@ -4387,13 +4401,19 @@ bool expdec_gu_swiglu(const NativeExpertLayout& L, int64_t gy, cudaStream_t s, c
                       const int32_t* grp_start, const int32_t* n_groups, const int32_t* ent_tok, const block_q8_1* X,
                       block_q8_1* hq) {
     static const bool on = [] { const char* v = std::getenv("STRATA_EXPDEC_SWIGLU"); return v != nullptr && v[0] == '1'; }();
-    if (!on || !expdec_mode() || g_old_kernels || !expdec_gu_ok(L) || L.n_ff % 32 != 0 || L.had_block > 0) return false;
-    static bool said = false;
-    if (!said) {
-        said = true;
-        std::fprintf(stderr, "strata expdec: STRATA_EXPDEC_SWIGLU: gate/up, SwiGLU and q8_1 in one launch (item 48)%s\n",
-                     iq_sign_fast_mask() != 0 ? ", F12 sign form (STRATA_IQ_SIGN_FAST) for the types it names" : "");
+    if (!on) return false;
+    const char* why = !expdec_mode()     ? "EXPDEC is off (STRATA_EXPDEC)"
+                    : g_old_kernels      ? "the old IQ kernels are on (STRATA_OLD_IQ_MMVQ)"
+                    : !expdec_gu_ok(L)   ? "EXPDEC does not take this gate/up layout"
+                    : L.n_ff % 32 != 0   ? "n_ff is not a multiple of 32"
+                    : L.had_block > 0    ? "the layer's down input is Hadamard-rotated"
+                                         : nullptr;
+    if (why != nullptr) {
+        switch_report::will_not_act(switch_report::expdec_swiglu, "%s", why);
+        return false;
     }
+    switch_report::acted(switch_report::expdec_swiglu, "gate/up, SwiGLU and q8_1 in one launch (item 48)%s",
+                         iq_sign_fast_mask() != 0 ? ", F12 sign form (STRATA_IQ_SIGN_FAST) for the types it names" : "");
     switch (L.gu_type) {
         case 16: expdec_gu_swiglu_t<16>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;
         case 17: expdec_gu_swiglu_t<17>(gy, s, grp_ptr, grp_start, n_groups, ent_tok, X, L, hq); break;

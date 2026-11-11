@@ -503,6 +503,12 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(defer_rank_test PRIVATE include)
   add_test(NAME defer_rank_test COMMAND defer_rank_test)
 
+  # MOD_PLAN "Project features discovered" item 1: the once-only "strata switch:" lines (format, once per kind, threads; header-only, no GPU)
+  add_executable(switch_report_test tests/core/switch_report_test.cpp)
+  target_include_directories(switch_report_test PRIVATE include)
+  target_link_libraries(switch_report_test PRIVATE Threads::Threads)
+  add_test(NAME switch_report_test COMMAND switch_report_test)
+
   # MOD_PLAN Phase 15 F14: host proof that the Q2_0 down row on 4 lanes keeps the 16-lane tree's bits (the sub4 kernel's sum order
   # modelled on the host), tied to the kernel source by a text guard; no GPU, no model
   add_executable(gpu_rewrite_parity_test tests/core/gpu_rewrite_parity_test.cpp)
@@ -3507,6 +3513,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
     routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test defer_rank_test think_probe_test run_manifest_test
+    switch_report_test
     host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test file_expert_source_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest

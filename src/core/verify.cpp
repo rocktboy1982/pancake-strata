@@ -14,6 +14,7 @@
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/epoch_bandit.hpp"
 #include "strata/core/verify_ecap.hpp"
+#include "strata/core/switch_report.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
 #include "strata/core/expert_nibble.hpp"
@@ -1077,7 +1078,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             cudaStreamCreateWithFlags(&warm_, cudaStreamNonBlocking) != cudaSuccess ||
             cudaEventCreateWithFlags(&warm_fork_, cudaEventDisableTiming) != cudaSuccess ||
             cudaEventCreateWithFlags(&warm_join_, cudaEventDisableTiming) != cudaSuccess) {
-            std::fprintf(stderr, "strata verify: STRATA_IC_WARM_MB: setup failed, off\n");
+            switch_report::will_not_act(switch_report::ic_warm, "its setup failed (no weights, or the side stream's allocation)");
             if (warm_segs_) cudaFree(warm_segs_);
             warm_segs_ = nullptr;
         } else {
@@ -1506,28 +1507,6 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                              "merged first window, a batch or pipelined window, or while the request's grammar is "
                              "enforcing\n", ecap_, ecap_,
                      defer_ ? " (STRATA_VERIFY_DEFER_CPU then defers what is left)" : "");
-    // item 48 audit (2026-11-11): STRATA_ROUTER_FUSE only arms on the STRATA_ROUTE_PUBLISH launch (`rpub` at the window's
-    // router step), else it is a silent no-op.  The parts of that condition known here, said once.
-    if (const char* f = std::getenv("STRATA_ROUTER_FUSE"); f != nullptr && f[0] == '1') {
-        const char* p = std::getenv("STRATA_ROUTE_PUBLISH");
-        const char* why = p == nullptr || p[0] != '1'                   ? "it needs STRATA_ROUTE_PUBLISH=1"
-                        : defer_                                        ? "STRATA_VERIFY_DEFER_CPU is on"
-                        : std::getenv("STRATA_ROUTE_PRIOR") != nullptr  ? "STRATA_ROUTE_PRIOR is set"
-                        : route_resident_cfg().margin > 0.0f            ? "the STRATA_ROUTE_RESIDENT margin is above 0"
-                        : device_plan_                                  ? "STRATA_VERIFY_DEVICE_PLAN is on"
-                        : remote_opt_ != nullptr                        ? "--remote-expert-opt is set"
-#if defined(STRATA_USE_HIP)
-                        : g_doorbell_store                              ? "STRATA_DOORBELL_STORE is on"
-#endif
-                        : strata::kernels::native_router_fast_enabled() && la_out_ == nullptr ? "STRATA_ROUTE_FAST=1 takes the router step first"
-                                                                        : nullptr;
-        static bool said = false;
-        if (why != nullptr && !said) {
-            said = true;
-            std::fprintf(stderr, "strata verify: STRATA_ROUTER_FUSE=1 will not act: %s (item 48 rides on the "
-                                 "STRATA_ROUTE_PUBLISH launch)\n", why);
-        }
-    }
     return true;
 }
 
@@ -1600,13 +1579,27 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     // GEMV - bitwise the launches it replaces
     static const bool g_cfuse = [] { const char* v = std::getenv("STRATA_COMBINE_CPU"); return v != nullptr && v[0] == '1'; }();
     static const bool g_wait_fuse = [] { const char* v = std::getenv("STRATA_WAIT_FUSE"); return v != nullptr && v[0] == '1'; }();
-    auto cfuse_on = [&](int n) {
+    // F21 STRATA_WAIT_COPY256=1 (verify_kernels.cu): only the plan copies that wait (WAIT_FUSE's, FUSE_WAIT's) take it
+    static const bool g_copy256 = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
+    // why the fused CPU combine is off for a window of n rows (nullptr: on; "": only the row count, it takes 2..8 rows)
+    auto cfuse_off = [&](int n) -> const char* {
         // not with STRATA_VERIFY_DEFER_CPU: a deferred layer's CPU rows join a layer later, so they are not in the
         // mapped buffer when this combine reads them (it produced non-finite logits on the 7900 XT)
-        return g_cfuse && !defer_ && !ar_on() && !device_plan_ && !remote_opt_ && K == 10 &&
-               native_moe_combine_enabled() && dec_batch && n > 1 && n <= 8 && shared_expert_native_bf16_enabled() &&
-               strata::kernels::cpu::expert_layout().native && (N & 3) == 0;
+        return !g_cfuse                                      ? "it needs STRATA_COMBINE_CPU=1"
+             : defer_                                        ? "STRATA_VERIFY_DEFER_CPU is on"
+             : ar_on()                                       ? "every expert is resident in VRAM"
+             : device_plan_                                  ? "STRATA_VERIFY_DEVICE_PLAN is on"
+             : remote_opt_ != nullptr                        ? "--remote-expert-opt is set"
+             : K != 10                                       ? "the model's top-k is not 10"
+             : !native_moe_combine_enabled()                 ? "the native MoE combine is off"
+             : !dec_batch                                    ? "STRATA_DEC_BATCH=0"
+             : n <= 1 || n > 8                               ? ""
+             : !shared_expert_native_bf16_enabled()          ? "the shared expert is not native BF16"
+             : !strata::kernels::cpu::expert_layout().native ? "the CPU experts are not in the native layout"
+             : (N & 3) != 0                                  ? "the model width is not a multiple of 4"
+                                                             : nullptr;
     };
+    auto cfuse_on = [&](int n) { return cfuse_off(n) == nullptr; };
     bool sg_gated_[2] = {false, false};   // per group: the combine applies the shared gate
     if (!batch_rec_) groups_[T] = G;
     // STRATA_VERIFY_DEFER_CPU=1 (opt-in, changes the output; defer_ok says which windows): post(l) of a deferred layer
@@ -2490,46 +2483,41 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         // number, as doorbell_publish_value / device_plan_ use it: the host resets the ring to 0 in stage_inputs and
         // waits for k + 1 at step k.  Not with the lookahead router (its rows must be published before the ring).
         static const bool g_rfast = native_router_fast_enabled();
-        const bool rfast = g_rfast && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
-                           NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
-                           la_out_ == nullptr && !g_route_prior_set && route_resident_cfg().margin <= 0.0f;
+        // item 48 (STRATA_ROUTER_FUSE=1, opt-in): ROUTE_PUBLISH's launch rides in the router GEMV's last block
+        static const bool g_rfuse = [] { const char* v = std::getenv("STRATA_ROUTER_FUSE"); return v != nullptr && v[0] == '1'; }();
+        // the session conditions both one-launch publishes (ROUTE_FAST's and ROUTE_PUBLISH's) need, the first that fails
+        // named (nullptr: none; the window's 2..8 rows are checked apart).  The two switches' "will not act" lines say it.
+        auto publish_off = [&]() -> const char* {
+            return !dec_batch                             ? "STRATA_DEC_BATCH=0"
+                 : w_router == nullptr                    ? "the layer has no router weight"
+                 : !native_router_enabled()               ? "the native router is off"
+                 : NE != 512 || K != 10                   ? "the router is not 512 experts x top-10"
+                 : ar_on()                                ? "every expert is resident in VRAM"
+                 : device_plan_                           ? "STRATA_VERIFY_DEVICE_PLAN is on"
+                 : remote_opt_ != nullptr                 ? "--remote-expert-opt is set"
+                 : always_publish_                        ? "the windows always publish (pipelined)"
+                 : g_route_prior_set                      ? "STRATA_ROUTE_PRIOR is set"
+                 : !(route_resident_cfg().margin <= 0.0f) ? "the STRATA_ROUTE_RESIDENT margin is above 0"
+                                                          : nullptr;
+        };
+        const char* const pub_off = g_rfast || g_rpub ? publish_off() : nullptr;
+        const bool rows_2_8 = n > 1 && n <= 8;
+        const bool rfast = g_rfast && rows_2_8 && pub_off == nullptr && la_out_ == nullptr;
         const uint32_t ring_step = (uint32_t) ((l - lb_) * G + grp + 1);
-        if (rfast) {
-            static bool said = false;
-            if (!said) {
-                said = true;
-                std::fprintf(stderr, "strata verify: STRATA_ROUTE_FAST=1: top-10, ids + weights to the host and the step's "
-                                     "ring stored in one launch, the rows copied by the router GEMV (F9)\n");
-            }
-        } else if (g_rfast) {   // said once when a condition of the session (not the window's row count) keeps it off
-            static bool said_off = false;
-            const char* why = g_route_prior_set                  ? "STRATA_ROUTE_PRIOR is set"
-                            : route_resident_cfg().margin > 0.0f ? "the STRATA_ROUTE_RESIDENT margin is above 0"
-                            : device_plan_                       ? "the device plan is on"
-                            : remote_opt_ != nullptr             ? "--remote-expert-opt is set"
-                            : always_publish_                    ? "the windows always publish (pipelined)"
-                            : la_out_ != nullptr                 ? "the lookahead router is on"
-                                                                 : nullptr;
-            if (why != nullptr && !said_off) {
-                said_off = true;
-                std::fprintf(stderr, "strata verify: STRATA_ROUTE_FAST=1 will not act: %s (F9)\n", why);
-            }
-        }
-        const bool rpub = !rfast && g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
-                          NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
-                          !defer_ &&   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
-                          !g_route_prior_set && route_resident_cfg().margin <= 0.0f
+        const bool rpub = !rfast && g_rpub && rows_2_8 && pub_off == nullptr &&
+                          !defer_   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
 #if defined(STRATA_USE_HIP)
                           && !g_doorbell_store
 #endif
             ;
+        bool rfuse = false, rdone = false, rows_on_host = false;
         if (dec_batch && n > 1 && w_router != nullptr && native_router_enabled() && NE == 512 && K == 10) {
             try {
                 // item 48 (STRATA_ROUTER_FUSE=1): the publish rides in the router GEMV's last block when its kernel takes it
-                const bool rfuse = rpub && bf16_router_publish_arm(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
-                                                                    hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
-                                                                    (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N,
-                                                                    m_ids_ + tb * K, m_seq_, cs);
+                rfuse = rpub && bf16_router_publish_arm(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
+                                                        hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
+                                                        (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N,
+                                                        m_ids_ + tb * K, m_seq_, cs);
                 // STRATA_ROUTE_FAST: the router GEMV's blocks copy the rows (xm = its x) to the host when its kernel can
                 // (the multi kernel, contiguous aligned rows); else the publish launch below copies them
                 if (rfast) bf16_router_xpub_arm(xm, N, N, n, m_x_ + tb * N);
@@ -2540,8 +2528,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 if (!sg_ready)
                 bf16_gemv_fp32_mmvf_multi(mixed_ + tb * N, N, (const uint16_t*) w_router->data, logits_ + tb * NE, NE, N,
                                           NE, n, cs);
-                const bool rdone = rfuse && bf16_router_publish_used();
-                const bool rows_on_host = rfast && bf16_router_xpub_used();
+                rdone = rfuse && bf16_router_publish_used();
+                rows_on_host = rfast && bf16_router_xpub_used();
                 if (rdone) {
                 } else if (rfast)
                     native_router_top10_publish_fast(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n,
@@ -2569,6 +2557,31 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             MoEBuffers mb = ss.moe;
             mb.logits = logits_ + t * NE; mb.ids = ids_ + t * K; mb.weights = w_ + t * K;
             if (!moe_route(wt, g, l, K, mb, mixed_ + t * N, cs, err, nullptr)) return false;
+        }
+        // the two router-step switches say once that they acted, or the first reason they did not (core/switch_report.hpp;
+        // a window of 1 or more than 8 rows is not a reason: it says nothing)
+        if (rfast)
+            switch_report::acted(switch_report::route_fast, "the top-10, ids + weights and the step's ring in one launch, the "
+                                 "rows copied by the %s (F9)", rows_on_host ? "router GEMV" : "publish launch");
+        else if (g_rfast) {
+            const char* why = pub_off != nullptr ? pub_off : la_out_ != nullptr ? "the lookahead router is on" : nullptr;
+            if (why != nullptr) switch_report::will_not_act(switch_report::route_fast, "%s", why);
+        }
+        if (rdone)
+            switch_report::acted(switch_report::router_fuse, "the router GEMV's last block makes the top-10 and publishes "
+                                 "(item 48)");
+        else if (g_rfuse) {
+            const char* why = !g_rpub            ? "it needs STRATA_ROUTE_PUBLISH=1"
+                            : pub_off != nullptr ? pub_off
+                            : defer_             ? "STRATA_VERIFY_DEFER_CPU is on"
+#if defined(STRATA_USE_HIP)
+                            : g_doorbell_store   ? "STRATA_DOORBELL_STORE is on"
+#endif
+                            : rfast              ? "STRATA_ROUTE_FAST=1 takes the router step"
+                            : !rpub              ? nullptr   // only the window's row count
+                            : !rfuse             ? "no route-publish slot is left for this stream"
+                                                 : "the router GEMV's launch is not the 256-thread kernel that takes it";
+            if (why != nullptr) switch_report::will_not_act(switch_report::router_fuse, "%s", why);
         }
         // MOD_PLAN 10.2: the next layer's routing predicted from this layer's input, published before this layer's
         // doorbell (the ring is last), so the pool's lookahead finds it in host memory when the doorbell rings
@@ -2757,6 +2770,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         bool hits_in_combine = false;
         if (ar_on()) {
             strata::dispatch::note("experts layer: all-resident device plan, grouped experts straight into the parts (no doorbell, no CPU rows)");
+            if (g_copy256) switch_report::will_not_act(switch_report::wait_copy256, "every expert is resident in VRAM: no plan copy");
             stamp(l, 19, grp);
             grouped(p_ptr, p_start, p_counts, 0, parts_out, true);
             stamp(l, 20, grp);
@@ -2765,12 +2779,20 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             if (device_plan_) {   // E-6: skipped when the device planned this group (all its experts resident)
                 wait_flag_ge_or(m_flagA_, ring, skip_ + grp, cs);
                 copy_i32_from_mapped_unless(pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, skip_ + grp, ring, cs);
+                if (g_copy256)
+                    switch_report::will_not_act(switch_report::wait_copy256, "STRATA_VERIFY_DEVICE_PLAN copies the plan in its "
+                                                "own launches");
             } else if (g_wait_fuse) {   // the pool published this group's GPU plan: wait and copy in one launch
                 wait_flag_copy_i32(m_flagA_, ring, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, cs);
             } else {
                 if (fuse_wait_on() && !prof_on_ && m_bal_ == nullptr) {   // 143-amdk: one launch for the wait and the copy
                     wait_copy_i32_from_mapped(m_flagA_, ring, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, cs);
                 } else {
+                if (g_copy256)
+                    switch_report::will_not_act(switch_report::wait_copy256, "the plan's wait and copy are two launches (%s)",
+                                                prof_on_            ? "STRATA_VERIFY_PROFILE is set"
+                                                : m_bal_ != nullptr ? "STRATA_PCIE_BALANCE is on"
+                                                                    : "it needs STRATA_WAIT_FUSE=1 or STRATA_FUSE_WAIT=1");
                 if (m_bal_ != nullptr)   // set_pcie_balance: the GPU's share starts as the plan arrives
                     wait_flag_ge_stamped(m_flagA_, ring, nullptr, m_bal_ + ((l - lb_) * 2 + grp) * 4, cs);
                 else
@@ -2860,6 +2882,16 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             strata::kernels::ic_warm(warm_segs_ + warm_off_[(size_t) (l + 1)], warm_off_[(size_t) (l + 2)] - warm_off_[(size_t) (l + 1)],
                                      warm_cap_, warm_);
             cudaEventRecord(warm_join_, warm_);
+            switch_report::acted(switch_report::ic_warm, "layer %lld's pre-doorbell weights read on a side stream during "
+                                 "layer %lld's CPU wait (item 47)", (long long) (l + 1), (long long) l);
+        } else if (warm_segs_ != nullptr && grp == 0 && l + 1 < le_) {
+            // the reads ride in the fused CPU combine's wait: why there is none (STRATA_VERIFY_DEFER_CPU turns it off)
+            const char* why = cfuse_off(n);
+            if (why == nullptr)
+                switch_report::will_not_act(switch_report::ic_warm, "the side stream's fork failed");
+            else if (why[0] != '\0')
+                switch_report::will_not_act(switch_report::ic_warm, "the fused CPU combine is off (%s): the reads ride in "
+                                            "its CPU wait", why);
         }
         if (!ar_on() && cfuse_on(n)) {
             // item 51 (STRATA_CPU_PRESUM=1, not bit-identical): the host pre-sums each token's CPU rows (weighted); recorded per
