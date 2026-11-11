@@ -54,7 +54,7 @@ void rows(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a,
     }
 }
 
-// ---- the fast form (STRATA_Q2_FAST=1, opt-in; ported from imanu86 c3fc8f34d3): bitwise row_multi / rows above.
+// ---- the fast form (STRATA_Q2_FAST=1, opt-in; ported from imanu86 c3fc8f34d3): bitwise row_multi / rows above (NaN payloads aside).
 //
 // Every float operation of a row is the same operation on the same operands in the same order as row_multi's:
 //   * lo / hi from unpack64_fast are unpack64's vectors byte for byte, and dot4 is the same integer sum (exact);

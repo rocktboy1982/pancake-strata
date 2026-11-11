@@ -14,6 +14,7 @@
 
 #include "strata/kernels/iq_signs.hpp"
 
+#include <bit>
 #include <cstdint>
 #include <cstdio>
 #include <vector>
@@ -53,7 +54,7 @@ bool one_bit_per_byte(uint32_t t) {
 }
 
 uint32_t unpack_ksigns(uint8_t v) {   // iq_kernels.cu
-    const uint32_t p = (uint32_t) __builtin_popcount(v) & 1;
+    const uint32_t p = (uint32_t) std::popcount(v) & 1;
     return (v ^ p << 7) * 0x01010101u;
 }
 
