@@ -13,6 +13,7 @@
 #include "strata/core/dispatch_stats.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/kernels/dp4a.hpp"
+#include "strata/kernels/iq_signs.hpp"
 #include "strata/kernels/q8_1_finite.hpp"
 #include "s26_tsum.cuh"
 
@@ -60,24 +61,15 @@ __device__ __forceinline__ uint32_t unpack_ksigns(const uint8_t v) {
 // one set bit per byte.  SF = false is llama.cpp's form, s = __vcmpne4(t, 0), __vsub4(g ^ s, s) - two byte-SIMD video
 // instructions, emulated on HIP by the generic SWAR helpers (hip_compat/intrinsics.hpp: vcmpne4 ~6 ops with a 32-bit
 // multiply, vsub4 ~7) and by several instructions on sm_50+.  SF = true (MOD_PLAN F12, STRATA_IQ_SIGN_FAST, EXPDEC
-// gate/up only) gives the same word with 7 plain 32-bit ops and no multiply, exactly:
-//   m = (t + 0x7F7F7F7F) & 0x80808080: a byte of t is 0 or a single bit (<= 0x80), so byte + 0x7F <= 0xFF carries into
-//       no other byte, and its top bit is set iff the byte was nonzero: m is 0x80 in exactly the bytes to negate;
-//   c = m >> 7 is 0x01 there; m - c is 0x7F there and 0 elsewhere (no borrow: each byte of m is >= that of c), so
-//       m | (m - c) is 0xFF there and 0 elsewhere - the very mask s __vcmpne4 returns;
-//   (g ^ s) + c: a negated byte becomes (g ^ 0xFF) + 1 = 256 - g, which is <= 0xFF - no carry into the next byte - because
-//       no IQ2/IQ3 codebook byte is 0 (iq2xxs / iq2xs / iq2s: 0x08 0x19 0x2b; iq3xxs >= 0x04; iq3s odd); the other bytes
-//       add 0.  Every byte is __vsub4's wrapped byte, so the word, and every dp4a after it, is bit for bit the same.
-// Checked on the host for every codebook word of the five grids and every sign field the formats produce, against both
-// the CUDA semantics and the HIP emulation (22,229 cases, 0 differences).  The form is llama.cpp's ggml_cuda_apply_signs
+// gate/up only) gives the same word with 7 plain 32-bit ops and no multiply, exactly: iq_signs_fast (iq_signs.hpp has
+// the derivation; tests/core/iq_sign_fast_test.cpp checks it against the CUDA semantics and the HIP emulation for every
+// word of the five grids and every t with at most one bit per byte).  The form is llama.cpp's ggml_cuda_apply_signs
 // without its multiply, as in RX5950XT/Strata b9a2111d3f (MIT); boxwrench (yqYo1/Strata 6f0bdf665b, MIT) measured the same
 // packed-sign idea in a GLM engine on an RX 7900 XT: IQ2_XXS gate/up -29%, IQ2_S down -35% kernel time, byte-identical.
 template<bool SF>
 __device__ __forceinline__ int iq_signed(const uint32_t g, const uint32_t t) {
     if constexpr (SF) {
-        const uint32_t m = (t + 0x7F7F7F7Fu) & 0x80808080u;
-        const uint32_t c = m >> 7;
-        return (int) ((g ^ (m | (m - c))) + c);
+        return (int) iq_signs_fast(g, t);
     } else {
         const int s = __vcmpne4(t, 0);
         return __vsub4(g ^ s, s);
