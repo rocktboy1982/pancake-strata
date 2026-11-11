@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
  "cases": [
   "short",
   "edit",
@@ -7,7 +7,7 @@
  ],
  "reps": 1,
  "lossy": true,
- "note": "Phase 3b (2026-11-10, owner request): Q2_0 vs IQ2_XS on the 7900 XT. base = iq2_xs fast-hip with the adopted items; q2_0 = the same preset on the Q2_0 file (head-to-head, quality gate vs IQ2_XS = how far the answers move); q2_0-stock = Q2_0 without the four adopted items (do they transfer?). Screen first, confirm the q2_0 arm.",
+ "note": "Phase 3b (2026-11-10, owner request): Q2_0 vs IQ2_XS on the 7900 XT. base = iq2_xs fast-hip with the adopted items; q2_0 = the same preset on the Q2_0 file (head-to-head, quality gate vs IQ2_XS = how far the answers move; the config is configs/pancake/flashnext-q2_0-fast-hip-adopted.json); q2_0-stock = Q2_0 without the four adopted items (do they transfer? the config is configs/pancake/flashnext-q2_0-fast-hip.json). Screen first, confirm the q2_0 arm. The base is the generated pancake-flashnext-iq2_xs-fast-hip.json (tools/pancake/gen_bases.sh writes it). The earlier base name pancake-flashnext-iq2_xs-rdna3test.json is the same file only where test_phase.sh has just regenerated it (queue_run.sh does not), and the configs/pancake template of that name sets none of the four items.",
  "arms": {
   "base": {},
   "q2_0": {

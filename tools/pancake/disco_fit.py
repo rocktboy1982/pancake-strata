@@ -435,6 +435,20 @@ def cut_min_p(mp):
     return f
 
 
+def cut_cum(s, min_p=0.0):
+    """F8 STRATA_SPEC_CUM=s: keep drafts while the product of the drafts' probabilities (feature 2, the chain) is >= s; with
+    min_p also each draft's own probability >= min_p (the fork's rule beside --spec-min-p; the engine's STRATA_SPEC_CUM has
+    no floor: chain <= p, so s >= min_p implies it)."""
+    def f(r):
+        k = 0
+        for idx, _, x in r["rows"]:
+            if idx != k or x[2] < s or x[0] < min_p:
+                break
+            k += 1
+        return k
+    return f
+
+
 def cut_oracle(r):
     return r["a"]
 
@@ -478,6 +492,10 @@ def report_arms(rounds, cost, model=None, out=None):
         arms.append((f"static {n} drafts", cut_static(n)))
     for mp in (0.3, 0.5, 0.7, 0.85):
         arms.append((f"--spec-min-p {mp}", cut_min_p(mp)))
+    for cs in (0.1, 0.2, 0.3, 0.5, 0.7):
+        arms.append((f"STRATA_SPEC_CUM {cs}", cut_cum(cs)))
+    for cs in (0.2, 0.3):
+        arms.append((f"STRATA_SPEC_CUM {cs} + --spec-min-p 0.5", cut_cum(cs, 0.5)))
     print(f"MTP windows {len(mtp)} of {len(rounds)}; logged: {base['tok_per_window']:.3f} tokens/window, "
           f"{base['ms_per_window']:.2f} ms/window, {base['rows'] / max(1, base['windows']):.2f} rows/window", file=out)
     print(f"{'arm':44s} {'tok/win':>8s} {'ms/win':>8s} {'tok/ms':>8s} {'vs logged':>9s} {'all windows':>11s}", file=out)

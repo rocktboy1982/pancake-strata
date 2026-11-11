@@ -4,9 +4,11 @@
 // among the token's top STRATA_VERIFY_DEFER_CPU_TOP entries by weight (0 / unset: off).  The host pool (which experts run
 // first) and the GPU's row copy (copy_rows_by_weight_kernel, which repeats this rule) must agree, so both use this rank:
 // the entries of the same token with a larger weight, ties broken by the lower index.
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
+#include <vector>
 
 #include "strata/core/live_knobs.hpp"
 
@@ -61,6 +63,21 @@ inline int defer_fold() {
 
 inline bool defer_fold_light(int heavy_jobs, int light_jobs, int fold) {
     return fold > 0 && heavy_jobs > 0 && light_jobs > 0 && light_jobs <= fold;
+}
+
+// The split of one pool call (expert_pool_dispatch_multi): heavy_job[j] says job j has a heavy entry.  Puts the heavy jobs
+// first (each pass keeps the jobs' order) and returns how many run before the partial flag: the heavy ones, or all of
+// them when defer_fold_light folds the light ones in.  `scratch`: the caller's buffer (no allocation once it has grown).
+template <class Job>
+int defer_order_jobs(Job* jobs, const bool* heavy_job, int njobs, int fold, std::vector<Job>& scratch) {
+    scratch.clear();
+    for (int pass = 0; pass < 2; ++pass)
+        for (int j = 0; j < njobs; ++j)
+            if (heavy_job[j] == (pass == 0)) scratch.push_back(jobs[j]);
+    std::copy(scratch.begin(), scratch.end(), jobs);
+    int heavy = 0;
+    for (int j = 0; j < njobs; ++j) heavy += heavy_job[j] ? 1 : 0;
+    return defer_fold_light(heavy, njobs - heavy, fold) ? njobs : heavy;
 }
 
 }  // namespace strata::core

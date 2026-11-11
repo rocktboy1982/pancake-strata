@@ -189,9 +189,10 @@ def stats(hits, ent, miss, promo):
             "promo_w": float(np.mean(promo)) if len(promo) else 0.0}
 
 
-def run_opt(tr, budgets, inits):
+def run_opt(tr, budgets, inits, ml=None):
     """Belady with bypass (window-granular): after window t, its misses are taken soonest-next-use first; each is admitted
-    iff a free slot exists or the resident with the farthest next use is used later than it (that one is evicted)."""
+    iff a free slot exists or the resident with the farthest next use is used later than it (that one is evicted).
+    ml: optional [windows, layers] array filled with the distinct misses per layer (for the A6 time model)."""
     miss = np.zeros(tr.n, int)
     promo = np.zeros(tr.n, int)
     hits = ent = 0
@@ -211,6 +212,8 @@ def run_opt(tr, budgets, inits):
                     hits += k
             missed = [e for e in c if e not in res]
             miss[t] += len(missed)
+            if ml is not None:
+                ml[t, l] = len(missed)
             for e in c:                               # every resident used now gets its next use
                 if e in res:
                     nu[e] = tr.next_use(l, e, t)
@@ -237,9 +240,9 @@ def run_opt(tr, budgets, inits):
     return stats(hits, ent, miss, promo)
 
 
-def run_predicted(tr, budgets, inits, predict, learn=None):
+def run_predicted(tr, budgets, inits, predict, learn=None, ml=None):
     """Admission by a predictor, eviction averse-then-LRU (Hawkeye's insertion split onto an LRU stack).
-    predict(l, e, t) -> bool (friendly) at an access; learn(l, t) after window t (online learners)."""
+    predict(l, e, t) -> bool (friendly) at an access; learn(l, t) after window t (online learners); ml as in run_opt."""
     miss = np.zeros(tr.n, int)
     promo = np.zeros(tr.n, int)
     hits = ent = 0
@@ -254,6 +257,8 @@ def run_predicted(tr, budgets, inits, predict, learn=None):
                     hits += k
             missed = [e for e in c if e not in res]
             miss[t] += len(missed)
+            if ml is not None:
+                ml[t, l] = len(missed)
             for e in c:
                 if e in res:
                     res[e] = predict(l, e, t)

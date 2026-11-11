@@ -1,0 +1,188 @@
+A6 model on routing.bin: preset window 33.76 ms (+1.05 bench constant), layer 0.703 ms, router at +0.328 ms, one copy 117 us; maps from top-k counts (no weights in the trace); d 3, K 10, store 1000
+== read4k (11 windows)
+policy                                        hits  miss/w  promo/w  pref/w  late cover  score  ms/win  vs tier vs kmiss
+tier (preset)                               83.12%   231.5     27.2       -     -     -      -   31.67    +0.0%    +3.8%
+lru                                         85.35%   213.6    213.6       -     -     -      -   40.05   -20.9%   -17.9%  DMA-gated
+kmiss 2/8                                   82.18%   234.3     51.4       -     -     -      -   32.87    -3.6%    +0.0%
+belady-h4 (oracle)                          87.77%   173.0    129.2       -     -     -      -   36.11   -12.3%    -9.0%  DMA-gated
+opt (A46 ceiling)                           89.05%   158.8     53.1       -     -     -      -   30.71    +3.1%    +7.1%
+label (A46 imitation ceiling)               87.86%   175.7     63.9       -     -     -      -   31.19    +1.5%    +5.4%
+hawkeye-pc-h16 (A46 online)                 85.35%   213.6    213.6       -     -     -      -   36.29   -12.7%    -9.4%
+no prefetch: miss + lru                     87.64%   179.5    179.5     0.0     -    0%  0.521   37.62   -15.8%   -12.6%  DMA-gated
+no prefetch: miss + lfu                     87.64%   179.5    179.5     0.0     -    0%  0.521   37.62   -15.8%   -12.6%  DMA-gated
+no prefetch: miss + pri                     87.64%   179.5    179.5     0.0     -    0%  0.521   37.62   -15.8%   -12.6%  DMA-gated
+no prefetch: kmiss + lru                    83.46%   219.8     46.2     0.0     -    0%  0.521   32.11    -1.4%    +2.4%
+no prefetch: kmiss + lfu                    83.46%   219.8     46.2     0.0     -    0%  0.521   32.11    -1.4%    +2.4%
+no prefetch: kmiss + pri                    83.46%   219.8     46.2     0.0     -    0%  0.521   32.11    -1.4%    +2.4%
+fine d3 (faithful: prev-sem, miss, pri)     87.64%   179.5    179.5     0.0     -    0%  0.521   37.62   -15.8%   -12.6%  DMA-gated
+fine d3 ideal DMA                           87.64%   179.5    179.5     0.0     -    0%  0.521   37.62   -15.8%   -12.6%  DMA-gated
+fine d3 + kmiss admission                   85.72%   205.3     59.3    26.7   11%    5%  0.521   31.89    -0.7%    +3.1%
+fine d3 prefetch only                       84.63%   218.7     34.4    34.4    4%    6%  0.521   31.52    +0.5%    +4.3%
+fine d3 top-K (no delta)                    87.64%   179.5    179.5     0.0     -    0%  0.521   37.62   -15.8%   -12.6%  DMA-gated
+fine d3 whole matched map (delta 1), kmiss  85.23%   198.5    132.7   123.2   82%   10%  0.521   35.55   -10.9%    -7.5%  DMA-gated
+fine d3 Map(T) (no semantic)                87.64%   179.5    179.5     0.0     -    0%  0.530   37.62   -15.8%   -12.6%  DMA-gated
+fine d3 oracle semantic, ideal DMA          87.64%   179.5    179.5     0.0     -    0%  0.524   37.62   -15.8%   -12.6%  DMA-gated
+fine d1                                     87.64%   179.5    179.5     0.0     -    0%  0.527   37.62   -15.8%   -12.6%  DMA-gated
+fine d6                                     87.64%   179.5    179.5     0.0     -    0%  0.511   37.62   -15.8%   -12.6%  DMA-gated
+eam online (MoE-Infinity)                   86.34%   195.6    195.6     0.0     -     -      -   38.62   -18.0%   -14.9%  DMA-gated
+eam offline (MoE-Infinity)                  87.60%   182.2    190.1     9.0   36%    2%  0.186   38.06   -16.8%   -13.6%  DMA-gated
+fine d3 offline store (other parts)         88.39%   172.7    192.5    21.0   21%    5%  0.636   37.61   -15.8%   -12.6%  DMA-gated
+   A7 ProMoE bounds over the tier: no contention +1.6%, in-flight reorder +2.5%, both +3.9%
+   A8 Pie fixed swap budgets over the preset 32: 8: +0.4% (81.4%), 16: +0.4% (82.1%), 64: -1.1% (83.9%), 128: -2.7% (84.7%)
+== short (85 windows)
+policy                                        hits  miss/w  promo/w  pref/w  late cover  score  ms/win  vs tier vs kmiss
+tier (preset)                               85.90%   223.5     24.9       -     -     -      -   30.24    +0.0%    -1.6%
+lru                                         92.32%   123.4    123.4       -     -     -      -   30.56    -1.1%    -2.7%  DMA-gated
+kmiss 2/8                                   89.15%   171.0     52.4       -     -     -      -   29.74    +1.7%    +0.0%
+belady-h4 (oracle)                          93.50%   105.8     41.8       -     -     -      -   28.76    +5.1%    +3.4%
+opt (A46 ceiling)                           95.71%    69.8     49.8       -     -     -      -   28.30    +6.9%    +5.1%
+label (A46 imitation ceiling)               94.67%    85.8     62.5       -     -     -      -   28.52    +6.0%    +4.3%
+hawkeye-pc-h16 (A46 online)                 91.12%   141.5    116.9       -     -     -      -   30.20    +0.1%    -1.5%
+no prefetch: miss + lru                     92.39%   122.9    122.9     0.0     -    0%  0.614   30.59    -1.1%    -2.8%  DMA-gated
+no prefetch: miss + lfu                     92.20%   126.2    126.2     0.0     -    0%  0.614   30.69    -1.5%    -3.1%  DMA-gated
+no prefetch: miss + pri                     92.22%   125.8    125.8     0.0     -    0%  0.614   30.67    -1.4%    -3.0%  DMA-gated
+no prefetch: kmiss + lru                    89.36%   168.8     50.9     0.0     -    0%  0.614   29.80    +1.5%    -0.2%
+no prefetch: kmiss + lfu                    89.33%   169.3     51.0     0.0     -    0%  0.614   29.80    +1.5%    -0.2%
+no prefetch: kmiss + pri                    89.33%   169.2     51.0     0.0     -    0%  0.614   29.80    +1.5%    -0.2%
+fine d3 (faithful: prev-sem, miss, pri)     92.23%   125.7    127.2     1.8   62%    0%  0.614   30.70    -1.5%    -3.1%  DMA-gated
+fine d3 ideal DMA                           92.25%   125.4    127.2     1.8    0%    0%  0.614   30.69    -1.5%    -3.1%  DMA-gated
+fine d3 + kmiss admission                   89.90%   160.9     58.4    16.4   27%    3%  0.614   29.78    +1.5%    -0.1%
+fine d3 prefetch only                       85.61%   225.4     29.8    29.8    1%    5%  0.614   30.42    -0.6%    -2.2%
+fine d3 top-K (no delta)                    92.22%   125.7    127.0     1.6   62%    0%  0.614   30.70    -1.5%    -3.1%  DMA-gated
+fine d3 whole matched map (delta 1), kmiss  91.38%   138.5     91.0    73.3   25%   12%  0.614   30.07    +0.6%    -1.1%  DMA-gated
+fine d3 Map(T) (no semantic)                92.22%   125.8    127.2     1.7   61%    0%  0.614   30.70    -1.5%    -3.1%  DMA-gated
+fine d3 oracle semantic, ideal DMA          92.24%   125.5    127.4     1.9    0%    0%  0.612   30.69    -1.5%    -3.1%  DMA-gated
+fine d1                                     92.22%   125.8    127.3     1.9   64%    0%  0.614   30.70    -1.5%    -3.1%  DMA-gated
+fine d6                                     92.23%   125.7    127.3     1.9   63%    0%  0.612   30.70    -1.5%    -3.1%  DMA-gated
+eam online (MoE-Infinity)                   85.02%   233.9    233.9     0.0     -     -      -   38.50   -21.5%   -22.8%  DMA-gated
+eam offline (MoE-Infinity)                  86.64%   208.5    219.7    12.0   88%    1%  0.148   36.64   -17.5%   -18.8%  DMA-gated
+fine d3 offline store (other parts)         92.33%   125.0    128.9     4.5   67%    1%  0.620   30.73    -1.6%    -3.2%  DMA-gated
+   A7 ProMoE bounds over the tier: no contention +1.6%, in-flight reorder +1.8%, both +3.3%
+   A8 Pie fixed swap budgets over the preset 32: 8: -3.2% (81.4%), 16: -1.4% (83.7%), 64: +0.6% (86.9%), 128: +0.6% (87.0%)
+== edit (61 windows)
+policy                                        hits  miss/w  promo/w  pref/w  late cover  score  ms/win  vs tier vs kmiss
+tier (preset)                               76.68%   731.7     31.8       -     -     -      -   47.95    +0.0%   -11.4%
+lru                                         88.40%   388.7    388.7       -     -     -      -   53.22    -9.9%   -20.2%  DMA-gated
+kmiss 2/8                                   86.87%   434.3    145.7       -     -     -      -   42.46   +12.9%    +0.0%  DMA-gated
+belady-h4 (oracle)                          93.17%   236.1    112.4       -     -     -      -   34.25   +40.0%   +24.0%  DMA-gated
+opt (A46 ceiling)                           94.43%   190.8    132.0       -     -     -      -   32.32   +48.3%   +31.4%
+label (A46 imitation ceiling)               93.24%   228.6    161.0       -     -     -      -   34.48   +39.1%   +23.2%
+hawkeye-pc-h16 (A46 online)                 88.15%   396.2    341.6       -     -     -      -   49.20    -2.5%   -13.7%  DMA-gated
+no prefetch: miss + lru                     88.40%   390.0    390.0     0.0     -    0%  0.593   53.39   -10.2%   -20.5%  DMA-gated
+no prefetch: miss + lfu                     88.87%   381.8    381.8     0.0     -    0%  0.593   52.74    -9.1%   -19.5%  DMA-gated
+no prefetch: miss + pri                     89.02%   377.1    377.1     0.0     -    0%  0.593   52.30    -8.3%   -18.8%  DMA-gated
+no prefetch: kmiss + lru                    86.57%   442.8    149.3     0.0     -    0%  0.593   42.97   +11.6%    -1.2%  DMA-gated
+no prefetch: kmiss + lfu                    86.47%   450.0    151.5     0.0     -    0%  0.593   43.43   +10.4%    -2.2%  DMA-gated
+no prefetch: kmiss + pri                    86.50%   449.0    151.1     0.0     -    0%  0.593   43.38   +10.5%    -2.1%  DMA-gated
+fine d3 (faithful: prev-sem, miss, pri)     88.99%   378.0    383.7     7.8   95%    1%  0.593   52.63    -8.9%   -19.3%  DMA-gated
+fine d3 ideal DMA                           89.07%   375.9    383.7     7.8    0%    1%  0.593   52.54    -8.7%   -19.2%  DMA-gated
+fine d3 + kmiss admission                   86.62%   446.1    165.3    27.3   71%    2%  0.593   43.83    +9.4%    -3.1%  DMA-gated
+fine d3 prefetch only                       79.74%   651.9     54.1    54.1   10%    4%  0.593   45.67    +5.0%    -7.0%
+fine d3 top-K (no delta)                    89.01%   377.4    379.1     2.6   90%    0%  0.593   52.39    -8.5%   -19.0%  DMA-gated
+fine d3 whole matched map (delta 1), kmiss  86.91%   437.5    318.4   249.2   86%   15%  0.593   51.20    -6.4%   -17.1%  DMA-gated
+fine d3 Map(T) (no semantic)                88.98%   378.3    383.5     7.2   95%    1%  0.592   52.63    -8.9%   -19.3%  DMA-gated
+fine d3 oracle semantic, ideal DMA          89.07%   375.9    383.9     8.0    0%    1%  0.592   52.55    -8.8%   -19.2%  DMA-gated
+fine d1                                     89.00%   377.9    383.6     7.9   95%    1%  0.594   52.63    -8.9%   -19.3%  DMA-gated
+fine d6                                     88.99%   378.1    383.6     7.4   95%    1%  0.593   52.64    -8.9%   -19.3%  DMA-gated
+eam online (MoE-Infinity)                   79.95%   650.7    650.7     0.0     -     -      -   79.05   -39.3%   -46.3%  DMA-gated
+eam offline (MoE-Infinity)                  82.48%   568.9    583.3    17.3   93%    1%  0.138   71.61   -33.0%   -40.7%  DMA-gated
+fine d3 offline store (other parts)         89.06%   377.1    385.1    10.8   84%    1%  0.608   52.65    -8.9%   -19.3%  DMA-gated
+   A7 ProMoE bounds over the tier: no contention +3.0%, in-flight reorder +2.8%, both +6.0%
+   A8 Pie fixed swap budgets over the preset 32: 8: -10.9% (69.4%), 16: -6.5% (72.6%), 64: +7.8% (81.2%), 128: +12.2% (84.4%)
+== long (62 windows)
+policy                                        hits  miss/w  promo/w  pref/w  late cover  score  ms/win  vs tier vs kmiss
+tier (preset)                               92.97%    78.1     12.5       -     -     -      -   28.12    +0.0%    +0.2%
+lru                                         94.16%    63.7     63.7       -     -     -      -   28.69    -2.0%    -1.8%
+kmiss 2/8                                   92.75%    78.5     21.9       -     -     -      -   28.18    -0.2%    +0.0%
+belady-h4 (oracle)                          95.70%    47.6     15.6       -     -     -      -   28.03    +0.3%    +0.5%
+opt (A46 ceiling)                           96.66%    36.8     18.4       -     -     -      -   27.97    +0.6%    +0.8%
+label (A46 imitation ceiling)               96.30%    40.6     21.6       -     -     -      -   27.98    +0.5%    +0.7%
+hawkeye-pc-h16 (A46 online)                 93.33%    73.6     66.5       -     -     -      -   28.44    -1.1%    -0.9%
+no prefetch: miss + lru                     95.34%    52.2     52.2     0.0     -    0%  0.523   28.46    -1.2%    -1.0%
+no prefetch: miss + lfu                     95.34%    52.2     52.2     0.0     -    0%  0.523   28.46    -1.2%    -1.0%
+no prefetch: miss + pri                     95.34%    52.2     52.2     0.0     -    0%  0.523   28.46    -1.2%    -1.0%
+no prefetch: kmiss + lru                    94.06%    65.6     16.3     0.0     -    0%  0.523   28.10    +0.1%    +0.3%
+no prefetch: kmiss + lfu                    94.06%    65.6     16.3     0.0     -    0%  0.523   28.10    +0.1%    +0.3%
+no prefetch: kmiss + pri                    94.06%    65.6     16.3     0.0     -    0%  0.523   28.10    +0.1%    +0.3%
+fine d3 (faithful: prev-sem, miss, pri)     95.34%    52.2     52.2     0.0    0%    0%  0.523   28.46    -1.2%    -1.0%
+fine d3 ideal DMA                           95.34%    52.2     52.2     0.0    0%    0%  0.523   28.46    -1.2%    -1.0%
+fine d3 + kmiss admission                   94.39%    62.4     22.5     9.9    9%    4%  0.523   28.11    +0.1%    +0.3%
+fine d3 prefetch only                       93.54%    71.4     14.0    14.0    2%    6%  0.523   28.08    +0.1%    +0.3%
+fine d3 top-K (no delta)                    95.34%    52.2     52.2     0.0    0%    0%  0.523   28.46    -1.2%    -1.0%
+fine d3 whole matched map (delta 1), kmiss  94.93%    56.7     34.5    28.7    3%   10%  0.523   28.18    -0.2%    +0.0%
+fine d3 Map(T) (no semantic)                95.34%    52.2     52.2     0.0    0%    0%  0.523   28.46    -1.2%    -1.0%
+fine d3 oracle semantic, ideal DMA          95.34%    52.2     52.2     0.0    0%    0%  0.519   28.46    -1.2%    -1.0%
+fine d1                                     95.34%    52.2     52.2     0.0    0%    0%  0.524   28.46    -1.2%    -1.0%
+fine d6                                     95.34%    52.2     52.2     0.0    0%    0%  0.521   28.46    -1.2%    -1.0%
+eam online (MoE-Infinity)                   93.86%    67.2     67.2     0.0     -     -      -   28.67    -1.9%    -1.7%
+eam offline (MoE-Infinity)                  93.79%    68.6     80.4    11.9   24%    1%  0.130   28.91    -2.7%    -2.5%  DMA-gated
+fine d3 offline store (other parts)         95.56%    51.2     75.1    24.4   64%    4%  0.542   28.98    -3.0%    -2.8%  DMA-gated
+   A7 ProMoE bounds over the tier: no contention +0.3%, in-flight reorder +0.3%, both +0.5%
+   A8 Pie fixed swap budgets over the preset 32: 8: +0.1% (92.4%), 16: +0.1% (92.9%), 64: -0.1% (93.0%), 128: -0.2% (92.8%)
+== whole first trace (219 windows)
+policy                                        hits  miss/w  promo/w  pref/w  late cover  score  ms/win  vs tier vs kmiss
+tier (preset)                               81.17%   346.9     26.8       -     -     -      -   34.81    +0.0%    -2.6%
+lru                                         89.46%   196.3    196.3       -     -     -      -   37.63    -7.5%    -9.9%  DMA-gated
+kmiss 2/8                                   86.51%   249.0     81.6       -     -     -      -   33.90    +2.7%    +0.0%  DMA-gated
+belady-h4 (oracle)                          93.30%   129.5     52.5       -     -     -      -   30.02   +16.0%   +12.9%  DMA-gated
+opt (A46 ceiling)                           94.92%    95.3     73.6       -     -     -      -   29.15   +19.4%   +16.3%
+label (A46 imitation ceiling)               94.22%   108.8     83.1       -     -     -      -   29.44   +18.2%   +15.1%
+hawkeye-pc-h16 (A46 online)                 87.53%   231.9    155.3       -     -     -      -   34.49    +0.9%    -1.7%
+no prefetch: miss + lru                     89.63%   193.7    193.7     0.0     -    0%  0.589   37.46    -7.1%    -9.5%  DMA-gated
+no prefetch: miss + lfu                     87.44%   242.7    242.7     0.0     -    0%  0.589   40.83   -14.8%   -17.0%  DMA-gated
+no prefetch: miss + pri                     88.02%   232.4    232.4     0.0     -    0%  0.589   39.95   -12.9%   -15.2%  DMA-gated
+no prefetch: kmiss + lru                    86.63%   248.0     80.9     0.0     -    0%  0.589   33.89    +2.7%    +0.0%  DMA-gated
+no prefetch: kmiss + lfu                    84.78%   287.2     95.5     0.0     -    0%  0.589   35.64    -2.3%    -4.9%  DMA-gated
+no prefetch: kmiss + pri                    85.08%   281.8     93.4     0.0     -    0%  0.589   35.38    -1.6%    -4.2%  DMA-gated
+fine d3 (faithful: prev-sem, miss, pri)     88.03%   232.6    246.9    17.7   74%    2%  0.589   40.53   -14.1%   -16.4%  DMA-gated
+fine d3 ideal DMA                           88.25%   229.1    246.9    17.7    0%    2%  0.589   40.40   -13.8%   -16.1%  DMA-gated
+fine d3 + kmiss admission                   85.61%   274.8    117.1    35.2   46%    4%  0.589   35.96    -3.2%    -5.7%  DMA-gated
+fine d3 prefetch only                       81.90%   338.2     46.3    46.3   11%    5%  0.589   35.01    -0.6%    -3.2%  DMA-gated
+fine d3 top-K (no delta)                    88.05%   232.1    240.5    10.7   60%    1%  0.589   40.22   -13.5%   -15.7%  DMA-gated
+fine d3 whole matched map (delta 1), kmiss  85.99%   265.9    226.5   174.9   70%   17%  0.589   40.96   -15.0%   -17.2%  DMA-gated
+fine d3 Map(T) (no semantic)                88.01%   233.1    246.5    16.7   72%    2%  0.588   40.55   -14.2%   -16.4%  DMA-gated
+fine d3 oracle semantic, ideal DMA          88.26%   228.9    247.3    18.4    0%    2%  0.586   40.42   -13.9%   -16.1%  DMA-gated
+fine d1                                     88.03%   232.5    246.5    17.6   74%    2%  0.589   40.52   -14.1%   -16.3%  DMA-gated
+fine d6                                     88.03%   232.8    247.3    17.8   72%    2%  0.589   40.54   -14.1%   -16.4%  DMA-gated
+eam online (MoE-Infinity)                   84.73%   287.1    292.0     5.0   57%    0%  0.130   45.33   -23.2%   -25.2%  DMA-gated
+eam offline (MoE-Infinity)                  86.57%   252.8    263.5    11.8   78%    1%  0.142   42.82   -18.7%   -20.8%  DMA-gated
+   A7 ProMoE bounds over the tier: no contention +2.1%, in-flight reorder +2.6%, both +4.6%
+   A8 Pie fixed swap budgets over the preset 32: 8: -5.3% (76.3%), 16: -3.0% (78.5%), 64: +2.5% (83.5%), 128: +3.0% (84.7%)
+== SYNTHETIC interleave, 8-window turns (219 windows)
+policy                                        hits  miss/w  promo/w  pref/w  late cover  score  ms/win  vs tier vs kmiss
+tier (preset)                               81.83%   334.1     26.5       -     -     -      -   34.59    +0.0%    +2.1%
+lru                                         84.81%   288.5    288.5       -     -     -      -   43.98   -21.4%   -19.7%  DMA-gated
+kmiss 2/8                                   84.04%   298.4     90.6       -     -     -      -   35.30    -2.0%    +0.0%  DMA-gated
+belady-h4 (oracle)                          92.01%   155.9     56.7       -     -     -      -   30.57   +13.1%   +15.5%  DMA-gated
+opt (A46 ceiling)                           93.86%   120.3     85.7       -     -     -      -   29.58   +16.9%   +19.3%
+label (A46 imitation ceiling)               92.89%   138.1     97.2       -     -     -      -   30.19   +14.6%   +16.9%
+hawkeye-pc-h16 (A46 online)                 84.23%   298.2    182.0       -     -     -      -   37.44    -7.6%    -5.7%
+no prefetch: miss + lru                     85.00%   285.4    285.4     0.0     -    0%  0.589   43.82   -21.1%   -19.4%  DMA-gated
+no prefetch: miss + lfu                     86.80%   258.1    258.1     0.0     -    0%  0.589   41.69   -17.0%   -15.3%  DMA-gated
+no prefetch: miss + pri                     87.08%   253.0    253.0     0.0     -    0%  0.589   41.24   -16.1%   -14.4%  DMA-gated
+no prefetch: kmiss + lru                    84.24%   295.7     89.4     0.0     -    0%  0.589   35.23    -1.8%    +0.2%  DMA-gated
+no prefetch: kmiss + lfu                    84.46%   295.1     87.9     0.0     -    0%  0.589   35.33    -2.1%    -0.1%  DMA-gated
+no prefetch: kmiss + pri                    84.55%   293.5     87.5     0.0     -    0%  0.589   35.25    -1.9%    +0.2%  DMA-gated
+fine d3 (faithful: prev-sem, miss, pri)     87.12%   252.2    265.2    17.7   76%    2%  0.589   41.72   -17.1%   -15.4%  DMA-gated
+fine d3 ideal DMA                           87.41%   247.5    265.2    17.7    0%    2%  0.589   41.54   -16.7%   -15.0%  DMA-gated
+fine d3 + kmiss admission                   85.14%   285.5    108.9    32.5   39%    4%  0.589   35.71    -3.1%    -1.1%  DMA-gated
+fine d3 prefetch only                       82.65%   324.8     39.7    39.7    5%    5%  0.589   34.53    +0.2%    +2.2%
+fine d3 top-K (no delta)                    87.13%   252.1    261.9    13.5   73%    2%  0.589   41.56   -16.8%   -15.0%  DMA-gated
+fine d3 whole matched map (delta 1), kmiss  85.44%   279.1    225.8   180.3   71%   18%  0.589   40.96   -15.6%   -13.8%  DMA-gated
+fine d3 Map(T) (no semantic)                87.12%   252.4    264.5    16.5   74%    2%  0.589   41.70   -17.1%   -15.3%  DMA-gated
+fine d3 oracle semantic, ideal DMA          87.44%   247.1    265.4    18.3    0%    3%  0.587   41.52   -16.7%   -15.0%  DMA-gated
+fine d1                                     87.13%   252.1    264.7    17.7   77%    3%  0.590   41.70   -17.0%   -15.3%  DMA-gated
+fine d6                                     87.11%   252.6    266.0    17.8   77%    2%  0.589   41.75   -17.2%   -15.4%  DMA-gated
+eam online (MoE-Infinity)                   80.91%   344.8    346.2     1.5   91%    0%  0.097   50.58   -31.6%   -30.2%  DMA-gated
+eam offline (MoE-Infinity)                  84.74%   284.6    295.9    12.3   79%    0%  0.142   45.02   -23.2%   -21.6%  DMA-gated
+   A7 ProMoE bounds over the tier: no contention +2.0%, in-flight reorder +2.6%, both +4.5%
+   A8 Pie fixed swap budgets over the preset 32: 8: -4.8% (77.4%), 16: -2.2% (79.8%), 64: +1.4% (83.4%), 128: +1.4% (84.2%)
+
+== verdict (>= 2% modeled decode gain over the best of tier / kmiss 2/8 needed for an engine switch)
+   read4k (11 windows)                                        best online candidate: fine d3 prefetch only +0.5%
+   short (85 windows)                                         best online candidate: fine d3 + kmiss admission -0.1%
+   edit (61 windows)                                          best online candidate: no prefetch: kmiss + lru -1.2%
+   long (62 windows)                                          best online candidate: fine d3 prefetch only +0.1%
+   whole first trace (219 windows)                            best online candidate: no prefetch: kmiss + lru +0.0%
+   SYNTHETIC interleave, 8-window turns (219 windows)         best online candidate: fine d3 prefetch only +0.2%
+   worst case over the sequences: -1.2% -> no engine switch (below 2%)

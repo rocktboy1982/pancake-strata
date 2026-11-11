@@ -7,6 +7,7 @@
 #include "strata/core/geometry.hpp"
 #include "strata/core/emulate.hpp"
 #include "strata/core/sm120_series.hpp"
+#include "strata/core/switch_report.hpp"
 #define STRATA_Q81_FASTMATH_DIV 1   // #3948: the q8_1 stores divide as native_mmvq.cu (--use_fast_math) does, see q8_1_finite.hpp
 #include "strata/kernels/q8_1_finite.hpp"   // #606: q8_1_ds
 #include "strata/kernels/window_start.hpp"  // KVA: the draft layer's window floor
@@ -1768,9 +1769,12 @@ __global__ void wait_copy_i32_kernel(const volatile uint32_t* flag, uint32_t val
     __syncthreads();
     for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
 }
-// STRATA_WAIT_COPY256=1 (fork android-imdad/Strata-7900xtx caa9b00115): the same wait and the same fences as above, then
-// 16-byte reads where both pointers allow (else the 4-byte loop); a word tail (n % 4) is copied one word per thread.
-// Launched with 256 threads: a 568-word verify plan is 142 int4 reads, one round over PCIe.
+// STRATA_WAIT_COPY256=1 (fork android-imdad/Strata-7900xtx caa9b00115): the same wait as above, then 16-byte reads where
+// both pointers allow (else the 4-byte loop); a word tail (n % 4) is copied one word per thread.  Launched with 256
+// threads: a 16-row window's plan (1,320 words) is 330 int4 reads, two rounds over PCIe instead of 11 dependent 4-byte
+// rounds (the 128-thread loops wait for each read before the next).  The 16-byte reads are plain loads, so every wave makes its own
+// system-scope acquire after the barrier (the fork's block_wait_flag_ge, and wait_flag_copy_i32_kernel's): no wave reads
+// a plan word from a cache line older than the flag.  Used by both plan copies (STRATA_WAIT_FUSE's and STRATA_FUSE_WAIT's).
 __global__ void wait_copy_i32_wide_kernel(const volatile uint32_t* flag, uint32_t value, int32_t* __restrict__ dst,
                                           const volatile int32_t* src, int n) {
     if (threadIdx.x == 0) {
@@ -1778,6 +1782,7 @@ __global__ void wait_copy_i32_wide_kernel(const volatile uint32_t* flag, uint32_
         __threadfence_system();
     }
     __syncthreads();
+    __threadfence_system();
     if (((reinterpret_cast<uintptr_t>(dst) | reinterpret_cast<uintptr_t>(src)) & 15) == 0) {
         const int n4 = n >> 2;
         const int4* s4 = reinterpret_cast<const int4*>(const_cast<const int32_t*>(src));
@@ -1788,11 +1793,22 @@ __global__ void wait_copy_i32_wide_kernel(const volatile uint32_t* flag, uint32_
     }
     for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
 }
+// STRATA_WAIT_COPY256=1 (opt-in, read once): plans of more than 512 words go through wait_copy_i32_wide_kernel
+bool wait_copy_wide(int64_t n) {
+    static const bool on = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
+    const bool wide = on && n > 512;
+    // the log proves the arm acted (an invisible switch is how the copy256 arms of specs 18/23 measured nothing)
+    if (wide)
+        switch_report::acted(switch_report::wait_copy256, "plans of %lld words use the 256-thread wide copy", (long long) n);
+    else if (on)
+        switch_report::will_not_act(switch_report::wait_copy256, "a plan of %lld words (it takes plans of more than 512)",
+                                    (long long) n);
+    return wide;
+}
 }  // namespace
 void wait_copy_i32_from_mapped(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
                                void* stream) {
-    static const bool wide = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
-    if (wide && n > 512) {
+    if (wait_copy_wide(n)) {
         wait_copy_i32_wide_kernel<<<1, 256, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
     } else {
         wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
@@ -1805,7 +1821,12 @@ void wait_flag_ge(const uint32_t* flag, uint32_t value, void* stream) {
     check("wait_flag_ge");
 }
 void wait_flag_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n, void* stream) {
-    wait_flag_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, (const volatile int32_t*) src, (int) n);
+    // STRATA_WAIT_COPY256 also here: STRATA_WAIT_FUSE=1 (the fast-hip preset) copies the plan with this launch, not
+    // wait_copy_i32_from_mapped's, so without it the switch never acted on the preset
+    if (wait_copy_wide(n))
+        wait_copy_i32_wide_kernel<<<1, 256, 0, (cudaStream_t) stream>>>(flag, value, dst, (const volatile int32_t*) src, (int) n);
+    else
+        wait_flag_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, (const volatile int32_t*) src, (int) n);
     check("wait_flag_copy_i32");
 }
 

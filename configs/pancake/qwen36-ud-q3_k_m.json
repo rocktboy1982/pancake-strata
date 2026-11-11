@@ -26,5 +26,6 @@
   "/usr/local/cuda/lib64"
  ],
  "gpu": 0,
- "gpus_asked": true
+ "gpus_asked": true,
+ "env": {}
 }

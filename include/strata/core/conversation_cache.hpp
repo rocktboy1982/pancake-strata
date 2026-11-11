@@ -32,7 +32,8 @@ struct ConversationCheckpoint {
     // only writer of a checkpoint's GDN bytes besides a whole copy (which keeps them equal, so it keeps the tag).
     uint64_t dev_tag = 0;
     // A shared-prefix pin (the request key pin=N): this checkpoint is the read-only prefix many suffix queries branch
-    // from, so retention never evicts it (conv_cache.hpp) and a parked conversation holding it stays parked.  A run-time
+    // from, so retention never evicts it (conv_cache.hpp) and a parked conversation holding it stays parked (evicted
+    // last instead with ConversationCache::set_pin_evict_last).  A run-time
     // mark only: it is not in the session file, a request that pins the same prefix again sets it.
     bool pinned = false;
     // --prefill-pipe on a layer split: the plan a prompt segment [from, to) is read in - its chunk (0: none), the loan
@@ -389,25 +390,29 @@ public:
     // with take() but still alive during the exchange; count it against RAM too.
     bool make_room(size_t incoming, size_t held = 0) {
         if (!enabled() || held > budget_ || incoming > budget_ - held) return false;
-        auto stays = [&](size_t i) { return entries_[i].pinned() || (guarded_ != 0 && serials_[i] == guarded_); };
+        auto stays = [&](size_t i) {
+            return (entries_[i].pinned() && !pin_evict_last_) || (guarded_ != 0 && serials_[i] == guarded_);
+        };
         if (guarded_ != 0 && index_of(guarded_) != SIZE_MAX) {
             // with everything else gone, would it fit beside the entries that stay (the guarded donor and any pinned
-            // shared prefix)?  If not, evict nothing
+            // shared prefix, unless set_pin_evict_last)?  If not, evict nothing
             size_t kept = 0, kept_bytes = 0;
             for (size_t i = 0; i < entries_.size(); ++i)
                 if (stays(i)) { ++kept; kept_bytes += entries_[i].bytes(); }
             if (kept >= slots_ || kept_bytes > budget_ - held - incoming) { guard_blocked_ = true; return false; }
         }
         if (bytes() > budget_ - held - incoming) reuse_ = {};
-        while (!entries_.empty() && (entries_.size() >= slots_ || bytes_ > budget_ - held - incoming)) {
+        const size_t limit = budget_ - held - incoming;
+        while (!entries_.empty() && (entries_.size() >= slots_ || bytes_ > limit)) {
+            const size_t shortfall = bytes_ > limit ? bytes_ - limit : 0;   // 0: the pressure is on the slots only
             // STRATA_PARK_TRUNCATE, byte pressure only (a truncation cannot free a slot): first shrink the oldest
             // movable entry to one of its own checkpoints instead of losing it whole (see truncate_oldest)
-            if (park_truncate_ && entries_.size() < slots_ &&
-                truncate_oldest(bytes_ - (budget_ - held - incoming)) > 0)
+            if (park_truncate_ && entries_.size() < slots_ && truncate_oldest(shortfall) > 0)
                 continue;
             // the oldest entry that does not hold a pinned shared prefix leaves; with only pinned ones left the new
-            // image does not fit (the caller skips parking it - the pinned prefix is what the queries come back to)
-            if (!evict_oldest()) return false;
+            // image does not fit (the caller skips parking it - the pinned prefix is what the queries come back to),
+            // unless set_pin_evict_last: then the oldest pinned one leaves
+            if (!evict_oldest(shortfall)) return false;
         }
         return true;
     }
@@ -417,13 +422,18 @@ public:
     // gate in generate.cpp).  A ConversationBuffer is a list of 16 MiB segments and each segment is its
     // own allocation, far above glibc's mmap threshold, so dropping an entry returns the whole footprint
     // to the kernel at once - the next admission check reads it back from /proc/meminfo.
-    // False when none can go (empty, or only entries that hold a pinned shared prefix are left).
-    bool evict_oldest() {
+    // False when none can go (empty, or only entries that hold a pinned shared prefix are left and set_pin_evict_last
+    // is off).  `shortfall`: the bytes make_room still has to free (0: unknown, or only a slot is short); the park TTL's
+    // tool-pending rank uses it (pick_victim).
+    bool evict_oldest(size_t shortfall = 0) {
         // the oldest entry that holds no pinned shared prefix and is not the guarded (borrowed) donor; with the disk
         // tier's keep-hot rule, the oldest such entry it does not keep first (item 39); with the park TTL (A15) an
-        // idle sub-agent branch first (pick_victim)
+        // idle sub-agent branch first (pick_victim); with set_pin_evict_last, when none is left, the oldest pinned one
         int rank = -1;
-        const size_t victim = pick_victim(&rank);
+        size_t victim = pick_victim(&rank, shortfall);
+        if (victim == SIZE_MAX && pin_evict_last_)
+            for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
+                if (!(guarded_ != 0 && serials_[i] == guarded_)) victim = i;
         if (victim == SIZE_MAX) return false;
         if (rank == 0) ++ttl_evictions_;
         bytes_ -= entries_[victim].bytes();
@@ -491,7 +501,11 @@ public:
     ///   2  any other conversation (the main agent's: the long one the branches share a prefix with);
     ///   3  a conversation whose last reply ended in a tool call and was parked less than `hold_ms` ago (Continuum:
     ///      the client comes straight back with the tool's result; the hold is a fixed prediction of the tool's
-    ///      duration, after which the entry ranks as any other).
+    ///      duration, after which the entry ranks as any other).  Among these the SHORTEST goes first (the cheapest to
+    ///      re-read), not the oldest: a main agent waiting for its sub-agents and the sub-agents waiting for their
+    ///      tools are all held, and the main agent's re-read is the long one.  When make_room is short of bytes, the
+    ///      shortest one whose bytes cover the shortfall by itself goes instead (one eviction, not every short one
+    ///      and then the long one too); when none covers it, or only a slot is short, the shortest.
     /// A "branch" is an entry that shares at least min(`share_min`, half its length) leading tokens with a longer
     /// parked entry at least 1/`sub_ratio` times its length (a sub-agent starts from the main agent's system prompt and
     /// tools and stays shorter than it).  A mis-classification only changes the eviction order.  With the disk tier
@@ -515,6 +529,16 @@ public:
     }
     const ParkTtl& park_ttl() const { return park_ttl_; }
     size_t ttl_evictions() const { return ttl_evictions_; }   // rank-0 victims (idle sub-agent branches)
+
+    /// MOD_PLAN 71 / 90 (opt-in, the caller sets it with STRATA_AUTO_PIN=1): a parked conversation that holds a pinned
+    /// shared prefix is evicted LAST, not never.  The old rule (off, the default) keeps it whatever comes: with several
+    /// sessions that each pin their own system prompt (an agent kind each, Qwen's auto-pin) the pinned entries fill the
+    /// slots or the budget and every new conversation is not parked (percache_sim on the real opencode history:
+    /// -1.32% of request time as coded, +0.00% with this rule).  On: make_room / evict_oldest take the unpinned entries
+    /// first in the usual order, then the oldest pinned one; truncate_oldest still never shrinks a pinned entry, and the
+    /// guarded donor still stays.  Cache policy only: what an entry holds and what a restore reads do not change.
+    void set_pin_evict_last(bool on) { pin_evict_last_ = on; }
+    bool pin_evict_last() const { return pin_evict_last_; }
 
     // #879: every parked conversation (pinned ones too) and the retained K/V go - after non-finite logits any of them
     // may carry the poison.  Returns how many were parked.
@@ -732,11 +756,15 @@ private:
     // The entry make_room / evict_oldest / truncate_oldest take first (SIZE_MAX: none can go).  Default: the oldest
     // entry that holds no pinned shared prefix and is not the guarded (borrowed) donor; with the disk tier's keep-hot
     // rule, the oldest such entry it does not keep first (item 39).  With the park TTL (A15) the rank of set_park_ttl.
-    size_t pick_victim(int* rank_out = nullptr) {
+    // `shortfall`: the bytes the caller still has to free (0: unknown, or only a slot is short); only rank 3 reads it.
+    size_t pick_victim(int* rank_out = nullptr, size_t shortfall = 0) {
         auto movable = [&](size_t i) { return !entries_[i].pinned() && !(guarded_ != 0 && serials_[i] == guarded_); };
         if (park_ttl_.enabled() && parked_at_.size() == entries_.size()) {
             const int64_t now = now_ms();
-            size_t best = SIZE_MAX;
+            auto shorter = [&](size_t i, size_t than) {
+                return than == SIZE_MAX || entries_[i].live.ids.size() < entries_[than].live.ids.size();
+            };
+            size_t best = SIZE_MAX, cover = SIZE_MAX;   // cover: the shortest rank-3 entry that frees `shortfall` alone
             int best_rank = 4;
             for (size_t i = 0; i < entries_.size() && best_rank > 0; ++i) {
                 if (!movable(i)) continue;
@@ -746,8 +774,20 @@ private:
                 if (tool && idle < park_ttl_.hold_ms) rank = 3;
                 else if (is_branch(i)) rank = idle >= park_ttl_.ttl_ms ? 0 : 1;
                 else rank = 2;
-                if (rank < best_rank) { best_rank = rank; best = i; }   // strict: the oldest wins within a rank
+                // strict: the oldest wins within a rank - except rank 3, where the shortest does: every entry there is expected
+                // back within the hold, so what an eviction costs is its re-read (Continuum's benefit term is the reload cost), and
+                // the main agent's 60K tokens must not go before a sub-agent's 8K just because it was parked first
+                if (rank < best_rank || (rank == 3 && best_rank == 3 && shorter(i, best))) {
+                    best_rank = rank;
+                    best = i;
+                }
+                if (rank == 3 && shortfall > 0 && entries_[i].bytes() >= shortfall && shorter(i, cover)) cover = i;
             }
+            // rank 3 short of bytes: the shortest entry that frees the shortfall by itself goes.  Shortest-first alone
+            // drops the short held entries one at a time and then the long one as well (a 60K main agent and three 10K
+            // sub-agents, all held, a new 60K image: four evictions where oldest-first needs one).  No such entry, or
+            // only a slot short: shortest first, as before.
+            if (best_rank == 3 && cover != SIZE_MAX) best = cover;
             if (rank_out) *rank_out = best == SIZE_MAX ? -1 : best_rank;
             return best;
         }
@@ -773,6 +813,7 @@ private:
     std::function<int64_t()> clock_;
     uint64_t next_serial_ = 1, guarded_ = 0;
     bool guard_blocked_ = false;
+    bool pin_evict_last_ = false;           // set_pin_evict_last: off by default (a pinned entry is never evicted)
     ConversationKvReuse reuse_;
     std::function<void(SavedConversation&&)> spill_;            // item 39: see set_disk_tier
     std::function<bool(const SavedConversation&)> keep_hot_;

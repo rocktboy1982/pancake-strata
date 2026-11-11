@@ -18,5 +18,6 @@
  ],
  "port": 8080,
  "gpu": 0,
- "gpus_asked": true
+ "gpus_asked": true,
+ "env": {}
 }

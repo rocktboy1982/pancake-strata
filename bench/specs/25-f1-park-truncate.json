@@ -1,0 +1,22 @@
+{
+ "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "flags": {"args": {"--conversation-cache-mib": "2048", "--conversation-cache-min-tokens": "8192"}},
+  "park-truncate": {"args": {"--conversation-cache-mib": "2048", "--conversation-cache-min-tokens": "8192"}, "env": {"STRATA_PARK_TRUNCATE": "1"}}
+ },
+ "cases": ["short", "edit"],
+ "reps": 3,
+ "lossy": false,
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "pancake-turns.jsonl",
+  "arms": ["flags", "park-truncate"],
+  "reps": 3,
+  "add_arms": {
+   "flags1280": {"args": {"--conversation-cache-mib": "1280", "--conversation-cache-min-tokens": "8192"}},
+   "park-truncate1280": {"args": {"--conversation-cache-mib": "1280", "--conversation-cache-min-tokens": "8192"}, "env": {"STRATA_PARK_TRUNCATE": "1"}}
+  },
+  "note": "Read by tools/pancake/replay_turns.py only (abtest ignores it). Same 11-09 16:13-16:43 session as 11-conv-cache.json. The first arm is the reference: the two conversation-cache flags that the plan puts first, so the replay answers what F1 adds ON TOP of them (offline: 39-52 s of the 162.8 s alone; 158 s with the flags). Add --arms flags1280,park-truncate1280 to pin the 11-09 budget (the 1280 MiB auto size, where the snapshots missed it by 0.5-4.8%): there PARK_TRUNCATE has the most to do. --reps 3 because tools/pancake/promote.py needs 3 paired runs."
+ },
+ "note": "MOD_PLAN F1 (STRATA_PARK_TRUNCATE, dev/batch-1 e55886ed8; TwoAnts/Strata 5ef4fc8b4b): park the deepest checkpoint prefix that fits when the whole snapshot does not. Exact: it only changes which prefix of a conversation is kept, so the text must equal the reference on short / edit and restore_check.py must MATCH every turn. ABTEST ONLY CHECKS THE SIDE EFFECTS (short / edit never park a long conversation); the gain is the replay's total prompt time and cold re-read seconds: python tools/pancake/replay_turns.py bench/specs/25-f1-park-truncate.json --out bench/results/<day>-test-phase/25-f1-park-truncate-replay. Decide with tools/pancake/promote.py (item decides: replay)."
+}

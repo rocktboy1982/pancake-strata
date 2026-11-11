@@ -498,6 +498,23 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(route_prior_scope_test PRIVATE include)
   add_test(NAME route_prior_scope_test COMMAND route_prior_scope_test)
 
+  # MOD_PLAN 28 / A4: the deferral's heavy rule, rank guard and pool split with STRATA_VERIFY_DEFER_CPU_FOLD (header-only, no GPU)
+  add_executable(defer_rank_test tests/core/defer_rank_test.cpp)
+  target_include_directories(defer_rank_test PRIVATE include)
+  add_test(NAME defer_rank_test COMMAND defer_rank_test)
+
+  # MOD_PLAN "Project features discovered" item 1: the once-only "strata switch:" lines (format, once per kind, threads; header-only, no GPU)
+  add_executable(switch_report_test tests/core/switch_report_test.cpp)
+  target_include_directories(switch_report_test PRIVATE include)
+  target_link_libraries(switch_report_test PRIVATE Threads::Threads)
+  add_test(NAME switch_report_test COMMAND switch_report_test)
+
+  # MOD_PLAN Phase 15 F14: host proof that the Q2_0 down row on 4 lanes keeps the 16-lane tree's bits (the sub4 kernel's sum order
+  # modelled on the host), tied to the kernel source by a text guard; no GPU, no model
+  add_executable(gpu_rewrite_parity_test tests/core/gpu_rewrite_parity_test.cpp)
+  target_compile_definitions(gpu_rewrite_parity_test PRIVATE STRATA_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+  add_test(NAME gpu_rewrite_parity_test COMMAND gpu_rewrite_parity_test)
+
   # MOD_PLAN A19: the learned thinking stop's host side (STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE: settings, check points, stop
   # rule, probe file, dump file bytes; header-only, no GPU)
   add_executable(think_probe_test tests/program/think_probe_test.cpp)
@@ -1311,6 +1328,13 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
       add_test(NAME hip_handoff COMMAND hip_handoff)
       list(APPEND _strata_hip_tests hip_handoff)
     endif()
+    # F21: the plan copy after a host flag, with the default kernels and with STRATA_WAIT_COPY256=1's 16-byte kernel
+    add_executable(hip_wait_copy tests/hip/wait_copy.cpp)
+    target_link_libraries(hip_wait_copy PRIVATE strata_kernels strata_hip_runtime)
+    add_test(NAME hip_wait_copy COMMAND hip_wait_copy)
+    add_test(NAME hip_wait_copy_256 COMMAND hip_wait_copy)
+    set_tests_properties(hip_wait_copy_256 PROPERTIES ENVIRONMENT "STRATA_WAIT_COPY256=1")
+    list(APPEND _strata_hip_tests hip_wait_copy hip_wait_copy_256)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/hip/mapped_alias.cpp")
       # #325: reports what a hipHostGetDevicePointer alias is on this stack (on Windows: the host pointer, and a
       # D2D copy into it does not land - hip_handoff's timeout there). A diagnosis: exits 0 whenever it ran.
@@ -1539,6 +1563,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   set_tests_properties(iq_multi_parity_kq_swiglu PROPERTIES ENVIRONMENT "STRATA_KQ_SPLIT=1;STRATA_GU_SWIGLU=1")
   add_test(NAME iq_multi_parity_kq_nosub16 COMMAND iq_multi_parity)
   set_tests_properties(iq_multi_parity_kq_nosub16 PROPERTIES ENVIRONMENT "STRATA_KQ_SPLIT=1;STRATA_NO_SUB16_GU=1")
+  # A33 / item 48: the EXPDEC runs with STRATA_EXPDEC_SWIGLU=1 take expdec_gu_swiglu_kernel (gate/up + SwiGLU + q8_1 in one
+  # launch): the grouped output must stay bitwise the old kernels' (its runs with LUT copies take the SwiGLU kernel too)
+  add_test(NAME iq_multi_parity_expdec_swiglu COMMAND iq_multi_parity)
+  set_tests_properties(iq_multi_parity_expdec_swiglu PROPERTIES ENVIRONMENT "STRATA_EXPDEC_SWIGLU=1")
   # the prompt path's DeltaNet recurrence: gdn_rec_kh_kernel against gdn_rec_cols_pipe_kernel, bitwise (GPU,
   # synthetic, no model; --bench adds timings).  NVIDIA only: cp.async and the CUDA occupancy API (not on gfx906)
   if(STRATA_ENABLE_CUDA AND NOT STRATA_HIP_GFX906)
@@ -2124,6 +2152,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(epoch_bandit_test src/core/epoch_bandit_test.cpp)   # MOD_PLAN A44: STRATA_BANDIT's epoch bandit
   target_include_directories(epoch_bandit_test PRIVATE include)
   add_test(NAME epoch_bandit_test COMMAND epoch_bandit_test)
+  # MOD_PLAN A15 / F1: a recorded request trace through the real ConversationCache (tools/pancake/park_sim.py drives it offline)
+  add_executable(park_replay_sim src/core/park_replay_sim.cpp)
+  target_include_directories(park_replay_sim PRIVATE include)
+  add_test(NAME park_replay_sim_test COMMAND park_replay_sim --selftest)
   add_executable(uma_cache_test src/core/uma_cache_test.cpp)
   target_include_directories(uma_cache_test PRIVATE include)
   add_test(NAME uma_cache_test COMMAND uma_cache_test)
@@ -3096,6 +3128,14 @@ if(STRATA_BUILD_TESTS)
     target_link_libraries(native_hadamard_test PRIVATE strata_kernels_cpu strata_artifact)
     add_test(NAME native_hadamard_test COMMAND native_hadamard_test)
     set_tests_properties(native_hadamard_test PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
+    # MOD_PLAN 16.5 A27 / F4: the sub-2-bit shadow pack (offline converter) and its read-back through the pack loader
+    # and the CPU expert kernels (synthetic, no model)
+    add_executable(strata_shadow_pack src/artifact/shadow_pack.cpp)
+    target_link_libraries(strata_shadow_pack PRIVATE strata_artifact ggml-base)
+    add_executable(shadow_pack_test src/artifact/shadow_pack_test.cpp)
+    target_link_libraries(shadow_pack_test PRIVATE strata_kernels_cpu strata_artifact)
+    add_test(NAME shadow_pack_test COMMAND shadow_pack_test)
+    set_tests_properties(shadow_pack_test PROPERTIES TIMEOUT 300)
     # the CPU trellis kernels (tq_cpu.hpp): AVX2 / AVX-512 vs the scalar kernel bit for bit, vs ggml-cpu's vec_dot
     # and to_float, plain and with the Hadamard rotation; `tq_cpu_parity --bench` is the micro-benchmark
     add_executable(tq_cpu_parity src/kernels/cpu/tq_cpu_parity.cpp)
@@ -3472,13 +3512,14 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     batch_telemetry_test logit_bias_test gguf_reader_test gguf_split_test model_family_test batch_read_test
     gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
-    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test think_probe_test run_manifest_test
+    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test defer_rank_test think_probe_test run_manifest_test
+    switch_report_test
     host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test file_expert_source_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
-    adapt_async_default_test epoch_bandit_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
+    adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
     window_limits_test serve_stop_bound_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
@@ -3489,11 +3530,12 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity q2_fast_parity_test iq_sign_fast_test native_hadamard_test tq_cpu_parity tq_cpu_parity_avx2
+    q2_bitplane_parity q2_fast_parity_test iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
     poly_mxfp4_test
+    gpu_rewrite_parity_test
     # CUDA / conversation-only builds: these hide the GPU themselves (CUDA_VISIBLE_DEVICES=-1) or are CPU-only by design
     conversation_cache_test conversation_split_failure_test conversation_memory_test conversation_file_test
     session_save_reclaim_test conversation_validation_test conversation_transfer_test split_lend_complement_test

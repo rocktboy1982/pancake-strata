@@ -30,7 +30,9 @@
 // The drafter's entropy (DISCO's and MiMo-V2-Flash's signal) is not exposed: the MTP's selection kernel returns the top-1
 // probability only (and its two-stage proxy pick never forms the full softmax), so features 0-2 carry the confidence.
 //
-// Switches:  STRATA_DISCO=<weights file>        the learned rule replaces --spec-min-p / STRATA_SPEC_COST for MTP windows
+// Switches:  STRATA_SPEC_CUM=<s in 0..1>        F8: stop the chain where the product of the drafts' probabilities falls under s
+//                                              (a DISCO model on the chain feature alone; STRATA_DISCO wins when both are set)
+//            STRATA_DISCO=<weights file>        the learned rule replaces --spec-min-p / STRATA_SPEC_COST for MTP windows
 //            STRATA_DISCO_TRACE=<csv file>      log one line per drafted token of every plain MTP window (training data)
 // A missing or malformed weights file prints one warning and keeps the current rule (DraftPolicy / --spec-min-p).
 // Weights are fitted by tools/pancake/disco_fit.py, from these CSV traces or from window traces (STRATA_WINDOW_TRACE),
@@ -70,6 +72,11 @@ struct DiscoModel {
     bool parse(const std::string& text, std::string& err);
     /// P(accepted) for one feature vector.
     double score(const float* x) const;
+    /// STRATA_SPEC_CUM=s (MOD_PLAN F8, android-imdad's rule): keep a draft while the chance that every draft so far holds, the
+    /// product p_0 .. p_j of the MTP's probabilities (feature 2), is >= s.  A model on that one feature: sigmoid(chain) is
+    /// monotonic, so the threshold sigmoid(s) is the cut chain >= s.  Unlike the fork it has no separate --spec-min-p floor
+    /// (chain <= p, so s >= min_p implies it).
+    static DiscoModel cumulative(double s);
 };
 
 class DiscoPolicy {

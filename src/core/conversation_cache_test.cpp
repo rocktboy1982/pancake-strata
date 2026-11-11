@@ -720,6 +720,90 @@ int main() {
         check(tiny.put(std::move(p2)), "a pinned one fits an empty cache");
         check(!tiny.put(image({7,8,9})) && tiny.size() == 1, "nothing else fits beside it: parking is refused, the pin stays");
     }
+    {   // set_pin_evict_last (the caller's STRATA_AUTO_PIN=1, MOD_PLAN 71 / 90): a conversation holding a pinned shared prefix is
+        // evicted last, not never.  With the old rule every session that pins its own system prompt keeps a slot for good, and once
+        // the slots (or the budget) hold only pinned entries no new conversation is parked (percache_sim: -1.32% as coded)
+        auto pinned_img = [](std::vector<int32_t> ids, size_t pin_len, size_t extra = 0) {
+            SavedConversation s;
+            s.live.ids = ids;
+            s.live.gdn.resize(64 + extra, 7);
+            s.checkpoints.push_back(ConversationCheckpoint{});
+            s.checkpoints.back().ids.assign(ids.begin(), ids.begin() + (std::ptrdiff_t) pin_len);
+            s.checkpoints.back().pinned = true;
+            s.checkpoints.back().gdn.resize(64, 1);
+            return s;
+        };
+        auto has = [](const ConversationCache& c, std::vector<int32_t> ids) { return c.holds(ids, {}, true); };
+        ConversationCache never(1 << 20, 3), last(1 << 20, 3);
+        last.set_pin_evict_last(true);
+        check(!never.pin_evict_last() && last.pin_evict_last(), "pin evict-last: off by default");
+        for (int32_t s = 1; s <= 3; ++s) {
+            check(never.put(pinned_img({s, s, s, 9}, 3)) && last.put(pinned_img({s, s, s, 9}, 3)), "pin evict-last: three pinned sessions");
+        }
+        check(!never.put(pinned_img({4, 4, 4, 9}, 3)) && never.size() == 3 && never.evictions() == 0 && !has(never, {4, 4, 4, 9}),
+              "old rule: the slots hold only pinned entries, the fourth session is not parked");
+        check(last.put(pinned_img({4, 4, 4, 9}, 3)) && last.size() == 3 && last.evictions() == 1 && !has(last, {1, 1, 1, 9}) &&
+                  has(last, {2, 2, 2, 9}) && has(last, {4, 4, 4, 9}),
+              "evict-last: the oldest pinned session goes, the fourth is parked");
+        check(last.best(std::vector<int32_t>{2, 2, 2, 5}, {}, true).tokens == 3, "evict-last: the pins that stay are still found");
+
+        // the order: every unpinned entry first (oldest first), the pinned ones only after them
+        ConversationCache mix(1 << 20, 3);
+        mix.set_pin_evict_last(true);
+        check(mix.put(pinned_img({1, 1, 1, 9}, 3)) && mix.put(image({5, 5, 5})) && mix.put(pinned_img({2, 2, 2, 9}, 3)),
+              "evict-last: a pinned (the oldest), an unpinned and a pinned entry");
+        check(mix.put(image({6, 6, 6})) && has(mix, {1, 1, 1, 9}) && !has(mix, {5, 5, 5}), "evict-last: the unpinned one goes before the older pinned one");
+        check(mix.put(image({7, 7, 7})) && has(mix, {1, 1, 1, 9}) && !has(mix, {6, 6, 6}), "evict-last: and the next unpinned one again");
+
+        // bytes: the old test's tiny cache - a pinned entry alone fills it; the next conversation now takes its place
+        const size_t pin_bytes = pinned_img({1, 2, 3}, 2).bytes();
+        ConversationCache tiny_last(pin_bytes + 8, 2);
+        tiny_last.set_pin_evict_last(true);
+        check(tiny_last.put(pinned_img({1, 2, 3}, 2)) && tiny_last.put(image({7, 8, 9})) && tiny_last.size() == 1 &&
+                  has(tiny_last, {7, 8, 9}) && tiny_last.evictions() == 1,
+              "evict-last, bytes: the pinned entry goes when nothing else can make the room");
+
+        // evict_oldest alone (the physical-RAM gate, QUIT's hand-off to the disk tier): pinned ones go too, oldest first, then false
+        ConversationCache ram(1 << 20, 4);
+        ram.set_pin_evict_last(true);
+        check(ram.put(pinned_img({1, 1, 1, 9}, 3)) && ram.put(pinned_img({2, 2, 2, 9}, 3)), "evict-last: two pinned entries");
+        check(ram.evict_oldest() && !has(ram, {1, 1, 1, 9}) && ram.evict_oldest() && ram.size() == 0 && !ram.evict_oldest(),
+              "evict-last: evict_oldest takes the pinned ones oldest first, then has nothing left");
+
+        // the guarded (borrowed) donor still stays, pinned or not; its pre-check counts the pinned entries as movable now
+        ConversationCache gd(1 << 20, 2);
+        gd.set_pin_evict_last(true);
+        check(gd.put(pinned_img({1, 1, 1, 9}, 3)) && gd.put(pinned_img({2, 2, 2, 9}, 3)), "evict-last: two pinned entries, two slots");
+        gd.guard(gd.best(std::vector<int32_t>{2, 2, 2, 9, 5}, {}, true).serial);
+        check(gd.put(image({3, 3, 3})) && !gd.guard_blocked() && has(gd, {2, 2, 2, 9}) && !has(gd, {1, 1, 1, 9}),
+              "evict-last + guard: the other pinned entry goes, the guarded donor stays");
+        gd.unguard();
+        ConversationCache gd_old(1 << 20, 2);   // (the old rule: both stay, so the image is refused before anything goes)
+        check(gd_old.put(pinned_img({1, 1, 1, 9}, 3)) && gd_old.put(pinned_img({2, 2, 2, 9}, 3)), "old rule: two pinned entries");
+        gd_old.guard(gd_old.best(std::vector<int32_t>{2, 2, 2, 9, 5}, {}, true).serial);
+        check(!gd_old.put(image({3, 3, 3})) && gd_old.guard_blocked() && gd_old.size() == 2, "old rule + guard: refused, nothing evicted");
+        gd_old.unguard();
+
+        // a truncation still never shrinks a pinned entry
+        ConversationCache tr(1 << 20, 4, 0, 0, true);
+        tr.set_pin_evict_last(true);
+        auto deep = pinned_img({1, 2, 3, 4, 5, 6, 7, 8}, 2);
+        deep.checkpoints.push_back(ConversationCheckpoint{});
+        deep.checkpoints.back().ids = {1, 2, 3, 4, 5, 6};
+        deep.checkpoints.back().gdn.resize(64, 2);
+        check(tr.put(std::move(deep)) && tr.truncate_oldest(1) == 0 && tr.truncations() == 0, "evict-last: a pinned entry is still never truncated");
+
+        // with the park TTL on as well: the ranks pick among the unpinned entries; the pinned ones after them
+        int64_t now = 0;
+        ConversationCache ttl_pin(1 << 20, 2);
+        ConversationCache::ParkTtl ttl;
+        ttl.ttl_ms = 1000; ttl.hold_ms = 500;
+        ttl_pin.set_park_ttl(ttl, {}, [&] { return now; });
+        ttl_pin.set_pin_evict_last(true);
+        check(ttl_pin.put(pinned_img({1, 1, 1, 9}, 3)) && ttl_pin.put(pinned_img({2, 2, 2, 9}, 3)) &&
+                  ttl_pin.put(image({3, 3, 3})) && ttl_pin.size() == 2 && !has(ttl_pin, {1, 1, 1, 9}) && ttl_pin.ttl_evictions() == 0,
+              "evict-last + ttl: only pinned entries left, the oldest goes");
+    }
     {
         // #4420: a batch slot's chain holds one checkpoint (its admission's): parking it must not drop (#342) the main session's copy of the
         // same conversation that also holds the root a sibling borrows from (an agent's system prompt and tools) - supersedes_richer()
@@ -931,6 +1015,169 @@ int main() {
               "hold: main (tool-pending), an unrelated one and a branch");
         check(has(hm, {1, 2, 3, 4, 5, 6, 7, 8, 9, 99}) && !has(hm, other) && has(hm, sub_a),
               "hold: the tool-pending conversation outranks a plain one");
+
+        // two tool-pending entries held at once (a main agent waiting for its sub-agents' Task tool, a sub-agent waiting for its own
+        // tool): the shortest goes first, not the oldest - the main agent's re-read is the long one (found by park_replay_sim)
+        now = 0;
+        const std::vector<int32_t> main_tool{1, 2, 3, 4, 5, 6, 7, 8, 9, 99};
+        const std::vector<int32_t> sub_tool2{1, 2, 3, 4, 40, 99};
+        ConversationCache pair(1 << 20, 2);
+        pair.set_park_ttl(ttl, tool, [&] { return now; });
+        check(pair.put(img(main_tool)) && pair.put(img(sub_tool2)) && pair.size() == 2, "hold pair: both tool-pending, the main agent older");
+        now = 10;
+        check(pair.put(img(other)) && has(pair, main_tool) && !has(pair, sub_tool2) && has(pair, other),
+              "hold pair: the shortest tool-pending entry goes, the older main agent stays");
+        ConversationCache pair_off(1 << 20, 2);   // (the rule off: oldest-first, the main agent goes)
+        check(pair_off.put(img(main_tool)) && pair_off.put(img(sub_tool2)) && pair_off.put(img(other)) && !has(pair_off, main_tool),
+              "hold pair: with the rule off the older main agent goes (the old order)");
+
+        // short of BYTES (not slots) with every entry held: the shortest entry that frees the shortfall by itself goes, not the short
+        // ones one by one and then the long one too.  The review's case: a 60K-byte main agent parked first, three held 10K-byte
+        // sub-agents, 8 slots, a 100K budget, a new 60K image (shortfall ~50K): the rule off evicts 1 (the main agent, the oldest);
+        // shortest-first evicted 4 (every sub-agent, then the main agent anyway)
+        {
+            auto held_img = [&](std::vector<int32_t> ids, size_t bytes) {
+                SavedConversation s = img(std::move(ids));
+                s.live.gdn.resize(bytes, 7);
+                return s;
+            };
+            const std::vector<int32_t> mt{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 99};
+            const std::vector<int32_t> s1{1, 2, 3, 4, 21, 99}, s2{1, 2, 3, 4, 22, 99}, s3{1, 2, 3, 4, 23, 99};
+            auto fill = [&](ConversationCache& c) {
+                return c.put(held_img(mt, 60000)) && c.put(held_img(s1, 10000)) && c.put(held_img(s2, 10000)) &&
+                       c.put(held_img(s3, 10000)) && c.size() == 4 && c.evictions() == 0;
+            };
+            now = 0;
+            ConversationCache rev_off(100000, 8), rev_on(100000, 8);
+            rev_on.set_park_ttl(ttl, tool, [&] { return now; });
+            check(fill(rev_off) && fill(rev_on), "bytes: a 60K main agent and three 10K sub-agents, all held");
+            now = 10;
+            check(rev_off.put(held_img(other, 60000)) && rev_off.evictions() == 1 && !has(rev_off, mt),
+                  "bytes, rule off: one eviction (the oldest, the main agent)");
+            check(rev_on.put(held_img(other, 60000)) && rev_on.evictions() == 1 && !has(rev_on, mt) && has(rev_on, s1) &&
+                      has(rev_on, s2) && has(rev_on, s3) && has(rev_on, other),
+                  "bytes, rule on: one eviction too - the main agent alone covers the shortfall, the sub-agents stay");
+            // no single entry covers it (a new 85K image: ~75K short): shortest first until one does, then that one
+            now = 0;
+            ConversationCache big_off(100000, 8), big_on(100000, 8);
+            big_on.set_park_ttl(ttl, tool, [&] { return now; });
+            check(fill(big_off) && fill(big_on), "bytes, larger image: the same four held entries");
+            now = 10;
+            check(big_off.put(held_img(other, 85000)) && big_off.evictions() == 3, "bytes, larger image, rule off: three evictions");
+            check(big_on.put(held_img(other, 85000)) && big_on.evictions() == 3 && !has(big_on, mt) && !has(big_on, s1) &&
+                      !has(big_on, s2) && has(big_on, s3),
+                  "bytes, larger image, rule on: two short ones, then the main agent once it covers what is left; three as well");
+            // only a slot short: shortest first, as before (the main agent stays)
+            now = 0;
+            ConversationCache slot_on(1 << 20, 4);
+            slot_on.set_park_ttl(ttl, tool, [&] { return now; });
+            check(fill(slot_on), "slots: four held entries in four slots");
+            now = 10;
+            check(slot_on.put(held_img(other, 100)) && slot_on.evictions() == 1 && has(slot_on, mt) && !has(slot_on, s1),
+                  "slots only: the shortest held entry goes (the oldest of the equal ones), the main agent stays");
+        }
+
+        // property: random sequences of held entries (rank 3: each ends in a tool call and is parked well inside the hold).  Before
+        // every put the same cache with the rule off (oldest-first) gets the same image: whenever one parked entry covers the byte
+        // shortfall, the rule evicts exactly one entry and never more than the rule off; with no byte shortfall both evict the same
+        // number (the one a full set of slots needs, or none).  Both always make the room (nothing is pinned) within the budget.
+        {
+            uint64_t rng = 0x9e3779b97f4a7c15ull;
+            auto rnd = [&](uint64_t n) {   // splitmix64, [0, n)
+                rng += 0x9e3779b97f4a7c15ull;
+                uint64_t z = rng;
+                z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+                z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+                return (z ^ (z >> 31)) % n;
+            };
+            int covered = 0, uncovered = 0, slot_only = 0;
+            for (int trial = 0; trial < 1000; ++trial) {
+                const size_t budget = 20000 + rnd(200000), slots = 2 + rnd(9), n = 2 + rnd(2 * slots);
+                now = 0;
+                ConversationCache on_c(budget, slots);
+                on_c.set_park_ttl(ttl, tool, [&] { return now; });
+                std::vector<std::pair<std::vector<int32_t>, size_t>> put_so_far;   // every image put, and its bytes
+                for (size_t k = 0; k < n; ++k) {
+                    std::vector<int32_t> ids{1, 2, 3, 4};
+                    const size_t len = 1 + rnd(40);
+                    for (size_t t = 0; t < len; ++t) ids.push_back(1000 * (int32_t) trial + 50 * (int32_t) k + (int32_t) t + 5);
+                    ids.push_back(99);
+                    SavedConversation s;   // exact capacities: a copy of the cache (the rule-off twin) sees the same bytes()
+                    s.live.ids = ids;
+                    s.live.gdn.assign(64 + rnd(budget), 7);
+                    const size_t in_bytes = s.bytes();
+                    if (in_bytes > budget) continue;
+                    const size_t limit = budget - in_bytes;
+                    const size_t shortfall = on_c.bytes() > limit ? on_c.bytes() - limit : 0;
+                    bool one_covers = false;   // an entry still parked that frees the shortfall by itself
+                    for (const auto& [p_ids, p_bytes] : put_so_far)
+                        if (shortfall > 0 && p_bytes >= shortfall && on_c.holds(p_ids, {}, true)) one_covers = true;
+                    ConversationCache off_c = on_c;   // the same state, the rule off
+                    off_c.set_park_ttl(ConversationCache::ParkTtl{});
+                    const size_t e_on = on_c.evictions(), e_off = off_c.evictions();
+                    SavedConversation s_copy = s;
+                    check(on_c.put(std::move(s)) && off_c.put(std::move(s_copy)), "property: both park the image (nothing pinned)");
+                    check(on_c.bytes() <= budget && off_c.bytes() <= budget && on_c.size() <= slots, "property: both stay within the budget");
+                    const size_t d_on = on_c.evictions() - e_on, d_off = off_c.evictions() - e_off;
+                    if (shortfall > 0 && one_covers) {
+                        ++covered;
+                        check(d_on == 1 && d_on <= d_off, "property: one entry covers the shortfall: exactly one eviction, never more than oldest-first");
+                    } else if (shortfall == 0) {
+                        ++slot_only;
+                        check(d_on == d_off && d_on <= 1, "property: no byte shortfall: the same evictions as the rule off (one for a full set of slots, or none)");
+                    } else {
+                        ++uncovered;
+                    }
+                    put_so_far.emplace_back(ids, in_bytes);
+                    now += 1 + (int64_t) rnd(5);   // well inside the 500 ms hold
+                }
+            }
+            check(covered > 300 && slot_only > 100 && uncovered > 100, "property: the random states reach every case");
+        }
+
+        // STRATA_PARK_TRUNCATE follows the same ranking: the shrink goes to the entry the TTL rule would evict (the idle-to-be
+        // branch), not to the oldest (the main agent), which keeps its whole state
+        {
+            auto ck_img = [](std::vector<int32_t> ids, std::vector<int64_t> depths) {
+                SavedConversation e;
+                e.live.ids = ids;
+                e.live.gdn.resize(1000, 40);
+                ConversationKv kv;
+                kv.cells = (int64_t) ids.size(); kv.page_size = 8;
+                kv.k.resize(ids.size() * 16, 3); kv.v.resize(ids.size() * 16, 4);
+                e.kv.push_back(std::move(kv));
+                for (int64_t d : depths) {
+                    ConversationCheckpoint c;
+                    c.ids.assign(ids.begin(), ids.begin() + d);
+                    c.gdn.resize(1000, (uint8_t) d);
+                    e.checkpoints.push_back(std::move(c));
+                }
+                return e;
+            };
+            std::vector<int32_t> mn(40), br(24);
+            for (size_t i = 0; i < mn.size(); ++i) mn[i] = i < 4 ? (int32_t) i + 1 : 100 + (int32_t) i;
+            for (size_t i = 0; i < br.size(); ++i) br[i] = i < 4 ? (int32_t) i + 1 : 200 + (int32_t) i;
+            now = 0;
+            ConversationCache tt(1 << 20, 4, 4, 0, true);
+            tt.set_park_ttl(ttl, tool, [&] { return now; });
+            check(tt.put(ck_img(mn, {32, 16})) && tt.put(ck_img(br, {16, 8})), "truncate + ttl: a main agent and a branch parked");
+            check(tt.truncate_oldest(1) > 0 && tt.truncations() == 1, "truncate + ttl: a shrink happened");
+            auto n_of = [&](const std::vector<int32_t>& ids) {
+                std::vector<int32_t> p = ids;
+                p.push_back(-5);
+                return tt.best(p, {}, true).tokens;
+            };
+            check(n_of(mn) == 40 && n_of(br) == 16, "truncate + ttl: the branch shrank to its 16-token checkpoint, the main agent stayed whole");
+            ConversationCache plain_t(1 << 20, 4, 4, 0, true);   // the rule off: the oldest (the main agent) shrinks
+            check(plain_t.put(ck_img(mn, {32, 16})) && plain_t.put(ck_img(br, {16, 8})) && plain_t.truncate_oldest(1) > 0,
+                  "truncate, rule off: a shrink happened");
+            auto n_plain = [&](const std::vector<int32_t>& ids) {
+                std::vector<int32_t> p = ids;
+                p.push_back(-5);
+                return plain_t.best(p, {}, true).tokens;
+            };
+            check(n_plain(mn) == 32 && n_plain(br) == 24, "truncate, rule off: the older main agent shrank to 32 tokens, the branch stayed");
+        }
 
         // exactness: a pinned shared prefix and the guarded donor are never taken; the disk tier gets the evicted branch;
         // the entries that stay are byte-for-byte what was parked

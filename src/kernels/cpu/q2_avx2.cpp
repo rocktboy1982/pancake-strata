@@ -249,7 +249,8 @@ const bool kQ2Fast = [] {
     const char* f = std::getenv("STRATA_Q2_FAST");
     const char* l = std::getenv("STRATA_Q2_LEGACY");
     if (f == nullptr || f[0] != '1' || (l != nullptr && l[0] == '1')) return false;
-    if (!cpu_avx2_ok()) return false;   // the probe below runs AVX2 code, from this static initializer
+    // the probe runs AVX2/FMA code from this static initializer: never on a CPU without them (reviewer finding 1)
+    if (!cpu_avx2_ok()) return false;
     if (q2_fast_corr_form(STRATA_AVXVNNI && cpu_avxvnni_ok()) >= 0) return true;
     std::fprintf(stderr, "strata: STRATA_Q2_FAST=1 ignored: the fast Q2_0 kernel does not match this build's legacy one\n");
     return false;

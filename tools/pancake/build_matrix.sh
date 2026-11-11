@@ -91,7 +91,10 @@ for row in "${ROWS[@]}"; do
       opts=(-DSTRATA_ENABLE_CUDA=ON -DSTRATA_ENABLE_HIP=OFF -DCMAKE_CUDA_ARCHITECTURES=86-real -DSTRATA_NATIVE_EXPERTS=ON) ;;
   esac
   start=$(date +%s)
-  if ! env "${env[@]}" cmake -S "$SRC" -B "$dir" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release "${LAUNCH[@]}" "${opts[@]}" >"$log" 2>&1; then
+  # MATRIX_CMAKE_ARGS: extra cmake arguments for every row, e.g. -DFETCHCONTENT_SOURCE_DIR_STRATA_LLAMACPP=<dir of the pinned
+  # llama.cpp> when a fresh clone of it fails (2026-11-11: "unable to read tree" under the ntfs3 mount) or there is no network
+  # shellcheck disable=SC2086
+  if ! env "${env[@]}" cmake -S "$SRC" -B "$dir" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release "${LAUNCH[@]}" "${opts[@]}" ${MATRIX_CMAKE_ARGS:-} >"$log" 2>&1; then
     summary+=("$row: CONFIGURE FAILED ($log)"); fail=1; continue
   fi
   if [ $CONFIGURE_ONLY -eq 0 ]; then
