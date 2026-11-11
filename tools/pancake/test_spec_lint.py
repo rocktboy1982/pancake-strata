@@ -152,7 +152,9 @@ def test_arms_that_change_nothing():
 def test_base_config_problems():
     assert has(lint(good(base="configs/pancake/nope.json")), S.ERROR, "config configs/pancake/nope.json not found")
     items = lint(good(base="pancake-flashnext-iq2_xs-fast-hip.json"))             # generated, not here: a note only
-    assert not errors(items) and has(items, S.INFO, "is generated and not in this checkout")
+    assert not errors(items)
+    if not (S.ROOT / "pancake-flashnext-iq2_xs-fast-hip.json").exists():          # present after gen_bases.sh / a test run
+        assert has(items, S.INFO, "is generated and not in this checkout")
 
 
 def test_env_missing_from_the_base_only_fails_when_an_arm_sets_env():
