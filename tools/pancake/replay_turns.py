@@ -40,7 +40,8 @@ structure come from the log):
   - --shared-system N (opt-in; default each conversation its own system text, as above): every conversation, the
     agent's and the side requests, starts with the same ~N-token system prompt, so the parked conversations share a
     prefix the way a main agent and its sub-agents do (MOD_PLAN A15's park TTL classifies a short entry that shares
-    its prefix with a longer one as a sub-agent branch).  The sizes still match the recorded prompts.
+    its prefix with a longer one as a sub-agent branch).  The sizes still match the recorded prompts: a prompt too short to
+    carry all N tokens (a 70-token side request) carries the leading part that fits (Conversations.shared_for), or none.
 
 Per request: prompt tokens, tokens reused (the engine's "prompt N tokens = R reused + ..." line), prompt-read time,
 time to first token (client, streamed), decode tok/s, wall time, and the engine's conversation-cache lines in that
@@ -71,6 +72,8 @@ import abtest  # noqa: E402
 
 ROOT = abtest.ROOT
 SHARED_SYSTEM = 0          # --shared-system N: every conversation starts with the same ~N-token system prompt (0: off)
+SHARED_ROOM = 64           # tokens a conversation keeps for its own text beside the shared system prompt (template + one message)
+SHARED_MIN = 16            # a prompt with room for fewer shared tokens than this gets none
 COLD_MIN = 8192            # a cold re-read: a non-first agent turn above this many tokens ...
 COLD_REUSE = 0.5           # ... with less than this share of its prompt reused
 PLACEHOLDER = "(continued)"   # an assistant reply cut inside its thinking has no content; an empty one is dropped by
@@ -340,8 +343,24 @@ class Conversations:
         self.offset = {True: 0, False: 0}      # the server's count minus the local one (should stay 0)
         self.offset_seen = set()
         self.shared = None                     # --shared-system: the one system text every conversation starts with
+        self.shared_cut = {}                   # its leading parts, for the prompts too short to carry all of it
         if SHARED_SYSTEM > 0:
             self.shared, _ = corpus.take(corpus.start("shared-system"), SHARED_SYSTEM, self.C.block)
+
+    def shared_for(self, target):
+        """The shared system text for a conversation whose first prompt is `target` tokens: all of it, or, for a prompt too short to
+        carry it (the 55-90-token side requests of the 11-09 trace against a 1024-token system prompt), its leading part, so the built
+        size stays the recorded one and the prefix is shared as far as it goes.  None: no room for even SHARED_MIN tokens of it."""
+        if self.shared is None:
+            return None
+        n = min(SHARED_SYSTEM, target - SHARED_ROOM)
+        if n >= SHARED_SYSTEM:
+            return self.shared
+        if n < SHARED_MIN:
+            return None
+        if n not in self.shared_cut:
+            self.shared_cut[n], _ = self.corpus.take(self.corpus.start("shared-system"), n, self.C.block)
+        return self.shared_cut[n]
 
     def fit(self, prefix, wrap, target, thinking, key):
         goal = target - self.offset[thinking]
@@ -371,7 +390,8 @@ class Conversations:
             if k in self.msgs:
                 msgs = self.msgs[k]
                 return msgs, self.C.prompt(msgs, think) + self.offset[think]
-            lead = [{"role": "system", "content": self.shared}] if self.shared else []
+            sys_text = self.shared_for(target)
+            lead = [{"role": "system", "content": sys_text}] if sys_text else []
             msgs, n = self.fit(lead, lambda t: {"role": "user", "content": f"{k}: {t}"}, target, think, k)
             self.msgs[k] = msgs
             return msgs, n
