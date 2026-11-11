@@ -3109,6 +3109,11 @@ if(STRATA_BUILD_TESTS)
     add_test(NAME q2_fast_parity_test COMMAND q2_fast_parity_test)
     set_tests_properties(q2_fast_parity_test PROPERTIES SKIP_RETURN_CODE 77)   # no AVX2: skipped
   endif()
+  # MOD_PLAN F12: STRATA_IQ_SIGN_FAST's sign step (iq_signs.hpp) vs llama.cpp's __vcmpne4/__vsub4 form, CUDA semantics
+  # and the HIP emulation, every codebook word x every one-bit-per-byte sign word (host only, no GPU)
+  add_executable(iq_sign_fast_test tests/core/iq_sign_fast_test.cpp)
+  target_include_directories(iq_sign_fast_test PRIVATE include third_party/ggml)
+  add_test(NAME iq_sign_fast_test COMMAND iq_sign_fast_test)
 
   if(STRATA_NATIVE_EXPERTS)
     # APR port: a Hadamard-folded trellis expert (TQ2_T / TQK6 / TQK7) on the CPU path vs llama.cpp's graph for the
@@ -3518,7 +3523,8 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2 tqp_cpu_test tqp_cpu_test_avx2
+    q2_bitplane_parity q2_fast_parity_test iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
+    tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
     poly_mxfp4_test

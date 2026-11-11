@@ -12,7 +12,10 @@
 //              g++ /tmp/q2b_main.o /tmp/q2b_k.o -o /tmp/q2_rows_bench
 //            (no expert_layout.cpp needed: the probe checks AVX2 itself).  With -DSTRATA_AVXVNNI=1 on BOTH the main and
 //            the kernel file, on a CPU with AVX-VNNI, the kernels use vpdpbusd; the CMake target does this as the engine does.
-// RUN        /tmp/q2_rows_bench [--seconds 0.3] [--reps 5] [--nt 1] [--chunk 64]      (about 20 s; pin it: taskset -c 3 ...)
+// RUN        /tmp/q2_rows_bench [--seconds 0.3] [--reps 5] [--nt 1] [--chunk 64] [--threads N] [--bw 33]
+//            (about 20 s; pin it: taskset -c 3 ...).  --threads N (A48) adds the DRAM rows on N threads, the pool's
+//            shape: each thread a contiguous slice, `chunk` rows per call; pin N cores (taskset -c 0-7 for the 5700G's 8).
+//            --bw is the DDR4 read bandwidth the floor is computed from (default 33 GB/s, the 5700G's measured figure).
 //            CPU benchmarks disturb the GPU decode benchmarks on the same box: run it when nothing else is measuring.
 // READ       per shape and working set: ns per row and Mrows/s for legacy, fast, the dispatcher (what the engine calls:
 //            fast only with STRATA_Q2_FAST=1, STRATA_Q2_LEGACY=1 forces legacy) and a plain read of the same bytes
@@ -20,6 +23,9 @@
 //            worth keeping on if it is clearly faster in the L2 rows and the DRAM rows are near the read floor in both
 //            (then CPU expert time is bandwidth-bound and the kernel choice cannot help); "bitwise equal: yes" must hold.
 //            Rows/s here x the engine's rows per token gives the single-thread CPU time that the pool divides by its threads.
+//            "floor" = row bytes / --bw: no kernel can stream a row from DRAM faster; "x floor" is how many times slower
+//            an arm is.  bw / (one thread's GB/s) = the threads a kernel needs to reach the floor; past that count the
+//            kernel choice cannot change the pool's time (the N-thread lines show where N threads land).
 #include "strata/kernels/cpu/expert.hpp"
 
 #include <algorithm>
@@ -30,6 +36,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <thread>
 #include <vector>
 
 namespace c = strata::kernels::cpu;
@@ -104,16 +111,19 @@ struct Arm {
 }  // namespace
 
 int main(int argc, char** argv) {
-    double seconds = 0.3;
-    int reps = 5, nt = 1, chunk = 64;
+    double seconds = 0.3, bw = 33.0;
+    int reps = 5, nt = 1, chunk = 64, threads = 1;
     for (int i = 1; i < argc; ++i) {
         auto arg = [&](const char* k) { return !std::strcmp(argv[i], k) && i + 1 < argc; };
         if (arg("--seconds")) seconds = std::atof(argv[++i]);
         else if (arg("--reps")) reps = std::atoi(argv[++i]);
         else if (arg("--nt")) nt = std::max(1, std::min(4, std::atoi(argv[++i])));
         else if (arg("--chunk")) chunk = std::max(1, std::atoi(argv[++i]));
+        else if (arg("--threads")) threads = std::max(1, std::min(64, std::atoi(argv[++i])));
+        else if (arg("--bw")) bw = std::max(1.0, std::atof(argv[++i]));
         else {
-            std::fprintf(stderr, "usage: %s [--seconds S] [--reps N] [--nt 1..4] [--chunk ROWS]\n", argv[0]);
+            std::fprintf(stderr, "usage: %s [--seconds S] [--reps N] [--nt 1..4] [--chunk ROWS] [--threads N] [--bw GB/s]\n",
+                         argv[0]);
             return 2;
         }
     }
@@ -160,13 +170,46 @@ int main(int argc, char** argv) {
             for (int t = 0; t < nt; ++t) ap.push_back(sh.act->at(t).get());
             std::vector<std::vector<float>> out_a(nt, std::vector<float>(rows)), out_b(nt, std::vector<float>(rows)),
                 out_c(nt, std::vector<float>(rows));
-            auto run = [&](RowsFn fn, std::vector<std::vector<float>>& out) {
+            auto run_rows = [&](RowsFn fn, std::vector<std::vector<float>>& out, size_t a0, size_t a1) {
                 std::vector<float*> op(nt);
                 for (int t = 0; t < nt; ++t) op[t] = out[t].data();
-                for (size_t r0 = 0; r0 < rows; r0 += chunk) {
-                    const int r1 = (int) std::min(rows, r0 + (size_t) chunk);
+                for (size_t r0 = a0; r0 < a1; r0 += chunk) {
+                    const int r1 = (int) std::min(a1, r0 + (size_t) chunk);
                     fn(w.data(), row_bytes, sh.nblocks, ap.data(), nt, op.data(), (int) r0, r1);
                 }
+            };
+            auto run = [&](RowsFn fn, std::vector<std::vector<float>>& out) { run_rows(fn, out, 0, rows); };
+            // one pass over all rows on `nth` threads, each a contiguous slice (disjoint outputs); fn null = the plain read
+            auto pass = [&](RowsFn fn, int nth) {
+                if (nth == 1) {
+                    if (fn) run(fn, out_a);
+                    else g_sink += read_rows(w.data(), rows * row_bytes);
+                    return;
+                }
+                std::vector<std::thread> th;
+                for (int k = 0; k < nth; ++k)
+                    th.emplace_back([&, k] {
+                        const size_t a0 = rows * k / nth, a1 = rows * (k + 1) / nth;
+                        if (fn) run_rows(fn, out_a, a0, a1);
+                        else g_sink += read_rows(w.data() + a0 * row_bytes, (a1 - a0) * row_bytes);
+                    });
+                for (auto& t : th) t.join();
+            };
+            // ns per row: repeat the pass until `seconds` is spent; the best of `reps` timed blocks
+            auto best_ns = [&](RowsFn fn, int nth) {
+                double best = 1e30;
+                for (int rep = 0; rep < reps; ++rep) {
+                    long long passes = 0;
+                    const auto t0 = Clock::now();
+                    double el = 0;
+                    do {
+                        pass(fn, nth);
+                        ++passes;
+                        el = std::chrono::duration<double, std::nano>(Clock::now() - t0).count();
+                    } while (el < seconds * 1e9 / reps);
+                    best = std::min(best, el / ((double) passes * rows));
+                }
+                return best;
             };
             Arm arms[] = {{"legacy", c::q2_0_gguf_rows_multi_avx2_legacy},
                           {"fast", c::q2_0_gguf_rows_multi_avx2_fast},
@@ -180,27 +223,24 @@ int main(int argc, char** argv) {
             all_equal &= equal;
             std::printf("\n%s, %s: %zu rows, fast vs legacy bitwise equal: %s\n", sh.name, ws.name, rows, equal ? "yes" : "NO");
             (void) n;
-            for (auto& arm : arms) {
-                // repeat the pass until `seconds` is spent; the best of `reps` timed blocks
-                for (int rep = 0; rep < reps; ++rep) {
-                    long long passes = 0;
-                    const auto t0 = Clock::now();
-                    double el = 0;
-                    do {
-                        if (arm.fn) run(arm.fn, out_a);
-                        else g_sink += read_rows(w.data(), rows * row_bytes);
-                        ++passes;
-                        el = std::chrono::duration<double, std::nano>(Clock::now() - t0).count();
-                    } while (el < seconds * 1e9 / reps);
-                    arm.best_ns = std::min(arm.best_ns, el / ((double) passes * rows));
+            const double floor_ns = row_bytes / bw;
+            auto report = [&](Arm* as, int na, int nth) {
+                for (int k = 0; k < na; ++k) as[k].best_ns = best_ns(as[k].fn, nth);
+                for (int k = 0; k < na; ++k) {
+                    char vs[48] = "";
+                    if (as[k].fn && k > 0) std::snprintf(vs, sizeof vs, "   x%.2f vs legacy", as[0].best_ns / as[k].best_ns);
+                    std::printf("  %-10s %7.2f ns/row  %7.2f Mrows/s  %6.2f GB/s of weights  %5.2f x floor%s\n", as[k].name,
+                                as[k].best_ns, 1e3 / as[k].best_ns, row_bytes / as[k].best_ns, as[k].best_ns / floor_ns, vs);
                 }
-            }
-            const double leg = arms[0].best_ns;
-            for (auto& arm : arms) {
-                char vs[48] = "";
-                if (arm.fn && arm.fn != arms[0].fn) std::snprintf(vs, sizeof vs, "   x%.2f vs legacy", leg / arm.best_ns);
-                std::printf("  %-10s %7.2f ns/row  %7.2f Mrows/s  %6.2f GB/s of weights%s\n", arm.name, arm.best_ns,
-                            1e3 / arm.best_ns, row_bytes / arm.best_ns, vs);
+            };
+            std::printf("  floor      %7.2f ns/row at %.1f GB/s (row bytes / DDR4 bandwidth)\n", floor_ns, bw);
+            report(arms, 4, 1);
+            if (threads > 1 && ws.bytes > (64u << 20)) {   // the pool's shape: DRAM rows only
+                std::printf("  -- %d threads, %d rows per call:\n", threads, chunk);
+                Arm mt[] = {{"legacy", c::q2_0_gguf_rows_multi_avx2_legacy},
+                            {"fast", c::q2_0_gguf_rows_multi_avx2_fast},
+                            {"read only", nullptr}};
+                report(mt, 3, threads);
             }
         }
     }

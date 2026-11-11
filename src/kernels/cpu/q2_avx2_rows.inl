@@ -63,13 +63,15 @@ void rows(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a,
 //     -ffp-contract cannot fuse it (contraction fuses a multiply into an ADD, not into another multiply);
 //   * the two FMAs per block per token run in block order on the same accumulator (explicit _mm256_fmadd_ps in
 //     both, so -mfma changes nothing);
-//   * `corr += d * (hx0 + hx1)` is the same source expression on the same types in both kernels and in the same
-//     file / flags (-mavx2 -mfma, GCC's default -ffp-contract=fast): it is contracted to one FMA in both or in neither;
+//   * `corr += d * (hx0 + hx1)`: row_multi's form depends on the compiler and flags (one FMA under GCC's default
+//     -ffp-contract=fast at -O2+, a rounded product plus an add under -ffp-contract=off / STRATA_HOST_NATIVE, MSVC
+//     /fp:precise or GCC -O0/-O1), so the fast kernel spells both forms explicitly (FC) and q2_avx2.cpp takes the one
+//     row_multi gives on a probe row where they differ (q2_fast_corr_form);
 //   * the reduction tree is row_multi's, then minus corr.
 // What changes: the unpack (8 ops), d broadcast once per block for all tokens, and R rows of a short matrix worked
 // on together (4 for one token, 2 for two) so their FMA chains overlap.  A row's own operation sequence does not
 // depend on R or on how the pool cut the rows, so out[t][r] is the same whatever the task split.
-template <int NT, int R> STRATA_ROWS_FN
+template <int NT, int R, bool FC> STRATA_ROWS_FN
 inline void rows_fast_group(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, float* const* out,
                             int r, int pf) {
     if (pf > 0)   // item 40 (STRATA_Q2_PREFETCH), per row of the group as in rows(); a hint, no effect on the sums
@@ -96,10 +98,11 @@ inline void rows_fast_group(const uint8_t* w, size_t row_bytes, int nblocks, con
                                             _mm256_cvtepi32_ps(s0), acc[k][t]);
                 acc[k][t] = _mm256_fmadd_ps(_mm256_mul_ps(dv, _mm256_broadcast_ss(&a[t]->scale[2 * b + 1])),
                                             _mm256_cvtepi32_ps(s1), acc[k][t]);
-                // explicit fma: under GCC's default -ffp-contract=fast row_multi's `corr += d * (...)` is contracted to an
-                // fma, but the grouped loop here was not (q2_fast_parity_test: 2240 of 584676 outputs differed at nb 10,
-                // nt 1). A build with -ffp-contract=off (STRATA_HOST_NATIVE) must re-run the parity test.
-                corr[k][t] = std::fma(d, a[t]->hx[2 * b] + a[t]->hx[2 * b + 1], corr[k][t]);
+                // explicit forms, never left to contraction: the grouped loop here is not contracted like row_multi's
+                // (q2_fast_parity_test: 2240 of 584676 outputs differed at nb 10, nt 1 with the plain expression)
+                const float hs = a[t]->hx[2 * b] + a[t]->hx[2 * b + 1];
+                if constexpr (FC) corr[k][t] = std::fma(d, hs, corr[k][t]);
+                else corr[k][t] += rounded(d * hs);
             }
         }
     }
@@ -111,33 +114,34 @@ inline void rows_fast_group(const uint8_t* w, size_t row_bytes, int nblocks, con
         }
 }
 
-template <int NT, int R> STRATA_ROWS_FN
+template <int NT, int R, bool FC> STRATA_ROWS_FN
 void rows_fast(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, float* const* out, int r0, int r1) {
     const int pf = q2_prefetch_bytes();
     int r = r0;
-    for (; r + R <= r1; r += R) rows_fast_group<NT, R>(w, row_bytes, nblocks, a, out, r, pf);
-    for (; r < r1; ++r) rows_fast_group<NT, 1>(w, row_bytes, nblocks, a, out, r, pf);
+    for (; r + R <= r1; r += R) rows_fast_group<NT, R, FC>(w, row_bytes, nblocks, a, out, r, pf);
+    for (; r < r1; ++r) rows_fast_group<NT, 1, FC>(w, row_bytes, nblocks, a, out, r, pf);
 }
 
-STRATA_ROWS_FN void rows_fast_nt(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
-                                 float* const* out, int r0, int r1) {
+template <bool FC> STRATA_ROWS_FN
+void rows_fast_nt(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt, float* const* out,
+                  int r0, int r1) {
     // short rows (a down projection: 10 blocks) in groups; long ones (gate/up: 40 blocks) one at a time, where
     // interleaved rows break the hardware prefetcher's single stream (imanu86 measured 0.89x from RAM)
     switch (nt) {
         case 1:
-            if (nblocks <= 16) rows_fast<1, 4>(w, row_bytes, nblocks, a, out, r0, r1);
-            else rows_fast<1, 1>(w, row_bytes, nblocks, a, out, r0, r1);
+            if (nblocks <= 16) rows_fast<1, 4, FC>(w, row_bytes, nblocks, a, out, r0, r1);
+            else rows_fast<1, 1, FC>(w, row_bytes, nblocks, a, out, r0, r1);
             break;
         case 2:
-            if (nblocks <= 16) rows_fast<2, 2>(w, row_bytes, nblocks, a, out, r0, r1);
-            else rows_fast<2, 1>(w, row_bytes, nblocks, a, out, r0, r1);
+            if (nblocks <= 16) rows_fast<2, 2, FC>(w, row_bytes, nblocks, a, out, r0, r1);
+            else rows_fast<2, 1, FC>(w, row_bytes, nblocks, a, out, r0, r1);
             break;
-        case 3: rows_fast<3, 1>(w, row_bytes, nblocks, a, out, r0, r1); break;
-        case 4: rows_fast<4, 1>(w, row_bytes, nblocks, a, out, r0, r1); break;
+        case 3: rows_fast<3, 1, FC>(w, row_bytes, nblocks, a, out, r0, r1); break;
+        case 4: rows_fast<4, 1, FC>(w, row_bytes, nblocks, a, out, r0, r1); break;
         default:
             for (int t0 = 0; t0 < nt; t0 += 4) {
                 const int k = nt - t0 < 4 ? nt - t0 : 4;
-                rows_fast_nt(w, row_bytes, nblocks, a + t0, k, out + t0, r0, r1);
+                rows_fast_nt<FC>(w, row_bytes, nblocks, a + t0, k, out + t0, r0, r1);
             }
     }
 }

@@ -197,6 +197,11 @@ void q2_0_gguf_rows_multi_avx2_v(bool vnni, const uint8_t* w, size_t row_bytes, 
 /// `q2_0_gguf_rows_multi_avx2` picks it only with STRATA_Q2_FAST=1 and not STRATA_Q2_LEGACY=1 (read once; opt-in
 /// until tests/core/q2_fast_parity_test.cpp has passed, then the default with STRATA_Q2_LEGACY=1 as the way back).
 bool q2_fast_enabled();
+/// Which form of the legacy kernel's `corr += d * (hx0 + hx1)` this build compiled (it depends on the compiler and
+/// -ffp-contract; STRATA_HOST_NATIVE, MSVC and GCC -O0/-O1 do not contract): 1 = one FMA, 0 = a rounded product plus
+/// an add, -1 = neither, the fast kernel then runs the legacy rows.  Probed once per variant (AVX-VNNI or not) on a row
+/// where the two differ; the fast kernel uses the same form, so it stays bitwise the legacy one under any flags.
+int q2_fast_corr_form(bool vnni);
 void q2_0_gguf_rows_multi_avx2_fast(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
                                     float* const* out, int r0, int r1);
 /// The same with AVX-VNNI on or off (tests; on only where cpu_avxvnni_ok()).
