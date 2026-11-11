@@ -212,6 +212,7 @@ token-forcing quality gate.
 | [Strata](https://github.com/Niko1221/Strata) | Niko1221 | MIT | Code (base) | The base engine: hybrid CPU/GPU MoE execution, MTP, expert cache, app and terminal. Everything above sits on it. |
 | [FastStrata](https://github.com/Jarson1408/FastStrata) | Jarson1408 | MIT | Code | The `strata-poly` engine (engine, CUDA/AVX2 kernels, conversation disk cache, suffix replay), ported and tuned. |
 | [PolyStrata](https://github.com/simplexai-labs/PolyStrata) | simplexai-labs | MIT | Code | Same lineage as FastStrata's poly engine; ported together with it. |
+| [4gbVramStrata](https://github.com/RandoTeam/4gbVramStrata) | RandoTeam (commits by Travis Sinclair and VecSzn) | MIT | Code | strata-poly's flash-attention prompt kernel (`STRATA_FATTN`, a patched copy of llama.cpp's `fattn-mma-f16`) and tensor-core decode attention (`STRATA_FDEC`), MOD_PLAN F17: ported opt-in, moved to pancake's q8_0 rows, with batch slices for the elastic prompt batches. |
 | [Strata-rdna3](https://github.com/nicejunjie/Strata-rdna3) | nicejunjie | MIT | Code | All RDNA3 wave32 decode and prefill kernels (`rdna_gr.cu`, `rdna_mmvq.cu`, `route_row.cuh`), hand-ported 1,938 upstream commits after their base. Not ported, with reasons: long-context top-k (upstream `STRATA_SELECT_LONG` covers it), PF_GROUP_RES (upstream group-resident), PA_KLDS (upstream rewrote it as `STRATA_PA_RPF`), RDNA_PAIR (neutral), GDN megakernel (0.0 ms on one GPU). |
 | [basalt](https://github.com/jesdga95/basalt) | jesdga95 | MIT | Code | Q5_K/IQ4_XS output-head kernels (`q5k_head`, `head_fmt`), the 2-bit MTP draft proxy (`head_proxy`), the grammar path, idle-sleep ideas. |
 | [Project Maya](https://github.com/mw00/project-maya) | mw00 | MIT | Code | Loop guard (`serve/loop_guard.py`), soft reasoning-budget close (#613), tolerant tool-call parser, prompt memo. |
@@ -478,6 +479,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_RDNA_MMVQ_WAVE` | `native_mmvq.cu` | unset | exact | wave-shaped multi-row GEMV (preset uses 3) | in the fast-hip preset |
 | `STRATA_RDNA_KQ_ALL` | `rdna_mmvq.cu` | off | tuning | allow the KQ kernel below 4 columns | tuning |
 | `STRATA_MMVQ_R` | `native_mmvq.cu` | 1 | exact | rows per wave (2/4), shared activation loads | tuning |
+| `STRATA_HIP_WMMA_Q4=1` | `qsa_prompt_attn.cu` (`prompt_attn_wmma_q4_kernel`, MOD_PLAN F22; fork bsorensen110 `19fc0e48`, gfx12-only there) | off | rounding-level vs today's Q4 path (FP32-level with `STRATA_PA_FAST=0`; the preset's `PA_FAST=1` makes it FP16 attention like the int8 kernel); unset: byte-identical | with `--kv q4_0`, the prompt's QSA attention on matrix cores (gfx11 and gfx12) instead of the FP32 decode kernel 32 queries at a time: the int8 WMMA kernel with one partial per q4_0 block times its scale. The gfx11 build uses the int8 kernel's duplicated-half fragment layout; no FP8, no gfx12 instruction. Follows `STRATA_PA_TRIM` / `STRATA_PA_RPF` (same bits). Only matters with Q4 KV: the daily preset is `--kv int8` | coded on `work/f22-wmma-q4-gfx11`, not built or measured yet; parity `hip_prompt_attn_wmma` (q4_0 cases), screen `bench/specs/18-f22-wmma-q4-gfx11.json`. Fork: parity PASS, 7.2-7.9x the FP32 kernel on gfx1200. `--kv q4_0` at `--kv-resident 32768` frees ~180 MiB VRAM (~131 expert slots) but is lossy (bench/results/2026-09-27-kv-q4) |
 | `STRATA_PCIE_OFF` | `generate.cpp` | off | tuning | force the PCIe share off | Round A: +6/+13% with `--pcie-frac 0` |
 
 ### 6B. Expert cache, routing and deferral
@@ -486,9 +488,16 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | --- | --- | --- | --- | --- | --- |
 | `STRATA_ADAPT_KMISS=k,W` | `kmiss_tier.hpp` (item 14) | off | exact | tier admits an expert after k misses in W windows (2,8) | online +5..16% edit (sim); run with `--adapt-async 1` |
 | `STRATA_ADAPT_SWAPS_AUTO` | `swap_budget.hpp` (item 53) | off | exact | swaps per round chosen online in [x,96] | built, A/B queued |
-| `STRATA_VERIFY_DEFER_CPU` (+`_BELOW=<w>`, `_TOP=<n>`) | `defer_rank.hpp`, `verify.cpp` (item 28) | off | **lossy** | heavy CPU entries kept on time in their own layer instead of joining late | +33% edit (overlap sim); highest-ceiling lossy item |
+| `STRATA_FETCH_ADMIT=1` (alias of upstream's `STRATA_ADAPT_FETCH=1`; also `STRATA_ADAPT_FETCH=2`, `_MIN`, `_MARGIN`) | `generate.cpp` `adapt_fetch()`, `expert_source.cpp` `fetch_can` / admission (MOD_PLAN F15; AdrianBM96/Strata3060 `50581c24f2`) | off | exact per window (placement changes later, like the tier; fork KL 0.002) | the PCIe share of a window's misses is copied straight into the cache slot of the layer's least-used resident that the window does not route, so it is a VRAM hit from the next window: same bytes over the link, nothing extra copied. Acts only while `--pcie-frac` is above 0 (the 3060 preset: no flag = auto share; **the 7900 XT presets run `--pcie-frac 0`, so it is inert there and not worth testing on HIP**). Off under `--adapt-async` (the 3060 preset has `--adapt-async 1`: an A/B must set `--adapt-async 0`, see the screen), `--batch`, `--pipeline-windows`, a layer split, `--pcie-mode dma/direct`, the resident RAM mode. `STRATA_ADAPT_NOWAIT` is not a conflict here: the fork refused to run with it, this tree's version forces `evict_sync` and uploads the residency table before each window | screen `bench/specs/18-f15-fetch-admit.json` (RTX 3060 only), not built or measured here. Fork (RTX 3060, IQ2_XS): +5.1 / +7.0 / +5.1% decode at B1/B2/B4, hit rate 73-78%; upstream PRO 5000 (IQ3_S, `--pcie-frac 0.25`): `=1` +5.0%, `=2` +10.2% |
+| `STRATA_VERIFY_DEFER_CPU` (+`_BELOW=<w>`) | `verify.cpp`, `expert_source.cpp` (item 28, MOD_PLAN A3) | off (on in fast-hip; `_BELOW` 0.1) | **lossy** | a layer's light CPU expert rows (routing weight < w) join the residual one layer late; the heavy ones stay on time | 7900 XT, test phase 01: +15.8% +-3.9 edit, short chat n.s., token forcing PASS; in the fast-hip preset |
+| `STRATA_VERIFY_DEFER_CPU_TOP=<n>` | `defer_rank.hpp` (item 28 rank guard, A4) | off | **lossy** | a CPU entry among its token's top n by weight is also kept on time | 01, `_TOP=2` vs fast-hip base: +20.1% +-3.3 edit but -6.9% +-3.5 short chat, token forcing PASS; opt-in |
+| `STRATA_VERIFY_DEFER_CPU_FOLD=<n>` | `defer_rank.hpp`, `expert_source.cpp` (A4 fix) | opt-in, default off | exact vs the same `_TOP`/`_BELOW` run | a layer with heavy CPU rows and at most n light experts runs one pool pass instead of two (the same rows still join late) | not measured yet: coded on `work/a4-rank-guard`, screen pending (`bench/specs/10-rank-guard-fold.json`) |
+| `STRATA_VERIFY_ECAP=<n>` | `verify_ecap.hpp`, `expert_source.cpp`, `verify.cpp` (MOD_PLAN F5, from jmnargi) | opt-in, default off | **lossy** | in a decode window each draft row (rows 1..T-1, never row 0) reads at most n CPU experts that row 0 and the earlier rows do not read anyway, kept by routing rank; the other draft-only experts are neither copied nor computed (zero rows, no renormalisation). Off in prompt reads, merged first windows, batch and pipelined windows, and while the request's grammar is enforcing (tool call / JSON in progress). Host side only, so it composes with `STRATA_VERIFY_DEFER_CPU` (the deferral handles what is left); `n >= _TOP` keeps every rank-guarded draft entry | coded on `work/f5-verify-ecap`, not built; screen, then token forcing (decode path) and the task gate before any default (`bench/specs/11-verify-ecap.json`). Fork claim (2x V100, a window-wide cap): +2.8% pooled / +11.5% drift-paired decode at 32K; a too-tight cap ended 12 of 20 tool turns with no call; not measured here yet |
 | `STRATA_ROUTE_PRIOR_DEPTH=a` | `route_prior.hpp` (item 23, AcceptMoE-style) | off | lossy | residency bonus graded by window position | coded, probes clean |
-| `STRATA_DOMAIN_PROFILES=<dir>` | `expert_seed.hpp`, `server.py` (item 4) | off | exact | per-domain expert profiles seeded per request kind | needs per-domain traces |
+| `STRATA_ROUTE_PRIOR_PROTECT=N` (alias `_KEEP=N`) | `route_prior.cu` (MOD_PLAN F13; zsariboga `8d7042ad97`, mandoof1 `3e0489e118`) | opt-in, default off | lossy only through turbo (needs `STRATA_ROUTE_PRIOR`); unset: byte-identical | the router's own first N picks are never displaced by the residency bonus, it only reorders ranks N..9 | not measured yet: coded on `work/f13-prior-guards`, screen pending (`bench/specs/11-turbo-guards.json`); CUDA and HIP share the kernel |
+| `STRATA_ROUTE_PRIOR_KEEP_P=x` | `route_prior.cu` (F13; zsariboga) | opt-in, default off | lossy only through turbo | picks with p >= x * p_top (the router's probability) are kept too: more protected when the router is sure | not measured yet |
+| `STRATA_ROUTE_PRIOR_SCOPE=answer\|think\|all` (+ `_ON_PROMPT=1`, `_MARKS=`, `STRATA_ROUTE_PRIOR_STATS=1`) | `route_prior_scope.hpp`, `generate.cpp`, `route_prior.cu` (F13; zsariboga) | opt-in, default off | lossy only through turbo | the bonus is off in verify windows inside `<tool_call>` or a code fence (answer; think: on only inside `<think>`), in windows whose rows hold a think / tool / fence / `<|im_end|>` token, and while the prompt is read; a mapped float written per window, read by the kernel inside the captured graphs. Serial serve loop only: with `--batch` / `--pipeline-windows` the bonus stays off | not measured yet; unit test `route_prior_scope_test`; token forcing must use `--path decode` |
+| `STRATA_DOMAIN_PROFILES=<dir>` | `expert_seed.hpp`, `server.py` (item 4) | opt-in, default off | exact | per-domain expert profiles seeded per request kind; the server classifies each request (`classify_domain`) and passes the domain to the engine seed | not measured yet (needs per-domain traces) |
 | `STRATA_CONV_WORKSET=N` / `_TOKENS=T` | `expert_seed.hpp` (item 3) | off / 32 | exact | keep the last N conversations' routing counts; seed resumed ones | coded on `feat/pattern-cache`, merged |
 | `STRATA_SEED_SCALE=S` / `STRATA_SEED_HOLD=R` | `expert_seed.hpp` | 2 / 16 | exact | domain-seed top score / tier rounds | `replay_seeding.py` |
 | `STRATA_LOOKAHEAD_GPU` | `generate.cpp` | **on** (=0 to disable) | exact | router lookahead runs on GPU instead of a CPU thread | +10% decode on mmap'd experts |
@@ -500,19 +509,24 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | --- | --- | --- | --- | --- | --- |
 | `STRATA_COMBINE_CPU` | `verify.cpp`, `native_moe.hpp` | off | exact | verify combine reads CPU rows straight from mapped host memory | ported; conflict with deferral fixed |
 | `STRATA_WAIT_FUSE` | `verify_kernels.hpp`, `verify.cpp`, `native_moe.cu` | off | exact | wait_flag_ge + mapped copy in one launch | in the fast-hip preset |
-| `STRATA_ROUTE_PUBLISH` | `native_router.cu`, `route_row.cuh`, `verify.cpp` | off | exact | top-10 + doorbell publish in one launch | in the fast-hip preset; **off under deferral** (non-finite fix d5b58f669) |
+| `STRATA_WAIT_COPY256` | `verify_kernels.cu` | opt-in, default off | exact | the fused wait + plan copy (`wait_copy_i32_from_mapped`) with 256 threads and 16-byte reads (4-byte fallback if unaligned, word tail) instead of 128 threads and 4-byte reads; only takes effect where `wait_copy_i32_from_mapped` runs (`STRATA_FUSE_WAIT=1` on gfx11; default on gfx12 / sm75); from android-imdad | fork's claim (RX 7900 XTX): host write -> plan on GPU 4.47 -> 3.57 us; not measured yet here |
+| `STRATA_ROUTE_PUBLISH` | `native_router.cu`, `route_row.cuh`, `verify.cpp` | off | exact | top-10 + doorbell publish in one launch | in the fast-hip preset; **off under deferral** (non-finite fix d5b58f669), so with deferral in the preset it never runs: the preset's path is `route_multi` + `doorbell_publish` (read-modify-write of the ring over PCIe) |
 | `STRATA_ROUTER_FUSE` | `native_bf16.cu`, `bf16_gemv.hpp` (item 48) | off | exact | the router GEMV's last block routes and publishes | ~1% short chat |
+| `STRATA_ROUTE_FAST` | `native_router.cu`, `native_bf16.cu`, `verify.cpp` (MOD_PLAN F9) | opt-in, default off | exact | the router GEMV's blocks copy the MoE input rows to the host; one launch then does the top-10 (route_multi's arithmetic, same ids and weights), publishes ids + weights and **stores** the step's ring number instead of a read-modify-write over PCIe. Replaces `route_multi` + `doorbell_publish` under deferral (where ROUTE_PUBLISH cannot run) and ROUTE_PUBLISH / `doorbell_publish_res` without it; wins over ROUTE_PUBLISH and ROUTER_FUSE; not with the lookahead router, route prior or route-resident. From android-imdad and Ben1078 | fork claims (RX 7900 XTX): android-imdad, DPP router exchanges "~1 us less a launch"; Ben1078, doorbell commit, combined round 38.5 vs ~35.7 tok/s with `--kv-resident` (doorbell part not isolated); not measured yet here (screen spec `bench/specs/17-f9-route-fast.json`); parity check in `native_multi_parity` |
 | `STRATA_COMBINE_POLL1` | `native_moe.cu` (item 46) | off | exact | one block polls the host flag over PCIe, the others spin on VRAM | 0-3% |
 | `STRATA_CPU_PRESUM` | `verify.cpp`, `expert_source.hpp` (item 51) | off | not bit-identical | host pre-sums each token's CPU rows | coded (`cc5499fae`) |
 | `STRATA_PRESUM_VRAM` | `verify.cpp`, `verify.hpp` (item 52, HIP) | off | not bit-identical | pre-summed rows written straight to VRAM through resizable BAR | coded (`cc5499fae`, `4f829da0e`) |
 | `STRATA_EXPDEC_SWIGLU` | `iq_kernels.cu` (item 48) | off | exact | gate/up + SwiGLU + q8_1 in one expdec launch | ~49 launches per window fewer |
+| `STRATA_IQ_SIGN_FAST=1` (or a type list, e.g. `22`, `16,22`) | `iq_kernels.cu` (`iq_signed`, MOD_PLAN F12; RX5950XT `b9a2111d3f`, boxwrench in yqYo1 `6f0bdf665b`) | opt-in, default off | exact (bitwise; both GPUs) | the EXPDEC gate/up kernels (`expdec_gu`, and `expdec_gu_swiglu` with `STRATA_EXPDEC_SWIGLU`) put the IQ2_XXS / IQ2_XS / IQ2_S grid signs on with 7 plain 32-bit ops (no multiply) instead of the emulated byte compare + byte subtract (~13 ops and a multiply on HIP); needs `STRATA_EXPDEC=1`. Other kernels keep the old form (native_gu_multi loses waves with it, fork static count) | coded on `work/f12-sign-expand`, not built or measured yet; parity in `iq_multi_parity`, per-format A/B `expdec_bench ... def,dec:s0,dec:s1`, screen `bench/specs/f12-sign-fast.json`. Fork's claim (boxwrench, RX 7900 XT, ROCm 7.2.1, synthetic decode, GLM engine): IQ2_XXS gate/up -29.1%, IQ2_S down -35.0% kernel time; not measured yet here |
+| `STRATA_EXP_MODE=9` (+ `STRATA_EXP9_GU` / `STRATA_EXP9_DOWN` = `type:mode,...`) | `iq_kernels.cu` `exp9_mode` (KhaledElzarw `9af8f1fa14`, MOD_PLAN F14) | opt-in, default off | exact (every layout is bitwise mode 0's) | the VRAM experts' kernel layout per format and phase: IQ2_S / IQ2_XXS / IQ3_S / IQ3_XXS gate/up take mode 8's fused gate/up + SwiGLU + q8_1 kernel, the Q2_0 down mode 8's shared-memory rows, every other format mode 0; for those formats it replaces `STRATA_EXPDEC`'s gate/up unless `STRATA_EXP9_GU=16:0,22:0` | fork (RTX 3090, IQ3_XXS): expert kernel time -11..-17%, little end to end; not built or measured here |
+| `STRATA_EXP9_DOWN=42:10` (with `STRATA_EXP_MODE=9`; or `STRATA_EXP_MODE=10`) | `iq_kernels.cu` `native_down_q2_sub4_kernel` (KhaledElzarw `4d462ccff3`, MOD_PLAN F14) | opt-in, default off (the 4-lane fold; with `STRATA_EXP_MODE=9` and this unset, the Q2_0 down takes mode 8) | exact (`row_dot_20_sub16`'s sums, folded onto 4 lanes) | the Q2_0 down rows (n_ff 640) on 4 lanes instead of 16: every lane busy, the butterfly's first two levels as in-lane adds in the same order, weights decoded once per chunk of entries, 64 rows a block; wins over `STRATA_EXPDEC_DOWN` when both are set; CUDA and HIP (not gfx906) | fork: down time 0.52-0.78x mode 0, +2.0% paired on 57 real agent turns (RTX 3090); screen `bench/specs/11-f14-exp9-3060.json`; not built or measured here |
 | `STRATA_MMVF_AUX` | `native_bf16.cu` | off | exact | the aux row rides in the multi-kernel launch | with COMBINE_CPU |
 | `STRATA_VERIFY_PROFILE_SEL=i,j,...` | `verify.cpp` | off | research | selected profile stamps only | profiling |
 | `STRATA_DF2_GATE` / `STRATA_DF2_ROW_MS` | `spec/window_rule.hpp` | off / 3.0 | lossy | DFlash2-calibrated survival window instead of fixed confidence | Mac-measured; opt-in |
 | `STRATA_MTP_PROXY` | `mtp.cpp`, `mtp.hpp` | **on** (=0 off) | exact | two-stage draft-head proxy pick | basalt lineage; ~12% cheaper draft steps |
 | `STRATA_Q5K_HEAD` | `verify.cpp` | **on** (=0 off) | exact | Q5_K/IQ4_XS specialized head kernels | basalt ports; 10b/10c findings |
 | `STRATA_IC_WARM_MB=<cap>` | `verify.cpp`, `verify.hpp` (item 47) | off | exact | warms the Infinity Cache with the next layer's pre-doorbell weights during the CPU wait | coded (`269a06ed9`) |
-| `STRATA_SPEC_COST_TABLE` | `generate.cpp`, `spec/draft_policy.{hpp,cpp}` (item 43) | off | exact | seeds the draft window cost table from window traces (`tools/pancake/trace/draft_costs.py`) | coded (`663107a56`) |
+| `STRATA_SPEC_COST_TABLE` | `generate.cpp`, `spec/draft_policy.{hpp,cpp}` (item 43) | opt-in, default off | exact | seeds the draft window cost table from window traces (`tools/pancake/trace/draft_costs.py`) | coded (`663107a56`); not measured yet |
 | `STRATA_MTP_EAGER=1` | `mtp.cpp` (item 74) | off | exact | launches every draft step at once with `--spec-min-p` and cuts the chain on the host (no host round-trip per step); passes the draft counts to `window_trace().drafts()` (item 5) | coded (`5dcd5a83c`) |
 
 ### 6D. CPU thread pool and sync
@@ -527,6 +541,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_POOL_FUSE_PHASES` | `pool.cpp`, `pool.hpp` (item 29) | off | exact | mode 7: gate/up + down in one phase per layer | overlap model: +3% |
 | `STRATA_POOL_PREREAD` | `pool.hpp`, `expert_source.hpp` (from tandem.cpp) | off | exact | idle workers pre-read the lookahead's next-layer CPU experts | loses even on a noisy machine; stays off |
 | `STRATA_Q2_PREFETCH=<bytes>` | `q2_avx2.cpp` (item 40) | off | exact | prefetch Q2_0 row bytes ahead of the dot | 0-5% of CPU-expert time |
+| `STRATA_Q2_FAST=1` | `q2_avx2.cpp`, `q2_avx2_rows.inl` (imanu86 `c3fc8f34d3`, MOD_PLAN F7) | opt-in, default off (becomes the default once `q2_fast_parity_test` passes) | exact (bitwise the legacy kernel) | AVX-2 Q2_0 rows: 8-op code unpack instead of ~14-17, d broadcast once per block, 4 rows at a time on short (down) rows; AVX-VNNI copy too; `STRATA_Q2_BITPLANE=1` still wins | fork's claim (desktop CPU, model not named): 1.11-1.45x on one thread, all-Q2_0 -17% per layer in a 7-worker pool; not measured yet here |
+| `STRATA_Q2_LEGACY=1` | `q2_avx2.cpp` | opt-in, default off | exact | forces the legacy AVX-2 Q2_0 kernel even with `STRATA_Q2_FAST=1` (and after FAST becomes the default): the A/B switch | A/B control, no gain of its own |
 | `STRATA_IQ2S_PAIR` | `iq_avx2.cpp` | off | exact | IQ2_S decodes both 64-value halves from one table load | **neutral** (2026-11-08) |
 | `STRATA_ACT_DUMP_RAW[_MAX]` | `pool.cpp` (item 13) | off | research | dump raw CPU expert activations for the sparsity study | enabled item 13's closure |
 | `STRATA_POOL_TAIL4=1` | `pool.cpp` (basalt ports, `e29bac539`) | off | exact | quarter-size tail tasks, plus down-row prefetch while a fused down task waits | basalt `553e9290d` / `4e6841265` ports |
@@ -541,6 +557,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_ROUTE_TRACE=<file>` | `src/poly/engine.cpp` | off | per-call routing trace for `cache_sim`; feeds all replay tools |
 | `STRATA_SWAP_HALF=N` | `src/poly/engine.cpp` | off | halve recent-uses every N written tokens |
 | `STRATA_CPU_STATS` | `src/poly/cpu_experts.cpp` | off | print what CPU experts read + timing at exit |
+| `STRATA_FATTN=1` | `src/poly/fattn.cu`, `fattn_mma.cuh`, `qwen35.cpp` (MOD_PLAN F17; RandoTeam `79b1e756`) | off | Qwen3.6 prompt batches through llama.cpp's flash-attention MMA kernel (causal mask in the kernel, q8_0 blocks dequantized into the existing 64 MiB score scratch, no new VRAM; 4,096-row elastic batches in two slices). Ampere+ NVIDIA, heads of 256; else the old path. Rounding-level (sums in halves): KL gate (`tools/pancake/poly_kl.py`) before a default. Fork (RTX 3070): prompt +27% at 32K, +69% at 103K; not built or measured here |
+| `STRATA_FDEC=1` (+ `STRATA_FDEC_FROM=N`, default 4096, 0 = always) | `src/poly/fattn.cu`, `qwen35.cpp` (MOD_PLAN F17; RandoTeam `67f60c12`) | off | Qwen3.6 decode attention on the tensor cores: blocks of 1,024 keys for up to 4 tokens (K/V read once per 4 tokens), in launches sized for more than N rows. Same bits alone or in a window. Rounding-level: KL gate. The fork's 1.60x at 118K was against the kernels without `--attn-split`; the qwen36 preset already runs that, so expect less (more on 3+-token windows). Not built or measured here |
 
 ### 6F. Window trace and side-branch switches
 
@@ -552,6 +570,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_DISCO` / `STRATA_DISCO_TRACE` | `feat/disco` | learned stop rule for the MTP draft chain (replaces Dynasor, item 21) | replaces fixed draft windows |
 | `STRATA_CONTEXT_DEDUP=1` | `feat/contextpilot` | lossy block dedup of repeated context | 1.6% on 40 real sessions; **keep off** |
 | `STRATA_ATTN_WMMA=1` | `feat/bitdecoding-hip` | BitDecoding-style decode attention on gfx11 matrix cores | neutral; not adopted |
+| `STRATA_ATTN_WINDOW=1` | `work/f11-attn-window` (`src/qwen35/q36_engine.cu` `k_attn_window`, MOD_PLAN F11, from Asofwar/Strata-Turbo) | Qwen3.6 engine only: decode and verify-window attention reads each K/V chunk once per KV head and pair of rows (a decode step once instead of 8 times, a 3-row MTP window twice instead of 24 times); meant to be bit-for-bit the old kernel (bitwise in a host emulation), CUDA and HIP; not read by Flash-Next (its QSA selection already caps attention at 2,051 cells) | not built or measured; spec `bench/specs/18-f11-attn-window.json` (decode after 32K / 64K / 120K prompts). Fork claim (RTX 5080, int8 tensor cores, main-engine port): 200K decode 48.6 -> 88.9 tok/s |
 
 ### 6G. Server env vars (`serve/`)
 
@@ -560,10 +579,8 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_LOOP_GUARD` (alias `MAYA_LOOP_GUARD`) | on (=0 disables) | Project Maya loop guard: periodic-block detection, penalise/collapse/stop, tool-repeat blocking |
 | `STRATA_LOOP_GUARD_COLLAPSE_MAX` | set in code | caps how much the guard collapses a looping reply |
 | `STRATA_PROMPT_MEMO` (alias `MAYA_PROMPT_MEMO`) | 1 | memoized tool results for re-sent history |
-| `STRATA_DOMAIN_PROFILES` | off | the server classifies each request (`classify_domain`) and passes the domain to the engine seed |
 | `STRATA_IDLE_ADAPT=N` | off | item 17 (`43e741bc6`): when no request line arrives for 150 ms, the blocking tier runs up to N extra rounds at 4x swaps on the idle GPU |
 | `STRATA_TURN_LOG` | off | item 73 (`1c0f248ae`): per-turn JSONL log at `<REPO>/pancake-turns.jsonl`; on in the Flash-Next presets |
-| `STRATA_SPEC_COST_TABLE` | off | item 43 (`663107a56`): draft window costs seeded from window traces (`tools/pancake/trace/draft_costs.py`) |
 | `STRATA_LOOP_BEHAVIOUR=off\|log\|note` (+`_EDITS=8`, `_READS=20`) | **log** | item 33 (`c03c905d3`): loop-guard behaviour counters - N edits without a build/test, M reads without an edit; `note` mode (opt-in) adds a note to the prompt |
 | `STRATA_KEEP_REASONING` | off | item 31 (`d44dd5eb2`): keep earlier reasoning in the prompt (opencode 1.19.5 already resends it: leave off there) |
 | `STRATA_HIPBLASLT_DESC_CACHE` | **on** (=0: per call), N = cap 256 | item 80 (`ca2f1eecc`, `997bb0a1c`): hipBLASLt matmul descriptors cached across prompt GEMMs; exact by construction |
@@ -575,6 +592,7 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_PLE_PIPE=1` (+`GATHER_THREADS=4`, `SLICES=4`, `EARLY`) | off | item 79 (`e2b3a3dad`, `3b5338412`): PLE gather off the critical path; `STRATA_PLE_COMPACT=1` now also with `--ple-io direct`; `STRATA_PLE_WAIT_TRACE=1` marks the waits |
 | `STRATA_CONV_BUDGET=ram` / `STRATA_CONV_KEEP_GIB=N` | off (40% rule stays) | item 86 (`ab4fe164b`, `c1b3fec32`): conversation cache sized from free RAM |
 | `STRATA_PSI_GUARD` | **on** (pause at 20%, resume at 10%, 30 s cap) | item 86: pauses loading / skips parking under memory pressure; timing only |
+| `STRATA_PARK_TRUNCATE=1` | opt-in, default off | from TwoAnts/Strata `5ef4fc8b4b`: a conversation too large to park (cache budget or RAM floor) parks its deepest checkpoint prefix that fits instead of being dropped, so the next request re-reads only the tail, not from token 0; a parked entry asked to make room is first shrunk to one of its own checkpoints (not below `--conversation-cache-min-tokens`, not beside the disk tier); exact; not measured yet |
 
 ### 6H. CLI flags
 
@@ -660,7 +678,9 @@ About 40 new files ported from PolyStrata/FastStrata: the engine (`engine.cpp`),
 conversation disk cache with suffix replay and index, hybrid CPU/GPU expert execution (`cpu_experts`), and
 parity/bench/test files. Own switches: `STRATA_GDN_COLS`, `STRATA_GEMM_SMALL_TILED`, `STRATA_SOFTMAX_REG`,
 `STRATA_ROUTE_TRACE`, `STRATA_SWAP_HALF`, `STRATA_CPU_STATS`. Why: stock `strata` at 64K context writes at 9.7 tok/s
-on the 3060; `strata-poly` reaches 71.7 on the same prompt.
+on the 3060; `strata-poly` reaches 71.7 on the same prompt. Later (MOD_PLAN F17, from 4gbVramStrata): `fattn.cu`,
+`fattn_mma.cuh` (llama.cpp's flash-attention MMA kernel, kept in step with the pin by `tools/test_fattn_sync.py`),
+`fattn_test.cu`, behind the opt-in `STRATA_FATTN` / `STRATA_FDEC`.
 
 ### 7.2. `src/kernels/cuda/rdna_gr.cu`, `rdna_mmvq.cu`, `route_row.cuh`: the RDNA3 decode and prefill port
 
@@ -681,8 +701,10 @@ near-best. `STRATA_Q5K_HEAD` and `STRATA_MTP_PROXY` are on by default; the draft
 New headers and their engines: `include/strata/program/kmiss_tier.hpp` (`STRATA_ADAPT_KMISS`, admit on the k-th miss
 in W windows), `swap_budget.hpp` (`STRATA_ADAPT_SWAPS_AUTO`, online swap budget), `expert_seed.hpp`
 (`STRATA_DOMAIN_PROFILES`, `STRATA_CONV_WORKSET*`, `STRATA_SEED_SCALE/HOLD`: domain and conversation seeding),
-`include/strata/core/defer_rank.hpp` (`STRATA_VERIFY_DEFER_CPU/_BELOW/_TOP`, the KTransformers-style rank guard),
-`route_prior.hpp` (`STRATA_ROUTE_PRIOR_DEPTH`, AcceptMoE-style depth grading), plus `src/core/verify.cpp` and
+`include/strata/core/defer_rank.hpp` (`STRATA_VERIFY_DEFER_CPU/_BELOW/_TOP/_FOLD`, the KTransformers-style rank guard),
+`route_prior.hpp` (`STRATA_ROUTE_PRIOR_DEPTH`, AcceptMoE-style depth grading; F13's `_PROTECT/_KEEP/_KEEP_P/_SCOPE` guards in
+`route_prior.cu` and `route_prior_scope.hpp`, judged by `bench/specs/19-turbo-guards.json`: turbo, turbo + guards, a stronger lambda + guards
+and a uniform tail skip, at equal KL, through token forcing and the task gate), plus `src/core/verify.cpp` and
 `expert_source.cpp` wiring and the GPU lookahead default (`STRATA_LOOKAHEAD_GPU`). Why: replay showed the tier at
 79.6% hit vs LRU 89.5% and Belady 94.7% at 44% residency, and the overlap model priced deferral +33% and
 deferral + kmiss 2/8 at +45-52% on edit windows.
@@ -725,7 +747,8 @@ tool-call parser, `turn_at` poly checkpoints, domain classification, and the per
 
 ### 7.8. `tools/pancake/`: the measurement suite (60 scripts plus their tests)
 
-`abtest.py` (quiet-machine interleaved A/B), `quality_gate.py` (token-forcing gate as a process), `quality_ab.sh` /
+`abtest.py` (quiet-machine interleaved A/B), `replay_turns.py` (agent-traffic replay for the conversation-cache arms, see
+below), `quality_gate.py` (token-forcing gate as a process), `task_gate.py` (A55, see below), `quality_ab.sh` /
 `quality_hip.sh`, `bench_engines.py`, `gpu_profile.py` (rocprofv3), `decode_curve.py`, `time_ceiling.py` (the cache
 judged in ms; serial and `--overlap` model), `belady_ceiling.py`, `tail_rows.py`, `predict_experts.py`,
 `replay_seeding.py`, `conv_trace.py`, `learn_profile.py` / `learn_domain_profiles.py`, `make_corpus.py`,
@@ -735,10 +758,60 @@ expert kernels' launch/tile knobs and the CPU pool knobs), `trace/draft_costs.py
 `pancake.service` (item 73/91, `a1683537c`), plus `trace/{wtrace,tail_replay}.py`. Why: every claim in this README came
 out of one of these scripts, and the suite is what makes the stack reproducible.
 
+`task_gate.py` (A55, branch `work/a55-task-gate`, first run pending) is the second half of the quality gate for lossy
+arms. Token forcing only rejects arms that deviate a lot; among near-baseline variants KLD and top-1 agreement do not
+predict the task score ("Displacement Is Not Direction", arXiv 2606.19558), so a fixed task set decides. It takes the
+`abtest.py` spec (base preset plus env / args per arm; optional `tasks`, `reps` (5), `temperature` (0.2), `margin` (0.05),
+`validity_margin` (0.03)), starts one fresh server per arm (the base arm twice, first and last, as the drift check) and
+sends the 18 tasks of `bench/tasks/default.json` `reps` times each with the same seeds in every arm: 8 code edits (the
+answer's python block is run against a test with CPU / memory limits and no network where `unshare -rn` works), 7 tool
+calls (JSON schemas; the call must parse, validate and match the expected name and arguments; parallel, multi-turn and
+"no call" cases), 3 short QA items. Per arm it reports the success rate with a 95% Wilson interval, per-kind rates, the
+tool-call validity rate, time to success (median, seconds per success) and a verdict against base: the paired
+per-task difference of the success rate with a 95% bootstrap interval (tasks and repetitions resampled), judged by
+non-inferiority: BETTER (lower bound above 0), PASS (lower bound within the margin), REJECT (upper bound below
+minus the margin), else INCONCLUSIVE; the tool-call validity rate gets the same test with its own margin and the
+worse of the two verdicts counts. Time to success is reported, not judged (speed is `abtest.py`'s job).
+
+```sh
+python tools/pancake/task_gate.py bench/specs/taskgate-lossy.json --dry-run --out /tmp/tg   # spec + task set + every checker, no server
+python tools/pancake/task_gate.py bench/specs/taskgate-lossy.json --out bench/results/<day>-taskgate [--reps 10] [--only tool_call]
+python tools/pancake/task_gate.py --from-runs bench/results/<day>-taskgate [--regrade]     # report again from the stored runs
+python -m pytest tools/pancake/test_task_gate.py                                            # statistics + checkers, no server
+```
+
+At 18 tasks x 5 reps the interval on the success difference is about +-15 points (synthetic check), so only a large loss
+is a REJECT and a close arm comes back INCONCLUSIVE: use `--reps 10-20` for close variants, or add tasks (a JSON file
+of the same shape; every task needs a reference answer that must pass and a wrong one that must fail, checked by
+`--dry-run`). The shipped set is a smoke-sized stand-in; the BFCL v4 multi-turn / LiveCodeBench subsets and own-repo
+checkpoint grading of A55 are not in it yet.
+
+`replay_turns.py` (branch `work/replay-turns`, dry runs only so far) judges the conversation-cache arms
+(`--conversation-cache-mib`, `--conversation-cache-min-tokens`, later PARK_TRUNCATE), which `abtest.py` cannot: its
+cases are independent one-shot requests that never park a long conversation and never evict it with a short side
+request. It replays one recorded session of `pancake-turns.jsonl` (sizes and timing only, no text) as real streamed
+chat requests against a fresh server per arm of an `abtest.py` spec: each agent turn sends the whole conversation (the
+previous turn's messages, the reply the server returned, a tool-result message sized to the recorded prompt to within
+2 tokens, counted with the server's own tokenizer and template), side requests (short decodes, prefill probes) run in
+the recorded order as separate conversations, with the recorded output length and thinking setting. Per request it
+records prompt tokens, tokens reused (engine line), prompt time, time to first token, decode speed and the engine's
+park / skip / restore / evict lines; per arm the cold re-reads (a non-first agent turn > 8K tokens with < 50% reused),
+total prompt and turn time, peak RSS and lowest free RAM; the verdict is on total prompt time vs the first arm (95%
+interval with `--reps 2+`). `--synthetic` runs a built-in session of the same shape (one conversation 40K -> 62K with
+interleaved side requests) without the log. Spec `bench/specs/11-conv-cache.json` carries the `replay` block (the
+2026-11-09 16:13-16:43 session: 75 requests, 7 cold 54-62K re-reads = 162.7 s; ~13.5 min per arm). Details:
+bench/TEST_PLAN.md 4.1.
+
+```sh
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out /tmp/rp --dry-run     # plan + sizes, no server
+python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out bench/results/<day>-conv-cache-replay [--reps 2]
+python tools/pancake/replay_turns.py SPEC.json --out DIR --synthetic | --session 2026-11-09T16:13/16:43 | --list-sessions
+```
+
 Added in Phase 16 (2026-11-11): `queue_run.sh` (specs back to back, night window, resumable), `gen_bases.sh` (the base configs the specs name), `drop_cache.py`
 (non-root page-cache eviction), `promote.py` + `switch_report.py` (PROMOTE / HOLD / REJECT from the results, void-switch and mixed-tier rules),
 `spec_lint.py` (static spec check), `kernel_gate.py`, `record_session.py` + `trace/recording.py`, `restore_check.py --control/--teacher-forced` (noise-aware
-restore gate), `abtest.py --reclaim-max` (block mode and the robust outlier rule are on `dev/p16b/harness-core`), and the offline analyses `finemoe_replay.py`,
+restore gate), `abtest.py --reclaim-max` (block mode, the robust outlier rule and the busy refusal are in it too), and the offline analyses `finemoe_replay.py`,
 `percache_sim.py`, `park_sim.py`, `conv_cache_sim.py`, `ecospec_sim.py`, `reap_saliency.py`, `gate_importance.py`, `load_time.py`, `decode_context.py`.
 
 ## 8. Daily Use (`Qwen3.8-Flash-Next` & `Qwen3.6-35B-A3B`) and Build & Run (HIP + CUDA)
@@ -861,7 +934,35 @@ Credits, in the order the stack was built:
 - **nicejunjie** (Strata-rdna3), for the RDNA3 kernels this project ported and fused.
 - **jesdga95** (basalt), for the head kernels, the draft proxy and the grammar path.
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
+- **android-imdad** (Strata-7900xtx, MIT), for the 256-thread, 16-byte plan copy (`STRATA_WAIT_COPY256`) and the fast
+  router publish (`STRATA_ROUTE_FAST`: rows copied by the router GEMV, stored step number, DPP exchanges), commit caa9b00115.
+- **Ben1078** (Strata fork, MIT), for the stored doorbell ring in the router's publish (commit `23d2fc0450`, part of
+  `STRATA_ROUTE_FAST`).
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
+- **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
+- **PolyStrata** (simplexai-labs), whose strata-poly `SuffixIndex` is reused by the cross-session suffix index (`STRATA_SUFFIX_INDEX`, A24).
+- **Strata upstream** (Niko1221 and contributors, e.g. pjgmobile for #5531), for the bug fixes synced on 2026-11-10 (pancake-docs/batch2/upstream-sync-2026-11-10.md).
+- **zsariboga** (Strata fork), for the route-prior guards (`STRATA_ROUTE_PRIOR_PROTECT`, `_KEEP_P`, `_SCOPE`, commit `8d7042ad97`), and **mandoof1**
+  (Strata fork), for `STRATA_ROUTE_PRIOR_KEEP` (commit `3e0489e118`); **lighttransport** (Strata fork), whose MiniMax study (commit `2ea0c1e042`) set the
+  equal-KL comparison against a uniform tail skip.
+- **AdrianBM96** (Strata3060, MIT, single RTX 3060), for the idea behind `STRATA_FETCH_ADMIT` (keep the PCIe-copied experts in the VRAM
+  cache, commit `50581c24f2`; measured +5.1/+7.0/+5.1% decode, KL 0.002, commit `3ff40d67e3`). The engine already carried its own version
+  (`STRATA_ADAPT_FETCH`), so the fork's name is an alias of it and no fork code was copied.
+- **KhaledElzarw** (Strata fork "STRATA sm86", MIT), for the per-format expert layout table and the 4-lane Q2_0 down
+  rows (`STRATA_EXP_MODE=9`, `STRATA_EXP9_DOWN`, commits `9af8f1fa14` and `4d462ccff3`).
+- **jmnargi** (Strata-V100, MIT), for the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts (commits `24894e676b`,
+  `7c5041c358`, `376355453f`; upstream PR #3545), and for measuring how a too-tight cap breaks tool calls.
+- **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
+- **Asofwar** (Strata-Turbo, MIT), for window decode attention, each K/V chunk read once for a whole verify window
+  (`STRATA_ATTN_WINDOW`, `STRATA_ATTN_WINDOW_SMALL`; commits `6ebe841e2e`, `540f801a9a`). `STRATA_ATTN_WINDOW` here is
+  the idea rewritten for the Qwen3.6 engine (`k_attn_window`); no fork code was copied.
+- **RandoTeam** (4gbVramStrata, MIT), **Travis Sinclair** and **VecSzn** (PolyStrata), for strata-poly's
+  flash-attention prompt path and tensor-core decode attention (`STRATA_FATTN`, `STRATA_FDEC`; commits `79b1e756`,
+  `79acffe5`, `67f60c12`, `7fb9d79d`, `ac6402df`, `bee07744`), and the community report (issue 107, commit
+  `aa862591`) that measured them on an RTX 4060 Laptop; the kernel underneath is ggml-org's `fattn-mma-f16.cuh`.
+- **RX5950XT** (Strata fork, MIT), for the IQ2/IQ3 sign form without byte compares that `STRATA_IQ_SIGN_FAST` uses (commit
+  `b9a2111d3f`, llama.cpp's `ggml_cuda_apply_signs` without its multiply), and **boxwrench** (in yqYo1/Strata, MIT), for
+  measuring packed sign expansion on an RX 7900 XT (commit `6f0bdf665b`).
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
