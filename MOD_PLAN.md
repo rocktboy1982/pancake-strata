@@ -2510,3 +2510,12 @@ Rule (owner, 2026-11-12): no item is started until its papers are researched and
 | 18 | Fused argmax+accept (SonicSampler-style) | arXiv:2607.20475 (abstract) | greedy near zero | exact if tie-breaks match (unverified) | medium | sampled requests only |
 | 19 | Defer CPU rows to next layer (VERIFY_DEFER_CPU) | measured n.s. | removes in-layer wait | LOSSY | medium | DEFER_CPU 1 vs 0 with token diff |
 | 20 | Mirror-SD / PipeSpec branch rollouts during verify | arXiv:2510.13161, 2505.01572 (excerpt) | claimed 2.8-5.8x, not on this hardware | claimed exact | high | design study only |
+
+### Phase 18 worker split (2 machines, decided 2026-11-12)
+Research and profile: `pancake-docs/research/window-overhead-2026-11-12/` (REPORT.md is the main document).
+Branches: each worker branches from `port/rdna3-decode` (this one), and merges back here when a candidate is measured.
+- **Worker A (this machine, the 7900 XT):** items 1-10. Needs the GPU; item 1 (the environment record and re-profile) comes first for both workers.
+- **Worker B (other computer):** items 11-20. Work is design, code reading and paper study first; any GPU run is queued after worker A's measurements to avoid the same card.
+- Benchmarks run on the GPU machine only, with the owner's quiet-machine rule (night queue, A B B A).
+Model files and profiles are not in git; the second machine needs them copied separately.
+
