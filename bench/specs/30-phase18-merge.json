@@ -1,0 +1,14 @@
+{
+  "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+  "arms": {
+   "base": {"exe": "build-hip-orig/strata"},
+   "merge": {"exe": "build-hip/strata"}
+  },
+  "cases": [
+   "short",
+   "edit"
+  ],
+  "reps": 3,
+  "lossy": false,
+  "note": "Phase 18 item 9: build-vs-build A/B for the merged window-input copies (src/core/verify.cpp:1731 stages tok/step/pos through one graph-capturable copy_from_mapped_multi instead of three copy_i32_from_mapped launches). base = the parent/HEAD engine binary at build-hip-orig/strata; merge = this branch's engine at build-hip/strata. EXACT: tokens must be identical to base on every case (abtest text check); any difference is a bug, not a gain. Expected gain < 0.5% (3 small objective copies), so run --tier confirm (A B B A, n>=8, --outlier robust), not screen. Build both binaries first, on the 7900 XT: build-hip = the branch build; build-hip-orig = a HEAD build (copy build-hip/strata aside, then `git stash && cmake --build build-hip --target strata -j2` OR use tools/pancake/build_matrix.sh --head for a detached-HEAD worktree). Stop every engine/server first (abtest refuses beside a running build-hip/strata). Escape hatch: STRATA_MTP_MULTI_COPY=0 disables the merge (and the MTP multi-copy), restoring the three separate copies bit-for-bit for a like-for-like rebuild."
+}

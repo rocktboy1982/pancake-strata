@@ -1,0 +1,28 @@
+{
+  "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+  "arms": {
+   "base": {},
+   "mtp-eager": {
+    "env": {
+     "STRATA_MTP_EAGER": "1"
+    }
+   },
+   "spec3": {
+    "args": {
+     "--spec": "3"
+    }
+   },
+   "spec5": {
+    "args": {
+     "--spec": "5"
+    }
+   }
+  },
+  "cases": [
+   "short",
+   "edit"
+  ],
+  "reps": 3,
+  "lossy": false,
+  "note": "Phase 18 draft family (items 5 and 8 of MOD_PLAN Phase 18; profile pancake-docs/research/window-overhead/report.md). The base preset runs --spec 4; these arms sweep the greedy window depth and the MTP eager launch. All exact for greedy (abtest's text check must report identical text per case; a difference is a bug, not a gain). spec3/spec5 = item 5: a window that commits ~2.7 tokens at --spec 4 becomes shorter/longer; per-window host overhead amortises over more tokens but the expert union also grows (moe-speedup: --spec 5 111.0 and --spec 6 109.2 vs 111.7 base on round A), so the answer is a measurement, not an assumption. mtp-eager = item 8: STRATA_MTP_EAGER=1 (Speed class, conversation_disk_env.def 494) launches every step graph at once even with --spec-min-p, targeting the mtp_select -> copy gaps (17.5 ms, median 106 us, three outliers); a prior n.s. +1.6% was measured before the gap-heavy config existed, so retest here. Run --tier screen on a quiet nightly window; confirm a decided >= +2% arm with --tier confirm (A B B A, n>=8). Log proof: 'STRATA_MTP_EAGER ... one graph per round' (or 'will not act: <why>'). Base has deferral OFF (owner decision 2026-11-12) and STRATA_MTP_EAGER is off by default, so mtp-eager is a pure opt-in isolation."
+}

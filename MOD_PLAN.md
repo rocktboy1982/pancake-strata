@@ -2708,3 +2708,47 @@ Branches: each worker branches from `port/rdna3-decode` (this one), and merges b
 - Benchmarks run on the GPU machine only, with the owner's quiet-machine rule (night queue, A B B A).
 Model files and profiles are not in git; the second machine needs them copied separately.
 
+### Phase 18 execution plan (branch kb-improvements, 2026-11-12)
+
+Concrete run order for the 7900 XT box, after the owner's review gate above lifts. All specs are exact unless noted; base = `configs/pancake/flashnext-iq2_xs-fast-hip.json` (deferral OFF, owner decision 2026-11-12). Run each with `python tools/pancake/abtest.py bench/specs/<file> --tier screen` on a quiet nightly window (no other engine/server), then confirm any `>= +2%` arm with `--tier confirm` (A B B A, `n>=8`, `--outlier robust`, token equality).
+
+0. Reproduce the profile and map the copy gaps (item 1 enabler, do first):
+   `python tools/pancake/gpu_profile.py configs/pancake/flashnext-iq2_xs-fast-hip.json ~/profile-p18-base`, then re-run with `--env STRATA_COMBINE_POLL1=1` (and the other arm envs). Each run writes `run_environment.json` (effective `STRATA_*` env + args, fixing the unknown-switch-state gap) and a `summary.txt` whose idle gaps are split per HIP stream. Items 2-4 are only readable after this records which switch states ran.
+1. `bench/specs/27-phase18-wait.json` - combine-poll1 (item 2, 18.9% wall ceiling), wait-fuse-off (item 3), fuse-wait (item 4). Highest ceiling; rank first.
+2. `bench/specs/28-phase18-draft.json` - mtp-eager (item 8), spec3/spec5 (item 5 window sweep).
+3. `bench/specs/29-phase18-device-plan.json` - device-plan (item 13, plan-copy skip). A null result is a valid close.
+
+Code-side item, measured as build-vs-build:
+- Item 9 (window-input copy merge, `src/core/verify.cpp`): build the branch's `build-hip`, A B B A against a HEAD build on the unchanged base; token equality required, then the `>= 2%` bar.
+
+Gated to design, not a runnable arm here:
+- Item 15 (PIPED_MTP): needs a layer split / `--batch-mtp`; `generate.cpp:7406` prints a WARNING and turns it off on the single-GPU decode base, so an arm would not act. Worker B design study.
+- Items 10/12 (pre-stage host records, event/device-side window-end sync) and 16 (`hipStreamWaitValue32`): stay code-gated until the item-1 profile names the call sites and ROCm 10.0 availability of `hipStreamWaitValue32` is confirmed (deadlock risk).
+
+Already-covered findings, do not re-arm: ROUTE_FAST (`17-f9-route-fast`, `25-kern-hip`), WAIT_COPY256 (`25-kern-hip`), k-th miss + async (`15-kmiss`, `02-tier`, `22-a7`), message boundary (`07-draft-checkpoints`), turbo/prior (`06`, `19`), restore equivalence (`tools/pancake/restore_check.py`), thinking caps (`taskgate-caps`).
+
+### Test run preparation (per open item, ROCm box)
+
+Precondition for every run: 7900 XT + ROCm 10.0, load average `< 1.0`, no other engine/server (`pkill -f 'build-hip/strata'`), the branch built into `build-hip`, `.venv` present. Every spec below is exact: token equality is gate 1, the `>= +2%` end-to-end bar (`--tier confirm`, A B B A, `--reps 9`, `--outlier robust`) is gate 2.
+
+- **Item 1 — profile + env capture (run FIRST; it is what makes items 2-4 readable):**
+  `python tools/pancake/gpu_profile.py configs/pancake/flashnext-iq2_xs-fast-hip.json ~/p18-base`
+  `python tools/pancake/gpu_profile.py configs/pancake/flashnext-iq2_xs-fast-hip.json ~/p18-poll1 --env STRATA_COMBINE_POLL1=1`
+  Accept: each `~/p18-*/run_environment.json` lists the effective `STRATA_*` env + args; `summary.txt` idle gaps are split per HIP stream.
+- **Items 2/3/4 — `27-phase18-wait.json` (rank 1):**
+  `python tools/pancake/abtest.py bench/specs/27-phase18-wait.json --tier screen`
+  Accept: combine-poll1 logs `STRATA_COMBINE_POLL1: one block per combine polls the CPU-share flag (item 46)`; finite logits (no Inf/NaN) on the WAIT_FUSE/FUSE_WAIT arms; confirm any `>= +2%` arm.
+- **Items 5/8 — `28-phase18-draft.json`:**
+  `python tools/pancake/abtest.py bench/specs/28-phase18-draft.json --tier screen`
+  Accept: identical text vs base; `mtp-eager` acts or prints `will not act`; spec3/spec5 vs the spec4 base (a null/short-window result is valid data).
+- **Item 13 — `29-phase18-device-plan.json`:**
+  `python tools/pancake/abtest.py bench/specs/29-phase18-device-plan.json --tier screen`
+  Accept: `STRATA_VERIFY_DEVICE_PLAN is on`; a null result closes item 13.
+- **Item 9 — `30-phase18-merge.json` (build-vs-build):** build `build-hip` (branch) and `build-hip-orig` (parent), stop engines, then
+  `python tools/pancake/abtest.py bench/specs/30-phase18-merge.json --tier confirm --reps 9`
+  Accept: identical text short+edit (else bug); report decode delta; `STRATA_MTP_MULTI_COPY=0` is the fallback that restores the 3 separate copies.
+
+Capture for the still-gated items (record only, do not code yet): item 10 = the per-stream `A -> B` copy-gap pairs from Run 0's summary name the 48+83 call sites (attach the summary to the item-10 ticket); items 12/16 = the window-end host-stall share from the same trace, then confirm `hipStreamWaitValue32` exists in ROCm 10.0 before coding; item 15 = only on a `--batch-mtp` layer-split config (Worker B), never on this single-GPU base.
+
+After any decided arm: append the verdict to `pancake-docs/NIGHT_RESULTS_<date>.md`, update `PANCAKE_STATUS.md` and this plan, and only then consider promotion; keep `ctest -L cpu` + `python tools/pancake/test_disk_env_table.py` green for any code change.
+

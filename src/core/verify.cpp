@@ -1728,16 +1728,26 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 
     // ---- the window's inputs, from mapped staging.  With branches the steps and positions (first read by the first
     // layer's mixer) cross PCIe on side 1 beside the embedding and the first hyper-connection read.
-    copy_i32_from_mapped(tok_, m_tok_, T, cs);
     bool inputs_pending = false;
     cudaStream_t in_s = cs;
     if (br) {
+        copy_i32_from_mapped(tok_, m_tok_, T, cs);
         fork(1);
         in_s = df_side_[1];
         inputs_pending = true;
+        const MappedCopy in[2] = {
+            {step_, m_step_, (int64_t) T * kStepCount},
+            {pos_, m_pos_, (int64_t) MT * (NH + NKV + IQ)}
+        };
+        copy_from_mapped_multi(in, 2, in_s);
+    } else {
+        const MappedCopy in[3] = {
+            {tok_, m_tok_, T},
+            {step_, m_step_, (int64_t) T * kStepCount},
+            {pos_, m_pos_, (int64_t) MT * (NH + NKV + IQ)}
+        };
+        copy_from_mapped_multi(in, 3, cs);
     }
-    copy_i32_from_mapped(step_, m_step_, (int64_t) T * kStepCount, in_s);
-    copy_i32_from_mapped(pos_, m_pos_, (int64_t) MT * (NH + NKV + IQ), in_s);
     // per-ROW positions of the K rows [t][NKV] and the indexer query rows [t][IQ] (for batched RoPE)
     const int32_t* pos_k = pos_ + MT * NH;
     const int32_t* pos_i = pos_ + MT * (NH + NKV);
