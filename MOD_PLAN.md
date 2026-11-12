@@ -2719,3 +2719,7 @@ Key: GPU = needs a night run; DEC = needs your decision; CPU = can run now; DATA
 | A6 time model | held-out error 8.1 pts (target 5-9) | recalibrate | CPU |
 | A12 pinned prefix | blocked | pinned-entry eviction fix first | CPU then GPU |
 | A16 byte-stable prefix | DONE | none | DONE |
+
+### Progress from the remaining-items pass (2026-11-12)
+- **A41 (edit without read), done on CPU:** of 339 edit calls in opencode.db, 33 (about 10%) changed a file the agent had not read earlier in the same session; 306 had a prior read. The 45 writes without a prior read are mostly new files and are not counted. Upper-bound estimate; the gap is real but small. Next step: decide whether a hold hook is worth building (owner decision).
+- **A22 / A56 trace step 1, code done (integration `36d7fb9fe`):** `STRATA_WINDOW_TRACE_TARGET=1` writes record 6 (target probability of each drafted token). Off by default. CPU test passes (row_miss_test), reader supports record 6, existing trace tests pass (29/29), strata engine builds. Still to do: GPU identity run (greedy tokens with the flag on equal to flag off) and one window-trace run with the flag on, then replay the acceptance rate. Queue this after tonight's chain.
