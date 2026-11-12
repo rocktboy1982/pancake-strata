@@ -21,7 +21,7 @@ Caveat on grep counts: most `bench/results` hits for a switch are environment du
 
 | Switch | Class | Status | Evidence | Label |
 |---|---|---|---|---|
-| STRATA_VERIFY_DEFER_CPU | Key | In fast-hip preset; deferral of CPU rows across the window boundary | Test phase A3: edit +15.8% +-3.9, short n.s.; night queue defer-iq2xs arms ([RESULTS.md](/home/dan/night-queue-run/RESULTS.md)) | [measured] |
+| STRATA_VERIFY_DEFER_CPU | Key | Deferral of CPU rows across the window boundary (removed from the fast presets 2026-11-12, owner decision) | Test phase A3: edit +15.8% +-3.9, short n.s.; night queue defer-iq2xs arms ([RESULTS.md](/home/dan/night-queue-run/RESULTS.md)) | [measured] |
 | STRATA_VERIFY_DEFER_AUTO (+ _MIN_T) | KeyIfSet | Gate closes deferral on short windows; MOD_PLAN 17.1 "coded, NOT built, NOT measured" (branch dev/p17/defergate) | Night queue defer-iq2xs-03C: auto-closed arm -1.2% to -12.5% vs always-on deferral ([RESULTS.md](/home/dan/night-queue-run/RESULTS.md) lines 163-175). MOD_PLAN line 2623 is stale; the night queue run exists. | [measured] (MOD_PLAN out of date) |
 | STRATA_VERIFY_DEFER_CPU_BELOW | Key | Threshold for the rank guard, default 0.1 | Within the defer arms (night queue, abtest 95 files). Rank-guard A4 fold/top2 run in [10-rank-guard-fold.jsonl](../../../../bench/results/2026-11-11-gpu/10-rank-guard-fold.jsonl) | [measured] (only inside defer arms, no isolated sweep) |
 | STRATA_VERIFY_DEFER_CPU_TOP | Key | Rank-guard top-k; coded in defer_rank.hpp | Used in top2 arm of 10-rank-guard-fold. MOD_PLAN line 1590: top2 edit -2.6%, short +0.1%. My recomputed row means (n=6 each): top2 edit 158.1 vs base 165.0 (-4.2%), short 114.4 vs 124.4 | [measured] (lossy, negative on edit) |
