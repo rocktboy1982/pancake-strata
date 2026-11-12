@@ -2612,3 +2612,13 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/round4/notes/V3.md`
 - **A39 (Slipstream):** verified. Up to 39.7% latency vs synchronous compaction; compaction is 26-44% of latency. Setup: Qwen3.5-9B on one H100 80GB.
 - **A42 (RLM):** the 25.6% is the median of four per-task gains from Table 1; the abstract's 26% is the same median. The Claude Code + offloading comparisons mix models (GPT-5 vs Opus 4.1) and are not like-for-like.
 - **Doc fixes:** `RESEARCH_AND_FINDINGS.md` lists 2605.08580 as "Marconi (follow-up)"; that ID is Slipstream. Round-3 batch 7 notes have the Quest numbers swapped.
+
+### Round 4 verification corrections, batch V2 (2026-11-12, full PDFs)
+Notes: `pancake-docs/research/engine-speed/unported-academic/round4/notes/V2.md`.
+- **A19 (ThinkBrake):** the "-25% thinking tokens on BFCL non-live" is verified (v5 Table 15, p.20: mean reduction 25.1%, accuracy 90.7-90.8). The earlier v1 accuracy figures are not in v5. On live (BFCL v2), v5 shows 82.5 -> 85.0, so the earlier "small loss on live" is out of date. Lossy.
+- **A19 (Thought Calibration):** verified: up to 60% in distribution and 20% out of distribution, math and science only.
+- **A19 turn-time share:** "4-13% of turn time" has no source in V2; the round-2 report caps it near 5.5%. One figure with its derivation is needed.
+- **A40 (TraceLab):** "up to 60%" should read "59.8% of response time on average" (Table 7, p.6); the per-request shares sum to 100.8% in the paper. The traces are hosted-API Claude Code and Codex sessions.
+- **A40 (AsyncFC):** the 1.40x is against sequential SWE-agent. Against the paper's own parallel function-calling baseline (1.04x), AsyncFC is about 1.35x (our arithmetic). Hosted models only; lossy.
+- **A41 (ECLoop):** verified (SWE-bench Verified, GPT-5-mini and MiniMax-M2.5). The mechanism is an evidence-conditioned commitment gate with a hold limit of three, not a read-before-edit rule. Lossy.
+- **A38 (Beyond Accuracy):** the paper's figures (33-440% more input tokens; Gemini-cli +440.4%) are verified, but it does not measure edit-without-read or test-after-edit. The "11 of 21 sessions" figure is our own opencode.db pilot, not the paper's.
