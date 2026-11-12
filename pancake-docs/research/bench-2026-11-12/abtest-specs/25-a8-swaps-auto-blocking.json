@@ -1,0 +1,33 @@
+{
+ "base": "/home/dan/abtest-specs/configs/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "swaps16": {
+   "args": {
+    "--adapt-swaps": "16"
+   }
+  },
+  "swaps64": {
+   "args": {
+    "--adapt-swaps": "64"
+   }
+  },
+  "swaps96": {
+   "args": {
+    "--adapt-swaps": "96"
+   }
+  },
+  "swaps-auto": {
+   "env": {
+    "STRATA_ADAPT_SWAPS_AUTO": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 4,
+ "lossy": true,
+ "note": "MOD_PLAN A8 (Pie, STRATA_ADAPT_SWAPS_AUTO) on the BLOCKING tier: test 02 rejected it on the async tier (-9.6% short). The question is whether the online budget is within the best FIXED --adapt-swaps (the preset has 32; 16 / 64 / 96 are the fixed neighbours), est. 0-5% over the best of them. base = the preset's --adapt-swaps 32. Judge swaps-auto against the best fixed arm of THIS run with promote.py items whose 'vs' names it (vs base is the weak test). Rounding-level (the tier changes which experts are in VRAM, placement moves the last bits): token forcing then the task gate if it gains. The A6 time model says A8 is below 5% at this bench's hit rate: expect no gain; the spec exists to close the item."
+}

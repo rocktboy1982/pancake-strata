@@ -1,0 +1,219 @@
+{
+ "schema": 1,
+ "label": "ctrl-avalon-iq3ks-main-p1",
+ "engine_kind": "llama",
+ "host": "127.0.0.1",
+ "port": 8081,
+ "time": 1794488479.6152322,
+ "prompt_name": "story",
+ "prompt": "Write a short story (about 400 words) about a lighthouse keeper.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 512,
+   "tps": 76.33935607529062,
+   "decode_ms": 6693.795,
+   "draft_n": 470,
+   "draft_n_accepted": 276,
+   "wall_s": 7.949077844619751,
+   "text_sha256": "e3bee548e851329a",
+   "text_head": "The salt spray didn\u2019t just coat Elias\u2019s coat; it seemed to seep into his bones, ",
+   "accept_pct": 58.723404255319146,
+   "windows": 236,
+   "tok_per_window": 2.169491525423729,
+   "accepted_per_window": 1.1694915254237288,
+   "drafted_per_window": 1.9915254237288136,
+   "ms_per_window": 28.36353813559322,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 512,
+   "tps": 85.46013677635669,
+   "decode_ms": 5979.396,
+   "draft_n": 484,
+   "draft_n_accepted": 269,
+   "wall_s": 6.157941818237305,
+   "text_sha256": "7fc1df086e34ccb8",
+   "text_head": "The salt spray didn\u2019t just coat Elias\u2019s coat; it seemed to seep into his bones, ",
+   "accept_pct": 55.578512396694215,
+   "windows": 243,
+   "tok_per_window": 2.1069958847736627,
+   "accepted_per_window": 1.1069958847736625,
+   "drafted_per_window": 1.991769547325103,
+   "ms_per_window": 24.606567901234566,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 86.2221115339538,
+   "decode_ms": 5926.554,
+   "draft_n": 475,
+   "draft_n_accepted": 273,
+   "wall_s": 6.077685356140137,
+   "text_sha256": "a9123b95ca0ba632",
+   "text_head": "The salt spray didn\u2019t just coat Elias\u2019s coat; it seemed to seep into his bones, ",
+   "accept_pct": 57.473684210526315,
+   "windows": 239,
+   "tok_per_window": 2.1422594142259412,
+   "accepted_per_window": 1.1422594142259415,
+   "drafted_per_window": 1.9874476987447698,
+   "ms_per_window": 24.79729707112971,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 90.60773676590667,
+   "decode_ms": 5639.695,
+   "draft_n": 452,
+   "draft_n_accepted": 284,
+   "wall_s": 5.795957326889038,
+   "text_sha256": "d7e80d94b28cf3c3",
+   "text_head": "The salt spray didn\u2019t just coat Elias\u2019s coat; it seemed to seep into his bones, ",
+   "accept_pct": 62.83185840707964,
+   "windows": 228,
+   "tok_per_window": 2.245614035087719,
+   "accepted_per_window": 1.2456140350877194,
+   "drafted_per_window": 1.9824561403508771,
+   "ms_per_window": 24.735504385964912,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 84.64253189499556,
+   "decode_ms": 6037.154,
+   "draft_n": 485,
+   "draft_n_accepted": 268,
+   "wall_s": 6.200450897216797,
+   "text_sha256": "02b0e598ffb454f6",
+   "text_head": "The salt spray had long since etched its own map onto Elias\u2019s face, a topography",
+   "accept_pct": 55.25773195876289,
+   "windows": 244,
+   "tok_per_window": 2.098360655737705,
+   "accepted_per_window": 1.098360655737705,
+   "drafted_per_window": 1.9877049180327868,
+   "ms_per_window": 24.74243442622951,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 90.5651014205074,
+   "decode_ms": 5642.35,
+   "draft_n": 465,
+   "draft_n_accepted": 278,
+   "wall_s": 5.79407811164856,
+   "text_sha256": "fe256f5ab6b95a06",
+   "text_head": "The salt spray didn\u2019t just coat Elias\u2019s coat; it seemed to seep into his bones, ",
+   "accept_pct": 59.784946236559136,
+   "windows": 234,
+   "tok_per_window": 2.1880341880341883,
+   "accepted_per_window": 1.188034188034188,
+   "drafted_per_window": 1.9871794871794872,
+   "ms_per_window": 24.11260683760684,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 86.2221115339538,
+   "mean": 87.49952367834402,
+   "sd": 2.8728051736802915,
+   "min": 84.64253189499556,
+   "max": 90.60773676590667
+  },
+  "tok_per_window": {
+   "median": 2.1422594142259412,
+   "mean": 2.1562528355718436,
+   "sd": 0.06117402608971088,
+   "min": 2.098360655737705,
+   "max": 2.245614035087719
+  },
+  "accepted_per_window": {
+   "median": 1.1422594142259415,
+   "mean": 1.1562528355718433,
+   "sd": 0.06117402608971096,
+   "min": 1.098360655737705,
+   "max": 1.2456140350877194
+  },
+  "drafted_per_window": {
+   "median": 1.9874476987447698,
+   "mean": 1.987311558326605,
+   "sd": 0.003303008419969447,
+   "min": 1.9824561403508771,
+   "max": 1.991769547325103
+  },
+  "accept_pct": {
+   "median": 57.473684210526315,
+   "mean": 58.18534664192443,
+   "sd": 3.16313793480117,
+   "min": 55.25773195876289,
+   "max": 62.83185840707964
+  },
+  "ms_per_window": {
+   "median": 24.735504385964912,
+   "mean": 24.598882124433107,
+   "sd": 0.28069740046566877,
+   "min": 24.11260683760684,
+   "max": 24.79729707112971
+  }
+ },
+ "loadavg_before": [
+  4.419921875,
+  3.22216796875,
+  1.79638671875
+ ],
+ "loadavg_after": [
+  6.4130859375,
+  3.87353515625,
+  2.0693359375
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "server_log": "/home/dan/night-queue-controls/raw/srv-ctrl-avalon-iq3ks-main.log",
+ "server_log_requests": [
+  {
+   "acceptance": 0.58723,
+   "accepted": 276,
+   "generated": 470,
+   "mean_len": 2.17
+  },
+  {
+   "acceptance": 0.55579,
+   "accepted": 269,
+   "generated": 484,
+   "mean_len": 2.11
+  },
+  {
+   "acceptance": 0.57474,
+   "accepted": 273,
+   "generated": 475,
+   "mean_len": 2.15
+  },
+  {
+   "acceptance": 0.62832,
+   "accepted": 284,
+   "generated": 452,
+   "mean_len": 2.26
+  },
+  {
+   "acceptance": 0.55258,
+   "accepted": 268,
+   "generated": 485,
+   "mean_len": 2.1
+  },
+  {
+   "acceptance": 0.59785,
+   "accepted": 278,
+   "generated": 465,
+   "mean_len": 2.19
+  }
+ ]
+}

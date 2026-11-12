@@ -1,0 +1,23 @@
+{
+ "base": "/home/dan/abtest-specs/configs/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "swaps64": {
+   "args": {
+    "--adapt-swaps": "64"
+   }
+  },
+  "swaps-auto": {
+   "env": {
+    "STRATA_ADAPT_SWAPS_AUTO": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "lossy": true,
+ "note": "Confirm a8 screen"
+}

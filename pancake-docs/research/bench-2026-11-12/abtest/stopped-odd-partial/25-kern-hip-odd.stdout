@@ -1,0 +1,25 @@
+  waiting for a quiet machine: load 3.12, foreign CPU 36% [('caveman-proxy', 19), ('claude', 8), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 75 s
+rep 0 base                 short 125.7 edit 147.9  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 2), ('kworker/u65:0-KFD IH', 0)]  gpu 1712/1130 MHz 65C 152W gtt 21M cpu 3702MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.32, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 0 route-fast           short 130.4 edit 149.5  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1666/1130 MHz 65C 149W gtt 21M cpu 3638MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.87, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.02, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 125 s
+rep 0 route-fast           short 127.5 edit 147.1  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1705/1130 MHz 65C 152W gtt 21M cpu 3734MHz 55C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 7.11, foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.04, foreign CPU 2% [('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 125 s
+rep 0 route-fast           short 130.3 edit 150.0  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 0)]  gpu 1661/1130 MHz 65C 149W gtt 21M cpu 3638MHz 55C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.08, foreign CPU 3% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/15:0-mm_percpu_wq', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 0 expdec-swiglu        short 130.4 edit 150.3  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 0)]  gpu 1666/1130 MHz 65C 150W gtt 21M cpu 3576MHz 55C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.25, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.97, foreign CPU 8% [('gnome-shell', 5), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 125 s
+rep 0 all3                 short 133.1 edit 148.2  foreign CPU 15% [('caveman-proxy', 22), ('claude', 10), ('pipewire', 2)]  gpu 1653/1130 MHz 65C 148W gtt 21M cpu 3621MHz 55C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.49, foreign CPU 6% [('claude', 4), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.99, foreign CPU 10% [('gnome-shell', 6), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.91, foreign CPU 30% [('gnome-shell', 20), ('claude', 3), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 181 s

@@ -1,0 +1,118 @@
+  waiting for a quiet machine: load 6.12, foreign CPU 17% [('caveman-proxy', 5), ('claude', 3), ('gnome-remote-de', 2)], reclaim 0.0%
+  quiet after 115 s
+rep 0 base                 short 108.9 edit 137.3  foreign CPU 6% [('pipewire', 3), ('localsearch-3', 2), ('gnome-remote-de', 1)]  gpu 1522/1249 MHz 53C 123W gtt 21M cpu 3755MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.23, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 120 s
+rep 0 base                 short 109.6 edit 141.6  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1776/1249 MHz 52C 142W gtt 21M cpu 3587MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 7.65, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.12, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.03, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('caveman-proxy', 0)], reclaim 0.0%
+  quiet after 130 s
+rep 0 copy256              short 104.5 edit 137.9  foreign CPU 10% [('claude', 8), ('pipewire', 3), ('gnome-remote-de', 2)]  gpu 1843/1249 MHz 54C 143W gtt 21M cpu 3916MHz 55C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.18, foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 120 s
+rep 0 copy256              short 109.7 edit 139.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1736/1249 MHz 52C 137W gtt 21M cpu 3654MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.00, foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 0 route-fast           short 113.4 edit 140.3  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 0)]  gpu 1553/1249 MHz 54C 126W gtt 21M cpu 3599MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.34, foreign CPU 3% [('pipewire', 2), ('gnome-remote-de', 1), ('gnome-shell', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 0 expdec-swiglu        short 110.7 edit 140.7  foreign CPU 5% [('pipewire', 3), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1780/1249 MHz 53C 142W gtt 21M cpu 3647MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 5.73, foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 110 s
+rep 0 all3                 short 114.5 edit 112.4  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 2)]  gpu 1909/1249 MHz 55C 148W gtt 21M cpu 3377MHz 53C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 5.82, foreign CPU 3% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 1 all3                 short 89.3 edit 115.0  foreign CPU 5% [('pipewire', 3), ('claude', 2), ('gnome-remote-de', 2)]  gpu 1688/1249 MHz 52C 128W gtt 21M cpu 3271MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 10.61, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.55, foreign CPU 3% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.43, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 150 s
+rep 1 expdec-swiglu        short 113.1 edit 135.5  foreign CPU 5% [('pipewire', 3), ('claude', 2), ('gnome-remote-de', 2)]  gpu 1471/1249 MHz 54C 124W gtt 21M cpu 3596MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.35, foreign CPU 3% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 1 expdec-swiglu        short 106.8 edit 139.7  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1806/1249 MHz 52C 142W gtt 21M cpu 3543MHz 55C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.39, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('migration/11', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 1 route-fast           short 113.9 edit 139.9  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1540/1249 MHz 54C 127W gtt 21M cpu 3723MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 5.66, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 1 copy256              short 106.9 edit 136.4  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1522/1249 MHz 52C 124W gtt 21M cpu 3626MHz 55C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.39, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 120 s
+rep 1 base                 short 107.4 edit 137.1  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1776/1249 MHz 54C 141W gtt 21M cpu 3644MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.14, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 2 base                 short 108.2 edit 141.0  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1602/1249 MHz 52C 128W gtt 21M cpu 3636MHz 55C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.60, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.01, foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 0)], reclaim 0.0%
+  quiet after 125 s
+rep 2 copy256              short 114.3 edit 135.6  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1769/1249 MHz 54C 142W gtt 21M cpu 3627MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 5.89, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 2 route-fast           short 115.8 edit 141.5  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 0)]  gpu 1586/1249 MHz 52C 131W gtt 21M cpu 3563MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.18, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 2 expdec-swiglu        short 107.5 edit 139.5  foreign CPU 4% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1557/1249 MHz 53C 127W gtt 21M cpu 3547MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 5.91, foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 2 all3                 short 116.3 edit 140.8  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('kcompactd0', 1)]  gpu 1299/1249 MHz 52C 114W gtt 21M cpu 3582MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 5.85, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 2 all3                 short 115.6 edit 133.8  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 2), ('kworker/8:1-events_freezable', 1)]  gpu 1768/1249 MHz 55C 143W gtt 21M cpu 3542MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.72, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 2 all3                 short 108.5 edit 140.8  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 1), ('claude', 0)]  gpu 1562/1249 MHz 52C 127W gtt 21M cpu 3753MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.11, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.05, foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 125 s
+rep 3 all3                 short 118.3 edit 135.2  foreign CPU 8% [('gnome-shell', 13), ('pipewire', 2), ('claude', 1)]  gpu 1744/1249 MHz 54C 142W gtt 21M cpu 3695MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.59, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  quiet after 120 s
+rep 3 all3                 short 109.4 edit 137.0  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1574/1249 MHz 52C 128W gtt 21M cpu 3681MHz 55C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.19, foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 3 expdec-swiglu        short 113.5 edit 136.7  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 1), ('kworker/u65:16-KFD IH', 1)]  gpu 1466/1249 MHz 54C 122W gtt 21M cpu 3612MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.69, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.03, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('systemd-timesyn', 0)], reclaim 0.0%
+  quiet after 125 s
+rep 3 route-fast           short 110.6 edit 136.2  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 1662/1249 MHz 52C 132W gtt 21M cpu 3698MHz 55C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.12, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('gnome-shell', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 3 copy256              short 115.4 edit 137.2  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 1451/1249 MHz 54C 121W gtt 21M cpu 3576MHz 54C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 6.51, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('migration/1', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 3 base                 short 109.8 edit 90.3  foreign CPU 5% [('pipewire', 3), ('claude', 2), ('gnome-remote-de', 2)]  gpu 1593/1249 MHz 52C 114W gtt 21M cpu 3465MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 7.83, foreign CPU 2% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.15, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.05, foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 130 s
+rep 3 base                 short 102.8 edit 91.8  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1639/1249 MHz 53C 125W gtt 21M cpu 3204MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    107.0 +-   4.7  (n=4)
+                              drafts accepted 0.67
+  short  copy256                 111.6 +-   6.3  (n=4)   vs base:  +4.3% +-  9.1%  -> no difference
+                              drafts accepted 0.71
+  short  route-fast              113.4 +-   3.4  (n=4)   vs base:  +6.0% +-  2.7%  -> better
+                              drafts accepted 0.73
+  short  expdec-swiglu           109.6 +-   4.9  (n=4)   vs base:  +2.5% +-  8.1%  -> no difference
+                              drafts accepted 0.69
+  short  all3                    105.4 +-  17.6  (n=4)   vs base:  -1.5% +- 16.8%  -> no difference
+                              drafts accepted 0.67
+  edit   base                    127.9 +-  38.4  (n=4)
+                              drafts accepted 0.91
+  edit   copy256                 137.2 +-   2.6  (n=4)   vs base:  +7.3% +- 30.0%  -> no difference
+                              drafts accepted 0.89
+  edit   route-fast              139.5 +-   3.6  (n=4)   vs base:  +9.1% +- 27.3%  -> no difference
+                              drafts accepted 0.89
+  edit   expdec-swiglu           139.1 +-   2.7  (n=4)   vs base:  +8.8% +- 28.0%  -> no difference
+                              drafts accepted 0.91
+  edit   all3                    126.3 +-  23.3  (n=4)   vs base:  -1.2% +- 41.7%  -> no difference
+                              drafts accepted 0.91
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  copy256              DIFFERENT text -> lossy or placement-dependent: quality gate
+  route-fast           DIFFERENT text -> lossy or placement-dependent: quality gate
+  expdec-swiglu        DIFFERENT text -> lossy or placement-dependent: quality gate
+  all3                 DIFFERENT text -> lossy or placement-dependent: quality gate

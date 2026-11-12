@@ -1,0 +1,20 @@
+TTFT audit (pancake-docs/TTFT_LEVERS.md)
+
+class        n   prompt s  median ms  tokens read / prompt tokens
+live          0       0.0          -  0 / 0 (0.00%)
+fallback      0       0.0          -  0 / 0 (0.00%)
+switch       27      73.6       2644  91,866 / 557,491 (16.48%)
+lost          0       0.0          -  0 / 0 (0.00%)
+cold         30      36.4       1035  16,997 / 16,997 (100.00%)
+
+agent-like turns (reused >= 8192): n=21 {'live': 0, 'fallback': 0, 'switch': 21}; tokens read again 73,435 of 508,567 (14.44%)
+
+outside the engine's prompt timer (queue, pipe, first window): p50 17.1 ms, p90 21.8, p99 22.8, max 22.9 (n=57)
+
+engine log: 56 parks (11.3 s, synchronous on HIP), 0 skipped parks, 27 restores
+  park      0-  4095 tokens: n=  30 mean    113 ms  range 102-226
+  park   4096- 16383 tokens: n=   9 mean    221 ms  range 159-285
+  park  16384- 32767 tokens: n=  15 mean    349 ms  range 304-371
+  park  32768- 49151 tokens: n=   2 mean    363 ms  range 355-371
+  restores of 16K+ tokens (ms): [64.0, 68.4, 68.1, 79.2, 79.1, 64.7, 68.8, 68.4, 79.3, 80.5]
+  requests that read > 1 GB of experts from storage: 0 (max 0.0 GB)

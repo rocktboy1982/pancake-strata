@@ -1,0 +1,25 @@
+{
+ "base": "/home/dan/abtest-specs/configs/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "expdec-swiglu": {
+   "env": {
+    "STRATA_EXPDEC_SWIGLU": "1"
+   }
+  },
+  "all3": {
+   "env": {
+    "STRATA_WAIT_COPY256": "1",
+    "STRATA_ROUTE_FAST": "1",
+    "STRATA_EXPDEC_SWIGLU": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "lossy": false,
+ "note": "Confirm kern screen"
+}

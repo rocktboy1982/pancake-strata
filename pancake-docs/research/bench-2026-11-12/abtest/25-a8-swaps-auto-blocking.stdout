@@ -1,0 +1,50 @@
+rep 0 base                 short 108.2 edit 119.4  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1894/1130 MHz 64C 170W gtt 21M cpu 3473MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps16              short 121.7 edit 130.9  foreign CPU 8% [('gnome-shell', 9), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2239/1249 MHz 64C 193W gtt 21M cpu 3089MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps64              short 112.7 edit 154.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:2-ttm', 1)]  gpu 2143/1249 MHz 65C 195W gtt 21M cpu 3158MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps96              short 132.0 edit 153.2  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1640/1130 MHz 66C 149W gtt 21M cpu 3725MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps-auto           short 133.4 edit 146.1  foreign CPU 10% [('gnome-shell', 13), ('claude', 2), ('pipewire', 2)]  gpu 1671/1130 MHz 65C 150W gtt 21M cpu 3644MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 swaps-auto           short 133.3 edit 146.0  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 2), ('ptyxis-agent', 0)]  gpu 1678/1130 MHz 65C 149W gtt 21M cpu 3544MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 swaps96              short 132.7 edit 153.8  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 2), ('caveman-proxy', 0)]  gpu 1632/1130 MHz 66C 148W gtt 21M cpu 3638MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 swaps64              short 132.6 edit 159.1  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1603/1130 MHz 66C 146W gtt 21M cpu 3672MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 swaps16              short 126.1 edit 138.2  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1774/1130 MHz 64C 154W gtt 21M cpu 3656MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 84.4 edit 136.3  foreign CPU 34% [('caveman-proxy', 30), ('claude', 16), ('ptyxis', 4)]  gpu 2178/1249 MHz 67C 174W gtt 21M cpu 4343MHz 54C igpu 5%/vcn 0% fclk 1600  NOISY -> repeat
+rep 1 base                 short 108.4 edit 98.9  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2662/1249 MHz 66C 218W gtt 21M cpu 3887MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 127.2 edit 110.3  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2308/1090 MHz 63C 188W gtt 21M cpu 3652MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 swaps16              short 88.7 edit 138.5  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2651/1249 MHz 65C 211W gtt 21M cpu 3391MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 2 swaps64              short 111.9 edit 120.9  foreign CPU 5% [('pipewire', 3), ('claude', 3), ('gnome-remote-de', 2)]  gpu 2338/1249 MHz 64C 197W gtt 21M cpu 3854MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 swaps96              short 99.7 edit 158.7  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2302/1249 MHz 66C 205W gtt 21M cpu 3796MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 swaps-auto           short 125.9 edit 117.8  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 1), ('claude', 0)]  gpu 2332/1249 MHz 66C 196W gtt 21M cpu 3433MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 swaps-auto           short 103.0 edit 111.3  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2033/1130 MHz 62C 176W gtt 21M cpu 3188MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 3 swaps96              short 131.1 edit 154.0  foreign CPU 29% [('caveman-proxy', 25), ('claude', 14), ('ptyxis', 3)]  gpu 1950/1090 MHz 66C 181W gtt 21M cpu 3589MHz 54C igpu 1%/vcn 0% fclk 1600  NOISY -> repeat
+rep 3 swaps96              short 132.1 edit 151.9  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1644/1130 MHz 66C 150W gtt 21M cpu 3728MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 swaps64              short 121.5 edit 96.7  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2027/1130 MHz 63C 168W gtt 21M cpu 3196MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 3 swaps16              short 88.9 edit 113.4  foreign CPU 5% [('pipewire', 3), ('claude', 2), ('gnome-remote-de', 2)]  gpu 2199/1130 MHz 64C 184W gtt 21M cpu 3332MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 128.8 edit 146.3  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 0)]  gpu 1698/1130 MHz 65C 152W gtt 21M cpu 3626MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    118.2 +-  18.1  (n=4)
+                              drafts accepted 0.67
+  short  swaps16                 106.3 +-  32.3  (n=4)   vs base: -10.0% +- 42.6%  -> no difference
+                              drafts accepted 0.71
+  short  swaps64                 119.7 +-  15.3  (n=4)   vs base:  +1.3% +- 23.1%  -> no difference
+                              drafts accepted 0.71
+  short  swaps96                 124.1 +-  25.9  (n=4)   vs base:  +5.1% +- 32.8%  -> no difference
+                              drafts accepted 0.72
+  short  swaps-auto              123.9 +-  22.8  (n=4)   vs base:  +4.9% +- 32.9%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    118.7 +-  32.1  (n=4)
+                              drafts accepted 0.90
+  edit   swaps16                 130.2 +-  18.7  (n=4)   vs base:  +9.7% +- 42.5%  -> no difference
+                              drafts accepted 0.92
+  edit   swaps64                 132.8 +-  46.9  (n=4)   vs base: +11.9% +- 63.0%  -> no difference
+                              drafts accepted 0.89
+  edit   swaps96                 154.4 +-   4.7  (n=4)   vs base: +30.0% +- 29.3%  -> better
+                              drafts accepted 0.91
+  edit   swaps-auto              130.3 +-  29.2  (n=4)   vs base:  +9.7% +- 46.9%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  swaps16              DIFFERENT text -> lossy or placement-dependent: quality gate
+  swaps64              DIFFERENT text -> lossy or placement-dependent: quality gate
+  swaps96              DIFFERENT text -> lossy or placement-dependent: quality gate
+  swaps-auto           DIFFERENT text -> lossy or placement-dependent: quality gate

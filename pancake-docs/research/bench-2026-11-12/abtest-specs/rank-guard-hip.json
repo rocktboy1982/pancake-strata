@@ -1,0 +1,30 @@
+{
+ "base": "/home/dan/abtest-specs/configs/rdna3test-hipbuild.json",
+ "arms": {
+  "base": {},
+  "top2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2"
+   }
+  },
+  "top2-fold1": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2",
+    "STRATA_VERIFY_DEFER_CPU_FOLD": "1"
+   }
+  },
+  "top2-fold2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2",
+    "STRATA_VERIFY_DEFER_CPU_FOLD": "2"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": true,
+ "note": "rank-guard (A4): base exe = HIP build-int (contains work/a4-rank-guard), config rdna3test; run after tonight"
+}

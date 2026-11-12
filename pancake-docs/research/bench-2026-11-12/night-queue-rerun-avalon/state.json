@@ -1,0 +1,45 @@
+{
+ "schema": 1,
+ "plan": "night-queue-2026-11-11",
+ "jobs": {
+  "ttft-avalon-iq2xs": {
+   "status": "done",
+   "group": "2-ttft",
+   "engine": "avalon-iq2xs",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {},
+   "args": {},
+   "client_kind": "ttft",
+   "est_min": 20.0,
+   "start": 1794469088.975506,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/ttft-avalon-iq2xs-p1.json",
+     "rc": 0,
+     "wall_s": 48.4
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 151437,
+   "stop": {
+    "leader": 151437,
+    "sigterm": 0,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 52.4,
+    "waited_s": 0.0
+   },
+   "end": 1794469207.4872527,
+   "wall_s": 118.5
+  }
+ }
+}

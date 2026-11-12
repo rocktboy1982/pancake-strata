@@ -1,0 +1,219 @@
+{
+ "schema": 1,
+ "label": "prose-avalon-p1",
+ "engine_kind": "llama",
+ "host": "127.0.0.1",
+ "port": 8081,
+ "time": 1794442845.6308055,
+ "prompt_name": "story",
+ "prompt": "Write a short story (about 400 words) about a lighthouse keeper.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 512,
+   "tps": 94.1739497899884,
+   "decode_ms": 5426.129,
+   "draft_n": 463,
+   "draft_n_accepted": 279,
+   "wall_s": 6.189145088195801,
+   "text_sha256": "d6d37ad47c08ece1",
+   "text_head": "The wind howled against the glass, a lonely, mournful sound that Elias had learn",
+   "accept_pct": 60.259179265658744,
+   "windows": 233,
+   "tok_per_window": 2.1974248927038627,
+   "accepted_per_window": 1.1974248927038627,
+   "drafted_per_window": 1.9871244635193133,
+   "ms_per_window": 23.288107296137337,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 512,
+   "tps": 104.18284966802166,
+   "decode_ms": 4904.838,
+   "draft_n": 463,
+   "draft_n_accepted": 278,
+   "wall_s": 5.065105438232422,
+   "text_sha256": "290f595244ad79bf",
+   "text_head": "The wind howled against the glass, a lonely, mournful sound that Elias had learn",
+   "accept_pct": 60.043196544276455,
+   "windows": 234,
+   "tok_per_window": 2.1880341880341883,
+   "accepted_per_window": 1.188034188034188,
+   "drafted_per_window": 1.9786324786324787,
+   "ms_per_window": 20.960846153846152,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 106.10511383043821,
+   "decode_ms": 4815.979,
+   "draft_n": 470,
+   "draft_n_accepted": 276,
+   "wall_s": 4.935871124267578,
+   "text_sha256": "c47c30146ce17532",
+   "text_head": "The wind howled against the glass, a lonely, mournful sound that Elias had learn",
+   "accept_pct": 58.723404255319146,
+   "windows": 236,
+   "tok_per_window": 2.169491525423729,
+   "accepted_per_window": 1.1694915254237288,
+   "drafted_per_window": 1.9915254237288136,
+   "ms_per_window": 20.406690677966104,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 492,
+   "tps": 101.50538061210018,
+   "decode_ms": 4837.182,
+   "draft_n": 468,
+   "draft_n_accepted": 257,
+   "wall_s": 4.955155372619629,
+   "text_sha256": "cf01351e9e97f055",
+   "text_head": "The wind howled against the glass, a lonely, mournful sound that Elias had learn",
+   "accept_pct": 54.914529914529915,
+   "windows": 235,
+   "tok_per_window": 2.0936170212765957,
+   "accepted_per_window": 1.0936170212765957,
+   "drafted_per_window": 1.9914893617021276,
+   "ms_per_window": 20.58375319148936,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 103.35969578672709,
+   "decode_ms": 4943.9,
+   "draft_n": 489,
+   "draft_n_accepted": 265,
+   "wall_s": 5.066363096237183,
+   "text_sha256": "2dbba9a9c29a766f",
+   "text_head": "The wind howled against the glass, a lonely, mournful sound that Elias had learn",
+   "accept_pct": 54.192229038854805,
+   "windows": 247,
+   "tok_per_window": 2.0728744939271255,
+   "accepted_per_window": 1.0728744939271255,
+   "drafted_per_window": 1.9797570850202428,
+   "ms_per_window": 20.015789473684208,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 108.81346476125985,
+   "decode_ms": 4696.11,
+   "draft_n": 461,
+   "draft_n_accepted": 279,
+   "wall_s": 4.821402311325073,
+   "text_sha256": "0335f5e4bff1f330",
+   "text_head": "The wind howled against the glass, a lonely, mournful sound that Elias had learn",
+   "accept_pct": 60.52060737527115,
+   "windows": 233,
+   "tok_per_window": 2.1974248927038627,
+   "accepted_per_window": 1.1974248927038627,
+   "drafted_per_window": 1.9785407725321889,
+   "ms_per_window": 20.154978540772532,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 104.18284966802166,
+   "mean": 104.79330093170941,
+   "sd": 2.789303890886306,
+   "min": 101.50538061210018,
+   "max": 108.81346476125985
+  },
+  "tok_per_window": {
+   "median": 2.169491525423729,
+   "mean": 2.1442884242731,
+   "sd": 0.05709621914154441,
+   "min": 2.0728744939271255,
+   "max": 2.1974248927038627
+  },
+  "accepted_per_window": {
+   "median": 1.1694915254237288,
+   "mean": 1.1442884242731002,
+   "sd": 0.05709621914154436,
+   "min": 1.0728744939271255,
+   "max": 1.1974248927038627
+  },
+  "drafted_per_window": {
+   "median": 1.9797570850202428,
+   "mean": 1.9839890243231704,
+   "sd": 0.006880002114418763,
+   "min": 1.9785407725321889,
+   "max": 1.9915254237288136
+  },
+  "accept_pct": {
+   "median": 58.723404255319146,
+   "mean": 57.67879342565029,
+   "sd": 2.939166735627311,
+   "min": 54.192229038854805,
+   "max": 60.52060737527115
+  },
+  "ms_per_window": {
+   "median": 20.406690677966104,
+   "mean": 20.424411607551672,
+   "sd": 0.3718306132958005,
+   "min": 20.015789473684208,
+   "max": 20.960846153846152
+  }
+ },
+ "loadavg_before": [
+  3.72314453125,
+  3.767578125,
+  3.7919921875
+ ],
+ "loadavg_after": [
+  5.6875,
+  4.25,
+  3.953125
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "server_log": "/home/dan/night-queue-run/raw/srv-prose-avalon.log",
+ "server_log_requests": [
+  {
+   "acceptance": 0.60259,
+   "accepted": 279,
+   "generated": 463,
+   "mean_len": 2.2
+  },
+  {
+   "acceptance": 0.60043,
+   "accepted": 278,
+   "generated": 463,
+   "mean_len": 2.2
+  },
+  {
+   "acceptance": 0.58723,
+   "accepted": 276,
+   "generated": 470,
+   "mean_len": 2.17
+  },
+  {
+   "acceptance": 0.54915,
+   "accepted": 257,
+   "generated": 468,
+   "mean_len": 2.1
+  },
+  {
+   "acceptance": 0.54192,
+   "accepted": 265,
+   "generated": 489,
+   "mean_len": 2.08
+  },
+  {
+   "acceptance": 0.60521,
+   "accepted": 279,
+   "generated": 461,
+   "mean_len": 2.21
+  }
+ ]
+}

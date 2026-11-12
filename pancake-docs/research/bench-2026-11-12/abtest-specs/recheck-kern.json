@@ -1,0 +1,18 @@
+{
+ "base": "/home/dan/abtest-specs/configs/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "copy256": {
+   "env": {
+    "STRATA_WAIT_COPY256": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "lossy": false,
+ "note": "Recheck: edit base outlier (rep count up) + copy256 quality flip"
+}

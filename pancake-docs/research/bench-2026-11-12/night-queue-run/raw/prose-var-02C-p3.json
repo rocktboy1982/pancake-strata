@@ -1,0 +1,493 @@
+{
+ "schema": 1,
+ "label": "prose-var-02C-p3",
+ "engine_kind": "pancake",
+ "host": "127.0.0.1",
+ "port": 8080,
+ "time": 1794443491.4173658,
+ "prompt_name": "moe",
+ "prompt": "Explain in about 300 words how a mixture-of-experts language model works.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 392,
+   "tps": 94.2,
+   "decode_ms": 4159.7,
+   "draft_n": 244,
+   "draft_n_accepted": 148,
+   "wall_s": 4.804935932159424,
+   "text_sha256": "e554032aef9e7f9f",
+   "text_head": "A mixture-of-experts (MoE) language model is a neural network architecture that ",
+   "accept_pct": 60.65573770491803,
+   "windows": 244,
+   "tok_per_window": 1.6065573770491803,
+   "accepted_per_window": 0.6065573770491803,
+   "drafted_per_window": 1.0,
+   "ms_per_window": 17.04795081967213,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 363,
+   "tps": 100.2,
+   "decode_ms": 3623.0,
+   "draft_n": 217,
+   "draft_n_accepted": 145,
+   "wall_s": 3.7790474891662598,
+   "text_sha256": "fe4fde37c184c64a",
+   "text_head": "A mixture-of-experts (MoE) language model is a neural network architecture that ",
+   "accept_pct": 66.82027649769586,
+   "windows": 218,
+   "tok_per_window": 1.665137614678899,
+   "accepted_per_window": 0.6651376146788991,
+   "drafted_per_window": 0.9954128440366973,
+   "ms_per_window": 16.619266055045873,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 343,
+   "tps": 95.9,
+   "decode_ms": 3575.3,
+   "draft_n": 215,
+   "draft_n_accepted": 127,
+   "wall_s": 3.746933698654175,
+   "text_sha256": "b8a24d2f1fbaf5d0",
+   "text_head": "A mixture-of-experts (MoE) language model is a neural network architecture that ",
+   "accept_pct": 59.06976744186046,
+   "windows": 216,
+   "tok_per_window": 1.587962962962963,
+   "accepted_per_window": 0.5879629629629629,
+   "drafted_per_window": 0.9953703703703703,
+   "ms_per_window": 16.552314814814817,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 366,
+   "tps": 97.4,
+   "decode_ms": 3757.4,
+   "draft_n": 226,
+   "draft_n_accepted": 139,
+   "wall_s": 3.930858850479126,
+   "text_sha256": "0b08dad4984483c8",
+   "text_head": "A mixture-of-experts (MoE) language model is a neural network architecture that ",
+   "accept_pct": 61.50442477876106,
+   "windows": 227,
+   "tok_per_window": 1.6123348017621146,
+   "accepted_per_window": 0.6123348017621145,
+   "drafted_per_window": 0.9955947136563876,
+   "ms_per_window": 16.55242290748899,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 412,
+   "tps": 98.0,
+   "decode_ms": 4203.4,
+   "draft_n": 254,
+   "draft_n_accepted": 158,
+   "wall_s": 4.377194166183472,
+   "text_sha256": "559ff74ce48fa8b7",
+   "text_head": "A mixture-of-experts (MoE) language model is a neural network architecture that ",
+   "accept_pct": 62.20472440944882,
+   "windows": 254,
+   "tok_per_window": 1.6220472440944882,
+   "accepted_per_window": 0.6220472440944882,
+   "drafted_per_window": 1.0,
+   "ms_per_window": 16.548818897637794,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 354,
+   "tps": 99.5,
+   "decode_ms": 3559.0,
+   "draft_n": 216,
+   "draft_n_accepted": 138,
+   "wall_s": 3.7359793186187744,
+   "text_sha256": "ea635db7315a341d",
+   "text_head": "A mixture-of-experts (MoE) language model is a neural network architecture that ",
+   "accept_pct": 63.888888888888886,
+   "windows": 216,
+   "tok_per_window": 1.6388888888888888,
+   "accepted_per_window": 0.6388888888888888,
+   "drafted_per_window": 1.0,
+   "ms_per_window": 16.47685185185185,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 98.0,
+   "mean": 98.2,
+   "sd": 1.7073371078963855,
+   "min": 95.9,
+   "max": 100.2
+  },
+  "tok_per_window": {
+   "median": 1.6220472440944882,
+   "mean": 1.625274302477471,
+   "sd": 0.028915485746219327,
+   "min": 1.587962962962963,
+   "max": 1.665137614678899
+  },
+  "accepted_per_window": {
+   "median": 0.6220472440944882,
+   "mean": 0.6252743024774707,
+   "sd": 0.028915485746219414,
+   "min": 0.5879629629629629,
+   "max": 0.6651376146788991
+  },
+  "drafted_per_window": {
+   "median": 0.9955947136563876,
+   "mean": 0.9972755856126911,
+   "sd": 0.0024884658596988117,
+   "min": 0.9953703703703703,
+   "max": 1.0
+  },
+  "accept_pct": {
+   "median": 62.20472440944882,
+   "mean": 62.69761640333102,
+   "sd": 2.882854195339038,
+   "min": 59.06976744186046,
+   "max": 66.82027649769586
+  },
+  "ms_per_window": {
+   "median": 16.552314814814817,
+   "mean": 16.549934905367866,
+   "sd": 0.05040099360053062,
+   "min": 16.47685185185185,
+   "max": 16.619266055045873
+  }
+ },
+ "loadavg_before": [
+  8.2705078125,
+  5.67041015625,
+  4.74365234375
+ ],
+ "loadavg_after": [
+  7.83837890625,
+  5.72802734375,
+  4.78173828125
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "snapshot_before": {
+  "time": 1794443467.040455,
+  "engine": {
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "max_context": 131072,
+   "images": false,
+   "version": "0.1.58",
+   "logit_bias": 1,
+   "context": 131072,
+   "kv": "int8",
+   "kv_resident": 32768,
+   "expert_slots": 10733,
+   "expert_cache_mib": 14718,
+   "expert_slots_primary": 10733,
+   "expert_cache_primary_mib": 14718,
+   "spec": 12,
+   "mtp_max": 2,
+   "lookup": 3,
+   "vram_free_mib": 818,
+   "cvec": 0,
+   "arena_mib": 33812,
+   "pool_workers": 7,
+   "pcie_frac": "0.00",
+   "spec_min_p": "0.00",
+   "conversation_cache_mib": 5632,
+   "conversation_cache_slots": 4,
+   "conversation_cache_min_free_mib": 2560,
+   "conversation_cache_min_tokens": 0,
+   "tail_role_token": 8678,
+   "vram_elastic": 0,
+   "prefill_cap": 32768,
+   "prefill_stages": 1,
+   "stream_all_min": 4096,
+   "prefill_pipe": 0,
+   "engine": "0.1.58",
+   "drafting": "mtp",
+   "drafting_note": ""
+  },
+  "totals": {
+   "since": 1794443415.869819,
+   "requests": 12,
+   "prompt_tokens": 846,
+   "reused": 635,
+   "output_tokens": 4602,
+   "prompt_ms": 3141.4999999999995,
+   "decode_ms": 47316.600000000006,
+   "drafts_offered": 2816,
+   "drafts_accepted": 1775
+  },
+  "hardware": {
+   "cpu": 51.1,
+   "ram_used": 44907565056,
+   "ram_total": 61997891584,
+   "disk_read_mb": 3.9516967518308483,
+   "disk_write_mb": 0.05461377544484884,
+   "tok_s": 92.68565619958898,
+   "tok_s_mean": 101.76043324375823,
+   "prefill_tok_s_mean": 0.0
+  },
+  "live": {
+   "state": "idle",
+   "queued": 0,
+   "phase": null,
+   "prompt_tokens": null,
+   "prompt_read": null,
+   "prompt_total": null,
+   "generated": null,
+   "max_tokens": null,
+   "elapsed_s": null,
+   "tok_s": null,
+   "tok_s_mean": null,
+   "prefill_tok_s_mean": null,
+   "tok_s_window_s": null
+  },
+  "status": {
+   "service": "strata",
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "loaded": true,
+   "auto_load": true,
+   "structured_output": {
+    "formats": [
+     "json_object",
+     "json_schema"
+    ],
+    "method": "prompt_and_validate",
+    "constrained_decoding": false,
+    "stream_buffered": true
+   },
+   "engine": "0.1.58",
+   "started": 1794443415,
+   "uptime_s": 51,
+   "cache_max_tokens": 131072,
+   "context": {
+    "native": 131072,
+    "max_positions": 131072
+   },
+   "concurrency": {
+    "serving": 1,
+    "requested": 1
+   },
+   "dialects": [
+    "/v1/chat/completions",
+    "/v1/messages",
+    "/v1/responses"
+   ],
+   "vision": {
+    "enabled": false,
+    "available": false,
+    "error": null
+   },
+   "image_generation": {
+    "enabled": false
+   },
+   "activity": {
+    "requests": 12,
+    "in_flight": 0,
+    "last_request_at": 1794443466
+   },
+   "last_timings": {
+    "cache_n": 62,
+    "prompt_n": 7,
+    "prompt_ms": 169.2,
+    "prompt_per_token_ms": 24.171,
+    "prompt_per_second": 41.4,
+    "predicted_n": 278,
+    "predicted_ms": 2738.3,
+    "predicted_per_token_ms": 9.85,
+    "predicted_per_second": 101.5,
+    "draft_n": 164,
+    "draft_n_accepted": 113,
+    "at": 1794443466
+   },
+   "vram": {
+    "elastic": false
+   },
+   "machine": {
+    "at": 1794443467,
+    "gpu": null,
+    "ram": {
+     "used_gib": 41.8,
+     "total_gib": 57.7
+    }
+   }
+  }
+ },
+ "snapshot_after": {
+  "time": 1794443491.4173486,
+  "engine": {
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "max_context": 131072,
+   "images": false,
+   "version": "0.1.58",
+   "logit_bias": 1,
+   "context": 131072,
+   "kv": "int8",
+   "kv_resident": 32768,
+   "expert_slots": 10733,
+   "expert_cache_mib": 14718,
+   "expert_slots_primary": 10733,
+   "expert_cache_primary_mib": 14718,
+   "spec": 12,
+   "mtp_max": 2,
+   "lookup": 3,
+   "vram_free_mib": 818,
+   "cvec": 0,
+   "arena_mib": 33812,
+   "pool_workers": 7,
+   "pcie_frac": "0.00",
+   "spec_min_p": "0.00",
+   "conversation_cache_mib": 5632,
+   "conversation_cache_slots": 4,
+   "conversation_cache_min_free_mib": 2560,
+   "conversation_cache_min_tokens": 0,
+   "tail_role_token": 8678,
+   "vram_elastic": 0,
+   "prefill_cap": 32768,
+   "prefill_stages": 1,
+   "stream_all_min": 4096,
+   "prefill_pipe": 0,
+   "engine": "0.1.58",
+   "drafting": "mtp",
+   "drafting_note": ""
+  },
+  "totals": {
+   "since": 1794443415.869819,
+   "requests": 18,
+   "prompt_tokens": 1284,
+   "reused": 965,
+   "output_tokens": 6832,
+   "prompt_ms": 4615.0999999999985,
+   "decode_ms": 70194.40000000001,
+   "drafts_offered": 4188,
+   "drafts_accepted": 2630
+  },
+  "hardware": {
+   "cpu": 51.0,
+   "ram_used": 45099606016,
+   "ram_total": 61997891584,
+   "disk_read_mb": 4.947390029353448,
+   "disk_write_mb": 0.0,
+   "tok_s": 92.08710339496709,
+   "tok_s_mean": 100.31628606622105,
+   "prefill_tok_s_mean": 0.0
+  },
+  "live": {
+   "state": "idle",
+   "queued": 0,
+   "phase": null,
+   "prompt_tokens": null,
+   "prompt_read": null,
+   "prompt_total": null,
+   "generated": null,
+   "max_tokens": null,
+   "elapsed_s": null,
+   "tok_s": null,
+   "tok_s_mean": null,
+   "prefill_tok_s_mean": null,
+   "tok_s_window_s": null
+  },
+  "status": {
+   "service": "strata",
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "loaded": true,
+   "auto_load": true,
+   "structured_output": {
+    "formats": [
+     "json_object",
+     "json_schema"
+    ],
+    "method": "prompt_and_validate",
+    "constrained_decoding": false,
+    "stream_buffered": true
+   },
+   "engine": "0.1.58",
+   "started": 1794443415,
+   "uptime_s": 75,
+   "cache_max_tokens": 131072,
+   "context": {
+    "native": 131072,
+    "max_positions": 131072
+   },
+   "concurrency": {
+    "serving": 1,
+    "requested": 1
+   },
+   "dialects": [
+    "/v1/chat/completions",
+    "/v1/messages",
+    "/v1/responses"
+   ],
+   "vision": {
+    "enabled": false,
+    "available": false,
+    "error": null
+   },
+   "image_generation": {
+    "enabled": false
+   },
+   "activity": {
+    "requests": 18,
+    "in_flight": 0,
+    "last_request_at": 1794443491
+   },
+   "last_timings": {
+    "cache_n": 66,
+    "prompt_n": 7,
+    "prompt_ms": 171.9,
+    "prompt_per_token_ms": 24.557,
+    "prompt_per_second": 40.7,
+    "predicted_n": 354,
+    "predicted_ms": 3559.0,
+    "predicted_per_token_ms": 10.054,
+    "predicted_per_second": 99.5,
+    "draft_n": 216,
+    "draft_n_accepted": 138,
+    "at": 1794443491
+   },
+   "vram": {
+    "elastic": false
+   },
+   "machine": {
+    "at": 1794443491,
+    "gpu": null,
+    "ram": {
+     "used_gib": 42.0,
+     "total_gib": 57.7
+    }
+   }
+  }
+ },
+ "snapshot_diff": {
+  "totals": {
+   "since": 0.0,
+   "requests": 6,
+   "prompt_tokens": 438,
+   "reused": 330,
+   "output_tokens": 2230,
+   "prompt_ms": 1473.599999999999,
+   "decode_ms": 22877.800000000003,
+   "drafts_offered": 1372,
+   "drafts_accepted": 855
+  },
+  "hardware": {
+   "cpu": -0.10000000000000142,
+   "ram_used": 192040960,
+   "ram_total": 0,
+   "disk_read_mb": 0.9956932775225997,
+   "disk_write_mb": -0.05461377544484884,
+   "tok_s": -0.5985528046218889,
+   "tok_s_mean": -1.4441471775371753,
+   "prefill_tok_s_mean": 0.0
+  }
+ }
+}

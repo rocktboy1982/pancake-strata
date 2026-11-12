@@ -1,0 +1,219 @@
+{
+ "schema": 1,
+ "label": "prose-avalon-p2",
+ "engine_kind": "llama",
+ "host": "127.0.0.1",
+ "port": 8081,
+ "time": 1794442859.510165,
+ "prompt_name": "tips",
+ "prompt": "List 15 practical tips for reducing cloud costs, one line each.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 245,
+   "tps": 103.70679538776778,
+   "decode_ms": 2352.787,
+   "draft_n": 204,
+   "draft_n_accepted": 142,
+   "wall_s": 2.6955223083496094,
+   "text_sha256": "86a8f9d296f74657",
+   "text_head": "1. Right-size instances by matching compute resources to actual workload require",
+   "accept_pct": 69.6078431372549,
+   "windows": 103,
+   "tok_per_window": 2.378640776699029,
+   "accepted_per_window": 1.3786407766990292,
+   "drafted_per_window": 1.9805825242718447,
+   "ms_per_window": 22.842592233009707,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 265,
+   "tps": 107.87252899380672,
+   "decode_ms": 2447.333,
+   "draft_n": 236,
+   "draft_n_accepted": 146,
+   "wall_s": 2.57302188873291,
+   "text_sha256": "5c954f5832a72d9a",
+   "text_head": "1. Right-size instances by matching compute resources to actual workload require",
+   "accept_pct": 61.86440677966102,
+   "windows": 119,
+   "tok_per_window": 2.226890756302521,
+   "accepted_per_window": 1.226890756302521,
+   "drafted_per_window": 1.9831932773109244,
+   "ms_per_window": 20.565823529411766,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 264,
+   "tps": 112.3810117965878,
+   "decode_ms": 2340.253,
+   "draft_n": 224,
+   "draft_n_accepted": 151,
+   "wall_s": 2.4577126502990723,
+   "text_sha256": "72f4d32f7a6b09bf",
+   "text_head": "1. Right-size compute instances to match actual workload requirements instead of",
+   "accept_pct": 67.41071428571429,
+   "windows": 113,
+   "tok_per_window": 2.336283185840708,
+   "accepted_per_window": 1.336283185840708,
+   "drafted_per_window": 1.9823008849557522,
+   "ms_per_window": 20.71020353982301,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 203,
+   "tps": 114.59516987032025,
+   "decode_ms": 1762.727,
+   "draft_n": 176,
+   "draft_n_accepted": 114,
+   "wall_s": 1.8803367614746094,
+   "text_sha256": "e1a1364363666a7a",
+   "text_head": "1. Right-size compute instances to match actual workload requirements.\n2. Use re",
+   "accept_pct": 64.77272727272727,
+   "windows": 89,
+   "tok_per_window": 2.2808988764044944,
+   "accepted_per_window": 1.2808988764044944,
+   "drafted_per_window": 1.9775280898876404,
+   "ms_per_window": 19.80592134831461,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 198,
+   "tps": 120.71433473533534,
+   "decode_ms": 1631.952,
+   "draft_n": 166,
+   "draft_n_accepted": 114,
+   "wall_s": 1.747351884841919,
+   "text_sha256": "60c6474826f754fe",
+   "text_head": "1. Right-size compute instances to match actual workload requirements.\n2. Use re",
+   "accept_pct": 68.67469879518072,
+   "windows": 84,
+   "tok_per_window": 2.357142857142857,
+   "accepted_per_window": 1.3571428571428572,
+   "drafted_per_window": 1.9761904761904763,
+   "ms_per_window": 19.428,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 268,
+   "tps": 115.120197127169,
+   "decode_ms": 2319.315,
+   "draft_n": 234,
+   "draft_n_accepted": 151,
+   "wall_s": 2.4345498085021973,
+   "text_sha256": "c8cbf6778d823dba",
+   "text_head": "1. Right-size instances by matching compute resources to actual workload require",
+   "accept_pct": 64.52991452991454,
+   "windows": 117,
+   "tok_per_window": 2.2905982905982905,
+   "accepted_per_window": 1.2905982905982907,
+   "drafted_per_window": 2.0,
+   "ms_per_window": 19.823205128205128,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 114.59516987032025,
+   "mean": 114.13664850464383,
+   "sd": 4.657387126431663,
+   "min": 107.87252899380672,
+   "max": 120.71433473533534
+  },
+  "tok_per_window": {
+   "median": 2.2905982905982905,
+   "mean": 2.298362793257774,
+   "sd": 0.05090820180461772,
+   "min": 2.226890756302521,
+   "max": 2.357142857142857
+  },
+  "accepted_per_window": {
+   "median": 1.2905982905982907,
+   "mean": 1.2983627932577744,
+   "sd": 0.050908201804617706,
+   "min": 1.226890756302521,
+   "max": 1.3571428571428572
+  },
+  "drafted_per_window": {
+   "median": 1.9823008849557522,
+   "mean": 1.9838425456689586,
+   "sd": 0.009516933812063902,
+   "min": 1.9761904761904763,
+   "max": 2.0
+  },
+  "accept_pct": {
+   "median": 64.77272727272727,
+   "mean": 65.45049233263957,
+   "sd": 2.6648084349066092,
+   "min": 61.86440677966102,
+   "max": 68.67469879518072
+  },
+  "ms_per_window": {
+   "median": 19.823205128205128,
+   "mean": 20.066630709150903,
+   "sd": 0.5473696253758386,
+   "min": 19.428,
+   "max": 20.71020353982301
+  }
+ },
+ "loadavg_before": [
+  5.6875,
+  4.25,
+  3.953125
+ ],
+ "loadavg_after": [
+  6.2001953125,
+  4.4345703125,
+  4.01904296875
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "server_log": "/home/dan/night-queue-run/raw/srv-prose-avalon.log",
+ "server_log_requests": [
+  {
+   "acceptance": 0.69608,
+   "accepted": 142,
+   "generated": 204,
+   "mean_len": 2.39
+  },
+  {
+   "acceptance": 0.61864,
+   "accepted": 146,
+   "generated": 236,
+   "mean_len": 2.24
+  },
+  {
+   "acceptance": 0.67411,
+   "accepted": 151,
+   "generated": 224,
+   "mean_len": 2.35
+  },
+  {
+   "acceptance": 0.64773,
+   "accepted": 114,
+   "generated": 176,
+   "mean_len": 2.3
+  },
+  {
+   "acceptance": 0.68675,
+   "accepted": 114,
+   "generated": 166,
+   "mean_len": 2.37
+  },
+  {
+   "acceptance": 0.6453,
+   "accepted": 151,
+   "generated": 234,
+   "mean_len": 2.29
+  }
+ ]
+}
