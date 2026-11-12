@@ -75,5 +75,8 @@ Cherry-picked with `-x` (upstream author preserved). **Not built/tested here (Wi
 | `131cca3f` | `697b6d67` | `src/prefill/prefill.cpp` | clean auto-merge; DeepSeek MTP draft MMQ row-id margin — completes the margin family even though we do not run DeepSeek/DFlash2 (belt-and-braces; no numerics change) |
 
 Not picked (recorded): `feaa928f` (automatic-RAM-copy `STRATA_RESIDENT_PIN` — REVIEW: our cap path may differ), `92f7e819` (older-CPU parity-leg
-skip — take later beside FK-23). Two new test hooks came in and must be registered/kept green: `serve_stop_bound_test`,
-`stream_watch_test`, `gpu_pause_time_test`, `test_stop_closed_pipe.py` (add any missing ones to the cpu/tests labels).
+skip — take later beside FK-23). New test hooks: `serve_stop_bound_test`, `stream_watch_test`, `gpu_pause_time_test`,
+`test_stop_closed_pipe.py`. DONE (`ad22aa00`): `stream_watch_test` + `gpu_pause_time_test` are CPU-only (faked streams /
+fake KFD tree, no driver) and are now in `_strata_tests_cpu`, so they run in `ctest -L cpu` — they had landed via
+cherry-pick without that classification (the AGENTS.md "silently gpu-labelled" trap). `serve_stop_bound_test` was already
+classified; `test_stop_closed_pipe.py` is a Python serve test (no CMake).
