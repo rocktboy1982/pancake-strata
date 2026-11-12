@@ -1,17 +1,43 @@
 {
  "_note": "A17: per-effort thinking caps (reasoning_budget_by_effort + reasoning_budget_grace 512, the model's own close after the cap). LOSSY, opt-in. Base = no cap at level high; arms = a tight stress cap (512, shows the loss when the cap bites often) and the cap tools/pancake/thinking_caps.py suggests (replace 3072 with its p99 * 1.25 once the log has 200+ turns per level). Judge with the verdict (success non-inferior within 5 pts) AND s/success: a cap that does not bite changes nothing, which is the expected result for a p99 cap.",
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
-  "nocap": {"request": {"thinking": true, "reasoning_effort": "high"}},
-  "cap512-stress": {"request": {"thinking": true, "reasoning_effort": "high"},
-                    "config": {"reasoning_budget_by_effort": {"high": 512}, "reasoning_budget_grace": 512}},
-  "cap-p99": {"request": {"thinking": true, "reasoning_effort": "high"},
-              "config": {"reasoning_budget_by_effort": {"high": 3072}, "reasoning_budget_grace": 512}}
+  "nocap": {
+   "request": {
+    "thinking": true,
+    "reasoning_effort": "high"
+   }
+  },
+  "cap512-stress": {
+   "request": {
+    "thinking": true,
+    "reasoning_effort": "high"
+   },
+   "config": {
+    "reasoning_budget_by_effort": {
+     "high": 512
+    },
+    "reasoning_budget_grace": 512
+   }
+  },
+  "cap-p99": {
+   "request": {
+    "thinking": true,
+    "reasoning_effort": "high"
+   },
+   "config": {
+    "reasoning_budget_by_effort": {
+     "high": 3072
+    },
+    "reasoning_budget_grace": 512
+   }
+  }
  },
  "tasks": "bench/tasks/default.json",
  "reps": 5,
  "temperature": 0.2,
  "max_tokens": 8192,
  "margin": 0.05,
- "time_curve": true
+ "time_curve": true,
+ "auc_horizon_s": 1800
 }

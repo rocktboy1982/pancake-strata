@@ -788,6 +788,8 @@ def main():
         ap.error("a SPEC.json (or --from-runs DIR) is required")
     if a.spec:
         spec, s = conf(a.spec)
+        if a.auc_horizon is None and spec.get("auc_horizon_s") is not None:   # A57: the spec pins the AUC time axis
+            a.auc_horizon = float(spec["auc_horizon_s"])
         if a.reps:
             s["reps"] = a.reps
     tpath = a.tasks or (spec.get("tasks") if a.spec else None) or DEFAULT_TASKS

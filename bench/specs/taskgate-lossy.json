@@ -1,12 +1,22 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {},
-  "turbo": {"env": {"STRATA_ROUTE_PRIOR": "0.5"}},
-  "turbo-depth75": {"env": {"STRATA_ROUTE_PRIOR": "0.5", "STRATA_ROUTE_PRIOR_DEPTH": "0.75"}}
+  "turbo": {
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5"
+   }
+  },
+  "turbo-depth75": {
+   "env": {
+    "STRATA_ROUTE_PRIOR": "0.5",
+    "STRATA_ROUTE_PRIOR_DEPTH": "0.75"
+   }
+  }
  },
  "tasks": "bench/tasks/default.json",
  "reps": 5,
  "temperature": 0.2,
- "margin": 0.05
+ "margin": 0.05,
+ "auc_horizon_s": 1800
 }
