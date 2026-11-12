@@ -111,6 +111,10 @@ python -m pytest tests/terminal
   confirm with `--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9`.
 - Lossy arms also need `tools/pancake/quality_gate.py` (token forcing); for close variants use
   `tools/pancake/task_gate.py` (KLD/top-1 agreement alone does not predict task score).
+- Before any A/B, run `python tools/pancake/spec_lint.py` against `bench/specs/`: it flags arm `STRATA_*` env keys and
+  `--flags` that this fork does not read (a 2026-11-12 audit dropped `STRATA_MTP_DRAFT_ALL` from spec 34 as an inert
+  arm this way). An arm that is not in `conversation_disk_env.def` or parsed in `generate.cpp`/`serve` is a no-op, not
+  a test.
 - Specs live in `bench/specs/`; results go to `bench/results/<date>-<name>/`, and night outcomes plus owner
   decisions to `pancake-docs/NIGHT_RESULTS_<date>.md` / `pancake-docs/PRESET_BUNDLES.md`. Update
   `PANCAKE_STATUS.md` / `MOD_PLAN.md` when a result changes the plan; daily presets can differ from engine defaults
