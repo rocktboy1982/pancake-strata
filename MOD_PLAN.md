@@ -2602,3 +2602,13 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/round3/notes/batch6
 | A39 compaction share of turn time | synchronous compaction is 26-44% of query time in the Slipstream paper (H100); Slipstream reports up to 39.7% latency gain (summary level) | measure the compaction share of turn time from logs first | CPU |
 | A42 externalize tool output | +25.6% over compaction on RLM's benchmark (summary); against Claude Code with offloading the margin is 0 to +16.7%, mixed; lossy | A/B the offload arm (`STRATA_EXTERNALIZE_TOKENS`) on real turns after the counters | GPU or client, after counters |
 | A43 edit substring constraint | 0 of 339 edit calls failed in opencode.db; expected gain about 0 (may stay above 0 on rare cases) | keep the log check; constrained decoding closed | CPU |
+
+### Round 4 verification corrections, batch V3 (2026-11-12, full PDFs)
+Notes: `pancake-docs/research/engine-speed/unported-academic/round4/notes/V3.md`.
+- **A51 (Quest):** the plan's "2.2-7.0x attention" is wrong. Quest reports 7.03x self-attention and 2.23x end-to-end (4-bit weights; FP16 is 1.74x). Setup: RTX 4090, Llama-2-7B, 32K, budget 2048. Lossy.
+- **A51 (Twilight):** verified. 3.9x end-to-end is against FlashInfer (batch 32-256, A100, LongBench); 15.4x is self-attention; up to 98% of tokens pruned.
+- **A50 (LongSpec):** 3.26x verified. The 2.25x is the AIME24 row only; the wall-clock headline is 2.34x. The paper is speculative decoding (lossless), not the window-attention kernel the plan describes, so the 200K figure (48.6 -> 88.9 tok/s) is a fork measurement, not this paper's.
+- **A31 (Gated DeltaNet):** no prefill or inference speedup in the paper (training-throughput plot only, 1.3B model). The "5-11%" stays unsourced.
+- **A39 (Slipstream):** verified. Up to 39.7% latency vs synchronous compaction; compaction is 26-44% of latency. Setup: Qwen3.5-9B on one H100 80GB.
+- **A42 (RLM):** the 25.6% is the median of four per-task gains from Table 1; the abstract's 26% is the same median. The Claude Code + offloading comparisons mix models (GPT-5 vs Opus 4.1) and are not like-for-like.
+- **Doc fixes:** `RESEARCH_AND_FINDINGS.md` lists 2605.08580 as "Marconi (follow-up)"; that ID is Slipstream. Round-3 batch 7 notes have the Quest numbers swapped.
