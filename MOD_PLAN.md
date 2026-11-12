@@ -2546,3 +2546,14 @@ GPU runs only on a quiet machine (night queue guard). Length estimates are from 
 | Phase 18 items 2, 3+4, 6, 14 | queued as A/B runs overnight | Testing schedule above |
 | Phase 18 items 5, 7-13, 15-20 | not worth building or design study only (worker designs) | notes/design-worker-a.md, design-worker-b.md |
 | Phase 18 item 16 | HIP support confirmed on device 0; wait not measured; ceiling 0.3% | untested_switches.md |
+
+### Research corrections, unported academic items (2026-11-12)
+Notes: `pancake-docs/research/engine-speed/unported-academic/notes/`. Read levels: full text read, abstract only, unverified.
+- **A44:** arXiv 2601.17615 is Athena (HPCA 2026, ETH SAFARI): an RL controller for CPU prefetchers and off-chip predictors. It is not an MoE epoch bandit over window types. The existing switch `STRATA_BANDIT` already implements our bandit. Test it as is: off, on, on with margin 0.02, paired A B B A starts. [abstract only for Athena]
+- **A27:** MoBiLE (2510.12357) is not a precision method: it halves the expert count for unimportant tokens (lossy). HOBBIT (2411.01433) is the precision method: a low-precision copy on miss, a skip above a second threshold, lossy. Blocked on a routing trace with gate weights and a sub-2-bit source.
+- **A36:** MonoMoE (2609.04244) is an FP8 fused megakernel on H200. Its "weight-major" is CTA tiling, not a weight layout, and it does not touch Q2_0. Not applicable.
+- **A19:** Thought Calibration (2505.18404, full text) gives up to 60% fewer thinking tokens in-distribution on math and science, not "20-40% on routine turns". The ICLR citation (2410.04707) is per-query compute allocation, not a thinking stop. Engine side is opt-in and built; upside on agents is about 4-13% of turn time.
+- **A22:** the drafter-entropy stop is DISCO (2405.04304, full text), not SpecFit. The engine's MTP kernel returns top-1 only, so entropy needs top-k probabilities exposed.
+- **A40:** AsyncFC (2605.15077) is lossy (decodes past unseen tool results) and belongs in the agent client or a proxy, not the engine.
+- **A41:** ECLoop (2607.28815) is a harness-level hold on edits and submissions until evidence is recorded. A generic nudge is not the mechanism (ablation: summary scores below no guidance). Belongs in the agent client.
+- **A28, A32, A34, A49:** no primary source for A28 (ISTA DASLab), whose claimed 29.6 GB resident exceeds the card's 20 GB VRAM. A32 and A34 are abstract-only. A49 needs the GPU, and at 128K on a 20 GB card it may measure offload rather than attention. A56 (EAR) is CPU-measurable from dumped draft and target probabilities.
