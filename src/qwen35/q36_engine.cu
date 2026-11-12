@@ -18,12 +18,14 @@
 // [--force IDS] [--dump-full-logits F] (tools/qwen35/kl.py's reference interface), --bench-pp N / --bench-tg N.
 #include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/family_layout.hpp"
+#include "strata/kernels/bfla.hpp"
 #include "strata/kernels/fused_gdn.hpp"
 #include "strata/kernels/iq_kernels.hpp"
 #include "strata/kernels/native_mmvq.hpp"
 #include "strata/kernels/native_moe.hpp"
 #include "strata/kernels/native_router.hpp"
 #include "strata/prefill/gemm.hpp"
+#include "strata/prefill/mmq_ids_margin.hpp"
 #include "strata/prefill/moe_mmq.hpp"
 #include "strata/qwen35/engine.hpp"
 #include "strata/qwen35/sampling.hpp"
@@ -356,6 +358,137 @@ __global__ void k_attn_merge(const float* pacc, const float* pm, const float* pl
     }
     const size_t gi = ((size_t) t * H + h) * HD + d;
     out[gi] = num / den * sigm(gate[gi]);
+}
+
+/// STRATA_ATTN_WINDOW=1 (opt-in, MOD_PLAN F11; the idea of Asofwar/Strata-Turbo's window decode attention, 6ebe841e2e /
+/// 540f801a9a, MIT, no code taken): k_attn_part's partials for the G query heads of one KV head in NR consecutive rows
+/// at once.  One block per (256-cell chunk, KV head, group of NR rows) instead of one per (chunk, row x head), so each
+/// K row and V row of the chunk is read from memory once for NP = NR x G (row, head) pairs instead of once per pair:
+/// a decode step (one row) reads the chunk once for its 8 heads instead of 8 times, a verify window of T rows
+/// ceil(T / 2) times instead of 8 T times.
+/// Every pair's arithmetic is k_attn_part's, in k_attn_part's order and with the same expression forms: the q.k dot
+/// over i ascending from 0, s = a * scale (-inf past the row's cells), block_max's and block_sum's shared-memory trees
+/// over the same thread -> cell map (the same pairs added level by level), e = expf(s - m), the V sum over the row's
+/// cells of the chunk ascending from 0.  The partials, and so k_attn_merge's output, are meant to be k_attn_part's bit
+/// for bit (to be confirmed on each backend: --dump-full-logits with the switch on and off must be equal byte for
+/// byte, see MOD_PLAN F11); a decode step and a verify window still compute every row the same way.
+/// q [rows][H][256], kc / vc [HKV][ctx][256] (one session's cache: batch rows keep k_attn_part); rows t0 .. t0 + nt - 1
+/// at cells *pos0 + t; pacc / pm / pl indexed as k_attn_part's (row (t - t0) * H + h, chunk c).
+/// grid (n_chunk, HKV, ceil(nt / NR)), block kThreads (== kChunkCells == HD == 256).
+template <int G, int NR>
+__global__ void __launch_bounds__(kThreads) k_attn_window(const float* q, const float* kc, const float* vc,
+                                                          const int32_t* pos0, int t0, int nt, int H, int ctx, float scale,
+                                                          int n_chunk, float* pacc, float* pm, float* pl) {
+    constexpr int HD = 256, NP = G * NR;
+    static_assert(kThreads == HD && kChunkCells == kThreads, "one thread per cell and per dim");
+    __shared__ __align__(16) float buf[NP][HD];   // the pairs' queries, then their e over the chunk's cells
+    __shared__ float red[NP][kThreads];           // the pairs' block_max / block_sum trees
+    const int c = blockIdx.x, kvh = blockIdx.y, r0 = blockIdx.z * NR;   // r0: the group's first row of the batch
+    const int j = threadIdx.x, p0 = c * kChunkCells;
+    int npos[NR];   // cells row r0 + rr sees (0 for a row past the batch: it writes nothing)
+    int nmax = 0;
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr) {
+        npos[rr] = r0 + rr < nt ? *pos0 + t0 + r0 + rr + 1 : 0;
+        nmax = max(nmax, npos[rr]);
+    }
+    if (p0 >= nmax) return;   // past every row's cells (graph mode: the grid covers the whole context)
+    // pair pr = rr * G + g: query head kvh * G + g of row r0 + rr
+    for (int k = j; k < NP * HD; k += kThreads) {
+        const int pr = k / HD, i = k - pr * HD, rr = pr / G;
+        buf[pr][i] = r0 + rr < nt ? q[((size_t) (t0 + r0 + rr) * H + kvh * G + pr % G) * HD + i] : 0.f;
+    }
+    __syncthreads();
+    const int p = p0 + j;
+    float s[NP];   // k_attn_part's `a`, then its `s`
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) s[pr] = 0.f;
+    if (p < nmax) {   // the K row is read once for every pair (k_attn_part: once per pair)
+        const float4* kp = reinterpret_cast<const float4*>(kc + ((size_t) kvh * ctx + p) * HD);
+        for (int i4 = 0; i4 < HD / 4; ++i4) {
+            const float4 kv = kp[i4];
+#pragma unroll
+            for (int pr = 0; pr < NP; ++pr) {   // a += qs[i] * kp[i], i ascending
+                const float4 qv = *reinterpret_cast<const float4*>(&buf[pr][4 * i4]);
+                s[pr] += qv.x * kv.x;
+                s[pr] += qv.y * kv.y;
+                s[pr] += qv.z * kv.z;
+                s[pr] += qv.w * kv.w;
+            }
+        }
+    }
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) s[pr] = p < npos[pr / G] ? s[pr] * scale : -INFINITY;
+    // m = block_max(s): the same tree for every pair (level h: cell i takes max(cell i, cell i + h) for i < h)
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) red[pr][j] = s[pr];
+    __syncthreads();
+    for (int h = kThreads / 2; h > 0; h >>= 1) {
+        for (int k = j; k < NP * h; k += kThreads) {
+            const int pr = k / h, i = k - pr * h;
+            red[pr][i] = fmaxf(red[pr][i], red[pr][i + h]);
+        }
+        __syncthreads();
+    }
+    float m[NP];
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) m[pr] = red[pr][0];
+    __syncthreads();   // every thread holds the maxima before red is refilled (buf's queries are no longer read)
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) {
+        const float e = p < npos[pr / G] ? expf(s[pr] - m[pr]) : 0.f;
+        buf[pr][j] = e;
+        red[pr][j] = e;
+    }
+    __syncthreads();
+    // l = block_sum(e): the same tree (level h: cell i += cell i + h for i < h)
+    for (int h = kThreads / 2; h > 0; h >>= 1) {
+        for (int k = j; k < NP * h; k += kThreads) {
+            const int pr = k / h, i = k - pr * h;
+            red[pr][i] += red[pr][i + h];
+        }
+        __syncthreads();
+    }
+    // acc (dim j) = sum over the row's cells k of the chunk, ascending from 0, of e[k] * V[k][j]; the V row is read once
+    // for every pair.  Cells every live row sees take no per-row test; the chunk's last cells are tested per row.
+    int nlo = kChunkCells;
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr)
+        if (npos[rr] > p0) nlo = min(nlo, npos[rr] - p0);
+    const int nhi = min(kChunkCells, nmax - p0);
+    const float* vp = vc + ((size_t) kvh * ctx + p0) * HD + j;
+    float acc[NP];
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) acc[pr] = 0.f;
+    int k = 0;
+    for (; k + 4 <= nlo; k += 4) {
+        const float v0 = vp[(size_t) k * HD], v1 = vp[(size_t) (k + 1) * HD];
+        const float v2 = vp[(size_t) (k + 2) * HD], v3 = vp[(size_t) (k + 3) * HD];
+#pragma unroll
+        for (int pr = 0; pr < NP; ++pr) {
+            const float4 ev = *reinterpret_cast<const float4*>(&buf[pr][k]);
+            acc[pr] += ev.x * v0;
+            acc[pr] += ev.y * v1;
+            acc[pr] += ev.z * v2;
+            acc[pr] += ev.w * v3;
+        }
+    }
+    for (; k < nhi; ++k) {
+        const float v = vp[(size_t) k * HD];
+#pragma unroll
+        for (int pr = 0; pr < NP; ++pr)
+            if (k < npos[pr / G] - p0) acc[pr] += buf[pr][k] * v;
+    }
+#pragma unroll
+    for (int pr = 0; pr < NP; ++pr) {
+        if (p0 >= npos[pr / G]) continue;   // k_attn_part writes nothing for a chunk past the row's cells
+        const size_t o = (size_t) ((r0 + pr / G) * H + kvh * G + pr % G) * n_chunk + c;
+        pacc[o * HD + j] = acc[pr];
+        if (j == 0) {
+            pm[o] = m[pr];
+            pl[o] = red[pr][0];
+        }
+    }
 }
 
 /// The routed entries (T tokens x K picks, entry e = t * K + k) grouped per expert, on the device: one group per
@@ -1182,6 +1315,14 @@ struct Engine {
     __half* att_p16 = nullptr;         // the probabilities in FP16 (kAttScoreFloats halves)
     __half *k16 = nullptr, *v16 = nullptr, *q16 = nullptr;   // the prompt attention's FP16 operands
     size_t kAttScoreFloats = (size_t) 64 << 20;   // 256 MB (16 M floats when the experts' fit is close)
+    // pancake, opt-in (strata/kernels/bfla.hpp): the prompt attention of long chunks as the fused gfx11 kernel, over every
+    // block (STRATA_BFLA_DENSE=1, exact) or block-sparse (STRATA_BFLA_SPARSE=1, BFLA, lossy); the selection scratch
+    // (sparse only), where the prompt being read ends (the tail rule: its last 1024 / G positions keep every block, in
+    // whichever chunk they fall, as in the paper) and whether the switch has acted yet (logged once)
+    void* bfla_scratch = nullptr;
+    size_t bfla_bytes = 0;
+    int64_t bfla_end = 0;
+    bool bfla_ok = false, bfla_acted = false;
     // the prompt's MMQ experts
     bool use_mmq = false;
     std::unique_ptr<MMQ::Context> mctx;
@@ -1371,6 +1512,21 @@ struct Engine {
         k16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         v16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         q16 = dalloc_t<__half>(T * g.n_head * g.head_dim);
+        if (const int bm = strata::kernels::bfla_config().mode; bm != 0) {
+            bfla_ok = strata::kernels::bfla_supported((int) g.n_head, (int) g.n_head_kv, (int) g.head_dim);
+            if (bfla_ok && bm == 1) {
+                bfla_bytes = strata::kernels::bfla_scratch_bytes(T, ctx, (int) g.n_head, (int) g.n_head_kv);
+                bfla_ok = cudaMalloc(&bfla_scratch, bfla_bytes) == cudaSuccess;
+                if (!bfla_ok) (void) cudaGetLastError();
+            }
+            if (bfla_ok)
+                std::fprintf(stderr, "strata-q36: %s on%s\n", strata::kernels::bfla_switch_name(bm),
+                             bfla_bytes ? " (selection scratch allocated)" : "");
+            else   // the line tools/pancake/switch_report.py reads
+                std::fprintf(stderr, "strata switch: %s will not act: needs head dim 256, 4 / 8 / 16 query heads a KV head and "
+                                     "a gfx11 GPU (or its scratch did not fit)\n",
+                             strata::kernels::bfla_switch_name(bm));
+        }
         use_mmq = MMQ::built() && std::getenv("STRATA_Q36_NO_MMQ") == nullptr;
         auto mmq_ok = [&](const Layer& L) {
             return MMQ::supported(L.L.gu_type) && MMQ::supported(L.L.d_type) && MMQ::fits(L.L.gu_type, 2 * g.n_ff) &&
@@ -1385,10 +1541,18 @@ struct Engine {
             rcur = dalloc_t<int32_t>((size_t) g.n_expert);
             rbounds = dalloc_t<int32_t>((size_t) g.n_expert + 1);
             rmax = dalloc_t<int32_t>(1);
-            ident = dalloc_t<int32_t>((size_t) ne);
+            // The row table (ids) is read past its end by llama.cpp's MMQ: mul_mat_q copies ids_dst[col_low + jt*J + j] for a whole J-column tile before it
+            // compares the tile with the expert's rows, and its stream-k fixup does the same for every tile up to roundup(max_rows, J) from an expert's first row,
+            // which can be the table's last (mmq.cuh; J goes to 128).  mmq_ids_table_rows adds roundup(max_rows, 128) + 128 entries, max_rows <= T (an expert takes at
+            // most one row per token): the margin the Flash-Next prompt path already uses (prefill.cpp mmq_ids_rows, PR #5108).  An exact table of ne ints (64 KB at the
+            // default chunk) was read past its end: compute-sanitizer on the same size in the Qwen3.6 one-layer test (z440-20261111-2224-d478), 311 invalid reads of size 4
+            // in mul_mat_q<Q8_0, 96>, 29 to 57+ bytes after a 65,536-byte allocation.  The identity is written over the whole table, as there.
+            const int64_t ids_rows = (int64_t) MMQ::mmq_ids_table_rows((uint64_t) ne, (uint64_t) T);
+            if (ids_rows <= 0) { std::fprintf(stderr, "strata-q36: the MMQ row table does not fit\n"); std::exit(1); }
+            ident = dalloc_t<int32_t>((size_t) ids_rows);
             rinv = dalloc_t<int32_t>((size_t) ne);
             CK(cudaDeviceSynchronize());   // ident's cudaMemset (legacy stream) before the iota on the non-blocking stream
-            MMQ::iota(ident, ne, st);
+            MMQ::iota(ident, ids_rows, st);
             CK(cudaMalloc(&mq_x, MMQ::q8_bytes(ne, g.n_embd)));
             CK(cudaMalloc(&mq_hq, MMQ::q8_bytes(ne, g.n_ff)));
             mq_gu = dalloc((size_t) ne * 2 * FF);
@@ -1953,7 +2117,25 @@ struct Engine {
                 const float one = 1.0f, zero = 0.0f;
                 k_kv_f16<<<grid1((int64_t) HKV * P * HD), kThreads, 0, st>>>(kc[li], vc[li], k16, v16, ctx, P, HD, HKV);
                 k_to_f16<<<grid1((int64_t) T * H * HD), kThreads, 0, st>>>(q, q16, (int64_t) T * H * HD);
-                for (int t0 = 0; t0 < T; t0 += tq) {
+                // STRATA_BFLA_DENSE / STRATA_BFLA_SPARSE (opt-in, off by default): chunks reaching STRATA_BFLA_MIN
+                // positions take the fused kernel instead of the GEMMs below (false: nothing launched, the GEMM path runs
+                // as before)
+                bool bfla_done = false;
+                if (bfla_ok && !rows_mode && !verify && P >= strata::kernels::bfla_config().min_len) {
+                    const auto& bc = strata::kernels::bfla_config();
+                    const int64_t tail = bc.tail >= 0 ? bc.tail : (int64_t) (1024 / std::max(1, H / HKV));
+                    const int64_t full_from = bfla_end - tail;
+                    bfla_done = strata::kernels::bfla_prefill_attn(reinterpret_cast<const uint16_t*>(q16),
+                                                                   reinterpret_cast<const uint16_t*>(k16),
+                                                                   reinterpret_cast<const uint16_t*>(v16), T, p0, H, HKV, bc,
+                                                                   full_from, bfla_scratch, bfla_bytes, att, st);
+                    if (bfla_done && !bfla_acted) {   // once: the log proves the arm acted
+                        bfla_acted = true;
+                        std::fprintf(stderr, "strata switch: %s acted: prompt attention of positions %lld..%d by the fused kernel\n",
+                                     strata::kernels::bfla_switch_name(bc.mode), (long long) p0, P - 1);
+                    }
+                }
+                for (int t0 = 0; t0 < T && !bfla_done; t0 += tq) {
                     const int nt = std::min(tq, T - t0);
                     for (int kvh = 0; kvh < HKV; ++kvh) {
                         const __half* Kh = k16 + (size_t) kvh * P * HD;
@@ -1986,11 +2168,27 @@ struct Engine {
             } else {
                 // split-K over 256-cell chunks; the chunk grid covers every cell a row can see (graph mode: the whole
                 // context, past-the-end chunks return at once)
+                // STRATA_ATTN_WINDOW=1 (opt-in, F11): k_attn_window writes the same partials with each K / V chunk read
+                // once per KV head and pair of rows (k_attn_part: once per row and query head); one session's rows only
+                // (batch rows read each slot's own cache) and the 8-heads-per-KV-head, 256-dim shape it is built for.
+                // Unset: the k_attn_part launch below, unchanged.
+                static const bool attn_window = [] {
+                    const char* v = std::getenv("STRATA_ATTN_WINDOW");
+                    return v != nullptr && std::atoi(v) != 0;
+                }();
+                const bool window = attn_window && !rows_mode && H == 8 * HKV && HD == 256;
                 const int rows_per = att_rows / H;
                 for (int t0 = 0; t0 < T; t0 += rows_per) {
                     const int nt = std::min(rows_per, T - t0);
                     const int nc = graph_mode ? n_chunk
                                               : (int) std::min<int64_t>(n_chunk, (p0 + t0 + nt + kChunkCells - 1) / kChunkCells);
+                    if (window && nt >= 2)
+                        k_attn_window<8, 2><<<dim3(nc, HKV, (nt + 1) / 2), kThreads, 0, st>>>(
+                            q, kc[li], vc[li], dpos, t0, nt, H, ctx, 1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl);
+                    else if (window)
+                        k_attn_window<8, 1><<<dim3(nc, HKV, nt), kThreads, 0, st>>>(
+                            q, kc[li], vc[li], dpos, t0, nt, H, ctx, 1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl);
+                    else
                     k_attn_part<<<dim3(nc, nt * H), kChunkCells, 0, st>>>(q, rows_mode ? nullptr : kc[li],
                                                                          rows_mode ? nullptr : vc[li], dpos, t0, H, HKV, ctx,
                                                                          1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl, rs);
@@ -2461,6 +2659,7 @@ struct Engine {
             on_chunk(1);
             return 1;
         }
+        bfla_end = pos + n;   // STRATA_BFLA_SPARSE's tail rule: the prompt's last positions, not the last chunk's
         for (int64_t i = 0; i < n; i += tmax) {
             const int T = (int) std::min<int64_t>(tmax, n - i);
             CK(cudaStreamSynchronize(st));
@@ -3906,7 +4105,20 @@ int strata::qwen35::run(int argc, char** argv) {
         }
         return 0;
     }
-    const std::vector<int32_t> prompt = parse_ids(tokens.c_str()), forced = parse_ids(force.c_str());
+    // "@FILE": the ids from a file (a long prompt's ids do not fit one command-line argument, 128 KiB on Linux)
+    auto ids_arg = [](const std::string& v) {
+        if (v.empty() || v[0] != '@') return v;
+        FILE* f = std::fopen(v.c_str() + 1, "rb");
+        if (f == nullptr) { std::fprintf(stderr, "strata-q36: cannot read %s\n", v.c_str() + 1); std::exit(2); }
+        std::string r;
+        char buf[65536];
+        for (size_t n; (n = std::fread(buf, 1, sizeof buf, f)) > 0;) r.append(buf, n);
+        std::fclose(f);
+        for (char& c : r) if (c == '\n' || c == '\r' || c == '\t') c = ' ';
+        return r;
+    };
+    const std::string tokens_s = ids_arg(tokens), force_s = ids_arg(force);
+    const std::vector<int32_t> prompt = parse_ids(tokens_s.c_str()), forced = parse_ids(force_s.c_str());
     if (prompt.empty()) { std::fprintf(stderr, "strata-q36: --tokens, --serve or --bench-pp is required\n"); return 2; }
     if (!forced.empty()) n_gen = (int) forced.size() + 1;
     FILE* ff = dump_full.empty() ? nullptr : std::fopen(dump_full.c_str(), "wb");

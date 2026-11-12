@@ -1,6 +1,7 @@
 // src/core/expert_source.cpp - the adapter.  See the header for the three clauses of the contract.
 #include "strata/core/expert_source.hpp"
 #include "strata/core/defer_rank.hpp"
+#include "strata/core/verify_ecap.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_memory.hpp"
 #include "strata/core/foresight_swap.hpp"
@@ -44,6 +45,7 @@
 #include <deque>
 #include <fstream>
 #include <filesystem>
+#include <iterator>
 #include <sstream>
 #include <limits>
 #include <map>
@@ -4984,6 +4986,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     // Distinct experts in routing order; resident ones and the last pcie_num/256 of the missed ones go to the GPU.
     const int64_t n = n_tok * k;
     int32_t kind[kMaxWindowEntries];       // per entry: -1 CPU, 0 VRAM, 1 PCIe
+    uint64_t ecap_bits[(kMaxWindowEntries + 63) / 64] = {};   // MOD_PLAN F5 STRATA_VERIFY_ECAP: the entries it skipped
     if (d.plan != nullptr && n <= kMaxWindowEntries && n <= d.plan->cap) {
         int64_t distinct[kMaxWindowEntries], first_of[kMaxWindowEntries];
         int nd = 0, nmiss = 0;
@@ -5052,9 +5055,38 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 ++d.tail_experts;
             }
         }
+        // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the verifier sets
+        // plan->ecap only for a decode window's draft rows (never row 0, a prompt read, a merged first window, a batch or
+        // a pipelined window, or a span the request's grammar enforces).  Each draft row reads at most n missed experts
+        // that the committed row and the earlier rows do not read anyway; the experts only the rows over the cap name are
+        // skipped like a tail expert above: neither copied nor computed, a zero row (kind -2, below), no renormalisation.
+        // So the deferral path (STRATA_VERIFY_DEFER_CPU) sees a zero row there, written before any flag, whether post(l)
+        // takes it on time or late_add takes it a layer later, and its heavy/light split counts only the CPU jobs left.
+        // Not with a peer or helper GPU (their rows are claimed outside this plan), as the tail skip.
+        if (d.plan->ecap >= 0 && n_tok > d.plan->ecap_first && d.peer == nullptr && d.remote_count == 0) {
+            int q_of[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
+            bool missed[kMaxWindowEntries], ecap_read[kMaxWindowEntries], ecap_drop[kMaxWindowEntries];
+            for (int64_t i = 0; i < n; ++i) {
+                const int32_t e = ids[i];
+                missed[i] = e >= 0 && e < d.n_expert && !skip_d[q_of[first_of[i]]] &&
+                            d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0;
+            }
+            if (strata::core::verify_ecap_drop(first_of, missed, n_tok, k, d.plan->ecap_first, d.plan->ecap, ecap_read,
+                                               ecap_drop) > 0) {
+                for (int q = 0; q < nd; ++q)
+                    if (ecap_drop[distinct[q]]) {   // (every entry of the expert is dropped with its first one)
+                        skip_d[q] = true;
+                        --nmiss;
+                        ++d.ecap_experts;
+                    }
+                for (int64_t i = 0; i < n; ++i)
+                    if (ecap_drop[i]) ecap_bits[i >> 6] |= 1ull << (i & 63);
+            }
+        }
         // STRATA_ROUTE_DUMP=<file> (bench only, off by default): one text line per layer-window, "layer n_tok nd nmiss | e:rows:res ..." in routing
         // order (res 1 = resident in the GPU cache, 0 = a miss the CPU computes unless the PCIe share takes it, 2 = tail-skipped), for replaying placement
-        // policies offline on the routing the engine really produced (round 0216 P3.1).
+        // policies offline on the routing the engine really produced (round 0216 P3.1).  (2 also marks an F5 STRATA_VERIFY_ECAP skip.)
         static std::FILE* const route_dump = [] { const char* f = std::getenv("STRATA_ROUTE_DUMP"); return f != nullptr && f[0] != '\0' ? std::fopen(f, "a") : nullptr; }();
         if (route_dump != nullptr) {
             std::fprintf(route_dump, "%lld %lld %d %d |", (long long) d.layers, (long long) n_tok, nd, nmiss);
@@ -5342,7 +5374,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             }
             if (kind[i] == -2) {            // STRATA_ROUTE_TAIL_SKIP: a skipped tail expert contributes zero
                 std::memset(row, 0, (size_t) H * sizeof(float));
-                ++d.tail_skipped;
+                if ((ecap_bits[i >> 6] >> (i & 63)) & 1u) ++d.ecap_entries;   // MOD_PLAN F5 STRATA_VERIFY_ECAP: draft-only
+                else ++d.tail_skipped;
                 continue;
             }
             if (kind[i] >= 0) {             // CUDA0, PCIe, or a remote/peer result staged into this row below
@@ -5476,17 +5509,15 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     int nfirst = njobs;
     if (split && njobs > 0) {
         bool heavy_job[kMaxWindowEntries] = {};
+        const int top = ps->top >= 0 ? ps->top : strata::core::defer_top();   // A44: the window's staged rank guard
         for (int64_t i = 0; i < n; ++i)
-            if (kind[i] == -1 && strata::core::defer_heavy_entry(ps->weights, i, (int) k, ps->heavy, strata::core::defer_top()))
+            if (kind[i] == -1 && strata::core::defer_heavy_entry(ps->weights, i, (int) k, ps->heavy, top))
                 heavy_job[d.job_of[(size_t) ids[i]]] = true;
+        // heavy jobs first; STRATA_VERIFY_DEFER_CPU_FOLD (MOD_PLAN A4, defer_rank.hpp): at most n light jobs after some
+        // heavy ones run in the heavy pass - one pool pass, the partial flag after it; post(l) and late_add read the same
+        // rows as split
         static thread_local std::vector<ExpertJobMulti> order;
-        order.clear();
-        for (int pass = 0; pass < 2; ++pass)
-            for (int j = 0; j < njobs; ++j)
-                if (heavy_job[j] == (pass == 0)) order.push_back(d.jobs_multi[(size_t) j]);
-        nfirst = 0;
-        for (int j = 0; j < njobs; ++j) nfirst += heavy_job[j] ? 1 : 0;
-        std::copy(order.begin(), order.end(), d.jobs_multi.begin());
+        nfirst = strata::core::defer_order_jobs(d.jobs_multi.data(), heavy_job, njobs, strata::core::defer_fold(), order);
     }
     const auto c3 = std::chrono::steady_clock::now();
     if (d.plan != nullptr) d.plan->cpu_jobs = njobs;
@@ -6362,7 +6393,55 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
                     }
                 }
             }
-            if (arena_ram_verdict(need, hm.available, ~uint64_t{0}, fall_back_when_ram_short) == ArenaRamVerdict::FallBack) {
+            const ArenaRamVerdict verdict = arena_ram_verdict(need, hm.available, ~uint64_t{0}, fall_back_when_ram_short);
+#if defined(__linux__)
+            // #5327: the refusal reads every shortfall as one the kernel can only serve by taking another program's
+            // memory (#4051's host: an engine that was still exiting, anonymous RAM - the stall the refusal is for).
+            // On a bare Linux host the usual false alarm is a reserved hugetlb pool: MemAvailable does not count free
+            // huge pages, and a launcher may reserve the pool for exactly this arena (the arena maps MAP_HUGETLB
+            // first), so the reserve itself takes MemAvailable below the need while the pool holds all of it.  That
+            // is the case 0.1.54/0.1.55 loaded anyway ("expert arena read through the file cache") at full decode
+            // speed: credit the pool when it holds the whole arena (and free pages + droppable file pages, which the
+            // kernel evicts as the arena reads - only a small margin beyond MemAvailable's own count) and load,
+            // LOUDLY (a service setup never sees stderr).  STRATA_ARENA_FILE_CACHE=0
+            // refuses as since 0.1.56.  Not under a cgroup limit (the host's cache is not the container's to drop)
+            // and not on Windows: the proceed path was never trusted there ("buffered (not Windows)", the mapped
+            // view's trim needs the headroom the refusal keeps).
+            const bool file_cache_off = [] { const char* v = std::getenv("STRATA_ARENA_FILE_CACHE"); return v != nullptr && v[0] == '0'; }();
+            bool file_cache_arena = false;
+            uint64_t memfree_b = 0, droppable_b = 0, huge_free_b = 0;
+            if (verdict == ArenaRamVerdict::FallBack && hm.cgroup_limit == ~uint64_t{0} && !file_cache_off) {
+                if (std::ifstream info("/proc/meminfo"); info) {
+                    const std::string text((std::istreambuf_iterator<char>(info)), std::istreambuf_iterator<char>());
+                    if (meminfo_free_and_droppable(text, memfree_b, droppable_b, &huge_free_b)) {
+                        // the pool serves the arena only if the MAP_HUGETLB try is made (STRATA_NO_LARGEPAGES skips it) and
+                        // the pool holds the whole mapping, which is the padded arena plus the spare blob, not `want + blob`
+                        uint64_t map_bytes = want + (uint64_t) blob;
+                        if (pin_by_need_ && !pin_pairs_.empty() && !arena_mmap && shared_arena_file.empty()) {
+                            uint64_t at = 0;
+                            for (int64_t l = 0; l < n_layers; ++l)
+                                at += ((lay.blob_bytes(l) + 4095) & ~(uint64_t) 4095) * (uint64_t) n_expert;
+                            map_bytes = at + (uint64_t) blob;
+                        }
+                        if (std::getenv("STRATA_NO_LARGEPAGES") != nullptr || huge_free_b < map_bytes) huge_free_b = 0;
+                        file_cache_arena = arena_shortfall_served_by_file_cache(need, memfree_b, droppable_b, huge_free_b);
+                    }
+                }
+            }
+            if (file_cache_arena) {
+                std::snprintf(buf, sizeof buf,
+                              "the experts need %.2f GiB of RAM and %.2f GiB is free, but free memory, file cache and reserved huge "
+                              "pages can hold them, so they load anyway (same answers). STRATA_ARENA_FILE_CACHE=0 reads them from "
+                              "the file instead.",
+                              (double) need / gib, (double) hm.available / gib);
+                ram_warning_ = buf;   // the caller says it on stderr before the load's numbers
+                if (notices_on_stdout) {   // --serve only: a service setup never sees stderr (#5327); a plain run keeps its token stream clean
+                    std::printf("strata generate: WARNING: %s\n", buf);
+                    std::fflush(stdout);
+                }
+            } else
+#endif
+            if (verdict == ArenaRamVerdict::FallBack) {
                 // #4846 (owner 11-01): still short after the wait and the give-back.  Registering anyway can stall the whole host in
                 // reclaim until it is power-cycled: nothing is allocated, the caller takes the --mmap-experts source for this run.
                 std::snprintf(buf, sizeof buf,
@@ -6373,7 +6452,7 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
                 ram_short_ = true;
                 return false;
             }
-            if (hm.available < need) {
+            if (hm.available < need && ram_warning_.empty()) {
                 std::snprintf(buf, sizeof buf,
                               "the expert arena needs %.2f GiB of RAM but %.2f GiB is available (%.2f GiB short%s): the "
                               "load may swap or be stopped by the OS%s. Close other programs, or run with less RAM: "
@@ -6702,7 +6781,9 @@ void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
     if (!warm_on_ || base_ == nullptr || layer < 0) return;
     const auto& lay = strata::kernels::cpu::expert_layout();
     const uint64_t bytes = lay.blob_bytes(layer);
-    if (preread_) {   // STRATA_POOL_PREREAD: the parked pool workers read them, stopping at the next real job
+    // STRATA_POOL_PREREAD: the parked pool workers read them, stopping at the next real job (MOD_PLAN A44: unless
+    // STRATA_BANDIT=preread turned the posts off for these windows; data movement only, bitwise exact either way)
+    if (preread_ && !strata::core::live_knobs().preread_off.load(std::memory_order_relaxed)) {
         if (strata::kernels::cpu::ExpertPool* pool = strata::kernels::cpu::ExpertPool::preread_pool()) {
             const uint8_t* ptrs[strata::kernels::cpu::ExpertPool::kPrereadMax];
             int m = 0;

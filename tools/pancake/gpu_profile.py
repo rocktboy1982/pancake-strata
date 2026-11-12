@@ -22,6 +22,48 @@ ROOT = Path(__file__).resolve().parents[2]
 ROCPROF = "/opt/rocm/core-10.0/bin/rocprofv3"
 
 
+def _read(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return "-"
+
+
+def system_snapshot(out):
+    # phase-18 adjacency: the environment a run starts in, to explain bimodal ~25% slow runs.
+    # THP state, reserved hugepages, card VRAM/GTT headroom, DPM clock, and a dmesg tail. Read-only,
+    # all paths optional (a missing path writes "-"); never fails the profile.
+    L = []
+    try:
+        mi = {}
+        with open("/proc/meminfo") as f:
+            for ln in f:
+                if ":" in ln:
+                    k, v = ln.split(":", 1)
+                    mi[k] = v.strip()
+        L.append("MemTotal %s  MemAvailable %s  AnonHugePages %s" % (mi.get("MemTotal", "-"), mi.get("MemAvailable", "-"),
+                                                                     mi.get("AnonHugePages", "-")))
+    except OSError:
+        L.append("meminfo: unreadable")
+    L.append("THP enabled " + _read("/sys/kernel/mm/transparent_hugepage/enabled"))
+    L.append("vm.nr_hugepages " + _read("/proc/sys/vm/nr_hugepages"))
+    card = os.environ.get("P18_DRM_CARD", "card1")
+    base = "/sys/class/drm/%s/device" % card
+    L.append("card %s vram_used %s gtt_used %s vram_total %s" % (card, _read(base + "/mem_info_vram_used"),
+                                                                 _read(base + "/mem_info_gtt_used"),
+                                                                 _read(base + "/mem_info_vram_total")))
+    sclk = _read(base + "/pp_dpm_sclk")
+    L.append("pp_dpm_sclk " + (sclk.split("\n")[-1].strip() if sclk != "-" else "-"))
+    try:
+        dm = subprocess.run(["dmesg"], capture_output=True, text=True, timeout=5)
+        tail = [ln for ln in dm.stdout.strip().splitlines() if ln][-5:]
+        L.append("dmesg tail:\n" + ("\n".join(tail) if tail else "-"))
+    except Exception:
+        L.append("dmesg: unreadable")
+    (out / "system_before.txt").write_text("\n".join(L) + "\n")
+
+
 def run(cfg_path, out, case, envs, extra_args):
     c = json.load(open(cfg_path))
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
@@ -33,10 +75,19 @@ def run(cfg_path, out, case, envs, extra_args):
     for a in extra_args:
         args += shlex.split(a)
     out.mkdir(parents=True, exist_ok=True)
-    wrapper = out / "prof-engine.sh"
     engine = c.get("engine") or str(ROOT / "build-hip/strata")
+    (out / "run_environment.json").write_text(json.dumps({
+        "config": str(Path(cfg_path).resolve()),
+        "engine": engine,
+        "args": args,
+        "case": case,
+        "strata_env": dict(sorted((k, v) for k, v in env.items() if k.startswith("STRATA_"))),
+        "overrides": envs,
+    }, indent=2) + "\n")
+    wrapper = out / "prof-engine.sh"
     wrapper.write_text(f"#!/bin/bash\nexec {ROCPROF} --kernel-trace --stats -d {out} -o run --output-format csv -- {engine} \"$@\"\n")
     wrapper.chmod(0o755)
+    system_snapshot(out)
     cmd = [str(ROOT / "tools/pancake/capped.sh"), str(ROOT / ".venv/bin/python"), str(ROOT / "tools/pancake/bench_engines.py"),
            "--name", "prof", "--tokenizer", c["tokenizer"], "--out", str(out / "bench.jsonl"), "--runs", "1", "--only", case,
            "--", str(wrapper), "--serve"] + args
@@ -83,24 +134,30 @@ def analyze(trace, out):
         lines.append(f"  {v / busy * 100:5.1f}%  {v / 1e6:7.1f} ms  {calls[k]:6d}x  {v / calls[k] / 1e3:6.1f} us  {k}")
     gaps = collections.Counter()
     gapn = collections.Counter()
+    streams = collections.defaultdict(list)
+    for r in R:
+        stream = r.get("Stream_Id") or r.get("Stream ID") or r.get("Stream") or "unknown"
+        streams[stream].append(r)
     small = big = 0
-    end = int(R[0]["End_Timestamp"])
-    for a, b in zip(R, R[1:]):
-        end = max(end, int(a["End_Timestamp"]))
-        g = int(b["Start_Timestamp"]) - end
-        if g <= 0:
-            continue
-        if g < 50_000:
-            small += g
-        elif g > 1_000_000:
-            big += g
-        key = (short(a["Kernel_Name"]), short(b["Kernel_Name"]))
-        gaps[key] += g
-        gapn[key] += 1
-    lines.append(f"idle: launch gaps (<50 us) {small / 1e6:.0f} ms, host stalls (>1 ms) {big / 1e6:.0f} ms of {wall / 1e6:.0f} ms")
-    lines.append("largest idle by kernel pair:")
+    for stream, stream_rows in streams.items():
+        stream_rows.sort(key=lambda r: int(r["Start_Timestamp"]))
+        end = int(stream_rows[0]["End_Timestamp"])
+        for a, b in zip(stream_rows, stream_rows[1:]):
+            end = max(end, int(a["End_Timestamp"]))
+            g = int(b["Start_Timestamp"]) - end
+            if g <= 0:
+                continue
+            if g < 50_000:
+                small += g
+            elif g > 1_000_000:
+                big += g
+            key = (stream, short(a["Kernel_Name"]), short(b["Kernel_Name"]))
+            gaps[key] += g
+            gapn[key] += 1
+    lines.append(f"per-stream gaps: launch (<50 us) {small / 1e6:.0f} ms, stalls (>1 ms) {big / 1e6:.0f} ms; sums may overlap within {wall / 1e6:.0f} ms wall")
+    lines.append("largest idle by kernel pair and stream:")
     for k, v in gaps.most_common(10):
-        lines.append(f"  {v / 1e6:7.1f} ms {gapn[k]:6d}x avg {v / gapn[k] / 1e3:7.1f} us  {k[0]} -> {k[1]}")
+        lines.append(f"  {v / 1e6:7.1f} ms {gapn[k]:6d}x avg {v / gapn[k] / 1e3:7.1f} us  {k[1]} -> {k[2]} (stream {k[0]})")
     text = "\n".join(lines)
     (out / "summary.txt").write_text(text + "\n")
     print(text)

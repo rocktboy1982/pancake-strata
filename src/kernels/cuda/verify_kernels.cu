@@ -7,6 +7,7 @@
 #include "strata/core/geometry.hpp"
 #include "strata/core/emulate.hpp"
 #include "strata/core/sm120_series.hpp"
+#include "strata/core/switch_report.hpp"
 #define STRATA_Q81_FASTMATH_DIV 1   // #3948: the q8_1 stores divide as native_mmvq.cu (--use_fast_math) does, see q8_1_finite.hpp
 #include "strata/kernels/q8_1_finite.hpp"   // #606: q8_1_ds
 #include "strata/kernels/window_start.hpp"  // KVA: the draft layer's window floor
@@ -1706,10 +1707,14 @@ namespace {
 // copy_rows_from_mapped_kernel (elementwise.cu) with the routing weight's test: block = row
 __global__ void copy_rows_by_weight_kernel(float4* __restrict__ dst, const volatile float4* src, int64_t row4,
                                            const int32_t* __restrict__ hit_rows, const int32_t* __restrict__ count,
-                                           const float* __restrict__ w, float heavy, int take_heavy, int k, int top) {
+                                           const float* __restrict__ w, float heavy, int take_heavy, int k, int top,
+                                           const volatile int32_t* top_live) {
     const int row = blockIdx.x;
     __shared__ int take;
     if (threadIdx.x == 0) {
+        // MOD_PLAN A44 (STRATA_BANDIT=top): the window's rank guard from the mapped word the host staged before the
+        // launch (the graph bakes `top` in at capture); null: `top` as captured (every other run)
+        if (top_live != nullptr) top = *top_live;
         int h = 0;
         const int c = *count;
         for (int i = 0; i < c; ++i) h |= hit_rows[i] == row;
@@ -1734,14 +1739,16 @@ __global__ void copy_rows_by_weight_kernel(float4* __restrict__ dst, const volat
 }
 }  // namespace
 void copy_rows_by_weight(float* dst, const float* src, int64_t rows, int64_t width, const int32_t* hit_rows,
-                         const int32_t* count, const float* w, float heavy, bool take_heavy, void* stream, int k, int top) {
+                         const int32_t* count, const float* w, float heavy, bool take_heavy, void* stream, int k, int top,
+                         const int32_t* top_live) {
     if (rows <= 0) return;
     if ((width & 3) != 0 || ((uintptr_t) dst & 15) != 0 || ((uintptr_t) src & 15) != 0) {
         std::fprintf(stderr, "copy_rows_by_weight: width must be a multiple of 4 and both pointers 16-byte aligned\n");
         std::exit(1);
     }
     copy_rows_by_weight_kernel<<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
-        (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count, w, heavy, take_heavy ? 1 : 0, k, top);
+        (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count, w, heavy, take_heavy ? 1 : 0, k, top,
+        (const volatile int32_t*) top_live);
     check("copy_rows_by_weight");
 }
 void defer_add_rows(const float* parts, const float* w, const float* inject, float* R, int64_t n_embd, int k, int hc,
@@ -1762,10 +1769,50 @@ __global__ void wait_copy_i32_kernel(const volatile uint32_t* flag, uint32_t val
     __syncthreads();
     for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
 }
+// STRATA_WAIT_COPY256=1 (fork android-imdad/Strata-7900xtx caa9b00115): the same wait as above, then 16-byte reads where
+// both pointers allow (else the 4-byte loop); a word tail (n % 4) is copied one word per thread.  Launched with 256
+// threads: a 16-row window's plan (1,320 words) is 330 int4 reads, two rounds over PCIe instead of 11 dependent 4-byte
+// rounds (the 128-thread loops wait for each read before the next).  The 16-byte reads are plain loads, so every wave makes its own
+// system-scope acquire after the barrier (the fork's block_wait_flag_ge, and wait_flag_copy_i32_kernel's): no wave reads
+// a plan word from a cache line older than the flag.  Used by both plan copies (STRATA_WAIT_FUSE's and STRATA_FUSE_WAIT's).
+__global__ void wait_copy_i32_wide_kernel(const volatile uint32_t* flag, uint32_t value, int32_t* __restrict__ dst,
+                                          const volatile int32_t* src, int n) {
+    if (threadIdx.x == 0) {
+        while (*flag < value) strata_spin_pause();
+        __threadfence_system();
+    }
+    __syncthreads();
+    __threadfence_system();
+    if (((reinterpret_cast<uintptr_t>(dst) | reinterpret_cast<uintptr_t>(src)) & 15) == 0) {
+        const int n4 = n >> 2;
+        const int4* s4 = reinterpret_cast<const int4*>(const_cast<const int32_t*>(src));
+        int4* d4 = reinterpret_cast<int4*>(dst);
+        for (int i = threadIdx.x; i < n4; i += blockDim.x) d4[i] = s4[i];
+        for (int i = 4 * n4 + threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
+        return;
+    }
+    for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
+}
+// STRATA_WAIT_COPY256=1 (opt-in, read once): plans of more than 512 words go through wait_copy_i32_wide_kernel
+bool wait_copy_wide(int64_t n) {
+    static const bool on = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
+    const bool wide = on && n > 512;
+    // the log proves the arm acted (an invisible switch is how the copy256 arms of specs 18/23 measured nothing)
+    if (wide)
+        switch_report::acted(switch_report::wait_copy256, "plans of %lld words use the 256-thread wide copy", (long long) n);
+    else if (on)
+        switch_report::will_not_act(switch_report::wait_copy256, "a plan of %lld words (it takes plans of more than 512)",
+                                    (long long) n);
+    return wide;
+}
 }  // namespace
 void wait_copy_i32_from_mapped(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
                                void* stream) {
-    wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    if (wait_copy_wide(n)) {
+        wait_copy_i32_wide_kernel<<<1, 256, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    } else {
+        wait_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, src, (int) n);
+    }
     check("wait_copy_i32_from_mapped");
 }
 
@@ -1774,7 +1821,12 @@ void wait_flag_ge(const uint32_t* flag, uint32_t value, void* stream) {
     check("wait_flag_ge");
 }
 void wait_flag_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n, void* stream) {
-    wait_flag_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, (const volatile int32_t*) src, (int) n);
+    // STRATA_WAIT_COPY256 also here: STRATA_WAIT_FUSE=1 (the fast-hip preset) copies the plan with this launch, not
+    // wait_copy_i32_from_mapped's, so without it the switch never acted on the preset
+    if (wait_copy_wide(n))
+        wait_copy_i32_wide_kernel<<<1, 256, 0, (cudaStream_t) stream>>>(flag, value, dst, (const volatile int32_t*) src, (int) n);
+    else
+        wait_flag_copy_i32_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(flag, value, dst, (const volatile int32_t*) src, (int) n);
     check("wait_flag_copy_i32");
 }
 

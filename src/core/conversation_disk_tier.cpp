@@ -10,12 +10,14 @@
 #include "strata/core/conversation_disk_tier.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <initializer_list>
 #include <numeric>
 #include <set>
 #include <sstream>
@@ -210,16 +212,37 @@ void drop_lock(void* h) { if (h) CloseHandle((HANDLE) h); }
 
 // ---- the key ----------------------------------------------------------------------------------------------------
 
-const std::vector<std::string>& conversation_disk_key_env_names() {
-    // the routing and numerics switches that change the computed state but are read from the environment, not from
-    // the arguments the config fingerprint covers (generate.cpp session_identity)
-    static const std::vector<std::string> names = {
-        "STRATA_ROUTE_PRIOR",        "STRATA_ROUTE_PRIOR_DEPTH", "STRATA_ROUTE_RESIDENT",
-        "STRATA_ROUTE_RESIDENT_RANKS", "STRATA_ROUTE_RESIDENT_MTP", "STRATA_ROUTE_TAIL_SKIP",
-        "STRATA_VERIFY_DEFER_CPU",   "STRATA_PF_FUSED_F16",      "STRATA_HC_Q8",
-        "STRATA_HC_REQ8",            "STRATA_EXPDEC",            "STRATA_EXPDEC_SWIGLU",
-        "STRATA_EXPDEC_DOWN",        "STRATA_ROUTER_FUSE",       "STRATA_QFUSE",
+const std::vector<EnvSwitch>& conversation_env_switches() {
+    // every STRATA_* name of src/ and include/, classified (conversation_disk_env.def); the key lists below come from it
+    static const std::vector<EnvSwitch> table = {
+#define STRATA_ENV(name, cls, note) {name, EnvClass::cls, note},
+#include "conversation_disk_env.def"
+#undef STRATA_ENV
     };
+    return table;
+}
+
+namespace {
+std::vector<std::string> names_of(std::initializer_list<EnvClass> classes) {
+    std::vector<std::string> names;
+    for (const EnvSwitch& s : conversation_env_switches())
+        if (std::find(classes.begin(), classes.end(), s.cls) != classes.end()) names.push_back(s.name);
+    return names;
+}
+// switches that join the key only when they are set (an empty value is set: a good number are read by presence alone), so a run
+// without them keeps the key it had (no re-key of the files already parked): the value-changing ones that were never in the
+// key, and the ones nobody could settle (Unsure)
+const std::vector<std::string>& conversation_disk_key_env_names_if_set() {
+    static const std::vector<std::string> names = names_of({EnvClass::KeyIfSet, EnvClass::Unsure});
+    return names;
+}
+}  // namespace
+
+const std::vector<std::string>& conversation_disk_key_env_names() {
+    // the routing and numerics switches that change the computed state but are read from the environment, not from the
+    // arguments the config fingerprint covers (generate.cpp session_identity).  The classes are in conversation_disk_env.def;
+    // a name that moves into or out of a key class changes every key: bump the version line in conversation_disk_key().
+    static const std::vector<std::string> names = names_of({EnvClass::Key});
     return names;
 }
 
@@ -231,6 +254,10 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
         out.emplace_back(name, v ? std::string(v) : std::string("-"));
     };
     for (const auto& n : conversation_disk_key_env_names()) add(n);
+    for (const auto& n : conversation_disk_key_env_names_if_set()) {
+        const char* v = get_env ? get_env(n.c_str()) : nullptr;
+        if (v != nullptr) out.emplace_back(n, std::string(v));   // presence, not value: many are read as getenv != nullptr, so "" is a setting
+    }
     std::set<std::string> extra;
     if (const char* x = get_env ? get_env("STRATA_CONVERSATION_DISK_KEY_ENV") : nullptr) {
         std::stringstream ss(x);
@@ -238,7 +265,9 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
             n.erase(0, n.find_first_not_of(" \t"));
             n.erase(n.find_last_not_of(" \t") + 1);
             if (!n.empty() && std::find(conversation_disk_key_env_names().begin(), conversation_disk_key_env_names().end(),
-                                        n) == conversation_disk_key_env_names().end())
+                                        n) == conversation_disk_key_env_names().end() &&
+                std::find(conversation_disk_key_env_names_if_set().begin(), conversation_disk_key_env_names_if_set().end(),
+                          n) == conversation_disk_key_env_names_if_set().end())
                 extra.insert(n);
         }
     }
@@ -247,7 +276,7 @@ conversation_disk_key_env(const std::function<const char*(const char*)>& get_env
 }
 
 std::string conversation_disk_key(const ConversationDiskKeyInputs& in) {
-    std::string k = "strata conversation disk 1\n";
+    std::string k = "strata conversation disk 3\n";
     k += "model " + in.model + "\n";
     k += "model_fingerprint " + hex16(in.id.model) + "\n";
     k += "config_fingerprint " + hex16(in.id.config) + "\n";

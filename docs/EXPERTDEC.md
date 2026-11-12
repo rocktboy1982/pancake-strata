@@ -37,11 +37,13 @@ enables it, since in an RTX 2080 Ti 131k decode the `Q2_0` down with EXPDEC was 
 kernel although the micro-bench alone had it at 0.78x). The `IQ4_NL` down projection remains opt-in (`STRATA_EXPDEC_D20=1`)
 on all architectures.
 
-pancake note (2026-11-09): on the RX 7900 XT (gfx1100) the Q2_0 down of VRAM-resident experts therefore runs on the
-default `native_down_multi_kernel<42>`, 5.8% of GPU kernel time in a rocprofv3 run
+pancake note (2026-11-09): on the RX 7900 XT (gfx1100), with `STRATA_EXPDEC_DOWN` unset, the Q2_0 down of VRAM-resident
+experts runs on the default `native_down_multi_kernel<42>`, 5.8% of GPU kernel time in a rocprofv3 run
 (`bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv`); both the Q2_0 and the "IQ2_XS" Flash-Next GSQ-RCO
-files have Q2_0 down projections. Whether `STRATA_EXPDEC_DOWN=1` helps on gfx1100 is not measured
-([PANCAKE_FINDINGS.md section 13](PANCAKE_FINDINGS.md#13-research-series-2026-11-09)).
+files have Q2_0 down projections. `STRATA_EXPDEC_DOWN=1` is measured on gfx1100 (test phase 04c,
+`bench/results/2026-11-09-test-phase/RESULTS.md`): +1.7% +-0.5 on short chat, the code edit +5.4% +-7.3 (not
+significant), token forcing PASS. It is in the `flashnext-iq2_xs-fast-hip` preset since f15ad2b51; the Q2_0 fast-hip
+preset does not set it ([PANCAKE_FINDINGS.md section 13](PANCAKE_FINDINGS.md#13-research-series-2026-11-09)).
 
 The first time `STRATA_EXPDEC=1` meets a (role, format) the engine writes one line, e.g.
 `strata expdec: CUDA1 gate/up type 21: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups), captured into a graph`
@@ -50,6 +52,25 @@ The first time `STRATA_EXPDEC=1` meets a (role, format) the engine writes one li
 API (`include/strata/kernels/iq_kernels.hpp`): `native_expert_set_expdec`, `native_expert_set_expdec_params` /
 `native_expert_expdec_params` (`NativeExpertExpdecParams`), `native_expert_expdec_takes`. The knobs are read from the
 environment at startup; captured graphs keep the kernels they captured.
+
+pancake, MOD_PLAN F12 (opt-in, not yet built or measured): `STRATA_IQ_SIGN_FAST=1` (or a list of type ids such as `22`
+or `16,22`) makes the gate/up kernels put the IQ2_XXS / IQ2_XS / IQ2_S grid signs on with `iq_signed<true>`: seven plain
+32-bit operations instead of `__vcmpne4` + `__vsub4`, which HIP emulates with the generic byte helpers. The words are
+the same bit for bit (the argument is in the comment above `iq_signed` in `iq_kernels.cu`; it rests on no codebook byte
+being 0), so the sums above are unchanged. IQ3_XXS / IQ3_S are not affected: their staged loads already read sign-mask
+tables. The gate/up log line ends in `, F12 sign form (STRATA_IQ_SIGN_FAST)` when a format takes it. In `expdec_bench`
+the choice field `s1` / `s0` switches it (`def,dec:s0,dec:s1`); `iq_multi_parity` runs EXPDEC with both forms.
+
+pancake, MOD_PLAN A37 (opt-in, not yet built or measured): `STRATA_IQ_LUT_DUP=16` (or `1`) / `=8` stages the IQ2_XXS
+gate/up codebook (256 entries of 8 bytes) as 16 / 8 copies in LDS, FLUTE-style (arXiv 2407.10960): copy g lives only in
+bank pairs [g B, (g + 1) B), B = 16 / copies, and lane t of a 16-lane sub-warp reads copy t / B, so with 16 copies the
+sub-warp's random lookups never share a bank pair. On real rows of this model's IQ2_XXS experts the plain table costs
+5.8 LDS clocks per wave lookup against an ideal 2 (32 banks x 4 bytes, a 64-bit read served 16 lanes a clock), 8
+copies 4.0, 16 copies 2.0. The price is LDS per block (13.5 KB -> 27.5 KB with 8 copies, 43.5 KB with 16), so the A/B
+decides. Only `expdec_gu_kernel` at R 1 takes it (not R 2, the item-48 SwiGLU kernel or the default kernels); IQ2_S and
+IQ2_XS keep the plain table (16 copies would be 128 / 64 KB, and 2-4 copies remove only 3-11% of the clocks). The values
+read are the same, so the sums are unchanged. Log line suffix: `, codebook x16 in LDS (STRATA_IQ_LUT_DUP)`. In
+`expdec_bench` the choice field `l0` / `l8` / `l16` switches it; `iq_multi_parity` runs EXPDEC with 16 and 8 copies.
 
 ## Bit for bit
 

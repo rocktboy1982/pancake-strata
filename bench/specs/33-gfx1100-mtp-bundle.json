@@ -1,0 +1,13 @@
+{
+  "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+  "arms": {
+   "base": {},
+   "mtp-q4-all": {"args": {"--mtp-q4": "all"}},
+   "host-core-sibling": {"args": {"--host-core": "sibling"}},
+   "mtp-window-4096": {"args": {"--mtp-window": "4096"}}
+  },
+  "cases": ["short", "edit"],
+  "reps": 3,
+  "lossy": false,
+  "note": "rdna3 issue #4 (Windows/gfx1100 RX 7900 XTX, IQ3_S) measured ~+10% decode with an MTP bundle, but tested TOGETHER not ablated — this spec ablates it on OUR box (RX 7900 XT 20 GB, Linux, IQ2_XS fast-hip, English draft vocab). Portable subset only; --mtp-draft-vocab zh60k is EXCLUDED (fork-KB: zh60k hurts English, 92.5) and presence_penalty=0 is excluded (sampling, no effect on greedy tok/s; gated sampling arm). Arms: mtp-q4-all = q4 MTP head (fork-KB pain-points had --mtp-q4 queued); host-core-sibling = MTP host thread on a sibling core (we run --pool-affinity measure); mtp-window-4096 = draft window size. Greedy verify is unchanged so the final text must stay identical (abtest text check); --mtp-q4 changes DRAFT acceptance, so watch acceptance %. Honest framing: the author's +10% is IQ3_S-on-XTX with the bundle + its other tuning, unablated, small-session; treat each arm as a hypothesis to confirm/deny on our hardware with --tier confirm (A B B A, n>=8), not an adopt. Combine winners only after they individually clear +2%."
+}

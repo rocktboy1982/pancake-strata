@@ -1,0 +1,82 @@
+# 2026-11-09 BitDecoding-style decode attention (STRATA_ATTN_WMMA), RX 7900 XT gfx1100, ROCm 10, branch feat/bitdecoding-hip
+## kernel (build-hip/hip_decode_attn_wmma_parity --bench / --bench-wide)
+ok   mode 1 widths 1: rel L2 vs FP64 wmma 4.03e-08 fp32 0.00e+00, max abs/max 7.23e-08, deterministic yes
+ok   mode 1 widths 37: rel L2 vs FP64 wmma 1.68e-06 fp32 3.40e-07, max abs/max 1.60e-06, deterministic yes
+ok   mode 1 widths 64: rel L2 vs FP64 wmma 1.87e-06 fp32 4.18e-07, max abs/max 1.73e-06, deterministic yes
+ok   mode 1 widths 65: rel L2 vs FP64 wmma 1.43e-06 fp32 7.00e-07, max abs/max 1.40e-06, deterministic yes
+ok   mode 1 widths 1000: rel L2 vs FP64 wmma 2.12e-06 fp32 1.08e-06, max abs/max 1.94e-06, deterministic yes
+ok   mode 1 widths 2051: rel L2 vs FP64 wmma 1.66e-06 fp32 7.73e-07, max abs/max 1.51e-06, deterministic yes
+ok   mode 1 widths 2051 65 1: rel L2 vs FP64 wmma 3.19e-06 fp32 1.84e-06, max abs/max 2.81e-06, deterministic yes
+ok   mode 1 widths 2051 2051 2051: rel L2 vs FP64 wmma 2.70e-06 fp32 1.34e-06, max abs/max 3.18e-06, deterministic yes
+bench mode 1 n_q 1 width 2051: fp32 37.8 us/call, wmma 22.0 us/call (x1.71)
+bench mode 1 n_q 3 width 2051: fp32 58.9 us/call, wmma 40.6 us/call (x1.45)
+ok   mode 2 widths 1: rel L2 vs FP64 wmma 7.83e-08 fp32 0.00e+00, max abs/max 1.05e-07, deterministic yes
+ok   mode 2 widths 37: rel L2 vs FP64 wmma 4.11e-07 fp32 1.77e-07, max abs/max 4.93e-07, deterministic yes
+ok   mode 2 widths 64: rel L2 vs FP64 wmma 5.69e-07 fp32 2.51e-07, max abs/max 6.39e-07, deterministic yes
+ok   mode 2 widths 65: rel L2 vs FP64 wmma 5.57e-07 fp32 2.82e-07, max abs/max 6.75e-07, deterministic yes
+ok   mode 2 widths 1000: rel L2 vs FP64 wmma 4.80e-07 fp32 2.55e-07, max abs/max 5.57e-07, deterministic yes
+ok   mode 2 widths 2051: rel L2 vs FP64 wmma 5.60e-07 fp32 4.87e-07, max abs/max 6.95e-07, deterministic yes
+ok   mode 2 widths 2051 65 1: rel L2 vs FP64 wmma 5.27e-07 fp32 4.23e-07, max abs/max 5.98e-07, deterministic yes
+ok   mode 2 widths 2051 2051 2051: rel L2 vs FP64 wmma 7.83e-07 fp32 3.64e-07, max abs/max 7.81e-07, deterministic yes
+bench mode 2 n_q 1 width 2051: fp32 38.3 us/call, wmma 21.5 us/call (x1.78)
+bench mode 2 n_q 3 width 2051: fp32 59.9 us/call, wmma 37.7 us/call (x1.59)
+ok   mode 3 widths 1: rel L2 vs FP64 wmma 8.08e-08 fp32 0.00e+00, max abs/max 1.20e-07, deterministic yes
+ok   mode 3 widths 37: rel L2 vs FP64 wmma 9.56e-07 fp32 3.87e-07, max abs/max 1.03e-06, deterministic yes
+ok   mode 3 widths 64: rel L2 vs FP64 wmma 1.59e-06 fp32 5.57e-07, max abs/max 1.81e-06, deterministic yes
+ok   mode 3 widths 65: rel L2 vs FP64 wmma 1.87e-06 fp32 4.42e-07, max abs/max 2.07e-06, deterministic yes
+ok   mode 3 widths 1000: rel L2 vs FP64 wmma 2.35e-06 fp32 6.79e-07, max abs/max 2.27e-06, deterministic yes
+ok   mode 3 widths 2051: rel L2 vs FP64 wmma 1.93e-06 fp32 9.63e-07, max abs/max 1.66e-06, deterministic yes
+ok   mode 3 widths 2051 65 1: rel L2 vs FP64 wmma 2.45e-06 fp32 7.26e-07, max abs/max 2.46e-06, deterministic yes
+ok   mode 3 widths 2051 2051 2051: rel L2 vs FP64 wmma 3.23e-06 fp32 2.55e-06, max abs/max 3.02e-06, deterministic yes
+bench mode 3 n_q 1 width 2051: fp32 37.5 us/call, wmma 21.5 us/call (x1.74)
+bench mode 3 n_q 3 width 2051: fp32 59.4 us/call, wmma 39.4 us/call (x1.51)
+PASS: 0 failing case(s); worst rel L2 vs FP64: wmma 3.23e-06, fp32 kernel 2.55e-06
+bench-wide int8 cap/width 32768 n_q 1: fp32 374.8 us/call, wmma 284.3 us/call (x1.32)
+bench-wide int8 cap/width 32768 n_q 4: fp32 894.7 us/call, wmma 519.4 us/call (x1.72)
+bench-wide int8 cap/width 32768 n_q 16: fp32 3345.3 us/call, wmma 1894.0 us/call (x1.77)
+bench-wide int8 cap/width 32768 n_q 64: fp32 13006.5 us/call, wmma 6850.3 us/call (x1.90)
+
+## end to end: ./run-pancake.sh iq2_xs fast (worktree build), STRATA_DECODE_TIMING=1, one 36,124-token prompt (repo docs) + greedy answer, order base1 wmma1 base2 wmma2
+== base1
+prompt 36124 tok 1469.7 tok/s; decode 280 tok 96.3 tok/s; draft 241 acc 160
+strata decode timing: 120 windows, avg T 3.01, 2.33 tokens/window, 24.23 ms/window = adapt wait 0.05 + verify 21.23 (GPU-reach wait 11.75 + per-layer host 8.36 [plan 0.18 actq 0.12 jobs 0.02 CPU 7.80] + stage 0.22) + commit/emit 0.12 + draft 2.78 + adapt join 0.01 + other 0.04; per layer-window: CPU experts 2.37 (2.83 entries), VRAM hits 27.26, PCIe 0.00; 16.2 swaps/window
+== wmma1
+prompt 36124 tok 857.3 tok/s; decode 296 tok 90.1 tok/s; draft 254 acc 159
+strata decode timing: 137 windows, avg T 2.85, 2.16 tokens/window, 23.97 ms/window = adapt wait 0.04 + verify 21.35 (GPU-reach wait 11.64 + per-layer host 8.67 [plan 0.17 actq 0.10 jobs 0.01 CPU 6.84] + stage 1.53) + commit/emit 0.06 + draft 2.47 + adapt join 0.01 + other 0.04; per layer-window: CPU experts 2.31 (2.76 entries), VRAM hits 25.78, PCIe 0.00; 15.9 swaps/window
+== base2
+prompt 36124 tok 1498.3 tok/s; decode 280 tok 84.9 tok/s; draft 241 acc 160
+strata decode timing: 120 windows, avg T 3.01, 2.33 tokens/window, 27.48 ms/window = adapt wait 0.07 + verify 24.10 (GPU-reach wait 11.80 + per-layer host 11.12 [plan 0.19 actq 0.12 jobs 0.02 CPU 9.97] + stage 0.79) + commit/emit 0.25 + draft 3.00 + adapt join 0.01 + other 0.04; per layer-window: CPU experts 2.37 (2.83 entries), VRAM hits 27.26, PCIe 0.00; 16.2 swaps/window
+== wmma2
+prompt 36124 tok 1463.4 tok/s; decode 296 tok 95.6 tok/s; draft 254 acc 159
+strata decode timing: 137 windows, avg T 2.85, 2.16 tokens/window, 22.60 ms/window = adapt wait 0.05 + verify 20.07 (GPU-reach wait 11.64 + per-layer host 7.38 [plan 0.16 actq 0.11 jobs 0.01 CPU 6.90] + stage 0.18) + commit/emit 0.07 + draft 2.37 + adapt join 0.01 + other 0.04; per layer-window: CPU experts 2.31 (2.76 entries), VRAM hits 25.78, PCIe 0.00; 15.9 swaps/window
+
+## token forcing: Q=bench/quality-bitdec tools/pancake/quality_hip.sh (stock = STRATA_ATTN_WMMA=0 twice, cand = 1)
+{
+ "requests": 20,
+ "tokens_cand": 5322,
+ "tokens_stock_arms": [
+  5322,
+  5322
+ ],
+ "delta": 0.5,
+ "mismatch_rate_stock_arms_pct": [
+  1.691,
+  1.935
+ ],
+ "mismatch_rate_cand_pct": 1.71,
+ "diff_pts": -0.103,
+ "diff_ci90_pts": [
+  -0.297,
+  0.08
+ ],
+ "rate_rule": "PASS",
+ "events_cand": 2,
+ "events_stock_arms": [
+  1,
+  2
+ ],
+ "events_p": 0.53909,
+ "event_rule": "PASS",
+ "verdict": "PASS"
+}
+exit 0

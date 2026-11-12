@@ -736,7 +736,7 @@ bool MtpDrafter::setup_coupled(std::string& err) {
 }
 
 void MtpDrafter::set_draft_sampling(const strata::kernels::SamplerParams& sp) {
-    coupled_active_ = coupled_ok_ && !sp.greedy && sp.temperature > 0.0f && sp.temperature >= spec_min_temp();
+    coupled_active_ = coupled_ok_ && spec_sampled_drafts(sp.greedy, sp.temperature, spec_min_temp());
     if (!coupled_active_) return;
     *h_cparams_ = sp;   // read by the next round graph (after the previous one has synced)
     std::fill(h_chist_, h_chist_ + kCoupledHistCap, -1);

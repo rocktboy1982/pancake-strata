@@ -32,20 +32,30 @@ class World:
         (self.root / f"bench/specs/{stem}.json").write_text(json.dumps({"base": "p.json", "arms": {a: {} for a in arms}, "cases": list(cases), **extra}))
         return f"bench/specs/{stem}.json"
 
-    def runs(self, stem, diffs, texts=None, noisy=(), reps=None, base_value=100.0, ref="base"):
+    def runs(self, stem, diffs, texts=None, noisy=(), reps=None, base_value=100.0, ref="base", passes=1, opts=None):
         """abtest jsonl.  diffs {arm: {case: [gain in % of base per rep]}}; the reference arm (ref) is added at base_value in every rep, so
-        a gain of d % is a paired difference of exactly d.  noisy: (arm, rep) pairs written with clean false.  texts {(arm, case): hash}."""
+        a gain of d % is a paired difference of exactly d.  noisy: (arm, rep) pairs written with clean false.  texts {(arm, case): hash}.
+        passes > 1: a --block file, every start has that many passes around its level (-2, 0, +2 for 3: the mean is the level) and opts;
+        opts: more abtest options for the rows (a run with other options than the default)."""
         arms = [ref] + [a for a in diffs if a != ref]
         n = reps or len(next(iter(next(iter(diffs.values())).values())))
         lines = []
         for rep in range(n):
             for arm in arms:
-                rows = [{"case": c, "decode_tps": base_value + (0 if arm == ref else diffs[arm][c][rep]), "prompt_tps": 1.0, "prompt": 1,
-                         "gen": 1, "accept": None} for c in CASES]
+                rows = [{"case": c, "decode_tps": base_value + 2 * (k - (passes - 1) / 2) + (0 if arm == ref else diffs[arm][c][rep]), "prompt_tps": 1.0,
+                         "prompt": 1, "gen": 1, "accept": None, **({"pass": k, "warm": k > 0} if passes > 1 else {})}
+                        for k in range(passes) for c in CASES]
                 t = {c: (texts or {}).get((arm, c), f"text-{c}") for c in CASES}
                 lines.append(json.dumps({"t": "x", "rep": rep, "arm": arm, "attempt": 0, "clean": (arm, rep) not in noisy, "rows": rows, "texts": t,
-                                         "noise": 80.0 if (arm, rep) in noisy else 1.0, "reclaim": 0.0}))
+                                         "noise": 80.0 if (arm, rep) in noisy else 1.0, "reclaim": 0.0,
+                                         **({"opts": {"test_tier": "confirm", "reps": n, "block": passes if passes > 1 else 0, "passes": passes,
+                                                      "warmup": 0, "outlier": "gate", "per_run": 1, **(opts or {})}} if passes > 1 or opts else {})}))
         (self.out / f"{stem}.jsonl").write_text("\n".join(lines) + "\n")
+
+    def rewrite(self, stem, fn):
+        """Replaces the records of a jsonl by fn(records): add attempts, change options or figures."""
+        path = self.out / f"{stem}.jsonl"
+        path.write_text("\n".join(json.dumps(r) for r in fn([json.loads(x) for x in path.read_text().splitlines()])) + "\n")
 
     def quality(self, stem, verdicts, stock=(1.8, 1.9)):
         d = self.out / f"{stem}-quality"
@@ -490,6 +500,122 @@ def test_noise_report_lists_pairs_needed():
             P.main(["--noise", str(w.out / "s.jsonl")])
         text = out.getvalue()
         assert "short" in text and "x SD" in text and "pairs for 1%/3%" in text
+
+
+# ------------------------------------------------------------------------------------------------ robust and block files, other options
+ROBUST = {"outlier": "robust"}
+
+
+def tag(opts):
+    """rewrite() function: these abtest options on every record (a run that used them)."""
+    return lambda rs: [{**r, "opts": {**r.get("opts", {"block": 0, "passes": 1, "warmup": 0}), **opts}} for r in rs]
+
+
+def line(r, case):
+    """The claim / other line of a case in the report of the first arm."""
+    return next(x for x in r["arms"][0].lines if x.split()[1:2] == [case])
+
+
+def test_a_robust_file_is_not_held_for_the_noise_proxies():
+    with world() as w:
+        w.runs("s", GOOD, noisy=[("base", 1)])
+        assert verdict(w, item(w.spec("s"), claim=["edit"]))[0] == "HOLD"                      # the gate rule: a noisy run
+        w.rewrite("s", tag(ROBUST))                                                           # robust: `clean` only records the proxies
+        v, r = verdict(w, item(w.spec("s"), claim=["edit"]))
+        assert v == "PROMOTE" and "noisy" not in why(r) and "outlier rule robust, left out: base slow starts 0, outlier passes 0" in why(r), why(r)
+
+
+def test_a_robust_file_uses_the_attempt_abtest_select_picks_not_the_first_clean_one():
+    def slow_first(rs):   # base rep 0: attempt 0 is a slow start (70%) that the proxies called clean, attempt 1 a normal one
+        out = []
+        for r in rs:
+            if (r["arm"], r["rep"]) == ("base", 0):
+                out += [{**r, "rows": [{**x, "decode_tps": x["decode_tps"] * 0.7} for x in r["rows"]]}, {**r, "attempt": 1}]
+            else:
+                out.append(r)
+        return out
+    with world() as w:
+        w.runs("s", GOOD)
+        w.rewrite("s", slow_first)
+        assert P.read_runs(w.out / "s.jsonl")[0]["base"][0]["attempt"] == 0                    # the gate rule keeps the clean slow start
+        w.rewrite("s", tag(ROBUST))
+        runs, discarded, _ = P.read_runs(w.out / "s.jsonl")
+        assert runs["base"][0]["attempt"] == 1 and discarded == 1
+        v, r = verdict(w, item(w.spec("s"), claim=["edit"]))
+        assert v == "PROMOTE" and "base slow starts 1, outlier passes 0" in why(r) and "+5.0%" in line(r, "edit"), why(r)
+
+
+def test_options_that_differ_between_the_arms_hold_and_nothing_else_is_judged():
+    with world() as w:
+        w.runs("s", GOOD)
+        w.rewrite("s", lambda rs: [{**r, "opts": {"block": 3, "passes": 3, "warmup": 1, "outlier": "robust"}} if r["arm"] == "x" else r for r in rs])
+        v, r = verdict(w, item(w.spec("s"), claim=["edit"]))
+        assert v == "HOLD" and "abtest options differ between the runs compared" in why(r), why(r)
+        assert all(f"{k}: base {a}, x {b}" in why(r) for k, a, b in (("block", 0, 3), ("passes", 1, 3), ("warmup", 0, 1), ("outlier", "gate", "robust")))
+        assert "claim" not in why(r)                                                           # not judged: the numbers compare regimes
+
+
+def test_a_run_inside_an_arm_with_other_options_is_caught_and_old_rows_are_the_default_run():
+    with world() as w:
+        w.runs("s", GOOD)
+        w.rewrite("s", tag({"block": 0, "passes": 1, "warmup": 0, "outlier": "gate"}))        # the default run written with opts: the same as none
+        assert verdict(w, item(w.spec("s"), claim=["edit"]))[0] == "PROMOTE"
+        w.rewrite("s", lambda rs: [{**r, "opts": {"warmup": 1}} if (r["arm"], r["rep"]) == ("x", 3) else r for r in rs])
+        v, r = verdict(w, item(w.spec("s"), claim=["edit"]))
+        assert v == "HOLD" and "warmup: base 0, x 0/1" in why(r), why(r)
+
+
+def test_a_block_start_is_one_pair_the_mean_of_its_passes():
+    with world() as w:
+        w.runs("old", GOOD)
+        w.runs("blk", GOOD, passes=3)                      # 4 starts per arm, passes around the start's level: the mean is that level
+        v, r = verdict(w, item(w.spec("blk"), claim=["edit"]))
+        assert v == "PROMOTE", why(r)
+        assert line(r, "edit") == line(verdict(w, item(w.spec("old"), claim=["edit"]))[1], "edit")       # n=4 starts, not 12 passes
+        assert line(r, "edit").endswith("n=4") and "3 passes per engine start: a start is one pair" in why(r)
+        runs = P.read_runs(w.out / "blk.jsonl")[0]
+        got = [v for pair in P.case_pairs(runs["base"], runs["x"], "edit") for v in pair]
+        want = [v for d in GOOD["x"]["edit"] for v in (100.0, 100.0 + d)]
+        assert len(got) == len(want) and all(abs(g - x) < 1e-9 for g, x in zip(got, want))
+
+
+def test_two_starts_per_arm_cannot_promote_and_the_hold_says_how_many_reps_to_run():
+    with world() as w:
+        w.runs("s", {"x": {"short": [0.0, 0.0], "edit": [5.0, 5.0]}}, passes=3)                 # --block 3 --reps 6: 2 starts per arm
+        v, r = verdict(w, item(w.spec("s"), claim=["edit"]))
+        assert v == "HOLD" and "fewer than 3 clean pairs (engine starts of 3 passes) on every claim case (edit n=2); run with reps >= 3 x 3" in why(r), why(r)
+        w.runs("s", {"x": {"short": [0.0] * 3, "edit": [5.0, 5.2, 4.8]}}, passes=3)             # --block 3 --reps 9: 3 starts
+        assert verdict(w, item(w.spec("s"), claim=["edit"]))[0] == "PROMOTE"
+
+
+def test_a_block_gain_that_is_open_counts_starts_and_says_the_reps():
+    with world() as w:
+        w.runs("s", {"x": {"short": [0.0] * 4, "edit": [4.0, 1.0, 3.0, 0.0]}}, passes=3)
+        v, r = verdict(w, item(w.spec("s"), claim=["edit"]))
+        m = re.search(r"about (\d+) pairs \(engine starts of 3 passes\) would settle it at the observed paired SD [\d.]+%; run with reps >= (\d+) x 3", why(r))
+        assert v == "HOLD" and m and m[1] == m[2], why(r)
+
+
+def test_a_robust_block_drops_an_outlier_pass_and_still_pairs_the_start():
+    def spoil(rs):   # x start 1: its middle pass (the start's level) came out 15% low: an outlier pass, but not a slow start (its mean is 5% low)
+        return [{**r, "rows": [{**x, "decode_tps": x["decode_tps"] * 0.85 if x["pass"] == 1 else x["decode_tps"]} for x in r["rows"]]}
+                if (r["arm"], r["rep"]) == ("x", 1) else r for r in rs]
+    with world() as w:
+        w.runs("clean", GOOD, passes=3, opts=ROBUST)
+        w.runs("spoiled", GOOD, passes=3, opts=ROBUST)
+        w.rewrite("spoiled", spoil)
+        v, r = verdict(w, item(w.spec("spoiled"), claim=["edit"]))
+        assert "x slow starts 0, outlier passes 1" in why(r) and v == "PROMOTE", why(r)
+        assert line(r, "edit") == line(verdict(w, item(w.spec("clean"), claim=["edit"]))[1], "edit")      # the other two passes average to the level
+
+
+def test_noise_report_names_the_unit_of_a_block_file():
+    with world() as w:
+        w.runs("s", GOOD, passes=3)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            P.main(["--noise", str(w.out / "s.jsonl")])
+        assert "s.jsonl  (block of 3 passes per start: n counts engine starts)" in out.getvalue() and "edit" in out.getvalue()
 
 
 # ------------------------------------------------------------------------------------------------ the catalog and the specs

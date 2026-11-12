@@ -1,0 +1,16 @@
+{
+  "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+  "arms": {
+   "base": {},
+   "aux-cpus-auto": {"args": {"--aux-cpus": "auto"}},
+   "gdn-pp2": {"env": {"STRATA_GDN_PP": "2"}},
+   "spec-min-p-07": {"args": {"--spec-min-p": "0.7"}},
+   "lookup16": {"args": {"--lookup-max-t": "16"}},
+   "kv-grow": {"args": {"--kv-grow": ""}},
+   "sh-stream": {"env": {"STRATA_SH_STREAM": "1"}}
+  },
+  "cases": ["short", "edit"],
+  "reps": 3,
+  "lossy": false,
+  "note": "Fork-KB sweep (pancake-docs/research/engine-speed/speed-ideas-all-forks + strata-forks-speed-gains): env/flag-only arms that already exist in the binary but were never measured on gfx1100. All Speed/exact (conversation_disk_env.def: AUX_CPUS 305, GDN_PP 409 bitwise, SH_STREAM 684; --spec-min-p / --lookup-max-t / --kv-grow are exact flags). aux-cpus-auto = FK-04: helper threads for non-pool work, author +3.8% decode and GPU plan wait 1.52 -> 0.51 ms/window on the same 8C/16T Ryzen class (author, 7800X3D + 7900 XTX). gdn-pp2 = two columns per lane in the prompt GDN recurrence, bitwise, prompts +2% (author, 2x PRO V620). spec-min-p-07: preset uses 0.5; 0.70 measured best on a 3090. lookup16: default 12 -> 16, 0-4% on edits (author, RTX 2060S). kv-grow: elastic K/V frees RAM to the expert cache, +6% (author, 3090). sh-stream: shared HC stream, -2..+4% (author, gfx1100) - measure, could be negative. Run --tier screen; confirm any >= +2% with --tier confirm. These arms are mostly backend-agnostic, so a decided result here also predicts the 3060 (report: treat the 7900 XT tok/s as a lower bound for the 3060). NOT included here because the flag presence is unverified on this tree: --prompt-cache-spread, --lookup-chain, --adapt-decay, --vram-reserve-mib (confirm in generate.cpp before speccing)."
+}

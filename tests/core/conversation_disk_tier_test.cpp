@@ -131,6 +131,18 @@ void test_key() {
     check(exact == conversation_disk_key({id, "/m/a.gguf", get({})}), "key: same inputs, same key");
     check(exact != turbo && exact != tail && turbo != tail, "key: a lossy routing switch changes the key");
     check(exact != conversation_disk_key({id, "/m/b.gguf", get({})}), "key: another model file, another key");
+    for (const char* n : {"STRATA_VERIFY_DEFER_CPU", "STRATA_VERIFY_DEFER_CPU_BELOW", "STRATA_VERIFY_DEFER_CPU_TOP",
+                          "STRATA_GR_RDNA_Q8", "STRATA_GR_RDNA_A8", "STRATA_CPU_PRESUM", "STRATA_PRESUM_VRAM",
+                          "STRATA_HIP_PROMPT_F16", "STRATA_PF_F16", "STRATA_PF_DM16", "STRATA_HC_Q8_INJECT"})
+    {
+        const std::string label = std::string("key: ") + n + " changes the key";
+        check(exact != conversation_disk_key({id, "/m/a.gguf", get({{n, "1"}})}), label.c_str());
+    }
+    // the fold only moves a row between pool passes (exact vs the same run): same key
+    check(exact == conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_DEFER_CPU_FOLD", "2"}})}),
+          "key: STRATA_VERIFY_DEFER_CPU_FOLD does not change the key");
+    check(exact.rfind("strata conversation disk 3\n", 0) == 0, "key: format version 3 (the classified switch table of conversation_disk_env.def)");
+
     check(exact != conversation_disk_key({{1, 3}, "/m/a.gguf", get({})}), "key: another config fingerprint, another key");
     check(conversation_disk_subfolder("/d", "/m/a.gguf", exact) != conversation_disk_subfolder("/d", "/m/a.gguf", turbo),
           "key: exact and turbo states live in different subfolders");
@@ -141,6 +153,23 @@ void test_key() {
     check(extra.size() == conversation_disk_key_env_names().size() + 1 && extra.back().first == "STRATA_FOO" &&
           extra.back().second == "1", "key: STRATA_CONVERSATION_DISK_KEY_ENV adds names once");
     check(get({}).front().second == "-", "key: an unset switch is '-'");
+    // MOD_PLAN F13: the route-prior guards enter the key only when set (older session files keep their key)
+    check(get({}).size() == conversation_disk_key_env_names().size(), "key: an unset route-prior guard is not in the key");
+    const std::string guarded = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_ROUTE_PRIOR", "0.5"}, {"STRATA_ROUTE_PRIOR_PROTECT", "2"}})});
+    check(guarded != turbo && guarded != exact, "key: a route-prior guard changes the key");
+    check(get({{"STRATA_ROUTE_PRIOR_SCOPE", "answer"}}).size() == conversation_disk_key_env_names().size() + 1, "key: a set guard is added once");
+    // MOD_PLAN F5: STRATA_VERIFY_ECAP joins the key only when set (the keys of runs without it do not move)
+    check(get({}).size() == conversation_disk_key_env_names().size(), "key: an unset STRATA_VERIFY_ECAP adds nothing");
+    const std::string ecap = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "1"}})});
+    check(ecap != exact && ecap != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", "2"}})}),
+          "key: STRATA_VERIFY_ECAP changes the key, and each cap has its own");
+    check(exact != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_VERIFY_ECAP", ""}})}),
+          "key: an empty STRATA_VERIFY_ECAP is keyed as set (the presence-only switches need it; an extra miss for this one)");
+    // MOD_PLAN A44: STRATA_BANDIT joins the key only when set, as do its exactness limit
+    const std::string bandit = conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_BANDIT", "top"}})});
+    check(bandit != exact, "key: STRATA_BANDIT changes the key");
+    check(bandit != conversation_disk_key({id, "/m/a.gguf", get({{"STRATA_BANDIT", "top"}, {"STRATA_BANDIT_EXACT", "1"}})}),
+          "key: STRATA_BANDIT_EXACT changes the key");
 }
 
 void test_choice() {

@@ -43,6 +43,7 @@ import re
 import select
 import signal
 import socket
+import socketserver
 import struct
 import shutil
 import subprocess
@@ -66,9 +67,12 @@ from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, Reason
                             tool_choice_of, unmark_think_literals, CALL_END)
 from serve.mcp import McpCancelled, hub_from_config  # noqa: E402
 from serve import runconfig  # noqa: E402
+from serve import park_divergence  # noqa: E402
+from serve import request_capture  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
 from strata_control import engine_component  # noqa: E402
 from strata_control import tls  # noqa: E402
+from strata_control.childenv import quiet_crash_env  # noqa: E402
 
 tls.install()       # #3722: image URLs and tool servers over HTTPS are checked against the operating system's certificates
 from strata_control import hipblaslt_tuning  # noqa: E402
@@ -81,11 +85,13 @@ from strata_control import user_args  # noqa: E402
 from strata_control import gpu_roles  # noqa: E402
 from serve import ready as ready_file  # noqa: E402
 from serve import owner_guard  # noqa: E402
+from serve import agent_loop  # noqa: E402
 from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
 from serve import grammar as grammar_api  # noqa: E402
 from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
 from serve import rumination  # noqa: E402  (pancake item 34: 5-gram repetition rate in the thinking)
+from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache-2.0; lossy opt-in)
 from serve import lifeline  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
@@ -389,6 +395,12 @@ try:
 except ValueError:
     ADMIT_SHORT_FIRST = 0
 ADMIT_MAX_WAIT_S = _timeout_env("STRATA_ADMIT_MAX_WAIT_S", 30.0) or 0.0
+# STRATA_ADMIT_CACHE_AWARE=1 (--batch, opt-in, exact: only the order changes, never what is read): ContextPilot's cache-aware
+# scheduling (Edinburgh, MLSys 2026; SGLang's longest-prefix-match).  New requests waiting for the control lines are
+# ordered by the tokens they still have to READ - the prompt minus the longest start a free slot already holds - instead
+# of arrival; with STRATA_ADMIT_SHORT_FIRST also set, "short" counts those uncached tokens.  A request that waited
+# STRATA_ADMIT_MAX_WAIT_S goes first whatever its cost.  Solo serving (no --batch) has no admission queue: no effect.
+ADMIT_CACHE_AWARE = os.environ.get("STRATA_ADMIT_CACHE_AWARE", "").strip().lower() in ("1", "on", "true", "yes")
 # STRATA_COALESCE_PREFILL=N (research, PAR-H; needs the engine's BCO / BCOK lines): a request that takes the control lines
 # for its admission also sends the prompts of up to N-1 requests still waiting for them (BCO <slot> <ids>, into free slots
 # it reserves for them); the engine reads all the prompts in ONE layer-major pass, so the experts a layer streams are
@@ -1313,6 +1325,7 @@ class StrataEngine:
         self.progress = None             # (read, total) prompt tokens while a prompt is read, from PP lines
         self.progress_ms = 0             # PP's own milliseconds since the prompt started (its third field)
         self.reused = 0                  # RESUME: prompt tokens not read again (a client takes them out of the work)
+        self.divergence = park_divergence.tracker_from_env()   # M3: None unless STRATA_PARK_DIVERGENCE_LOG=1 (default off)
         self.silent_note = None
         self.last_err = None
         try:                            # a ready-made engine's BUILD.json says its version
@@ -1730,6 +1743,8 @@ class StrataEngine:
                     self.last[key] = int(value)
                 except ValueError:
                     pass
+            elif eq and key == "bandit":              # MOD_PLAN A44 (STRATA_BANDIT only): windows by type and arm
+                self.last[key] = value
 
     @contextlib.contextmanager
     def _exclusive_control(self):
@@ -2247,11 +2262,11 @@ class StrataEngine:
                     raise EngineDied("the engine stopped while this request waited; it was not sent")
                 with self.slot_cv:
                     turn = after_epoch is None or self.ctl_epoch > after_epoch or self.waiting <= 1
-                    if turn and new and ADMIT_SHORT_FIRST > 0:
+                    if turn and new and self._admit_ordered():
                         turn = self._admit_next() is entry
                 left = deadline - time.monotonic() if deadline is not None else 0.5
                 if turn and left > 0 and self.ctl.acquire(timeout=min(0.5, left)):
-                    if new and ADMIT_SHORT_FIRST > 0:
+                    if new and self._admit_ordered():
                         with self.slot_cv:              # a shorter one came while this one waited in acquire()
                             first = self._admit_next() is entry
                         if not first:
@@ -2272,7 +2287,7 @@ class StrataEngine:
                         # notification sent in between is gone.  Read it again under the lock and only wait when this
                         # request still has to.
                         eligible = after_epoch is None or self.ctl_epoch > after_epoch or self.waiting <= 1
-                        if eligible and new and ADMIT_SHORT_FIRST > 0:
+                        if eligible and new and self._admit_ordered():
                             eligible = self._admit_next() is entry
                         if not eligible or not self.alive():
                             self.slot_cv.wait(timeout=min(0.5, max(0, left)))
@@ -2287,7 +2302,7 @@ class StrataEngine:
                 self.waiting = max(0, self.waiting - 1)
                 if entry in self.wait_lens:
                     self.wait_lens.remove(entry)
-                if (previous_waiting > 1 and self.waiting <= 1) or (new and ADMIT_SHORT_FIRST > 0):
+                if (previous_waiting > 1 and self.waiting <= 1) or (new and self._admit_ordered()):
                     # a waiter that leaves (cancelled, closed) can make another one the next in turn: tell it
                     self.slot_cv.notify_all()
         with self.slot_cv:
@@ -2359,8 +2374,44 @@ class StrataEngine:
         ordered = [e for e in self.wait_lens if len(e) > 2 and e[2]]
         if not ordered:
             return None
+        if ADMIT_CACHE_AWARE:
+            def key(e):
+                waited = now - e[1] >= ADMIT_MAX_WAIT_S
+                cost = e[0] - self._cached_prefix(e[3] if len(e) > 3 else None)
+                if ADMIT_SHORT_FIRST > 0:
+                    return (0 if cost <= ADMIT_SHORT_FIRST or waited else 1, 0, e[1])
+                return (0 if waited else 1, 0 if waited else cost, e[1])
+            return min(ordered, key=key)
         return min(ordered, key=lambda e: (0 if e[0] <= ADMIT_SHORT_FIRST or now - e[1] >= ADMIT_MAX_WAIT_S else 1,
                                            e[1]))
+
+    @staticmethod
+    def _admit_ordered() -> bool:
+        """New requests are admitted in an order of their own (STRATA_ADMIT_SHORT_FIRST / STRATA_ADMIT_CACHE_AWARE)."""
+        return ADMIT_SHORT_FIRST > 0 or ADMIT_CACHE_AWARE
+
+    def _cached_prefix(self, prompt) -> int:
+        """STRATA_ADMIT_CACHE_AWARE (the caller holds slot_cv): the longest start of `prompt` a free slot holds (0 when
+        the prompt is unknown).  An estimate for ordering only - the engine's own source search decides what it reuses."""
+        if not prompt:
+            return 0
+        best = 0
+        held = getattr(self, "slot_held", None) or []
+        busy = getattr(self, "slot_busy", None) or []
+        for b, h in enumerate(held):
+            if not h or (b < len(busy) and busy[b]):
+                continue
+            lo, hi = 0, min(len(h), len(prompt))
+            if hi <= best:
+                continue
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                if h[:mid] == prompt[:mid]:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            best = max(best, lo)
+        return best
 
     SOLO_AGAIN_MAX = 2      # how often a request left alone in a slot goes back to the solo path
     SOLO_AGAIN_MIN_LEFT = 32  # ... only with at least this many tokens still allowed (max_tokens)
@@ -2411,7 +2462,8 @@ class StrataEngine:
         carry = {}          # #1869: the figures of the legs that ended in a hand-back to the solo path (the final DONE adds to them)
         yielded_legs = []    # prompt reads that gave way before producing output
         ok = yield from self._take_control(cancel, len(prompt), new=True,
-                                           prompt=prompt if (COALESCE_PREFILL > 1 and not embeddings) else None)
+                                           prompt=prompt if ((COALESCE_PREFILL > 1 or ADMIT_CACHE_AWARE) and not embeddings)
+                                           else None)
         if not ok:
             self._release_preslot(cancel)
             return
@@ -2916,6 +2968,7 @@ class StrataEngine:
             return
         self.progress, self.progress_ms, self.reused = None, 0, 0
         self.prefill_tok_s_mean = None
+        self.think_probe_hit = None      # A19: (thinking tokens, score) of this pass's TPROBE line (engine STRATA_THINK_PROBE)
         # DeepSeek --parallel: the engine holds several conversations; this request is one of them (GEN ... rid=<id>), its
         # lines come on a queue of their own and its STOP names it.  One at a time (self.multi 0): the one queue, as before.
         rid, lines_q, stop_line = None, self.lines, "STOP\n"
@@ -2944,6 +2997,12 @@ class StrataEngine:
             if embeddings or int(max_new) != 0:
                 raise ValueError("prefill_only is a text prompt and max_new 0")
             head = f"GEN 0 prefill=1{rid_key}"
+        div = getattr(self, "divergence", None)          # M3 (opt-in STRATA_PARK_DIVERGENCE_LOG=1): serve/park_divergence.py
+        if div is not None:
+            if rid is None and not embeddings and not prefill_only:
+                div.begin(id(self.proc), ids)
+            else:
+                div.forget()                             # a request the log cannot follow: the next one has nothing to compare
         try:
             if rid is not None:                          # several requests write to the engine at once
                 self._send(f"{head} {','.join(str(int(t)) for t in ids)}")
@@ -3014,6 +3073,8 @@ class StrataEngine:
                         if isinstance(carry, str) and carry.startswith("LP "):
                             self.lp_lines.append((t, carry))
                             carry = NO_LINE
+                    if div is not None:
+                        div.token(t)
                     yield t
                 elif line.startswith("PP "):
                     f = line.split()
@@ -3033,6 +3094,15 @@ class StrataEngine:
                         read_to = self.reused = int(line.split()[1])
                     except (IndexError, ValueError):
                         pass
+                    else:
+                        if div is not None:
+                            div.resumed(self.reused)      # M3: says where the prompt parts from the last conversation
+                elif line.startswith("TPROBE "):          # A19 (lossy, the engine's opt-in STRATA_THINK_PROBE): close the thinking
+                    f = line.split()
+                    try:
+                        self.think_probe_hit = (int(f[1]), float(f[2]))
+                    except (IndexError, ValueError):
+                        pass
                 elif line.startswith("DONE"):
                     self._parse_done(line)
                     done = True
@@ -3045,12 +3115,18 @@ class StrataEngine:
                     self._swallow_trailing_done(lines_q)  # an engine that ended the request on ERR may still print its DONE
                     raise ValueError(line[4:].strip())
         finally:
+            if div is not None:
+                div.end()                                 # M3: what the engine now holds (prompt + the tokens streamed back)
             if not done:                                  # the consumer stopped early: stop the engine, drain to DONE
-                if self.can_stop:
+                # the engine can be ended or restarted on another thread meanwhile: Engine.close() closes stdin (a
+                # write then raises ValueError) before it clears `proc` (None then) - the STOP has nobody to reach, and
+                # the request's own outcome must not be replaced by that error
+                proc = self.proc
+                if self.can_stop and proc is not None:
                     try:
-                        self.proc.stdin.write(stop_line)
-                        self.proc.stdin.flush()
-                    except OSError:
+                        proc.stdin.write(stop_line)
+                        proc.stdin.flush()
+                    except (OSError, ValueError):
                         pass
                 # #481: never an untimed wait here - it holds the request FIFO, and an engine that lost step never
                 # answers.  An engine that honours STOP gets the current allowance in all (a STOP during a prompt
@@ -4511,7 +4587,7 @@ def gdn_stack_env(env: dict, cfg: dict, archs: dict | None = None) -> None:
 def child_env(cfg: dict, *, offline: bool = False) -> dict:
     """The engine's environment: the CUDA libraries setup installed (pip's nvidia packages, or the toolkit that
     compiled it) first on the library search path."""
-    env = dict(os.environ)
+    env = quiet_crash_env(dict(os.environ))          # no debugger on a user's machine: ggml's abort path forks gdb (strata_control/childenv.py)
     if gpu_all_off(cfg):                             # every card Off: the engine sees none (a CPU engine runs; the others say so at start)
         env["CUDA_VISIBLE_DEVICES"] = ""
         env["HIP_VISIBLE_DEVICES"] = ""
@@ -4951,6 +5027,7 @@ class Service:
                  vision: Vision | None = None, sampling_defaults: dict | None = None,
                  fit_max_tokens: bool = True):
         self.engine, self.tok, self.template, self.model, self.vision = engine, tokenizer, template, model_name, vision
+        park_divergence.attach_decoder(engine, tokenizer)   # M3: the text windows of STRATA_PARK_DIVERGENCE_LOG (no-op when off)
         self.literals = literal_tags(getattr(tokenizer, "control_tokens", ()))   # texts that stay text inside a message
         self.fit_max_tokens = fit_max_tokens          # default: clamp the output cap to the room left; False (--no-fit-max-tokens) = 400
         self.aliases: list[str] = []                  # #297: other names of the model (the config's `aliases`)
@@ -5009,6 +5086,7 @@ class Service:
         self.turn_log = None                             # item 73: path of the per-turn JSONL log (None: off)
         self.turn_log_lock = threading.Lock()
         self.reasoning_keeper = None                     # item 31: frontend.ReasoningKeeper ("keep_reasoning"; None: off)
+        self.request_capture = None                      # M4 (opt-in STRATA_REQUEST_CAPTURE=DIR): serve/request_capture.py; None: off
         self.api_requests = collections.deque(maxlen=100)  # bounded I/O in memory; no headers or API keys
         self.request_trace = threading.local()
         self.history = collections.deque(maxlen=500)    # the last finished requests, newest last (GET /metrics)
@@ -5056,6 +5134,10 @@ class Service:
         # thinking with the soft budget's wrap-up when it stays high.  None: no close.
         self.rumination_close = None
         self.rumination_counts = {"measured": 0, "closed": 0}
+        # A20 (opt-in, the config's "rumination_entropy": K): the engine prints the top-K logprobs of every thinking
+        # token and the request's top-K entropy (mean, lowest rolling mean) goes to the history and the turn log; it is
+        # the second signal of "rumination_close" ("entropy_below").  The engine's logprobs path costs decode speed.
+        self.rumination_entropy = None
         self.repeat_stop_tokens = REPEAT_STOP_TOKENS     # #606: one token this many times in a row ends a reply (0: off)
         # the loop guard (serve/loop_guard.py; STRATA_LOOP_GUARD=0 / "loop_guard": false: off) and what it did since
         # the start (the Monitor's and /metrics' counters)
@@ -5066,6 +5148,14 @@ class Service:
         # config, STRATA_LOOP_BEHAVIOUR=off|log|note): edit streaks without a check, read streaks without an edit
         self.loop_guard_behaviour = loop_guard.BehaviourSettings()
         self.loop_guard_behaviour_counts = {"edits_without_check": 0, "reads_without_edit": 0, "notes": 0}
+        # pancake MOD_PLAN A38/A41/A42/A43 (serve/agent_loop.py): all opt-in through STRATA_* (see its docstring)
+        self.agent_loop = agent_loop.Settings()
+        self.agent_loop_counts = {"counted": 0, "finish_nudges": 0, "oldstring_flagged": 0, "oldstring_notes": 0,
+                                  "externalized": 0, "externalized_files": 0, "externalized_chars": 0}
+        # ContextPilot's block dedup (serve/context_dedup.py; LOSSY opt-in: STRATA_CONTEXT_DEDUP=1 / "context_dedup": true,
+        # or a request's "context_dedup": true|false) and what it saved since the start
+        self.context_dedup = False
+        self.context_dedup_counts = {"requests": 0, "blocks": 0, "results": 0, "chars_saved": 0}
         end = tokenizer.encode(THINK_END, parse_special=True) if hasattr(tokenizer, "encode") else []
         self.think_end_id = int(end[0]) if len(end) == 1 else None   # (the guard closes the thinking with it)
         self.anthropic_think_unasked = True               # #278: "anthropic_thinking": "on_request" -> False
@@ -5345,9 +5435,12 @@ class Service:
                 return EFFORT.get(str(given).strip().lower())
         return None
 
-    def _write_turn_log(self, rec: dict, reasoning_tokens: int, max_new) -> None:
+    def _write_turn_log(self, rec: dict, reasoning_tokens: int, max_new, effort: str | None = None,
+                        agent: dict | None = None) -> None:
         """Item 73: append one JSON line for a finished request to the "turn_log" file - the history record (numbers
-        only: no prompt, answer or tool text) plus the thinking tokens and the reply cap.  A write error is said once
+        only: no prompt, answer or tool text) plus the thinking tokens, the reply cap and (MOD_PLAN A17) the request's
+        thinking level, `effort` (low, medium, ...; None: thinking off or a level the family does not know).  Older
+        lines have no "effort" key.  A write error is said once
         and turns the log off; it never fails the request."""
         path = self.turn_log
         if not path:
@@ -5355,7 +5448,10 @@ class Service:
         line = dict(rec)
         line["reasoning_tokens"] = reasoning_tokens
         line["max_new"] = max_new
+        line["effort"] = effort
         line["model"] = getattr(self, "model", None)
+        if agent:                                        # A38 (STRATA_AGENT_COUNTERS=1): the request's behaviour counters
+            line["agent"] = agent
         try:
             text = json.dumps(line, separators=(",", ":"), default=str)
             with self.turn_log_lock, open(path, "a", encoding="utf-8") as f:
@@ -5945,12 +6041,17 @@ class Service:
             guard = dict(self.loop_guard_counts, on=bool(self.loop_guard))   # (what the loop guard did since start)
             guard["behaviour"] = self._behaviour_view()
             rum_view = dict(self.rumination_counts, close=dict(self.rumination_close) if self.rumination_close else None)
-        return {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
-                "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
-                "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "rumination": rum_view,
-                "hardware": tel["now"],
-                "hardware_static":
-                tel["static"], "history": tel["history"], "time": now}
+            agent_view = dict(self.agent_loop_counts, **self.agent_loop._asdict()) if self.agent_loop.active else None
+            dedup = dict(self.context_dedup_counts, on=bool(self.context_dedup))
+        out = {"engine": engine, "live": live, "requests": hist[::-1][:None if all_requests else 12],
+               "conversation_cache": conversation_cache_view(engine, hist, totals, parked),
+               "requests_kept": len(hist), "totals": totals, "loop_guard": guard, "context_dedup": dedup, "rumination": rum_view,
+               "hardware": tel["now"],
+               "hardware_static":
+               tel["static"], "history": tel["history"], "time": now}
+        if agent_view is not None:                       # A38-A43: only when one of the opt-in switches is on
+            out["agent_loop"] = agent_view
+        return out
 
     def prometheus(self) -> str:
         """GET /metrics/prometheus: the totals and what is running in Prometheus' text format, under llama-server's
@@ -5960,6 +6061,7 @@ class Service:
             guard = dict(self.loop_guard_counts)
             behaviour = dict(self.loop_guard_behaviour_counts)
             rum_counts = dict(self.rumination_counts)
+            agent_counts = dict(self.agent_loop_counts) if self.agent_loop.active else None
             running = len(self.live_reqs) or int(bool(s.get("busy")))
             prompt_n = t["prompt_tokens"] - t["reused"]               # what was read, as llama.cpp counts it
             prompt_s, decode_s = t["prompt_ms"] / 1000, t["decode_ms"] / 1000
@@ -6022,6 +6124,9 @@ class Service:
              "Thinking blocks closed because the 5-gram repetition rate stayed high (rumination_close)",
              rum_counts["closed"]),
         ]
+        if agent_counts is not None:                     # A38-A43: only when one of the opt-in switches is on
+            rows += [(f"strata:agent_loop_{k}_total", "counter", f"Agent-loop helpers (serve/agent_loop.py): {k}", v)
+                     for k, v in agent_counts.items()]
         return "".join(f"# HELP {name} {help_}\n# TYPE {name} {kind}\n{name} {value}\n"
                        for name, kind, help_, value in rows)
 
@@ -6109,7 +6214,8 @@ class Service:
                     "server": {"loop_guard": self.loop_guard,
                                "reasoning_budget_by_effort": dict(self.reasoning_budget_by_effort),
                                "reasoning_budget_grace": self.reasoning_budget_grace,
-                               "rumination_close": self.rumination_close, "turn_log": self.turn_log}}
+                               "rumination_close": self.rumination_close,
+                               "rumination_entropy": self.rumination_entropy, "turn_log": self.turn_log}}
         with self.status_lock:
             s = dict(self.status)
             if self.live_reqs:                          # parallel requests: the newest one's status
@@ -6285,15 +6391,25 @@ class Service:
                     else:
                         part["source"] = str(image)
         guarded = self._loop_guard_on(req)
+        agent = None                                     # A38-A43 (opt-in): this request's counters, from the client's own messages
+        if self.agent_loop.active:
+            messages, agent = self._agent_loop_before(messages, req)
         if guarded:                                      # the loop guard across turns (Maya's prepare)
             messages, blocked, looping, asked = self._guarded_messages(messages)
             messages, behaviour = self._behaviour(asked, messages)
+        if agent is not None:
+            messages = self._agent_loop_notes(messages, agent)
+        messages = self._deduped(messages, req)           # ContextPilot block dedup (lossy opt-in; after the loop guard read them)
         fetched = self._note_unreadable_tool_images(messages, cancel)
         ids = encoded_ids = self.encode_prompt(messages, tools, kwargs)
         if isinstance(req, dict):
             req.pop("_loop_blocked", None)
             req.pop("_loop_keep", None)
             req.pop("_loop_behaviour", None)
+            req.pop("_loop_finish", None)
+            req.pop("_agent_counters", None)
+            if agent is not None:
+                req["_agent_counters"] = agent
             if guarded and behaviour:                    # (item 33: the answer's done["loop_guard"] lines)
                 req["_loop_behaviour"] = behaviour
             if guarded and tools and not force:
@@ -6305,6 +6421,12 @@ class Service:
                     keep = self._keep_suffix(tools, kwargs)
                     if keep is not None:
                         req["_loop_keep"] = keep + [sorted(loop_guard.said_before(asked))]
+                if agent is not None and self.agent_loop.finish_nudge and agent.get("ends_unchecked"):
+                    # A41 (opt-in, LOSSY): at the end of this answer without a tool call the model is told once to
+                    # check what it changed (agent_loop.FINISH_NOTE); _run's server_turn continues the answer
+                    fin = self._keep_suffix(tools, kwargs, note=agent_loop.FINISH_NOTE)
+                    if fin is not None:
+                        req["_loop_finish"] = fin
         if force and kwargs.get("enable_thinking", True) is False:
             ids = ids + self.tok.encode(force, parse_special=True)
         self.embeddings.path = None
@@ -6640,6 +6762,28 @@ class Service:
                   f"{el:.0f} s", flush=True)
         return now
 
+    # ---------------------------------------------------------------- ContextPilot block dedup (serve/context_dedup.py)
+    def _dedup_on(self, req) -> bool:
+        own = (req or {}).get("context_dedup") if isinstance(req, dict) else None
+        return own if isinstance(own, bool) else bool(self.context_dedup)
+
+    def _deduped(self, messages, req, count: bool = True):
+        """The messages with blocks repeated from earlier in the request replaced by references (LOSSY, opt-in; off:
+        the same list, untouched)."""
+        if not self._dedup_on(req):
+            return messages
+        out, res = context_dedup.dedup_messages(messages)
+        if count and (res.blocks_deduped or res.results_deduped):
+            with self.status_lock:
+                c = self.context_dedup_counts
+                c["requests"] += 1
+                c["blocks"] += res.blocks_deduped
+                c["results"] += res.results_deduped
+                c["chars_saved"] += res.chars_saved
+            print(f"[strata] context dedup: {res.blocks_deduped} block(s), {res.results_deduped} whole tool result(s) "
+                  f"replaced, {res.chars_saved:,} characters fewer", flush=True)
+        return out
+
     # ---------------------------------------------------------------- the loop guard (serve/loop_guard.py, Maya)
     def _loop_guard_on(self, sampling) -> bool:
         """The loop guard for this request: its own "loop_guard" when it sends one, else the server's."""
@@ -6711,6 +6855,48 @@ class Service:
         if note:
             messages = messages + [{"role": "user", "content": loop_guard.behaviour_note(b)}]
         return messages, lines
+
+    def _agent_loop_before(self, messages, req):
+        """A38-A43 (serve/agent_loop.py, all opt-in): the request's counters from the client's own messages (exact),
+        then A42's externalized tool results (LOSSY).  -> (messages, counters or None).  Nothing here may fail the
+        request: an error is said once in the server window and the step is skipped."""
+        cfg = self.agent_loop
+        agent = None
+        try:
+            if cfg.needs_counters:
+                agent = agent_loop.counters(messages, self.loop_guard_behaviour.tools)
+                if agent is not None:
+                    with self.status_lock:
+                        c = self.agent_loop_counts
+                        c["counted"] += 1
+                        c["oldstring_flagged"] += agent["last_round_old_miss"] if cfg.oldstring != "off" else 0
+            if cfg.externalize_tokens:
+                ext = agent_loop.externalize(messages, cfg)
+                if ext.count:
+                    messages = ext.messages
+                    with self.status_lock:
+                        c = self.agent_loop_counts
+                        c["externalized"] += ext.new_files
+                        c["externalized_files"] += ext.count
+                        c["externalized_chars"] += ext.chars_saved if ext.new_files else 0
+                    if ext.new_files:
+                        print(f"[strata] externalized {ext.new_files} long tool result(s) to {cfg.externalize_dir} "
+                              f"({ext.chars_saved:,} characters left out of the prompt, lossy)", flush=True)
+        except Exception as e:
+            print(f"[strata] agent-loop helpers skipped ({type(e).__name__}: {e})", flush=True)
+        return messages, agent
+
+    def _agent_loop_notes(self, messages, agent):
+        """A43 "note" mode: after the tool result of a failed edit whose oldString was in nothing the model read.  The
+        loop guard's own notes (item 33) are counted first, so this one comes after them."""
+        if (agent_loop.wants_oldstring_note(agent, self.agent_loop.oldstring) and messages
+                and messages[-1].get("role") in ("tool", "user")):
+            with self.status_lock:
+                self.agent_loop_counts["oldstring_notes"] += 1
+            print("[strata] agent loop: an edit's oldString is in none of the texts the model read of that file: "
+                  "a note after its result", flush=True)
+            return messages + [{"role": "user", "content": agent_loop.oldstring_note(agent)}]
+        return messages
 
     def _collapse(self, messages):
         """A conversation that carries a loop across turns (loop_guard.collapse): its prompt without what the model
@@ -6917,6 +7103,16 @@ class Service:
         rum = rumination.RuminationMeter(rum_cfg["threshold"], rum_cfg["checks"]) if rum_cfg \
             else rumination.RuminationMeter()
         rum_due, rum_wait = False, 0                    # the close is due: waiting for a sentence end (tokens waited)
+        # A20: the top-K entropy of the thinking tokens.  Only Strata's own engine one request at a time (the batch slots'
+        # `BT` lines carry no logprobs, the split engine has none) and only when the client asked for no logprobs itself
+        # (the engine's LP lines are one stream: the client's reader would find them gone).
+        ent_k = self.rumination_entropy if (
+            self.rumination_entropy and thinking and isinstance(self.engine, StrataEngine)
+            and not getattr(self.engine, "batch", 0) and not getattr(self.engine, "split_engine", False)
+            and top_logprobs(sampling or {}) is None) else None
+        ent = rumination.EntropyMeter() if ent_k else None
+        # A19 (lossy, opt-in on the engine: STRATA_THINK_PROBE): the engine's TPROBE line asks for the same soft close
+        probe_due, probe_wait, probe_closed = False, 0, False
         admission_rejected = False                      # #3040: the engine's batch slots refused it before it read anything
         emb, self.embeddings.path = getattr(self.embeddings, "path", None), None   # this run's to delete now
         img_keys, self.embeddings.keys = getattr(self.embeddings, "keys", None), None
@@ -7041,7 +7237,10 @@ class Service:
                     # reasoning_budget_grace tokens (THINK_GRACE when that is 0) and half the room left
                     rum_grace = max(1, min(getattr(self, "reasoning_budget_grace", 0) or THINK_GRACE,
                                            (max_new - 1) // 2 if max_new else THINK_GRACE)) if rum_cfg else 0
-                    wrap_why = None                     # "rumination": the wrap-up below is the rumination close
+                    # A19: a probe close waits the same way (reasoning_budget_grace, else THINK_GRACE; half the room left)
+                    probe_grace = max(1, min(getattr(self, "reasoning_budget_grace", 0) or THINK_GRACE,
+                                             (max_new - 1) // 2 if max_new else THINK_GRACE))
+                    wrap_why = None                     # "rumination" / "probe": the wrap-up below is that close
                     think_tail = ""
                     guard_stop = False                  # the guard ended the answer (a loop that came back)
                     # across turns (prepare put them in the request): the calls this answer may not make again -
@@ -7053,6 +7252,8 @@ class Service:
                         if guard is not None else {}
                     keep = (sampling or {}).get("_loop_keep") if guard is not None else None
                     seen_before = set(keep[2]) if keep else set()
+                    nudge = (sampling or {}).get("_loop_finish") if guard is not None else None   # A41 (opt-in)
+                    nudged = False
                     said, pending_evs, tries = [], [], {}
                     kept_n, called, sent_call = 0, False, False
                     server_next = None                  # (ids, thinks): the server's own words that follow this pass
@@ -7063,7 +7264,7 @@ class Service:
                         blocked call alone in what was held back is answered by the server (block_result, block_note,
                         the next thinking steered away from it); an answer with nothing new in a looping conversation
                         is told to keep going.  Sets the sampling for the next pass (loop_guard.block_sampling)."""
-                        nonlocal kept_n, called, sampling
+                        nonlocal kept_n, called, sampling, nudged
                         key = None
                         try:                            # what the parser still holds (a call waits for its turn's end)
                             peek = copy.deepcopy(parser).finish("stop")
@@ -7091,6 +7292,19 @@ class Service:
                                 ids_k, thinks = ids_k + [self.think_end_id], False
                             steer = self.tok.encode(loop_guard.keep_steer(kept_n)) if thinks else []
                             sampling = loop_guard.block_sampling(sampling, kept_n)
+                            return ids_k + steer, thinks
+                        if key is None and nudge and not made_call and not nudged:
+                            # A41 (opt-in, LOSSY): the model would end its turn after code edits with no build, test
+                            # or run since: once per answer it is told to check (agent_loop.FINISH_NOTE) and goes on
+                            nudged = True
+                            print("[strata] agent loop: the model would end its turn after edits with no build, test "
+                                  "or run since: told once to check (STRATA_TEST_BEFORE_DONE)", flush=True)
+                            with self.status_lock:
+                                self.agent_loop_counts["finish_nudges"] += 1
+                            ids_k, thinks = list(nudge[0]), bool(nudge[1])
+                            if answered and thinks and self.think_end_id is not None:
+                                ids_k, thinks = ids_k + [self.think_end_id], False
+                            steer = self.tok.encode(agent_loop.FINISH_STEER + " ") if thinks else []
                             return ids_k + steer, thinks
                         if key is None:
                             return None
@@ -7132,6 +7346,7 @@ class Service:
                         nonlocal thinking_n, run_len, run_tok, repeated, tail, answered, reasoning_text, last_out
                         nonlocal last_print, finish, looped, next_loop_check, repeat_coverage, recover_prompt
                         nonlocal thought, wrap, force, opens, called, think_tail, rum_due, rum_wait, wrap_why
+                        nonlocal probe_due, probe_wait, probe_closed
                         for i, t in enumerate(toks):
                             thinking_n += parser.state in ("reasoning", "rcall")
                             run_len = run_len + 1 if t == run_tok else 1
@@ -7141,16 +7356,25 @@ class Service:
                                 return i + 1
                             piece = detok.push(t)
                             tail = (tail + piece)[-2:]
+                            if not (probe_due or probe_closed) and parser.state == "reasoning" and \
+                                    getattr(self.engine, "think_probe_hit", None) is not None:
+                                probe_due, probe_wait = True, 0     # A19: the engine's probe fired (TPROBE): close at a sentence end
+                                ph = self.engine.think_probe_hit
+                                print(f"[strata] think probe: score {ph[1]:.3f} at {ph[0]} thinking tokens (engine "
+                                      "STRATA_THINK_PROBE, lossy): closing the thinking at the next sentence or line end",
+                                      flush=True)
                             evs = cut(parser.feed(piece))
                             self._note(n, evs, st, rate)
                             last_print = self._progress(last_print, st=st)
                             for ev in evs:
                                 if self.reasoning_loop_recovery and ev.kind == "reasoning":
                                     reasoning_text += ev.text or ""
-                                if ev.kind == "reasoning" and (grace or rum_cfg):
+                                if ev.kind == "reasoning" and (grace or rum_cfg or probe_due):
                                     think_tail = (think_tail + (ev.text or ""))[-16:]
                                 if ev.kind == "reasoning" and rum.feed(ev.text or "") and rum.high and \
-                                        not (rum_due or rum.closed) and thinking_n >= rum_cfg["min_tokens"]:
+                                        not (rum_due or rum.closed) and thinking_n >= rum_cfg["min_tokens"] and (
+                                        "entropy_below" not in rum_cfg
+                                        or (ent is not None and ent.low(rum_cfg["entropy_below"]))):
                                     rum_due = True      # item 34: the 5-gram rate stayed high: close at a sentence end
                                     print(f"[strata] rumination: the thinking's 5-gram repetition rate stayed at or "
                                           f"above {rum_cfg['threshold']} for {rum_cfg['checks']} checks "
@@ -7195,6 +7419,13 @@ class Service:
                                     rum_due, rum.closed = False, True
                                     wrap, wrap_why = True, "rumination"     # the soft budget's own close below
                                     return i + 1
+                            if probe_due and parser.state == "reasoning":
+                                probe_wait += 1
+                                if parser.clean and not detok.pending() and (
+                                        probe_wait >= probe_grace or think_boundary(think_tail)):
+                                    probe_due, probe_closed = False, True
+                                    wrap, wrap_why = True, "probe"          # the soft budget's own close below
+                                    return i + 1
                             if budget and parser.state == "reasoning":
                                 thought += 1
                                 # at a clean point: no tag held back, no character split across tokens
@@ -7237,6 +7468,8 @@ class Service:
                             else (sampling, left)
                         if smp_call is not sampling:    # the guard's short penalty: its window counts from the reply's start
                             smp_call = {**smp_call, "_reply_from": len(ids)}
+                        if ent_k:                       # A20: the engine prints the top-K logprobs (read below)
+                            smp_call = {**(smp_call or {}), "logprobs": True, "top_logprobs": ent_k}
                         gen = self.engine.generate(prompt, n_call, smp_call, cancel, embeddings=emb) if emb \
                             else self.engine.generate(prompt, n_call, smp_call, cancel)
                         pass_n, act = n, None           # the count before this pass; the guard's action in it
@@ -7257,6 +7490,12 @@ class Service:
                                     yield "ping", None
                                     continue
                                 n += 1
+                                if ent is not None:     # A20: this token's LP line (written before the token)
+                                    lp_q = getattr(self.engine, "lp_lines", None)
+                                    while lp_q:
+                                        lp_tok, lp_text = lp_q.popleft()
+                                        if parser.state in ("reasoning", "rcall") and lp_tok not in self.stop_ids:
+                                            ent.feed_line(lp_text)
                                 if first_engine_token_s is None:
                                     first_engine_token_s = round(time.perf_counter() - waiting, 3)
                                     with self.status_lock:
@@ -7278,7 +7517,7 @@ class Service:
                                     if force and parser.state == "reasoning" and parser.buf == THINK_END:
                                         opens = True    # #537: the held </think> was the end: the call opens there
                                         break
-                                    if (blocked or keep) and not cancel.is_set():
+                                    if (blocked or keep or nudge) and not cancel.is_set():
                                         server_next = server_turn()
                                         if server_next is not None:
                                             n -= 1      # (the stop token: the server's words take its place)
@@ -7488,6 +7727,9 @@ class Service:
                                 self.rumination_counts["closed"] += 1
                             print(f"[strata] rumination close: wrapping up the thinking at {thinking_n} thinking tokens "
                                   f"({rum_wait} past the signal)", flush=True)
+                        elif wrap and wrap_why == "probe":
+                            print(f"[strata] think probe close: wrapping up the thinking at {thinking_n} thinking tokens "
+                                  f"({probe_wait} past the signal)", flush=True)
                         elif wrap:
                             print(f"[strata] thinking budget reached ({thought} tokens"
                                   f"{f', {thought - budget_was} past it to a sentence or line end' if thought > budget_was else ''}"
@@ -7564,6 +7806,7 @@ class Service:
                                 "rumination_max": round(rum.rate_max, 3) if rum.checks else None,
                                 "rumination_mean": round(rum.rate_sum / rum.checks, 3) if rum.checks else None,
                                 "rumination_closed": rum.closed,
+                                "think_probe_closed": probe_closed,     # A19: the engine's probe closed the thinking
                                 "engine_generated": last.get("generated"),
                                 "prompt_ms": last.get("prompt_ms"), "decode_ms": last.get("decode_ms"),
                                 "decode_tok_s": round(last["generated"] / (last["decode_ms"] / 1000), 1)
@@ -7572,8 +7815,20 @@ class Service:
                                 "file_blobs": last.get("file_blobs"), "file_mb": last.get("file_mb"),
                                 # #457: the speculative drafts from the DONE line (None: the engine did not say)
                                 "drafts_offered": last.get("drafts_offered"),
-                                "drafts_accepted": last.get("drafts_accepted")})
-                            self._write_turn_log(self.history[-1], thinking_n, max_new)
+                                "drafts_accepted": last.get("drafts_accepted"),
+                                # MOD_PLAN A44: the epoch bandit's windows by type and arm (only with STRATA_BANDIT)
+                                **({"bandit": last["bandit"]} if last.get("bandit") else {})})
+                            # A17: the level this turn asked for (`sampling` is the request, as in reasoning_budget above)
+                            if ent is not None and ent.tokens:      # A20 (new keys only with "rumination_entropy")
+                                self.history[-1]["entropy_mean"] = round(ent.total / ent.tokens, 3)
+                                self.history[-1]["entropy_min_window"] = \
+                                    round(ent.min_window, 3) if ent.min_window is not None else None
+                            # A21: the temperature the request asked for (null: the request sent none)
+                            self.history[-1]["temperature"] = (sampling or {}).get("temperature")
+                            self._write_turn_log(self.history[-1], thinking_n, max_new,
+                                                 self.request_effort(sampling) if thinking else None,
+                                                 (sampling or {}).get("_agent_counters")
+                                                 if self.agent_loop.counters else None)
                             if rum.checks:
                                 self.rumination_counts["measured"] += 1
                             if not admission_rejected:                  # #3040: a refused admission did no work
@@ -7681,6 +7936,8 @@ class Service:
             done["loop_guard"] = done.get("loop_guard", []) + list(sampling["_loop_behaviour"])
         if rum.checks:                                  # item 34: {"max", "mean", "checks", "closed"}
             done["rumination"] = rum.summary()
+        if ent is not None and ent.tokens:              # A20: {"mean", "min_window", "tokens"} (nats)
+            done["thinking_entropy"] = ent.summary()
         if stops is not None and stops.hit is not None:
             done["stop_sequence"] = stops.hit
         if rejected:
@@ -8454,6 +8711,7 @@ def make_handler(svc: Service):
         protocol_version = "HTTP/1.0"                       # SSE ends by closing the connection
 
         record = None                                       # #332: this request's monitor record, if kept
+        capture = None                                      # M4: this request's STRATA_REQUEST_CAPTURE entry, if any
         watch_done = None                                   # #430 #431: stops this request's disconnect watcher
         cancel_event = None                                 # active generation owned by this handler
         body_read = False                                   # whether a handler took this request's body
@@ -8681,6 +8939,8 @@ def make_handler(svc: Service):
             self.end_headers()
 
         def _json(self, code, obj, headers=None, retry_after=None):
+            if self.capture is not None:
+                self.capture["http_status"] = code
             if self.record is not None:
                 with svc.status_lock:
                     self.record["http_status"] = code
@@ -9235,6 +9495,7 @@ def make_handler(svc: Service):
                     return
                 if path in ("/v1/chat/completions", "/v1/messages", "/v1/responses"):
                     self.record = svc.begin_request(path, req)
+                self.capture = svc.request_capture.begin(path, req, self.headers) if svc.request_capture else None
                 if path == "/v1/responses":
                     self._responses(req)
                 elif path.startswith("/slots/"):
@@ -9311,6 +9572,9 @@ def make_handler(svc: Service):
                 if self.cancel_event is not None:
                     with svc.status_lock:
                         svc.active_cancels.discard(self.cancel_event)
+                if self.capture is not None:                 # M4: one JSON line, full text, local file only
+                    svc.request_capture.finish(self.capture)
+                    self.capture = None
                 record = self.record
                 if record is not None:
                     with svc.status_lock:
@@ -9504,6 +9768,8 @@ def make_handler(svc: Service):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.send_header("X-Accel-Buffering", "no")   # nginx and similar proxies pass each event at once
+            if self.capture is not None:
+                self.capture["http_status"] = 200
             self._cors()
             self.end_headers()
             if STREAM_WRITE_TIMEOUT_S > 0:
@@ -9514,10 +9780,20 @@ def make_handler(svc: Service):
 
         def _capture(self, items, api):
             """Retain bounded input/output for the monitor without changing the API response (the items as they
-            are when the monitor is off)."""
+            are when the monitor is off).  M4: with STRATA_REQUEST_CAPTURE the items are also copied to that entry."""
+            if self.capture is not None:
+                items = self._tee_capture(items, api)
             if self.record is None:
                 return items
             return self._captured(items, api)
+
+        def _tee_capture(self, items, api):
+            try:
+                for item in items:
+                    svc.request_capture.observe(self.capture, api, item)    # never raises
+                    yield item
+            finally:
+                items.close()
 
         def _captured(self, items, api):
             try:
@@ -9830,6 +10106,7 @@ def make_handler(svc: Service):
             messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked, svc.reasoning_keeper)
             stop_strings(req)                                 # the same 400 as the request itself would get
             check_request_sampling(req)                       # ... likewise a sampling field of the wrong type
+            messages = svc._deduped(messages, req, count=False)   # the prompt the request itself would read
             self._json(200, {"input_tokens": len(svc.encode_prompt(messages, tools, kw, store=False))})
 
         def _anthropic(self, req):
@@ -9904,6 +10181,12 @@ class Server(ThreadingHTTPServer):
         if ":" in server_address[0]:
             self.address_family = socket.AF_INET6
         super().__init__(server_address, RequestHandlerClass, bind_and_activate)
+
+    def server_bind(self):
+        # http.server's own server_bind also asks socket.getfqdn(host) for a server_name nothing here reads; on a Mac whose reverse lookup
+        # stalls (GitHub's macOS runner: 35 s on the first lookup of every new process) each start waited that long before it listened
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def handle_error(self, request, client_address):
         if not isinstance(sys.exc_info()[1], ConnectionError):   # a client that hangs up needs no stack trace
@@ -10615,6 +10898,14 @@ def check_request_sampling(req) -> None:
             req["loop_guard"] = bool(guard)
         else:
             raise ValueError("loop_guard: true or false")
+    dedup = (req or {}).get("context_dedup")        # ContextPilot block dedup for this request only (lossy opt-in)
+    if dedup is not None and not isinstance(dedup, bool):
+        if isinstance(dedup, str) and dedup.strip().lower() in ("true", "false", "on", "off", "1", "0"):
+            req["context_dedup"] = dedup.strip().lower() in ("true", "on", "1")
+        elif isinstance(dedup, int) and dedup in (0, 1):
+            req["context_dedup"] = bool(dedup)
+        else:
+            raise ValueError("context_dedup: true or false")
 
 
 # the API's model name per model family (the GGUF architecture, "arch" in the config) when the config names none
@@ -10865,6 +11156,7 @@ def main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> in
 
     Its console output goes through a bounded queue (serve/nonblocking_out.py, #4479 / #2481): a console that stops taking output must not hold a
     request's turn, a cancel or an admission.  STRATA_BLOCKING_CONSOLE=1 turns it off (testers)."""
+    quiet_crash_env()                                  # every child inherits it: no gdb on a user's machine (strata_control/childenv.py)
     lease = None
     try:
         from strata_control import runtime as _runtime
@@ -11168,6 +11460,13 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         igpu_line = igpu_split_warning(cfg)
         if igpu_line:
             print(igpu_line, flush=True)
+        try:
+            from serve.iommu_check import note as iommu_note        # A53: a log line only, nothing is changed
+            iommu_line = iommu_note()
+        except Exception:                                            # a start-up note must never stop a start
+            iommu_line = None
+        if iommu_line:
+            print(iommu_line, flush=True)
         if layer_split_of(cfg):
             try:
                 split = layer_split_value(cfg)          # #644: before the (minutes-long) start
@@ -11328,6 +11627,15 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
             raise SystemExit(f"[strata] config \"turn_log\" must be a file path, not {tl!r}")
         svc.turn_log = os.path.abspath(os.path.expanduser(tl))
         print(f"[strata] per-turn log: {svc.turn_log} (numbers only, no prompt or answer text)", flush=True)
+    try:
+        svc.request_capture = request_capture.from_env()     # M4: opt-in STRATA_REQUEST_CAPTURE=DIR; unset = nothing changes
+    except OSError as e:
+        raise SystemExit(f"[strata] STRATA_REQUEST_CAPTURE: cannot use that directory: {e}")
+    if svc.request_capture:
+        print(f"[strata] request capture ON: {svc.request_capture.path} - FULL request bodies (your prompts and code) and the "
+              f"replies, one JSON line per chat request, written to this local file only (mode 0600, nothing is sent anywhere, "
+              f"at most {svc.request_capture.max_bytes >> 20} MiB); delete it when done; share only after "
+              f"tools/pancake/prefix_check.py --redact", flush=True)
     if svc.api_monitor:
         print("[strata] API request monitor on (/api-monitor): the last 100 requests' prompts and answers are kept in "
               "memory" + ("" if svc.api_key else "; anyone who can reach this server can read them (no API key)"),
@@ -11373,6 +11681,14 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         raise SystemExit(f"[strata] config \"repeat_stop_tokens\" must be a whole number >= 0 (0 = off), not {rs!r}")
     svc.repeat_stop_tokens = rs
     svc.loop_guard = loop_guard_setting(cfg)            # (STRATA_LOOP_GUARD=0 or "loop_guard": false: off)
+    try:
+        svc.context_dedup = context_dedup.dedup_setting(cfg)   # LOSSY opt-in (ContextPilot block dedup)
+    except ValueError as e:
+        raise SystemExit(f"[strata] {e}")
+    if svc.context_dedup:
+        print("[strata] context dedup: ON - LOSSY: a block of lines repeated from earlier in a request (a file read again, "
+              "a tool result sent twice) is replaced by a one-line reference to the earlier copy, so the model does not "
+              "see the copy (ContextPilot, serve/context_dedup.py)", flush=True)
     if not svc.loop_guard:
         print("[strata] loop guard: off (a request's \"loop_guard\": true turns it on for that request)", flush=True)
     try:                                                # item 33: the behaviour counters (default: log only)
@@ -11381,6 +11697,18 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
         raise SystemExit(f"[strata] config: {e}") from None
     if svc.loop_guard_behaviour.mode != "log":
         print(f"[strata] loop guard behaviour counters: {svc.loop_guard_behaviour.mode}", flush=True)
+    try:                                                # A38/A41/A42/A43: opt-in agent-loop helpers (default: all off)
+        svc.agent_loop = agent_loop.settings()
+    except ValueError as e:
+        raise SystemExit(f"[strata] {e}") from None
+    if svc.agent_loop.active:
+        a = svc.agent_loop
+        print("[strata] agent-loop helpers: " + ", ".join(
+            (["counters in the turn log"] if a.counters else []) +
+            (["test-before-done nudge (lossy)"] if a.finish_nudge else []) +
+            ([f"oldString check ({a.oldstring})"] if a.oldstring != "off" else []) +
+            ([f"externalize tool results over {a.externalize_tokens} tokens to {a.externalize_dir} (lossy)"]
+             if a.externalize_tokens else [])), flush=True)
     svc.effort_end = bool(effort_end)                   # #458: "effort_position": "end" with an engine that has it
     if cfg.get("reasoning_budget_tokens") is not None:  # #123: a default thinking budget for every request
         svc.reasoning_budget_configured = True
@@ -11409,6 +11737,17 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
               f"rate stays at or above {rc['threshold']} for {rc['checks']} checks"
               + (f" after {rc['min_tokens']} thinking tokens" if rc["min_tokens"] else "") + " (rumination_close)",
               flush=True)
+    try:                                                # A20 (opt-in): the top-K entropy of the thinking, K = 2..20
+        svc.rumination_entropy = rumination.entropy_setting(cfg.get("rumination_entropy"))
+    except ValueError as e:
+        raise SystemExit(f"[strata] config {e}")
+    if svc.rumination_close and "entropy_below" in svc.rumination_close and not svc.rumination_entropy:
+        raise SystemExit("[strata] config \"rumination_close\": entropy_below needs \"rumination_entropy\" (the top-K "
+                         "logprobs the entropy is read from)")
+    if svc.rumination_entropy:
+        print(f"[strata] rumination entropy: the engine prints the top-{svc.rumination_entropy} logprobs of every thinking "
+              "token and the request's top-K entropy goes to the history and the turn log (rumination_entropy; costs "
+              "decode speed: the engine copies the logits to the host for each token)", flush=True)
     by_effort = cfg.get("reasoning_budget_by_effort")   # pancake: {"low": 2048, "medium": 8192, "high": 0}
     if by_effort is not None:
         svc.reasoning_budget_by_effort = budget_by_effort_setting(by_effort)

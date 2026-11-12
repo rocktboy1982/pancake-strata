@@ -51,6 +51,7 @@
  "gpu": 0,
  "gpus_asked": true,
  "env": {
+    "STRATA_AGENT_COUNTERS": "1",
   "STRATA_ROUTE_TAIL_SKIP": "0",
   "STRATA_PIN_BY_NEED": "1",
   "STRATA_EXPDEC": "1",

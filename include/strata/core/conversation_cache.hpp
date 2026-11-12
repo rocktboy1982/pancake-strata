@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -31,7 +32,8 @@ struct ConversationCheckpoint {
     // only writer of a checkpoint's GDN bytes besides a whole copy (which keeps them equal, so it keeps the tag).
     uint64_t dev_tag = 0;
     // A shared-prefix pin (the request key pin=N): this checkpoint is the read-only prefix many suffix queries branch
-    // from, so retention never evicts it (conv_cache.hpp) and a parked conversation holding it stays parked.  A run-time
+    // from, so retention never evicts it (conv_cache.hpp) and a parked conversation holding it stays parked (evicted
+    // last instead with ConversationCache::set_pin_evict_last).  A run-time
     // mark only: it is not in the session file, a request that pins the same prefix again sets it.
     bool pinned = false;
     // --prefill-pipe on a layer split: the plan a prompt segment [from, to) is read in - its chunk (0: none), the loan
@@ -247,8 +249,13 @@ public:
         uint64_t serial = 0;   // the entry's identity; its index shifts when entries before it go
     };
 
-    ConversationCache(size_t budget, size_t slots, int64_t min_tokens = 0)
-        : budget_(budget), slots_(slots), min_tokens_(min_tokens) {}
+    // `idx_block` / `park_truncate`: STRATA_PARK_TRUNCATE (see truncate_oldest); the defaults keep the old rule
+    ConversationCache(size_t budget, size_t slots, int64_t min_tokens = 0, int64_t idx_block = 0,
+                      bool park_truncate = false)
+        : budget_(budget), slots_(slots), min_tokens_(min_tokens), idx_block_(idx_block),
+          park_truncate_(park_truncate) {}
+    bool park_truncate() const { return park_truncate_; }
+    size_t truncations() const { return truncations_; }
     bool enabled() const { return budget_ != 0 && slots_ != 0; }
     /// `--conversation-cache-min-tokens`: whether a conversation of this length is worth one of `slots`.  Every
     /// parked conversation costs a whole slot whatever its length, so a client that interleaves short side requests
@@ -383,20 +390,29 @@ public:
     // with take() but still alive during the exchange; count it against RAM too.
     bool make_room(size_t incoming, size_t held = 0) {
         if (!enabled() || held > budget_ || incoming > budget_ - held) return false;
-        auto stays = [&](size_t i) { return entries_[i].pinned() || (guarded_ != 0 && serials_[i] == guarded_); };
+        auto stays = [&](size_t i) {
+            return (entries_[i].pinned() && !pin_evict_last_) || (guarded_ != 0 && serials_[i] == guarded_);
+        };
         if (guarded_ != 0 && index_of(guarded_) != SIZE_MAX) {
             // with everything else gone, would it fit beside the entries that stay (the guarded donor and any pinned
-            // shared prefix)?  If not, evict nothing
+            // shared prefix, unless set_pin_evict_last)?  If not, evict nothing
             size_t kept = 0, kept_bytes = 0;
             for (size_t i = 0; i < entries_.size(); ++i)
                 if (stays(i)) { ++kept; kept_bytes += entries_[i].bytes(); }
             if (kept >= slots_ || kept_bytes > budget_ - held - incoming) { guard_blocked_ = true; return false; }
         }
         if (bytes() > budget_ - held - incoming) reuse_ = {};
-        while (!entries_.empty() && (entries_.size() >= slots_ || bytes_ > budget_ - held - incoming)) {
+        const size_t limit = budget_ - held - incoming;
+        while (!entries_.empty() && (entries_.size() >= slots_ || bytes_ > limit)) {
+            const size_t shortfall = bytes_ > limit ? bytes_ - limit : 0;   // 0: the pressure is on the slots only
+            // STRATA_PARK_TRUNCATE, byte pressure only (a truncation cannot free a slot): first shrink the oldest
+            // movable entry to one of its own checkpoints instead of losing it whole (see truncate_oldest)
+            if (park_truncate_ && entries_.size() < slots_ && truncate_oldest(shortfall) > 0)
+                continue;
             // the oldest entry that does not hold a pinned shared prefix leaves; with only pinned ones left the new
-            // image does not fit (the caller skips parking it - the pinned prefix is what the queries come back to)
-            if (!evict_oldest()) return false;
+            // image does not fit (the caller skips parking it - the pinned prefix is what the queries come back to),
+            // unless set_pin_evict_last: then the oldest pinned one leaves
+            if (!evict_oldest(shortfall)) return false;
         }
         return true;
     }
@@ -406,18 +422,20 @@ public:
     // gate in generate.cpp).  A ConversationBuffer is a list of 16 MiB segments and each segment is its
     // own allocation, far above glibc's mmap threshold, so dropping an entry returns the whole footprint
     // to the kernel at once - the next admission check reads it back from /proc/meminfo.
-    // False when none can go (empty, or only entries that hold a pinned shared prefix are left).
-    bool evict_oldest() {
+    // False when none can go (empty, or only entries that hold a pinned shared prefix are left and set_pin_evict_last
+    // is off).  `shortfall`: the bytes make_room still has to free (0: unknown, or only a slot is short); the park TTL's
+    // tool-pending rank uses it (pick_victim).
+    bool evict_oldest(size_t shortfall = 0) {
         // the oldest entry that holds no pinned shared prefix and is not the guarded (borrowed) donor; with the disk
-        // tier's keep-hot rule, the oldest such entry it does not keep first (item 39)
-        auto movable = [&](size_t i) { return !entries_[i].pinned() && !(guarded_ != 0 && serials_[i] == guarded_); };
-        size_t victim = SIZE_MAX;
-        if (keep_hot_)
+        // tier's keep-hot rule, the oldest such entry it does not keep first (item 39); with the park TTL (A15) an
+        // idle sub-agent branch first (pick_victim); with set_pin_evict_last, when none is left, the oldest pinned one
+        int rank = -1;
+        size_t victim = pick_victim(&rank, shortfall);
+        if (victim == SIZE_MAX && pin_evict_last_)
             for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
-                if (movable(i) && !keep_hot_(entries_[i])) victim = i;
-        for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
-            if (movable(i)) victim = i;
+                if (!(guarded_ != 0 && serials_[i] == guarded_)) victim = i;
         if (victim == SIZE_MAX) return false;
+        if (rank == 0) ++ttl_evictions_;
         bytes_ -= entries_[victim].bytes();
         if (spill_) {
             SavedConversation out = std::move(entries_[victim]);
@@ -431,6 +449,37 @@ public:
         return true;
     }
 
+    // STRATA_PARK_TRUNCATE (from TwoAnts/Strata 5ef4fc8b4b, adapted): the eviction-side mirror of truncated parking.
+    // Shrink the oldest movable entry (the one evict_oldest would take: not pinned, not the guarded donor, the disk
+    // tier's keep-hot rule first) to one of its own checkpoints instead of dropping it whole.  The K/V pages past the
+    // landing, the checkpoints at or deeper than it and their ids go; the landing's running state MOVES into `live`.
+    // Landings are walked deepest-first until `need` bytes are freed (best effort: when none frees enough, the
+    // shallowest eligible one stays and the caller re-checks, then evicts).  A landing below
+    // --conversation-cache-min-tokens is not worth a slot.  Returns the bytes freed; 0 = nothing touched: the switch
+    // is off, no movable entry, no eligible landing, a layer-split image, the disk tier is on (it keeps the whole
+    // entry on eviction; a truncation would throw the tail away instead), a background copy whose token another
+    // owner shares, or a K/V layout the shrink does not recognize.
+    size_t truncate_oldest(size_t need) {
+        if (!park_truncate_ || spill_) return 0;
+        const size_t vi = pick_victim();
+        if (vi == SIZE_MAX) return 0;
+        SavedConversation& victim = entries_[vi];
+        const size_t before = victim.bytes();
+        bool shrunk = false;
+        while (true) {
+            const size_t landing = truncate_landing(victim);
+            if (landing == SIZE_MAX || !truncate_entry(victim, landing)) break;   // false: the entry is untouched
+            shrunk = true;
+            if (before - std::min(before, victim.bytes()) >= need) break;
+        }
+        if (!shrunk) return 0;
+        const size_t after = victim.bytes();
+        const size_t freed = before > after ? before - after : 0;
+        bytes_ -= freed;
+        ++truncations_;
+        return freed;
+    }
+
     // MOD_PLAN item 39 (--conversation-disk-dir): what evict_oldest does with the entry it removes - `spill` takes it
     // (the disk tier writes it in the background) instead of freeing it - and the entries it keeps in RAM while any
     // other can go - `keep_hot`, a conversation whose last reply ended in a tool call (Bidaw, FAST'26: its client
@@ -442,12 +491,62 @@ public:
         keep_hot_ = std::move(keep_hot);
     }
 
+    /// MOD_PLAN item A15 (opt-in, STRATA_PARK_TTL_S; Continuum 2025, arXiv 2511.02230): a time-to-live / idleness rule
+    /// for the parked conversations of sub-agent sessions.  CACHE POLICY ONLY: which entry make_room() / evict_oldest()
+    /// / truncate_oldest() takes first changes; what an entry holds and what a restore reads do not, so outputs are
+    /// unchanged (exact).  The rule ranks the movable entries (a pinned shared prefix and the guarded donor stay out, as
+    /// before) and takes the lowest rank first, the oldest within a rank:
+    ///   0  an idle sub-agent branch: idle for `ttl_ms` or more, and not waiting for a tool result;
+    ///   1  a sub-agent branch that is not yet idle that long (still oldest-first among the branches);
+    ///   2  any other conversation (the main agent's: the long one the branches share a prefix with);
+    ///   3  a conversation whose last reply ended in a tool call and was parked less than `hold_ms` ago (Continuum:
+    ///      the client comes straight back with the tool's result; the hold is a fixed prediction of the tool's
+    ///      duration, after which the entry ranks as any other).  Among these the SHORTEST goes first (the cheapest to
+    ///      re-read), not the oldest: a main agent waiting for its sub-agents and the sub-agents waiting for their
+    ///      tools are all held, and the main agent's re-read is the long one.  When make_room is short of bytes, the
+    ///      shortest one whose bytes cover the shortfall by itself goes instead (one eviction, not every short one
+    ///      and then the long one too); when none covers it, or only a slot is short, the shortest.
+    /// A "branch" is an entry that shares at least min(`share_min`, half its length) leading tokens with a longer
+    /// parked entry at least 1/`sub_ratio` times its length (a sub-agent starts from the main agent's system prompt and
+    /// tools and stays shorter than it).  A mis-classification only changes the eviction order.  With the disk tier
+    /// the evicted branch is demoted to disk (spill) as always.  `tool_pending`: the entry's last reply ended in a tool
+    /// call (when empty, the disk tier's keep-hot rule).  `clock`: milliseconds on any monotonic scale (default:
+    /// steady_clock; a test passes its own).  ttl_ms <= 0 (the default): off, the old rule exactly.
+    struct ParkTtl {
+        int64_t ttl_ms = 0, hold_ms = 0, share_min = 512;
+        double sub_ratio = 0.5;
+        bool enabled() const { return ttl_ms > 0; }
+    };
+    void set_park_ttl(ParkTtl ttl, std::function<bool(const SavedConversation&)> tool_pending = {},
+                      std::function<int64_t()> clock = {}) {
+        ttl.hold_ms = std::max<int64_t>(0, ttl.hold_ms);
+        ttl.share_min = std::max<int64_t>(1, ttl.share_min);
+        ttl.sub_ratio = ttl.sub_ratio > 0.0 && ttl.sub_ratio <= 1.0 ? ttl.sub_ratio : 0.5;
+        park_ttl_ = ttl;
+        tool_pending_ = std::move(tool_pending);
+        clock_ = std::move(clock);
+        parked_at_.assign(entries_.size(), park_ttl_.enabled() ? now_ms() : 0);   // entries parked before: idle from now
+    }
+    const ParkTtl& park_ttl() const { return park_ttl_; }
+    size_t ttl_evictions() const { return ttl_evictions_; }   // rank-0 victims (idle sub-agent branches)
+
+    /// MOD_PLAN 71 / 90 (opt-in, the caller sets it with STRATA_AUTO_PIN=1): a parked conversation that holds a pinned
+    /// shared prefix is evicted LAST, not never.  The old rule (off, the default) keeps it whatever comes: with several
+    /// sessions that each pin their own system prompt (an agent kind each, Qwen's auto-pin) the pinned entries fill the
+    /// slots or the budget and every new conversation is not parked (percache_sim on the real opencode history:
+    /// -1.32% of request time as coded, +0.00% with this rule).  On: make_room / evict_oldest take the unpinned entries
+    /// first in the usual order, then the oldest pinned one; truncate_oldest still never shrinks a pinned entry, and the
+    /// guarded donor still stays.  Cache policy only: what an entry holds and what a restore reads do not change.
+    void set_pin_evict_last(bool on) { pin_evict_last_ = on; }
+    bool pin_evict_last() const { return pin_evict_last_; }
+
     // #879: every parked conversation (pinned ones too) and the retained K/V go - after non-finite logits any of them
     // may carry the poison.  Returns how many were parked.
     size_t clear() {
         const size_t n = entries_.size();
         entries_.clear();
         serials_.clear();
+        parked_at_.clear();
         bytes_ = 0;
         reuse_ = {};
         return n;
@@ -545,21 +644,176 @@ public:
         if (!make_room(n, held)) return false;
         entries_.push_back(std::move(image));
         serials_.push_back(next_serial_++);
+        parked_at_.push_back(park_ttl_.enabled() ? now_ms() : 0);
         bytes_ += n;
         return true;
     }
 
 private:
+    // truncate_oldest: the deepest checkpoint of `e` it may shrink to (SIZE_MAX: none) - a strict prefix of the
+    // entry's live tokens (the K/V describes those) at or above the min-tokens floor
+    size_t truncate_landing(const SavedConversation& e) const {
+        const size_t live_n = e.live.ids.size(), floor = (size_t) std::max<int64_t>(min_tokens_, 1);
+        size_t best = SIZE_MAX;
+        for (size_t i = 0; i < e.checkpoints.size(); ++i) {
+            const auto& c = e.checkpoints[i];
+            const size_t n = c.ids.size();
+            if (n < floor || n >= live_n || !std::equal(c.ids.begin(), c.ids.end(), e.live.ids.begin())) continue;
+            if (best == SIZE_MAX || n > e.checkpoints[best].ids.size()) best = i;
+        }
+        return best;
+    }
+
+    // truncate_oldest: shrink `e` to checkpoints[ci].  Everything is pre-checked before anything is touched, so a false
+    // return leaves the entry exactly as it was.  The K/V parts are cells-linear (a prefix is the leading bytes of
+    // each part: conversation_kv_restore_prefix reads it the same way), the pooled indexer rows keep the count
+    // layout() computes for an extent of L (L / idx_block + 1).
+    bool truncate_entry(SavedConversation& e, size_t ci) {
+        if (!e.stage_images.empty() || ci >= e.checkpoints.size()) return false;
+        const int64_t L = (int64_t) e.checkpoints[ci].ids.size();
+        if (L <= 0 || L >= (int64_t) e.live.ids.size()) return false;
+        // a background copy (STRATA_PARK_ASYNC / STRATA_CKPT_ASYNC / STRATA_PARK_VRAM_MIB) still writing into these
+        // buffers is joined below by dropping its token; a token another owner shares cannot be joined from here
+        if (e.pending.use_count() > 1 || e.live_pending.use_count() > 1) return false;
+        for (const auto& kv : e.kv) {
+            if (kv.pending.use_count() > 1) return false;
+            if (kv.cells <= 0) continue;
+            const int64_t page = kv.page_size > 0 ? kv.page_size : 1;
+            const int64_t cells = ((L + page - 1) / page) * page;
+            if (cells > kv.cells) return false;
+            const size_t old_cells = (size_t) kv.cells;
+            for (const ConversationBuffer* b : {&kv.k, &kv.v, &kv.k_scale, &kv.v_scale})
+                if (b->size() % old_cells) return false;   // not the cells-linear layout the shrink assumes
+            if (kv.pooled_rows > 0) {
+                if (idx_block_ <= 0 || kv.pooled.size() % (size_t) kv.pooled_rows) return false;
+                if (L / idx_block_ + 1 > kv.pooled_rows) return false;
+            }
+        }
+        std::vector<ConversationCheckpoint> kept;   // (the only allocation: before anything is touched)
+        kept.reserve(e.checkpoints.size());
+        // join every background copy into this image (the deleters wait for it and free its VRAM slot), exactly as an
+        // eviction of the entry would; the restore then reads the host buffers (no slot tag left)
+        e.pending.reset();
+        e.live_pending.reset();
+        for (auto& kv : e.kv) { kv.pending.reset(); kv.dev_tag = 0; }
+        for (auto& kv : e.kv) {
+            if (kv.cells <= 0) continue;
+            const size_t old_cells = (size_t) kv.cells;
+            const int64_t page = kv.page_size > 0 ? kv.page_size : 1;
+            const int64_t cells = ((L + page - 1) / page) * page;
+            for (ConversationBuffer* b : {&kv.k, &kv.v, &kv.k_scale, &kv.v_scale})
+                if (b->size()) b->resize(b->size() / old_cells * (size_t) cells);
+            if (kv.pooled_rows > 0 && kv.pooled.size()) {
+                const int64_t rows = L / idx_block_ + 1;
+                kv.pooled.resize(kv.pooled.size() / (size_t) kv.pooled_rows * (size_t) rows);
+                kv.pooled_rows = rows;
+            }
+            kv.cells = cells;
+        }
+        // the landing becomes the running state (a whole move: its GDN device tag, if any, still names the same
+        // bytes); what stays are the shallower checkpoints on the landing's own prefix
+        ConversationCheckpoint landing = std::move(e.checkpoints[ci]);
+        for (size_t i = 0; i < e.checkpoints.size(); ++i) {
+            if (i == ci) continue;
+            auto& c = e.checkpoints[i];
+            if ((int64_t) c.ids.size() < L && std::equal(c.ids.begin(), c.ids.end(), landing.ids.begin()))
+                kept.push_back(std::move(c));
+        }
+        e.live = std::move(landing);
+        e.checkpoints = std::move(kept);
+        return true;
+    }
+
     void erase(size_t index) {
         entries_.erase(entries_.begin() + (std::ptrdiff_t) index);
         serials_.erase(serials_.begin() + (std::ptrdiff_t) index);
+        parked_at_.erase(parked_at_.begin() + (std::ptrdiff_t) index);
+    }
+
+    int64_t now_ms() const {
+        if (clock_) return clock_();
+        return (int64_t) std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
+    // A15: whether entries_[i] is a sub-agent branch (see set_park_ttl)
+    bool is_branch(size_t i) const {
+        const auto& a = entries_[i].live.ids;
+        const size_t na = a.size();
+        if (na == 0) return false;
+        const size_t need = (size_t) std::min<int64_t>(park_ttl_.share_min, (int64_t) std::max<size_t>(1, na / 2));
+        for (size_t j = 0; j < entries_.size(); ++j) {
+            if (j == i || entries_[j].cvec != entries_[i].cvec) continue;
+            const auto& b = entries_[j].live.ids;
+            if (b.size() <= na || (double) na > park_ttl_.sub_ratio * (double) b.size()) continue;
+            size_t same = 0;
+            while (same < na && a[same] == b[same]) ++same;
+            if (same >= need) return true;
+        }
+        return false;
+    }
+
+    // The entry make_room / evict_oldest / truncate_oldest take first (SIZE_MAX: none can go).  Default: the oldest
+    // entry that holds no pinned shared prefix and is not the guarded (borrowed) donor; with the disk tier's keep-hot
+    // rule, the oldest such entry it does not keep first (item 39).  With the park TTL (A15) the rank of set_park_ttl.
+    // `shortfall`: the bytes the caller still has to free (0: unknown, or only a slot is short); only rank 3 reads it.
+    size_t pick_victim(int* rank_out = nullptr, size_t shortfall = 0) {
+        auto movable = [&](size_t i) { return !entries_[i].pinned() && !(guarded_ != 0 && serials_[i] == guarded_); };
+        if (park_ttl_.enabled() && parked_at_.size() == entries_.size()) {
+            const int64_t now = now_ms();
+            auto shorter = [&](size_t i, size_t than) {
+                return than == SIZE_MAX || entries_[i].live.ids.size() < entries_[than].live.ids.size();
+            };
+            size_t best = SIZE_MAX, cover = SIZE_MAX;   // cover: the shortest rank-3 entry that frees `shortfall` alone
+            int best_rank = 4;
+            for (size_t i = 0; i < entries_.size() && best_rank > 0; ++i) {
+                if (!movable(i)) continue;
+                const int64_t idle = now - parked_at_[i];
+                const bool tool = tool_pending_ ? tool_pending_(entries_[i]) : (keep_hot_ && keep_hot_(entries_[i]));
+                int rank;
+                if (tool && idle < park_ttl_.hold_ms) rank = 3;
+                else if (is_branch(i)) rank = idle >= park_ttl_.ttl_ms ? 0 : 1;
+                else rank = 2;
+                // strict: the oldest wins within a rank - except rank 3, where the shortest does: every entry there is expected
+                // back within the hold, so what an eviction costs is its re-read (Continuum's benefit term is the reload cost), and
+                // the main agent's 60K tokens must not go before a sub-agent's 8K just because it was parked first
+                if (rank < best_rank || (rank == 3 && best_rank == 3 && shorter(i, best))) {
+                    best_rank = rank;
+                    best = i;
+                }
+                if (rank == 3 && shortfall > 0 && entries_[i].bytes() >= shortfall && shorter(i, cover)) cover = i;
+            }
+            // rank 3 short of bytes: the shortest entry that frees the shortfall by itself goes.  Shortest-first alone
+            // drops the short held entries one at a time and then the long one as well (a 60K main agent and three 10K
+            // sub-agents, all held, a new 60K image: four evictions where oldest-first needs one).  No such entry, or
+            // only a slot short: shortest first, as before.
+            if (best_rank == 3 && cover != SIZE_MAX) best = cover;
+            if (rank_out) *rank_out = best == SIZE_MAX ? -1 : best_rank;
+            return best;
+        }
+        size_t victim = SIZE_MAX;
+        if (keep_hot_)
+            for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
+                if (movable(i) && !keep_hot_(entries_[i])) victim = i;
+        for (size_t i = 0; i < entries_.size() && victim == SIZE_MAX; ++i)
+            if (movable(i)) victim = i;
+        return victim;
     }
     size_t budget_ = 0, slots_ = 0, bytes_ = 0, evictions_ = 0, superseded_ = 0, borrowed_ = 0;
     int64_t min_tokens_ = 0;   // --conversation-cache-min-tokens: 0 parks every conversation, whatever its size
+    int64_t idx_block_ = 0;    // the indexer's block (qsa_real_shapes): the pooled-row count at a truncated depth
+    bool park_truncate_ = false;   // STRATA_PARK_TRUNCATE: truncate_oldest shrinks an entry before it is dropped whole
+    size_t truncations_ = 0;
     std::deque<SavedConversation> entries_; // least recently active first
     std::deque<uint64_t> serials_;          // entries_[i]'s identity, never reused
+    std::deque<int64_t> parked_at_;         // entries_[i]'s park time, ms (A15; 0 while the park TTL is off)
+    ParkTtl park_ttl_;                      // A15: off by default
+    size_t ttl_evictions_ = 0;
+    std::function<bool(const SavedConversation&)> tool_pending_;
+    std::function<int64_t()> clock_;
     uint64_t next_serial_ = 1, guarded_ = 0;
     bool guard_blocked_ = false;
+    bool pin_evict_last_ = false;           // set_pin_evict_last: off by default (a pinned entry is never evicted)
     ConversationKvReuse reuse_;
     std::function<void(SavedConversation&&)> spill_;            // item 39: see set_disk_tier
     std::function<bool(const SavedConversation&)> keep_hot_;

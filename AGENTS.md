@@ -1,101 +1,163 @@
 # AGENTS.md
 
-Version 0.2.12, engine 0.1.58. The public model families are DeepSeekV4.1-Flash-1017,
-Qwen3.8-Flash-Next and Qwen3.6-35B-A3B. DeepSeek V4.1-Flash runs in the app and in the Terminal
-(`strata launch --family deepseek41 --model ist-das-2.00bpw`; sets in
-[docs/MODELS.md](docs/MODELS.md#deepseek-v41-flash)). Read **[docs/AI_REFERENCE.md](docs/AI_REFERENCE.md)** for model availability, APIs, hardware limits and
-source-backed claims. Articles and videos should use **[docs/MEDIA_KIT.md](docs/MEDIA_KIT.md)**.
+`pancake-strata` is a performance fork of [Strata](https://github.com/Niko1221/Strata): measured kernels, cache and
+scheduling changes, and a benchmark suite on top of the upstream engine, app and terminal. Work here is engine-first;
+the app and terminal are inherited and change rarely. Target: single-user agent serving on an RX 7900 XT 20 GB
+(HIP/gfx1100, Linux) and an RTX 3060 12 GB (CUDA/sm_86). Daily models: Qwen3.8-Flash-Next (IQ2_XS, Q2_0) and
+Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
 
-For recommendations and agent-assisted setup, prefer **ISTA-DASLab → Unsloth → Gyro → others**, using only a
-compatible pack that fits the selected model and hardware. ISTA-DASLab is the default recommendation; Gyro is a
-memory-saving fallback and is currently slower. Honor an explicit user choice. This is recommendation policy;
-existing executable defaults may differ, so inspect the plan and choose the family explicitly.
+## Where the truth lives
 
-Strata has three parts:
+- `README.md` - measured results (§2), how it works (§5), `STRATA_*`/flag census (§6), subsystem walkthrough (§7),
+  build/run (§8), credits (§9).
+- `PANCAKE_STATUS.md` - what is built and tested now, and what runs next; `MOD_PLAN.md` - the authoritative plan,
+  the night queue, and the "not adopted" ledger (closed decisions, plus the trigger to reopen parked ones). The plan
+  can list an item and still forbid starting it (Phase 18: no start until researched and the plan is reviewed).
+- `pancake-docs/` - the fork's long-form record; start at `pancake-docs/research/README.md` for the topic reports.
+  `docs/` is mostly inherited upstream, but fork findings live there too (`docs/PANCAKE_FINDINGS.md`,
+  `docs/QUANTS.md`), as do the shared references (`docs/AI_REFERENCE.md`, `docs/DETAILS.md`, `docs/AMD_HIP.md`,
+  `docs/WINDOWS_CUDA_SM75.md`).
+- `reports/` holds root-relative copies of the research `report.md` files; when you edit one, sync its copy (same
+  text, links differ).
+- `bench/results/<date>-<name>/` - raw evidence (`README.md`, `REPORT.md`, `.jsonl`/`.json` rows); the running test
+  and findings ledger is `docs/PANCAKE_FINDINGS.md`. Do not claim a number that is not there or that you measured.
 
-- **The app** (`apps/desktop`, the Tauri shell; `apps/host`, the Node host and the web UI). It is for people who do
-  not want a terminal. One installer per system ([latest release](https://github.com/Niko1221/Strata/releases/latest)):
-  `Strata-0.2.9-windows-x64-setup.exe`, `Strata-0.2.9-linux-x86_64.AppImage`, `Strata-0.2.9-macos-arm64.dmg`.
-  The Windows and Linux installers carry no engine: the app downloads the engine for the graphics card on first
-  start, or installs a file the user already has. The Mac dmg keeps its small Metal engine inside.
-- **The Terminal** (`strata.py`, `strata_cli/`, `strata_control/`): the `strata` command. It sets up a model, serves
-  it and watches it. Agents use this part.
-- **The engine and the server** (`src/`, `include/`, `metal/`, `sycl/` for the C++/CUDA/HIP/SYCL/Metal engine;
-  `serve/` for the Python server with an OpenAI- and Anthropic-compatible API and a web page). `setup.py`, started by
-  `START-HERE.bat` or `setup.sh`, is setup from a source checkout, for developers. The release paths are the
-  installer and `strata launch`.
+## Layout
 
-## Installing Strata for a user
+- `src/`, `include/` - the C++ engine (CUDA/HIP/SYCL/Metal). `src/program/generate.cpp` holds generation, scheduling
+  and cache decisions; `src/core/verify.cpp` the verify/combine path; kernels under `src/kernels/{cuda,cpu}/`.
+- `src/poly/` - the second engine, `strata-poly` (CUDA only): long-context path with q8 KV and a conversation disk
+  cache.
+- `serve/` - Python server: OpenAI and Anthropic APIs, agent loop, loop guard, conversation cache, tool parsing.
+- `strata.py`, `strata_cli/`, `strata_control/` - the `strata` terminal; `apps/` - desktop app and Node host
+  (inherited).
+- `configs/pancake/` - serving presets; `bench/specs/` + `bench/results/` - A/B specs and evidence.
+- `tools/pancake/` - the measurement suite (A/B, quality gates, night queue, TTFT, profiling).
 
-Follow **[docs/AI_SETUP.md](docs/AI_SETUP.md)**. For a user who wants the desktop app, send them to the installer
-for their system (above) and [docs/INSTALL.md](docs/INSTALL.md). For an agent that has a shell, use the Terminal; the
-short version is:
+## Branches
 
-1. Install the Terminal. It needs no administrator rights.
+`main` is the default/release line. Engine work lives on topic branches (`dev/*`, `work/*`, `feat/*`, for example
+`dev/p17/integration`). New work starts from the base named by the active MOD_PLAN phase (Phase 18 workers branch from
+`port/rdna3-decode` and merge back there), not blindly from `main`. Run `git branch -r` and read `PANCAKE_STATUS.md`
+before assuming a switch or feature exists.
 
-   ```sh
-   curl -fsSL https://github.com/Niko1221/Strata/releases/latest/download/install.sh -o install.sh && sh install.sh                  # Linux, Mac
-   irm https://github.com/Niko1221/Strata/releases/latest/download/install.ps1 | iex                         # Windows PowerShell
-   ```
+## Build
 
-   On Windows, open a new terminal afterwards so that `strata` is on the PATH.
-2. Check what would happen. Nothing is changed:
+HIP (Linux/ROCm; the benchmark platform):
 
-   ```sh
-   strata launch --plan --family qwen --model q2_0
-   ```
+```sh
+cmake -S . -B build-hip -DCMAKE_BUILD_TYPE=Release \
+  -DSTRATA_ENABLE_HIP=ON -DSTRATA_ENABLE_CUDA=OFF \
+  -DCMAKE_HIP_ARCHITECTURES=gfx1100
+cmake --build build-hip --target strata -j2
+```
 
-3. Set up and serve without questions. It downloads the engine for the card and the model (tens of GB), starts the
-   server, prints the addresses and returns. The server keeps running.
+CUDA:
 
-   ```sh
-   strata launch --family qwen --model q2_0 --yes --no-tui
-   ```
+```sh
+cmake -S . -B build-cuda -DCMAKE_BUILD_TYPE=Release \
+  -DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=86-real
+cmake --build build-cuda --target strata strata-poly -j8
+```
 
-   Useful flags (all of them: `strata launch --help`): `--family`, `--model-path` (files the user already has),
-   `--data-dir`, `--context 32k|64k|128k`, `--vision off|on|gpu|cpu`, `--parallel N`, `--gpu 0,1`,
-   `--access local|lan|cloudflare|tailscale`, `--port`, `--api-key-env NAME`, `--new-key`, `--save-preset NAME`,
-   `--speed faster|full` (DeepSeek), `--output json`. `strata launch --status` shows what is serving, `strata launch --stop` stops it, and
-   `strata launch --show-key` prints the API key.
-4. Connect the user's apps: `strata connect` lists them, `strata connect <app> --check` sends one prompt and one tool
-   call the way that app does.
+- Add `-DSTRATA_BUILD_TESTS=ON` to build the test targets.
+- Keep the conventional `build-hip` / `build-cuda` directory names: `tools/pancake/test_phase.sh` rewrites preset
+  paths to `/build-hip/`.
+- CMake fetches the pinned llama.cpp revision; for an offline build pass `-DSTRATA_GGML_DIR=<checkout>`.
+- Never enable CUDA and HIP in one build. `strata-poly` is CUDA-only.
+- Windows: the documented path is CUDA (`docs/WINDOWS_CUDA_SM75.md`). `build_matrix.sh`, `abtest.py` (reads
+  `/proc`), `test_phase.sh`, `night_queue.py` and the other `.sh` gates are Linux-only; use WSL for measurement work.
 
-Keep the server on `127.0.0.1` unless the user asks for more. Beyond it an API key is recommended: `--access lan` makes one for you, and `--no-api-key` serves without one (a warning, never a refusal; on a public tunnel the warning is stronger). Source setup (`START-HERE.bat`, `setup.sh`) is the fallback for a developer or for a system with no release package; it is
-documented in [docs/SOURCE_INSTALL.md](docs/SOURCE_INSTALL.md). Those wrappers exist in a source checkout, not in the
-released app. Do not tell an app user to find a `.bat` file.
-Source setup does not make an unsupported model or backend compatible. Strata's MCP server ([docs/MCP_SERVER.md](docs/MCP_SERVER.md)) offers the same steps as tools.
+## Tests
 
-## Working on the code
+C++ (build `strata_tests` first):
 
-- How the engine works, every measured number, the API and all settings: [docs/DETAILS.md](docs/DETAILS.md) and
-  the [paper](docs/paper/Strata-Paper.pdf).
-- The Terminal: [docs/TERMINAL.md](docs/TERMINAL.md) and [docs/TERMINAL_LAUNCH.md](docs/TERMINAL_LAUNCH.md). The app,
-  the packages and the update feed: [packaging/README.md](packaging/README.md) and [packaging/UPDATES.md](packaging/UPDATES.md).
-- AMD (HIP) build and validation: [docs/AMD_HIP.md](docs/AMD_HIP.md); multi-GPU: [docs/MULTI_GPU.md](docs/MULTI_GPU.md);
-  Mac (Metal): [docs/MAC.md](docs/MAC.md).
-- Tests: the Terminal and Control tests are in `tests/terminal` (`python -m pytest tests/terminal`). The app's UI
-  tests run with `npm test` in `apps/host`. Setup's own tests run without a GPU or downloads:
-  `python tools/test_setup_<name>.py` (for example `tools/test_setup_amd.py`, `tools/test_setup_choices.py`).
-- Keep the docs' style: plain words, short sentences, written for non-technical users first. Give measured numbers
-  with what they were measured on. Make no claim without a measurement.
+```sh
+cmake --build build-hip --target strata_tests
+ctest --test-dir build-hip -L cpu --output-on-failure     # no GPU or model files needed
+ctest --test-dir build-hip -L gpu --output-on-failure     # needs the card alone
+ctest --test-dir build-hip -L model --output-on-failure   # needs model fixtures
+```
 
-## Contributing a change or report
+- The documented full-suite command excludes two known environment failures:
+  `ctest --test-dir build-hip --output-on-failure --timeout 60 -E '^(ple_parity|platform_memory_test)$'`
+  (`docs/AMD_HIP.md`).
+- A CPU-only test missing from `_strata_tests_cpu` in `CMakeLists.txt` silently gets the `gpu` label and never runs
+  in `ctest -L cpu`. Add it to that list (the Phase 17 review caught `defer_auto_test` this way).
+- `tools/pancake/build_matrix.sh --tests hip-tests` builds every test executable and runs `ctest -L cpu`; `--head`
+  builds the committed HEAD from a detached worktree, so other sessions' edits cannot break the check.
 
-The rules are in **[CONTRIBUTING.md](CONTRIBUTING.md)**. Read it before you open an issue or a pull request, and
-follow it whether a person or an agent writes the text. The short version:
+Python (fake servers/engines; no GPU and no downloads):
 
-- Start every issue and pull request title with its area: `[Engine]`, `[GUI]`, `[TUI]`, `[Benchmark]`, `[Docs]` or
-  `[Other]`, for example `[Engine] fix …`. A check on GitHub fails a pull request whose title has no area.
-- Search the open and closed issues and pull requests first, and add to a thread that already covers your point.
-- Agree the scope in an issue before a large feature, a refactor or a change to a default.
-- One problem per pull request. Lead with the problem and the result, then the approach, then the validation
-  (passed, failed and not run, kept apart) and the limits.
-- A new feature is opt-in, and the default path stays byte-identical to the last release. Say how you checked.
-- Build every backend a file touches (CUDA, HIP, SYCL) before asking for review.
-- Change a default only where you measured it faster, and show the numbers with what they were measured on.
-- Never submit measurements, logs or reproduction steps you did not produce. Mark a finding from reading code as
-  unconfirmed static analysis.
-- A report from hardware the maintainers do not have is welcome. Follow
-  [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md), compare against a same-day run of the build you are
-  testing, and say what you did not test.
-- Open test requests and the hardware that is wanted are listed in [docs/TEST_REQUESTS.md](docs/TEST_REQUESTS.md).
+```sh
+python -m pytest -q tools/pancake/test_<name>.py
+python -m pytest -q serve/test_<name>.py
+python -m unittest serve.test_<name> -v        # serve tests are unittest-style; pytest also runs them
+python -m pytest tests/terminal
+```
+
+- `conftest.py` redirects `APPDATA`/`LOCALAPPDATA`/`XDG_*` to a temp dir so tests never touch the real user config.
+  Do not bypass it.
+- Some tool e2e tests skip while a real engine/server is running; a skip is not a pass.
+- `apps/host`: `npm install && npm test` for the Node host/UI tests.
+
+## Measurement rules
+
+- Never benchmark while other work uses the machine (agents, builds, another server). `abtest.py` waits for a quiet
+  machine, marks noisy runs and repeats them; it refuses to start beside a running engine/server (exit 3).
+- Judge speed changes only by paired A/B, never one run:
+  `python tools/pancake/abtest.py SPEC.json --out bench/results/<day>-<name>.jsonl`. Run 1 is warm-up and is
+  discarded; keep the second pass. Promotion bar: >= 2% end to end (>= 3% for lossy). Start with `--tier screen`;
+  confirm with `--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9`.
+- Lossy arms also need `tools/pancake/quality_gate.py` (token forcing); for close variants use
+  `tools/pancake/task_gate.py` (KLD/top-1 agreement alone does not predict task score).
+- Specs live in `bench/specs/`; results go to `bench/results/<date>-<name>/`, and night outcomes plus owner
+  decisions to `pancake-docs/NIGHT_RESULTS_<date>.md` / `pancake-docs/PRESET_BUNDLES.md`. Update
+  `PANCAKE_STATUS.md` / `MOD_PLAN.md` when a result changes the plan; daily presets can differ from engine defaults
+  by owner decision.
+- GPU-heavy plans run through `tools/pancake/night_queue.py` (plan in `night_queue_plan.json`; `--dry-run` first) or
+  `tools/pancake/test_phase.sh` on a quiet night, not during the day.
+- The tools parse the engine's own log lines (prompt/decode tok/s, park/restore/skip). Do not remove or reword them
+  without updating `tools/pancake/`.
+
+## Switches, presets and credits
+
+- New features are opt-in; the unset/default path must stay byte-identical, and say how you checked. Change a
+  default only with a paired measurement.
+- Every new `STRATA_*` name that affects engine state or cache must be classified in
+  `src/core/conversation_disk_env.def` (`KeyIfSet`, `InConfig`, `Speed`, ...). A missing entry breaks `ctest -L cpu`
+  and can reuse a disk-cache image made under different routing/KV settings. Check with
+  `python tools/pancake/test_disk_env_table.py`.
+- Switch census and exact/lossy status: README §6. Presets: `configs/pancake/*.json` keep the `<REPO>`,
+  `<STRATA_DATA>` and `<MODELS>` placeholders. `run-pancake.sh [model] [fast|exact|turbo]` renders them and defaults
+  to the owner's `/home/dan/...` paths, so set `STRATA_DATA` and `MODELS` on another machine.
+- Model-pack recommendation policy: ISTA-DASLab -> Unsloth -> Gyro -> others, only a pack that fits the model and
+  card; honor an explicit user choice.
+- When adopting code or an idea from another project, add the credit in README §9 and
+  `pancake-docs/RESEARCH_AND_FINDINGS.md` §4 in the same commit.
+
+## Claims and docs
+
+- Docs style: plain words, short sentences, non-technical reader first. Every performance claim names the hardware,
+  model/quant, preset and measurement; no claim without a measurement.
+- Label conclusions drawn from reading code (not reproduced) as "unconfirmed static analysis"
+  (`CONTRIBUTING.md`); never present fake-engine or fixture results as hardware measurements.
+- In `pancake-docs/research/`, label claims `[code]`, `[measured]`, `[paper]`, `[derived]` or `[unverified]`.
+- Keep passed / failed / not run separate when reporting validation.
+
+## Contributing
+
+- Issue/PR titles need an area prefix: `[Engine]`, `[GUI]`, `[TUI]`, `[Benchmark]`, `[Docs]`, `[Other]` (CI fails
+  without it).
+- One problem per PR; agree scope in an issue before a large feature, a refactor or a default change.
+- Build every backend a file touches (CUDA/HIP/SYCL, Metal for Metal paths) before review. A compile is not a
+  hardware result.
+- `tools/pancake/pre-push.sh` runs `build_matrix.sh --head --configure-only` (~2 min); install it as the git
+  pre-push hook. `PANCAKE_PUSH_FULL=1 git push` does the full link check; `SKIP_BUILD_MATRIX=1` skips it once.
+
+## Upstream parts and installers
+
+No fork-specific installer or release is defined in this repo. The inherited `packaging/install.*` scripts and the
+installer links in upstream docs point at `Niko1221/Strata` releases and do not contain pancake's engine changes; do
+not hand them out as this fork. Build from source (above), or follow `docs/SOURCE_INSTALL.md` for the inherited
+terminal/app.

@@ -52,6 +52,42 @@ never read warm, text not compared (the unique first line), like the other long*
 Every run also records a hash of the generated text: an arm whose text is identical to base on every case is exact,
 so it needs no quality gate.  A server that dies before ready is retried once; a second death aborts the batch
 (memory fragmentation / oomd: see the free-2MiB-block line) instead of continuing with too few runs.
+Faster confirm runs (MOD_PLAN "Testing: why 45-minute windows": about 90% of an attempt is the engine start, and 48% of the
+2026-11-11 attempts were discarded by the noise proxies although they decoded as fast as the kept ones).  All off by default
+(then the runs, the rows and the summary are as before):
+  --block N         N passes (every case once) per engine start; an arm's config is fixed per start.  Starts in A B B A order,
+                    max(2, ceil(reps / N)) starts per arm: at least 2, so start-to-start variance stays in the interval (the
+                    summary pairs pass k of a start with pass k of the other arm's start in the same round, and widens its
+                    intervals by the design effect of passes that share a start, see BLOCK_ICC).  Pass k >= 1 of a
+                    start prefixes the short / edit prompt with "[pass k]" so it is read cold like pass 0: the same prompt again in
+                    the same server comes from the conversation cache, and the edit then decoded ~35% faster (2026-11-11 screens,
+                    second request: 76% -> 88% expert cache hits).  The text hash of a case is the last pass's (the same pass index
+                    in every start, so arms stay comparable).
+  --warmup W        W throwaway passes per start in place of the single short warm-up request; only the passes after them are
+                    measured (with --block, --warmup 1 gives every measured pass the same history).  The throwaway rows go to the
+                    attempt's "warmup_rows"; with --block or --warmup every row carries "pass" and "warm" (a full pass ran before
+                    it in the same start).
+  --outlier robust  no attempt is repeated because a proxy (foreign CPU, reclaim) crossed its threshold ("clean" still records
+                    the proxies' verdict).  Judged by the outcome instead: a start more than SLOW_START (8.75%) below its arm's
+                    reference start on a case (the faster of two, the median from three on) is a slow engine state - whole
+                    starts 10-35% slow, 7 of the 60 attempts of 2026-11-11, with or without proxy noise - and its slot is run
+                    again in the same round (up to --retries; with 2 starts per arm no median can tell which one is slow).
+                    Then the summary drops only a pass (without --block: the attempt) in which a measured
+                    request's metric is a robust outlier among the same arm, case and request slot:
+                    |x - median| > ROBUST_Z x max(1.4826 MAD, ROBUST_FLOOR x median), with at least ROBUST_MIN values (the modified
+                    z-score of Iglewicz and Hoaglin, 3.5; the 2.5% floor keeps a quiet arm's spread, see ROBUST_FLOOR).  Confirm tier
+                    only: a screen has one or two values per arm, too few to judge (replayed on the 2026-11-11 screens it kept a
+                    start that decoded 24% slow).  Default: the gate.
+Every attempt row also records "tier" (arena / mmap / unknown) with "tier_source" (engine: its start-up lines; capped:
+capped.sh's "capped: tier=..." guess; guess: capped.sh's rule on keep_gib and big_free_gib_start; see tier_of), "keep_gib"
+(the STRATA_RAM_KEEP_GIB the engine used), "big_free_gib_start" and "opts" (the abtest options), so that promote.py can
+refuse mixed-tier or mixed-option comparisons.  select() decides which attempts and requests a summary uses (tools/pancake/
+abtest_replay.py feeds recorded jsonl files through it).
+Safety (other sessions share this machine and its one GPU): abtest stops only the servers IT started (the Popen it created and the engine
+below it, never found by name), so a second abtest's, another session's or a crashed run's leftover server is not touched.  It refuses to
+start (exit 3, naming the processes) while another real abtest / restore_check / engine runs - the same anchored test as tools/pancake/
+queue_run.sh's BUSY pattern - or while a `serve/server.py --engine strata` is up that it did not start (a leftover is reported, not killed:
+stop it yourself).  --force-busy starts anyway (for the fake-engine tests: two fake abtests side by side).
 """
 import hashlib
 import argparse
@@ -59,6 +95,8 @@ import json
 import math
 import os
 import re
+import signal
+import statistics
 import subprocess
 import sys
 import threading
@@ -128,11 +166,13 @@ NONCE = f"{os.getpid():x}{time.time_ns() // 1000:x}"
 _SEQ = [0]
 
 
-def case_text(P, c):
-    """The prompt text of one request of case c.  A long* case gets a unique first line, so its prompt is always read cold
-    (never from a prompt cache): the id is never reused within a batch, across arms, reps or servers."""
+def case_text(P, c, k=0):
+    """The prompt text of one request of case c in pass k of a start.  A long* case gets a unique first line, so its prompt
+    is always read cold (never from a prompt cache): the id is never reused within a batch, across arms, reps or servers.
+    short / edit: pass 0 as is, pass k >= 1 with a "[pass k]" first line (read cold in the same server, the same text in
+    every start)."""
     if not is_long(c):
-        return P[c]
+        return P[c] if k == 0 else f"[pass {k}]\n" + P[c]
     _SEQ[0] += 1
     return f"[run {NONCE}-{_SEQ[0]}]\n" + P[c]
 
@@ -364,21 +404,60 @@ def make_config(base, arm, path):
     return c
 
 
-def stop_servers():
-    for pid, (_, comm, _) in proc_table().items():
+OWN = []   # the server processes (Popen) this abtest started: stop_servers() ends these and what runs below them, nothing else
+# "Another test or engine is running": the SAME anchored test as tools/pancake/queue_run.sh's BUSY pattern (test_abtest_core pins that it is the
+# same string) - a real python running abtest.py / restore_check.py, or the build-hip engine binary - not a shell whose command line only
+# mentions them.  SERVER adds the Python server of an engine, the process a crashed run leaves behind.  Both are matched against the command
+# line with the arguments joined by single spaces, as pgrep -f does.
+BUSY = r"^[^ ]*python[0-9.]* ([^ ]+ )*[^ ]*tools/pancake/(abtest|restore_check)\.py( |$)|^[^ ]*/build-hip/strata( |$)"
+SERVER = r"^[^ ]*python[0-9.]* ([^ ]+ )*[^ ]*serve/server\.py ([^ ]+ )*--engine strata( |$)"
+
+
+def busy_processes():
+    """(pid, command line) of the processes that make a start unsafe: a real abtest / restore_check / engine, or a server, that this
+    abtest did not start (itself and what it started are skipped)."""
+    tab = proc_table()
+    mine, found, busy = tree(tab, [os.getpid()]), [], re.compile(f"{BUSY}|{SERVER}")
+    for pid in sorted(set(tab) - mine):
         try:
-            cmd = open(f"/proc/{pid}/cmdline", "rb").read().replace(b"\0", b" ").decode("utf-8", "replace")
+            cmd = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace").rstrip()
         except OSError:
             continue
-        if comm.startswith("python") and "server.py --engine strata" in cmd and pid != os.getpid():
-            try:
-                os.kill(pid, 15)
-            except OSError:
-                pass
-    for _ in range(60):
-        if not any(c == "strata" for _, c, _ in proc_table().values()):
-            return
+        if busy.search(cmd):
+            found.append((pid, cmd))
+    return found
+
+
+def running(pid):
+    try:
+        st = Path(f"/proc/{pid}/stat").read_text()
+    except OSError:
+        return False
+    return st[st.rindex(")") + 2] not in "ZX"   # a zombie is over
+
+
+def stop_servers(wait=120):
+    """Ends the servers THIS abtest started and waits until they and the engines below them are gone (at most `wait` s, then the server is
+    killed).  A signal goes only to a Popen of ours, never to a process found by name: another abtest's server, another session's server
+    and a crashed run's leftover are left alone (before 2026-11-11 it ended every `server.py --engine strata` of the machine and waited
+    for any process named strata)."""
+    servers = [p for p in OWN if p.poll() is None]
+    below = tree(proc_table(), [p.pid for p in servers]) - {p.pid for p in servers} if servers else set()   # the engine exe
+    t0 = time.time()
+    for p in servers:
+        p.terminate()   # the server stops its engine and exits
+    for p in servers:
+        try:
+            p.wait(max(1, wait - (time.time() - t0)))
+        except subprocess.TimeoutExpired:
+            print(f"  WARNING: server pid {p.pid} still running {wait} s after SIGTERM: killing it", flush=True)
+            p.kill()
+            p.wait()
+    OWN.clear()
+    while time.time() - t0 < wait and any(running(pid) for pid in below):
         time.sleep(2)
+    for pid in sorted(x for x in below if running(x)):
+        print(f"  WARNING: engine pid {pid} of this abtest's server still running {wait} s after it", flush=True)
 
 
 SAMPLING = {"temperature": 0}   # the spec's "temperature" / "top_p" / "seed" keys replace it (see main)
@@ -398,6 +477,49 @@ def request(url, text, max_tokens=512):
 
 LINE = re.compile(r"prompt (\d+) tokens.*?read in \d+ ms \(([\d.]+) tok/s\), (\d+) generated in \d+ ms \(([\d.]+) tok/s\)"
                   r"(?:, drafts accepted (\d+) of (\d+))?")
+KEEP_LINE = re.compile(r"--ram-keep-gib ([\d.]+):")
+CAPPED_LINE = re.compile(r"capped: tier=(\w+) keep_gib=([\d.]+)")   # capped.sh's guess before the start (stderr -> the .out)
+ARENA_KEEP_MAX, ARENA_BIG_GIB = 12, 33   # capped.sh's rule: the arena only with keep <= 12 GiB and >= 33 GiB free in 2 MiB blocks
+
+
+def tier_of(text, keep=None, big=-1.0):
+    """(tier, source) of one engine start, from its start-up lines (engine log) and the .out (server narration, capped.sh's
+    stderr).  source "engine": what the engine did - "mmap" when it says "experts via mmap" (also after "not enough RAM for
+    the expert arena": STRATA_RAM_KEEP_GIB above what the arena leaves, ~8% slower decode) or the server maps them
+    (--mmap-experts), "arena" for "expert arena: ..." or the server's "experts loaded: N GiB at R GiB/s" (said after an
+    arena load only; its "loading the experts into RAM" line comes for both tiers).  Else "capped": capped.sh's
+    "capped: tier=..." line (its guess before the start).  Else "guess": capped.sh's rule on keep and big (big_free_gib
+    before the start).  Else ("unknown", "none")."""
+    if any(s in text for s in ("experts via mmap", "not enough RAM for the expert arena", "mapping the experts from the model files")):
+        return "mmap", "engine"
+    if "expert arena:" in text or "experts loaded:" in text:
+        return "arena", "engine"
+    m = CAPPED_LINE.search(text)
+    if m:
+        return m[1], "capped"
+    if keep is not None and big >= 0:
+        return ("arena" if keep <= ARENA_KEEP_MAX and big >= ARENA_BIG_GIB else "mmap"), "guess"
+    return "unknown", "none"
+
+
+def keep_gib(text, env):
+    """STRATA_RAM_KEEP_GIB of one engine start: the engine's own "--ram-keep-gib W:" line, else capped.sh's "keep_gib=N",
+    else the config's env, else this process's env (capped.sh passes it on), else capped.sh's default 12."""
+    m = KEEP_LINE.search(text) or CAPPED_LINE.search(text)
+    if m:
+        return float(m[1] if m.re is KEEP_LINE else m[2])
+    return float(env.get("STRATA_RAM_KEEP_GIB") or os.environ.get("STRATA_RAM_KEEP_GIB") or 12)
+
+
+def log_lines(log):
+    return Path(log).read_text(errors="replace").splitlines() if log and Path(log).exists() else []
+
+
+def save_engine_log(log, s0, path):
+    """Copies this start's lines of the shared engine log (the preset's "log", appended to by every start: the lines after
+    the first s0; all of them if the file got shorter) to path, the attempt's <arm>-r<rep>-a<attempt>.engine.log."""
+    lines = log_lines(log)
+    Path(path).write_text("".join(line + "\n" for line in lines[s0 if s0 <= len(lines) else 0:]))
 
 
 def start_server(cfg_path, log_out, port, ready_wait=900):
@@ -407,6 +529,7 @@ def start_server(cfg_path, log_out, port, ready_wait=900):
     with open(log_out, "w") as lf:
         srv = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), PY, "serve/server.py", "--engine", "strata", "--config",
                                 cfg_path, "--port", str(port)], cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env)
+    OWN.append(srv)
     t0 = time.time()
     while time.time() - t0 < ready_wait:
         txt = Path(log_out).read_text(errors="replace")
@@ -441,47 +564,66 @@ def n_requests(c, per_run):
     return 1 if is_long(c) else per_run
 
 
-def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1):
+def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1, passes=1, warmup=0):
+    """One engine start: warmup throwaway passes, then `passes` measured passes (a pass = every case once, n_requests each).
+    warmup 0: the single short warm-up request instead (as before)."""
     log = cfg.get("log")
+    s0, big0 = len(log_lines(log)), big_free_gib()   # the engine log is appended to: this start's lines come after s0
+    engine_log = Path(log_out).with_suffix(".engine.log")   # this start's engine lines (promote.py / switch_report.py read it)
     srv, err = start_server(cfg_path, log_out, port)
     if err:
+        save_engine_log(log, s0, engine_log)
         return None, err
     url = f"http://127.0.0.1:{port}"
-    request(url, P["short"])                          # warm-up, not counted
+    if not warmup:
+        request(url, P["short"])                          # warm-up, not counted
     token_check(url, P, cases)
-    n0 = len(Path(log).read_text(errors="replace").splitlines()) if log and Path(log).exists() else 0
+    lines = log_lines(log)
+    n0 = len(lines)
+    start_text = "\n".join(lines[s0 if s0 <= n0 else 0:])
+    plan = [(k, c) for k in range(warmup + passes) for c in cases for _ in range(n_requests(c, per_run))]
+    nwarm = sum(1 for k, _ in plan if k < warmup)
+    for k, c in plan[:nwarm]:
+        request(url, case_text(P, c, k), MAXTOK.get(c, 512))
     mon = NoiseMonitor([srv.pid])
     mon.start()
     texts = {}
-    for c in cases:
-        for _ in range(n_requests(c, per_run)):
-            t = request(url, case_text(P, c), MAXTOK.get(c, 512))
-            if not is_long(c):   # a long* prompt has a unique first line: its text is not comparable between arms
-                texts[c] = hashlib.sha1(t.encode()).hexdigest()[:16]
+    for k, c in plan[nwarm:]:
+        t = request(url, case_text(P, c, k), MAXTOK.get(c, 512))
+        if not is_long(c):   # a long* prompt has a unique first line: its text is not comparable between arms
+            texts[c] = hashlib.sha1(t.encode()).hexdigest()[:16]
     noise, top = mon.result()
+    save_engine_log(log, s0, engine_log)
     rows = []
-    if log and Path(log).exists():
-        for line in Path(log).read_text(errors="replace").splitlines()[n0:]:
-            m = LINE.search(line)
-            # Flash-Next: "strata serve: prompt N tokens ..."; the Qwen3.6 (q36) engine: "strata serve: session S: prompt N tokens ..."
-            if m and ("strata serve: prompt" in line or "strata serve: session" in line):
-                acc = int(m[5]) / int(m[6]) if m[5] and int(m[6]) > 0 else None
-                rows.append({"prompt": int(m[1]), "prompt_tps": float(m[2]), "gen": int(m[3]), "decode_tps": float(m[4]),
-                             "accept": acc})
+    for line in log_lines(log)[n0:]:
+        m = LINE.search(line)
+        # Flash-Next: "strata serve: prompt N tokens ..."; the Qwen3.6 (q36) engine: "strata serve: session S: prompt N tokens ..."
+        if m and ("strata serve: prompt" in line or "strata serve: session" in line):
+            acc = int(m[5]) / int(m[6]) if m[5] and int(m[6]) > 0 else None
+            rows.append({"prompt": int(m[1]), "prompt_tps": float(m[2]), "gen": int(m[3]), "decode_tps": float(m[4]),
+                         "accept": acc})
     stop_servers()
-    plan = [c for c in cases for _ in range(n_requests(c, per_run))]
     want = len(plan)
     if len(rows) > want:   # an extra engine line (a retried / re-read request): the last ones are the cases'
         rows = rows[-want:]
     if len(rows) != want:
         return None, f"expected {want} engine lines, got {len(rows)}"
-    for c, r in zip(plan, rows):
+    for (k, c), r in zip(plan, rows):
         r["case"] = c
+        if passes > 1 or warmup:   # block / warm-up runs only: the old single-pass rows stay as they were
+            r["pass"], r["warm"] = k, k > 0
         if is_long(c) and LONG_TARGET.get(c) and abs(r["prompt"] / LONG_TARGET[c] - 1) > 0.08:
             print(f"  WARNING {c}: the engine read {r['prompt']} prompt tokens, target {LONG_TARGET[c]} (more than 8% off: adjust LONG_CPT)",
                   flush=True)
-    return {"rows": rows, "texts": texts, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2), "gpu": mon.gpu_summary(),
-            "big_free_gib": round(big_free_gib(), 1)}, None
+    res = {"rows": rows[nwarm:], "texts": texts, "noise": noise, "noise_top": top, "reclaim": round(mon.reclaim, 2),
+           "gpu": mon.gpu_summary(), "big_free_gib": round(big_free_gib(), 1)}
+    if warmup:
+        res["warmup_rows"] = rows[:nwarm]
+    start_text += "\n" + Path(log_out).read_text(errors="replace")
+    keep = keep_gib(start_text, cfg.get("env") or {})
+    tier, source = tier_of(start_text, keep, big0)
+    res.update(tier=tier, tier_source=source, keep_gib=keep, big_free_gib_start=round(big0, 1))
+    return res, None
 
 
 def ci(xs):
@@ -493,23 +635,208 @@ def ci(xs):
     return m, T95.get(n - 1, 2.0) * sd / math.sqrt(n)
 
 
-def decided(results, arms, cases, floor=1.5):
-    """True when every arm/case either has an interval that excludes 0 or one narrower than floor % of base."""
+def paired(results, a, b, c):
+    """[a - b] of case c's metric, paired by repetition: the same rep (ABBA round), pass and request slot (with every slot
+    present: the same pairs as in list order; a rep or pass that one arm lacks is left out instead of shifting the rest).
+    An attempt without "rep" counts by its place in the list."""
+    def keyed(arm):
+        return {(res.get("rep", j), row.get("pass", 0), i): row[metric(c)]
+                for j, res in enumerate(results.get(arm, [])) for row, i in request_slots(res) if row["case"] == c}
+    ka, kb = keyed(a), keyed(b)
+    return [ka[k] - kb[k] for k in sorted(ka.keys() & kb.keys())]
+
+
+def decided(results, arms, cases, floor=1.5, least=2, deff=1.0):
+    """True when every arm/case either has an interval that excludes 0 or one narrower than floor % of base (and at least
+    `least` values: the robust outlier rule judges only from ROBUST_MIN on; deff: as in summary)."""
     base = arms[0]
     for c in cases:
         key = metric(c)
         vals = {a: [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c] for a in arms}
-        if len(vals[base]) < 2:
+        if len(vals[base]) < least:
             return False
         bm = sum(vals[base]) / len(vals[base])
         for a in arms[1:]:
-            n = min(len(vals[a]), len(vals[base]))
-            if n < 2:
+            d = paired(results, a, base, c)
+            if len(d) < least:
                 return False
-            dm, dh = ci([x - y for x, y in zip(vals[a][:n], vals[base][:n])])
+            dm, dh = ci(d)
+            dh *= math.sqrt(deff)
             if not (abs(dm) > dh or dh / bm * 100 < floor):
                 return False
     return True
+
+
+def schedule(arms, reps, block=0):
+    """([(round, arm)], passes per start): engine starts in A B B A order (every arm once per round, odd rounds reversed, so
+    each arm sees early and late slots equally).  block 0: one start per rep.  block N: N passes per start and
+    max(2, ceil(reps / N)) rounds: at least 2 starts per arm, so start-to-start variance stays in the interval."""
+    rounds, passes = (reps, 1) if block <= 0 else (max(2, -(-reps // block)), block)
+    return [(r, x) for r in range(rounds) for x in (arms if r % 2 == 0 else arms[::-1])], passes
+
+
+ROBUST_Z = 3.5        # modified z-score cut (Iglewicz & Hoaglin 1993: |0.6745 (x - median) / MAD| > 3.5)
+ROBUST_FLOOR = 0.025  # the spread estimate never below 2.5% of the median: the MAD of 4-6 values often sits in one tight cluster
+                      # (base edit 143.3-143.9, MAD 0.3%) while quiet, kept attempts spread more (25-kern-hip-confirm: base edit
+                      # 133.4-143.9, SD ~2.6%); with the 3.5 cut a value must be ~9% off its median, and the slow engine states
+                      # in the 2026-11-11 data are 10-35% off (short 93-111 and edit 93-111 against 124 / 143)
+ROBUST_MIN = 3        # fewer values in a group: nothing is judged (a median of two is no reference)
+SLOW_START = ROBUST_Z * ROBUST_FLOOR   # 8.75%: a start this far below its arm's reference start on some case is a slow engine
+                      # state (whole start slow, 10-35% in the 2026-11-11 data: 7 of 60 starts); normal starts of an arm differ by
+                      # an SD of 0.5% (short) to 1.9% (edit)
+BLOCK_ICC = 0.45      # share of the run-to-run variance that the passes of one engine start have in common, slow starts left
+                      # out (2026-11-11 screens, two requests per start, 22 starts: short 0.15, edit 0.45; abtest_replay.py
+                      # --components): with --block the summary widens its intervals by sqrt(1 + (passes - 1) x BLOCK_ICC), the
+                      # design effect of passes clustered in a start.  Revisit it from the first real --block run (same tool)
+
+
+def design_effect(passes):
+    """Variance factor of a mean over `passes` passes per start (1 without --block)."""
+    return 1 + (passes - 1) * BLOCK_ICC
+
+
+def robust_bounds(xs, z=ROBUST_Z, floor=ROBUST_FLOOR, least=ROBUST_MIN):
+    """(lo, hi): values outside are robust outliers of xs; None when xs has fewer than `least` values."""
+    if len(xs) < least:
+        return None
+    med = statistics.median(xs)
+    s = max(1.4826 * statistics.median(abs(x - med) for x in xs), floor * abs(med))
+    return med - z * s, med + z * s
+
+
+def request_slots(rec):
+    """(row, slot) of one attempt's measured rows: slot = the row's index among the rows of its case in its pass.  The
+    screen's second request of a case is its own group (same prompt again in the server: a different regime)."""
+    seen = {}
+    for row in rec["rows"]:
+        k = (row.get("pass", 0), row["case"])
+        seen[k] = seen.get(k, -1) + 1
+        yield row, seen[k]
+
+
+def robust_keep(used, z=ROBUST_Z, floor=ROBUST_FLOOR, least=ROBUST_MIN):
+    """{arm: [attempt]} -> (the same without the outlier passes, [dropped pass]).  A row is judged against the rows of the
+    same arm, case and request slot (every start and pass pooled), on its case's metric.  A pass with an outlier row is
+    dropped whole (without --block: the attempt): a slow engine state slows every case of a start (25-kern-hip-confirm,
+    all3 rep 0: short -5% and edit -29% in the same start)."""
+    groups = {}
+    for arm, recs in used.items():
+        for rec in recs:
+            for row, i in request_slots(rec):
+                groups.setdefault((arm, row["case"], i), []).append(row[metric(row["case"])])
+    bounds = {g: robust_bounds(xs, z, floor, least) for g, xs in groups.items()}
+    out, dropped = {}, []
+    for arm, recs in used.items():
+        out[arm] = []
+        for rec in recs:
+            marks = []   # (row, its bounds when it is an outlier, else None)
+            for row, i in request_slots(rec):
+                b = bounds[(arm, row["case"], i)]
+                marks.append((row, b if b and not b[0] <= row[metric(row["case"])] <= b[1] else None))
+            bad = {row.get("pass", 0) for row, b in marks if b}
+            for p in sorted(bad):
+                dropped.append({"arm": arm, "rep": rec.get("rep"), "attempt": rec.get("attempt"), "pass": p,
+                                "rows": [(row["case"], row[metric(row["case"])], b) for row, b in marks if row.get("pass", 0) == p]})
+            out[arm].append({**rec, "rows": [row for row, _ in marks if row.get("pass", 0) not in bad]})
+    return out, dropped
+
+
+def start_means(rec):
+    """{case: mean of the attempt's measured rows on the case's metric}."""
+    by = {}
+    for row in rec["rows"]:
+        by.setdefault(row["case"], []).append(row[metric(row["case"])])
+    return {c: sum(v) / len(v) for c, v in by.items()}
+
+
+def slow_starts(starts, cut=SLOW_START):
+    """Indexes of the slow starts among one arm's attempts: more than `cut` below the arm's reference on some case - the
+    median of the starts from 3 on, else the faster of the two (two starts cannot outvote each other; the slow engine
+    states in the data were only ever slow)."""
+    means = [start_means(r) for r in starts]
+    slow = set()
+    for c in {c for m in means for c in m}:
+        vals = [m[c] for m in means if c in m]
+        if len(vals) >= 2:
+            ref = statistics.median(vals) if len(vals) >= 3 else max(vals)
+            slow |= {i for i, m in enumerate(means) if c in m and m[c] < (1 - cut) * ref}
+    return slow
+
+
+def slots_of(records):
+    """{(arm, rep): [attempts in file order]}."""
+    out = {}
+    for rec in records:
+        out.setdefault((rec["arm"], rec["rep"]), []).append(rec)
+    return out
+
+
+def robust_picks(records):
+    """{(arm, rep): the attempt a robust run uses, or None}: per slot the first attempt that is not a slow start against the
+    arm's other picks (judged again after every replacement; None: every attempt of the slot so far was slow)."""
+    slots = slots_of(records)
+    pick = dict.fromkeys(slots, 0)
+    changed = True
+    while changed:
+        changed = False
+        for arm in dict.fromkeys(k[0] for k in slots):
+            keys = [k for k in slots if k[0] == arm and pick[k] is not None]
+            for j in slow_starts([slots[k][pick[k]] for k in keys]):
+                k = keys[j]
+                pick[k] = pick[k] + 1 if pick[k] + 1 < len(slots[k]) else None
+                changed = True
+    return {k: None if p is None else slots[k][p] for k, p in pick.items()}
+
+
+def select(records, outlier=None, foreign_cpu=None, reclaim_max=None):
+    """The attempts a summary uses, from attempt records (abtest jsonl rows in file order): ({arm: [record]} in rep order,
+    [dropped]).  outlier "gate": per arm and rep the first clean attempt, else the quietest (the old rule).  "robust": per
+    arm and rep the first attempt that is not a slow start (robust_picks: a robust run repeats only those), then
+    robust_keep; dropped lists the slow starts left out ("pass" None) and the outlier passes.  None: the records' own
+    opts.outlier (records older than it: gate).  foreign_cpu and reclaim_max (both): judge "clean" again with these limits
+    (a replay of the gate with other thresholds; a stricter limit than the run's can only choose among recorded attempts)."""
+    mode = outlier or next((r["opts"]["outlier"] for r in records if "opts" in r), "gate")
+    slots = slots_of(records)
+    clean = (lambda r: r["clean"]) if foreign_cpu is None else (lambda r: r["noise"] <= foreign_cpu and r.get("reclaim", 0.0) <= reclaim_max)
+    picks = robust_picks(records) if mode == "robust" else {
+        k: next((r for r in recs if clean(r)), None) or min(recs, key=lambda r: r["noise"]) for k, recs in slots.items()}
+    used, slow = {}, []
+    for k in sorted(slots, key=lambda k: k[1]):
+        if picks[k] is not None:
+            used.setdefault(k[0], []).append(picks[k])
+        if mode == "robust":   # the attempts before the pick were slow starts
+            n = len(slots[k]) if picks[k] is None else next(i for i, r in enumerate(slots[k]) if r is picks[k])
+            slow += [{"arm": k[0], "rep": k[1], "attempt": r.get("attempt"), "pass": None,
+                      "rows": [(c, v, None) for c, v in start_means(r).items()]} for r in slots[k][:n]]
+    if mode != "robust":
+        return used, []
+    used, dropped = robust_keep(used)
+    return used, slow + dropped
+
+
+def print_selection(used, dropped, robust, passes=1):
+    """What the selection did, printed before the summary (whose format promote.py and queue_run.sh rely on): the robust
+    rule's drops, the block design effect, and a warning when the attempts used mix memory tiers (arena vs mmap: ~8%)."""
+    if robust:
+        starts = [d for d in dropped if d["pass"] is None]
+        print(f"\noutlier rule robust: {len(starts)} slow starts left out (more than {SLOW_START * 100:g}% below the arm's "
+              f"reference start on a case; a robust run repeats them), {len(dropped) - len(starts)} passes dropped (|x - median| > "
+              f"{ROBUST_Z} x max(1.4826 MAD, {ROBUST_FLOOR * 100:g}% of the median) within arm, case and request slot, "
+              f">= {ROBUST_MIN} values; the pass goes whole)")
+        for d in dropped:
+            print(f"  {d['arm']:20s} rep {d['rep']} attempt {d['attempt']} "
+                  + ("slow start (means)" if d["pass"] is None else f"pass {d['pass']}") + ": " + ", ".join(
+                      f"{c} {v:.1f}" + (f" outside [{b[0]:.1f}, {b[1]:.1f}]" if b else "") for c, v, b in d["rows"]))
+    if passes > 1:
+        print(f"\nblock of {passes} passes per start: intervals widened by sqrt(design effect {design_effect(passes):.2f}) "
+              f"(1 + (passes - 1) x {BLOCK_ICC}, the start-shared share of the noise)")
+    tiers = {}
+    for arm, recs in used.items():
+        for rec in recs:
+            tiers.setdefault(rec.get("tier", "unknown"), []).append(arm)
+    if len(set(tiers) - {"unknown"}) > 1:
+        print("\nWARNING: the attempts used mix memory tiers (" + "; ".join(f"{t}: {len(v)} attempts ({', '.join(sorted(set(v)))})"
+              for t, v in sorted(tiers.items())) + "): compare same-tier runs only (promote.py rejects mixed-tier pairs)")
 
 
 def screen_verdict(results, arms, cases):
@@ -542,7 +869,8 @@ def text_check(results, arms, cases):
         print(f"  {a:20s} {'identical on every case -> exact' if same else 'DIFFERENT text -> lossy or placement-dependent: quality gate'}")
 
 
-def summary(results, arms, cases):
+def summary(results, arms, cases, deff=1.0):
+    """deff: design effect of --block (design_effect(passes)): the intervals are widened by its square root."""
     base = arms[0]
     print("\nsummary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)")
     for c in cases:
@@ -554,11 +882,12 @@ def summary(results, arms, cases):
                 print(f"  {c:6s} {a:20s} no clean runs")
                 continue
             m, h = ci(vals[a])
+            h *= math.sqrt(deff)
             line = f"  {c:6s} {a:20s} {m:8.1f} +- {h:5.1f}  (n={len(vals[a])})"
-            if a != base and vals[base]:
-                n = min(len(vals[a]), len(vals[base]))
-                d = [x - y for x, y in zip(vals[a][:n], vals[base][:n])]   # paired by repetition (same ABBA slot)
+            d = paired(results, a, base, c) if a != base else []   # same ABBA round (with --block, pass k of the round)
+            if d:
                 dm, dh = ci(d)
+                dh *= math.sqrt(deff)
                 verdict = "better" if dm - dh > 0 else "worse" if dm + dh < 0 else "no difference"
                 line += f"   vs {base}: {dm / bm * 100:+5.1f}% +- {dh / bm * 100:4.1f}%  -> {verdict}"
             print(line)
@@ -585,7 +914,28 @@ def main():
                     help="%% of one core of kswapd/kcompactd above which a run is noisy and repeated (default 1.0; "
                          "2026-11-11 data, 62 attempts: up to 3 decoded as fast as below 1, above 3 edits were ~8%% slower, "
                          "while 1.0 discarded 48%% of all attempts)")
+    ap.add_argument("--block", type=int, default=0,
+                    help="N passes per engine start, A B B A blocks, max(2, ceil(reps / N)) starts per arm (0 = one start per rep)")
+    ap.add_argument("--warmup", type=int, default=0,
+                    help="throwaway passes per start before the measured ones (0 = the single short warm-up request)")
+    ap.add_argument("--outlier", choices=("gate", "robust"), default="gate",
+                    help="gate: repeat an attempt the noise proxies call noisy (default); robust: keep every attempt, drop only "
+                         "a pass in which a request's tok/s is a robust outlier within its arm (median / MAD, see the module doc)")
+    ap.add_argument("--force-busy", action="store_true",
+                    help="start although another abtest / restore_check / engine runs (only for the fake-engine tests: it stops "
+                         "its own servers only, but a real run beside it is disturbed all the same)")
     a = ap.parse_args()
+    if a.tier == "screen" and (a.block or a.outlier == "robust"):
+        ap.error("--block and --outlier robust are for --tier confirm (a screen has one start and 1-2 values per arm)")
+    busy = busy_processes()
+    if busy and not a.force_busy:
+        print("abtest: another test or engine is already running on this machine: not starting (a second run would disturb it, and "
+              "its numbers would be wrong).  Running:\n" + "\n".join(f"  pid {pid}: {cmd[:200]}" for pid, cmd in busy)
+              + "\nWait for it, or stop it yourself if it is a leftover of a crashed run (abtest never stops what it did not start).  "
+              "--force-busy starts anyway (fake-engine tests only).", file=sys.stderr, flush=True)
+        return 3
+    if busy:
+        print(f"abtest: --force-busy: running beside {len(busy)} other test / engine process(es)", flush=True)
     RECLAIM_MAX = a.reclaim_max
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
@@ -613,25 +963,35 @@ def main():
                   flush=True)
     work =Path(a.out).with_suffix("")
     work.mkdir(parents=True, exist_ok=True)
-    order = []
-    for r in range(reps):   # A B B A, then B A A B, ... : each arm sees early and late slots equally
-        seq = arms if r % 2 == 0 else arms[::-1]
-        order += [(r, x) for x in seq]
-    results = {}
+    order, passes = schedule(arms, reps, a.block)   # A B B A, then B A A B, ... : each arm sees early and late slots equally
+    opts = {"test_tier": a.tier, "reps": reps, "block": a.block, "passes": passes, "warmup": a.warmup, "outlier": a.outlier,
+            "foreign_cpu": a.foreign_cpu, "reclaim_max": RECLAIM_MAX, "retries": a.retries, "early_stop": not a.no_early_stop,
+            "per_run": per_run}
+    robust, deff = a.outlier == "robust", design_effect(passes)
+    records = []   # every attempt of this batch (the jsonl rows); select() picks what the summary uses
     out = open(a.out, "a")
-    stop_servers()
     deaths = 0
-    for i, (r, arm) in enumerate(order):
-        if (not a.no_early_stop and a.tier == "confirm" and r >= 2 and r % 2 == 0 and order[i - 1][0] != r
-                and decided(results, arms, cases)):
-            print(f"early stop after {r} reps: every arm/case decided or below 1.5% of base", flush=True)
+
+    def next_attempt(rep, arm):   # (a death is not recorded but used its number: the files are named by it)
+        return max((x["attempt"] for x in records if x["arm"] == arm and x["rep"] == rep), default=-1) + 1
+
+    begun, i = set(), 0   # rounds begun: early stop is judged when a new even round begins
+    while i < len(order):   # (robust: a slow start's slot is put back into the order, see below)
+        r, arm = order[i]
+        i += 1
+        if (not a.no_early_stop and a.tier == "confirm" and r >= 2 and r % 2 == 0 and r not in begun
+                and decided(select(records)[0], arms, cases, least=ROBUST_MIN if robust else 2, deff=deff)):
+            print(f"early stop after {r} {'rounds of starts' if a.block else 'reps'}: every arm/case decided or below 1.5% of base",
+                  flush=True)
             break
+        begun.add(r)
         quietest = None   # least noisy attempt: kept when every attempt was noisy, so the base never ends with no runs
-        for attempt in range(a.retries + 1):
+        for attempt in range(next_attempt(r, arm), a.retries + 1):
             quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
-            res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run)
+            res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
+                               passes, a.warmup)
             if err:
                 print(f"rep {r} {arm}: FAILED ({err})", flush=True)
                 if "died" in err:
@@ -640,12 +1000,14 @@ def main():
                         print(f"ABORT: the server died twice before ready (free RAM in 2 MiB blocks: {big_free_gib():.0f} GiB;"
                               f" fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.",
                               flush=True)
-                        summary(results, arms, cases)
+                        summary(select(records)[0], arms, cases, deff)
                         return 2
                     continue   # one retry
                 break
             clean = res["noise"] <= a.foreign_cpu and res["reclaim"] <= RECLAIM_MAX
-            rec = {"t": time.strftime("%Y-%m-%d %H:%M:%S"), "rep": r, "arm": arm, "attempt": attempt, "clean": clean, **res}
+            rec = {"t": time.strftime("%Y-%m-%d %H:%M:%S"), "rep": r, "arm": arm, "attempt": attempt, "clean": clean, **res,
+                   "opts": opts}
+            records.append(rec)
             out.write(json.dumps(rec) + "\n")
             out.flush()
             desc = " ".join(f"{x['case']} {x['decode_tps']:.1f}" + (f"/{x['prompt_tps']:.0f}p {x['prompt']}t" if is_long(x["case"]) else "")
@@ -655,21 +1017,32 @@ def main():
                   f" cpu {g.get('cpu_mhz', 0)}MHz {g.get('tctl_max', 0)}C igpu {g.get('igpu_busy', 0)}%/vcn {g.get('igpu_vcn', 0)}%"
                   f" fclk {g.get('fclk_min', 0)}") if g else ""
             print(f"rep {r} {arm:20s} {desc}  foreign CPU {res['noise']:.0f}% {res['noise_top']}{gd}"
-                  f"{'' if clean else '  NOISY -> repeat'}", flush=True)
-            if clean:
-                results.setdefault(arm, []).append(res)
+                  f"{'' if clean else '  noisy by the proxies: kept (outlier rule)' if robust else '  NOISY -> repeat'}", flush=True)
+            if clean or robust:
                 break
             if quietest is None or res["noise"] < quietest["noise"]:
                 quietest = res
         else:
             if quietest is not None:   # 2026-11-10 screen 05: caveman-proxy + a foreign python3 left the base with 0 runs -> all arms dropped
                 print(f"rep {r} {arm}: every attempt noisy, keeping the quietest ({quietest['noise']:.0f}% foreign CPU)", flush=True)
-                results.setdefault(arm, []).append(quietest)
-    summary(results, arms, cases)
+        if robust:   # a slow start of this arm (this one, or an earlier one this start shows up): its slot runs again, same round
+            again = [(rep, x) for (x, rep), p in robust_picks(records).items()
+                     if x == arm and p is None and next_attempt(rep, x) <= a.retries and (rep, x) not in order[i:]]
+            for rep, _ in again:
+                print(f"rep {rep} {arm}: slow start (more than {SLOW_START * 100:g}% below the arm's other starts): run again",
+                      flush=True)
+            order[i:i] = again
+    results, dropped = select(records)   # gate: per arm and rep the first clean attempt, else the quietest (as above)
+    print_selection(results, dropped, robust, passes)
+    summary(results, arms, cases, deff)
     text_check(results, arms, cases)
     if a.tier == "screen":
         screen_verdict(results, arms, cases)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(128 + signal.SIGTERM))   # `kill` ends the servers too (a leftover would stop the next start)
+    try:
+        sys.exit(main())
+    finally:
+        stop_servers()   # Ctrl-C, a crash, an abort: no server of this abtest is left behind

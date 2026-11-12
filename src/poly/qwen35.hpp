@@ -64,6 +64,8 @@ private:
 
     void gdn(Block& B, int n);
     void attn(Block& B, int64_t pos, int n);
+    void attn_switches();
+    bool fdec_on(int64_t pos, int n, const long long* at) const;
     void attn_store(Block& B, int64_t pos, int n);
     size_t kv_row(bool values = false) const;
     void turn_of(int64_t row, int32_t* thw) const;
@@ -89,6 +91,11 @@ private:
     float* awork_ = nullptr;   ///< a prompt batch's attention (attend_batch)
     uint16_t* deq_ = nullptr;  ///< --kv-q8, --kv-q4: a block of cache rows as fp16 for a prompt batch's products
 
+    // MOD_PLAN F17 (fattn.hpp), opt-in; decided by attn_switches() the first time the scratch is laid out
+    bool switches_said_ = false;
+    bool fattn_ = false;         ///< STRATA_FATTN=1: a prompt batch through fattn_q8() / fattn_f16() where it fits
+    bool fdec_ = false;          ///< STRATA_FDEC=1: a few tokens through fdec_q8() / fdec_f16() where they fit...
+    int64_t fdec_from_ = 4096;   ///< ...in launches sized for more rows than this (STRATA_FDEC_FROM)
 };
 
 }  // namespace strata::poly

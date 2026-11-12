@@ -192,6 +192,21 @@ void q2_0_gguf_rows_multi_avx2_legacy(const uint8_t* w, size_t row_bytes, int nb
 /// The same rows with AVX-VNNI on or off, not as cpu_avxvnni_ok() says (tests and benches; on only where it holds).
 void q2_0_gguf_rows_multi_avx2_v(bool vnni, const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a,
                                  int nt, float* const* out, int r0, int r1);
+/// The fast exact AVX-2 Q2_0 kernel (imanu86 c3fc8f34d3): 8-op code unpack, 4 rows at a time on short rows, every
+/// float operation the legacy kernel's in the same order, so bitwise `q2_0_gguf_rows_multi_avx2_legacy` (NaN payloads aside).
+/// `q2_0_gguf_rows_multi_avx2` picks it only with STRATA_Q2_FAST=1 and not STRATA_Q2_LEGACY=1 (read once; opt-in
+/// until tests/core/q2_fast_parity_test.cpp has passed, then the default with STRATA_Q2_LEGACY=1 as the way back).
+bool q2_fast_enabled();
+/// Which form of the legacy kernel's `corr += d * (hx0 + hx1)` this build compiled (it depends on the compiler and
+/// -ffp-contract; STRATA_HOST_NATIVE, MSVC and GCC -O0/-O1 do not contract): 1 = one FMA, 0 = a rounded product plus
+/// an add, -1 = neither, the fast kernel then runs the legacy rows.  Probed once per variant (AVX-VNNI or not) on a row
+/// where the two differ; the fast kernel uses the same form, so it matches the legacy one bit for bit (NaN payloads aside) under the flags it was built with.
+int q2_fast_corr_form(bool vnni);
+void q2_0_gguf_rows_multi_avx2_fast(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
+                                    float* const* out, int r0, int r1);
+/// The same with AVX-VNNI on or off (tests; on only where cpu_avxvnni_ok()).
+void q2_0_gguf_rows_multi_avx2_fast_v(bool vnni, const uint8_t* w, size_t row_bytes, int nblocks,
+                                      const ActQ* const* a, int nt, float* const* out, int r0, int r1);
 void act_quant_q8_1_avx2(const float* x, int n, ActQ& a);
 /// The same for CPUs with AVX but no AVX2 (src/kernels/cpu/q2_avx1.cpp, the third rung of q2_rows_any /
 /// act_quant_any, issue #1699): same arithmetic, 128-bit integer lanes, mul+add instead of FMA (last bits),

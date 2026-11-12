@@ -38,6 +38,7 @@ class Window:
     drafts: np.ndarray | None = None   # prob per draft row 1..T-1 (float32, NaN: lookup / chained row, no confidence)
     draft_src: np.ndarray | None = None   # source per draft row (uint8): 0 MTP, 1 DFlash2, 2 lookup window, 3 chained lookup; None in a legacy record 3
     row_miss: np.ndarray | None = None    # record 5 (A22): new CPU-missed experts per row 0..T-1 (uint16), None before A22
+    target_p: np.ndarray | None = None    # record 6 (A56): the target's probability of each drafted token (f32), None unless STRATA_WINDOW_TRACE_TARGET=1
 
 
 @dataclass
@@ -99,6 +100,14 @@ def read(path):
             if cur is not None:
                 cur.row_miss = np.frombuffer(raw, dtype="<u2", count=nr, offset=off).astype(np.int64)
             off += 2 * nr
+        elif typ == 6:   # target probabilities (A56): n f32, the target's p of window[j] for draft row j = 1..n
+            _, nt, _ = struct.unpack_from("<BBH", raw, off)
+            off += 4
+            if off + 4 * nt > n:
+                break
+            if cur is not None:
+                cur.target_p = np.frombuffer(raw, dtype="<f4", count=nt, offset=off).copy()
+            off += 4 * nt
         elif typ == 3:   # legacy: n f32 probs only
             _, nd, _ = struct.unpack_from("<BBH", raw, off)
             off += 4

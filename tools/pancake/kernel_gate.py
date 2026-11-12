@@ -541,7 +541,7 @@ def build_candidates(prof, ev=None, e2e=None):
                          basis, missing))
 
     # BFLA dense kern-gdn.md / PANCAKE_STATUS P2b: 128K prompt 386.9 off -> 771.2 dense tok/s (measured, one run each)
-    c = Candidate("BFLA", "BFLA dense (exact fused attention)", "STRATA_BFLA=dense", "prefill", "gpu", 1 - 386.9 / 771.2,
+    c = Candidate("BFLA", "BFLA dense (exact fused attention)", "STRATA_BFLA_DENSE=1", "prefill", "gpu", 1 - 386.9 / 771.2,
                   1 - 386.9 / 771.2, True,
                   "e2e measured, qwen35 engine, 128K prompt: 386.9 -> 771.2 tok/s (1 run each); the kernel model (283 s -> 96 s "
                   "of a 338 s prompt) would say +124%: 19 s of other time", "64K off baseline (dense 1,058 tok/s has none)")

@@ -12,6 +12,8 @@
 #include <utility>
 #include <vector>
 
+#include "strata/core/live_knobs.hpp"
+
 namespace strata::program {
 
 class KMissTier {
@@ -26,6 +28,10 @@ public:
         return t;
     }
     bool on() const { return k_ > 0; }
+    /// MOD_PLAN A44 (STRATA_BANDIT=kmiss): on() and not paused by the epoch bandit (live_knobs().kmiss_off, set between
+    /// windows).  Paused, the tier admits by the usage gain as without STRATA_ADAPT_KMISS; observe() / end_round() keep
+    /// the miss history either way (they test on()), so a resumed k-th miss has its last W rounds.  Placement only.
+    bool admits() const { return on() && !strata::core::live_knobs().kmiss_off.load(std::memory_order_relaxed); }
     int k() const { return k_; }
     int w() const { return w_; }
 

@@ -12,6 +12,9 @@
 #include "strata/core/verify.hpp"
 #include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/defer_rank.hpp"
+#include "strata/core/epoch_bandit.hpp"
+#include "strata/core/verify_ecap.hpp"
+#include "strata/core/switch_report.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
 #include "strata/core/expert_nibble.hpp"
@@ -773,7 +776,7 @@ Verifier::~Verifier() {
     if (warm_fork_) cudaEventDestroy(warm_fork_);
     if (warm_join_) cudaEventDestroy(warm_join_);
     void* hosts[] = {h_tok_, h_step_, h_pos_, h_commit_, h_ple_, h_out_, h_x_, h_ids_, h_w_, h_seq_, h_flag_, h_ymiss_,
-                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_};
+                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_, h_top_};
     for (void* h : hosts)
         if (h) cudaFreeHost(h);
 }
@@ -1005,6 +1008,48 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             defer_heavy_ = 0.0f;
         }
     }
+    {   // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO=1 (+ _MIN_T=<n>; opt-in, core/defer_auto.hpp): read before the mapped
+        // allocations, which keep the rank guard's word for it.  It needs the heavy split: the word only reaches the split's
+        // row copies (copy_rows_by_weight) and the pool's heavy pass.  The start-up line is below with the deferral's.
+        const char* a = std::getenv("STRATA_VERIFY_DEFER_AUTO");
+        const char* mt = std::getenv("STRATA_VERIFY_DEFER_AUTO_MIN_T");
+        bool a_known = true, mt_known = true;
+        const bool want = strata::core::parse_defer_auto(a, &a_known);
+        defer_auto_ = strata::core::DeferAutoConfig{};
+        defer_auto_.min_t = strata::core::parse_defer_auto_min_t(mt, &mt_known);
+        defer_auto_want_ = false;
+        if (!a_known)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO=%s is not 1 or 0: off\n", a);
+        if (!mt_known)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO_MIN_T=%s is not a whole number in 0..%d: 0 (any "
+                                 "lookup window)\n", mt, strata::core::kDeferAutoMaxMinT);
+        if (want && !defer_)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO ignored (it needs STRATA_VERIFY_DEFER_CPU=1 or "
+                                 "check)\n");
+        else if (want && defer_heavy_ <= 0.0f)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO ignored (it needs the deferral's heavy split: "
+                                 "STRATA_VERIFY_DEFER_CPU_BELOW below 1 and no helper GPU): the deferral acts in every "
+                                 "window it can\n");
+        else
+            defer_auto_want_ = want;
+    }
+    {   // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): host side only, the
+        // start-up line is below with the deferral's
+        const char* v = std::getenv("STRATA_VERIFY_ECAP");
+        const int c = strata::core::verify_ecap_parse(v);
+        ecap_ = -1;
+        if (c == -2)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%s is not a count in 0..63: off\n", v);
+        else if (c >= (int) ss.k)   // a row names k experts: a cap of k or more never drops one
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d: a token routes %d experts, so nothing is ever "
+                                 "capped: off\n", c, (int) ss.k);
+        else if (c >= 0 && (pool_gpu_helper() != nullptr || remote_opt_ != nullptr))
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d is not taken with %s (its rows are claimed outside "
+                                 "the window's plan): off\n", c,
+                         pool_gpu_helper() != nullptr ? pool_gpu_helper() : "--remote-expert-opt");
+        else
+            ecap_ = c;
+    }
     // ---- mapped staging
     bool ok = mapped(T * 4, (void**) &h_tok_, (void**) &m_tok_) &&
               mapped(T * strata::kernels::kStepCount * 4, (void**) &h_step_, (void**) &m_step_) &&
@@ -1023,8 +1068,14 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
               mapped(64, (void**) &h_flagB_, (void**) &m_flagB_) &&
               mapped(64, (void**) &h_plan_err_, (void**) &m_plan_err_) &&
               mapped(T * K * N * 4, (void**) &h_ymiss_, (void**) &m_ymiss_) &&
-              (defer_heavy_ <= 0.0f || mapped(64, (void**) &h_pflag_, (void**) &m_pflag_));
+              (defer_heavy_ <= 0.0f || mapped(64, (void**) &h_pflag_, (void**) &m_pflag_)) &&
+              // MOD_PLAN A44: the rank guard's mapped word, only when STRATA_BANDIT may move it (or, MOD_PLAN 17.1 note,
+              // STRATA_VERIFY_DEFER_AUTO moves it; without it the test is the A44 one, term for term)
+              (defer_heavy_ <= 0.0f ||
+               !(defer_auto_want_ || (strata::core::defer_top() > 0 && strata::core::bandit_requested(strata::core::kBanditTop))) ||
+               mapped(64, (void**) &h_top_, (void**) &m_top_));
     if (!ok) { err = "verify: mapped staging allocation failed " + strata::core::pin_exhausted_hint(); return false; }
+    if (h_top_ != nullptr) *(volatile int32_t*) h_top_ = strata::core::defer_top();   // (as captured, until a window stages it)
     if (const char* wm = std::getenv("STRATA_IC_WARM_MB"); wm != nullptr && std::atoi(wm) > 0 && warm_segs_ == nullptr) {
         // item 47: per layer, the matrices its window reads before the doorbell (mixer projections, router), as the kernels
         // read them (the native GGUF copy where there is one)
@@ -1054,7 +1105,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             cudaStreamCreateWithFlags(&warm_, cudaStreamNonBlocking) != cudaSuccess ||
             cudaEventCreateWithFlags(&warm_fork_, cudaEventDisableTiming) != cudaSuccess ||
             cudaEventCreateWithFlags(&warm_join_, cudaEventDisableTiming) != cudaSuccess) {
-            std::fprintf(stderr, "strata verify: STRATA_IC_WARM_MB: setup failed, off\n");
+            switch_report::will_not_act(switch_report::ic_warm, "its setup failed (no weights, or the side stream's allocation)");
             if (warm_segs_) cudaFree(warm_segs_);
             warm_segs_ = nullptr;
         } else {
@@ -1450,16 +1501,54 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         cudaFreeHost(h_pflag_);   // (nothing raises or waits for it then: as if it had never been allocated)
         h_pflag_ = nullptr;
         m_pflag_ = nullptr;
+        if (h_top_ != nullptr) cudaFreeHost(h_top_);   // (A44: no heavy split, no rank guard to move)
+        h_top_ = nullptr;
+        m_top_ = nullptr;
     }
     if (defer_heavy_ > 0.0f && strata::core::defer_top() > 0)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_TOP=%d: a CPU entry among its token's top %d by weight "
                              "is also kept on time (item 28 rank guard)\n", strata::core::defer_top(), strata::core::defer_top());
+    // MOD_PLAN A44: the serve loop's epoch bandit may turn the rank guard on or off between windows (the word may also be
+    // here for STRATA_VERIFY_DEFER_AUTO alone: the bandit is told only when it asked for the word, as before)
+    if (h_top_ != nullptr && strata::core::defer_top() > 0 && strata::core::bandit_requested(strata::core::kBanditTop)) {
+        strata::core::live_knobs().top_word.store(true, std::memory_order_relaxed);
+        std::fprintf(stderr, "strata verify: STRATA_BANDIT=top: the window graphs read the rank guard from a mapped word "
+                             "staged with each window (lossy, small: the bandit decides which windows keep top %d on time)\n",
+                     strata::core::defer_top());
+    }
+    // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: on only with the word (STRATA_VERIFY_DEVICE_PLAN freed it above)
+    defer_auto_.on = defer_auto_want_ && h_top_ != nullptr && defer_heavy_ > 0.0f;
+    if (defer_auto_want_ && !defer_auto_.on)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO ignored (STRATA_VERIFY_DEVICE_PLAN=1 turns the "
+                             "deferral's heavy split off): the deferral acts in every window it can\n");
+    if (defer_auto_.on)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_AUTO=1 (MOD_PLAN 17.1 note, changes the output only through "
+                             "the deferral): only the serve loop's lookup (suffix-draft or chained) decode windows of %d rows "
+                             "or more defer their light CPU rows; every other window keeps every CPU row on time (it stages "
+                             "the rank guard at %d).  The window graphs stay the deferral's: STRATA_COMBINE_CPU, "
+                             "STRATA_WAIT_FUSE and STRATA_ROUTE_PUBLISH stay off in every window.  Prompt reads, pipelined "
+                             "and batch windows and strata generate never defer under it\n",
+                     defer_auto_.min_t > 2 ? defer_auto_.min_t : 2, (int) ss.k);
+    if (defer_heavy_ > 0.0f && strata::core::defer_fold() > 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_FOLD=%d: a layer with heavy CPU rows and at most %d "
+                             "light expert(s) runs them in one pool pass (the same rows join late; MOD_PLAN A4)\n",
+                     strata::core::defer_fold(), strata::core::defer_fold());
+    else if (strata::core::defer_fold() > 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_FOLD=%d ignored (no heavy/light split: it needs "
+                             "STRATA_VERIFY_DEFER_CPU=1 or check with a weight below 1)\n", strata::core::defer_fold());
     if (defer_heavy_ > 0.0f)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_BELOW=%g%s: a deferred layer waits for its CPU rows "
                              "of routing weight >= %g (the pool computes them first) and combines them; the lighter "
                              "ones join late\n", defer_heavy_, below_set ? "" : " (the default)", defer_heavy_);
     else if (defer_ && below >= 1.0f)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_BELOW=%g: every CPU row joins late\n", below);
+    if (ecap_ >= 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d (changes the output; MOD_PLAN F5): in a decode window each "
+                             "draft row (rows 1..T-1, never row 0) reads at most %d CPU expert(s) that row 0 and the rows "
+                             "before it do not read anyway, by routing rank; the rest add zero%s.  Not in a prompt read, a "
+                             "merged first window, a batch or pipelined window, or while the request's grammar is "
+                             "enforcing\n", ecap_, ecap_,
+                     defer_ ? " (STRATA_VERIFY_DEFER_CPU then defers what is left)" : "");
     return true;
 }
 
@@ -1532,13 +1621,27 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     // GEMV - bitwise the launches it replaces
     static const bool g_cfuse = [] { const char* v = std::getenv("STRATA_COMBINE_CPU"); return v != nullptr && v[0] == '1'; }();
     static const bool g_wait_fuse = [] { const char* v = std::getenv("STRATA_WAIT_FUSE"); return v != nullptr && v[0] == '1'; }();
-    auto cfuse_on = [&](int n) {
+    // F21 STRATA_WAIT_COPY256=1 (verify_kernels.cu): only the plan copies that wait (WAIT_FUSE's, FUSE_WAIT's) take it
+    static const bool g_copy256 = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
+    // why the fused CPU combine is off for a window of n rows (nullptr: on; "": only the row count, it takes 2..8 rows)
+    auto cfuse_off = [&](int n) -> const char* {
         // not with STRATA_VERIFY_DEFER_CPU: a deferred layer's CPU rows join a layer later, so they are not in the
         // mapped buffer when this combine reads them (it produced non-finite logits on the 7900 XT)
-        return g_cfuse && !defer_ && !ar_on() && !device_plan_ && !remote_opt_ && K == 10 &&
-               native_moe_combine_enabled() && dec_batch && n > 1 && n <= 8 && shared_expert_native_bf16_enabled() &&
-               strata::kernels::cpu::expert_layout().native && (N & 3) == 0;
+        return !g_cfuse                                      ? "it needs STRATA_COMBINE_CPU=1"
+             : defer_                                        ? "STRATA_VERIFY_DEFER_CPU is on"
+             : ar_on()                                       ? "every expert is resident in VRAM"
+             : device_plan_                                  ? "STRATA_VERIFY_DEVICE_PLAN is on"
+             : remote_opt_ != nullptr                        ? "--remote-expert-opt is set"
+             : K != 10                                       ? "the model's top-k is not 10"
+             : !native_moe_combine_enabled()                 ? "the native MoE combine is off"
+             : !dec_batch                                    ? "STRATA_DEC_BATCH=0"
+             : n <= 1 || n > 8                               ? ""
+             : !shared_expert_native_bf16_enabled()          ? "the shared expert is not native BF16"
+             : !strata::kernels::cpu::expert_layout().native ? "the CPU experts are not in the native layout"
+             : (N & 3) != 0                                  ? "the model width is not a multiple of 4"
+                                                             : nullptr;
     };
+    auto cfuse_on = [&](int n) { return cfuse_off(n) == nullptr; };
     bool sg_gated_[2] = {false, false};   // per group: the combine applies the shared gate
     if (!batch_rec_) groups_[T] = G;
     // STRATA_VERIFY_DEFER_CPU=1 (opt-in, changes the output; defer_ok says which windows): post(l) of a deferred layer
@@ -1576,7 +1679,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if !defined(STRATA_GPU_METAL)
             if (heavy)   // the light rows (the heavy ones are in layer dl's combine already)
                 copy_rows_by_weight(def_parts_, ym, (int64_t) n * K, N, pl + 4 + MT * K + 1, pl + 1, w_ + tb * K,
-                                    defer_heavy_, false, cs, (int) K, strata::core::defer_top());
+                                    defer_heavy_, false, cs, (int) K, strata::core::defer_top(), m_top_);
             else
 #endif
             if (dec_batch)   // the GPU's own rows (p_dst[0, counts[1])) are zeros
@@ -1625,16 +1728,26 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 
     // ---- the window's inputs, from mapped staging.  With branches the steps and positions (first read by the first
     // layer's mixer) cross PCIe on side 1 beside the embedding and the first hyper-connection read.
-    copy_i32_from_mapped(tok_, m_tok_, T, cs);
     bool inputs_pending = false;
     cudaStream_t in_s = cs;
     if (br) {
+        copy_i32_from_mapped(tok_, m_tok_, T, cs);
         fork(1);
         in_s = df_side_[1];
         inputs_pending = true;
+        const MappedCopy in[2] = {
+            {step_, m_step_, (int64_t) T * kStepCount},
+            {pos_, m_pos_, (int64_t) MT * (NH + NKV + IQ)}
+        };
+        copy_from_mapped_multi(in, 2, in_s);
+    } else {
+        const MappedCopy in[3] = {
+            {tok_, m_tok_, T},
+            {step_, m_step_, (int64_t) T * kStepCount},
+            {pos_, m_pos_, (int64_t) MT * (NH + NKV + IQ)}
+        };
+        copy_from_mapped_multi(in, 3, cs);
     }
-    copy_i32_from_mapped(step_, m_step_, (int64_t) T * kStepCount, in_s);
-    copy_i32_from_mapped(pos_, m_pos_, (int64_t) MT * (NH + NKV + IQ), in_s);
     // per-ROW positions of the K rows [t][NKV] and the indexer query rows [t][IQ] (for batched RoPE)
     const int32_t* pos_k = pos_ + MT * NH;
     const int32_t* pos_i = pos_ + MT * (NH + NKV);
@@ -2413,21 +2526,53 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         // STRATA_ROUTE_PUBLISH=1: the top-10 and the doorbell publish in one launch (the path doorbell_publish_res takes)
         static const bool g_rpub = [] { const char* v = std::getenv("STRATA_ROUTE_PUBLISH"); return v != nullptr && v[0] == '1'; }();
         static const bool g_route_prior_set = std::getenv("STRATA_ROUTE_PRIOR") != nullptr;   // (read once, not per layer)
-        const bool rpub = g_rpub && dec_batch && n > 1 && n <= 8 && w_router != nullptr && native_router_enabled() &&
-                          NE == 512 && K == 10 && !ar_on() && !device_plan_ && !remote_opt_ && !always_publish_ &&
-                          !defer_ &&   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
-                          !g_route_prior_set && route_resident_cfg().margin <= 0.0f
+        // STRATA_ROUTE_FAST=1 (F9, opt-in): the router GEMV copies the MoE input rows to the host, and one launch makes the
+        // top-10, publishes ids AND weights and STORES this step's ring (native_router_top10_publish_fast); every other
+        // publish below is skipped.  It publishes what doorbell_publish does (every row, the ids, the weights), so unlike
+        // ROUTE_PUBLISH it also runs under STRATA_VERIFY_DEFER_CPU: route_publish_res publishes no weights (the pool's
+        // heavy split reads them), and with the split on its ring came on top of doorbell_publish's - two rings a step
+        // (a reading of the code behind the 2026-11-09 non-finite bisect, d5b58f669).  The ring value is the step's
+        // number, as doorbell_publish_value / device_plan_ use it: the host resets the ring to 0 in stage_inputs and
+        // waits for k + 1 at step k.  Not with the lookahead router (its rows must be published before the ring).
+        static const bool g_rfast = native_router_fast_enabled();
+        // item 48 (STRATA_ROUTER_FUSE=1, opt-in): ROUTE_PUBLISH's launch rides in the router GEMV's last block
+        static const bool g_rfuse = [] { const char* v = std::getenv("STRATA_ROUTER_FUSE"); return v != nullptr && v[0] == '1'; }();
+        // the session conditions both one-launch publishes (ROUTE_FAST's and ROUTE_PUBLISH's) need, the first that fails
+        // named (nullptr: none; the window's 2..8 rows are checked apart).  The two switches' "will not act" lines say it.
+        auto publish_off = [&]() -> const char* {
+            return !dec_batch                             ? "STRATA_DEC_BATCH=0"
+                 : w_router == nullptr                    ? "the layer has no router weight"
+                 : !native_router_enabled()               ? "the native router is off"
+                 : NE != 512 || K != 10                   ? "the router is not 512 experts x top-10"
+                 : ar_on()                                ? "every expert is resident in VRAM"
+                 : device_plan_                           ? "STRATA_VERIFY_DEVICE_PLAN is on"
+                 : remote_opt_ != nullptr                 ? "--remote-expert-opt is set"
+                 : always_publish_                        ? "the windows always publish (pipelined)"
+                 : g_route_prior_set                      ? "STRATA_ROUTE_PRIOR is set"
+                 : !(route_resident_cfg().margin <= 0.0f) ? "the STRATA_ROUTE_RESIDENT margin is above 0"
+                                                          : nullptr;
+        };
+        const char* const pub_off = g_rfast || g_rpub ? publish_off() : nullptr;
+        const bool rows_2_8 = n > 1 && n <= 8;
+        const bool rfast = g_rfast && rows_2_8 && pub_off == nullptr && la_out_ == nullptr;
+        const uint32_t ring_step = (uint32_t) ((l - lb_) * G + grp + 1);
+        const bool rpub = !rfast && g_rpub && rows_2_8 && pub_off == nullptr &&
+                          !defer_   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
 #if defined(STRATA_USE_HIP)
                           && !g_doorbell_store
 #endif
             ;
+        bool rfuse = false, rdone = false, rows_on_host = false;
         if (dec_batch && n > 1 && w_router != nullptr && native_router_enabled() && NE == 512 && K == 10) {
             try {
                 // item 48 (STRATA_ROUTER_FUSE=1): the publish rides in the router GEMV's last block when its kernel takes it
-                const bool rfuse = rpub && bf16_router_publish_arm(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
-                                                                    hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
-                                                                    (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N,
-                                                                    m_ids_ + tb * K, m_seq_, cs);
+                rfuse = rpub && bf16_router_publish_arm(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
+                                                        hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
+                                                        (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N,
+                                                        m_ids_ + tb * K, m_seq_, cs);
+                // STRATA_ROUTE_FAST: the router GEMV's blocks copy the rows (xm = its x) to the host when its kernel can
+                // (the multi kernel, contiguous aligned rows); else the publish launch below copies them
+                if (rfast) bf16_router_xpub_arm(xm, N, N, n, m_x_ + tb * N);
                 if (w_sgi != nullptr)
                     sg_ready = bf16_gemv_fp32_mmvf_multi_aux(mixed_ + tb * N, N, (const uint16_t*) w_router->data,
                                                              logits_ + tb * NE, NE, N, NE, n,
@@ -2435,9 +2580,14 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 if (!sg_ready)
                 bf16_gemv_fp32_mmvf_multi(mixed_ + tb * N, N, (const uint16_t*) w_router->data, logits_ + tb * NE, NE, N,
                                           NE, n, cs);
-                const bool rdone = rfuse && bf16_router_publish_used();
+                rdone = rfuse && bf16_router_publish_used();
+                rows_on_host = rfast && bf16_router_xpub_used();
                 if (rdone) {
-                } else if (rpub)
+                } else if (rfast)
+                    native_router_top10_publish_fast(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n,
+                                                     rows_on_host ? nullptr : xm, (int64_t) n * N, m_x_ + tb * N,
+                                                     m_ids_ + tb * K, m_w_ + tb * K, m_seq_, ring_step, cs);
+                else if (rpub)
                     native_router_top10_publish_res(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, xm,
                                                     hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
                                                     (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N, m_ids_ + tb * K,
@@ -2459,6 +2609,31 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             MoEBuffers mb = ss.moe;
             mb.logits = logits_ + t * NE; mb.ids = ids_ + t * K; mb.weights = w_ + t * K;
             if (!moe_route(wt, g, l, K, mb, mixed_ + t * N, cs, err, nullptr)) return false;
+        }
+        // the two router-step switches say once that they acted, or the first reason they did not (core/switch_report.hpp;
+        // a window of 1 or more than 8 rows is not a reason: it says nothing)
+        if (rfast)
+            switch_report::acted(switch_report::route_fast, "the top-10, ids + weights and the step's ring in one launch, the "
+                                 "rows copied by the %s (F9)", rows_on_host ? "router GEMV" : "publish launch");
+        else if (g_rfast) {
+            const char* why = pub_off != nullptr ? pub_off : la_out_ != nullptr ? "the lookahead router is on" : nullptr;
+            if (why != nullptr) switch_report::will_not_act(switch_report::route_fast, "%s", why);
+        }
+        if (rdone)
+            switch_report::acted(switch_report::router_fuse, "the router GEMV's last block makes the top-10 and publishes "
+                                 "(item 48)");
+        else if (g_rfuse) {
+            const char* why = !g_rpub            ? "it needs STRATA_ROUTE_PUBLISH=1"
+                            : pub_off != nullptr ? pub_off
+                            : defer_             ? "STRATA_VERIFY_DEFER_CPU is on"
+#if defined(STRATA_USE_HIP)
+                            : g_doorbell_store   ? "STRATA_DOORBELL_STORE is on"
+#endif
+                            : rfast              ? "STRATA_ROUTE_FAST=1 takes the router step"
+                            : !rpub              ? nullptr   // only the window's row count
+                            : !rfuse             ? "no route-publish slot is left for this stream"
+                                                 : "the router GEMV's launch is not the 256-thread kernel that takes it";
+            if (why != nullptr) switch_report::will_not_act(switch_report::router_fuse, "%s", why);
         }
         // MOD_PLAN 10.2: the next layer's routing predicted from this layer's input, published before this layer's
         // doorbell (the ring is last), so the pool's lookahead finds it in host memory when the doorbell rings
@@ -2514,6 +2689,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                               hits_.cache_base, slot_off_d_, (long long) hits_.blob,
                               plan_ + (size_t) grp * (size_t) (plan_i32_ + 16), (long long) max_t_ * K, skip_ + grp,
                               (uint32_t) ((l - lb_) * G + grp + 1), cs);
+            if (rfast) {
+                // STRATA_ROUTE_FAST: the router's launch published this step (rows, ids, weights) and stored its ring
+            } else
 #if defined(STRATA_USE_HIP)
             if (g_doorbell_store)   // #649 A/B: the step's ring stored, not incremented over PCIe
                 doorbell_publish_value(xm, ids_ + tb * K, w_ + tb * K, (int64_t) n * N, (int64_t) n * K, m_x_ + tb * N,
@@ -2644,6 +2822,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         bool hits_in_combine = false;
         if (ar_on()) {
             strata::dispatch::note("experts layer: all-resident device plan, grouped experts straight into the parts (no doorbell, no CPU rows)");
+            if (g_copy256) switch_report::will_not_act(switch_report::wait_copy256, "every expert is resident in VRAM: no plan copy");
             stamp(l, 19, grp);
             grouped(p_ptr, p_start, p_counts, 0, parts_out, true);
             stamp(l, 20, grp);
@@ -2652,12 +2831,20 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             if (device_plan_) {   // E-6: skipped when the device planned this group (all its experts resident)
                 wait_flag_ge_or(m_flagA_, ring, skip_ + grp, cs);
                 copy_i32_from_mapped_unless(pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, skip_ + grp, ring, cs);
+                if (g_copy256)
+                    switch_report::will_not_act(switch_report::wait_copy256, "STRATA_VERIFY_DEVICE_PLAN copies the plan in its "
+                                                "own launches");
             } else if (g_wait_fuse) {   // the pool published this group's GPU plan: wait and copy in one launch
                 wait_flag_copy_i32(m_flagA_, ring, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, cs);
             } else {
                 if (fuse_wait_on() && !prof_on_ && m_bal_ == nullptr) {   // 143-amdk: one launch for the wait and the copy
                     wait_copy_i32_from_mapped(m_flagA_, ring, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, cs);
                 } else {
+                if (g_copy256)
+                    switch_report::will_not_act(switch_report::wait_copy256, "the plan's wait and copy are two launches (%s)",
+                                                prof_on_            ? "STRATA_VERIFY_PROFILE is set"
+                                                : m_bal_ != nullptr ? "STRATA_PCIE_BALANCE is on"
+                                                                    : "it needs STRATA_WAIT_FUSE=1 or STRATA_FUSE_WAIT=1");
                 if (m_bal_ != nullptr)   // set_pcie_balance: the GPU's share starts as the plan arrives
                     wait_flag_ge_stamped(m_flagA_, ring, nullptr, m_bal_ + ((l - lb_) * 2 + grp) * 4, cs);
                 else
@@ -2693,7 +2880,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if !defined(STRATA_GPU_METAL)   // (as late_add's defer_add_rows)
                 if (heavy)
                     copy_rows_by_weight(parts_out, m_ymiss_ + (size_t) tb * K * N, (int64_t) n * K, N, p_dst, p_counts + 1,
-                                        w_ + tb * K, defer_heavy_, true, cs, (int) K, strata::core::defer_top());
+                                        w_ + tb * K, defer_heavy_, true, cs, (int) K, strata::core::defer_top(), m_top_);
                 else
                     fill_zero(parts_out, (long long) n * K * N, cs);
 #endif
@@ -2747,6 +2934,16 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             strata::kernels::ic_warm(warm_segs_ + warm_off_[(size_t) (l + 1)], warm_off_[(size_t) (l + 2)] - warm_off_[(size_t) (l + 1)],
                                      warm_cap_, warm_);
             cudaEventRecord(warm_join_, warm_);
+            switch_report::acted(switch_report::ic_warm, "layer %lld's pre-doorbell weights read on a side stream during "
+                                 "layer %lld's CPU wait (item 47)", (long long) (l + 1), (long long) l);
+        } else if (warm_segs_ != nullptr && grp == 0 && l + 1 < le_) {
+            // the reads ride in the fused CPU combine's wait: why there is none (STRATA_VERIFY_DEFER_CPU turns it off)
+            const char* why = cfuse_off(n);
+            if (why == nullptr)
+                switch_report::will_not_act(switch_report::ic_warm, "the side stream's fork failed");
+            else if (why[0] != '\0')
+                switch_report::will_not_act(switch_report::ic_warm, "the fused CPU combine is off (%s): the reads ride in "
+                                            "its CPU wait", why);
         }
         if (!ar_on() && cfuse_on(n)) {
             // item 51 (STRATA_CPU_PRESUM=1, not bit-identical): the host pre-sums each token's CPU rows (weighted); recorded per
@@ -3452,6 +3649,13 @@ void Verifier::stage_inputs(int T, const int32_t* tokens, int64_t pos0) {
     if (herr_h_ != nullptr) *(volatile uint32_t*) herr_h_ = 0;
     if (hdrop_h_ != nullptr) *(volatile uint32_t*) hdrop_h_ = (g_test_drop > 0 && windows + 1 == g_test_drop) ? 1u : 0u;
     if (h_pflag_ != nullptr) *(volatile uint32_t*) h_pflag_ = 0;
+    if (h_top_ != nullptr) {   // MOD_PLAN A44 (STRATA_BANDIT=top): this window's rank guard, one value for the GPU and the pool
+        // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: a window no caller marked with set_defer_window stages k, so every CPU
+        // entry is heavy and kept on time (core/defer_auto.hpp); without the switch, defer_top_now() as before
+        const int top = strata::core::defer_staged_top(defer_auto_.on, defer_next_, strata::core::defer_top_now(), (int) ss_->k);
+        *(volatile int32_t*) h_top_ = top;
+        sink_.top = top;
+    }
     std::atomic_thread_fence(std::memory_order_seq_cst);
     strata_store_fence();
     last_t_ = T;
@@ -3605,6 +3809,18 @@ bool Verifier::prelaunch(int T, const int32_t* tokens, int64_t pos0, std::string
 
 bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool, void* user, int32_t* out,
                    std::string& err) {
+    // MOD_PLAN F5 STRATA_VERIFY_ECAP: set_ecap_window is this run's borrow, cleared here on every path (a later stage
+    // clears its own in its run).  Never a prompt read (head sampling off: every row is committed) or a one-token window.
+    const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= 2 && head_sampling_;
+    ecap_next_ = false;
+    // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: set_defer_window is this run's borrow too.  stage_inputs reads it below
+    // (or prelaunch read it already, for a stage the previous one launched), so it is cleared at the exit of every path,
+    // not here - for this stage and the later ones, whose runs and prelaunch helper (joined by NextLaunch, which is
+    // destroyed before this) all end inside this run.  A window the next caller does not mark then keeps every row on time.
+    struct DeferBorrow {
+        Verifier& v;
+        ~DeferBorrow() { v.set_defer_window(false); }
+    } defer_borrow{*this};
     const bool measure = spec_measure_;
     // Clear this borrow and propagated stage borrows on every exit.
     struct ProposalBorrow {
@@ -3623,6 +3839,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     if (measure) { err = "verify: proposal unsupported on Metal"; return false; }
     (void) pool;
     (void) user;
+    (void) ecap_win;   // (the Metal window has no host expert pool)
     {   // a sampled, penalised or biased request: the head rows are sampled on the GPU (metal/kernels/sample.metal), Philox(seed, pos0 + t) as the CUDA head
         const bool sampled_m = !sampling_.greedy && sampling_.temperature > 0.0f;
         if (head_sampling_ && (sampled_m || hist_d_ != nullptr || sampling_.logit_bias != nullptr)) {
@@ -3871,6 +4088,9 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         sink_.presum = T >= 1 && T <= strata::kernels::kVerifyLongT && presum_[T][grp];   // item 51
         sink_.presum_dst = sink_.presum && presum_vram_ != nullptr ? presum_vram_ + (size_t) tb * g.n_embd : nullptr;   // item 52
         sink_.route_w = strata::core::window_trace().on() || sink_.presum ? h_w_ + (size_t) tb * ss.k : nullptr;   // items 64, 51
+        // MOD_PLAN F5 STRATA_VERIFY_ECAP: this group's draft rows; the window's row 0 (committed) leads the group at tb 0
+        sink_.ecap = ecap_win ? ecap_ : -1;
+        sink_.ecap_first = tb == 0 ? 1 : 0;
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW: this layer's split, if post(l) waits for it
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
@@ -4062,6 +4282,33 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
                     std::fprintf(stderr, "strata verify: STRATA_LOGITS_DUMP copy failed: %s\n", cudaGetErrorString(le));
                     (void) cudaGetLastError();
                 }
+            }
+        }
+    }
+    // STRATA_WINDOW_TRACE_TARGET=1 (opt-in, MOD_PLAN A56): the TARGET's probability of each drafted token, for the window
+    // trace's record 6.  Logging only: the logits are read back after the window; the argmax / sampling path is untouched.
+    // Entry j-1 is softmax(logits of row j-1)[tokens[j]] over the raw logits (temperature 1).
+    static const bool g_target_trace = [] { const char* v = std::getenv("STRATA_WINDOW_TRACE_TARGET"); return v != nullptr && v[0] == '1'; }();
+    if (g_target_trace && T > 1 && strata::core::window_trace().on()) {
+        std::vector<float> h((size_t) T * (size_t) n_vocab_);
+        if (cudaMemcpy(h.data(), head_logits_, h.size() * sizeof(float), cudaMemcpyDeviceToHost) == cudaSuccess) {
+            std::vector<float> tp((size_t) (T - 1));
+            for (int j = 1; j < T; ++j) {
+                const float* row = h.data() + (size_t) (j - 1) * (size_t) n_vocab_;
+                float mx = -INFINITY;
+                for (int64_t v = 0; v < n_vocab_; ++v) mx = std::max(mx, row[v]);
+                double sum = 0.0;
+                for (int64_t v = 0; v < n_vocab_; ++v) sum += std::exp((double) row[v] - (double) mx);
+                const int32_t d = tokens[j];
+                tp[(size_t) (j - 1)] = (d >= 0 && d < n_vocab_)
+                    ? (float) (std::exp((double) row[d] - (double) mx) / sum) : std::nanf("");
+            }
+            strata::core::window_trace().target(tp.data(), (int) tp.size());
+        } else {
+            static bool said = false;
+            if (!said) {
+                said = true;
+                std::fprintf(stderr, "strata verify: STRATA_WINDOW_TRACE_TARGET copy failed: %s\n", cudaGetErrorString(cudaGetLastError()));
             }
         }
     }
@@ -5170,6 +5417,7 @@ bool Verifier::run_slot_rows(const int* rows, int S, const int32_t* tokens, cons
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
         sink_.weights = nullptr;   // (STRATA_VERIFY_DEFER_CPU_BELOW: a batch window never defers - one pass)
         sink_.partial = nullptr;
+        sink_.ecap = -1;           // (MOD_PLAN F5 STRATA_VERIFY_ECAP: a batch window's rows are every slot's committed row)
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, l);
         if (remote_opt_) remote_opt_->end();
         progress_tick();
@@ -5387,6 +5635,7 @@ int Verifier::batch_serve(PoolMultiFn pool, void* user) {
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
         sink_.weights = nullptr;   // (as run_slot_rows)
         sink_.partial = nullptr;
+        sink_.ecap = -1;
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, lb_ + k);
         if (remote_opt_) remote_opt_->end();
         progress_tick();
@@ -5560,6 +5809,18 @@ bool Verifier::copy_logits(int t, float* host) const {
     if (head_logits_ == nullptr || host == nullptr || t < 0 || n_vocab_ <= 0) return false;
     return cudaMemcpy(host, head_logits_ + (size_t) t * (size_t) n_vocab_, (size_t) n_vocab_ * sizeof(float),
                       cudaMemcpyDeviceToHost) == cudaSuccess;
+}
+
+bool Verifier::copy_head_row(int t, float* host) const {
+#if defined(STRATA_GPU_METAL)
+    (void) t; (void) host;
+    return false;   // A19: the Metal window keeps its head input inside metal_engine (not wired)
+#else
+    if (next_ != nullptr) return next_->copy_head_row(t, host);   // a layer split: the head is on the last stage
+    if (head_mixed_ == nullptr || host == nullptr || g_ == nullptr || t < 0 || t >= max_t_) return false;
+    const size_t n = (size_t) g_->n_embd;
+    return cudaMemcpy(host, head_mixed_ + (size_t) t * n, n * sizeof(float), cudaMemcpyDeviceToHost) == cudaSuccess;
+#endif
 }
 
 
@@ -5760,6 +6021,7 @@ int Verifier::service(PoolMultiFn pool, void* user, std::string& err) {
         set_plan_slot(grp);
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window (pipelined): the CPU experts of layer", l);
+        sink_.ecap = -1;   // MOD_PLAN F5 STRATA_VERIFY_ECAP: not here (no decode loop opts a pipelined window in)
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW (as run)
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;

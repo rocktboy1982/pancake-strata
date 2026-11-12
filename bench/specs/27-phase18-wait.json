@@ -1,0 +1,29 @@
+{
+  "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+  "arms": {
+   "base": {},
+   "combine-poll1": {
+    "env": {
+     "STRATA_COMBINE_POLL1": "1"
+    }
+   },
+   "wait-fuse-off": {
+    "env": {
+     "STRATA_WAIT_FUSE": "0"
+    }
+   },
+   "fuse-wait": {
+    "env": {
+     "STRATA_WAIT_FUSE": "0",
+     "STRATA_FUSE_WAIT": "1"
+    }
+   }
+  },
+  "cases": [
+   "short",
+   "edit"
+  ],
+  "reps": 3,
+  "lossy": false,
+  "note": "Phase 18 window-overhead family (items 2-4 of MOD_PLAN Phase 18; profile pancake-docs/research/window-overhead/report.md, short case 2026-11-12: decode 3553 ms wall, kernels 76%, combine_cpu_k10_vec4 670.6 ms = 18.9% with WAIT_FUSE on, wait_flag_ge 150.1 ms = 5.5%, wait_flag_copy_i32 143.1 ms = 5.3%). All arms exact (Speed class, bitwise: conversation_disk_env.def 338/768/403). combine-poll1 = item 2, the largest ceiling: native_moe.cu:267-269 poll_slot_of returns -1 unless STRATA_COMBINE_POLL1=1, so with the preset's STRATA_WAIT_FUSE=1 every combine block's thread 0 polls the PCIe-mapped host flag; =1 elects one poller (CAS) and the others spin a VRAM word, cutting PCIe poll traffic while the CPU-share wait is unchanged. Treat the 18.9% as a ceiling, not a promise: the profile cannot separate combine spin from arithmetic, this arm splits it (rocprof combine time + token diff). wait-fuse-off = item 3: isolates STRATA_WAIT_FUSE on the preset that uses it (est 0-3%, unverified); watch finite logits (WAIT_FUSE is a non-finite suspect in the notes). fuse-wait = item 4: FUSE_WAIT with WAIT_FUSE off (ceiling ~10 ms / 0.3%, one graph node per plan). Run --tier screen on a quiet nightly window (never beside another engine); confirm any >= +2% arm with --tier confirm (A B B A, n>=8, robust). Log proof: combine-poll1 prints 'STRATA_COMBINE_POLL1: one block per combine polls the CPU-share flag (item 46)'. Base has deferral OFF (owner decision 2026-11-12), so the CPU-share combine wait is the active path this family measures."
+}

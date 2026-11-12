@@ -431,7 +431,17 @@ struct GpuPlanSink {
     /// item 52: where the pre-summed row of token t goes instead (presum_dst + t * n_embd, VRAM through ReBAR); null: the mapped row
     float* presum_dst = nullptr;
     float heavy = 0.0f;
+    /// MOD_PLAN A44 (STRATA_BANDIT=top): the rank guard of this window as its graph's row copy reads it (the verifier
+    /// stages both at once, defer_rank.hpp defer_top_now()); -1 (the default, the bandit not owning it): defer_top().
+    int top = -1;
     void (*partial)(void* ctx) = nullptr;
+    /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (verify.cpp, opt-in, changes the output; core/verify_ecap.hpp): >= 0 when this
+    /// call is one token group of a decode window whose rows from `ecap_first` on are drafts.  Each draft row then reads
+    /// at most `ecap` missed experts that the committed row and the earlier rows do not read anyway; the others are
+    /// skipped like a tail expert (kind -2).  `ecap_first` is 1 when the group holds the window's row 0, else 0.
+    /// -1 (the default, and every prompt, batch and pipelined window): off.
+    int ecap = -1;
+    int ecap_first = 1;
 };
 
 /// Verifier::set_pcie_balance: a verify window's costs, fitted to each layer's measured times (ms, least squares with
@@ -647,7 +657,8 @@ struct ExpertDispatch {
     /// each layer's distinct missed experts (the last ones in routing order) are read by the GPU over PCIe.
     GpuPlanSink* plan = nullptr;
     /// MOD_PLAN item 64 (STRATA_WINDOW_TRACE): when set, the multi dispatch leaves each entry's placement here
-    /// (0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped tail), entry token * k + j.
+    /// (0 VRAM, 1 PCIe, 2 peer/remote, -1 CPU, -2 skipped: a tail expert or an F5 STRATA_VERIFY_ECAP draft-only one),
+    /// entry token * k + j.
     bool trace_kind_on = false;
     std::vector<int32_t> trace_kind;
     int pcie_num = 0;
@@ -660,6 +671,10 @@ struct ExpertDispatch {
     /// and the distinct experts behind them (neither copied nor computed)
     int64_t tail_skipped = 0;
     int64_t tail_experts = 0;
+    /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n>: entries skipped because only draft rows over the cap named their expert, and
+    /// the distinct experts behind them (neither copied nor computed; not in tail_skipped / tail_experts)
+    int64_t ecap_entries = 0;
+    int64_t ecap_experts = 0;
     double ms_plan = 0, ms_actq = 0, ms_jobs = 0, ms_run = 0;   ///< verify-window dispatch sections
     double ms_jobs_src = 0;   ///< part of ms_jobs: the expert source's prefetch calls and blob lookups (item 2026-11-09)
     /// 149-cold STRATA_COLD_OVERLAP: 0 off (the CPU starts once every blob of the layer is read), 1 the blobs that
@@ -1380,6 +1395,10 @@ public:
     /// The headroom the arena must find under a HARD memory limit (cgroup, container, job object) beyond its own size when the fallback is
     /// allowed: the RAM copy's headroom (ple_residency.hpp, arena_hard_limit_need).  0: none.  Set before `open`.
     uint64_t hard_limit_headroom_bytes = 0;
+    /// #5327: `open` also says the "loads anyway" warning on stdout when this is set (`--serve`: a service setup keeps stdout in its log and
+    /// never sees stderr; the lines come before READY, which the server ignores).  Unset (a plain `generate` run): stderr only, so the token
+    /// stream stays clean.  Set before `open`.
+    bool notices_on_stdout = false;
     bool ram_short() const { return ram_short_; }
     /// #633: set by `open` when the RAM available is less than the arena needs (a recommendation; it still loads)
     const std::string& ram_warning() const { return ram_warning_; }

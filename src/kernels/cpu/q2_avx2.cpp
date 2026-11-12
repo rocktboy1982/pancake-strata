@@ -12,8 +12,10 @@
 #include <immintrin.h>
 
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 
 // STRATA_AVXVNNI (CMake: the compiler has the AVX-VNNI intrinsics), as in iq_avx2.cpp
 #if !defined(STRATA_AVXVNNI)
@@ -46,6 +48,35 @@ inline void unpack64(const uint8_t* codes, __m256i& lo, __m256i& hi) {
     const __m128i b0 = _mm_unpackhi_epi8(c0, c1), b1 = _mm_unpackhi_epi8(c2, c3);   // bytes 8..15
     lo = _mm256_set_m128i(_mm_unpackhi_epi16(a0, a1), _mm_unpacklo_epi16(a0, a1));  // values 0..31
     hi = _mm256_set_m128i(_mm_unpackhi_epi16(b0, b1), _mm_unpacklo_epi16(b0, b1));  // values 32..63
+}
+
+// The same lo / hi as unpack64, byte for byte, in 8 vector ops instead of ~14-17 (STRATA_Q2_FAST=1; imanu86
+// c3fc8f34d3).  The 16 code bytes go to both 128-bit lanes and are zero-extended to 16-bit words in the order
+// (bytes 0-3, 8-11 | bytes 4-7, 12-15).  With x = w | w << 6, the low byte of x & 0x0303 is bits 0-1 of byte i (the
+// code of value 4i) and its high byte bits 2-3 (value 4i+1, moved to bits 8-9 by the shift); the low byte of
+// (x >> 4) & 0x0303 is bits 4-5 (value 4i+2) and its high byte bits 6-7 (value 4i+3, at bits 12-13 of x).  w < 256,
+// so the OR never mixes the two copies inside a kept field.  The two 16-bit interleaves of those words then give
+// values 0..15 | 16..31 (lo) and 32..47 | 48..63 (hi).
+inline void unpack64_fast(const uint8_t* codes, __m256i& lo, __m256i& hi) {
+    const __m256i idx = _mm256_setr_epi8(0, -128, 1, -128, 2, -128, 3, -128, 8, -128, 9, -128, 10, -128, 11, -128,
+                                         4, -128, 5, -128, 6, -128, 7, -128, 12, -128, 13, -128, 14, -128, 15, -128);
+    const __m256i m = _mm256_set1_epi16(0x0303);
+    const __m256i x2 = _mm256_broadcastsi128_si256(_mm_loadu_si128((const __m128i*) codes));
+    const __m256i w = _mm256_shuffle_epi8(x2, idx);
+    const __m256i x = _mm256_or_si256(w, _mm256_slli_epi16(w, 6));
+    const __m256i c01 = _mm256_and_si256(x, m);                         // word i: codes of 4i, 4i+1
+    const __m256i c23 = _mm256_and_si256(_mm256_srli_epi16(x, 4), m);   // word i: codes of 4i+2, 4i+3
+    lo = _mm256_unpacklo_epi16(c01, c23);   // values 0..15 | 16..31
+    hi = _mm256_unpackhi_epi16(c01, c23);   // values 32..47 | 48..63
+}
+
+// A product rounded on its own: the empty asm hides it from FMA contraction (GCC, Clang); MSVC contracts only under
+// /fp:contract or /fp:fast, and then q2_fast_corr_form() finds row_multi contracted too.
+inline float rounded(float p) {
+#if defined(__GNUC__) || defined(__clang__)
+    __asm__("" : "+x"(p));
+#endif
+    return p;
 }
 
 // MOD_PLAN item 40 (STRATA_Q2_PREFETCH=<bytes>, opt-in, exact): before a row's dot, prefetch the bytes that lie that
@@ -161,6 +192,70 @@ const bool kBitplane = [] {
     return e != nullptr && e[0] == '1';
 }();
 
+template <bool FC>
+void fast_rows(bool vnni_rows, const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
+               float* const* out, int r0, int r1) {
+#if STRATA_AVXVNNI
+    if (vnni_rows) {
+        vnni::rows_fast_nt<FC>(w, row_bytes, nblocks, a, nt, out, r0, r1);
+        return;
+    }
+#endif
+    (void) vnni_rows;
+    plain::rows_fast_nt<FC>(w, row_bytes, nblocks, a, nt, out, r0, r1);
+}
+
+// q2_fast_corr_form: 5 rows of 2 blocks, d = 1 and 1 + 2^-10, zero codes and activations, hx sums -(1 + 2^-11) and
+// 1 + 2^-14, so a row is -corr: one FMA gives -(2^-11 + 2^-14 + 2^-24); a rounded product (1 + 2^-10 + 2^-14 + 2^-24,
+// a tie, to even) plus the add gives -(2^-11 + 2^-14).  At 1-4 tokens (row_multi<NT> are separate instances) and on
+// the 4-row group and the single row of the fast kernel.  The three row functions are called through volatile
+// pointers: the probe must run the out-of-line code the engine runs, not a copy folded against its constant inputs.
+int corr_form_probe(bool vnni_rows) {
+    using RowsFn = void (*)(bool, const uint8_t*, size_t, int, const ActQ* const*, int, float* const*, int, int);
+    RowsFn volatile ref_rows = q2_0_gguf_rows_multi_avx2_v, fma_rows = fast_rows<true>, rounded_rows = fast_rows<false>;
+    constexpr int kRows = 5, kBlocks = 2;
+    uint8_t w[kRows * kBlocks * BB] = {};
+    for (int r = 0; r < kRows; ++r) {
+        w[r * 2 * BB + 1] = 0x3C;           // fp16 1.0
+        w[r * 2 * BB + BB] = 0x01;          // fp16 1 + 2^-10
+        w[r * 2 * BB + BB + 1] = 0x3C;
+    }
+    auto a = std::make_unique<ActQ>();      // zero q and scales
+    a->nchunks = 2 * kBlocks;
+    a->hx[0] = -1.f;
+    a->hx[1] = -0x1p-11f;
+    a->hx[2] = 1.f;
+    a->hx[3] = 0x1p-14f;
+    const ActQ* ap[4] = {a.get(), a.get(), a.get(), a.get()};
+    bool fma_ok = true, rounded_ok = true;
+    for (int nt = 1; nt <= 4; ++nt) {
+        float ref[4][kRows], f1[4][kRows], f0[4][kRows];
+        float* pr[4] = {ref[0], ref[1], ref[2], ref[3]};
+        float* p1[4] = {f1[0], f1[1], f1[2], f1[3]};
+        float* p0[4] = {f0[0], f0[1], f0[2], f0[3]};
+        ref_rows(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, pr, 0, kRows);
+        fma_rows(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, p1, 0, kRows);
+        rounded_rows(vnni_rows, w, kBlocks * BB, kBlocks, ap, nt, p0, 0, kRows);
+        for (int t = 0; t < nt; ++t) {
+            fma_ok &= std::memcmp(ref[t], f1[t], sizeof ref[t]) == 0;
+            rounded_ok &= std::memcmp(ref[t], f0[t], sizeof ref[t]) == 0;
+        }
+    }
+    return fma_ok ? 1 : rounded_ok ? 0 : -1;
+}
+
+// STRATA_Q2_FAST=1 (opt-in for now) and STRATA_Q2_LEGACY=1 (wins over FAST), read once; see q2_0_gguf_rows_multi_avx2
+const bool kQ2Fast = [] {
+    const char* f = std::getenv("STRATA_Q2_FAST");
+    const char* l = std::getenv("STRATA_Q2_LEGACY");
+    if (f == nullptr || f[0] != '1' || (l != nullptr && l[0] == '1')) return false;
+    // the probe runs AVX2/FMA code from this static initializer: never on a CPU without them (reviewer finding 1)
+    if (!cpu_avx2_ok()) return false;
+    if (q2_fast_corr_form(STRATA_AVXVNNI && cpu_avxvnni_ok()) >= 0) return true;
+    std::fprintf(stderr, "strata: STRATA_Q2_FAST=1 ignored: the fast Q2_0 kernel does not match this build's legacy one\n");
+    return false;
+}();
+
 }  // namespace
 
 bool q2_bitplane_enabled() { return kBitplane; }
@@ -182,12 +277,43 @@ void q2_0_gguf_rows_multi_avx2_legacy(const uint8_t* w, size_t row_bytes, int nb
     q2_0_gguf_rows_multi_avx2_v(STRATA_AVXVNNI && cpu_avxvnni_ok(), w, row_bytes, nblocks, a, nt, out, r0, r1);
 }
 
+int q2_fast_corr_form(bool vnni_rows) {
+    if (vnni_rows) {
+        static const int f = corr_form_probe(true);
+        return f;
+    }
+    static const int f = corr_form_probe(false);
+    return f;
+}
+
+void q2_0_gguf_rows_multi_avx2_fast_v(bool vnni_rows, const uint8_t* w, size_t row_bytes, int nblocks,
+                                      const ActQ* const* a, int nt, float* const* out, int r0, int r1) {
+    switch (q2_fast_corr_form(vnni_rows)) {
+        case 1: fast_rows<true>(vnni_rows, w, row_bytes, nblocks, a, nt, out, r0, r1); break;
+        case 0: fast_rows<false>(vnni_rows, w, row_bytes, nblocks, a, nt, out, r0, r1); break;
+        default: q2_0_gguf_rows_multi_avx2_v(vnni_rows, w, row_bytes, nblocks, a, nt, out, r0, r1);   // no match: legacy
+    }
+}
+
+void q2_0_gguf_rows_multi_avx2_fast(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
+                                    float* const* out, int r0, int r1) {
+    q2_0_gguf_rows_multi_avx2_fast_v(STRATA_AVXVNNI && cpu_avxvnni_ok(), w, row_bytes, nblocks, a, nt, out, r0, r1);
+}
+
+// The exact (non-bit-plane) path: STRATA_Q2_FAST=1 selects the fast kernel (bitwise the legacy one, NaN payloads aside; see
+// q2_avx2_rows.inl), unless STRATA_Q2_LEGACY=1 forces the legacy one.  Default (neither set): legacy, byte-identical
+// to before.  Once tests/core/q2_fast_parity_test.cpp has passed on the AVX2 machines, FAST becomes the default and
+// STRATA_Q2_LEGACY=1 stays the A/B switch back (imanu86's semantics).  STRATA_Q2_BITPLANE=1 (lossy, its own switch)
+// still takes precedence over both, as before.
+bool q2_fast_enabled() { return kQ2Fast; }
+
 void q2_0_gguf_rows_multi_avx2(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
                                float* const* out, int r0, int r1) {
     bool bp = kBitplane && nblocks % 2 == 0;
     for (int t = 0; t < nt && bp; ++t) bp = a[t]->bp_pairs == nblocks / 2;
     if (!bp) {
-        q2_0_gguf_rows_multi_avx2_legacy(w, row_bytes, nblocks, a, nt, out, r0, r1);
+        if (kQ2Fast) q2_0_gguf_rows_multi_avx2_fast(w, row_bytes, nblocks, a, nt, out, r0, r1);
+        else q2_0_gguf_rows_multi_avx2_legacy(w, row_bytes, nblocks, a, nt, out, r0, r1);
         return;
     }
     const int np = nblocks / 2;

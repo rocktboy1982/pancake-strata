@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -146,6 +147,61 @@ inline int64_t balanced_chunk(int64_t tokens, int64_t cap, int64_t plan) {
         if ((double) tail / (double) c > best_tail) { best_tail = (double) tail / (double) c; best = c; }
     }
     return best;
+}
+
+// ---- MOD_PLAN 17.5: the chunks of one prompt segment, and the opt-in equal-tail rule ---------------------------------
+//
+// The serve loop reads a prompt in segments (generate.cpp `cuts`: the system prompt's end, the last turn boundary, the
+// last token), lends each one chunk (`lend` -> planned_chunk -> equal_chunk -> request_chunk: by default min(cap, the
+// segment rounded up to 256)), and Prefill::run_impl reads the segment in chunks of that size, the last one the rest.  A
+// chunk of stream_all_min() tokens or more streams every expert the GPU does not hold, overlapped with the compute; a
+// shorter one is STAGED: each layer copies its routed, non-resident experts only after its routing is known.  The
+// segment keeps the loan of its full chunk while it reads its last chunk too (88% of the expert cache on the 7900 XT at
+// 32768 tokens: 9,413 of 10,733 slots), so a staged last chunk of a long segment copies nearly every expert of every
+// layer with nothing to hide the copies behind.  Unconfirmed: read from the code; pancake-docs/PREFILL_LEVERS.md.
+
+/// The chunk lengths Prefill::run_impl reads a segment of `tokens` in when its chunk is `chunk`: full chunks, then the rest.
+inline std::vector<int64_t> chunk_lengths(int64_t tokens, int64_t chunk) {
+    std::vector<int64_t> out;
+    if (tokens <= 0 || chunk <= 0) return out;
+    for (int64_t c0 = 0; c0 < tokens; c0 += chunk) out.push_back(std::min(chunk, tokens - c0));
+    return out;
+}
+
+inline constexpr int64_t kEqualTailMinTail = 256;    ///< a shorter last chunk is left as it is (few tokens: few experts, little copy)
+inline constexpr int64_t kEqualTailMinChunk = 8192;  ///< evened chunks shorter than this are not taken (see equal_tail_chunk)
+
+/// STRATA_PREFILL_EQUAL_TAIL=1 (opt-in, default off; the idea is Strata-rdna3's `5906629d`, nicejunjie: do not keep a short
+/// last chunk beside full ones).  A segment longer than `cap` whose last chunk would be staged - shorter than `stream_min`
+/// but at least `min_tail` tokens - reads instead in the SAME number of chunks of equal size (rounded up to 256, at most
+/// `cap`), so every chunk streams and the loan is smaller.  Returns that chunk, or 0 where the rule does not apply and the
+/// caller keeps its own chunk: the segment fits one chunk; its last chunk streams already (STRATA_PREFILL_EQUAL's case);
+/// the last chunk is shorter than `min_tail`; or the evened chunks would be shorter than `min_chunk` or than `stream_min`
+/// (a small streamed chunk cannot hide its copy behind its compute: upstream measured a prompt 25 tokens past 8192 read 25%
+/// slower evened out, on two RTX 4090s, prefill.cpp pipeline_chunk).  The same chunks for the same segment every time.
+inline int64_t equal_tail_chunk(int64_t tokens, int64_t cap, int64_t stream_min, int64_t min_tail = kEqualTailMinTail,
+                                int64_t min_chunk = kEqualTailMinChunk) {
+    if (tokens <= 0 || cap <= 0 || min_tail < 1 || tokens > INT64_MAX / 2) return 0;
+    const int64_t n = tokens / cap + (tokens % cap != 0);
+    if (n < 2) return 0;
+    const int64_t last = tokens - (n - 1) * cap;
+    if (last >= stream_min || last < min_tail) return 0;
+    const int64_t per = tokens / n + (tokens % n != 0);
+    const int64_t c = std::min(cap, (per + 255) / 256 * 256);
+    // c >= tokens / n and c <= cap < tokens / (n - 1), so the chunk count stays n; the last chunk is the shortest
+    const int64_t last2 = tokens - (n - 1) * c;
+    if (c < min_chunk || c < stream_min || last2 < stream_min) return 0;
+    return c;
+}
+
+/// The rule's minimum tail from STRATA_PREFILL_EQUAL_TAIL and STRATA_PREFILL_EQUAL_TAIL_MIN as set (null: unset): 0 = off
+/// (unset, or a value that does not start with '1', as STRATA_PREFILL_EQUAL reads); else kEqualTailMinTail, or _MIN when it
+/// is a number of at least 1.
+inline int64_t equal_tail_min_from(const char* on, const char* min_tail) {
+    if (on == nullptr || on[0] != '1') return 0;
+    if (min_tail == nullptr || min_tail[0] == '\0') return kEqualTailMinTail;
+    const long long v = std::atoll(min_tail);
+    return v >= 1 ? (int64_t) v : kEqualTailMinTail;
 }
 
 /// One log line: what was chosen, why, and the reads it expects per prompt.

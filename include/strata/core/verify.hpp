@@ -23,6 +23,7 @@
 
 #include <cstdio>
 
+#include "strata/core/defer_auto.hpp"
 #include "strata/core/expert_source.hpp"
 #include "strata/core/flag_order.hpp"
 #include "strata/core/layer.hpp"
@@ -126,6 +127,10 @@ public:
     bool prepare(int T, bool& no_vram, std::string& err);
     /// Diagnostics: row `t` of the last window's head logits (n_vocab floats) to the host. Valid after run().
     bool copy_logits(int t, float* host) const;
+    /// A19 (STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE): row `t` of the last window's head input - the final hyper-connection read
+    /// with output_hc_norm, the n_embd floats the LM head reads (head_mixed_) - to the host.  Valid after run(), before the
+    /// next window; on the stage with the head (a layer split asks the last stage).  false: no such row (Metal: not wired).
+    bool copy_head_row(int t, float* host) const;
     int64_t vocab() const { return next_ ? next_->vocab() : n_vocab_; }
     /// #879 GUARD: the first row of the last finished window (run, run_slot_rows, batch_poll, pl_finish) whose head
     /// logits held a NaN or an infinity, else -1; nonfinite_pos() is that row's position.  Every window graph
@@ -200,6 +205,25 @@ public:
     /// picks are discarded - a prompt read through windows commits every token - so they cost no sampler launch
     /// or sync and never read a history staged for another position.
     void set_head_sampling(bool on) { head_sampling_ = on; if (next_) next_->set_head_sampling(on); }
+
+    /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the NEXT run's rows 1..T-1
+    /// are drafts, so the expert pool may skip the CPU experts that only those rows name past the cap.  The decode loop
+    /// says so per window: not for a merged first window (its rows are prompt tokens) and not while the request's grammar
+    /// is enforcing (a tool call or a JSON reply in progress).  A borrow for that run only, like set_spec_q: run clears it
+    /// on every path, so a window whose caller says nothing (a prompt read, a batch or pipelined window) is never capped.
+    void set_ecap_window(bool drafts) { ecap_next_ = drafts; if (next_) next_->set_ecap_window(drafts); }
+    /// STRATA_VERIFY_ECAP as init took it: the cap per draft row, -1 off.
+    int ecap() const { return ecap_; }
+
+    /// MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO=1 (opt-in, changes the output only through the deferral;
+    /// core/defer_auto.hpp): the NEXT run defers its light CPU rows as STRATA_VERIFY_DEFER_CPU configures.  A borrow for
+    /// that run only, like set_ecap_window: run clears it on every path, so under the gate a window whose caller says
+    /// nothing (a prompt read, a pipelined or batch window, strata generate) keeps every CPU row on time.  Nothing at all
+    /// unless defer_auto().on.
+    void set_defer_window(bool defer) { defer_next_ = defer; if (next_) next_->set_defer_window(defer); }
+    /// STRATA_VERIFY_DEFER_AUTO as init took it: on only when the deferral and its heavy split are on (the gate moves the
+    /// rank guard's mapped word, which exists only with the split).
+    const strata::core::DeferAutoConfig& defer_auto() const { return defer_auto_; }
 
     /// LAYER SPLIT (multi-GPU): this verifier runs layers [layer_begin, layer_end) of every window.  A stage that
     /// does not start at layer 0 takes its residual from `handoff_in` instead of embedding the tokens; a stage that
@@ -768,8 +792,20 @@ private:
     // combines those rows, the lighter ones join late.  Not with STRATA_VERIFY_DEVICE_PLAN.
     float defer_heavy_ = 0.0f;
     uint32_t* h_pflag_ = nullptr; uint32_t* m_pflag_ = nullptr;  // the pool has written the heavy CPU rows (partial flag)
+    // MOD_PLAN A44 (STRATA_BANDIT=top with STRATA_VERIFY_DEFER_CPU_TOP and the heavy split): the window's rank guard,
+    // staged by stage_inputs (defer_top_now()) and read by the graph's copy_rows_by_weight at run time; null otherwise.
+    // MOD_PLAN 17.1 note: also kept for STRATA_VERIFY_DEFER_AUTO (with the heavy split), which stages k in a window that
+    // does not defer (core/defer_auto.hpp defer_staged_top)
+    int32_t* h_top_ = nullptr; int32_t* m_top_ = nullptr;
+    strata::core::DeferAutoConfig defer_auto_;   ///< init: STRATA_VERIFY_DEFER_AUTO / _MIN_T, on only when it can act
+    bool defer_auto_want_ = false;               ///< init: asked for and the heavy split is on (the word is kept for it)
+    bool defer_next_ = false;                    ///< set_defer_window: the next run defers its light CPU rows
     bool defer_ok(int T, std::string* why) const;   ///< the T-token window may be captured with deferral
     bool heavy_layer(int T, int64_t l) const;       ///< STRATA_VERIFY_DEFER_CPU_BELOW: post(l) waits for the partial flag
+    // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output): host side only (sink_.ecap per layer in run); the
+    // captured graphs do not change, so it costs no new capture and composes with the deferral above
+    int ecap_ = -1;                        ///< init: the cap per draft row, -1 off
+    bool ecap_next_ = false;               ///< set_ecap_window: the next run's draft rows may be capped
 
     // device
     void* arena_ = nullptr;

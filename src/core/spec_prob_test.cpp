@@ -363,6 +363,25 @@ int main() {
         std::printf("  %-4s p == q: every draft is accepted (%lld rejected)\n", rej == 0 ? "ok" : "FAIL", rej);
     }
 
+    {   // A21: who drafts by sampling.  A request at T 0.1 is sampled (greedy is temperature <= 0), so without
+        // STRATA_SPEC_MIN_TEMP the coupled / probabilistic drafter applies to it; with 0.7 it keeps the argmax drafter.
+        struct Case { bool greedy; float temp, min_temp; bool want; const char* what; };
+        const Case cases[] = {
+            {true, 0.0f, 0.0f, false, "greedy request"},
+            {false, 0.0f, 0.0f, false, "temperature 0 is never sampled, even if greedy is unset"},
+            {false, 0.1f, 0.0f, true, "T 0.1 takes the sampled path by default"},
+            {false, 0.1f, 0.7f, false, "T 0.1 under STRATA_SPEC_MIN_TEMP=0.7 keeps argmax drafts"},
+            {false, 0.7f, 0.7f, true, "T == min_temp is sampled"},
+            {false, 1.0f, 0.7f, true, "T 1.0 is sampled"},
+        };
+        for (const Case& c : cases) {
+            const bool got = strata::core::spec_sampled_drafts(c.greedy, c.temp, c.min_temp);
+            ++g_cases;
+            if (got != c.want) ++g_fail;
+            std::printf("  %-4s %s\n", got == c.want ? "ok" : "FAIL", c.what);
+        }
+    }
+
     std::printf("spec_prob_test: %d cases, %d failed\n", g_cases, g_fail);
     return g_fail == 0 ? 0 : 1;
 }

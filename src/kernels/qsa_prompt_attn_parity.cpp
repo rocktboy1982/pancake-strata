@@ -7,7 +7,8 @@
 //   1. against FP64, the new kernel's error is no larger than a small multiple of the old kernel's (both FP32 math);
 //   2. the new and old outputs agree to a relative 1e-4 of the output scale;
 // then times both over a prompt chunk (the old one in batches of 32, as prefill.cpp calls it).
-// HIP builds (S6): the same checks for the RDNA4 matrix-core kernel (STRATA_HIP_WMMA), skipped (77) off gfx12.
+// HIP builds (S6): the same checks for the matrix-core kernel (STRATA_HIP_WMMA), skipped (77) off gfx11 / gfx12; then
+// (F22) its Q4_0-KV twin (STRATA_HIP_WMMA_Q4) on the Q4_0 cases; STRATA_PARITY_SKIP_Q4=1 skips those.
 // Usage: qsa_prompt_attn_parity [context=32768] [queries=2048] [reps=5]
 #include "strata/kernels/qsa.hpp"
 #include "strata/kernels/qsa_decode_attn.hpp"
@@ -356,8 +357,10 @@ int main(int argc, char** argv) {
         }
 #if defined(_WIN32)
         _putenv_s("STRATA_HIP_WMMA", "1");
+        if (std::getenv("STRATA_PARITY_SKIP_Q4") == nullptr) _putenv_s("STRATA_HIP_WMMA_Q4", "1");   // F22
 #else
         setenv("STRATA_HIP_WMMA", "1", 1);
+        if (std::getenv("STRATA_PARITY_SKIP_Q4") == nullptr) setenv("STRATA_HIP_WMMA_Q4", "1", 1);   // F22
 #endif
     }
 #endif
@@ -373,6 +376,13 @@ int main(int argc, char** argv) {
 #endif
     fails += run(1, 1500, std::min<int64_t>(nq, 1500), reps);   // short context: the selection is every cell
     fails += run(1, 2100, std::min<int64_t>(nq, 256), reps);    // the identity-to-sparse edge
+#if defined(__HIP_PLATFORM_AMD__)
+    if (std::getenv("STRATA_PARITY_SKIP_Q4") == nullptr) {   // F22: the Q4_0-KV matrix-core kernel (gfx11 and gfx12)
+        fails += run(2, ctx, nq, reps);
+        fails += run(2, 1500, std::min<int64_t>(nq, 1500), reps);
+        fails += run(2, 2100, std::min<int64_t>(nq, 256), reps);
+    }
+#endif
     std::printf("FAILURES: %d\n", fails);
     return fails;
 }

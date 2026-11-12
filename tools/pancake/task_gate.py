@@ -17,14 +17,15 @@ succeeded within each of "time_budgets" seconds (default 10 30 60 120 300) and t
 The default report is unchanged without it.
 
     python tools/pancake/task_gate.py SPEC.json --out bench/results/<day>-taskgate [--tasks bench/tasks/default.json]
-                                      [--reps 5] [--only code_edit,tool_call] [--max-load 1.0]
+                                      [--reps 5] [--only code_edit,tool_call] [--limit N] [--max-load 1.0]
     python tools/pancake/task_gate.py SPEC.json --out ... --dry-run     validate spec + task set + every checker; no server
     python tools/pancake/task_gate.py --from-runs DIR [--regrade]       recompute the report from DIR/runs-*.jsonl
 
 Per arm, one fresh server (abtest.start_server); the base arm runs twice (first and last: the run-to-run noise and
 the drift check) unless --no-base-repeat.  Within an arm: rep-major order (every task once per rep), seed = 1000 + rep
 (the same seed in every arm: paired).  A task is code_edit (the answer's python block is run with the task's test, no
-network, CPU / memory limits), tool_call (tools with JSON schemas: the call must parse, validate against the schema
+network, CPU / memory limits; an optional expect.setup, definitions the answer relies on, runs before the answer),
+tool_call (tools with JSON schemas: the call must parse, validate against the schema
 and match the expected name and arguments; multi-turn and parallel calls supported; an expected "no call" too), or
 qa (regex on the answer).  Checkers need no network and no external service.
 
@@ -286,9 +287,9 @@ def _netless_prefix():
     return _NETLESS
 
 
-def run_python(code, timeout=10):
+def run_python(code, timeout=10, tail=300):
     """Runs code in a throw-away directory, `python -I`, empty environment, 1 GiB / CPU / file-size limits, and no network
-    namespace where available.  Returns (returncode or None on timeout, output tail)."""
+    namespace where available.  Returns (returncode or None on timeout, the last `tail` characters of the output)."""
     with tempfile.TemporaryDirectory(prefix="taskgate-") as d:
         (Path(d) / "main.py").write_text(code)
         cmd = _netless_prefix() + [sys.executable, "-I", "-c", _RUNNER.format(cpu=timeout), "main.py"]
@@ -296,14 +297,16 @@ def run_python(code, timeout=10):
             r = subprocess.run(cmd, cwd=d, env={"PATH": "/usr/bin:/bin"}, capture_output=True, text=True, timeout=timeout + 5)
         except subprocess.TimeoutExpired:
             return None, "timeout"
-        return r.returncode, (r.stdout + r.stderr)[-300:]
+        return r.returncode, (r.stdout + r.stderr)[-tail:]
 
 
 def grade_code(task, message):
     code = extract_code(message.get("content") or "")
     if code is None:
         return {"ok": False, "valid": None, "reason": "no code in the answer"}
-    rc, out = run_python(code + "\n\n" + task["expect"]["test"], task["expect"].get("timeout", 10))
+    ex = task["expect"]
+    setup = (ex["setup"] + "\n\n") if ex.get("setup") else ""      # definitions the answer relies on, run before it (build_task_set.py)
+    rc, out = run_python(setup + code + "\n\n" + ex["test"], ex.get("timeout", 10))
     if rc == 0:
         return {"ok": True, "valid": None, "reason": ""}
     return {"ok": False, "valid": None, "reason": ("timeout" if rc is None else out.strip().splitlines()[-1] if out.strip()
@@ -358,6 +361,8 @@ def validate_tasks(tasks):
             probs.append(f"{i}: reference and wrong answers are required (checker self-test)")
         if k == "code_edit" and not ex.get("test"):
             probs.append(f"{i}: expect.test missing")
+        if k == "code_edit" and not isinstance(ex.get("setup", ""), str):
+            probs.append(f"{i}: expect.setup must be a string")
         if k == "qa" or (k == "tool_call" and not ex.get("calls") and "answer_re" in ex):
             try:
                 re.compile(ex["answer_re"])
@@ -761,6 +766,7 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--tasks")
     ap.add_argument("--only", help="comma list of kinds and / or task ids")
+    ap.add_argument("--limit", type=int, help="use only the first N tasks (after --only); build_task_set.py orders its sets so every prefix is a mix")
     ap.add_argument("--reps", type=int)
     ap.add_argument("--dry-run", action="store_true", help="validate the spec, the task set and every checker; no server")
     ap.add_argument("--from-runs", help="a finished --out directory: print the report again (no server)")
@@ -782,11 +788,15 @@ def main():
         ap.error("a SPEC.json (or --from-runs DIR) is required")
     if a.spec:
         spec, s = conf(a.spec)
+        if a.auc_horizon is None and spec.get("auc_horizon_s") is not None:   # A57: the spec pins the AUC time axis
+            a.auc_horizon = float(spec["auc_horizon_s"])
         if a.reps:
             s["reps"] = a.reps
     tpath = a.tasks or (spec.get("tasks") if a.spec else None) or DEFAULT_TASKS
     tpath = tpath if os.path.isabs(tpath) else str(ROOT / tpath)
     ts, tasks = load_tasks(tpath, a.only)
+    if a.limit:
+        tasks = tasks[:a.limit]
 
     if a.from_runs:
         runs = load_runs(a.from_runs)

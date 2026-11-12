@@ -3,6 +3,10 @@
 Owner rule (2026-11-11): development by day, GPU testing by night.  The night cron (21:07) follows this file; edit this file
 (not the cron) when the queue changes.  Repo root for every command: `/home/dan/clone-of-d/src/Strata-p16`.
 
+Phase 17 night items (deferral retest, TTFT baseline and levers, KV ring, prose profile) have their own one-command runner with a
+quiet-machine guard, resume and a results table: `pancake-docs/NIGHT_QUEUE_RUNNER.md` (`tools/pancake/night_queue.py`). Do not run
+both at once.
+
 ## 0. Preconditions (stop and report if any fails)
 - No `abtest.py`, `restore_check.py` or `strata` process running; `MemAvailable >= 40 GiB`; nobody else using the GPU.
 - Rebuild the HIP binary if C++ merged since the last build (build dir `/home/dan/.cache/strata-p16-final-hip2`, configure flags in
@@ -28,6 +32,14 @@ Owner rule (2026-11-11): development by day, GPU testing by night.  The night cr
    Use block mode (`--block`) and `--outlier robust` once harness-core's branch is merged and its tests pass.
 4. Kernel level (minutes each, GPU alone), then `python3 tools/pancake/kernel_gate.py item KEY ...` with each measurement BEFORE any end-to-end screen: F7 `q2_rows_bench --threads 8 --nt 1` and `--nt 2` (taskset -c 0-7, idle box); F12 and flat loads `expdec_bench 16/42,22/42 def,dec:s0,dec:s1` (and a `-DSTRATA_HIP_GLOBAL_WEIGHTS=1` build); F9 and A33 `gpu_profile.py --env STRATA_ROUTE_FAST=1` / `STRATA_EXPDEC_SWIGLU=1`; A36 `hit_critical.py` on gpu_profile traces with deferral on; A31 `hip_gdn_stage_bench 4096 16384 32768`; `empty_grid` probe.
 5. Real-trace recording: smoke `python3 /home/dan/clone-of-d/src/Strata-p16/tools/pancake/record_session.py plan --preset flashnext-iq2_xs-fast-hip --out <DIR> --repo /home/dan/clone-of-d/src/Strata-p16 --run` (few minutes, Ctrl-C, then `check <DIR> --min-windows 5 --min-turns 1`); if no real weights, the owner of verify.cpp applies pancake-docs/batch4/corpus-recorder-engine.patch; then a ~1 hour session, `check`, `convert`, and the printed replay commands (FineMoE, HOBBIT proxy, REAP, EcoSpec, A44/A46 re-judged on real traces).
+
+## 1b. Added 2026-11-11 (afternoon): harness flags, reruns, fill steps
+- Use `--block 3 --warmup 1 --outlier robust --reclaim-max 3` with reps >= 9 (3 x N) for every promote-capable spec (reps 6 gives 2 starts per arm and promote.py always HOLDs); block results are warm steady state: do not mix with old-mode results.
+- FIRST rerun `25-kern-hip-confirm.json` (all3 short is +3.1% +-1.1% under the robust rule vs +0.7% +-6.2% as run: the HOLD for all3 may be wrong) with the flags above; then `25-a8-confirm.json`.
+- `quality_gate.py <spec> --out bench/quality-hip/<day>-fill --set bench/quality/set-v2.json --fill` (one engine start, ~10 min), commit `set.filled.json` as set-v2.json, flip the `--set` default literal in quality_gate.py.
+- A base-only task run (3 reps, `task_gate.py --tasks bench/tasks/repo-history.json --limit 110`) to measure real request time; add `"tasks": "bench/tasks/repo-history.json"` to bench/specs/taskgate-*.json; use `--tasks-only` for lossy items.
+- Run the pin-hazard confirm in BOTH orders: `A B C D E F A B` (the old rule wins: it keeps A-D forever) and `A B C D E F E F` (the hazard shows: newer sessions return) with `STRATA_AUTO_PIN=1` (now evict-last) vs base.
+- abtest (abtest-safety, merged) now REFUSES to start (exit 3, lists the pids) while any real engine / server.py --engine strata / abtest / restore_check runs: STOP the pancake server (the owner's Copilot test on port 11437) before the queue starts, or every spec exits 3; the fake-engine e2e tests skip while a real server runs: run `python3 -I -m pytest -q tools/pancake/test_abtest_e2e.py` once the GPU is free. quality_gate.py / task_gate.py / sweep.py / restore_check.py have no busy refusal of their own.
 
 ## 2. After the queue
 - `python3 tools/pancake/promote.py <items.json>` on every result; commit results to `dev/phase16-academic` by path; update the plan table

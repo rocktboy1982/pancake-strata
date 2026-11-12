@@ -24,6 +24,16 @@ void native_router_topk(const float* logits, int32_t* ids, float* weights, int n
 void native_router_top10_publish_res(const float* logits, int32_t* ids, float* weights, int n_tok, const float* x,
                                      const int32_t* d_res, int n_expert, int64_t n, float* x_out, int32_t* ids_out,
                                      uint32_t* seq, void* stream);
+/// STRATA_ROUTE_FAST=1 (opt-in, read once; off: nothing changes).
+bool native_router_fast_enabled();
+/// STRATA_ROUTE_FAST: the window's top-10 (route_multi's arithmetic: ids / weights bitwise native_router_top10_multi's)
+/// and the CPU pool's doorbell in ONE launch, 1..8 rows: ids_out / w_out (w_out may be null) get the ids / weights,
+/// x_out the n floats of x (every row; x == nullptr: the router GEMV launch before this one already copied them,
+/// bf16_router_xpub_arm), then the ring d_seq is STORED as seq_value (the step's number, nonzero) instead of read back
+/// over PCIe and incremented.  Ordering and fences: see native_router.cu.
+void native_router_top10_publish_fast(const float* logits, int32_t* ids, float* weights, int n_tok, const float* x,
+                                      int64_t n, float* x_out, int32_t* ids_out, float* w_out, uint32_t* d_seq,
+                                      uint32_t seq_value, void* stream);
 /// STRATA_ROUTE_RESIDENT: swap non-resident tail-rank experts for resident ones within `margin` logits (see the .cu).
 /// `stats` is nullptr or 4 device uint64 counters: tail entries seen, swaps, non-resident before, non-resident after.
 void native_route_resident(const float* logits, int32_t* ids, float* weights, const int32_t* res_layer, int n_tok, float margin,
