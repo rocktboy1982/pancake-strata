@@ -6,9 +6,12 @@
 //    counts of (1); the file is parsed back here byte by byte (the format tools/pancake/trace/wtrace.py reads).
 #include "strata/core/row_miss.hpp"
 #include "strata/core/window_trace.hpp"
+#include "strata/platform/iommu_note.hpp"
 
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -194,6 +197,33 @@ int main() {
         off += 4 + 4 * 3;                                    // the first window's layer record: 4-byte header + 4 entries x 3 bytes
         check(b[off] == 2, "record 6: the second window follows, with no record 6 (no target call)");
         std::remove(path.c_str());
+    }
+    {   // 4. A53: the IOMMU start-up note, on fake sysfs trees
+        namespace fs = std::filesystem;
+        const fs::path root = fs::path("iommu_note_sys");
+        auto make = [&](const char* name, const char* cls, const char* dev, const char* type) {
+            const fs::path d = root / "bus" / "pci" / "devices" / name;
+            fs::remove_all(d);
+            fs::create_directories(d / "iommu_group");
+            std::ofstream(d / "class") << cls << "\n";
+            std::ofstream(d / "device") << dev << "\n";
+            if (type != nullptr) std::ofstream(d / "iommu_group" / "type") << type << "\n";
+        };
+        fs::remove_all(root);
+        make("0000:12:00.0", "0x030000", "0x744c", "DMA");          // a discrete card, translated
+        const std::string note = strata::platform::iommu_gpu_note(root.string());
+        check(note.find("translated") != std::string::npos && note.find("0000:12:00.0") != std::string::npos,
+              "A53: a translated GPU gives the note");
+        fs::remove_all(root);
+        make("0000:12:00.0", "0x030000", "0x744c", "identity");     // passthrough: silent
+        check(strata::platform::iommu_gpu_note(root.string()).empty(), "A53: identity is silent");
+        fs::remove_all(root);
+        make("0000:00:02.0", "0x030000", "0x1638", "DMA");          // the APU's own graphics: skipped
+        make("0000:00:01.0", "0x060400", "0x1234", "DMA");          // a bridge, not a GPU: skipped
+        check(strata::platform::iommu_gpu_note(root.string()).empty(), "A53: APU graphics and bridges are skipped");
+        fs::remove_all(root);
+        check(strata::platform::iommu_gpu_note((root / "missing").string()).empty(), "A53: no sysfs gives no note");
+        fs::remove_all(root);
     }
     if (g_fail == 0) std::printf("row_miss_test: all passed\n");
     return g_fail == 0 ? 0 : 1;
