@@ -115,3 +115,6 @@ In source, most window-overhead switches are default-off (`getenv(...) == '1'`).
 ### Gaps
 - Default values for FUSE_WAIT (returns -1 when unset), PREFILL_RING, and GR_FUSED were not fully traced.
 - No check of whether the preset env used for test-phase 04c is the same as the current fast-hip preset.
+
+## Label check (2026-11-12, Worker B item 15)
+STRATA_PIPED_MTP is class Speed but its description says the tokens change. Changing its class to Key was tested (opencode) and rejected by review: Key names go into the conversation-disk key (include/strata/core/conversation_disk_tier.hpp:48, src/core/conversation_disk_tier.cpp:242-251), so every saved conversation would be re-keyed, and the key version line (tier.cpp:244) would need a bump. Left as Speed. Same mismatch exists for STRATA_OLD_SAMPLER (def line 527). Fixing either needs a key version bump, an owner decision.
