@@ -1,0 +1,219 @@
+{
+ "schema": 1,
+ "label": "ctrl-avalon-tailoff-p1",
+ "engine_kind": "llama",
+ "host": "127.0.0.1",
+ "port": 8081,
+ "time": 1794488156.8062887,
+ "prompt_name": "story",
+ "prompt": "Write a short story (about 400 words) about a lighthouse keeper.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 512,
+   "tps": 71.67435213959864,
+   "decode_ms": 7129.468,
+   "draft_n": 476,
+   "draft_n_accepted": 272,
+   "wall_s": 8.046590089797974,
+   "text_sha256": "254e61aaa89b54cd",
+   "text_head": "Elias stood on the gallery, the wind whipping his coat against his legs. Below h",
+   "accept_pct": 57.142857142857146,
+   "windows": 240,
+   "tok_per_window": 2.1333333333333333,
+   "accepted_per_window": 1.1333333333333333,
+   "drafted_per_window": 1.9833333333333334,
+   "ms_per_window": 29.706116666666667,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 512,
+   "tps": 83.46345574640176,
+   "decode_ms": 6122.44,
+   "draft_n": 498,
+   "draft_n_accepted": 262,
+   "wall_s": 6.285979509353638,
+   "text_sha256": "96d23e33b7f70595",
+   "text_head": "Elias stood on the gallery, the wind whipping his coat against his legs. Below h",
+   "accept_pct": 52.610441767068274,
+   "windows": 250,
+   "tok_per_window": 2.048,
+   "accepted_per_window": 1.048,
+   "drafted_per_window": 1.992,
+   "ms_per_window": 24.489759999999997,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 88.73038967226884,
+   "decode_ms": 5759.019,
+   "draft_n": 496,
+   "draft_n_accepted": 263,
+   "wall_s": 5.881946325302124,
+   "text_sha256": "421f2a8bc1b9cacb",
+   "text_head": "Elias stood on the gallery, the wind whipping his coat against his legs. Below h",
+   "accept_pct": 53.024193548387096,
+   "windows": 249,
+   "tok_per_window": 2.0562248995983934,
+   "accepted_per_window": 1.0562248995983936,
+   "drafted_per_window": 1.9919678714859437,
+   "ms_per_window": 23.128590361445784,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 93.53566079100418,
+   "decode_ms": 5463.157,
+   "draft_n": 477,
+   "draft_n_accepted": 272,
+   "wall_s": 5.5854997634887695,
+   "text_sha256": "fa1716f96323f8a5",
+   "text_head": "Elias stood on the gallery, the wind whipping his coat against his legs. Below h",
+   "accept_pct": 57.0230607966457,
+   "windows": 240,
+   "tok_per_window": 2.1333333333333333,
+   "accepted_per_window": 1.1333333333333333,
+   "drafted_per_window": 1.9875,
+   "ms_per_window": 22.763154166666666,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 93.34547250710962,
+   "decode_ms": 5474.288,
+   "draft_n": 468,
+   "draft_n_accepted": 276,
+   "wall_s": 5.665757417678833,
+   "text_sha256": "adb576ec506b3140",
+   "text_head": "Elias stood on the gallery, the wind whipping his coat against his legs. Below h",
+   "accept_pct": 58.97435897435897,
+   "windows": 236,
+   "tok_per_window": 2.169491525423729,
+   "accepted_per_window": 1.1694915254237288,
+   "drafted_per_window": 1.9830508474576272,
+   "ms_per_window": 23.196135593220337,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 91.23087409889426,
+   "decode_ms": 5601.174,
+   "draft_n": 486,
+   "draft_n_accepted": 268,
+   "wall_s": 5.725974082946777,
+   "text_sha256": "a9d14cb64c4b9b21",
+   "text_head": "Elias stood on the gallery, the wind whipping his coat against his legs. Below h",
+   "accept_pct": 55.1440329218107,
+   "windows": 244,
+   "tok_per_window": 2.098360655737705,
+   "accepted_per_window": 1.098360655737705,
+   "drafted_per_window": 1.9918032786885247,
+   "ms_per_window": 22.955631147540984,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 91.23087409889426,
+   "mean": 90.06117056313573,
+   "sd": 4.169164980747266,
+   "min": 83.46345574640176,
+   "max": 93.53566079100418
+  },
+  "tok_per_window": {
+   "median": 2.098360655737705,
+   "mean": 2.1010820828186323,
+   "sd": 0.05137430185773092,
+   "min": 2.048,
+   "max": 2.169491525423729
+  },
+  "accepted_per_window": {
+   "median": 1.098360655737705,
+   "mean": 1.1010820828186323,
+   "sd": 0.05137430185773087,
+   "min": 1.048,
+   "max": 1.1694915254237288
+  },
+  "drafted_per_window": {
+   "median": 1.9918032786885247,
+   "mean": 1.989264399526419,
+   "sd": 0.003967351540611885,
+   "min": 1.9830508474576272,
+   "max": 1.992
+  },
+  "accept_pct": {
+   "median": 55.1440329218107,
+   "mean": 55.35521760165415,
+   "sd": 2.6875617056516163,
+   "min": 52.610441767068274,
+   "max": 58.97435897435897
+  },
+  "ms_per_window": {
+   "median": 23.128590361445784,
+   "mean": 23.306654253774752,
+   "sd": 0.682325050219794,
+   "min": 22.763154166666666,
+   "max": 24.489759999999997
+  }
+ },
+ "loadavg_before": [
+  3.73486328125,
+  1.01611328125,
+  0.57861328125
+ ],
+ "loadavg_after": [
+  6.31494140625,
+  2.01953125,
+  0.93603515625
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "server_log": "/home/dan/night-queue-controls/raw/srv-ctrl-avalon-tailoff.log",
+ "server_log_requests": [
+  {
+   "acceptance": 0.57143,
+   "accepted": 272,
+   "generated": 476,
+   "mean_len": 2.14
+  },
+  {
+   "acceptance": 0.5261,
+   "accepted": 262,
+   "generated": 498,
+   "mean_len": 2.05
+  },
+  {
+   "acceptance": 0.53024,
+   "accepted": 263,
+   "generated": 496,
+   "mean_len": 2.06
+  },
+  {
+   "acceptance": 0.57023,
+   "accepted": 272,
+   "generated": 477,
+   "mean_len": 2.14
+  },
+  {
+   "acceptance": 0.58974,
+   "accepted": 276,
+   "generated": 468,
+   "mean_len": 2.18
+  },
+  {
+   "acceptance": 0.55144,
+   "accepted": 268,
+   "generated": 486,
+   "mean_len": 2.1
+  }
+ ]
+}

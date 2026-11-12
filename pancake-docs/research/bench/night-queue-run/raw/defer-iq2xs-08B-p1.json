@@ -1,0 +1,73 @@
+{
+ "kind": "decode",
+ "rows": [
+  {
+   "round": 1,
+   "prompt": "story",
+   "class": "prose",
+   "tok": 512,
+   "tps": 94.2,
+   "accepted": 229,
+   "drafted": 425,
+   "prompt_n": 72,
+   "prompt_tps": 86.6,
+   "prompt_ms": 831.5,
+   "wall_s": 6.282
+  },
+  {
+   "round": 1,
+   "prompt": "js",
+   "class": "code",
+   "tok": 512,
+   "tps": 116.9,
+   "accepted": 331,
+   "drafted": 453,
+   "prompt_n": 68,
+   "prompt_tps": 96.4,
+   "prompt_ms": 705.5,
+   "wall_s": 5.09
+  },
+  {
+   "round": 1,
+   "prompt": "tips",
+   "class": "prose",
+   "tok": 289,
+   "tps": 104.5,
+   "accepted": 149,
+   "drafted": 230,
+   "prompt_n": 69,
+   "prompt_tps": 105.2,
+   "prompt_ms": 656.0,
+   "wall_s": 3.427
+  },
+  {
+   "round": 1,
+   "prompt": "moe",
+   "class": "prose",
+   "tok": 364,
+   "tps": 108.4,
+   "accepted": 186,
+   "drafted": 294,
+   "prompt_n": 73,
+   "prompt_tps": 117.1,
+   "prompt_ms": 623.4,
+   "wall_s": 3.989
+  },
+  {
+   "round": 1,
+   "prompt": "lru",
+   "class": "code",
+   "tok": 512,
+   "tps": 119.9,
+   "accepted": 355,
+   "drafted": 430,
+   "prompt_n": 69,
+   "prompt_tps": 128.8,
+   "prompt_ms": 535.8,
+   "wall_s": 4.814
+  }
+ ],
+ "max_tokens": 512,
+ "port": 8080,
+ "time": 1794432645.9036741
+}

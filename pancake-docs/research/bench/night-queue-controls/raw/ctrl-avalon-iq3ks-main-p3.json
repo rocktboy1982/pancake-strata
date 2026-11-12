@@ -1,0 +1,219 @@
+{
+ "schema": 1,
+ "label": "ctrl-avalon-iq3ks-main-p3",
+ "engine_kind": "llama",
+ "host": "127.0.0.1",
+ "port": 8081,
+ "time": 1794488528.7237449,
+ "prompt_name": "moe",
+ "prompt": "Explain in about 300 words how a mixture-of-experts language model works.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 396,
+   "tps": 83.04449965794076,
+   "decode_ms": 4756.486,
+   "draft_n": 352,
+   "draft_n_accepted": 220,
+   "wall_s": 5.2834813594818115,
+   "text_sha256": "2d5c18fe9420b54e",
+   "text_head": "A Mixture-of-Experts (MoE) language model is a neural network architecture desig",
+   "accept_pct": 62.5,
+   "windows": 176,
+   "tok_per_window": 2.25,
+   "accepted_per_window": 1.25,
+   "drafted_per_window": 2.0,
+   "ms_per_window": 27.025488636363637,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 385,
+   "tps": 91.00190250852432,
+   "decode_ms": 4219.692,
+   "draft_n": 336,
+   "draft_n_accepted": 217,
+   "wall_s": 4.395338773727417,
+   "text_sha256": "dff8ad56dc8340fc",
+   "text_head": "A Mixture-of-Experts (MoE) language model is a neural network architecture desig",
+   "accept_pct": 64.58333333333333,
+   "windows": 168,
+   "tok_per_window": 2.2916666666666665,
+   "accepted_per_window": 1.2916666666666667,
+   "drafted_per_window": 2.0,
+   "ms_per_window": 25.117214285714287,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 403,
+   "tps": 92.76502066444678,
+   "decode_ms": 4333.53,
+   "draft_n": 348,
+   "draft_n_accepted": 229,
+   "wall_s": 4.483690023422241,
+   "text_sha256": "2df837b5f1c5447f",
+   "text_head": "A Mixture-of-Experts (MoE) language model is a neural network architecture desig",
+   "accept_pct": 65.80459770114942,
+   "windows": 174,
+   "tok_per_window": 2.3160919540229883,
+   "accepted_per_window": 1.3160919540229885,
+   "drafted_per_window": 2.0,
+   "ms_per_window": 24.905344827586205,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 400,
+   "tps": 94.03313784338886,
+   "decode_ms": 4243.185,
+   "draft_n": 346,
+   "draft_n_accepted": 226,
+   "wall_s": 4.390418291091919,
+   "text_sha256": "d29899791a4e7b76",
+   "text_head": "A Mixture-of-Experts (MoE) language model is a neural network architecture desig",
+   "accept_pct": 65.3179190751445,
+   "windows": 174,
+   "tok_per_window": 2.2988505747126435,
+   "accepted_per_window": 1.2988505747126438,
+   "drafted_per_window": 1.9885057471264367,
+   "ms_per_window": 24.386120689655176,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 411,
+   "tps": 88.05270792143638,
+   "decode_ms": 4656.302,
+   "draft_n": 374,
+   "draft_n_accepted": 223,
+   "wall_s": 4.806859493255615,
+   "text_sha256": "64ce1bad30c73554",
+   "text_head": "A Mixture-of-Experts (MoE) language model is a neural network architecture desig",
+   "accept_pct": 59.62566844919786,
+   "windows": 188,
+   "tok_per_window": 2.1861702127659575,
+   "accepted_per_window": 1.1861702127659575,
+   "drafted_per_window": 1.9893617021276595,
+   "ms_per_window": 24.767563829787232,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 400,
+   "tps": 93.13995082957584,
+   "decode_ms": 4283.876,
+   "draft_n": 346,
+   "draft_n_accepted": 226,
+   "wall_s": 4.432803630828857,
+   "text_sha256": "6ba85eaccade15f9",
+   "text_head": "A Mixture-of-Experts (MoE) language model is a neural network architecture desig",
+   "accept_pct": 65.3179190751445,
+   "windows": 174,
+   "tok_per_window": 2.2988505747126435,
+   "accepted_per_window": 1.2988505747126438,
+   "drafted_per_window": 1.9885057471264367,
+   "ms_per_window": 24.619977011494253,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 92.76502066444678,
+   "mean": 91.79854395347444,
+   "sd": 2.3660507530309722,
+   "min": 88.05270792143638,
+   "max": 94.03313784338886
+  },
+  "tok_per_window": {
+   "median": 2.2988505747126435,
+   "mean": 2.27832599657618,
+   "sd": 0.05229590358090537,
+   "min": 2.1861702127659575,
+   "max": 2.3160919540229883
+  },
+  "accepted_per_window": {
+   "median": 1.2988505747126438,
+   "mean": 1.27832599657618,
+   "sd": 0.05229590358090547,
+   "min": 1.1861702127659575,
+   "max": 1.3160919540229885
+  },
+  "drafted_per_window": {
+   "median": 1.9893617021276595,
+   "mean": 1.9932746392761065,
+   "sd": 0.006149323042641358,
+   "min": 1.9885057471264367,
+   "max": 2.0
+  },
+  "accept_pct": {
+   "median": 65.3179190751445,
+   "mean": 64.12988752679392,
+   "sd": 2.555440015256221,
+   "min": 59.62566844919786,
+   "max": 65.80459770114942
+  },
+  "ms_per_window": {
+   "median": 24.767563829787232,
+   "mean": 24.75924412884743,
+   "sd": 0.277566971942578,
+   "min": 24.386120689655176,
+   "max": 25.117214285714287
+  }
+ },
+ "loadavg_before": [
+  6.86474609375,
+  4.1416015625,
+  2.19677734375
+ ],
+ "loadavg_after": [
+  7.51953125,
+  4.560546875,
+  2.39892578125
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "server_log": "/home/dan/night-queue-controls/raw/srv-ctrl-avalon-iq3ks-main.log",
+ "server_log_requests": [
+  {
+   "acceptance": 0.625,
+   "accepted": 220,
+   "generated": 352,
+   "mean_len": 2.25
+  },
+  {
+   "acceptance": 0.64583,
+   "accepted": 217,
+   "generated": 336,
+   "mean_len": 2.29
+  },
+  {
+   "acceptance": 0.65805,
+   "accepted": 229,
+   "generated": 348,
+   "mean_len": 2.32
+  },
+  {
+   "acceptance": 0.65318,
+   "accepted": 226,
+   "generated": 346,
+   "mean_len": 2.31
+  },
+  {
+   "acceptance": 0.59626,
+   "accepted": 223,
+   "generated": 374,
+   "mean_len": 2.19
+  },
+  {
+   "acceptance": 0.65318,
+   "accepted": 226,
+   "generated": 346,
+   "mean_len": 2.31
+  }
+ ]
+}

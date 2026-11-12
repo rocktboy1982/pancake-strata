@@ -1,0 +1,34 @@
+decode phase 3553 ms wall, kernels 2712 ms (76%), 120326 kernels, 470 per token
+top kernels:
+   24.7%    670.6 ms    4032x   166.3 us  combine_cpu_k10_vec4<true>
+   10.5%    283.9 ms   12962x    21.9 us  rdna_kq_kernel<23, 4, 3>
+    8.0%    217.1 ms    3060x    70.9 us  expdec_gu_kernel<22, 1, 4, false, 1>
+    7.6%    205.5 ms    7198x    28.6 us  rdna_gr_fused<4>
+    5.8%    157.9 ms    4320x    36.5 us  expdec_down_kernel<42, 4>
+    5.5%    150.1 ms     288x   521.2 us  wait_flag_ge_kernel
+    5.3%    143.1 ms    4320x    33.1 us  wait_flag_copy_i32_kernel
+    2.9%     78.1 ms    4032x    19.4 us  route_publish_res
+    2.2%     59.3 ms     990x    59.9 us  expdec_gu_kernel<16, 1, 4, false, 1>
+    1.9%     51.5 ms    3239x    15.9 us  gdn_step_norm_multi_kernel<true, true>
+    1.8%     48.8 ms    1327x    36.8 us  attn_chunk_kernel<1, false, false, false>
+    1.7%     44.8 ms    3168x    14.2 us  mmvq_multi_kernel<21, 4, false, true>
+    1.6%     42.4 ms    5328x     8.0 us  bf16_f32_mmvf_multi_kernel<256, 4, true>
+    1.1%     30.5 ms      89x   342.5 us  gdn_step_commit_layers_kernel
+    1.1%     30.2 ms    1327x    22.7 us  attn_merge_kernel
+    1.1%     29.5 ms     787x    37.5 us  rdna_kq_kernel<23, 1, 5>
+    0.9%     24.2 ms    1260x    19.2 us  rdna_kq_kernel<23, 3, 3>
+    0.8%     22.5 ms     534x    42.1 us  native_mmvq_wave_exact_kernel<IQ4XSTraits, 12>
+    0.8%     20.8 ms    2592x     8.0 us  gdn_conv_ab_kernel<4, true>
+    0.7%     19.5 ms     700x    27.8 us  native_mmvq_wave_exact_kernel<SmallTraits<Q80Block, 8>, 1>
+idle: launch gaps (<50 us) 699 ms, host stalls (>1 ms) 93 ms of 3553 ms
+largest idle by kernel pair:
+     57.7 ms      7x avg  8239.4 us  kv_append_q8_kernel<true> -> __amd_rocclr_copyBuffer
+     33.8 ms   3059x avg    11.0 us  expdec_gu_kernel<22, 1, 4, false, 1> -> swiglu_q8_1_entries_kernel
+     31.8 ms   4318x avg     7.4 us  rdna_gr_fused<4> -> bf16_f32_mmvf_multi_kernel<256, 4, true>
+     30.6 ms   4031x avg     7.6 us  expdec_down_kernel<42, 4> -> combine_cpu_k10_vec4<true>
+     22.5 ms   3455x avg     6.5 us  bf16_f32_mmvf_multi_kernel<256, 4, true> -> route_publish_res
+     20.9 ms   2801x avg     7.5 us  rdna_kq_kernel<23, 4, 3> -> rdna_gr_fused<4>
+     18.8 ms   2519x avg     7.5 us  rdna_kq_kernel<23, 4, 3> -> gdn_conv_ab_kernel<4, true>
+     18.6 ms   2516x avg     7.4 us  rdna_gr_fused<4> -> rdna_kq_kernel<23, 4, 3>
+     17.5 ms     48x avg   364.5 us  mtp_select_kernel -> copy_i32_from_mapped_kernel
+     16.9 ms     83x avg   203.6 us  __amd_rocclr_copyBuffer -> copy_i32_from_mapped_kernel

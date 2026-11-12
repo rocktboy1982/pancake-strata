@@ -1,0 +1,2409 @@
+{
+ "schema": 1,
+ "plan": "night-queue-2026-11-11",
+ "jobs": {
+  "defer-iq2xs-01A": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+   "compare_group": "defer-iq2xs",
+   "env": {},
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794430523.3156354,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-01A-p1.json",
+     "rc": 0,
+     "wall_s": 22.1
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-01A-p2.json",
+     "rc": 0,
+     "wall_s": 18.6
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-01A-p3.json",
+     "rc": 0,
+     "wall_s": 18.6
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-01A-p4.json",
+     "rc": 0,
+     "wall_s": 18.7
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 70008,
+   "stop": {
+    "leader": 70008,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.3,
+    "waited_s": 0.0
+   },
+   "end": 1794430658.4401398,
+   "wall_s": 135.1
+  },
+  "defer-iq2xs-02B": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "B",
+   "arm_label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+   "compare_group": "defer-iq2xs",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794430658.441254,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-02B-p1.json",
+     "rc": 0,
+     "wall_s": 23.5
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-02B-p2.json",
+     "rc": 0,
+     "wall_s": 20.3
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-02B-p3.json",
+     "rc": 0,
+     "wall_s": 21.0
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-02B-p4.json",
+     "rc": 0,
+     "wall_s": 21.6
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 71964,
+   "stop": {
+    "leader": 71964,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.4,
+    "waited_s": 0.0
+   },
+   "end": 1794430939.2223027,
+   "wall_s": 280.8
+  },
+  "defer-iq2xs-03C": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "C",
+   "arm_label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+   "compare_group": "defer-iq2xs",
+   "env": {
+    "STRATA_VERIFY_DEFER_AUTO": "1",
+    "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794430939.2236323,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-03C-p1.json",
+     "rc": 0,
+     "wall_s": 26.1
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-03C-p2.json",
+     "rc": 0,
+     "wall_s": 26.2
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-03C-p3.json",
+     "rc": 0,
+     "wall_s": 24.1
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-03C-p4.json",
+     "rc": 0,
+     "wall_s": 24.8
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 72643,
+   "stop": {
+    "leader": 72643,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.5,
+    "waited_s": 0.0
+   },
+   "end": 1794431230.6681304,
+   "wall_s": 291.4
+  },
+  "defer-iq2xs-04C": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "C",
+   "arm_label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+   "compare_group": "defer-iq2xs",
+   "env": {
+    "STRATA_VERIFY_DEFER_AUTO": "1",
+    "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794431230.669808,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-04C-p1.json",
+     "rc": 0,
+     "wall_s": 27.1
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-04C-p2.json",
+     "rc": 0,
+     "wall_s": 22.1
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-04C-p3.json",
+     "rc": 0,
+     "wall_s": 24.9
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-04C-p4.json",
+     "rc": 0,
+     "wall_s": 26.0
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 73328,
+   "stop": {
+    "leader": 73328,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.5,
+    "waited_s": 0.0
+   },
+   "end": 1794431567.066235,
+   "wall_s": 336.4
+  },
+  "defer-iq2xs-05B": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "B",
+   "arm_label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+   "compare_group": "defer-iq2xs",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794431567.068336,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-05B-p1.json",
+     "rc": 0,
+     "wall_s": 23.6
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-05B-p2.json",
+     "rc": 0,
+     "wall_s": 20.9
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-05B-p3.json",
+     "rc": 0,
+     "wall_s": 21.8
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-05B-p4.json",
+     "rc": 0,
+     "wall_s": 21.9
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 74065,
+   "stop": {
+    "leader": 74065,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.3,
+    "waited_s": 0.0
+   },
+   "end": 1794431893.5173929,
+   "wall_s": 326.4
+  },
+  "defer-iq2xs-06A": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+   "compare_group": "defer-iq2xs",
+   "env": {},
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794431893.5198264,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-06A-p1.json",
+     "rc": 0,
+     "wall_s": 22.1
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-06A-p2.json",
+     "rc": 0,
+     "wall_s": 20.4
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-06A-p3.json",
+     "rc": 0,
+     "wall_s": 18.9
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-06A-p4.json",
+     "rc": 0,
+     "wall_s": 18.9
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 75487,
+   "stop": {
+    "leader": 75487,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.4,
+    "waited_s": 0.0
+   },
+   "end": 1794432168.1938992,
+   "wall_s": 274.7
+  },
+  "defer-iq2xs-07A": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+   "compare_group": "defer-iq2xs",
+   "env": {},
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794432168.1964967,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-07A-p1.json",
+     "rc": 0,
+     "wall_s": 21.4
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-07A-p2.json",
+     "rc": 0,
+     "wall_s": 20.8
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-07A-p3.json",
+     "rc": 0,
+     "wall_s": 18.3
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-07A-p4.json",
+     "rc": 0,
+     "wall_s": 18.6
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 76104,
+   "stop": {
+    "leader": 76104,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.1,
+    "waited_s": 0.0
+   },
+   "end": 1794432432.0088665,
+   "wall_s": 263.8
+  },
+  "defer-iq2xs-08B": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "B",
+   "arm_label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+   "compare_group": "defer-iq2xs",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794432432.0130892,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-08B-p1.json",
+     "rc": 0,
+     "wall_s": 23.7
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-08B-p2.json",
+     "rc": 0,
+     "wall_s": 21.6
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-08B-p3.json",
+     "rc": 0,
+     "wall_s": 21.9
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-08B-p4.json",
+     "rc": 0,
+     "wall_s": 22.1
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 76975,
+   "stop": {
+    "leader": 76975,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.3,
+    "waited_s": 0.0
+   },
+   "end": 1794432716.05341,
+   "wall_s": 284.0
+  },
+  "defer-iq2xs-09C": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-iq2xs",
+   "arm": "C",
+   "arm_label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+   "compare_group": "defer-iq2xs",
+   "env": {
+    "STRATA_VERIFY_DEFER_AUTO": "1",
+    "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794432716.0566463,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-iq2xs-09C-p1.json",
+     "rc": 0,
+     "wall_s": 24.6
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-iq2xs-09C-p2.json",
+     "rc": 0,
+     "wall_s": 25.7
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-iq2xs-09C-p3.json",
+     "rc": 0,
+     "wall_s": 26.0
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-iq2xs-09C-p4.json",
+     "rc": 0,
+     "wall_s": 30.3
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 77897,
+   "stop": {
+    "leader": 77897,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.3,
+    "waited_s": 0.0
+   },
+   "end": 1794433018.8095138,
+   "wall_s": 302.8
+  },
+  "defer-q2-01A": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "A",
+   "arm_label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+   "compare_group": "defer-q2",
+   "env": {},
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794433018.8139894,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-01A-p1.json",
+     "rc": 0,
+     "wall_s": 25.4
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-01A-p2.json",
+     "rc": 0,
+     "wall_s": 21.7
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-01A-p3.json",
+     "rc": 0,
+     "wall_s": 22.7
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-01A-p4.json",
+     "rc": 0,
+     "wall_s": 25.1
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 78622,
+   "stop": {
+    "leader": 78622,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.4,
+    "waited_s": 0.0
+   },
+   "end": 1794433373.9342854,
+   "wall_s": 355.1
+  },
+  "defer-q2-02B": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "B",
+   "arm_label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+   "compare_group": "defer-q2",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794433373.9381645,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-02B-p1.json",
+     "rc": 0,
+     "wall_s": 20.0
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-02B-p2.json",
+     "rc": 0,
+     "wall_s": 18.0
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-02B-p3.json",
+     "rc": 0,
+     "wall_s": 39.9
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-02B-p4.json",
+     "rc": 0,
+     "wall_s": 17.6
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 79355,
+   "stop": {
+    "leader": 79355,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.4,
+    "waited_s": 0.0
+   },
+   "end": 1794433701.200211,
+   "wall_s": 327.3
+  },
+  "defer-q2-03C": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "C",
+   "arm_label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+   "compare_group": "defer-q2",
+   "env": {
+    "STRATA_VERIFY_DEFER_AUTO": "1",
+    "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794433701.2043953,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-03C-p1.json",
+     "rc": 0,
+     "wall_s": 21.7
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-03C-p2.json",
+     "rc": 0,
+     "wall_s": 19.6
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-03C-p3.json",
+     "rc": 0,
+     "wall_s": 19.0
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-03C-p4.json",
+     "rc": 0,
+     "wall_s": 19.5
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 80069,
+   "stop": {
+    "leader": 80069,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.4,
+    "waited_s": 0.0
+   },
+   "end": 1794433973.2832549,
+   "wall_s": 272.1
+  },
+  "defer-q2-04C": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "C",
+   "arm_label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+   "compare_group": "defer-q2",
+   "env": {
+    "STRATA_VERIFY_DEFER_AUTO": "1",
+    "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794433973.2876568,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-04C-p1.json",
+     "rc": 0,
+     "wall_s": 22.1
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-04C-p2.json",
+     "rc": 0,
+     "wall_s": 18.9
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-04C-p3.json",
+     "rc": 0,
+     "wall_s": 19.9
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-04C-p4.json",
+     "rc": 0,
+     "wall_s": 19.8
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 80709,
+   "stop": {
+    "leader": 80709,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.3,
+    "waited_s": 0.0
+   },
+   "end": 1794434236.2521634,
+   "wall_s": 263.0
+  },
+  "defer-q2-05B": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "B",
+   "arm_label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+   "compare_group": "defer-q2",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794434236.2566826,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-05B-p1.json",
+     "rc": 0,
+     "wall_s": 19.9
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-05B-p2.json",
+     "rc": 0,
+     "wall_s": 17.8
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-05B-p3.json",
+     "rc": 0,
+     "wall_s": 18.3
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-05B-p4.json",
+     "rc": 0,
+     "wall_s": 17.7
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 81679,
+   "stop": {
+    "leader": 81679,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.0,
+    "waited_s": 0.0
+   },
+   "end": 1794434481.742005,
+   "wall_s": 245.5
+  },
+  "defer-q2-06A": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "A",
+   "arm_label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+   "compare_group": "defer-q2",
+   "env": {},
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794434481.7470982,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-06A-p1.json",
+     "rc": 0,
+     "wall_s": 20.6
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-06A-p2.json",
+     "rc": 0,
+     "wall_s": 18.6
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-06A-p3.json",
+     "rc": 0,
+     "wall_s": 18.7
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-06A-p4.json",
+     "rc": 0,
+     "wall_s": 18.3
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 82611,
+   "stop": {
+    "leader": 82611,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.4,
+    "waited_s": 0.0
+   },
+   "end": 1794434740.207216,
+   "wall_s": 258.5
+  },
+  "defer-q2-07A": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "A",
+   "arm_label": "deferral on (the preset's STRATA_VERIFY_DEFER_CPU=1)",
+   "compare_group": "defer-q2",
+   "env": {},
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794434740.2125206,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-07A-p1.json",
+     "rc": 0,
+     "wall_s": 21.1
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-07A-p2.json",
+     "rc": 0,
+     "wall_s": 19.1
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-07A-p3.json",
+     "rc": 0,
+     "wall_s": 19.4
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-07A-p4.json",
+     "rc": 0,
+     "wall_s": 19.7
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 83323,
+   "stop": {
+    "leader": 83323,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.2,
+    "waited_s": 0.0
+   },
+   "end": 1794435001.7763162,
+   "wall_s": 261.6
+  },
+  "defer-q2-08B": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "B",
+   "arm_label": "deferral removed (STRATA_VERIFY_DEFER_CPU unset)",
+   "compare_group": "defer-q2",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794435001.7819612,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-08B-p1.json",
+     "rc": 0,
+     "wall_s": 19.9
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-08B-p2.json",
+     "rc": 0,
+     "wall_s": 17.9
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-08B-p3.json",
+     "rc": 0,
+     "wall_s": 18.3
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-08B-p4.json",
+     "rc": 0,
+     "wall_s": 17.7
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 83957,
+   "stop": {
+    "leader": 83957,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.2,
+    "waited_s": 0.0
+   },
+   "end": 1794435257.7926214,
+   "wall_s": 256.0
+  },
+  "defer-q2-09C": {
+   "status": "done",
+   "group": "1-defer",
+   "engine": "pancake-q2",
+   "arm": "C",
+   "arm_label": "gate auto-closed (VERIFY_DEFER_AUTO=1, MIN_T=256: deferral's graphs, every CPU row on time)",
+   "compare_group": "defer-q2",
+   "env": {
+    "STRATA_VERIFY_DEFER_AUTO": "1",
+    "STRATA_VERIFY_DEFER_AUTO_MIN_T": "256"
+   },
+   "args": {},
+   "client_kind": "decode",
+   "est_min": 8.2,
+   "start": 1794435257.7987683,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/defer-q2-09C-p1.json",
+     "rc": 0,
+     "wall_s": 21.6
+    },
+    {
+     "n": 2,
+     "label": "pass 2",
+     "file": "raw/defer-q2-09C-p2.json",
+     "rc": 0,
+     "wall_s": 19.3
+    },
+    {
+     "n": 3,
+     "label": "pass 3",
+     "file": "raw/defer-q2-09C-p3.json",
+     "rc": 0,
+     "wall_s": 19.6
+    },
+    {
+     "n": 4,
+     "label": "pass 4",
+     "file": "raw/defer-q2-09C-p4.json",
+     "rc": 0,
+     "wall_s": 19.5
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 84550,
+   "stop": {
+    "leader": 84550,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.3,
+    "waited_s": 0.0
+   },
+   "end": 1794435520.1103122,
+   "wall_s": 262.3
+  },
+  "ttft-pancake-iq2xs-a": {
+   "status": "done",
+   "group": "2-ttft",
+   "engine": "pancake-iq2xs",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {},
+   "args": {},
+   "client_kind": "ttft",
+   "est_min": 15.0,
+   "start": 1794435520.1163056,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/ttft-pancake-iq2xs-a-p1.json",
+     "rc": 0,
+     "wall_s": 246.3
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 85177,
+   "stop": {
+    "leader": 85177,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.6,
+    "waited_s": 0.0
+   },
+   "end": 1794435953.1286309,
+   "wall_s": 433.0
+  },
+  "ttft-pancake-iq2xs-100k-trace": {
+   "status": "done",
+   "group": "2-ttft",
+   "engine": "pancake-iq2xs",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {
+    "STRATA_TRACE": "1"
+   },
+   "args": {},
+   "client_kind": "ttft",
+   "est_min": 11.0,
+   "start": 1794435953.136457,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/ttft-pancake-iq2xs-100k-trace-p1.json",
+     "rc": 0,
+     "wall_s": 148.7
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 87346,
+   "stop": {
+    "leader": 87346,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 51.7,
+    "waited_s": 0.0
+   },
+   "end": 1794436316.0699263,
+   "wall_s": 362.9
+  },
+  "ttft-rdna3-iq2xs": {
+   "status": "done",
+   "group": "2-ttft",
+   "engine": "rdna3-iq2xs",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {},
+   "args": {},
+   "client_kind": "ttft",
+   "est_min": 21.0,
+   "start": 1794436316.0761526,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/ttft-rdna3-iq2xs-p1.json",
+     "rc": 0,
+     "wall_s": 426.8
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 88309,
+   "stop": {
+    "leader": 88309,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.0,
+    "waited_s": 0.0
+   },
+   "end": 1794436932.615784,
+   "wall_s": 616.5
+  },
+  "ttft-avalon-iq2xs": {
+   "status": "done",
+   "group": "2-ttft",
+   "engine": "avalon-iq2xs",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {},
+   "args": {},
+   "client_kind": "ttft",
+   "est_min": 20.0,
+   "start": 1794436932.6278536,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/ttft-avalon-iq2xs-p1.json",
+     "rc": 0,
+     "wall_s": 42.0
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 91624,
+   "stop": {
+    "leader": 91624,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 52.8,
+    "waited_s": 0.0
+   },
+   "end": 1794437153.4528553,
+   "wall_s": 220.8
+  },
+  "lever-01A": {
+   "status": "done",
+   "group": "3-lever",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "control: the preset (conversation cache as it is)",
+   "compare_group": "lever",
+   "env": {},
+   "args": {},
+   "client_kind": "session",
+   "est_min": 11.0,
+   "start": 1794437153.4597702,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/lever-01A-p1.json",
+     "rc": 0,
+     "wall_s": 129.0
+    }
+   ],
+   "post": [
+    {
+     "argv": [
+      "/usr/bin/python3",
+      "/home/dan/clone-of-d/src/Strata/.claude/worktrees/agent-ad25cdf1dc7ea704a/tools/pancake/ttft_audit.py",
+      "--turns",
+      "/home/dan/night-queue-run/raw/turns-lever-01A.jsonl",
+      "--engine-log",
+      "/home/dan/night-queue-run/raw/engine-lever-01A.log",
+      "--json",
+      "/home/dan/night-queue-run/raw/lever-01A-audit.json"
+     ],
+     "out": "raw/lever-01A-post1.txt",
+     "rc": 0
+    }
+   ],
+   "reason": "",
+   "pid": 92322,
+   "stop": {
+    "leader": 92322,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794437436.6370492,
+   "wall_s": 283.2
+  },
+  "lever-02B": {
+   "status": "done",
+   "group": "3-lever",
+   "engine": "pancake-iq2xs",
+   "arm": "B",
+   "arm_label": "lever 1a: --conversation-cache-min-tokens 8192",
+   "compare_group": "lever",
+   "env": {},
+   "args": {
+    "--conversation-cache-min-tokens": "8192"
+   },
+   "client_kind": "session",
+   "est_min": 11.0,
+   "start": 1794437436.6836362,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/lever-02B-p1.json",
+     "rc": 0,
+     "wall_s": 131.8
+    }
+   ],
+   "post": [
+    {
+     "argv": [
+      "/usr/bin/python3",
+      "/home/dan/clone-of-d/src/Strata/.claude/worktrees/agent-ad25cdf1dc7ea704a/tools/pancake/ttft_audit.py",
+      "--turns",
+      "/home/dan/night-queue-run/raw/turns-lever-02B.jsonl",
+      "--engine-log",
+      "/home/dan/night-queue-run/raw/engine-lever-02B.log",
+      "--json",
+      "/home/dan/night-queue-run/raw/lever-02B-audit.json"
+     ],
+     "out": "raw/lever-02B-post1.txt",
+     "rc": 0
+    }
+   ],
+   "reason": "",
+   "pid": 95718,
+   "stop": {
+    "leader": 95718,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794437753.2938206,
+   "wall_s": 316.6
+  },
+  "lever-03C": {
+   "status": "done",
+   "group": "3-lever",
+   "engine": "pancake-iq2xs",
+   "arm": "C",
+   "arm_label": "lever 1b: budget floor --conversation-cache-mib 6144",
+   "compare_group": "lever",
+   "env": {},
+   "args": {
+    "--conversation-cache-mib": "6144"
+   },
+   "client_kind": "session",
+   "est_min": 11.0,
+   "start": 1794437753.3668768,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/lever-03C-p1.json",
+     "rc": 0,
+     "wall_s": 128.3
+    }
+   ],
+   "post": [
+    {
+     "argv": [
+      "/usr/bin/python3",
+      "/home/dan/clone-of-d/src/Strata/.claude/worktrees/agent-ad25cdf1dc7ea704a/tools/pancake/ttft_audit.py",
+      "--turns",
+      "/home/dan/night-queue-run/raw/turns-lever-03C.jsonl",
+      "--engine-log",
+      "/home/dan/night-queue-run/raw/engine-lever-03C.log",
+      "--json",
+      "/home/dan/night-queue-run/raw/lever-03C-audit.json"
+     ],
+     "out": "raw/lever-03C-post1.txt",
+     "rc": 0
+    }
+   ],
+   "reason": "",
+   "pid": 98821,
+   "stop": {
+    "leader": 98821,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.9,
+    "waited_s": 0.0
+   },
+   "end": 1794438055.9259632,
+   "wall_s": 302.6
+  },
+  "lever-04D": {
+   "status": "done",
+   "group": "3-lever",
+   "engine": "pancake-iq2xs",
+   "arm": "D",
+   "arm_label": "lever 1c: STRATA_PARK_TRUNCATE=1",
+   "compare_group": "lever",
+   "env": {
+    "STRATA_PARK_TRUNCATE": "1"
+   },
+   "args": {},
+   "client_kind": "session",
+   "est_min": 11.0,
+   "start": 1794438055.9980385,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/lever-04D-p1.json",
+     "rc": 0,
+     "wall_s": 128.0
+    }
+   ],
+   "post": [
+    {
+     "argv": [
+      "/usr/bin/python3",
+      "/home/dan/clone-of-d/src/Strata/.claude/worktrees/agent-ad25cdf1dc7ea704a/tools/pancake/ttft_audit.py",
+      "--turns",
+      "/home/dan/night-queue-run/raw/turns-lever-04D.jsonl",
+      "--engine-log",
+      "/home/dan/night-queue-run/raw/engine-lever-04D.log",
+      "--json",
+      "/home/dan/night-queue-run/raw/lever-04D-audit.json"
+     ],
+     "out": "raw/lever-04D-post1.txt",
+     "rc": 0
+    }
+   ],
+   "reason": "",
+   "pid": 102190,
+   "stop": {
+    "leader": 102190,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794438348.7785962,
+   "wall_s": 292.8
+  },
+  "lever-05E": {
+   "status": "done",
+   "group": "3-lever",
+   "engine": "pancake-iq2xs",
+   "arm": "E",
+   "arm_label": "lever 1 together: min-tokens 8192 + cache-mib 6144 + PARK_TRUNCATE=1",
+   "compare_group": "lever",
+   "env": {
+    "STRATA_PARK_TRUNCATE": "1"
+   },
+   "args": {
+    "--conversation-cache-min-tokens": "8192",
+    "--conversation-cache-mib": "6144"
+   },
+   "client_kind": "session",
+   "est_min": 11.0,
+   "start": 1794438348.851046,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/lever-05E-p1.json",
+     "rc": 0,
+     "wall_s": 147.9
+    }
+   ],
+   "post": [
+    {
+     "argv": [
+      "/usr/bin/python3",
+      "/home/dan/clone-of-d/src/Strata/.claude/worktrees/agent-ad25cdf1dc7ea704a/tools/pancake/ttft_audit.py",
+      "--turns",
+      "/home/dan/night-queue-run/raw/turns-lever-05E.jsonl",
+      "--engine-log",
+      "/home/dan/night-queue-run/raw/engine-lever-05E.log",
+      "--json",
+      "/home/dan/night-queue-run/raw/lever-05E-audit.json"
+     ],
+     "out": "raw/lever-05E-post1.txt",
+     "rc": 0
+    }
+   ],
+   "reason": "",
+   "pid": 105665,
+   "stop": {
+    "leader": 105665,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794438707.5022173,
+   "wall_s": 358.7
+  },
+  "lever-06F": {
+   "status": "done",
+   "group": "3-lever",
+   "engine": "pancake-iq2xs",
+   "arm": "F",
+   "arm_label": "lever 2: STRATA_PARK_REWIND_MAX=8192 + STRATA_PARK_DIVERGENCE_LOG=1",
+   "compare_group": "lever",
+   "env": {
+    "STRATA_PARK_REWIND_MAX": "8192",
+    "STRATA_PARK_DIVERGENCE_LOG": "1"
+   },
+   "args": {},
+   "client_kind": "session",
+   "est_min": 11.0,
+   "start": 1794438707.5754387,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/lever-06F-p1.json",
+     "rc": 0,
+     "wall_s": 144.6
+    }
+   ],
+   "post": [
+    {
+     "argv": [
+      "/usr/bin/python3",
+      "/home/dan/clone-of-d/src/Strata/.claude/worktrees/agent-ad25cdf1dc7ea704a/tools/pancake/ttft_audit.py",
+      "--turns",
+      "/home/dan/night-queue-run/raw/turns-lever-06F.jsonl",
+      "--engine-log",
+      "/home/dan/night-queue-run/raw/engine-lever-06F.log",
+      "--json",
+      "/home/dan/night-queue-run/raw/lever-06F-audit.json"
+     ],
+     "out": "raw/lever-06F-post1.txt",
+     "rc": 0
+    }
+   ],
+   "reason": "",
+   "pid": 108726,
+   "stop": {
+    "leader": 108726,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794439100.977283,
+   "wall_s": 393.4
+  },
+  "lever-07A": {
+   "status": "done",
+   "group": "3-lever",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "control: the preset (conversation cache as it is)",
+   "compare_group": "lever",
+   "env": {},
+   "args": {},
+   "client_kind": "session",
+   "est_min": 11.0,
+   "start": 1794439101.0504665,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/lever-07A-p1.json",
+     "rc": 0,
+     "wall_s": 128.4
+    }
+   ],
+   "post": [
+    {
+     "argv": [
+      "/usr/bin/python3",
+      "/home/dan/clone-of-d/src/Strata/.claude/worktrees/agent-ad25cdf1dc7ea704a/tools/pancake/ttft_audit.py",
+      "--turns",
+      "/home/dan/night-queue-run/raw/turns-lever-07A.jsonl",
+      "--engine-log",
+      "/home/dan/night-queue-run/raw/engine-lever-07A.log",
+      "--json",
+      "/home/dan/night-queue-run/raw/lever-07A-audit.json"
+     ],
+     "out": "raw/lever-07A-post1.txt",
+     "rc": 0
+    }
+   ],
+   "reason": "",
+   "pid": 112081,
+   "stop": {
+    "leader": 112081,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794439414.2159472,
+   "wall_s": 313.2
+  },
+  "kvring-01S": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "S",
+   "arm_label": "static --kv-resident 32768 (the preset)",
+   "compare_group": "kvring",
+   "env": {},
+   "args": {},
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794439414.293378,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-01S-p1.json",
+     "rc": 0,
+     "wall_s": 252.8
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 115363,
+   "stop": {
+    "leader": 115363,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794439831.3191602,
+   "wall_s": 417.0
+  },
+  "kvring-02T": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "T",
+   "arm_label": "static --kv-resident 49152",
+   "compare_group": "kvring",
+   "env": {},
+   "args": {
+    "--kv-resident": "49152"
+   },
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794439831.3287096,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-02T-p1.json",
+     "rc": 0,
+     "wall_s": 249.5
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 116300,
+   "stop": {
+    "leader": 116300,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794440269.5149603,
+   "wall_s": 438.2
+  },
+  "kvring-03R": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "R",
+   "arm_label": "STRATA_KV_RING_ADAPT=1 --kv-resident 49152, --max-context 131072 (the rule gives the cap here: expected = T)",
+   "compare_group": "kvring",
+   "env": {
+    "STRATA_KV_RING_ADAPT": "1"
+   },
+   "args": {
+    "--kv-resident": "49152"
+   },
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794440269.5245934,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-03R-p1.json",
+     "rc": 0,
+     "wall_s": 249.0
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 117264,
+   "stop": {
+    "leader": 117264,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.8,
+    "waited_s": 0.0
+   },
+   "end": 1794440643.1590974,
+   "wall_s": 373.6
+  },
+  "kvring-04P": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "P",
+   "arm_label": "STRATA_KV_RING_ADAPT=1 --kv-resident 49152, --max-context 65536 (the rule gives the 32768 floor: expected = S at 64K)",
+   "compare_group": "kvring",
+   "env": {
+    "STRATA_KV_RING_ADAPT": "1"
+   },
+   "args": {
+    "--kv-resident": "49152",
+    "--max-context": "65536"
+   },
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794440643.1690836,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-04P-p1.json",
+     "rc": 0,
+     "wall_s": 110.2
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 118037,
+   "stop": {
+    "leader": 118037,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.6,
+    "waited_s": 0.0
+   },
+   "end": 1794440875.5320385,
+   "wall_s": 232.4
+  },
+  "kvring-05P": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "P",
+   "arm_label": "STRATA_KV_RING_ADAPT=1 --kv-resident 49152, --max-context 65536 (the rule gives the 32768 floor: expected = S at 64K)",
+   "compare_group": "kvring",
+   "env": {
+    "STRATA_KV_RING_ADAPT": "1"
+   },
+   "args": {
+    "--kv-resident": "49152",
+    "--max-context": "65536"
+   },
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794440875.542153,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-05P-p1.json",
+     "rc": 0,
+     "wall_s": 110.0
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 118999,
+   "stop": {
+    "leader": 118999,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.4,
+    "waited_s": 0.0
+   },
+   "end": 1794441199.8514724,
+   "wall_s": 324.3
+  },
+  "kvring-06R": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "R",
+   "arm_label": "STRATA_KV_RING_ADAPT=1 --kv-resident 49152, --max-context 131072 (the rule gives the cap here: expected = T)",
+   "compare_group": "kvring",
+   "env": {
+    "STRATA_KV_RING_ADAPT": "1"
+   },
+   "args": {
+    "--kv-resident": "49152"
+   },
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794441199.8621504,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-06R-p1.json",
+     "rc": 0,
+     "wall_s": 249.1
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 119798,
+   "stop": {
+    "leader": 119798,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.3,
+    "waited_s": 0.0
+   },
+   "end": 1794441643.7282965,
+   "wall_s": 443.9
+  },
+  "kvring-07T": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "T",
+   "arm_label": "static --kv-resident 49152",
+   "compare_group": "kvring",
+   "env": {},
+   "args": {
+    "--kv-resident": "49152"
+   },
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794441643.7406704,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-07T-p1.json",
+     "rc": 0,
+     "wall_s": 249.6
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 121026,
+   "stop": {
+    "leader": 121026,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.3,
+    "waited_s": 0.0
+   },
+   "end": 1794442038.007691,
+   "wall_s": 394.3
+  },
+  "kvring-08S": {
+   "status": "done",
+   "group": "4-kvring",
+   "engine": "pancake-iq2xs",
+   "arm": "S",
+   "arm_label": "static --kv-resident 32768 (the preset)",
+   "compare_group": "kvring",
+   "env": {},
+   "args": {},
+   "client_kind": "depth",
+   "est_min": 13.0,
+   "start": 1794442038.0233583,
+   "passes": [
+    {
+     "n": 1,
+     "label": "pass 1",
+     "file": "raw/kvring-08S-p1.json",
+     "rc": 0,
+     "wall_s": 248.2
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 124324,
+   "stop": {
+    "leader": 124324,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.2,
+    "waited_s": 0.0
+   },
+   "end": 1794442420.4132898,
+   "wall_s": 382.4
+  },
+  "prose-base-01A": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "preset (spec 4, min-p 0.5)",
+   "compare_group": "prose-base",
+   "env": {},
+   "args": {},
+   "client_kind": "prose",
+   "est_min": 8.5,
+   "start": 1794442420.4241292,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/prose-base-01A-p1.json",
+     "rc": 0,
+     "wall_s": 32.0
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/prose-base-01A-p2.json",
+     "rc": 0,
+     "wall_s": 17.2
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/prose-base-01A-p3.json",
+     "rc": 0,
+     "wall_s": 23.5
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/prose-base-01A-p4.json",
+     "rc": 0,
+     "wall_s": 10.1
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/prose-base-01A-p5.json",
+     "rc": 0,
+     "wall_s": 22.4
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 125137,
+   "stop": {
+    "leader": 125137,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.3,
+    "waited_s": 0.0
+   },
+   "end": 1794442650.29903,
+   "wall_s": 229.9
+  },
+  "prose-avalon": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "avalon-iq2xs",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {},
+   "args": {},
+   "client_kind": "prose",
+   "est_min": 7.5,
+   "start": 1794442650.3105955,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/prose-avalon-p1.json",
+     "rc": 0,
+     "wall_s": 31.1
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/prose-avalon-p2.json",
+     "rc": 0,
+     "wall_s": 13.9
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/prose-avalon-p3.json",
+     "rc": 0,
+     "wall_s": 22.3
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/prose-avalon-p4.json",
+     "rc": 0,
+     "wall_s": 24.4
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/prose-avalon-p5.json",
+     "rc": 0,
+     "wall_s": 20.5
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 125918,
+   "stop": {
+    "leader": 125918,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.3,
+    "waited_s": 0.0
+   },
+   "end": 1794442929.8060524,
+   "wall_s": 279.5
+  },
+  "prose-var-01B": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "pancake-iq2xs",
+   "arm": "B",
+   "arm_label": "--spec-min-p 0",
+   "compare_group": "prose-var",
+   "env": {},
+   "args": {
+    "--spec-min-p": "0"
+   },
+   "client_kind": "prose",
+   "est_min": 8.5,
+   "start": 1794442929.8179922,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/prose-var-01B-p1.json",
+     "rc": 0,
+     "wall_s": 34.4
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/prose-var-01B-p2.json",
+     "rc": 0,
+     "wall_s": 17.2
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/prose-var-01B-p3.json",
+     "rc": 0,
+     "wall_s": 23.5
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/prose-var-01B-p4.json",
+     "rc": 0,
+     "wall_s": 16.3
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/prose-var-01B-p5.json",
+     "rc": 0,
+     "wall_s": 22.1
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 126417,
+   "stop": {
+    "leader": 126417,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.3,
+    "waited_s": 0.0
+   },
+   "end": 1794443228.0096753,
+   "wall_s": 298.2
+  },
+  "prose-var-02C": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "pancake-iq2xs",
+   "arm": "C",
+   "arm_label": "--spec 2 --spec-min-p 0",
+   "compare_group": "prose-var",
+   "env": {},
+   "args": {
+    "--spec": "2",
+    "--spec-min-p": "0"
+   },
+   "client_kind": "prose",
+   "est_min": 8.5,
+   "start": 1794443228.021556,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/prose-var-02C-p1.json",
+     "rc": 0,
+     "wall_s": 33.6
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/prose-var-02C-p2.json",
+     "rc": 0,
+     "wall_s": 17.1
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/prose-var-02C-p3.json",
+     "rc": 0,
+     "wall_s": 24.5
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/prose-var-02C-p4.json",
+     "rc": 0,
+     "wall_s": 15.0
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/prose-var-02C-p5.json",
+     "rc": 0,
+     "wall_s": 28.4
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 127362,
+   "stop": {
+    "leader": 127362,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.3,
+    "waited_s": 0.0
+   },
+   "end": 1794443539.4266138,
+   "wall_s": 311.4
+  },
+  "prose-var-03D": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "pancake-iq2xs",
+   "arm": "D",
+   "arm_label": "STRATA_SPEC_COST=1",
+   "compare_group": "prose-var",
+   "env": {
+    "STRATA_SPEC_COST": "1"
+   },
+   "args": {},
+   "client_kind": "prose",
+   "est_min": 8.5,
+   "start": 1794443539.4384005,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/prose-var-03D-p1.json",
+     "rc": 0,
+     "wall_s": 32.3
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/prose-var-03D-p2.json",
+     "rc": 0,
+     "wall_s": 17.0
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/prose-var-03D-p3.json",
+     "rc": 0,
+     "wall_s": 21.9
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/prose-var-03D-p4.json",
+     "rc": 0,
+     "wall_s": 12.6
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/prose-var-03D-p5.json",
+     "rc": 0,
+     "wall_s": 23.9
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 128005,
+   "stop": {
+    "leader": 128005,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.3,
+    "waited_s": 0.0
+   },
+   "end": 1794443841.9230247,
+   "wall_s": 302.5
+  },
+  "prose-var-04A": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "preset again (drift check)",
+   "compare_group": "prose-var",
+   "env": {},
+   "args": {},
+   "client_kind": "prose",
+   "est_min": 8.5,
+   "start": 1794443841.935289,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/prose-var-04A-p1.json",
+     "rc": 0,
+     "wall_s": 38.9
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/prose-var-04A-p2.json",
+     "rc": 0,
+     "wall_s": 19.0
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/prose-var-04A-p3.json",
+     "rc": 0,
+     "wall_s": 23.9
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/prose-var-04A-p4.json",
+     "rc": 0,
+     "wall_s": 15.9
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/prose-var-04A-p5.json",
+     "rc": 0,
+     "wall_s": 28.3
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 128649,
+   "stop": {
+    "leader": 128649,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.4,
+    "waited_s": 0.0
+   },
+   "end": 1794444180.291891,
+   "wall_s": 338.4
+  }
+ }
+}

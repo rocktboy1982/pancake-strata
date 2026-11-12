@@ -1,0 +1,219 @@
+{
+ "schema": 1,
+ "label": "ctrl-avalon-tailoff-p4",
+ "engine_kind": "llama",
+ "host": "127.0.0.1",
+ "port": 8081,
+ "time": 1794488228.8463788,
+ "prompt_name": "js",
+ "prompt": "Write a JavaScript debounce function with JSDoc and a usage example.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 512,
+   "tps": 94.03190018412587,
+   "decode_ms": 5434.326,
+   "draft_n": 404,
+   "draft_n_accepted": 330,
+   "wall_s": 5.743182897567749,
+   "text_sha256": "2cfaa51d5dc79415",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 81.68316831683168,
+   "windows": 182,
+   "tok_per_window": 2.8131868131868134,
+   "accepted_per_window": 1.8131868131868132,
+   "drafted_per_window": 2.21978021978022,
+   "ms_per_window": 29.858934065934065,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 512,
+   "tps": 114.98003037632895,
+   "decode_ms": 4444.25,
+   "draft_n": 392,
+   "draft_n_accepted": 337,
+   "wall_s": 4.599810838699341,
+   "text_sha256": "d294a01ba7bd9661",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 85.96938775510205,
+   "windows": 175,
+   "tok_per_window": 2.9257142857142857,
+   "accepted_per_window": 1.9257142857142857,
+   "drafted_per_window": 2.24,
+   "ms_per_window": 25.395714285714284,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 420,
+   "tps": 114.11300019418275,
+   "decode_ms": 3671.799,
+   "draft_n": 298,
+   "draft_n_accepted": 270,
+   "wall_s": 3.8369193077087402,
+   "text_sha256": "8eb2cfbf62f2bb30",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 90.60402684563758,
+   "windows": 150,
+   "tok_per_window": 2.8,
+   "accepted_per_window": 1.8,
+   "drafted_per_window": 1.9866666666666666,
+   "ms_per_window": 24.47866,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 386,
+   "tps": 120.4249091261124,
+   "decode_ms": 3197.013,
+   "draft_n": 276,
+   "draft_n_accepted": 247,
+   "wall_s": 3.333216428756714,
+   "text_sha256": "d424f30850c12ad3",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 89.4927536231884,
+   "windows": 139,
+   "tok_per_window": 2.776978417266187,
+   "accepted_per_window": 1.776978417266187,
+   "drafted_per_window": 1.985611510791367,
+   "ms_per_window": 23.000093525179857,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 112.09643364428577,
+   "decode_ms": 4558.575,
+   "draft_n": 396,
+   "draft_n_accepted": 334,
+   "wall_s": 4.69270396232605,
+   "text_sha256": "1e4da27eca761798",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 84.34343434343434,
+   "windows": 178,
+   "tok_per_window": 2.8764044943820224,
+   "accepted_per_window": 1.8764044943820224,
+   "drafted_per_window": 2.2247191011235956,
+   "ms_per_window": 25.609971910112357,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 106.68459357554147,
+   "decode_ms": 4789.82,
+   "draft_n": 416,
+   "draft_n_accepted": 324,
+   "wall_s": 4.932130336761475,
+   "text_sha256": "def4faa09bbec7fe",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 77.88461538461539,
+   "windows": 188,
+   "tok_per_window": 2.723404255319149,
+   "accepted_per_window": 1.7234042553191489,
+   "drafted_per_window": 2.2127659574468086,
+   "ms_per_window": 25.477765957446806,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 114.11300019418275,
+   "mean": 113.65979338329028,
+   "sd": 4.97022935025553,
+   "min": 106.68459357554147,
+   "max": 120.4249091261124
+  },
+  "tok_per_window": {
+   "median": 2.8,
+   "mean": 2.820500290536329,
+   "sd": 0.08052533795154172,
+   "min": 2.723404255319149,
+   "max": 2.9257142857142857
+  },
+  "accepted_per_window": {
+   "median": 1.8,
+   "mean": 1.8205002905363288,
+   "sd": 0.08052533795154171,
+   "min": 1.7234042553191489,
+   "max": 1.9257142857142857
+  },
+  "drafted_per_window": {
+   "median": 2.2127659574468086,
+   "mean": 2.1299526472056876,
+   "sd": 0.131638122212668,
+   "min": 1.985611510791367,
+   "max": 2.24
+  },
+  "accept_pct": {
+   "median": 85.96938775510205,
+   "mean": 85.65884359039555,
+   "sd": 5.035351698944376,
+   "min": 77.88461538461539,
+   "max": 90.60402684563758
+  },
+  "ms_per_window": {
+   "median": 25.395714285714284,
+   "mean": 24.79244113569066,
+   "sd": 1.096919975431226,
+   "min": 23.000093525179857,
+   "max": 25.609971910112357
+  }
+ },
+ "loadavg_before": [
+  7.54296875,
+  2.9736328125,
+  1.31298828125
+ ],
+ "loadavg_after": [
+  8.65576171875,
+  3.62890625,
+  1.576171875
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "server_log": "/home/dan/night-queue-controls/raw/srv-ctrl-avalon-tailoff.log",
+ "server_log_requests": [
+  {
+   "acceptance": 0.81683,
+   "accepted": 330,
+   "generated": 404,
+   "mean_len": 2.84
+  },
+  {
+   "acceptance": 0.85969,
+   "accepted": 337,
+   "generated": 392,
+   "mean_len": 2.95
+  },
+  {
+   "acceptance": 0.90604,
+   "accepted": 270,
+   "generated": 298,
+   "mean_len": 2.81
+  },
+  {
+   "acceptance": 0.89493,
+   "accepted": 247,
+   "generated": 276,
+   "mean_len": 2.79
+  },
+  {
+   "acceptance": 0.84343,
+   "accepted": 334,
+   "generated": 396,
+   "mean_len": 2.91
+  },
+  {
+   "acceptance": 0.77885,
+   "accepted": 324,
+   "generated": 416,
+   "mean_len": 2.75
+  }
+ ]
+}

@@ -1,0 +1,207 @@
+{
+ "schema": 1,
+ "plan": "night-queue-2026-11-11",
+ "jobs": {
+  "ctrl-avalon-tailoff": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "avalon-tailoff",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {},
+   "args": {},
+   "client_kind": "prose",
+   "est_min": 7.5,
+   "start": 1794488085.527425,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/ctrl-avalon-tailoff-p1.json",
+     "rc": 0,
+     "wall_s": 37.3
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/ctrl-avalon-tailoff-p2.json",
+     "rc": 0,
+     "wall_s": 19.2
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/ctrl-avalon-tailoff-p3.json",
+     "rc": 0,
+     "wall_s": 25.6
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/ctrl-avalon-tailoff-p4.json",
+     "rc": 0,
+     "wall_s": 27.2
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/ctrl-avalon-tailoff-p5.json",
+     "rc": 0,
+     "wall_s": 21.1
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 195316,
+   "stop": {
+    "leader": 195316,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 53.1,
+    "waited_s": 0.0
+   },
+   "end": 1794488253.05644,
+   "wall_s": 167.5
+  },
+  "ctrl-avalon-iq3ks-main": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "avalon-iq3ks-main",
+   "arm": null,
+   "arm_label": null,
+   "compare_group": null,
+   "env": {},
+   "args": {},
+   "client_kind": "prose",
+   "est_min": 7.5,
+   "start": 1794488253.0573854,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/ctrl-avalon-iq3ks-main-p1.json",
+     "rc": 0,
+     "wall_s": 38.1
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/ctrl-avalon-iq3ks-main-p2.json",
+     "rc": 0,
+     "wall_s": 21.2
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/ctrl-avalon-iq3ks-main-p3.json",
+     "rc": 0,
+     "wall_s": 27.9
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/ctrl-avalon-iq3ks-main-p4.json",
+     "rc": 0,
+     "wall_s": 37.0
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/ctrl-avalon-iq3ks-main-p5.json",
+     "rc": 0,
+     "wall_s": 35.2
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 195744,
+   "stop": {
+    "leader": 195744,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 54.4,
+    "waited_s": 0.0
+   },
+   "end": 1794488608.6125617,
+   "wall_s": 355.6
+  },
+  "ctrl-pancake-base-rep-01A": {
+   "status": "done",
+   "group": "5-prose",
+   "engine": "pancake-iq2xs",
+   "arm": "A",
+   "arm_label": "preset (spec 4, min-p 0.5)",
+   "compare_group": "ctrl-pancake-base-rep",
+   "env": {},
+   "args": {},
+   "client_kind": "prose",
+   "est_min": 8.5,
+   "start": 1794488608.636656,
+   "passes": [
+    {
+     "n": 1,
+     "label": "story",
+     "file": "raw/ctrl-pancake-base-rep-01A-p1.json",
+     "rc": 0,
+     "wall_s": 36.2
+    },
+    {
+     "n": 2,
+     "label": "tips",
+     "file": "raw/ctrl-pancake-base-rep-01A-p2.json",
+     "rc": 0,
+     "wall_s": 19.0
+    },
+    {
+     "n": 3,
+     "label": "moe",
+     "file": "raw/ctrl-pancake-base-rep-01A-p3.json",
+     "rc": 0,
+     "wall_s": 24.6
+    },
+    {
+     "n": 4,
+     "label": "js",
+     "file": "raw/ctrl-pancake-base-rep-01A-p4.json",
+     "rc": 0,
+     "wall_s": 24.1
+    },
+    {
+     "n": 5,
+     "label": "lru",
+     "file": "raw/ctrl-pancake-base-rep-01A-p5.json",
+     "rc": 0,
+     "wall_s": 25.3
+    }
+   ],
+   "post": [],
+   "reason": "",
+   "pid": 196159,
+   "stop": {
+    "leader": 196159,
+    "sigterm": 1,
+    "sigkill": 0,
+    "gone": true
+   },
+   "released": {
+    "ram_back": true,
+    "port_free": true,
+    "mem_gib": 54.3,
+    "waited_s": 0.0
+   },
+   "end": 1794488936.6234865,
+   "wall_s": 328.0
+  }
+ }
+}

@@ -1,0 +1,493 @@
+{
+ "schema": 1,
+ "label": "prose-var-04A-p4",
+ "engine_kind": "pancake",
+ "host": "127.0.0.1",
+ "port": 8080,
+ "time": 1794444147.9510093,
+ "prompt_name": "js",
+ "prompt": "Write a JavaScript debounce function with JSDoc and a usage example.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 207,
+   "tps": 100.3,
+   "decode_ms": 2064.6,
+   "draft_n": 184,
+   "draft_n_accepted": 136,
+   "wall_s": 2.6027393341064453,
+   "text_sha256": "93b0de177755e95e",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 73.91304347826087,
+   "windows": 71,
+   "tok_per_window": 2.915492957746479,
+   "accepted_per_window": 1.9154929577464788,
+   "drafted_per_window": 2.591549295774648,
+   "ms_per_window": 29.078873239436618,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 201,
+   "tps": 132.0,
+   "decode_ms": 1522.3,
+   "draft_n": 179,
+   "draft_n_accepted": 134,
+   "wall_s": 1.667888879776001,
+   "text_sha256": "58ad11eca9857974",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 74.86033519553072,
+   "windows": 67,
+   "tok_per_window": 3.0,
+   "accepted_per_window": 2.0,
+   "drafted_per_window": 2.671641791044776,
+   "ms_per_window": 22.72089552238806,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 457,
+   "tps": 134.4,
+   "decode_ms": 3399.7,
+   "draft_n": 403,
+   "draft_n_accepted": 309,
+   "wall_s": 3.5608017444610596,
+   "text_sha256": "7c668d2ba11ea708",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 76.67493796526054,
+   "windows": 148,
+   "tok_per_window": 3.0878378378378377,
+   "accepted_per_window": 2.0878378378378377,
+   "drafted_per_window": 2.722972972972973,
+   "ms_per_window": 22.970945945945946,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 207,
+   "tps": 84.8,
+   "decode_ms": 2441.5,
+   "draft_n": 180,
+   "draft_n_accepted": 136,
+   "wall_s": 2.607006311416626,
+   "text_sha256": "93b0de177755e95e",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 75.55555555555556,
+   "windows": 71,
+   "tok_per_window": 2.915492957746479,
+   "accepted_per_window": 1.9154929577464788,
+   "drafted_per_window": 2.535211267605634,
+   "ms_per_window": 34.38732394366197,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 427,
+   "tps": 115.9,
+   "decode_ms": 3683.5,
+   "draft_n": 368,
+   "draft_n_accepted": 287,
+   "wall_s": 3.8451571464538574,
+   "text_sha256": "6db9231cef8ef520",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 77.98913043478261,
+   "windows": 140,
+   "tok_per_window": 3.05,
+   "accepted_per_window": 2.05,
+   "drafted_per_window": 2.6285714285714286,
+   "ms_per_window": 26.310714285714287,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 201,
+   "tps": 143.6,
+   "decode_ms": 1399.3,
+   "draft_n": 172,
+   "draft_n_accepted": 134,
+   "wall_s": 1.5615427494049072,
+   "text_sha256": "58ad11eca9857974",
+   "text_head": "```javascript\n/**\n * Creates a debounced function that delays invoking `func` un",
+   "accept_pct": 77.90697674418605,
+   "windows": 67,
+   "tok_per_window": 3.0,
+   "accepted_per_window": 2.0,
+   "drafted_per_window": 2.5671641791044775,
+   "ms_per_window": 20.88507462686567,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 132.0,
+   "mean": 122.14000000000001,
+   "sd": 23.13694016070405,
+   "min": 84.8,
+   "max": 143.6
+  },
+  "tok_per_window": {
+   "median": 3.0,
+   "mean": 3.0106661591168633,
+   "sd": 0.06478443330564336,
+   "min": 2.915492957746479,
+   "max": 3.0878378378378377
+  },
+  "accepted_per_window": {
+   "median": 2.0,
+   "mean": 2.0106661591168633,
+   "sd": 0.06478443330564344,
+   "min": 1.9154929577464788,
+   "max": 2.0878378378378377
+  },
+  "drafted_per_window": {
+   "median": 2.6285714285714286,
+   "mean": 2.6251123278598576,
+   "sd": 0.07614763746002524,
+   "min": 2.535211267605634,
+   "max": 2.722972972972973
+  },
+  "accept_pct": {
+   "median": 76.67493796526054,
+   "mean": 76.59738717906309,
+   "sd": 1.3929062215915358,
+   "min": 74.86033519553072,
+   "max": 77.98913043478261
+  },
+  "ms_per_window": {
+   "median": 22.970945945945946,
+   "mean": 25.454990864915185,
+   "sd": 5.363038498063672,
+   "min": 20.88507462686567,
+   "max": 34.38732394366197
+  }
+ },
+ "loadavg_before": [
+  8.61083984375,
+  6.53076171875,
+  5.30078125
+ ],
+ "loadavg_after": [
+  9.67626953125,
+  6.8525390625,
+  5.42529296875
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "snapshot_before": {
+  "time": 1794444132.1039734,
+  "engine": {
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "max_context": 131072,
+   "images": false,
+   "version": "0.1.58",
+   "logit_bias": 1,
+   "context": 131072,
+   "kv": "int8",
+   "kv_resident": 32768,
+   "expert_slots": 10733,
+   "expert_cache_mib": 14718,
+   "expert_slots_primary": 10733,
+   "expert_cache_primary_mib": 14718,
+   "spec": 12,
+   "mtp_max": 4,
+   "lookup": 3,
+   "vram_free_mib": 818,
+   "cvec": 0,
+   "arena_mib": 33812,
+   "pool_workers": 7,
+   "pcie_frac": "0.00",
+   "spec_min_p": "0.50",
+   "conversation_cache_mib": 5632,
+   "conversation_cache_slots": 4,
+   "conversation_cache_min_free_mib": 2560,
+   "conversation_cache_min_tokens": 0,
+   "tail_role_token": 8678,
+   "vram_elastic": 0,
+   "prefill_cap": 32768,
+   "prefill_stages": 1,
+   "stream_all_min": 4096,
+   "prefill_pipe": 0,
+   "engine": "0.1.58",
+   "drafting": "mtp",
+   "drafting_note": ""
+  },
+  "totals": {
+   "since": 1794444048.4428375,
+   "requests": 18,
+   "prompt_tokens": 1284,
+   "reused": 965,
+   "output_tokens": 6985,
+   "prompt_ms": 4588.799999999999,
+   "decode_ms": 76920.50000000001,
+   "drafts_offered": 5806,
+   "drafts_accepted": 3389
+  },
+  "hardware": {
+   "cpu": 47.3,
+   "ram_used": 45183791104,
+   "ram_total": 61997891584,
+   "disk_read_mb": 6.437834470381809,
+   "disk_write_mb": 0.0,
+   "tok_s": 99.44990793163754,
+   "tok_s_mean": 99.44974256374998,
+   "prefill_tok_s_mean": 0.0
+  },
+  "live": {
+   "state": "idle",
+   "queued": 0,
+   "phase": null,
+   "prompt_tokens": null,
+   "prompt_read": null,
+   "prompt_total": null,
+   "generated": null,
+   "max_tokens": null,
+   "elapsed_s": null,
+   "tok_s": null,
+   "tok_s_mean": null,
+   "prefill_tok_s_mean": null,
+   "tok_s_window_s": null
+  },
+  "status": {
+   "service": "strata",
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "loaded": true,
+   "auto_load": true,
+   "structured_output": {
+    "formats": [
+     "json_object",
+     "json_schema"
+    ],
+    "method": "prompt_and_validate",
+    "constrained_decoding": false,
+    "stream_buffered": true
+   },
+   "engine": "0.1.58",
+   "started": 1794444048,
+   "uptime_s": 83,
+   "cache_max_tokens": 131072,
+   "context": {
+    "native": 131072,
+    "max_positions": 131072
+   },
+   "concurrency": {
+    "serving": 1,
+    "requested": 1
+   },
+   "dialects": [
+    "/v1/chat/completions",
+    "/v1/messages",
+    "/v1/responses"
+   ],
+   "vision": {
+    "enabled": false,
+    "available": false,
+    "error": null
+   },
+   "image_generation": {
+    "enabled": false
+   },
+   "activity": {
+    "requests": 18,
+    "in_flight": 0,
+    "last_request_at": 1794444132
+   },
+   "last_timings": {
+    "cache_n": 66,
+    "prompt_n": 7,
+    "prompt_ms": 158.8,
+    "prompt_per_token_ms": 22.686,
+    "prompt_per_second": 44.1,
+    "predicted_n": 396,
+    "predicted_ms": 3966.6,
+    "predicted_per_token_ms": 10.017,
+    "predicted_per_second": 99.8,
+    "draft_n": 318,
+    "draft_n_accepted": 201,
+    "at": 1794444132
+   },
+   "vram": {
+    "elastic": false
+   },
+   "machine": {
+    "at": 1794444132,
+    "gpu": null,
+    "ram": {
+     "used_gib": 42.1,
+     "total_gib": 57.7
+    }
+   }
+  }
+ },
+ "snapshot_after": {
+  "time": 1794444147.9509926,
+  "engine": {
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "max_context": 131072,
+   "images": false,
+   "version": "0.1.58",
+   "logit_bias": 1,
+   "context": 131072,
+   "kv": "int8",
+   "kv_resident": 32768,
+   "expert_slots": 10733,
+   "expert_cache_mib": 14718,
+   "expert_slots_primary": 10733,
+   "expert_cache_primary_mib": 14718,
+   "spec": 12,
+   "mtp_max": 4,
+   "lookup": 3,
+   "vram_free_mib": 818,
+   "cvec": 0,
+   "arena_mib": 33812,
+   "pool_workers": 7,
+   "pcie_frac": "0.00",
+   "spec_min_p": "0.50",
+   "conversation_cache_mib": 5632,
+   "conversation_cache_slots": 4,
+   "conversation_cache_min_free_mib": 2560,
+   "conversation_cache_min_tokens": 0,
+   "tail_role_token": 8678,
+   "vram_elastic": 0,
+   "prefill_cap": 32768,
+   "prefill_stages": 1,
+   "stream_all_min": 4096,
+   "prefill_pipe": 0,
+   "engine": "0.1.58",
+   "drafting": "mtp",
+   "drafting_note": ""
+  },
+  "totals": {
+   "since": 1794444048.4428375,
+   "requests": 24,
+   "prompt_tokens": 1692,
+   "reused": 1270,
+   "output_tokens": 8685,
+   "prompt_ms": 5898.599999999999,
+   "decode_ms": 91431.40000000002,
+   "drafts_offered": 7292,
+   "drafts_accepted": 4525
+  },
+  "hardware": {
+   "cpu": 49.8,
+   "ram_used": 45421510656,
+   "ram_total": 61997891584,
+   "disk_read_mb": 0.21846784584023557,
+   "disk_write_mb": 0.05461696146005889,
+   "tok_s": 143.22082458437464,
+   "tok_s_mean": 143.22007984347462,
+   "prefill_tok_s_mean": 0.0
+  },
+  "live": {
+   "state": "idle",
+   "queued": 0,
+   "phase": null,
+   "prompt_tokens": null,
+   "prompt_read": null,
+   "prompt_total": null,
+   "generated": null,
+   "max_tokens": null,
+   "elapsed_s": null,
+   "tok_s": null,
+   "tok_s_mean": null,
+   "prefill_tok_s_mean": null,
+   "tok_s_window_s": null
+  },
+  "status": {
+   "service": "strata",
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "loaded": true,
+   "auto_load": true,
+   "structured_output": {
+    "formats": [
+     "json_object",
+     "json_schema"
+    ],
+    "method": "prompt_and_validate",
+    "constrained_decoding": false,
+    "stream_buffered": true
+   },
+   "engine": "0.1.58",
+   "started": 1794444048,
+   "uptime_s": 99,
+   "cache_max_tokens": 131072,
+   "context": {
+    "native": 131072,
+    "max_positions": 131072
+   },
+   "concurrency": {
+    "serving": 1,
+    "requested": 1
+   },
+   "dialects": [
+    "/v1/chat/completions",
+    "/v1/messages",
+    "/v1/responses"
+   ],
+   "vision": {
+    "enabled": false,
+    "available": false,
+    "error": null
+   },
+   "image_generation": {
+    "enabled": false
+   },
+   "activity": {
+    "requests": 24,
+    "in_flight": 0,
+    "last_request_at": 1794444147
+   },
+   "last_timings": {
+    "cache_n": 61,
+    "prompt_n": 7,
+    "prompt_ms": 158.6,
+    "prompt_per_token_ms": 22.657,
+    "prompt_per_second": 44.1,
+    "predicted_n": 201,
+    "predicted_ms": 1399.3,
+    "predicted_per_token_ms": 6.962,
+    "predicted_per_second": 143.6,
+    "draft_n": 172,
+    "draft_n_accepted": 134,
+    "at": 1794444147
+   },
+   "vram": {
+    "elastic": false
+   },
+   "machine": {
+    "at": 1794444147,
+    "gpu": null,
+    "ram": {
+     "used_gib": 42.3,
+     "total_gib": 57.7
+    }
+   }
+  }
+ },
+ "snapshot_diff": {
+  "totals": {
+   "since": 0.0,
+   "requests": 6,
+   "prompt_tokens": 408,
+   "reused": 305,
+   "output_tokens": 1700,
+   "prompt_ms": 1309.8000000000002,
+   "decode_ms": 14510.900000000009,
+   "drafts_offered": 1486,
+   "drafts_accepted": 1136
+  },
+  "hardware": {
+   "cpu": 2.5,
+   "ram_used": 237719552,
+   "ram_total": 0,
+   "disk_read_mb": -6.219366624541573,
+   "disk_write_mb": 0.05461696146005889,
+   "tok_s": 43.7709166527371,
+   "tok_s_mean": 43.77033727972464,
+   "prefill_tok_s_mean": 0.0
+  }
+ }
+}

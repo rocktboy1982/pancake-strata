@@ -1,0 +1,50 @@
+rep 0 base                 short 128.7 edit 146.0  foreign CPU 16% [('ptyxis', 4), ('claude', 4), ('pipewire', 3)]  gpu 1715/1130 MHz 62C 150W gtt 21M cpu 4094MHz 54C igpu 4%/vcn 0% fclk 1600
+rep 0 copy256              short 127.2 edit 150.3  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 2), ('gnome-shell', 1)]  gpu 1692/1130 MHz 65C 150W gtt 21M cpu 3629MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 route-fast           short 129.8 edit 148.1  foreign CPU 7% [('pipewire', 3), ('gnome-remote-de', 2), ('gnome-shell', 2)]  gpu 1685/1130 MHz 65C 150W gtt 21M cpu 3549MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 expdec-swiglu        short 127.1 edit 147.7  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 2), ('gnome-shell', 1)]  gpu 1709/1130 MHz 65C 151W gtt 21M cpu 3668MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 all3                 short 85.8 edit 139.7  foreign CPU 7% [('pipewire', 3), ('gnome-remote-de', 2), ('gnome-shell', 2)]  gpu 2664/1249 MHz 67C 217W gtt 21M cpu 4035MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 all3                 short 104.8 edit 106.9  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 2), ('gnome-shell', 1)]  gpu 2662/1249 MHz 66C 210W gtt 21M cpu 3548MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 expdec-swiglu        short 106.3 edit 96.9  foreign CPU 8% [('gnome-shell', 3), ('gnome-remote-de', 3), ('pipewire', 2)]  gpu 2161/1249 MHz 62C 176W gtt 21M cpu 3678MHz 54C igpu 2%/vcn 1% fclk 1600
+rep 1 route-fast           short 125.8 edit 128.9  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('gnome-shell', 1)]  gpu 2211/1249 MHz 64C 192W gtt 21M cpu 3303MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 copy256              short 130.4 edit 115.3  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1922/1249 MHz 63C 158W gtt 21M cpu 3580MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 82.3 edit 144.5  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2079/1130 MHz 65C 178W gtt 21M cpu 3842MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 106.7 edit 143.5  foreign CPU 13% [('claude', 17), ('caveman-proxy', 14), ('pipewire', 3)]  gpu 2318/1249 MHz 66C 203W gtt 21M cpu 3031MHz 56C igpu 0%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 0.00, foreign CPU 35% [('caveman-proxy', 20), ('claude', 12), ('pipewire', 2)], reclaim 0.0%
+  quiet after 10 s
+rep 2 copy256              short 130.3 edit 148.7  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1686/1130 MHz 65C 148W gtt 21M cpu 3622MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 route-fast           short 130.6 edit 149.9  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1666/1130 MHz 65C 149W gtt 21M cpu 3567MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 expdec-swiglu        short 130.7 edit 148.3  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1676/1130 MHz 65C 150W gtt 21M cpu 3674MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 all3                 short 133.4 edit 150.2  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1643/1130 MHz 65C 148W gtt 21M cpu 3577MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 3 all3                 short 133.4 edit 150.1  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1646/1130 MHz 65C 147W gtt 21M cpu 3553MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 3 expdec-swiglu        short 127.9 edit 150.1  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1686/1130 MHz 65C 150W gtt 21M cpu 3680MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 3 route-fast           short 130.5 edit 148.6  foreign CPU 4% [('pipewire', 3), ('gnome-remote-de', 2), ('gsd-housekeepin', 0)]  gpu 1676/1130 MHz 65C 150W gtt 21M cpu 3723MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 3 copy256              short 130.5 edit 147.5  foreign CPU 5% [('pipewire', 3), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1682/1130 MHz 65C 150W gtt 21M cpu 3608MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 129.2 edit 146.6  foreign CPU 20% [('gnome-shell', 28), ('gnome-remote-de', 4), ('claude', 3)]  gpu 1697/1130 MHz 65C 151W gtt 21M cpu 3808MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.7 +-  35.4  (n=4)
+                              drafts accepted 0.68
+  short  copy256                 129.6 +-   2.5  (n=4)   vs base: +16.0% +- 32.8%  -> no difference
+                              drafts accepted 0.67
+  short  route-fast              129.2 +-   3.6  (n=4)   vs base: +15.6% +- 29.0%  -> no difference
+                              drafts accepted 0.67
+  short  expdec-swiglu           123.0 +-  17.9  (n=4)   vs base: +10.1% +- 20.9%  -> no difference
+                              drafts accepted 0.67
+  short  all3                    114.3 +-  37.1  (n=4)   vs base:  +2.3% +- 45.4%  -> no difference
+                              drafts accepted 0.67
+  edit   base                    145.2 +-   2.2  (n=4)
+                              drafts accepted 0.89
+  edit   copy256                 140.4 +-  26.7  (n=4)   vs base:  -3.2% +- 18.0%  -> no difference
+                              drafts accepted 0.92
+  edit   route-fast              143.9 +-  15.9  (n=4)   vs base:  -0.9% +- 10.7%  -> no difference
+                              drafts accepted 0.92
+  edit   expdec-swiglu           135.8 +-  41.2  (n=4)   vs base:  -6.5% +- 27.9%  -> no difference
+                              drafts accepted 0.90
+  edit   all3                    136.7 +-  32.6  (n=4)   vs base:  -5.8% +- 22.2%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  copy256              identical on every case -> exact
+  route-fast           DIFFERENT text -> lossy or placement-dependent: quality gate
+  expdec-swiglu        DIFFERENT text -> lossy or placement-dependent: quality gate
+  all3                 DIFFERENT text -> lossy or placement-dependent: quality gate

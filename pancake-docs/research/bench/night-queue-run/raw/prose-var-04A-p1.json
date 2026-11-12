@@ -1,0 +1,480 @@
+{
+ "schema": 1,
+ "label": "prose-var-04A-p1",
+ "engine_kind": "pancake",
+ "host": "127.0.0.1",
+ "port": 8080,
+ "time": 1794444089.0641572,
+ "prompt_name": "story",
+ "prompt": "Write a short story (about 400 words) about a lighthouse keeper.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 512,
+   "tps": 75.5,
+   "decode_ms": 6778.6,
+   "draft_n": 432,
+   "draft_n_accepted": 232,
+   "wall_s": 7.783192157745361,
+   "text_sha256": "48f2ad2c2b7cdf9d",
+   "text_head": "The wind didn\u2019t just blow; it screamed against the glass, a lonely, high-pitched",
+   "accept_pct": 53.7037037037037,
+   "windows": 280,
+   "tok_per_window": 1.8285714285714285,
+   "accepted_per_window": 0.8285714285714286,
+   "drafted_per_window": 1.542857142857143,
+   "ms_per_window": 24.209285714285716,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 512,
+   "tps": 78.5,
+   "decode_ms": 6519.4,
+   "draft_n": 444,
+   "draft_n_accepted": 230,
+   "wall_s": 6.6682374477386475,
+   "text_sha256": "e0b596880aad7314",
+   "text_head": "The wind didn\u2019t just blow; it screamed against the glass, a lonely, high-pitched",
+   "accept_pct": 51.8018018018018,
+   "windows": 282,
+   "tok_per_window": 1.8156028368794326,
+   "accepted_per_window": 0.8156028368794326,
+   "drafted_per_window": 1.574468085106383,
+   "ms_per_window": 23.118439716312057,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 482,
+   "tps": 80.8,
+   "decode_ms": 5967.7,
+   "draft_n": 417,
+   "draft_n_accepted": 220,
+   "wall_s": 6.130857944488525,
+   "text_sha256": "a1b2492f58945878",
+   "text_head": "The wind didn\u2019t just blow; it screamed against the glass, a lonely, high-pitched",
+   "accept_pct": 52.75779376498801,
+   "windows": 262,
+   "tok_per_window": 1.8396946564885497,
+   "accepted_per_window": 0.8396946564885496,
+   "drafted_per_window": 1.5916030534351144,
+   "ms_per_window": 22.777480916030534,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 481,
+   "tps": 78.9,
+   "decode_ms": 6092.6,
+   "draft_n": 399,
+   "draft_n_accepted": 217,
+   "wall_s": 6.254110336303711,
+   "text_sha256": "cba6e9085cea378f",
+   "text_head": "The fog had swallowed the world whole. It pressed against the glass of the lante",
+   "accept_pct": 54.3859649122807,
+   "windows": 264,
+   "tok_per_window": 1.821969696969697,
+   "accepted_per_window": 0.821969696969697,
+   "drafted_per_window": 1.5113636363636365,
+   "ms_per_window": 23.078030303030303,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 94.8,
+   "decode_ms": 5402.2,
+   "draft_n": 457,
+   "draft_n_accepted": 235,
+   "wall_s": 5.563499212265015,
+   "text_sha256": "0676c88960d4d357",
+   "text_head": "The wind didn\u2019t just blow; it screamed against the glass, a lonely, high-pitched",
+   "accept_pct": 51.42231947483589,
+   "windows": 277,
+   "tok_per_window": 1.848375451263538,
+   "accepted_per_window": 0.8483754512635379,
+   "drafted_per_window": 1.6498194945848375,
+   "ms_per_window": 19.502527075812274,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 81.6,
+   "decode_ms": 6276.9,
+   "draft_n": 438,
+   "draft_n_accepted": 242,
+   "wall_s": 6.438947916030884,
+   "text_sha256": "3e6ae539c2b906d5",
+   "text_head": "The wind didn\u2019t just blow; it screamed against the glass, a lonely, hollow sound",
+   "accept_pct": 55.25114155251141,
+   "windows": 270,
+   "tok_per_window": 1.8962962962962964,
+   "accepted_per_window": 0.8962962962962963,
+   "drafted_per_window": 1.6222222222222222,
+   "ms_per_window": 23.247777777777777,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 80.8,
+   "mean": 82.92,
+   "sd": 6.765131188676238,
+   "min": 78.5,
+   "max": 94.8
+  },
+  "tok_per_window": {
+   "median": 1.8396946564885497,
+   "mean": 1.8443877875795027,
+   "sd": 0.03187304657422245,
+   "min": 1.8156028368794326,
+   "max": 1.8962962962962964
+  },
+  "accepted_per_window": {
+   "median": 0.8396946564885496,
+   "mean": 0.8443877875795026,
+   "sd": 0.0318730465742224,
+   "min": 0.8156028368794326,
+   "max": 0.8962962962962963
+  },
+  "drafted_per_window": {
+   "median": 1.5916030534351144,
+   "mean": 1.5898952983424386,
+   "sd": 0.05254540077796291,
+   "min": 1.5113636363636365,
+   "max": 1.6498194945848375
+  },
+  "accept_pct": {
+   "median": 52.75779376498801,
+   "mean": 53.12380430128356,
+   "sd": 1.6504028390336545,
+   "min": 51.42231947483589,
+   "max": 55.25114155251141
+  },
+  "ms_per_window": {
+   "median": 23.078030303030303,
+   "mean": 22.34485115779259,
+   "sd": 1.5982210495328761,
+   "min": 19.502527075812274,
+   "max": 23.247777777777777
+  }
+ },
+ "loadavg_before": [
+  9.7646484375,
+  5.83544921875,
+  4.97314453125
+ ],
+ "loadavg_after": [
+  10.25244140625,
+  6.3896484375,
+  5.19384765625
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "snapshot_before": {
+  "time": 1794444050.223471,
+  "engine": {
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "max_context": 131072,
+   "images": false,
+   "version": "0.1.58",
+   "logit_bias": 1,
+   "context": 131072,
+   "kv": "int8",
+   "kv_resident": 32768,
+   "expert_slots": 10733,
+   "expert_cache_mib": 14718,
+   "expert_slots_primary": 10733,
+   "expert_cache_primary_mib": 14718,
+   "spec": 12,
+   "mtp_max": 4,
+   "lookup": 3,
+   "vram_free_mib": 818,
+   "cvec": 0,
+   "arena_mib": 33812,
+   "pool_workers": 7,
+   "pcie_frac": "0.00",
+   "spec_min_p": "0.50",
+   "conversation_cache_mib": 5632,
+   "conversation_cache_slots": 4,
+   "conversation_cache_min_free_mib": 2560,
+   "conversation_cache_min_tokens": 0,
+   "tail_role_token": 8678,
+   "vram_elastic": 0,
+   "prefill_cap": 32768,
+   "prefill_stages": 1,
+   "stream_all_min": 4096,
+   "prefill_pipe": 0,
+   "engine": "0.1.58",
+   "drafting": "mtp",
+   "drafting_note": ""
+  },
+  "totals": {
+   "since": 1794444048.4428375,
+   "requests": 0,
+   "prompt_tokens": 0,
+   "reused": 0,
+   "output_tokens": 0,
+   "prompt_ms": 0.0,
+   "decode_ms": 0.0,
+   "drafts_offered": 0,
+   "drafts_accepted": 0
+  },
+  "hardware": {
+   "cpu": 0.9,
+   "ram_used": 44174049280,
+   "ram_total": 61997891584,
+   "disk_read_mb": 0.0,
+   "disk_write_mb": 0.007803222020098154,
+   "tok_s": 0.0,
+   "tok_s_mean": 0,
+   "prefill_tok_s_mean": 0.0
+  },
+  "live": {
+   "state": "idle",
+   "queued": 0,
+   "phase": null,
+   "prompt_tokens": null,
+   "prompt_read": null,
+   "prompt_total": null,
+   "generated": null,
+   "max_tokens": null,
+   "elapsed_s": null,
+   "tok_s": null,
+   "tok_s_mean": null,
+   "prefill_tok_s_mean": null,
+   "tok_s_window_s": null
+  },
+  "status": {
+   "service": "strata",
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "loaded": true,
+   "auto_load": true,
+   "structured_output": {
+    "formats": [
+     "json_object",
+     "json_schema"
+    ],
+    "method": "prompt_and_validate",
+    "constrained_decoding": false,
+    "stream_buffered": true
+   },
+   "engine": "0.1.58",
+   "started": 1794444048,
+   "uptime_s": 1,
+   "cache_max_tokens": 131072,
+   "context": {
+    "native": 131072,
+    "max_positions": 131072
+   },
+   "concurrency": {
+    "serving": 1,
+    "requested": 1
+   },
+   "dialects": [
+    "/v1/chat/completions",
+    "/v1/messages",
+    "/v1/responses"
+   ],
+   "vision": {
+    "enabled": false,
+    "available": false,
+    "error": null
+   },
+   "image_generation": {
+    "enabled": false
+   },
+   "activity": {
+    "requests": 0,
+    "in_flight": 0,
+    "last_request_at": null
+   },
+   "last_timings": null,
+   "vram": {
+    "elastic": false
+   },
+   "machine": {
+    "at": 1794444050,
+    "gpu": null,
+    "ram": {
+     "used_gib": 41.1,
+     "total_gib": 57.7
+    }
+   }
+  }
+ },
+ "snapshot_after": {
+  "time": 1794444089.0641491,
+  "engine": {
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "max_context": 131072,
+   "images": false,
+   "version": "0.1.58",
+   "logit_bias": 1,
+   "context": 131072,
+   "kv": "int8",
+   "kv_resident": 32768,
+   "expert_slots": 10733,
+   "expert_cache_mib": 14718,
+   "expert_slots_primary": 10733,
+   "expert_cache_primary_mib": 14718,
+   "spec": 12,
+   "mtp_max": 4,
+   "lookup": 3,
+   "vram_free_mib": 818,
+   "cvec": 0,
+   "arena_mib": 33812,
+   "pool_workers": 7,
+   "pcie_frac": "0.00",
+   "spec_min_p": "0.50",
+   "conversation_cache_mib": 5632,
+   "conversation_cache_slots": 4,
+   "conversation_cache_min_free_mib": 2560,
+   "conversation_cache_min_tokens": 0,
+   "tail_role_token": 8678,
+   "vram_elastic": 0,
+   "prefill_cap": 32768,
+   "prefill_stages": 1,
+   "stream_all_min": 4096,
+   "prefill_pipe": 0,
+   "engine": "0.1.58",
+   "drafting": "mtp",
+   "drafting_note": ""
+  },
+  "totals": {
+   "since": 1794444048.4428375,
+   "requests": 6,
+   "prompt_tokens": 432,
+   "reused": 325,
+   "output_tokens": 3011,
+   "prompt_ms": 1777.1999999999998,
+   "decode_ms": 37037.4,
+   "drafts_offered": 2587,
+   "drafts_accepted": 1376
+  },
+  "hardware": {
+   "cpu": 48.7,
+   "ram_used": 44688257024,
+   "ram_total": 61997891584,
+   "disk_read_mb": 6.968194295247755,
+   "disk_write_mb": 0.0,
+   "tok_s": 101.3842393258461,
+   "tok_s_mean": 80.93643328473121,
+   "prefill_tok_s_mean": 0.0
+  },
+  "live": {
+   "state": "idle",
+   "queued": 0,
+   "phase": null,
+   "prompt_tokens": null,
+   "prompt_read": null,
+   "prompt_total": null,
+   "generated": null,
+   "max_tokens": null,
+   "elapsed_s": null,
+   "tok_s": null,
+   "tok_s_mean": null,
+   "prefill_tok_s_mean": null,
+   "tok_s_window_s": null
+  },
+  "status": {
+   "service": "strata",
+   "model": "qwen3.8-flash-next-iq2_xs",
+   "loaded": true,
+   "auto_load": true,
+   "structured_output": {
+    "formats": [
+     "json_object",
+     "json_schema"
+    ],
+    "method": "prompt_and_validate",
+    "constrained_decoding": false,
+    "stream_buffered": true
+   },
+   "engine": "0.1.58",
+   "started": 1794444048,
+   "uptime_s": 40,
+   "cache_max_tokens": 131072,
+   "context": {
+    "native": 131072,
+    "max_positions": 131072
+   },
+   "concurrency": {
+    "serving": 1,
+    "requested": 1
+   },
+   "dialects": [
+    "/v1/chat/completions",
+    "/v1/messages",
+    "/v1/responses"
+   ],
+   "vision": {
+    "enabled": false,
+    "available": false,
+    "error": null
+   },
+   "image_generation": {
+    "enabled": false
+   },
+   "activity": {
+    "requests": 6,
+    "in_flight": 0,
+    "last_request_at": 1794444089
+   },
+   "last_timings": {
+    "cache_n": 65,
+    "prompt_n": 7,
+    "prompt_ms": 158.8,
+    "prompt_per_token_ms": 22.686,
+    "prompt_per_second": 44.1,
+    "predicted_n": 512,
+    "predicted_ms": 6276.9,
+    "predicted_per_token_ms": 12.26,
+    "predicted_per_second": 81.6,
+    "draft_n": 438,
+    "draft_n_accepted": 242,
+    "at": 1794444089
+   },
+   "vram": {
+    "elastic": false
+   },
+   "machine": {
+    "at": 1794444089,
+    "gpu": null,
+    "ram": {
+     "used_gib": 41.6,
+     "total_gib": 57.7
+    }
+   }
+  }
+ },
+ "snapshot_diff": {
+  "totals": {
+   "since": 0.0,
+   "requests": 6,
+   "prompt_tokens": 432,
+   "reused": 325,
+   "output_tokens": 3011,
+   "prompt_ms": 1777.1999999999998,
+   "decode_ms": 37037.4,
+   "drafts_offered": 2587,
+   "drafts_accepted": 1376
+  },
+  "hardware": {
+   "cpu": 47.800000000000004,
+   "ram_used": 514207744,
+   "ram_total": 0,
+   "disk_read_mb": 6.968194295247755,
+   "disk_write_mb": -0.007803222020098154,
+   "tok_s": 101.3842393258461,
+   "tok_s_mean": 80.93643328473121,
+   "prefill_tok_s_mean": 0.0
+  }
+ }
+}

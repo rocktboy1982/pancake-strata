@@ -1,0 +1,219 @@
+{
+ "schema": 1,
+ "label": "ctrl-avalon-iq3ks-main-p5",
+ "engine_kind": "llama",
+ "host": "127.0.0.1",
+ "port": 8081,
+ "time": 1794488601.0117302,
+ "prompt_name": "lru",
+ "prompt": "Write a Python class implementing an LRU cache with type hints and tests.",
+ "max_tokens": 512,
+ "runs": [
+  {
+   "tok": 512,
+   "tps": 85.35657081062517,
+   "decode_ms": 5986.651,
+   "draft_n": 452,
+   "draft_n_accepted": 328,
+   "wall_s": 7.204029321670532,
+   "text_sha256": "6ebf88092777b626",
+   "text_head": "```python\nfrom collections import OrderedDict\nfrom typing import Any, Optional, ",
+   "accept_pct": 72.56637168141593,
+   "windows": 184,
+   "tok_per_window": 2.782608695652174,
+   "accepted_per_window": 1.7826086956521738,
+   "drafted_per_window": 2.4565217391304346,
+   "ms_per_window": 32.53614673913044,
+   "run": 1,
+   "discarded": true
+  },
+  {
+   "tok": 512,
+   "tps": 75.68449666032902,
+   "decode_ms": 6751.713,
+   "draft_n": 452,
+   "draft_n_accepted": 328,
+   "wall_s": 6.91918420791626,
+   "text_sha256": "0061cfdfc02cdafd",
+   "text_head": "```python\nfrom collections import OrderedDict\nfrom typing import Any, Optional, ",
+   "accept_pct": 72.56637168141593,
+   "windows": 184,
+   "tok_per_window": 2.782608695652174,
+   "accepted_per_window": 1.7826086956521738,
+   "drafted_per_window": 2.4565217391304346,
+   "ms_per_window": 36.694092391304345,
+   "run": 2,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 98.21049333956039,
+   "decode_ms": 5203.11,
+   "draft_n": 450,
+   "draft_n_accepted": 330,
+   "wall_s": 5.350039720535278,
+   "text_sha256": "c628abbcc5329876",
+   "text_head": "```python\nfrom collections import OrderedDict\nfrom typing import Any, Optional, ",
+   "accept_pct": 73.33333333333333,
+   "windows": 182,
+   "tok_per_window": 2.8131868131868134,
+   "accepted_per_window": 1.8131868131868132,
+   "drafted_per_window": 2.4725274725274726,
+   "ms_per_window": 28.588516483516482,
+   "run": 3,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 96.05097054712589,
+   "decode_ms": 5320.092,
+   "draft_n": 456,
+   "draft_n_accepted": 326,
+   "wall_s": 5.4833574295043945,
+   "text_sha256": "4ae2ee8324a60979",
+   "text_head": "```python\nfrom collections import OrderedDict\nfrom typing import Any, Optional, ",
+   "accept_pct": 71.49122807017544,
+   "windows": 186,
+   "tok_per_window": 2.752688172043011,
+   "accepted_per_window": 1.7526881720430108,
+   "drafted_per_window": 2.4516129032258065,
+   "ms_per_window": 28.602645161290322,
+   "run": 4,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 100.51322722598441,
+   "decode_ms": 5083.908,
+   "draft_n": 362,
+   "draft_n_accepted": 330,
+   "wall_s": 5.262019157409668,
+   "text_sha256": "416769602b1b33a2",
+   "text_head": "```python\nfrom collections import OrderedDict\nfrom typing import Any, Optional, ",
+   "accept_pct": 91.16022099447514,
+   "windows": 182,
+   "tok_per_window": 2.8131868131868134,
+   "accepted_per_window": 1.8131868131868132,
+   "drafted_per_window": 1.989010989010989,
+   "ms_per_window": 27.93356043956044,
+   "run": 5,
+   "discarded": false
+  },
+  {
+   "tok": 512,
+   "tps": 107.51568287712809,
+   "decode_ms": 4752.795,
+   "draft_n": 363,
+   "draft_n_accepted": 328,
+   "wall_s": 4.898511171340942,
+   "text_sha256": "f2126b0aabc55794",
+   "text_head": "```python\nfrom collections import OrderedDict\nfrom typing import Any, Optional, ",
+   "accept_pct": 90.35812672176309,
+   "windows": 184,
+   "tok_per_window": 2.782608695652174,
+   "accepted_per_window": 1.7826086956521738,
+   "drafted_per_window": 1.9728260869565217,
+   "ms_per_window": 25.83040760869565,
+   "run": 6,
+   "discarded": false
+  }
+ ],
+ "errors": [],
+ "summary": {
+  "n_kept": 5,
+  "n_discarded": 1,
+  "tps": {
+   "median": 98.21049333956039,
+   "mean": 95.59497413002556,
+   "sd": 11.934911992640574,
+   "min": 75.68449666032902,
+   "max": 107.51568287712809
+  },
+  "tok_per_window": {
+   "median": 2.782608695652174,
+   "mean": 2.788855837944197,
+   "sd": 0.025348305381657214,
+   "min": 2.752688172043011,
+   "max": 2.8131868131868134
+  },
+  "accepted_per_window": {
+   "median": 1.7826086956521738,
+   "mean": 1.788855837944197,
+   "sd": 0.025348305381657187,
+   "min": 1.7526881720430108,
+   "max": 1.8131868131868132
+  },
+  "drafted_per_window": {
+   "median": 2.4516129032258065,
+   "mean": 2.268499838170245,
+   "sd": 0.2627008228847467,
+   "min": 1.9728260869565217,
+   "max": 2.4725274725274726
+  },
+  "accept_pct": {
+   "median": 73.33333333333333,
+   "mean": 79.78185616023259,
+   "sd": 10.046216481001116,
+   "min": 71.49122807017544,
+   "max": 91.16022099447514
+  },
+  "ms_per_window": {
+   "median": 28.588516483516482,
+   "mean": 29.52984441687345,
+   "sd": 4.162517297583764,
+   "min": 25.83040760869565,
+   "max": 36.694092391304345
+  }
+ },
+ "loadavg_before": [
+  8.91064453125,
+  5.24169921875,
+  2.7080078125
+ ],
+ "loadavg_after": [
+  9.64404296875,
+  5.85009765625,
+  3.01806640625
+ ],
+ "noisy": true,
+ "windows_assumption": "windows = predicted_n - draft_n_accepted",
+ "server_log": "/home/dan/night-queue-controls/raw/srv-ctrl-avalon-iq3ks-main.log",
+ "server_log_requests": [
+  {
+   "acceptance": 0.72566,
+   "accepted": 328,
+   "generated": 452,
+   "mean_len": 2.82
+  },
+  {
+   "acceptance": 0.72566,
+   "accepted": 328,
+   "generated": 452,
+   "mean_len": 2.82
+  },
+  {
+   "acceptance": 0.73333,
+   "accepted": 330,
+   "generated": 450,
+   "mean_len": 2.84
+  },
+  {
+   "acceptance": 0.71491,
+   "accepted": 326,
+   "generated": 456,
+   "mean_len": 2.79
+  },
+  {
+   "acceptance": 0.9116,
+   "accepted": 330,
+   "generated": 362,
+   "mean_len": 2.82
+  },
+  {
+   "acceptance": 0.90358,
+   "accepted": 328,
+   "generated": 363,
+   "mean_len": 2.8
+  }
+ ]
+}

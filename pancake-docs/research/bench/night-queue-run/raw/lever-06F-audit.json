@@ -1,0 +1,123 @@
+{
+ "turns": {
+  "classes": {
+   "live": {
+    "n": 0,
+    "prompt_s": 0.0,
+    "median_prompt_ms": null,
+    "tokens_read": 0,
+    "prompt_tokens": 0
+   },
+   "fallback": {
+    "n": 0,
+    "prompt_s": 0.0,
+    "median_prompt_ms": null,
+    "tokens_read": 0,
+    "prompt_tokens": 0
+   },
+   "switch": {
+    "n": 27,
+    "prompt_s": 82.3,
+    "median_prompt_ms": 2641.6,
+    "tokens_read": 91863,
+    "prompt_tokens": 557506
+   },
+   "lost": {
+    "n": 0,
+    "prompt_s": 0.0,
+    "median_prompt_ms": null,
+    "tokens_read": 0,
+    "prompt_tokens": 0
+   },
+   "cold": {
+    "n": 30,
+    "prompt_s": 40.7,
+    "median_prompt_ms": 1021.1,
+    "tokens_read": 16918,
+    "prompt_tokens": 16918
+   }
+  },
+  "agent_like": {
+   "n": 21,
+   "tokens_read": 73431,
+   "prompt_tokens": 508580,
+   "share": 0.1444,
+   "by_class": {
+    "live": 0,
+    "fallback": 0,
+    "switch": 21
+   }
+  },
+  "live_bands": [],
+  "outside_timer_ms": {
+   "n": 57,
+   "p50": 16.7,
+   "p90": 21.1,
+   "p99": 21.9,
+   "max": 22.9
+  }
+ },
+ "engine_log": {
+  "parks": 56,
+  "park_s": 10.9,
+  "park_bands": [
+   {
+    "tokens": [
+     0,
+     4095
+    ],
+    "n": 30,
+    "mean_ms": 104.9,
+    "min_ms": 100.7,
+    "max_ms": 128.9
+   },
+   {
+    "tokens": [
+     4096,
+     16383
+    ],
+    "n": 9,
+    "mean_ms": 215.0,
+    "min_ms": 156.7,
+    "max_ms": 280.9
+   },
+   {
+    "tokens": [
+     16384,
+     32767
+    ],
+    "n": 15,
+    "mean_ms": 341.4,
+    "min_ms": 298.6,
+    "max_ms": 363.7
+   },
+   {
+    "tokens": [
+     32768,
+     49151
+    ],
+    "n": 2,
+    "mean_ms": 353.1,
+    "min_ms": 345.6,
+    "max_ms": 360.6
+   }
+  ],
+  "skips": 0,
+  "skip_reasons": [],
+  "restores": 27,
+  "restore_ms_16k_plus": [
+   63.5,
+   68.9,
+   68.7,
+   80.1,
+   80.5,
+   63.7,
+   68.8,
+   68.6,
+   80.3,
+   80.1
+  ],
+  "requests_with_storage_reads_over_1gb": 0,
+  "storage_read_gb_max": 0.0
+ }
+}

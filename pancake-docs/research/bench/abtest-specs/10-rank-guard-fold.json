@@ -1,0 +1,30 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-rdna3test.json",
+ "arms": {
+  "base": {},
+  "top2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2"
+   }
+  },
+  "top2-fold1": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2",
+    "STRATA_VERIFY_DEFER_CPU_FOLD": "1"
+   }
+  },
+  "top2-fold2": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU_TOP": "2",
+    "STRATA_VERIFY_DEFER_CPU_FOLD": "2"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "lossy": true,
+ "note": "MOD_PLAN A4 rank-guard fix, branch work/a4-rank-guard (the build must contain it). Run first with --tier screen. base = fast-hip (deferral on, _BELOW 0.1 default). Goal: top2-fold* keep top2's edit gain without its short-chat loss (01: top2 +20.1% edit, -6.9% short). top2-fold* must give the same text as top2 (FOLD is exact w.r.t. the split): compare the text hashes of top2 and top2-fold* in the jsonl; all three differ from base (the rank guard is lossy)."
+}

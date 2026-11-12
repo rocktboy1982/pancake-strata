@@ -1,0 +1,383 @@
+{
+ "schema": 1,
+ "tool": "ttft_bench",
+ "label": "ttft-avalon-iq2xs",
+ "base": "http://127.0.0.1:8081",
+ "started": "2026-11-12T09:39:19+02:00",
+ "args": {
+  "host": "127.0.0.1",
+  "port": 8081,
+  "label": "ttft-avalon-iq2xs",
+  "out": "/home/dan/night-queue-rerun-avalon/raw/ttft-avalon-iq2xs-p1.json",
+  "model": "default",
+  "scenario": "both",
+  "sizes": "8k,32k,64k,100k",
+  "runs": 4,
+  "max_tokens": 16,
+  "tokens_per_word": 1.06,
+  "no_calibrate": false,
+  "turns": 10,
+  "agent_words": 1500,
+  "agent_max_tokens": 64,
+  "sessions": 3,
+  "think": "off",
+  "timeout": 3600,
+  "seed": 1819525652,
+  "side_after": "3,6",
+  "side_messages": 1,
+  "side_words": 60,
+  "switch_after": 0,
+  "subagent_turns": 2,
+  "delta_base": "30k",
+  "deltas": "50,100,300,1000,3000",
+  "delta_repeats": 3,
+  "delta_max_tokens": 16,
+  "note_cache_budget_mib": null,
+  "prefill_timing_log": "",
+  "log_settle_s": 0.3
+ },
+ "server": {
+  "n_ctx_reported": 131072,
+  "n_ctx_source": "/props",
+  "model_reported": "/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf"
+ },
+ "model_reported": "/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf",
+ "model": "default",
+ "cache_budget_mib": null,
+ "load": {
+  "start": 5.54,
+  "end": 3.26,
+  "warning": true
+ },
+ "scenario_a": {
+  "sizes": [
+   {
+    "label": "8K",
+    "target_tokens": 8192,
+    "runs": [
+     {
+      "ok": true,
+      "context_limit": false,
+      "err": null,
+      "status": 200,
+      "ttft_s": 8.473,
+      "first_event_s": 8.473,
+      "total_s": 9.93,
+      "prompt_tokens": 8156,
+      "reused_tokens": 0,
+      "reused_source": "usage.prompt_tokens_details.cached_tokens",
+      "read_tokens": 8156,
+      "generated_tokens": 16,
+      "engine_prompt_ms": 8455.925,
+      "engine_prompt_tps": 964.530787583854,
+      "finish": "length",
+      "run": 1,
+      "discarded": true,
+      "words": 7691
+     },
+     {
+      "ok": true,
+      "context_limit": false,
+      "err": null,
+      "status": 200,
+      "ttft_s": 6.263,
+      "first_event_s": 6.263,
+      "total_s": 6.7,
+      "prompt_tokens": 8156,
+      "reused_tokens": 0,
+      "reused_source": "usage.prompt_tokens_details.cached_tokens",
+      "read_tokens": 8156,
+      "generated_tokens": 16,
+      "engine_prompt_ms": 6243.689,
+      "engine_prompt_tps": 1306.2790283116278,
+      "finish": "length",
+      "run": 2,
+      "discarded": false,
+      "words": 7691
+     },
+     {
+      "ok": true,
+      "context_limit": false,
+      "err": null,
+      "status": 200,
+      "ttft_s": 6.426,
+      "first_event_s": 6.426,
+      "total_s": 6.925,
+      "prompt_tokens": 8157,
+      "reused_tokens": 0,
+      "reused_source": "usage.prompt_tokens_details.cached_tokens",
+      "read_tokens": 8157,
+      "generated_tokens": 16,
+      "engine_prompt_ms": 6409.552,
+      "engine_prompt_tps": 1272.6318469683997,
+      "finish": "length",
+      "run": 3,
+      "discarded": false,
+      "words": 7691
+     },
+     {
+      "ok": true,
+      "context_limit": false,
+      "err": null,
+      "status": 200,
+      "ttft_s": 6.382,
+      "first_event_s": 6.382,
+      "total_s": 6.928,
+      "prompt_tokens": 8158,
+      "reused_tokens": 0,
+      "reused_source": "usage.prompt_tokens_details.cached_tokens",
+      "read_tokens": 8158,
+      "generated_tokens": 16,
+      "engine_prompt_ms": 6365.714,
+      "engine_prompt_tps": 1281.5530198183583,
+      "finish": "length",
+      "run": 4,
+      "discarded": false,
+      "words": 7691
+     }
+    ],
+    "status": "measured",
+    "summary": {
+     "n": 3,
+     "ttft_s": {
+      "median": 6.382,
+      "min": 6.263,
+      "max": 6.426
+     },
+     "prompt_tokens": 8157,
+     "reused_tokens": 0,
+     "engine_prompt_ms": 6365.7,
+     "engine_prompt_tps": 1281.6,
+     "ttft_minus_engine_prompt_s": 0.016,
+     "total_s": 6.925
+    }
+   },
+   {
+    "label": "32K",
+    "target_tokens": 32768,
+    "runs": [
+     {
+      "ok": false,
+      "context_limit": false,
+      "err": "no token streamed",
+      "status": 200,
+      "ttft_s": null,
+      "first_event_s": null,
+      "total_s": 17.789,
+      "prompt_tokens": null,
+      "reused_tokens": null,
+      "reused_source": null,
+      "read_tokens": null,
+      "generated_tokens": null,
+      "engine_prompt_ms": null,
+      "engine_prompt_tps": null,
+      "finish": null,
+      "run": 1,
+      "discarded": true,
+      "words": 30855
+     }
+    ],
+    "status": "failed at run 1: no token streamed",
+    "summary": {
+     "n": 0,
+     "ttft_s": null,
+     "prompt_tokens": null,
+     "reused_tokens": null,
+     "engine_prompt_ms": null,
+     "engine_prompt_tps": null,
+     "ttft_minus_engine_prompt_s": null,
+     "total_s": null
+    }
+   },
+   {
+    "label": "64K",
+    "target_tokens": 65536,
+    "runs": [
+     {
+      "ok": false,
+      "context_limit": false,
+      "err": "ConnectionRefusedError(111, 'Connection refused')",
+      "status": null,
+      "ttft_s": null,
+      "first_event_s": null,
+      "total_s": 0.001,
+      "prompt_tokens": null,
+      "reused_tokens": null,
+      "reused_source": null,
+      "read_tokens": null,
+      "generated_tokens": null,
+      "engine_prompt_ms": null,
+      "engine_prompt_tps": null,
+      "finish": null,
+      "run": 1,
+      "discarded": true,
+      "words": 61747
+     }
+    ],
+    "status": "failed at run 1: ConnectionRefusedError(111, 'Connection refused')",
+    "summary": {
+     "n": 0,
+     "ttft_s": null,
+     "prompt_tokens": null,
+     "reused_tokens": null,
+     "engine_prompt_ms": null,
+     "engine_prompt_tps": null,
+     "ttft_minus_engine_prompt_s": null,
+     "total_s": null
+    }
+   },
+   {
+    "label": "100K",
+    "target_tokens": 102400,
+    "runs": [
+     {
+      "ok": false,
+      "context_limit": false,
+      "err": "ConnectionRefusedError(111, 'Connection refused')",
+      "status": null,
+      "ttft_s": null,
+      "first_event_s": null,
+      "total_s": 0.002,
+      "prompt_tokens": null,
+      "reused_tokens": null,
+      "reused_source": null,
+      "read_tokens": null,
+      "generated_tokens": null,
+      "engine_prompt_ms": null,
+      "engine_prompt_tps": null,
+      "finish": null,
+      "run": 1,
+      "discarded": true,
+      "words": 96500
+     }
+    ],
+    "status": "failed at run 1: ConnectionRefusedError(111, 'Connection refused')",
+    "summary": {
+     "n": 0,
+     "ttft_s": null,
+     "prompt_tokens": null,
+     "reused_tokens": null,
+     "engine_prompt_ms": null,
+     "engine_prompt_tps": null,
+     "ttft_minus_engine_prompt_s": null,
+     "total_s": null
+    }
+   }
+  ],
+  "tokens_per_word_start": 1.06,
+  "calibrated": true,
+  "k_is": 1024,
+  "note": "run 1 of each size is discarded; TTFT is the client's, stream=true"
+ },
+ "scenario_b": {
+  "turns": 10,
+  "words_per_turn": 1500,
+  "max_tokens": 64,
+  "chunks": [
+   "README.md#1",
+   "README.md#2",
+   "README.md#3",
+   "README.md#4",
+   "README.md#5",
+   "README.md#6",
+   "README.md#7",
+   "README.md#8",
+   "README.md#9",
+   "README.md#10"
+  ],
+  "sessions": [
+   {
+    "turns": [
+     {
+      "ok": false,
+      "context_limit": false,
+      "err": "ConnectionRefusedError(111, 'Connection refused')",
+      "status": null,
+      "ttft_s": null,
+      "first_event_s": null,
+      "total_s": 0.0,
+      "prompt_tokens": null,
+      "reused_tokens": null,
+      "reused_source": null,
+      "read_tokens": null,
+      "generated_tokens": null,
+      "engine_prompt_ms": null,
+      "engine_prompt_tps": null,
+      "finish": null,
+      "turn": 1
+     }
+    ],
+    "stopped": "failed: ConnectionRefusedError(111, 'Connection refused')"
+   },
+   {
+    "turns": [
+     {
+      "ok": false,
+      "context_limit": false,
+      "err": "ConnectionRefusedError(111, 'Connection refused')",
+      "status": null,
+      "ttft_s": null,
+      "first_event_s": null,
+      "total_s": 0.0,
+      "prompt_tokens": null,
+      "reused_tokens": null,
+      "reused_source": null,
+      "read_tokens": null,
+      "generated_tokens": null,
+      "engine_prompt_ms": null,
+      "engine_prompt_tps": null,
+      "finish": null,
+      "turn": 1
+     }
+    ],
+    "stopped": "failed: ConnectionRefusedError(111, 'Connection refused')"
+   },
+   {
+    "turns": [
+     {
+      "ok": false,
+      "context_limit": false,
+      "err": "ConnectionRefusedError(111, 'Connection refused')",
+      "status": null,
+      "ttft_s": null,
+      "first_event_s": null,
+      "total_s": 0.0,
+      "prompt_tokens": null,
+      "reused_tokens": null,
+      "reused_source": null,
+      "read_tokens": null,
+      "generated_tokens": null,
+      "engine_prompt_ms": null,
+      "engine_prompt_tps": null,
+      "finish": null,
+      "turn": 1
+     }
+    ],
+    "stopped": "failed: ConnectionRefusedError(111, 'Connection refused')"
+   }
+  ],
+  "summary": {
+   "per_turn": [
+    {
+     "turn": 1,
+     "n": 0,
+     "ttft_s": null,
+     "prompt_tokens": null,
+     "reused_tokens": null,
+     "read_tokens": null,
+     "reread_tokens": null,
+     "engine_prompt_ms": null
+    }
+   ],
+   "complete_sessions": 0,
+   "sessions": 3,
+   "total_ttft_s": null,
+   "total_ttft_s_all": [],
+   "reuse_pct_all_turns": null,
+   "reuse_pct_follow_up_turns": null,
+   "reuse_reported": false,
+   "reuse_source": [],
+   "median_follow_up_ttft_s": null
+  }
+ }
+}
