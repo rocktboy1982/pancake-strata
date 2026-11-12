@@ -8,3 +8,5 @@
 - `profile/` the short-case Pancake profile summaries and CSV stats (the 35 MB kernel trace is not included).
 - `pancake-night-log-2026-11-12.md` timestamped notes for the night.
 - `pancake-handoff-2026-11-12.md` the handoff written for a continuation agent.
+Plan HTML copies (rendered Pancake development plan, 2026-11-10/11): open in a browser.
+Kernel trace: profile/run_kernel_trace.csv.gz (gunzip to read; 121,265 lines, rocprofv3 kernel dispatches for the short-case profile).
