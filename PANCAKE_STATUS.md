@@ -4,7 +4,13 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-11 17:40 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
+Last update: 2026-11-12 (prefilllevers merged and built; ntfs3 blocker handled, see below) - earlier note: 2026-11-11 17:40 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
+
+## ntfs3 deadlock 2026-11-11 17:15 (resolved 2026-11-12, repo stays on D)
+
+A `git reset --hard` with 7 parallel checkout workers deadlocked in the ntfs3 driver (`ntfs_extend_mft`, `ntfs_look_free_mft`; D was 97% full). Rebooted; chkdsk had left a `found.000` folder (89 `.tmp` agent files, each with a final copy elsewhere; plus a 500 MB partial pack). After the reboot: `git fsck --full` clean except `refs/remotes/upstream/HEAD` (zero hash, cosmetic), all 304 refs of the USB bundle (`PANCAKE/pancake-archive-2026-11-11`) present, no tracked file missing, all 42 model GGUFs have valid headers (not checksummed).
+- Owner chose to keep the repo on D. Safeguards: `git config checkout.workers 1`; no `reset --hard` / full checkouts / new worktrees on D; merges only in the existing worktree of the branch (7 files touched, not a full checkout).
+- Fresh refs bundle: /home/dan/backup-pancake-2026-11-11/all-refs-after-reboot.bundle.
 
 ## Current status (2026-11-11): Phase 17, owner priority 1 = TTFT at long context
 
@@ -17,7 +23,7 @@ by day only code is written, the measurements are in the night queue (MOD_PLAN P
 | 17.0 | TTFT harness (`ttft_bench.py`: single prompts 8K-100K, 10-turn session, side requests, sub-agent switch, warm-delta sweep, engine-log attach) and audit (`ttft_audit.py`) | 100% | harness 41 fake-server tests; 0% on a real engine | `dev/p17/ttftbench`, `ttftscen`, `ttftlevers` |
 | 17.0 | Lever analysis: cache misses are the only multi-second loss (warm turns re-read ~1% of the prompt, TTFT ~1 s; a lost 54-62K conversation costs 21-25 s per turn) | analysis | - | `pancake-docs/TTFT_LEVERS.md` |
 | 17.0 | `STRATA_PARK_REWIND_MAX` (skip the park when resuming from the live conversation's own checkpoint) + `STRATA_PARK_DIVERGENCE_LOG` | 100% | `conv_cache_test` PASS, 21 Python tests; 0% on a real engine | `dev/p17/parkrewind` |
-| 17.0 | Prefill levers: chunk plans 32K-128K, equal-tail guard, staged-path floor, long-context fault check (#5539) | in flight (agent working) | 0% | `dev/p17/prefilllevers` |
+| 17.0 | Prefill levers: chunk plans 32K-128K, equal-tail guard, staged-path floor, long-context fault check (#5539) | 100%: `STRATA_PREFILL_EQUAL_TAIL` (opt-in, off by default) + `chunk_plan.py` + `PREFILL_LEVERS.md`; merged into integration, HIP build OK | `prefill_plan_test` + 6 Python tests PASS; 0% on a real engine (night queue) | `dev/p17/prefilllevers` |
 | 17.0 | Prefix stability of opencode / Copilot requests (M4): `prefix_check.py` (about 40 divergence kinds, redaction) + opt-in `STRATA_REQUEST_CAPTURE=DIR` | 100% | 28 tests PASS (fake and mock-engine server); no real client captured yet | `dev/p17/prefixcheck` |
 | 17.1 | `STRATA_ROUTE_PRIOR_AUTO` (route prior only in lookup windows, via the F13 gate float) | 100% | unit test PASS; 0% on a real engine | `dev/p17/turbogate` |
 | 17.1 | `STRATA_VERIFY_DEFER_AUTO` (deferral only in lookup windows); finding: deferral turns off six fused paths for the whole process | 100% | `defer_auto_test` 7,171 checks PASS; 0% on a real engine | `dev/p17/defergate` |
@@ -25,7 +31,7 @@ by day only code is written, the measurements are in the night queue (MOD_PLAN P
 | 17.3 | Greedy ablation driver `ablate_greedy.py` + plan of 23 candidates | 100% | 19 fake-engine tests; 0% real | `dev/p17/ablate` |
 | 17.4 | `STRATA_KV_RING_ADAPT` (adaptive resident KV ring; credit xyzzing / upstream PR #3919) | 100% | `kv_ring_test` PASS; speed 0% | `dev/p17/kvring` |
 | 17.8 | Draft vocabulary from real code (38 languages, 60,895 rows): held-out misses 4.3% -> 1.55%; **no effect on decode or acceptance** | closed | measured (no gain) | `bench/results/2026-11-11-vs-avalon/` |
-| review | Correctness review of all the unrun C++ above | in flight | - | `dev/p17/review` |
+| review | Correctness review of all the unrun C++ above | done (R1, R5 applied in integration) | 150 cpu ctests PASS on the merged integration build (2026-11-12) | `dev/p17/review` |
 | night | Night queue runner `night_queue.py` (43 engine starts, quiet-machine guard, resume, RESULTS.md; deferral retest, TTFT baseline, lever arms, KV ring, prose profile; estimate 7 h 26 min, a guess) | 100% | 22 fake-engine tests PASS; never run on a real engine | `dev/p17/nightqueue`, `pancake-docs/NIGHT_QUEUE_RUNNER.md` |
 
 Measured 2026-11-11 (same client, same ISTA files, warm second pass; `bench/results/2026-11-11-vs-avalon/REPORT.md`): long prompts are the
