@@ -2723,3 +2723,13 @@ Key: GPU = needs a night run; DEC = needs your decision; CPU = can run now; DATA
 ### Progress from the remaining-items pass (2026-11-12)
 - **A41 (edit without read), done on CPU:** of 339 edit calls in opencode.db, 33 (about 10%) changed a file the agent had not read earlier in the same session; 306 had a prior read. The 45 writes without a prior read are mostly new files and are not counted. Upper-bound estimate; the gap is real but small. Next step: decide whether a hold hook is worth building (owner decision).
 - **A22 / A56 trace step 1, code done (integration `36d7fb9fe`):** `STRATA_WINDOW_TRACE_TARGET=1` writes record 6 (target probability of each drafted token). Off by default. CPU test passes (row_miss_test), reader supports record 6, existing trace tests pass (29/29), strata engine builds. Still to do: GPU identity run (greedy tokens with the flag on equal to flag off) and one window-trace run with the flag on, then replay the acceptance rate. Queue this after tonight's chain.
+
+### CPU items, second pass (2026-11-12)
+- **A11 (tool-boundary marks):** flag exists; `serve.test_tool_boundary_marks` passes (12/12).
+- **A21 (sampled speculation):** the server passes the request temperature through (serve/server.py:1812, 7663); the turn log does not record it. The real opencode temperature is still unconfirmed; needs a logged request.
+- **A19 (thinking stop replay):** the turn log has no logprob or entropy fields, so the margin rule cannot be replayed on existing logs. Needs a logging change first (per-token top-2 margin in the turn log).
+- **A55 (task gate):** five specs had a wrong preset path (`pancake-flashnext...` instead of `configs/pancake/flashnext...`); fixed. Dry run passes on all five; tests 16/16.
+- **A57 (time-to-success AUC):** the spec now pins the AUC horizon (`auc_horizon_s`, 1800 s, the SWE-Effi cap). Horizon no longer depends on the longest run in the batch.
+- **A48 (2-bit kernel bench):** needs the probe build (`STRATA_BUILD_PROBES`, CMake); not built here. Deferred.
+- **A53 (IOMMU start check):** the HIP engine has no start-up check; adding one is a small C++ change, not started.
+- **A41 (edit without read):** 33 of 339 edits (about 10%); upper bound.
