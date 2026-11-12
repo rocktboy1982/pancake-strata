@@ -93,11 +93,12 @@ The API body I read first was the SHORT form; the in-zip `github-issue-draft.md`
   repeat. Spec 34 adds `STRATA_RDNA_MMVQ_WAVE=1` vs base(=3) as the first thing to run.
 
 - **Env-set diff (issue#4-final vs our fast-hip) — genuine candidates to arm, not default:** `STRATA_PREFILL_MMQ=1`,
-  `STRATA_MTP_DRAFT_ALL=1`, `STRATA_PF_SWITCH_MIN_T=4096`, `--kv-grow`, `STRATA_IO_THREADS=16`,
-  `STRATA_RESIDENT_HEADROOM_GIB=10`, `STRATA_ARENA_PIN_GIB=28`. The happy finding is the mirror side: the issue baseline
-  runs the whole "group A" set (`Q8_PACKED, Q6_PACKED, MMVF_ROWS, ATTN_LANECELL, TSUM, LFUSE, PLE_BATCH, MEGAKERNEL`) which
-  our preset deliberately omits, and it did NOT beat our omission story — consistent with the fork-KB do-not-repeat. So
-  keep those off; do NOT add them.
+  `STRATA_PF_SWITCH_MIN_T=4096`, `--kv-grow`, `STRATA_IO_THREADS=16`, `STRATA_RESIDENT_HEADROOM_GIB=10`,
+  `STRATA_ARENA_PIN_GIB=28`. `STRATA_MTP_DRAFT_ALL=1` is NOT arm-able: it is a rdna3-only switch our fork does not read
+  (logic-check: def:0, src:0), so an env A/B would be inert (needs a code port). The happy finding is the mirror side:
+  the issue baseline runs the whole "group A" set (`Q8_PACKED, Q6_PACKED, MMVF_ROWS, ATTN_LANECELL, TSUM, LFUSE, PLE_BATCH,
+  MEGAKERNEL`) which our preset deliberately omits, and it did NOT beat our omission story — consistent with the fork-KB
+  do-not-repeat. So keep those off; do NOT add them.
 
 - `measurements.json` per-request decode for the SAME baseline arm swings 84.4 / 86.0 / 92.3 (code) — another data point
   for the bimodal-run work; the profiler `system_before.txt` (THP / `pp_dpm_sclk` / VRAM) is the instrument to explain it.

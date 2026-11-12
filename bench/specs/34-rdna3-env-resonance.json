@@ -1,14 +1,13 @@
 {
   "base": "pancake-flashnext-iq2_xs-fast-hip.json",
-  "arms": {
-   "base": {},
-   "mmvq-wave1": {"env": {"STRATA_RDNA_MMVQ_WAVE": "1"}},
-   "kv-grow": {"args": {"--kv-grow": ""}},
-   "mtp-draft-all": {"env": {"STRATA_MTP_DRAFT_ALL": "1"}},
-   "pf-switch-min-t": {"env": {"STRATA_PF_SWITCH_MIN_T": "4096"}}
-  },
+   "arms": {
+    "base": {},
+    "mmvq-wave1": {"env": {"STRATA_RDNA_MMVQ_WAVE": "1"}},
+    "kv-grow": {"args": {"--kv-grow": ""}},
+    "pf-switch-min-t": {"env": {"STRATA_PF_SWITCH_MIN_T": "4096"}}
+   },
   "cases": ["short", "edit"],
   "reps": 3,
   "lossy": false,
-  "note": "rdna3 issue #4 second-pass resonance candidates (small, highest-risk-first). Priority: **mmvq-wave1** — our fast-hip preset sets STRATA_RDNA_MMVQ_WAVE=3 and the issue author measured wave=3 collapsing to 30/20 tok/s (CONFOUNDED: XTX 24 GB + low reserve, and they say it 'does not prove a kernel defect'); run this FIRST to confirm our value-3 is not the bad case on the 20 GB XT / Linux HIP path. If wave1 ~ base, keep 3; if base collapses and 1 doesn't, the value must be investigated. kv-grow = elastic K/V frees RAM to the expert cache (author +6% on a 3090; also in fork-KB both-GPU list). mtp-draft-all = draft every window (exact on greedy; watch acceptance). pf-switch-min-t = prefill switch threshold 4096. All greedy-exact (abtest text check). NOT here: PREFILL_MMQ / RESIDENT_HEADROOM_GIB / ARENA_PIN_GIB (prefill-rounding / box-specific VRAM-RAM policy, separate gated spec) and the group-A set (fork-KB do-not-repeat). Run on a quiet nightly window; confirm any >= +2% with --tier confirm."
+  "note": "rdna3 issue #4 second-pass resonance candidates (small, highest-risk-first). Priority: **mmvq-wave1** — our fast-hip preset sets STRATA_RDNA_MMVQ_WAVE=3 and the issue author measured wave=3 collapsing to 30/20 tok/s (CONFOUNDED: XTX 24 GB + low reserve, and they say it 'does not prove a kernel defect'); run this FIRST to confirm our value-3 is not the bad case on the 20 GB XT / Linux HIP path. If wave1 ~ base, keep 3; if base collapses and 1 doesn't, the value must be investigated. kv-grow = elastic K/V frees RAM to the expert cache (author +6% on a 3090; also in fork-KB both-GPU list). pf-switch-min-t = prefill switch threshold 4096. All greedy-exact (abtest text check). Dropped on logic-check: mtp-draft-all — STRATA_MTP_DRAFT_ALL is a rdna3-only switch that our fork does NOT read (def:0, src:0), so an arm would be INERT (engine ignores it = base); it would need a code port, not an env A/B. NOT here: PREFILL_MMQ / RESIDENT_HEADROOM_GIB / ARENA_PIN_GIB (present in our tree but prefill-rounding / box-specific VRAM-RAM policy, separate gated spec) and the group-A set (fork-KB do-not-repeat). Run on a quiet nightly window; confirm any >= +2% with --tier confirm."
 }
