@@ -2557,3 +2557,38 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/notes/`. Read level
 - **A40:** AsyncFC (2605.15077) is lossy (decodes past unseen tool results) and belongs in the agent client or a proxy, not the engine.
 - **A41:** ECLoop (2607.28815) is a harness-level hold on edits and submissions until evidence is recorded. A generic nudge is not the mechanism (ablation: summary scores below no guidance). Belongs in the agent client.
 - **A28, A32, A34, A49:** no primary source for A28 (ISTA DASLab), whose claimed 29.6 GB resident exceeds the card's 20 GB VRAM. A32 and A34 are abstract-only. A49 needs the GPU, and at 128K on a 20 GB card it may measure offload rather than attention. A56 (EAR) is CPU-measurable from dumped draft and target probabilities.
+
+### Candidate list: every item with expected gain above 0% (owner rule 2026-11-12)
+Rule: anything above 0% is considered, not dropped for being small. Numbers are the research estimates (abstract or summary level unless stated); "test" is the smallest measurement that decides it. Items at 0% or negative are not listed.
+| Item | Expected gain (source level) | Test | Where it runs |
+| --- | --- | --- | --- |
+| A44 bandit (Athena, STRATA_BANDIT) | +5% over a stateless bandit, CPU simulation (full text) | off / on / bandit margin 0.02, A B B A, edit and short | GPU, 20-30 min |
+| A22 entropy chain stop | 0-3% in practice; ceiling 7.9% edit (plan) | top-k probability and entropy per draft position, replay | GPU trace, one run |
+| A19 thinking stop | 4-13% of turn time (estimate); ThinkBrake -25% thinking tokens on BFCL non-live | replay margin rule on logged turns | CPU if logprobs kept, else GPU |
+| A41 read-before-edit gate | +4.8 to +11.8 pp on SWE-bench (ECLoop, summary level) | count edits without read and done without test in opencode logs | CPU, 0.5 day |
+| A40 overlap of tools and decoding | up to 60% of request time is tool time (TraceLab); overlap share unknown | share of tool time the next decode step does not need, from logs | CPU, 0.5-1 day |
+| A1 cache-conditional routing | +9% code, -15 to -25% prose (earlier turbo result); miss rate halved (paper, Snapdragon) | joint re-measure with deferral on | GPU |
+| A2 depth-graded prior | unknown (rename: the paper's mechanism differs) | new row, measure as written | GPU |
+| A7 chunked promotions | +4.6% simulator bound | simulator first | CPU |
+| A8 online swap budget, blocking tier | 0-5% over best fixed (plan); blocking arm open | --adapt-swaps 64/128, then auto vs best fixed | GPU |
+| A9 pre-stage experts during tools | 1-3% of next turn decode (plan estimate) | agent replay with real tool gaps | CPU replay, then GPU |
+| A10 working-set prefetch | -19 to -32% on the repo's one replay trace (direction to confirm) | item 84 first | CPU |
+| A11 tool-boundary checkpoints | 0.5-0.8% at best (repo replay) | targeted grep for tool-boundary flag | CPU |
+| A14 restore equivalence | TTFT -46 to -64% for CPU reload (paper, abstract) | teacher-forced restore vs recompute per boundary | GPU, minutes |
+| A21 exact sampled speculation | 2-3x on T5-XXL (paper, different regime); repo switches exist | real request temperatures, then STRATA_SPEC_MIN_TEMP 0.7 vs default | CPU check, then GPU |
+| A24 suffix index | rounds about 2%, sub-agents about 7.5% in replay (sign to confirm) | suffix_sim.py rerun, then GPU screen | CPU, then GPU |
+| A25 draft-position check | 0-5% (plan) | draft_report.py on window traces | GPU trace, then CPU |
+| A29 expert-byte entropy coding | bound 12% block-aware, 8% with zstd (measured 2026-11-10) | reopen: decide whether an 8-12% saving on expert bytes is worth the decode cost | CPU design |
+| A30 CPU share threshold in prefill | per-expert latency gate; gain unknown above 0 | env A/B, 512/1000/2000/3000-token prompts | GPU, 25-40 min |
+| A31 GDN chunk | unsourced 5-11% (plan) | hip_gdn_stage_bench 4096/16384/32768 | GPU, minutes |
+| A33 small-M fusion | +0.6% [-1.6, +2.8] (HOLD) | expdec_bench | GPU, 10 min |
+| A35 Infinity Cache warming | unknown; mapping is our inference | 0/16/40/80 MiB, A B B A, edit trace | GPU night, 30-60 min |
+| A36 weight-major hit path | +1.99% ceiling if all hit GPU work vanished (below the 2% bar, above 0) | two gpu_profile traces, hit_critical.py | GPU, 20 min |
+| A46 learned cache policy | Belady ceiling 94.7% vs 79.6% engine hit rate (offline bound) | offline replay on an agent trace with router weights | CPU, trace missing |
+| A50 verify attention window | 200K context 48.6 -> 88.9 tok/s on another GPU (branch work/f11-attn-window) | A49 first, then the branch | GPU |
+| A51 sparse decode attention | 2.2-7.0x attention (paper, lossy) | only if A49 attention share is at least 15% | GPU, 2-3 h |
+| A49 attention share vs context | measurement (needed by A50, A51) | decode profile at 2k/16k/32k/64k/128k | GPU, about 1 h |
+| A56 expected acceptance rate | measurement (metric) | per-position min(1, p/q) from dumps | GPU logging run |
+| A32, A34, A28, A27 (round 2) | unknown above 0; A28 needs 58 GB download; A27 needs gate weights | per the round-2 report | GPU or owner approval |
+| A31b/A54/A55/A57/A53 | evaluation tools and checks, gain 0 directly | see round-3 notes | CPU |
+Pending: batch 6 (A37, A38, A39, A42, A43, A45, A48) reports are not yet in and will be added when they arrive.
