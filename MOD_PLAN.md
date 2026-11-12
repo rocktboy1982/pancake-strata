@@ -2665,3 +2665,57 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/triage/check_T1.md`
 - **A38 (behaviour counters):** on in the daily fast preset (`STRATA_AGENT_COUNTERS=1`, log-only). Tests pass (36/36). Integration branch `0402dda65`.
 - **A39 (compaction share):** NOT measurable from existing data. The 43 opencode compaction events run from 2026-10-15 to 2026-11-03; the turn log starts 2026-11-09, so there is no overlap. The share needs new compactions recorded by the turn log at the same time. Next step: when the next compaction happens, match its opencode timestamp to the turn log.
 - **Trace extension (A22, A25, A56):** design written (`triage/TRACE_EXTENSION_DESIGN.md`). Step 1 (flag-gated target-probability logging) needs an engine change and a GPU identity test; it waits for the overnight window.
+
+### Remaining items, review 2026-11-12 (all rounds; status and next action)
+Key: GPU = needs a night run; DEC = needs your decision; CPU = can run now; DATA = waits for new data; DONE = finished.
+| Item | Status | Next action | Type |
+| --- | --- | --- | --- |
+| Ph18 items 3+4 (2x2 WAIT_FUSE x FUSE_WAIT) | queued, overnight | run in night chain | GPU |
+| Ph18 item 2 (COMBINE_POLL1) | queued, overnight | run in night chain | GPU |
+| Ph18 item 6 (ROUTE_FAST, n>=8) | not queued | add to night chain | GPU |
+| Ph18 item 14 (ROUTER_FUSE, deferral off) | not queued | add to night chain | GPU |
+| A44 bandit (STRATA_BANDIT off/on/margin 0.02) | not queued | add to night chain | GPU |
+| A22/A25/A56 trace extension | code written (record 6 + verify logging), test and build pending | finish test, build, CPU suite, then GPU identity run | CPU then GPU |
+| A49 attention share vs context | not queued | decode profile at 2k/16k/32k/64k/128k | GPU |
+| A50, A51 (depend on A49) | waiting | after A49 | GPU, DATA |
+| A27 gate-weight routing dump (HOBBIT) | not started | one routing dump run | GPU |
+| A32 distinct experts per ubatch, PCIe link | not started | routing dump + PCIe read | GPU, CPU |
+| A34 launch-parameter sweep | not started | bit-exact check first | GPU |
+| A28 ISTA coder | blocked | owner approval for 58 GB; disk space | DEC |
+| A8 blocking-tier swap budget | arm open | --adapt-swaps 64/128, then auto vs best | GPU |
+| A9 pre-stage during tools | coded opt-in | agent replay with real tool gaps | CPU then GPU |
+| A10 working-set prefetch | open | item 84 first | CPU |
+| A11 tool-boundary checkpoints | done opt-in | confirm the boundary flag by grep | CPU |
+| A14 restore equivalence | code done, result pending | teacher-forced restore per boundary | GPU |
+| A15 idle TTL | new | fix rank-3 eviction bug first, then replay | CPU |
+| A17 per-level caps | partly done | needs 200+ turns of logs | DATA |
+| A18 effort per task | owner decision | needs ~100 tasks | DEC, DATA |
+| A19 thinking stop | not started | check whether turn logs keep logprobs | CPU |
+| A20 entropy log | new | log-only entropy; replay | CPU |
+| A21 exact sampled speculation | switches exist, off | real request temperatures, then min-temp 0.7 screen | CPU then GPU |
+| A24 suffix index | planned | suffix_sim.py rerun; fix sign convention | CPU then GPU |
+| A26 draft-source selector | parked | counterfactual on existing draft traces | CPU |
+| A29 expert-byte entropy coding | reopened (bound 8-12%) | owner decision whether to build | DEC |
+| A30 CPU share threshold | planned | env A/B at 512/1000/2000/3000 tokens | GPU |
+| A31 GDN chunk | planned | hip_gdn_stage_bench 4096/16384/32768 | GPU |
+| A33 small-M fusion | HOLD | expdec_bench, 10 min | GPU |
+| A35 Infinity Cache warm | coded | 0/16/40/80 MiB sweep | GPU |
+| A36 hit-path ceiling (+1.99%) | parked | two gpu_profile traces, hit_critical.py | GPU |
+| A37 LUT duplication | closed (gate says no-go) | none | DONE |
+| A38 behaviour counters | ON (log-only) | judge on real sessions | DONE, DATA |
+| A39 compaction share | blocked on data | match new compactions to turn log | DATA |
+| A40 tool overlap | open | share of tool time the next decode step does not need | CPU |
+| A41 edit-without-read | open | count edits with no prior read in opencode.db | CPU |
+| A42 externalize tool output | open | A/B the offload arm after counters | GPU, DATA |
+| A43 edit substring | closed (0 of 339 failed) | keep the log check | DONE |
+| A45 calibration probe | on branch work/a45-calibrate | one probe run, 5 min | GPU |
+| A46 learned cache policy | parked | needs an agent trace with router weights | DATA |
+| A48 2-bit kernel bench | planned | q2_rows_bench --threads 8 on an idle box | CPU |
+| A53 IOMMU start check | planned (20 lines) | start-up check and unit test | CPU |
+| A54 KLD rule | done (rule narrowed) | rank agreement on existing lossy arms | CPU |
+| A55 task gate | coded, first run pending | dry run now; live run later | CPU then GPU |
+| A57 time-to-success AUC | coded | pin the horizon in the spec | CPU |
+| A1, A2, A4, A7 (route prior, depth prior, rank guard, promotions) | corrected numbers | joint re-measure with deferral on; simulator for A7 | GPU, CPU |
+| A6 time model | held-out error 8.1 pts (target 5-9) | recalibrate | CPU |
+| A12 pinned prefix | blocked | pinned-entry eviction fix first | CPU then GPU |
+| A16 byte-stable prefix | DONE | none | DONE |
