@@ -2660,3 +2660,8 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/triage/check_T1.md`
 - **A20 (Entropy Sentinel):** r = 0.91 for one model (Phi-3.5-mini), CI [0.68, 0.98]: a single model's point estimate, not a general result.
 - **A34 (coordinate-based hill climbing):** 5.5-8.5% on A100 thread-block tuning is verified; the plan's "1-3%" is our estimate.
 - **Mamba-2 (A31, parked):** 2-8x over the Mamba scan verified (chunked SSD, no number in the repo).
+
+### Autonomous progress, 2026-11-12 (CPU-only items)
+- **A38 (behaviour counters):** on in the daily fast preset (`STRATA_AGENT_COUNTERS=1`, log-only). Tests pass (36/36). Integration branch `0402dda65`.
+- **A39 (compaction share):** NOT measurable from existing data. The 43 opencode compaction events run from 2026-10-15 to 2026-11-03; the turn log starts 2026-11-09, so there is no overlap. The share needs new compactions recorded by the turn log at the same time. Next step: when the next compaction happens, match its opencode timestamp to the turn log.
+- **Trace extension (A22, A25, A56):** design written (`triage/TRACE_EXTENSION_DESIGN.md`). Step 1 (flag-gated target-probability logging) needs an engine change and a GPU identity test; it waits for the overnight window.
