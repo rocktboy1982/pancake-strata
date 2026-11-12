@@ -1,0 +1,5 @@
+summary (decode tok/s; prompt tok/s for 'long'; mean +- 95% interval over clean runs)
+  short  base                    115.4 +- 232.0  (n=2)
+                              drafts accepted 0.72
+  edit   base                    138.3 +-  40.7  (n=2)
+                              drafts accepted 0.94
