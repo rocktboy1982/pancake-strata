@@ -10,7 +10,7 @@ Read-only check. MOD_PLAN.md and README.md were not edited.
   comments) and its abstract (numbers and key names).
 - 12 non-arXiv URLs were fetched. Venues not on an arXiv record were checked with web search.
 - Phase 15 cites no arXiv id, no URL and no paper venue. Its sources are fork commit hashes, fork names and local
-  reports. The local report it names (`reports/Speed ideas from all forks.md`) exists.
+  reports. The local report it names (`pancake-docs/research/engine-speed/speed-ideas-all-forks/report.md`) exists.
 - Section A: 7 items are wrong, misquoted, or cite a source that does not make the claim.
 - Section B: 19 items have a figure or claim that is not in the cited abstract. Check the body or drop them.
 - Section C: the rest are OK, some with a note.
@@ -24,9 +24,9 @@ Read-only check. MOD_PLAN.md and README.md were not edited.
 **arXiv 2502.17421 is LongSpec** ("LongSpec: Long-Context Lossless Speculative Decoding with Efficient Drafting and
 Verification", Penghui Yang et al., 2025-02-24, ACL 2025 main).
 
-- The MIT report (`reports/MIT Harvard papers for Avalon.md`, research_notes attention_kernels.md) gives 2503.16428 for
+- The MIT report (`pancake-docs/research/avalon/literature/mit-harvard/report.md`, research_notes attention_kernels.md) gives 2503.16428 for
   XAttention. That is right.
-- The Asia report (`reports/Asia papers for Avalon.md`, P8 and hk_taiwan_singapore.md) gives 2502.17421 to LongSpec.
+- The Asia report (`pancake-docs/research/avalon/literature/asia/report.md`, P8 and hk_taiwan_singapore.md) gives 2502.17421 to LongSpec.
   That is right.
 - The plan note at the end of Top 10 says "README section 4C lists XAttention at arXiv 2502.17421". That is not true for
   `README.md`. The `README.md` section 4C row (line 273 on dev/phase16-academic; line 272 in the main checkout on
@@ -42,7 +42,7 @@ Also in the same README 4C table: the SpargeAttn row is wrong (section A, item A
 
 | # | Item | Cited id / URL | Problem | What the source says | Fix |
 | --- | --- | --- | --- | --- | --- |
-| A1 | README 4C, SpargeAttn row (not in the plan) | arXiv 2411.10958 | Wrong paper. 2411.10958 is "SageAttention2". | SpargeAttention is arXiv 2502.18137, "SpargeAttention: Accurate and Training-free Sparse Attention Accelerating Any Model Inference", 2025-02-25. The row says "Tsinghua, 2024". | Id 2502.18137, year 2025. The Asia report (reports/Asia papers for Avalon.md, line 68) gives the same wrong id for SageAttention/SpargeAttn. |
+| A1 | README 4C, SpargeAttn row (not in the plan) | arXiv 2411.10958 | Wrong paper. 2411.10958 is "SageAttention2". | SpargeAttention is arXiv 2502.18137, "SpargeAttention: Accurate and Training-free Sparse Attention Accelerating Any Model Inference", 2025-02-25. The row says "Tsinghua, 2024". | Id 2502.18137, year 2025. The Asia report (pancake-docs/research/avalon/literature/asia/report.md, line 68) gives the same wrong id for SageAttention/SpargeAttn. |
 | A2 | 16.8 A38, Beyond Accuracy | arXiv 2511.11012 | Figure misquoted. Plan: "failed runs cost 1.4-4.4x tokens (authors)". | Abstract: "failed repairs consume substantially more resources (33%-440% more input tokens) and require longer execution time (35%-330%)". 440% more is 5.4x, not 4.4x, and the range is 1.33x-5.4x. | Quote the abstract range, in the abstract's own words. |
 | A3 | 16.4 A24, SuffixDecoding | arXiv 2411.04975 | Figure and label do not match the source. Plan: "a few % up to ~10% on edits (authors)". | Authors report "speedups of up to 5.3x" on SWE-Bench and Text-to-SQL, 2.8x faster than EAGLE-2/3 and 1.9x faster than model-free methods. | Remove "(authors)" from the few-% estimate, or quote 5.3x with its benchmark. Mark the few-% number as our estimate. |
 | A4 | 16.3 A19, thinking stop (cites three papers; one is Thought Calibration) | arXiv 2505.18404 | Figure does not match. Plan: "-20-40% thinking on routine turns (authors)". | Abstract: "a 60% reduction in thinking tokens on in-distribution data, and up to 20% in out-of-distribution data". | Quote 60% in-distribution and up to 20% out-of-distribution. The 20-40% figure may come from another cited paper; that is not checked. |
@@ -178,7 +178,7 @@ arXiv records and were checked only where a search page or PDF gave them. They a
 ## Phase 15
 
 No arXiv id, no URL and no paper venue in Phase 15 (lines 1791-2213). The sources are fork commit hashes (for example
-`5ef4fc8b4b`, `23d2fc0450`), fork and author names, and local reports. `reports/Speed ideas from all forks.md` exists.
+`5ef4fc8b4b`, `23d2fc0450`), fork and author names, and local reports. `pancake-docs/research/engine-speed/speed-ideas-all-forks/report.md` exists.
 Commit hashes were not checked. Phase 15 does not need a citation fix from this check.
 
 ## Method

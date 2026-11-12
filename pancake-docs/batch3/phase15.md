@@ -1,7 +1,7 @@
 # Phase 15 triage and source check (agent `phase15`, 2026-11-11, branch dev/p16/phase15)
 
 What: every item of MOD_PLAN "Phase 15: speed ideas from all fork commits" (15A F1-F13, 15B F14-F18, 15C F19-F22, 15D the
-measured negatives) and every NEW item of `research_notes/Active Strata forks November/` (batches 1-6) was checked against
+measured negatives) and every NEW item of `pancake-docs/research/engine-speed/active-forks-nov/notes/` (batches 1-6) was checked against
 (a) the fork commit it cites (read with `gh api repos/<fork>/commits/<sha>` for the diffs, the fork KB
 `data/fork-kb/forks.sqlite` for the messages), (b) this tree, (c) the offline results already in
 `bench/results/2026-11-10-offline/`, and (d) our box: Ryzen 7 5700G (Zen 3, AVX2, no AVX-512, **PCIe 3.0**: Cezanne has no
@@ -70,7 +70,7 @@ DECODE (-3..-4%). They are different paths, but the PCIe-3.0 fork (0xluk, 2x RTX
 patches, so it stays blocked-on-GPU. `STRATA_POOL_DAG` / `CPU_POOL_COST` were not built: see the table below. `--pcie-frac` items are
 inert on the XT (15D: "PCIe share on the 7900 XT (off is faster)").
 
-## research_notes/Active Strata forks November/ (items marked NEW there)
+## pancake-docs/research/engine-speed/active-forks-nov/notes/ (items marked NEW there)
 
 | Batch / item | Verdict | Evidence |
 | --- | --- | --- |

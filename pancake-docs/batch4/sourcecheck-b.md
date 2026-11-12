@@ -125,7 +125,7 @@ Outline of the body: 1 Introduction; 2 Challenges (2.1 prefill, 2.2 decode, 2.3 
 
 ## 7. Phase 15 fork commit hashes
 
-Method: every hex token of 7-40 characters (with a digit and a letter) in the Phase 15 section of `MOD_PLAN.md` (68 hashes), in `research_notes/Speed ideas from all forks/*.md` and in `reports/Speed ideas from all forks.md`
+Method: every hex token of 7-40 characters (with a digit and a letter) in the Phase 15 section of `MOD_PLAN.md` (68 hashes), in `pancake-docs/research/engine-speed/speed-ideas-all-forks/notes/*.md` and in `pancake-docs/research/engine-speed/speed-ideas-all-forks/report.md`
 (768 distinct in all), put through `git cat-file --batch-check` (the batch form of `git cat-file -t`, accepts abbreviations; no "ambiguous" result) in the main checkout and the fork dirs: Strata, StrataFast, FastStrata, PolyStrata, Speedy, colibri,
 colibri-fork, llamAmpere, rocWMMA, plus aviary-hy3, basalt, Strata-rdna3. The rest were checked against the fork knowledge base `data/fork-kb/forks.sqlite.gz` (commits table: sha, repo, date, message). Scratch files were kept outside the repo.
 
@@ -146,7 +146,7 @@ Findings to fix:
 1. `b9820dd56` (MOD_PLAN line 2307, "cherry-pick of `b9820dd56`"): no local object and not in the KB. The text comes from the cherry-pick trailer of bsorensen110's `19fc0e48` (full id `b9820dd56755e8a18f0b879eedcf50f322cbe854`), so it is a real id on a branch no scan saw. Write "source commit not in the fork KB".
 2. F13 row cites lighttransport `2ea0c1e042` for "route-prior guards": that commit is "residency-aware pruning and cache-aware substitution", whose own message says they "do not beat uniform top-3". It exists, but it is not a route-prior guard; the guards are zsariboga `8d7042ad97` and mandoof1 `3e0489e118`. Drop or reword.
 3. `MOD_PLAN.md` lines 1985-1988 are F12, F13, F12, F13: each row is in the table twice (1985 and 1988 plain, 1986 and 1987 with the "coded" note). Drop the plain copies.
-4. Outside Phase 15 but in the same notes: `research_notes/Speed ideas from all forks/attention_kv_quant.md:382` links Cudila `911187e2` with the full id `911187e2b5f5ad0cdc0b5ff6e08bc74a7c66d78c`; the KB has `911187e249dfba1a61c66dc3c4beaf9b307ab32f`
+4. Outside Phase 15 but in the same notes: `pancake-docs/research/engine-speed/speed-ideas-all-forks/notes/attention_kv_quant.md:382` links Cudila `911187e2` with the full id `911187e2b5f5ad0cdc0b5ff6e08bc74a7c66d78c`; the KB has `911187e249dfba1a61c66dc3c4beaf9b307ab32f`
    ("strata-nemotron 3/5"). The first 8 characters agree, the rest do not: that URL 404s. Of 377 commit URLs in these notes, this is the only sha missing from the KB. 65 URLs use `Niko1221/Strata/commit/<fork sha>`: they resolve through the fork network only, they are not on an upstream branch.
 5. `0a20260930` (`server_system.md:261`) is not a hash, it is part of the ROCm nightly name `10.2.0a20260930`.
 
