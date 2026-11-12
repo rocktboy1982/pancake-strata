@@ -58,3 +58,22 @@ None among the take-list except `STRATA_ARENA_FILE_CACHE=0` and `STRATA_BACKTRAC
 Take only bug fixes + perf that touch the Linux paths above; never take an engine-default flip or a Windows/net/App/launcher
 change without a decided A/B (fork policy). `cherry-pick -x` keeps provenance; hand-port partials say so. No force-push.
 This batch is docs+branch-prep; the cherry-picks themselves are the next action (conflict-prone engine picks best done beside a build).
+
+## Picks landed on `work/upstream-sync-1112` (from `dev/p17/integration`)
+
+Cherry-picked with `-x` (upstream author preserved). **Not built/tested here (Windows, no ROCm) — build + `ctest -L cpu`
++ parity on the Linux box before merge.**
+
+| ours | upstream | files | note |
+|---|---|---|---|
+| `7529df36` | `13eedf55` | `include/strata/core/serve_stop_bound.hpp`, `src/program/generate.cpp`, `tests/core/serve_stop_bound_test.cpp` | conflict resolved: kept HEAD's `#endif` + A19 `STRATA_THINK_PROBE` block (upstream side empty), preserving the new unconditional `serve_stop_bound` call; dropped `data/settings-register.json` (DU — we intentionally do not ship it) |
+| `2b6f65e9` | `bbf97633` | `serve/server.py`, `serve/test_stop_closed_pipe.py` | clean auto-merge; py_compile ok |
+| `daefd63a` | `d7f7d967` | `src/qwen35/q36_engine.cu` | clean auto-merge; the Flash-Next (qwen35) MMQ row-id margin fix |
+| `55b8c26b` | `14dd746f` | `src/prefill/gemm.cu` | clean auto-merge; dense-MMQ row-id margin (`STRATA_DENSE_MMQ`) |
+| `65da6516` | `711a7e93` | `CMakeLists.txt`, `src/prefill/prefill.cpp`, `src/program/generate.cpp`, `stream_watch.hpp`+test | clean auto-merge; stall report asks the prompt compute stream |
+| `f70e3dcd` | `03e687ac` | `CMakeLists.txt`, `src/program/generate.cpp`, `gpu_pause_time.hpp`+test | clean auto-merge; AMD GPU-pause duration in the stall report |
+
+Not picked (recorded): `697b6d67` (DeepSeek MTP MMQ margin — we do not run DFlash2; same fix family already covered on our path),
+`feaa928f` (automatic-RAM-copy `STRATA_RESIDENT_PIN` — REVIEW: our cap path may differ), `92f7e819` (older-CPU parity-leg
+skip — take later beside FK-23). Two new test hooks came in and must be registered/kept green: `serve_stop_bound_test`,
+`stream_watch_test`, `gpu_pause_time_test`, `test_stop_closed_pipe.py` (add any missing ones to the cpu/tests labels).
