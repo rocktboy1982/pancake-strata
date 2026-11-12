@@ -230,7 +230,7 @@ Substitute groups (gains inside a group do NOT add; the ceiling is the group's, 
 - 5 tail-row drop - 0-5% est. - exact per plan - dan-cd - 64 replay with real MTP confidences - open.  [S1] Replay built (tools/pancake/trace/tail_replay.py, drafts record in the trace); needs dan-9f's drafts() call (item 74).
 - 20 ReplaySSM audit of the GDN replay - 1-3% decode - exact - dan-cd - none - open. CLOSED by code study (9b0081c43): replay stays (per-row snapshots ~2 MB/layer/row).
 - Q2_0-down expdec kernel (unnumbered; native_down_multi_kernel<42> = 5.8% of GPU kernel time, hidden on edits) - 1-3% short
-    est. - exact - unowned - 49 split - open.  [S7] Exists as STRATA_EXPDEC_DOWN=1 (never measured on gfx1100): arm in bench/specs/04 (dan-cd).
+    est. - exact - unowned - 49 split - open.  [S7] Exists as STRATA_EXPDEC_DOWN=1; measured on gfx1100 in test phase 04c: +1.7% +-0.5 on short decode, in the fast-hip preset (2026-11-12 inventory correction).
 - 51 CPU pre-sums missed rows per token - 0.5-1.5% on edits est. - not bit-identical - dan-cd - 50 - open.  [S1] CODED (cc5499fae, STRATA_CPU_PRESUM=1) + item 52 ReBAR target (4f829da0e, STRATA_PRESUM_VRAM=1).
 - 37 coordinate-descent sweep of HIP launch/tile and AVX2 block sizes - 1-3% - exact - dan-cd - 1 - open.  [S7] TOOL BUILT (7861dc8c1, tools/pancake/sweep.py); running it = test phase.
 - 41 smallest saturating thread count + performance governor - 0-3% each - exact - owner (governor) / 63 - none - open.
@@ -2530,3 +2530,19 @@ GPU runs only on a quiet machine (night queue guard). Length estimates are from 
 | Daytime, after any code change | `ctest -L cpu` on the integration build | about 3 min |
 | Before any push | build matrix in the push hook | about 5 min |
 | Weekly | fork scan, then check that research notes still match code | about 30 min |
+
+### Phase 17 and 18 status (2026-11-12)
+| Item | Status | Where |
+| --- | --- | --- |
+| 17.0 TTFT baseline | measured (Pancake 8K 3.6 s, 32K 11.6 s, 64K 22.4 s; load-warned); levers measured, none adopted; rerun queued tonight | bench/night-queue-run/RESULTS.md, pancake-docs/research/bench |
+| 17.1 deferral | decided: OFF in both daily presets (owner); gate arm worse; ROUTE_PRIOR_AUTO and VERIFY_DEFER_AUTO still open | NIGHT_RESULTS_2026-11-12.md |
+| 17.2 prose gap | rewritten to measured data; Avalon 3-8% faster, not established; controls done, full set queued | MOD_PLAN 17.2 row |
+| 17.3 greedy ablation | OPEN: driver ready, round 1 = 69 engine starts, queued last | ~/abtest-specs/ablation-17-3-plan.json |
+| 17.4 KV ring | measured: no effect at 1K-120K | NIGHT_RESULTS_2026-11-12.md |
+| 17.5 long contexts | 100K trace measured (one row); EQUAL_TAIL not measured on the engine | bench/night-queue-run |
+| 17.6 bundles | fast = deferral off (decided); exact bundle needs an A-A control first | PRESET_BUNDLES.md section 4 |
+| 17.8 draft vocab | closed | - |
+| Phase 18 item 1 | done (environment record); re-profile with stream IDs still open (GPU) | window-overhead/notes/profile-environment.md |
+| Phase 18 items 2, 3+4, 6, 14 | queued as A/B runs overnight | Testing schedule above |
+| Phase 18 items 5, 7-13, 15-20 | not worth building or design study only (worker designs) | notes/design-worker-a.md, design-worker-b.md |
+| Phase 18 item 16 | HIP support confirmed on device 0; wait not measured; ceiling 0.3% | untested_switches.md |
