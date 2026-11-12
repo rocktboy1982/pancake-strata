@@ -72,8 +72,8 @@ Cherry-picked with `-x` (upstream author preserved). **Not built/tested here (Wi
 | `55b8c26b` | `14dd746f` | `src/prefill/gemm.cu` | clean auto-merge; dense-MMQ row-id margin (`STRATA_DENSE_MMQ`) |
 | `65da6516` | `711a7e93` | `CMakeLists.txt`, `src/prefill/prefill.cpp`, `src/program/generate.cpp`, `stream_watch.hpp`+test | clean auto-merge; stall report asks the prompt compute stream |
 | `f70e3dcd` | `03e687ac` | `CMakeLists.txt`, `src/program/generate.cpp`, `gpu_pause_time.hpp`+test | clean auto-merge; AMD GPU-pause duration in the stall report |
+| `131cca3f` | `697b6d67` | `src/prefill/prefill.cpp` | clean auto-merge; DeepSeek MTP draft MMQ row-id margin — completes the margin family even though we do not run DeepSeek/DFlash2 (belt-and-braces; no numerics change) |
 
-Not picked (recorded): `697b6d67` (DeepSeek MTP MMQ margin — we do not run DFlash2; same fix family already covered on our path),
-`feaa928f` (automatic-RAM-copy `STRATA_RESIDENT_PIN` — REVIEW: our cap path may differ), `92f7e819` (older-CPU parity-leg
+Not picked (recorded): `feaa928f` (automatic-RAM-copy `STRATA_RESIDENT_PIN` — REVIEW: our cap path may differ), `92f7e819` (older-CPU parity-leg
 skip — take later beside FK-23). Two new test hooks came in and must be registered/kept green: `serve_stop_bound_test`,
 `stream_watch_test`, `gpu_pause_time_test`, `test_stop_closed_pipe.py` (add any missing ones to the cpu/tests labels).
