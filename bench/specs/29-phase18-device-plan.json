@@ -1,0 +1,18 @@
+{
+  "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+  "arms": {
+   "base": {},
+   "device-plan": {
+    "env": {
+     "STRATA_VERIFY_DEVICE_PLAN": "1"
+    }
+   }
+  },
+  "cases": [
+   "short",
+   "edit"
+  ],
+  "reps": 3,
+  "lossy": false,
+  "note": "Phase 18 item 13 (skip the plan copy). verify.cpp:1454-1459 sets device_plan_ = !all_resident_ && !always_publish_ && env, so on the fast-hip base (~44% expert residency, not all-resident) the arm plans every all-resident layer-group on the device and skips the host plan copy for it (verify.cpp:2821-2823 wait_flag_ge_or + copy_i32_from_mapped_unless instead of the host wait+copy). Exact by class (Speed, conversation_disk_env.def 763); the code comment notes it is neutral on 1-2 RIBPC GPUs, which is exactly what this arm must confirm or refute on gfx1100. Interaction: device-plan makes WAIT_COPY256 report 'will not act' (it copies the plan in its own launches, verify.cpp:2835), so do not stack this with the copy256 arm of 25-kern-hip in one bundle. Also turns off foresight swap (expert_source.cpp:7125) and frees STRATA_VERIFY_DEFER_AUTO (verify.cpp:1519-1522). Log proof: 'STRATA_VERIFY_DEVICE_PLAN is on'. Run --tier screen on a quiet nightly window; confirm a decided >= +2% with --tier confirm (A B B A, n>=8, token equality). Gain ceiling is the plan copy only (~3 us median per group); a null result here is a valid answer that closes item 13."
+}
