@@ -2592,3 +2592,13 @@ Rule: anything above 0% is considered, not dropped for being small. Numbers are 
 | A32, A34, A28, A27 (round 2) | unknown above 0; A28 needs 58 GB download; A27 needs gate weights | per the round-2 report | GPU or owner approval |
 | A31b/A54/A55/A57/A53 | evaluation tools and checks, gain 0 directly | see round-3 notes | CPU |
 Pending: batch 6 (A37, A38, A39, A42, A43, A45, A48) reports are not yet in and will be added when they arrive.
+
+### Round 3 batch 6 additions to the candidate list (2026-11-12)
+Notes: `pancake-docs/research/engine-speed/unported-academic/round3/notes/batch6.md`.
+| Item | Expected gain above 0% (source level) | Test | Where it runs |
+| --- | --- | --- | --- |
+| A37 LDS duplicated codebook (`STRATA_IQ_LUT_DUP`) | 0.15-0.55% kernel ceiling (kern-hip measurement; the FLUTE paper's 2-4x is for NVIDIA) | none proposed beyond the kernel gate, which says no-go at the optimistic bound; keep as a >0 candidate | GPU only if reopened |
+| A38 behaviour counters (`STRATA_AGENT_COUNTERS=1`) | pilot on opencode.db: 11 of 21 edit sessions with no test after the last edit (crude upper bound) | turn the counters on for real sessions, then judge | CPU, existing logs |
+| A39 compaction share of turn time | synchronous compaction is 26-44% of query time in the Slipstream paper (H100); Slipstream reports up to 39.7% latency gain (summary level) | measure the compaction share of turn time from logs first | CPU |
+| A42 externalize tool output | +25.6% over compaction on RLM's benchmark (summary); against Claude Code with offloading the margin is 0 to +16.7%, mixed; lossy | A/B the offload arm (`STRATA_EXTERNALIZE_TOKENS`) on real turns after the counters | GPU or client, after counters |
+| A43 edit substring constraint | 0 of 339 edit calls failed in opencode.db; expected gain about 0 (may stay above 0 on rare cases) | keep the log check; constrained decoding closed | CPU |
