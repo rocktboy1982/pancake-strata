@@ -101,3 +101,6 @@ node_modules/
 /pancake-*.log
 /data/fork-kb/forks.sqlite
 /data/fork-kb/forks.sqlite.gz.tmp
+
+# raw profiler traces (the gzipped copy is committed under pancake-docs/research/bench/profile)
+/.rocprofv3/
