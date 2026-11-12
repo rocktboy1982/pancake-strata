@@ -2752,3 +2752,45 @@ Capture for the still-gated items (record only, do not code yet): item 10 = the 
 
 After any decided arm: append the verdict to `pancake-docs/NIGHT_RESULTS_<date>.md`, update `PANCAKE_STATUS.md` and this plan, and only then consider promotion; keep `ctest -L cpu` + `python tools/pancake/test_disk_env_table.py` green for any code change.
 
+### Fork-KB sweep: full port queue (engine-speed/speed-ideas-all-forks + strata-forks-speed-gains, branch kb-improvements)
+
+Source: 43,685 fork-only commits + ~40 forks, mapped to pancake's measured window anatomy (short 24.8 ms = 15.9 GPU + 5.2 CPU-miss + 2.2 draft; edit 37.4 ms = 15.8 GPU + 17.4 CPU-miss + 2.5 draft; combine_cpu_k10_vec4 = 38.3% of GPU kernel time; DDR4 ~33 GB/s roof). Rule of thumb: cut CPU-expert bytes X% -> ~0.46·X% edit / 0.21·X% chat; a GPU-kernel save pays only where the GPU is critical (short chat, router->doorbell). Order: offline/probe first (they kill ports cheaply), then both-GPU host/CPU/Python ports, then HIP/CUDA kernels, then lossy. Every "source" number is the fork author's claim on the author's hardware; nothing here is measured on gfx1100 yet.
+
+A. Env/flag-only, no code (specs prepared, run on the quiet box):
+- `bench/specs/31-env-both-gpu.json` (exact, both-GPU): `--aux-cpus auto` (FK-04, author +3.8% decode, host-plan wait 1.52->0.51 ms/window; same 8C/16T Ryzen class), `STRATA_GDN_PP=2` (bitwise, prompt +2%), `--spec-min-p 0.7` (0.70 best on a 3090), `--lookup-max-t 16` (0-4% edits), `--kv-grow` (author +6%), `STRATA_SH_STREAM=1` (author -2..+4%: measure, can be negative).
+- `bench/specs/32-env-prompt-gpu.json` (rounding, token-forced): `STRATA_WMMA_GEMM=1` (+5.6-9.1% prompt), `STRATA_PREFILL_AUTO_MAX=24576` (+15% at 32K; 20 GB card - watch slot count).
+- Gated until flag presence is confirmed in `generate.cpp`: `--prompt-cache-spread` (82K resume 40->10.2 s), `--lookup-chain 3` (0-4% edits), `--adapt-decay 0.95/0.97/0.99` (0.97 best), `--vram-reserve-mib 444` (+10-17% prompt on 3080-10 GB, but svgop: do not go below ~700 MiB on 20 GB), `--batch 2`.
+- Drafting/sampling arms (need O5 temperature-share first, then a task/acceptance gate, not a strict tok/s A/B): `STRATA_SPEC_PROB=1 STRATA_SPEC_COUPLED=1 STRATA_SPEC_PROB_GATE=top STRATA_SPEC_PROB_DT=0.85` (FK-01, exact speculative sampling + draft T 0.85; author +5.5-5.8% agent turns at T=1.0, 0 on greedy; meaningful only if opencode runs T>=0.7).
+
+B. Offline replays and probes (no GPU, run before the ports they price; need the Linux `STRATA_WINDOW_TRACE` + turn/engine logs):
+- O1 `tail_replay.py`: model SPEC_CUM gain from the 0.56 rejected rows/window (port FK-21 only if >= 2% modelled; also sets S). O2 ECAP counting on the same traces. O3 grep serve/engine logs for the 7 cold 54-61K turns (TwoAnts `STRATA_PARK_TRUNCATE` mechanism, FK-20; ~162 s for those turns dwarfs any kernel). O4 superseded-park scan (FK-27). O5 request-temperature share (FK-01 relevance). O6 cache-sim admission/seeding (FK-28 ADAPT_PROMPT, frequency-gated admission, byte-weighted placement). O7 n-gram pool replay (FK-35). O9 `/proc/<pid>/status` VmLck + opencode request shape (mlock port, trailing reminder).
+- Probes (price a port before writing it): P1 empty-grid launch sweep on 42 WGPs (FK-26 fill-stall, only if a hot launch hits a stall). P2 router-publish split (FK-22: PCIe RMW vs row copy vs top-10; pancake already has `DOORBELL_STORE`, so confirm which path the HIP preset runs). P3 expert GEMV GB/s vs peak (FK-24 Q2_0 down fold, FK-31 EXP9_DOWN). P4 CPU kernel GB/s (orders FK-23 fast unpack vs FK-52 shadow store). P7 fresh window trace (refreshes O1/O2). P5/P6 on the 3060 when it returns.
+
+C. Exact ports, host/CPU/Python first (both-GPU, `test_disk_env_table.py` + parity before any A/B):
+- FK-23 Q2_0 AVX2 fast unpack (imanu86, `q2_avx2.cpp` still has 14-op `unpack64`): edit +1-3%; parity-testable on CPU.
+- FK-21 `STRATA_SPEC_CUM` cumulative draft stop (+LOOKUP_Q): +1-3%, ~150 lines; only after O1 >= 2%.
+- FK-28 `STRATA_ADAPT_PROMPT` (~10 lines): prompt routing counts into the adaptive tier; 0-5% early tokens.
+- 2.1 No PCIe staging slots when `--pcie-frac 0` (strata-slim patch 0003): gives ~61 MiB/GPU back to the cache.
+- 2.6 DraftPolicy cost-outlier clip (gfx1030): winsorise the cost-sample tail; a candidate explanation for the bimodal runs.
+- 2.2 Guided CPU pool (STRATA_POOL_GUIDED, Strata-GLM): shorter phase tail.
+- Cache-side: FK-27 `STRATA_PARK_REWIND_MAX` / `--conversation-cache-skip-tail` (after O4); FK-20 `STRATA_PARK_TRUNCATE` (after O3); `--prompt-cache-spread` (after flag check); fork-point / dual-park disk cache (item 66 / 39-83 branches).
+
+D. HIP/CUDA kernel ports (gated by probes + both builders; port both backends):
+- FK-22 router publish fast path (HIP: DPP top-10 + row copy in the router GEMV + stored step; CUDA: own copy blocks + REDUX). +1-2% both.
+- FK-24 Q2_0 down 4-lane fold (KhaledElzarw `STRATA_EXP9_DOWN=42:10`, Lamina sub-warp): 0-1.5% XT / +1-3% 3060; A/B against the still-unmeasured `STRATA_EXPDEC_DOWN`.
+- rdna3 unported prompt kernels (`1799c0a3a` 3-blocks/WGP + FP16 codebook, `3dbb40516` gr_upmix, `1f4b77d72` colskip): prompt expert GEMM -6..-9%, HC half-layer -7..-9%.
+- FK-26 fill-stall / grid_pad (after P1). Window decode attention (Asofwar, int8-MMA->WMMA): +5-20% at 64K+ (rounding). PF_DQ_OVERLAP, DQ8/HC_GATED16 (prompt).
+- Porting rule: `__shfl_xor_sync`->DPP/v_permlanex16, `__reduce_max_sync`->DPP reduce, mma.sync->v_wmma (int8 WMMA = same rate as FP16 on RDNA3, bytes not math), cp.async->LDS. Fusions/grid-trims pay more on the 7900 XT; dense-chain kernel speed pays more on the 3060.
+
+E. Lossy, after quality_gate (momoe protocol) + tool-call gate: FK-50 `STRATA_VERIFY_ECAP=N` (N >= K + max_t - 1; edit +3-10%; a too-tight cap broke 12/20 tool turns), FK-51 route-prior guards + stronger turbo (unlocks the measured +25-34% safely, with HotRod re-verify FK-32), FK-52 sub-2-bit shadow store for misses (edit +7-10% but needs a requant + 25-30 GB disk), FK-53 ISTA Coder pack, FK-54/55 attention rounding.
+
+F. Correctness already done - do not re-port: **#5655 route-prior NaN guard is PRESENT on this tree** (`route_prior.cu:55-61` clamps non-finite logits; lines 84-127 pick valid distinct ids via the `taken` bitmask so the 1<<30 sentinel cannot leak). The fork report's "no equivalent in src/" is stale; verify the executable source, not the prose. Add the upstream NaN-row unit test if one is missing.
+
+G. Timing / cache / system adjacency (explains bimodal ~25% slow runs; `gpu_profile.py` now writes `system_before.txt` + `run_environment.json` per run):
+- Record per run: THP `enabled` + `vm.nr_hugepages` vs arena `AnonHugePages` (`/proc/smaps_rollup`), card `mem_info_vram_used/gtt_used`, `pp_dpm_sclk`, dmesg tail. Arms: `compact_memory` before start vs `STRATA_NO_ARENA_THP=1` to force one regime; hugepage reservation is an owner system decision.
+- Clock ramp: the first fresh prompt after load is not a measurement (`docs/AMD_HIP.md`); warm regime from request 4.
+- VRAM eviction: unlikely (desktop on iGPU) but possible with a sidecar at ~700 MiB reserve; watch `mem_info_vram_used` + dmesg.
+- DraftPolicy stuck-after-outlier (2.6) can look like a whole slow run - the clip (C) addresses it.
+
+H. Do-not-repeat (measured no-gain/worse, needs a new reason to requeue): `--pcie-frac > 0` on the XT; `STRATA_ARENA_WARM` / look-ahead prefetch; graph branches in a HIP graph (26-30%); `--spec 3/5/6`; DFlash2 default; draft trees/deeper chains; MTP-path eager+ungated; cache-aware routing at lambda 2.0; whole-model IQ2_XXS experts; CPU 4-bit repack; activation sparsity; pool parking/placement sweeps; window-final-sync polling / device spin flags on AMD; `STRATA_DEQUANT_WIDE`; `HC_Q8` on HIP; `GPU_MAX_HW_QUEUES` 8 for prompts; mmap'd expert tier / VRAM lending / per-layer budgets / ClassLRU.
+

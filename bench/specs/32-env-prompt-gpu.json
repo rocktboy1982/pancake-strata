@@ -1,0 +1,12 @@
+{
+  "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+  "arms": {
+   "base": {},
+   "wmma-gemm": {"env": {"STRATA_WMMA_GEMM": "1"}},
+   "prefill-auto-max-24576": {"env": {"STRATA_PREFILL_AUTO_MAX": "24576"}}
+  },
+  "cases": ["long"],
+  "reps": 3,
+  "lossy": true,
+  "note": "Fork-KB prompt batch (speed-ideas-all-forks, strata-forks-speed-gains): GPU prompt env arms, both Unsure/rounding class (conversation_disk_env.def: WMMA_GEMM 269 Unsure; PREFILL_AUTO_MAX 228 Unsure - 'chunk geometry changes the rounding', so token-forcing, not token equality). wmma-gemm: author +5.6-9.1% prompt (author, gfx1151). prefill-auto-max-24576: 32K chunks lend away too many expert-cache slots; author rxr2 +15% at 32K (author, 7900 XTX, 64 GB) - our gfx1100 box has 20 GB, so watch for fewer free slots. Measure TTFT at 11.7K/32K with STRATA_PREFILL_TIMING=1. Run --tier screen on a quiet window; confirm with quality_gate.py (token forcing) because these are rounding-level. Gated OUT of this spec until their prerequisites clear: STRATA_DENSE_MMQ (needs the %256 MMQ-read gate check in src/prefill/gemm.cu first), STRATA_PREFILL_LAYER_MAJOR (id-order rounding), STRATA_PREFILL_CPU_SHARE (KL ~0.004-0.011 lossy) - each gets its own gated spec."
+}

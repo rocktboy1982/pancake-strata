@@ -22,6 +22,48 @@ ROOT = Path(__file__).resolve().parents[2]
 ROCPROF = "/opt/rocm/core-10.0/bin/rocprofv3"
 
 
+def _read(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return "-"
+
+
+def system_snapshot(out):
+    # phase-18 adjacency: the environment a run starts in, to explain bimodal ~25% slow runs.
+    # THP state, reserved hugepages, card VRAM/GTT headroom, DPM clock, and a dmesg tail. Read-only,
+    # all paths optional (a missing path writes "-"); never fails the profile.
+    L = []
+    try:
+        mi = {}
+        with open("/proc/meminfo") as f:
+            for ln in f:
+                if ":" in ln:
+                    k, v = ln.split(":", 1)
+                    mi[k] = v.strip()
+        L.append("MemTotal %s  MemAvailable %s  AnonHugePages %s" % (mi.get("MemTotal", "-"), mi.get("MemAvailable", "-"),
+                                                                     mi.get("AnonHugePages", "-")))
+    except OSError:
+        L.append("meminfo: unreadable")
+    L.append("THP enabled " + _read("/sys/kernel/mm/transparent_hugepage/enabled"))
+    L.append("vm.nr_hugepages " + _read("/proc/sys/vm/nr_hugepages"))
+    card = os.environ.get("P18_DRM_CARD", "card1")
+    base = "/sys/class/drm/%s/device" % card
+    L.append("card %s vram_used %s gtt_used %s vram_total %s" % (card, _read(base + "/mem_info_vram_used"),
+                                                                 _read(base + "/mem_info_gtt_used"),
+                                                                 _read(base + "/mem_info_vram_total")))
+    sclk = _read(base + "/pp_dpm_sclk")
+    L.append("pp_dpm_sclk " + (sclk.split("\n")[-1].strip() if sclk != "-" else "-"))
+    try:
+        dm = subprocess.run(["dmesg"], capture_output=True, text=True, timeout=5)
+        tail = [ln for ln in dm.stdout.strip().splitlines() if ln][-5:]
+        L.append("dmesg tail:\n" + ("\n".join(tail) if tail else "-"))
+    except Exception:
+        L.append("dmesg: unreadable")
+    (out / "system_before.txt").write_text("\n".join(L) + "\n")
+
+
 def run(cfg_path, out, case, envs, extra_args):
     c = json.load(open(cfg_path))
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
@@ -45,6 +87,7 @@ def run(cfg_path, out, case, envs, extra_args):
     wrapper = out / "prof-engine.sh"
     wrapper.write_text(f"#!/bin/bash\nexec {ROCPROF} --kernel-trace --stats -d {out} -o run --output-format csv -- {engine} \"$@\"\n")
     wrapper.chmod(0o755)
+    system_snapshot(out)
     cmd = [str(ROOT / "tools/pancake/capped.sh"), str(ROOT / ".venv/bin/python"), str(ROOT / "tools/pancake/bench_engines.py"),
            "--name", "prof", "--tokenizer", c["tokenizer"], "--out", str(out / "bench.jsonl"), "--runs", "1", "--only", case,
            "--", str(wrapper), "--serve"] + args
