@@ -2644,3 +2644,19 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/round4/notes/V4.md`
 - **A11 (Marconi):** 34.4x verified. The 71.1% is ShareGPT and 617 ms is SWE-Bench (not the same workload). The eviction-only gain over LRU is 19.0% (ShareGPT) to 219.7% (SWE-Bench). The -24.7% is against SGLang+, not LRU.
 
 **Round 4 summary.** Of 26 papers checked, the headline numbers held for most. Corrections changed the plan's wording or attribution for about half (A1, A4, A7, A11, A21, A22, A24, A27, A32, A35, A36, A38, A39, A40, A41, A42, A44, A50, A51, A56, A19). Items marked exact that are not exact: A32 (OSDI), A36 (MonoMoE), and A1/A4/A27 which are lossy. Verification changed no decision: the candidate list stays as it was, with corrected numbers.
+
+### ID-level source check, triage T1 and T2 (2026-11-12, full PDFs)
+Notes: `pancake-docs/research/engine-speed/unported-academic/triage/check_T1.md` and `check_T2.md`.
+- **A28 (ISTA coder):** the row cites two papers for one "Coder variant" line, and neither gives the stated numbers. GSQ (2604.18556) has no SWE-bench result, no 512-expert model and no LUT types (the 95.7% is a model-card figure). RCO (2605.00649) prunes 50% of experts (256 of 512) on Qwen3-Coder-Next; the 3.5-bit setting is on Qwen1.5-MoE-A2.7B. Fix the row before any D-space work.
+- **A45 (DALI):** the "6-13% on other platforms" and "static PcieAuto" are not in the paper. Its headline speedups are 3.97x, 2.16x, 1.48x and 1.32x.
+- **A33 (Qwen3 report):** the "gated residual" citation is not in the report, and neither is the greedy-decoding repetition claim in the Asia notes. The thinking budget (8192 tokens) is verified. Remove the citation.
+- **A46 (Harmonia):** the paper's split is data placement and data migration, not admission and migration; it is a hybrid storage paper, not an LLM cache.
+- **A31 (parallel DeltaNet):** the chunk length is C in the paper; the "64" is ours, not the paper's.
+- **A48 (T-MAC):** verified: 5.3x 2-bit mpGEMM vs BLAS, memory-bandwidth bound; the 4x headline is throughput.
+- **A55 (TheAgentCompany):** verified (30.3% fully completed, 39.3% partial-credit score).
+- **A18 (Danger of Overthinking, Don't Overthink it):** verified, with wording: "almost 30%" and 43%; shortest chain up to 34.5% more accurate than longest; short-m@k up to 33% less wall time.
+- **A39 (ACE):** verified: +10.6% agents, +8.6% finance.
+- **A17 (LRMs interruptible):** verified: up to 60% drop when updates arrive late.
+- **A20 (Entropy Sentinel):** r = 0.91 for one model (Phi-3.5-mini), CI [0.68, 0.98]: a single model's point estimate, not a general result.
+- **A34 (coordinate-based hill climbing):** 5.5-8.5% on A100 thread-block tuning is verified; the plan's "1-3%" is our estimate.
+- **Mamba-2 (A31, parked):** 2-8x over the Mamba scan verified (chunked SSD, no number in the repo).
