@@ -159,7 +159,7 @@ In a hybrid model only the full-attention layers (a minority) scale with context
 - Code: [thu-ml/SageAttention](https://github.com/thu-ml/SageAttention), CUDA only. — [arXiv 2411.10958](https://arxiv.org/html/2411.10958v3)
 
 **Twilight: Adaptive Attention Sparsity with Hierarchical Top-p Pruning.** THU **lead**, Berkeley co. [arXiv 2502.02770](https://arxiv.org/abs/2502.02770)
-- Already assessed in the US report as the safest training-free add-on, gated on M5. — [US report row](file:///home/dan/reports/US%20university%20papers%20for%20Avalon.md)
+- Already assessed in the US report as the safest training-free add-on, gated on M5. — [US report row](../../us-universities/report.md)
 
 ### Inferences
 **Decode.** At 131-262k, decode cost on the attention layers is the KV read. Twilight's top-p budget (training-free) is the only THU decode method that applies. Its value depends on whether attention-layer KV reads are a significant part of the 24.8 ms window at 200k. That is the M5 measurement; there is no new reason to skip it.

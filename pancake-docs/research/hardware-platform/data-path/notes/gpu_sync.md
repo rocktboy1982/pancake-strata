@@ -8,9 +8,9 @@ Scope: the GPU half of pancake's per-layer hand-off (GPU attention/GDN -> router
 About 98% of `combine_cpu_k10_vec4` time is genuine waiting, not PCIe reading. The host-side window timer also shows that GPU pre-doorbell work and CPU expert work **add up** on edit windows. So GPU kernels *before* the router doorbell (GDN/QSA/hyper-connection/router/shared expert) are on the critical path on both short and edit windows. GPU VRAM-hit expert kernels (expdec_gu, `native_down_multi_kernel<42>`) are mostly hidden behind the CPU share. This partly contradicts the earlier "F8 ~0 on edits" and "Q2_0 down kernel worth 0.3-0.6 ms" statements.
 
 ### Cited Findings
-- rocprofv3 kernel stats (one short request, profiler slows decode to 79 vs ~126 tok/s): `combine_cpu_k10_vec4<true>`: 4,128 calls, 1,049 ms total, **average 254 µs, minimum 5.6 µs**, maximum 7.83 ms, 38.26% of GPU time. `wait_flag_copy_i32`: 4,224 calls, average 26.4 µs, minimum 5.44 µs, 4.07%. `native_down_multi_kernel<42>`: 4,224 calls, 37.6 µs average, 5.79% — [run_kernel_stats.csv](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv)
-- Same profile: 395 kernels per token on the main stream, gaps <50 µs average 5.4 µs (profiler-inflated), >1 ms host stalls at window and request edges (kv_append -> copyBuffer, copyBuffer -> copy_from_mapped) total 525 ms — [gpuprof README](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-09-7900xt-gpuprof/README.md)
-- Normal-run (no profiler) window timer, edit window: `37.39 ms/window = ... verify 34.73 (GPU-reach wait 15.75 + per-layer host 17.94 [plan 0.27 ... CPU 17.41]) ... + draft 2.50`. Short window: `24.81 = ... GPU-reach wait 15.93 + per-layer host 5.59 [plan 0.15 ... CPU 5.19] ... + draft 2.24`. GPU stage stamps (ms/window, edit / short): router+plan+bell 1.26 / 1.05, **waitA 0.45 / 0.39**, **VRAM hits 4.26 / 3.25**, waitB 0.20 / 0.20 — [profile-fasthip.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
+- rocprofv3 kernel stats (one short request, profiler slows decode to 79 vs ~126 tok/s): `combine_cpu_k10_vec4<true>`: 4,128 calls, 1,049 ms total, **average 254 µs, minimum 5.6 µs**, maximum 7.83 ms, 38.26% of GPU time. `wait_flag_copy_i32`: 4,224 calls, average 26.4 µs, minimum 5.44 µs, 4.07%. `native_down_multi_kernel<42>`: 4,224 calls, 37.6 µs average, 5.79% — [run_kernel_stats.csv](../../../../../bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv)
+- Same profile: 395 kernels per token on the main stream, gaps <50 µs average 5.4 µs (profiler-inflated), >1 ms host stalls at window and request edges (kv_append -> copyBuffer, copyBuffer -> copy_from_mapped) total 525 ms — [gpuprof README](../../../../../bench/results/2026-11-09-7900xt-gpuprof/README.md)
+- Normal-run (no profiler) window timer, edit window: `37.39 ms/window = ... verify 34.73 (GPU-reach wait 15.75 + per-layer host 17.94 [plan 0.27 ... CPU 17.41]) ... + draft 2.50`. Short window: `24.81 = ... GPU-reach wait 15.93 + per-layer host 5.59 [plan 0.15 ... CPU 5.19] ... + draft 2.24`. GPU stage stamps (ms/window, edit / short): router+plan+bell 1.26 / 1.05, **waitA 0.45 / 0.39**, **VRAM hits 4.26 / 3.25**, waitB 0.20 / 0.20 — [profile-fasthip.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
 - Code facts (read-only grep):
   - `combine_cpu_k10_vec4` (native_moe.cu:145) reads the CPU expert rows **directly from mapped host memory** (`const volatile float4* cpu4`, zero-copy).
   - With `STRATA_WAIT_FUSE`, thread 0 of **every block** spins `while (*flag < value) strata_spin_pause();` and then runs `__threadfence_system()`. The grid is `((n4+63)/64, n_tok)` blocks of 64 threads, i.e. 10 blocks per token at n_embd 2560, so **10×n_tok concurrent pollers of one host flag**.
@@ -19,7 +19,7 @@ About 98% of `combine_cpu_k10_vec4` time is genuine waiting, not PCIe reading. T
   - Mapped buffers come from `hipHostMalloc(Mapped|Coherent)` only when `STRATA_VERIFY_COHERENT=1`, else `cudaHostAllocMapped` (verify.cpp:513).
   - The doorbell ring/publish kernels use volatile stores, plus a HIP-only fence because "on RDNA4 the volatile store alone can sit in L2 until the stream syncs" (elementwise.cu:206-212, #697).
   - A device-side planner exists only for all-resident groups (`resident_plan_kernel`, `device_plan_`, "E-6").
-  - The fast-hip preset sets `GPU_MAX_HW_QUEUES=6`, `STRATA_COMBINE_CPU=1`, `STRATA_WAIT_FUSE=1`, `STRATA_ROUTE_PUBLISH=1` — [pancake-flashnext-iq2_xs-fast-hip.json](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext-iq2_xs-fast-hip.json)
+  - The fast-hip preset sets `GPU_MAX_HW_QUEUES=6`, `STRATA_COMBINE_CPU=1`, `STRATA_WAIT_FUSE=1`, `STRATA_ROUTE_PUBLISH=1` — [pancake-flashnext-iq2_xs-fast-hip.json](../../../../../pancake-flashnext-iq2_xs-fast-hip.json)
 - Platform facts read from sysfs/lspci on this machine:
   - The GPU link is 16 GT/s x16 to the card's internal switch, but the **CPU root port 00:01.1 runs at 8 GT/s x16 (PCIe 3.0)**.
   - **BAR0 is 32 GB**, so Resizable BAR is active and the CPU can address all VRAM.
@@ -54,7 +54,7 @@ Pancake already runs the state-of-the-art lightweight mechanism: GPU-side spin o
 - **Lustig & Martonosi, "Reducing GPU Offload Latency via Fine-Grained CPU-GPU Synchronization"** (Princeton lead, HPCA 2013; foundational, outside the window). It proposes full/empty bits tracking which regions of transferred data are ready, so consumers start before the whole transfer completes — [hgpu listing](https://hgpu.org/?p=8831); [Bohrium summary](https://www.bohrium.com/paper-details/reducing-gpu-offload-latency-via-fine-grained-cpu-gpu-synchronization/813219231578456065-100645)
 - **Elmougy, Jia, Ding, Shan, "Diagnosing the Interference on CPU-GPU Synchronization Caused by CPU Sharing in Multi-Tenant GPU Clouds"** (NJIT/Hofstra, IPCCC 2021; outside the window). Polling-based sync suffers more interference than blocking sync when the CPU is shared, up to ~29.79 ms polling latency under vCPU descheduling. The authors propose polling-then-blocking — [Hofstra PDF](https://cs.hofstra.edu/~jshan/papers/gpucpusync.pdf); [slides](https://ele.uri.edu/faculty/weiwei/materials/ipccc21.pdf); [NJIT record](https://researchwith.njit.edu/en/publications/diagnosing-the-interference-on-cpu-gpu-synchronization-caused-by-/)
 - **HIP stream memory operations**: `hipStreamWaitValue32` is a **beta** API that enqueues a wait so that later stream work does not run until the condition (Gte/Eq/And/Nor) holds. Support is queried with `hipDeviceAttributeCanUseStreamWaitValue`. One docs version says the pointer should come from `hipMallocSignalMemory` — [HIP 6.2.4 docs](https://rocm.docs.amd.com/projects/HIP/en/docs-6.2.4/reference/hip_runtime_api/modules/stream_memory_operations.html); [HIP 10.0.0 docs](https://rocm.docs.amd.com/projects/HIP/en/docs-10.0.0/reference/hip_runtime_api/modules/stream_memory_operations.html)
-- Pancake already uses `cudaLaunchHostFunc` for the peer-expert refill (peer_experts.cpp:395) and `cudaEventBlockingSync` events on snapshot/restore paths (conversation_snapshot.cpp:701). The per-layer path uses GPU spin kernels and doorbells only (repo grep). MOD_PLAN item 28 says: "Hand-off stays the doorbell/partial-flag protocol (no HIP graphs)" — [MOD_PLAN](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+- Pancake already uses `cudaLaunchHostFunc` for the peer-expert refill (peer_experts.cpp:395) and `cudaEventBlockingSync` events on snapshot/restore paths (conversation_snapshot.cpp:701). The per-layer path uses GPU spin kernels and doorbells only (repo grep). MOD_PLAN item 28 says: "Hand-off stays the doorbell/partial-flag protocol (no HIP graphs)" — [MOD_PLAN](../../../../../MOD_PLAN.md)
 
 ### Inferences (technique -> verdict)
 - **Full/empty bits (Lustig & Martonosi) -> already implemented (F3).** The partial flag (`raise_partial`, `STRATA_VERIFY_DEFER_CPU_BELOW`) and the A/B/CPU flags are this idea. Finer granularity (per-row readiness) adds nothing for combine, because the next layer needs the full hidden state and the post-wait work is ≤5.6 µs.
@@ -103,7 +103,7 @@ The only exact way to *use* the 40-275 µs/layer spin without touching the depen
   - `--pcie-frac 0` was chosen because a PCIe promotion costs ~115 µs vs ~42 µs of CPU compute.
   - PcieAuto "finish together" exists with a 0.20-0.25 share.
   - `STRATA_LOOKAHEAD_GPU` (router lookahead) is already the default.
-  - Source: [Grouped technologies](file:///home/dan/reports/Grouped%20technologies%20for%20pancake.md)
+  - Source: [Grouped technologies](../../../engine-speed/grouped-technologies/report.md)
 
 ### Inferences (technique -> verdict)
 - **MALL/L2 warm-up of layer l+1 weights during the combine spin (PRESERVE applied to the CPU-wait bubble). Family F3/F8, exact. This is the new item worth testing.**
@@ -158,7 +158,7 @@ University-led persistent-kernel work (CMU MPK, Cornell FlashDMoE) shows 1.0-1.7
   - HIP graphs: no gain.
   - Decode GDN megakernel: 0.0 ms ("the window waits on CPU rows").
   - The RDNA3 fusion ports (COMBINE_CPU/WAIT_FUSE/ROUTE_PUBLISH and the HC fused read) moved decode 104-108 -> ~112 tok/s.
-  - Source: [MOD_PLAN](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  - Source: [MOD_PLAN](../../../../../MOD_PLAN.md)
 
 ### Inferences (technique -> verdict)
 - **Whole-layer or whole-model megakernel (MPK, FlashDMoE) → do not build (F8).**
@@ -187,7 +187,7 @@ ROCm's default is 4 hardware queues per device, and the docs recommend ≤4. Pan
 ### Cited Findings
 - `GPU_MAX_HW_QUEUES`: the maximum hardware queues allocated per device, default 4. When an application creates more HIP streams than this, "HIP runtime reuses the same hardware queues for the new streams in a round-robin manner". The recommended maximum is 4. The limit does not apply to CU-masked streams or the cooperative queue — [ROCm env variables (latest)](https://rocm.docs.amd.com/en/latest/reference/env-variables.html); [ROCm 7.14.1](https://rocm.docs.amd.com/en/docs-7.14.1/reference/environment-variables/index.html); [HIP env vars](https://rocm.docs.amd.com/projects/HIP/en/docs-6.3.1/reference/env_variables.html)
 - `hipExtStreamCreateWithCUMask` creates a stream restricted to a CU bit-mask, one bit per CU. The caller is responsible for validity — [HIP stream management 10.0.0](https://rocm.docs.amd.com/projects/HIP/en/docs-10.0.0/reference/hip_runtime_api/modules/stream_management.html)
-- Pancake's mtp.cpp creates the drafter stream at the highest priority, with the comment "ROCm hands out hardware queues per priority (GPU_MAX_HW_QUEUES per level)". The verifier creates prioritized copy streams (verify.cpp:1248-1270). The preset sets `GPU_MAX_HW_QUEUES=6`. The "hw queues" A/B was flat — [MOD_PLAN round A](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+- Pancake's mtp.cpp creates the drafter stream at the highest priority, with the comment "ROCm hands out hardware queues per priority (GPU_MAX_HW_QUEUES per level)". The verifier creates prioritized copy streams (verify.cpp:1248-1270). The preset sets `GPU_MAX_HW_QUEUES=6`. The "hw queues" A/B was flat — [MOD_PLAN round A](../../../../../MOD_PLAN.md)
 
 ### Inferences (technique -> verdict)
 - **`GPU_MAX_HW_QUEUES` 4 vs 6 → cheap re-check, low expected gain (F8/F9).** The docs recommend ≤4, and the earlier flat result means it does not matter today. Re-test only together with any change that adds a concurrent stream (the MALL prefetch kernel), because queue sharing then decides whether the prefetch actually overlaps.
@@ -204,7 +204,7 @@ RDNA3 facts relevant to the M=1-8 kernels: wave32 by default with optional wave6
 ### Cited Findings
 - GPUOpen WMMA on RDNA3: WMMA operates wave-wide. In wave32 the A and B fragments must be replicated between lanes 0-15 and 16-31. There are 12 WMMA intrinsics (wave32 and wave64 groups). AMD guidance favours wave32 for divergent or long-running threads and wave64 for ALU-heavy regular work — [GPUOpen WMMA on RDNA3](https://gpuopen.com/learn/wmma_on_rdna3/); [RDNA3 presentation](https://gpuopen.com/presentations/2023/RDNA3_Beyond-the-current-gen-v4.pdf)
 - gfx1100 (7900 XT): 84 CUs, LDS 128 KiB, VGPR file 768 KiB, L2 6 MiB, Infinity Cache 80 MiB — [ROCm GPU specs](https://rocm.docs.amd.com/en/latest/reference/gpu-specs.html)
-- Pancake log: `strata expdec: CUDA0 down type 42 (n_embd 2560, n_ff 640) not covered: the default kernel runs`. `native_down_multi_kernel<42>` takes 5.79% (4,224 calls × 37.6 µs) — [Pancake pain points](file:///home/dan/reports/Pancake%20pain%20points%20and%20solutions.md); [run_kernel_stats.csv](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv)
+- Pancake log: `strata expdec: CUDA0 down type 42 (n_embd 2560, n_ff 640) not covered: the default kernel runs`. `native_down_multi_kernel<42>` takes 5.79% (4,224 calls × 37.6 µs) — [Pancake pain points](../../../engine-speed/pain-points/report.md); [run_kernel_stats.csv](../../../../../bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv)
 - MonoMoE's weight-major layout for small-batch quantized MoE decode (Q4 above) — [arXiv](https://arxiv.org/abs/2609.04244)
 
 ### Inferences (technique -> verdict)
@@ -221,8 +221,8 @@ RDNA3 facts relevant to the M=1-8 kernels: wave32 by default with optional wave6
 rocprofv3's `--kernel-trace --stats` mislabels CPU wait as GPU work (spin-in-kernel), inflates gaps (79 vs 126 tok/s), and cannot see the CPU-side critical path. Pancake's own host timer ("GPU-reach wait" vs "per-layer host") is the better critical-path instrument. The missing measurement is per-layer: pre-bell time, hit time, CPU share, and wait.
 
 ### Cited Findings
-- The profiler run decodes at 79 tok/s vs ~126 without it, so the gap figures overstate a normal run. combine_cpu "spin-waits for the CPU expert rows: CPU time seen from the GPU" — [gpuprof README](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-09-7900xt-gpuprof/README.md)
-- The host timer splits verify into GPU-reach wait vs per-layer host, and the GPU stage stamps (waitA, VRAM hits, waitB, waitCPU, copy+combine) come without profiler overhead — [profile-fasthip.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
+- The profiler run decodes at 79 tok/s vs ~126 without it, so the gap figures overstate a normal run. combine_cpu "spin-waits for the CPU expert rows: CPU time seen from the GPU" — [gpuprof README](../../../../../bench/results/2026-11-09-7900xt-gpuprof/README.md)
+- The host timer splits verify into GPU-reach wait vs per-layer host, and the GPU stage stamps (waitA, VRAM hits, waitB, waitCPU, copy+combine) come without profiler overhead — [profile-fasthip.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
 - Pancake has `wait_flag_ge_stamped_kernel` (GPU clock on entry/exit) and `STRATA_VERIFY_TRACE` breadcrumbs in mapped memory (verify.cpp:1170-1185; verify_kernels.cu:1387) (repo grep).
 
 ### Inferences

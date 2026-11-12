@@ -49,7 +49,7 @@ Auto-tuning works at two levels. At start the engine times one expert on the CPU
   - `MAYA_GLM_MISS_SKIP_W` / `_FROM` (GLM, opt-in, changes answers): a routed expert that is *not in VRAM* and carries less than share W of the route's weight is skipped, on layers from `_FROM` on. On an RTX 3090 with Maya-S24 and `_FROM=23`, chat speed went 27.4 → 29.3 / 30.1 / 30.9 t/s at W = 0.12 / 0.14 / 0.16, with KL 0.037 / 0.052 / 0.075. It can be set per request through `strata_tune`.
   - Strata's rank-based `STRATA_ROUTE_TAIL_SKIP=7` is the older form of the same idea.
 
-  — S (MISS_SKIP row); [strata.md](file:///home/dan/research_notes/Avalon%20upgrades%20from%20upstream%20projects/strata.md)
+  — S (MISS_SKIP row); [strata.md](strata.md)
 - **Turbo** is one button that "sets the fastest settings for the model (greedy sampling, no thinking, expert skipping, the fastest drafting)", and switching it off restores the previous settings exactly. It is implemented in `serve/server.py` (`turbo_info` / `set_turbo`) and `models.turbo_enable`. — R "Using it", [serve/server.py](https://github.com/mw00/project-maya/blob/main/serve/server.py)
 
 **Several requests at once**
@@ -102,7 +102,7 @@ The maintainer declared Qwen unsupported on 2026-10-13, then re-added it (CYBER-
 - Supported AMD hardware: "RX 7900 XT / XTX, Radeon AI PRO R9700 / RX 9070, Strix Halo and Gorgon Halo". ROCm 7 is required; ROCm 6 is refused unless `MAYA_HIP_ALLOW_ROCM6=1`. RDNA3-specific kernels exist for DeepSeek (`DS4_INDEX_TC`, WMMA indexer: +3-10% prefill). — R "What you need", S
 
 **For comparison: Strata and Avalon on RDNA3 (from earlier notes)**
-- Strata IQ2_XS on an RX 7900 XTX (engine 0.1.57): prompt 1,051 / 1,385 / 1,381 t/s at 4K / 16K / 32K, decode 80.3 t/s. Avalon on our 7900 XT: about 100 t/s decode and about 1,800 t/s prefill at 16-32K. A user's 7900 XTX on Avalon main: 112.9-122.8 t/s decode and 2,024-2,130 t/s prefill. — [strata.md](file:///home/dan/research_notes/Avalon%20upgrades%20from%20upstream%20projects/strata.md), [avalon_baseline.md](file:///home/dan/research_notes/Avalon%20upgrades%20from%20upstream%20projects/avalon_baseline.md)
+- Strata IQ2_XS on an RX 7900 XTX (engine 0.1.57): prompt 1,051 / 1,385 / 1,381 t/s at 4K / 16K / 32K, decode 80.3 t/s. Avalon on our 7900 XT: about 100 t/s decode and about 1,800 t/s prefill at 16-32K. A user's 7900 XTX on Avalon main: 112.9-122.8 t/s decode and 2,024-2,130 t/s prefill. — [strata.md](strata.md), [avalon_baseline.md](avalon_baseline.md)
 
 ### Inferences
 - Chain of evidence: Avalon (about 100 t/s on a 7900 XT) is faster than current Strata (about 80 t/s on a larger 7900 XTX), which is 1.36-1.7x faster than Maya's Qwen engine. My rough estimate (an inference, not a measurement) is that Maya with Qwen UD-IQ2_XS on our 7900 XT would decode around **45-60 t/s** with prefill well below 1,800 t/s, and possibly much worse at long context per #898. That is also with a *lower-bit* quant (IQ2_XS against our IQ3_KS).
@@ -144,7 +144,7 @@ Avalon's llama-server already has the OpenAI chat API, `/v1/responses`, `/v1/mes
   — R "Using it", C v1.1.55, [docs/RESPONSES.md](https://github.com/mw00/project-maya/blob/main/docs/RESPONSES.md)
 - **Prompt memo** (`MAYA_PROMPT_MEMO`, on by default since v1.1.55): "the server prepares a re-sent conversation by increment (... the same token ids): a follow-up turn after a 115K-token history takes about 6% less time" (GLM, 3x V100). — C v1.1.55
 - **DeepSeek "conversations kept" and restore points** keep a few conversation states so agents with sub-agents stop re-reading their prompts (#375). This is DeepSeek-only. — [issue #375](https://github.com/mw00/project-maya/issues/375), S
-- **What Avalon has (local checkout c24c03d):** `/v1/responses` and `/v1/messages` routes in `tools/server/server.cpp:276,280`, `return_progress` in `server-context.cpp`, `--reasoning-budget` / `--reasoning-budget-message` in `common/arg.cpp:3763,3771`. No loop guard: grep for `loop_guard` or tool-repeat logic in `tools/server` returns nothing. Avalon's server also has `--cache-ram`, `--ctx-checkpoints`, `--cache-reuse` and `--slot-save-path`. — local grep; [llamacpp_server_features.md](file:///home/dan/research_notes/Avalon%20upgrades%20from%20upstream%20projects/llamacpp_server_features.md)
+- **What Avalon has (local checkout c24c03d):** `/v1/responses` and `/v1/messages` routes in `tools/server/server.cpp:276,280`, `return_progress` in `server-context.cpp`, `--reasoning-budget` / `--reasoning-budget-message` in `common/arg.cpp:3763,3771`. No loop guard: grep for `loop_guard` or tool-repeat logic in `tools/server` returns nothing. Avalon's server also has `--cache-ram`, `--ctx-checkpoints`, `--cache-reuse` and `--slot-save-path`. — local grep; [llamacpp_server_features.md](llamacpp_server_features.md)
 
 ### Inferences
 - The loop guard targets the exact failure mode we care about (opencode tool loops), and the user's 0.1 temperature makes near-greedy loops more likely. It works on token ids and the message history, so it can be ported as a **proxy in front of llama-server** without touching Avalon's C++. The token-level part does need streaming control (holding back 64 tokens and re-requesting with a penalty), which is easier inside the server.
@@ -159,7 +159,7 @@ Avalon's llama-server already has the OpenAI chat API, `/v1/responses`, `/v1/mes
 There are no common authors or code. Maya descends from Strata, while Avalon descends from llama.cpp with buun's expert cache and ik_llama's quants. The overlap is conceptual: Avalon credits Strata for the expert-ranking format and the preload idea, and both run tail skipping of missed experts, a GPU expert cache with the CPU computing misses, MTP drafting and q8 KV. Everything below is ranked by value for our single-user opencode workload.
 
 ### Cited Findings (basis for the ranking)
-- Avalon credits "Strata (ranking format, preload idea)" and runs tail skip of rank ≥7 missed experts by default (`GGML_CUDA_MOE_TAIL_SKIP`). Avalon main (48 commits past our build) adds a registered-RAM expert arena and a hosted-MoE limit computed from link rate. — [avalon_baseline.md](file:///home/dan/research_notes/Avalon%20upgrades%20from%20upstream%20projects/avalon_baseline.md)
+- Avalon credits "Strata (ranking format, preload idea)" and runs tail skip of rank ≥7 missed experts by default (`GGML_CUDA_MOE_TAIL_SKIP`). Avalon main (48 commits past our build) adds a registered-RAM expert arena and a hosted-MoE limit computed from link rate. — [avalon_baseline.md](avalon_baseline.md)
 - Maya: weight-share miss skip gives +7-13% decode at KL 0.037-0.052 on GLM (RTX 3090). Direct SSD reads give +26% decode on a RAM-short PC (Qwen, V100 plus 30 GB RAM). Drive-probed reader concurrency is +5% on NVMe beside an 8 GB card (C v1.1.43). Prompt memo is -6% on a 115K follow-up. `--calibrate` keeps only gains above 3%. — S, C
 
 ### Ranked ideas to port into Avalon

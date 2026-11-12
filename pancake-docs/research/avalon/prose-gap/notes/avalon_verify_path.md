@@ -57,7 +57,7 @@ Verify is **one target decode per window**: the sampled token and its k drafts a
 - Draft context physical batch: `-ubd` / `--spec-draft-ubatch-size` = `draft.n_ubatch` — [arg.cpp:4279-4286](/home/dan/clone-of-d/Avalon/common/arg.cpp) **[code]**.
 - Target prompt chunking uses `n_batch` / `n_ubatch` — [server-context.cpp:3663-3670](/home/dan/clone-of-d/Avalon/tools/server/server-context.cpp) **[code]**.
 - MTP draft steps are separate decodes on the draft context: one `llama_process(ctx_dft, DECODE, batch)` per step, `i` steps up to n_max — [speculative.cpp:1992-2010, 2085-2095](/home/dan/clone-of-d/Avalon/common/speculative.cpp) **[code]**.
-- Benchmark command uses `-b 4096 -ub 4096 -ubd 256` — [matrix.sh:36](/home/dan/clone-of-d/src/Strata/bench/results/2026-11-11-vs-avalon/raw/matrix.sh) **[file]**.
+- Benchmark command uses `-b 4096 -ub 4096 -ubd 256` — [matrix.sh:36](../../../../../bench/results/2026-11-11-vs-avalon/raw/matrix.sh) **[file]**.
 - Per-window ms on prose is ~20-22 ms for Avalon (REPORT.md note, derived from saved json) — [PROSE_GAP cross-check, section 1] **[derived]**.
 
 ### Inferences
@@ -152,7 +152,7 @@ I found **no prose-specific branch** in the speculative, ngram, server or sample
 - Search for prose, english or language detection in `common/speculative.cpp`, `common/ngram-map.cpp`, `tools/server/server-context.cpp`, `src/llama-context.cpp`: no matches **[code]**.
 - Tail skip default 7 in the expert cache (lossy, changes which experts are computed for main-model layers): [moe-cache.cu:9677-9684](/home/dan/clone-of-d/Avalon/ggml/src/ggml-cuda/moe-cache.cu) **[code]**. The bench did not set `GGML_CUDA_MOE_TAIL_SKIP`, so the default 7 applies **[file: matrix.sh env + code]**; this is a confound for the prose comparison, not a prose-specific rule.
 - Saved prose numbers, night-queue run: Pancake `prose-base-01A` 100.6 / 109.7 / 106.7 tok/s, Avalon `prose-avalon` 104.2 / 114.6 / 115.7; tokens per window Pancake 1.84 / 2.04 / 1.99, Avalon 2.17 / 2.29 / 2.34; acceptance Pancake 52.8 / 62.8 / 58.6 %, Avalon 58.7 / 64.8 / 67.4 % — [RESULTS.md:425-434](/home/dan/night-queue-run/RESULTS.md) **[file]**.
-- Separate 2026-11-11 run (REPORT.md): Avalon prose 102.2, pancake fast-hip prose 98.8 on IQ2_XS — [REPORT.md table](/home/dan/clone-of-d/src/Strata/bench/results/2026-11-11-vs-avalon/REPORT.md) **[file]**.
+- Separate 2026-11-11 run (REPORT.md): Avalon prose 102.2, pancake fast-hip prose 98.8 on IQ2_XS — [REPORT.md table](../../../../../bench/results/2026-11-11-vs-avalon/REPORT.md) **[file]**.
 
 ### Inferences
 - The fixed draft policy (2 drafts, no cut, greedy) gives Avalon 2.2-2.3 tokens per window on prose against Pancake's 1.8-2.0 in the night-queue run. That gap (about +0.2 to +0.3 tokens per window) is the most direct code-level explanation I found. Whether it is also the head's quality is not settled by code alone.

@@ -60,7 +60,7 @@ Two reusable methods exist: (1) strata-manager's port of upstream `tools/strata_
 - Explicitly disclaims cross-day repeatability: "These runs do not establish repeatability across different days."
 
 **Upstream community reports re-published in strata-benchmarks (AMD-relevant methods)**
-- RX 7900 XTX ROCm 7.1.1 vs 10.2 nightly: one identical ~61-token request repeated back-to-back, 200 generated; request 1 treated as cold (fresh engine + cold expert tier) and excluded; warm = requests 4–9 (ROCm 7) / 6–10 (nightly) — [local mirror README](/home/dan/clone-of-d/src/Strata/bench/results/2026-10-03-community-rx7900xtx-rocm102-nightly/README.md), upstream folder `bench/results/2026-10-03-community-rx7900xtx-rocm102-nightly` in [Niko1221/Strata](https://github.com/Niko1221/Strata)
+- RX 7900 XTX ROCm 7.1.1 vs 10.2 nightly: one identical ~61-token request repeated back-to-back, 200 generated; request 1 treated as cold (fresh engine + cold expert tier) and excluded; warm = requests 4–9 (ROCm 7) / 6–10 (nightly) — [local mirror README](../../../../../bench/results/2026-10-03-community-rx7900xtx-rocm102-nightly/README.md), upstream folder `bench/results/2026-10-03-community-rx7900xtx-rocm102-nightly` in [Niko1221/Strata](https://github.com/Niko1221/Strata)
 - RX 7900 XTX hipBLASLt 100500: two arms differ only in `STRATA_HIPBLASLT_TUNING`; "medians of 3 clean cells with range" — local mirror `bench/results/2026-10-04-community-rx7900xtx-hipblaslt-100500/README.md`
 - 4x RX 7900 XT: per arm, cold first request (32K) + warm-ups at 4K and 32K not counted, then 3 runs each at 4,096 / 32,768 / 128,000; "one process start per arm; no variance study across reboots" — local mirror `bench/results/2026-10-09-community-4x-rx-7900-xt/README.md`
 

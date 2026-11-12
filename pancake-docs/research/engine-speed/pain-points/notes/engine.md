@@ -22,32 +22,32 @@ move the edit window; the GPU floor (15.9 ms) dominates short chats.
 ### Cited Findings
 - fast-hip edit window: 109 windows, 4.70 tokens/window, 37.39 ms = verify 34.73 (GPU-reach wait 15.75 + per-layer host
   17.94, of which CPU 17.41) + draft 2.50; per layer-window 7.44 CPU experts (8.88 entries), 40.47 VRAM hits, PCIe 0.00,
-  28.5 swaps/window — [profile-fasthip.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
+  28.5 swaps/window — [profile-fasthip.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
 - fast-hip short window: 224 windows, 2.29 tokens/window, 24.81 ms = verify 22.44 (GPU-reach 15.93 + host 5.59, CPU 5.19)
-  + draft 2.24; 2.22 CPU experts and 27.13 VRAM hits per layer-window — [profile-fasthip.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
+  + draft 2.24; 2.22 CPU experts and 27.13 VRAM hits per layer-window — [profile-fasthip.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
 - Same split stated as the phase-13 table (short 24.8 / GPU 15.9 / CPU 5.2 / draft 2.2; edit 37.4 / 15.8 / 17.4 / 2.5;
-  "CPU experts are 47% of the window") — [MOD_PLAN.md phase 13](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  "CPU experts are 47% of the window") — [MOD_PLAN.md phase 13](../../../../../MOD_PLAN.md)
 - GPU stages, short window (ms/window, GDN layers): q8+qkv gemv 1.15, conv 0.33, ab 0.37, z 0.79, rec 0.67, out-proj
   0.87, router+plan+bell 1.05, shared+quant 0.88, VRAM hits 3.25, copy+combine 1.84, head 0.64, hyper-connection reads
   hc0 norm/down/up 0.30/0.53/0.64 + hc1 0.10/0.53/0.63 (=2.73 ms); QSA layers attention 0.74, scores+topk 0.34 —
-  [profile-fasthip.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
+  [profile-fasthip.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
 - rocprofv3, one short request (79 tok/s under the profiler vs ~126 without): combine_cpu_k10_vec4 38.3% of GPU time
   (spin-wait for CPU rows), wait_flag_copy_i32 4.1%, rdna_kq ~10%, GPU experts (expdec_gu + native_down) ~13%,
   rdna_gr_fused 5.6%, bf16_f32_mmvf_multi 5.1%, route_publish_res 2.7%; 395 kernels per token, gaps <50 us average 5.4 us;
   gaps >1 ms total 525 ms at window/request edges (kv_append -> copyBuffer, copyBuffer -> copy_from_mapped) —
-  [gpuprof README](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-09-7900xt-gpuprof/README.md)
+  [gpuprof README](../../../../../bench/results/2026-11-09-7900xt-gpuprof/README.md)
 - Per-kernel stats from the same run: native_down_multi_kernel<42> 5.79% (4224 calls, 37.6 us), expdec_gu_kernel<22>
   5.83%, expdec_gu_kernel<16> 1.60%, rdna_kq_kernel<23,4,3> 8.08% —
-  [run_kernel_stats.csv](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv)
+  [run_kernel_stats.csv](../../../../../bench/results/2026-11-09-7900xt-gpuprof/run_kernel_stats.csv)
 - CPU per-expert cost: pool time per missed expert 53-55 us; PCIe probe 13.4 GB/s; RAM read 33 GB/s; one expert
-  ~1.3-1.4 MB at ~2 bits, promotion ~115 us vs ~42 us CPU compute — [MOD_PLAN.md phase 10 and item 14](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  ~1.3-1.4 MB at ~2 bits, promotion ~115 us vs ~42 us CPU compute — [MOD_PLAN.md phase 10 and item 14](../../../../../MOD_PLAN.md)
 - Decode cache hit rate on a short request after start 92.0%; on 512-token requests after the 11.7K prompt 90.2-92.5%
-  — [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log) (lines ~13960-15243)
+  — [pancake-flashnext.log](../../../../../pancake-flashnext.log) (lines ~13960-15243)
 - Replay ceilings at 10,909 cached experts (44%): engine tier 79.6%, per-layer LRU 89.5%, Belady 94.7%; tier every
-  window x160 85.0% — [MOD_PLAN.md phase 11](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  window x160 85.0% — [MOD_PLAN.md phase 11](../../../../../MOD_PLAN.md)
 - Time-based ceiling (tools/pancake/time_ceiling.py, routing.bin, 10,909 slots): LRU loses (-20% short), oracle admission
   +8..15% short / +27..48% code edit, online 2nd-miss-in-8 +5..16% on code edits, tier x160 +4..9%; DMA contention
-  (alpha) decides — [commit c87ef4d27 message / PANCAKE_STATUS.md](file:///home/dan/clone-of-d/src/Strata/PANCAKE_STATUS.md)
+  (alpha) decides — [commit c87ef4d27 message / PANCAKE_STATUS.md](../../../../../PANCAKE_STATUS.md)
 
 ### Inferences
 - CPU expert bandwidth: edit 7.44 x 48 = 357 experts in 17.41 ms = 48.8 us each; short 2.22 x 48 = 107 in 5.19 ms =
@@ -57,8 +57,8 @@ move the edit window; the GPU floor (15.9 ms) dominates short chats.
   native_down<42> alone ~10%.
 - native_down_multi_kernel<42> is the down projection of the VRAM-hit experts on the default kernel: the engine log says
   `strata expdec: CUDA0 down type 42 (n_embd 2560, n_ff 640) not covered: the default kernel runs`
-  ([pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log), from
-  [iq_kernels.cu:4155](file:///home/dan/clone-of-d/src/Strata/src/kernels/cuda/iq_kernels.cu)). The "IQ2_XS" file's
+  ([pancake-flashnext.log](../../../../../pancake-flashnext.log), from
+  [iq_kernels.cu:4155](../../../../../src/kernels/cuda/iq_kernels.cu)). The "IQ2_XS" file's
   down tensors are Q2_0 (report Europe F3), so the expdec fast path covers gate/up (types 22, 16) but not down. This is a
   new, unlisted pain point (not in MOD_PLAN items 1-37).
 - Fixability ceiling of the GPU floor on short chats: if every GPU piece were 10% faster the short window would drop
@@ -81,96 +81,96 @@ D1 - CPU expert critical path (47% of edit window, 21% of short)
 - Expert deferral (KTransformers, Tsinghua, SOSP'25): defer low-ranked CPU experts behind the next layer's attention;
   DeepSeek-V3 -26% per-layer time, +33% decode, "up to 45%", tasks within 2 points; not on the last layer; pancake has
   STRATA_VERIFY_DEFER_CPU + _BELOW (weight 0.1) but no rank guard; estimate +10-25% decode after the HIP fix —
-  [report Asia, "KTransformers..." and P1](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md); MOD_PLAN items 8, 28
+  [report Asia, "KTransformers..." and P1](../../../avalon/literature/asia/report.md); MOD_PLAN items 8, 28
 - On the 3060 the same switch measured short +8%, edit -7%, changing the output —
-  [PANCAKE_FINDINGS.md section 10](file:///home/dan/clone-of-d/src/Strata/docs/PANCAKE_FINDINGS.md)
+  [PANCAKE_FINDINGS.md section 10](../../../../../docs/PANCAKE_FINDINGS.md)
 - Activation sparsity on CPU experts: Berkeley intra-expert gate mask (arXiv 2605.08575, Qwen3.5 MoE 84-87% sparsity,
   95% of score; -3.4 points at 85%), TEAL (MIT, 40-50% on dense), CATS (Stanford, collapses at 40%), CHESS per-channel
   thresholds; ceiling ~1.25x decode, realistic 10-20%, lossy —
-  [report US P1/P2](file:///home/dan/reports/US%20university%20papers%20for%20Avalon.md),
-  [report MIT #1-2](file:///home/dan/reports/MIT%20Harvard%20papers%20for%20Avalon.md), MOD_PLAN item 13
+  [report US P1/P2](../../../avalon/literature/us-universities/report.md),
+  [report MIT #1-2](../../../avalon/literature/mit-harvard/report.md), MOD_PLAN item 13
 - Per-expert barriers in the CPU pool (Tsinghua OSDI'26 "Cloud-Grade SLOs"): run_phase syncs globally between gate/up and
-  down; 1-4% decode, exact — [report Asia P4](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md);
-  coded as STRATA_POOL_FUSE_PHASES (commit 35c512984, [pool.cpp:1267/1452](file:///home/dan/clone-of-d/src/Strata/src/kernels/cpu/pool.cpp)), A/B in queue3
+  down; 1-4% decode, exact — [report Asia P4](../../../avalon/literature/asia/report.md);
+  coded as STRATA_POOL_FUSE_PHASES (commit 35c512984, [pool.cpp:1267/1452](../../../../../src/kernels/cpu/pool.cpp)), A/B in queue3
 - CPU pool settings: workers 4/5/6 -> 112.3/117.7/124.1 vs base 126.3-126.4; tasks 8/16/48 -> 121.9/124.9/126.8 (defaults
-  best) — [pool-sweep.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/pool-sweep.txt)
+  best) — [pool-sweep.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/pool-sweep.txt)
 - Pool pre-read (tandem.cpp LLAMA_MOE_PREREAD): loses (95 vs 107-122 tok/s), stays off; L3 warm (STRATA_ARENA_WARM)
-  worse: 119.8/106.5 vs 126.2/125.3 — [PANCAKE_STATUS.md](file:///home/dan/clone-of-d/src/Strata/PANCAKE_STATUS.md),
-  [arena-warm-ab.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/arena-warm-ab.txt)
+  worse: 119.8/106.5 vs 126.2/125.3 — [PANCAKE_STATUS.md](../../../../../PANCAKE_STATUS.md),
+  [arena-warm-ab.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/arena-warm-ab.txt)
 - IQ1_M rows (3 layers of the IQ2_XS file's gate/up) take the ggml-cpu path; native AVX2 kernel 1-4% on IQ2_XS, 0 on
-  Q2_0 — [MOD_PLAN item 24](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md), [report Europe P3](file:///home/dan/reports/Europe%20papers%20for%20Avalon.md)
-- T-MAC (USTC) LUT kernels: first a Q2_0 AVX2 micro-benchmark (GB/s vs DDR4) — [report Asia M6](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md)
+  Q2_0 — [MOD_PLAN item 24](../../../../../MOD_PLAN.md), [report Europe P3](../../../avalon/literature/europe/report.md)
+- T-MAC (USTC) LUT kernels: first a Q2_0 AVX2 micro-benchmark (GB/s vs DDR4) — [report Asia M6](../../../avalon/literature/asia/report.md)
 
 D2 - cache misses and routing (the number of CPU experts per window)
 - Measured: --pcie-frac 0 118.4 vs base 111.7 (+6%), 104.3 vs 92.5 after 11.7K (+13%); + adapt every window 160 swaps
   121.2; rounds B/C best 128.7 (C-best) —
-  [roundA.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundA.txt),
-  [roundC.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundC.txt)
+  [roundA.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundA.txt),
+  [roundC.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundC.txt)
 - turbo (STRATA_ROUTE_PRIOR 0.5, cache-conditional routing): 149.3 (A), 163.3 (B), 168.6 (C) vs 128.7 C-best; tail skip 7
-  129.7/142.8 — [roundA/B/C.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundC.txt);
+  129.7/142.8 — [roundA/B/C.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundC.txt);
   on the 3060 lambda 0.5: 2.89% mismatch vs stock 1.17-1.30%, 0 large-margin events, REJECT as default (opt-in) —
-  [MOD_PLAN 8.9](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md); validated in principle by Cache-Conditional Experts
-  (Qualcomm/UvA) — [report Europe P1](file:///home/dan/reports/Europe%20papers%20for%20Avalon.md); upstream
+  [MOD_PLAN 8.9](../../../../../MOD_PLAN.md); validated in principle by Cache-Conditional Experts
+  (Qualcomm/UvA) — [report Europe P1](../../../avalon/literature/europe/report.md); upstream
   Strata's router bias: code +37% decode but agent score 5.6 -> 4.5/10 and loops (PR #5596) —
-  [report Avalon upgrades, Strata catalogue](file:///home/dan/reports/Avalon%20upgrades%20from%20upstream%20projects.md)
+  [report Avalon upgrades, Strata catalogue](../../../avalon/upgrades-from-upstream/report.md)
 - AcceptMoE (Imperial): depth-graded verify prior, lambda 0 at position 0; 5-15% over fast-hip, lossy —
-  [report Europe P2](file:///home/dan/reports/Europe%20papers%20for%20Avalon.md), MOD_PLAN item 23
+  [report Europe P2](../../../avalon/literature/europe/report.md), MOD_PLAN item 23
 - Time-cost cache simulator (Baleen/CMU method; SIEVE/S3-FIFO, Harmonia/Athena SAFARI, MoE-Infinity, ProMoE chunked
   cancellable transfers): build only if >=5% decode —
-  [report US P3/P4](file:///home/dan/reports/US%20university%20papers%20for%20Avalon.md),
-  [report Europe P5](file:///home/dan/reports/Europe%20papers%20for%20Avalon.md),
-  [report Asia P6](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md); simulator done: online 2nd-miss
+  [report US P3/P4](../../../avalon/literature/us-universities/report.md),
+  [report Europe P5](../../../avalon/literature/europe/report.md),
+  [report Asia P6](../../../avalon/literature/asia/report.md); simulator done: online 2nd-miss
   +5..16% edit, engine "admit on k-th miss" being coded, --adapt-swaps 64/96/160 queued (dan-cd) —
-  [PANCAKE_STATUS.md](file:///home/dan/clone-of-d/src/Strata/PANCAKE_STATUS.md)
+  [PANCAKE_STATUS.md](../../../../../PANCAKE_STATUS.md)
 - Predictors: ProMoE 1.09x avg over LRU (PCIe 4.0); HOBBIT 4.69-8.68% miss penalty cut vs LRU; models had 8-64 experts;
-  on PCIe 3.0 + CPU compute "most gains vanish" — [report Asia, expert prediction](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md);
+  on PCIe 3.0 + CPU compute "most gains vanish" — [report Asia, expert prediction](../../../avalon/literature/asia/report.md);
   measured locally: Foresight slots 0.97 (3060), history predictors cover 20-29% of misses, GPU lookahead top-8 24-35% —
-  [MOD_PLAN phase 10](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [MOD_PLAN phase 10](../../../../../MOD_PLAN.md)
 - Already rejected on this card: groupA switches 101.2, ADAPT_LAG 87.1, rdna3 profile 105.6, kv-resident 131072 106.2,
-  mmap tier 108.6, zh60k vocab 92.5 — [roundA.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundA.txt);
-  ClassLRU decay replay within 0.5 points — [MOD_PLAN research index](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  mmap tier 108.6, zh60k vocab 92.5 — [roundA.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundA.txt);
+  ClassLRU decay replay within 0.5 points — [MOD_PLAN research index](../../../../../MOD_PLAN.md)
 - Domain/conversation seeds (items 3-4, merged): offline +0.6..+1.5 hit points, needs traces —
-  [MOD_PLAN "Items 3-4"](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [MOD_PLAN "Items 3-4"](../../../../../MOD_PLAN.md)
 
 D3 - decode drop after long prompts (dan-cd, item 2)
 - "the prompt path borrows 9,412 cache slots (12.6 GiB); decode after an 11.7K prompt drops ~126 -> ~105 tok/s while it
-  refills" — [MOD_PLAN item 2](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md); log: expert cache 10,733-11,089
+  refills" — [MOD_PLAN item 2](../../../../../MOD_PLAN.md); log: expert cache 10,733-11,089
   slots (14.4-14.9 GiB) and "the prompt path borrows 9412 CUDA0 cache slots (12.59 GiB)" in every start, 5119 slots
-  (6.85 GiB) in the last start (lend sweep) — [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log)
-- P-fasthip-confirm: mean 125.0 vs decode after the 11.7K read 105.2 — [profile-fasthip.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
+  (6.85 GiB) in the last start (lend sweep) — [pancake-flashnext.log](../../../../../pancake-flashnext.log)
+- P-fasthip-confirm: mean 125.0 vs decode after the 11.7K read 105.2 — [profile-fasthip.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt)
 - Research mapping: none specific; series ranking #5 "exact and measured as a loss" —
-  [report Pacific/Africa/LatAm closing table](file:///home/dan/reports/Pacific%20Africa%20Latin%20America%20papers.md);
-  related: Avalon "VRAM lending" (10.5, dropped on the 3060: +5% slots, no decode change) — [MOD_PLAN 10.5](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [report Pacific/Africa/LatAm closing table](../../../avalon/literature/pacific-africa-latin-america/report.md);
+  related: Avalon "VRAM lending" (10.5, dropped on the 3060: +5% slots, no decode change) — [MOD_PLAN 10.5](../../../../../MOD_PLAN.md)
 
 D4 - GPU floor (15.9 ms; 64% of a short window)
 - Item 1 (rocprofv3 done), item 32 (Gated Residual small-M fusion, part of ~2.7 ms HC reads, 1-5%), item 37 (UFMG
   coordinate-descent sweep, 1-3%), FLUTE LDS bank conflicts in IQ HIP kernels (0-10% of GPU experts) —
-  [report Asia P5](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md),
-  [report Pacific R4](file:///home/dan/reports/Pacific%20Africa%20Latin%20America%20papers.md),
-  [report MIT #13](file:///home/dan/reports/MIT%20Harvard%20papers%20for%20Avalon.md)
+  [report Asia P5](../../../avalon/literature/asia/report.md),
+  [report Pacific R4](../../../avalon/literature/pacific-africa-latin-america/report.md),
+  [report MIT #13](../../../avalon/literature/mit-harvard/report.md)
 - Already ported kernels: decode 87-101 -> 104-108 (kernels) -> ~112 (fusions); GDN megakernel 0.0 ms on one GPU;
-  HIP graphs tested without gain — [MOD_PLAN phase 11](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md),
-  [report Asia](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md)
+  HIP graphs tested without gain — [MOD_PLAN phase 11](../../../../../MOD_PLAN.md),
+  [report Asia](../../../avalon/literature/asia/report.md)
 - llama.cpp #31751 (RDNA3 J=32 MMQ spill fix, up to +36% on 17-32-token verify batches) is listed for Avalon —
-  [report Avalon upgrades "Add now"](file:///home/dan/reports/Avalon%20upgrades%20from%20upstream%20projects.md); pancake's
+  [report Avalon upgrades "Add now"](../../../avalon/upgrades-from-upstream/report.md); pancake's
   verify windows are 1-6 tokens through its own rdna_kq/expdec kernels, not ggml MMQ (log: "window up to 6 tokens").
-- Upstream Strata TSUM proposal -0.9% decode time (Issue #5459) — [report Avalon upgrades](file:///home/dan/reports/Avalon%20upgrades%20from%20upstream%20projects.md)
+- Upstream Strata TSUM proposal -0.9% decode time (Issue #5459) — [report Avalon upgrades](../../../avalon/upgrades-from-upstream/report.md)
 
 D5 - draft step (2.2-2.5 ms = 9% short, 6.7% edit) and tokens per window
 - Item 10: MTP drafting inside the captured verify graph (measure launch overhead of the 2.2 ms first); --mtp-q4 queued;
   basalt 2-bit IQ4_XS proxy already in (short +3%, edit +5% on the 3060) —
-  [MOD_PLAN item 10](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md), [PANCAKE_FINDINGS 10b](file:///home/dan/clone-of-d/src/Strata/docs/PANCAKE_FINDINGS.md)
+  [MOD_PLAN item 10](../../../../../MOD_PLAN.md), [PANCAKE_FINDINGS 10b](../../../../../docs/PANCAKE_FINDINGS.md)
 - Acceptance: short 302/423 drafts (71%), edit 400/426 (94%), after the 11.7K prompt 249-291 of 407-498 (55-66%) —
-  [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log); --spec 5/6 flat (111.0/109.2)
-  — [roundA.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundA.txt)
+  [pancake-flashnext.log](../../../../../pancake-flashnext.log); --spec 5/6 flat (111.0/109.2)
+  — [roundA.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundA.txt)
 - DISCO (+entropy feature, MiMo/Entropy Sentinel), SpecFit marginal new-miss cost (Beihang/Monash), SuffixDecoding (CMU):
   0-10% on agent turns, exact (length choice only) —
-  [report Asia P3](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md),
-  [report Pacific R2/R3](file:///home/dan/reports/Pacific%20Africa%20Latin%20America%20papers.md),
-  [report US P8](file:///home/dan/reports/US%20university%20papers%20for%20Avalon.md); DFlash2 115.9
-  but 84.3 after long prompts (rejected) — [roundA.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundA.txt)
+  [report Asia P3](../../../avalon/literature/asia/report.md),
+  [report Pacific R2/R3](../../../avalon/literature/pacific-africa-latin-america/report.md),
+  [report US P8](../../../avalon/literature/us-universities/report.md); DFlash2 115.9
+  but 84.3 after long prompts (rejected) — [roundA.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundA.txt)
 - Longer prompt-lookup window (--lookup-max-t 12/16; upstream +11-14% on edits): +1% here (noise), retest —
-  [PANCAKE_STATUS.md](file:///home/dan/clone-of-d/src/Strata/PANCAKE_STATUS.md)
+  [PANCAKE_STATUS.md](../../../../../PANCAKE_STATUS.md)
 
 ### Inferences
 - D1 + D2 together are the edit window's 17.4 ms; the measured or modeled exact levers stack roughly to +15-30% on edits
@@ -202,44 +202,44 @@ prefill time breakdown does not exist yet (the only breakdown is from the 3060).
   0.42 s; agent session 6 turns x 3 runs: cache hit 69.43%, turn first token median 2.05 s (1.43-3.21), e.g. turn 2 read
   1470 tokens in 1.43 s, turn 1 read 2894 in 2.04 s, turn 0 609 tokens 1.56-2.11 s; agent decode 117.0 tok/s (93.2-145);
   needle 50,756 tokens at 2616 tok/s; bench.py ~22K cold 2212-2385 tok/s —
-  [2026-11-08-7900xt-final-suites.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-final-suites.txt)
+  [2026-11-08-7900xt-final-suites.txt](../../../../../bench/results/2026-11-08-7900xt-final-suites.txt)
 - 11.7K reads in the engine log 1807-1926 tok/s on quiet runs, 1149-1408 tok/s on four disturbed runs —
-  [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log)
+  [pancake-flashnext.log](../../../../../pancake-flashnext.log)
 - Tiny prompts: "prompt 29 tokens = 22 reused + 7 read in 221 ms", "2073 tokens = 2066 reused + 7 read in 267 ms";
   conversation cache "parked 540 tokens in 119.8 ms", "parked 2584 tokens in 110.9 ms", "restored 2066 tokens
   (checkpoint) in 41.0 ms"; 5120 MiB for up to 4 parked conversations —
-  [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log)
+  [pancake-flashnext.log](../../../../../pancake-flashnext.log)
 - hipBLASLt table matching the runtime (100401 vs 100200 untuned): prompt 1,345 -> 1,850-1,920 tok/s at 11.7K (+38%),
-  decode +15% — [MOD_PLAN phase 13](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md),
-  [PANCAKE_STATUS.md](file:///home/dan/clone-of-d/src/Strata/PANCAKE_STATUS.md)
+  decode +15% — [MOD_PLAN phase 13](../../../../../MOD_PLAN.md),
+  [PANCAKE_STATUS.md](../../../../../PANCAKE_STATUS.md)
 - 3060 prefill breakdown (42K prompt, 42.9 s): expert GEMMs 29% (FP16 path), GDN ~12%, PLE 10.6% (4.3 s on host), QSA
   attention 6.7% + projections 5.5% + select 2.6%; STRATA_PF_FUSED int8 +12% at 5K / -7% at 42K; WMMA worse —
-  [MOD_PLAN phase 8](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [MOD_PLAN phase 8](../../../../../MOD_PLAN.md)
 - 7900 XT log: "STRATA_PF_GROUP_SCRATCH=1 is ignored: the prompt path runs the FP16 path or pf_wmma here, not MMQ";
   "prompt experts on the fused int8 kernels (STRATA_PF_FUSED=1, #136)"; "prompt chunk auto: 32768 tokens, a 192-slot
-  ring"; "PLE direct read probe: 31707 rows/s" — [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log)
+  ring"; "PLE direct read probe: 31707 rows/s" — [pancake-flashnext.log](../../../../../pancake-flashnext.log)
 - Prefill technologies: GDN chunk 64 with blockwise 16x16 inverse + fused prep kernels (gfx11 path works in 16-token
-  chunks; 5-11% of prefill est.) — [report MIT #4](file:///home/dan/reports/MIT%20Harvard%20papers%20for%20Avalon.md),
+  chunks; 5-11% of prefill est.) — [report MIT #4](../../../avalon/literature/mit-harvard/report.md),
   MOD_PLAN item 18; BFLA (CityU, benchmarks Flash-Next, 1.34-1.44x TTFT at 128-256K, port on feat/bfla-hip) and
-  XAttention (20-40% at 131K+, lossy) — [report Asia P9](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md), item 19;
+  XAttention (20-40% at 131K+, lossy) — [report Asia P9](../../../avalon/literature/asia/report.md), item 19;
   upstream exact long-prompt QSA scorer +10-13% at 131K / +22% at 240K; PA_FAST + fused prefill + ring 512 +13.8% at
   94K; PLE table resident in RAM +22.5% at 8K (does not fit 57 GB); KVA prefill +28% but decode -11%; MADV_SEQUENTIAL
   follow-up turns 65-76 s -> 23-28 s on RX 6900 XT/32 GB —
-  [report Avalon upgrades, Strata catalogue](file:///home/dan/reports/Avalon%20upgrades%20from%20upstream%20projects.md);
+  [report Avalon upgrades, Strata catalogue](../../../avalon/upgrades-from-upstream/report.md);
   Fiddler (UW) token-count threshold for STRATA_PREFILL_CPU_SHARE (preset 0.6, max 4096) —
-  [report US P11](file:///home/dan/reports/US%20university%20papers%20for%20Avalon.md),
-  [flashnext-iq2_xs-fast-hip.json](file:///home/dan/clone-of-d/src/Strata/configs/pancake/flashnext-iq2_xs-fast-hip.json)
+  [report US P11](../../../avalon/literature/us-universities/report.md),
+  [flashnext-iq2_xs-fast-hip.json](../../../../../configs/pancake/flashnext-iq2_xs-fast-hip.json)
 - Per-turn cache technologies: restore-equivalence test (UNSW, hybrid-state cache off-by-one) item 35; preserve_thinking
   end to end item 31 (if opencode drops earlier `<think>`, the cache re-reads from the first dropped block every turn);
   checkpoints at tool-call/tool-result boundaries + FLOP-saved-per-byte eviction (Marconi, Princeton; FreeToken) item 16;
   turn-boundary checkpoints item 11 (STRATA_CACHE_MESSAGE_BOUNDARY + --prompt-cache-tail; author: first edit -33%) —
-  [MOD_PLAN items 11, 16, 31, 35](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md),
-  [report Pacific R1](file:///home/dan/reports/Pacific%20Africa%20Latin%20America%20papers.md),
-  [report Asia P2](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md); llama.cpp #30137 ref-counted
+  [MOD_PLAN items 11, 16, 31, 35](../../../../../MOD_PLAN.md),
+  [report Pacific R1](../../../avalon/literature/pacific-africa-latin-america/report.md),
+  [report Asia P2](../../../avalon/literature/asia/report.md); llama.cpp #30137 ref-counted
   checkpoints, #24891/#30745 checkpoint placement (reuse 91 -> 94%) —
-  [report Avalon upgrades](file:///home/dan/reports/Avalon%20upgrades%20from%20upstream%20projects.md)
+  [report Avalon upgrades](../../../avalon/upgrades-from-upstream/report.md)
 - ContextPilot dedup measured at 1.6% savings on 40 real opencode sessions: keep off —
-  [MOD_PLAN series ranking](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [MOD_PLAN series ranking](../../../../../MOD_PLAN.md)
 
 ### Inferences
 - Fixed per-turn overhead: turn 2 read 1470 tokens in 1.43 s; at ~1.75K tok/s (the 4K cold rate) that is ~0.84 s of
@@ -273,28 +273,28 @@ and the root disk is tight; only MADV/hugepage-style I/O fixes and disk sessions
   (needed 16920 2 MiB pages, vm.nr_hugepages=0); transparent huge pages requested"; pin by need "11630 ranges, 18.21 GiB
   pinned"; "494 native projection matrices, 2118.99 MiB of weights, in 4.1 s"; hipBLASLt/FP16 warm "in 2729 ms"; cache
   pre-fill "11089 of 11089 slots ... in 1.9 s (8453 MB/s)"; first verify-window capture 183.6 ms, others 12.6-18.0 ms —
-  [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log)
+  [pancake-flashnext.log](../../../../../pancake-flashnext.log)
 - VRAM: "expert cache auto: 15.66 GiB free ... -> 10557 slots", "expert cache 11089 slots, 14.85 GiB", "668 MiB of VRAM
   free with everything loaded" (796-880 MiB in other starts); MTP draft layer 835 MiB; KV streaming 98.62% of block reads
-  hit VRAM — [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log)
+  hit VRAM — [pancake-flashnext.log](../../../../../pancake-flashnext.log)
 - RAM: launcher runs in `systemd-run --user --scope -p MemoryMax=54G -p MemorySwapMax=0` with STRATA_RAM_KEEP_GIB=12 and
-  waits for 48 GiB available — [tools/pancake/capped.sh](file:///home/dan/clone-of-d/src/Strata/tools/pancake/capped.sh);
+  waits for 48 GiB available — [tools/pancake/capped.sh](../../../../../tools/pancake/capped.sh);
   a run without the keep "used the whole 57 GB and killed the desktop session"; the 34 GB arena "often trips systemd-oomd"
   (user@.service 50% / 30 s), mmap tier (RAM_KEEP 20) ~8% slower (69 vs 75 tok/s, 3060) —
-  [MOD_PLAN "Next session" and phase 10](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md); mmap tier on the 7900 XT
-  108.6 vs 111.7 — [roundA.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundA.txt)
+  [MOD_PLAN "Next session" and phase 10](../../../../../MOD_PLAN.md); mmap tier on the 7900 XT
+  108.6 vs 111.7 — [roundA.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundA.txt)
 - VRAM headroom failures: Foresight 8 slots -> 5.3K prompt failed with "cuBLAS status 14, out of VRAM" (3060) —
-  [MOD_PLAN 10.2 step 2](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [MOD_PLAN 10.2 step 2](../../../../../MOD_PLAN.md)
 - Idle/sleep: --vram-elastic refused with the pinned RAM complement; --idle-unload is a cold reload (~1 min); basalt
   sleep-in-place (64167ba73, ~815 lines) closes it; FastStrata --conversation-disk 70K conversation after restart 83 s ->
   7.2 s; session files exist by hand (/slots/0?action=save|restore) —
-  [MOD_PLAN phase 7](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md); llama.cpp #28092 disk prompt cache (~70 s cold
+  [MOD_PLAN phase 7](../../../../../MOD_PLAN.md); llama.cpp #28092 disk prompt cache (~70 s cold
   prefill at 131K removed), #31886 ROCm staged mmap uploads (load hangs), Avalon registered-RAM arena —
-  [report Avalon upgrades](file:///home/dan/reports/Avalon%20upgrades%20from%20upstream%20projects.md)
+  [report Avalon upgrades](../../../avalon/upgrades-from-upstream/report.md)
 - Disk: root disk ~7-12 GB free; Flash-Next IQ2_XS shard 1 37 GB + n-gram table 27 GB + MTP 6.5 GB on D; Q2_0 hard-links
   the same n-gram table; DeepSeek V4.1 (239-274 GB) does not fit; Coder variant 29.6 GB competes with Avalon's model
-  (~20 GB short) — [MOD_PLAN phase 9 note, item 25](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md),
-  [PANCAKE_FINDINGS 10d](file:///home/dan/clone-of-d/src/Strata/docs/PANCAKE_FINDINGS.md)
+  (~20 GB short) — [MOD_PLAN phase 9 note, item 25](../../../../../MOD_PLAN.md),
+  [PANCAKE_FINDINGS 10d](../../../../../docs/PANCAKE_FINDINGS.md)
 
 ### Inferences
 - Arena read time = 33.02 GiB / (0.51-1.18 GiB/s) = 28-65 s per start; the spread (2.3x) with identical files points
@@ -321,49 +321,49 @@ trace in the logs and a static check of the stubs did not find it. No researched
 
 ### Cited Findings
 - Deferral on HIP: A-defer-cpu-lossy decode "0.0 13.7 0.0 17.3 0.0 21.9 0.0 20.1 0.0 22.8 0.0 18.0 mean 9.5", decode
-  after 11.7K 0.0 — [roundA.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundA.txt);
+  after 11.7K 0.0 — [roundA.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundA.txt);
   C-best-defer-lossy "0.0 0.0 68.1 0.0 35.9 68.3 0.0 58.7 0.0 23.8 mean 25.5" with an HTTP 503 traceback before it —
-  [roundC.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundC.txt)
+  [roundC.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundC.txt)
 - "VERIFY_DEFER_CPU gave non-finite logits with COMBINE_CPU (fixed: cfuse off when deferring)" and later "still
-  non-finite on HIP with the ported kernels" — [MOD_PLAN phase 11](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md);
-  code: `cfuse_on` requires `!defer_` ([verify.cpp:1467-1472](file:///home/dan/clone-of-d/src/Strata/src/core/verify.cpp));
-  bisect queued (queue2, 6 runs), 10% — [PANCAKE_STATUS.md](file:///home/dan/clone-of-d/src/Strata/PANCAKE_STATUS.md)
+  non-finite on HIP with the ported kernels" — [MOD_PLAN phase 11](../../../../../MOD_PLAN.md);
+  code: `cfuse_on` requires `!defer_` ([verify.cpp:1467-1472](../../../../../src/core/verify.cpp));
+  bisect queued (queue2, 6 runs), 10% — [PANCAKE_STATUS.md](../../../../../PANCAKE_STATUS.md)
 - fast-hip turns on other ported switches that touch the combine/hit path: STRATA_WAIT_FUSE, STRATA_ROUTE_PUBLISH,
   STRATA_GR_FUSED, STRATA_VERIFY_QDEDUP, STRATA_ADAPT_OVERLAP, STRATA_EXPDEC, STRATA_QFUSE —
-  [flashnext-iq2_xs-fast-hip.json](file:///home/dan/clone-of-d/src/Strata/configs/pancake/flashnext-iq2_xs-fast-hip.json)
+  [flashnext-iq2_xs-fast-hip.json](../../../../../configs/pancake/flashnext-iq2_xs-fast-hip.json)
 - Determinism: the engine prints "the GPU computes the experts in the cache; it rounds differently from the CPU, so a
-  reply can differ slightly from a run without the cache" — [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log);
+  reply can differ slightly from a run without the cache" — [pancake-flashnext.log](../../../../../pancake-flashnext.log);
   token forcing: stock a/b mismatch 1.17% / 1.30% ("the expert cache is not deterministic") —
-  [PANCAKE_FINDINGS 10e](file:///home/dan/clone-of-d/src/Strata/docs/PANCAKE_FINDINGS.md); final preset token forcing
-  "INCONCLUSIVE +0.4 pts, 0 large-margin events" — [MOD_PLAN phase 11](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md);
-  near-tie splits (la-off's second short run splits at token 133) — [MOD_PLAN 10.2 step 3](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [PANCAKE_FINDINGS 10e](../../../../../docs/PANCAKE_FINDINGS.md); final preset token forcing
+  "INCONCLUSIVE +0.4 pts, 0 large-margin events" — [MOD_PLAN phase 11](../../../../../MOD_PLAN.md);
+  near-tie splits (la-off's second short run splits at token 133) — [MOD_PLAN 10.2 step 3](../../../../../MOD_PLAN.md)
 - Speed variance: base arms 111.7 / 87.5 / 111.8 / 111.9 / 100.5 (rounds A-C); 11.7K reads 1104-1373 tok/s in disturbed
-  arms vs ~1810 normal — [roundB.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundB.txt),
-  [roundC.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/roundC.txt); decode after the
-  11.7K prompt 37.3-114.8 tok/s across log entries — [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log);
-  "run noise of ~20% between a prompt's first and second run" — [MOD_PLAN 10.2](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  arms vs ~1810 normal — [roundB.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundB.txt),
+  [roundC.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/roundC.txt); decode after the
+  11.7K prompt 37.3-114.8 tok/s across log entries — [pancake-flashnext.log](../../../../../pancake-flashnext.log);
+  "run noise of ~20% between a prompt's first and second run" — [MOD_PLAN 10.2](../../../../../MOD_PLAN.md)
 - strata-poly on HIP: `run-pancake.sh` exits with "$MODEL needs strata-poly, which is CUDA-only" on the HIP build —
-  [run-pancake.sh:49](file:///home/dan/clone-of-d/src/Strata/run-pancake.sh); CMake declares the target for HIP ("On HIP it
-  is the same CUDA-shaped code through the hip_compat headers") — [CMakeLists.txt:3052-3061](file:///home/dan/clone-of-d/src/Strata/CMakeLists.txt);
+  [run-pancake.sh:49](../../../../../run-pancake.sh); CMake declares the target for HIP ("On HIP it
+  is the same CUDA-shaped code through the hip_compat headers") — [CMakeLists.txt:3052-3061](../../../../../CMakeLists.txt);
   build-hip has CMakeFiles/strata-poly.dir and poly test dirs but no strata-poly binary; build-hip/build*.log (13 logs)
   show only `Linking HIP executable strata` targets and no `error:` lines (only discarded-hipError_t warnings, ~190
-  repeats of `cudaGetLastError` notes) — [build-hip/](file:///home/dan/clone-of-d/src/Strata/build-hip)
+  repeats of `cudaGetLastError` notes) — [build-hip/](../../../../../build-hip)
 - STRATA_PREFILL_MMQ: option default OFF; build-hip has `STRATA_PREFILL_MMQ:BOOL=ON`; STRATA_PF_FUSED (fast-hip) is
   defined only in the MMQ branch (`STRATA_PREFILL_MMQ=1 STRATA_PREFILL_FUSED=1`) —
-  [CMakeLists.txt:94, 2649-2712](file:///home/dan/clone-of-d/src/Strata/CMakeLists.txt),
-  [build-hip/CMakeCache.txt](file:///home/dan/clone-of-d/src/Strata/build-hip/CMakeCache.txt); prefill.cpp carries stub
+  [CMakeLists.txt:94, 2649-2712](../../../../../CMakeLists.txt),
+  [build-hip/CMakeCache.txt](../../../../../build-hip/CMakeCache.txt); prefill.cpp carries stub
   namespaces for builds without MMQ/fused ("a HIP build without the fused kernels (STRATA_PREFILL_MMQ off) still links") —
-  [prefill.cpp:116-162](file:///home/dan/clone-of-d/src/Strata/src/prefill/prefill.cpp)
+  [prefill.cpp:116-162](../../../../../src/prefill/prefill.cpp)
 - Preset switches that do nothing on this build: "STRATA_SELECT_LONG=1 needs the CUDA build with
   STRATA_EXPERIMENTAL_SM60; ignored", "STRATA_PF_GROUP_SCRATCH=1 is ignored" —
-  [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log); head mislabelled
-  "experimental native Q5_K head" while the IQ2_XS head is IQ4_XS — [PANCAKE_FINDINGS 10](file:///home/dan/clone-of-d/src/Strata/docs/PANCAKE_FINDINGS.md)
+  [pancake-flashnext.log](../../../../../pancake-flashnext.log); head mislabelled
+  "experimental native Q5_K head" while the IQ2_XS head is IQ4_XS — [PANCAKE_FINDINGS 10](../../../../../docs/PANCAKE_FINDINGS.md)
 - run-pancake.sh defaults to MODEL=iq2_xs while the plan says "Item 6 closed (Q2_0 is the daily file)" —
-  [run-pancake.sh:23](file:///home/dan/clone-of-d/src/Strata/run-pancake.sh), [MOD_PLAN series ranking](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [run-pancake.sh:23](../../../../../run-pancake.sh), [MOD_PLAN series ranking](../../../../../MOD_PLAN.md)
 - Correctness of cache restore: UNSW found an off-by-one in a hybrid-state cache; item 35 is the precondition for 3, 11,
-  16, 31 — [report Pacific R1](file:///home/dan/reports/Pacific%20Africa%20Latin%20America%20papers.md)
+  16, 31 — [report Pacific R1](../../../avalon/literature/pacific-africa-latin-america/report.md)
 - Security of files: ETH "Mind the Gap" GGUF-quantization backdoors -> official files + SHA-256 —
-  [report Europe M3](file:///home/dan/reports/Europe%20papers%20for%20Avalon.md)
+  [report Europe M3](../../../avalon/literature/europe/report.md)
 
 ### Inferences
 - Deferral bisect: with cfuse already excluded, the remaining suspects are the other switches on the combine/hit path
@@ -395,15 +395,15 @@ The hardest limits are physical or environmental: DDR4 bandwidth for CPU experts
 The research series offers no lever for them beyond moving fewer bytes.
 
 ### Cited Findings
-- CPU experts at ~49 us each vs 42 us pure-bandwidth estimate; RAM 33 GB/s — [profile-fasthip.txt](file:///home/dan/clone-of-d/src/Strata/bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt),
-  [MOD_PLAN item 14](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+- CPU experts at ~49 us each vs 42 us pure-bandwidth estimate; RAM 33 GB/s — [profile-fasthip.txt](../../../../../bench/results/2026-11-08-7900xt-rounds/profile-fasthip.txt),
+  [MOD_PLAN item 14](../../../../../MOD_PLAN.md)
 - PCIe 3.0 x16 13.4 GB/s; promotion ~115 us vs ~42 us CPU compute; reuse-aware admission failed on PCIe 3.0 cost;
-  --pcie-frac 0 best — [MOD_PLAN phase 10, phase 11](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  --pcie-frac 0 best — [MOD_PLAN phase 10, phase 11](../../../../../MOD_PLAN.md)
 - "None of the papers evaluate PCIe 3.0, AMD GPUs, 512 experts per layer or a GDN hybrid with misses computed on the
-  CPU" — [report Asia closing gaps](file:///home/dan/reports/Asia%20papers%20for%20Avalon.md)
-- 10,733-11,089 resident slots of 24,576 ranked pairs — [pancake-flashnext.log](file:///home/dan/clone-of-d/src/Strata/pancake-flashnext.log)
+  CPU" — [report Asia closing gaps](../../../avalon/literature/asia/report.md)
+- 10,733-11,089 resident slots of 24,576 ranked pairs — [pancake-flashnext.log](../../../../../pancake-flashnext.log)
 - Owner-side hardware levers listed: BIOS iGPU memory 4 -> 2 GB, DDR4-3600 at FCLK 1800; second GPU (phase 12) —
-  [MOD_PLAN "Owner's call", phase 12](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  [MOD_PLAN "Owner's call", phase 12](../../../../../MOD_PLAN.md)
 
 ### Inferences
 - No-research gaps: (1) DDR4 roofline of CPU experts (only DDR4-3600/FCLK tuning, owner's call); (2) PCIe 3.0 link;
@@ -429,9 +429,9 @@ draft step, cold prefill, and load/startup.
   barriers (13, 29); 4) per-turn cache with restore test (35, 31, 16, 11); 5) decode cache through long prompts (2);
   6) fix item 8 then rank guard (8, 28); 7) DISCO/SpecFit/AcceptMoE (15, 36, 23); 8) effort/thinking (12, 21, 33, 34);
   9) time-based cache simulator (14, 27, 30, 3-4, 17); 10) tool reliability (26) —
-  [report Pacific/Africa/LatAm closing table](file:///home/dan/reports/Pacific%20Africa%20Latin%20America%20papers.md)
+  [report Pacific/Africa/LatAm closing table](../../../avalon/literature/pacific-africa-latin-america/report.md)
 - Phase 13 (later, measured-gain order): P1a deferral, P1b simulator, P1d pool phases, P2a turbo decision, P3a/P3b,
-  P1c, P2b, P4 — [MOD_PLAN phase 13](file:///home/dan/clone-of-d/src/Strata/MOD_PLAN.md)
+  P1c, P2b, P4 — [MOD_PLAN phase 13](../../../../../MOD_PLAN.md)
 
 ### Inferences
 Ranking used here: time share of a typical opencode turn (edit-heavy decode, short deltas) x probability the lever lands

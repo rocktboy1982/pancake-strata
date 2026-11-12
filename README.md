@@ -303,10 +303,10 @@ PY
 ```
 
 The new-commits CSV of each run is the input for the next round of fork notes (see the
-[November fork report](reports/Active%20Strata%20forks%20November.md)); anything adopted from it follows the
+[November fork report](pancake-docs/research/engine-speed/active-forks-nov/report.md)); anything adopted from it follows the
 credit rule in section 9.
 
-First results (2026-11-10, report: [Strata fork knowledge base](reports/Strata%20fork%20knowledge%20base.md)):
+First results (2026-11-10, report: [Strata fork knowledge base](pancake-docs/research/engine-speed/fork-knowledge-base/report.md)):
 
 | Measure | Value |
 | --- | ---: |
@@ -326,7 +326,7 @@ the expert cache and offload (71), quantization (55), KV and attention (57), CUD
 Before building we read. The survey covered **758 arXiv papers across 7 global university regions** (131 US, 97 Asia,
 76 Stanford, 69 Europe, 65 MIT/Harvard, 63 Pacific/Africa/LatAm, 56 Canada), plus focused studies on MoE offload,
 speculation, attention, and agent control (66 hardware data-path papers, 31 runtime-architecture papers). The full
-per-paper URL lists live in the mirrored `reports/*.md` files and in
+per-paper URL lists live in the research reports under [`pancake-docs/research/`](pancake-docs/research/README.md) and in
 [`pancake-docs/RESEARCH_AND_FINDINGS.md`](pancake-docs/RESEARCH_AND_FINDINGS.md). The tables below list every paper
 that shaped a decision, with its direct URL and what happened to it. Every rejection is also recorded, with its
 reason, in the MOD_PLAN "not adopted" ledger.
