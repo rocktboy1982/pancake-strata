@@ -24,6 +24,10 @@
 //           Written right after its window record when the window has layer records (MOD_PLAN A22 DISCO / A23: the price of
 //           a draft position).  The same numbers wtrace.py new_cpu_miss() derives from the layer records; the record keeps
 //           them when a reader only wants the outcome.  Readers older than A22 stop at it (unknown record type 5).
+//   target: u8 6, u8 n, u16 0, n x f32: the TARGET's probability of each drafted token (MOD_PLAN A56, the Leviathan acceptance
+//           min(1, p/q)'s p).  Entry j-1 is the target's probability of window[j] given rows 0..j-1 (raw logits, temperature 1).
+//           Written only with STRATA_WINDOW_TRACE_TARGET=1, after the rowmiss record and before the layers.  A merged prompt
+//           window (accepted 255) has no drafts: its entries are the prompt's own tokens and readers must skip them.
 // Only the serve verify windows (drive_pool_multi_impl + the commit in the serve loop) write it.
 #include "strata/core/row_miss.hpp"
 
@@ -85,7 +89,8 @@ public:
         last_ = now;
         const bool keep = (windows_++ % every_) == 0;
         const int nrm = rm_.layers() > 0 ? std::min(rm_.rows(), 255) : 0;   // record 5: the rows' new CPU misses
-        const int64_t extra = 16 + (nrm > 0 ? 4 + 2 * (int64_t) nrm : 0);
+        const int ntp = std::min((int) tp_.size(), 255);   // record 6: the target's probabilities (A56)
+        const int64_t extra = 16 + (nrm > 0 ? 4 + 2 * (int64_t) nrm : 0) + (ntp > 0 ? 4 + 4 * (int64_t) ntp : 0);
         if (keep && !buf_.empty() && bytes_ + (int64_t) buf_.size() + extra <= cap_) {
             // the window record first, then its row misses, then its layers (straight to the file: buf_ holds the layers)
             const uint8_t h[4] = {2, (uint8_t) std::min(rows, 255), (uint8_t) (accepted < 0 ? 255 : std::min(accepted, 254)), 0};
@@ -99,6 +104,11 @@ public:
                 std::fwrite(h5, 1, 4, f_);
                 std::fwrite(rm, 2, (size_t) nrm, f_);
             }
+            if (ntp > 0) {
+                const uint8_t h6[4] = {6, (uint8_t) ntp, 0, 0};
+                std::fwrite(h6, 1, 4, f_);
+                std::fwrite(tp_.data(), 4, (size_t) ntp, f_);
+            }
             std::fwrite(buf_.data(), 1, buf_.size(), f_);
             bytes_ += extra + (int64_t) buf_.size();
             if ((windows_ & 63) == 0) std::fflush(f_);
@@ -109,6 +119,13 @@ public:
         }
         buf_.clear();
         rm_.reset();
+        tp_.clear();
+    }
+
+    /// The target's probability of each drafted token of the current window (record 6).  Call after the window ran, before commit.
+    void target(const float* p, int n) {
+        if (f_ == nullptr || p == nullptr || n <= 0) return;
+        tp_.assign(p, p + std::min(n, 255));
     }
 
     /// The window's draft confidences (items 5, F8 STRATA_SPEC_CUM, A22 DISCO): call when the window is built, before it runs.
@@ -126,6 +143,7 @@ public:
     void drop() {
         buf_.clear();
         rm_.reset();
+        tp_.clear();
     }
 
     ~WindowTrace() {
@@ -133,6 +151,7 @@ public:
     }
 
 private:
+    std::vector<float> tp_;   // record 6: the target's probabilities for the window being built (A56)
     void put(const void* p, size_t n) {
         const uint8_t* b = (const uint8_t*) p;
         buf_.insert(buf_.end(), b, b + n);

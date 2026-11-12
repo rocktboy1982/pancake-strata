@@ -148,6 +148,53 @@ int main() {
         check(off == b.size(), "nothing else in the file");
         std::remove(path.c_str());
     }
+    {   // 3. record 6 (A56): the target's probability of each drafted token, written after the window's row misses
+        const std::string path = "row_miss_target.stwt";
+        std::remove(path.c_str());
+#if defined(_WIN32)
+        _putenv_s("STRATA_WINDOW_TRACE", path.c_str());
+#else
+        setenv("STRATA_WINDOW_TRACE", path.c_str(), 1);
+#endif
+        {
+            strata::core::WindowTrace wt;
+            wt.open(1, 4, 2);
+            const float tp[3] = {0.5f, 0.25f, std::nanf("")};
+            wt.target(tp, 3);
+            const int32_t ids[4] = {1, 2, 3, 4};
+            const int32_t kin[4] = {-1, -1, -1, -1};
+            wt.layer(0, 2, ids, kin, nullptr);
+            wt.commit(3, 1, 7);
+            // a window without a target call writes no record 6
+            wt.layer(0, 2, ids, kin, nullptr);
+            wt.commit(2, 0, 9);
+        }
+#if defined(_WIN32)
+        _putenv_s("STRATA_WINDOW_TRACE", "");
+#else
+        unsetenv("STRATA_WINDOW_TRACE");
+#endif
+        std::vector<uint8_t> b;
+        if (std::FILE* f = std::fopen(path.c_str(), "rb")) {
+            uint8_t buf[4096];
+            size_t n;
+            while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) b.insert(b.end(), buf, buf + n);
+            std::fclose(f);
+        }
+        size_t off = 20;
+        check(b.size() > 20 && b[off] == 2, "record 6: the first window record comes first");
+        off += 16;
+        if (b[off] == 5) off += 4 + 2 * (size_t) b[off + 1];   // the row misses of that window
+        check(b[off] == 6 && b[off + 1] == 3, "record 6: type 6 with 3 entries");
+        off += 4;
+        float v0, v1, v2;
+        std::memcpy(&v0, &b[off], 4); std::memcpy(&v1, &b[off + 4], 4); std::memcpy(&v2, &b[off + 8], 4);
+        check(v0 == 0.5f && v1 == 0.25f && std::isnan(v2), "record 6: the probabilities, NaN kept");
+        off += 12;
+        off += 4 + 4 * 3;                                    // the first window's layer record: 4-byte header + 4 entries x 3 bytes
+        check(b[off] == 2, "record 6: the second window follows, with no record 6 (no target call)");
+        std::remove(path.c_str());
+    }
     if (g_fail == 0) std::printf("row_miss_test: all passed\n");
     return g_fail == 0 ? 0 : 1;
 }

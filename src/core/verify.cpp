@@ -4275,6 +4275,33 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             }
         }
     }
+    // STRATA_WINDOW_TRACE_TARGET=1 (opt-in, MOD_PLAN A56): the TARGET's probability of each drafted token, for the window
+    // trace's record 6.  Logging only: the logits are read back after the window; the argmax / sampling path is untouched.
+    // Entry j-1 is softmax(logits of row j-1)[tokens[j]] over the raw logits (temperature 1).
+    static const bool g_target_trace = [] { const char* v = std::getenv("STRATA_WINDOW_TRACE_TARGET"); return v != nullptr && v[0] == '1'; }();
+    if (g_target_trace && T > 1 && strata::core::window_trace().on()) {
+        std::vector<float> h((size_t) T * (size_t) n_vocab_);
+        if (cudaMemcpy(h.data(), head_logits_, h.size() * sizeof(float), cudaMemcpyDeviceToHost) == cudaSuccess) {
+            std::vector<float> tp((size_t) (T - 1));
+            for (int j = 1; j < T; ++j) {
+                const float* row = h.data() + (size_t) (j - 1) * (size_t) n_vocab_;
+                float mx = -INFINITY;
+                for (int64_t v = 0; v < n_vocab_; ++v) mx = std::max(mx, row[v]);
+                double sum = 0.0;
+                for (int64_t v = 0; v < n_vocab_; ++v) sum += std::exp((double) row[v] - (double) mx);
+                const int32_t d = tokens[j];
+                tp[(size_t) (j - 1)] = (d >= 0 && d < n_vocab_)
+                    ? (float) (std::exp((double) row[d] - (double) mx) / sum) : std::nanf("");
+            }
+            strata::core::window_trace().target(tp.data(), (int) tp.size());
+        } else {
+            static bool said = false;
+            if (!said) {
+                said = true;
+                std::fprintf(stderr, "strata verify: STRATA_WINDOW_TRACE_TARGET copy failed: %s\n", cudaGetErrorString(cudaGetLastError()));
+            }
+        }
+    }
     if (static const bool dbg = std::getenv("STRATA_DBG_NAN") != nullptr; dbg) {   // debug: the first non-finite head
         static bool reported = false;
         if (!reported) {
