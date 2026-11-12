@@ -1,0 +1,20 @@
+# T1 ID-level source check (8 arXiv IDs)
+
+Read-only check, 2026-11-12. PDFs from arxiv.org/pdf/<id>, text via pdftotext. Page = PDF page. "Open" means the plan row's status column is not done.
+
+| arXiv | Repo cites (where) | Cited claim | Paper (page) | Verdict | Plan row, status |
+|---|---|---|---|---|---|
+| 2405.21060 Mamba-2 | README:378, RESEARCH_AND_FINDINGS:205, MOD_PLAN A31 | Chunked SSD / linear attention; no number cited | SSD is 2-8x faster than Mamba's scan (p1, p34); 6x faster than FlashAttention-2 at 16K (p2) | VERIFIED (qualitative) | A31, parked until item 82: open |
+| 2406.06484 parallel DeltaNet | MOD_PLAN A31; batch3/kern-gdn.md:27 | Chunkwise form; kern-gdn says the paper uses symbol C and never names 64 | Chunkwise form with chunk length C (p3); the number 64 does not occur in the text | VERIFIED | A31, parked: open |
+| 2407.00088 T-MAC | RESEARCH_AND_FINDINGS:137; moe-speedup/notes/cpu_expert_compute.md:46-48 | 2-bit mpGEMM up to 5.3x vs llama.cpp BLAS on x86; mpGEMV 4.0/4.0/5.31/2.5 with unclear device mapping; mpGEMV is memory-bandwidth bound | Surface Book 2-bit mpGEMM max 5.3x vs BLAS (p10); mpGEMV 4.0/4.0/5.31/2.5 across four devices (p10); "primarily constrained by memory bandwidth" (p10). Headline: up to 4x throughput (p1), kernel up to 6.6x, avg 3.6x (p2) | VERIFIED; device mapping for 5.31 is indeed not stated in the paper | A48, planned: open |
+| 2412.14161 TheAgentCompany | MOD_PLAN A55; us-universities/report.md:150 | Checkpoint-based grading with partial credit | Checkpoints with evaluators and point values (p4-p5); partial credit, +50% only when all pass (p5); 30.3% tasks fully completed, 39.3% score (p2) | VERIFIED (no number cited) | A55, coded, first run pending: open |
+| 2502.08235 Danger of Overthinking | batch3/agentloop.md:49; us-universities/report.md:57 | Picking the lowest-overthinking of several runs: +30% performance, -43% compute | Abstract (p1): "can improve model performance by almost 30% while reducing computational costs by 43%". The 43% cost cut is also reported for o1 low vs high effort (p2, p8, 27.3% vs 29.1%) | VERIFIED, with wording: paper says "almost 30%"; the 43% refers to the selection setting in the abstract but to low-vs-high effort in the body | A18, planned (owner decision): open |
+| 2503.20507 Harmonia | batch2/A7-A46-promotions.md:109; batch3/citecheck.md:67; MOD_PLAN A46 | "admission and migration decided apart" (A46 row: "admission/migration split") | Harmonia splits data placement and data migration into two agents (p1, p2). The word "admission" occurs once in the paper and is not the split. Paper is hybrid storage (HPC), not LLM cache | DISCREPANT: the split is placement vs migration; "admission" is not the paper's term | A46, parked (needs A6): open |
+| 2505.09388 Qwen3 report | MOD_PLAN A33 ("gated residual"); citecheck.md:69 (B13, already flagged); asia/report.md:38 ("greedy discouraged because of repetition") | A33: "gated residual"; asia: greedy decoding discouraged | "Gated residual" NOT FOUND in body (only a "gated language modeling" reference, p32). "Greedy" NOT FOUND anywhere in text. Thinking budget VERIFIED (p1, p2, p20; 8192-token budget p23) | DISCREPANT for "gated residual" (NOT FOUND); "greedy" claim NOT FOUND; thinking budget VERIFIED | A33, coded, retest: open. A18 (counter-evidence): planned, open |
+| 2505.17813 Don't Overthink it | MOD_PLAN A18; europe/report.md:61 and notes (lines 123-124) | Shortest chain up to 34.5% more accurate than longest; short-m@k up to 33% less wall time | Abstract (p1): "up to 34.5% more accurate than the longest chain" and "33% wall time reduction"; "33% faster" (p2, p7) | VERIFIED | A18, planned (owner decision): open |
+
+## Notes
+
+- Only Harmonia (A46) and Qwen3 (A33 "gated residual", asia "greedy") disagree with the repo. Fix the wording in MOD_PLAN A33 and batch2 A7-A46 before relying on them; the A33 retest is otherwise unaffected.
+- Qwen3's thinking budget is the claim the repo should use for A18; the report does not discuss overthinking.
+- PDF text was extracted from the arXiv PDFs. Page numbers are PDF page indices.

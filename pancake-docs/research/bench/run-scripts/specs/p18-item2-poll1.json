@@ -1,0 +1,18 @@
+{
+ "base": "/home/dan/abtest-specs/configs/flashnext-iq2_xs-fast-hip-nodefer.json",
+ "arms": {
+  "base": {},
+  "poll1": {
+   "env": {
+    "STRATA_COMBINE_POLL1": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "lossy": false,
+ "note": "Phase 18 item 2: combine spin split. base vs COMBINE_POLL1=1 on the no-deferral fast preset. Exact by class (poll only)."
+}

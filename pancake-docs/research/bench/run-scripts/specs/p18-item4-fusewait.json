@@ -1,0 +1,29 @@
+{
+ "base": "/home/dan/abtest-specs/configs/flashnext-iq2_xs-fast-hip-nodefer.json",
+ "arms": {
+  "base": {},
+  "fusewait1": {
+   "env": {
+    "STRATA_FUSE_WAIT": "1"
+   }
+  },
+  "waitfuse0": {
+   "env": {
+    "STRATA_WAIT_FUSE": "0"
+   }
+  },
+  "waitfuse0_fusewait1": {
+   "env": {
+    "STRATA_WAIT_FUSE": "0",
+    "STRATA_FUSE_WAIT": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "lossy": false,
+ "note": "Phase 18 items 3+4 (2x2): WAIT_FUSE 1/0 x FUSE_WAIT unset/1 on the no-deferral fast preset. Replaces the single-arm item-4 spec (near no-op with WAIT_FUSE on). Exact by class; check finite logits for WAIT_FUSE."
+}

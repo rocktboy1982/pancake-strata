@@ -1,0 +1,35 @@
+{
+ "base": "/home/dan/abtest-specs/configs/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "copy256": {
+   "env": {
+    "STRATA_WAIT_COPY256": "1"
+   }
+  },
+  "route-fast": {
+   "env": {
+    "STRATA_ROUTE_FAST": "1"
+   }
+  },
+  "expdec-swiglu": {
+   "env": {
+    "STRATA_EXPDEC_SWIGLU": "1"
+   }
+  },
+  "all3": {
+   "env": {
+    "STRATA_WAIT_COPY256": "1",
+    "STRATA_ROUTE_FAST": "1",
+    "STRATA_EXPDEC_SWIGLU": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 4,
+ "lossy": false,
+ "note": "Phase 16 kernel wave (dev/p16/kern-hip, pancake-docs/batch3/kern-hip.md): the three exact kernel switches that act on the fast-hip preset WITH deferral, against the preset. copy256 = F21: the verify plan (1,320 words at 16 rows) copied after its flag with 256 threads and 16-byte reads instead of 128 threads and 4-byte reads that wait for each read (11 dependent PCIe rounds -> 2); since kern-hip it acts on STRATA_WAIT_FUSE's copy, which the preset uses (before, it only changed the STRATA_FUSE_WAIT copy, which the preset never runs, so the fusewait-copy256 arms of specs 18/23 measured nothing). Profile estimate: ~4 us per layer when the plan is ready, 48 copies a window, ~0.6% of a short window at most. route-fast = F9: route_multi + doorbell_publish (9.7 + 6.9 us + a 6.8 us gap per layer in the 2026-11-09 deferral profile) become one launch, the rows copied by the router GEMV; the doorbell rings earlier, so the CPU starts earlier too: est. +1-2%. expdec-swiglu = A33 first half (item 48): IQ2 gate/up + SwiGLU + q8_1 in one launch (same occupancy, 8 waves/SIMD; IQ1_M layers keep the old path). All exact. Before the run: ctest -R 'native_multi_parity|iq_multi_parity|hip_wait_copy' must pass (hip_wait_copy_256 runs the copy with STRATA_WAIT_COPY256=1). Log proof per arm: 'STRATA_ROUTE_FAST=1: top-10, ids + weights ...', 'STRATA_EXPDEC_SWIGLU: gate/up, SwiGLU and q8_1 in one launch' (copy256 prints nothing). The expected effects are below the screen's resolution (+-1.7%), so run --tier confirm (A B B A, early stop) on a quiet machine; promote an arm only on a decided gain."
+}
