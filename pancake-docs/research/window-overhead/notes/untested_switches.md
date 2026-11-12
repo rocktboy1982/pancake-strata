@@ -118,3 +118,8 @@ In source, most window-overhead switches are default-off (`getenv(...) == '1'`).
 
 ## Label check (2026-11-12, Worker B item 15)
 STRATA_PIPED_MTP is class Speed but its description says the tokens change. Changing its class to Key was tested (opencode) and rejected by review: Key names go into the conversation-disk key (include/strata/core/conversation_disk_tier.hpp:48, src/core/conversation_disk_tier.cpp:242-251), so every saved conversation would be re-keyed, and the key version line (tier.cpp:244) would need a bump. Left as Speed. Same mismatch exists for STRATA_OLD_SAMPLER (def line 527). Fixing either needs a key version bump, an owner decision.
+
+## No-GPU checks (2026-11-12, Worker B items 11 and 16)
+- Item 11: `--pool-workers`, `--host-core` and `--pool-affinity` are parsed in `src/program/generate.cpp:3837-3867`. Present, never run as a test.
+- Item 16: a read-only HIP query (`hipDeviceGetAttribute(hipDeviceAttributeCanUseStreamWaitValue)`, no kernel) returned 1 for device 0 (2 HIP devices). Built with g++ and `-D__HIP_PLATFORM_AMD__` against `/opt/rocm/core-10.0`. The device is the RX 7900 XT per the machine notes. Support is confirmed; the wait itself is not measured.
+- Item 4 spec changed to the 2x2 (WAIT_FUSE 1/0 x FUSE_WAIT unset/1), 4 arms, 6 reps, before the queue reached it.

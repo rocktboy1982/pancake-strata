@@ -2519,3 +2519,14 @@ Branches: each worker branches from `port/rdna3-decode` (this one), and merges b
 - Benchmarks run on the GPU machine only, with the owner's quiet-machine rule (night queue, A B B A).
 Model files and profiles are not in git; the second machine needs them copied separately.
 
+
+### Testing schedule (proposed 2026-11-12, owner to confirm)
+GPU runs only on a quiet machine (night queue guard). Length estimates are from the runs so far.
+| When | What | Length |
+|---|---|---|
+| Overnight, after 23:00 | Phase 18 items 3+4 as one 2x2 (WAIT_FUSE 1/0 x FUSE_WAIT), then item 2 (COMBINE_POLL1) | about 2.5 h |
+| Overnight, next | item 6 (ROUTE_FAST, n >= 8), item 14 (ROUTER_FUSE with deferral off) | about 2 h |
+| Overnight, then | prose full set (queued), then 17.3 ablation (days, run last) | several hours |
+| Daytime, after any code change | `ctest -L cpu` on the integration build | about 3 min |
+| Before any push | build matrix in the push hook | about 5 min |
+| Weekly | fork scan, then check that research notes still match code | about 30 min |
