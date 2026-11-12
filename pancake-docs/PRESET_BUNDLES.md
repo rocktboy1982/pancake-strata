@@ -60,3 +60,13 @@ Not yet in any bundle (all default-off, coded on `dev/p17/integration`): `STRATA
 2. A switch with a paired win and a quality check moves into `fast`; one with a loss is closed; `exact` is written as a config only
    after its 12 unsets are checked on the engine.
 3. 17.3 (greedy ablation over the coded-but-untested items) runs alone afterwards.
+
+
+## 4. Results and decisions, 2026-11-12 (owner decisions; see NIGHT_RESULTS_2026-11-12.md)
+- **fast** now has expert deferral OFF (IQ2_XS and Q2_0, owner decision). The line `STRATA_VERIFY_DEFER_CPU` was removed from both daily presets (`configs/pancake/flashnext-iq2_xs-fast-hip.json`, `flashnext-q2_0-fast-hip-adopted.json`).
+- Deferral on vs off, measured: IQ2_XS on 105.7 / off 101.4-107.5 (no difference); Q2_0 on 91.2 (one run) / off 107-113 (about 19% faster off).
+- Lever runs (17.0): none beats the control; cache-admission levers are slower (24.8-28.5 s session TTFT).
+- KV ring (17.4): no measurable effect at 1K-120K.
+- Prose gap to Avalon (17.2): Avalon 3.4-8.4% faster on prose, not established. Controls (single starts): Avalon tail-skip off 97.3, Avalon IQ3_KS main 90.7, Pancake repeat 95.0. Full set (12 starts per arm, A B B A) queued after tonight's runs.
+- **exact** bundle: still unbuilt. The exact-vs-exact control (A-A) is needed first because greedy text varies between starts of the same config.
+- 17.3 ablation: queued after the full prose set (round 1 is 69 engine starts, roughly 6-7 hours).
