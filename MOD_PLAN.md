@@ -2743,3 +2743,8 @@ Full per-item status: `pancake-docs/research/engine-speed/unported-academic/STAT
 - **Remaining CPU items:** A6 recalibration, A9 replay, A10 (after item 84), A12 eviction fix, A15 rank-3 bug, A20 log-only entropy, A24 suffix replay, A26 counterfactual, A32 distinct-expert count, A40 overlap, A54 rank agreement.
 - **Remaining GPU items (overnight):** Phase 18 items 2, 3+4, 6, 14; A44; A49 (then A50, A51); trace identity test (A22/A56); A8; A14; A30; A31; A33; A34; A35; A36; A45; A55 live run; A57 live batch.
 - **Decisions for you:** A18, A28 (58 GB download), A29, A41 (hold hook), and the 9router public bind.
+
+### Fix check, 2026-11-12 (A12 / A15)
+- **A15 rank-3 eviction:** the fix is in commit `ce88ce281` (on `dev/p17/integration` and `dev/p16/policy`, NOT on `port/rdna3-decode`). It evicts the SHORTEST tool-pending entry first, so the main agent's long entry no longer goes before the sub-agents'. `park_replay_sim --selftest` passes (`park_replay_sim_test: all passed`). The plan's earlier wording, "smallest entry whose bytes cover the shortfall", differs from what was built (token count, not bytes covering the shortfall). Decision open: keep the shortest-first rule, or implement the covers-the-shortfall rule and re-test.
+- **A12 pinned-entry eviction:** the pinned prefix never leaves (`conversation_cache_test`, pin=N case, present on the integration branch). The plan's "pinned-entry eviction fix" has no open defect in the code I checked; status set to DONE pending a live A/B on the GPU (Phase 17 prose set).
+- **A15 engine status:** the park TTL is a simulator rule. The engine has no `pick_victim()`; the ranking lives in `park_replay_sim` and `tools/pancake/park_sim.py`. Engine wiring is not done.
