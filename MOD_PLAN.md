@@ -2733,3 +2733,13 @@ Key: GPU = needs a night run; DEC = needs your decision; CPU = can run now; DATA
 - **A48 (2-bit kernel bench):** needs the probe build (`STRATA_BUILD_PROBES`, CMake); not built here. Deferred.
 - **A53 (IOMMU start check):** the HIP engine has no start-up check; adding one is a small C++ change, not started.
 - **A41 (edit without read):** 33 of 339 edits (about 10%); upper bound.
+
+### Status update, 2026-11-12 (end of the CPU pass)
+Full per-item status: `pancake-docs/research/engine-speed/unported-academic/STATUS.md`.
+- **A53 (IOMMU start-up check):** DONE. `include/strata/platform/iommu_note.hpp`; one stderr line only when a GPU is behind a translated IOMMU group; CPU test on fake sysfs trees.
+- **A21 (temperature):** the turn log now records the request's temperature (`serve/server.py`); the real opencode temperature is confirmed on the next logged run.
+- **A48 (2-bit kernel):** benchmark built in `/home/dan/build-probes` and run: 1.23x vs legacy on one thread, 1.03x at 8 threads, memory-bound at 0.86 of the DDR4 floor. Ceiling about 3% at decode thread count. DONE.
+- **A19 (thinking stop):** still blocked. The turn log has no per-token logprobs; the replay needs the engine's top-2 margin (GPU logging run). The server already keeps a `thinking_entropy` summary, which can be checked first.
+- **Remaining CPU items:** A6 recalibration, A9 replay, A10 (after item 84), A12 eviction fix, A15 rank-3 bug, A20 log-only entropy, A24 suffix replay, A26 counterfactual, A32 distinct-expert count, A40 overlap, A54 rank agreement.
+- **Remaining GPU items (overnight):** Phase 18 items 2, 3+4, 6, 14; A44; A49 (then A50, A51); trace identity test (A22/A56); A8; A14; A30; A31; A33; A34; A35; A36; A45; A55 live run; A57 live batch.
+- **Decisions for you:** A18, A28 (58 GB download), A29, A41 (hold hook), and the 9router public bind.
