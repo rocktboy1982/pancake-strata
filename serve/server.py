@@ -7819,6 +7819,8 @@ class Service:
                                 self.history[-1]["entropy_mean"] = round(ent.total / ent.tokens, 3)
                                 self.history[-1]["entropy_min_window"] = \
                                     round(ent.min_window, 3) if ent.min_window is not None else None
+                            # A21: the temperature the request asked for (null: the request sent none)
+                            self.history[-1]["temperature"] = (sampling or {}).get("temperature")
                             self._write_turn_log(self.history[-1], thinking_n, max_new,
                                                  self.request_effort(sampling) if thinking else None,
                                                  (sampling or {}).get("_agent_counters")
