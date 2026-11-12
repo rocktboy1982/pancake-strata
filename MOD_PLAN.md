@@ -2481,3 +2481,32 @@ Daytime work until then is code only: the integration branch, the deferral gate,
 - The 7900 XT is not detected today; AMD work is compile-only until it is back.
 - Disk: the root disk is tight; builds, models and caches go on the D drive (`/home/dan/clone-of-d`).
 - Upstream moves fast (thousands of commits a month); rebase on Strata releases, not on every commit.
+
+## Phase 18: window synchronisation and copy overhead (researched 2026-11-12, NOT STARTED)
+
+Research: `/home/dan/reports/Speculative window overhead reduction.md`; notes in `/home/dan/research_notes/Speculative window overhead reduction/`.
+Profile (short case, one request, `/home/dan/profile-pancake-2026-11-12/`): decode 3553 ms wall, 76% kernel; combine_cpu_k10_vec4 18.9% (spin share unverified); wait_flag_ge 5.5%; wait_flag_copy_i32 5.3% (WAIT_FUSE); copy after mtp_select 17.5 ms.
+Rule (owner, 2026-11-12): no item is started until its papers are researched and this plan is reviewed. Items are ordered as the report ranks them.
+
+| # | Candidate | Where / source | Gain (ceiling) | Exact or lossy | Risk | A/B arm |
+|---|---|---|---|---|---|---|
+| 1 | Record full STRATA_* env of profiled run; re-profile with stream IDs to map the 48+83 copy pairs | profile gap | enabler | n/a | low | prerequisite |
+| 2 | Split combine spin from arithmetic: STRATA_COMBINE_POLL1=1 vs unset, rocprof combine | native_moe.cu:267-269 (code) | ceiling 18.9% of wall | exact (poll only) | low | POLL1 1 vs 0 |
+| 3 | Isolate STRATA_WAIT_FUSE 1 vs 0 (never isolated; check finite logits) | verify.cpp:1623 (coded) | 0-3% (unverified) | exact by class; non-finite suspect | low-medium | WAIT_FUSE 1 vs 0 |
+| 4 | Isolate FUSE_WAIT with WAIT_FUSE off | verify.cpp:441-462 (derived) | ~10 ms (0.3%) | exact by class | low | FUSE_WAIT 1 vs 0 |
+| 5 | Speculation depth sweep --spec 3/4/5 | greedy verify (derived) | unknown | exact for greedy | low | --spec 3 vs 4 vs 5, n=8 |
+| 6 | Confirm ROUTE_FAST (one noisy pass +8.0%) | native_router.cu:217 | up to ~2.9% | exact by class | low | ROUTE_FAST 1 vs 0, n>=8 |
+| 7 | Confirm WAIT_COPY256 with FUSE_WAIT (one noisy pass +6.8%) | verify_kernels.cu:1770-1822 | unmeasured | exact by class | low | WAIT_COPY256 1 vs 0, n=8 |
+| 8 | Retest MTP_EAGER on the gap-heavy config (n.s. +1.6% before) | mtp.cpp:1859-1863 | targets 106 us gaps | exact by construction | low | MTP_EAGER 1 vs 0 |
+| 9 | Merge three window-input copies into one launch | verify.cpp:1731,1739,1740 | <0.5% | exact | low | merged vs separate, A B B A |
+| 10 | Pre-stage host records before window launch (17.5 + 16.9 ms pairs) | profile | ~1.0% ceiling | exact (timing only) | low-medium | staged vs not, after item 1 |
+| 11 | Pin pool threads / affinity to shorten flag latency | --pool-affinity; spin 293 ms | 8.3% ceiling | exact (scheduling) | medium | --pool-affinity measure vs alternative |
+| 12 | Event + device-side wait replaces window-end cudaStreamSynchronize | verify.cpp:4173 | 2.6% ceiling | exact | medium | event vs sync, token equality |
+| 13 | VERIFY_DEVICE_PLAN (skip plan copy) | verify.cpp:2822-2826 (coded) | copy only | exact by class | low-medium | DEVICE_PLAN 1 vs 0 |
+| 14 | Retest ROUTER_FUSE with deferral off | MOD_PLAN 1599 (screen n.s.) | unknown | check output | medium | ROUTER_FUSE 1 vs 0 |
+| 15 | PIPED_MTP (existing switch) | conversation_disk_env.def:591 (coded) | AMUSD paper 29% (excerpt) | claimed exact | high | PIPED_MTP 1 vs 0 |
+| 16 | Device-side wait (hipStreamWaitValue32) replacing spin kernels | CUDA docs; HIP unverified | removes node cost | exact (same dependency) | medium-high (deadlock) | design first |
+| 17 | Merge commit into window graph with device-side accept | verify.cpp:3498,4517 | one launch+round trip per window | exact only if device accept matches | high | device vs host commit, token equality |
+| 18 | Fused argmax+accept (SonicSampler-style) | arXiv:2607.20475 (abstract) | greedy near zero | exact if tie-breaks match (unverified) | medium | sampled requests only |
+| 19 | Defer CPU rows to next layer (VERIFY_DEFER_CPU) | measured n.s. | removes in-layer wait | LOSSY | medium | DEFER_CPU 1 vs 0 with token diff |
+| 20 | Mirror-SD / PipeSpec branch rollouts during verify | arXiv:2510.13161, 2505.01572 (excerpt) | claimed 2.8-5.8x, not on this hardware | claimed exact | high | design study only |
