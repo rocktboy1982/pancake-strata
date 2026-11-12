@@ -2631,3 +2631,16 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/round4/notes/V1.md`
 - **A1 (Cache-Conditional):** miss rates verified (Fig. 9: Qwen 35->16%, DeepSeek-V2 28->7%, Phi 22->9%, Mixtral 40->21%, lambda 0.5). The ">2x on-device" is Qwen1.5-MoE on Snapdragon with CPU llama.cpp. The "2.9% tokens differ" is a Mixtral perplexity penalty, not a token share. Lossy. The "+30-50%" is our measurement, not the paper's.
 - **A4 / A27 (HOBBIT):** T1 0.6 and T2 0.9 verified, but they are thresholds on a cumulative normalized gate score, not a CDF. Pearson 0.99 verified (Mixtral only). Mixtral GSM8K 0.52->0.51 verified. The "+3-8%" and "+7-10%" in the plan are not in the paper. Lossy.
 - **A7 (ProMoE):** 1.09x (up to 1.17x) verified for llama.cpp decode. The abstract's "2.07x average" is the maximum; the average is 1.66x. The paper says CUDA copies cannot be preempted midway, so "cancellable" in the plan is wrong (only queued speculative work is dropped). The "+4.6%" is our simulator. Exact (prefetch only).
+
+### Round 4 verification corrections, batch V4 (2026-11-12, full PDFs) and round-4 summary
+Notes: `pancake-docs/research/engine-speed/unported-academic/round4/notes/V4.md`.
+- **A32 (MoE-Lightning):** 10.3x verified, but it is versus FlexGen on MTBench on one T4 (and one L4), without padding. The 3.5x is with padding and appears only in the text, not Table 4 (the padded ratio there is 2.10x).
+- **A32 (OSDI streaming prefill):** 1,200 and 1,800 tok/s verified (PCIe 5.0 x16, not 3.0). The plan's "exact" is not supported: the paper says "original precision" and gives quality as benchmark scores, not bit-equality.
+- **A24 (SuffixDecoding):** 5.3x is the Text-to-SQL mean; SWE-Bench is 2.5x. The "~10% on edits" is not in the paper. Setup: Llama-3.1-8B, one H100, batch 1.
+- **A21 / A56 (Leviathan):** verified, and the acceptance rule min(1, p/q) with alpha = E[min(p,q)] (Corollary 3.6) supports the A56 metric. Speedup is 2.3-3.4x on T5X (Table 2), not "2-3x on T5-XXL". Exact in distribution.
+- **A35 (PRESERVE):** 1.6x verified, but on Huawei Ascend 910B (192 MB L2), not AMD. The Infinity Cache mapping is our inference.
+- **A36 (MonoMoE):** the exactness claim in the plan is wrong. It is block-wise FP8 (lossy), cosine at least 0.998. End-to-end figures in the paper disagree with each other (intro vs results section).
+- **A30 (Fiddler):** 1.26x / 1.30x / 11.57x and TTFT figures verified (Mixtral-8x7B at 16-bit). The plan's break-even (~4.5 tokens per expert) and "0.4 s per turn" are our estimates, not the paper's.
+- **A11 (Marconi):** 34.4x verified. The 71.1% is ShareGPT and 617 ms is SWE-Bench (not the same workload). The eviction-only gain over LRU is 19.0% (ShareGPT) to 219.7% (SWE-Bench). The -24.7% is against SGLang+, not LRU.
+
+**Round 4 summary.** Of 26 papers checked, the headline numbers held for most. Corrections changed the plan's wording or attribution for about half (A1, A4, A7, A11, A21, A22, A24, A27, A32, A35, A36, A38, A39, A40, A41, A42, A44, A50, A51, A56, A19). Items marked exact that are not exact: A32 (OSDI), A36 (MonoMoE), and A1/A4/A27 which are lossy. Verification changed no decision: the candidate list stays as it was, with corrected numbers.
