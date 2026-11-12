@@ -67,3 +67,41 @@ Actions for our project (not ports — investigation hooks):
   compat edits (`STRATA_NO_HSA=1`, ArenaShm `pid_t`->`int`) — those are for a Windows-HIP build, which we do not ship.
 - **Watch:** `--vram-reserve-mib` 1792 (theirs) / `STRATA_ARENA_PIN_GIB=28` — VRAM policy tuned to a 24 GB card; our 20 GB
   XT and the fork-KB "do not go below ~700 MiB on 20 GB" note govern; needs our own A/B.
+
+## 4. Second pass over the zip (github-issue-draft.md + measurements.json + env diff) — corrections and new checks
+
+The API body I read first was the SHORT form; the in-zip `github-issue-draft.md` has the **ablated** IQ3_S breakdown and
+`measurements.json` the per-request numbers. This changes two conclusions:
+
+| Arm (IQ3_S, XTX, author) | code / prose tok/s | delta |
+|---|---|---|
+| Existing config (baseline) | 86.0 / 71.2 | — |
+| Complete MTP bundle | 92.4 / 73.1 | **+~7%** — the whole MTP bundle is worth this much ALONE, not +10% |
+| + `presence_penalty=0` | 96.4 / 76.8 | **+~4-5% more** — presence_penalty was the second real lever |
+| GR fusion screening (group we already carry) | 101.9 / 82.1 | +the rest |
+
+- **`presence_penalty=0` is a genuine +~4-5% on GREEDY** (temp 0) — their Control defaulted to 1.5. **For us it is a TRACK
+  CHECK, not a port:** our normal default is 0; `serve/server.py:7667-7671` floors presence_penalty at `max(1.5,..)` ONLY on
+  the non-finite-logits RECOVERY retry (#879), never on a normal run. So the gain exists only if our opencode traffic
+  actually sends a nonzero penalty. Action: log what `presence_penalty` our requests carry; if >0, A/B forcing 0 (request
+  sampling override), else already optimal. do NOT touch the #879 recovery floor.
+
+- **RED FLAG — `STRATA_RDNA_MMVQ_WAVE=3` (which our fast-hip preset sets, line 93).** The author reports `wave=3` at 1536
+  MiB reserve collapsed to **code 30.4 / prose 20.6 tok/s**, while free VRAM was still >1 GiB. Caveated ("this alone does
+  not prove a kernel defect"; their box is XTX 24 GB + low reserve), but our preset uses the EXACT value. **MUST re-check
+  on our XT** — an independent severe-slowdown report on our active value is not something to fold into a generic do-not-
+  repeat. Spec 34 adds `STRATA_RDNA_MMVQ_WAVE=1` vs base(=3) as the first thing to run.
+
+- **Env-set diff (issue#4-final vs our fast-hip) — genuine candidates to arm, not default:** `STRATA_PREFILL_MMQ=1`,
+  `STRATA_MTP_DRAFT_ALL=1`, `STRATA_PF_SWITCH_MIN_T=4096`, `--kv-grow`, `STRATA_IO_THREADS=16`,
+  `STRATA_RESIDENT_HEADROOM_GIB=10`, `STRATA_ARENA_PIN_GIB=28`. The happy finding is the mirror side: the issue baseline
+  runs the whole "group A" set (`Q8_PACKED, Q6_PACKED, MMVF_ROWS, ATTN_LANECELL, TSUM, LFUSE, PLE_BATCH, MEGAKERNEL`) which
+  our preset deliberately omits, and it did NOT beat our omission story — consistent with the fork-KB do-not-repeat. So
+  keep those off; do NOT add them.
+
+- `measurements.json` per-request decode for the SAME baseline arm swings 84.4 / 86.0 / 92.3 (code) — another data point
+  for the bimodal-run work; the profiler `system_before.txt` (THP / `pp_dpm_sclk` / VRAM) is the instrument to explain it.
+
+- The author's own question ("host handshake vs driver/graph?") is exactly what our just-picked AMD diagnostics answer:
+  `03e687ac` (driver GPU-pause duration) separates a driver pause from `711a7e93` (host not marking the compute stream
+  done) / the `served 0, plan 0, copies 0` host-side publish. Import that pairing when a window hangs.
