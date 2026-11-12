@@ -1890,7 +1890,7 @@ the GPU floor starts to set the edit window too. Re-run the item 1 / I7 profile 
 
 | ID | Technology | Paper (venue/year, URL) | MOD_PLAN | Exact/lossy | GPU | Effort | Expected gain | Test tier | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A33 | Small-M fusion of the pre-doorbell chains (expdec gate/up+SwiGLU+quant; router+top-10+doorbell) | SGLang small-M fusion, https://arxiv.org/abs/2312.07104 ; Qwen3 report (gated residual), https://arxiv.org/abs/2505.09388 | 32 / 48 | exact | HIP (CUDA port) | - (coded) | 1-4% per chain (est.); 04 run was n.s. with a reclaim-hit base | confirm (new harness) | coded (`STRATA_EXPDEC_SWIGLU`, `STRATA_ROUTER_FUSE`); **retest** |
+| A33 | Small-M fusion of the pre-doorbell chains (expdec gate/up+SwiGLU+quant; router+top-10+doorbell) | SGLang small-M fusion, https://arxiv.org/abs/2312.07104 ; Qwen3 report (thinking budget only; gated residual not in the report), https://arxiv.org/abs/2505.09388 | 32 / 48 | exact | HIP (CUDA port) | - (coded) | 1-4% per chain (est.); 04 run was n.s. with a reclaim-hit base | confirm (new harness) | coded (`STRATA_EXPDEC_SWIGLU`, `STRATA_ROUTER_FUSE`); **retest** |
 | A34 | Coordinate-descent sweep of launch/tile parameters (with the Phase 15 F20 empty-launch probe) | Coordinate-Based Hill Climbing, UFMG 2026, https://arxiv.org/abs/2609.03114 | 37 | exact | both | S (tool built) | 1-3% (est.) | confirm | planned (sweep.py, 7861dc8c1) |
 | A35 | Warm the 80 MiB Infinity Cache with next-layer pre-doorbell weights during the combine wait | PRESERVE, Huawei Zurich 2025, https://arxiv.org/abs/2501.08192 | 47 | exact | HIP | - (coded) | 0-2 ms/window (est.); 04 n.s. | confirm (new harness) | coded (`STRATA_IC_WARM_MB`); **retest** |
 | A36 | Weight-major layout for VRAM-hit experts / Q2_0 down | MonoMoE 2026, https://arxiv.org/abs/2609.04244 | (ledger h) | exact | both | M-L | unknown; pays only if hit kernels reach the critical path | screen (per-layer split) | parked -> **reopen check**: deferral may now expose hit time on edits |
@@ -1918,7 +1918,7 @@ Turn-level gains; most live in opencode, not in pancake. They change behaviour, 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | A44 | Epoch bandit that turns a "mixed" opt-in on or off per window type (rank guard: +edit/-short; k-th miss: +edit/-short; pool pre-read) | Athena, ETH SAFARI 2026, https://arxiv.org/abs/2601.17615 | (EU-P8) | rounding | both | S | keeps the edit gain of A4/A5 without the short-chat loss: est. +2-5% on mixed sessions | confirm | parked -> **reopened**: trigger met (A4 and A5 A/Bs came out mixed) |
 | A45 | Startup probe + calibration of the CPU-vs-promote ratio, verified on window time | DALI cost model, https://arxiv.org/abs/2602.03495 ; Vidur profiling method (A6) | 55 / 63 | rounding | both | M | 0-3% here, 6-13% on other platforms (static PcieAuto lost that much here) | confirm (must find `--pcie-frac 0` alone) | planned |
-| A46 | LLM-evolved cache policy on the simulator; Belady imitation; admission/migration split | ADRS / Barbarians at the Gate, Berkeley 2025, https://arxiv.org/abs/2510.06189 ; Hawkeye, ISCA'16 (no URL in reports) ; Harmonia, https://arxiv.org/abs/2503.20507 | 14 / 27 | rounding | both | M | Belady-bounded; build only at >= 5% in the recalibrated A6 model | screen | parked (needs A6) |
+| A46 | LLM-evolved cache policy on the simulator; Belady imitation; placement/migration (Harmonia: data placement and migration) split | ADRS / Barbarians at the Gate, Berkeley 2025, https://arxiv.org/abs/2510.06189 ; Hawkeye, ISCA'16 (no URL in reports) ; Harmonia, https://arxiv.org/abs/2503.20507 | 14 / 27 | rounding | both | M | Belady-bounded; build only at >= 5% in the recalibrated A6 model | screen | parked (needs A6) |
 
 ### 16.10 CPU expert path and DDR4 bandwidth
 
@@ -2650,7 +2650,7 @@ Notes: `pancake-docs/research/engine-speed/unported-academic/triage/check_T1.md`
 - **A28 (ISTA coder):** the row cites two papers for one "Coder variant" line, and neither gives the stated numbers. GSQ (2604.18556) has no SWE-bench result, no 512-expert model and no LUT types (the 95.7% is a model-card figure). RCO (2605.00649) prunes 50% of experts (256 of 512) on Qwen3-Coder-Next; the 3.5-bit setting is on Qwen1.5-MoE-A2.7B. Fix the row before any D-space work.
 - **A45 (DALI):** the "6-13% on other platforms" and "static PcieAuto" are not in the paper. Its headline speedups are 3.97x, 2.16x, 1.48x and 1.32x.
 - **A33 (Qwen3 report):** the "gated residual" citation is not in the report, and neither is the greedy-decoding repetition claim in the Asia notes. The thinking budget (8192 tokens) is verified. Remove the citation.
-- **A46 (Harmonia):** the paper's split is data placement and data migration, not admission and migration; it is a hybrid storage paper, not an LLM cache.
+- **A46 (Harmonia):** the paper's split is data placement and data migration, not placement and migration; it is a hybrid storage paper, not an LLM cache.
 - **A31 (parallel DeltaNet):** the chunk length is C in the paper; the "64" is ours, not the paper's.
 - **A48 (T-MAC):** verified: 5.3x 2-bit mpGEMM vs BLAS, memory-bandwidth bound; the 4x headline is throughput.
 - **A55 (TheAgentCompany):** verified (30.3% fully completed, 39.3% partial-credit score).
