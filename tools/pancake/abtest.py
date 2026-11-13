@@ -110,7 +110,7 @@ CLK = os.sysconf("SC_CLK_TCK")
 T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 9: 2.26, 10: 2.23}
 
 
-LONG_CPT = 2.85                                          # chars per token of this repo's C++ (Qwen tokenizer; 'long': 34264 chars = 11978 tokens)
+LONG_CPT = 3.2                                           # chars per token of the long corpus (Qwen tokenizer; measured 2026-11-13: 3.09-3.24 on the longdec corpora)
 LONG_TARGET = {"long32k": 32000, "long64k": 64000,       # prompt tokens (fit the 131072 context; 32K stays under --kv-resident 32768)
                "long1k": 1000, "long3k": 3000,           # A30: agent-sized prompt deltas (the CPU-share window), prompt tok/s
                "longdec10k": 10000,                      # A49: decode after a 10K read (attention share of the window vs 64K / 128K)
@@ -375,8 +375,17 @@ class NoiseMonitor(threading.Thread):
 
 
 # ---- server runs
+def render_preset(text, repo=None):
+    """Fills the preset placeholders the way night_queue.py does (<REPO>, <STRATA_DATA>, <MODELS>), so a spec's base
+    preset can be run directly; without it the server starts with a literal <STRATA_DATA> and dies before ready."""
+    repo = repo or os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    return (text.replace("<REPO>", repo)
+                .replace("<STRATA_DATA>", "/home/dan/clone-of-d/Strata-data")
+                .replace("<MODELS>", "/home/dan/clone-of-d/models"))
+
+
 def make_config(base, arm, path):
-    c = json.load(open(base))
+    c = json.loads(render_preset(open(base, encoding="utf-8").read()))
     for k, v in (arm.get("env") or {}).items():
         if v is None:
             c["env"].pop(k, None)
@@ -841,7 +850,7 @@ def print_selection(used, dropped, robust, passes=1):
 
 def screen_verdict(results, arms, cases):
     base = arms[0]
-    print("\nscreen verdict (promote: >= +2% on a case and no case below -3%; else drop)")
+    print("\nscreen verdict (promote: > 0% on a case and no case below -3%; else drop)")
     for a in arms[1:]:
         deltas = {}
         for c in cases:
@@ -850,7 +859,7 @@ def screen_verdict(results, arms, cases):
             x = [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c]
             if b and x:
                 deltas[c] = (sum(x) / len(x)) / (sum(b) / len(b)) * 100 - 100
-        ok = deltas and max(deltas.values()) >= 2.0 and min(deltas.values()) > -3.0
+        ok = deltas and max(deltas.values()) > 0.0 and min(deltas.values()) > -3.0
         print(f"  {a:20s} " + "  ".join(f"{c} {d:+.1f}%" for c, d in deltas.items()) + f"  -> {'PROMOTE to confirm' if ok else 'drop'}")
 
 

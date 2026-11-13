@@ -1,0 +1,31 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "mmvq-wave32": {
+   "env": {
+    "STRATA_RDNA_MMVQ_WAVE": "1"
+   }
+  },
+  "wmma-attn": {
+   "env": {
+    "STRATA_HIP_WMMA": "1"
+   }
+  },
+  "wave32+wmma": {
+   "env": {
+    "STRATA_RDNA_MMVQ_WAVE": "1",
+    "STRATA_HIP_WMMA": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "longdec10k",
+  "longdec32k"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "optimize-kernel-hip (2026-11-13): gfx1100 7900 XT. Enables STRATA_RDNA_MMVQ_WAVE=1 (wave32 MMVQ, decode) and STRATA_HIP_WMMA=1 (WMMA prompt attention, prompt-heavy cases). Exact check via text identity. Owner rule: promote from 0% up, screen then confirm."
+}

@@ -2,7 +2,7 @@
 
 ## Target Hardware
 - **RX 7900 XT 20 GB** (HIP/gfx1100, RDNA3, wave32 native)
-- **RTX 3060 12 GB** (CUDA/sm_86, wave64)
+- The RTX 3060 was removed on 2026-11-08; CUDA/sm_86 is not a target any more. Only the 7900 XT (gfx1100) is measured here.
 
 ## Kernel Inventory
 
@@ -29,7 +29,7 @@
 - Uses `__builtin_amdgcn_update_dpp` for quad_perm, row_half_mirror, row_mirror all-reduce without LDS round-trip
 - Uses `__builtin_amdgcn_permlanex16` for cross-lane permutation
 - Uses `__builtin_amdgcn_sudot4` for int8 dot product (RDNA3 matrix core)
-- `__attribute__((amdgpu_waves_per_eu(STRATA_GR_WPE, 16)))` on all 4 kernels (occupancy control)
+- `__attribute__((amdgpu_waves_per_eu(STRATA_GR_WPE, 16)))` on all 4 kernels (occupancy control; default `STRATA_GR_WPE` 8)
 - 256 threads/block = 8 waves of 32 (wave32 native)
 - **Already optimized** for gfx1100
 
@@ -69,14 +69,16 @@ The wave32 path (`NATIVE_WAVE = 32`) exists but is opt-in via `STRATA_RDNA_MMVQ_
 The WMMA path for gfx11 is already implemented and gated by `STRATA_HIP_WMMA=1`.
 > "gfx12 (RDNA4): on by default (STRATA_HIP_WMMA=1). STRATA_HIP_WMMA=1. STRATA_HIP_WMMA_MIN_Q (64...)"
 
-**Action**: Enable `STRATA_HIP_WMMA=1` for gfx11 and run paired A/B.
+Correction: the default table in `src/core/arch_defaults.cpp` covers the integrated gfx1103/gfx1150/gfx1151 and gfx12 only. gfx1100 (7900 XT) has no default, so WMMA is off there today. This matches the claim.
+
+**Action**: Enable `STRATA_HIP_WMMA=1` for gfx1100 and run paired A/B (spec 40).
 **Expected**: 15-40% prefill improvement on attention-heavy models.
 **Risk**: WMMA requires `hip_wmma_arch == 2` (gfx11). The Q4 variant is disabled (FP8 not available on gfx11).
 
-### Priority 3: Add `amdgpu_waves_per_eu` to Non-RDNA Kernels (Low Effort, Medium Impact)
-**Files**: `iq_kernels.cu`, `fused_gr.cu`, `qsa_select.cu`, `qsa_decode_attn.cu`
+### Priority 3: Add `amdgpu_waves_per_eu` to Other Kernels (Low Effort, Medium Impact; needs register data first)
+**Files**: `src/kernels/cuda/iq_kernels.cu`, `fused_gr.cu`, `qsa_select.cu`, `qsa_decode_attn.cu`
 
-Currently only `rdna_gr.cu` uses `__attribute__((amdgpu_waves_per_eu))`. Other kernels don't control occupancy.
+Correction (2026-11-13): `amdgpu_waves_per_eu` is already used in `src/kernels/cuda/rdna_gr.cu` (4 kernels, `STRATA_GR_WPE` default 8) and in `src/prefill/moe_fused_iq.cu` (conditional VGPR cap). The four files named above do not use it. Adding it blind can hurt, so first read register and spill counts with `hipcc -Rpass-analysis=kernel-resource-usage` on the gfx1100 build.
 
 **Action**: Add `__launch_bounds__(TH) __attribute__((amdgpu_waves_per_eu(N, M)))` to the top 5 hottest kernels. N=4, M=16 is a reasonable starting point.
 **Expected**: 5-15% improvement by preventing register spilling.
@@ -113,7 +115,7 @@ The RDNA3-specific optimization work is **largely done** in this codebase:
 3. Add `amdgpu_waves_per_eu` to other kernels
 4. Profile shared memory bank conflicts on gfx1100
 
-All verification requires the Linux ROCm box (7900 XT) for `abtest.py` + `rocprof`.
+All verification requires the Linux ROCm box (7900 XT) for `abtest.py` and `gpu_profile.py`.
 
 ## Verification Plan
 
@@ -123,14 +125,10 @@ cmake -S . -B build-hip -DCMAKE_BUILD_TYPE=Release \
   -DSTRATA_ENABLE_HIP=ON -DSTRATA_ENABLE_CUDA=OFF \
   -DCMAKE_HIP_ARCHITECTURES=gfx1100
 
-# Test 1: Wave32 MMVQ
-export STRATA_RDNA_MMVQ_WAVE=1
-python tools/pancake/abtest.py bench/specs/28.json --out bench/results/mmVQ-wave32.jsonl
+# Correction (2026-11-13): specs 28 and 29 are the Phase 18 draft and device-plan specs, not these tests.
+# Spec 40 (bench/specs/40-kernel-hip-wave-wmma.json) covers both switches and their combination.
+python tools/pancake/abtest.py bench/specs/40-kernel-hip-wave-wmma.json --tier screen --out <run>.jsonl
 
-# Test 2: WMMA Attention
-export STRATA_HIP_WMMA=1
-python tools/pancake/abtest.py bench/specs/29.json --out bench/results/wmma-attn.jsonl
-
-# Profile
-rocprof --kernel --output /tmp/trace.json ./build-hip/strata --model <path>
+# Profile: the repo uses rocprofv3 through gpu_profile.py, not rocprof
+python tools/pancake/gpu_profile.py configs/pancake/flashnext-iq2_xs-fast-hip.json <outdir> --env STRATA_RDNA_MMVQ_WAVE=1
 ```
