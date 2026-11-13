@@ -850,7 +850,7 @@ def print_selection(used, dropped, robust, passes=1):
 
 def screen_verdict(results, arms, cases):
     base = arms[0]
-    print("\nscreen verdict (promote: >= +2% on a case and no case below -3%; else drop)")
+    print("\nscreen verdict (promote: > 0% on a case and no case below -3%; else drop)")
     for a in arms[1:]:
         deltas = {}
         for c in cases:
@@ -859,7 +859,7 @@ def screen_verdict(results, arms, cases):
             x = [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c]
             if b and x:
                 deltas[c] = (sum(x) / len(x)) / (sum(b) / len(b)) * 100 - 100
-        ok = deltas and max(deltas.values()) >= 2.0 and min(deltas.values()) > -3.0
+        ok = deltas and max(deltas.values()) > 0.0 and min(deltas.values()) > -3.0
         print(f"  {a:20s} " + "  ".join(f"{c} {d:+.1f}%" for c, d in deltas.items()) + f"  -> {'PROMOTE to confirm' if ok else 'drop'}")
 
 

@@ -2752,3 +2752,10 @@ Capture for the still-gated items (record only, do not code yet): item 10 = the 
 
 After any decided arm: append the verdict to `pancake-docs/NIGHT_RESULTS_<date>.md`, update `PANCAKE_STATUS.md` and this plan, and only then consider promotion; keep `ctest -L cpu` + `python tools/pancake/test_disk_env_table.py` green for any code change.
 
+
+### Phase 18 spec 27 screen verdict (2026-11-13, owner rule: promote from 0% up)
+Screen tier, 2 repeats per arm. Text identical to base on every case (exact). Gains vs base:
+- combine-poll1 (item 2): short +1.1%, edit +0.2% -> PROMOTE to confirm
+- wait-fuse-off (item 3): short +1.2%, edit +0.8% -> PROMOTE to confirm
+- fuse-wait (item 4): short +0.9%, edit +0.5% -> PROMOTE to confirm
+Caveat: intervals include zero (widths from +-3.6% to +-290%, n=2). Promotion means confirm-tier runs decide keep or drop. Rule recorded in `tools/pancake/abtest.py` (promote when a case is above 0%, no case below -3%) and in memory `feedback_promote-from-zero`.
