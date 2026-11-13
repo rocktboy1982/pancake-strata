@@ -3118,3 +3118,9 @@ Raw output: /home/dan/p18-runs/27-confirm.stdout
 Screen (2 repeats): spec 31 aux-cpus-auto +2.9%/-1.0% (exact) and kv-grow +2.2%/-2.7% (exact) promoted; gdn-pp2 dropped; spec-min-p-07, lookup16, sh-stream dropped (text differs). Spec 32: wmma-gemm +0.2% (text differs, needs quality gate); prefill-auto-max-24576 -0.4% (exact) dropped.
 Confirm (6 repeats, 31c): aux-cpus-auto short -3.6% +-9.0%, edit -0.9% +-20.7% -> DROP. kv-grow short -4.3% +-5.6%, edit -9.9% +-12.9% -> DROP.
 Net: no env arm from specs 31/32 is kept. wmma-gemm is unresolved (lossy, needs a quality gate before any confirm).
+
+### Plan items screen verdicts (2026-11-13, owner rule: promote from 0% up; pinned GPU clock)
+- Item 6 ROUTE_FAST (spec 17, 2 repeats): route-fast short +1.8% edit +1.9%, exact -> PROMOTE to confirm (17c). doorbell-store short +1.6% edit -0.6%, exact -> PROMOTE to confirm (17c).
+- Item 14 ROUTER_FUSE (spec a33): nodefer+router-fuse short +0.1% edit +1.2%, exact -> PROMOTE to confirm (a33c). defer-preset short +0.2% edit +1.1%, exact -> PROMOTE to confirm (a33c).
+- A44 bandit (spec 24): defer-top2 +0.7%/-4.7%, defer-kmiss -12.7%/-7.4%, bandit-top +2.3%/-3.6%, bandit-top-kmiss -23.7%/-42.1%, bandit-exact -17.1%/-18.5%. All lossy (text differs) and all drop on the edit case or on speed.
+Confirm (6 repeats) results: pending, raw output in /home/dan/plan-runs/17c-confirm-route-doorbell.stdout and /home/dan/plan-runs/a33c-confirm-router-fuse.stdout.
