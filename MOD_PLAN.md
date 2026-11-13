@@ -3124,3 +3124,7 @@ Net: no env arm from specs 31/32 is kept. wmma-gemm is unresolved (lossy, needs 
 - Item 14 ROUTER_FUSE (spec a33): nodefer+router-fuse short +0.1% edit +1.2%, exact -> PROMOTE to confirm (a33c). defer-preset short +0.2% edit +1.1%, exact -> PROMOTE to confirm (a33c).
 - A44 bandit (spec 24): defer-top2 +0.7%/-4.7%, defer-kmiss -12.7%/-7.4%, bandit-top +2.3%/-3.6%, bandit-top-kmiss -23.7%/-42.1%, bandit-exact -17.1%/-18.5%. All lossy (text differs) and all drop on the edit case or on speed.
 Confirm (6 repeats) results: pending, raw output in /home/dan/plan-runs/17c-confirm-route-doorbell.stdout and /home/dan/plan-runs/a33c-confirm-router-fuse.stdout.
+
+### Plan items confirm verdicts (2026-11-13, 6 repeats each)
+- Item 6 ROUTE_FAST (17c, base = base): route-fast short -2.0%, edit -11.8% -> DROP. doorbell-store short -1.6%, edit -4.9% -> DROP. Both outputs DIFFER from base at confirm, though the screen said identical: the exactness check needs repeating.
+- Item 14 ROUTER_FUSE (a33c, base = nodefer; the first a33c run wrongly dropped the base arm and is discarded): nodefer+router-fuse short -2.9% +-6.5%, edit +3.9% +-7.4% -> passes the rule but LOSSY (output differs); keep only after a quality gate. defer-preset short -5.1%, edit +2.6% -> DROP. No difference at confirm.
