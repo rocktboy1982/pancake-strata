@@ -1,0 +1,50 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 base                 short 111.3 short 116.2 edit 113.0 edit 152.8 longdec10k 94.5/1561p 10362t longdec32k 56.8/1939p 31461t  foreign CPU 13% [('claude', 9), ('ptyxis', 3), ('gnome-remote-de', 2)]  gpu 1757/1249 MHz 59C 151W gtt 25M cpu 3549MHz 64C igpu 3%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 mmvq-wave32          short 111.0 short 106.3 edit 105.6 edit 153.5 longdec10k 93.9/1027p 10362t longdec32k 104.6/1487p 31461t  foreign CPU 14% [('caveman-proxy', 51), ('claude', 14), ('ptyxis', 4)]  gpu 1662/1249 MHz 60C 150W gtt 25M cpu 3394MHz 65C igpu 1%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 wmma-attn            short 111.4 short 116.4 edit 112.3 edit 150.2 longdec10k 88.5/1564p 10362t longdec32k 106.0/1940p 31461t  foreign CPU 22% [('caveman-proxy', 75), ('claude', 18), ('gnome-shell', 8)]  gpu 1789/1249 MHz 62C 158W gtt 25M cpu 3462MHz 65C igpu 1%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 wave32+wmma          short 113.3 short 118.9 edit 113.9 edit 145.5 longdec10k 91.3/1568p 10362t longdec32k 101.1/1940p 31461t  foreign CPU 4% [('gnome-shell', 2), ('gnome-remote-de', 1), ('pipewire', 1)]  gpu 1783/1249 MHz 63C 158W gtt 25M cpu 3502MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    113.8 +-  31.1  (n=2)
+                              drafts accepted 0.68
+  short  mmvq-wave32             108.7 +-  29.9  (n=2)   vs base:  -4.5% +- 53.6%  -> no difference
+                              drafts accepted 0.71
+  short  wmma-attn               113.9 +-  31.8  (n=2)   vs base:  +0.1% +-  0.6%  -> no difference
+                              drafts accepted 0.68
+  short  wave32+wmma             116.1 +-  35.6  (n=2)   vs base:  +2.1% +-  3.9%  -> no difference
+                              drafts accepted 0.74
+  edit   base                    132.9 +- 252.9  (n=2)
+                              drafts accepted 0.90
+  edit   mmvq-wave32             129.6 +- 304.4  (n=2)   vs base:  -2.5% +- 38.7%  -> no difference
+                              drafts accepted 0.88
+  edit   wmma-attn               131.2 +- 240.9  (n=2)   vs base:  -1.2% +-  9.1%  -> no difference
+                              drafts accepted 0.90
+  edit   wave32+wmma             129.7 +- 200.8  (n=2)   vs base:  -2.4% +- 39.2%  -> no difference
+                              drafts accepted 0.89
+  longdec10k base                     94.5 +-   nan  (n=1)
+  longdec10k mmvq-wave32              93.9 +-   nan  (n=1)   vs base:  -0.6% +-  nan%  -> no difference
+  longdec10k wmma-attn                88.5 +-   nan  (n=1)   vs base:  -6.3% +-  nan%  -> no difference
+  longdec10k wave32+wmma              91.3 +-   nan  (n=1)   vs base:  -3.4% +-  nan%  -> no difference
+  longdec32k base                     56.8 +-   nan  (n=1)
+  longdec32k mmvq-wave32             104.6 +-   nan  (n=1)   vs base: +84.2% +-  nan%  -> no difference
+  longdec32k wmma-attn               106.0 +-   nan  (n=1)   vs base: +86.6% +-  nan%  -> no difference
+  longdec32k wave32+wmma             101.1 +-   nan  (n=1)   vs base: +78.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  mmvq-wave32          DIFFERENT text -> lossy or placement-dependent: quality gate
+  wmma-attn            identical on every case -> exact
+  wave32+wmma          DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  mmvq-wave32          short -4.5%  edit -2.5%  longdec10k -0.6%  longdec32k +84.2%  -> drop
+  wmma-attn            short +0.1%  edit -1.2%  longdec10k -6.3%  longdec32k +86.6%  -> drop
+  wave32+wmma          short +2.1%  edit -2.4%  longdec10k -3.4%  longdec32k +78.0%  -> drop

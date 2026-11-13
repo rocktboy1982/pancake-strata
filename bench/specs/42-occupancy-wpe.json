@@ -1,0 +1,19 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "occ8": {
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "occ4": {
+   "exe": "/home/dan/build-kh-w4/strata"
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "longdec10k"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "Occupancy A/B for STRATA_GR_WPE (rdna_gr spill fix): occ8 = build with 8 waves/EU (old, spills rdna_gr_down), occ4 = new default 4. Same tree otherwise. Owner rule: promote from 0% up."
+}
