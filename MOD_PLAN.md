@@ -2767,3 +2767,12 @@ Rule: promote from 0% up (any case above 0%, no case below -3%).
 - fuse-wait (item 4): short +3.3% +-8.6%, edit +3.0% +-9.5%; text identical (exact) -> KEEP AS CANDIDATE, not default.
 Caveat: every interval includes zero; base speed and GPU clock (1130-1868 MHz) varied between runs, so only within-run comparisons count. A longer run is needed before any default change.
 Raw output: /home/dan/p18-runs/27-confirm.stdout
+
+### Phase 18 spec 28 and 29 screen verdicts, and GPU suite (2026-11-13, owner rule: promote from 0% up)
+- spec 28 mtp-eager: short -3.6%, edit -3.9%, text identical -> drop.
+- spec 28 spec3: short -3.2%, edit -1.6%, text differs -> drop.
+- spec 28 spec5: short +1.2%, edit -2.1%, text differs (lossy) -> promoted by the rule; needs a quality gate before any use. Interval +-20.5%.
+- spec 29 device-plan: short -5.9%, edit -2.2%, text differs -> drop.
+- GPU suite (`ctest -L gpu`, 134 tests): 133 pass. Failing: hip_flag_order_test (known; static analysis in /home/dan/agent-results/flag-order/report.md, fix not applied or confirmed on the card).
+- conversation_copy_streams_test passes after rebuild (the earlier failure was a stale binary; bound raised to 256 MiB in commit 83a0a1fd5).
+- rdna_mmvq_parity passes (fix in 1916b6fd9).
