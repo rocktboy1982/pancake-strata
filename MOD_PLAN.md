@@ -3236,7 +3236,40 @@ strata-poly 35B-A3B MMQ finding (the "+43%" lead): src/poly routed-expert prompt
 3. EXL3 support? Not for our GGUF-first fork
 4. Coordinate with Maya maintainers (@mw00, @needmorevram) if we pursue
 
-**Status:** Future goal — not feasible now. Track upstream for smaller quant releases.
+**Feasibility for our fork:**
+- GLM-5.3-Flash ~321B — too large for our 20GB + 12GB VRAM (even with offload)
+- MiniMax-M3.1-Flash Maya-S ~96.5 GB — too large for our VRAM+RAM (32 GB total)
+- Would require heavy SSD offload, very slow (10 tok/s per Maya issue)
+- Our hardware is smaller than Maya's test machine (26 GB VRAM + 64 GB RAM)
+
+**BUT - Reassessment for MiniMax-M3.1-Flash:**
+- Maya's test machine: 26 GB VRAM + 64 GB RAM = 90 GB total → 10 tok/s on 96.5 GB model
+- Our hardware: 32 GB VRAM + 32 GB RAM = 64 GB total → 32 GB deficit vs 96.5 GB model
+- **However**: Maya's "Maya-XS" quant is ~93 GB (smaller than Maya-S 96.5 GB)
+- Their test: 93 GB model on 90 GB total = 3 GB deficit → 10 tok/s
+- **Our deficit**: 93 GB - 64 GB = 29 GB deficit (vs their 3 GB)
+- **But**: We can use `--kv-resident-later` + CPU offload + SSD streaming
+- EXL3 4.05 bpw on 1 GPU + CPU got 59 tok/s (nasone32 bench)
+- If MiniMax has similar quants, could be viable with aggressive offload
+
+**Verdict:** MiniMax-M3.1-Flash *might* be feasible at ~5-15 tok/s with:
+- `--kv-resident-later` to keep later layers' K/V in VRAM
+- Aggressive CPU offload + SSD streaming
+- `--prefill-main` to run prefill on main GPU
+- Expect 5-15 tok/s (vs 10 tok/s on their 90 GB machine)
+
+**GLM-5.3-Flash:** Still not feasible (321B params, even larger)
+
+**Future reconsideration:** If smaller quants released (IQ2_XS equivalents ~40-50 GB), both become viable.
+**Alternative:** Wait for distilled versions or 4-bit equivalents (~40-50 GB).
+
+**Upstream questions (from #4319) relevant to us:**
+1. CUDA/HIP only acceptable? Yes — we are HIP-first
+2. Quant sources: We use GGUF (ISTA-DASLab → Unsloth → Gyro); Maya uses EXL3
+3. EXL3 support? Not for our GGUF-first fork
+4. Coordinate with Maya maintainers (@mw00, @needmorevram) if we pursue
+
+**Status:** Future goal — MiniMax *might* be feasible at 5-15 tok/s with aggressive offload; GLM not feasible. Track for smaller quants or more hardware.
 - 7900 XT + 3060 dual-GPU with layer split (~39)
 - `--prefill-main --kv-resident-later 8192 --prefill-main-small 512`
 - Measure: decode tok/s, prompt tok/s, SSD reads, tool-call probe
