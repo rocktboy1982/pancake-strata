@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {},
   "automax24576": {"env": {"STRATA_PREFILL_AUTO_MAX": "24576"}},

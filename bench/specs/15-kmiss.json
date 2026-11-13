@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {},
   "kmiss28": {"env": {"STRATA_ADAPT_KMISS": "2,8"}}

@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "flags": {"args": {"--conversation-cache-mib": "2048", "--conversation-cache-min-tokens": "8192"}},
   "park-truncate": {"args": {"--conversation-cache-mib": "2048", "--conversation-cache-min-tokens": "8192"}, "env": {"STRATA_PARK_TRUNCATE": "1"}}
