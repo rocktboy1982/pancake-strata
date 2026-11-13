@@ -138,6 +138,9 @@ def analyze(trace, out):
     for r in R:
         stream = r.get("Stream_Id") or r.get("Stream ID") or r.get("Stream") or "unknown"
         streams[stream].append(r)
+    # Ensure we have at least one real stream identifier; otherwise per-stream analysis is meaningless
+    if not any(s != "unknown" for s in streams):
+        print("Warning: No valid Stream_Id found in trace; per-stream gap analysis will be meaningless.", file=sys.stderr)
     small = big = 0
     for stream, stream_rows in streams.items():
         stream_rows.sort(key=lambda r: int(r["Start_Timestamp"]))
