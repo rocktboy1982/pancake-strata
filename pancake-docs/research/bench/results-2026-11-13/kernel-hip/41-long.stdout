@@ -1,0 +1,58 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+  waiting for a quiet machine: load 0.00, foreign CPU 65% [('caveman-proxy', 40), ('claude', 13), ('ptyxis', 3)], reclaim 0.0%
+  quiet after 25 s
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 base                 longdec10k 96.9/1542p 10363t longdec32k 103.9/1933p 31462t  foreign CPU 3% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1595/1249 MHz 59C 158W gtt 25M cpu 3160MHz 63C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 mmvq-wave32          longdec10k 97.9/1544p 10363t longdec32k 102.8/1545p 31462t  foreign CPU 36% [('caveman-proxy', 55), ('claude', 14), ('ptyxis', 4)]  gpu 1768/1249 MHz 60C 169W gtt 25M cpu 3482MHz 64C igpu 2%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 mmvq-wave32          longdec10k 88.4/1054p 10363t longdec32k 95.7/1468p 31462t  foreign CPU 5% [('gnome-shell', 15), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1777/1249 MHz 60C 172W gtt 25M cpu 3353MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 wmma-attn            longdec10k 101.5/1546p 10363t longdec32k 97.7/1934p 31462t  foreign CPU 3% [('gnome-remote-de', 1), ('claude', 1), ('pipewire', 1)]  gpu 1607/1249 MHz 61C 160W gtt 25M cpu 3229MHz 63C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 wave32+wmma          longdec10k 100.7/1547p 10363t longdec32k 95.7/1544p 31463t  foreign CPU 4% [('gnome-shell', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1777/1249 MHz 62C 170W gtt 25M cpu 3277MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 wave32+wmma          longdec10k 90.3/1054p 10364t longdec32k 92.7/1391p 31463t  foreign CPU 3% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1632/1249 MHz 61C 161W gtt 25M cpu 3102MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 wmma-attn            longdec10k 94.0/1045p 10364t longdec32k 99.5/1391p 31463t  foreign CPU 3% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1614/1249 MHz 60C 160W gtt 25M cpu 3374MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 mmvq-wave32          longdec10k 101.4/1549p 10364t longdec32k 105.0/1934p 31463t  foreign CPU 4% [('gnome-remote-de', 2), ('gnome-shell', 1), ('pipewire', 1)]  gpu 1593/1249 MHz 62C 159W gtt 25M cpu 3180MHz 63C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 base                 longdec10k 101.4/1546p 10364t longdec32k 72.6/1818p 31463t  foreign CPU 3% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1843/1249 MHz 62C 170W gtt 25M cpu 3155MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 2 base                 longdec10k 87.7/1043p 10364t longdec32k 99.0/1278p 31463t  foreign CPU 17% [('caveman-proxy', 49), ('claude', 23), ('ptyxis', 4)]  gpu 1632/1249 MHz 61C 162W gtt 25M cpu 3240MHz 64C igpu 1%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 2 mmvq-wave32          longdec10k 95.6/959p 10364t longdec32k 98.3/1404p 31463t  foreign CPU 3% [('gnome-remote-de', 1), ('pipewire', 1), ('kworker/u65:9-KFD IH', 1)]  gpu 1841/1249 MHz 60C 176W gtt 25M cpu 3178MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 2 wmma-attn            longdec10k 98.1/1058p 10364t longdec32k 100.0/1538p 31463t  foreign CPU 4% [('gnome-shell', 3), ('gnome-remote-de', 1), ('pipewire', 1)]  gpu 1960/1249 MHz 60C 184W gtt 25M cpu 3293MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 2 wave32+wmma          longdec10k 92.7/1056p 10364t longdec32k 96.4/1404p 31463t  foreign CPU 4% [('gnome-shell', 5), ('gnome-remote-de', 1), ('pipewire', 1)]  gpu 1615/1249 MHz 60C 161W gtt 25M cpu 3080MHz 64C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  longdec10k base                     95.3 +-  17.3  (n=3)
+  longdec10k mmvq-wave32              95.1 +-  16.2  (n=3)   vs base:  -0.2% +- 21.4%  -> no difference
+  longdec10k wmma-attn                97.9 +-   9.3  (n=3)   vs base:  +2.7% +- 23.6%  -> no difference
+  longdec10k wave32+wmma              94.6 +-  13.5  (n=3)   vs base:  -0.8% +- 23.4%  -> no difference
+  longdec32k base                     91.8 +-  41.8  (n=3)
+  longdec32k mmvq-wave32              99.7 +-  11.9  (n=3)   vs base:  +8.5% +- 58.4%  -> no difference
+  longdec32k wmma-attn                99.1 +-   3.0  (n=3)   vs base:  +7.9% +- 47.1%  -> no difference
+  longdec32k wave32+wmma              94.9 +-   4.9  (n=3)   vs base:  +3.4% +- 40.5%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  mmvq-wave32          identical on every case -> exact
+  wmma-attn            identical on every case -> exact
+  wave32+wmma          identical on every case -> exact

@@ -3170,3 +3170,12 @@ Decisions:
 Tooling fix: tools/pancake/gpu_profile.py did not fill <REPO>/<STRATA_DATA>/<MODELS>, so it failed with "no trace" on every preset. Fixed the same way as abtest.render_preset; verified by a profile run on the repo config directly.
 
 Open after this branch: CPU-combine (combine_cpu, 26%) and flag waits (wait_flag_ge, 15%) are the decode bottleneck in this profile; they are not kernel-register issues and belong to the Phase 18 window-overhead items.
+
+### optimize-kernel-hip: spill fix and occupancy A/B (2026-11-13)
+- Build fix (committed): src/program/generate.cpp lost its `#if defined(STRATA_USE_HIP)` guard before the merged-window stop bound (commit 243fdb213 intended it). The stray `#endif` broke every build of port/rdna3-decode and this branch. Restored; both engines now build (exit 0).
+- Spill cause: rdna_gr.cu sets `amdgpu_waves_per_eu(STRATA_GR_WPE=8)`, which caps VGPRs near 192 on gfx11 and spills rdna_gr_down (228 B). Compile with STRATA_GR_WPE=4 removes every spill in rdna_gr.cu (82 kernels), and 2 does the same.
+- Runtime A/B (spec 42, confirm, 3 repeats, two engine builds on the same tree): occ4 vs occ8: short -13.1% +-55.9, edit -6.6% +-21.0, longdec10k +0.1% +-4.1. Output differs between the two builds on every case.
+- Decision: DROP the default change. The spill is removed, but decode does not get faster, and the output changes. The rdna_gr.cu change is reverted (not committed). Spill-free compile results stay in HIP_OPTIMIZATION_REPORT.md.
+- Open: the output difference between occ8 and occ4 is unexplained. Check occ8 against occ8 to measure run-to-run variation before treating any text change as a real effect.
+- Long-prompt caveat (spec 41, 3 repeats): wave32 MMVQ, WMMA attention and their combination show +3% to +9% at 32k with intervals of +-40% to +-58%; no claim. Text identical on all arms in spec 41 (spec 40 had reported MMVQ differing), so exactness is not settled.
+- Raw output: /home/dan/plan-runs/42-occ.stdout, 41-long.stdout (copy to pancake-docs/research/bench/results-2026-11-13/kernel-hip/ before the next commit).

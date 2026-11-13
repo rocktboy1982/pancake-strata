@@ -1,0 +1,28 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 occ8                 short 111.5 edit 114.0 longdec10k 92.6/1146p 10363t  foreign CPU 11% [('claude', 4), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 1659/1249 MHz 55C 128W gtt 21M cpu 3802MHz 58C igpu 2%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 occ4                 short 111.4 edit 112.0 longdec10k 93.8/1148p 10363t  foreign CPU 11% [('claude', 4), ('ptyxis', 4), ('gnome-shell', 3)]  gpu 1662/1249 MHz 56C 129W gtt 21M cpu 3638MHz 58C igpu 2%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 1 occ4                 short 111.3 edit 110.7 longdec10k 93.6/1147p 10363t  foreign CPU 25% [('caveman-proxy', 71), ('claude', 12), ('ptyxis', 2)]  gpu 1536/1249 MHz 57C 124W gtt 21M cpu 3608MHz 59C igpu 2%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 1 occ8                 short 111.5 edit 112.6 longdec10k 93.0/1147p 10363t  foreign CPU 3% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1662/1249 MHz 57C 129W gtt 21M cpu 3719MHz 58C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 2 occ8                 short 111.5 edit 112.3 longdec10k 83.1/1147p 10363t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('kworker/u65:8-ttm', 1)]  gpu 1555/1249 MHz 58C 125W gtt 21M cpu 3483MHz 58C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 2 occ4                 short 67.9 edit 93.8 longdec10k 81.5/927p 10363t  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('rcu_preempt', 0)]  gpu 1774/1249 MHz 57C 130W gtt 21M cpu 3163MHz 57C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  occ8                    111.5 +-   0.0  (n=3)
+                              drafts accepted 0.66
+  short  occ4                     96.9 +-  62.3  (n=3)   vs occ8: -13.1% +- 55.9%  -> no difference
+                              drafts accepted 0.67
+  edit   occ8                    113.0 +-   2.3  (n=3)
+                              drafts accepted 0.91
+  edit   occ4                    105.5 +-  25.2  (n=3)   vs occ8:  -6.6% +- 21.0%  -> no difference
+                              drafts accepted 0.90
+  longdec10k occ8                     89.6 +-  13.9  (n=3)
+  longdec10k occ4                     89.6 +-  17.5  (n=3)   vs occ8:  +0.1% +-  4.1%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  occ4                 DIFFERENT text -> lossy or placement-dependent: quality gate
