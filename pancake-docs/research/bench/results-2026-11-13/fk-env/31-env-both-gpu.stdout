@@ -1,0 +1,53 @@
+rep 0 base                 short 109.1 short 113.4 edit 112.0 edit 151.4  foreign CPU 5% [('gnome-shell', 7), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1705/1249 MHz 56C 135W gtt 21M cpu 3640MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 aux-cpus-auto        short 112.1 short 116.8 edit 113.0 edit 147.7  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:14-ttm', 1)]  gpu 1685/1249 MHz 57C 136W gtt 21M cpu 3650MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 gdn-pp2              short 106.9 short 109.5 edit 113.2 edit 145.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1851/1249 MHz 56C 140W gtt 21M cpu 3700MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 spec-min-p-07        short 90.3 short 108.7 edit 94.3 edit 163.2  foreign CPU 20% [('caveman-proxy', 46), ('claude', 13), ('ptyxis', 3)]  gpu 1792/1249 MHz 55C 136W gtt 21M cpu 3592MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 lookup16             short 116.3 short 111.4 edit 84.2 edit 159.2  foreign CPU 3% [('pipewire', 2), ('gnome-remote-de', 1), ('2.1.323', 1)]  gpu 1977/1249 MHz 55C 141W gtt 21M cpu 3630MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 kv-grow              short 111.2 short 116.2 edit 111.2 edit 145.2  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('2.1.323', 1)]  gpu 1702/1249 MHz 56C 136W gtt 21M cpu 3729MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 sh-stream            short 118.1 short 116.8 edit 103.2 edit 138.0  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1779/1249 MHz 57C 138W gtt 21M cpu 3651MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.2 +-  27.3  (n=2)
+                              drafts accepted 0.68
+  short  aux-cpus-auto           114.4 +-  29.9  (n=2)   vs base:  +2.9% +-  2.3%  -> better
+                              drafts accepted 0.68
+  short  gdn-pp2                 108.2 +-  16.5  (n=2)   vs base:  -2.7% +-  9.7%  -> no difference
+                              drafts accepted 0.68
+  short  spec-min-p-07            99.5 +- 116.9  (n=2)   vs base: -10.6% +- 80.5%  -> no difference
+                              drafts accepted 0.83
+  short  lookup16                113.8 +-  31.1  (n=2)   vs base:  +2.3% +- 52.6%  -> no difference
+                              drafts accepted 0.71
+  short  kv-grow                 113.7 +-  31.8  (n=2)   vs base:  +2.2% +-  4.0%  -> no difference
+                              drafts accepted 0.68
+  short  sh-stream               117.4 +-   8.3  (n=2)   vs base:  +5.6% +- 32.0%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    131.7 +- 250.4  (n=2)
+                              drafts accepted 0.89
+  edit   aux-cpus-auto           130.3 +- 220.5  (n=2)   vs base:  -1.0% +- 22.7%  -> no difference
+                              drafts accepted 0.89
+  edit   gdn-pp2                 129.4 +- 205.9  (n=2)   vs base:  -1.7% +- 33.8%  -> no difference
+                              drafts accepted 0.91
+  edit   spec-min-p-07           128.8 +- 437.9  (n=2)   vs base:  -2.2% +- 142.3%  -> no difference
+                              drafts accepted 0.91
+  edit   lookup16                121.7 +- 476.6  (n=2)   vs base:  -7.6% +- 171.8%  -> no difference
+                              drafts accepted 0.90
+  edit   kv-grow                 128.2 +- 216.1  (n=2)   vs base:  -2.7% +- 26.1%  -> no difference
+                              drafts accepted 0.89
+  edit   sh-stream               120.6 +- 221.2  (n=2)   vs base:  -8.4% +- 22.2%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  aux-cpus-auto        identical on every case -> exact
+  gdn-pp2              identical on every case -> exact
+  spec-min-p-07        DIFFERENT text -> lossy or placement-dependent: quality gate
+  lookup16             DIFFERENT text -> lossy or placement-dependent: quality gate
+  kv-grow              identical on every case -> exact
+  sh-stream            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  aux-cpus-auto        short +2.9%  edit -1.0%  -> PROMOTE to confirm
+  gdn-pp2              short -2.7%  edit -1.7%  -> drop
+  spec-min-p-07        short -10.6%  edit -2.2%  -> drop
+  lookup16             short +2.3%  edit -7.6%  -> drop
+  kv-grow              short +2.2%  edit -2.7%  -> PROMOTE to confirm
+  sh-stream            short +5.6%  edit -8.4%  -> drop

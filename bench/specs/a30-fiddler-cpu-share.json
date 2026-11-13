@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {},
   "share0": {"env": {"STRATA_PREFILL_CPU_SHARE": "0"}},

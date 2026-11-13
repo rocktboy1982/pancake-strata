@@ -1,0 +1,38 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 49% [('caveman-proxy', 25), ('claude', 16), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 15 s
+rep 0 base                 short 111.7 edit 114.0  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1556/1249 MHz 55C 121W gtt 21M cpu 3297MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 aux-cpus-auto        short 112.0 edit 115.8  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1546/1249 MHz 55C 122W gtt 21M cpu 3374MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 kv-grow              short 111.5 edit 112.0  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('kworker/12:2-mm_percpu_wq', 0)]  gpu 1578/1249 MHz 55C 122W gtt 21M cpu 3396MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 kv-grow              short 106.7 edit 90.3  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1652/1249 MHz 54C 122W gtt 21M cpu 2962MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 aux-cpus-auto        short 89.3 edit 79.9  foreign CPU 6% [('claude', 15), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1554/1249 MHz 54C 122W gtt 21M cpu 3312MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 111.6 edit 110.0  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('2.1.323', 1)]  gpu 1444/1249 MHz 53C 117W gtt 21M cpu 3100MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 108.9 edit 111.7  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('kworker/u65:11-KFD IH', 1)]  gpu 1588/1249 MHz 54C 123W gtt 21M cpu 3792MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 2 aux-cpus-auto        short 112.1 edit 113.7  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1558/1249 MHz 54C 122W gtt 21M cpu 3366MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 2 kv-grow              short 109.2 edit 90.8  foreign CPU 4% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 1627/1249 MHz 53C 120W gtt 21M cpu 2974MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 3 kv-grow              short 90.2 edit 92.1  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1788/1249 MHz 54C 128W gtt 21M cpu 3646MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 3 aux-cpus-auto        short 89.0 edit 114.9  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1606/1249 MHz 53C 120W gtt 21M cpu 3298MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 91.8 edit 82.1  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1782/1249 MHz 53C 123W gtt 21M cpu 3649MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 4 base                 short 109.0 edit 92.5  foreign CPU 4% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1610/1249 MHz 53C 119W gtt 21M cpu 3335MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 4 aux-cpus-auto        short 107.0 edit 81.0  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1763/1249 MHz 53C 124W gtt 21M cpu 3184MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 4 kv-grow              short 94.0 edit 84.8  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1825/1249 MHz 54C 128W gtt 21M cpu 3409MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 kv-grow              short 105.7 edit 92.3  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1638/1249 MHz 53C 120W gtt 21M cpu 3282MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 5 aux-cpus-auto        short 111.9 edit 113.4  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1874/1249 MHz 53C 138W gtt 21M cpu 2997MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 base                 short 111.7 edit 113.9  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1556/1249 MHz 54C 122W gtt 21M cpu 3283MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    107.5 +-   8.2  (n=6)
+                              drafts accepted 0.67
+  short  aux-cpus-auto           103.5 +-  11.9  (n=6)   vs base:  -3.6% +-  9.0%  -> no difference
+                              drafts accepted 0.66
+  short  kv-grow                 102.9 +-   9.1  (n=6)   vs base:  -4.3% +-  5.6%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    104.0 +-  14.1  (n=6)
+                              drafts accepted 0.91
+  edit   aux-cpus-auto           103.1 +-  18.4  (n=6)   vs base:  -0.9% +- 20.7%  -> no difference
+                              drafts accepted 0.91
+  edit   kv-grow                  93.7 +-   9.8  (n=6)   vs base:  -9.9% +- 12.9%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  aux-cpus-auto        DIFFERENT text -> lossy or placement-dependent: quality gate
+  kv-grow              DIFFERENT text -> lossy or placement-dependent: quality gate

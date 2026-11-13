@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "q4-fp32": {"args": {"--kv": "q4_0"}},
   "q4-wmma": {"args": {"--kv": "q4_0"}, "env": {"STRATA_HIP_WMMA_Q4": "1"}},

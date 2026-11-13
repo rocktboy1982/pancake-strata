@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {},
   "ttl30": {"env": {"STRATA_PARK_TTL_S": "30", "STRATA_PARK_TTL_SHARE": "512"}},

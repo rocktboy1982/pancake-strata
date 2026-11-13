@@ -1,0 +1,33 @@
+rep 0 base                 short 127.3 short 135.8 edit 119.6 edit 165.0  foreign CPU 10% [('claude', 5), ('ptyxis', 4), ('gnome-shell', 2)]  gpu 2381/1249 MHz 67C 202W gtt 21M cpu 3872MHz 54C igpu 3%/vcn 0% fclk 1600
+rep 0 combine-poll1        short 130.1 short 135.9 edit 119.8 edit 165.4  foreign CPU 10% [('claude', 6), ('ptyxis', 4), ('gnome-shell', 1)]  gpu 2368/1249 MHz 69C 202W gtt 21M cpu 3912MHz 55C igpu 2%/vcn 0% fclk 1600
+rep 0 wait-fuse-off        short 130.5 short 135.8 edit 121.9 edit 164.9  foreign CPU 10% [('claude', 4), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 2359/1249 MHz 69C 201W gtt 21M cpu 3693MHz 55C igpu 2%/vcn 0% fclk 1600
+rep 0 fuse-wait            short 130.0 short 135.4 edit 119.9 edit 166.1  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('upowerd', 0)]  gpu 2369/1249 MHz 69C 202W gtt 21M cpu 3643MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    131.6 +-  54.0  (n=2)
+                              drafts accepted 0.68
+  short  combine-poll1           133.0 +-  36.9  (n=2)   vs base:  +1.1% +- 13.0%  -> no difference
+                              drafts accepted 0.68
+  short  wait-fuse-off           133.2 +-  33.7  (n=2)   vs base:  +1.2% +- 15.5%  -> no difference
+                              drafts accepted 0.68
+  short  fuse-wait               132.7 +-  34.3  (n=2)   vs base:  +0.9% +- 15.0%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    142.3 +- 288.5  (n=2)
+                              drafts accepted 0.89
+  edit   combine-poll1           142.6 +- 289.8  (n=2)   vs base:  +0.2% +-  0.9%  -> no difference
+                              drafts accepted 0.89
+  edit   wait-fuse-off           143.4 +- 273.3  (n=2)   vs base:  +0.8% +- 10.7%  -> no difference
+                              drafts accepted 0.90
+  edit   fuse-wait               143.0 +- 293.6  (n=2)   vs base:  +0.5% +-  3.6%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  combine-poll1        identical on every case -> exact
+  wait-fuse-off        identical on every case -> exact
+  fuse-wait            identical on every case -> exact
+
+screen verdict (promote: >= +2% on a case and no case below -3%; else drop)
+  combine-poll1        short +1.1%  edit +0.2%  -> drop
+  wait-fuse-off        short +1.2%  edit +0.8%  -> drop
+  fuse-wait            short +0.9%  edit +0.5%  -> drop
+SPEC27_DONE

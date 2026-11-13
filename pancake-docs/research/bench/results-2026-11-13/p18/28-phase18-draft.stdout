@@ -1,0 +1,34 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 26% [('caveman-proxy', 9), ('claude', 8), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 15 s
+rep 0 base                 short 130.4 short 135.8 edit 120.4 edit 174.3  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('gnome-shell', 1)]  gpu 2338/1249 MHz 69C 199W gtt 21M cpu 3663MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 mtp-eager            short 125.8 short 130.7 edit 118.2 edit 165.1  foreign CPU 4% [('localsearch-3', 2), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2380/1249 MHz 69C 202W gtt 21M cpu 3936MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 spec3                short 131.0 short 126.8 edit 123.6 edit 166.3  foreign CPU 4% [('gnome-shell', 3), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2392/1249 MHz 69C 204W gtt 21M cpu 3864MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 spec5                short 129.8 short 139.5 edit 123.8 edit 164.7  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2334/1249 MHz 69C 202W gtt 21M cpu 3842MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    133.1 +-  34.3  (n=2)
+                              drafts accepted 0.68
+  short  mtp-eager               128.2 +-  31.1  (n=2)   vs base:  -3.6% +-  2.4%  -> worse
+                              drafts accepted 0.68
+  short  spec3                   128.9 +-  26.7  (n=2)   vs base:  -3.2% +- 45.8%  -> no difference
+                              drafts accepted 0.77
+  short  spec5                   134.7 +-  61.6  (n=2)   vs base:  +1.2% +- 20.5%  -> no difference
+                              drafts accepted 0.65
+  edit   base                    147.4 +- 342.5  (n=2)
+                              drafts accepted 0.89
+  edit   mtp-eager               141.7 +- 298.0  (n=2)   vs base:  -3.9% +- 30.2%  -> no difference
+                              drafts accepted 0.89
+  edit   spec3                   144.9 +- 271.4  (n=2)   vs base:  -1.6% +- 48.3%  -> no difference
+                              drafts accepted 0.90
+  edit   spec5                   144.2 +- 259.9  (n=2)   vs base:  -2.1% +- 56.1%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  mtp-eager            identical on every case -> exact
+  spec3                DIFFERENT text -> lossy or placement-dependent: quality gate
+  spec5                DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  mtp-eager            short -3.6%  edit -3.9%  -> drop
+  spec3                short -3.2%  edit -1.6%  -> drop
+  spec5                short +1.2%  edit -2.1%  -> PROMOTE to confirm

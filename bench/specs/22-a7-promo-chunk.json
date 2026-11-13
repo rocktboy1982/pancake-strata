@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "async": {"args": {"--adapt-async": "1"}},
   "async-chunk256k": {"args": {"--adapt-async": "1"}, "env": {"STRATA_PROMO_CHUNK": "262144"}},

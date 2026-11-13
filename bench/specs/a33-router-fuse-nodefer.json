@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "nodefer": {"env": {"STRATA_VERIFY_DEFER_CPU": null}},
   "nodefer+router-fuse": {"env": {"STRATA_VERIFY_DEFER_CPU": null, "STRATA_ROUTER_FUSE": "1"}},

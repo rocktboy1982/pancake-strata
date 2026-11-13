@@ -1,5 +1,5 @@
 {
-"base": "pancake-flashnext-iq2_xs-fast.json",
+"base": "configs/pancake/flashnext-iq2_xs-fast.json",
 "arms": {
 "sync": {"args": {"--adapt-async": "0"}},
 "async-preset": {"args": {"--adapt-async": "1"}},

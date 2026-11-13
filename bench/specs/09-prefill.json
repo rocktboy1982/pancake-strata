@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "base": "configs/pancake/flashnext-iq2_xs-rdna3test.json",
  "arms": {
   "base": {},
   "desc-cache-off": {

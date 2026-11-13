@@ -1,0 +1,170 @@
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.38, foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-oomd', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 0 base                 short 111.4 edit 113.3  foreign CPU 3% [('claude', 2), ('kcompactd0', 1), ('Isolated Web Co', 0)]  gpu 1555/1249 MHz 52C 121W gtt 21M cpu 3432MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.80, foreign CPU 1% [('claude', 1), ('systemd-oomd', 0), ('Isolated Servic', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.28, foreign CPU 1% [('claude', 1), ('Isolated Servic', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.18, foreign CPU 0% [('claude', 0), ('firefox', 0)], reclaim 0.0%
+  quiet after 135 s
+rep 0 fusewait1            short 108.9 edit 87.9  foreign CPU 2% [('claude', 2), ('NetworkManager', 0), ('headroom', 0)]  gpu 1662/1249 MHz 52C 120W gtt 21M cpu 2911MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 10.75, foreign CPU 2% [('claude', 1), ('udisksd', 1), ('systemd-oomd', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.57, foreign CPU 0% [('claude', 0), ('kworker/9:1-events', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.45, foreign CPU 1% [('claude', 1)], reclaim 0.0%
+  quiet after 150 s
+rep 0 waitfuse0            short 111.6 edit 106.7  foreign CPU 6% [('firefox', 6), ('kcompactd0', 5), ('claude', 2)]  gpu 1556/1249 MHz 52C 120W gtt 21M cpu 3521MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.22, foreign CPU 1% [('localsearch-3', 0), ('claude', 0), ('firefox', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 0 waitfuse0            short 90.8 edit 113.9  foreign CPU 2% [('claude', 2), ('kcompactd0', 1), ('xdg-desktop-por', 0)]  gpu 1388/1249 MHz 52C 114W gtt 21M cpu 3780MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.71, foreign CPU 2% [('claude', 1), ('localsearch-3', 0), ('systemd-oomd', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 0 waitfuse0_fusewait1  short 111.0 edit 108.5  foreign CPU 2% [('udisksd', 3), ('claude', 2), ('kworker/u65:14-KFD IH', 1)]  gpu 1568/1249 MHz 52C 122W gtt 21M cpu 3760MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.46, foreign CPU 1% [('claude', 0), ('Isolated Web Co', 0), ('systemd-oomd', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 1 waitfuse0_fusewait1  short 108.6 edit 111.4  foreign CPU 3% [('firefox', 2), ('kcompactd0', 1), ('claude', 0)]  gpu 1568/1249 MHz 52C 122W gtt 21M cpu 3882MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.34, foreign CPU 2% [('claude', 1), ('firefox', 0), ('systemd-oomd', 0)], reclaim 0.0%
+  quiet after 110 s
+rep 1 waitfuse0            short 104.6 edit 109.7  foreign CPU 2% [('kworker/9:1-events', 2), ('kcompactd0', 1), ('kworker/9:2-events', 1)]  gpu 1490/1249 MHz 52C 119W gtt 21M cpu 3064MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 8.99, foreign CPU 3% [('firefox', 1), ('localsearch-3', 0), ('gnome-shell', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.31, foreign CPU 2% [('claude', 1), ('Isolated Web Co', 1), ('gsd-housekeepin', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.21, foreign CPU 2% [('firefox', 2), ('claude', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  quiet after 140 s
+rep 1 fusewait1            short 111.2 edit 109.0  foreign CPU 2% [('claude', 2), ('kcompactd0', 0), ('kworker/u65:16-KFD IH', 0)]  gpu 1568/1249 MHz 52C 122W gtt 21M cpu 3630MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.25, foreign CPU 2% [('claude', 1), ('localsearch-3', 0), ('firefox', 0)], reclaim 0.0%
+  quiet after 105 s
+rep 1 base                 short 108.4 edit 111.9  foreign CPU 3% [('firefox', 3), ('claude', 2), ('kworker/u65:11-KFD IH', 1)]  gpu 1568/1249 MHz 52C 122W gtt 21M cpu 3745MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.47, foreign CPU 2% [('claude', 1), ('Isolated Servic', 0), ('NetworkManager', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 2 base                 short 111.3 edit 111.0  foreign CPU 2% [('claude', 3), ('kworker/u65:8-KFD IH', 1), ('kcompactd0', 0)]  gpu 1570/1249 MHz 53C 122W gtt 21M cpu 3558MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.13, foreign CPU 0% [('claude', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 2 fusewait1            short 111.2 edit 111.2  foreign CPU 3% [('udisksd', 2), ('claude', 2), ('kworker/u65:4-KFD IH', 0)]  gpu 1564/1249 MHz 52C 122W gtt 21M cpu 3481MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.14, foreign CPU 1% [('NetworkManager', 0), ('claude', 0), ('firefox', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 2 waitfuse0            short 108.6 edit 111.9  foreign CPU 3% [('Isolated Web Co', 2), ('kcompactd0', 1), ('firefox', 1)]  gpu 1568/1249 MHz 52C 122W gtt 21M cpu 3752MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.76, foreign CPU 2% [('claude', 1), ('firefox', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.09, foreign CPU 3% [('firefox', 1), ('claude', 1), ('systemd-resolve', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.00, foreign CPU 2% [('gnome-shell', 0), ('jbd2/dm-0-8', 0), ('systemd-oomd', 0)], reclaim 0.0%
+  quiet after 130 s
+rep 2 waitfuse0_fusewait1  short 88.7 edit 97.6  foreign CPU 1% [('claude', 2), ('kcompactd0', 1), ('udisksd', 0)]  gpu 1740/1249 MHz 52C 122W gtt 21M cpu 3188MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.75, foreign CPU 1% [('claude', 1), ('firefox', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.15, foreign CPU 1% [('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.05, foreign CPU 0% [('kworker/0:1H-kblockd', 0), ('Isolated Servic', 0)], reclaim 0.0%
+  quiet after 130 s
+rep 3 waitfuse0_fusewait1  short 110.5 edit 111.0  foreign CPU 5% [('kworker/8:0-mm_percpu_wq', 3), ('kcompactd0', 1), ('kworker/u65:6-KFD IH', 1)]  gpu 1566/1249 MHz 52C 120W gtt 21M cpu 3462MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.49, foreign CPU 2% [('claude', 1), ('gnome-shell', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  quiet after 110 s
+rep 3 waitfuse0            short 111.7 edit 113.3  foreign CPU 3% [('firefox', 3), ('kcompactd0', 1), ('kswapd0', 0)]  gpu 1548/1249 MHz 52C 121W gtt 21M cpu 3403MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.15, foreign CPU 1% [('systemd-oomd', 0), ('claude', 0), ('firefox', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.05, foreign CPU 1% [('gnome-shell', 0), ('claude', 0), ('Isolated Servic', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.04, foreign CPU 2% [('claude', 1), ('kworker/0:2-events', 0)], reclaim 0.0%
+  quiet after 130 s
+rep 3 fusewait1            short 111.3 edit 109.3  foreign CPU 2% [('claude', 2), ('kcompactd0', 0), ('gvfsd-wsdd', 0)]  gpu 1567/1249 MHz 52C 122W gtt 21M cpu 3701MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.11, foreign CPU 1% [('claude', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 3 base                 short 111.1 edit 112.2  foreign CPU 5% [('kworker/11:2-events_freezable', 5), ('kcompactd0', 2), ('kswapd0', 2)]  gpu 1570/1249 MHz 52C 121W gtt 21M cpu 3706MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.59, foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)], reclaim 0.0%
+  quiet after 110 s
+rep 3 base                 short 111.3 edit 113.9  foreign CPU 3% [('kworker/10:0-events_freezable', 3), ('kcompactd0', 2), ('claude', 2)]  gpu 1571/1249 MHz 52C 121W gtt 21M cpu 3722MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.62, foreign CPU 4% [('claude', 1), ('firefox', 1), ('Isolated Web Co', 1)], reclaim 0.0%
+  quiet after 110 s
+rep 4 base                 short 111.1 edit 100.6  foreign CPU 7% [('kworker/11:2-events_freezable', 7), ('kcompactd0', 5), ('kswapd0', 3)]  gpu 1550/1249 MHz 52C 119W gtt 21M cpu 3757MHz 53C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.01, foreign CPU 1% [('firefox', 1), ('localsearch-3', 0), ('claude', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 4 base                 short 111.3 edit 113.0  foreign CPU 2% [('claude', 1), ('firefox', 1), ('Isolated Servic', 1)]  gpu 1551/1249 MHz 52C 121W gtt 21M cpu 3560MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.29, foreign CPU 1% [('gnome-shell', 0), ('claude', 0), ('Privileged Cont', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 4 fusewait1            short 87.6 edit 85.4  foreign CPU 4% [('kcompactd0', 5), ('kworker/10:0-mm_percpu_wq', 4), ('kworker/9:2-events', 2)]  gpu 1754/1249 MHz 53C 128W gtt 21M cpu 3474MHz 52C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 8.63, foreign CPU 2% [('claude', 1), ('Isolated Web Co', 0), ('caveman-proxy', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.26, foreign CPU 0% [('claude', 0), ('python', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.16, foreign CPU 1% [('claude', 0), ('Isolated Web Co', 0), ('ptyxis', 0)], reclaim 0.0%
+  quiet after 135 s
+rep 4 fusewait1            short 111.4 edit 112.4  foreign CPU 3% [('firefox', 1), ('kcompactd0', 1), ('gnome-shell', 1)]  gpu 1560/1249 MHz 52C 121W gtt 21M cpu 3468MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.25, foreign CPU 1% [('claude', 1), ('next-server (v1', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.05, foreign CPU 1% [('claude', 1), ('caveman-mcp', 0), ('firefox', 0)], reclaim 0.0%
+  quiet after 125 s
+rep 4 waitfuse0            short 110.0 edit 104.1  foreign CPU 7% [('kcompactd0', 4), ('kworker/9:1-mm_percpu_wq', 4), ('kswapd0', 3)]  gpu 1544/1249 MHz 52C 120W gtt 21M cpu 3599MHz 53C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.22, foreign CPU 2% [('udisksd', 1), ('localsearch-3', 1), ('claude', 0)], reclaim 0.0%
+  quiet after 105 s
+rep 4 waitfuse0            short 110.9 edit 113.3  foreign CPU 3% [('kcompactd0', 1), ('kworker/10:0-mm_percpu_wq', 1), ('claude', 0)]  gpu 1551/1249 MHz 52C 120W gtt 21M cpu 3493MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.59, foreign CPU 2% [('claude', 1), ('caveman-proxy', 0), ('kworker/3:0-mm_percpu_wq', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.02, foreign CPU 5% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 125 s
+rep 4 waitfuse0_fusewait1  short 110.6 edit 106.2  foreign CPU 21% [('claude', 13), ('gnome-remote-de', 4), ('gnome-shell', 3)]  gpu 1572/1249 MHz 53C 122W gtt 21M cpu 3991MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.34, foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('gnome-shell', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.09, foreign CPU 3% [('claude', 1), ('Isolated Web Co', 1), ('firefox', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.00, foreign CPU 18% [('gnome-shell', 4), ('gnome-remote-de', 3), ('pipewire', 2)], reclaim 0.0%
+  quiet after 135 s
+rep 4 waitfuse0_fusewait1  short 110.9 edit 112.2  foreign CPU 8% [('gnome-shell', 4), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 1562/1249 MHz 52C 121W gtt 21M cpu 3630MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.09, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 115 s
+rep 4 waitfuse0_fusewait1  short 111.0 edit 110.2  foreign CPU 10% [('Isolated Web Co', 14), ('pipewire', 3), ('gnome-remote-de', 2)]  gpu 1573/1249 MHz 52C 122W gtt 21M cpu 3830MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 4 waitfuse0_fusewait1: every attempt noisy, keeping the quietest (8% foreign CPU)
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.22, foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('Isolated Web Co', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.06, foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('firefox', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.97, foreign CPU 14% [('gnome-shell', 10), ('gnome-remote-de', 2), ('pipewire', 1)], reclaim 0.0%
+  quiet after 140 s
+rep 5 waitfuse0_fusewait1  short 110.2 edit 107.0  foreign CPU 22% [('claude', 14), ('ptyxis', 6), ('gnome-remote-de', 5)]  gpu 1570/1249 MHz 52C 121W gtt 21M cpu 4134MHz 54C igpu 4%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.77, foreign CPU 8% [('claude', 2), ('gnome-remote-de', 2), ('pipewire', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.86, foreign CPU 9% [('gnome-shell', 4), ('gnome-remote-de', 2), ('pipewire', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.79, foreign CPU 9% [('claude', 2), ('gnome-remote-de', 2), ('pipewire', 2)], reclaim 0.0%
+  quiet after 151 s
+rep 5 waitfuse0_fusewait1  short 108.8 edit 110.3  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 2), ('kcompactd0', 1)]  gpu 1581/1249 MHz 53C 123W gtt 21M cpu 3874MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 5.50, foreign CPU 10% [('gnome-shell', 4), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 110 s
+rep 5 waitfuse0_fusewait1  short 111.3 edit 110.7  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 3), ('claude', 2)]  gpu 1581/1249 MHz 52C 122W gtt 21M cpu 3654MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 5 waitfuse0_fusewait1: every attempt noisy, keeping the quietest (6% foreign CPU)
+  waiting for a quiet machine: load 6.98, foreign CPU 6% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.02, foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.94, foreign CPU 5% [('gnome-shell', 2), ('gnome-remote-de', 2), ('pipewire', 1)], reclaim 0.0%
+  quiet after 130 s
+rep 5 waitfuse0            short 111.5 edit 112.9  foreign CPU 6% [('pipewire', 2), ('firefox', 2), ('gnome-remote-de', 1)]  gpu 1561/1249 MHz 52C 120W gtt 21M cpu 3638MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.97, foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.77, foreign CPU 4% [('gnome-remote-de', 1), ('pipewire', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.63, foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('jbd2/dm-0-8', 0)], reclaim 0.0%
+  quiet after 196 s
+rep 5 waitfuse0            short 111.1 edit 111.5  foreign CPU 14% [('caveman-proxy', 25), ('claude', 3), ('pipewire', 2)]  gpu 1568/1249 MHz 53C 122W gtt 21M cpu 3641MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 6.74, foreign CPU 19% [('claude', 8), ('caveman-proxy', 5), ('gnome-remote-de', 2)], reclaim 0.0%
+  waiting for a quiet machine: load 1.13, foreign CPU 36% [('caveman-proxy', 12), ('clangd.main', 9), ('claude', 4)], reclaim 0.0%
+  waiting for a quiet machine: load 1.12, foreign CPU 26% [('claude', 12), ('caveman-proxy', 5), ('ptyxis', 3)], reclaim 0.0%
+  quiet after 145 s
+rep 5 waitfuse0            short 111.4 edit 108.1  foreign CPU 15% [('claude', 7), ('gnome-shell', 6), ('ptyxis', 4)]  gpu 1582/1249 MHz 52C 122W gtt 21M cpu 3961MHz 54C igpu 2%/vcn 0% fclk 1600  NOISY -> repeat
+rep 5 waitfuse0: every attempt noisy, keeping the quietest (6% foreign CPU)
+  waiting for a quiet machine: load 5.62, foreign CPU 19% [('caveman-proxy', 7), ('claude', 4), ('gnome-remote-de', 2)], reclaim 0.0%
+  waiting for a quiet machine: load 0.89, foreign CPU 7% [('gnome-remote-de', 2), ('pipewire', 1), ('claude', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 0.81, foreign CPU 22% [('caveman-proxy', 8), ('claude', 4), ('gnome-shell', 3)], reclaim 0.0%
+  quiet after 151 s
+rep 5 fusewait1            short 111.3 edit 109.5  foreign CPU 30% [('caveman-proxy', 31), ('claude', 14), ('ptyxis', 3)]  gpu 1584/1249 MHz 52C 122W gtt 21M cpu 4102MHz 55C igpu 2%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 7.29, foreign CPU 5% [('claude', 2), ('gnome-remote-de', 1), ('pipewire', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.17, foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('firefox', 1)], reclaim 0.0%
+  waiting for a quiet machine: load 1.07, foreign CPU 8% [('claude', 4), ('pipewire', 2), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 130 s
+rep 5 fusewait1            short 111.6 edit 107.7  foreign CPU 6% [('pipewire', 4), ('gnome-remote-de', 3), ('gnome-shell', 1)]  gpu 1576/1249 MHz 52C 122W gtt 21M cpu 3950MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 5.59, foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 0)], reclaim 0.0%

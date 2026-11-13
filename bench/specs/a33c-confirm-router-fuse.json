@@ -1,0 +1,25 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "nodefer": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   }
+  },
+  "nodefer+router-fuse": {
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null,
+    "STRATA_ROUTER_FUSE": "1"
+   }
+  },
+  "defer-preset": {}
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "lossy": false,
+ "note": "MOD_PLAN A33 second half: STRATA_ROUTER_FUSE (the router GEMV's last block runs top-10 + publish, saving one launch per layer). The engine only takes it when the verify window has NO deferral (src/core/verify.cpp: rpub = ... && !defer_ ..., and STRATA_ROUTE_PUBLISH=1, which the preset has), so on the fast-hip preset as it is (STRATA_VERIFY_DEFER_CPU=1) the switch does nothing. This spec therefore compares inside the no-deferral world: arm 1 'nodefer' is the preset with STRATA_VERIFY_DEFER_CPU removed (the base of THIS spec), arm 2 adds ROUTER_FUSE (exact: same text expected as nodefer; the start-up log must print 'STRATA_ROUTER_FUSE: the router GEMV's last block routes and publishes', else the fusion was not taken), arm 3 is the unmodified preset for scale (deferral is worth more than the fusion, so expect defer-preset to win overall: this only decides whether ROUTER_FUSE could be made to work WITH the deferral, which needs the deferred rows to go through the fused publish too - a code change, not a switch). Read the verdict of arm 2 vs arm 1 only; the verdict line of defer-preset vs nodefer is the known deferral gain. Screen first (promote >= +2% on a case, none below -3%).",
+ "_note": "Confirm tier for spec a33 promotions; base arm is nodefer (the screen reference), owner rule 2026-11-13"
+}

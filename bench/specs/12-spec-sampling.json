@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {},
   "f6-dt100": {"env": {"STRATA_SPEC_PROB": "1", "STRATA_SPEC_COUPLED": "1", "STRATA_SPEC_PROB_GATE": "top", "STRATA_SPEC_PROB_DT": "1.0"}},

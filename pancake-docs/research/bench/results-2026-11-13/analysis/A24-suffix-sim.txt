@@ -1,0 +1,17 @@
+suffix_sim: 2045 requests in 25 sessions (10 sub-agent sessions), output 1269645 tokens, prompt deltas 1562654 tokens; server tokenizer (/home/dan/clone-of-d/Strata-data/packs/iq2_xs/tokenizer); loaded in 2.3s
+suffix_sim: k 11, index cap 1048576 tokens (64 MiB), min-prob 0.1, factor 1.0, rule longest; replayed in 14.8s
+  all   lookup    tokens   1269645 rounds    574016 tok/round 2.212 windows   236269 offered   2517195 accepted   697198 (27.7%) accepted/1k tokens  549.1
+  all   index     tokens   1269645 rounds    777281 tok/round 1.633 windows   299373 offered   1361261 accepted   493991 (36.3%) accepted/1k tokens  389.1
+  all   fallback  tokens   1269645 rounds    561643 tok/round 2.261 windows   258021 offered   2574595 accepted   709564 (27.6%) accepted/1k tokens  558.9
+  all   longest   tokens   1269645 rounds    560038 tok/round 2.267 windows   256416 offered   2476066 accepted   711176 (28.7%) accepted/1k tokens  560.1
+  main  lookup    tokens   1083417 rounds    491407 tok/round 2.205 windows   206996 offered   2197686 accepted   593441 (27.0%) accepted/1k tokens  547.7
+  main  index     tokens   1083417 rounds    673594 tok/round 1.608 windows   252237 offered   1131493 accepted   411285 (36.3%) accepted/1k tokens  379.6
+  main  fallback  tokens   1083417 rounds    485211 tok/round 2.233 windows   219718 offered   2229350 accepted   599637 (26.9%) accepted/1k tokens  553.5
+  main  longest   tokens   1083417 rounds    483651 tok/round 2.240 windows   218158 offered   2143357 accepted   601182 (28.0%) accepted/1k tokens  554.9
+  sub   lookup    tokens    186228 rounds     82609 tok/round 2.254 windows    29273 offered    319509 accepted   103757 (32.5%) accepted/1k tokens  557.2
+  sub   index     tokens    186228 rounds    103687 tok/round 1.796 windows    47136 offered    229768 accepted    82706 (36.0%) accepted/1k tokens  444.1
+  sub   fallback  tokens    186228 rounds     76432 tok/round 2.437 windows    38303 offered    345245 accepted   109927 (31.8%) accepted/1k tokens  590.3
+  sub   longest   tokens    186228 rounds     76387 tok/round 2.438 windows    38258 offered    332709 accepted   109994 (33.1%) accepted/1k tokens  590.6
+  fallback: +12366 accepted draft tokens over lookup (+1.8%), rounds -2.16%
+  longest: +13978 accepted draft tokens over lookup (+2.0%), rounds -2.44%
+  windows where only the index drafts (fallback): 25302, accepted 17648 (0.70 a window)

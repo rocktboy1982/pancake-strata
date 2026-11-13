@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {"env": {"STRATA_AGENT_COUNTERS": "1"}},
   "finish-nudge": {"env": {"STRATA_AGENT_COUNTERS": "1", "STRATA_TEST_BEFORE_DONE": "1"}},

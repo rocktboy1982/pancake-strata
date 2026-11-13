@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast.json",
  "arms": {
   "base": {},
   "exp9": {

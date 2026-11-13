@@ -52,6 +52,8 @@ constexpr int kMaxCols = 8;
 }  // namespace
 
 int main() {
+    cudaStream_t st = nullptr;                 // the native kernels require an explicit stream (native_mmvq.cu validate_stream)
+    ck(cudaStreamCreate(&st), "stream");
     unsetenv("STRATA_RDNA_Q6K");          // the reference: native_mmvq must keep its generic kernels
     setenv("STRATA_RDNA_KQ_ALL", "1", 1); // rdna_kq_mmvq takes Q4_K / Q5_K below 4 columns too (read per call)
     int ndev = 0;
@@ -85,7 +87,7 @@ int main() {
         ck(cudaMemcpy(dx, x.data(), x.size() * 4, cudaMemcpyHostToDevice), "h2d x");
         ck(cudaMalloc(&dq, k::native_q8_1_bytes(sh.n_in, kMaxCols)), "malloc q");
         ck(cudaMalloc(&dy, (size_t) kMaxCols * sh.n_out * 4), "malloc y");
-        k::native_quantize_q8_1(dx, dq, sh.n_in, kMaxCols, nullptr);
+        k::native_quantize_q8_1(dx, dq, sh.n_in, kMaxCols, st);
         ck(cudaDeviceSynchronize(), "quantize");
         for (const Fmt& f : kFmts) {
             std::vector<uint8_t> w((size_t) sh.n_out * nsb * f.bytes);
@@ -105,9 +107,9 @@ int main() {
                 bool taken = true;
                 for (int r = 0; r < 3; ++r) {
                     ck(cudaMemset(dy, 0xff, ny * 4), "memset y");   // NaN: a row never written fails
-                    if (r == 0) k::native_mmvq(f.type, dw, dq, dy, sh.n_in, sh.n_out, nc, nullptr);
-                    else if (f.type == 14) taken = k::rdna_q6k_mmvq(dw, dq, dy, sh.n_in, sh.n_out, nc, nullptr) && taken;
-                    else taken = k::rdna_kq_mmvq(f.type, dw, dq, dy, sh.n_in, sh.n_out, nc, nullptr) && taken;
+                    if (r == 0) k::native_mmvq(f.type, dw, dq, dy, sh.n_in, sh.n_out, nc, st);
+                    else if (f.type == 14) taken = k::rdna_q6k_mmvq(dw, dq, dy, sh.n_in, sh.n_out, nc, st) && taken;
+                    else taken = k::rdna_kq_mmvq(f.type, dw, dq, dy, sh.n_in, sh.n_out, nc, st) && taken;
                     ck(cudaGetLastError(), "launch");
                     ck(cudaDeviceSynchronize(), "gemv");
                     out[r].resize(ny);

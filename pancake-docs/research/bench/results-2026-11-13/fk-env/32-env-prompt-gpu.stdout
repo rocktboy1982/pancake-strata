@@ -1,0 +1,22 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 57% [('caveman-proxy', 28), ('claude', 22), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 15 s
+rep 0 base                 short 111.8 short 117.0  foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('fwupd', 0)]  gpu 1567/1249 MHz 57C 135W gtt 21M cpu 3748MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 wmma-gemm            short 110.2 short 115.7  foreign CPU 26% [('caveman-proxy', 22), ('claude', 7), ('ptyxis', 3)]  gpu 1569/1249 MHz 57C 132W gtt 21M cpu 4250MHz 59C igpu 4%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 wmma-gemm            short 114.0 short 115.2  foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('systemd-oomd', 0)]  gpu 1567/1249 MHz 57C 134W gtt 21M cpu 3961MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 prefill-auto-max-24576 short 111.4 short 116.5  foreign CPU 3% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1568/1249 MHz 57C 135W gtt 21M cpu 4085MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    114.4 +-  33.0  (n=2)
+                              drafts accepted 0.68
+  short  wmma-gemm               114.6 +-   7.6  (n=2)   vs base:  +0.2% +- 22.2%  -> no difference
+                              drafts accepted 0.70
+  short  prefill-auto-max-24576    114.0 +-  32.4  (n=2)   vs base:  -0.4% +-  0.6%  -> no difference
+                              drafts accepted 0.68
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  wmma-gemm            DIFFERENT text -> lossy or placement-dependent: quality gate
+  prefill-auto-max-24576 identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  wmma-gemm            short +0.2%  -> PROMOTE to confirm
+  prefill-auto-max-24576 short -0.4%  -> drop

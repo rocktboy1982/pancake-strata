@@ -3089,3 +3089,49 @@ strata-poly 35B-A3B MMQ finding (the "+43%" lead): src/poly routed-expert prompt
 
 - spec_lint is now automatic: `tools/pancake/pre-push.sh` runs it as an ADVISORY warning before the build-matrix push gate (SKIP_BUILD_MATRIX=1 still bypasses). (FK audit 2026-11-12 dropped STRATA_MTP_DRAFT_ALL from spec 34 as an inert arm; this makes it automatic.) CI gate deferred: the repo's git credential lacks the `workflow` scope to push `.github/workflows/*`, so a PR workflow check needs to be added from the web UI or a workflow-scoped token.
 - **FK-28 STRATA_ADAPT_PROMPT accessor answered**: our `src/program/generate.cpp` HAS the fork's `drive.d.usage` (std::vector<float>, size n_layers*n_expert, assigned at generate.cpp:13692, non-empty = adaptive tier on). So zsariboga 4ce19344ff (28 lines: prefill.cpp globals + per-chunk usage add; generate.cpp two hook sites setting the globals from drive.d.usage.data()) maps by structure. Remaining to CODE on the box: find OUR prefill per-chunk routed-count site (the fork uses `m.cnt[e]` in Prefill::run_impl; our prefill.cpp's count array may differ), place the two generate.cpp hooks where drive.d.usage is set (serve + window paths), classify STRATA_ADAPT_PROMPT in conversation_disk_env.def (Speed; exact when ROUTE_PRIOR off, which fast-hip has), then build + ctest -L cpu + parity + A B. Not blind-ported here: no compiler/prefill-count-site confirmation on this box.
+
+### Phase 18 spec 27 screen verdict (2026-11-13, owner rule: promote from 0% up)
+Screen tier, 2 repeats per arm. Text identical to base on every case (exact). Gains vs base:
+- combine-poll1 (item 2): short +1.1%, edit +0.2% -> PROMOTE to confirm
+- wait-fuse-off (item 3): short +1.2%, edit +0.8% -> PROMOTE to confirm
+- fuse-wait (item 4): short +0.9%, edit +0.5% -> PROMOTE to confirm
+Caveat: intervals include zero (widths from +-3.6% to +-290%, n=2). Promotion means confirm-tier runs decide keep or drop. Rule recorded in `tools/pancake/abtest.py` (promote when a case is above 0%, no case below -3%) and in memory `feedback_promote-from-zero`.
+
+### Phase 18 spec 27 confirm verdict (2026-11-13, 6 repeats per arm)
+Rule: promote from 0% up (any case above 0%, no case below -3%).
+- combine-poll1 (item 2): short -4.2%, edit +2.5%; text DIFFERS from base -> DROP (a case below -3%, and lossy).
+- wait-fuse-off (item 3): short +4.7% +-9.1%, edit +3.3% +-8.7%; text identical (exact) -> KEEP AS CANDIDATE, not default.
+- fuse-wait (item 4): short +3.3% +-8.6%, edit +3.0% +-9.5%; text identical (exact) -> KEEP AS CANDIDATE, not default.
+Caveat: every interval includes zero; base speed and GPU clock (1130-1868 MHz) varied between runs, so only within-run comparisons count. A longer run is needed before any default change.
+Raw output: /home/dan/p18-runs/27-confirm.stdout
+
+### Phase 18 spec 28 and 29 screen verdicts, and GPU suite (2026-11-13, owner rule: promote from 0% up)
+- spec 28 mtp-eager: short -3.6%, edit -3.9%, text identical -> drop.
+- spec 28 spec3: short -3.2%, edit -1.6%, text differs -> drop.
+- spec 28 spec5: short +1.2%, edit -2.1%, text differs (lossy) -> promoted by the rule; needs a quality gate before any use. Interval +-20.5%.
+- spec 29 device-plan: short -5.9%, edit -2.2%, text differs -> drop.
+- GPU suite (`ctest -L gpu`, 134 tests): 133 pass. Failing: hip_flag_order_test (known; static analysis in /home/dan/agent-results/flag-order/report.md, fix not applied or confirmed on the card).
+- conversation_copy_streams_test passes after rebuild (the earlier failure was a stale binary; bound raised to 256 MiB in commit 83a0a1fd5).
+- rdna_mmvq_parity passes (fix in 1916b6fd9).
+
+### Fork-KB env specs 31 and 32 verdicts (2026-11-13, pinned GPU clock, owner rule: promote from 0% up)
+Screen (2 repeats): spec 31 aux-cpus-auto +2.9%/-1.0% (exact) and kv-grow +2.2%/-2.7% (exact) promoted; gdn-pp2 dropped; spec-min-p-07, lookup16, sh-stream dropped (text differs). Spec 32: wmma-gemm +0.2% (text differs, needs quality gate); prefill-auto-max-24576 -0.4% (exact) dropped.
+Confirm (6 repeats, 31c): aux-cpus-auto short -3.6% +-9.0%, edit -0.9% +-20.7% -> DROP. kv-grow short -4.3% +-5.6%, edit -9.9% +-12.9% -> DROP.
+Net: no env arm from specs 31/32 is kept. wmma-gemm is unresolved (lossy, needs a quality gate before any confirm).
+
+### Plan items screen verdicts (2026-11-13, owner rule: promote from 0% up; pinned GPU clock)
+- Item 6 ROUTE_FAST (spec 17, 2 repeats): route-fast short +1.8% edit +1.9%, exact -> PROMOTE to confirm (17c). doorbell-store short +1.6% edit -0.6%, exact -> PROMOTE to confirm (17c).
+- Item 14 ROUTER_FUSE (spec a33): nodefer+router-fuse short +0.1% edit +1.2%, exact -> PROMOTE to confirm (a33c). defer-preset short +0.2% edit +1.1%, exact -> PROMOTE to confirm (a33c).
+- A44 bandit (spec 24): defer-top2 +0.7%/-4.7%, defer-kmiss -12.7%/-7.4%, bandit-top +2.3%/-3.6%, bandit-top-kmiss -23.7%/-42.1%, bandit-exact -17.1%/-18.5%. All lossy (text differs) and all drop on the edit case or on speed.
+Confirm (6 repeats) results: pending, raw output in /home/dan/plan-runs/17c-confirm-route-doorbell.stdout and /home/dan/plan-runs/a33c-confirm-router-fuse.stdout.
+
+### Plan items confirm verdicts (2026-11-13, 6 repeats each)
+- Item 6 ROUTE_FAST (17c, base = base): route-fast short -2.0%, edit -11.8% -> DROP. doorbell-store short -1.6%, edit -4.9% -> DROP. Both outputs DIFFER from base at confirm, though the screen said identical: the exactness check needs repeating.
+- Item 14 ROUTER_FUSE (a33c, base = nodefer; the first a33c run wrongly dropped the base arm and is discarded): nodefer+router-fuse short -2.9% +-6.5%, edit +3.9% +-7.4% -> passes the rule but LOSSY (output differs); keep only after a quality gate. defer-preset short -5.1%, edit +2.6% -> DROP. No difference at confirm.
+
+### A49 decode vs context (2026-11-13, confirm tier, n=2 per row)
+Fixed prompt calibration first: LONG_CPT 2.85 -> 3.2 chars per token (measured 3.09-3.24); the first screen run was 8-11% short on 32k-128k and is discarded. Prompt sizes now within 3.4% of target.
+Decode tok/s: short 111.6 +-2.5; 10k 97.3 +-22.2; 32k 104.2 +-13.3; 64k 93.2 +-45.1; 128k 95.6 +-11.4. ms/token 9.0 / 10.3 / 9.6 / 10.7 / 10.5.
+Reading: a fixed step from short to 10k (about -13%, at the edge of noise) and no clear slope after it. The 32k row beats 10k, which points to noise. The attention cost over context is not visible above noise at these lengths.
+Consequence: A51 (sparse decode attention) gate (attention >= 15% of decode) is NOT met by this run -> drop unless a profile shows otherwise. A50 (verify-window attention) is not decided by this run.
+Caveat: two repeats per row; the 64k interval is +-45%. Raw output: /home/dan/plan-runs/a49c.stdout.
