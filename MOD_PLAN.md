@@ -3185,7 +3185,58 @@ strata-poly 35B-A3B MMQ finding (the "+43%" lead): src/poly routed-expert prompt
 6. **P6**: Port upstream fixes (patch 06) — VRAM leak, checkpoint OOM, PLE read hang
 | **P7**: Port PR #3404 + tool-call envelope (patches 02, 03)
 
-### ExTV/strata-5090-4070 patch analysis (2026-11-13, 8 patches, 36 stars)
+**Testing on Linux box:**
+- 7900 XT + 3060 dual-GPU with layer split (~39)
+- `--prefill-main --kv-resident-later 8192 --prefill-main-small 512`
+- Measure: decode tok/s, prompt tok/s, SSD reads, tool-call probe
+- Screen tier, 2 repeats per arm. Text identical to base on every case (exact). Gains vs base:
+
+### Future Goal: GLM-5.3-Flash + MiniMax-M3.1-Flash (from Project Maya)
+
+**Source:** Upstream issue #4319 (closed as not planned, but relevant for fork)
+**Source repo:** Project Maya (https://github.com/mw00/project-maya) — MIT, built on Strata
+
+**Models to add:**
+- **GLM-5.3-Flash** (321B, MIT) — `src/glm5` engine, ~48k lines
+- **MiniMax-M3.1-Flash** (Maya-XS/S) — `src/mm3` engine, ~23k lines
+
+**Divergence from upstream:**
+- Closed as "not planned" by upstream (Niko1221)
+- Maya's 265 files vs Strata's: 137 share paths, only 34 identical
+- Major divergences: generate.cpp (~17k lines diff), server.py (~10.5k diff), expert_source.cpp (~5.5k), prefill.cpp (~4k), verify.cpp (~3.8k)
+
+**What would need to be ported:**
+- GLM-5.3-Flash engine → `src/glm5` (own CMake target, ~48k lines)
+- MiniMax-M3.1-Flash engine → `src/mm3` (own CMake target, ~23k lines)
+- Server features: loop guard, `/v1/responses` store and jobs (rewrite against `serve/server.py`)
+- DeepSeek v4.1 updates from Maya's `ds4` → our `dsv41`
+- EXL3 quant support (Maya uses EXL3) — open question
+- Server features: loop guard, `/v1/responses` store and jobs
+
+**Challenges for our fork:**
+- Maya's engines are CUDA/HIP only (no Metal/SYCL) — our fork is HIP-first, acceptable
+- Maya uses EXL3 quants — we use GGUF (IQ2_XS, Q2_0, Q4_K_M)
+- Maya's generate.cpp (~17k lines diff) has diverged from our generate.cpp
+- Maya's server.py (4,916 lines) vs our server.py (8,718 lines) — significant divergence
+- Our fork is GGUF-first; Maya is EXL3-first
+
+**Feasibility for our fork (7900 XT + 3060):**
+- GLM-5.3-Flash ~321B — too large for our 20GB + 12GB VRAM (even with offload)
+- MiniMax-M3.1-Flash Maya-S ~96.5 GB — too large for our VRAM+RAM (32 GB total)
+- Would require heavy SSD offload, very slow (10 tok/s per Maya issue)
+- Our hardware is smaller than Maya's test machine (26 GB VRAM + 64 GB RAM)
+
+**Verdict for our fork:** Not feasible for our hardware. Models too large.
+**Future reconsideration:** If we get 48+ GB VRAM or 128+ GB RAM, reconsider.
+**Alternative:** Wait for smaller quants (IQ2_XS equivalents) or distilled versions.
+
+**Upstream questions (from #4319) relevant to us:**
+1. CUDA/HIP only acceptable? Yes — we are HIP-first
+2. Quant sources: We use GGUF (ISTA-DASLab → Unsloth → Gyro); Maya uses EXL3
+3. EXL3 support? Not for our GGUF-first fork
+4. Coordinate with Maya maintainers (@mw00, @needmorevram) if we pursue
+
+**Status:** Future goal — not feasible now. Track upstream for smaller quant releases.
 - 7900 XT + 3060 dual-GPU with layer split (~39)
 - `--prefill-main --kv-resident-later 8192 --prefill-main-small 512`
 - Measure: decode tok/s, prompt tok/s, SSD reads, tool-call probe
