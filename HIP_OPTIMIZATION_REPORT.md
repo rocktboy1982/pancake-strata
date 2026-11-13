@@ -132,3 +132,19 @@ python tools/pancake/abtest.py bench/specs/40-kernel-hip-wave-wmma.json --tier s
 # Profile: the repo uses rocprofv3 through gpu_profile.py, not rocprof
 python tools/pancake/gpu_profile.py configs/pancake/flashnext-iq2_xs-fast-hip.json <outdir> --env STRATA_RDNA_MMVQ_WAVE=1
 ```
+
+## Measured: register use and spilling (2026-11-13, gfx1100, clang 22 from ROCm 10.0)
+Compiled each file with `-Rpass-analysis=kernel-resource-usage` (scratch output in `/home/dan/regusage/`, not in git).
+
+| file | kernels (templated instances) | kernels that spill | worst scratch per lane |
+| --- | --- | --- | --- |
+| iq_kernels.cu | 561 | 11 | 88 B (native_gu_multi) |
+| fused_gr.cu | 272 | 25 | 2332 B (gr_down_v3), all at 256 VGPRs |
+| qsa_select.cu | 21 | 3 | 368 B (block_topk_reg, 192 VGPRs) |
+| qsa_decode_attn.cu | 26 | 0 | none |
+| rdna_gr.cu | 82 | 8 | 228 B (rdna_gr_down, 192 VGPRs) |
+
+Reading: the spilling kernels already use the full VGPR budget, so `amdgpu_waves_per_eu` can only trade occupancy for registers, not remove the spill. The Priority 3 claim ("5-15% by preventing register spilling") is therefore not supported by this data. The candidate that matters is `gr_down_v3` in `fused_gr.cu` (2.3 KB scratch), but only if a decode profile shows it on the hot path.
+
+## Spec 40 result (2026-11-13, screen, n=2 per short and edit row)
+Wave32 MMVQ (short -4.5%, edit -2.5%) and WMMA prompt attention (short +0.1%, edit -1.2%, longdec10k -6.3%) are both dropped. Their combination is also dropped (longdec10k -3.4%). The longdec32k rows (+78% to +87%) are single runs and are not counted. The wmma-attn arm is exact; the two MMVQ arms change the text.
