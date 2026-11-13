@@ -3064,3 +3064,17 @@ fFork-KB port candidates by path (only the ones that touch what we serve):
 - 0001 untriaged authors still listed as not done (need a per-fork look): VecSzn, syoyo, j-luwierski, TheHubUser4860938, jeremiahritchey, q8atnight, ezutfen. (svgop, yqYo1, MistVVK, eddoursul/Lamina, bsorensen110, noorazman are already in the speed-ideas/forks reports.)
 
 CONCLUSION: with DeepSeek in scope the scan DOES yield port targets - headline is the strata-poly 35B-A3B dense-MMQ prefill lead. All are code/AB-gated (no build/GPU here); the memory at %LOCALAPPDATA%\Memory\pancake\fork-kb-deepseek-triage-session.md records this for resume.
+
+### 0001 remaining-author triage DONE (2026-11-13) + strata-poly 35B-MMQ finding
+
+f0001 authors (were listed "not done"): 
+- VecSzn: strata-poly (our qwen36/qwen36-q3/qwen38-35b CUDA path) expert-cache I/O - 256 KiB miss reads, file-cache read beside map_pages(), give an upload-freed slot to the evicted expert, read thread spins 2 ms before sleep, streaming CPU stores for expert staging. CHECK which our src/poly already has; port the rest (exact; the CPU-experts offload path).
+- q8atnight: STRATA_GR_VI3 HC read (ALREADY-HAVE per the Speedy audit), QSA block scores read each key block once for all of a window's queries (bit-identical decode-attn; gfx1100 candidate), GDN recurrence pipelining (STRATA_GDN_PIPE), --peer-device 2-GPU expert-cache tier.
+- j-luwierski: RoPE YaRN scaling config, sampler penalty as a shared bitmap, min_p/penalties ride the GEN line (server/penalty wire).
+- TheHubUser4860938: a serve 1,303-turn queue livelock fix; merge serve fixes; DFlash2 tuned cell.
+- jeremiahritchey: retain unchanged KV storage across repeated parking; verify restored draft KV.
+- ezutfen: compose PLE + native GDN graphs, native head vocab q8, PLE conversation model.
+- syoyo: GLM / MiniMax M3 (other models); one TEST fix worth having - prefill MMQ screen waits for its inputs before launching on a non-blocking stream.
+Verdict: no single big win, but VecSzn's poly expert-I/O set and q8atnight's QSA-block-score decode-attn are check-worthy; the rest is serve/rope/other-model or already-have.
+
+strata-poly 35B-A3B MMQ finding (the "+43%" lead): src/poly routed-expert prompt MMQ is INTRINSIC and conditional (engine.cpp ~1907-1920: opt_.gpu_experts && rows_ >= kStageRows && Mmq::fits(gu_type...) && Mmq::fits(d_type...)). The only knobs are --no-gpu-experts (off) and --prompt-batch; there is NO --dense-mmq switch (dense linears run the bf16 path, not MMQ). So burzumushi's "+43% dense MMQ by default" is either already-on on our qwen36 pack (verify the routed-expert MMQ path is active: pack expert types have tiles + prompt-batch >= kStageRows) or needs the dense-projection MMQ ported - a src/poly investigation + 3060 A B, not an env arm (do NOT spec an inert --dense-mmq arm).
