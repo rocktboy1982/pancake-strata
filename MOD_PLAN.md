@@ -3113,3 +3113,8 @@ Raw output: /home/dan/p18-runs/27-confirm.stdout
 - GPU suite (`ctest -L gpu`, 134 tests): 133 pass. Failing: hip_flag_order_test (known; static analysis in /home/dan/agent-results/flag-order/report.md, fix not applied or confirmed on the card).
 - conversation_copy_streams_test passes after rebuild (the earlier failure was a stale binary; bound raised to 256 MiB in commit 83a0a1fd5).
 - rdna_mmvq_parity passes (fix in 1916b6fd9).
+
+### Fork-KB env specs 31 and 32 verdicts (2026-11-13, pinned GPU clock, owner rule: promote from 0% up)
+Screen (2 repeats): spec 31 aux-cpus-auto +2.9%/-1.0% (exact) and kv-grow +2.2%/-2.7% (exact) promoted; gdn-pp2 dropped; spec-min-p-07, lookup16, sh-stream dropped (text differs). Spec 32: wmma-gemm +0.2% (text differs, needs quality gate); prefill-auto-max-24576 -0.4% (exact) dropped.
+Confirm (6 repeats, 31c): aux-cpus-auto short -3.6% +-9.0%, edit -0.9% +-20.7% -> DROP. kv-grow short -4.3% +-5.6%, edit -9.9% +-12.9% -> DROP.
+Net: no env arm from specs 31/32 is kept. wmma-gemm is unresolved (lossy, needs a quality gate before any confirm).
