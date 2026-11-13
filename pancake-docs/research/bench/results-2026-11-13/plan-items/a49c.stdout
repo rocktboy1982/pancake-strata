@@ -1,0 +1,25 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+case longdec64k: 204873 chars, sha1 caf98d3fcff8, target 64000 tokens (a unique run line is prepended to every request)
+case longdec128k: 384073 chars, sha1 6174a75dcc11, target 120000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65174 prompt tokens by count_tokens (target 64000)
+  longdec128k: 120276 prompt tokens by count_tokens (target 120000)
+rep 0 base                 short 111.4 longdec10k 99.1/1543p 10361t longdec32k 105.3/1932p 31460t longdec64k 89.7/2613p 65197t longdec128k 94.7/2586p 120299t  foreign CPU 5% [('claude', 9), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1894/1249 MHz 67C 191W gtt 25M cpu 3265MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65174 prompt tokens by count_tokens (target 64000)
+  longdec128k: 120276 prompt tokens by count_tokens (target 120000)
+rep 1 base                 short 111.8 longdec10k 95.6/1543p 10361t longdec32k 103.2/1938p 31460t longdec64k 96.8/2617p 65197t longdec128k 96.5/2585p 120299t  foreign CPU 3% [('claude', 9), ('pipewire', 1), ('systemd-oomd', 0)]  gpu 1890/1249 MHz 69C 192W gtt 25M cpu 3180MHz 66C igpu 0%/vcn 0% fclk 1600
+early stop after 2 reps: every arm/case decided or below 1.5% of base
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.6 +-   2.5  (n=2)
+                              drafts accepted 0.66
+  longdec10k base                     97.3 +-  22.2  (n=2)
+  longdec32k base                    104.2 +-  13.3  (n=2)
+  longdec64k base                     93.2 +-  45.1  (n=2)
+  longdec128k base                     95.6 +-  11.4  (n=2)
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)

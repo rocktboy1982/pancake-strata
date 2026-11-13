@@ -1,0 +1,38 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 28% [('caveman-proxy', 15), ('claude', 7), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 15 s
+rep 0 nodefer              short 106.7 edit 90.8  foreign CPU 3% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1445/1249 MHz 54C 112W gtt 21M cpu 3598MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 nodefer+router-fuse  short 89.7 edit 110.6  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1627/1249 MHz 54C 120W gtt 21M cpu 3440MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 defer-preset         short 80.9 edit 107.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1750/1249 MHz 55C 131W gtt 21M cpu 3646MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 defer-preset         short 103.6 edit 110.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1896/1249 MHz 54C 137W gtt 21M cpu 3648MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 nodefer+router-fuse  short 111.4 edit 113.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('gnome-shell', 1)]  gpu 1563/1249 MHz 55C 122W gtt 21M cpu 3553MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 1 nodefer              short 111.5 edit 112.5  foreign CPU 6% [('claude', 8), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1569/1249 MHz 55C 122W gtt 21M cpu 3382MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 2 nodefer              short 111.0 edit 113.8  foreign CPU 12% [('claude', 11), ('ptyxis', 4), ('gnome-remote-de', 3)]  gpu 1564/1249 MHz 55C 122W gtt 21M cpu 3613MHz 56C igpu 2%/vcn 0% fclk 1600
+rep 2 nodefer+router-fuse  short 108.8 edit 113.1  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1584/1249 MHz 56C 123W gtt 21M cpu 3601MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 2 defer-preset         short 111.4 edit 112.2  foreign CPU 3% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1578/1249 MHz 56C 123W gtt 21M cpu 3546MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 3 defer-preset         short 111.3 edit 113.5  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1565/1249 MHz 56C 123W gtt 21M cpu 3494MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 3 nodefer+router-fuse  short 111.5 edit 112.3  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('accounts-daemon', 0)]  gpu 1577/1249 MHz 56C 122W gtt 21M cpu 3564MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 3 nodefer              short 111.4 edit 110.1  foreign CPU 3% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1585/1249 MHz 56C 123W gtt 21M cpu 3686MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 4 nodefer              short 111.6 edit 112.3  foreign CPU 3% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1569/1249 MHz 56C 122W gtt 21M cpu 3481MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 4 nodefer+router-fuse  short 111.6 edit 113.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1560/1249 MHz 56C 122W gtt 21M cpu 3680MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 4 defer-preset         short 111.4 edit 112.8  foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1570/1249 MHz 56C 122W gtt 21M cpu 3588MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 5 defer-preset         short 111.6 edit 111.4  foreign CPU 5% [('claude', 8), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1577/1249 MHz 56C 122W gtt 21M cpu 3512MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 5 nodefer+router-fuse  short 111.7 edit 113.4  foreign CPU 3% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1564/1249 MHz 56C 122W gtt 21M cpu 3476MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 5 nodefer              short 111.6 edit 111.6  foreign CPU 3% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1577/1249 MHz 56C 123W gtt 21M cpu 3618MHz 56C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  nodefer                 110.6 +-   2.0  (n=6)
+                              drafts accepted 0.66
+  short  nodefer+router-fuse     107.5 +-   9.2  (n=6)   vs nodefer:  -2.9% +-  6.5%  -> no difference
+                              drafts accepted 0.67
+  short  defer-preset            105.0 +-  12.8  (n=6)   vs nodefer:  -5.1% +-  9.9%  -> no difference
+                              drafts accepted 0.67
+  edit   nodefer                 108.5 +-   9.2  (n=6)
+                              drafts accepted 0.90
+  edit   nodefer+router-fuse     112.8 +-   1.2  (n=6)   vs nodefer:  +3.9% +-  7.4%  -> no difference
+                              drafts accepted 0.91
+  edit   defer-preset            111.3 +-   2.3  (n=6)   vs nodefer:  +2.6% +-  6.8%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  nodefer+router-fuse  DIFFERENT text -> lossy or placement-dependent: quality gate
+  defer-preset         DIFFERENT text -> lossy or placement-dependent: quality gate

@@ -1,0 +1,48 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 37% [('claude', 21), ('caveman-proxy', 8), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 15 s
+rep 0 defer                short 107.1 short 107.4 edit 142.1 edit 179.1  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1591/1249 MHz 58C 133W gtt 21M cpu 3779MHz 57C igpu 0%/vcn 0% fclk 1600
+rep 0 defer-top2           short 105.9 short 110.0 edit 138.2 edit 168.0  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('gnome-shell', 1)]  gpu 1602/1249 MHz 58C 133W gtt 21M cpu 3657MHz 57C igpu 0%/vcn 0% fclk 1600
+rep 0 defer-kmiss          short 91.4 short 95.8 edit 133.4 edit 164.1  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1971/1249 MHz 57C 148W gtt 21M cpu 3536MHz 57C igpu 0%/vcn 0% fclk 1600
+rep 0 bandit-top           short 110.7 short 108.7 edit 140.6 edit 168.9  foreign CPU 3% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1590/1249 MHz 57C 132W gtt 21M cpu 3849MHz 57C igpu 0%/vcn 0% fclk 1600
+rep 0 bandit-top-kmiss     short 88.4 short 75.2 edit 89.1 edit 96.9  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('gnome-shell', 1)]  gpu 1904/1249 MHz 57C 133W gtt 21M cpu 3487MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 bandit-exact         short 103.0 short 74.8 edit 132.5 edit 129.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1860/1249 MHz 56C 135W gtt 21M cpu 3705MHz 58C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  defer                   107.2 +-   1.9  (n=2)
+                              drafts accepted 0.67
+  short  defer-top2              108.0 +-  26.1  (n=2)   vs defer:  +0.7% +- 22.5%  -> no difference
+                              drafts accepted 0.72
+  short  defer-kmiss              93.6 +-  28.0  (n=2)   vs defer: -12.7% +- 24.3%  -> no difference
+                              drafts accepted 0.74
+  short  bandit-top              109.7 +-  12.7  (n=2)   vs defer:  +2.3% +- 13.6%  -> no difference
+                              drafts accepted 0.71
+  short  bandit-top-kmiss         81.8 +-  83.9  (n=2)   vs defer: -23.7% +- 80.0%  -> no difference
+                              drafts accepted 0.67
+  short  bandit-exact             88.9 +- 179.2  (n=2)   vs defer: -17.1% +- 168.9%  -> no difference
+                              drafts accepted 0.69
+  edit   defer                   160.6 +- 235.1  (n=2)
+                              drafts accepted 0.91
+  edit   defer-top2              153.1 +- 189.4  (n=2)   vs defer:  -4.7% +- 28.5%  -> no difference
+                              drafts accepted 0.90
+  edit   defer-kmiss             148.8 +- 195.1  (n=2)   vs defer:  -7.4% +- 24.9%  -> no difference
+                              drafts accepted 0.89
+  edit   bandit-top              154.8 +- 179.8  (n=2)   vs defer:  -3.6% +- 34.4%  -> no difference
+                              drafts accepted 0.91
+  edit   bandit-top-kmiss         93.0 +-  49.6  (n=2)   vs defer: -42.1% +- 115.5%  -> no difference
+                              drafts accepted 0.91
+  edit   bandit-exact            130.9 +-  19.7  (n=2)   vs defer: -18.5% +- 158.7%  -> no difference
+                              drafts accepted 0.88
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  defer-top2           DIFFERENT text -> lossy or placement-dependent: quality gate
+  defer-kmiss          DIFFERENT text -> lossy or placement-dependent: quality gate
+  bandit-top           DIFFERENT text -> lossy or placement-dependent: quality gate
+  bandit-top-kmiss     DIFFERENT text -> lossy or placement-dependent: quality gate
+  bandit-exact         DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  defer-top2           short +0.7%  edit -4.7%  -> drop
+  defer-kmiss          short -12.7%  edit -7.4%  -> drop
+  bandit-top           short +2.3%  edit -3.6%  -> drop
+  bandit-top-kmiss     short -23.7%  edit -42.1%  -> drop
+  bandit-exact         short -17.1%  edit -18.5%  -> drop

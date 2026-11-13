@@ -1,0 +1,70 @@
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 1.71, foreign CPU 3% [('claude', 1), ('localsearch-3', 1), ('firefox', 0)], reclaim 0.0%
+  quiet after 40 s
+rep 0 base                 short 111.3 edit 110.5  foreign CPU 3% [('claude', 2), ('kworker/10:1-events_freezable', 1), ('kcompactd0', 0)]  gpu 1555/1249 MHz 54C 120W gtt 21M cpu 3685MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.82, foreign CPU 2% [('claude', 1), ('Privileged Cont', 0), ('Isolated Servic', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.02, foreign CPU 2% [('claude', 1), ('gnome-shell', 0), ('Privileged Cont', 0)], reclaim 0.0%
+  quiet after 125 s
+rep 0 poll1                short 106.2 edit 71.1  foreign CPU 2% [('localsearch-3', 1), ('kcompactd0', 1), ('claude', 1)]  gpu 1536/1249 MHz 52C 110W gtt 21M cpu 2972MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 8.29, foreign CPU 2% [('claude', 1), ('ptyxis', 0), ('firefox', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.24, foreign CPU 0% [('claude', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.14, foreign CPU 1% [('claude', 1), ('firefox', 0)], reclaim 0.0%
+  quiet after 135 s
+rep 1 poll1                short 108.9 edit 111.3  foreign CPU 2% [('claude', 2), ('systemd-oomd', 0)]  gpu 1566/1249 MHz 52C 122W gtt 21M cpu 3684MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.50, foreign CPU 2% [('firefox', 1), ('localsearch-3', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  quiet after 110 s
+rep 1 base                 short 108.4 edit 112.6  foreign CPU 2% [('claude', 2), ('xdg-desktop-por', 0), ('Isolated Servic', 0)]  gpu 1566/1249 MHz 52C 122W gtt 21M cpu 3703MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 5.72, foreign CPU 2% [('claude', 0), ('firefox', 0), ('rcu_preempt', 0)], reclaim 0.0%
+  quiet after 110 s
+rep 2 base                 short 111.3 edit 112.1  foreign CPU 3% [('claude', 2), ('Isolated Web Co', 1), ('kcompactd0', 1)]  gpu 1556/1249 MHz 52C 121W gtt 21M cpu 3601MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.25, foreign CPU 2% [('claude', 1), ('firefox', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  quiet after 115 s
+rep 2 poll1                short 111.6 edit 112.0  foreign CPU 3% [('firefox', 2), ('Isolated Web Co', 1), ('kcompactd0', 0)]  gpu 1556/1249 MHz 52C 122W gtt 21M cpu 3435MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.10, foreign CPU 1% [('Isolated Web Co', 0), ('gnome-shell', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 3 poll1                short 109.2 edit 110.9  foreign CPU 2% [('claude', 2), ('kcompactd0', 1), ('kworker/u65:4-KFD IH', 1)]  gpu 1566/1249 MHz 52C 121W gtt 21M cpu 3848MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.80, foreign CPU 1% [('rcu_preempt', 0), ('claude', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 3 base                 short 108.4 edit 112.9  foreign CPU 2% [('claude', 2), ('kcompactd0', 1), ('kworker/u65:3-KFD IH', 1)]  gpu 1566/1249 MHz 52C 122W gtt 21M cpu 3818MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 6.52, foreign CPU 1% [('localsearch-3', 0), ('claude', 0), ('Privileged Cont', 0)], reclaim 0.0%
+  quiet after 120 s
+rep 4 base                 short 90.0 edit 89.9  foreign CPU 2% [('claude', 2), ('firefox', 2), ('kcompactd0', 0)]  gpu 1539/1249 MHz 52C 113W gtt 21M cpu 3446MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.40, foreign CPU 2% [('claude', 1), ('firefox', 0), ('systemd-oomd', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.15, foreign CPU 0% [('Privileged Cont', 0), ('Isolated Web Co', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.05, foreign CPU 2% [('claude', 1), ('firefox', 0)], reclaim 0.0%
+  quiet after 130 s
+rep 4 poll1                short 109.3 edit 113.0  foreign CPU 2% [('claude', 2), ('firefox', 1), ('gnome-shell', 0)]  gpu 1434/1249 MHz 51C 117W gtt 21M cpu 3028MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 8.95, foreign CPU 1% [('localsearch-3', 0), ('gvfs-afc-volume', 0), ('claude', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.31, foreign CPU 1% [('claude', 1), ('gnome-shell', 0), ('firefox', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.21, foreign CPU 1% [('claude', 0), ('Privileged Cont', 0), ('Isolated Servic', 0)], reclaim 0.0%
+  quiet after 140 s
+rep 5 poll1                short 111.3 edit 112.6  foreign CPU 2% [('claude', 2), ('rcu_preempt', 0), ('Privileged Cont', 0)]  gpu 1555/1249 MHz 52C 122W gtt 21M cpu 3366MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 7.00, foreign CPU 1% [('caveman-proxy', 0), ('claude', 0), ('kworker/u64:2-events_unbound', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.10, foreign CPU 0% [('migration/3', 0)], reclaim 0.0%
+  waiting for a quiet machine: load 1.01, foreign CPU 2% [('claude', 1), ('python', 0), ('firefox', 0)], reclaim 0.0%
+  quiet after 130 s
+rep 5 base                 short 111.4 edit 111.7  foreign CPU 3% [('claude', 2), ('firefox', 1), ('kworker/u65:10-KFD IH', 1)]  gpu 1558/1249 MHz 52C 122W gtt 21M cpu 3610MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    106.8 +-   8.8  (n=6)
+                              drafts accepted 0.67
+  short  poll1                   109.4 +-   2.0  (n=6)   vs base:  +2.5% +-  8.3%  -> no difference
+                              drafts accepted 0.66
+  edit   base                    108.3 +-   9.5  (n=6)
+                              drafts accepted 0.90
+  edit   poll1                   105.1 +-  17.5  (n=6)   vs base:  -2.9% +- 19.5%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  poll1                DIFFERENT text -> lossy or placement-dependent: quality gate

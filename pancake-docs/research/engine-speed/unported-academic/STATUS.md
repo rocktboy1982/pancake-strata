@@ -58,3 +58,20 @@ Types: DONE, CPU (can run now), GPU (overnight), DATA (waits for logs), DEC (nee
 | A55 | Task gate | Dry run passes on 5 specs (path fixed); 16/16 tests | Live base vs lossy run (GPU) to measure cost | GPU |
 | A56 | Expected acceptance rate | Verified Leviathan; trace step 1 code done (record 6) | Identity test and dump run (GPU) | GPU |
 | A57 | Time-to-success AUC | Horizon pinned in specs (1800 s) | Measure AUC on a live batch | GPU |
+
+## Update 2026-11-13
+| item | change since 2026-11-12 |
+| --- | --- |
+| A24 | suffix replay done: +2.0% accepted, -2.4% rounds (sub-agents +6.0%, -7.5%); GPU screen still open |
+| A26 | done: no per-request selector beats always-lookup; per-window longest match is the only candidate above noise (+2.0%), the same figure as A24 |
+| A9 | done as a bound: 2 to 4% of wall; coded path is STRATA_IDLE_ADAPT; GPU replay open |
+| A6 | done: mean held-out error 3.4 points; worst arm 8 points; refit not honest |
+| A40 | measured as an upper bound (5.4% of span), not an overlap measurement |
+| A48 | done: 1.23x one thread, 1.03x at 8 threads, about 3% ceiling |
+| A49 | done: decode flat with context within noise; A51 gate not met (drop unless profile says otherwise) |
+| A51 | recommended drop (see A49) |
+| A41 | hook written and tested (8 of 8); not registered |
+| A21, A18 | temperature and effort fields in the turn log; confirm on next run |
+| A53 | done |
+| A56 | code done; identity GPU run open |
+| A55 | dry run passes; live run open |

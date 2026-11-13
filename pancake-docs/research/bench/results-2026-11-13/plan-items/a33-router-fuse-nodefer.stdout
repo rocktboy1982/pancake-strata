@@ -1,0 +1,27 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 29% [('claude', 14), ('caveman-proxy', 7), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 15 s
+rep 0 nodefer              short 111.7 short 116.5 edit 109.7 edit 145.9  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1705/1249 MHz 57C 136W gtt 21M cpu 3764MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 nodefer+router-fuse  short 111.6 short 116.8 edit 111.9 edit 146.8  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1697/1249 MHz 58C 136W gtt 21M cpu 3780MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 defer-preset         short 111.8 short 116.9 edit 112.6 edit 145.9  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1691/1249 MHz 58C 136W gtt 21M cpu 3640MHz 56C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  nodefer                 114.1 +-  30.5  (n=2)
+                              drafts accepted 0.68
+  short  nodefer+router-fuse     114.2 +-  33.0  (n=2)   vs nodefer:  +0.1% +-  2.2%  -> no difference
+                              drafts accepted 0.68
+  short  defer-preset            114.3 +-  32.4  (n=2)   vs nodefer:  +0.2% +-  1.7%  -> no difference
+                              drafts accepted 0.68
+  edit   nodefer                 127.8 +- 230.1  (n=2)
+                              drafts accepted 0.89
+  edit   nodefer+router-fuse     129.4 +- 221.8  (n=2)   vs nodefer:  +1.2% +-  6.5%  -> no difference
+                              drafts accepted 0.90
+  edit   defer-preset            129.2 +- 211.6  (n=2)   vs nodefer:  +1.1% +- 14.4%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  nodefer+router-fuse  identical on every case -> exact
+  defer-preset         identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  nodefer+router-fuse  short +0.1%  edit +1.2%  -> PROMOTE to confirm
+  defer-preset         short +0.2%  edit +1.1%  -> PROMOTE to confirm

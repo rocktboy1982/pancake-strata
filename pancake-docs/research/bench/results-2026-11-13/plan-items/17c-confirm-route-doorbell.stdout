@@ -1,0 +1,39 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 28% [('caveman-proxy', 10), ('claude', 10), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 10 s
+rep 0 base                 short 88.6 edit 93.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1774/1249 MHz 55C 133W gtt 21M cpu 3594MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 doorbell-store       short 89.4 edit 92.3  foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1775/1249 MHz 53C 122W gtt 21M cpu 3437MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 route-fast           short 109.1 edit 92.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('2.1.323', 1)]  gpu 1604/1249 MHz 53C 119W gtt 21M cpu 3318MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 route-fast           short 91.1 edit 101.9  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1683/1249 MHz 54C 128W gtt 21M cpu 3343MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 doorbell-store       short 111.5 edit 112.8  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1568/1249 MHz 54C 122W gtt 21M cpu 3514MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 111.4 edit 113.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('2.1.323', 1)]  gpu 1565/1249 MHz 55C 121W gtt 21M cpu 3496MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 108.2 edit 110.6  foreign CPU 71% [('caveman-proxy', 53), ('claude', 35), ('ptyxis', 5)]  gpu 1590/1249 MHz 55C 123W gtt 21M cpu 4276MHz 59C igpu 3%/vcn 0% fclk 1600  NOISY -> repeat
+rep 2 base                 short 111.4 edit 112.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1578/1249 MHz 55C 123W gtt 21M cpu 3390MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 2 doorbell-store       short 89.4 edit 112.4  foreign CPU 10% [('gnome-shell', 14), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 1618/1249 MHz 56C 127W gtt 21M cpu 3212MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 2 route-fast           short 109.3 edit 110.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1451/1249 MHz 54C 118W gtt 21M cpu 3093MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 3 route-fast           short 108.5 edit 111.7  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1564/1249 MHz 55C 122W gtt 21M cpu 3810MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 3 doorbell-store       short 111.5 edit 113.8  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:11-ttm', 1)]  gpu 1567/1249 MHz 55C 122W gtt 21M cpu 3431MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 111.6 edit 112.2  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1578/1249 MHz 55C 122W gtt 21M cpu 3587MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 4 base                 short 111.5 edit 112.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1571/1249 MHz 56C 122W gtt 21M cpu 3576MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 4 doorbell-store       short 96.3 edit 80.6  foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1532/1249 MHz 56C 113W gtt 21M cpu 3415MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 4 route-fast           short 92.2 edit 82.5  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1778/1249 MHz 55C 126W gtt 21M cpu 3434MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 route-fast           short 90.4 edit 80.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1543/1249 MHz 54C 110W gtt 21M cpu 3241MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 doorbell-store       short 104.8 edit 112.9  foreign CPU 3% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1468/1249 MHz 54C 119W gtt 21M cpu 3211MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 5 base                 short 78.4 edit 112.6  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1750/1249 MHz 54C 126W gtt 21M cpu 3211MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    102.1 +-  15.5  (n=6)
+                              drafts accepted 0.67
+  short  doorbell-store          100.5 +-  10.7  (n=6)   vs base:  -1.6% +- 17.2%  -> no difference
+                              drafts accepted 0.67
+  short  route-fast              100.1 +-  10.2  (n=6)   vs base:  -2.0% +- 16.8%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    109.5 +-   8.2  (n=6)
+                              drafts accepted 0.91
+  edit   doorbell-store          104.1 +-  14.9  (n=6)   vs base:  -4.9% +- 12.5%  -> no difference
+                              drafts accepted 0.91
+  edit   route-fast               96.6 +-  14.3  (n=6)   vs base: -11.8% +- 14.1%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  doorbell-store       DIFFERENT text -> lossy or placement-dependent: quality gate
+  route-fast           DIFFERENT text -> lossy or placement-dependent: quality gate

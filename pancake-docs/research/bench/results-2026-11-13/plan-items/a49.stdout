@@ -1,0 +1,24 @@
+case longdec10k: 28573 chars, sha1 145cbdbb2bd4, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 91273 chars, sha1 808180aab33f, target 32000 tokens (a unique run line is prepended to every request)
+case longdec64k: 182473 chars, sha1 6aeea82be90f, target 64000 tokens (a unique run line is prepended to every request)
+case longdec128k: 342073 chars, sha1 f7577114a602, target 120000 tokens (a unique run line is prepended to every request)
+  longdec10k: 9250 prompt tokens by count_tokens (target 10000)
+  longdec32k: 28173 prompt tokens by count_tokens (target 32000, MORE THAN 8% OFF)
+  longdec64k: 57454 prompt tokens by count_tokens (target 64000, MORE THAN 8% OFF)
+  longdec128k: 107307 prompt tokens by count_tokens (target 120000, MORE THAN 8% OFF)
+  WARNING longdec32k: the engine read 28198 prompt tokens, target 32000 (more than 8% off: adjust LONG_CPT)
+  WARNING longdec64k: the engine read 57479 prompt tokens, target 64000 (more than 8% off: adjust LONG_CPT)
+  WARNING longdec128k: the engine read 107332 prompt tokens, target 120000 (more than 8% off: adjust LONG_CPT)
+rep 0 base                 short 111.3 short 116.5 longdec10k 101.8/1489p 9275t longdec32k 103.3/1932p 28198t longdec64k 94.0/2500p 57479t longdec128k 99.6/2534p 107332t  foreign CPU 7% [('claude', 7), ('gnome-shell', 3), ('gnome-remote-de', 3)]  gpu 1914/1249 MHz 65C 189W gtt 25M cpu 3260MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    113.9 +-  33.0  (n=2)
+                              drafts accepted 0.68
+  longdec10k base                    101.8 +-   nan  (n=1)
+  longdec32k base                    103.3 +-   nan  (n=1)
+  longdec64k base                     94.0 +-   nan  (n=1)
+  longdec128k base                     99.6 +-   nan  (n=1)
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

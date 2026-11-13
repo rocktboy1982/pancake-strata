@@ -1,0 +1,25 @@
+rep 0 base                 short 110.7 short 113.0 edit 111.8 edit 147.5  foreign CPU 19% [('caveman-proxy', 40), ('claude', 8), ('ptyxis', 4)]  gpu 1713/1249 MHz 55C 135W gtt 21M cpu 3555MHz 55C igpu 1%/vcn 0% fclk 1600
+rep 0 doorbell-store       short 111.2 short 116.1 edit 111.1 edit 146.6  foreign CPU 1% [('claude', 1), ('systemd-oomd', 0), ('gnome-shell', 0)]  gpu 1701/1249 MHz 56C 135W gtt 21M cpu 3678MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 route-fast           short 111.5 short 116.3 edit 112.8 edit 151.3  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1683/1249 MHz 57C 134W gtt 21M cpu 3709MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.8 +-  14.6  (n=2)
+                              drafts accepted 0.68
+  short  doorbell-store          113.7 +-  31.1  (n=2)   vs base:  +1.6% +- 14.8%  -> no difference
+                              drafts accepted 0.68
+  short  route-fast              113.9 +-  30.5  (n=2)   vs base:  +1.8% +- 14.2%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    129.7 +- 226.9  (n=2)
+                              drafts accepted 0.90
+  edit   doorbell-store          128.8 +- 225.6  (n=2)   vs base:  -0.6% +-  1.0%  -> no difference
+                              drafts accepted 0.89
+  edit   route-fast              132.1 +- 244.7  (n=2)   vs base:  +1.9% +- 13.7%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  doorbell-store       identical on every case -> exact
+  route-fast           identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  doorbell-store       short +1.6%  edit -0.6%  -> PROMOTE to confirm
+  route-fast           short +1.8%  edit +1.9%  -> PROMOTE to confirm
