@@ -3095,7 +3095,50 @@ strata-poly 35B-A3B MMQ finding (the "+43%" lead): src/poly routed-expert prompt
   - `Prefill::set_usage(std::vector<float>*)` passes pointer to `Impl::usage_`
   - Next step on Linux box: `prefill.set_usage(drive.d.usage)` in `generate.cpp` before `prefill.run()`, classify `STRATA_ADAPT_PROMPT` in `conversation_disk_env.def` (Speed; exact when ROUTE_PRIOR off), then `ctest -L cpu` + parity + A/B with `STRATA_ADAPT_PROMPT=1`.
 
-### ExTV/strata-5090-4070 patch analysis (2026-11-13, 8 patches, 36 stars)
+### nasone32/Strata-EXL3-fork analysis (2026-11-13, 13 stars, 2,207 commits)
+
+**Repo**: https://github.com/nasone32/Strata-EXL3-fork — EXL3 format on AMD RDNA3 (7900 XTX), 10-20% faster decode.
+
+**Key gains vs upstream Strata (3.05/4.05 bpw EXL3, 2x 7900 XTX):**
+- **10-20% faster decode** (up to 24% for 4.05 bpw CODE)
+- **Single-GPU + CPU assistance**: 8-15% faster decode
+- **MiMo V2.6 Flash**: 25-30 tok/s on 2x 7900 XTX (experimental)
+- **EXL3 format support** (turboderp quants, 3.05/4.05 bpw)
+- **CPU expert repacking**: Optional expert weight repacking for CPU assistance
+
+**Key optimizations vs upstream Strata:**
+1. **Faster HIP kernels** — 10-20% faster decode on RDNA3 (7900 XTX)
+2. **Better memory management** — optimized memory layouts
+3. **CPU expert repacking** — optional EXL3 expert weight repacking for CPU assistance (`--cpu on`)
+3. **EXL3 format support** — turboderp quants (3.05/4.05 bpw)
+4. **MiMo V2.6 Flash** — 25-30 tok/s on 2x 7900 XTX (experimental, 2.20 bpw MOPD)
+5. **Portable launchers** — `run-peer.sh`, `run-peer-4bpw.sh`, `run-mimo-mopd.sh`
+5. **EXL3 tokenizer conversion** — `tools/exl3/tokenizer_to_pack.py`
+
+**Relevance to our pancake-strata (7900 XT + 3060):**
+- We use **GGUF quants** (IQ2_XS, Q2_0, Q4_K_M) not EXL3 format
+- Our HIP kernels are for GGUF, not EXL3 — different kernel paths
+- **But**: The HIP kernel optimizations (10-20% faster) may be portable to our GGUF kernels
+- The EXL3-specific kernels (exl3_band8_build, exl3 kernels) don't apply to GGUF
+- CPU expert repacking concept could inspire our `--cpu` path improvements
+- MiMo support not relevant (we use Qwen3.8-Flash-Next / Qwen3.6-35B-A3B / DeepSeek V4.1)
+
+**Portable optimizations to investigate:**
+1. **HIP kernel speedups** — compare their EXL3 kernels vs our GGUF kernels for common patterns
+2. **Memory management** — their memory layout optimizations
+3. **Launcher improvements** — their portable launchers (`run-peer.sh`) have good UX
+
+**Action items:**
+1. Clone their `amd-exl3-community` branch and diff HIP kernels vs our GGUF kernels
+2. Identify portable kernel optimizations (GEMM, attention, MoE dispatch)
+3. Benchmark their kernel patterns on our GGUF kernels
+4. Consider adding EXL3 support if turboderp quants become relevant
+
+**Not directly portable:**
+- EXL3 format kernels (different quantization)
+- EXL3 tokenizer/packer
+- MiMo V2.6 Flash (different architecture)
+- EXL3 CPU expert repacking (different quantization format)
 
 **Repo**: https://github.com/ExTV/strata-5090-4070 — dual-GPU 5090+4070 Ti, 31 GB RAM, 262K context.
 **Key gains vs upstream v0.2.13**: decode 251 vs 84 tok/s (3x), 20K prompt 10.3 vs 65s (6.3x), 80K prompt 15.4 vs 89.2s (5.8x), 250K prompt 46.7 vs 257.4s (5.5x), SSD reads 761 GiB vs 18 GiB.
@@ -3140,9 +3183,9 @@ strata-poly 35B-A3B MMQ finding (the "+43%" lead): src/poly routed-expert prompt
 4. **P4**: Port image parts chain (patch 05)
 5. **P5**: Port PR #4844 (patch 07) — experts lost after pipelined adaptive
 6. **P6**: Port upstream fixes (patch 06) — VRAM leak, checkpoint OOM, PLE read hang
-7. **P7**: Port PR #3404 + tool-call envelope (patches 02, 03)
+| **P7**: Port PR #3404 + tool-call envelope (patches 02, 03)
 
-**Testing on Linux box:**
+### ExTV/strata-5090-4070 patch analysis (2026-11-13, 8 patches, 36 stars)
 - 7900 XT + 3060 dual-GPU with layer split (~39)
 - `--prefill-main --kv-resident-later 8192 --prefill-main-small 512`
 - Measure: decode tok/s, prompt tok/s, SSD reads, tool-call probe
