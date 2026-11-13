@@ -299,7 +299,7 @@ public:
     /// FK-28 STRATA_ADAPT_PROMPT: set the usage vector from ExpertDispatch to accumulate
     /// routed expert counts from the prompt path.  When set, the prefill path will add its
     /// per-layer expert counts to this vector after routing each layer.
-    void set_usage(std::vector<float>* usage) { usage_ = usage; }
+    void set_usage(std::vector<float>* usage);   // defined in prefill.cpp (forwards to Impl::usage_)
 
     /// Layer-major prefill (STRATA_PREFILL_LAYER_MAJOR=1): true while `on_chunk` reports a sub-chunk before the end of
     /// its super-chunk.  The session state is already at the super-chunk's end then, so no checkpoint may be taken.
