@@ -296,6 +296,11 @@ public:
     /// (its windows use the pool), so no chunk of that read takes the share; false lets the read's chunks take it.
     static void set_share_blocked(bool blocked);
 
+    /// FK-28 STRATA_ADAPT_PROMPT: set the usage vector from ExpertDispatch to accumulate
+    /// routed expert counts from the prompt path.  When set, the prefill path will add its
+    /// per-layer expert counts to this vector after routing each layer.
+    void set_usage(std::vector<float>* usage) { usage_ = usage; }
+
     /// Layer-major prefill (STRATA_PREFILL_LAYER_MAJOR=1): true while `on_chunk` reports a sub-chunk before the end of
     /// its super-chunk.  The session state is already at the super-chunk's end then, so no checkpoint may be taken.
     /// On a layer split it is the last stage's (the one that reports the rows), asked through the first.

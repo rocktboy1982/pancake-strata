@@ -1302,6 +1302,9 @@ struct Prefill::Impl {
         float* R2 = nullptr;
         cudaEvent_t ev_in[2] = {}, ev_done[2] = {}, ev_out[2] = {};
     } lm;
+
+    /// FK-28 STRATA_ADAPT_PROMPT: pointer to ExpertDispatch::usage for prompt routing counts
+    std::vector<float>* usage_ = nullptr;
 };
 
 namespace {
@@ -3002,6 +3005,10 @@ void Prefill::arm_cpu_share(bool applies, bool by_default) {
 }
 
 void Prefill::set_share_blocked(bool blocked) { g_share_blocked.store(blocked, std::memory_order_release); }
+
+void Prefill::set_usage(std::vector<float>* usage) {
+    impl_->usage_ = usage;
+}
 bool Prefill::ring_bytes_enabled() { return ring_bytes_on(); }
 size_t Prefill::slot_guard_bytes() { return mmq::direct_slot_guard(); }
 
@@ -5155,6 +5162,14 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                             const int32_t e = ids_h[(size_t) i];
                             if (e < 0 || e >= m.g->n_expert) { err = "prefill: routed id out of range"; return false; }
                             ++m.cnt[(size_t) e];
+                        }
+                        // FK-28 STRATA_ADAPT_PROMPT: feed per-layer expert counts into ExpertDispatch::usage
+                        if (m.usage_ && !m.usage_->empty()) {
+                            const size_t base = (size_t) l * m.g->n_expert;
+                            for (int32_t e = 0; e < m.g->n_expert; ++e) {
+                                const float c = (float) m.cnt[(size_t) e];
+                                if (c > 0.0f) (*m.usage_)[base + e] += c;
+                            }
                         }
                         // STRATA_PREFILL_ROUTED_STREAM: this layer's routing to the issuer (it drops the unrouted entries
                         // it has not issued yet; the walk below gives every unrouted entry back without reading it)
