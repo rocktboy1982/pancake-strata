@@ -65,7 +65,10 @@ def system_snapshot(out):
 
 
 def run(cfg_path, out, case, envs, extra_args):
-    c = json.load(open(cfg_path))
+    # the placeholders <REPO>, <STRATA_DATA> and <MODELS> are filled the way abtest.render_preset does
+    rendered = open(cfg_path, encoding="utf-8").read().replace("<REPO>", str(ROOT)) \
+        .replace("<STRATA_DATA>", "/home/dan/clone-of-d/Strata-data").replace("<MODELS>", "/home/dan/clone-of-d/models")
+    c = json.loads(rendered)
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     env.update(c.get("env") or {})
     for kv in envs:

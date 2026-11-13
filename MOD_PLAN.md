@@ -3135,3 +3135,38 @@ Decode tok/s: short 111.6 +-2.5; 10k 97.3 +-22.2; 32k 104.2 +-13.3; 64k 93.2 +-4
 Reading: a fixed step from short to 10k (about -13%, at the edge of noise) and no clear slope after it. The 32k row beats 10k, which points to noise. The attention cost over context is not visible above noise at these lengths.
 Consequence: A51 (sparse decode attention) gate (attention >= 15% of decode) is NOT met by this run -> drop unless a profile shows otherwise. A50 (verify-window attention) is not decided by this run.
 Caveat: two repeats per row; the 64k interval is +-45%. Raw output: /home/dan/plan-runs/a49c.stdout.
+
+### optimize-kernel-hip (2026-11-13, gfx1100 7900 XT): findings, tests, decisions
+Source: HIP_OPTIMIZATION_REPORT.md (branch optimize-kernel-hip). Raw output: pancake-docs/research/bench/results-2026-11-13/kernel-hip/.
+
+Report corrections (checked against code):
+- amdgpu_waves_per_eu is already used: rdna_gr.cu (4 kernels, STRATA_GR_WPE default 8) and moe_fused_iq.cu (conditional). The report claimed only rdna_gr.cu.
+- STRATA_HIP_WMMA has no default on gfx1100; the default table covers gfx1103/1150/1151 and gfx12. The report's claim is right.
+- Verification plan named specs 28/29 (wrong) and the rocprof tool (the repo uses rocprofv3 via gpu_profile.py). Corrected; spec 40 added.
+- RTX 3060 target removed (card removed 2026-11-08).
+
+Speed A/B (spec 40, screen, 2 repeats; base = preset as is):
+- mmvq-wave32 (STRATA_RDNA_MMVQ_WAVE=1): short -4.5%, edit -2.5%, longdec10k -0.6%; text differs -> DROP.
+- wmma-attn (STRATA_HIP_WMMA=1): short +0.1%, edit -1.2%, longdec10k -6.3%; text identical -> DROP.
+- wave32+wmma: short +2.1%, edit -2.4%, longdec10k -3.4%; text differs -> DROP (no case below -3% fails on longdec10k).
+- longdec32k rows (+78% to +87%) are single runs; not counted (base 32k run likely low). Not re-measured; no decision rests on them.
+
+Register use and spilling (compile-only, clang 22, -Rpass-analysis=kernel-resource-usage):
+- iq_kernels.cu 561 instances, 11 spill; fused_gr.cu 272, 25 spill (gr_down_v3 2332 B at 256 VGPRs); qsa_select.cu 21, 3 spill; qsa_decode_attn.cu 26, 0; rdna_gr.cu 82, 8 spill (rdna_gr_down 228 B at 192 VGPRs); rdna_mmvq.cu 32, 0 (rdna_kq 67-94 VGPRs).
+- Spilling kernels already sit at the VGPR limit, so amdgpu_waves_per_eu cannot remove the spill; it only trades occupancy. The report's Priority 3 gain (5-15%) is not supported.
+
+Decode profile (short case, base preset, rocprofv3 via gpu_profile.py, profiler slows decode ~1.6x: read shares):
+- top: combine_cpu_k10_vec4 25.8%, wait_flag_ge_kernel 14.8%, rdna_kq_kernel<23,4,3> 9.0%, expdec_gu_kernel<22,1,4> 6.8%, rdna_gr_fused<4> 6.5%, expdec_down_kernel<42,4> 5.0%, wait_flag_copy_i32 4.4%.
+- gr_down_v3 (fused_gr.cu) does NOT appear in the decode window: not on the hot path, no change.
+- rdna_gr_fused<4> (hot, 6.5%) does not spill; rdna_kq (9%) does not spill. Neither needs waves_per_eu.
+- The top three are CPU-combine and flag waits, not kernel register pressure.
+
+Decisions:
+1. No default change for STRATA_RDNA_MMVQ_WAVE or STRATA_HIP_WMMA on gfx1100.
+2. No amdgpu_waves_per_eu added to iq_kernels, fused_gr, qsa_select or qsa_decode_attn: no spill evidence on the hot path.
+3. fused_gr.cu gr_down_v3 spill: not hot, not changed.
+4. Shared-memory bank conflicts: DEFERRED. Needs an LDS-conflict counter run (rocprofv3 --pmc). The hot kernels above are not LDS-bound, so it is low priority; revisit only if a kernel in the top list shows LDS stalls.
+
+Tooling fix: tools/pancake/gpu_profile.py did not fill <REPO>/<STRATA_DATA>/<MODELS>, so it failed with "no trace" on every preset. Fixed the same way as abtest.render_preset; verified by a profile run on the repo config directly.
+
+Open after this branch: CPU-combine (combine_cpu, 26%) and flag waits (wait_flag_ge, 15%) are the decode bottleneck in this profile; they are not kernel-register issues and belong to the Phase 18 window-overhead items.
