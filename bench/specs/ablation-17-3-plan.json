@@ -1,6 +1,6 @@
 {
  "name": "ablation-17-3",
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "cases": [
   "short",
   "edit"

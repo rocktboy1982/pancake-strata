@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-rdna3test.json",
+ "base": "configs/pancake/flashnext-iq2_xs-rdna3test.json",
  "arms": {
   "base": {},
   "top2-fold2": {"env": {"STRATA_VERIFY_DEFER_CPU_TOP": "2", "STRATA_VERIFY_DEFER_CPU_FOLD": "2"}},

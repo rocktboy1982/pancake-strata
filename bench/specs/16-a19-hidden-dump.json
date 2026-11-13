@@ -1,5 +1,5 @@
 {
- "base": "pancake-flashnext-iq2_xs-fast-hip.json",
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "arms": {
   "base": {},
   "dump": {"env": {"STRATA_HIDDEN_DUMP": "/home/dan/clone-of-d/Strata-data/a19-dumps,every=64"}}

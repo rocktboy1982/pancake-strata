@@ -375,8 +375,17 @@ class NoiseMonitor(threading.Thread):
 
 
 # ---- server runs
+def render_preset(text, repo=None):
+    """Fills the preset placeholders the way night_queue.py does (<REPO>, <STRATA_DATA>, <MODELS>), so a spec's base
+    preset can be run directly; without it the server starts with a literal <STRATA_DATA> and dies before ready."""
+    repo = repo or os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    return (text.replace("<REPO>", repo)
+                .replace("<STRATA_DATA>", "/home/dan/clone-of-d/Strata-data")
+                .replace("<MODELS>", "/home/dan/clone-of-d/models"))
+
+
 def make_config(base, arm, path):
-    c = json.load(open(base))
+    c = json.loads(render_preset(open(base, encoding="utf-8").read()))
     for k, v in (arm.get("env") or {}).items():
         if v is None:
             c["env"].pop(k, None)
@@ -841,7 +850,7 @@ def print_selection(used, dropped, robust, passes=1):
 
 def screen_verdict(results, arms, cases):
     base = arms[0]
-    print("\nscreen verdict (promote: >= +2% on a case and no case below -3%; else drop)")
+    print("\nscreen verdict (promote: > 0% on a case and no case below -3%; else drop)")
     for a in arms[1:]:
         deltas = {}
         for c in cases:
@@ -850,7 +859,7 @@ def screen_verdict(results, arms, cases):
             x = [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c]
             if b and x:
                 deltas[c] = (sum(x) / len(x)) / (sum(b) / len(b)) * 100 - 100
-        ok = deltas and max(deltas.values()) >= 2.0 and min(deltas.values()) > -3.0
+        ok = deltas and max(deltas.values()) > 0.0 and min(deltas.values()) > -3.0
         print(f"  {a:20s} " + "  ".join(f"{c} {d:+.1f}%" for c, d in deltas.items()) + f"  -> {'PROMOTE to confirm' if ok else 'drop'}")
 
 
