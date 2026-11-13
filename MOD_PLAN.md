@@ -3128,3 +3128,10 @@ Confirm (6 repeats) results: pending, raw output in /home/dan/plan-runs/17c-conf
 ### Plan items confirm verdicts (2026-11-13, 6 repeats each)
 - Item 6 ROUTE_FAST (17c, base = base): route-fast short -2.0%, edit -11.8% -> DROP. doorbell-store short -1.6%, edit -4.9% -> DROP. Both outputs DIFFER from base at confirm, though the screen said identical: the exactness check needs repeating.
 - Item 14 ROUTER_FUSE (a33c, base = nodefer; the first a33c run wrongly dropped the base arm and is discarded): nodefer+router-fuse short -2.9% +-6.5%, edit +3.9% +-7.4% -> passes the rule but LOSSY (output differs); keep only after a quality gate. defer-preset short -5.1%, edit +2.6% -> DROP. No difference at confirm.
+
+### A49 decode vs context (2026-11-13, confirm tier, n=2 per row)
+Fixed prompt calibration first: LONG_CPT 2.85 -> 3.2 chars per token (measured 3.09-3.24); the first screen run was 8-11% short on 32k-128k and is discarded. Prompt sizes now within 3.4% of target.
+Decode tok/s: short 111.6 +-2.5; 10k 97.3 +-22.2; 32k 104.2 +-13.3; 64k 93.2 +-45.1; 128k 95.6 +-11.4. ms/token 9.0 / 10.3 / 9.6 / 10.7 / 10.5.
+Reading: a fixed step from short to 10k (about -13%, at the edge of noise) and no clear slope after it. The 32k row beats 10k, which points to noise. The attention cost over context is not visible above noise at these lengths.
+Consequence: A51 (sparse decode attention) gate (attention >= 15% of decode) is NOT met by this run -> drop unless a profile shows otherwise. A50 (verify-window attention) is not decided by this run.
+Caveat: two repeats per row; the 64k interval is +-45%. Raw output: /home/dan/plan-runs/a49c.stdout.

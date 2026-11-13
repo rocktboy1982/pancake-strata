@@ -110,7 +110,7 @@ CLK = os.sysconf("SC_CLK_TCK")
 T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 9: 2.26, 10: 2.23}
 
 
-LONG_CPT = 2.85                                          # chars per token of this repo's C++ (Qwen tokenizer; 'long': 34264 chars = 11978 tokens)
+LONG_CPT = 3.2                                           # chars per token of the long corpus (Qwen tokenizer; measured 2026-11-13: 3.09-3.24 on the longdec corpora)
 LONG_TARGET = {"long32k": 32000, "long64k": 64000,       # prompt tokens (fit the 131072 context; 32K stays under --kv-resident 32768)
                "long1k": 1000, "long3k": 3000,           # A30: agent-sized prompt deltas (the CPU-share window), prompt tok/s
                "longdec10k": 10000,                      # A49: decode after a 10K read (attention share of the window vs 64K / 128K)
