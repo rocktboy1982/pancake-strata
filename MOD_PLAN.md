@@ -2759,3 +2759,11 @@ Screen tier, 2 repeats per arm. Text identical to base on every case (exact). Ga
 - wait-fuse-off (item 3): short +1.2%, edit +0.8% -> PROMOTE to confirm
 - fuse-wait (item 4): short +0.9%, edit +0.5% -> PROMOTE to confirm
 Caveat: intervals include zero (widths from +-3.6% to +-290%, n=2). Promotion means confirm-tier runs decide keep or drop. Rule recorded in `tools/pancake/abtest.py` (promote when a case is above 0%, no case below -3%) and in memory `feedback_promote-from-zero`.
+
+### Phase 18 spec 27 confirm verdict (2026-11-13, 6 repeats per arm)
+Rule: promote from 0% up (any case above 0%, no case below -3%).
+- combine-poll1 (item 2): short -4.2%, edit +2.5%; text DIFFERS from base -> DROP (a case below -3%, and lossy).
+- wait-fuse-off (item 3): short +4.7% +-9.1%, edit +3.3% +-8.7%; text identical (exact) -> KEEP AS CANDIDATE, not default.
+- fuse-wait (item 4): short +3.3% +-8.6%, edit +3.0% +-9.5%; text identical (exact) -> KEEP AS CANDIDATE, not default.
+Caveat: every interval includes zero; base speed and GPU clock (1130-1868 MHz) varied between runs, so only within-run comparisons count. A longer run is needed before any default change.
+Raw output: /home/dan/p18-runs/27-confirm.stdout
