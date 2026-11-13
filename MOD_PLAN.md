@@ -3095,7 +3095,57 @@ strata-poly 35B-A3B MMQ finding (the "+43%" lead): src/poly routed-expert prompt
   - `Prefill::set_usage(std::vector<float>*)` passes pointer to `Impl::usage_`
   - Next step on Linux box: `prefill.set_usage(drive.d.usage)` in `generate.cpp` before `prefill.run()`, classify `STRATA_ADAPT_PROMPT` in `conversation_disk_env.def` (Speed; exact when ROUTE_PRIOR off), then `ctest -L cpu` + parity + A/B with `STRATA_ADAPT_PROMPT=1`.
 
-### Phase 18 spec 27 screen verdict (2026-11-13, owner rule: promote from 0% up)
+### ExTV/strata-5090-4070 patch analysis (2026-11-13, 8 patches, 36 stars)
+
+**Repo**: https://github.com/ExTV/strata-5090-4070 — dual-GPU 5090+4070 Ti, 31 GB RAM, 262K context.
+**Key gains vs upstream v0.2.13**: decode 251 vs 84 tok/s (3x), 20K prompt 10.3 vs 65s (6.3x), 80K prompt 15.4 vs 89.2s (5.8x), 250K prompt 46.7 vs 257.4s (5.5x), SSD reads 761 GiB vs 18 GiB.
+
+**Patch status vs our fork:**
+
+| # | ExTV patch | In our fork? | What it does | Effort |
+|---|-----------|--------------|-------------|--------|
+| 01 | dual-gpu-series-on-v0.2.1 | ❌ | `--prefill-main`, `--kv-resident-later`, `--prefill-main-small`, split-wise prompt reads, SSD spill, parser fix, `--kv-resident-later`. 48 files, 8 patches total | High |
+| 02 | drop-superseded-parked-copies (PR #3404) | ❌ | Drop superseded parked conversation copies | Low |
+| 03 | tool-call-envelope-upstream-70f42407 | ❌ | Tool call envelope drift fix | Low |
+| 04 | spill-restore-fix-and-no-idle-spill | ❌ | Spill restore fix + no speculative spill writes while idle | Medium |
+| 05 | image-parts-chain-under-prefill-main | ❌ | Image parts read split-wise under `--prefill-main` | Medium |
+| 06 | copy-stream-leak-checkpoint-oom-ple-read-hang | ❌ | 3 upstream fixes: VRAM leak, checkpoint OOM, PLE read hang | Medium |
+| 07 | lost-experts-after-pipelined-adaptive-round (PR #4844) | ❌ | Experts lost after pipelined adaptive round (decode drifting down over hours) | Medium |
+| 08 | mmq-row-table-slack (PR #5108) | ✅ Already in | MMQ row table slack (`mmq_ids_rows`) — we have it at `src/poly/mmq.hpp` | Done |
+
+**Key features in patch 01 (the big one):**
+- `--prefill-main`: prompts read on the main GPU instead of the first card
+- `--kv-resident-later N`: later cards' K/V stays in VRAM (no PCIe read on slow link)
+- `--prefill-main-small S`: split-wise prompt reads (chunk hand-off via pinned buffer)
+- `session_copy_layers()`: K/V + GDN/QSA state sync between stages
+- `conversation_kv_save_stream/restore_stream`: streaming K/V (file, no RAM)
+- `PrefixStore`: persistent prefix snapshots (system prompt caching to disk)
+- `ExpertSource::role_fd_`: pread blob copies for non-resident experts
+- `MtpDrafter::kv_weights_on()`: MTP draft KV on another device
+- `Prefill::set_hand_chunk()`: hand-off buffer sizing for split-wise prompts
+- `Verify::set_ple_ticketed()`: PLE ticketed reads for pipelined decode
+- `KvStreamMap::kv_stream_evict_from()`: evict K/V blocks from cell b0 onward
+
+**Porting notes:**
+- Our fork is v0.2.12-based; ExTV is v0.2.1-based (older base, but patches are forward-compatible)
+- The 5090+4070 setup is dual-GPU with layer split; our 7900 XT + 3060 is similar (but PCIe link differs)
+- Patch 01 is 48 files — most of it is already in our fork (conversation_file, expert_source, verify, prefill)
+- The `--prefill-main` + `--kv-resident-later` combo is what gives the 3x decode speed
+- Our MOD_PLAN item 10.5 dropped `--kv-resident 8192` (+5% slots, 68.5 vs 70.5 noise) — that was a single-GPU test; ExTV measured it dual-GPU
+
+**Priority for 7900 XT + 3060:**
+1. **P1**: Port `--prefill-main` + `--kv-resident-later` (patches 01) — 3x decode on the 3060, big prefill gains
+2. **P2**: Port `--prefill-main-small` (patch 01) — split-wise prompt reads
+3. **P3**: Port spill restore fix (patch 04) + no idle spill
+4. **P4**: Port image parts chain (patch 05)
+5. **P5**: Port PR #4844 (patch 07) — experts lost after pipelined adaptive
+6. **P6**: Port upstream fixes (patch 06) — VRAM leak, checkpoint OOM, PLE read hang
+7. **P7**: Port PR #3404 + tool-call envelope (patches 02, 03)
+
+**Testing on Linux box:**
+- 7900 XT + 3060 dual-GPU with layer split (~39)
+- `--prefill-main --kv-resident-later 8192 --prefill-main-small 512`
+- Measure: decode tok/s, prompt tok/s, SSD reads, tool-call probe
 Screen tier, 2 repeats per arm. Text identical to base on every case (exact). Gains vs base:
 - combine-poll1 (item 2): short +1.1%, edit +0.2% -> PROMOTE to confirm
 - wait-fuse-off (item 3): short +1.2%, edit +0.8% -> PROMOTE to confirm
