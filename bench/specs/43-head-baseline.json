@@ -1,0 +1,17 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "head": {
+   "exe": "/home/dan/build-kh-w8/strata"
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "longdec10k",
+  "longdec32k"
+ ],
+ "reps": 3,
+ "lossy": false,
+ "note": "Baseline on current port/rdna3-decode HEAD (74b269ec7 + prefill.hpp set_usage fix): preset flashnext-iq2_xs-fast-hip, engine built from HEAD. Measurement only."
+}

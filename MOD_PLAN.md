@@ -3285,3 +3285,15 @@ Open after this branch: CPU-combine (combine_cpu, 26%) and flag waits (wait_flag
 - Open: the output difference between occ8 and occ4 is unexplained. Check occ8 against occ8 to measure run-to-run variation before treating any text change as a real effect.
 - Long-prompt caveat (spec 41, 3 repeats): wave32 MMVQ, WMMA attention and their combination show +3% to +9% at 32k with intervals of +-40% to +-58%; no claim. Text identical on all arms in spec 41 (spec 40 had reported MMVQ differing), so exactness is not settled.
 - Raw output: /home/dan/plan-runs/42-occ.stdout, 41-long.stdout (copy to pancake-docs/research/bench/results-2026-11-13/kernel-hip/ before the next commit).
+
+### HEAD baseline on port/rdna3-decode (2026-11-13, commit 693cdf63d, engine built from HEAD)
+Spec 43 (bench/specs/43-head-baseline.json), preset configs/pancake/flashnext-iq2_xs-fast-hip.json, engine /home/dan/build-kh-w8/strata. Measurement only, no env changes. Raw output: pancake-docs/research/bench/results-2026-11-13/head-baseline/.
+
+Decode tok/s, confirm tier (early stop after 2 repeats):
+- short 111.5 +-0.6
+- edit 112.3 +-2.5
+- longdec10k 91.7 +-36.2 (noisy)
+- longdec32k 102.8 +-18.4 (noisy)
+
+Caveats: only two repeats per case; the 10k and 32k intervals are wide. Background load (caveman-proxy, restarted after being stopped) affected the earlier run; the final run was taken at load about 0.1.
+Build fixes needed to reach this baseline: prefill.hpp set_usage duplicate (commit 693cdf63d).

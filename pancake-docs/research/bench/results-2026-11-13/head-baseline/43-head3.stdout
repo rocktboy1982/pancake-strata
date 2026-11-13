@@ -1,0 +1,21 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+  waiting for a quiet machine: load 0.00, foreign CPU 29% [('caveman-proxy', 14), ('2.1.323', 4), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 20 s
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 head                 short 111.6 edit 112.1 longdec10k 88.8/1146p 10362t longdec32k 104.3/1742p 31461t  foreign CPU 5% [('gnome-shell', 6), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 1657/1249 MHz 57C 141W gtt 21M cpu 3391MHz 58C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 head                 short 111.5 edit 112.5 longdec10k 94.5/1146p 10362t longdec32k 101.4/1740p 31461t  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1658/1249 MHz 59C 141W gtt 21M cpu 3392MHz 57C igpu 0%/vcn 0% fclk 1600
+early stop after 2 reps: every arm/case decided or below 1.5% of base
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  head                    111.5 +-   0.6  (n=2)
+                              drafts accepted 0.66
+  edit   head                    112.3 +-   2.5  (n=2)
+                              drafts accepted 0.91
+  longdec10k head                     91.7 +-  36.2  (n=2)
+  longdec32k head                    102.8 +-  18.4  (n=2)
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
