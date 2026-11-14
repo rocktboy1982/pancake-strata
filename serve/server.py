@@ -7797,6 +7797,10 @@ class Service:
                                 if loaded else None,
                                 "time": started, "duration_s": round(time.time() - started, 1), "finish": finish,
                                 "prompt_tokens": seen, "reused": last.get("reused"), "output_tokens": n,
+                                # the thinking's own token count.  The page's "Reasoning" column and the "Reasoning tokens"
+                                # total read the history, so the record carries it; _write_turn_log writes the same number
+                                # into the disk line, and a record from before this key existed stays None (the page shows a dash).
+                                "reasoning_tokens": thinking_n,
                                 "first_engine_token_s": first_engine_token_s,
                                 # the request's whole prompt, and the tokens read of it (None: an older engine)
                                 "prompt_total": len(ids), "prompt_read": last.get("prompt_read"),

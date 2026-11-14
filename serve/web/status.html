@@ -154,7 +154,7 @@ footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;paddin
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const dash = "&mdash;";
+const dash = "\u2014";
 let apiKey = sessionStorage.getItem("strata.monitor.key") || "";
 let paused = false, timer = null, lastData = null;
 
