@@ -567,6 +567,21 @@ class Telemetry:
         if win_amd is None and isinstance(self.gpu, _Metal) and self.gpu.ok():
             ws = metal_working_set()
             vram_total = ws >> 20 if ws else None
+        # Every reader reports the card's own VRAM size: NVML's memory info, the amdgpu sysfs mem_info_vram_total (#301),
+        # the Metal working set.  The status page's "VRAM total" and the TUI overview read this static key, and on Linux/AMD
+        # it used to stay empty while the live sample reported the used figure from the very same files.
+        # The total is the sum over the open cards, the same way sample() sums mem_total.
+        if vram_total is None and win_amd is None and self.gpu.ok():
+            total = 0
+            for _, reader in self.gpus:
+                if not reader.ok():
+                    continue
+                try:
+                    readings = reader.read()
+                except Exception:  # noqa: BLE001 - the size is a nicety; a run must not fail on it
+                    readings = {}
+                total += readings.get("mem_total") or 0
+            vram_total = total >> 20 if total else None
         self.static = {
             "gpu_name": gpu_name,
             "gpu_vram_total_mib": (sum(c["vram_bytes"] for c in win_amd) >> 20

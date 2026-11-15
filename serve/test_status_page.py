@@ -94,6 +94,15 @@ class PancakeStatus(unittest.TestCase):
         self.assertGreater(t["output_tokens"], 0)
         self.assertLessEqual(t["age_s"], 60)
 
+    def test_turn_record_carries_its_thinking_tokens(self):
+        """The page's "Reasoning" column and the Reasoning-tokens total: the history record must carry the count, not
+        only the disk turn log (the page reads the history)."""
+        self.chat()
+        d = json.loads(get(self.base + "/status.json")[2])
+        t = d["turns"][0]
+        self.assertIsInstance(t["reasoning_tokens"], int)          # the row says a number, not "no data"
+        self.assertEqual(d["stats"]["reasoning_tokens"], t["reasoning_tokens"])
+
     def test_switches_carry_strata_env_and_server_flags(self):
         import os
         self.svc.reasoning_budget_grace = 7
@@ -179,6 +188,14 @@ class StatusHtmlNegotiation(unittest.TestCase):
         self.assertEqual(headers.get("Content-Security-Policy"), "frame-src 'none'")
         self.assertEqual(body, self.page())
 
+    def test_status_page_scripts_the_real_em_dash(self):
+        """The missing-value mark reaches the page through `.textContent`, which never decodes entities: the script must
+        carry the em dash character, never the `&mdash;` markup text."""
+        text = (ROOT / "serve/web/status.html").read_text(encoding="utf-8")
+        self.assertIn('const dash = "\\u2014"', text)
+        self.assertNotIn('const dash = "&mdash;"', text)
+        self.assertNotIn("'&mdash;'", text)
+
     def test_status_with_accept_html_serves_the_page(self):
         status, headers, body = get(self.base + "/status", headers={"Accept": "text/html,application/xhtml+xml"})
         self.assertEqual(status, 200)
@@ -214,6 +231,44 @@ class StatusHtmlNegotiation(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(headers["Content-Type"], "text/html; charset=utf-8")
         self.assertEqual(body, self.page())
+
+
+class StaticVramTotal(unittest.TestCase):
+    """The page's "VRAM total": the card the sampler already reads (amdgpu sysfs / NVML), not only the Windows AMD
+    registry and the macOS Metal paths.  A fake reader, no GPU."""
+
+    GB = 1 << 30
+
+    def reader(self):
+        gb = self.GB
+
+        class Fake:
+            def ok(self):
+                return True
+
+            def name(self):
+                return "Fake AMD"
+
+            def read(self):
+                return {"util": 42, "mem_used": 15 * gb, "mem_total": 16 * gb,
+                        "temp": 50.0, "power": 120.0}
+        return Fake()
+
+    def test_the_reader_fills_the_total_the_page_shows(self):
+        svc = make_svc()
+        # serve() starts the sampler, so the fake reader has to be in place before the server comes up: the reader is
+        # chosen once, at construction.
+        with unittest.mock.patch("serve.telemetry.gpu_reader", lambda index=0, amd=False: self.reader()):
+            httpd, base = make_httpd(svc)
+        try:
+            self.assertEqual(svc.telemetry.static["gpu_vram_total_mib"], 16384)
+            d = json.loads(get(base + "/status.json")[2])
+            self.assertEqual(d["hardware"]["static"]["gpu_vram_total_mib"], 16384)
+        finally:
+            if getattr(svc, "telemetry", None) is not None:
+                svc.telemetry.close()
+            httpd.shutdown()
+            httpd.server_close()
 
 
 if __name__ == "__main__":
