@@ -17,6 +17,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
+#include <vector>
 
 namespace strata::kernels {
 namespace {
@@ -2894,7 +2896,8 @@ bool qsa_block_topk_split(const float* scores, const int32_t* steps, int64_t nq,
 }
 #endif
 
-#if !defined(__HIPCC__)
+// (MOD_PLAN.md section 6 item 14: the kernel below is also compiled on HIP, for STRATA_QSA_PARTIAL_TOPK=1's decode
+// calls; plain shared-memory code.  The prompt dispatch that launches it unset stays CUDA-only: nothing changes there.)
 // ---- the prompt path's top-k with one full read of the scores (Turing).  block_topk_wide_kernel reads a query's scores
 // six times (four radix passes, a count, the emit); past ~90K cells that is DRAM traffic (256 queries at 400K: 0.6 GB a
 // layer, ~1.5 ms on an RTX 2080 Ti).  Here a CTA first reads every 32nd block and takes the KS-th largest of those keys
@@ -3085,6 +3088,7 @@ __global__ void __launch_bounds__(TK_T) block_topk_sample_kernel(const float* __
     }
 }
 
+#if !defined(__HIPCC__)
 // The prompt path's one-read top-k: STRATA_TOPK_SAMPLE=0 / 1 forces it off / on for any card; unset it is a Turing kernel
 // of the series (STRATA_SM75_PERF=1).  (As submitted in #2093 it was on for every CUDA card; same ids, but only measured
 // on an RTX 2080 Ti, so the other cards keep the wide kernel.)
@@ -3104,12 +3108,40 @@ bool topk_sample_on() {
 }
 #endif
 
+// ---- STRATA_QSA_PARTIAL_TOPK=1 (MOD_PLAN.md section 6 item 14), decode calls only (no active-block count): the
+// selection's 4-pass radix over every block replaced by block_topk_sample_kernel's threshold estimate (the KS-th
+// largest of every 32nd block's key), ONE filter pass that keeps the blocks at or above it, and the exact radix over
+// those candidates only; a query whose candidates hold fewer than `width` cells (or more than TS_CAP blocks) is
+// flagged and block_topk_wide_kernel<true> re-runs it in full.  EXACT: both kernels apply block_topk_kernel's rule
+// (radix threshold, ties to the lowest index, cells ascending), so the ids are qsa_block_topk_ref's
+// (qsa_page_select_recall checks it).  g_tk_fail is one device array: one partial call at a time per device.
+bool qsa_partial_topk_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_QSA_PARTIAL_TOPK"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+
+bool qsa_block_topk_partial(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
+                            const QsaShapes& s, int32_t* ids, void* stream) {
+    if (nq <= 0) return true;
+    if (nq > TS_MAXQ || s.idx_block != R || cap < qsa_selection_width(kTopkMaxCells, s)) return false;
+    const cudaStream_t st = (cudaStream_t) stream;
+    block_topk_sample_kernel<<<(unsigned) nq, TK_T, 0, st>>>(scores, steps, max_blocks, cap, ids);
+    block_topk_wide_kernel<true><<<(unsigned) nq, TK_T, 0, st>>>(scores, steps, max_blocks, cap, ids);
+    const cudaError_t e = cudaGetLastError();
+    if (e != cudaSuccess) { std::fprintf(stderr, "qsa_block_topk (partial): %s\n", cudaGetErrorString(e)); std::exit(1); }
+    return true;
+}
+
 void qsa_block_topk(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
                     const QsaShapes& s, int32_t* ids, void* stream, int64_t active_blocks) {
     // keys in registers when every query's blocks fit (contexts up to ~135K cells), else (CUDA) the same threads
     // reading them from memory; the same ids. STRATA_TOPK_OLD=1: the original kernel
     static const bool old = std::getenv("STRATA_TOPK_OLD") != nullptr;
     if (nq <= 0) return;
+    // STRATA_QSA_PARTIAL_TOPK=1: the sampled-threshold top-k above (the same ids); unset, nothing changes here
+    if (qsa_partial_topk_on() && !old && active_blocks <= 0 &&
+        qsa_block_topk_partial(scores, steps, nq, max_blocks, cap, s, ids, stream))
+        return;
 #if !defined(__HIPCC__)
     // sm_90+: a cluster of CL_N CTAs per query for the calls of a few queries (decode windows); the same ids.
     // STRATA_QSA_CLUSTER=0: the one-CTA kernels below
@@ -4109,5 +4141,346 @@ void qsa_two_pass_check(const float*, const int32_t*, const float*, const int32_
                         int64_t, int64_t, void*, void*) {}
 bool qsa_two_pass_stats(unsigned long long*, bool, void*) { return false; }
 #endif
+
+// ==== STRATA_QSA_PAGE_SEL=<page cells> (MOD_PLAN.md section 6 item 14): Quest-style page-level selection, decode calls ====
+// The decode select scores every pooled block (block_scores_multi_kernel) and runs the radix top-k over all of them.
+// Here the complete blocks are grouped in pages of PB = page_cells / R blocks, and each FULL page keeps a summary: the
+// per-dimension min and max of its pooled keys.  A page's bound sum_h relu(sum_d max(q_hd * max_d, q_hd * min_d)) is
+// >= every block score in it (rounding aside).  Per call:
+//   1. page_refresh_kernel: every full page whose fingerprint (two words of each block's pooled key, the page index and
+//      a tag of the buffer) differs from the stored one gets its summary recomputed.  No host bookkeeping: a rollback,
+//      a restored conversation or another slot's keys under the same pointer simply fail the fingerprint.
+//   2. page_bound_kernel: the bounds of each query's full pages, and a step record for (3).
+//   3. qsa_block_topk over the bounds (pages weighted R "cells", width keep * R): the top `keep` pages, whole, in
+//      ascending order (keep = max(STRATA_QSA_PAGE_TOPP, the pages that hold `width` cells); default 4x the width).
+//   4. page_compact_kernel: the candidate blocks - the kept pages, the partial page (always), the tail block n_bid -
+//      in ascending order, scored with block_scores_multi_kernel's arithmetic, and the compact step record.
+//   5. qsa_block_topk over the compact row (the existing exact selection, inside the candidates only).
+//   6. page_remap_kernel: compact cells back to cell ids (ascending: the compaction keeps the order).
+// LOSSY-ISH: a key whose page bound is not in the top `keep` pages cannot be selected; when every exact top-`width`
+// block lies in a kept page the ids equal the full selection's (up to ties at the threshold).  Exact when a query has
+// at most `keep` full pages.  qsa_page_select_recall reports recall against qsa_block_topk_ref.
+// Memory per QSA layer and slot (pooled pointer): 2 x 512 B per page of summaries (PB = 4 at a 262144-cell capacity:
+// ~16.8 MiB; 32-cell pages half that) plus per-query rows; allocated once on first use, never freed.
+namespace {
+constexpr int PS_MAXQ = MQ;          // queries per call (a decode window's rows)
+constexpr int PS_WARPS = 8;          // warps per CTA in the page kernels
+
+struct PageSelBuf {
+    const float* pooled = nullptr;
+    int device = -1, page_cells = 0;
+    int64_t topp = 0, max_blocks = 0, max_pages = 0, cmax = 0, cap_p = 0;
+    float* mx = nullptr;
+    float* mn = nullptr;
+    uint2* chk = nullptr;
+    float* pscore = nullptr;
+    int32_t* psteps = nullptr;
+    int32_t* pids = nullptr;
+    float* cscore = nullptr;
+    int32_t* csteps = nullptr;
+    int32_t* cmap = nullptr;
+};
+
+__global__ void __launch_bounds__(PS_WARPS * 32) page_refresh_kernel(const float* __restrict__ pooled,
+                                                                     const int32_t* __restrict__ steps, int nq, int pb,
+                                                                     int64_t max_pages, float* __restrict__ mx,
+                                                                     float* __restrict__ mn, uint2* __restrict__ chk,
+                                                                     uint32_t tag) {
+    __shared__ int64_t s_full;
+    if (threadIdx.x == 0) {
+        int64_t top = 0;
+        for (int q = 0; q < nq; ++q) {
+            const int64_t nf = (int64_t) steps[q * kStepCount + kStepNBid] / pb;
+            top = nf > top ? nf : top;
+        }
+        s_full = top < max_pages - 1 ? top : max_pages - 1;
+    }
+    __syncthreads();
+    const int64_t n_full = s_full;
+    const int lane = threadIdx.x & 31;
+    const int64_t wstride = (int64_t) gridDim.x * PS_WARPS;
+    for (int64_t p = (int64_t) blockIdx.x * PS_WARPS + (threadIdx.x >> 5); p < n_full; p += wstride) {
+        const float* base = pooled + p * pb * IDX_DIM;
+        uint32_t h = 0u;
+        if (lane < pb) {
+            const uint32_t a = __float_as_uint(base[(int64_t) lane * IDX_DIM]);
+            const uint32_t b = __float_as_uint(base[(int64_t) lane * IDX_DIM + IDX_DIM / 2]);
+            h = (a ^ (b * 0x9e3779b1u)) * (2u * (uint32_t) lane + 1u);
+        }
+#pragma unroll
+        for (int o = 16; o > 0; o >>= 1) h ^= __shfl_xor_sync(0xffffffffu, h, o);
+        h |= 1u;                                       // never the zero of fresh memory
+        const uint32_t want_y = (uint32_t) p ^ tag;
+        const uint2 have = chk[p];
+        if (have.x == h && have.y == want_y) continue;  // warp-uniform: every lane holds the same h
+        float4 lo = make_float4(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
+        float4 hi = make_float4(-FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX);
+        for (int j = 0; j < pb; ++j) {
+            const float4 k4 = *reinterpret_cast<const float4*>(base + (int64_t) j * IDX_DIM + lane * 4);
+            lo.x = fminf(lo.x, k4.x); lo.y = fminf(lo.y, k4.y); lo.z = fminf(lo.z, k4.z); lo.w = fminf(lo.w, k4.w);
+            hi.x = fmaxf(hi.x, k4.x); hi.y = fmaxf(hi.y, k4.y); hi.z = fmaxf(hi.z, k4.z); hi.w = fmaxf(hi.w, k4.w);
+        }
+        *reinterpret_cast<float4*>(mn + p * IDX_DIM + lane * 4) = lo;
+        *reinterpret_cast<float4*>(mx + p * IDX_DIM + lane * 4) = hi;
+        __syncwarp();
+        if (lane == 0) chk[p] = make_uint2(h, want_y);
+    }
+}
+
+__global__ void __launch_bounds__(PS_WARPS * 32) page_bound_kernel(const float* __restrict__ q_idx,
+                                                                   const int32_t* __restrict__ steps, int pb, int pg,
+                                                                   int64_t topp, int64_t max_pages,
+                                                                   const float* __restrict__ mx,
+                                                                   const float* __restrict__ mn,
+                                                                   float* __restrict__ pscore,
+                                                                   int32_t* __restrict__ psteps) {
+    const int q = blockIdx.y;
+    const int32_t* st = steps + (int64_t) q * kStepCount;
+    const int64_t n_bid = st[kStepNBid], width = st[kStepWidth];
+    int64_t n_full = n_bid / pb;
+    if (n_full > max_pages - 1) n_full = max_pages - 1;
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        const int64_t need = (width + pg - 1) / pg;
+        const int64_t keep = topp > need ? topp : need;
+        int32_t* ps = psteps + (int64_t) q * kStepCount;
+        ps[kStepPos] = 0;
+        ps[kStepNKv] = (int32_t) (n_full * R);
+        ps[kStepNBid] = (int32_t) n_full;
+        ps[kStepWidth] = (int32_t) ((keep < n_full ? keep : n_full) * R);
+    }
+    const int lane = threadIdx.x & 31;
+    float4 qv[IDX_HEADS];
+#pragma unroll
+    for (int h = 0; h < IDX_HEADS; ++h)
+        qv[h] = *reinterpret_cast<const float4*>(q_idx + ((int64_t) q * IDX_HEADS + h) * IDX_DIM + lane * 4);
+    const int64_t wstride = (int64_t) gridDim.x * PS_WARPS;
+    for (int64_t p = (int64_t) blockIdx.x * PS_WARPS + (threadIdx.x >> 5); p < n_full; p += wstride) {
+        const float4 lo = *reinterpret_cast<const float4*>(mn + p * IDX_DIM + lane * 4);
+        const float4 hi = *reinterpret_cast<const float4*>(mx + p * IDX_DIM + lane * 4);
+        float score = 0.0f;
+#pragma unroll
+        for (int h = 0; h < IDX_HEADS; ++h) {
+            const float4 a = qv[h];
+            float u = fmaxf(a.x * hi.x, a.x * lo.x) + fmaxf(a.y * hi.y, a.y * lo.y) +
+                      fmaxf(a.z * hi.z, a.z * lo.z) + fmaxf(a.w * hi.w, a.w * lo.w);
+#pragma unroll
+            for (int o = 16; o > 0; o >>= 1) u += __shfl_xor_sync(0xffffffffu, u, o);
+            score += u > 0.0f ? u : 0.0f;
+        }
+        if (lane == 0) pscore[(int64_t) q * max_pages + p] = score;
+    }
+}
+
+__global__ void __launch_bounds__(PS_WARPS * 32) page_compact_kernel(const float* __restrict__ pooled,
+                                                                     const float* __restrict__ dead,
+                                                                     const float* __restrict__ q_idx,
+                                                                     const int32_t* __restrict__ steps, int pb,
+                                                                     const int32_t* __restrict__ pids, int64_t cap_p,
+                                                                     const int32_t* __restrict__ psteps,
+                                                                     float* __restrict__ cscore,
+                                                                     int32_t* __restrict__ csteps,
+                                                                     int32_t* __restrict__ cmap, int64_t cmax) {
+    const int q = blockIdx.y;
+    const int32_t* st = steps + (int64_t) q * kStepCount;
+    const int32_t* ps = psteps + (int64_t) q * kStepCount;
+    const int64_t n_kv = st[kStepNKv], n_bid = st[kStepNBid];
+    const int64_t n_full = ps[kStepNBid], nkv_p = ps[kStepNKv], w_p = ps[kStepWidth];
+    const int64_t kept = nkv_p <= w_p ? n_full : w_p / R;     // pages the top-k kept (all of them on its identity path)
+    const int64_t head = kept * pb;                           // candidate blocks from the kept pages
+    const int64_t ncomp = head + (n_bid - n_full * pb);       // + the partial page's complete blocks
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        int32_t* cs = csteps + (int64_t) q * kStepCount;
+        cs[kStepPos] = st[kStepPos];
+        cs[kStepNKv] = (int32_t) (ncomp * R + (n_kv - n_bid * R));
+        cs[kStepNBid] = (int32_t) ncomp;
+        cs[kStepWidth] = st[kStepWidth];
+    }
+    const int32_t* prow = pids + (int64_t) q * cap_p;
+    const int lane = threadIdx.x & 31;
+    float4 qv[IDX_HEADS];
+#pragma unroll
+    for (int h = 0; h < IDX_HEADS; ++h)
+        qv[h] = *reinterpret_cast<const float4*>(q_idx + ((int64_t) q * IDX_HEADS + h) * IDX_DIM + lane * 4);
+    const int64_t wstride = (int64_t) gridDim.x * PS_WARPS;
+    for (int64_t i = (int64_t) blockIdx.x * PS_WARPS + (threadIdx.x >> 5); i <= ncomp && i < cmax; i += wstride) {
+        int64_t b;
+        if (i < head) {
+            const int64_t k = i / pb;
+            b = (int64_t) (prow[k * R] / R) * pb + (i - k * pb);
+        } else if (i < ncomp) {
+            b = n_full * pb + (i - head);
+        } else {
+            b = n_bid;
+        }
+        // block_scores_multi_kernel's arithmetic for (query, block), in its order
+        const float4 k4 = *reinterpret_cast<const float4*>((b == n_bid ? dead : pooled + b * IDX_DIM) + lane * 4);
+        float score = 0.0f;
+#pragma unroll
+        for (int h = 0; h < IDX_HEADS; ++h) {
+            const float4 q4 = qv[h];
+            float d = k4.x * q4.x + k4.y * q4.y + k4.z * q4.z + k4.w * q4.w;
+#pragma unroll
+            for (int o = 16; o > 0; o >>= 1) d += __shfl_xor_sync(0xffffffffu, d, o);
+            score += d > 0.0f ? d : 0.0f;
+        }
+        if (lane == 0) {
+            if (b == n_bid && n_kv % R != 0) score += 1e9f;
+            cscore[(int64_t) q * cmax + i] = score;
+            cmap[(int64_t) q * cmax + i] = (int32_t) b;
+        }
+    }
+}
+
+__global__ void __launch_bounds__(256) page_remap_kernel(const int32_t* __restrict__ csteps,
+                                                         const int32_t* __restrict__ cmap, int64_t cmax,
+                                                         int32_t* __restrict__ ids, int64_t cap) {
+    const int q = blockIdx.y;
+    const int32_t* cs = csteps + (int64_t) q * kStepCount;
+    const int64_t nkv = cs[kStepNKv], w = cs[kStepWidth];
+    const int64_t cnt = nkv < w ? nkv : w;
+    int32_t* row = ids + (int64_t) q * cap;
+    const int32_t* map = cmap + (int64_t) q * cmax;
+    for (int64_t i = (int64_t) blockIdx.x * blockDim.x + threadIdx.x; i < cnt; i += (int64_t) gridDim.x * blockDim.x) {
+        const int32_t c = row[i];
+        row[i] = map[c / R] * R + c % R;
+    }
+}
+
+// cudaMalloc that also works while `stream` is being captured (relaxed mode for this thread around the call: the
+// allocation is not a stream operation).  nullptr when the memory cannot be had.
+void* page_sel_alloc(size_t bytes, void* stream) {
+    cudaStreamCaptureStatus cst = cudaStreamCaptureStatusNone;
+    if (cudaStreamIsCapturing((cudaStream_t) stream, &cst) != cudaSuccess) {
+        cudaGetLastError();
+        cst = cudaStreamCaptureStatusNone;
+    }
+    void* p = nullptr;
+    bool ok;
+    if (cst != cudaStreamCaptureStatusNone) {
+#if defined(__HIPCC__)
+        hipStreamCaptureMode mode = hipStreamCaptureModeRelaxed;
+        (void) hipThreadExchangeStreamCaptureMode(&mode);
+        ok = hipMalloc(&p, bytes) == hipSuccess;
+        (void) hipThreadExchangeStreamCaptureMode(&mode);
+#else
+        cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
+        (void) cudaThreadExchangeStreamCaptureMode(&mode);
+        ok = cudaMalloc(&p, bytes) == cudaSuccess;
+        (void) cudaThreadExchangeStreamCaptureMode(&mode);
+#endif
+    } else {
+        ok = cudaMalloc(&p, bytes) == cudaSuccess;
+    }
+    if (!ok) {
+        cudaGetLastError();
+        return nullptr;
+    }
+    return p;
+}
+
+// The buffer of (device, pooled keys, page size, kept pages); created on the first call, grown never (a call with a
+// larger capacity than the buffer's falls back to the full selection).
+PageSelBuf* page_sel_buf(const float* pooled, int page_cells, int64_t topp, int64_t max_blocks, int64_t wmax,
+                         void* stream) {
+    static std::mutex mu;
+    static std::vector<PageSelBuf*> bufs;
+    int dev = 0;
+    if (cudaGetDevice(&dev) != cudaSuccess) { cudaGetLastError(); return nullptr; }
+    std::lock_guard<std::mutex> lock(mu);
+    for (PageSelBuf* b : bufs)
+        if (b->device == dev && b->pooled == pooled && b->page_cells == page_cells && b->topp == topp)
+            return b->max_blocks >= max_blocks ? b : nullptr;
+    const int64_t pb = page_cells / R;
+    const int64_t topp_cap = topp > (wmax + page_cells - 1) / page_cells ? topp : (wmax + page_cells - 1) / page_cells;
+    PageSelBuf nb;
+    nb.pooled = pooled;
+    nb.device = dev;
+    nb.page_cells = page_cells;
+    nb.topp = topp;
+    nb.max_blocks = max_blocks;
+    nb.max_pages = (max_blocks + pb - 1) / pb + 1;            // + 1: the top-k reads index n_full (weight 0)
+    nb.cmax = topp_cap * pb + pb + 1;                         // kept pages, the partial page, the tail block
+    nb.cap_p = topp_cap * R > wmax ? topp_cap * R : wmax;     // qsa_block_topk needs cap >= the largest width
+    auto al = [](uint64_t x) { return (x + 255) & ~(uint64_t) 255; };
+    const uint64_t b_mx = al((uint64_t) nb.max_pages * IDX_DIM * 4), b_chk = al((uint64_t) nb.max_pages * 8);
+    const uint64_t b_ps = al((uint64_t) PS_MAXQ * nb.max_pages * 4), b_st = al((uint64_t) PS_MAXQ * kStepCount * 4);
+    const uint64_t b_pid = al((uint64_t) PS_MAXQ * nb.cap_p * 4), b_c = al((uint64_t) PS_MAXQ * nb.cmax * 4);
+    const uint64_t total = 2 * b_mx + b_chk + b_ps + 2 * b_st + b_pid + 2 * b_c;
+    char* base = (char*) page_sel_alloc((size_t) total, stream);
+    if (base == nullptr) {
+        std::fprintf(stderr, "qsa page select: cannot allocate %.1f MiB - the full selection runs\n", total / 1048576.0);
+        return nullptr;
+    }
+    uint64_t off = 0;
+    auto take = [&](uint64_t bytes) { char* p = base + off; off += bytes; return p; };
+    nb.mx = (float*) take(b_mx);
+    nb.mn = (float*) take(b_mx);
+    nb.chk = (uint2*) take(b_chk);
+    nb.pscore = (float*) take(b_ps);
+    nb.psteps = (int32_t*) take(b_st);
+    nb.csteps = (int32_t*) take(b_st);
+    nb.pids = (int32_t*) take(b_pid);
+    nb.cscore = (float*) take(b_c);
+    nb.cmap = (int32_t*) take(b_c);
+    bufs.push_back(new PageSelBuf(nb));
+    return bufs.back();
+}
+}  // namespace
+
+bool qsa_page_select_with(int page_cells, int64_t topp, const float* pooled, const float* dead, const float* q_idx,
+                          const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap, const QsaShapes& s,
+                          int32_t* ids, void* stream) {
+    if (nq <= 0 || nq > PS_MAXQ || pooled == nullptr) return false;
+    if (page_cells != 8 && page_cells != 16 && page_cells != 32 && page_cells != 64) return false;
+    if (s.idx_dim != IDX_DIM || s.idx_n_head != IDX_HEADS || s.idx_block != R) return false;
+    const int64_t wmax = qsa_selection_width(kTopkMaxCells, s);
+    if (cap < wmax) return false;
+    if (topp <= 0) topp = (4 * wmax + page_cells - 1) / page_cells;   // default: 4x the selection width
+    PageSelBuf* b = page_sel_buf(pooled, page_cells, topp, max_blocks, wmax, stream);
+    if (b == nullptr) return false;
+    const int pb = page_cells / R;
+    const cudaStream_t st = (cudaStream_t) stream;
+    const uint64_t pv = (uint64_t) (uintptr_t) pooled;
+    const uint32_t tag = (uint32_t) pv ^ (uint32_t) (pv >> 32) ^ 0x5bd1e995u ^ (uint32_t) page_cells;
+    const unsigned qn = (unsigned) nq;
+    page_refresh_kernel<<<256, PS_WARPS * 32, 0, st>>>(pooled, steps, (int) nq, pb, b->max_pages, b->mx, b->mn, b->chk, tag);
+    page_bound_kernel<<<dim3(64, qn), PS_WARPS * 32, 0, st>>>(q_idx, steps, pb, page_cells, topp, b->max_pages, b->mx,
+                                                               b->mn, b->pscore, b->psteps);
+    cudaError_t e = cudaGetLastError();
+    if (e != cudaSuccess) { std::fprintf(stderr, "qsa page select (bounds): %s\n", cudaGetErrorString(e)); std::exit(1); }
+    qsa_block_topk(b->pscore, b->psteps, nq, b->max_pages, b->cap_p, s, b->pids, stream);
+    page_compact_kernel<<<dim3(64, qn), PS_WARPS * 32, 0, st>>>(pooled, dead, q_idx, steps, pb, b->pids, b->cap_p,
+                                                                 b->psteps, b->cscore, b->csteps, b->cmap, b->cmax);
+    e = cudaGetLastError();
+    if (e != cudaSuccess) { std::fprintf(stderr, "qsa page select (compact): %s\n", cudaGetErrorString(e)); std::exit(1); }
+    qsa_block_topk(b->cscore, b->csteps, nq, b->cmax, cap, s, ids, stream);
+    page_remap_kernel<<<dim3(8, qn), 256, 0, st>>>(b->csteps, b->cmap, b->cmax, ids, cap);
+    e = cudaGetLastError();
+    if (e != cudaSuccess) { std::fprintf(stderr, "qsa page select (remap): %s\n", cudaGetErrorString(e)); std::exit(1); }
+    return true;
+}
+
+bool qsa_page_select(const float* pooled, const float* dead, const float* q_idx, const int32_t* steps, int64_t nq,
+                     int64_t max_blocks, int64_t cap, const QsaShapes& s, int32_t* ids, void* stream) {
+    // read once.  STRATA_QSA_PAGE_SEL: 8, 16, 32 or 64 cells per page; any other non-zero value means 16; 0 / unset off
+    static const int page_cells = [] {
+        const char* v = std::getenv("STRATA_QSA_PAGE_SEL");
+        if (v == nullptr || v[0] == '\0') return 0;
+        const int x = std::atoi(v);
+        if (x == 0) return 0;
+        return (x == 8 || x == 16 || x == 32 || x == 64) ? x : 16;
+    }();
+    if (page_cells == 0) return false;
+    // STRATA_QSA_PAGE_TOPP: pages kept per query (at least the pages that hold the selection width); unset: 4x the width
+    static const int64_t topp = [] {
+        const char* v = std::getenv("STRATA_QSA_PAGE_TOPP");
+        return v != nullptr && v[0] != '\0' ? (int64_t) std::atoll(v) : (int64_t) 0;
+    }();
+    static std::atomic<bool> said{false};
+    if (!said.exchange(true))
+        std::fprintf(stderr, "qsa page select: %d-cell pages, %lld pages kept per query (0: 4x the selection width); "
+                             "lossy-ish (STRATA_QSA_PAGE_SEL)\n", page_cells, (long long) topp);
+    return qsa_page_select_with(page_cells, topp, pooled, dead, q_idx, steps, nq, max_blocks, cap, s, ids, stream);
+}
 
 }  // namespace strata::kernels

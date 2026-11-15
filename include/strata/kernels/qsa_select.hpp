@@ -78,6 +78,28 @@ bool qsa_block_topk_cluster(const float* scores, const int32_t* steps, int64_t n
 void qsa_block_topk_ref(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
                         const QsaShapes& s, int32_t* ids, void* stream);
 
+/// STRATA_QSA_PARTIAL_TOPK=1 (MOD_PLAN.md section 6 item 14), read once: qsa_block_topk's decode calls (no active-block
+/// count) take qsa_block_topk_partial.  That is a threshold estimated from every 32nd block, one filter pass and the
+/// exact radix over the candidates; a query with too few candidates re-runs the full kernel.  EXACT: the same ids.
+/// False (nothing launched): nq > 4096 or another geometry / cap.  One call at a time per device (a shared fail flag).
+bool qsa_partial_topk_on();
+bool qsa_block_topk_partial(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
+                            const QsaShapes& s, int32_t* ids, void* stream);
+
+/// STRATA_QSA_PAGE_SEL=<page cells> (8/16/32/64; default off) and STRATA_QSA_PAGE_TOPP=<pages> (MOD_PLAN.md section 6
+/// item 14), read once: the decode select on page summaries.  Per full page, the min/max of its pooled keys, kept per
+/// pooled-key buffer and refreshed by fingerprint.  Each query keeps its top pages by bound (at least enough pages for
+/// the selection width), plus the partial page and the tail block.  The exact scores and qsa_block_topk then run over
+/// those candidates only.  Writes `ids` like qsa_block_scores + qsa_block_topk (ascending, `width` cells) and replaces
+/// both; `scores` is not written.  LOSSY-ISH: a top key outside the kept pages is missed.  False (nothing launched,
+/// run the full selection): the switch is off, nq > 8, another geometry, cap below the largest width, no memory.
+/// qsa_page_select_with: the same with explicit settings (tests; topp <= 0 means 4x the selection width).
+bool qsa_page_select(const float* pooled, const float* dead, const float* q_idx, const int32_t* steps, int64_t nq,
+                     int64_t max_blocks, int64_t cap, const QsaShapes& s, int32_t* ids, void* stream);
+bool qsa_page_select_with(int page_cells, int64_t topp, const float* pooled, const float* dead, const float* q_idx,
+                          const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap, const QsaShapes& s,
+                          int32_t* ids, void* stream);
+
 /// The long-context decode select (the verifier's STRATA_SELECT_LONG=1 windows; CUDA builds with
 /// STRATA_EXPERIMENTAL_SM60, elsewhere the plain calls).  qsa_block_topk_long: qsa_block_topk's ids; a call with
 /// `multi_scratch` (qsa_topk_multi_scratch_ints(nq) device ints, one call at a time per scratch, no initial value), no

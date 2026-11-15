@@ -163,3 +163,5 @@ namespace strata::kernels { void ple_iq4nl_dequant(const uint8_t* p0, int64_t p1
 // STRATA_DEQUANT_SIDE (opt-in, CUDA only): off on Metal; the prompt path takes no second scratch and set_dequant_side(nullptr) keeps the serial form.
 namespace strata::prefill { bool gemm_dequant_side() { return false; } }
 auto strata::prefill::Gemm::set_dequant_side(uint16_t* p0, std::string& p1) -> bool { if (p0 == nullptr) return true; strata::metal_engine::missing("strata::prefill::Gemm::set_dequant_side"); return false; }
+// STRATA_QSA_PAGE_SEL (opt-in, CUDA / HIP decode select): off on Metal; layer.cpp and verify.cpp keep the full selection.
+namespace strata::kernels { bool qsa_page_select(const float*, const float*, const float*, const int32_t*, int64_t, int64_t, int64_t, const QsaShapes&, int32_t*, void*) { return false; } }
