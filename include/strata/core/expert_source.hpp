@@ -879,6 +879,9 @@ void expert_pool_dispatch(void* user, const float* x_f, const int32_t* ids, cons
 /// STRATA_ROUTE_TAIL_SKIP rank (0: off).  Unset in the environment: 0 until the serve start-up sets the default.
 int tail_skip_rank();
 void set_tail_skip_rank(int r);
+/// STRATA_ROUTE_TAIL_SKIP_LAYERS (opt-in, lossy; read once): the tail-skip rank of `layer`; unset or an unlisted layer:
+/// tail_skip_rank().  LEADS.md Part B B133.
+int tail_skip_rank_layer(int64_t layer);
 /// STRATA_MISS_SKIP_W=<share> / STRATA_MISS_SKIP_CUM=<p> (opt-in, lossy; read once): true when either is set to a value in
 /// (0, 1); the verifier then publishes the routing weights to the pool (GpuPlanSink::skip_w).  Unset: false, no change.
 bool miss_skip_weights_on();

@@ -158,6 +158,7 @@ STRATA_ENV("STRATA_SELECT_SIMT", KeyIfSet, "FP32 tiled scorer, another summation
 STRATA_ENV("STRATA_SELECT_WMMA", KeyIfSet, "matrix-core block scorer (not bitwise, cutoff cells flip)")
 STRATA_ENV("STRATA_SM120_PERF", KeyIfSet, "gates sm_120 defaults incl. GR_V3 (another summation order)")
 STRATA_ENV("STRATA_SM121_PERF", KeyIfSet, "gates the sm_121 table: PF_FUSED, PREFILL_NVFP4=w4a4 (round differently)")
+STRATA_ENV("STRATA_ROUTE_TAIL_SKIP_LAYERS", KeyIfSet, "per-layer rank of ROUTE_TAIL_SKIP (HookMoE layer-dependent skip; changes the output)")
 STRATA_ENV("STRATA_TAIL_SKIP_MAX_CACHED", KeyIfSet, "limit of ROUTE_TAIL_SKIP (decides which tails are skipped)")
 STRATA_ENV("STRATA_MISS_SKIP_CUM", KeyIfSet, "skips missed experts past a cumulative gate weight (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")
 STRATA_ENV("STRATA_MISS_SKIP_W", KeyIfSet, "skips missed experts under a gate-weight share (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")

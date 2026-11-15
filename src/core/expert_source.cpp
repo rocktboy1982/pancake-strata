@@ -4961,6 +4961,42 @@ int tail_skip_rank() {
 }
 void set_tail_skip_rank(int r) { g_tail_skip_rank.store(r > 0 && r < 10 ? r : 0, std::memory_order_relaxed); }
 
+// STRATA_ROUTE_TAIL_SKIP_LAYERS="a-b:R[,c-d:R2...]" (opt-in, lossy, read once): a per-layer rank for the tail skip below,
+// in place of the one STRATA_ROUTE_TAIL_SKIP rank on the listed layers (inclusive ranges; "a:R" is one layer; R 0 = no
+// skip on those layers, R 1..9 = skip a missed expert every token of the window ranks at R or later).  Layers not listed
+// keep tail_skip_rank().  The layer-dependent expert skip of HookMoE (paper: deeper layers tolerate more skipped
+// experts) and ik_llama.cpp's per-layer smart expert reduction (-ser), restricted, as our tail skip is, to MISSED experts.
+// Unset: -1 for every layer, tail_skip_rank() unchanged.  Lead: LEADS.md Part B B133.
+int tail_skip_rank_layer(int64_t layer) {
+    static const std::vector<int8_t> table = [] {
+        std::vector<int8_t> t;
+        const char* v = std::getenv("STRATA_ROUTE_TAIL_SKIP_LAYERS");
+        if (v == nullptr || v[0] == '\0') return t;
+        const char* p = v;
+        while (*p != '\0') {
+            char* e = nullptr;
+            const long a = std::strtol(p, &e, 10);
+            if (e == p) break;
+            long b = a;
+            p = e;
+            if (*p == '-') { b = std::strtol(p + 1, &e, 10); if (e == p + 1) break; p = e; }
+            if (*p != ':') break;
+            const long r = std::strtol(p + 1, &e, 10);
+            if (e == p + 1) break;
+            p = e;
+            if (a >= 0 && b >= a && b < 4096 && r >= 0 && r < 10) {
+                if ((size_t) b >= t.size()) t.resize((size_t) b + 1, (int8_t) -1);
+                for (long l = a; l <= b; ++l) t[(size_t) l] = (int8_t) r;
+            }
+            if (*p == ',') ++p; else break;
+        }
+        return t;
+    }();
+    const int base = tail_skip_rank();
+    if (layer < 0 || (size_t) layer >= table.size() || table[(size_t) layer] < 0) return base;
+    return table[(size_t) layer];
+}
+
 namespace {
 // STRATA_MISS_SKIP_W=<share> / STRATA_MISS_SKIP_CUM=<p> (opt-in, lossy; MOD_PLAN.md section 6 item 15, LEADS.md): the
 // weight-based companions of the rank tail skip.  Each value is used only in (0, 1); anything else (unset too) is 0 = off.
@@ -5083,7 +5119,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         // STRATA_ROUTE_TAIL_SKIP=R (default 7 on CUDA serve, =0 off; changes the output): a missed expert that EVERY token of the window routes
         // only at rank >= R (the smallest weights of the top-10) is neither copied nor computed; its contribution is
         // zero, without renormalisation (the others keep the weight the router gave them).  Less PCIe and CPU work.
-        const int tail_rank = tail_skip_rank();
+        const int tail_rank = tail_skip_rank_layer(d.layers);   // = tail_skip_rank() unless STRATA_ROUTE_TAIL_SKIP_LAYERS lists this layer
         bool skip_d[kMaxWindowEntries];
         for (int q = 0; q < nd; ++q) skip_d[q] = false;
         if (tail_rank > 0 && d.peer == nullptr && d.remote_count == 0) {
