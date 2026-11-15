@@ -21,6 +21,16 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined(__linux__) && defined(__has_include)
+#if __has_include(<linux/io_uring.h>)
+#include <cerrno>
+#include <cstdio>
+#include <linux/io_uring.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+#define STRATA_HAVE_URING 1
+#endif
+#endif
 #endif
 
 namespace strata::platform {
@@ -265,6 +275,96 @@ void DirectFile::wake() {
 // perf-review F-2: a pool of threads, each doing blocking O_DIRECT preads, so reads run in parallel (the thread
 // count is the queue depth).  It replaced one synchronous pread inside `submit`, which read the n-gram table's
 // rows one at a time.
+#if defined(STRATA_HAVE_URING)
+namespace {
+// STRATA_IO_URING=N (opt-in, Linux; unset or 0 = the pread pool, as before): one thread issues the reads through an
+// io_uring of depth N (8..1024) instead of N blocking pread threads.  The same reads of the same bytes into the same
+// buffers, completed in whatever order the drive finishes them (the pool's completions are unordered too).  Raw
+// syscalls, no liburing.  A kernel that refuses io_uring_setup keeps the pread pool (said once).  Lead: LEADS.md Part D
+// "io_uring in DirectFile" (data-path report: ~1.06x drop-in; SQPOLL not used, it burns a core).
+int uring_depth() {
+    static const int d = [] {
+        const char* e = std::getenv("STRATA_IO_URING");
+        const int v = e ? std::atoi(e) : 0;
+        return v <= 0 ? 0 : std::clamp(v, 8, 1024);
+    }();
+    return d;
+}
+
+struct Uring {
+    int fd = -1;
+    unsigned entries = 0;
+    void* sq_ptr = nullptr;
+    void* cq_ptr = nullptr;
+    size_t sq_sz = 0, cq_sz = 0, sqes_sz = 0;
+    io_uring_sqe* sqes = nullptr;
+    unsigned *sq_head = nullptr, *sq_tail = nullptr, *sq_mask = nullptr, *sq_array = nullptr;
+    unsigned *cq_head = nullptr, *cq_tail = nullptr, *cq_mask = nullptr;
+    io_uring_cqe* cqes = nullptr;
+
+    bool init(unsigned n) {
+        io_uring_params p;
+        std::memset(&p, 0, sizeof p);
+        fd = (int) syscall(__NR_io_uring_setup, n, &p);
+        if (fd < 0) return false;
+        entries = p.sq_entries;
+        sq_sz = p.sq_off.array + p.sq_entries * sizeof(unsigned);
+        cq_sz = p.cq_off.cqes + p.cq_entries * sizeof(io_uring_cqe);
+        const bool single = (p.features & IORING_FEAT_SINGLE_MMAP) != 0;
+        if (single) sq_sz = cq_sz = std::max(sq_sz, cq_sz);
+        sq_ptr = mmap(nullptr, sq_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_SQ_RING);
+        if (sq_ptr == MAP_FAILED) { sq_ptr = nullptr; destroy(); return false; }
+        if (single) cq_ptr = sq_ptr;
+        else {
+            cq_ptr = mmap(nullptr, cq_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_CQ_RING);
+            if (cq_ptr == MAP_FAILED) { cq_ptr = nullptr; destroy(); return false; }
+        }
+        sqes_sz = p.sq_entries * sizeof(io_uring_sqe);
+        void* s = mmap(nullptr, sqes_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_SQES);
+        if (s == MAP_FAILED) { destroy(); return false; }
+        sqes = (io_uring_sqe*) s;
+        char* sq = (char*) sq_ptr;
+        sq_head = (unsigned*) (sq + p.sq_off.head);
+        sq_tail = (unsigned*) (sq + p.sq_off.tail);
+        sq_mask = (unsigned*) (sq + p.sq_off.ring_mask);
+        sq_array = (unsigned*) (sq + p.sq_off.array);
+        char* cq = (char*) cq_ptr;
+        cq_head = (unsigned*) (cq + p.cq_off.head);
+        cq_tail = (unsigned*) (cq + p.cq_off.tail);
+        cq_mask = (unsigned*) (cq + p.cq_off.ring_mask);
+        cqes = (io_uring_cqe*) (cq + p.cq_off.cqes);
+        return true;
+    }
+
+    void destroy() {
+        if (sqes != nullptr) munmap(sqes, sqes_sz);
+        if (cq_ptr != nullptr && cq_ptr != sq_ptr) munmap(cq_ptr, cq_sz);
+        if (sq_ptr != nullptr) munmap(sq_ptr, sq_sz);
+        if (fd >= 0) ::close(fd);
+        sqes = nullptr;
+        sq_ptr = cq_ptr = nullptr;
+        fd = -1;
+    }
+
+    /// Queues one read (the caller keeps at most `entries` in flight, so a slot is always free).
+    void push_read(int file, const Pending& r) {
+        const unsigned tail = *sq_tail;   // only this thread writes the tail
+        const unsigned idx = tail & *sq_mask;
+        io_uring_sqe* e = &sqes[idx];
+        std::memset(e, 0, sizeof *e);
+        e->opcode = IORING_OP_READ;
+        e->fd = file;
+        e->addr = (unsigned long long) (uintptr_t) r.buffer;
+        e->len = r.length;
+        e->off = r.offset;
+        e->user_data = r.tag;
+        sq_array[idx] = idx;
+        __atomic_store_n(sq_tail, tail + 1, __ATOMIC_RELEASE);
+    }
+};
+}  // namespace
+#endif
+
 struct DirectFile::Impl {
     int fd = -1;
     uint64_t size = 0;
@@ -274,6 +374,49 @@ struct DirectFile::Impl {
     std::deque<Completion> done;
     bool stop = false;
     std::vector<std::thread> pool;
+#if defined(STRATA_HAVE_URING)
+    Uring ring;   // STRATA_IO_URING: ring.fd >= 0 while the uring worker runs
+
+    void uring_worker() {
+        unsigned inflight = 0, unsubmitted = 0;   // this thread only
+        std::vector<Pending> batch;
+        for (;;) {
+            batch.clear();
+            {
+                std::unique_lock<std::mutex> lk(mu);
+                if (inflight == 0) cv_work.wait(lk, [&] { return stop || !queue.empty(); });
+                if (stop && queue.empty() && inflight == 0) return;
+                while (!queue.empty() && inflight + batch.size() < ring.entries) {
+                    batch.push_back(queue.front());
+                    queue.pop_front();
+                }
+            }
+            for (const Pending& p : batch) ring.push_read(fd, p);
+            inflight += (unsigned) batch.size();
+            unsubmitted += (unsigned) batch.size();
+            const long r = syscall(__NR_io_uring_enter, ring.fd, unsubmitted, inflight > 0 ? 1u : 0u,
+                                   IORING_ENTER_GETEVENTS, nullptr, 0);
+            if (r >= 0) unsubmitted -= std::min<unsigned>(unsubmitted, (unsigned) r);
+            else if (errno != EINTR && errno != EAGAIN && errno != EBUSY) {
+                static bool said = false;
+                if (!said) { said = true; std::fprintf(stderr, "strata: STRATA_IO_URING: io_uring_enter failed (errno %d); retrying\n", errno); }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            unsigned head = *ring.cq_head;
+            const unsigned tail = __atomic_load_n(ring.cq_tail, __ATOMIC_ACQUIRE);
+            if (head == tail) continue;
+            std::lock_guard<std::mutex> lk(mu);
+            while (head != tail) {
+                const io_uring_cqe& c = ring.cqes[head & *ring.cq_mask];
+                done.push_back(Completion{(uint64_t) c.user_data, c.res < 0 ? 0u : (uint32_t) c.res, c.res >= 0});
+                ++head;
+                --inflight;
+            }
+            __atomic_store_n(ring.cq_head, head, __ATOMIC_RELEASE);
+            cv_done.notify_all();
+        }
+    }
+#endif
 
     void worker() {
         std::unique_lock<std::mutex> lk(mu);
@@ -320,6 +463,16 @@ bool DirectFile::open(const std::string& path, std::string& err) {
     struct stat st;
     if (fstat(impl_->fd, &st) != 0) { err = "DirectFile: cannot size " + path; close(); return false; }
     impl_->size = (uint64_t) st.st_size;
+#if defined(STRATA_HAVE_URING)
+    if (uring_depth() > 0) {   // STRATA_IO_URING (opt-in): one issuing thread over a ring instead of the pread pool
+        if (impl_->ring.init((unsigned) uring_depth())) {
+            impl_->pool.emplace_back([this] { strata::aux_cpus::pin_current_thread(); impl_->uring_worker(); });
+            return true;
+        }
+        static bool said = false;
+        if (!said) { said = true; std::fprintf(stderr, "strata: STRATA_IO_URING: io_uring_setup refused; pread pool kept\n"); }
+    }
+#endif
     const int n = io_threads(16);
     for (int i = 0; i < n; ++i) impl_->pool.emplace_back([this] { strata::aux_cpus::pin_current_thread(); impl_->worker(); });
     return true;
@@ -327,6 +480,9 @@ bool DirectFile::open(const std::string& path, std::string& err) {
 
 void DirectFile::close() {
     impl_->stop_pool();
+#if defined(STRATA_HAVE_URING)
+    impl_->ring.destroy();   // (after the worker joined: no read is in flight)
+#endif
     if (impl_->fd >= 0) ::close(impl_->fd);
     impl_->fd = -1;
     impl_->size = 0;
