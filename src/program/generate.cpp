@@ -12342,6 +12342,16 @@ int main(int argc, char** argv) {
         ver.set_remote_expert_opt(remote_opt.get());
         if (pcie_balance() && n_stages == 1) ver.set_pcie_balance(&drive.d.pcie_model);
         if (n_stages == 1) dali_attach(ver, drive.d, "serve");   // STRATA_DALI (MOD_PLAN.md section 6 item 13)
+        {   // STRATA_PCIE0_NO_STAGING=1 (opt-in; strata-slim 0003, LEADS.md): under the STRATA_PCIE_OFF condition below (--pcie-frac 0,
+            // no auto share, one card) the verifier takes no PCIe staging slots; their VRAM is left to the expert cache
+            static const bool no_stage = [] { const char* v = std::getenv("STRATA_PCIE0_NO_STAGING"); return v != nullptr && v[0] == '1'; }();
+            const char* po = std::getenv("STRATA_PCIE_OFF");
+            if (no_stage && n_stages == 1 && o.pcie_frac == 0.0 && !o.pcie_frac_auto && o.layer_split.empty() && o.peer_device < 0 &&
+                !(po != nullptr && po[0] == '0')) {
+                ver.set_no_staging(true);
+                std::fprintf(stderr, "strata: STRATA_PCIE0_NO_STAGING: --pcie-frac 0: no PCIe staging slots\n");
+            }
+        }
         if (batch_mtp) ver.set_batch_graph_limit(64);   // --batch-mtp only: slot rotation makes many layouts (LRU); 0.1.39 keeps all
 #if defined(STRATA_HAVE_DFLASH2)
         if (use_df2) ver.set_taps(df2.tap_layers());
