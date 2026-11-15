@@ -101,6 +101,19 @@ void wait_flag_ge_stamped(const uint32_t* flag, uint32_t value, unsigned long lo
                           void* stream);
 /// STRATA_WAIT_FUSE: wait_flag_ge then copy_i32_from_mapped(dst, src, n) in one launch
 void wait_flag_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n, void* stream);
+/// STRATA_WAIT_FUSE_ROWS=1 (android-imdad caa9b00115, its STRATA_WAIT_FUSE): wait_flag_ge(flag, value) folded into the
+/// copy that follows it, one launch, the same bytes after the same flag - thread 0 of every block spins, then a barrier
+/// and a system fence in every thread (the fork's block_wait_flag_ge), then the block does the copy:
+///  - wait_fuse_rows_copy_i32: copy_i32_from_mapped(dst, src, n) (16-byte reads where both pointers allow; 256 threads
+///    for more than 512 words, the fork's default);
+///  - wait_copy_rows_from_mapped: copy_rows_from_mapped (rows of `width` floats; hit_rows[0, *count) zeroed);
+///  - wait_fetch_blobs: fetch_blobs, `dst2` as in its overload (may be null).
+void wait_fuse_rows_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
+                             void* stream);
+void wait_copy_rows_from_mapped(const uint32_t* flag, uint32_t value, float* dst, const float* src, int64_t rows,
+                                int64_t width, const int32_t* hit_rows, const int32_t* count, void* stream);
+void wait_fetch_blobs(const uint32_t* flag, uint32_t value, const unsigned long long* src, const int32_t* n, uint8_t* dst,
+                      int64_t blob_bytes, int cap, void* stream, const unsigned long long* dst2);
 /// the GPU's %globaltimer (ns) into buf[i] (a one-thread kernel: the verify window's stage profiler).  Inside a PDL
 /// stretch (pdl.hpp) the stamp passes the early launch on, so a profiled window keeps the chain it measures.
 void gpu_stamp(unsigned long long* buf, int i, void* stream);

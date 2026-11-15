@@ -34,6 +34,8 @@ inline Switch router_fuse{"STRATA_ROUTER_FUSE"};                 // item 48, ver
 inline Switch ic_warm{"STRATA_IC_WARM_MB"};                      // item 47, verify.cpp
 inline Switch expdec_swiglu{"STRATA_EXPDEC_SWIGLU"};             // item 48, iq_kernels.cu
 inline Switch hip_global_weights{"STRATA_HIP_GLOBAL_WEIGHTS"};   // Phase 15, a build macro: iq_kernels.cu at start-up
+inline Switch wait_combine{"STRATA_WAIT_COMBINE"};               // android-imdad caa9b00115, verify.cpp's combine
+inline Switch wait_fuse_rows{"STRATA_WAIT_FUSE_ROWS"};           // android-imdad caa9b00115, verify.cpp's expert waits
 
 inline constexpr const char* kActed = "acted";
 inline constexpr const char* kWillNotAct = "will not act";

@@ -1676,6 +1676,21 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     static const bool g_wait_fuse = [] { const char* v = std::getenv("STRATA_WAIT_FUSE"); return v != nullptr && v[0] == '1'; }();
     // F21 STRATA_WAIT_COPY256=1 (verify_kernels.cu): only the plan copies that wait (WAIT_FUSE's, FUSE_WAIT's) take it
     static const bool g_copy256 = [] { const char* v = std::getenv("STRATA_WAIT_COPY256"); return v != nullptr && v[0] == '1'; }();
+    // android-imdad caa9b00115 (opt-in, each read once):
+    // STRATA_WAIT_FUSE_ROWS=1 - the fork's STRATA_WAIT_FUSE under a new name (ours above is the CPU-share wait inside
+    // STRATA_COMBINE_CPU's combine): each doorbell wait of the expert path folded into the copy behind it - the plan copy
+    // (wait_fuse_rows_copy_i32), the mapped-mode PCIe staging copy (wait_fetch_blobs) and the CPU rows' copy
+    // (wait_copy_rows_from_mapped).  The same bytes after the same flags: bitwise.
+    static const bool g_wait_fuse_rows = [] { const char* v = std::getenv("STRATA_WAIT_FUSE_ROWS"); return v != nullptr && v[0] == '1'; }();
+    // STRATA_COMBINE_HITS=1 - the fork's name for the hit add folded into the combine: forces our STRATA_FUSE_HITS path
+    // on, as the fork's switch does (also with the stage profile or --remote-expert-opt); bitwise
+    static const bool g_combine_hits = [] { const char* v = std::getenv("STRATA_COMBINE_HITS"); return v != nullptr && v[0] == '1'; }();
+    // STRATA_WAIT_COMBINE=1 - the CPU rows' wait, their copy and the hit add in the combine's one launch
+    // (native_moe_wait_combine_multi_add_hits): the same rows, the same sums (bitwise).  Only where STRATA_COMBINE_CPU's
+    // fused combine does not act (cfuse_off non-null): where it acts, ours wins.  Needs the hits-in-combine path
+    // (STRATA_FUSE_HITS or STRATA_COMBINE_HITS) and a folded CPU-row wait (STRATA_FUSE_WAIT or STRATA_WAIT_FUSE_ROWS), as
+    // the fork's needs its STRATA_COMBINE_HITS and STRATA_WAIT_FUSE.
+    static const bool g_wait_combine = [] { const char* v = std::getenv("STRATA_WAIT_COMBINE"); return v != nullptr && v[0] == '1'; }();
     // why the fused CPU combine is off for a window of n rows (nullptr: on; "": only the row count, it takes 2..8 rows)
     auto cfuse_off = [&](int n) -> const char* {
         // not with STRATA_VERIFY_DEFER_CPU: a deferred layer's CPU rows join a layer later, so they are not in the
@@ -2896,6 +2911,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                !pcie_off_ && !prof_on_ && !ar_on() && !device_plan_ && m_bal_ == nullptr &&
                                sink_.pcie_mode != 2 && lay.native;
         bool hits_in_combine = false;
+        bool wc_fused = false;   // STRATA_WAIT_COMBINE: the CPU rows' wait and copy and the hit add left to the combine
         if (ar_on()) {
             strata::dispatch::note("experts layer: all-resident device plan, grouped experts straight into the parts (no doorbell, no CPU rows)");
             if (g_copy256) switch_report::will_not_act(switch_report::wait_copy256, "every expert is resident in VRAM: no plan copy");
@@ -2912,6 +2928,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                                 "own launches");
             } else if (g_wait_fuse) {   // the pool published this group's GPU plan: wait and copy in one launch
                 wait_flag_copy_i32(m_flagA_, ring, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, cs);
+            } else if (g_wait_fuse_rows && m_bal_ == nullptr) {   // STRATA_WAIT_FUSE_ROWS (android-imdad caa9b00115)
+                wait_fuse_rows_copy_i32(m_flagA_, ring, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, cs);
+                switch_report::acted(switch_report::wait_fuse_rows, "the plan's wait and copy in one launch");
             } else {
                 if (fuse_wait_on() && !prof_on_ && m_bal_ == nullptr) {   // 143-amdk: one launch for the wait and the copy
                     wait_copy_i32_from_mapped(m_flagA_, ring, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, cs);
@@ -2939,14 +2958,22 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             grouped(p_ptr, p_start, p_counts, 0, hit_out, true);
             stamp(l, 20, grp);
             if (!pcie_off_ && !pcie_fork) {   // with --pcie-frac 0 there is never a PCIe share: no flag-B wait, no empty launches
+            // STRATA_WAIT_FUSE_ROWS (android-imdad caa9b00115): in the mapped mode the flag-B wait rides in the staging copy
+            const bool wfr_fetch = g_wait_fuse_rows && !device_plan_ && m_bal_ == nullptr && sink_.pcie_mode == 2;
             if (device_plan_) wait_flag_ge_or(m_flagB_, ring, skip_ + grp, cs);
             else if (m_bal_ != nullptr)   // set_pcie_balance: the PCIe part starts
                 wait_flag_ge_stamped(m_flagB_, ring, m_bal_ + ((l - lb_) * 2 + grp) * 4 + 1, nullptr, cs);
+            else if (wfr_fetch) {}   // (wait_fetch_blobs below)
             else wait_flag_ge(m_flagB_, ring, cs);                 // the PCIe share is in staging (DMA) or mapped
             if (sink_.pcie_mode == 2) {                            // stage it with a copy kernel, then point at staging
                 const int64_t per = G == 2 ? kStagingBlobs / 2 : kStagingBlobs;
                 uint8_t* stage = staging_ + (size_t) (grp * per) * lay.max_blob;
                 const unsigned long long* p_dst2 = (const unsigned long long*) (pl + dst2_off_);   // STRATA_ADAPT_FETCH
+                if (wfr_fetch) {
+                    wait_fetch_blobs(m_flagB_, ring, p_ptr2, p_counts + 2, stage, (int64_t) lay.blob_bytes(l), (int) per, cs,
+                                     p_dst2);
+                    switch_report::acted(switch_report::wait_fuse_rows, "the flag-B wait in the PCIe staging copy");
+                } else
                 fetch_blobs(p_ptr2, p_counts + 2, stage, (int64_t) lay.blob_bytes(l), (int) per, cs, p_dst2);
                 rebase_ptrs((unsigned long long*) p_ptr2, p_counts + 2, stage, (int64_t) lay.blob_bytes(l), cs, p_dst2);
             }
@@ -2978,15 +3005,43 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 if (!(g_wait_fuse && prof_on_ && grp == 0 && ((prof_sel >> 23) & 1) && trace_m_ == nullptr)) stamp(l, 23, grp);
             } else {
                 const bool fuse_rows = fuse_rows_on() && !prof_on_ && !remote_opt_ && dec_batch && m_bal_ == nullptr;   // 143-amdk
-                if (!fuse_rows) {
+                // STRATA_WAIT_FUSE_ROWS (android-imdad caa9b00115): the wait in the copy's blocks (wait_copy_rows_from_mapped)
+                const bool wfr_rows = g_wait_fuse_rows && !remote_opt_ && dec_batch && m_bal_ == nullptr;
+                // STRATA_WAIT_COMBINE (android-imdad caa9b00115): only here, where STRATA_COMBINE_CPU's fused combine does
+                // not act (cfuse_off non-null; where it acts, ours wins): the combine below waits for the CPU rows, reads
+                // them from the mapped buffer and adds the hits - no wait, copy or hit-add launch.  The fork's conditions:
+                // a folded row wait, the hits-in-combine path, 2..8 rows, k 10, no shared gate left to the combine
+                if (g_wait_combine) {
+                    const bool hits_path = g_combine_hits || (fuse_hits_on() && !prof_on_ && !remote_opt_);
+                    wc_fused = (fuse_rows || wfr_rows) && hits_path && dec_batch && n > 1 && n <= 8 &&
+                               native_moe_combine_enabled() && !sg_gated_[grp] && K == 10 &&
+                               native_moe_wait_combine_ok(m_ymiss_ + (size_t) tb * K * N, hit_out, shared_ + tb * N,
+                                                          bo_ + tb * N, N, K, n);
+                    if (wc_fused)
+                        switch_report::acted(switch_report::wait_combine, "the CPU rows' wait, copy and hit add in the combine");
+                    else if (n > 1 && n <= 8)
+                        switch_report::will_not_act(switch_report::wait_combine, "%s",
+                                                    !(fuse_rows || wfr_rows) ? "it needs a folded CPU-row wait (STRATA_FUSE_WAIT=1 or "
+                                                                               "STRATA_WAIT_FUSE_ROWS=1, no profile, no PCIe balance)"
+                                                    : !hits_path ? "it needs STRATA_FUSE_HITS=1 or STRATA_COMBINE_HITS=1"
+                                                    : sg_gated_[grp] ? "STRATA_LFUSE leaves the shared gate to the combine"
+                                                                     : "the native combine is off, top-k is not 10 or the rows are not 16-byte aligned");
+                }
+                if (!fuse_rows && !wfr_rows) {
                     if (m_bal_ != nullptr)   // set_pcie_balance: ... and ends as it waits for the CPU's rows
                         wait_flag_ge_stamped(m_flag_, ring, m_bal_ + ((l - lb_) * 2 + grp) * 4 + 2, nullptr, cs);
                     else
                         wait_flag_ge(m_flag_, ring, cs);           // the CPU's share is in the mapped rows
                 }
                 stamp(l, 23, grp);
-                if (remote_opt_)   // #578: the helper's rows come back reduced; skip them as well
+                if (wc_fused) {}   // the combine below waits for the rows and reads them
+                else if (remote_opt_)   // #578: the helper's rows come back reduced; skip them as well
                     remote_opt_->copy_rows(parts_out, m_ymiss_ + (size_t) tb * K * N, tb, n, p_dst, p_counts + 1, cs);
+                else if (wfr_rows) {   // STRATA_WAIT_FUSE_ROWS: the fork's form of the folded wait
+                    wait_copy_rows_from_mapped(m_flag_, ring, parts_out, m_ymiss_ + (size_t) tb * K * N, (int64_t) n * K, N,
+                                               p_dst, p_counts + 1, cs);
+                    switch_report::acted(switch_report::wait_fuse_rows, "the CPU rows' wait in their copy");
+                }
                 else if (fuse_rows)   // the wait folded into the copy's blocks
                     copy_rows_from_mapped_after(m_flag_, ring, parts_out, m_ymiss_ + (size_t) tb * K * N, (int64_t) n * K, N,
                                                 p_dst, p_counts + 1, cs);
@@ -3000,12 +3055,14 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             // combine below); the CPU-row wait and copy above ran beside the pass
             if (pcie_fork) cudaStreamWaitEvent(cs, ev_pjoin_, 0);
             // 143-amdk: the add of the GPU's hit rows is done by the combine that follows (one launch fewer);
-            // STRATA_COMBINE_CPU (Strata-rdna3): the fused CPU-row combine below reads the hit rows itself
-            hits_in_combine = !cfuse_on(n) && fuse_hits_on() && !prof_on_ && !remote_opt_ && !sg_gated_[grp] && dec_batch && n > 1 &&
+            // STRATA_COMBINE_CPU (Strata-rdna3): the fused CPU-row combine below reads the hit rows itself;
+            // STRATA_COMBINE_HITS=1 (android-imdad caa9b00115) forces the path on; STRATA_WAIT_COMBINE's combine adds them
+            hits_in_combine = !cfuse_on(n) && !wc_fused && (g_combine_hits || (fuse_hits_on() && !prof_on_ && !remote_opt_)) &&
+                              !sg_gated_[grp] && dec_batch && n > 1 &&
                               native_moe_combine_enabled() && n <= 8 &&
                               native_moe_combine_hits_supported(parts_ + (size_t) tb * K * N, shared_ + tb * N, bo_ + tb * N, N, K, n);
             strata::dispatch::notef("experts layer: cpu rows via %ld (1 = fused wait+copy, 0 = wait then copy), hits in combine=%ld", (long) (fuse_rows_on() && !prof_on_ && !remote_opt_ && dec_batch && m_bal_ == nullptr), (long) hits_in_combine);
-            if (!hits_in_combine && !cfuse_on(n)) moe_hit_add(parts_out, hit_out, p_dst, p_counts + 1, cap, N, cs);
+            if (!hits_in_combine && !wc_fused && !cfuse_on(n)) moe_hit_add(parts_out, hit_out, p_dst, p_counts + 1, cap, N, cs);
         }
         // Same condition as `sh_fork` above, which is per group and out of scope here: wait only when the fork
         // actually ran (a wait on an event never recorded is a no-op, but saying it outright reads better).
@@ -3046,6 +3103,15 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                              presum_vram_ != nullptr ? presum_vram_ + (size_t) tb * N : nullptr);
             } catch (const std::exception& e) { err = "verify combine: " + std::string(e.what()); return false; }
             if (warm_now) cudaStreamWaitEvent(cs, warm_join_, 0);   // item 47: the branch rejoins (graph capture needs it)
+            if (g_wait_combine)   // (ours wins where both could act)
+                switch_report::will_not_act(switch_report::wait_combine, "STRATA_COMBINE_CPU's fused combine acts in this "
+                                            "window (it wins)");
+        } else
+        if (wc_fused) {   // STRATA_WAIT_COMBINE (android-imdad caa9b00115): wait for the CPU rows, read them, add the hits
+            try {
+                native_moe_wait_combine_multi_add_hits(m_flag_, ring, m_ymiss_ + (size_t) tb * K * N, hit_out, p_dst,
+                                                       p_counts + 1, w_ + tb * K, shared_ + tb * N, bo_ + tb * N, N, K, n, cs);
+            } catch (const std::exception& e) { err = "verify combine: " + std::string(e.what()); return false; }
         } else
         if (sg_gated_[grp]) {   // STRATA_LFUSE: the shared expert's gate was not applied: the combine applies it (all rows are hits)
             try {
