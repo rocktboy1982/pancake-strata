@@ -1,0 +1,33 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 4,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "ecap2": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "2"
+      }
+    },
+    "ecap1": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "1"
+      }
+    },
+    "ecap0": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0"
+      }
+    }
+  },
+  "note": "F5 STRATA_VERIFY_ECAP (merged, never run): each draft row reads at most N new CPU experts beyond row 0. Draft rows cause 71% (T4) to 88% (T12) of the CPU expert work in the A56 trace (distinct CPU-missed experts per layer 2.90 vs 0.83 from row 0 at T4; 20.8 vs 2.48 at T12). Lossy: token-forcing and task gate before any use."
+}

@@ -3869,3 +3869,18 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/54-pcie-frac-decode.{st
 | pcie55 | 92.0 +-14.9 | **-20.7% +-13.3** | 82.2 +-17.3 | **-30.1% +-15.3** | differs |
 
 Verdict by the promote rule: **all three dropped** (no case above 0; short is below -3% in every arm). The GPU's PCIe reads do not relieve the wait even in 12-row windows, which says the wait is not CPU compute that the GPU could take over: the missed experts' bytes come from the same host DRAM either way (the CPU pool and the GPU's PCIe reads share its bandwidth), so moving the work moves the contention, and the PCIe copies add their own latency in front of the combine. The preset's `--pcie-frac 0` is confirmed for short and edit windows. This is ENGINE tuning on this model and card (MODEL: expert size and hit rate; hardware: host DRAM bandwidth), not a kernel result.
+
+### Spec 55: F5 `STRATA_VERIFY_ECAP`, the draft rows' CPU experts (2026-11-15, screen, 4 repeats; first run of this merged, never-run code)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/55-verify-ecap-screen.{stdout,jsonl}`, spec `bench/specs/55-verify-ecap-screen.json`. Motive (measured, A56 window trace, `/home/dan/traces/a56-trace-p0.stwt`): 88.7% of expert entries hit VRAM, 11.3% go to the CPU pool; a T4 window needs 2.90 distinct CPU-missed experts per layer of which only 0.83 serve row 0 (71% of the CPU work is for draft rows); a T12 window needs 20.8 of which 2.48 serve row 0 (88%). `--pcie-frac` cannot relieve it (spec 54), so the lever is to read less. ECAP=N: each draft row reads at most N new CPU experts beyond what row 0 needs (row 0 is never touched; a dropped entry is a zeroed expert, routing weights unchanged).
+
+| arm | short tok/s | vs base | edit tok/s | vs base | accepted (short / edit) | text |
+| --- | --- | --- | --- | --- | --- | --- |
+| base | 114.4 +-4.2 | | 109.9 +-20.2 | | 0.73 / 0.90 | |
+| ecap2 | 101.8 +-22.6 | -11.0% +-16.4 | 118.4 +-34.6 | +7.7% +-15.5 | 0.68 / 0.92 | differs |
+| ecap1 | 103.5 +-29.1 | -9.5% +-22.3 | 131.9 +-28.6 | **+20.0% +-18.7** | 0.67 / 0.90 | differs |
+| ecap0 | 115.4 +-3.3 | +0.8% +-3.4 | 168.3 +-38.4 | **+53.1% +-17.6** | 0.74 / 0.89 | differs |
+
+Verdict by the promote rule: **ecap0 promoted to confirm** (a case above 0 whose interval excludes zero, short not below -3%); ecap1 is held (edit +20% but short -9.5% with a +-22% interval); ecap2 dropped (short -11%, edit no difference). The intervals are wide because some runs in every arm were slow (base edit ranges 100 to 130), so this is a screen. The gain is where the model says it should be: edit windows are the long ones (lookup drafts up to 12 rows), where 88% of the CPU expert work serves draft rows; short windows (T4) are not helped (+0.8%). Acceptance barely moves with cap 0 (0.90 -> 0.89 edit), so dropping the draft rows' own missed experts costs few accepted drafts here.
+
+**It is lossy, and that is the whole risk.** An accepted draft row commits its token, K/V and recurrent state computed WITHOUT the experts that were dropped, so the stored context differs from an exact run (the text of every arm differs from base). The author's warning stands (jmnargi: a cap far too tight broke 12 of 20 tool-calling turns). Required before any use: token forcing (the exact run's tokens fed to the capped engine, per-token top-1 agreement and logprob gap), then the tool-call task gate on real agent prompts (MOD_PLAN FK-50). Next: a 12-repeat confirm of base against ecap0 and ecap1, then the gates. Class: ENGINE (verify/expert pool) and MODEL (the share of CPU work for draft rows follows this model's expert size and hit rate) and WORKLOAD (only long lookup windows gain).

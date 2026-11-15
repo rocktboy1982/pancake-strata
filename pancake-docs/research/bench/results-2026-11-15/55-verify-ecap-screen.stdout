@@ -1,0 +1,39 @@
+rep 0 base                 short 116.5 edit 118.6  foreign CPU 2% [('claude', 1), ('2.1.325', 1), ('localsearch-3', 1)]  gpu 1503/1249 MHz 51C 120W gtt 21M cpu 3826MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap2                short 114.0 edit 126.4  foreign CPU 8% [('claude', 9), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1468/1249 MHz 52C 120W gtt 21M cpu 3738MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap1                short 109.9 edit 147.4  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('kworker/u65:5-KFD IH', 1)]  gpu 1394/1249 MHz 53C 120W gtt 21M cpu 3542MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap0                short 118.1 edit 183.9  foreign CPU 2% [('claude', 1), ('udisksd', 0), ('dbus-daemon', 0)]  gpu 1226/1249 MHz 53C 116W gtt 21M cpu 3593MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap0                short 115.3 edit 177.5  foreign CPU 3% [('claude', 2), ('localsearch-3', 1), ('kworker/u65:7-KFD IH', 0)]  gpu 1254/1249 MHz 54C 117W gtt 21M cpu 4035MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap1                short 115.5 edit 147.5  foreign CPU 2% [('dbus-daemon', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 1356/1249 MHz 53C 118W gtt 21M cpu 3618MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap2                short 114.2 edit 128.6  foreign CPU 2% [('claude', 1), ('localsearch-3', 0), ('gvfs-afc-volume', 0)]  gpu 1456/1249 MHz 53C 120W gtt 21M cpu 3447MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 116.5 edit 117.8  foreign CPU 2% [('claude', 1), ('systemd-oomd', 0), ('rsyslogd', 0)]  gpu 1510/1249 MHz 53C 119W gtt 21M cpu 3564MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 113.7 edit 111.9  foreign CPU 2% [('claude', 2), ('dbus-daemon', 0), ('gnome-shell', 0)]  gpu 1419/1249 MHz 52C 116W gtt 21M cpu 3361MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap2                short 90.2 edit 132.5  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd', 0)]  gpu 1495/1249 MHz 52C 117W gtt 21M cpu 3428MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap1                short 112.3 edit 114.6  foreign CPU 2% [('claude', 1), ('ksoftirqd/8', 0), ('systemd-journal', 0)]  gpu 1407/1249 MHz 52C 117W gtt 21M cpu 2868MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap0                short 113.0 edit 179.6  foreign CPU 2% [('localsearch-3', 1), ('rsyslogd', 0), ('claude', 0)]  gpu 1485/1249 MHz 53C 132W gtt 21M cpu 3491MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap0                short 115.1 edit 132.3  foreign CPU 2% [('claude', 1), ('systemd-journal', 0), ('systemd-oomd', 0)]  gpu 1702/1249 MHz 52C 135W gtt 21M cpu 3048MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap1                short 76.3 edit 118.2  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 1747/1249 MHz 52C 134W gtt 21M cpu 3558MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap2                short 88.9 edit 86.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 1866/1249 MHz 52C 133W gtt 21M cpu 3191MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 111.0 edit 91.4  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('systemd-journal', 0)]  gpu 1612/1249 MHz 52C 119W gtt 21M cpu 3200MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    114.4 +-   4.2  (n=4)
+                              drafts accepted 0.73
+  short  ecap2                   101.8 +-  22.6  (n=4)   vs base: -11.0% +- 16.4%  -> no difference
+                              drafts accepted 0.68
+  short  ecap1                   103.5 +-  29.1  (n=4)   vs base:  -9.5% +- 22.3%  -> no difference
+                              drafts accepted 0.67
+  short  ecap0                   115.4 +-   3.3  (n=4)   vs base:  +0.8% +-  3.4%  -> no difference
+                              drafts accepted 0.74
+  edit   base                    109.9 +-  20.2  (n=4)
+                              drafts accepted 0.90
+  edit   ecap2                   118.4 +-  34.6  (n=4)   vs base:  +7.7% +- 15.5%  -> no difference
+                              drafts accepted 0.92
+  edit   ecap1                   131.9 +-  28.6  (n=4)   vs base: +20.0% +- 18.7%  -> better
+                              drafts accepted 0.90
+  edit   ecap0                   168.3 +-  38.4  (n=4)   vs base: +53.1% +- 17.6%  -> better
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ecap2                DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap1                DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap0                DIFFERENT text -> lossy or placement-dependent: quality gate
