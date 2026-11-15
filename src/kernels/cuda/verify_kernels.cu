@@ -1066,6 +1066,94 @@ void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos
     check("device_accept_commit");
 }
 
+// LEADS.md "OEA sibling-aware routing in verify window" (Opportunistic Expert Activation, Oncescu et al., arXiv 2511.02237):
+// a decode batch is memory-bound on the DISTINCT experts it loads.  Phase 1: every row keeps its own top-k0 (by router
+// logit, ties to the lower id).  Phase 2: its remaining k - k0 slots take, in logit order, only experts some row of the
+// window already chose in phase 1 ("piggybacking": no new expert loads).  A slot left with no candidate repeats the row's
+// first expert at weight 0.  Weights as router_top10: softmax over all experts, gathered, renormalised over the kept
+// slots with the 2^-14 lower clamp.  One block; warp r handles row r (n <= 16, n_expert <= 1024, k <= 16).
+namespace {
+__device__ __forceinline__ void oea_take(float ov, int oi, float& bv, int& bi) {
+    if (ov > bv || (ov == bv && oi < bi)) { bv = ov; bi = oi; }
+}
+__global__ void oea_route_window_kernel(const float* __restrict__ logits, int n, int ne, int k, int k0,
+                                        int32_t* __restrict__ ids, float* __restrict__ w) {
+    __shared__ unsigned umask[32];          // phase-1 union, 1024 experts
+    __shared__ unsigned rmask[16][32];      // per row: already taken
+    __shared__ int sid[16][16];             // per row: the slots' experts (written to `ids` at the end)
+    const int lane = (int) (threadIdx.x & 31), r = (int) (threadIdx.x >> 5);
+    if (threadIdx.x < 32) umask[threadIdx.x] = 0u;
+    if (r < 16) rmask[r][lane] = 0u;
+    __syncthreads();
+    const float* l = logits + (size_t) (r < n ? r : 0) * ne;
+    int* ri = sid[r < 16 ? r : 0];
+    float* rw = w + (size_t) r * k;
+    // one pass: the best expert of this row with (union-only?) restriction, not yet taken; -1 when none
+    auto pick = [&](bool union_only) -> int {
+        float bv = __int_as_float(0xff800000);
+        int bi = ne;
+        for (int e = lane; e < ne; e += 32) {
+            if (rmask[r][e >> 5] & (1u << (e & 31))) continue;
+            if (union_only && !(umask[e >> 5] & (1u << (e & 31)))) continue;
+            const float v = l[e];
+            if (v > bv) { bv = v; bi = e; }
+        }
+        for (int o = 16; o > 0; o >>= 1) {
+            const float ov = __shfl_xor_sync(0xffffffffu, bv, o);
+            const int oi = __shfl_xor_sync(0xffffffffu, bi, o);
+            oea_take(ov, oi, bv, bi);
+        }
+        return bi < ne ? bi : -1;
+    };
+    if (r < n) {
+        for (int s = 0; s < k0; ++s) {
+            const int e = pick(false);
+            if (lane == 0) {
+                ri[s] = e < 0 ? 0 : e;
+                if (e >= 0) { rmask[r][e >> 5] |= 1u << (e & 31); atomicOr(&umask[e >> 5], 1u << (e & 31)); }
+            }
+            __syncwarp();
+        }
+    }
+    __syncthreads();
+    if (r >= n) return;
+    int dummy = 0;   // bit s: slot s is a weight-0 repeat
+    for (int s = k0; s < k; ++s) {
+        const int e = pick(true);
+        if (lane == 0) {
+            if (e >= 0) { ri[s] = e; rmask[r][e >> 5] |= 1u << (e & 31); }
+            else ri[s] = ri[0];
+        }
+        if (e < 0) dummy |= 1 << s;
+        __syncwarp();
+    }
+    // weights: p = softmax over all experts (max = slot 0's logit, the row's best), renormalised over the real slots
+    const float m = l[ri[0]];
+    float z = 0.0f;
+    for (int e = lane; e < ne; e += 32) z += __expf(l[e] - m);
+    for (int o = 16; o > 0; o >>= 1) z += __shfl_xor_sync(0xffffffffu, z, o);
+    if (lane == 0) {
+        float sum = 0.0f;
+        for (int s = 0; s < k; ++s)
+            if (!(dummy & (1 << s))) sum += __expf(l[ri[s]] - m) / z;
+        const float den = fmaxf(sum, 6.103515625e-05f);   // 2^-14
+        for (int s = 0; s < k; ++s) {
+            rw[s] = (dummy & (1 << s)) ? 0.0f : (__expf(l[ri[s]] - m) / z) / den;
+            ids[(size_t) r * k + s] = ri[s];
+        }
+    }
+}
+}  // namespace
+
+void oea_route_window(const float* logits, int n, int n_expert, int k, int k0, int32_t* ids, float* w, void* stream) {
+    if (n < 1 || n > 16 || n_expert < 1 || n_expert > 1024 || k < 1 || k > 16 || k0 < 1 || k0 > k) {
+        std::fprintf(stderr, "oea_route_window: shape out of range\n");
+        std::exit(1);
+    }
+    oea_route_window_kernel<<<1, 512, 0, (cudaStream_t) stream>>>(logits, n, n_expert, k, k0, ids, w);
+    check("oea_route_window");
+}
+
 void force_token(int32_t* tok, const int32_t* force, int j, void* stream) {
     force_token_kernel<<<1, 1, 0, (cudaStream_t) stream>>>(tok, force, j);
     check("force_token");

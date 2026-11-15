@@ -335,6 +335,17 @@ inline bool head_argmax_fused_on() {
     return false;
 #endif
 }
+// LEADS.md "OEA sibling-aware routing in verify window" (arXiv 2511.02237), STRATA_OEA=k0 (opt-in, lossy, read once): a
+// window's rows keep their own top-k0 experts and fill the rest of their top-k only with experts another row of the window
+// already keeps (oea_route_window); 0 / unset / >= k: off.
+inline int g_oea_k0() {
+#if defined(STRATA_GPU_METAL)
+    return 0;
+#else
+    static const int v = [] { const char* e = std::getenv("STRATA_OEA"); const int k = e != nullptr ? std::atoi(e) : 0; return k > 0 ? k : 0; }();
+    return v;
+#endif
+}
 }  // namespace (reopened below)
 // MOD_PLAN.md section 6 item 17 part 17, STRATA_DEVICE_ACCEPT=1 (opt-in, read once): see Verifier::arm_device_accept
 bool Verifier::device_accept_env() {
@@ -2771,6 +2782,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                  : always_publish_                        ? "the windows always publish (pipelined)"
                  : g_route_prior_set                      ? "STRATA_ROUTE_PRIOR is set"
                  : !(route_resident_cfg().margin <= 0.0f) ? "the STRATA_ROUTE_RESIDENT margin is above 0"
+                 : g_oea_k0() > 0                         ? "STRATA_OEA is set"
                                                           : nullptr;
         };
         const char* const pub_off = g_rfast || g_rpub ? publish_off() : nullptr;
@@ -2918,6 +2930,11 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                       route_resident_cfg().margin, route_resident_cfg().lo, route_resident_cfg().hi,
                                       rr_stats_ != nullptr ? rr_stats_ + (n <= 8 ? 4 : 0) : nullptr, cs);
             } catch (const std::exception& e) { err = "verify route-resident: " + std::string(e.what()); return false; }
+        }
+        if (g_oea_k0() > 0 && g_oea_k0() < K && n >= 2 && n <= 16 && K <= 16 && NE <= 1024 && !rdone) {
+            // LEADS.md OEA (STRATA_OEA=k0, lossy): after the router, before the plan/doorbell read ids_/w_ (the one-launch
+            // publishes are off while it is set: publish_off)
+            strata::kernels::oea_route_window(logits_ + tb * NE, n, (int) NE, (int) K, g_oea_k0(), ids_ + tb * K, w_ + tb * K, cs);
         }
         if (rs_on_ && G == 1 && n <= 16 && T <= 16)
             strata::kernels::route_marginal_stats(ids_ + tb * K, n, (int) K, rs_dev_ + ((size_t) T * (size_t) g.n_layers + (size_t) l) * 16, cs);

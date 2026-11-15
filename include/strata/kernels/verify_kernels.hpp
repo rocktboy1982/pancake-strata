@@ -236,6 +236,12 @@ struct DeviceAcceptBound {
 };
 void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos0, int max_t, const DeviceAcceptBound& bound,
                           int32_t* commit, void* stream);
+/// STRATA_OEA=k0 (LEADS.md "OEA sibling-aware routing", arXiv 2511.02237): the window's n rows re-routed from their router
+/// logits (n, n_expert): each row keeps its top-k0 (ties to the lower id), then fills slots k0..k-1 in logit order with
+/// experts some row kept in that first phase (no new expert loads); a slot with no candidate repeats slot 0 at weight 0.
+/// Weights: softmax over all experts, renormalised over the real slots (2^-14 clamp), as router_top10.  ids/w (n, k).
+/// n <= 16, n_expert <= 1024, k <= 16, 1 <= k0 <= k.
+void oea_route_window(const float* logits, int n, int n_expert, int k, int k0, int32_t* ids, float* w, void* stream);
 /// Row *row_dev of a, b and c (a_n, b_n, c_n floats a row) copied to their row 0 (the draft layer's rest runs on
 /// row 0).  Graph-capturable: the row is read on the device.
 void copy_row_to_first(const int32_t* row_dev, float* a, int64_t a_n, float* b, int64_t b_n, float* c, int64_t c_n,
