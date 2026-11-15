@@ -17173,6 +17173,74 @@ int main(int argc, char** argv) {
                 }
                 break;
             }
+            // Runtime retune between requests (Strata PR #5516, rwkeyes e929c26411, LEADS.md "POST /v1/tune + --conv-route"):
+            // `TUNE k=v ...` -> `TUNED k=v ... [refused: k=v(why) ...]`.  Not a request, so it is handled before the
+            // busy scope and touches no session.  Only fields read out of `o` when they are used are accepted; keys
+            // that size memory at load (--spec, --kv*, --max-context, --expert-cache, tiers, --pcie-mode, graph and
+            // native flags) are refused per key.  prefill_chunk may only go down (its buffers were sized at start).
+            // Opt-in by protocol: the server sends TUNE only for POST /v1/tune (STRATA_TUNE=1) or
+            // STRATA_CONV_ROUTE; an engine that never reads a TUNE line behaves exactly as before.
+            if (line.rfind("TUNE", 0) == 0 && (line.size() == 4 || line[4] == ' ')) {
+                static const int64_t tune_prefill_max = o.prefill_chunk > 0 ? o.prefill_chunk : 0;
+                if (batch_on()) {
+                    std::printf("ERR TUNE: not while batch slots are decoding\n");
+                    std::fflush(stdout);
+                    continue;
+                }
+                std::string applied, refused;
+                std::istringstream tin(line.size() > 4 ? line.substr(5) : std::string());
+                std::string kv;
+                while (tin >> kv) {
+                    const size_t eq = kv.find('=');
+                    const std::string k = eq == std::string::npos ? kv : kv.substr(0, eq);
+                    char* end = nullptr;
+                    const double v = eq == std::string::npos ? 0.0 : std::strtod(kv.c_str() + eq + 1, &end);
+                    // a value must be a number and must be there: "adapt_swaps=abc" is a typo, not a request for 0
+                    const bool known = eq != std::string::npos && end != nullptr && end != kv.c_str() + eq + 1 &&
+                                       *end == '\0' && v >= 0.0;
+                    if (known && k == "adapt_every") {
+                        o.adapt_every = std::max(1, (int) v);
+                        applied += " adapt_every=" + std::to_string(o.adapt_every);
+                    } else if (known && k == "adapt_swaps") {
+                        o.adapt_swaps = (int) v;
+                        applied += " adapt_swaps=" + std::to_string(o.adapt_swaps);
+                    } else if (known && k == "adapt_decay") {
+                        o.adapt_decay = (float) std::clamp(v, 0.0, 1.0);
+                        applied += " adapt_decay=" + std::to_string(o.adapt_decay);
+                    } else if (known && k == "adapt_min_gain") {
+                        o.adapt_min_gain = (float) std::clamp(v, 0.0, 16.0);
+                        applied += " adapt_min_gain=" + std::to_string(o.adapt_min_gain);
+                    } else if (known && k == "prefill_chunk") {
+                        o.prefill_chunk = tune_prefill_max > 0 ? std::min<int64_t>((int64_t) v, tune_prefill_max)
+                                                               : (int64_t) v;
+                        applied += " prefill_chunk=" + std::to_string((long long) o.prefill_chunk);
+                        if (tune_prefill_max > 0 && (int64_t) v > tune_prefill_max)
+                            applied += "(capped at the startup chunk)";
+                    } else if (known && k == "pcie_frac") {
+                        o.pcie_frac = std::clamp(v, 0.0, 1.0);
+                        applied += " pcie_frac=" + std::to_string(o.pcie_frac);
+                    } else if (known && k == "spec_min_p") {
+                        o.spec_min_p = std::clamp(v, 0.0, 1.0);
+                        applied += " spec_min_p=" + std::to_string(o.spec_min_p);
+                    } else if (known && k == "prompt_cache") {
+                        o.prompt_cache = (int) v;
+                        applied += " prompt_cache=" + std::to_string(o.prompt_cache);
+                    } else if (known && k == "prompt_cache_every") {
+                        o.prompt_cache_every = (int64_t) v;
+                        applied += " prompt_cache_every=" + std::to_string((long long) o.prompt_cache_every);
+                    } else if (known && k == "short_read") {
+                        o.short_read = (int64_t) v;
+                        applied += " short_read=" + std::to_string((long long) o.short_read);
+                    } else {
+                        refused += " " + kv + "(unknown key, or a value it cannot take)";
+                    }
+                }
+                std::string tout = applied.empty() ? std::string("TUNED none") : ("TUNED" + applied);
+                if (!refused.empty()) tout += " refused:" + refused;
+                std::printf("%s\n", tout.c_str());
+                std::fflush(stdout);
+                continue;
+            }
             // the watchdog watches a request from here until this iteration ends, whichever way it ends
             struct BusyScope {
                 BusyScope() {

@@ -94,6 +94,7 @@ from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
 from serve import rumination  # noqa: E402  (pancake item 34: 5-gram repetition rate in the thinking)
 from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache-2.0; lossy opt-in)
 from serve import lifeline  # noqa: E402
+from serve.conv_router import config as conv_router_cfg  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
 from serve.responses import ResponsesError, error_body as responses_error_body  # noqa: E402
@@ -1767,6 +1768,33 @@ class StrataEngine:
     def vram(self, reserve_mib: int | None, timeout: float = 120.0) -> dict:
         with self._exclusive_control():
             return self._vram(reserve_mib, timeout)
+
+    def tune(self, settings: dict, timeout: float = 60.0) -> dict:
+        """STRATA_TUNE / STRATA_CONV_ROUTE (opt-in; Strata PR #5516, serve/conv_router.py): `TUNE k=v ...` between
+        requests (the caller holds the service's FIFO, as for vram()).  -> {"applied": {...}, "refused": [...]};
+        ValueError on ERR, EngineDied when the engine is gone or silent."""
+        from serve import conv_router
+        line_out = conv_router.tune_line(settings)
+        with self._exclusive_control():
+            if not self.alive():
+                raise EngineDied("the engine is not running")
+            self.proc.stdin.write(line_out + "\n")
+            self.proc.stdin.flush()
+            deadline = time.time() + timeout
+            while True:
+                try:
+                    line = self.lines.get(timeout=max(0.1, deadline - time.time()))
+                except queue.Empty:
+                    raise EngineDied("the engine did not answer the TUNE command") from None
+                if line is None:
+                    raise EngineDied("the engine ended")
+                line = line.strip()
+                if line.startswith("ERR"):
+                    raise ValueError(line[4:].strip() or "the engine refused the TUNE command")
+                if line.startswith("TUNED"):
+                    return conv_router.parse_tuned(line)
+                if time.time() > deadline:
+                    raise EngineDied("the engine did not answer the TUNE command")
 
     def _vram(self, reserve_mib: int | None, timeout: float = 120.0) -> dict:
         """#533: `VRAM <reserve_mib>` between requests (the caller holds the service's FIFO): the engine shrinks its
@@ -5722,6 +5750,66 @@ class Service:
 
     vram_wait_s = 300.0                                  # #533: how long POST /v1/vram waits for a running request
 
+    def tune(self, settings: dict, wait_s: float = 5.0) -> dict:
+        """STRATA_TUNE=1 POST /v1/tune and STRATA_CONV_ROUTE (opt-in; Strata PR #5516): change settings of the RUNNING
+        engine between requests (no restart, no reload, no session reset).  ModelBusy when the FIFO (and on --batch
+        the engine's control lines) stay taken for `wait_s`."""
+        if not hasattr(self.engine, "tune"):
+            raise ValueError("this engine cannot retune in place")
+        if not self.loaded():
+            raise ValueError("the model is not loaded")
+        if not self.fifo.acquire(timeout=wait_s):
+            raise ModelBusy("a request is still running; try again when it has finished")
+        ctl = getattr(self.engine, "ctl", None) if getattr(self.engine, "batch", 0) else None
+        if ctl is not None and not ctl.acquire(timeout=wait_s):
+            self.fifo.release()
+            raise ModelBusy("a request is still running; try again when it has finished")
+        if ctl is not None:
+            self.engine._ctl_held = True                 # engine.tune() must not wait for the lines this call holds
+        try:
+            return self.engine.tune(settings)
+        finally:
+            if ctl is not None:
+                self.engine._ctl_held = False
+                ctl.release()
+            self.fifo.release()
+
+    def conv_route_decide(self, req) -> None:
+        """STRATA_CONV_ROUTE=shadow|on (opt-in; Strata PR #5516, serve/conv_router.py): classify this request by
+        traffic shape and, in `on`, retune the engine's prompt_cache before it runs.  Off (the default): returns at
+        once.  A retune that cannot get the FIFO within 1 s is skipped and counted; it never delays the request."""
+        from serve import conv_router
+        cfg = conv_router.config()
+        if cfg["mode"] == "off" or not isinstance(req, dict):
+            return
+        router = self.__dict__.get("conv_router")
+        if router is None:
+            router = self.conv_router = conv_router.Router(cache_on=cfg["cache_on"], batch_after=cfg["batch_after"])
+            self.conv_route_stats = {"switches": 0, "refused": 0, "last": ""}
+            print(f"[strata] conv route: {cfg['mode']} (prompt_cache {router.cache_on}, batch after "
+                  f"{router.batch_after} single-shot requests)", flush=True)
+        decision = router.decide(req.get("messages"), req.get("tools"))
+        if not decision.changed:
+            return
+        if cfg["mode"] == "shadow":
+            if self.conv_route_stats["last"] != str(decision):
+                self.conv_route_stats["last"] = str(decision)
+                print(f"[strata] conv route: would switch to {decision}", flush=True)
+            return
+        try:
+            reply = self.tune({"prompt_cache": decision.wanted_cache}, wait_s=1.0)
+        except (ModelBusy, ValueError, EngineDied) as e:
+            router.revert()                              # the engine still has the previous value
+            self.conv_route_stats["refused"] += 1
+            print(f"[strata] conv route: retune skipped ({type(e).__name__}: {e})", flush=True)
+            return
+        if "prompt_cache" in (reply.get("applied") or {}):
+            self.conv_route_stats["switches"] += 1
+            print(f"[strata] conv route: {decision}", flush=True)
+        else:
+            router.revert()
+            self.conv_route_stats["refused"] += 1
+
     def vram(self, reserve_mib: int | None) -> dict:
         """#533, POST /v1/vram: keep `reserve_mib` of VRAM free for other programs (None: the reserve the engine
         started with), applied between requests - a request that is running finishes first (up to wait_s).  Only an
@@ -9504,7 +9592,21 @@ def make_handler(svc: Service):
                     except EngineDied as e:
                         self._json(503, {"error": {"type": "server_error", "message": str(e)}})
                     return
+                if path == "/v1/tune" and conv_router_cfg()["tune"]:   # STRATA_TUNE=1 (opt-in; Strata PR #5516)
+                    if not self._own_page("the engine settings can be changed"):
+                        return
+                    settings = req.get("settings")
+                    if not isinstance(settings, dict) or not settings:
+                        raise ValueError("settings: an object of key: value, e.g. {\"spec_min_p\": 0.4}")
+                    try:
+                        self._json(200, svc.tune(settings))
+                    except ModelBusy as e:
+                        self._json(409, {"error": {"type": "busy", "message": str(e)}})
+                    except EngineDied as e:
+                        self._json(503, {"error": {"type": "server_error", "message": str(e)}})
+                    return
                 if path in ("/v1/chat/completions", "/v1/messages", "/v1/responses"):
+                    svc.conv_route_decide(req)               # STRATA_CONV_ROUTE (opt-in): may retune prompt_cache
                     self.record = svc.begin_request(path, req)
                 self.capture = svc.request_capture.begin(path, req, self.headers) if svc.request_capture else None
                 if path == "/v1/responses":
