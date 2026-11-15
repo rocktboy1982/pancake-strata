@@ -6437,8 +6437,14 @@ void iq_embed_rows(int t, const void* table, size_t row_bytes, const int32_t* to
                    float* out, void* stream) {
     if (n_tok <= 0) return;
     if (n_embd % 256 != 0 || !embed_type_supported(t)) { std::fprintf(stderr, "iq_embed_rows: bad arguments\n"); std::exit(1); }
-    embed_rows_kernel<<<dim3((unsigned) (n_embd / 256), (unsigned) n_tok), 32, 0, (cudaStream_t) stream>>>(
-        t, (const uint8_t*) table, row_bytes, tokens, n_embd, out);
+    // grid.y is capped at 65535 (LEADS.md A3 bug "iq_embed grid.y", latent): a longer token list is launched in pieces of
+    // at most 65535 rows.  n_tok <= 65535 is the one launch as before.
+    constexpr int64_t kMaxGridY = 65535;
+    for (int64_t t0 = 0; t0 < n_tok; t0 += kMaxGridY) {
+        const int64_t nt = std::min<int64_t>(kMaxGridY, n_tok - t0);
+        embed_rows_kernel<<<dim3((unsigned) (n_embd / 256), (unsigned) nt), 32, 0, (cudaStream_t) stream>>>(
+            t, (const uint8_t*) table, row_bytes, tokens + t0, n_embd, out + (size_t) t0 * (size_t) n_embd);
+    }
     check("iq_embed_rows");
 }
 
