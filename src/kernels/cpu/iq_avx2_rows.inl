@@ -78,8 +78,27 @@ void gu_ggml_one(const uint8_t* blob, size_t gu_row, size_t up_off, int n, const
     }
 }
 
+// STRATA_ROWS_ACC2=1 (opt-in, bitwise; Argon AVX2 fork "2 accumulators", LEADS.md): the main engine's rows (not EX) take
+// two independent integer accumulators a token when NT <= 2, as EX does - the madd+add chain is int32 adds, so the sum
+// is the same bits in any order.  Unset: one accumulator, as before.
+inline bool rows_acc2() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_ROWS_ACC2"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+
+template <int TY, int NT, bool EX, int AF> STRATA_ROWS_FN
+inline void row_dot_impl(const uint8_t* row, int nblocks, const block_q8_K* const* y, float* res);
+
 template <int TY, int NT, bool EX = false> STRATA_ROWS_FN
 inline void row_dot(const uint8_t* row, int nblocks, const block_q8_K* const* y, float* res) {
+    if constexpr (!EX && NT <= 2) {
+        if (rows_acc2()) { row_dot_impl<TY, NT, EX, 2>(row, nblocks, y, res); return; }
+    }
+    row_dot_impl<TY, NT, EX, 0>(row, nblocks, y, res);
+}
+
+template <int TY, int NT, bool EX, int AF> STRATA_ROWS_FN
+inline void row_dot_impl(const uint8_t* row, int nblocks, const block_q8_K* const* y, float* res) {
     const int pf = prefetch_distance();
     __m256 accf[NT];
     for (int t = 0; t < NT; ++t) accf[t] = _mm256_setzero_ps();
@@ -87,8 +106,8 @@ inline void row_dot(const uint8_t* row, int nblocks, const block_q8_K* const* y,
         const uint8_t* blk = row + (size_t) i * Fmt32<TY>::bytes;
         rows_ahead(blk, pf);
         // EX: independent integer accumulators a token (A of them) cut the dependent madd+add chain from eight steps to 8/A -
-        // few tokens have too little else in flight to hide it (integer sums, the same bits)
-        constexpr int A = EX ? (NT == 1 ? 4 : NT == 2 ? 2 : 1) : 1;
+        // few tokens have too little else in flight to hide it (integer sums, the same bits).  AF > 0: STRATA_ROWS_ACC2.
+        constexpr int A = AF > 0 ? AF : EX ? (NT == 1 ? 4 : NT == 2 ? 2 : 1) : 1;
         __m256i acci[NT][A];
         for (int t = 0; t < NT; ++t)
             for (int a = 0; a < A; ++a) acci[t][a] = _mm256_setzero_si256();
