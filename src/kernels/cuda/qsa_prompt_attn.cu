@@ -1934,8 +1934,17 @@ struct alignas(16) SmemWT {
 };
 using SmemW = SmemWT<16>;
 
+// STRATA_PA_SCHED_FENCE=1 (compile time, opt-in, gfx11 only; cmake -DCMAKE_HIP_FLAGS=-DSTRATA_PA_SCHED_FENCE=1): a
+// scheduling barrier after every WMMA, so the compiler cannot hoist the operand loads of later WMMAs above the current one
+// and raise register pressure until the kernel spills.  Port of llama.cpp PR #31746 (ravel7524, D256 MMA FlashAttention
+// on RDNA3: GGML_CUDA_FATTN_MMA_SCHED_FENCE); LEADS.md row "llama.cpp #31746".  Scheduling only: the same instructions
+// and the same bits.  The PR's other parts (KV block 64 -> 32) are already this kernel's shape (WCH = 32).
 __device__ __forceinline__ wf8 wmma_f16(wh8 a, wh8 b, wf8 c) {
-#if STRATA_PA_WMMA && STRATA_PA_GFX11
+#if STRATA_PA_WMMA && STRATA_PA_GFX11 && defined(STRATA_PA_SCHED_FENCE)
+    const wf8 d = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a, b, c);
+    __builtin_amdgcn_sched_barrier(0);
+    return d;
+#elif STRATA_PA_WMMA && STRATA_PA_GFX11
     return __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a, b, c);
 #elif STRATA_PA_WMMA
     return __builtin_amdgcn_wmma_f32_16x16x16_f16_w32_gfx12(a, b, c);
