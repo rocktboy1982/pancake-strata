@@ -15605,6 +15605,12 @@ int main(int argc, char** argv) {
             policy.set_clip(draft_clip);
             policy_idle.set_clip(draft_clip);
         }
+        // STRATA_DRAFT_SCALE=1 (opt-in, read once; LEADS.md A4): window costs as one shared scale x a per-size base (draft_policy.hpp)
+        static const bool draft_scale = [] { const char* v = std::getenv("STRATA_DRAFT_SCALE"); return v != nullptr && v[0] == '1'; }();
+        if (draft_scale) {
+            policy.set_shared_scale(true);
+            policy_idle.set_shared_scale(true);
+        }
         bool policy_is_df2 = use_df2;   // which drafter's costs `policy` holds (the engine's first drafter; swapped with policy_idle when a request uses the other one)
         struct DraftBandit { double tps[2] = {0, 0}; int n[2] = {0, 0}; int64_t reqs = 0; };   // [1] = DFlash2, [0] = MTP: decode tok/s of finished requests (--draft-rule learn)
         std::unordered_map<uint64_t, DraftBandit> bandit;
@@ -23007,6 +23013,9 @@ int main(int argc, char** argv) {
         // MOD_PLAN.md section 6 item 17: STRATA_DRAFT_CLIP=<x> (opt-in) clips round-time outliers before the cost update (draft_policy.hpp)
         static const double draft_clip = [] { const char* v = std::getenv("STRATA_DRAFT_CLIP"); return v != nullptr ? std::atof(v) : 0.0; }();
         if (draft_clip > 0.0) policy.set_clip(draft_clip);
+        // STRATA_DRAFT_SCALE=1 (opt-in, read once; LEADS.md A4): window costs as one shared scale x a per-size base (draft_policy.hpp)
+        static const bool draft_scale = [] { const char* v = std::getenv("STRATA_DRAFT_SCALE"); return v != nullptr && v[0] == '1'; }();
+        if (draft_scale) policy.set_shared_scale(true);
         auto source_policy = policy;   // this generation's: committed outcomes only (observe_committed)
         strata::spec::DraftPolicy::ChainState chain_st;
         int chain_rows = 1;   // STRATA_SPEC_COST: the window the cost-aware rule kept in the MTP chain just drafted

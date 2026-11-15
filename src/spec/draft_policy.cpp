@@ -53,8 +53,31 @@ double DraftPolicy::lookup_rate(int match) const {
     return (ok_[b] + kPriorN * kPriorQ[b]) / (ok_[b] + bad_[b] + kPriorN);
 }
 
+// STRATA_DRAFT_SCALE (set_shared_scale): a round time moves the shared scale fast and its size's base slowly
+void DraftPolicy::scale_sample(int t, double ms) {
+    constexpr double kBaseAlpha = 0.02;
+    double& s = scale_[bk_];
+    if (s <= 0.0) s = 1.0;
+    if (sbase_n_[bk_][t] > 0 && sbase_[bk_][t] > 0.0) s = (1.0 - kCostAlpha) * s + kCostAlpha * (ms / sbase_[bk_][t]);
+    const double b = ms / s;
+    const double a = std::max(kBaseAlpha, 1.0 / (sbase_n_[bk_][t] + 1.0));   // a running mean for the first samples
+    sbase_[bk_][t] = sbase_n_[bk_][t] > 0 ? (1.0 - a) * sbase_[bk_][t] + a * b : b;
+    sbase_n_[bk_][t] += 1.0;
+}
+
 double DraftPolicy::cost_ms(int t) const {
     t = std::clamp(t, 1, kMaxT);
+    if (scale_on_ && scale_[bk_] > 0.0) {   // STRATA_DRAFT_SCALE: S x B(t); an unseen size's base scaled from the seen ones
+        if (sbase_n_[bk_][t] > 0) return scale_[bk_] * sbase_[bk_][t];
+        double num = 0.0, den = 0.0;
+        for (int u = 1; u <= kMaxT; ++u)
+            if (sbase_n_[bk_][u] > 0) {
+                const double w = std::min(sbase_n_[bk_][u], 20.0);
+                num += w * sbase_[bk_][u] * kShape[t] / kShape[u];
+                den += w;
+            }
+        if (den > 0) return scale_[bk_] * num / den;
+    }
     if (cost_n_[bk_][t] > 0) return cost_[bk_][t];
     // scale from the measured sizes, weighting each by how often it was seen
     double num = 0.0, den = 0.0;
@@ -217,6 +240,7 @@ void DraftPolicy::observe(bool lookup, int t, int accepted, int match, double ro
         cost_[bk_][t] = cost_n_[bk_][t] > 0 ? (1.0 - alpha) * cost_[bk_][t] + alpha * round_ms : round_ms;
         cost_n_[bk_][t] += 1.0;
         last_[bk_][t] = rounds_;
+        if (scale_on_) scale_sample(t, round_ms);   // STRATA_DRAFT_SCALE
     }
     rounds_ += 1.0;
     if (lookup) {
@@ -262,6 +286,7 @@ void DraftPolicy::apply_costs(int64_t committed) {
         cost_n_[bk_][h.t] += 1.0;
         delayed_n_[bk_][h.t] += 1.0;   // a round already counted by observe_committed
         last_[bk_][h.t] = rounds_;
+        if (scale_on_) scale_sample(h.t, ms);   // STRATA_DRAFT_SCALE
     }
     bk_ = bucket_now;
     held_.erase(held_.begin(), held_.begin() + (std::ptrdiff_t) n);
@@ -359,6 +384,7 @@ void DraftPolicy::observe_chain(int t_mtp, int k, int accepted, int match, doubl
         cost_[bk_][t] = cost_n_[bk_][t] > 0 ? (1.0 - alpha) * cost_[bk_][t] + alpha * round_ms : round_ms;
         cost_n_[bk_][t] += 1.0;
         last_[bk_][t] = rounds_;
+        if (scale_on_) scale_sample(t, round_ms);   // STRATA_DRAFT_SCALE
     }
     rounds_ += 1.0;
     // the MTP part is an ordinary MTP window as far as its own drafts go
