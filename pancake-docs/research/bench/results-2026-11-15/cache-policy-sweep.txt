@@ -1,0 +1,12 @@
+Offline replay (tools/replay_cache_policy.py bench/prefetch/routing.bin data/expert-profile-pancake.bin 10909), 2026-11-15, no GPU.
+Trace: 219 windows, k=10, about 5.0 tokens per window; weight column all zeros.
+Reference: profile only 0.7187; static oracle (top-10909 by the trace's own counts) 0.8837; default policy (every 4, swaps 96, decay 0.7) 0.7962 at 23.47 swaps/window.
+
+decay sweep (every 4, swaps 96): 0.3 -> 0.7966 | 0.5 -> 0.7966 | 0.7 -> 0.7962 | 0.85 -> 0.7939 | 0.95 -> 0.7886
+interval sweep (decay 0.7, swaps 96): every 2 -> 0.8269 (38.80/window) | 4 -> 0.7962 (23.47) | 8 -> 0.7668 (11.4) | 16 -> 0.7471 (5.7)
+
+every x swaps (share, swaps per window):
+  every 1: swaps 48 -> 0.8264 (34.05) | swaps 96 -> 0.8431 (44.83)
+  every 2: swaps 48 -> 0.8008 (23.21) | swaps 96 -> 0.8269 (38.80)
+  every 3: swaps 48 -> 0.7847 (15.88) | swaps 96 -> 0.8089 (30.75)
+  every 4: swaps 48 -> 0.7725 (11.84) | swaps 96 -> 0.7962 (23.47)

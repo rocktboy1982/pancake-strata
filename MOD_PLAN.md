@@ -3455,3 +3455,17 @@ Clock state at the check: CPU governor performance, C3 off on all 16 cores (stab
 | V6 (MTP conv snapshots in one set_rows) | conversation_state.cpp copies running state; the per-slot loop is not confirmed | OPEN: read the conv rollback writes (CPU-only) |
 
 Next no-hardware steps, in order: read U5 and V6 (MTP copies), read U4 (rocBLAS per call), then write up V5 as a GPU A/B spec (no run until the owner clears the clock).
+
+### No-hardware work done 2026-11-15: v1.0.0 candidate checks and the V3 cache-policy replay
+Code reading (CPU only), results:
+- U5 (MTP reads target hidden states from a device buffer): ALREADY HAVE. src/core/mtp.cpp takes window_R_ as a device pointer; the per-window copies into Rin_ are cudaMemcpyAsync DeviceToDevice; only the small selected outputs use mapped memory.
+- V6 (one set_rows for MTP conv snapshots): ALREADY HAVE. verify_kernels.cu has gdn_conv_commit_layers_kernel and gdn_step_commit_layers_kernel: one launch for all GDN layers each.
+- U4 (rocBLAS workspace per call): LOW. rocBLAS is used only in src/prefill/gemm.cu and only when STRATA_ROCBLAS_TUNING is set (opt-in, prefill). No effect on default decode. A rocblas_set_workspace call is a possible small tweak if the tuning path is ever used.
+- U2, V2: not applicable (checked earlier).
+- V5 (draft model sharing the main expert cache): still the one open candidate; needs a GPU A/B.
+
+V3 (LRFU/MQ-like expert cache): our adaptive tier already scores experts as a decayed frequency (usage += 1 per routed entry, usage *= decay per round), which is an LRFU-style score. Offline replay on bench/prefetch/routing.bin (219 windows, k=10), archive pancake-docs/research/bench/results-2026-11-15/cache-policy-sweep.txt:
+- decay is flat: 0.3 -> 0.7966, 0.7 (default) -> 0.7962, 0.95 -> 0.7886 (profile only 0.7187, static oracle 0.8837).
+- round interval and swap cap trade hit share against swap traffic: every 1 / 96 swaps = 0.8431 at 44.8 swaps per window; the default (every 4 / 96) = 0.7962 at 23.5. At matched traffic (about 23 swaps per window) every 2 / 48 swaps = 0.8008, +0.5 points over the default: no real gain.
+- Verdict: DROP V3. No policy change from this replay; the real trade-off (copy cost per swap against CPU cost per miss) is a GPU measurement, and --adapt-swaps was already tested in A8 (swaps64 +4.9% edit, output differs).
+Caveat: 219 windows, weight column zero, one model; the replay says nothing about speed.
