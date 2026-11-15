@@ -303,6 +303,7 @@ STRATA_ENV("STRATA_ADAPT_OVERLAP_RESIDENT", Speed, "placement/tiering of experts
 STRATA_ENV("STRATA_ADAPT_OVERLAP_SLOW_US", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_PERSIST", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_PICK_INLINE", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
+STRATA_ENV("STRATA_ADAPT_PROB_MASS", Speed, "placement/tiering of experts (same math, GPU vs CPU): tier counts weighted by router probability")
 STRATA_ENV("STRATA_ADAPT_PROMPT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_PROMPT_W", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_SIGNAL", Speed, "placement/tiering of experts (same math, GPU vs CPU)")

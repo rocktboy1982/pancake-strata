@@ -5012,6 +5012,18 @@ float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_C
 }  // namespace
 bool miss_skip_weights_on() { return miss_skip_w() > 0.0f || miss_skip_cum() > 0.0f; }
 
+// STRATA_ADAPT_PROB_MASS=1 (opt-in, read once; LEADS.md Part B B134): the decode tier's decayed routing counts
+// (ExpertDispatch::usage, the EWMA the adaptive swaps rank by) add each routed entry's router probability times k instead
+// of 1, so an expert the router keeps choosing with a large weight outranks one that only fills the tail of the top-k
+// (router-probability-mass / LFRU-style frequency-with-weight scoring; per token the increments still sum to k).
+// Only where the verifier published the window's weights (GpuPlanSink::skip_w); elsewhere the count stays +1.  Placement
+// only: the output is unchanged.  Unset: false, nothing changes.
+bool adapt_prob_mass_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_ADAPT_PROB_MASS"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on(); }
+
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic) {
     using namespace strata::kernels::cpu;
@@ -5064,9 +5076,19 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     pt("begin");
     d.src->begin_layer(d.layers, ids, n_tok * k);
     pt("begun");
-    if (!d.usage.empty())
-        for (int64_t i = 0; i < n_tok * k; ++i)
-            if (ids[i] >= 0 && ids[i] < d.n_expert) d.usage[(size_t) d.layers * (size_t) d.n_expert + (size_t) ids[i]] += 1.0f;
+    if (!d.usage.empty()) {
+        const float* pw = adapt_prob_mass_on() && d.plan != nullptr ? d.plan->skip_w : nullptr;   // STRATA_ADAPT_PROB_MASS
+        if (pw == nullptr) {
+            for (int64_t i = 0; i < n_tok * k; ++i)
+                if (ids[i] >= 0 && ids[i] < d.n_expert) d.usage[(size_t) d.layers * (size_t) d.n_expert + (size_t) ids[i]] += 1.0f;
+        } else {
+            for (int64_t i = 0; i < n_tok * k; ++i) {
+                const float w = pw[i];
+                if (ids[i] >= 0 && ids[i] < d.n_expert)
+                    d.usage[(size_t) d.layers * (size_t) d.n_expert + (size_t) ids[i]] += w == w && w > 0.0f ? w * (float) k : 0.0f;
+            }
+        }
+    }
     // ---- plan v0.3 P6: the GPU's share, decided and published FIRST so the GPU starts while the CPU works.
     // Distinct experts in routing order; resident ones and the last pcie_num/256 of the missed ones go to the GPU.
     const int64_t n = n_tok * k;
@@ -5152,7 +5174,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         //         already reaches p of the token's sum: HOBBIT's cumulative gate-score rule as a skip.
         // The weights are the ones the window's doorbell published (GpuPlanSink::skip_w, set by the verifier only when one
         // of the two is set).  Not with a peer or helper GPU, as the tail skip.
-        const float* sw = d.plan != nullptr ? d.plan->skip_w : nullptr;
+        // (skip_w is also published for STRATA_ADAPT_PROB_MASS alone: the skip runs only when one of its own two is set)
+        const float* sw = d.plan != nullptr && miss_skip_weights_on() ? d.plan->skip_w : nullptr;
         if (sw != nullptr && d.peer == nullptr && d.remote_count == 0) {
             const float share_lt = miss_skip_w(), cum_ge = miss_skip_cum();
             int q_of[kMaxWindowEntries];
