@@ -1,0 +1,212 @@
+diff --git a/src/core/conversation_disk_env.def b/src/core/conversation_disk_env.def
+index 85b950b32..5c7a269c6 100644
+--- a/src/core/conversation_disk_env.def
++++ b/src/core/conversation_disk_env.def
+@@ -562,6 +562,7 @@ STRATA_ENV("STRATA_PF_GROUP_SCRATCH", Speed, "prompt path scheduling/staging/chu
+ STRATA_ENV("STRATA_PF_HC_REGION", Speed, "prompt path scheduling/staging/chunk sizing")
+ STRATA_ENV("STRATA_PF_OCC", Speed, "prompt path scheduling/staging/chunk sizing")
+ STRATA_ENV("STRATA_PF_OCC_W", Speed, "prompt path scheduling/staging/chunk sizing")
++STRATA_ENV("STRATA_PF_NW_WIDE", Speed, "prompt path scheduling/staging/chunk sizing")
+ STRATA_ENV("STRATA_PF_OWN_PROBE_OFF", Speed, "prompt path scheduling/staging/chunk sizing")
+ STRATA_ENV("STRATA_PF_PAD", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+ STRATA_ENV("STRATA_PF_PEER_COMPACT", Speed, "multi-GPU peer prompt path (the disk tier needs one GPU; PF_PEER_F16/CPU/SUMS would be value-changing there)")
+diff --git a/src/prefill/moe_fused_iq.cu b/src/prefill/moe_fused_iq.cu
+index fde0b9db8..08dfee49d 100644
+--- a/src/prefill/moe_fused_iq.cu
++++ b/src/prefill/moe_fused_iq.cu
+@@ -1307,8 +1307,11 @@ __device__ __forceinline__ nw_i8 nw_wmma(nw_ab a, nw_ab b, nw_i8 c) {
+ // W (X1): ALIAS = the H tile lives on the weight buffers (one extra barrier); LB > 0 = amdgpu_waves_per_eu(LB) (VGPR cap)
+ // where nw_capped(WT) says the cap applies.
+ // Disable both with -DSTRATA_W_NO_OCC (the launch sites then use <WT, GU, false, 0> and grid factor wgp_blocks).
+-template <int WT, bool GU, bool ALIAS = false, int LB = 0>
+-__global__ void __launch_bounds__(NW_THREADS) __attribute__((amdgpu_waves_per_eu(LB > 0 && nw_capped(WT) ? LB : 1)))
++// WIDE: the work item is 128 weight rows x 128 tile rows (a pair of tiles, 16 waves; the first tile of a pair takes it, the
++// second returns at once): the weight decode and its LDS writes are shared by twice the tile rows.  The H tile is turned into
++// int8 in two passes of 64 rows (a 128-row H tile would be 33 KB and push the LDS over 64 KB).  Chosen per launch by wide_native().
++template <int WT, bool GU, bool ALIAS = false, int LB = 0, bool WIDE = false>
++__global__ void __launch_bounds__(WIDE ? 2 * NW_THREADS : NW_THREADS) __attribute__((amdgpu_waves_per_eu(LB > 0 && nw_capped(WT) ? LB : 1)))
+ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const uint8_t* __restrict__ act,
+                   const int32_t* __restrict__ src, uint8_t* __restrict__ out, float* __restrict__ dm) {
+ #if STRATA_NAT_WMMA
+@@ -1318,6 +1321,8 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+     constexpr int BS = block_bytes(WT);
+     constexpr bool K16 = per16(WT);
+     constexpr int GB = grid_bytes(WT) > 0 ? grid_bytes(WT) : 16;
++    constexpr int BR = WIDE ? 2 * kTileRows : kTileRows;      // tile rows of a work item
++    constexpr int NTH = WIDE ? 2 * NW_THREADS : NW_THREADS;   // threads of the block; the first NW_THREADS decode the weights
+     __shared__ __align__(16) uint8_t wtbuf[2 * NW_ROWS * WLD];
+     uint8_t(*wt)[NW_ROWS][WLD] = reinterpret_cast<uint8_t(*)[NW_ROWS][WLD]>(wtbuf);
+     __shared__ __align__(16) float ws[2][NW_ROWS][4];           // their scales per 16 values
+@@ -1325,29 +1330,31 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+     constexpr int SGN = (WT == T_IQ2_XXS || WT == T_IQ2_XS || WT == T_IQ2_S || WT == T_IQ3_XXS || WT == T_IQ3_S)
+                             ? sign_entries(WT) : 1;
+     __shared__ __align__(16) uint4 ssign[SGN];                   // the signs of a sign byte, as byte masks
+-    __shared__ int srow[kTileRows];
+-    __shared__ float hs_sep[(GU && !ALIAS) ? kTileRows : 1][65];
++    __shared__ int srow[BR];
++    __shared__ float hs_sep[(GU && !ALIAS) ? kTileRows : 1][65];   // (WIDE: the H tile is made in two passes of 64 rows)
+     static_assert(!ALIAS || (size_t) kTileRows * 65 * 4 <= (size_t) 2 * NW_ROWS * WLD, "H tile must fit the weight buffers");
+     float(*hs)[65] = ALIAS ? reinterpret_cast<float(*)[65]>(wtbuf) : hs_sep;
+     const int tid = threadIdx.x, lane = tid & 31, wave = tid >> 5;
+     const int wm = wave & 3, wn = wave >> 2, l16 = lane & 15, hi = lane >> 4;
+     if constexpr (grid_bytes(WT) > 0) {
+         const uint32_t* gs = (const uint32_t*) grid_src<WT>();
+-        for (int i = tid; i < grid_bytes(WT) / 4; i += NW_THREADS) ((uint32_t*) sgrid)[i] = gs[i];
++        for (int i = tid; i < grid_bytes(WT) / 4; i += NTH) ((uint32_t*) sgrid)[i] = gs[i];
+     }
+     if constexpr (SGN > 1) {
+-        for (int i = tid; i < SGN; i += NW_THREADS) ssign[i] = sign_entry(i, SGN == 128);
++        for (int i = tid; i < SGN; i += NTH) ssign[i] = sign_entry(i, SGN == 128);
+     }
+     uint32_t kv[4] = {0, 0, 0, 0};
+     if constexpr (WT == T_IQ4_XS || WT == T_IQ4_NL) {
+ #pragma unroll
+         for (int k = 0; k < 16; ++k) kv[k >> 2] |= (uint32_t) (uint8_t) kvalues_iq4nl[k] << (8 * (k & 3));
+     }
+-    const int ur = tid >> 1, uj = tid & 1;                       // this thread's decode unit: row ur, sub-block uj
++    const bool dec = tid < NW_THREADS;                           // WIDE: the other waves only multiply
++    const int ur = (tid & (NW_THREADS - 1)) >> 1, uj = tid & 1;  // this thread's decode unit: row ur, sub-block uj
+     const int t0 = tb.ts[b.e0], nwork = (tb.ts[b.e1] - t0) * NFB;
+     for (int w = blockIdx.x; w < nwork; w += gridDim.x) {
+         const int2 tl = tb.tiles[t0 + w / NFB];
+-        const int fb = w % NFB, e = tl.x, row0 = tl.y, nrows = min(kTileRows, tb.off[e + 1] - row0);
++        const int fb = w % NFB, e = tl.x, row0 = tl.y, nrows = min(BR, tb.off[e + 1] - row0);
++        if (WIDE && ((t0 + w / NFB - tb.ts[e]) & 1)) continue;   // the second tile of a pair (uniform over the block)
+         const uint8_t* blob = b.blob[e - b.e0];
+         const int rbase = fb * NW_ROWS;
+         const uint8_t* wrow = GU ? blob + ((ur & 1) ? geo.up_off : 0) + (size_t) (fb * (NW_ROWS / 2) + (ur >> 1)) * geo.gu_row
+@@ -1358,6 +1365,7 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+         };
+         auto sub = [&](int s) { return GU && WT != T_Q2_0 ? 2 * (s & 3) + uj : uj; };
+         auto put = [&](const uint32_t (&raw)[raw_words(WT)], int buf) {
++            if (WIDE && !dec) return;
+             uint32_t q[8];
+             float s0, s1;
+             convert<WT>(raw, sgrid, kv, q, s0, s1, ssign);
+@@ -1367,14 +1375,15 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+             *(float2*) &ws[buf][ur][2 * uj] = make_float2(s0, s1);
+         };
+         __syncthreads();                                          // the previous item is done with the buffers
+-        if (tid < kTileRows) {
++        if (tid < BR) {
+             const int r = row0 + min(tid, nrows - 1);             // rows past the tile's end repeat its last one
+             srow[tid] = GU ? src[r] : r;
+         }
+         uint32_t raw[raw_words(WT)] = {};
+-        load_unit<WT>(unit(0), sub(0), raw);
++        auto ldu = [&](int s) { if (!WIDE || dec) load_unit<WT>(unit(s), sub(s), raw); };
++        ldu(0);
+         put(raw, 0);
+-        if (NS > 1) load_unit<WT>(unit(1), sub(1), raw);
++        if (NS > 1) ldu(1);
+         __syncthreads();                                          // srow
+         const bool on = 32 * wn < nrows;
+         const uint8_t* brow[2];
+@@ -1466,7 +1475,7 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+ #else
+                 __syncthreads();                                      // the writes of every thread are in LDS before the next stage reads them (#1180)
+ #endif
+-                if (s + 2 < NS) load_unit<WT>(unit(s + 2), sub(s + 2), raw);
++                if (s + 2 < NS) ldu(s + 2);
+                 if (on) {
+ #pragma unroll
+                     for (int nt = 0; nt < 2; ++nt) {
+@@ -1480,7 +1489,9 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+         }
+         if constexpr (GU) {
+             if constexpr (ALIAS) __syncthreads();                 // every wave is done reading the weight buffers
+-            if (on) {
++            for (int pass = 0; pass < (WIDE ? 2 : 1); ++pass) {
++            const int HW = 32 * (WIDE ? (wn & 1) : wn);           // this wave's first row in the H tile
++            if (on && (!WIDE || (wn >> 1) == pass)) {
+ #pragma unroll
+                 for (int mt = 0; mt < 2; ++mt)
+ #pragma unroll
+@@ -1490,14 +1501,14 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+ #pragma unroll
+                         for (int j = 0; j < 4; ++j) {
+                             const float gt = acc[mt][nt][2 * j], up = acc[mt][nt][2 * j + 1];
+-                            hs[32 * wn + 16 * nt + l16][16 * wm + 8 * mt + 4 * hi + j] = gt / (1.0f + __expf(-gt)) * up;
++                            hs[HW + 16 * nt + l16][16 * wm + 8 * mt + 4 * hi + j] = gt / (1.0f + __expf(-gt)) * up;
+                         }
+ #else
+ #pragma unroll
+                         for (int i = 0; i < 8; ++i) {
+                             const float up = __shfl_xor_sync(0xffffffffu, acc[mt][nt][i], 16);
+                             const float gt = acc[mt][nt][i];
+-                            if (hi == 0) hs[32 * wn + 16 * nt + l16][16 * wm + 8 * mt + i] = gt / (1.0f + __expf(-gt)) * up;
++                            if (hi == 0) hs[HW + 16 * nt + l16][16 * wm + 8 * mt + i] = gt / (1.0f + __expf(-gt)) * up;
+                         }
+ #endif
+                     }
+@@ -1505,13 +1516,13 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+             __syncthreads();
+             // H block fb (features 64 fb ..) to int8 per 32, natural order: a thread per (tile row, half)
+             if (tid < 2 * kTileRows) {
+-                const int r = tid >> 1, hh = tid & 1;
+-                if (r < nrows) {
++                const int r = tid >> 1, hh = tid & 1, rg = r + 64 * pass;   // rg: the row of the work item
++                if (rg < nrows) {
+                     float am = 0.0f;
+ #pragma unroll 8
+                     for (int j = 0; j < 32; ++j) am = fmaxf(am, fabsf(hs[r][32 * hh + j]));
+                     const float inv = am > 0.0f ? 127.0f / am : 0.0f;
+-                    uint8_t* o = out + (size_t) (row0 + r) * (10 * AB) + (size_t) fb * AB;
++                    uint8_t* o = out + (size_t) (row0 + rg) * (10 * AB) + (size_t) fb * AB;
+                     uint32_t wd[8] = {};
+                     int csum = 0;
+ #pragma unroll
+@@ -1527,6 +1538,8 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
+                     *reinterpret_cast<float*>(o + 72 + 4 * hh) = (float) csum;   // (the formats with a minimum)
+                 }
+             }
++            if constexpr (WIDE) __syncthreads();                  // the next pass overwrites the H tile
++            }
+         } else {
+             if (on) {
+ #pragma unroll
+@@ -1760,6 +1773,17 @@ template <int T, bool GU> bool setup_nt(int& occ) {
+ // answers 1 block for these kernels where 2 run side by side - so the grid was half the GPU's room.  gfx1151 (20
+ // WGPs), 8192 tokens x top 10, IQ3_S / IQ4_NL, one layer: 1 block per WGP 60.7 ms, 2 44.7, 3 49.9, 4 45.2 (the same
+ // work items and arithmetic: the results do not change).  STRATA_PF_OCC=N sets the blocks per WGP (an experiment knob).
++// The wide work item of native_w11_kernel (two tiles, 128 x 128) pays when an expert has a tile's rows or more on average
++// (the F16 kernel's rule, f16::pick_bn: it gained 3-9% at 4096 tokens and up and lost at 1024).  Off unless
++// STRATA_PF_NW_WIDE=1 (gated by that rule) or =force (always) - not measured on the int8 kernel yet.
++static bool wide_native(int64_t n, int n_expert) {
++    static const int mode = [] {
++        const char* v = std::getenv("STRATA_PF_NW_WIDE");
++        return v == nullptr ? 0 : std::strcmp(v, "force") == 0 ? 2 : std::atoi(v) > 0 ? 1 : 0;
++    }();
++    if (mode == 0) return false;
++    return mode == 2 || (double) n / (n_expert > 0 ? n_expert : 1) >= kTileRows;
++}
+ static int wgp_blocks(int occ) {
+     static const int env = [] {
+         const char* v = std::getenv("STRATA_PF_OCC");
+@@ -2133,7 +2157,16 @@ void experts_native(const Batch& b, const NativeGeom& g, int n_expert, int64_t n
+                                                           (int64_t) d.sms * (occ_d ? occ_blocks(d.w12, g.d_type, false) : wgp_blocks(d.occ)));
+         const uint8_t* xa8 = (const uint8_t*) xa;
+         uint8_t* ha8 = (uint8_t*) ha;
+-#define STRATA_NW_GU(T) do { if (occ_gu) native_w11_kernel<T, true, true, NW_LB><<<g_gu, NW_THREADS, 0, s>>>(b, g, tb, xa8, src, ha8, nullptr); else native_w11_kernel<T, true><<<g_gu, NW_THREADS, 0, s>>>(b, g, tb, xa8, src, ha8, nullptr); } while (0)
++        // The wide work item (native_w11_kernel WIDE): 2 blocks of 16 waves a WGP (LDS), the grid over the pairs; a grid that is a
++        // multiple of 2 * NFB would leave the same blocks the odd tiles of every round, so it is made one smaller.
++        const bool nw_wide = wide_native(n, n_expert);
++        const int64_t tiles_w = (n + 2 * kTileRows - 1) / (2 * kTileRows) + (b.e1 - b.e0);
++        auto wide_grid = [&](int nfb) {
++            unsigned g = (unsigned) std::min<int64_t>(tiles_w * nfb, (int64_t) d.sms * 2);
++            return g > 1 && g % (2 * nfb) == 0 ? g - 1 : g;
++        };
++        const unsigned gw_gu = wide_grid(1280 / NW_ROWS), gw_d = wide_grid(2560 / NW_ROWS);
++#define STRATA_NW_GU(T) do { if (nw_wide) { if (occ_gu) native_w11_kernel<T, true, true, NW_LB, true><<<gw_gu, 2 * NW_THREADS, 0, s>>>(b, g, tb, xa8, src, ha8, nullptr); else native_w11_kernel<T, true, false, 0, true><<<gw_gu, 2 * NW_THREADS, 0, s>>>(b, g, tb, xa8, src, ha8, nullptr); } else if (occ_gu) native_w11_kernel<T, true, true, NW_LB><<<g_gu, NW_THREADS, 0, s>>>(b, g, tb, xa8, src, ha8, nullptr); else native_w11_kernel<T, true><<<g_gu, NW_THREADS, 0, s>>>(b, g, tb, xa8, src, ha8, nullptr); } while (0)
+         // STRATA_PF_F16=1: gfx11's F16 matrix cores - the K-quants' kernels (moe_f16_kq.cu) and native_f16_kernel for
+         // f16_gu / f16_d (gfx12's WMMA layout differs, so it keeps the int8 kernels)
+         const bool f16 = !d.w12 && f16::requested();
+@@ -2175,7 +2208,7 @@ void experts_native(const Batch& b, const NativeGeom& g, int n_expert, int64_t n
+             default: STRATA_NW_GU(T_IQ4_XS); break;
+         }
+ #undef STRATA_NW_GU
+-#define STRATA_NW_D(T) do { if (occ_d) native_w11_kernel<T, false, true, NW_LB><<<g_d, NW_THREADS, 0, s>>>(b, g, tb, ha8, src, nullptr, dm); else native_w11_kernel<T, false><<<g_d, NW_THREADS, 0, s>>>(b, g, tb, ha8, src, nullptr, dm); } while (0)
++#define STRATA_NW_D(T) do { if (nw_wide) { if (occ_d) native_w11_kernel<T, false, true, NW_LB, true><<<gw_d, 2 * NW_THREADS, 0, s>>>(b, g, tb, ha8, src, nullptr, dm); else native_w11_kernel<T, false, false, 0, true><<<gw_d, 2 * NW_THREADS, 0, s>>>(b, g, tb, ha8, src, nullptr, dm); } else if (occ_d) native_w11_kernel<T, false, true, NW_LB><<<g_d, NW_THREADS, 0, s>>>(b, g, tb, ha8, src, nullptr, dm); else native_w11_kernel<T, false><<<g_d, NW_THREADS, 0, s>>>(b, g, tb, ha8, src, nullptr, dm); } while (0)
+         if (f16 && f16kq::covers_down(g.d_type)) f16kq::down(b, g, tb.ts, tb.tiles, tb.off, n, n_expert, tiles, ha8, dm, s, d16);
+         else if ((f16 && f16_d(g.d_type)) || f16_q8d) {
+             if (g.d_type == T_Q2_0) STRATA_F16_LAUNCH(T_Q2_0, false, f16::D_NFB, ha8, nullptr, dm);
