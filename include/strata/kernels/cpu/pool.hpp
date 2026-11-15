@@ -401,6 +401,7 @@ private:
         alignas(64) float ff[MAXT][FF];
         ActQ a2[MAXT];
         alignas(64) uint8_t hq[MAXT][kNativeHBytes];   // plan v0.3 P6: native down activations
+        uint64_t skip = 0;   // STRATA_CPU_ACT_SPARSE (opt-in): bit b = 64-block b of h is zero in every token (0 = off)
     };
     const NativeFmt* nfmt_ = nullptr;
     NativeArithmetic narithmetic_ = NativeArithmetic::Default;

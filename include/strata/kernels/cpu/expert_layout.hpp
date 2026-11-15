@@ -95,6 +95,12 @@ std::string cpu_name();
 void q2_rows_any(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt, float* const* out,
                  int r0, int r1);
 void act_quant_any(const float* x, int n, ActQ& a);
+/// LEADS.md B1/B2 (STRATA_CPU_ACT_SPARSE / _UNION, opt-in, lossy): zero the floor(p x nblk) smallest-norm 64-blocks of each
+/// token's h (with `uni` only the blocks no token keeps); returns the mask of the blocks zero in every token.
+uint64_t act_sparse_apply(float* const* ff, int nt, int nff, float p, bool uni);
+/// q2_rows_any with the 64-blocks in `skip` (zero in every token's activations) left out.
+void q2_rows_skip(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt, float* const* out,
+                  int r0, int r1, uint64_t skip);
 /// The same dispatch, always the pre-bit-plane kernel (tests and A/B; the bit-plane switch off by construction).
 void q2_rows_any_legacy(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt, float* const* out,
                         int r0, int r1);

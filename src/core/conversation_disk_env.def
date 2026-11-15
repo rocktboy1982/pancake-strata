@@ -48,6 +48,8 @@ STRATA_ENV("STRATA_AMD_COMMUNITY_TUNING", KeyIfSet, "makes SELECT_SIMT=2 the def
 STRATA_ENV("STRATA_BFLA", Inert, "old BFLA switch, split in two: turns nothing on, prints a note")
 STRATA_ENV("STRATA_BUDDY", KeyIfSet, "BuddyMoE substitution: a missed expert computed with a resident buddy's weights (lossy; LEADS.md Part E)")
 STRATA_ENV("STRATA_BUDDY_MIN", KeyIfSet, "BuddyMoE co-activation threshold")
+STRATA_ENV("STRATA_CPU_ACT_SPARSE", KeyIfSet, "CPU experts: the smallest-norm 64-blocks of the down input zeroed and skipped (TEAL-style, lossy; LEADS.md B1)")
+STRATA_ENV("STRATA_CPU_ACT_SPARSE_UNION", KeyIfSet, "CPU_ACT_SPARSE keeps the union of the window's kept blocks (BlockFFN, lossy; LEADS.md B2)")
 STRATA_ENV("STRATA_BFLA_DENSE", KeyIfSet, "fused dense prompt attention; not bitwise equal to the GEMM path")
 STRATA_ENV("STRATA_BFLA_SPARSE", KeyIfSet, "lossy block selection: changes the K/V that is saved")
 STRATA_ENV("STRATA_BFLA_MIN", KeyIfSet, "sparse selection knob")
