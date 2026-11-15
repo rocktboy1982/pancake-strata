@@ -423,7 +423,10 @@ __global__ void __launch_bounds__(256) rdna_wmma_q6k_kernel(const uint8_t* __res
 #endif
 }
 
-template <int NT, int KS>
+// SHARE (STRATA_RDNA_WMMA_IQ4SHARE=1): the two lane halves hold copies of the same fragment (gfx11), so each half decodes ONE of the
+// two k16 steps (lanes 0..15 step 0, lanes 16..31 step 1) and a permlanex16 swap hands it to the other half: the nibble-table
+// decode, the largest ALU part of this kernel, is done once instead of twice.  Same bits as the default (the decode is the same).
+template <int NT, int KS, bool SHARE>
 __global__ void __launch_bounds__(256) rdna_wmma_iq4xs_kernel(const uint8_t* __restrict__ w, const Q81* __restrict__ x,
                                                               float* __restrict__ y, int n_in, int n_out, int ncols) {
 #if STRATA_RDNA_WMMA_DEV
@@ -457,10 +460,22 @@ __global__ void __launch_bounds__(256) rdna_wmma_iq4xs_kernel(const uint8_t* __r
 #pragma unroll
             for (int k = 0; k < 4; ++k) qd[k] = ld32u(b + 8 + 16 * j + 4 * k);
             wm_i4 bw[2];   // k16 step 0 = the low nibbles of the 16 bytes, step 1 = the high nibbles
+            if constexpr (SHARE) {
+                int xd[4], yd[4];
 #pragma unroll
-            for (int h = 0; h < 2; ++h)
-                bw[h] = wm_i4{(int) iq4_lut4((qd[0] >> (4 * h)) & 0x0f0f0f0fu), (int) iq4_lut4((qd[1] >> (4 * h)) & 0x0f0f0f0fu),
-                              (int) iq4_lut4((qd[2] >> (4 * h)) & 0x0f0f0f0fu), (int) iq4_lut4((qd[3] >> (4 * h)) & 0x0f0f0f0fu)};
+                for (int k = 0; k < 4; ++k) {
+                    xd[k] = (int) iq4_lut4((qd[k] >> (4 * hi)) & 0x0f0f0f0fu);   // this half's own step
+                    yd[k] = __builtin_amdgcn_permlanex16(0, xd[k], 0x76543210, 0xfedcba98, false, false);   // the other half's step
+                }
+                const wm_i4 mine = wm_i4{xd[0], xd[1], xd[2], xd[3]}, other = wm_i4{yd[0], yd[1], yd[2], yd[3]};
+                bw[0] = hi ? other : mine;   // step 0 comes from lanes 0..15
+                bw[1] = hi ? mine : other;   // step 1 comes from lanes 16..31
+            } else {
+#pragma unroll
+                for (int h = 0; h < 2; ++h)
+                    bw[h] = wm_i4{(int) iq4_lut4((qd[0] >> (4 * h)) & 0x0f0f0f0fu), (int) iq4_lut4((qd[1] >> (4 * h)) & 0x0f0f0f0fu),
+                                  (int) iq4_lut4((qd[2] >> (4 * h)) & 0x0f0f0f0fu), (int) iq4_lut4((qd[3] >> (4 * h)) & 0x0f0f0f0fu)};
+            }
 #pragma unroll
             for (int nt = 0; nt < NT; ++nt) {
                 const int* qx = reinterpret_cast<const int*>((xa[nt] + sb * 8 + j)->qs);
@@ -518,18 +533,22 @@ inline void wmma_launch_q6k(const uint8_t* wb, const Q81* x, float* y, int n_in,
         else rdna_wmma_q6k_kernel<2, 4><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols);
     }
 }
+inline bool rdna_wmma_iq4share() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_RDNA_WMMA_IQ4SHARE"); return e != nullptr && e[0] == '1'; }();
+    return v;
+}
 inline void wmma_launch_iq4xs(const uint8_t* wb, const Q81* x, float* y, int n_in, int n_out, int ncols, cudaStream_t s) {
     const int ks = rdna_wmma_ks(n_out);
     const unsigned blocks = (unsigned) ((n_out + 16 * (8 / ks) - 1) / (16 * (8 / ks)));
+    const bool sh = rdna_wmma_iq4share();
+#define STRATA_IQ4W(NT, KS) do { if (sh) rdna_wmma_iq4xs_kernel<NT, KS, true><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols); \
+                                 else rdna_wmma_iq4xs_kernel<NT, KS, false><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols); } while (0)
     if (ncols <= 16) {
-        if (ks == 1) rdna_wmma_iq4xs_kernel<1, 1><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols);
-        else if (ks == 2) rdna_wmma_iq4xs_kernel<1, 2><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols);
-        else rdna_wmma_iq4xs_kernel<1, 4><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols);
+        if (ks == 1) STRATA_IQ4W(1, 1); else if (ks == 2) STRATA_IQ4W(1, 2); else STRATA_IQ4W(1, 4);
     } else {
-        if (ks == 1) rdna_wmma_iq4xs_kernel<2, 1><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols);
-        else if (ks == 2) rdna_wmma_iq4xs_kernel<2, 2><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols);
-        else rdna_wmma_iq4xs_kernel<2, 4><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out, ncols);
+        if (ks == 1) STRATA_IQ4W(2, 1); else if (ks == 2) STRATA_IQ4W(2, 2); else STRATA_IQ4W(2, 4);
     }
+#undef STRATA_IQ4W
 }
 template <int FMT>
 void kq_launch(const uint8_t* wb, const Q81* x, float* y, int n_in, int n_out, int ncols, cudaStream_t s) {
