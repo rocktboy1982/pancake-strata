@@ -45,6 +45,7 @@
 #include <exception>
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include <vector>
 #include "strata/platform/cpu_relax.hpp"
 #include <map>
@@ -84,6 +85,18 @@ bool mtp_proxy_env() {
 namespace {
 
 constexpr float EPS = 1e-6f;
+
+// STRATA_MTP_SPIN_US=N (opt-in, read once; LEADS.md A4 "SpinWait (pause 50 us then yield) in MTP draft wait", a
+// basalt idea, N = 50 there): the draft waits below pause-spin for N microseconds, then yield the core between checks
+// (another runnable thread - a pool worker, the issuer - gets it).  0 / unset: the plain pause spin, as before.
+// Timing only: the same tokens are read.
+int64_t mtp_spin_us() {
+    static const int64_t v = [] {
+        const char* e = std::getenv("STRATA_MTP_SPIN_US");
+        return e != nullptr ? (std::max)((int64_t) 0, (int64_t) std::atoll(e)) : (int64_t) 0;
+    }();
+    return v;
+}
 
 // #783 PR-i: STRATA_MTP_CATCHUP_ALL=1 catches the drafter's K/V up for the whole verified window, rejected rows included
 bool mtp_catchup_all() {
@@ -1877,10 +1890,16 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
         progress_at("mtp draft: waiting for the GPU");   // #2065
         for (int j = 0; j + 1 < max_steps; ++j) {
             uint32_t spins = 0;
+            const int64_t spin_us = mtp_spin_us();   // STRATA_MTP_SPIN_US: pause, then yield
+            const Clock::time_point ts = spin_us > 0 ? Clock::now() : Clock::time_point{};
+            bool yielding = false;
             while (((volatile int32_t*) h_out_)[j] < 0) {
+                if (yielding) std::this_thread::yield();
 #if defined(_WIN32) || defined(__x86_64__)
-                strata_cpu_pause();
+                else strata_cpu_pause();
 #endif
+                if (spin_us > 0 && !yielding && (spins & 63u) == 63u &&
+                    Clock::now() - ts > std::chrono::microseconds(spin_us)) yielding = true;
                 if ((++spins & 1023u) == 0 && cudaStreamQuery(cs_) != cudaErrorNotReady) break;
             }
             strata_load_fence();   // the token was seen: its probability is read after it (a no-op on x86)
@@ -1918,10 +1937,16 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
         progress_at("mtp draft: waiting for the GPU");   // #2065: a stall here read as "decode", the verify window before it
         auto wait_step = [&](int j) {
             uint32_t spins = 0;
+            const int64_t spin_us = mtp_spin_us();   // STRATA_MTP_SPIN_US: pause, then yield
+            const Clock::time_point ts = spin_us > 0 ? Clock::now() : Clock::time_point{};
+            bool yielding = false;
             while (((volatile int32_t*) h_out_)[j] < 0) {
+                if (yielding) std::this_thread::yield();
 #if defined(_WIN32) || defined(__x86_64__)
-                strata_cpu_pause();
+                else strata_cpu_pause();
 #endif
+                if (spin_us > 0 && !yielding && (spins & 63u) == 63u &&
+                    Clock::now() - ts > std::chrono::microseconds(spin_us)) yielding = true;
                 if ((++spins & 1023u) == 0 && cudaStreamQuery(cs_) != cudaErrorNotReady) break;
             }
             strata_load_fence();
