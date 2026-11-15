@@ -1,0 +1,26 @@
+rep 0 base                 short 116.2 edit 118.3  foreign CPU 9% [('claude', 7), ('gnome-shell', 2), ('ptyxis', 2)]  gpu 1512/1249 MHz 53C 120W gtt 21M cpu 3864MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 wmma9                short 112.3 edit 112.1  foreign CPU 12% [('ptyxis', 8), ('gnome-shell', 5), ('claude', 3)]  gpu 1578/1249 MHz 53C 118W gtt 21M cpu 3730MHz 54C igpu 1%/vcn 0% fclk 1600
+rep 1 wmma9                short 115.6 edit 111.1  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('gnome-shell', 0)]  gpu 1562/1249 MHz 53C 119W gtt 21M cpu 3524MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 116.5 edit 118.3  foreign CPU 2% [('localsearch-3', 1), ('systemd-journal', 0), ('accounts-daemon', 0)]  gpu 1506/1249 MHz 53C 120W gtt 21M cpu 3691MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 115.7 edit 117.8  foreign CPU 4% [('claude', 3), ('ptyxis', 1), ('gnome-shell', 1)]  gpu 1515/1249 MHz 53C 120W gtt 21M cpu 3561MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 wmma9                short 114.9 edit 112.1  foreign CPU 19% [('claude', 23), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 1561/1249 MHz 53C 118W gtt 21M cpu 3784MHz 54C igpu 1%/vcn 0% fclk 1600
+rep 3 wmma9                short 111.7 edit 112.3  foreign CPU 10% [('claude', 8), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1585/1249 MHz 53C 119W gtt 21M cpu 3602MHz 55C igpu 1%/vcn 0% fclk 1600
+rep 3 base                 short 116.6 edit 117.8  foreign CPU 3% [('claude', 2), ('ptyxis', 1), ('gnome-shell', 0)]  gpu 1508/1249 MHz 53C 120W gtt 21M cpu 3559MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 4 base                 short 116.7 edit 118.0  foreign CPU 7% [('gnome-shell', 4), ('ptyxis', 3), ('claude', 2)]  gpu 1506/1249 MHz 53C 119W gtt 21M cpu 3713MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 4 wmma9                short 115.5 edit 110.5  foreign CPU 3% [('ptyxis', 1), ('claude', 1), ('gnome-shell', 1)]  gpu 1567/1249 MHz 53C 120W gtt 21M cpu 3568MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 wmma9                short 115.4 edit 111.8  foreign CPU 6% [('ptyxis', 3), ('claude', 3), ('gnome-shell', 3)]  gpu 1557/1249 MHz 53C 119W gtt 21M cpu 3897MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 base                 short 115.9 edit 118.2  foreign CPU 11% [('claude', 10), ('ptyxis', 4), ('gnome-shell', 4)]  gpu 1512/1249 MHz 53C 120W gtt 21M cpu 3688MHz 54C igpu 1%/vcn 0% fclk 1600
+early stop after 6 reps: every arm/case decided or below 1.5% of base
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.3 +-   0.4  (n=6)
+                              drafts accepted 0.74
+  short  wmma9                   114.2 +-   1.8  (n=6)   vs base:  -1.7% +-  1.7%  -> worse
+                              drafts accepted 0.72
+  edit   base                    118.1 +-   0.2  (n=6)
+                              drafts accepted 0.91
+  edit   wmma9                   111.6 +-   0.7  (n=6)   vs base:  -5.4% +-  0.7%  -> worse
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  wmma9                DIFFERENT text -> lossy or placement-dependent: quality gate

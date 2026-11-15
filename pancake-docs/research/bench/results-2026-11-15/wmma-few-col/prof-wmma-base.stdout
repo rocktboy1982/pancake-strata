@@ -1,0 +1,34 @@
+decode phase 5404 ms wall, kernels 4190 ms (78%), 95584 kernels, 187 per token
+top kernels:
+   42.2%   1768.5 ms    1824x   969.6 us  wait_flag_ge_kernel
+    6.8%    284.0 ms     960x   295.8 us  combine_cpu_k10_vec4<true>
+    6.1%    255.9 ms    6623x    38.6 us  rdna_kq_kernel<23, 12, 1>
+    5.6%    232.8 ms    1972x   118.0 us  expdec_gu_kernel<22, 1, 4, false, 1>
+    4.0%    166.5 ms    2784x    59.8 us  expdec_down_kernel<42, 4>
+    3.7%    154.3 ms    3552x    43.4 us  rdna_gr_fused<8>
+    3.7%    152.9 ms    5376x    28.4 us  rdna_gr_fused<4>
+    2.8%    115.7 ms     864x   133.9 us  attn_chunk_kernel<1, false, false, false>
+    2.6%    110.8 ms    2784x    39.8 us  wait_flag_copy_i32_kernel
+    2.4%    101.5 ms    3456x    29.4 us  rdna_kq_kernel<23, 4, 3>
+    1.6%     65.8 ms     638x   103.1 us  expdec_gu_kernel<16, 1, 4, false, 1>
+    1.4%     57.8 ms    2088x    27.7 us  gdn_step_norm_multi_kernel<true, true>
+    1.4%     56.8 ms    1628x    34.9 us  mmvq_multi_kernel<21, 8, false, false>
+    1.3%     55.6 ms    1824x    30.5 us  copy_rows_from_mapped_kernel
+    1.1%     48.0 ms    1332x    36.0 us  gdn_conv_ab_kernel<16, false>
+    1.0%     40.8 ms    4514x     9.0 us  bf16_f32_mmvf_multi_kernel<256, 12, true>
+    0.9%     37.1 ms      36x  1030.6 us  rdna_kq_kernel<23, 8, 2>
+    0.7%     28.2 ms     864x    32.6 us  attn_merge_kernel
+    0.6%     25.8 ms      57x   452.4 us  gdn_step_commit_layers_kernel
+    0.6%     24.1 ms    1824x    13.2 us  doorbell_publish_res_kernel
+per-stream gaps: launch (<50 us) 611 ms, stalls (>1 ms) 9292 ms; sums may overlap within 5404 ms wall
+largest idle by kernel pair and stream:
+   4699.3 ms   1221x avg  3848.8 us  __amd_rocclr_copyBuffer -> __amd_rocclr_copyBuffer (stream 9)
+   3635.6 ms     36x avg 100988.2 us  mtp_select_kernel -> __amd_rocclr_copyBuffer (stream 2)
+    843.5 ms    131x avg  6439.2 us  mtp_select_kernel -> copy_from_mapped_multi_kernel (stream 2)
+    294.8 ms     57x avg  5172.8 us  copy_indexed_kernel -> copy_from_mapped_multi_kernel (stream 7)
+     36.0 ms      1x avg 36004.4 us  kv_append_q8_kernel<true> -> copy_from_mapped_multi_kernel (stream 2)
+     28.8 ms   3552x avg     8.1 us  rdna_gr_fused<8> -> rdna_gr_fused<4> (stream 7)
+     24.4 ms   1972x avg    12.3 us  expdec_gu_kernel<22, 1, 4, false, 1> -> swiglu_q8_1_entries_kernel (stream 7)
+     23.8 ms     57x avg   417.6 us  logits_nonfinite_kernel -> copy_i32_from_mapped_kernel (stream 7)
+     22.6 ms   1824x avg    12.4 us  expdec_down_kernel<42, 4> -> wait_flag_ge_kernel (stream 7)
+     18.1 ms   2220x avg     8.2 us  rdna_gr_fused<4> -> bf16_f32_mmvf_multi_kernel<256, 12, true> (stream 7)
