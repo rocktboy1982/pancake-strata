@@ -533,6 +533,7 @@ STRATA_ENV("STRATA_MTP_BATCH_RING", Speed, "drafting/stop policy: the tokens cha
 STRATA_ENV("STRATA_MTP_CATCHUP_ALL", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_EAGER", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_FULL_HEAD", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
+STRATA_ENV("STRATA_MTP_HC_Q8", Speed, "drafting/stop policy: the draft layer's hc reads from Q8_0 copies; the drafts change, the state of given tokens does not (zsariboga 01fc2c80fc)")
 STRATA_ENV("STRATA_MTP_HIP_PRIO", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_KEEP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_MULTI_COPY", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")

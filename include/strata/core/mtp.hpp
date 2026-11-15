@@ -280,7 +280,11 @@ private:
     bool q4_ = false, q4_head_ = false;
     uint8_t* dense4_ = nullptr;              ///< --mtp-q4: Q4_0 copies of the Q8_0 tensors
     std::vector<std::pair<std::string, uint64_t>> q4_off_;
-    int dhead_type_ = -1;                    ///< the draft head subset's ggml type (the main head's, or Q4_0)
+    uint8_t* hcq8_ = nullptr;                ///< STRATA_MTP_HC_Q8=1: Q8_0 copies of the draft layer's hc down/up rows
+    std::vector<std::pair<std::string, uint64_t>> hcq8_off_;   ///< name -> offset in hcq8_
+    const uint8_t* hcq8(const char* name) const;
+    bool make_hcq8(std::string& err);
+    int dhead_type_ = -1;                   ///< the draft head subset's ggml type (the main head's, or Q4_0)
     std::string dvocab_path_;
     std::string vocab_file() const { return dvocab_path_.empty() ? rt_dir_ + "/draft_vocab.bin" : dvocab_path_; }
     /// a projection's weights for the draft layer's own pass: the Q4_0 copy under --mtp-q4, else the Q8_0 original

@@ -164,6 +164,7 @@ MtpDrafter::~MtpDrafter() {
     for (auto& e : prefill_dev_exec_) if (e) cudaGraphExecDestroy(e);
     if (pf_dev_) cudaFree(pf_dev_);
     if (dense4_) cudaFree(dense4_);
+    if (hcq8_) cudaFree(hcq8_);
     for (auto& e : round_exec_) if (e) cudaGraphExecDestroy(e);
     for (auto& e : step_exec_) if (e) cudaGraphExecDestroy(e);
     for (auto& e : round_exec_c_) if (e) cudaGraphExecDestroy(e);
@@ -210,6 +211,48 @@ const float* MtpDrafter::f32(const char* name) const {
 const uint16_t* MtpDrafter::bf16(const char* name) const {
     for (const auto& t : tensors_) if (t.name == name && t.kind == "bf16") return (const uint16_t*) (dense_ + t.off);
     return nullptr;
+}
+// STRATA_MTP_HC_Q8=1 (opt-in, rounding: only the drafts change, the main model verifies every token; zsariboga/Strata
+// 01fc2c80fc, LEADS.md "MTP_HC_Q8"): the draft layer's three hyper-connection reads (attention, mlp, final mixer) take
+// Q8_0 copies of their bf16 down/up rows, made on the GPU at load with fused_gr_quantize_q8_0 - fused_gr_read_multi then
+// takes its Q8 path, as STRATA_HC_Q8 does for the main layers.  Author: draft step -0.03 ms.  Unset: nothing changes.
+const uint8_t* MtpDrafter::hcq8(const char* name) const {
+    if (hcq8_ == nullptr) return nullptr;
+    for (const auto& e : hcq8_off_)
+        if (e.first == name) return hcq8_ + e.second;
+    return nullptr;
+}
+bool MtpDrafter::make_hcq8(std::string& err) {
+    static const char* const names[] = {"attn_hyper_connection.input_mix_weight_down.weight",
+                                        "attn_hyper_connection.input_mix_weight_up.weight",
+                                        "mlp_hyper_connection.input_mix_weight_down.weight",
+                                        "mlp_hyper_connection.input_mix_weight_up.weight",
+                                        "hyper_connection_mixer.input_mix_weight_down.weight",
+                                        "hyper_connection_mixer.input_mix_weight_up.weight"};
+    uint64_t total = 0;
+    std::vector<std::pair<const Tensor*, uint64_t>> plan;
+    for (const char* n : names) {
+        const Tensor* found = nullptr;
+        for (const auto& t : tensors_) if (t.name == n && t.kind == "bf16") found = &t;
+        if (found == nullptr || (found->bytes / 2) % 32 != 0) { err = std::string("mtp: STRATA_MTP_HC_Q8: no bf16 ") + n; return false; }
+        plan.emplace_back(found, total);
+        total += found->bytes / 2 / 32 * 34;
+    }
+    if (cudaMalloc((void**) &hcq8_, (size_t) total) != cudaSuccess) {
+        hcq8_ = nullptr;
+        cudaGetLastError();
+        err = "mtp: STRATA_MTP_HC_Q8 does not fit";
+        return false;
+    }
+    for (const auto& pt : plan) {
+        strata::kernels::fused_gr_quantize_q8_0((const uint16_t*) (dense_ + pt.first->off), hcq8_ + pt.second,
+                                                (int64_t) (pt.first->bytes / 2 / 32), nullptr);
+        hcq8_off_.emplace_back(pt.first->name, pt.second);
+    }
+    if (cudaDeviceSynchronize() != cudaSuccess) { err = "mtp: STRATA_MTP_HC_Q8 quantize failed"; return false; }
+    vram_ += total;
+    std::fprintf(stderr, "strata mtp: STRATA_MTP_HC_Q8: the draft layer's hc down/up rows as Q8_0 (%.1f MiB)\n", (double) total / 1048576.0);
+    return true;
 }
 const void* MtpDrafter::q8(const char* name) const {
     for (const auto& t : tensors_) if (t.name == name && t.kind == "q8_0") return dense_ + t.off;
@@ -351,6 +394,8 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
         cudaMemcpy(dense_, blob.data(), blob.size(), cudaMemcpyHostToDevice);
         vram_ += blob.size();
         if (q4_ && !make_q4_dense(blob, err)) return false;
+        static const bool hc_q8 = [] { const char* v = std::getenv("STRATA_MTP_HC_Q8"); return v != nullptr && v[0] == '1'; }();
+        if (hc_q8 && hcq8_ == nullptr && !make_hcq8(err)) return false;   // STRATA_MTP_HC_Q8 (make_hcq8)
     }
     // ---- the 512 routed experts, one blob each
     if (shared == nullptr) {
@@ -1139,6 +1184,8 @@ bool MtpDrafter::record_front(int T, int row0, cudaStream_t cs, std::string& err
                 fa[t].w_norm = f32("attn_hyper_connection.hc_norm.weight");
                 fa[t].w_down = bf16("attn_hyper_connection.input_mix_weight_down.weight");
                 fa[t].w_up = bf16("attn_hyper_connection.input_mix_weight_up.weight");
+                fa[t].q8_down = hcq8("attn_hyper_connection.input_mix_weight_down.weight");   // STRATA_MTP_HC_Q8 (null: unset)
+                fa[t].q8_up = hcq8("attn_hyper_connection.input_mix_weight_up.weight");
                 fa[t].w_inject = bf16("attn_hyper_connection.block_inject_weight.weight");
                 fa[t].eps = EPS; fa[t].lo = lo_ + t * g.hc_lr; fa[t].rs = rs_ + t * HC;
                 fa[t].inject_out = inj_ + t * HC; fa[t].mixed = mixed_ + t * N;
@@ -1268,6 +1315,8 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
                 fa[t].w_norm = f32("mlp_hyper_connection.hc_norm.weight");
                 fa[t].w_down = bf16("mlp_hyper_connection.input_mix_weight_down.weight");
                 fa[t].w_up = bf16("mlp_hyper_connection.input_mix_weight_up.weight");
+                fa[t].q8_down = hcq8("mlp_hyper_connection.input_mix_weight_down.weight");   // STRATA_MTP_HC_Q8 (null: unset)
+                fa[t].q8_up = hcq8("mlp_hyper_connection.input_mix_weight_up.weight");
                 fa[t].w_inject = bf16("mlp_hyper_connection.block_inject_weight.weight");
                 fa[t].eps = EPS; fa[t].lo = lo_ + t * g.hc_lr; fa[t].rs = rs_ + t * HC;
                 fa[t].inject_out = inj2_ + t * HC; fa[t].mixed = mixed_ + t * N;
@@ -1382,6 +1431,8 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
                 fa[t].w_norm = f32("hyper_connection_mixer.hc_norm.weight");
                 fa[t].w_down = bf16("hyper_connection_mixer.input_mix_weight_down.weight");
                 fa[t].w_up = bf16("hyper_connection_mixer.input_mix_weight_up.weight");
+                fa[t].q8_down = hcq8("hyper_connection_mixer.input_mix_weight_down.weight");   // STRATA_MTP_HC_Q8 (null: unset)
+                fa[t].q8_up = hcq8("hyper_connection_mixer.input_mix_weight_up.weight");
                 fa[t].w_inject = nullptr;
                 fa[t].eps = EPS; fa[t].lo = lo_ + t * g.hc_lr; fa[t].rs = rs_ + t * HC;
                 fa[t].inject_out = dummy_inj_; fa[t].mixed = sample_ + t * N;
@@ -1396,6 +1447,8 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
                 fa[t].w_norm = f32("hyper_connection_mixer.hc_norm.weight");
                 fa[t].w_down = bf16("hyper_connection_mixer.input_mix_weight_down.weight");
                 fa[t].w_up = bf16("hyper_connection_mixer.input_mix_weight_up.weight");
+                fa[t].q8_down = hcq8("hyper_connection_mixer.input_mix_weight_down.weight");   // STRATA_MTP_HC_Q8 (null: unset)
+                fa[t].q8_up = hcq8("hyper_connection_mixer.input_mix_weight_up.weight");
                 fa[t].eps = EPS; fa[t].lo = lo_ + t * g.hc_lr; fa[t].rs = rs_ + t * HC; fa[t].mixed = sample_ + t * N;
                 if (qfuse_hc) fa[t].q8_mixed = xq_ + (size_t) t * (N / 32) * 36;
             }
