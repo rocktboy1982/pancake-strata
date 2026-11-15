@@ -44,6 +44,7 @@
 #include "strata/core/device.hpp"
 #include "strata/core/remote_expert_opt.hpp"
 #include "strata/core/expert_cache.hpp"
+#include "strata/core/expert_tiers.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_snapshot.hpp"
 #include "strata/core/lookup_default.hpp"
@@ -6385,6 +6386,30 @@ int main(int argc, char** argv) {
         // file).  `--expert-cache 0` used to take the count the profile was built for; the profile now ranks
         // every pair (issue #46: a card that holds more than the old 8,000 used to stop there), so it means auto.
         if (o.expert_cache == 0) o.expert_cache = -1;
+        // STRATA_LIGHT_EXPERT_CPU=1 (opt-in, LEADS.md FK-34; port of tctien342/strata-x 5576b48144 --light-expert-cpu):
+        // pairs of layers whose expert format has a native CPU kernel for its geometry AND whose per-expert blob is at most
+        // STRATA_LIGHT_EXPERT_MAX_MIB (default 2) get a 0.75 demand weight in the prior (expert_tiers.hpp), so the GPU's
+        // slots go first to the heavier experts; a hot light one still wins.  Placement only: the output is unchanged.
+        static const bool light_expert_on = [] { const char* v = std::getenv("STRATA_LIGHT_EXPERT_CPU"); return v != nullptr && v[0] == '1'; }();
+        if (light_expert_on) {
+            const char* mm = std::getenv("STRATA_LIGHT_EXPERT_MAX_MIB");
+            const int max_mib = mm != nullptr ? std::max(0, std::atoi(mm)) : 2;
+            const auto& layout = strata::kernels::cpu::expert_layout();
+            const uint64_t max_blob = (uint64_t) max_mib << 20;
+            auto light = [&](int32_t layer) {
+                if (!layout.native || layer < 0 || (size_t) layer >= layout.fmt.size()) return false;
+                if ((uint64_t) layout.blob_bytes(layer) > max_blob) return false;
+                const strata::kernels::cpu::NativeFmt& lf = layout.fmt[(size_t) layer];
+                strata::kernels::cpu::NativeFmt f;
+                std::string ferr;
+                return strata::kernels::cpu::native_fmt(lf.gu_type, lf.d_type, lf.n_embd, lf.n_ff, f, ferr);
+            };
+            size_t eligible = 0;
+            for (const auto& pair : profile) eligible += light(pair.first) ? 1 : 0;
+            profile = strata::core::rank_light_experts(profile, light, true);
+            std::fprintf(stderr, "strata generate: STRATA_LIGHT_EXPERT_CPU: %zu of %zu ranked pairs on native CPU kernels with "
+                                 "blobs <= %d MiB stay behind the GPU's hot set\n", eligible, profile.size(), max_mib);
+        }
         // Multi-GPU: STRATA_PEER_HOT=<f> gives the peer card a share f of the HOT pairs, so both cards
         // compute routed experts every layer (the primary alone did ~25 of ~30 per layer-window).  Of the first
         // STRATA_PEER_HOT_AT (default 8700, ~ the primary's slots) ranks, every pair with floor((r+1)f) > floor(rf)
