@@ -5024,8 +5024,13 @@ float miss_skip_env(const char* name) {
 }
 float miss_skip_w() { static const float w = miss_skip_env("STRATA_MISS_SKIP_W"); return w; }
 float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_CUM"); return p; }
+// STRATA_MOBILE=<g> (opt-in, lossy; LEADS.md "MoBiLE big/little": the little model runs half the experts and is accepted
+// when its confidence >= 0.7): a token whose top-k/2 experts already carry >= g of its routed weight runs as the "little"
+// model - its lower-half experts are dropped - where that saves a copy or a CPU job (missed experts only, skipped like
+// MISS_SKIP_W).  Every other token keeps all k experts (the paper's "big" model).  Value in (0, 1); else off.  Read once.
+float mobile_gate() { static const float g = miss_skip_env("STRATA_MOBILE"); return g; }
 }  // namespace
-bool miss_skip_weights_on() { return miss_skip_w() > 0.0f || miss_skip_cum() > 0.0f; }
+bool miss_skip_weights_on() { return miss_skip_w() > 0.0f || miss_skip_cum() > 0.0f || mobile_gate() > 0.0f; }
 
 // STRATA_ADAPT_PROB_MASS=1 (opt-in, read once; LEADS.md Part B B134): the decode tier's decayed routing counts
 // (ExpertDispatch::usage, the EWMA the adaptive swaps rank by) add each routed entry's router probability times k instead
@@ -5192,7 +5197,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         // (skip_w is also published for STRATA_ADAPT_PROB_MASS alone: the skip runs only when one of its own two is set)
         const float* sw = d.plan != nullptr && miss_skip_weights_on() ? d.plan->skip_w : nullptr;
         if (sw != nullptr && d.peer == nullptr && d.remote_count == 0) {
-            const float share_lt = miss_skip_w(), cum_ge = miss_skip_cum();
+            const float share_lt = miss_skip_w(), cum_ge = miss_skip_cum(), mob_g = mobile_gate();
             int q_of[kMaxWindowEntries];
             for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
             bool keep[kMaxWindowEntries];   // per distinct expert: some token routes it outside the rule
@@ -5203,14 +5208,22 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 const int64_t t0 = (i / k) * k;
                 const float wi = sw[i];
                 float sum = 0.0f, above = 0.0f;
+                int64_t rank = 0;
                 for (int64_t j = t0; j < t0 + k; ++j) {
                     sum += sw[j];
-                    if (sw[j] > wi || (sw[j] == wi && j < i)) above += sw[j];
+                    if (sw[j] > wi || (sw[j] == wi && j < i)) { above += sw[j]; ++rank; }
                 }
                 bool skip_entry = false;
                 if (sum > 0.0f && wi == wi) {   // (a NaN weight or an empty token never skips)
                     if (share_lt > 0.0f && wi < share_lt * sum) skip_entry = true;
                     if (cum_ge > 0.0f && above >= cum_ge * sum) skip_entry = true;
+                    if (mob_g > 0.0f && k >= 2 && rank >= k / 2) {   // STRATA_MOBILE: the token's top-k/2 weight share
+                        std::vector<float> top(sw + t0, sw + t0 + k);
+                        std::partial_sort(top.begin(), top.begin() + k / 2, top.end(), [](float a, float b) { return a > b; });
+                        float half = 0.0f;
+                        for (int64_t j = 0; j < k / 2; ++j) half += top[(size_t) j];
+                        if (half >= mob_g * sum) skip_entry = true;
+                    }
                 }
                 if (!skip_entry) keep[q] = true;
             }
