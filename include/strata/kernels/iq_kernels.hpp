@@ -137,11 +137,15 @@ int native_expert_expdec();
 /// as 16 or 8 copies in LDS (FLUTE's duplicated LUT, no bank conflicts on the lookups), bitwise the same outputs.
 /// 0 = off, 16 (or 1) = 16 copies, 8 = 8 copies, any other value off, < 0 keeps the current value.  The getter returns
 /// the copies in force (0, 8 or 16).
+/// `v2` (STRATA_EXPDEC_V2, MOD_PLAN.md section 6 item 10, default off, HIP wave32 builds only): the V2 grouped expert
+/// kernels (IQ2_S / IQ3_XXS / IQ3_S gate/up at R 1, IQ4_NL default down, Q2_0 EXPDEC down), bitwise the same outputs.
+/// 0 = off, 1 = on, < 0 keeps the current value.
 struct NativeExpertExpdecParams {
     int gu_rows_per_lane = 0, down_rows_per_lane = 0, gu_min_blocks_per_sm = 0, down_iq4_nl = -1, down = -1;
     int gu_rows_per_block = -1, down_rows_per_block = -1, min_blocks = 0;
     int sign_fast = -1;
     int lut_dup = -1;
+    int v2 = -1;
 };
 void native_expert_set_expdec_params(const NativeExpertExpdecParams& p);
 NativeExpertExpdecParams native_expert_expdec_params();
