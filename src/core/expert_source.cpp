@@ -7079,6 +7079,25 @@ void ForesightSwap::fill_loop() {
         }
         Slot& sl = slot[(size_t) idx];
         const int64_t l = idx / slots;
+        if (stale_drop > 0) {   // STRATA_FS_STALE_DROP (LEADS.md Part D item 53); off: this block is skipped
+            // While queued the slot has loading=true and issued=false, so request_locked never reassigns it: only
+            // hold() (expert -> kDropped) or age can make the copy useless.  Clearing `loading` returns the slot to
+            // the reuse rule (a kDropped slot waits `depth` windows like any used one; an aged one is freed now).
+            std::lock_guard<std::mutex> smu_lk(smu_);
+            const uint64_t now = completed.load(std::memory_order_acquire);
+            const bool held = sl.expert == kDropped;
+            const bool aged = now > sl.last_ref + (uint64_t) stale_drop;
+            if (held || aged) {
+                if (!held && sl.expert >= 0) {
+                    where[(size_t) (l * n_expert + sl.expert)] = -1;
+                    sl.expert = -1;
+                }
+                sl.loading = false;
+                sl.ready = false;
+                ++stale_skipped;
+                continue;
+            }
+        }
         const int dev = layer_dev[(size_t) l];
         if (dev != cur_dev) { cudaSetDevice(dev); cur_dev = dev; }
         cudaStream_t s = (cudaStream_t) card_stream[(size_t) layer_card[(size_t) l]];
@@ -7221,6 +7240,7 @@ std::string ForesightSwap::report() const {
                   (unsigned long long) pending, (unsigned long long) busy, (unsigned long long) over_budget, verify ? "" : "");
     std::string r = buf;
     if (dropped > 0) r += ", " + std::to_string(dropped) + " dropped by exchanges";
+    if (stale_drop > 0) r += ", " + std::to_string(stale_skipped) + " stale copies skipped (STRATA_FS_STALE_DROP)";
     if (verify) r += ", verified " + std::to_string(verify_ok) + " ok / " + std::to_string(verify_bad) + " BAD";
     return r;
 }
@@ -7241,6 +7261,7 @@ ForesightSwap* foresight_swap_from_env(int64_t layers, int64_t experts, const st
     f->admit = env_int("STRATA_FS_ADMIT", 1, 1);
     f->depth = env_int("STRATA_FS_DEPTH", 4, 2);
     f->verify = env_int("STRATA_FS_VERIFY", 0, 0) != 0;
+    f->stale_drop = env_int("STRATA_FS_STALE_DROP", 0, 0);   // opt-in (LEADS.md Part D item 53); set before the filler starts
     std::string err;
     if (!f->init(std::min(slots, 64), layers, experts, card_of_layer, devices, err)) {
         std::fprintf(stderr, "strata serve: foresight swap: %s - swap space off\n", err.c_str());

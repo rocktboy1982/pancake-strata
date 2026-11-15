@@ -133,6 +133,54 @@ uint64_t free_huge_bytes() {
     }
     return total;
 }
+
+// STRATA_ARENA_POPULATE=N (opt-in, default off: no call is made and the arena faults page by page as the loader
+// writes it).  N > 0 prefaults the fresh anonymous arena with madvise(MADV_POPULATE_WRITE) (Linux 5.14+) on N
+// threads (1 = one call; values above 32 are taken as 32), so the loader's first writes find the pages already
+// there.  Load time only: the bytes the loader writes are the same.  A kernel without the advice returns EINVAL and
+// the arena stays as it was (said in the note).  Lead: LEADS.md Part D "MADV_POPULATE_WRITE arena prefault"
+// (data-path report); the advice itself is Linux commit 4ca9b3859dac (David Hildenbrand, 2021).
+#ifndef MADV_POPULATE_WRITE
+#define MADV_POPULATE_WRITE 23
+#endif
+int arena_populate_threads() {
+    static const int n = [] {
+        const char* e = std::getenv("STRATA_ARENA_POPULATE");
+        if (e == nullptr || *e == '\0') return 0;
+        const long v = std::strtol(e, nullptr, 10);
+        return v <= 0 ? 0 : (int) std::min<long>(v, 32);
+    }();
+    return n;
+}
+
+void arena_populate(void* p, uint64_t bytes, std::string& note) {
+    const int nt = arena_populate_threads();
+    if (nt <= 0 || p == nullptr || bytes == 0) return;
+    constexpr uint64_t kAlign = 2ull << 20;   // split on 2 MiB boundaries so a huge page is never cut between threads
+    const uint64_t per = ((bytes / (uint64_t) nt) + kAlign - 1) / kAlign * kAlign;
+    std::atomic<int> failed{0};
+    std::atomic<int> err{0};
+    auto run = [&](uint64_t off, uint64_t len) {
+        if (len == 0) return;
+        if (madvise((uint8_t*) p + off, (size_t) len, MADV_POPULATE_WRITE) != 0) {
+            failed.fetch_add(1);
+            err.store(errno);
+        }
+    };
+    std::vector<std::thread> ts;
+    for (int i = 0; i < nt; ++i) {
+        const uint64_t off = (uint64_t) i * per;
+        if (off >= bytes) break;
+        const uint64_t len = std::min<uint64_t>(per, bytes - off);
+        if (i + 1 == nt || off + len >= bytes) run(off, bytes - off);   // the last slice on this thread
+        else ts.emplace_back(run, off, len);
+        if (off + len >= bytes) break;
+    }
+    for (auto& t : ts) t.join();
+    note += failed.load() == 0
+                ? "; prefaulted (MADV_POPULATE_WRITE, " + std::to_string(nt) + " threads, STRATA_ARENA_POPULATE)"
+                : std::string("; MADV_POPULATE_WRITE failed (") + std::strerror(err.load()) + "): pages fault on first write";
+}
 #endif
 
 // A 2 MB-aligned reservation.  Large pages first, then the largest alignment the OS will give us for free.
@@ -440,6 +488,7 @@ void* reserve(uint64_t bytes, PageBacking& got, std::string& note, const std::st
         if (p != MAP_FAILED) {
             got = PageBacking::LargePages;
             note = "hugetlb 2 MB pages";
+            arena_populate(p, bytes, note);   // STRATA_ARENA_POPULATE (off: nothing)
             return p;
         }
         // MAP_HUGETLB is all-or-nothing: a pool smaller than the mapping fails exactly like an absent
@@ -514,6 +563,7 @@ void* reserve(uint64_t bytes, PageBacking& got, std::string& note, const std::st
             note.resize(note.size() - four_k.size());
         note += "; transparent huge pages requested (MADV_HUGEPAGE)";
     }
+    arena_populate(p, bytes, note);   // STRATA_ARENA_POPULATE (off: nothing); after the THP advice, so populate gets huge pages
     return p;
 #endif
 }
