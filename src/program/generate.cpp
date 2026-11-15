@@ -8777,6 +8777,15 @@ int main(int argc, char** argv) {
                                  "%zu slots (the profile is the ceiling on a native pack; a profile that ranks every "
                                  "(layer, expert) pair lifts it - tools/make_profile.py)\n", o.expert_cache,
                          profile.size(), o.expert_profile.c_str(), profile.size());
+        // STRATA_EXPERT_SLOTS_MAX=N (opt-in test knob; port of android-imdad caa9b00115, LEADS.md): at most N slots, the
+        // profile's hottest first - two runs whose free VRAM differs by a few MB then hold the same experts, so a bitwise
+        // comparison is not moved by placement.  Read once here, at startup; unset, nothing changes.
+        if (const char* v = std::getenv("STRATA_EXPERT_SLOTS_MAX"); v != nullptr && std::atoll(v) > 0 &&
+            sized_slots.size() > (size_t) std::atoll(v)) {
+            sized_slots.resize((size_t) std::atoll(v));
+            std::fprintf(stderr, "strata generate: STRATA_EXPERT_SLOTS_MAX: the expert cache capped at %zu slots\n",
+                         sized_slots.size());
+        }
         o.expert_cache = (int) sized_slots.size();
 #if !defined(STRATA_USE_HIP) && !defined(STRATA_GPU_METAL) && !defined(_WIN32)
         // ---- AUTO NO-BORROW (0.2.10).  With batch slots on one NVIDIA card the prompt path lent cache slots to its own

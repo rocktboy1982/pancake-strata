@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 namespace strata::kernels {
 namespace {
@@ -303,6 +304,82 @@ bool dequant_wide_on() {
     return per_dev[dev] == 2;
 }
 
+// ---- STRATA_DQ_FAST=1 (opt-in; port of android-imdad caa9b00115, LEADS.md) ------------------------------------------
+// Q6_K and IQ4_XS to a 16-bit form (FP16 / BF16) with one warp per 256-value block: a lane takes eight consecutive
+// values of one 32-value group (so one scale) and stores them as one 16-byte vector.  The per-group kernel gives a
+// thread a whole group (byte loads and 32 two-byte stores 64 bytes apart).  Every value is group32's expression on the
+// same operands in the same order - Q6_K d * sc * (q - 32), IQ4_XS dl * kv_iq4nl[q] - then the same conversion, so
+// the same bits.  Byte loads (no block alignment needed), 64-bit indices.  The fork has it on by default; here it is
+// off unless STRATA_DQ_FAST=1, and it is checked before the wide kernels (STRATA_DEQUANT_WIDE, the same lane mapping
+// with 16-bit loads), so unset the dispatch below is unchanged.
+template <typename T>
+__global__ void __launch_bounds__(256) dequant_q6k_warp_kernel(const uint8_t* __restrict__ blocks, int64_t row_bytes,
+                                                               int64_t row0, int64_t rows, int64_t blocks_per_row,
+                                                               int64_t ld, T* __restrict__ out) {
+    const int64_t w = ((int64_t) blockIdx.x * blockDim.x + threadIdx.x) >> 5;
+    const int lane = threadIdx.x & 31;
+    if (w >= rows * blocks_per_row) return;
+    const int64_t r = w / blocks_per_row, bi = w % blocks_per_row;
+    const uint8_t* b = blocks + (row0 + r) * row_bytes + bi * 210;
+    const int gi = lane >> 2, l0 = (lane & 3) * 8;           // the group and its first value (0, 8, 16 or 24)
+    const int n = gi / 4, qu = gi % 4, is = l0 / 16;
+    const uint8_t* ql = b + 64 * n + ((qu & 1) ? 32 : 0) + l0;
+    const uint8_t* qh = b + 128 + 32 * n + l0;
+    const float sc = (float) (reinterpret_cast<const int8_t*>(b + 192) + 8 * n)[is + 2 * qu];
+    const float d = h2f(b + 208);
+    const int lo_shift = (qu & 2) ? 4 : 0, hi_shift = 2 * qu;
+    uint32_t packed[4];
+#pragma unroll
+    for (int i = 0; i < 8; i += 2) {
+        const int q0 = ((ql[i] >> lo_shift) & 0xF) | (((qh[i] >> hi_shift) & 3) << 4);
+        const int q1 = ((ql[i + 1] >> lo_shift) & 0xF) | (((qh[i + 1] >> hi_shift) & 3) << 4);
+        T v[2];
+        put(v, 0, d * sc * (float) (q0 - 32));
+        put(v, 1, d * sc * (float) (q1 - 32));
+        uint16_t h[2];
+        memcpy(h, v, 4);
+        packed[i / 2] = (uint32_t) h[0] | ((uint32_t) h[1] << 16);
+    }
+    *reinterpret_cast<uint4*>(out + r * ld + bi * 256 + gi * 32 + l0) = make_uint4(packed[0], packed[1], packed[2], packed[3]);
+}
+// STRATA_DQ_FAST: IQ4_XS likewise - one warp per 256-value block, a lane eight consecutive values of one 32-value
+// sub-block (so one scale), group32<23>'s expression dl * kv_iq4nl[q] per value, one 16-byte store.
+template <typename T>
+__global__ void __launch_bounds__(256) dequant_iq4xs_warp_kernel(const uint8_t* __restrict__ blocks, int64_t row_bytes,
+                                                                 int64_t row0, int64_t rows, int64_t blocks_per_row,
+                                                                 int64_t ld, T* __restrict__ out) {
+    const int64_t w = ((int64_t) blockIdx.x * blockDim.x + threadIdx.x) >> 5;
+    const int lane = threadIdx.x & 31;
+    if (w >= rows * blocks_per_row) return;
+    const int64_t r = w / blocks_per_row, bi = w % blocks_per_row;
+    const uint8_t* b = blocks + (row0 + r) * row_bytes + bi * 136;
+    const int ib = lane >> 2, l0 = (lane & 3) * 8;            // the sub-block and its first value (0, 8, 16, 24)
+    const float d = h2f(b);
+    const uint16_t scales_h = (uint16_t) (b[2] | (b[3] << 8));
+    const int ls = ((b[4 + ib / 2] >> (4 * (ib % 2))) & 0xf) | (((scales_h >> (2 * ib)) & 3) << 4);
+    const float dl = d * (float) (ls - 32);
+    const uint8_t* qs = b + 8 + 16 * ib;
+    // values j (0..15) of a sub-block: the low nibbles of qs[j]; values j + 16: the high nibbles
+    const int jb = l0 & 15, hi = l0 >= 16;
+    uint32_t packed[4];
+#pragma unroll
+    for (int i = 0; i < 8; i += 2) {
+        const int q0 = hi ? (qs[jb + i] >> 4) : (qs[jb + i] & 0xf);
+        const int q1 = hi ? (qs[jb + i + 1] >> 4) : (qs[jb + i + 1] & 0xf);
+        T v[2];
+        put(v, 0, dl * (float) kv_iq4nl[q0]);
+        put(v, 1, dl * (float) kv_iq4nl[q1]);
+        uint16_t h[2];
+        memcpy(h, v, 4);
+        packed[i / 2] = (uint32_t) h[0] | ((uint32_t) h[1] << 16);
+    }
+    *reinterpret_cast<uint4*>(out + r * ld + bi * 256 + ib * 32 + l0) = make_uint4(packed[0], packed[1], packed[2], packed[3]);
+}
+bool dq_fast() {   // read once
+    static const bool on = [] { const char* e = std::getenv("STRATA_DQ_FAST"); return e != nullptr && e[0] == '1'; }();
+    return on;
+}
+
 // Q8_0 with four threads per block, 8 values each: the warp reads 8 consecutive blocks and writes 512 consecutive
 // bytes (a thread per block wrote 2-byte values 64 bytes apart: ~110 GB/s, a quarter of a prompt projection's time)
 template <typename T>
@@ -364,6 +441,19 @@ void launch(int type, const void* blocks, int64_t row0, int64_t rows, int64_t co
         const cudaError_t e = cudaGetLastError();
         if (e != cudaSuccess) { std::fprintf(stderr, "dequant launch: %s\n", cudaGetErrorString(e)); std::exit(1); }
         return;
+    }
+    // STRATA_DQ_FAST=1 (android-imdad caa9b00115): Q6_K / IQ4_XS to FP16 / BF16 by warps (8 values = 16 bytes a lane,
+    // so 16-byte aligned rows).  Unset, dq_fast() is false and nothing here runs.
+    if constexpr (sizeof(T) == 2) {
+        if ((type == 14 || type == 23) && dq_fast() && ld % 8 == 0 && (reinterpret_cast<uintptr_t>(out) & 15) == 0) {
+            const int64_t bpr = cols / 256, warps = rows * bpr;
+            const unsigned fgrid = (unsigned) ((warps + 7) / 8);   // 8 warps of 32 lanes per 256-thread block
+            if (type == 14) dequant_q6k_warp_kernel<T><<<fgrid, 256, 0, st>>>(p, row_bytes, row0, rows, bpr, ld, out);
+            else dequant_iq4xs_warp_kernel<T><<<fgrid, 256, 0, st>>>(p, row_bytes, row0, rows, bpr, ld, out);
+            const cudaError_t e = cudaGetLastError();
+            if (e != cudaSuccess) { std::fprintf(stderr, "dequant launch: %s\n", cudaGetErrorString(e)); std::exit(1); }
+            return;
+        }
     }
     // the wide kernels: even block addresses, 16-byte stores at every row (contiguous or a stride of whole stores)
     if (wide_type(type) && (reinterpret_cast<uintptr_t>(blocks) & 1) == 0 && (reinterpret_cast<uintptr_t>(out) & 15) == 0 &&
