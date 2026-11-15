@@ -509,6 +509,7 @@ STRATA_ENV("STRATA_LFUSE_PAIR", Speed, "bitwise: documented (docs/README/code co
 STRATA_ENV("STRATA_LM_PREFETCH", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_LOOKAHEAD", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_LOOKAHEAD_AFTER_PUB", Speed, "the router lookahead's submit after the GPU plan publish in the pool dispatch: warming order only, timing only")
+STRATA_ENV("STRATA_LOOKAHEAD_SKIP_RES", Speed, "router lookahead: no submit when every expert of the layers it would warm is resident (prefetch only)")
 STRATA_ENV("STRATA_LOOKAHEAD_GPU", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_LOOKAHEAD_K", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_LOOKUP_CHAIN_FIXED", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")

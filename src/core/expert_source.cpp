@@ -3134,6 +3134,17 @@ bool RouterLookahead::start(std::vector<std::vector<uint16_t>> routers, int64_t 
 
 void RouterLookahead::submit(int64_t layer, const float* x, int64_t n_tok, const int32_t* host_res) {
     if (layer + 1 >= (int64_t) routers_.size() || n_tok <= 0 || x == nullptr) return;
+    // STRATA_LOOKAHEAD_SKIP_RES=1 (opt-in, read once; LEADS.md A3 "RouterLookahead ... skip when resident", part of an
+    // R9700 bundle): when every expert of the layers it would warm (layer + 1 .. + depth) is resident in VRAM, there is
+    // nothing to fetch, so the submit (the copy of the window's rows and the residency rows) is skipped.  Prefetch only:
+    // the experts computed are the same.
+    static const bool skip_res = [] { const char* v = std::getenv("STRATA_LOOKAHEAD_SKIP_RES"); return v != nullptr && v[0] == '1'; }();
+    if (skip_res && host_res != nullptr) {
+        const int64_t l1 = std::min<int64_t>(layer + 1 + depth_, (int64_t) routers_.size());
+        const int32_t* r = host_res + (size_t) ((layer + 1) * n_expert_);
+        const int32_t* r_end = host_res + (size_t) (l1 * n_expert_);
+        if (std::all_of(r, r_end, [](int32_t s) { return s >= 0; })) { skipped_.fetch_add(1, std::memory_order_relaxed); return; }
+    }
     {
         std::lock_guard<std::mutex> lk(mu_);
         if (busy_ || pending_) { skipped_.fetch_add(1, std::memory_order_relaxed); return; }
