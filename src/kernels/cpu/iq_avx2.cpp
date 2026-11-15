@@ -123,6 +123,8 @@ static_assert(even_signs.v[0] == 0x0101010101010101ull && even_signs.v[1] == 0xF
 // so a single punpcklbw puts them next to the low index bytes and every grid lookup is a 16-bit load plus the
 // table load - instead of a shift, a mask and an or per index.  IQ3_S: byte k = bit k (the 9th bit of index k).
 // IQ2_S: byte k = bits 2k,2k+1 (bits 8-9 of index k), k < 4.  constexpr for the same reason as EvenSigns.
+// Same code as imanu86 862c18aaea (its port of sanastasiou 9233f998, upstream PR #930: HiSpread, sgn_vec_at,
+// ScaleVecs, IQ3_S gather as its own instantiation); this tree already runs it by default (LEADS.md).
 struct HiSpread {
     uint64_t iq3s[256];
     uint64_t iq2s[256];
