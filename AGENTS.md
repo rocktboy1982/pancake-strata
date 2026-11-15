@@ -6,6 +6,24 @@ the app and terminal are inherited and change rarely. Target: single-user agent 
 (HIP/gfx1100, Linux) and an RTX 3060 12 GB (CUDA/sm_86). Daily models: Qwen3.8-Flash-Next (IQ2_XS, Q2_0) and
 Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
 
+## Documentation rule (owner, 2026-11-15): three files only
+
+The fork's knowledge lives in exactly three files at the repository root, and only these are maintained:
+
+| file | what goes in it |
+|---|---|
+| `MOD_PLAN.md` | status of the daily preset (with test ids), decisions waiting for the owner, the GPU queue, code to write, defects, parked items, the do-not-repeat list, architecture facts |
+| `TEST_LEDGER.md` | one row per test ever run (next id after the last `T-nnn`, in its area table): date, item, spec, hw, tier/reps, numbers, exact/text, verdict, archive path. Every run gets a row, including no-gain, aborted and offline ones |
+| `LEADS.md` | every unported idea (fork, PR, paper, hardware note) with the author number and whether our tree has it; a lead moves to MOD_PLAN.md when chosen |
+
+- Do NOT create any other document: no reports, notes, status, findings, night-result, analysis or plan files, in
+  any folder, from any agent or tool. Put results in TEST_LEDGER.md, ideas in LEADS.md, decisions and status in
+  MOD_PLAN.md, in the same commit as the work.
+- Allowed besides the three: `AGENTS.md` (these rules), `README.md` (reader-facing results; credits in section 9),
+  specs in `bench/specs/`, raw machine output in `bench/results/<date>-<name>/` (jsonl/json/stdout/summary files the
+  tools write, no hand-written prose), code comments.
+- Everything removed in the 2026-11-15 consolidation is in git history: `git show 5ab3d2db:<path>`.
+
 ## Where the truth lives
 
 - `README.md` - measured results (§2), how it works (§5), `STRATA_*`/flag census (§6), subsystem walkthrough (§7),
