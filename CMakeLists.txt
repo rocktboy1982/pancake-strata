@@ -694,6 +694,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   # pancake, opt-in kernels: STRATA_TEAL / _TEAL_UNION / _DOWN_T / _LQER (ffn_sparse.cu)
   target_sources(strata_kernels PRIVATE src/kernels/cuda/ffn_sparse.cu)
   target_sources(strata_kernels PRIVATE src/kernels/cuda/rkv.cu)   # STRATA_RKV
+  target_sources(strata_kernels PRIVATE src/kernels/cuda/xattn.cu)   # STRATA_XATTN
   # pancake: the RDNA kernels (DPP / permlanex16 / sudot4) build on wave32 HIP only; CUDA and gfx906 builds take their
   # "not available" answers from rdna_stub.cpp (MOD_PLAN 95b; tools/pancake/check_stubs.py keeps it in step with the headers)
   if(STRATA_ENABLE_HIP)
@@ -1852,6 +1853,13 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_include_directories(rkv_parity PRIVATE ${_strata_gpu_include_directories})
   target_link_libraries(rkv_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME rkv_parity COMMAND rkv_parity)
+  # pancake (LEADS.md XAttention): the block selection against the host rule, tau >= 1 against dense causal attention in
+  # FP64, the sparse attention against FP64 over the kernel's own mask (GPU, synthetic; skips on wave64)
+  add_executable(xattn_parity src/kernels/xattn_parity.cpp)
+  target_include_directories(xattn_parity PRIVATE ${_strata_gpu_include_directories})
+  target_link_libraries(xattn_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+  add_test(NAME xattn_parity COMMAND xattn_parity)
+  set_tests_properties(xattn_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
   # the same fixtures on the other two sampled paths: the one-block kernel and the 0.1.20 kernel
   add_test(NAME sampler_parity_one_block COMMAND sampler_parity --selftest)
   set_tests_properties(sampler_parity_one_block PROPERTIES ENVIRONMENT "STRATA_OLD_SAMPLER=0;STRATA_SAMPLER_ONE_BLOCK=1")
