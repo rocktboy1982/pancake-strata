@@ -9,6 +9,7 @@
 #include "strata/core/sm120_series.hpp"
 #include "strata/core/defaults_026.hpp"
 #include "strata/kernels/gfx_arch.hpp"
+#include "strata/kernels/rkv.hpp"   // STRATA_RKV
 #include "strata/core/verify.hpp"
 #include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/defer_rank.hpp"
@@ -1390,6 +1391,11 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         kcur_ = b.take<float>(T * NKV * HD); vcur_ = b.take<float>(T * NKV * HD);
         idx_raw_L_ = b.take<float>(nQ * T * ID); qidx_ = b.take<float>(T * IQ * ID);
         scores_ = b.take<float>(T * (uint64_t) max_blocks_); sel_ = b.take<int32_t>(T * (uint64_t) cap_);
+        if (strata::kernels::rkv_on()) {   // STRATA_RKV: one eviction bitmap per QSA layer, the trace's first block
+            rkv_words_ = (max_blocks_ + 31) / 32;
+            rkv_evict_ = b.take<uint32_t>(nQ * (uint64_t) rkv_words_);
+            rkv_start_ = b.take<int32_t>(4);
+        }
         if (select_long_on() && strata::kernels::qsa_topk_multi_scratch_ints(T) > 0)   // STRATA_SELECT_LONG only
             topk_scratch_ = b.take<int32_t>((uint64_t) strata::kernels::qsa_topk_multi_scratch_ints(T));
         attn_ = b.take<float>(T * NH * HD); attn32_ = b.take<float>(T * NH * HD);
@@ -2454,20 +2460,34 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                         }
                 };
                 auto idx_select = [&](cudaStream_t ns) {
+                    // STRATA_RKV=<budget> (opt-in, lossy; rkv.hpp, LEADS.md "Reasoning KV compression"): R-KV's eviction
+                    // update on this layer's block scores, then the evicted blocks' scores dropped before the top-k
+                    // (not on batch windows; unset: rkv_evict_ is null and nothing is launched)
+                    auto rkv_hook = [&]() {
+                        if (rkv_evict_ == nullptr || batch_rec_) return;
+                        uint32_t* ev = rkv_evict_ + (size_t) qi * (size_t) rkv_words_;
+                        strata::kernels::rkv_update(scores_ + (size_t) tb * max_blocks_, n, max_blocks_, step_ + tb * kStepCount,
+                                                    kStepCount, st.idx_pooled, (int) ID, rkv_start_,
+                                                    strata::kernels::rkv_config(), ev, ns);
+                        strata::kernels::rkv_mask_scores(scores_ + (size_t) tb * max_blocks_, n, max_blocks_, ev, ns);
+                    };
                     if (sel_long_) {   // STRATA_SELECT_LONG: the long-context window graphs (the same ids)
                         qsa_block_scores_long(st.idx_pooled, st.idx_dead, qidx_ + tb * IQ * ID, step_ + tb * kStepCount, n,
                                               max_blocks_, s, scores_ + (size_t) tb * max_blocks_, ns, -1);
+                        rkv_hook();
                         qsa_block_topk_long(scores_ + (size_t) tb * max_blocks_, step_ + tb * kStepCount, n, max_blocks_,
                                             cap_, s, sel_ + (size_t) tb * cap_, ns, -1, topk_scratch_);
                         return;
                     }
                     // STRATA_QSA_PAGE_SEL (MOD_PLAN.md section 6 item 14, opt-in, lossy-ish): page summaries pick the
                     // candidate blocks, the exact selection runs inside them; false (always, unset): the calls below
-                    if (qsa_page_select(st.idx_pooled, st.idx_dead, qidx_ + tb * IQ * ID, step_ + tb * kStepCount, n,
+                    if (rkv_evict_ == nullptr &&   // (STRATA_RKV needs the full scores)
+                        qsa_page_select(st.idx_pooled, st.idx_dead, qidx_ + tb * IQ * ID, step_ + tb * kStepCount, n,
                                         max_blocks_, cap_, s, sel_ + (size_t) tb * cap_, ns))
                         return;
                     qsa_block_scores(st.idx_pooled, st.idx_dead, qidx_ + tb * IQ * ID, step_ + tb * kStepCount, n, max_blocks_,
                                      s, scores_ + (size_t) tb * max_blocks_, ns);
+                    rkv_hook();
                     qsa_block_topk(scores_ + (size_t) tb * max_blocks_, step_ + tb * kStepCount, n, max_blocks_, cap_, s,
                                    sel_ + (size_t) tb * cap_, ns);
                 };
@@ -2988,6 +3008,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             nsw.gate_type = wsg->native_type; nsw.gate_data = wsg->native_data;
             nsw.up_type = wsu->native_type; nsw.up_data = wsu->native_data;
             nsw.down_type = wsd->native_type; nsw.down_data = wsd->native_data;
+            nsw.down_t = wsd->down_t; nsw.down_t_idx = wsd->down_t_idx;   // STRATA_DOWN_T (null unless set)
             nsw.q8_1 = sh_fork ? sh_xq_ : xq_;
             // STRATA_VERIFY_QDEDUP=1 (not with the forked shared-expert stream, which quantizes into its own buffer): the
             // experts' q8_1 image of xm is made first and the shared expert's gate/up read it (quantize_q8_1_rows and
@@ -4284,6 +4305,17 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     if (!pre) refresh_ar();
     // STRATA_SELECT_LONG: the select kernels this window's context pays off with (the same on every stage)
     sel_long_ = select_long_on() && pos0 + T >= select_long_at() ? 1 : 0;
+    // STRATA_RKV (opt-in): a rewind or a prompt read (pos0 jumps past one window) starts a new trace - its bitmaps cleared, its
+    // first block uploaded; both stream-ordered before this window's graph
+    if (rkv_evict_ != nullptr && (rkv_last_pos0_ < 0 || pos0 < rkv_last_pos0_ || pos0 > rkv_last_pos0_ + max_t_)) {
+        rkv_start_host_ = (int32_t) (pos0 / shapes_of(g).idx_block);
+        if (cudaMemsetAsync(rkv_evict_, 0, (size_t) g.n_qsa_layers() * (size_t) rkv_words_ * sizeof(uint32_t), cs_) != cudaSuccess ||
+            cudaMemcpyAsync(rkv_start_, &rkv_start_host_, sizeof(int32_t), cudaMemcpyHostToDevice, cs_) != cudaSuccess) {
+            err = "verify: STRATA_RKV reset failed";
+            return false;
+        }
+    }
+    if (rkv_evict_ != nullptr) rkv_last_pos0_ = pos0;
     if (!capture(T, err) || !capture_commit(err)) return false;
     if (g_il_check()) {   // STRATA_MMVQ_IL_CHECK (debug): the counts so far, every 256 windows
         static unsigned il_windows = 0;

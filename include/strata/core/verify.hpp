@@ -907,6 +907,13 @@ private:
     float *sh_gate_ = nullptr, *sh_up_ = nullptr, *sh_g_ = nullptr;
     float* hist_snap_ = nullptr;                              // T * NG_HIST * NG_HC_DIM
     int64_t cap_ = 0, max_blocks_ = 0, attn_scratch_floats_ = 0;
+    // STRATA_RKV (rkv.hpp, opt-in): per QSA layer an eviction bitmap of rkv_words_ words, the trace's first block (device), the
+    // host copy it is uploaded from, and the last window's pos0 (a rewind or a prompt read starts a new trace)
+    uint32_t* rkv_evict_ = nullptr;
+    int32_t* rkv_start_ = nullptr;
+    int64_t rkv_words_ = 0;
+    int32_t rkv_start_host_ = 0;
+    int64_t rkv_last_pos0_ = -1;
 };
 
 }  // namespace strata::core
