@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""expert_bw.py - probe 4.2.3 (MOD_PLAN.md section 5 item 7): achieved bandwidth of the expert GEMV kernels vs the card's peak.
+"""expert_bw.py - probe 4.2.3 (MOD_PLAN.md section 5 "Probes before ports"): achieved bandwidth of the expert GEMV kernels vs the card's peak.
 Decides F12, F14, F16: there is little headroom above ~85% of peak.
 
 QUESTION   How close do the GPU expert kernels (gate/up: IQ2_S / IQ2_XXS / IQ1_M, down: Q2_0) run to the memory

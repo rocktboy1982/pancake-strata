@@ -3121,7 +3121,7 @@ if(STRATA_ENABLE_CUDA AND STRATA_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_
   target_link_libraries(hit_cpu_order_parity PRIVATE strata_kernels strata_kernels_cpu ${_strata_gpu_runtime_target})
 endif()
 
-# MOD_PLAN.md section 5 item 7 probes (tools/pancake/probes/): OFF by default, never part of "all"; each has its build line in
+# MOD_PLAN.md section 5 "Probes before ports" probes (tools/pancake/probes/): OFF by default, never part of "all"; each has its build line in
 # its header.  q2_rows_bench = 4.2.4 (x86 CPU, no engine), empty_grid_probe = 4.2.1 (HIP build, needs a GPU to run).
 option(STRATA_BUILD_PROBES "Add the 4.2 probe targets (q2_rows_bench, empty_grid_probe) to the build graph" OFF)
 if(STRATA_BUILD_PROBES)

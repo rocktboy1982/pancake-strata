@@ -1,4 +1,4 @@
-// q2_rows_bench.cpp - probe 4.2.4 (MOD_PLAN.md section 5 item 7): the CPU Q2_0 row kernel, legacy vs the fast one
+// q2_rows_bench.cpp - probe 4.2.4 (MOD_PLAN.md section 5 "Probes before ports"): the CPU Q2_0 row kernel, legacy vs the fast one
 // (STRATA_Q2_FAST=1, imanu86 c3fc8f34d3, F7), single thread, random blocks, no engine, no model file.
 //
 // QUESTION   How many Q2_0 rows per second does one thread compute with the legacy AVX-2 kernel and with the fast one

@@ -62,9 +62,33 @@ Code:
 10. Linux box repo on an ntfs3 disk (D): `git config checkout.workers 1`; no `reset --hard`, full checkouts or new
     worktrees there; merge only in the existing worktree.
 
+Owner rules, verbatim where it matters (all binding):
+- 2026-11-12 22:44 "i need allways full path": give full paths in every report.
+- 2026-11-13 09:21 "no promote from 0% up" ... "make this a rule" (screen tier above); 2026-11-15 09:06 "build new
+  technologies and test each time do not judge something without a test".
+- 2026-11-15 01:37 MANDATORY: "always check the code for the assessment and update of the plan, where code exists": read
+  the upstream/fork diff and our code (not titles), mark each item compared / not compared; a grep proves only that a
+  symbol exists; if the algorithm differs, implement it faithfully and compare at equal cost. 01:43 "if something does
+  not exist port it or build it to properly assess"; 01:50 "dont skip the read" (read full diffs).
+- 2026-11-15 12:00 goal: "invent new techniques and technologies especially where we have some gains".
+- 2026-11-15 12:40: tag every improvement as KERNEL, MODEL, ENGINE or WORKLOAD related, in the ledger/plan and in the
+  commit text.
+- 2026-11-15 01:35 two-card potential: "keep it for later dont dismiss" (section 8).
+- 2026-11-15 12:51: the CPU/GPU expert combine and waits are in scope.
+- 2026-11-15 15:14: "remove the ambiguous configs so we dont stumble on it again" (one daily preset only).
+- 2026-11-12 19:40: "use the same qwen in both places" (Flash-Next IQ2_XS in pancake and Avalon); 19:37 DeepSeek waits
+  until the Qwen tests are done.
+- 2026-11-15 16:00: "ecap 1 can wait after we consolidate also the branches, 3 yes only if it does not affect testing,
+  do also a41 and the rocm, the rest can be forgotten" (so the 9router dashboard password and chkdsk of D are dropped).
+- Sudo (2026-11-13 12:31): owner chose option 2 = NOPASSWD rules for three commands only (`os_tune.sh compact`, the
+  `power_dpm_force_performance_level` write, the ntfs3 mount); advice: drop the mount line and make os_tune.sh
+  root-owned first; review file `/home/dan/sudoers-pancake.txt` (still contains the mount line). Agents must not edit
+  sudoers or permission settings themselves.
+
 Test tiers (`abtest.py --tier`; answer each item at the cheapest tier that can):
 - 0 offline: replays and byte counts (cache sims, `tools/pancake/trace/tail_replay.py`, `replay_turns.py --dry-run`); no GPU.
-- 1 screen: one A B pass, short + edit, 2 requests per case per server; promote if >= +2% on a case and no case < -3%.
+- 1 screen: one A B pass, short + edit, 2 requests per case per server; promote from 0% up (owner rule 2026-11-13,
+  code 41f4f6231), drop if any case < -3%; decide at confirm (bar >= 2% exact, >= 3% lossy).
   Spec key `"prefill": true` keeps the `long*` cases (one cold request each, judged on prompt tok/s). ~2-3 min/arm.
   A screen promote is only a hint: n=2 gave intervals of +-100..+450 tok/s.
 - 2 confirm: A B B A with early stop (every arm/case decided or interval < 1.5% of base). For a decision use rule 1's
@@ -137,8 +161,9 @@ miss.
 | D6 | 9-16 column RDNA K-quant kernels are now the code default (`kRdnaDefaultCols=16`, `kRdnaMaxCols=32`) | parity 192/192 (tolerance); engine +3.7/+3.8% screen, +1.8% +-7.8 / +4.3% +-5.0 confirm (T-081): inside noise. The bitwise bench check fails: IQ4_XS multi-column output differs from 1-column calls at 12-32 cols (T-558), which can explain the short-case text variance of spec 51 | accept as default (it is a kernel default change, measured not worse) or gate behind `STRATA_RDNA_KQ_MAXCOLS` |
 | D7 | Phase 18 item 9 merged the window-input copies on the DEFAULT path (`copy_from_mapped_multi`, on unless `STRATA_MTP_MULTI_COPY=0`) | pure copies, `verify_parity` covers both modes; spec 30 never ran | run spec 30 (build-vs-build) or flip the default back |
 | D8 | Q2_0 vs IQ2_XS as the daily file | 15 screen +8.6% +-46.3 (T-382); 15c run unusable (T-384) | 15c redo |
-| D9 | A29 entropy-coded miss path | plan said "owner approved building it" and also "stay parked"; bound 8-12% < 20% park bar (T-282) | pick one |
+| D9 | A29 entropy-coded miss path | owner chose BUILD on 2026-11-13 06:58, with deep research and a plan update before any code; offline bound 8-12% (T-282) | research + design note in this file, then code |
 | D10 | housekeeping | done 2026-11-15: worktrees 107 -> 14 (28 GB freed), local branches 166 -> 9 (tip map `pancake-docs/research/bench/branch-tips-2026-11-15.tsv`), 200 of 202 refs were already contained and the last one (`optimize-kernel-hip`) recorded as merged; remote branches untouched. A41 hook registered warn-only (T-562): user-scope `~/.claude/settings.json` on the box, PreToolUse for `Edit|MultiEdit|Write`, command `RBE_MODE=warn python3 -I /home/dan/bin/read_before_edit_hook.py` (timeout 10 s; repo copy `tools/pancake/a41/`; settings backup `~/.claude/settings.json.bak-a41-2026-11-15`; `RBE_MODE=hold` blocks). Box decisions taken without a test, waiting for owner confirmation: `fuse-wait` slow mode closed (it lost on average, T-077); `pancake.service` NOT enabled at boot (it would hold the GPU during tests). Open: the remaining dirty worktrees, remote branch deletion, the box's `PANCAKE_STATUS.md` (still edited there 2026-11-15 16:15 UTC; delete it on the box after pulling, rule 2), stale upstream/HEAD ref; GPU clock back to auto after pinned runs; disk-tier cap (D at 76%); `PARK_REWIND_MAX` default; cron `--night-only 23-07 --drop-cache`, `--reclaim-max 3.0`; sudo rules via `visudo`; Avalon 32K+ (shrink its context or drop the comparison: it OOMs at 32K+, T-174); delete `origin/NetworkPancake` (moved out of the repo to `C:\Users\iancu\NetworkPancake`) | owner |
+| D11 | open owner questions found in the box logs | caveman-proxy on the box is respawned by hooks in `~/.claude/settings.json` and trips the quiet-machine gate (the gate also counts the session's own `claude`, remote desktop and pipewire): remove the hook entries or stop the proxy by hand before benchmarks? A15 rule: ce88ce281 evicts the shortest tool-pending entry by tokens, the design said "smallest entry whose bytes cover the shortfall": keep or build the design rule and retest? A20: turn on rumination entropy in the daily config (asked, no answer)? "3 yes" (16:00): read as the approved-ideas list, so `pancake.service` was NOT enabled at boot; confirm. Service binds 127.0.0.1: open to the LAN? CUDA header for the tests ("build also the cuda header for tests", 11:58: the full HIP build stops at `strata-poly`): not done. Delete the unused 10.44 GB Qwen3.8-27B IQ3_XXS GGUF on D (arch `qwen35`, not loadable by the native engine)? | owner |
 
 ## 5. Run next: coded, never measured (GPU queue, in this order)
 
@@ -175,12 +200,20 @@ miss.
    HIP; selftune candidate profile (+4.6% modeled, T-439); `ROUTE_PRIOR_AUTO`; 17.3 ablation; TTFT scenarios C/D/E;
    `prefix_check`; A9 `IDLE_ADAPT` (ceiling <=0.26%, low priority); `STRATA_POOL_SPIN_US` sweep (Juud: 15.1 -> 12.6
    ms/token).
-6. **Measure before code (TTFT, M1-M5)**: M1 8/32/64/100K with prompt_ms, TTFB, park, chunk plan, file-tier/KV lines,
+6. **Small open checks**: A18 (effort/temperature fields appear in `pancake-turns.jsonl` after the first served run;
+   logging approved 2026-11-13 07:01); A54 blocked until a task-gate run gives per-task scores for the lossy arms; A50 not
+   settled by A49; A28 decision: keep the 58 GB Coder GGUF on D (`models/ista-gsq-rco-coder-gguf`) and do NOT test it
+   (Avalon-only, ~29.6 GB resident); the confirm tier's early stop ended a run at n=2 of 3 (use `--no-early-stop` for
+   long-context cases). Research topics R1-R9 from the 2026-11-15 LLM report (high: R1 Strata-rdna3 code read, R2
+   predictive expert prefetch replay on the gate-weight trace; medium R3 hybrid tiers, R4 KV eviction under parallel
+   agents; low R5 MiniMax read-ahead, R6 elastic KV, R7 QEngine MTP; R8 multi-GPU parked; R9 orchestration not now):
+   R1 then R2 were promised and not done.
+7. **Measure before code (TTFT, M1-M5)**: M1 8/32/64/100K with prompt_ms, TTFB, park, chunk plan, file-tier/KV lines,
    PREFILL_TIMING (each size twice, fresh state or park reported apart); M2 10-turn session x3 (alone; side request +
    sub-agent switch; `--conversation-cache-mib 1280`); M3 divergence; M4 opencode/Copilot request bodies; M5 deltas
    100/300/1000/3000 at 32K/64K. Unexplained so far: a 3.4 s turn after a 34K cold read, 4.8 s / 36 s waits outside
    the timer, the cause of 13% checkpoint fallbacks.
-7. **Probes before ports** (`tools/pancake/probes/`; each header has question/build/run; `-DSTRATA_BUILD_PROBES=ON`,
+8. **Probes before ports** (`tools/pancake/probes/`; each header has question/build/run; `-DSTRATA_BUILD_PROBES=ON`,
    CMakeLists.txt ~3124, EXCLUDE_FROM_ALL). Run with the GPU idle; under rocprofv3 decode is ~1.6x slower, so read shares.
    - 4.2.1 empty-launch cost vs block count on 42 WGPs (F20, never run): `hipcc -O2 --offload-arch=gfx1100
      tools/pancake/probes/empty_grid.hip.cpp -o /tmp/empty_grid && HIP_VISIBLE_DEVICES=0 /tmp/empty_grid --csv /tmp/sweep.csv`
@@ -197,7 +230,7 @@ miss.
      (~20 s; ns/row legacy/fast/dispatcher/read-only floor in L2 and DRAM, checks bitwise equality).
    - F12: `iq_multi_parity`, then `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1` (every cell `identical`;
      keep a format only where `dec:s1` has the lower gu_us), then spec 22-f12-sign-fast.
-8. **Open claims, never measured**: `STRATA_PF_HCDOWN=1` quality (in fast-hip, lossy; rxr2: 2x first-token KL at 16K
+9. **Open claims, never measured**: `STRATA_PF_HCDOWN=1` quality (in fast-hip, lossy; rxr2: 2x first-token KL at 16K
    for +1.3% prompt); `hipblaslt_extend.py` table vs shipped at 1.5-3.2K/4-4.2K/16K/32K (greedy identity + identical
    "Lt solution=" lines); cold 32K `--ple-io direct`, caches dropped: `WAIT_TRACE=1` vs +`PLE_PIPE=1` vs +`PLE_COMPACT=1`;
    start time `STRATA_UNBUFFERED_LOAD=0/1` + `STRATA_VERIFY_ARENA=1` (claim 28-65 s -> 10-14 s);
@@ -276,9 +309,8 @@ coded and measured with no gain (T-242, T-266); `POOL_PREREAD` loses (T-239); P2
 "compile-only" (measured daily since 2026-11-08); spec 5 is in the do-not-repeat list (T-118, T-160). Grammar commits
 cited in the old plan were squashed into 3d3eef53e.
 
-Branches: every `origin/feat/*`, `work/*`, `dev/*`, `exp/*` branch and `optimize-kernel-hip` is in this line. Only
-`origin/main` has 3 serve/GUI commits not here (19ffe37a status page em dash, 9d456105 total VRAM, d7defcbb turn record
-keeps thinking tokens): merge `origin/main` when convenient.
+Branches: every `origin/feat/*`, `work/*`, `dev/*`, `exp/*` branch, `optimize-kernel-hip` and `origin/main` (PR #1 by
+xxxliqu1dxxx and its 3 commits, merged as 8aeff515b, 15 of 15 status-page tests) are in this line.
 
 ## 8. Parked (hardware or scope)
 
@@ -360,6 +392,13 @@ keeps thinking tokens): merge `origin/main` when convenient.
   dispatch loops in `expert_pool_dispatch_multi` are linear (`first_of`, `miss`, `next_of`, `q_of`; greedy check owed).
   Default-on: `ADAPT_PERSIST`, `UNBUFFERED_LOAD`, `HIPBLASLT_DESC_CACHE`, `PIN_PARK_TOKENS`, `PSI_GUARD`. `ARENA_WARM`
   removed; `combine_multi_hits` kept (removal = fork drift).
+- Status page: the field `spec = 12` is the effective window cap; the preset runs `--spec 4` (draft depth) with
+  `--lookup-max-t 12`.
+- llama.cpp v1.0.0 (tag 2026-11-13, 249 commits after v0.9.0) candidates, read against our code: V1 `e95426f16` covered by
+  `--pcie-frac` / `pcie_share_for` / `calibrate_ratio.hpp`; V2 `cf34d3113` covered by `ROUTE_PUBLISH=1`; V3 ClassLRU
+  `c4fb57969` dropped (T-452); V4 `69ee2ecc0` layout already in `Tables.tiles` / `moe_fused_iq.cu`, only the int8 path's
+  fixed tile width differed (built and dropped, T-107); V5 dropped (T-560); V6 dropped (T-569); U1, U3 dropped (T-571,
+  T-570); U4, U5 covered; U6 not applicable (ggml internals).
 - Code tools: graphify (`graphify update .`, `graphify-out/` git-excluded), ast-grep 0.51 + MCP, tree-sitter MCP needs
   `mcp<2`.
 - Platform: ROCm 10 has no `hipMemcpyBatchAsync`, so `STRATA_DMA_BATCH` is CUDA-only. The Flash-Next "IQ2_XS" file holds
@@ -440,7 +479,12 @@ keeps thinking tokens): merge `origin/main` when convenient.
   no other report, note, status or findings file may be created (AGENTS.md "Documentation rule").
 - Bring-up after a reboot (Linux box):
   1. `ls /home/dan/clone-of-d/src/Strata`; if it does not mount: `sudo ntfsfix -d /dev/nvme0n1p5` (ntfs3 writeback hang
-     2026-11-10, engine ~25% slower afterwards; T-287, T-290).
+     2026-11-10, engine ~25% slower afterwards; T-287, T-290). After the 2026-11-13 reboots the volume came back dirty and
+     was force-mounted: `sudo mount -t ntfs3 -o force,uid=1000,gid=1000,umask=022
+     /dev/disk/by-uuid/401E033B1E03298C /home/dan/clone-of-d`.
+  1b. The GPU clock resets to `auto` on reboot; pin it before measuring:
+     `echo high | sudo tee /sys/class/drm/card1/device/power_dpm_force_performance_level`. Commands shown with a `!`
+     prefix are for the agent session; in a normal terminal drop the `!`.
   2. `git fsck --no-dangling && git status -sb`; if broken, clone from GitHub or `git fetch` the all-refs bundle.
   3. `sudo tools/pancake/os_tune.sh cpu-install`, then `tools/pancake/os_tune.sh` (large free 2 MiB blocks).
   4. `cmake --build build-hip -j16 --target strata` (not `all`: strata-poly is CUDA-only).

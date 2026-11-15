@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""kernel_share.py - probe 4.2.2 (MOD_PLAN.md section 5 item 7): per-kernel time share of route_publish_res and the top-10, from a
+"""kernel_share.py - probe 4.2.2 (MOD_PLAN.md section 5 "Probes before ports"): per-kernel time share of route_publish_res and the top-10, from a
 rocprofv3 trace of a decode run.  Decides F9 (the router's publish: worth porting if >= 2% of GPU time stays).
 
 QUESTION   How much of the decode GPU time does route_publish_res take (mean us per call, share of kernel time and of
