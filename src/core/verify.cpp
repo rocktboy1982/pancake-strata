@@ -2945,6 +2945,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             nsw.gate_type = wsg->native_type; nsw.gate_data = wsg->native_data;
             nsw.up_type = wsu->native_type; nsw.up_data = wsu->native_data;
             nsw.down_type = wsd->native_type; nsw.down_data = wsd->native_data;
+            nsw.down_t = wsd->down_t; nsw.down_t_idx = wsd->down_t_idx;   // STRATA_DOWN_T (null unless set)
             nsw.q8_1 = sh_fork ? sh_xq_ : xq_;
             // STRATA_VERIFY_QDEDUP=1 (not with the forked shared-expert stream, which quantizes into its own buffer): the
             // experts' q8_1 image of xm is made first and the shared expert's gate/up read it (quantize_q8_1_rows and

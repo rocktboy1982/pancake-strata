@@ -7,6 +7,10 @@
 #include "strata/kernels/fused_gr.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/kernels/native_mmvq.hpp"
+#include "strata/kernels/ffn_sparse.hpp"   // STRATA_DOWN_T, STRATA_LQER
+#include "strata/kernels/f16_bits.hpp"
+#include "strata/core/lqer.hpp"
+#include "strata/artifact/dequant.hpp"
 #include "strata/platform/memory.hpp"
 
 #include <cuda_runtime.h>
@@ -189,6 +193,30 @@ bool bf16_as_q8_0(const strata::TensorInfo& tensor, const WeightRef& ref) {
            !ref.quantized() && ref.kind == WeightKind::Bf16InF32 &&
            ref.ne0 > 0 && ref.ne0 <= INT_MAX && ref.ne1 > 0 && ref.ne1 <= INT_MAX && ref.ne0 % 32 == 0 &&
            tensor.shape[0] == (uint64_t) ref.ne0 && tensor.shape[1] == (uint64_t) ref.ne1;
+}
+// STRATA_DOWN_T / STRATA_LQER (ffn_sparse.hpp, opt-in): a GGUF matrix (ne1 rows of ne0 values) as floats on the host, by the
+// scalar reference dequantizers (strata/artifact/dequant.hpp).  False for a type without one here (the caller then skips).
+bool dequant_matrix_host(int type, const uint8_t* p, int64_t ne0, int64_t ne1, std::vector<float>& out) {
+    const uint64_t n = (uint64_t) ne0 * (uint64_t) ne1;
+    out.resize(n);
+    if (type == 0) { strata::dequantize_f32(p, out.data(), (int) n); return true; }
+    if (type == 1) { strata::dequantize_f16(p, out.data(), (int) n); return true; }
+    if (type == 30) { strata::dequantize_bf16(p, out.data(), (int) n); return true; }
+    struct Fmt { int type, elems, bytes; void (*fn)(const uint8_t*, float*); };
+    static const Fmt fmts[] = {{42, 64, 18, strata::dequantize_q2_0},  {8, 32, 34, strata::dequantize_q8_0},
+                               {2, 32, 18, strata::dequantize_q4_0},   {6, 32, 22, strata::dequantize_q5_0},
+                               {7, 32, 24, strata::dequantize_q5_1},   {20, 32, 18, strata::dequantize_iq4_nl},
+                               {14, 256, 210, strata::dequantize_q6_K}, {12, 256, 144, strata::dequantize_q4_K},
+                               {13, 256, 176, strata::dequantize_q5_K}, {11, 256, 110, strata::dequantize_q3_K},
+                               {23, 256, 136, strata::dequantize_iq4_xs}};
+    for (const Fmt& f : fmts) {
+        if (f.type != type) continue;
+        if (ne0 % f.elems != 0) return false;
+        const uint64_t blocks = n / (uint64_t) f.elems;
+        for (uint64_t b = 0; b < blocks; ++b) f.fn(p + b * (uint64_t) f.bytes, out.data() + b * (uint64_t) f.elems);
+        return true;
+    }
+    return false;
 }
 struct DeviceFree { void operator()(void* p) const { if (p) cudaFree(p); } };
 using DevicePtr = std::unique_ptr<void, DeviceFree>;
@@ -398,6 +426,39 @@ bool NativeDense::load(const std::vector<std::string>& shards, WeightTable& tabl
                     allocated += alloc_bytes(q8.size());
                     std::fprintf(stderr, "native dense: %s is BF16 in the file: served as Q8_0 like its siblings (#4741)\n",
                                  tensor.name.c_str());
+                    // STRATA_LQER=<rank> (opt-in; LQER, Zhang et al. ICML 2024 / QERA arXiv 2410.06040; LEADS.md "LQER/QERA"): the
+                    // rank-r SVD of this requantization's error E = W_bf16 - deq(Q8_0), added back as y += A (B x) inside
+                    // native_mmvq for this weight.  STRATA_LQER_MATCH=<substring> limits it to matching tensor names.
+                    if (const int lr = strata::kernels::lqer_rank_env();
+                        lr > 0 && (strata::kernels::lqer_match_env() == nullptr ||
+                                   tensor.name.find(strata::kernels::lqer_match_env()) != std::string::npos)) {
+                        std::vector<float> wf, qf;
+                        const int64_t m = ref.ne1, nin = ref.ne0;
+                        if (dequant_matrix_host(30, (const uint8_t*) gguf.tensor_data(tensor), nin, m, wf) &&
+                            dequant_matrix_host(8, q8.data(), nin, m, qf)) {
+                            for (size_t i = 0; i < wf.size(); ++i) wf[i] -= qf[i];   // E, m x nin row-major
+                            double e2 = 0.0;
+                            for (const float e : wf) e2 += (double) e * e;
+                            std::vector<float> A, B;
+                            strata::core::lqer_factor(wf.data(), m, nin, lr, A, B);
+                            const int r = (int) (A.size() / (size_t) m);
+                            void *da = nullptr, *db = nullptr;
+                            const bool up = cudaMalloc(&da, A.size() * 4) == cudaSuccess && cudaMalloc(&db, B.size() * 4) == cudaSuccess &&
+                                            cudaMemcpy(da, A.data(), A.size() * 4, cudaMemcpyHostToDevice) == cudaSuccess &&
+                                            cudaMemcpy(db, B.data(), B.size() * 4, cudaMemcpyHostToDevice) == cudaSuccess;
+                            if (da) weights_.push_back(da);
+                            if (db) weights_.push_back(db);
+                            if (up && strata::kernels::lqer_register(data.get(), (const float*) da, (const float*) db, r, (int) nin, (int) m)) {
+                                const double res = strata::core::lqer_residual2(wf.data(), m, nin, A, B, r);
+                                std::fprintf(stderr, "native dense: STRATA_LQER=%d: %s error energy %.3g -> %.3g (%.1f%% left), +%.2f MiB\n",
+                                             r, tensor.name.c_str(), e2, res, e2 > 0 ? 100.0 * res / e2 : 0.0,
+                                             (double) (A.size() + B.size()) * 4 / 1048576.0);
+                            } else {
+                                (void) cudaGetLastError();
+                                std::fprintf(stderr, "native dense: STRATA_LQER: %s not corrected (allocation failed)\n", tensor.name.c_str());
+                            }
+                        }
+                    }
                     pending.push_back(Pending{&ref, 8, (uint64_t) q8.size(), std::move(data), DevicePtr()});
                     continue;
                 }
@@ -444,6 +505,36 @@ bool NativeDense::load(const std::vector<std::string>& shards, WeightTable& tabl
                 if (strata::core::manifest::enabled()) {   // STRATA_MANIFEST: the dense formats as held, and the packed copies
                     strata::core::manifest::instance().tensors("dense", strata::ggml_type_name((uint32_t) tensor.type), 1, bytes);
                     if (packed) strata::core::manifest::instance().tensors("dense_packed_copy", "Q8_0", 1, bytes);
+                }
+                // STRATA_DOWN_T=1 (opt-in; PowerInfer's n_ff-major down layout, Song et al. SOSP 2024; LEADS.md "Transposed n_ff-major
+                // down layout"): an FP16 copy of the shared expert's down projection, transposed so an intermediate column the
+                // TEAL / BlockFFN mask drops skips ne1 contiguous values (shared_expert_multi -> down_t_gemv).  A type without a
+                // host dequantizer here keeps the quantized down only.
+                if (strata::kernels::down_t_on() && tensor.name.ends_with(".ffn_down_shexp.weight")) {
+                    std::vector<float> wf;
+                    const int64_t n_in = ref.ne0, n_out = ref.ne1;
+                    if (dequant_matrix_host((int) tensor.type, (const uint8_t*) gguf.tensor_data(tensor), n_in, n_out, wf)) {
+                        std::vector<uint16_t> wt((size_t) n_in * (size_t) n_out);
+                        for (int64_t o = 0; o < n_out; ++o)
+                            for (int64_t i = 0; i < n_in; ++i)
+                                wt[(size_t) i * (size_t) n_out + (size_t) o] =
+                                    strata::kernels::f16_from_f32(wf[(size_t) o * (size_t) n_in + (size_t) i]);
+                        void *dt = nullptr, *di = nullptr;
+                        const bool up = cudaMalloc(&dt, wt.size() * 2) == cudaSuccess &&
+                                        cudaMalloc(&di, ((size_t) n_in + 1) * sizeof(int32_t)) == cudaSuccess &&
+                                        cudaMemcpy(dt, wt.data(), wt.size() * 2, cudaMemcpyHostToDevice) == cudaSuccess;
+                        if (dt) weights_.push_back(dt);
+                        if (di) weights_.push_back(di);
+                        if (up) {
+                            ref.down_t = (const uint16_t*) dt;
+                            ref.down_t_idx = (int32_t*) di;
+                            allocated += alloc_bytes(wt.size() * 2);
+                        } else {
+                            (void) cudaGetLastError();
+                            std::fprintf(stderr, "native dense: STRATA_DOWN_T: %s keeps the quantized down (allocation failed)\n",
+                                         tensor.name.c_str());
+                        }
+                    }
                 }
                 pending.push_back(Pending{&ref, (int) tensor.type, bytes, std::move(data), std::move(packed)});
             }

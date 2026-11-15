@@ -39,6 +39,9 @@ struct NativeSharedWeights {
     const void* down_data = nullptr;
     void* q8_1 = nullptr;
     const void* x_q8_1 = nullptr;   // optional pre-quantized Q8_1 input for gate/up in shared_expert_multi
+    // STRATA_DOWN_T=1 (ffn_sparse.hpp): the down's FP16 n_ff-major copy and its index scratch (n_ff + 1 int32); null: off
+    const uint16_t* down_t = nullptr;
+    int32_t* down_t_idx = nullptr;
 };
 
 /// Bytes of caller-owned scratch `shared_expert` needs.  **THE KERNEL USED TO `cudaMalloc` FOUR BUFFERS ON

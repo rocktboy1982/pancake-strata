@@ -96,6 +96,10 @@ struct WeightRef {
     /// STRATA_GR_RDNA_Q8=1: the same projection as int8 [ne1][ne0] then fp16 scales [ne1][ne0/32] (at an offset rounded
     /// up to 256 bytes) - the RDNA read's layout (rdna_gr.cu), from the GGUF's Q8_0 or quantized from its BF16
     const void* hc_r8 = nullptr;
+    /// STRATA_DOWN_T=1 (ffn_sparse.hpp, PowerInfer layout): an ffn_down_shexp as FP16 [ne0][ne1] (n_ff-major: row i holds
+    /// intermediate column i's n_embd weights), owned by NativeDense, and its device index scratch (ne0 + 1 int32)
+    const uint16_t* down_t = nullptr;
+    int32_t* down_t_idx = nullptr;
     /// Plan v0.3 P1: false when the loader SKIPPED this tensor's canonical bytes because another form serves it
     /// (native GGUF projections, the native head).  The metadata above stays valid; `data` is null.
     bool resident = true;

@@ -24,6 +24,7 @@
 // SOFTWARE.
 
 #include "strata/kernels/native_mmvq.hpp"
+#include "strata/kernels/ffn_sparse.hpp"   // STRATA_LQER: lqer_apply_if after a registered weight's MMVQ
 #include "strata/kernels/dp4a.hpp"
 #include "strata/kernels/q8_1_finite.hpp"
 #include "strata/kernels/iq_kernels.hpp"
@@ -4084,6 +4085,10 @@ void native_mmvq(int ggml_type, const void* weights, const void* x_q8_1, float* 
         iq_mmvq(ggml_type, weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
     default: throw std::invalid_argument("unsupported native MMVQ GGML type");
     }
+    // STRATA_LQER=<rank> (opt-in, lossy-by-design: it changes the product toward the unquantized weight; LEADS.md "LQER/QERA"):
+    // y += A (B x) for a weight registered at load (native_dense.cpp). No weight is registered when the switch is unset,
+    // so this is one false test per call.
+    if (lqer_any()) lqer_apply_if(weights, x_q8_1, y, n_in, n_out, ncols, stream);
 }
 
 bool native_mmvq_slots(int ggml_type, const MmvqSlots& slots, int count, int n_in, int n_out, void* stream) {

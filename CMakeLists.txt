@@ -691,6 +691,8 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/ngram/ple_reader.cpp
                           src/platform/direct_file.cpp)
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
+  # pancake, opt-in kernels: STRATA_TEAL / _TEAL_UNION / _DOWN_T / _LQER (ffn_sparse.cu)
+  target_sources(strata_kernels PRIVATE src/kernels/cuda/ffn_sparse.cu)
   # pancake: the RDNA kernels (DPP / permlanex16 / sudot4) build on wave32 HIP only; CUDA and gfx906 builds take their
   # "not available" answers from rdna_stub.cpp (MOD_PLAN 95b; tools/pancake/check_stubs.py keeps it in step with the headers)
   if(STRATA_ENABLE_HIP)
@@ -1838,6 +1840,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(spec_proposal_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME spec_proposal_parity COMMAND spec_proposal_parity)
   set_tests_properties(spec_proposal_parity PROPERTIES ENVIRONMENT "STRATA_OLD_SAMPLER=0;STRATA_SAMPLER_ONE_BLOCK=0" TIMEOUT 120)
+  # pancake (LEADS.md activation sparsity / BlockFFN union / PowerInfer down layout / LQER): teal_sparsify, down_t_gemv and
+  # lowrank_q81_apply against host references (GPU, synthetic, no model)
+  add_executable(ffn_sparse_parity src/kernels/ffn_sparse_parity.cpp)
+  target_include_directories(ffn_sparse_parity PRIVATE ${_strata_gpu_include_directories})
+  target_link_libraries(ffn_sparse_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+  add_test(NAME ffn_sparse_parity COMMAND ffn_sparse_parity)
   # the same fixtures on the other two sampled paths: the one-block kernel and the 0.1.20 kernel
   add_test(NAME sampler_parity_one_block COMMAND sampler_parity --selftest)
   set_tests_properties(sampler_parity_one_block PROPERTIES ENVIRONMENT "STRATA_OLD_SAMPLER=0;STRATA_SAMPLER_ONE_BLOCK=1")
@@ -2353,6 +2361,11 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(bfla_cpu_test src/kernels/bfla_cpu_test.cpp)
   target_include_directories(bfla_cpu_test PRIVATE include)
   add_test(NAME bfla_cpu_test COMMAND bfla_cpu_test)
+  # pancake STRATA_LQER / STRATA_TEAL (lqer.hpp, ffn_sparse.hpp): the randomized SVD of a quantization error and the TEAL /
+  # BlockFFN mask rule (header-only, CPU)
+  add_executable(lqer_test src/core/lqer_test.cpp)
+  target_include_directories(lqer_test PRIVATE include)
+  add_test(NAME lqer_test COMMAND lqer_test)
   # the batch window's row layout (a slot's group of proposed rows, the layer split's hand-off capacity; header-only, CPU)
   add_executable(batch_rows_test tests/core/batch_rows_test.cpp)
   target_include_directories(batch_rows_test PRIVATE include)
@@ -3667,6 +3680,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     poly_mxfp4_test
     gpu_rewrite_parity_test
     bfla_cpu_test
+    lqer_test
     # CUDA / conversation-only builds: these hide the GPU themselves (CUDA_VISIBLE_DEVICES=-1) or are CPU-only by design
     conversation_cache_test conversation_split_failure_test conversation_memory_test conversation_file_test
     session_save_reclaim_test conversation_validation_test conversation_transfer_test split_lend_complement_test
