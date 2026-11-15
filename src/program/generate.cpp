@@ -14321,6 +14321,20 @@ int main(int argc, char** argv) {
         // resident expert unused for the longest.  tools/pancake/time_ceiling.py: +5..16% of a code-edit window in the
         // model, depending on PCIe contention.  Placement only: outputs unchanged.
         strata::program::KMissTier kmiss = strata::program::KMissTier::from_env();
+        // LEADS.md Part C, HOBBIT multi-dimensional cache score (Tang et al., "HOBBIT: A Mixed Precision Expert Offloading
+        // System for Fast MoE Inference", arXiv 2411.01433: the eviction priority combines LRU, LFU, LHU and the layer
+        // distance).  STRATA_TIER_LRU=w (opt-in, w > 0, read once): the blocking tier's eviction score of a resident expert
+        // is its decayed usage (our LFU) plus w x the layer's mean usage x 1 / (1 + rounds since it was last routed) (LRU);
+        // LHU (high-precision uses) and the layer distance have no counterpart here (one precision, per-layer slots).
+        // Placement only (which resident expert leaves): outputs unchanged up to GPU / CPU rounding.  Unset: as before.
+        static const float tier_lru_w = [] {
+            const char* v = std::getenv("STRATA_TIER_LRU");
+            const double w = v != nullptr ? std::atof(v) : 0.0;
+            return w > 0.0 && std::isfinite(w) ? (float) w : 0.0f;
+        }();
+        std::vector<float> tier_lru_prev;     // the counts after the last round's decay (a rise since = routed this round)
+        std::vector<int32_t> tier_lru_last;   // the round each expert was last routed
+        int32_t tier_lru_round = 0;
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
@@ -14342,6 +14356,14 @@ int main(int argc, char** argv) {
             struct Swap { float gain; int32_t layer, in, out; };
             std::vector<Swap> swaps;
             std::vector<std::pair<float, int32_t>> cand, vict;
+            if (tier_lru_w > 0.0f) {   // STRATA_TIER_LRU (HOBBIT): which experts were routed since the last round
+                if (tier_lru_prev.size() != drive.d.usage.size()) {
+                    tier_lru_prev.assign(drive.d.usage.size(), 0.0f);
+                    tier_lru_last.assign(drive.d.usage.size(), 0);
+                }
+                for (size_t i = 0; i < drive.d.usage.size(); ++i)
+                    if (drive.d.usage[i] > tier_lru_prev[i]) tier_lru_last[i] = tier_lru_round;
+            }
             for (int64_t l = 0; l < g.n_layers; ++l) {
                 // STRATA_ADAPT_FETCH=2: where the PCIe share fetched since the last round, its fetchable experts are
                 // the admission's; the tier keeps the rest (no share there, or not pinned)
@@ -14363,6 +14385,14 @@ int main(int argc, char** argv) {
                 for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
                     if (r[e] < 0) { if (u[e] >= 2.0f && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) && !(fetched && srcp->pinned(l, e))) cand.emplace_back(u[e], e); }
                     else vict.emplace_back(u[e], e);
+                }
+                if (tier_lru_w > 0.0f && !vict.empty()) {   // STRATA_TIER_LRU (HOBBIT): LFU + w x recency, in the layer's usage unit
+                    double mean_u = 0.0;
+                    for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) mean_u += (double) u[e];
+                    mean_u /= (double) g.n_expert;
+                    const int32_t* last = tier_lru_last.data() + l * g.n_expert;
+                    for (auto& v : vict)
+                        v.first += tier_lru_w * (float) mean_u / (1.0f + (float) (tier_lru_round - last[v.second]));
                 }
                 if (cand.empty() || vict.empty()) continue;
                 std::sort(cand.begin(), cand.end(), [](auto& a, auto& b) { return a.first > b.first; });
@@ -14597,6 +14627,10 @@ int main(int argc, char** argv) {
                 for (float& v : drive.d.usage) v *= o.adapt_decay;
             if (seeder.on()) seeder.round_end(drive.d.usage);
             if (kmiss.on()) kmiss.end_round(drive.d.usage);
+            if (tier_lru_w > 0.0f && tier_lru_prev.size() == drive.d.usage.size()) {   // STRATA_TIER_LRU: the next round's baseline
+                std::copy(drive.d.usage.begin(), drive.d.usage.end(), tier_lru_prev.begin());
+                ++tier_lru_round;
+            }
             return true;
         };
         // ---- --adapt-async 1: the asynchronous adaptive tier (opt-in; the resident RAM mode, see the checks where

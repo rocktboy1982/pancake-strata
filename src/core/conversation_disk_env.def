@@ -307,6 +307,7 @@ STRATA_ENV("STRATA_ADAPT_PROMPT", Speed, "placement/tiering of experts (same mat
 STRATA_ENV("STRATA_ADAPT_PROMPT_W", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_SIGNAL", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_SWAPS_AUTO", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
+STRATA_ENV("STRATA_TIER_LRU", Speed, "placement/tiering of experts (HOBBIT LRU+LFU eviction score; same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADMIT_MERGE_FIRST", Speed, "cache/threads/park policy")
 STRATA_ENV("STRATA_ARGMAX_MULTI", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_ARGMAX_ROWS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
