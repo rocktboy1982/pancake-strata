@@ -476,6 +476,10 @@ public:
         if (bal_ != nullptr && m_bal_ != nullptr) bal_->on = !paused;
     }
     bool pcie_balance_on() const { return bal_ != nullptr && m_bal_ != nullptr; }
+    /// MOD_PLAN.md section 6 item 13, STRATA_DALI: the same stamps and pool times as set_pcie_balance (they are captured
+    /// for either), fed per layer into *model (DaliModel::sample) after each window; the dispatch then picks WHICH misses
+    /// go over PCIe.  One GPU, no batch slots.  Set before `init`.  Does not switch PcieModel on.
+    void set_dali(DaliModel* model) { dali_ = model; }
 
     double ms_wait = 0, ms_pool = 0, ms_host = 0, ms_commit = 0;
     int64_t windows = 0;
@@ -768,6 +772,8 @@ private:
     std::vector<int32_t> bal_nc_, bal_np_;
     std::vector<char> bal_ok_;
     PcieModel* bal_ = nullptr;
+    DaliModel* dali_ = nullptr;   ///< set_dali (STRATA_DALI)
+    std::vector<int32_t> bal_nr_;   ///< set_dali: each step's CPU rows (GpuPlanSink::cpu_rows)
     bool bal_paused_ = false;
     void pcie_balance_window(int64_t steps, int G);
     bool pcie_off_ = false;                                       // no PCIe share ever (--pcie-frac 0)

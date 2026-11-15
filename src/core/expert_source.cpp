@@ -5173,6 +5173,39 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         // pinned (the fetch below checks), else it stays a CPU miss exactly as before.  Read once.
         static const bool pcie_min1 = [] { const char* v = std::getenv("STRATA_PCIE_MIN1"); return v && std::atoi(v) != 0; }();
         if (pcie_min1 && pcie_ok && m < 1 && nmiss >= 2) m = 1;
+        // MOD_PLAN.md section 6 item 13, STRATA_DALI=1 (opt-in; LEADS.md: DALI): WHICH misses the GPU reads over PCIe,
+        // from the layer's fitted costs (DaliModel::assign: most rows first, each to the side that finishes earlier).
+        // Only where the static share runs (pcie_num > 0: --pcie-frac or the auto share).  Until the layer's fits have
+        // data the count above stays (DaliModel::boot).  Unset: none of this runs.
+        bool dpick[kMaxWindowEntries];
+        int dali_m = -1;
+        const bool dali_on = d.dali.on && pcie_ok && d.pcie_num > 0;
+        if (dali_on && nmiss >= 1) {
+            int mq[kMaxWindowEntries], mrows[kMaxWindowEntries], nm = 0;
+            bool mcan[kMaxWindowEntries], mgpu[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) {
+                dpick[q] = false;
+                const int32_t e = ids[distinct[q]];
+                if (skip_d[q] || e < 0 || e >= d.n_expert ||
+                    d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] >= 0 ||
+                    (d.peer != nullptr && d.peer->has(d.layers, e)) || helper_holds(e))
+                    continue;   // not a miss of this plan (as nmiss counts them)
+                int r = 0;
+                for (int64_t i = distinct[q]; i >= 0; i = next_of[i]) ++r;
+                mq[nm] = q;
+                mrows[nm] = r;
+                mcan[nm] = d.src->pinned(d.layers, e);   // an unpinned blob cannot be read over PCIe (as below)
+                ++nm;
+            }
+            const int dcap = (int) std::min<int64_t>(d.plan->staging_cap, 64);
+            dali_m = d.dali.assign(d.layers, nm, mrows, mcan, dcap, mgpu);
+            if (dali_m >= 0) {
+                for (int j = 0; j < nm; ++j) dpick[mq[j]] = mgpu[j];
+                m = dali_m;
+            } else {
+                m = d.dali.boot(m, nmiss);
+            }
+        }
         int miss_rank = 0, groups = 0, entries = 0, fetches = 0;
         GpuPlanSink& P = *d.plan;
         const uint8_t* dma_src[64];
@@ -5218,7 +5251,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                     kd = 0;                        // Foresight: a landed swap-space slot holds it - a GPU group like a hit
                 } else {
                     if (d.fs != nullptr) d.fs->note_miss(d.src, d.layers, e);
-                    if ((fetch_on ? pick[q] : miss_rank >= nmiss - m) && fetches < P.staging_cap && fetches < 64) {
+                    if ((dali_m >= 0 ? dpick[q] : fetch_on ? pick[q] : miss_rank >= nmiss - m) && fetches < P.staging_cap &&
+                        fetches < 64) {
                         const uint8_t* src = d.src->pinned(d.layers, e) ? d.src->blob(d.layers, e) : nullptr;
                         if (src != nullptr) {
                             kd = 1;
@@ -5302,6 +5336,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         P.counts[0] = groups;
         P.counts[1] = entries;
         P.counts[2] = fetches;
+        if (dali_on) d.dali.note(d.layers, nmiss - fetches, fetches, dali_m >= 0);   // STRATA_DALI's summary
         std::atomic_thread_fence(std::memory_order_seq_cst);
         pt("publish", fetches);
         if (P.publish) P.publish(P.ctx);
@@ -5589,6 +5624,11 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     }
     const auto c3 = std::chrono::steady_clock::now();
     if (d.plan != nullptr) d.plan->cpu_jobs = njobs;
+    if (d.plan != nullptr && d.dali.on) {   // STRATA_DALI: the pool's rows, for the per-layer CPU fit (Verifier::set_dali)
+        int32_t rows = 0;
+        for (int64_t i = 0; i < n; ++i) rows += kind[i] == -1 ? 1 : 0;
+        d.plan->cpu_rows = rows;
+    }
     pt("run", njobs);
     auto run_jobs = [&](ExpertJobMulti* jobs, int nj) {
         if (nj <= 0 || npend != 0) return;   // a cold layer's batches ran in the loop above
@@ -7211,6 +7251,29 @@ ForesightSwap* foresight_swap_from_env(int64_t layers, int64_t experts, const st
                          "window, admit after %d miss(es), reuse after %d windows\n",
                  f->slots, devices.size(), f->budget, f->admit, f->depth);
     return f;
+}
+
+// STRATA_DALI (MOD_PLAN.md section 6 item 13): the periodic summary - per layer the average missed experts a step on the
+// CPU pool / over PCIe since the last summary, then the share of steps the fitted model decided (the rest: the static
+// share while a layer's fits had no data).  Resets the sums.
+std::string DaliModel::summary() {
+    std::string s;
+    int64_t all = 0, dec = 0;
+    char buf[96];
+    for (size_t l = 0; l < steps.size(); ++l) {
+        if (steps[l] <= 0) continue;
+        std::snprintf(buf, sizeof buf, " %zu:%.2f/%.2f", l, sum_cpu[l] / (double) steps[l], sum_gpu[l] / (double) steps[l]);
+        s += buf;
+        all += steps[l];
+        dec += steps_dali[l];
+        sum_cpu[l] = 0.0;
+        sum_gpu[l] = 0.0;
+        steps[l] = 0;
+        steps_dali[l] = 0;
+    }
+    std::snprintf(buf, sizeof buf, " | model decided %.0f%% of %lld steps", all > 0 ? 100.0 * (double) dec / (double) all : 0.0,
+                  (long long) all);
+    return "layer:cpu/pcie misses a step" + s + buf;
 }
 
 }  // namespace strata::core
