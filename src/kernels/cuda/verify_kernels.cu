@@ -1004,6 +1004,8 @@ struct ArgRow {
 };
 
 // grid (blocks, rows): block b scans [b * per_block, +per_block) of its row
+// X8: STRATA_SAMPLER_X8=1 (see sampler_x8_on below): eight loads in flight a thread on both backends
+template <bool X8 = false>
 __global__ void argmax_rows_kernel(const float* __restrict__ logits, int n, int per_block, ArgRow* __restrict__ rows,
                                    int32_t* out) {
     const int row = (int) blockIdx.y, b = (int) blockIdx.x, nb = (int) gridDim.x;
@@ -1015,6 +1017,20 @@ __global__ void argmax_rows_kernel(const float* __restrict__ logits, int n, int 
     float bv = __int_as_float(0xff800000);   // -inf
     int bi = n;
     int v = lo + (int) threadIdx.x;
+    if constexpr (X8) {
+        // STRATA_SAMPLER_X8=1 (freapsy/strata-mi50 509bded8c5: eight logit loads in flight; ~110 us an argmax round on
+        // gfx906 with one): eight loads, then the eight compares in ascending order with the strict > - the same pick
+        constexpr int kU = 8;
+        const int B = (int) blockDim.x;
+        for (; v + (kU - 1) * B < hi; v += kU * B) {
+            float x[kU];
+#pragma unroll
+            for (int k = 0; k < kU; ++k) x[k] = l[v + k * B];
+#pragma unroll
+            for (int k = 0; k < kU; ++k)
+                if (x[k] > bv) { bv = x[k]; bi = v + k * B; }
+        }
+    }
 #if defined(__HIPCC__)
     // HIP: four loads in flight a thread, then the four compares in the same ascending order - the same pick (the
     // strict > keeps the lowest index on a tie either way); one at a time each load is its own memory round trip
@@ -1068,6 +1084,8 @@ struct TopRow {
 };
 
 // grid (kTopBlocks, rows), 1024 / kTopBlocks threads: thread j of block b is row_top_prob's thread b * blockDim + j
+// X8: STRATA_SAMPLER_X8=1: each thread's eight logits loaded before their adds, in the same order (the same sum)
+template <bool X8 = false>
 __global__ void row_top_prob_split_kernel(const float* __restrict__ logits, int n_vocab, const int32_t* __restrict__ ids,
                                           float* __restrict__ probs, TopRow* __restrict__ rows) {
     const int row = (int) blockIdx.y;
@@ -1076,10 +1094,22 @@ __global__ void row_top_prob_split_kernel(const float* __restrict__ logits, int 
     const float m = l[ids[row]];
     const int vt = (int) (blockIdx.x * blockDim.x + threadIdx.x);
     float s = 0.0f;
+    if constexpr (X8) {
+        int i = vt;
+        for (; i + 7 * 1024 < n_vocab; i += 8 * 1024) {
+            float x[8];
+#pragma unroll
+            for (int u = 0; u < 8; ++u) x[u] = l[i + u * 1024];
+#pragma unroll
+            for (int u = 0; u < 8; ++u) s += __expf(x[u] - m);
+        }
+        for (; i < n_vocab; i += 1024) s += __expf(l[i] - m);
+    } else {
 #if defined(__HIPCC__)
 #pragma unroll 8
 #endif
     for (int i = vt; i < n_vocab; i += 1024) s += __expf(l[i] - m);
+    }
     for (int o = 16; o > 0; o >>= 1) s += __shfl_xor_sync(0xffffffffu, s, o);
     if ((threadIdx.x & 31) == 0) parts[vt >> 5] = s;
     __threadfence();
@@ -1097,12 +1127,24 @@ __global__ void row_top_prob_split_kernel(const float* __restrict__ logits, int 
 
 uint64_t argmax_rows_scratch_bytes(int n_rows) { return (uint64_t) n_rows * sizeof(ArgRow); }
 
+// STRATA_SAMPLER_X8=1 (opt-in, read once; MOD_PLAN.md section 6 item 10, freapsy/strata-mi50 509bded8c5): the multi-block
+// argmax and top-probability scans keep eight logit loads in flight a thread (argmax_rows_kernel<true>,
+// row_top_prob_split_kernel<true>); the same pick and sum.  (row_top_prob's one-block kernel: STRATA_SCAN_UNROLL.)
+static bool verify_x8_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_SAMPLER_X8"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+
 void argmax_rows(const float* logits, int n_rows, int n, void* scratch, int32_t* out, void* stream) {
     if (n_rows <= 0) return;
     const int nb = std::min(kArgMaxBlocks, std::max(1, (n + 4095) / 4096));
     const int per_block = (n + nb - 1) / nb;
-    argmax_rows_kernel<<<dim3((unsigned) nb, (unsigned) n_rows), kArgThreads, 0, (cudaStream_t) stream>>>(
-        logits, n, per_block, (ArgRow*) scratch, out);
+    if (verify_x8_on())
+        argmax_rows_kernel<true><<<dim3((unsigned) nb, (unsigned) n_rows), kArgThreads, 0, (cudaStream_t) stream>>>(
+            logits, n, per_block, (ArgRow*) scratch, out);
+    else
+        argmax_rows_kernel<false><<<dim3((unsigned) nb, (unsigned) n_rows), kArgThreads, 0, (cudaStream_t) stream>>>(
+            logits, n, per_block, (ArgRow*) scratch, out);
     check("argmax_rows");
 }
 
@@ -1111,8 +1153,12 @@ uint64_t row_top_prob_scratch_bytes(int n_rows) { return (uint64_t) n_rows * siz
 void row_top_prob_split(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* probs, void* scratch,
                         void* stream) {
     if (n_rows <= 0) return;
-    row_top_prob_split_kernel<<<dim3(kTopBlocks, (unsigned) n_rows), 1024 / kTopBlocks, 0, (cudaStream_t) stream>>>(
-        logits, n_vocab, ids, probs, (TopRow*) scratch);
+    if (verify_x8_on())   // STRATA_SAMPLER_X8
+        row_top_prob_split_kernel<true><<<dim3(kTopBlocks, (unsigned) n_rows), 1024 / kTopBlocks, 0, (cudaStream_t) stream>>>(
+            logits, n_vocab, ids, probs, (TopRow*) scratch);
+    else
+        row_top_prob_split_kernel<false><<<dim3(kTopBlocks, (unsigned) n_rows), 1024 / kTopBlocks, 0, (cudaStream_t) stream>>>(
+            logits, n_vocab, ids, probs, (TopRow*) scratch);
     check("row_top_prob_split");
 }
 #else
