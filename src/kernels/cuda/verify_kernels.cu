@@ -1970,6 +1970,102 @@ void wait_flag_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, cons
     check("wait_flag_copy_i32");
 }
 
+// ---- STRATA_WAIT_FUSE_ROWS=1 (android-imdad caa9b00115, its STRATA_WAIT_FUSE; opt-in, verify.cpp reads it once): a
+// doorbell wait folded into the copy that always follows it - one launch instead of two.  The same bytes are copied
+// after the same flag: thread 0 of every block spins as wait_flag_ge_kernel does, then the block follows it.  Nothing
+// calls these unless the switch is set.
+namespace {
+__device__ __forceinline__ void wfr_block_wait_flag_ge(const volatile uint32_t* flag, uint32_t value) {
+    if (threadIdx.x == 0) {
+        while (*flag < value) strata_spin_pause();
+        __threadfence_system();
+    }
+    __syncthreads();
+    __threadfence_system();   // every wave's acquire, not only the spinning thread's
+}
+__global__ void wfr_wait_copy_i32_kernel(const volatile uint32_t* flag, uint32_t value, int32_t* __restrict__ dst,
+                                         const volatile int32_t* src, int n) {
+    wfr_block_wait_flag_ge(flag, value);
+    // 16-byte reads where both sides allow: the same words, read after the same flag and fence
+    if (((reinterpret_cast<uintptr_t>(dst) | reinterpret_cast<uintptr_t>(const_cast<const int32_t*>(src))) & 15) == 0) {
+        const int n4 = n >> 2;
+        const int4* s4 = reinterpret_cast<const int4*>(const_cast<const int32_t*>(src));
+        int4* d4 = reinterpret_cast<int4*>(dst);
+        for (int i = threadIdx.x; i < n4; i += blockDim.x) d4[i] = s4[i];
+        for (int i = 4 * n4 + threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
+        return;
+    }
+    for (int i = threadIdx.x; i < n; i += blockDim.x) dst[i] = src[i];
+}
+__global__ void wfr_wait_copy_rows_kernel(const volatile uint32_t* flag, uint32_t value, float4* __restrict__ dst,
+                                          const volatile float4* src, int64_t row4, const int32_t* __restrict__ hit_rows,
+                                          const int32_t* __restrict__ count) {
+    wfr_block_wait_flag_ge(flag, value);
+    const int row = blockIdx.x;   // copy_rows_from_mapped_kernel from here on
+    __shared__ int hit;
+    if (threadIdx.x == 0) {
+        int h = 0;
+        const int c = *count;
+        for (int i = 0; i < c; ++i) h |= hit_rows[i] == row;
+        hit = h;
+    }
+    __syncthreads();
+    float4* d = dst + (int64_t) row * row4;
+    if (hit) {
+        for (int64_t i = threadIdx.x; i < row4; i += blockDim.x) d[i] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    } else {
+        const volatile float4* sr = src + (int64_t) row * row4;
+        for (int64_t i = threadIdx.x; i < row4; i += blockDim.x) d[i] = const_cast<const float4*>(sr)[i];
+    }
+}
+__global__ void wfr_wait_fetch_blobs_kernel(const volatile uint32_t* flag, uint32_t value,
+                                            const unsigned long long* __restrict__ src, const int32_t* __restrict__ n,
+                                            uint4* __restrict__ dst, long long per,
+                                            const unsigned long long* __restrict__ dst2) {
+    wfr_block_wait_flag_ge(flag, value);
+    const long long total = (long long) *n * per;   // fetch_blobs_kernel from here on (STRATA_ADAPT_FETCH's dst2 too)
+    long long kd = -1;
+    uint4* d = nullptr;
+    for (long long i = (long long) blockIdx.x * blockDim.x + threadIdx.x; i < total;
+         i += (long long) gridDim.x * blockDim.x) {
+        const long long k = i / per, off = i - k * per;
+        if (k != kd) {
+            kd = k;
+            d = dst2 != nullptr && dst2[k] != 0 ? (uint4*) dst2[k] : dst + k * per;
+        }
+        d[off] = ((const uint4*) src[k])[off];
+    }
+}
+}  // namespace
+
+void wait_fuse_rows_copy_i32(const uint32_t* flag, uint32_t value, int32_t* dst, const int32_t* src, int64_t n,
+                             void* stream) {
+    if (n <= 0) { wait_flag_ge(flag, value, stream); return; }
+    // the fork's default (its STRATA_WAIT_COPY256 on): 256 threads for a plan of more than 512 words
+    wfr_wait_copy_i32_kernel<<<1, n > 512 ? 256 : 128, 0, (cudaStream_t) stream>>>(flag, value, dst,
+                                                                                  (const volatile int32_t*) src, (int) n);
+    check("wait_fuse_rows_copy_i32");
+}
+void wait_copy_rows_from_mapped(const uint32_t* flag, uint32_t value, float* dst, const float* src, int64_t rows,
+                                int64_t width, const int32_t* hit_rows, const int32_t* count, void* stream) {
+    if (rows <= 0) { wait_flag_ge(flag, value, stream); return; }
+    if ((width & 3) != 0 || ((uintptr_t) dst & 15) != 0 || ((uintptr_t) src & 15) != 0) {
+        std::fprintf(stderr, "wait_copy_rows_from_mapped: width must be a multiple of 4 and both pointers 16-byte aligned\n");
+        std::exit(1);
+    }
+    wfr_wait_copy_rows_kernel<<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
+        flag, value, (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count);
+    check("wait_copy_rows_from_mapped");
+}
+void wait_fetch_blobs(const uint32_t* flag, uint32_t value, const unsigned long long* src, const int32_t* n, uint8_t* dst,
+                      int64_t blob_bytes, int cap, void* stream, const unsigned long long* dst2) {
+    if (cap <= 0) { wait_flag_ge(flag, value, stream); return; }
+    if (blob_bytes % 16 != 0) { std::fprintf(stderr, "wait_fetch_blobs: blob size must be a multiple of 16\n"); std::exit(1); }
+    wfr_wait_fetch_blobs_kernel<<<48 * 8, 256, 0, (cudaStream_t) stream>>>(flag, value, src, n, (uint4*) dst,
+                                                                          (long long) (blob_bytes / 16), dst2);
+    check("wait_fetch_blobs");
+}
+
 void wait_flag_ge_stamped(const uint32_t* flag, uint32_t value, unsigned long long* t_in, unsigned long long* t_out,
                           void* stream) {
     wait_flag_ge_stamped_kernel<<<1, 1, 0, (cudaStream_t) stream>>>(flag, value, t_in, t_out);
