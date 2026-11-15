@@ -1,0 +1,39 @@
+rep 0 pcie0                short 116.5 edit 116.9  foreign CPU 10% [('claude', 10), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1517/1249 MHz 51C 119W gtt 21M cpu 3670MHz 53C igpu 1%/vcn 0% fclk 1600
+rep 0 pcie15               short 99.5 edit 94.6  foreign CPU 9% [('ptyxis', 4), ('gnome-shell', 3), ('claude', 3)]  gpu 1672/1249 MHz 52C 126W gtt 21M cpu 3422MHz 52C igpu 1%/vcn 0% fclk 1600
+rep 0 pcie30               short 102.8 edit 98.8  foreign CPU 4% [('claude', 7), ('accounts-daemon', 0), ('rtkit-daemon', 0)]  gpu 1598/1249 MHz 51C 122W gtt 21M cpu 3394MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 pcie55               short 78.2 edit 91.4  foreign CPU 2% [('claude', 1), ('kworker/u65:10-ttm', 1), ('2.1.325', 1)]  gpu 1559/1249 MHz 52C 113W gtt 21M cpu 3377MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 1 pcie55               short 94.2 edit 66.4  foreign CPU 12% [('claude', 16), ('ptyxis', 3), ('gnome-shell', 1)]  gpu 1697/1249 MHz 51C 115W gtt 21M cpu 3421MHz 49C igpu 1%/vcn 0% fclk 1600
+rep 1 pcie30               short 103.6 edit 116.4  foreign CPU 2% [('claude', 1), ('2.1.325', 1), ('localsearch-3', 1)]  gpu 1592/1249 MHz 52C 124W gtt 21M cpu 3864MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 1 pcie15               short 106.5 edit 119.0  foreign CPU 2% [('claude', 2), ('localsearch-3', 0), ('kworker/u65:12-KFD IH', 0)]  gpu 1564/1249 MHz 53C 124W gtt 21M cpu 3528MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 pcie0                short 115.6 edit 118.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 1516/1249 MHz 53C 119W gtt 21M cpu 3862MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 pcie0                short 116.2 edit 118.6  foreign CPU 2% [('claude', 1), ('localsearch-3', 1)]  gpu 1504/1249 MHz 53C 119W gtt 21M cpu 3445MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 pcie15               short 104.1 edit 118.9  foreign CPU 2% [('localsearch-3', 1), ('dbus-daemon', 0), ('upowerd', 0)]  gpu 1580/1249 MHz 53C 123W gtt 21M cpu 3604MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 pcie30               short 103.6 edit 117.6  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 1592/1249 MHz 53C 124W gtt 21M cpu 3814MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 pcie55               short 97.4 edit 85.3  foreign CPU 2% [('claude', 1), ('kworker/u65:6-ttm', 1), ('dbus-daemon', 0)]  gpu 1562/1249 MHz 53C 117W gtt 21M cpu 3565MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 3 pcie55               short 98.2 edit 85.7  foreign CPU 10% [('claude', 15), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 1551/1249 MHz 53C 116W gtt 21M cpu 3548MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 3 pcie30               short 103.0 edit 115.4  foreign CPU 2% [('dbus-daemon', 1), ('claude', 1), ('localsearch-3', 1)]  gpu 1592/1249 MHz 53C 124W gtt 21M cpu 3713MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 3 pcie15               short 106.4 edit 118.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 1566/1249 MHz 53C 123W gtt 21M cpu 3469MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 pcie0                short 115.7 edit 116.9  foreign CPU 2% [('claude', 1), ('gsd-housekeepin', 0), ('localsearch-3', 0)]  gpu 1521/1249 MHz 53C 119W gtt 21M cpu 3581MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  pcie0                   116.0 +-   0.7  (n=4)
+                              drafts accepted 0.74
+  short  pcie15                  104.1 +-   5.2  (n=4)   vs pcie0: -10.2% +-  5.0%  -> worse
+                              drafts accepted 0.65
+  short  pcie30                  103.2 +-   0.7  (n=4)   vs pcie0: -11.0% +-  1.0%  -> worse
+                              drafts accepted 0.67
+  short  pcie55                   92.0 +-  14.9  (n=4)   vs pcie0: -20.7% +- 13.3%  -> worse
+                              drafts accepted 0.69
+  edit   pcie0                   117.6 +-   1.3  (n=4)
+                              drafts accepted 0.91
+  edit   pcie15                  112.8 +-  19.3  (n=4)   vs pcie0:  -4.1% +- 15.8%  -> no difference
+                              drafts accepted 0.91
+  edit   pcie30                  112.0 +-  14.1  (n=4)   vs pcie0:  -4.7% +- 11.3%  -> no difference
+                              drafts accepted 0.92
+  edit   pcie55                   82.2 +-  17.3  (n=4)   vs pcie0: -30.1% +- 15.3%  -> worse
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pcie15               DIFFERENT text -> lossy or placement-dependent: quality gate
+  pcie30               DIFFERENT text -> lossy or placement-dependent: quality gate
+  pcie55               DIFFERENT text -> lossy or placement-dependent: quality gate

@@ -1,0 +1,33 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 4,
+  "arms": {
+    "pcie0": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "pcie15": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "args": {
+        "--pcie-frac": "0.15"
+      }
+    },
+    "pcie30": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "args": {
+        "--pcie-frac": "0.3"
+      }
+    },
+    "pcie55": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "args": {
+        "--pcie-frac": "0.55"
+      }
+    }
+  },
+  "note": "Decode CPU/GPU expert split: the share of missed experts the GPU reads over PCIe (--pcie-frac). The preset pins 0 (tuned on short windows); in 12-row windows (edit) the CPU pool is the critical path (wait_flag_ge 42% of kernel time in the edit profile). Plan: CPU/GPU expert wait, 2026-11-15."
+}

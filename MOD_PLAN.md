@@ -3856,3 +3856,16 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/wmma-few-col/53-wmma-ks
 3. Where an IQ4_XS matrix-core kernel could still win: its fixed cost (0.082 ms at `gdn qkv`) is 1.6x Q6_K's (0.052) because each lane decodes the whole 16-byte row twice (lanes l and l + 16 hold copies for the WMMA fragment layout) through the 8-op nibble LUT. Sharing the decode between the lane halves (permlanex16) is untested.
 
 **Decode time split on this pack (same edit profile, rocprof, so shares not speeds):** `wait_flag_ge_kernel` 42.2% of kernel time (1824 calls, 960 us average: the GPU waiting for the CPU expert pool and the draft), `combine_cpu_k10_vec4` 6.9% (297 us average, the spin-wait inside the combine), then the GPU experts (`expdec_gu` 5.6%, `expdec_down` 4.0%), `rdna_gr_fused` 7.4%, the IQ4_XS dense kernels about 10%. In the earlier short-prompt profile (p18-base): 57% of layers wait over 40 us in the combine, 18% of the decode span is that wait, 5% is the flag copies, 21% is launch gaps between kernels (rocprof inflates gaps), 75% is kernel busy time. The CPU expert path, not the dense projections, is the biggest block.
+
+### Spec 54: decode PCIe share of the missed experts, 0 / 0.15 / 0.3 / 0.55 (2026-11-15, screen, 4 repeats, owner request: look at the CPU/GPU expert wait)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/54-pcie-frac-decode.{stdout,jsonl}`. `--pcie-frac` = the share of the missed experts the GPU reads over PCIe instead of the CPU pool computing them; the preset pins 0 (tuned on short windows). The edit profile shows the CPU pool is the critical path in 12-row windows, so this tested whether a GPU share helps there.
+
+| arm | short tok/s | vs pcie0 | edit tok/s | vs pcie0 | text |
+| --- | --- | --- | --- | --- | --- |
+| pcie0 (preset) | 116.0 +-0.7 | | 117.6 +-1.3 | | |
+| pcie15 | 104.1 +-5.2 | **-10.2% +-5.0** | 112.8 +-19.3 | -4.1% +-15.8 | differs |
+| pcie30 | 103.2 +-0.7 | **-11.0% +-1.0** | 112.0 +-14.1 | -4.7% +-11.3 | differs |
+| pcie55 | 92.0 +-14.9 | **-20.7% +-13.3** | 82.2 +-17.3 | **-30.1% +-15.3** | differs |
+
+Verdict by the promote rule: **all three dropped** (no case above 0; short is below -3% in every arm). The GPU's PCIe reads do not relieve the wait even in 12-row windows, which says the wait is not CPU compute that the GPU could take over: the missed experts' bytes come from the same host DRAM either way (the CPU pool and the GPU's PCIe reads share its bandwidth), so moving the work moves the contention, and the PCIe copies add their own latency in front of the combine. The preset's `--pcie-frac 0` is confirmed for short and edit windows. This is ENGINE tuning on this model and card (MODEL: expert size and hit rate; hardware: host DRAM bandwidth), not a kernel result.
