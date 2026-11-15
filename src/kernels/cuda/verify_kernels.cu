@@ -1025,6 +1025,47 @@ void mtp_select(const float* R_src, int64_t R_stride, const int32_t* ids, const 
     check("mtp_select");
 }
 
+// MOD_PLAN.md section 6 item 17, open part 17 (STRATA_DEVICE_ACCEPT, LEADS.md "Item 17 commit into window graph, device-side
+// accept"): the greedy accept rule of the decode loops (generate.cpp: `while (a < T - 1 && window[a + 1] == out[a]) ++a`)
+// on the device, writing Verifier::commit's record [n_keep, n_keep - 1, cells pos0 .. pos0 + n_keep - 1, then -1] into the
+// mapped commit words the commit graph copies first - so that graph can run right behind the window, stream-ordered, with no
+// host round trip in between.  One block; thread 0 scans (T <= 64), all threads write the cells.
+namespace {
+__global__ void device_accept_commit_kernel(const int32_t* __restrict__ tok, const int32_t* out, int T, int pos0, int max_t,
+                                            DeviceAcceptBound bound, int32_t* commit) {
+    __shared__ int keep_s;
+    if (threadIdx.x == 0) {
+        int a = 0;
+        while (a < T - 1 && tok[a + 1] == ((const volatile int32_t*) out)[a]) ++a;
+        int keep = a + 1;
+        if (bound.on) {   // serve_stop_bound (serve_stop_bound.hpp): at most `remaining` rows, none after an EOS pick
+            const int count = keep < bound.remaining ? keep : (bound.remaining > 0 ? bound.remaining : 0);
+            keep = count;
+            for (int i = 0; i < count; ++i) {
+                const int32_t y = ((const volatile int32_t*) out)[i];
+                bool eos = false;
+                for (int k = 0; k < bound.n_eos; ++k) eos = eos || y == bound.eos[k];
+                if (eos) { keep = i + 1; break; }
+            }
+            if (keep < 1) keep = 1;   // (the caller's commit(0) is refused before it compares)
+        }
+        keep_s = keep;
+        ((volatile int32_t*) commit)[0] = keep;
+        ((volatile int32_t*) commit)[1] = keep - 1;
+    }
+    __syncthreads();
+    const int keep = keep_s;
+    for (int t = (int) threadIdx.x; t < max_t; t += (int) blockDim.x) ((volatile int32_t*) commit)[2 + t] = t < keep ? pos0 + t : -1;
+    __threadfence_system();
+}
+}  // namespace
+
+void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos0, int max_t, const DeviceAcceptBound& bound,
+                          int32_t* commit, void* stream) {
+    device_accept_commit_kernel<<<1, 64, 0, (cudaStream_t) stream>>>(tok, out, T, pos0, max_t, bound, commit);
+    check("device_accept_commit");
+}
+
 void force_token(int32_t* tok, const int32_t* force, int j, void* stream) {
     force_token_kernel<<<1, 1, 0, (cudaStream_t) stream>>>(tok, force, j);
     check("force_token");

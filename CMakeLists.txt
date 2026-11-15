@@ -1851,6 +1851,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(spec_verify_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME spec_verify_parity COMMAND spec_verify_parity)
   set_tests_properties(spec_verify_parity PROPERTIES ENVIRONMENT "STRATA_OLD_SAMPLER=0;STRATA_SAMPLER_ONE_BLOCK=0")
+  # MOD_PLAN.md section 6 item 17 part 17 (STRATA_DEVICE_ACCEPT): the device accept + commit record vs the host rule
+  add_executable(device_accept_parity src/kernels/device_accept_parity.cpp)
+  target_include_directories(device_accept_parity PRIVATE ${_strata_gpu_include_directories})
+  target_link_libraries(device_accept_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+  add_test(NAME device_accept_parity COMMAND device_accept_parity)
+  set_tests_properties(device_accept_parity PROPERTIES SKIP_RETURN_CODE 77)
   # the explicit mu / NULL verifier of the gated proposal (STRATA_SPEC_PROB=1, pick gate) against a CPU oracle
   add_executable(spec_proposal_parity src/kernels/spec_proposal_parity.cpp)
   target_include_directories(spec_proposal_parity PRIVATE ${_strata_gpu_include_directories})

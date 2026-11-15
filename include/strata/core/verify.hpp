@@ -34,6 +34,7 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -263,6 +264,25 @@ public:
 
     /// Keep the first `n_keep` (1..T) tokens of the last window; advances `ss.ple_prev` by them.
     bool commit(int n_keep, std::string& err);
+
+    /// MOD_PLAN.md section 6 item 17, part 17: STRATA_DEVICE_ACCEPT=1 (opt-in, exact while the caller's accept is the
+    /// plain greedy prefix rule).  The caller arms the NEXT run() only when it will commit exactly
+    /// `1 + the leading drafts equal to the head's picks` (greedy, no merged prompt window, no grammar / follow / stop
+    /// bound).  run() then launches the accept kernel and the commit graph right behind the window on the same stream (no
+    /// host round trip between them), and commit() only checks that the host's n_keep matches what the device kept (an
+    /// error otherwise: the state already holds the device's rows).  Single-stage verifiers, T > 1, greedy head only;
+    /// otherwise the arm is dropped and the window commits as before.  `stop_bound`: the caller applies serve_stop_bound
+    /// (at most `remaining` rows, none after an EOS pick; at most 4 EOS ids, else no arm).
+    void arm_device_accept(bool stop_bound, int64_t remaining, const int64_t* eos, int n_eos) {
+        if (stop_bound && (n_eos > 4 || n_eos < 0)) return;
+        da_bound_ = strata::kernels::DeviceAcceptBound{};
+        da_bound_.on = stop_bound ? 1 : 0;
+        da_bound_.remaining = (int) std::max<int64_t>(-1, std::min<int64_t>(remaining, 1 << 30));
+        da_bound_.n_eos = stop_bound ? n_eos : 0;
+        for (int k = 0; k < da_bound_.n_eos; ++k) da_bound_.eos[k] = (int32_t) eos[k];
+        da_armed_ = true;
+    }
+    static bool device_accept_env();
 
     // ================================ SEVERAL SEQUENCES IN ONE WINDOW ================================
     //
@@ -817,6 +837,11 @@ private:
     // MOD_PLAN.md section 6 item 17 part 18 STRATA_HEAD_ARGMAX_FUSED (opt-in): one 64-bit pick key per window row, folded
     // by the head format's GEMV (head_fmt.hpp); null off
     unsigned long long* head_am_keys_ = nullptr;
+    // MOD_PLAN.md section 6 item 17 part 17 STRATA_DEVICE_ACCEPT: armed by the caller for the next run(); set by run()
+    // when the window's commit graph already ran behind it (commit() then only checks n_keep)
+    bool da_armed_ = false;
+    bool da_committed_ = false;
+    strata::kernels::DeviceAcceptBound da_bound_{};
     // STRATA_VERIFY_DEFER_CPU_BELOW=<w> (with =1 or =check; 0.1 when unset, 0 when w >= 1): the pool computes the CPU
     // rows whose routing weight is >= w first and raises h_pflag_; post(l) of a deferred layer waits for that and
     // combines those rows, the lighter ones join late.  Not with STRATA_VERIFY_DEVICE_PLAN.

@@ -224,6 +224,18 @@ void mtp_select(const float* R_src, int64_t R_stride, const int32_t* ids, const 
 /// --pipeline-windows, the drafter's chain teacher forced: `*tok = force[j]` when force[j] >= 0 (`force` is mapped
 /// host memory, read when the kernel runs), else `*tok` is left as it is.
 void force_token(int32_t* tok, const int32_t* force, int j, void* stream);
+/// STRATA_DEVICE_ACCEPT (MOD_PLAN.md section 6 item 17, part 17): the greedy accept a = the leading drafts with
+/// tok[j + 1] == out[j] (j < T - 1), keep = a + 1, then (bound.on) serve_stop_bound's limit: at most `remaining` rows and
+/// none after the first EOS pick among them (at least 1); commit[0] = keep, commit[1] = keep - 1, commit[2 + t] = pos0 + t
+/// for t < keep, -1 for the rest of max_t - Verifier::commit's record.  `out` and `commit` may be mapped host memory.
+struct DeviceAcceptBound {
+    int on = 0;
+    int remaining = 0;
+    int n_eos = 0;
+    int32_t eos[4] = {-1, -1, -1, -1};
+};
+void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos0, int max_t, const DeviceAcceptBound& bound,
+                          int32_t* commit, void* stream);
 /// Row *row_dev of a, b and c (a_n, b_n, c_n floats a row) copied to their row 0 (the draft layer's rest runs on
 /// row 0).  Graph-capturable: the row is read on the device.
 void copy_row_to_first(const int32_t* row_dev, float* a, int64_t a_n, float* b, int64_t b_n, float* c, int64_t c_n,

@@ -382,6 +382,7 @@ STRATA_ENV("STRATA_DEC_BATCH", Speed, "bitwise: documented (docs/README/code com
 STRATA_ENV("STRATA_DENSE_F32", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_DEQUANT_SIDE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_DEQUANT_WIDE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_DEVICE_ACCEPT", Speed, "MOD_PLAN.md section 6 item 17 part 17: the greedy accept + commit graph queued behind the window; the same commit record (device_accept_parity), commit() refuses a mismatch")
 STRATA_ENV("STRATA_DEVICE_SPIN", Speed, "graph/stream/doorbell plumbing")
 STRATA_ENV("STRATA_DF2_END_UPDATE", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_DF2_FORK", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")

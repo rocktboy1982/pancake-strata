@@ -335,6 +335,17 @@ inline bool head_argmax_fused_on() {
     return false;
 #endif
 }
+}  // namespace (reopened below)
+// MOD_PLAN.md section 6 item 17 part 17, STRATA_DEVICE_ACCEPT=1 (opt-in, read once): see Verifier::arm_device_accept
+bool Verifier::device_accept_env() {
+#if defined(STRATA_GPU_METAL)
+    return false;
+#else
+    static const bool v = [] { const char* e = std::getenv("STRATA_DEVICE_ACCEPT"); return e != nullptr && e[0] == '1'; }();
+    return v;
+#endif
+}
+namespace {
 #define VDBG(...) do { if (g_dbg) { std::fprintf(stderr, "verify dbg: " __VA_ARGS__); std::fflush(stderr); } } while (0)
 
 struct Bump {
@@ -4591,6 +4602,23 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         return false;
     }
 #endif
+    // MOD_PLAN.md section 6 item 17, part 17 (STRATA_DEVICE_ACCEPT=1, armed by the caller; LEADS.md "Item 17 commit into
+    // window graph, device-side accept"): the greedy accept and the commit graph queued behind the window now, so the commit
+    // starts when the window ends instead of after this thread's sync + the caller's accept + commit().  Greedy head only
+    // (a sampled / penalised / biased request re-samples on the host below), one stage, T > 1, no proposal measurement.
+    da_committed_ = false;
+    if (da_armed_) {
+        da_armed_ = false;
+        const bool resampled = head_sampling_ && ((!sampling_.greedy && sampling_.temperature > 0.0f) || hist_d_ != nullptr ||
+                                                  sampling_.logit_bias != nullptr);
+        if (device_accept_env() && !resampled && !measure && T > 1 && next_ == nullptr && lb_ == 0 && le_ == g.n_layers &&
+            commit_exec_ != nullptr) {
+            strata::kernels::device_accept_commit(tok_, m_out_, T, (int) pos0, max_t_, da_bound_, m_commit_, cs_);
+            const cudaError_t le = cudaGraphLaunch(commit_exec_, cs_);
+            if (le != cudaSuccess) { err = std::string("verify: device-accept commit launch: ") + cudaGetErrorString(le); return false; }
+            da_committed_ = true;
+        }
+    }
     trace_ev("SYNC", -1, -1, 0);
     const cudaError_t se = cudaStreamSynchronize(cs_);
     trace_ev("SYNCED", -1, -1, (int64_t) se);
@@ -4970,6 +4998,22 @@ bool Verifier::commit(int n_keep, std::string& err) {
     const OnDevice on_device(device_);
     if (n_keep < 1 || n_keep > last_t_) { err = "verify: commit count out of range"; return false; }
     const Clock::time_point t0 = Clock::now();
+    if (da_committed_) {   // STRATA_DEVICE_ACCEPT: the commit graph ran behind the window (run(), synced with it)
+        da_committed_ = false;
+        const int dk = ((volatile int32_t*) h_commit_)[0];
+        if (dk != n_keep) {
+            err = "verify: STRATA_DEVICE_ACCEPT: the device kept " + std::to_string(dk) + " rows, the caller " +
+                  std::to_string(n_keep) + " (the caller armed a window whose accept is not the greedy prefix rule)";
+            return false;
+        }
+        if (ple_stage())
+            for (int t = 0; t < n_keep; ++t) {
+                ss_->ple_prev[0] = ss_->ple_prev[1];
+                ss_->ple_prev[1] = last_tokens_[t];
+            }
+        ms_commit += ms_since(t0);
+        return true;   // (single-stage only: no next_)
+    }
     h_commit_[0] = n_keep;
     h_commit_[1] = n_keep - 1;
     for (int t = 0; t < max_t_; ++t) h_commit_[2 + t] = t < n_keep ? (int32_t) (last_pos0_ + t) : -1;

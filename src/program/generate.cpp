@@ -21301,6 +21301,18 @@ int main(int argc, char** argv) {
                     ++defer_auto_windows;
                     defer_auto_deferred += dw ? 1 : 0;
                 }
+                // MOD_PLAN.md section 6 item 17, part 17 (STRATA_DEVICE_ACCEPT=1, opt-in): this window's accept below is the plain
+                // greedy prefix rule (+ the HIP stop bound) when it is not merged, no grammar guard and no forced continuation run:
+                // the verifier may then run the accept and the commit on the GPU right behind the window (commit() checks n_keep)
+                if (strata::core::Verifier::device_accept_env() && T >= 2 && !merged && !(gguard != nullptr && gguard->on()) &&
+                    fol == nullptr && !gated_proposal) {
+#if defined(STRATA_USE_HIP)
+                    const bool da_bound = stop_bound;
+#else
+                    const bool da_bound = false;
+#endif
+                    ver.arm_device_accept(da_bound, max_new - produced_n, o.eos_ids.data(), (int) o.eos_ids.size());
+                }
                 exit_if_gpu_fatal("");   // (the test hook counts windows here)
                 if (!ver.run(T, window.data(), p, decode_pool_fn, win_pool_user, outv.data(), err) || drive.d.failed) {
                     exit_if_gpu_fatal(drive.d.failed && drive.d.fail ? drive.d.fail : err);
@@ -23411,6 +23423,10 @@ int main(int argc, char** argv) {
                 ver.set_spec_q(mtp.spec_q(), T_mtp - 1);
             const auto decode_pool_fn = use_mtp && mtp.prob() ? &drive_pool_multi_invariant : &drive_pool_multi;
             if (ver.ecap() >= 0) ver.set_ecap_window(!first_window && T >= 2);   // MOD_PLAN F5 STRATA_VERIFY_ECAP (opt-in)
+            // MOD_PLAN.md section 6 item 17, part 17 (STRATA_DEVICE_ACCEPT=1, opt-in): the accept below is the plain greedy prefix
+            // rule unless a --follow continuation replaces the picks
+            if (strata::core::Verifier::device_accept_env() && T >= 2 && !first_window && follow.empty() && !gated_proposal)
+                ver.arm_device_accept(false, 0, nullptr, 0);
             if (!ver.run(T, window.data(), p, decode_pool_fn, &drive, outv.data(), err)) {
                 // The graph of a window size is captured the first time it is used, and the draft source took VRAM: when the capture runs
                 // out of memory the window gets one row narrower (the widths below it are already captured) instead of the run failing.
