@@ -3050,6 +3050,10 @@ if(STRATA_NATIVE_EXPERTS)
     # the same binary on F16 weights (gfx11: the covered formats take moe_f16_kq.cu / native_f16_kernel; elsewhere it is the default run again)
     add_test(NAME hip_prefill_fused_iq_f16 COMMAND hip_prefill_fused_iq)
     set_tests_properties(hip_prefill_fused_iq_f16 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 ENVIRONMENT "STRATA_PF_F16=1;STRATA_PF_F16_KQ=1")
+    # the opt-in STRATA_NW_COLSKIP=1 (empty 16-token columns skip their WMMAs in native_w11_kernel; rdna3 1f4b77d72 idea):
+    # the same references (the skewed routing has many items of 16 rows or fewer)
+    add_test(NAME hip_prefill_fused_iq_colskip COMMAND hip_prefill_fused_iq)
+    set_tests_properties(hip_prefill_fused_iq_colskip PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 ENVIRONMENT "STRATA_NW_COLSKIP=1")
     list(APPEND _strata_hip_tests hip_prefill_fused_iq)
 
     # Numerical diagnostic: synthetic layouts by default, optional first-expert IQ3_XXS/IQ4_NL check with a pack.

@@ -575,6 +575,7 @@ STRATA_ENV("STRATA_MTP_TOP2", Speed, "drafting/stop policy: the tokens change, t
 STRATA_ENV("STRATA_MULTI_BLOCK_ARGMAX", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_NIB_GU_PROTO", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_NORM_ROPE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_NW_COLSKIP", Speed, "rdna3 1f4b77d72 idea: int8 prompt expert kernel skips empty 16-token columns; stored rows the same bits")
 STRATA_ENV("STRATA_NO_AVXVNNI", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_NO_BATCH_KV_STEP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_NO_IQ4XS512", Speed, "bitwise: documented (docs/README/code comment/parity test)")

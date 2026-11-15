@@ -119,12 +119,20 @@ __host__ __device__ constexpr size_t smem_bytes(int t, int ww, int astages = AST
 struct Tables {
     int32_t *cnt, *off, *fill, *ts;
     int2* tiles;
+    int colskip = 0;   // STRATA_NW_COLSKIP (native_w11_kernel only): skip the matrix work of an empty 16-token column
 };
 size_t tiles_at(int n_expert) { return ((size_t) (4 * n_expert + 2) * 4 + 15) / 16 * 16; }
 Tables tables(void* scratch, int n_expert) {
     int32_t* p = (int32_t*) scratch;
-    return {p, p + n_expert, p + 2 * n_expert + 1, p + 3 * n_expert + 1,
-            (int2*) ((uint8_t*) scratch + tiles_at(n_expert))};
+    // STRATA_NW_COLSKIP=1 (opt-in, read once): the idea of nicejunjie/Strata-rdna3 1f4b77d72 (STRATA_NH_COLSKIP in its
+    // F16 pair kernel) on our int8 native_w11_kernel - a wave whose second 16-token column lies past the item's rows
+    // skips that column's B loads and WMMAs.  Those accumulators are never stored (down: r < nrows; gate/up: H rows
+    // past nrows are never quantized), so the stored rows are the same bits.
+    static const int colskip = [] { const char* v = std::getenv("STRATA_NW_COLSKIP"); return v != nullptr && v[0] == '1' ? 1 : 0; }();
+    Tables t{p, p + n_expert, p + 2 * n_expert + 1, p + 3 * n_expert + 1,
+             (int2*) ((uint8_t*) scratch + tiles_at(n_expert))};
+    t.colskip = colskip;
+    return t;
 }
 
 // ---- activations in natural order: one warp per 64 values
@@ -1389,6 +1397,8 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
         if (NS > 1) load_unit<WT>(unit(1), sub(1), raw);
         nw_sync_lds();                                            // srow
         const bool on = 32 * wn < nrows;
+        // STRATA_NW_COLSKIP: whether the wave's second 16-token column holds rows of this item (wave-uniform)
+        const bool col1 = !tb.colskip || 32 * wn + 16 < nrows;
         const uint8_t* brow[2];
 #pragma unroll
         for (int nt = 0; nt < 2; ++nt) brow[nt] = act + (size_t) srow[32 * wn + 16 * nt + l16] * ACT_LD;
@@ -1404,6 +1414,11 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
         auto fetch_b = [&](int s, nw_frag (&q)[2][4], float2 (&x)[2], float2 (&sm)[2]) {
 #pragma unroll
             for (int nt = 0; nt < 2; ++nt) {
+                if (nt == 1 && !col1) {   // STRATA_NW_COLSKIP: column 1 is never read
+                    q[nt][0] = q[nt][1] = q[nt][2] = q[nt][3] = nw_frag{};
+                    x[nt] = sm[nt] = make_float2(0.0f, 0.0f);
+                    continue;
+                }
 #if STRATA_NAT_W12
                 const uint2* p = reinterpret_cast<const uint2*>(brow[nt] + s * AB + 8 * hi);   // k 16 j + 8 hi .. + 7
                 q[nt][0] = p[0]; q[nt][1] = p[2]; q[nt][2] = p[4]; q[nt][3] = p[6];
@@ -1449,6 +1464,7 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
                         }
 #pragma unroll
                         for (int nt = 0; nt < 2; ++nt) {
+                            if (nt == 1 && !col1) continue;   // STRATA_NW_COLSKIP: an empty column, never stored
                             const float dx = h ? bx[nt].y : bx[nt].x;
                             const nw_ab B0 = nw_v(bq[nt][2 * h]), B1 = nw_v(bq[nt][2 * h + 1]);
                             const nw_i8 m = nw_i8{MAGIC, MAGIC, MAGIC, MAGIC, MAGIC, MAGIC, MAGIC, MAGIC};
