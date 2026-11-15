@@ -94,6 +94,15 @@ class PancakeStatus(unittest.TestCase):
         self.assertGreater(t["output_tokens"], 0)
         self.assertLessEqual(t["age_s"], 60)
 
+    def test_turn_record_carries_its_thinking_tokens(self):
+        """The page's "Reasoning" column and the Reasoning-tokens total: the history record must carry the count, not
+        only the disk turn log (the page reads the history)."""
+        self.chat()
+        d = json.loads(get(self.base + "/status.json")[2])
+        t = d["turns"][0]
+        self.assertIsInstance(t["reasoning_tokens"], int)          # the row says a number, not "no data"
+        self.assertEqual(d["stats"]["reasoning_tokens"], t["reasoning_tokens"])
+
     def test_switches_carry_strata_env_and_server_flags(self):
         import os
         self.svc.reasoning_budget_grace = 7
@@ -179,6 +188,14 @@ class StatusHtmlNegotiation(unittest.TestCase):
         self.assertEqual(headers.get("Content-Security-Policy"), "frame-src 'none'")
         self.assertEqual(body, self.page())
 
+    def test_status_page_scripts_the_real_em_dash(self):
+        """The missing-value mark reaches the page through `.textContent`, which never decodes entities: the script must
+        carry the em dash character, never the `&mdash;` markup text."""
+        text = (ROOT / "serve/web/status.html").read_text(encoding="utf-8")
+        self.assertIn('const dash = "\\u2014"', text)
+        self.assertNotIn('const dash = "&mdash;"', text)
+        self.assertNotIn("'&mdash;'", text)
+
     def test_status_with_accept_html_serves_the_page(self):
         status, headers, body = get(self.base + "/status", headers={"Accept": "text/html,application/xhtml+xml"})
         self.assertEqual(status, 200)
@@ -216,6 +233,44 @@ class StatusHtmlNegotiation(unittest.TestCase):
         self.assertEqual(body, self.page())
 
 
+class StaticVramTotal(unittest.TestCase):
+    """The page's "VRAM total": the card the sampler already reads (amdgpu sysfs / NVML), not only the Windows AMD
+    registry and the macOS Metal paths.  A fake reader, no GPU."""
+
+    GB = 1 << 30
+
+    def reader(self):
+        gb = self.GB
+
+        class Fake:
+            def ok(self):
+                return True
+
+            def name(self):
+                return "Fake AMD"
+
+            def read(self):
+                return {"util": 42, "mem_used": 15 * gb, "mem_total": 16 * gb,
+                        "temp": 50.0, "power": 120.0}
+        return Fake()
+
+    def test_the_reader_fills_the_total_the_page_shows(self):
+        svc = make_svc()
+        # serve() starts the sampler, so the fake reader has to be in place before the server comes up: the reader is
+        # chosen once, at construction.
+        with unittest.mock.patch("serve.telemetry.gpu_reader", lambda index=0, amd=False: self.reader()):
+            httpd, base = make_httpd(svc)
+        try:
+            self.assertEqual(svc.telemetry.static["gpu_vram_total_mib"], 16384)
+            d = json.loads(get(base + "/status.json")[2])
+            self.assertEqual(d["hardware"]["static"]["gpu_vram_total_mib"], 16384)
+        finally:
+            if getattr(svc, "telemetry", None) is not None:
+                svc.telemetry.close()
+            httpd.shutdown()
+            httpd.server_close()
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -235,3 +290,44 @@ class StatusSecrets(unittest.TestCase):
         self.assertEqual(env["STRATA_API_KEY"], "<set>")
         self.assertEqual(env["STRATA_OWNER_ATTEST_KEY"], "<set>")
         self.assertEqual(env["STRATA_GDN_KEYHEAD"], "1")              # a switch, not a secret
+
+
+class GpuReaderFallback(unittest.TestCase):
+    """serve.telemetry.gpu_reader: with no NVML but an amdgpu card, the sysfs reader is used, so the status page names
+    the card and its VRAM even when the config has no "backend": "hip" (the repo's -hip presets have none, and the HIP
+    build calls itself CUDA).  Mock readers: no GPU needed."""
+
+    def setUp(self):
+        from serve import telemetry
+        self.T = telemetry
+        self.nvml, self.amd = unittest.mock.Mock(), unittest.mock.Mock()
+
+    def pick(self, nvml_ok, amd_ok, platform="linux", **kw):
+        self.nvml.ok.return_value, self.amd.ok.return_value = nvml_ok, amd_ok
+        with unittest.mock.patch.object(self.T, "_Nvml", return_value=self.nvml), \
+                unittest.mock.patch.object(self.T, "_Amd", return_value=self.amd) as amd_cls, \
+                unittest.mock.patch.object(self.T, "sys") as fake_sys:
+            fake_sys.platform = platform
+            return self.T.gpu_reader(0, **kw), amd_cls
+
+    def test_amd_sysfs_when_nvml_is_missing(self):
+        reader, _ = self.pick(False, True)
+        self.assertIs(reader, self.amd)
+
+    def test_nvml_wins_when_it_works(self):
+        reader, amd_cls = self.pick(True, True)
+        self.assertIs(reader, self.nvml)
+        amd_cls.assert_not_called()
+
+    def test_nvml_object_kept_when_neither_card_is_found(self):
+        reader, _ = self.pick(False, False)
+        self.assertIs(reader, self.nvml)                              # unchanged: the page shows no GPU, as before
+
+    def test_no_fallback_off_linux(self):
+        reader, amd_cls = self.pick(False, True, platform="win32")
+        self.assertIs(reader, self.nvml)
+        amd_cls.assert_not_called()
+
+    def test_explicit_amd_flag_is_unchanged(self):
+        reader, _ = self.pick(True, True, amd=True)
+        self.assertIs(reader, self.amd)

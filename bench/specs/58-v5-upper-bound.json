@@ -1,0 +1,21 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 6,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "slots-plus300": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "args": {
+        "--expert-cache": "10518"
+      }
+    }
+  },
+  "note": "V5 (the draft model shares the main expert cache) upper bound: the draft layer holds 675 MiB of experts in VRAM; giving the main cache the room is about +470 slots, here +300 (auto gave 10218). If +300 slots gains under 1%, V5 is dropped on a measured basis."
+}

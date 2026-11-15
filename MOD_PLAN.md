@@ -96,6 +96,7 @@ Test tiers (`abtest.py --tier`; answer each item at the cheapest tier that can):
 | drafting | `--spec 4` (official MTP depth; spec 2 -5%, spec 5/6 flat, T-118/T-149), `--spec-min-p 0.5`, `--lookup-max-t 12` (edit +8.8% +-6.8, quality PASS, T-126/T-127), English draft vocab |
 | prompt path | hipBLASLt 100401 table (1,345 -> 1,850-1,920 tok/s, T-096), `PF_GEMM`, `PF_F16=2`, `PF_FUSED=1` (see section 7: no HIP A/B recorded), `PF_PAD`, `PREFILL_AUTO_MAX=32768`, `PREFILL_CPU_SHARE=0.6`/`_MAX=4096`, `PREFILL_RING=192`, `SELECT_WMMA`, `HIP_WMMA=1`, Speedy opt-ins `PF_GROUP_SCRATCH`, `PF_HC_REGION`, `PROMPT_ATTN_IMMA`, `KV_PREFETCH` (taken from Speedy's numbers, no HIP A/B recorded) |
 | attention / KV | `--kv int8 --kv-resident 32768 --max-context 131072`, `ATTN_DAILY`, `QSA_ROWS`, `PA_FAST`, `KV_HOST_DMA` |
+| ECAP and cache (adopted 2026-11-15, owner) | `STRATA_VERIFY_ECAP=1` (edit +33.5% +-14.3, token forcing PASS +0.29 pts, T-270, T-310; with it the base edit prompt decodes 147.6 tok/s, T-560), `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` (prompt time -21.6%, T-183); sampling default temperature 0.1, top_p 0.95, top_k 20 |
 | deferral | `VERIFY_DEFER_CPU` OFF (owner decision 17.1; contested, section 4) |
 | server | grammar on (spec decoding mask 0.1-0.2% of a window, T-315), thinking caps `reasoning_budget_grace: 512` + close retry, `env_to_user`, `effort_position: end`, loop guard, tolerant tool calls, turn log, `AGENT_COUNTERS=1` (log only, T-513) |
 
@@ -103,12 +104,20 @@ Lossy switches in fast-hip (an exact bundle = fast minus these 11): `GDN_CONVL2`
 `PA_FAST`, `PF_F16=2`, `PF_HCDOWN`, `PREFILL_AUTO_MAX=32768`, `PREFILL_CPU_SHARE=0.6`, `ROUTE_TAIL_SKIP=0`,
 `SELECT_WMMA`. So the daily base is not bit-exact; "exact arm" in a spec means exact relative to this base.
 
-Other presets: `flashnext-iq2_xs-hip.json` (exact reference, not daily); `flashnext-iq2_xs-turbo-hip.json` = fast +
-`ROUTE_PRIOR=0.5` + `VERIFY_DEFER_CPU=1`, minus `AGENT_COUNTERS` (lossy; edit +29.7% n.s., token forcing INCONCLUSIVE
-+0.83 pts, T-245; all-prose -8%, T-387; not a default); Q2_0 `*-adopted.json` carry FUSE_PHASES, EXPDEC_DOWN,
+Retired presets (2026-11-15, moved to `configs/pancake/retired/`, restore with `git mv`; `run-pancake.sh turbo` exits with a
+message): `flashnext-iq2_xs-turbo-hip.json` / `-turbo.json` = fast + `ROUTE_PRIOR=0.5` (+ `VERIFY_DEFER_CPU=1`, minus
+`AGENT_COUNTERS` on HIP) (lossy; edit +29.7% n.s., token forcing INCONCLUSIVE +0.83 pts, T-245; all-prose -8%, T-387;
+interaction with ECAP untested) and `flashnext-iq2_xs-hip.json` (exact copy with no users). The one daily preset is
+`flashnext-iq2_xs-fast-hip.json`; Q2_0 `*-adopted.json` carry FUSE_PHASES, EXPDEC_DOWN,
 lookup 12, no deferral. Not in any preset: `ROUTE_PRIOR_AUTO`, `VERIFY_DEFER_AUTO` (-12.5% IQ2_XS, T-262),
-`KV_RING_ADAPT`, `PARK_REWIND_MAX`, `PARK_DIVERGENCE_LOG`, `PREFILL_EQUAL_TAIL`, `ADAPT_KMISS`, the cache levers,
-`VERIFY_ECAP`, `SUFFIX_INDEX`.
+`KV_RING_ADAPT`, `PARK_REWIND_MAX`, `PARK_DIVERGENCE_LOG`, `PREFILL_EQUAL_TAIL`, `ADAPT_KMISS`, `PARK_TRUNCATE`,
+`SUFFIX_INDEX`, `VERIFY_ECAP_MIN_ROWS`, the matrix-core kernels (`STRATA_RDNA_WMMA_MINCOLS`).
+
+Served instance: `tools/pancake/pancake.service` (systemd user unit, `run-pancake.sh iq2_xs fast` via `NOCAP=1`, port
+11437, 127.0.0.1 only, `MemoryMax=54G`, `Conflicts=` the old units; not enabled at boot). Start `systemctl --user start
+pancake` (ready in 1-3 min, log says `ready:`), stop it before any benchmark (it holds the whole card). Portal
+`http://127.0.0.1:11437/` and `/pancake`; opencode provider `strata` points at it. Live test: T-556. The old upstream
+`strata.service` and its config are in `retired-2026-11-15` folders on the box.
 
 Interactions: `ROUTE_PRIOR` set (even 0) disables ROUTE_PUBLISH / ROUTE_FAST / ROUTER_FUSE; deferral turns off 6
 fused paths process-wide (so A35 / ROUTER_FUSE "no-op under deferral" no longer holds with deferral off);
@@ -120,20 +129,21 @@ miss.
 
 | # | decision | data | what is missing |
 |---|---|---|---|
-| D1 | `STRATA_VERIFY_ECAP=1` into fast-hip | edit +33.5% +-14.3, short -3.3% n.s. (spec 56, T-270); token forcing +0.29 pts PASS (T-310). `ECAP=0`: edit +65.2% but +0.95 pts REJECT (T-271, T-311) | tool-call task gate on ecap1; spec 57 stack (ECAP=1 + lookup16 + suffix index + 9-col kernels) |
-| D2 | cache levers into fast-hip: `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` and/or `STRATA_PARK_TRUNCATE` 1280 | confirm on the live 11-09 replay: -21.6% +-14.8 prompt time (T-183), -23.1% +-11.8 (T-184), zero cold re-reads; screen T-182 | owner choice (RAM use); they overlap, test the pair if both wanted |
+| D1 | `STRATA_VERIFY_ECAP=1`: ADOPTED into fast-hip on 2026-11-15 (owner) | edit +33.5% +-14.3 (T-270); token forcing PASS (T-310); stack add-ons dropped (T-555, T-561). `ECAP=0` REJECT (+0.95 pts, T-271, T-311); window-gated variant `STRATA_VERIFY_ECAP_MIN_ROWS=9` with ECAP=0 queued (specs 60/61) | still missing: tool-call task gate on real agent prompts (a too-tight cap broke tool calls elsewhere); token forcing scores greedy tokens while the served default samples at temperature 0.1 |
+| D2 | cache levers: `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` ADOPTED 2026-11-15 (owner); `STRATA_PARK_TRUNCATE` 1280 not adopted | -21.6% +-14.8 prompt time (T-183), -23.1% +-11.8 for park-truncate (T-184); one recorded session | combined replay of both levers queued (spec 62) |
 | D3 | deferral on IQ2_XS | night retest: off vs on -0.9% overall, code -7.2%, prose -3.2% (T-260); Q2_0: off +8.9% (T-261); first A/B edit +15.8% (T-222) | 5-repeat edit-window A/B on the IQ2_XS preset; until then 17.1 (OFF) stands |
 | D4 | A24 `STRATA_SUFFIX_INDEX` | screen: short +26.8% +-34.4 (outlier), edit -0.0% (T-161); offline -2.44% rounds, sub-agents -7.5% (T-424); half the gain is from outputs older than a 30-min pause, so use the persistent `STRATA_SUFFIX_INDEX_FILE` (4 MiB -1.00%, 16 MiB -1.71%) | confirm + quality gate with the file on the daily server |
 | D5 | `PF_FUSED=1` / `PF_F16=2` in every HIP preset | the only A/B (T-093, pre-HIP preset): 42K -7% but 5K +12% TTFT | either a HIP A/B (spec) or a recorded owner decision |
-| D6 | 9-16 column RDNA K-quant kernels are now the code default (`kRdnaDefaultCols=16`, `kRdnaMaxCols=32`) | parity 192/192; engine +3.7/+3.8% screen, +1.8% +-7.8 / +4.3% +-5.0 confirm (T-081): inside noise | accept as default (it is a kernel default change, measured not worse) or gate behind `STRATA_RDNA_KQ_MAXCOLS` |
+| D6 | 9-16 column RDNA K-quant kernels are now the code default (`kRdnaDefaultCols=16`, `kRdnaMaxCols=32`) | parity 192/192 (tolerance); engine +3.7/+3.8% screen, +1.8% +-7.8 / +4.3% +-5.0 confirm (T-081): inside noise. The bitwise bench check fails: IQ4_XS multi-column output differs from 1-column calls at 12-32 cols (T-558), which can explain the short-case text variance of spec 51 | accept as default (it is a kernel default change, measured not worse) or gate behind `STRATA_RDNA_KQ_MAXCOLS` |
 | D7 | Phase 18 item 9 merged the window-input copies on the DEFAULT path (`copy_from_mapped_multi`, on unless `STRATA_MTP_MULTI_COPY=0`) | pure copies, `verify_parity` covers both modes; spec 30 never ran | run spec 30 (build-vs-build) or flip the default back |
 | D8 | Q2_0 vs IQ2_XS as the daily file | 15 screen +8.6% +-46.3 (T-382); 15c run unusable (T-384) | 15c redo |
 | D9 | A29 entropy-coded miss path | plan said "owner approved building it" and also "stay parked"; bound 8-12% < 20% park bar (T-282) | pick one |
-| D10 | housekeeping | 107 worktrees (~16 GB); stale upstream/HEAD ref; GPU clock back to auto after pinned runs; disk-tier cap (D 91-94% full); `PARK_REWIND_MAX` default; A41 read-before-edit hook warn-only trial (8/8 tests, not registered); cron `--night-only 23-07 --drop-cache`, `--reclaim-max 3.0`; sudo rules via `visudo`; Avalon 32K+ (shrink its context or drop the comparison: it OOMs at 32K+, T-174); delete `origin/NetworkPancake` (moved out of the repo to `C:\Users\iancu\NetworkPancake`) | owner |
+| D10 | housekeeping | done 2026-11-15: worktrees 107 -> 14 (28 GB freed), local branches 166 -> 9 (tip map `pancake-docs/research/bench/branch-tips-2026-11-15.tsv`), A41 hook registered warn-only (T-562; `RBE_MODE=hold` to block). Open: the remaining dirty worktrees, remote branch deletion, enable `pancake.service` at boot, stale upstream/HEAD ref; GPU clock back to auto after pinned runs; disk-tier cap (D at 76%); `PARK_REWIND_MAX` default; cron `--night-only 23-07 --drop-cache`, `--reclaim-max 3.0`; sudo rules via `visudo`; Avalon 32K+ (shrink its context or drop the comparison: it OOMs at 32K+, T-174); delete `origin/NetworkPancake` (moved out of the repo to `C:\Users\iancu\NetworkPancake`) | owner |
 
 ## 5. Run next: coded, never measured (GPU queue, in this order)
 
-1. **Spec 30** (D7) and **spec 57** (D1 stack). Fix the base path in specs 33 and 34 first
+1. **Results of the box chain** (running at 19:08 on 2026-11-15: specs 60 ECAP=0 + `STRATA_VERIFY_ECAP_MIN_ROWS=9` speed,
+   61 its quality gate, 62 the two cache levers combined on the replay): add them as ledger rows. Then **spec 30** (D7). Fix the base path in specs 33 and 34 first
    (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
    then run spec 33 (MTP bundle: `--mtp-q4 all --mtp-window 4096 --host-core sibling`) and spec 34's `pf-switch-min-t`
    arm (its `mmvq-wave1` arm is answered by T-072, `kv-grow` by T-391).
@@ -209,7 +219,7 @@ miss.
 | 14 | QSA long-prompt selection cost (Quest page-level or partial top-k) | after-12K gap 2.18 ms/token | lossy-ish |
 | 15 | uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
 | 16 | SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
-| 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); V5 (MTP layer ~0.9 GiB to the expert cache); U6; DraftPolicy cost-outlier clip | unmeasured | exact |
+| 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); DraftPolicy cost-outlier clip; IQ4_XS matrix-core kernel sharing the nibble-LUT decode between lane halves (`permlanex16`); the `fuse-wait` slow mode (78-91 tok/s runs at higher GPU clock, spec 44) | unmeasured | exact |
 
 Not packages any more (their parts are separate items above or in LEADS.md): 63 capability probe (`STRATA_PROBE` never
 built; became A45), 66 agent-turn pipeline, 68 miss-cost speculation, 69 memory arbiter, 72 GPU-floor package; 94
@@ -243,6 +253,11 @@ Code:
   research note says it is not built (expert_source.cpp:6155): re-check.
 - Planned but not in code: `STRATA_FORCE_ISA` avx512 / avx-vnni values (item 57), CPU governor setting (item 41);
   `--pool-affinity measure` is a no-op on the 5700G. PCIe 16 GT/s vs Gen3: settle with `lspci -vv`.
+
+The box plan entry of 2026-11-15 "FK-28 A/B was already run (spec 28)" is wrong: spec 28 (`28-phase18-draft.json`) arms
+`--spec 3/5` and `MTP_EAGER`, not `STRATA_ADAPT_PROMPT`, and `set_usage` still has no caller. FK-28 stays dead code.
+- Status page on the HIP box: GPU name null and backend labelled CUDA (cosmetic); the amdgpu sysfs reader (8a9c5bce7)
+  now supplies VRAM, temperature and power.
 
 Plan claims corrected (all now reflected above): Q2_0 is not the daily file (IQ2_XS is); FK-22 is F9 `ROUTE_FAST`,
 coded and dropped at confirm (T-068); FK-24 is F14, coded; `EXPDEC_DOWN` was measured and adopted; the 7 upstream picks
@@ -298,6 +313,11 @@ keeps thinking tokens): merge `origin/main` when convenient.
 - Prompt / TTFT: prefill CPU share arms (T-108), `WMMA_GEMM` (T-105), `PREFILL_AUTO_MAX=24576` (T-106), desc-cache off
   (T-101), BFLA as shared QSA selection (T-098), ContextPilot dedup (T-165), TTFT min-tokens / cache-mib arms on the
   10-turn session (T-178), `--ple-io mmap` (T-274), item 2 decode-cache through long prompts (T-163).
+- 2026-11-15 evening: V5 shared draft/main expert cache (upper bound, T-560), lookup window 16 with ECAP=1 (T-561),
+  ECAP=1 stack add-ons: suffix index, 9-column matrix-core kernel (T-555). Read and closed: q8atnight QSA block scores
+  (already `STRATA_SCORES_MULTI`), jeremiahritchey retained parked KV + verify (already in tree), TheHubUser4860938
+  "livelock" (another fork's memory sweep, not ours), VecSzn strata-poly disk expert I/O (not our path; spin already in
+  the pool), U6 ggml graph reuse (ggml internals; HIP graphs tested with no gain).
 - Other: `ROUTE_PRIOR` as a default (token forcing REJECT, T-294, T-295), tail skip 7 (T-298), `KV_RING_ADAPT` (T-291),
   `HW_QUEUES` default, `SELECT_LONG` (T-010, T-011), FK-04 aux-cpus / kv-grow (T-391), spec 31 arms (T-389), A20 entropy
   stop host cost (+17% thinking time, T-529), A43 / A38 constrained edits (T-443, T-459), A31 GDN chunk 64 numbers

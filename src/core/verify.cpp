@@ -3811,7 +3811,15 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
                    std::string& err) {
     // MOD_PLAN F5 STRATA_VERIFY_ECAP: set_ecap_window is this run's borrow, cleared here on every path (a later stage
     // clears its own in its run).  Never a prompt read (head sampling off: every row is committed) or a one-token window.
-    const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= 2 && head_sampling_;
+    // STRATA_VERIFY_ECAP_MIN_ROWS=N (default 2: every window of two rows or more, as before): the cap acts only in windows of
+    // N rows or more.  The long lookup windows carry 88% of the CPU expert work for draft rows and the 4-row windows only 71%
+    // of a smaller amount, so a gate at 9 keeps the short windows exact (spec 56: ECAP=0 gains on edit, not on short).
+    static const int ecap_min_rows = [] {
+        const char* v = std::getenv("STRATA_VERIFY_ECAP_MIN_ROWS");
+        const int n = v != nullptr ? std::atoi(v) : 2;
+        return n < 2 ? 2 : n;
+    }();
+    const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= ecap_min_rows && head_sampling_;
     ecap_next_ = false;
     // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: set_defer_window is this run's borrow too.  stage_inputs reads it below
     // (or prelaunch read it already, for a stage the previous one launched), so it is cleared at the exit of every path,

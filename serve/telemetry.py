@@ -352,7 +352,17 @@ def gpu_reader(index=0, amd=False):
     tests' AMD trees are read on a Mac too."""
     if amd:
         return _Amd(index)
-    return _Metal(index) if sys.platform == "darwin" else _Nvml(index)
+    if sys.platform == "darwin":
+        return _Metal(index)
+    g = _Nvml(index)
+    if not g.ok() and sys.platform.startswith("linux"):
+        # No NVML but an amdgpu card: the HIP build's config often has no "backend": "hip" key (the repo's *-hip
+        # presets do not), and the engine labels that build "CUDA", so `amd` arrives False and the status page
+        # showed no GPU name, VRAM or temperature on an AMD card.  The sysfs reader needs no library.
+        a = _Amd(index)
+        if a.ok():
+            return a
+    return g
 
 
 _DISPLAY_CLASS = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
@@ -567,6 +577,21 @@ class Telemetry:
         if win_amd is None and isinstance(self.gpu, _Metal) and self.gpu.ok():
             ws = metal_working_set()
             vram_total = ws >> 20 if ws else None
+        # Every reader reports the card's own VRAM size: NVML's memory info, the amdgpu sysfs mem_info_vram_total (#301),
+        # the Metal working set.  The status page's "VRAM total" and the TUI overview read this static key, and on Linux/AMD
+        # it used to stay empty while the live sample reported the used figure from the very same files.
+        # The total is the sum over the open cards, the same way sample() sums mem_total.
+        if vram_total is None and win_amd is None and self.gpu.ok():
+            total = 0
+            for _, reader in self.gpus:
+                if not reader.ok():
+                    continue
+                try:
+                    readings = reader.read()
+                except Exception:  # noqa: BLE001 - the size is a nicety; a run must not fail on it
+                    readings = {}
+                total += readings.get("mem_total") or 0
+            vram_total = total >> 20 if total else None
         self.static = {
             "gpu_name": gpu_name,
             "gpu_vram_total_mib": (sum(c["vram_bytes"] for c in win_amd) >> 20

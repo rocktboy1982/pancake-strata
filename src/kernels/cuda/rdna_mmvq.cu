@@ -260,7 +260,8 @@ __global__ void __launch_bounds__(256) rdna_wmma_kq_kernel(const uint8_t* __rest
                 d2 = __builtin_amdgcn_wmma_i32_16x16x16_iu8_w32(true, a1, false, ones, d2, false);
 #pragma unroll
                 for (int i = 0; i < 8; ++i) {
-                    const int col = min(2 * i + hi + 16 * nt, ncols - 1);
+                    const int col = 2 * i + hi + 16 * nt;
+                    if (col >= ncols) continue;   // only the window's own columns: at 4 columns 2 of the 8 outputs a lane
                     const float d8 = __low2float(x[(size_t) col * xs + sb * 8 + j].ds);
                     acc[nt][i] = fmaf(d8, f1 * (float) d1[i] - f2 * (float) d2[i], acc[nt][i]);
                 }

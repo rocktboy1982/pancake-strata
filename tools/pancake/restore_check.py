@@ -17,7 +17,7 @@ conversation to disk) and a server restart before "follow-up" (QUIT hands what i
 main turn after the first resumes from a state read back from disk; its answers must match the "reread" arm, and the
 engine log must show the tier writing and reading back.
 
-    python tools/pancake/restore_check.py [--preset flashnext-iq2_xs-hip] [--port 18437] [--max-tokens 96] [--disk] [--tool-boundary]
+    python tools/pancake/restore_check.py [--preset retired/flashnext-iq2_xs-hip] [--port 18437] [--max-tokens 96] [--disk] [--tool-boundary]
                                           [--control] [--teacher-forced] [--out FILE.json]
     python tools/pancake/restore_check.py --analyze FILE.json [--control-from OTHER.json]     (offline, no engine)
     python tools/pancake/restore_check.py --simulate FILE.json [...]                          (offline, no engine)
@@ -556,7 +556,7 @@ def judge(a, arms, reread, control, idle):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--preset", default="flashnext-iq2_xs-hip",
+    ap.add_argument("--preset", default="retired/flashnext-iq2_xs-hip",
                     help="configs/pancake preset (the exact HIP preset keeps decoding deterministic)")
     ap.add_argument("--port", type=int, default=18437)
     ap.add_argument("--max-tokens", type=int, default=96,

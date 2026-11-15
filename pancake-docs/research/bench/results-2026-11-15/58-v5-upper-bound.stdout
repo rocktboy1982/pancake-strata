@@ -1,0 +1,25 @@
+rep 0 base                 short 115.8 edit 147.4  foreign CPU 7% [('udisksd', 2), ('claude', 2), ('pipewire', 2)]  gpu 2051/1249 MHz 52C 164W gtt 21M cpu 3996MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 slots-plus300        short 92.3 edit 122.3  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1880/1249 MHz 52C 143W gtt 21M cpu 3817MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 1 slots-plus300        short 76.4 edit 108.2  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1993/1249 MHz 53C 142W gtt 21M cpu 3726MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 115.7 edit 147.5  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 53C 163W gtt 21M cpu 3993MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 116.0 edit 147.6  foreign CPU 6% [('claude', 10), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 53C 163W gtt 21M cpu 4338MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 2 slots-plus300        short 116.1 edit 148.4  foreign CPU 11% [('claude', 11), ('gnome-shell', 4), ('gnome-remote-de', 2)]  gpu 2051/1249 MHz 53C 164W gtt 21M cpu 3968MHz 51C igpu 1%/vcn 0% fclk 1600
+rep 3 slots-plus300        short 119.0 edit 148.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2052/1249 MHz 54C 166W gtt 21M cpu 3788MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 115.9 edit 148.1  foreign CPU 6% [('udisksd', 3), ('pipewire', 2), ('claude', 1)]  gpu 2036/1249 MHz 54C 163W gtt 21M cpu 3993MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 4 base                 short 115.8 edit 147.2  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 54C 164W gtt 21M cpu 3949MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 4 slots-plus300        short 116.2 edit 148.6  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 54C 165W gtt 21M cpu 4038MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 5 slots-plus300        short 118.9 edit 149.7  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2051/1249 MHz 54C 168W gtt 21M cpu 3925MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 5 base                 short 115.9 edit 147.8  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 54C 164W gtt 21M cpu 3957MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.9 +-   0.1  (n=6)
+                              drafts accepted 0.68
+  short  slots-plus300           106.5 +-  18.8  (n=6)   vs base:  -8.1% +- 16.1%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    147.6 +-   0.3  (n=6)
+                              drafts accepted 0.90
+  edit   slots-plus300           137.5 +-  18.7  (n=6)   vs base:  -6.8% +- 12.6%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  slots-plus300        DIFFERENT text -> lossy or placement-dependent: quality gate

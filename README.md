@@ -59,14 +59,14 @@ What moved pancake from Strata-rdna3's level to today's preset (each measured on
 | `STRATA_POOL_FUSE_PHASES` (one CPU pool phase per layer) | edit +2.5% +-1.7 | T-224 |
 | `STRATA_EXPDEC_DOWN` (Q2_0 down rows on the EXPDEC kernel) | short +1.7% +-0.5 | T-037, T-040 |
 
-Measured, waiting for an owner decision (MOD_PLAN.md section 4): `STRATA_VERIFY_ECAP=1` (edit **+33.5% +-14.3**, token
-forcing PASS; T-270, T-310), the conversation-cache levers (prompt time on a replayed real agent session **-21.6%** with
-`--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192`, **-23.1%** with `STRATA_PARK_TRUNCATE`; T-183,
-T-184), and the suffix index across sessions (T-161).
+Adopted on 2026-11-15: `STRATA_VERIFY_ECAP=1` (edit **+33.5% +-14.3**, token forcing PASS; T-270, T-310; with it the
+preset decodes edit prompts at **147.6 tok/s**, T-560) and the conversation cache 2048 MiB / min 8192 tokens (prompt time
+on a replayed real agent session **-21.6%**, T-183). Still measured and undecided: `STRATA_PARK_TRUNCATE` (-23.1%, T-184)
+and the suffix index (T-161).
 
-The opt-in lossy `turbo-hip` preset (cache-aware routing, `STRATA_ROUTE_PRIOR=0.5`) is not a speed win on this card:
-edit +29.7% with an interval that includes zero, all-prose -8%, token forcing INCONCLUSIVE (T-245, T-387). It stays
-opt-in and off by default.
+The lossy `turbo-hip` preset (cache-aware routing, `STRATA_ROUTE_PRIOR=0.5`) was not a speed win on this card (edit +29.7%
+with an interval that includes zero, all-prose -8%, token forcing INCONCLUSIVE; T-245, T-387) and was retired on
+2026-11-15 together with the unused exact `-hip` copy (`configs/pancake/retired/`).
 
 ### 2B. RTX 3060 12 GB (CUDA, sm_86; card removed 2026-11-08)
 
@@ -550,7 +550,7 @@ renders the preset, and serves on `PORT` (default 8080). `STRATA_DATA` (default 
 and `MODELS` (default `/home/dan/clone-of-d/models`) hold the files. Models: `iq2_xs` (Flash-Next IQ2_XS, the daily
 model), `q2_0` (Flash-Next Q2_0), `qwen36` (Qwen3.6-35B-A3B UD-Q4_K_XL, `strata-poly`, CUDA only), `qwen36-q3`
 (UD-Q3_K_M), `qwen38-35b` (Qwen3.8-35B-A3B-Distill Q4_K_M). Speed levels: `fast` (Speedy's switch stack, default for
-Flash-Next), `exact` (plain), `turbo` (IQ2_XS only, lossy: adds `STRATA_ROUTE_PRIOR=0.5` and `STRATA_VERIFY_DEFER_CPU=1`).
+Flash-Next), `exact` (plain), `turbo` (retired 2026-11-15; the script exits with a message).
 
 The preset set in `configs/pancake/` (one JSON per model, quant, speed level, and GPU):
 
@@ -558,10 +558,10 @@ The preset set in `configs/pancake/` (one JSON per model, quant, speed level, an
 | --- | --- | --- | --- |
 | `flashnext-iq2_xs` | Flash-Next IQ2_XS | CUDA | exact |
 | `flashnext-iq2_xs-fast` | Flash-Next IQ2_XS | CUDA | fast |
-| `flashnext-iq2_xs-turbo` | Flash-Next IQ2_XS | CUDA | turbo (lossy) |
-| `flashnext-iq2_xs-hip` | Flash-Next IQ2_XS | HIP | exact |
-| `flashnext-iq2_xs-fast-hip` | Flash-Next IQ2_XS | HIP | fast, the daily preset (short 111.5 / edit 112.3 tok/s, T-392) |
-| `flashnext-iq2_xs-turbo-hip` | Flash-Next IQ2_XS | HIP | turbo (lossy; no significant gain, T-245, T-387) |
+| `retired/flashnext-iq2_xs-turbo` | Flash-Next IQ2_XS | CUDA | retired 2026-11-15 |
+| `retired/flashnext-iq2_xs-hip` | Flash-Next IQ2_XS | HIP | retired 2026-11-15 |
+| `flashnext-iq2_xs-fast-hip` | Flash-Next IQ2_XS | HIP | fast, the one daily preset (ECAP=1 + cache 2048/8192; edit 147.6 tok/s, T-560) |
+| `retired/flashnext-iq2_xs-turbo-hip` | Flash-Next IQ2_XS | HIP | retired 2026-11-15 (lossy; no significant gain, T-245, T-387) |
 | `flashnext-iq2_xs-rdna3test` | Flash-Next IQ2_XS | HIP | RDNA3 kernel test bench |
 | `flashnext-q2_0` | Flash-Next Q2_0 | CUDA | exact |
 | `flashnext-q2_0-fast` | Flash-Next Q2_0 | CUDA | fast |
@@ -736,7 +736,6 @@ restore gate), `abtest.py --reclaim-max` (block mode, the robust outlier rule an
 ./run-pancake.sh                  # Flash-Next IQ2_XS, fast preset, picks CUDA or HIP by itself
 ./run-pancake.sh iq2_xs fast      # same, explicit
 ./run-pancake.sh q2_0 fast        # Flash-Next Q2_0, 134.7-136.1 tok/s on the 7900 XT (T-377)
-./run-pancake.sh iq2_xs turbo     # lossy opt-in, no significant gain on the 7900 XT (section 2A)
 ./run-pancake.sh qwen36           # Qwen3.6-35B-A3B on strata-poly (CUDA only)
 ./run-pancake.sh qwen36-q3        # the smaller Qwen3.6 file
 ./run-pancake.sh qwen38-35b       # the Qwen3.8-35B distill, MTP layer borrowed from Qwen3.6
@@ -866,6 +865,9 @@ Credits, in the order the stack was built:
   rows (`STRATA_EXP_MODE=9`, `STRATA_EXP9_DOWN`, commits `9af8f1fa14` and `4d462ccff3`).
 - **jmnargi** (Strata-V100, MIT), for the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts (commits `24894e676b`,
   `7c5041c358`, `376355453f`; upstream PR #3545), and for measuring how a too-tight cap breaks tool calls.
+- **ExTV** (strata-5090-4070, a Strata fork), for the second rule of its patch 02 "drop superseded parked copies" (upstream PR #3404): an older, shorter
+  state of the same conversation with at most a tenth of its tokens outside the outgoing ones is also dropped. Ported as the opt-in
+  `ConversationCache::set_rewrite_supersede` (default off, not wired into the engine: no gain on the recorded 2026-11-09 session).
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
 - **xyzzing** (author of upstream Strata PR #3919, and of the measurement repo `xyzzing/rdna3-inference-ledger`, CC-BY-4.0), for the
   depth-adaptive resident K/V ring (`STRATA_KV_RING_ADAPT`): the 32768-cell floor and the "cap only from 2 x cap cells" rule, PR commits

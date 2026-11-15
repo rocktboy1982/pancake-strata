@@ -8,12 +8,10 @@
 #   qwen36-q3   Qwen3.6-35B-A3B, Unsloth UD-Q3_K_M     - strata-poly, smaller and faster
 #   qwen38-35b  Qwen3.8-35B-A3B-Distill Q4_K_M (empero: Qwen3.6 fine-tuned on Qwen3.8 answers) - strata-poly, the
 #               MTP drafting layer borrowed from the Qwen3.6 Q4_K_XL file
-# Flash-Next defaults to the fast preset (Speedy's switches: ~13% faster writing after long prompts; it passed the
-# token-forcing quality check, TEST_LEDGER.md T-543).  `exact`: the same answers as plain decoding.
-# `turbo` (IQ2_XS only, lossy opt-in): fast + cache-aware routing (STRATA_ROUTE_PRIOR=0.5), +25% decode on the 3060
-# but 2.9% of tokens differ from exact decoding (stock noise 1.2-1.3%, no large-margin errors; MOD_PLAN 8.9).
-# RX 7900 XT (no NVIDIA card): build-hip and the *-hip presets where they exist - iq2_xs fast (default, ~126 tok/s), exact,
-# turbo (~168, lossy); q2_0 fast (~135 tok/s) / turbo: a lower-quality quant (80.6% same top token as Q8_0, docs/QUANTS.md).
+# Flash-Next defaults to the fast preset, the one daily preset on the RX 7900 XT (flashnext-iq2_xs-fast-hip.json:
+# measured switches, STRATA_VERIFY_ECAP=1, conversation cache 2048 MiB / min 8192 tokens; numbers and test ids in
+# MOD_PLAN.md section 3 and TEST_LEDGER.md).  `exact`: plain decoding.  `turbo`: retired 2026-11-15 (MOD_PLAN.md section 3).
+# q2_0 fast (134.7-136.1 tok/s, T-377): a lower-quality quant (80.6% same top token as Q8_0, docs/QUANTS.md).
 # STRATA_DATA (default /home/dan/clone-of-d/Strata-data) and MODELS (default /home/dan/clone-of-d/models) hold the
 # files; PORT defaults to 8080.
 cd "$(dirname "$0")" || exit 1
@@ -26,7 +24,7 @@ for a in "$@"; do
   case "$a" in
     fast) FAST=-fast ;;
     exact) FAST= ;;
-    turbo) FAST=-turbo ;;
+    turbo) echo "the turbo presets were retired 2026-11-15 (MOD_PLAN.md section 3); the lossy speed-up is STRATA_VERIFY_ECAP=1 in the fast preset" >&2; exit 2 ;;
     iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b) MODEL=$a ;;
     *) echo "usage: $0 [iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b] [fast|exact|turbo]" >&2; exit 2 ;;
   esac

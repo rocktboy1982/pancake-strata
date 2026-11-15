@@ -554,6 +554,8 @@ bool bf16_gemv_fp32_mmvf_multi_aux(const float* x, int64_t ldx, const uint16_t* 
         case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
         case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
         case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 7: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 7, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 8: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
         default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
     } break
         switch (mmvf_block_size(n_in)) {
@@ -614,7 +616,8 @@ void bf16_gemv_fp32_mmvf_multi(const float* x, int64_t ldx, const uint16_t* w, f
         return;
     }
     // 9..16 rows (wide builds only): one exact instantiation per row count, each row's dot independent of the others.  7 and 8
-    // rows stay with the default case below, the instantiation they always had.
+    // rows have their own exact instantiations too (they used to fall to the default case below, <N, 8, false>, which cost
+    // 0.033 to 0.036 ms on the 512-row router against 0.013 at 6 rows and 0.015 at 9 rows, b6_mmvq_bench 2026-11-15).
 #if STRATA_VERIFY_MAX_T > 8
 #define STRATA_MMVF_W(N, T) case T: launch_pdl(bf16_f32_mmvf_multi_kernel<N, T, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break;
 #if STRATA_VERIFY_MAX_T > 12
@@ -637,6 +640,8 @@ void bf16_gemv_fp32_mmvf_multi(const float* x, int64_t ldx, const uint16_t* w, f
         case 4: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 4, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
         case 5: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 5, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
         case 6: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 6, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 7: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 7, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
+        case 8: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, true>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
         default: launch_pdl(bf16_f32_mmvf_multi_kernel<N, 8, false>, dim3((unsigned) (n_out + n_aux)), dim3(N), 0, st, x, ldx, w, y, ldy, (int) n_in, n_tok, mmvf_fast(), w_aux, y_aux, ldy_aux, (int) n_out, take_pub(N, x)); break; \
     } break
     const uint16_t* w_aux = nullptr; float* y_aux = nullptr; const int64_t ldy_aux = 0; const int64_t n_aux = 0;

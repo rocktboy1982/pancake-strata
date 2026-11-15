@@ -1,0 +1,32 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 1,
+  "arms": {
+    "noecap": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": ""
+      }
+    },
+    "ecap0-min9": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
+      }
+    },
+    "ecap0-min6": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "6"
+      }
+    }
+  },
+  "note": "Token-forcing gate for the window-gated ECAP=0 (first arm = stock with ECAP off)."
+}

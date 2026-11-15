@@ -1,0 +1,41 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 6,
+  "arms": {
+    "noecap": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": ""
+      }
+    },
+    "ecap1": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "ecap0": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0"
+      }
+    },
+    "ecap0-min9": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
+      }
+    },
+    "ecap0-min6": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "6"
+      }
+    }
+  },
+  "note": "ECAP gated by window size: cap 0 only in windows of 9 (or 6) rows or more, 4-row windows exact. noecap = STRATA_VERIFY_ECAP empty (off); the preset itself carries ECAP=1."
+}
