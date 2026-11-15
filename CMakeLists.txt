@@ -731,6 +731,15 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME head_argmax_parity COMMAND head_argmax_parity)
     set_tests_properties(head_argmax_parity PROPERTIES SKIP_RETURN_CODE 77)
   endif()
+  # LEADS.md "LongSpec/Hybrid Tree" (STRATA_ATTN_QMAJOR): the decode attention parity harness on HIP too (the CUDA build
+  # registers it as qsa_merge_daily_parity*): chunk kernel 2 and the production entry with the query-major launch on
+  if(STRATA_ENABLE_HIP AND STRATA_BUILD_TESTS AND NOT STRATA_HIP_GFX906)
+    add_executable(qsa_qmajor_parity src/kernels/qsa_merge_daily_parity.cpp)
+    target_include_directories(qsa_qmajor_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(qsa_qmajor_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME qsa_qmajor_parity COMMAND qsa_qmajor_parity)
+    set_tests_properties(qsa_qmajor_parity PROPERTIES ENVIRONMENT "STRATA_ATTN_QMAJOR=1" SKIP_RETURN_CODE 77)
+  endif()
   # Exact gfx1100 prompt scorer (PR1825 method port): optional standalone test,
   # also available where the published source omits tests/.
   option(STRATA_PARITY_GFX1100_QSA_SCORES "Build the exact gfx1100 QSA score/ID check" OFF)
@@ -821,6 +830,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     set_tests_properties(qsa_merge_daily_parity_default PROPERTIES ENVIRONMENT "STRATA_ATTN_DAILY=0"
                          SKIP_RETURN_CODE 77)
     set_tests_properties(qsa_merge_daily_parity_daily PROPERTIES ENVIRONMENT "STRATA_ATTN_DAILY=1"
+                         SKIP_RETURN_CODE 77)
+    # LEADS.md "LongSpec/Hybrid Tree" (STRATA_ATTN_QMAJOR): the production entry with the query-major launch on
+    add_test(NAME qsa_merge_daily_parity_qmajor COMMAND qsa_merge_daily_parity)
+    set_tests_properties(qsa_merge_daily_parity_qmajor PROPERTIES ENVIRONMENT "STRATA_ATTN_DAILY=0;STRATA_ATTN_QMAJOR=1"
                          SKIP_RETURN_CODE 77)
     # the prompt path's block scores on the thread-per-head kernel (Turing) against the warp kernel, bitwise
     add_executable(qsa_scores_parity src/kernels/qsa_scores_parity.cpp)

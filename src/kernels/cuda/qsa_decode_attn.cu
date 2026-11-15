@@ -123,7 +123,9 @@ __device__ __forceinline__ int reduce12_head_of_lane(int lane) {
 // The chunk kernel's body; `p` is the query's KV pools (the call's one set, or blockIdx.z's slot's set).
 // (the body is a device function so the batch window's rows kernel below can run it over each query's own pools without
 // the default kernel's signature, or the function-pointer types the pre-sm_75 / HIP selections build, changing)
-template <int KV_MODE, bool LANE_CELL, bool QUERY_SWIZZLE, bool REDUCE12>
+// QMAJOR (STRATA_ATTN_QMAJOR, attn_chunk_qmajor_kernel): the grid is (query, chunk, kv head) instead of (chunk, kv head,
+// query) - only which block computes what moves; every block's arithmetic is the default's.
+template <int KV_MODE, bool LANE_CELL, bool QUERY_SWIZZLE, bool REDUCE12, bool QMAJOR = false>
 __device__ __forceinline__ void attn_chunk_body(const float* __restrict__ q, QsaAttnPools p,
                                                 const int32_t* __restrict__ ids, const int32_t* __restrict__ step,
                                                 int n_kv_heads, int page_size, float scale,
@@ -131,17 +133,18 @@ __device__ __forceinline__ void attn_chunk_body(const float* __restrict__ q, Qsa
                                                 float* __restrict__ part_l, int n_chunks, int cap,
                                                 long long scratch_stride) {
     // batched form: query blockIdx.z, with its own q row, selection, step and scratch
-    q += (size_t) blockIdx.z * (size_t) (n_kv_heads * G) * HD;
-    ids += (size_t) blockIdx.z * (size_t) cap;
-    step += (size_t) blockIdx.z * kStepCount;
-    part_acc += (size_t) blockIdx.z * (size_t) scratch_stride;
-    part_m += (size_t) blockIdx.z * (size_t) scratch_stride;
-    part_l += (size_t) blockIdx.z * (size_t) scratch_stride;
+    const unsigned qz = QMAJOR ? blockIdx.x : blockIdx.z;
+    q += (size_t) qz * (size_t) (n_kv_heads * G) * HD;
+    ids += (size_t) qz * (size_t) cap;
+    step += (size_t) qz * kStepCount;
+    part_acc += (size_t) qz * (size_t) scratch_stride;
+    part_m += (size_t) qz * (size_t) scratch_stride;
+    part_l += (size_t) qz * (size_t) scratch_stride;
     __shared__ __align__(16) float sq[G][HD];     // 12 KB: this KV head's query heads
     __shared__ float sp[G][CHUNK];                // scores, then probabilities
     __shared__ long long srow[CHUNK];             // pool row of each cell (page, kv head, slot)
     const int n_ids = __ldg(step + kStepWidth);
-    const int chunk = blockIdx.x, kvh = blockIdx.y;
+    const int chunk = QMAJOR ? (int) blockIdx.y : (int) blockIdx.x, kvh = QMAJOR ? (int) blockIdx.z : (int) blockIdx.y;
     const int t = threadIdx.x, lane = t & 31, warp = t >> 5;
     const int c0 = chunk * CHUNK;
     const int n_here = min(CHUNK, n_ids - c0);
@@ -327,6 +330,29 @@ __global__ void __launch_bounds__(THREADS) attn_chunk_rows_kernel(const float* _
                                                                   long long scratch_stride) {
     attn_chunk_body<KV_MODE, false, false, false>(q, rows.p[blockIdx.z], ids, step, n_kv_heads, page_size, scale,
                                                   part_acc, part_m, part_l, n_chunks, cap, scratch_stride);
+}
+
+// LEADS.md "LongSpec/Hybrid Tree: verify rows read prefix KV once" (LongSpec arXiv 2502.17421, Hybrid Tree attention: the
+// window's rows share the prefix, so its KV should come from DRAM once, not once per row).  STRATA_ATTN_QMAJOR=1 (opt-in):
+// attn_chunk_kernel's blocks launched query-fastest, grid (n_q, n_chunks, n_kv_heads) - the window's rows' blocks for one
+// chunk of their (largely common, position-sorted) selections run side by side and read the same K/V rows through L2 /
+// the Infinity Cache instead of each row streaming the whole selection on its own.  The same body, the same partials:
+// bitwise attn_chunk_kernel (qsa_merge_daily_parity, chunk kernel 2).
+template <int KV_MODE>
+__global__ void __launch_bounds__(THREADS) attn_chunk_qmajor_kernel(const float* __restrict__ q, QsaAttnPools p,
+                                                                    const int32_t* __restrict__ ids,
+                                                                    const int32_t* __restrict__ step, int n_kv_heads,
+                                                                    int page_size, float scale,
+                                                                    float* __restrict__ part_acc,
+                                                                    float* __restrict__ part_m,
+                                                                    float* __restrict__ part_l, int n_chunks, int cap,
+                                                                    long long scratch_stride) {
+    attn_chunk_body<KV_MODE, false, false, false, true>(q, p, ids, step, n_kv_heads, page_size, scale, part_acc, part_m,
+                                                        part_l, n_chunks, cap, scratch_stride);
+}
+bool attn_qmajor_on() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_ATTN_QMAJOR"); return e != nullptr && e[0] == '1'; }();
+    return v;
 }
 
 #if !defined(__HIPCC__)
@@ -1050,6 +1076,34 @@ void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_
                      use_query_swizzle, (long long) n_q, (long long) cap, kv_mode, lane_cell);
     }
 #endif
+    // STRATA_ATTN_QMAJOR=1 (opt-in, bitwise; LEADS.md "LongSpec/Hybrid Tree"): the default chunk kernel's blocks, query
+    // fastest (attn_chunk_qmajor_kernel); kernel 2 = the parity harness's name for it.  Where another variant would run
+    // (lane-cell, the pre-sm_75 kernel, the Turing v3 kernel, the gfx906 swizzle) the switch stands aside.
+    {
+        bool qmajor = kernel == 2;
+        if (kernel < 0 && n_q > 1 && attn_qmajor_on() && !lane_cell) {
+            qmajor = true;
+#if defined(STRATA_ATTN_PRE75_BUILT)
+            if (pre) qmajor = false;
+#endif
+#if defined(STRATA_HIP_GFX906)
+            if (use_query_swizzle) qmajor = false;
+#endif
+#if !defined(__HIPCC__)
+            if (kv_mode == 1 && attn_v3_on()) qmajor = false;
+#endif
+        }
+        if (qmajor) {
+            const dim3 gq((unsigned) n_q, (unsigned) n_chunks, (unsigned) s.n_head_kv);
+#define STRATA_ATTN_QM(M) attn_chunk_qmajor_kernel<M><<<gq, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
+            if (kv_mode == 3) STRATA_ATTN_QM(3);
+            else if (kv_mode == 2) STRATA_ATTN_QM(2);
+            else if (kv_mode == 1) STRATA_ATTN_QM(1);
+            else STRATA_ATTN_QM(0);
+#undef STRATA_ATTN_QM
+            return;
+        }
+    }
 #define STRATA_ATTN_LC(M) attn_chunk_kernel<M, true><<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
     if (lane_cell) {
         if (kv_mode == 3) STRATA_ATTN_LC(3);
@@ -1319,7 +1373,7 @@ void qsa_decode_attn_chunks_only(const float* q, const QsaAttnPools& pools, cons
                                  int64_t cap, const QsaShapes& s, float* scratch, int64_t n_q, int daily_chunk,
                                  void* stream) {
     if (n_q <= 0 || n_q > 65535 || s.head_dim != HD || s.n_head != (int64_t) G * s.n_head_kv || cap <= 0 || !scratch ||
-        !q || !ids || !steps || !pools.page_table || (daily_chunk != 0 && daily_chunk != 1)) {
+        !q || !ids || !steps || !pools.page_table || daily_chunk < 0 || daily_chunk > 2) {
         std::fprintf(stderr, "qsa_decode_attn_chunks_only: unsupported geometry or missing buffers\n");
         std::exit(1);
     }
