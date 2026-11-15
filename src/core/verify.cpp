@@ -818,6 +818,7 @@ Verifier::~Verifier() {
     if (qcnt_) cudaFree(qcnt_);
     if (gr_sync_) cudaFree(gr_sync_);
     if (d_spec_) cudaFree(d_spec_);
+    if (d_typ_) cudaFree(d_typ_);
     if (tap_file_) std::fclose(tap_file_);
 #if !defined(STRATA_GPU_METAL)   // (on Metal tap_dev_ is the window's unified-memory buffer, not an allocation of this object)
     if (tap_dev_) cudaFree(tap_dev_);
@@ -6224,6 +6225,41 @@ bool Verifier::copy_logits(int t, float* host) const {
     if (head_logits_ == nullptr || host == nullptr || t < 0 || n_vocab_ <= 0) return false;
     return cudaMemcpy(host, head_logits_ + (size_t) t * (size_t) n_vocab_, (size_t) n_vocab_ * sizeof(float),
                       cudaMemcpyDeviceToHost) == cudaSuccess;
+}
+
+// LEADS.md section 3 STRATA_TYPICAL_THINK (Medusa typical acceptance, Cai et al. arXiv 2401.10774; spec/window_rule.hpp): the
+// flags of rows 0..T-2 for the drafts tokens[1..T-1], from the last window's head logits.  Off the window graph: called only by
+// a sampled request inside its thinking, after run() has synced.
+bool Verifier::typical_rows(int T, const int32_t* tokens, float temperature, float eps, float alpha, int32_t* ok) {
+#if defined(STRATA_GPU_METAL)
+    (void) T; (void) tokens; (void) temperature; (void) eps; (void) alpha; (void) ok;
+    return false;
+#else
+    if (next_ != nullptr) return next_->typical_rows(T, tokens, temperature, eps, alpha, ok);   // the head is on the last stage
+    const int n = T - 1;
+    if (head_logits_ == nullptr || tokens == nullptr || ok == nullptr || n < 1 || T > max_t_ || T > strata::kernels::kVerifyLongT ||
+        n_vocab_ <= 0)
+        return false;
+    const OnDevice on_device(device_);
+    constexpr int L = strata::kernels::kVerifyLongT;
+    if (d_typ_ == nullptr && cudaMalloc((void**) &d_typ_, (size_t) 2 * L * sizeof(int32_t)) != cudaSuccess) {
+        (void) cudaGetLastError();
+        d_typ_ = nullptr;
+        return false;
+    }
+    if (cudaMemcpyAsync(d_typ_, tokens + 1, (size_t) n * sizeof(int32_t), cudaMemcpyHostToDevice, cs_) != cudaSuccess) {
+        (void) cudaGetLastError();
+        return false;
+    }
+    strata::kernels::typical_accept_rows(head_logits_, n, (int) n_vocab_, d_typ_, temperature, eps, alpha, d_typ_ + L, nullptr,
+                                         nullptr, cs_);
+    if (cudaMemcpyAsync(ok, d_typ_ + L, (size_t) n * sizeof(int32_t), cudaMemcpyDeviceToHost, cs_) != cudaSuccess ||
+        cudaStreamSynchronize(cs_) != cudaSuccess) {
+        (void) cudaGetLastError();
+        return false;
+    }
+    return true;
+#endif
 }
 
 bool Verifier::copy_head_row(int t, float* host) const {

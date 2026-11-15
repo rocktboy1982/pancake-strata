@@ -28,6 +28,11 @@
 //           min(1, p/q)'s p).  Entry j-1 is the target's probability of window[j] given rows 0..j-1 (raw logits, temperature 1).
 //           Written only with STRATA_WINDOW_TRACE_TARGET=1, after the rowmiss record and before the layers.  A merged prompt
 //           window (accepted 255) has no drafts: its entries are the prompt's own tokens and readers must skip them.
+//   entropy: u8 7, u8 n, u16 0, n x f32 entropy, n x f32 runner-up probability: the drafter's softmax entropy (nats) of each
+//           drafted token's row and the probability of its second-best token (LEADS.md section 3, "drafter top-k + entropy on
+//           device", extending record 4).  Entry j-1 is row j, as in record 4; NaN for a row the MTP did not draw (lookup,
+//           chained, DFlash2) or drew without the full softmax.  Written right after record 4, only with STRATA_DRAFT_ENTROPY=1
+//           (or a STRATA_SPEC_ENTROPY rule).  Readers that do not know type 7 stop at it.
 // Only the serve verify windows (drive_pool_multi_impl + the commit in the serve loop) write it.
 #include "strata/core/row_miss.hpp"
 
@@ -137,6 +142,16 @@ public:
         put(h, 4);
         put(prob, (size_t) n * 4);
         put(src, (size_t) n);
+    }
+
+    /// Record 7 (STRATA_DRAFT_ENTROPY): the drafter's entropy and runner-up probability of draft rows 1..n; call right after drafts().
+    void draft_entropy(const float* ent, const float* top2, int n) {
+        if (f_ == nullptr || ent == nullptr || top2 == nullptr || n <= 0) return;
+        n = std::min(n, 255);
+        const uint8_t h[4] = {7, (uint8_t) n, 0, 0};
+        put(h, 4);
+        put(ent, (size_t) n * 4);
+        put(top2, (size_t) n * 4);
     }
 
     /// A window that ended without a commit (an error, a cancelled request): its layers are dropped.

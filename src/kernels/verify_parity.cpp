@@ -9,6 +9,7 @@
 #include "strata/kernels/quantize_act.hpp"
 #include "strata/kernels/sampler.hpp"
 #include "strata/kernels/verify_kernels.hpp"
+#include "strata/spec/window_rule.hpp"   // the host references of row_entropy / typical_accept_rows (LEADS.md section 3)
 
 #include <cuda_runtime.h>
 
@@ -257,6 +258,86 @@ void bench_head_ops(cudaStream_t s) {
     (void) cudaFree(st);
 }
 
+// LEADS.md section 3: row_entropy (STRATA_DRAFT_ENTROPY: the draft stop rules, window-trace record 7) and typical_accept_rows
+// (STRATA_TYPICAL_THINK, Medusa typical acceptance) against the double-precision host references in spec/window_rule.hpp.
+// Not bitwise (the kernels sum FP32 in row_top_prob's order with __expf): entropy and probabilities within a relative 2e-4
+// (+1e-6 absolute), NaN exactly where the reference is NaN, and the typical flags equal wherever p is not within 1e-3 of the
+// threshold.  Rows: normal logits (sd 4) with a tie at the top, a flat row, a row of mostly -inf, a row holding a NaN; both
+// vocabularies; candidates = the argmax, a random token, -1 and n (out of range); temperatures 1.0 and 0.6.
+int test_entropy_typical(std::mt19937& rng, cudaStream_t s) {
+    using namespace strata::kernels;
+    int bad = 0;
+    std::normal_distribution<float> nd(0.0f, 4.0f);
+    auto close = [](double g, double r) {
+        if (r != r) return g != g;
+        return std::abs(g - r) <= 2e-4 * std::abs(r) + 1e-6;
+    };
+    for (const int n : {248320, 40525, 33}) {
+        const int rows = 6;
+        std::vector<float> h((size_t) rows * n);
+        for (float& v : h) v = nd(rng);
+        for (int r = 0; r < rows; ++r) {
+            float* row = h.data() + (size_t) r * n;
+            if (r == 1) for (int i = 0; i < n; ++i) row[i] = 0.5f;                                  // flat
+            if (r == 2) for (int i = 0; i < n; ++i) row[i] = i % 5 ? -INFINITY : nd(rng);           // mostly -inf
+            if (r == 3) row[(int) (rng() % n)] = std::nanf("");                                     // NaN: entropy NaN, nothing kept
+            if (r == 4) { const int a = (int) (rng() % n), b = (int) (rng() % n); row[a] = row[b] = 30.0f; }   // a tie at the top
+        }
+        float* d_l = dev<float>(h.size());
+        up(d_l, h);
+        int* d_ids = dev<int>(rows);
+        float* d_ent = dev<float>(rows);
+        float* d_t2 = dev<float>(rows);
+        SamplerParams sp;
+        sp.greedy = true;
+        sp.temperature = 0.0f;
+        sample_tokens(d_l, rows, n, nullptr, 0, sp, d_ids, s);
+        row_entropy(d_l, rows, n, (const int32_t*) d_ids, d_ent, d_t2, s);
+        check(cudaStreamSynchronize(s), "row_entropy");
+        const std::vector<int> ids = down(d_ids, rows);
+        const std::vector<float> ent = down(d_ent, rows), t2 = down(d_t2, rows);
+        for (int r = 0; r < rows; ++r) {
+            double rt2 = 0.0;
+            const double re = strata::spec::row_entropy_ref(h.data() + (size_t) r * n, n, ids[r], &rt2);
+            if (!close(ent[r], re) || !close(t2[r], rt2)) {
+                if (bad < 8) std::printf("  row_entropy n %d row %d: H %.9g / %.9g, top2 %.9g / %.9g\n", n, r, ent[r], re, t2[r], rt2);
+                ++bad;
+            }
+        }
+        for (const float temp : {1.0f, 0.6f}) {
+            std::vector<int32_t> cand(rows);
+            for (int r = 0; r < rows; ++r) cand[r] = r == 0 ? ids[r] : r == 1 ? -1 : r == 5 ? n : (int32_t) (rng() % n);
+            cand[4] = ids[4];
+            int32_t* d_c = dev<int32_t>(rows);
+            int32_t* d_ok = dev<int32_t>(rows);
+            float* d_pc = dev<float>(rows);
+            float* d_hc = dev<float>(rows);
+            up(d_c, cand);
+            typical_accept_rows(d_l, rows, n, d_c, temp, 0.09f, 0.3f, d_ok, d_pc, d_hc, s);
+            check(cudaStreamSynchronize(s), "typical_accept_rows");
+            const std::vector<int32_t> ok = down(d_ok, rows);
+            const std::vector<float> pc = down(d_pc, rows), hc = down(d_hc, rows);
+            for (int r = 0; r < rows; ++r) {
+                double rp = 0.0, rh = 0.0;
+                const bool rok = strata::spec::typical_row_ref(h.data() + (size_t) r * n, n, cand[r], temp, 0.09f, 0.3f, &rp, &rh);
+                const double thr = rh == rh ? (double) strata::spec::TypicalAccept::threshold(0.09f, 0.3f, (float) rh) : 0.0;
+                const bool near = rp == rp && std::abs(rp - thr) <= 1e-3 * thr;
+                if (!close(pc[r], rp) || !close(hc[r], rh) || (!near && (ok[r] != 0) != rok)) {
+                    if (bad < 8)
+                        std::printf("  typical n %d T %.1f row %d cand %d: ok %d / %d, p %.9g / %.9g, H %.9g / %.9g\n", n, (double) temp,
+                                    r, cand[r], ok[r], (int) rok, pc[r], rp, hc[r], rh);
+                    ++bad;
+                }
+            }
+            (void) cudaFree(d_c); (void) cudaFree(d_ok); (void) cudaFree(d_pc); (void) cudaFree(d_hc);
+        }
+        (void) cudaFree(d_l); (void) cudaFree(d_ids); (void) cudaFree(d_ent); (void) cudaFree(d_t2);
+    }
+    std::printf("row_entropy, typical_accept_rows: %s\n",
+                bad ? "MISMATCH" : "match the host references (flat, -inf, NaN, tie rows; both vocabularies; T 1.0 / 0.6)");
+    return bad;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -275,6 +356,7 @@ int main(int argc, char** argv) {
     bad += test_argmax(rng, s);
     bad += test_mapped_multi(rng, s);
     bad += test_quantize_q8_0_scaled(rng, s);
+    bad += test_entropy_typical(rng, s);
     if (do_bench && bad == 0) bench_head_ops(s);
     (void) cudaStreamDestroy(s);
     std::printf("verify_parity: %s\n", bad ? "FAIL" : "PASS");

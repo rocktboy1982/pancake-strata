@@ -234,6 +234,15 @@ void gather_rows(const uint8_t* src, int64_t row_bytes, const int32_t* ids, int6
 void map_ids(int32_t* ids, const int32_t* table, int n, void* stream);
 /// probs[t] = softmax(logits[t])[ids[t]] for n_rows rows of n_vocab (the probability of each row's argmax).
 void row_top_prob(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* probs, void* stream);
+/// LEADS.md section 3 (STRATA_DRAFT_ENTROPY=1: the AdaEDL / SVIP / AdaSD draft stop rules, window-trace record 7): for n_rows
+/// rows of n_vocab with ids[t] the row's argmax, ent[t] = the softmax entropy in nats and top2[t] (may be null) = the
+/// probability of the largest logit other than ids[t].  row_top_prob's scan order, FP32 with __expf (not bitwise any host sum).
+void row_entropy(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* ent, float* top2, void* stream);
+/// LEADS.md section 3, Medusa typical acceptance (STRATA_TYPICAL_THINK): ok[t] = 1 when p_t(cand[t]) > min(eps, alpha *
+/// exp(-H(p_t))) with p_t = softmax(row t / temperature) (temperature <= 0: 1), else 0 (cand[t] < 0: 0).  pc / hc (may be
+/// null): p_t(cand[t]) and H(p_t).  All device memory.  Not graph-captured by its caller (one launch after a sampled window).
+void typical_accept_rows(const float* logits, int n_rows, int n_vocab, const int32_t* cand, float temperature, float eps,
+                         float alpha, int32_t* ok, float* pc, float* hc, void* stream);
 /// out[t] = the argmax of row t (n floats a row; ties to the lowest index, NaN never picked, 0 when no value is above
 /// -inf): bitwise sample_tokens' greedy pick.  Up to 128 blocks a row scan slices of it, the row's last block merges
 /// their picks.  `scratch`: argmax_rows_scratch_bytes(n_rows), zero before the first launch (each launch leaves it

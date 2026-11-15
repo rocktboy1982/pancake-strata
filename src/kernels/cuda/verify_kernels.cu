@@ -910,6 +910,107 @@ __global__ void row_top_prob_unroll_kernel(const float* __restrict__ logits, int
     }
 }
 
+// LEADS.md section 3 (A22 AdaEDL, SVIP, AdaSD stop rules; "drafter top-k + entropy on device", STRATA_DRAFT_ENTROPY=1):
+// row_top_prob_kernel's scan (one 1024-thread block a row, the row's argmax ids[t] as the reference value) with two more
+// sums and a max: S = sum e^(l_i - m), U = sum e^(l_i - m) (l_i - m), M2 = the largest logit other than ids[t].
+// ent[t] = log S - U / S (the softmax entropy in nats), top2[t] = e^(M2 - m) / S (the runner-up's probability; may be null).
+// A NaN logit makes the row's entropy NaN (the stop rules then keep the draft).  A separate kernel: row_top_prob is untouched.
+__global__ void row_entropy_kernel(const float* __restrict__ logits, int n_vocab, const int32_t* __restrict__ ids,
+                                   float* __restrict__ ent, float* __restrict__ top2) {
+    __shared__ float part_s[32], part_u[32], part_m[32];
+    const int t = blockIdx.x;
+    const float* l = logits + (size_t) t * n_vocab;
+    const int top = ids[t];
+    const float m = l[top];
+    float s = 0.0f, u = 0.0f, m2 = __int_as_float(0xff800000);
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) {
+        const float x = l[i];
+        const float d = x - m;
+        const float e = __expf(d);
+        s += e;
+        if (e > 0.0f || e != e) u += e * d;   // e == 0 (d = -inf): the term is 0, and 0 * -inf would be NaN
+        if (i != top && x > m2) m2 = x;
+    }
+    for (int o = 16; o > 0; o >>= 1) {
+        s += __shfl_xor_sync(0xffffffffu, s, o);
+        u += __shfl_xor_sync(0xffffffffu, u, o);
+        m2 = fmaxf(m2, __shfl_xor_sync(0xffffffffu, m2, o));
+    }
+    if ((threadIdx.x & 31) == 0) {
+        part_s[threadIdx.x >> 5] = s;
+        part_u[threadIdx.x >> 5] = u;
+        part_m[threadIdx.x >> 5] = m2;
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float ts = 0.0f, tu = 0.0f, tm = __int_as_float(0xff800000);
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) {
+            ts += part_s[w];
+            tu += part_u[w];
+            tm = fmaxf(tm, part_m[w]);
+        }
+        ent[t] = __logf(ts) - tu / ts;
+        if (top2 != nullptr) top2[t] = __expf(tm - m) / ts;
+    }
+}
+
+// LEADS.md section 3, Medusa typical acceptance (Cai et al., arXiv 2401.10774, section 2.3.1; STRATA_TYPICAL_THINK): row t of
+// the verify head at temperature `temp` accepts the candidate cand[t] (the draft at row t + 1; < 0: none) when
+// p_t(cand) > min(eps, alpha * exp(-H(p_t))).  One 1024-thread block a row: the max of z = l / temp, then S = sum e^(z - mz),
+// U = sum e^(z - mz) (z - mz); H = log S - U / S, p = e^(z_c - mz) / S.  ok[t] = 1 / 0; pc / hc (may be null): p and H, for
+// the parity test.  NaN logits are skipped by the max and make S NaN: the row then accepts nothing (NaN > x is false).
+__global__ void typical_accept_rows_kernel(const float* __restrict__ logits, int n_vocab, const int32_t* __restrict__ cand,
+                                           float inv_temp, float eps, float alpha, int32_t* __restrict__ ok,
+                                           float* __restrict__ pc, float* __restrict__ hc) {
+    __shared__ float part_s[32], part_u[32];
+    __shared__ float row_max;
+    const int t = blockIdx.x;
+    const float* l = logits + (size_t) t * n_vocab;
+    float mx = __int_as_float(0xff800000);
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) mx = fmaxf(mx, l[i] * inv_temp);
+    for (int o = 16; o > 0; o >>= 1) mx = fmaxf(mx, __shfl_xor_sync(0xffffffffu, mx, o));
+    if ((threadIdx.x & 31) == 0) part_s[threadIdx.x >> 5] = mx;
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float tm = __int_as_float(0xff800000);
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) tm = fmaxf(tm, part_s[w]);
+        row_max = tm;
+    }
+    __syncthreads();
+    const float m = row_max;
+    float s = 0.0f, u = 0.0f;
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) {
+        const float d = l[i] * inv_temp - m;
+        const float e = __expf(d);
+        s += e;
+        if (e > 0.0f || e != e) u += e * d;
+    }
+    for (int o = 16; o > 0; o >>= 1) {
+        s += __shfl_xor_sync(0xffffffffu, s, o);
+        u += __shfl_xor_sync(0xffffffffu, u, o);
+    }
+    __syncthreads();   // (part_s is reused)
+    if ((threadIdx.x & 31) == 0) {
+        part_s[threadIdx.x >> 5] = s;
+        part_u[threadIdx.x >> 5] = u;
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float ts = 0.0f, tu = 0.0f;
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) {
+            ts += part_s[w];
+            tu += part_u[w];
+        }
+        const float H = __logf(ts) - tu / ts;
+        const int c = cand[t];
+        const float p = c >= 0 && c < n_vocab ? __expf(l[c] * inv_temp - m) / ts : 0.0f;
+        const float thr = fminf(eps, alpha * __expf(-H));
+        ok[t] = c >= 0 && c < n_vocab && p > thr ? 1 : 0;
+        if (pc != nullptr) pc[t] = p;
+        if (hc != nullptr) hc[t] = H;
+    }
+}
+
 __global__ void mtp_select_kernel(const float* __restrict__ R_src, int64_t stride, const int32_t* __restrict__ ids,
                                   const int32_t* __restrict__ row_dev, float* __restrict__ R_dst,
                                   int32_t* __restrict__ tok_dst, int32_t* out, int j, const float* probs, float* out_p) {
@@ -1054,6 +1155,21 @@ void row_top_prob(const float* logits, int n_rows, int n_vocab, const int32_t* i
     else
         row_top_prob_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ids, probs);
     check("row_top_prob");
+}
+
+void row_entropy(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* ent, float* top2, void* stream) {
+    if (n_rows <= 0) return;
+    row_entropy_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ids, ent, top2);
+    check("row_entropy");
+}
+
+void typical_accept_rows(const float* logits, int n_rows, int n_vocab, const int32_t* cand, float temperature, float eps,
+                         float alpha, int32_t* ok, float* pc, float* hc, void* stream) {
+    if (n_rows <= 0) return;
+    const float inv_temp = temperature > 0.0f ? 1.0f / temperature : 1.0f;
+    typical_accept_rows_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, cand, inv_temp, eps, alpha, ok,
+                                                                           pc, hc);
+    check("typical_accept_rows");
 }
 
 #if !defined(STRATA_HIP_GFX906)   // wave32 kernels (CUDA and RDNA HIP; wave64 gfx906 keeps the one-block kernels)
