@@ -389,6 +389,12 @@ private:
     std::array<std::atomic<uint8_t>, 96> fslot_ready_{};
     std::array<int, 96> fslot_e_{};
     alignas(64) std::atomic<int> fslots_{0};
+    // STRATA_CPU_POOL_COST=1 (native phases 5/6/7, not NUMA-sliced): row block k of a phase is expert cperm_[k] (the
+    // experts by token count, longest first) and the tasks are cut on equal row x token cost; cpre_[k] = the token counts of
+    // blocks 0..k-1.  cost_on_ is set per batch by run_split_multi_native.
+    bool cost_on_ = false;
+    std::array<int, 96> cperm_{};
+    std::array<int64_t, 97> cpre_{};
     void quant_down_act(int e);
     bool fuse_phases(int nb) const;
     struct SplitBufMulti {

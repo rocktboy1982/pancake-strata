@@ -1310,6 +1310,15 @@ bool pool_dag2() {
     static const bool on = [] { const char* v = std::getenv("STRATA_POOL_DAG"); return v != nullptr && v[0] == '2' && v[1] == '\0'; }();
     return on;
 }
+// STRATA_CPU_POOL_COST=1 (opt-in, read once; idea of dys0re/strata-dcu abc9047d77 "cost-weighted parts and longest
+// expert first", LEADS.md A3, re-built for our row-range phases since this tree has no STRATA_CPU_EXPERT_PIPELINE): in the
+// native phases (5/6 and the fused 7), the experts are taken longest first (most tokens in the window) and the tasks are
+// cut on equal rows x tokens instead of equal rows, so no task holds several times the work of another.  Not with the NUMA
+// slices, STRATA_POOL_TAIL4 or STRATA_POOL_ROW_SPLIT (their own cuts win).  Same rows, same kernels: bitwise.
+bool pool_cost() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_CPU_POOL_COST"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
 inline void touch_bytes(const uint8_t* p, size_t bytes) {
 #if defined(__x86_64__) || defined(_M_X64)
     for (size_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) p + o, _MM_HINT_T0);
@@ -1373,6 +1382,17 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
             const int touch_next = pool_touch_next();
             auto cut = [&](int64_t jj) -> int64_t {
                 if (rsplit > 0 && !sliced && !tail4 && T == (R + rsplit - 1) / rsplit) return (std::min)(R, jj * rsplit);
+                if (cost_on_ && !sliced && !tail4 && rsplit <= 0 && h > 0 && R % h == 0) {
+                    // STRATA_CPU_POOL_COST: the row where the cost prefix (rows x tokens, blocks in cperm_ order) reaches
+                    // jj / T of the phase's cost
+                    const int64_t nb = R / h;
+                    if (jj >= T) return R;
+                    const int64_t c = h * cpre_[(size_t) nb] * jj / T;
+                    int64_t k = 0;
+                    while (k + 1 < nb && h * cpre_[(size_t) k + 1] <= c) ++k;
+                    const int64_t w = cpre_[(size_t) k + 1] - cpre_[(size_t) k];
+                    return (std::min)(R, k * h + (c - h * cpre_[(size_t) k]) / w);
+                }
                 if (!tail4 || sliced) return R * jj / T;
                 const int64_t small = (std::min)((int64_t) (n_ + (host_works_ ? 1 : 0)), T / 2), big = T - small;
                 const int64_t units = 4 * (std::min)(jj, big) + (std::max)((int64_t) 0, jj - big);
@@ -1390,13 +1410,15 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                 if (dag2_dn) {
                     while (fslot_ready_[(size_t) e].load(std::memory_order_acquire) == 0) strata_cpu_pause();
                     e = fslot_e_[(size_t) e];
+                } else if (cost_on_ && !sliced) {
+                    e = cperm_[(size_t) e];   // STRATA_CPU_POOL_COST: block e is the e-th longest expert
                 }
                 SplitBufMulti& sb = split_multi_[(size_t) e];
                 if (touch_next > 0 && !dag2_dn && g + (l1 - l0) < g1) {
                     // STRATA_POOL_TOUCH_NEXT: this task goes on into the next expert's rows (another blob, so the
                     // kernels' in-row prefetch cannot reach them) - ask for their first bytes now
                     const int64_t gn = g + (l1 - l0);
-                    const int en = (int) (gn / h), ln = (int) (gn % h);
+                    const int en = cost_on_ && !sliced ? cperm_[(size_t) (gn / h)] : (int) (gn / h), ln = (int) (gn % h);
                     const int64_t nrows = (std::min)((int64_t) (h - ln), g1 - gn);
                     const NativeFmt* const nf = mjobs_[en].fmt != nullptr ? mjobs_[en].fmt : nfmt_;
                     const uint8_t* const b = mjobs_[en].blob;
@@ -1681,6 +1703,16 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
         mjobs_ = jobs + b0;
         nfmt_ = &f;
         narithmetic_ = arithmetic;
+        // STRATA_CPU_POOL_COST (pool_cost above): the experts by token count, longest first, and their cost prefix
+        cost_on_ = pool_cost() && numa_n_ == 0;
+        if (cost_on_) {
+            for (int e = 0; e < nb; ++e) cperm_[(size_t) e] = e;
+            std::stable_sort(cperm_.begin(), cperm_.begin() + nb,
+                             [&](int x, int y) { return mjobs_[x].nt > mjobs_[y].nt; });
+            cpre_[0] = 0;
+            for (int k = 0; k < nb; ++k)
+                cpre_[(size_t) k + 1] = cpre_[(size_t) k] + (std::max)(1, mjobs_[cperm_[(size_t) k]].nt);
+        }
         if (fuse_phases(nb)) {
             // item 29: gate/up and down in one phase (same row ranges and kernels as the two phases: output identical)
             fgu_rows_ = (int64_t) nb * f.n_ff;
