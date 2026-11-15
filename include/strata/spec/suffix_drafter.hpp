@@ -35,6 +35,11 @@ public:
     /// only part of the suffix being matched and may be read back as part of a periodic continuation.
     int propose_after(const int32_t* extra, int n_extra, int max_k, int32_t* out);
 
+    /// propose_after() without touching the drafter (no temporary append, last_match() unchanged): the match length goes to
+    /// *match.  Safe to call from another thread while nothing appends (STRATA_SSD_LITE's worker, recycle_drafts.hpp).  The same
+    /// proposal as propose_after() on the same history and extra tokens.
+    int propose_after_const(const int32_t* extra, int n_extra, int max_k, int32_t* out, int* match) const;
+
     /// Length of the match behind the last proposal (0 if none).
     int last_match() const { return last_match_; }
     size_t size() const { return hist_.size(); }

@@ -137,6 +137,8 @@
 #include "strata/spec/window_rule.hpp"
 #include "strata/spec/draft_source.hpp"
 #include "strata/spec/suffix_drafter.hpp"
+#include "strata/spec/recycle_drafts.hpp"
+#include "strata/spec/spec_reason.hpp"
 #include "strata/spec/suffix_index.hpp"
 #include "strata/spec/spec_start.hpp"
 #include "strata/program/batch_groups.hpp"
@@ -15667,6 +15669,14 @@ int main(int argc, char** argv) {
         // --pipeline-windows 2 loads the drafter with 8 rows: the serial loop's chain keeps its own length
         else if (use_mtp && mtp.max_t() > S_mtp) mtp.set_max_drafts(S_mtp - 1);
         strata::spec::SuffixDrafter sfx(std::max(1, o.suffix_draft), 64, (size_t) o.max_context + 4096);
+        // LEADS.md section 3 (opt-in, read once; only the drafts change, greedy output exact): STRATA_TOKEN_RECYCLE=1 the Token Recycling
+        // matrix (a draft when the lookup has none), STRATA_SSD_LITE=1 the next round's lookup draft prepared during the verify window,
+        // STRATA_HYDRA_TOP2=1 the runner-up branch among the prepared outcomes (strata/spec/recycle_drafts.hpp).  Unset: never touched.
+        const bool rd_recycle = strata::spec::token_recycle_env(), rd_ssd = strata::spec::ssd_lite_env();
+        const bool rd_top2 = rd_ssd && strata::spec::hydra_top2_env();
+        strata::spec::TokenRecycler rd_rec;   // filled from every verify window while TOKEN_RECYCLE or HYDRA_TOP2 is set
+        strata::spec::OutcomeDrafter rd_ssd_w;
+        const bool rd_observe = rd_recycle || rd_top2;
         // MOD_PLAN A24 (STRATA_SUFFIX_INDEX=1, off by default): the cross-session suffix index over every finished output;
         // --lookup-chain also asks it after the MTP's drafts (draft_source.hpp's extra sources)
         if (strata::spec::SharedSuffixIndex* si = strata::spec::shared_suffix_index(); si != nullptr && o.lookup_chain > 0) {
@@ -20191,6 +20201,13 @@ int main(int argc, char** argv) {
                 tbr.on = true;
                 tbr.scope = strata::program::PriorScopeState(tp_marks);
             }
+            // LEADS.md section 3 SpecReason (STRATA_SPEC_REASON=<tau>, opt-in, LOSSY; strata/spec/spec_reason.hpp): this request's think
+            // state for the step rule, and its kept steps.  Unset: tau 0 and nothing below reads it.
+            const double sr_tau = strata::spec::spec_reason_tau();
+            const bool sr_greedy = req_sp.greedy || req_sp.temperature <= 0.0f;
+            strata::program::PriorScopeState sr_scope(tp_marks);
+            std::vector<float> sr_row;
+            std::vector<double> sr_p;
             struct PriorGateRequest {
                 int64_t open = 0, total = 0;
                 ~PriorGateRequest() {
@@ -20991,8 +21008,18 @@ int main(int argc, char** argv) {
                     // a repeat of earlier context (prompt lookup) where the MTP's own first guess agrees: the policy takes it
                     // when its expected tokens per ms, from the measured acceptance and window costs, beat the MTP window's
                     if (o.suffix_draft > 0 && !first_window) {
-                        int k = sfx.propose(S_look - 1, sbuf.data());
-                        sfx_match = sfx.last_match();
+                        int k = 0;
+                        // STRATA_SSD_LITE: the draft the worker prepared for the committed outcome during the last window, else the lookup now
+                        if (rd_ssd) k = rd_ssd_w.take(p, S_look - 1, sbuf.data(), &sfx_match);
+                        if (k <= 0) {
+                            k = sfx.propose(S_look - 1, sbuf.data());
+                            sfx_match = sfx.last_match();
+                        }
+                        // STRATA_TOKEN_RECYCLE: no lookup match, the recycled matrix's chain from the round's token (match 0: bucket 0)
+                        if (rd_recycle && k <= 0) {
+                            k = rd_rec.propose(x, S_look - 1, sbuf.data());
+                            sfx_match = 0;
+                        }
                         if (sidx != nullptr) k = sidx_offer(k, sbuf.data(), S_look - 1, sfx_match, from_sidx);   // A24
                         if (df2_trace != nullptr) {
                             tr_k = std::min(k, 16);
@@ -21302,11 +21329,16 @@ int main(int argc, char** argv) {
                     defer_auto_deferred += dw ? 1 : 0;
                 }
                 exit_if_gpu_fatal("");   // (the test hook counts windows here)
+                // STRATA_SSD_LITE: the next round's drafts for this window's outcomes, on the worker while the GPU verifies (sfx and the
+                // matrix are only read until rd_ssd_w.wait() below)
+                if (rd_ssd && !first_window && !merged && o.suffix_draft > 0)
+                    rd_ssd_w.start(sfx, rd_observe ? &rd_rec : nullptr, window.data(), T, S_look - 1, rd_top2);
                 if (!ver.run(T, window.data(), p, decode_pool_fn, win_pool_user, outv.data(), err) || drive.d.failed) {
                     exit_if_gpu_fatal(drive.d.failed && drive.d.fail ? drive.d.fail : err);
                     std::printf("ERR %s\n", drive.d.failed && drive.d.fail ? drive.d.fail : err.c_str());
                     return 1;
                 }
+                if (rd_ssd) rd_ssd_w.wait();   // STRATA_SSD_LITE: the worker is done before anything appends to sfx
                 if (aflipped) apply_pending(true);   // 0.1.43: every layer's copies were waited for in the window; the bookkeeping now
                 finalize_layered();   // STRATA_ADAPT_LAYERWAIT: every layer has waited for its copies in this window
                 // Diagnostics (as in generate): STRATA_DUMP_FIRST_LOGITS=<path> writes the logits of each request's first
@@ -21331,6 +21363,40 @@ int main(int argc, char** argv) {
                 }
                 int a = merged ? T - 1 : 0;   // a merged window commits every row, as the prompt windows do
                 while (a < T - 1 && window[(size_t) a + 1] == outv[(size_t) a]) ++a;
+                if (rd_observe) rd_rec.observe(window.data(), outv.data(), T);   // STRATA_TOKEN_RECYCLE / HYDRA_TOP2: every row a pair
+                // STRATA_SPEC_REASON (lossy): inside the thinking, the drafts after the first mismatch are one step; the target's own
+                // probabilities of them (row j - 1 scores draft j, rows the window computed anyway) keep the step whole when their
+                // geometric mean is >= tau and none is below the floor.  The kept rows' inputs are the window's tokens, so the commit
+                // and the bonus outv[a] stay consistent.  Greedy requests only; never past </think> or an end token.
+                if (sr_tau > 0.0 && sr_greedy && !merged && !first_window && a < T - 1 && fol == nullptr) {
+                    sr_scope.sync(consumed.data(), consumed.size());
+                    strata::program::PriorScopeState rs = sr_scope;
+                    for (int i = 0; i <= a; ++i) rs.feed(window[(size_t) i]);
+                    if (rs.think()) {
+                        int m = 0;   // the step: drafts a + 1 .. a + m
+                        while (a + 1 + m < T) {
+                            const int32_t d = window[(size_t) (a + 1 + m)];
+                            if (d == tp_marks.think_close || std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) d) != o.eos_ids.end()) break;
+                            ++m;
+                        }
+                        sr_row.resize((size_t) ver.vocab());
+                        sr_p.assign((size_t) m, 0.0);
+                        bool sr_ok = m > 0;
+                        for (int j = 0; j < m && sr_ok; ++j) {
+                            sr_ok = ver.copy_logits(a + j, sr_row.data());
+                            if (sr_ok) sr_p[(size_t) j] = strata::spec::row_prob(sr_row.data(), sr_row.size(), window[(size_t) (a + 1 + j)]);
+                        }
+                        const int kept = sr_ok ? strata::spec::spec_reason_accept(sr_p.data(), m, sr_tau, strata::spec::spec_reason_floor(sr_tau)) : 0;
+                        if (kept > 0) {
+                            static bool said = false;
+                            if (!said) {
+                                said = true;
+                                std::fprintf(stderr, "strata serve: STRATA_SPEC_REASON=%.3f: a thinking step kept by the target's score (lossy)\n", sr_tau);
+                            }
+                            a += kept;
+                        }
+                    }
+                }
                 if (gguard != nullptr && gguard->on()) {
                     // the first kept pick the grammar refuses is drawn again under its mask, and the window ends at that row
                     // (a merged window's rows before T - 1 answer prompt tokens: only its last row is an output)
@@ -21687,6 +21753,7 @@ int main(int argc, char** argv) {
                 }
                 if (eos) { finish = "stop"; break; }
                 if (stop_req.load()) { finish = "cancel"; break; }
+                if (rd_ssd) rd_ssd_w.finish(a, outv[(size_t) a], p + a + 1);   // STRATA_SSD_LITE: the outcome the next round takes
                 x = outv[(size_t) a];
                 p += a + 1;
             }
@@ -23153,6 +23220,14 @@ int main(int argc, char** argv) {
         int64_t rounds = 0, drafts_total = 0, drafts_ok = 0, corrupt_counter = 0;
         if (use_mtp && S_mtp < o.spec) mtp.set_max_drafts(S_mtp - 1);
         strata::spec::SuffixDrafter sfx(std::max(1, o.suffix_draft), 64, (size_t) o.max_context + 4096);
+        // LEADS.md section 3 (opt-in, read once; only the drafts change, greedy output exact): STRATA_TOKEN_RECYCLE=1 the Token Recycling
+        // matrix (a draft when the lookup has none), STRATA_SSD_LITE=1 the next round's lookup draft prepared during the verify window,
+        // STRATA_HYDRA_TOP2=1 the runner-up branch among the prepared outcomes (strata/spec/recycle_drafts.hpp).  Unset: never touched.
+        const bool rd_recycle = strata::spec::token_recycle_env(), rd_ssd = strata::spec::ssd_lite_env();
+        const bool rd_top2 = rd_ssd && strata::spec::hydra_top2_env();
+        strata::spec::TokenRecycler rd_rec;   // filled from every verify window while TOKEN_RECYCLE or HYDRA_TOP2 is set
+        strata::spec::OutcomeDrafter rd_ssd_w;
+        const bool rd_observe = rd_recycle || rd_top2;
         strata::spec::DraftPolicy policy(o.spec);   // MTP or lookup window (see draft_policy.hpp)
         // MOD_PLAN.md section 6 item 17: STRATA_DRAFT_CLIP=<x> (opt-in) clips round-time outliers before the cost update (draft_policy.hpp)
         static const double draft_clip = [] { const char* v = std::getenv("STRATA_DRAFT_CLIP"); return v != nullptr ? std::atof(v) : 0.0; }();
@@ -23324,8 +23399,18 @@ int main(int argc, char** argv) {
             std::copy(dprob.begin(), dprob.begin() + (std::ptrdiff_t) o.spec, dwin.begin());
             if (!t_cycle.empty() && !first_window) T = t_cycle[(size_t) (rounds % (int64_t) t_cycle.size())];
             if (o.suffix_draft > 0 && !first_window) {
-                const int k = sfx.propose(o.spec - 1, sbuf.data());
-                sfx_match = sfx.last_match();
+                int k = 0;
+                // STRATA_SSD_LITE: the draft the worker prepared for the committed outcome during the last window, else the lookup now
+                if (rd_ssd) k = rd_ssd_w.take(p, o.spec - 1, sbuf.data(), &sfx_match);
+                if (k <= 0) {
+                    k = sfx.propose(o.spec - 1, sbuf.data());
+                    sfx_match = sfx.last_match();
+                }
+                // STRATA_TOKEN_RECYCLE: no lookup match, the recycled matrix's chain from the round's token (match 0: bucket 0)
+                if (rd_recycle && k <= 0) {
+                    k = rd_rec.propose(x, o.spec - 1, sbuf.data());
+                    sfx_match = 0;
+                }
                 // a probabilistic window must not condition the source on the draw: the policy copy fixed at the start chooses, and the
                 // lookup is taken without asking whether the MTP's first guess agrees
                 const bool probabilistic = use_mtp && !spec_uses_df2 && mtp.prob();   // DFlash2's candidates are not draws from the MTP's q
@@ -23411,7 +23496,12 @@ int main(int argc, char** argv) {
                 ver.set_spec_q(mtp.spec_q(), T_mtp - 1);
             const auto decode_pool_fn = use_mtp && mtp.prob() ? &drive_pool_multi_invariant : &drive_pool_multi;
             if (ver.ecap() >= 0) ver.set_ecap_window(!first_window && T >= 2);   // MOD_PLAN F5 STRATA_VERIFY_ECAP (opt-in)
-            if (!ver.run(T, window.data(), p, decode_pool_fn, &drive, outv.data(), err)) {
+            // STRATA_SSD_LITE: the next round's drafts for this window's outcomes, on the worker while the GPU verifies
+            if (rd_ssd && !first_window && o.suffix_draft > 0)
+                rd_ssd_w.start(sfx, rd_observe ? &rd_rec : nullptr, window.data(), T, o.spec - 1, rd_top2);
+            const bool cli_run_ok = ver.run(T, window.data(), p, decode_pool_fn, &drive, outv.data(), err);
+            if (rd_ssd) rd_ssd_w.wait();   // the worker is done before anything appends to sfx
+            if (!cli_run_ok) {
                 // The graph of a window size is captured the first time it is used, and the draft source took VRAM: when the capture runs
                 // out of memory the window gets one row narrower (the widths below it are already captured) instead of the run failing.
                 if (T > 2 && !first_window && !gated_proposal && err.find("out of memory") != std::string::npos) {
@@ -23450,6 +23540,7 @@ int main(int argc, char** argv) {
             }
             int a = 0;
             while (a < T - 1 && window[(size_t) a + 1] == outv[(size_t) a]) ++a;
+            if (rd_observe) rd_rec.observe(window.data(), outv.data(), T);   // STRATA_TOKEN_RECYCLE / HYDRA_TOP2: every row a pair
             const bool initial_round = first_window;   // a single-row window: no proposal to learn from
             if (first_window) {
                 first_window = false;
@@ -23517,6 +23608,7 @@ int main(int argc, char** argv) {
                 std::fprintf(stderr, "strata generate: %s\n", err.c_str());
                 return 1;
             }
+            if (rd_ssd) rd_ssd_w.finish(a, outv[(size_t) a], p + a + 1);   // STRATA_SSD_LITE: the outcome the next round takes
             x = outv[(size_t) a];
             p += a + 1;
             const double round_ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
