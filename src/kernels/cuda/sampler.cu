@@ -119,7 +119,8 @@ __device__ __forceinline__ float apply_penalties(float logit, int count, const S
 /// SMALLER index - the same total order, so `sampler_parity` and C1 see no change.
 ///
 /// UNROLL: STRATA_SCAN_UNROLL=1 (see `scan_unroll_on`); false is the kernel as it was.
-template <bool UNROLL>
+/// X8: STRATA_SAMPLER_X8=1 (see `sampler_x8_on`): the eight-loads-first scan also with penalties or a logit bias.
+template <bool UNROLL, bool X8 = false>
 __global__ void sampler_greedy_kernel(const float* __restrict__ logits, int n_vocab,
                                       const int* __restrict__ history, int history_len, const SamplerParams p,
                                       int pmin, int plen, int* __restrict__ out) {
@@ -175,6 +176,24 @@ __global__ void sampler_greedy_kernel(const float* __restrict__ logits, int n_vo
 #pragma unroll
                 for (int k = 0; k < 8; ++k)
                     if (x[k] > bv) { bv = x[k]; best = v + k * B; }
+            }
+        }
+    }
+    if constexpr (X8) {
+        // STRATA_SAMPLER_X8=1 (opt-in; freapsy/strata-mi50 509bded8c5, gfx906: one load in flight a round left the argmax
+        // latency-bound, ~110 us a 248,320-logit row): the rows SCAN_UNROLL leaves (penalties or a logit bias) load eight
+        // logits first, then apply the same penalties to the same elements in the same ascending order with the same
+        // strict `>` - the same pick.  After UNROLL's loop, `v` is already past this loop's range.
+        const int B = (int) blockDim.x;
+        for (; v + 7 * B < n_vocab; v += 8 * B) {
+            float x[8];
+#pragma unroll
+            for (int k = 0; k < 8; ++k) x[k] = l[v + k * B];
+#pragma unroll
+            for (int k = 0; k < 8; ++k) {
+                const int vk = v + k * B;
+                const float s = apply_penalties(p.logit_bias ? x[k] + p.logit_bias[vk] : x[k], hit_count(vk), p);
+                if (s > bv) { bv = s; best = vk; }
             }
         }
     }
@@ -579,6 +598,8 @@ __device__ void sampled_tail_warp(const int* sel_ids, const float* sel_logit, in
 /// same list in the same order.  An empty round leaves (-inf, id 0) as before, and every round after it is empty
 /// in both versions (nothing after -inf beats -inf).  O(k x n_vocab) per row instead of O(k^2 x n_vocab), then warp
 /// 0 runs the tail.  `STRATA_SAMPLER_ONE_BLOCK=1`, and the fallback when the split path cannot run.
+/// X8: STRATA_SAMPLER_X8=1 (see `sampler_x8_on`): each round loads eight logits a thread before its compares.
+template <bool X8 = false>
 __global__ void __launch_bounds__(1024)
 sampler_one_block_kernel(const float* __restrict__ logits, int n_vocab, const int* __restrict__ history,
                          int history_len, const SamplerParams p, int* __restrict__ out) {
@@ -621,6 +642,27 @@ sampler_one_block_kernel(const float* __restrict__ logits, int n_vocab, const in
     for (int i = 0; i < k; ++i) {
         float bv = __int_as_float(0xff800000);   // -inf
         int best = n_vocab;
+        if constexpr (X8) {
+            // STRATA_SAMPLER_X8=1 (freapsy/strata-mi50 509bded8c5's eight loads in flight, here for the k rounds): the same
+            // elements, the same penalties, the same threshold and strict `>` in the same ascending order - the same list
+            const int B = (int) blockDim.x;
+            int v = threadIdx.x;
+            for (; v + 7 * B < n_vocab; v += 8 * B) {
+                float x[8];
+#pragma unroll
+                for (int k = 0; k < 8; ++k) x[k] = l[v + k * B];
+#pragma unroll
+                for (int k = 0; k < 8; ++k) {
+                    const int vk = v + k * B;
+                    const float s = apply_penalties(p.logit_bias ? x[k] + p.logit_bias[vk] : x[k], hit_count(vk), p);
+                    if ((s < prev_v || (s == prev_v && vk > prev_i)) && s > bv) { bv = s; best = vk; }
+                }
+            }
+            for (; v < n_vocab; v += B) {
+                const float s = apply_penalties(p.logit_bias ? l[v] + p.logit_bias[v] : l[v], hit_count(v), p);
+                if ((s < prev_v || (s == prev_v && v > prev_i)) && s > bv) { bv = s; best = v; }
+            }
+        } else
         for (int v = threadIdx.x; v < n_vocab; v += blockDim.x) {
             const float s = apply_penalties(p.logit_bias ? l[v] + p.logit_bias[v] : l[v], hit_count(v), p);
             if ((s < prev_v || (s == prev_v && v > prev_i)) && s > bv) { bv = s; best = v; }
@@ -1233,6 +1275,14 @@ static bool scan_unroll_on() {
     static const bool on = [] { const char* v = std::getenv("STRATA_SCAN_UNROLL"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
+// STRATA_SAMPLER_X8=1 (opt-in, read once; MOD_PLAN.md section 6 item 10, freapsy/strata-mi50 509bded8c5): the scans
+// STRATA_SCAN_UNROLL does not cover load eight logits a thread before their compares - sampler_greedy_kernel's rows
+// with penalties or a logit bias, and sampler_one_block_kernel's k rounds; the same pick / list.  The greedy rule
+// (kSamplerMinTemperature) and the split sampler (already 32 logits a lane in registers) are untouched.
+static bool sampler_x8_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_SAMPLER_X8"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
 
 bool sample_greedy_cluster(const float* logits, int n_tokens, int n_vocab, int* out, void* stream) {
 #if defined(__HIPCC__)
@@ -1306,7 +1356,14 @@ void sample_tokens(const float* logits, int n_tokens, int n_vocab, const int* hi
         // One block per token, 1,024 threads over the vocabulary.  See `sampler_greedy_kernel`.
         const int gthreads = 1024;
         if (!(multi && shmem == 0 && !p.logit_bias && sample_greedy_cluster(logits, n_tokens, n_vocab, out, stream))) {
-            if (scan_unroll_on())
+            if (sampler_x8_on()) {   // STRATA_SAMPLER_X8 (with or without STRATA_SCAN_UNROLL)
+                if (scan_unroll_on())
+                    sampler_greedy_kernel<true, true><<<(unsigned) n_tokens, gthreads, shmem, (cudaStream_t) stream>>>(
+                        logits, n_vocab, history, history_len, p, p.penalty_last_n, p.penalty_last_n, out);
+                else
+                    sampler_greedy_kernel<false, true><<<(unsigned) n_tokens, gthreads, shmem, (cudaStream_t) stream>>>(
+                        logits, n_vocab, history, history_len, p, p.penalty_last_n, p.penalty_last_n, out);
+            } else if (scan_unroll_on())
                 sampler_greedy_kernel<true><<<(unsigned) n_tokens, gthreads, shmem, (cudaStream_t) stream>>>(
                     logits, n_vocab, history, history_len, p, p.penalty_last_n, p.penalty_last_n, out);
             else
@@ -1336,8 +1393,11 @@ void sample_tokens(const float* logits, int n_tokens, int n_vocab, const int* hi
                                                                  n_blocks, scratch);
             sampler_split_merge_kernel<<<(unsigned) n_tokens, 32, 0, (cudaStream_t) stream>>>(
                 scratch, n_blocks, n_vocab, p, k, out);
+        } else if (sampler_x8_on()) {   // STRATA_SAMPLER_X8
+            sampler_one_block_kernel<true><<<(unsigned) n_tokens, 1024, shmem, (cudaStream_t) stream>>>(
+                logits, n_vocab, history, history_len, p, out);
         } else {
-            sampler_one_block_kernel<<<(unsigned) n_tokens, 1024, shmem, (cudaStream_t) stream>>>(
+            sampler_one_block_kernel<false><<<(unsigned) n_tokens, 1024, shmem, (cudaStream_t) stream>>>(
                 logits, n_vocab, history, history_len, p, out);
         }
     }

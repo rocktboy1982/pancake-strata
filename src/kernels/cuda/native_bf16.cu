@@ -409,6 +409,15 @@ void launch_rows(const float* x, int64_t ldx, const uint16_t* w, float* y, int64
     if (n_tok <= 4) bf16_f32_mmvf_rows_kernel<B, 4, RPB><<<nb, B, 0, st>>>(x, ldx, w, y, ldy, n_in, n_out, n_tok);
     else bf16_f32_mmvf_rows_kernel<B, 8, RPB><<<nb, B, 0, st>>>(x, ldx, w, y, ldy, n_in, n_out, n_tok);
 }
+// STRATA_MMVF_ROWS1 (bf16_gemv_fp32_mmvf below): the rows kernel at one token, NT 1, 4 rows a block.  Per output the
+// same pairs, FMAs and warp / block reductions as bf16_f32_mmvf_kernel, so bitwise its result (ryan4yin aa2509dc60:
+// mmvf_rows_parity, 432 cases, 0 mismatches)
+template <int B>
+void launch_rows1(const float* x, const uint16_t* w, float* y, int n_in, int n_out, cudaStream_t st) {
+    constexpr int RPB = 4;
+    const unsigned nb = (unsigned) ((n_out + RPB - 1) / RPB);
+    bf16_f32_mmvf_rows_kernel<B, 1, RPB><<<nb, B, 0, st>>>(x, (int64_t) n_in, w, y, (int64_t) n_out, n_in, n_out, 1);
+}
 
 // STRATA_FUSE_QGEMV (this-cute-world/Strata 818a1eaa57, LEADS.md): the router's bf16 rows GEMV and
 // native_quantize_q8_1_kernel in ONE launch.  The first gemv_blocks blocks are bf16_f32_mmvf_rows_kernel's body (TS off,
@@ -813,6 +822,29 @@ void bf16_gemv_fp32_mmvf(const float* x, const uint16_t* w, float* y,
         (reinterpret_cast<uintptr_t>(y) & 3u) != 0)
         throw std::invalid_argument("bf16_gemv_fp32_mmvf: null or misaligned pointer");
     const cudaStream_t st = (cudaStream_t) stream;
+    // STRATA_MMVF_ROWS1=1 (opt-in, read once; MOD_PLAN.md section 6 item 10, LEADS.md; ryan4yin/Strata aa2509dc60, Ryan
+    // Yin): a one-token call (the T = 1 router among them) takes the 4-rows-per-block kernel; the one-row-per-block one is
+    // bound by per-block overhead on small matrices (author: the 2560 x 512 router 25.8 -> 10.2 us, R9700).  Bitwise
+    // (launch_rows1).  Separate from STRATA_MMVF_ROWS (multi-token; on by default on gfx1151 only, arch_defaults.cpp), so
+    // that default is untouched; the fork tied both to MMVF_ROWS.
+    static const bool rows1 = [] { const char* v = std::getenv("STRATA_MMVF_ROWS1"); return v && v[0] == '1'; }();
+    if (rows1 && n_out >= 64) {
+        const int ni = (int) n_in, no = (int) n_out;
+        switch (mmvf_block_size(n_in)) {
+            case 32: launch_rows1<32>(x, w, y, ni, no, st); break;
+            case 64: launch_rows1<64>(x, w, y, ni, no, st); break;
+            case 96: launch_rows1<96>(x, w, y, ni, no, st); break;
+            case 128: launch_rows1<128>(x, w, y, ni, no, st); break;
+            case 160: launch_rows1<160>(x, w, y, ni, no, st); break;
+            case 192: launch_rows1<192>(x, w, y, ni, no, st); break;
+            case 224: launch_rows1<224>(x, w, y, ni, no, st); break;
+            default: launch_rows1<256>(x, w, y, ni, no, st); break;
+        }
+        const cudaError_t result = cudaGetLastError();
+        if (result != cudaSuccess)
+            throw std::runtime_error(std::string("bf16_gemv_fp32_mmvf launch: ") + cudaGetErrorString(result));
+        return;
+    }
 #define STRATA_MMVF_CASE(N) case N: \
     bf16_f32_mmvf_kernel<N><<<(unsigned) n_out, N, 0, st>>>(x, w, y, (int) n_in, mmvf_fast()); break
     switch (mmvf_block_size(n_in)) {

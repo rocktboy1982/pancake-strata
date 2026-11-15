@@ -2700,6 +2700,93 @@ __global__ void native_mmvq_wave_exact_kernel(const typename F::Block* __restric
 }
 #endif
 
+// STRATA_MMVQ_WAVE_ROWS (opt-in, read once; MOD_PLAN.md section 6 item 10, LEADS.md): a per-shape rows-per-wave table for
+// native_mmvq_wave_kernel, after phoenixclyde/Strata 5a76830ebd (gfx906/MI50: a measured 9-shape x ncols 1..8 table, R in
+// {1, 2, 4}; author +4.0% decode, 46.8 -> 48.6 tok/s, bitwise).  R rows share one weight block's activation loads and
+// dp4a setup; each row's reduction order is unchanged, so every output is bitwise the R = 1 one.  Values:
+//   unset / 0  off: the launch below as before (byte-identical)
+//   1          the built-in table: the fork's measured gfx906 cells in a gfx906 build; EMPTY in an RDNA build (the fork
+//              has no RDNA3 entries - every shape keeps R = 1), so on gfx1100 the table spec below is the sweep knob
+//   spec       "N_INxN_OUT:r1,r2,...,r8[;N_INxN_OUT:...]" - R for ncols 1..8 of that weight shape (0 or 1 = R 1, 2, 4;
+//              missing columns R 1), e.g. "2560x10240:1,4,4,4,2,2,2,2;6144x2560:1,2,4,4,2,2,2,2"
+// An unlisted shape, ncols > 8, and STRATA_RDNA_MMVQ_WAVE=3's exact kernel keep R = 1; STRATA_MMVQ_R (uniform) wins.
+// The fork notes R x NCOLS <= 12 keeps the accumulators in registers (ncols 6 at R 4 spilled: -40%).
+struct WaveRowsEntry { int n_in, n_out; unsigned char r[8]; };
+constexpr int kWaveRowsMax = 64;
+struct WaveRowsTable { int n = 0; WaveRowsEntry e[kWaveRowsMax]; };
+#if defined(STRATA_HIP_GFX906)
+// phoenixclyde 5a76830ebd kWaveRows (W863, gfx906, 2026-11-01): a cell keeps R > 1 only where it beat R = 1 by >= 3 %
+constexpr WaveRowsEntry kWaveRowsFork[] = {
+    {  2560, 10240, {0, 4, 4, 4, 2, 2, 2, 2}},   // GDN qkv
+    {  2560,  6144, {0, 2, 2, 2, 2, 2, 2, 2}},   // GDN gate
+    {  6144,  2560, {0, 2, 4, 4, 2, 2, 2, 2}},   // GDN/QSA out
+    {  2560, 12288, {0, 2, 2, 2, 2, 2, 2, 2}},   // QSA q
+    {  2560,   512, {0, 0, 2, 2, 2, 2, 2, 2}},   // QSA k/v
+    { 10240,   320, {0, 0, 2, 2, 2, 2, 2, 2}},   // HC down
+    {   320, 10240, {0, 2, 2, 2, 2, 0, 2, 0}},   // HC up
+    {  2560,   640, {0, 0, 2, 2, 2, 2, 2, 2}},   // shared g/u
+    {   640,  2560, {0, 0, 2, 2, 2, 2, 2, 2}},   // shared down
+};
+#endif
+WaveRowsTable wave_rows_parse() {
+    WaveRowsTable t;
+    const char* s = std::getenv("STRATA_MMVQ_WAVE_ROWS");
+    if (s == nullptr || s[0] == '\0' || std::strcmp(s, "0") == 0) return t;
+    if (std::strcmp(s, "1") == 0) {
+#if defined(STRATA_HIP_GFX906)
+        for (const WaveRowsEntry& e : kWaveRowsFork) t.e[t.n++] = e;
+        std::fprintf(stderr, "strata: STRATA_MMVQ_WAVE_ROWS=1: the fork's gfx906 rows-per-wave table (%d shapes)\n", t.n);
+#else
+        std::fprintf(stderr, "strata: STRATA_MMVQ_WAVE_ROWS=1: no built-in table for this target (R = 1 everywhere); "
+                             "give a table spec to sweep\n");
+#endif
+        return t;
+    }
+    const char* p = s;
+    while (*p != '\0' && t.n < kWaveRowsMax) {
+        while (*p == ';' || *p == ' ') ++p;
+        if (*p == '\0') break;
+        char* end = nullptr;
+        WaveRowsEntry e{};
+        const long ni = std::strtol(p, &end, 10);
+        bool ok = end != p && (*end == 'x' || *end == 'X');
+        long no = 0;
+        if (ok) { p = end + 1; no = std::strtol(p, &end, 10); ok = end != p && *end == ':'; }
+        if (ok) {
+            p = end + 1;
+            for (int c = 0; c < 8; ++c) {
+                const long r = std::strtol(p, &end, 10);
+                if (end == p) break;
+                e.r[c] = (unsigned char) (r == 2 || r == 4 ? r : 0);
+                p = end;
+                if (*p != ',') break;
+                ++p;
+            }
+        }
+        if (ok && ni > 0 && no > 0) {
+            e.n_in = (int) ni;
+            e.n_out = (int) no;
+            t.e[t.n++] = e;
+        } else {
+            std::fprintf(stderr, "strata: STRATA_MMVQ_WAVE_ROWS: entry at \"%.24s\" is not N_INxN_OUT:r1,...,r8; skipped\n", p);
+        }
+        while (*p != '\0' && *p != ';') ++p;   // the next entry
+    }
+    std::fprintf(stderr, "strata: STRATA_MMVQ_WAVE_ROWS: %d shapes in the rows-per-wave table\n", t.n);
+    return t;
+}
+// rows per wave for this call: 1, 2 or 4 (1 = the launch as before)
+int wave_rows_for(int ncols, int n_in, int n_out) {
+    static const WaveRowsTable t = wave_rows_parse();
+    if (t.n == 0 || ncols < 1 || ncols > 8) return 1;
+    for (int i = 0; i < t.n; ++i)
+        if (t.e[i].n_in == n_in && t.e[i].n_out == n_out) {
+            const int r = t.e[i].r[ncols - 1];
+            return r == 2 || r == 4 ? r : 1;
+        }
+    return 1;
+}
+
 template<typename F, int NCOLS>
 void wave_launch_n(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, cudaStream_t s) {
     const auto* w = static_cast<const typename F::Block*>(weights);
@@ -2722,6 +2809,17 @@ void wave_launch_n(const void* weights, const void* x_q8_1, float* y, int n_in, 
         return;
     }
 #endif
+    if constexpr (NCOLS <= 8) {   // STRATA_MMVQ_WAVE_ROWS (off: wave_rows_for is 1 and the launch below runs as before)
+        const int wr = wave_rows_for(NCOLS, n_in, n_out);
+        if (wr == 2) {
+            native_mmvq_wave_kernel<F, NCOLS, 2><<<unsigned((std::size_t(n_out) + NATIVE_WAVES_PER_BLOCK * 2 - 1) / (NATIVE_WAVES_PER_BLOCK * 2)), 256, 0, s>>>(w, x, y, n_in, n_out);
+            return;
+        }
+        if (wr == 4) {
+            native_mmvq_wave_kernel<F, NCOLS, 4><<<unsigned((std::size_t(n_out) + NATIVE_WAVES_PER_BLOCK * 4 - 1) / (NATIVE_WAVES_PER_BLOCK * 4)), 256, 0, s>>>(w, x, y, n_in, n_out);
+            return;
+        }
+    }
     native_mmvq_wave_kernel<F, NCOLS, R><<<blocks, 256, 0, s>>>(w, x, y, n_in, n_out);
 }
 template<typename F>

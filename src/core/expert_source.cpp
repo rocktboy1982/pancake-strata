@@ -4943,12 +4943,18 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         d.fail_layer = d.layers;
         return;
     }
+    // STRATA_LOOKAHEAD_AFTER_PUB=1 (opt-in, read once; MOD_PLAN.md section 6 item 10, LEADS.md "RouterLookahead submit
+    // after publish", part of an R9700 bundle): the lookahead's submit (a copy of the window's rows and the residency
+    // rows under its lock, ~10-25 us a window by MOD_PLAN's estimate) moves behind the GPU plan's publish + fetch below,
+    // so the GPU's share starts that much sooner.  The prediction reads the same rows; it only warms layer + 1 (the
+    // outputs do not depend on it).  The stats keep their place.  Unset: the submit here, as before.
+    static const bool la_after_pub = [] { const char* v = std::getenv("STRATA_LOOKAHEAD_AFTER_PUB"); return v != nullptr && v[0] == '1'; }();
     if (d.lookahead != nullptr) {
         if (d.lookahead->stats_on()) {
             if (d.layers == 0) d.lookahead->stats_window_start();
             d.lookahead->stats_score(d.layers, ids, n_tok * k, d.host_res, d.pcie_num);
         }
-        d.lookahead->submit(d.layers, x_f, n_tok, d.host_res);   // CS-T: warm layer + 1
+        if (!la_after_pub) d.lookahead->submit(d.layers, x_f, n_tok, d.host_res);   // CS-T: warm layer + 1
     }
     if (k < 1 || n_tok * k > kMaxWindowEntries) {
         d.failed = true;
@@ -5249,6 +5255,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                     : (e >= 0 && e < d.n_expert && d.peer != nullptr && d.peer->has(d.layers, e)) ? 2 : -1;
         }
     }
+    // STRATA_LOOKAHEAD_AFTER_PUB: the submit skipped above, now that the plan is published (no plan: here all the same)
+    if (la_after_pub && d.lookahead != nullptr) d.lookahead->submit(d.layers, x_f, n_tok, d.host_res);   // CS-T: warm layer + 1
     if (d.peer != nullptr) {                 // multi-GPU: start the second GPU's share before the CPU's own work
         std::string perr;
         if (!d.peer->launch(d.layers, x_f, ids, n_tok, k, kind, perr, out)) {
