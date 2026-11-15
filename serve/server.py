@@ -95,6 +95,7 @@ from serve import rumination  # noqa: E402  (pancake item 34: 5-gram repetition 
 from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache-2.0; lossy opt-in)
 from serve import lifeline  # noqa: E402
 from serve.conv_router import config as conv_router_cfg  # noqa: E402
+from serve import prompt_kind  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
 from serve.responses import ResponsesError, error_body as responses_error_body  # noqa: E402
@@ -5987,11 +5988,15 @@ class Service:
                 if req.get("reasoning_effort") in (None, "") and not req.get("reasoning") and \
                         "enable_thinking" not in ctk and "reasoning_effort" not in ctk:
                     req["reasoning_effort"] = effort
+                    if prompt_kind.policy_mode() != "off":   # STRATA_THINKING_POLICY: the server's, not the client's
+                        req["_effort_from_shared"] = True
             elif not req.get("thinking") and not req.get("output_config"):
                 if effort == "none":
                     req["thinking"] = {"type": "disabled"}
                 else:
                     req["output_config"] = {"effort": effort}
+                if prompt_kind.policy_mode() != "off":
+                    req["_effort_from_shared"] = True
         return req
 
     def start_telemetry(self):
@@ -6462,6 +6467,9 @@ class Service:
         """-> (ids, thinking, max_new). An unset or non-positive max_new (some clients send -1) means "unlimited":
         the rest of the context.  `force` (forced_call): without thinking the reply starts with it, so it ends the
         prompt; with thinking, Service.run writes it once the thinking is over."""
+        # STRATA_THINKING_POLICY (opt-in; Strata PR #5512, serve/prompt_kind.py): before the render, so the template
+        # and the parser share the kwargs.  Off (the default): returns at once.
+        prompt_kind.apply_thinking_policy(messages, kwargs, req)
         # `cancel` (#1999): set when the client hangs up; the downloads, the wait for the turn and the encodes stop
         # between pictures and raise ClientGone
         # Cached tool images are references in browser history, never arbitrary file paths or huge base64 strings.
