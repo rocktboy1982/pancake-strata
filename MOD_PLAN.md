@@ -3679,3 +3679,14 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/48-cache-replay-live.st
 | park-truncate1280 | 247.7 | 155.7 | 0 | 547.5 | -12.4% (turn +13.6 s) |
 
 Verdict by the promote-from-0% rule (screen, one repeat, so a reason to repeat, not a finding): **cache2048-min8192 promoted to confirm** (prompt -29.6%, turn -87 s, zero cold re-reads; the minimum-token skip keeps the small side prompts from evicting the 50-60K agent prefix). park-truncate1280 is above 0 on prompt time but its turn time is +13.6 s, so it is held until the repeat shows which way it goes. base1280 and flags1280 are below -3% and dropped. The simulator predicted this direction (agent time 224 s to 108 s at 2048 MiB); the live number matches it at 118.6 s. Memory held: min available 12.6 GiB and peak RSS 39.7 GiB at 2048 MiB. Next: repeat base, cache2048-min8192 and park-truncate1280 two more times (A B B A) before any default change; the budget auto rule needs a look only after that.
+
+### Spec 44: wait-fuse-off and fuse-wait, 12 paired repeats (2026-11-15, confirm of Phase 18 items 3 and 4)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/44-*.stdout`. GPU `high`, 12 repeats, short and edit prompts, base 108.7 / 110.9 tok/s.
+
+| arm | short | edit | text vs base | verdict |
+| --- | --- | --- | --- | --- |
+| wait-fuse-off | -2.0% +-6.5 | -0.2% +-4.2 | DIFFERENT | **drop** (no case above 0, text differs) |
+| fuse-wait | -9.9% +-7.8 | -10.2% +-8.3 | DIFFERENT | **drop** (worse, below -3%) |
+
+The 6-repeat confirm of 2026-11-13 (+4.7% and +3.3%, intervals including zero, text exact) does not hold at 12 repeats: the earlier gains were noise. Both arms also showed slow runs (78 to 91 tok/s while the GPU ran at 1600 to 1740 MHz) next to normal ones, so they have a placement-dependent slow mode that base does not. Items 3 and 4 are closed as dropped.

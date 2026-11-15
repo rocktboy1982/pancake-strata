@@ -1,0 +1,54 @@
+rep 0 base                 short 88.2 edit 111.8  foreign CPU 2% [('claude', 2), ('kworker/u65:2-KFD IH', 1), ('localsearch-3', 0)]  gpu 1788/1249 MHz 58C 124W gtt 21M cpu 3472MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 wait-fuse-off        short 110.7 edit 110.9  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kcompactd0', 0)]  gpu 1635/1249 MHz 55C 122W gtt 21M cpu 3414MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 fuse-wait            short 111.7 edit 107.7  foreign CPU 3% [('kworker/9:1-events_freezable', 1), ('kcompactd0', 1), ('localsearch-3', 1)]  gpu 1452/1249 MHz 54C 112W gtt 21M cpu 3487MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 fuse-wait            short 87.4 edit 103.6  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1787/1249 MHz 52C 120W gtt 21M cpu 3362MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 wait-fuse-off        short 104.7 edit 114.2  foreign CPU 3% [('kworker/12:1-events_freezable', 2), ('localsearch-3', 1), ('kcompactd0', 0)]  gpu 1660/1249 MHz 51C 123W gtt 21M cpu 3372MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 110.5 edit 111.9  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('kworker/0:0-events', 0)]  gpu 1426/1249 MHz 52C 111W gtt 21M cpu 3262MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 111.6 edit 113.5  foreign CPU 2% [('claude', 2), ('kworker/u65:10-ttm', 1), ('systemd-journal', 0)]  gpu 1418/1249 MHz 52C 110W gtt 21M cpu 3557MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 wait-fuse-off        short 106.1 edit 112.4  foreign CPU 2% [('claude', 2), ('kworker/u65:3-KFD IH', 1), ('systemd-journal', 0)]  gpu 1436/1249 MHz 52C 112W gtt 21M cpu 3588MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 fuse-wait            short 89.4 edit 94.2  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('upowerd', 0)]  gpu 1574/1249 MHz 52C 111W gtt 21M cpu 2888MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 fuse-wait            short 108.6 edit 113.6  foreign CPU 2% [('claude', 2), ('kworker/u65:11-ttm', 1), ('localsearch-3', 1)]  gpu 1632/1249 MHz 52C 121W gtt 21M cpu 3631MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 wait-fuse-off        short 98.1 edit 111.4  foreign CPU 2% [('kworker/u65:12-ttm', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 1410/1249 MHz 52C 111W gtt 21M cpu 3412MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 106.9 edit 95.3  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1786/1249 MHz 52C 124W gtt 21M cpu 3473MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 4 base                 short 111.2 edit 112.3  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('upowerd', 0)]  gpu 1422/1249 MHz 52C 111W gtt 21M cpu 3587MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 4 wait-fuse-off        short 111.5 edit 113.3  foreign CPU 2% [('claude', 2), ('kworker/u65:4-KFD IH', 1), ('localsearch-3', 1)]  gpu 1419/1249 MHz 52C 111W gtt 21M cpu 3659MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 4 fuse-wait            short 111.1 edit 113.9  foreign CPU 3% [('claude', 2), ('localsearch-3', 1), ('systemd', 0)]  gpu 1413/1249 MHz 52C 110W gtt 21M cpu 3516MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 5 fuse-wait            short 111.0 edit 111.6  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('migration/8', 0)]  gpu 1426/1249 MHz 52C 112W gtt 21M cpu 3490MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 5 wait-fuse-off        short 111.6 edit 112.2  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 1420/1249 MHz 52C 112W gtt 21M cpu 3833MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 5 base                 short 111.3 edit 112.7  foreign CPU 2% [('claude', 2), ('kworker/u65:10-KFD IH', 1), ('systemd-journal', 0)]  gpu 1418/1249 MHz 52C 112W gtt 21M cpu 3481MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 6 base                 short 111.1 edit 111.6  foreign CPU 3% [('claude', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 1425/1249 MHz 52C 111W gtt 21M cpu 3453MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 6 wait-fuse-off        short 111.6 edit 111.5  foreign CPU 3% [('claude', 2), ('gnome-shell', 0), ('localsearch-3', 0)]  gpu 1429/1249 MHz 52C 111W gtt 21M cpu 3464MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 6 fuse-wait            short 88.4 edit 77.8  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1545/1249 MHz 53C 110W gtt 21M cpu 3164MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 7 fuse-wait            short 89.3 edit 76.5  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('Isolated Web Co', 1)]  gpu 1755/1249 MHz 52C 118W gtt 21M cpu 3043MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 7 wait-fuse-off        short 111.6 edit 112.0  foreign CPU 2% [('claude', 2), ('gnome-shell', 1), ('localsearch-3', 1)]  gpu 1417/1249 MHz 52C 111W gtt 21M cpu 3524MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 7 base                 short 111.5 edit 109.6  foreign CPU 2% [('kworker/u65:5-KFD IH', 1), ('localsearch-3', 1), ('claude', 1)]  gpu 1438/1249 MHz 52C 112W gtt 21M cpu 3613MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 8 base                 short 111.5 edit 113.9  foreign CPU 3% [('claude', 7), ('localsearch-3', 1), ('rsyslogd', 0)]  gpu 1413/1249 MHz 52C 111W gtt 21M cpu 3482MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 8 wait-fuse-off        short 111.3 edit 113.3  foreign CPU 2% [('claude', 2), ('kworker/u65:10-KFD IH', 1), ('gnome-shell', 1)]  gpu 1419/1249 MHz 52C 111W gtt 21M cpu 3444MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 8 fuse-wait            short 90.8 edit 84.0  foreign CPU 2% [('claude', 2), ('systemd-journal', 1), ('localsearch-3', 1)]  gpu 1654/1249 MHz 52C 117W gtt 21M cpu 3439MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 9 fuse-wait            short 106.4 edit 110.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 1683/1249 MHz 51C 123W gtt 21M cpu 3277MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 9 wait-fuse-off        short 111.6 edit 112.3  foreign CPU 2% [('kworker/u65:9-KFD IH', 1), ('claude', 1), ('rcu_preempt', 0)]  gpu 1419/1249 MHz 52C 111W gtt 21M cpu 3465MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 9 base                 short 111.5 edit 112.5  foreign CPU 3% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1416/1249 MHz 52C 111W gtt 21M cpu 3532MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 10 base                 short 108.8 edit 113.8  foreign CPU 3% [('kworker/u65:3-KFD IH', 1), ('localsearch-3', 1), ('firefox', 1)]  gpu 1429/1249 MHz 52C 112W gtt 21M cpu 3566MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 10 wait-fuse-off        short 111.5 edit 113.9  foreign CPU 3% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1414/1249 MHz 52C 111W gtt 21M cpu 3433MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 10 fuse-wait            short 91.3 edit 110.5  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('Privileged Cont', 0)]  gpu 1736/1249 MHz 52C 126W gtt 21M cpu 3528MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 11 fuse-wait            short 90.0 edit 91.3  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1600/1249 MHz 52C 117W gtt 21M cpu 3279MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 11 wait-fuse-off        short 78.1 edit 91.1  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-oomd', 0)]  gpu 1719/1249 MHz 52C 118W gtt 21M cpu 3306MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 11 base                 short 110.7 edit 112.1  foreign CPU 2% [('claude', 2), ('kworker/u65:2-ttm', 1), ('systemd-journal', 0)]  gpu 1421/1249 MHz 52C 112W gtt 21M cpu 3668MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    108.7 +-   3.8  (n=12)
+                              drafts accepted 0.66
+  short  wait-fuse-off           106.5 +-   5.7  (n=12)   vs base:  -2.0% +-  6.5%  -> no difference
+                              drafts accepted 0.67
+  short  fuse-wait                98.0 +-   6.1  (n=12)   vs base:  -9.9% +-  7.8%  -> worse
+                              drafts accepted 0.67
+  edit   base                    110.9 +-   2.9  (n=12)
+                              drafts accepted 0.91
+  edit   wait-fuse-off           110.7 +-   3.6  (n=12)   vs base:  -0.2% +-  4.2%  -> no difference
+                              drafts accepted 0.91
+  edit   fuse-wait                99.6 +-   8.2  (n=12)   vs base: -10.2% +-  8.3%  -> worse
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  wait-fuse-off        DIFFERENT text -> lossy or placement-dependent: quality gate
+  fuse-wait            DIFFERENT text -> lossy or placement-dependent: quality gate
