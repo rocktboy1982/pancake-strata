@@ -4128,6 +4128,20 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
             bool expect = false;
             pool_hold.held = g_cpu_pool_busy.compare_exchange_strong(expect, true, std::memory_order_acq_rel);
         }
+        // Port of Strata-rdna3 f557b544 (opt-in, MOD_PLAN.md section 6 item 12, LEADS.md): STRATA_PREFILL_POOL_RETRY=1 tries
+        // the pool again at every layer that could share, not only once at the chunk's start.  On a layer split the later
+        // stage's host thread can enter its chunk while the earlier stage still holds the pool, and the single try then
+        // loses the share for the whole chunk.  Still one stage at a time: whoever holds the flag shares; a stage that gets
+        // it mid-chunk shares from that layer on (the share's buffers are had lazily per layer).  The fork's routed-walk
+        // site (STRATA_FUSED_ROUTED) is not in this tree, so only the grouped-host site below retries.  Unset: no retry.
+        static const bool pool_retry_on = [] { const char* v = std::getenv("STRATA_PREFILL_POOL_RETRY"); return v != nullptr && v[0] == '1'; }();
+        const bool pool_wanted = pool_retry_on && cpu_pool_ != nullptr && cpu_share_on() && !stream_all && !pipe_chunked;
+        auto pool_retry = [&] {
+            if (pool_wanted && !pool_hold.held && !g_share_blocked.load(std::memory_order_acquire)) {
+                bool expect = false;
+                pool_hold.held = g_cpu_pool_busy.compare_exchange_strong(expect, true, std::memory_order_acq_rel);
+            }
+        };
         const bool ps_on = stream_all && m.pp && m.pp->ps_frac > 0.0;
         if (m.pp && !ps_on) m.pp->ps_flag.clear();
         // multi-GPU: the peer's ring - issue its copies up to `limit` / give entries back (the peer device is current)
@@ -5512,6 +5526,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                             err = "prefill: the routed ids' download failed";   // #1996
                             return false;
                         }
+                        pool_retry();   // STRATA_PREFILL_POOL_RETRY=1 (Strata-rdna3 f557b544); unset: does nothing
                         bool cpu_maybe = pool_hold.held && !stream_all && m.src != nullptr && !m.cpu_dead &&
                                          lay.native && (!m.pp || pf_peer_cpu()) && !lay.fmt.empty();
                         // The share's two pinned buffers are small (~50 MB) but are had mid-request, when the host may have

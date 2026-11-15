@@ -3946,7 +3946,13 @@ int main(int argc, char** argv) {
             const char* env_max = std::getenv("STRATA_PREFILL_AUTO_MAX");
             const long long want_max = v.rfind("auto:", 0) == 0 ? std::atoll(v.c_str() + 5)
                                      : (o.prefill_auto && env_max != nullptr ? std::atoll(env_max) : 8192);
-            o.prefill_auto_max = want_max >= 32768 ? 32768 : want_max >= 16384 ? 16384 : 8192;
+            // Port of Strata-rdna3 791cca4b (opt-in, MOD_PLAN.md section 6 item 12, LEADS.md): an explicit ceiling above 32768
+            // (auto:N / STRATA_PREFILL_AUTO_MAX) is kept on the 8192 grid up to 49152, so a 40-48K prompt reads in one chunk
+            // instead of two.  49152 is the last step before the R buffer (~40 KB a token) passes 2 GiB; the auto scan still
+            // takes the largest chunk whose loan fits beside the cache (and the VRAM reserve), so the loan, not this ceiling,
+            // decides on a smaller card.  Any ask below 40960 (the presets' 32768 included) gives 32768 exactly as before.
+            o.prefill_auto_max = want_max >= 32768 ? std::min<long long>(49152, want_max / 8192 * 8192)
+                                                   : want_max >= 16384 ? 16384 : 8192;
             o.prefill_chunk = o.prefill_auto ? o.prefill_auto_max : std::atoll(v.c_str());
             {   // #1630: Windows HIP, RX 7900 XTX: a first long prompt at 8192-token chunks charged ~70 GB of commit and
                 // killed the engine; 7500 and below were flat.  A bare auto stops at 6144; a chunk the user names stays.
@@ -10392,7 +10398,13 @@ int main(int argc, char** argv) {
         if (!equal_chunks || tokens <= 0 || max_chunk <= 0) return plain;
         const int64_t n = tokens / max_chunk + (tokens % max_chunk != 0);
         const int64_t last = tokens - (n - 1) * max_chunk;
-        if (n <= 1 || last < strata::prefill::Prefill::stream_all_min_tokens()) return plain;
+        // Port of Strata-rdna3 5906629d (opt-in, MOD_PLAN.md section 6 item 12, LEADS.md): STRATA_PREFILL_EQUAL_TAIL_MAX=<tokens>
+        // (default: no limit) keeps STRATA_PREFILL_EQUAL's short-last-chunk exception only for chunks up to that size.  With
+        // STRATA_PREFILL_AUTO_MAX 49152 a 57K prompt read 49152 + 8185 and the big loan made both passes stream nearly every
+        // expert (fork's number, not ours); past the limit the prompt is split evenly whatever its tail.  Unset: INT64_MAX,
+        // and the test below is the old one.
+        static const int64_t equal_tail_max = [] { const char* v = std::getenv("STRATA_PREFILL_EQUAL_TAIL_MAX"); return v ? (int64_t) std::atoll(v) : INT64_MAX; }();
+        if (n <= 1 || (last < strata::prefill::Prefill::stream_all_min_tokens() && max_chunk <= equal_tail_max)) return plain;
         const int64_t per = tokens / n + (tokens % n != 0);
         const int64_t rounded = per > std::numeric_limits<int64_t>::max() - 255 ? per : ((per + 255) / 256) * 256;
         return std::min(max_chunk, rounded);
