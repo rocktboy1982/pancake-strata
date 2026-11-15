@@ -26,6 +26,19 @@ bool iq4xs_head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in
 bool q6k_head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, void* stream);
 bool q4k_head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, void* stream);
 
+/// STRATA_HEAD_ARGMAX_FUSED (MOD_PLAN.md section 6 item 17, part 18): the same GEMVs (the same y, bit for bit) that also
+/// fold column j's greedy pick into keys[j] (atomicMax of a 64-bit (value, row) key; ties to the lower row, NaN and -inf
+/// never picked).  `keys` (ncols entries, device memory) must be 0 before the first chunk of a window;
+/// head_argmax_finish writes out[j] (argmax_rows' / sample_tokens' greedy pick exactly: 0 when no value is above -inf)
+/// and sets the keys back to 0.  Chunks of columns call the GEMV with keys + their first column.  n <= 64.
+bool iq4xs_head_mmvq_argmax(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols,
+                            unsigned long long* keys, void* stream);
+bool q6k_head_mmvq_argmax(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols,
+                          unsigned long long* keys, void* stream);
+bool q4k_head_mmvq_argmax(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols,
+                          unsigned long long* keys, void* stream);
+void head_argmax_finish(unsigned long long* keys, int n, int32_t* out, void* stream);
+
 /// The 2-bit proxy of a draft head of 2560-wide rows: pack rows [row0, row0 + n) (n_cap rows of capacity), then the
 /// argmax of rows [0, n_rows) . x through `map` (a negative entry skips a row) and its softmax probability.  `scratch`:
 /// the *_scratch_bytes, zeroed once.  The picks feed drafts, which the verify window checks.

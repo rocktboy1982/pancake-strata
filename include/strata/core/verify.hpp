@@ -814,6 +814,9 @@ private:
     // layer (layer gi at gdn_ck_ + gi * gdn_ck_rows_ * S * h_v * S); null / 0 off.  The batched commit starts from them.
     float* gdn_ck_ = nullptr;
     int gdn_ck_rows_ = 0;
+    // MOD_PLAN.md section 6 item 17 part 18 STRATA_HEAD_ARGMAX_FUSED (opt-in): one 64-bit pick key per window row, folded
+    // by the head format's GEMV (head_fmt.hpp); null off
+    unsigned long long* head_am_keys_ = nullptr;
     // STRATA_VERIFY_DEFER_CPU_BELOW=<w> (with =1 or =check; 0.1 when unset, 0 when w >= 1): the pool computes the CPU
     // rows whose routing weight is >= w first and raises h_pflag_; post(l) of a deferred layer waits for that and
     // combines those rows, the lighter ones join late.  Not with STRATA_VERIFY_DEVICE_PLAN.

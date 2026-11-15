@@ -325,6 +325,117 @@ bool launch_head(const void* w, const void* x, float* y, int n_in, int n_out, cu
     return true;
 }
 
+// ---------------------------------------------------------------------------------- STRATA_HEAD_ARGMAX_FUSED (item 18)
+// MOD_PLAN.md section 6 item 17, open part 18 (LEADS.md "Item 18 fused argmax+accept", after SonicSampler arXiv
+// 2607.20475: the greedy pick folded into the head GEMV's epilogue, no separate pass over the logits).  Each column's
+// (value, row) pick becomes one 64-bit key, merged with atomicMax across the blocks:
+//   high word: the value's order-preserving image (sign flipped for >= 0, all bits flipped for < 0), -0.0 folded into
+//   +0.0 first (the reference compares with ==, so the two zeros tie);  low word: 0xFFFFFFFF - row, so on equal values
+//   the LOWER row has the larger key.  NaN and -inf give key 0 (never picked; the reference's strict `s > bv` from -inf
+//   never takes them), and a column whose key stays 0 picks row 0 - argmax_rows / sample_tokens' greedy pick exactly.
+__device__ __forceinline__ unsigned long long head_argmax_key(float v, int row) {
+    if (!(v > __int_as_float(0xff800000))) return 0ull;   // NaN (every compare false) and -inf
+    if (v == 0.0f) v = 0.0f;             // -0.0 -> +0.0
+    const unsigned u = __float_as_uint(v);
+    const unsigned ord = (u & 0x80000000u) ? ~u : (u | 0x80000000u);
+    return ((unsigned long long) ord << 32) | (unsigned long long) (0xFFFFFFFFu - (unsigned) row);
+}
+
+// head_kernel plus the epilogue: the same sums to y (the same row_dot, the same stores), then the block's best key per
+// column (lane 0 of each warp holds its row's sums) and one atomicMax per column and block into keys[j].  No early
+// return before the barrier: a row past n_out offers key 0.
+template <class F, int NC>
+__global__ void __launch_bounds__(WPB * WARP) head_argmax_kernel(const typename F::Block* __restrict__ w,
+                                                                const Q81Block* __restrict__ x, float* __restrict__ y,
+                                                                int n_in, int n_out, unsigned long long* __restrict__ keys) {
+    extern __shared__ int sx_raw[];
+    __shared__ unsigned long long bk[WPB][NC];
+    const int qb = n_in / 32;
+    {
+        const int words = NC * qb * (int) (sizeof(Q81Block) / 4);
+        const int* src = reinterpret_cast<const int*>(x);
+        for (int i = threadIdx.x; i < words; i += blockDim.x) sx_raw[i] = __ldg(src + i);
+    }
+    __syncthreads();
+    const int lane = threadIdx.x % WARP;
+    const int wv = threadIdx.x / WARP;
+    const int row = blockIdx.x * WPB + wv;
+    if (row < n_out) {
+        const int bpr = n_in / 256;
+        float s[NC];
+        row_dot<F, NC>(w + (size_t) row * bpr, reinterpret_cast<const Q81Block*>(sx_raw), qb, bpr, lane, s);
+        if (lane == 0) {
+#pragma unroll
+            for (int j = 0; j < NC; ++j) {
+                y[(size_t) j * n_out + row] = s[j];
+                bk[wv][j] = head_argmax_key(s[j], row);
+            }
+        }
+    } else if (lane == 0) {
+#pragma unroll
+        for (int j = 0; j < NC; ++j) bk[wv][j] = 0ull;
+    }
+    __syncthreads();
+    if ((int) threadIdx.x < NC) {
+        unsigned long long b = bk[0][threadIdx.x];
+#pragma unroll
+        for (int r = 1; r < WPB; ++r) b = bk[r][threadIdx.x] > b ? bk[r][threadIdx.x] : b;
+        if (b != 0ull) atomicMax(keys + threadIdx.x, b);
+    }
+}
+
+template <class F, int NC>
+bool launch_head_argmax(const void* w, const void* x, float* y, int n_in, int n_out, unsigned long long* keys,
+                        cudaStream_t s) {
+    const size_t smem = (size_t) NC * (n_in / 32) * sizeof(Q81Block);
+    if (smem > 48 * 1024 - sizeof(unsigned long long) * WPB * 8) {
+        static bool asked = false;
+        if (!asked) {
+            if (cudaFuncSetAttribute(head_argmax_kernel<F, NC>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                     (int) ((size_t) 8 * (kMaxIn / 32) * sizeof(Q81Block))) != cudaSuccess)
+                return false;
+            asked = true;
+        }
+    }
+    head_argmax_kernel<F, NC><<<(unsigned) ((n_out + WPB - 1) / WPB), WPB * WARP, smem, s>>>(
+        (const typename F::Block*) w, (const Q81Block*) x, y, n_in, n_out, keys);
+    return true;
+}
+
+template <class F>
+bool head_mmvq_argmax(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols,
+                      unsigned long long* keys, void* stream) {
+    if (!head_fmt_supported(n_in, ncols) || n_out <= 0 || keys == nullptr) return false;
+    const auto s = static_cast<cudaStream_t>(stream);
+    bool ok = false;
+    switch (ncols) {
+    case 1: ok = launch_head_argmax<F, 1>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    case 2: ok = launch_head_argmax<F, 2>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    case 3: ok = launch_head_argmax<F, 3>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    case 4: ok = launch_head_argmax<F, 4>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    case 5: ok = launch_head_argmax<F, 5>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    case 6: ok = launch_head_argmax<F, 6>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    case 7: ok = launch_head_argmax<F, 7>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    default: ok = launch_head_argmax<F, 8>(weights, x_q8_1, y, n_in, n_out, keys, s); break;
+    }
+    if (!ok) return false;
+    const cudaError_t e = cudaGetLastError();
+    if (e != cudaSuccess) {
+        klog_error("head_mmvq_argmax: %s", cudaGetErrorString(e));
+        return false;
+    }
+    return true;
+}
+
+// out[j] = the row in keys[j] (0 when the key is 0: no value above -inf), and keys[j] back to 0 for the next window
+__global__ void head_argmax_finish_kernel(unsigned long long* __restrict__ keys, int n, int32_t* out) {
+    const int j = (int) threadIdx.x;
+    if (j >= n) return;
+    const unsigned long long k = keys[j];
+    out[j] = k == 0ull ? 0 : (int32_t) (0xFFFFFFFFu - (unsigned) (k & 0xFFFFFFFFull));
+    keys[j] = 0ull;
+}
+
 template <class F>
 bool head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, void* stream) {
     if (!head_fmt_supported(n_in, ncols) || n_out <= 0) return false;
@@ -439,6 +550,23 @@ bool q6k_head_mmvq(const void* w, const void* x, float* y, int n_in, int n_out, 
 }
 bool q4k_head_mmvq(const void* w, const void* x, float* y, int n_in, int n_out, int ncols, void* s) {
     return head_mmvq<Q4K>(w, x, y, n_in, n_out, ncols, s);
+}
+
+bool iq4xs_head_mmvq_argmax(const void* w, const void* x, float* y, int n_in, int n_out, int ncols,
+                            unsigned long long* keys, void* s) {
+    return head_mmvq_argmax<IQ4XS>(w, x, y, n_in, n_out, ncols, keys, s);
+}
+bool q6k_head_mmvq_argmax(const void* w, const void* x, float* y, int n_in, int n_out, int ncols,
+                          unsigned long long* keys, void* s) {
+    return head_mmvq_argmax<Q6K>(w, x, y, n_in, n_out, ncols, keys, s);
+}
+bool q4k_head_mmvq_argmax(const void* w, const void* x, float* y, int n_in, int n_out, int ncols,
+                          unsigned long long* keys, void* s) {
+    return head_mmvq_argmax<Q4K>(w, x, y, n_in, n_out, ncols, keys, s);
+}
+void head_argmax_finish(unsigned long long* keys, int n, int32_t* out, void* s) {
+    if (n <= 0) return;
+    head_argmax_finish_kernel<<<1, 64, 0, static_cast<cudaStream_t>(s)>>>(keys, n, out);
 }
 
 size_t iq4xs_proxy_bytes(int64_t n_cap) { return px::bytes(n_cap); }

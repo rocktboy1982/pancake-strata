@@ -324,6 +324,17 @@ inline int g_gdn_specla_rows(int max_t) {
     return v == 1 ? max_t : std::min(v, max_t);
 #endif
 }
+// MOD_PLAN.md section 6 item 17 part 18, STRATA_HEAD_ARGMAX_FUSED=1 (opt-in, read once, exact): the verify head's greedy
+// pick folded into the head format's GEMV (head_fmt.hpp, head_argmax_parity).  Only builds with the head kernels
+// (CUDA's STRATA_HAVE_Q5K_HEAD, or HIP configured with -DSTRATA_HIP_HEAD_FMT=ON); elsewhere false.
+inline bool head_argmax_fused_on() {
+#if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
+    static const bool v = [] { const char* e = std::getenv("STRATA_HEAD_ARGMAX_FUSED"); return e != nullptr && e[0] == '1'; }();
+    return v;
+#else
+    return false;
+#endif
+}
 #define VDBG(...) do { if (g_dbg) { std::fprintf(stderr, "verify dbg: " __VA_ARGS__); std::fflush(stderr); } } while (0)
 
 struct Bump {
@@ -1386,6 +1397,9 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         if (defer_) def_parts_ = b.take<float>(T * K * N);
         // STRATA_GDN_SPECLA (MOD_PLAN.md section 6 item 16): the window's state checkpoints, last: the layout before is unchanged
         if (gdn_ck_rows_ > 0) gdn_ck_ = b.take<float>(nG * (uint64_t) gdn_ck_rows_ * gdn_rec_floats);
+        // STRATA_HEAD_ARGMAX_FUSED (MOD_PLAN.md section 6 item 17 part 18): T pick keys, last; zero with the arena, and
+        // head_argmax_finish leaves them zero after every window
+        if (head_argmax_fused_on()) head_am_keys_ = b.take<unsigned long long>(T);
     };
     Bump count;
     carve(count);
@@ -3353,6 +3367,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         const WeightRef *hn = wt.find("output_hc_norm.weight"), *hd = wt.find("output_hc_down.weight"),
                         *hu = wt.find("output_hc_up.weight");
         if (!hn || !hd || !hu) { err = "verify: an output_hc_* weight is missing"; return false; }
+        int head_am_cols = 0;   // STRATA_HEAD_ARGMAX_FUSED: the columns whose pick the head GEMV folded into head_am_keys_
       for (int h0 = 0; h0 < T; h0 += kFusedGrMaxT) {
         const int HT = std::min(T - h0, kFusedGrMaxT);   // this chunk's columns: h0 .. h0 + HT
         // S25 (STRATA_HC_Q8=1): the final mixer from the GGUF's Q8_0 projections too, through the same multi read
@@ -3430,6 +3445,23 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             try {
                 float* const hl = head_logits_ + (size_t) h0 * (size_t) n_vocab_;
                 if (!q8_head) native_quantize_q8_1(head_mixed_ + (size_t) h0 * N, xq_, (int) N, HT, cs);   // (else the fused read wrote this chunk's image at xq_)
+#if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
+                // MOD_PLAN.md section 6 item 17, part 18 (STRATA_HEAD_ARGMAX_FUSED=1, opt-in; LEADS.md "Item 18 fused
+                // argmax+accept", SonicSampler arXiv 2607.20475): the head format's GEMV (the same logits, bitwise
+                // native_mmvq: head_argmax_parity) folds each column's greedy pick into head_am_keys_; the pass over the
+                // logits below is then one 1-block launch.  A shape the kernels refuse falls through to the usual head.
+                const bool head_am_done =
+                    head_am_keys_ != nullptr &&
+                    (head_->type() == 23 ? strata::kernels::iq4xs_head_mmvq_argmax(head_->weights(), xq_, hl, (int) N, (int) n_vocab_,
+                                                                                    (int) HT, head_am_keys_ + h0, cs)
+                     : head_->type() == 14 ? strata::kernels::q6k_head_mmvq_argmax(head_->weights(), xq_, hl, (int) N, (int) n_vocab_,
+                                                                                   (int) HT, head_am_keys_ + h0, cs)
+                     : head_->type() == 12 ? strata::kernels::q4k_head_mmvq_argmax(head_->weights(), xq_, hl, (int) N, (int) n_vocab_,
+                                                                                   (int) HT, head_am_keys_ + h0, cs)
+                                           : false);
+                if (head_am_done) head_am_cols += (int) HT;
+                if (!head_am_done) {
+#endif
 #if defined(STRATA_HAVE_Q5K_HEAD)
                 // pancake-strata: basalt's Q5_K head GEMV (a warp a row, the columns' activations in shared memory
                 // once a block): bitwise native_mmvq's output (q5k_head_test), x1.28 at a 5-row window on an RTX
@@ -3464,6 +3496,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                                     (int) n_vocab_, (int) HT, cs);
                 } else
                 native_mmvq(head_->type(), head_->weights(), xq_, hl, (int) N, (int) n_vocab_, HT, cs);
+#if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
+                }   // !head_am_done
+#endif
             } catch (const std::exception& e) {
                 err = std::string("verify head: ") + e.what();
                 return false;
@@ -3473,6 +3508,13 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         // Greedy, the default, is recorded here as before (no extra launch or sync per window). A request that
         // samples or penalizes is sampled again host-side after the replay (run()) with its own parameters and a
         // fresh draw counter: a captured sampler would bake them in and replay the same draws forever.
+#if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
+        // STRATA_HEAD_ARGMAX_FUSED: every column folded -> the keys are the picks; some but not all -> the keys are
+        // cleared (written to m_out_, then overwritten by the usual pick below, same stream)
+        if (head_am_cols > 0) strata::kernels::head_argmax_finish(head_am_keys_, T, m_out_, cs);
+        if (head_am_cols == T) {
+        } else
+#endif
         if (argmax_rows_wanted()) {   // sm_80 to sm_89 (sm_7x opt-in): the pick over many blocks a row (bitwise the one-block kernel's)
             argmax_rows(head_logits_, T, (int) n_vocab_, arg_scratch_, m_out_, cs);
         } else {
