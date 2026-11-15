@@ -21890,6 +21890,9 @@ int main(int argc, char** argv) {
             if (drive.d.tail_experts > 0)   // STRATA_ROUTE_TAIL_SKIP, cumulative
                 std::fprintf(stderr, "strata serve: route tail skip: %lld missed experts skipped (%lld entries) since the "
                                      "start\n", (long long) drive.d.tail_experts, (long long) drive.d.tail_skipped);
+            if (drive.d.wskip_experts > 0)   // STRATA_MISS_SKIP_W / STRATA_MISS_SKIP_CUM, cumulative (entries in the tail count)
+                std::fprintf(stderr, "strata serve: weight miss skip: %lld missed experts skipped since the start\n",
+                             (long long) drive.d.wskip_experts);
             if (drive.d.ecap_experts > 0)   // MOD_PLAN F5 STRATA_VERIFY_ECAP, cumulative
                 std::fprintf(stderr, "strata serve: STRATA_VERIFY_ECAP: %lld draft-only CPU experts skipped (%lld entries) "
                                      "since the start\n", (long long) drive.d.ecap_experts, (long long) drive.d.ecap_entries);

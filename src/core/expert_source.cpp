@@ -4933,6 +4933,21 @@ int tail_skip_rank() {
 }
 void set_tail_skip_rank(int r) { g_tail_skip_rank.store(r > 0 && r < 10 ? r : 0, std::memory_order_relaxed); }
 
+namespace {
+// STRATA_MISS_SKIP_W=<share> / STRATA_MISS_SKIP_CUM=<p> (opt-in, lossy; MOD_PLAN.md section 6 item 15, LEADS.md): the
+// weight-based companions of the rank tail skip.  Each value is used only in (0, 1); anything else (unset too) is 0 = off.
+// Read once.
+float miss_skip_env(const char* name) {
+    const char* v = std::getenv(name);
+    if (v == nullptr || v[0] == '\0') return 0.0f;
+    const float f = (float) std::atof(v);
+    return f > 0.0f && f < 1.0f ? f : 0.0f;
+}
+float miss_skip_w() { static const float w = miss_skip_env("STRATA_MISS_SKIP_W"); return w; }
+float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_CUM"); return p; }
+}  // namespace
+bool miss_skip_weights_on() { return miss_skip_w() > 0.0f || miss_skip_cum() > 0.0f; }
+
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic) {
     using namespace strata::kernels::cpu;
@@ -5059,6 +5074,51 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 skip_d[q] = true;
                 --nmiss;
                 ++d.tail_experts;
+            }
+        }
+        // STRATA_MISS_SKIP_W=<share> / STRATA_MISS_SKIP_CUM=<p> (opt-in, lossy, default off; MOD_PLAN.md section 6 item 15,
+        // LEADS.md): the weight-based companions of the rank tail skip above, skipped exactly as it skips (kind -2: neither
+        // copied nor computed, a zero row, NO renormalisation - the kept experts keep the weight the router gave them).
+        // Only a MISSED expert (not in the GPU cache) is ever skipped, and only when EVERY token of the window that routes it
+        // meets the rule (one skip zeroes all its rows):
+        //   _W:   its weight share w / sum(w of the token's k) is < share.  Maya's MAYA_GLM_MISS_SKIP_W (+7-13% decode at
+        //         KL 0.037-0.052 on GLM) and the SKIP_MINW absolute floor (the router's top-10 weights sum to 1, so the
+        //         share is the weight).
+        //   _CUM: the weight of the token's experts ranked above it (sorted by weight; resident ones count, they are kept)
+        //         already reaches p of the token's sum: HOBBIT's cumulative gate-score rule as a skip.
+        // The weights are the ones the window's doorbell published (GpuPlanSink::skip_w, set by the verifier only when one
+        // of the two is set).  Not with a peer or helper GPU, as the tail skip.
+        const float* sw = d.plan != nullptr ? d.plan->skip_w : nullptr;
+        if (sw != nullptr && d.peer == nullptr && d.remote_count == 0) {
+            const float share_lt = miss_skip_w(), cum_ge = miss_skip_cum();
+            int q_of[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
+            bool keep[kMaxWindowEntries];   // per distinct expert: some token routes it outside the rule
+            for (int q = 0; q < nd; ++q) keep[q] = false;
+            for (int64_t i = 0; i < n; ++i) {
+                const int q = q_of[first_of[i]];
+                if (keep[q] || skip_d[q]) continue;
+                const int64_t t0 = (i / k) * k;
+                const float wi = sw[i];
+                float sum = 0.0f, above = 0.0f;
+                for (int64_t j = t0; j < t0 + k; ++j) {
+                    sum += sw[j];
+                    if (sw[j] > wi || (sw[j] == wi && j < i)) above += sw[j];
+                }
+                bool skip_entry = false;
+                if (sum > 0.0f && wi == wi) {   // (a NaN weight or an empty token never skips)
+                    if (share_lt > 0.0f && wi < share_lt * sum) skip_entry = true;
+                    if (cum_ge > 0.0f && above >= cum_ge * sum) skip_entry = true;
+                }
+                if (!skip_entry) keep[q] = true;
+            }
+            for (int q = 0; q < nd; ++q) {
+                const int32_t e = ids[distinct[q]];
+                if (keep[q] || skip_d[q] || e < 0 || e >= d.n_expert) continue;
+                if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] >= 0) continue;   // resident: never skipped
+                skip_d[q] = true;
+                --nmiss;
+                ++d.wskip_experts;
             }
         }
         // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the verifier sets
