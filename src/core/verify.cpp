@@ -190,6 +190,16 @@ inline bool g_qdedup() { static const bool on = [] { const char* v = std::getenv
 // fork F4 (Eddoursul): 2-4 token dense projections read an interleaved copy of the q8_1 activations (bitwise the same
 // outputs); STRATA_MMVQ_IL=0 keeps native_mmvq's multi-column kernels
 inline bool g_mmvq_il() { static const bool on = [] { const char* v = std::getenv("STRATA_MMVQ_IL"); return v == nullptr || v[0] != '0'; }(); return on; }
+// STRATA_MMVQ_IL_PLAIN=1 (android-imdad caa9b00115; default off): no interleave launch before a window's dense
+// projection - the QFUSE hyper-connection read writes the interleaved copy beside its q8_1 images (2-4 tokens), and
+// projections without one read the plain columns (native_mmvq_ilp_supported) or take native_mmvq; bitwise either way.
+// False in a build without the interleaved path (HIP without -DSTRATA_HIP_MMVQ_IL).
+inline bool g_il_plain() { static const bool on = g_mmvq_il() && strata::kernels::native_mmvq_il_plain(); return on; }
+// STRATA_MMVQ_IL_CHECK=1 (debug, with STRATA_MMVQ_IL_PLAIN): compare the read's copy with native_q8_1_interleave's
+inline bool g_il_check() { static const bool on = [] { const char* v = std::getenv("STRATA_MMVQ_IL_CHECK"); return v != nullptr && v[0] == '1'; }(); return on; }
+// STRATA_GR_FUSE=1 (android-imdad caa9b00115; default off): the window HC read's four counters (gr_sync_) are allocated
+// and passed, so fused_gr_read_multi may run its Q8 read as one launch (with STRATA_TSUM)
+inline bool g_gr_fuse() { static const bool on = [] { const char* v = std::getenv("STRATA_GR_FUSE"); return v != nullptr && v[0] == '1'; }(); return on; }
 // STRATA_SELECT_LONG=1 (opt-in): a window graph past select_long_at() cells takes the long-context QSA select
 // (qsa_block_topk_long's multi-CTA top-k through topk_scratch_, qsa_block_scores_long's shuffle-free decode scorer;
 // both compute capability 6.x by default, the same ids and score bits).  Each costs ~6 more kernels a call, which only
@@ -759,6 +769,7 @@ Verifier::~Verifier() {
     if (dc_arena_) cudaFree(dc_arena_);
     if (h_commitd_) cudaFreeHost(h_commitd_);
     if (qcnt_) cudaFree(qcnt_);
+    if (gr_sync_) cudaFree(gr_sync_);
     if (d_spec_) cudaFree(d_spec_);
     if (tap_file_) std::fclose(tap_file_);
 #if !defined(STRATA_GPU_METAL)   // (on Metal tap_dev_ is the window's unified-memory buffer, not an allocation of this object)
@@ -1256,6 +1267,8 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         xq_ = b.take<uint8_t>(strata::kernels::native_q8_1_bytes(max_in, qcols));
         sh_xq_ = b.take<uint8_t>(strata::kernels::native_q8_1_bytes(max_in, qcols));
         xil_ = b.take<uint8_t>(strata::kernels::native_q8_1_il_bytes(max_in, std::max(4, qcols)));   // 147-verify: 5-8 columns too
+        if (g_il_check() && g_il_plain() && !strata::kernels::native_q8_1_il_check_init((int) max_in))
+            std::fprintf(stderr, "strata: STRATA_MMVQ_IL_CHECK: cannot allocate - no check\n");
         qkv_L_ = b.take<float>(nG * T * C); h_L_ = b.take<float>(nG * T * C);
         gate_L_ = b.take<float>(nG * T * HV); beta_L_ = b.take<float>(nG * T * HV);
         z_ = b.take<float>(T * ZV); y_ = b.take<float>(T * ZV); y_dummy_ = b.take<float>(T * ZV);
@@ -1497,6 +1510,14 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             cudaGetLastError();
             if (qcnt_) cudaFree(qcnt_);
             qcnt_ = nullptr;
+        }
+    }
+    if (g_gr_fuse() && gr_sync_ == nullptr) {   // STRATA_GR_FUSE: the window HC read's four counters, zeroed once (each launch leaves them zero)
+        if (cudaMalloc((void**) &gr_sync_, 4 * sizeof(unsigned)) != cudaSuccess ||
+            cudaMemset(gr_sync_, 0, 4 * sizeof(unsigned)) != cudaSuccess) {
+            cudaGetLastError();
+            if (gr_sync_) cudaFree(gr_sync_);
+            gr_sync_ = nullptr;
         }
     }
     if (all_resident_ || device_plan_) {
@@ -1955,13 +1976,16 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 a.inject_out = inj_out + t * HC; a.mixed = mixed_ + t * N;
                 if (qcnt_ != nullptr) {   // S26 STRATA_QFUSE: the consumer's q8_1 image written by the read itself
                     a.q8_cnt = qcnt_;
-                    if (half == 0) a.q8_mixed = xq_ + (size_t) (t - tb) * (N / 32) * 36;
-                    else if (strata::kernels::cpu::expert_layout().native) a.q8_mixed = nat_xq_ + (size_t) t * (N / 32) * 36;
+                    if (half == 0) {
+                        a.q8_mixed = xq_ + (size_t) (t - tb) * (N / 32) * 36;
+                        // STRATA_MMVQ_IL_PLAIN (android-imdad caa9b00115): and its interleaved copy (token 0's pointer is the one used)
+                        if (g_il_plain() && n >= 2 && n <= 4) a.q8_il = xil_;
+                    } else if (strata::kernels::cpu::expert_layout().native) a.q8_mixed = nat_xq_ + (size_t) t * (N / 32) * 36;
                 }
             }
             if (strata::kernels::fused_gr_read_persist(fa, n, cs)) return false;   // STRATA_HC_PERSIST=1; q8_mixed is never set there
             return fused_gr_read_multi(fa, n, xn_ + (size_t) tb * HC * N, cs, (prof_on_ && grp == 0 && ((prof_sel >> 27) & 1)) ? prof_ : nullptr,
-                                (int) (l * kProfPer + (half == 0 ? 27 : 30)));
+                                (int) (l * kProfPer + (half == 0 ? 27 : 30)), gr_sync_);   // gr_sync_: STRATA_GR_FUSE (null: off)
         };
         const bool q8_attn = gr_read_group(0, pending, inj2_, inj_);   // true: xq_ holds mixed's q8_1 (STRATA_QFUSE)
         {   // measurement only: STRATA_DUMMY_NODES=k adds k empty kernel nodes per layer (what one node costs in a window)
@@ -1974,7 +1998,10 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         }
         stamp(l, 1, grp);
         float* xm = mixed_ + tb * N;
-        bool il_ready = false;   // xil_ holds xq_'s interleaved copy (reset whenever xq_ is rewritten)
+        // xil_ holds xq_'s interleaved copy (reset whenever xq_ is rewritten); STRATA_MMVQ_IL_PLAIN (android-imdad
+        // caa9b00115): the read wrote it (fused_gr_read_multi writes q8_il only when it returns true)
+        bool il_ready = q8_attn && qcnt_ != nullptr && g_il_plain() && n >= 2 && n <= 4;
+        if (il_ready && g_il_check()) strata::kernels::native_q8_1_il_check(xq_, xil_, (int) N, n, cs);
         // a projection input's q8_1 blocks and their interleaved copy in one launch (native_quantize_q8_1_il, the same
         // bytes): Turing default (+0.5..+1 % decode, two launches fewer per GDN layer and per QSA layer); STRATA_QIL=0 / 1
         // forces it off / on
@@ -1992,6 +2019,15 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             il_ready = false;
         };
         auto mm = [&](const WeightRef* w, float* out, int n_in, int n_out) {
+            if (g_il_plain() && n >= 2 && n <= 4) {   // STRATA_MMVQ_IL_PLAIN: no interleave launch - the read's copy, else the plain columns
+                if (il_ready && strata::kernels::native_mmvq_il_supported(w->native_type, n, n_out))
+                    strata::kernels::native_mmvq_il(w->native_type, w->native_data, xq_, xil_, out, n_in, n_out, n, cs);
+                else if (strata::kernels::native_mmvq_ilp_supported(w->native_type, n, n_out))
+                    strata::kernels::native_mmvq_il(w->native_type, w->native_data, xq_, nullptr, out, n_in, n_out, n, cs);
+                else
+                    native_mmvq(w->native_type, w->native_data, xq_, out, n_in, n_out, n, cs);
+                return;
+            }
             if (g_mmvq_il() && strata::kernels::native_mmvq_il_supported(w->native_type, n, n_out)) {
                 if (!il_ready && n >= 2) {   // one column reads the plain q8_1 blocks
                     strata::kernels::native_q8_1_interleave(xq_, xil_, n_in, n, cs);
@@ -3937,6 +3973,10 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     // STRATA_SELECT_LONG: the select kernels this window's context pays off with (the same on every stage)
     sel_long_ = select_long_on() && pos0 + T >= select_long_at() ? 1 : 0;
     if (!capture(T, err) || !capture_commit(err)) return false;
+    if (g_il_check()) {   // STRATA_MMVQ_IL_CHECK (debug): the counts so far, every 256 windows
+        static unsigned il_windows = 0;
+        if (++il_windows % 256 == 0) strata::kernels::native_q8_1_il_check_report();
+    }
     const bool chain = chain_overlap();
     if (chain) {   // capture the next stage's window here, on this thread, so the helper only stages and launches
         const OnDevice on_next(next_->device_);

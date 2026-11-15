@@ -622,6 +622,7 @@ private:
     bool device_plan_ = false;            ///< E-6: resident-only layers planned on the device (STRATA_VERIFY_DEVICE_PLAN)
     uint32_t* skip_ = nullptr;            ///< E-6: per group, the ring whose plan the device built (0: the host's)
     unsigned* qcnt_ = nullptr;             ///< S26 STRATA_QFUSE: the HC read's q8_1 group counters (n_embd / 32)
+    unsigned* gr_sync_ = nullptr;          ///< STRATA_GR_FUSE (android-imdad caa9b00115): the window HC read's four counters (zeroed once)
     unsigned long long* slot_off_d_ = nullptr;   ///< E-6: the slot offsets on the device
     int64_t lb_ = 0, le_ = -1;           ///< set_stage: the layers this verifier runs (-1: to the last)
     int handoff_rows_ = 0;               ///< set_handoff_rows (0: kVerifyNarrowT)

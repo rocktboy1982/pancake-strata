@@ -85,7 +85,7 @@ double time_us(F fn, int reps, cudaStream_t s, G gap) {
 }
 // --persist: the matrix `w` (wbytes) persisting in L2 for every kernel on `s`; off: the window cleared
 void persist_window(cudaStream_t s, void* w, std::size_t wbytes, bool on) {
-#if !defined(STRATA_HIP_GFX906)
+#if !defined(STRATA_HIP_GFX906) && !defined(__HIPCC__)   // (HIP: a STRATA_HIP_MMVQ_IL build has no access policy window)
     cudaStreamAttrValue v{};
     v.accessPolicyWindow.base_ptr = on ? w : nullptr;
     v.accessPolicyWindow.num_bytes = on ? wbytes : 0;
@@ -504,7 +504,7 @@ int main(int argc, char** argv) {
     }
     cudaStream_t s;
     cudaStreamCreate(&s);
-#if !defined(STRATA_HIP_GFX906)
+#if !defined(STRATA_HIP_GFX906) && !defined(__HIPCC__)
     if (g_persist || g_ab) {
         int dev = 0, l2 = 0, maxp = 0, maxw = 0;
         cudaGetDevice(&dev);
