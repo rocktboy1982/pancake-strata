@@ -513,6 +513,7 @@ STRATA_ENV("STRATA_LOOKAHEAD_GPU", Speed, "bitwise: documented (docs/README/code
 STRATA_ENV("STRATA_LOOKAHEAD_K", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_LOOKUP_CHAIN_FIXED", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_LOOKUP_MAX_T", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
+STRATA_ENV("STRATA_LOOKUP_OLDER", Speed, "drafting policy: the suffix drafter takes an older match with a longer tail (llama.cpp #29548); greedy output unchanged")
 STRATA_ENV("STRATA_MMQ_DIRECT", Speed, "bitwise: \"Same bits\" (DETAILS.md:1084)")
 STRATA_ENV("STRATA_MMQ_GROUP_SORT", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_MMQ_RESIDENT_SORT_NE", Speed, "bitwise: documented (docs/README/code comment/parity test)")

@@ -2,6 +2,7 @@
 #include "strata/spec/suffix_drafter.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 
 namespace strata::spec {
 
@@ -70,14 +71,40 @@ int SuffixDrafter::propose(int max_k, int32_t* out) {
     if (s == nullptr) return 0;
     size_t best_end = 0;
     int best_len = 0;
+    size_t cand_end[WAYS] = {};
+    int cand_len[WAYS] = {};
     for (int w = 0; w < s->n; ++w) {
         const size_t p = s->pos[w];
         if (p >= cur) continue;                             // the current suffix itself
         int len = 0;
         while (len < max_match_ && len <= (int) p && hist_[p - len] == hist_[cur - len]) ++len;
+        cand_end[w] = p;
+        cand_len[w] = len;
         if (len > best_len) { best_len = len; best_end = p; }   // most recent first, so ties keep the newer
     }
     if (best_len < min_match_) return 0;
+    // STRATA_LOOKUP_OLDER=N (opt-in, read once): when the chosen match leaves fewer than min(N, max_k) tokens after it
+    // (periodic text: the nearest match is one period back, so the draft stops at one period), take the most recent
+    // older candidate that still matches min_match tokens and has that many after it.  Port of llama.cpp PR #29548
+    // (frankekn, b8c8dad7c8: ngram-simple keeps scanning older matches).  Only the drafts change; the verify pass keeps
+    // greedy output exact.  Unset or 0: the choice above, unchanged.  Lead: LEADS.md Part F (#29548).
+    static const int older = [] {
+        const char* v = std::getenv("STRATA_LOOKUP_OLDER");
+        const int x = v != nullptr ? std::atoi(v) : 0;
+        return x > 0 ? x : 0;
+    }();
+    if (older > 0) {
+        const size_t want = (size_t) std::min(older, max_k);
+        if (cur - best_end < want) {
+            for (int w = 0; w < s->n; ++w) {
+                if (cand_len[w] >= min_match_ && cand_end[w] < cur && cur - cand_end[w] >= want) {
+                    best_end = cand_end[w];
+                    best_len = cand_len[w];
+                    break;
+                }
+            }
+        }
+    }
     last_match_ = best_len;
     int k = 0;
     // The continuation may run into the current suffix (periodic text); reading history up to `cur` is valid.
