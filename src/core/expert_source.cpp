@@ -27,6 +27,7 @@
 
 #if defined(__x86_64__) || defined(_M_X64)
 #include <xmmintrin.h>
+#include <emmintrin.h>   // STRATA_NT_COPY: _mm_stream_si128
 #endif
 #include <cuda_runtime.h>
 #ifndef _WIN32
@@ -1753,10 +1754,48 @@ void FileExpertSource::close() {
 }
 
 
+namespace {
+// STRATA_NT_COPY=1 (opt-in, read once; LEADS.md "STRATA_NT_COPY non-temporal blob copies", the Strata-GLM note: the
+// copy engine's reads of pinned memory fell from 46.6 to 17.0 GB/s beside four memcpy threads): the host's expert-blob
+// copies into the pinned buffers the GPU reads (stager buffers, the RAM copy) use streaming stores, which bypass the
+// cache and do not read the destination lines first.  The same bytes land; an sfence orders them before the copy's
+// caller hands the buffer on.  Unset (or not x86-64): std::memcpy, as before.
+bool nt_copy_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_NT_COPY"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+void blob_copy(void* dst, const void* src, size_t n) {
+#if defined(__x86_64__) || defined(_M_X64)
+    if (nt_copy_on() && n >= 4096) {
+        uint8_t* d = static_cast<uint8_t*>(dst);
+        const uint8_t* s = static_cast<const uint8_t*>(src);
+        const size_t head = (size_t) ((16 - ((uintptr_t) d & 15)) & 15);   // to a 16-byte aligned destination
+        std::memcpy(d, s, head);
+        d += head; s += head; n -= head;
+        const size_t body = n & ~(size_t) 63;
+        for (size_t i = 0; i < body; i += 64) {
+            const __m128i a = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + i));
+            const __m128i b = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + i + 16));
+            const __m128i c = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + i + 32));
+            const __m128i e = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + i + 48));
+            _mm_stream_si128(reinterpret_cast<__m128i*>(d + i), a);
+            _mm_stream_si128(reinterpret_cast<__m128i*>(d + i + 16), b);
+            _mm_stream_si128(reinterpret_cast<__m128i*>(d + i + 32), c);
+            _mm_stream_si128(reinterpret_cast<__m128i*>(d + i + 48), e);
+        }
+        std::memcpy(d + body, s + body, n - body);
+        _mm_sfence();
+        return;
+    }
+#endif
+    std::memcpy(dst, src, n);
+}
+}  // namespace
+
 bool ExpertSource::copy_blob(int64_t layer, int64_t expert, uint8_t* dst) {
     const uint8_t* b = blob(layer, expert);
     if (b == nullptr || dst == nullptr) return false;
-    std::memcpy(dst, b, (size_t) strata::kernels::cpu::expert_layout().blob_bytes(layer));
+    blob_copy(dst, b, (size_t) strata::kernels::cpu::expert_layout().blob_bytes(layer));
     return true;
 }
 
@@ -1883,7 +1922,7 @@ bool FileExpertSource::copy_from_files(int64_t layer, int64_t expert, uint8_t* d
                     continue;
                 }
             }
-            std::memcpy(dst + sp[i].at, sp[i].p, (size_t) sp[i].n);
+            blob_copy(dst + sp[i].at, sp[i].p, (size_t) sp[i].n);   // STRATA_NT_COPY
         }
         if (ns > 0) return true;
     }
@@ -1894,14 +1933,14 @@ bool FileExpertSource::copy_from_files(int64_t layer, int64_t expert, uint8_t* d
         for (int r = 0; r < 3; ++r) {
             const size_t i = (size_t) (3 * layer + r);
             const uint64_t per = role_bytes_[i];
-            std::memcpy(dst + at, role_ptr_[i] + (size_t) ((uint64_t) expert * per), (size_t) per);
+            blob_copy(dst + at, role_ptr_[i] + (size_t) ((uint64_t) expert * per), (size_t) per);   // STRATA_NT_COPY
             at += per;
         }
         return true;
     }
     const uint8_t* b = mapped_blob(layer, expert);
     if (b == nullptr) return false;
-    std::memcpy(dst, b, (size_t) layer_blob_bytes_[(size_t) layer]);
+    blob_copy(dst, b, (size_t) layer_blob_bytes_[(size_t) layer]);   // STRATA_NT_COPY
     return true;
 }
 
@@ -3497,7 +3536,7 @@ bool FileExpertSource::copy_blob(int64_t layer, int64_t expert, uint8_t* dst) {
             resident_blob(index);
         if (held == nullptr && !override_.empty()) held = override_[index];
         if (held != nullptr) {
-            std::memcpy(dst, held, (size_t) bytes);
+            blob_copy(dst, held, (size_t) bytes);   // STRATA_NT_COPY
             return true;
         }
     }
@@ -4471,7 +4510,7 @@ int64_t FileExpertSource::commit_exchanges() {
         const uint64_t at = complement_offsets_[x.in];
         if (src != nullptr && at != kNoComplement && at <= complement_bytes_ && x.bytes <= complement_bytes_ - at &&
             complement_host_ != nullptr) {
-            std::memcpy((uint8_t*) complement_host_ + (size_t) at, src, (size_t) x.bytes);
+            blob_copy((uint8_t*) complement_host_ + (size_t) at, src, (size_t) x.bytes);   // STRATA_NT_COPY
             if (detail::exchange_cache_complement(complement_offsets_, x.in, x.out)) ++n;
         }
         override_[x.out] = nullptr;
@@ -4523,7 +4562,7 @@ bool FileExpertSource::replace_resident_staged(int64_t layer, int64_t in, int64_
         const auto it = stage_of_.find((int64_t) i_in);
         if (it == stage_of_.end() || stage_busy_[it->second] || stage_key_[it->second] != (int64_t) i_in) return false;
         if (fs != nullptr) fs->hold(layer, (int32_t) out);
-        std::memcpy((uint8_t*) complement_host_ + (size_t) at, stage_buf_[it->second].get(), (size_t) bytes);
+        blob_copy((uint8_t*) complement_host_ + (size_t) at, stage_buf_[it->second].get(), (size_t) bytes);   // STRATA_NT_COPY
         moved = detail::exchange_cache_complement(complement_offsets_, i_out, i_in);
         if (fs != nullptr) fs->unhold(layer, (int32_t) out);
     }
@@ -4547,7 +4586,7 @@ bool FileExpertSource::install_resident(int64_t layer, int64_t in, int64_t out, 
     // #2134: a Foresight slot may be copying out of `out`'s place right now; it is dropped (never served) before the place is rewritten
     ForesightSwap* fs = fs_swap_.load(std::memory_order_acquire);
     if (fs != nullptr) fs->hold(layer, (int32_t) out);
-    std::memcpy((uint8_t*) complement_host_ + (size_t) at, src, (size_t) bytes);
+    blob_copy((uint8_t*) complement_host_ + (size_t) at, src, (size_t) bytes);   // STRATA_NT_COPY
     const bool moved = detail::exchange_cache_complement(complement_offsets_, i_out, i_in);
     if (fs != nullptr) fs->unhold(layer, (int32_t) out);
     if (!moved) return false;
@@ -4677,7 +4716,7 @@ void FileExpertSource::commit_copies() {
         const uint64_t at = complement_offsets_[x.in];
         if (src != nullptr && at != kNoComplement && at <= complement_bytes_ && x.bytes <= complement_bytes_ - at &&
             complement_host_ != nullptr)
-            std::memcpy((uint8_t*) complement_host_ + (size_t) at, src, (size_t) x.bytes);
+            blob_copy((uint8_t*) complement_host_ + (size_t) at, src, (size_t) x.bytes);   // STRATA_NT_COPY
     }
 }
 
