@@ -1,0 +1,29 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "preset": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "preset-truncate": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_PARK_TRUNCATE": "1"
+      }
+    }
+  },
+  "replay": {
+    "session": "2026-11-09T16:13/2026-11-09T16:43",
+    "turns": "pancake-turns.jsonl",
+    "arms": [
+      "preset",
+      "preset-truncate"
+    ],
+    "reps": 3
+  },
+  "note": "Cache levers combined: the preset now carries cache2048-min8192; this adds STRATA_PARK_TRUNCATE=1 on top (each lever was confirmed alone in spec 49)."
+}

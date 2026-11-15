@@ -1,0 +1,21 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 10,
+  "arms": {
+    "ecap1": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "ecap1-l16": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "args": {
+        "--lookup-max-t": "16"
+      }
+    }
+  },
+  "note": "Paired confirm: the preset (ECAP=1, lookup window 12) against lookup window 16. Spec 57 gave 142.6 tok/s +-7.8 on edit for the 16 arm but ECAP=1 alone read +9.6% +-41.9 there (noise)."
+}
