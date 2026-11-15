@@ -178,20 +178,23 @@ miss.
    (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
    then run spec 33 (MTP bundle: `--mtp-q4 all --mtp-window 4096 --host-core sibling`) and spec 34's `pf-switch-min-t`
    arm (its `mmvq-wave1` arm is answered by T-072, `kv-grow` by T-391).
-2. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
+2. **New code of 2026-11-15, built in the separate clone** `/home/dan/clone-of-d/src/Strata-win` (builds `../build-win`, and
+   `../build-win-j32` with `STRATA_MMQ_RDNA3_J32_ROLLED=ON`): spec 63 (three exact runtime switches) and spec 64 (#31751
+   build-vs-build, prompt tok/s on long1k / long3k). Needs the card: stop `pancake.service` first.
+3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
-3. **EQUAL_TAIL** (`STRATA_PREFILL_EQUAL_TAIL`, `_MIN` 256): est. -1.5..-2.5 s of ~40 s at 100K, ~-1 s at 66.5K, up to
+4. **EQUAL_TAIL** (`STRATA_PREFILL_EQUAL_TAIL`, `_MIN` 256): est. -1.5..-2.5 s of ~40 s at 100K, ~-1 s at 66.5K, up to
    -2.5 s at 34K. Use prompt sizes 30000, 34000, 60000, 66500, 70000, 100000 (the ttft_bench defaults sit on chunk
    boundaries); plus the #5539 check: 99,997 tokens -> chunks 0/32768/65536/98304 (with EQUAL_TAIL 0/25088/50176/75264),
    ~98,400 tokens, `STRATA_TRACE=1`, a lent line, a reply, no fault.
-4. **Never-run specs for coded switches**: 26-stack (F12 `IQ_SIGN_FAST`), 19-turbo-guards (F13), 12-spec-sampling and
+5. **Never-run specs for coded switches**: 26-stack (F12 `IQ_SIGN_FAST`), 19-turbo-guards (F13), 12-spec-sampling and
    a21-spec-lowtemp (A21/F6 `SPEC_PROB`, FK-01 `SPEC_PROB_DT`), 24-a15 (`PARK_TTL_S`; `pick_victim()` is in
    conversation_cache.hpp), 22-a7 (`PROMO_CHUNK`), 24-a45 (`CALIBRATE`), 16-a19 (`HIDDEN_DUMP`/`THINK_PROBE`, first step
    of the thinking stop; proxy labels cap the saving near 10%), 25-f-env-rerun (lookahead0, routed-dedupe, MMVF_ROWS;
    the 05s screen had no clean runs, T-527), a33-a35-fusion-retest (premise changed: deferral is off), 15-kmiss,
    taskgate-* (point them at `bench/tasks/repo-history.json`, not default.json), 08-build (`STRATA_HOST_NATIVE`).
-5. **Coded, no spec yet**: F7 `Q2_FAST` engine A/B (bit-exact, x1.33/x1.23 rows, T-246/T-253); F14 `EXP9_DOWN=42:10`
+6. **Coded, no spec yet**: F7 `Q2_FAST` engine A/B (bit-exact, x1.33/x1.23 rows, T-246/T-253); F14 `EXP9_DOWN=42:10`
    (= FK-24, parity in ctest); F22 `HIP_WMMA_Q4` end to end; F11 `ATTN_WINDOW` (q36); `HIP_GLOBAL_WEIGHTS` (flat loads
    13,119 -> 108, T-050); `WAIT_COPY256` confirm (screen +6.7% / +2.4%, T-056; inert below T=6, so check it acts at
    `--spec 4`); FK-02 `--prompt-cache-spread`, FK-03 `--lookup-chain 3`, `--adapt-decay`, FK-10 `ATTN_LANECELL`,
@@ -200,7 +203,7 @@ miss.
    HIP; selftune candidate profile (+4.6% modeled, T-439); `ROUTE_PRIOR_AUTO`; 17.3 ablation; TTFT scenarios C/D/E;
    `prefix_check`; A9 `IDLE_ADAPT` (ceiling <=0.26%, low priority); `STRATA_POOL_SPIN_US` sweep (Juud: 15.1 -> 12.6
    ms/token).
-6. **Small open checks**: A18 (effort/temperature fields appear in `pancake-turns.jsonl` after the first served run;
+7. **Small open checks**: A18 (effort/temperature fields appear in `pancake-turns.jsonl` after the first served run;
    logging approved 2026-11-13 07:01); A54 blocked until a task-gate run gives per-task scores for the lossy arms; A50 not
    settled by A49; A28 decision: keep the 58 GB Coder GGUF on D (`models/ista-gsq-rco-coder-gguf`) and do NOT test it
    (Avalon-only, ~29.6 GB resident); the confirm tier's early stop ended a run at n=2 of 3 (use `--no-early-stop` for
@@ -208,12 +211,12 @@ miss.
    predictive expert prefetch replay on the gate-weight trace; medium R3 hybrid tiers, R4 KV eviction under parallel
    agents; low R5 MiniMax read-ahead, R6 elastic KV, R7 QEngine MTP; R8 multi-GPU parked; R9 orchestration not now):
    R1 then R2 were promised and not done.
-7. **Measure before code (TTFT, M1-M5)**: M1 8/32/64/100K with prompt_ms, TTFB, park, chunk plan, file-tier/KV lines,
+8. **Measure before code (TTFT, M1-M5)**: M1 8/32/64/100K with prompt_ms, TTFB, park, chunk plan, file-tier/KV lines,
    PREFILL_TIMING (each size twice, fresh state or park reported apart); M2 10-turn session x3 (alone; side request +
    sub-agent switch; `--conversation-cache-mib 1280`); M3 divergence; M4 opencode/Copilot request bodies; M5 deltas
    100/300/1000/3000 at 32K/64K. Unexplained so far: a 3.4 s turn after a 34K cold read, 4.8 s / 36 s waits outside
    the timer, the cause of 13% checkpoint fallbacks.
-8. **Probes before ports** (`tools/pancake/probes/`; each header has question/build/run; `-DSTRATA_BUILD_PROBES=ON`,
+9. **Probes before ports** (`tools/pancake/probes/`; each header has question/build/run; `-DSTRATA_BUILD_PROBES=ON`,
    CMakeLists.txt ~3124, EXCLUDE_FROM_ALL). Run with the GPU idle; under rocprofv3 decode is ~1.6x slower, so read shares.
    - 4.2.1 empty-launch cost vs block count on 42 WGPs (F20, never run): `hipcc -O2 --offload-arch=gfx1100
      tools/pancake/probes/empty_grid.hip.cpp -o /tmp/empty_grid && HIP_VISIBLE_DEVICES=0 /tmp/empty_grid --csv /tmp/sweep.csv`
@@ -230,7 +233,7 @@ miss.
      (~20 s; ns/row legacy/fast/dispatcher/read-only floor in L2 and DRAM, checks bitwise equality).
    - F12: `iq_multi_parity`, then `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1` (every cell `identical`;
      keep a format only where `dec:s1` has the lower gu_us), then spec 22-f12-sign-fast.
-9. **Open claims, never measured**: `STRATA_PF_HCDOWN=1` quality (in fast-hip, lossy; rxr2: 2x first-token KL at 16K
+10. **Open claims, never measured**: `STRATA_PF_HCDOWN=1` quality (in fast-hip, lossy; rxr2: 2x first-token KL at 16K
    for +1.3% prompt); `hipblaslt_extend.py` table vs shipped at 1.5-3.2K/4-4.2K/16K/32K (greedy identity + identical
    "Lt solution=" lines); cold 32K `--ple-io direct`, caches dropped: `WAIT_TRACE=1` vs +`PLE_PIPE=1` vs +`PLE_COMPACT=1`;
    start time `STRATA_UNBUFFERED_LOAD=0/1` + `STRATA_VERIFY_ARENA=1` (claim 28-65 s -> 10-14 s);
@@ -244,14 +247,14 @@ miss.
 |---|---|---|---|
 | 1 | FK-28 prompt-fed tier counts, redesigned: the existing `set_usage` hook is dead (section 7). Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
 | 2 | 0xluk `PF_AHEAD` + `REFILL_ASYNC` for the staged path of agent deltas < 4,096 tokens | +35% agent prefill (2x 3060, PCIe 3) | exact |
-| 3 | llama.cpp #31751 RDNA3 MMQ J=32 spill pragma (check the pinned ggml) | +36% at 17-32-token batches, gfx1100 | exact |
-| 4 | android-imdad exact decode bundle (`TOPK_REGKEYS`, `TOPK_SCAN`, `MTP_SELECT_WIDE`, `GDN_NORM128`, `ATTN_MERGE_BOUND`) | +10% chat, +11% agent, KL 0, 7900 XTX | exact |
+| 3 | CODED 2026-11-15 (opt-in build switch `STRATA_MMQ_RDNA3_J32_ROLLED`, `cmake/strata_ggml_rdna3_j32.cmake`): llama.cpp #31751 RDNA3 MMQ J=32 rolled k01 loop on the pinned ggml; acts on the staged prompt chunks (< 4096 tokens, agent deltas) for Q2_0 down / IQ2_XXS / IQ4_XS. Static check T-578: J=32 kernel 256 VGPRs + spill, occupancy 5 -> 137 VGPRs, no spill, occupancy 10. Next: spec 64 (build-vs-build) | author +36% at 17-32-token batches, gfx1100 | exact |
+| 4 | android-imdad exact decode bundle (commit caa9b00115). CODED 2026-11-15 as opt-ins: `STRATA_MULTI_BLOCK_ARGMAX=1` now works on gfx11 (was gfx12-only) with 4 loads in flight in the HIP argmax scan (author 12 -> 5.6 us a pick), `STRATA_MTP_SELECT_WIDE=1`; next: spec 63. Not ported: `GDN_NORM128` (our gdn_out_norm_kernel runs only on the `STRATA_GDN_SPLIT` path, off in fast-hip), `ROUTE_FAST` / `WAIT_COPY256` (ported earlier, dropped / inert), `TOPK_*` / `ATTN_MERGE_BOUND` (attention < 1% of our window), `DMA_FLAG_WRITE` (pcie-frac 0), `ADAPT_COPY2` / `DQ_FAST` (open) | bundle +10% chat, +11% agent, KL 0, 7900 XTX (no per-switch split) | exact |
 | 5 | `PF_GU_EXACT` Tensile prompt GEMM for gfx1100 | 26.5 vs 12.9 TFLOPS; 64K prompt 40.1 -> 31.5 s (XTX) | exact |
 | 6 | schedule H2D admission copies into CPU-idle phases (attention/GDN) | est. +10-18% | exact |
 | 7 | CPU pool bandwidth push (two fused phases per layer, row-chunk split, touch the next expert early); imanu86 IQ2_S/IQ3_S AVX2 decode without per-index shifts (pool on IQ2_S layers 20-33% faster) | est. 33 -> 38-42 GB/s, +5-12% | exact |
 | 8 | re-warm or protect the decode tier after a long prompt (decode 92.5 vs 111.7 tok/s after prefill) | up to the gap | exact |
 | 9 | launch fusions (`FUSE_SHGATE/COMBINE/SWIGLU_DOWN/PLAN/ROUTEBELL/QGEMV`): launches cost ~14-16 us on gfx1100 | -400 launches/window (R9700) | exact |
-| 10 | `EXPDEC_V2` remainder; `MMVQ_WAVE_ROWS` table; small exact bundle (copy_rows loads-first, sampler x8 loads, single-token MMVF_ROWS, lookahead submit after publish) | -20-24% expdec kernel time; +4% MI50; several us per launch | exact |
+| 10 | `EXPDEC_V2` remainder; `MMVQ_WAVE_ROWS` table; small exact bundle: copy_rows loads-first CODED 2026-11-15 (`STRATA_ROWS_LOADS_FIRST=1`, next: spec 63); sampler x8 loads (waits for the box's sampler fix); single-token MMVF_ROWS; lookahead submit after publish (deferred: ~10-25 us a window) | -20-24% expdec kernel time; +4% MI50; several us per launch | exact |
 | 11 | Speedy `KV_STAGE_REQ` + `PF_SEL_BATCH` (long-context loan sizing, VRAM); `TOOL_STEP_SPLIT` + `canonical_tools` (serve only) | 300K cold prompt 466 -> 1527 t/s (2x 3080); turn-2 cache reuse | exact |
 | 12 | rdna3 `791cca4b`/`5906629d` (AUTO_MAX 49152 + refill head `2b19d510`), `f557b544` (CPU share retries per layer) | 2-4% at 49K | exact |
 | 13 | DALI per-layer per-step CPU/GPU assignment instead of the static A45 probe | +23% over HybriMoE (3090) | exact |

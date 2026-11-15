@@ -1,0 +1,41 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 6,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "rows-loads-first": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROWS_LOADS_FIRST": "1"
+      }
+    },
+    "mb-argmax": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MULTI_BLOCK_ARGMAX": "1"
+      }
+    },
+    "mtp-wide": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MTP_SELECT_WIDE": "1"
+      }
+    },
+    "all3": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROWS_LOADS_FIRST": "1",
+        "STRATA_MULTI_BLOCK_ARGMAX": "1",
+        "STRATA_MTP_SELECT_WIDE": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 items 4 and 10 (2026-11-15): three exact opt-in switches built in /home/dan/clone-of-d/src/build-win (Strata-win clone). STRATA_ROWS_LOADS_FIRST: the verify CPU-rows copy reads all of a thread's mapped float4s before storing. STRATA_MULTI_BLOCK_ARGMAX=1: the multi-block greedy pick and top probability on gfx1100 (gfx12-only before; android-imdad caa9b00115: 12 -> 5.6 us a pick) with 4 loads in flight. STRATA_MTP_SELECT_WIDE=1: the drafter row copy over up to 40 blocks. EXACT: the text must equal base on every case; a difference is a bug. Expected gains are small (tens of us per window), so run --tier confirm; stop pancake.service first (it holds the card)."
+}

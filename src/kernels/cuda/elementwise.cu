@@ -235,6 +235,10 @@ __global__ void copy_from_mapped_kernel(float4* __restrict__ dst, const volatile
 
 // the CPU rows of a verify window, skipping the rows the GPU plan computes itself (the
 // pool writes +0.0 into those, so this writes +0.0 too): block = row, the plan's hit rows `dst[0, *count)`.
+// kLoadsFirst (STRATA_ROWS_LOADS_FIRST=1, opt-in; LEADS.md section 0 "small exact bundle"): each thread reads all of its
+// float4s of the mapped row into registers before it stores any, so the PCIe reads are in flight together instead of one
+// read - one store - one read; the same values land in the same places (exact).
+template <bool kLoadsFirst>
 __global__ void copy_rows_from_mapped_kernel(float4* __restrict__ dst, const volatile float4* src, int64_t row4,
                                              const int32_t* __restrict__ hit_rows, const int32_t* __restrict__ count,
                                              const volatile uint32_t* wait_flag = nullptr, uint32_t wait_value = 0) {
@@ -254,11 +258,34 @@ __global__ void copy_rows_from_mapped_kernel(float4* __restrict__ dst, const vol
     float4* d = dst + (int64_t) row * row4;
     if (hit) {
         for (int64_t i = threadIdx.x; i < row4; i += blockDim.x) d[i] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    } else if constexpr (kLoadsFirst) {
+        const float4* sr = const_cast<const float4*>(src + (int64_t) row * row4);
+        constexpr int kU = 8;   // 8 x 128 threads covers a 4,096-wide row in one pass (Flash-Next rows are 2,560 wide)
+        for (int64_t base = threadIdx.x; base < row4; base += (int64_t) blockDim.x * kU) {
+            float4 v[kU];
+#pragma unroll
+            for (int u = 0; u < kU; ++u) {
+                const int64_t i = base + (int64_t) u * blockDim.x;
+                if (i < row4) v[u] = sr[i];
+            }
+#pragma unroll
+            for (int u = 0; u < kU; ++u) {
+                const int64_t i = base + (int64_t) u * blockDim.x;
+                if (i < row4) d[i] = v[u];
+            }
+        }
     } else {
         const volatile float4* sr = src + (int64_t) row * row4;
         for (int64_t i = threadIdx.x; i < row4; i += blockDim.x) d[i] = const_cast<const float4*>(sr)[i];
     }
 }
+namespace {
+// read once (no per-window getenv): STRATA_ROWS_LOADS_FIRST=1 picks the loads-first copy of the CPU rows
+bool rows_loads_first() {
+    static const bool on = [] { const char* e = std::getenv("STRATA_ROWS_LOADS_FIRST"); return e && e[0] == '1'; }();
+    return on;
+}
+}  // namespace
 namespace {
 __global__ void scatter_rows_kernel(const float4* __restrict__ src, float4* dst, const int32_t* __restrict__ rows,
                                     int64_t w4) {
@@ -283,8 +310,12 @@ void copy_rows_from_mapped(float* dst, const float* src, int64_t rows, int64_t w
         std::fprintf(stderr, "copy_rows_from_mapped: width must be a multiple of 4 and both pointers 16-byte aligned\n");
         std::exit(1);
     }
-    copy_rows_from_mapped_kernel<<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>((float4*) dst, (const volatile float4*) src,
-                                                                                  width / 4, hit_rows, count);
+    if (rows_loads_first())
+        copy_rows_from_mapped_kernel<true><<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
+            (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count);
+    else
+        copy_rows_from_mapped_kernel<false><<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
+            (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count);
 }
 void copy_rows_from_mapped_after(const uint32_t* flag, uint32_t value, float* dst, const float* src, int64_t rows,
                                  int64_t width, const int32_t* hit_rows, const int32_t* count, void* stream) {
@@ -293,8 +324,12 @@ void copy_rows_from_mapped_after(const uint32_t* flag, uint32_t value, float* ds
         std::fprintf(stderr, "copy_rows_from_mapped_after: width must be a multiple of 4 and both pointers 16-byte aligned\n");
         std::exit(1);
     }
-    copy_rows_from_mapped_kernel<<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
-        (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count, (const volatile uint32_t*) flag, value);
+    if (rows_loads_first())
+        copy_rows_from_mapped_kernel<true><<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
+            (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count, (const volatile uint32_t*) flag, value);
+    else
+        copy_rows_from_mapped_kernel<false><<<(unsigned) rows, 128, 0, (cudaStream_t) stream>>>(
+            (float4*) dst, (const volatile float4*) src, width / 4, hit_rows, count, (const volatile uint32_t*) flag, value);
 }
 void copy_from_mapped(float* dst, const float* src, int64_t n, void* stream) {
     if (n <= 0) return;

@@ -815,8 +815,12 @@ void copy_row_to_first(const int32_t* row_dev, float* a, int64_t a_n, float* b, 
 
 void mtp_select(const float* R_src, int64_t R_stride, const int32_t* ids, const int32_t* row_dev, float* R_dst,
                 int32_t* tok_dst, int32_t* out, int j, void* stream, const float* probs, float* out_p) {
-    mtp_select_kernel<<<1, 256, 0, (cudaStream_t) stream>>>(R_src, R_stride, ids, row_dev, R_dst, tok_dst, out, j,
-                                                            probs, out_p);
+    // STRATA_MTP_SELECT_WIDE=1 (opt-in; android-imdad caa9b00115, default on there): the row copy over up to 40 blocks -
+    // the kernel's loop already strides the grid, so the same bytes land in R_dst; the token is still written by block 0
+    static const bool wide = [] { const char* v = std::getenv("STRATA_MTP_SELECT_WIDE"); return v != nullptr && v[0] == '1'; }();
+    const unsigned nbk = wide ? (unsigned) std::min<int64_t>(40, (R_stride + 255) / 256) : 1u;
+    mtp_select_kernel<<<nbk, 256, 0, (cudaStream_t) stream>>>(R_src, R_stride, ids, row_dev, R_dst, tok_dst, out, j,
+                                                              probs, out_p);
     check("mtp_select");
 }
 
@@ -904,7 +908,25 @@ __global__ void argmax_rows_kernel(const float* __restrict__ logits, int n, int 
     const int lo = b * per_block, hi = min(n, lo + per_block);
     float bv = __int_as_float(0xff800000);   // -inf
     int bi = n;
-    for (int v = lo + (int) threadIdx.x; v < hi; v += (int) blockDim.x) {
+    int v = lo + (int) threadIdx.x;
+#if defined(__HIPCC__)
+    // HIP: four loads in flight a thread, then the four compares in the same ascending order - the same pick (the
+    // strict > keeps the lowest index on a tie either way); one at a time each load is its own memory round trip
+    // (android-imdad caa9b00115: 12 -> 5.6 us a pick on gfx1100 with STRATA_MULTI_BLOCK_ARGMAX)
+    {
+        constexpr int kU = 4;
+        const int B = (int) blockDim.x;
+        for (; v + (kU - 1) * B < hi; v += kU * B) {
+            float x[kU];
+#pragma unroll
+            for (int k = 0; k < kU; ++k) x[k] = l[v + k * B];
+#pragma unroll
+            for (int k = 0; k < kU; ++k)
+                if (x[k] > bv) { bv = x[k]; bi = v + k * B; }
+        }
+    }
+#endif
+    for (; v < hi; v += (int) blockDim.x) {
         const float s = l[v];
         if (s > bv) { bv = s; bi = v; }
     }
@@ -1033,6 +1055,9 @@ bool multi_block_head_ops() {
     }();
     if (env == 0) return false;
 #if defined(__HIPCC__)
+    // an explicit STRATA_MULTI_BLOCK_ARGMAX=1 turns the multi-block head ops on for any RDNA HIP card (gfx11 too:
+    // android-imdad caa9b00115 measured them on gfx1100, bitwise the one-block kernels'); unset: gfx12 only, as before
+    if (env == 1) return true;
     static int arch[64] = {};   // 0 unknown, 1 gfx12 (RDNA4: the only HIP target #3264 was run on), 2 other
     int dev = 0;
     if (cudaGetDevice(&dev) != cudaSuccess || dev < 0 || dev >= 64) return false;
@@ -1057,6 +1082,10 @@ bool argmax_rows_wanted() {
     }();
     if (env >= 0) return env != 0 && multi_block_head_ops();
 #if defined(__HIPCC__)
+    // sample_tokens' greedy pick on HIP is the one-block kernel: an explicit STRATA_MULTI_BLOCK_ARGMAX=1 takes the
+    // multi-block pick on any RDNA card (see multi_block_head_ops); unset: gfx12 only, as before
+    static const bool mb_forced = [] { const char* v = std::getenv("STRATA_MULTI_BLOCK_ARGMAX"); return v != nullptr && std::atoi(v) != 0; }();
+    if (mb_forced) return multi_block_head_ops();
     static int arch[64] = {};   // 0 unknown, 1 gfx12 (RDNA4), 2 other
     int dev = 0;
     if (cudaGetDevice(&dev) != cudaSuccess || dev < 0 || dev >= 64) return false;
