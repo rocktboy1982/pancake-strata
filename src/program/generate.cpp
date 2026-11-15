@@ -14007,6 +14007,69 @@ int main(int argc, char** argv) {
         } else
             std::fprintf(stderr, "strata serve: adaptive overlap: off%s%s\n",
                          aov_why ? ": " : " (STRATA_ADAPT_OVERLAP=1 turns it on)", aov_why ? aov_why : "");
+        // STRATA_ADAPT_IDLE_COPY=1 (opt-in; MOD_PLAN.md section 6 item 6): the serial decode loop's adaptive round does not
+        // put its copies on adapt_stream at once; it queues them (with the landing signals and adapt_ev's record, in the
+        // same order) and they are issued from the phases where the CPU pool has no work: one slice at the end of the round
+        // (the commit and the draft run then), one at the window's start and one after each layer's CPU experts are
+        // served (the GPU runs the combine and the next layer's attention / GDN mixer up to that layer's doorbell).  The
+        // pool reads its expert rows from host RAM, as the copies do; this keeps the two apart.  Every copy stays the
+        // same (bytes, slot, stream, order): only when it is issued changes, so the output is unchanged (bitwise).  Nothing
+        // waits for a copy that is still queued: the gate's wait for a layer (adapt_gate_wait) issues every queued copy up
+        // to that layer first, the window's end issues the rest, and apply_pending issues all before it reads adapt_ev.
+        // Needs STRATA_ADAPT_OVERLAP=1 (its per-layer gate; STRATA_ADAPT_COPY2 / STRATA_ADAPT_LAYERWAIT are off with it).
+        // STRATA_ADAPT_IDLE_COPY_KB=<n>: the bytes a phase issues (default 4096; at least one copy a phase).
+        static const bool idle_copy_on = [] { const char* v = std::getenv("STRATA_ADAPT_IDLE_COPY"); return v != nullptr && v[0] == '1'; }();
+        static const size_t idle_copy_slice = [] {
+            const char* v = std::getenv("STRATA_ADAPT_IDLE_COPY_KB");
+            const long kb = v != nullptr ? std::atol(v) : 4096L;
+            return (size_t) std::max(1L, kb) * 1024u;
+        }();
+        // one queued step: a copy (dst set) or a stream-ordered signal / record (sig), tagged with its layer
+        struct IdleOp { void* dst; const void* src; size_t bytes; int32_t layer; std::function<void()> sig; };
+        struct IdleQueue { std::mutex mu; std::deque<IdleOp> ops; bool failed = false; } idleq;
+        bool idle_round_ok = false;   // set by the serial decode loop around its own adapt() round only
+        // mode 0: one slice (a phase where the pool has no work); 1: every queued step of the layers <= `layer`; 2: all
+        std::function<bool(int32_t, int)> idle_pace = [&](int32_t layer, int mode) -> bool {
+            std::lock_guard<std::mutex> lk(idleq.mu);
+            if (idleq.failed) return false;
+            size_t spent = 0;
+            bool issued = false;
+            while (!idleq.ops.empty()) {
+                IdleOp& op = idleq.ops.front();
+                if (mode == 1 && op.layer > layer) break;
+                if (op.dst != nullptr) {
+                    if (mode == 0 && spent >= idle_copy_slice) break;
+                    if (adapt_copy_h2d(op.dst, op.src, op.bytes, adapt_stream) != cudaSuccess) {
+                        std::fprintf(stderr, "strata serve: adaptive swap copy failed (STRATA_ADAPT_IDLE_COPY, layer %d): %s\n",
+                                     (int) op.layer, cudaGetErrorString(cudaGetLastError()));
+                        idleq.failed = true;
+                        idleq.ops.clear();
+                        return false;
+                    }
+                    spent += op.bytes;
+                } else if (op.sig) {
+                    op.sig();
+                }
+                issued = true;
+                idleq.ops.pop_front();
+            }
+            // #2188: hand the copies to the GPU now (as adapt() does; Linux submits at once: no-op)
+            if (issued && agate.hland != nullptr) (void) cudaStreamQuery(adapt_stream);
+            return true;
+        };
+        if (idle_copy_on) {
+            if (aov) {
+                agate.pace = [](void* u, int32_t layer, int mode) -> bool {
+                    return (*(std::function<bool(int32_t, int)>*) u)(layer, mode);
+                };
+                agate.pace_user = &idle_pace;
+                std::fprintf(stderr, "strata serve: STRATA_ADAPT_IDLE_COPY=1: the adaptive tier's copies go out in the window's "
+                                     "CPU-idle phases (attention / GDN mixer, the commit and the draft), %zu KiB a phase "
+                                     "(STRATA_ADAPT_IDLE_COPY_KB); same bytes into the same slots\n", idle_copy_slice / 1024u);
+            } else {
+                std::fprintf(stderr, "strata serve: STRATA_ADAPT_IDLE_COPY=1 is off: it needs STRATA_ADAPT_OVERLAP=1 (its per-layer gate)\n");
+            }
+        }
         // a layer split's later stages keep a copy of the residency table on their devices, and swap on their own
         auto res_upload = [&]() -> cudaError_t {   // the first error, every table tried
             cudaError_t r = d_res != nullptr ? res_put(d_res) : cudaSuccess;
@@ -14032,6 +14095,12 @@ int main(int argc, char** argv) {
             deferred_finalize = false;
         };
         auto apply_pending = [&](bool wait) {
+            // STRATA_ADAPT_IDLE_COPY: the copies still queued go out first (adapt_ev's record is the last of them)
+            if (agate.pace != nullptr && !idle_pace(INT32_MAX, 2)) {
+                std::printf("ERR an adaptive refill failed\n");
+                std::fflush(stdout);
+                std::exit(1);
+            }
             finalize_layered();   // STRATA_ADAPT_LAYERWAIT (nothing to do when it is off)
             if (round_layered) {   // (a layered round taken with the wait: its events are not used)
                 std::fill(layer_has.begin(), layer_has.end(), (uint8_t) 0);
@@ -14327,13 +14396,22 @@ int main(int argc, char** argv) {
                                !src.complement_ready();
             size_t n_main = 0;
             bool used2 = false;
+            // STRATA_ADAPT_IDLE_COPY: this round's steps for adapt_stream, queued (see idle_pace); the serial decode loop
+            // with STRATA_ADAPT_OVERLAP's gate only (one GPU, unbatched copies: aov's own conditions)
+            const bool idle = agate.pace != nullptr && aov && idle_round_ok && !multi_gpu && stages.empty() && dma_mode == 0;
+            std::vector<IdleOp> idle_ops;
             for (size_t si = 0; si < swaps.size(); ++si) {
                 const Swap& s = swaps[si];
                 if (aov && (si == 0 || swaps[si - 1].layer != s.layer)) {
                     // test hook (STRATA_ADAPT_OVERLAP_SLOW_US=N): a slow link, to make the windows wait for the copies
                     static const int slow_us = [] { const char* e = std::getenv("STRATA_ADAPT_OVERLAP_SLOW_US"); return e ? std::atoi(e) : 0; }();
                     static int slow_arg = slow_us;
-                    if (slow_us > 0)
+                    if (slow_us > 0 && idle) {
+                        const cudaStream_t ist = adapt_stream;
+                        idle_ops.push_back({nullptr, nullptr, 0, s.layer, [ist] {
+                            cudaLaunchHostFunc(ist, [](void* p) { std::this_thread::sleep_for(std::chrono::microseconds(*(int*) p)); }, &slow_arg);
+                        }});
+                    } else if (slow_us > 0)
                         cudaLaunchHostFunc(adapt_stream, [](void* p) { std::this_thread::sleep_for(std::chrono::microseconds(*(int*) p)); }, &slow_arg);
                 }
                 const size_t in = (size_t) s.layer * g.n_expert + s.in, out = (size_t) s.layer * g.n_expert + s.out;
@@ -14360,12 +14438,15 @@ int main(int argc, char** argv) {
                     used2 = true;
                 }
                 if (slot < 0 || b == nullptr ||
-                    adapt_copy_h2d(gs ? gs->cache.device_slot(slot) : xcache.device_slot(slot), b,
-                                   (size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer), cst) != cudaSuccess) {
+                    (!idle && adapt_copy_h2d(gs ? gs->cache.device_slot(slot) : xcache.device_slot(slot), b,
+                                             (size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer), cst) != cudaSuccess)) {
                     std::fprintf(stderr, "strata serve: adaptive swap copy failed (layer %d, slot %d, pinned %d): %s\n",
                                  (int) s.layer, (int) slot, pin_live.empty() ? 0 : 1, cudaGetErrorString(cudaGetLastError()));
                     return false;
                 }
+                if (idle)   // STRATA_ADAPT_IDLE_COPY: the same copy (cst is adapt_stream here), issued by idle_pace
+                    idle_ops.push_back({xcache.device_slot(slot), b,
+                                        (size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer), s.layer, {}});
                 if (gs) gs->adapt_live = true;
                 else main_live = true;
                 host_res[out] = strata::core::kNotResident;   // evicted now: the CPU computes it meanwhile
@@ -14380,6 +14461,26 @@ int main(int argc, char** argv) {
                     if (ev != nullptr && cudaEventRecord(ev, adapt_stream) == cudaSuccess) layer_has[(size_t) s.layer] = 1;
                     else round_layered_bad = true;   // (no event: the round is taken with the plain wait)
                 }
+                if (idle && (si + 1 == swaps.size() || swaps[si + 1].layer != s.layer)) {
+                    // STRATA_ADAPT_IDLE_COPY: the layer's landing signal below, queued behind its copies (value captures
+                    // only: it runs after this round has returned)
+                    strata::core::AdaptGate* const ag = &agate;
+                    const cudaStream_t ist = adapt_stream;
+                    const int32_t lay = s.layer, nlay = (int32_t) g.n_layers;
+                    idle_ops.push_back({nullptr, nullptr, 0, lay, [ag, ist, lay, nlay] {
+                        if ((ag->hland != nullptr
+                                 ? cudaMemcpyAsync((void*) ag->hland, ag->dvals + lay, 4, cudaMemcpyDeviceToHost, ist)
+                                 : cudaLaunchHostFunc(ist, [](void* p) {
+                            auto* t = (strata::core::AdaptGate::Tick*) p;
+                            int32_t cur = t->counter->load(std::memory_order_relaxed);
+                            while (cur < t->layer && !t->counter->compare_exchange_weak(cur, t->layer, std::memory_order_release)) {}
+                        }, &ag->ticks[(size_t) lay])) != cudaSuccess) {
+                            (void) cudaGetLastError();
+                            cudaStreamSynchronize(ist);   // no callback: wait here, the gate opens at once
+                            ag->landed.store(nlay, std::memory_order_release);
+                        }
+                    }});
+                } else
                 if (aov && (si + 1 == swaps.size() || swaps[si + 1].layer != s.layer) &&
                     (agate.hland != nullptr
                          ? cudaMemcpyAsync((void*) agate.hland, agate.dvals + s.layer, 4, cudaMemcpyDeviceToHost, adapt_stream)
@@ -14408,6 +14509,17 @@ int main(int argc, char** argv) {
                 cudaEventRecord(adapt_ev2, adapt_stream2);
                 cudaStreamWaitEvent(adapt_stream, adapt_ev2, 0);
             }
+            if (idle && !swaps.empty()) {   // STRATA_ADAPT_IDLE_COPY: the record is the queue's last step
+                const cudaEvent_t iev = adapt_ev;
+                const cudaStream_t ist = adapt_stream;
+                idle_ops.push_back({nullptr, nullptr, 0, INT32_MAX, [iev, ist] { cudaEventRecord(iev, ist); }});
+                {
+                    std::lock_guard<std::mutex> lk(idleq.mu);
+                    for (IdleOp& op : idle_ops) idleq.ops.push_back(std::move(op));
+                }
+                // the commit and the draft come next (no CPU experts then): the first slice goes out now
+                if (!idle_pace(0, 0)) return false;
+            } else
             if (!swaps.empty()) cudaEventRecord(adapt_ev, adapt_stream);
             // STRATA_ADAPT_LAYERWAIT: the round's copies carry their per-layer events (else the plain wait takes it)
             round_layered = layered && !swaps.empty() && !round_layered_bad;
@@ -21140,11 +21252,13 @@ int main(int argc, char** argv) {
                 auto adapt_join = [&] {
                     if (adapt_posted) { adapt_worker->wait(); adapt_posted = false; }
                     if (adapt_thr.joinable()) adapt_thr.join();
+                    idle_round_ok = false;   // STRATA_ADAPT_IDLE_COPY: only the round posted above queues its copies
                 };
                 bool adapt_ok = true;
                 // (--adapt-async 1: the asynchronous tier above instead, ticked before the window)
                 if (!drive.d.usage.empty() && !ajob && ((rounds + 1) % o.adapt_iv(rounds)) == 0)
                 {
+                    idle_round_ok = agate.pace != nullptr;   // STRATA_ADAPT_IDLE_COPY: this round may queue its copies (reset at the join)
                     if (adapt_persist) {
                         if (adapt_worker == nullptr) adapt_worker = new JobThread();
                         adapt_worker->post([&] { adapt_ok = adapt(); });

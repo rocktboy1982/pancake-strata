@@ -3983,6 +3983,11 @@ void Verifier::accumulate_profile_inner(const unsigned long long* stamps) {
 // 0.1.43 (STRATA_ADAPT_OVERLAP): hold the host until the adaptive tier's copies up to `layer` have landed.  The wait
 // is a spin on an atomic the copy stream's host functions raise (no driver call here); 20 s is the window's own limit.
 bool Verifier::adapt_gate_wait(int32_t layer, std::string& err) {
+    // STRATA_ADAPT_IDLE_COPY (MOD_PLAN.md section 6 item 6): the copies this wait needs go out now if still queued
+    if (adapt_gate_->pace != nullptr && !adapt_gate_->pace(adapt_gate_->pace_user, layer, 1)) {
+        err = "verify: the adaptive tier's copy failed (STRATA_ADAPT_IDLE_COPY)" + released_note(release_gpu_waits(5000));
+        return false;
+    }
     const Clock::time_point t0 = Clock::now();
     uint32_t spins = 0;
     // each tier's counter climbs to the last layer it swaps this round, so an all-layers wait asks for that layer
@@ -4278,6 +4283,16 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     const int G = groups_[T] > 0 ? groups_[T] : 1;
     const int gtb[2] = {0, (T + 1) / 2}, gte[2] = {G == 2 ? (T + 1) / 2 : T, T};
     const int64_t steps = (le_ - lb_) * G;
+    // STRATA_ADAPT_IDLE_COPY (MOD_PLAN.md section 6 item 6): the adaptive tier's queued copies go out in slices where the
+    // pool has no work - now (the GPU runs the first layer's mixer) and after each layer's CPU experts are served (the
+    // combine, then the next layer's attention / GDN mixer up to its doorbell).  Off (no pace): nothing is called.
+    const bool idle_pace = adapt_gate_ != nullptr && adapt_gate_->pace != nullptr;
+    auto pace_slice = [&](int64_t layer) -> bool {
+        if (adapt_gate_->pace(adapt_gate_->pace_user, (int32_t) layer, 0)) return true;
+        err = "verify: the adaptive tier's copy failed (STRATA_ADAPT_IDLE_COPY)" + released_note(release_gpu_waits(5000));
+        return false;
+    };
+    if (idle_pace && !ar_on() && !pace_slice(lb_)) return false;
     if (ar_on() && !test_stall) {
         if (flag_raised) {
             // up before the launch (early_ple_flag_mode)
@@ -4404,9 +4419,16 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         }
         if (h_pflag_ != nullptr) raise_flag(h_pflag_, want);   // STRATA_VERIFY_DEFER_CPU_BELOW: (the pool raised it if it split)
         if (!(test_stall && k + 1 == steps)) *flag = want;
+        // STRATA_ADAPT_IDLE_COPY: the layer's CPU experts are done; the next doorbell is the next layer's (see pace_slice)
+        if (idle_pace && grp == G - 1 && k + 1 < steps && !pace_slice(l + 1)) return false;
         if (h_bal_ != nullptr) bal_p_[(size_t) ((k / G) * 2 + grp)] = ms_since(b);
         ms_wait += std::chrono::duration<double, std::milli>(b - a).count();
         ms_pool += ms_since(b);
+    }
+    // STRATA_ADAPT_IDLE_COPY: whatever is still queued (the last landing signals, adapt_ev's record) goes out now
+    if (idle_pace && !adapt_gate_->pace(adapt_gate_->pace_user, (int32_t) g.n_layers, 2)) {
+        err = "verify: the adaptive tier's copy failed (STRATA_ADAPT_IDLE_COPY)" + released_note(release_gpu_waits(5000));
+        return false;
     }
     // (#646 staged the next stage's inputs here; 0.1.39b keeps the layer split's order: each stage stages its own)
     if (chain) {
