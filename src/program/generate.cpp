@@ -7759,8 +7759,14 @@ int main(int argc, char** argv) {
     const strata::program::grammar::PackVocab* tp_vocab = nullptr;
     strata::program::PriorMarks tp_marks;                              // <think> / </think> (Flash-Next's ids by default)
     int tp_every = tpb::kDefaultEvery;                                 // the check points' spacing (STRATA_HIDDEN_DUMP's every=)
+    tpb::BrakeConfig tb_cfg;   // LEADS.md Part C A19 ThinkBrake (STRATA_THINK_BRAKE, opt-in, lossy; think_probe.hpp)
+    if (o.serve && std::getenv("STRATA_THINK_BRAKE") && std::getenv("STRATA_THINK_BRAKE")[0]) {
+        std::string berr;
+        if (!tpb::parse_brake_config(std::getenv("STRATA_THINK_BRAKE"), tb_cfg, berr))
+            std::fprintf(stderr, "strata serve: %s: ignored\n", berr.c_str());
+    }
     if (o.serve && ((std::getenv("STRATA_HIDDEN_DUMP") && std::getenv("STRATA_HIDDEN_DUMP")[0]) ||
-                    (std::getenv("STRATA_THINK_PROBE") && std::getenv("STRATA_THINK_PROBE")[0]))) {
+                    (std::getenv("STRATA_THINK_PROBE") && std::getenv("STRATA_THINK_PROBE")[0]) || tb_cfg.on())) {
         std::string terr;
         if (!tpb::parse_dump_config(std::getenv("STRATA_HIDDEN_DUMP"), tp_dump, terr))
             std::fprintf(stderr, "strata serve: %s: ignored\n", terr.c_str());
@@ -7781,7 +7787,7 @@ int main(int argc, char** argv) {
                 tp_dump = tpb::DumpConfig();
             }
         }
-        if (tp_dump.on() || tp_cfg.on()) {
+        if (tp_dump.on() || tp_cfg.on() || tb_cfg.on()) {
             if (grammar_vocab) {
                 tp_vocab = &*grammar_vocab;
             } else {
@@ -7801,8 +7807,10 @@ int main(int argc, char** argv) {
                 } else {
                     std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE: the pack's tokenizer files cannot be "
                                          "read%s%s: both are off\n", gerr.empty() ? "" : ": ", gerr.c_str());
+                    if (tb_cfg.on()) std::fprintf(stderr, "strata serve: STRATA_THINK_BRAKE: no tokenizer texts: off\n");
                     tp_dump = tpb::DumpConfig();
                     tp_cfg = tpb::ProbeConfig();
+                    tb_cfg = tpb::BrakeConfig();
                 }
             }
         }
@@ -7824,6 +7832,11 @@ int main(int argc, char** argv) {
                          tp_cfg.path.c_str(), tp_probe.link() == tpb::kIdentity ? "identity" : "logistic", tp_cfg.checks,
                          (double) tp_cfg.threshold,
                          tp_cfg.min_tokens > 0 ? (", from " + std::to_string(tp_cfg.min_tokens) + " thinking tokens").c_str() : "");
+        if (tb_cfg.on())
+            std::fprintf(stderr, "strata serve: STRATA_THINK_BRAKE (lossy): the thinking closes at a sentence end where "
+                                 "log(p_top / p_</think>) <= %.4g%s (the server's soft close; serial decode loop only)\n",
+                         (double) tb_cfg.tau,
+                         tb_cfg.min_tokens > 0 ? (", from " + std::to_string(tb_cfg.min_tokens) + " thinking tokens").c_str() : "");
         if ((tp_dump.on() || tp_cfg.on()) && (o.batch > 0 || o.pipeline_windows > 0))
             std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE act on the serial decode loop only: batch-slot "
                                  "and pipelined windows are not hooked\n");
@@ -20081,6 +20094,18 @@ int main(int argc, char** argv) {
                 }
                 ++tp_seq;
             }
+            // LEADS.md Part C A19 ThinkBrake (STRATA_THINK_BRAKE): this request's think state, thinking tokens, whether the
+            // last thinking token ended a sentence, and whether the stop already fired (once per request)
+            struct ThinkBrakeRequest {
+                bool on = false, at_end = false, fired = false;
+                strata::program::PriorScopeState scope;
+                long long think_n = 0;
+                std::vector<float> row;    // one copied logit row (vocab floats), at sentence ends only
+            } tbr;
+            if (tb_cfg.on() && tp_vocab != nullptr) {
+                tbr.on = true;
+                tbr.scope = strata::program::PriorScopeState(tp_marks);
+            }
             struct PriorGateRequest {
                 int64_t open = 0, total = 0;
                 ~PriorGateRequest() {
@@ -21300,6 +21325,42 @@ int main(int argc, char** argv) {
                         if (std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) y) != o.eos_ids.end()) break;
                     }
                 }
+                // LEADS.md Part C A19 ThinkBrake (STRATA_THINK_BRAKE, lossy): the committed rows in order; inside the thinking,
+                // a row whose input token ended a sentence has its logits copied and the margin log(p_top / p_</think>) read
+                // (think_probe.hpp brake_margin).  At or below tau the TPROBE line goes out after the T lines, as the probe's.
+                // Unset: nothing here runs.
+                bool tb_fire = false;
+                if (tbr.on) {
+                    tbr.scope.sync(consumed.data(), consumed.size());
+                    strata::program::PriorScopeState rs = tbr.scope;
+                    const int r0 = merged ? a : 0;
+                    int64_t pn = produced_n;
+                    for (int i = 0; i <= a && pn < max_new; ++i) {
+                        rs.feed(window[(size_t) i]);
+                        if (i < r0) continue;
+                        const int32_t y = outv[(size_t) i];
+                        if (rs.think()) {
+                            const bool is_close = y == tp_marks.think_close;
+                            if (!tbr.fired && !is_close && tbr.at_end && tbr.think_n >= tb_cfg.min_tokens && tp_fire_n < 0) {
+                                tbr.row.resize((size_t) ver.vocab());
+                                if (ver.copy_logits(i, tbr.row.data())) {
+                                    const float m = tpb::brake_margin(tbr.row.data(), tbr.row.size(), tp_marks.think_close);
+                                    if (m == m && m <= tb_cfg.tau) {
+                                        tbr.fired = tb_fire = true;
+                                        tp_fire_n = tbr.think_n;
+                                        tp_fire_score = m;
+                                    }
+                                }
+                            }
+                            if (!is_close) {
+                                tbr.at_end = tpb::sentence_end(tp_vocab->vocab->bytes(y));
+                                ++tbr.think_n;
+                            }
+                        }
+                        ++pn;
+                        if (std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) y) != o.eos_ids.end()) break;
+                    }
+                }
                 if (from_sfx) { ++sfx_windows; sfx_drafts += T - 1; sfx_ok += a; }
                 if (from_sfx && from_sidx) { ++sidx_windows; sidx_drafts += T - 1; sidx_ok += a; }   // A24: the index's windows among them
                 if (chain_n > 0) { ++chain_windows; chain_drafts += chain_n; chain_ok += std::max(0, a - (T_mtp - 1)); }
@@ -21403,6 +21464,11 @@ int main(int argc, char** argv) {
                 }
                 if (tp_fire_n >= 0) {   // A19: after the window's T (and LP) lines: the server closes the thinking (serve/server.py)
                     std::printf("%s\n", tpb::tprobe_line(tp_fire_n, tp_fire_score).c_str());
+                    if (tb_fire)
+                        std::fprintf(stderr, "strata serve: think brake (lossy): margin %.3f at or below %.4g at %lld thinking "
+                                             "tokens: the server closes the thinking (STRATA_THINK_BRAKE)\n",
+                                     (double) tp_fire_score, (double) tb_cfg.tau, tp_fire_n);
+                    else
                     std::fprintf(stderr, "strata serve: think probe (lossy): score %.3f at or above %.4g for %d checks at %lld thinking "
                                          "tokens: the server closes the thinking (STRATA_THINK_PROBE)\n",
                                  (double) tp_fire_score, (double) tp_cfg.threshold, tp_cfg.checks, tp_fire_n);

@@ -348,6 +348,74 @@ private:
     std::vector<int32_t> ids_;
 };
 
+/// LEADS.md Part C A19, ThinkBrake (STRATA_THINK_BRAKE=<tau>[,min=M], opt-in, lossy; arXiv 2510.00546, "ThinkBrake:
+/// Mitigating Overthinking in Tool Reasoning", the log-probability margin stop; the LEADS row's tau is 0.25): at a sentence end inside the thinking, the next token's row is read and the
+/// thinking is closed when log(p_top / p_</think>) <= tau - the model is nearly as ready to close as to go on.  The margin
+/// is logit_top - logit_close (the softmax normaliser cancels).  The engine prints the same TPROBE line the probe does and
+/// the server makes the same soft close (at its next sentence or line end, serve/server.py).  `min`: no check before M
+/// thinking tokens.  tau <= 0 or unset: off.
+struct BrakeConfig {
+    float tau = 0.0f;
+    long long min_tokens = 0;
+    bool on() const { return tau > 0.0f; }
+};
+inline bool parse_brake_config(const char* v, BrakeConfig& c, std::string& err) {
+    c = BrakeConfig();
+    if (v == nullptr || v[0] == '\0') return true;
+    std::string s(v);
+    size_t at = 0;
+    bool first = true;
+    while (at <= s.size()) {
+        const size_t comma = s.find(',', at);
+        const std::string w = s.substr(at, comma == std::string::npos ? std::string::npos : comma - at);
+        char* end = nullptr;
+        if (first) {
+            const double t = std::strtod(w.c_str(), &end);
+            if (end == w.c_str() || *end != '\0' || !(t > 0.0) || t > 100.0) {
+                err = "STRATA_THINK_BRAKE=" + s + ": the margin must be a number in (0, 100]";
+                c = BrakeConfig();
+                return false;
+            }
+            c.tau = (float) t;
+            first = false;
+        } else if (w.rfind("min=", 0) == 0) {
+            const long long m = std::strtoll(w.c_str() + 4, &end, 10);
+            if (end == w.c_str() + 4 || *end != '\0' || m < 0) {
+                err = "STRATA_THINK_BRAKE=" + s + ": min= must be a whole number >= 0";
+                c = BrakeConfig();
+                return false;
+            }
+            c.min_tokens = m;
+        } else if (!w.empty()) {
+            err = "STRATA_THINK_BRAKE=" + s + ": unknown field '" + w + "' (<tau>[,min=M])";
+            c = BrakeConfig();
+            return false;
+        }
+        if (comma == std::string::npos) break;
+        at = comma + 1;
+    }
+    return true;
+}
+/// A sentence or line end: the token's text ends in . ! ? or a newline (closing quotes / brackets after them count).
+inline bool sentence_end(std::string_view t) {
+    size_t n = t.size();
+    while (n > 0 && (t[n - 1] == ' ' || t[n - 1] == '"' || t[n - 1] == '\'' || t[n - 1] == ')' || t[n - 1] == ']')) --n;
+    if (n == 0) return false;
+    const char c = t[n - 1];
+    return c == '.' || c == '!' || c == '?' || c == '\n';
+}
+/// log(p_top / p_close) from one row of logits, the top taken over every token but </think> (the paper's top
+/// non-</think> token): max logit - logits[close], negative when </think> leads.  NAN when close is out of range or the row
+/// is not finite (no stop then).
+inline float brake_margin(const float* logits, size_t n, int32_t close) {
+    if (close < 0 || (size_t) close >= n) return NAN;
+    float mx = -INFINITY;
+    for (size_t i = 0; i < n; ++i)
+        if (i != (size_t) close) mx = logits[i] > mx ? logits[i] : mx;
+    const float m = mx - logits[(size_t) close];
+    return std::isfinite(m) ? m : NAN;
+}
+
 /// The `TPROBE` line the engine prints when the stop fires (the server reads it; serve/server.py).
 inline std::string tprobe_line(long long think_index, float score) {
     char b[64];
