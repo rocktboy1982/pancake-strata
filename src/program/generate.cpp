@@ -1432,6 +1432,10 @@ struct Drive {
     strata::core::ExpertDispatch d;
     double cpu_ms = 0;
     int64_t calls = 0;
+    /// STRATA_ADAPT_LAYERWAIT (android-imdad caa9b00115): per layer, the adaptive tier's copy event the pool waits for
+    /// before it plans that layer (null: none; empty unless the switch is on)
+    std::vector<cudaEvent_t> layer_wait;
+    double layer_wait_ms = 0;   ///< the time those waits blocked (STRATA_DECODE_TIMING)
     /// THE ROUTING TRACE, which is P0.S8 and a stated prerequisite of Phase 3.  `drive_pool` is called once
     /// per layer from the main loop - the workers live inside `expert_pool_dispatch` - so a single FILE* here
     /// needs no locking.  `d.layers` is the CURRENT layer on entry (the adapter increments it as it walks the
@@ -1473,6 +1477,13 @@ void drive_pool_multi_impl(void* user, const float* x_f, const int32_t* ids, int
                            int64_t layer, strata::kernels::cpu::NativeArithmetic arithmetic) {
     Drive* t = (Drive*) user;
     t->d.layers = layer;
+    // STRATA_ADAPT_LAYERWAIT: this layer's swapped-in experts are planned for the GPU only once their copies landed
+    if (layer >= 0 && (size_t) layer < t->layer_wait.size() && t->layer_wait[(size_t) layer] != nullptr) {
+        const Clock::time_point w0 = Clock::now();
+        cudaEventSynchronize(t->layer_wait[(size_t) layer]);
+        t->layer_wait[(size_t) layer] = nullptr;
+        t->layer_wait_ms += std::chrono::duration<double, std::milli>(Clock::now() - w0).count();
+    }
     const Clock::time_point a = Clock::now();
     strata::core::expert_pool_dispatch_multi(t->d, x_f, ids, n_tok, k, out, arithmetic);
     t->cpu_ms += std::chrono::duration<double, std::milli>(Clock::now() - a).count();
@@ -13827,6 +13838,35 @@ int main(int argc, char** argv) {
         std::vector<void*> pin_live;   // the swaps' locked arena pages (pin_blob), unlocked once they have landed
         cudaEvent_t adapt_ev = nullptr;
         cudaEventCreateWithFlags(&adapt_ev, cudaEventDisableTiming);
+        // STRATA_ADAPT_COPY2=1 (opt-in; after android-imdad caa9b00115, LEADS.md): a round's copies alternate over two
+        // streams - the card's two DMA engines, as the prompt path's STRATA_PF_COPY2 - and adapt_stream waits for the
+        // second before adapt_ev, so every wait on adapt_ev covers both.  The same bytes into the same slots; only the
+        // copies' timing changes (bitwise).  Not with STRATA_ADAPT_OVERLAP's per-layer landing signals (they ride on
+        // adapt_stream), batched copies, a layer split, or the resident RAM mode's copies back (they share adapt_stream).
+        static const bool adapt_copy2_on = [] { const char* v = std::getenv("STRATA_ADAPT_COPY2"); return v != nullptr && v[0] == '1'; }();
+        cudaStream_t adapt_stream2 = nullptr;
+        cudaEvent_t adapt_ev2 = nullptr;
+        if (adapt_copy2_on && (cudaStreamCreateWithFlags(&adapt_stream2, cudaStreamNonBlocking) != cudaSuccess ||
+                               cudaEventCreateWithFlags(&adapt_ev2, cudaEventDisableTiming) != cudaSuccess)) {
+            (void) cudaGetLastError();
+            adapt_stream2 = nullptr;
+        }
+        // STRATA_ADAPT_LAYERWAIT=1 (opt-in; after android-imdad caa9b00115, LEADS.md; default: the window waits for every
+        // copy of the round first, #463): a round's copies go out in layer order with an event after each layer's last
+        // one; the next window takes the swapped-in experts into the residency tables at its start, as before, without
+        // waiting for the copies, and the pool waits for a layer's event before it plans that layer - the GPU reads a
+        // swapped-in expert's slot only through that plan.  The same window computes each swapped-in expert on the GPU
+        // from the same bytes, so the output is unchanged (bitwise); the copies run under the window's first layers.  The
+        // serial single-GPU decode loop only: no peer / remote tier, no layer split, no batch or pipelined windows, no
+        // STRATA_ADAPT_OVERLAP (its own per-layer gate), unbatched unpinned copies, the whole expert set in RAM, no
+        // device-planned layers, no lagging tier (STRATA_ADAPT_LAG / _NOWAIT / _FETCH / the eviction sync).
+        static const bool layer_wait_on = [] { const char* v = std::getenv("STRATA_ADAPT_LAYERWAIT"); return v != nullptr && v[0] == '1'; }();
+        std::vector<cudaEvent_t> layer_ev((size_t) g.n_layers, nullptr);
+        std::vector<uint8_t> layer_has((size_t) g.n_layers, 0);
+        bool round_layered = false;               // the pending round's copies carry per-layer events
+        std::vector<int32_t> deferred_release;    // swapped-in experts whose RAM is released once the round has landed
+        bool deferred_finalize = false;
+        if (layer_wait_on) drive.layer_wait.assign((size_t) g.n_layers, nullptr);
         // 0.1.43 STRATA_ADAPT_OVERLAP=1 (adapt_overlap above): the single-GPU, plain-RAM-arena decode loop only
         strata::core::AdaptGate agate;
         bool aflipped = false;   // the pending swaps are in the tables and their copies may still be landing
@@ -13911,7 +13951,26 @@ int main(int argc, char** argv) {
             }
             return r;
         };
+        // STRATA_ADAPT_LAYERWAIT: a layered round's deferred work - every layer has waited for its copies by now (or the
+        // sync does it here): the RAM copies released, the in-flight marks cleared, no layer waits any more
+        auto finalize_layered = [&]() {
+            if (!deferred_finalize) return;
+            cudaEventSynchronize(adapt_ev);
+            src.commit_exchanges();
+            for (const int32_t i : deferred_release) {
+                srcp->release((int64_t) i / g.n_expert, (int64_t) i % g.n_expert);
+                if (!drive.d.in_flight.empty()) drive.d.in_flight[(size_t) i] = 0;
+            }
+            deferred_release.clear();
+            std::fill(drive.layer_wait.begin(), drive.layer_wait.end(), nullptr);
+            deferred_finalize = false;
+        };
         auto apply_pending = [&](bool wait) {
+            finalize_layered();   // STRATA_ADAPT_LAYERWAIT (nothing to do when it is off)
+            if (round_layered) {   // (a layered round taken with the wait: its events are not used)
+                std::fill(layer_has.begin(), layer_has.end(), (uint8_t) 0);
+                round_layered = false;
+            }
             if (peer.valid()) peer.apply_pending(wait);
             if (pending.empty()) {
                 // a round where only the peer swapped: its copies have landed (or, without the wait, are still in
@@ -13949,6 +14008,28 @@ int main(int argc, char** argv) {
                 drive.d.res_dirty = false;
                 drive.d.res_dirty_idx.clear();
             }
+        };
+        // STRATA_ADAPT_LAYERWAIT: the pending (layered) round taken at a window's start without waiting for its copies;
+        // the pool waits per layer (drive.layer_wait), finalize_layered does the rest once the window is done
+        auto apply_pending_layered = [&]() {
+            finalize_layered();
+            if (pending.empty()) return;
+            for (const auto& [i, slot] : pending) {
+                host_res[(size_t) i] = slot;
+                deferred_release.push_back(i);
+            }
+            pending.clear();
+            pending_age = 0;
+            if (res_upload() == cudaSuccess) {   // (as apply_pending)
+                drive.d.res_dirty = false;
+                drive.d.res_dirty_idx.clear();
+            }
+            for (size_t l = 0; l < layer_has.size(); ++l) {
+                drive.layer_wait[l] = layer_has[l] ? layer_ev[l] : nullptr;
+                layer_has[l] = 0;
+            }
+            deferred_finalize = true;
+            round_layered = false;
         };
         // Where the tier does not wait for its copies (STRATA_ADAPT_NOWAIT=1, STRATA_ADAPT_LAG > 1), its evictions reach
         // the device's tables before the next window: adapt() marks them non-resident at once, apply_pending uploads
@@ -14122,6 +14203,16 @@ int main(int argc, char** argv) {
                 agate.peer_has.assign((size_t) g.n_layers, 0);
                 agate.peer_last = -1;
             }
+            // STRATA_ADAPT_LAYERWAIT: the same swaps, issued layer by layer (the copies' order changes nothing else)
+            const bool layered = layer_wait_on && !aov && !multi_gpu && stages.empty() && !peer.valid() && !remote_opt &&
+                                 strata::core::dma_batch_mode() == 0 && !adapt_fence && !pin_blobs_on() &&
+                                 !src.complement_ready() && serial_windows && o.batch == 0 && !o.adapt_async &&
+                                 adapt_lag() == 1 && !adapt_nowait() && !drive.d.evict_sync && drive.d.fetch_admit == 0 &&
+                                 !ver.device_planned() && drive.layer_wait.size() == (size_t) g.n_layers &&
+                                 pending.empty();   // (an earlier round's copies would carry no layer event)
+            bool round_layered_bad = false;   // a layer's event could not be recorded
+            if (layered)
+                std::stable_sort(swaps.begin(), swaps.end(), [](const Swap& a, const Swap& b) { return a.layer < b.layer; });
             // the copies back read the cache of the card that owns each layer (see resident_stage_swaps)
             auto home_of = [&](int64_t layer) -> SwapHome {
                 const int stn = multi_gpu ? stage_of(layer) : 0;
@@ -14161,6 +14252,11 @@ int main(int argc, char** argv) {
             std::vector<void*> cp_dst;
             std::vector<const void*> cp_src;
             std::vector<size_t> cp_bytes;
+            // STRATA_ADAPT_COPY2: the main card's copies over two streams (see adapt_stream2)
+            const bool copy2 = adapt_stream2 != nullptr && !aov && !layered && !multi_gpu && stages.empty() && dma_mode == 0 &&
+                               !src.complement_ready();
+            size_t n_main = 0;
+            bool used2 = false;
             for (size_t si = 0; si < swaps.size(); ++si) {
                 const Swap& s = swaps[si];
                 if (aov && (si == 0 || swaps[si - 1].layer != s.layer)) {
@@ -14188,10 +14284,14 @@ int main(int argc, char** argv) {
                     if (!drive.d.in_flight.empty()) drive.d.in_flight[in] = 1;   // STRATA_ADAPT_FETCH leaves it alone
                     continue;
                 }
+                cudaStream_t cst = gs ? gs->adapt_stream : adapt_stream;
+                if (!gs && copy2 && slot >= 0 && b != nullptr && (n_main++ & 1)) {   // STRATA_ADAPT_COPY2: every second copy
+                    cst = adapt_stream2;
+                    used2 = true;
+                }
                 if (slot < 0 || b == nullptr ||
                     adapt_copy_h2d(gs ? gs->cache.device_slot(slot) : xcache.device_slot(slot), b,
-                                   (size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer),
-                                   gs ? gs->adapt_stream : adapt_stream) != cudaSuccess) {
+                                   (size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer), cst) != cudaSuccess) {
                     std::fprintf(stderr, "strata serve: adaptive swap copy failed (layer %d, slot %d, pinned %d): %s\n",
                                  (int) s.layer, (int) slot, pin_live.empty() ? 0 : 1, cudaGetErrorString(cudaGetLastError()));
                     return false;
@@ -14201,6 +14301,15 @@ int main(int argc, char** argv) {
                 host_res[out] = strata::core::kNotResident;   // evicted now: the CPU computes it meanwhile
                 srcp->prefetch(s.layer, s.out);   // a file-backed arena released its pages: read them back ahead
                 pending.emplace_back((int32_t) in, slot);      // resident once the copy has landed
+                if (layered && (si + 1 == swaps.size() || swaps[si + 1].layer != s.layer)) {   // STRATA_ADAPT_LAYERWAIT
+                    cudaEvent_t& ev = layer_ev[(size_t) s.layer];
+                    if (ev == nullptr && cudaEventCreateWithFlags(&ev, cudaEventDisableTiming) != cudaSuccess) {
+                        (void) cudaGetLastError();
+                        ev = nullptr;
+                    }
+                    if (ev != nullptr && cudaEventRecord(ev, adapt_stream) == cudaSuccess) layer_has[(size_t) s.layer] = 1;
+                    else round_layered_bad = true;   // (no event: the round is taken with the plain wait)
+                }
                 if (aov && (si + 1 == swaps.size() || swaps[si + 1].layer != s.layer) &&
                     (agate.hland != nullptr
                          ? cudaMemcpyAsync((void*) agate.hland, agate.dvals + s.layer, 4, cudaMemcpyDeviceToHost, adapt_stream)
@@ -14225,7 +14334,14 @@ int main(int argc, char** argv) {
                              cudaGetErrorString(cudaGetLastError()));
                 return false;
             }
+            if (used2) {   // STRATA_ADAPT_COPY2: adapt_ev after both streams' copies
+                cudaEventRecord(adapt_ev2, adapt_stream2);
+                cudaStreamWaitEvent(adapt_stream, adapt_ev2, 0);
+            }
             if (!swaps.empty()) cudaEventRecord(adapt_ev, adapt_stream);
+            // STRATA_ADAPT_LAYERWAIT: the round's copies carry their per-layer events (else the plain wait takes it)
+            round_layered = layered && !swaps.empty() && !round_layered_bad;
+            if (layered && !round_layered) std::fill(layer_has.begin(), layer_has.end(), (uint8_t) 0);
             // #2188: hand the copies and their landing signals to the GPU now.  WDDM batches a stream's work until a
             // driver call flushes it, and the verify window only spins on the pinned int (Linux submits at once: no-op)
             if (aov && agate.hland != nullptr && !swaps.empty()) (void) cudaStreamQuery(adapt_stream);
@@ -20496,7 +20612,10 @@ int main(int argc, char** argv) {
                         agate.active.store(true, std::memory_order_release);
                     }
                 }
-                else if (pending.empty() || ++pending_age >= adapt_lag()) apply_pending(true);
+                else if (pending.empty() || ++pending_age >= adapt_lag()) {
+                    if (round_layered && adapt_lag() == 1) apply_pending_layered();   // STRATA_ADAPT_LAYERWAIT: no wait here
+                    else apply_pending(true);
+                }
                 // STRATA_RAM_ADAPT=<n> (opt-in, the resident RAM mode on one GPU): the RAM copy is chosen once, at
                 // start, so an expert it does not hold is read from the file every time the conversation routes to
                 // it.  With this, before a window and while no adaptive round is in flight, up to n experts the windows
@@ -20692,6 +20811,7 @@ int main(int argc, char** argv) {
                     return 1;
                 }
                 if (aflipped) apply_pending(true);   // 0.1.43: every layer's copies were waited for in the window; the bookkeeping now
+                finalize_layered();   // STRATA_ADAPT_LAYERWAIT: every layer has waited for its copies in this window
                 // Diagnostics (as in generate): STRATA_DUMP_FIRST_LOGITS=<path> writes the logits of each request's first
                 // window to <path>.<n>, so the prompt paths (a peer card's share, a split) can be compared by KL
                 if (first_window) {
@@ -21066,6 +21186,9 @@ int main(int argc, char** argv) {
                 if (aov)
                     std::fprintf(stderr, "strata decode adapt overlap: %lld windows took swaps still landing, a layer waited %.2f ms in all so far\n",
                                  (long long) aov_flips, ver.ms_gate);
+                if (layer_wait_on)   // STRATA_ADAPT_LAYERWAIT: the pool's per-layer waits for the swaps' copies, so far
+                    std::fprintf(stderr, "strata decode adapt layer wait: the pool waited %.2f ms in all so far\n",
+                                 drive.layer_wait_ms);
                 for (int st = 0; st < n_stages; ++st) {   // every stage's GPU profile, not only the first card's
                     const std::string pr = stage_ver(st).profile_report();
                     if (pr.empty()) continue;

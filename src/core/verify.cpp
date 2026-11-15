@@ -320,7 +320,21 @@ bool env_on(const char* name) {
 #if defined(STRATA_USE_HIP)
 const bool g_coherent = env_on("STRATA_VERIFY_COHERENT");
 const bool g_doorbell_store = env_on("STRATA_DOORBELL_STORE");
+// STRATA_DMA_FLAG_WRITE=1 (opt-in; after android-imdad caa9b00115, LEADS.md): the copy stream writes flag B itself
+// (hipStreamWriteValue32) once a layer's PCIe uploads have landed, instead of a host function the HIP runtime wakes a
+// thread for.  The same mapped flag, the same values, in the same stream order; only when the GPU sees it changes.
+bool dma_flag_write_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_DMA_FLAG_WRITE"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
 #endif
+// STRATA_PCIE_FORK=1 (opt-in; after android-imdad caa9b00115, LEADS.md): a layer's PCIe pass (the wait for flag B and
+// the PCIe groups' experts) on a side stream forked once the plan is copied and joined before the hit add / combine,
+// beside the VRAM groups.  It writes only its own entries' scratch and rows: the same kernels on the same inputs.
+bool pcie_fork_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_PCIE_FORK"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
 const bool g_trace = env_on("STRATA_VERIFY_TRACE");
 // STRATA_LAUNCH_PROBE (STRIX-TDR): process start, and the first windows' launch timing
 const Clock::time_point g_proc_t0 = Clock::now();
@@ -631,6 +645,11 @@ bool Verifier::release_gpu_waits(int timeout_ms) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
+#if defined(STRATA_USE_HIP)
+    // STRATA_DMA_FLAG_WRITE: a stream write is a plain store, so one that landed during the drain may have lowered flag
+    // B below UINT32_MAX; copy_ is drained now, so the release store stays
+    if (dma_flag_write_on() && h_flagB_ != nullptr) *(volatile uint32_t*) h_flagB_ = UINT32_MAX;
+#endif
     trace_ev("RELEASE-DRAINED", -1, -1, (int64_t) ms_since(t0));   // aux: ms the GPU took to finish once released
     return true;
 }
@@ -720,6 +739,7 @@ Verifier::~Verifier() {
     }
     if (cs_) cudaStreamSynchronize(cs_);
     if (sh_cs_) cudaStreamSynchronize(sh_cs_);
+    if (pf_cs_) cudaStreamSynchronize(pf_cs_);   // STRATA_PCIE_FORK
     for (auto& row : exec_)
         for (auto& e : row)
             if (e) cudaGraphExecDestroy(e);
@@ -752,6 +772,9 @@ Verifier::~Verifier() {
     if (slot_hist_d_) cudaFree(slot_hist_d_);
     if (cs_ && cs_ != ext_stream_) cudaStreamDestroy(cs_);   // set_stream: the stage's stream, shared, not ours
     if (sh_cs_) cudaStreamDestroy(sh_cs_);
+    if (pf_cs_) cudaStreamDestroy(pf_cs_);   // STRATA_PCIE_FORK
+    for (cudaEvent_t e : {ev_pplan_, ev_pjoin_})
+        if (e) cudaEventDestroy(e);
     if (copy_) { cudaStreamSynchronize(copy_); cudaStreamDestroy(copy_); }
     if (side_) cudaStreamDestroy(side_);
     if (side2_) cudaStreamDestroy(side2_);
@@ -1400,6 +1423,15 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         cudaEventCreateWithFlags(&ev_join_, cudaEventDisableTiming) != cudaSuccess) {
         err = "verify: event create failed";
         return false;
+    }
+    // STRATA_PCIE_FORK=1: the PCIe pass's stream and events (a failure leaves the pass on cs, as without the switch)
+    if (pcie_fork_on() && pf_cs_ == nullptr &&
+        (make_stream(&pf_cs_) != cudaSuccess ||
+         cudaEventCreateWithFlags(&ev_pplan_, cudaEventDisableTiming) != cudaSuccess ||
+         cudaEventCreateWithFlags(&ev_pjoin_, cudaEventDisableTiming) != cudaSuccess)) {
+        (void) cudaGetLastError();
+        if (pf_cs_) cudaStreamDestroy(pf_cs_);
+        pf_cs_ = nullptr;
     }
     {   // STRATA_DF_BRANCH=1 (opt-in): the mixer's side branches.  Off by default: on Linux (open modules, GSP) a
         // stage's window with the branches stopped inside its graph when an NVML query (nvidia-smi) came between
@@ -2798,8 +2830,10 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         // `gy`: the native launch's groups side by side (0: cap, one block row per possible group).
         // `vram`: the groups point into this GPU's expert slots - a layer STRATA_EXPERT_NIBBLE converted holds its
         // gate/up there as 4-bit codes (expert_nibble.hpp); the PCIe share's blobs (host memory, staging) never do.
+        // `gst`: the stream (null: cs; STRATA_PCIE_FORK's PCIe pass passes pf_cs_)
         auto grouped = [&](const unsigned long long* gp, const int32_t* gs, const int32_t* gn, int64_t gy, float* dst_buf,
-                           bool vram) {
+                           bool vram, cudaStream_t gst = nullptr) {
+            const cudaStream_t gcs = gst != nullptr ? gst : cs;
             if (lay.native) {
                 // the layer's GGUF formats (i-quant gate/up, Q2_0 / IQ4_NL down)
                 const auto& f = lay.fmt[(size_t) l];
@@ -2813,12 +2847,18 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #endif
                 if (f.had_d) { L.had_block = f.had_block; L.d_signs = had_sh_; }   // APR: h is rotated in there
                 native_expert_grouped(L, gp, gs, gn, p_dst, p_tok, cap, cap,
-                                      nat_xq_ + (size_t) tb * (N / 32) * 36, hit_scratch_, dst_buf, cs, gy);
+                                      nat_xq_ + (size_t) tb * (N / 32) * 36, hit_scratch_, dst_buf, gcs, gy);
             } else {
                 moe_grouped_s2_window(gp, gs, gn, p_dst, p_tok, cap, cap, hit_xq_ + (size_t) tb * (N / 32) * 34,
-                                      hit_xs_ + (size_t) tb * (N / 32), hit_scratch_, dst_buf, cs, n);   // (a group holds <= n entries)
+                                      hit_xs_ + (size_t) tb * (N / 32), hit_scratch_, dst_buf, gcs, n);   // (a group holds <= n entries)
             }
         };
+        // STRATA_PCIE_FORK (android-imdad caa9b00115): the native layouts only (their scratch is per entry: the PCIe
+        // entries follow the VRAM ones), the plain flag-B wait only (not the device plan's, the balance's stamped one, the
+        // mapped mode's staging copy), no stage profile; never with --pcie-frac 0 (no PCIe pass at all)
+        const bool pcie_fork = pcie_fork_on() && pf_cs_ != nullptr && ev_pplan_ != nullptr && ev_pjoin_ != nullptr &&
+                               !pcie_off_ && !prof_on_ && !ar_on() && !device_plan_ && m_bal_ == nullptr &&
+                               sink_.pcie_mode != 2 && lay.native;
         bool hits_in_combine = false;
         if (ar_on()) {
             strata::dispatch::note("experts layer: all-resident device plan, grouped experts straight into the parts (no doorbell, no CPU rows)");
@@ -2853,9 +2893,16 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 }
             }
             stamp(l, 19, grp);
+            if (pcie_fork) {   // STRATA_PCIE_FORK: the PCIe pass forks off here: it needs the plan copy, nothing of the VRAM groups
+                cudaEventRecord(ev_pplan_, cs);
+                cudaStreamWaitEvent(pf_cs_, ev_pplan_, 0);
+                wait_flag_ge(m_flagB_, ring, pf_cs_);              // the PCIe share is in staging (DMA) or mapped
+                grouped(p_ptr2, p_start2, p_counts + 2, kPcieGroupRows, hit_out, false, pf_cs_);
+                cudaEventRecord(ev_pjoin_, pf_cs_);
+            }
             grouped(p_ptr, p_start, p_counts, 0, hit_out, true);
             stamp(l, 20, grp);
-            if (!pcie_off_) {   // with --pcie-frac 0 there is never a PCIe share: no flag-B wait, no empty launches
+            if (!pcie_off_ && !pcie_fork) {   // with --pcie-frac 0 there is never a PCIe share: no flag-B wait, no empty launches
             if (device_plan_) wait_flag_ge_or(m_flagB_, ring, skip_ + grp, cs);
             else if (m_bal_ != nullptr)   // set_pcie_balance: the PCIe part starts
                 wait_flag_ge_stamped(m_flagB_, ring, m_bal_ + ((l - lb_) * 2 + grp) * 4 + 1, nullptr, cs);
@@ -2871,7 +2918,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             stamp(l, 21, grp);
             // the PCIe share is pcie_frac of the misses: a few groups when the cache is cold, usually none (always none at
             // pcie_frac 0), so its launch is kPcieGroupRows block rows striding over the groups, not cap of them
-            if (!pcie_off_) grouped(p_ptr2, p_start2, p_counts + 2, kPcieGroupRows, hit_out, false);
+            if (!pcie_off_ && !pcie_fork) grouped(p_ptr2, p_start2, p_counts + 2, kPcieGroupRows, hit_out, false);
             stamp(l, 22, grp);
             // STRATA_VERIFY_DEFER_CPU: no wait, no CPU rows now (late_add adds them later): zeros, plus the hits
             if (deferred(l)) {
@@ -2913,6 +2960,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 else
                     copy_from_mapped(parts_out, m_ymiss_ + (size_t) tb * K * N, (int64_t) n * K * N, cs);
             }
+            // STRATA_PCIE_FORK: the PCIe groups' rows (hit_out) are joined before anything reads hit_out (the hit add or the
+            // combine below); the CPU-row wait and copy above ran beside the pass
+            if (pcie_fork) cudaStreamWaitEvent(cs, ev_pjoin_, 0);
             // 143-amdk: the add of the GPU's hit rows is done by the combine that follows (one launch fewer);
             // STRATA_COMBINE_CPU (Strata-rdna3): the fused CPU-row combine below reads the hit rows itself
             hits_in_combine = !cfuse_on(n) && fuse_hits_on() && !prof_on_ && !remote_opt_ && !sg_gated_[grp] && dec_batch && n > 1 &&
@@ -3643,6 +3693,14 @@ void Verifier::stage_inputs(int T, const int32_t* tokens, int64_t pos0) {
     *(volatile uint32_t*) h_seq_ = 0;
     *(volatile uint32_t*) h_flag_ = 0;
     *(volatile uint32_t*) h_flagA_ = 0;
+#if defined(STRATA_USE_HIP)
+    // STRATA_DMA_FLAG_WRITE: a stream write of an earlier window still queued (a window that ended early) must land
+    // before the reset, not after it
+    if (dma_flag_write_on() && copy_used_ && copy_ != nullptr) {
+        cudaStreamSynchronize(copy_);
+        copy_used_ = false;
+    }
+#endif
     *(volatile uint32_t*) h_flagB_ = 0;
     // the overlapped split: the next stage's graph is launched after this, and must see THIS window's raise
     if (hflag_out_h_ != nullptr) *(volatile uint32_t*) hflag_out_h_ = 0;
@@ -4383,6 +4441,18 @@ void Verifier::raise_flag(uint32_t* flag, uint32_t value) { strata::core::flag_r
 // rises and the graph waits for "flag B >= layer + 1", so raising it on the spot for a layer with nothing to copy
 // releases an earlier layer (or the other token group of a split window) whose uploads are still in flight.
 void Verifier::raise_flag_b_ordered(uint32_t want) {
+#if defined(STRATA_USE_HIP)
+    // STRATA_DMA_FLAG_WRITE (android-imdad caa9b00115): with copies queued, the copy stream writes the flag itself
+    // instead of running a host function - the same place in stream order, so it still lands after every copy queued
+    // before it.  A stream write is a plain store, not flag_raise_max: every raise of this window after the first
+    // queued copy goes through the stream (copy_used_ stays set until copy_ is synchronized), so the values land in
+    // issue order and none lowers the flag; release_gpu_waits stores UINT32_MAX again after its drain.  Nothing queued:
+    // the direct raise below, as before.  A failed write falls back to the host function.
+    if (dma_flag_write_on() && copy_used_ && copy_ != nullptr && m_flagB_ != nullptr) {
+        if (hipStreamWriteValue32(copy_, (void*) m_flagB_, want, 0) == hipSuccess) return;
+        (void) hipGetLastError();   // (the host function below)
+    }
+#endif
     FlagSet& fs = flag_sets_[(want - 1) % (sizeof flag_sets_ / sizeof flag_sets_[0])];
     const cudaError_t e = strata::core::raise_flag_b_ordered(copy_used_, copy_, &fs, h_flagB_, want);
     if (e != cudaSuccess) {
@@ -5308,6 +5378,14 @@ bool Verifier::stage_batch(const int* rows, int S, int hbase, const int32_t* tok
     *(volatile uint32_t*) h_seq_ = 0;
     *(volatile uint32_t*) h_flag_ = 0;
     *(volatile uint32_t*) h_flagA_ = 0;
+#if defined(STRATA_USE_HIP)
+    // STRATA_DMA_FLAG_WRITE: a stream write of an earlier window still queued (a window that ended early) must land
+    // before the reset, not after it
+    if (dma_flag_write_on() && copy_used_ && copy_ != nullptr) {
+        cudaStreamSynchronize(copy_);
+        copy_used_ = false;
+    }
+#endif
     *(volatile uint32_t*) h_flagB_ = 0;
     std::atomic_thread_fence(std::memory_order_seq_cst);
     last_t_ = S;

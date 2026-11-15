@@ -376,6 +376,8 @@ public:
     void set_lookahead_out(int32_t* out, int64_t stride) { la_out_ = out; la_stride_ = stride; }
     /// 0.1.43: the adaptive tier's overlap gate (see AdaptGate).  Refused (false) with the device-planned layers (E-6),
     /// which never ask the host.  The pointer must outlive the verifier's windows.
+    /// E-6: the resident-only layers are planned on the device (STRATA_VERIFY_DEVICE_PLAN; STRATA_ADAPT_LAYERWAIT reads it)
+    bool device_planned() const { return device_plan_; }
     bool set_adapt_gate(AdaptGate* g) {
         if (g != nullptr && device_plan_) return false;
         adapt_gate_ = g;
@@ -683,6 +685,10 @@ private:
     cudaStream_t cs_ = nullptr;
     cudaStream_t sh_cs_ = nullptr;
     cudaEvent_t ev_fork_ = nullptr, ev_join_ = nullptr;
+    // STRATA_PCIE_FORK (android-imdad caa9b00115): a layer's PCIe pass (flag B, then its experts) on its own stream,
+    // forked once the plan is copied and joined before the hit add / combine (null: not created, the switch is off)
+    cudaStream_t pf_cs_ = nullptr;
+    cudaEvent_t ev_pplan_ = nullptr, ev_pjoin_ = nullptr;
     // item 47 (STRATA_IC_WARM_MB): the next layer's pre-doorbell weights read on warm_ during the CPU wait
     cudaStream_t warm_ = nullptr;
     cudaEvent_t warm_fork_ = nullptr, warm_join_ = nullptr;
