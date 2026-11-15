@@ -133,6 +133,15 @@ public:
     /// #583: the auto chunk scan's byte-budget ring, for chunks above `small_max` (0.1.39's auto chunk: a prompt that
     /// fits it keeps 0.1.39's ring).  0 slots = none.  A layer split's set_ring_override and STRATA_PREFILL_RING win.
     static void set_ring_budget(int slots, int64_t small_max);
+    /// Speedy K1 (opt-in, STRATA_KV_STAGE_REQ=<cells>; DevDock-AI/Speedy 0ccf9811532b; LEADS.md): with KV streaming
+    /// the prompt path stages one layer's K/V in its borrowed buffers.  Upstream sizes that pool for every page of
+    /// --max-context, which shrinks the auto chunk at long contexts.  With the switch the pool holds stage_cells()
+    /// cells instead: <cells> at start (the chunk scan), and per request at least the request's end (set_stage_cells
+    /// before its loan).  0 (unset): the whole context, unchanged.
+    static int64_t stage_cells();
+    static void set_stage_cells(int64_t cells);
+    static bool stage_req_enabled();
+    int64_t stage_cells_laid() const;   ///< the stage_cells() this instance's buffers were last carved with
 
     /// THE PROMPT ROOM (STRATA_MTP_ROOM_MIN): `slots` ring slots ON TOP of the rule above, POINTED AT another device
     /// user's bytes - the MTP drafter's 512 routed experts, which only the decode reads (MtpDrafter::experts_lend).

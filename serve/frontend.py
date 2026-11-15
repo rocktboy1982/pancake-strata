@@ -685,11 +685,83 @@ def _order_chat_tool_results(messages: list[dict]) -> None:
             call.pop("_call_id", None)
 
 
+# STRATA_TOOL_STEP_SPLIT=1 (opt-in; ported from DevDock-AI/Speedy 2bc7a7e06f71, where it is on by default - here it is
+# off, LEADS.md): tool call ids name the response that issued them and a client-merged assistant turn is split back
+# into its steps.  Read once (first use); unset or any other value: ids and messages exactly as before.
+_TOOL_STEP_SPLIT: bool | None = None
+
+
+def _tool_step_split_on() -> bool:
+    global _TOOL_STEP_SPLIT
+    if _TOOL_STEP_SPLIT is None:
+        _TOOL_STEP_SPLIT = os.environ.get("STRATA_TOOL_STEP_SPLIT", "").strip() == "1"
+    return _TOOL_STEP_SPLIT
+
+
+# A tool call id names the response that issued it (OutputParser.new_id): "call_<16 hex>_<n>".
+_STEP_ID = re.compile(r"call_([0-9a-f]{16})_\d+\Z")
+
+
+def _split_tool_steps(messages: list[dict]) -> list[dict]:
+    """Some clients keep one assistant message per user turn and send every tool call of the turn in it, followed
+    by all the results.  The model wrote them step by step (calls, results, calls, results); the merged form moves
+    each new call in front of the earlier results, so every request of the turn differs from the last one right
+    after the user's message and the conversation is read again from there.  The ids say which response issued
+    which calls, so the steps are put back: one assistant message per response, each followed by its results.
+    Text sent with the calls stays with the first step while the turn is running and becomes the closing
+    assistant message once it went on; reasoning goes with the last step.  Anything unexpected (an id not in this
+    server's form, a response's calls not adjacent, a repeated id, a result of an unknown call or a repeated
+    result) leaves the message as it was sent.  Only with STRATA_TOOL_STEP_SPLIT=1 (Speedy 2bc7a7e06f71)."""
+    if not _tool_step_split_on():
+        return messages
+    out, i = [], 0
+    while i < len(messages):
+        m = messages[i]
+        i += 1
+        calls = m.get("tool_calls") if m.get("role") == "assistant" else None
+        if not isinstance(calls, list) or not all(isinstance(c, dict) for c in calls):
+            out.append(m)
+            continue
+        steps = []                                      # [marker, calls]: the calls of one response, in order
+        for c in calls:
+            found = _STEP_ID.match(c["id"]) if isinstance(c.get("id"), str) else None
+            mark = found.group(1) if found else None
+            if steps and steps[-1][0] == mark:
+                steps[-1][1].append(c)
+            else:
+                steps.append([mark, [c]])
+        if len(steps) < 2 or any(mark is None for mark, _ in steps):    # one response, or an id of another form
+            out.append(m)
+            continue
+        j = i
+        while j < len(messages) and messages[j].get("role") == "tool":
+            j += 1
+        owner = {c["id"]: n for n, (_, cs) in enumerate(steps) for c in cs}
+        answered = [r.get("tool_call_id") for r in messages[i:j]]
+        if len({mark for mark, _ in steps}) != len(steps) or len(owner) != len(calls) \
+                or not all(isinstance(cid, str) and cid in owner for cid in answered) \
+                or len(set(answered)) != len(answered):
+            out.append(m)
+            continue
+        went_on = j < len(messages)
+        for n, (_, cs) in enumerate(steps):
+            step = {"role": "assistant", "content": m.get("content") if n == 0 and not went_on else None,
+                    "tool_calls": cs}
+            if n == len(steps) - 1 and m.get("reasoning_content"):
+                step["reasoning_content"] = m["reasoning_content"]
+            out.append(step)
+            out.extend(r for r in messages[i:j] if owner[r.get("tool_call_id")] == n)
+        if went_on and m.get("content"):
+            out.append({"role": "assistant", "content": m["content"]})
+        i = j
+    return out
+
+
 def openai_to_messages(req: dict, keeper: ReasoningKeeper | None = None) -> tuple[list[dict], list[dict] | None, dict]:
     """OpenAI Chat Completions -> (template messages, template tools, template kwargs).  `keeper` (item 31, opt-in):
     the server's kept reasoning goes back into assistant turns the client sent without it."""
     messages = []
-    for i, m in enumerate(_object_list(req.get("messages"), "messages")):
+    for i, m in enumerate(_split_tool_steps(_object_list(req.get("messages"), "messages"))):
         role = m.get("role")
         if role == "developer":
             role = "system"
@@ -1340,6 +1412,11 @@ class OutputParser:
     def __init__(self, thinking: bool = True, tools: list[dict] | None = None, stream_tools: bool = False,
                  recover: bool = False, declared_only: bool = False, deferred: bool = False):
         self.state = "reasoning" if thinking else "content"
+        # STRATA_TOOL_STEP_SPLIT=1 (Speedy 2bc7a7e06f71): this response's mark in its tool call ids, so a client that
+        # later sends the calls of several responses in one assistant message can be read back in the order they were
+        # written (_split_tool_steps).  None (the default): calls keep ToolCall's own ids, as before.
+        self.step = uuid.uuid4().hex[:16] if _tool_step_split_on() else None
+        self.ncalls, self.issued = 0, set()
         self.buf = ""
         self.lead = False
         self.schemas = {t.get("name"): t for t in tools or []}
@@ -1679,6 +1756,8 @@ class OutputParser:
                 if raw_name != raw_name.strip() and name not in self.schemas:
                     return out
                 self.scall = ToolCall(name=name, arguments={})
+                if self.step is not None:   # STRATA_TOOL_STEP_SPLIT: its final event copies this id
+                    self._stamp([Event("tool_start", call=self.scall)])
                 props = ((self.schemas.get(name) or {}).get("parameters") or {}).get("properties") or {}
                 self.sdeclared = {k: declared_type(v) for k, v in props.items()}
                 out.append(Event("tool_start", call=self.scall))
@@ -1856,7 +1935,30 @@ class OutputParser:
                 found.append(tname)
         return found[0] if len(found) == 1 else None
 
+    def new_id(self) -> str:
+        """The next tool call id of this response: "call_<response mark>_<n>" (_split_tool_steps reads the mark)."""
+        self.ncalls += 1
+        return f"call_{self.step}_{self.ncalls - 1}"
+
+    def _stamp(self, events: list[Event]) -> list[Event]:
+        """STRATA_TOOL_STEP_SPLIT (Speedy 2bc7a7e06f71): give each call this response announces or delivers an id of
+        this response; a streamed call's final event already carries the id its tool_start was given.  Off: the
+        events are returned untouched."""
+        if self.step is None:
+            return events
+        for ev in events:
+            if ev.kind in ("tool_start", "tool_call") and ev.call is not None and ev.call.id not in self.issued:
+                ev.call.id = self.new_id()
+                self.issued.add(ev.call.id)
+        return events
+
     def feed(self, delta: str) -> list[Event]:
+        return self._stamp(self._feed_delta(delta))
+
+    def finish(self, reason: str | None = None) -> list[Event]:
+        return self._stamp(self._finish(reason))
+
+    def _feed_delta(self, delta: str) -> list[Event]:
         if self._held:
             delta, self._held = self._held + delta, ""
         self.buf += delta
@@ -2152,7 +2254,7 @@ class OutputParser:
                 if batch and out[-1].kind == "tool_call":
                     self.state, self.lead = "call", False
 
-    def finish(self, reason: str | None = None) -> list[Event]:
+    def _finish(self, reason: str | None = None) -> list[Event]:
         """End of generation: flush whatever is held (an unterminated tool call is returned as content; one that was
         already announced stays unfinished: its JSON is not closed and no "tool_call" follows it, #211).  `reason` is
         how the turn ended: calls waiting from the reasoning become real calls only on a natural stop (None = stop);
