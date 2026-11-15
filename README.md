@@ -903,6 +903,9 @@ Credits, in the order the stack was built:
   pinned ggml by `STRATA_MMQ_RDNA3_J32_ROLLED` (author: +36% at 17-32-token batches on gfx1100).
 - **sanastasiou** (upstream PR #930, commit `9233f998`) and **imanu86** (commit `862c18aaea`), for the IQ2_S / IQ3_S AVX2 decode
   without per-index shifts (HiSpread) that the CPU pool runs by default.
+- **this-cute-world** (Strata fork), for the launch fusions `STRATA_FUSE_PLAN`, `_COMBINE`, `_SHGATE`, `_QGEMV`, `_SWIGLU_DOWN`
+  (commits `bdc2369a28`, `ed87ad46af`, `93c97cc230`, `818a1eaa57`, `7d1a446927`, `d33b540ddb`; author: 2,648 -> 2,248 kernels a
+  window on an R9700), ported 2026-11-15 as default-off switches.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.

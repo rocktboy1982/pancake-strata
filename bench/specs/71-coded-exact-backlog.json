@@ -94,7 +94,62 @@
         "STRATA_POOL_ROW_SPLIT": "256",
         "STRATA_POOL_TOUCH_NEXT": "4096"
       }
+    },
+    "fuse-swiglu-down": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_FUSE_SWIGLU_DOWN": "1"
+      }
+    },
+    "mmvf-rows": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MMVF_ROWS": "1"
+      }
+    },
+    "mmvf-rows-qgemv": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MMVF_ROWS": "1",
+        "STRATA_FUSE_QGEMV": "1"
+      }
+    },
+    "devplan": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_VERIFY_DEVICE_PLAN": "1"
+      }
+    },
+    "devplan-fuse-plan": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_VERIFY_DEVICE_PLAN": "1",
+        "STRATA_FUSE_PLAN": "1"
+      }
+    },
+    "devplan-fuse-combine": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_VERIFY_DEVICE_PLAN": "1",
+        "STRATA_FUSE_COMBINE": "1"
+      }
+    },
+    "devplan-fuse-shgate": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_VERIFY_DEVICE_PLAN": "1",
+        "STRATA_FUSE_SHGATE": "1"
+      }
+    },
+    "devplan-fuse-all": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_VERIFY_DEVICE_PLAN": "1",
+        "STRATA_FUSE_PLAN": "1",
+        "STRATA_FUSE_COMBINE": "1",
+        "STRATA_FUSE_SHGATE": "1"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 5 item 6 (coded, no spec yet), the exact ones: F7 STRATA_Q2_FAST (bit-exact, x1.33/x1.23 rows, T-246/T-253), STRATA_WAIT_COPY256 (screen +6.7% / +2.4%, T-056; inert below T=6, the preset runs --spec 4: check the switch report says it acted), FK-10 STRATA_ATTN_LANECELL, STRATA_SELECT_TWO_PASS on HIP, A9 STRATA_IDLE_ADAPT (ceiling <= 0.26%), the STRATA_POOL_SPIN_US sweep (Juud: 15.1 -> 12.6 ms/token), FK-03 --lookup-chain 3. EXACT: same text as base. Not here: HIP_GLOBAL_WEIGHTS (a build macro: needs its own build), F22 HIP_WMMA_Q4 (needs --kv q4_0), FK-12 --batch 2 (needs concurrent clients). Stop pancake.service first. Pool arms (MOD_PLAN.md section 6 item 7, coded 2026-11-15): STRATA_POOL_ROW_SPLIT=N (fixed N-row chunks per phase) and STRATA_POOL_TOUCH_NEXT=B (prefetch the next expert's first B bytes), both bitwise (pool_tasks_test against a serial reference)."
+  "note": "MOD_PLAN.md section 5 item 6 (coded, no spec yet), the exact ones: F7 STRATA_Q2_FAST (bit-exact, x1.33/x1.23 rows, T-246/T-253), STRATA_WAIT_COPY256 (screen +6.7% / +2.4%, T-056; inert below T=6, the preset runs --spec 4: check the switch report says it acted), FK-10 STRATA_ATTN_LANECELL, STRATA_SELECT_TWO_PASS on HIP, A9 STRATA_IDLE_ADAPT (ceiling <= 0.26%), the STRATA_POOL_SPIN_US sweep (Juud: 15.1 -> 12.6 ms/token), FK-03 --lookup-chain 3. EXACT: same text as base. Not here: HIP_GLOBAL_WEIGHTS (a build macro: needs its own build), F22 HIP_WMMA_Q4 (needs --kv q4_0), FK-12 --batch 2 (needs concurrent clients). Stop pancake.service first. Pool arms (MOD_PLAN.md section 6 item 7, coded 2026-11-15): STRATA_POOL_ROW_SPLIT=N (fixed N-row chunks per phase) and STRATA_POOL_TOUCH_NEXT=B (prefetch the next expert's first B bytes), both bitwise (pool_tasks_test against a serial reference). Launch fusions (MOD_PLAN.md section 6 item 9; this-cute-world/Strata bdc2369a28, ed87ad46af, 93c97cc230, 818a1eaa57, 7d1a446927 + d33b540ddb): FUSE_PLAN / FUSE_COMBINE / FUSE_SHGATE act on the device-plan path (judge against devplan); FUSE_QGEMV needs STRATA_MMVF_ROWS=1 (judge against mmvf-rows); FUSE_SWIGLU_DOWN against base. ROUTEBELL = our ROUTE_PUBLISH."
 }
