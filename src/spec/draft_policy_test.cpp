@@ -194,6 +194,24 @@ int main() {
         }
         check(cok, "sizes: a chained window's total is an allowed size");
     }
+    {   // STRATA_DRAFT_CLIP (set_clip): a stall is clipped to x times the width's median; off, it is taken as it is
+        DraftPolicy off(6), on(6);
+        on.set_clip(3.0);
+        for (int i = 0; i < 6; ++i) {
+            off.observe(false, 3, 2, 0, 20.0);
+            on.observe(false, 3, 2, 0, 20.0);
+        }
+        off.observe(false, 3, 2, 0, 1000.0);
+        on.observe(false, 3, 2, 0, 1000.0);
+        const double want_on = 0.9 * 20.0 + 0.1 * 60.0, want_off = 0.9 * 20.0 + 0.1 * 1000.0;
+        check(on.cost_ms(3) > want_on - 1e-9 && on.cost_ms(3) < want_on + 1e-9, "clip: a stall counts as 3x the median");
+        check(off.cost_ms(3) > want_off - 1e-9 && off.cost_ms(3) < want_off + 1e-9, "clip: off, the stall is taken as it is");
+        DraftPolicy shift(6);
+        shift.set_clip(3.0);
+        for (int i = 0; i < 4; ++i) shift.observe(false, 3, 2, 0, 20.0);
+        for (int i = 0; i < 80; ++i) shift.observe(false, 3, 2, 0, 100.0);   // a lasting change: the median follows it
+        check(shift.cost_ms(3) > 99.0, "clip: a lasting cost change is learned");
+    }
     std::printf(g_fail ? "FAIL\n" : "PASS\n");
     return g_fail ? 1 : 0;
 }
