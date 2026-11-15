@@ -1,0 +1,25 @@
+rep 0 base                 short 108.7 edit 111.4  foreign CPU 12% [('claude', 12), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1445/1249 MHz 52C 112W gtt 21M cpu 3871MHz 53C igpu 1%/vcn 0% fclk 1600
+rep 0 trace                short 96.7 edit 95.8  foreign CPU 12% [('claude', 10), ('ptyxis', 3), ('firefox', 2)]  gpu 1624/1249 MHz 52C 116W gtt 21M cpu 3424MHz 54C igpu 2%/vcn 0% fclk 1600
+rep 0 trace-p0             short 94.4 edit 96.4  foreign CPU 10% [('claude', 10), ('ptyxis', 3), ('gnome-shell', 1)]  gpu 1623/1249 MHz 52C 116W gtt 21M cpu 3591MHz 54C igpu 1%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 trace-p0             short 93.7 edit 87.8  foreign CPU 12% [('claude', 5), ('ptyxis', 4), ('gnome-shell', 2)]  gpu 1661/1249 MHz 52C 117W gtt 21M cpu 4000MHz 56C igpu 1%/vcn 0% fclk 1600
+rep 1 trace                short 96.6 edit 96.9  foreign CPU 10% [('claude', 8), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1600/1249 MHz 52C 115W gtt 21M cpu 3447MHz 54C igpu 1%/vcn 0% fclk 1600
+rep 1 base                 short 106.8 edit 110.2  foreign CPU 13% [('claude', 9), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 1468/1249 MHz 52C 113W gtt 21M cpu 3707MHz 56C igpu 2%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    107.8 +-  12.1  (n=2)
+                              drafts accepted 0.66
+  short  trace                    96.7 +-   0.6  (n=2)   vs base: -10.3% +- 10.6%  -> no difference
+                              drafts accepted 0.66
+  short  trace-p0                 94.1 +-   4.4  (n=2)   vs base: -12.7% +-  7.1%  -> worse
+                              drafts accepted 0.58
+  edit   base                    110.8 +-   7.6  (n=2)
+                              drafts accepted 0.89
+  edit   trace                    96.3 +-   7.0  (n=2)   vs base: -13.0% +- 13.2%  -> no difference
+                              drafts accepted 0.90
+  edit   trace-p0                 92.1 +-  54.7  (n=2)   vs base: -16.9% +- 42.4%  -> no difference
+                              drafts accepted 0.91
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  trace                identical on every case -> exact
+  trace-p0             DIFFERENT text -> lossy or placement-dependent: quality gate

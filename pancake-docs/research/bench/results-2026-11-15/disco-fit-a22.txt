@@ -1,0 +1,33 @@
+475 windows (stwt), 395 plain MTP windows, 1185 drafts
+cost model on 472 windows with a trusted time; median ms by rows: T3:39.85 T4:29.34 T5:56.95 T6:69.21 T12:110.36
+  ms = 21.28 + 0.700 x (rows - 1) + 0.0863 x new CPU misses of the draft rows + 0.0000 x row 0's  (R^2 0.95)
+  (the window sizes barely vary: the per-row ms is set to 0.70, not fitted; --row-ms to change it)
+held-out drafts 126 (last 25% of the windows), accepted 0.913; AUC classifier 0.877 vs draft probability alone 0.945
+weights (standardised): p=+2.018 surprise=+0.747 chain=-0.162 pos=-0.231 recent=-0.031 match=+0.000 miss=+0.133 dcost=+0.000 ctx=-0.045
+threshold 0.325; per-position table 0.275 0.325 0.400
+
+held-out replay:
+MTP windows 46 of 119; logged: 3.500 tokens/window, 39.58 ms/window, 4.00 rows/window
+arm                                           tok/win   ms/win   tok/ms vs logged all windows
+logged (the rule that wrote the trace)          3.500    39.58   0.0884     +0.0%       +0.0%
+oracle cut (verify exactly what held)           3.500    37.78   0.0926     +4.7%       +1.3%
+DISCO at threshold 0.325                        3.500    39.16   0.0894     +1.1%       +0.3%
+DISCO per-position table                        3.500    39.32   0.0890     +0.6%       +0.2%
+static 0 drafts                                 1.000    21.38   0.0468    -47.1%       -8.8%
+static 1 drafts                                 1.913    27.55   0.0695    -21.5%       -4.9%
+static 2 drafts                                 2.739    33.58   0.0816     -7.8%       -2.1%
+static 3 drafts                                 3.500    39.58   0.0884     +0.0%       +0.0%
+--spec-min-p 0.3                                3.500    39.42   0.0888     +0.4%       +0.1%
+--spec-min-p 0.5                                3.500    38.67   0.0905     +2.3%       +0.7%
+--spec-min-p 0.7                                3.435    38.28   0.0897     +1.5%       +0.4%
+--spec-min-p 0.85                               3.283    37.58   0.0874     -1.2%       -0.4%
+STRATA_SPEC_CUM 0.1                             3.500    39.58   0.0884     +0.0%       +0.0%
+STRATA_SPEC_CUM 0.2                             3.500    39.45   0.0887     +0.3%       +0.1%
+STRATA_SPEC_CUM 0.3                             3.500    39.24   0.0892     +0.8%       +0.2%
+STRATA_SPEC_CUM 0.5                             3.478    38.59   0.0901     +1.9%       +0.5%
+STRATA_SPEC_CUM 0.7                             3.370    38.18   0.0882     -0.2%       -0.1%
+STRATA_SPEC_CUM 0.2 + --spec-min-p 0.5          3.500    38.67   0.0905     +2.3%       +0.7%
+STRATA_SPEC_CUM 0.3 + --spec-min-p 0.5          3.500    38.67   0.0905     +2.3%       +0.7%
+threshold sweep (MTP windows): 0.10:+0.0%  0.20:+0.2%  0.30:+0.7%  0.40:+2.3%  0.50:+1.4%  0.60:+1.5%  0.70:-1.6%  0.80:-1.6%  0.90:-6.4%
+
+wrote /home/dan/disco-weights-2026-11-15.txt  (engine: STRATA_DISCO=/home/dan/disco-weights-2026-11-15.txt)
