@@ -800,6 +800,10 @@ private:
                                            ///< itself (no deferral: the default's sums in another order)
     bool defer_said_ = false;              ///< the reason a window runs without deferral was printed
     float* def_parts_ = nullptr;           ///< device: a deferred layer's CPU rows (T * k * n_embd)
+    // MOD_PLAN.md section 6 item 16 STRATA_GDN_SPECLA (opt-in): the window's GDN state checkpoints, gdn_ck_rows_ per GDN
+    // layer (layer gi at gdn_ck_ + gi * gdn_ck_rows_ * S * h_v * S); null / 0 off.  The batched commit starts from them.
+    float* gdn_ck_ = nullptr;
+    int gdn_ck_rows_ = 0;
     // STRATA_VERIFY_DEFER_CPU_BELOW=<w> (with =1 or =check; 0.1 when unset, 0 when w >= 1): the pool computes the CPU
     // rows whose routing weight is >= w first and raises h_pflag_; post(l) of a deferred layer waits for that and
     // combines those rows, the lighter ones join late.  Not with STRATA_VERIFY_DEVICE_PLAN.

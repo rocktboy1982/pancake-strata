@@ -433,6 +433,7 @@ STRATA_ENV("STRATA_GDN_PP", Speed, "bitwise: documented (docs/README/code commen
 STRATA_ENV("STRATA_GDN_REC_HEADS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_GDN_SPLIT", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_GDN_NORM128", Speed, "the GDN_SPLIT output norm on 128 threads with DPP lane moves: the same values and q8_1 bytes, timing only")
+STRATA_ENV("STRATA_GDN_SPECLA", Speed, "MOD_PLAN.md section 6 item 16: the commit copies the window's GDN state checkpoints instead of replaying; bitwise (gdn_parity section 7)")
 STRATA_ENV("STRATA_GFX1151_EXP8", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_GFX12_RING", Speed, "multi-GPU / batch / layer-split planning (the disk tier needs one GPU and no --batch)")
 STRATA_ENV("STRATA_GRAPH_PRIO", Speed, "graph/stream/doorbell plumbing")

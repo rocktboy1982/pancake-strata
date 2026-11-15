@@ -308,6 +308,22 @@ inline float g_route_prior() {
     return lambda;
 }
 inline bool g_qfuse() { static const bool on = [] { const char* v = std::getenv("STRATA_QFUSE"); return v != nullptr && std::atoi(v) != 0; }(); return on; }
+// MOD_PLAN.md section 6 item 16 (SpecLA), STRATA_GDN_SPECLA (opt-in, read once): the window keeps the GDN state after
+// each of its first rows (a checkpoint per GDN layer and row) and the batched commit starts from checkpoint
+// min(n_keep, rows) - 1 instead of replaying from the window's start state: n_keep <= rows is a copy, past it only the
+// rows after the last checkpoint run.  =1: a checkpoint for every window row (no replay); =N >= 2: the first N rows
+// only (less memory and window writes).  Bitwise the replay (the checkpoints are the values the replay's loop holds).
+// Returns the checkpoint rows for windows of max_t rows, 0 = off.
+inline int g_gdn_specla_rows(int max_t) {
+#if defined(STRATA_GPU_METAL)
+    (void) max_t;
+    return 0;   // no checkpoint kernels on Metal (and no batched commit, which SpecLA rides on)
+#else
+    static const int v = [] { const char* e = std::getenv("STRATA_GDN_SPECLA"); return e != nullptr ? std::atoi(e) : 0; }();
+    if (v <= 0 || max_t < 1) return 0;
+    return v == 1 ? max_t : std::min(v, max_t);
+#endif
+}
 #define VDBG(...) do { if (g_dbg) { std::fprintf(stderr, "verify dbg: " __VA_ARGS__); std::fflush(stderr); } } while (0)
 
 struct Bump {
@@ -1285,6 +1301,13 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         const auto& lay = strata::kernels::cpu::expert_layout();
         for (size_t l = 0; lay.native && l < lay.fmt.size(); ++l) had_gu_any = had_gu_any || lay.fmt[l].had_gu;
     }
+    // STRATA_GDN_SPECLA (MOD_PLAN.md section 6 item 16): one recurrent state (no conv history) per GDN layer and kept row
+    const uint64_t gdn_rec_floats = (uint64_t) g.ssm_state_size * g.ssm_v_heads * g.ssm_state_size;
+    gdn_ck_rows_ = nG > 0 ? g_gdn_specla_rows((int) T) : 0;
+    if (gdn_ck_rows_ > 0)
+        std::fprintf(stderr, "strata verify: STRATA_GDN_SPECLA: GDN state checkpoints for the first %d of %d window rows "
+                             "(%llu MiB); the commit starts from them\n", gdn_ck_rows_, (int) T,
+                     (unsigned long long) ((nG * (uint64_t) gdn_ck_rows_ * gdn_rec_floats * 4) >> 20));
     // ---- the device arena: the same sequence counted, then carved
     auto carve = [&](Bump& b) {
         tok_ = b.take<int32_t>(T); step_ = b.take<int32_t>(T * strata::kernels::kStepCount);
@@ -1334,6 +1357,8 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         ple_key_ = b.take<float>(T * (uint64_t) strata::kernels::NG_HC_DIM); ple_val_ = b.take<float>(T * N);
         // STRATA_VERIFY_DEFER_CPU (record_window), after everything else: the default layout is unchanged
         if (defer_) def_parts_ = b.take<float>(T * K * N);
+        // STRATA_GDN_SPECLA (MOD_PLAN.md section 6 item 16): the window's state checkpoints, last: the layout before is unchanged
+        if (gdn_ck_rows_ > 0) gdn_ck_ = b.take<float>(nG * (uint64_t) gdn_ck_rows_ * gdn_rec_floats);
     };
     Bump count;
     carve(count);
@@ -2231,7 +2256,13 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                             (const float*) wnm->data, EPS, y_ + (size_t) first * ZV,
                                             (int) HK, (int) HV, t - first, keep_rows ? one_ : nullptr, cs, 0);
                     }
-                } else
+                } else if (gdn_ck_ != nullptr)   // STRATA_GDN_SPECLA: the same call, also keeping this layer's per-row states
+                gdn_step_norm_multi(state, hb, (int) C, gate, beta, z_, (const float*) wnm->data, EPS, y_, (int) HK,
+                                    (int) HV, te, self_commit ? one_ : nullptr, cs, tb, g_qfuse() ? (void*) xq_ : nullptr,
+                                    gdn_ck_ + (size_t) gi * (size_t) gdn_ck_rows_ * ((size_t) g.ssm_state_size *
+                                                                                    g.ssm_v_heads * g.ssm_state_size),
+                                    gdn_ck_rows_);
+                else
                 gdn_step_norm_multi(state, hb, (int) C, gate, beta, z_, (const float*) wnm->data, EPS, y_, (int) HK,
                                     (int) HV, te, self_commit ? one_ : nullptr, cs, tb, g_qfuse() ? (void*) xq_ : nullptr);
                 stamp(l, 6, grp);
@@ -3774,7 +3805,18 @@ bool Verifier::capture_commit(std::string& err) {
                     norms_ok = need(LayerView(*wt_, l), "ssm_norm.weight", err) != nullptr;
                 }
             if (!norms_ok) ok = false;
-            else if (n_gdn > 0)
+            else if (n_gdn > 0 && gdn_ck_ != nullptr)   // STRATA_GDN_SPECLA: from the window's checkpoints (false: as below)
+                gdn_batched = gdn_specla_commit_layers(
+                    ss.gdn_state + (size_t) (gdn_index - ss.gdn_ord0) * gdn_floats, (int64_t) gdn_floats,
+                    (int64_t) g.ssm_state_size * g.ssm_v_heads * g.ssm_state_size, qkv_L_ + (size_t) gdn_index * MT * C,
+                    MT * C,
+                    gdn_ck_ + (size_t) gdn_index * (size_t) gdn_ck_rows_ *
+                                  ((size_t) g.ssm_state_size * g.ssm_v_heads * g.ssm_state_size),
+                    (int64_t) gdn_ck_rows_ * g.ssm_state_size * g.ssm_v_heads * g.ssm_state_size, gdn_ck_rows_,
+                    h_L_ + (size_t) gdn_index * MT * C, MT * C, gate_L_ + (size_t) gdn_index * MT * HV,
+                    beta_L_ + (size_t) gdn_index * MT * HV, MT * HV, (int) C, (int) g.ssm_k_heads, (int) HV, (int) MT,
+                    (int) n_gdn, commit_, cs_);
+            if (norms_ok && n_gdn > 0 && !gdn_batched)
                 gdn_batched = gdn_commit_layers(
                     ss.gdn_state + (size_t) (gdn_index - ss.gdn_ord0) * gdn_floats, (int64_t) gdn_floats,
                     (int64_t) g.ssm_state_size * g.ssm_v_heads * g.ssm_state_size, qkv_L_ + (size_t) gdn_index * MT * C,

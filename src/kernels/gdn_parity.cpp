@@ -619,6 +619,129 @@ int main(int argc, char** argv) {
         bad += lb_bad;
     }
 
+    // ================= 7. STRATA_GDN_SPECLA (MOD_PLAN.md section 6 item 16): the accepted state without the replay =========
+    // A window (gdn_step_norm_multi, n_keep null) over Tw random rows with checkpoints, then for every accept count
+    // nk = 1..Tw: (a) checkpoint nk - 1 == the replay's state after nk rows (gdn_conv_commit + gdn_step_norm_multi with
+    // n_keep, the per-layer commit - whichever kernel the environment picks), (b) gdn_specla_commit_layers from the
+    // checkpoints == that replay on the whole arena (states and conv histories), (c) the window's outputs and its
+    // (untouched) state are the bytes the same window writes without checkpoints.  Random windows, accept counts and
+    // checkpoint counts (every row, and a cap below the window so the commit replays the rows past it); memcmp only.
+    {
+        const int qk = S * h_k, C = 2 * qk + S * h_v, vd = S * h_v, L = 3, MT = strata::kernels::kVerifyMaxT;
+        const int64_t rec = (int64_t) S * h_v * S, conv_off = rec, stride = conv_off + (int64_t) C * 3;
+        const float eps = 1e-6f;
+        std::vector<float> gm((size_t) S);
+        for (auto& x : gm) x = 1.0f + 0.1f * gauss(rng);
+        float *d_a = nullptr, *d_b = nullptr, *d_h = nullptr, *d_qkv = nullptr, *d_g = nullptr, *d_bt = nullptr,
+              *d_z = nullptr, *d_y = nullptr, *d_y0 = nullptr, *d_yd = nullptr, *d_gm = nullptr, *d_ck = nullptr;
+        int32_t* d_nk = nullptr;
+        check(cudaMalloc(&d_a, (size_t) stride * L * 4), "sa"); check(cudaMalloc(&d_b, (size_t) stride * L * 4), "sb");
+        check(cudaMalloc(&d_h, (size_t) L * MT * C * 4), "sh"); check(cudaMalloc(&d_qkv, (size_t) L * MT * C * 4), "sq");
+        check(cudaMalloc(&d_g, (size_t) L * MT * h_v * 4), "sg"); check(cudaMalloc(&d_bt, (size_t) L * MT * h_v * 4), "sbt");
+        check(cudaMalloc(&d_z, (size_t) MT * vd * 4), "sz"); check(cudaMalloc(&d_y, (size_t) MT * vd * 4), "sy");
+        check(cudaMalloc(&d_y0, (size_t) MT * vd * 4), "sy0"); check(cudaMalloc(&d_yd, (size_t) MT * vd * 4), "syd");
+        check(cudaMalloc(&d_gm, gm.size() * 4), "sgm"); check(cudaMalloc(&d_nk, 4), "snk");
+        check(cudaMalloc(&d_ck, (size_t) L * MT * rec * 4), "sck");
+        check(cudaMemcpy(d_gm, gm.data(), gm.size() * 4, cudaMemcpyHostToDevice), "scm");
+        int sp_bad = 0, sp_n = 0, ck_n = 0;
+        bool launched = true;
+        const int trials = 6;
+        for (int trial = 0; trial < trials; ++trial) {
+            const int Tw = 1 + (int) (rng() % (unsigned) MT);   // the window's rows
+            // the checkpoint count: every row (=1), or a cap below the window (=N), as g_gdn_specla_rows gives
+            const int n_ck = (trial % 2 == 0 || Tw == 1) ? Tw : 1 + (int) (rng() % (unsigned) (Tw - 1));
+            std::vector<float> st0((size_t) (stride * L)), hb((size_t) L * MT * C), qkv((size_t) L * MT * C),
+                gt((size_t) L * MT * h_v), bt((size_t) L * MT * h_v), z((size_t) MT * vd);
+            for (auto& x : st0) x = gauss(rng) * 0.1f;
+            for (auto& x : hb) x = gauss(rng) * 0.1f;
+            for (auto& x : qkv) x = gauss(rng);
+            for (auto& x : gt) x = -(0.5f + (float) (rng() % 100) / 50.0f);
+            for (auto& x : bt) x = (float) (rng() % 100) / 100.0f;
+            for (auto& x : z) x = gauss(rng);
+            check(cudaMemcpy(d_h, hb.data(), hb.size() * 4, cudaMemcpyHostToDevice), "sch");
+            check(cudaMemcpy(d_qkv, qkv.data(), qkv.size() * 4, cudaMemcpyHostToDevice), "scq");
+            check(cudaMemcpy(d_g, gt.data(), gt.size() * 4, cudaMemcpyHostToDevice), "scg");
+            check(cudaMemcpy(d_bt, bt.data(), bt.size() * 4, cudaMemcpyHostToDevice), "scb");
+            check(cudaMemcpy(d_z, z.data(), z.size() * 4, cudaMemcpyHostToDevice), "scz");
+            check(cudaMemcpy(d_a, st0.data(), st0.size() * 4, cudaMemcpyHostToDevice), "sca");
+            check(cudaMemset(d_ck, 0x7f, (size_t) L * MT * rec * 4), "sck0");
+            // the windows, with and without checkpoints; (c) outputs and state the same bytes
+            bool c_ok = true;
+            for (int l = 0; l < L; ++l) {
+                float* stl = d_a + (size_t) l * stride;
+                const float* hl = d_h + (size_t) l * MT * C;
+                const float* gl = d_g + (size_t) l * MT * h_v;
+                const float* bl = d_bt + (size_t) l * MT * h_v;
+                strata::kernels::gdn_step_norm_multi(stl, hl, C, gl, bl, d_z, d_gm, eps, d_y0, h_k, h_v, Tw, nullptr, nullptr, 0);
+                strata::kernels::gdn_step_norm_multi(stl, hl, C, gl, bl, d_z, d_gm, eps, d_y, h_k, h_v, Tw, nullptr, nullptr, 0,
+                                                     nullptr, d_ck + (size_t) l * MT * rec, n_ck);
+                check(cudaDeviceSynchronize(), "swin");
+                std::vector<float> y((size_t) Tw * vd), y0(y.size());
+                check(cudaMemcpy(y.data(), d_y, y.size() * 4, cudaMemcpyDeviceToHost), "sdy");
+                check(cudaMemcpy(y0.data(), d_y0, y0.size() * 4, cudaMemcpyDeviceToHost), "sdy0");
+                if (std::memcmp(y.data(), y0.data(), y.size() * 4) != 0) c_ok = false;
+            }
+            {
+                std::vector<float> a(st0.size());
+                check(cudaMemcpy(a.data(), d_a, a.size() * 4, cudaMemcpyDeviceToHost), "sda0");
+                if (std::memcmp(a.data(), st0.data(), a.size() * 4) != 0) c_ok = false;
+            }
+            ++sp_n;
+            if (!c_ok) {
+                std::printf("    *** specla trial %d (Tw=%d, n_ck=%d): the window with checkpoints wrote other outputs or state ***\n",
+                            trial, Tw, n_ck);
+                ++sp_bad;
+            }
+            std::vector<float> ck((size_t) L * MT * rec);
+            check(cudaMemcpy(ck.data(), d_ck, ck.size() * 4, cudaMemcpyDeviceToHost), "sdck");
+            for (int nk = 1; nk <= Tw; ++nk) {
+                check(cudaMemcpy(d_nk, &nk, 4, cudaMemcpyHostToDevice), "snk1");
+                check(cudaMemcpy(d_a, st0.data(), st0.size() * 4, cudaMemcpyHostToDevice), "sca1");
+                check(cudaMemcpy(d_b, st0.data(), st0.size() * 4, cudaMemcpyHostToDevice), "scb1");
+                for (int l = 0; l < L; ++l) {   // the replay: the per-layer commit
+                    float* stl = d_a + (size_t) l * stride;
+                    strata::kernels::gdn_conv_commit(stl + conv_off, d_qkv + (size_t) l * MT * C, C, d_nk, nullptr);
+                    strata::kernels::gdn_step_norm_multi(stl, d_h + (size_t) l * MT * C, C, d_g + (size_t) l * MT * h_v,
+                                                         d_bt + (size_t) l * MT * h_v, d_z, d_gm, eps, d_yd, h_k, h_v, MT,
+                                                         d_nk, nullptr, MT);
+                }
+                if (launched)
+                    launched = strata::kernels::gdn_specla_commit_layers(
+                        d_b, stride, conv_off, d_qkv, (int64_t) MT * C, d_ck, (int64_t) MT * rec, n_ck, d_h, (int64_t) MT * C,
+                        d_g, d_bt, (int64_t) MT * h_v, C, h_k, h_v, MT, L, d_nk, nullptr);
+                check(cudaDeviceSynchronize(), "ssync");
+                std::vector<float> a(st0.size()), b(st0.size());
+                check(cudaMemcpy(a.data(), d_a, a.size() * 4, cudaMemcpyDeviceToHost), "sda");
+                check(cudaMemcpy(b.data(), d_b, b.size() * 4, cudaMemcpyDeviceToHost), "sdb");
+                if (nk <= n_ck) {   // (a) the checkpoint is the replay's state
+                    bool a_ok = true;
+                    for (int l = 0; l < L && a_ok; ++l)
+                        a_ok = std::memcmp(&ck[(size_t) l * MT * rec + (size_t) (nk - 1) * rec], &a[(size_t) l * stride],
+                                           (size_t) rec * 4) == 0;
+                    ++ck_n;
+                    if (!a_ok) {
+                        std::printf("    *** specla trial %d (Tw=%d): checkpoint %d differs from the replay's state after %d rows ***\n",
+                                    trial, Tw, nk - 1, nk);
+                        ++sp_bad;
+                    }
+                }
+                if (launched) {   // (b) the commit from the checkpoints is the replay
+                    ++sp_n;
+                    if (std::memcmp(a.data(), b.data(), a.size() * 4) != 0 || std::memcmp(a.data(), st0.data(), a.size() * 4) == 0) {
+                        std::printf("    *** specla trial %d (Tw=%d, n_ck=%d) n_keep=%d: the commit differs from the replay (or wrote nothing) ***\n",
+                                    trial, Tw, n_ck, nk);
+                        ++sp_bad;
+                    }
+                }
+            }
+        }
+        cudaFree(d_a); cudaFree(d_b); cudaFree(d_h); cudaFree(d_qkv); cudaFree(d_g); cudaFree(d_bt); cudaFree(d_z);
+        cudaFree(d_y); cudaFree(d_y0); cudaFree(d_yd); cudaFree(d_gm); cudaFree(d_nk); cudaFree(d_ck);
+        std::printf("  %-42s %s (%d cases, %d checkpoints%s)\n", "STRATA_GDN_SPECLA == replay", sp_bad ? "*** NO ***" : "bitwise",
+                    sp_n, ck_n, launched ? "" : "; commit skipped: the per-layer commit is not the state-only kernel here");
+        bad += sp_bad;
+    }
+
     std::printf("\ngdn: %d failures\n", bad);
     if (bad) return 1;
     if (selftest) std::printf("gdn_parity OK\n");
