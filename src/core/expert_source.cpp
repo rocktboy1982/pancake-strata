@@ -5029,6 +5029,92 @@ float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_C
 // model - its lower-half experts are dropped - where that saves a copy or a CPU job (missed experts only, skipped like
 // MISS_SKIP_W).  Every other token keeps all k experts (the paper's "big" model).  Value in (0, 1); else off.  Read once.
 float mobile_gate() { static const float g = miss_skip_env("STRATA_MOBILE"); return g; }
+
+// LEADS.md A27 (sub-2-bit copy on a CPU miss; HOBBIT / MC-MoE low-precision miss copies), STRATA_SHADOW_MISS=<gguf>
+// (opt-in, lossy; read once): a CPU-computed (missed) expert reads its gate/up rows from the shadow GGUF that
+// tools' shadow pack writes (include/strata/artifact/shadow_pack.hpp: blk.L.ffn_gate_exps / ffn_up_exps re-encoded to
+// IQ1_M, about a quarter fewer bytes than IQ2_XS) and its down rows from the model as always; the GPU tier keeps the
+// model's own experts.  STRATA_SHADOW_MISS_W=<share> in (0, 1) gates it as the plan's open form asks: only an entry whose
+// router weight share is under it reads the shadow (the weights come from the verifier's sink, else every miss does).
+// A layer missing from the shadow, a Hadamard-folded layer, or one whose shadow format needs other activations keeps
+// the model's rows.  The shadow file is mapped (page cache), never copied.  Unset: nothing is opened.
+struct ShadowMiss {
+    bool on = false;
+    float w_share = 0.0f;
+    std::unique_ptr<strata::GgufFile> file;
+    std::vector<const uint8_t*> gate, up;   // per layer: expert 0's rows (null: not in the shadow)
+    std::vector<int> type;                  // per layer: the shadow's ggml type
+    std::vector<uint64_t> ne0, ne1, ne2;    // per layer: the tensors' shape [n_embd, n_ff, n_expert]
+};
+ShadowMiss& shadow_miss() {
+    static ShadowMiss* s = [] {
+        auto* m = new ShadowMiss;
+        const char* p = std::getenv("STRATA_SHADOW_MISS");
+        if (p == nullptr || p[0] == '\0' || std::string(p) == "0") return m;
+        m->w_share = miss_skip_env("STRATA_SHADOW_MISS_W");
+        try {
+            m->file = std::make_unique<strata::GgufFile>(p);
+        } catch (const std::exception& ex) {
+            std::fprintf(stderr, "strata: STRATA_SHADOW_MISS=%s: %s - off\n", p, ex.what());
+            return m;
+        }
+        int found = 0;
+        for (int l = 0; l < 256; ++l) {
+            const std::string b = "blk." + std::to_string(l) + ".ffn_";
+            const strata::TensorInfo* g = m->file->find(b + "gate_exps.weight");
+            const strata::TensorInfo* u = m->file->find(b + "up_exps.weight");
+            if (g == nullptr || u == nullptr || g->type != u->type || g->shape.size() != 3 || u->shape != g->shape) continue;
+            if ((size_t) l >= m->gate.size()) {
+                m->gate.resize((size_t) l + 1, nullptr);
+                m->up.resize((size_t) l + 1, nullptr);
+                m->type.resize((size_t) l + 1, -1);
+                m->ne0.resize((size_t) l + 1, 0);
+                m->ne1.resize((size_t) l + 1, 0);
+                m->ne2.resize((size_t) l + 1, 0);
+            }
+            m->gate[(size_t) l] = m->file->tensor_data(*g);
+            m->up[(size_t) l] = m->file->tensor_data(*u);
+            m->type[(size_t) l] = (int) g->type;
+            m->ne0[(size_t) l] = g->shape[0];
+            m->ne1[(size_t) l] = g->shape[1];
+            m->ne2[(size_t) l] = g->shape[2];
+            ++found;
+        }
+        m->on = found > 0;
+        std::fprintf(stderr, "strata: STRATA_SHADOW_MISS=%s: %d shadow layers (CPU misses read their gate/up there%s)\n", p,
+                     found, m->w_share > 0.0f ? ", router share under STRATA_SHADOW_MISS_W only" : "");
+        return m;
+    }();
+    return *s;
+}
+}  // namespace
+bool shadow_miss_weights_on() { return shadow_miss().on && shadow_miss().w_share > 0.0f; }
+namespace {
+// The per-job format of a shadow read of (layer, expert), whose model blob is `blob` with format `mf`; false = keep the
+// model's rows.  `f` gets the shadow's gate/up type and rows, the up and down offsets relative to the shadow gate rows
+// (modular, as the 149-cold zero-copy formats: the three need not be in one allocation).
+bool shadow_fmt(int64_t layer, int64_t expert, const uint8_t* blob, const strata::kernels::cpu::NativeFmt& mf,
+                strata::kernels::cpu::NativeFmt& f, const uint8_t*& gate_rows) {
+    ShadowMiss& s = shadow_miss();
+    if (!s.on || layer < 0 || (size_t) layer >= s.gate.size() || s.gate[(size_t) layer] == nullptr) return false;
+    if (mf.had_gu || mf.had_d || mf.tail_off != 0) return false;
+    if (s.ne0[(size_t) layer] != (uint64_t) mf.n_embd || s.ne1[(size_t) layer] != (uint64_t) mf.n_ff ||
+        (uint64_t) expert >= s.ne2[(size_t) layer]) return false;   // another model's shadow
+    strata::kernels::cpu::NativeFmt sf;
+    std::string err;
+    if (!strata::kernels::cpu::native_fmt(s.type[(size_t) layer], mf.d_type, mf.n_embd, mf.n_ff, sf, err)) return false;
+    if (sf.gu_act != mf.gu_act) return false;    // the job's activations are quantized for the model's gate/up type
+    const size_t es = sf.gu_row * (size_t) mf.n_ff;   // one expert's rows in each [n_embd, n_ff, n_expert] tensor
+    const uint8_t* g = s.gate[(size_t) layer] + (size_t) expert * es;
+    const uint8_t* u = s.up[(size_t) layer] + (size_t) expert * es;
+    f = mf;
+    f.gu_type = sf.gu_type;
+    f.gu_row = sf.gu_row;
+    f.up_off = (size_t) ((uintptr_t) u - (uintptr_t) g);
+    f.down_off = (size_t) ((uintptr_t) (blob + mf.down_off) - (uintptr_t) g);
+    gate_rows = g;
+    return true;
+}
 }  // namespace
 bool miss_skip_weights_on() { return miss_skip_w() > 0.0f || miss_skip_cum() > 0.0f || mobile_gate() > 0.0f; }
 
@@ -5042,7 +5128,7 @@ bool adapt_prob_mass_on() {
     static const bool on = [] { const char* v = std::getenv("STRATA_ADAPT_PROB_MASS"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
-bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on(); }
+bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on() || shadow_miss_weights_on(); }
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic) {
@@ -5717,6 +5803,26 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                     f.down_off = (size_t) ((uintptr_t) zp[2] - (uintptr_t) zp[0]);   // in the file does not matter
                     nj.fmt = &f;
                     ++d.cold_zc;
+                } else if (native && shadow_miss().on) {   // STRATA_SHADOW_MISS (opt-in, lossy; LEADS.md A27)
+                    // the gate (STRATA_SHADOW_MISS_W): the router share of the entry that opens the job (its first token)
+                    bool want = true;
+                    if (shadow_miss().w_share > 0.0f) {
+                        const float* sw = d.plan != nullptr ? d.plan->skip_w : nullptr;
+                        want = false;
+                        if (sw != nullptr) {
+                            float sum = 0.0f;
+                            for (int64_t j2 = 0; j2 < k; ++j2) sum += sw[t * k + j2];
+                            want = sum > 0.0f && sw[i] == sw[i] && sw[i] < shadow_miss().w_share * sum;
+                        }
+                    }
+                    if (want) {
+                        if (d.zc_fmt.size() < d.jobs_multi.size()) d.zc_fmt.resize(d.jobs_multi.size());
+                        const uint8_t* g = nullptr;
+                        if (shadow_fmt(d.layers, e, b, lay.fmt[(size_t) d.layers], d.zc_fmt[(size_t) jo], g)) {
+                            nj.blob = g;
+                            nj.fmt = &d.zc_fmt[(size_t) jo];
+                        }
+                    }
                 }
             }
             if (d.jobs_multi[(size_t) jo].nt == MAXT) {
