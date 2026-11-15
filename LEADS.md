@@ -109,7 +109,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | `HIP_POST_SPLIT` / persistent FFN half | +3.5% (needs PCIe share); FFN-half floor 67 vs 150 us/layer, est. +10-14% (unimatrix099, 2x XTX) | exact | no |
 | `HIP_FRONT_FUSE` / `FUSE_SHGATE` (shared gate into router GEMV) | +2.7% decode, 15 to 11 kernels/layer (unimatrix099, 2x XTX) | exact | no |
 | `PCIE_USAGE` + `PCIE_KEEP=96` swap-ahead ring | +4.1%, copy wait 1.2-1.7 to 0.2-0.5 ms (android-imdad, XTX, pcie-frac 0.35) | exact | no |
-| IQ2_S/IQ3_S AVX2 decode without shifts (HiSpread, imanu86 862c18aaea) | IQ2_S layers pool -20..-33%/window | exact | iq_avx1.cpp:72,102 (AVX1 file; AVX2 row path unverified) |
+| IQ2_S/IQ3_S AVX2 decode without shifts (HiSpread, imanu86 862c18aaea) | IQ2_S layers pool -20..-33%/window | exact | yes: iq_avx2.cpp HiSpread / Fmt32<22>, <21>, <121> are the default AVX2 row path (checked 2026-11-15; iq_avx2_parity covers 21, 22) |
 | pool spin ~10 ms before nap | CPU experts 15.1 to 12.6 ms/token (Jackwwg83, Zen 5 laptop) | exact | `STRATA_POOL_SPIN_US` pool.hpp:291 (value sweep unverified) |
 | one-token exact AVX2 rows (`CPU_SINGLE_EXACT`) | IQ3_S gate/up 2.0x on P-core after fix (Strata-GLM) | exact | `STRATA_CPU_IQ_ALL_EXACT1` (def:348; reader unverified) |
 | `SLOTS_WARP` warp-per-row slots kernel | 98.5 to 111.4 t/s short (RandoTeam, RX 7800 XT, Qwen3.6 poly) | exact | no (only `native_mmvq_slots_kernel`) |
