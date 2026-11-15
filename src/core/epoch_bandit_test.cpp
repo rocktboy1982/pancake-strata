@@ -365,7 +365,39 @@ static void test_summary() {
     CHECK(b.windows(0, 0) == 2 && b.windows(0, 1) == 1);   // the totals stay
 }
 
+// STRATA_BANDIT_CORRECT (Athena's correlated-minus-uncorrelated reward): "off" runs its epoch at positions 0..15 x 4096,
+// "top" (5% cheaper at equal position) at 16..31 x 4096 and every position adds 1 ms/token.  Uncorrected, the later epoch
+// pays its longer context and greedy goes back to "off"; corrected, the position's part is fitted and taken out.
+static void test_correct() {
+    for (const bool corr : {false, true}) {
+        Env env = {{"STRATA_BANDIT", "top"}, {"STRATA_BANDIT_EPOCH", "16"}, {"STRATA_BANDIT_SKIP", "0"},
+                   {"STRATA_BANDIT_RULE", "eps:0"}, {"STRATA_BANDIT_DECAY", "1"}};
+        if (corr) env["STRATA_BANDIT_CORRECT"] = "1";
+        BanditConfig c = cfg_of(env, kBanditAll);
+        CHECK(c.correct == corr);
+        EpochBandit b(c, 1);
+        int i = 0;
+        bool closed = false;
+        for (; i < 32; ++i) {
+            const double base = b.begin(0) == 0 ? 10.0 : 9.5;
+            closed = b.end(0, 3.0 * (base + (double) i), 3, 4096.0 * (double) i);
+        }
+        CHECK(closed);
+        CHECK(b.last_decision().arm == kBanditTop);
+        CHECK(b.begin(0) == (corr ? kBanditTop : 0u));
+    }
+    {   // no position given: no correction even when asked (the earlier rule exactly)
+        BanditConfig c = cfg_of({{"STRATA_BANDIT", "top"}, {"STRATA_BANDIT_EPOCH", "2"}, {"STRATA_BANDIT_SKIP", "0"},
+                                 {"STRATA_BANDIT_CORRECT", "1"}}, kBanditAll);
+        EpochBandit b(c, 1);
+        CHECK(!b.end(0, 3.0, 3));
+        CHECK(b.end(0, 6.0, 3));
+        CHECK(std::fabs(b.last_decision().cost - 1.5) < 1e-12);
+    }
+}
+
 int main() {
+    test_correct();
     test_parse();
     test_names();
     test_arms_and_epochs();

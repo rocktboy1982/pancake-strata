@@ -180,6 +180,23 @@ int main() {
         std::remove((d + "/hd-1234567890123-4242-5.ids").c_str());
     }
     CHECK(tprobe_line(320, 0.91234f) == "TPROBE 320 0.9123");
+    {   // ThinkBrake (STRATA_THINK_BRAKE): parse, sentence ends, margin over the top non-</think> token
+        BrakeConfig b;
+        std::string err;
+        CHECK(parse_brake_config(nullptr, b, err) && !b.on());
+        CHECK(parse_brake_config("0.25", b, err) && b.on() && b.tau == 0.25f && b.min_tokens == 0);
+        CHECK(parse_brake_config("0.5,min=64", b, err) && b.tau == 0.5f && b.min_tokens == 64);
+        CHECK(!parse_brake_config("0", b, err) && !b.on() && !err.empty());
+        CHECK(!parse_brake_config("x", b, err) && !b.on());
+        CHECK(!parse_brake_config("0.25,min=-1", b, err) && !b.on());
+        CHECK(!parse_brake_config("0.25,bogus", b, err) && !b.on());
+        CHECK(sentence_end(".") && sentence_end(" done.") && sentence_end("?\"") && sentence_end("\n") && sentence_end("!)"));
+        CHECK(!sentence_end("") && !sentence_end(" so") && !sentence_end(",") && !sentence_end("  "));
+        const float lg[4] = {1.0f, 3.0f, 2.75f, -1.0f};
+        CHECK(std::fabs(brake_margin(lg, 4, 2) - 0.25f) < 1e-6f);    // top non-close 3.0, close 2.75
+        CHECK(std::fabs(brake_margin(lg, 4, 1) - (-0.25f)) < 1e-6f); // close leads: negative
+        CHECK(std::isnan(brake_margin(lg, 4, 4)) && std::isnan(brake_margin(lg, 4, -1)));
+    }
     fs::remove_all(tmp, ec);
     if (failed) { std::fprintf(stderr, "think_probe_test: %d failure(s)\n", failed); return 1; }
     std::printf("think_probe_test: ok\n");

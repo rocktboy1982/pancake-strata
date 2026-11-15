@@ -7759,8 +7759,14 @@ int main(int argc, char** argv) {
     const strata::program::grammar::PackVocab* tp_vocab = nullptr;
     strata::program::PriorMarks tp_marks;                              // <think> / </think> (Flash-Next's ids by default)
     int tp_every = tpb::kDefaultEvery;                                 // the check points' spacing (STRATA_HIDDEN_DUMP's every=)
+    tpb::BrakeConfig tb_cfg;   // LEADS.md Part C A19 ThinkBrake (STRATA_THINK_BRAKE, opt-in, lossy; think_probe.hpp)
+    if (o.serve && std::getenv("STRATA_THINK_BRAKE") && std::getenv("STRATA_THINK_BRAKE")[0]) {
+        std::string berr;
+        if (!tpb::parse_brake_config(std::getenv("STRATA_THINK_BRAKE"), tb_cfg, berr))
+            std::fprintf(stderr, "strata serve: %s: ignored\n", berr.c_str());
+    }
     if (o.serve && ((std::getenv("STRATA_HIDDEN_DUMP") && std::getenv("STRATA_HIDDEN_DUMP")[0]) ||
-                    (std::getenv("STRATA_THINK_PROBE") && std::getenv("STRATA_THINK_PROBE")[0]))) {
+                    (std::getenv("STRATA_THINK_PROBE") && std::getenv("STRATA_THINK_PROBE")[0]) || tb_cfg.on())) {
         std::string terr;
         if (!tpb::parse_dump_config(std::getenv("STRATA_HIDDEN_DUMP"), tp_dump, terr))
             std::fprintf(stderr, "strata serve: %s: ignored\n", terr.c_str());
@@ -7781,7 +7787,7 @@ int main(int argc, char** argv) {
                 tp_dump = tpb::DumpConfig();
             }
         }
-        if (tp_dump.on() || tp_cfg.on()) {
+        if (tp_dump.on() || tp_cfg.on() || tb_cfg.on()) {
             if (grammar_vocab) {
                 tp_vocab = &*grammar_vocab;
             } else {
@@ -7801,8 +7807,10 @@ int main(int argc, char** argv) {
                 } else {
                     std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE: the pack's tokenizer files cannot be "
                                          "read%s%s: both are off\n", gerr.empty() ? "" : ": ", gerr.c_str());
+                    if (tb_cfg.on()) std::fprintf(stderr, "strata serve: STRATA_THINK_BRAKE: no tokenizer texts: off\n");
                     tp_dump = tpb::DumpConfig();
                     tp_cfg = tpb::ProbeConfig();
+                    tb_cfg = tpb::BrakeConfig();
                 }
             }
         }
@@ -7824,6 +7832,11 @@ int main(int argc, char** argv) {
                          tp_cfg.path.c_str(), tp_probe.link() == tpb::kIdentity ? "identity" : "logistic", tp_cfg.checks,
                          (double) tp_cfg.threshold,
                          tp_cfg.min_tokens > 0 ? (", from " + std::to_string(tp_cfg.min_tokens) + " thinking tokens").c_str() : "");
+        if (tb_cfg.on())
+            std::fprintf(stderr, "strata serve: STRATA_THINK_BRAKE (lossy): the thinking closes at a sentence end where "
+                                 "log(p_top / p_</think>) <= %.4g%s (the server's soft close; serial decode loop only)\n",
+                         (double) tb_cfg.tau,
+                         tb_cfg.min_tokens > 0 ? (", from " + std::to_string(tb_cfg.min_tokens) + " thinking tokens").c_str() : "");
         if ((tp_dump.on() || tp_cfg.on()) && (o.batch > 0 || o.pipeline_windows > 0))
             std::fprintf(stderr, "strata serve: STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE act on the serial decode loop only: batch-slot "
                                  "and pipelined windows are not hooked\n");
@@ -14308,6 +14321,20 @@ int main(int argc, char** argv) {
         // resident expert unused for the longest.  tools/pancake/time_ceiling.py: +5..16% of a code-edit window in the
         // model, depending on PCIe contention.  Placement only: outputs unchanged.
         strata::program::KMissTier kmiss = strata::program::KMissTier::from_env();
+        // LEADS.md Part C, HOBBIT multi-dimensional cache score (Tang et al., "HOBBIT: A Mixed Precision Expert Offloading
+        // System for Fast MoE Inference", arXiv 2411.01433: the eviction priority combines LRU, LFU, LHU and the layer
+        // distance).  STRATA_TIER_LRU=w (opt-in, w > 0, read once): the blocking tier's eviction score of a resident expert
+        // is its decayed usage (our LFU) plus w x the layer's mean usage x 1 / (1 + rounds since it was last routed) (LRU);
+        // LHU (high-precision uses) and the layer distance have no counterpart here (one precision, per-layer slots).
+        // Placement only (which resident expert leaves): outputs unchanged up to GPU / CPU rounding.  Unset: as before.
+        static const float tier_lru_w = [] {
+            const char* v = std::getenv("STRATA_TIER_LRU");
+            const double w = v != nullptr ? std::atof(v) : 0.0;
+            return w > 0.0 && std::isfinite(w) ? (float) w : 0.0f;
+        }();
+        std::vector<float> tier_lru_prev;     // the counts after the last round's decay (a rise since = routed this round)
+        std::vector<int32_t> tier_lru_last;   // the round each expert was last routed
+        int32_t tier_lru_round = 0;
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
@@ -14329,6 +14356,14 @@ int main(int argc, char** argv) {
             struct Swap { float gain; int32_t layer, in, out; };
             std::vector<Swap> swaps;
             std::vector<std::pair<float, int32_t>> cand, vict;
+            if (tier_lru_w > 0.0f) {   // STRATA_TIER_LRU (HOBBIT): which experts were routed since the last round
+                if (tier_lru_prev.size() != drive.d.usage.size()) {
+                    tier_lru_prev.assign(drive.d.usage.size(), 0.0f);
+                    tier_lru_last.assign(drive.d.usage.size(), 0);
+                }
+                for (size_t i = 0; i < drive.d.usage.size(); ++i)
+                    if (drive.d.usage[i] > tier_lru_prev[i]) tier_lru_last[i] = tier_lru_round;
+            }
             for (int64_t l = 0; l < g.n_layers; ++l) {
                 // STRATA_ADAPT_FETCH=2: where the PCIe share fetched since the last round, its fetchable experts are
                 // the admission's; the tier keeps the rest (no share there, or not pinned)
@@ -14350,6 +14385,14 @@ int main(int argc, char** argv) {
                 for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
                     if (r[e] < 0) { if (u[e] >= 2.0f && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) && !(fetched && srcp->pinned(l, e))) cand.emplace_back(u[e], e); }
                     else vict.emplace_back(u[e], e);
+                }
+                if (tier_lru_w > 0.0f && !vict.empty()) {   // STRATA_TIER_LRU (HOBBIT): LFU + w x recency, in the layer's usage unit
+                    double mean_u = 0.0;
+                    for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) mean_u += (double) u[e];
+                    mean_u /= (double) g.n_expert;
+                    const int32_t* last = tier_lru_last.data() + l * g.n_expert;
+                    for (auto& v : vict)
+                        v.first += tier_lru_w * (float) mean_u / (1.0f + (float) (tier_lru_round - last[v.second]));
                 }
                 if (cand.empty() || vict.empty()) continue;
                 std::sort(cand.begin(), cand.end(), [](auto& a, auto& b) { return a.first > b.first; });
@@ -14584,6 +14627,10 @@ int main(int argc, char** argv) {
                 for (float& v : drive.d.usage) v *= o.adapt_decay;
             if (seeder.on()) seeder.round_end(drive.d.usage);
             if (kmiss.on()) kmiss.end_round(drive.d.usage);
+            if (tier_lru_w > 0.0f && tier_lru_prev.size() == drive.d.usage.size()) {   // STRATA_TIER_LRU: the next round's baseline
+                std::copy(drive.d.usage.begin(), drive.d.usage.end(), tier_lru_prev.begin());
+                ++tier_lru_round;
+            }
             return true;
         };
         // ---- --adapt-async 1: the asynchronous adaptive tier (opt-in; the resident RAM mode, see the checks where
@@ -20081,6 +20128,18 @@ int main(int argc, char** argv) {
                 }
                 ++tp_seq;
             }
+            // LEADS.md Part C A19 ThinkBrake (STRATA_THINK_BRAKE): this request's think state, thinking tokens, whether the
+            // last thinking token ended a sentence, and whether the stop already fired (once per request)
+            struct ThinkBrakeRequest {
+                bool on = false, at_end = false, fired = false;
+                strata::program::PriorScopeState scope;
+                long long think_n = 0;
+                std::vector<float> row;    // one copied logit row (vocab floats), at sentence ends only
+            } tbr;
+            if (tb_cfg.on() && tp_vocab != nullptr) {
+                tbr.on = true;
+                tbr.scope = strata::program::PriorScopeState(tp_marks);
+            }
             struct PriorGateRequest {
                 int64_t open = 0, total = 0;
                 ~PriorGateRequest() {
@@ -21164,6 +21223,7 @@ int main(int argc, char** argv) {
                 // epoch arm, set before ver.run stages the window - the knobs never move inside a window.  A first or merged
                 // window keeps the arm the last window had and is not counted.
                 int eb_type = -1;
+                const double eb_pos = (double) p;   // STRATA_BANDIT_CORRECT: the window's position (workload feature)
                 if (ebandit.on() && !first_window && !merged) {
                     eb_type = ebandit_typer.type(from_sfx || chain_n > 0, T, p);
                     ebandit_apply(ebandit.begin(eb_type));
@@ -21299,6 +21359,42 @@ int main(int argc, char** argv) {
                         if (std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) y) != o.eos_ids.end()) break;
                     }
                 }
+                // LEADS.md Part C A19 ThinkBrake (STRATA_THINK_BRAKE, lossy): the committed rows in order; inside the thinking,
+                // a row whose input token ended a sentence has its logits copied and the margin log(p_top / p_</think>) read
+                // (think_probe.hpp brake_margin).  At or below tau the TPROBE line goes out after the T lines, as the probe's.
+                // Unset: nothing here runs.
+                bool tb_fire = false;
+                if (tbr.on) {
+                    tbr.scope.sync(consumed.data(), consumed.size());
+                    strata::program::PriorScopeState rs = tbr.scope;
+                    const int r0 = merged ? a : 0;
+                    int64_t pn = produced_n;
+                    for (int i = 0; i <= a && pn < max_new; ++i) {
+                        rs.feed(window[(size_t) i]);
+                        if (i < r0) continue;
+                        const int32_t y = outv[(size_t) i];
+                        if (rs.think()) {
+                            const bool is_close = y == tp_marks.think_close;
+                            if (!tbr.fired && !is_close && tbr.at_end && tbr.think_n >= tb_cfg.min_tokens && tp_fire_n < 0) {
+                                tbr.row.resize((size_t) ver.vocab());
+                                if (ver.copy_logits(i, tbr.row.data())) {
+                                    const float m = tpb::brake_margin(tbr.row.data(), tbr.row.size(), tp_marks.think_close);
+                                    if (m == m && m <= tb_cfg.tau) {
+                                        tbr.fired = tb_fire = true;
+                                        tp_fire_n = tbr.think_n;
+                                        tp_fire_score = m;
+                                    }
+                                }
+                            }
+                            if (!is_close) {
+                                tbr.at_end = tpb::sentence_end(tp_vocab->vocab->bytes(y));
+                                ++tbr.think_n;
+                            }
+                        }
+                        ++pn;
+                        if (std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) y) != o.eos_ids.end()) break;
+                    }
+                }
                 if (from_sfx) { ++sfx_windows; sfx_drafts += T - 1; sfx_ok += a; }
                 if (from_sfx && from_sidx) { ++sidx_windows; sidx_drafts += T - 1; sidx_ok += a; }   // A24: the index's windows among them
                 if (chain_n > 0) { ++chain_windows; chain_drafts += chain_n; chain_ok += std::max(0, a - (T_mtp - 1)); }
@@ -21402,6 +21498,11 @@ int main(int argc, char** argv) {
                 }
                 if (tp_fire_n >= 0) {   // A19: after the window's T (and LP) lines: the server closes the thinking (serve/server.py)
                     std::printf("%s\n", tpb::tprobe_line(tp_fire_n, tp_fire_score).c_str());
+                    if (tb_fire)
+                        std::fprintf(stderr, "strata serve: think brake (lossy): margin %.3f at or below %.4g at %lld thinking "
+                                             "tokens: the server closes the thinking (STRATA_THINK_BRAKE)\n",
+                                     (double) tp_fire_score, (double) tb_cfg.tau, tp_fire_n);
+                    else
                     std::fprintf(stderr, "strata serve: think probe (lossy): score %.3f at or above %.4g for %d checks at %lld thinking "
                                          "tokens: the server closes the thinking (STRATA_THINK_PROBE)\n",
                                  (double) tp_fire_score, (double) tp_cfg.threshold, tp_cfg.checks, tp_fire_n);
@@ -21517,7 +21618,8 @@ int main(int argc, char** argv) {
                 if (eb_type >= 0) {   // MOD_PLAN A44: the whole round (adapt wait, window, commit, next draft) per committed token
                     // (the request's last round drafts nothing: not counted, as its time is not a round's)
                     if (!eos && produced_n < max_new &&
-                        ebandit.end(eb_type, std::chrono::duration<double, std::milli>(Clock::now() - round0).count(), a + 1) &&
+                        ebandit.end(eb_type, std::chrono::duration<double, std::milli>(Clock::now() - round0).count(), a + 1,
+                                    eb_pos) &&
                         ebandit_cfg.log) {
                         const strata::core::EpochBandit::Decision& dn = ebandit.last_decision();
                         std::fprintf(stderr, "strata bandit: %s epoch %lld: %s %.3f ms/token over %d windows (mean %.3f) -> %s (%s)\n",
