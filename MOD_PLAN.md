@@ -270,7 +270,7 @@ miss.
 | 12 | CODED 2026-11-15 (49152 AUTO_MAX ceiling, `STRATA_PREFILL_EQUAL_TAIL_MAX`, `STRATA_PREFILL_POOL_RETRY`; `2b19d510` not ported: no late-refill code here, 2-GPU only; next: spec 73). rdna3 `791cca4b`/`5906629d` (AUTO_MAX 49152 + refill head `2b19d510`), `f557b544` (CPU share retries per layer) | 2-4% at 49K | exact |
 | 13 | DALI per-layer per-step CPU/GPU assignment instead of the static A45 probe | +23% over HybriMoE (3090) | exact |
 | 14 | QSA long-prompt selection cost (Quest page-level or partial top-k) | after-12K gap 2.18 ms/token | lossy-ish |
-| 15 | uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
+| 15 | CODED 2026-11-15 (`STRATA_Q36_EXPERTS_USED` from serboox f8fb28ca1f / 0f040ef5e8: spec 74; `STRATA_MISS_SKIP_W`, `STRATA_MISS_SKIP_CUM`: spec 72; --dump-routing exists, generate.cpp:3840). uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
 | 16 | SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
 | 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); DraftPolicy cost-outlier clip | unmeasured | exact |
 

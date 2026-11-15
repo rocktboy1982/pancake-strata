@@ -1,0 +1,36 @@
+{
+  "base": "configs/pancake/qwen36-ud-q4_k_xl-q36.json",
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "long3k",
+    "long32k",
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "dense-mmq": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DENSE_MMQ": "1"
+      }
+    },
+    "experts-k7": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_EXPERTS_USED": "7"
+      }
+    },
+    "experts-k6": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_EXPERTS_USED": "6"
+      }
+    }
+  },
+  "note": "Qwen3.6-35B-A3B (q36 engine; model /home/dan/clone-of-d/models/qwen36-UD-Q4_K_XL). MOD_PLAN.md section 5 item 3: STRATA_DENSE_MMQ=1 (gemm.cu, HIP; author burzumishi 32K prompt 635 -> 910 tok/s on a 7900 XTX), judged on long32k prompt tok/s, lossy rounding. Section 6 item 15: STRATA_Q36_EXPERTS_USED=7 / 6 (serboox f8fb28ca1f / 0f040ef5e8; author +14.4% K=7, +18.7% K=6, KLD 0.0254 at K=7), decode tok/s on short/edit; lossy, a promoted K needs a KL / quality check. Stop pancake.service first."
+}
