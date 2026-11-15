@@ -410,6 +410,7 @@ STRATA_ENV("STRATA_DF_PDL", Speed, "bitwise: documented (docs/README/code commen
 STRATA_ENV("STRATA_DF_PLE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_DF_QB_Q4", Speed, "graph/stream/doorbell plumbing")
 STRATA_ENV("STRATA_DISCO", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
+STRATA_ENV("STRATA_DISCO_ENTROPY", Speed, "drafting/stop policy: the drafts' entropy stops the MTP chain / feeds DISCO (LEADS.md B24); verify still exact")
 STRATA_ENV("STRATA_DISJOINT_ADAPT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_DMA_BATCH", Speed, "copy batching")
 STRATA_ENV("STRATA_DMA_COALESCE", Speed, "copy batching: host-adjacent blobs of the PCIe share go up as one copy, same bytes at the same staging offsets (LEADS.md Part D)")

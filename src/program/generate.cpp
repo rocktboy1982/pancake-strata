@@ -15772,6 +15772,7 @@ int main(int argc, char** argv) {
         }
         if (disco_on)
             mtp.set_chain_rule([&](int idx, float pj) {
+                disco.set_entropy(idx, mtp.chain_entropy(idx));   // STRATA_DISCO_ENTROPY (LEADS.md B24; -1 when off)
                 const bool k = disco.keep_draft(idx, pj, S_mtp, mtp.chain_draft(idx));   // (the token: STRATA_SPEC_LOOKUP_Q)
                 chain_rows = disco.rows();
                 return k;
@@ -23181,6 +23182,7 @@ int main(int argc, char** argv) {
             });
         if (disco_on)   // DISCO's rule replaces the cost rule and --spec-min-p for the MTP chain (DraftPolicy still picks lookup vs MTP)
             mtp.set_chain_rule([&](int idx, float pj) {
+                disco.set_entropy(idx, mtp.chain_entropy(idx));   // STRATA_DISCO_ENTROPY (LEADS.md B24; -1 when off)
                 const bool k = disco.keep_draft(idx, pj, S_mtp);
                 chain_rows = disco.rows();
                 return k;

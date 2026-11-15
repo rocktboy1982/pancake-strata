@@ -48,6 +48,8 @@ bool DiscoModel::parse(const std::string& text, std::string& err) {
             if (!read_vec(m.mean)) { err = "bad mean line"; return false; }
         } else if (key == "scale") {
             if (!read_vec(m.scale)) { err = "bad scale line"; return false; }
+        } else if (key == "went") {   // LEADS.md B24: the entropy weight (optional)
+            if (!(ls >> m.went) || !std::isfinite(m.went)) { err = "bad went line"; return false; }
         } else if (key == "threshold") {
             if (!(ls >> m.threshold)) { err = "bad threshold line"; return false; }
         } else if (key == "thresholds") {
@@ -93,6 +95,13 @@ double DiscoModel::score(const float* x) const {
     return 1.0 / (1.0 + std::exp(-z));
 }
 
+double DiscoModel::score_h(const float* x, float h) const {
+    if (went == 0.0 || h < 0.0f) return score(x);
+    double z = bias + went * (double) h;
+    for (int i = 0; i < kF; ++i) z += w[(size_t) i] * (((double) x[i] - mean[(size_t) i]) / scale[(size_t) i]);
+    return 1.0 / (1.0 + std::exp(-z));
+}
+
 DiscoModel DiscoModel::cumulative(double s) {
     DiscoModel m;
     m.scale.fill(1.0);
@@ -131,6 +140,18 @@ void DiscoPolicy::init_from_env(const char* who) {
             std::fprintf(stderr, "%s: STRATA_DISCO: %s - keeping the current window rule\n", who, err.c_str());
         }
     }
+    // STRATA_DISCO_ENTROPY=<h> (opt-in, LEADS.md B24): the drafts' entropy (MtpDrafter::chain_entropy, set_entropy) stops
+    // the chain above h; alone it is the MTP window rule (every draft kept up to the cap otherwise)
+    if (const char* he = std::getenv("STRATA_DISCO_ENTROPY"); he != nullptr && he[0] != '\0') {
+        const double h = std::atof(he);
+        if (h > 0.0 && std::isfinite(h)) {
+            ent_max_ = h;
+            ent_col_ = true;
+            if (!model_.loaded) model_ = DiscoModel::cumulative(1e-9);
+            std::fprintf(stderr, "%s: STRATA_DISCO_ENTROPY=%.3g: the MTP chain stops at a draft whose entropy is above it%s\n",
+                         who, h, model_.went != 0.0 ? " (and the model's went weight reads it)" : "");
+        }
+    }
     if (const char* tf = std::getenv("STRATA_DISCO_TRACE"); tf != nullptr && tf[0] != '\0') {
         if (open_trace(tf)) std::fprintf(stderr, "%s: STRATA_DISCO_TRACE: draft features -> %s\n", who, tf);
         else std::fprintf(stderr, "%s: STRATA_DISCO_TRACE: cannot write %s\n", who, tf);
@@ -145,7 +166,7 @@ bool DiscoPolicy::open_trace(const std::string& path) {
     if (std::ftell(trace_) == 0) {
         std::fprintf(trace_, "round,idx,label,T,a,round_ms");
         for (int i = 0; i < kF; ++i) std::fprintf(trace_, ",f%d", i);
-        std::fprintf(trace_, ",nmiss\n");   // nmiss: the new CPU misses the draft's row added (-1: unknown); the fitter's window cost
+        std::fprintf(trace_, ent_col_ ? ",nmiss,ent\n" : ",nmiss\n");   // nmiss: the new CPU misses the draft's row added (-1: unknown); the fitter's window cost
     }
     return true;
 }
@@ -180,6 +201,7 @@ void DiscoPolicy::features(int idx, float p, double chain, float* out) const {
 bool DiscoPolicy::keep_draft(int idx, float p, int cap, int32_t tok) {
     cap = std::clamp(cap, 1, kMaxT);
     if (idx == 0) { kept_ = 0; chain_ = 1.0; }
+    const float h = idx < kMaxT ? ent_hist_[(size_t) idx] : -1.0f;   // STRATA_DISCO_ENTROPY (set_entropy; -1 unknown)
     if (hint_q_ > 0.0 || hint_decay_ != 1.0) {   // STRATA_SPEC_LOOKUP_Q / _DEPTH_DECAY (ef42c2fde9 stop_q)
         double q;
         if (hint_q_ > 0.0 && idx < hint_n_ && tok >= 0 && hint_tok_[idx] == tok) {
@@ -195,7 +217,7 @@ bool DiscoPolicy::keep_draft(int idx, float p, int cap, int32_t tok) {
     if (kept_ == idx && idx + 2 <= cap) {   // every draft before this one was kept
         float x[kF];
         features(idx, p, chain_, x);
-        if (model_.score(x) >= model_.threshold_at(idx)) kept_ = idx + 1;
+        if (model_.score_h(x, h) >= model_.threshold_at(idx) && !(ent_max_ > 0.0 && h > ent_max_)) kept_ = idx + 1;
     }
     rows_ = kept_ + 1;
     return kept_ == idx + 1 && idx + 3 <= cap;   // kept, and a row left for the next draft
@@ -210,7 +232,7 @@ void DiscoPolicy::end_round(const Round& r) {
         if (n == 0) {
             std::fprintf(trace_, "%lld,-1,-1,1,0,%.3f", (long long) round_id_, r.round_ms);
             for (int i = 0; i < kF; ++i) std::fprintf(trace_, ",0");
-            std::fprintf(trace_, ",-1\n");
+            std::fprintf(trace_, ent_col_ ? ",-1,-1\n" : ",-1\n");
         }
         double chain = 1.0;
         for (int j = 0; j < n; ++j) {
@@ -220,7 +242,8 @@ void DiscoPolicy::end_round(const Round& r) {
             std::fprintf(trace_, "%lld,%d,%d,%d,%d,%.3f", (long long) round_id_, j, label, r.T, r.accepted, r.round_ms);
             for (int i = 0; i < kF; ++i) std::fprintf(trace_, ",%.5g", (double) x[i]);
             const int nmiss = r.row_miss != nullptr && j + 1 < r.row_miss_n ? (int) r.row_miss[j + 1] : -1;
-            std::fprintf(trace_, ",%d\n", nmiss);
+            if (ent_col_) std::fprintf(trace_, ",%d,%.5g\n", nmiss, (double) ent_hist_[(size_t) j]);
+            else std::fprintf(trace_, ",%d\n", nmiss);
         }
         ++logged_;
         if ((logged_ & 63) == 0) std::fflush(trace_);

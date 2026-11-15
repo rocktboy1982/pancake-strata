@@ -98,6 +98,18 @@ int64_t mtp_spin_us() {
     return v;
 }
 
+// STRATA_DISCO_ENTROPY=<h> (opt-in, read once; LEADS.md B24, the drafter's entropy as a DISCO feature - MiMo, Entropy
+// Sentinel): the draft head's softmax entropy of each draft goes to the host beside its probability (row_entropy, one
+// more scan of the head's logits, then pick_entropy before mtp_select publishes the token); spec/disco.cpp reads it.
+// Unset / 0: no buffer, no kernel, the graphs as before.
+bool disco_entropy_on() {
+    static const bool on = [] {
+        const char* e = std::getenv("STRATA_DISCO_ENTROPY");
+        return e != nullptr && e[0] != '\0' && std::atof(e) > 0.0;
+    }();
+    return on;
+}
+
 // #783 PR-i: STRATA_MTP_CATCHUP_ALL=1 catches the drafter's K/V up for the whole verified window, rejected rows included
 bool mtp_catchup_all() {
     static const bool on = [] {
@@ -213,7 +225,7 @@ MtpDrafter::~MtpDrafter() {
     if (proxy_scratch_) cudaFree(proxy_scratch_);
     if (ev_chain_) cudaEventDestroy(ev_chain_);
     for (cudaEvent_t e : ev_step_) if (e) cudaEventDestroy(e);
-    void* hosts[] = {h_tok_, h_step_, h_pos_, h_row_, h_out_, h_prob_, h_force_, h_floor_};
+    void* hosts[] = {h_tok_, h_step_, h_pos_, h_row_, h_out_, h_prob_, h_force_, h_floor_, h_ent_};
     for (void* h : hosts) if (h) cudaFreeHost(h);
 }
 
@@ -505,9 +517,11 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
               mapped(64, (void**) &h_row_, (void**) &m_row_) &&
               mapped(T * 4 + 64, (void**) &h_out_, (void**) &m_out_) &&
               mapped(T * 4 + 64, (void**) &h_prob_, (void**) &m_prob_) &&
+              (!disco_entropy_on() || mapped(T * 4 + 64, (void**) &h_ent_, (void**) &m_ent_)) &&   // STRATA_DISCO_ENTROPY
               (!force_on_ || mapped(64, (void**) &h_force_, (void**) &m_force_));
     if (!ok) { err = "mtp: mapped staging failed"; return false; }
     if (h_force_ != nullptr) for (int j = 0; j < 16; ++j) h_force_[j] = -1;
+    if (h_ent_ != nullptr) for (uint64_t j = 0; j < T + 16; ++j) h_ent_[j] = -1.0f;   // STRATA_DISCO_ENTROPY: unknown
     auto carve = [&](Bump& b) {
         tok_ = b.take<int32_t>(T); step_ = b.take<int32_t>(R2 * 4); pos_ = b.take<int32_t>(R2 * NH); row_ = b.take<int32_t>(4);
         ident_ = b.take<int32_t>(T * (uint64_t) cap_);
@@ -539,6 +553,7 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
         x_bf16_ = b.take<uint16_t>(N);
         out_ids_ = b.take<int32_t>(T + 4);
         probs_ = b.take<float>(T + 4);
+        if (disco_entropy_on()) ent_ = b.take<float>(T + 4);   // STRATA_DISCO_ENTROPY (LEADS.md B24)
         arg_scratch_ = b.take<uint8_t>(strata::kernels::argmax_rows_scratch_bytes((int) T));
         top_scratch_ = b.take<uint8_t>(strata::kernels::row_top_prob_scratch_bytes((int) T));
         dummy_inj_ = b.take<float>(HC);
@@ -1489,6 +1504,7 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
                                                                  probs_, proxy_scratch_, cs)
                                : strata::kernels::q5k_proxy_top1(proxy_, dhead_, xq_, (int) nv, n_dvocab_, dvocab_, out_ids_,
                                                                  probs_, proxy_scratch_, cs))) {
+            if (ent_ != nullptr) strata::kernels::row_entropy(nullptr, T, 0, ent_, cs);   // STRATA_DISCO_ENTROPY: unknown here
             g_mp.stamp(14, cs);
             g_mp.stamp(15, cs);
             return true;
@@ -1506,6 +1522,7 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
         native_mmvq(sub ? dhead_type_ : head_->type(), sub ? dhead_ : head_->weights(), xq_, head_logits_, (int) N,
                     (int) nv, T, cs);
         g_mp.stamp(14, cs);
+        if (ent_ != nullptr) strata::kernels::row_entropy(head_logits_, T, (int) nv, ent_, cs);   // STRATA_DISCO_ENTROPY
         if (coupled_rec_) {
             // coupled draft sampling: the target's chain and Philox draw for the row that will verify this draft
             // (counter = this cell + 1, from its step record), penalties over the ring; T == 1 (full layer)
@@ -1612,6 +1629,7 @@ bool MtpDrafter::capture_round(int T, bool coupled, std::string& err) {
         ok = record_rest(ra, cs_, err);
         coupled_rec_ = false;
     }
+    if (ok && ent_ != nullptr) pick_entropy(ent_, row_ + 1, m_ent_, 0, cs_);   // STRATA_DISCO_ENTROPY (before the token)
     if (ok) mtp_select(R_, HCN, out_ids_, row_ + 1, Rin_, tok_, m_out_, 0, cs_, probs_, m_prob_);
     if (ok) g_mp.stamp(16, cs_);
     g_mp.base = -1;
@@ -1637,6 +1655,7 @@ bool MtpDrafter::capture_step(int j, bool coupled, std::string& err) {
     g_mp.base = j < kMpGraphs ? j : -1;
     bool ok = record_forward(1, row, cs_, err);
     coupled_rec_ = false;
+    if (ok && ent_ != nullptr) pick_entropy(ent_, row_ + 1, m_ent_, j, cs_);   // STRATA_DISCO_ENTROPY (before the token)
     if (ok) mtp_select(R_, HCN, out_ids_, row_ + 1, Rin_, tok_, m_out_, j, cs_, probs_, m_prob_);
     if (ok) g_mp.stamp(16, cs_);
     g_mp.base = -1;

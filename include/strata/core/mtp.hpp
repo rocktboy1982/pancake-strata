@@ -148,6 +148,9 @@ public:
     void set_chain_rule(std::function<bool(int, float)> f) { chain_rule_ = std::move(f); }
     /// Inside a chain rule call (index j): draft j's token, as draft() reads it (STRATA_SPEC_LOOKUP_Q).  -1: none.
     int32_t chain_draft(int j) const { return h_out_ != nullptr && j >= 0 ? ((const volatile int32_t*) h_out_)[j] : -1; }
+    /// LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): inside a chain rule call, draft j's softmax entropy under the draft
+    /// head (nats).  -1: unknown (switch off, the proxy or coupled pick, which never form the full softmax).
+    float chain_entropy(int j) const { return h_ent_ != nullptr && j >= 0 ? ((const volatile float*) h_ent_)[j] : -1.0f; }
 
     bool draft_first(int T, const float* R_row, int32_t token, int64_t cell, int32_t* drafts, std::string& err,
                      float* probs = nullptr, float min_p = 0.0f, int* n_drafts = nullptr, DraftResult* result = nullptr);
@@ -339,6 +342,9 @@ private:
     int32_t *h_pos_ = nullptr, *m_pos_ = nullptr, *h_row_ = nullptr, *m_row_ = nullptr;
     int32_t *h_out_ = nullptr, *m_out_ = nullptr;
     float *h_prob_ = nullptr, *m_prob_ = nullptr;   // each draft's probability under the draft layer
+    // LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): each draft's softmax entropy (mapped; -1 = unknown) and the rows' (device)
+    float *h_ent_ = nullptr, *m_ent_ = nullptr;
+    float* ent_ = nullptr;
     // the draft head: the main head's rows for a token subset (rt/draft_vocab.bin), or the whole head
     uint8_t* dhead_ = nullptr;
     int32_t* dvocab_ = nullptr;

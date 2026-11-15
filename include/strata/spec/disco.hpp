@@ -27,13 +27,18 @@
 // The policy only decides how many of the drafts are verified; the verifier still accepts exactly the drafts the
 // target would have produced, so greedy output is unchanged (src/spec/disco_test.cpp checks this on a mock target).
 //
-// The drafter's entropy (DISCO's and MiMo-V2-Flash's signal) is not exposed: the MTP's selection kernel returns the top-1
-// probability only (and its two-stage proxy pick never forms the full softmax), so features 0-2 carry the confidence.
+// The drafter's entropy (DISCO's and MiMo-V2-Flash's signal; LEADS.md B24) is exposed only with STRATA_DISCO_ENTROPY: the
+// draft head's softmax entropy of each draft then reaches the host (MtpDrafter::chain_entropy; -1 where the two-stage proxy
+// pick never forms the full softmax).  It is not one of the kF features (version 2 files stay valid): an optional
+// "went w" line adds w x H to the logit, the trace gets an "ent" column for the refit, and STRATA_DISCO_ENTROPY=<h> itself
+// stops the chain at the first draft whose entropy is above h (Entropy Sentinel's rule; alone, it replaces --spec-min-p
+// for MTP windows, every draft kept up to the cap otherwise).
 //
 // Switches:  STRATA_SPEC_CUM=<s in 0..1>        F8: stop the chain where the product of the drafts' probabilities falls under s
 //                                              (a DISCO model on the chain feature alone; STRATA_DISCO wins when both are set)
 //            STRATA_DISCO=<weights file>        the learned rule replaces --spec-min-p / STRATA_SPEC_COST for MTP windows
 //            STRATA_DISCO_TRACE=<csv file>      log one line per drafted token of every plain MTP window (training data)
+//            STRATA_DISCO_ENTROPY=<h nats>      the drafts' entropy: a stop rule (H > h ends the chain) and the "went" feature
 // A missing or malformed weights file prints one warning and keeps the current rule (DraftPolicy / --spec-min-p).
 // Weights are fitted by tools/pancake/disco_fit.py, from these CSV traces or from window traces (STRATA_WINDOW_TRACE),
 // whose fits leave the features a window trace cannot replay (5 match, 7 dcost) at weight 0.  Version 1 files (feature 6
@@ -55,6 +60,7 @@ struct DiscoModel {
     double bias = 0.0;
     std::array<double, kF> w{}, mean{}, scale{};
     double threshold = 0.5;
+    double went = 0.0;                   ///< optional "went w": w x the draft's entropy added to the logit (LEADS.md B24)
     /// Optional per-position thresholds ("thresholds n t_0 .. t_n-1", A22): draft j is judged against t_j (the last one
     /// for deeper drafts), so the table carries what each position costs (SpecFit) on top of how likely it holds (DISCO).
     /// 0 keeps every draft at that position, 1 none.  Absent: `threshold` everywhere.
@@ -72,6 +78,8 @@ struct DiscoModel {
     bool parse(const std::string& text, std::string& err);
     /// P(accepted) for one feature vector.
     double score(const float* x) const;
+    /// score() with went x `h` added to the logit (h < 0: unknown, nothing added).
+    double score_h(const float* x, float h) const;
     /// STRATA_SPEC_CUM=s (MOD_PLAN F8, android-imdad's rule): keep a draft while the chance that every draft so far holds, the
     /// product p_0 .. p_j of the MTP's probabilities (feature 2), is >= s.  A model on that one feature: sigmoid(chain) is
     /// monotonic, so the threshold sigmoid(s) is the cut chain >= s.  Unlike the fork it has no separate --spec-min-p floor
@@ -102,6 +110,11 @@ public:
     /// Returns whether to draft idx + 1; rows() is then the window to verify (1 + the drafts kept).  `cap` = the
     /// widest window (rows).
     bool keep_draft(int idx, float p, int cap, int32_t tok = -1);
+    /// STRATA_DISCO_ENTROPY (LEADS.md B24): draft `idx`'s entropy (nats, -1 unknown), set before keep_draft(idx, ..).
+    void set_entropy(int idx, float h) { if (idx >= 0 && idx < kMaxT) ent_hist_[(size_t) idx] = h; }
+    /// For tests: the entropy stop threshold (0 = off) and whether the trace carries the "ent" column.
+    void set_entropy_rule(double h_max, bool trace_col) { ent_max_ = h_max; ent_col_ = trace_col; }
+    double entropy_max() const { return ent_max_; }
     int rows() const { return rows_; }
     /// STRATA_SPEC_LOOKUP_Q / STRATA_SPEC_DEPTH_DECAY (opt-in; android-imdad/Strata-7900xtx ef42c2fde9, LEADS.md FK-21b):
     /// the next chain's product counts `q_agree` for a draft equal to the suffix lookup's proposal at its place
@@ -143,6 +156,9 @@ private:
     int64_t logged_ = 0, round_id_ = 0;
     int rows_ = 1, kept_ = 0;
     double chain_ = 1.0;
+    double ent_max_ = 0.0;                    // STRATA_DISCO_ENTROPY: stop above this entropy (0 = off)
+    bool ent_col_ = false;                    // the trace's "ent" column
+    std::array<float, kMaxT> ent_hist_{};     // the entropies of the current chain's drafts (-1 unknown)
     int32_t hint_tok_[8] = {};   // STRATA_SPEC_LOOKUP_Q (set_stop_hint)
     int hint_n_ = 0;
     double hint_q_ = 0.0, hint_decay_ = 1.0;
