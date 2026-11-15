@@ -7,6 +7,8 @@
 // magnitude, and two runs of the persistent read must agree bit for bit. Where the card does not hold the 80 blocks at
 // once (or on CUDA, where the read is not built) the read reports that it did not run and the test passes as a skip.
 // `--off`: with STRATA_HC_PERSIST unset the persistent read must never run (the default path is untouched).
+// `--q8`: STRATA_HC_PERSIST_Q8=1 (upstream Strata PR #5475, LEADS.md B64): the read on int8 copies of the weights (Q8_0's
+// grid, fp16 scale per 32 values) - lossy, so the bar is 2e-2 relative (the start-up check's), two runs still bitwise.
 // GPU, synthetic, no model.
 #include "strata/kernels/fused_gr.hpp"
 
@@ -57,8 +59,11 @@ T* dev(size_t n) {
 
 int main(int argc, char** argv) {
     const bool off = argc > 1 && std::strcmp(argv[1], "--off") == 0;
+    const bool q8 = argc > 1 && std::strcmp(argv[1], "--q8") == 0;
     if (off) unsetenv("STRATA_HC_PERSIST");
     else setenv("STRATA_HC_PERSIST", "1", 1);
+    if (q8) setenv("STRATA_HC_PERSIST_Q8", "1", 1);
+    else unsetenv("STRATA_HC_PERSIST_Q8");
     k::fused_gr_check();
     k::fused_gr_persist_init();
 
@@ -85,6 +90,13 @@ int main(int argc, char** argv) {
     float* drs = dev<float>((size_t) TM * HC);
     float* dio = dev<float>((size_t) TM * HC);
     float* dmix = dev<float>((size_t) TM * N);
+    if (q8) {
+        size_t qb = 0;
+        if (!k::fused_gr_persist_q8_on() || !k::fused_gr_persist_q8_prepare(dwd, dwu, dwi, qb)) {
+            std::printf("SKIP: STRATA_HC_PERSIST_Q8 is not on this card (the persistent read or its int8 check is off)\n");
+            return 0;
+        }
+    }
 
     int bad = 0, ran = 0;
     for (int T = 1; T <= TM; ++T) {
@@ -144,7 +156,7 @@ int main(int argc, char** argv) {
         }
         const double rel = md / (mref > 0 ? mref : 1.0);
         const bool same = std::memcmp(out[1].data(), out[2].data(), out[1].size() * 4) == 0;
-        const bool ok = finite && rel < 1e-4 && same;
+        const bool ok = finite && rel < (q8 ? 2e-2 : 1e-4) && same;
         std::printf("T=%d: max relative difference %.3g against the default read, %s, two runs %s  %s\n", T, rel,
                     finite ? "finite" : "NON-FINITE", same ? "bitwise equal" : "DIFFER", ok ? "ok" : "FAIL");
         if (!ok) ++bad;

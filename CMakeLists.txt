@@ -1907,6 +1907,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(hc_persist_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME hc_persist_parity COMMAND hc_persist_parity)
   add_test(NAME hc_persist_default_off COMMAND hc_persist_parity --off)
+  add_test(NAME hc_persist_q8_parity COMMAND hc_persist_parity --q8)   # STRATA_HC_PERSIST_Q8 (LEADS.md B64)
   # MOD_PLAN item 93: pancake's RDNA3 kernels against the generic ones on random inputs (bounded, two runs bitwise;
   # 77 = skip on a wave64 card).  rdna_gr.cu: one test per kernel variant the environment selects (the BF16 read with
   # 1 / 2 / 4 rows per wave, the int8 read, its int8-activation A8 form, A8 with the inject rows in their own blocks,
