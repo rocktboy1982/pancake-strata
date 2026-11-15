@@ -3664,3 +3664,18 @@ Owner: build the alternative and skip it when few rows are needed. Built in `src
 - The skip: `wide_native(n, n_expert)` takes the wide path only when an expert has at least 64 rows on average (the F16 kernel's `f16::pick_bn` rule; 1024 tokens x top 10 over 512 experts is 20 rows and stays narrow, 4096 is 80 and goes wide). `STRATA_PF_NW_WIDE=1` turns it on with that rule, `=force` always, unset or 0 is off. Registered in `src/core/conversation_disk_env.def`. OFF BY DEFAULT until it is measured.
 - Grid: 2 blocks per WGP (LDS), over the pairs; a grid that is a multiple of 2 x NFB is made one block smaller so the odd tiles do not fall on the same blocks every round.
 - Test queued after the GPU chain: `/home/dan/auto-chain3.sh` builds `hip_prefill_fused_iq` and runs it A B B A (off, force, force, off) at 1024, 2048, 4096 and 8192 tokens; the reference part checks the result against the FP32 reference and the timing part prints the bit hash, which must equal the narrow kernel's (each output row is independent of its tile partner). Output in `/home/dan/auto-runs/wide-native/`. Verdict rule: the hash must match, 4096 and above must be above 0% with 1024 not below -3% under the gated mode, else dropped.
+
+### Spec 48: live replay of the 2026-11-09 session against the cache levers (2026-11-15, one repeat per arm = screen)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/48-cache-replay-live.stdout`. 75 requests (30 agent turns of up to 63K tokens, the rest side requests), real server, GPU `high`. Base here is today's auto budget (5120 MiB, 4 slots, enough free RAM), not the recorded 11-09 budget.
+
+| arm | prompt s | agent s | cold re-reads | turn s | vs base prompt |
+| --- | --- | --- | --- | --- | --- |
+| recorded 11-09 | 303.0 | 245.7 | 7 (162.7 s) | 701.4 | |
+| base (auto 5120 MiB) | 282.9 | 191.6 | 3 (78.1 s) | 533.9 | |
+| base1280 | 342.7 | 242.1 | 5 (130.5 s) | 552.3 | +21.2% (worse) |
+| cache2048-min8192 | 199.3 | 118.6 | 0 | 446.7 | **-29.6%** |
+| flags1280 | 322.6 | 231.2 | 4 (103.4 s) | 566.2 | +14.0% (worse) |
+| park-truncate1280 | 247.7 | 155.7 | 0 | 547.5 | -12.4% (turn +13.6 s) |
+
+Verdict by the promote-from-0% rule (screen, one repeat, so a reason to repeat, not a finding): **cache2048-min8192 promoted to confirm** (prompt -29.6%, turn -87 s, zero cold re-reads; the minimum-token skip keeps the small side prompts from evicting the 50-60K agent prefix). park-truncate1280 is above 0 on prompt time but its turn time is +13.6 s, so it is held until the repeat shows which way it goes. base1280 and flags1280 are below -3% and dropped. The simulator predicted this direction (agent time 224 s to 108 s at 2048 MiB); the live number matches it at 118.6 s. Memory held: min available 12.6 GiB and peak RSS 39.7 GiB at 2048 MiB. Next: repeat base, cache2048-min8192 and park-truncate1280 two more times (A B B A) before any default change; the budget auto rule needs a look only after that.

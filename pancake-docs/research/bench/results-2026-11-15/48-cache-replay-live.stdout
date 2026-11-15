@@ -1,0 +1,508 @@
+replay plan: 2026-11-09 16:15:06 - 2026-11-09 16:31:04 (window 2026-11-09T16:13/2026-11-09T16:43), from /home/dan/clone-of-d/src/Strata/pancake-turns.jsonl
+  75 requests: 34 agent turns, 41 side requests (20 decodes, 21 prefill probes, 9 of them repeat an earlier text); token counts: estimate, ~3.2 characters per token (FileNotFoundError: [Errno 2] No such file or directory: '<STRATA_DATA>/packs/iq2_xs/tokenizer/vocab.json')
+  conversation A: 3 turns, 70,082 -> 72,465 tokens; recorded cold re-reads 0 (0.0 s of prompt)
+  conversation B: 31 turns, 34,261 -> 62,943 tokens; recorded cold re-reads 7 (162.7 s of prompt)
+  side requests: 55-4,093 tokens, max_new 1-1000
+  prompt tokens sent: 1,805,560 (agent 1,728,525, side 77,035); output cap total 28,319
+  sizing check (estimate, placeholder replies): max |built - recorded| = 2 tokens over 75 requests (0.0 s)
+
+    #   gap   kind   conv turn  prompt  built  max_new think  rec.reused rec.prompt_s rec.wall_s  note
+    0   0.0 decode   s0    0      65     65       4 off          0        1.1        1.2  
+    1   2.0 agent     A    0   70082  70083    1397 on           0       39.3       55.0  new conversation (cold)
+    2   0.3 agent     A    1   71788  71788     273 on       71478        0.9        3.7  
+    3   0.2 agent     A    2   72465  72464     874 on       72060        1.0       11.2  
+    4   2.0 agent     B    0   34261  34261     484 on           0       17.1       28.9  new conversation (cold)
+    5   1.4 agent     B    1   34777  34777     191 on       34744        3.4        5.9  
+    6   0.1 agent     B    2   35254  35254     185 on       34967        1.0        3.2  
+    7   0.2 agent     B    3   38835  38833     468 on       35438        2.7        9.7  
+    8   0.2 agent     B    4   39536  39536     486 on       39302        0.9        7.7  
+    9   0.1 agent     B    5   41249  41247     909 on       40021        1.7       15.4  
+   10   0.7 agent     B    6   42287  42287     424 on       42157        0.7        4.7  
+   11   0.2 agent     B    7   42824  42824     514 on       42710        0.6        7.2  
+   12   0.3 agent     B    8   43375  43375     160 on       43337        0.4        2.2  
+   13   0.6 agent     B    9   43688  43688     395 on       43534        0.8        5.2  
+   14   2.0 agent     B   10   44170  44170     388 on       44082        0.6        5.2  
+   15   0.2 agent     B   11   44592  44592     175 on       44557        0.3        2.1  
+   16   0.1 agent     B   12   44796  44796    1127 on       44587        0.7       13.5  
+   17   0.1 agent     B   13   46137  46137     333 on       44791        1.4        5.1  
+   18   0.1 agent     B   14   47353  47352     535 on       46469        1.2        7.3  
+   19   0.1 agent     B   15   48428  48427     278 on       47887        1.0        3.6  
+   20   0.1 agent     B   16   49290  49289     717 on       48705        1.1        8.2  
+   21   0.1 agent     B   17   50774  50773     216 on       49285        1.5        3.5  
+   22   0.1 agent     B   18   51061  51061     241 on       50989        0.6        3.3  
+   23   0.2 agent     B   19   51970  51970     234 on       51301        1.1        3.3  
+   24   2.0 agent     B   20   52638  52638     326 on       52203        1.0        3.9  
+   25   0.1 agent     B   21   53137  53137     760 on       52963        0.7        7.1  
+   26   0.1 decode   s1    0      69     69     400 on           0        0.9        4.9  
+   27   0.0 decode   s1    0      69     69     400 on          64        0.2        3.6  repeat text
+   28   0.0 decode   s1    0      69     69     400 on          64        0.2        3.8  repeat text
+   29   0.0 probe    s2    0    3058   3057       1 on           0        2.0        2.1  
+   30   0.0 probe    s2    0    3058   3057       1 on        3053        0.2        0.2  repeat text
+   31   0.0 probe    s2    0    3058   3057       1 on        3053        0.2        0.3  repeat text
+   32   0.0 probe    s2    0    3058   3057       1 on        3053        0.3        0.3  repeat text
+   33   0.0 probe    s2    0    3058   3057       1 on        3053        0.3        0.3  repeat text
+   34   0.0 probe    s2    0    3058   3057       1 on        3053        0.3        0.3  repeat text
+   35   0.0 agent     B   22   54313  54313    1112 on           0       21.2       48.1  recorded COLD RE-READ
+   36   0.0 decode   s3    0      69     69      31 off          0        3.3        4.8  
+   37   0.0 probe    s4    0    4088   4087       1 on           0        3.0        3.0  
+   38   0.0 probe    s5    0    4091   4090       1 on           0        2.9        2.9  
+   39   0.0 probe    s6    0    4093   4093       1 on           0        2.7        2.8  
+   40   0.0 decode   s7    0      75     75    1000 on           0        0.9       12.6  
+   41   0.0 decode   s8    0      75     75    1000 on           0        0.7       18.0  
+   42   0.0 decode   s9    0      65     65      92 on           0        2.4        5.3  
+   43   0.0 decode  s10    0      75     75    1000 on           0        1.0       23.1  
+   44   0.0 decode  s11    0      75     75    1000 on           0        1.0       19.4  
+   45   0.0 decode  s12    0      75     75    1000 on           0        0.9       11.6  
+   46   0.2 agent     B   23   56264  56263    1141 on           0       22.5       35.1  recorded COLD RE-READ
+   47   0.0 decode  s13    0      73     73     158 off          0        0.7        3.7  
+   48   0.0 probe   s14    0    4087   4086       1 on           0        2.6        2.6  
+   49   0.0 decode  s13    0      71     71     380 on          66        0.2        4.6  repeat text
+   50   0.0 probe   s15    0    4089   4089       1 on           0        2.4        2.4  
+   51   0.0 probe   s16    0    4091   4090       1 on           0        2.5        2.5  
+   52   0.0 decode  s17    0      68     68     400 on           0        0.7        4.2  
+   53   0.0 decode  s18    0      68     68     400 on           0        0.6        3.3  
+   54   0.0 decode  s19    0      68     68     400 on           0        0.6        4.1  
+   55   0.0 decode  s20    0      68     68     400 on           0        0.9        6.5  
+   56   0.2 agent     B   24   57763  57763     793 on           0       22.9       63.9  recorded COLD RE-READ
+   57   0.2 probe   s21    0    4084   4084       1 on           0        3.6        3.7  
+   58   0.3 agent     B   25   58710  58710     589 on           0       24.6       37.3  recorded COLD RE-READ
+   59   0.2 probe   s21    0    4084   4084       1 on        4079        0.2        0.2  repeat text
+   60   0.1 probe   s22    0    4086   4085       1 on           0        2.6        2.6  
+   61   0.0 probe   s23    0    4088   4088       1 on           0        2.6        2.6  
+   62   0.1 probe   s24    0    4083   4082       1 on           0        2.7        2.7  
+   63   0.2 agent     B   26   59395  59395     400 on           0       23.3       27.7  recorded COLD RE-READ
+   64   0.1 probe   s25    0      55     56       2 on           0        0.8        0.8  
+   65   0.1 agent     B   27   60233  60233    1025 on           0       25.0       35.6  recorded COLD RE-READ
+   66   0.1 probe   s26    0    4084   4083       2 on           0        2.4        2.5  
+   67   0.0 probe   s27    0    4086   4085       2 on           0        2.5        2.5  
+   68   0.0 probe   s28    0    4088   4087       2 on           0        2.5        2.6  
+   69   0.0 decode  s29    0      71     71     400 on           0        0.7        4.8  
+   70   0.0 decode  s30    0      71     71     400 on           0        0.7        4.2  
+   71   0.0 decode  s31    0      71     71     400 on           0        0.6        3.8  
+   72   0.1 agent     B   28   61565  61565     463 on           0       23.3       29.0  recorded COLD RE-READ
+   73   0.1 agent     B   29   62572  62572     339 on       62027        1.0        4.6  
+   74   0.1 agent     B   30   62943  62943     677 on       62910        0.3        6.6  
+
+  recorded: prompt 303.0 s (agent 245.7, side 57.3), turn time 701.4 s, cold re-reads 7 (162.7 s), first reads 2 (56.4 s)
+  expected per arm: as recorded 11.7 min of requests + 0.3 min of gaps (capped at 2 s) + ~1.5 min server start = 13.5 min; with every agent turn warm (model) 8.7 min
+  expected total: 5 arm(s) x 1 rep(s) ~ 67 min (upper estimate)
+
+rep 0 arm base (attempt 0)
+  token count: the server counts +2 vs the local count (thinking off); corrected from here on
+  conversation cache: 5120 MiB / 4 slots (auto)
+  [  1/75] side    s0#0      67 tok (plan     65) reused      0 prompt   0.7 s ttft   0.7 s decode  51.2 tok/s wall   0.8 s []
+  token count: the server counts -88 vs the local count (thinking on); corrected from here on
+  [  2/75] agent    A#0   69995 tok (plan  70082) reused      0 prompt  41.7 s ttft  39.0 s decode  88.2 tok/s wall  57.5 s [parked 70 (226 MiB); parked 70891 (1483 MiB)]
+  [  3/75] agent    A#1   71588 tok (plan  71788) reused  71391 prompt   1.6 s ttft   1.6 s decode 103.5 tok/s wall   4.3 s []
+  [  4/75] agent    A#2   72485 tok (plan  72465) reused  71860 prompt   2.1 s ttft   2.1 s decode 107.0 tok/s wall  10.3 s []
+  [  5/75] agent    B#0   33885 tok (plan  34261) reused      0 prompt  22.0 s ttft  22.0 s decode  86.3 tok/s wall  27.6 s [superseded; parked 73358 (1744 MiB)]
+  [  6/75] agent    B#1   34655 tok (plan  34777) reused  34368 prompt   2.6 s ttft   2.6 s decode  93.4 tok/s wall   4.7 s []
+  [  7/75] agent    B#2   35231 tok (plan  35254) reused  34845 prompt   1.7 s ttft   1.7 s decode  84.3 tok/s wall   3.9 s []
+  [  8/75] agent    B#3   39334 tok (plan  38835) reused  35415 prompt   5.7 s ttft   5.7 s decode  89.0 tok/s wall  11.0 s []
+  [  9/75] agent    B#4   39823 tok (plan  39536) reused  39801 prompt   0.2 s ttft   0.2 s decode  77.8 tok/s wall   6.5 s []
+  [ 10/75] agent    B#5   41142 tok (plan  41249) reused  40308 prompt   2.2 s ttft   2.3 s decode  76.7 tok/s wall  14.1 s []
+  [ 11/75] agent    B#6   42326 tok (plan  42287) reused  42050 prompt   1.6 s ttft   1.6 s decode  98.3 tok/s wall   5.9 s []
+  [ 12/75] agent    B#7   42827 tok (plan  42824) reused  42749 prompt   1.1 s ttft   1.2 s decode  82.8 tok/s wall   7.4 s []
+  [ 13/75] agent    B#8   43362 tok (plan  43375) reused  43340 prompt   0.2 s ttft   0.3 s decode  80.3 tok/s wall   2.2 s []
+  [ 14/75] agent    B#9   43639 tok (plan  43688) reused  43521 prompt   1.3 s ttft   1.3 s decode  65.9 tok/s wall   7.3 s []
+  [ 15/75] agent    B#10  44205 tok (plan  44170) reused  44033 prompt   1.3 s ttft   1.3 s decode  93.2 tok/s wall   5.5 s []
+  [ 16/75] agent    B#11  44679 tok (plan  44592) reused  44592 prompt   1.1 s ttft   1.1 s decode 104.2 tok/s wall   2.8 s []
+  [ 17/75] agent    B#12  44875 tok (plan  44796) reused  44853 prompt   1.3 s ttft   1.2 s decode  84.4 tok/s wall  14.5 s []
+  [ 18/75] agent    B#13  46017 tok (plan  46137) reused  46001 prompt   0.2 s ttft   0.2 s decode  91.7 tok/s wall   3.9 s []
+  [ 19/75] agent    B#14  47490 tok (plan  47353) reused  46349 prompt   3.8 s ttft   3.8 s decode  73.2 tok/s wall  11.1 s []
+  [ 20/75] agent    B#15  48404 tok (plan  48428) reused  48024 prompt   1.9 s ttft   1.9 s decode  90.7 tok/s wall   5.0 s []
+  [ 21/75] agent    B#16  49253 tok (plan  49290) reused  48681 prompt   1.9 s ttft   1.9 s decode  96.2 tok/s wall   9.2 s []
+  [ 22/75] agent    B#17  50911 tok (plan  50774) reused  49955 prompt   2.3 s ttft   2.4 s decode  94.5 tok/s wall   4.7 s []
+  [ 23/75] agent    B#18  51148 tok (plan  51061) reused  51126 prompt   0.2 s ttft   0.2 s decode 123.4 tok/s wall   2.2 s []
+  [ 24/75] agent    B#19  52023 tok (plan  51970) reused  51388 prompt   2.0 s ttft   2.1 s decode  92.1 tok/s wall   4.6 s []
+  [ 25/75] agent    B#20  52574 tok (plan  52638) reused  52256 prompt   1.7 s ttft   1.8 s decode 138.3 tok/s wall   4.1 s []
+  [ 26/75] agent    B#21  53078 tok (plan  53137) reused  52899 prompt   1.3 s ttft   1.4 s decode 122.2 tok/s wall   4.7 s []
+  [ 27/75] side    s1#0     285 tok (plan     69) reused      0 prompt   3.3 s ttft   3.3 s decode  77.9 tok/s wall   8.4 s [parked 53487 (1568 MiB)]
+  [ 28/75] side    s1#0     285 tok (plan     69) reused    280 prompt   0.1 s ttft   0.2 s decode 115.5 tok/s wall   3.6 s [parked 684 (235 MiB)]
+  [ 29/75] side    s1#0     285 tok (plan     69) reused    280 prompt   0.2 s ttft   0.2 s decode 129.2 tok/s wall   3.3 s [superseded; parked 684 (235 MiB)]
+  [ 30/75] side    s2#0    3105 tok (plan   3058) reused      0 prompt   4.9 s ttft   4.9 s decode  63.9 tok/s wall   4.9 s [superseded; parked 684 (235 MiB)]
+  [ 31/75] side    s2#0    3105 tok (plan   3058) reused   3100 prompt   0.2 s ttft   0.2 s decode  64.6 tok/s wall   0.2 s [parked 3105 (270 MiB)]
+  [ 32/75] side    s2#0    3105 tok (plan   3058) reused   3100 prompt   0.2 s ttft   0.2 s decode  64.5 tok/s wall   0.2 s [superseded; parked 3105 (270 MiB)]
+  [ 33/75] side    s2#0    3105 tok (plan   3058) reused   3100 prompt   0.2 s ttft   0.2 s decode  63.8 tok/s wall   0.2 s [superseded; parked 3105 (270 MiB)]
+  [ 34/75] side    s2#0    3105 tok (plan   3058) reused   3100 prompt   0.2 s ttft   0.2 s decode  64.4 tok/s wall   0.2 s [superseded; parked 3105 (270 MiB)]
+  [ 35/75] side    s2#0    3105 tok (plan   3058) reused   3100 prompt   0.2 s ttft   0.2 s decode  64.8 tok/s wall   0.2 s [superseded; parked 3105 (270 MiB)]
+  [ 36/75] agent    B#22  53964 tok (plan  54313) reused  53487 prompt   3.2 s ttft   3.2 s decode 108.7 tok/s wall   5.3 s [superseded; parked 3105 (270 MiB); restored 53487 (live, 105 ms)]
+  [ 37/75] side    s3#0      72 tok (plan     69) reused      0 prompt   2.0 s ttft   2.1 s decode  91.2 tok/s wall   2.4 s [parked 54192 (1665 MiB)]
+  [ 38/75] side    s4#0    4824 tok (plan   4088) reused      0 prompt   6.8 s ttft   6.8 s decode  63.6 tok/s wall   6.8 s [parked 102 (226 MiB)]
+  [ 39/75] side    s5#0    3542 tok (plan   4091) reused      0 prompt   5.3 s ttft   5.4 s decode  64.7 tok/s wall   5.4 s [parked 4824 (295 MiB)]
+  [ 40/75] side    s6#0    4049 tok (plan   4093) reused      0 prompt   5.6 s ttft   5.6 s decode  63.7 tok/s wall   5.6 s [parked 3542 (276 MiB)]
+  [ 41/75] side    s7#0     330 tok (plan     75) reused      0 prompt   1.5 s ttft   1.6 s decode 126.3 tok/s wall   9.5 s [parked 4049 (284 MiB)]
+  [ 42/75] side    s8#0      55 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode  86.5 tok/s wall   6.6 s [parked 1329 (244 MiB)]
+  [ 43/75] side    s9#0      70 tok (plan     65) reused      0 prompt   1.0 s ttft   1.0 s decode  88.0 tok/s wall   2.1 s [parked 581 (233 MiB)]
+  [ 44/75] side   s10#0      68 tok (plan     75) reused      0 prompt   0.4 s ttft   0.5 s decode  98.3 tok/s wall  10.6 s [parked 161 (227 MiB)]
+  [ 45/75] side   s11#0      86 tok (plan     75) reused      0 prompt   1.1 s ttft   1.1 s decode 104.8 tok/s wall  10.6 s [parked 1067 (240 MiB)]
+  [ 46/75] side   s12#0      67 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode 112.1 tok/s wall   9.4 s [parked 1085 (241 MiB)]
+  [ 47/75] agent    B#23  55881 tok (plan  56264) reused      0 prompt  25.3 s ttft  25.2 s decode 101.4 tok/s wall  32.9 s [parked 1066 (240 MiB)]  COLD RE-READ
+  [ 48/75] side   s13#0      69 tok (plan     73) reused      0 prompt   0.7 s ttft   0.7 s decode  99.4 tok/s wall   2.3 s [parked 56660 (1163 MiB)]
+  [ 49/75] side   s14#0    4333 tok (plan   4087) reused      0 prompt   5.2 s ttft   5.2 s decode  62.9 tok/s wall   5.2 s [parked 226 (228 MiB)]
+  [ 50/75] side   s13#0      67 tok (plan     71) reused     62 prompt   0.1 s ttft   0.1 s decode 101.2 tok/s wall   3.8 s [parked 4333 (288 MiB); restored 62 (checkpoint, 11 ms)]
+  [ 51/75] side   s15#0    4876 tok (plan   4089) reused      0 prompt   5.4 s ttft   5.4 s decode  63.6 tok/s wall   5.5 s [parked 446 (233 MiB)]
+  [ 52/75] side   s16#0    3792 tok (plan   4091) reused      0 prompt   4.5 s ttft   4.6 s decode  64.1 tok/s wall   4.6 s [parked 4876 (296 MiB)]
+  [ 53/75] side   s17#0      56 tok (plan     68) reused      0 prompt   0.4 s ttft   0.4 s decode  93.9 tok/s wall   4.7 s [parked 3792 (280 MiB)]
+  [ 54/75] side   s18#0      67 tok (plan     68) reused      0 prompt   0.4 s ttft   0.4 s decode  98.0 tok/s wall   4.5 s [parked 455 (231 MiB)]
+  [ 55/75] side   s19#0      71 tok (plan     68) reused      0 prompt   1.0 s ttft   1.0 s decode 101.9 tok/s wall   4.9 s [parked 466 (232 MiB)]
+  [ 56/75] side   s20#0      64 tok (plan     68) reused      0 prompt   0.4 s ttft   0.4 s decode 100.2 tok/s wall   4.4 s [parked 470 (232 MiB)]
+  [ 57/75] agent    B#24  57455 tok (plan  57763) reused      0 prompt  25.7 s ttft  25.7 s decode 101.6 tok/s wall  33.5 s [parked 463 (231 MiB)]  COLD RE-READ
+  [ 58/75] side   s21#0    4722 tok (plan   4084) reused      0 prompt   5.4 s ttft   5.4 s decode  52.9 tok/s wall   5.4 s [parked 58247 (1186 MiB)]
+  [ 59/75] agent    B#25  58269 tok (plan  58710) reused  58247 prompt   0.3 s ttft   0.3 s decode 106.3 tok/s wall   1.8 s [parked 4722 (293 MiB); restored 58247 (live, 83 ms)]
+  [ 60/75] side   s21#0    4722 tok (plan   4084) reused   4717 prompt   0.2 s ttft   0.2 s decode  62.1 tok/s wall   0.2 s [parked 58419 (1405 MiB); restored 4717 (checkpoint, 19 ms)]
+  [ 61/75] side   s22#0    4186 tok (plan   4086) reused      0 prompt   5.1 s ttft   5.1 s decode  62.3 tok/s wall   5.1 s [parked 4722 (293 MiB)]
+  [ 62/75] side   s23#0    3712 tok (plan   4088) reused      0 prompt   4.0 s ttft   4.0 s decode  63.4 tok/s wall   4.0 s [parked 4186 (286 MiB)]
+  [ 63/75] side   s24#0    4813 tok (plan   4083) reused      0 prompt   5.3 s ttft   5.4 s decode  63.4 tok/s wall   5.4 s [parked 3712 (279 MiB)]
+  [ 64/75] agent    B#26  58434 tok (plan  59395) reused  58419 prompt   0.2 s ttft   0.3 s decode 111.0 tok/s wall   0.9 s [parked 4813 (295 MiB); restored 58419 (live, 96 ms)]
+  [ 65/75] side   s25#0     199 tok (plan     55) reused      0 prompt   1.5 s ttft   1.6 s decode  46.1 tok/s wall   1.6 s [parked 58505 (1517 MiB)]
+  [ 66/75] agent    B#27  60048 tok (plan  60233) reused  58505 prompt   2.9 s ttft   3.0 s decode  98.3 tok/s wall   5.7 s [parked 200 (228 MiB); restored 58505 (live, 94 ms)]
+  [ 67/75] side   s26#0    4075 tok (plan   4084) reused      0 prompt   4.8 s ttft   4.8 s decode  49.3 tok/s wall   4.8 s [parked 60317 (1630 MiB)]
+  [ 68/75] side   s27#0    5540 tok (plan   4086) reused      0 prompt   5.4 s ttft   5.4 s decode  49.9 tok/s wall   5.4 s [parked 4076 (284 MiB)]
+  [ 69/75] side   s28#0    2653 tok (plan   4088) reused      0 prompt   3.5 s ttft   3.5 s decode  50.5 tok/s wall   3.6 s [parked 5541 (305 MiB)]
+  [ 70/75] side   s29#0     334 tok (plan     71) reused      0 prompt   1.5 s ttft   1.5 s decode 121.7 tok/s wall   4.8 s [parked 2654 (263 MiB)]
+  [ 71/75] side   s30#0      56 tok (plan     71) reused      0 prompt   0.5 s ttft   0.5 s decode  91.1 tok/s wall   4.9 s [parked 733 (235 MiB)]
+  [ 72/75] side   s31#0      75 tok (plan     71) reused      0 prompt   1.0 s ttft   1.0 s decode  98.1 tok/s wall   5.1 s [parked 455 (231 MiB)]
+  [ 73/75] agent    B#28  61280 tok (plan  61565) reused      0 prompt  27.2 s ttft  27.3 s decode 103.9 tok/s wall  30.3 s [parked 474 (232 MiB)]  COLD RE-READ
+  [ 74/75] agent    B#29  62546 tok (plan  62572) reused  61595 prompt   2.4 s ttft   2.4 s decode 108.3 tok/s wall   4.4 s []
+  [ 75/75] agent    B#30  62969 tok (plan  62943) reused  62754 prompt   1.5 s ttft   1.5 s decode 105.9 tok/s wall   3.3 s []
+rep 0 base: prompt 282.9 s (agent 191.6), turn 533.9 s, cold re-reads 3 (78.1 s), min avail 11.16 GiB, peak RSS 41.07 GiB, foreign CPU 12%
+
+rep 0 arm base1280 (attempt 0)
+  token count: the server counts +2 vs the local count (thinking off); corrected from here on
+  conversation cache: set by flag (no auto line)
+  [  1/75] side    s0#0      67 tok (plan     65) reused      0 prompt   0.7 s ttft   0.8 s decode  48.5 tok/s wall   0.8 s []
+  token count: the server counts -88 vs the local count (thinking on); corrected from here on
+  [  2/75] agent    A#0   69995 tok (plan  70082) reused      0 prompt  41.2 s ttft  39.1 s decode  86.8 tok/s wall  57.2 s [parked 70 (226 MiB); skip (snapshot 1483 MiB exceeds available budget)]
+  [  3/75] agent    A#1   71650 tok (plan  71788) reused  71391 prompt   1.7 s ttft   1.7 s decode  87.4 tok/s wall   4.8 s []
+  [  4/75] agent    A#2   72481 tok (plan  72465) reused  71922 prompt   2.0 s ttft   2.1 s decode 101.4 tok/s wall  10.7 s []
+  [  5/75] agent    B#0   33822 tok (plan  34261) reused      0 prompt  21.7 s ttft  21.7 s decode  90.7 tok/s wall  27.0 s [skip (snapshot 1744 MiB exceeds available budget)]
+  [  6/75] agent    B#1   34778 tok (plan  34777) reused  34305 prompt   1.8 s ttft   1.9 s decode  97.4 tok/s wall   3.8 s []
+  [  7/75] agent    B#2   35211 tok (plan  35254) reused  34968 prompt   1.4 s ttft   1.4 s decode 104.3 tok/s wall   3.2 s []
+  [  8/75] agent    B#3   39356 tok (plan  38835) reused  35395 prompt   4.6 s ttft   4.7 s decode 142.6 tok/s wall   7.9 s []
+  [  9/75] agent    B#4   39845 tok (plan  39536) reused  39823 prompt   0.2 s ttft   0.2 s decode 159.6 tok/s wall   3.3 s []
+  [ 10/75] agent    B#5   41073 tok (plan  41249) reused  40330 prompt   2.1 s ttft   2.1 s decode 158.2 tok/s wall   7.9 s []
+  [ 11/75] agent    B#6   42156 tok (plan  42287) reused  41981 prompt   1.3 s ttft   1.4 s decode 157.9 tok/s wall   4.0 s []
+  [ 12/75] agent    B#7   42736 tok (plan  42824) reused  42579 prompt   1.3 s ttft   1.4 s decode 174.2 tok/s wall   4.3 s []
+  [ 13/75] agent    B#8   43274 tok (plan  43375) reused  43249 prompt   0.2 s ttft   0.3 s decode 161.2 tok/s wall   1.2 s []
+  [ 14/75] agent    B#9   43623 tok (plan  43688) reused  43433 prompt   1.5 s ttft   1.5 s decode 174.4 tok/s wall   3.8 s []
+  [ 15/75] agent    B#10  44093 tok (plan  44170) reused  44017 prompt   1.1 s ttft   1.1 s decode 179.3 tok/s wall   3.2 s []
+  [ 16/75] agent    B#11  44502 tok (plan  44592) reused  44480 prompt   0.2 s ttft   0.2 s decode 164.4 tok/s wall   1.3 s []
+  [ 17/75] agent    B#12  44750 tok (plan  44796) reused  44676 prompt   3.0 s ttft   1.0 s decode 161.7 tok/s wall   7.1 s [skip (snapshot 1449 MiB exceeds available budget)]
+  [ 18/75] agent    B#13  46142 tok (plan  46137) reused  44745 prompt   2.7 s ttft   2.7 s decode 154.1 tok/s wall   3.9 s [skip (snapshot 1450 MiB exceeds available budget)]
+  [ 19/75] agent    B#14  47349 tok (plan  47353) reused  46324 prompt   2.5 s ttft   2.5 s decode 173.9 tok/s wall   5.6 s []
+  [ 20/75] agent    B#15  48317 tok (plan  48428) reused  47883 prompt   1.8 s ttft   1.8 s decode 175.4 tok/s wall   3.4 s []
+  [ 21/75] agent    B#16  49319 tok (plan  49290) reused  48594 prompt   2.1 s ttft   2.2 s decode 175.4 tok/s wall   5.3 s []
+  [ 22/75] agent    B#17  50813 tok (plan  50774) reused  49871 prompt   2.4 s ttft   2.4 s decode 168.5 tok/s wall   3.7 s []
+  [ 23/75] agent    B#18  51050 tok (plan  51061) reused  51028 prompt   0.2 s ttft   0.2 s decode 184.6 tok/s wall   1.5 s []
+  [ 24/75] agent    B#19  51866 tok (plan  51970) reused  51290 prompt   2.1 s ttft   2.1 s decode 187.6 tok/s wall   3.3 s []
+  [ 25/75] agent    B#20  52556 tok (plan  52638) reused  52099 prompt   1.8 s ttft   1.9 s decode 177.1 tok/s wall   3.3 s []
+  [ 26/75] agent    B#21  53088 tok (plan  53137) reused  52808 prompt   1.6 s ttft   1.6 s decode 171.7 tok/s wall   6.0 s []
+  [ 27/75] side    s1#0    1358 tok (plan     69) reused      0 prompt   2.8 s ttft   2.8 s decode  93.8 tok/s wall   7.0 s [skip (snapshot 1573 MiB exceeds available budget)]
+  [ 28/75] side    s1#0    1358 tok (plan     69) reused   1353 prompt   0.2 s ttft   0.2 s decode  98.7 tok/s wall   4.2 s [parked 1757 (250 MiB)]
+  [ 29/75] side    s1#0    1358 tok (plan     69) reused   1353 prompt   0.2 s ttft   0.2 s decode 104.2 tok/s wall   4.0 s [superseded; parked 1757 (250 MiB)]
+  [ 30/75] side    s2#0    3175 tok (plan   3058) reused      0 prompt   3.8 s ttft   3.9 s decode  64.3 tok/s wall   3.9 s [superseded; parked 1757 (250 MiB)]
+  [ 31/75] side    s2#0    3175 tok (plan   3058) reused   3170 prompt   0.2 s ttft   0.2 s decode  64.6 tok/s wall   0.2 s [parked 3175 (271 MiB)]
+  [ 32/75] side    s2#0    3175 tok (plan   3058) reused   3170 prompt   0.2 s ttft   0.2 s decode  64.1 tok/s wall   0.2 s [superseded; parked 3175 (271 MiB)]
+  [ 33/75] side    s2#0    3175 tok (plan   3058) reused   3170 prompt   0.2 s ttft   0.2 s decode  64.2 tok/s wall   0.2 s [superseded; parked 3175 (271 MiB)]
+  [ 34/75] side    s2#0    3175 tok (plan   3058) reused   3170 prompt   0.2 s ttft   0.2 s decode  64.5 tok/s wall   0.2 s [superseded; parked 3175 (271 MiB)]
+  [ 35/75] side    s2#0    3175 tok (plan   3058) reused   3170 prompt   0.2 s ttft   0.2 s decode  65.0 tok/s wall   0.2 s [superseded; parked 3175 (271 MiB)]
+  [ 36/75] agent    B#22  53869 tok (plan  54313) reused      0 prompt  27.3 s ttft  24.8 s decode 126.0 tok/s wall  32.3 s [superseded; parked 3175 (271 MiB); parked 54474 (1131 MiB)]  COLD RE-READ
+  [ 37/75] side    s3#0      72 tok (plan     69) reused      0 prompt   1.6 s ttft   1.6 s decode  74.8 tok/s wall   2.0 s [superseded; parked 54505 (1131 MiB)]
+  [ 38/75] side    s4#0    6266 tok (plan   4088) reused      0 prompt   6.3 s ttft   6.4 s decode  63.3 tok/s wall   6.4 s [parked 102 (226 MiB)]
+  [ 39/75] side    s5#0    3339 tok (plan   4091) reused      0 prompt   4.2 s ttft   4.3 s decode  64.3 tok/s wall   4.3 s [parked 6266 (316 MiB)]
+  [ 40/75] side    s6#0    3976 tok (plan   4093) reused      0 prompt   4.6 s ttft   4.6 s decode  63.9 tok/s wall   4.6 s [parked 3339 (273 MiB)]
+  [ 41/75] side    s7#0     335 tok (plan     75) reused      0 prompt   1.6 s ttft   1.6 s decode 110.8 tok/s wall  10.6 s [parked 3976 (283 MiB)]
+  [ 42/75] side    s8#0      55 tok (plan     75) reused      0 prompt   0.7 s ttft   0.7 s decode 100.4 tok/s wall  10.6 s [parked 1334 (244 MiB)]
+  [ 43/75] side    s9#0      70 tok (plan     65) reused      0 prompt   1.2 s ttft   1.2 s decode  88.6 tok/s wall   2.2 s [parked 1054 (240 MiB)]
+  [ 44/75] side   s10#0      68 tok (plan     75) reused      0 prompt   0.6 s ttft   0.6 s decode 101.1 tok/s wall  10.5 s [parked 161 (227 MiB)]
+  [ 45/75] side   s11#0      86 tok (plan     75) reused      0 prompt   1.2 s ttft   1.2 s decode 113.1 tok/s wall  10.0 s [parked 1067 (240 MiB)]
+  [ 46/75] side   s12#0      67 tok (plan     75) reused      0 prompt   0.6 s ttft   0.7 s decode 108.2 tok/s wall   9.8 s [parked 1085 (241 MiB)]
+  [ 47/75] agent    B#23  54638 tok (plan  56264) reused      0 prompt  25.0 s ttft  25.1 s decode 119.7 tok/s wall  29.2 s [parked 1053 (240 MiB)]  COLD RE-READ
+  [ 48/75] side   s13#0      69 tok (plan     73) reused      0 prompt   1.2 s ttft   1.2 s decode  85.7 tok/s wall   2.6 s [parked 55136 (1140 MiB)]
+  [ 49/75] side   s14#0    5610 tok (plan   4087) reused      0 prompt   6.1 s ttft   6.1 s decode  63.0 tok/s wall   6.1 s [parked 191 (227 MiB)]
+  [ 50/75] side   s13#0      67 tok (plan     71) reused     62 prompt   0.2 s ttft   0.2 s decode 106.6 tok/s wall   3.8 s [parked 5610 (306 MiB); restored 62 (checkpoint, 34 ms)]
+  [ 51/75] side   s15#0    4876 tok (plan   4089) reused      0 prompt   5.5 s ttft   5.6 s decode  64.1 tok/s wall   5.6 s [parked 446 (233 MiB)]
+  [ 52/75] side   s16#0    3789 tok (plan   4091) reused      0 prompt   4.7 s ttft   4.7 s decode  64.3 tok/s wall   4.7 s [parked 4876 (296 MiB)]
+  [ 53/75] side   s17#0      56 tok (plan     68) reused      0 prompt   0.5 s ttft   0.5 s decode 100.3 tok/s wall   4.5 s [parked 3789 (280 MiB)]
+  [ 54/75] side   s18#0      67 tok (plan     68) reused      0 prompt   0.5 s ttft   0.5 s decode 102.7 tok/s wall   4.4 s [parked 455 (231 MiB)]
+  [ 55/75] side   s19#0      71 tok (plan     68) reused      0 prompt   1.2 s ttft   1.2 s decode 100.3 tok/s wall   5.2 s [parked 466 (232 MiB)]
+  [ 56/75] side   s20#0      64 tok (plan     68) reused      0 prompt   0.5 s ttft   0.5 s decode 100.4 tok/s wall   4.5 s [parked 470 (232 MiB)]
+  [ 57/75] agent    B#24  56041 tok (plan  57763) reused      0 prompt  25.5 s ttft  25.5 s decode 121.2 tok/s wall  32.1 s [parked 463 (231 MiB)]  COLD RE-READ
+  [ 58/75] side   s21#0    6279 tok (plan   4084) reused      0 prompt   6.8 s ttft   6.9 s decode  62.2 tok/s wall   6.9 s [parked 56833 (1165 MiB)]
+  [ 59/75] agent    B#25  56855 tok (plan  58710) reused  56833 prompt   0.3 s ttft   0.3 s decode 162.0 tok/s wall   4.0 s [skip (snapshot 316 MiB exceeds available budget); restored 56833 (live, 108 ms)]
+  [ 60/75] side   s21#0    6279 tok (plan   4084) reused      0 prompt   5.4 s ttft   5.4 s decode  57.3 tok/s wall   5.4 s [skip (snapshot 1381 MiB exceeds available budget)]
+  [ 61/75] side   s22#0    4017 tok (plan   4086) reused      0 prompt   4.8 s ttft   4.8 s decode  62.1 tok/s wall   4.8 s [parked 6279 (316 MiB)]
+  [ 62/75] side   s23#0    3739 tok (plan   4088) reused      0 prompt   4.3 s ttft   4.3 s decode  63.4 tok/s wall   4.3 s [parked 4017 (283 MiB)]
+  [ 63/75] side   s24#0    4814 tok (plan   4083) reused      0 prompt   5.5 s ttft   5.5 s decode  63.3 tok/s wall   5.5 s [parked 3739 (279 MiB)]
+  [ 64/75] agent    B#26  57465 tok (plan  59395) reused      0 prompt  26.0 s ttft  26.1 s decode 172.4 tok/s wall  28.4 s [parked 4814 (295 MiB)]  COLD RE-READ
+  [ 65/75] side   s25#0    1734 tok (plan     55) reused      0 prompt   3.6 s ttft   3.7 s decode  46.4 tok/s wall   3.7 s [parked 57864 (1180 MiB)]
+  [ 66/75] agent    B#27  58434 tok (plan  60233) reused  57864 prompt   4.0 s ttft   2.1 s decode 163.0 tok/s wall   7.5 s [skip (snapshot 250 MiB exceeds available budget); restored 57864 (live, 101 ms); skip (snapshot 1398 MiB exceeds availab]
+  [ 67/75] side   s26#0    5999 tok (plan   4084) reused      0 prompt   6.1 s ttft   6.1 s decode  44.4 tok/s wall   6.2 s [skip (snapshot 1310 MiB exceeds available budget)]
+  [ 68/75] side   s27#0    5419 tok (plan   4086) reused      0 prompt   5.4 s ttft   5.4 s decode  45.6 tok/s wall   5.5 s [parked 6000 (312 MiB)]
+  [ 69/75] side   s28#0    2706 tok (plan   4088) reused      0 prompt   3.8 s ttft   3.8 s decode  49.4 tok/s wall   3.9 s [parked 5420 (304 MiB)]
+  [ 70/75] side   s29#0     330 tok (plan     71) reused      0 prompt   1.6 s ttft   1.6 s decode 112.6 tok/s wall   5.1 s [parked 2707 (264 MiB)]
+  [ 71/75] side   s30#0      56 tok (plan     71) reused      0 prompt   0.6 s ttft   0.6 s decode  94.7 tok/s wall   4.8 s [parked 729 (235 MiB)]
+  [ 72/75] side   s31#0      75 tok (plan     71) reused      0 prompt   1.2 s ttft   1.2 s decode  97.2 tok/s wall   5.3 s [parked 455 (231 MiB)]
+  [ 73/75] agent    B#28  59425 tok (plan  61565) reused      0 prompt  26.7 s ttft  26.8 s decode 121.7 tok/s wall  29.1 s [parked 474 (232 MiB)]  COLD RE-READ
+  [ 74/75] agent    B#29  62382 tok (plan  62572) reused  59708 prompt   3.8 s ttft   3.9 s decode 151.7 tok/s wall   6.1 s []
+  [ 75/75] agent    B#30  62836 tok (plan  62943) reused  62720 prompt   1.2 s ttft   1.2 s decode 168.3 tok/s wall   2.3 s []
+rep 0 base1280: prompt 342.7 s (agent 242.1), turn 552.3 s, cold re-reads 5 (130.5 s), min avail 13.62 GiB, peak RSS 38.77 GiB, foreign CPU 7%
+
+rep 0 arm cache2048-min8192 (attempt 0)
+  token count: the server counts +2 vs the local count (thinking off); corrected from here on
+  conversation cache: set by flag (no auto line)
+  [  1/75] side    s0#0      67 tok (plan     65) reused      0 prompt   0.8 s ttft   0.8 s decode  49.5 tok/s wall   0.8 s []
+  token count: the server counts -88 vs the local count (thinking on); corrected from here on
+  [  2/75] agent    A#0   69995 tok (plan  70082) reused      0 prompt  41.7 s ttft  38.7 s decode  88.6 tok/s wall  57.4 s [skip (70 tokens, below the 8192 minimum; parked=0); parked 70892 (1483 MiB)]
+  [  3/75] agent    A#1   71540 tok (plan  71788) reused  71391 prompt   1.4 s ttft   1.5 s decode  94.6 tok/s wall   4.4 s []
+  [  4/75] agent    A#2   72485 tok (plan  72465) reused  71812 prompt   2.2 s ttft   2.2 s decode 104.6 tok/s wall  10.6 s []
+  [  5/75] agent    B#0   33936 tok (plan  34261) reused      0 prompt  21.9 s ttft  22.0 s decode 101.1 tok/s wall  26.8 s [superseded; parked 73358 (1744 MiB)]
+  [  6/75] agent    B#1   34644 tok (plan  34777) reused  34419 prompt   1.4 s ttft   1.5 s decode  90.6 tok/s wall   3.6 s []
+  [  7/75] agent    B#2   35254 tok (plan  35254) reused  34834 prompt   1.7 s ttft   1.8 s decode  96.3 tok/s wall   3.7 s []
+  [  8/75] agent    B#3   39360 tok (plan  38835) reused  35438 prompt   4.6 s ttft   4.6 s decode  88.9 tok/s wall   9.9 s []
+  [  9/75] agent    B#4   39849 tok (plan  39536) reused  39827 prompt   0.2 s ttft   0.2 s decode  93.9 tok/s wall   5.4 s []
+  [ 10/75] agent    B#5   41223 tok (plan  41249) reused  40334 prompt   2.2 s ttft   2.3 s decode 101.3 tok/s wall  11.2 s []
+  [ 11/75] agent    B#6   42344 tok (plan  42287) reused  42131 prompt   1.5 s ttft   1.5 s decode 110.5 tok/s wall   5.3 s []
+  [ 12/75] agent    B#7   42889 tok (plan  42824) reused  42767 prompt   1.4 s ttft   1.4 s decode 110.5 tok/s wall   6.0 s []
+  [ 13/75] agent    B#8   43424 tok (plan  43375) reused  43402 prompt   0.3 s ttft   0.4 s decode 108.4 tok/s wall   1.8 s []
+  [ 14/75] agent    B#9   43743 tok (plan  43688) reused  43583 prompt   1.3 s ttft   1.4 s decode 121.1 tok/s wall   4.6 s []
+  [ 15/75] agent    B#10  44241 tok (plan  44170) reused  44137 prompt   1.2 s ttft   1.2 s decode 125.8 tok/s wall   4.3 s []
+  [ 16/75] agent    B#11  44650 tok (plan  44592) reused  44628 prompt   0.2 s ttft   0.2 s decode 151.9 tok/s wall   1.4 s []
+  [ 17/75] agent    B#12  44846 tok (plan  44796) reused  44824 prompt   2.4 s ttft   0.2 s decode 118.2 tok/s wall  12.4 s [parked 45534 (1452 MiB)]
+  [ 18/75] agent    B#13  46086 tok (plan  46137) reused  44841 prompt   2.7 s ttft   2.8 s decode 142.2 tok/s wall   5.1 s [superseded; parked 45972 (1458 MiB)]
+  [ 19/75] agent    B#14  47576 tok (plan  47353) reused  46418 prompt   2.5 s ttft   2.6 s decode 104.2 tok/s wall   7.7 s []
+  [ 20/75] agent    B#15  48431 tok (plan  48428) reused  48110 prompt   1.7 s ttft   1.8 s decode 121.1 tok/s wall   4.1 s []
+  [ 21/75] agent    B#16  49293 tok (plan  49290) reused  48708 prompt   1.9 s ttft   1.9 s decode 109.1 tok/s wall   6.3 s []
+  [ 22/75] agent    B#17  50974 tok (plan  50774) reused  49775 prompt   2.5 s ttft   2.6 s decode 111.2 tok/s wall   4.5 s []
+  [ 23/75] agent    B#18  51211 tok (plan  51061) reused  51189 prompt   0.2 s ttft   0.2 s decode 118.0 tok/s wall   2.3 s []
+  [ 24/75] agent    B#19  52040 tok (plan  51970) reused  51451 prompt   2.0 s ttft   2.0 s decode 163.3 tok/s wall   3.5 s []
+  [ 25/75] agent    B#20  52621 tok (plan  52638) reused  52273 prompt   1.7 s ttft   1.7 s decode 104.4 tok/s wall   4.8 s []
+  [ 26/75] agent    B#21  53158 tok (plan  53137) reused  52946 prompt   1.5 s ttft   1.6 s decode 108.6 tok/s wall   8.5 s []
+  [ 27/75] side    s1#0      55 tok (plan     69) reused      0 prompt   0.8 s ttft   0.8 s decode  88.0 tok/s wall   2.8 s [parked 53917 (1574 MiB)]
+  [ 28/75] side    s1#0      55 tok (plan     69) reused     50 prompt   0.0 s ttft   0.1 s decode  98.5 tok/s wall   2.9 s [skip (228 tokens, below the 8192 minimum; parked=1)]
+  [ 29/75] side    s1#0      55 tok (plan     69) reused     50 prompt   0.0 s ttft   0.1 s decode 102.3 tok/s wall   2.5 s [skip (337 tokens, below the 8192 minimum; parked=1)]
+  [ 30/75] side    s2#0    3071 tok (plan   3058) reused      0 prompt   3.7 s ttft   3.7 s decode  64.0 tok/s wall   3.7 s [skip (307 tokens, below the 8192 minimum; parked=1)]
+  [ 31/75] side    s2#0    3071 tok (plan   3058) reused   3066 prompt   0.0 s ttft   0.1 s decode  64.5 tok/s wall   0.1 s [skip (3071 tokens, below the 8192 minimum; parked=1)]
+  [ 32/75] side    s2#0    3071 tok (plan   3058) reused   3066 prompt   0.0 s ttft   0.1 s decode  63.9 tok/s wall   0.1 s [skip (3071 tokens, below the 8192 minimum; parked=1)]
+  [ 33/75] side    s2#0    3071 tok (plan   3058) reused   3066 prompt   0.0 s ttft   0.1 s decode  64.3 tok/s wall   0.1 s [skip (3071 tokens, below the 8192 minimum; parked=1)]
+  [ 34/75] side    s2#0    3071 tok (plan   3058) reused   3066 prompt   0.0 s ttft   0.1 s decode  64.4 tok/s wall   0.1 s [skip (3071 tokens, below the 8192 minimum; parked=1)]
+  [ 35/75] side    s2#0    3071 tok (plan   3058) reused   3066 prompt   0.0 s ttft   0.1 s decode  65.0 tok/s wall   0.1 s [skip (3071 tokens, below the 8192 minimum; parked=1)]
+  [ 36/75] agent    B#22  54996 tok (plan  54313) reused  53917 prompt   4.6 s ttft   2.5 s decode 120.3 tok/s wall  13.8 s [skip (3071 tokens, below the 8192 minimum; parked=0); restored 53917 (live, 78 ms); parked 55600 (1672 MiB)]
+  [ 37/75] side    s3#0      72 tok (plan     69) reused      0 prompt   1.4 s ttft   1.4 s decode  64.0 tok/s wall   1.9 s [superseded; parked 56107 (1606 MiB)]
+  [ 38/75] side    s4#0    3711 tok (plan   4088) reused      0 prompt   4.3 s ttft   4.3 s decode  60.6 tok/s wall   4.3 s [skip (102 tokens, below the 8192 minimum; parked=1)]
+  [ 39/75] side    s5#0    3606 tok (plan   4091) reused      0 prompt   4.3 s ttft   4.3 s decode  62.5 tok/s wall   4.3 s [skip (3711 tokens, below the 8192 minimum; parked=1)]
+  [ 40/75] side    s6#0    4060 tok (plan   4093) reused      0 prompt   4.5 s ttft   4.5 s decode  63.0 tok/s wall   4.5 s [skip (3606 tokens, below the 8192 minimum; parked=1)]
+  [ 41/75] side    s7#0     336 tok (plan     75) reused      0 prompt   1.4 s ttft   1.4 s decode 120.5 tok/s wall   9.7 s [skip (4060 tokens, below the 8192 minimum; parked=1)]
+  [ 42/75] side    s8#0      55 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode  86.0 tok/s wall   3.8 s [skip (1335 tokens, below the 8192 minimum; parked=1)]
+  [ 43/75] side    s9#0      70 tok (plan     65) reused      0 prompt   1.0 s ttft   1.0 s decode  92.0 tok/s wall   2.0 s [skip (345 tokens, below the 8192 minimum; parked=1)]
+  [ 44/75] side   s10#0      68 tok (plan     75) reused      0 prompt   0.4 s ttft   0.4 s decode  98.2 tok/s wall  10.6 s [skip (161 tokens, below the 8192 minimum; parked=1)]
+  [ 45/75] side   s11#0      86 tok (plan     75) reused      0 prompt   1.0 s ttft   1.1 s decode 115.6 tok/s wall   9.7 s [skip (1067 tokens, below the 8192 minimum; parked=1)]
+  [ 46/75] side   s12#0      67 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode 106.6 tok/s wall   9.9 s [skip (1085 tokens, below the 8192 minimum; parked=1)]
+  [ 47/75] agent    B#23  56957 tok (plan  56264) reused  56107 prompt   2.4 s ttft   2.3 s decode 118.1 tok/s wall  12.0 s [skip (1066 tokens, below the 8192 minimum; parked=0); restored 56107 (live, 91 ms)]
+  [ 48/75] side   s13#0      69 tok (plan     73) reused      0 prompt   0.7 s ttft   0.7 s decode  89.1 tok/s wall   2.5 s [parked 58097 (1708 MiB)]
+  [ 49/75] side   s14#0    3329 tok (plan   4087) reused      0 prompt   4.0 s ttft   4.0 s decode  61.2 tok/s wall   4.0 s [skip (226 tokens, below the 8192 minimum; parked=1)]
+  [ 50/75] side   s13#0      67 tok (plan     71) reused      0 prompt   0.4 s ttft   0.5 s decode  99.0 tok/s wall   4.3 s [skip (3329 tokens, below the 8192 minimum; parked=1)]
+  [ 51/75] side   s15#0    4876 tok (plan   4089) reused      0 prompt   5.4 s ttft   5.4 s decode  63.0 tok/s wall   5.4 s [skip (446 tokens, below the 8192 minimum; parked=1)]
+  [ 52/75] side   s16#0    3794 tok (plan   4091) reused      0 prompt   4.5 s ttft   4.5 s decode  64.2 tok/s wall   4.5 s [skip (4876 tokens, below the 8192 minimum; parked=1)]
+  [ 53/75] side   s17#0      56 tok (plan     68) reused      0 prompt   0.3 s ttft   0.4 s decode  91.3 tok/s wall   4.7 s [skip (3794 tokens, below the 8192 minimum; parked=1)]
+  [ 54/75] side   s18#0      67 tok (plan     68) reused      0 prompt   0.4 s ttft   0.4 s decode  96.7 tok/s wall   4.5 s [skip (455 tokens, below the 8192 minimum; parked=1)]
+  [ 55/75] side   s19#0      71 tok (plan     68) reused      0 prompt   1.0 s ttft   1.0 s decode 102.3 tok/s wall   4.9 s [skip (466 tokens, below the 8192 minimum; parked=1)]
+  [ 56/75] side   s20#0      64 tok (plan     68) reused      0 prompt   0.4 s ttft   0.4 s decode 103.4 tok/s wall   4.2 s [skip (470 tokens, below the 8192 minimum; parked=1)]
+  [ 57/75] agent    B#24  58526 tok (plan  57763) reused  58097 prompt   1.8 s ttft   1.8 s decode 108.2 tok/s wall   9.2 s [skip (463 tokens, below the 8192 minimum; parked=0); restored 58097 (live, 94 ms)]
+  [ 58/75] side   s21#0    3550 tok (plan   4084) reused      0 prompt   4.2 s ttft   4.3 s decode  53.0 tok/s wall   4.3 s [parked 59318 (1708 MiB)]
+  [ 59/75] agent    B#25  59401 tok (plan  58710) reused  59318 prompt   1.1 s ttft   1.1 s decode 142.0 tok/s wall   5.3 s [skip (3550 tokens, below the 8192 minimum; parked=0); restored 59318 (live, 108 ms)]
+  [ 60/75] side   s21#0    3550 tok (plan   4084) reused      0 prompt   3.8 s ttft   3.8 s decode  56.8 tok/s wall   3.8 s [parked 59989 (1708 MiB)]
+  [ 61/75] side   s22#0    4301 tok (plan   4086) reused      0 prompt   5.1 s ttft   5.1 s decode  59.9 tok/s wall   5.1 s [skip (3550 tokens, below the 8192 minimum; parked=1)]
+  [ 62/75] side   s23#0    3692 tok (plan   4088) reused      0 prompt   4.0 s ttft   4.0 s decode  61.4 tok/s wall   4.0 s [skip (4301 tokens, below the 8192 minimum; parked=1)]
+  [ 63/75] side   s24#0    4818 tok (plan   4083) reused      0 prompt   5.3 s ttft   5.3 s decode  62.9 tok/s wall   5.3 s [skip (3692 tokens, below the 8192 minimum; parked=1)]
+  [ 64/75] agent    B#26  60011 tok (plan  59395) reused  59989 prompt   0.3 s ttft   0.3 s decode 161.7 tok/s wall   2.8 s [skip (4818 tokens, below the 8192 minimum; parked=0); restored 59989 (live, 109 ms)]
+  [ 65/75] side   s25#0      56 tok (plan     55) reused      0 prompt   0.6 s ttft   0.7 s decode  40.6 tok/s wall   0.7 s [parked 60410 (1708 MiB)]
+  [ 66/75] agent    B#27  61375 tok (plan  60233) reused  60410 prompt   4.4 s ttft   2.4 s decode 123.5 tok/s wall  12.5 s [skip (57 tokens, below the 8192 minimum; parked=0); restored 60410 (live, 114 ms); parked 61900 (1708 MiB)]
+  [ 67/75] side   s26#0    2807 tok (plan   4084) reused      0 prompt   4.1 s ttft   4.2 s decode  36.4 tok/s wall   4.2 s [superseded; parked 62380 (1697 MiB)]
+  [ 68/75] side   s27#0    5403 tok (plan   4086) reused      0 prompt   5.3 s ttft   5.3 s decode  39.4 tok/s wall   5.3 s [skip (2808 tokens, below the 8192 minimum; parked=1)]
+  [ 69/75] side   s28#0    2706 tok (plan   4088) reused      0 prompt   3.6 s ttft   3.6 s decode  41.9 tok/s wall   3.6 s [skip (5404 tokens, below the 8192 minimum; parked=1)]
+  [ 70/75] side   s29#0     330 tok (plan     71) reused      0 prompt   1.4 s ttft   1.4 s decode 114.1 tok/s wall   4.9 s [skip (2707 tokens, below the 8192 minimum; parked=1)]
+  [ 71/75] side   s30#0      56 tok (plan     71) reused      0 prompt   0.4 s ttft   0.4 s decode 103.3 tok/s wall   4.3 s [skip (729 tokens, below the 8192 minimum; parked=1)]
+  [ 72/75] side   s31#0      75 tok (plan     71) reused      0 prompt   1.0 s ttft   1.0 s decode  98.8 tok/s wall   5.0 s [skip (455 tokens, below the 8192 minimum; parked=1)]
+  [ 73/75] agent    B#28  62727 tok (plan  61565) reused  62380 prompt   1.6 s ttft   1.7 s decode 111.1 tok/s wall   5.8 s [skip (474 tokens, below the 8192 minimum; parked=0); restored 62380 (live, 84 ms)]
+  [ 74/75] agent    B#29  63211 tok (plan  62572) reused  63189 prompt   0.1 s ttft   0.2 s decode 152.6 tok/s wall   2.4 s []
+  [ 75/75] agent    B#30  63570 tok (plan  62943) reused  63549 prompt   0.1 s ttft   0.2 s decode 166.7 tok/s wall   4.2 s []
+rep 0 cache2048-min8192: prompt 199.3 s (agent 118.6), turn 446.7 s, cold re-reads 0 (0.0 s), min avail 12.61 GiB, peak RSS 39.66 GiB, foreign CPU 3%
+
+rep 0 arm flags1280 (attempt 0)
+  token count: the server counts +2 vs the local count (thinking off); corrected from here on
+  conversation cache: set by flag (no auto line)
+  [  1/75] side    s0#0      67 tok (plan     65) reused      0 prompt   0.7 s ttft   0.7 s decode  51.7 tok/s wall   0.8 s []
+  token count: the server counts -88 vs the local count (thinking on); corrected from here on
+  [  2/75] agent    A#0   69995 tok (plan  70082) reused      0 prompt  45.0 s ttft  43.0 s decode  83.6 tok/s wall  61.6 s [skip (70 tokens, below the 8192 minimum; parked=0); skip (snapshot 1483 MiB exceeds available budget)]
+  [  3/75] agent    A#1   71434 tok (plan  71788) reused  71391 prompt   0.4 s ttft   0.4 s decode  87.2 tok/s wall   3.5 s []
+  [  4/75] agent    A#2   72410 tok (plan  72465) reused  71706 prompt   3.3 s ttft   3.4 s decode  77.5 tok/s wall  14.6 s []
+  [  5/75] agent    B#0   34157 tok (plan  34261) reused      0 prompt  31.1 s ttft  31.1 s decode  76.5 tok/s wall  37.4 s [skip (snapshot 1743 MiB exceeds available budget)]
+  [  6/75] agent    B#1   34662 tok (plan  34777) reused  34640 prompt   0.2 s ttft   0.2 s decode 144.9 tok/s wall   1.5 s []
+  [  7/75] agent    B#2   35176 tok (plan  35254) reused  34852 prompt   1.6 s ttft   1.6 s decode  75.0 tok/s wall   4.1 s []
+  [  8/75] agent    B#3   39326 tok (plan  38835) reused  35360 prompt   6.7 s ttft   6.7 s decode  83.1 tok/s wall  12.3 s []
+  [  9/75] agent    B#4   39815 tok (plan  39536) reused  39793 prompt   0.2 s ttft   0.2 s decode  67.6 tok/s wall   7.4 s []
+  [ 10/75] agent    B#5   41185 tok (plan  41249) reused  40300 prompt   2.2 s ttft   2.3 s decode  86.1 tok/s wall  12.8 s []
+  [ 11/75] agent    B#6   42249 tok (plan  42287) reused  42093 prompt   1.4 s ttft   1.4 s decode  85.3 tok/s wall   6.4 s []
+  [ 12/75] agent    B#7   42793 tok (plan  42824) reused  42672 prompt   1.2 s ttft   1.3 s decode  89.0 tok/s wall   7.0 s []
+  [ 13/75] agent    B#8   43342 tok (plan  43375) reused  43306 prompt   0.3 s ttft   0.4 s decode  83.7 tok/s wall   2.3 s []
+  [ 14/75] agent    B#9   43633 tok (plan  43688) reused  43501 prompt   2.4 s ttft   2.5 s decode  85.6 tok/s wall   7.1 s []
+  [ 15/75] agent    B#10  44150 tok (plan  44170) reused  44027 prompt   1.2 s ttft   1.3 s decode  82.1 tok/s wall   6.0 s []
+  [ 16/75] agent    B#11  44590 tok (plan  44592) reused  44537 prompt   0.4 s ttft   0.4 s decode  89.1 tok/s wall   2.4 s []
+  [ 17/75] agent    B#12  44786 tok (plan  44796) reused  44764 prompt   2.1 s ttft   0.3 s decode  95.7 tok/s wall  13.8 s [skip (snapshot 1450 MiB exceeds available budget)]
+  [ 18/75] agent    B#13  46069 tok (plan  46137) reused  45912 prompt   1.4 s ttft   1.4 s decode  56.2 tok/s wall   7.3 s []
+  [ 19/75] agent    B#14  47465 tok (plan  47353) reused  46401 prompt   2.4 s ttft   2.5 s decode  87.5 tok/s wall   8.6 s []
+  [ 20/75] agent    B#15  48359 tok (plan  48428) reused  47999 prompt   3.1 s ttft   3.2 s decode  92.5 tok/s wall   6.2 s []
+  [ 21/75] agent    B#16  49257 tok (plan  49290) reused  48636 prompt   1.9 s ttft   2.0 s decode  90.2 tok/s wall   9.9 s []
+  [ 22/75] agent    B#17  50892 tok (plan  50774) reused  49973 prompt   2.3 s ttft   2.4 s decode  89.5 tok/s wall   4.8 s []
+  [ 23/75] agent    B#18  51129 tok (plan  51061) reused  51107 prompt   0.2 s ttft   0.3 s decode  90.4 tok/s wall   2.9 s []
+  [ 24/75] agent    B#19  52016 tok (plan  51970) reused  51369 prompt   2.0 s ttft   2.1 s decode 106.6 tok/s wall   4.3 s []
+  [ 25/75] agent    B#20  52603 tok (plan  52638) reused  52249 prompt   1.8 s ttft   1.8 s decode  81.9 tok/s wall   5.8 s []
+  [ 26/75] agent    B#21  53128 tok (plan  53137) reused  52928 prompt   1.4 s ttft   1.4 s decode 100.5 tok/s wall   3.2 s []
+  [ 27/75] side    s1#0     561 tok (plan     69) reused      0 prompt   1.9 s ttft   1.9 s decode  85.4 tok/s wall   6.6 s [skip (snapshot 1565 MiB exceeds available budget)]
+  [ 28/75] side    s1#0     561 tok (plan     69) reused    556 prompt   0.0 s ttft   0.1 s decode 136.2 tok/s wall   3.0 s [skip (960 tokens, below the 8192 minimum; parked=0)]
+  [ 29/75] side    s1#0     561 tok (plan     69) reused    556 prompt   0.0 s ttft   0.1 s decode 140.8 tok/s wall   2.9 s [skip (960 tokens, below the 8192 minimum; parked=0)]
+  [ 30/75] side    s2#0    3135 tok (plan   3058) reused      0 prompt   3.7 s ttft   3.7 s decode  61.5 tok/s wall   3.7 s [skip (960 tokens, below the 8192 minimum; parked=0)]
+  [ 31/75] side    s2#0    3135 tok (plan   3058) reused   3130 prompt   0.0 s ttft   0.1 s decode  64.0 tok/s wall   0.1 s [skip (3135 tokens, below the 8192 minimum; parked=0)]
+  [ 32/75] side    s2#0    3135 tok (plan   3058) reused   3130 prompt   0.0 s ttft   0.1 s decode  63.4 tok/s wall   0.1 s [skip (3135 tokens, below the 8192 minimum; parked=0)]
+  [ 33/75] side    s2#0    3135 tok (plan   3058) reused   3130 prompt   0.0 s ttft   0.1 s decode  64.0 tok/s wall   0.1 s [skip (3135 tokens, below the 8192 minimum; parked=0)]
+  [ 34/75] side    s2#0    3135 tok (plan   3058) reused   3130 prompt   0.0 s ttft   0.1 s decode  64.0 tok/s wall   0.1 s [skip (3135 tokens, below the 8192 minimum; parked=0)]
+  [ 35/75] side    s2#0    3135 tok (plan   3058) reused   3130 prompt   0.0 s ttft   0.1 s decode  64.1 tok/s wall   0.1 s [skip (3135 tokens, below the 8192 minimum; parked=0)]
+  [ 36/75] agent    B#22  53674 tok (plan  54313) reused      0 prompt  24.6 s ttft  24.6 s decode  93.1 tok/s wall  26.4 s [skip (3135 tokens, below the 8192 minimum; parked=0)]  COLD RE-READ
+  [ 37/75] side    s3#0      72 tok (plan     69) reused      0 prompt   1.7 s ttft   1.7 s decode  79.2 tok/s wall   2.1 s [parked 53840 (1122 MiB)]
+  [ 38/75] side    s4#0    5168 tok (plan   4088) reused      0 prompt   5.6 s ttft   5.6 s decode  63.8 tok/s wall   5.6 s [skip (102 tokens, below the 8192 minimum; parked=1)]
+  [ 39/75] side    s5#0    3498 tok (plan   4091) reused      0 prompt   4.2 s ttft   4.2 s decode  64.3 tok/s wall   4.2 s [skip (5168 tokens, below the 8192 minimum; parked=1)]
+  [ 40/75] side    s6#0    4036 tok (plan   4093) reused      0 prompt   4.5 s ttft   4.5 s decode  64.1 tok/s wall   4.5 s [skip (3498 tokens, below the 8192 minimum; parked=1)]
+  [ 41/75] side    s7#0     324 tok (plan     75) reused      0 prompt   1.5 s ttft   1.5 s decode 118.2 tok/s wall  10.0 s [skip (4036 tokens, below the 8192 minimum; parked=1)]
+  [ 42/75] side    s8#0      55 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode  96.6 tok/s wall   8.9 s [skip (1323 tokens, below the 8192 minimum; parked=1)]
+  [ 43/75] side    s9#0      70 tok (plan     65) reused      0 prompt   1.0 s ttft   1.0 s decode  91.7 tok/s wall   2.0 s [skip (866 tokens, below the 8192 minimum; parked=1)]
+  [ 44/75] side   s10#0      68 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode  97.3 tok/s wall  10.7 s [skip (161 tokens, below the 8192 minimum; parked=1)]
+  [ 45/75] side   s11#0      86 tok (plan     75) reused      0 prompt   1.1 s ttft   1.1 s decode 111.5 tok/s wall  10.1 s [skip (1067 tokens, below the 8192 minimum; parked=1)]
+  [ 46/75] side   s12#0      67 tok (plan     75) reused      0 prompt   0.5 s ttft   0.6 s decode 112.7 tok/s wall   5.4 s [skip (1085 tokens, below the 8192 minimum; parked=1)]
+  [ 47/75] agent    B#23  55587 tok (plan  56264) reused  53840 prompt   3.3 s ttft   3.4 s decode  94.8 tok/s wall   8.2 s [skip (608 tokens, below the 8192 minimum; parked=0); restored 53840 (live, 103 ms)]
+  [ 48/75] side   s13#0      69 tok (plan     73) reused      0 prompt   0.6 s ttft   0.7 s decode 100.6 tok/s wall   2.2 s [skip (snapshot 1332 MiB exceeds available budget)]
+  [ 49/75] side   s14#0    4664 tok (plan   4087) reused      0 prompt   5.4 s ttft   5.4 s decode  63.0 tok/s wall   5.4 s [skip (226 tokens, below the 8192 minimum; parked=0)]
+  [ 50/75] side   s13#0      67 tok (plan     71) reused      0 prompt   0.4 s ttft   0.5 s decode 104.6 tok/s wall   4.1 s [skip (4664 tokens, below the 8192 minimum; parked=0)]
+  [ 51/75] side   s15#0    4876 tok (plan   4089) reused      0 prompt   5.4 s ttft   5.4 s decode  64.2 tok/s wall   5.4 s [skip (446 tokens, below the 8192 minimum; parked=0)]
+  [ 52/75] side   s16#0    3792 tok (plan   4091) reused      0 prompt   4.6 s ttft   4.6 s decode  64.4 tok/s wall   4.6 s [skip (4876 tokens, below the 8192 minimum; parked=0)]
+  [ 53/75] side   s17#0      56 tok (plan     68) reused      0 prompt   0.4 s ttft   0.4 s decode  94.4 tok/s wall   4.6 s [skip (3792 tokens, below the 8192 minimum; parked=0)]
+  [ 54/75] side   s18#0      67 tok (plan     68) reused      0 prompt   0.4 s ttft   0.7 s decode  93.6 tok/s wall   4.7 s [skip (455 tokens, below the 8192 minimum; parked=0)]
+  [ 55/75] side   s19#0      71 tok (plan     68) reused      0 prompt   1.0 s ttft   1.1 s decode  98.6 tok/s wall   5.1 s [skip (466 tokens, below the 8192 minimum; parked=0)]
+  [ 56/75] side   s20#0      64 tok (plan     68) reused      0 prompt   0.4 s ttft   0.4 s decode 104.1 tok/s wall   4.2 s [skip (470 tokens, below the 8192 minimum; parked=0)]
+  [ 57/75] agent    B#24  57097 tok (plan  57763) reused      0 prompt  25.8 s ttft  25.9 s decode  98.5 tok/s wall  29.2 s [skip (463 tokens, below the 8192 minimum; parked=0)]  COLD RE-READ
+  [ 58/75] side   s21#0    5117 tok (plan   4084) reused      0 prompt   6.0 s ttft   6.1 s decode  62.8 tok/s wall   6.1 s [parked 57430 (1174 MiB)]
+  [ 59/75] agent    B#25  57701 tok (plan  58710) reused  57430 prompt   1.8 s ttft   1.9 s decode 105.6 tok/s wall   3.4 s [skip (5117 tokens, below the 8192 minimum; parked=0); restored 57430 (live, 100 ms)]
+  [ 60/75] side   s21#0    5117 tok (plan   4084) reused      0 prompt   4.9 s ttft   4.9 s decode  63.6 tok/s wall   4.9 s [skip (snapshot 1391 MiB exceeds available budget)]
+  [ 61/75] side   s22#0    4145 tok (plan   4086) reused      0 prompt   5.0 s ttft   5.1 s decode  63.7 tok/s wall   5.1 s [skip (5117 tokens, below the 8192 minimum; parked=0)]
+  [ 62/75] side   s23#0    3715 tok (plan   4088) reused      0 prompt   4.0 s ttft   4.0 s decode  63.6 tok/s wall   4.0 s [skip (4145 tokens, below the 8192 minimum; parked=0)]
+  [ 63/75] side   s24#0    4814 tok (plan   4083) reused      0 prompt   5.3 s ttft   5.4 s decode  63.7 tok/s wall   5.4 s [skip (3715 tokens, below the 8192 minimum; parked=0)]
+  [ 64/75] agent    B#26  57951 tok (plan  59395) reused      0 prompt  26.1 s ttft  26.2 s decode 111.2 tok/s wall  27.4 s [skip (4814 tokens, below the 8192 minimum; parked=0)]  COLD RE-READ
+  [ 65/75] side   s25#0     607 tok (plan     55) reused      0 prompt   2.5 s ttft   2.6 s decode  51.8 tok/s wall   2.6 s [parked 58091 (1183 MiB)]
+  [ 66/75] agent    B#27  59616 tok (plan  60233) reused  58091 prompt   3.0 s ttft   3.0 s decode  99.9 tok/s wall   4.6 s [skip (608 tokens, below the 8192 minimum; parked=0); restored 58091 (live, 115 ms)]
+  [ 67/75] side   s26#0    4615 tok (plan   4084) reused      0 prompt   5.5 s ttft   5.5 s decode  50.1 tok/s wall   5.5 s [skip (snapshot 1402 MiB exceeds available budget)]
+  [ 68/75] side   s27#0    5486 tok (plan   4086) reused      0 prompt   5.3 s ttft   5.3 s decode  50.3 tok/s wall   5.3 s [skip (4616 tokens, below the 8192 minimum; parked=0)]
+  [ 69/75] side   s28#0    2683 tok (plan   4088) reused      0 prompt   3.5 s ttft   3.6 s decode  50.9 tok/s wall   3.6 s [skip (5487 tokens, below the 8192 minimum; parked=0)]
+  [ 70/75] side   s29#0     324 tok (plan     71) reused      0 prompt   1.5 s ttft   1.5 s decode 118.9 tok/s wall   4.9 s [skip (2684 tokens, below the 8192 minimum; parked=0)]
+  [ 71/75] side   s30#0      56 tok (plan     71) reused      0 prompt   0.5 s ttft   0.5 s decode  95.1 tok/s wall   4.7 s [skip (723 tokens, below the 8192 minimum; parked=0)]
+  [ 72/75] side   s31#0      75 tok (plan     71) reused      0 prompt   1.0 s ttft   1.1 s decode  94.2 tok/s wall   5.3 s [skip (455 tokens, below the 8192 minimum; parked=0)]
+  [ 73/75] agent    B#28  60752 tok (plan  61565) reused      0 prompt  27.0 s ttft  27.0 s decode  93.7 tok/s wall  28.3 s [skip (474 tokens, below the 8192 minimum; parked=0)]  COLD RE-READ
+  [ 74/75] agent    B#29  62596 tok (plan  62572) reused  60870 prompt   3.2 s ttft   3.2 s decode  98.6 tok/s wall   6.7 s []
+  [ 75/75] agent    B#30  62950 tok (plan  62943) reused  62934 prompt   0.1 s ttft   0.2 s decode 114.6 tok/s wall   0.6 s []
+rep 0 flags1280: prompt 322.6 s (agent 231.2), turn 566.2 s, cold re-reads 4 (103.4 s), min avail 13.86 GiB, peak RSS 38.5 GiB, foreign CPU 3%
+
+rep 0 arm park-truncate1280 (attempt 0)
+  token count: the server counts +2 vs the local count (thinking off); corrected from here on
+  conversation cache: set by flag (no auto line)
+  [  1/75] side    s0#0      67 tok (plan     65) reused      0 prompt   0.7 s ttft   0.7 s decode  53.2 tok/s wall   0.8 s []
+  token count: the server counts -88 vs the local count (thinking on); corrected from here on
+  [  2/75] agent    A#0   69995 tok (plan  70082) reused      0 prompt  50.0 s ttft  47.3 s decode  78.5 tok/s wall  67.7 s [skip (70 tokens, below the 8192 minimum; parked=0); parked 65536 (1179 MiB)]
+  [  3/75] agent    A#1   71670 tok (plan  71788) reused  69990 prompt   3.1 s ttft   3.1 s decode  98.6 tok/s wall   5.9 s [superseded; parked 65536 (1179 MiB)]
+  [  4/75] agent    A#2   72484 tok (plan  72465) reused  71942 prompt   2.0 s ttft   2.1 s decode  85.4 tok/s wall  12.3 s []
+  [  5/75] agent    B#0   33802 tok (plan  34261) reused      0 prompt  33.0 s ttft  33.0 s decode  76.5 tok/s wall  39.3 s [superseded; parked 65536 (1179 MiB)]
+  [  6/75] agent    B#1   34689 tok (plan  34777) reused  34285 prompt   1.7 s ttft   1.7 s decode 102.0 tok/s wall   3.6 s []
+  [  7/75] agent    B#2   35274 tok (plan  35254) reused  34879 prompt   1.7 s ttft   1.7 s decode  70.6 tok/s wall   4.3 s []
+  [  8/75] agent    B#3   39333 tok (plan  38835) reused  35458 prompt   4.5 s ttft   4.6 s decode  90.3 tok/s wall   9.7 s []
+  [  9/75] agent    B#4   39822 tok (plan  39536) reused  39800 prompt   0.2 s ttft   0.3 s decode  81.2 tok/s wall   6.2 s []
+  [ 10/75] agent    B#5   41059 tok (plan  41249) reused  40307 prompt   2.1 s ttft   2.1 s decode  92.3 tok/s wall  12.0 s []
+  [ 11/75] agent    B#6   42285 tok (plan  42287) reused  41967 prompt   1.8 s ttft   1.9 s decode 104.8 tok/s wall   5.9 s []
+  [ 12/75] agent    B#7   42860 tok (plan  42824) reused  42708 prompt   1.4 s ttft   1.5 s decode 104.1 tok/s wall   6.4 s []
+  [ 13/75] agent    B#8   43399 tok (plan  43375) reused  43373 prompt   0.3 s ttft   0.3 s decode  90.9 tok/s wall   2.1 s []
+  [ 14/75] agent    B#9   43695 tok (plan  43688) reused  43558 prompt   1.3 s ttft   1.4 s decode  87.0 tok/s wall   5.9 s []
+  [ 15/75] agent    B#10  44162 tok (plan  44170) reused  44089 prompt   1.0 s ttft   1.1 s decode  73.8 tok/s wall   6.3 s []
+  [ 16/75] agent    B#11  44571 tok (plan  44592) reused  44549 prompt   0.2 s ttft   0.3 s decode  61.6 tok/s wall   3.1 s []
+  [ 17/75] agent    B#12  44811 tok (plan  44796) reused  44745 prompt   2.5 s ttft   0.5 s decode  84.1 tok/s wall  15.8 s [parked 44566 (1212 MiB)]
+  [ 18/75] agent    B#13  45991 tok (plan  46137) reused  45937 prompt   0.5 s ttft   0.5 s decode  89.9 tok/s wall   4.2 s []
+  [ 19/75] agent    B#14  47504 tok (plan  47353) reused  46323 prompt   2.5 s ttft   2.5 s decode  95.5 tok/s wall   8.1 s []
+  [ 20/75] agent    B#15  48415 tok (plan  48428) reused  48038 prompt   1.8 s ttft   1.8 s decode  97.8 tok/s wall   4.6 s []
+  [ 21/75] agent    B#16  49274 tok (plan  49290) reused  48692 prompt   1.9 s ttft   1.9 s decode  83.1 tok/s wall  10.5 s []
+  [ 22/75] agent    B#17  50934 tok (plan  50774) reused  49990 prompt   2.3 s ttft   2.4 s decode 103.9 tok/s wall   4.4 s []
+  [ 23/75] agent    B#18  51171 tok (plan  51061) reused  51149 prompt   0.2 s ttft   0.3 s decode  66.7 tok/s wall   3.9 s []
+  [ 24/75] agent    B#19  52073 tok (plan  51970) reused  51411 prompt   2.1 s ttft   2.1 s decode  99.8 tok/s wall   4.5 s []
+  [ 25/75] agent    B#20  52647 tok (plan  52638) reused  52306 prompt   1.7 s ttft   1.8 s decode 100.4 tok/s wall   5.0 s []
+  [ 26/75] agent    B#21  53112 tok (plan  53137) reused  52972 prompt   3.2 s ttft   1.3 s decode  87.5 tok/s wall  12.8 s [parked 52068 (1209 MiB)]
+  [ 27/75] side    s1#0     241 tok (plan     69) reused      0 prompt   1.7 s ttft   1.7 s decode  94.0 tok/s wall   6.0 s [superseded; parked 52068 (1209 MiB)]
+  [ 28/75] side    s1#0     241 tok (plan     69) reused    236 prompt   0.0 s ttft   0.1 s decode 113.2 tok/s wall   3.6 s [skip (640 tokens, below the 8192 minimum; parked=1)]
+  [ 29/75] side    s1#0     241 tok (plan     69) reused    236 prompt   0.0 s ttft   0.1 s decode 120.3 tok/s wall   3.4 s [skip (640 tokens, below the 8192 minimum; parked=1)]
+  [ 30/75] side    s2#0    3094 tok (plan   3058) reused      0 prompt   3.7 s ttft   3.7 s decode  62.1 tok/s wall   3.7 s [skip (640 tokens, below the 8192 minimum; parked=1)]
+  [ 31/75] side    s2#0    3094 tok (plan   3058) reused   3089 prompt   0.0 s ttft   0.1 s decode  63.4 tok/s wall   0.1 s [skip (3094 tokens, below the 8192 minimum; parked=1)]
+  [ 32/75] side    s2#0    3094 tok (plan   3058) reused   3089 prompt   0.0 s ttft   0.1 s decode  63.5 tok/s wall   0.1 s [skip (3094 tokens, below the 8192 minimum; parked=1)]
+  [ 33/75] side    s2#0    3094 tok (plan   3058) reused   3089 prompt   0.0 s ttft   0.1 s decode  64.1 tok/s wall   0.1 s [skip (3094 tokens, below the 8192 minimum; parked=1)]
+  [ 34/75] side    s2#0    3094 tok (plan   3058) reused   3089 prompt   0.0 s ttft   0.1 s decode  64.4 tok/s wall   0.1 s [skip (3094 tokens, below the 8192 minimum; parked=1)]
+  [ 35/75] side    s2#0    3094 tok (plan   3058) reused   3089 prompt   0.0 s ttft   0.1 s decode  64.4 tok/s wall   0.1 s [skip (3094 tokens, below the 8192 minimum; parked=1)]
+  [ 36/75] agent    B#22  53990 tok (plan  54313) reused  52068 prompt   5.6 s ttft   3.2 s decode 101.3 tok/s wall  16.5 s [skip (3094 tokens, below the 8192 minimum; parked=0); restored 52068 (live, 87 ms); parked 53985 (1236 MiB)]
+  [ 37/75] side    s3#0      72 tok (plan     69) reused      0 prompt   1.4 s ttft   1.4 s decode  60.5 tok/s wall   1.9 s [superseded; parked 53985 (1236 MiB)]
+  [ 38/75] side    s4#0    4801 tok (plan   4088) reused      0 prompt   5.4 s ttft   5.4 s decode  57.0 tok/s wall   5.4 s [skip (102 tokens, below the 8192 minimum; parked=1)]
+  [ 39/75] side    s5#0    3538 tok (plan   4091) reused      0 prompt   4.2 s ttft   4.2 s decode  59.5 tok/s wall   4.2 s [skip (4801 tokens, below the 8192 minimum; parked=1)]
+  [ 40/75] side    s6#0    4050 tok (plan   4093) reused      0 prompt   4.5 s ttft   4.5 s decode  61.7 tok/s wall   4.5 s [skip (3538 tokens, below the 8192 minimum; parked=1)]
+  [ 41/75] side    s7#0     329 tok (plan     75) reused      0 prompt   1.4 s ttft   1.4 s decode 124.3 tok/s wall   9.5 s [skip (4050 tokens, below the 8192 minimum; parked=1)]
+  [ 42/75] side    s8#0      55 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode  94.7 tok/s wall  11.0 s [skip (1328 tokens, below the 8192 minimum; parked=1)]
+  [ 43/75] side    s9#0      70 tok (plan     65) reused      0 prompt   1.0 s ttft   1.0 s decode  92.2 tok/s wall   2.0 s [skip (1054 tokens, below the 8192 minimum; parked=1)]
+  [ 44/75] side   s10#0      68 tok (plan     75) reused      0 prompt   0.4 s ttft   0.5 s decode  99.1 tok/s wall  10.5 s [skip (161 tokens, below the 8192 minimum; parked=1)]
+  [ 45/75] side   s11#0      86 tok (plan     75) reused      0 prompt   1.1 s ttft   1.1 s decode 107.9 tok/s wall  10.3 s [skip (1067 tokens, below the 8192 minimum; parked=1)]
+  [ 46/75] side   s12#0      67 tok (plan     75) reused      0 prompt   0.5 s ttft   0.5 s decode 105.5 tok/s wall   9.9 s [skip (1085 tokens, below the 8192 minimum; parked=1)]
+  [ 47/75] agent    B#23  55824 tok (plan  56264) reused  53985 prompt   5.5 s ttft   3.3 s decode  95.5 tok/s wall  13.0 s [skip (1066 tokens, below the 8192 minimum; parked=0); restored 53985 (live, 84 ms); parked 55819 (1263 MiB)]
+  [ 48/75] side   s13#0      69 tok (plan     73) reused      0 prompt   1.3 s ttft   1.4 s decode 100.7 tok/s wall   2.9 s [superseded; parked 55819 (1263 MiB)]
+  [ 49/75] side   s14#0    4398 tok (plan   4087) reused      0 prompt   5.2 s ttft   5.2 s decode  61.6 tok/s wall   5.2 s [skip (226 tokens, below the 8192 minimum; parked=1)]
+  [ 50/75] side   s13#0      67 tok (plan     71) reused      0 prompt   0.4 s ttft   0.4 s decode 104.6 tok/s wall   4.0 s [skip (4398 tokens, below the 8192 minimum; parked=1)]
+  [ 51/75] side   s15#0    4876 tok (plan   4089) reused      0 prompt   5.4 s ttft   5.4 s decode  63.4 tok/s wall   5.4 s [skip (446 tokens, below the 8192 minimum; parked=1)]
+  [ 52/75] side   s16#0    3793 tok (plan   4091) reused      0 prompt   4.5 s ttft   4.5 s decode  64.3 tok/s wall   4.5 s [skip (4876 tokens, below the 8192 minimum; parked=1)]
+  [ 53/75] side   s17#0      56 tok (plan     68) reused      0 prompt   0.3 s ttft   0.3 s decode  96.3 tok/s wall   4.5 s [skip (3793 tokens, below the 8192 minimum; parked=1)]
+  [ 54/75] side   s18#0      67 tok (plan     68) reused      0 prompt   0.3 s ttft   0.4 s decode  98.2 tok/s wall   4.4 s [skip (455 tokens, below the 8192 minimum; parked=1)]
+  [ 55/75] side   s19#0      71 tok (plan     68) reused      0 prompt   1.0 s ttft   1.0 s decode 103.3 tok/s wall   4.9 s [skip (466 tokens, below the 8192 minimum; parked=1)]
+  [ 56/75] side   s20#0      64 tok (plan     68) reused      0 prompt   0.3 s ttft   0.4 s decode 105.6 tok/s wall   4.1 s [skip (470 tokens, below the 8192 minimum; parked=1)]
+  [ 57/75] agent    B#24  57318 tok (plan  57763) reused  55819 prompt   2.8 s ttft   2.9 s decode 100.1 tok/s wall  10.8 s [skip (463 tokens, below the 8192 minimum; parked=0); restored 55819 (live, 80 ms)]
+  [ 58/75] side   s21#0    4872 tok (plan   4084) reused      0 prompt   5.7 s ttft   5.7 s decode  49.3 tok/s wall   5.7 s [parked 51166 (1083 MiB)]
+  [ 59/75] agent    B#25  58132 tok (plan  58710) reused  51166 prompt   6.1 s ttft   6.1 s decode  97.7 tok/s wall  12.2 s [skip (4872 tokens, below the 8192 minimum; parked=0); restored 51166 (live, 85 ms)]
+  [ 60/75] side   s21#0    4872 tok (plan   4084) reused      0 prompt   5.0 s ttft   5.0 s decode  49.3 tok/s wall   5.0 s [parked 58127 (1184 MiB)]
+  [ 61/75] side   s22#0    4176 tok (plan   4086) reused      0 prompt   5.0 s ttft   5.1 s decode  52.2 tok/s wall   5.1 s [skip (4872 tokens, below the 8192 minimum; parked=1)]
+  [ 62/75] side   s23#0    3711 tok (plan   4088) reused      0 prompt   4.0 s ttft   4.0 s decode  57.0 tok/s wall   4.0 s [skip (4176 tokens, below the 8192 minimum; parked=1)]
+  [ 63/75] side   s24#0    4814 tok (plan   4083) reused      0 prompt   5.3 s ttft   5.3 s decode  59.6 tok/s wall   5.3 s [skip (3711 tokens, below the 8192 minimum; parked=1)]
+  [ 64/75] agent    B#26  58742 tok (plan  59395) reused  58127 prompt   2.0 s ttft   2.0 s decode  86.3 tok/s wall   6.7 s [skip (4814 tokens, below the 8192 minimum; parked=0); restored 58127 (live, 87 ms)]
+  [ 65/75] side   s25#0     360 tok (plan     55) reused      0 prompt   2.0 s ttft   2.0 s decode  48.5 tok/s wall   2.1 s [parked 58737 (1193 MiB)]
+  [ 66/75] agent    B#27  59798 tok (plan  60233) reused  58737 prompt   4.4 s ttft   2.5 s decode 106.1 tok/s wall  14.1 s [skip (361 tokens, below the 8192 minimum; parked=0); restored 58737 (live, 79 ms); parked 59793 (1208 MiB)]
+  [ 67/75] side   s26#0    4357 tok (plan   4084) reused      0 prompt   6.7 s ttft   6.7 s decode  35.0 tok/s wall   6.8 s [superseded; parked 59793 (1208 MiB)]
+  [ 68/75] side   s27#0    5543 tok (plan   4086) reused      0 prompt   6.4 s ttft   6.4 s decode  39.8 tok/s wall   6.4 s [skip (4358 tokens, below the 8192 minimum; parked=1)]
+  [ 69/75] side   s28#0    2653 tok (plan   4088) reused      0 prompt   3.5 s ttft   3.5 s decode  40.7 tok/s wall   3.6 s [skip (5544 tokens, below the 8192 minimum; parked=1)]
+  [ 70/75] side   s29#0     334 tok (plan     71) reused      0 prompt   1.4 s ttft   1.5 s decode 109.4 tok/s wall   5.1 s [skip (2654 tokens, below the 8192 minimum; parked=1)]
+  [ 71/75] side   s30#0      56 tok (plan     71) reused      0 prompt   0.5 s ttft   0.5 s decode  86.1 tok/s wall   5.2 s [skip (733 tokens, below the 8192 minimum; parked=1)]
+  [ 72/75] side   s31#0      75 tok (plan     71) reused      0 prompt   1.0 s ttft   1.0 s decode  93.8 tok/s wall   5.3 s [skip (455 tokens, below the 8192 minimum; parked=1)]
+  [ 73/75] agent    B#28  61019 tok (plan  61565) reused  59793 prompt   2.6 s ttft   2.7 s decode  78.5 tok/s wall   8.5 s [skip (474 tokens, below the 8192 minimum; parked=0); restored 59793 (live, 83 ms)]
+  [ 74/75] agent    B#29  62551 tok (plan  62572) reused  61481 prompt   2.3 s ttft   2.4 s decode  86.9 tok/s wall   6.2 s []
+  [ 75/75] agent    B#30  63001 tok (plan  62943) reused  62889 prompt   1.2 s ttft   1.2 s decode  92.3 tok/s wall   8.5 s []
+rep 0 park-truncate1280: prompt 247.7 s (agent 155.7), turn 547.5 s, cold re-reads 0 (0.0 s), min avail 12.85 GiB, peak RSS 39.68 GiB, foreign CPU 3%
+
+per arm run (prompt time = the server's prompt_ms, restores included)
+  arm                    rep prompt_s  agent_s  side_s  turn_s  cold re-reads (s)  first(s)   parked/restored  skip-park  min avail GiB  peak RSS GiB  budget
+  (recorded 11-09)         -    303.0    245.7    57.3   701.4    7 ( 162.7)   2 (56.4)
+  base                     0    282.9    191.6    91.3   533.9    3 (  78.1)   2 (63.7)     50/6             0         11.2          41.1   5120 MiB / 4 slots (auto)
+  base1280                 0    342.7    242.1   100.6   552.3    5 ( 130.5)   2 (62.8)     44/3            10         13.6          38.8   set by flag (no auto line)
+  cache2048-min8192        0    199.3    118.6    80.6   446.7    0 (   0.0)   2 (63.6)     13/7            41         12.6          39.7   set by flag (no auto line)
+  flags1280                0    322.6    231.2    91.4   566.2    4 ( 103.4)   2 (76.1)      3/3            48         13.9          38.5   set by flag (no auto line)
+  park-truncate1280        0    247.7    155.7    92.0   547.5    0 (   0.0)   2 (83.0)     15/7            41         12.8          39.7   set by flag (no auto line)
+
+verdict vs base (total prompt time; paired by rep, 95% interval when reps >= 2)
+  base1280                 +59.8 s (+21.2%) prompt time, turn time +18.4 s, cold re-reads 5 vs 3  (one rep: deltas only)
+  cache2048-min8192        -83.6 s (-29.6%) prompt time, turn time -87.2 s, cold re-reads 0 vs 3  (one rep: deltas only)
+  flags1280                +39.7 s (+14.0%) prompt time, turn time +32.3 s, cold re-reads 4 vs 3  (one rep: deltas only)
+  park-truncate1280        -35.2 s (-12.4%) prompt time, turn time +13.6 s, cold re-reads 0 vs 3  (one rep: deltas only)
