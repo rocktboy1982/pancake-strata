@@ -3406,3 +3406,23 @@ Fact-check verdicts used below:
 Not of interest (no plan entry): AntGPU (marketplace), Jetson Orin, RTX 5070 Ti vs RX 9070 XT comparison, RTX 3080 laptop, RTX 3060 setup, Threadripper server sizing, the Qwen 27B plus cloud orchestrator example, and the RX 7700 XT 27B-40B experiments.
 
 Next step, in order: R1 (read the Strata-rdna3 code, it is the only RDNA3 direct comparison), then R2 (the offline replay, which needs the gate-weight trace).
+
+### llama.cpp upstream performance commits since our Avalon base (2026-11-09 to 2026-11-15): candidates to check, port and test
+Source: upstream ggml-org/llama.cpp commit history (196 commits since 2026-11-09; treeless clone at /home/dan/llama-upstream-log). Upstream has no 1.0 release; it tags builds bNNNNN (latest b12387, 2026-11-14). Our Avalon base is fork commit 8b9a0f4 (2026-11-09), so the window is commits after that date.
+Caveat: most commit messages state no measured speedup, so "major" below means relevant to our path, not a measured gain. Every entry needs its own measurement; none is a finding yet.
+
+| # | Commit (date) | What changed | Relevance to us (gfx1100, HIP, MoE, MTP) | Check before porting |
+|---|---|---|---|---|
+| U1 | 0fb8f1577 (11-12) CUDA: few-row MMQ for 2-24 src1 columns | new int8 MMA kernel for quantized matmul at 2-24 columns, aimed at speculative verify passes | HIGH: our verify windows are T 2-16. Upstream guards it to CUDA; the HIP path aborts | does our MMQ/MMVQ already cover T 2-16 on gfx1100 (rdna_mmvq); if not, is a WMMA/DPP version worth building |
+| U2 | 5d4c8eeb2 (11-12) skip empty MoE tiles in MMQ stream-k fixup | fixup kernel read past padding for empty expert tiles | MEDIUM: correctness/out-of-bounds read; only matters if our MMQ stream-k path has the same load | grep our stream-k fixup for the unguarded ids_dst load |
+| U3 | 459ab1cdd (11-11) MMVF for BF16 matrices of few rows at small batch | picks MMVF over MMF when MMF leaves SMs idle; shape 320x10240 is the same as the qwen hyper-connection projection | HIGH: our bf16_f32_mmvf_multi_kernel is in the decode profile (1.3%) on the same shape class | compare MMVF vs MMF choice for our HC projection at T 2-8 on gfx1100 (screen A/B) |
+| U4 | 432433637 (11-11) ROCm/HIP: BLAS workspace allocated once, not per call | rocBLAS was allocating a workspace per call | MEDIUM: HIP-specific host overhead | grep our HIP code for per-call rocBLAS/hipBLAS allocations |
+| U5 | a8fad21e9 (11-09) mtp: read target hidden states from a device buffer | MTP draft reads target hidden states on device, not via host | HIGH: our MTP drafter path | check whether our MTP head copies hidden states through host memory each window |
+| U6 | ccd360f06 (11-11) fused gated delta net always; cb44fdb18 (11-11) reuse graph result instances | removes non-fused GDN paths and per-reserve graph allocation | MEDIUM: our decode is GDN-heavy (gdn_step kernels); per-token host overhead matters at 470 kernels/token | check per-token host time in the profile before any change |
+| U7 | d8f30a5b6 (11-14) Vulkan flash attention for prefill on RDNA3/RDNA4 | prefill FA tiling for RDNA3 (Vulkan) | LOW-MEDIUM: idea only, Vulkan code; relevant to our prompt attention tiling | read the tiling; no port until a prefill profile shows FA as the limit |
+| U8 | 202c1a229 (11-10) FP8 KV cache | FP8 KV-cache support | LOW: gfx11 has no FP8 path (see HIP report) | none |
+| U9 | 32bdc3a89 (11-14) DFlash refactor | restructures DFlash loaders | NONE for speed: refactor only | none |
+
+Not of interest (other backends or non-engine): sycl, metal, hexagon, opencl, vulkan (except U7), mtmd, openEuler, ui, devops, CI.
+
+Order: U5 and U3 first (direct shape and path matches; a check each), then U1 (largest potential, HIP port cost), then U6 and U4 (host overhead), then U2 and U7 (checks only).
