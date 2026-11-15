@@ -3400,7 +3400,7 @@ Fact-check verdicts used below:
 | R5 | MiniMax H3 RDNA4: disk read-ahead, HIP attention | LOW-MEDIUM: read-ahead idea may apply to our expert file reads on RDNA3; the kernels are RDNA4-specific | A52 (direct I/O expert loader) | 80 s to 31.7 s unverified | read-ahead only: check whether our expert loader issues read-ahead; no kernel port |
 | R6 | Elastic KV cache (SGLang, 2x R9700) | LOW: single user, single card; our --elastic-prefill is a different thing | --elastic-prefill (existing) | 1 s resize unverified | none unless R4 needs it |
 | R7 | QEngine: MTP scheduling, caching, tool calling (CUDA) | LOW-MEDIUM: check its MTP scheduling for ideas only | MTP work (existing) | 411 tok/s unverified | read its scheduler; no benchmark until a specific idea is named |
-| R8 | Multi-GPU P2P and distributed expert execution | NOT NOW: one card | none | n/a | none |
+| R8 | Multi-GPU P2P and distributed expert execution | PARKED for the 2-card setup (owner: has a lot of potential, do not dismiss); see "Full scope" below | ExTV dual-GPU patches, nasone32 peer launchers, ztripez workers | not measured here | needs a second card |
 | R9 | Agent orchestration (planner and implementer split) | NOT ENGINE WORK: belongs in the harness | none | n/a | none |
 
 Not of interest (no plan entry): AntGPU (marketplace), Jetson Orin, RTX 5070 Ti vs RX 9070 XT comparison, RTX 3080 laptop, RTX 3060 setup, Threadripper server sizing, the Qwen 27B plus cloud orchestrator example, and the RX 7700 XT 27B-40B experiments.
@@ -3573,3 +3573,45 @@ Dropped by our own tests: wave32 MMVQ, WMMA attention on gfx1100, occupancy chan
 
 **Order of execution**
 Test now, in this order: 1, 2, 3, 5 (a CPU check of logged temperatures), 9, 7, 6. Develop in this order: 4 (finish the A22 replay and the identity run), then 10 (after its research step), then 8 (logging first), then 11. Items in Tier 3 below rank 11 are not started unless a Tier 1 or 2 result changes the picture.
+
+### Full scope added to the prioritized list: fork-KB items, knowledge-base analyses, parked work (2026-11-15)
+Owner instruction: the development scope includes the extra forks and the fork-KB files, and anything with potential for two cards stays on the list, parked and not dismissed. Sources: pancake-docs/research/engine-speed/speed-ideas-all-forks/report.md (FK-01..FK-59, 42 rows with a gain column), the nasone32, ExTV and 0001-author sections of this plan, the strata-poly and DeepSeek findings, Project Maya. Gain numbers below are the fork authors' or the plan's estimates unless marked; none is verified on our card unless it says tested. Whether an item is "missing from our fork" below comes from the plan's earlier analysis text, not from a fresh code comparison.
+
+**New CPU-only decisions that reorder the list (cheap, do before any GPU work)**
+1. P4 on the daily IQ2_XS rows: our earlier P4 answer (CPU pool byte-bound at 0.86 of the DDR4 floor) came from the Q2_0 benchmark only. The daily preset computes CPU rows with different IQ2_XS kernels, and no benchmark for them was built (only q2_rows_bench exists in /home/dan/build-probes). If those rows are also byte-bound, the byte-reduction family moves up (A29 entropy coding, A27 low-precision shadow copy, FK-52, FK-57); if decode-bound, it moves down. Needs a small new probe; no GPU.
+2. O1 tail_replay for FK-21 (cumulative draft stop, +1-3% estimate, more on edits): the plan makes the port conditional on this replay modelling at least 2%. CPU only.
+3. Replay of the conversation-cache flags on the real, full turn log (tools/pancake/replay_turns.py): see "Parked" below; the offline and live results disagree and only a real-trace replay can tell why.
+4. Read-and-compare for the ExTV robustness patches against our code (below): CPU reads, each one a yes/no.
+
+**Added to the ranked list (insert by gain; effort and test type as stated)**
+| item | claimed gain (source) | class | cost | test or action |
+|---|---|---|---|---|
+| ExTV #07 lost experts after a pipelined adaptive round (upstream PR #4844) | decode drifting down over hours of use (author) | exact fix | M | read the adaptive-round code against the patch; if the bug exists here, port; matters for long agent sessions |
+| FK-12 `--batch 2` for parallel sub-agents | aggregate up to about 2x at 2 streams, lower per stream (author) | exact per stream | XS, config only | measure only if agents truly run concurrently; the server served one request at a time in the replayed traces; more relevant with two cards |
+| FK-28 `STRATA_ADAPT_PROMPT` (already implemented here) | +2-5% on the first decode tokens after a new long prompt (plan: a guess) | exact | needs a GPU test (the implementation commit also broke the build; fixed in 693cdf63d) | A/B prompt-then-decode, with and without the switch |
+| FK-21 `STRATA_SPEC_CUM` | +1-3% (estimate) | exact | S, after O1 | port only if O1 models 2% or more |
+| FK-50 `STRATA_VERIFY_ECAP` (spec 20-verify-ecap.json exists) | +3-10% on edits (author) | lossy; tool-call gate mandatory | S-M | screen, then the task gate before any use |
+| FK-24, FK-26, FK-31, FK-33, FK-34, FK-35, FK-36, FK-40, FK-41 | each 0-4% (estimates in the report) | exact | S-M each | stay behind the probes they name (P1, P3, O6, O7); none is cheap enough to start first |
+| FK-54 window decode attention (7900 XT +5-20% at 64K+) | author claim | lossy (rounding) | L | the premise is weakened here: our A49 shows no decode slope with context up to 120K, so attention is not a large share; hold until a profile says otherwise |
+| FK-52 / FK-57 sub-2-bit shadow store, requant | edit +7-10% if byte-bound (author) | lossy | L | decided by item 1 above |
+| q8atnight QSA block scores read once for all of a window's queries (0001-author triage) | bit-identical decode attention, gfx1100 candidate (claim, no number) | exact | M | read-and-compare against our QSA select; profile first |
+| jeremiahritchey retain unchanged KV storage across repeated parking; verify restored draft KV | avoids re-copy on repeated parks (claim) | exact | S | read-and-compare against our park code |
+| TheHubUser4860938 serve queue livelock fix (1,303-turn queue) | robustness (claim) | exact | S | read-and-compare against our serve queue |
+| VecSzn strata-poly expert-I/O set (256 KiB miss reads, give an upload-freed slot to the evicted expert, spin 2 ms before sleep) | claim, no number | exact | M | strata-poly path only (Qwen3.6-35B-A3B); check relevance first |
+
+**Parked, not dismissed (keep for later; each has a named next step)**
+| item | why it is parked | potential (source) | next step |
+|---|---|---|---|
+| Conversation-cache levers: `--conversation-cache-mib 2048 / 6144`, `--conversation-cache-min-tokens 8192`, `STRATA_PARK_TRUNCATE`, `STRATA_PARK_REWIND_MAX`, FK-02 `--prompt-cache-spread` (flag present in generate.cpp), FK-20, FK-27 | the live single-card night test (2026-11-12) found no benefit: control 25.0 s total TTFT over 10 turns, levers 24.9 to 28.6 s; the offline replay on the real turn log (2026-11-10) predicted about 158 s of 162.8 s of cold re-reads saved (97%). The two disagree and the reason is not found. The daily preset sets none of these flags. | large for agent turns (a cold 54-62K re-read is tens of seconds); more with two cards and parallel agents | replay_turns on the full recent log with each flag; then a live multi-session test where short side requests actually evict the agent's parked conversation |
+| Two-card work: ExTV #01 dual-GPU series (`--prefill-main`, `--kv-resident-later`, split-wise prompt reads, SSD spill), nasone32 peer launchers and two-card EXL3 numbers (10-20% faster decode, EXL3 format, not portable as written), Strata-rdna3 two-7900-XTX figures (the 3,000 tok/s prefill claim has no multi-GPU support in any source found), ztripez distributed expert workers, R8 multi-GPU P2P | needs a second card; nothing here can be tested on one | the owner expects a lot of potential for two cards | when a second card is present: pin both clocks, read ExTV #01 and the nasone32 kernels, then one two-card baseline before any port |
+| 3060-only fork items: FK-05, FK-06, FK-11, FK-25, FK-29, FK-56 (and the 3060 sides of FK-24, FK-31) | the 3060 was removed on 2026-11-08 | 0-10% each (estimates) | revisit if a CUDA card returns as the second card |
+| DeepSeek V4.1 path: Jackwwg83/Strata-DS (prefill tensor-core attention, exact radix top-k, engram expert stream, layer-major prefill), burzumishi ds4_* switches | owner: look into DeepSeek after the tests, focus on Qwen first | claims only; the 58 GB repo download was not made | after the current test cycle |
+| strata-poly 35B-A3B (Qwen3.6-35B-A3B): "+43% prompt at 32K" (burzumishi, author claim) | the MMQ prompt path is intrinsic and conditional in src/poly/engine.cpp, with no dense-MMQ switch to flip | +43% (author) | read the conditional path against the claim, then a 3060 or second-card A/B |
+| Project Maya items: agent robustness (see the Project Maya section) and the future goal GLM-5.3-Flash and MiniMax-M3.1-Flash | model support, not speed on the current model | n/a | per the Project Maya section |
+| A28 ISTA coder model (58 GB kept on D), A27 requant, A42 offload, A46 learned cache policy | each depends on another result or on counters | claims 3-26% | unchanged from the earlier held list |
+
+**Updated order of execution (replaces the earlier order line)**
+1. CPU-only now: P4 probe for IQ2_XS rows (decides the byte-reduction family), O1 tail_replay (FK-21), real-trace replay of the cache flags, ExTV and 0001-author read-and-compare items, and the remaining read-and-compare items (V1, V4, U1, U3, U6).
+2. GPU, cheapest first, after the owner pins the clock: rank 1 (wait-fuse-off, fuse-wait, 12-repeat paired confirm), rank 2 (A24 suffix index), rank 3 (A30), FK-28 A/B, V5 A/B, rank 7 and 6 (A9, A12).
+3. Development: A22 and A56 first, then whichever of ExTV #07, A29, FK-21 the CPU-only results justify, then A19 logging, then A31.
+4. Parked items return when their trigger appears: a second card, a real-trace result for the cache levers, or the end of the current test cycle.
