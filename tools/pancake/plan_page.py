@@ -6,7 +6,8 @@ Template: tools/pancake/plan_page_template.html. Output: plan.html at the reposi
 rules allow it as the one generated view). Stdlib only; the page loads marked 12.0.2 from cdnjs to render Markdown.
 
 Plan item status comes from the plan section an item sits in (section 3 done, section 4 decisions by id, section 5
-queued with item 1 in progress, section 6 code to write, 7 fix needed, 8 parked, 9 dropped). Test verdicts come from
+queued with item 1 and the night queue in progress, section 6 code to write unless the row starts with CODED / PORTED /
+DONE (queued) or PARTLY CODED (in progress), 7 fix needed, 8 parked, 9 dropped). Test verdicts come from
 TEST_LEDGER.md rows as written.
 """
 import datetime
@@ -113,11 +114,14 @@ def plan_items(plan):
     for n, txt in numbered(S.get(5, [])):
         m = re.match(r'\*\*(.+?)\*\*[: ]*(.*)', txt)
         title, body = (m.group(1), m.group(2)) if m else (short(txt, 80), txt)
-        add('GPU queue', 'progress' if n == 1 else 'queued', '%d. %s' % (n, title), body, 'MOD_PLAN 5')
+        add('GPU queue', 'progress' if n == 1 or 'NIGHT QUEUE' in title else 'queued', '%d. %s' % (n, title), body, 'MOD_PLAN 5')
     for r in table_rows(S.get(6, [])):
         if r and re.match(r'^\d+$', r[0]):
             body = r[1] + '<br><b>Expected:</b> ' + (r[2] if len(r) > 2 else '') + (' (' + r[3] + ')' if len(r) > 3 else '')
-            add('Code to write', 'notstarted', '#%s %s' % (r[0], short(r[1], 110)), body, 'MOD_PLAN 6')
+            # a row's own marker wins: "PARTLY CODED" in progress, "CODED" / "PORTED" / "DONE" queued for measurement
+            st = ('progress' if r[1].startswith(('PARTLY CODED', 'IN PROGRESS')) else
+                  'queued' if re.match(r'^(CODED|PORTED|DONE)[ :]', r[1]) or 'PORTED 2026' in r[1][:200] else 'notstarted')
+            add('Code to write', st, '#%s %s' % (r[0], short(r[1], 110)), body, 'MOD_PLAN 6')
     for b in bullets(S.get(7, []), stop=lambda l: l.startswith('Plan claims corrected')):
         add('Defects', 'fix', short(b), b, 'MOD_PLAN 7')
     for b in bullets(S.get(8, [])):
