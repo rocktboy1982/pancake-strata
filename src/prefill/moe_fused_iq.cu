@@ -1293,6 +1293,18 @@ __device__ __forceinline__ void nw_barrier() {
     __syncthreads();
 #endif
 }
+// STRATA_HIP_LDS_SYNC=1 (compile time, opt-in, gfx11; cmake -DCMAKE_HIP_FLAGS=-DSTRATA_HIP_LDS_SYNC=1): the barriers of
+// native_w11_kernel that order only LDS traffic (buffer reuse, srow, the H tile) wait for LDS alone (nw_barrier above)
+// instead of __syncthreads()'s full fence, which also drains the weight loads in flight.  Port of this-cute-world/Strata
+// 28a938e4ff (from Niko1221/Strata PR #3222 by bsorensen110), LEADS.md A3 "LDS-only barrier on gfx11".  The same LDS
+// order, so the same bits.  Unset, the macro is __syncthreads(): device code unchanged.
+__device__ __forceinline__ void nw_sync_lds() {
+#if defined(STRATA_HIP_LDS_SYNC) && STRATA_NAT_W11
+    nw_barrier();
+#else
+    __syncthreads();
+#endif
+}
 __device__ __forceinline__ nw_i8 nw_wmma(nw_ab a, nw_ab b, nw_i8 c) {
 #if STRATA_NAT_W11
     return __builtin_amdgcn_wmma_i32_16x16x16_iu8_w32(true, a, true, b, c, false);
@@ -1366,7 +1378,7 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
             d[1] = make_uint4(q[4], q[5], q[6], q[7]);
             *(float2*) &ws[buf][ur][2 * uj] = make_float2(s0, s1);
         };
-        __syncthreads();                                          // the previous item is done with the buffers
+        nw_sync_lds();                                            // the previous item is done with the buffers
         if (tid < kTileRows) {
             const int r = row0 + min(tid, nrows - 1);             // rows past the tile's end repeat its last one
             srow[tid] = GU ? src[r] : r;
@@ -1375,7 +1387,7 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
         load_unit<WT>(unit(0), sub(0), raw);
         put(raw, 0);
         if (NS > 1) load_unit<WT>(unit(1), sub(1), raw);
-        __syncthreads();                                          // srow
+        nw_sync_lds();                                            // srow
         const bool on = 32 * wn < nrows;
         const uint8_t* brow[2];
 #pragma unroll
@@ -1479,7 +1491,7 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
             }
         }
         if constexpr (GU) {
-            if constexpr (ALIAS) __syncthreads();                 // every wave is done reading the weight buffers
+            if constexpr (ALIAS) nw_sync_lds();                   // every wave is done reading the weight buffers
             if (on) {
 #pragma unroll
                 for (int mt = 0; mt < 2; ++mt)
@@ -1502,7 +1514,7 @@ native_w11_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
 #endif
                     }
             }
-            __syncthreads();
+            nw_sync_lds();
             // H block fb (features 64 fb ..) to int8 per 32, natural order: a thread per (tile row, half)
             if (tid < 2 * kTileRows) {
                 const int r = tid >> 1, hh = tid & 1;
