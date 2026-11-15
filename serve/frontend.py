@@ -757,6 +757,13 @@ def _split_tool_steps(messages: list[dict]) -> list[dict]:
     return out
 
 
+def _snip_tool_results(messages: list[dict]) -> None:
+    """STRATA_TOOL_SNIP=N (opt-in, lossy prompt text; ContextSniper, LEADS.md Part E): long tool results keep their
+    head, tail and diagnosis lines (serve/tool_snip.py).  Unset: nothing is touched."""
+    from serve import tool_snip
+    tool_snip.snip_tool_results(messages)
+
+
 def openai_to_messages(req: dict, keeper: ReasoningKeeper | None = None) -> tuple[list[dict], list[dict] | None, dict]:
     """OpenAI Chat Completions -> (template messages, template tools, template kwargs).  `keeper` (item 31, opt-in):
     the server's kept reasoning goes back into assistant turns the client sent without it."""
@@ -786,6 +793,7 @@ def openai_to_messages(req: dict, keeper: ReasoningKeeper | None = None) -> tupl
         messages.append(out)
     if keeper is not None:
         keeper.fill(messages)
+    _snip_tool_results(messages)
     _order_chat_tool_results(messages)
     tools = [t.get("function", t) if t.get("type") == "function" else t
              for t in _tool_list(req.get("tools"), "function")] or None
@@ -913,6 +921,7 @@ def anthropic_to_messages(req: dict, think_unasked: bool = True,
             messages.append(out)
     if keeper is not None:                              # item 31 (opt-in): see openai_to_messages
         keeper.fill(messages)
+    _snip_tool_results(messages)
     # A client may send results in the order its tools finished (Claude Code does for parallel calls)
     _order_chat_tool_results(messages)
     tools = [_anthropic_tool(t) for t in declared if t["name"] not in deferred] or None
