@@ -4782,7 +4782,19 @@ void Verifier::fetch_dma(void* ctx, const uint8_t* const* src, int n, size_t byt
     // cannot be submitted stops the engine: flag B must not release the consumers to expert weights that were never
     // copied.
     const int batch_mode = strata::core::dma_batch_mode();
-    if (batch_mode == 0) {
+    // STRATA_DMA_COALESCE=1 (opt-in; unset = the per-blob loop below, as always): runs of blobs that sit back to back in
+    // host memory (src[i + 1] == src[i] + bytes) go up as one copy; the staging side is contiguous already, so the same
+    // bytes land at the same offsets in fewer, larger transfers.  Lead: LEADS.md Part D "coalesce adjacent promotion
+    // copies" (data-path report).
+    static const bool coalesce = [] { const char* e = std::getenv("STRATA_DMA_COALESCE"); return e != nullptr && std::atoi(e) != 0; }();
+    if (batch_mode == 0 && coalesce) {
+        for (int i = 0; i < n;) {
+            int j = i + 1;
+            while (j < n && src[j] == src[j - 1] + bytes) ++j;
+            cudaMemcpyAsync(stage + (size_t) i * bytes, src[i], (size_t) (j - i) * bytes, cudaMemcpyHostToDevice, v->copy_);
+            i = j;
+        }
+    } else if (batch_mode == 0) {
         for (int i = 0; i < n; ++i) cudaMemcpyAsync(stage + (size_t) i * bytes, src[i], bytes, cudaMemcpyHostToDevice, v->copy_);
     } else {
         const auto copied = strata::core::copy_expert_blobs(stage, src, n, bytes, v->copy_, batch_mode);
