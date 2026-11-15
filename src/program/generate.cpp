@@ -111,6 +111,7 @@
 #endif
 #include "strata/core/native_dense.hpp"
 #include "strata/program/adapt_decay.hpp"
+#include "strata/program/classlru_score.hpp"
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
 #include "strata/core/window_trace.hpp"
@@ -14319,6 +14320,10 @@ int main(int argc, char** argv) {
         // resident expert unused for the longest.  tools/pancake/time_ceiling.py: +5..16% of a code-edit window in the
         // model, depending on PCIe contention.  Placement only: outputs unchanged.
         strata::program::KMissTier kmiss = strata::program::KMissTier::from_env();
+        // STRATA_ADAPT_CLASSLRU=C (opt-in, LEADS.md Part D ClassLRU, upstream llama.cpp c4fb57969): the tier ranks by the
+        // ClassLRU keep score 2^class / (1 + age) instead of the raw decayed counts (classlru_score.hpp).  Off: no change.
+        strata::program::ClassLruScore clru = strata::program::ClassLruScore::from_env(o.adapt_decay);
+        std::vector<float> clru_saved;
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
@@ -14336,6 +14341,7 @@ int main(int argc, char** argv) {
             adapt_prompt_fold();   // FK-28 (STRATA_ADAPT_PROMPT): the prompt's counts, before any tier reads them
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
+            if (clru.on()) { clru_saved = drive.d.usage; clru.transform(drive.d.usage); }   // STRATA_ADAPT_CLASSLRU (restored below)
             if (remote_opt && !remote_opt->adapt(drive.d.usage, host_res, pending, o.adapt_swaps, *srcp)) return false;
             struct Swap { float gain; int32_t layer, in, out; };
             std::vector<Swap> swaps;
@@ -14580,6 +14586,7 @@ int main(int argc, char** argv) {
             // #477: the routing counted since the start (each count adds up to 1 / (1 - --adapt-decay) over its
             // decays: the sum is proportional to the routing itself) - only with --expert-profile-save, else `heat`
             // is empty
+            if (clru.on()) drive.d.usage.swap(clru_saved);   // STRATA_ADAPT_CLASSLRU: the raw counts back before heat/decay
             for (size_t i = 0; i < heat.size(); ++i) heat[i] += (double) drive.d.usage[i];
             if (peer.valid()) {                   // multi-GPU: the peer takes the next most-routed CPU misses
                 std::vector<int32_t> r0 = host_res;
@@ -15029,6 +15036,7 @@ int main(int argc, char** argv) {
                     if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // (as in adapt(), before the seeder)
                     if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp, as in adapt())
                     a_usage = drive.d.usage;
+                    clru.transform(a_usage);   // STRATA_ADAPT_CLASSLRU (opt-in; off: returns at once): the snapshot the pick ranks
                     a_res = host_res;
                     // #477: the routing counted, as adapt() counts it (--expert-profile-save; else `heat` is empty)
                     for (size_t i = 0; i < heat.size(); ++i) heat[i] += (double) drive.d.usage[i];

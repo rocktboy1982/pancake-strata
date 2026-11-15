@@ -287,6 +287,7 @@ STRATA_ENV("STRATA_ADAPT_ASYNC_BATCH", Speed, "placement/tiering of experts (sam
 STRATA_ENV("STRATA_ADAPT_ASYNC_WAIT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_CALLBACK_WARMUP", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_CHECKRES", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
+STRATA_ENV("STRATA_ADAPT_CLASSLRU", Speed, "placement/tiering: the tier ranks by the ClassLRU keep score (upstream llama.cpp c4fb57969; LEADS.md Part D)")
 STRATA_ENV("STRATA_ADAPT_COPY2", Speed, "copy batching: the swaps' copies over two streams, the same bytes into the same slots (android-imdad caa9b00115)")
 STRATA_ENV("STRATA_ADAPT_EVICT_SYNC", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_FETCH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
