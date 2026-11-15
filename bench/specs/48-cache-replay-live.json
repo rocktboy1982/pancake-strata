@@ -1,0 +1,56 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "base1280": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "args": {
+    "--conversation-cache-mib": "1280"
+   }
+  },
+  "cache2048-min8192": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "args": {
+    "--conversation-cache-mib": "2048",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "flags1280": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "args": {
+    "--conversation-cache-mib": "1280",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "park-truncate1280": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "env": {
+    "STRATA_PARK_TRUNCATE": "1"
+   },
+   "args": {
+    "--conversation-cache-mib": "1280",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  }
+ },
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "pancake-turns.jsonl",
+  "arms": [
+   "base",
+   "base1280",
+   "cache2048-min8192",
+   "flags1280",
+   "park-truncate1280"
+  ],
+  "reps": 1
+ },
+ "note": "Live replay of the real 2026-11-09 agent session (17 agent turns of 50K-72K tokens) for the conversation-cache levers; HEAD engine on every arm. base = today auto budget, base1280 pins the 11-09 budget. Read by replay_turns.py. Plan: parked cache levers, 2026-11-15."
+}

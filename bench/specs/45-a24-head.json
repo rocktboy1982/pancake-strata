@@ -1,0 +1,28 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "sidx": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1"
+   }
+  },
+  "sidx-fallback": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1",
+    "STRATA_SUFFIX_INDEX_RULE": "fallback"
+   }
+  }
+ },
+ "note": "Plan rank 2: A24 suffix index on the HEAD engine; replay predicts accepted +2.0% and rounds -2.4%"
+}

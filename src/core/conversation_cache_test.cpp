@@ -1,6 +1,7 @@
 #include "strata/core/conversation_cache.hpp"
 
 #include <cstdio>
+#include <numeric>
 #include <cstdlib>
 #include <vector>
 
@@ -1216,6 +1217,65 @@ int main() {
         ConversationCache zero(1 << 20, 2);
         zero.set_park_ttl(ConversationCache::ParkTtl{});
         check(!zero.park_ttl().enabled(), "ttl_ms 0: off");
+    }
+    {   // set_rewrite_supersede (ExTV patch 02, opt-in): an older, shorter state of the outgoing conversation with at most a tenth of its
+        // tokens not shared is superseded when turns were rewritten back and the chain's spread checkpoints hold none near its end
+        auto cp = [](std::vector<int32_t> ids) { ConversationCheckpoint c; c.ids = std::move(ids); return c; };
+        auto first = [](int32_t n) { std::vector<int32_t> v(n); std::iota(v.begin(), v.end(), 1); return v; };
+        std::vector<int32_t> rewritten = first(36);   // rewritten from token 37 on, and grown past the old state since
+        rewritten.insert(rewritten.end(), {900, 901, 902, 903, 904, 905, 906, 907, 908, 909});
+        const std::vector<ConversationCheckpoint> chain = {cp(first(4))};
+        size_t reported = 0, dropped_when_off = 0;
+        auto superseded_after_rewrite = [&](int32_t tokens, bool rule_on) {
+            ConversationCache cache(1 << 20, 8);
+            cache.set_rewrite_supersede(rule_on);
+            SavedConversation old = image({});
+            old.live.ids = first(tokens);
+            old.checkpoints = {cp(first(4)), cp(first(36)), cp(first(tokens - 1))};
+            cache.put(std::move(old));
+            reported = cache.parked_prefix_tokens(rewritten, {}, chain, true);
+            SavedConversation now = image({});
+            now.live.ids = rewritten;
+            now.checkpoints = chain;
+            cache.put(std::move(now));
+            return cache.superseded();
+        };
+        check(superseded_after_rewrite(40, true) == 1 && reported == 36, "rewrite rule on, 4 of 40 tokens not shared: dropped");
+        check(superseded_after_rewrite(41, true) == 0 && reported == 0, "rewrite rule on, 5 of 41 tokens not shared: kept");
+        dropped_when_off = superseded_after_rewrite(40, false);
+        check(dropped_when_off == 0 && reported == 0, "rewrite rule off (the default): the same entry is kept, as before");
+        // the guarded donor is never dropped by it
+        {
+            ConversationCache cache(1 << 20, 8);
+            cache.set_rewrite_supersede(true);
+            SavedConversation old = image({});
+            old.live.ids = first(40);
+            old.checkpoints = {cp(first(4)), cp(first(39))};
+            cache.put(std::move(old));
+            cache.guard(1);
+            SavedConversation now = image({});
+            now.live.ids = rewritten;
+            now.checkpoints = chain;
+            cache.put(std::move(now));
+            check(cache.superseded() == 0 && cache.size() == 2, "rewrite rule on: the guarded donor stays");
+        }
+        // the documented hazard: a DIFFERENT conversation with a long shared prefix and a short tail also matches
+        {
+            ConversationCache cache(1 << 20, 8);
+            cache.set_rewrite_supersede(true);
+            SavedConversation a = image({});
+            a.live.ids = first(100);                       // conversation A: 100 tokens
+            a.checkpoints = {cp(first(60)), cp(first(95))};
+            cache.put(std::move(a));
+            std::vector<int32_t> b = first(95);            // conversation B shares A's first 95 tokens, then goes its own way
+            b.insert(b.end(), {7001, 7002, 7003, 7004, 7005, 7006, 7007, 7008, 7009, 7010});
+            SavedConversation bb = image({});
+            bb.live.ids = b;
+            bb.checkpoints = {cp(first(60))};
+            const bool richer = cache.supersedes_richer(bb.live.ids, {}, bb.checkpoints, true);
+            cache.put(std::move(bb));
+            check(cache.superseded() == 1 && richer, "rewrite rule on: another conversation sharing 95 of 100 tokens is dropped too (the hazard); supersedes_richer says so");
+        }
     }
     std::printf("conversation_cache_test: %d checks passed\n", checks);
 }

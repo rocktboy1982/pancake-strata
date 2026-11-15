@@ -538,6 +538,11 @@ public:
     /// first in the usual order, then the oldest pinned one; truncate_oldest still never shrinks a pinned entry, and the
     /// guarded donor still stays.  Cache policy only: what an entry holds and what a restore reads do not change.
     void set_pin_evict_last(bool on) { pin_evict_last_ = on; }
+    // ExTV patch 02 (PR #3404), opt-in (default off: behaviour unchanged): besides the entry whose deepest checkpoint the outgoing chain holds,
+    // an older, shorter state of the same conversation with at most a tenth of its tokens not in the outgoing ones is superseded too (turns
+    // rewritten back, when the chain's spread checkpoints no longer hold one near its end).  Known hazard, measured in park_replay_sim:
+    // a different conversation that shares a long prefix and has a short tail can match too.
+    void set_rewrite_supersede(bool on) { rewrite_supersede_ = on; }
     bool pin_evict_last() const { return pin_evict_last_; }
 
     // #879: every parked conversation (pinned ones too) and the retained K/V go - after non-finite logits any of them
@@ -564,20 +569,10 @@ public:
     // shares the system prompt's root with it), is kept.  Returns how many were dropped.
     size_t drop_superseded(const std::vector<int32_t>& ids, const std::vector<ConversationImageKey>& images,
                            const std::vector<ConversationCheckpoint>& checkpoints, bool cvec) {
-        auto held = [&](const ConversationCheckpoint& c) {
-            if (c.ids == ids && c.imgs == images) return true;
-            for (const auto& k : checkpoints)
-                if (k.ids == c.ids && k.imgs == c.imgs) return true;
-            return false;
-        };
         size_t dropped = 0;
         for (size_t i = 0; i < entries_.size();) {
             const auto& e = entries_[i];
-            const ConversationCheckpoint* deepest = nullptr;
-            for (const auto& c : e.checkpoints)
-                if (!deepest || c.ids.size() > deepest->ids.size()) deepest = &c;
-            if (e.cvec == cvec && deepest && !deepest->ids.empty() && held(*deepest) &&
-                !(guarded_ != 0 && serials_[i] == guarded_)) {
+            if (superseded_at(e, ids, images, checkpoints, cvec) > 0 && !(guarded_ != 0 && serials_[i] == guarded_)) {
                 bytes_ -= e.bytes();
                 erase(i);
                 ++dropped;
@@ -604,12 +599,7 @@ public:
         };
         for (size_t i = 0; i < entries_.size(); ++i) {
             const auto& e = entries_[i];
-            const ConversationCheckpoint* deepest = nullptr;
-            for (const auto& c : e.checkpoints)
-                if (!deepest || c.ids.size() > deepest->ids.size()) deepest = &c;
-            if (e.cvec != cvec || !deepest || deepest->ids.empty() || !held(*deepest) ||
-                (guarded_ != 0 && serials_[i] == guarded_))
-                continue;
+            if (superseded_at(e, ids, images, checkpoints, cvec) == 0 || (guarded_ != 0 && serials_[i] == guarded_)) continue;
             for (const auto& c : e.checkpoints)
                 if (!held(c)) return true;
         }
@@ -623,17 +613,7 @@ public:
     size_t parked_prefix_tokens(const std::vector<int32_t>& ids, const std::vector<ConversationImageKey>& images,
                                 const std::vector<ConversationCheckpoint>& checkpoints, bool cvec) const {
         size_t longest = 0;
-        for (const auto& e : entries_) {
-            if (e.cvec != cvec) continue;
-            const ConversationCheckpoint* deepest = nullptr;
-            for (const auto& c : e.checkpoints)
-                if (!deepest || c.ids.size() > deepest->ids.size()) deepest = &c;
-            if (!deepest || deepest->ids.empty()) continue;
-            bool holds = deepest->ids == ids && deepest->imgs == images;
-            for (const auto& k : checkpoints)
-                if (!holds && k.ids == deepest->ids && k.imgs == deepest->imgs) holds = true;
-            if (holds) longest = std::max(longest, deepest->ids.size());
-        }
+        for (const auto& e : entries_) longest = std::max(longest, superseded_at(e, ids, images, checkpoints, cvec));
         return longest;
     }
 
@@ -650,6 +630,25 @@ public:
     }
 
 private:
+    // How many of `e`'s tokens the outgoing conversation (ids, images, checkpoints) holds when it supersedes `e`, else 0.  Rule 1 (#342): the
+    // deepest checkpoint of `e` is held by the outgoing chain.  Rule 2 (set_rewrite_supersede, ExTV patch 02): `e` is an older, shorter state of
+    // the outgoing conversation with at most a tenth of its live tokens not shared.  An entry without checkpoints is never superseded.
+    size_t superseded_at(const SavedConversation& e, const std::vector<int32_t>& ids, const std::vector<ConversationImageKey>& images,
+                         const std::vector<ConversationCheckpoint>& checkpoints, bool cvec) const {
+        const ConversationCheckpoint* deepest = nullptr;
+        for (const auto& c : e.checkpoints)
+            if (!deepest || c.ids.size() > deepest->ids.size()) deepest = &c;
+        if (e.cvec != cvec || !deepest || deepest->ids.empty()) return 0;
+        bool held = deepest->ids == ids && deepest->imgs == images;
+        for (const auto& k : checkpoints)
+            if (!held && k.ids == deepest->ids && k.imgs == deepest->imgs) held = true;
+        if (held) return deepest->ids.size();
+        if (!rewrite_supersede_) return 0;
+        const auto& own = e.live.ids;
+        const size_t shared = std::mismatch(own.begin(), own.end(), ids.begin(), ids.end()).first - own.begin();
+        return ids.size() > own.size() && own.size() - shared <= own.size() / 10 ? shared : 0;
+    }
+
     // truncate_oldest: the deepest checkpoint of `e` it may shrink to (SIZE_MAX: none) - a strict prefix of the
     // entry's live tokens (the K/V describes those) at or above the min-tokens floor
     size_t truncate_landing(const SavedConversation& e) const {
@@ -800,6 +799,7 @@ private:
         return victim;
     }
     size_t budget_ = 0, slots_ = 0, bytes_ = 0, evictions_ = 0, superseded_ = 0, borrowed_ = 0;
+    bool rewrite_supersede_ = false;   // set_rewrite_supersede
     int64_t min_tokens_ = 0;   // --conversation-cache-min-tokens: 0 parks every conversation, whatever its size
     int64_t idx_block_ = 0;    // the indexer's block (qsa_real_shapes): the pooled-row count at a truncated depth
     bool park_truncate_ = false;   // STRATA_PARK_TRUNCATE: truncate_oldest shrinks an entry before it is dropped whole

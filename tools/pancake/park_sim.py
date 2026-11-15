@@ -63,6 +63,8 @@ VARIANTS = [
     ("A15 ttl30, hold 0 (branches only)", ["--ttl-s", "30", "--hold-s", "0"]),
     ("A15 ttl30, hold 60", ["--ttl-s", "30", "--hold-s", "60"]),
     ("A15 ttl30 hold 60 + F1", ["--ttl-s", "30", "--hold-s", "60", "--truncate"]),
+    ("rewrite-supersede (ExTV 02)", ["--rewrite-supersede"]),
+    ("rewrite-supersede + F1 + min-tokens 8192", ["--rewrite-supersede", "--truncate", "--min-tokens", "8192"]),
 ]
 
 

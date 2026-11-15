@@ -1,0 +1,41 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "long1k",
+  "long3k",
+  "edit"
+ ],
+ "reps": 4,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "share0": {
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE": "0"
+   },
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "auto": {
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE": "auto"
+   },
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "max1024": {
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE_MAX": "1024"
+   },
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "max2048": {
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE_MAX": "2048"
+   },
+   "exe": "/home/dan/build-kh-w8/strata"
+  }
+ },
+ "note": "Plan rank 3: A30 prefill CPU share thresholds on the HEAD engine"
+}

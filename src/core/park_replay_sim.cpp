@@ -66,6 +66,7 @@ struct Opts {
     double ttl_s = 0.0, hold_s = 60.0, sub_ratio = 0.5;
     int64_t share = 512;
     bool tool_agent = false;
+    bool rewrite_supersede = false;   // --rewrite-supersede: ConversationCache::set_rewrite_supersede (ExTV patch 02)
     double scale = 20.0;
     double ms_per_tok_cold = 0.41, ms_per_tok_short = 0.64, floor_s = 0.2, restore_s = 0.9;
     bool verbose = false;
@@ -95,6 +96,7 @@ class Sim {
 public:
     explicit Sim(const Opts& o)
         : o_(o), cache_((size_t) (o.budget_mib * kMiB / o.scale), o.slots, o.min_tokens, 0, o.truncate) {
+        cache_.set_rewrite_supersede(o.rewrite_supersede);
         if (o.ttl_s > 0.0) {
             ConversationCache::ParkTtl pt;
             pt.ttl_ms = (int64_t) std::max(1.0, o.ttl_s * 1000.0);
@@ -507,6 +509,7 @@ int main(int argc, char** argv) {
         else if (arg("--sub-ratio")) o.sub_ratio = std::atof(argv[++i]);
         else if (arg("--scale")) o.scale = std::max(1.0, std::atof(argv[++i]));
         else if (std::strcmp(argv[i], "--tool-agent") == 0) o.tool_agent = true;
+        else if (std::strcmp(argv[i], "--rewrite-supersede") == 0) o.rewrite_supersede = true;
         else if (std::strcmp(argv[i], "--verbose") == 0) o.verbose = true;
         else {
             std::fprintf(stderr, "park_replay_sim: unknown or incomplete argument %s\n", argv[i]);

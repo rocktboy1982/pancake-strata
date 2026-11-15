@@ -1,0 +1,28 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 12,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/build-kh-w8/strata"
+  },
+  "wait-fuse-off": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "env": {
+    "STRATA_WAIT_FUSE": "0"
+   }
+  },
+  "fuse-wait": {
+   "exe": "/home/dan/build-kh-w8/strata",
+   "env": {
+    "STRATA_WAIT_FUSE": "0",
+    "STRATA_FUSE_WAIT": "1"
+   }
+  }
+ },
+ "note": "Plan rank 1: 12-repeat paired confirm of wait-fuse-off and fuse-wait vs base (spec 27 gave +4.7/+3.3 short, +3.3/+3.0 edit, intervals include zero); HEAD engine, clock pinned"
+}
