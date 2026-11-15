@@ -302,14 +302,23 @@ Code:
 - FIXED (T-576): `gdn_gate_kernel` computed only the first token (latent, every caller passes 1 token).
 - FIXED (T-575): upstream #5273 guard (`if (stream_all)`) at the three KVA exits (4252/4396/4527); 5029 is inside the
   `fused_l` branch (needs `stream_all`) and 6215 tests `stream_all` itself. Research path only, no test exercises it.
-- Phase 17 review: R1 fixed (24de1106); R2 (`diverge_at` in conv_cache.hpp) and R3 (`max_cells` rule in kv_ring.hpp)
-  are not in the code. OPEN: the review text that defines what they must do is not in the repo (grep finds `diverge_at` only in a
-  server log), so they are not coded; needs the original review wording.
+- Phase 17 review R2 / R3: no review text exists (repo, git messages, session transcript searched 2026-11-15). Resolved by reading the
+  code the names point at: R2 `diverge_at` is not in conv_cache.hpp, it is the field of the PARK_DIVERGENCE_LOG diagnostic
+  (serve/park_divergence.py: first index where the new prompt and the previous prompt + reply differ; no behavior), and the one
+  behavior that uses the divergence point, `STRATA_PARK_TRUNCATE`, tested no difference (spec 62: -1.7% +-40.8%, cold re-reads 0 vs 0).
+  R3 `max_cells` is the ring rule of kv_ring.hpp (`kv_ring_adapt`: cap when cells_needed >= 2 x cap, else floor; the upstream page
+  rounding of cells_needed is deliberately left out); `STRATA_KV_RING_ADAPT` was measured and DROPPED (T-291). Both CLOSED as
+  moot: compared = the code and the two tests; not compared = the original review wording, which does not exist here.
 - A37 `IQ_LUT_DUP` (d11a9ca09): code read 2026-11-15: default off (iq_kernels.hpp, 0 = off); stays as an opt-in bench knob, not reverted.
 - `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it: opt-in, off, classified in disk_env;
   left in (removing it needs a Mac-side check nobody can run here). OPEN, low.
-- `STRATA_PSI_SHED` (Speedy item 8.3) was never ported though the old plan counted it done. OPEN: the repo holds no description of
-  what it sheds (only the PSI guard in platform/mem_pressure.hpp and its three Inert env names); needs the Speedy item text before any port.
+- `STRATA_PSI_SHED` (Speedy C4, idea from Basalt PR #113; Speedy SPEEDY.md / CHANGELOG 0.1.0 / TUNING-HISTORY read 2026-11-15): opt-in
+  `STRATA_PSI_SHED=<avg10 %>`, off by default: under PSI memory pressure the engine drops PARKED CONVERSATIONS; no numbers upstream
+  (test name `memory_pressure_test`, robustness only). Ours has the park half (`STRATA_PSI_PARK_PCT`, skip parking) and no shed half.
+  Port design: `memory_pressure_sheds(&why)` beside `memory_pressure_blocks_parking` (mem_pressure.cpp:297, same probe, threshold from
+  `STRATA_PSI_SHED`), and at each served request start in generate.cpp one `conversations.evict_oldest()` while it is true (the avg10
+  figure lags, so one entry per request); exact (a cache miss re-reads the prompt, same tokens); disk_env entry Inert like PSI_PARK_PCT;
+  unit test with a fake PSI file (`loader_pressure_begin_with` Paths); credit Speedy and Basalt #113 in README 9 and the findings table.
 - Tools: FIXED (T-577): `night_queue.py` zero-measurement real passes are now failed; `abtest.py` text_check accepts any base
   pass. OPEN: `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` (a `--fill` run with the stock arm, GPU hours) and
   `quality_gate.py:161` stays on `set.json` until then (by design, see its comment); all `taskgate-*` specs use `bench/tasks/default.json`: left as is on purpose
