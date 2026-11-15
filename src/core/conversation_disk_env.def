@@ -661,6 +661,7 @@ STRATA_ENV("STRATA_RDNA2_SGEMM", Speed, "bitwise: documented (docs/README/code c
 STRATA_ENV("STRATA_RDNA_KQ_ALL", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_RDNA_MMVQ_WAVE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_RDNA_Q6K", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_RDNA_KQ_MAXCOLS", Speed, "RDNA K-quant multi-column kernels: widest window they take (A/B knob)")
 STRATA_ENV("STRATA_REFILL_BLOCKING", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_REFILL_PARTS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_REFILL_SERIAL", Speed, "placement/tiering of experts (same math, GPU vs CPU)")

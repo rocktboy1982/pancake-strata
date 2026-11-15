@@ -1,0 +1,22 @@
+rep 0 base                 short 111.6 edit 113.7  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-oomd', 0)]  gpu 1568/1249 MHz 53C 120W gtt 21M cpu 3528MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 cols16               short 116.3 edit 118.7  foreign CPU 2% [('localsearch-3', 1), ('dbus-daemon', 0), ('update-notifier', 0)]  gpu 1506/1249 MHz 53C 118W gtt 21M cpu 3596MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 cols16               short 113.8 edit 117.9  foreign CPU 2% [('claude', 1), ('dbus-daemon', 0), ('rtkit-daemon', 0)]  gpu 1528/1249 MHz 53C 120W gtt 21M cpu 3533MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 111.7 edit 114.7  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1564/1249 MHz 53C 120W gtt 21M cpu 3538MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 111.6 edit 114.0  foreign CPU 2% [('claude', 1), ('gnome-shell', 1), ('localsearch-3', 1)]  gpu 1567/1249 MHz 53C 120W gtt 21M cpu 3340MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 cols16               short 116.6 edit 117.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('ptyxis', 0)]  gpu 1511/1249 MHz 53C 119W gtt 21M cpu 3529MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 cols16               short 116.5 edit 117.8  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 1518/1249 MHz 53C 120W gtt 21M cpu 3672MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 111.7 edit 112.4  foreign CPU 2% [('claude', 1), ('kworker/u65:9-ttm', 1), ('rcu_preempt', 0)]  gpu 1578/1249 MHz 53C 121W gtt 21M cpu 3258MHz 53C igpu 0%/vcn 0% fclk 1600
+early stop after 4 reps: every arm/case decided or below 1.5% of base
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.7 +-   0.1  (n=4)
+                              drafts accepted 0.66
+  short  cols16                  115.8 +-   2.1  (n=4)   vs base:  +3.7% +-  2.0%  -> better
+                              drafts accepted 0.74
+  edit   base                    113.7 +-   1.5  (n=4)
+                              drafts accepted 0.91
+  edit   cols16                  118.0 +-   0.7  (n=4)   vs base:  +3.8% +-  1.4%  -> better
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  cols16               DIFFERENT text -> lossy or placement-dependent: quality gate

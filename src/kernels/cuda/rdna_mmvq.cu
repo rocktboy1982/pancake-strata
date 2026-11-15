@@ -14,6 +14,15 @@ namespace strata::kernels {
 namespace {
 struct Q81 { half2 ds; int8_t qs[32]; };
 constexpr int kRdnaMaxCols = 16;   // 9..16 columns: the verify windows of 12 rows (and up to the engine's STRATA_VERIFY_MAX_T)
+// STRATA_RDNA_KQ_MAXCOLS=N caps the columns the RDNA kernels take (8 = the behaviour before 9..16 existed; an A/B knob).
+inline int rdna_max_cols() {
+    static const int v = [] {
+        const char* e = std::getenv("STRATA_RDNA_KQ_MAXCOLS");
+        const int n = e != nullptr ? std::atoi(e) : kRdnaMaxCols;
+        return n >= 1 && n <= kRdnaMaxCols ? n : kRdnaMaxCols;
+    }();
+    return v;
+}
 constexpr int QK = 256, BB = 210;   // Q6_K: ql[128] qh[64] scales[16] d(2)
 
 __device__ __forceinline__ float wsum32(float v) {
@@ -184,7 +193,7 @@ void kq_launch(const uint8_t* wb, const Q81* x, float* y, int n_in, int n_out, i
 }  // namespace
 
 bool rdna_kq_mmvq(int type, const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream) {
-    if (n_in % QK != 0 || ncols < 1 || ncols > kRdnaMaxCols) return false;
+    if (n_in % QK != 0 || ncols < 1 || ncols > rdna_max_cols()) return false;
     const auto* wb = static_cast<const uint8_t*>(w);
     const auto* x = static_cast<const Q81*>(xq);
     cudaStream_t s = (cudaStream_t) stream;
@@ -207,7 +216,7 @@ bool rdna_q6k_enabled() {
 }
 
 bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream) {
-    if (n_in % QK != 0 || ncols < 1 || ncols > kRdnaMaxCols) return false;
+    if (n_in % QK != 0 || ncols < 1 || ncols > rdna_max_cols()) return false;
     const auto* wb = static_cast<const uint8_t*>(w);
     const auto* x = static_cast<const Q81*>(xq);
     const unsigned blocks = (unsigned) ((n_out + 7) / 8);
