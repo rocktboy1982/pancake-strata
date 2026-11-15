@@ -3381,3 +3381,28 @@ Decode tok/s, confirm tier (early stop after 2 repeats):
 
 Caveats: only two repeats per case; the 10k and 32k intervals are wide. Background load (caveman-proxy, restarted after being stopped) affected the earlier run; the final run was taken at load about 0.1.
 Build fixes needed to reach this baseline: prefill.hpp set_usage duplicate (commit 693cdf63d).
+
+### Topics from the 2026-11-15 LLM report (raport-investigare-llm.md): candidates and fact-check status
+Source: /home/dan/clone-of-d/Strata/raport-investigare-llm.md (a ChatGPT summary of community sources, in Romanian). Fact-check: deep-research workflow wf_b5600950-293 (102 agents, verified by 3-vote review). Rule: research before any code (research-before-jobs); benchmarks go to the night queue.
+
+Fact-check verdicts used below:
+- Strata-rdna3 "about 3000 tok/s prefill on 2x RX 7900 XTX": no multi-GPU support found in any source. Unsupported.
+- Qwen 27B "180-200 tok/s on 2x RTX 3090": contradicted, community single-stream 55-89 tok/s (higher numbers are aggregate at several streams).
+- Jetson Orin "32-46 tok/s": not supported; NVIDIA LLM gains are 1.11x-1.64x.
+- MiniMax H3 "80 s to 31.7 s", QEngine "411 tok/s", Elastic KV "1 s resize": unverified (not addressed by the surviving claims).
+
+| # | Topic (report) | Interest for us | Overlaps existing item | Fact-check | Gate before any code |
+|---|---|---|---|---|---|
+| R1 | Strata-rdna3 (nicejunjie), RDNA3 fork of Strata | HIGH: same card family and same engine lineage | FK fork-KB sweep; ExTV/nasone32 analyses | claimed 3000 tok/s prefill, unsupported | read the code and its prefill path first; compare its specific changes against ours; then one screen A/B on our card |
+| R2 | Predictive expert prefetch (MTP predicts the next tokens' experts) | HIGH: the report's top-priority direction | A9 (pre-stage during tools), A22, A46 (learned cache policy) | not a number, a direction | offline replay on our routing trace with gate weights (DATA item, A27); no GPU run until the replay shows coverage |
+| R3 | Hybrid VRAM/RAM/NVMe placement | MEDIUM: we already have most parts | item 39 (disk tier), expert cache tiers | general | compare the report's three-tier plan with what the disk tier and expert cache do today; list only the gaps |
+| R4 | KV cache orchestration and eviction under parallel requests | MEDIUM: multi-agent sessions are our main use | A12 (pinned prefix), A15 (park TTL) | report lists eviction as a problem, not measured | park_sim replay on a multi-session trace (existing tool) |
+| R5 | MiniMax H3 RDNA4: disk read-ahead, HIP attention | LOW-MEDIUM: read-ahead idea may apply to our expert file reads on RDNA3; the kernels are RDNA4-specific | A52 (direct I/O expert loader) | 80 s to 31.7 s unverified | read-ahead only: check whether our expert loader issues read-ahead; no kernel port |
+| R6 | Elastic KV cache (SGLang, 2x R9700) | LOW: single user, single card; our --elastic-prefill is a different thing | --elastic-prefill (existing) | 1 s resize unverified | none unless R4 needs it |
+| R7 | QEngine: MTP scheduling, caching, tool calling (CUDA) | LOW-MEDIUM: check its MTP scheduling for ideas only | MTP work (existing) | 411 tok/s unverified | read its scheduler; no benchmark until a specific idea is named |
+| R8 | Multi-GPU P2P and distributed expert execution | NOT NOW: one card | none | n/a | none |
+| R9 | Agent orchestration (planner and implementer split) | NOT ENGINE WORK: belongs in the harness | none | n/a | none |
+
+Not of interest (no plan entry): AntGPU (marketplace), Jetson Orin, RTX 5070 Ti vs RX 9070 XT comparison, RTX 3080 laptop, RTX 3060 setup, Threadripper server sizing, the Qwen 27B plus cloud orchestrator example, and the RX 7700 XT 27B-40B experiments.
+
+Next step, in order: R1 (read the Strata-rdna3 code, it is the only RDNA3 direct comparison), then R2 (the offline replay, which needs the gate-weight trace).
