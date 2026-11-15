@@ -41,6 +41,8 @@ struct PrefillStats {
     int64_t experts_cpu = 0;        ///< ...computed on the CPU pool instead of streamed (STRATA_PREFILL_CPU_SHARE)
     double cpu_share = 0;           ///< ...the share of the streamed ones it took last (measured by default)
     double ms_ple = 0;
+    int64_t pf_issued = 0;          ///< STRATA_PF_AHEAD: experts copied into the prefetch pool
+    int64_t pf_used = 0;            ///< ...and read from it by the staged walk
 };
 
 }  // namespace strata::prefill
@@ -292,6 +294,16 @@ public:
     /// `by_default`: this path is one the share was measured on (CUDA, one GPU, no batch slots), so with the variable unset
     /// the share is on for chunks below 1024 tokens (STRATA_PREFILL_CPU_SHARE=0 turns it off).
     static void arm_cpu_share(bool applies, bool by_default = false);
+    /// STRATA_PF_AHEAD (port of 0xluk 896481c943, LEADS.md): the loan a chunk would take without the staged walk's
+    /// prefetch pool (the residency the CPU/GPU split is made from: a loan's extra pool slots must not move experts to
+    /// the CPU, or the output would change)
+    static uint64_t bytes_needed_nominal(const core::ModelGeometry& g, const core::SessionState& ss, int64_t chunk,
+                                         bool src = true);
+    /// STRATA_PF_AHEAD: whether a layout of `chunk` tokens holds the prefetch pool
+    static bool pf_pool_in(int64_t chunk, bool src = true);
+    /// STRATA_PF_AHEAD: the residency table (host_res's shape) the CPU/GPU split of a staged chunk reads instead of
+    /// host_res - the loan's without its pool slots.  Null: host_res.  The caller keeps it alive and current per loan.
+    void set_split_residency(const int32_t* res);
     /// STRATA_PREFILL_CPU_SHARE_BATCH=1 (batch slots beside the pool): set before each read - true while a slot decodes
     /// (its windows use the pool), so no chunk of that read takes the share; false lets the read's chunks take it.
     static void set_share_blocked(bool blocked);
@@ -320,7 +332,7 @@ public:
 
 private:
     static uint64_t bytes_needed_impl(const core::ModelGeometry& g, const core::SessionState& ss, int64_t chunk,
-                                      bool owned_pages, bool src);
+                                      bool owned_pages, bool src, bool with_pf = true);
     kernels::cpu::ExpertPool* cpu_pool_ = nullptr;   ///< set_cpu_pool
     // Layer-major prefill: the super-chunk's buffers for an n-token prompt (its size, 0 = not this prompt: `why`),
     // the run, and the buffers given back after it.  `cap` (> 0): at most that many tokens (a layer split's stages

@@ -480,6 +480,53 @@ inline int ring_slots(size_t T) {
 // The staging buffers a layout holds: the ring, and at least STAGE_GRP for the staged walk's grouped gather.  Counted
 // and taken through this one place, so the bytes the prompt path borrows cover every buffer it writes.
 inline int stage_slots(size_t T) { return std::max(ring_slots(T), STAGE_GRP); }
+// STRATA_PF_AHEAD=1 (opt-in; port of 0xluk 896481c943, LEADS.md): next-layer expert prefetch for STAGED chunks -
+// the ones below stream_all_min(), which with the CPU share armed are an agent's tool-output turns.  The staged walk can
+// only start a layer's copies after that layer's routing sync, so the copy engine idles through every attention half.
+// With this, the experts the GPU streamed at layer l+1 in the LAST chunk (any walk), most tokens first, are copied into
+// a pool of N expert slots while layer l+1 runs its attention, and the walk reads them from the pool.
+//  * The pool is part of the prompt path's loan (bytes_needed counts it, carve lays it out): no VRAM of its own.
+//  * The CPU/GPU split is made from the residency the loan would have WITHOUT the pool (set_split_residency): the
+//    pool's extra lent experts stay GPU experts and are streamed.  The same experts reach the same kernels in the same
+//    order, so the prompt's output is meant to be bit-identical to the run without it (to be checked: TEST_LEDGER.md).
+//  * A streamed-K/V attention layer's staging copy goes on the copy stream ahead of that layer's pool copies (one H2D
+//    engine on consumer cards: queued behind them it held the attention up), unless STRATA_KV_PREFETCH already moved it.
+// STRATA_PF_AHEAD=1 turns it on; anything else (unset, 0, the fork's N / auto) leaves it off, the walk as before.  The
+// pool's size is STRATA_PF_AHEAD_SLOTS (default kPfAheadAuto = 160, the fork's `auto`; 1..512 - the fork took the count
+// as STRATA_PF_AHEAD=N).  Chunks below STRATA_PF_AHEAD_MIN tokens (default 1024) get no pool: their routing is too
+// sparse for the last chunk to predict it.
+constexpr int kPfAheadAuto = 160;
+constexpr int kPfAheadMax = 512;
+inline int pf_ahead_slots() {
+    static const int v = [] {
+        const char* e = std::getenv("STRATA_PF_AHEAD");
+        if (e == nullptr || std::strcmp(e, "1") != 0) return 0;
+        const char* n = std::getenv("STRATA_PF_AHEAD_SLOTS");
+        return n != nullptr && n[0] != '\0' ? std::clamp(std::atoi(n), 1, kPfAheadMax) : kPfAheadAuto;
+    }();
+    return v;
+}
+inline int64_t pf_ahead_min() {
+    static const int64_t v = [] { const char* e = std::getenv("STRATA_PF_AHEAD_MIN"); return e ? (int64_t) std::atoll(e) : (int64_t) 1024; }();
+    return v;
+}
+// STRATA_PF_AHEAD_KV=0 (A/B): the streamed K/V stays where it was staged before (on the compute stream, in the layer)
+inline bool pf_ahead_kv() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_PF_AHEAD_KV"); return e == nullptr || e[0] != '0'; }();
+    return v;
+}
+// STRATA_PF_SPLIT_ACTUAL=1 (A/B): the CPU/GPU split sees the loan's real residency (the pool's lent experts become CPU
+// candidates): fewer bytes over PCIe, other bits
+inline bool pf_split_actual() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_PF_SPLIT_ACTUAL"); return e != nullptr && e[0] == '1'; }();
+    return v;
+}
+// the pool slots a layout of T tokens holds: only staged layouts (the streamed walk copies every expert in order anyway)
+inline int pf_pool_slots(size_t T, bool src) {
+    if (!src || pf_ahead_slots() <= 0) return 0;
+    if ((int64_t) T >= stream_all_min() || (int64_t) T < pf_ahead_min()) return 0;
+    return pf_ahead_slots();
+}
 constexpr int DQ = 2;              // dequantized-expert ring (FP16 gate/up + down)
 // STRATA_PF_GU_EXACT=G (HIP, opt-in; 1 = 16; port of android-imdad/Strata-7900xtx 90434843b4 + ac7e5aff59 + 9caad8f2bb,
 // LEADS.md): the FP16 path's gate/up products of up to G experts with 2..16384 tokens wait for one grouped launch
@@ -1328,6 +1375,17 @@ struct Prefill::Impl {
     int32_t* ident_table = nullptr;
     cudaStream_t kv_copy = nullptr;
     cudaEvent_t kv_released = nullptr, kv_ready = nullptr;
+    // STRATA_PF_AHEAD (0xluk 896481c943): the pool (this layout's, carved in the loan), its copies' events and the
+    // per-layer guesses
+    uint8_t* pf_dev = nullptr;
+    int pf_n = 0;                                  // this layout's pool slots (0: none)
+    cudaEvent_t pf_copied[kPfAheadMax] = {};
+    cudaEvent_t pf_free = nullptr;                 // on cs: the work that reads the pool's current contents is queued
+    int64_t pf_chunk_seq = 0;                      // chunks read so far: the pool's contents are this chunk's
+    int64_t pf_tag = -1;                           // pf_chunk_seq * 4096 + the layer the pool holds (-1: nothing)
+    std::vector<int16_t> pf_slot;                  // n_expert: that layer's expert's pool slot (-1: not in the pool)
+    std::vector<std::vector<int32_t>> pf_pred;     // per layer: the GPU-streamed experts of the last chunk, most tokens first
+    const int32_t* split_res = nullptr;            // set_split_residency (null: the split reads host_res)
     // layer split: the device, and the hand-off to the next stage (two pinned chunk buffers, used in turn)
     int device = -1;
     float* hand[2] = {};
@@ -1464,6 +1522,11 @@ void Prefill::release() {
     if (impl_->copy2) cudaStreamSynchronize(impl_->copy2);
     if (impl_->kv_copy) cudaStreamSynchronize(impl_->kv_copy);
     if (impl_->ple_copy) (void) cudaStreamSynchronize(impl_->ple_copy);
+    for (cudaEvent_t& e : impl_->pf_copied)   // STRATA_PF_AHEAD (0xluk 896481c943): never created unless it is on
+        if (e) { cudaEventDestroy(e); e = nullptr; }
+    if (impl_->pf_free) { cudaEventDestroy(impl_->pf_free); impl_->pf_free = nullptr; }
+    impl_->pf_dev = nullptr;
+    impl_->pf_n = 0;
     for (int i = 0; i < RING_MAX; ++i) {
         if (impl_->copied[i]) cudaEventDestroy(impl_->copied[i]);
         if (impl_->used[i]) cudaEventDestroy(impl_->used[i]);
@@ -2380,6 +2443,17 @@ bool Prefill::carve(size_t T, void* alloc) {
     m.ple_emb = o.take<float>(T * N, ok);
     m.ple_norm = o.take<float>((size_t) strata::kernels::NG_HC_DIM, ok);
     take_stage(o, ss, s, m.stage, ok);
+    // STRATA_PF_AHEAD (0xluk 896481c943): the staged walk's prefetch pool, last (bytes_needed_impl takes the same)
+    m.pf_dev = nullptr;
+    m.pf_n = 0;
+    m.pf_tag = -1;
+    if (const int pf = pf_pool_slots(T, m.src != nullptr); pf > 0) {
+        m.pf_dev = o.take<uint8_t>((size_t) pf * (size_t) MAXBLOB(), ok);
+        if (m.pf_dev != nullptr) {
+            m.pf_n = pf;
+            m.pf_slot.assign((size_t) g.n_expert, (int16_t) -1);
+        }
+    }
     m.T = (int64_t) T;
     m.group_cap = pf_group_scratch() && !m.fused_bufs ? group_cap_rows(T, m.g->n_expert) : 0;
     if (m.group_cap > 0 || hcr) {   // activation evidence: once per layout (a chunk size), what the switches took
@@ -3142,8 +3216,17 @@ uint64_t Prefill::bytes_needed_impl(const core::ModelGeometry& g, const core::Se
     f((size_t) strata::kernels::NG_HC_DIM);
     strata::kernels::KvHostPools stage;
     take_stage(o, ss, s, stage, ok);
+    // STRATA_PF_AHEAD (0xluk 896481c943): carve's prefetch pool, last (0 slots unless it is on and T is a staged chunk)
+    if (const int pf = with_pf ? pf_pool_slots(T, src) : 0; pf > 0) o.take<uint8_t>((size_t) pf * (size_t) MAXBLOB(), ok);
     return o.used + (8u << 20);   // alignment slack
 }
+
+// STRATA_PF_AHEAD: the loan the chunk would take without the prefetch pool - the residency the CPU/GPU split is made from
+uint64_t Prefill::bytes_needed_nominal(const core::ModelGeometry& g, const core::SessionState& ss, int64_t chunk, bool src) {
+    return bytes_needed_impl(g, ss, chunk, false, src, false);
+}
+bool Prefill::pf_pool_in(int64_t chunk, bool src) { return chunk > 0 && pf_pool_slots((size_t) chunk, src) > 0; }
+void Prefill::set_split_residency(const int32_t* res) { if (impl_) impl_->split_res = res; }
 
 uint64_t Prefill::bytes_needed_no_ring(const core::ModelGeometry& g, const core::SessionState& ss, int64_t chunk,
                                         bool src) {
@@ -3570,6 +3653,15 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
         ~KvDrain() { if (stream) cudaStreamSynchronize(stream); }
     } kv_drain{kv_prefetch ? m.kv_copy : nullptr};
     KvDrain ple_drain{m.ple_copy};   // STRATA_PLE_COPY_STREAM: no upload left in flight from a buffer the next run refills
+    // STRATA_PF_AHEAD (0xluk 896481c943): the pool's copies (and the K/V staging copies it moved onto the copy stream)
+    // land before the caller refills the lent slots, also on an early return
+    KvDrain pf_drain{pf_ahead_slots() > 0 ? m.copy : nullptr};
+    if (pf_ahead_slots() > 0 &&
+        ((!m.kv_released && cudaEventCreateWithFlags(&m.kv_released, cudaEventDisableTiming) != cudaSuccess) ||
+         (!m.kv_ready && cudaEventCreateWithFlags(&m.kv_ready, cudaEventDisableTiming) != cudaSuccess))) {
+        err = "prefill: STRATA_PF_AHEAD events";
+        return false;
+    }
     int64_t kv_prefetches = 0;
     const uint64_t gdn_floats = (uint64_t) g.ssm_state_size * g.ssm_v_heads * g.ssm_state_size +
                                 (uint64_t) g.ssm_conv_channels * (g.ssm_d_conv - 1);
@@ -3735,6 +3827,8 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
         const int64_t tap_t0 = 0, tap_rows = 0;
 #endif
         ++stats_.chunks;
+        ++m.pf_chunk_seq;   // STRATA_PF_AHEAD (0xluk 896481c943): a new chunk - nothing the pool holds is for it yet
+        m.pf_tag = -1;
         pt.mark(kPfStart, cs);
         const auto tsetup = Clock::now();
         // ---- embeddings, broadcast to the four streams - or, in a later stage of a layer split, the rows the
@@ -4443,6 +4537,61 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                 std::fprintf(stderr, "strata pf-step: chunk from token %lld, layer %lld: %s took %.0f ms (%s / %s)\n",
                              (long long) p0, (long long) layer, what, ms, cudaGetErrorString(a), cudaGetErrorString(b));
         };
+        // STRATA_PF_AHEAD (0xluk 896481c943): layer `ln`'s guessed GPU experts into the pool, behind every queued reader of
+        // the pool; a streamed-K/V attention layer's staging copy first (the copy engine serves them in this order).  The
+        // guess is the last chunk's GPU-streamed experts of that layer: the pool takes the first pf_n of them (most tokens
+        // first) that are not resident and are page-locked, and copies them in expert order - the order the walk reads
+        // them.  `qsa_index` is ln's QSA ordinal at both call sites (the chunk's first layer; after layer ln - 1's halves).
+        // Off (pf_n == 0, no pool carved): returns at once, nothing is recorded or queued.
+        auto pf_issue = [&](int64_t ln) {
+            m.pf_tag = -1;
+            if (stream_all || m.pf_n <= 0 || ln >= LE || m.src == nullptr) return;
+            if (m.pf_free == nullptr && cudaEventCreateWithFlags(&m.pf_free, cudaEventDisableTiming) != cudaSuccess) {
+                (void) cudaGetLastError();
+                m.pf_free = nullptr;
+                return;
+            }
+            cudaEventRecord(m.pf_free, m.cs);
+            cudaStreamWaitEvent(m.copy, m.pf_free, 0);
+            if (pf_ahead_kv() && !kv_prefetch && p0 > 0 && kv_pending < 0 && core::is_qsa_layer(g, ln)) {
+                const core::QsaState& kst = ss.qsa_states[qsa_index];   // ln's ordinal: the QSA layers before it
+                if (kst.kv_mode == 1) {
+                    strata::kernels::kv_stage_from_host(pools_of(m.stage, m.ident_table), kst.host, core::qsa_kv_format(kst),
+                                                        (p0 + s.page_size - 1) / s.page_size, s, m.copy);
+                    cudaEventRecord(m.kv_ready, m.copy);
+                    kv_pending = qsa_index;
+                }
+            }
+            if (m.pf_pred.size() != (size_t) g.n_layers || m.pf_pred[(size_t) ln].empty()) return;
+            std::fill(m.pf_slot.begin(), m.pf_slot.end(), (int16_t) -1);
+            std::vector<int32_t> pick;
+            pick.reserve((size_t) m.pf_n);
+            for (const int32_t e : m.pf_pred[(size_t) ln]) {
+                if ((int) pick.size() >= m.pf_n) break;
+                if (m.host_res && m.cache && m.host_res[(size_t) ln * g.n_expert + e] >= 0) continue;
+                if (!m.src->pinned(ln, e)) continue;   // the stager's host copies stay the walk's
+                pick.push_back(e);
+            }
+            std::sort(pick.begin(), pick.end());
+            const size_t bytes = (size_t) lay0.blob_bytes(ln);
+            int sn = 0;
+            for (const int32_t e : pick) {
+                const uint8_t* b = m.src->blob_stable(ln, e);
+                if (b == nullptr) continue;
+                if (!m.pf_copied[sn] && cudaEventCreateWithFlags(&m.pf_copied[sn], cudaEventDisableTiming) != cudaSuccess) {
+                    (void) cudaGetLastError();
+                    m.pf_copied[sn] = nullptr;
+                    break;
+                }
+                cudaMemcpyAsync(m.pf_dev + (size_t) sn * (size_t) MAXBLOB(), b, bytes, cudaMemcpyHostToDevice, m.copy);
+                cudaEventRecord(m.pf_copied[sn], m.copy);
+                m.pf_slot[(size_t) e] = (int16_t) sn;
+                ++sn;
+            }
+            stats_.pf_issued += sn;
+            if (sn > 0) m.pf_tag = m.pf_chunk_seq * 4096 + ln;
+        };
+        pf_issue(LB);   // the first layer's, behind the chunk's embedding
         for (int64_t l = LB; l < LE; ++l) {
             core::progress_beat();   // the serve watchdog: a prompt chunk of 8192 tokens is still moving
             if (l > LB) pf_step("reading the prompt (batched, step sync): the experts and the rest of layer", l - 1);
@@ -5490,7 +5639,10 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                             int64_t nstream = 0;
                             for (int32_t e = 0; e < m.g->n_expert; ++e) {
                                 const int32_t c = m.cnt[(size_t) e];
-                                if (c == 0 || (m.host_res && m.cache && m.host_res[(size_t) l * m.g->n_expert + e] >= 0))
+                                // STRATA_PF_AHEAD (0xluk 896481c943): the residency without the pool's lent slots
+                                // (set_split_residency; null unless it is on: host_res, as before)
+                                const int32_t* sres = m.split_res != nullptr && !pf_split_actual() ? m.split_res : m.host_res;
+                                if (c == 0 || (sres && m.cache && sres[(size_t) l * m.g->n_expert + e] >= 0))
                                     continue;
                                 if (peer_takes(e)) continue;
                                 ++nstream;
@@ -5622,6 +5774,21 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                             }
                         }
                         n_order = order.size();
+                        // STRATA_PF_AHEAD (0xluk 896481c943): this layer's GPU experts that are not resident, most tokens
+                        // first - the guess for this layer in the next staged chunk (from a streamed chunk too: a fresh
+                        // prompt seeds it)
+                        if (pf_ahead_slots() > 0 && m.src != nullptr && on_peer.empty()) {
+                            if (m.pf_pred.size() != (size_t) m.g->n_layers) m.pf_pred.assign((size_t) m.g->n_layers, {});
+                            std::vector<std::pair<int32_t, int32_t>> got;   // (-tokens, expert)
+                            got.reserve(order.size());
+                            for (const int32_t e : order)
+                                if (!(m.host_res && m.cache && m.host_res[(size_t) l * m.g->n_expert + e] >= 0))
+                                    got.emplace_back(-m.cnt[(size_t) e], e);
+                            std::sort(got.begin(), got.end());
+                            std::vector<int32_t>& pr = m.pf_pred[(size_t) l];
+                            pr.clear();
+                            for (const auto& x : got) pr.push_back(x.second);
+                        }
                         // set_cpu_pool: the CPU's experts on a thread while this one streams and runs the GPU's; their
                         // unweighted rows land in Dm's row order, so the combine weights them as any other row
                         if (rows_cpu > 0) {
@@ -6189,10 +6356,20 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                             m.stager->start(std::move(js));
                         }
                         StagerDone stager_done{stream_all ? nullptr : m.stager.get()};
+                        // STRATA_PF_AHEAD (0xluk 896481c943): order[j]'s pool slot, when the pool holds this layer (-1: not
+                        // in it).  Empty unless it is on and pf_issue filled the pool for this chunk's layer l.
+                        std::vector<int> pf_of;
+                        if (!stream_all && m.pf_n > 0 && m.pf_tag == m.pf_chunk_seq * 4096 + l) {
+                            pf_of.assign(order.size(), -1);
+                            for (size_t j = 0; j < order.size(); ++j)
+                                if (!(m.host_res && m.cache && m.host_res[(size_t) l * m.g->n_expert + order[j]] >= 0))
+                                    pf_of[j] = m.pf_slot[(size_t) order[j]];
+                        }
                         auto stage_one = [&](size_t j) -> bool {
                             const int32_t e = order[j];
                             const bool resident = m.host_res && m.cache && m.host_res[(size_t) l * m.g->n_expert + e] >= 0;
                             if (resident) return true;
+                            if (!pf_of.empty() && pf_of[j] >= 0) return true;   // STRATA_PF_AHEAD: in the pool
                             const int sl = stage_next;
                             stage_next = (stage_next + 1) % stage_n;
                             const auto th = Clock::now();
@@ -6637,7 +6814,15 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                     ++staged;
                                 }
                                 const int32_t e = order[j];
-                                if (stage_of[j] < 0) {
+                                if (!pf_of.empty() && pf_of[j] >= 0) {   // STRATA_PF_AHEAD (0xluk 896481c943): from the pool
+                                    pt.mark(kPfWaitCopy, cs);
+                                    cudaStreamWaitEvent(m.cs, m.pf_copied[pf_of[j]], 0);
+                                    // STRATA_PF_DQ_OVERLAP: a deferred GU_EXACT expert is dequantized on its own stream,
+                                    // which waits only for ring copies (slot >= 0): the pool's copy too (not in the fork)
+                                    if (m.dq_st != nullptr) cudaStreamWaitEvent(m.dq_st, m.pf_copied[pf_of[j]], 0);
+                                    ++stats_.pf_used;
+                                    if (!compute(j, m.pf_dev + (size_t) pf_of[j] * (size_t) MAXBLOB(), -1, -1)) return false;
+                                } else if (stage_of[j] < 0) {
                                     ++stats_.experts_resident;
                                     if (!compute(j, m.cache->device_slot(m.host_res[(size_t) l * m.g->n_expert + e]), -1,
                                                  m.host_res[(size_t) l * m.g->n_expert + e])) return false;
@@ -6713,6 +6898,10 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                             cudaMemcpyHostToDevice, m.cs);
                         stats_.experts_cpu += n_cpu;
                     }
+                    // STRATA_PF_AHEAD (0xluk 896481c943): the next layer's pool copies go behind this layer's combine
+                    // uploads (the CPU rows' H2D on the compute stream): queued before them they would hold the combine up
+                    // on the one H2D engine
+                    if (!stream_all && m.pf_n > 0) pf_issue(l + 1);
                     // no reading from a layer the share could not change (nothing taken) or with one-time costs
                     if (cpu_set >= 0 && n_stream > 0 && (!cpu_arm || n_cpu > 0) && !cpu_cold) {
                         cudaEventRecord(m.cpu_wall[2 * cpu_set + 1], m.cs);
@@ -7049,6 +7238,12 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
         std::fprintf(stderr, "strata prefill timing: host: chunk setup (PLE rows, the expert stream plan) %.0f ms, "
                              "waiting for each chunk %.0f ms, after each chunk (the draft layer, progress) %.0f ms, "
                              "PLE %.0f ms\n", host_setup_ms, host_sync_ms, host_chunk_ms, stats_.ms_ple);
+        if (m.pf_n > 0 || stats_.pf_issued > 0)   // STRATA_PF_AHEAD (0xluk 896481c943): never printed unless it is on
+            std::fprintf(stderr, "strata prefill timing: STRATA_PF_AHEAD pool %d slots (%.0f MiB of the loan): %lld experts "
+                                 "copied ahead so far, %lld read from the pool (%.1f%%)\n", m.pf_n,
+                         (double) m.pf_n * (double) MAXBLOB() / 1048576.0, (long long) stats_.pf_issued,
+                         (long long) stats_.pf_used,
+                         stats_.pf_issued > 0 ? 100.0 * (double) stats_.pf_used / (double) stats_.pf_issued : 0.0);
         if (pe.on) {
             int pd = 0; cudaGetDevice(&pd); cudaSetDevice(pe.dev); cudaStreamSynchronize(m.pp->s); pe.fold(); cudaSetDevice(pd);
             std::string pl;
