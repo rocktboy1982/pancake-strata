@@ -1,0 +1,61 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 4,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "ecap0": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0"
+      }
+    },
+    "ecap0-l16": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0"
+      },
+      "args": {
+        "--lookup-max-t": "16"
+      }
+    },
+    "ecap0-sidx": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_SUFFIX_INDEX": "1",
+        "STRATA_SUFFIX_INDEX_RULE": "fallback"
+      }
+    },
+    "ecap0-sidx-l16": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_SUFFIX_INDEX": "1",
+        "STRATA_SUFFIX_INDEX_RULE": "fallback"
+      },
+      "args": {
+        "--lookup-max-t": "16"
+      }
+    },
+    "ecap0-sidx-l16-wmma9": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_SUFFIX_INDEX": "1",
+        "STRATA_SUFFIX_INDEX_RULE": "fallback",
+        "STRATA_RDNA_WMMA_MINCOLS": "9"
+      },
+      "args": {
+        "--lookup-max-t": "16"
+      }
+    }
+  },
+  "note": "Readapted idea (2026-11-15): once ECAP=0 removes the draft rows CPU expert reads, deeper lookup windows (16) and the suffix index (more long windows) may pay, and the 9+ column dense kernels matter more (the GPU, not the CPU wait, is the critical path). Earlier alone: lookup 16 -5.9% (spec 52), sidx +13% short (spec 45), wmma9 -1.7/-5.4% (spec 53), ECAP0 +53% edit (spec 55). All lossy; quality gate for the ECAP part runs first."
+}
