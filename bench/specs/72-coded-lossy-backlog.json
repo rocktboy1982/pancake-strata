@@ -33,7 +33,20 @@
       "args": {
         "--adapt-decay": "0.9"
       }
+    },
+    "adapt-idle-copy": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_IDLE_COPY": "1"
+      }
+    },
+    "adapt-idle-copy-1m": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_IDLE_COPY": "1",
+        "STRATA_ADAPT_IDLE_COPY_KB": "1024"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 5 item 6, the arms that change numerics or the tier: F14 STRATA_EXP9_DOWN=42:10 (= FK-24; Q2_0 down on 4 lanes, parity in ctest), STRATA_ROUTE_PRIOR_AUTO (route prior only in lookup windows, MOD_PLAN 17.1), --adapt-decay 0.5 / 0.9 (default 0.7). Lossy: speed screen only; a promoted arm needs a quality gate before adoption. Stop pancake.service first."
+  "note": "MOD_PLAN.md section 5 item 6, the arms that change numerics or the tier: F14 STRATA_EXP9_DOWN=42:10 (= FK-24; Q2_0 down on 4 lanes, parity in ctest), STRATA_ROUTE_PRIOR_AUTO (route prior only in lookup windows, MOD_PLAN 17.1), --adapt-decay 0.5 / 0.9 (default 0.7). Lossy: speed screen only; a promoted arm needs a quality gate before adoption. Stop pancake.service first. adapt-idle-copy (MOD_PLAN.md section 6 item 6, coded 2026-11-15): the tier round's H2D copies are queued on the host and issued in slices at the window's CPU-idle points (after each layer's flag, run start); same bytes and slots, only the timing moves - lossy here only because a swap may land a window later (CPU vs GPU rows). Needs the preset's STRATA_ADAPT_OVERLAP=1."
 }
