@@ -418,6 +418,7 @@ struct GpuPlanSink {
     /// holds the arena's device alias.
     int pcie_mode = 0;
     int32_t cpu_jobs = 0;   ///< host only: the distinct experts the pool computes for the layer just published
+    int32_t cpu_rows = 0;   ///< host only, STRATA_DALI: the (token, expert) entries the pool computes for that layer
     /// STRATA_VERIFY_DEFER_CPU_BELOW (verify.cpp): the group's routing weights as the doorbell published them (entry
     /// token * k + j).  With `partial` set and heavy > 0 the pool computes the experts of the CPU entries whose weight is
     /// >= heavy first and calls partial(ctx) before the others.  Null / 0: one pass, as always.
@@ -532,6 +533,125 @@ struct PcieModel {
         if (on && nmiss >= 1 && (++explore & 63u) == 0) m = m == 0 ? 1 : m == nmiss ? nmiss - 1 : m;
         return m;
     }
+};
+
+/// MOD_PLAN.md section 6 item 13, STRATA_DALI=1 (opt-in, policy only; LEADS.md: DALI): per layer and per step, WHICH of
+/// the layer's missed experts the GPU reads over PCIe and which the CPU pool computes, from a cost model updated online -
+/// instead of the static share (the last pcie_num/256 of the misses in routing order) or STRATA_PCIE_BALANCE's single
+/// count fit (PcieModel: one fit for all layers, a count, not a set; costs per expert, not per row).  Per layer, two
+/// lines fitted by least squares with exponential forgetting (EWMA-weighted moments): the pool's time against the CPU
+/// rows it computes (token, expert entries), and the GPU's time (plan arrival to the wait for the CPU's rows, the same
+/// stamps PcieModel reads) against the PCIe experts it reads.  Each step the misses go, most rows first, to the side
+/// that finishes earlier with it (greedy earliest finish), so both sides end together.  The PCIe machinery is the
+/// static share's (kind 1, the PCIe groups, flag B); only the set and its size change.  Until a layer's two fits have
+/// data the static share stays, with an occasional single PCIe expert so the GPU fit gets samples.
+struct DaliModel {
+    bool on = false;
+    int every = 0;            ///< STRATA_DALI_EVERY: a summary line every N windows (0: none)
+    struct Fit {              ///< y = b0 + b1 x, moments with forgetting
+        double s1 = 0, sx = 0, sxx = 0, sy = 0, sxy = 0;
+        int32_t n = 0, nx = 0;   ///< samples, and samples with x > 0 (both saturate)
+        void add(double x, double y) {
+            constexpr double lam = 0.95;   // ~20 samples' memory per layer: a few windows
+            s1 = lam * s1 + 1.0;
+            sx = lam * sx + x;
+            sxx = lam * sxx + x * x;
+            sy = lam * sy + y;
+            sxy = lam * sxy + x * y;
+            if (n < 1000000) ++n;
+            if (x > 0 && nx < 1000000) ++nx;
+        }
+        /// false until it has data; a negative slope or a flat x falls back to the line through the origin
+        bool line(double& b0, double& b1) const {
+            if (n < 4 || nx < 2 || sxx <= 0.0) return false;
+            const double det = s1 * sxx - sx * sx;
+            if (det > 1e-6 * s1 * sxx) {
+                b1 = (s1 * sxy - sx * sy) / det;
+                b0 = (sy - b1 * sx) / s1;
+                if (b1 > 0.0 && b0 >= 0.0) return true;
+            }
+            b0 = 0.0;
+            b1 = sxy / sxx;
+            return b1 > 0.0;
+        }
+    };
+    std::vector<Fit> cpu, gpu;                 ///< per layer: ms against CPU rows / against PCIe experts
+    std::vector<double> sum_cpu, sum_gpu;      ///< per layer since the last summary: missed experts on each side
+    std::vector<int64_t> steps, steps_dali;    ///< ... the steps, and those the model decided
+    uint32_t explore = 0;
+    int64_t windows = 0;
+    void size_to(int64_t layers) {
+        if (layers <= (int64_t) cpu.size()) return;
+        cpu.resize((size_t) layers);
+        gpu.resize((size_t) layers);
+        sum_cpu.resize((size_t) layers, 0.0);
+        sum_gpu.resize((size_t) layers, 0.0);
+        steps.resize((size_t) layers, 0);
+        steps_dali.resize((size_t) layers, 0);
+    }
+    /// One (layer, token group) step of a window: the pool's `pool_ms` with `cpu_rows` CPU rows, the GPU's `gpu_ms`
+    /// with `n_p` PCIe experts.
+    void sample(int64_t l, int cpu_rows, int n_p, double pool_ms, double gpu_ms) {
+        if (l < 0) return;
+        size_to(l + 1);
+        cpu[(size_t) l].add((double) cpu_rows, pool_ms);
+        gpu[(size_t) l].add((double) n_p, gpu_ms);
+    }
+    /// The step's split: `nm` misses with `rows[j]` rows each; `can_gpu[j]` (its blob is pinned) may go to the GPU, at
+    /// most `cap` of them.  Sets gpu_out[j]; returns the GPU count, or -1 while the layer's fits have no data (the
+    /// caller keeps the static share).
+    int assign(int64_t l, int nm, const int* rows, const bool* can_gpu, int cap, bool* gpu_out) {
+        if (l < 0 || l >= (int64_t) cpu.size()) return -1;
+        double c0 = 0, c1 = 0, g0 = 0, g1 = 0;
+        if (!cpu[(size_t) l].line(c0, c1) || !gpu[(size_t) l].line(g0, g1)) return -1;
+        int ord[64];
+        const int no = nm < 64 ? nm : 64;
+        for (int j = 0; j < nm; ++j) gpu_out[j] = false;
+        for (int j = 0; j < no; ++j) ord[j] = j;
+        std::stable_sort(ord, ord + no, [&](int a, int b) { return rows[a] > rows[b]; });
+        double tc = c0, tg = g0;
+        int ng = 0, ne = 0;
+        for (int i = 0; i < no; ++i) {
+            const int j = ord[i];
+            const double fc = tc + c1 * (double) rows[j], fg = tg + g1;
+            ne += can_gpu[j] ? 1 : 0;
+            if (can_gpu[j] && ng < cap && fg < fc) {
+                gpu_out[j] = true;
+                tg = fg;
+                ++ng;
+            } else {
+                tc = fc;
+            }
+        }
+        // every 32nd step that keeps all on one side moves one across, so neither fit goes stale
+        if (no >= 1 && ne >= 1 && (ng == 0 || ng == no) && (++explore & 31u) == 0) {
+            if (ng == 0) {
+                for (int i = 0; i < no; ++i)
+                    if (can_gpu[ord[i]] && cap > 0) { gpu_out[ord[i]] = true; ng = 1; break; }
+            } else if (no >= 2) {
+                gpu_out[ord[no - 1]] = false;   // the fewest rows back to the pool
+                --ng;
+            }
+        }
+        return ng;
+    }
+    /// While a layer's fits have no data: the static count `m`, but every 16th step of 1+ misses with m == 0 reads one
+    /// over PCIe so the GPU fit gets samples.
+    int boot(int m, int nmiss) {
+        if (m == 0 && nmiss >= 1 && (++explore & 15u) == 0) return 1;
+        return m;
+    }
+    void note(int64_t l, int n_cpu, int n_gpu, bool decided) {
+        if (l < 0) return;
+        size_to(l + 1);
+        sum_cpu[(size_t) l] += n_cpu;
+        sum_gpu[(size_t) l] += n_gpu;
+        ++steps[(size_t) l];
+        steps_dali[(size_t) l] += decided ? 1 : 0;
+    }
+    /// After a window: true when a summary is due (summary() then resets the per-layer sums).
+    bool window_done() { ++windows; return every > 0 && windows % every == 0; }
+    std::string summary();   ///< one line: per layer "l:cpu/gpu" average misses a step, and the model's share of steps
 };
 
 /// The adapter's own state.  One per session, reused every layer so the token path allocates nothing (P2.T10).
@@ -663,6 +783,7 @@ struct ExpertDispatch {
     std::vector<int32_t> trace_kind;
     int pcie_num = 0;
     PcieModel pcie_model;          ///< Verifier::set_pcie_balance: the PCIe count from measured costs
+    DaliModel dali;                ///< Verifier::set_dali (STRATA_DALI): the per-layer CPU/PCIe split from measured costs
     int64_t pcie_experts = 0;      ///< distinct experts the GPU read over PCIe in verify windows
     /// #588: routed (token, expert) entries the GPU computed from outside its cache in verify windows: read over PCIe
     /// (--pcie-frac, kind 1) or on another GPU (kind 2).  In neither cache_hits nor cache_refused.

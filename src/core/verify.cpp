@@ -1240,7 +1240,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         }
         tap_on_ = true;
     }
-    if (bal_ != nullptr) {   // set_pcie_balance: four stamp words per (layer, group)
+    if (bal_ != nullptr || dali_ != nullptr) {   // set_pcie_balance / set_dali: four stamp words per (layer, group)
         if (!mapped((size_t) g.n_layers * 2 * 4 * 8, (void**) &h_bal_, (void**) &m_bal_)) {
             err = "verify: mapped balance stamps allocation failed";
             return false;
@@ -1249,7 +1249,12 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         bal_nc_.assign((size_t) g.n_layers * 2, 0);
         bal_np_.assign((size_t) g.n_layers * 2, 0);
         bal_ok_.assign((size_t) g.n_layers * 2, 0);
-        bal_->on = true;
+        if (dali_ != nullptr) {   // MOD_PLAN.md section 6 item 13, STRATA_DALI
+            bal_nr_.assign((size_t) g.n_layers * 2, 0);
+            dali_->size_to(g.n_layers);
+            dali_->on = true;
+        }
+        if (bal_ != nullptr) bal_->on = true;
     }
     // the GPU plan: counts(4) | start(cap+1) | dst(cap) | tok(cap) | pad | ptr(cap u64) | ptr2(cap u64) | start2(cap+1)
     // | pad | dst2(kStagingBlobs u64)
@@ -3016,7 +3021,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 if (g_copy256)
                     switch_report::will_not_act(switch_report::wait_copy256, "the plan's wait and copy are two launches (%s)",
                                                 prof_on_            ? "STRATA_VERIFY_PROFILE is set"
-                                                : m_bal_ != nullptr ? "STRATA_PCIE_BALANCE is on"
+                                                : m_bal_ != nullptr ? "STRATA_PCIE_BALANCE or STRATA_DALI is on"
                                                                     : "it needs STRATA_WAIT_FUSE=1 or STRATA_FUSE_WAIT=1");
                 if (m_bal_ != nullptr)   // set_pcie_balance: the GPU's share starts as the plan arrives
                     wait_flag_ge_stamped(m_flagA_, ring, nullptr, m_bal_ + ((l - lb_) * 2 + grp) * 4, cs);
@@ -4395,6 +4400,10 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             bal_nc_[bi] = bal_ok_[bi] ? sink_.cpu_jobs : 0;
             bal_np_[bi] = bal_ok_[bi] ? sink_.counts[2] : 0;
             sink_.cpu_jobs = 0;
+            if (dali_ != nullptr) {   // set_dali: the step's CPU rows
+                bal_nr_[bi] = bal_ok_[bi] ? sink_.cpu_rows : 0;
+                sink_.cpu_rows = 0;
+            }
         }
         if (*(volatile uint32_t*) h_flagA_ != want) {        // the pool did not publish a plan: an empty one
             sink_.counts[0] = 0;
@@ -4485,7 +4494,8 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         cudaStreamSynchronize(copy_);   // no host function of this window may raise flag B in the next one
         copy_used_ = false;
     }
-    if (h_bal_ != nullptr && !all_resident_ && !bal_paused_) pcie_balance_window(steps, G);
+    // (STRATA_DALI keeps learning while a request's own --pcie-frac pauses PcieModel)
+    if (h_bal_ != nullptr && !all_resident_ && (!bal_paused_ || dali_ != nullptr)) pcie_balance_window(steps, G);
     if (prof_on_ && G == 1) collect_profile();   // the window's GPU stage stamps
     // ---- a sampled or penalized request: the head's sampling again, host-side so its parameters are this call's
     // own (a captured kernel would replay the same draws forever).  Row t's draw is Philox(seed, pos0 + t): tied to
@@ -4626,17 +4636,22 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
 }
 
 // set_pcie_balance: each stamped step's times into the model's fits (PcieModel::sample), solved once a window.
+// STRATA_DALI (set_dali, MOD_PLAN.md section 6 item 13): the same steps into the layer's own fits (DaliModel::sample:
+// the pool's ms against its CPU rows, the GPU's against its PCIe experts), and its periodic summary line.
 void Verifier::pcie_balance_window(int64_t steps, int G) {
     const volatile unsigned long long* st = h_bal_;
-    PcieModel& M = *bal_;
+    const bool bal_feed = bal_ != nullptr && !bal_paused_;
     for (int64_t k = 0; k < steps; ++k) {
         const size_t i = (size_t) ((k / G) * 2 + k % G);
         if (!bal_ok_[i]) continue;
         const unsigned long long ta = st[4 * i], tb = st[4 * i + 1], tw = st[4 * i + 2];
         if (ta == 0 || tb < ta || tw < tb || tw - ta > 1000000000ull) continue;   // not stamped in this window
-        M.sample(bal_nc_[i], bal_np_[i], bal_p_[i], (double) (tw - ta) * 1e-6);
+        if (bal_feed) bal_->sample(bal_nc_[i], bal_np_[i], bal_p_[i], (double) (tw - ta) * 1e-6);
+        if (dali_ != nullptr) dali_->sample(lb_ + k / G, bal_nr_[i], bal_np_[i], bal_p_[i], (double) (tw - ta) * 1e-6);
     }
-    M.solve();
+    if (bal_feed) bal_->solve();
+    if (dali_ != nullptr && dali_->window_done())
+        std::fprintf(stderr, "strata verify: STRATA_DALI window %lld: %s\n", (long long) dali_->windows, dali_->summary().c_str());
 }
 
 void Verifier::set_plan_slot(int grp) {

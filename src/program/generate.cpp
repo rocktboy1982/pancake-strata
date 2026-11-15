@@ -5231,6 +5231,37 @@ int main(int argc, char** argv) {
         const char* e = std::getenv("STRATA_PCIE_BALANCE");
         return !pcie_given && native_pack && !multi_gpu && o.batch <= 0 && e != nullptr && std::strcmp(e, "1") == 0;
     };
+    // MOD_PLAN.md section 6 item 13, STRATA_DALI=1 (opt-in, policy only; LEADS.md: DALI): per layer and per step WHICH
+    // missed experts the GPU reads over PCIe and which the CPU pool computes, from per-layer costs fitted online to the
+    // stamps and pool times STRATA_PCIE_BALANCE measures (Verifier::set_dali, DaliModel), instead of the static share's
+    // last pcie_num/256 misses in routing order.  Unlike STRATA_PCIE_BALANCE it runs beside a given --pcie-frac (> 0) as
+    // well as the auto share: the PCIe path must exist.  One GPU, a native pack, no batch slots.  With both set, DALI's
+    // set wins once a layer's fits have data.  STRATA_DALI_EVERY=N: a per-layer split summary every N windows (unset:
+    // 64 under STRATA_TRACE, else none).  Read once.
+    static const bool dali_env = [] { const char* v = std::getenv("STRATA_DALI"); return v != nullptr && std::strcmp(v, "1") == 0; }();
+    static const int dali_every = [] {
+        const char* v = std::getenv("STRATA_DALI_EVERY");
+        if (v != nullptr && v[0] != '\0') return std::max(0, std::atoi(v));
+        return std::getenv("STRATA_TRACE") != nullptr ? 64 : 0;
+    }();
+    auto dali_ok = [&]() {
+        return dali_env && native_pack && !multi_gpu && o.batch <= 0 && (o.pcie_frac > 0.0 || o.pcie_frac_auto);
+    };
+    auto dali_attach = [&](strata::core::Verifier& v, strata::core::ExpertDispatch& dd, const char* where) {
+        if (!dali_env) return;
+        if (!dali_ok()) {
+            std::fprintf(stderr, "strata %s: STRATA_DALI ignored: %s\n", where,
+                         !native_pack ? "not a native pack" : multi_gpu ? "not a single-GPU run" : o.batch > 0 ? "batch slots"
+                                                                                     : "no PCIe share (--pcie-frac 0)");
+            return;
+        }
+        dd.dali.every = dali_every;
+        v.set_dali(&dd.dali);
+        std::fprintf(stderr, "strata %s: STRATA_DALI on: per layer and step, the missed experts split between the CPU pool "
+                             "and PCIe reads from online-fitted costs (start share %.2f%s until a layer's fits have data; "
+                             "summary every %d windows)\n",
+                     where, o.pcie_frac, o.pcie_frac_auto ? ", auto" : "", dali_every);
+    };
     // the canonical Q2_0 pack's CPU kernels are AVX-512 only; a native pack runs on AVX2 CPUs as well
     if (!native_pack) {
         // #2347: an NVFP4 / i-quant / Unsloth pack IS a native pack and runs on an AVX2 CPU (its rows have AVX2
@@ -12302,6 +12333,7 @@ int main(int argc, char** argv) {
         }
         ver.set_remote_expert_opt(remote_opt.get());
         if (pcie_balance() && n_stages == 1) ver.set_pcie_balance(&drive.d.pcie_model);
+        if (n_stages == 1) dali_attach(ver, drive.d, "serve");   // STRATA_DALI (MOD_PLAN.md section 6 item 13)
         if (batch_mtp) ver.set_batch_graph_limit(64);   // --batch-mtp only: slot rotation makes many layouts (LRU); 0.1.39 keeps all
 #if defined(STRATA_HAVE_DFLASH2)
         if (use_df2) ver.set_taps(df2.tap_layers());
@@ -22549,6 +22581,7 @@ int main(int argc, char** argv) {
         vh.n_slots = xcache.slots();
         if (!prior_guards_init(false, "`strata generate` (no per-window gate)")) return 1;   // MOD_PLAN F13
         if (pcie_balance()) ver.set_pcie_balance(&drive.d.pcie_model);
+        dali_attach(ver, drive.d, "generate");   // STRATA_DALI (MOD_PLAN.md section 6 item 13)
 #if defined(STRATA_HAVE_DFLASH2)
         if (use_df2) ver.set_taps(df2.tap_layers());
 #endif
