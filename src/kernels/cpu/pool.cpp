@@ -1277,6 +1277,40 @@ void ExpertPool::wait_done(int n) {
     }
 }
 
+namespace {
+// LEADS.md B122 (CPU pool bandwidth push; MOD_PLAN.md section 6 item 7), the two parts the tree did not have yet - the
+// fused gate/up + down phase is STRATA_POOL_FUSE_PHASES.  Both opt-in, read once, data movement / task cuts only:
+// every row is computed by the same kernel call on the same inputs, so the outputs are bit for bit the default's.
+//
+// STRATA_POOL_ROW_SPLIT=N: a native phase (gate/up rows or down rows over all its experts) cut into fixed N-row
+// chunks (ceil(rows/N) tasks, at most 0x7fff per phase) instead of 3 x threads (or --pool-tasks) equal ranges.
+// 0 / unset = off.  Not with the NUMA slices or STRATA_POOL_TAIL4.
+int64_t pool_row_split() {
+    static const int64_t n = [] {
+        const char* v = std::getenv("STRATA_POOL_ROW_SPLIT");
+        return v != nullptr ? (std::max)((int64_t) 0, (int64_t) std::atoll(v)) : (int64_t) 0;
+    }();
+    return n;
+}
+// STRATA_POOL_TOUCH_NEXT=B: when a task's row range runs on into the next expert's rows, prefetch the first B bytes of
+// them (gate and up, or down) before computing this expert's part.  1..63 means 4096.  0 / unset = off.
+int pool_touch_next() {
+    static const int b = [] {
+        const char* v = std::getenv("STRATA_POOL_TOUCH_NEXT");
+        const int x = v != nullptr ? std::atoi(v) : 0;
+        return x <= 0 ? 0 : x < 64 ? 4096 : x;
+    }();
+    return b;
+}
+inline void touch_bytes(const uint8_t* p, size_t bytes) {
+#if defined(__x86_64__) || defined(_M_X64)
+    for (size_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) p + o, _MM_HINT_T0);
+#else
+    (void) p; (void) bytes;
+#endif
+}
+}  // namespace
+
 void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
     const int s = numa_n_ == 0 ? 0 : id >= 0 ? wslice_[(size_t) id] : hslice_;
     for (;;) {
@@ -1324,7 +1358,13 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
             // a phase are a quarter the size of the others, so the threads that finish early pick up short tasks and the
             // phase's tail (the wait for the slowest task) is a quarter of a task.  Not with the NUMA slices.
             static const bool tail4 = [] { const char* v = std::getenv("STRATA_POOL_TAIL4"); return v != nullptr && v[0] == '1'; }();
+            // STRATA_POOL_ROW_SPLIT=N (LEADS.md B122 row-chunk split, MOD_PLAN.md section 6 item 7; opt-in, exact - the
+            // same rows, cut differently): when run_split_multi_native's native_tasks planned ceil(R/N) tasks, task jj is rows
+            // [jj*N, (jj+1)*N), a fixed chunk on an N-row boundary however many experts the phase holds.
+            const int64_t rsplit = pool_row_split();
+            const int touch_next = pool_touch_next();
             auto cut = [&](int64_t jj) -> int64_t {
+                if (rsplit > 0 && !sliced && !tail4 && T == (R + rsplit - 1) / rsplit) return (std::min)(R, jj * rsplit);
                 if (!tail4 || sliced) return R * jj / T;
                 const int64_t small = (std::min)((int64_t) (n_ + (host_works_ ? 1 : 0)), T / 2), big = T - small;
                 const int64_t units = 4 * (std::min)(jj, big) + (std::max)((int64_t) 0, jj - big);
@@ -1336,6 +1376,23 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                 const int l1 = (int) std::min<int64_t>(h, l0 + (g1 - g));
                 const int r0 = row0 + l0, r1 = row0 + l1;
                 SplitBufMulti& sb = split_multi_[(size_t) e];
+                if (touch_next > 0 && g + (l1 - l0) < g1) {
+                    // STRATA_POOL_TOUCH_NEXT: this task goes on into the next expert's rows (another blob, so the
+                    // kernels' in-row prefetch cannot reach them) - ask for their first bytes now
+                    const int64_t gn = g + (l1 - l0);
+                    const int en = (int) (gn / h), ln = (int) (gn % h);
+                    const int64_t nrows = (std::min)((int64_t) (h - ln), g1 - gn);
+                    const NativeFmt* const nf = mjobs_[en].fmt != nullptr ? mjobs_[en].fmt : nfmt_;
+                    const uint8_t* const b = mjobs_[en].blob;
+                    if (pm == 5) {
+                        const size_t bytes = (std::min)((size_t) touch_next, (size_t) nrows * nf->gu_row);
+                        touch_bytes(b + (size_t) (row0 + ln) * nf->gu_row, bytes);
+                        touch_bytes(b + nf->up_off + (size_t) (row0 + ln) * nf->gu_row, bytes);
+                    } else {
+                        const size_t bytes = (std::min)((size_t) touch_next, (size_t) nrows * nf->d_row);
+                        touch_bytes(b + nf->down_off + (size_t) (row0 + ln) * nf->d_row, bytes);
+                    }
+                }
                 if (pm == 6 && mode_ == 7 && fready_[(size_t) e].load(std::memory_order_acquire) == 0) {
                     // basalt 4e6841265: while the expert's gate/up finishes, pull this task's down rows into the cache
                     // (checking every 4 KB whether the wait is over), so the bus is not idle during the wait
@@ -1588,6 +1645,15 @@ bool ExpertPool::fuse_phases(int nb) const {
 void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs, int n, NativeArithmetic arithmetic) {
     if (n <= 0) return;
     const auto t0 = std::chrono::steady_clock::now();
+    // STRATA_POOL_ROW_SPLIT (pool_row_split above): ceil(rows/N) fixed-row tasks, else the default count
+    auto native_tasks = [this](int64_t rows) -> int {
+        const int64_t rs = pool_row_split();
+        if (rs > 0) {
+            const int64_t t = (rows + rs - 1) / rs;
+            if (t >= 1 && t <= 0x7fff) return (int) t;
+        }
+        return phase_tasks(rows);
+    };
     // more distinct experts than buffers: run them in batches
     for (int b0 = 0; b0 < n; b0 += kMaxSplitMulti) {
         const int nb = (std::min)(kMaxSplitMulti, n - b0);
@@ -1598,7 +1664,7 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
             // item 29: gate/up and down in one phase (same row ranges and kernels as the two phases: output identical)
             fgu_rows_ = (int64_t) nb * f.n_ff;
             fdn_rows_ = (int64_t) nb * f.n_embd;
-            fgu_tasks_ = phase_tasks(fgu_rows_);
+            fgu_tasks_ = native_tasks(fgu_rows_);
             for (int e = 0; e < nb; ++e) {
                 frows_[(size_t) e].store(0, std::memory_order_relaxed);
                 fready_[(size_t) e].store(0, std::memory_order_relaxed);
@@ -1606,20 +1672,20 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
             const auto a = std::chrono::steady_clock::now();
             // mtasks_ = all the phase's tasks: drain() cuts the down tasks as [fgu_tasks_, mtasks_) (it was left stale here:
             // the down rows were cut from the previous phase's count - wrong ranges, or a division by zero)
-            mtasks_ = (int) (fgu_tasks_ + phase_tasks(fdn_rows_));
+            mtasks_ = (int) (fgu_tasks_ + native_tasks(fdn_rows_));
             run_phase(7, mtasks_);
             ms_multi_gu += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - a).count();
             continue;
         }
         mrows_ = (int64_t) nb * f.n_ff;
-        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_ff, nb) : phase_tasks(mrows_);
+        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_ff, nb) : native_tasks(mrows_);
         const auto a = std::chrono::steady_clock::now();
         run_phase(5, mtasks_);
         const auto b = std::chrono::steady_clock::now();
         for (int e = 0; e < nb; ++e) quant_down_act(e);
         const auto c = std::chrono::steady_clock::now();
         mrows_ = (int64_t) nb * f.n_embd;
-        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_embd, nb) : phase_tasks(mrows_);
+        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_embd, nb) : native_tasks(mrows_);
         run_phase(6, mtasks_);
         const auto d = std::chrono::steady_clock::now();
         ms_multi_gu += std::chrono::duration<double, std::milli>(b - a).count();

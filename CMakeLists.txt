@@ -2571,6 +2571,14 @@ if(STRATA_NATIVE_EXPERTS)
     target_link_libraries(pool_tasks_test PRIVATE strata_kernels_cpu)
     add_test(NAME pool_tasks_test COMMAND pool_tasks_test)
     set_tests_properties(pool_tasks_test PROPERTIES TIMEOUT 180)
+    # LEADS.md B122: STRATA_POOL_ROW_SPLIT / STRATA_POOL_TOUCH_NEXT (read once per process, so their own runs); the
+    # test also checks the pool against a serial per-expert reference whenever either is set
+    add_test(NAME pool_tasks_test_row_split COMMAND ${CMAKE_COMMAND} -E env STRATA_POOL_ROW_SPLIT=16
+             STRATA_POOL_TOUCH_NEXT=1 $<TARGET_FILE:pool_tasks_test>)
+    set_tests_properties(pool_tasks_test_row_split PROPERTIES TIMEOUT 180)
+    add_test(NAME pool_tasks_test_fuse_row_split COMMAND ${CMAKE_COMMAND} -E env STRATA_POOL_FUSE_PHASES=1
+             STRATA_POOL_ROW_SPLIT=40 STRATA_POOL_TOUCH_NEXT=8192 $<TARGET_FILE:pool_tasks_test>)
+    set_tests_properties(pool_tasks_test_fuse_row_split PROPERTIES TIMEOUT 180)
     add_test(NAME router_dot_parity COMMAND router_dot_parity)
     add_test(NAME router_dot_parity_avx COMMAND ${CMAKE_COMMAND} -E env STRATA_FORCE_ISA=avx $<TARGET_FILE:router_dot_parity>)
   endif()
@@ -3628,7 +3636,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     bf16_bits_test batch_rows_test batch_groups_test dequant_q5_1_test native_arithmetic_parity
     native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
     native_arithmetic_parity_no512 native_arithmetic_parity_ggml native_arithmetic_parity_nvfp4_avx2
-    native_arithmetic_parity_nvfp4_ggml pool_tasks_test router_dot_parity router_dot_parity_avx
+    native_arithmetic_parity_nvfp4_ggml pool_tasks_test pool_tasks_test_row_split pool_tasks_test_fuse_row_split router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
     q2_bitplane_parity q2_fast_parity_test iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
