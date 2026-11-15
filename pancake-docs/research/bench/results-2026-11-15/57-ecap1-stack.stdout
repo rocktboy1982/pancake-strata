@@ -1,0 +1,57 @@
+rep 0 base                 short 116.7 edit 118.0  foreign CPU 7% [('gnome-shell', 4), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 1508/1249 MHz 60C 120W gtt 21M cpu 3750MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap1                short 115.6 edit 146.7  foreign CPU 15% [('ptyxis', 5), ('gnome-shell', 4), ('gnome-remote-de', 3)]  gpu 1363/1249 MHz 58C 120W gtt 21M cpu 3975MHz 52C igpu 4%/vcn 0% fclk 1600
+rep 0 ecap1-l16            short 112.9 edit 145.9  foreign CPU 16% [('claude', 8), ('ptyxis', 3), ('pipewire', 2)]  gpu 1381/1249 MHz 57C 120W gtt 21M cpu 3776MHz 52C igpu 4%/vcn 0% fclk 1600
+rep 0 ecap1-sidx           short 121.7 edit 140.7  foreign CPU 8% [('gnome-shell', 6), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 1347/1249 MHz 56C 118W gtt 21M cpu 3776MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap1-sidx-l16       short 116.5 edit 148.9  foreign CPU 8% [('pipewire', 2), ('gnome-remote-de', 2), ('ptyxis', 2)]  gpu 1342/1249 MHz 55C 118W gtt 21M cpu 3527MHz 52C igpu 1%/vcn 0% fclk 1600
+rep 0 ecap1-sidx-l16-wmma9 short 115.4 edit 135.9  foreign CPU 10% [('ptyxis', 5), ('claude', 4), ('gnome-remote-de', 2)]  gpu 1408/1249 MHz 55C 120W gtt 21M cpu 3937MHz 51C igpu 1%/vcn 0% fclk 1600
+rep 1 ecap1-sidx-l16-wmma9 short 106.3 edit 132.4  foreign CPU 15% [('claude', 6), ('ptyxis', 4), ('gnome-remote-de', 3)]  gpu 1670/1249 MHz 54C 134W gtt 21M cpu 3708MHz 52C igpu 4%/vcn 0% fclk 1600
+rep 1 ecap1-sidx-l16       short 90.1 edit 119.3  foreign CPU 14% [('claude', 13), ('ptyxis', 3), ('pipewire', 2)]  gpu 1568/1249 MHz 53C 123W gtt 21M cpu 3824MHz 52C igpu 2%/vcn 0% fclk 1600
+rep 1 ecap1-sidx           short 93.2 edit 101.7  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1664/1249 MHz 52C 124W gtt 21M cpu 3282MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap1-l16            short 110.1 edit 146.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1658/1249 MHz 52C 136W gtt 21M cpu 3521MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap1                short 106.2 edit 99.8  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 2)]  gpu 1564/1249 MHz 51C 122W gtt 21M cpu 3002MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 98.0 edit 94.3  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1686/1249 MHz 52C 122W gtt 21M cpu 3292MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 96.1 edit 90.8  foreign CPU 6% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1745/1249 MHz 52C 126W gtt 21M cpu 3057MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap1                short 66.6 edit 86.2  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1761/1249 MHz 52C 122W gtt 21M cpu 3086MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap1-l16            short 104.3 edit 141.9  foreign CPU 6% [('claude', 3), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1674/1249 MHz 52C 134W gtt 21M cpu 3518MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap1-sidx           short 117.6 edit 108.7  foreign CPU 12% [('claude', 6), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 1876/1249 MHz 52C 136W gtt 21M cpu 3531MHz 51C igpu 2%/vcn 0% fclk 1600
+rep 2 ecap1-sidx-l16       short 109.2 edit 115.1  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1420/1249 MHz 51C 116W gtt 21M cpu 3536MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap1-sidx-l16-wmma9 short 114.2 edit 137.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1409/1249 MHz 52C 120W gtt 21M cpu 3559MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap1-sidx-l16-wmma9 short 114.5 edit 135.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1419/1249 MHz 53C 120W gtt 21M cpu 3648MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap1-sidx-l16       short 118.8 edit 146.2  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1336/1249 MHz 53C 117W gtt 21M cpu 3729MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap1-sidx           short 121.7 edit 141.5  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1348/1249 MHz 53C 118W gtt 21M cpu 3701MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap1-l16            short 113.7 edit 135.9  foreign CPU 7% [('kcompactd0', 4), ('kworker/9:2-mm_percpu_wq', 3), ('kworker/11:0-mm_percpu_wq', 2)]  gpu 1406/1249 MHz 53C 119W gtt 21M cpu 3604MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap1                short 109.4 edit 101.7  foreign CPU 5% [('kcompactd0', 2), ('kworker/9:2-events', 2), ('pipewire', 1)]  gpu 1599/1249 MHz 53C 120W gtt 21M cpu 3933MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 111.4 edit 93.2  foreign CPU 5% [('gnome-remote-de', 2), ('pipewire', 2), ('gnome-shell', 1)]  gpu 1589/1249 MHz 52C 120W gtt 21M cpu 3464MHz 52C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    105.5 +-  16.0  (n=4)
+                              drafts accepted 0.72
+  short  ecap1                    99.5 +-  35.4  (n=4)   vs base:  -5.8% +- 24.5%  -> no difference
+                              drafts accepted 0.68
+  short  ecap1-l16               110.2 +-   6.8  (n=4)   vs base:  +4.5% +- 10.5%  -> no difference
+                              drafts accepted 0.69
+  short  ecap1-sidx              113.5 +-  21.8  (n=4)   vs base:  +7.6% +- 16.5%  -> no difference
+                              drafts accepted 0.74
+  short  ecap1-sidx-l16          108.7 +-  20.7  (n=4)   vs base:  +2.9% +- 13.8%  -> no difference
+                              drafts accepted 0.72
+  short  ecap1-sidx-l16-wmma9    112.6 +-   6.7  (n=4)   vs base:  +6.7% +- 12.6%  -> no difference
+                              drafts accepted 0.66
+  edit   base                     99.1 +-  20.2  (n=4)
+                              drafts accepted 0.92
+  edit   ecap1                   108.6 +-  41.9  (n=4)   vs base:  +9.6% +- 22.4%  -> no difference
+                              drafts accepted 0.92
+  edit   ecap1-l16               142.6 +-   7.8  (n=4)   vs base: +43.9% +- 18.0%  -> better
+                              drafts accepted 0.88
+  edit   ecap1-sidx              123.2 +-  33.3  (n=4)   vs base: +24.3% +- 27.9%  -> no difference
+                              drafts accepted 0.91
+  edit   ecap1-sidx-l16          132.4 +-  28.0  (n=4)   vs base: +33.6% +- 21.6%  -> better
+                              drafts accepted 0.88
+  edit   ecap1-sidx-l16-wmma9    135.4 +-   3.4  (n=4)   vs base: +36.7% +- 20.5%  -> better
+                              drafts accepted 0.85
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ecap1                DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap1-l16            DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap1-sidx           DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap1-sidx-l16       DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap1-sidx-l16-wmma9 DIFFERENT text -> lossy or placement-dependent: quality gate

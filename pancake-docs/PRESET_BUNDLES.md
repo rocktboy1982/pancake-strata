@@ -11,7 +11,7 @@ Nothing below is a new measurement.
 | Bundle | Definition | Config | Status |
 | --- | --- | --- | --- |
 | **fast** (the daily preset) | the 53 env switches + args of `flashnext-iq2_xs-fast-hip.json` as they are | `configs/pancake/flashnext-iq2_xs-fast-hip.json` | in use; measured 2026-11-11 vs Avalon [meas.] |
-| **lossy** (turbo) | `fast` + `STRATA_ROUTE_PRIOR=0.5`, nothing else (the diff of the two files is exactly that one line) | `configs/pancake/flashnext-iq2_xs-turbo-hip.json` | turbo -4..-8% on 2026-11-11, not a default [meas.]; turbo +9% on code edits, -15..-25% on prose (MOD_PLAN 17.1) |
+| **lossy** (turbo) | `fast` + `STRATA_ROUTE_PRIOR=0.5`, nothing else (the diff of the two files is exactly that one line) | `configs/pancake/retired/flashnext-iq2_xs-turbo-hip.json` (RETIRED 2026-11-15, see `configs/pancake/retired/README.md`) | turbo -4..-8% on 2026-11-11, not a default [meas.]; turbo +9% on code edits, -15..-25% on prose (MOD_PLAN 17.1) |
 | **exact** | `fast` with the 12 switches below left unset / 0, so the output does not move except for noise | not written as a file yet | [pending]: whether unsetting each one is enough (some defaults differ per GPU family) has not been tried |
 
 Switches of the daily preset that the engine's own table marks as not bit-identical (`src/core/conversation_disk_env.def`) [code];

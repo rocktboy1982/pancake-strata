@@ -10,7 +10,7 @@
 #               MTP drafting layer borrowed from the Qwen3.6 Q4_K_XL file
 # Flash-Next defaults to the fast preset (Speedy's switches: ~13% faster writing after long prompts; it passed the
 # token-forcing quality check, docs/PANCAKE_FINDINGS.md 10e).  `exact`: the same answers as plain decoding.
-# `turbo` (IQ2_XS only, lossy opt-in): fast + cache-aware routing (STRATA_ROUTE_PRIOR=0.5), +25% decode on the 3060
+# `turbo`: RETIRED 2026-11-15 (see configs/pancake/retired/README.md). It was (IQ2_XS only, lossy opt-in): fast + cache-aware routing (STRATA_ROUTE_PRIOR=0.5), +25% decode on the 3060
 # but 2.9% of tokens differ from exact decoding (stock noise 1.2-1.3%, no large-margin errors; MOD_PLAN 8.9).
 # RX 7900 XT (no NVIDIA card): build-hip and the *-hip presets where they exist - iq2_xs fast (default, ~126 tok/s), exact,
 # turbo (~168, lossy); q2_0 fast (~135 tok/s) / turbo: a lower-quality quant (80.6% same top token as Q8_0, docs/QUANTS.md).
@@ -26,7 +26,7 @@ for a in "$@"; do
   case "$a" in
     fast) FAST=-fast ;;
     exact) FAST= ;;
-    turbo) FAST=-turbo ;;
+    turbo) echo "the turbo presets were retired 2026-11-15 (configs/pancake/retired/README.md); the lossy speed-up is STRATA_VERIFY_ECAP=1 in the fast preset" >&2; exit 2 ;;
     iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b) MODEL=$a ;;
     *) echo "usage: $0 [iq2_xs|q2_0|qwen36|qwen36-q3|qwen38-35b] [fast|exact|turbo]" >&2; exit 2 ;;
   esac
