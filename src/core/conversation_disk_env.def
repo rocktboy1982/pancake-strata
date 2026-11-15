@@ -566,6 +566,7 @@ STRATA_ENV("STRATA_MTP_HIP_PRIO", Speed, "drafting/stop policy: the tokens chang
 STRATA_ENV("STRATA_MTP_KEEP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_MULTI_COPY", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_ACTQ_SKIP", Speed, "CPU activation quant skipped for tokens with no CPU expert entry (the jobs read the same values)")
+STRATA_ENV("STRATA_MTP_ONE_GRAPH", Speed, "eager MTP chain: round + steps in one captured graph, same kernels in the same order (LEADS.md B28)")
 STRATA_ENV("STRATA_MTP_SPIN_US", Speed, "MTP draft wait: pause-spin N us, then yield between checks (timing only)")
 STRATA_ENV("STRATA_ROWS_LOADS_FIRST", Speed, "the verify CPU rows copy reads all of a thread's mapped float4s before storing: same values, timing only")
 STRATA_ENV("STRATA_MTP_SELECT_WIDE", Speed, "the drafter row copy launched over up to 40 blocks of the same grid-stride loop: the same bytes, timing only")

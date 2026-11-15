@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <map>
 #include <vector>
 
 namespace strata::core {
@@ -254,6 +255,9 @@ private:
     bool capture_round(int T, bool coupled, std::string& err);
     bool capture_step(int j, bool coupled, std::string& err);
     cudaGraphExec_t step_exec_[9] = {};
+    /// LEADS.md B28 (STRATA_MTP_ONE_GRAPH=1): the round and steps 1..steps-1 in one graph, keyed by (coupled, T, steps)
+    bool capture_chain(int T, int steps, bool coupled, std::string& err);
+    std::map<int, cudaGraphExec_t> chain_exec_;
     // coupled draft sampling: its own round/step graphs (the argmax ones stay as they were), the request's
     // parameters and the penalty ring (mapped staging + device copies), the split scratch, token id -> subset index
     bool setup_coupled(std::string& err);

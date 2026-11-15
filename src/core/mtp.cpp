@@ -194,6 +194,7 @@ MtpDrafter::~MtpDrafter() {
     for (auto& e : step_exec_) if (e) cudaGraphExecDestroy(e);
     for (auto& e : round_exec_c_) if (e) cudaGraphExecDestroy(e);
     for (auto& e : step_exec_c_) if (e) cudaGraphExecDestroy(e);
+    for (auto& kv : chain_exec_) if (kv.second) cudaGraphExecDestroy(kv.second);   // STRATA_MTP_ONE_GRAPH
     if (cparams_) cudaFree(cparams_);
     if (cring_) cudaFree(cring_);
     if (dinv_) cudaFree(dinv_);
@@ -1663,6 +1664,66 @@ bool MtpDrafter::capture_step(int j, bool coupled, std::string& err) {
     return finish_capture(cs_, ok, exec, coupled ? "step (coupled)" : "step", err);
 }
 
+// LEADS.md B28 (MTP draft inside one captured graph; STRATA_MTP_ONE_GRAPH=1, opt-in, exact): the round and steps 1..steps-1
+// recorded back to back in ONE graph - the same kernels, in the order capture_round + capture_step launch them - so the
+// eager chain (min_p 0 or STRATA_MTP_EAGER, no chain rule) is one cudaGraphLaunch instead of `steps`.  The step that folds
+// the draft into the verify window's own graph needs the device-side accept (MOD_PLAN.md section 6 item 17), not here.
+bool MtpDrafter::capture_chain(int T, int steps, bool coupled, std::string& err) {
+    const int key = ((coupled ? 1 : 0) * 64 + T) * 64 + steps;
+    if (chain_exec_.count(key)) return true;
+    using namespace strata::kernels;
+    const int64_t HCN = g_->hc * g_->n_embd;
+    const int64_t N = g_->n_embd, NH = g_->n_head;
+    g_mp.init();
+    if (cudaStreamBeginCapture(cs_, cudaStreamCaptureModeThreadLocal) != cudaSuccess) { err = "mtp: begin capture"; return false; }
+    g_mp.base = 0;
+    bool ok = true;
+    // ---- the round (capture_round's body) ----
+    if (coupled) coupled_draft_stage(m_cparams_, m_chist_, cparams_, cring_, kCoupledHistCap, cs_);
+    const int ra = 2 * max_t_ - 1;
+    const MappedCopy in[7] = {{tok_, m_tok_, T}, {step_, m_step_, (int64_t) 2 * T * 4}, {pos_, m_pos_, 2 * T * NH},
+                              {row_, m_row_, 2}, {Rin_, window_R_, T * HCN}, {step_ + ra * 4, m_step_ + ra * 4, 4},
+                              {pos_ + ra * NH, m_pos_ + ra * NH, NH}};
+    copy_from_mapped_multi(in, 7, cs_);
+    ok = record_front(T, 0, cs_, err);
+    if (ok) {
+        if (T > 1) {
+            copy_row_to_first(row_, R_, HCN, inj_, g_->hc, mixed_, N, cs_);
+            native_quantize_q8_1(mixed_, xq_, (int) N, 1, cs_);
+        }
+        coupled_rec_ = coupled;
+        coupled_j_ = 0;
+        ok = record_rest(ra, cs_, err);
+        coupled_rec_ = false;
+    }
+    if (ok && ent_ != nullptr) pick_entropy(ent_, row_ + 1, m_ent_, 0, cs_);
+    if (ok) mtp_select(R_, HCN, out_ids_, row_ + 1, Rin_, tok_, m_out_, 0, cs_, probs_, m_prob_);
+    if (ok) g_mp.stamp(16, cs_);
+    g_mp.base = -1;
+    if (ok && force_on_ && !coupled) force_token(tok_, m_force_, 0, cs_);
+    // ---- steps 1..steps-1 (capture_step's body) ----
+    for (int j = 1; ok && j < steps; ++j) {
+        const int row = max_t_ + j - 1;
+        const MappedCopy sin[2] = {{step_ + row * 4, m_step_ + row * 4, 4},
+                                   {pos_ + row * g_->n_head, m_pos_ + row * g_->n_head, g_->n_head}};
+        copy_from_mapped_multi(sin, 2, cs_);
+        coupled_rec_ = coupled;
+        coupled_j_ = j;
+        g_mp.base = j < kMpGraphs ? j : -1;
+        ok = record_forward(1, row, cs_, err);
+        coupled_rec_ = false;
+        if (ok && ent_ != nullptr) pick_entropy(ent_, row_ + 1, m_ent_, j, cs_);
+        if (ok) mtp_select(R_, HCN, out_ids_, row_ + 1, Rin_, tok_, m_out_, j, cs_, probs_, m_prob_);
+        if (ok) g_mp.stamp(16, cs_);
+        g_mp.base = -1;
+        if (ok && force_on_ && !coupled) force_token(tok_, m_force_, j, cs_);
+    }
+    cudaGraphExec_t exec = nullptr;
+    if (!finish_capture(cs_, ok, exec, coupled ? "chain (coupled)" : "chain", err)) return false;
+    chain_exec_[key] = exec;
+    return true;
+}
+
 void MtpDrafter::kv_restore(int64_t upto) {
     const OnDevice on_device(device_);
     if (st_.kv_mode != 2 || upto <= 0) return;
@@ -1947,6 +2008,15 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
     // the steps past the cut are wasted GPU work.  Not with a chain rule (STRATA_SPEC_COST / DISCO decide per step).
     static const bool eager = [] { const char* e = std::getenv("STRATA_MTP_EAGER"); return e && e[0] == '1'; }();
     if ((min_p <= 0.0f || eager) && !chain_rule_ && max_steps > 0) {
+        // LEADS.md B28, STRATA_MTP_ONE_GRAPH=1 (opt-in, exact; read once): the round and every step as one graph launch
+        static const bool one_graph = [] { const char* e = std::getenv("STRATA_MTP_ONE_GRAPH"); return e && e[0] == '1'; }();
+        if (one_graph && max_steps <= 63 && capture_chain(T, max_steps, cp, err)) {
+            if (cudaGraphLaunch(chain_exec_[((cp ? 1 : 0) * 64 + T) * 64 + max_steps], cs_) != cudaSuccess) {
+                err = std::string("mtp draft chain: ") + cudaGetErrorString(cudaGetLastError());
+                return false;
+            }
+        } else {
+        if (one_graph) err.clear();   // (a failed chain capture: the per-step graphs below, as without the switch)
         if (cudaGraphLaunch(cp ? round_exec_c_[T] : round_exec_[T], cs_) != cudaSuccess) {
             err = std::string("mtp draft: ") + cudaGetErrorString(cudaGetLastError());
             return false;
@@ -1957,6 +2027,7 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
                 return false;
             }
         }
+        }   // (STRATA_MTP_ONE_GRAPH's else)
         (void) cudaStreamQuery(cs_);
         prefetch_ple(tokens[a]);
         progress_at("mtp draft: waiting for the GPU");   // #2065
