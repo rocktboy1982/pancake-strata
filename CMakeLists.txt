@@ -1062,6 +1062,11 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     # #313: the RDNA3 WMMA GEMMs include hip_runtime.h: AMD builds only (a CUDA build never sees this file)
     target_sources(strata_prefill PRIVATE src/prefill/wmma_gemm.cu)
   endif()
+  # STRATA_PF_GU_EXACT (opt-in at run time; android-imdad 90434843b4 / 9caad8f2bb): the experts' gate/up products for a
+  # group of experts, bit for bit rocBLAS's.  Its Tensile kernel is the code object embedded in gu_tensile_gfx1100.inc
+  # (assembled from gu_tensile_gfx1100.s, which is not built), loaded with hipModuleLoadData: no assembler step here.
+  # Every backend compiles the file (a CUDA build gets its stubs, which answer false), so prefill.cpp links everywhere.
+  target_sources(strata_prefill PRIVATE src/prefill/gu_exact.cu)
   target_include_directories(strata_prefill PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${_strata_gpu_include_directories})
   target_link_libraries(strata_prefill PUBLIC strata_engine ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target})
   if(STRATA_ENABLE_CUDA)

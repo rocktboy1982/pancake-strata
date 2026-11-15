@@ -498,6 +498,16 @@ int hipblaslt_solution_for(void* opaque_state, strata::prefill::hipblaslt::Input
     return hipblaslt_ext::getIndexFromAlgo(algo);
 }
 
+// STRATA_PF_DOWN_STREAMS (port of android-imdad/Strata-7900xtx 876c3af7e6; LEADS.md): hipBLASLt takes this call with a
+// solution that needs no workspace (so calls on other streams cannot race on the shared one)
+bool hipblaslt_no_workspace(void* opaque_state, strata::prefill::hipblaslt::InputType type, int64_t t, int64_t n,
+                            int64_t k, int64_t ldy, float beta) {
+    auto* state = static_cast<HipLtState*>(opaque_state);
+    if (!state || t <= 0 || n <= 0 || k <= 0 || t > INT_MAX || n > INT_MAX || k > INT_MAX || ldy > INT_MAX || ldy < n) return false;
+    const auto resolved = resolve_hipblaslt_algo(*state, type, (int) t, (int) n, (int) k, (int) ldy, beta);
+    return resolved.supported && resolved.workspace_bytes == 0;
+}
+
 bool try_hipblaslt(void* opaque_state, strata::prefill::hipblaslt::InputType type, const uint16_t* x,
                    const uint16_t* w, float* y, int64_t t, int64_t n, int64_t k, int64_t ldy, float beta,
                    void* stream, int64_t ldx = 0) {
@@ -1279,6 +1289,54 @@ void Gemm::bf16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64
                     CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT),
        "cublasGemmEx");
     STRATA_ABSORB_HIPBLAS_STICKY("cublasGemmEx");
+}
+
+// STRATA_PF_GU_EXACT (port of android-imdad/Strata-7900xtx 90434843b4; LEADS.md): f16() with beta 0 and ldy N reaches
+// rocBLAS's hipblasGemmEx - none of the switches f16() reads before it takes the call
+bool Gemm::f16_on_rocblas(int64_t T, int64_t N, int64_t K) const {
+#if defined(__HIPCC__)
+    if (T <= 0 || N <= 0 || f16_io_) return false;
+    static const bool wmma_on = [] { const char* v = std::getenv("STRATA_WMMA_GEMM"); return v && v[0] != 0 && v[0] != '0'; }();
+    static const bool pf_on = [] { const char* v = std::getenv("STRATA_PF_GEMM"); return v && v[0] == '1'; }();
+    if (wmma_on || pf_on) return false;
+    if (rdna2_sgemm_on(N)) return false;   // STRATA_RDNA2_SGEMM: hipblasSgemm on FP32 copies, another order
+#if defined(STRATA_HIPBLASLT_AVAILABLE)
+    if (hipblaslt_state_ &&
+        hipblaslt_solution_for(hipblaslt_state_, strata::prefill::hipblaslt::InputType::f16, T, N, K, N, 0.0f) >= 0)
+        return false;
+#endif
+    return true;
+#else
+    (void) T; (void) N; (void) K;
+    return false;
+#endif
+}
+
+// STRATA_PF_DOWN_STREAMS (android-imdad 876c3af7e6): the hipBLASLt call f16() would make, with no workspace
+bool Gemm::f16_lt_ok(int64_t T, int64_t N, int64_t K) const {
+#if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
+    if (T <= 0 || N <= 0 || f16_io_ || !hipblaslt_state_) return false;
+    static const bool wmma_on = [] { const char* v = std::getenv("STRATA_WMMA_GEMM"); return v && v[0] != 0 && v[0] != '0'; }();
+    static const bool pf_on = [] { const char* v = std::getenv("STRATA_PF_GEMM"); return v && v[0] == '1'; }();
+    if (wmma_on || pf_on) return false;
+    return hipblaslt_no_workspace(hipblaslt_state_, strata::prefill::hipblaslt::InputType::f16, T, N, K, N, 0.0f);
+#else
+    (void) T; (void) N; (void) K;
+    return false;
+#endif
+}
+
+bool Gemm::f16_on(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_t N, int64_t K, void* stream) {
+#if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
+    if (!f16_lt_ok(T, N, K)) return false;
+    if (!try_hipblaslt(hipblaslt_state_, strata::prefill::hipblaslt::InputType::f16, X, W, Y, T, N, K, N, 0.0f, stream))
+        return false;
+    STRATA_ABSORB_HIPBLAS_STICKY("hipBLASLt f16");
+    return true;
+#else
+    (void) X; (void) W; (void) Y; (void) T; (void) N; (void) K; (void) stream;
+    return false;
+#endif
 }
 
 void Gemm::f16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_t N, int64_t K, int64_t ldy,

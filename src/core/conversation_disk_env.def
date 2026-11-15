@@ -273,7 +273,7 @@ STRATA_ENV("STRATA_WS_FAST", Unsure, "weight-staged fast path (opt-in)")
 // ---- InConfig: changes what a state holds but is already in the session config fingerprint (generate.cpp session_identity) (1) ----
 STRATA_ENV("STRATA_KV_ROT", InConfig, "covered by the config fingerprint (session_identity: c.kv_rot)")
 
-// ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (492) ----
+// ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (496) ----
 STRATA_ENV("STRATA_ADAPT_ASYNC", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_ASYNC_BATCH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_ASYNC_WAIT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
@@ -566,7 +566,11 @@ STRATA_ENV("STRATA_PENALTY_PROMPT", Speed, "sampling penalty counts (same note)"
 STRATA_ENV("STRATA_PF_BATCH", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_PF_BK64", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_PF_COPY2", Speed, "prompt path scheduling/staging/chunk sizing (second copy stream, same bytes)")
+STRATA_ENV("STRATA_PF_DOWN_STREAMS", Speed, "GU_EXACT group's SwiGLU + down over n streams, same hipBLASLt solution (android-imdad 876c3af7e6)")
+STRATA_ENV("STRATA_PF_DQ_OVERLAP", Speed, "GU_EXACT group's dequant on a side stream, same kernels (android-imdad 8a2f38aaad)")
 STRATA_ENV("STRATA_PF_FUSED_NT", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_PF_GU_EXACT", Speed, "grouped expert gate/up in rocBLAS's FMA order; bitwise by design, init self-check turns it off on any difference (android-imdad 90434843b4)")
+STRATA_ENV("STRATA_PF_GU_TENSILE", Speed, "0 keeps GU_EXACT's >= 65-token experts off the Tensile kernel (same order; android-imdad 9caad8f2bb)")
 STRATA_ENV("STRATA_PF_GROUP_CAP", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_PF_GROUP_SCRATCH", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_PF_HC_REGION", Speed, "prompt path scheduling/staging/chunk sizing")

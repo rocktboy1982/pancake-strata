@@ -52,6 +52,16 @@ public:
     /// Y = X . W^T with both in FP16 (bits).
     void f16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_t N, int64_t K, int64_t ldy = 0,
              float beta = 0.0f);
+    /// True when f16(X, W, Y, T, N, K) with beta 0 and ldy N runs rocBLAS's hipblasGemmEx (no opt-in GEMM, no FP16 out,
+    /// no RDNA2 SGEMM, no hipBLASLt solution): the call STRATA_PF_GU_EXACT reproduces bit for bit.  (Port of
+    /// android-imdad/Strata-7900xtx 90434843b4; LEADS.md.)
+    bool f16_on_rocblas(int64_t T, int64_t N, int64_t K) const;
+    /// STRATA_PF_DOWN_STREAMS: true when f16(X, W, Y, T, N, K) with beta 0 and ldy N runs a hipBLASLt solution that
+    /// needs no workspace - the call f16_on() can put on another stream.  (android-imdad 876c3af7e6; LEADS.md.)
+    bool f16_lt_ok(int64_t T, int64_t N, int64_t K) const;
+    /// That call (the same solution and arguments as f16()) on `stream`; false (nothing launched) when f16_lt_ok() is
+    /// false or the launch failed - the caller then runs f16().
+    bool f16_on(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_t N, int64_t K, void* stream);
 
     /// W given as native GGUF blocks of `ggml_type`, dequantized to FP16 in the scratch, X in FP16.  `ldx` (> K) is
     /// X's padded row stride, taken only by STRATA_PF_PAD's path (0 = K).
