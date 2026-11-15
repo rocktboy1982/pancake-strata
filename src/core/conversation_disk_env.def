@@ -498,6 +498,7 @@ STRATA_ENV("STRATA_MMQ_GROUP_SORT", Speed, "bitwise: documented (docs/README/cod
 STRATA_ENV("STRATA_MMQ_RESIDENT_SORT_NE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_MMVF_AUX", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_MMVF_ROWS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_MMVF_ROWS1", Speed, "one-token BF16 GEMV (T = 1 router) on the 4-rows-per-block kernel: same pairs, FMAs and reductions, bitwise (ryan4yin aa2509dc60 parity), timing only")
 STRATA_ENV("STRATA_MMVQ_IL", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_MMVQ_IL_89", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_MMVQ_IL_PF", Speed, "bitwise: documented (docs/README/code comment/parity test)")
