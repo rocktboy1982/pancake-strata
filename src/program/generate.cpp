@@ -11279,6 +11279,38 @@ int main(int argc, char** argv) {
             if (const char* w = std::getenv("STRATA_RAM_ADAPT_PER_LAYER")) ram_adapt2.per_layer = std::max(1, std::atoi(w));
             if (const char* w = std::getenv("STRATA_RAM_ADAPT_SKIP_TOP")) ram_adapt2.skip_top = std::max(0, std::atoi(w));
         }
+        // MOD_PLAN.md section 6 item 1, FK-28 (STRATA_ADAPT_PROMPT=1, opt-in; TEST_LEDGER.md T-417 is the offline oracle):
+        // the prompt's routing feeds the decode tier's usage counts too, weighted as STRATA_RAM_ADAPT2 weighs its seed
+        // (STRATA_ADAPT_PROMPT_W, default the RAM_ADAPT2 prompt weight).  on_routes can run on a prompt thread beside
+        // the decode windows (which write drive.d.usage in the pool), so it adds into `pending` under `mu`, and the tier
+        // folds that into drive.d.usage at the start of its next round (adapt() / adapt_tick), on the thread that reads
+        // and decays the counts.  Placement only: the routing and the outputs are unchanged.
+        struct AdaptPrompt {
+            bool on = false;
+            float w = 0.0f;
+            std::mutex mu;
+            std::vector<float> pending;   // the prompt counts not yet folded (empty when off)
+            bool dirty = false;           // pending holds something (read under mu)
+            double fed = 0.0;             // the weight folded, cumulative (stats)
+        } adapt_prompt;
+        {
+            const char* v = std::getenv("STRATA_ADAPT_PROMPT");
+            adapt_prompt.on = v != nullptr && std::atoi(v) != 0;
+            adapt_prompt.w = ram_adapt2.prompt_w;
+            if (const char* w = std::getenv("STRATA_ADAPT_PROMPT_W")) adapt_prompt.w = (float) std::max(0.0, std::atof(w));
+        }
+        // FK-28: adds the prompt counts gathered since the last round into the tier's counts (no-op when off or empty)
+        auto adapt_prompt_fold = [&]() {
+            if (!adapt_prompt.on || drive.d.usage.empty()) return;
+            std::lock_guard<std::mutex> lk(adapt_prompt.mu);
+            if (!adapt_prompt.dirty || adapt_prompt.pending.size() != drive.d.usage.size()) return;
+            for (size_t i = 0; i < adapt_prompt.pending.size(); ++i) {
+                drive.d.usage[i] += adapt_prompt.pending[i];
+                adapt_prompt.fed += (double) adapt_prompt.pending[i];
+                adapt_prompt.pending[i] = 0.0f;
+            }
+            adapt_prompt.dirty = false;
+        };
         // the pool is idle while a prompt is read unless batch slots decode between its parts; with
         // STRATA_PREFILL_CPU_SHARE the staged-chunk limit before the chunk below sizes the loans (bytes_needed reads it)
         // #1607: Windows, the commit limit (RAM + page file) is what ends the engine silently; compare what this run plans
@@ -14151,6 +14183,7 @@ int main(int argc, char** argv) {
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
             sbud.round(o.adapt_every);
+            adapt_prompt_fold();   // FK-28 (STRATA_ADAPT_PROMPT): the prompt's counts, before any tier reads them
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
             if (remote_opt && !remote_opt->adapt(drive.d.usage, host_res, pending, o.adapt_swaps, *srcp)) return false;
@@ -14798,6 +14831,7 @@ int main(int argc, char** argv) {
                     ++a_rounds;
                     a_t0 = Clock::now();
                     sbud.round(o.adapt_every);
+                    adapt_prompt_fold();   // FK-28 (as in adapt())
                     if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // (as in adapt(), before the seeder)
                     if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp, as in adapt())
                     a_usage = drive.d.usage;
@@ -15095,6 +15129,28 @@ int main(int argc, char** argv) {
                 for (int64_t i = 0; i < n; ++i)
                     if (ids[i] >= 0 && ids[i] < g.n_expert) sd[ids[i]] += per;
             };
+        }
+        // MOD_PLAN.md section 6 item 1, FK-28 (STRATA_ADAPT_PROMPT=1): the same routes, the same weight, into the decode
+        // tier's counts (through adapt_prompt.pending; folded at the tier's next round).  Chained after RAM_ADAPT2's hook.
+        if (adapt_prompt.on && adapt_prompt.w > 0.0f && !drive.d.usage.empty()) {
+            adapt_prompt.pending.assign(drive.d.usage.size(), 0.0f);
+            auto prev_routes = sp.on_routes;   // (empty unless STRATA_RAM_ADAPT2 set one above)
+            sp.on_routes = [&, prev_routes](int64_t l, const int32_t* ids, int64_t n) {
+                if (prev_routes) prev_routes(l, ids, n);
+                if (l < 0 || l >= g.n_layers || n <= 0) return;
+                const float per = adapt_prompt.w * 20.0f * (float) g.n_expert_used / (float) n;   // as RAM_ADAPT2: w x 20 / tokens
+                std::lock_guard<std::mutex> lk(adapt_prompt.mu);
+                float* pd = adapt_prompt.pending.data() + l * g.n_expert;
+                for (int64_t i = 0; i < n; ++i)
+                    if (ids[i] >= 0 && ids[i] < g.n_expert) pd[ids[i]] += per;
+                adapt_prompt.dirty = true;
+            };
+            std::fprintf(stderr, "strata serve: STRATA_ADAPT_PROMPT=1: the prompt's routing feeds the decode tier's usage counts "
+                                 "(weight %.3g: each prompt chunk adds %.3g decode tokens' worth per layer; FK-28)\n",
+                         (double) adapt_prompt.w, (double) adapt_prompt.w * 20.0);
+        } else if (adapt_prompt.on) {
+            std::fprintf(stderr, "strata serve: STRATA_ADAPT_PROMPT=1 has no effect: %s\n",
+                         drive.d.usage.empty() ? "the adaptive tier is off" : "STRATA_ADAPT_PROMPT_W is 0");
         }
         // STRATA_TRACE=1: one stderr line per step of a request (the log shows where a request stops)
         const bool trace = std::getenv("STRATA_TRACE") != nullptr;
@@ -21577,6 +21633,15 @@ int main(int argc, char** argv) {
                                      "%lld installed, %lld skipped at the install (%lld of them: the GPU tier took one of the pair)\n",
                              (long long) src.ram_staged_reads(),
                              (long long) ram_adapt2.installed, (long long) (src.ram_install_skips() + src.ram_install_gpu()), (long long) src.ram_install_gpu());
+            if (!adapt_prompt.pending.empty()) {   // FK-28 STRATA_ADAPT_PROMPT, cumulative
+                double fed = 0.0;
+                {
+                    std::lock_guard<std::mutex> lk(adapt_prompt.mu);
+                    fed = adapt_prompt.fed;
+                }
+                std::fprintf(stderr, "strata serve: STRATA_ADAPT_PROMPT: %.1f prompt-routing weight folded into the decode "
+                                     "tier's usage counts since the start\n", fed);
+            }
             if (src.ram_adapts() > 0)   // STRATA_RAM_ADAPT, cumulative
                 std::fprintf(stderr, "strata serve: resident RAM: %lld experts moved in in place of unused ones, %lld of "
                                      "them out of a stage buffer (STRATA_RAM_ADAPT)\n", (long long) src.ram_adapts(),
