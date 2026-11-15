@@ -1,0 +1,20 @@
+generating 28 continuations with base ...
+complete set: bench/quality-hip/2026-11-15-ecap/set.filled.json (48 requests (0 without continuation), prompts 321 / 1474 / 64155 tokens (min / median / max), 9410 scored tokens; kinds agent 4, code 4, deep32k 4, deep64k 2, docs 4, edit-ctx 6, edit-short 6, english 4, first 4, multilingual 4, toolres 6); commit it as the set
+scoring base (a) ...
+scoring base (b) ...
+scoring ecap1 ...
+scoring ecap0 ...
+ecap1                    PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+ecap0                    REJECT
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "REJECT"
+    }

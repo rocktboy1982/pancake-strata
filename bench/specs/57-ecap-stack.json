@@ -10,33 +10,33 @@
     "base": {
       "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
     },
-    "ecap0": {
+    "ecap1": {
       "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
       "env": {
-        "STRATA_VERIFY_ECAP": "0"
+        "STRATA_VERIFY_ECAP": "1"
       }
     },
-    "ecap0-l16": {
+    "ecap1-l16": {
       "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
       "env": {
-        "STRATA_VERIFY_ECAP": "0"
+        "STRATA_VERIFY_ECAP": "1"
       },
       "args": {
         "--lookup-max-t": "16"
       }
     },
-    "ecap0-sidx": {
+    "ecap1-sidx": {
       "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
       "env": {
-        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_VERIFY_ECAP": "1",
         "STRATA_SUFFIX_INDEX": "1",
         "STRATA_SUFFIX_INDEX_RULE": "fallback"
       }
     },
-    "ecap0-sidx-l16": {
+    "ecap1-sidx-l16": {
       "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
       "env": {
-        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_VERIFY_ECAP": "1",
         "STRATA_SUFFIX_INDEX": "1",
         "STRATA_SUFFIX_INDEX_RULE": "fallback"
       },
@@ -44,10 +44,10 @@
         "--lookup-max-t": "16"
       }
     },
-    "ecap0-sidx-l16-wmma9": {
+    "ecap1-sidx-l16-wmma9": {
       "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
       "env": {
-        "STRATA_VERIFY_ECAP": "0",
+        "STRATA_VERIFY_ECAP": "1",
         "STRATA_SUFFIX_INDEX": "1",
         "STRATA_SUFFIX_INDEX_RULE": "fallback",
         "STRATA_RDNA_WMMA_MINCOLS": "9"
@@ -57,5 +57,5 @@
       }
     }
   },
-  "note": "Readapted idea (2026-11-15): once ECAP=0 removes the draft rows CPU expert reads, deeper lookup windows (16) and the suffix index (more long windows) may pay, and the 9+ column dense kernels matter more (the GPU, not the CPU wait, is the critical path). Earlier alone: lookup 16 -5.9% (spec 52), sidx +13% short (spec 45), wmma9 -1.7/-5.4% (spec 53), ECAP0 +53% edit (spec 55). All lossy; quality gate for the ECAP part runs first."
+  "note": "ECAP=1 stack (the quality gate rejected ECAP=0: mismatch +0.95 points; ECAP=1 passed: +0.29 points, bench/quality-hip/2026-11-15-ecap). Readapted idea (2026-11-15): once ECAP=0 removes the draft rows CPU expert reads, deeper lookup windows (16) and the suffix index (more long windows) may pay, and the 9+ column dense kernels matter more (the GPU, not the CPU wait, is the critical path). Earlier alone: lookup 16 -5.9% (spec 52), sidx +13% short (spec 45), wmma9 -1.7/-5.4% (spec 53), ECAP0 +53% edit (spec 55). All lossy; quality gate for the ECAP part runs first."
 }
