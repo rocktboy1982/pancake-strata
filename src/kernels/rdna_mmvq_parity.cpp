@@ -12,6 +12,7 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -48,7 +49,7 @@ constexpr Fmt kFmts[] = {
 };
 struct Shape { int n_in, n_out; };
 constexpr Shape kShapes[] = {{2560, 1000}, {4096, 257}, {256, 8}};
-constexpr int kMaxCols = 16;   // 9..16 columns: the RDNA kernels now take them (verify windows of 12 rows)
+constexpr int kMaxCols = 32;   // 9..16 columns: the RDNA kernels take them (verify windows of 12 rows); 17..32 need STRATA_RDNA_KQ_MAXCOLS=32
 }  // namespace
 
 int main() {
@@ -85,9 +86,11 @@ int main() {
         float* dy = nullptr;
         ck(cudaMalloc(&dx, x.size() * 4), "malloc x");
         ck(cudaMemcpy(dx, x.data(), x.size() * 4, cudaMemcpyHostToDevice), "h2d x");
-        ck(cudaMalloc(&dq, k::native_q8_1_bytes(sh.n_in, kMaxCols)), "malloc q");
+        ck(cudaMalloc(&dq, k::native_q8_1_bytes(sh.n_in, 1) * kMaxCols), "malloc q");
         ck(cudaMalloc(&dy, (size_t) kMaxCols * sh.n_out * 4), "malloc y");
-        k::native_quantize_q8_1(dx, dq, sh.n_in, kMaxCols, st);
+        for (int c0 = 0; c0 < kMaxCols; c0 += 16)   // native_quantize_q8_1 takes at most 16 rows a call
+            k::native_quantize_q8_1(dx + (size_t) c0 * sh.n_in, (uint8_t*) dq + k::native_q8_1_bytes(sh.n_in, 1) * (size_t) c0, sh.n_in,
+                                    std::min(16, kMaxCols - c0), st);
         ck(cudaDeviceSynchronize(), "quantize");
         for (const Fmt& f : kFmts) {
             std::vector<uint8_t> w((size_t) sh.n_out * nsb * f.bytes);
@@ -107,7 +110,13 @@ int main() {
                 bool taken = true;
                 for (int r = 0; r < 3; ++r) {
                     ck(cudaMemset(dy, 0xff, ny * 4), "memset y");   // NaN: a row never written fails
-                    if (r == 0) k::native_mmvq(f.type, dw, dq, dy, sh.n_in, sh.n_out, nc, st);
+                    if (r == 0) {   // native_mmvq takes at most 16 columns: wider references are two calls on the Q8_1 rows
+                        const int c1 = nc > 16 ? 16 : nc;
+                        k::native_mmvq(f.type, dw, dq, dy, sh.n_in, sh.n_out, c1, st);
+                        if (nc > 16)
+                            k::native_mmvq(f.type, dw, (const uint8_t*) dq + k::native_q8_1_bytes(sh.n_in, 1) * 16, dy + (size_t) 16 * sh.n_out,
+                                           sh.n_in, sh.n_out, nc - 16, st);
+                    }
                     else if (f.type == 14) taken = k::rdna_q6k_mmvq(dw, dq, dy, sh.n_in, sh.n_out, nc, st) && taken;
                     else taken = k::rdna_kq_mmvq(f.type, dw, dq, dy, sh.n_in, sh.n_out, nc, st) && taken;
                     ck(cudaGetLastError(), "launch");

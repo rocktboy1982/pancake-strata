@@ -1,0 +1,36 @@
+rep 0 base12               short 113.1 edit 96.6  foreign CPU 3% [('claude', 5), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 1344/1249 MHz 51C 108W gtt 21M cpu 2984MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 base16               short 100.3 edit 95.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:0-KFD IH', 0)]  gpu 1661/1249 MHz 51C 120W gtt 21M cpu 3321MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 wmma16               short 104.4 edit 116.4  foreign CPU 6% [('claude', 3), ('gnome-shell', 3), ('ptyxis', 1)]  gpu 1450/1249 MHz 52C 117W gtt 21M cpu 3312MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 wmma16               short 92.2 edit 98.9  foreign CPU 2% [('claude', 1), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 1698/1249 MHz 52C 124W gtt 21M cpu 2996MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 base16               short 106.7 edit 83.0  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('dbus-daemon', 0)]  gpu 1524/1249 MHz 52C 112W gtt 21M cpu 3435MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 base12               short 112.9 edit 109.5  foreign CPU 5% [('gnome-shell', 3), ('ptyxis', 3), ('claude', 2)]  gpu 1436/1249 MHz 51C 116W gtt 21M cpu 3238MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 base12               short 115.4 edit 110.9  foreign CPU 3% [('fwupd', 1), ('claude', 1), ('dbus-daemon', 1)]  gpu 1409/1249 MHz 52C 116W gtt 21M cpu 3378MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 base16               short 108.1 edit 79.1  foreign CPU 6% [('gnome-shell', 3), ('ptyxis', 2), ('claude', 1)]  gpu 1780/1249 MHz 51C 120W gtt 21M cpu 3169MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 2 wmma16               short 109.9 edit 99.4  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('kworker/3:1-mm_percpu_wq', 0)]  gpu 1539/1249 MHz 51C 117W gtt 21M cpu 3064MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 3 wmma16               short 91.7 edit 92.9  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('accounts-daemon', 0)]  gpu 1772/1249 MHz 51C 129W gtt 21M cpu 3343MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 3 base16               short 105.5 edit 98.6  foreign CPU 2% [('systemd-journal', 1), ('kworker/u65:5-ttm', 1), ('rcu_preempt', 0)]  gpu 1572/1249 MHz 51C 119W gtt 21M cpu 3527MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 base12               short 113.4 edit 108.4  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:8-ttm', 1)]  gpu 1440/1249 MHz 51C 118W gtt 21M cpu 3275MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 4 base12               short 115.6 edit 78.4  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:11-KFD IH', 1)]  gpu 1531/1249 MHz 52C 115W gtt 21M cpu 3393MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 4 base16               short 111.8 edit 113.6  foreign CPU 1% [('migration/12', 0), ('systemd-oomd', 0), ('NetworkManager', 0)]  gpu 1413/1249 MHz 52C 117W gtt 21M cpu 3424MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 4 wmma16               short 113.5 edit 114.6  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('gnome-shell', 0)]  gpu 1548/1249 MHz 52C 120W gtt 21M cpu 3484MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 wmma16               short 116.0 edit 113.9  foreign CPU 5% [('claude', 9), ('rcu_preempt', 0), ('dbus-daemon', 0)]  gpu 1535/1249 MHz 52C 120W gtt 21M cpu 3745MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 base16               short 114.2 edit 114.2  foreign CPU 2% [('claude', 1), ('kworker/1:1H-kblockd', 0), ('dbus-daemon', 0)]  gpu 1546/1249 MHz 52C 119W gtt 21M cpu 3655MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 5 base12               short 116.6 edit 118.8  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('dbus-daemon', 0)]  gpu 1502/1249 MHz 53C 118W gtt 21M cpu 3747MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base12                  114.5 +-   1.6  (n=6)
+                              drafts accepted 0.73
+  short  base16                  107.8 +-   5.1  (n=6)   vs base12:  -5.9% +-  3.3%  -> worse
+                              drafts accepted 0.69
+  short  wmma16                  104.6 +-  11.1  (n=6)   vs base12:  -8.6% +-  8.4%  -> worse
+                              drafts accepted 0.70
+  edit   base12                  103.8 +-  15.0  (n=6)
+                              drafts accepted 0.93
+  edit   base16                   97.2 +-  15.5  (n=6)   vs base12:  -6.3% +- 24.0%  -> no difference
+                              drafts accepted 0.89
+  edit   wmma16                  106.0 +-  10.6  (n=6)   vs base12:  +2.2% +- 21.1%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  base16               DIFFERENT text -> lossy or placement-dependent: quality gate
+  wmma16               DIFFERENT text -> lossy or placement-dependent: quality gate

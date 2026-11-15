@@ -1,0 +1,30 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 6,
+  "arms": {
+    "base12": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "base16": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "args": {
+        "--lookup-max-t": "16"
+      }
+    },
+    "wmma16": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "args": {
+        "--lookup-max-t": "16"
+      },
+      "env": {
+        "STRATA_RDNA_WMMA_MINCOLS": "9"
+      }
+    }
+  },
+  "note": "Matrix-core few-column kernel (Q4_K/Q5_K, 9+ columns, 8192+ rows) in the engine. base12 = preset lookup window 12; base16 = lookup window 16, wave kernels; wmma16 = lookup 16 + STRATA_RDNA_WMMA_MINCOLS=9."
+}

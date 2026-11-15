@@ -1,0 +1,24 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 8,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_RDNA_WMMA_MINCOLS": "0"
+      }
+    },
+    "wmma9": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_RDNA_WMMA_MINCOLS": "9"
+      }
+    }
+  },
+  "note": "Matrix-core few-column kernel with K-split (Q4_K/Q5_K/Q6_K from 9 columns, IQ4_XS from 12, rows >= 2048) in the engine at the preset lookup window of 12 rows: base = wave kernels, wmma9 = STRATA_RDNA_WMMA_MINCOLS=9."
+}

@@ -3796,3 +3796,31 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/rdna-16col/51-rdna-16co
 | edit | 108.3 +-5.5 | 113.0 +-6.4 | +4.3% +-5.0 (no difference) | one variant in both arms, **identical hash** |
 
 The 6-repeat screen (+3.7% +-2.0 and +3.8% +-1.4) is not reproduced as a significant gain: both means stay positive (+1.8%, +4.3%) but the intervals now include zero, because some runs in both arms were slow (the 12-repeat base itself ranges wider than the screen's). Two corrections to the screen entry: the `short` text is NOT deterministic (each arm produced 4 variants across 12 repeats, so the screen's one-variant observation was luck, and the short-case "text differs" finding is placement noise, not an effect of the new kernels); the `edit` text is exact in all 12 repeats of both arms. Verdict: **kept as a small positive candidate, not a proven gain**. The microbench gain (kernels 1.5 to 2.5x faster at 12 and 16 columns) is real and the parity test passes, so the change stays in as the default (it is exact on `edit`); the engine-level gain is between 0 and +4% on these prompts and needs a real-agent session to size. The quality gate that the screen asked for is not needed for the short-case text, which differs between repeats of the same arm.
+
+### New technique: matrix-core few-column K-quant GEMV for RDNA3 (2026-11-15, owner request: change the kernel, invent where gains show)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/wmma-few-col/` (parity, bench outputs, spec 52). Code: `rdna_wmma_kq_kernel` (Q4_K, Q5_K), `rdna_wmma_q6k_kernel`, `rdna_wmma_iq4xs_kernel` in `src/kernels/cuda/rdna_mmvq.cu`; `rdna_mmvq_parity` to 32 columns; `b6_mmvq_bench` widths to 32 with `STRATA_B6_WIDE=native|rdnasplit|rdna`. OFF by default.
+
+**Why.** Measured before building (owner rule): the wave-per-row RDNA kernels cost a constant per extra column (the head 0.78 ms at 1 column, 1.02 at 4, 1.46 at 8, 2.20 at 12, 2.79 at 16, 5.6 at 32; one 32-column call is slower than two 16-column calls), so a head that reads 437 MB at 560 GB/s in 0.78 ms is instruction-bound by 16 columns. Native `native_mmvq` stops at 16 columns, and one wide call of the old kernel at 24 and 32 columns is 17 to 47% slower than chunks of 16.
+
+**The kernel.** `v_wmma_i32_16x16x16_iu8` (gfx11, wave32) with the roles swapped: A = activations (a row per window column), B = weights (a column per weight ROW), so a lane owns one weight row, its scales are lane-local and no cross-lane reduction ends the kernel. Q4_K / Q5_K min term: a second WMMA against a ones fragment gives the activation sums exactly (integers), no fp16 sums. Q6_K: per-16 scales, one WMMA a k16 step, signed weights. IQ4_XS: the nibble LUT, per-32 scales. K-split: a block is 8 waves = 8 / KS tiles of 16 rows, each tile's superblocks dealt round-robin to KS waves and summed through LDS; KS is 4 below 400 tiles (6400 rows), else 2, `STRATA_RDNA_WMMA_KS` forces one. One wave = 16 rows x up to 32 columns (two 16-column tiles), no barrier in the K loop, each weight byte read once.
+
+**Correctness.** `rdna_mmvq_parity` 384 of 384 cases within 1e-4 of `native_mmvq` for Q4_K, Q5_K, Q6_K, IQ4_XS at 1 to 32 columns, with the matrix-core path forced on at every width, for K slices 1, 2, 4 and auto; the worst relative difference is 5.7e-07 (finite, two runs bitwise equal). Not bit-exact against the wave kernels (another summation order).
+
+**Kernel speed** (one call at the model's shapes, median of 200; gain over the wave kernel; auto K slices):
+
+| case | 4 col | 8 | 9 | 12 | 16 | 24 | 32 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| head Q5_K (1.17 to 2.62 ms) | -21% | +23% | +46% | +77% | +122% | +69% | +113% |
+| gdn qkv Q4_K | -27% | -2% | +26% | +52% | +88% | +70% | +122% |
+| gdn qkv Q6_K | -14% | +1% | +25% | +59% | +92% | +31% | +73% |
+| qsa q Q6_K | -16% | -2% | +30% | +55% | +89% | +15% | +52% |
+| gdn out Q4_K (2560 rows) | -25% | -1% | +21% | +43% | +84% | +57% | +104% |
+| gdn qkv IQ4_XS | -47% | -31% | -16% | +7% | +32% | +37% | +78% |
+| shexp gate Q4_K (640 rows) | -52% | -48% | -42% | -37% | -5% | -14% | +15% |
+
+Cost of an added column is now small: the head 1.17 ms at 4 columns, 1.26 at 16 and 2.62 at 32 (two column tiles), against 2.8 and 5.6 ms. Below 8 columns the wave kernels stay faster (the matrix-core kernel has a fixed cost of 0.05 to 0.09 ms a call), and below 2048 rows the K-split kernel does not fill the GPU, hence the gates: `STRATA_RDNA_WMMA_MINCOLS=N` (0 = off, the default; N = 9 from this table), `STRATA_RDNA_WMMA_MINROWS` (2048), IQ4_XS from 12 columns. Without K-split the fixed cost was 0.08 to 0.13 ms (the first version lost below 12 columns and on small shapes); K-split cut it to 0.026 to 0.09 ms: the first version was latency-bound with too few waves (a 10240-row projection is 640 waves), not weight-bound.
+
+**Engine level (spec 52, lookup window 16, 6 repeats): inconclusive.** base12 114.5 / 103.8 (short / edit), base16 107.8 (-5.9% +-3.3, worse), wmma16 104.6 (-8.6% +-8.4) and 106.0 (+2.2% +-21.1) tok/s; edit intervals are +-15 to +-24 because of slow runs in all arms, so the arms cannot be separated; a lookup window of 16 is itself 6% worse than 12 on the short prompt (accepted 0.73 -> 0.69), which hides the kernel gain. That spec used the first version of the kernel (no K-split, no IQ4_XS / Q6_K). Spec 53 (K-split, preset window 12) is the engine test.
+
+**Not done.** wider windows than 16 need the engine's window limit (`STRATA_VERIFY_MAX_T`, a `static_assert` of 8, 12 or 16 across the MoE and window kernels), so a 24 or 32 row window is not reachable end to end; the kernel results at 24 and 32 are kernel-level only. `strata-poly` targets still need real CUDA (cuBLAS tensor ops, `cuMem*`, `cudaMemcpy2D`); the registered tests all build (`strata_tests`: no work to do, 277 registered, 131 GPU).

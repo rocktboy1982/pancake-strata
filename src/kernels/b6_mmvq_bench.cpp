@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <random>
+#include <string>
 #include <vector>
 
 namespace K = strata::kernels;
@@ -56,8 +57,8 @@ const Case CASES[] = {
     {"router BF16", 30, 2560, 512, 1, 2, {-1, -1}},
     {"head Q5_K", 13, 2560, 248320, 256, 176, {0, 2}},
 };
-const int WIDTHS[] = {1, 2, 3, 4, 5, 8, 12, 16};
-constexpr int kCols = 16;   // the widest window the bench calls (buffers hold this many columns)
+const int WIDTHS[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 24, 32};
+constexpr int kCols = 32;   // the widest window the bench calls (buffers hold this many columns)
 
 bool ck(cudaError_t e, const char* what) {
     if (e == cudaSuccess) return true;
@@ -83,10 +84,31 @@ struct Buf {
     float* y = nullptr;     // kCols columns of output
 };
 
+// More than 16 columns (native_mmvq stops at 16).  STRATA_B6_WIDE: native = chunks of 16 on the native kernels (default),
+// rdnasplit = chunks of 16 on the RDNA kernels, rdna = ONE RDNA call for all columns (needs STRATA_RDNA_KQ_MAXCOLS=32).
+// Types without an RDNA kernel always take the native chunks.
+void wide_call(const Case& c, const void* w, const void* xq, float* y, int ncols, cudaStream_t s) {
+    static const std::string mode = [] { const char* e = std::getenv("STRATA_B6_WIDE"); return std::string(e ? e : "native"); }();
+    const bool has_rdna = c.type == 12 || c.type == 13 || c.type == 23 || c.type == 14;
+    auto one = [&](int col0, int n, bool rdna) {
+        const void* xs = (const uint8_t*) xq + K::native_q8_1_bytes(c.n_in, 1) * (size_t) col0;
+        float* ys = y + (size_t) col0 * c.n_out;
+        if (rdna && has_rdna) {
+            const bool ok = c.type == 14 ? K::rdna_q6k_mmvq(w, xs, ys, c.n_in, c.n_out, n, s) : K::rdna_kq_mmvq(c.type, w, xs, ys, c.n_in, c.n_out, n, s);
+            if (!ok) { std::fprintf(stderr, "RDNA kernel declined %d columns (STRATA_RDNA_KQ_MAXCOLS / STRATA_RDNA_Q6K?)\n", n); std::exit(2); }
+        } else {
+            K::native_mmvq(c.type, w, xs, ys, c.n_in, c.n_out, n, s);
+        }
+    };
+    if (mode == "rdna") { one(0, ncols, true); return; }
+    for (int c0 = 0; c0 < ncols; c0 += 16) one(c0, std::min(16, ncols - c0), mode == "rdnasplit");
+}
 // one call of the case at `ncols` on weight copy `k` into y
 void call(const Case& c, const Buf& b, int k, int ncols, float* y, cudaStream_t s) {
     if (c.type == 30)
         K::bf16_gemv_fp32_mmvf_multi(b.xf, c.n_in, (const uint16_t*) b.w[(size_t) k], y, c.n_out, c.n_in, c.n_out, ncols, s);
+    else if (ncols > 16)
+        wide_call(c, b.w[(size_t) k], b.xq, y, ncols, s);
     else
         K::native_mmvq(c.type, b.w[(size_t) k], b.xq, y, c.n_in, c.n_out, ncols, s);
 }
@@ -176,14 +198,18 @@ int main(int argc, char** argv) {
                  ck(cudaMemcpy(b.xf, x.data(), x.size() * 4, cudaMemcpyHostToDevice), "copy x") &&
                  ck(cudaMalloc(&b.y, ybytes), "malloc y");
             if (ok && c.type != 30) {
-                ok = ck(cudaMalloc(&b.xq, K::native_q8_1_bytes(c.n_in, kCols)), "malloc xq");
-                if (ok) K::quantize_q8_1_rows(b.xf, kCols, c.n_in, b.xq, s);
+                ok = ck(cudaMalloc(&b.xq, K::native_q8_1_bytes(c.n_in, 1) * kCols), "malloc xq");
+                if (ok)   // the quantizer takes at most 16 rows a call
+                    for (int c0 = 0; c0 < kCols; c0 += 16)
+                        K::quantize_q8_1_rows(b.xf + (size_t) c0 * c.n_in, std::min(16, kCols - c0), c.n_in,
+                                              (uint8_t*) b.xq + K::native_q8_1_bytes(c.n_in, 1) * (size_t) c0, s);
             }
             float *ya = nullptr, *yb = nullptr, *y1 = nullptr;
             ok = ok && ck(cudaMalloc(&ya, ybytes), "ya") && ck(cudaMalloc(&yb, ybytes), "yb") && ck(cudaMalloc(&y1, ybytes), "y1");
             if (!ok) return 1;
             double a1 = 0, b1 = 0;
             for (int T : WIDTHS) {
+                if (c.type == 30 && T > 16) continue;   // the BF16 router kernel stops at 16 columns
                 std::vector<uint32_t> ha((size_t) T * c.n_out), hb(ha.size()), h1(ha.size());
                 K::native_mmvq_set_b6_rows(0);
                 const double ta = median_ms(c, b, T, reps, s, ev);
