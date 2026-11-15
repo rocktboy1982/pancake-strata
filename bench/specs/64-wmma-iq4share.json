@@ -1,0 +1,31 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 8,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+   "env": {
+    "STRATA_RDNA_WMMA_MINCOLS": "0"
+   }
+  },
+  "wmma9": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+   "env": {
+    "STRATA_RDNA_WMMA_MINCOLS": "9"
+   }
+  },
+  "wmma9-share": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+   "env": {
+    "STRATA_RDNA_WMMA_MINCOLS": "9",
+    "STRATA_RDNA_WMMA_IQ4SHARE": "1"
+   }
+  }
+ },
+ "note": "T-578 follow-up: does sharing the IQ4_XS decode between the lane halves rescue the matrix-core kernels (spec 53: wmma9 -1.7% short, -5.4% edit)? base = wave kernels, wmma9 = STRATA_RDNA_WMMA_MINCOLS=9, wmma9-share adds STRATA_RDNA_WMMA_IQ4SHARE=1."
+}
