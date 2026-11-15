@@ -259,6 +259,16 @@ public:
     /// Plan v0.3 P6: the same for a native pack's layer (ggml-cpu arithmetic, `nact` activations).
     void run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs, int n,
                                 NativeArithmetic arithmetic = NativeArithmetic::Default);
+    /// STRATA_POOL_DEFER_ACTQ=1 (opt-in; bsorensen110 e06154af0e "defer_act_quant"): the input activations of `count`
+    /// tokens (`toks`, rows of `x_f`) are quantized by the pool's threads at the start of the next multi-token gate/up
+    /// phase (modes 3, 5, 7) instead of serially on the host before the run; the same calls on the same rows, so the
+    /// same bytes.  `native`: nact / the Q2_0 ActQ as native_quant_act / act_quant_any, else act_quant_q8_1 into act.
+    /// The next run_split_multi / run_split_multi_native consumes it; clear_act_quant() drops one that no run took.
+    void defer_act_quant(const float* x_f, uint8_t* nact, ActQ* act, const int* toks, int count, bool native,
+                         const NativeFmt* fmt) noexcept;
+    void clear_act_quant() noexcept { act_count_.store(0, std::memory_order_relaxed); }
+    static bool defer_actq_on();   ///< STRATA_POOL_DEFER_ACTQ=1, read once
+    static constexpr int kActDeferMax = 64;   ///< defer_act_quant takes at most this many tokens (the caller checks)
     static constexpr int kMaxSplitMulti = 96;
     /// run_split_multi's phases, accumulated ms: gate/up rows, the intermediate quantization, down rows.
     double ms_multi_gu = 0, ms_multi_q = 0, ms_multi_down = 0;
@@ -401,10 +411,33 @@ private:
         alignas(64) float ff[MAXT][FF];
         ActQ a2[MAXT];
         alignas(64) uint8_t hq[MAXT][kNativeHBytes];   // plan v0.3 P6: native down activations
+        // STRATA_POOL_DEFER_ACTQ: per token, its down input is 0 not quantized, 1 being quantized, 2 ready (lazy_q_ only)
+        std::atomic<uint8_t> q_state[MAXT];
+        SplitBufMulti() noexcept {
+            for (int t = 0; t < MAXT; ++t) q_state[t].store(0, std::memory_order_relaxed);
+        }
+        SplitBufMulti(SplitBufMulti&& o) noexcept {   // (std::vector's resize; the buffers' contents are scratch)
+            for (int t = 0; t < MAXT; ++t) q_state[t].store(o.q_state[t].load(std::memory_order_relaxed), std::memory_order_relaxed);
+        }
     };
     const NativeFmt* nfmt_ = nullptr;
     NativeArithmetic narithmetic_ = NativeArithmetic::Default;
     std::vector<SplitBufMulti> split_multi_;
+    // STRATA_POOL_DEFER_ACTQ (defer_act_quant): the deferred input rows, claimed by the threads entering a gate/up phase
+    const float* act_xf_ = nullptr;
+    uint8_t* act_nact_ = nullptr;
+    ActQ* act_q_ = nullptr;
+    const NativeFmt* act_fmt_ = nullptr;
+    int act_toks_[kActDeferMax] = {};
+    bool act_native_ = false;
+    alignas(64) std::atomic<int> act_count_{0};
+    alignas(64) std::atomic<int> act_next_{0};
+    alignas(64) std::atomic<int> act_done_{0};
+    void act_quant_help();                 ///< claim and quantize deferred rows, then wait until all are done
+    void act_quant_flush();                ///< the deferred rows on the calling thread (a path with no gate/up phase)
+    // ... and the down inputs quantized in the down phase by the first thread that reaches an expert (modes 4 and 6)
+    bool lazy_q_ = false;
+    void lazy_down_quant(int e, bool native);
     // STRATA_NUMA_SPLIT=1 (opt-in, Linux, exactly 2 nodes): in the native row phases (modes 5/6) every expert's rows
     // are cut into one slice per NUMA node (slice k = rows [per*k/2, per*(k+1)/2) of the gate/up or down matrix, the
     // part the resident complement places on node k in step B), and each node's threads claim and count on their own

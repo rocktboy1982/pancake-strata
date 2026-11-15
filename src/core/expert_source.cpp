@@ -5570,15 +5570,41 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             return v != nullptr && v[0] == '1' && (dump == nullptr || dump[0] == '\0');
         }();
         const bool skip_no_cpu = actq_skip_env && d.remote_count == 0 && d.peer == nullptr;
+        // STRATA_POOL_DEFER_ACTQ=1 (opt-in; bsorensen110 e06154af0e): the rows below go to the pool, whose threads
+        // quantize them at the start of the gate/up phase (pool.cpp defer_act_quant) - the same calls on the same rows.
+        // Only where nothing else reads act_multi / nact_multi before the run: one GPU, no helper or peer, no cold-read
+        // batches, no STRATA_ACT_DUMP, a pool with workers, two or more rows.  Unset: the serial loop, as before.
+        static const bool defer_dump_off = [] { const char* v = std::getenv("STRATA_ACT_DUMP"); return v == nullptr || v[0] == '\0'; }();
+        const bool defer_q = strata::kernels::cpu::ExpertPool::defer_actq_on() && defer_dump_off && d.pool != nullptr &&
+                             d.pool->workers() > 1 && d.remote_count == 0 && d.peer == nullptr && d.cold_mode == 0 &&
+                             n_tok <= strata::kernels::cpu::ExpertPool::kActDeferMax;
+        int defer_toks[strata::kernels::cpu::ExpertPool::kActDeferMax];
+        int n_defer = 0;
+        if (d.pool != nullptr) d.pool->clear_act_quant();
         for (int64_t t = 0; t < n_tok; ++t) {
             if (ep && std::all_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v >= 0; })) continue;
             if ((skip_nocpu || skip_no_cpu) && std::none_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v == -1; })) continue;
+            if (defer_q) { defer_toks[n_defer++] = (int) t; continue; }
             if (native && strata::kernels::cpu::q2_native_kernels(lay.fmt[(size_t) d.layers].gu_type))   // a native Q2_0 pack: the Q2_0 kernels' activations
                 act_quant_any(x_f + (size_t) t * H, H, d.act_multi[(size_t) t]);
             else if (native)
                 native_quant_act(lay.fmt[(size_t) d.layers], x_f + (size_t) t * H, d.nact_multi.data() + (size_t) t * kNativeActBytes);
             else
                 act_quant_q8_1(x_f + (size_t) t * H, H, d.act_multi[(size_t) t]);
+        }
+        if (defer_q && n_defer > 0) {
+            if (n_defer >= 2) {
+                d.pool->defer_act_quant(x_f, native ? d.nact_multi.data() : nullptr, d.act_multi.data(), defer_toks, n_defer,
+                                        native, native ? &lay.fmt[(size_t) d.layers] : nullptr);
+            } else {   // one row: on this thread, as before
+                const int64_t t = defer_toks[0];
+                if (native && strata::kernels::cpu::q2_native_kernels(lay.fmt[(size_t) d.layers].gu_type))
+                    act_quant_any(x_f + (size_t) t * H, H, d.act_multi[(size_t) t]);
+                else if (native)
+                    native_quant_act(lay.fmt[(size_t) d.layers], x_f + (size_t) t * H, d.nact_multi.data() + (size_t) t * kNativeActBytes);
+                else
+                    act_quant_q8_1(x_f + (size_t) t * H, H, d.act_multi[(size_t) t]);
+            }
         }
     }
     const auto c2 = std::chrono::steady_clock::now();

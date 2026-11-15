@@ -105,7 +105,8 @@ int main(int argc, char** argv) {
         // in one call each, the default pool's tasks=1 cut of a lone expert
         const char* rs = std::getenv("STRATA_POOL_ROW_SPLIT");
         const char* tn = std::getenv("STRATA_POOL_TOUCH_NEXT");
-        if (argc == 1 && ((rs != nullptr && *rs != 0) || (tn != nullptr && *tn != 0))) {   // the synthetic Q4_0 expert
+        const bool defer_q = cpu::ExpertPool::defer_actq_on();   // STRATA_POOL_DEFER_ACTQ (ctest pool_tasks_test_defer_actq)
+        if (argc == 1 && ((rs != nullptr && *rs != 0) || (tn != nullptr && *tn != 0) || defer_q)) {   // the synthetic Q4_0 expert
             std::vector<float> ffb((size_t) cpu::MAXT * cpu::FF), serial((size_t) cpu::MAXT * cpu::H);
             std::vector<uint8_t> hqb((size_t) cpu::MAXT * cpu::kNativeHBytes);
             for (int e = 0; e < n; ++e) {
@@ -144,6 +145,32 @@ int main(int argc, char** argv) {
                     ++checks;
                 }
             }
+        if (defer_q && n <= cpu::ExpertPool::kMaxSplitMulti) {
+            // STRATA_POOL_DEFER_ACTQ: the input rows quantized by the pool's threads (defer_act_quant) into zeroed buffers
+            // must give the same outputs as the rows quantized here
+            std::vector<float> xs((size_t) cpu::MAXT * cpu::H);
+            for (int t = 0; t < cpu::MAXT; ++t)
+                for (int i = 0; i < cpu::H; ++i) xs[(size_t) t * cpu::H + i] = std::sin((float) (i + 13 * t) * 0.031f);
+            std::vector<uint8_t> dact((size_t) cpu::MAXT * cpu::kNativeActBytes);
+            std::vector<cpu::ActQ> dq(cpu::MAXT);
+            std::vector<cpu::ExpertJobMulti> djobs = jobs;
+            for (auto& job : djobs)
+                for (int t = 0; t < job.nt; ++t) { job.nact[t] = dact.data() + (size_t) t * cpu::kNativeActBytes; job.act[t] = &dq[t]; }
+            int toks[cpu::MAXT];
+            for (int t = 0; t < cpu::MAXT; ++t) toks[t] = t;
+            for (bool host : {false, true}) for (int workers : {2, 3}) {
+                cpu::ExpertPool pool(workers, false, host, cpu::PoolAffinity::All, 0);
+                std::fill(dact.begin(), dact.end(), (uint8_t) 0);
+                std::fill(out.begin(), out.end(), 0.0f);
+                pool.defer_act_quant(xs.data(), dact.data(), dq.data(), toks, cpu::MAXT, true, &f);
+                pool.run_split_multi_native(f, djobs.data(), n);
+                if (std::memcmp(ref.data(), out.data(), out.size() * sizeof(float)) != 0) {
+                    std::fprintf(stderr, "defer-actq mismatch n=%d workers=%d host=%d\n", n, workers, host);
+                    return 1;
+                }
+                ++checks;
+            }
+        }
         // STRATA_NUMA_SPLIT=test: two slices without a real second node (thread j -> slice j % 2), every worker
         // sleeping between batches (spin 0) so the late-wake path of issue #29 runs constantly
         put_env("STRATA_NUMA_SPLIT", "test");

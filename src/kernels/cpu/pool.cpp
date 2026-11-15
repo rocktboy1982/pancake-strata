@@ -1357,6 +1357,8 @@ inline void touch_bytes(const uint8_t* p, size_t bytes) {
 
 void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
     const int s = numa_n_ == 0 ? 0 : id >= 0 ? wslice_[(size_t) id] : hslice_;
+    // STRATA_POOL_DEFER_ACTQ (defer_act_quant): a multi-token gate/up phase first quantizes the deferred input rows
+    if ((mode_ == 3 || mode_ == 5 || mode_ == 7) && act_count_.load(std::memory_order_acquire) > 0) act_quant_help();
     for (;;) {
         // STRATA_NUMA_SPLIT: a mode-5/6 batch lives on the slice heads, any other on `head_`; the epoch tag makes the
         // other family's claim fail, so `mode_` is never read before a claim has succeeded (pool.hpp)
@@ -1481,6 +1483,7 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                     while (fready_[(size_t) e].load(std::memory_order_acquire) == 0) strata_cpu_pause();
                 }
                 const NativeFmt* const nfmt = mjobs_[e].fmt != nullptr ? mjobs_[e].fmt : nfmt_;   // 149-cold: same types and rows
+                if (pm == 6 && mode_ == 6 && lazy_q_) lazy_down_quant(e, true);   // STRATA_POOL_DEFER_ACTQ: expert e's down inputs
                 if (pm == 5 && q2_native_kernels(nfmt->gu_type)) {
                     // a native Q2_0 pack: gate and up rows on the Q2_0 kernels, then SwiGLU
                     thread_local float gbuf[MAXT][FF], ubuf[MAXT][FF];
@@ -1541,6 +1544,7 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                     for (int t = 0; t < mjobs_[e].nt; ++t) ff[t] = sb.ff[t];
                     s2_expert_gu_rows_multi(mjobs_[e].blob, mjobs_[e].act, mjobs_[e].nt, ff, r0, r1);
                 } else {
+                    if (lazy_q_) lazy_down_quant(e, false);   // STRATA_POOL_DEFER_ACTQ
                     const ActQ* a2[MAXT];
                     for (int t = 0; t < mjobs_[e].nt; ++t) a2[t] = &sb.a2[t];
                     s2_expert_down_rows_multi(mjobs_[e].blob, a2, mjobs_[e].nt, mjobs_[e].out, r0, r1);
@@ -1604,9 +1608,77 @@ int ExpertPool::phase_tasks(int64_t rows) const {
     return tasks_ == 0 ? 3 * (n_ + (host_works_ ? 1 : 0)) : (int) (std::min)(rows, (int64_t) tasks_);
 }
 
+// ---- STRATA_POOL_DEFER_ACTQ=1 (opt-in; port of bsorensen110/Strata e06154af0e "parallelize multi-token expert activation
+// quantization"): the window's input activations are quantized by the pool's threads as they enter the gate/up phase
+// (each claims a token row) instead of serially on the host before the run, and the down inputs by the first thread that
+// reaches an expert's down rows instead of serially on the host between the phases.  The same functions on the same rows:
+// the same bytes, so the output is unchanged.  Unset: nothing below runs.
+bool ExpertPool::defer_actq_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_POOL_DEFER_ACTQ"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+
+void ExpertPool::defer_act_quant(const float* x_f, uint8_t* nact, ActQ* act, const int* toks, int count, bool native,
+                                 const NativeFmt* fmt) noexcept {
+    act_xf_ = x_f;
+    act_nact_ = nact;
+    act_q_ = act;
+    act_fmt_ = fmt;
+    count = (std::min)(count, kActDeferMax);
+    for (int i = 0; i < count; ++i) act_toks_[i] = toks[i];
+    act_native_ = native && fmt != nullptr;
+    act_next_.store(0, std::memory_order_relaxed);
+    act_done_.store(0, std::memory_order_relaxed);
+    act_count_.store(count, std::memory_order_release);   // (published to the workers by the phase's own release)
+}
+
+namespace {
+inline void act_quant_row(const float* xf, uint8_t* nact, ActQ* act, const NativeFmt* f, bool native, int t) {
+    if (native && q2_native_kernels(f->gu_type)) act_quant_any(xf + (size_t) t * H, H, act[(size_t) t]);   // a native Q2_0 pack
+    else if (native) native_quant_act(*f, xf + (size_t) t * H, nact + (size_t) t * kNativeActBytes);
+    else act_quant_q8_1(xf + (size_t) t * H, H, act[(size_t) t]);
+}
+}  // namespace
+
+void ExpertPool::act_quant_help() {
+    const int count = act_count_.load(std::memory_order_acquire);
+    if (count <= 0) return;
+    for (;;) {
+        const int qi = act_next_.fetch_add(1, std::memory_order_relaxed);
+        if (qi >= count) break;
+        act_quant_row(act_xf_, act_nact_, act_q_, act_fmt_, act_native_, act_toks_[qi]);
+        act_done_.fetch_add(1, std::memory_order_release);
+    }
+    while (act_done_.load(std::memory_order_acquire) < count) strata_cpu_pause();
+}
+
+void ExpertPool::act_quant_flush() {
+    const int count = act_count_.load(std::memory_order_acquire);
+    for (int qi = 0; qi < count; ++qi) act_quant_row(act_xf_, act_nact_, act_q_, act_fmt_, act_native_, act_toks_[qi]);
+    act_count_.store(0, std::memory_order_relaxed);
+}
+
+void ExpertPool::lazy_down_quant(int e, bool native) {
+    SplitBufMulti& sb = split_multi_[(size_t) e];
+    const int nt = mjobs_[e].nt;
+    for (int t = 0; t < nt; ++t) {
+        uint8_t z = 0;
+        if (sb.q_state[t].load(std::memory_order_acquire) == 0 &&
+            sb.q_state[t].compare_exchange_strong(z, (uint8_t) 1, std::memory_order_acq_rel)) {
+            if (!native) act_quant_q8_1(sb.ff[t], FF, sb.a2[t]);
+            else if (q2_native_kernels(nfmt_->d_type)) act_quant_any(sb.ff[t], FF, sb.a2[t]);
+            else native_quant_h(*nfmt_, sb.ff[t], sb.hq[t]);
+            sb.q_state[t].store(2, std::memory_order_release);
+        }
+    }
+    for (int t = 0; t < nt; ++t)
+        while (sb.q_state[t].load(std::memory_order_acquire) != 2) strata_cpu_pause();
+}
+
 void ExpertPool::run_split_multi(ExpertJobMulti* jobs, int n) {
-    if (n <= 0) return;
+    if (n <= 0) { clear_act_quant(); return; }
     if (n > kMaxSplitMulti || expert_oracle_q8_0_enabled()) {
+        act_quant_flush();   // STRATA_POOL_DEFER_ACTQ: no gate/up phase below takes the deferred rows
         // one token at a time through the single-token path (the oracle contract has no multi kernel)
         std::vector<ExpertJob> single;
         for (int e = 0; e < n; ++e)
@@ -1623,17 +1695,27 @@ void ExpertPool::run_split_multi(ExpertJobMulti* jobs, int n) {
     }
     const auto t0 = std::chrono::steady_clock::now();
     mjobs_ = jobs;
+    if (n_ <= 1) act_quant_flush();   // STRATA_POOL_DEFER_ACTQ: (no workers to share them)
     mrows_ = (int64_t) n * FF;
     mtasks_ = phase_tasks(mrows_);
     run_phase(3, mtasks_);
+    clear_act_quant();   // (the phase's threads quantized every deferred row before their first task)
     const auto t1 = std::chrono::steady_clock::now();
-    for (int e = 0; e < n; ++e)
-        for (int t = 0; t < jobs[e].nt; ++t)
-            act_quant_q8_1(split_multi_[(size_t) e].ff[t], FF, split_multi_[(size_t) e].a2[t]);
+    const bool lazy = defer_actq_on() && n_ > 1;   // STRATA_POOL_DEFER_ACTQ: the down inputs in the down phase
+    if (lazy) {
+        for (int e = 0; e < n; ++e)
+            for (int t = 0; t < jobs[e].nt; ++t) split_multi_[(size_t) e].q_state[t].store(0, std::memory_order_relaxed);
+    } else {
+        for (int e = 0; e < n; ++e)
+            for (int t = 0; t < jobs[e].nt; ++t)
+                act_quant_q8_1(split_multi_[(size_t) e].ff[t], FF, split_multi_[(size_t) e].a2[t]);
+    }
     const auto t2 = std::chrono::steady_clock::now();
     mrows_ = (int64_t) n * H;
     mtasks_ = phase_tasks(mrows_);
+    lazy_q_ = lazy;
     run_phase(4, mtasks_);
+    lazy_q_ = false;
     const auto t3 = std::chrono::steady_clock::now();
     ms_multi_gu += std::chrono::duration<double, std::milli>(t1 - t0).count();
     ms_multi_q += std::chrono::duration<double, std::milli>(t2 - t1).count();
@@ -1719,7 +1801,8 @@ bool ExpertPool::fuse_phases(int nb) const {
 }
 
 void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs, int n, NativeArithmetic arithmetic) {
-    if (n <= 0) return;
+    if (n <= 0) { clear_act_quant(); return; }
+    if (n_ <= 1) act_quant_flush();   // STRATA_POOL_DEFER_ACTQ: (no workers to share them)
     const auto t0 = std::chrono::steady_clock::now();
     // STRATA_POOL_ROW_SPLIT (pool_row_split above): ceil(rows/N) fixed-row tasks, else the default count
     auto native_tasks = [this](int64_t rows, bool guided_ok = false) -> int {
@@ -1768,6 +1851,7 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
             // the down rows were cut from the previous phase's count - wrong ranges, or a division by zero)
             mtasks_ = (int) (fgu_tasks_ + native_tasks(fdn_rows_));
             run_phase(7, mtasks_);
+            clear_act_quant();   // STRATA_POOL_DEFER_ACTQ: taken by the phase's threads
             ms_multi_gu += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - a).count();
             continue;
         }
@@ -1775,12 +1859,22 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
         mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_ff, nb) : native_tasks(mrows_, true);
         const auto a = std::chrono::steady_clock::now();
         run_phase(5, mtasks_);
+        clear_act_quant();   // STRATA_POOL_DEFER_ACTQ: taken by the phase's threads
         const auto b = std::chrono::steady_clock::now();
-        for (int e = 0; e < nb; ++e) quant_down_act(e);
+        // STRATA_POOL_DEFER_ACTQ: the down inputs in the down phase (not with the raw activation dump, quant_down_act's)
+        const bool lazy = defer_actq_on() && n_ > 1 && !raw_dump().want(f.layer);
+        if (lazy) {
+            for (int e = 0; e < nb; ++e)
+                for (int t = 0; t < mjobs_[e].nt; ++t) split_multi_[(size_t) e].q_state[t].store(0, std::memory_order_relaxed);
+        } else {
+            for (int e = 0; e < nb; ++e) quant_down_act(e);
+        }
         const auto c = std::chrono::steady_clock::now();
         mrows_ = (int64_t) nb * f.n_embd;
         mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_embd, nb) : native_tasks(mrows_, true);
+        lazy_q_ = lazy;
         run_phase(6, mtasks_);
+        lazy_q_ = false;
         const auto d = std::chrono::steady_clock::now();
         ms_multi_gu += std::chrono::duration<double, std::milli>(b - a).count();
         ms_multi_q += std::chrono::duration<double, std::milli>(c - b).count();
