@@ -8192,6 +8192,10 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
     # model then writes exactly takes its result.  None (the default): no call runs before the model writes it.
     spec = mcp_spec.Speculator(hub, cancel) if mcp_spec.enabled() else None
     futures = mcp_async.Futures(hub, cancel, spec) if mcp_async.enabled() else None
+    from serve import early_stop
+    # STRATA_MCP_EARLY_STOP=N (opt-in; EarlyEval / EET, LEADS.md): N rounds in a row with no new call and no new
+    # result go to the final answer.  None (the default): only max_rounds ends the loop.
+    progress = early_stop.Progress(early_stop.patience()) if early_stop.patience() else None
     while True:
         text, reasoning, calls, own_calls = [], [], [], 0
         for kind, x in svc.run(ids, thinking, tools, max_new, sampling, cancel, declared_only=True):
@@ -8281,6 +8285,13 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
                 "reply. Answer the user's original request in their language using the results already obtained. "
                 "Explain any gaps in the available evidence. Do not request or emit further tool calls."})
             yield "mcp", {"event": "limit", "max_rounds": max_rounds}
+        elif progress is not None and progress.round(calls, results):
+            finalizing = True                            # STRATA_MCP_EARLY_STOP: no progress for N rounds
+            tools = None
+            system_end = next((index for index, message in enumerate(messages)
+                               if message.get("role") not in ("system", "developer")), len(messages))
+            messages.insert(system_end, {"role": "system", "content": early_stop.NOTE})
+            yield "mcp", {"event": "early_stop", "rounds": rounds, "stale": progress.stale}
         try:
             ids, thinking, max_new = svc.prepare(messages, tools, kw, max_req, cancel=cancel)
         except ClientGone:                                      # #1999: the client left while a picture was prepared
