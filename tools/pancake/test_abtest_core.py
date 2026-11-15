@@ -625,3 +625,14 @@ def test_replay_marks_screens_and_counts_attempts():
 def test_model_seconds_counts_starts_and_passes():
     # 3 arms x 6 reps, block 3: 6 starts of (overhead + (1 warm-up + 3) passes)
     assert R.model_seconds(3, 6, 3, 100.0, 10.0) == 6 * (100 + 4 * 10)
+
+
+def test_text_check_accepts_any_base_pass(capsys):
+    # the base gave two different texts on "edit" (placement-dependent); an arm equal to either one is exact
+    results = {"base": [{"texts": {"edit": "A"}}, {"texts": {"edit": "B"}}],
+               "same": [{"texts": {"edit": "B"}}],
+               "other": [{"texts": {"edit": "C"}}]}
+    A.text_check(results, ["base", "same", "other"], ["edit"])
+    out = capsys.readouterr().out
+    assert "same" in out and "identical on every case -> exact" in out.split("other")[0]
+    assert "DIFFERENT text" in out.split("other")[1]

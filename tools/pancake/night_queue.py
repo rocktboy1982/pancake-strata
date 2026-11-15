@@ -500,6 +500,14 @@ def preflight(jobs: list[dict], plan: dict, q: "Queue") -> list[str]:
 
 
 # ----------------------------------------------------------------------------------------------------------------- the queue
+def pass_wrote_output(path) -> bool:
+    """True when a client pass left a non-empty output file (a pass that exits 0 without one measured nothing)."""
+    try:
+        return os.path.getsize(path) > 0
+    except OSError:
+        return False
+
+
 class Queue:
     def __init__(self, plan: dict, run_dir: Path, args, probe: Probe | None = None):
         self.plan, self.run_dir, self.args = plan, Path(run_dir), args
@@ -658,6 +666,12 @@ class Queue:
             if ent["rc"] != 0:
                 if rec["status"] == "running":
                     rec.update(status="failed", reason=f"pass {c['n']} ({c['label']}) exited with code {ent['rc']}")
+                return
+            # audit 2026-11-15: a pass that exits 0 but wrote no output file measured nothing; it must not count as done
+            # (a "done" job is skipped by --resume --retry-failed).  Fake runs (tests) write nothing by design.
+            if not self.fake and not pass_wrote_output(c["out"]):
+                if rec["status"] == "running":
+                    rec.update(status="failed", reason=f"pass {c['n']} ({c['label']}) exited 0 but wrote no measurement ({ent['file']})")
                 return
 
     def run_post(self, p: dict, rec: dict) -> None:

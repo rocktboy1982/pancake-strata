@@ -245,7 +245,7 @@ miss.
 
 | # | item | expected | exact/lossy |
 |---|---|---|---|
-| 1 | FK-28 prompt-fed tier counts, redesigned: the existing `set_usage` hook is dead (section 7). Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
+| 1 | FK-28 prompt-fed tier counts, redesigned: the old dead `set_usage` hook was deleted (T-575); build it fresh. Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
 | 2 | 0xluk `PF_AHEAD` + `REFILL_ASYNC` for the staged path of agent deltas < 4,096 tokens | +35% agent prefill (2x 3060, PCIe 3) | exact |
 | 3 | CODED 2026-11-15 (opt-in build switch `STRATA_MMQ_RDNA3_J32_ROLLED`, `cmake/strata_ggml_rdna3_j32.cmake`): llama.cpp #31751 RDNA3 MMQ J=32 rolled k01 loop on the pinned ggml; acts on the staged prompt chunks (< 4096 tokens, agent deltas) for Q2_0 down / IQ2_XXS / IQ4_XS. Static check T-578: J=32 kernel 256 VGPRs + spill, occupancy 5 -> 137 VGPRs, no spill, occupancy 10. Next: spec 64 (build-vs-build) | author +36% at 17-32-token batches, gfx1100 | exact |
 | 4 | android-imdad exact decode bundle (commit caa9b00115). CODED 2026-11-15 as opt-ins: `STRATA_MULTI_BLOCK_ARGMAX=1` now works on gfx11 (was gfx12-only) with 4 loads in flight in the HIP argmax scan (author 12 -> 5.6 us a pick), `STRATA_MTP_SELECT_WIDE=1`; next: spec 63. Not ported: `GDN_NORM128` (our gdn_out_norm_kernel runs only on the `STRATA_GDN_SPLIT` path, off in fast-hip), `ROUTE_FAST` / `WAIT_COPY256` (ported earlier, dropped / inert), `TOPK_*` / `ATTN_MERGE_BOUND` (attention < 1% of our window), `DMA_FLAG_WRITE` (pcie-frac 0), `ADAPT_COPY2` / `DQ_FAST` (open) | bundle +10% chat, +11% agent, KL 0, 7900 XTX (no per-switch split) | exact |
@@ -270,34 +270,36 @@ typed flag registry, 95 split `generate.cpp main()` (hygiene, no speed).
 ## 7. Defects and stale claims found by the 2026-11-15 audit
 
 Code:
-- FK-28 `STRATA_ADAPT_PROMPT` is dead code: `Prefill::set_usage` (prefill.cpp:3009, prefill.hpp:302) has no caller,
-  nothing reads the env name, no disk_env entry; it also duplicates `sp.on_routes` and adds unweighted counts. Wire it
-  as section 6 item 1 or delete it.
+- FIXED 2026-11-15 (T-575): the FK-28 dead hook (`Prefill::set_usage`, `usage_`, its count loop) is deleted; the feature
+  is section 6 item 1 (feed `drive.d.usage` from `sp.on_routes`).
 - Default path changed without an A/B: Phase 18 item 9 (D7); RDNA 9-16 column kernels (D6).
 - `STRATA_PARK_ASYNC` cannot act on HIP (`park_async_on()` false, conversation_snapshot.cpp:231): parks are synchronous
   inside TTFT.
-- Possible fence bug: the staging readers after `wait_flag_ge_or` (verify_kernels.cu ~1619-1650) may lack the
+- RESOLVED, no engine change (T-574): the fence theory is not supported; see the ledger row. Original note: Possible fence bug: the staging readers after `wait_flag_ge_or` (verify_kernels.cu ~1619-1650) may lack the
   `__threadfence_system()` the flag-order test needed (test fix: after the spin and after the store, flag_order_test.cu
   26-29; its segfault was a ROCm runtime mismatch, fix `LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib`; failures 57x1 / 101x2
   = one device; line 120 prints "device N ok" even on failure; run the 4-way matrix with `HIP_VISIBLE_DEVICES=0/1`).
-- Sampler: `p.temperature <= 0.0f` (sampler.cu:869) does not catch NaN or tiny positive values.
-- `gdn_gate_kernel` computes only the first token (elementwise.cu:43; latent, re-check before fixing).
-- Upstream #5273 short-chunk guard only on one `give_back` site (prefill.cpp:6215), not 4252/4396/4527/5029.
+- FIXED (T-573): sampler greedy rule at all four sites; a NaN temperature was a uniform draw (4 of 4 picks wrong).
+- FIXED (T-576): `gdn_gate_kernel` computed only the first token (latent, every caller passes 1 token).
+- FIXED (T-575): upstream #5273 guard (`if (stream_all)`) at the three KVA exits (4252/4396/4527); 5029 is inside the
+  `fused_l` branch (needs `stream_all`) and 6215 tests `stream_all` itself. Research path only, no test exercises it.
 - Phase 17 review: R1 fixed (24de1106); R2 (`diverge_at` in conv_cache.hpp) and R3 (`max_cells` rule in kv_ring.hpp)
-  are not in the code.
-- A37 `IQ_LUT_DUP` (d11a9ca09) was never reverted although its gate said no-go (T-060): revert or keep off.
-- `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it.
+  are not in the code. OPEN: the review text that defines what they must do is not in the repo (grep finds `diverge_at` only in a
+  server log), so they are not coded; needs the original review wording.
+- A37 `IQ_LUT_DUP` (d11a9ca09): code read 2026-11-15: default off (iq_kernels.hpp, 0 = off); stays as an opt-in bench knob, not reverted.
+- `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it: opt-in, off, classified in disk_env;
+  left in (removing it needs a Mac-side check nobody can run here). OPEN, low.
 - `STRATA_PSI_SHED` (Speedy item 8.3) was never ported though the old plan counted it done.
-- Tools: `night_queue.py` marks a job with zero measurements "done", so `--retry-failed` skips it; `abtest.py` text_check
-  (:866) should accept any base hash; `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` and
-  `quality_gate.py:161` still defaults to `set.json`; all `taskgate-*` specs use `bench/tasks/default.json`.
+- Tools: FIXED (T-577): `night_queue.py` zero-measurement real passes are now failed; `abtest.py` text_check accepts any base
+  pass. OPEN: `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` (a `--fill` run with the stock arm, GPU hours) and
+  `quality_gate.py:161` stays on `set.json` until then (by design, see its comment); all `taskgate-*` specs use `bench/tasks/default.json`.
 - Item 38 O_DIRECT loader: the audit found it in HEAD (184e68e83, expert_source.cpp:852, `STRATA_UNBUFFERED_LOAD`), a
   research note says it is not built (expert_source.cpp:6155): re-check.
 - Planned but not in code: `STRATA_FORCE_ISA` avx512 / avx-vnni values (item 57), CPU governor setting (item 41);
   `--pool-affinity measure` is a no-op on the 5700G. PCIe 16 GT/s vs Gen3: settle with `lspci -vv`.
 
 The box plan entry of 2026-11-15 "FK-28 A/B was already run (spec 28)" is wrong: spec 28 (`28-phase18-draft.json`) arms
-`--spec 3/5` and `MTP_EAGER`, not `STRATA_ADAPT_PROMPT`, and `set_usage` still has no caller. FK-28 stays dead code.
+`--spec 3/5` and `MTP_EAGER`, not `STRATA_ADAPT_PROMPT`; the dead hook was then deleted (T-575), FK-28 is unbuilt (section 6 item 1).
 - Status page on the HIP box: GPU name null and backend labelled CUDA (cosmetic); the amdgpu sysfs reader (8a9c5bce7)
   now supplies VRAM, temperature and power.
 

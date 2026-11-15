@@ -115,6 +115,30 @@ int main(int argc, char** argv) {
         // double softplus and double multiply on both sides, then one cast
         if (!(rel <= 1e-6)) { std::printf("    *** over 1e-6 ***\n"); ++bad; }
 
+        // Several tokens: the gate of token t is the one-token gate of row t (the kernel once stopped after the first token).
+        {
+            const int NT = 3;
+            float *m_a = nullptr, *m_g = nullptr;
+            check(cudaMalloc(&m_a, n * 4 * NT), "ma");
+            check(cudaMalloc(&m_g, n * 4 * NT), "mg");
+            std::vector<float> many((size_t) n * NT);
+            for (int t = 0; t < NT; ++t) for (size_t j = 0; j < (size_t) n; ++j) many[(size_t) t * n + j] = alpha[j] + 0.5f * (float) t;
+            check(cudaMemcpy(m_a, many.data(), n * 4 * NT, cudaMemcpyHostToDevice), "cma");
+            strata::kernels::gdn_gate(m_a, d_dt, d_sa, m_g, NT, H_V, nullptr);
+            std::vector<float> gm((size_t) n * NT);
+            check(cudaMemcpy(gm.data(), m_g, n * 4 * NT, cudaMemcpyDeviceToHost), "cgm");
+            int diff = 0;
+            for (int t = 0; t < NT; ++t) {
+                strata::kernels::gdn_gate(m_a + (size_t) t * n, d_dt, d_sa, d_g, 1, H_V, nullptr);
+                std::vector<float> one((size_t) n);
+                check(cudaMemcpy(one.data(), d_g, n * 4, cudaMemcpyDeviceToHost), "cg1");
+                for (size_t j = 0; j < (size_t) n; ++j) if (one[j] != gm[(size_t) t * n + j]) ++diff;
+            }
+            std::printf("  %-44s %d of %d values differ\n", "gdn_gate 3 tokens vs 3 single-token calls", diff, (int) (n * NT));
+            if (diff) ++bad;
+            cudaFree(m_a); cudaFree(m_g);
+        }
+
         // TRAP: no large-x branch.  `log1p(exp(x))` in f32, with no `x > 20` path.
         //
         // AND THE MEASUREMENT SAYS WHERE THE BRANCH ACTUALLY MATTERS.  The first version of this fixture
