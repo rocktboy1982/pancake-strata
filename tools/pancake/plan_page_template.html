@@ -1,0 +1,256 @@
+<title>Pancake Development Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: header with status counts, tab bar (plan items / tests / full plan), filter row, then a single column of rows. */
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --fg: #1b1f27;
+  --muted: #5d6676;
+  --line: #dde1e8;
+  --accent: #b3262f;
+  --accent-soft: #f7e4e5;
+  --code-bg: #eef0f4;
+  --s-done: #1f7a4d;
+  --s-progress: #1d5fb8;
+  --s-queued: #6b4fb3;
+  --s-notstarted: #5d6676;
+  --s-waiting: #9a6a00;
+  --s-fix: #b3262f;
+  --s-parked: #7a7f88;
+  --s-dropped: #8a5a44;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --panel: #191d25; --fg: #e4e7ee; --muted: #9aa3b4; --line: #2b313d;
+    --accent: #ff6f78; --accent-soft: #3a1f24; --code-bg: #222834;
+    --s-done: #5cc98f; --s-progress: #6fa8ff; --s-queued: #b39cff; --s-notstarted: #9aa3b4; --s-waiting: #e2b54a;
+    --s-fix: #ff6f78; --s-parked: #8d939d; --s-dropped: #d39a7f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --panel: #191d25; --fg: #e4e7ee; --muted: #9aa3b4; --line: #2b313d;
+  --accent: #ff6f78; --accent-soft: #3a1f24; --code-bg: #222834;
+  --s-done: #5cc98f; --s-progress: #6fa8ff; --s-queued: #b39cff; --s-notstarted: #9aa3b4; --s-waiting: #e2b54a;
+  --s-fix: #ff6f78; --s-parked: #8d939d; --s-dropped: #d39a7f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font: 14.5px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 24px 64px; display: grid; gap: 18px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--fg); padding-bottom: 12px; }
+header.top h1 { font: 700 clamp(24px, 4vw, 34px)/1.1 var(--font-display); margin: 0; letter-spacing: -0.01em; }
+header.top h1 span { color: var(--accent); }
+.meta { font: 12.5px/1.5 var(--font-mono); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.meta b { color: var(--fg); font-weight: 500; }
+.counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.count { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font: inherit; color: var(--fg); }
+.count b { font: 600 20px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.count span { font-size: 12.5px; color: var(--muted); }
+.count:hover, .count:focus-visible { border-color: var(--accent); outline: none; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tab { font: 600 14px/1 var(--font-body); padding: 10px 14px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fchip { font: 500 12.5px/1 var(--font-body); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.fchip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--muted)); display: inline-block; }
+.fchip small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.fchip[aria-pressed="true"] { border-color: var(--c, var(--accent)); background: var(--accent-soft); }
+.fchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input[type="search"], select { font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); min-width: 0; }
+input[type="search"] { flex: 1 1 240px; }
+.shown { font-size: 12.5px; color: var(--muted); }
+.list { display: grid; gap: 8px; }
+.item { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--line)); border-radius: 6px; }
+.item summary { list-style: none; cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: baseline; }
+.item summary::-webkit-details-marker { display: none; }
+.item summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.st { font: 600 11px/1 var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); white-space: nowrap; }
+.ttl { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.sec { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.body { padding: 0 14px 12px 14px; color: var(--fg); overflow-wrap: anywhere; border-top: 1px dashed var(--line); padding-top: 10px; }
+.body p { margin: 0 0 6px; }
+code { font: 0.88em/1.4 var(--font-mono); background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.tid { font: 500 0.85em/1 var(--font-mono); color: var(--accent); background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; white-space: nowrap; }
+.tblwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: 7px 9px; border-bottom: 1px solid var(--line); }
+th { font: 600 11.5px/1.3 var(--font-body); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--code-bg); position: sticky; top: 0; white-space: nowrap; }
+td.id { font-family: var(--font-mono); white-space: nowrap; color: var(--accent); }
+td.v { white-space: nowrap; font-weight: 600; font-size: 11.5px; letter-spacing: 0.04em; }
+td.res { min-width: 320px; }
+td.item-c { min-width: 200px; }
+td.arch { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); min-width: 180px; overflow-wrap: anywhere; }
+.plan { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 22px 24px; min-width: 0; }
+.plan h1 { display: none; }
+.plan h2 { font: 600 21px/1.25 var(--font-display); margin: 30px 0 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.plan h2:first-of-type { border-top: none; }
+.plan p, .plan li { max-width: 82ch; }
+.plan .tbl { overflow-x: auto; margin: 12px 0; }
+.plan table td { min-width: 90px; }
+.plan pre { background: var(--code-bg); padding: 10px 12px; border-radius: 6px; overflow-x: auto; }
+.plan pre code { background: none; padding: 0; overflow-wrap: normal; }
+.empty { padding: 24px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 6px; }
+@media (max-width: 640px) {
+  .item summary { grid-template-columns: 1fr; }
+  .sec { white-space: normal; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>pancake-strata <span>plan</span></h1>
+    <div class="meta"><span>branch <b>port/rdna3-decode</b></span><span>commit <b>__COMMIT__</b></span><span>rendered <b>__DATE__</b></span><span>RX 7900 XT &middot; gfx1100 &middot; Flash-Next IQ2_XS</span></div>
+  </header>
+
+  <div class="counts" id="counts" aria-label="Plan items by status"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-items" aria-selected="true" data-view="items">Plan items</button>
+    <button class="tab" role="tab" id="tab-tests" aria-selected="false" data-view="tests">Tests</button>
+    <button class="tab" role="tab" id="tab-plan" aria-selected="false" data-view="plan">Full plan</button>
+  </div>
+
+  <section id="v-items">
+    <div class="filters">
+      <div class="chips" id="st-chips" aria-label="Filter by status"></div>
+      <select id="sec-sel" aria-label="Filter by section"><option value="">All sections</option></select>
+      <input type="search" id="q-items" placeholder="Search items (switch, spec, T-id, word)" aria-label="Search plan items">
+      <span class="shown" id="n-items"></span>
+    </div>
+    <div class="list" id="items" style="margin-top:12px"></div>
+  </section>
+
+  <section id="v-tests" hidden>
+    <div class="filters">
+      <div class="chips" id="v-chips" aria-label="Filter by verdict"></div>
+      <select id="area-sel" aria-label="Filter by area"><option value="">All areas</option></select>
+      <input type="search" id="q-tests" placeholder="Search tests (switch, spec, number)" aria-label="Search tests">
+      <span class="shown" id="n-tests"></span>
+    </div>
+    <div class="tblwrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>id</th><th>date</th><th>verdict</th><th>item</th><th>arms &rarr; result</th><th>tier</th><th>exact / text</th><th>area</th><th>archive</th></tr></thead>
+        <tbody id="tests"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="v-plan" hidden><div class="plan" id="plan"></div></section>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script type="text/plain" id="md">__MARKDOWN__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById('data').textContent);
+  var ST = [
+    ['done', 'Done / adopted', '--s-done'], ['progress', 'In progress', '--s-progress'], ['queued', 'Queued (coded, not measured)', '--s-queued'],
+    ['notstarted', 'Code to write', '--s-notstarted'], ['waiting', 'Waiting for owner', '--s-waiting'], ['fix', 'Fix needed', '--s-fix'],
+    ['parked', 'Parked', '--s-parked'], ['dropped', 'Dropped (do not repeat)', '--s-dropped']
+  ];
+  var stName = {}, stColor = {};
+  ST.forEach(function (s) { stName[s[0]] = s[1]; stColor[s[0]] = 'var(' + s[2] + ')'; });
+  function inl(s) { try { return marked.parseInline(s || ''); } catch (e) { return s; } }
+  function tag(html) { return html.replace(/\b(T-\d{3}(?:\.\.T-\d{3})?)\b/g, '<span class="tid">$1</span>'); }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+  // counts + status chips
+  var counts = {}; D.items.forEach(function (i) { counts[i.status] = (counts[i.status] || 0) + 1; });
+  var activeSt = new Set();
+  var cEl = document.getElementById('counts'), chipEl = document.getElementById('st-chips');
+  ST.forEach(function (s) {
+    if (!counts[s[0]]) return;
+    var b = document.createElement('button'); b.className = 'count'; b.style.setProperty('--c', stColor[s[0]]);
+    b.innerHTML = '<b style="color:' + stColor[s[0]] + '">' + counts[s[0]] + '</b><span>' + s[1] + '</span>';
+    b.onclick = function () { activeSt = new Set([s[0]]); syncChips(); showView('items'); renderItems(); };
+    cEl.appendChild(b);
+    var c = document.createElement('button'); c.className = 'fchip'; c.dataset.st = s[0]; c.style.setProperty('--c', stColor[s[0]]);
+    c.setAttribute('aria-pressed', 'false'); c.innerHTML = '<i></i>' + s[1] + ' <small>' + counts[s[0]] + '</small>';
+    c.onclick = function () { activeSt.has(s[0]) ? activeSt.delete(s[0]) : activeSt.add(s[0]); syncChips(); renderItems(); };
+    chipEl.appendChild(c);
+  });
+  function syncChips() { chipEl.querySelectorAll('.fchip').forEach(function (c) { c.setAttribute('aria-pressed', activeSt.has(c.dataset.st) ? 'true' : 'false'); }); }
+
+  var secSel = document.getElementById('sec-sel');
+  Array.from(new Set(D.items.map(function (i) { return i.sec; }))).forEach(function (s) { var o = document.createElement('option'); o.value = s; o.textContent = s; secSel.appendChild(o); });
+  var qItems = document.getElementById('q-items');
+
+  function renderItems() {
+    var q = qItems.value.trim().toLowerCase(), sec = secSel.value, out = document.getElementById('items'), n = 0;
+    out.innerHTML = '';
+    D.items.forEach(function (i) {
+      if (activeSt.size && !activeSt.has(i.status)) return;
+      if (sec && i.sec !== sec) return;
+      if (q && (i.title + ' ' + i.body + ' ' + i.sec).toLowerCase().indexOf(q) < 0) return;
+      n++;
+      var d = document.createElement('details'); d.className = 'item'; d.style.setProperty('--c', stColor[i.status]);
+      d.innerHTML = '<summary><span class="st">' + stName[i.status] + '</span><span class="ttl">' + tag(inl(i.title)) + '</span><span class="sec">' + i.sec + ' &middot; ' + i.ref + '</span></summary><div class="body">' + tag(inl(i.body)) + '</div>';
+      out.appendChild(d);
+    });
+    if (!n) out.innerHTML = '<div class="empty">No plan items match these filters.</div>';
+    document.getElementById('n-items').textContent = n + ' of ' + D.items.length + ' items';
+  }
+  secSel.onchange = renderItems; qItems.oninput = renderItems;
+
+  // tests
+  var vKey = function (v) { return (v || '').split(/[ (]/)[0].toUpperCase(); };
+  var vCount = {}; D.tests.forEach(function (t) { var k = vKey(t.verdict); vCount[k] = (vCount[k] || 0) + 1; });
+  var vColor = { ADOPTED: '--s-done', PASS: '--s-done', DROPPED: '--s-dropped', FAIL: '--s-fix', ABORTED: '--s-fix', 'OPEN-NO-DECISION': '--s-waiting', 'PROMOTED-CONFIRM-PENDING': '--s-progress', INFO: '--s-notstarted' };
+  var activeV = new Set(), vEl = document.getElementById('v-chips');
+  Object.keys(vCount).sort(function (a, b) { return vCount[b] - vCount[a]; }).forEach(function (k) {
+    var c = document.createElement('button'); c.className = 'fchip'; c.dataset.v = k; c.setAttribute('aria-pressed', 'false');
+    c.style.setProperty('--c', 'var(' + (vColor[k] || '--muted') + ')');
+    c.innerHTML = '<i></i>' + k + ' <small>' + vCount[k] + '</small>';
+    c.onclick = function () { activeV.has(k) ? activeV.delete(k) : activeV.add(k); c.setAttribute('aria-pressed', activeV.has(k) ? 'true' : 'false'); renderTests(); };
+    vEl.appendChild(c);
+  });
+  var areaSel = document.getElementById('area-sel');
+  Array.from(new Set(D.tests.map(function (t) { return t.area; }))).forEach(function (a) { var o = document.createElement('option'); o.value = a; o.textContent = a; areaSel.appendChild(o); });
+  var qTests = document.getElementById('q-tests');
+  function esc(s) { return (s || '').replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function renderTests() {
+    var q = qTests.value.trim().toLowerCase(), a = areaSel.value, rows = [], n = 0;
+    D.tests.forEach(function (t) {
+      var k = vKey(t.verdict);
+      if (activeV.size && !activeV.has(k)) return;
+      if (a && t.area !== a) return;
+      if (q && (t.id + ' ' + t.item + ' ' + t.test + ' ' + t.result + ' ' + t.verdict + ' ' + t.archive).toLowerCase().indexOf(q) < 0) return;
+      n++;
+      rows.push('<tr><td class="id">' + t.id + '</td><td>' + esc(t.date) + '</td><td class="v" style="color:var(' + (vColor[k] || '--muted') + ')">' + esc(t.verdict) + '</td><td class="item-c">' + inl(t.item) + '<br><small style="color:var(--muted)">' + inl(t.test) + '</small></td><td class="res">' + inl(t.result) + '</td><td>' + esc(t.tier) + '</td><td>' + esc(t.exact) + '</td><td>' + esc(t.area) + '</td><td class="arch">' + esc(t.archive) + '</td></tr>');
+    });
+    document.getElementById('tests').innerHTML = rows.join('') || '<tr><td colspan="9" class="empty">No tests match these filters.</td></tr>';
+    document.getElementById('n-tests').textContent = n + ' of ' + D.tests.length + ' tests';
+  }
+  areaSel.onchange = renderTests; qTests.oninput = renderTests;
+
+  // full plan
+  var planEl = document.getElementById('plan');
+  planEl.innerHTML = tag(marked.parse(document.getElementById('md').textContent, { gfm: true }));
+  planEl.querySelectorAll('table').forEach(function (t) { var w = document.createElement('div'); w.className = 'tbl'; t.parentNode.insertBefore(w, t); w.appendChild(t); });
+
+  // tabs
+  function showView(v) {
+    ['items', 'tests', 'plan'].forEach(function (x) {
+      document.getElementById('v-' + x).hidden = x !== v;
+      document.getElementById('tab-' + x).setAttribute('aria-selected', x === v ? 'true' : 'false');
+    });
+    store('pancake-view', v);
+  }
+  document.querySelectorAll('.tab').forEach(function (b) { b.onclick = function () { showView(b.dataset.view); }; });
+  var start = location.hash === '#tests' ? 'tests' : location.hash === '#plan' ? 'plan' : (store('pancake-view') || 'items');
+  renderItems(); renderTests(); showView(['items', 'tests', 'plan'].indexOf(start) >= 0 ? start : 'items');
+})();
+</script>

@@ -25,6 +25,7 @@ Three files at the repository root hold all of the fork's knowledge, and only th
 | [`MOD_PLAN.md`](MOD_PLAN.md) | what the daily preset runs and why (with test ids), the decisions waiting for the owner, the GPU queue, the code to write, known defects, parked items, the do-not-repeat list, architecture facts |
 | [`TEST_LEDGER.md`](TEST_LEDGER.md) | every test run on this fork (549 rows, ids `T-nnn`): numbers, spec, tier, verdict, and the raw archive under `bench/results/` or `pancake-docs/research/bench/` |
 | [`LEADS.md`](LEADS.md) | every unported idea (~600) from forks, upstream PRs, llama.cpp, papers and hardware notes, with the author's numbers and whether our tree has it |
+| [`plan.html`](plan.html) | generated view of the plan and the ledger with filters (status, verdict, area, search); rebuilt by `python3 tools/pancake/plan_page.py` with every plan or ledger change |
 
 Every number in this README comes from a ledger row; the `T-nnn` next to it is the row.
 

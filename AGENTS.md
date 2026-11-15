@@ -22,7 +22,10 @@ Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
 3. **Allowed besides the three:** `AGENTS.md` (these rules), `README.md` (reader-facing summary that points to the three
    files), specs in `bench/specs/`, raw machine output in `bench/results/<date>-<name>/` and
    `pancake-docs/research/bench/` (files the tools write: jsonl, json, stdout, summaries; no hand-written prose), and code
-   comments. Inherited upstream `docs/` stays as upstream has it.
+   comments. Inherited upstream `docs/` stays as upstream has it. One generated view is allowed: `plan.html` (the
+   filterable plan board: plan items by status, every test by verdict, the full plan). Never edit it by hand; rebuild it
+   with `python3 tools/pancake/plan_page.py` and commit it in the same commit as every change to MOD_PLAN.md or
+   TEST_LEDGER.md, so it never goes stale.
 4. **Cite only the three files** (and specs / raw archives) in code comments, spec notes, commit messages and docs:
    tests by id (`TEST_LEDGER.md T-123`), plan items by section (`MOD_PLAN.md section 5`), ideas as `LEADS.md`. Never cite a
    deleted document or an old commit's file.
