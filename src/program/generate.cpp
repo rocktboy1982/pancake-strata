@@ -5218,6 +5218,17 @@ int main(int argc, char** argv) {
             o.pcie_frac_auto = (o.layer_split.empty() || pcie_auto_split_ok()) && !pf_old &&
                                (decode_defaults_arch_ok() || pcie_auto_fork_arch_ok());
             o.pcie_probe_gbps = bw;
+            // STRATA_LINK_DEFAULTS=G (opt-in; unset = the probe rule above, unchanged): a probed link below G GB/s (no
+            // --pcie-frac given) starts at pcie_frac 0 with the auto refinement off - every miss on the CPU pool.  Lead:
+            // LEADS.md Part D item 61 "defaults by VRAM size and link probe" (on the Gen3 box --pcie-frac 0 beat the
+            // auto share; numbers in TEST_LEDGER.md).  Placement only.
+            static const double link_def = [] { const char* e = std::getenv("STRATA_LINK_DEFAULTS"); return e ? std::atof(e) : 0.0; }();
+            if (link_def > 0.0 && bw < link_def) {
+                o.pcie_frac = 0.0;
+                o.pcie_frac_auto = false;
+                std::fprintf(stderr, "strata generate: STRATA_LINK_DEFAULTS=%.1f: link %.1f GB/s is below it -> pcie_frac 0, "
+                                     "auto refinement off\n", link_def, bw);
+            }
         } else {
             o.pcie_frac = base;
             std::fprintf(stderr, "strata generate: PCIe probe failed -> pcie_frac default %.2f\n", base);
