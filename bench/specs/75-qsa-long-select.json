@@ -1,0 +1,33 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "longdec10k",
+    "longdec32k"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "partial-topk": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_QSA_PARTIAL_TOPK": "1"
+      }
+    },
+    "page-sel16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_QSA_PAGE_SEL": "16"
+      }
+    },
+    "page-sel32": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_QSA_PAGE_SEL": "32"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 14 (coded 2026-11-15): QSA selection at long context (after-12K gap 2.18 ms/token). STRATA_QSA_PARTIAL_TOPK=1: sampled threshold + one filter pass, failed queries re-run on the exact kernel - EXACT (same ids; its text must equal base). STRATA_QSA_PAGE_SEL=16/32: Quest-style page min/max bounds pick pages, exact selection inside them - lossy (recall test qsa_page_select_recall). Judged on decode tok/s of the longdec cases. Stop pancake.service first."
+}
