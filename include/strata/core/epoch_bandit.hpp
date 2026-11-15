@@ -89,6 +89,15 @@ struct BanditConfig {
     int type_mode = kTypeReq; ///< STRATA_BANDIT_TYPE
     double type_arg = 0.30;
     bool log = false;         ///< STRATA_BANDIT_LOG=1: one stderr line per epoch decision
+    /// STRATA_BANDIT_CORRECT=1 (opt-in, default off; Athena, Kanellopoulos et al., arXiv 2601.17615, Sec. "reward": the
+    /// reward is the correlated (action-driven) change minus the uncorrelated (workload-driven) one; LEADS.md Part C
+    /// "Athena reward correction").  Our adaptation: every counted window's ms per committed token is corrected by the
+    /// part a per-type online least-squares fit attributes to the workload - the accepted length (1 / committed tokens)
+    /// and the context position (pos / 4096) - before it is folded into the epoch's cost:
+    ///   corrected = ms/token - b1 * (x1 - mean x1) - b2 * x2   (the cost at the mean accepted length and position 0),
+    /// fitted over every counted window of the type (any arm, decayed by 1 - 1/512 per window).  Arms do not choose the
+    /// features, so the fit sees their cost only through b0.  Policy only (which arm runs): off = the earlier rule exactly.
+    bool correct = false;
     bool on() const { return switches != 0; }
 };
 
@@ -178,6 +187,7 @@ BanditConfig bandit_config(Get get, uint32_t available, std::string* msg) {
         else say("STRATA_BANDIT_TYPE=" + std::string(e) + " is not one, src, size[:N], req[:P] or ctx[:N]: req:30");
     }
     if (const char* e = get("STRATA_BANDIT_LOG")) c.log = e[0] == '1';
+    if (const char* e = get("STRATA_BANDIT_CORRECT")) c.correct = e[0] == '1';
     return c;
 }
 
@@ -265,12 +275,18 @@ public:
 
     /// After that window: its time (ms) and committed tokens.  True when it closed the type's epoch (last_decision()
     /// then says what it measured and which arm comes next).  A window with no time or no token is not counted.
-    bool end(int t, double ms, int tokens) {
+    /// `pos`: the window's first position (STRATA_BANDIT_CORRECT only; < 0 = unknown, no correction).
+    bool end(int t, double ms, int tokens, double pos = -1.0) {
         TypeState& s = ts_[(size_t) t];
         if (!(ms > 0.0) || tokens <= 0) return false;
         ++s.req[(size_t) s.cur];
         ++s.total[(size_t) s.cur];
         if (++s.seen <= c_.skip) return false;
+        if (c_.correct && pos >= 0.0) {   // Athena: subtract the workload-driven part (see BanditConfig::correct)
+            const double y = ms / (double) tokens, x1 = 1.0 / (double) tokens, x2 = pos / 4096.0;
+            s.fit.add(x1, x2, y);
+            ms = s.fit.corrected(x1, x2, y) * (double) tokens;
+        }
         s.ms += ms;
         s.tok += (double) tokens;
         if (++s.counted < c_.epoch) return false;
@@ -331,7 +347,46 @@ public:
     }
 
 private:
+    // STRATA_BANDIT_CORRECT: decayed least squares of y (ms per token) on x1 (1 / committed tokens) and x2 (pos / 4096)
+    struct WorkFit {
+        double w = 0, m1 = 0, m2 = 0, my = 0, s11 = 0, s12 = 0, s22 = 0, s1y = 0, s2y = 0;   // decayed weighted moments
+        void add(double x1, double x2, double y) {
+            const double d = 1.0 - 1.0 / 512.0;
+            w = w * d + 1.0;
+            m1 = m1 * d + x1;
+            m2 = m2 * d + x2;
+            my = my * d + y;
+            s11 = s11 * d + x1 * x1;
+            s12 = s12 * d + x1 * x2;
+            s22 = s22 * d + x2 * x2;
+            s1y = s1y * d + x1 * y;
+            s2y = s2y * d + x2 * y;
+        }
+        // y minus the fitted workload part, measured from the features' means; y itself until 8 windows are in, and never
+        // below a tenth of y (a bad fit must not turn a cost negative)
+        double corrected(double x1, double x2, double y) const {
+            if (w < 8.0) return y;
+            const double a1 = m1 / w, a2 = m2 / w, ay = my / w;
+            const double v11 = s11 / w - a1 * a1, v22 = s22 / w - a2 * a2, v12 = s12 / w - a1 * a2;
+            const double c1 = s1y / w - a1 * ay, c2 = s2y / w - a2 * ay;
+            double b1 = 0.0, b2 = 0.0;
+            const double det = v11 * v22 - v12 * v12;
+            if (v11 > 1e-12 && v22 > 1e-12 && det > 1e-6 * v11 * v22) {
+                b1 = (c1 * v22 - c2 * v12) / det;
+                b2 = (c2 * v11 - c1 * v12) / det;
+            } else if (v11 > 1e-12) {
+                b1 = c1 / v11;
+            } else if (v22 > 1e-12) {
+                b2 = c2 / v22;
+            }
+            // the accepted length is taken from its mean (it does not drift one way); the position from 0, since it grows
+            // through a session: measured from its running mean, a later epoch would still pay half its context
+            const double r = y - b1 * (x1 - a1) - b2 * x2;
+            return r > 0.1 * y ? r : 0.1 * y;
+        }
+    };
     struct TypeState {
+        WorkFit fit;            // STRATA_BANDIT_CORRECT only
         int cur = 0;            // index of the current epoch's arm
         int seen = 0;           // windows of the current epoch (skipped ones included)
         int counted = 0;        // its counted windows

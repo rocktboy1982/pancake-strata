@@ -21164,6 +21164,7 @@ int main(int argc, char** argv) {
                 // epoch arm, set before ver.run stages the window - the knobs never move inside a window.  A first or merged
                 // window keeps the arm the last window had and is not counted.
                 int eb_type = -1;
+                const double eb_pos = (double) p;   // STRATA_BANDIT_CORRECT: the window's position (workload feature)
                 if (ebandit.on() && !first_window && !merged) {
                     eb_type = ebandit_typer.type(from_sfx || chain_n > 0, T, p);
                     ebandit_apply(ebandit.begin(eb_type));
@@ -21517,7 +21518,8 @@ int main(int argc, char** argv) {
                 if (eb_type >= 0) {   // MOD_PLAN A44: the whole round (adapt wait, window, commit, next draft) per committed token
                     // (the request's last round drafts nothing: not counted, as its time is not a round's)
                     if (!eos && produced_n < max_new &&
-                        ebandit.end(eb_type, std::chrono::duration<double, std::milli>(Clock::now() - round0).count(), a + 1) &&
+                        ebandit.end(eb_type, std::chrono::duration<double, std::milli>(Clock::now() - round0).count(), a + 1,
+                                    eb_pos) &&
                         ebandit_cfg.log) {
                         const strata::core::EpochBandit::Decision& dn = ebandit.last_decision();
                         std::fprintf(stderr, "strata bandit: %s epoch %lld: %s %.3f ms/token over %d windows (mean %.3f) -> %s (%s)\n",
