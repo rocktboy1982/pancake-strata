@@ -15680,7 +15680,7 @@ int main(int argc, char** argv) {
         }
         if (disco_on)
             mtp.set_chain_rule([&](int idx, float pj) {
-                const bool k = disco.keep_draft(idx, pj, S_mtp);
+                const bool k = disco.keep_draft(idx, pj, S_mtp, mtp.chain_draft(idx));   // (the token: STRATA_SPEC_LOOKUP_Q)
                 chain_rows = disco.rows();
                 return k;
             });
@@ -19930,7 +19930,14 @@ int main(int argc, char** argv) {
             std::array<int32_t, 16> tr_s{};
             int tr_k = 0, tr_match = 0;
             std::vector<int32_t> sbuf((size_t) S, 0);
-            const bool sfx_on = o.suffix_draft > 0 || o.lookup_chain > 0;
+            // STRATA_SPEC_LOOKUP_Q=q / STRATA_SPEC_DEPTH_DECAY=d (opt-in, exact: only the window length changes; android-imdad/
+            // Strata-7900xtx ef42c2fde9, LEADS.md FK-21b): with STRATA_SPEC_CUM (the DISCO cumulative rule), a draft that the
+            // suffix lookup (prompt + output so far) also proposes at its place counts q in the chain product, any other
+            // p * d^j.  Author: CUM 0.3 + q 0.95 + d 0.9 +3.9% over CUM 0.5 replayed (7900 XTX).  Needs the suffix index.
+            static const double spec_lookup_q = [] { const char* e = std::getenv("STRATA_SPEC_LOOKUP_Q"); return e ? std::atof(e) : 0.0; }();
+            static const double spec_depth_decay = [] { const char* e = std::getenv("STRATA_SPEC_DEPTH_DECAY"); return e ? std::atof(e) : 1.0; }();
+            const bool spec_hint_on = disco_on && (spec_lookup_q > 0.0 || (spec_depth_decay > 0.0 && spec_depth_decay != 1.0));
+            const bool sfx_on = o.suffix_draft > 0 || o.lookup_chain > 0 || (spec_hint_on && spec_lookup_q > 0.0);
             if (sfx_on) {
                 sfx.reset();
                 for (int64_t t : ids) sfx.append((int32_t) t);
@@ -21444,6 +21451,11 @@ int main(int argc, char** argv) {
                 }
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
                 int mtp_nd = 0;   // item 74: the drafts of this round (the window trace records them when the window is built, above)
+                if (spec_hint_on && use_mtp && !req_df2 && !eos && produced_n < max_new) {   // STRATA_SPEC_LOOKUP_Q: the history ends with the next window's first token
+                    int32_t spec_lk[8] = {};
+                    const int spec_lk_n = spec_lookup_q > 0.0 && sfx_on ? sfx.propose(std::min(8, S_mtp), spec_lk) : 0;
+                    disco.set_stop_hint(spec_lk, spec_lk_n, spec_lookup_q, spec_depth_decay > 0.0 ? spec_depth_decay : 1.0);
+                }
                 const bool drafted = !draft_on || eos || produced_n >= max_new ||
                                      (req_df2 ? ((!merged && defer_df2(a)) || draft_df2(a)) : mtp.draft_long(T, outv.data(), p, a, drafts.data(), err, dprob.data(), (float) req_spec_min_p,
                                                                                &mtp_nd, gated_proposal ? &generation : nullptr));

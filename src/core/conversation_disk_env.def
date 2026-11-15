@@ -771,6 +771,8 @@ STRATA_ENV("STRATA_SPEC_COST", Speed, "drafting/stop policy: the tokens change, 
 STRATA_ENV("STRATA_SPEC_COST_TABLE", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_COUPLED", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_CUM", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
+STRATA_ENV("STRATA_SPEC_LOOKUP_Q", Speed, "drafting/stop policy (with SPEC_CUM): lookup-agreeing drafts count q in the chain product; the state of given tokens does not change (android-imdad ef42c2fde9)")
+STRATA_ENV("STRATA_SPEC_DEPTH_DECAY", Speed, "drafting/stop policy (with SPEC_CUM): other drafts count p * d^j; the state of given tokens does not change (android-imdad ef42c2fde9)")
 STRATA_ENV("STRATA_SPEC_DEPTH", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_GUMBEL", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_MIN_TEMP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
