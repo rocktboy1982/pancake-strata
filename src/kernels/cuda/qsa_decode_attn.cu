@@ -723,6 +723,40 @@ __global__ void __launch_bounds__(HD) attn_merge_kernel(const float* __restrict_
     attn[(size_t) h * HD + d] = L > 0.0f ? acc / L : 0.0f;
 }
 
+// STRATA_ATTN_MERGE_BOUND=1 (android-imdad caa9b00115, opt-in here; bitwise): attn_merge_kernel with its two loops
+// stopped at the last chunk the chunk kernel filled for this query.  A chunk at or past step[kStepWidth] cells wrote
+// m = -FLT_MAX and l = 0 (the chunk kernels' `n_here <= 0` exit), which changes neither the max nor the sums, so the
+// output is bit for bit attn_merge_kernel's.  (The MTP drafter's attention spans its whole capacity: 512 chunks a head
+// where a short context fills a few.)  Only the bound of attn_merge_v2_kernel (1) below, without its batched loads.
+__global__ void __launch_bounds__(HD) attn_merge_bound_kernel(const float* __restrict__ part_acc,
+                                                              const float* __restrict__ part_m,
+                                                              const float* __restrict__ part_l, int n_chunks,
+                                                              const int32_t* __restrict__ steps,
+                                                              float* __restrict__ attn, long long scratch_stride = 0) {
+    part_acc += (size_t) blockIdx.y * (size_t) scratch_stride;
+    part_m += (size_t) blockIdx.y * (size_t) scratch_stride;
+    part_l += (size_t) blockIdx.y * (size_t) scratch_stride;
+    attn += (size_t) blockIdx.y * (size_t) gridDim.x * HD;
+    const int h = blockIdx.x;                 // global query head
+    const int kvh = h / G, hl = h % G;
+    const int d = threadIdx.x;
+    // the step record the chunk kernel read for this query (attn_chunk_kernel: step + blockIdx.z * kStepCount)
+    const int n_ids = __ldg(steps + (size_t) blockIdx.y * kStepCount + kStepWidth);
+    const int n_used = n_ids <= 0 ? 0 : min(n_chunks, (n_ids + CHUNK - 1) / CHUNK);
+    float M = -FLT_MAX;
+    for (int c = 0; c < n_used; ++c) M = fmaxf(M, part_m[(kvh * n_chunks + c) * G + hl]);
+    float L = 0.0f, acc = 0.0f;
+    for (int c = 0; c < n_used; ++c) {
+        const int slot = kvh * n_chunks + c;
+        const float m = part_m[slot * G + hl];
+        if (m == -FLT_MAX) continue;
+        const float w = __expf(m - M);
+        L = fmaf(part_l[slot * G + hl], w, L);
+        acc = fmaf(part_acc[((size_t) slot * G + hl) * HD + d], w, acc);
+    }
+    attn[(size_t) h * HD + d] = L > 0.0f ? acc / L : 0.0f;
+}
+
 // attn_merge_kernel's arithmetic in the same chunk order, with two changes that leave every output bit as it was
 // (the Daily's 3effa9d5, from Hardin22; qsa_merge_daily_parity compares the two kernels on the same partials, all four
 // KV formats):
@@ -903,7 +937,24 @@ bool pre75_attn() {
 }
 // `PRE` picks PR #540's kernel; the environment's choice is STRATA_ATTN_CHUNK.
 #if defined(__HIPCC__)
-#define STRATA_ATTN_CHUNK_SEL(M, PRE) ((PRE) ? attn_chunk_kernel_pre75<M, 8, true> : attn_chunk_kernel<M>)
+// STRATA_ATTN_PRE75_NC=1 / 2 / 4 (test knob, android-imdad caa9b00115; bitwise): PR #540's kernel with that many cells
+// a step instead of 8 - fewer registers, more waves.  Every cell's dot product and reduce12 are the same expression
+// in the grouped and the one-cell path, so the scores and partials are bit for bit the same.  Read once; unset or any
+// other value keeps 8 (the kernel this file always ran).  Only acts where PR #540's kernel runs (gfx103x, or
+// STRATA_ATTN_PRE75=1).
+int pre75_nc() {
+    static const int nc = [] {
+        const char* v = std::getenv("STRATA_ATTN_PRE75_NC");
+        const int n = v ? std::atoi(v) : 8;
+        return n == 1 || n == 2 || n == 4 ? n : 8;
+    }();
+    return nc;
+}
+#define STRATA_ATTN_CHUNK_SEL(M, PRE) (!(PRE) ? attn_chunk_kernel<M>                                              \
+                                       : pre75_nc() == 4 ? attn_chunk_kernel_pre75<M, 4, true>                  \
+                                       : pre75_nc() == 2 ? attn_chunk_kernel_pre75<M, 2, true>                  \
+                                       : pre75_nc() == 1 ? attn_chunk_kernel_pre75<M, 1, true>                  \
+                                                         : attn_chunk_kernel_pre75<M, 8, true>)
 #else
 #define STRATA_ATTN_CHUNK_SEL(M, PRE) ((PRE) ? attn_chunk_kernel_pre75<M> : attn_chunk_kernel<M>)
 #endif
@@ -934,12 +985,30 @@ int attn_merge_v2() {
     return env >= 0 ? env : (daily_attn() ? 1 : 0);
 }
 
-// the merge of `n_q` queries' partials: v2 = 0 attn_merge_kernel, 1 attn_merge_v2_kernel (bitwise the same output)
+// STRATA_ATTN_MERGE_BOUND=1 (android-imdad caa9b00115): attn_merge_bound_kernel where attn_merge_kernel would run.
+// Read once; on only for "1".
+bool attn_merge_bound() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_ATTN_MERGE_BOUND"); return v && v[0] == '1'; }();
+    return on;
+}
+
+// the environment's merge for launch_merge: 1 when attn_merge_v2() (which is bounded already), else 2 with
+// STRATA_ATTN_MERGE_BOUND=1, else 0
+int attn_merge_choice() {
+    const int v2 = attn_merge_v2();
+    return v2 ? v2 : (attn_merge_bound() ? 2 : 0);
+}
+
+// the merge of `n_q` queries' partials: v2 = 0 attn_merge_kernel, 1 attn_merge_v2_kernel, 2 attn_merge_bound_kernel
+// (bitwise the same output)
 void launch_merge(int v2, const float* part_acc, const float* part_m, const float* part_l, int n_chunks,
                   const int32_t* steps, float* attn, long long stride, unsigned n_head, unsigned n_q, cudaStream_t st) {
-    if (v2)
+    if (v2 == 1)
         attn_merge_v2_kernel<kMergeU><<<dim3(n_head, n_q), HD, 0, st>>>(part_acc, part_m, part_l, n_chunks, steps,
                                                                          attn, stride);
+    else if (v2 == 2)
+        attn_merge_bound_kernel<<<dim3(n_head, n_q), HD, 0, st>>>(part_acc, part_m, part_l, n_chunks, steps, attn,
+                                                                  stride);
     else
         attn_merge_kernel<<<dim3(n_head, n_q), HD, 0, st>>>(part_acc, part_m, part_l, n_chunks, attn, stride);
 }
@@ -1066,7 +1135,7 @@ void qsa_decode_attn_batch(const float* q, const QsaAttnPools& pools, const int3
     }
     cudaStream_t st = (cudaStream_t) stream;
     launch_chunks_batch(q, pools, ids, steps, cap, s, scratch, n_q, st, -1);
-    launch_merge_batch(steps, cap, s, scratch, attn, n_q, attn_merge_v2(), st);
+    launch_merge_batch(steps, cap, s, scratch, attn, n_q, attn_merge_choice(), st);
     const cudaError_t e = cudaGetLastError();
     if (e != cudaSuccess) {
         std::fprintf(stderr, "qsa_decode_attn_batch: %s\n", cudaGetErrorString(e));
@@ -1123,7 +1192,7 @@ bool qsa_decode_attn_slots(const float* q, const QsaAttnSlotPools& pools, const 
         else STRATA_ATTN_SLOTS(0, false);
     }
 #undef STRATA_ATTN_SLOTS
-    launch_merge(attn_merge_v2(), part_acc, part_m, part_l, n_chunks, steps, attn, stride, (unsigned) s.n_head,
+    launch_merge(attn_merge_choice(), part_acc, part_m, part_l, n_chunks, steps, attn, stride, (unsigned) s.n_head,
                  (unsigned) n_q, st);
     const cudaError_t e = cudaGetLastError();
     if (e != cudaSuccess) {
@@ -1177,7 +1246,7 @@ void qsa_decode_attn_batch_rows(const float* q, const QsaAttnPoolsRows& rows, co
     else if (kv_mode == 1) STRATA_ATTN_ROWS(1);
     else STRATA_ATTN_ROWS(0);
 #undef STRATA_ATTN_ROWS
-    launch_merge(attn_merge_v2(), part_acc, part_m, part_l, n_chunks, steps, attn, stride, (unsigned) s.n_head,
+    launch_merge(attn_merge_choice(), part_acc, part_m, part_l, n_chunks, steps, attn, stride, (unsigned) s.n_head,
                  (unsigned) n_q, st);
     const cudaError_t e = cudaGetLastError();
     if (e != cudaSuccess) {
@@ -1235,7 +1304,7 @@ void qsa_decode_attn_step(const float* q, const QsaAttnPools& pools, const int32
     else
         STRATA_ATTN_CHUNK(0)<<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size,
                                                         scale, part_acc, part_m, part_l, n_chunks, 0, 0);
-    launch_merge(attn_merge_v2(), part_acc, part_m, part_l, n_chunks, step, attn, 0, (unsigned) s.n_head, 1u, st);
+    launch_merge(attn_merge_choice(), part_acc, part_m, part_l, n_chunks, step, attn, 0, (unsigned) s.n_head, 1u, st);
     const cudaError_t e = cudaGetLastError();
     if (e != cudaSuccess) {
         std::fprintf(stderr, "qsa_decode_attn: %s\n", cudaGetErrorString(e));
