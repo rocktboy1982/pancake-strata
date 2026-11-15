@@ -1329,6 +1329,23 @@ int64_t guided_cut(int64_t rows, int threads, int64_t jj, int64_t* count = nullp
     if (count != nullptr) *count = j;
     return done;
 }
+// STRATA_POOL_DAG=2 (opt-in, read once; port of KhaledElzarw/Strata 287cd207ad, LEADS.md A3; DAG=1 is our
+// STRATA_POOL_FUSE_PHASES mode 7): the fused phase's down rows go to the experts in the order their gate/up finished, so a
+// free worker never waits on an expert whose gate/up is still running while another expert's down rows are ready.  Turns on
+// mode 7 by itself.  Every row is still computed by the same kernel call on the same inputs into the same output: bitwise.
+bool pool_dag2() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_POOL_DAG"); return v != nullptr && v[0] == '2' && v[1] == '\0'; }();
+    return on;
+}
+// STRATA_CPU_POOL_COST=1 (opt-in, read once; idea of dys0re/strata-dcu abc9047d77 "cost-weighted parts and longest
+// expert first", LEADS.md A3, re-built for our row-range phases since this tree has no STRATA_CPU_EXPERT_PIPELINE): in the
+// native phases (5/6 and the fused 7), the experts are taken longest first (most tokens in the window) and the tasks are
+// cut on equal rows x tokens instead of equal rows, so no task holds several times the work of another.  Not with the NUMA
+// slices, STRATA_POOL_TAIL4 or STRATA_POOL_ROW_SPLIT (their own cuts win).  Same rows, same kernels: bitwise.
+bool pool_cost() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_CPU_POOL_COST"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
 inline void touch_bytes(const uint8_t* p, size_t bytes) {
 #if defined(__x86_64__) || defined(_M_X64)
     for (size_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) p + o, _MM_HINT_T0);
@@ -1398,22 +1415,43 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
             auto cut = [&](int64_t jj) -> int64_t {
                 if (guided && T == gcount) return guided_cut(R, gthreads, jj);
                 if (rsplit > 0 && !sliced && !tail4 && T == (R + rsplit - 1) / rsplit) return (std::min)(R, jj * rsplit);
+                if (cost_on_ && !sliced && !tail4 && rsplit <= 0 && h > 0 && R % h == 0) {
+                    // STRATA_CPU_POOL_COST: the row where the cost prefix (rows x tokens, blocks in cperm_ order) reaches
+                    // jj / T of the phase's cost
+                    const int64_t nb = R / h;
+                    if (jj >= T) return R;
+                    const int64_t c = h * cpre_[(size_t) nb] * jj / T;
+                    int64_t k = 0;
+                    while (k + 1 < nb && h * cpre_[(size_t) k + 1] <= c) ++k;
+                    const int64_t w = cpre_[(size_t) k + 1] - cpre_[(size_t) k];
+                    return (std::min)(R, k * h + (c - h * cpre_[(size_t) k]) / w);
+                }
                 if (!tail4 || sliced) return R * jj / T;
                 const int64_t small = (std::min)((int64_t) (n_ + (host_works_ ? 1 : 0)), T / 2), big = T - small;
                 const int64_t units = 4 * (std::min)(jj, big) + (std::max)((int64_t) 0, jj - big);
                 return R * units / (4 * big + small);
             };
             const int64_t g0 = cut(j), g1 = cut(j + 1);
+            // STRATA_POOL_DAG=2 (pool_dag2 above): in the fused phase's down part, row block g / h is a SLOT, the expert that
+            // finished its gate/up in that place (published below), not expert g / h
+            const bool dag2_dn = pm == 6 && mode_ == 7 && !sliced && pool_dag2();
             for (int64_t g = g0; g < g1;) {
-                const int e = (int) (g / h), l0 = (int) (g % h);
+                int e = (int) (g / h);
+                const int l0 = (int) (g % h);
                 const int l1 = (int) std::min<int64_t>(h, l0 + (g1 - g));
                 const int r0 = row0 + l0, r1 = row0 + l1;
+                if (dag2_dn) {
+                    while (fslot_ready_[(size_t) e].load(std::memory_order_acquire) == 0) strata_cpu_pause();
+                    e = fslot_e_[(size_t) e];
+                } else if (cost_on_ && !sliced) {
+                    e = cperm_[(size_t) e];   // STRATA_CPU_POOL_COST: block e is the e-th longest expert
+                }
                 SplitBufMulti& sb = split_multi_[(size_t) e];
-                if (touch_next > 0 && g + (l1 - l0) < g1) {
+                if (touch_next > 0 && !dag2_dn && g + (l1 - l0) < g1) {
                     // STRATA_POOL_TOUCH_NEXT: this task goes on into the next expert's rows (another blob, so the
                     // kernels' in-row prefetch cannot reach them) - ask for their first bytes now
                     const int64_t gn = g + (l1 - l0);
-                    const int en = (int) (gn / h), ln = (int) (gn % h);
+                    const int en = cost_on_ && !sliced ? cperm_[(size_t) (gn / h)] : (int) (gn / h), ln = (int) (gn % h);
                     const int64_t nrows = (std::min)((int64_t) (h - ln), g1 - gn);
                     const NativeFmt* const nf = mjobs_[en].fmt != nullptr ? mjobs_[en].fmt : nfmt_;
                     const uint8_t* const b = mjobs_[en].blob;
@@ -1481,6 +1519,11 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                     if (frows_[(size_t) e].fetch_add(n, std::memory_order_acq_rel) + n == per) {
                         quant_down_act(e);
                         fready_[(size_t) e].store(1, std::memory_order_release);
+                        if (pool_dag2()) {   // STRATA_POOL_DAG=2: the next down slot is this expert's
+                            const int s = fslots_.fetch_add(1, std::memory_order_relaxed);
+                            fslot_e_[(size_t) s] = e;
+                            fslot_ready_[(size_t) s].store(1, std::memory_order_release);
+                        }
                     }
                 }
                 g += l1 - l0;
@@ -1672,7 +1715,7 @@ bool ExpertPool::fuse_phases(int nb) const {
     // not help (the first run's +23% / -8% were the stale-mtasks_ bug)
     static const bool on = [] { const char* e = std::getenv("STRATA_POOL_FUSE_PHASES"); return e && std::atoi(e) != 0; }();
     static const int min_nb = [] { const char* e = std::getenv("STRATA_POOL_FUSE_MIN"); return e ? (std::max)(0, std::atoi(e)) : 0; }();
-    return on && numa_n_ == 0 && nb >= min_nb;
+    return (on || pool_dag2()) && numa_n_ == 0 && nb >= min_nb;   // STRATA_POOL_DAG=2 runs on mode 7
 }
 
 void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs, int n, NativeArithmetic arithmetic) {
@@ -1699,6 +1742,16 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
         mjobs_ = jobs + b0;
         nfmt_ = &f;
         narithmetic_ = arithmetic;
+        // STRATA_CPU_POOL_COST (pool_cost above): the experts by token count, longest first, and their cost prefix
+        cost_on_ = pool_cost() && numa_n_ == 0;
+        if (cost_on_) {
+            for (int e = 0; e < nb; ++e) cperm_[(size_t) e] = e;
+            std::stable_sort(cperm_.begin(), cperm_.begin() + nb,
+                             [&](int x, int y) { return mjobs_[x].nt > mjobs_[y].nt; });
+            cpre_[0] = 0;
+            for (int k = 0; k < nb; ++k)
+                cpre_[(size_t) k + 1] = cpre_[(size_t) k] + (std::max)(1, mjobs_[cperm_[(size_t) k]].nt);
+        }
         if (fuse_phases(nb)) {
             // item 29: gate/up and down in one phase (same row ranges and kernels as the two phases: output identical)
             fgu_rows_ = (int64_t) nb * f.n_ff;
@@ -1707,7 +1760,9 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
             for (int e = 0; e < nb; ++e) {
                 frows_[(size_t) e].store(0, std::memory_order_relaxed);
                 fready_[(size_t) e].store(0, std::memory_order_relaxed);
+                fslot_ready_[(size_t) e].store(0, std::memory_order_relaxed);   // STRATA_POOL_DAG=2
             }
+            fslots_.store(0, std::memory_order_relaxed);
             const auto a = std::chrono::steady_clock::now();
             // mtasks_ = all the phase's tasks: drain() cuts the down tasks as [fgu_tasks_, mtasks_) (it was left stale here:
             // the down rows were cut from the previous phase's count - wrong ranges, or a division by zero)

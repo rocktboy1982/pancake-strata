@@ -91,6 +91,11 @@ public:
     /// cannot flip the window choice for long.  Needs 3 earlier times of the width.  x <= 0 (the default): off, nothing is kept.
     /// It only changes which drafts are verified: the output is unchanged.
     void set_clip(double x) { clip_x_ = x > 0.0 ? x : 0.0; }
+    /// STRATA_DRAFT_SCALE=1 (LEADS.md A4 "DraftPolicy cost = shared scale x per-size base", a basalt idea): cost_ms(t) =
+    /// S x B(t), where the scale S (one per context bucket) follows EVERY round's time (fast EMA) and the per-size base B(t)
+    /// moves slowly, so a drift of the card's speed (context growth, a cache refill) reaches the sizes not used lately too.
+    /// Off (the default): the per-size EMA alone, and the scale tables are never touched.  Output unchanged either way.
+    void set_shared_scale(bool on) { scale_on_ = on; }
 
     /// The window sizes a lookup or chained window may use, as a bit mask (bit t = size t; bit 1 is always kept).
     void set_sizes(unsigned mask);
@@ -141,6 +146,11 @@ private:
     std::array<std::array<std::array<double, kClipN>, kMaxT + 1>, kCtxBuckets> clip_ring_{};
     std::array<std::array<int, kMaxT + 1>, kCtxBuckets> clip_cnt_{};
     double clip_outlier(int t, double ms);
+    // STRATA_DRAFT_SCALE (set_shared_scale): the shared scale and the per-size bases, by context bucket; untouched while off
+    bool scale_on_ = false;
+    std::array<double, kCtxBuckets> scale_{};
+    std::array<std::array<double, kMaxT + 1>, kCtxBuckets> sbase_{}, sbase_n_{};
+    void scale_sample(int t, double ms);   // one round time into the scale and the base of its size (bucket bk_)
     static constexpr int kPBuckets = 8;
     std::array<double, kPBuckets> pa_ok_{}, pa_n_{};       // MTP drafts reached / accepted by probability bucket (decayed)
     std::array<std::array<double, kMaxT + 1>, kCtxBuckets> last_{};   // the round at which each size was last measured

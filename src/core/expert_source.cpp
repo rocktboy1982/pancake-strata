@@ -3162,6 +3162,17 @@ bool RouterLookahead::start(std::vector<std::vector<uint16_t>> routers, int64_t 
 
 void RouterLookahead::submit(int64_t layer, const float* x, int64_t n_tok, const int32_t* host_res) {
     if (layer + 1 >= (int64_t) routers_.size() || n_tok <= 0 || x == nullptr) return;
+    // STRATA_LOOKAHEAD_SKIP_RES=1 (opt-in, read once; LEADS.md A3 "RouterLookahead ... skip when resident", part of an
+    // R9700 bundle): when every expert of the layers it would warm (layer + 1 .. + depth) is resident in VRAM, there is
+    // nothing to fetch, so the submit (the copy of the window's rows and the residency rows) is skipped.  Prefetch only:
+    // the experts computed are the same.
+    static const bool skip_res = [] { const char* v = std::getenv("STRATA_LOOKAHEAD_SKIP_RES"); return v != nullptr && v[0] == '1'; }();
+    if (skip_res && host_res != nullptr) {
+        const int64_t l1 = std::min<int64_t>(layer + 1 + depth_, (int64_t) routers_.size());
+        const int32_t* r = host_res + (size_t) ((layer + 1) * n_expert_);
+        const int32_t* r_end = host_res + (size_t) (l1 * n_expert_);
+        if (std::all_of(r, r_end, [](int32_t s) { return s >= 0; })) { skipped_.fetch_add(1, std::memory_order_relaxed); return; }
+    }
     {
         std::lock_guard<std::mutex> lk(mu_);
         if (busy_ || pending_) { skipped_.fetch_add(1, std::memory_order_relaxed); return; }
@@ -5549,9 +5560,19 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         // quantized: only the CPU jobs below read act_multi / nact_multi, and they are built from kind -1 entries alone.
         // The quantized rows the jobs read are the same bytes, so the output is the same.  Unset: every token, as before.
         static const bool skip_nocpu = [] { const char* v = std::getenv("STRATA_ACTQ_SKIP_NOCPU"); return v != nullptr && v[0] == '1'; }();
+        // STRATA_ACTQ_SKIP=1 (opt-in, read once; port of KhaledElzarw/Strata 20f1fa1a95, LEADS.md A3; one GPU, no helper
+        // GPU or peer): a token with no CPU entry (-1) of its own needs no CPU activation either (its entries run in VRAM
+        // or are tail-skipped; only kind -1 entries become pool jobs below).  Off under STRATA_ACT_DUMP, which records
+        // every token's activation.  The CPU jobs read the same activations: bitwise.
+        static const bool actq_skip_env = [] {
+            const char* v = std::getenv("STRATA_ACTQ_SKIP");
+            const char* dump = std::getenv("STRATA_ACT_DUMP");
+            return v != nullptr && v[0] == '1' && (dump == nullptr || dump[0] == '\0');
+        }();
+        const bool skip_no_cpu = actq_skip_env && d.remote_count == 0 && d.peer == nullptr;
         for (int64_t t = 0; t < n_tok; ++t) {
             if (ep && std::all_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v >= 0; })) continue;
-            if (skip_nocpu && std::none_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v == -1; })) continue;
+            if ((skip_nocpu || skip_no_cpu) && std::none_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v == -1; })) continue;
             if (native && strata::kernels::cpu::q2_native_kernels(lay.fmt[(size_t) d.layers].gu_type))   // a native Q2_0 pack: the Q2_0 kernels' activations
                 act_quant_any(x_f + (size_t) t * H, H, d.act_multi[(size_t) t]);
             else if (native)

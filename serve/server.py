@@ -94,7 +94,7 @@ from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
 from serve import rumination  # noqa: E402  (pancake item 34: 5-gram repetition rate in the thinking)
 from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache-2.0; lossy opt-in)
 from serve import lifeline  # noqa: E402
-from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json  # noqa: E402
+from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
 from serve.responses import ResponsesError, error_body as responses_error_body  # noqa: E402
 from serve import images as images_api  # noqa: E402
@@ -9847,6 +9847,8 @@ def make_handler(svc: Service):
             if tool_choice_of(req.get("tool_choice"))[0] == "none":   # as the Responses route: no tools are offered
                 tools = None
             force = svc.force_text(forced_call(req.get("tool_choice"), tools))      # a bad value is a 400 before anything is sent
+            if "response_format" in req:   # STRATA_RF_TOPLEVEL_SCHEMA (serve/structured.py); unset: the same object
+                req["response_format"] = normalize_response_format(req.get("response_format"))
             messages, validator = prepare_format(req.get("response_format"), messages)
             if validator is not None and (tools or req.get("strata_mcp")):
                 raise ValueError("structured response_format with tools/MCP is not supported")

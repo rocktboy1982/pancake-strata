@@ -8,7 +8,29 @@ json_schema is checked against its schema when the package is installed - withou
 JSON object, and the server says so once.
 """
 import json
+import os
 import threading
+
+# STRATA_RF_TOPLEVEL_SCHEMA=1 (opt-in, read once at import; llama.cpp PR #28697, LEADS.md A4): a response_format that
+# carries its schema at the top level ({"type": "json_object", "schema": {...}} or {"type": "json_schema",
+# "schema": {...}}, the llama.cpp server's shape) is read as the OpenAI shape {"type": "json_schema", "json_schema":
+# {"name": "response", "schema": {...}}}.  Unset: such a request is handled exactly as before.
+_RF_TOPLEVEL = os.environ.get("STRATA_RF_TOPLEVEL_SCHEMA", "") == "1"
+
+
+def normalize_response_format(response_format, enabled=None):
+    """The OpenAI shape of a llama.cpp-style top-level-schema response_format (see _RF_TOPLEVEL); anything else as is."""
+    if not (_RF_TOPLEVEL if enabled is None else enabled):
+        return response_format
+    if not isinstance(response_format, dict) or response_format.get("type") not in ("json_object", "json_schema"):
+        return response_format
+    schema = response_format.get("schema")
+    if not isinstance(schema, dict) or isinstance(response_format.get("json_schema"), dict):
+        return response_format
+    spec = {"name": "response", "schema": schema}
+    if isinstance(response_format.get("strict"), bool):
+        spec["strict"] = response_format["strict"]
+    return {"type": "json_schema", "json_schema": spec}
 
 
 class StructuredOutputError(RuntimeError):

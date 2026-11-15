@@ -245,5 +245,27 @@ class Structured(unittest.TestCase):
         self.assertEqual(r.returncode, 0)
 
 
+class TopLevelSchema(unittest.TestCase):
+    """STRATA_RF_TOPLEVEL_SCHEMA (llama.cpp #28697): the top-level-schema shape, off by default."""
+
+    SCHEMA = {"type": "object", "properties": {"a": {"type": "integer"}}}
+
+    def test_off_is_unchanged(self):
+        rf = {"type": "json_object", "schema": self.SCHEMA}
+        self.assertIs(structured.normalize_response_format(rf, enabled=False), rf)
+
+    def test_on_maps_json_object_and_json_schema(self):
+        for kind in ("json_object", "json_schema"):
+            out = structured.normalize_response_format({"type": kind, "schema": self.SCHEMA, "strict": True}, enabled=True)
+            self.assertEqual(out, {"type": "json_schema",
+                                   "json_schema": {"name": "response", "schema": self.SCHEMA, "strict": True}})
+
+    def test_on_keeps_openai_shape_and_text(self):
+        rf = {"type": "json_schema", "json_schema": {"name": "x", "schema": self.SCHEMA}}
+        self.assertIs(structured.normalize_response_format(rf, enabled=True), rf)
+        self.assertEqual(structured.normalize_response_format({"type": "text"}, enabled=True), {"type": "text"})
+        self.assertIsNone(structured.normalize_response_format(None, enabled=True))
+
+
 if __name__ == "__main__":
     unittest.main()
