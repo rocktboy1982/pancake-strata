@@ -3441,3 +3441,17 @@ Priority list (relevance to our expert offload, MTP and HIP path):
 - U1 to U9 above (0fb8f1577 few-row MMQ, 459ab1cdd MMVF for few rows, a8fad21e9 MTP device hidden states, cb44fdb18 and ccd360f06 graph overhead, 432433637 rocBLAS workspace, and others) are also in v1.0.0.
 
 Order: V1 and V2 together (the CPU-expert question is the largest open decision in the decode profile), then V4 (layout check on HIP), then V3 (offline replay), then V5 and V6 (checks).
+
+### No-hardware checks of the v1.0.0 candidates (2026-11-15, code reading only)
+Clock state at the check: CPU governor performance, C3 off on all 16 cores (stable). GPU performance level auto (reset at reboot): needs `echo high | sudo tee /sys/class/drm/card1/device/power_dpm_force_performance_level`, run by the owner (no root rights for the session).
+
+| item | result from the code | status |
+|---|---|---|
+| V5 (no MoE cache on the draft model) | the --draft help text says the MTP layer's ~0.9 GiB of VRAM goes to the main expert cache (src/program/generate.cpp ~1224). Upstream found this unsafe to share. | CANDIDATE: a fix needs a GPU A/B (does draft use evict main-model experts). Code-check done. |
+| V2 (CPU part does not wait for cached experts) | our expert cache is not the moe-cache design (no moe_cache in src/core); the CPU combine path differs | NOT APPLICABLE as written; the combine-wait question stays with WAIT_FUSE (Phase 18) |
+| U2 (skip empty MoE tiles in stream-k fixup) | no stream-k fixup in src/kernels | NOT APPLICABLE |
+| U4 (ROCm BLAS workspace per call) | 36 rocBLAS/hipBLAS references in src; the per-call allocation is not yet read | OPEN: read the call sites (CPU-only) |
+| U5 (MTP reads target hidden states from a device buffer) | src/core/mtp.cpp is the drafter; the hidden-state copy path is not yet read | OPEN: read mtp.cpp hidden-state copies (CPU-only) |
+| V6 (MTP conv snapshots in one set_rows) | conversation_state.cpp copies running state; the per-slot loop is not confirmed | OPEN: read the conv rollback writes (CPU-only) |
+
+Next no-hardware steps, in order: read U5 and V6 (MTP copies), read U4 (rocBLAS per call), then write up V5 as a GPU A/B spec (no run until the owner clears the clock).
