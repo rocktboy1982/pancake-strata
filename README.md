@@ -906,6 +906,10 @@ Credits, in the order the stack was built:
 - **this-cute-world** (Strata fork), for the launch fusions `STRATA_FUSE_PLAN`, `_COMBINE`, `_SHGATE`, `_QGEMV`, `_SWIGLU_DOWN`
   (commits `bdc2369a28`, `ed87ad46af`, `93c97cc230`, `818a1eaa57`, `7d1a446927`, `d33b540ddb`; author: 2,648 -> 2,248 kernels a
   window on an R9700), ported 2026-11-15 as default-off switches.
+- **ryan4yin** (Strata fork), for the grouped expert decode kernels `STRATA_EXPDEC_V2` (commits `a67b3790d5`, `522f76739a`,
+  `92983a7405`) and the single-token MMVF rows (`STRATA_MMVF_ROWS1`, `aa2509dc60`); **phoenixclyde**, for the per-shape MMVQ rows
+  table (`STRATA_MMVQ_WAVE_ROWS`, `5a76830ebd`); **freapsy** (strata-mi50), for the 8-in-flight logit scans (`STRATA_SAMPLER_X8`,
+  `509bded8c5`). Ported 2026-11-15 as default-off switches.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
