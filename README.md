@@ -861,7 +861,9 @@ Credits, in the order the stack was built:
   commits `90434843b4`, `ac7e5aff59`, `9caad8f2bb`, `876c3af7e6`, `8a2f38aaad`; author: 26.5 vs 12.9 TFLOPS on a 7900 XTX).
 - **Ben1078** (Strata fork, MIT), for the stored doorbell ring in the router's publish (commit `23d2fc0450`, part of
   `STRATA_ROUTE_FAST`).
-- **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
+- **DevDock-AI** (Speedy), for the fast-preset switch stack, and (ported 2026-11-15, default off) the request-sized K/V staging pool
+  (`STRATA_KV_STAGE_REQ`, commit `0ccf981153`), the QSA selection batch (`STRATA_PF_SEL_BATCH`, `8f0d2e38da`) and the tool-step
+  re-split + stable tool order in serve (`STRATA_TOOL_STEP_SPLIT`, `canonical_tools`, `2bc7a7e06f`). **Avalon**, for the hipBLASLt table report.
 - **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
 - **PolyStrata** (simplexai-labs), whose strata-poly `SuffixIndex` is reused by the cross-session suffix index (`STRATA_SUFFIX_INDEX`, A24).
 - **Strata upstream** (Niko1221 and contributors, e.g. pjgmobile for #5531), for the bug fixes synced on 2026-11-10 (TEST_LEDGER.md).
