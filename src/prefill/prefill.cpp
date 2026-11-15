@@ -1321,6 +1321,10 @@ struct Prefill::Impl {
     cudaEvent_t cpu_ev[2] = {};   // the GPU's expert work of the last CPU-sharing layer, read once the stream is done
     bool cpu_pend = false;
     double pend_cpu_ms = 0;
+    // STRATA_PREFILL_TIMING (nicejunjie/Strata-rdna3 88686782): the CPU share's thread time and the host's wait for it,
+    // summed over a prompt and printed with the timing lines (diagnostic only; nothing else reads them)
+    double cs_cpu_ms = 0, cs_wait_ms = 0;
+    int64_t cs_rows = 0;
     int64_t pend_n_cpu = 0, pend_n_gpu = 0;
     // ... and whether sharing pays at all (auto): an eligible layer's wall time per non-resident expert, from before
     // its routing sync to its combine (CUDA events, two sets: a layer's start is recorded before the last one's is
@@ -7000,7 +7004,11 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     pt.mark(kPfCombine, cs);
                     if (cpu_fut.valid()) {   // set_cpu_pool: the CPU's rows into Dm's tail, row_sd 1 (s_down is in them)
                         if (cpu_share_env() < 0.0) cudaEventRecord(m.cpu_ev[1], m.cs);   // after the GPU's expert work
+                        const auto tcs_w0 = Clock::now();   // STRATA_PREFILL_TIMING (rdna3 88686782): the host's wait
                         if (!cpu_fut.get()) { err = "prefill: a CPU expert has no blob"; return false; }
+                        m.cs_wait_ms += ms_since(tcs_w0);
+                        m.cs_cpu_ms += cpu_ms;
+                        m.cs_rows += rows_cpu;
                         if (cpu_share_env() < 0.0 && n_stream > n_cpu) {
                             m.cpu_pend = true;
                             m.pend_cpu_ms = cpu_ms;
@@ -7356,6 +7364,12 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
         std::fprintf(stderr, "strata prefill timing: host: chunk setup (PLE rows, the expert stream plan) %.0f ms, "
                              "waiting for each chunk %.0f ms, after each chunk (the draft layer, progress) %.0f ms, "
                              "PLE %.0f ms\n", host_setup_ms, host_sync_ms, host_chunk_ms, stats_.ms_ple);
+        if (m.cs_rows > 0) {   // rdna3 88686782: the CPU share's thread time against the host's wait for it
+            std::fprintf(stderr, "strata prefill timing: CPU share: %lld rows, CPU thread %.0f ms, the host waited %.0f ms for it
+",
+                         (long long) m.cs_rows, m.cs_cpu_ms, m.cs_wait_ms);
+            m.cs_rows = 0; m.cs_cpu_ms = m.cs_wait_ms = 0;
+        }
         if (m.pf_n > 0 || stats_.pf_issued > 0)   // STRATA_PF_AHEAD (0xluk 896481c943): never printed unless it is on
             std::fprintf(stderr, "strata prefill timing: STRATA_PF_AHEAD pool %d slots (%.0f MiB of the loan): %lld experts "
                                  "copied ahead so far, %lld read from the pool (%.1f%%)\n", m.pf_n,
