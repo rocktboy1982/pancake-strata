@@ -97,6 +97,7 @@ from serve import lifeline  # noqa: E402
 from serve.conv_router import config as conv_router_cfg  # noqa: E402
 from serve import prompt_kind  # noqa: E402
 from serve import tool_idle  # noqa: E402
+from serve import async_compact  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
 from serve.responses import ResponsesError, error_body as responses_error_body  # noqa: E402
@@ -6471,6 +6472,9 @@ class Service:
         # STRATA_THINKING_POLICY (opt-in; Strata PR #5512, serve/prompt_kind.py): before the render, so the template
         # and the parser share the kwargs.  Off (the default): returns at once.
         prompt_kind.apply_thinking_policy(messages, kwargs, req)
+        if async_compact.enabled():                      # STRATA_ASYNC_COMPACT (opt-in; Slipstream, LEADS.md A39)
+            async_compact.install(tool_idle.tracker())
+            async_compact.on_prepare(messages, tools, kwargs)
         # `cancel` (#1999): set when the client hangs up; the downloads, the wait for the turn and the encodes stop
         # between pictures and raise ClientGone
         # Cached tool images are references in browser history, never arbitrary file paths or huge base64 strings.
@@ -7099,8 +7103,11 @@ class Service:
         if ka is not None:
             ka.acquire()
         try:
-            events = self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
-            idle = tool_idle.tracker()                   # STRATA_TOOL_IDLE (opt-in): None when off
+            # STRATA_ASYNC_COMPACT (opt-in): a compaction summary made in an idle window replaces the run
+            cached = async_compact.take_cached(len(ids)) if async_compact.enabled() else None
+            events = cached if cached is not None else \
+                self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            idle = tool_idle.tracker()                  # STRATA_TOOL_IDLE (opt-in): None when off
             if idle is not None and not tool_idle.background():
                 events = idle.wrap(self, ids, events, getattr(tool_idle._LOCAL, "prepared", None))
             keeper = self.reasoning_keeper

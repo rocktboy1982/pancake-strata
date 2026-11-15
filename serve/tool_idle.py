@@ -46,7 +46,10 @@ def config() -> dict:
     global _CFG
     if _CFG is None:
         prewarm = os.environ.get("STRATA_TOOL_IDLE_PREWARM", "").strip() == "1"
-        _CFG = {"on": prewarm or os.environ.get("STRATA_TOOL_IDLE", "").strip() == "1", "prewarm": prewarm,
+        # STRATA_ASYNC_COMPACT (serve/async_compact.py) runs on this module's turn-end and request hooks
+        compact = (os.environ.get("STRATA_ASYNC_COMPACT", "").strip() or "0") not in ("0", "")
+        _CFG = {"on": prewarm or compact or os.environ.get("STRATA_TOOL_IDLE", "").strip() == "1",
+                "prewarm": prewarm,
                 "alpha": min(1.0, max(0.01, _f("STRATA_TOOL_IDLE_ALPHA", 0.3))),
                 "default_s": max(0.0, _f("STRATA_TOOL_IDLE_DEFAULT_S", 5.0)),
                 "lead_s": max(0.0, _f("STRATA_TOOL_IDLE_LEAD_S", 1.0)),
@@ -117,6 +120,7 @@ class Tracker:
         self.stats = {"turns": 0, "observed": 0, "interleaved": 0, "prewarms": 0, "prewarm_cancelled": 0,
                       "prewarm_skipped": 0, "last_predicted_s": None, "last_observed_s": None}
         self.turn_end_hooks: list = []          # f(svc, info) for modules that use the idle window (async compaction)
+        self.request_hooks: list = []           # f(req) when a request arrives (they cancel their background work)
 
     # -- events -----------------------------------------------------------------------------------------------------
     def on_turn_end(self, svc, prompt_ids, calls, info: dict | None = None) -> None:
@@ -147,6 +151,11 @@ class Tracker:
     def on_request(self, req) -> None:
         """A request arrived (before it runs): close the window it answers, or mark the window interleaved."""
         answered = tool_result_ids(req)
+        for hook in list(self.request_hooks):
+            try:
+                hook(req)
+            except Exception as e:              # noqa: BLE001
+                print(f"[strata] tool idle: request hook failed ({type(e).__name__}: {e})", flush=True)
         with self.lock:
             p = self.pending
             if p is not None and answered & p["ids"]:
