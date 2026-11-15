@@ -43,7 +43,7 @@ STRATA_ENV("STRATA_VERIFY_DEFER_CPU", Key, "CPU rows deferred a window: lossy")
 STRATA_ENV("STRATA_VERIFY_DEFER_CPU_BELOW", Key, "deferral threshold")
 STRATA_ENV("STRATA_VERIFY_DEFER_CPU_TOP", Key, "deferral top-k")
 
-// ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (97) ----
+// ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (100) ----
 STRATA_ENV("STRATA_AMD_COMMUNITY_TUNING", KeyIfSet, "makes SELECT_SIMT=2 the default on gfx103x (other summation order, KL 0.0256) and loads community GEMM tables")
 STRATA_ENV("STRATA_BFLA", Inert, "old BFLA switch, split in two: turns nothing on, prints a note")
 STRATA_ENV("STRATA_BFLA_DENSE", KeyIfSet, "fused dense prompt attention; not bitwise equal to the GEMM path")
@@ -159,6 +159,9 @@ STRATA_ENV("STRATA_SELECT_WMMA", KeyIfSet, "matrix-core block scorer (not bitwis
 STRATA_ENV("STRATA_SM120_PERF", KeyIfSet, "gates sm_120 defaults incl. GR_V3 (another summation order)")
 STRATA_ENV("STRATA_SM121_PERF", KeyIfSet, "gates the sm_121 table: PF_FUSED, PREFILL_NVFP4=w4a4 (round differently)")
 STRATA_ENV("STRATA_TAIL_SKIP_MAX_CACHED", KeyIfSet, "limit of ROUTE_TAIL_SKIP (decides which tails are skipped)")
+STRATA_ENV("STRATA_MISS_SKIP_CUM", KeyIfSet, "skips missed experts past a cumulative gate weight (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")
+STRATA_ENV("STRATA_MISS_SKIP_W", KeyIfSet, "skips missed experts under a gate-weight share (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")
+STRATA_ENV("STRATA_Q36_EXPERTS_USED", KeyIfSet, "q36 engine: fewer routed experts per token (lossy; no ConversationDiskTier there)")
 STRATA_ENV("STRATA_VERIFY_ECAP", KeyIfSet, "caps CPU experts only draft rows need (lossy)")
 STRATA_ENV("STRATA_VERIFY_ECAP_MIN_ROWS", KeyIfSet, "ECAP acts only in windows of this many rows or more (lossy)")
 STRATA_ENV("STRATA_VERIFY_DEFER_AUTO", KeyIfSet, "which windows defer CPU rows (MOD_PLAN 17.1 note): changes the output vs plain deferral")

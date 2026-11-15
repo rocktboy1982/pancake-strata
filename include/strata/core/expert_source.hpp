@@ -425,6 +425,9 @@ struct GpuPlanSink {
     /// item 64 (STRATA_WINDOW_TRACE): the group's published routing weights for the trace (set by the verifier when the
     /// trace is on; independent of `weights`, which also switches the heavy split)
     const float* route_w = nullptr;
+    /// STRATA_MISS_SKIP_W / STRATA_MISS_SKIP_CUM (verify.cpp, opt-in, lossy; MOD_PLAN.md section 6 item 15): the group's
+    /// published routing weights (entry token * k + j) for the weight-based miss skip; null (the default, both unset): no skip.
+    const float* skip_w = nullptr;
     /// MOD_PLAN item 51 (STRATA_CPU_PRESUM=1): the window's combine reads ONE row per token for the CPU entries - their
     /// rows weighted by route_w and summed by the host into row token * k (the entries' own rows are not written).
     bool presum = false;
@@ -671,6 +674,9 @@ struct ExpertDispatch {
     /// and the distinct experts behind them (neither copied nor computed)
     int64_t tail_skipped = 0;
     int64_t tail_experts = 0;
+    /// STRATA_MISS_SKIP_W / STRATA_MISS_SKIP_CUM: the distinct missed experts the weight-based skip left out (their entries
+    /// count in tail_skipped, as kind -2 rows; not in tail_experts)
+    int64_t wskip_experts = 0;
     /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n>: entries skipped because only draft rows over the cap named their expert, and
     /// the distinct experts behind them (neither copied nor computed; not in tail_skipped / tail_experts)
     int64_t ecap_entries = 0;
@@ -752,6 +758,9 @@ void expert_pool_dispatch(void* user, const float* x_f, const int32_t* ids, cons
 /// STRATA_ROUTE_TAIL_SKIP rank (0: off).  Unset in the environment: 0 until the serve start-up sets the default.
 int tail_skip_rank();
 void set_tail_skip_rank(int r);
+/// STRATA_MISS_SKIP_W=<share> / STRATA_MISS_SKIP_CUM=<p> (opt-in, lossy; read once): true when either is set to a value in
+/// (0, 1); the verifier then publishes the routing weights to the pool (GpuPlanSink::skip_w).  Unset: false, no change.
+bool miss_skip_weights_on();
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic = strata::kernels::cpu::NativeArithmetic::Default);
