@@ -104,6 +104,11 @@ option(STRATA_PREFILL_MMQ "Build the optional GGML MMQ prefill path for HIP" OFF
 # llama.cpp PR #31751 on the pinned ggml (cmake/strata_ggml_rdna3_j32.cmake): the RDNA3 MMQ q8_0 vec-dot keeps its k01
 # loop rolled at J == 32 (no register spill; same bits). Opt-in until a build-vs-build A/B (MOD_PLAN.md section 6).
 option(STRATA_MMQ_RDNA3_J32_ROLLED "HIP prompt MMQ: llama.cpp #31751 J=32 rolled k01 loop on RDNA3 (needs STRATA_PREFILL_MMQ)" OFF)
+# llama.cpp PR #31625 (thelittlefireman, d32eba80ba): fast-math for the ggml HIP sources (here: the strata_mmq prompt library),
+# the -use_fast_math analogue without -ffinite-math-only (INFINITY masks) and without -fassociative-math (FMA order of the
+# mmvf/mmvq sums).  Lossy risk: approximate transcendentals and denormals flushed to zero.  Opt-in until a build-vs-build
+# A/B with token forcing (LEADS.md Part F, #31625).
+option(STRATA_HIP_FAST_MATH "HIP prompt MMQ: llama.cpp #31625 fast-math flags on strata_mmq (lossy risk; needs STRATA_PREFILL_MMQ)" OFF)
 # The community-made AMD changes (include/strata/core/amd_community.hpp): on by default.  This option is the build half of the one
 # switch STRATA_AMD_COMMUNITY_TUNING: OFF compiles the portable signed-byte dot for gfx1010 again (the SDWA sequence of #4855).
 # The rocBLAS tables are switched at run time (STRATA_AMD_COMMUNITY_TUNING=0).
@@ -3003,6 +3008,12 @@ if(STRATA_NATIVE_EXPERTS)
       target_compile_definitions(strata_mmq PRIVATE STRATA_MMQ_RDNA3_J32=1)
     endif()
     target_compile_definitions(strata_mmq PRIVATE GGML_USE_HIP=1)
+    if(STRATA_HIP_FAST_MATH)
+      # #31625's flag set, verbatim (it cannot be -ffast-math minus two flags: ROCm/llvm-project#5242)
+      target_compile_options(strata_mmq PRIVATE
+        "$<$<COMPILE_LANGUAGE:HIP>:-funsafe-math-optimizations;-fno-associative-math;-fno-math-errno;-fno-rounding-math;-fgpu-flush-denormals-to-zero;-fsigned-zeros;-fgpu-approx-transcendentals>")
+      message(STATUS "HIP fast-math (llama.cpp #31625) on strata_mmq")
+    endif()
     if(STRATA_MMQ_KQUANTS)
       target_compile_definitions(strata_mmq PRIVATE STRATA_MMQ_KQUANTS=1)
     endif()

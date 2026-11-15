@@ -1027,6 +1027,32 @@ bool file_tier_unbuffered(const std::vector<std::string>& paths, uint64_t arena_
 
 FileExpertSource::~FileExpertSource() { close(); }
 
+#if !defined(_WIN32)
+namespace {
+// STRATA_EXPERTS_SEQ_READAHEAD=1 (Linux, opt-in, read once): the mapped expert files - a pack's experts.bin, or each
+// GGUF shard in place - are marked MADV_SEQUENTIAL when they are mapped, so a page fault reads the drive's read-ahead
+// window instead of one 4 KiB page once the file cache thrashes.  Only the kernel's read-ahead changes: the bytes read,
+// and so the products, are the same.  Set once at map time, not per prompt.  Unset: nothing here runs.
+// Port of upstream Strata PR #5561 (njy1991, head 7c28d4e61c); lead in LEADS.md (Part B B52, Part F #5561).
+void advise_mapped_experts(void* view, size_t bytes, const std::string& path) {
+#if defined(__linux__)
+    static const bool on = [] {
+        const char* v = std::getenv("STRATA_EXPERTS_SEQ_READAHEAD");
+        return v != nullptr && v[0] == '1';
+    }();
+    if (!on) return;
+    const int rc = madvise(view, bytes, MADV_SEQUENTIAL);
+    std::fprintf(stderr, "FileExpertSource: STRATA_EXPERTS_SEQ_READAHEAD=1: %s is read with sequential read-ahead%s\n",
+                 path.c_str(), rc == 0 ? "" : " (madvise failed: the default read-ahead stays)");
+#else
+    (void) view;
+    (void) bytes;
+    (void) path;
+#endif
+}
+}   // namespace
+#endif
+
 #if defined(__linux__)
 namespace {
 /// Bytes of [p, p + n) whose pages are in the page cache (mincore, page-granular); 0 when the call fails.
@@ -1598,6 +1624,7 @@ bool FileExpertSource::open(const std::string& pack_dir, int64_t n_layers, int64
     }
     void* view = mmap(nullptr, (size_t) want, PROT_READ, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED) { ::close(fd); err = "FileExpertSource: mmap failed on " + path; return false; }
+    advise_mapped_experts(view, (size_t) want, path);
     fd_ = fd;
     base_ = (const uint8_t*) view;
     paths_.assign(1, path);   // #286: open_direct opens it again with O_DIRECT
@@ -1799,6 +1826,7 @@ bool FileExpertSource::open_gguf(std::string& err) {
                 }
                 void* view = mmap(nullptr, (size_t) st.st_size, PROT_READ, MAP_SHARED, fd, 0);
                 if (view == MAP_FAILED) { ::close(fd); err = "FileExpertSource: cannot map " + path; return false; }
+                advise_mapped_experts(view, (size_t) st.st_size, path);
                 m.fd = fd;
                 m.bytes = (uint64_t) st.st_size;
                 m.base = (const uint8_t*) view;
@@ -4933,6 +4961,42 @@ int tail_skip_rank() {
 }
 void set_tail_skip_rank(int r) { g_tail_skip_rank.store(r > 0 && r < 10 ? r : 0, std::memory_order_relaxed); }
 
+// STRATA_ROUTE_TAIL_SKIP_LAYERS="a-b:R[,c-d:R2...]" (opt-in, lossy, read once): a per-layer rank for the tail skip below,
+// in place of the one STRATA_ROUTE_TAIL_SKIP rank on the listed layers (inclusive ranges; "a:R" is one layer; R 0 = no
+// skip on those layers, R 1..9 = skip a missed expert every token of the window ranks at R or later).  Layers not listed
+// keep tail_skip_rank().  The layer-dependent expert skip of HookMoE (paper: deeper layers tolerate more skipped
+// experts) and ik_llama.cpp's per-layer smart expert reduction (-ser), restricted, as our tail skip is, to MISSED experts.
+// Unset: -1 for every layer, tail_skip_rank() unchanged.  Lead: LEADS.md Part B B133.
+int tail_skip_rank_layer(int64_t layer) {
+    static const std::vector<int8_t> table = [] {
+        std::vector<int8_t> t;
+        const char* v = std::getenv("STRATA_ROUTE_TAIL_SKIP_LAYERS");
+        if (v == nullptr || v[0] == '\0') return t;
+        const char* p = v;
+        while (*p != '\0') {
+            char* e = nullptr;
+            const long a = std::strtol(p, &e, 10);
+            if (e == p) break;
+            long b = a;
+            p = e;
+            if (*p == '-') { b = std::strtol(p + 1, &e, 10); if (e == p + 1) break; p = e; }
+            if (*p != ':') break;
+            const long r = std::strtol(p + 1, &e, 10);
+            if (e == p + 1) break;
+            p = e;
+            if (a >= 0 && b >= a && b < 4096 && r >= 0 && r < 10) {
+                if ((size_t) b >= t.size()) t.resize((size_t) b + 1, (int8_t) -1);
+                for (long l = a; l <= b; ++l) t[(size_t) l] = (int8_t) r;
+            }
+            if (*p == ',') ++p; else break;
+        }
+        return t;
+    }();
+    const int base = tail_skip_rank();
+    if (layer < 0 || (size_t) layer >= table.size() || table[(size_t) layer] < 0) return base;
+    return table[(size_t) layer];
+}
+
 namespace {
 // STRATA_MISS_SKIP_W=<share> / STRATA_MISS_SKIP_CUM=<p> (opt-in, lossy; MOD_PLAN.md section 6 item 15, LEADS.md): the
 // weight-based companions of the rank tail skip.  Each value is used only in (0, 1); anything else (unset too) is 0 = off.
@@ -4947,6 +5011,18 @@ float miss_skip_w() { static const float w = miss_skip_env("STRATA_MISS_SKIP_W")
 float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_CUM"); return p; }
 }  // namespace
 bool miss_skip_weights_on() { return miss_skip_w() > 0.0f || miss_skip_cum() > 0.0f; }
+
+// STRATA_ADAPT_PROB_MASS=1 (opt-in, read once; LEADS.md Part B B134): the decode tier's decayed routing counts
+// (ExpertDispatch::usage, the EWMA the adaptive swaps rank by) add each routed entry's router probability times k instead
+// of 1, so an expert the router keeps choosing with a large weight outranks one that only fills the tail of the top-k
+// (router-probability-mass / LFRU-style frequency-with-weight scoring; per token the increments still sum to k).
+// Only where the verifier published the window's weights (GpuPlanSink::skip_w); elsewhere the count stays +1.  Placement
+// only: the output is unchanged.  Unset: false, nothing changes.
+bool adapt_prob_mass_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_ADAPT_PROB_MASS"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on(); }
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic) {
@@ -5000,9 +5076,19 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     pt("begin");
     d.src->begin_layer(d.layers, ids, n_tok * k);
     pt("begun");
-    if (!d.usage.empty())
-        for (int64_t i = 0; i < n_tok * k; ++i)
-            if (ids[i] >= 0 && ids[i] < d.n_expert) d.usage[(size_t) d.layers * (size_t) d.n_expert + (size_t) ids[i]] += 1.0f;
+    if (!d.usage.empty()) {
+        const float* pw = adapt_prob_mass_on() && d.plan != nullptr ? d.plan->skip_w : nullptr;   // STRATA_ADAPT_PROB_MASS
+        if (pw == nullptr) {
+            for (int64_t i = 0; i < n_tok * k; ++i)
+                if (ids[i] >= 0 && ids[i] < d.n_expert) d.usage[(size_t) d.layers * (size_t) d.n_expert + (size_t) ids[i]] += 1.0f;
+        } else {
+            for (int64_t i = 0; i < n_tok * k; ++i) {
+                const float w = pw[i];
+                if (ids[i] >= 0 && ids[i] < d.n_expert)
+                    d.usage[(size_t) d.layers * (size_t) d.n_expert + (size_t) ids[i]] += w == w && w > 0.0f ? w * (float) k : 0.0f;
+            }
+        }
+    }
     // ---- plan v0.3 P6: the GPU's share, decided and published FIRST so the GPU starts while the CPU works.
     // Distinct experts in routing order; resident ones and the last pcie_num/256 of the missed ones go to the GPU.
     const int64_t n = n_tok * k;
@@ -5055,7 +5141,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         // STRATA_ROUTE_TAIL_SKIP=R (default 7 on CUDA serve, =0 off; changes the output): a missed expert that EVERY token of the window routes
         // only at rank >= R (the smallest weights of the top-10) is neither copied nor computed; its contribution is
         // zero, without renormalisation (the others keep the weight the router gave them).  Less PCIe and CPU work.
-        const int tail_rank = tail_skip_rank();
+        const int tail_rank = tail_skip_rank_layer(d.layers);   // = tail_skip_rank() unless STRATA_ROUTE_TAIL_SKIP_LAYERS lists this layer
         bool skip_d[kMaxWindowEntries];
         for (int q = 0; q < nd; ++q) skip_d[q] = false;
         if (tail_rank > 0 && d.peer == nullptr && d.remote_count == 0) {
@@ -5088,7 +5174,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         //         already reaches p of the token's sum: HOBBIT's cumulative gate-score rule as a skip.
         // The weights are the ones the window's doorbell published (GpuPlanSink::skip_w, set by the verifier only when one
         // of the two is set).  Not with a peer or helper GPU, as the tail skip.
-        const float* sw = d.plan != nullptr ? d.plan->skip_w : nullptr;
+        // (skip_w is also published for STRATA_ADAPT_PROB_MASS alone: the skip runs only when one of its own two is set)
+        const float* sw = d.plan != nullptr && miss_skip_weights_on() ? d.plan->skip_w : nullptr;
         if (sw != nullptr && d.peer == nullptr && d.remote_count == 0) {
             const float share_lt = miss_skip_w(), cum_ge = miss_skip_cum();
             int q_of[kMaxWindowEntries];
@@ -5391,8 +5478,14 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     if (any_cpu) {
         // #578 --remote-expert-opt: a token whose experts all run on a GPU (CUDA0 or a helper) needs no CPU activation
         const bool ep = d.remote_count > 0 && d.remote[0]->optimized_decode();
+        // STRATA_ACTQ_SKIP_NOCPU=1 (opt-in, read once; LEADS.md Part B B63, Juud_engine "no activation quant for GPU-resident
+        // tokens"): a token of the window with no CPU entry (every expert in VRAM, on PCIe, skipped or remote) is not
+        // quantized: only the CPU jobs below read act_multi / nact_multi, and they are built from kind -1 entries alone.
+        // The quantized rows the jobs read are the same bytes, so the output is the same.  Unset: every token, as before.
+        static const bool skip_nocpu = [] { const char* v = std::getenv("STRATA_ACTQ_SKIP_NOCPU"); return v != nullptr && v[0] == '1'; }();
         for (int64_t t = 0; t < n_tok; ++t) {
             if (ep && std::all_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v >= 0; })) continue;
+            if (skip_nocpu && std::none_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v == -1; })) continue;
             if (native && strata::kernels::cpu::q2_native_kernels(lay.fmt[(size_t) d.layers].gu_type))   // a native Q2_0 pack: the Q2_0 kernels' activations
                 act_quant_any(x_f + (size_t) t * H, H, d.act_multi[(size_t) t]);
             else if (native)

@@ -4445,7 +4445,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         sink_.presum_dst = sink_.presum && presum_vram_ != nullptr ? presum_vram_ + (size_t) tb * g.n_embd : nullptr;   // item 52
         sink_.route_w = strata::core::window_trace().on() || sink_.presum ? h_w_ + (size_t) tb * ss.k : nullptr;   // items 64, 51
         // STRATA_MISS_SKIP_W / _CUM (opt-in, lossy; MOD_PLAN.md section 6 item 15): this group's weights for the pool's skip
-        sink_.skip_w = strata::core::miss_skip_weights_on() ? h_w_ + (size_t) tb * ss.k : nullptr;
+        sink_.skip_w = strata::core::pool_weights_wanted() ? h_w_ + (size_t) tb * ss.k : nullptr;
         // MOD_PLAN F5 STRATA_VERIFY_ECAP: this group's draft rows; the window's row 0 (committed) leads the group at tb 0
         sink_.ecap = ecap_win ? ecap_ : -1;
         sink_.ecap_first = tb == 0 ? 1 : 0;
@@ -5824,7 +5824,7 @@ bool Verifier::run_slot_rows(const int* rows, int S, const int32_t* tokens, cons
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
         sink_.weights = nullptr;   // (STRATA_VERIFY_DEFER_CPU_BELOW: a batch window never defers - one pass)
         sink_.partial = nullptr;
-        sink_.skip_w = strata::core::miss_skip_weights_on() ? h_w_ : nullptr;   // STRATA_MISS_SKIP_W / _CUM (rows 0..S-1)
+        sink_.skip_w = strata::core::pool_weights_wanted() ? h_w_ : nullptr;   // STRATA_MISS_SKIP_W / _CUM (rows 0..S-1)
         sink_.ecap = -1;           // (MOD_PLAN F5 STRATA_VERIFY_ECAP: a batch window's rows are every slot's committed row)
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, l);
         if (remote_opt_) remote_opt_->end();
@@ -6043,7 +6043,7 @@ int Verifier::batch_serve(PoolMultiFn pool, void* user) {
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
         sink_.weights = nullptr;   // (as run_slot_rows)
         sink_.partial = nullptr;
-        sink_.skip_w = strata::core::miss_skip_weights_on() ? h_w_ : nullptr;   // STRATA_MISS_SKIP_W / _CUM (as run_slot_rows)
+        sink_.skip_w = strata::core::pool_weights_wanted() ? h_w_ : nullptr;   // STRATA_MISS_SKIP_W / _CUM (as run_slot_rows)
         sink_.ecap = -1;
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, lb_ + k);
         if (remote_opt_) remote_opt_->end();
@@ -6431,7 +6431,7 @@ int Verifier::service(PoolMultiFn pool, void* user, std::string& err) {
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window (pipelined): the CPU experts of layer", l);
         sink_.ecap = -1;   // MOD_PLAN F5 STRATA_VERIFY_ECAP: not here (no decode loop opts a pipelined window in)
-        sink_.skip_w = strata::core::miss_skip_weights_on() ? h_w_ + (size_t) tb * ss.k : nullptr;   // STRATA_MISS_SKIP_W / _CUM
+        sink_.skip_w = strata::core::pool_weights_wanted() ? h_w_ + (size_t) tb * ss.k : nullptr;   // STRATA_MISS_SKIP_W / _CUM
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW (as run)
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;

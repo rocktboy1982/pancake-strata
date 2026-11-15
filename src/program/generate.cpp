@@ -24,6 +24,7 @@
 #include "strata/core/calibrate_ratio.hpp"
 #include "strata/core/defer_auto.hpp"
 #include "strata/core/defer_rank.hpp"
+#include "strata/core/env_dump.hpp"
 #include "strata/core/epoch_bandit.hpp"
 #include "strata/core/live_knobs.hpp"
 #include "strata/core/arch_defaults.hpp"
@@ -3678,6 +3679,7 @@ int main(int argc, char** argv) {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     if (const std::string iommu = strata::platform::iommu_gpu_note(); !iommu.empty()) std::fprintf(stderr, "%s\n", iommu.c_str());   // A53
     strata::platform::restore_normal_io_priority();   // #4733: not the low disk priority of the program that started this one
+    (void) strata::core::dump_strata_env(stderr);      // STRATA_ENV_DUMP=1 only (env_dump.hpp); unset prints nothing
 #if defined(STRATA_USE_HIP) && defined(_WIN32)
     {   // 0.2.1.2: hipblas / libhipblaslt / rocblas are delay-loaded (CMakeLists.txt) and live in <exe folder>\rocm\bin, which only the
         // launcher puts on PATH; make the folder part of this process's DLL search, so `strata.exe --version` run straight from the
