@@ -480,6 +480,7 @@ STRATA_ENV("STRATA_HANDOFF_PIPE", Speed, "prompt path scheduling/staging/chunk s
 STRATA_ENV("STRATA_HANDOFF_PIPE_WORKER", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_HCD_EXACT", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_HC_PERSIST", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_HC_WN4", Speed, "rdna3 3dbb40516: prompt HC write+norm with 16-byte accesses; same bits (gr_wn4_parity)")
 STRATA_ENV("STRATA_HEAD_HOST", Speed, "graph/stream/doorbell plumbing")
 STRATA_ENV("STRATA_HEAD_HOST_OFF", Speed, "graph/stream/doorbell plumbing")
 STRATA_ENV("STRATA_HEAD_MIX_MULTI", Speed, "bitwise: documented (docs/README/code comment/parity test)")

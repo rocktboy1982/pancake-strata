@@ -32,6 +32,10 @@ bool gr_upmix(const uint16_t* lo16, const uint16_t* w_up, const float* R, const 
 void gr_write_norm_rs(float* R, const float* bo, const float* inj, int64_t inj_ld, const float* w_norm_next, float eps,
                       float* rs, uint16_t* xn16, int64_t T, void* stream, uint16_t* xn16_lo = nullptr,
                       int64_t ldx = 0, bool f16img = false);
+/// STRATA_HC_WN4 (nicejunjie/Strata-rdna3 3dbb40516): gr_write_norm_rs with 16-byte accesses, plain BF16 image only; the
+/// same bits as gr_write_norm_rs.  False (nothing launched) when a pointer or ldx breaks its alignment.
+bool gr_write_norm_rs4(float* R, const float* bo, const float* inj, int64_t inj_ld, const float* w_norm_next, float eps,
+                       float* rs, uint16_t* xn16, int64_t T, void* stream, int64_t ldx = 0);
 /// S23 (STRATA_CVEC_FUSE=1): gr_write, then the control vector (v_l = layer l's direction row, *s_l its scale,
 /// *on the request flag, mode 0 project / 1 add; cvec_kernel's arithmetic), then gr_norm_rs with the next half's
 /// norm - one pass over R, the same bits as the three kernels.

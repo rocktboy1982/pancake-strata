@@ -1714,6 +1714,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(gr_upmix_parity PRIVATE strata_prefill )
     add_test(NAME gr_upmix_parity COMMAND gr_upmix_parity)
     set_tests_properties(gr_upmix_parity PROPERTIES SKIP_RETURN_CODE 77)
+    # STRATA_HC_WN4 (rdna3 3dbb40516): the 16-byte-access write + norm against the scalar gr_write_norm_rs, bitwise
+    # (GPU, synthetic, no model)
+    add_executable(gr_wn4_parity src/prefill/gr_wn4_parity.cu)
+    target_link_libraries(gr_wn4_parity PRIVATE strata_prefill )
+    add_test(NAME gr_wn4_parity COMMAND gr_wn4_parity)
+    set_tests_properties(gr_wn4_parity PROPERTIES SKIP_RETURN_CODE 77)
     # the two kernels of the layer-major prompt path (STRATA_PREFILL_LAYER_MAJOR=1, #3976): moe_shared_init and
     # moe_scatter_add against a host reference, bitwise for the scatter (GPU, synthetic, no model)
     add_executable(lm_kernels_parity src/prefill/lm_kernels_parity.cu)
