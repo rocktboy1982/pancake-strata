@@ -2366,6 +2366,11 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                             cap_, s, sel_ + (size_t) tb * cap_, ns, -1, topk_scratch_);
                         return;
                     }
+                    // STRATA_QSA_PAGE_SEL (MOD_PLAN.md section 6 item 14, opt-in, lossy-ish): page summaries pick the
+                    // candidate blocks, the exact selection runs inside them; false (always, unset): the calls below
+                    if (qsa_page_select(st.idx_pooled, st.idx_dead, qidx_ + tb * IQ * ID, step_ + tb * kStepCount, n,
+                                        max_blocks_, cap_, s, sel_ + (size_t) tb * cap_, ns))
+                        return;
                     qsa_block_scores(st.idx_pooled, st.idx_dead, qidx_ + tb * IQ * ID, step_ + tb * kStepCount, n, max_blocks_,
                                      s, scores_ + (size_t) tb * max_blocks_, ns);
                     qsa_block_topk(scores_ + (size_t) tb * max_blocks_, step_ + tb * kStepCount, n, max_blocks_, cap_, s,
