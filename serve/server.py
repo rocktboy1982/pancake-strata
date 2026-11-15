@@ -8184,6 +8184,10 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
     total, rounds, done = 0, 0, None
     finalizing = False
     messages = list(messages)
+    from serve import mcp_async
+    # STRATA_MCP_ASYNC=1 (opt-in; AsyncFC, LEADS.md A40): a call starts when its tool_call event is complete, while
+    # the rest of the answer is still decoding.  None (the default): calls start after the answer, as before.
+    futures = mcp_async.Futures(hub, cancel) if mcp_async.enabled() else None
     while True:
         text, reasoning, calls, own_calls = [], [], [], 0
         for kind, x in svc.run(ids, thinking, tools, max_new, sampling, cancel, declared_only=True):
@@ -8197,6 +8201,8 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
                         yield "mcp", {"event": "start", "id": ev.call.id, "name": ev.call.name}
                     elif ev.kind == "tool_call":
                         calls.append(ev.call)
+                        if futures is not None and not finalizing:
+                            futures.start(ev.call)       # STRATA_MCP_ASYNC: runs while the answer goes on
                     continue                             # its argument pieces are not streamed to the client
                 if ev.kind == "tool_call":
                     own_calls += 1
@@ -8208,6 +8214,8 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
         total += done["completion_tokens"]
         run_them = calls and not own_calls and not finalizing and done["finish"] == "stop" and not cancel.is_set()
         if not run_them:
+            if futures is not None:
+                futures.clear()                          # STRATA_MCP_ASYNC: started early; results dropped
             for c in calls:                              # announced, never run: close them in the client's view
                 yield "mcp", {"event": "result", "id": c.id, "ok": False, "skipped": True, "text": "not run",
                               "chars": 0, "truncated": False, "ms": 0}
@@ -8220,15 +8228,19 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
                           "tool": tool, "arguments": c.arguments, "round": rounds}
             # The call runs on a thread while this generator keeps yielding heartbeats: they reach the client as
             # keep-alives, which is how a client that went away (the web app's Stop) is noticed during a slow tool.
-            box = {}
+            started = futures.take(c) if futures is not None else None
+            if started is not None:                      # STRATA_MCP_ASYNC: already running (or done)
+                worker, box = started
+            else:
+                box = {}
 
-            def work(c=c, box=box):
-                try:
-                    box["r"] = hub.call(c.name, c.arguments, cancel)
-                except McpCancelled:
-                    box["cancelled"] = True
-            worker = threading.Thread(target=work, daemon=True)
-            worker.start()
+                def work(c=c, box=box):
+                    try:
+                        box["r"] = hub.call(c.name, c.arguments, cancel)
+                    except McpCancelled:
+                        box["cancelled"] = True
+                worker = threading.Thread(target=work, daemon=True)
+                worker.start()
             try:
                 while worker.is_alive():
                     worker.join(1.0)
