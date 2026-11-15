@@ -3,43 +3,42 @@
 `pancake-strata` is a performance fork of [Strata](https://github.com/Niko1221/Strata): measured kernels, cache and
 scheduling changes, and a benchmark suite on top of the upstream engine, app and terminal. Work here is engine-first;
 the app and terminal are inherited and change rarely. Target: single-user agent serving on an RX 7900 XT 20 GB
-(HIP/gfx1100, Linux) and an RTX 3060 12 GB (CUDA/sm_86). Daily models: Qwen3.8-Flash-Next (IQ2_XS, Q2_0) and
+(HIP/gfx1100, Linux) (the RTX 3060 12 GB, CUDA/sm_86, was removed 2026-11-08; CUDA stays buildable). Daily models: Qwen3.8-Flash-Next (IQ2_XS, Q2_0) and
 Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
 
-## Documentation rule (owner, 2026-11-15): three files only
+## Documentation rules (owner, 2026-11-15) - read first, apply always
 
-The fork's knowledge lives in exactly three files at the repository root, and only these are maintained:
+1. **Three files hold all fork knowledge.** Only these are maintained, at the repository root:
 
-| file | what goes in it |
-|---|---|
-| `MOD_PLAN.md` | status of the daily preset (with test ids), decisions waiting for the owner, the GPU queue, code to write, defects, parked items, the do-not-repeat list, architecture facts |
-| `TEST_LEDGER.md` | one row per test ever run (next id after the last `T-nnn`, in its area table): date, item, spec, hw, tier/reps, numbers, exact/text, verdict, archive path. Every run gets a row, including no-gain, aborted and offline ones |
-| `LEADS.md` | every unported idea (fork, PR, paper, hardware note) with the author number and whether our tree has it; a lead moves to MOD_PLAN.md when chosen |
+   | file | what goes in it | when to update |
+   |---|---|---|
+   | `MOD_PLAN.md` | what the daily preset runs (with test ids), decisions waiting for the owner, the GPU queue, code to write, defects, parked items, the do-not-repeat list, architecture facts | whenever a decision, status or priority changes |
+   | `TEST_LEDGER.md` | one row per test ever run: next free id `T-nnn` in its area table; date, item, spec, hw, tier/reps, numbers per case, exact/text, verdict, archive path | in the same commit as every run, including no-gain, aborted and offline runs |
+   | `LEADS.md` | every unported idea (fork commit, upstream PR, paper, hardware note) with the author number and whether our tree has it | when a new idea is found; a chosen lead moves to MOD_PLAN.md |
 
-- Do NOT create any other document: no reports, notes, status, findings, night-result, analysis or plan files, in
-  any folder, from any agent or tool. Put results in TEST_LEDGER.md, ideas in LEADS.md, decisions and status in
-  MOD_PLAN.md, in the same commit as the work.
-- Allowed besides the three: `AGENTS.md` (these rules), `README.md` (reader-facing results; credits in section 9),
-  specs in `bench/specs/`, raw machine output in `bench/results/<date>-<name>/` (jsonl/json/stdout/summary files the
-  tools write, no hand-written prose), code comments.
-- Everything removed in the 2026-11-15 consolidation is in git history: `git show 5ab3d2db:<path>`.
+2. **Never create another document**, in any folder, from any agent or tool: no reports, notes, status, findings,
+   night results, analyses, plans, design notes or summaries (no `*_REPORT.md`, `NIGHT_RESULTS_*.md`, `pancake-docs/*.md`,
+   `docs/*` fork notes). If you are about to write one, put its content into the right one of the three files instead.
+3. **Allowed besides the three:** `AGENTS.md` (these rules), `README.md` (reader-facing summary that points to the three
+   files), specs in `bench/specs/`, raw machine output in `bench/results/<date>-<name>/` and
+   `pancake-docs/research/bench/` (files the tools write: jsonl, json, stdout, summaries; no hand-written prose), and code
+   comments. Inherited upstream `docs/` stays as upstream has it.
+4. **Cite only the three files** (and specs / raw archives) in code comments, spec notes, commit messages and docs:
+   tests by id (`TEST_LEDGER.md T-123`), plan items by section (`MOD_PLAN.md section 5`), ideas as `LEADS.md`. Never cite a
+   deleted document or an old commit's file.
+5. **Every claim needs a ledger row.** Do not state a number that is not in TEST_LEDGER.md or in a raw archive.
+6. **Keep the three in step:** a test result goes to TEST_LEDGER.md, its decision to MOD_PLAN.md (sections 3-5), and a
+   lead that got tested moves out of LEADS.md into MOD_PLAN.md / TEST_LEDGER.md.
 
 ## Where the truth lives
 
-- `README.md` - measured results (§2), how it works (§5), `STRATA_*`/flag census (§6), subsystem walkthrough (§7),
-  build/run (§8), credits (§9).
-- `MOD_PLAN.md` - the authoritative plan: what the daily preset runs (with test ids), decisions waiting for the owner,
-  what runs next, code to write, known defects, parked items, the do-not-repeat list and architecture facts.
-- `TEST_LEDGER.md` - every test ever run (ids `T-nnn`): numbers, spec, tier, verdict, raw archive path. Add a row for
-  every new test; do not claim a number that is not there or that you did not measure.
-- `LEADS.md` - every unported idea (forks, upstream PRs, llama.cpp, papers, hardware) with author numbers and whether
-  our tree has it. A lead moves into MOD_PLAN.md when it is chosen.
+- `MOD_PLAN.md`, `TEST_LEDGER.md`, `LEADS.md` - see the rules above.
+- `README.md` - reader-facing: measured results (section 2), how it works, switch census (section 6), build/run
+  (section 8), credits (section 9).
 - Raw evidence: `bench/specs/`, `bench/results/<date>-<name>/`, `pancake-docs/research/bench/` (result archives, run
-  scripts, night-queue logs). `docs/` is mostly inherited upstream; `docs/QUANTS.md` and the shared references
-  (`docs/AI_REFERENCE.md`, `docs/DETAILS.md`, `docs/AMD_HIP.md`, `docs/WINDOWS_CUDA_SM75.md`) are kept.
-- The old research reports, notes, status and findings files were folded into those three files on 2026-11-15 and
-  removed; read them with `git show 5ab3d2db:<path>`. Do not recreate side documents: put results in TEST_LEDGER.md,
-  ideas in LEADS.md and decisions in MOD_PLAN.md.
+  scripts, night-queue logs), `bench/quality/`, `bench/prefetch/`.
+- `docs/` is inherited upstream; the kept shared references are `docs/QUANTS.md`, `docs/AI_REFERENCE.md`,
+  `docs/DETAILS.md`, `docs/AMD_HIP.md`, `docs/MODELS.md`.
 
 ## Layout
 
@@ -84,7 +83,7 @@ cmake --build build-cuda --target strata strata-poly -j8
   paths to `/build-hip/`.
 - CMake fetches the pinned llama.cpp revision; for an offline build pass `-DSTRATA_GGML_DIR=<checkout>`.
 - Never enable CUDA and HIP in one build. `strata-poly` is CUDA-only.
-- Windows: the documented path is CUDA (`docs/WINDOWS_CUDA_SM75.md`). `build_matrix.sh`, `abtest.py` (reads
+- Windows: the documented path is CUDA (README section 8 (recipe: MOD_PLAN.md section 10)). `build_matrix.sh`, `abtest.py` (reads
   `/proc`), `test_phase.sh`, `night_queue.py` and the other `.sh` gates are Linux-only; use WSL for measurement work.
 
 ## Tests

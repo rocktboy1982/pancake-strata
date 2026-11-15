@@ -20,7 +20,7 @@ Token-forcing noise models (rows are what force_check.load_arm returns: (mismatc
         weight, the same for every arm.  A lossy arm adds `extra` points of independent mismatches (scaled by the same request weight).  The
         margins of the stock flips are small (median 0.06, 90% 0.19, max 2.2 nats): a margin is drawn from an exponential with mean 0.1, so the
         event rule stays quiet unless an arm adds large-margin events, which these arms do not.
-  iid   what pancake-docs/batch3/promotion.md @5ab3d2db simulated: every position mismatches independently with probability p (the worst case: the same
+  iid   what TEST_LEDGER.md simulated: every position mismatches independently with probability p (the worst case: the same
         positions are NOT shared between arms, no request effect).
 Task-gate model: every arm run draws every task independently from its pass rate (no seed pairing: a lossy arm leaves the sampled path at its
 first different token, so independent draws are the realistic case); a true loss of d points scales every rate by 1 - d / mean rate.

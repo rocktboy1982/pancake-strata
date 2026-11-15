@@ -24,7 +24,7 @@ Spec (JSON):
 
     python tools/pancake/abtest.py SPEC.json --out bench/results/<day>-<name>.jsonl [--reps 3] [--max-load 1.0]
 
-Test tiers (bench/TEST_PLAN.md "How every test runs"):
+Test tiers (MOD_PLAN.md section 2):
   --tier screen   one A B pass, cases short + edit, 2 requests per case in the same server; verdict per arm:
                   promote (>= +2% on a case, no case below -3%) or drop.  Minutes per arm.  Use it first, always.
                   The long* cases are dropped (tens of seconds per read, and the plain screens judge decode), except the longdec*

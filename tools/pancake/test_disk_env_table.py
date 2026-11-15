@@ -1,4 +1,4 @@
-"""Phase 17 review (pancake-docs/REVIEW_P17.md @5ab3d2db, finding R1): every "STRATA_NAME" string literal in src/ and include/ must
+"""Phase 17 review (MOD_PLAN.md, finding R1): every "STRATA_NAME" string literal in src/ and include/ must
 have a line in src/core/conversation_disk_env.def.  This is the source-scan half of the C++ ctest
 conversation_disk_env_test (tests/core/conversation_disk_env_test.cpp), in pure Python, so it can be run without a
 build (the daytime rule).  The C++ test stays the authority; keep the two scans the same if it changes.

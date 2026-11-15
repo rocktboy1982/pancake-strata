@@ -4302,7 +4302,7 @@ bool iq_sign_fast(int ty) { return ty >= 0 && ty < 32 && ((iq_sign_fast_mask() >
 // its 2 KB codebook staged as 16 (32 KB) or 8 (16 KB) copies, FLUTE-style, so the 16 lanes of a sub-warp, which look
 // up random entries, hit their own bank pairs (16 copies: never a conflict; 8: two lanes per copy).  A static model of
 // the 8-byte lookups on 32 x 4-byte banks puts the plain table at ~6.1 LDS clocks per wave lookup against an ideal 2
-// (pancake-docs/batch2/A37-gpu-kernels.md @5ab3d2db); the copies cost LDS per block (13.5 -> 43.5 / 27.5 KB), i.e. occupancy,
+// (TEST_LEDGER.md); the copies cost LDS per block (13.5 -> 43.5 / 27.5 KB), i.e. occupancy,
 // so only the screen says whether it pays.  Not for IQ2_S / IQ2_XS: their 8 / 4 KB tables cannot be copied 16 times
 // (128 / 64 KB), and fewer copies barely help (balls in bins: 4 copies of IQ2_S, 32 KB, ~5.3 clocks).  Value: unset
 // or 0 = off; 16 (or 1) = 16 copies; 8 = 8 copies; anything else = off with a note.  Read at first use;

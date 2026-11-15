@@ -40,7 +40,7 @@ Code = JS debounce and Python LRU prompts; prose = story, 15 tips, MoE explanati
 3. **Avalon wins prose, the Strata engines win code.** Prose 102 (Avalon) vs 98-99 (pancake) on IQ2_XS; code 132 (pancake) vs 126 (Avalon).
    Draft acceptance is similar, but per window Avalon commits more tokens on prose (2.1-2.3 vs 1.8-2.1) because it always drafts 2 tokens
    while pancake stops a draft chain at probability 0.5; its MTP head is also larger (1.48 GB IQ3_K/IQ4_NL, 65K-token vocabulary vs our
-   0.71 GB Q2_0, 40.5K). Unconfirmed: derived from two requests per prompt and from reading code (`pancake-docs/PROSE_GAP_AVALON.md @5ab3d2db` on
+   0.71 GB Q2_0, 40.5K). Unconfirmed: derived from two requests per prompt and from reading code (TEST_LEDGER.md (T-152)` on
    branch `dev/p17/prosegap`).
 4. **Turbo (route prior) is not a default.** vs `fast-hip`: -8% decode on IQ2_XS, -4% on Q2_0, up to +9% on one copy-heavy code prompt
    and -15..-25% on prose, same acceptance, same prompt speed. Text similarity cannot judge its quality: the exact engine already

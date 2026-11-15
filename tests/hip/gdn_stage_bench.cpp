@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
         }
         std::printf("STAGE T=%lld gates_conv_ms=%.4f rec_out_ms=%.4f sum_ms=%.4f y_hash=%016llx state_hash=%016llx split_same=%d\n",
                     (long long) T, cm, rm, cm + rm, (unsigned long long) hy, (unsigned long long) hs, same);
-        // MOD_PLAN A31's decision number (pancake-docs/batch2/A37-gpu-kernels.md @5ab3d2db): the gfx11 chunked scan
+        // MOD_PLAN A31's decision number (TEST_LEDGER.md): the gfx11 chunked scan
         // (gdn_wmma_scan_kernel, STRATA_GDN_CHUNKED=1) does 26 WMMAs per wave and 16-token chunk, 8 waves per head; at
         // 32 clocks per 16x16x16 WMMA on a SIMD32 and 4 SIMDs per WGP that is >= 1664 clocks per chunk, times the
         // heads a WGP must take (ceil(48 / WGPs); WGP = 2 CUs).  rec_out near the floor: WMMA-bound (chunk 64 adds WMMAs);

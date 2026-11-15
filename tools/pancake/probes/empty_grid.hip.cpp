@@ -1,4 +1,4 @@
-// empty_grid.hip.cpp - probe 4.2.1 (bench/TEST_PLAN.md): what does an EMPTY kernel launch cost on the 7900 XT as a
+// empty_grid.hip.cpp - probe 4.2.1 (MOD_PLAN.md section 5 item 7): what does an EMPTY kernel launch cost on the 7900 XT as a
 // function of its block count?  Decides F20 (resize the decode graph's launch shapes; unimatrix099 d0c8d6c3e2 found
 // that 384 x 256 on a 48-WGP 7900 XTX cost 14-16 us even when empty, while 352 or 320 blocks cost 2.7 us).
 //

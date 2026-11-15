@@ -1,5 +1,5 @@
 // src/kernels/cuda/bfla.cu - fused prompt attention, exact over every block (STRATA_BFLA_DENSE=1) or BFLA block-sparse
-// (STRATA_BFLA_SPARSE=1, lossy); pancake, opt-in.  See include/strata/kernels/bfla.hpp and docs/BFLA_RDNA3.md.
+// (STRATA_BFLA_SPARSE=1, lossy); pancake, opt-in.  See include/strata/kernels/bfla.hpp and MOD_PLAN.md section 10 (BFLA).
 // BFLA: Chong Wu et al., arXiv 2605.12193 (CityU); reference code Apache-2.0 (github.com/Alicewithrabbit/BFLA), read for
 // the algorithm only - this file is written from the paper's equations.
 //

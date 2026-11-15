@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """replay_turns.py - replays a recorded agent session as real HTTP chat traffic, one fresh server per arm of an
-abtest-style spec, so that the conversation-cache arms can be judged (bench/TEST_PLAN.md 4.1, "Agent replay for the
+abtest-style spec, so that the conversation-cache arms can be judged (MOD_PLAN.md section 10, "Agent replay for the
 cache arms").  abtest.py's cases are independent one-shot requests: they never park a long conversation and never
 evict it with a short side request.  This replays the traffic shape that did (2026-11-09 16:13-16:43: 7 cold
 54-62K re-reads of one agent conversation while short decodes and 3-4K prefill probes ran in between).

@@ -3,7 +3,7 @@
 A performance fork of [Strata](https://github.com/Niko1221/Strata) for single-user agent serving on one home box.
 This file says what is true now, what runs next and what is waiting for a decision. Consolidated on 2026-11-15 from
 the old 3,984-line plan and about 200 side documents, after an item-by-item audit against the code, presets, specs and
-result archives (the old text is in git history: `git show 5ab3d2db:MOD_PLAN.md`).
+result archives.
 
 Companion files:
 - [TEST_LEDGER.md](TEST_LEDGER.md): every test ever run (537+ rows, ids `T-nnn`), with numbers, spec, tier, verdict and
@@ -61,6 +61,30 @@ Code:
 9. Develop by day, run the GPU queue at night (`tools/pancake/night_queue.py`, `--dry-run` first).
 10. Linux box repo on an ntfs3 disk (D): `git config checkout.workers 1`; no `reset --hard`, full checkouts or new
     worktrees there; merge only in the existing worktree.
+
+Test tiers (`abtest.py --tier`; answer each item at the cheapest tier that can):
+- 0 offline: replays and byte counts (cache sims, `tools/pancake/trace/tail_replay.py`, `replay_turns.py --dry-run`); no GPU.
+- 1 screen: one A B pass, short + edit, 2 requests per case per server; promote if >= +2% on a case and no case < -3%.
+  Spec key `"prefill": true` keeps the `long*` cases (one cold request each, judged on prompt tok/s). ~2-3 min/arm.
+  A screen promote is only a hint: n=2 gave intervals of +-100..+450 tok/s.
+- 2 confirm: A B B A with early stop (every arm/case decided or interval < 1.5% of base). For a decision use rule 1's
+  flags with `--no-early-stop` and the same tier for every arm. Exact items need 12+ pairs to prove 2% at a paired SD of 1.5%.
+- 3 rigorous (lossy, preset-default change, text differs from base, long-context claim): confirm + `quality_gate.py` +
+  `task_gate.py SPEC.json --out bench/results/<day>-<name>` (`--dry-run` checks spec and task set without a server;
+  base runs twice as the drift check; BETTER/PASS/INCONCLUSIVE/REJECT; INCONCLUSIVE -> `--reps 10-20` or more tasks).
+- Evidence order: `ctest -L cpu`/`-L gpu` and parity -> kernel level (`expdec_bench`, `q2_rows_bench`, rocprof; kernel
+  gain x window share >= 2% before end to end) -> screen -> confirm -> gates -> `python3 tools/pancake/promote.py <items.json>`.
+- Cases: `long` 11.7K, `long32k`/`long64k` ~32000/~64000 tokens of `src/**/*.cpp`, 32 new tokens, each opened by a
+  unique `[run <nonce>-<n>]` line (always cold, hash not compared); 128K is not an abtest case.
+- Before a batch: `tools/pancake/os_tune.sh` (abtest warns below 20 GiB free in 2 MiB blocks; the arena locks 33 GiB;
+  fix with `sudo tools/pancake/os_tune.sh compact|install`); CPU 3.9-4.1 GHz in run telemetry (slow runs sit at
+  3.4-3.7 GHz; `sudo tools/pancake/os_tune.sh cpu-install`); engine on 8080 stopped; `pgrep -f test_phase.sh`.
+  A server dying before ready is retried once, then the batch aborts with the free-block count.
+- One spec per area with all its env-only arms. One decision per item: a "no difference" confirm -> opt-in or removed,
+  retest only after a code change. A switch that never logged "acted" voids its arm. Arena vs mmap tiers differ ~8%,
+  never mix them. Back to back: `tools/pancake/queue_run.sh OUTDIR SPEC[:abtest args] ...` (`-n` previews).
+- No gain: at most 2-3 attempts. Read the `decode timing` line + `gpu_profile.py`; check the path acts (log line) and is
+  not masked; tune with `tools/pancake/sweep.py`; then keep, opt-in or remove.
 
 ## 3. What the daily preset runs (fast-hip), with the evidence
 
@@ -140,6 +164,30 @@ miss.
    sub-agent switch; `--conversation-cache-mib 1280`); M3 divergence; M4 opencode/Copilot request bodies; M5 deltas
    100/300/1000/3000 at 32K/64K. Unexplained so far: a 3.4 s turn after a 34K cold read, 4.8 s / 36 s waits outside
    the timer, the cause of 13% checkpoint fallbacks.
+7. **Probes before ports** (`tools/pancake/probes/`; each header has question/build/run; `-DSTRATA_BUILD_PROBES=ON`,
+   CMakeLists.txt ~3124, EXCLUDE_FROM_ALL). Run with the GPU idle; under rocprofv3 decode is ~1.6x slower, so read shares.
+   - 4.2.1 empty-launch cost vs block count on 42 WGPs (F20, never run): `hipcc -O2 --offload-arch=gfx1100
+     tools/pancake/probes/empty_grid.hip.cpp -o /tmp/empty_grid && HIP_VISIBLE_DEVICES=0 /tmp/empty_grid --csv /tmp/sweep.csv`
+     (or target `empty_grid_probe`; `--step 8` = 10 s), then `python3 tools/pancake/probes/launch_shapes.py
+     /tmp/prof/run_kernel_trace.csv --sweep /tmp/sweep.csv` (`--static` = no trace). Close F20 when "EXCESS" ~0.
+   - 4.2.2 route publish / top-10 share (pre-deferral answer T-033): `python3 tools/pancake/gpu_profile.py
+     configs/pancake/flashnext-iq2_xs-fast-hip.json /tmp/prof --case short`, then `python3 tools/pancake/probes/kernel_share.py
+     /tmp/prof/run_kernel_trace.csv` (TARGET line: mean us, kernel/wall share, gap after). Port only if >= 2% of wall.
+   - 4.2.3 expert GEMV bandwidth vs peak (F12/F14/F16, never run): `python3 tools/pancake/probes/expert_bw.py
+     /tmp/prof/run_kernel_trace.csv --gpu 7900xt --hit-rate 0.6 --floor-us 3` (bytes: `bench/results/2026-11-10-offline/gguf_table.json`);
+     GB/s for K = 1..10 experts/launch, real K = 10 x hit rate; little headroom above ~85% of peak.
+   - 4.2.4 CPU Q2_0 rows legacy vs `STRATA_Q2_FAST` (T-246, T-253, T-264): `cmake -S . -B build-probes
+     -DSTRATA_BUILD_PROBES=ON && cmake --build build-probes --target q2_rows_bench && taskset -c 3 build-probes/q2_rows_bench`
+     (~20 s; ns/row legacy/fast/dispatcher/read-only floor in L2 and DRAM, checks bitwise equality).
+   - F12: `iq_multi_parity`, then `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec:s0,dec:s1` (every cell `identical`;
+     keep a format only where `dec:s1` has the lower gu_us), then spec 22-f12-sign-fast.
+8. **Open claims, never measured**: `STRATA_PF_HCDOWN=1` quality (in fast-hip, lossy; rxr2: 2x first-token KL at 16K
+   for +1.3% prompt); `hipblaslt_extend.py` table vs shipped at 1.5-3.2K/4-4.2K/16K/32K (greedy identity + identical
+   "Lt solution=" lines); cold 32K `--ple-io direct`, caches dropped: `WAIT_TRACE=1` vs +`PLE_PIPE=1` vs +`PLE_COMPACT=1`;
+   start time `STRATA_UNBUFFERED_LOAD=0/1` + `STRATA_VERIFY_ARENA=1` (claim 28-65 s -> 10-14 s);
+   `STRATA_CONV_BUDGET=ram STRATA_CONV_KEEP_GIB=8` budget line and arena-load memory pressure ~0; sub-agent switch
+   (parent >= 10K -> sub-agent, same system+tools -> parent restore) vs `PIN_PARK_TOKENS=-1`, tokens vs
+   `STRATA_CKPT_REREAD=1`; loop guard on/off on an agent replay; `sweep.py` over expdec/pool knobs.
 
 ## 6. Code to write (ranked by expected value on this box; details and sources in LEADS.md)
 
@@ -161,7 +209,7 @@ miss.
 | 14 | QSA long-prompt selection cost (Quest page-level or partial top-k) | after-12K gap 2.18 ms/token | lossy-ish |
 | 15 | uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
 | 16 | SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
-| 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); V5 (MTP layer ~0.9 GiB to the expert cache); U6; DraftPolicy cost-outlier clip | ceilings in the old plan's Phase 18 notes | exact |
+| 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); V5 (MTP layer ~0.9 GiB to the expert cache); U6; DraftPolicy cost-outlier clip | unmeasured | exact |
 
 Not packages any more (their parts are separate items above or in LEADS.md): 63 capability probe (`STRATA_PROBE` never
 built; became A45), 66 agent-turn pipeline, 68 miss-cost speculation, 69 memory arbiter, 72 GPU-floor package; 94
@@ -308,6 +356,52 @@ keeps thinking tokens): merge `origin/main` when convenient.
 - The CPU-compute vs PCIe-promote cost per expert varies ~10x across platforms (42 vs 115 us here), so calibration must
   use window time, not a static table (PcieAuto picked 0.20-0.25 and lost). `HSA_ENABLE_SDMA=0` tips conflict with the
   measured SDMA gains here.
+- Agent replay (`tools/pancake/replay_turns.py SPEC --out DIR [--dry-run|--arms a,b|--synthetic|--reps 2|--max-gap 2]`):
+  rebuilds a session from `pancake-turns.jsonl` sizes. A request >= 8,192 tokens extends the conversation it can grow
+  from (last prompt <= it <= last + output + 16K). A `reused == 0` re-read stays in that conversation. Smaller requests
+  are side requests. Turn N+1 = turn N + the real reply + a `<tool_response>` sized to within 2 tokens (server tokenizer
+  and template). Output: per-request park/restore/evict lines; per arm, cold re-reads (non-first turn > 8K, reuse < 50%),
+  prompt time, peak RSS, min MemAvailable. Spec 11 `replay` block: 2026-11-09 16:13-16:43, base vs cache2048-min8192;
+  add `base1280` when today's auto budget differs.
+- Window trace: `STRATA_WINDOW_TRACE=/tmp/w.stwt ./run-pancake.sh iq2_xs fast`, one greedy request, then
+  `tools/pancake/trace/wtrace.py` and `tail_replay.py --us-per-miss 23` (edit: 60). `_EVERY=N`, `_MAX_MB` (2048).
+  Per row: drafter probability (NaN for lookup) and per-layer placement. No top-1 margin or entropy (the stale
+  `tools/pancake/trace/corpus-recorder-engine.patch` would add gate weights and norms; it no longer applies).
+- Kernel ports must be re-measured per GPU (launch ~14-16 us gfx1100 vs ~3 us sm_86; DPP vs warp intrinsics; WMMA vs mma).
+  Server, drafting, routing and CPU-kernel items transfer; re-check only the size of the gain.
+- BFLA (`src/kernels/cuda/bfla.cu`, `include/strata/kernels/bfla.hpp`, q36_engine.cu; arXiv 2605.12193, Apache-2.0
+  reference read, not copied). Engine: qwen35 only (10 dense gated attention layers, H 16, HKV 2, D 256). It replaces the
+  path that materialises FP32 scores over the whole prefix (FP16 K/V, hipBLAS QK^T, causal softmax to FP16, PV GEMM),
+  which is quadratic in FLOPs and score traffic (~12 B/score). Not on Flash-Next: QSA already reads 2,051 cells/query;
+  a V/3 budget reads ~16x more at 128K (tile-shared selection: T-098, dropped).
+  Kernels (HIP wave32 gfx11; other builds return false):
+  `features`: phi = N(mean over G heads of N(q_h)), adjacent pairs summed to 128, N again; mu = block mean over K.
+  FP32, no FP8. Hadamard dropped (relu(phi.mu) is rotation-invariant). mu recomputed over the prefix every chunk
+  (~1/4 of `k_kv_f16`), so a restored cache is never stale.
+  `select`: one workgroup per (128/G-token tile, KV head); online LSE of relu(phi.mu)/sqrt(128); budget
+  k = ceil(min(V, max(Kmin, min(Kmax, ceil(eta V))))/64). Mandatory 2 sink + own + 4 local blocks count in the quota.
+  32-step bisection for the k-th score, ties to the smaller id, deterministic ascending list.
+  `attn`: 4 waves per (64 rows, KV head), 16 rows x 256 dims per wave; Q in LDS once; 16-key steps, V transposed in LDS;
+  16 WMMAs each for S and PV (O = 128 VGPRs/lane); causal mask only on diagonal blocks; exp2 online softmax in FP32;
+  P to FP16 via a per-wave LDS tile; FP32 out, gate stays `k_gate_mul`. Not bitwise vs the GEMM path.
+  gfx11 facts: `v_wmma_f32_16x16x16_f16` A lane l = row l%16 (16-31 repeat), B = column l%16, D lane l = D[2i+l/16][l%16];
+  64 KiB LDS/workgroup; no FP8 matrix ops, no TMA/wgmma; every wave does the same work.
+  Follows the paper's Ratio-K, not the published code (keep-mass 0.99, 256-blocks, 8 local).
+  Switches: `STRATA_BFLA_DENSE=1` (exact), `_SPARSE=1` (lossy, wins if both), `_MIN` 32768, `_ETA` 1/3, `_KMIN` 2048,
+  `_KMAX` 32768, `_SINK` 2, `_LOCAL` 4, `_TAIL` 1024/G; plain `STRATA_BFLA` is ignored.
+  Estimate (not measured): 81,920 N^2 FLOP; ~45 s at 128K (30-45% of prefill), ~180 s at 256K; Ratio-K keeps
+  1/1.4 (32K), 1/1.8 (64K), 1/3.2 (128K), 1/4.9 (256K).
+  Gate: `bfla_test`, `bfla_cpu_test`, needles at 64K/128K + teacher-forced top-1 vs dense, then TTFT A/B (T-299 KL fails 1e-3).
+- Windows CUDA sm_75 (GTX 1660 Ti 6 GB, CUDA 12.8.61, VS 2022 Build Tools MSVC 14.44, CMake 4.4.4, Ninja 1.13.2):
+  run `vcvars64.bat` from the VS Build Tools (`VC\Auxiliary\Build`); `cmake -S . -B build-sm75 -G Ninja
+  -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=75 -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared`;
+  `cmake --build build-sm75 -j 4 --target strata strata-q36 strata-poly`. Without Shared, strata-q36 fails with LNK2005
+  (setup.py gets Shared via `STRATA_EXPERIMENTAL_SM60=ON`, CMakeLists.txt ~222). One portability fix was needed:
+  `std::popcount` instead of a GCC builtin in `kmiss_tier.hpp`.
+  Test compile errors: `q5k_head_test` (`std::to_string`, no `<string>`), `flag_order_test` (`__atomic_load_n`),
+  `gemm_w16_parity` (`setenv`), `poly_kv_q4_test` (kv_q4_test.cu:342 range-for). Decode with `tools/pancake/bench_win.py
+  RUNS WARMUP MEASURED NEW` (gates only system CPU < 12% before each run). The first requests are ~10x slower: warm up.
+  Untested: long context, app, vision, CUDA 13, test_phase, quality gate. Results: T-550..T-552.
 
 ## 11. Where things are
 
@@ -316,7 +410,14 @@ keeps thinking tokens): merge `origin/main` when convenient.
 - Raw evidence (kept): `bench/specs/`, `bench/results/`, `pancake-docs/research/bench/` (results archives, run scripts,
   night-queue logs), `bench/prefetch/`, `bench/quality/`, `data/fork-kb/` (fork knowledge base; refresh with
   `GITHUB_TOKEN=... python3 tools/forks/fork_kb.py`, works on Windows too; last scan 0004-20261112).
-- Deleted on 2026-11-15 and folded into these three files (read them with `git show 5ab3d2db:<path>`): the old
-  MOD_PLAN.md, PANCAKE_STATUS.md, the root `*_OPTIMIZATION_REPORT.md` / `OPTIMIZATION_SUMMARY.md` /
-  `REMAINING_ANALYSIS.md`, `docs/PANCAKE_FINDINGS.md`, `pancake-docs/*.md`, `pancake-docs/batch2-5/`,
-  `pancake-docs/research/` reports and notes, `reports/`, `research_notes/`.
+- Documentation rule: only MOD_PLAN.md, TEST_LEDGER.md and LEADS.md are maintained (plus AGENTS.md and README.md);
+  no other report, note, status or findings file may be created (AGENTS.md "Documentation rule").
+- Bring-up after a reboot (Linux box):
+  1. `ls /home/dan/clone-of-d/src/Strata`; if it does not mount: `sudo ntfsfix -d /dev/nvme0n1p5` (ntfs3 writeback hang
+     2026-11-10, engine ~25% slower afterwards; T-287, T-290).
+  2. `git fsck --no-dangling && git status -sb`; if broken, clone from GitHub or `git fetch` the all-refs bundle.
+  3. `sudo tools/pancake/os_tune.sh cpu-install`, then `tools/pancake/os_tune.sh` (large free 2 MiB blocks).
+  4. `cmake --build build-hip -j16 --target strata` (not `all`: strata-poly is CUDA-only).
+  5. `./run-pancake.sh` (8080; `http://localhost:8080/v1`, model `qwen3.8-flash-next-iq2_xs`); check `/`, `/status` or
+     `/pancake`, and `serve/web/monitor.html`.
+  6. Before measuring: restore checks + `ctest -L gpu` (baseline 122/125, T-346; latest 133/134, T-367).

@@ -5,204 +5,111 @@
 Why *pancake*? A good stack of pancakes is built one at a time: each one goes on top of the last, warm, and the stack
 only gets better as it grows. This project is built the same way. It starts from **[Strata](https://github.com/Niko1221/Strata)**,
 a fast mixture-of-experts engine for home GPUs. On top of it go the newest speed techniques the open-source
-community has published, one after another: an engine from FastStrata, kernels from llama.cpp, ideas from basalt,
-colibri, SGLang and others, and our own measured kernels. Every layer is checked before it goes on the stack: it has
-to be **faster on a real benchmark** and keep the **same answers**. The result is a full load of pancakes: a stack of
-the latest LLM inference technologies, each adding speed.
+community has published, one after another: kernels from Strata-rdna3 and llama.cpp, an engine from FastStrata, ideas
+from basalt, Project Maya, Speedy and others, and our own measured kernels. Every layer is checked before it goes on the
+stack: it has to be **faster on a paired benchmark** and keep the **same answers** (or pass a quality gate when it is a
+lossy opt-in).
 
-The target is single-user agent serving (long, growing prompts and tool calls) on ordinary hardware: an
-**RTX 3060 12 GB** (CUDA) and an **RX 7900 XT 20 GB** (HIP), a Ryzen 7 5700G and about 57 GB of RAM.
+The target is single-user agent serving (long, growing prompts and tool calls) on one home PC: an **RX 7900 XT 20 GB**
+(HIP, gfx1100, ROCm 10.0), a Ryzen 7 5700G (8 cores, AVX2) and about 57 GB of DDR4. The daily model is
+**Qwen3.8-Flash-Next IQ2_XS** (176.9B total: 125B MoE + 51B PLE table + 4B MTP layer). An RTX 3060 12 GB was the second
+card until 2026-11-08; its results are kept, the CUDA build still compiles, and CUDA-only work is parked.
 
-The fork's working documents are three files at the repository root:
+## 1. Where everything is
 
-- [`MOD_PLAN.md`](MOD_PLAN.md): what the daily preset runs and why, the decisions waiting for the owner, what runs next,
-  the code to write, known defects, and the do-not-repeat list.
-- [`TEST_LEDGER.md`](TEST_LEDGER.md): every test run on this fork (ids `T-nnn`) with its numbers, spec, verdict and the
-  raw archive under `bench/results/` or `pancake-docs/research/bench/`.
-- [`LEADS.md`](LEADS.md): every unported idea from forks, upstream PRs, llama.cpp, papers and hardware notes.
+Three files at the repository root hold all of the fork's knowledge, and only these are maintained (rules in
+[AGENTS.md](AGENTS.md)):
 
-The research reports, notes and status files they replace were removed on 2026-11-15 and stay in git history
-(`git show 5ab3d2db:<path>`).
+| File | What it holds |
+| --- | --- |
+| [`MOD_PLAN.md`](MOD_PLAN.md) | what the daily preset runs and why (with test ids), the decisions waiting for the owner, the GPU queue, the code to write, known defects, parked items, the do-not-repeat list, architecture facts |
+| [`TEST_LEDGER.md`](TEST_LEDGER.md) | every test run on this fork (549 rows, ids `T-nnn`): numbers, spec, tier, verdict, and the raw archive under `bench/results/` or `pancake-docs/research/bench/` |
+| [`LEADS.md`](LEADS.md) | every unported idea (~600) from forks, upstream PRs, llama.cpp, papers and hardware notes, with the author's numbers and whether our tree has it |
 
-- [`docs/WINDOWS_CUDA_SM75.md`](docs/WINDOWS_CUDA_SM75.md): the Windows + CUDA 12.8 build on a GTX 1660 Ti (sm_75).
+Every number in this README comes from a ledger row; the `T-nnn` next to it is the row.
 
-## 2. What `pancake-strata` does compared to Strata and other forks (Measured Results)
+## 2. Measured results
 
-Every number below is a real run on the named card: greedy decoding, cold start, quiet machine unless the note says
-otherwise. "Exact" means the same tokens as stock decoding, checked token for token. Sources:
-[TEST_LEDGER.md](TEST_LEDGER.md) and `bench/results/`.
+All numbers: greedy decoding, quiet machine, paired A B B A runs unless marked "single run". "Exact" = the same tokens
+as plain decoding; lossy switches are opt-in and must pass token forcing (stock run-to-run noise is 1.2-1.3% of tokens).
 
-### Table 2A: RX 7900 XT 20 GB (HIP, gfx1100)
+### 2A. RX 7900 XT, Qwen3.8-Flash-Next (decode, writing speed)
 
-Models: **Qwen3.8-Flash-Next** (176.9B total: 125B MoE + 51B PLE + 4B MTP) and **Qwen3.6-35B-A3B**.
+| Engine / preset | Expert quant | tok/s | Source |
+| --- | --- | ---: | --- |
+| Strata stock (upstream `146df3c46`) | IQ2_XS (~2.3 bit) | 75-77 | T-009 |
+| Avalon (llama.cpp based, its own file) | IQ3_KS / IQ3_K (~3.2-3.4 bit) | 95-100 | T-009 |
+| Strata-rdna3 | IQ2_XS | 109-119 | T-009 |
+| **pancake-strata `fast-hip`** (HEAD baseline, spec 43) | IQ2_XS | **short 111.5, edit 112.3, 10K context 91.7, 32K 102.8** | T-392 |
+| **pancake-strata Q2_0 `fast-hip`** (opt-in file) | Q2_0 | **134.7-136.1** (80.6% top-1 vs Q8_0) | T-377 |
 
-Decode speed on Qwen3.8-Flash-Next (writing speed). The rows do **not** all use the same quant: read the
-quant and bits columns before comparing speeds.
+Avalon reads 40-50% more expert bytes per token for a higher-quality file, so its row is "what each stack delivers on
+this card", not an equal-quant comparison. The 10K/32K rows are noisy (single cases in the baseline spec).
 
-| Engine | Quant (expert weights) | Bits per expert weight | tok/s |
-| --- | --- | ---: | ---: |
-| Strata (stock) | IQ2_XS | ~2.31 | 75-77 |
-| Avalon | IQ3_KS / IQ3_K hybrid | ~3.2-3.4 | 95-100 |
-| Strata-rdna3 | IQ2_XS | ~2.31 | 109-119 |
-| **pancake-strata** (exact / fast-hip) | IQ2_XS | ~2.31 | **112-126** |
+What moved pancake from Strata-rdna3's level to today's preset (each measured on this card):
 
-Note on the Avalon row: it is **not** the same file.  Avalon (a llama.cpp-based engine) was measured on the same PC
-with its own Flash-Next GGUF, a hybrid IQ3_KS / IQ3_K layout (~89 GiB, ~3.2-3.4 bits per expert weight), while the
-Strata rows use the IQ2_XS file (~2.3 bits per expert weight).  Decode on this box is bound by reading expert bytes
-(CPU-side experts from DDR4, GPU-side from VRAM), so Avalon moves roughly 40-50% more expert bytes per token and gets
-a higher-quality model for it.  The row is "what each stack delivers on this card with its own recommended file", not
-an engine-vs-engine comparison at equal quantization; that comparison (Avalon on IQ2_XS, or Strata on an IQ3 file) has
-not been run.
+| Change | Gain | Source |
+| --- | --- | --- |
+| Strata-rdna3 RDNA3 kernels + fusions ported (`GR_RDNA*`, `RDNA_MMVQ_WAVE=3`, `COMBINE_CPU`, `WAIT_FUSE`, ...) | decode 87-101 -> ~112 tok/s | T-009, T-378 |
+| `--pcie-frac 0` (missed experts computed on the CPU, not copied over PCIe 3.0) | short +6%, edit +13%; 0.15 / 0.3 / 0.55 all slower when re-checked | T-197, T-268 |
+| GPU router lookahead (default on) | +10% decode on mmap'd experts; CPU cost 30 -> 0.6 ms per window | T-192 |
+| Learned expert profile (`data/expert-profile-pancake.bin`) | +6.7% decode, mostly cold start | T-194 |
+| hipBLASLt table matched to the runtime (100401) | prompt reading 1,345 -> 1,850-1,920 tok/s | T-096 |
+| `--lookup-max-t 12` (suffix-draft window) | edit +8.8% +-6.8, quality PASS | T-126, T-127 |
+| `STRATA_POOL_FUSE_PHASES` (one CPU pool phase per layer) | edit +2.5% +-1.7 | T-224 |
+| `STRATA_EXPDEC_DOWN` (Q2_0 down rows on the EXPDEC kernel) | short +1.7% +-0.5 | T-037, T-040 |
 
-The pancake-strata gain over its own starting point, measured in the final suites: **+6% on chat** (111.7 to
-118.4 tok/s) and **+13% on code edits** (92.5 to 104.3 tok/s) with `--pcie-frac 0`. On the Q2_0 file the same preset
-reaches **135 tok/s**. The opt-in lossy `turbo-hip` preset (cache-aware routing, see section 6) reaches **149-168 tok/s**
-and passes the token-forcing quality gate with 2.9% of tokens differing from exact decoding (stock run-to-run noise is
-1.2-1.3%, with no large-margin errors).
+Measured, waiting for an owner decision (MOD_PLAN.md section 4): `STRATA_VERIFY_ECAP=1` (edit **+33.5% +-14.3**, token
+forcing PASS; T-270, T-310), the conversation-cache levers (prompt time on a replayed real agent session **-21.6%** with
+`--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192`, **-23.1%** with `STRATA_PARK_TRUNCATE`; T-183,
+T-184), and the suffix index across sessions (T-161).
 
-Long-context prompt reading, `feat/bfla-hip` on Qwen3.6-35B-A3B UD-Q4_K_XL (block-sparse prompt attention; "dense" and
-"sparse" are the two BFLA modes):
+The opt-in lossy `turbo-hip` preset (cache-aware routing, `STRATA_ROUTE_PRIOR=0.5`) is not a speed win on this card:
+edit +29.7% with an interval that includes zero, all-prose -8%, token forcing INCONCLUSIVE (T-245, T-387). It stays
+opt-in and off by default.
 
-| Prompt | off | dense | sparse | gain |
-| --- | ---: | ---: | ---: | ---: |
-| 32K, single layer | 1238.7 ms | 581.1 ms | **500.2 ms** | 2.5x |
-| 64K, single layer | 5224 ms | 2321 ms | **1090 ms** | 4.8x |
-| 128K, single layer | 28287 ms | 9553 ms (3.0x) | **3335 ms** | 8.5x |
-| 128K, end-to-end prompt throughput | 386.9 tok/s | 771.2 tok/s (2.0x) | **1219.8 tok/s** | 3.15x |
+### 2B. RTX 3060 12 GB (CUDA, sm_86; card removed 2026-11-08)
 
-Quality held: 48/48 top-1 needle-recall agreement with the exact path, KL 0.0014/0.0045.
+Qwen3.6-35B-A3B UD-Q4_K_XL, stock `strata` vs `strata-poly` (the FastStrata engine, ported and tuned):
 
-*Correction (2026-11-11, Phase 16 review):* the 3.15x is against this repo's own materialised-softmax prompt path; the exact fused dense mode
-alone is 2.0x and the lossy sparse mode adds 1.58x at 128K (1.21x at 64K) over dense. The quality line above is not reproduced yet:
-the committed `bfla_recall.py` cannot have produced 48 tokens / KL 0.0014/0.0045 as written, and that KL is above the plan's own 1e-3
-gate; the dense and sparse modes now have separate switches (`STRATA_BFLA_DENSE`, `STRATA_BFLA_SPARSE`, on `dev/phase16-academic`) and a
-320-token recall run is queued.
-
-### Table 2B: RTX 3060 12 GB (CUDA, sm_86)
-
-Qwen3.6-35B-A3B (UD-Q4_K_XL with its MTP layer), stock `strata` vs `strata-poly`:
-
-| Workload | Strata (`strata`) | pancake-strata (`strata-poly`) | Gain |
+| Workload | `strata` | `strata-poly` | Gain |
 | --- | ---: | ---: | ---: |
 | Short chat, writing speed | 64.6 tok/s | **100.7 tok/s** | x1.56 |
 | Code edit (5.3K prompt), writing speed | 40.1 tok/s | **151.1 tok/s** | x3.8 |
 | 42K-token prompt: reading | 42.1 s | **32.9 s** | x1.28 |
 | 42K-token prompt: writing speed after it | 9.7 tok/s | **71.7 tok/s** | x7.4 |
-| Largest context on the 12 GB card | 64K (the 131K setup default runs out of VRAM) | **131K** | |
+| Largest context on 12 GB | 64K | **131K** | |
 
-Qwen3.8-Flash-Next on the same 12 GB card: **50-55 tok/s** short chat, **74 tok/s** code edits, and **41-47 tok/s**
-writing after a 42K prompt.
+Source: T-376. Flash-Next IQ2_XS on the same card: stock 54.5 vs ours 69.2 tok/s on the mmap tier (+27%), 75.5 with the
+RAM arena; a 5.3K edit prompt 23.3 -> 11.0 s (T-216).
 
-### Table 2C: Feature-by-Feature Comparison against the Ecosystem
+### 2C. Qwen3.6-35B-A3B on the RX 7900 XT (`q36` engine)
+
+UD-Q4_K_XL: short decode 72-93 tok/s, 4K prompt read in 3.3 s (single loads, not a paired test). UD-Q3_K_M does not
+load (its Q3_K / Q4_K experts are not taken by the native expert kernels). BFLA block-sparse prompt attention on this
+engine: 128K prompt 386.9 -> 771.2 tok/s exact (dense mode, 2.0x) and 1,219.8 tok/s with the lossy sparse mode, whose
+recall check failed its own KL rule (KL 0.0014 > 1e-3), so sparse stays off (T-099, T-104, T-299). Next on this model:
+`STRATA_DENSE_MMQ=1` (a fork measured 32K prompt 635 -> 910 tok/s on a 7900 XTX; MOD_PLAN.md section 5).
+
+### 2D. What was tried and did not help
+
+About 120 measured negatives are listed with their numbers in MOD_PLAN.md section 9 and TEST_LEDGER.md (verdict
+DROPPED): wave32 MMVQ mode 1, matrix-core few-column GEMV, wide-tile prompt kernels, `--spec 2/3/5/6`, DFlash2, the
+async expert tier, k-th-miss admission on the blocking tier, rank guard, bandit switching, CPU pool variants, BitDecoding
+attention, `--pcie-frac` > 0, and more. They are recorded so nobody runs them again without a new reason.
+
+### 2E. Ecosystem comparison
 
 | Feature | Strata | FastStrata | Strata-rdna3 | Avalon | basalt | Project Maya | pancake-strata |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| Hybrid CPU/GPU MoE execution | Yes (base) | - | - | - | - | - | Yes (extended: k-th-miss tier, deferral, seeds) |
+| Hybrid CPU/GPU MoE execution | Yes (base) | - | - | - | - | - | Yes (extended: learned profile, GPU lookahead, CPU-side misses) |
 | Second engine for long context (`strata-poly`) | - | Yes (source) | - | - | - | - | Yes (ported + tuned) |
-| RDNA3 wave32 kernels (gfx1100) | - | - | Yes (source) | - | - | - | Yes (ported + fused) |
-| Specialized output-head kernels (Q5_K / IQ4_XS) | - | - | - | - | Yes (source) | - | Yes (ported, default on) |
-| 2-bit MTP draft proxy | - | - | - | - | Yes | - | Yes (ported, default on) |
-| Grammar-constrained decoding | - | - | - | - | Yes | - | Yes (ported, `--grammar`) |
-| Agent loop guard, soft budget close, tolerant tool calls | - | - | - | - | - | Yes (source) | Yes (ported) |
-| Conversation disk cache + suffix replay | - | Yes | - | - | - | - | Yes (in `strata-poly`) |
-| hipBLASLt table match + 7900 XT preset tuning | - | - | - | Yes (report) | - | - | Yes (in the `-hip` presets) |
-| Block-sparse prompt attention (BFLA), 3.15x at 128K | - | - | - | - | - | - | Yes (`feat/bfla-hip`) |
-| Learned stop rule for drafts (DISCO) | - | - | - | - | - | - | Yes (`feat/disco`) |
-| Expert-cache admission research (k-th miss, swap budget, deferral rank guard) | - | - | - | - | - | - | Yes |
-| Quality gates + 30-script measurement suite | - | - | - | - | - | - | Yes (`tools/pancake/`) |
-
-### Table 2D: Phase 16 results, verdicts and testing findings (2026-11-11)
-
-**Where the code is.** This branch (`port/rdna3-decode`) is the main line. Phase 16 engine work (opt-in, default path byte-identical) lives on
-`dev/phase16-academic` and its `dev/p16/*` and `dev/p16b/*` branches and is kept for re-testing; only tested non-engine material was brought
-here: `tools/pancake` (tests included), `bench/` specs, catalog and results, `configs/pancake`, `pancake-docs`, `MOD_PLAN.md`. Nothing from
-the engine moves here without a `tools/pancake/promote.py` PROMOTE verdict (95% lower bound of the paired gain >= 1% exact, >= 3% lossy,
-same memory tier for every arm, switch proven to have acted).
-
-**GPU results so far** (RX 7900 XT, fast-hip preset, short and edit cases; RAM was fragmented, so these ran on the mmap tier):
-
-| Item | Result | Verdict |
-| --- | --- | --- |
-| A3 expert deferral (`STRATA_VERIFY_DEFER_CPU`) | edit +15.8% +-3.9, short no difference (earlier test phase) | in the preset |
-| F21 `STRATA_WAIT_COPY256`, F9 `STRATA_ROUTE_FAST`, A33 `STRATA_EXPDEC_SWIGLU` | confirm n=6: swiglu short +0.6% [-1.6, +2.8], edit +1.1% [-4.7, +6.9]; all three together +0.7% / +1.3% (the 2% in the n=2 screen was noise) | HOLD; F21 rejected |
-| A4 rank guard `_TOP=2`, fold | no gain once deferral is on (the earlier +20% was against a no-deferral base) | HOLD |
-| A8 swap budget (`--adapt-swaps`) | n=2 screen suggestive (edit +17..21%, intervals huge); the daytime confirm was invalid (base 1 clean of 6 attempts while agents were compiling) | rerun at night |
-| Noise-aware restore gate | free-running greedy text differs across engine starts even with no cache (stock noise ~1.2% of tokens; the base binary behaves the same); a control arm and an exact divergence-rate test replace the text comparison | gate built, GPU run pending |
-
-A robust-outlier replay of the same 60 attempts moves the all-three short result to +3.1% +-1.1%; that contradicts the HOLD above and is the first
-thing rerun at night.
-
-**Offline verdicts (one 219-window bench trace, no router weights):** FineMoE-style prefetch -14% (rejected: the cache already holds 44% of the experts at 81-89%
-hits, prefetch sets cover 0-5% of the misses, 74% land late on PCIe 3.0); HOBBIT precision swap does not transfer (no copy below IQ2_XS);
-F4 IQ1_M shadow pack rejected (weight error 0.53, kernel only 8-10% faster for 32% fewer bytes); EcoSpec engine switch not built; A31, A36, XAttention and the
-KV-compression papers not built on Flash-Next (attention + KV selection is 5.6% of a short window, ~8.7% derived at 128K); conversation-cache flags
-`--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` are the only cache lever above 1% (+1.89% modeled on the real opencode history);
-`STRATA_AUTO_PIN` is unsafe for Qwen (pinned parked entries are never evicted).
-
-**Testing findings that change how this repo is tested.** A 45-minute spec is ~20-30 engine starts of ~2 minutes each, of which 13 s is measurement; 48%
-of 62 attempts were discarded by the quiet-machine gate (25 of 30 by kernel reclaim threads reacting to the engine's own memory use on fragmented RAM)
-although the discarded attempts decoded as fast as the kept ones (short 122.1 vs 123.7 tok/s). New: `abtest --reclaim-max`, block mode (several passes per
-engine start, A B B A; 4.2x faster at the same reps, 2.2x at the same power), a robust outlier rule, per-attempt engine logs and tier recording,
-`tools/pancake/queue_run.sh` (unattended night queue), `drop_cache.py` (non-root cache eviction), `promote.py` (void-switch and mixed-tier rules),
-`kernel_gate.py` (kernel gain x window share before any end-to-end screen), `record_session.py` (real-trace recorder: the default window trace carries zero
-router weights). The task gate (18 tasks) passes an identical arm only ~3% of the time: ~100 tasks and a 40-request token-forcing set are needed before a lossy
-item can be promoted. Details: `TEST_LEDGER.md` (quality-gate and harness rows), `bench/TEST_PLAN.md`.
-
-**Source corrections found by reading the paper bodies:** DALI's "6-13%" is not in the paper; Marconi's "-71% TTFT" merges two datasets; HOBBIT's "CDF 0.6/0.9" are
-thresholds on a cumulative gate score and its r = 0.99 is inflated because the weight sits on both sides; Athena (A44) is a state-aware SARSA agent, our A44 is the
-paper's stateless baseline; ProMoE's 1.09x is a llama.cpp number on an RTX 4090 over PCIe 4.0 where misses block, not ours (CPU-computed misses).
-
-### Table 2E: Speed gains at a glance (2026-11-11)
-
-One ledger of every speed result, each with how it was measured. Decode tok/s on the RX 7900 XT, Flash-Next IQ2_XS, greedy; "edit" is a ~2K-token
-code-edit prompt, "short" a chat. Gains with an interval are paired A/B runs on a quiet machine; the rest are single comparisons and say so.
-
-**In the preset today (measured):**
-
-| Change | Gain | How measured | Preset |
-| --- | --- | --- | --- |
-| Expert deferral (`STRATA_VERIFY_DEFER_CPU`, A3) | edit **+15.8% +-3.9**, short no difference | test phase 2026-11-10, token forcing PASS | fast-hip |
-| Draft window 12 (`--lookup-max-t 12`) | edit **+8.8%** (confirm), +10-12% in the screen | tests 05 / 05c | fast-hip |
-| `STRATA_POOL_FUSE_PHASES` (one CPU pool phase per layer) | edit **+2.5% +-1.7** | test phase, PASS | fast-hip |
-| `STRATA_EXPDEC_DOWN` (Q2_0 down on the EXPDEC kernel) | short **+1.7% +-0.5** | test phase, PASS | fast-hip |
-| Matching hipBLASLt table (100401) | prompt reading **+38%** (provisional: other work ran on the machine) | Avalon report, test 09 | 7900 XT presets (the descriptor cache: no gain, stays on) |
-| Learned expert profile | **+6.7%** decode (older engine, no deferral); +5.4% modeled on the bench trace, mostly a cold-start gain | profile training run, offline model | IQ2_XS presets |
-| GPU router look-ahead | **+10%** decode on mmap'd experts, same picks, CPU cost 30 -> 0.6 ms per window | engine A/B | on by default on the GPU |
-| Opt-in `turbo-hip` (lossy cache-aware routing) | **149-168 tok/s**, 2.9% of tokens differ from exact decoding (stock noise 1.2-1.3%) | quality gate | opt-in |
-| BFLA fused dense prompt attention (`feat/bfla-hip`) | 128K prompt **386.9 -> 771.2 tok/s (2.0x)**, exact; sparse adds 1.58x (lossy) | stage bench, end to end | branch, opt-in |
-
-Against stock Strata (upstream 146df3c46, same IQ2_XS file, both on the mmap tier): decode **54.5 -> 69.2 tok/s (+27%)** and a 5.3K-token edit prompt
-**23.3 -> 11.0 s**; with the RAM arena 75.5 tok/s (TEST_LEDGER.md, T-216).
-
-**Phase 16 (2026-11-11): measured, and not a speed gain yet.** Every small kernel and policy item that was coded in the Phase 16 round was tested on the same card:
-`STRATA_WAIT_COPY256`, `STRATA_ROUTE_FAST` and `STRATA_EXPDEC_SWIGLU` (n = 6 confirm: short +0.6% [-1.6, +2.8], edit +1.1% [-4.7, +6.9]; the +2% in the
-2-run screen was noise), the A4 rank guard and its fold (nothing once deferral is on). They stay on the development branches. Reading their results correctly
-needed new tooling: a 45-minute spec is 20-30 engine starts of about two minutes each, 13 s of which is measurement, and the quiet-machine gate discarded 48% of the
-attempts although the discarded ones decoded as fast as the kept ones; a gain below about 3% cannot be settled by an end-to-end run in a night, which is why
-`tools/pancake/kernel_gate.py` decides kernels from microbenchmarks first.
-
-**Candidates still to be measured** (none counted until a night run confirms it): the A8 swap budget (`--adapt-swaps 64|128`: modeled +12% on edits, the n = 2 screen
-looked positive, the confirm run was invalid because agents were compiling and is rerun at night); the conversation-cache flags `--conversation-cache-mib 2048
---conversation-cache-min-tokens 8192` (+1.89% of request time modeled on the real opencode history); the fast Q2_0 AVX2 kernel (`STRATA_Q2_FAST`: 1.17-1.47x per
-row on one thread, but at one token per expert the 6-core pool is already DDR4-bound, so at most about 22% of CPU-expert time); flat weight loads
-(`STRATA_HIP_GLOBAL_WEIGHTS`, builds, not yet timed); the Q2_0 file with the four adopted items (`flashnext-q2_0-fast-hip-adopted.json`, earlier screen: short +8.6%, edit +4.5%);
-a stack of seven exact switches in one run (`bench/specs/26-stack-small-exact.json`); the full RAM arena (about 8% over the mmap tier) once memory is defragmented.
-
-### Table 2F: Other models on this engine, RX 7900 XT (HIP), measured 2026-11-11
-
-Same card, greedy, mmap tier, `--mtp 2`, speed = generated tokens per second after the prompt was read (3 runs; the first runs of a prompt are noisy because
-the draft cache warms up). Prompt reading is the time to the first token. One load of each file, not a paired test: read it as a size, not a ranking.
-
-| Model (file) | Engine | Short prompt: decode tok/s | 4K-token prompt: reading, decode tok/s |
-| --- | --- | ---: | ---: |
-| Qwen3.8-Flash-Next IQ2_XS (176.9B total) | `strata` (this repo, fast-hip) | 112-126 | see Table 2A |
-| Qwen3.6-35B-A3B UD-Q4_K_XL (22 GB) | `strata`, `q36` engine | 72-93 | 3.3 s, 72-73 |
-| Qwen3.6-35B-A3B UD-Q3_K_M (16 GB) | `strata`, `q36` engine | **does not load**: its experts are Q3_K / Q4_K, which the native expert kernels do not take | - |
-| Qwen3.8-35B-A3B-Distill Q4_K_M (21 GB) | `strata-poly` only | not run: `strata-poly` is CUDA-only | - |
-
-What this says: a model that fits in memory (Qwen3.6-35B, 22 GB) decodes about 40% slower than Flash-Next IQ2_XS on this card, because this engine's
-Flash-Next path keeps the hot experts in VRAM and drafts with a trained MTP layer; the smaller model is not the faster one here. Only the families the
-native kernels handle run on HIP: Qwen3.5 / 3.6 / 3.8 MoE (`qwen35moe`) with IQ2_XS, Q2_0 and Q4_K_XL experts. Other architectures (Llama, Mistral, ...) need new code.
+| RDNA3 wave32 kernels (gfx1100) | - | - | Yes (source) | - | - | - | Yes (ported + fused, 9-16 column K-quant kernels added) |
+| Specialized output-head kernels + 2-bit draft proxy | - | - | - | - | Yes (source) | - | Yes (ported) |
+| Grammar inside speculative decoding | - | - | - | - | Yes | - | Yes (`--grammar on` in the presets) |
+| Agent loop guard, soft thinking-budget close, tolerant tool calls | - | - | - | - | - | Yes (source) | Yes (ported) |
+| hipBLASLt table match + 7900 XT preset tuning | - | - | - | Yes (report) | - | - | Yes (`-hip` presets) |
+| Paired A/B harness, token-forcing and task quality gates, test ledger | - | - | - | - | - | - | Yes (`tools/pancake/`, TEST_LEDGER.md) |
 
 ## 3. Research on Open-Source Projects & Forks (What We Took as Code or Idea, and Licenses)
 
@@ -221,7 +128,7 @@ token-forcing quality gate.
 | [Project Maya](https://github.com/mw00/project-maya) | mw00 | MIT | Code | Loop guard (`serve/loop_guard.py`), soft reasoning-budget close (#613), tolerant tool-call parser, prompt memo. |
 | [Speedy](https://github.com/DevDock-AI/Speedy) | DevDock-AI | MIT | Idea | The "fast" preset switch stack (which switches to stack on HIP and in what order). |
 | [colibri](https://github.com/JustVugg/colibri) | JustVugg | Apache-2.0 | Evaluated | Rejected as code; the CACHE_ROUTE discussion informed our routing-cache reasoning. |
-| [tandem.cpp](https://github.com/ewhacc/tandem.cpp) / [tandem.cpp-amd](https://github.com/itlab-cl/tandem.cpp-amd) | ewhacc / itlab-cl | MIT | Code | `STRATA_POOL_PREREAD`: idle pool workers pre-read the lookahead's next-layer CPU experts. Ported verbatim. |
+| [tandem.cpp](https://github.com/ewhacc/tandem.cpp) / [tandem.cpp-amd](https://github.com/itlab-cl/tandem.cpp-amd) | ewhacc / itlab-cl | MIT | Code | `STRATA_POOL_PREREAD`: idle pool workers pre-read the lookahead's next-layer CPU experts. Ported verbatim; measured as a loss here, stays off (T-239). |
 | [StrataFast](https://github.com/eddoursul/StrataFast) | eddoursul | MIT | Evaluated | Two-stage prompts (`--prompt-split`, 1.24-1.55x on long prompts) and self-trained draft layer; `--prompt-split` needs a second GPU (parked for Phase 12). |
 | [Aviary](https://github.com/SensAI-PT/aviary-hy3) | SensAI-PT | Apache-2.0 | Evaluated | Distributed expert placement across nodes; surveyed, single-machine focus here. |
 | [llamAmpere](https://github.com/JakeATX/llamAmpere) | JakeATX | MIT | Idea | Head and kernel specialization ideas for consumer NVIDIA cards; cross-checked our head work. |
@@ -306,11 +213,10 @@ for r in db.execute("select repo, ahead_by, pushed_at from forks where ahead_by 
 PY
 ```
 
-The new-commits CSV of each run is the input for the next round of fork notes (see the
-[LEADS.md](LEADS.md) (November fork report in git history at 5ab3d2db)); anything adopted from it follows the
+The new-commits CSV of each run is triaged into [LEADS.md](LEADS.md); anything adopted from it follows the
 credit rule in section 9.
 
-First results (2026-11-10, report: Strata fork knowledge base, `pancake-docs/research/engine-speed/fork-knowledge-base/report.md` @5ab3d2db):
+First results (2026-11-10, triaged in [LEADS.md](LEADS.md)):
 
 | Measure | Value |
 | --- | ---: |
@@ -327,11 +233,13 @@ the expert cache and offload (71), quantization (55), KV and attention (57), CUD
 
 ## 4. Academic Research: Papers, Ideas, and Direct URLs
 
+Status column as of 2026-11-11; the current status of every method is in MOD_PLAN.md (sections 3-9) and its
+measurements in TEST_LEDGER.md. Unported methods are listed in LEADS.md.
+
 Before building we read. The survey covered **758 arXiv papers across 7 global university regions** (131 US, 97 Asia,
 76 Stanford, 69 Europe, 65 MIT/Harvard, 63 Pacific/Africa/LatAm, 56 Canada), plus focused studies on MoE offload,
-speculation, attention, and agent control (66 hardware data-path papers, 31 runtime-architecture papers). The full
-per-paper URL lists live in the research reports in git history (`pancake-docs/research/` and
-`pancake-docs/RESEARCH_AND_FINDINGS.md` at 5ab3d2db); the open ones are in [LEADS.md](LEADS.md). The tables below list every paper
+speculation, attention, and agent control (66 hardware data-path papers, 31 runtime-architecture papers). The open
+papers and their methods are in [LEADS.md](LEADS.md). The tables below list every paper
 that shaped a decision, with its direct URL and what happened to it. Every rejection is also recorded, with its
 reason, in the MOD_PLAN "not adopted" ledger.
 
@@ -436,8 +344,9 @@ ports and fusion (section 7, items 2-3), the CPU bucket shrinks with cache admis
 2. **Scheduling and overlap over kernel rewrites.** The CPU Q2_0 kernel already runs at ~80% of DDR4 bandwidth, so
    LUT tricks (T-MAC) and activation sparsity (TEAL, CATS, the Berkeley gate mask) have nothing to give; all were
    measured and rejected. Overlap instead attacks the 17.4 ms bucket: k-th-miss admission (`STRATA_ADAPT_KMISS`),
-   deferral with a rank guard (`STRATA_VERIFY_DEFER_CPU`), fused pool phases. The overlap model prices deferral at
-   +33% on edit windows, deferral + kmiss 2/8 at +45-52%.
+   deferral with a rank guard (`STRATA_VERIFY_DEFER_CPU`), fused pool phases. The overlap model priced deferral at
+   +33% on edit windows; measured: edit +15.8% +-3.9 (T-222). The daily preset runs with deferral off since the
+   2026-11-12 retest (owner decision; MOD_PLAN.md section 4 D3).
 3. **GPU router lookahead instead of CPU lookahead threads.** The router GEMV is tiny and the GPU is idle while it
    waits for CPU rows anyway. Moving the lookahead onto the GPU measured +10% decode on mmap'd experts and removed a
    thread from the CPU pool. A CPU lookahead thread (and the `STRATA_ARENA_WARM` variant) measured worse: it evicted
@@ -641,7 +550,7 @@ renders the preset, and serves on `PORT` (default 8080). `STRATA_DATA` (default 
 and `MODELS` (default `/home/dan/clone-of-d/models`) hold the files. Models: `iq2_xs` (Flash-Next IQ2_XS, the daily
 model), `q2_0` (Flash-Next Q2_0), `qwen36` (Qwen3.6-35B-A3B UD-Q4_K_XL, `strata-poly`, CUDA only), `qwen36-q3`
 (UD-Q3_K_M), `qwen38-35b` (Qwen3.8-35B-A3B-Distill Q4_K_M). Speed levels: `fast` (Speedy's switch stack, default for
-Flash-Next), `exact` (plain), `turbo` (IQ2_XS only, lossy: adds `STRATA_ROUTE_PRIOR=0.5`).
+Flash-Next), `exact` (plain), `turbo` (IQ2_XS only, lossy: adds `STRATA_ROUTE_PRIOR=0.5` and `STRATA_VERIFY_DEFER_CPU=1`).
 
 The preset set in `configs/pancake/` (one JSON per model, quant, speed level, and GPU):
 
@@ -651,12 +560,12 @@ The preset set in `configs/pancake/` (one JSON per model, quant, speed level, an
 | `flashnext-iq2_xs-fast` | Flash-Next IQ2_XS | CUDA | fast |
 | `flashnext-iq2_xs-turbo` | Flash-Next IQ2_XS | CUDA | turbo (lossy) |
 | `flashnext-iq2_xs-hip` | Flash-Next IQ2_XS | HIP | exact |
-| `flashnext-iq2_xs-fast-hip` | Flash-Next IQ2_XS | HIP | fast (~126 tok/s) |
-| `flashnext-iq2_xs-turbo-hip` | Flash-Next IQ2_XS | HIP | turbo (lossy, ~168 tok/s) |
+| `flashnext-iq2_xs-fast-hip` | Flash-Next IQ2_XS | HIP | fast, the daily preset (short 111.5 / edit 112.3 tok/s, T-392) |
+| `flashnext-iq2_xs-turbo-hip` | Flash-Next IQ2_XS | HIP | turbo (lossy; no significant gain, T-245, T-387) |
 | `flashnext-iq2_xs-rdna3test` | Flash-Next IQ2_XS | HIP | RDNA3 kernel test bench |
 | `flashnext-q2_0` | Flash-Next Q2_0 | CUDA | exact |
 | `flashnext-q2_0-fast` | Flash-Next Q2_0 | CUDA | fast |
-| `flashnext-q2_0-fast-hip` | Flash-Next Q2_0 | HIP | fast (~135 tok/s) |
+| `flashnext-q2_0-fast-hip` | Flash-Next Q2_0 | HIP | fast (134.7-136.1 tok/s, T-377; `-adopted` adds the 4 adopted items) |
 | `flashnext-q2_0-turbo-hip` | Flash-Next Q2_0 | HIP | turbo (lossy) |
 | `qwen36-ud-q4_k_xl` | Qwen3.6-35B-A3B UD-Q4_K_XL | CUDA (`strata-poly`) | - |
 | `qwen36-ud-q3_k_m` | Qwen3.6-35B-A3B UD-Q3_K_M | CUDA (`strata-poly`) | - |
@@ -666,10 +575,10 @@ For an always-on setup, `tools/pancake/pancake.service` (item 73/91, `a1683537c`
 on port 11437 with `MemoryMax=54G` and `MemorySwapMax=0`, and `Conflicts=strata/avalon/qwen35b` so only one engine
 holds the RAM at a time. `NOCAP=1` in `run-pancake.sh` skips the memory-capped scope when the unit manages the process.
 
-## 7. Code Modifications that Diverged `pancake-strata` from Original `Strata` (358 files, +102,103 lines)
+## 7. Code Modifications that Diverged `pancake-strata` from Original `Strata`
 
-Diff vs `Niko1221/Strata` (`upstream/main` = `146df3c46`): 358 files, +102,103 / -363 lines. What follows is the
-subsystem walkthrough.
+Diff vs `Niko1221/Strata` (`upstream/main` = `146df3c46`), counted on 2026-11-11: 358 files, +102,103 / -363 lines.
+What follows is the subsystem walkthrough.
 
 Latest engine/server commits: `b6e19acc2` (engine development complete: items 47, 43, 51, 52, 37, 17 and the basalt
 ports coded; items 10 and 20 closed by study), `43e741bc6` (item 17, idle-tier catch-up), `1c0f248ae` (item 73,
@@ -805,8 +714,7 @@ park / skip / restore / evict lines; per arm the cold re-reads (a non-first agen
 total prompt and turn time, peak RSS and lowest free RAM; the verdict is on total prompt time vs the first arm (95%
 interval with `--reps 2+`). `--synthetic` runs a built-in session of the same shape (one conversation 40K -> 62K with
 interleaved side requests) without the log. Spec `bench/specs/11-conv-cache.json` carries the `replay` block (the
-2026-11-09 16:13-16:43 session: 75 requests, 7 cold 54-62K re-reads = 162.7 s; ~13.5 min per arm). Details:
-bench/TEST_PLAN.md 4.1.
+2026-11-09 16:13-16:43 session: 75 requests, 7 cold 54-62K re-reads = 162.7 s; ~13.5 min per arm). Results: TEST_LEDGER.md (cache/ttft rows, T-182..T-184).
 
 ```sh
 python tools/pancake/replay_turns.py bench/specs/11-conv-cache.json --out /tmp/rp --dry-run     # plan + sizes, no server
@@ -827,8 +735,8 @@ restore gate), `abtest.py --reclaim-max` (block mode, the robust outlier rule an
 ```sh
 ./run-pancake.sh                  # Flash-Next IQ2_XS, fast preset, picks CUDA or HIP by itself
 ./run-pancake.sh iq2_xs fast      # same, explicit
-./run-pancake.sh q2_0 fast        # Flash-Next Q2_0, ~135 tok/s on the 7900 XT
-./run-pancake.sh iq2_xs turbo     # lossy opt-in: +25% decode on the 3060, ~168 tok/s on the 7900 XT
+./run-pancake.sh q2_0 fast        # Flash-Next Q2_0, 134.7-136.1 tok/s on the 7900 XT (T-377)
+./run-pancake.sh iq2_xs turbo     # lossy opt-in, no significant gain on the 7900 XT (section 2A)
 ./run-pancake.sh qwen36           # Qwen3.6-35B-A3B on strata-poly (CUDA only)
 ./run-pancake.sh qwen36-q3        # the smaller Qwen3.6 file
 ./run-pancake.sh qwen38-35b       # the Qwen3.8-35B distill, MTP layer borrowed from Qwen3.6
@@ -899,20 +807,20 @@ cmake --build build-cuda --target strata strata-poly poly_gdn_cols_test poly_gem
 There is a Windows build with MSVC and CUDA 12.8 for a GTX 1660 Ti (sm_75). It runs `strata-poly` on the Qwen3.6-35B-A3B IQ2_XXS file.
 Two changes were needed: one portability line in `kmiss_tier.hpp` (`std::popcount` instead of a GCC builtin) and `-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared` at configure time.
 Four test targets do not compile on MSVC yet: `q5k_head_test`, `flag_order_test`, `gemm_w16_parity`, `poly_kv_q4_test`. They do not block the engine.
-Details, commands and what was not tested: [`docs/WINDOWS_CUDA_SM75.md`](docs/WINDOWS_CUDA_SM75.md).
+Full command and known gaps: MOD_PLAN.md section 10 (Windows CUDA sm_75); results T-550..T-552.
 
 ### Verification gates
 
-- The 7-point code-level pass (`pancake-docs/CODE_OPTIMIZATION.md` @5ab3d2db) (profiling, algorithms, caching, I/O, async,
-  allocations, static analysis) - four quadratic loops removed from the per-layer expert dispatch.
+- Code-level pass (profiling, algorithms, caching, I/O, async, allocations, static analysis): four quadratic loops
+  removed from the per-layer expert dispatch (MOD_PLAN.md section 10).
 - `tools/pancake/hipblaslt_extend.py` (item 80): extends the gfx1100 hipBLASLt table with the agent-turn GEMM shapes
   (plan / run / merge, 78 cases, GPU ~30 min); then A/B the extended table.
-- `ctest -L cpu` (117 pass, 6 skipped) / `ctest -L gpu` (124 incl. rdna_gr/rdna_mmvq parity) and `tools/pancake/build_matrix.sh --tests`
+- `ctest -L cpu` (150 pass, T-369) / `ctest -L gpu` (133 of 134, incl. rdna_gr/rdna_mmvq parity, T-367) and `tools/pancake/build_matrix.sh --tests`
   (item 93); `tools/pancake/check_stubs.py` (item 95b).
 - `tools/pancake/restore_check.py` (items 35/83, `--tool-boundary` item 16, `--disk` item 39): a parked and restored conversation must match a cold re-read token
   for token (gate for the cache/checkpoint items); first step of `tools/pancake/test_phase.sh`.
-- `tools/pancake/test_phase.sh` + `bench/specs/*.json`: the whole A/B test phase in one command; the plan is
-  `bench/TEST_PLAN.md` (every claim of this README tested one by one).
+- `tools/pancake/test_phase.sh` + `bench/specs/*.json`: the whole A/B test phase in one command; every run is recorded in
+  `TEST_LEDGER.md`, the queue of what runs next is MOD_PLAN.md section 5.
 
 Nothing goes on the stack without these:
 
@@ -947,7 +855,7 @@ Credits, in the order the stack was built:
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
 - **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
 - **PolyStrata** (simplexai-labs), whose strata-poly `SuffixIndex` is reused by the cross-session suffix index (`STRATA_SUFFIX_INDEX`, A24).
-- **Strata upstream** (Niko1221 and contributors, e.g. pjgmobile for #5531), for the bug fixes synced on 2026-11-10 (pancake-docs/batch2/upstream-sync-2026-11-10.md @5ab3d2db).
+- **Strata upstream** (Niko1221 and contributors, e.g. pjgmobile for #5531), for the bug fixes synced on 2026-11-10 (TEST_LEDGER.md).
 - **zsariboga** (Strata fork), for the route-prior guards (`STRATA_ROUTE_PRIOR_PROTECT`, `_KEEP_P`, `_SCOPE`, commit `8d7042ad97`), and **mandoof1**
   (Strata fork), for `STRATA_ROUTE_PRIOR_KEEP` (commit `3e0489e118`); **lighttransport** (Strata fork), whose MiniMax study (commit `2ea0c1e042`) set the
   equal-KL comparison against a uniform tail skip.

@@ -540,7 +540,7 @@ def build_candidates(prof, ev=None, e2e=None):
     out.append(Candidate("A31", "GDN prefill chunk 64", "(not built)", "prefill", "gpu", None, share_bound * frac_bound, False,
                          basis, missing))
 
-    # BFLA dense kern-gdn.md / PANCAKE_STATUS @5ab3d2db P2b: 128K prompt 386.9 off -> 771.2 dense tok/s (measured, one run each)
+    # BFLA dense kern-gdn.md / MOD_PLAN.md P2b: 128K prompt 386.9 off -> 771.2 dense tok/s (measured, one run each)
     c = Candidate("BFLA", "BFLA dense (exact fused attention)", "STRATA_BFLA_DENSE=1", "prefill", "gpu", 1 - 386.9 / 771.2,
                   1 - 386.9 / 771.2, True,
                   "e2e measured, qwen35 engine, 128K prompt: 386.9 -> 771.2 tok/s (1 run each); the kernel model (283 s -> 96 s "

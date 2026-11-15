@@ -13,7 +13,7 @@
 //   - each promotion lands (becomes resident, so the GPU computes it from the next window on) as soon as its own last chunk
 //     has landed, not when the whole batch has: the window-granular form of ProMoE's "cached -> finished in flight -> CPU"
 //     order.  ProMoE's in-window form (the GPU picks up an expert whose copy finishes during the layer) needs a per-slot
-//     ready flag read by the expert kernels and is not built (pancake-docs/batch2/A7-A46-promotions.md @5ab3d2db).
+//     ready flag read by the expert kernels and is not built (TEST_LEDGER.md).
 // Exact: scheduling and placement only, no output depends on it (which window first computes an expert on the GPU may
 // move, as with any tier timing; the tier is not bit-exact run to run already).
 // Plain arithmetic on per-swap progress, so a host test walks it without a GPU (tests/program/promo_chunk_test.cpp).

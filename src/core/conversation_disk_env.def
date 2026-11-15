@@ -1,7 +1,7 @@
 // src/core/conversation_disk_env.def - every STRATA_* name that appears in src/ and include/, classified for the conversation disk
 // tier's key (conversation_disk_tier.cpp builds the key lists from this table; tests/core/conversation_disk_env_test.cpp fails when a
 // name in the sources is missing here or a class and the key disagree).  MOD_PLAN 16b "disk-key"; the audit and its evidence are in
-// pancake-docs/batch4/disk-key.md @5ab3d2db.
+// TEST_LEDGER.md.
 //
 // A NEW switch (any "STRATA_..." string in src/ or include/) needs one line below.  The question to answer: with the same token ids,
 // can the switch change a single bit of the state the tier saves (K/V, recurrent state, tails)?

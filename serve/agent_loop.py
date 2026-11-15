@@ -22,7 +22,7 @@ default request path is untouched.
     A43  edit_old_state()     an edit call whose oldString is in none of the file's earlier read results (nor in text
                               the conversation itself wrote into the file) is flagged: counted in the turn log and
                               /metrics (STRATA_EDIT_OLDSTRING_CHECK=log), plus a note after the failed result in
-                              "note" mode.  Constrained decoding is not built (see pancake-docs/batch2 @5ab3d2db).
+                              "note" mode.  Constrained decoding is not built (see TEST_LEDGER.md).
 
 Settings (environment only, all default off): STRATA_AGENT_COUNTERS=1, STRATA_TEST_BEFORE_DONE=1,
 STRATA_EDIT_OLDSTRING_CHECK=off|log|note, STRATA_EXTERNALIZE_TOKENS=N (0: off), STRATA_EXTERNALIZE_DIR=path,

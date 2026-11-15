@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""launch_shapes.py - probe 4.2.1, second half (bench/TEST_PLAN.md): the block counts our decode graph launches.
+"""launch_shapes.py - probe 4.2.1, second half (MOD_PLAN.md section 5 item 7): the block counts our decode graph launches.
 
 QUESTION   Which grid shapes (blocks x threads) does one decoded token launch, how often, and how many of them sit on a
            block count that empty_grid.hip.cpp found slow on this card (F20: unimatrix099 d0c8d6c3e2)?

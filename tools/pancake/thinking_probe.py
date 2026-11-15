@@ -14,7 +14,7 @@ Commands
     train <dump|dir>... [options]            labels -> probe -> held-out calibration report -> SPRB weights (--out)
     labels-plan <dump|dir>... --out F.jsonl  the forced-stop replay plan for ground-truth labels (one line per check point)
 
-Labels (see pancake-docs/batch2/A19-thinking-probe.md @5ab3d2db for the full procedure)
+Labels (see TEST_LEDGER.md for the full procedure)
     ground truth (--labels F.jsonl): one JSON line per check point, {"file": "hd-....bin", "think_index": t, "label": 0|1},
         label 1 = the final answer is already correct / unchanged when the thinking is cut after t tokens.  Made by the
         forced-stop replay: for every line of `labels-plan`, send the request's prompt with the thinking prefix ids[:t]

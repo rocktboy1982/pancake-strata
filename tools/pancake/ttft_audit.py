@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ttft_audit.py - where an agent turn's time to first token went, from the logs a pancake server already writes
-(MOD_PLAN 17.0, pancake-docs/TTFT_LEVERS.md @5ab3d2db).  Read only: no model, no GPU, no server.
+(MOD_PLAN 17.0, MOD_PLAN.md).  Read only: no model, no GPU, no server.
 
     python tools/pancake/ttft_audit.py [--turns pancake-turns.jsonl] [--engine-log pancake-flashnext.log]
                                        [--min-reused 8192] [--since 2026-11-11T10:00] [--json OUT]
@@ -176,7 +176,7 @@ def summarize_engine_log(lines):
 
 
 def report(ts, es, min_reused=8192):
-    lines = ["TTFT audit (pancake-docs/TTFT_LEVERS.md @5ab3d2db)", "",
+    lines = ["TTFT audit (MOD_PLAN.md)", "",
              "class        n   prompt s  median ms  tokens read / prompt tokens"]
     for cls, v in ts["classes"].items():
         med = "-" if v["median_prompt_ms"] is None else f"{v['median_prompt_ms']:.0f}"

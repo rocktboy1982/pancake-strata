@@ -10,7 +10,7 @@ GPU: they only send HTTP requests to the port they are given.  One invocation = 
   session  the ttft_bench scenario B agent session (10 turns, about 1,500 words added per turn, the whole conversation
            resent) with SIDE requests between the turns: short, unrelated conversations of their own (a sub-agent or a
            title request).  Without them a conversation cache never has to choose, and the admission / park levers of
-           pancake-docs/TTFT_LEVERS.md @5ab3d2db would show nothing.  Output: {"kind": "session", "sessions": [...], "summary": {...}}.
+           MOD_PLAN.md would show nothing.  Output: {"kind": "session", "sessions": [...], "summary": {...}}.
   depth    single prompts of a given depth (--sizes 1k,32k,...), then a decode of --max-tokens: TTFT, prompt tok/s and
            decode tok/s / draft acceptance AT that depth (what the K/V ring changes).  Run 1 of each size is discarded.
            Output: {"kind": "depth", "sizes": [...]}.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """prefix_check.py - does a chat client resend a byte-identical prefix between consecutive agent turns?  (MOD_PLAN 17.0,
-measurement M4 of pancake-docs/TTFT_LEVERS.md @5ab3d2db; how to use it: pancake-docs/PREFIX_CHECK.md @5ab3d2db).  Stdlib only; reads files,
+measurement M4 of MOD_PLAN.md; how to use it: MOD_PLAN.md).  Stdlib only; reads files,
 runs no model, no server, no GPU, sends nothing anywhere.
 
     python tools/pancake/prefix_check.py CAPTURE [CAPTURE ...] [--link auto|consecutive] [--json OUT]

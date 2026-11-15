@@ -16,7 +16,7 @@ weights.  This is the one command that gets a real trace.  Three steps, none of 
            replay commands.
                python tools/pancake/record_session.py convert DIR [--weights auto|valid|none] [--all-windows]
 
-What is recorded (see pancake-docs/batch4/corpus-recorder.md @5ab3d2db for the source lines):
+What is recorded (see TEST_LEDGER.md for the source lines):
   session.stwt   STRATA_WINDOW_TRACE: per verify window every layer's ids, placement, router weights; drafts, row misses, ms
   turns.jsonl    the server's turn log (config "turn_log"; numbers only), with STRATA_AGENT_COUNTERS=1 the behaviour counters
   routing.bin    --dump-routing: ids per token and layer, the legacy file (its weights are zeros on purpose in the serve path;
@@ -149,7 +149,7 @@ def preflight(cfg, repo, out, a):
         add("WARN", "router weights: this preset's doorbell publishes none (default path), so the trace will carry zeros "
                     "unless the engine has the patch in the notes (verify.cpp); add --publish-weights to turn the deferral on")
     if a.norms:
-        add("WARN", "--norms: STRATA_WINDOW_TRACE_NORMS is read only by an engine with the record-6 patch (pancake-docs/batch4 @5ab3d2db/"
+        add("WARN", "--norms: STRATA_WINDOW_TRACE_NORMS is read only by an engine with the record-6 patch (TEST_LEDGER.md/"
                     "corpus-recorder-engine.patch); any other build ignores it and `check` will say no norms were recorded")
     if env.get("STRATA_CPU_PRESUM") == "1" and a.norms:
         add("FAIL", "STRATA_CPU_PRESUM=1 pre-sums the CPU rows: per-entry output norms cannot be taken")

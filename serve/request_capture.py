@@ -13,7 +13,7 @@ this writes one JSON line per /v1/chat/completions or /v1/messages request to a 
      "response": {"message": {...the assistant message in the API's own wire format...}, "finish_reason": "...",
                   "usage": {...}}, "http_status": 200}
 
-Read it with tools/pancake/prefix_check.py (pancake-docs/PREFIX_CHECK.md @5ab3d2db).
+Read it with tools/pancake/prefix_check.py (MOD_PLAN.md).
 
 PRIVACY: the request body is the user's prompts, code and tool output, and the response is the model's answer.  The file
 is the FULL text.  It goes to the local directory the operator names and nowhere else: this module opens no socket and
