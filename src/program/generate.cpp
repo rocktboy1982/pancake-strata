@@ -11299,6 +11299,28 @@ int main(int argc, char** argv) {
             adapt_prompt.w = ram_adapt2.prompt_w;
             if (const char* w = std::getenv("STRATA_ADAPT_PROMPT_W")) adapt_prompt.w = (float) std::max(0.0, std::atof(w));
         }
+        // MOD_PLAN.md section 6 item 8, LEADS.md B118 (STRATA_TIER_REWARM=1, opt-in): after a prompt of at least
+        // STRATA_TIER_REWARM_MIN tokens (default 2048) is read and its loan refilled, one blocking tier round runs before
+        // the first decode window with the swap cap lifted (STRATA_TIER_REWARM_MAX swaps, default no cap): adapt()'s own
+        // rule over the decode counts plus the prompt's folded counts (FK-28 above, which it turns on unless
+        // STRATA_ADAPT_PROMPT is set), the same copies on the adapt stream, the same events, landed before the window.
+        // The round neither decays the counts nor ticks the swap budget (it is not a decode round).  Placement only.
+        struct TierRewarm {
+            bool on = false;
+            int64_t min_tokens = 2048;
+            int cap = std::numeric_limits<int>::max();
+            bool now = false;   // set around the one adapt() call (main thread, nothing in flight)
+        } tier_rewarm;
+        {
+            const char* v = std::getenv("STRATA_TIER_REWARM");
+            tier_rewarm.on = v != nullptr && std::atoi(v) != 0;
+            if (const char* m = std::getenv("STRATA_TIER_REWARM_MIN")) tier_rewarm.min_tokens = std::max<int64_t>(1, std::atoll(m));
+            if (const char* m = std::getenv("STRATA_TIER_REWARM_MAX")) {
+                const int c = std::atoi(m);
+                if (c > 0) tier_rewarm.cap = c;
+            }
+            if (tier_rewarm.on && std::getenv("STRATA_ADAPT_PROMPT") == nullptr) adapt_prompt.on = true;
+        }
         // FK-28: adds the prompt counts gathered since the last round into the tier's counts (no-op when off or empty)
         auto adapt_prompt_fold = [&]() {
             if (!adapt_prompt.on || drive.d.usage.empty()) return;
@@ -14175,14 +14197,17 @@ int main(int argc, char** argv) {
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
-        auto swap_cap = [&]() -> int { return (sbud.on() ? sbud.swaps() : o.adapt_swaps) * idle_mult; };
+        auto swap_cap = [&]() -> int {
+            if (tier_rewarm.now) return tier_rewarm.cap;   // STRATA_TIER_REWARM's round (LEADS.md B118)
+            return (sbud.on() ? sbud.swaps() : o.adapt_swaps) * idle_mult;
+        };
         if (kmiss.on() && o.adapt_every > 0 && o.adapt_swaps > 0)
             std::fprintf(stderr, "strata serve: STRATA_ADAPT_KMISS=%d,%d: the tier admits an expert after %d misses in %d "
                                  "rounds and evicts the least recently routed\n", kmiss.k(), kmiss.w(), kmiss.k(), kmiss.w());
         // the VRAM tier follows the conversation (the same rule as the speculative loop below)
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
-            sbud.round(o.adapt_every);
+            if (!tier_rewarm.now) sbud.round(o.adapt_every);   // (STRATA_TIER_REWARM's round is not a decode round)
             adapt_prompt_fold();   // FK-28 (STRATA_ADAPT_PROMPT): the prompt's counts, before any tier reads them
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
@@ -14398,7 +14423,8 @@ int main(int argc, char** argv) {
                     return false;
                 }
             }
-            for (float& v : drive.d.usage) v *= o.adapt_decay;
+            if (!tier_rewarm.now)   // STRATA_TIER_REWARM's round keeps the counts for the decode rounds
+                for (float& v : drive.d.usage) v *= o.adapt_decay;
             if (seeder.on()) seeder.round_end(drive.d.usage);
             if (kmiss.on()) kmiss.end_round(drive.d.usage);
             return true;
@@ -19597,6 +19623,38 @@ int main(int argc, char** argv) {
             if (mtp_room_open && room_close("prompt done") != 0) return 1;
             if (head_restore() != 0) return 1;
             tr("prompt done (slots refilled)");
+            // MOD_PLAN.md section 6 item 8, LEADS.md B118 (STRATA_TIER_REWARM=1): after a long prompt, one uncapped tier
+            // round over the decode counts + the prompt's folded counts, landed before the first window.  On this thread
+            // with nothing in flight (the loans are back, no round pending), as STRATA_IDLE_ADAPT's rounds between requests.
+            if (tier_rewarm.on && !cancelled && n - resume >= tier_rewarm.min_tokens) {
+                const char* skip = drive.d.usage.empty() ? "the adaptive tier is off"
+                                 : ajob ? "--adapt-async 1"
+                                 : o.batch != 0 ? "--batch"
+                                 : kmiss.on() ? "STRATA_ADAPT_KMISS"
+                                 : remote_opt ? "a remote expert cache"
+                                 : !pending.empty() ? "a tier round is in flight"
+                                 : nullptr;
+                if (skip != nullptr) {
+                    static int said = 0;
+                    if (said++ < 2) std::fprintf(stderr, "strata serve: STRATA_TIER_REWARM=1: skipped (%s)\n", skip);
+                } else {
+                    const auto trw0 = Clock::now();
+                    const int64_t nsw0 = adapt_nswaps;
+                    tier_rewarm.now = true;
+                    const bool rw_ok = adapt();
+                    tier_rewarm.now = false;
+                    const int64_t nsw = adapt_nswaps - nsw0;
+                    adapt_nswaps = nsw0;   // the decode timing line's swaps/window counts the decode rounds only
+                    if (!rw_ok) {
+                        std::printf("ERR the tier re-warm after the prompt failed\n");
+                        return 1;
+                    }
+                    apply_pending(true);   // the copies land and the tables follow (the first window plans from them)
+                    std::fprintf(stderr, "strata serve: STRATA_TIER_REWARM: %lld-token prompt, %lld swaps into the decode "
+                                         "tier (cap %d) in %.1f ms\n", (long long) (n - resume), (long long) nsw,
+                                 tier_rewarm.cap, std::chrono::duration<double, std::milli>(Clock::now() - trw0).count());
+                }
+            }
             if (il_parts > 0)
                 std::fprintf(stderr, "strata batch: the prompt was read in %lld parts, the slots decoding %.0f ms between "
                                      "them\n", (long long) il_parts + 1, il_ms);
