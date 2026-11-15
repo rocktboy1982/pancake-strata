@@ -5319,6 +5319,66 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             std::stable_sort(mq, mq + nm, [&](int a, int b) { return use[ids[distinct[a]]] > use[ids[distinct[b]]]; });
             for (int j = 0; j < m && j < nm; ++j) pick[mq[j]] = true;
         }
+        if (d.fs != nullptr && d.fs->affinity_k > 0) {   // STRATA_FS_AFFINITY (opt-in, LEADS.md Part E ExFlow); off: skipped
+            int32_t ex_aff[kMaxWindowEntries];
+            int n_aff = 0;
+            for (int q = 0; q < nd; ++q) {
+                const int32_t e = ids[distinct[q]];
+                if (e >= 0 && e < d.n_expert) ex_aff[n_aff++] = e;
+            }
+            const int32_t* res_next = (d.host_res != nullptr && d.layers + 1 < d.fs->n_layers)
+                                          ? d.host_res + (size_t) (d.layers + 1) * (size_t) d.n_expert : nullptr;
+            d.fs->affinity(d.src, d.layers, ex_aff, n_aff, res_next);
+        }
+        // STRATA_BUDDY=N (opt-in, LOSSY; unset or 0 = this block and buddy_sub do nothing): BuddyMoE-style substitution
+        // (paper "BuddyMoE", LEADS.md Part E HybriMoE/AdapMoE/MoBiLE/BuddyMoE row).  An online co-activation table per layer
+        // (experts routed together for one token) names each expert's buddy; up to N misses per layer-window whose buddy
+        // sits in the VRAM cache, is not routed in this window and co-activated at least STRATA_BUDDY_MIN times (default 8)
+        // are computed by the buddy's weights on the GPU (a group like a hit, as the foresight swap's slots are), with the
+        // router's weight kept.  The tokens change.
+        static const int buddy_cap = [] { const char* e = std::getenv("STRATA_BUDDY"); return e ? std::max(0, std::atoi(e)) : 0; }();
+        static const int buddy_min = [] { const char* e = std::getenv("STRATA_BUDDY_MIN"); return e ? std::max(1, std::atoi(e)) : 8; }();
+        int buddy_used = 0;
+        static std::mutex bmu;                             // STRATA_BUDDY's table (allocated only when it is set)
+        static std::vector<std::vector<uint16_t>> bco;     // [layer] -> n_expert x n_expert co-activation counts
+        if (buddy_cap > 0) {   // count this window's co-activations (per token: every ordered pair of its routed experts)
+            const size_t E = (size_t) d.n_expert;
+            std::lock_guard<std::mutex> lk(bmu);
+            if (bco.size() <= (size_t) d.layers) bco.resize((size_t) d.layers + 1);
+            std::vector<uint16_t>& t = bco[(size_t) d.layers];
+            if (t.size() != E * E) t.assign(E * E, 0);
+            for (int64_t t0 = 0; t0 + k <= n; t0 += k)
+                for (int64_t a = t0; a < t0 + k; ++a)
+                    for (int64_t b = t0; b < t0 + k; ++b) {
+                        if (a == b || ids[a] < 0 || ids[b] < 0 || ids[a] >= d.n_expert || ids[b] >= d.n_expert) continue;
+                        uint16_t* rw = t.data() + (size_t) ids[a] * E;
+                        if (++rw[ids[b]] == 0xFFFF) for (size_t c = 0; c < E; ++c) rw[c] >>= 1;
+                    }
+        }
+        auto buddy_sub = [&](int32_t e, unsigned long long& bptr) -> bool {
+            if (buddy_cap <= 0 || buddy_used >= buddy_cap || e < 0 || e >= d.n_expert) return false;
+            const size_t E = (size_t) d.n_expert;
+            std::lock_guard<std::mutex> lk(bmu);
+            if (bco.size() <= (size_t) d.layers || bco[(size_t) d.layers].size() != E * E) return false;
+            const uint16_t* row = bco[(size_t) d.layers].data() + (size_t) e * E;
+            const int32_t* res = d.host_res + (size_t) d.layers * E;
+            int32_t best = -1;
+            uint16_t bc = (uint16_t) std::min(buddy_min, 0xFFFF);
+            for (size_t b = 0; b < E; ++b) {
+                if (row[b] < bc || res[b] < 0 || (int32_t) b == e) continue;
+                bool routed = false;
+                for (int q2 = 0; q2 < nd && !routed; ++q2) routed = ids[distinct[q2]] == (int32_t) b;
+                if (routed) continue;
+                bc = row[b];
+                best = (int32_t) b;
+            }
+            if (best < 0) return false;
+            const int32_t slot = res[best];
+            bptr = (unsigned long long) (d.cache_base + (d.cache_slot_off ? (size_t) d.cache_slot_off[slot]
+                                                                          : (size_t) slot * (size_t) d.cache_blob));
+            ++buddy_used;
+            return true;
+        };
         for (int q = 0; q < nd; ++q) {
             const int64_t i0 = distinct[q];
             const int32_t e = ids[i0];
@@ -5340,6 +5400,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                     // left to the helper: kind -1 until RemoteExperts::begin() claims the row (see above)
                 } else if (d.fs != nullptr && d.fs->take(d.layers, e, ptr)) {
                     kd = 0;                        // Foresight: a landed swap-space slot holds it - a GPU group like a hit
+                } else if (buddy_sub(e, ptr)) {
+                    kd = 0;                        // STRATA_BUDDY (lossy): the resident buddy's weights, a GPU group like a hit
                 } else {
                     if (d.fs != nullptr) d.fs->note_miss(d.src, d.layers, e);
                     if ((dali_m >= 0 ? dpick[q] : fetch_on ? pick[q] : miss_rank >= nmiss - m) && fetches < P.staging_cap &&
@@ -7331,6 +7393,47 @@ void ForesightSwap::request_locked(ExpertSource* src, int64_t layer, int32_t exp
     cv_.notify_one();
 }
 
+// STRATA_FS_AFFINITY (LEADS.md Part E, ExFlow inter-layer affinity): count, then predict.  Off: never called with effect.
+void ForesightSwap::affinity(ExpertSource* src, int64_t layer, const int32_t* ex, int n, const int32_t* host_res_next) {
+    if (affinity_k <= 0 || layer < 0 || layer >= n_layers || n <= 0) return;
+    std::lock_guard<std::mutex> smu_lk(smu_);
+    const size_t E = (size_t) n_expert;
+    if (aff_.empty()) {
+        if (n_layers < 2) return;
+        aff_.assign((size_t) (n_layers - 1) * E * E, 0);
+        aff_score_.assign(E, 0);
+    }
+    if (aff_prev_layer_ == layer - 1 && layer >= 1) {   // the previous layer of the same token(s) -> this layer
+        for (const int32_t a : aff_prev_) {
+            uint16_t* row = aff_.data() + ((size_t) (layer - 1) * E + (size_t) a) * E;
+            bool halve = false;
+            for (int i = 0; i < n; ++i)
+                if (ex[i] >= 0 && (size_t) ex[i] < E && ++row[ex[i]] == 0xFFFF) halve = true;
+            if (halve) for (size_t b = 0; b < E; ++b) row[b] >>= 1;   // decay, so the table follows the conversation
+        }
+    }
+    aff_prev_.clear();
+    for (int i = 0; i < n; ++i) if (ex[i] >= 0 && (size_t) ex[i] < E) aff_prev_.push_back(ex[i]);
+    aff_prev_layer_ = layer;
+    if (layer + 1 >= n_layers) return;
+    std::fill(aff_score_.begin(), aff_score_.end(), 0u);
+    for (const int32_t a : aff_prev_) {
+        const uint16_t* row = aff_.data() + ((size_t) layer * E + (size_t) a) * E;
+        for (size_t b = 0; b < E; ++b) aff_score_[b] += row[b];
+    }
+    for (int k = 0; k < affinity_k; ++k) {
+        size_t best = E;
+        uint32_t bs = 0;
+        for (size_t b = 0; b < E; ++b)
+            if (aff_score_[b] > bs && (host_res_next == nullptr || host_res_next[b] < 0)) { bs = aff_score_[b]; best = b; }
+        if (best == E) break;
+        aff_score_[best] = 0;
+        const uint64_t before = copies;
+        request_locked(src, layer + 1, (int32_t) best, true);
+        if (copies != before) ++affinity_pred;
+    }
+}
+
 std::string ForesightSwap::report() const {
     std::lock_guard<std::mutex> smu_lk(const_cast<std::mutex&>(smu_));
     char buf[320];
@@ -7341,6 +7444,7 @@ std::string ForesightSwap::report() const {
     std::string r = buf;
     if (dropped > 0) r += ", " + std::to_string(dropped) + " dropped by exchanges";
     if (stale_drop > 0) r += ", " + std::to_string(stale_skipped) + " stale copies skipped (STRATA_FS_STALE_DROP)";
+    if (affinity_k > 0) r += ", " + std::to_string(affinity_pred) + " copies from the affinity table (STRATA_FS_AFFINITY)";
     if (verify) r += ", verified " + std::to_string(verify_ok) + " ok / " + std::to_string(verify_bad) + " BAD";
     return r;
 }
@@ -7362,6 +7466,7 @@ ForesightSwap* foresight_swap_from_env(int64_t layers, int64_t experts, const st
     f->depth = env_int("STRATA_FS_DEPTH", 4, 2);
     f->verify = env_int("STRATA_FS_VERIFY", 0, 0) != 0;
     f->stale_drop = env_int("STRATA_FS_STALE_DROP", 0, 0);   // opt-in (LEADS.md Part D item 53); set before the filler starts
+    f->affinity_k = std::min(env_int("STRATA_FS_AFFINITY", 0, 0), 64);   // opt-in (LEADS.md Part E, ExFlow)
     std::string err;
     if (!f->init(std::min(slots, 64), layers, experts, card_of_layer, devices, err)) {
         std::fprintf(stderr, "strata serve: foresight swap: %s - swap space off\n", err.c_str());

@@ -71,6 +71,15 @@ struct ForesightSwap {
     /// only (LEADS.md Part D item 53 "stale-drop in fill_loop").
     int stale_drop = 0;
     uint64_t stale_skipped = 0;              ///< copies the filler skipped under STRATA_FS_STALE_DROP (under smu_)
+    /// STRATA_FS_AFFINITY=P (opt-in, 0 = off: no table, no call does anything).  ExFlow-style inter-layer expert affinity
+    /// (paper "ExFlow", LEADS.md Part E): an online count table P(expert b at layer l+1 | expert a at layer l) from the
+    /// routed sets the pool sees; after each layer's plan the P best-scored next-layer experts that are not cached are
+    /// requested as predicted copies (the same slots, budget and reuse rule as the router look-ahead).  Moves bytes only.
+    int affinity_k = 0;
+    uint64_t affinity_pred = 0;              ///< copies requested from the affinity table (under smu_)
+    /// The pool, once per layer with that layer's distinct routed experts; `host_res_next` = the next layer's residency
+    /// row (slot or -1, n_expert entries) or nullptr.
+    void affinity(ExpertSource* src, int64_t layer, const int32_t* ex, int n, const int32_t* host_res_next);
     static constexpr int16_t kHeld = -2;     ///< `where`: an exchange is moving this expert's bytes, no copy now (#2134)
     static constexpr int32_t kDropped = -2;  ///< Slot::expert: dropped by `hold`, reusable under the same depth rule
 
@@ -105,6 +114,10 @@ private:
     bool stop_ = false;
     std::thread filler_;
     void fill_loop();
+    std::vector<uint16_t> aff_;              ///< STRATA_FS_AFFINITY: (n_layers - 1) x n_expert x n_expert counts (under smu_)
+    std::vector<int32_t> aff_prev_;          ///< the last layer's distinct experts
+    int64_t aff_prev_layer_ = -1;
+    std::vector<uint32_t> aff_score_;
 };
 
 ForesightSwap* foresight_swap_from_env(int64_t layers, int64_t experts, const std::vector<int>& card_of_layer,

@@ -69,6 +69,7 @@ from serve.mcp import McpCancelled, hub_from_config  # noqa: E402
 from serve import runconfig  # noqa: E402
 from serve import park_divergence  # noqa: E402
 from serve import request_capture  # noqa: E402
+from serve import async_stream  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
 from strata_control import engine_component  # noqa: E402
 from strata_control import tls  # noqa: E402
@@ -9903,6 +9904,7 @@ def make_handler(svc: Service):
             if not req.get("stream"):
                 return self._json(200, openai_collect(chunks))
             self._sse()
+            chunks = async_stream.wrap(chunks)               # STRATA_SERVE_ASYNC_STREAM (opt-in; off: the same object)
             try:
                 for c in chunks:
                     if c is None:

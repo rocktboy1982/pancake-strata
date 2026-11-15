@@ -29,6 +29,7 @@
 // fits its domain).  So the domain part needs per-domain traces (MOD_PLAN 11, item 4's commands) before it is trusted;
 // the conversation part's held-out gains are small but did not go negative in any arm.
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <map>
@@ -45,6 +46,11 @@ public:
         int domain_hold = 16;        ///< STRATA_SEED_HOLD (tier rounds)
         int conv_slots = 0;          ///< STRATA_CONV_WORKSET (0 = off)
         float conv_tokens = 32.0f;   ///< STRATA_CONV_WORKSET_TOKENS
+        /// STRATA_CONV_WORKSET_MATCH=s (opt-in, 0 = off; needs STRATA_CONV_WORKSET): fMoE-style matched expert maps
+        /// (paper "fMoE", LEADS.md Part E).  When no kept conversation shares the prompt's prefix, the kept one whose
+        /// token histogram (4096 hashed buckets, a lexical stand-in for fMoE's semantic prompt embedding) has the highest
+        /// cosine with the prompt's, if >= s, seeds the tier as a prefix match would.  Placement only.
+        float conv_match = 0.0f;
     };
 
     /// The switches from the environment (see the top of this file); `dir` is STRATA_DOMAIN_PROFILES or empty.
@@ -59,6 +65,7 @@ public:
             c.conv_slots = n == 1 ? 8 : std::max(0, n);
         }
         if (const char* v = std::getenv("STRATA_CONV_WORKSET_TOKENS")) c.conv_tokens = std::max(0.0f, (float) std::atof(v));
+        if (const char* v = std::getenv("STRATA_CONV_WORKSET_MATCH")) c.conv_match = std::max(0.0f, (float) std::atof(v));
         return c;
     }
 
@@ -107,6 +114,16 @@ public:
                 const size_t l = common_prefix(w.ids, prompt);
                 if (l > best_l && covers(w.ids.size(), l)) { best = &w; best_l = l; }
             }
+            std::string how;
+            if (best == nullptr && cfg_.conv_match > 0.0f && !sets_.empty() && !prompt.empty()) {   // STRATA_CONV_WORKSET_MATCH
+                const std::vector<float> hp = histogram(prompt);
+                double best_c = cfg_.conv_match;
+                for (WorkSet& w : sets_) {
+                    const double c = cosine(hp, histogram(w.ids));
+                    if (c >= best_c) { best_c = c; best = &w; }
+                }
+                if (best != nullptr) how = "matched working set (cosine " + std::to_string(best_c).substr(0, 5) + ")";
+            }
             if (best != nullptr) {
                 double mass = 0.0;
                 for (float c : best->counts) mass += c;
@@ -114,6 +131,7 @@ public:
                 for (size_t i = 0; i < usage.size(); ++i) usage[i] += f * best->counts[i];
                 cur_ = best->counts;   // the conversation's tally goes on from where it was kept
                 mark(usage);
+                if (!how.empty()) return how;
                 return "conversation working set (" + std::to_string(best_l) + " tokens in common)";
             }
         }
@@ -174,6 +192,23 @@ private:
     template<class A, class B>
     static bool same_conversation(const std::vector<A>& outgoing, const std::vector<B>& prompt) {
         return covers(outgoing.size(), common_prefix(outgoing, prompt));
+    }
+
+    // STRATA_CONV_WORKSET_MATCH: token-id histogram over 4096 hashed buckets, and the cosine of two of them
+    template<class A>
+    static std::vector<float> histogram(const std::vector<A>& ids) {
+        std::vector<float> h(4096, 0.0f);
+        for (const A& t : ids) h[(size_t) (((uint64_t) (int64_t) t * 0x9E3779B97F4A7C15ull) >> 52)] += 1.0f;
+        return h;
+    }
+    static double cosine(const std::vector<float>& a, const std::vector<float>& b) {
+        double ab = 0.0, aa = 0.0, bb = 0.0;
+        for (size_t i = 0; i < a.size() && i < b.size(); ++i) {
+            ab += (double) a[i] * b[i];
+            aa += (double) a[i] * a[i];
+            bb += (double) b[i] * b[i];
+        }
+        return aa > 0.0 && bb > 0.0 ? ab / std::sqrt(aa * bb) : 0.0;
     }
 
     void mark(const std::vector<float>& usage) {
