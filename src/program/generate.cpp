@@ -20191,6 +20191,23 @@ int main(int argc, char** argv) {
                 tbr.on = true;
                 tbr.scope = strata::program::PriorScopeState(tp_marks);
             }
+            // LEADS.md section 3 STRATA_TYPICAL_THINK (Medusa typical acceptance on the thinking only; spec/window_rule.hpp, lossy):
+            // this request's think state (the route prior's marks) and the flags of one window; only a sampled request uses it
+            struct TypicalRequest {
+                bool on = false;
+                strata::program::PriorScopeState scope;
+                int64_t windows = 0, extra = 0;   // windows that looked, drafts kept beyond the exact rule
+                int32_t ok[strata::kernels::kVerifyLongT] = {};
+                ~TypicalRequest() {
+                    if (on && windows > 0)
+                        std::fprintf(stderr, "strata serve: STRATA_TYPICAL_THINK (lossy): %lld thinking windows looked, %lld drafts "
+                                             "kept beyond the exact rule\n", (long long) windows, (long long) extra);
+                }
+            } typ_req;
+            if (strata::spec::typical_env().on() && !req_sp.greedy && req_sp.temperature > 0.0f) {
+                typ_req.on = true;
+                typ_req.scope = strata::program::PriorScopeState(prior_guard().marks);
+            }
             struct PriorGateRequest {
                 int64_t open = 0, total = 0;
                 ~PriorGateRequest() {
@@ -21069,6 +21086,15 @@ int main(int argc, char** argv) {
                         ts[i - 1] = i >= T_mtp ? 3 : from_sfx ? 2 : req_df2 ? 1 : 0;
                     }
                     strata::core::window_trace().drafts(tp, ts, nd);
+                    if (strata::spec::draft_entropy_on()) {   // record 7 (STRATA_DRAFT_ENTROPY, LEADS.md section 3): the MTP rows' entropy / runner-up
+                        float te[255], t2[255];
+                        for (int i = 1; i <= nd; ++i) {
+                            const bool mtp_row = use_mtp && i < T_mtp && !from_sfx && !req_df2;
+                            te[i - 1] = mtp_row ? mtp.draft_entropy(i - 1) : std::numeric_limits<float>::quiet_NaN();
+                            t2[i - 1] = mtp_row ? mtp.draft_top2(i - 1) : std::numeric_limits<float>::quiet_NaN();
+                        }
+                        strata::core::window_trace().draft_entropy(te, t2, nd);
+                    }
                 }
                 if (!keep_sync(false)) { std::printf("ERR %s\n", err.c_str()); return 1; }   // STRATA_EVENT_WAIT: may be a device-side wait
                 drive.d.layers = 0;
@@ -21343,6 +21369,30 @@ int main(int argc, char** argv) {
                 }
                 int a = merged ? T - 1 : 0;   // a merged window commits every row, as the prompt windows do
                 while (a < T - 1 && window[(size_t) a + 1] == outv[(size_t) a]) ++a;
+                // LEADS.md section 3 STRATA_TYPICAL_THINK (lossy, sampled requests only): inside the thinking, the first rejected draft
+                // is kept anyway when the target gives it p > min(eps, alpha e^-H) (Medusa's typical acceptance), and the rule goes on
+                // from there; the row after the last kept draft keeps its own sample.  A draft that leaves the thinking (</think>)
+                // or any row outside it ends the extension.  Unset: typ_req.on is false and nothing here runs.
+                if (typ_req.on && !merged && !first_window && a < T - 1) {
+                    typ_req.scope.sync(consumed.data(), consumed.size());
+                    strata::program::PriorScopeState rs = typ_req.scope;
+                    for (int i = 0; i <= a; ++i) rs.feed(window[(size_t) i]);   // the state the row after window[a] is read in
+                    if (rs.think() && !rs.tool() &&
+                        ver.typical_rows(T, window.data(), req_sp.temperature, strata::spec::typical_env().eps,
+                                         strata::spec::typical_env().alpha, typ_req.ok)) {
+                        ++typ_req.windows;
+                        while (a < T - 1 && rs.think() && !rs.tool() && typ_req.ok[a] != 0) {
+                            outv[(size_t) a] = window[(size_t) a + 1];
+                            ++a;
+                            ++typ_req.extra;
+                            rs.feed(window[(size_t) a]);
+                            while (a < T - 1 && window[(size_t) a + 1] == outv[(size_t) a]) {   // the exact rule again after it
+                                ++a;
+                                rs.feed(window[(size_t) a]);
+                            }
+                        }
+                    }
+                }
                 if (gguard != nullptr && gguard->on()) {
                     // the first kept pick the grammar refuses is drawn again under its mask, and the window ends at that row
                     // (a merged window's rows before T - 1 answer prompt tokens: only its last row is an output)
@@ -21599,6 +21649,11 @@ int main(int argc, char** argv) {
                     disco.end_round(dr);
                     strata::core::row_misses().reset();   // the next window counts from zero
                 }
+                // LEADS.md section 3 STRATA_SPEC_ENTROPY (AdaEDL / AdaSD feedback; window_rule.hpp EntropyStop): a plain MTP window's
+                // drafts and how many held, before the next chain is drafted.  Off: entropy_stop_on() is false, nothing runs.
+                if (use_mtp && mtp.entropy_stop_on() && draft_on && !req_df2 && !from_sfx && !merged && chain_n == 0 &&
+                    !initial_round && !gated_proposal && T_mtp > 1)
+                    mtp.entropy_observe(T_mtp - 1, std::min(a, T_mtp - 1));
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
                 int mtp_nd = 0;   // item 74: the drafts of this round (the window trace records them when the window is built, above)
                 if (spec_hint_on && use_mtp && !req_df2 && !eos && produced_n < max_new) {   // STRATA_SPEC_LOOKUP_Q: the history ends with the next window's first token
@@ -23524,6 +23579,10 @@ int main(int argc, char** argv) {
                 disco.end_round(dr);
                 strata::core::row_misses().reset();   // the next window counts from zero
             }
+            // LEADS.md section 3 STRATA_SPEC_ENTROPY (AdaEDL / AdaSD feedback): as in the serve loop.  Off: nothing runs.
+            if (use_mtp && mtp.entropy_stop_on() && draft_on && !spec_uses_df2 && !from_sfx && chain_n == 0 && !initial_round &&
+                !gated_proposal && o.spec_corrupt <= 0 && follow.empty() && T_mtp > 1)
+                mtp.entropy_observe(T_mtp - 1, std::min(a, T_mtp - 1));
             generation = {};
             const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
             const bool drafted = !draft_on || (int64_t) produced.size() >= max_new || draft_next(T, a);

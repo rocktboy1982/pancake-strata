@@ -173,6 +173,7 @@ STRATA_ENV("STRATA_VERIFY_ECAP", KeyIfSet, "caps CPU experts only draft rows nee
 STRATA_ENV("STRATA_VERIFY_ECAP_MIN_ROWS", KeyIfSet, "ECAP acts only in windows of this many rows or more (lossy)")
 STRATA_ENV("STRATA_VERIFY_DEFER_AUTO", KeyIfSet, "which windows defer CPU rows (MOD_PLAN 17.1 note): changes the output vs plain deferral")
 STRATA_ENV("STRATA_VERIFY_DEFER_AUTO_MIN_T", KeyIfSet, "the smallest lookup window that defers (with STRATA_VERIFY_DEFER_AUTO)")
+STRATA_ENV("STRATA_TYPICAL_THINK", KeyIfSet, "Medusa typical acceptance inside the thinking (LEADS.md section 3, lossy accept): keyed conservatively")
 
 // ---- Unsure: may change what a state holds and no bit-equality claim was found or verified; treated as KeyIfSet (a stale hit is silent, a miss costs one prefill) (107) ----
 STRATA_ENV("STRATA_ATTN_V3", Unsure, "decode attention v3")
@@ -808,6 +809,8 @@ STRATA_ENV("STRATA_SPEC_COUPLED", Speed, "drafting/stop policy: the tokens chang
 STRATA_ENV("STRATA_SPEC_CUM", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_LOOKUP_Q", Speed, "drafting/stop policy (with SPEC_CUM): lookup-agreeing drafts count q in the chain product; the state of given tokens does not change (android-imdad ef42c2fde9)")
 STRATA_ENV("STRATA_SPEC_DEPTH_DECAY", Speed, "drafting/stop policy (with SPEC_CUM): other drafts count p * d^j; the state of given tokens does not change (android-imdad ef42c2fde9)")
+STRATA_ENV("STRATA_SPEC_ENTROPY", Speed, "drafting/stop policy (AdaEDL / SVIP / AdaSD entropy stop, LEADS.md section 3): the tokens change, the state of given tokens does not")
+STRATA_ENV("STRATA_DRAFT_ENTROPY", Speed, "the draft head also computes entropies (trace record 7, stop rules); drafts only, no state of given tokens")
 STRATA_ENV("STRATA_SPEC_DEPTH", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_GUMBEL", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_MIN_TEMP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")

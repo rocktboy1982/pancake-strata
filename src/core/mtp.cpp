@@ -213,7 +213,7 @@ MtpDrafter::~MtpDrafter() {
     if (proxy_scratch_) cudaFree(proxy_scratch_);
     if (ev_chain_) cudaEventDestroy(ev_chain_);
     for (cudaEvent_t e : ev_step_) if (e) cudaEventDestroy(e);
-    void* hosts[] = {h_tok_, h_step_, h_pos_, h_row_, h_out_, h_prob_, h_force_, h_floor_};
+    void* hosts[] = {h_tok_, h_step_, h_pos_, h_row_, h_out_, h_prob_, h_force_, h_floor_, h_ent_, h_top2_};
     for (void* h : hosts) if (h) cudaFreeHost(h);
 }
 
@@ -508,6 +508,26 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
               (!force_on_ || mapped(64, (void**) &h_force_, (void**) &m_force_));
     if (!ok) { err = "mtp: mapped staging failed"; return false; }
     if (h_force_ != nullptr) for (int j = 0; j < 16; ++j) h_force_[j] = -1;
+    // LEADS.md section 3 (STRATA_DRAFT_ENTROPY=1, or a STRATA_SPEC_ENTROPY rule; window_rule.hpp): each draft's entropy and
+    // runner-up probability beside its probability (kernels row_entropy).  Unset: no buffer, no launch, the same graphs.
+    if (strata::spec::draft_entropy_on()) {
+        if (!mapped(T * 4 + 64, (void**) &h_ent_, (void**) &m_ent_) || !mapped(T * 4 + 64, (void**) &h_top2_, (void**) &m_top2_)) {
+            err = "mtp: mapped staging failed";
+            return false;
+        }
+        for (uint64_t j = 0; j < T + 16; ++j) h_ent_[j] = h_top2_[j] = std::numeric_limits<float>::quiet_NaN();
+        for (int j = 0; j < 16; ++j) round_ent_[j] = round_top2_[j] = std::numeric_limits<float>::quiet_NaN();
+        ent_stop_ = strata::spec::entropy_stop_env();
+        static bool said = false;
+        if (!said) {
+            said = true;
+            std::fprintf(stderr, "strata mtp: STRATA_DRAFT_ENTROPY: the draft head also computes each row's entropy%s%s\n",
+                         ent_stop_.on() ? "; STRATA_SPEC_ENTROPY stop rule " : "",
+                         ent_stop_.rule == strata::spec::EntropyStop::AdaEDL ? "adaedl"
+                         : ent_stop_.rule == strata::spec::EntropyStop::SVIP ? "svip"
+                         : ent_stop_.rule == strata::spec::EntropyStop::AdaSD ? "adasd" : "");
+        }
+    }
     auto carve = [&](Bump& b) {
         tok_ = b.take<int32_t>(T); step_ = b.take<int32_t>(R2 * 4); pos_ = b.take<int32_t>(R2 * NH); row_ = b.take<int32_t>(4);
         ident_ = b.take<int32_t>(T * (uint64_t) cap_);
@@ -539,6 +559,8 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
         x_bf16_ = b.take<uint16_t>(N);
         out_ids_ = b.take<int32_t>(T + 4);
         probs_ = b.take<float>(T + 4);
+        ents_ = h_ent_ != nullptr ? b.take<float>(T + 4) : nullptr;     // STRATA_DRAFT_ENTROPY only
+        top2s_ = h_ent_ != nullptr ? b.take<float>(T + 4) : nullptr;
         arg_scratch_ = b.take<uint8_t>(strata::kernels::argmax_rows_scratch_bytes((int) T));
         top_scratch_ = b.take<uint8_t>(strata::kernels::row_top_prob_scratch_bytes((int) T));
         dummy_inj_ = b.take<float>(HC);
@@ -550,6 +572,10 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
     Bump real;
     real.base = (uint8_t*) arena_;
     carve(real);
+    if (ents_ != nullptr) {   // NaN (all bits set) until a row is computed: a coupled draft never writes them
+        cudaMemset(ents_, 0xFF, (size_t) (T + 4) * sizeof(float));
+        cudaMemset(top2s_, 0xFF, (size_t) (T + 4) * sizeof(float));
+    }
     vram_ += count.used;
     {
         std::vector<int32_t> id((size_t) (T * (uint64_t) cap_));
@@ -1480,7 +1506,7 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
 #if defined(STRATA_HAVE_Q5K_HEAD)
         // pancake-strata: the greedy one-row step's pick through basalt's two-stage proxy (ids and probabilities out,
         // the ids already mapped to the vocabulary); the coupled sampler and the logits' readers keep the plain path
-        if (proxy_ != nullptr && sub && T == 1 && !coupled_rec_ &&
+        if (proxy_ != nullptr && sub && T == 1 && !coupled_rec_ && ents_ == nullptr &&   // (STRATA_DRAFT_ENTROPY: full softmax)
             (dhead_type_ == 23 ? strata::kernels::iq4xs_proxy_top1(proxy_, dhead_, xq_, (int) nv, n_dvocab_, dvocab_, out_ids_,
                                                                    probs_, proxy_scratch_, cs)
              : dhead_type_ == 14 ? strata::kernels::q6k_proxy_top1(proxy_, dhead_, xq_, (int) nv, n_dvocab_, dvocab_, out_ids_,
@@ -1528,6 +1554,8 @@ bool MtpDrafter::record_rest(int step_row, cudaStream_t cs, std::string& err) {
         }
         if (multi_block_head_ops()) row_top_prob_split(head_logits_, T, (int) nv, out_ids_, probs_, top_scratch_, cs);
         else row_top_prob(head_logits_, T, (int) nv, out_ids_, probs_, cs);
+        // STRATA_DRAFT_ENTROPY (LEADS.md section 3): the rows' entropy and runner-up probability, on the subset ids (before map_ids)
+        if (ents_ != nullptr) row_entropy(head_logits_, T, (int) nv, out_ids_, ents_, top2s_, cs);
         if (sub) map_ids(out_ids_, dvocab_, T, cs);
         g_mp.stamp(15, cs);
     } catch (const std::exception& e) {
@@ -1612,6 +1640,10 @@ bool MtpDrafter::capture_round(int T, bool coupled, std::string& err) {
         ok = record_rest(ra, cs_, err);
         coupled_rec_ = false;
     }
+    if (ok && ents_ != nullptr && !coupled) {   // STRATA_DRAFT_ENTROPY: the selected row's entropy / runner-up, before the token is published
+        copy_indexed(m_ent_, ents_, 1, row_ + 1, 1, cs_);
+        copy_indexed(m_top2_, top2s_, 1, row_ + 1, 1, cs_);
+    }
     if (ok) mtp_select(R_, HCN, out_ids_, row_ + 1, Rin_, tok_, m_out_, 0, cs_, probs_, m_prob_);
     if (ok) g_mp.stamp(16, cs_);
     g_mp.base = -1;
@@ -1637,6 +1669,10 @@ bool MtpDrafter::capture_step(int j, bool coupled, std::string& err) {
     g_mp.base = j < kMpGraphs ? j : -1;
     bool ok = record_forward(1, row, cs_, err);
     coupled_rec_ = false;
+    if (ok && ents_ != nullptr && !coupled) {   // STRATA_DRAFT_ENTROPY: as in capture_round
+        copy_indexed(m_ent_ + j, ents_, 1, row_ + 1, 1, cs_);
+        copy_indexed(m_top2_ + j, top2s_, 1, row_ + 1, 1, cs_);
+    }
     if (ok) mtp_select(R_, HCN, out_ids_, row_ + 1, Rin_, tok_, m_out_, j, cs_, probs_, m_prob_);
     if (ok) g_mp.stamp(16, cs_);
     g_mp.base = -1;
@@ -1899,6 +1935,9 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
     for (int j = 1; j < max_steps; ++j)
         put(max_t_ + j - 1, coupled_draft_cell(p, a, j));
     for (int j = 0; j < max_steps; ++j) ((volatile int32_t*) h_out_)[j] = -1;
+    if (h_ent_ != nullptr)   // STRATA_DRAFT_ENTROPY: NaN until a plain (non-coupled) step graph writes its row
+        for (int j = 0; j < max_steps; ++j)
+            ((volatile float*) h_ent_)[j] = ((volatile float*) h_top2_)[j] = std::numeric_limits<float>::quiet_NaN();
     h_row_[0] = a;
     h_row_[1] = 0;
     if (h_force_ != nullptr) for (int j = 0; j < 16; ++j) h_force_[j] = -1;   // the forcing kernels: no-ops here
@@ -1927,7 +1966,8 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
     // drafts as the step-by-step chain (the steps it keeps see the same inputs), without a host round trip per step;
     // the steps past the cut are wasted GPU work.  Not with a chain rule (STRATA_SPEC_COST / DISCO decide per step).
     static const bool eager = [] { const char* e = std::getenv("STRATA_MTP_EAGER"); return e && e[0] == '1'; }();
-    if ((min_p <= 0.0f || eager) && !chain_rule_ && max_steps > 0) {
+    // STRATA_SPEC_ENTROPY (window_rule.hpp EntropyStop): the step-by-step chain, the rule asked after every draft
+    if ((min_p <= 0.0f || eager) && !chain_rule_ && !ent_stop_.on() && max_steps > 0) {
         if (cudaGraphLaunch(cp ? round_exec_c_[T] : round_exec_[T], cs_) != cudaSuccess) {
             err = std::string("mtp draft: ") + cudaGetErrorString(cudaGetLastError());
             return false;
@@ -2011,7 +2051,9 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
         float pj = ((volatile float*) h_prob_)[0];
         if (probs) probs[0] = pj;
         n = 1;
-        for (int j = 1; j < max_steps && (chain_rule_ ? chain_rule_(j - 1, pj) : pj >= min_p); ++j) {
+        // STRATA_SPEC_ENTROPY: draft j - 1's entropy is in the mapped row (copied before its token was published, same stream)
+        auto ent_keep = [&](int jj) { return !ent_stop_.on() || ent_stop_.keep((double) ((volatile float*) h_ent_)[jj]); };
+        for (int j = 1; j < max_steps && (chain_rule_ ? chain_rule_(j - 1, pj) : pj >= min_p) && ent_keep(j - 1); ++j) {
             if (dt) cudaEventRecord(g_dt.eb[j], cs_);
             tl = Clock::now();
             if (cudaGraphLaunch(cp ? step_exec_c_[j] : step_exec_[j], cs_) != cudaSuccess) {
@@ -2057,6 +2099,12 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
         }
     }
     for (int j = n; j < max_t_ - 1; ++j) { drafts[j] = 0; if (probs) probs[j] = 0.0f; }
+    if (h_ent_ != nullptr)   // STRATA_DRAFT_ENTROPY: this round's entropies (the stream is synced); NaN past its drafts
+        for (int j = 0; j < 16; ++j) {
+            const bool have = j < n && j < max_t_;
+            round_ent_[j] = have ? ((volatile float*) h_ent_)[j] : std::numeric_limits<float>::quiet_NaN();
+            round_top2_[j] = have ? ((volatile float*) h_top2_)[j] : std::numeric_limits<float>::quiet_NaN();
+        }
     if (n_drafts) *n_drafts = n;
     if (result) *result = {n, max_steps};
     ms_draft += ms_since(t0);

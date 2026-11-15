@@ -10,6 +10,7 @@
 #include "strata/spec/window_rule.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -117,6 +118,66 @@ int main() {
         float mid[8] = {0.6f, 0.6f, 0.6f, 0.6f, 0.6f, 0.6f, 0.6f, 0.6f};
         g3.ms_per_tok = 4.0; g4.ms_per_tok = 14.0;
         check(g3.choose(mid, 6) <= g4.choose(mid, 6), "gate: a dearer token (14 ms) never gets a narrower window than a cheap one (4 ms)");
+    }
+    {   // 5. LEADS.md section 3 entropy stop rules (STRATA_SPEC_ENTROPY): parsing, each rule's cut, the online updates
+        EntropyStop e;
+        check(e.parse(nullptr) && !e.on(), "entropy: unset is off");
+        check(e.parse("") && !e.on(), "entropy: empty is off");
+        check(!e.parse("bogus") && !e.on(), "entropy: an unknown rule is refused and off");
+        check(!e.parse("svip,h") && !e.on(), "entropy: a key without a value is refused");
+        check(!e.parse("svip,zz=1") && !e.on(), "entropy: an unknown key is refused");
+        check(e.parse("svip") && e.rule == EntropyStop::SVIP && e.h == 0.3, "entropy: svip, paper default h 0.3");
+        check(e.keep(0.08) && !e.keep(0.1), "svip: sqrt(H) 0.28 keeps, sqrt(0.1) 0.316 > 0.3 stops");
+        check(e.keep(std::nan("")), "svip: a NaN entropy (no softmax) never stops");
+        check(e.parse("svip,h=0.5") && e.h == 0.5 && e.keep(0.24), "svip,h=0.5: sqrt(0.24) < 0.5 keeps");
+        check(e.parse("adaedl") && e.rule == EntropyStop::AdaEDL && e.gamma == 0.2 && e.lambda == 0.4,
+              "entropy: adaedl, gamma 0.2, lambda 0.4");
+        // 1 - sqrt(0.2 H) >= 0.4  <=>  H <= 1.8
+        check(e.keep(1.79) && !e.keep(1.81), "adaedl: the cut is at H = (1 - lambda)^2 / gamma = 1.8");
+        const double l0 = e.lambda;
+        e.observe(4, 1, nullptr);   // AR 0.25 < alpha 0.9: lambda goes up
+        check(e.lambda > l0 && std::abs(e.lambda - (0.9 * l0 + 0.1 * (l0 + 0.01))) < 1e-12, "adaedl: low acceptance raises lambda (b2 0.9)");
+        EntropyStop f;
+        f.parse("adaedl,alpha=0.1");
+        f.observe(4, 3, nullptr);   // AR 0.75 >= 0.1, a != n: lambda goes down
+        check(f.lambda < 0.4, "adaedl: high acceptance with a rejection lowers lambda");
+        const double l1 = f.lambda;
+        f.observe(4, 4, nullptr);   // every draft held: lambda' = lambda (no move)
+        check(std::abs(f.lambda - l1) < 1e-12, "adaedl: a full acceptance leaves lambda");
+        EntropyStop d;
+        check(d.parse("adasd") && d.rule == EntropyStop::AdaSD, "entropy: adasd");
+        check(d.keep(100.0), "adasd: no stop before the first rejection");
+        const float ent[4] = {0.1f, 0.5f, 0.9f, 2.0f};
+        d.observe(4, 1, ent);   // draft 1 (H 0.5) was the first rejected
+        d.observe(4, 2, ent);   // draft 2 (H 0.9)
+        check(d.rej_n == 2 && std::abs(d.rej_sum - 1.4) < 1e-6, "adasd: the first rejected draft's entropy of each round is kept");
+        check(d.keep(0.69) && !d.keep(0.71), "adasd: the cut is the mean rejected entropy 0.7");
+        d.observe(4, 4, ent);
+        check(d.rej_n == 2, "adasd: a fully accepted round adds nothing");
+    }
+    {   // 6. Medusa typical acceptance (STRATA_TYPICAL_THINK) and the host references the GPU parity test uses
+        TypicalAccept t;
+        check(parse_typical(nullptr, t) && !t.on(), "typical: unset is off");
+        check(parse_typical("0.09", t) && t.on() && t.eps == 0.09f && t.alpha == 0.3f, "typical: eps 0.09, alpha 0.3 (Medusa's)");
+        check(parse_typical("0.09,0.5", t) && t.alpha == 0.5f, "typical: eps,alpha");
+        check(!parse_typical("1.5", t) && !t.on(), "typical: eps >= 1 refused");
+        check(!parse_typical("0.1,x", t) && !t.on(), "typical: a bad alpha refused");
+        check(std::abs(TypicalAccept::threshold(0.09f, 0.3f, 0.0f) - 0.09f) < 1e-7f, "typical: H 0 -> eps bounds the threshold");
+        check(std::abs(TypicalAccept::threshold(0.09f, 0.3f, 3.0f) - 0.3f * std::exp(-3.0f)) < 1e-7f, "typical: high H -> alpha e^-H");
+        const float flat[4] = {0.0f, 0.0f, 0.0f, 0.0f};   // p 0.25 each, H ln 4: threshold min(0.09, 0.3/4) = 0.075
+        double p = 0, h = 0;
+        check(typical_row_ref(flat, 4, 2, 1.0f, 0.09f, 0.3f, &p, &h) && std::abs(p - 0.25) < 1e-12 && std::abs(h - std::log(4.0)) < 1e-12,
+              "typical: a flat row keeps any candidate (p 0.25 > 0.075)");
+        const float peaked[3] = {10.0f, 0.0f, 0.0f};
+        check(!typical_row_ref(peaked, 3, 1, 1.0f, 0.09f, 0.3f) && typical_row_ref(peaked, 3, 0, 1.0f, 0.09f, 0.3f),
+              "typical: a peaked row keeps only its top token");
+        check(!typical_row_ref(peaked, 3, -1, 1.0f, 0.09f, 0.3f) && !typical_row_ref(peaked, 3, 3, 1.0f, 0.09f, 0.3f),
+              "typical: no candidate / out of range: not kept");
+        double t2 = 0;
+        const double he = row_entropy_ref(flat, 4, 0, &t2);
+        check(std::abs(he - std::log(4.0)) < 1e-12 && std::abs(t2 - 0.25) < 1e-12, "row_entropy_ref: flat row, ln 4 and runner-up 0.25");
+        const float ninf[3] = {1.0f, -INFINITY, -INFINITY};
+        check(row_entropy_ref(ninf, 3, 0, &t2) == 0.0 && t2 == 0.0, "row_entropy_ref: -inf entries add nothing (no NaN)");
     }
     std::printf("%s\n", g_fail == 0 ? "window_rule_test: ok" : "window_rule_test: FAILED");
     return g_fail == 0 ? 0 : 1;

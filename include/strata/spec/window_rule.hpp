@@ -8,8 +8,12 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <algorithm>
+#include <string>
 
 namespace strata::spec {
 
@@ -114,6 +118,180 @@ struct AdaptiveGate {
         ms_per_tok = ms_per_tok > 0.0 ? 0.9 * ms_per_tok + 0.1 * m : m;
     }
 };
+
+/// LEADS.md section 3: entropy stop rules for the MTP draft chain (STRATA_SPEC_ENTROPY=<rule>[,key=value...], opt-in; they need
+/// the drafter's entropies, so they turn STRATA_DRAFT_ENTROPY on).  The rule is asked after draft j is computed whether to draft
+/// j + 1, like --spec-min-p (draft j itself stays in the window).  Only how many drafts are verified changes: greedy output is
+/// the same.  A NaN entropy (no full softmax: a coupled draft) never stops the chain.
+///   adaedl  AdaEDL (Agrawal et al., arXiv 2410.18351, section 3 and Algorithm 1): stop when 1 - sqrt(gamma * H) < lambda.
+///           After each MTP round of n drafts with a accepted: AR = b1 AR + (1 - b1) a/n; lambda' = lambda + eps if AR < alpha,
+///           lambda - eps if a != n, else lambda; lambda = b2 lambda + (1 - b2) lambda'.  Paper: gamma 0.2, b1 0.5, b2 0.9,
+///           eps 0.01, alpha 0.9; the initial lambda is not given (here 0.4, key lambda=).  This is LEADS.md A22.
+///   svip    SVIP (Zhang et al., "Draft Model Knows When to Stop", arXiv 2411.18462, eq. 7): stop when sqrt(H) > h (h 0.3, key h=).
+///   adasd   AdaSD's generation threshold (Lu, Hong, Liu, arXiv 2512.11280, section 4.3): stop when H > T_G, T_G = the mean
+///           entropy of every rejected draft so far (the first draft of a round that did not hold); no stop before the first
+///           rejection.  Only the length rule (LEADS.md "AdaSD adaptive length rule (as DISCO check)"); its JS-distance
+///           relaxed acceptance is not built here.
+struct EntropyStop {
+    enum Rule { Off = 0, AdaEDL, SVIP, AdaSD };
+    Rule rule = Off;
+    double gamma = 0.2, lambda = 0.4, b1 = 0.5, b2 = 0.9, eps = 0.01, alpha = 0.9;   // AdaEDL
+    double ar = -1.0;                                                                 // AdaEDL running acceptance (-1: none yet)
+    double h = 0.3;                                                                   // SVIP
+    double rej_sum = 0.0;                                                             // AdaSD
+    int64_t rej_n = 0;
+    bool on() const { return rule != Off; }
+
+    /// Parse "adaedl[,gamma=..,lambda=..,eps=..,alpha=..]", "svip[,h=..]", "adasd".  Empty / null: Off.  false + Off on error.
+    bool parse(const char* v) {
+        *this = EntropyStop();
+        if (v == nullptr || v[0] == '\0') return true;
+        const char* p = v;
+        auto word = [&](const char* w) {
+            const size_t n = std::strlen(w);
+            return std::strncmp(p, w, n) == 0 && (p[n] == '\0' || p[n] == ',') ? (p += n, true) : false;
+        };
+        if (word("adaedl")) rule = AdaEDL;
+        else if (word("svip")) rule = SVIP;
+        else if (word("adasd")) rule = AdaSD;
+        else return false;
+        while (*p == ',') {
+            ++p;
+            const char* eq = std::strchr(p, '=');
+            if (eq == nullptr) { *this = EntropyStop(); return false; }
+            const std::string key(p, (size_t) (eq - p));
+            char* end = nullptr;
+            const double x = std::strtod(eq + 1, &end);
+            if (end == eq + 1 || !(x == x)) { *this = EntropyStop(); return false; }
+            if (key == "gamma") gamma = x;
+            else if (key == "lambda") lambda = x;
+            else if (key == "eps") eps = x;
+            else if (key == "alpha") alpha = x;
+            else if (key == "h") h = x;
+            else { *this = EntropyStop(); return false; }
+            p = end;
+        }
+        if (*p != '\0') { *this = EntropyStop(); return false; }
+        return true;
+    }
+    /// After draft j with entropy H (nats): draft j + 1?
+    bool keep(double H) const {
+        if (!(H == H)) return true;
+        switch (rule) {
+            case AdaEDL: return 1.0 - std::sqrt(gamma * std::max(0.0, H)) >= lambda;
+            case SVIP: return std::sqrt(std::max(0.0, H)) <= h;
+            case AdaSD: return rej_n == 0 || H <= rej_sum / (double) rej_n;
+            default: return true;
+        }
+    }
+    /// After a verified plain MTP round: `n` drafts offered, `a` held; `ent[j]` the entropy of draft j (may be null).
+    void observe(int n, int a, const float* ent) {
+        if (n <= 0) return;
+        a = std::clamp(a, 0, n);
+        if (rule == AdaEDL) {
+            const double ari = (double) a / (double) n;
+            ar = ar < 0.0 ? ari : b1 * ar + (1.0 - b1) * ari;
+            double l2 = lambda;
+            if (ar < alpha) l2 = lambda + eps;
+            else if (a != n) l2 = lambda - eps;
+            lambda = b2 * lambda + (1.0 - b2) * l2;
+        } else if (rule == AdaSD && a < n && ent != nullptr && ent[a] == ent[a]) {
+            rej_sum += (double) ent[a];
+            ++rej_n;
+        }
+    }
+};
+
+/// STRATA_SPEC_ENTROPY, parsed once ("strata: STRATA_SPEC_ENTROPY=...: not understood, off" on a bad value).
+inline const EntropyStop& entropy_stop_env() {
+    static const EntropyStop v = [] {
+        EntropyStop e;
+        const char* s = std::getenv("STRATA_SPEC_ENTROPY");
+        if (!e.parse(s)) std::fprintf(stderr, "strata: STRATA_SPEC_ENTROPY=%s: not understood (adaedl|svip|adasd[,k=v]), off\n", s);
+        return e;
+    }();
+    return v;
+}
+
+/// STRATA_DRAFT_ENTROPY=1 (or any STRATA_SPEC_ENTROPY rule): the MTP draft head also computes each row's entropy and runner-up
+/// probability (kernels row_entropy) for the stop rules and the window trace's record 7.  Unset: no launch, no buffer.
+inline bool draft_entropy_on() {
+    static const bool v = [] {
+        const char* e = std::getenv("STRATA_DRAFT_ENTROPY");
+        return (e != nullptr && e[0] == '1') || entropy_stop_env().on();
+    }();
+    return v;
+}
+
+/// LEADS.md section 3, Medusa typical acceptance on the thinking only (STRATA_TYPICAL_THINK=<eps>[,<alpha>], opt-in, LOSSY: the
+/// reply is no longer a sample of the target).  Cai et al., "Medusa", arXiv 2401.10774, section 2.3.1 (reference code:
+/// posterior_threshold 0.09, posterior_alpha 0.3): in a sampled request, inside a <think> span, the draft at row t + 1 is kept
+/// when the target's p_t(draft) > min(eps, alpha * exp(-H(p_t))) at the request's temperature, even where the sampled token
+/// differs; the window's acceptance goes on from there and the row after the last kept draft keeps its own sample.  Greedy
+/// requests and the answer outside the thinking are untouched.  eps <= 0 or unset: off.
+struct TypicalAccept {
+    float eps = 0.0f, alpha = 0.3f;
+    bool on() const { return eps > 0.0f; }
+    static float threshold(float eps, float alpha, float H) { return std::min(eps, alpha * std::exp(-H)); }
+};
+inline bool parse_typical(const char* v, TypicalAccept& t) {
+    t = TypicalAccept();
+    if (v == nullptr || v[0] == '\0') return true;
+    char* end = nullptr;
+    const double e = std::strtod(v, &end);
+    if (end == v || !(e > 0.0) || e >= 1.0) { t = TypicalAccept(); return false; }
+    t.eps = (float) e;
+    if (*end == ',') {
+        const char* a0 = end + 1;
+        const double a = std::strtod(a0, &end);
+        if (end == a0 || !(a > 0.0)) { t = TypicalAccept(); return false; }
+        t.alpha = (float) a;
+    }
+    if (*end != '\0') { t = TypicalAccept(); return false; }
+    return true;
+}
+inline const TypicalAccept& typical_env() {
+    static const TypicalAccept v = [] {
+        TypicalAccept t;
+        const char* s = std::getenv("STRATA_TYPICAL_THINK");
+        if (!parse_typical(s, t)) std::fprintf(stderr, "strata: STRATA_TYPICAL_THINK=%s: not understood (<eps>[,<alpha>]), off\n", s);
+        return t;
+    }();
+    return v;
+}
+/// Host reference of the kernel typical_accept_rows for one row (double sums): whether `cand` passes; p / H out.
+inline bool typical_row_ref(const float* l, int n, int cand, float temp, float eps, float alpha, double* p_out = nullptr,
+                            double* h_out = nullptr) {
+    const double it = temp > 0.0f ? 1.0 / (double) temp : 1.0;
+    double m = -INFINITY;
+    for (int i = 0; i < n; ++i) if (l[i] == l[i]) m = std::max(m, (double) l[i] * it);
+    double s = 0.0, u = 0.0;
+    for (int i = 0; i < n; ++i) {
+        const double d = (double) l[i] * it - m;
+        const double e = std::exp(d);
+        s += e;
+        if (e > 0.0 || e != e) u += e * d;
+    }
+    const double H = std::log(s) - u / s;
+    const double p = cand >= 0 && cand < n ? std::exp((double) l[cand] * it - m) / s : 0.0;
+    if (p_out) *p_out = p;
+    if (h_out) *h_out = H;
+    return cand >= 0 && cand < n && p > (double) TypicalAccept::threshold(eps, alpha, (float) H);
+}
+/// Host reference of the kernel row_entropy for one row (double sums; `top` = the row's argmax).
+inline double row_entropy_ref(const float* l, int n, int top, double* top2 = nullptr) {
+    const double m = l[top];
+    double s = 0.0, u = 0.0, m2 = -INFINITY;
+    for (int i = 0; i < n; ++i) {
+        const double d = (double) l[i] - m;
+        const double e = std::exp(d);
+        s += e;
+        if (e > 0.0 || e != e) u += e * d;
+        if (i != top && (double) l[i] > m2) m2 = l[i];
+    }
+    if (top2) *top2 = std::exp(m2 - m) / s;
+    return std::log(s) - u / s;
+}
 
 inline bool df2_gate_on() {
     static const bool v = [] { const char* e = std::getenv("STRATA_DF2_GATE"); return e != nullptr && e[0] == '1'; }();

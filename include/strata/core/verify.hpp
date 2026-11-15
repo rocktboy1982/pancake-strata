@@ -134,6 +134,11 @@ public:
     bool prepare(int T, bool& no_vram, std::string& err);
     /// Diagnostics: row `t` of the last window's head logits (n_vocab floats) to the host. Valid after run().
     bool copy_logits(int t, float* host) const;
+    /// LEADS.md section 3 STRATA_TYPICAL_THINK (Medusa typical acceptance, spec/window_rule.hpp): for rows t = 0..T-2 of the last
+    /// window, ok[t] = 1 when the target's p_t(tokens[t + 1]) > min(eps, alpha * exp(-H(p_t))) at `temperature` (kernels
+    /// typical_accept_rows on the head logits; one launch, one sync).  Valid after run(), before the next window.  false: not
+    /// available (Metal, no head here, an allocation or launch failed) - the caller keeps the exact rule.
+    bool typical_rows(int T, const int32_t* tokens, float temperature, float eps, float alpha, int32_t* ok);
     /// A19 (STRATA_HIDDEN_DUMP / STRATA_THINK_PROBE): row `t` of the last window's head input - the final hyper-connection read
     /// with output_hc_norm, the n_embd floats the LM head reads (head_mixed_) - to the host.  Valid after run(), before the
     /// next window; on the stage with the head (a layer split asks the last stage).  false: no such row (Metal: not wired).
@@ -631,6 +636,7 @@ private:
     int spec_nq_ = 0;
     bool spec_measure_ = false;   ///< explicit per-call measure borrow
     int32_t* d_spec_ = nullptr;          ///< device: kVerifyMaxT draft ids, then kVerifyMaxT q rows
+    int32_t* d_typ_ = nullptr;           ///< STRATA_TYPICAL_THINK: device kVerifyLongT candidates, then kVerifyLongT flags (made on first use)
     int hist_len_ = 0;
     bool head_sampling_ = true;          ///< set_head_sampling
 #if defined(STRATA_GPU_METAL)
