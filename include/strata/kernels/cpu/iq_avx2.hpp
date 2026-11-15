@@ -45,6 +45,16 @@ void iq256_gu_rows_v(int variant, int ggml_type, const uint8_t* blob, size_t gu_
 void iq256_rows_v(int variant, int ggml_type, const uint8_t* w, size_t row_bytes, int n, const void* const* act,
                   int nt, float* const* out, int r0, int r1);
 
+/// STRATA_CPU_R4 (opt-in, LEADS.md B123; ik_llama.cpp's row-interleaved "_R4" layouts): rows interleaved four at a time
+/// block by block.  r4_repack_rows: nrows rows of row_bytes (block_bytes blocks) from src to dst in that layout - block i
+/// of row r at dst + (r / 4) * 4 * row_bytes + (i * 4 + r % 4) * block_bytes; nrows must be a multiple of 4.
+void r4_repack_rows(const uint8_t* src, size_t row_bytes, size_t block_bytes, int nrows, uint8_t* dst) noexcept;
+/// The gate/up types that have an R4 kernel (IQ2_XS, 17).
+bool iq256_r4_supported(int ggml_type) noexcept;
+/// iq256_gu_rows on an R4 copy of the blob (gate rows repacked at blob4, up rows at blob4 + up_off): the same bits.
+void iq256_gu_rows_r4(int ggml_type, const uint8_t* blob4, size_t gu_row, size_t up_off, int n, const void* const* act,
+                      int nt, float* const* ff, int r0, int r1);
+
 /// ggml's quantize_row_q8_K (x86 runs the scalar reference), byte-identical, in AVX-2: n values -> n/256 block_q8_K.
 void q8k_quant_avx2(const float* x, void* y, int64_t n);
 
