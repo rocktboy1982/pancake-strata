@@ -86,6 +86,11 @@ public:
     /// STRATA_SPEC_COST: a round time far above what is known for that width (the first use of a width captures its graph; a stalled
     /// round) counts as a tenth of a sample, so one capture cannot price a width out of use.  Off: the cost EMA as it always was.
     void set_robust(bool on) { robust_ = on; }
+    /// STRATA_DRAFT_CLIP=<x> (MOD_PLAN.md section 6 item 17, LEADS.md "DraftPolicy cost-outlier clip"): a round time above x times
+    /// the median of the last kClipN raw times of that width (context bucket too) counts as x times that median, so one stall
+    /// cannot flip the window choice for long.  Needs 3 earlier times of the width.  x <= 0 (the default): off, nothing is kept.
+    /// It only changes which drafts are verified: the output is unchanged.
+    void set_clip(double x) { clip_x_ = x > 0.0 ? x : 0.0; }
 
     /// The window sizes a lookup or chained window may use, as a bit mask (bit t = size t; bit 1 is always kept).
     void set_sizes(unsigned mask);
@@ -130,6 +135,12 @@ private:
     double rounds_ = 0;                                    // rounds observed so far
     bool robust_ = false;
     double clamp_sample(int t, double ms) const;
+    // STRATA_DRAFT_CLIP (set_clip): the last kClipN raw round times by context bucket and width; untouched while clip_x_ is 0
+    static constexpr int kClipN = 8;
+    double clip_x_ = 0.0;
+    std::array<std::array<std::array<double, kClipN>, kMaxT + 1>, kCtxBuckets> clip_ring_{};
+    std::array<std::array<int, kMaxT + 1>, kCtxBuckets> clip_cnt_{};
+    double clip_outlier(int t, double ms);
     static constexpr int kPBuckets = 8;
     std::array<double, kPBuckets> pa_ok_{}, pa_n_{};       // MTP drafts reached / accepted by probability bucket (decayed)
     std::array<std::array<double, kMaxT + 1>, kCtxBuckets> last_{};   // the round at which each size was last measured

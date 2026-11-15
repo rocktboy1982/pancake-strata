@@ -79,6 +79,25 @@ double DraftPolicy::clamp_sample(int t, double ms) const {
     return std::min(ms, 2.0 * known);
 }
 
+// STRATA_DRAFT_CLIP (set_clip): clip to clip_x_ times the median of the width's last kClipN raw times (current bucket); the raw
+// time is kept, so a lasting change of the cost moves the median within kClipN rounds
+double DraftPolicy::clip_outlier(int t, double ms) {
+    if (clip_x_ <= 0.0) return ms;
+    std::array<double, kClipN>& ring = clip_ring_[bk_][t];
+    int& cnt = clip_cnt_[bk_][t];
+    const int n = std::min(cnt, kClipN);
+    double out = ms;
+    if (n >= 3) {
+        double v[kClipN];
+        for (int i = 0; i < n; ++i) v[i] = ring[(size_t) i];
+        std::nth_element(v, v + n / 2, v + n);
+        out = std::min(ms, clip_x_ * v[n / 2]);
+    }
+    ring[(size_t) (cnt % kClipN)] = ms;
+    cnt = cnt < 1000000 ? cnt + 1 : kClipN + (cnt + 1) % kClipN;   // (stays >= kClipN, keeps the ring position)
+    return out;
+}
+
 void DraftPolicy::seed_costs(const double* ms, int n, double weight, int bucket) {
     bucket = std::clamp(bucket, 0, kCtxBuckets - 1);
     for (int t = 1; t <= std::min(n, kMaxT); ++t)
@@ -193,7 +212,7 @@ DraftPolicy::Pick DraftPolicy::choose(int t_mtp, int lookup_k, int match, const 
 void DraftPolicy::observe(bool lookup, int t, int accepted, int match, double round_ms) {
     t = std::clamp(t, 1, kMaxT);
     if (round_ms > 0) {
-        round_ms = clamp_sample(t, round_ms);
+        round_ms = clamp_sample(t, clip_outlier(t, round_ms));   // (clip_outlier: STRATA_DRAFT_CLIP, else the time as it is)
         const double alpha = robust_ ? std::max(kCostAlpha, 1.0 / (cost_n_[bk_][t] + 1.0)) : kCostAlpha;   // a running mean for the first samples
         cost_[bk_][t] = cost_n_[bk_][t] > 0 ? (1.0 - alpha) * cost_[bk_][t] + alpha * round_ms : round_ms;
         cost_n_[bk_][t] += 1.0;
@@ -237,7 +256,7 @@ void DraftPolicy::apply_costs(int64_t committed) {
     for (; n < held_.size() && held_[n].end < committed; ++n) {
         const HeldCost& h = held_[n];
         bk_ = h.bucket;   // observe()'s update, in the bucket the round ran in
-        const double ms = clamp_sample(h.t, h.ms);
+        const double ms = clamp_sample(h.t, clip_outlier(h.t, h.ms));   // (in the bucket the round ran in)
         const double alpha = robust_ ? std::max(kCostAlpha, 1.0 / (cost_n_[bk_][h.t] + 1.0)) : kCostAlpha;
         cost_[bk_][h.t] = cost_n_[bk_][h.t] > 0 ? (1.0 - alpha) * cost_[bk_][h.t] + alpha * ms : ms;
         cost_n_[bk_][h.t] += 1.0;
@@ -335,7 +354,7 @@ int DraftPolicy::chain(int t_mtp, double p_mtp, int k_avail, int match) const {
 void DraftPolicy::observe_chain(int t_mtp, int k, int accepted, int match, double round_ms) {
     const int t = std::clamp(t_mtp + k, 1, kMaxT);
     if (round_ms > 0) {
-        round_ms = clamp_sample(t, round_ms);
+        round_ms = clamp_sample(t, clip_outlier(t, round_ms));   // (clip_outlier: STRATA_DRAFT_CLIP, else the time as it is)
         const double alpha = robust_ ? std::max(kCostAlpha, 1.0 / (cost_n_[bk_][t] + 1.0)) : kCostAlpha;   // a running mean for the first samples
         cost_[bk_][t] = cost_n_[bk_][t] > 0 ? (1.0 - alpha) * cost_[bk_][t] + alpha * round_ms : round_ms;
         cost_n_[bk_][t] += 1.0;
