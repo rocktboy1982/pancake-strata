@@ -244,6 +244,20 @@ int run_case(const Case& c, bool bench, cudaStream_t s) {
                 }
             }
             native_mmvq_il_pf(-1);
+            if (T >= 2 && T <= 4) {   // STRATA_MMVQ_IL_PLAIN (android-imdad caa9b00115): the plain q8_1 columns, no copy
+                native_mmvq_il_tune_plain(1);
+                cudaMemset(yil, 0xff, ybytes);
+                native_mmvq_il(c.type, dw[0], xq, nullptr, yil, c.n_in, c.n_out, T, s);
+                ck(cudaStreamSynchronize(s), "il plain");
+                ck(cudaMemcpy(b.data(), yil, ybytes, cudaMemcpyDeviceToHost), "read il plain");
+                native_mmvq_il_tune_plain(-1);
+                long long diff = 0;
+                for (std::size_t i = 0; i < a.size(); ++i) diff += a[i] != b[i];
+                if (diff != 0) {
+                    ++bad;
+                    std::printf("FAIL %-26s T=%d rows=%d plain: %lld bits differ of %zu\n", c.name, T, r, diff, a.size());
+                }
+            }
             if (bench && r != 0) {
                 auto il_call = [&](int i) { native_mmvq_il(c.type, dw[g_hot ? 0 : i % copies], xq, xil, yil, c.n_in, c.n_out, T, s); };
                 if (g_pf.empty()) {

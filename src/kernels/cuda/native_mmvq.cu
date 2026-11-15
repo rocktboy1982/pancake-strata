@@ -33,7 +33,14 @@
 #include "strata/core/dispatch_stats.hpp"
 #include "strata/core/defaults_026.hpp"
 #include "s26_tsum.cuh"
-#if !defined(__HIPCC__)
+// STRATA_IL_PATH: the interleaved (fork F4) path is built - CUDA, or a HIP build compiled with -DSTRATA_HIP_MMVQ_IL
+// (android-imdad caa9b00115: the interleaved path in an RDNA build too; compile-time opt-in, off by default)
+#if !defined(__HIPCC__) || defined(STRATA_HIP_MMVQ_IL)
+#define STRATA_IL_PATH 1
+#else
+#define STRATA_IL_PATH 0
+#endif
+#if STRATA_IL_PATH
 #include "q8_1_il.cuh"
 #endif
 #include "strata/kernels/pdl.hpp"
@@ -723,7 +730,7 @@ __device__ __forceinline__ float q6_q8_dot_impl(int vl, int vh, const int* __res
     }
     return d * sumf;
 }
-#if !defined(__HIPCC__)   // CUDA only: the native_mmvq_il_pf_kernel family below (itself CUDA only) is the only user
+#if STRATA_IL_PATH   // the native_mmvq_il_pf_kernel family below (CUDA, or HIP with STRATA_HIP_MMVQ_IL) is the only user
 // q6_q8_dot_impl with the two scales already in registers (the interleaved kernels' hoisted loads, P1): the same
 // expression in the same order
 __device__ __forceinline__ float q6_q8_dot_sc(int vl, int vh, const int* __restrict__ u, int sc0, int sc1, float d,
@@ -743,10 +750,17 @@ __device__ __forceinline__ float q6_q8_dot_sc(int vl, int vh, const int* __restr
 
 // P1: loads the compiler may not sink into a later branch (it moved the Q6_K scale and d loads of the hoisted group
 // into the dot sections, where each one is a dependent L1 round trip); the same ld.global.nc the __restrict__ loads use
+#if defined(__HIPCC__)   // STRATA_HIP_MMVQ_IL: plain loads of the same bytes (no PTX); the same values
+__device__ __forceinline__ int ldg_nc_u16(const void* p) { return int(*static_cast<const unsigned short*>(p)); }
+__device__ __forceinline__ int ldg_nc_s8(const void* p) { return int(*static_cast<const signed char*>(p)); }
+__device__ __forceinline__ int ldg_nc_u8(const void* p) { return int(*static_cast<const unsigned char*>(p)); }
+__device__ __forceinline__ int ldg_nc_s32(const void* p) { return *static_cast<const int*>(p); }
+#else
 __device__ __forceinline__ int ldg_nc_u16(const void* p) { unsigned v; asm volatile("ld.global.nc.u16 %0, [%1];" : "=r"(v) : "l"(p)); return int(v); }
 __device__ __forceinline__ int ldg_nc_s8(const void* p) { int v; asm volatile("ld.global.nc.s8 %0, [%1];" : "=r"(v) : "l"(p)); return v; }
 __device__ __forceinline__ int ldg_nc_u8(const void* p) { unsigned v; asm volatile("ld.global.nc.u8 %0, [%1];" : "=r"(v) : "l"(p)); return int(v); }
 __device__ __forceinline__ int ldg_nc_s32(const void* p) { int v; asm volatile("ld.global.nc.s32 %0, [%1];" : "=r"(v) : "l"(p)); return v; }
+#endif
 __device__ __forceinline__ int ldg_nc_b2(const void* p, int i32) {   // load_int_b2 pinned: two u16, little-endian
     const auto* x = static_cast<const uint16_t*>(p) + 2 * i32;
     return ldg_nc_u16(x) | (ldg_nc_u16(x + 1) << 16);
@@ -754,9 +768,13 @@ __device__ __forceinline__ int ldg_nc_b2(const void* p, int i32) {   // load_int
 // P1: base + k * stride as one IMAD.WIDE.U32 (an asm so the front end does not share k * stride between pointers and
 // turn each into a 64-bit add pair)
 __device__ __forceinline__ const void* madw(const void* base, int k, int stride) {
+#if defined(__HIPCC__)   // STRATA_HIP_MMVQ_IL: the same address (unsigned 32 x 32 -> 64-bit product plus base)
+    return static_cast<const char*>(base) + (unsigned long long) (unsigned) k * (unsigned) stride;
+#else
     const void* r;
     asm("mad.wide.u32 %0, %1, %2, %3;" : "=l"(r) : "r"(k), "r"(stride), "l"(base));
     return r;
+#endif
 }
 // P2: (float) p for |p| < 2^22 as an add on the FMA pipe instead of the quarter-rate I2F: p + 1.5 * 2^23
 // as float bits is exactly 1.5 * 2^23 + p (unit ulp), and the subtraction is exact (Sterbenz), so the value is the
@@ -782,7 +800,7 @@ __device__ __forceinline__ float q6_q8_dot_fast(int vl, int vh, const int* __res
     }
     return d * sumf;
 }
-#endif  // !__HIPCC__
+#endif  // STRATA_IL_PATH
 
 __device__ __forceinline__ float q6_q8_dot(const Q6KBlock* __restrict__ w,
                                           const Q81Block* __restrict__ x, int iqs) {
@@ -1808,7 +1826,7 @@ void launch_list(const MmvqList& list, int most, int n_in, int n_out, cudaStream
 }
 #endif  // !__HIPCC__
 
-#if !defined(__HIPCC__)   // CUDA only: the HIP paths keep native_mmvq's kernels
+#if STRATA_IL_PATH   // CUDA, or HIP with STRATA_HIP_MMVQ_IL; other HIP builds keep native_mmvq's kernels
 // ============================ ncols = 2..4 from interleaved activations (fork F4, Eddoursul) ============================
 //
 // `native_quantize_q8_1_il` also writes the columns interleaved (native_mmvq.hpp), so one load reads the same int of
@@ -2360,14 +2378,20 @@ __global__ void native_mmvq_il_pf_kernel(const typename I::F::Block* __restrict_
 
 // NOUT < NC (BW-NEXT, STRATA_IL_PAD): the kernel of NC columns computes a column that is not wanted and stores only the first NOUT; each column's value is
 // its own sum, so the stored ones are bitwise those of the NOUT-column kernel.  5 columns of IQ4_XS run as 6 (the 5-column instantiation is 15-40% slower).
-template <typename I, int NC, int R, int NOUT = NC>
+// XM (STRATA_MMVQ_IL_PLAIN, android-imdad caa9b00115), where the columns come from: 0 the interleaved copy (xq, xd);
+// 1 the plain q8_1 columns themselves (xq, Q81Plain), which needs no copy written before the launch.  Both read the
+// same values: bitwise the same output.
+template <typename I, int NC, int R, int NOUT = NC, int XM = 0>
 __launch_bounds__(4 * WARP)
 __global__ void native_mmvq_il_kernel(const typename I::F::Block* __restrict__ w, const int* __restrict__ xq,
                                       const float* __restrict__ xd, float* __restrict__ y, int n_in, int n_out) {
     using F = typename I::F;
     constexpr int SUB = WARP / F::T;   // weight blocks a chunk covers
     const int lane = int(threadIdx.x) & (WARP - 1);
-    const auto x = q8_1_cols<NC, I::PM>(xq, xd, n_in / Q8K);
+    const auto x = [&] {
+        if constexpr (XM == 1) return Q81Plain<NC>{reinterpret_cast<const uint8_t*>(xq), n_in / Q8K};
+        else return q8_1_cols<NC, I::PM>(xq, xd, n_in / Q8K);
+    }();
     const int bpr = n_in / F::DIV;
     const int kqs = F::kqs(lane);
     const int nm = (bpr + SUB - 1) / SUB;
@@ -2453,6 +2477,21 @@ int il_pad() {
     return v;
 }
 
+// STRATA_MMVQ_IL_PLAIN (android-imdad caa9b00115): 2-4 columns read from the plain q8_1 columns x_q8_1 (no interleaved
+// copy) by native_mmvq_il_kernel<..., XM = 1>; today's kernel only (no P1 / P2 variant), bitwise native_mmvq's output
+template <typename I, int R>
+void launch_il_plain(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, cudaStream_t s) {
+    const auto* w = static_cast<const typename I::F::Block*>(weights);
+    const unsigned blocks = unsigned(((n_out + R - 1) / R + 3) / 4);
+    const int* xq = static_cast<const int*>(x_q8_1);
+    switch (ncols) {
+#define STRATA_IL_CASE(N) case N: native_mmvq_il_kernel<I, N, R, N, 1><<<blocks, 4 * WARP, 0, s>>>(w, xq, nullptr, y, n_in, n_out); break;
+        STRATA_IL_CASE(2) STRATA_IL_CASE(3) STRATA_IL_CASE(4)
+#undef STRATA_IL_CASE
+        default: throw std::invalid_argument("native_mmvq_il (plain columns) requires 2 <= ncols <= 4");
+    }
+}
+
 template <typename I, int R>
 void launch_il(const void* weights, const void* x_il, float* y, int n_in, int n_out, int ncols, cudaStream_t s, int pf) {
     const auto* w = static_cast<const typename I::F::Block*>(weights);
@@ -2494,6 +2533,15 @@ void launch_il_rows(int r, const void* weights, const void* x_il, float* y, int 
     case 1: launch_il<I, 1>(weights, x_il, y, n_in, n_out, ncols, s, pf); break;
     case 4: launch_il<I, 4>(weights, x_il, y, n_in, n_out, ncols, s, pf); break;
     default: launch_il<I, 2>(weights, x_il, y, n_in, n_out, ncols, s, pf); break;
+    }
+}
+template <typename I>
+void launch_il_plain_rows(int r, const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols,
+                          cudaStream_t s) {
+    switch (r) {
+    case 1: launch_il_plain<I, 1>(weights, x_q8_1, y, n_in, n_out, ncols, s); break;
+    case 4: launch_il_plain<I, 4>(weights, x_q8_1, y, n_in, n_out, ncols, s); break;
+    default: launch_il_plain<I, 2>(weights, x_q8_1, y, n_in, n_out, ncols, s); break;
     }
 }
 
@@ -2538,7 +2586,7 @@ __global__ void native_quantize_q8_1_il_kernel(const float* __restrict__ x, Q81B
     if (lane == 0) dl[std::size_t(b) * cp + c] = __low2float(ds);
 }
 
-#endif  // !__HIPCC__
+#endif  // STRATA_IL_PATH
 
 void validate_shape(int n_in, int ncols, int block_elems = Q8K) {
     if (n_in <= 0 || n_in % block_elems != 0) {
@@ -3986,7 +4034,7 @@ bool native_mmvq_list(int ggml_type, const MmvqList& list, int most, int n_in, i
 #endif
 }
 
-#if !defined(__HIPCC__)
+#if STRATA_IL_PATH
 std::size_t native_q8_1_il_bytes(int n_in, int ncols) {
     validate_shape(n_in, ncols);
     return std::size_t(n_in / Q8K) * std::size_t(native_q8_1_il_cp(ncols)) * (16 * sizeof(int) + sizeof(float));
@@ -4022,6 +4070,61 @@ void native_q8_1_interleave(const void* x_q8_1, void* x_il, int n_in, int ncols,
         static_cast<const Q81Block*>(x_q8_1), const_cast<int*>(parts.bm), const_cast<int*>(parts.pm),
         const_cast<float*>(parts.d), nb, n_total, cp);
     launch_check();
+}
+
+namespace {
+// STRATA_MMVQ_IL_CHECK=1 (android-imdad caa9b00115; debug): a copy written by a producer against native_q8_1_interleave's
+// of the same columns, word for word (the columns' entries only - neither writes the padding); counters in host-mapped
+// memory: [0] compared, [1] differ
+__global__ void native_q8_1_il_compare_kernel(const int* __restrict__ a, const int* __restrict__ b, int nb, int n_total,
+                                              int cp, unsigned* __restrict__ count) {
+    const int i = int(blockIdx.x) * 256 + int(threadIdx.x);
+    unsigned bad = 0;
+    if (i < n_total) {
+        const int c = i / (nb * 8), r = i - c * nb * 8, blk = r / 8, p = r % 8;
+        const std::size_t words = std::size_t(nb) * 8 * cp;
+        const std::size_t ib = (std::size_t(blk) * 8 + p) * cp + c, ip = words + (std::size_t(p) * nb + blk) * cp + c;
+        bad += a[ib] != b[ib];
+        bad += a[ip] != b[ip];
+        if (p == 0) bad += a[2 * words + std::size_t(blk) * cp + c] != b[2 * words + std::size_t(blk) * cp + c];
+    }
+    if (bad) atomicAdd(count + 1, bad);
+    if (threadIdx.x == 0) atomicAdd(count, unsigned(min(256, n_total - int(blockIdx.x) * 256)));
+}
+unsigned* g_il_chk_h = nullptr;   // host-mapped [compared, differ]
+unsigned* g_il_chk_d = nullptr;
+void* g_il_chk_scratch = nullptr;
+std::size_t g_il_chk_bytes = 0;
+}  // namespace
+
+bool native_q8_1_il_check_init(int max_in) {
+    if (g_il_chk_h != nullptr) return true;
+    g_il_chk_bytes = native_q8_1_il_bytes(max_in, 4);
+    if (cudaHostAlloc(reinterpret_cast<void**>(&g_il_chk_h), 2 * sizeof(unsigned), cudaHostAllocMapped) != cudaSuccess ||
+        cudaHostGetDevicePointer(reinterpret_cast<void**>(&g_il_chk_d), g_il_chk_h, 0) != cudaSuccess ||
+        cudaMalloc(&g_il_chk_scratch, g_il_chk_bytes) != cudaSuccess) {
+        cudaGetLastError();
+        g_il_chk_h = nullptr;
+        return false;
+    }
+    g_il_chk_h[0] = g_il_chk_h[1] = 0;
+    return true;
+}
+
+void native_q8_1_il_check(const void* x_q8_1, const void* x_il, int n_in, int ncols, void* stream) {
+    if (g_il_chk_h == nullptr || native_q8_1_il_bytes(n_in, ncols) > g_il_chk_bytes) return;
+    native_q8_1_interleave(x_q8_1, g_il_chk_scratch, n_in, ncols, stream);
+    const int nb = n_in / Q8K, n_total = nb * 8 * ncols;
+    native_q8_1_il_compare_kernel<<<unsigned((n_total + 255) / 256), 256, 0, static_cast<cudaStream_t>(stream)>>>(
+        static_cast<const int*>(x_il), static_cast<const int*>(g_il_chk_scratch), nb, n_total, native_q8_1_il_cp(ncols),
+        g_il_chk_d);
+    launch_check();
+}
+
+void native_q8_1_il_check_report() {
+    if (g_il_chk_h == nullptr) return;
+    const unsigned n = *reinterpret_cast<volatile unsigned*>(g_il_chk_h), bad = *reinterpret_cast<volatile unsigned*>(g_il_chk_h + 1);
+    std::fprintf(stderr, "strata: STRATA_MMVQ_IL_CHECK: %u entries compared, %u words differ\n", n, bad);
 }
 
 namespace {
@@ -4250,6 +4353,63 @@ const std::vector<IlEnvRow>& il_env_rows() {
     }();
     return v;
 }
+// android-imdad caa9b00115: the n_out classes of the gfx1100 tables below - below 2048, 4096, 8192, 12288, 65536, and
+// the heads (65536 rows and more)
+int il_class6(int n_out) { return n_out < 2048 ? 0 : n_out < 4096 ? 1 : n_out < 8192 ? 2 : n_out < 12288 ? 3 : n_out < 65536 ? 4 : 5; }
+struct IlRows6 { int type; uint8_t r[3][6]; };
+#if defined(__HIPCC__)
+// gfx1100 (HIP reports compute capability 11.0; only a STRATA_HIP_MMVQ_IL build reaches it), the fork's table
+// (android-imdad caa9b00115: rocprofv3 kernel times of a decode on an RX 7900 XTX, each rows count forced in turn; per
+// cell the rows count that takes at least 3% off native_mmvq's time, else 0).  IL reads the interleaved copy, ILP the
+// plain q8_1 columns (STRATA_MMVQ_IL_PLAIN with no copy): the fork measured no ILP cell faster than native_mmvq.
+// Every choice is bitwise the same output; not measured on this fork's RX 7900 XT (MOD_PLAN.md / TEST_LEDGER.md).
+constexpr IlRows6 kIlRows_110[] = {
+    {23, {{0, 0, 0, 0, 1, 1}, {0, 0, 0, 1, 1, 1}, {0, 0, 0, 1, 1, 1}}},   // IQ4_XS
+    {12, {{0, 0, 2, 1, 2, 2}, {0, 0, 2, 1, 1, 1}, {0, 0, 2, 1, 2, 2}}},   // Q4_K
+    {13, {{0, 0, 0, 1, 1, 1}, {0, 0, 0, 1, 1, 1}, {0, 0, 1, 1, 1, 1}}},   // Q5_K
+    {14, {{0, 0, 2, 1, 2, 1}, {0, 0, 2, 1, 2, 2}, {0, 0, 2, 1, 1, 2}}},   // Q6_K
+};
+constexpr IlRows6 kIlpRows_110[] = {
+    {23, {{0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}}},   // IQ4_XS
+    {12, {{0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}}},   // Q4_K
+    {13, {{0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}}},   // Q5_K
+    {14, {{0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}}},   // Q6_K
+};
+#endif
+// STRATA_MMVQ_ILP_ROWS="type:ncols:r0,r1,r2,r3,r4[,r5];..." (android-imdad caa9b00115) overrides single rows of the
+// plain-column table for every card (type 23/12/13/14, ncols 2-4, r* = rows a warp 0/1/2/4 for the six classes of
+// il_class6; r5 is r4 when left out).  Parsed once.
+struct IlEnvRow6 { int type, ncols; uint8_t r[6]; };
+const std::vector<IlEnvRow6>& ilp_env_rows() {
+    static const std::vector<IlEnvRow6> v = [] {
+        std::vector<IlEnvRow6> out;
+        const char* e = std::getenv("STRATA_MMVQ_ILP_ROWS");
+        if (!e) return out;
+        std::string str(e);
+        size_t pos = 0;
+        while (pos < str.size()) {
+            size_t end = str.find(';', pos);
+            if (end == std::string::npos) end = str.size();
+            int t = 0, n = 0, r[6] = {0, 0, 0, 0, 0, -1};
+            const int got = std::sscanf(str.substr(pos, end - pos).c_str(), "%d:%d:%d,%d,%d,%d,%d,%d", &t, &n, &r[0], &r[1],
+                                        &r[2], &r[3], &r[4], &r[5]);
+            if (got >= 7 && n >= 2 && n <= 4) {
+                if (got == 7) r[5] = r[4];
+                IlEnvRow6 x{t, n, {}};
+                bool ok = true;
+                for (int i = 0; i < 6; ++i) { ok = ok && (r[i] == 0 || r[i] == 1 || r[i] == 2 || r[i] == 4); x.r[i] = (uint8_t) r[i]; }
+                if (ok) out.push_back(x);
+                else std::fprintf(stderr, "strata: STRATA_MMVQ_ILP_ROWS: rows must be 0/1/2/4 - entry ignored\n");
+            } else {
+                std::fprintf(stderr, "strata: STRATA_MMVQ_ILP_ROWS: cannot read '%s' (type:ncols:r0,r1,r2,r3,r4[,r5]) - ignored\n",
+                             str.substr(pos, end - pos).c_str());
+            }
+            pos = end + 1;
+        }
+        return out;
+    }();
+    return v;
+}
 }  // namespace
 // The rows a warp for a card of compute capability `cc` (major * 10 + minor); 0: native_mmvq's kernels.  Pure, so a test
 // can check every architecture's table without that card.
@@ -4276,6 +4436,13 @@ int native_mmvq_il_rows_for(int cc, int type, int ncols, int n_out) {
                     if (a.t[i].type == type) return a.t[i].r[cls];
         return 0;
     }
+#if defined(__HIPCC__)
+    if (cc == 110) {   // gfx1100, a STRATA_HIP_MMVQ_IL build (android-imdad caa9b00115): its own six-class table
+        for (const IlRows6& t6 : kIlRows_110)
+            if (t6.type == type) return t6.r[ncols - 2][il_class6(n_out)];
+        return 0;
+    }
+#endif
     if (type == 11 && !il_q3k_on()) return 0;   // STRATA_MMVQ_IL_Q3K=0: Q3_K keeps native_mmvq's kernels
     const IlRows* t = kIlRowsShared;
     size_t n = sizeof(kIlRowsShared) / sizeof(IlRows);
@@ -4284,6 +4451,22 @@ int native_mmvq_il_rows_for(int cc, int type, int ncols, int n_out) {
         if (a.cc == cc && a.t != nullptr && (cc != 1201 || own120) && (cc != 89 || il_89_opt_in())) { t = a.t; n = a.n; }
     for (size_t i = 0; i < n; ++i)
         if (t[i].type == type) return t[i].r[ncols - 2][cls];
+    return 0;
+}
+// STRATA_MMVQ_IL_PLAIN (android-imdad caa9b00115): the same for the plain q8_1 columns (native_mmvq_il with no
+// interleaved copy): STRATA_MMVQ_ILP_ROWS, else only gfx1100 has a table (all 0 there); 0 elsewhere (native_mmvq).
+int native_mmvq_ilp_rows_for(int cc, int type, int ncols, int n_out) {
+    if (ncols < 2 || ncols > 4) return 0;
+    const int cls6 = il_class6(n_out);
+    for (const IlEnvRow6& e : ilp_env_rows())
+        if (e.type == type && e.ncols == ncols) return e.r[cls6];
+#if defined(__HIPCC__)
+    if (cc == 110)
+        for (const IlRows6& t6 : kIlpRows_110)
+            if (t6.type == type) return t6.r[ncols - 2][cls6];
+#else
+    (void) cc;
+#endif
     return 0;
 }
 namespace {
@@ -4321,9 +4504,17 @@ int il_pf_table(int type, int ncols, int n_out) {
     return 0;
 }
 int g_tune_rows = 0;   // native_mmvq_il_tune (tests, benchmarks): rows a warp for every shape (0: the table)
+int ilp_rows(int type, int ncols, int n_out) { return native_mmvq_ilp_rows_for(il_cc(), type, ncols, n_out); }
+int g_tune_plain = -1;   // native_mmvq_il_tune_plain (tests): -1 the call decides (no x_il: the plain columns), 0 / 1 force
 }  // namespace
 void native_mmvq_il_tune(int rows) { g_tune_rows = rows; }
 void native_mmvq_il_pf(int pf) { g_il_pf = pf; }
+void native_mmvq_il_tune_plain(int plain) { g_tune_plain = plain; }
+// STRATA_MMVQ_IL_PLAIN=1 (android-imdad caa9b00115; default off): read once
+bool native_mmvq_il_plain() {
+    static const bool env = [] { const char* v = std::getenv("STRATA_MMVQ_IL_PLAIN"); return v != nullptr && v[0] == '1'; }();
+    return env;
+}
 
 namespace {
 // sm_80 and newer (measured on sm_86 and sm_120), Volta (sm_70) and Pascal (sm_60, sm_61), each with its own table
@@ -4359,9 +4550,39 @@ bool native_mmvq_il_supported(int ggml_type, int ncols, int n_out) {
     return (g_tune_rows ? g_tune_rows : il_rows(ggml_type, ncols, n_out)) != 0 &&
            (ggml_type == 23 || ggml_type == 12 || ggml_type == 13 || ggml_type == 14 || ggml_type == 11);
 }
+bool native_mmvq_ilp_supported(int ggml_type, int ncols, int n_out) {
+    if (ncols < 2 || ncols > 4 || !g_multi_exact || !il_arch_ok()) return false;
+    return (g_tune_rows ? g_tune_rows : ilp_rows(ggml_type, ncols, n_out)) != 0 &&
+           (ggml_type == 23 || ggml_type == 12 || ggml_type == 13 || ggml_type == 14);
+}
 
 void native_mmvq_il(int ggml_type, const void* weights, const void* x_q8_1, const void* x_il, float* y, int n_in,
                     int n_out, int ncols, void* stream) {
+    // STRATA_MMVQ_IL_PLAIN (android-imdad caa9b00115): 2-4 columns with no interleaved copy (x_il null) read the plain
+    // q8_1 columns where the plain-column table has a rows count, else native_mmvq; bitwise the same either way.  With
+    // a copy (every caller before this port) nothing changes.
+    const bool plain = ncols >= 2 && ncols <= 4 && (g_tune_plain >= 0 ? g_tune_plain != 0 : x_il == nullptr);
+    if (plain) {
+        if (!native_mmvq_ilp_supported(ggml_type, ncols, n_out)) {
+            native_mmvq(ggml_type, weights, x_q8_1, y, n_in, n_out, ncols, stream);
+            return;
+        }
+        const int rp = g_tune_rows ? g_tune_rows : ilp_rows(ggml_type, ncols, n_out);
+        validate_shape(n_in, ncols, QK);
+        validate_pointer(weights);
+        validate_pointer(x_q8_1);
+        validate_pointer(y);
+        validate_stream(stream);
+        const auto sp = static_cast<cudaStream_t>(stream);
+        switch (ggml_type) {
+        case 23: launch_il_plain_rows<IlIQ4XS>(rp, weights, x_q8_1, y, n_in, n_out, ncols, sp); break;
+        case 12: launch_il_plain_rows<IlQ4K>(rp, weights, x_q8_1, y, n_in, n_out, ncols, sp); break;
+        case 13: launch_il_plain_rows<IlQ5K>(rp, weights, x_q8_1, y, n_in, n_out, ncols, sp); break;
+        case 14: launch_il_plain_rows<IlQ6K>(rp, weights, x_q8_1, y, n_in, n_out, ncols, sp); break;
+        }
+        launch_check();
+        return;
+    }
     if (!native_mmvq_il_supported(ggml_type, ncols, n_out)) {
         native_mmvq(ggml_type, weights, x_q8_1, y, n_in, n_out, ncols, stream);
         return;
@@ -4401,6 +4622,13 @@ void native_mmvq_il(int ggml_type, const void* weights, const void* x_q8_1, cons
 }
 void native_mmvq_il_tune(int) {}
 void native_mmvq_il_pf(int) {}
-#endif  // !__HIPCC__
+bool native_mmvq_ilp_supported(int, int, int) { return false; }
+int native_mmvq_ilp_rows_for(int, int, int, int) { return 0; }
+bool native_mmvq_il_plain() { return false; }
+void native_mmvq_il_tune_plain(int) {}
+bool native_q8_1_il_check_init(int) { return false; }
+void native_q8_1_il_check(const void*, const void*, int, int, void*) {}
+void native_q8_1_il_check_report() {}
+#endif  // STRATA_IL_PATH
 
 } // namespace strata::kernels

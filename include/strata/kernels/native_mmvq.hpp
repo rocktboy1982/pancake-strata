@@ -212,5 +212,21 @@ void native_mmvq_il_tune(int rows);
 // Tests and benchmarks: the P1 / P2 kernel variant for every native_mmvq_il call (0: today's kernel, 2-6 as
 // STRATA_MMVQ_IL_PF; -1: the environment).
 void native_mmvq_il_pf(int pf);
+// android-imdad caa9b00115, plain columns: native_mmvq_il with x_il null (2-4 columns) reads the plain q8_1 columns
+// (x_q8_1) - no native_q8_1_interleave first, bitwise the same output - where the plain-column table
+// (native_mmvq_ilp_rows_for; STRATA_MMVQ_ILP_ROWS) has a rows count, else native_mmvq.
+bool native_mmvq_ilp_supported(int ggml_type, int ncols, int n_out);
+int native_mmvq_ilp_rows_for(int cc, int ggml_type, int ncols, int n_out);
+// STRATA_MMVQ_IL_PLAIN=1 (default off): the caller interleaves no copy itself - the interleaved copy where the
+// hyper-connection read wrote one (FusedGrArgs::q8_il), else the plain columns.  False in a build without the
+// interleaved path (HIP without -DSTRATA_HIP_MMVQ_IL).
+bool native_mmvq_il_plain();
+// Tests: -1 the call decides (x_il null: the plain columns), 0 / 1 force the interleaved copy / the plain columns.
+void native_mmvq_il_tune_plain(int plain);
+// Debug (STRATA_MMVQ_IL_CHECK=1): check_init (outside any capture) allocates; check compares a producer's interleaved copy
+// with native_q8_1_interleave's of the same q8_1 columns on the stream (capture-safe); report prints the counts.
+bool native_q8_1_il_check_init(int max_in);
+void native_q8_1_il_check(const void* x_q8_1, const void* x_il, int n_in, int ncols, void* stream);
+void native_q8_1_il_check_report();
 
 } // namespace strata::kernels

@@ -330,6 +330,40 @@ void native_moe_combine_multi_hits_added(const float* parts, const float* hits, 
     const auto error = cudaGetLastError();
     if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
 }
+// android-imdad caa9b00115 (STRATA_COMBINE_HITS / STRATA_WAIT_COMBINE in its verifier): the fork's entry points onto
+// this tree's kernels, which already compute the same thing expression for expression - combine_k10_vec4_hits is the
+// fork's combine_k10_vec4_add_hits (a row dst[0, *count) reads parts + hit, then the combine), and combine_cpu_k10_vec4
+// <false> with every block waiting (STRATA_WAIT_FUSE's form, no presum) is its wait_combine_k10_vec4_add_hits (a GPU row
+// 0 + hit, a CPU row from the mapped rows).  Bitwise the fork's outputs; nothing calls these unless a caller opts in.
+bool native_moe_combine_multi_add_hits(const float* parts, const float* hit, const int32_t* dst, const int32_t* count,
+                                       const float* weights, const float* shared, float* output, int64_t n_embd,
+                                       int64_t k, int n_tok, void* stream) {
+    if (!stream || !dst || !count || n_tok > 8 || !native_moe_combine_hits_supported(parts, shared, output, n_embd, k, n_tok) ||
+        ((uintptr_t) hit & 15u) != 0)
+        return false;
+    native_moe_combine_multi_hits_added(parts, hit, dst, count, weights, shared, output, n_embd, k, n_tok, stream);
+    return true;
+}
+bool native_moe_wait_combine_ok(const float* cpu_rows, const float* hit, const float* shared, const float* output,
+                                int64_t n_embd, int64_t k, int n_tok) {
+    return k == 10 && shared != nullptr && n_embd > 0 && (n_embd & 3) == 0 && n_tok >= 1 && n_tok <= 8 &&
+           (((uintptr_t) cpu_rows | (uintptr_t) hit | (uintptr_t) shared | (uintptr_t) output) & 15u) == 0;
+}
+void native_moe_wait_combine_multi_add_hits(const uint32_t* flag, uint32_t value, const float* cpu_rows, const float* hit,
+                                            const int32_t* dst, const int32_t* count, const float* weights,
+                                            const float* shared, float* output, int64_t n_embd, int64_t k, int n_tok,
+                                            void* stream) {
+    if (!stream || !flag || !dst || !count || !native_moe_wait_combine_ok(cpu_rows, hit, shared, output, n_embd, k, n_tok))
+        throw std::invalid_argument("native MoE wait+combine requires k 10, 1-8 rows, 16-byte aligned rows and a flag");
+    const int64_t n4 = n_embd >> 2;
+    const dim3 grid(unsigned((n4 + 63) / 64), (unsigned) n_tok);
+    combine_cpu_k10_vec4<false><<<grid, 64, 0, static_cast<cudaStream_t>(stream)>>>(
+        reinterpret_cast<const volatile float4*>(cpu_rows), reinterpret_cast<const float4*>(hit), dst, count, weights,
+        reinterpret_cast<const float4*>(shared), nullptr, reinterpret_cast<float4*>(output), n4,
+        reinterpret_cast<const volatile uint32_t*>(flag), value, -1, nullptr, 0, nullptr);
+    const auto error = cudaGetLastError();
+    if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
+}
 void native_moe_combine_multi(const float* parts, const float* weights, const float* shared, float* output,
                               int64_t n_embd, int64_t k, int n_tok, void* stream) {
     if (!stream || n_embd <= 0 || k < 1 || k > 15 || n_tok < 1)

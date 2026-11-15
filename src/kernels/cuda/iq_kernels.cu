@@ -2290,14 +2290,22 @@ __device__ __forceinline__ void row_dot_sub8(const uint8_t* row, const block_q8_
     else row_dot_40_sub8<TD, NC, EXACT_N, STAGE_GRID>(row, x, off, n, t, s, s_grid);
 }
 
+// STRATA_DOWN_SWIGLU (android-imdad caa9b00115): the staging of native_down_multi_kernel<..., FUSE> computes the entries'
+// q8_1 rows from gate / up itself, as swiglu_q8_1_entries_kernel would have written them (both defined after q8_1_store)
+__device__ __forceinline__ void swiglu_q8_1_one(const float* __restrict__ gate, const float* __restrict__ up,
+                                                const long long i, block_q8_1* __restrict__ y, const long long iy);
+__device__ __forceinline__ void stage_hq_swiglu(uint32_t* s_hq_buf, const float* __restrict__ gate,
+                                                const float* __restrict__ up, int e, int n, int n_ff);
 // native_down_kernel with the entries taken GRP_NC at a time
-template<int TD, bool SUB_DOWN = true, bool STAGE_TQ = false>
+// FUSE (STRATA_DOWN_SWIGLU): the staged activations are made from gate / up (stage_hq_swiglu) instead of copied from hq
+template<int TD, bool SUB_DOWN = true, bool STAGE_TQ = false, bool FUSE = false>
 __global__ void __launch_bounds__(256) native_down_multi_kernel(const unsigned long long* __restrict__ grp_ptr,
                                                                 const int32_t* __restrict__ grp_start,
                                                                 const int32_t* __restrict__ n_groups,
                                                                 const int32_t* __restrict__ ent_dst,
                                                                 const block_q8_1* __restrict__ hq, NativeExpertLayout L,
-                                                                float* __restrict__ out) {
+                                                                float* __restrict__ out, const float* __restrict__ gate = nullptr,
+                                                                const float* __restrict__ up = nullptr) {
     const int ng = *n_groups;
     if (blockIdx.y >= ng) return;
     STRATA_SHARED_ALIGN16_U32(s_grid_buf, IqGridWords<TD, STAGE_TQ>::value);   // the trellis codebook on a cc 6.0 card, else 4 unused words
@@ -2369,7 +2377,8 @@ __global__ void __launch_bounds__(256) native_down_multi_kernel(const unsigned l
                     const uint32_t* src = reinterpret_cast<const uint32_t*>(hq + (size_t) e * 20);
                     const int words = n * (20 * 9);
                     if (g > (int) blockIdx.y || e > e0) iq_sync_lds();
-                    for (int i = threadIdx.x; i < words; i += 256) s_hq_buf[i] = src[i];
+                    if constexpr (FUSE) { (void) src; (void) words; stage_hq_swiglu(s_hq_buf, gate, up, e, n, (int) L.n_ff); }
+                    else for (int i = threadIdx.x; i < words; i += 256) s_hq_buf[i] = src[i];
                     iq_sync_lds();
                     if (valid_r) {
                         if (n == 1) {
@@ -2414,7 +2423,8 @@ __global__ void __launch_bounds__(256) native_down_multi_kernel(const unsigned l
                     const uint32_t* src = reinterpret_cast<const uint32_t*>(hq + (size_t) e * 20);
                     const int words = n * (20 * 9);
                     if (g > (int) blockIdx.y || e > e0) iq_sync_lds();
-                    for (int i = threadIdx.x; i < words; i += 256) s_hq_buf[i] = src[i];
+                    if constexpr (FUSE) { (void) src; (void) words; stage_hq_swiglu(s_hq_buf, gate, up, e, n, (int) L.n_ff); }
+                    else for (int i = threadIdx.x; i < words; i += 256) s_hq_buf[i] = src[i];
                     iq_sync_lds();
                     if (valid_r) {
                         if (n == 1) {
@@ -2459,7 +2469,8 @@ __global__ void __launch_bounds__(256) native_down_multi_kernel(const unsigned l
                 const uint32_t* src = reinterpret_cast<const uint32_t*>(hq + (size_t) e * 20);
                 const int words = n * (20 * 9);
                 if (g > (int) blockIdx.y || e > e0) iq_sync_lds();
-                for (int i = threadIdx.x; i < words; i += 256) s_hq_buf[i] = src[i];
+                if constexpr (FUSE) { (void) src; (void) words; stage_hq_swiglu(s_hq_buf, gate, up, e, n, (int) L.n_ff); }
+                else for (int i = threadIdx.x; i < words; i += 256) s_hq_buf[i] = src[i];
                 iq_sync_lds();
                 if (valid_r) {
                     if (n == 1) {
@@ -2999,6 +3010,32 @@ __device__ __forceinline__ void q8_1_store(const float xi, block_q8_1* __restric
     const long long ib = i / 32, iqs = i % 32;
     y[ib].qs[iqs] = q;
     if (iqs == 0) y[ib].ds = q8_1_ds(d, sum);
+}
+
+// STRATA_DOWN_SWIGLU (android-imdad caa9b00115): one value of swiglu_q8_1_entries_kernel (its global index i, the same
+// expression under the same contract(off), the same warp's q8_1_store) written to `y` at iy instead of to hq at i
+__device__ __forceinline__ void swiglu_q8_1_one(const float* __restrict__ gate, const float* __restrict__ up,
+                                                const long long i, block_q8_1* __restrict__ y, const long long iy) {
+#if defined(__HIPCC__)
+#pragma clang fp contract(off)
+#endif
+    const float g = gate[i];
+#if defined(__HIPCC__)
+    const float h = (g / (1.0f + __expf(-g))) * up[i];
+#else
+    const float h = __fmul_rn(g / (1.0f + __expf(-g)), up[i]);
+#endif
+    q8_1_store(h, y, iy);
+}
+// entries [e, e + n): block qb of the staging is block qb of their rows (entry qb / nb, values 32 (qb % nb) ..), i.e.
+// the swiglu kernel's indices e * n_ff + 32 qb + lane, one warp a block as there (n_ff is a multiple of 32)
+__device__ __forceinline__ void stage_hq_swiglu(uint32_t* s_hq_buf, const float* __restrict__ gate,
+                                                const float* __restrict__ up, int e, int n, int n_ff) {
+    block_q8_1* y = reinterpret_cast<block_q8_1*>(s_hq_buf);
+    const int warp = (int) (threadIdx.x >> 5), lane = (int) (threadIdx.x & 31), nw = (int) (blockDim.x >> 5);
+    const int nb = n_ff / 32;
+    for (int qb = warp; qb < n * nb; qb += nw)
+        swiglu_q8_1_one(gate, up, (long long) e * n_ff + 32ll * qb + lane, y, 32ll * qb + lane);
 }
 
 __global__ void quantize_q8_1_kernel(const float* __restrict__ x, block_q8_1* __restrict__ y, long long n) {
@@ -3892,13 +3929,16 @@ __global__ void __launch_bounds__(256) s26_gu_l_kernel(const unsigned long long*
 
 constexpr int S26_HMAX = 640 / 32;    // q8_1 blocks of one SwiGLU row (n_ff 640)
 
-template<bool LX, int RPW, bool SL = false, bool TS = false, int BAL = 0>
+// FUSE (STRATA_DOWN_SWIGLU, android-imdad caa9b00115; LX only): the staged rows are made from gate / up
+// (swiglu_q8_1_one: s26_swiglu_q8_1_kernel's q8_1 bytes) instead of copied from hq
+template<bool LX, int RPW, bool SL = false, bool TS = false, int BAL = 0, bool FUSE = false>
 __global__ void __launch_bounds__(256) s26_down_l_kernel(const unsigned long long* __restrict__ grp_ptr,
                                                          const int32_t* __restrict__ grp_start,
                                                          const int32_t* __restrict__ n_groups,
                                                          const int32_t* __restrict__ ent_dst,
                                                          const block_q8_1* __restrict__ hq, NativeExpertLayout L,
-                                                         float* __restrict__ out) {
+                                                         float* __restrict__ out, const float* __restrict__ gate = nullptr,
+                                                         const float* __restrict__ up = nullptr) {
     __shared__ block_q8_1 s_h[LX ? GRP_NC * S26_HMAX : 1];
     const int g = blockIdx.y;
     if (g >= *n_groups) return;
@@ -3917,6 +3957,13 @@ __global__ void __launch_bounds__(256) s26_down_l_kernel(const unsigned long lon
         int off[GRP_NC];
         if constexpr (LX) {
             __syncthreads();
+            if constexpr (FUSE) {   // STRATA_DOWN_SWIGLU: s26_swiglu_q8_1_kernel's blocks of these entries, made here
+                for (int qb = warp; qb < n * hb; qb += 8) {
+                    const int c = qb / hb, j = qb - c * hb;
+                    swiglu_q8_1_one(gate, up, (long long) (e + c) * L.n_ff + 32ll * j + lane, s_h,
+                                    32ll * (c * S26_HMAX + j) + lane);
+                }
+            } else
             for (int i = threadIdx.x; i < n * hb; i += 256) {
                 const int c = i / hb, j = i - c * hb;
                 memcpy(&s_h[c * S26_HMAX + j], &hq[(size_t) (e + c) * hb + j], sizeof(s_h[0]));
@@ -4030,13 +4077,23 @@ void s26_launch_l(const NativeExpertLayout& L, int64_t cap_groups, cudaStream_t 
                   const block_q8_1* X, float* gate, float* up, float* h, block_q8_1* hq, float* out, long long nh) {
     const dim3 ggu((unsigned) (2 * L.n_ff / (GU_ROWS * RG)), (unsigned) cap_groups);
     s26_gu_l_kernel<LT, LX, RG, SL, TS><<<ggu, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up);
+    const dim3 gd((unsigned) (L.n_embd / (8 * RD)), (unsigned) cap_groups);
+    // STRATA_DOWN_SWIGLU=1 (android-imdad caa9b00115; default off): the staging down kernel makes its entries' q8_1 rows
+    // (s26_swiglu_q8_1_kernel's bytes; that kernel also stored the FP32 product in h, which nothing on this path reads)
+    static const bool dsw = [] { const char* v = std::getenv("STRATA_DOWN_SWIGLU"); return v != nullptr && v[0] == '1'; }();
+    if constexpr (LX && FQ) {
+        if (dsw && L.n_ff == 640) {
+            s26_down_l_kernel<LX, RD, SL, TS, BD, true><<<gd, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_dst, hq, L, out,
+                                                                            gate, up);
+            return;
+        }
+    }
     if (FQ) {
         s26_swiglu_q8_1_kernel<<<(unsigned) ((nh + 255) / 256), 256, 0, s>>>(gate, up, h, hq, nh);
     } else {
         swiglu_entries_kernel<<<(unsigned) ((nh + 255) / 256), 256, 0, s>>>(gate, up, h, nh);
         quantize_q8_1_kernel<<<(unsigned) ((nh + 255) / 256), 256, 0, s>>>(h, hq, nh);
     }
-    const dim3 gd((unsigned) (L.n_embd / (8 * RD)), (unsigned) cap_groups);
     s26_down_l_kernel<LX, RD, SL, TS, BD><<<gd, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_dst, hq, L, out);
 }
 // ---------------------------------------------------------------- stream B: UD-Q4_K_XL grouped decode experts
@@ -4613,7 +4670,14 @@ bool launch_gu_swiglu(const NativeExpertLayout& L, int64_t gy, cudaStream_t s, c
 template<int TD>
 void launch_down(dim3 grid, cudaStream_t s, const unsigned long long* grp_ptr, const int32_t* grp_start,
                  const int32_t* n_groups, const int32_t* ent_dst, const block_q8_1* hq, const NativeExpertLayout& L,
-                 float* out) {
+                 float* out, const float* gate = nullptr, const float* up = nullptr) {
+    if constexpr (TD == 20 || TD == 42) {
+        if (gate != nullptr) {   // STRATA_DOWN_SWIGLU (down_swiglu_takes): the caller left the SwiGLU to the staging
+            native_down_multi_kernel<TD, true, false, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_dst, hq, L,
+                                                                                out, gate, up);
+            return;
+        }
+    }
     if constexpr (!kSplit<TD>) native_down_kernel<TD><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_dst, hq, L, out);
     else if (g_old_kernels || split_off<TD>()) native_down_kernel<TD><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_dst, hq, L, out);
     else if constexpr (kTqType<TD>) {   // the trellis down types: the codebook staged where tq_stage_on() or tq_sub8_on()
@@ -6691,6 +6755,30 @@ void native_expert_set_mode(int mode, int phase) {
 
 namespace {
 bool g_grouped_v1 = env_on("STRATA_GROUPED_V1");
+// STRATA_DOWN_SWIGLU=1 (android-imdad caa9b00115; default off): the down launch stages its entries' q8_1 rows from gate /
+// up itself (native_down_multi_kernel<..., FUSE>, stage_hq_swiglu) and swiglu_q8_1_entries_kernel is not launched: one
+// launch less a call, the same rows (bitwise).  Only where the down rows then go to launch_down's 8- / 16-lane staging
+// kernel: n_ff 640 (20 q8_1 blocks an entry), the IQ4_NL / Q2_0 down types, the fused one-pass SwiGLU (the caller
+// checks that), and none of the other down forms (STRATA_DOWN_WS, the AMD / LDS layouts, mode 10, STRATA_EXPDEC's down).
+bool down_swiglu_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_DOWN_SWIGLU"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+bool down_swiglu_takes(const NativeExpertLayout& L, int em0d) {
+    if (g_old_kernels || g_no_sub16_gu || L.n_ff != 640 || (L.d_type != 20 && L.d_type != 42)) return false;
+#if STRATA_DOWN_WS_BUILT
+    if (down_ws_on(L)) return false;
+#endif
+#if STRATA_EXP_LAYOUTS
+    if (em0d == 7 || em0d == 8 || em0d == 10) return false;
+    const int em = em0d >= 5 ? kExpFallback : em0d;
+    if (em == 1 || em == 2 || em == 4) return false;
+#else
+    (void) em0d;
+#endif
+    if (expdec_mode() && expdec_down_ok(L)) return false;
+    return true;
+}
 }  // namespace
 
 void native_grouped_set_v1(bool v1) { g_grouped_v1 = v1; }
@@ -6876,6 +6964,7 @@ void native_expert_grouped(const NativeExpertLayout& L, const unsigned long long
 #endif
         strata::dispatch::kernel(strata::dispatch::kExpert, gu_form, L.gu_type, (int) L.n_embd, (int) L.n_ff, L.d_type);
     }
+    bool fuse_sw = false;   // STRATA_DOWN_SWIGLU (down_swiglu_takes): the down launch makes the q8_1 rows from gate / up
 #if STRATA_EXP_LAYOUTS
     if (g_exp_phase != 2 && !fused_gu && !gs_done) {
 #else
@@ -6938,13 +7027,27 @@ void native_expert_grouped(const NativeExpertLayout& L, const unsigned long long
 #else
     const bool sw_v1 = v1;
 #endif
+    // STRATA_DOWN_SWIGLU (android-imdad caa9b00115): only over the fused one-pass SwiGLU, the whole call (not the bench's
+    // phases), and a down step that goes to launch_down's staging kernel (down_swiglu_takes, with the down mode below)
+    if (down_swiglu_on() && !sw_v1 && L.had_block <= 0 && g_exp_phase == 0) {
+#if STRATA_EXP_LAYOUTS
+#if defined(STRATA_HIP_GFX906)
+        const int em0d_sw = sm75_down_em(em0, cap_groups);
+#else
+        const int em0d_sw = em_call == 9 ? exp9_mode(true, L.d_type) : sm75_down_em(em0, cap_groups);
+#endif
+#else
+        const int em0d_sw = 0;
+#endif
+        fuse_sw = down_swiglu_takes(L, em0d_sw);
+    }
     // APR: Hadamard-folded down weights take the rotated h, so h exists as floats first (the separate passes)
     if (sw_v1 || L.had_block > 0) {
         swiglu_entries_kernel<<<(unsigned) ((nh + 255) / 256), 256, 0, s>>>(gate, up, h, nh);
         if (L.had_block > 0)   // APR: the down weights are Hadamard-folded, so is their input (in place, every entry row)
             hadamard_rows(h, h, cap_entries, L.n_ff, L.had_block, L.d_signs, s);
         quantize_q8_1_kernel<<<(unsigned) ((nh + 255) / 256), 256, 0, s>>>(h, hq, nh);
-    } else {
+    } else if (!fuse_sw) {   // (STRATA_DOWN_SWIGLU: the down kernel's staging makes these rows)
         swiglu_q8_1_entries_kernel<<<(unsigned) ((nh + 255) / 256), 256, 0, s>>>(gate, up, grp_start, n_groups,
                                                                                 (int) L.n_ff, hq);
     }
@@ -7005,7 +7108,8 @@ void native_expert_grouped(const NativeExpertLayout& L, const unsigned long long
 #endif
     if (!expdec_down(L, gy, cap_groups, s, grp_ptr, grp_start, n_groups, ent_dst, hq, out))   // STRATA_EXPDEC=1
     switch (L.d_type) {
-#define STRATA_DOWN(T) case T: launch_down<T>(gd, s, grp_ptr, grp_start, n_groups, ent_dst, hq, L, out); break;
+#define STRATA_DOWN(T) case T: launch_down<T>(gd, s, grp_ptr, grp_start, n_groups, ent_dst, hq, L, out, \
+                                              fuse_sw ? gate : nullptr, up); break;
         STRATA_D_FMTS(STRATA_DOWN)
 #undef STRATA_DOWN
         default: std::fprintf(stderr, "native_expert_grouped: down type %d\n", L.d_type); std::exit(1);

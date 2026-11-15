@@ -53,6 +53,11 @@ struct FusedGrArgs {
     const float* s_up = nullptr;
     const int8_t* r8_down = nullptr;   ///< STRATA_GR_RDNA_Q8: int8 [hc_lr][hc*n_embd] + fp16 scales (rdna_gr.cu layout)
     const int8_t* r8_up = nullptr;     ///< int8 [hc*n_embd][hc_lr] + fp16 scales
+    /// STRATA_MMVQ_IL_PLAIN (android-imdad caa9b00115): with q8_mixed and q8_cnt, 2-4 tokens: also the interleaved copy
+    /// of the tokens' q8_1 images (native_q8_1_il_bytes(n_embd, n_tok) bytes, token t = column t), so native_mmvq_il
+    /// needs no native_q8_1_interleave launch (token 0's pointer).  Written only when fused_gr_read_multi returns true;
+    /// ignored otherwise (null: nothing more is written).
+    uint8_t* q8_il = nullptr;
 };
 
 bool fused_gr_supported(int64_t n_embd, int64_t hc, int64_t hc_lr);
@@ -74,8 +79,11 @@ constexpr int kFusedGrMaxT = 8;
 /// strictly its own, so the slices are bitwise the one read); `a` and `xn_scratch` hold up to kFusedGrWideT tokens.
 constexpr int kFusedGrWideT = kWindowMaxT;
 /// Returns true when it also wrote the q8_1 images (every token's q8_mixed set and this read supports it).
+/// `gr_sync` (STRATA_GR_FUSE=1, android-imdad caa9b00115): four zeroed device counters only this caller's reads use (one
+/// stream at a time): the Q8_0 read with STRATA_TSUM then runs as one launch (gr_fused_q8_kernel; bitwise the two).
+/// Null (the default): two launches.
 bool fused_gr_read_multi(const FusedGrArgs* a, int n_tok, float* xn_scratch, void* stream,
-                         unsigned long long* stamp_buf = nullptr, int stamp_i0 = 0);
+                         unsigned long long* stamp_buf = nullptr, int stamp_i0 = 0, unsigned* gr_sync = nullptr);
 
 /// The bench only: the AMD latency-hidden kernels on (1) or off (0); -1 = STRATA_GR_FAST.
 bool rdna_gr_enabled();

@@ -23,6 +23,20 @@ bool native_moe_combine_hits_supported(const float* parts, const float* shared, 
 void native_moe_combine_multi_hits_added(const float* parts, const float* hits, const int32_t* dst, const int32_t* count,
                                          const float* weights, const float* shared, float* output, int64_t n_embd, int64_t k,
                                          int n_tok, void* stream);
+/// android-imdad caa9b00115 (its STRATA_COMBINE_HITS): native_moe_combine_multi_hits_added under the fork's name and
+/// contract - k = 10, 1-8 tokens, 16-byte aligned rows only: false (nothing launched) otherwise.  Bitwise the fork's.
+bool native_moe_combine_multi_add_hits(const float* parts, const float* hit, const int32_t* dst, const int32_t* count,
+                                       const float* weights, const float* shared, float* output, int64_t n_embd,
+                                       int64_t k, int n_tok, void* stream);
+/// android-imdad caa9b00115 (its STRATA_WAIT_COMBINE): wait_copy_rows_from_mapped (the CPU's rows after `flag` reaches
+/// `value`) and the add-hits combine in one launch - this tree's native_moe_combine_multi_cpu kernel with every block
+/// waiting (no gate, no presum); the same output bit for bit.  `cpu_rows` is the mapped rows.
+bool native_moe_wait_combine_ok(const float* cpu_rows, const float* hit, const float* shared, const float* output,
+                                int64_t n_embd, int64_t k, int n_tok);
+void native_moe_wait_combine_multi_add_hits(const uint32_t* flag, uint32_t value, const float* cpu_rows, const float* hit,
+                                            const int32_t* dst, const int32_t* count, const float* weights,
+                                            const float* shared, float* output, int64_t n_embd, int64_t k, int n_tok,
+                                            void* stream);
 void native_moe_combine_multi(const float* parts, const float* weights, const float* shared, float* output,
                               int64_t n_embd, int64_t k, int n_tok, void* stream);
 /// STRATA_VERIFY_RESIDENT: the same, reading every part as `0.0f + hit[i]` - bitwise what a zeroed part row plus
