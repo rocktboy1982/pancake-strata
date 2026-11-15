@@ -129,7 +129,7 @@ miss.
 
 | # | decision | data | what is missing |
 |---|---|---|---|
-| D1 | `STRATA_VERIFY_ECAP=1`: ADOPTED into fast-hip on 2026-11-15 (owner) | edit +33.5% +-14.3 (T-270); token forcing PASS (T-310); stack add-ons dropped (T-555, T-561). `ECAP=0` REJECT (+0.95 pts, T-271, T-311); window-gated variant `STRATA_VERIFY_ECAP_MIN_ROWS=9` with ECAP=0 queued (specs 60/61) | still missing: tool-call task gate on real agent prompts (a too-tight cap broke tool calls elsewhere); token forcing scores greedy tokens while the served default samples at temperature 0.1 |
+| D1 | `STRATA_VERIFY_ECAP=1`: ADOPTED into fast-hip on 2026-11-15 (owner) | edit +33.5% +-14.3 (T-270); token forcing PASS (T-310); stack add-ons dropped (T-555, T-561). `ECAP=0` REJECT (+0.95 pts, T-271, T-311); window-gated variants queued: spec 60 has five arms (no ECAP, cap 1 = preset, cap 0, cap 0 from 9-row windows, cap 0 from 6-row windows; `STRATA_VERIFY_ECAP_MIN_ROWS`), spec 61 the quality gate for the gated arms. Partial read at repeat 0 (single runs, edit): ecap1 135.5, ecap0 177.9, min9 122.8, min6 166.2 / 162.2 tok/s; the box expects the 6-row gate to be the interesting one, pending the gate | still missing: tool-call task gate on real agent prompts (a too-tight cap broke tool calls elsewhere; owner order: after the branch consolidation, now done, so it runs after the spec 60-62 chain); token forcing scores greedy tokens while the served default samples at temperature 0.1 |
 | D2 | cache levers: `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` ADOPTED 2026-11-15 (owner); `STRATA_PARK_TRUNCATE` 1280 not adopted | -21.6% +-14.8 prompt time (T-183), -23.1% +-11.8 for park-truncate (T-184); one recorded session | combined replay of both levers queued (spec 62) |
 | D3 | deferral on IQ2_XS | night retest: off vs on -0.9% overall, code -7.2%, prose -3.2% (T-260); Q2_0: off +8.9% (T-261); first A/B edit +15.8% (T-222) | 5-repeat edit-window A/B on the IQ2_XS preset; until then 17.1 (OFF) stands |
 | D4 | A24 `STRATA_SUFFIX_INDEX` | screen: short +26.8% +-34.4 (outlier), edit -0.0% (T-161); offline -2.44% rounds, sub-agents -7.5% (T-424); half the gain is from outputs older than a 30-min pause, so use the persistent `STRATA_SUFFIX_INDEX_FILE` (4 MiB -1.00%, 16 MiB -1.71%) | confirm + quality gate with the file on the daily server |
@@ -138,12 +138,18 @@ miss.
 | D7 | Phase 18 item 9 merged the window-input copies on the DEFAULT path (`copy_from_mapped_multi`, on unless `STRATA_MTP_MULTI_COPY=0`) | pure copies, `verify_parity` covers both modes; spec 30 never ran | run spec 30 (build-vs-build) or flip the default back |
 | D8 | Q2_0 vs IQ2_XS as the daily file | 15 screen +8.6% +-46.3 (T-382); 15c run unusable (T-384) | 15c redo |
 | D9 | A29 entropy-coded miss path | plan said "owner approved building it" and also "stay parked"; bound 8-12% < 20% park bar (T-282) | pick one |
-| D10 | housekeeping | done 2026-11-15: worktrees 107 -> 14 (28 GB freed), local branches 166 -> 9 (tip map `pancake-docs/research/bench/branch-tips-2026-11-15.tsv`), A41 hook registered warn-only (T-562; `RBE_MODE=hold` to block). Open: the remaining dirty worktrees, remote branch deletion, enable `pancake.service` at boot, stale upstream/HEAD ref; GPU clock back to auto after pinned runs; disk-tier cap (D at 76%); `PARK_REWIND_MAX` default; cron `--night-only 23-07 --drop-cache`, `--reclaim-max 3.0`; sudo rules via `visudo`; Avalon 32K+ (shrink its context or drop the comparison: it OOMs at 32K+, T-174); delete `origin/NetworkPancake` (moved out of the repo to `C:\Users\iancu\NetworkPancake`) | owner |
+| D10 | housekeeping | done 2026-11-15: worktrees 107 -> 14 (28 GB freed), local branches 166 -> 9 (tip map `pancake-docs/research/bench/branch-tips-2026-11-15.tsv`), 200 of 202 refs were already contained and the last one (`optimize-kernel-hip`) recorded as merged; remote branches untouched. A41 hook registered warn-only (T-562): user-scope `~/.claude/settings.json` on the box, PreToolUse for `Edit|MultiEdit|Write`, command `RBE_MODE=warn python3 -I /home/dan/bin/read_before_edit_hook.py` (timeout 10 s; repo copy `tools/pancake/a41/`; settings backup `~/.claude/settings.json.bak-a41-2026-11-15`; `RBE_MODE=hold` blocks). Box decisions taken without a test, waiting for owner confirmation: `fuse-wait` slow mode closed (it lost on average, T-077); `pancake.service` NOT enabled at boot (it would hold the GPU during tests). Open: the remaining dirty worktrees, remote branch deletion, the box's `PANCAKE_STATUS.md` (still edited there 2026-11-15 16:15 UTC; delete it on the box after pulling, rule 2), stale upstream/HEAD ref; GPU clock back to auto after pinned runs; disk-tier cap (D at 76%); `PARK_REWIND_MAX` default; cron `--night-only 23-07 --drop-cache`, `--reclaim-max 3.0`; sudo rules via `visudo`; Avalon 32K+ (shrink its context or drop the comparison: it OOMs at 32K+, T-174); delete `origin/NetworkPancake` (moved out of the repo to `C:\Users\iancu\NetworkPancake`) | owner |
 
 ## 5. Run next: coded, never measured (GPU queue, in this order)
 
-1. **Results of the box chain** (running at 19:08 on 2026-11-15: specs 60 ECAP=0 + `STRATA_VERIFY_ECAP_MIN_ROWS=9` speed,
-   61 its quality gate, 62 the two cache levers combined on the replay): add them as ledger rows. Then **spec 30** (D7). Fix the base path in specs 33 and 34 first
+1. **Results of the box chain** `pancake-docs/research/bench/results-2026-11-15/run-scripts-afternoon/auto-chain15.sh` (started
+   18:22 local on 2026-11-15; spec 60 from 19:07, ~19:55 ETA): spec 60 (five ECAP arms, see D1), 61 (quality gate of the gated
+   arms), 62 (the two cache levers combined on the replay): add them as ledger rows. Box rule while the chain runs: no builds
+   and no memory-bandwidth benches. Then, in the box's order: (a) build, parity-check and measure the IQ4_XS matrix-core
+   variant that shares the nibble-LUT decode between lane halves (written, off by default, uncommitted on the box:
+   `rdna_mmvq.cu` + one `conversation_disk_env.def` line); (b) the P4 byte-bound probe for IQ2_XS rows = the existing
+   `iq_avx2_parity --bench` (IQ pairs, `--nt` thread counts, `--mb` working set; already built); (c) the ECAP tool-call task
+   gate (D1). Then **spec 30** (D7). Fix the base path in specs 33 and 34 first
    (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
    then run spec 33 (MTP bundle: `--mtp-q4 all --mtp-window 4096 --host-core sibling`) and spec 34's `pf-switch-min-t`
    arm (its `mmvq-wave1` arm is answered by T-072, `kv-grow` by T-391).
@@ -219,7 +225,7 @@ miss.
 | 14 | QSA long-prompt selection cost (Quest page-level or partial top-k) | after-12K gap 2.18 ms/token | lossy-ish |
 | 15 | uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
 | 16 | SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
-| 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); DraftPolicy cost-outlier clip; IQ4_XS matrix-core kernel sharing the nibble-LUT decode between lane halves (`permlanex16`); the `fuse-wait` slow mode (78-91 tok/s runs at higher GPU clock, spec 44) | unmeasured | exact |
+| 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); DraftPolicy cost-outlier clip | unmeasured | exact |
 
 Not packages any more (their parts are separate items above or in LEADS.md): 63 capability probe (`STRATA_PROBE` never
 built; became A45), 66 agent-turn pipeline, 68 miss-cost speculation, 69 memory arbiter, 72 GPU-floor package; 94
