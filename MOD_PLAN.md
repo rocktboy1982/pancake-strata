@@ -179,11 +179,12 @@ miss.
    (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
    then run spec 33 (MTP bundle: `--mtp-q4 all --mtp-window 4096 --host-core sibling`) and spec 34's `pf-switch-min-t`
    arm (its `mmvq-wave1` arm is answered by T-072, `kv-grow` by T-391).
-2. **TONIGHT'S NIGHT QUEUE (owner 2026-11-15). New code of 2026-11-15, built in the separate clone** `/home/dan/clone-of-d/src/Strata-win` (builds `../build-win`, and
-   `../build-win-j32` with `STRATA_MMQ_RDNA3_J32_ROLLED=ON`): spec 63 (three exact runtime switches) and spec 64 (#31751
-   build-vs-build, prompt tok/s on long1k / long3k). Both binaries are built (build-win, build-win-j32: 20:52, exit 0).
-   The android-imdad caa9b00115 ports in progress (section 6 item 4) are added to spec 63 as arms before the night run.
-   Needs the card: stop `pancake.service` first.
+2. **TONIGHT'S NIGHT QUEUE (owner 2026-11-15).** The new code of 2026-11-15 and the android-imdad caa9b00115 port,
+   built in the separate clone `/home/dan/clone-of-d/src/Strata-win` (`../build-win`; `../build-win-j32` = the same with
+   `STRATA_MMQ_RDNA3_J32_ROLLED=ON`); `ctest -L cpu` 152/152 (T-582). Order: (a) with the card free, `ctest -L gpu` in
+   build-win (the QSA, attention-merge and MMVQ parity tests cover the new kernels); (b) spec 65 (15 exact decode arms),
+   (c) spec 66 (DMA_FLAG_WRITE / PCIE_FORK on a 0.15 PCIe share), (d) spec 67 (prompt opt-ins), (e) spec 68 (PF_GU_EXACT
+   family on the exact FP16 prompt path), (f) spec 64 (#31751 build-vs-build). All screen tier. Stop `pancake.service` first.
 3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
@@ -251,13 +252,13 @@ miss.
 | 1 | FK-28 prompt-fed tier counts, redesigned: the old dead `set_usage` hook was deleted (T-575); build it fresh. Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
 | 2 | 0xluk `PF_AHEAD` + `REFILL_ASYNC` for the staged path of agent deltas < 4,096 tokens | +35% agent prefill (2x 3060, PCIe 3) | exact |
 | 3 | CODED 2026-11-15 (opt-in build switch `STRATA_MMQ_RDNA3_J32_ROLLED`, `cmake/strata_ggml_rdna3_j32.cmake`): llama.cpp #31751 RDNA3 MMQ J=32 rolled k01 loop on the pinned ggml; acts on the staged prompt chunks (< 4096 tokens, agent deltas) for Q2_0 down / IQ2_XXS / IQ4_XS. Static check T-579: J=32 kernel 256 VGPRs + spill, occupancy 5 -> 137 VGPRs, no spill, occupancy 10. Next: spec 64 (build-vs-build) | author +36% at 17-32-token batches, gfx1100 | exact |
-| 4 | android-imdad exact decode bundle (commit caa9b00115). CODED 2026-11-15 as opt-ins: `STRATA_MULTI_BLOCK_ARGMAX=1` now works on gfx11 (was gfx12-only) with 4 loads in flight in the HIP argmax scan (author 12 -> 5.6 us a pick), `STRATA_MTP_SELECT_WIDE=1`; next: spec 63. Not ported: `GDN_NORM128` (our gdn_out_norm_kernel runs only on the `STRATA_GDN_SPLIT` path, off in fast-hip), `ROUTE_FAST` / `WAIT_COPY256` (ported earlier, dropped / inert), `TOPK_*` / `ATTN_MERGE_BOUND` (attention < 1% of our window), `DMA_FLAG_WRITE` (pcie-frac 0), `ADAPT_COPY2` / `DQ_FAST` (open) | bundle +10% chat, +11% agent, KL 0, 7900 XTX (no per-switch split) | exact |
+| 4 | android-imdad bundle caa9b00115 + the PF_GU_EXACT series (90434843b4, ac7e5aff59, 9caad8f2bb, 876c3af7e6, 8a2f38aaad): PORTED 2026-11-15, every switch default-off (owner: every lead followed). Decode: `MULTI_BLOCK_ARGMAX` on gfx11, `MTP_SELECT_WIDE`, `SCAN_UNROLL`, `TOPK_REGKEYS`, `TOPK_SCAN`, `ATTN_MERGE_BOUND`, `ATTN_PRE75_NC`, `GRUP_WIDE`, `GRUP_PF`, `DOWN_SWIGLU`, `GDN_NORM128` (split path), `ADAPT_COPY2`, `ADAPT_LAYERWAIT`, `DMA_FLAG_WRITE`, `PCIE_FORK`; prompt: `DQ_FAST`, `PF_LEAN_ISSUE`, `PF_COPY2`, `PF_GU_EXACT` (+ Tensile kernel, startup self-check), `PF_DOWN_STREAMS`, `PF_DQ_OVERLAP`; test knob `EXPERT_SLOTS_MAX`. Kernels only, callers not wired yet: `GR_FUSE`, `MMVQ_IL_PLAIN` (also needs -DSTRATA_HIP_MMVQ_IL). Already in our tree under other names: `ROUTE_PUB` (ROUTE_PUBLISH + ROUTE_FAST), `WAIT_COMBINE` / `COMBINE_HITS` (COMBINE_CPU + WAIT_FUSE). Next: specs 65-68 | bundle +10% chat, +11% agent, KL 0, 7900 XTX; GU_EXACT 26.5 vs 12.9 TFLOPS | exact |
 | 5 | `PF_GU_EXACT` Tensile prompt GEMM for gfx1100 | 26.5 vs 12.9 TFLOPS; 64K prompt 40.1 -> 31.5 s (XTX) | exact |
 | 6 | schedule H2D admission copies into CPU-idle phases (attention/GDN) | est. +10-18% | exact |
 | 7 | CPU pool bandwidth push (two fused phases per layer, row-chunk split, touch the next expert early); imanu86 IQ2_S/IQ3_S AVX2 decode without per-index shifts (pool on IQ2_S layers 20-33% faster) | est. 33 -> 38-42 GB/s, +5-12% | exact |
 | 8 | re-warm or protect the decode tier after a long prompt (decode 92.5 vs 111.7 tok/s after prefill) | up to the gap | exact |
 | 9 | launch fusions (`FUSE_SHGATE/COMBINE/SWIGLU_DOWN/PLAN/ROUTEBELL/QGEMV`): launches cost ~14-16 us on gfx1100 | -400 launches/window (R9700) | exact |
-| 10 | `EXPDEC_V2` remainder; `MMVQ_WAVE_ROWS` table; small exact bundle: copy_rows loads-first CODED 2026-11-15 (`STRATA_ROWS_LOADS_FIRST=1`, next: spec 63); sampler x8 loads (waits for the box's sampler fix); single-token MMVF_ROWS; lookahead submit after publish (deferred: ~10-25 us a window) | -20-24% expdec kernel time; +4% MI50; several us per launch | exact |
+| 10 | `EXPDEC_V2` remainder; `MMVQ_WAVE_ROWS` table; small exact bundle: copy_rows loads-first CODED 2026-11-15 (`STRATA_ROWS_LOADS_FIRST=1`, next: spec 65); sampler x8 loads (waits for the box's sampler fix); single-token MMVF_ROWS; lookahead submit after publish (deferred: ~10-25 us a window) | -20-24% expdec kernel time; +4% MI50; several us per launch | exact |
 | 11 | Speedy `KV_STAGE_REQ` + `PF_SEL_BATCH` (long-context loan sizing, VRAM); `TOOL_STEP_SPLIT` + `canonical_tools` (serve only) | 300K cold prompt 466 -> 1527 t/s (2x 3080); turn-2 cache reuse | exact |
 | 12 | rdna3 `791cca4b`/`5906629d` (AUTO_MAX 49152 + refill head `2b19d510`), `f557b544` (CPU share retries per layer) | 2-4% at 49K | exact |
 | 13 | DALI per-layer per-step CPU/GPU assignment instead of the static A45 probe | +23% over HybriMoE (3090) | exact |

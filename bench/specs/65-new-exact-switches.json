@@ -1,0 +1,103 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "rows-loads-first": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROWS_LOADS_FIRST": "1"
+      }
+    },
+    "mb-argmax": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MULTI_BLOCK_ARGMAX": "1"
+      }
+    },
+    "mtp-wide": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MTP_SELECT_WIDE": "1"
+      }
+    },
+    "scan-unroll": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SCAN_UNROLL": "1"
+      }
+    },
+    "topk": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TOPK_REGKEYS": "1",
+        "STRATA_TOPK_SCAN": "1"
+      }
+    },
+    "merge-bound": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ATTN_MERGE_BOUND": "1"
+      }
+    },
+    "grup-wide": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GRUP_WIDE": "1"
+      }
+    },
+    "grup-pf": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GRUP_PF": "1"
+      }
+    },
+    "down-swiglu": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DOWN_SWIGLU": "1"
+      }
+    },
+    "gdn-split": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GDN_SPLIT": "1"
+      }
+    },
+    "gdn-split-norm128": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GDN_SPLIT": "1",
+        "STRATA_GDN_NORM128": "1"
+      }
+    },
+    "adapt-ov0": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_OVERLAP": "0"
+      }
+    },
+    "adapt-ov0-copy2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_OVERLAP": "0",
+        "STRATA_ADAPT_COPY2": "1"
+      }
+    },
+    "adapt-layerwait": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_OVERLAP": "0",
+        "STRATA_ADAPT_LAYERWAIT": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 items 4 and 10 (2026-11-15): the exact decode opt-ins of the android-imdad caa9b00115 port and today's small exact bundle, all in /home/dan/clone-of-d/src/build-win (Strata-win clone). Screen tier (promote from 0%, decide at confirm). EXACT: every arm's text must equal base. gdn-split-norm128 is judged against gdn-split (the 128-thread norm only runs on the split path); adapt-ov0-copy2 and adapt-layerwait against adapt-ov0 (ADAPT_COPY2 / LAYERWAIT are off under the preset's STRATA_ADAPT_OVERLAP=1). Not in this spec: STRATA_GR_FUSE and STRATA_MMVQ_IL_PLAIN (callers in verify.cpp not wired yet; IL_PLAIN also needs -DSTRATA_HIP_MMVQ_IL). Before the A/B, with the card free: ctest -L gpu in build-win (qsa_parity, hip_decode_attn_wmma_parity, mmvq_il_parity). Stop pancake.service first."
+}

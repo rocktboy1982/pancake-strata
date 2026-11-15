@@ -1,0 +1,49 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "pcie015": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--pcie-frac": "0.15"
+      }
+    },
+    "pcie015-dmaflag": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DMA_FLAG_WRITE": "1"
+      },
+      "args": {
+        "--pcie-frac": "0.15"
+      }
+    },
+    "pcie015-fork": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PCIE_FORK": "1"
+      },
+      "args": {
+        "--pcie-frac": "0.15"
+      }
+    },
+    "pcie015-both": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DMA_FLAG_WRITE": "1",
+        "STRATA_PCIE_FORK": "1"
+      },
+      "args": {
+        "--pcie-frac": "0.15"
+      }
+    },
+    "preset": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 4: STRATA_DMA_FLAG_WRITE (flag B written by the copy stream, hipStreamWriteValue32) and STRATA_PCIE_FORK (flag-B wait + PCIe groups on a forked stream) act only with a PCIe share, so the base is --pcie-frac 0.15 (spec 54's value). Lossy only against the preset arm (CPU vs GPU rows); the three switch arms are EXACT against pcie015 (same text required). The preset arm (pcie-frac 0) is the reference that decides whether a share with the fast flag path beats no share. Stop pancake.service first."
+}

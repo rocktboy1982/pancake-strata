@@ -1,0 +1,41 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "pf-lean": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_LEAN_ISSUE": "1"
+      }
+    },
+    "pf-copy2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_COPY2": "1"
+      }
+    },
+    "pf-lean-copy2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_LEAN_ISSUE": "1",
+        "STRATA_PF_COPY2": "1"
+      }
+    },
+    "dq-fast": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DQ_FAST": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 4: the prompt-path opt-ins of the android-imdad caa9b00115 port (build-win). STRATA_PF_LEAN_ISSUE: one release event per fused batch; STRATA_PF_COPY2: a second copy stream; STRATA_DQ_FAST: Q6_K / IQ4_XS dequant by warps. Judged on prompt tok/s (long1k / long3k); short is the decode control. EXACT: same text as base. Stop pancake.service first."
+}

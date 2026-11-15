@@ -1,0 +1,72 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "long1k",
+    "long3k"
+  ],
+  "reps": 3,
+  "arms": {
+    "fp16-ref": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_FUSED": "0",
+        "STRATA_PREFILL_MMQ": "0",
+        "STRATA_PF_GEMM": "0"
+      }
+    },
+    "gu-exact": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_FUSED": "0",
+        "STRATA_PREFILL_MMQ": "0",
+        "STRATA_PF_GEMM": "0",
+        "STRATA_PF_GU_EXACT": "1"
+      }
+    },
+    "gu-exact-dqov": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_FUSED": "0",
+        "STRATA_PREFILL_MMQ": "0",
+        "STRATA_PF_GEMM": "0",
+        "STRATA_PF_GU_EXACT": "1",
+        "STRATA_PF_DQ_OVERLAP": "1"
+      }
+    },
+    "gu-exact-down4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_FUSED": "0",
+        "STRATA_PREFILL_MMQ": "0",
+        "STRATA_PF_GEMM": "0",
+        "STRATA_PF_GU_EXACT": "1",
+        "STRATA_PF_DOWN_STREAMS": "4"
+      }
+    },
+    "gu-exact-all": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_FUSED": "0",
+        "STRATA_PREFILL_MMQ": "0",
+        "STRATA_PF_GEMM": "0",
+        "STRATA_PF_GU_EXACT": "1",
+        "STRATA_PF_DQ_OVERLAP": "1",
+        "STRATA_PF_DOWN_STREAMS": "4"
+      }
+    },
+    "fp16-dq-fast": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_FUSED": "0",
+        "STRATA_PREFILL_MMQ": "0",
+        "STRATA_PF_GEMM": "0",
+        "STRATA_DQ_FAST": "1"
+      }
+    },
+    "preset": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 4: android-imdad STRATA_PF_GU_EXACT (90434843b4, ac7e5aff59, 9caad8f2bb: the experts' FP16 gate/up products grouped, in rocBLAS's exact order, >= 65 tokens on the Tensile kernel) + PF_DQ_OVERLAP (8a2f38aaad) + PF_DOWN_STREAMS (876c3af7e6). It only acts where the gate/up product reaches rocBLAS, so the reference is the exact FP16 prompt path: STRATA_PF_FUSED=0, STRATA_PREFILL_MMQ=0, STRATA_PF_GEMM=0 (fp16-ref). Every gu-exact arm and fp16-dq-fast must give fp16-ref's text (bitwise by design; the engine log says whether the startup self-check passed - a failed check means the arm ran the plain path). Lossy only against the preset arm (int8 fused prompt). Prompt tok/s decides; the preset arm shows whether exact FP16 + GU_EXACT reaches the daily path. Stop pancake.service first."
+}
