@@ -669,6 +669,7 @@ STRATA_ENV("STRATA_RDNA_KQ_MAXCOLS", Speed, "RDNA K-quant multi-column kernels: 
 STRATA_ENV("STRATA_RDNA_WMMA_MINCOLS", Speed, "RDNA K-quant matrix-core few-column kernel: smallest window it takes (0 = off)")
 STRATA_ENV("STRATA_RDNA_WMMA_MINROWS", Speed, "RDNA K-quant matrix-core few-column kernel: fewest weight rows it takes (default 2048)")
 STRATA_ENV("STRATA_RDNA_WMMA_KS", Speed, "RDNA K-quant matrix-core few-column kernel: K slices a tile, 1, 2 or 4 (default: 4 below 6400 rows, else 2)")
+STRATA_ENV("STRATA_RDNA_WMMA_IQ4SHARE", Speed, "RDNA IQ4_XS matrix-core kernel: decode shared between the lane halves (A/B knob)")
 STRATA_ENV("STRATA_REFILL_BLOCKING", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_REFILL_PARTS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_REFILL_SERIAL", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
