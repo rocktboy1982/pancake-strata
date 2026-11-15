@@ -11,7 +11,7 @@ Tags: author numbers are on the author's hardware, not ours; "exact" = bit-ident
 | lead | number + hw | exact/lossy | in our src |
 |---|---|---|---|
 | 0xluk `STRATA_PF_AHEAD` + `STRATA_REFILL_ASYNC`: prefetch the next chunk's experts into an N-slot pool from the loan while attention runs (the copy engine idles through attention on a warm turn); split must ignore the pool; log `refilled ... ms` before porting REFILL_ASYNC | agent prefill +35%, TTFT 4.97 -> 3.67 s (bundle); refill ~143 ms off TTFT; 2x RTX 3060 PCIe 3 | exact | no (only the unrelated `STRATA_IO_PF_AHEAD`); code in 0xluk `flashnext-pcie3` `896481c943`, `f9b14a4965` |
-| llama.cpp #31751: one pragma fixes RDNA3 MMQ J=32 register spills | +36% at 17-32-token batches, gfx1100 | exact | CODED 2026-11-15 as opt-in build switch (MOD_PLAN.md section 6 item 3, T-578) |
+| llama.cpp #31751: one pragma fixes RDNA3 MMQ J=32 register spills | +36% at 17-32-token batches, gfx1100 | exact | CODED 2026-11-15 as opt-in build switch (MOD_PLAN.md section 6 item 3, T-579) |
 | launch fusions `FUSE_SHGATE/COMBINE/SWIGLU_DOWN/PLAN/ROUTEBELL/QGEMV` | 2,648 -> 2,248 kernels/window, R9700 | exact | no |
 | uniform K experts (`STRATA_Q36_EXPERTS_USED`) | +14.4% K=7/8, +18.7% K=6/8, KLD 0.0254 at K=7; RTX 3050 laptop, Qwen3.6 IQ4_XS | lossy | no (rank tail skip only) |
 | `EXPDEC_V2` remainder (issue-first loads, 24-bit multiplies) | expdec_gu<22> 69.1 -> 52.5 us, down 48.2 -> 38.5 us; R9700 | exact | partial (flat-load cast, F12 signs exist) |
