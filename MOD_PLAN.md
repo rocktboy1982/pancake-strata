@@ -3690,3 +3690,16 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/44-*.stdout`. GPU `high
 | fuse-wait | -9.9% +-7.8 | -10.2% +-8.3 | DIFFERENT | **drop** (worse, below -3%) |
 
 The 6-repeat confirm of 2026-11-13 (+4.7% and +3.3%, intervals including zero, text exact) does not hold at 12 repeats: the earlier gains were noise. Both arms also showed slow runs (78 to 91 tok/s while the GPU ran at 1600 to 1740 MHz) next to normal ones, so they have a placement-dependent slow mode that base does not. Items 3 and 4 are closed as dropped.
+
+### Spec 45: A24 suffix index on the HEAD engine (2026-11-15, screen, 6 repeats)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/45-*.stdout`. Base 110.0 short / 111.8 edit tok/s, GPU `high`.
+
+| arm | short | edit | accepted (short) | text vs base |
+| --- | --- | --- | --- | --- |
+| sidx | +26.8% +-34.4 (median about +13%) | -0.0% +-1.3 | 0.66 -> 0.75 | DIFFERENT |
+| sidx-fallback | +20.8% +-19.6 (better) | +0.4% +-1.3 | 0.66 -> 0.74 | DIFFERENT |
+
+Per repeat, short: base 108.6 to 111.4; sidx 124.6 to 125.9 in five repeats and one outlier at 212.0; sidx-fallback 122.9 to 125.8 in five and one outlier at 176.0. So the typical short gain is +13% and the means are pulled up by the two outliers (the interval of sidx includes zero only because of them). The edit prompt does not move.
+
+Verdict by the promote-from-0% rule: **both arms promoted to confirm** (a case above 0, none below -3%). Two cautions before any default: (1) the text differs from base, so the quality gate applies first; (2) the real-trace replay of the opencode store (`A24`, 2026-11-13) predicted only +2.0% accepted tokens and -2.4% verify rounds, while this short prompt gains about +13% (accepted 0.66 -> 0.75). The short benchmark prompt is a repetitive output case, so +13% is the ceiling for that prompt shape, not the expected agent gain; the real-store figure (+2%, sub-agents +6%) is the expectation. Confirm needs a prompt set drawn from the real store, not only the two synthetic prompts. sidx-fallback is the arm to carry (same gain, falls back to the old lookup).
