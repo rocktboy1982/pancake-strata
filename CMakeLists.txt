@@ -2283,6 +2283,9 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(adapt_decay_test src/program/adapt_decay_test.cpp)
   target_include_directories(adapt_decay_test PRIVATE include)
   add_test(NAME adapt_decay_test COMMAND adapt_decay_test)
+  add_executable(tier_policy_score_test src/program/tier_policy_score_test.cpp)   # LEADS.md B11/B126/A46 tier policies
+  target_include_directories(tier_policy_score_test PRIVATE include)
+  add_test(NAME tier_policy_score_test COMMAND tier_policy_score_test)
   # the window limits (8 rows, or 16 in a wide CUDA / HIP build) and the pipelined-window probe (header-only, CPU)
   add_executable(window_limits_test src/core/window_limits_test.cpp)
   target_include_directories(window_limits_test PRIVATE include)
@@ -3654,7 +3657,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
-    draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
+    draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
     spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test verify_ecap_test kv_ring_test
