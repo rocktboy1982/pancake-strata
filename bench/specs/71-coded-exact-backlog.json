@@ -191,7 +191,31 @@
       "env": {
         "STRATA_DRAFT_CLIP": "3"
       }
+    },
+    "fs-stale-drop": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_FS_STALE_DROP": "4"
+      }
+    },
+    "warm-cu-mask": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WARM_CU_MASK": "8"
+      }
+    },
+    "dma-coalesce": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DMA_COALESCE": "1"
+      }
+    },
+    "arena-populate": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ARENA_POPULATE": "8"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 5 item 6 (coded, no spec yet), the exact ones: F7 STRATA_Q2_FAST (bit-exact, x1.33/x1.23 rows, T-246/T-253), STRATA_WAIT_COPY256 (screen +6.7% / +2.4%, T-056; inert below T=6, the preset runs --spec 4: check the switch report says it acted), FK-10 STRATA_ATTN_LANECELL, STRATA_SELECT_TWO_PASS on HIP, A9 STRATA_IDLE_ADAPT (ceiling <= 0.26%), the STRATA_POOL_SPIN_US sweep (Juud: 15.1 -> 12.6 ms/token), FK-03 --lookup-chain 3. EXACT: same text as base. Not here: HIP_GLOBAL_WEIGHTS (a build macro: needs its own build), F22 HIP_WMMA_Q4 (needs --kv q4_0), FK-12 --batch 2 (needs concurrent clients). Stop pancake.service first. Pool arms (MOD_PLAN.md section 6 item 7, coded 2026-11-15): STRATA_POOL_ROW_SPLIT=N (fixed N-row chunks per phase) and STRATA_POOL_TOUCH_NEXT=B (prefetch the next expert's first B bytes), both bitwise (pool_tasks_test against a serial reference). Launch fusions (MOD_PLAN.md section 6 item 9; this-cute-world/Strata bdc2369a28, ed87ad46af, 93c97cc230, 818a1eaa57, 7d1a446927 + d33b540ddb): FUSE_PLAN / FUSE_COMBINE / FUSE_SHGATE act on the device-plan path (judge against devplan); FUSE_QGEMV needs STRATA_MMVF_ROWS=1 (judge against mmvf-rows); FUSE_SWIGLU_DOWN against base. ROUTEBELL = our ROUTE_PUBLISH. Item 10 bundle (coded 2026-11-15): STRATA_EXPDEC_V2 (ryan4yin a67b3790d5 / 522f76739a / 92983a7405; on Flash-Next only the Q2_0 down changes), STRATA_SAMPLER_X8 (freapsy 509bded8c5, remaining scans), STRATA_MMVF_ROWS1 (ryan4yin aa2509dc60, T=1 router on the 4-rows kernel), STRATA_LOOKAHEAD_AFTER_PUB (CPU pool lookahead submit after the plan publish). STRATA_MMVQ_WAVE_ROWS (phoenixclyde 5a76830ebd) has no RDNA3 table: needs a per-shape sweep spec of its own. SpecLA (MOD_PLAN.md section 6 item 16, coded 2026-11-15): STRATA_GDN_SPECLA=N keeps the GDN state after each of the window's first N rows and commits from the nearest checkpoint instead of replaying (bitwise, gdn_parity section 7); =1 (every row) costs ~1.3 GB VRAM, so the arms use 2 and 4. draft-clip3 (item 17): STRATA_DRAFT_CLIP=3 clips a round time above 3x the median of the last 8 of its width before the draft cost update (policy only; greedy text identical)."
+  "note": "MOD_PLAN.md section 5 item 6 (coded, no spec yet), the exact ones: F7 STRATA_Q2_FAST (bit-exact, x1.33/x1.23 rows, T-246/T-253), STRATA_WAIT_COPY256 (screen +6.7% / +2.4%, T-056; inert below T=6, the preset runs --spec 4: check the switch report says it acted), FK-10 STRATA_ATTN_LANECELL, STRATA_SELECT_TWO_PASS on HIP, A9 STRATA_IDLE_ADAPT (ceiling <= 0.26%), the STRATA_POOL_SPIN_US sweep (Juud: 15.1 -> 12.6 ms/token), FK-03 --lookup-chain 3. EXACT: same text as base. Not here: HIP_GLOBAL_WEIGHTS (a build macro: needs its own build), F22 HIP_WMMA_Q4 (needs --kv q4_0), FK-12 --batch 2 (needs concurrent clients). Stop pancake.service first. Pool arms (MOD_PLAN.md section 6 item 7, coded 2026-11-15): STRATA_POOL_ROW_SPLIT=N (fixed N-row chunks per phase) and STRATA_POOL_TOUCH_NEXT=B (prefetch the next expert's first B bytes), both bitwise (pool_tasks_test against a serial reference). Launch fusions (MOD_PLAN.md section 6 item 9; this-cute-world/Strata bdc2369a28, ed87ad46af, 93c97cc230, 818a1eaa57, 7d1a446927 + d33b540ddb): FUSE_PLAN / FUSE_COMBINE / FUSE_SHGATE act on the device-plan path (judge against devplan); FUSE_QGEMV needs STRATA_MMVF_ROWS=1 (judge against mmvf-rows); FUSE_SWIGLU_DOWN against base. ROUTEBELL = our ROUTE_PUBLISH. Item 10 bundle (coded 2026-11-15): STRATA_EXPDEC_V2 (ryan4yin a67b3790d5 / 522f76739a / 92983a7405; on Flash-Next only the Q2_0 down changes), STRATA_SAMPLER_X8 (freapsy 509bded8c5, remaining scans), STRATA_MMVF_ROWS1 (ryan4yin aa2509dc60, T=1 router on the 4-rows kernel), STRATA_LOOKAHEAD_AFTER_PUB (CPU pool lookahead submit after the plan publish). STRATA_MMVQ_WAVE_ROWS (phoenixclyde 5a76830ebd) has no RDNA3 table: needs a per-shape sweep spec of its own. SpecLA (MOD_PLAN.md section 6 item 16, coded 2026-11-15): STRATA_GDN_SPECLA=N keeps the GDN state after each of the window's first N rows and commits from the nearest checkpoint instead of replaying (bitwise, gdn_parity section 7); =1 (every row) costs ~1.3 GB VRAM, so the arms use 2 and 4. draft-clip3 (item 17): STRATA_DRAFT_CLIP=3 clips a round time above 3x the median of the last 8 of its width before the draft cost update (policy only; greedy text identical). LEADS Parts D/E ports (2026-11-15): STRATA_FS_STALE_DROP (fill_loop drops stale fills), STRATA_WARM_CU_MASK (IC_WARM stream on a CU mask), STRATA_DMA_COALESCE (merge adjacent promotion copies), STRATA_ARENA_POPULATE (MADV_POPULATE_WRITE with N threads: startup time, see the engine log)."
 }
