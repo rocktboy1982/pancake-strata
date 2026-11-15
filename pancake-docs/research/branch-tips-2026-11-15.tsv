@@ -1,0 +1,154 @@
+dev/batch-1	99a745af568d0db45e14c5b58f26e77b9cc1a721	2026-11-10	Merge port/rdna3-decode into dev/batch-1: one route_prior guard (dan-99's picked-expert bitmask + #5655 NaN-as--inf selection, kept with the input clamp and the F13 own-phase guards; fallback block removed); research table rows from both sides
+dev/p16/agentloop	71d21aca7170427917d25c8b764509f7d22ddbe2	2026-11-11	Batch 3 agentloop: source checks and results for A17-A20, A30, A38-A43, A55
+dev/p16b/bfla-dense	05c31a8e376aabf54d94435608789c2018332638	2026-11-11	pancake-docs/batch4/bfla-dense.md: switch line formats, merge notes (kernel_gate label, switch-exempt entries), what bfla_cpu_test covers
+dev/p16b/cache-fixes	bf1342f6cdbac82d4286e74c5ab65fde0cb7e8c5	2026-11-11	pancake-docs/batch4/cache-fixes.md: A15 rank-3 fix and pin evict-last (source check, model, tests, the generate.cpp wiring for the lead)
+dev/p16b/corpus-quality	17ed3f6976d789c1102d0336d1f7c29c08586534	2026-11-11	corpus-quality notes: test counts
+dev/p16b/corpus-recorder	4d4c7731958f28000abe0f74a03e96277a9e7801	2026-11-11	tools/pancake: record_session.py, one command to record, check and convert a real agent session for the offline tools
+dev/p16b/disk-key	255c2adf8d2c96f8a4724faf17c70f2db040ebf2	2026-11-11	disk-key notes: review round (reclassified layer-major / NO_IQ128, presence keying, switch-cpp merge, PF_FUSED override), right configure line, check counts, regenerated table
+dev/p16b/equiv-gate	49ea96e5abb149fc171246b321e43b650af7c858	2026-11-11	pancake-docs/batch4: equiv-gate notes (source check, rule, error rates, fixtures, limits)
+dev/p16b/harness-core	7a5b21aba0ab237f4309fc671ddf1a2da5a98a04	2026-11-11	notes: batch4 harness-core (abtest block / robust / tier, replay of the 2026-11-11 data)
+dev/p16b/harness-sim	9e7220c440172aa90efdcaf3449c99202fa55598	2026-11-11	pancake-docs: batch4 harness-sim notes (fake engine, e2e tests, power table for how many starts a small gain needs)
+dev/p16b/kernel-gate	e7d1243b0adbbe6e356dc2c02d4f7f2d5cabb210	2026-11-11	kernel_gate: go / no-go for kernel items from the kernel number, its lane in the A6 window model and the A/B starts
+dev/p16b/presets-specs	81b88c7ba9d8b42e0f71991737da4566c526a610	2026-11-11	tools/pancake/gen_bases.sh: write the pancake-*.json bases the specs name; notes for presets-specs
+dev/p16b/sourcecheck-a	f3b9f4fe4231676c4a8ad2ef05d872d8e57b36be	2026-11-11	pancake-docs/batch4: sourcecheck-a, paper-body check of ProMoE, HOBBIT, DALI, Athena, Continuum, Marconi figures
+dev/p16b/sourcecheck-b	25ae43f3e9e0a03aa8823b9a4b4a068860b33844	2026-11-11	[Docs] sourcecheck-b: five decode-KV papers read in full, FreeToken 3.1, MoE-Lightning stale-drop, Phase 15 hashes
+dev/p16b/switch-cpp	6501cc4feaf8420b788a74c258555e5172b26f1d	2026-11-11	notes: batch4 switch-cpp (the 'strata switch:' line format, per-switch reasons, checks)
+dev/p16b/switch-harness	6ec7aa2ff9829598c52921a7215afe3b4a7f035b	2026-11-11	promote: void arms whose switch never acted, hold comparisons across tiers; switch_report.py reads the engine's switch lines
+dev/p16b/tier-tools	627f1199075c59a5bd1c5c01da44a92dda8ab58b	2026-11-11	pancake-docs: batch4 tier-tools notes (capped tier line, queue night window, drop_cache)
+dev/p16c/abtest-safety	d9c07ad5cf3d9372ab57731be73cce48f7bb7cc9	2026-11-11	abtest: stop only the servers it started, refuse to start beside another test or engine (exit 3, --force-busy)
+dev/p16c/contextpilot	c13270a73874dc3a6209e162e317489674698624	2026-11-11	Merge trial/opus-wait-copy256 (a competing implementation; dev holds the adopted one for this item, history only)
+dev/p16/citecheck	459116cb38a2519deb699e22b0338a1f6726379b	2026-11-11	pancake-docs: citation check for Phase 15/16 and README 4C (batch3/citecheck)
+dev/p16/compilegate	9632fef6b1adc5ecb09afb0c9b5dd150aa1483e1	2026-11-11	batch3 compilegate: first compile of dev/batch-2 (CPU/HIP/CUDA objects, ctest -L cpu counts, the A45 generate.cpp include error)
+dev/p16/compilegate-calib-include-patch	1a06bb1c918ae55dbde47bf3f1cf092c23557d13	2026-11-11	generate.cpp: include strata/core/calibrate_ratio.hpp (A45 probe used CalibMeasure/calib_* without the include; b0abbc5cc never added it)
+dev/p16c/promote-block	c653ce7fb870aa75dd83d9277915882195f22c4c	2026-11-11	pancake-docs/batch5/promote-block.md: promote.py reads robust and block files; why the start-level reading stays; replay check
+dev/p16/datapath	c92e3bbe4e2f19d91f688ae6a8d3abf3373c6314	2026-11-11	datapath notes (pancake-docs/batch3/datapath.md); conv_cache_sim default available RAM 16 GiB (49 - 33), spec note with the budget threshold
+dev/p16/disco-suffix	d0d103e717b5287b58b8b72e0e992fcb55aed754	2026-11-11	disco-suffix notes (pancake-docs/batch3) and the F8 SPEC_CUM screen spec
+dev/p16/finemoe	f5b7b15a119ed576a305119fad70866778f42b82	2026-11-11	pancake-docs/batch3/finemoe.md: FineMoE replay verdict (no engine switch), A7 / A8 / A46 re-judged
+dev/p16/kern-cpu	00703c424e429d00525e1c092043f83ffae145ad	2026-11-11	Merge dev/phase16-academic into dev/p16/kern-cpu
+dev/p16/kern-gdn	4277042e2eb3d5249294487c3b6e02444a2d0f22	2026-11-11	pancake-docs: kern-gdn notes (A31 GDN chunk 64, A36 weight-major, 16.11 attention and long-context)
+dev/p16/kern-hip	fe66d30a290bee65a6602d92189ce0345016f62a	2026-11-11	[Docs] batch3 notes: kern-hip (F21, F9, A37 decision, A33/A35 retests, GPU queue)
+dev/p16/percache	49cc9cfd2d3c1d9032b222f0d797c107aeb1d28b	2026-11-11	percache: notes (source checks, correctness, modeled savings, GPU checks), percache_sim results, linear-cost FLOP rows
+dev/p16/phase15	e73908e929eb8d7561104e03a5df269ba1a674d8	2026-11-11	[Docs] batch3 phase15 notes: Phase 15 and research_notes triage, source checks, ISA evidence, tests
+dev/p16/policy	92267606f34e271040b894278e0fc0c00dfcfbe2	2026-11-11	Batch 3 policy notes: A15 with F1, the split of the 7 cold re-reads
+dev/p16/promotion	36b23304d1ced1710b1a504727285db04df68266	2026-11-11	[Tools] promote.py: refuse an item whose spec has only the reference arm (nothing to judge)
+dev/p16/rankguard	6ffffd7e643bbd32c6b5fcd7ed833d61d38daa65	2026-11-11	[Docs] batch3 notes: rankguard (A4/28 rank guard + FOLD, F5, F13 + item 23, HOBBIT proxy, ROUTER_FUSE audit)
+dev/p16/selftune	cf356f41f19bd149f3b91a802053c7c04ff47c99	2026-11-11	batch3: selftune notes, say that the profile's training set was not re-checked
+dev/p16/shadowpack	379f9eebdcc2d32866349e6f387c8b135c083508	2026-11-11	pancake-docs/batch3/shadowpack.md: F4 shadow pack, REAP, S2-MoE and HOBBIT source checks and offline results
+dev/p16/speclint	13e44064d87859ad92109e42cced215f4b17ad1c	2026-11-11	pancake: spec_lint.py, a static lint of bench/specs against the harness
+dev/p17/ablate	4585d3a316aba25932e6592096ad2a9ccc06f45d	2026-11-11	[Benchmark] ablate_greedy.py: greedy ablation driver for MOD_PLAN 17.3 (driver, tests, plan; nothing measured)
+dev/p17/defergate	a819cfc3366a6c29ac4813d1c8ccc78b00635606	2026-11-11	[Docs] 17.1 note: deferral gate design note and MOD_PLAN block (coded, not measured)
+dev/p17/integration	adb71fe69a6c356fa93f21c28930674a94e3d635	2026-11-13	MOD_PLAN: spec 28/29 screen verdicts and GPU suite result (133/134; flag-order still open)
+dev/p17/kvring	289e50086e6d24d903544bb5a6ebe0c1d44304bb	2026-11-11	kv: opt-in depth-adaptive resident K/V ring (STRATA_KV_RING_ADAPT, MOD_PLAN 17.4 part 1)
+dev/p17/nightqueue	3ae19578ba85de46426534c9c6403cd96aa3c7ce	2026-11-11	[Benchmark] ablation plan: kv-ring-adapt, route-prior-auto, verify-defer-auto, park-rewind-max (disabled); MOD_PLAN night queue note
+dev/p17/parkrewind	cb3c872e2e2804aaf71c11a36731db7647f5f677	2026-11-11	[Engine] STRATA_PARK_DIVERGENCE_LOG: log where a request's prompt parts from the engine's last conversation (opt-in, M3 diagnostic)
+dev/p17/prefixcheck	81bb41999487ab742058f6fa7eb656414d92f87b	2026-11-11	tools/pancake: prefix_check.py, does the client resend a byte-identical prefix between turns (17.0, M4)
+dev/p17/prosegap	5b7aef2c7f2c661b0a5e8afcce9f61ef1913bfbe	2026-11-11	17.2: Avalon prose-gap analysis note and prose_gap.py harness (nothing measured)
+dev/p17/review	53b7add64420bd0eea0167abf809a1a94d71f46a	2026-11-11	[Docs] Phase 17 review: findings on the five opt-in features, two regression tests
+dev/p17/ttftbench	d4bde337ced1ee7224b7bdd06ba2466a7108cc89	2026-11-11	[Bench] Phase 17 item 17.0: ttft_bench, TTFT at long context and over an agent session
+dev/p17/ttftlevers	f002632853644a144d6439e577eff564b841778e	2026-11-11	pancake-docs/TTFT_LEVERS.md: MOD_PLAN 17.0 TTFT anatomy and ranked levers for long-context agent turns; ttft_audit.py log reader
+dev/p17/ttftscen	3758153f30758876d9991043ecb3fa73277109b1	2026-11-11	[Benchmark] ttft_bench: session-side, tight-budget note, warm-delta sweep, engine-log attach (17.0)
+dev/p17/turbogate	b16f359f06bd737bf74156fcfdb69ab877562f4f	2026-11-11	[Engine] route prior only in lookup windows (STRATA_ROUTE_PRIOR_AUTO, MOD_PLAN 17.1, opt-in)
+feat/bfla-hip	bf2c03e44b083c6ea71121ee6ca1438c81e9ec59	2026-11-09	plan: BFLA kernel benchmark at 32K/64K/128K (128K one layer: 28.3 s -> 9.6 s fused exact -> 3.3 s BFLA); test queue uses UD-Q4_K_XL
+feat/item-16-tool-checkpoints	527e064293cddf75aaf1aebf3771e1ec5b2128d7	2026-11-09	cache: checkpoints at tool-call/tool-result boundaries + Marconi eviction (MOD_PLAN 16, opt-in)
+feat/item-31-preserve-thinking	d44dd5eb28fad2fe55ecf7cae1e0008e8ad95f0e	2026-11-09	[Other] item 31: preserve_thinking passthrough + opt-in reasoning keeper
+feat/item-33-behaviour-counters	c03c905d32f65f41b4160be8f2030ec3bbb91eee	2026-11-09	serve: loop guard behaviour counters (MOD_PLAN item 33)
+feat/item-34-rumination	dd8549636f981d8e7b3076706fceeddeccab9c86	2026-11-09	serve: rumination signal in the thinking (MOD_PLAN item 34)
+feat/item-39-disk-tier	070fe8512754e30def6138ed2d62e515b35b0048	2026-11-09	serve: automatic disk tier for parked conversations (MOD_PLAN item 39, opt-in)
+feat/item-79-ple-gather	3b53384121cdc6d698e3214a4a02e8050d951455	2026-11-09	prefill: PLE gather off the critical path, opt-in (item 79) + PLE wait mark (item 82)
+feat/item-80-hipblaslt	997bb0a1ca63735b36a9751de395220b68350785	2026-11-09	tools/pancake: hipblaslt_extend.py - plan, run and merge new hipBLASLt T buckets (MOD_PLAN item 80)
+feat/item-86-mem-budget	ab4fe164b965bf0f887c9c9829f05f4b4304553a	2026-11-09	MOD_PLAN 86: conversation cache from a RAM budget; PSI guard for the arena readers and parking
+feat/item-90-71-shared-prefix	35c928729eb7cee648bd47cda576aacdcd115dbf	2026-11-09	[Engine] serve: opt-in auto-pin of the system+tools prefix for Qwen (MOD_PLAN 71)
+feat/item-93-tests	88efaca72e0c18fefd6054e0894291e787113d02	2026-11-09	tools: build_matrix.sh --tests runs ctest -L cpu on the hip-tests row (item 93)
+feat/item-95b-hygiene	81d8e8d54f15788b43c0d82cc01088db6a612ed2	2026-11-09	MOD_PLAN: 95b done; quick-hygiene status (what was removed, what was kept and why, Serena sycl/metal note)
+feat/pattern-cache	98f1e0690e0437afa9b61c2b379986c51f26ea71	2026-11-08	plan 11: items 3-4 coded on feat/pattern-cache (seed switches, offline numbers, build/collect/A-B commands)
+main-mod	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+port/rdna3-decode	a3a2bde46f08f9b5c604924340450e97bfafc18e	2026-11-15	Record optimize-kernel-hip as merged (strategy ours): its 6 commits are already in this branch (13 files identical, MOD_PLAN.md here is the newer superset; the code fixes and specs 40-42 were ported on 2026-11-13)
+trial/haiku-park-truncate	707c147e9eb117de7a74711e81477f37002b1e22	2026-11-10	serve: STRATA_PARK_TRUNCATE, park the deepest checkpoint prefix that fits
+trial/haiku-q2-avx2	ae8bc12775196f185b62a05678419746f178d1a8	2026-11-10	[Engine] Q2_0 AVX2 rows: cheaper unpack and 4 rows at a time (default; STRATA_Q2_LEGACY=1 for A/B)
+trial/haiku-wait-copy256	41813722d23f0488d1e196d7fb7333a1f5e2991c	2026-11-10	[Engine] STRATA_WAIT_COPY256: wait-flag plan copy with 256 threads and 16-byte reads (opt-in)
+trial/opus-park-truncate	e55886ed8417ecf13702582680ad20ecea07c992	2026-11-10	conversation cache: STRATA_PARK_TRUNCATE (opt-in) - park the deepest checkpoint prefix that fits
+trial/opus-q2-avx2	600ca503220e821f2595cd40318b3a9cc79909f6	2026-11-10	cpu: opt-in fast bit-exact Q2_0 AVX-2 kernel (STRATA_Q2_FAST=1, from imanu86 c3fc8f34d3)
+trial/opus-wait-copy256	1b969175123c748cb214a0bc301cbcbefe3edf98	2026-11-10	verify_kernels: STRATA_WAIT_COPY256=1 opt-in 16-byte, 256-thread plan copy (from android-imdad/Strata-7900xtx caa9b00115)
+trial/sonnet-park-truncate	25689b0ff2b2cbadee61a65e1aeb9a514753ab34	2026-11-10	Add STRATA_PARK_TRUNCATE: park the deepest checkpoint prefix that fits
+trial/sonnet-q2-avx2	91f8a984321a96268faa3ef790b13e4ed5bfa562	2026-11-10	CPU: opt-in STRATA_Q2_FAST=1 bit-exact Q2_0 AVX2 kernel (8-op unpack, R-row groups), credit imanu86 c3fc8f34d3
+trial/sonnet-wait-copy256	0573c36b693385ede5480735eb9d523877f86af3	2026-11-10	STRATA_WAIT_COPY256: opt-in 256-thread, 16-byte plan copy in wait_copy_i32_from_mapped (from android-imdad/Strata-7900xtx caa9b00115)
+work/a4-rank-guard	43b384aa1d26d6ed8fcb9c73eed04db2d5bb321b	2026-11-10	[Engine] A4 rank-guard fix: STRATA_VERIFY_DEFER_CPU_FOLD (one pool pass when few rows are deferred)
+work/a55-task-gate	ae3bafde4e3007655bcbad699522263d2e7a6308	2026-11-10	[Tools] A55: task_gate.py, fixed task-gate runner for lossy arms (18 offline tasks, non-inferiority verdict)
+work/a6-a17-offline	406683d1bb31c89904963b2dec37ddacb1ead605	2026-11-10	[Plan] A6 recalibrated time model (time_ceiling.py --validate) and A17 turn-log thinking analysis
+work/abtest-long	734513a48bd462c6b216b845025fb3919ff9d76f	2026-11-10	abtest.py: long32k / long64k prefill cases, cold reads, prefill-aware screen; keep the quietest attempt (ports 0608ffeb3)
+work/diskkey-effortlog	14f9f70a378cd1cbf031e6f40e9fe1d5bbce828a	2026-11-10	MOD_PLAN: disk-key fix (item 8) and the A17 effort field are done
+work/docs-pass	f5c8e30d82a8b06469c8029df6a8a79ff958ac15	2026-11-10	Docs: EXPDEC_DOWN measured on gfx1100; README section 6 switch rows
+work/f11-attn-window	741e4904b11e8f67e13bb11c9783c68091602a9c	2026-11-10	[Engine] F11: window decode attention for the Qwen3.6 engine (STRATA_ATTN_WINDOW=1, opt-in; not built)
+work/f12-sign-expand	3e1583773c5633e9621d571c7acc729819fa19b8	2026-11-10	[Engine] F12: STRATA_IQ_SIGN_FAST, IQ2 sign expansion without byte compares in the EXPDEC gate/up kernels (opt-in, bitwise)
+work/f13-prior-guards	3dd7c27b836214eb0e0c4135844ab69c06b6f75c	2026-11-10	F13: route-prior guards for turbo (PROTECT/KEEP/KEEP_P/SCOPE), opt-in
+work/f14-sm86-exp9	3c74ef8a3055d63a6aee9e0ea28fcf17870c8f4b	2026-11-10	[Engine] F14: opt-in STRATA_EXP_MODE=9 + STRATA_EXP9_DOWN=42:10 (Q2_0 down on 4 lanes, from KhaledElzarw 9af8f1fa14 / 4d462ccff3)
+work/f15-fetch-admit	7b844f7bf1173a11033590c01c7dea5116504977	2026-11-10	F15: STRATA_FETCH_ADMIT=1 as an alias of the engine's STRATA_ADAPT_FETCH=1, screen spec, docs
+work/f17-poly-fattn	ca873dd47bcf475d1c5ce1a19a91cc8e0c7d0e5f	2026-11-10	F17: RandoTeam's flash attention for Qwen3.6 on strata-poly (STRATA_FATTN, STRATA_FDEC), opt-in, CUDA only
+work/f22-wmma-q4-gfx11	22a4736e605891d8c66d90eeff7bcd965d7002c2	2026-11-10	F22: Q4_0-KV prompt attention on gfx11 matrix cores (STRATA_HIP_WMMA_Q4=1, opt-in)
+work/f5-verify-ecap	2d44d31ecfe12610bca081e6784f8dbe8be2cc4f	2026-11-10	[Engine] F5 STRATA_VERIFY_ECAP: cap the CPU experts only draft rows need (opt-in, lossy)
+work/f9-route-fast	9409a228c5fe7e667d016bbb348c6895c6b05cad	2026-11-10	[Engine] F9: STRATA_ROUTE_FAST, faster router publish (opt-in, bitwise; from android-imdad caa9b00115 / Ben1078 23d2fc0450)
+work/offline-tier0	6349d2c872069440d285e3fb2423216f83d4f600	2026-11-10	bench: offline tier-0 results (TEST_PLAN 4.0.1-4.0.5)
+work/probes	9c5774c3dc12f8f15c736a74492d326c312ac220	2026-11-10	probes: TEST_PLAN 4.2 probes (empty-grid launch cost, route_publish share, expert GEMV bandwidth, CPU Q2_0 rows)
+work/replay-turns	fd425ee2b5eef08ddc4c3df338dc7a8afeadbfc3	2026-11-10	bench: replay_turns.py, agent-traffic replay for the conversation-cache arms (TEST_PLAN 4.1)
+work/route-prior-nan	8ccc60726b5dede1457d0a65946317138b24bcc5	2026-11-10	route_prior_k: no out-of-bounds write when no candidate scores above -FLT_MAX
+work/screen-specs	5f3553525cc34a25331c5ac178004c29fd2c643e	2026-11-10	bench: env-only screen specs for the next test batch (11-16), abtest sampling keys
+work/spec-names	36bad85f8e6a28a92b4de7c2afa3e7865bb070be	2026-11-10	bench/specs: give the 11-* and f12 screen specs unique numbers
+worktree-agent-a00bf47b7cf9a3dfd	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a160d7747e9b70b95	faf21ad9007b00247014c99821be1281f82ab192	2026-11-08	plan 10: co-activation predictor and per-layer cache budgets added; the owner's other ideas checked against the code (most already exist)
+worktree-agent-a1ba40406ff6ac803	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a1c1db331f7e0a950	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+worktree-agent-a1d319976201bf58e	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-a1e5d4bfb291f70e1	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-a24578aa64ca0c0ea	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a2cec809b8de0e01d	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a31fc572c65cc5b03	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a3bf2825305bdb9aa	46f5d209cbe861e61fa5701b551ecbb8054c3bcb	2026-11-09	docs: update main README with latest commits (65 switches, items 17/37/43/47/73/74) and remove old upstream READMEs
+worktree-agent-a418ac83c1b166a97	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a4344cc5d3a9ad03f	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a43c4fa669e1c176a	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a507d9ba6c7b36b4e	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a642226c90ff9d4c0	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a6a4ed0d527788516	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a6bea15394cc494ab	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a6e328040c176aa9b	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a6f1ae389adaf97db	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+worktree-agent-a716998cf16c7ad0c	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+worktree-agent-a7b814a3a4d798ddf	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a7c883274e534c8e7	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a7e33c13d550c1dd3	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a7fddf85e2a911618	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a857ee8949eb5f670	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-a866d8fbd1cd78f57	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+worktree-agent-a86ef2c232345ba89	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a8ce78c2658ef1b8c	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+worktree-agent-a956d8606dca6f699	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a96517ce3cff0812b	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+worktree-agent-a969a6ed64d215f48	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-a977f38ef20cf654c	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-a9b774f0ea44f6884	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-aa26720a278f1cc32	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-aa35502f3336c700f	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-aa3e083b8b1303643	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-aa3fd0f4ef77c7bd5	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-aa9b1d45e11d9b529	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-aaa14f21d623dfe96	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-ab431e7314840db19	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-ab76099ef4401ee8b	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-ab9ce91b6048735fd	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-aca589990ccbf75b1	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-ad0930bf8edf8d399	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-ad25cdf1dc7ea704a	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-ada56474c41a93614	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-ada82ca8f814e2bf4	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-addfc8075eb1d5865	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-ae1ae22219fc4c45e	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-ae3a1b04d63f720eb	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-ae52ae17b096744c9	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-aeab3570c555ca0f8	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+worktree-agent-aeabb663b536d39b6	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-aee1be511bc61b3a5	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-aef344b7b0c2cf9c4	fc77f60c696839c0e3c9a8cf5b7a9ac2249baa70	2026-11-11	README: Table 2F, other models measured on the 7900 XT (Qwen3.6 Q4_K_XL, Q3_K_M does not load)
+worktree-agent-af05f6b28433257ec	214c8cd31d929620126cc4af7fe46ca6a4ebaf4a	2026-11-09	serve: add engine status page (/status, /pancake) and /status.json telemetry endpoint
+worktree-agent-af100aa7094392a6e	3c1ccf75c20b1ac6917b01eb55e3e21ec662506c	2026-11-10	[Docs] Notes on strata-forge (static reading, unconfirmed)
+worktree-agent-af77b6193cbfb2999	9b779bb277a02fc5c25c2e8a683fef70c8fc4deb	2026-11-10	Merge port/rdna3-decode into main: one line of history
+work/window-trace-drafts	4edcf98818f43f325d1bc4b31036ac0adfe484bf	2026-11-10	window trace: record per-window draft confidences (record 4: prob + source per draft row, at window build)
