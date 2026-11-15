@@ -43,7 +43,27 @@
     },
     "preset": {
       "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "pcie015-dali": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DALI": "1",
+        "STRATA_DALI_EVERY": "256"
+      },
+      "args": {
+        "--pcie-frac": "0.15"
+      }
+    },
+    "pcie030-dali": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DALI": "1",
+        "STRATA_DALI_EVERY": "256"
+      },
+      "args": {
+        "--pcie-frac": "0.3"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 item 4: STRATA_DMA_FLAG_WRITE (flag B written by the copy stream, hipStreamWriteValue32) and STRATA_PCIE_FORK (flag-B wait + PCIe groups on a forked stream) act only with a PCIe share, so the base is --pcie-frac 0.15 (spec 54's value). Lossy only against the preset arm (CPU vs GPU rows); the three switch arms are EXACT against pcie015 (same text required). The preset arm (pcie-frac 0) is the reference that decides whether a share with the fast flag path beats no share. Stop pancake.service first."
+  "note": "MOD_PLAN.md section 6 item 4: STRATA_DMA_FLAG_WRITE (flag B written by the copy stream, hipStreamWriteValue32) and STRATA_PCIE_FORK (flag-B wait + PCIe groups on a forked stream) act only with a PCIe share, so the base is --pcie-frac 0.15 (spec 54's value). Lossy only against the preset arm (CPU vs GPU rows); the three switch arms are EXACT against pcie015 (same text required). The preset arm (pcie-frac 0) is the reference that decides whether a share with the fast flag path beats no share. Stop pancake.service first. DALI (MOD_PLAN.md section 6 item 13, coded 2026-11-15): STRATA_DALI=1 picks per layer and per step which missed experts the GPU reads over PCIe vs the CPU pool, from per-layer least-squares cost fits (row-weighted); the start share comes from --pcie-frac. NOT exact against pcie015 (other experts on the CPU vs the GPU): judge on tok/s; the per-layer split summary every 256 windows is in the engine log."
 }
