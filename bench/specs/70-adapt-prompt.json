@@ -1,0 +1,24 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "edit",
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "adapt-prompt": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROMPT": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 1 (FK-28): STRATA_ADAPT_PROMPT=1 feeds the prompt's routing into the decode tier counts (drive.d.usage, weight STRATA_ADAPT_PROMPT_W, default RAM_ADAPT2's prompt_w, per = w*20*K/n), folded at the start of each tier round. Offline oracle: +2.9 hit points (TEST_LEDGER T-417). Routing input is exact; the tier changes which experts are on the GPU, so the text may differ (lossy). Judged on decode tok/s and the tier hit rate after the long1k / long3k prompts; short/edit control. The engine log has the \"weight folded\" stats line. Stop pancake.service first."
+}

@@ -109,7 +109,21 @@
       "env": {
         "STRATA_GR_FUSE": "1"
       }
+    },
+    "wait-fuse-rows": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WAIT_FUSE_ROWS": "1"
+      }
+    },
+    "wait-combine": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WAIT_FUSE_ROWS": "1",
+        "STRATA_FUSE_HITS": "1",
+        "STRATA_WAIT_COMBINE": "1"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 items 4 and 10 (2026-11-15): the exact decode opt-ins of the android-imdad caa9b00115 port and today's small exact bundle, all in /home/dan/clone-of-d/src/build-win (Strata-win clone). Screen tier (promote from 0%, decide at confirm). EXACT: every arm's text must equal base. gdn-split-norm128 is judged against gdn-split (the 128-thread norm only runs on the split path); adapt-ov0-copy2 and adapt-layerwait against adapt-ov0 (ADAPT_COPY2 / LAYERWAIT are off under the preset's STRATA_ADAPT_OVERLAP=1). fuse-hits = the fork's STRATA_COMBINE_HITS (our STRATA_FUSE_HITS, default on gfx12 only, never measured on the 7900 XT). gr-fuse: callers wired 2026-11-15. Not in this spec: STRATA_MMVQ_IL_PLAIN (needs a -DSTRATA_HIP_MMVQ_IL build). Before the A/B, with the card free: ctest -L gpu in build-win (qsa_parity, hip_decode_attn_wmma_parity, mmvq_il_parity). Stop pancake.service first."
+  "note": "MOD_PLAN.md section 6 items 4 and 10 (2026-11-15): the exact decode opt-ins of the android-imdad caa9b00115 port and today's small exact bundle, all in /home/dan/clone-of-d/src/build-win (Strata-win clone). Screen tier (promote from 0%, decide at confirm). EXACT: every arm's text must equal base. gdn-split-norm128 is judged against gdn-split (the 128-thread norm only runs on the split path); adapt-ov0-copy2 and adapt-layerwait against adapt-ov0 (ADAPT_COPY2 / LAYERWAIT are off under the preset's STRATA_ADAPT_OVERLAP=1). fuse-hits = the fork's STRATA_COMBINE_HITS (our STRATA_FUSE_HITS, default on gfx12 only, never measured on the 7900 XT). gr-fuse: callers wired 2026-11-15. Not in this spec: STRATA_MMVQ_IL_PLAIN (needs a -DSTRATA_HIP_MMVQ_IL build). Before the A/B, with the card free: ctest -L gpu in build-win (qsa_parity, hip_decode_attn_wmma_parity, mmvq_il_parity). Stop pancake.service first. wait-fuse-rows = the fork's STRATA_WAIT_FUSE kernels (renamed: ours means another thing); wait-combine = the fork's WAIT_COMBINE, acting only where our COMBINE_CPU combine refuses (the engine log's switch report says whether it acted), judged against fuse-hits."
 }

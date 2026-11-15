@@ -1,0 +1,24 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "il-build": {
+      "exe": "/home/dan/clone-of-d/src/build-win-il/strata"
+    },
+    "il-plain": {
+      "exe": "/home/dan/clone-of-d/src/build-win-il/strata",
+      "env": {
+        "STRATA_MMVQ_IL_PLAIN": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 4: android-imdad caa9b00115 STRATA_MMVQ_IL_PLAIN (the hc read writes the interleaved q8_1 copy; the attention projections read it or the plain columns, never an extra interleave launch). Needs the -DSTRATA_HIP_MMVQ_IL build: /home/dan/clone-of-d/src/build-win-il (same source as build-win, CMAKE_HIP_FLAGS/CMAKE_CXX_FLAGS=-DSTRATA_HIP_MMVQ_IL). il-build (the define alone) against base shows whether the build flag changes the default path; il-plain is judged against il-build. Before the A/B, with the card free: build-win-il/mmvq_il_parity. EXACT: same text as base. Stop pancake.service first."
+}

@@ -179,12 +179,14 @@ miss.
    (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
    then run spec 33 (MTP bundle: `--mtp-q4 all --mtp-window 4096 --host-core sibling`) and spec 34's `pf-switch-min-t`
    arm (its `mmvq-wave1` arm is answered by T-072, `kv-grow` by T-391).
-2. **TONIGHT'S NIGHT QUEUE (owner 2026-11-15).** The new code of 2026-11-15 and the android-imdad caa9b00115 port,
-   built in the separate clone `/home/dan/clone-of-d/src/Strata-win` (`../build-win`; `../build-win-j32` = the same with
-   `STRATA_MMQ_RDNA3_J32_ROLLED=ON`); `ctest -L cpu` 152/152 (T-582). Order: (a) with the card free, `ctest -L gpu` in
-   build-win (the QSA, attention-merge and MMVQ parity tests cover the new kernels); (b) spec 65 (15 exact decode arms),
-   (c) spec 66 (DMA_FLAG_WRITE / PCIE_FORK on a 0.15 PCIe share), (d) spec 67 (prompt opt-ins), (e) spec 68 (PF_GU_EXACT
-   family on the exact FP16 prompt path), (f) spec 64 (#31751 build-vs-build). All screen tier. Stop `pancake.service` first.
+2. **TONIGHT'S NIGHT QUEUE (owner 2026-11-15): `/home/dan/clone-of-d/src/win-chain2.sh`**, started 22:09, waits for the box
+   chain16 (`CHAIN16_DONE` in `/home/dan/auto-chain16.log`: specs 63-park, 62, 60, 61) and for no abtest / replay running, then:
+   builds `build-win`, `build-win-il` (-DSTRATA_HIP_MMVQ_IL) and `build-win-j32` in the clone `/home/dan/clone-of-d/src/Strata-win`;
+   `ctest -L cpu`, `ctest -L gpu` (134 tests), `mmvq_il_parity`; then specs 65 (decode exact opt-ins), 66 (PCIe share +
+   DMA_FLAG_WRITE / PCIE_FORK), 67 (prompt opt-ins), 68 (PF_GU_EXACT family on the exact FP16 path), 69 (MMVQ_IL_PLAIN), 70
+   (FK-28 ADAPT_PROMPT), 64 (#31751), all `--tier screen`, results `/home/dan/auto-runs/win-<spec>.jsonl`, log
+   `/home/dan/clone-of-d/src/win-chain2.log`. Caution for chain16: the Windows session's builds ran 21:58-22:08 beside its spec 62
+   replay (started 21:58): treat that replay's numbers as possibly noisy.
 3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
@@ -249,11 +251,11 @@ miss.
 
 | # | item | expected | exact/lossy |
 |---|---|---|---|
-| 1 | FK-28 prompt-fed tier counts, redesigned: the old dead `set_usage` hook was deleted (T-575); build it fresh. Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
+| 1 | CODED 2026-11-15 (`STRATA_ADAPT_PROMPT=1`, weight `STRATA_ADAPT_PROMPT_W`; next: spec 70). FK-28 prompt-fed tier counts, redesigned: the old dead `set_usage` hook was deleted (T-575); built fresh. Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
 | 2 | 0xluk `PF_AHEAD` + `REFILL_ASYNC` for the staged path of agent deltas < 4,096 tokens | +35% agent prefill (2x 3060, PCIe 3) | exact |
 | 3 | CODED 2026-11-15 (opt-in build switch `STRATA_MMQ_RDNA3_J32_ROLLED`, `cmake/strata_ggml_rdna3_j32.cmake`): llama.cpp #31751 RDNA3 MMQ J=32 rolled k01 loop on the pinned ggml; acts on the staged prompt chunks (< 4096 tokens, agent deltas) for Q2_0 down / IQ2_XXS / IQ4_XS. Static check T-579: J=32 kernel 256 VGPRs + spill, occupancy 5 -> 137 VGPRs, no spill, occupancy 10. Next: spec 64 (build-vs-build) | author +36% at 17-32-token batches, gfx1100 | exact |
 | 4 | android-imdad bundle caa9b00115 + the PF_GU_EXACT series (90434843b4, ac7e5aff59, 9caad8f2bb, 876c3af7e6, 8a2f38aaad): PORTED 2026-11-15, every switch default-off (owner: every lead followed). Decode: `MULTI_BLOCK_ARGMAX` on gfx11, `MTP_SELECT_WIDE`, `SCAN_UNROLL`, `TOPK_REGKEYS`, `TOPK_SCAN`, `ATTN_MERGE_BOUND`, `ATTN_PRE75_NC`, `GRUP_WIDE`, `GRUP_PF`, `DOWN_SWIGLU`, `GDN_NORM128` (split path), `ADAPT_COPY2`, `ADAPT_LAYERWAIT`, `DMA_FLAG_WRITE`, `PCIE_FORK`; prompt: `DQ_FAST`, `PF_LEAN_ISSUE`, `PF_COPY2`, `PF_GU_EXACT` (+ Tensile kernel, startup self-check), `PF_DOWN_STREAMS`, `PF_DQ_OVERLAP`; test knob `EXPERT_SLOTS_MAX`. `GR_FUSE` and `MMVQ_IL_PLAIN` callers wired (IL_PLAIN needs a -DSTRATA_HIP_MMVQ_IL build). Code-checked equal to ours: `ROUTE_PUB` = `ROUTE_PUBLISH` (route_publish_res: same top-10 + doorbell_publish_res in one launch, same session conditions); `COMBINE_HITS` = `STRATA_FUSE_HITS` (combine_k10_vec4_hits; default only on gfx12, so spec 65 arm fuse-hits). `WAIT_COMBINE` = `COMBINE_CPU` + `WAIT_FUSE` (combine_cpu_k10_vec4: every block spins on the flag, reads the mapped CPU rows) except one gap: ours refuses when the shared expert is not native BF16 or the CPU experts are not in the native layout (verify.cpp cfuse_off), the fork's needs only aligned buffers: port that relaxation if the engine log shows COMBINE_CPU refused on the preset. Next: specs 65-68 | bundle +10% chat, +11% agent, KL 0, 7900 XTX; GU_EXACT 26.5 vs 12.9 TFLOPS | exact |
-| 5 | `PF_GU_EXACT` Tensile prompt GEMM for gfx1100 | 26.5 vs 12.9 TFLOPS; 64K prompt 40.1 -> 31.5 s (XTX) | exact |
+| 5 | DONE: ported with item 4 (also on the layer-major walk; `STRATA_PF_GU_EXACT_MINT`); next: spec 68. `PF_GU_EXACT` Tensile prompt GEMM for gfx1100 | 26.5 vs 12.9 TFLOPS; 64K prompt 40.1 -> 31.5 s (XTX) | exact |
 | 6 | schedule H2D admission copies into CPU-idle phases (attention/GDN) | est. +10-18% | exact |
 | 7 | CPU pool bandwidth push (two fused phases per layer, row-chunk split, touch the next expert early); imanu86 IQ2_S/IQ3_S AVX2 decode without per-index shifts (pool on IQ2_S layers 20-33% faster) | est. 33 -> 38-42 GB/s, +5-12% | exact |
 | 8 | re-warm or protect the decode tier after a long prompt (decode 92.5 vs 111.7 tok/s after prefill) | up to the gap | exact |

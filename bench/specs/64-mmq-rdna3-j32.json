@@ -1,6 +1,7 @@
 {
   "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
   "lossy": false,
+  "prefill": true,
   "cases": [
     "long1k",
     "long3k",
