@@ -66,6 +66,13 @@ void bf16_gemv_fp32_mmvf_multi(const float* x, int64_t ldx, const uint16_t* w, f
 bool bf16_gemv_fp32_mmvf_multi_aux(const float* x, int64_t ldx, const uint16_t* w, float* y, int64_t ldy,
                                    int64_t n_in, int64_t n_out, int n_tok, const uint16_t* w_aux, float* y_aux,
                                    int64_t ldy_aux, void* stream);
+/// STRATA_FUSE_QGEMV=1 (this-cute-world/Strata 818a1eaa57): bf16_gemv_fp32_mmvf_multi(_aux, w_aux non-null) and
+/// native_quantize_q8_1(q_x, q_out, n_in, n_tok) in ONE launch; the GEMV's blocks first, then the quantizer's.  Every GEMV
+/// output and every q8_1 byte is the two calls'.  Returns false (nothing launched) unless the rows kernel at 256 threads
+/// without STRATA_TSUM would run the GEMV (STRATA_MMVF_ROWS=1, n_out >= 64, 2-8 rows, ldx == n_in, q_elems = n_in n_tok).
+bool bf16_gemv_fp32_mmvf_multi_quant(const float* x, int64_t ldx, const uint16_t* w, float* y, int64_t ldy,
+                                     int64_t n_in, int64_t n_out, int n_tok, const uint16_t* w_aux, float* y_aux,
+                                     int64_t ldy_aux, const float* q_x, void* q_out, int64_t q_elems, void* stream);
 
 /// MOD_PLAN item 48 (STRATA_ROUTER_FUSE=1): arm route_publish_res (top-10 + doorbell, native_router_top10_publish_res's
 /// arguments) as the epilogue of the NEXT bf16_gemv_fp32_mmvf_multi[_aux] call on this thread; afterwards
