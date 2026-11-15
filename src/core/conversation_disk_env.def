@@ -841,6 +841,7 @@ STRATA_ENV("STRATA_WAIT_COMBINE", Speed, "bitwise: documented (docs/README/code 
 STRATA_ENV("STRATA_WAIT_COPY256", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_WAIT_FUSE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_WAIT_FUSE_ROWS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_WARM_CU_MASK", Speed, "graph/stream plumbing: the IC_WARM stream limited to the first N CUs; same kernels and bytes (LEADS.md Part D)")
 STRATA_ENV("STRATA_XN_F16", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 
 // ---- Inert: diagnostics, test hooks, paths, limits, io, tools and other engines; must not be in the key (274) ----

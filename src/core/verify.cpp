@@ -1181,9 +1181,30 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         }
         warm_off_[(size_t) g.n_layers] = (int) segs.size();
         warm_cap_ = (unsigned long long) std::atoi(wm) << 20;
+        // STRATA_WARM_CU_MASK=N (opt-in, HIP only; unset = the plain stream below, as before): the warm stream is created
+        // with hipExtStreamCreateWithCUMask on the first N compute units only, so the warm reads during the spin leave the
+        // other CUs to the window's kernels.  Same kernels, same bytes; placement only.  Lead: LEADS.md Part D "CU-masked
+        // stream for spin/warm kernels" (data-path report).  A failed masked create falls back to the plain stream.
+        auto make_warm = [&]() -> cudaError_t {
+#if defined(STRATA_USE_HIP)
+            static const int cu_n = [] { const char* e = std::getenv("STRATA_WARM_CU_MASK"); return e ? std::atoi(e) : 0; }();
+            if (cu_n > 0) {
+                uint32_t mask[4] = {0, 0, 0, 0};
+                const int n = std::min(cu_n, 128);
+                for (int i = 0; i < n; ++i) mask[i / 32] |= 1u << (i % 32);
+                if (hipExtStreamCreateWithCUMask(&warm_, 4, mask) == hipSuccess) {
+                    std::fprintf(stderr, "strata verify: STRATA_WARM_CU_MASK=%d: warm stream on the first %d CUs\n", cu_n, n);
+                    return cudaSuccess;
+                }
+                (void) cudaGetLastError();
+                std::fprintf(stderr, "strata verify: STRATA_WARM_CU_MASK=%d: masked stream refused; plain stream\n", cu_n);
+            }
+#endif
+            return cudaStreamCreateWithFlags(&warm_, cudaStreamNonBlocking);
+        };
         if (segs.empty() || cudaMalloc((void**) &warm_segs_, segs.size() * sizeof(segs[0])) != cudaSuccess ||
             cudaMemcpy(warm_segs_, segs.data(), segs.size() * sizeof(segs[0]), cudaMemcpyHostToDevice) != cudaSuccess ||
-            cudaStreamCreateWithFlags(&warm_, cudaStreamNonBlocking) != cudaSuccess ||
+            make_warm() != cudaSuccess ||
             cudaEventCreateWithFlags(&warm_fork_, cudaEventDisableTiming) != cudaSuccess ||
             cudaEventCreateWithFlags(&warm_join_, cudaEventDisableTiming) != cudaSuccess) {
             switch_report::will_not_act(switch_report::ic_warm, "its setup failed (no weights, or the side stream's allocation)");
