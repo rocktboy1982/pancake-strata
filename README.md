@@ -846,10 +846,19 @@ Credits, in the order the stack was built:
 - **Niko1221** and the Strata contributors, for the engine everything sits on.
 - **Jarson1408** (FastStrata) and **simplexai-labs** (PolyStrata), for the `strata-poly` engine.
 - **nicejunjie** (Strata-rdna3), for the RDNA3 kernels this project ported and fused.
+  Also from Strata-rdna3: the 49152 prompt-chunk ceiling and `STRATA_PREFILL_EQUAL_TAIL_MAX` (commits `791cca4b`,
+  `5906629d`) and the per-layer CPU-share pool retry (`STRATA_PREFILL_POOL_RETRY`, commit `f557b544`), ported 2026-11-15.
 - **jesdga95** (basalt), for the head kernels, the draft proxy and the grammar path.
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
 - **android-imdad** (Strata-7900xtx, MIT), for the 256-thread, 16-byte plan copy (`STRATA_WAIT_COPY256`) and the fast
   router publish (`STRATA_ROUTE_FAST`: rows copied by the router GEMV, stored step number, DPP exchanges), commit caa9b00115.
+  On 2026-11-15 the rest of commit caa9b00115 was ported as default-off switches (`STRATA_MULTI_BLOCK_ARGMAX` on gfx11,
+  `STRATA_MTP_SELECT_WIDE`, `STRATA_SCAN_UNROLL`, `STRATA_TOPK_REGKEYS`, `STRATA_TOPK_SCAN`, `STRATA_ATTN_MERGE_BOUND`,
+  `STRATA_GDN_NORM128`, `STRATA_GRUP_WIDE`, `STRATA_GR_FUSE`, `STRATA_MMVQ_IL_PLAIN`, `STRATA_DOWN_SWIGLU`, `STRATA_DQ_FAST`,
+  `STRATA_PF_LEAN_ISSUE`, `STRATA_PF_COPY2`, `STRATA_DMA_FLAG_WRITE`, `STRATA_PCIE_FORK`, `STRATA_ADAPT_COPY2`,
+  `STRATA_ADAPT_LAYERWAIT`, `STRATA_WAIT_COMBINE`, `STRATA_WAIT_FUSE_ROWS`, and others), and the exact FP16 gate/up
+  products in rocBLAS's order on a Tensile kernel (`STRATA_PF_GU_EXACT`, `STRATA_PF_DOWN_STREAMS`, `STRATA_PF_DQ_OVERLAP`;
+  commits `90434843b4`, `ac7e5aff59`, `9caad8f2bb`, `876c3af7e6`, `8a2f38aaad`; author: 26.5 vs 12.9 TFLOPS on a 7900 XTX).
 - **Ben1078** (Strata fork, MIT), for the stored doorbell ring in the router's publish (commit `23d2fc0450`, part of
   `STRATA_ROUTE_FAST`).
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
@@ -887,6 +896,13 @@ Credits, in the order the stack was built:
 - **RX5950XT** (Strata fork, MIT), for the IQ2/IQ3 sign form without byte compares that `STRATA_IQ_SIGN_FAST` uses (commit
   `b9a2111d3f`, llama.cpp's `ggml_cuda_apply_signs` without its multiply), and **boxwrench** (in yqYo1/Strata, MIT), for
   measuring packed sign expansion on an RX 7900 XT (commit `6f0bdf665b`).
+- **0xluk** (Strata fork `flashnext-pcie3`, MIT), also for the next chunk's experts prefetched while attention runs
+  (`STRATA_PF_AHEAD`, commit `896481c943`) and the refill off the first-token path (`STRATA_REFILL_ASYNC`, commit `f9b14a4965`;
+  author: agent prefill 512 -> 692 tok/s, 2x RTX 3060).
+- **llama.cpp PR #31751** (ggml-org/llama.cpp), for the RDNA3 MMQ J=32 rolled loop that removes the register spills, applied to the
+  pinned ggml by `STRATA_MMQ_RDNA3_J32_ROLLED` (author: +36% at 17-32-token batches on gfx1100).
+- **sanastasiou** (upstream PR #930, commit `9233f998`) and **imanu86** (commit `862c18aaea`), for the IQ2_S / IQ3_S AVX2 decode
+  without per-index shifts (HiSpread) that the CPU pool runs by default.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.

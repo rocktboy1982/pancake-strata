@@ -1,0 +1,30 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "long64k",
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "pool-retry": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PREFILL_POOL_RETRY": "1"
+      }
+    },
+    "auto-max-49152": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PREFILL_AUTO_MAX": "49152"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 12: Strata-rdna3 f557b544 (STRATA_PREFILL_POOL_RETRY=1: the prompt CPU share retries the pool at every layer; grouped-host site only) and 791cca4b (an AUTO_MAX ask >= 40960 now gets an 8192-grid ceiling up to 49152, the loan fit still decides; author est. 2-4% at 49K). pool-retry is judged on long1k / long3k (the CPU-share window), auto-max-49152 on long64k (prompt tok/s, the chunk plan line in the engine log). Lossy (KeyIfSet: CPU share changes which rows the CPU computes). Stop pancake.service first."
+}
