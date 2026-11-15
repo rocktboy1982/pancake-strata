@@ -1302,6 +1302,14 @@ int pool_touch_next() {
     }();
     return b;
 }
+// STRATA_POOL_DAG=2 (opt-in, read once; port of KhaledElzarw/Strata 287cd207ad, LEADS.md A3; DAG=1 is our
+// STRATA_POOL_FUSE_PHASES mode 7): the fused phase's down rows go to the experts in the order their gate/up finished, so a
+// free worker never waits on an expert whose gate/up is still running while another expert's down rows are ready.  Turns on
+// mode 7 by itself.  Every row is still computed by the same kernel call on the same inputs into the same output: bitwise.
+bool pool_dag2() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_POOL_DAG"); return v != nullptr && v[0] == '2' && v[1] == '\0'; }();
+    return on;
+}
 inline void touch_bytes(const uint8_t* p, size_t bytes) {
 #if defined(__x86_64__) || defined(_M_X64)
     for (size_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) p + o, _MM_HINT_T0);
@@ -1371,12 +1379,20 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                 return R * units / (4 * big + small);
             };
             const int64_t g0 = cut(j), g1 = cut(j + 1);
+            // STRATA_POOL_DAG=2 (pool_dag2 above): in the fused phase's down part, row block g / h is a SLOT, the expert that
+            // finished its gate/up in that place (published below), not expert g / h
+            const bool dag2_dn = pm == 6 && mode_ == 7 && !sliced && pool_dag2();
             for (int64_t g = g0; g < g1;) {
-                const int e = (int) (g / h), l0 = (int) (g % h);
+                int e = (int) (g / h);
+                const int l0 = (int) (g % h);
                 const int l1 = (int) std::min<int64_t>(h, l0 + (g1 - g));
                 const int r0 = row0 + l0, r1 = row0 + l1;
+                if (dag2_dn) {
+                    while (fslot_ready_[(size_t) e].load(std::memory_order_acquire) == 0) strata_cpu_pause();
+                    e = fslot_e_[(size_t) e];
+                }
                 SplitBufMulti& sb = split_multi_[(size_t) e];
-                if (touch_next > 0 && g + (l1 - l0) < g1) {
+                if (touch_next > 0 && !dag2_dn && g + (l1 - l0) < g1) {
                     // STRATA_POOL_TOUCH_NEXT: this task goes on into the next expert's rows (another blob, so the
                     // kernels' in-row prefetch cannot reach them) - ask for their first bytes now
                     const int64_t gn = g + (l1 - l0);
@@ -1448,6 +1464,11 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                     if (frows_[(size_t) e].fetch_add(n, std::memory_order_acq_rel) + n == per) {
                         quant_down_act(e);
                         fready_[(size_t) e].store(1, std::memory_order_release);
+                        if (pool_dag2()) {   // STRATA_POOL_DAG=2: the next down slot is this expert's
+                            const int s = fslots_.fetch_add(1, std::memory_order_relaxed);
+                            fslot_e_[(size_t) s] = e;
+                            fslot_ready_[(size_t) s].store(1, std::memory_order_release);
+                        }
                     }
                 }
                 g += l1 - l0;
@@ -1639,7 +1660,7 @@ bool ExpertPool::fuse_phases(int nb) const {
     // not help (the first run's +23% / -8% were the stale-mtasks_ bug)
     static const bool on = [] { const char* e = std::getenv("STRATA_POOL_FUSE_PHASES"); return e && std::atoi(e) != 0; }();
     static const int min_nb = [] { const char* e = std::getenv("STRATA_POOL_FUSE_MIN"); return e ? (std::max)(0, std::atoi(e)) : 0; }();
-    return on && numa_n_ == 0 && nb >= min_nb;
+    return (on || pool_dag2()) && numa_n_ == 0 && nb >= min_nb;   // STRATA_POOL_DAG=2 runs on mode 7
 }
 
 void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs, int n, NativeArithmetic arithmetic) {
@@ -1668,7 +1689,9 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
             for (int e = 0; e < nb; ++e) {
                 frows_[(size_t) e].store(0, std::memory_order_relaxed);
                 fready_[(size_t) e].store(0, std::memory_order_relaxed);
+                fslot_ready_[(size_t) e].store(0, std::memory_order_relaxed);   // STRATA_POOL_DAG=2
             }
+            fslots_.store(0, std::memory_order_relaxed);
             const auto a = std::chrono::steady_clock::now();
             // mtasks_ = all the phase's tasks: drain() cuts the down tasks as [fgu_tasks_, mtasks_) (it was left stale here:
             // the down rows were cut from the previous phase's count - wrong ranges, or a division by zero)
