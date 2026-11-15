@@ -3408,7 +3408,7 @@ Not of interest (no plan entry): AntGPU (marketplace), Jetson Orin, RTX 5070 Ti 
 Next step, in order: R1 (read the Strata-rdna3 code, it is the only RDNA3 direct comparison), then R2 (the offline replay, which needs the gate-weight trace).
 
 ### llama.cpp upstream performance commits since our Avalon base (2026-11-09 to 2026-11-15): candidates to check, port and test
-Source: upstream ggml-org/llama.cpp commit history (196 commits since 2026-11-09; treeless clone at /home/dan/llama-upstream-log). Upstream has no 1.0 release; it tags builds bNNNNN (latest b12387, 2026-11-14). Our Avalon base is fork commit 8b9a0f4 (2026-11-09), so the window is commits after that date.
+SUPERSEDED by the v1.0.0 section below (the user asked for the v1.0.0 release, not the Avalon base window). Note: upstream DOES have a v1.0.0 tag (2026-11-13); the statement "no 1.0 release" in this section was wrong.
 Caveat: most commit messages state no measured speedup, so "major" below means relevant to our path, not a measured gain. Every entry needs its own measurement; none is a finding yet.
 
 | # | Commit (date) | What changed | Relevance to us (gfx1100, HIP, MoE, MTP) | Check before porting |
@@ -3426,3 +3426,18 @@ Caveat: most commit messages state no measured speedup, so "major" below means r
 Not of interest (other backends or non-engine): sycl, metal, hexagon, opencl, vulkan (except U7), mtmd, openEuler, ui, devops, CI.
 
 Order: U5 and U3 first (direct shape and path matches; a check each), then U1 (largest potential, HIP port cost), then U6 and U4 (host overhead), then U2 and U7 (checks only).
+
+### llama.cpp v1.0.0 (tag, 2026-11-13): performance candidates vs our engine
+Source: upstream tag v1.0.0 (249 commits after v0.9.0, dated 2026-11-04), read from /home/dan/llama-upstream-log. The release tag has no notes text; candidates are from commit messages. Commit messages mostly state no measured speedup, so no gain is claimed here; each entry needs a measurement.
+
+Priority list (relevance to our expert offload, MTP and HIP path):
+- V1 e95426f16 (2026-11-08) moe-cache: compute part of the expert misses on the CPU (--moe-cache-cpu-share F). HIGH: same design question as our CPU-expert path and the deferral arms (A3, A4, rank guard). Test: sweep the share against our deferral on the same prompts (screen), then confirm.
+- V2 cf34d3113 (2026-11-08) moe-cache: CPU part does not wait for the cached experts. HIGH: check whether our combine waits on device experts the CPU does not need (same class as WAIT_FUSE / combine_cpu, which is 26% of decode).
+- V3 c4fb57969 (2026-11-06) moe-cache: LRFU/MQ-like hybrid cache (ClassLRU). HIGH: an alternative to our expert-cache eviction; replay on our routing trace before any GPU run (ties to A44 and A46).
+- V4 69ee2ecc0 (2026-11-05) CUDA: linearize MoE data layout for MMQ/MMF, tile size tuning. HIGH: our MoE matmuls run on HIP MMQ; check our expert layout and tile choice for gfx1100.
+- V5 a2b301831 (2026-11-08) speculative: do not apply the MoE cache to the draft model. MEDIUM: check whether our MTP drafter uses the expert cache; if yes, same fix.
+- V6 040ce199a (2026-11-05) graph: store MTP conv snapshots in one set_rows. MEDIUM: check our MTP rollback writes for the GDN/conv state (one copy per slot?).
+- V7 57d04820d (2026-11-08) radix top-k deterministic ties; upstream turns it off for ROCm. LOW for us (HIP excluded); note only.
+- U1 to U9 above (0fb8f1577 few-row MMQ, 459ab1cdd MMVF for few rows, a8fad21e9 MTP device hidden states, cb44fdb18 and ccd360f06 graph overhead, 432433637 rocBLAS workspace, and others) are also in v1.0.0.
+
+Order: V1 and V2 together (the CPU-expert question is the largest open decision in the decode profile), then V4 (layout check on HIP), then V3 (offline replay), then V5 and V6 (checks).
