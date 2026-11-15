@@ -352,7 +352,17 @@ def gpu_reader(index=0, amd=False):
     tests' AMD trees are read on a Mac too."""
     if amd:
         return _Amd(index)
-    return _Metal(index) if sys.platform == "darwin" else _Nvml(index)
+    if sys.platform == "darwin":
+        return _Metal(index)
+    g = _Nvml(index)
+    if not g.ok() and sys.platform.startswith("linux"):
+        # No NVML but an amdgpu card: the HIP build's config often has no "backend": "hip" key (the repo's *-hip
+        # presets do not), and the engine labels that build "CUDA", so `amd` arrives False and the status page
+        # showed no GPU name, VRAM or temperature on an AMD card.  The sysfs reader needs no library.
+        a = _Amd(index)
+        if a.ok():
+            return a
+    return g
 
 
 _DISPLAY_CLASS = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"

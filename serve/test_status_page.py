@@ -290,3 +290,44 @@ class StatusSecrets(unittest.TestCase):
         self.assertEqual(env["STRATA_API_KEY"], "<set>")
         self.assertEqual(env["STRATA_OWNER_ATTEST_KEY"], "<set>")
         self.assertEqual(env["STRATA_GDN_KEYHEAD"], "1")              # a switch, not a secret
+
+
+class GpuReaderFallback(unittest.TestCase):
+    """serve.telemetry.gpu_reader: with no NVML but an amdgpu card, the sysfs reader is used, so the status page names
+    the card and its VRAM even when the config has no "backend": "hip" (the repo's -hip presets have none, and the HIP
+    build calls itself CUDA).  Mock readers: no GPU needed."""
+
+    def setUp(self):
+        from serve import telemetry
+        self.T = telemetry
+        self.nvml, self.amd = unittest.mock.Mock(), unittest.mock.Mock()
+
+    def pick(self, nvml_ok, amd_ok, platform="linux", **kw):
+        self.nvml.ok.return_value, self.amd.ok.return_value = nvml_ok, amd_ok
+        with unittest.mock.patch.object(self.T, "_Nvml", return_value=self.nvml), \
+                unittest.mock.patch.object(self.T, "_Amd", return_value=self.amd) as amd_cls, \
+                unittest.mock.patch.object(self.T, "sys") as fake_sys:
+            fake_sys.platform = platform
+            return self.T.gpu_reader(0, **kw), amd_cls
+
+    def test_amd_sysfs_when_nvml_is_missing(self):
+        reader, _ = self.pick(False, True)
+        self.assertIs(reader, self.amd)
+
+    def test_nvml_wins_when_it_works(self):
+        reader, amd_cls = self.pick(True, True)
+        self.assertIs(reader, self.nvml)
+        amd_cls.assert_not_called()
+
+    def test_nvml_object_kept_when_neither_card_is_found(self):
+        reader, _ = self.pick(False, False)
+        self.assertIs(reader, self.nvml)                              # unchanged: the page shows no GPU, as before
+
+    def test_no_fallback_off_linux(self):
+        reader, amd_cls = self.pick(False, True, platform="win32")
+        self.assertIs(reader, self.nvml)
+        amd_cls.assert_not_called()
+
+    def test_explicit_amd_flag_is_unchanged(self):
+        reader, _ = self.pick(True, True, amd=True)
+        self.assertIs(reader, self.amd)
