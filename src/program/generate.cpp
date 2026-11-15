@@ -404,6 +404,13 @@ bool park_async_env() {   // STRATA_PARK_ASYNC (strata/core/conversation_snapsho
     static const bool on = [] { const char* v = std::getenv("STRATA_PARK_ASYNC"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
+// STRATA_CKPT_MOVE_PARK=1 (opt-in; phoenixclyde/Strata 406ec78190, LEADS.md "CKPT_MOVE_PARK"): the checkpoints a request
+// drops move into its parked image instead of being copied (~92 ms a park on the author's MI50).  The move rode on
+// STRATA_PARK_ASYNC, which cannot act on HIP (park_async_on() is false), so it gets its own switch here.  Unset: as before.
+bool park_move_env() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_CKPT_MOVE_PARK"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
 bool ckpt_pool_env() {
     static const bool on = [] {
         const char* v = std::getenv("STRATA_CKPT_POOL");
@@ -12350,6 +12357,16 @@ int main(int argc, char** argv) {
         ver.set_remote_expert_opt(remote_opt.get());
         if (pcie_balance() && n_stages == 1) ver.set_pcie_balance(&drive.d.pcie_model);
         if (n_stages == 1) dali_attach(ver, drive.d, "serve");   // STRATA_DALI (MOD_PLAN.md section 6 item 13)
+        {   // STRATA_PCIE0_NO_STAGING=1 (opt-in; strata-slim 0003, LEADS.md): under the STRATA_PCIE_OFF condition below (--pcie-frac 0,
+            // no auto share, one card) the verifier takes no PCIe staging slots; their VRAM is left to the expert cache
+            static const bool no_stage = [] { const char* v = std::getenv("STRATA_PCIE0_NO_STAGING"); return v != nullptr && v[0] == '1'; }();
+            const char* po = std::getenv("STRATA_PCIE_OFF");
+            if (no_stage && n_stages == 1 && o.pcie_frac == 0.0 && !o.pcie_frac_auto && o.layer_split.empty() && o.peer_device < 0 &&
+                !(po != nullptr && po[0] == '0')) {
+                ver.set_no_staging(true);
+                std::fprintf(stderr, "strata: STRATA_PCIE0_NO_STAGING: --pcie-frac 0: no PCIe staging slots\n");
+            }
+        }
         if (batch_mtp) ver.set_batch_graph_limit(64);   // --batch-mtp only: slot rotation makes many layouts (LRU); 0.1.39 keeps all
 #if defined(STRATA_HAVE_DFLASH2)
         if (use_df2) ver.set_taps(df2.tap_layers());
@@ -15722,7 +15739,7 @@ int main(int argc, char** argv) {
         }
         if (disco_on)
             mtp.set_chain_rule([&](int idx, float pj) {
-                const bool k = disco.keep_draft(idx, pj, S_mtp);
+                const bool k = disco.keep_draft(idx, pj, S_mtp, mtp.chain_draft(idx));   // (the token: STRATA_SPEC_LOOKUP_Q)
                 chain_rows = disco.rows();
                 return k;
             });
@@ -18080,7 +18097,7 @@ int main(int argc, char** argv) {
                 std::function<bool(const ConvCheckpoint&)>& f;
                 ~ParkDrops() { f = nullptr; }
             } park_drops_reset{park_drops};
-            if (park_async_env()) {
+            if (park_async_env() || park_move_env()) {   // (STRATA_CKPT_MOVE_PARK: the move without the async park)
                 const bool drops_all = incoming.has_value() || borrow || slot_source >= 0 || want_cvec != cvec_cached;
                 park_drops = [&, drops_all](const ConvCheckpoint& c) {
                     return drops_all || (int64_t) c.ids.size() > resume || !starts_with(c.ids, c.imgs);
@@ -19972,7 +19989,14 @@ int main(int argc, char** argv) {
             std::array<int32_t, 16> tr_s{};
             int tr_k = 0, tr_match = 0;
             std::vector<int32_t> sbuf((size_t) S, 0);
-            const bool sfx_on = o.suffix_draft > 0 || o.lookup_chain > 0;
+            // STRATA_SPEC_LOOKUP_Q=q / STRATA_SPEC_DEPTH_DECAY=d (opt-in, exact: only the window length changes; android-imdad/
+            // Strata-7900xtx ef42c2fde9, LEADS.md FK-21b): with STRATA_SPEC_CUM (the DISCO cumulative rule), a draft that the
+            // suffix lookup (prompt + output so far) also proposes at its place counts q in the chain product, any other
+            // p * d^j.  Author: CUM 0.3 + q 0.95 + d 0.9 +3.9% over CUM 0.5 replayed (7900 XTX).  Needs the suffix index.
+            static const double spec_lookup_q = [] { const char* e = std::getenv("STRATA_SPEC_LOOKUP_Q"); return e ? std::atof(e) : 0.0; }();
+            static const double spec_depth_decay = [] { const char* e = std::getenv("STRATA_SPEC_DEPTH_DECAY"); return e ? std::atof(e) : 1.0; }();
+            const bool spec_hint_on = disco_on && (spec_lookup_q > 0.0 || (spec_depth_decay > 0.0 && spec_depth_decay != 1.0));
+            const bool sfx_on = o.suffix_draft > 0 || o.lookup_chain > 0 || (spec_hint_on && spec_lookup_q > 0.0);
             if (sfx_on) {
                 sfx.reset();
                 for (int64_t t : ids) sfx.append((int32_t) t);
@@ -21540,6 +21564,11 @@ int main(int argc, char** argv) {
                 }
                 const GatedDraftLimit draft_limit(mtp, gated_proposal, S_mtp, p + a + 1, o.max_context);
                 int mtp_nd = 0;   // item 74: the drafts of this round (the window trace records them when the window is built, above)
+                if (spec_hint_on && use_mtp && !req_df2 && !eos && produced_n < max_new) {   // STRATA_SPEC_LOOKUP_Q: the history ends with the next window's first token
+                    int32_t spec_lk[8] = {};
+                    const int spec_lk_n = spec_lookup_q > 0.0 && sfx_on ? sfx.propose(std::min(8, S_mtp), spec_lk) : 0;
+                    disco.set_stop_hint(spec_lk, spec_lk_n, spec_lookup_q, spec_depth_decay > 0.0 ? spec_depth_decay : 1.0);
+                }
                 const bool drafted = !draft_on || eos || produced_n >= max_new ||
                                      (req_df2 ? ((!merged && defer_df2(a)) || draft_df2(a)) : mtp.draft_long(T, outv.data(), p, a, drafts.data(), err, dprob.data(), (float) req_spec_min_p,
                                                                                &mtp_nd, gated_proposal ? &generation : nullptr));

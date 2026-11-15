@@ -465,6 +465,9 @@ public:
     void set_pre_launch(std::function<bool(cudaStream_t cs, std::string& err)> f) { pre_launch_ = std::move(f); }
     /// the pool never plans a PCIe share (--pcie-frac 0): the window skips that path.  Before the first run.
     void set_pcie_off(bool off) { pcie_off_ = off; }
+    /// STRATA_PCIE0_NO_STAGING=1 (opt-in; strata-slim patch 0003, LEADS.md "no PCIe staging slots at --pcie-frac 0"): init()
+    /// takes no PCIe staging slots (16 x max_blob of VRAM), so no PCIe fetch is ever planned.  Set before init().
+    void set_no_staging(bool on) { no_staging_ = on; }
 
     /// The PCIe count of each layer from measured costs (PcieModel) instead of a fixed share: the spin kernels stamp
     /// each step's GPU work (the plan's arrival, the PCIe part's start, the wait for the CPU's rows; GPU clock), the host
@@ -777,6 +780,7 @@ private:
     bool bal_paused_ = false;
     void pcie_balance_window(int64_t steps, int G);
     bool pcie_off_ = false;                                       // no PCIe share ever (--pcie-frac 0)
+    bool no_staging_ = false;                                     // STRATA_PCIE0_NO_STAGING: staging_ not allocated
     cudaEvent_t commit_done_ = nullptr;   // recorded after an async commit (set_commit_async); see wait_commit
     bool commit_pending_ = false;
     cudaStream_t copy_ = nullptr;                                 // the copy engine's stream (DMA of missed experts)

@@ -177,10 +177,21 @@ void DiscoPolicy::features(int idx, float p, double chain, float* out) const {
     out[8] = (float) ctx_f_;
 }
 
-bool DiscoPolicy::keep_draft(int idx, float p, int cap) {
+bool DiscoPolicy::keep_draft(int idx, float p, int cap, int32_t tok) {
     cap = std::clamp(cap, 1, kMaxT);
     if (idx == 0) { kept_ = 0; chain_ = 1.0; }
-    chain_ *= std::clamp((double) p, 0.0, 1.0);
+    if (hint_q_ > 0.0 || hint_decay_ != 1.0) {   // STRATA_SPEC_LOOKUP_Q / _DEPTH_DECAY (ef42c2fde9 stop_q)
+        double q;
+        if (hint_q_ > 0.0 && idx < hint_n_ && tok >= 0 && hint_tok_[idx] == tok) {
+            q = hint_q_;
+        } else {
+            q = std::clamp((double) p, 0.0, 1.0);
+            for (int i = 0; i < idx; ++i) q *= hint_decay_;
+        }
+        chain_ *= std::clamp(q, 0.0, 1.0);
+    } else {
+        chain_ *= std::clamp((double) p, 0.0, 1.0);
+    }
     if (kept_ == idx && idx + 2 <= cap) {   // every draft before this one was kept
         float x[kF];
         features(idx, p, chain_, x);

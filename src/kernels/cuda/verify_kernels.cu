@@ -944,11 +944,24 @@ __global__ void force_token_kernel(int32_t* tok, const int32_t* force, int j) {
 
 }  // namespace
 
+// STRATA_FETCH_BLOCKS=N (opt-in, bitwise; unimatrix099/Strata d0c8d6c3e2, LEADS.md FK-26): the PCIe share's copy kernels
+// (fetch_blobs, wait_fetch_blobs) launch N blocks instead of 48 x 8 = 384.  Author, 2x RX 7900 XTX: an empty 384 x 256
+// launch costs 14-16 us on gfx1100 (352 or fewer: 2.7-3.0 us) and the share is nearly always empty; 96 blocks decode +6%,
+// same text.  The kernels are grid-stride loops: the same bytes land for any N.  Unset / out of 1..1024: 384, as before.
+static unsigned fetch_grid_blocks() {
+    static const unsigned n = [] {
+        const char* v = std::getenv("STRATA_FETCH_BLOCKS");
+        const int x = v != nullptr ? std::atoi(v) : 0;
+        return x >= 1 && x <= 1024 ? (unsigned) x : 48u * 8u;
+    }();
+    return n;
+}
+
 void fetch_blobs(const unsigned long long* src, const int32_t* n, uint8_t* dst, int64_t blob_bytes, int cap, void* stream,
                  const unsigned long long* dst2) {
     if (cap <= 0) return;
     if (blob_bytes % 16 != 0) { std::fprintf(stderr, "fetch_blobs: blob size must be a multiple of 16\n"); std::exit(1); }
-    fetch_blobs_kernel<<<48 * 8, 256, 0, (cudaStream_t) stream>>>(src, n, (uint4*) dst, (long long) (blob_bytes / 16), dst2);
+    fetch_blobs_kernel<<<fetch_grid_blocks(), 256, 0, (cudaStream_t) stream>>>(src, n, (uint4*) dst, (long long) (blob_bytes / 16), dst2);
     check("fetch_blobs");
 }
 void fetch_blobs(const unsigned long long* src, const int32_t* n, uint8_t* dst, int64_t blob_bytes, int cap, void* stream) {
@@ -2266,7 +2279,7 @@ void wait_fetch_blobs(const uint32_t* flag, uint32_t value, const unsigned long 
                       int64_t blob_bytes, int cap, void* stream, const unsigned long long* dst2) {
     if (cap <= 0) { wait_flag_ge(flag, value, stream); return; }
     if (blob_bytes % 16 != 0) { std::fprintf(stderr, "wait_fetch_blobs: blob size must be a multiple of 16\n"); std::exit(1); }
-    wfr_wait_fetch_blobs_kernel<<<48 * 8, 256, 0, (cudaStream_t) stream>>>(flag, value, src, n, (uint4*) dst,
+    wfr_wait_fetch_blobs_kernel<<<fetch_grid_blocks(), 256, 0, (cudaStream_t) stream>>>(flag, value, src, n, (uint4*) dst,
                                                                           (long long) (blob_bytes / 16), dst2);
     check("wait_fetch_blobs");
 }

@@ -1302,6 +1302,33 @@ int pool_touch_next() {
     }();
     return b;
 }
+// STRATA_POOL_GUIDED=1 (opt-in, exact; zsariboga/Strata fc5b2a7829, LEADS.md "STRATA_POOL_GUIDED"): guided self-scheduling for
+// the native gate/up and down phases (modes 5 and 6).  Task j is the remaining rows / (2 x threads), never below
+// STRATA_POOL_GUIDED_MIN rows (16): large first ranges (locality), small last ones (a short tail behind a slow thread).
+// Every row is computed once by the same kernel call: bitwise the default.  Not with ROW_SPLIT, TAIL4, NUMA slices or
+// the fused phase.  The fork's STRATA_POOL_PROFILE measurement lines are not ported.
+bool pool_guided_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_POOL_GUIDED"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+int64_t pool_guided_min() {
+    static const int64_t mn = [] { const char* v = std::getenv("STRATA_POOL_GUIDED_MIN"); const int64_t x = v ? (int64_t) std::atoll(v) : 16; return x < 1 ? (int64_t) 1 : x; }();
+    return mn;
+}
+// the start row of guided task jj over `rows` (jj = the task count gives `rows`); *count: the task count
+int64_t guided_cut(int64_t rows, int threads, int64_t jj, int64_t* count = nullptr) {
+    const int64_t t2 = 2 * (int64_t) (threads < 1 ? 1 : threads), mn = pool_guided_min();
+    int64_t done = 0, j = 0;
+    while (done < rows && (count != nullptr || j < jj)) {
+        int64_t c = (rows - done + t2 - 1) / t2;
+        if (c < mn) c = mn;
+        if (c > rows - done) c = rows - done;
+        done += c;
+        ++j;
+    }
+    if (count != nullptr) *count = j;
+    return done;
+}
 inline void touch_bytes(const uint8_t* p, size_t bytes) {
 #if defined(__x86_64__) || defined(_M_X64)
     for (size_t o = 0; o < bytes; o += 64) _mm_prefetch((const char*) p + o, _MM_HINT_T0);
@@ -1363,7 +1390,13 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
             // [jj*N, (jj+1)*N), a fixed chunk on an N-row boundary however many experts the phase holds.
             const int64_t rsplit = pool_row_split();
             const int touch_next = pool_touch_next();
+            // STRATA_POOL_GUIDED (pool_guided_on above): run_split_multi_native planned guided_cut's task count
+            const bool guided = pool_guided_on() && rsplit <= 0 && !sliced && !tail4 && mode_ != 7;
+            const int gthreads = n_ + (host_works_ ? 1 : 0);
+            int64_t gcount = 0;
+            if (guided) (void) guided_cut(R, gthreads, 0, &gcount);
             auto cut = [&](int64_t jj) -> int64_t {
+                if (guided && T == gcount) return guided_cut(R, gthreads, jj);
                 if (rsplit > 0 && !sliced && !tail4 && T == (R + rsplit - 1) / rsplit) return (std::min)(R, jj * rsplit);
                 if (!tail4 || sliced) return R * jj / T;
                 const int64_t small = (std::min)((int64_t) (n_ + (host_works_ ? 1 : 0)), T / 2), big = T - small;
@@ -1646,10 +1679,16 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
     if (n <= 0) return;
     const auto t0 = std::chrono::steady_clock::now();
     // STRATA_POOL_ROW_SPLIT (pool_row_split above): ceil(rows/N) fixed-row tasks, else the default count
-    auto native_tasks = [this](int64_t rows) -> int {
+    auto native_tasks = [this](int64_t rows, bool guided_ok = false) -> int {
         const int64_t rs = pool_row_split();
         if (rs > 0) {
             const int64_t t = (rows + rs - 1) / rs;
+            if (t >= 1 && t <= 0x7fff) return (int) t;
+        }
+        static const bool tail4 = [] { const char* v = std::getenv("STRATA_POOL_TAIL4"); return v != nullptr && v[0] == '1'; }();
+        if (guided_ok && pool_guided_on() && !tail4) {   // STRATA_POOL_GUIDED (modes 5 and 6 only; drain() cuts them)
+            int64_t t = 0;
+            (void) guided_cut(rows, n_ + (host_works_ ? 1 : 0), 0, &t);
             if (t >= 1 && t <= 0x7fff) return (int) t;
         }
         return phase_tasks(rows);
@@ -1678,14 +1717,14 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
             continue;
         }
         mrows_ = (int64_t) nb * f.n_ff;
-        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_ff, nb) : native_tasks(mrows_);
+        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_ff, nb) : native_tasks(mrows_, true);
         const auto a = std::chrono::steady_clock::now();
         run_phase(5, mtasks_);
         const auto b = std::chrono::steady_clock::now();
         for (int e = 0; e < nb; ++e) quant_down_act(e);
         const auto c = std::chrono::steady_clock::now();
         mrows_ = (int64_t) nb * f.n_embd;
-        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_embd, nb) : native_tasks(mrows_);
+        mtasks_ = numa_n_ > 0 ? numa_plan_phase((int) f.n_embd, nb) : native_tasks(mrows_, true);
         run_phase(6, mtasks_);
         const auto d = std::chrono::steady_clock::now();
         ms_multi_gu += std::chrono::duration<double, std::milli>(b - a).count();

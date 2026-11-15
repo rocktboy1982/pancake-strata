@@ -101,8 +101,17 @@ public:
     /// The chain rule (MtpDrafter::set_chain_rule): draft `idx` (0-based) with probability `p` was just computed.
     /// Returns whether to draft idx + 1; rows() is then the window to verify (1 + the drafts kept).  `cap` = the
     /// widest window (rows).
-    bool keep_draft(int idx, float p, int cap);
+    bool keep_draft(int idx, float p, int cap, int32_t tok = -1);
     int rows() const { return rows_; }
+    /// STRATA_SPEC_LOOKUP_Q / STRATA_SPEC_DEPTH_DECAY (opt-in; android-imdad/Strata-7900xtx ef42c2fde9, LEADS.md FK-21b):
+    /// the next chain's product counts `q_agree` for a draft equal to the suffix lookup's proposal at its place
+    /// (`lookup`, n tokens), and p * decay^idx for any other.  Never called (q 0, decay 1): the plain product of p.
+    void set_stop_hint(const int32_t* lookup, int n, double q_agree, double decay) {
+        hint_n_ = n < 0 ? 0 : n > 8 ? 8 : n;
+        for (int i = 0; i < hint_n_; ++i) hint_tok_[i] = lookup[i];
+        hint_q_ = q_agree;
+        hint_decay_ = decay;
+    }
 
     struct Round {
         const float* p = nullptr;     ///< the probabilities of the window's MTP drafts (draft j: p[j])
@@ -134,6 +143,9 @@ private:
     int64_t logged_ = 0, round_id_ = 0;
     int rows_ = 1, kept_ = 0;
     double chain_ = 1.0;
+    int32_t hint_tok_[8] = {};   // STRATA_SPEC_LOOKUP_Q (set_stop_hint)
+    int hint_n_ = 0;
+    double hint_q_ = 0.0, hint_decay_ = 1.0;
     // state read by features()
     double recent_ = 0.7, miss_ = 0.0, match_f_ = 0.0, ctx_f_ = 0.0;
     std::array<double, kMaxT + 2> cost_{};    // cost_[t]: round ms of a window of t rows (0: unknown)

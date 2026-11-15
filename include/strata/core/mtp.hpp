@@ -146,6 +146,8 @@ public:
     /// STRATA_SPEC_COST: called after each draft step with (index, probability) instead of the `min_p` test; false ends the chain.
     /// Also called once for the last step of a chain that reached its length (so the rule sees every draft). Empty: min_p decides.
     void set_chain_rule(std::function<bool(int, float)> f) { chain_rule_ = std::move(f); }
+    /// Inside a chain rule call (index j): draft j's token, as draft() reads it (STRATA_SPEC_LOOKUP_Q).  -1: none.
+    int32_t chain_draft(int j) const { return h_out_ != nullptr && j >= 0 ? ((const volatile int32_t*) h_out_)[j] : -1; }
 
     bool draft_first(int T, const float* R_row, int32_t token, int64_t cell, int32_t* drafts, std::string& err,
                      float* probs = nullptr, float min_p = 0.0f, int* n_drafts = nullptr, DraftResult* result = nullptr);
@@ -278,7 +280,11 @@ private:
     bool q4_ = false, q4_head_ = false;
     uint8_t* dense4_ = nullptr;              ///< --mtp-q4: Q4_0 copies of the Q8_0 tensors
     std::vector<std::pair<std::string, uint64_t>> q4_off_;
-    int dhead_type_ = -1;                    ///< the draft head subset's ggml type (the main head's, or Q4_0)
+    uint8_t* hcq8_ = nullptr;                ///< STRATA_MTP_HC_Q8=1: Q8_0 copies of the draft layer's hc down/up rows
+    std::vector<std::pair<std::string, uint64_t>> hcq8_off_;   ///< name -> offset in hcq8_
+    const uint8_t* hcq8(const char* name) const;
+    bool make_hcq8(std::string& err);
+    int dhead_type_ = -1;                   ///< the draft head subset's ggml type (the main head's, or Q4_0)
     std::string dvocab_path_;
     std::string vocab_file() const { return dvocab_path_.empty() ? rt_dir_ + "/draft_vocab.bin" : dvocab_path_; }
     /// a projection's weights for the draft layer's own pass: the Q4_0 copy under --mtp-q4, else the Q8_0 original
