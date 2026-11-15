@@ -76,6 +76,12 @@ struct AdaptGate {
         const int32_t b = *peer_hland;
         return a > b ? a : b;
     }
+    /// STRATA_ADAPT_IDLE_COPY (MOD_PLAN.md section 6 item 6): the tier's copies are queued on the host and issued from
+    /// the window's CPU-idle phases.  `pace(pace_user, layer, mode)`: mode 0 issues one slice (the pool has no work
+    /// now: the window's start, after a layer's CPU experts are served), 1 every queued copy of the layers <= `layer`
+    /// (before the gate waits for it), 2 all of them (the window's end).  false: a copy failed.  null: off.
+    bool (*pace)(void* user, int32_t layer, int mode) = nullptr;
+    void* pace_user = nullptr;
 };
 
 class NativeHead;

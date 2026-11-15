@@ -285,6 +285,8 @@ STRATA_ENV("STRATA_ADAPT_EVICT_SYNC", Speed, "placement/tiering of experts (same
 STRATA_ENV("STRATA_ADAPT_FETCH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_FETCH_MARGIN", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_FETCH_MIN", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
+STRATA_ENV("STRATA_ADAPT_IDLE_COPY", Speed, "bitwise: the same swap copies into the same slots, issued in the window's CPU-idle phases (MOD_PLAN.md section 6 item 6)")
+STRATA_ENV("STRATA_ADAPT_IDLE_COPY_KB", Speed, "bitwise: the bytes STRATA_ADAPT_IDLE_COPY issues per CPU-idle phase")
 STRATA_ENV("STRATA_ADAPT_JOB_CPU", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_KMISS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_LAG", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
