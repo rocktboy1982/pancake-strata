@@ -1027,6 +1027,32 @@ bool file_tier_unbuffered(const std::vector<std::string>& paths, uint64_t arena_
 
 FileExpertSource::~FileExpertSource() { close(); }
 
+#if !defined(_WIN32)
+namespace {
+// STRATA_EXPERTS_SEQ_READAHEAD=1 (Linux, opt-in, read once): the mapped expert files - a pack's experts.bin, or each
+// GGUF shard in place - are marked MADV_SEQUENTIAL when they are mapped, so a page fault reads the drive's read-ahead
+// window instead of one 4 KiB page once the file cache thrashes.  Only the kernel's read-ahead changes: the bytes read,
+// and so the products, are the same.  Set once at map time, not per prompt.  Unset: nothing here runs.
+// Port of upstream Strata PR #5561 (njy1991, head 7c28d4e61c); lead in LEADS.md (Part B B52, Part F #5561).
+void advise_mapped_experts(void* view, size_t bytes, const std::string& path) {
+#if defined(__linux__)
+    static const bool on = [] {
+        const char* v = std::getenv("STRATA_EXPERTS_SEQ_READAHEAD");
+        return v != nullptr && v[0] == '1';
+    }();
+    if (!on) return;
+    const int rc = madvise(view, bytes, MADV_SEQUENTIAL);
+    std::fprintf(stderr, "FileExpertSource: STRATA_EXPERTS_SEQ_READAHEAD=1: %s is read with sequential read-ahead%s\n",
+                 path.c_str(), rc == 0 ? "" : " (madvise failed: the default read-ahead stays)");
+#else
+    (void) view;
+    (void) bytes;
+    (void) path;
+#endif
+}
+}   // namespace
+#endif
+
 #if defined(__linux__)
 namespace {
 /// Bytes of [p, p + n) whose pages are in the page cache (mincore, page-granular); 0 when the call fails.
@@ -1598,6 +1624,7 @@ bool FileExpertSource::open(const std::string& pack_dir, int64_t n_layers, int64
     }
     void* view = mmap(nullptr, (size_t) want, PROT_READ, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED) { ::close(fd); err = "FileExpertSource: mmap failed on " + path; return false; }
+    advise_mapped_experts(view, (size_t) want, path);
     fd_ = fd;
     base_ = (const uint8_t*) view;
     paths_.assign(1, path);   // #286: open_direct opens it again with O_DIRECT
@@ -1799,6 +1826,7 @@ bool FileExpertSource::open_gguf(std::string& err) {
                 }
                 void* view = mmap(nullptr, (size_t) st.st_size, PROT_READ, MAP_SHARED, fd, 0);
                 if (view == MAP_FAILED) { ::close(fd); err = "FileExpertSource: cannot map " + path; return false; }
+                advise_mapped_experts(view, (size_t) st.st_size, path);
                 m.fd = fd;
                 m.bytes = (uint64_t) st.st_size;
                 m.base = (const uint8_t*) view;

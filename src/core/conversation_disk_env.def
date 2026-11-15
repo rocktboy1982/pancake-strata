@@ -411,6 +411,7 @@ STRATA_ENV("STRATA_EXPDEC_RB", Speed, "bitwise: documented (docs/README/code com
 STRATA_ENV("STRATA_EXPERT_SLOTS_MAX", Speed, "placement/tiering of experts (same math, GPU vs CPU); test cap on the expert cache slots")
 STRATA_ENV("STRATA_EXPERT_V2", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_EXPERT_V2K", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_EXPERTS_SEQ_READAHEAD", Speed, "MADV_SEQUENTIAL on the mapped expert files (upstream #5561): kernel read-ahead only, same bytes read, timing only")
 STRATA_ENV("STRATA_FETCH_ADMIT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FETCH_PVM", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FETCH_THREADS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
