@@ -1,0 +1,57 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "buddy4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_BUDDY": "4"
+      }
+    },
+    "tail-skip-layers": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_TAIL_SKIP_LAYERS": "30-47:8"
+      }
+    },
+    "tier-lru05": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_LRU": "0.5"
+      }
+    },
+    "adapt-classlru4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_CLASSLRU": "4"
+      }
+    },
+    "adapt-prob-mass": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROB_MASS": "1"
+      }
+    },
+    "link-defaults": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_LINK_DEFAULTS": "20"
+      }
+    },
+    "think-brake": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_THINK_BRAKE": "0.25"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 18: the lossy / placement switches of the LEADS.md wave: BuddyMoE (a miss runs on a cached co-activated buddy), HookMoE per-layer tail skip (format a-b:R), HOBBIT LRU score, ClassLRU tier score, prob-mass tier scoring, link-probe defaults, ThinkBrake (arXiv 2510.00546; only acts on thinking turns). Speed screen; a promoted arm needs a quality gate. Stop pancake.service first."
+}

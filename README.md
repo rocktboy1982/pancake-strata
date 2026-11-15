@@ -912,6 +912,14 @@ Credits, in the order the stack was built:
   `92983a7405`) and the single-token MMVF rows (`STRATA_MMVF_ROWS1`, `aa2509dc60`); **phoenixclyde**, for the per-shape MMVQ rows
   table (`STRATA_MMVQ_WAVE_ROWS`, `5a76830ebd`); **freapsy** (strata-mi50), for the 8-in-flight logit scans (`STRATA_SAMPLER_X8`,
   `509bded8c5`). Ported 2026-11-15 as default-off switches.
+- The LEADS.md wave of 2026-11-15 (all default-off switches, sources in the code comments): **phoenixclyde** (`STRATA_CKPT_MOVE_PARK`,
+  `406ec78190`), **KhaledElzarw** (`STRATA_ACTQ_SKIP` `20f1fa1a95`, `STRATA_POOL_DAG=2` `287cd207ad`), **dys0re** (strata-dcu, the
+  cost-weighted pool cut behind `STRATA_CPU_POOL_COST`, `abc9047d77`), **zsariboga** (`STRATA_POOL_GUIDED`, `fc5b2a7829`), **Juud**
+  (`STRATA_ACTQ_SKIP_NOCPU`), **mandoof1** and the llama.cpp / Strata upstream authors of #29548 (`STRATA_LOOKUP_OLDER`), #5561
+  (`STRATA_EXPERTS_SEQ_READAHEAD`), #31625 (`STRATA_HIP_FAST_MATH`) and ClassLRU `c4fb57969` (`STRATA_ADAPT_CLASSLRU`), and the papers
+  behind `STRATA_TIER_LRU` (HOBBIT, arXiv 2411.01433), `STRATA_BANDIT_CORRECT` (Athena), `STRATA_THINK_BRAKE` (arXiv 2510.00546),
+  `STRATA_BUDDY` (BuddyMoE), `STRATA_FS_AFFINITY` (ExFlow), `STRATA_CONV_WORKSET_MATCH` (fMoE), `STRATA_TOOL_SNIP` (ContextSniper),
+  `STRATA_QSA_PAGE_SEL` (Quest) and `STRATA_ROUTE_TAIL_SKIP_LAYERS` (HookMoE).
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.

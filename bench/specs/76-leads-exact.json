@@ -1,0 +1,123 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "actq-skip-nocpu": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ACTQ_SKIP_NOCPU": "1"
+      }
+    },
+    "actq-skip": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ACTQ_SKIP": "1"
+      }
+    },
+    "pool-guided": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_GUIDED": "1"
+      }
+    },
+    "cpu-pool-cost": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CPU_POOL_COST": "1"
+      }
+    },
+    "pool-dag2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_DAG": "2"
+      }
+    },
+    "slots-warp": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SLOTS_WARP": "1"
+      }
+    },
+    "rows-acc2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROWS_ACC2": "1"
+      }
+    },
+    "mtp-spin50": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MTP_SPIN_US": "50"
+      }
+    },
+    "mtp-hc-q8": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MTP_HC_Q8": "1"
+      }
+    },
+    "draft-scale": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DRAFT_SCALE": "1"
+      }
+    },
+    "lookahead-skip-res": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_LOOKAHEAD_SKIP_RES": "1"
+      }
+    },
+    "lookup-older8": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_LOOKUP_OLDER": "8"
+      }
+    },
+    "spec-depth-decay": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_DEPTH_DECAY": "0.9"
+      }
+    },
+    "spec-lookup-q": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_LOOKUP_Q": "0.9"
+      }
+    },
+    "experts-seq-readahead": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_EXPERTS_SEQ_READAHEAD": "1"
+      }
+    },
+    "io-uring32": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_IO_URING": "32"
+      }
+    },
+    "pcie0-no-staging": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PCIE0_NO_STAGING": "1"
+      }
+    },
+    "ckpt-move-park": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CKPT_MOVE_PARK": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 18 (the LEADS.md wave of 2026-11-15): the exact default-off switches (bitwise or timing / drafting policy only). Values are first guesses for a screen; a promoted knob gets a sweep. MTP_HC_Q8 changes only the drafts (greedy verify keeps the text). EXACT: same text as base. Stop pancake.service first."
+}

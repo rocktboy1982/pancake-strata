@@ -42,7 +42,13 @@
       "env": {
         "STRATA_PF_AHEAD": "1"
       }
+    },
+    "pf-gg-defer": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_GG_DEFER": "1"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 item 4: the prompt-path opt-ins of the android-imdad caa9b00115 port (build-win). STRATA_PF_LEAN_ISSUE: one release event per fused batch; STRATA_PF_COPY2: a second copy stream; STRATA_DQ_FAST: Q6_K / IQ4_XS dequant by warps. Judged on prompt tok/s (long1k / long3k); short is the decode control. EXACT: same text as base. Stop pancake.service first. pf-ahead: 0xluk 896481c943 (MOD_PLAN.md section 6 item 2), the next chunk's experts prefetched into a 160-slot pool from the loan while attention runs, staged chunks (< 4096 tokens); designed bitwise (the short case's text check is the evidence; long* hashes are not compared). Author: agent prefill 512 -> 692 tok/s (2x RTX 3060, PCIe 3)."
+  "note": "MOD_PLAN.md section 6 item 4: the prompt-path opt-ins of the android-imdad caa9b00115 port (build-win). STRATA_PF_LEAN_ISSUE: one release event per fused batch; STRATA_PF_COPY2: a second copy stream; STRATA_DQ_FAST: Q6_K / IQ4_XS dequant by warps. Judged on prompt tok/s (long1k / long3k); short is the decode control. EXACT: same text as base. Stop pancake.service first. pf-ahead: 0xluk 896481c943 (MOD_PLAN.md section 6 item 2), the next chunk's experts prefetched into a 160-slot pool from the loan while attention runs, staged chunks (< 4096 tokens); designed bitwise (the short case's text check is the evidence; long* hashes are not compared). Author: agent prefill 512 -> 692 tok/s (2x RTX 3060, PCIe 3). pf-gg-defer: GatherGroup fix b13ffdabd0 (STRATA_PF_GG_DEFER=1)."
 }
