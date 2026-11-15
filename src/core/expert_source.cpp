@@ -5239,6 +5239,55 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                                           ? d.host_res + (size_t) (d.layers + 1) * (size_t) d.n_expert : nullptr;
             d.fs->affinity(d.src, d.layers, ex_aff, n_aff, res_next);
         }
+        // STRATA_BUDDY=N (opt-in, LOSSY; unset or 0 = this block and buddy_sub do nothing): BuddyMoE-style substitution
+        // (paper "BuddyMoE", LEADS.md Part E HybriMoE/AdapMoE/MoBiLE/BuddyMoE row).  An online co-activation table per layer
+        // (experts routed together for one token) names each expert's buddy; up to N misses per layer-window whose buddy
+        // sits in the VRAM cache, is not routed in this window and co-activated at least STRATA_BUDDY_MIN times (default 8)
+        // are computed by the buddy's weights on the GPU (a group like a hit, as the foresight swap's slots are), with the
+        // router's weight kept.  The tokens change.
+        static const int buddy_cap = [] { const char* e = std::getenv("STRATA_BUDDY"); return e ? std::max(0, std::atoi(e)) : 0; }();
+        static const int buddy_min = [] { const char* e = std::getenv("STRATA_BUDDY_MIN"); return e ? std::max(1, std::atoi(e)) : 8; }();
+        int buddy_used = 0;
+        static std::mutex bmu;                             // STRATA_BUDDY's table (allocated only when it is set)
+        static std::vector<std::vector<uint16_t>> bco;     // [layer] -> n_expert x n_expert co-activation counts
+        if (buddy_cap > 0) {   // count this window's co-activations (per token: every ordered pair of its routed experts)
+            const size_t E = (size_t) d.n_expert;
+            std::lock_guard<std::mutex> lk(bmu);
+            if (bco.size() <= (size_t) d.layers) bco.resize((size_t) d.layers + 1);
+            std::vector<uint16_t>& t = bco[(size_t) d.layers];
+            if (t.size() != E * E) t.assign(E * E, 0);
+            for (int64_t t0 = 0; t0 + k <= n; t0 += k)
+                for (int64_t a = t0; a < t0 + k; ++a)
+                    for (int64_t b = t0; b < t0 + k; ++b) {
+                        if (a == b || ids[a] < 0 || ids[b] < 0 || ids[a] >= d.n_expert || ids[b] >= d.n_expert) continue;
+                        uint16_t* rw = t.data() + (size_t) ids[a] * E;
+                        if (++rw[ids[b]] == 0xFFFF) for (size_t c = 0; c < E; ++c) rw[c] >>= 1;
+                    }
+        }
+        auto buddy_sub = [&](int32_t e, unsigned long long& bptr) -> bool {
+            if (buddy_cap <= 0 || buddy_used >= buddy_cap || e < 0 || e >= d.n_expert) return false;
+            const size_t E = (size_t) d.n_expert;
+            std::lock_guard<std::mutex> lk(bmu);
+            if (bco.size() <= (size_t) d.layers || bco[(size_t) d.layers].size() != E * E) return false;
+            const uint16_t* row = bco[(size_t) d.layers].data() + (size_t) e * E;
+            const int32_t* res = d.host_res + (size_t) d.layers * E;
+            int32_t best = -1;
+            uint16_t bc = (uint16_t) std::min(buddy_min, 0xFFFF);
+            for (size_t b = 0; b < E; ++b) {
+                if (row[b] < bc || res[b] < 0 || (int32_t) b == e) continue;
+                bool routed = false;
+                for (int q2 = 0; q2 < nd && !routed; ++q2) routed = ids[distinct[q2]] == (int32_t) b;
+                if (routed) continue;
+                bc = row[b];
+                best = (int32_t) b;
+            }
+            if (best < 0) return false;
+            const int32_t slot = res[best];
+            bptr = (unsigned long long) (d.cache_base + (d.cache_slot_off ? (size_t) d.cache_slot_off[slot]
+                                                                          : (size_t) slot * (size_t) d.cache_blob));
+            ++buddy_used;
+            return true;
+        };
         for (int q = 0; q < nd; ++q) {
             const int64_t i0 = distinct[q];
             const int32_t e = ids[i0];
@@ -5260,6 +5309,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                     // left to the helper: kind -1 until RemoteExperts::begin() claims the row (see above)
                 } else if (d.fs != nullptr && d.fs->take(d.layers, e, ptr)) {
                     kd = 0;                        // Foresight: a landed swap-space slot holds it - a GPU group like a hit
+                } else if (buddy_sub(e, ptr)) {
+                    kd = 0;                        // STRATA_BUDDY (lossy): the resident buddy's weights, a GPU group like a hit
                 } else {
                     if (d.fs != nullptr) d.fs->note_miss(d.src, d.layers, e);
                     if ((dali_m >= 0 ? dpick[q] : fetch_on ? pick[q] : miss_rank >= nmiss - m) && fetches < P.staging_cap &&

@@ -46,6 +46,8 @@ STRATA_ENV("STRATA_VERIFY_DEFER_CPU_TOP", Key, "deferral top-k")
 // ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (100) ----
 STRATA_ENV("STRATA_AMD_COMMUNITY_TUNING", KeyIfSet, "makes SELECT_SIMT=2 the default on gfx103x (other summation order, KL 0.0256) and loads community GEMM tables")
 STRATA_ENV("STRATA_BFLA", Inert, "old BFLA switch, split in two: turns nothing on, prints a note")
+STRATA_ENV("STRATA_BUDDY", KeyIfSet, "BuddyMoE substitution: a missed expert computed with a resident buddy's weights (lossy; LEADS.md Part E)")
+STRATA_ENV("STRATA_BUDDY_MIN", KeyIfSet, "BuddyMoE co-activation threshold")
 STRATA_ENV("STRATA_BFLA_DENSE", KeyIfSet, "fused dense prompt attention; not bitwise equal to the GEMM path")
 STRATA_ENV("STRATA_BFLA_SPARSE", KeyIfSet, "lossy block selection: changes the K/V that is saved")
 STRATA_ENV("STRATA_BFLA_MIN", KeyIfSet, "sparse selection knob")
