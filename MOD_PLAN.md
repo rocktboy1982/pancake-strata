@@ -271,7 +271,7 @@ miss.
 | 13 | CODED 2026-11-15 (`STRATA_DALI=1`, `_EVERY`; per-layer row-weighted cost fits over the PCIe share; STRATA_PCIE_BALANCE is the one-fit count-only predecessor, expert_source.hpp:453; next: spec 66). DALI per-layer per-step CPU/GPU assignment instead of the static A45 probe | +23% over HybriMoE (3090) | exact |
 | 14 | QSA long-prompt selection cost (Quest page-level or partial top-k) | after-12K gap 2.18 ms/token | lossy-ish |
 | 15 | CODED 2026-11-15 (`STRATA_Q36_EXPERTS_USED` from serboox f8fb28ca1f / 0f040ef5e8: spec 74; `STRATA_MISS_SKIP_W`, `STRATA_MISS_SKIP_CUM`: spec 72; --dump-routing exists, generate.cpp:3840). uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
-| 16 | SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
+| 16 | CODED 2026-11-15 (`STRATA_GDN_SPECLA=N`: per-row state checkpoints in the window kernels, commit from the nearest; bitwise, gdn_parity section 7; same commit traffic, saves the serial replay loop; next: spec 71). SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
 | 17 | Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); DraftPolicy cost-outlier clip | unmeasured | exact |
 
 Not packages any more (their parts are separate items above or in LEADS.md): 63 capability probe (`STRATA_PROBE` never
