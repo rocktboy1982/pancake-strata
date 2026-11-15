@@ -289,14 +289,20 @@ Code:
 - A37 `IQ_LUT_DUP` (d11a9ca09): code read 2026-11-15: default off (iq_kernels.hpp, 0 = off); stays as an opt-in bench knob, not reverted.
 - `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it: opt-in, off, classified in disk_env;
   left in (removing it needs a Mac-side check nobody can run here). OPEN, low.
-- `STRATA_PSI_SHED` (Speedy item 8.3) was never ported though the old plan counted it done.
+- `STRATA_PSI_SHED` (Speedy item 8.3) was never ported though the old plan counted it done. OPEN: the repo holds no description of
+  what it sheds (only the PSI guard in platform/mem_pressure.hpp and its three Inert env names); needs the Speedy item text before any port.
 - Tools: FIXED (T-577): `night_queue.py` zero-measurement real passes are now failed; `abtest.py` text_check accepts any base
   pass. OPEN: `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` (a `--fill` run with the stock arm, GPU hours) and
-  `quality_gate.py:161` stays on `set.json` until then (by design, see its comment); all `taskgate-*` specs use `bench/tasks/default.json`.
-- Item 38 O_DIRECT loader: the audit found it in HEAD (184e68e83, expert_source.cpp:852, `STRATA_UNBUFFERED_LOAD`), a
-  research note says it is not built (expert_source.cpp:6155): re-check.
-- Planned but not in code: `STRATA_FORCE_ISA` avx512 / avx-vnni values (item 57), CPU governor setting (item 41);
-  `--pool-affinity measure` is a no-op on the 5700G. PCIe 16 GT/s vs Gen3: settle with `lspci -vv`.
+  `quality_gate.py:161` stays on `set.json` until then (by design, see its comment); all `taskgate-*` specs use `bench/tasks/default.json`: left as is on purpose
+  (checked 2026-11-15): default.json is the only set with the 7 tool-call tasks the pending ECAP tool-call gate needs;
+  `repo-history.json` is 150 code-edit tasks only. Point a spec at repo-history only when it is about code-edit quality.
+- Item 38 O_DIRECT loader: CLOSED 2026-11-15 by code read: built (184e68e83, expert_source.cpp:852 and 2522, `STRATA_UNBUFFERED_LOAD`);
+  line 6155 is the fallback when the direct read is refused (buffered read plus the `STRATA_LOAD_DONTNEED` page-cache drop).
+- Planned but not in code: `STRATA_FORCE_ISA` avx512 / avx-vnni values (item 57): not applicable here (the 5700G is Zen 3, no AVX-512,
+  no VNNI) and not worth a no-op value; CPU governor setting (item 41): needs root, the owner sets `performance` by hand (see the
+  box notes); `--pool-affinity measure` is a no-op on the 5700G.
+- PCIe link, measured 2026-11-15 (T-581, sysfs): the path to the 7900 XT is 00:01.1 (CPU root port) 8.0 GT/s x16, switch 10:00.0
+  8.0 GT/s x16, then 16.0 GT/s x16 inside the card: the effective host link is PCIe Gen3 x16 (about 15.8 GB/s), as the plan assumed.
 
 The box plan entry of 2026-11-15 "FK-28 A/B was already run (spec 28)" is wrong: spec 28 (`28-phase18-draft.json`) arms
 `--spec 3/5` and `MTP_EAGER`, not `STRATA_ADAPT_PROMPT`; the dead hook was then deleted (T-575), FK-28 is unbuilt (section 6 item 1).
