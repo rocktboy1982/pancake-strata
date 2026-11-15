@@ -8187,7 +8187,11 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
     from serve import mcp_async
     # STRATA_MCP_ASYNC=1 (opt-in; AsyncFC, LEADS.md A40): a call starts when its tool_call event is complete, while
     # the rest of the answer is still decoding.  None (the default): calls start after the answer, as before.
-    futures = mcp_async.Futures(hub, cancel) if mcp_async.enabled() else None
+    from serve import mcp_spec
+    # STRATA_MCP_SPEC=N (opt-in; PASTE / Atomix, LEADS.md): the predicted next read-only call runs ahead; a call the
+    # model then writes exactly takes its result.  None (the default): no call runs before the model writes it.
+    spec = mcp_spec.Speculator(hub, cancel) if mcp_spec.enabled() else None
+    futures = mcp_async.Futures(hub, cancel, spec) if mcp_async.enabled() else None
     while True:
         text, reasoning, calls, own_calls = [], [], [], 0
         for kind, x in svc.run(ids, thinking, tools, max_new, sampling, cancel, declared_only=True):
@@ -8231,6 +8235,8 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
             started = futures.take(c) if futures is not None else None
             if started is not None:                      # STRATA_MCP_ASYNC: already running (or done)
                 worker, box = started
+            elif spec is not None:                       # STRATA_MCP_SPEC: may take the speculative result
+                worker, box = mcp_async.start_call(hub, c, cancel, spec)
             else:
                 box = {}
 
@@ -8280,6 +8286,8 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
         except ClientGone:                                      # #1999: the client left while a picture was prepared
             done = {**done, "finish": "cancel"}
             break
+    if spec is not None:
+        spec.close()                                     # predictions the model never made are dropped
     yield "done", {**done, "completion_tokens": total, "prompt_tokens": len(ids)}
 
 
