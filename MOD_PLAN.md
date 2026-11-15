@@ -3469,3 +3469,14 @@ V3 (LRFU/MQ-like expert cache): our adaptive tier already scores experts as a de
 - round interval and swap cap trade hit share against swap traffic: every 1 / 96 swaps = 0.8431 at 44.8 swaps per window; the default (every 4 / 96) = 0.7962 at 23.5. At matched traffic (about 23 swaps per window) every 2 / 48 swaps = 0.8008, +0.5 points over the default: no real gain.
 - Verdict: DROP V3. No policy change from this replay; the real trade-off (copy cost per swap against CPU cost per miss) is a GPU measurement, and --adapt-swaps was already tested in A8 (swaps64 +4.9% edit, output differs).
 Caveat: 219 windows, weight column zero, one model; the replay says nothing about speed.
+
+### FK-23 and probe P4 resolved without hardware (2026-11-15)
+- FK-23 (Q2_0 AVX2 fast unpack, imanu86): ALREADY HAVE as F7, `STRATA_Q2_FAST=1` in src/kernels/cpu/q2_avx2.cpp (bit-exact, opt-in, probes its own correctness at start; ignored with a message if it does not match the legacy kernel). Measured earlier (A48 q2_rows_bench): 1.23x on one thread; 1.03x at 8 threads. The "dispatch x1.00 vs legacy" row in that run only means the switch was unset.
+- Probe P4 (is the CPU pool byte-bound or decode-bound): ANSWERED, byte-bound. At 8 threads the kernel reaches 0.86 of the DDR4 floor (read-only loop 0.78), so a faster unpack cannot help much; the ceiling is about 3%, and only for Q2_0 rows. The daily preset (IQ2_XS) computes CPU rows with different kernels.
+- Decision: no new code for FK-23. STRATA_Q2_FAST stays opt-in; enabling it by default would affect only the Q2_0 preset and gains at most about 3%. Not worth a default change without a Q2_0 end-to-end A/B.
+
+### Status of the no-hardware work (2026-11-15)
+Done: v1.0.0 candidate code checks (U2, U4, U5, V2, V6), V3 cache-policy replay (drop), FK-23/P4 (already have).
+Remaining items that need the GPU (cannot be done without it): V5 draft-cache A/B, FK-22 router publish fast path (HIP kernel), FK-24 Q2_0 down fold (GPU kernel), U1 few-row MMQ port, U3 MMVF few-rows A/B, V1 CPU-share sweep, V4 MoE layout check on gfx1100 (needs a profile).
+Remaining items blocked by something else: A20 (entropy logging switch needs owner approval), A54 (needs task-gate scores), A10 (after item 84).
+Precondition for every GPU item: the owner pins the GPU clock (`echo high | sudo tee /sys/class/drm/card1/device/power_dpm_force_performance_level`); the CPU is already stable (performance governor, C3 off on all 16 cores).
