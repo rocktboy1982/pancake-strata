@@ -14,6 +14,7 @@
 #include "strata/kernels/dp4a.hpp"
 #include "strata/kernels/gfx_arch.hpp"   // #3264: the gfx12 test of the multi-block head ops
 #include "strata/kernels/pdl.hpp"
+#include "s26_tsum.cuh"   // STRATA_GDN_NORM128: s26ts::xmov, the DPP row_xmask / permlanex16 lane exchanges
 
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
@@ -586,6 +587,76 @@ __global__ void __launch_bounds__(S * RG) gdn_out_norm_kernel(const float* __res
     }
 }
 
+// STRATA_GDN_NORM128=1 (opt-in; android-imdad caa9b00115, default on there): gdn_out_norm_kernel with only the row group
+// that works - 128 threads, not S x RG = 512 (the other row groups only add zeros and write wsum[4..15], which nothing
+// reads) - and its lane exchanges as s26ts::xmov (DPP row_xmask / permlanex16 on wave32 RDNA, __shfl_xor_sync
+// elsewhere): the same values move, so every max and sum below is the old kernel's bit for bit.
+//
+// gdn_q8_1_store with xmov for the exchanges and nothing else changed: the same quantizer (q81_div, q8_1_finite,
+// q8_1_quant, q8_1_ds, as there), the same xor order (16, 8, 4, 2, 1), the same contract(off).
+__device__ __forceinline__ void gdn_q8_1_store_xmov(GdnQ81* __restrict__ xq, size_t idx, float xi) {
+    // no contraction, as gdn_q8_1_store (xi is a product here)
+#pragma clang fp contract(off)
+    float amax = fabsf(xi), sum = xi;
+    amax = fmaxf(amax, s26ts::xmov<16>(amax));
+    amax = fmaxf(amax, s26ts::xmov<8>(amax));
+    amax = fmaxf(amax, s26ts::xmov<4>(amax));
+    amax = fmaxf(amax, s26ts::xmov<2>(amax));
+    amax = fmaxf(amax, s26ts::xmov<1>(amax));
+    sum += s26ts::xmov<16>(sum);
+    sum += s26ts::xmov<8>(sum);
+    sum += s26ts::xmov<4>(sum);
+    sum += s26ts::xmov<2>(sum);
+    sum += s26ts::xmov<1>(sum);
+    const float d = q8_1_finite(q81_div(amax, 127.0f));   // gdn_q8_1_store's d, the same expression
+    const int8_t q = q8_1_quant(xi, d, amax);
+    xq[idx / 32].qs[idx % 32] = q;
+    if (idx % 32 == 0) xq[idx / 32].ds = q8_1_ds(d, sum);
+}
+// An add that is never fused with the product feeding it.  In gdn_out_norm_kernel `sq_part = oc * oc` sits in the
+// `rg == 0` branch and the first `sq_part += shfl(sq_part)` after it, so the multiply and the add stay apart; without
+// the branch (and with a DPP move instead of ds_bpermute between them) the compiler may form one FMA - a different
+// rounding (android-imdad caa9b00115 saw exactly that).  HIP: contract(off), as gdn_q8_1_store; CUDA: __fadd_rn.
+__device__ __forceinline__ float gdn_add_nc(float a, float b) {
+#if defined(__HIPCC__)
+#pragma clang fp contract(off)
+    return a + b;
+#else
+    return __fadd_rn(a, b);
+#endif
+}
+template<bool Q>
+__global__ void __launch_bounds__(S) gdn_out_norm128_kernel(const float* __restrict__ z, const float* __restrict__ gamma,
+                                                            float eps, float* __restrict__ y, int h_v, int T,
+                                                            const int32_t* __restrict__ n_keep, int t_out_begin,
+                                                            GdnQ81* __restrict__ xq) {
+    __shared__ float wsum[S / 32];
+    const int head = blockIdx.x, t = blockIdx.y + t_out_begin, col = threadIdx.x;
+    const int n = n_keep ? *n_keep : T;
+    if (t >= n) return;
+    const int value_dim = S * h_v;
+    const float oc = y[(size_t) t * value_dim + head * S + col];
+    float sq_part = oc * oc;
+    sq_part = gdn_add_nc(sq_part, s26ts::xmov<16>(sq_part));
+    sq_part = gdn_add_nc(sq_part, s26ts::xmov<8>(sq_part));
+    sq_part = gdn_add_nc(sq_part, s26ts::xmov<4>(sq_part));
+    sq_part = gdn_add_nc(sq_part, s26ts::xmov<2>(sq_part));
+    sq_part = gdn_add_nc(sq_part, s26ts::xmov<1>(sq_part));
+    if ((col & 31) == 0) wsum[col >> 5] = sq_part;
+    __syncthreads();
+    const float ss = wsum[0] + wsum[1] + wsum[2] + wsum[3];
+    const float scale = rsqrtf(ss / (float) S + eps);
+    const float zz = z[(size_t) t * value_dim + head * S + col];
+    if constexpr (Q) {
+        const float yv = oc * scale * gamma[col] * (1.0f / (1.0f + __expf(-zz)));
+        y[(size_t) t * value_dim + head * S + col] = yv;
+        gdn_q8_1_store_xmov(xq, (size_t) (t - t_out_begin) * value_dim + head * S + col, yv);
+    } else {
+        y[(size_t) t * value_dim + head * S + col] = oc * scale * gamma[col] * (1.0f / (1.0f + __expf(-zz)));
+    }
+}
+static_assert(S == 128, "gdn_out_norm128_kernel sums four warps");
+
 __global__ void embedding_gather_dev_kernel(const uint8_t* __restrict__ codes, const float* __restrict__ scales,
                                             const float* __restrict__ offsets, const int32_t* __restrict__ tokens,
                                             int64_t n, int code_bits, int code_bias, int group_elems,
@@ -722,6 +793,36 @@ __global__ void row_top_prob_kernel(const float* __restrict__ logits, int n_voca
     }
 }
 
+// STRATA_SCAN_UNROLL=1 (opt-in; android-imdad caa9b00115, default on there): row_top_prob_kernel with each thread's
+// loads issued eight at a time before their eight adds - the adds in the same order on the same values, so the same
+// sum; the tail and the reduction are row_top_prob_kernel's.  A separate kernel, so the default one stays as it is.
+__global__ void row_top_prob_unroll_kernel(const float* __restrict__ logits, int n_vocab, const int32_t* __restrict__ ids,
+                                           float* __restrict__ probs) {
+    __shared__ float part[32];
+    const int t = blockIdx.x;
+    const float* l = logits + (size_t) t * n_vocab;
+    const float m = l[ids[t]];
+    float s = 0.0f;
+    int i = threadIdx.x;
+    const int B = (int) blockDim.x;
+    for (; i + 7 * B < n_vocab; i += 8 * B) {
+        float x[8];
+#pragma unroll
+        for (int k = 0; k < 8; ++k) x[k] = l[i + k * B];
+#pragma unroll
+        for (int k = 0; k < 8; ++k) s += __expf(x[k] - m);
+    }
+    for (; i < n_vocab; i += B) s += __expf(l[i] - m);
+    for (int o = 16; o > 0; o >>= 1) s += __shfl_xor_sync(0xffffffffu, s, o);
+    if ((threadIdx.x & 31) == 0) part[threadIdx.x >> 5] = s;
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float tot = 0.0f;
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) tot += part[w];
+        probs[t] = 1.0f / tot;
+    }
+}
+
 __global__ void mtp_select_kernel(const float* __restrict__ R_src, int64_t stride, const int32_t* __restrict__ ids,
                                   const int32_t* __restrict__ row_dev, float* __restrict__ R_dst,
                                   int32_t* __restrict__ tok_dst, int32_t* out, int j, const float* probs, float* out_p) {
@@ -846,7 +947,12 @@ void map_ids(int32_t* ids, const int32_t* table, int n, void* stream) {
 }
 
 void row_top_prob(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* probs, void* stream) {
-    row_top_prob_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ids, probs);
+    // STRATA_SCAN_UNROLL=1 (opt-in, read once): the eight-loads-first scan, the same sum
+    static const bool unroll = [] { const char* v = std::getenv("STRATA_SCAN_UNROLL"); return v != nullptr && v[0] == '1'; }();
+    if (unroll)
+        row_top_prob_unroll_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ids, probs);
+    else
+        row_top_prob_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ids, probs);
     check("row_top_prob");
 }
 
@@ -1319,7 +1425,12 @@ void gdn_step_norm_multi(float* state, const float* h, int conv_channels, const 
             gdn_step_split_kernel<true><<<grid, block, 0, (cudaStream_t) stream>>>(
                 state, h, conv_channels, gate, beta, y, h_k, h_v, n_tok, n_keep, t_out_begin);
             const dim3 ng((unsigned) h_v, (unsigned) (n_tok - t_out_begin));
-            if (xq) gdn_out_norm_kernel<true><<<ng, dim3(S, RG), 0, (cudaStream_t) stream>>>(z, gamma, eps, y, h_v, n_tok, n_keep, t_out_begin, xq);
+            // STRATA_GDN_NORM128=1 (opt-in, read once; android-imdad caa9b00115): the 128-thread norm, bitwise the same
+            static const bool norm128 = [] { const char* v = std::getenv("STRATA_GDN_NORM128"); return v != nullptr && v[0] == '1'; }();
+            if (norm128) {
+                if (xq) gdn_out_norm128_kernel<true><<<ng, dim3(S), 0, (cudaStream_t) stream>>>(z, gamma, eps, y, h_v, n_tok, n_keep, t_out_begin, xq);
+                else gdn_out_norm128_kernel<false><<<ng, dim3(S), 0, (cudaStream_t) stream>>>(z, gamma, eps, y, h_v, n_tok, n_keep, t_out_begin, nullptr);
+            } else if (xq) gdn_out_norm_kernel<true><<<ng, dim3(S, RG), 0, (cudaStream_t) stream>>>(z, gamma, eps, y, h_v, n_tok, n_keep, t_out_begin, xq);
             else gdn_out_norm_kernel<false><<<ng, dim3(S, RG), 0, (cudaStream_t) stream>>>(z, gamma, eps, y, h_v, n_tok, n_keep, t_out_begin, nullptr);
         }
         check("gdn_step_norm_multi (split)");

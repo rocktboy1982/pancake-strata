@@ -117,6 +117,9 @@ __device__ __forceinline__ float apply_penalties(float logit, int count, const S
 /// ascending with `if (s > bv)`, so the LOWEST index wins a tie.  Each thread keeps that rule over its own
 /// strided subset and the reduction resolves two candidates by taking the larger value and, on equality, the
 /// SMALLER index - the same total order, so `sampler_parity` and C1 see no change.
+///
+/// UNROLL: STRATA_SCAN_UNROLL=1 (see `scan_unroll_on`); false is the kernel as it was.
+template <bool UNROLL>
 __global__ void sampler_greedy_kernel(const float* __restrict__ logits, int n_vocab,
                                       const int* __restrict__ history, int history_len, const SamplerParams p,
                                       int pmin, int plen, int* __restrict__ out) {
@@ -158,7 +161,24 @@ __global__ void sampler_greedy_kernel(const float* __restrict__ logits, int n_vo
     // elements contributes nothing rather than contributing a bogus zero.
     float bv = __int_as_float(0xff800000);   // -inf
     int best = n_vocab;
-    for (int v = threadIdx.x; v < n_vocab; v += blockDim.x) {
+    int v = threadIdx.x;
+    if constexpr (UNROLL) {
+        // STRATA_SCAN_UNROLL=1 (opt-in; android-imdad caa9b00115, default on there): without penalties or a logit bias
+        // (apply_penalties returns the logit unchanged at count 0) each thread loads eight of its logits before it
+        // compares them - the same compares in the same ascending order with the same strict `>`, so the same pick
+        if (!use_bits && p.logit_bias == nullptr) {
+            const int B = (int) blockDim.x;
+            for (; v + 7 * B < n_vocab; v += 8 * B) {
+                float x[8];
+#pragma unroll
+                for (int k = 0; k < 8; ++k) x[k] = l[v + k * B];
+#pragma unroll
+                for (int k = 0; k < 8; ++k)
+                    if (x[k] > bv) { bv = x[k]; best = v + k * B; }
+            }
+        }
+    }
+    for (; v < n_vocab; v += blockDim.x) {
         const float s = apply_penalties(p.logit_bias ? l[v] + p.logit_bias[v] : l[v], hit_count(v), p);
         if (s > bv) { bv = s; best = v; }
     }
@@ -1208,6 +1228,12 @@ int2* split_scratch(void* stream, size_t entries) {
 
 }  // namespace
 
+// STRATA_SCAN_UNROLL=1 (opt-in, read once; android-imdad caa9b00115): sampler_greedy_kernel<true>, the same pick
+static bool scan_unroll_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_SCAN_UNROLL"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+
 bool sample_greedy_cluster(const float* logits, int n_tokens, int n_vocab, int* out, void* stream) {
 #if defined(__HIPCC__)
     (void) logits; (void) n_tokens; (void) n_vocab; (void) out; (void) stream;
@@ -1279,9 +1305,14 @@ void sample_tokens(const float* logits, int n_tokens, int n_vocab, const int* hi
         }();
         // One block per token, 1,024 threads over the vocabulary.  See `sampler_greedy_kernel`.
         const int gthreads = 1024;
-        if (!(multi && shmem == 0 && !p.logit_bias && sample_greedy_cluster(logits, n_tokens, n_vocab, out, stream)))
-            sampler_greedy_kernel<<<(unsigned) n_tokens, gthreads, shmem, (cudaStream_t) stream>>>(
-                logits, n_vocab, history, history_len, p, p.penalty_last_n, p.penalty_last_n, out);
+        if (!(multi && shmem == 0 && !p.logit_bias && sample_greedy_cluster(logits, n_tokens, n_vocab, out, stream))) {
+            if (scan_unroll_on())
+                sampler_greedy_kernel<true><<<(unsigned) n_tokens, gthreads, shmem, (cudaStream_t) stream>>>(
+                    logits, n_vocab, history, history_len, p, p.penalty_last_n, p.penalty_last_n, out);
+            else
+                sampler_greedy_kernel<false><<<(unsigned) n_tokens, gthreads, shmem, (cudaStream_t) stream>>>(
+                    logits, n_vocab, history, history_len, p, p.penalty_last_n, p.penalty_last_n, out);
+        }
     } else if (sampled_path() == SampledPath::Old) {
         // The same block-per-token shape: the selection's k argmax rounds reduce inside the block.  See
         // `sampler_kernel`'s header for what the old one-thread-per-token launch cost.
