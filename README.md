@@ -955,6 +955,9 @@ Credits, in the order the stack was built:
   rows (`STRATA_EXP_MODE=9`, `STRATA_EXP9_DOWN`, commits `9af8f1fa14` and `4d462ccff3`).
 - **jmnargi** (Strata-V100, MIT), for the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts (commits `24894e676b`,
   `7c5041c358`, `376355453f`; upstream PR #3545), and for measuring how a too-tight cap breaks tool calls.
+- **ExTV** (strata-5090-4070, a Strata fork), for the second rule of its patch 02 "drop superseded parked copies" (upstream PR #3404): an older, shorter
+  state of the same conversation with at most a tenth of its tokens outside the outgoing ones is also dropped. Ported as the opt-in
+  `ConversationCache::set_rewrite_supersede` (default off, not wired into the engine: no gain on the recorded 2026-11-09 session).
 - **TwoAnts** (Strata fork, MIT), for truncated parking (`STRATA_PARK_TRUNCATE`).
 - **xyzzing** (author of upstream Strata PR #3919, and of the measurement repo `xyzzing/rdna3-inference-ledger`, CC-BY-4.0), for the
   depth-adaptive resident K/V ring (`STRATA_KV_RING_ADAPT`): the 32768-cell floor and the "cap only from 2 x cap cells" rule, PR commits
