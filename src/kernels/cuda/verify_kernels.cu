@@ -298,6 +298,67 @@ __device__ __forceinline__ void gdn_step_commit_body(float* __restrict__ state, 
     for (int r = 0; r < RPG; ++r) base[r * row_stride] = s[r];
 }
 
+// MOD_PLAN.md section 6 item 16 (STRATA_GDN_SPECLA): gdn_step_commit_body with the first j = min(n, n_ck) tokens taken
+// from the window's checkpoint ck[j - 1] (the state the window held after token j - 1, written by its CK kernel)
+// instead of recomputed; tokens [j, n) then run the body's loop unchanged.  Every checkpoint is the value the replay's
+// loop holds after the same token (the same per-column operations in the same order), so the state is bitwise the
+// replay's; n <= n_ck is a copy, no recurrence.
+__device__ __forceinline__ void gdn_specla_commit_body(float* __restrict__ state, const float* __restrict__ ck, int n_ck,
+                                                       const float* __restrict__ hbuf, int C,
+                                                       const float* __restrict__ gate, const float* __restrict__ beta,
+                                                       int h_k, int h_v, int n) {
+    __shared__ float sk[S];
+    __shared__ float red[RG][32];
+    const int head = blockIdx.x;
+    const int col_local = threadIdx.x;
+    const int col = blockIdx.y * 32 + col_local;
+    const int rg = threadIdx.y;
+    const int tid = rg * 32 + col_local;    // 0 .. 127
+    const int qh = head % h_k;
+    const int qk = S * h_k;
+    const int j = n < n_ck ? n : n_ck;      // >= 1: n >= 1 and n_ck >= 1
+    float s[RPG];
+    const size_t off = ((size_t) (rg * RPG) * h_v + head) * S + col;
+    float* base = state + off;
+    const float* src = ck + (size_t) (j - 1) * S * h_v * S + off;
+    const size_t row_stride = (size_t) h_v * S;
+#pragma unroll
+    for (int r = 0; r < RPG; ++r) s[r] = src[r * row_stride];
+    for (int t = j; t < n; ++t) {
+        const float* ht = hbuf + (size_t) t * C;
+        __syncthreads();
+        sk[tid] = ht[qk + qh * S + tid];
+        __syncthreads();
+        const float g = __expf(gate[(size_t) t * h_v + head]);
+        float kv = 0.0f;
+#pragma unroll
+        for (int r = 0; r < RPG; ++r) kv = fmaf(s[r], sk[rg * RPG + r], kv);
+        red[rg][col_local] = kv;
+        __syncthreads();
+        const float kv_col = red[0][col_local] + red[1][col_local] + red[2][col_local] + red[3][col_local];
+        const float delta = (ht[2 * qk + head * S + col] - g * kv_col) * beta[(size_t) t * h_v + head];
+#pragma unroll
+        for (int r = 0; r < RPG; ++r) s[r] = fmaf(g, s[r], sk[rg * RPG + r] * delta);
+    }
+#pragma unroll
+    for (int r = 0; r < RPG; ++r) base[r * row_stride] = s[r];
+}
+
+// gdn_step_commit_layers_kernel with the checkpoints: layer z's are ck + z * ck_stride
+__global__ void __launch_bounds__(32 * RG) gdn_specla_commit_layers_kernel(float* __restrict__ state, long long state_stride,
+                                                                           const float* __restrict__ ck, long long ck_stride,
+                                                                           int n_ck, const float* __restrict__ hbuf,
+                                                                           long long h_stride, int C,
+                                                                           const float* __restrict__ gate,
+                                                                           const float* __restrict__ beta, long long gb_stride,
+                                                                           int h_k, int h_v, const int32_t* __restrict__ n_keep) {
+    const int n = *n_keep;
+    if (n <= 0) return;
+    const long long z = blockIdx.z;
+    gdn_specla_commit_body(state + z * state_stride, ck + z * ck_stride, n_ck, hbuf + z * h_stride, C, gate + z * gb_stride,
+                           beta + z * gb_stride, h_k, h_v, n);
+}
+
 // S26 (STRATA_QFUSE=1): the q8_1 image of a 32-column block, written by the warp that holds those columns with
 // native_quantize_q8_1_kernel's quantizer (the same XOR-tree max and sum, d = amax / 127, roundf(x / d), ds = (d, sum)).
 struct GdnQ81 { half2 ds; int8_t qs[32]; };
@@ -316,7 +377,9 @@ __device__ __forceinline__ void gdn_q8_1_store(GdnQ81* __restrict__ xq, size_t i
     if (idx % 32 == 0) xq[idx / 32].ds = q8_1_ds(d, sum);   // #606: clamped (the QFUSE path bypassed the finite helper)
 }
 
-template <bool ALL_OUT, bool Q>
+// MOD_PLAN.md section 6 item 16 (STRATA_GDN_SPECLA): CK = also store the state after each of the first n_ck tokens at
+// ck + t * (S * h_v * S) (the state's own layout).  The stores only read s[]: the arithmetic is the CK = false kernel's.
+template <bool ALL_OUT, bool Q, bool CK = false>
 __global__ void __launch_bounds__(S * RG) gdn_step_norm_multi_kernel(float* __restrict__ state,
                                                                      const float* __restrict__ hbuf, int C,
                                                                      const float* __restrict__ gate,
@@ -325,7 +388,8 @@ __global__ void __launch_bounds__(S * RG) gdn_step_norm_multi_kernel(float* __re
                                                                      const float* __restrict__ gamma, float eps,
                                                                      float* __restrict__ y, int h_k, int h_v, int T,
                                                                      const int32_t* __restrict__ n_keep, int t_out_begin,
-                                                                     GdnQ81* __restrict__ xq, GdnGroups grp = {}) {
+                                                                     GdnQ81* __restrict__ xq, GdnGroups grp = {},
+                                                                     float* __restrict__ ck = nullptr, int n_ck = 0) {
     if (grp.n > 0) {   // group blockIdx.y - its slot's state and its rows of the window's buffers
         const int gi = blockIdx.y, f = grp.first[gi];
         state = grp.state[gi];
@@ -380,6 +444,13 @@ __global__ void __launch_bounds__(S * RG) gdn_step_norm_multi_kernel(float* __re
         if (!need_out) {
 #pragma unroll
             for (int r = 0; r < RPG; ++r) s[r] = fmaf(g, s[r], sk[cur][rg * RPG + r] * delta);
+            if constexpr (CK) {
+                if (t < n_ck) {
+                    float* d = ck + (size_t) t * S * h_v * S + ((size_t) (rg * RPG) * h_v + head) * S + col;
+#pragma unroll
+                    for (int r = 0; r < RPG; ++r) d[r * row_stride] = s[r];
+                }
+            }
             continue;
         }
         float o = 0.0f;
@@ -387,6 +458,13 @@ __global__ void __launch_bounds__(S * RG) gdn_step_norm_multi_kernel(float* __re
         for (int r = 0; r < RPG; ++r) {
             s[r] = fmaf(g, s[r], sk[cur][rg * RPG + r] * delta);
             o = fmaf(s[r], sq[cur][rg * RPG + r], o);
+        }
+        if constexpr (CK) {
+            if (t < n_ck) {
+                float* d = ck + (size_t) t * S * h_v * S + ((size_t) (rg * RPG) * h_v + head) * S + col;
+#pragma unroll
+                for (int r = 0; r < RPG; ++r) d[r * row_stride] = s[r];
+            }
         }
         red_o[rg][col] = o;
         __syncthreads();
@@ -425,14 +503,16 @@ __global__ void __launch_bounds__(S * RG) gdn_step_norm_multi_kernel(float* __re
 // norm kernel below has the old kernel's code shape (S x RG threads, rg 0 holding oc), which makes it bitwise equal -
 // the 128-thread version differed from the old kernel by 1 ulp in ~7% of the outputs.
 constexpr int GS_COLS = 32;
-template<bool OUT>
+// CK (STRATA_GDN_SPECLA): as gdn_step_norm_multi_kernel's - the state after each of the first n_ck tokens also to ck
+template<bool OUT, bool CK = false>
 __global__ void __launch_bounds__(GS_COLS * RG) gdn_step_split_kernel(float* __restrict__ state,
                                                                       const float* __restrict__ hbuf, int C,
                                                                       const float* __restrict__ gate,
                                                                       const float* __restrict__ beta,
                                                                       float* __restrict__ y, int h_k, int h_v, int T,
                                                                       const int32_t* __restrict__ n_keep,
-                                                                      int t_out_begin) {
+                                                                      int t_out_begin, float* __restrict__ ck = nullptr,
+                                                                      int n_ck = 0) {
     __shared__ float sk[S], sq[S];
     __shared__ float red[RG][GS_COLS];
     const int head = blockIdx.x;
@@ -468,6 +548,13 @@ __global__ void __launch_bounds__(GS_COLS * RG) gdn_step_split_kernel(float* __r
         for (int r = 0; r < RPG; ++r) {
             s[r] = fmaf(g, s[r], sk[rg * RPG + r] * delta);
             o = fmaf(s[r], sq[rg * RPG + r], o);
+        }
+        if constexpr (CK) {
+            if (t < n_ck) {
+                float* d = ck + (size_t) t * S * h_v * S + ((size_t) (rg * RPG) * h_v + head) * S + col;
+#pragma unroll
+                for (int r = 0; r < RPG; ++r) d[r * row_stride] = s[r];
+            }
         }
         if (!OUT) continue;
         __syncthreads();
@@ -1379,6 +1466,30 @@ bool gdn_commit_layers(float* state, int64_t state_stride, int64_t conv_off, con
     return true;
 }
 
+bool gdn_specla_commit_layers(float* state, int64_t state_stride, int64_t conv_off, const float* qkv, int64_t qkv_stride,
+                              const float* ck, int64_t ck_stride, int n_ck, const float* h, int64_t h_stride,
+                              const float* gate, const float* beta, int64_t gb_stride, int conv_channels, int h_k, int h_v,
+                              int n_max, int n_layers, const int32_t* n_keep, void* stream) {
+    // the cases gdn_commit_layers leaves to the per-layer loop are left to it here too (the caller falls back)
+    static const bool per_layer = [] {
+        const char* sp = std::getenv("STRATA_GDN_SPLIT");
+        const char* cs = std::getenv("STRATA_GDN_COMMIT_SPLIT");
+        const char* dbg = std::getenv("STRATA_DBG_GDN");
+        return (sp && sp[0] == '1') || (cs && cs[0] == '0') || (dbg && dbg[0] == '1');
+    }();
+    if (per_layer || ck == nullptr || n_ck < 1 || n_layers <= 0 || n_layers > 65535 || n_max < 1 || n_max > kVerifyLongT ||
+        n_keep == nullptr || h_v <= 0 || h_k <= 0 || h_v % h_k != 0)
+        return false;
+    cudaStream_t st = (cudaStream_t) stream;
+    gdn_conv_commit_layers_kernel<<<dim3((unsigned) ((conv_channels + 255) / 256), (unsigned) n_layers), 256, 0, st>>>(
+        state + conv_off, (long long) state_stride, qkv, (long long) qkv_stride, conv_channels, n_keep);
+    gdn_specla_commit_layers_kernel<<<dim3((unsigned) h_v, 4u, (unsigned) n_layers), dim3(32, RG), 0, st>>>(
+        state, (long long) state_stride, ck, (long long) ck_stride, n_ck, h, (long long) h_stride, conv_channels, gate, beta,
+        (long long) gb_stride, h_k, h_v, n_keep);
+    check("gdn_specla_commit_layers");
+    return true;
+}
+
 // BW-DENSE STRATA_SMALL_UNR bit 1: see gdn_ab_body (bw_dense_defaults.hpp: on for a 12.0 card, else off; the variable wins)
 static int gdn_ab_fast() {
     static int per_dev[64];   // 0 unknown, else bit + 1
@@ -1446,7 +1557,7 @@ void gdn_step_norm_groups(const GdnGroups& groups, const float* h, int conv_chan
 
 void gdn_step_norm_multi(float* state, const float* h, int conv_channels, const float* gate, const float* beta,
                          const float* z, const float* gamma, float eps, float* y, int h_k, int h_v, int n_tok,
-                         const int32_t* n_keep, void* stream, int t_out_begin, void* xq_out) {
+                         const int32_t* n_keep, void* stream, int t_out_begin, void* xq_out, float* ck, int n_ck) {
     GdnQ81* const xq = static_cast<GdnQ81*>(xq_out);   // S26: non-null = also the outputs' q8_1 (STRATA_QFUSE)
     // n_tok: up to kVerifyLongT (a long window's second token group replays the state from its first token); the
     // default kernels loop over the tokens, the STRATA_GDN_SPLIT ones hold kVerifyMaxT per thread
@@ -1468,6 +1579,10 @@ void gdn_step_norm_multi(float* state, const float* h, int conv_channels, const 
                 gdn_state_replay_kernel<kVerifyNarrowT><<<grid, block, 0, (cudaStream_t) stream>>>(
                     state, h, conv_channels, gate, beta, h_k, h_v, n_tok, n_keep);
         } else {
+            if (ck != nullptr && n_ck > 0)   // STRATA_GDN_SPECLA: the same kernel, also keeping the per-token states
+                gdn_step_split_kernel<true, true><<<grid, block, 0, (cudaStream_t) stream>>>(
+                    state, h, conv_channels, gate, beta, y, h_k, h_v, n_tok, n_keep, t_out_begin, ck, n_ck);
+            else
             gdn_step_split_kernel<true><<<grid, block, 0, (cudaStream_t) stream>>>(
                 state, h, conv_channels, gate, beta, y, h_k, h_v, n_tok, n_keep, t_out_begin);
             const dim3 ng((unsigned) h_v, (unsigned) (n_tok - t_out_begin));
@@ -1497,6 +1612,26 @@ void gdn_step_norm_multi(float* state, const float* h, int conv_channels, const 
     }
     const dim3 g1((unsigned) h_v), b1(S, RG);
     const bool all_out = n_keep == nullptr && t_out_begin <= 0;
+    if (ck != nullptr && n_ck > 0) {   // STRATA_GDN_SPECLA: the kernel below with CK, the per-token states also kept
+        const GdnGroups no_groups{};
+        if (xq && t_out_begin < n_tok) {
+            if (all_out) gdn_step_norm_multi_kernel<true, true, true><<<g1, b1, 0, (cudaStream_t) stream>>>(
+                state, h, conv_channels, gate, beta, z, gamma, eps, y, h_k, h_v, n_tok, nullptr, 0, xq, no_groups, ck, n_ck);
+            else gdn_step_norm_multi_kernel<false, true, true><<<g1, b1, 0, (cudaStream_t) stream>>>(
+                state, h, conv_channels, gate, beta, z, gamma, eps, y, h_k, h_v, n_tok, n_keep, t_out_begin, xq, no_groups,
+                ck, n_ck);
+        } else if (all_out) {
+            gdn_step_norm_multi_kernel<true, false, true><<<g1, b1, 0, (cudaStream_t) stream>>>(
+                state, h, conv_channels, gate, beta, z, gamma, eps, y, h_k, h_v, n_tok, nullptr, 0, nullptr, no_groups, ck,
+                n_ck);
+        } else {
+            gdn_step_norm_multi_kernel<false, false, true><<<g1, b1, 0, (cudaStream_t) stream>>>(
+                state, h, conv_channels, gate, beta, z, gamma, eps, y, h_k, h_v, n_tok, n_keep, t_out_begin, nullptr,
+                no_groups, ck, n_ck);
+        }
+        check("gdn_step_norm_multi (specla)");
+        return;
+    }
     if (xq && t_out_begin < n_tok) {
         if (all_out) gdn_step_norm_multi_kernel<true, true><<<g1, b1, 0, (cudaStream_t) stream>>>(
             state, h, conv_channels, gate, beta, z, gamma, eps, y, h_k, h_v, n_tok, nullptr, 0, xq);

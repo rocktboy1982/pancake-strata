@@ -64,7 +64,19 @@ void gdn_step_norm_groups(const GdnGroups& groups, const float* h, int conv_chan
                           void* stream);
 void gdn_step_norm_multi(float* state, const float* h, int conv_channels, const float* gate, const float* beta,
                          const float* z, const float* gamma, float eps, float* y, int h_k, int h_v, int n_tok,
-                         const int32_t* n_keep, void* stream, int t_out_begin = 0, void* xq_out = nullptr);
+                         const int32_t* n_keep, void* stream, int t_out_begin = 0, void* xq_out = nullptr,
+                         float* ck = nullptr, int n_ck = 0);
+/// (ck / n_ck, MOD_PLAN.md section 6 item 16, STRATA_GDN_SPECLA: non-null on a window = also store the state after
+/// each token t < n_ck at ck + t * S * h_v * S, the state's layout - the values the commit's replay holds after the
+/// same token.  The outputs and the state are what the call writes without it.  Ignored by a commit (t_out_begin >= n_tok).)
+/// gdn_commit_layers whose recurrence starts from the window's checkpoints: layer i's are `ck + i * ck_stride` (n_ck of
+/// them, written by gdn_step_norm_multi with ck); with n = *n_keep it loads checkpoint min(n, n_ck) - 1 and runs only the
+/// rows past n_ck, so n <= n_ck is a copy.  Bitwise gdn_commit_layers when the checkpoints come from the window over
+/// the same state and rows.  Returns false (nothing launched) in gdn_commit_layers' per-layer cases or without ck.
+bool gdn_specla_commit_layers(float* state, int64_t state_stride, int64_t conv_off, const float* qkv, int64_t qkv_stride,
+                              const float* ck, int64_t ck_stride, int n_ck, const float* h, int64_t h_stride,
+                              const float* gate, const float* beta, int64_t gb_stride, int conv_channels, int h_k, int h_v,
+                              int n_max, int n_layers, const int32_t* n_keep, void* stream);
 /// The commit of `n_layers` GDN layers in two launches (engine-latency): layer i's conv history is
 /// `state + i * state_stride + conv_off` and its qkv rows `qkv + i * qkv_stride`, as gdn_conv_commit; its recurrence
 /// state `state + i * state_stride` over the first *n_keep rows of `h + i * h_stride` / `gate|beta + i * gb_stride`, as
