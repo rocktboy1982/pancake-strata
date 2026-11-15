@@ -422,6 +422,7 @@ STRATA_ENV("STRATA_FILL_AHEAD", Speed, "placement/tiering of experts (same math,
 STRATA_ENV("STRATA_FOLLOW", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_FS_ADMIT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FS_AHEAD", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
+STRATA_ENV("STRATA_FS_AFFINITY", Speed, "placement: ExFlow inter-layer affinity table predicts next-layer swap copies; bytes only (LEADS.md Part E)")
 STRATA_ENV("STRATA_FS_BUDGET", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FS_DEPTH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FS_SLOTS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
