@@ -1,0 +1,39 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "exp9-down-42-10": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_EXP9_DOWN": "42:10"
+      }
+    },
+    "route-prior-auto": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PRIOR_AUTO": "1"
+      }
+    },
+    "adapt-decay-05": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--adapt-decay": "0.5"
+      }
+    },
+    "adapt-decay-09": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--adapt-decay": "0.9"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 5 item 6, the arms that change numerics or the tier: F14 STRATA_EXP9_DOWN=42:10 (= FK-24; Q2_0 down on 4 lanes, parity in ctest), STRATA_ROUTE_PRIOR_AUTO (route prior only in lookup windows, MOD_PLAN 17.1), --adapt-decay 0.5 / 0.9 (default 0.7). Lossy: speed screen only; a promoted arm needs a quality gate before adoption. Stop pancake.service first."
+}

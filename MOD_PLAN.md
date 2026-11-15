@@ -187,6 +187,11 @@ miss.
    (FK-28 ADAPT_PROMPT), 64 (#31751), all `--tier screen`, results `/home/dan/auto-runs/win-<spec>.jsonl`, log
    `/home/dan/clone-of-d/src/win-chain2.log`. Caution for chain16: the Windows session's builds ran 21:58-22:08 beside its spec 62
    replay (started 21:58): treat that replay's numbers as possibly noisy.
+   **Then `/home/dan/clone-of-d/src/win-chain3.sh`** (waits for `WINCHAIN2_DONE`; no spec starts between 10:00 and 22:00):
+   specs 71 (exact coded backlog of item 6), 72 (lossy backlog of item 6), then the never-run specs of item 5 (26, 12, a21,
+   24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards) on `build-win` (the clone's `build-hip`
+   is a link to it). Log `/home/dan/clone-of-d/src/win-chain3.log`. Left out: 08-build (its own build and preset), taskgate-*
+   (repoint to `bench/tasks/repo-history.json` first), HIP_GLOBAL_WEIGHTS (build macro), HIP_WMMA_Q4 (needs --kv q4_0), --batch 2.
 3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.

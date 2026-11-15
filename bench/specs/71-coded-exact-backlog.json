@@ -1,0 +1,75 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "q2-fast": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q2_FAST": "1"
+      }
+    },
+    "wait-copy256": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WAIT_COPY256": "1"
+      }
+    },
+    "attn-lanecell": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ATTN_LANECELL": "1"
+      }
+    },
+    "select-two-pass": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SELECT_TWO_PASS": "1"
+      }
+    },
+    "idle-adapt": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_IDLE_ADAPT": "1"
+      }
+    },
+    "spin0": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "0"
+      }
+    },
+    "spin50": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "50"
+      }
+    },
+    "spin200": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "200"
+      }
+    },
+    "spin1000": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "1000"
+      }
+    },
+    "lookup-chain3": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--lookup-chain": "3"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 5 item 6 (coded, no spec yet), the exact ones: F7 STRATA_Q2_FAST (bit-exact, x1.33/x1.23 rows, T-246/T-253), STRATA_WAIT_COPY256 (screen +6.7% / +2.4%, T-056; inert below T=6, the preset runs --spec 4: check the switch report says it acted), FK-10 STRATA_ATTN_LANECELL, STRATA_SELECT_TWO_PASS on HIP, A9 STRATA_IDLE_ADAPT (ceiling <= 0.26%), the STRATA_POOL_SPIN_US sweep (Juud: 15.1 -> 12.6 ms/token), FK-03 --lookup-chain 3. EXACT: same text as base. Not here: HIP_GLOBAL_WEIGHTS (a build macro: needs its own build), F22 HIP_WMMA_Q4 (needs --kv q4_0), FK-12 --batch 2 (needs concurrent clients). Stop pancake.service first."
+}
