@@ -680,6 +680,7 @@ STRATA_ENV("STRATA_PREFILL_COPY_EVENT_EVERY", Speed, "prompt path scheduling/sta
 STRATA_ENV("STRATA_PREFILL_COPY_WAIT_DEDUPE", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_PREFILL_CPU_SHARE_BATCH", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_PREFILL_GROUP_GATHER", Speed, "prompt path scheduling/staging/chunk sizing")
+STRATA_ENV("STRATA_PF_GG_DEFER", Speed, "streamed prompt walk: skipped ring entries held in the open gather group, batched release events (same bytes)")
 STRATA_ENV("STRATA_PREFILL_HELPER_SOURCE", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_PREFILL_ISSUER", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_PREFILL_LEND_PCT", Speed, "prompt path scheduling/staging/chunk sizing")

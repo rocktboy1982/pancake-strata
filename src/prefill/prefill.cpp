@@ -6481,6 +6481,10 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                         // entry the routing skipped inside an open group first gathers what the group holds so far
                         // (`flush`), so no more than a group's entries are ever held back from the issuer.
                         // STRATA_PREFILL_GROUP_GATHER=0: one gather, one wait and one record per expert.
+                        static const bool pf_gg_defer = [] {   // STRATA_PF_GG_DEFER (release_to below)
+                            const char* v = std::getenv("STRATA_PF_GG_DEFER");
+                            return v != nullptr && v[0] == '1';
+                        }();
                         mmq::GatherGroup gg;
                         int gg_slots[MMQ_GROUP];
                         size_t gg_ents[MMQ_GROUP];   // the streamed walk: their entries (wait_copied)
@@ -6534,6 +6538,14 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                 const int rel = gg_slots[gg_nslots - 1];
                                 cudaEventRecord(m.used[rel], m.cs);
                                 for (int i = 0; i < gg_nslots; ++i) { m.used_of[gg_slots[i]] = rel; m.used_bid[gg_slots[i]] = 0; }
+                                // STRATA_PF_GG_DEFER: the skipped entries held inside the group's span share its event
+                                if (pf_gg_defer && stream_all) {
+                                    const size_t k_hi = std::max(consumed, gg_ents[gg_nslots - 1] + 1);
+                                    for (size_t idx = gg_ents[0]; idx < k_hi; ++idx) {
+                                        m.used_of[idx % (size_t) m.ring] = rel;
+                                        m.used_bid[idx % (size_t) m.ring] = 0;
+                                    }
+                                }
                             }
                             gg_nslots = 0;
                             gg.first = gg.n;
@@ -6916,6 +6928,37 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                             size_t k = seq_start[(size_t) l];
                             const size_t kend = seq_start[(size_t) l + 1];
                             auto release_to = [&](int32_t e_stop) {
+                                // STRATA_PF_GG_DEFER=1 (opt-in, read once; port of bsorensen110/Strata b13ffdabd0 "avoid
+                                // premature GatherGroup flush", LEADS.md): an entry the routing skipped inside an open
+                                // group's span is held (its slot takes the group's release event at the next flush,
+                                // above), and a run of skipped entries gets ONE event instead of one each.  Same bytes, same
+                                // order; only fewer flushes and records.  Unset: the per-entry release below.
+                                if (pf_gg_defer) {
+                                    while (k < kend && seq[k].e < e_stop) {
+                                        if (gg_nslots > 0 && k - gg_ents[0] + 1 < (size_t) MMQ_GROUP &&
+                                            k - gg_ents[0] + 1 < (size_t) m.ring) {
+                                            consumed = ++k;
+                                            continue;
+                                        }
+                                        if (gg_nslots > 0) {
+                                            flush(0);   // the open group's slots get their event first
+                                            give_back(consumed);
+                                        }
+                                        const size_t k0 = k;
+                                        const size_t span_cap =
+                                            std::max<size_t>(1, std::min<size_t>(MMQ_GROUP, (size_t) m.ring / 2));
+                                        while (k < kend && seq[k].e < e_stop && k - k0 < span_cap) ++k;
+                                        const int rel = (int) ((k - 1) % (size_t) m.ring);
+                                        cudaEventRecord(m.used[rel], m.cs);
+                                        for (size_t idx = k0; idx < k; ++idx) {
+                                            m.used_of[idx % (size_t) m.ring] = rel;
+                                            m.used_bid[idx % (size_t) m.ring] = 0;
+                                        }
+                                        consumed = k;
+                                        give_back(consumed);
+                                    }
+                                    return;
+                                }
                                 while (k < kend && seq[k].e < e_stop) {
                                     if (gg_nslots > 0) flush(0);   // the open group's slots get their event first
                                     const int sl = (int) (k % (size_t) m.ring);
