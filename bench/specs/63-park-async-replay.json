@@ -1,0 +1,29 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short"
+ ],
+ "reps": 3,
+ "arms": {
+  "preset": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+  },
+  "park-async": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+   "env": {
+    "STRATA_PARK_ASYNC": "1"
+   }
+  }
+ },
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "pancake-turns.jsonl",
+  "arms": [
+   "preset",
+   "park-async"
+  ],
+  "reps": 3
+ },
+ "note": "Audit 2026-11-15: STRATA_PARK_ASYNC was compiled out on HIP (parks synchronous inside TTFT); now an opt-in env on HIP. Same live replay as spec 62; the preset carries cache2048-min8192. Reads prompt time per turn (replay_turns.py)."
+}
