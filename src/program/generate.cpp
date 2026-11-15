@@ -19947,12 +19947,31 @@ int main(int argc, char** argv) {
             consumed.reserve((size_t) (n + max_new + S));
             double keep_ms = 0;   // --draft auto: host time spent queueing the idle drafter's upkeep
             bool keep_pending = false;
-            auto keep_sync = [&]() -> bool {   // the queued upkeep is done: the verifier may rewrite the taps / residual rows now
+            // MOD_PLAN.md section 6 item 17 (Phase 18 item 12, LEADS.md "Window overhead"), STRATA_EVENT_WAIT=1 (opt-in, exact):
+            // the MTP upkeep queued on the drafter's stream (mtp.prefill without sync) is the only thing the next window must
+            // wait for, so the verifier's stream waits on an event recorded behind it instead of the host syncing the whole
+            // drafter stream.  One stage on the drafter's card only; the request's last keep_sync still syncs on the host.
+            static const bool event_wait = [] { const char* v = std::getenv("STRATA_EVENT_WAIT"); return v != nullptr && v[0] == '1'; }();
+            static cudaEvent_t keep_ev = nullptr;
+            bool keep_ev_live = false;   // keep_ev was recorded behind the MTP upkeep and nothing has waited on it yet
+            bool keep_dev_waited = false;   // a device-side wait stood in for the host sync: the request's end still syncs the drafter
+            auto keep_sync = [&](bool host = true) -> bool {   // the queued upkeep is done: the verifier may rewrite the taps / residual rows now
+                if (host && keep_dev_waited) {   // (never set without STRATA_EVENT_WAIT) a window may have ended before its run
+                    keep_dev_waited = false;
+                    if (!keep_pending && use_mtp && cudaStreamSynchronize(mtp.stream()) != cudaSuccess) { err = "the MTP upkeep failed"; return false; }
+                }
                 if (!keep_pending) return true;
                 keep_pending = false;
+                const bool dev_wait = event_wait && keep_ev_live && !host;
+                keep_ev_live = false;
 #if defined(STRATA_HAVE_DFLASH2)
                 if (use_df2 && !df2.context_wait(err)) return false;
 #endif
+                if (dev_wait && use_mtp) {
+                    const strata::core::OnDevice on(ver.device());
+                    if (cudaStreamWaitEvent(ver.stream(), keep_ev, 0) == cudaSuccess) { keep_dev_waited = true; return true; }
+                    (void) cudaGetLastError();   // the wait could not be queued: the host sync below, as without the switch
+                }
                 if (use_mtp && cudaStreamSynchronize(mtp.stream()) != cudaSuccess) { err = "the MTP upkeep failed"; return false; }
                 return true;
             };
@@ -20903,7 +20922,7 @@ int main(int argc, char** argv) {
                     }
                     strata::core::window_trace().drafts(tp, ts, nd);
                 }
-                if (!keep_sync()) { std::printf("ERR %s\n", err.c_str()); return 1; }
+                if (!keep_sync(false)) { std::printf("ERR %s\n", err.c_str()); return 1; }   // STRATA_EVENT_WAIT: may be a device-side wait
                 drive.d.layers = 0;
                 drive.d.experts = 0;
                 drive.d.failed = false;
@@ -21312,6 +21331,16 @@ int main(int argc, char** argv) {
                     } else if (use_mtp) {
                         if (!mtp.prefill(ver.final_R_all(), outv.data(), a + 1, p, err, false)) { adapt_join(); std::printf("ERR %s\n", err.c_str()); return 1; }
                         keep_pending = true;
+                        // STRATA_EVENT_WAIT: an event behind the upkeep, for the next window's device-side wait (keep_sync)
+                        if (event_wait && n_stages == 1 && !pipe && mtp.device() == ver.device()) {
+                            const strata::core::OnDevice on(mtp.device());
+                            if (keep_ev == nullptr && cudaEventCreateWithFlags(&keep_ev, cudaEventDisableTiming) != cudaSuccess) {
+                                (void) cudaGetLastError();
+                                keep_ev = nullptr;
+                            }
+                            keep_ev_live = keep_ev != nullptr && cudaEventRecord(keep_ev, mtp.stream()) == cudaSuccess;
+                            if (!keep_ev_live) (void) cudaGetLastError();
+                        }
                     }
                     keep_ms += std::chrono::duration<double, std::milli>(Clock::now() - tk0).count();
                 }
