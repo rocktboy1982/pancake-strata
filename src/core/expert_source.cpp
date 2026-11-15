@@ -4848,8 +4848,12 @@ void expert_pool_dispatch(void* user, const float* x_f, const int32_t* ids, cons
     for (int64_t i = 0; i < k; ++i) {
         const int64_t e = ids[i];
         if (e < 0 || e >= d.n_expert) {
+            // upstream: the message names the layer, the entry and the id (LEADS.md "routed-id out-of-range message")
+            static thread_local char oor_msg[160];
+            std::snprintf(oor_msg, sizeof oor_msg, "a routed expert id is out of range (layer %lld, entry %lld of %lld, id %lld, %lld experts)",
+                          (long long) d.layers, (long long) i, (long long) k, (long long) e, (long long) d.n_expert);
             d.failed = true;
-            d.fail = "a routed expert id is out of range";
+            d.fail = oor_msg;
             d.fail_layer = d.layers;
             d.fail_expert = e;
             return;
@@ -5469,8 +5473,11 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 continue;   // a later batch: only the CPU entries of the experts that just landed
             if (first_pass && kind[i] == -1 && e >= 0 && e < d.n_expert && !take(e, 0)) continue;   // being read: a later batch
             if (e < 0 || e >= d.n_expert) {
+                static thread_local char oor_msg[160];   // (the layer, the entry, the id: LEADS.md "routed-id out-of-range message")
+                std::snprintf(oor_msg, sizeof oor_msg, "a routed expert id is out of range (layer %lld, entry %lld of %lld, token %lld, id %lld, %lld experts)",
+                              (long long) d.layers, (long long) i, (long long) (n_tok * k), (long long) t, (long long) e, (long long) d.n_expert);
                 d.failed = true;
-                d.fail = "a routed expert id is out of range";
+                d.fail = oor_msg;
                 d.fail_layer = d.layers;
                 d.fail_expert = e;
                 return;
