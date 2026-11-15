@@ -1,0 +1,19 @@
+rep 0 noecap               short 91.6 edit 91.7  foreign CPU 9% [('claude', 10), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 2070/1249 MHz 52C 144W gtt 21M cpu 3832MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap1                short 92.4 edit 135.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2070/1249 MHz 53C 151W gtt 21M cpu 4116MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap0                short 108.8 edit 177.9  foreign CPU 6% [('udisksd', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 53C 165W gtt 21M cpu 4137MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap0-min9           short 89.7 edit 122.8  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1986/1249 MHz 53C 140W gtt 21M cpu 3599MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 ecap0-min6           short 115.0 edit 166.2  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2060/1249 MHz 52C 168W gtt 21M cpu 4117MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap0-min6           short 115.8 edit 162.2  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2049/1249 MHz 53C 163W gtt 21M cpu 3954MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap0-min9           short 117.1 edit 127.3  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2065/1249 MHz 53C 135W gtt 21M cpu 3810MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap0                short 115.8 edit 176.4  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 54C 167W gtt 21M cpu 3913MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 1 ecap1                short 114.8 edit 145.3  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 53C 165W gtt 21M cpu 3941MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 1 noecap               short 115.3 edit 117.1  foreign CPU 26% [('claude', 24), ('ptyxis', 6), ('gnome-remote-de', 4)]  gpu 1664/1249 MHz 53C 132W gtt 21M cpu 3901MHz 53C igpu 3%/vcn 0% fclk 1600  NOISY -> repeat
+rep 1 noecap               short 116.2 edit 117.1  foreign CPU 16% [('claude', 7), ('ptyxis', 4), ('pipewire', 2)]  gpu 1991/1249 MHz 53C 155W gtt 21M cpu 4230MHz 53C igpu 3%/vcn 0% fclk 1600
+rep 2 noecap               short 89.9 edit 92.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1849/1249 MHz 53C 144W gtt 21M cpu 3629MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap1                short 112.2 edit 144.0  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 1765/1249 MHz 53C 139W gtt 21M cpu 3688MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap0                short 114.6 edit 130.9  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2015/1249 MHz 52C 162W gtt 21M cpu 3575MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap0-min9           short 121.7 edit 162.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2051/1249 MHz 53C 162W gtt 21M cpu 4216MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap0-min6           short 121.1 edit 155.2  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('gnome-shell', 1)]  gpu 2052/1249 MHz 53C 161W gtt 21M cpu 4047MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap0-min6           short 121.6 edit 161.3  foreign CPU 14% [('gnome-shell', 8), ('claude', 7), ('gnome-remote-de', 2)]  gpu 2051/1249 MHz 53C 163W gtt 21M cpu 3959MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 3 ecap0-min9           short 121.0 edit 162.5  foreign CPU 13% [('claude', 19), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2050/1249 MHz 53C 162W gtt 21M cpu 4005MHz 51C igpu 1%/vcn 1% fclk 1600
+rep 3 ecap0                short 118.5 edit 183.4  foreign CPU 9% [('gnome-shell', 9), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 2037/1249 MHz 54C 175W gtt 21M cpu 3842MHz 49C igpu 0%/vcn 0% fclk 1600
