@@ -20070,6 +20070,16 @@ int main(int argc, char** argv) {
             // session keeps); STRATA_SERVE_STOP_BOUND=0 turns it off
             static const bool stop_bound = strata::core::serve_stop_bound_on(std::getenv("STRATA_SERVE_STOP_BOUND"));
             int64_t chain_windows = 0, chain_drafts = 0, chain_ok = 0;   // --lookup-chain's own counts
+            // STRATA_DRAFT_EARLY=1 (opt-in, exact; mandoof1 b8004eb8d7, also basalt 1fd53a447's "commit queued behind the
+            // draft launch"): the MTP draft round is launched as soon as the window's accepted count is known - before
+            // the adaptive tier's post, the commit, the non-finite check and the tokens' emit - and finished after them,
+            // so that host work overlaps the round on the GPU.  The round reads nothing the commit graph writes (GDN
+            // state, QSA tails, PLE history; the drafter's K/V is its own, the window's final rows are complete once its
+            // picks are read).  The host-side PLE history the commit advances is advanced ahead in the launch.  Only on
+            // a plain MTP window: not merged, not DFlash2, no gated proposal, no DISCO (its stop state is set after the
+            // emit), no coupled drafts with penalties, one stage.  Unset: draft_long as before.
+            static const bool draft_early = [] { const char* e = std::getenv("STRATA_DRAFT_EARLY"); return e != nullptr && e[0] == '1'; }();
+            int64_t early_windows = 0;
             int64_t defer_auto_windows = 0, defer_auto_deferred = 0;   // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: the request's
                                                                          // decode windows, and those that deferred
             int64_t t2_rej[8] = {}, t2_hit[8] = {};   // STRATA_MTP_TOP2: rejections inside the MTP drafts by depth, runner-up hits
@@ -21456,6 +21466,28 @@ int main(int argc, char** argv) {
                     if (mtp.top2(a) == outv[(size_t) a]) ++t2_hit[a];
                 }
                 const Clock::time_point tw1 = Clock::now();
+                // STRATA_DRAFT_EARLY: the round now, when the emit below will leave a draft to do (the draft call's own
+                // rule: no draft after a stop token or at the request's last token)
+                bool draft_launched = false;
+                if (draft_early && use_mtp && draft_on && !req_df2 && !merged && !gated_proposal && !disco.enabled() &&
+                    !(mtp.coupled() && hist_n > 0) && n_stages == 1 && a < mtp.max_t()) {
+                    bool eos_ahead = false;
+                    int64_t pn = produced_n;
+                    for (int i = 0; i <= a && pn < max_new && !eos_ahead; ++i) {
+                        ++pn;
+                        eos_ahead = std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) outv[(size_t) i]) != o.eos_ids.end();
+                    }
+                    if (!eos_ahead && pn < max_new) {
+                        // the commit keeps the window's first a + 1 tokens (window[0..a]): the PLE history's advance
+                        if (!mtp.draft_launch(std::min(T, mtp.max_t()), outv.data(), p, a, (float) req_spec_min_p, err,
+                                              window.data(), a + 1)) {
+                            std::printf("ERR %s\n", err.c_str());
+                            return 1;
+                        }
+                        draft_launched = true;
+                        ++early_windows;
+                    }
+                }
                 // item 75: one persistent worker runs the adaptive tier beside the commit and the draft (a new std::thread
                 // per window before; STRATA_ADAPT_PERSIST=0 restores that).  Same pinning on Linux (aux CPUs).
                 static const bool adapt_persist = [] { const char* e = std::getenv("STRATA_ADAPT_PERSIST"); return !(e && e[0] == '0'); }();
@@ -21489,6 +21521,8 @@ int main(int argc, char** argv) {
                 }
                 if (nonfinite_hit(ver, first_window ? "first decode" : "decode")) {   // #879: none of its tokens goes out
                     adapt_join();
+                    if (draft_launched && !mtp.draft_finish(drafts.data(), err, dprob.data()))   // STRATA_DRAFT_EARLY (drafts unused)
+                        std::fprintf(stderr, "strata serve: the early draft round after a non-finite window failed: %s\n", err.c_str());
                     if (!adapt_ok) {
                         std::printf("ERR an adaptive refill failed\n");
                         return 1;
@@ -21594,7 +21628,10 @@ int main(int argc, char** argv) {
                     const int spec_lk_n = spec_lookup_q > 0.0 && sfx_on ? sfx.propose(std::min(8, S_mtp), spec_lk) : 0;
                     disco.set_stop_hint(spec_lk, spec_lk_n, spec_lookup_q, spec_depth_decay > 0.0 ? spec_depth_decay : 1.0);
                 }
-                const bool drafted = !draft_on || eos || produced_n >= max_new ||
+                // (STRATA_DRAFT_EARLY: a launched round is always finished here, so the drafter never keeps one across windows)
+                const bool drafted = draft_launched
+                                         ? mtp.draft_finish(drafts.data(), err, dprob.data(), &mtp_nd)
+                                         : !draft_on || eos || produced_n >= max_new ||
                                      (req_df2 ? ((!merged && defer_df2(a)) || draft_df2(a)) : mtp.draft_long(T, outv.data(), p, a, drafts.data(), err, dprob.data(), (float) req_spec_min_p,
                                                                                &mtp_nd, gated_proposal ? &generation : nullptr));
                 {
@@ -22286,6 +22323,9 @@ int main(int argc, char** argv) {
             if (o.lookup_chain > 0)
                 std::fprintf(stderr, "strata serve: lookup chain: %lld of %lld windows, %lld of %lld chained drafts accepted\n",
                              (long long) chain_windows, (long long) dec_windows, (long long) chain_ok, (long long) chain_drafts);
+            if (draft_early && early_windows > 0)
+                std::fprintf(stderr, "strata serve: STRATA_DRAFT_EARLY: the draft round was launched before the commit on %lld of "
+                                     "%lld windows\n", (long long) early_windows, (long long) dec_windows);
             if (std::getenv("STRATA_SPEC_DEPTH") != nullptr)
                 std::fprintf(stderr, "strata serve: spec depth: accepted/tested %lld/%lld %lld/%lld %lld/%lld %lld/%lld %lld/%lld\n",
                              (long long) dp_ok[0], (long long) dp_tested[0], (long long) dp_ok[1], (long long) dp_tested[1],

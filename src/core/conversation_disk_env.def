@@ -414,6 +414,7 @@ STRATA_ENV("STRATA_DOWN_WS", Speed, "bitwise: documented (docs/README/code comme
 STRATA_ENV("STRATA_DQ_FAST", Speed, "bitwise: Q6_K/IQ4_XS warp dequant, group32's expression per value (android-imdad caa9b00115)")
 STRATA_ENV("STRATA_DRAFT_SCALE", Speed, "drafting policy: window cost = shared scale x per-size base; greedy output unchanged")
 STRATA_ENV("STRATA_DRAFT_CLIP", Speed, "drafting policy: round-time outliers clipped before the DraftPolicy cost update; greedy output unchanged (MOD_PLAN.md section 6 item 17)")
+STRATA_ENV("STRATA_DRAFT_EARLY", Speed, "mandoof1 b8004eb8d7: MTP draft round launched before the commit/emit, finished after; same drafts, greedy output unchanged")
 STRATA_ENV("STRATA_DRAFT_KEEP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_DUMMY_NODES", Speed, "graph/stream/doorbell plumbing")
 STRATA_ENV("STRATA_EARLY_REMOTE_CONTEXTS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
