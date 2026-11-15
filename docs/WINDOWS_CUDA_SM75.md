@@ -70,4 +70,4 @@ warm-up (the warm-up request in `tools/pancake/abtest.py` does this).
 - Any test target; the test phase (`tools/pancake/test_phase.sh`); the quality gate.
 - A quiet-machine gate: `bench_win.py` only checks system CPU before each run (under 12%), it does not watch during a run.
 - CUDA 13.x, other Turing cards, multi-GPU.
-- Comparison with the 7900 XT numbers in `PANCAKE_STATUS.md`: different card, different backend.
+- Comparison with the 7900 XT numbers in `MOD_PLAN.md` / `TEST_LEDGER.md`: different card, different backend.

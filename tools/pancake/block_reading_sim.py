@@ -12,7 +12,7 @@ power_sim.py's, fitted on bench/results/2026-11-11-gpu/*.jsonl, the --outlier ro
 
 Prints, per case, ICC (the share of a pass's variance that is between starts: the weakest number of the fit, see power_sim.py), slow-start
 setting (as fitted / none) and design (k x N): P(PROMOTE) % at a true gain of 0 (false PROMOTE) and at --gain.  Result and decision:
-pancake-docs/batch5/promote-block.md.
+pancake-docs/batch5/promote-block.md @5ab3d2db.
 """
 import argparse
 import glob

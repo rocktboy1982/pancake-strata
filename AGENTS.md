@@ -10,17 +10,18 @@ Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
 
 - `README.md` - measured results (§2), how it works (§5), `STRATA_*`/flag census (§6), subsystem walkthrough (§7),
   build/run (§8), credits (§9).
-- `PANCAKE_STATUS.md` - what is built and tested now, and what runs next; `MOD_PLAN.md` - the authoritative plan,
-  the night queue, and the "not adopted" ledger (closed decisions, plus the trigger to reopen parked ones). The plan
-  can list an item and still forbid starting it (Phase 18: no start until researched and the plan is reviewed).
-- `pancake-docs/` - the fork's long-form record; start at `pancake-docs/research/README.md` for the topic reports.
-  `docs/` is mostly inherited upstream, but fork findings live there too (`docs/PANCAKE_FINDINGS.md`,
-  `docs/QUANTS.md`), as do the shared references (`docs/AI_REFERENCE.md`, `docs/DETAILS.md`, `docs/AMD_HIP.md`,
-  `docs/WINDOWS_CUDA_SM75.md`).
-- `reports/` holds root-relative copies of the research `report.md` files; when you edit one, sync its copy (same
-  text, links differ).
-- `bench/results/<date>-<name>/` - raw evidence (`README.md`, `REPORT.md`, `.jsonl`/`.json` rows); the running test
-  and findings ledger is `docs/PANCAKE_FINDINGS.md`. Do not claim a number that is not there or that you measured.
+- `MOD_PLAN.md` - the authoritative plan: what the daily preset runs (with test ids), decisions waiting for the owner,
+  what runs next, code to write, known defects, parked items, the do-not-repeat list and architecture facts.
+- `TEST_LEDGER.md` - every test ever run (ids `T-nnn`): numbers, spec, tier, verdict, raw archive path. Add a row for
+  every new test; do not claim a number that is not there or that you did not measure.
+- `LEADS.md` - every unported idea (forks, upstream PRs, llama.cpp, papers, hardware) with author numbers and whether
+  our tree has it. A lead moves into MOD_PLAN.md when it is chosen.
+- Raw evidence: `bench/specs/`, `bench/results/<date>-<name>/`, `pancake-docs/research/bench/` (result archives, run
+  scripts, night-queue logs). `docs/` is mostly inherited upstream; `docs/QUANTS.md` and the shared references
+  (`docs/AI_REFERENCE.md`, `docs/DETAILS.md`, `docs/AMD_HIP.md`, `docs/WINDOWS_CUDA_SM75.md`) are kept.
+- The old research reports, notes, status and findings files were folded into those three files on 2026-11-15 and
+  removed; read them with `git show 5ab3d2db:<path>`. Do not recreate side documents: put results in TEST_LEDGER.md,
+  ideas in LEADS.md and decisions in MOD_PLAN.md.
 
 ## Layout
 
@@ -38,7 +39,7 @@ Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
 
 `main` is the default/release line. Engine work lives on topic branches (`dev/*`, `work/*`, `feat/*`, for example
 `dev/p17/integration`). New work starts from the base named by the active MOD_PLAN phase (Phase 18 workers branch from
-`port/rdna3-decode` and merge back there), not blindly from `main`. Run `git branch -r` and read `PANCAKE_STATUS.md`
+`port/rdna3-decode` and merge back there), not blindly from `main`. Run `git branch -r` and read `MOD_PLAN.md`
 before assuming a switch or feature exists.
 
 ## Build
@@ -115,10 +116,9 @@ python -m pytest tests/terminal
   `--flags` that this fork does not read (a 2026-11-12 audit dropped `STRATA_MTP_DRAFT_ALL` from spec 34 as an inert
   arm this way). An arm that is not in `conversation_disk_env.def` or parsed in `generate.cpp`/`serve` is a no-op, not
   a test.
-- Specs live in `bench/specs/`; results go to `bench/results/<date>-<name>/`, and night outcomes plus owner
-  decisions to `pancake-docs/NIGHT_RESULTS_<date>.md` / `pancake-docs/PRESET_BUNDLES.md`. Update
-  `PANCAKE_STATUS.md` / `MOD_PLAN.md` when a result changes the plan; daily presets can differ from engine defaults
-  by owner decision.
+- Specs live in `bench/specs/`; raw results go to `bench/results/<date>-<name>/`. Every run (including no-gain and
+  aborted ones) gets a row in `TEST_LEDGER.md`; a result that changes a decision updates `MOD_PLAN.md` (sections 3-5).
+  Daily presets can differ from engine defaults by owner decision.
 - GPU-heavy plans run through `tools/pancake/night_queue.py` (plan in `night_queue_plan.json`; `--dry-run` first) or
   `tools/pancake/test_phase.sh` on a quiet night, not during the day.
 - The tools parse the engine's own log lines (prompt/decode tok/s, park/restore/skip). Do not remove or reword them
@@ -137,8 +137,8 @@ python -m pytest tests/terminal
   to the owner's `/home/dan/...` paths, so set `STRATA_DATA` and `MODELS` on another machine.
 - Model-pack recommendation policy: ISTA-DASLab -> Unsloth -> Gyro -> others, only a pack that fits the model and
   card; honor an explicit user choice.
-- When adopting code or an idea from another project, add the credit in README §9 and
-  `pancake-docs/RESEARCH_AND_FINDINGS.md` §4 in the same commit.
+- When adopting code or an idea from another project, add the credit in README §9 in the same commit (fork, commit,
+  author numbers), and mark the lead in `LEADS.md`.
 
 ## Claims and docs
 
@@ -146,7 +146,7 @@ python -m pytest tests/terminal
   model/quant, preset and measurement; no claim without a measurement.
 - Label conclusions drawn from reading code (not reproduced) as "unconfirmed static analysis"
   (`CONTRIBUTING.md`); never present fake-engine or fixture results as hardware measurements.
-- In `pancake-docs/research/`, label claims `[code]`, `[measured]`, `[paper]`, `[derived]` or `[unverified]`.
+- In `LEADS.md`, label claims `[code]`, `[measured]`, `[paper]`, `[derived]` or `[unverified]`.
 - Keep passed / failed / not run separate when reporting validation.
 
 ## Contributing

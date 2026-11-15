@@ -1,7 +1,7 @@
 #pragma once
 // MOD_PLAN 17.1 note (STRATA_VERIFY_DEFER_AUTO=1, opt-in): expert deferral (STRATA_VERIFY_DEFER_CPU=1) only in the verify
 // windows whose drafts are a lookup copy, every CPU row on time in every other window.  Header-only, no GPU, no model:
-// tests/core/defer_auto_test.cpp.  Design note: pancake-docs/VERIFY_DEFER_AUTO.md.
+// tests/core/defer_auto_test.cpp.  Design note: pancake-docs/VERIFY_DEFER_AUTO.md @5ab3d2db.
 //
 // Why: on the RX 7900 XT (Q2_0, fast-hip preset, 2026-11-11, warm pass, 10 decode samples per row) removing the deferral
 // gave prose +8-9% and code -1..-3%; the 2026-11-09 test phase had edit +15.8% and short no difference with it.  So it seems

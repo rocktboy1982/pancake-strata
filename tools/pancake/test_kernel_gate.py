@@ -64,7 +64,7 @@ EXPDEC = """# device 0: AMD Radeon RX 7900 XT, 10 reps
 expdec_bench: ok (0 choice comparisons differ)
 """
 
-# q2_rows_bench, nt=1: the single-thread DRAM / L2 rows of pancake-docs/batch3/kern-cpu.md (down 31.9 -> 21.8, gate/up 111.3 -> 89.3
+# q2_rows_bench, nt=1: the single-thread DRAM / L2 rows of pancake-docs/batch3/kern-cpu.md @5ab3d2db (down 31.9 -> 21.8, gate/up 111.3 -> 89.3
 # ns/row, floors 5.45 / 21.82 ns at 33 GB/s); the 8-thread block is synthetic (the open A48 measurement)
 Q2_ROWS = """Q2_0 row kernels, one thread, nt=1, chunk=64 rows, AVX-VNNI no; dispatcher picks FAST (STRATA_Q2_FAST / STRATA_Q2_LEGACY)
 

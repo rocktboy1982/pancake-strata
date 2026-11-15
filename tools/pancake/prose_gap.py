@@ -2,7 +2,7 @@
 """prose_gap.py - MOD_PLAN 17.2: measure one engine on one fixed prose prompt, the same way for pancake and Avalon.
 
 Background (measured 2026-11-11, bench/results/2026-11-11-vs-avalon/ on port/rdna3-decode): on the same IQ2_XS GGUF
-Avalon decoded prose 5-10% faster than pancake.  Read from that file's draft counters (pancake-docs/PROSE_GAP_AVALON.md,
+Avalon decoded prose 5-10% faster than pancake.  Read from that file's draft counters (pancake-docs/PROSE_GAP_AVALON.md @5ab3d2db,
 "what the old numbers already say"): Avalon commits more tokens per verify window on prose; the cost per window is
 about the same.  This harness measures exactly those quantities, per request, on any OpenAI-compatible server:
 

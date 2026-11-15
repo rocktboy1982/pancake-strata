@@ -13,21 +13,24 @@ the latest LLM inference technologies, each adding speed.
 The target is single-user agent serving (long, growing prompts and tool calls) on ordinary hardware: an
 **RTX 3060 12 GB** (CUDA) and an **RX 7900 XT 20 GB** (HIP), a Ryzen 7 5700G and about 57 GB of RAM.
 
-The long-form documents live in the documentation folder [`pancake-docs/`](pancake-docs/):
+The fork's working documents are three files at the repository root:
 
-- [`pancake-docs/RESEARCH_AND_FINDINGS.md`](pancake-docs/RESEARCH_AND_FINDINGS.md): the full research record, the paper
-  catalog, the engineering decisions, and the test and benchmark ledger.
-- [`pancake-docs/STRATA_DERIVATIVES_DEEP_RESEARCH.md`](pancake-docs/STRATA_DERIVATIVES_DEEP_RESEARCH.md): deep research
-  on every Strata fork and derivative, with a gap analysis.
-- [`MOD_PLAN.md`](MOD_PLAN.md): the master plan, item by item, with the "not adopted" ledger.
-- [`PANCAKE_STATUS.md`](PANCAKE_STATUS.md): what is built, what is tested, and what comes next.
+- [`MOD_PLAN.md`](MOD_PLAN.md): what the daily preset runs and why, the decisions waiting for the owner, what runs next,
+  the code to write, known defects, and the do-not-repeat list.
+- [`TEST_LEDGER.md`](TEST_LEDGER.md): every test run on this fork (ids `T-nnn`) with its numbers, spec, verdict and the
+  raw archive under `bench/results/` or `pancake-docs/research/bench/`.
+- [`LEADS.md`](LEADS.md): every unported idea from forks, upstream PRs, llama.cpp, papers and hardware notes.
+
+The research reports, notes and status files they replace were removed on 2026-11-15 and stay in git history
+(`git show 5ab3d2db:<path>`).
+
 - [`docs/WINDOWS_CUDA_SM75.md`](docs/WINDOWS_CUDA_SM75.md): the Windows + CUDA 12.8 build on a GTX 1660 Ti (sm_75).
 
 ## 2. What `pancake-strata` does compared to Strata and other forks (Measured Results)
 
 Every number below is a real run on the named card: greedy decoding, cold start, quiet machine unless the note says
 otherwise. "Exact" means the same tokens as stock decoding, checked token for token. Sources:
-[docs/PANCAKE_FINDINGS.md](docs/PANCAKE_FINDINGS.md), `bench/results/`, and MOD_PLAN phase 11.
+[TEST_LEDGER.md](TEST_LEDGER.md) and `bench/results/`.
 
 ### Table 2A: RX 7900 XT 20 GB (HIP, gfx1100)
 
@@ -143,7 +146,7 @@ engine start, A B B A; 4.2x faster at the same reps, 2.2x at the same power), a 
 `tools/pancake/queue_run.sh` (unattended night queue), `drop_cache.py` (non-root cache eviction), `promote.py` (void-switch and mixed-tier rules),
 `kernel_gate.py` (kernel gain x window share before any end-to-end screen), `record_session.py` (real-trace recorder: the default window trace carries zero
 router weights). The task gate (18 tasks) passes an identical arm only ~3% of the time: ~100 tasks and a 40-request token-forcing set are needed before a lossy
-item can be promoted. Details: `MOD_PLAN.md` (Phase 16), `bench/TEST_PLAN.md`, `pancake-docs/batch2-4/`.
+item can be promoted. Details: `TEST_LEDGER.md` (quality-gate and harness rows), `bench/TEST_PLAN.md`.
 
 **Source corrections found by reading the paper bodies:** DALI's "6-13%" is not in the paper; Marconi's "-71% TTFT" merges two datasets; HOBBIT's "CDF 0.6/0.9" are
 thresholds on a cumulative gate score and its r = 0.99 is inflated because the weight sits on both sides; Athena (A44) is a state-aware SARSA agent, our A44 is the
@@ -169,7 +172,7 @@ code-edit prompt, "short" a chat. Gains with an interval are paired A/B runs on 
 | BFLA fused dense prompt attention (`feat/bfla-hip`) | 128K prompt **386.9 -> 771.2 tok/s (2.0x)**, exact; sparse adds 1.58x (lossy) | stage bench, end to end | branch, opt-in |
 
 Against stock Strata (upstream 146df3c46, same IQ2_XS file, both on the mmap tier): decode **54.5 -> 69.2 tok/s (+27%)** and a 5.3K-token edit prompt
-**23.3 -> 11.0 s**; with the RAM arena 75.5 tok/s (docs/PANCAKE_FINDINGS.md 10f).
+**23.3 -> 11.0 s**; with the RAM arena 75.5 tok/s (TEST_LEDGER.md, T-216).
 
 **Phase 16 (2026-11-11): measured, and not a speed gain yet.** Every small kernel and policy item that was coded in the Phase 16 round was tested on the same card:
 `STRATA_WAIT_COPY256`, `STRATA_ROUTE_FAST` and `STRATA_EXPDEC_SWIGLU` (n = 6 confirm: short +0.6% [-1.6, +2.8], edit +1.1% [-4.7, +6.9]; the +2% in the
@@ -304,10 +307,10 @@ PY
 ```
 
 The new-commits CSV of each run is the input for the next round of fork notes (see the
-[November fork report](pancake-docs/research/engine-speed/active-forks-nov/report.md)); anything adopted from it follows the
+[LEADS.md](LEADS.md) (November fork report in git history at 5ab3d2db)); anything adopted from it follows the
 credit rule in section 9.
 
-First results (2026-11-10, report: [Strata fork knowledge base](pancake-docs/research/engine-speed/fork-knowledge-base/report.md)):
+First results (2026-11-10, report: Strata fork knowledge base, `pancake-docs/research/engine-speed/fork-knowledge-base/report.md` @5ab3d2db):
 
 | Measure | Value |
 | --- | ---: |
@@ -327,8 +330,8 @@ the expert cache and offload (71), quantization (55), KV and attention (57), CUD
 Before building we read. The survey covered **758 arXiv papers across 7 global university regions** (131 US, 97 Asia,
 76 Stanford, 69 Europe, 65 MIT/Harvard, 63 Pacific/Africa/LatAm, 56 Canada), plus focused studies on MoE offload,
 speculation, attention, and agent control (66 hardware data-path papers, 31 runtime-architecture papers). The full
-per-paper URL lists live in the research reports under [`pancake-docs/research/`](pancake-docs/research/README.md) and in
-[`pancake-docs/RESEARCH_AND_FINDINGS.md`](pancake-docs/RESEARCH_AND_FINDINGS.md). The tables below list every paper
+per-paper URL lists live in the research reports in git history (`pancake-docs/research/` and
+`pancake-docs/RESEARCH_AND_FINDINGS.md` at 5ab3d2db); the open ones are in [LEADS.md](LEADS.md). The tables below list every paper
 that shaped a decision, with its direct URL and what happened to it. Every rejection is also recorded, with its
 reason, in the MOD_PLAN "not adopted" ledger.
 
@@ -900,7 +903,7 @@ Details, commands and what was not tested: [`docs/WINDOWS_CUDA_SM75.md`](docs/WI
 
 ### Verification gates
 
-- `pancake-docs/CODE_OPTIMIZATION.md`: the 7-point code-level pass (profiling, algorithms, caching, I/O, async,
+- The 7-point code-level pass (`pancake-docs/CODE_OPTIMIZATION.md` @5ab3d2db) (profiling, algorithms, caching, I/O, async,
   allocations, static analysis) - four quadratic loops removed from the per-layer expert dispatch.
 - `tools/pancake/hipblaslt_extend.py` (item 80): extends the gfx1100 hipBLASLt table with the agent-turn GEMM shapes
   (plan / run / merge, 78 cases, GPU ~30 min); then A/B the extended table.
@@ -944,7 +947,7 @@ Credits, in the order the stack was built:
 - **DevDock-AI** (Speedy), for the fast-preset switch stack. **Avalon**, for the hipBLASLt table report.
 - **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
 - **PolyStrata** (simplexai-labs), whose strata-poly `SuffixIndex` is reused by the cross-session suffix index (`STRATA_SUFFIX_INDEX`, A24).
-- **Strata upstream** (Niko1221 and contributors, e.g. pjgmobile for #5531), for the bug fixes synced on 2026-11-10 (pancake-docs/batch2/upstream-sync-2026-11-10.md).
+- **Strata upstream** (Niko1221 and contributors, e.g. pjgmobile for #5531), for the bug fixes synced on 2026-11-10 (pancake-docs/batch2/upstream-sync-2026-11-10.md @5ab3d2db).
 - **zsariboga** (Strata fork), for the route-prior guards (`STRATA_ROUTE_PRIOR_PROTECT`, `_KEEP_P`, `_SCOPE`, commit `8d7042ad97`), and **mandoof1**
   (Strata fork), for `STRATA_ROUTE_PRIOR_KEEP` (commit `3e0489e118`); **lighttransport** (Strata fork), whose MiniMax study (commit `2ea0c1e042`) set the
   equal-KL comparison against a uniform tail skip.

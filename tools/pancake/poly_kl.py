@@ -13,7 +13,7 @@ of the answer to stderr ("top id:p id:p ...").  This runs it.
      distributions, so a lower bound of the full KL when both lists hold those ids; an id of the base's list that the
      arm's list lacks gets the smaller of the arm's N-th probability and its rest mass shared out).
   Verdict per arm: PASS when mean KL <= --max-kl and top-1 agreement >= --min-top1, else HOLD (the switch stays opt-in).
-  The defaults (KL 1e-3, top-1 0.99) are a proposal: q8_0 KV costs < 0.00012 KL (docs/PANCAKE_FINDINGS.md, the KV
+  The defaults (KL 1e-3, top-1 0.99) are a proposal: q8_0 KV costs < 0.00012 KL (MOD_PLAN.md section 10, the KV
   study), BFLA's sparse prompt attention measured 0.0014 / 0.0045 at 64K / 128K; the owner sets the bar.
 
     python tools/pancake/poly_kl.py --config pancake-qwen36-ud-q4_k_xl.json --tokenizer <pack>/tokenizer \\

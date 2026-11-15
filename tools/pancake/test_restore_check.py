@@ -506,7 +506,7 @@ class ChatRequest(unittest.TestCase):
 
 class Simulation(unittest.TestCase):
     """The error rates of the position rule on the noise model fitted to the 11-11 runs (h = 0.0122 per text unit, the five
-    hit turns' lengths): numbers quoted in pancake-docs/batch4/equiv-gate.md.  Seeded, so exact; the bounds leave room."""
+    hit turns' lengths): numbers quoted in pancake-docs/batch4/equiv-gate.md @5ab3d2db.  Seeded, so exact; the bounds leave room."""
     H, LENGTHS, TRIALS = 0.0122, [112, 175, 128, 145, 143], 1500
 
     def rates(self, bug, h=H):

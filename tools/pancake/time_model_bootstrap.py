@@ -8,7 +8,7 @@ a measured interval that overlaps the spread is consistent with the model, one t
 noise explains it).
 
     python tools/pancake/time_model_bootstrap.py TRACE.bin PROFILE.bin 10909 [--boot 40] [--block 20]
-Result on bench/prefetch/routing.bin (pancake-docs/batch3/selftune.md): k-th miss 2,8 +2.7% point, resampled -6.3 .. +1.9
+Result on bench/prefetch/routing.bin (pancake-docs/batch3/selftune.md @5ab3d2db): k-th miss 2,8 +2.7% point, resampled -6.3 .. +1.9
 (5-95%, so the sign is not settled by the trace); FUSE_PHASES +1.1% (+1.0 .. +1.2) against +2.5 +-1.7; rank guard +12.0% (+11.6 ..
 +13.6) against +20.1 +-3.3 measured: a model miss, not trace noise; the fitted deferred-layer cost 91 us (52 .. 103 us).
 """

@@ -14,7 +14,7 @@ Why a second reader (wtrace.py stays the one the replay tools use): the check ne
   - the weights of a layer record are only the router's when the doorbell published them (see the weights verdict below);
     wtrace.read hands over whatever bytes are there.
   - the file may end in the middle of a record (the engine was killed): the cut is reported, not an error.
-  - record 6 (the proposed per-entry expert output norms, pancake-docs/batch4/corpus-recorder.md) is read when present.
+  - record 6 (the proposed per-entry expert output norms, pancake-docs/batch4/corpus-recorder.md @5ab3d2db) is read when present.
 
 Weights verdict of a layer record (state): ok | missing (flag bit 0 clear) | zero (all zero: the doorbell published none) |
 stale (bit for bit the previous record's weights: the host buffer was not rewritten for this layer) | bad (NaN, Inf,

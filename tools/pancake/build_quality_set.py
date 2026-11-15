@@ -2,7 +2,7 @@
 """build_quality_set.py - grows the token-forcing set (bench/quality/set.json, 20 requests) to 48 requests for tools/pancake/quality_gate.py.
 
 Why: with 20 requests (5,322 tokens) an arm identical to stock is INCONCLUSIVE 22% of the time and a real +1.0 point deviation is rejected only
-62% (MOD_PLAN "Test-protocol findings", pancake-docs/batch3/promotion.md); with 40+ requests (~10,600 tokens) both reach ~92%.  The old requests
+62% (MOD_PLAN "Test-protocol findings", pancake-docs/batch3/promotion.md @5ab3d2db); with 40+ requests (~10,600 tokens) both reach ~92%.  The old requests
 are 650-1,500 tokens long; the real agent requests of the opencode history (qwen3.8-flash-next-iq2_xs, 2,036 requests, 25 sessions; measured as
 numbers only, no text) are 11K-100K tokens with a ~11K system+tools prefix, a median step of +525 tokens (bash / read results), and a reply of
 ~115-340 tokens.  So the 28 new requests are synthetic but have those shapes, assembled from this repository's own files at a pinned commit

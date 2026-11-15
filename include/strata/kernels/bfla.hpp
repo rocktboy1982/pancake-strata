@@ -3,7 +3,7 @@
 //
 // BFLA: "Block-Filtered Long-Context Attention Mechanism", Chong Wu et al. (City University of Hong Kong lead),
 // arXiv 2605.12193 (May 2026); reference code github.com/Alicewithrabbit/BFLA (Apache-2.0), read, not copied.
-// Design: docs/BFLA_RDNA3.md; where the selection differs from the paper: pancake-docs/batch4/bfla-dense.md.
+// Design: docs/BFLA_RDNA3.md; where the selection differs from the paper: pancake-docs/batch4/bfla-dense.md @5ab3d2db.
 //
 // Switches (read once by bfla_config(); with neither set nothing here runs and the caller's path is unchanged):
 //   STRATA_BFLA_DENSE=1   the fused kernel over every causal block: exact attention (no cell dropped), the numerics class

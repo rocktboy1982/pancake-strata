@@ -4,7 +4,7 @@ Opt-in: STRATA_PARK_DIVERGENCE_LOG=1.  Off (the default) nothing is recorded and
 
 The engine continues its live conversation only when the new prompt starts with ALL of its tokens (the last prompt plus
 the reply it generated).  When it does not, the engine falls back to a checkpoint, a parked conversation or a full read,
-and the analysis in pancake-docs/TTFT_LEVERS.md found that 6 of 46 warm agent turns did this for a reason nobody knew.
+and the analysis in pancake-docs/TTFT_LEVERS.md @5ab3d2db found that 6 of 46 warm agent turns did this for a reason nobody knew.
 This module sees what the server sends and what the engine answers, so it can say where the two token streams part.
 
 For every request after the first, when the new prompt does not extend the previous request's prompt + reply, one line

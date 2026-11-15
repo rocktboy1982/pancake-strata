@@ -40,7 +40,7 @@ def test_uniform_model_numbers():
     rng = np.random.default_rng(1)
     v1 = L.uniform(1024, 1, 4000, rng)
     v16 = L.uniform(256, 16, 500, rng)
-    assert 5.6 < v1 < 6.4, v1      # ~6.07 (pancake-docs/batch2/A37-gpu-kernels.md)
+    assert 5.6 < v1 < 6.4, v1      # ~6.07 (pancake-docs/batch2/A37-gpu-kernels.md @5ab3d2db)
     assert v16 == 2.0
 
 

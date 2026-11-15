@@ -43,7 +43,7 @@ experts runs on the default `native_down_multi_kernel<42>`, 5.8% of GPU kernel t
 files have Q2_0 down projections. `STRATA_EXPDEC_DOWN=1` is measured on gfx1100 (test phase 04c,
 `bench/results/2026-11-09-test-phase/RESULTS.md`): +1.7% +-0.5 on short chat, the code edit +5.4% +-7.3 (not
 significant), token forcing PASS. It is in the `flashnext-iq2_xs-fast-hip` preset since f15ad2b51; the Q2_0 fast-hip
-preset does not set it ([PANCAKE_FINDINGS.md section 13](PANCAKE_FINDINGS.md#13-research-series-2026-11-09)).
+preset does not set it ([TEST_LEDGER.md](../TEST_LEDGER.md), T-037/T-040).
 
 The first time `STRATA_EXPDEC=1` meets a (role, format) the engine writes one line, e.g.
 `strata expdec: CUDA1 gate/up type 21: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups), captured into a graph`

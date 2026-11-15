@@ -1,7 +1,7 @@
 #pragma once
 // MOD_PLAN 17.1 (STRATA_ROUTE_PRIOR_AUTO=1, opt-in, lossy only through turbo): the route prior (STRATA_ROUTE_PRIOR, "turbo")
 // only in the verify windows whose drafts are a lookup copy, exact routing in every other window.  Header-only, no GPU, no
-// model: tests/program/route_prior_auto_test.cpp.  Design note: pancake-docs/ROUTE_PRIOR_AUTO.md.
+// model: tests/program/route_prior_auto_test.cpp.  Design note: pancake-docs/ROUTE_PRIOR_AUTO.md @5ab3d2db.
 //
 // Why: on the RX 7900 XT (IQ2_XS, 2026-11-11, one warm pass per prompt) turbo was +9% decode on a copy-heavy code prompt and
 // -15% / -25% on two prose prompts against the exact fast-hip preset, with the same draft acceptance, so a global switch loses.

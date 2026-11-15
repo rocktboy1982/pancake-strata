@@ -9,7 +9,7 @@
 #   qwen38-35b  Qwen3.8-35B-A3B-Distill Q4_K_M (empero: Qwen3.6 fine-tuned on Qwen3.8 answers) - strata-poly, the
 #               MTP drafting layer borrowed from the Qwen3.6 Q4_K_XL file
 # Flash-Next defaults to the fast preset (Speedy's switches: ~13% faster writing after long prompts; it passed the
-# token-forcing quality check, docs/PANCAKE_FINDINGS.md 10e).  `exact`: the same answers as plain decoding.
+# token-forcing quality check, TEST_LEDGER.md T-543).  `exact`: the same answers as plain decoding.
 # `turbo` (IQ2_XS only, lossy opt-in): fast + cache-aware routing (STRATA_ROUTE_PRIOR=0.5), +25% decode on the 3060
 # but 2.9% of tokens differ from exact decoding (stock noise 1.2-1.3%, no large-margin errors; MOD_PLAN 8.9).
 # RX 7900 XT (no NVIDIA card): build-hip and the *-hip presets where they exist - iq2_xs fast (default, ~126 tok/s), exact,

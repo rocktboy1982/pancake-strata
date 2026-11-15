@@ -117,7 +117,7 @@ Four ISTA-DASLab sizes are the original model; the versions below are variants o
 Every version in setup's menu reads pictures. [Picture rules](#pictures).
 
 > **pancake note (2026-11-09, from ISTA-DASLab's model cards and tensor-allocation files; see
-> [PANCAKE_FINDINGS.md section 13](PANCAKE_FINDINGS.md#13-research-series-2026-11-09)):**
+> `docs/PANCAKE_FINDINGS.md` section 13 in git history at 5ab3d2db):**
 > - Size: a 125B MoE + a 51B hashed n-gram/PLE table (shard 2, 28.8 GB IQ4_NL, the same file in every variant) + a ~4B
 >   MTP layer, **~176.9B parameters** in all. Each block is 3 Gated DeltaNet layers + 1 QSA layer; 512 experts per MoE
 >   layer, 10 routed + 1 shared per token.

@@ -49,7 +49,7 @@
    "interacts_with": [
     "swaps-auto"
    ],
-   "note": "MOD_PLAN A5: admit on the k-th miss in W windows; needs the async tier (the blocking tier stalls the GPU about 5.6 ms per swap round, PANCAKE_STATUS). --adapt-async 1 on a HIP build is opt-in and the engine turns STRATA_ADAPT_OVERLAP (in the preset) off when it is given (src/program/generate.cpp near the 'o.adapt_async ? \"--adapt-async\"' line), so this arm also changes that. bench/specs/15-kmiss.json flags it lossy (rounding-level, different text). Source: include/strata/program/kmiss_tier.hpp."
+   "note": "MOD_PLAN A5: admit on the k-th miss in W windows; needs the async tier (the blocking tier stalls the GPU about 5.6 ms per swap round, PANCAKE_STATUS @5ab3d2db). --adapt-async 1 on a HIP build is opt-in and the engine turns STRATA_ADAPT_OVERLAP (in the preset) off when it is given (src/program/generate.cpp near the 'o.adapt_async ? \"--adapt-async\"' line), so this arm also changes that. bench/specs/15-kmiss.json flags it lossy (rounding-level, different text). Source: include/strata/program/kmiss_tier.hpp."
   },
   {
    "name": "acceptmoe-depth",
@@ -83,7 +83,7 @@
     "STRATA_ROUTE_TAIL_SKIP": "7"
    },
    "lossy": true,
-   "note": "Tail-row drop (PANCAKE_STATUS P1 'Tail-row drop'); the preset sets STRATA_ROUTE_TAIL_SKIP=0, this sets 7 (arm tailskip7 of bench/specs/19-turbo-guards.json, flagged lossy there). The ledger says --lookup-chain 2 pays only after tail skip. Source: src/core/expert_source.cpp:4927, src/program/generate.cpp."
+   "note": "Tail-row drop (PANCAKE_STATUS @5ab3d2db P1 'Tail-row drop'); the preset sets STRATA_ROUTE_TAIL_SKIP=0, this sets 7 (arm tailskip7 of bench/specs/19-turbo-guards.json, flagged lossy there). The ledger says --lookup-chain 2 pays only after tail skip. Source: src/core/expert_source.cpp:4927, src/program/generate.cpp."
   },
   {
    "name": "lookup-chain2",
@@ -95,7 +95,7 @@
    "interacts_with": [
     "tailskip7"
    ],
-   "note": "MOD_PLAN 17.4: --lookup-chain 2 (xyzzing rdna3-inference-ledger: paid only after tail skip, +6% at 1K, +20% at 128K on their 7900 XTX). The preset leaves it at the engine default 0; bench/specs/13-lookup.json tests 3. Declared exact (bench/specs/13-lookup.json). Source: src/program/generate.cpp ('--lookup-chain', clamp 0..7). Credit rule: if it is adopted, README section 9 + RESEARCH_AND_FINDINGS section 4 in the same commit."
+   "note": "MOD_PLAN 17.4: --lookup-chain 2 (xyzzing rdna3-inference-ledger: paid only after tail skip, +6% at 1K, +20% at 128K on their 7900 XTX). The preset leaves it at the engine default 0; bench/specs/13-lookup.json tests 3. Declared exact (bench/specs/13-lookup.json). Source: src/program/generate.cpp ('--lookup-chain', clamp 0..7). Credit rule: if it is adopted, README section 9 in the same commit."
   },
   {
    "name": "spec5",
@@ -194,7 +194,7 @@
     "STRATA_DEVICE_SPIN": "1"
    },
    "lossy": false,
-   "note": "Item 76: ask the driver to spin instead of yield in blocking syncs (PANCAKE_STATUS: exact, spec 04 log must say 'set'); bench/specs/04c-gpu-retest.json. Source: src/program/generate.cpp:4369, src/core/conversation_disk_env.def."
+   "note": "Item 76: ask the driver to spin instead of yield in blocking syncs (PANCAKE_STATUS @5ab3d2db: exact, spec 04 log must say 'set'); bench/specs/04c-gpu-retest.json. Source: src/program/generate.cpp:4369, src/core/conversation_disk_env.def."
   },
   {
    "name": "cpu-presum",
@@ -206,7 +206,7 @@
    "substitutes_of": [
     "presum-vram"
    ],
-   "note": "MOD_PLAN 51: CPU pre-sums the missed rows (0.5-1.5% by estimate), 'not bit-identical' (PANCAKE_STATUS), hence lossy here. Source: src/core/verify.cpp:1096, src/core/expert_source.cpp."
+   "note": "MOD_PLAN 51: CPU pre-sums the missed rows (0.5-1.5% by estimate), 'not bit-identical' (PANCAKE_STATUS @5ab3d2db), hence lossy here. Source: src/core/verify.cpp:1096, src/core/expert_source.cpp."
   },
   {
    "name": "presum-vram",
@@ -282,7 +282,7 @@
     "turbo",
     "acceptmoe-depth"
    ],
-   "note": "MOD_PLAN 17.1 (branch dev/p17/turbogate, pancake-docs/ROUTE_PRIOR_AUTO.md): turbo's route prior (0.5) only in lookup (suffix-draft) windows of 2+ rows, exact routing in the others. A substitute of turbo and of the depth-graded prior (they set the same STRATA_ROUTE_PRIOR key), lossy like turbo. Setting STRATA_ROUTE_PRIOR at all turns off ROUTE_PUBLISH / ROUTE_FAST / ROUTER_FUSE, a no-op on this preset (deferral already does). Its own gate spec is bench/specs/p17-route-prior-auto.json (arms base, turbo, auto, auto-min5, auto-closed); this arm is the plain auto one. Source: include/strata/program/route_prior_auto.hpp, src/program/generate.cpp."
+   "note": "MOD_PLAN 17.1 (branch dev/p17/turbogate, pancake-docs/ROUTE_PRIOR_AUTO.md @5ab3d2db): turbo's route prior (0.5) only in lookup (suffix-draft) windows of 2+ rows, exact routing in the others. A substitute of turbo and of the depth-graded prior (they set the same STRATA_ROUTE_PRIOR key), lossy like turbo. Setting STRATA_ROUTE_PRIOR at all turns off ROUTE_PUBLISH / ROUTE_FAST / ROUTER_FUSE, a no-op on this preset (deferral already does). Its own gate spec is bench/specs/p17-route-prior-auto.json (arms base, turbo, auto, auto-min5, auto-closed); this arm is the plain auto one. Source: include/strata/program/route_prior_auto.hpp, src/program/generate.cpp."
   },
   {
    "name": "verify-defer-auto",
@@ -294,7 +294,7 @@
    "interacts_with": [
     "route-prior-auto"
    ],
-   "note": "MOD_PLAN 17.1 (branch dev/p17/defergate, pancake-docs/VERIFY_DEFER_AUTO.md): with the preset's STRATA_VERIFY_DEFER_CPU=1 already on, AUTO=1 defers CPU rows only in lookup (suffix-draft) windows of 2+ rows and keeps every CPU row on time in the others (the engine's start-up line says it acted; a log without it voids the arm). The registry marks it as changing the output against plain deferral (src/core/conversation_disk_env.def), so it is lossy here. Its own gate spec is bench/specs/p17-defer-auto.json (arms base, nodefer, auto, auto-min5, auto-closed); the night queue runs base / nodefer / auto-closed as item 1. Source: src/core/verify.cpp, include/strata/core/defer_auto.hpp."
+   "note": "MOD_PLAN 17.1 (branch dev/p17/defergate, pancake-docs/VERIFY_DEFER_AUTO.md @5ab3d2db): with the preset's STRATA_VERIFY_DEFER_CPU=1 already on, AUTO=1 defers CPU rows only in lookup (suffix-draft) windows of 2+ rows and keeps every CPU row on time in the others (the engine's start-up line says it acted; a log without it voids the arm). The registry marks it as changing the output against plain deferral (src/core/conversation_disk_env.def), so it is lossy here. Its own gate spec is bench/specs/p17-defer-auto.json (arms base, nodefer, auto, auto-min5, auto-closed); the night queue runs base / nodefer / auto-closed as item 1. Source: src/core/verify.cpp, include/strata/core/defer_auto.hpp."
   },
   {
    "name": "park-rewind-max",
@@ -303,7 +303,7 @@
     "STRATA_PARK_REWIND_MAX": "8192"
    },
    "lossy": false,
-   "disabled": "ttft-only, not for the decode ablation: STRATA_PARK_REWIND_MAX=8192 skips the park when a request resumes from the live conversation's own checkpoint (MOD_PLAN 17.0 lever 2, pancake-docs/batch5/park-rewind.md). Decode is unaffected (exact), and the short / edit cases send one request each and never park, so this driver cannot score it (its arm would never act). Test it with the session scenario: night queue group 3-lever, arm F (with STRATA_PARK_DIVERGENCE_LOG=1), read with tools/pancake/ttft_audit.py.",
+   "disabled": "ttft-only, not for the decode ablation: STRATA_PARK_REWIND_MAX=8192 skips the park when a request resumes from the live conversation's own checkpoint (MOD_PLAN 17.0 lever 2, pancake-docs/batch5/park-rewind.md @5ab3d2db). Decode is unaffected (exact), and the short / edit cases send one request each and never park, so this driver cannot score it (its arm would never act). Test it with the session scenario: night queue group 3-lever, arm F (with STRATA_PARK_DIVERGENCE_LOG=1), read with tools/pancake/ttft_audit.py.",
    "note": "Listed so the plan names every Phase 17 switch; never tested by ablate_greedy."
   }
  ]

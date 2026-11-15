@@ -10,7 +10,7 @@ placement-only switch) does not need this; lossy ones (route prior, deferral ran
     python tools/pancake/quality_gate.py SPEC.json --out ... --set bench/quality/set-v2.json --fill     first use of a grown set
     python tools/pancake/quality_gate.py SPEC.json --out ... --set bench/quality/set-v2.json --dry-run  the plan and the set, no engine
 
-The 20-request set (5,322 tokens) is INCONCLUSIVE 22% of the time for an arm identical to stock (pancake-docs/batch3/promotion.md);
+The 20-request set (5,322 tokens) is INCONCLUSIVE 22% of the time for an arm identical to stock (pancake-docs/batch3/promotion.md @5ab3d2db);
 bench/quality/set-v2.json (tools/pancake/build_quality_set.py: the 20 old requests + 28 agent-shaped ones, ~11K scored tokens) is the grown set.  Its
 new requests have "cont": null: the continuation is the STOCK arm's greedy output (tools/force_check.py gen), so a set with pending
 requests refuses to run unless --fill is given; --fill generates them with the first arm (one engine start, before the scoring),

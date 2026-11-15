@@ -2,7 +2,7 @@
 """gdn_chunk_model.py - MOD_PLAN A31 numerical model: chunk 16 (today's gfx11 WMMA scan) against the chunk-64 design with a
 blockwise 16x16 inverse, both against the FP64 token-by-token gated delta rule.
 
-WHY        The A31 design (pancake-docs/batch2/A37-gpu-kernels.md) replaces T = (I + A)^-1 over 16 tokens by a blockwise inverse over
+WHY        The A31 design (pancake-docs/batch2/A37-gpu-kernels.md @5ab3d2db) replaces T = (I + A)^-1 over 16 tokens by a blockwise inverse over
            64: T_bb = (I + A_bb)^-1 and T_ba = -T_bb * sum_{a <= c < b} A_bc T_ca.  This checks, on the CPU and before any kernel is
            written, that the algebra is exact and that FP16 operands (k, q, T, P, D, state; the kernel's WMMA inputs) with the
            inverse itself done in FP16 stay in the chunk-16 error class.  It says nothing about speed (that is the stage bench).

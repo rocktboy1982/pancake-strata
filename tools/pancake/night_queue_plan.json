@@ -2,7 +2,7 @@
  "name": "night-queue-2026-11-11",
  "schema": 1,
  "version": 1,
- "note": "MOD_PLAN Phase 17 'Night queue', items 1-5 (item 5's ablate_greedy core group is NOT in this plan: it starts its own servers, see pancake-docs/NIGHT_QUEUE_RUNNER.md). Estimated minutes are the plan's own guesses (engine start + client passes + stop), not measurements; the first start after a cold page cache can be much slower. Written 2026-11-11, never run on a GPU.",
+ "note": "MOD_PLAN Phase 17 'Night queue', items 1-5 (item 5's ablate_greedy core group is NOT in this plan: it starts its own servers, see pancake-docs/NIGHT_QUEUE_RUNNER.md @5ab3d2db). Estimated minutes are the plan's own guesses (engine start + client passes + stop), not measurements; the first start after a cold page cache can be much slower. Written 2026-11-11, never run on a GPU.",
  "paths": {
   "data": "/home/dan/clone-of-d/Strata-data",
   "models": "/home/dan/clone-of-d/models",

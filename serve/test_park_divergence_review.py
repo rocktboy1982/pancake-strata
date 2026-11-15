@@ -1,4 +1,4 @@
-"""Phase 17 review (pancake-docs/REVIEW_P17.md, findings R7 and R8): regression tests for serve/park_divergence.py.
+"""Phase 17 review (pancake-docs/REVIEW_P17.md @5ab3d2db, findings R7 and R8): regression tests for serve/park_divergence.py.
 
 R7: once the tracker has turned itself off (an error in the log line: `broken`), begin() and end() return at once and
 never clear `_gen`, but token() still appends every streamed token to it, so the list grows for the rest of the

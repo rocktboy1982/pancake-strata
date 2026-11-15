@@ -61,7 +61,7 @@ Thresholds (constants below; each cites where it comes from):
               starts - 1 degrees of freedom) and MIN_PAIRS starts per arm are needed: run with reps >= 3 x N (abtest runs max(2, ceil(reps / N))
               starts per arm, so --block 3 --reps 6 gives 2 pairs and always HOLDs).  abtest's own summary counts every pass as a pair and widens
               its interval by the design effect; promote.py does not: on the simulated noise of this box that reading promotes a true 0% item
-              1-7% of the time (35 of 64 cells above 1%), this one 0.9% at most (block_reading_sim.py, pancake-docs/batch5/promote-block.md).
+              1-7% of the time (35 of 64 cells above 1%), this one 0.9% at most (block_reading_sim.py, pancake-docs/batch5/promote-block.md @5ab3d2db).
   tier        a comparison whose arms ran on different tiers (arena vs mmap differ by ~8%) -> HOLD, nothing else judged.  The tier is the
               `tier` field of the abtest jsonl rows; rows without it (before abtest recorded it) are unknown: one warning, no check.
   --noise     per case: base CV, paired SD per arm, and the pairs needed to see a 1% / 3% gain, from existing abtest jsonl files.
@@ -375,7 +375,7 @@ def judge_task_gate(a, summary, arm):
         a.reject.append("task gate REJECT")
     elif e["verdict"] not in ("BETTER", "PASS"):
         a.hold.append(f"task gate {e['verdict']}: the interval straddles the margin; more tasks help more than repetitions "
-                      f"({d.get('tasks', '?')} tasks here; a simulation in pancake-docs/batch3/promotion.md: 18 tasks x 5 reps passes an identical arm "
+                      f"({d.get('tasks', '?')} tasks here; a simulation in pancake-docs/batch3/promotion.md @5ab3d2db: 18 tasks x 5 reps passes an identical arm "
                       "in about 3% of runs, 100+ tasks x 10 reps in about 85%)")
     for w in summary.get("warnings", []):
         if "base runs differ" in w:

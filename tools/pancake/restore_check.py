@@ -277,7 +277,7 @@ def compare(arms, reread):
 ALPHA = 0.05            # one-sided level of the divergence-rate test
 BUG_POS = 3             # a run must be able to flag a cache arm that splits from the re-read arm here (text unit) in every turn
 TOP_LOGPROBS = 5        # --teacher-forced: alternatives listed per token (the flip check needs both tokens of a split listed)
-LP_TOL = 0.05           # nats, UNCALIBRATED (pancake-docs/batch4/equiv-gate.md): below this a logprob difference is float noise
+LP_TOL = 0.05           # nats, UNCALIBRATED (pancake-docs/batch4/equiv-gate.md @5ab3d2db): below this a logprob difference is float noise
 LP_NOISE_FACTOR = 2.0   # a cache arm may deviate this many times as far as the control did
 MIN_LP_TOKENS = 32      # shared tokens over the hit turns below which the logprob check cannot clear an arm
 UNIT = re.compile(r"\w+|\s+|[^\w\s]")   # the saved runs hold text, not token ids: positions count these pieces (about one token each)

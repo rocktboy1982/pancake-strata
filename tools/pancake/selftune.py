@@ -20,7 +20,7 @@ One pass of the loop, offline (no GPU):
         --slots 10909 --out bench/selftune/<day> [--folds 4] [--blend 0.3] [--min-gain 2] [--min-positive 0.75]
 
 Limits (measured on the one recorded trace, bench/prefetch/routing.bin, 219 windows, 4 contiguous blocks; see
-pancake-docs/batch3/selftune.md): the gain of a candidate varies from -3% to +12% between blocks, grows with the learning
+pancake-docs/batch3/selftune.md @5ab3d2db): the gain of a candidate varies from -3% to +12% between blocks, grows with the learning
 windows (27 windows: +1.7%, 54: +4.7%, 109: +9.7%, 191: +9.9%) and is positive in only ~3 of 4 held-out blocks, so the gate wants
 >= --min-windows windows.  The model is an edit-window model (short chat has no validated trace).  The profile matters most at
 a cold start: the adaptive tier moves 32 experts per window and forgets the profile within the session.

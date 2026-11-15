@@ -60,7 +60,7 @@ The ntfs3 mount `/home/dan/clone-of-d` (nvme0n1p5) has had stuck writeback since
    - restore checks and `ctest -L gpu`
    - fast-forward main
    - delete only the branches whose code was integrated
-   - credits in README §9 and RESEARCH_AND_FINDINGS §4
+   - credits in README §9
    - tell dan-9f "done"
 
 ## Rules

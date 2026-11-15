@@ -158,7 +158,7 @@ inline int64_t balanced_chunk(int64_t tokens, int64_t cap, int64_t plan) {
 // shorter one is STAGED: each layer copies its routed, non-resident experts only after its routing is known.  The
 // segment keeps the loan of its full chunk while it reads its last chunk too (88% of the expert cache on the 7900 XT at
 // 32768 tokens: 9,413 of 10,733 slots), so a staged last chunk of a long segment copies nearly every expert of every
-// layer with nothing to hide the copies behind.  Unconfirmed: read from the code; pancake-docs/PREFILL_LEVERS.md.
+// layer with nothing to hide the copies behind.  Unconfirmed: read from the code; pancake-docs/PREFILL_LEVERS.md @5ab3d2db.
 
 /// The chunk lengths Prefill::run_impl reads a segment of `tokens` in when its chunk is `chunk`: full chunks, then the rest.
 inline std::vector<int64_t> chunk_lengths(int64_t tokens, int64_t chunk) {
