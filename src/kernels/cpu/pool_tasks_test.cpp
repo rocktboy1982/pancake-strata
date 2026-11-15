@@ -100,6 +100,34 @@ int main(int argc, char** argv) {
         }
         const auto ref = out;
         for (float v : ref) if (!std::isfinite(v)) return 1;
+        // LEADS.md B122 switches (STRATA_POOL_ROW_SPLIT, STRATA_POOL_TOUCH_NEXT; ctest pool_tasks_test_row_split): the pool
+        // reference above was cut by them too, so check it against the serial one - each expert's gate/up and down rows
+        // in one call each, the default pool's tasks=1 cut of a lone expert
+        const char* rs = std::getenv("STRATA_POOL_ROW_SPLIT");
+        const char* tn = std::getenv("STRATA_POOL_TOUCH_NEXT");
+        if (argc == 1 && ((rs != nullptr && *rs != 0) || (tn != nullptr && *tn != 0))) {   // the synthetic Q4_0 expert
+            std::vector<float> ffb((size_t) cpu::MAXT * cpu::FF), serial((size_t) cpu::MAXT * cpu::H);
+            std::vector<uint8_t> hqb((size_t) cpu::MAXT * cpu::kNativeHBytes);
+            for (int e = 0; e < n; ++e) {
+                float* ff[cpu::MAXT];
+                float* so[cpu::MAXT];
+                const void* hq[cpu::MAXT];
+                for (int t = 0; t < jobs[e].nt; ++t) {
+                    ff[t] = ffb.data() + (size_t) t * cpu::FF;
+                    so[t] = serial.data() + (size_t) t * cpu::H;
+                    hq[t] = hqb.data() + (size_t) t * cpu::kNativeHBytes;
+                }
+                cpu::native_gu_rows(f, jobs[e].blob, jobs[e].nact, jobs[e].nt, ff, 0, (int) f.n_ff);
+                for (int t = 0; t < jobs[e].nt; ++t) cpu::native_quant_h(f, ff[t], (void*) hq[t]);
+                cpu::native_down_rows(f, jobs[e].blob, hq, jobs[e].nt, so, 0, (int) f.n_embd);
+                for (int t = 0; t < jobs[e].nt; ++t)
+                    if (std::memcmp(so[t], ref.data() + ((size_t) e * cpu::MAXT + t) * cpu::H, (size_t) cpu::H * sizeof(float)) != 0) {
+                        std::fprintf(stderr, "row-split/touch-next pool differs from the serial reference: n=%d e=%d t=%d\n", n, e, t);
+                        return 1;
+                    }
+            }
+            ++checks;
+        }
         for (bool host : {false, true}) for (int workers : {1, 3})
             for (int tasks : {0, 1, 41, 128, 192, 256, cpu::ExpertPool::kMaxTasks}) {
                 cpu::ExpertPool pool(workers, false, host, cpu::PoolAffinity::All, tasks);
