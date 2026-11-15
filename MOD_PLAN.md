@@ -267,19 +267,19 @@ typed flag registry, 95 split `generate.cpp main()` (hygiene, no speed).
 ## 7. Defects and stale claims found by the 2026-11-15 audit
 
 Code:
-- FK-28 `STRATA_ADAPT_PROMPT` is dead code: `Prefill::set_usage` (prefill.cpp:3009, prefill.hpp:302) has no caller,
-  nothing reads the env name, no disk_env entry; it also duplicates `sp.on_routes` and adds unweighted counts. Wire it
-  as section 6 item 1 or delete it.
+- FIXED 2026-11-15 (T-575): the FK-28 dead hook (`Prefill::set_usage`, `usage_`, its count loop) is deleted; the feature
+  is section 6 item 1 (feed `drive.d.usage` from `sp.on_routes`).
 - Default path changed without an A/B: Phase 18 item 9 (D7); RDNA 9-16 column kernels (D6).
 - `STRATA_PARK_ASYNC` cannot act on HIP (`park_async_on()` false, conversation_snapshot.cpp:231): parks are synchronous
   inside TTFT.
-- Possible fence bug: the staging readers after `wait_flag_ge_or` (verify_kernels.cu ~1619-1650) may lack the
+- RESOLVED, no engine change (T-574): the fence theory is not supported; see the ledger row. Original note: Possible fence bug: the staging readers after `wait_flag_ge_or` (verify_kernels.cu ~1619-1650) may lack the
   `__threadfence_system()` the flag-order test needed (test fix: after the spin and after the store, flag_order_test.cu
   26-29; its segfault was a ROCm runtime mismatch, fix `LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib`; failures 57x1 / 101x2
   = one device; line 120 prints "device N ok" even on failure; run the 4-way matrix with `HIP_VISIBLE_DEVICES=0/1`).
-- Sampler: `p.temperature <= 0.0f` (sampler.cu:869) does not catch NaN or tiny positive values.
+- FIXED (T-573): sampler greedy rule at all four sites; a NaN temperature was a uniform draw (4 of 4 picks wrong).
 - `gdn_gate_kernel` computes only the first token (elementwise.cu:43; latent, re-check before fixing).
-- Upstream #5273 short-chunk guard only on one `give_back` site (prefill.cpp:6215), not 4252/4396/4527/5029.
+- FIXED (T-575): upstream #5273 guard (`if (stream_all)`) at the three KVA exits (4252/4396/4527); 5029 is inside the
+  `fused_l` branch (needs `stream_all`) and 6215 tests `stream_all` itself. Research path only, no test exercises it.
 - Phase 17 review: R1 fixed (24de1106); R2 (`diverge_at` in conv_cache.hpp) and R3 (`max_cells` rule in kv_ring.hpp)
   are not in the code.
 - A37 `IQ_LUT_DUP` (d11a9ca09) was never reverted although its gate said no-go (T-060): revert or keep off.

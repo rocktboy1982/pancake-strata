@@ -543,6 +543,21 @@ int main(int argc, char** argv) {
         bad += run("greedy argmax", l, NT, p, want);
     }
 
+    // ---- fixture 1b: a degenerate temperature is greedy, not a draw.  `greedy` is false on purpose: a NaN used to become
+    // inv_t = 0 (a uniform draw over the top-k list: 4 of 4 picks wrong before the fix); 1e-30 and 1e-5 already gave the
+    // argmax and stay here as a guard; the pick must be the argmax in every case.
+    for (float t : {std::numeric_limits<float>::quiet_NaN(), 1e-30f, 1e-5f, 0.0f, -1.0f}) {
+        strata::kernels::SamplerParams p; p.top_k = 0; p.top_p = 1.0f; p.temperature = t; p.greedy = false; p.seed = 11;
+        strata::kernels::SamplerParams g = p; g.greedy = true;
+        std::mt19937 rng(5); std::normal_distribution<float> gd(0.0f, 1.0f);
+        std::vector<float> l((size_t) NV * NT);
+        for (auto& v : l) v = gd(rng);
+        std::vector<int> want((size_t) NT);
+        for (int t2 = 0; t2 < NT; ++t2) want[(size_t) t2] = reference_pick({l.begin() + (size_t) t2 * NV, l.begin() + (size_t) (t2 + 1) * NV}, g, false);
+        char label[64]; std::snprintf(label, sizeof label, "degenerate temperature %g is greedy", (double) t);
+        bad += run(label, l, NT, p, want);
+    }
+
     // ---- fixture 2: THE ORDER FIXTURE.  T = 0.5 sharpens the distribution enough that top_p = 0.5 cuts
     // differently before and after the scaling, and the two orders then pick DIFFERENT tokens.
     {

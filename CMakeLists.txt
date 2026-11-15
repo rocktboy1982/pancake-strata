@@ -1903,7 +1903,8 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_include_directories(rdna_mmvq_parity PRIVATE ${_strata_gpu_include_directories})
     target_link_libraries(rdna_mmvq_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
     add_test(NAME rdna_mmvq_parity COMMAND rdna_mmvq_parity)
-    set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    # the sweep goes to 32 columns; the kernel takes 17..32 only with this (default limit 16): 193 false FAILs without it
+    set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 ENVIRONMENT "STRATA_RDNA_KQ_MAXCOLS=32")
   endif()
   if(STRATA_HIP_GFX906)
     # the S6 router (STRATA_HIP_ROUTER_FAST=1 on gfx906) against the portable kernel, bitwise, on wave64
