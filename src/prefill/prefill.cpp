@@ -1300,6 +1300,10 @@ struct Prefill::Impl {
     std::vector<int32_t> sub_first;
     std::vector<SubRange> sub;
     int64_t group_cap = 0;
+    // STRATA_KV_STAGE_REQ (Speedy K1, DevDock-AI/Speedy 0ccf9811532b; LEADS.md): stage_cells() at the last carve, and
+    // the pages the staging pool then holds (checked against each run's end).  0 / 0 with the switch off.
+    int64_t stage_laid = 0;
+    int64_t stage_pages = 0;
     std::unique_ptr<mmq::Context> mmq_ctx;
     std::vector<int32_t> ids_host, slot_host, src_host, cnt, off;
     // set_cpu_pool: a small chunk's CPU experts. The layer's MoE input (T x N, from `mixed`), the rows the pool writes
@@ -1446,6 +1450,14 @@ namespace {
 // streamed run lends the prompt path exactly the slots a resident one does (a lent expert runs on the CPU, which
 // rounds differently: without this an A/B compares two expert placements as well as two KV placements)
 bool stage_own() { static const bool v = std::getenv("STRATA_KV_STAGE_OWN") != nullptr; return v; }
+// STRATA_KV_STAGE_REQ (Speedy K1, DevDock-AI/Speedy 0ccf9811532b; LEADS.md): the cells the staging pool holds
+// (0: every page of the context, the unchanged pool); see Prefill::stage_cells.  -1: not read yet.
+std::atomic<int64_t> g_stage_cells{-1};
+int64_t stage_pages_of(const core::QsaState& q0, const strata::kernels::QsaShapes& s) {
+    const int64_t cells = Prefill::stage_cells();
+    if (cells <= 0) return q0.n_pages;
+    return std::min<int64_t>(q0.n_pages, (cells + s.page_size - 1) / s.page_size);
+}
 void take_stage(Alloc& o_borrowed, const core::SessionState& ss, const strata::kernels::QsaShapes& s,
                 strata::kernels::KvHostPools& st, bool& ok) {
     const core::QsaState& q0 = ss.qsa_states[ss.qsa_primary()];
@@ -1454,7 +1466,7 @@ void take_stage(Alloc& o_borrowed, const core::SessionState& ss, const strata::k
     Alloc own;
     own.owned = o_borrowed.owned;
     Alloc& o = stage_own() ? own : o_borrowed;
-    const size_t rows = (size_t) q0.n_pages * s.n_head_kv * s.page_size;
+    const size_t rows = (size_t) stage_pages_of(q0, s) * s.n_head_kv * s.page_size;   // Speedy K1: n_pages when off
     if (q0.kv_hybrid) {   // K8V4: the three runs of kKvHybrid; pools_of() then reads as the hybrid pools (mode 3)
         st.k_q = o.take<int8_t>(rows * s.head_dim, ok);
         st.k_scale = o.take<uint16_t>(rows * (s.head_dim / 64), ok);
@@ -1684,6 +1696,19 @@ uint64_t gdn_set_bytes(size_t T) {
     a.take<float>(T * HV, ok); a.take<float>(T * C, ok); a.take<float>(T * ZV, ok);
     a.take<uint16_t>(T * (ZV + (pf_pad() ? ZV_PAD : 0)), ok);
     return a.used;
+}
+// STRATA_PF_SEL_BATCH=N (Speedy, DevDock-AI/Speedy 8f0d2e38da87; LEADS.md; opt-in, default 256 = unchanged): queries
+// per prefill selection batch. The score scratch is [sel_batch, max_blocks] fp32 = 256 MiB per card at 1M cells with
+// 256; 64 cuts it to 64 MiB. Each query's scores and top-k do not depend on which batch it is in, only the number of
+// launches changes. Multiple of 16, 16..256; any other value is ignored (256).  Read once.
+// (Speedy's STRATA_IDX_ELASTIC scaling of the batch is not ported: this tree has no elastic indexer.)
+int64_t pf_sel_batch() {
+    static const int64_t env = [] {
+        const char* e = std::getenv("STRATA_PF_SEL_BATCH");
+        const long long n = e != nullptr ? std::atoll(e) : 0;
+        return (int64_t) (n >= 16 && n <= 256 && n % 16 == 0 ? n : 0);
+    }();
+    return env > 0 ? env : 256;
 }
 uint64_t qsa_set_bytes(size_t T, int64_t cap, int64_t max_blocks, int64_t sel_batch, int64_t attn_batch,
                        const strata::kernels::QsaShapes& s) {
@@ -2330,6 +2355,7 @@ bool Prefill::carve(size_t T, void* alloc) {
     strata::kernels::QsaShapes s = core::qsa_shapes(g);
     m.cap = strata::kernels::qsa_selection_width(strata::kernels::kTopkMaxCells, s);
     m.max_blocks = ss.qsa_states[ss.qsa_primary()].max_cells / s.idx_block + 2;
+    m.sel_batch = pf_sel_batch();   // STRATA_PF_SEL_BATCH (Speedy 8f0d2e38da87): 256 when unset, as before
     {
         // one region for the attention half's and the MoE half's scratch (see gdn_set_bytes)
         const bool fz = fused_layout(T, m.src != nullptr);
@@ -2453,6 +2479,8 @@ bool Prefill::carve(size_t T, void* alloc) {
     m.ple_emb = o.take<float>(T * N, ok);
     m.ple_norm = o.take<float>((size_t) strata::kernels::NG_HC_DIM, ok);
     take_stage(o, ss, s, m.stage, ok);
+    m.stage_laid = Prefill::stage_cells();   // Speedy K1 (STRATA_KV_STAGE_REQ): 0 / 0 with the switch off
+    if (ss.qsa_states[ss.qsa_primary()].kv_mode == 1) m.stage_pages = stage_pages_of(ss.qsa_states[ss.qsa_primary()], s);
     // STRATA_PF_AHEAD (0xluk 896481c943): the staged walk's prefetch pool, last (bytes_needed_impl takes the same)
     m.pf_dev = nullptr;
     m.pf_n = 0;
@@ -3051,6 +3079,28 @@ void Prefill::set_ring_budget(int slots, int64_t small_max) {
     g_ring_budget = slots > 0 ? slots : 0;
     g_ring_small_max = small_max > 0 ? small_max : 0;
 }
+// STRATA_KV_STAGE_REQ=<cells> (Speedy K1, DevDock-AI/Speedy 0ccf9811532b; LEADS.md; opt-in).  Unset or 0: the
+// staging pool holds every page of the context, as before.  The env is read once (first use).
+int64_t Prefill::stage_cells_laid() const { return impl_->stage_laid; }
+bool Prefill::stage_req_enabled() { return stage_cells() > 0; }
+int64_t Prefill::stage_cells() {
+    int64_t v = g_stage_cells.load(std::memory_order_relaxed);
+    if (v < 0) {   // first use: STRATA_KV_STAGE_REQ=<cells> (unset or 0: the upstream pool, every page of the context)
+        const char* e = std::getenv("STRATA_KV_STAGE_REQ");
+        v = e != nullptr ? std::max<int64_t>(0, std::atoll(e)) : 0;
+        if (v > 0) std::fprintf(stderr, "prefill: STRATA_KV_STAGE_REQ=%lld: the streamed K/V staging pool holds %lld cells "
+                                        "at start and each request's end after (not every page of --max-context)\n",
+                                (long long) v, (long long) v);
+        int64_t expect = -1;
+        g_stage_cells.compare_exchange_strong(expect, v);
+        v = g_stage_cells.load(std::memory_order_relaxed);
+    }
+    return v;
+}
+void Prefill::set_stage_cells(int64_t cells) {
+    if (stage_cells() <= 0) return;   // the switch is off: nothing changes
+    g_stage_cells.store(std::max<int64_t>(1, cells), std::memory_order_relaxed);
+}
 double Prefill::pinned_share() { return g_pinned_share; }
 int64_t Prefill::stream_all_min_tokens() { return stream_all_min(); }
 
@@ -3199,7 +3249,7 @@ uint64_t Prefill::bytes_needed_impl(const core::ModelGeometry& g, const core::Se
     strata::kernels::QsaShapes s = core::qsa_shapes(g);
     const int64_t cap = strata::kernels::qsa_selection_width(strata::kernels::kTopkMaxCells, s);
     const int64_t max_blocks = ss.qsa_states[ss.qsa_primary()].max_cells / s.idx_block + 2;
-    o.take<uint8_t>((size_t) std::max({gdn_set_bytes(T), qsa_set_bytes(T, cap, max_blocks, 256, 32, s),
+    o.take<uint8_t>((size_t) std::max({gdn_set_bytes(T), qsa_set_bytes(T, cap, max_blocks, pf_sel_batch(), 32, s),
                                        moe_set_bytes(T, g.n_expert, fused_layout(T, src)),
                                        hcr ? hc_set_bytes(T, f16_io) : (uint64_t) 0}), ok);
     for (int i = 0; i < DQ + dq_sets() * gu_exact_group(); ++i) { o.take<uint16_t>(1280 * 2560, ok); o.take<uint16_t>(2560 * 640, ok); }
@@ -8855,6 +8905,15 @@ bool Prefill::reserve_uploads(int64_t T) {
 }
 
 bool Prefill::run(const int64_t* tokens, int64_t n, int64_t pos0, std::string& err) {
+    if (impl_->stage_pages > 0 && stage_cells() > 0) {   // Speedy K1: a run never reads past the staging pool it was laid out with
+        const strata::kernels::QsaShapes s = core::qsa_shapes(*impl_->g);
+        const int64_t need = (pos0 + n + s.page_size - 1) / s.page_size;
+        if (need > impl_->stage_pages) {
+            err = "prefill: STRATA_KV_STAGE_REQ: the K/V staging pool holds " + std::to_string(impl_->stage_pages) +
+                  " pages, this run needs " + std::to_string(need) + " (the loan was not laid out for this request)";
+            return false;
+        }
+    }
 #if defined(STRATA_USE_HIP) || defined(STRATA_HIP_GFX906)
     (void) strata::kernels::qsa_two_pass_on();   // HIP: a set STRATA_SELECT_TWO_PASS says once it is not used
 #endif

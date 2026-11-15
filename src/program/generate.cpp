@@ -11401,6 +11401,7 @@ int main(int argc, char** argv) {
             int32_t first = -1;            // the first slot it may lend, for the chunk that was chosen
             int32_t first_now = -1;        // where its buffers are laid out now
             int64_t lent_chunk = 0;
+            int64_t lent_stage = 0;   // Speedy K1 (0ccf9811532b): the staging cells its loan was laid out for (STRATA_KV_STAGE_REQ)
             std::vector<std::pair<int32_t, int32_t>> lent;
         };
         // bytes -> slots for one cache: exact when it knows its per-slot offsets (a native pack's blobs differ
@@ -18801,7 +18802,8 @@ int main(int argc, char** argv) {
                 for (PfPart& p : pf_parts) {
                     if (p.first < 0) continue;
                     if (!p.lent.empty()) {
-                        if (want <= p.lent_chunk) continue;            // its current loan already covers this
+                        if (want <= p.lent_chunk &&                    // its current loan already covers this
+                            strata::prefill::Prefill::stage_cells() <= p.lent_stage) continue;   // (K1: its staging pool too)
                         // ONLY this participant's loan goes back: `refill` would return the other participants'
                         // loans too, and their buffers are still laid out in their caches - marking those slots
                         // resident again would hand the next window a prompt buffer in place of an expert
@@ -18838,7 +18840,8 @@ int main(int argc, char** argv) {
                                          (long long) need_p, (long long) (p.cache->slots() - p.first));
                         first = (int32_t) (p.cache->slots() - need_p);
                     }
-                    if (want_p != p.sp->chunk() || first != p.first_now) {
+                    if (want_p != p.sp->chunk() || first != p.first_now ||
+                        (strata::prefill::Prefill::stage_req_enabled() && p.sp->stage_cells_laid() != strata::prefill::Prefill::stage_cells())) {
                         if (!p.sp->relayout(want_p, p.cache->device_slot(first), part_bytes(p, first), e)) return false;
                         p.first_now = first;
                     }
@@ -18867,6 +18870,7 @@ int main(int argc, char** argv) {
                             }
                         }
                     p.lent_chunk = want_p;
+                    p.lent_stage = strata::prefill::Prefill::stage_cells();   // Speedy K1: 0 with the switch off
                 }
                 for (const PfPart& p : pf_parts)
                     if (p.first >= 0) seg_lend = std::max(seg_lend, p.lent_chunk);
@@ -19743,6 +19747,12 @@ int main(int argc, char** argv) {
                 // another, and the loan decides which experts are read in place: bits)
                 const int64_t plan_lend = resume_plan.chunk > 0 && at == resume_plan_at && to == resume_plan_end
                                               ? resume_plan.lend : 0;
+                // Speedy K1 (STRATA_KV_STAGE_REQ, DevDock-AI/Speedy 0ccf9811532b; LEADS.md): the staging pool of this
+                // loan holds the start's cells or this request's end, whichever is larger.  Off: nothing runs here.
+                if (!win && strata::prefill::Prefill::stage_req_enabled()) {
+                    static const int64_t stage_base = strata::prefill::Prefill::stage_cells();
+                    strata::prefill::Prefill::set_stage_cells(std::max<int64_t>(stage_base, to));
+                }
                 if (!win && !lend(to - at, err, plan_lend)) {
                     std::printf("ERR lending the prompt path its slots failed: %s\n", err.c_str());
                     return 1;
