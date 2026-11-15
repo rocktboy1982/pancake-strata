@@ -23,6 +23,19 @@ bool native_moe_combine_hits_supported(const float* parts, const float* shared, 
 void native_moe_combine_multi_hits_added(const float* parts, const float* hits, const int32_t* dst, const int32_t* count,
                                          const float* weights, const float* shared, float* output, int64_t n_embd, int64_t k,
                                          int n_tok, void* stream);
+/// STRATA_FUSE_COMBINE (this-cute-world/Strata ed87ad46af): native_moe_combine_multi_hits_added with the CPU share's wait
+/// and copy folded in - the parts are read from `mapped_parts` (the pool's mapped rows, device alias) once every block has
+/// seen *flag >= value:
+///   skip == nullptr: as copy_rows_from_mapped_after(flag, value, parts, mapped_parts, n * k, n_embd, dst, count) then
+///                    the combine (a hit row's part +0.0, the others the mapped row);
+///   skip != nullptr: as wait_flag_ge_or + copy_or_zero_from_mapped(parts, mapped_parts, .., skip, value) then the
+///                    combine (*skip == value: every part +0.0, no wait; else every part the mapped row).
+/// shared_gate != nullptr (STRATA_FUSE_SHGATE, 93c97cc230): `shared` unscaled, scaled by sigmoid(shared_gate[t]) as
+/// shared_expert_multi's sigmoid_scale_rows did.  Bitwise the launches it replaces; one kernel node for two or three.
+void native_moe_combine_multi_hits_mapped(const float* mapped_parts, const float* hits, const int32_t* dst,
+                                          const int32_t* count, const float* weights, const float* shared, float* output,
+                                          int64_t n_embd, int64_t k, int n_tok, const uint32_t* flag, uint32_t value,
+                                          const uint32_t* skip, const float* shared_gate, void* stream);
 /// android-imdad caa9b00115 (its STRATA_COMBINE_HITS): native_moe_combine_multi_hits_added under the fork's name and
 /// contract - k = 10, 1-8 tokens, 16-byte aligned rows only: false (nothing launched) otherwise.  Bitwise the fork's.
 bool native_moe_combine_multi_add_hits(const float* parts, const float* hit, const int32_t* dst, const int32_t* count,

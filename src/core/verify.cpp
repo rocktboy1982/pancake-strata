@@ -496,6 +496,37 @@ bool fuse_rows_on() {
 #endif
 }
 
+// Launch fusions after this-cute-world/Strata (LEADS.md; MOD_PLAN.md section 6 item 9), each opt-in (=1), read once,
+// bitwise the launches they replace (the same expressions in the same order):
+// STRATA_FUSE_PLAN=1 (bdc2369a28): with the device plan, the wait for the host's plan and its copy in one launch
+// (wait_copy_i32_from_mapped_unless).  Without the device plan our STRATA_FUSE_WAIT / STRATA_WAIT_FUSE already fold them.
+bool fuse_plan_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_FUSE_PLAN"); return v != nullptr && std::atoi(v) != 0; }();
+    return on;
+}
+// STRATA_FUSE_COMBINE=1 (ed87ad46af): the CPU share's wait and copy (copy_rows_from_mapped_after, or with the device plan
+// wait_flag_ge_or + copy_or_zero_from_mapped) folded into the hits-added combine, which reads the pool's mapped rows
+// itself (native_moe_combine_multi_hits_mapped).  Where STRATA_COMBINE_CPU's fused combine acts, ours wins; without the
+// device plan STRATA_WAIT_COMBINE is the same merge (android-imdad's name), with it only this switch folds the launches.
+bool fuse_combine_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_FUSE_COMBINE"); return v != nullptr && std::atoi(v) != 0; }();
+    return on;
+}
+// STRATA_FUSE_SHGATE=1 (93c97cc230; with STRATA_FUSE_COMBINE, outside the all-resident path): the shared expert's gate
+// row rides in the router's GEMV launch (bf16_gemv_fp32_mmvf_multi_aux, as S26 STRATA_LFUSE on the all-resident path) and
+// its sigmoid + row scale in that combine (native_moe_combine_multi_hits_mapped's shared_gate)
+bool fuse_shgate_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_FUSE_SHGATE"); return v != nullptr && std::atoi(v) != 0; }();
+    return on;
+}
+// STRATA_FUSE_QGEMV=1 (818a1eaa57): the router's bf16 rows GEMV and the q8_1 image of the same MoE input (the shared
+// expert's gate/up input) in one launch (bf16_gemv_fp32_mmvf_multi_quant); shared_expert_multi then reads that image
+// (x_q8_1_ready) instead of quantizing.  Acts only where the rows kernel runs (STRATA_MMVF_ROWS=1, no STRATA_TSUM).
+bool fuse_qgemv_on() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_FUSE_QGEMV"); return v != nullptr && std::atoi(v) != 0; }();
+    return on;
+}
+
 // 143-amdk: STRATA_FUSE_CONVAB=1 - the GDN conv and the a/b projections in one launch.  Opt-in: measured -0.3% on gfx1201 (the a/b dot chain is the longer one).
 bool fuse_convab_on() {
 #if defined(STRATA_USE_HIP)
@@ -1729,6 +1760,22 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     // weight >= defer_heavy_; late_add takes the others (copy_rows_by_weight, the plan's GPU rows zeroed as by
     // copy_rows_from_mapped).  The host's side is heavy_layer (the same layers).
     const bool heavy = dfr && defer_heavy_ > 0.0f;
+    // STRATA_FUSE_COMBINE (this-cute-world ed87ad46af / 93c97cc230's comb_fusable): post(l) folds the CPU share's wait + copy
+    // into the hits-added combine; the same conditions decide in the router step whether STRATA_FUSE_SHGATE leaves the
+    // shared gate to that combine.  The fork's conditions (the hits-in-combine path - STRATA_FUSE_HITS, or our
+    // STRATA_COMBINE_HITS which forces it -, 2..8 rows, k 10 and 16-byte rows, no profile, no --remote-expert-opt, no PCIe
+    // balance, the device plan or a folded CPU-row wait), plus ours: not where STRATA_COMBINE_CPU's fused combine acts
+    // (it wins) and not in a STRATA_VERIFY_DEFER_CPU layer (its rows join a layer later).
+    auto comb_fusable = [&](int n, int tb, int64_t l) {
+        return fuse_combine_on() && (g_combine_hits || fuse_hits_on()) && !prof_on_ && !remote_opt_ && !ar_on() && dec_batch &&
+               n > 1 && n <= 8 && native_moe_combine_enabled() && m_bal_ == nullptr && (device_plan_ || fuse_rows_on()) &&
+               !cfuse_on(n) && !deferred(l) &&
+               native_moe_combine_hits_supported(m_ymiss_ + (size_t) tb * K * N, shared_ + tb * N, bo_ + tb * N, N, K, n);
+    };
+    // STRATA_FUSE_SHGATE (93c97cc230): only where that combine runs, with the native BF16 shared expert
+    auto shgate_on = [&](int n, int tb, int64_t l) {
+        return fuse_shgate_on() && comb_fusable(n, tb, l) && shared_expert_native_bf16_enabled();
+    };
     // STRATA_VERIFY_DEFER_CPU: layer dl's CPU rows, the copy post(dl) would have made, weighted as its combine weights them
     // and added to every stream as its pending write would have.  Where: pre(dl+1) before its FFN-side read (=1), or
     // post(dl) itself after its combine (=check: the default path's sums in another order, so a run that differs from
@@ -2604,7 +2651,10 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         const WeightRef* w_router = v.get("ffn_gate_inp.weight");
         // S26 STRATA_LFUSE=1: the shared expert's gate row rides in the router GEMV launch, its sigmoid + row scale
         // move into the combine, gate + up share one launch (all bitwise; resident combine path, 2-8 rows only)
-        const WeightRef* w_sgi = (lfuse_on(n) || cfuse_on(n)) && g_lfuse_gate() ? v.get("ffn_gate_inp_shexp.weight") : nullptr;
+        // STRATA_FUSE_SHGATE (this-cute-world 93c97cc230): also outside the all-resident path, where STRATA_FUSE_COMBINE's
+        // combine applies the gate
+        const WeightRef* w_sgi = ((lfuse_on(n) || cfuse_on(n)) && g_lfuse_gate()) || shgate_on(n, tb, l)
+                                     ? v.get("ffn_gate_inp_shexp.weight") : nullptr;
         bool sg_ready = false;
         // STRATA_ROUTE_PUBLISH=1: the top-10 and the doorbell publish in one launch (the path doorbell_publish_res takes)
         static const bool g_rpub = [] { const char* v = std::getenv("STRATA_ROUTE_PUBLISH"); return v != nullptr && v[0] == '1'; }();
@@ -2646,6 +2696,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #endif
             ;
         bool rfuse = false, rdone = false, rows_on_host = false;
+        bool qgemv_done = false;              // STRATA_FUSE_QGEMV took the router GEMV
+        const void* sh_q8_ready = nullptr;    // ... and the MoE input's q8_1 image it made there
         if (dec_batch && n > 1 && w_router != nullptr && native_router_enabled() && NE == 512 && K == 10) {
             try {
                 // item 48 (STRATA_ROUTER_FUSE=1): the publish rides in the router GEMV's last block when its kernel takes it
@@ -2656,6 +2708,24 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 // STRATA_ROUTE_FAST: the router GEMV's blocks copy the rows (xm = its x) to the host when its kernel can
                 // (the multi kernel, contiguous aligned rows); else the publish launch below copies them
                 if (rfast) bf16_router_xpub_arm(xm, N, N, n, m_x_ + tb * N);
+                // STRATA_FUSE_QGEMV (this-cute-world 818a1eaa57): the MoE input's q8_1 image made in the router GEMV's
+                // launch, into the buffer the shared expert would quantize into (STRATA_VERIFY_QDEDUP: nat_xq_, which
+                // the experts read too).  Not with STRATA_QFUSE's image (q8_ffn) nor a shared expert forked before the
+                // router (its stream would read the image before this launch wrote it).
+                if (fuse_qgemv_on() && !q8_ffn && (!sh_fork || sh_fork_late)) {
+                    const bool qd = g_qdedup() && !sh_fork && strata::kernels::cpu::expert_layout().native;   // = qdedup below
+                    void* q8 = qd ? (void*) (nat_xq_ + (size_t) tb * (N / 32) * 36) : (void*) (sh_fork ? sh_xq_ : xq_);
+                    const bool aux = w_sgi != nullptr;
+                    qgemv_done = bf16_gemv_fp32_mmvf_multi_quant(
+                        mixed_ + tb * N, N, (const uint16_t*) w_router->data, logits_ + tb * NE, NE, N, NE, n,
+                        aux ? (const uint16_t*) w_sgi->data : nullptr, aux ? sh_g_ + tb : nullptr, aux ? 1 : 0, mixed_ + tb * N,
+                        q8, (int64_t) n * N, cs);
+                    if (qgemv_done) {
+                        sg_ready = aux;
+                        sh_q8_ready = q8;
+                    }
+                }
+                if (!qgemv_done) {
                 if (w_sgi != nullptr)
                     sg_ready = bf16_gemv_fp32_mmvf_multi_aux(mixed_ + tb * N, N, (const uint16_t*) w_router->data,
                                                              logits_ + tb * NE, NE, N, NE, n,
@@ -2663,6 +2733,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 if (!sg_ready)
                 bf16_gemv_fp32_mmvf_multi(mixed_ + tb * N, N, (const uint16_t*) w_router->data, logits_ + tb * NE, NE, N,
                                           NE, n, cs);
+                }
                 rdone = rfuse && bf16_router_publish_used();
                 rows_on_host = rfast && bf16_router_xpub_used();
                 if (rdone) {
@@ -2816,7 +2887,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             // experts' q8_1 image of xm is made first and the shared expert's gate/up read it (quantize_q8_1_rows and
             // native_quantize_q8_1 write the same bytes)
             qdedup = g_qdedup() && !sh_fork && strata::kernels::cpu::expert_layout().native;
-            if (qdedup && !q8_ffn) quantize_q8_1_rows(xm, n, N, nat_xq_ + (size_t) tb * (N / 32) * 36, cs);
+            // (STRATA_FUSE_QGEMV: the router's launch made this image already)
+            if (qdedup && !q8_ffn && !qgemv_done) quantize_q8_1_rows(xm, n, N, nat_xq_ + (size_t) tb * (N / 32) * 36, cs);
             if (!shared_expert_native_bf16_enabled()) {
                 if (dec_batch) f32_to_bf16_bulk(mixed_ + tb * N, sh_bf16_ + tb * N, (int64_t) n * N, sh_stream);   // contiguous rows
                 else for (int t = tb; t < te; ++t) f32_to_bf16_bulk(mixed_ + t * N, sh_bf16_ + t * N, N, sh_stream);
@@ -2824,7 +2896,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             try {
                 shared_expert_multi(n, xm, sh_bf16_ + tb * N, nsw, (const uint16_t*) wgi->data, sh_gate_ + (size_t) tb * g.n_ff,
                                     sh_up_ + (size_t) tb * g.n_ff, sh_g_ + tb, shared_ + tb * N, N, g.n_ff, sh_stream,
-                                    qdedup ? (const void*) (nat_xq_ + (size_t) tb * (N / 32) * 36) : nullptr,
+                                    sh_q8_ready != nullptr ? sh_q8_ready   // STRATA_FUSE_QGEMV's image
+                                    : qdedup ? (const void*) (nat_xq_ + (size_t) tb * (N / 32) * 36) : nullptr,
                                     (sg_ready ? 1 : 0) | (lfuse_on(n) && g_lfuse_pair() ? 2 : 0));
                 sg_gated_[grp] = sg_ready;
             } catch (const std::exception& e) {
@@ -2912,6 +2985,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                sink_.pcie_mode != 2 && lay.native;
         bool hits_in_combine = false;
         bool wc_fused = false;   // STRATA_WAIT_COMBINE: the CPU rows' wait and copy and the hit add left to the combine
+        // STRATA_FUSE_COMBINE (this-cute-world ed87ad46af): the combine waits for the CPU's rows and reads them where they are
+        const bool fuse_comb = comb_fusable(n, tb, l);
         if (ar_on()) {
             strata::dispatch::note("experts layer: all-resident device plan, grouped experts straight into the parts (no doorbell, no CPU rows)");
             if (g_copy256) switch_report::will_not_act(switch_report::wait_copy256, "every expert is resident in VRAM: no plan copy");
@@ -2920,7 +2995,10 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             stamp(l, 20, grp);
         } else {
             strata::dispatch::notef("experts layer: partial residency, plan from %ld (1 = device plan, 0 = host pool), pcie_mode=%ld, remote_opt=%ld", (long) device_plan_, (long) sink_.pcie_mode, (long) (remote_opt_ != nullptr));
-            if (device_plan_) {   // E-6: skipped when the device planned this group (all its experts resident)
+            if (device_plan_ && fuse_plan_on()) {   // STRATA_FUSE_PLAN (this-cute-world bdc2369a28): the two below in one launch
+                wait_copy_i32_from_mapped_unless(m_flagA_, ring, skip_ + grp, pl, m_plan_ + (size_t) grp * (size_t) plan_i32_,
+                                                 plan_i32_, cs);
+            } else if (device_plan_) {   // E-6: skipped when the device planned this group (all its experts resident)
                 wait_flag_ge_or(m_flagA_, ring, skip_ + grp, cs);
                 copy_i32_from_mapped_unless(pl, m_plan_ + (size_t) grp * (size_t) plan_i32_, plan_i32_, skip_ + grp, ring, cs);
                 if (g_copy256)
@@ -2994,6 +3072,8 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 else
                     fill_zero(parts_out, (long long) n * K * N, cs);
 #endif
+            } else if (fuse_comb) {   // STRATA_FUSE_COMBINE: no wait, copy or hit add here - the combine below does them
+                stamp(l, 23, grp);
             } else if (device_plan_) {   // no CPU share when the device planned the group: its rows are zeros
                 wait_flag_ge_or(m_flag_, ring, skip_ + grp, cs);
                 copy_or_zero_from_mapped(parts_out, m_ymiss_ + (size_t) tb * K * N, (long long) n * K * N,
@@ -3057,10 +3137,12 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             // 143-amdk: the add of the GPU's hit rows is done by the combine that follows (one launch fewer);
             // STRATA_COMBINE_CPU (Strata-rdna3): the fused CPU-row combine below reads the hit rows itself;
             // STRATA_COMBINE_HITS=1 (android-imdad caa9b00115) forces the path on; STRATA_WAIT_COMBINE's combine adds them
-            hits_in_combine = !cfuse_on(n) && !wc_fused && (g_combine_hits || (fuse_hits_on() && !prof_on_ && !remote_opt_)) &&
+            // STRATA_FUSE_COMBINE: its combine adds the hits (fuse_comb)
+            hits_in_combine = fuse_comb ||
+                              (!cfuse_on(n) && !wc_fused && (g_combine_hits || (fuse_hits_on() && !prof_on_ && !remote_opt_)) &&
                               !sg_gated_[grp] && dec_batch && n > 1 &&
                               native_moe_combine_enabled() && n <= 8 &&
-                              native_moe_combine_hits_supported(parts_ + (size_t) tb * K * N, shared_ + tb * N, bo_ + tb * N, N, K, n);
+                              native_moe_combine_hits_supported(parts_ + (size_t) tb * K * N, shared_ + tb * N, bo_ + tb * N, N, K, n));
             strata::dispatch::notef("experts layer: cpu rows via %ld (1 = fused wait+copy, 0 = wait then copy), hits in combine=%ld", (long) (fuse_rows_on() && !prof_on_ && !remote_opt_ && dec_batch && m_bal_ == nullptr), (long) hits_in_combine);
             if (!hits_in_combine && !wc_fused && !cfuse_on(n)) moe_hit_add(parts_out, hit_out, p_dst, p_counts + 1, cap, N, cs);
         }
@@ -3088,6 +3170,12 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 switch_report::will_not_act(switch_report::ic_warm, "the fused CPU combine is off (%s): the reads ride in "
                                             "its CPU wait", why);
         }
+        // STRATA_FUSE_SHGATE defers the shared gate outside the all-resident path only to STRATA_FUSE_COMBINE's combine (or
+        // STRATA_COMBINE_CPU's): a deferred gate with neither is an error, not a silently ungated row (as the fork checks)
+        if (sg_gated_[grp] && !ar_on() && !cfuse_on(n) && !fuse_comb) {
+            err = "verify: the shared gate was deferred to a combine that did not run";
+            return false;
+        }
         if (!ar_on() && cfuse_on(n)) {
             // item 51 (STRATA_CPU_PRESUM=1, not bit-identical): the host pre-sums each token's CPU rows (weighted); recorded per
             // window size and group so the pool writes what this captured combine reads
@@ -3106,6 +3194,14 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             if (g_wait_combine)   // (ours wins where both could act)
                 switch_report::will_not_act(switch_report::wait_combine, "STRATA_COMBINE_CPU's fused combine acts in this "
                                             "window (it wins)");
+        } else
+        if (fuse_comb) {   // STRATA_FUSE_COMBINE (+ STRATA_FUSE_SHGATE: the shared gate applied here), this-cute-world ed87ad46af
+            try {
+                native_moe_combine_multi_hits_mapped(m_ymiss_ + (size_t) tb * K * N, hit_out, p_dst, p_counts + 1, w_ + tb * K,
+                                                     shared_ + tb * N, bo_ + tb * N, N, K, n, m_flag_, ring,
+                                                     device_plan_ ? skip_ + grp : nullptr, sg_gated_[grp] ? sh_g_ + tb : nullptr,
+                                                     cs);
+            } catch (const std::exception& e) { err = "verify combine: " + std::string(e.what()); return false; }
         } else
         if (wc_fused) {   // STRATA_WAIT_COMBINE (android-imdad caa9b00115): wait for the CPU rows, read them, add the hits
             try {
