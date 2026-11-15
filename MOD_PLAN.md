@@ -179,9 +179,11 @@ miss.
    (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
    then run spec 33 (MTP bundle: `--mtp-q4 all --mtp-window 4096 --host-core sibling`) and spec 34's `pf-switch-min-t`
    arm (its `mmvq-wave1` arm is answered by T-072, `kv-grow` by T-391).
-2. **New code of 2026-11-15, built in the separate clone** `/home/dan/clone-of-d/src/Strata-win` (builds `../build-win`, and
+2. **TONIGHT'S NIGHT QUEUE (owner 2026-11-15). New code of 2026-11-15, built in the separate clone** `/home/dan/clone-of-d/src/Strata-win` (builds `../build-win`, and
    `../build-win-j32` with `STRATA_MMQ_RDNA3_J32_ROLLED=ON`): spec 63 (three exact runtime switches) and spec 64 (#31751
-   build-vs-build, prompt tok/s on long1k / long3k). Needs the card: stop `pancake.service` first.
+   build-vs-build, prompt tok/s on long1k / long3k). Both binaries are built (build-win, build-win-j32: 20:52, exit 0).
+   The android-imdad caa9b00115 ports in progress (section 6 item 4) are added to spec 63 as arms before the night run.
+   Needs the card: stop `pancake.service` first.
 3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
