@@ -471,6 +471,7 @@ STRATA_ENV("STRATA_GR_Q32_G", Speed, "bitwise: documented (docs/README/code comm
 STRATA_ENV("STRATA_GR_Q8_PFS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_GR_UP75", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_GR_UP_WIDE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_GR_UPPRE", Speed, "rdna3 877bf971: fused HC read issues the up pass loads before the down pass; same values (bitwise)")
 STRATA_ENV("STRATA_GR_V3_PF", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_GRUP_PF", Speed, "android-imdad caa9b00115: HC up weights loaded first, same values and order (bitwise)")
 STRATA_ENV("STRATA_GRUP_WIDE", Speed, "android-imdad caa9b00115: HC up kernel at 512/1024 threads, same per-item code (bitwise)")
