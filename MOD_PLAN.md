@@ -4015,3 +4015,14 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/58-v5-upper-bound.{stdo
 | slots-plus300 | 106.5 +-18.8 | -8.1% +-16.1 (no difference) | 137.5 +-18.7 | -6.8% +-12.6 (no difference) | 0.69 / 0.89 |
 
 Verdict: **dropped.** Two thirds of the room V5 could free gains nothing (both means are below base, the intervals include zero; the extra slots leave less free VRAM and two runs per arm were slow), so V5 itself cannot gain. Class: ENGINE and MODEL (this pack's expert size, 1.44 MiB, sets the slots a draft layer's 675 MiB is worth). Also read from this run: with ECAP=1 in the preset the base edit prompt decodes at 147.6 tok/s (106.8 in spec 56 without it).
+
+### Lookup window 16 on top of ECAP=1: paired confirm, DROPPED (2026-11-15, spec 59, 10 repeats)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/59-ecap1-lookup16-confirm.{stdout,jsonl}`. Spec 57's one tight reading for `ecap1-l16` (142.6 tok/s +-7.8 on edit) looked like a gain only because `ecap1` alone was noisy there; this is the paired test.
+
+| arm | short tok/s | vs ecap1 | edit tok/s | vs ecap1 | accepted (short / edit) |
+| --- | --- | --- | --- | --- | --- |
+| ecap1 (the preset, lookup window 12) | 110.8 +-6.4 | | 142.2 +-10.8 | | 0.68 / 0.90 |
+| ecap1 + `--lookup-max-t 16` | 110.8 +-3.2 | -0.1% +-5.8 (no difference) | 133.6 +-12.9 | -6.1% +-11.2 (no difference) | 0.69 / 0.88 |
+
+Verdict: **dropped.** No case above 0 and the edit mean is below -3%; drafts accepted fall on edit (0.90 -> 0.88). The window stays at 12. Together with spec 52 (window 16 without ECAP: -5.9%) the 16-row lookup window is closed with and without ECAP. Class: ENGINE and WORKLOAD.
