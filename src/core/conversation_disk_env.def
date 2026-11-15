@@ -281,6 +281,7 @@ STRATA_ENV("STRATA_WS_FAST", Unsure, "weight-staged fast path (opt-in)")
 STRATA_ENV("STRATA_KV_ROT", InConfig, "covered by the config fingerprint (session_identity: c.kv_rot)")
 
 // ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (539) ----
+STRATA_ENV("STRATA_ACTQ_SKIP_NOCPU", Speed, "bitwise: skips the CPU activation quant of tokens with no CPU expert; the CPU jobs read the same bytes")
 STRATA_ENV("STRATA_ADAPT_ASYNC", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_ASYNC_BATCH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_ASYNC_WAIT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")

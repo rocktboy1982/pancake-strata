@@ -5478,8 +5478,14 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     if (any_cpu) {
         // #578 --remote-expert-opt: a token whose experts all run on a GPU (CUDA0 or a helper) needs no CPU activation
         const bool ep = d.remote_count > 0 && d.remote[0]->optimized_decode();
+        // STRATA_ACTQ_SKIP_NOCPU=1 (opt-in, read once; LEADS.md Part B B63, Juud_engine "no activation quant for GPU-resident
+        // tokens"): a token of the window with no CPU entry (every expert in VRAM, on PCIe, skipped or remote) is not
+        // quantized: only the CPU jobs below read act_multi / nact_multi, and they are built from kind -1 entries alone.
+        // The quantized rows the jobs read are the same bytes, so the output is the same.  Unset: every token, as before.
+        static const bool skip_nocpu = [] { const char* v = std::getenv("STRATA_ACTQ_SKIP_NOCPU"); return v != nullptr && v[0] == '1'; }();
         for (int64_t t = 0; t < n_tok; ++t) {
             if (ep && std::all_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v >= 0; })) continue;
+            if (skip_nocpu && std::none_of(kind + t * k, kind + (t + 1) * k, [](int32_t v) { return v == -1; })) continue;
             if (native && strata::kernels::cpu::q2_native_kernels(lay.fmt[(size_t) d.layers].gu_type))   // a native Q2_0 pack: the Q2_0 kernels' activations
                 act_quant_any(x_f + (size_t) t * H, H, d.act_multi[(size_t) t]);
             else if (native)
