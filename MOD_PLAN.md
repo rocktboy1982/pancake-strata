@@ -278,7 +278,8 @@ Code:
   is section 6 item 1 (feed `drive.d.usage` from `sp.on_routes`).
 - Default path changed without an A/B: Phase 18 item 9 (D7); RDNA 9-16 column kernels (D6).
 - `STRATA_PARK_ASYNC` cannot act on HIP (`park_async_on()` false, conversation_snapshot.cpp:231): parks are synchronous
-  inside TTFT.
+  inside TTFT. TRIED 2026-11-15 (T-583): enabled as an opt-in env and replayed (spec 63): no gain seen, noisy arm, one stall;
+  inconclusive; the change is not committed. Re-test only on a quiet machine with the full 3 reps.
 - RESOLVED, no engine change (T-574): the fence theory is not supported; see the ledger row. Original note: Possible fence bug: the staging readers after `wait_flag_ge_or` (verify_kernels.cu ~1619-1650) may lack the
   `__threadfence_system()` the flag-order test needed (test fix: after the spin and after the store, flag_order_test.cu
   26-29; its segfault was a ROCm runtime mismatch, fix `LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib`; failures 57x1 / 101x2
