@@ -3440,7 +3440,7 @@ Priority list (relevance to our expert offload, MTP and HIP path):
 - V7 57d04820d (2026-11-08) radix top-k deterministic ties; upstream turns it off for ROCm. LOW for us (HIP excluded); note only.
 - U1 to U9 above (0fb8f1577 few-row MMQ, 459ab1cdd MMVF for few rows, a8fad21e9 MTP device hidden states, cb44fdb18 and ccd360f06 graph overhead, 432433637 rocBLAS workspace, and others) are also in v1.0.0.
 
-Order: V1 and V2 together (the CPU-expert question is the largest open decision in the decode profile), then V4 (layout check on HIP), then V3 (offline replay), then V5 and V6 (checks).
+Order: SUPERSEDED by the status table below (2026-11-15, after reading the code).
 
 ### No-hardware checks of the v1.0.0 candidates (2026-11-15, code reading only)
 Clock state at the check: CPU governor performance, C3 off on all 16 cores (stable). GPU performance level auto (reset at reboot): needs `echo high | sudo tee /sys/class/drm/card1/device/power_dpm_force_performance_level`, run by the owner (no root rights for the session).
@@ -3501,3 +3501,28 @@ V3 replay result (archive pancake-docs/research/bench/results-2026-11-15/classlr
 - Verdict: DROP V3 (do not port ClassLRU). Caveats: 219 windows, weight column zero, one model, replay says nothing about speed or PCIe cost per swap.
 
 FK-23 next gate: make STRATA_Q2_FAST the default only after an engine A/B on the Q2_0 preset (needs the GPU); exactness is already met. The daily IQ2_XS preset does not use these kernels.
+
+### v1.0.0 candidates: status after the code reading (2026-11-15), one table
+Basis: "compared" means the upstream diff and our code were both read. "Not compared" means only the upstream commit title or message was read; nothing is claimed about those.
+
+| item | status | compared | what is left |
+|---|---|---|---|
+| V1 moe-cache CPU share (e95426f16) | OPEN | not compared | read the diff against our deferral and CPU-expert path (A3, A4, rank guard); then a GPU sweep |
+| V2 CPU part does not wait (cf34d3113) | covered | compared | nothing; ROUTE_PUBLISH=1 is in the daily preset, ROUTE_FAST measured and dropped |
+| V3 ClassLRU expert cache (c4fb57969) | DROPPED | compared, implemented, replayed | nothing; our tier wins at every matched swap level |
+| V4 MoE data layout for MMQ (69ee2ecc0) | OPEN | not compared | read our expert layout and tile choice for gfx1100; needs a profile |
+| V5 no MoE cache on the draft model (a2b301831) | OPEN, only real candidate | compared (help text and code path) | GPU A/B: does drafting evict main-model experts |
+| V6 conv snapshots in one set_rows (040ce199a) | different design | compared | no port; ceiling 1.0% of decode (our commit kernel) |
+| V7 radix top-k ties (57d04820d) | note only | not compared | upstream excludes ROCm; nothing to do |
+| U1 few-row MMQ for 2-24 columns (0fb8f1577) | OPEN | not compared | read our T 2-16 verify matmul path (rdna_mmvq) against it; GPU if a gap is found |
+| U2 empty tiles in stream-k fixup (5d4c8eeb2) | not applicable | compared | optional empty-expert GPU test |
+| U3 MMVF for few-row BF16 (459ab1cdd) | OPEN | not compared | compare with our bf16_f32_mmvf_multi_kernel choice for the 320x10240 hyper-connection shape; GPU A/B |
+| U4 rocBLAS workspace (432433637) | not applicable | compared | nothing |
+| U5 MTP device hidden states (a8fad21e9) | not applicable | compared | nothing |
+| U6 graph reuse / fused GDN only (cb44fdb18, ccd360f06) | OPEN, low | not compared | measure per-token host time in the profile first |
+| U7 Vulkan RDNA3 prefill FA (d8f30a5b6) | idea only | not compared | read the tiling if a prefill profile shows attention as the limit |
+| U8 FP8 KV cache (202c1a229) | not applicable | not compared | gfx11 has no FP8 path |
+| U9 DFlash refactor (32bdc3a89) | no speed content | n/a | none |
+| FK-23 Q2_0 fast unpack (c3fc8f34d3) | already ported as F7 | compared | engine A/B on the Q2_0 preset (GPU) before any default flip; parity passes |
+
+No-hardware work that remains: read-and-compare for V1, V4, U1, U3, U6 (each is a CPU-only read, none done yet). GPU work that remains: V5 A/B, then whatever the read-and-compare finds.
