@@ -45,6 +45,7 @@
 #include "strata/core/remote_expert_opt.hpp"
 #include "strata/core/expert_cache.hpp"
 #include "strata/core/expert_tiers.hpp"
+#include "strata/spec/ngram_mod.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_snapshot.hpp"
 #include "strata/core/lookup_default.hpp"
@@ -15698,6 +15699,18 @@ int main(int argc, char** argv) {
             bool have = false;
             for (const auto& src : strata::spec::extra_draft_sources()) have = have || (src && std::strcmp(src->name(), "suffix-index") == 0);
             if (!have) strata::spec::extra_draft_sources().push_back(std::make_unique<strata::spec::SuffixIndexSource>(*si));
+        }
+        // STRATA_NGRAM_MOD=1 (opt-in, LEADS.md FK-35; llama.cpp ngram-mod via tctien342/strata-x 05c5a841e9): one 16 MiB
+        // n-gram table shared by every request, asked by --lookup-chain after the MTP's drafts like the suffix index
+        // (ngram_mod.hpp).  The verify window checks its tokens: the output is unchanged.
+        static const bool ngram_mod_on = [] { const char* v = std::getenv("STRATA_NGRAM_MOD"); return v != nullptr && v[0] == '1'; }();
+        if (ngram_mod_on && o.lookup_chain > 0) {
+            bool have = false;
+            for (const auto& src : strata::spec::extra_draft_sources()) have = have || (src && std::strcmp(src->name(), "ngram-mod") == 0);
+            if (!have) {
+                strata::spec::extra_draft_sources().push_back(std::make_unique<strata::spec::NgramModSource>((int32_t) g.n_vocab));
+                std::fprintf(stderr, "strata serve: STRATA_NGRAM_MOD: shared n-gram table (16 MiB) as a --lookup-chain source\n");
+            }
         }
         strata::spec::DraftPolicy policy(S);   // MTP or lookup window, learned over the whole process
         strata::spec::DraftPolicy policy_idle(S);   // --draft auto: the other drafter's learned costs; swapped in with it when a request uses the other drafter

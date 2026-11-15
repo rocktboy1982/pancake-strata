@@ -2251,6 +2251,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(suffix_index_test src/spec/suffix_index_test.cpp)   # A24: the cross-session suffix index (STRATA_SUFFIX_INDEX)
   target_link_libraries(suffix_index_test PRIVATE strata_spec Threads::Threads)
   add_test(NAME suffix_index_test COMMAND suffix_index_test)
+  add_executable(ngram_mod_test src/spec/ngram_mod_test.cpp)   # STRATA_NGRAM_MOD: the shared n-gram table (tctien342 05c5a841e9)
+  target_link_libraries(ngram_mod_test PRIVATE strata_spec Threads::Threads)
+  add_test(NAME ngram_mod_test COMMAND ngram_mod_test)
   add_executable(controller_test src/spec/controller_test.cpp)
   target_link_libraries(controller_test PRIVATE strata_spec)
   add_test(NAME controller_test COMMAND controller_test)
@@ -3671,7 +3674,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
-    spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test verify_ecap_test kv_ring_test
+    spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test kv_ring_test
     bf16_bits_test batch_rows_test batch_groups_test dequant_q5_1_test native_arithmetic_parity
     native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
     native_arithmetic_parity_no512 native_arithmetic_parity_ggml native_arithmetic_parity_nvfp4_avx2
