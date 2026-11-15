@@ -3448,7 +3448,7 @@ Clock state at the check: CPU governor performance, C3 off on all 16 cores (stab
 | item | result from the code | status |
 |---|---|---|
 | V5 (no MoE cache on the draft model) | the --draft help text says the MTP layer's ~0.9 GiB of VRAM goes to the main expert cache (src/program/generate.cpp ~1224). Upstream found this unsafe to share. | CANDIDATE: a fix needs a GPU A/B (does draft use evict main-model experts). Code-check done. |
-| V2 (CPU part does not wait for cached experts) | our expert cache is not the moe-cache design (no moe_cache in src/core); the CPU combine path differs | NOT APPLICABLE as written; the combine-wait question stays with WAIT_FUSE (Phase 18) |
+| V2 (CPU part does not wait for cached experts) | our expert cache is not the moe-cache design (no moe_cache in src/core); the CPU combine path differs | SUPERSEDED: see 'Corrections after reading the code' (V2 is already covered) |
 | U2 (skip empty MoE tiles in stream-k fixup) | no stream-k fixup in src/kernels | NOT APPLICABLE |
 | U4 (ROCm BLAS workspace per call) | 36 rocBLAS/hipBLAS references in src; the per-call allocation is not yet read | OPEN: read the call sites (CPU-only) |
 | U5 (MTP reads target hidden states from a device buffer) | src/core/mtp.cpp is the drafter; the hidden-state copy path is not yet read | OPEN: read mtp.cpp hidden-state copies (CPU-only) |
@@ -3459,7 +3459,7 @@ Next no-hardware steps, in order: read U5 and V6 (MTP copies), read U4 (rocBLAS 
 ### No-hardware work done 2026-11-15: v1.0.0 candidate checks and the V3 cache-policy replay
 Code reading (CPU only), results:
 - U5 (MTP reads target hidden states from a device buffer): ALREADY HAVE. src/core/mtp.cpp takes window_R_ as a device pointer; the per-window copies into Rin_ are cudaMemcpyAsync DeviceToDevice; only the small selected outputs use mapped memory.
-- V6 (one set_rows for MTP conv snapshots): ALREADY HAVE. verify_kernels.cu has gdn_conv_commit_layers_kernel and gdn_step_commit_layers_kernel: one launch for all GDN layers each.
+- V6 (one set_rows for MTP conv snapshots): SUPERSEDED, see 'Corrections after reading the code' (a different design, not the same fix).
 - U4 (rocBLAS workspace per call): LOW. rocBLAS is used only in src/prefill/gemm.cu and only when STRATA_ROCBLAS_TUNING is set (opt-in, prefill). No effect on default decode. A rocblas_set_workspace call is a possible small tweak if the tuning path is ever used.
 - U2, V2: not applicable (checked earlier).
 - V5 (draft model sharing the main expert cache): still the one open candidate; needs a GPU A/B.
@@ -3480,3 +3480,24 @@ Done: v1.0.0 candidate code checks (U2, U4, U5, V2, V6), V3 cache-policy replay 
 Remaining items that need the GPU (cannot be done without it): V5 draft-cache A/B, FK-22 router publish fast path (HIP kernel), FK-24 Q2_0 down fold (GPU kernel), U1 few-row MMQ port, U3 MMVF few-rows A/B, V1 CPU-share sweep, V4 MoE layout check on gfx1100 (needs a profile).
 Remaining items blocked by something else: A20 (entropy logging switch needs owner approval), A54 (needs task-gate scores), A10 (after item 84).
 Precondition for every GPU item: the owner pins the GPU clock (`echo high | sudo tee /sys/class/drm/card1/device/power_dpm_force_performance_level`); the CPU is already stable (performance governor, C3 off on all 16 cores).
+
+### Corrections after reading the code (2026-11-15): upstream diffs read next to our code, item by item
+The first no-hardware pass matched keywords and commit titles; it did not compare code. This pass read each upstream diff and the matching code in our engine. Corrections to the earlier entries:
+
+| item | upstream change (read) | our code (read) | corrected verdict |
+|---|---|---|---|
+| U5 mtp device hidden states (a8fad21e9) | llama.cpp fetched target hidden rows to host and re-uploaded them to the draft context; the fix keeps rows on device (h_nextn buffer) | MtpDrafter::window_R_ points at the verifier's device residual buffer (Verifier::final_R = R_ + t*hc*n_embd); prefill takes device R_rows; the draft round copies device-to-device; only the selected ids and probabilities cross PCIe | NOT APPLICABLE, now by code: our hidden states never leave the device |
+| V6 conv snapshots in one set_rows (040ce199a) | the verify forward writes one rollback snapshot slot per possible accepted prefix; N copies became one set_rows | no snapshot slots at all: after verify, gdn_conv_commit_layers_kernel reads n_keep from device memory and writes the 3-element history from [hist, accepted rows]; gdn_step_commit_layers_kernel replays the accepted rows into the recurrent state; one launch each for all layers | DIFFERENT DESIGN, no port (my earlier "already have" was wrong). Ceiling for any change: our whole commit cost, gdn_step_commit_layers 1.0% of decode in the 2026-11-13 profile |
+| U4 rocBLAS workspace per call (432433637) | rocBLAS allocated a workspace on every call | rocBLAS only in src/prefill/gemm.cu, opt-in (STRATA_ROCBLAS_TUNING); hipBLASLt gets a caller-owned workspace (create_hipblaslt_state(workspace, bytes)), allocated once | NOT APPLICABLE, now by code |
+| U2 skip empty tiles in stream-k fixup (5d4c8eeb2) | the fixup loaded ids_dst[col_low + j] for experts with zero rows, one element past padding | no stream-k fixup; our MoE kernels return at entry for empty experts (ne <= 0, rows <= 0, e1 <= e0 in s2_expert_grouped.cu, moe_fused_iq.cu, moe_mmq.cu) | NOT APPLICABLE; guards seen at entry, but a grep does not prove no read precedes them: an empty-tail-experts GPU test (like upstream test_mul_mat_id_unused_tail) is the proof, optional |
+| V2 CPU part must not wait for the cached experts (cf34d3113) | 3 lines: build the expert input tensor before the slot lookup so the scheduler prefetches it to the host for the CPU part | native_router.cu: the daily preset has STRATA_ROUTE_PUBLISH=1, route_publish_res issues the MoE input row stores first so they travel while the warps route; the opt-in ROUTE_FAST path also lets the router GEMV publish the rows (bf16_router_xpub_arm) | ALREADY COVERED (my earlier "not applicable" had the wrong reason). The stronger variant (ROUTE_FAST) was measured as item 6: dropped at confirm (short -2.0%, edit -11.8%) |
+| V3 ClassLRU expert cache (c4fb57969) | CRF = uses decayed with a 128-token half-life, kept across evictions; class = floor(log2 CRF), 8 classes, one LRU list each; every miss admitted, victim = max age / 2^class | adaptive tier: periodic rounds, decayed usage, capped swaps | DIFFERENT ALGORITHM; my earlier decay sweep did not test it. Now implemented (tools/replay_classlru.py, 8 tests pass) and replayed: see below. DROP stands |
+| FK-23 Q2_0 fast unpack (imanu86 c3fc8f34d3) | unpack in 8 vector ops instead of ~14-17, 4 rows together, STRATA_Q2_LEGACY A/B | src/kernels/cpu/q2_avx2.cpp comment cites "imanu86 c3fc8f34d3": 8 ops instead of 14-17, STRATA_Q2_FAST=1, STRATA_Q2_LEGACY=1 as the A/B (imanu86 semantics); README credits it | SAME COMMIT, ALREADY PORTED as F7 (the plan line that says q2_avx2.cpp still has the 14-op unpack describes the legacy path kept as the A/B). q2_fast_parity_test: PASS, 2592 cases, 1,902,900 row outputs, 0 differ |
+
+V3 replay result (archive pancake-docs/research/bench/results-2026-11-15/classlru-replay.txt, 219 windows, k=10, 10909 slots):
+- Upstream-faithful ClassLRU (every miss admitted): hit share 0.8950 at 199.4 swaps per window. Plain LRU: 0.8942 at 196.5. The frequency classes add 0.08 points over plain LRU.
+- Our tier at matched traffic: 0.7962 at 23.5, 0.8431 at 44.8, 0.8831 at 115.8 swaps per window. ClassLRU with a budget: 0.6983 at 22.9, 0.7286 at 44.6, 0.8220 at 90.5.
+- So at every traffic level we measured, our tier gets a higher hit share per swap; upstream's policy needs 1.7x our swaps (199 vs 116) for +1.2 points. The budgeted ClassLRU spends its budget in layer order, which is my extension, not upstream's; the unbudgeted number is the faithful one.
+- Verdict: DROP V3 (do not port ClassLRU). Caveats: 219 windows, weight column zero, one model, replay says nothing about speed or PCIe cost per swap.
+
+FK-23 next gate: make STRATA_Q2_FAST the default only after an engine A/B on the Q2_0 preset (needs the GPU); exactness is already met. The daily IQ2_XS preset does not use these kernels.

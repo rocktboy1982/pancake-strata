@@ -1,0 +1,10 @@
+ClassLRU replay (tools/replay_classlru.py), 2026-11-15, no GPU. Trace bench/prefetch/routing.bin (219 windows, k=10), profile 10909 slots, half-life 128, 8 classes.
+Upstream-faithful (every miss admitted):  share 0.8950, 199.4 swaps/window
+Plain LRU (1 class), every miss admitted: share 0.8942, 196.5 swaps/window
+Budgeted ClassLRU (my extension: budget spent in layer order, misses by descending CRF within a layer):
+  23/window  -> 0.6983 (22.9)   45/window -> 0.7286 (44.6)   100/window -> 0.8220 (90.5)
+Budgeted plain LRU: 23 -> 0.6977 (22.9)  45 -> 0.7308 (44.5)  100 -> 0.8198 (88.8)
+Our adaptive tier (tools/replay_cache_policy.py):
+  default every 4 / 96 swaps: 0.7962 (23.5)   every 2 / 96: 0.8269 (38.8)   every 1 / 96: 0.8431 (44.8)
+  every 1, swaps 100000, margin 1.0, mincand 1.0: 0.8831 (115.8)
+Reference: profile only 0.7187; static oracle 0.8837.
