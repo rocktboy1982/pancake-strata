@@ -403,6 +403,14 @@ bool park_async_env() {   // STRATA_PARK_ASYNC (strata/core/conversation_snapsho
     static const bool on = [] { const char* v = std::getenv("STRATA_PARK_ASYNC"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
+// STRATA_CKPT_MOVE_PARK=1 (opt-in, read once; port of phoenixclyde/Strata 406ec78190, LEADS.md A3 "PARK_ASYNC check +
+// CKPT_MOVE_PARK"): the checkpoints a request drops MOVE into its parked image instead of being copied (park_drops
+// below).  That move rode on STRATA_PARK_ASYNC, which cannot act on HIP (MOD_PLAN.md section 7), so on this card it never
+// ran; this switch turns on the move alone.  The parked image holds the same checkpoints either way.
+bool park_move_env() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_CKPT_MOVE_PARK"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
 bool ckpt_pool_env() {
     static const bool on = [] {
         const char* v = std::getenv("STRATA_CKPT_POOL");
@@ -18031,7 +18039,7 @@ int main(int argc, char** argv) {
                 std::function<bool(const ConvCheckpoint&)>& f;
                 ~ParkDrops() { f = nullptr; }
             } park_drops_reset{park_drops};
-            if (park_async_env()) {
+            if (park_async_env() || park_move_env()) {
                 const bool drops_all = incoming.has_value() || borrow || slot_source >= 0 || want_cvec != cvec_cached;
                 park_drops = [&, drops_all](const ConvCheckpoint& c) {
                     return drops_all || (int64_t) c.ids.size() > resume || !starts_with(c.ids, c.imgs);
