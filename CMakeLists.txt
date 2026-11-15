@@ -2242,6 +2242,10 @@ endif()
 add_library(strata_spec STATIC src/spec/suffix_drafter.cpp src/spec/controller.cpp src/spec/draft_policy.cpp
             src/spec/draft_source.cpp src/spec/disco.cpp src/spec/suffix_index.cpp)
 target_include_directories(strata_spec PUBLIC include)
+# LEADS.md section 3 (Token Recycling, SSD-lite, Hydra top-2): STRATA_TOKEN_RECYCLE / STRATA_SSD_LITE / STRATA_HYDRA_TOP2 (opt-in)
+find_package(Threads REQUIRED)
+target_sources(strata_spec PRIVATE src/spec/recycle_drafts.cpp)
+target_link_libraries(strata_spec PUBLIC Threads::Threads)
 if(STRATA_BUILD_TESTS)
   add_executable(arch_defaults_test src/core/arch_defaults_test.cpp src/core/arch_defaults.cpp)
   target_include_directories(arch_defaults_test PRIVATE include)
@@ -2286,6 +2290,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(suffix_drafter_test src/spec/suffix_drafter_test.cpp)
   target_link_libraries(suffix_drafter_test PRIVATE strata_spec)
   add_test(NAME suffix_drafter_test COMMAND suffix_drafter_test)
+  add_executable(recycle_drafts_test src/spec/recycle_drafts_test.cpp)   # LEADS.md section 3: TOKEN_RECYCLE, SSD_LITE, HYDRA_TOP2, SPEC_REASON
+  target_link_libraries(recycle_drafts_test PRIVATE strata_spec)
+  add_test(NAME recycle_drafts_test COMMAND recycle_drafts_test)
   add_executable(suffix_index_test src/spec/suffix_index_test.cpp)   # A24: the cross-session suffix index (STRATA_SUFFIX_INDEX)
   target_link_libraries(suffix_index_test PRIVATE strata_spec Threads::Threads)
   add_test(NAME suffix_index_test COMMAND suffix_index_test)
@@ -3694,6 +3701,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
+    recycle_drafts_test
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test

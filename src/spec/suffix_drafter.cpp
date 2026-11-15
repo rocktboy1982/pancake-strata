@@ -122,4 +122,60 @@ int SuffixDrafter::propose_after(const int32_t* extra, int n_extra, int max_k, i
     return k;
 }
 
+int SuffixDrafter::propose_after_const(const int32_t* extra, int n_extra, int max_k, int32_t* out, int* match) const {
+    // propose() over the virtual sequence history + extra, read in place (STRATA_SSD_LITE, recycle_drafts.hpp); step for step
+    // the same as propose_after(), so the same tokens and match
+    *match = 0;
+    if (n_extra < 0) n_extra = 0;
+    const size_t n0 = hist_.size();
+    const size_t n = n0 + (size_t) n_extra;
+    auto at = [&](size_t i) -> int32_t { return i < n0 ? hist_[i] : extra[i - n0]; };
+    if (n < 4 || max_k <= 0) return 0;
+    const size_t cur = n - 1;
+    const uint64_t a3 = (uint32_t) at(cur - 2), b3 = (uint32_t) at(cur - 1), c3 = (uint32_t) at(cur);
+    const uint64_t key = mix(a3 * 0x9E3779B97F4A7C15ull ^ mix(b3 + 0x632BE59BD9B4E019ull) ^ (c3 << 1)) | 1ull;   // key_at's
+    const Slot* s = nullptr;
+    for (size_t i = key & mask_, probes = 0; probes <= mask_; i = (i + 1) & mask_, ++probes) {   // find_slot(key, false)
+        const Slot& sl = table_[i];
+        if (sl.key == key) { s = &sl; break; }
+        if (sl.key == 0) break;
+    }
+    if (s == nullptr) return 0;
+    size_t best_end = 0;
+    int best_len = 0;
+    size_t cand_end[WAYS] = {};
+    int cand_len[WAYS] = {};
+    for (int w = 0; w < s->n; ++w) {
+        const size_t p = s->pos[w];
+        if (p >= cur) continue;
+        int len = 0;
+        while (len < max_match_ && len <= (int) p && at(p - len) == at(cur - len)) ++len;
+        cand_end[w] = p;
+        cand_len[w] = len;
+        if (len > best_len) { best_len = len; best_end = p; }
+    }
+    if (best_len < min_match_) return 0;
+    static const int older = [] {   // STRATA_LOOKUP_OLDER, as propose() reads it
+        const char* v = std::getenv("STRATA_LOOKUP_OLDER");
+        const int x = v != nullptr ? std::atoi(v) : 0;
+        return x > 0 ? x : 0;
+    }();
+    if (older > 0) {
+        const size_t want = (size_t) std::min(older, max_k);
+        if (cur - best_end < want) {
+            for (int w = 0; w < s->n; ++w) {
+                if (cand_len[w] >= min_match_ && cand_end[w] < cur && cur - cand_end[w] >= want) {
+                    best_end = cand_end[w];
+                    best_len = cand_len[w];
+                    break;
+                }
+            }
+        }
+    }
+    *match = best_len;
+    int k = 0;
+    for (size_t q = best_end + 1; q <= cur && k < max_k; ++q) out[k++] = at(q);
+    return k;
+}
+
 }  // namespace strata::spec
