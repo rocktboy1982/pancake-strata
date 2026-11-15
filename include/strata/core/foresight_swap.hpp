@@ -65,6 +65,12 @@ struct ForesightSwap {
     bool verify = false;                     ///< STRATA_FS_VERIFY=1: read every landed slot back and compare (slow, tests)
     uint64_t verify_ok = 0, verify_bad = 0;
     uint64_t dropped = 0;                    ///< slots dropped because an exchange moved their expert's bytes (under smu_)
+    /// STRATA_FS_STALE_DROP=N (opt-in, 0 = off: the filler issues every queued copy as before).  N > 0: the filler skips
+    /// a queued copy whose slot was dropped by an exchange meanwhile, or that waited more than N finished windows in the
+    /// queue; the slot goes back to the free pool and the CPU computes the expert as for any slot not landed.  Placement
+    /// only (LEADS.md Part D item 53 "stale-drop in fill_loop").
+    int stale_drop = 0;
+    uint64_t stale_skipped = 0;              ///< copies the filler skipped under STRATA_FS_STALE_DROP (under smu_)
     static constexpr int16_t kHeld = -2;     ///< `where`: an exchange is moving this expert's bytes, no copy now (#2134)
     static constexpr int32_t kDropped = -2;  ///< Slot::expert: dropped by `hold`, reusable under the same depth rule
 

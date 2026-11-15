@@ -422,6 +422,7 @@ STRATA_ENV("STRATA_FS_AHEAD", Speed, "placement/tiering of experts (same math, G
 STRATA_ENV("STRATA_FS_BUDGET", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FS_DEPTH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FS_SLOTS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
+STRATA_ENV("STRATA_FS_STALE_DROP", Speed, "placement: the swap filler skips copies dropped or aged in its queue; the CPU computes those experts (LEADS.md Part D item 53)")
 STRATA_ENV("STRATA_FS_VERIFY", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_FUSE_COMBINE", Speed, "this-cute-world ed87ad46af: CPU rows' wait+copy folded into the hits combine; the same sums (bitwise)")
 STRATA_ENV("STRATA_FUSE_DECODE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
