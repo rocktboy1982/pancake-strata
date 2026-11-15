@@ -48,7 +48,7 @@ constexpr Fmt kFmts[] = {
 };
 struct Shape { int n_in, n_out; };
 constexpr Shape kShapes[] = {{2560, 1000}, {4096, 257}, {256, 8}};
-constexpr int kMaxCols = 8;
+constexpr int kMaxCols = 16;   // 9..16 columns: the RDNA kernels now take them (verify windows of 12 rows)
 }  // namespace
 
 int main() {

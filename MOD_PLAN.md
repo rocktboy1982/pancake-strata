@@ -3751,3 +3751,26 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/49-cache-replay-confirm
 Per repeat, prompt seconds: base 275.1 / 314.4 / 286.6; cache2048-min8192 221.9 / 231.2 / 233.8; park-truncate1280 220.2 / 232.0 / 221.6. Turn time: base 516 / 531 / 556 s; cache2048-min8192 506 / 439 / 408 s; park-truncate1280 429 / 497 / 369 s. Every repeat of both arms is below base on prompt time and on turn time, and neither arm has a cold re-read. Verdict by the promote rule: **both confirmed** (intervals exclude zero, no case below base). The screen's +13.6 s turn penalty of park-truncate1280 was noise. The two arms are within noise of each other (-21.6% against -23.1%).
 
 Not yet a default change: this is one recorded session (the 2026-11-09 plan). What each arm is: `cache2048-min8192` raises the conversation-cache budget to 2048 MiB with a minimum park size of 8192 tokens (small side prompts no longer evict the 50 to 60K agent prefix); `park-truncate1280` keeps the 1280 MiB budget with PARK_TRUNCATE. The memory cost is small (peak RSS 39.6 GiB against 41 to 43 GiB for base, which parks more). Decision for the owner: make `cache2048-min8192` the daily preset's cache setting (it needs no new code, only the flags), and run one more replay on a second recorded session before the default changes, because a single session cannot show whether the minimum-token skip hurts a session with many mid-size side prompts.
+
+### RDNA K-quant kernels at 9 to 16 columns: built and tested (2026-11-15, owner request)
+
+Code: `rdna_kq_kernel` (Q4_K, Q5_K, IQ4_XS) and `rdna_q6k_kernel` templated for 9 to 16 columns in `src/kernels/cuda/rdna_mmvq.cu` (`kRdnaMaxCols = 16`, unroll 1 above 8 columns), `rdna_mmvq_parity` raised to 16 columns, `b6_mmvq_bench` widths 12 and 16 with 16-column buffers. Archive: `pancake-docs/research/bench/results-2026-11-15/rdna-16col/` (parity output, bench with `STRATA_RDNA_Q6K=0` and `=1`). Tests are now ON in `build-hip` (`-DSTRATA_BUILD_TESTS=ON`).
+
+- **Parity: PASS, 192 of 192 cases** (Q4_K, Q5_K, Q6_K, IQ4_XS at 4096x257 and 256x8, 1 to 16 columns) within 1e-4 of `native_mmvq`; the worst relative difference is 2.6e-07, all finite, two runs bitwise equal. It is not bit-exact against the native kernel (another summation order, as for the 1 to 8 column RDNA kernels already in the preset).
+- **Speed, one call at the model's shapes, native vs RDNA (the preset's path), 300 launches median, speed change of RDNA over native:**
+
+| case | 4 cols | 8 cols | 12 cols | 16 cols |
+| --- | --- | --- | --- | --- |
+| head Q5_K (ms native / RDNA at 16) | +74.6% | +126.3% | +118.8% | +147.8% (6.98 / 2.82 ms) |
+| gdn qkv Q4_K | +73.6% | +117.9% | +98.0% | +123.3% |
+| gdn qkv Q5_K | +71.2% | +116.0% | +100.4% | +124.7% |
+| gdn qkv Q6_K | +59.0% | +122.1% | +122.4% | +98.6% |
+| qsa q Q6_K | +67.2% | +124.0% | +123.7% | +98.7% |
+| gdn qkv / qsa q IQ4_XS | +51 to +66% | +73 to +75% | +46 to +49% | +67% |
+| gdn out Q4_K | +7.8% | +32.1% | +28.8% | +29.9% |
+| shared expert up IQ3_S, down IQ4_NL, router BF16 | 0% (not on this path) | | | |
+
+At 12 and 16 columns the new RDNA kernels take the K-quant dense projections to roughly half the time of the native fallback the 12-row windows used before. Before this change the preset's RDNA path declined above 8 columns, so those windows ran the native kernels (the "native" column). Still not flat with the column count: the head costs 1.02 ms at 4 columns, 1.46 at 8, 2.20 at 12 and 2.82 at 16 against 0.78 at 1 column.
+- **Bench exit code 1 with the RDNA path on is expected:** the bitwise check "A = 1 column" fails for Q4_K and Q5_K from 4 columns because the RDNA kernels take the multi-column call while the single-column calls stay on the native kernels (RDNA declines Q4_K / Q5_K below 4 columns); the layout comparison (B = A) is `ok` everywhere. This was already true for 4 to 8 columns in the daily preset.
+- **Sizing against the real trace:** the 9 to 16 column windows are 7.3% of window time in the A56 trace (15 windows of about 112 ms). From the bench the saving on such a window is about 2.6 ms for the head alone plus about 0.1 ms a layer on the Q4_K / Q5_K / Q6_K projections, which puts it near 6 to 9% of a 12-row window, about 0.5 to 0.7% of window time overall. Small, free, unmeasured end to end: an engine A/B at a draft depth where windows reach 9 to 16 rows is the test that decides, not this estimate.
+- **U1 status:** the 4 to 8 column RDNA kernels already beat native by 50 to 125% at the head and the Q4_K / Q5_K / Q6_K projections, so a matrix-core few-row kernel has less to win than the native-kernel numbers suggested; the open question is how far the extra-column cost (1.31x at 4 columns for the head) can still fall. Not built.

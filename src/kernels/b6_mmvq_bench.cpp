@@ -56,7 +56,8 @@ const Case CASES[] = {
     {"router BF16", 30, 2560, 512, 1, 2, {-1, -1}},
     {"head Q5_K", 13, 2560, 248320, 256, 176, {0, 2}},
 };
-const int WIDTHS[] = {1, 2, 3, 4, 5, 8};
+const int WIDTHS[] = {1, 2, 3, 4, 5, 8, 12, 16};
+constexpr int kCols = 16;   // the widest window the bench calls (buffers hold this many columns)
 
 bool ck(cudaError_t e, const char* what) {
     if (e == cudaSuccess) return true;
@@ -77,9 +78,9 @@ uint16_t bf16(float x) {
 struct Buf {
     std::vector<void*> w;   // weight copies
     std::size_t wbytes = 0;
-    void* xq = nullptr;     // Q8_1 of 8 columns
+    void* xq = nullptr;     // Q8_1 of kCols columns
     float* xf = nullptr;    // the float activations (BF16 path)
-    float* y = nullptr;     // 8 columns of output
+    float* y = nullptr;     // kCols columns of output
 };
 
 // one call of the case at `ncols` on weight copy `k` into y
@@ -167,16 +168,16 @@ int main(int argc, char** argv) {
                 ok = ck(cudaMalloc(&d, b.wbytes), "malloc w") && ck(cudaMemcpy(d, w.data(), b.wbytes, cudaMemcpyHostToDevice), "copy w");
                 b.w.push_back(d);
             }
-            std::vector<float> x((size_t) 8 * c.n_in);
+            std::vector<float> x((size_t) kCols * c.n_in);
             std::normal_distribution<float> nx(0.f, 1.f);
             for (auto& v : x) v = nx(rng);
-            const size_t ybytes = (size_t) 8 * c.n_out * 4;
+            const size_t ybytes = (size_t) kCols * c.n_out * 4;
             ok = ok && ck(cudaMalloc(&b.xf, x.size() * 4), "malloc x") &&
                  ck(cudaMemcpy(b.xf, x.data(), x.size() * 4, cudaMemcpyHostToDevice), "copy x") &&
                  ck(cudaMalloc(&b.y, ybytes), "malloc y");
             if (ok && c.type != 30) {
-                ok = ck(cudaMalloc(&b.xq, K::native_q8_1_bytes(c.n_in, 8)), "malloc xq");
-                if (ok) K::quantize_q8_1_rows(b.xf, 8, c.n_in, b.xq, s);
+                ok = ck(cudaMalloc(&b.xq, K::native_q8_1_bytes(c.n_in, kCols)), "malloc xq");
+                if (ok) K::quantize_q8_1_rows(b.xf, kCols, c.n_in, b.xq, s);
             }
             float *ya = nullptr, *yb = nullptr, *y1 = nullptr;
             ok = ok && ck(cudaMalloc(&ya, ybytes), "ya") && ck(cudaMalloc(&yb, ybytes), "yb") && ck(cudaMalloc(&y1, ybytes), "y1");

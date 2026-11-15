@@ -13,6 +13,7 @@
 namespace strata::kernels {
 namespace {
 struct Q81 { half2 ds; int8_t qs[32]; };
+constexpr int kRdnaMaxCols = 16;   // 9..16 columns: the verify windows of 12 rows (and up to the engine's STRATA_VERIFY_MAX_T)
 constexpr int QK = 256, BB = 210;   // Q6_K: ql[128] qh[64] scales[16] d(2)
 
 __device__ __forceinline__ float wsum32(float v) {
@@ -25,7 +26,7 @@ __device__ __forceinline__ uint32_t ld32u(const uint8_t* p) {   // gfx11: unalig
     return *reinterpret_cast<const uint32_t*>(p);
 }
 
-template <int NC, int UNR = (NC <= 2 ? 5 : NC <= 4 ? 3 : 2)>
+template <int NC, int UNR = (NC <= 2 ? 5 : NC <= 4 ? 3 : NC <= 8 ? 2 : 1)>
 __global__ void __launch_bounds__(256) rdna_q6k_kernel(const uint8_t* __restrict__ w, const Q81* __restrict__ x,
                                                        float* __restrict__ y, int n_in, int n_out) {
     const int lane = threadIdx.x & 31;
@@ -93,7 +94,7 @@ template <> struct KFmt<12> { static constexpr int B = 144; };
 template <> struct KFmt<13> { static constexpr int B = 176; };
 template <> struct KFmt<23> { static constexpr int B = 136; };
 
-template <int FMT, int NC, int UNR = (NC <= 2 ? 5 : NC <= 4 ? 3 : 2)>
+template <int FMT, int NC, int UNR = (NC <= 2 ? 5 : NC <= 4 ? 3 : NC <= 8 ? 2 : 1)>
 __global__ void __launch_bounds__(256) rdna_kq_kernel(const uint8_t* __restrict__ w, const Q81* __restrict__ x,
                                                       float* __restrict__ y, int n_in, int n_out) {
     constexpr int BB_ = KFmt<FMT>::B;
@@ -169,13 +170,21 @@ void kq_launch(const uint8_t* wb, const Q81* x, float* y, int n_in, int n_out, i
         case 5: rdna_kq_kernel<FMT, 5><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
         case 6: rdna_kq_kernel<FMT, 6><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
         case 7: rdna_kq_kernel<FMT, 7><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
-        default: rdna_kq_kernel<FMT, 8><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 8: rdna_kq_kernel<FMT, 8><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 9: rdna_kq_kernel<FMT, 9><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 10: rdna_kq_kernel<FMT, 10><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 11: rdna_kq_kernel<FMT, 11><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 12: rdna_kq_kernel<FMT, 12><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 13: rdna_kq_kernel<FMT, 13><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 14: rdna_kq_kernel<FMT, 14><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 15: rdna_kq_kernel<FMT, 15><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        default: rdna_kq_kernel<FMT, 16><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
     }
 }
 }  // namespace
 
 bool rdna_kq_mmvq(int type, const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream) {
-    if (n_in % QK != 0 || ncols < 1 || ncols > 8) return false;
+    if (n_in % QK != 0 || ncols < 1 || ncols > kRdnaMaxCols) return false;
     const auto* wb = static_cast<const uint8_t*>(w);
     const auto* x = static_cast<const Q81*>(xq);
     cudaStream_t s = (cudaStream_t) stream;
@@ -198,7 +207,7 @@ bool rdna_q6k_enabled() {
 }
 
 bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream) {
-    if (n_in % QK != 0 || ncols < 1 || ncols > 8) return false;
+    if (n_in % QK != 0 || ncols < 1 || ncols > kRdnaMaxCols) return false;
     const auto* wb = static_cast<const uint8_t*>(w);
     const auto* x = static_cast<const Q81*>(xq);
     const unsigned blocks = (unsigned) ((n_out + 7) / 8);
@@ -211,7 +220,15 @@ bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out,
         case 5: rdna_q6k_kernel<5><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
         case 6: rdna_q6k_kernel<6><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
         case 7: rdna_q6k_kernel<7><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
-        default: rdna_q6k_kernel<8><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 8: rdna_q6k_kernel<8><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 9: rdna_q6k_kernel<9><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 10: rdna_q6k_kernel<10><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 11: rdna_q6k_kernel<11><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 12: rdna_q6k_kernel<12><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 13: rdna_q6k_kernel<13><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 14: rdna_q6k_kernel<14><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        case 15: rdna_q6k_kernel<15><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
+        default: rdna_q6k_kernel<16><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
     }
     return true;
 }
