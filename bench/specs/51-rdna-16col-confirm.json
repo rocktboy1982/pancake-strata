@@ -1,0 +1,21 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 12,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_RDNA_KQ_MAXCOLS": "8"
+      }
+    },
+    "cols16": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    }
+  },
+  "note": "Confirm (12 repeats) of spec 50. RDNA K-quant kernels at 9-16 columns (verify windows of 12 rows from lookup drafts): MAXCOLS=8 (old behaviour) against the default 16, same binary. Edit has the high lookup acceptance that reaches 9-16 rows."
+}

@@ -1,0 +1,37 @@
+rep 0 base                 short 109.4 edit 112.8  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('systemd-journal', 0)]  gpu 1590/1249 MHz 52C 122W gtt 21M cpu 3550MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 cols16               short 116.5 edit 118.9  foreign CPU 2% [('kworker/u65:15-KFD IH', 1), ('systemd-journal', 0), ('systemd-oomd', 0)]  gpu 1502/1249 MHz 52C 119W gtt 21M cpu 3594MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 1 cols16               short 71.8 edit 84.6  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('kworker/4:1-events', 0)]  gpu 1515/1249 MHz 52C 112W gtt 21M cpu 3427MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 109.9 edit 93.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 1601/1249 MHz 51C 118W gtt 21M cpu 3859MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 base                 short 111.4 edit 111.1  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('kworker/u65:8-KFD IH', 1)]  gpu 1908/1249 MHz 52C 138W gtt 21M cpu 3372MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 2 cols16               short 116.6 edit 119.2  foreign CPU 2% [('migration/15', 0), ('rsyslogd', 0), ('localsearch-3', 0)]  gpu 1502/1249 MHz 52C 119W gtt 21M cpu 3710MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 cols16               short 116.6 edit 118.3  foreign CPU 2% [('claude', 2), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 1508/1249 MHz 52C 118W gtt 21M cpu 3475MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 3 base                 short 109.3 edit 112.5  foreign CPU 2% [('dbus-daemon', 1), ('localsearch-3', 1), ('polkitd', 0)]  gpu 1592/1249 MHz 52C 121W gtt 21M cpu 3629MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 4 base                 short 105.1 edit 84.0  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('systemd-oomd', 0)]  gpu 1744/1249 MHz 51C 122W gtt 21M cpu 3164MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 4 cols16               short 111.2 edit 111.0  foreign CPU 2% [('systemd-journal', 1), ('localsearch-3', 1), ('claude', 1)]  gpu 1446/1249 MHz 51C 115W gtt 21M cpu 3064MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 5 cols16               short 113.5 edit 96.5  foreign CPU 2% [('claude', 2), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 1560/1249 MHz 52C 118W gtt 21M cpu 3342MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 5 base                 short 90.5 edit 107.7  foreign CPU 2% [('udisksd', 3), ('gvfs-udisks2-vo', 0), ('claude', 0)]  gpu 1646/1249 MHz 51C 124W gtt 21M cpu 3654MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 6 base                 short 110.9 edit 112.2  foreign CPU 2% [('claude', 2), ('dbus-daemon', 0), ('upowerd', 0)]  gpu 1432/1249 MHz 52C 116W gtt 21M cpu 3222MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 6 cols16               short 98.9 edit 119.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:7-KFD IH', 0)]  gpu 1921/1249 MHz 52C 142W gtt 21M cpu 3928MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 7 cols16               short 116.7 edit 117.2  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('gnome-shell', 0)]  gpu 1514/1249 MHz 52C 119W gtt 21M cpu 3578MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 7 base                 short 111.6 edit 113.7  foreign CPU 2% [('claude', 1), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 1570/1249 MHz 52C 120W gtt 21M cpu 3484MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 8 base                 short 111.6 edit 114.2  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('kworker/u65:5-KFD IH', 1)]  gpu 1564/1249 MHz 52C 120W gtt 21M cpu 3170MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 8 cols16               short 116.4 edit 116.8  foreign CPU 2% [('claude', 1), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 1517/1249 MHz 52C 119W gtt 21M cpu 3627MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 9 cols16               short 116.7 edit 117.6  foreign CPU 2% [('claude', 2), ('rcu_preempt', 0), ('goa-identity-se', 0)]  gpu 1510/1249 MHz 52C 120W gtt 21M cpu 3764MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 9 base                 short 111.6 edit 111.7  foreign CPU 8% [('claude', 15), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1584/1249 MHz 53C 121W gtt 21M cpu 3658MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 10 base                 short 111.6 edit 114.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('python', 0)]  gpu 1569/1249 MHz 53C 120W gtt 21M cpu 3542MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 10 cols16               short 113.8 edit 118.7  foreign CPU 8% [('claude', 7), ('gnome-shell', 1), ('ptyxis', 1)]  gpu 1524/1249 MHz 53C 120W gtt 21M cpu 3504MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 11 cols16               short 116.5 edit 118.1  foreign CPU 8% [('gnome-shell', 3), ('ptyxis', 2), ('claude', 2)]  gpu 1512/1249 MHz 53C 118W gtt 21M cpu 3900MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 11 base                 short 109.1 edit 112.6  foreign CPU 12% [('claude', 10), ('gnome-shell', 5), ('ptyxis', 3)]  gpu 1595/1249 MHz 53C 121W gtt 21M cpu 3678MHz 54C igpu 2%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    108.5 +-   3.4  (n=12)
+                              drafts accepted 0.67
+  short  cols16                  110.4 +-   7.6  (n=12)   vs base:  +1.8% +-  7.8%  -> no difference
+                              drafts accepted 0.73
+  edit   base                    108.3 +-   5.5  (n=12)
+                              drafts accepted 0.90
+  edit   cols16                  113.0 +-   6.4  (n=12)   vs base:  +4.3% +-  5.0%  -> no difference
+                              drafts accepted 0.91
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  cols16               DIFFERENT text -> lossy or placement-dependent: quality gate

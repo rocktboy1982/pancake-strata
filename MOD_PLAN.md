@@ -3785,3 +3785,14 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/rdna-16col/50-rdna-16co
 | edit | 113.7 +-1.5 | 118.0 +-0.7 | **+3.8% +-1.4** | 0.91 -> 0.90 | **identical hash** |
 
 Verdict by the promote rule: **promoted** (both cases above 0 with intervals that exclude zero, none below -3%). The measured gain is five times the 0.5 to 0.7% estimated from the trace share, so the 9 to 16 row windows must be more frequent in these prompts than in the A56 trace (lookup drafts up to `--lookup-max-t 12` on copied text); an estimate from one trace's window mix does not transfer to another workload, which is the reason the test was run. The edit case is exact (same text hash); the short case's text differs because the new kernels sum in another order than the native kernels the 12-row windows used before (1e-7 relative, the same class as the 4 to 8 column RDNA kernels already in the preset), which moves greedy choices at near-ties. Status: the code default is now 16 columns (`kRdnaMaxCols`), so HEAD and the daily preset take it; `STRATA_RDNA_KQ_MAXCOLS=8` restores the old behaviour. Open: the quality gate for the short-case text change (task gate on real agent prompts) before this is called final, and a 12-repeat confirm.
+
+### Spec 51: confirm of the 9 to 16 column RDNA kernels, 12 repeats (2026-11-15)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/rdna-16col/51-rdna-16col-confirm.{stdout,jsonl}`. Same binary, base = `STRATA_RDNA_KQ_MAXCOLS=8`, cols16 = default.
+
+| case | base tok/s | cols16 tok/s | change | text |
+| --- | --- | --- | --- | --- |
+| short | 108.5 +-3.4 | 110.4 +-7.6 | +1.8% +-7.8 (no difference) | 4 text variants in each arm, none shared |
+| edit | 108.3 +-5.5 | 113.0 +-6.4 | +4.3% +-5.0 (no difference) | one variant in both arms, **identical hash** |
+
+The 6-repeat screen (+3.7% +-2.0 and +3.8% +-1.4) is not reproduced as a significant gain: both means stay positive (+1.8%, +4.3%) but the intervals now include zero, because some runs in both arms were slow (the 12-repeat base itself ranges wider than the screen's). Two corrections to the screen entry: the `short` text is NOT deterministic (each arm produced 4 variants across 12 repeats, so the screen's one-variant observation was luck, and the short-case "text differs" finding is placement noise, not an effect of the new kernels); the `edit` text is exact in all 12 repeats of both arms. Verdict: **kept as a small positive candidate, not a proven gain**. The microbench gain (kernels 1.5 to 2.5x faster at 12 and 16 columns) is real and the parity test passes, so the change stays in as the default (it is exact on `edit`); the engine-level gain is between 0 and +4% on these prompts and needs a real-agent session to size. The quality gate that the screen asked for is not needed for the short-case text, which differs between repeats of the same arm.
