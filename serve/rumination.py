@@ -29,6 +29,7 @@ measured on our own turn logs first (the per-request max and mean rates are logg
 from __future__ import annotations
 
 import math
+import os
 import re
 from collections import Counter, deque
 
@@ -107,16 +108,40 @@ def lp_entropy(line: str) -> float | None:
     return max(0.0, -sum((x / z) * math.log(x / z) for x in w if x > 0))
 
 
+def lp_margin(line: str) -> float | None:
+    """LEADS.md Part C (per-token top-2 margin, the A19 ThinkBrake replay input): logprob of the best listed id minus the
+    second best's on an engine `LP <logprob> id:logprob ...` line (nats, >= 0).  None with fewer than two listed ids or a
+    line that cannot be read."""
+    f = line.split()
+    if len(f) < 4 or f[0] != "LP":
+        return None
+    try:
+        vals = sorted((float(x.partition(":")[2]) for x in f[2:]), reverse=True)
+    except ValueError:
+        return None
+    if not all(math.isfinite(v) for v in vals[:2]):
+        return None
+    return max(0.0, vals[0] - vals[1])
+
+
+# STRATA_TURN_MARGINS=1 (opt-in, read once; with "rumination_entropy"): the meter also keeps every thinking token's top-2
+# margin (lp_margin) and the turn log row gets "think_margins" (a list, 3 decimals, at most MARGINS_CAP tokens).  Unset: the
+# meter and the turn log are as before.
+TURN_MARGINS = os.environ.get("STRATA_TURN_MARGINS", "0") == "1"
+MARGINS_CAP = 32768
+
+
 class EntropyMeter:
     """One request's top-K entropy of the thinking tokens: the mean over all of them, the lowest rolling mean (a window of
     ENTROPY_WINDOW tokens, once one is full) and the current rolling mean.  `low(h)`: the window is full and its mean is at
     or below h (the second signal of the rumination close)."""
 
-    def __init__(self, window: int = ENTROPY_WINDOW):
+    def __init__(self, window: int = ENTROPY_WINDOW, margins: bool | None = None):
         self.window = window
         self.recent: deque = deque(maxlen=window)
         self.total, self.tokens = 0.0, 0
         self.min_window = None
+        self.margins = [] if (TURN_MARGINS if margins is None else margins) else None   # STRATA_TURN_MARGINS
 
     def add(self, h: float) -> None:
         self.recent.append(h)
@@ -132,6 +157,9 @@ class EntropyMeter:
         if h is None:
             return False
         self.add(h)
+        if self.margins is not None and len(self.margins) < MARGINS_CAP:
+            m = lp_margin(line)
+            self.margins.append(round(m, 3) if m is not None else None)
         return True
 
     def rolling(self) -> float | None:

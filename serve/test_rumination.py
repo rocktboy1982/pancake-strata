@@ -241,6 +241,22 @@ class Entropy(unittest.TestCase):
         for bad in ("LP nan", "LP -0.5 7:nan", "LP", "T 5", "LP x 7:-1", "LP -1 7:-inf"):
             self.assertIsNone(R.lp_entropy(bad), bad)
 
+    def test_lp_margin_and_turn_margins(self):
+        # STRATA_TURN_MARGINS (LEADS.md Part C): the per-token top-2 margin, kept only when asked for
+        self.assertAlmostEqual(R.lp_margin(SURE), 5.99, places=6)
+        self.assertEqual(R.lp_margin(UNSURE), 0.0)
+        for bad in ("LP -0.5", "LP -0.5 7:-0.5", "LP nan 7:nan 8:-1", "T 5", "LP x 7:x 8:-1"):
+            self.assertIsNone(R.lp_margin(bad), bad)
+        off = R.EntropyMeter(window=4, margins=False)
+        off.feed_line(SURE)
+        self.assertIsNone(off.margins)
+        on = R.EntropyMeter(window=4, margins=True)
+        on.feed_line(SURE)
+        on.feed_line(UNSURE)
+        on.feed_line("LP nan")                                   # unreadable: not a token of the meter
+        self.assertEqual(on.margins, [5.99, 0.0])
+        self.assertEqual(on.summary()["tokens"], 2)
+
     def test_meter_rolls_and_summarises(self):
         m = R.EntropyMeter(window=4)
         self.assertIsNone(m.summary())
