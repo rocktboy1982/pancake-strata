@@ -48,7 +48,8 @@ Measurement (the full text is in AGENTS.md "Measurement rules"):
 3. Run `python tools/pancake/spec_lint.py` before any A/B: an arm key the fork does not read is a no-op.
 4. Gains inside one substitute group do not add; price an idea against the window budget first (edits are a plain sum,
    so a small exact item caps at a few %). Re-measure fork claims here: Speedy's +22-33% on 3080s was noise..+9% here.
-5. Three outcomes only: adopted (numbers in the commit), coded opt-in, not adopted (evidence + what would reopen it).
+5. Every lead is ported and measured (owner, 2026-11-15; AGENTS.md rule 8): no lead is dropped by reasoning, only by a
+   measurement. Three outcomes only: adopted (numbers in the commit), coded opt-in, not adopted (evidence + what would reopen it).
    Every test goes into TEST_LEDGER.md; nothing is dropped silently.
 
 Code:

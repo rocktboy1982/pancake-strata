@@ -32,6 +32,15 @@ Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
 5. **Every claim needs a ledger row.** Do not state a number that is not in TEST_LEDGER.md or in a raw archive.
 6. **Keep the three in step:** a test result goes to TEST_LEDGER.md, its decision to MOD_PLAN.md (sections 3-5), and a
    lead that got tested moves out of LEADS.md into MOD_PLAN.md / TEST_LEDGER.md.
+7. **Ledger ids are taken at commit time.** Several agents append rows (Windows box, Linux box). Right before committing,
+   `git fetch` and merge `port/rdna3-decode`, then give each new row the next free `T-nnn` after the highest id in the
+   merged TEST_LEDGER.md; on a merge conflict in the ledger keep both sides in id order and renumber your own rows, never
+   the other agent's.
+8. **Every lead is followed (owner, 2026-11-15).** Port each lead from LEADS.md and from the forks as a default-off
+   `STRATA_*` switch (byte-identical default, classified in `conversation_disk_env.def`), build, `ctest`, add an A/B spec
+   for the night queue, and record the result. Never drop a lead because reasoning says it will not help here ("our preset
+   does not use that path", "attention is < 1%", "pcie-frac is 0", "large port"): test, never judge by reading. Only
+   hardware this box does not have (two GPUs, CUDA sm_86) is parked, and it stays in LEADS.md.
 
 ## Where the truth lives
 
