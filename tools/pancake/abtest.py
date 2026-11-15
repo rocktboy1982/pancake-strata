@@ -874,7 +874,9 @@ def text_check(results, arms, cases):
         at = [res.get("texts", {}) for res in results.get(a, [])]
         if not at:
             continue
-        same = all(t.get(c) == bt[0].get(c) for t in at for c in cases if c in bt[0])
+        # any base pass may be the reference: a case whose base text differs between base passes is placement-dependent, and an arm
+        # that equals one of them is as exact as the base is with itself
+        same = all(t.get(c) in [b.get(c) for b in bt] for t in at for c in cases if c in bt[0])
         print(f"  {a:20s} {'identical on every case -> exact' if same else 'DIFFERENT text -> lossy or placement-dependent: quality gate'}")
 
 

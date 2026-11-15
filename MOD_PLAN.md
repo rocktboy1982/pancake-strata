@@ -277,17 +277,19 @@ Code:
   26-29; its segfault was a ROCm runtime mismatch, fix `LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib`; failures 57x1 / 101x2
   = one device; line 120 prints "device N ok" even on failure; run the 4-way matrix with `HIP_VISIBLE_DEVICES=0/1`).
 - FIXED (T-573): sampler greedy rule at all four sites; a NaN temperature was a uniform draw (4 of 4 picks wrong).
-- `gdn_gate_kernel` computes only the first token (elementwise.cu:43; latent, re-check before fixing).
+- FIXED (T-576): `gdn_gate_kernel` computed only the first token (latent, every caller passes 1 token).
 - FIXED (T-575): upstream #5273 guard (`if (stream_all)`) at the three KVA exits (4252/4396/4527); 5029 is inside the
   `fused_l` branch (needs `stream_all`) and 6215 tests `stream_all` itself. Research path only, no test exercises it.
 - Phase 17 review: R1 fixed (24de1106); R2 (`diverge_at` in conv_cache.hpp) and R3 (`max_cells` rule in kv_ring.hpp)
-  are not in the code.
-- A37 `IQ_LUT_DUP` (d11a9ca09) was never reverted although its gate said no-go (T-060): revert or keep off.
-- `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it.
+  are not in the code. OPEN: the review text that defines what they must do is not in the repo (grep finds `diverge_at` only in a
+  server log), so they are not coded; needs the original review wording.
+- A37 `IQ_LUT_DUP` (d11a9ca09): code read 2026-11-15: default off (iq_kernels.hpp, 0 = off); stays as an opt-in bench knob, not reverted.
+- `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it: opt-in, off, classified in disk_env;
+  left in (removing it needs a Mac-side check nobody can run here). OPEN, low.
 - `STRATA_PSI_SHED` (Speedy item 8.3) was never ported though the old plan counted it done.
-- Tools: `night_queue.py` marks a job with zero measurements "done", so `--retry-failed` skips it; `abtest.py` text_check
-  (:866) should accept any base hash; `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` and
-  `quality_gate.py:161` still defaults to `set.json`; all `taskgate-*` specs use `bench/tasks/default.json`.
+- Tools: FIXED (T-577): `night_queue.py` zero-measurement real passes are now failed; `abtest.py` text_check accepts any base
+  pass. OPEN: `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` (a `--fill` run with the stock arm, GPU hours) and
+  `quality_gate.py:161` stays on `set.json` until then (by design, see its comment); all `taskgate-*` specs use `bench/tasks/default.json`.
 - Item 38 O_DIRECT loader: the audit found it in HEAD (184e68e83, expert_source.cpp:852, `STRATA_UNBUFFERED_LOAD`), a
   research note says it is not built (expert_source.cpp:6155): re-check.
 - Planned but not in code: `STRATA_FORCE_ISA` avx512 / avx-vnni values (item 57), CPU governor setting (item 41);

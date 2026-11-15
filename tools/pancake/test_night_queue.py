@@ -440,3 +440,12 @@ def test_sigterm_stops_the_engine_gracefully_and_resume_finishes(tmp_path):
     assert rc == 0
     st = json.loads((rd / "state.json").read_text())["jobs"]
     assert st["slow"]["status"] == "done" and st["quick"]["status"] == "done"
+
+
+def test_a_pass_without_an_output_file_measured_nothing(tmp_path):
+    f = tmp_path / "out.json"
+    assert not NQ.pass_wrote_output(str(f))          # missing
+    f.write_text("")
+    assert not NQ.pass_wrote_output(str(f))          # empty
+    f.write_text("{}")
+    assert NQ.pass_wrote_output(str(f))
