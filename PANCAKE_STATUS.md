@@ -4,7 +4,19 @@ Updated as the work moves (owner's request, 2026-11-09).  Two columns: **Dev** =
 (HIP + CUDA); **Test** = how far it is from decided (measured on a quiet machine, quality-checked, in the preset or rejected).
 Order = MOD_PLAN phase 13 (biggest expected gain first).
 
-Last update: 2026-11-12 (prefilllevers merged and built; ntfs3 blocker handled, see below) - earlier note: 2026-11-11 17:40 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
+Last update: 2026-11-15 (read the 2026-11-15 section first; it replaces the older notes where they differ) - previous: 2026-11-12 (prefilllevers merged and built; ntfs3 blocker handled, see below) - earlier note: 2026-11-11 17:40 (the table below is the 2026-11-09 state; Phase 17 of MOD_PLAN.md is the current plan and the block right below is the current status)
+
+## Status 2026-11-15: the served instance, ECAP, and what was tested today
+
+Branch: `port/rdna3-decode` (pushed). Every other branch is already contained in it (202 refs checked, `MOD_PLAN.md` "Branch and worktree consolidation"); stale worktrees went from 107 to 14.
+
+- **Served instance:** `systemctl --user start pancake` (stop: `stop pancake`; it holds the whole 7900 XT, so stop it before any benchmark). It runs `run-pancake.sh iq2_xs fast` on port 11437 (preset `configs/pancake/flashnext-iq2_xs-fast-hip.json`), not enabled at boot, localhost only. Portal: `http://127.0.0.1:11437/` (chat) and `/pancake` (status page). The old upstream service was retired. A live test passed (short chat, edit prompt, tool call; decode 97 to 115 tok/s).
+- **In the daily preset now:** `STRATA_VERIFY_ECAP=1` (decode +33.5% on edit prompts, short prompts unchanged; token-forcing gate PASS, +0.29 points of top-1 mismatch), conversation cache 2048 MiB with a minimum park of 8192 tokens (prompt time -21.6%, cold re-reads 3 to 0, one recorded session), and the old service's sampling default (temperature 0.1, top_p 0.95, top_k 20). Not yet run: the tool-call task gate on real agent prompts. ECAP=0 failed the gate (+0.95 points) and is not used.
+- **Built, tested, off by default:** the matrix-core few-column kernels for Q4_K, Q5_K, Q6_K and IQ4_XS (`STRATA_RDNA_WMMA_MINCOLS`): 25 to 120% faster than the wave kernels in a kernel bench from 9 to 12 columns, but no gain in the engine on this pack, whose dense layers are IQ4_XS. The RDNA kernels for 9 to 16 columns are on (default).
+- **Tested and dropped today:** wide prompt tile (18 to 42% slower), wait-fuse variants, prefill CPU share, GPU PCIe share of missed experts (0.15, 0.3, 0.55 all slower), the suffix index and a 16-row lookup window on top of ECAP (not shown to add anything).
+- **Read and closed:** upstream llama.cpp few-row MMQ and BF16 rules, the QSA block scores, retained parked KV and draft KV verification (all already in our tree), strata-poly expert I/O (not our path), U6 graph changes (ggml internals).
+- **Tools:** the A41 read-before-edit hook is registered in warn-only mode; the status page now reads the amdgpu card (20 GiB VRAM, temperature, power).
+- **Next:** the ECAP tool-call task gate; a paired confirm of ECAP=1 with and without lookup window 16; the V5 upper-bound test; the P4 byte-bound probe for IQ2_XS rows. Full list and every number: `MOD_PLAN.md` ("Full re-read of 2026-11-15's conversation" and the sections above it).
 
 ## ntfs3 deadlock 2026-11-11 17:15 (resolved 2026-11-12, repo stays on D)
 
