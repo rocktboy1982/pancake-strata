@@ -18,7 +18,35 @@
       "env": {
         "STRATA_ADAPT_PROMPT": "1"
       }
+    },
+    "tier-rewarm": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_REWARM": "1",
+        "STRATA_TIER_REWARM_MIN": "800"
+      }
+    },
+    "tier-rewarm-decode-only": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_REWARM": "1",
+        "STRATA_TIER_REWARM_MIN": "800",
+        "STRATA_ADAPT_PROMPT": "0"
+      }
+    },
+    "refill-async": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_REFILL_ASYNC": "1"
+      }
+    },
+    "pf-ahead-refill-async": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_REFILL_ASYNC": "1",
+        "STRATA_PF_AHEAD": "1"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 item 1 (FK-28): STRATA_ADAPT_PROMPT=1 feeds the prompt's routing into the decode tier counts (drive.d.usage, weight STRATA_ADAPT_PROMPT_W, default RAM_ADAPT2's prompt_w, per = w*20*K/n), folded at the start of each tier round. Offline oracle: +2.9 hit points (TEST_LEDGER T-417). Routing input is exact; the tier changes which experts are on the GPU, so the text may differ (lossy). Judged on decode tok/s and the tier hit rate after the long1k / long3k prompts; short/edit control. The engine log has the \"weight folded\" stats line. Stop pancake.service first."
+  "note": "MOD_PLAN.md section 6 item 1 (FK-28): STRATA_ADAPT_PROMPT=1 feeds the prompt's routing into the decode tier counts (drive.d.usage, weight STRATA_ADAPT_PROMPT_W, default RAM_ADAPT2's prompt_w, per = w*20*K/n), folded at the start of each tier round. Offline oracle: +2.9 hit points (TEST_LEDGER T-417). Routing input is exact; the tier changes which experts are on the GPU, so the text may differ (lossy). Judged on decode tok/s and the tier hit rate after the long1k / long3k prompts; short/edit control. The engine log has the \"weight folded\" stats line. Stop pancake.service first. MOD_PLAN.md section 6 item 8: STRATA_TIER_REWARM=1 runs one uncapped tier swap round after a prompt of >= STRATA_TIER_REWARM_MIN tokens (default 2048; 800 here so long1k triggers it), ranked by decode usage + the prompt routing (it turns ADAPT_PROMPT on unless STRATA_ADAPT_PROMPT=0: the decode-only arm). The engine log prints one line per re-warm (tokens, swaps, ms). Judge decode tok/s on the short/edit requests after the long prompts. refill-async: 0xluk f9b14a4965, the decode-tier refill before the first token runs on its own stream (author: ~143 ms off TTFT); lossy for the reply (early windows may compute a lent expert on the CPU). Judge TTFT on the long* cases."
 }
