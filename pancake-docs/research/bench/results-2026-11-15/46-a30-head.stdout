@@ -1,0 +1,111 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 111.4 long1k 83.7/375p 1030t long3k 105.5/720p 2934t edit 110.0  foreign CPU 4% [('claude', 8), ('dbus-daemon', 0), ('gnome-shell', 0)]  gpu 1688/1249 MHz 52C 121W gtt 21M cpu 3578MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 share0               short 106.9 long1k 79.5/232p 1030t long3k 106.5/519p 2934t edit 81.2  foreign CPU 3% [('claude', 7), ('localsearch-3', 1), ('Privileged Cont', 0)]  gpu 1687/1249 MHz 52C 118W gtt 21M cpu 3164MHz 58C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 auto                 short 108.2 long1k 85.9/269p 1030t long3k 100.3/713p 2934t edit 108.9  foreign CPU 3% [('kworker/11:0-events_freezable', 2), ('kcompactd0', 1), ('localsearch-3', 1)]  gpu 1622/1249 MHz 52C 119W gtt 21M cpu 3199MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 max1024              short 111.3 long1k 80.8/373p 1030t long3k 115.8/639p 2934t edit 112.5  foreign CPU 3% [('claude', 2), ('kworker/u65:0-KFD IH', 2), ('accounts-daemon', 0)]  gpu 1736/1249 MHz 52C 123W gtt 21M cpu 3364MHz 57C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 max2048              short 111.3 long1k 84.7/376p 1030t long3k 101.4/640p 2935t edit 108.1  foreign CPU 3% [('kworker/9:2-events_freezable', 2), ('kcompactd0', 1), ('localsearch-3', 1)]  gpu 1588/1249 MHz 52C 117W gtt 21M cpu 3359MHz 57C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 max2048              short 87.9 long1k 81.6/270p 1031t long3k 96.1/639p 2935t edit 110.5  foreign CPU 9% [('claude', 20), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1844/1249 MHz 52C 124W gtt 21M cpu 3338MHz 57C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 max1024              short 77.8 long1k 87.2/226p 1031t long3k 101.2/521p 2935t edit 93.0  foreign CPU 3% [('claude', 6), ('dbus-daemon', 0), ('localsearch-3', 0)]  gpu 1753/1249 MHz 53C 123W gtt 21M cpu 3458MHz 58C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 auto                 short 111.2 long1k 82.0/370p 1031t long3k 118.9/716p 2935t edit 114.2  foreign CPU 3% [('claude', 2), ('kworker/u65:13-KFD IH', 1), ('localsearch-3', 1)]  gpu 1670/1249 MHz 52C 120W gtt 21M cpu 3679MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 share0               short 111.5 long1k 83.5/294p 1031t long3k 104.7/639p 2935t edit 109.4  foreign CPU 4% [('kcompactd0', 4), ('kworker/9:2-events_freezable', 4), ('kworker/11:2-events_freezable', 2)]  gpu 1655/1249 MHz 52C 119W gtt 21M cpu 3206MHz 58C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 base                 short 111.4 long1k 89.0/374p 1031t long3k 105.1/720p 2935t edit 110.6  foreign CPU 3% [('claude', 2), ('kworker/u65:16-KFD IH', 1), ('migration/10', 0)]  gpu 1682/1249 MHz 53C 122W gtt 21M cpu 3678MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 2 base                 short 111.3 long1k 83.1/376p 1031t long3k 96.2/719p 2935t edit 112.4  foreign CPU 4% [('claude', 7), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 1678/1249 MHz 53C 121W gtt 21M cpu 3529MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 2 share0               short 111.5 long1k 81.6/294p 1031t long3k 111.9/640p 2935t edit 111.5  foreign CPU 3% [('claude', 2), ('kworker/u65:2-KFD IH', 1), ('localsearch-3', 1)]  gpu 1632/1249 MHz 53C 118W gtt 21M cpu 3268MHz 58C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 2 auto                 short 111.3 long1k 87.9/371p 1031t long3k 105.6/715p 2935t edit 109.9  foreign CPU 3% [('claude', 2), ('kworker/u65:0-KFD IH', 1), ('localsearch-3', 1)]  gpu 1691/1249 MHz 53C 122W gtt 21M cpu 3545MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 2 max1024              short 109.0 long1k 84.8/295p 1031t long3k 94.7/640p 2935t edit 112.3  foreign CPU 3% [('claude', 2), ('kworker/u65:4-KFD IH', 1), ('localsearch-3', 1)]  gpu 1646/1249 MHz 53C 118W gtt 21M cpu 3422MHz 58C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 2 max2048              short 110.8 long1k 88.3/376p 1031t long3k 105.2/641p 2935t edit 114.5  foreign CPU 3% [('claude', 2), ('kworker/9:1-events_freezable', 1), ('kcompactd0', 1)]  gpu 1736/1249 MHz 53C 123W gtt 21M cpu 3492MHz 57C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 3 max2048              short 111.5 long1k 87.8/375p 1031t long3k 105.0/639p 2935t edit 109.9  foreign CPU 3% [('kworker/9:2-mm_percpu_wq', 2), ('kcompactd0', 1), ('kworker/u65:15-KFD IH', 1)]  gpu 1739/1249 MHz 53C 123W gtt 21M cpu 3364MHz 57C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 3 max1024              short 107.0 long1k 87.2/225p 1031t long3k 106.0/519p 2935t edit 112.9  foreign CPU 3% [('claude', 2), ('kworker/u65:7-KFD IH', 2), ('localsearch-3', 1)]  gpu 1576/1249 MHz 51C 116W gtt 21M cpu 3089MHz 58C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 3 auto                 short 88.2 long1k 84.9/267p 1031t long3k 101.5/579p 2935t edit 110.0  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('Isolated Web Co', 0)]  gpu 1513/1249 MHz 52C 113W gtt 21M cpu 3329MHz 53C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 3 share0               short 87.0 long1k 79.4/226p 1031t long3k 101.8/521p 2935t edit 111.8  foreign CPU 2% [('claude', 2), ('kworker/u65:4-KFD IH', 1), ('localsearch-3', 0)]  gpu 1674/1249 MHz 52C 120W gtt 21M cpu 3292MHz 58C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 3 base                 short 111.3 long1k 78.4/376p 1031t long3k 98.2/720p 2935t edit 112.5  foreign CPU 3% [('claude', 2), ('kworker/u65:2-KFD IH', 1), ('localsearch-3', 0)]  gpu 1679/1249 MHz 52C 121W gtt 21M cpu 3757MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.3 +-   0.1  (n=4)
+                              drafts accepted 0.66
+  short  share0                  104.2 +-  18.6  (n=4)   vs base:  -6.4% +- 16.6%  -> no difference
+                              drafts accepted 0.66
+  short  auto                    104.7 +-  17.7  (n=4)   vs base:  -5.9% +- 15.8%  -> no difference
+                              drafts accepted 0.66
+  short  max1024                 101.3 +-  25.0  (n=4)   vs base:  -9.0% +- 22.5%  -> no difference
+                              drafts accepted 0.66
+  short  max2048                 105.4 +-  18.5  (n=4)   vs base:  -5.4% +- 16.7%  -> no difference
+                              drafts accepted 0.66
+  long1k base                    375.4 +-   1.2  (n=4)
+  long1k share0                  261.3 +-  60.4  (n=4)   vs base: -30.4% +- 16.2%  -> worse
+  long1k auto                    319.2 +-  94.4  (n=4)   vs base: -15.0% +- 25.3%  -> no difference
+  long1k max1024                 279.6 +- 111.5  (n=4)   vs base: -25.5% +- 29.7%  -> no difference
+  long1k max2048                 349.3 +-  84.2  (n=4)   vs base:  -7.0% +- 22.2%  -> no difference
+  long3k base                    719.8 +-   0.9  (n=4)
+  long3k share0                  579.7 +- 109.3  (n=4)   vs base: -19.5% +- 15.2%  -> worse
+  long3k auto                    680.8 +- 108.3  (n=4)   vs base:  -5.4% +- 15.1%  -> no difference
+  long3k max1024                 579.7 +- 109.6  (n=4)   vs base: -19.5% +- 15.3%  -> worse
+  long3k max2048                 639.7 +-   1.3  (n=4)   vs base: -11.1% +-  0.3%  -> worse
+  edit   base                    111.4 +-   2.0  (n=4)
+                              drafts accepted 0.90
+  edit   share0                  103.5 +-  23.7  (n=4)   vs base:  -7.1% +- 19.9%  -> no difference
+                              drafts accepted 0.91
+  edit   auto                    110.8 +-   3.7  (n=4)   vs base:  -0.6% +-  4.1%  -> no difference
+                              drafts accepted 0.90
+  edit   max1024                 107.7 +-  15.6  (n=4)   vs base:  -3.3% +- 13.3%  -> no difference
+                              drafts accepted 0.90
+  edit   max2048                 110.8 +-   4.3  (n=4)   vs base:  -0.6% +-  3.0%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  share0               identical on every case -> exact
+  auto                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  max1024              identical on every case -> exact
+  max2048              DIFFERENT text -> lossy or placement-dependent: quality gate

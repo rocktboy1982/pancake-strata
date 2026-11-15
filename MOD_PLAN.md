@@ -3703,3 +3703,16 @@ Archive: `pancake-docs/research/bench/results-2026-11-15/45-*.stdout`. Base 110.
 Per repeat, short: base 108.6 to 111.4; sidx 124.6 to 125.9 in five repeats and one outlier at 212.0; sidx-fallback 122.9 to 125.8 in five and one outlier at 176.0. So the typical short gain is +13% and the means are pulled up by the two outliers (the interval of sidx includes zero only because of them). The edit prompt does not move.
 
 Verdict by the promote-from-0% rule: **both arms promoted to confirm** (a case above 0, none below -3%). Two cautions before any default: (1) the text differs from base, so the quality gate applies first; (2) the real-trace replay of the opencode store (`A24`, 2026-11-13) predicted only +2.0% accepted tokens and -2.4% verify rounds, while this short prompt gains about +13% (accepted 0.66 -> 0.75). The short benchmark prompt is a repetitive output case, so +13% is the ceiling for that prompt shape, not the expected agent gain; the real-store figure (+2%, sub-agents +6%) is the expectation. Confirm needs a prompt set drawn from the real store, not only the two synthetic prompts. sidx-fallback is the arm to carry (same gain, falls back to the old lookup).
+
+### Spec 46: A30 prefill CPU share on the HEAD engine (2026-11-15, screen, 4 repeats)
+
+Archive: `pancake-docs/research/bench/results-2026-11-15/46-*.stdout`. Base: short 111.3, edit 111.4 decode tok/s, long1k 375.4 and long3k 719.8 prompt tok/s.
+
+| arm | long1k | long3k | short | edit | text |
+| --- | --- | --- | --- | --- | --- |
+| share0 | -30.4% (worse) | -19.5% (worse) | -6.4% | -7.1% | exact |
+| auto | -15.0% | -5.4% | -5.9% | -0.6% | differs |
+| max1024 | -25.5% | -19.5% (worse) | -9.0% | -3.3% | exact |
+| max2048 | -7.0% | -11.1% (worse) | -5.4% | -0.6% | differs |
+
+Verdict: **all four arms dropped.** No case is above 0 and prompt speed is below -3% in every long case. The CPU share is already tuned by the daily preset (`--pcie-frac 0` measured best, V1 read of 2026-11-15); changing it, capping it or letting the engine pick it only slows the prompt. Item closed.
