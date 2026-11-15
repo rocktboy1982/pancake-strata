@@ -96,6 +96,7 @@ from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache
 from serve import lifeline  # noqa: E402
 from serve.conv_router import config as conv_router_cfg  # noqa: E402
 from serve import prompt_kind  # noqa: E402
+from serve import tool_idle  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
 from serve.responses import ResponsesError, error_body as responses_error_body  # noqa: E402
@@ -7099,6 +7100,9 @@ class Service:
             ka.acquire()
         try:
             events = self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            idle = tool_idle.tracker()                   # STRATA_TOOL_IDLE (opt-in): None when off
+            if idle is not None and not tool_idle.background():
+                events = idle.wrap(self, ids, events, getattr(tool_idle._LOCAL, "prepared", None))
             keeper = self.reasoning_keeper
             yield from (events if keeper is None else self._kept(events, keeper))
         finally:
@@ -9646,6 +9650,7 @@ def make_handler(svc: Service):
                     return
                 if path in ("/v1/chat/completions", "/v1/messages", "/v1/responses"):
                     svc.conv_route_decide(req)               # STRATA_CONV_ROUTE (opt-in): may retune prompt_cache
+                    tool_idle.on_request(req)                # STRATA_TOOL_IDLE (opt-in): closes a tool window
                     self.record = svc.begin_request(path, req)
                 self.capture = svc.request_capture.begin(path, req, self.headers) if svc.request_capture else None
                 if path == "/v1/responses":
