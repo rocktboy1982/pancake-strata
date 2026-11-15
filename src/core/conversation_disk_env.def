@@ -43,7 +43,7 @@ STRATA_ENV("STRATA_VERIFY_DEFER_CPU", Key, "CPU rows deferred a window: lossy")
 STRATA_ENV("STRATA_VERIFY_DEFER_CPU_BELOW", Key, "deferral threshold")
 STRATA_ENV("STRATA_VERIFY_DEFER_CPU_TOP", Key, "deferral top-k")
 
-// ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (96) ----
+// ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (97) ----
 STRATA_ENV("STRATA_AMD_COMMUNITY_TUNING", KeyIfSet, "makes SELECT_SIMT=2 the default on gfx103x (other summation order, KL 0.0256) and loads community GEMM tables")
 STRATA_ENV("STRATA_BFLA", Inert, "old BFLA switch, split in two: turns nothing on, prints a note")
 STRATA_ENV("STRATA_BFLA_DENSE", KeyIfSet, "fused dense prompt attention; not bitwise equal to the GEMM path")
@@ -123,6 +123,7 @@ STRATA_ENV("STRATA_PF_FUSED_WS", KeyIfSet, "F16 products of the fused path (same
 STRATA_ENV("STRATA_PF_GEMM", KeyIfSet, "prompt projections on WMMA GEMM (bit-changing)")
 STRATA_ENV("STRATA_PF_HCDOWN", KeyIfSet, "HC down by WMMA kernel (first-token KL doubled at 16K)")
 STRATA_ENV("STRATA_PF_SMALL", KeyIfSet, "turns the small-card prompt path (unfused experts, layer-major walk) on/off; decides whether PF_FUSED (rounds differently from MMQ) runs")
+STRATA_ENV("STRATA_PF_SPLIT_ACTUAL", KeyIfSet, "A/B of STRATA_PF_AHEAD: the CPU share's split sees the loan's pool slots as non-resident (other experts on the CPU; 0xluk 896481c943)")
 STRATA_ENV("STRATA_PF_SWITCH_MIN_T", KeyIfSet, "chunk length from which the rounding-level prompt switches apply")
 STRATA_ENV("STRATA_PF_WMMA", KeyIfSet, "WMMA prompt experts with FP16 activations (not MMQ rounding)")
 STRATA_ENV("STRATA_PREFILL_BF16X2", KeyIfSet, "differs from the old path in the BF16 low-part term")
@@ -273,7 +274,7 @@ STRATA_ENV("STRATA_WS_FAST", Unsure, "weight-staged fast path (opt-in)")
 // ---- InConfig: changes what a state holds but is already in the session config fingerprint (generate.cpp session_identity) (1) ----
 STRATA_ENV("STRATA_KV_ROT", InConfig, "covered by the config fingerprint (session_identity: c.kv_rot)")
 
-// ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (497) ----
+// ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (539) ----
 STRATA_ENV("STRATA_ADAPT_ASYNC", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_ASYNC_BATCH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_ASYNC_WAIT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
@@ -576,6 +577,10 @@ STRATA_ENV("STRATA_PEER_HOT", Speed, "placement/tiering of experts (same math, G
 STRATA_ENV("STRATA_PEER_HOT_AT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_PEER_NO_P2P", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_PENALTY_PROMPT", Speed, "sampling penalty counts (same note)")
+STRATA_ENV("STRATA_PF_AHEAD", Speed, "prompt path scheduling/staging (staged chunks' next-layer experts prefetched into a pool in the loan; the split ignores the pool, same bytes; 0xluk 896481c943)")
+STRATA_ENV("STRATA_PF_AHEAD_KV", Speed, "prompt path scheduling/staging (0: STRATA_PF_AHEAD leaves the K/V staging copy on the compute stream)")
+STRATA_ENV("STRATA_PF_AHEAD_MIN", Speed, "prompt path scheduling/staging (smallest chunk STRATA_PF_AHEAD prefetches for)")
+STRATA_ENV("STRATA_PF_AHEAD_SLOTS", Speed, "prompt path scheduling/staging (STRATA_PF_AHEAD's pool size)")
 STRATA_ENV("STRATA_PF_BATCH", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_PF_BK64", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_PF_COPY2", Speed, "prompt path scheduling/staging/chunk sizing (second copy stream, same bytes)")
@@ -695,6 +700,7 @@ STRATA_ENV("STRATA_RDNA_WMMA_MINCOLS", Speed, "RDNA K-quant matrix-core few-colu
 STRATA_ENV("STRATA_RDNA_WMMA_MINROWS", Speed, "RDNA K-quant matrix-core few-column kernel: fewest weight rows it takes (default 2048)")
 STRATA_ENV("STRATA_RDNA_WMMA_KS", Speed, "RDNA K-quant matrix-core few-column kernel: K slices a tile, 1, 2 or 4 (default: 4 below 6400 rows, else 2)")
 STRATA_ENV("STRATA_RDNA_WMMA_IQ4SHARE", Speed, "RDNA IQ4_XS matrix-core kernel: decode shared between the lane halves (A/B knob)")
+STRATA_ENV("STRATA_REFILL_ASYNC", Speed, "placement/tiering of experts (same math, GPU vs CPU; lent slots refilled behind the first windows, 0xluk f9b14a4965)")
 STRATA_ENV("STRATA_REFILL_BLOCKING", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_REFILL_PARTS", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_REFILL_SERIAL", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
