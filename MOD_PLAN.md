@@ -3526,3 +3526,50 @@ Basis: "compared" means the upstream diff and our code were both read. "Not comp
 | FK-23 Q2_0 fast unpack (c3fc8f34d3) | already ported as F7 | compared | engine A/B on the Q2_0 preset (GPU) before any default flip; parity passes |
 
 No-hardware work that remains: read-and-compare for V1, V4, U1, U3, U6 (each is a CPU-only read, none done yet). GPU work that remains: V5 A/B, then whatever the read-and-compare finds.
+
+### Prioritized work list by expected gain (2026-11-15)
+How the order was set: gain first, then confidence, then cost (dev effort and GPU time). Evidence class of every gain: MEASURED (A/B on our card), REPLAY (offline replay on our traces), BOUND (a ceiling computed from our profile or benchmark), ESTIMATE (plan or author claim, not verified here). Where the evidence is weak the gain is still shown, but the item is ranked lower.
+Where the time goes (decode profile, base preset, kernels are 77-78% of wall): combine_cpu 25.8% + wait_flag_ge 14.8% + wait_flag_copy_i32 4.4% = 45% of kernel time is waiting on the CPU expert pool; then rdna_kq 9.0%, expdec_gu 6.8%, rdna_gr_fused 6.5%, expdec_down 5.0%, route_publish_res 2.5%, everything else 1.6% or less each.
+Resolution limit of our tests: on a quiet machine with the clock pinned, short and edit cases resolve about +-2 to 5% at 6 repeats; long contexts about +-10% or worse. An item whose expected gain is below 3% needs 12 or more paired repeats; below 1.5% it is not worth testing.
+
+**Tier 1: largest evidence, cheapest to test (do first, GPU only, code already exists)**
+| rank | item | expected gain (evidence) | exact | cost | first action |
+|---|---|---|---|---|---|
+| 1 | wait-fuse-off (Phase 18 item 3) and fuse-wait (item 4) | short +4.7% and +3.3%, edit +3.3% and +3.0% (MEASURED, confirm n=6, intervals +-8.6 to +-9.5 include zero); target is the 45% CPU-wait pool | yes (text identical) | one run, about 1 hour | 12-repeat paired confirm, both arms plus base, clock pinned, quiet machine |
+| 2 | A24 cross-session suffix index (`STRATA_SUFFIX_INDEX`, spec 24-a24-suffix-index.json) | accepted tokens +2.0% and verify rounds -2.4% overall; sub-agent turns +6.0% and -7.5% (REPLAY on 2,045 real requests, approximate chat template) | yes | one screen run | GPU screen on short and edit; promote on the 0% rule |
+| 3 | A30 CPU-share threshold for prefill (spec a30-fiddler-cpu-share.json) | up to about 0.4 s per agent turn (ESTIMATE) | rounding class | tiny env A/B | run the spec at 512 to 3000 token deltas |
+
+**Tier 2: sizeable but needs a check or small code first**
+| rank | item | expected gain (evidence) | exact | cost | first action |
+|---|---|---|---|---|---|
+| 4 | A22 / A56 acceptance-based chain stop and expected acceptance rate | 0-10% (ESTIMATE; SpecFit authors' ceiling +7-22%) | yes | M (trace step 1 is done) | GPU identity run (greedy tokens flag on equals flag off), one dump run, then the CPU replay of acceptance |
+| 5 | A21 exact sampled speculation (`STRATA_SPEC_PROB`) | +3-8% on sampled turns only (ESTIMATE) | yes in distribution | XS | read the request temperature now logged in the turn log; if the agent runs at temperature 0 the gain is 0 and the item closes |
+| 6 | A12 pinned prefix store and A15 park TTL | up to about 7% of turn time on sub-agent switches (ESTIMATE, low confidence) | yes | S, needs a live agent A/B | one multi-session A/B; the rank-3 eviction rule is already on the integration branch only |
+| 7 | A9 pre-stage during tool calls (`STRATA_IDLE_ADAPT`) | 2-4% of wall time (BOUND: tool time is 11.3% of wall, coverage 20-35%) | placement only | M (replay harness that sleeps the recorded tool gaps) | GPU replay with the switch on and off |
+| 8 | A19 learned thinking stop | -20-40% thinking tokens (ESTIMATE, authors, untested on agents) | lossy | M, quality gate needed | engine top-2 margin logging, then replay |
+| 9 | V5 draft model sharing the main expert cache | unknown (no number anywhere) | yes if it only changes placement | one A/B | exclude the draft layer from the expert cache and compare |
+
+**Tier 3: real but small, or large effort, or unproven (ranked by gain per cost)**
+| rank | item | expected gain (evidence) | notes |
+|---|---|---|---|
+| 10 | A29 expert-byte entropy coding (owner approved building it) | 8-12% fewer expert bytes (MEASURED bound, 2026-11-10); the plan's own rule closes the item below 20%; the CPU pool is byte-bound (0.86 of the DDR4 floor, A48), so fewer bytes could shorten pool time, minus the decode cost | research step first (owner rule), L effort, end-to-end gain unmeasured |
+| 11 | A31 GDN prefill chunk 64 | 5-11% of cold prefill (ESTIMATE) | M; TTFT only, no decode gain |
+| 12 | FK-22 router publish fast path | +1-2% (ESTIMATE); BOUND 2.5% (route_publish_res share) | GPU kernel work; the ROUTE_FAST variant was already dropped |
+| 13 | A34 coordinate-descent sweep | 1-3% (ESTIMATE) | tool built; bit-exact check first |
+| 14 | A33 small-M fusion, A35 cache warm | 1-4% and 0-2 ms/window (ESTIMATE; both screened not significant) | low confidence |
+| 15 | U3 MMVF for few-row BF16 | at most 1.3% (BOUND: bf16_f32_mmvf_multi share) | compare against our kernel first |
+| 16 | U1 few-row MMQ, V4 MoE layout, U6 graph overhead, V1 CPU share | each unknown; read-and-compare not done | CPU-only reads first; V1 is the same family as rank 1 |
+| 17 | FK-23 Q2_0 fast unpack default flip | at most about 3% (BOUND), Q2_0 preset only | already ported (F7); needs a Q2_0 engine A/B |
+| 18 | A8 swap budget | 0-5% (ESTIMATE); swaps64 +4.9% edit measured, output differs | placement-dependent text; lossy class |
+
+**Closed or held (no further effort without new evidence)**
+Dropped by our own tests: wave32 MMVQ, WMMA attention on gfx1100, occupancy change (STRATA_GR_WPE 4), combine-poll1, route-fast, doorbell-store, mtp-eager, spec3, device-plan, aux-cpus-auto, kv-grow, A44 bandit family, V3 ClassLRU. Held: A51 sparse decode attention (A49 shows no attention slope), A50 (same evidence), A28 coder model (kept on D, Avalon only, needs 29.6 GB resident), A27 requant (L effort, lossy), A42 offload (lossy, needs counters), A36 weight-major layout (unknown), A46 learned cache policy (build only at 5% or more in a recalibrated time model), A45 (0-3% here).
+
+**Enablers (no gain of their own, but every rank above depends on them)**
+1. GPU clock pinned to high after every reboot (owner, sudo); CPU already stable.
+2. More repeats on long contexts: the confirm tier's early stop ended the 10k and 32k cases at n=2.
+3. The flag-order test fix (static analysis only so far) so the GPU suite is 134 of 134.
+4. chkdsk on the D drive (it mounts dirty after reboots and had to be force-mounted).
+
+**Order of execution**
+Test now, in this order: 1, 2, 3, 5 (a CPU check of logged temperatures), 9, 7, 6. Develop in this order: 4 (finish the A22 replay and the identity run), then 10 (after its research step), then 8 (logging first), then 11. Items in Tier 3 below rank 11 are not started unless a Tier 1 or 2 result changes the picture.
