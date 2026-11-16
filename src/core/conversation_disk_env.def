@@ -1150,6 +1150,7 @@ STRATA_ENV("STRATA_Q36_ATTN_GQA", Inert, "q36 engine path (qwen35 library): no C
 STRATA_ENV("STRATA_Q36_ATT_GROUPED", Inert, "q36 engine path (qwen35 library): no ConversationDiskTier; storm-ace f74984a171 grouped prompt attention GEMMs (FP16-GEMM level)")
 STRATA_ENV("STRATA_Q36_BLAS_F32", Inert, "q36 engine path (qwen35 library): no ConversationDiskTier")
 STRATA_ENV("STRATA_Q36_CHUNK", Inert, "q36 engine path (qwen35 library): no ConversationDiskTier")
+STRATA_ENV("STRATA_Q36_FA", Inert, "q36 engine path (qwen35 library): no ConversationDiskTier; storm-ace e4fc07ee57 WMMA flash prompt attention (FP16-level lossy)")
 STRATA_ENV("STRATA_Q36_SPEC_SAMPLE", Inert, "q36 engine path (qwen35 library): no ConversationDiskTier; storm-ace f74984a171 MTP drafts for sampled requests (same distribution, other random stream)")
 STRATA_ENV("STRATA_Q36_DRAFT_VOCAB", Inert, "q36 engine path (qwen35 library): no ConversationDiskTier")
 STRATA_ENV("STRATA_Q36_FIXED_SLOTS", Inert, "q36 engine path (qwen35 library): no ConversationDiskTier")
