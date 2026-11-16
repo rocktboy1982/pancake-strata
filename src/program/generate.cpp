@@ -139,6 +139,7 @@
 #include "strata/program/split_ring.hpp"
 #include "strata/program/prefill_plan.hpp"
 #include "strata/program/draft_kv_plan.hpp"
+#include "strata/program/fork_bugfix_rules.hpp"
 #include "strata/program/message_boundary.hpp"
 #include "strata/spec/disco.hpp"
 #include "strata/spec/draft_policy.hpp"
@@ -448,6 +449,24 @@ bool session_two_pass_env() {
 // (one GPU, no --batch); the RAM cache may be off.  Unset: as before.
 bool conv_disk_only_env() {
     static const bool on = [] { const char* v = std::getenv("STRATA_CONV_DISK_ONLY"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+// STRATA_CONV_DISK_WANTS=1 (opt-in; ElXreno/Strata 3da39ce1, LEADS.md Part H): a STRATA_CONV_DISK_ONLY save also obeys
+// --conversation-cache-min-tokens (conversations.wants), so a short side conversation is not written to disk.  Unset: as before.
+bool conv_disk_wants_env() {
+    static const bool on = strata::program::fork_fix_env("STRATA_CONV_DISK_WANTS");
+    return on;
+}
+// STRATA_CACHE_ROOT_PAST=1 (opt-in; ElXreno/Strata 00be27a0): the prompt-cache root is the first turn boundary at or past
+// --prompt-cache-root, not only the first boundary of the prompt when that one is past it.  Unset: as before.
+bool cache_root_past_env() {
+    static const bool on = strata::program::fork_fix_env("STRATA_CACHE_ROOT_PAST");
+    return on;
+}
+// STRATA_DISK_NO_DRAFT=1 (opt-in; lorenzoaspesi/Strata f93304f8, ElXreno/Strata f16edb27): the conversation disk save, read
+// and restore pass no draft layer when no --mtp layer is loaded.  Unset: the (empty) draft state is passed, as before.
+bool disk_no_draft_env() {
+    static const bool on = strata::program::fork_fix_env("STRATA_DISK_NO_DRAFT");
     return on;
 }
 bool ckpt_pool_env() {

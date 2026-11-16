@@ -83,6 +83,7 @@
 #include "strata/kernels/route_plan.hpp"
 #include "strata/kernels/sampler.hpp"
 #include "strata/core/progress.hpp"
+#include "strata/program/fork_bugfix_rules.hpp"
 #include "strata/kernels/shared_expert.hpp"
 #include "strata/kernels/verify_kernels.hpp"
 #if defined(STRATA_HAVE_DFLASH2)

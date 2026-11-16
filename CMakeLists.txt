@@ -2452,6 +2452,10 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(message_boundary_test src/program/message_boundary_test.cpp)
   target_include_directories(message_boundary_test PRIVATE include)
   add_test(NAME message_boundary_test COMMAND message_boundary_test)
+  # six exact fork bug fixes behind default-off switches (LEADS.md Part H): the decisions as pure functions
+  add_executable(fork_bugfix_rules_test src/program/fork_bugfix_rules_test.cpp)
+  target_include_directories(fork_bugfix_rules_test PRIVATE include)
+  add_test(NAME fork_bugfix_rules_test COMMAND fork_bugfix_rules_test)
   # a layer split's ring override and the lend slots sized with it: the RAM copy must keep every borrowed slot (CPU)
   add_executable(split_ring_test src/program/split_ring_test.cpp)
   target_include_directories(split_ring_test PRIVATE include)
@@ -3914,7 +3918,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     recycle_drafts_test
-    draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test expert_entropy_test
+    draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
     spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test fragile_recheck_test kv_ring_test

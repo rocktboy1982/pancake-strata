@@ -342,7 +342,10 @@ STRATA_ENV("STRATA_WS_FAST", Unsure, "weight-staged fast path (opt-in)")
 // ---- InConfig: changes what a state holds but is already in the session config fingerprint (generate.cpp session_identity) (1) ----
 STRATA_ENV("STRATA_KV_ROT", InConfig, "covered by the config fingerprint (session_identity: c.kv_rot)")
 
-// ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (539) ----
+// ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (542) ----
+STRATA_ENV("STRATA_CONV_DISK_WANTS", Speed, "disk-only save obeys --conversation-cache-min-tokens: only which conversations are written, never their bytes (LEADS.md Part H)")
+STRATA_ENV("STRATA_CACHE_ROOT_PAST", Speed, "where the prompt-cache root checkpoint is taken (a split point; the K/V of the same tokens is the same, LEADS.md Part H)")
+STRATA_ENV("STRATA_DISK_NO_DRAFT", Speed, "no draft layer in the disk save / restore when no --mtp layer is loaded: main layers identical, only a path that failed before (LEADS.md Part H)")
 STRATA_ENV("STRATA_ACTQ_SKIP_NOCPU", Speed, "bitwise: skips the CPU activation quant of tokens with no CPU expert; the CPU jobs read the same bytes")
 STRATA_ENV("STRATA_ADAPT_ASYNC", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_ASYNC_BATCH", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
@@ -987,7 +990,10 @@ STRATA_ENV("STRATA_WAIT_FUSE_ROWS", Speed, "bitwise: documented (docs/README/cod
 STRATA_ENV("STRATA_WARM_CU_MASK", Speed, "graph/stream plumbing: the IC_WARM stream limited to the first N CUs; same kernels and bytes (LEADS.md Part D)")
 STRATA_ENV("STRATA_XN_F16", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 
-// ---- Inert: diagnostics, test hooks, paths, limits, io, tools and other engines; must not be in the key (274) ----
+// ---- Inert: diagnostics, test hooks, paths, limits, io, tools and other engines; must not be in the key (277) ----
+STRATA_ENV("STRATA_WINDOW_EVICT_LONG", Inert, "which cached window graphs are freed under VRAM pressure; a graph is captured again when used (LEADS.md Part H)")
+STRATA_ENV("STRATA_CAPTURE_BEAT", Inert, "watchdog heartbeat after a window graph capture (LEADS.md Part H)")
+STRATA_ENV("STRATA_FORK_FIX_TEST", Inert, "test hook of fork_bugfix_rules_test")
 STRATA_ENV("STRATA_ACT_DUMP", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_ACT_DUMP_COV", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_ACT_DUMP_LAYERS", Inert, "diagnostic/test hook")
