@@ -168,12 +168,12 @@ miss.
 
 ## 5. Run next: coded, never measured (GPU queue, in this order)
 
-1. **RAN 2026-11-15 21:58 to 2026-11-16 01:06 (autonomous overnight chain): specs 62, 60, 61 (T-587..T-589), the CPU probe (T-590), spec 65 (T-591); spec 64 was invalid (T-592) and is re-run.** **Results of the box chain** `pancake-docs/research/bench/results-2026-11-15/run-scripts-afternoon/auto-chain15.sh` (started
+1. **RAN 2026-11-15 21:58 to 2026-11-16 01:06 (autonomous overnight chain): specs 62, 60, 61 (T-587..T-589), the CPU probe (T-590), spec 65 (T-591); spec 64 was invalid (T-592); its rerun 02:39-03:21 shows no gain (T-596).** **Results of the box chain** `pancake-docs/research/bench/results-2026-11-15/run-scripts-afternoon/auto-chain15.sh` (started
    18:22 local on 2026-11-15; spec 60 from 19:07, ~19:55 ETA): spec 60 (five ECAP arms, see D1), 61 (quality gate of the gated
    arms), 62 (the two cache levers combined on the replay): add them as ledger rows. Box rule while the chain runs: no builds
    and no memory-bandwidth benches. Then, in the box's order: (a) build, parity-check and measure the IQ4_XS matrix-core
-   variant that shares the nibble-LUT decode between lane halves (written, off by default, uncommitted on the box:
-   `rdna_mmvq.cu` + one `conversation_disk_env.def` line); (b) the P4 byte-bound probe for IQ2_XS rows = the existing
+   variant that shares the nibble-LUT decode between lane halves (DONE: committed off by default, parity 384/384 T-578, engine A/B
+   no gain T-596, so the matrix-core kernels stay off); (b) the P4 byte-bound probe for IQ2_XS rows = the existing
    `iq_avx2_parity --bench` (IQ pairs, `--nt` thread counts, `--mb` working set; already built); (c) the ECAP tool-call task
    gate (D1). Then **spec 30** (D7). Fix the base path in specs 33 and 34 first
    (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
