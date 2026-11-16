@@ -1526,7 +1526,9 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                     // Q2_0 down (most IQ layers): the AVX-512 kernel, ggml-cpu has only a scalar one on x86
                     const ActQ* a2[MAXT];
                     for (int t = 0; t < mjobs_[e].nt; ++t) a2[t] = &sb.a2[t];
-                    if (sb.skip != 0)   // STRATA_CPU_ACT_SPARSE (opt-in, LEADS.md B1/B2): the all-zero blocks left out
+                    if (mjobs_[e].slice != nullptr)   // STRATA_SLICE_MISS (opt-in, LEADS.md SliceMoE): the 1-bit slice
+                        q2_hi_rows_any(mjobs_[e].slice, (int) (nfmt->n_ff / 64), a2, mjobs_[e].nt, mjobs_[e].out, r0, r1);
+                    else if (sb.skip != 0)   // STRATA_CPU_ACT_SPARSE (opt-in, LEADS.md B1/B2): the all-zero blocks left out
                         q2_rows_skip(mjobs_[e].blob + nfmt->down_off, nfmt->d_row, (int) (nfmt->n_ff / 64), a2,
                                      mjobs_[e].nt, mjobs_[e].out, r0, r1, sb.skip);
                     else

@@ -169,6 +169,8 @@ STRATA_ENV("STRATA_ROUTE_TAIL_SKIP_LAYERS", KeyIfSet, "per-layer rank of ROUTE_T
 STRATA_ENV("STRATA_TAIL_SKIP_MAX_CACHED", KeyIfSet, "limit of ROUTE_TAIL_SKIP (decides which tails are skipped)")
 STRATA_ENV("STRATA_SHADOW_MISS", KeyIfSet, "CPU misses read gate/up from a sub-2-bit shadow GGUF (lossy; LEADS.md A27)")
 STRATA_ENV("STRATA_SHADOW_MISS_W", KeyIfSet, "SHADOW_MISS only under this router share (lossy; LEADS.md A27)")
+STRATA_ENV("STRATA_SLICE_MISS", KeyIfSet, "CPU misses under a router share read the 1-bit slice of their Q2_0 down rows (lossy; LEADS.md SliceMoE)")
+STRATA_ENV("STRATA_SLICE_MISS_MB", KeyIfSet, "cap on the SLICE_MISS slice cache (past it the full rows are read: output differs)")
 STRATA_ENV("STRATA_MOBILE", KeyIfSet, "MoBiLE little mode: a confident token's lower-half missed experts skipped (lossy; LEADS.md MoBiLE)")
 STRATA_ENV("STRATA_MISS_SKIP_CUM", KeyIfSet, "skips missed experts past a cumulative gate weight (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")
 STRATA_ENV("STRATA_MISS_SKIP_W", KeyIfSet, "skips missed experts under a gate-weight share (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")

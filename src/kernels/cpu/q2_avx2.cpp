@@ -407,4 +407,39 @@ void act_quant_q8_1_avx2(const float* x, int n, ActQ& a) {
     else a.bp_pairs = 0;
 }
 
+// LEADS.md SliceMoE (STRATA_SLICE_MISS): q2_hi_rows_scalar on AVX2 (expert_layout.cpp has the formula).  Per 32-value
+// chunk the 32 high bits become a 0/1 byte vector (broadcast, byte shuffle, bit test), maddubs against q gives the sum of
+// q over the set bits exactly; the float part is the scalar one's expression, chunk by chunk.
+void q2_hi_rows_avx2(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1) {
+    const __m256i sel = _mm256_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+                                         2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3);
+    const __m256i bit = _mm256_setr_epi8(1, 2, 4, 8, 16, 32, 64, (char) 128, 1, 2, 4, 8, 16, 32, 64, (char) 128,
+                                         1, 2, 4, 8, 16, 32, 64, (char) 128, 1, 2, 4, 8, 16, 32, 64, (char) 128);
+    const __m256i one8 = _mm256_set1_epi8(1);
+    const __m256i one16 = _mm256_set1_epi16(1);
+    for (int r = r0; r < r1; ++r) {
+        for (int t = 0; t < nt; ++t) {
+            float acc = 0.0f;
+            for (int b = 0; b < nblocks; ++b) {
+                const uint8_t* o = planes + ((size_t) r * (size_t) nblocks + (size_t) b) * kQ2HiBlock;
+                const float d = h2f(o);
+                for (int c = 0; c < 2; ++c) {
+                    uint32_t m;
+                    std::memcpy(&m, o + 2 + 4 * c, 4);
+                    const __m256i x = _mm256_shuffle_epi8(_mm256_set1_epi32((int) m), sel);
+                    const __m256i on = _mm256_and_si256(_mm256_cmpeq_epi8(_mm256_and_si256(x, bit), bit), one8);
+                    const __m256i q = _mm256_loadu_si256((const __m256i*) (a[t]->q + b * 64 + 32 * c));
+                    const __m256i s32 = _mm256_madd_epi16(_mm256_maddubs_epi16(on, q), one16);
+                    __m128i s4 = _mm_add_epi32(_mm256_castsi256_si128(s32), _mm256_extracti128_si256(s32, 1));
+                    s4 = _mm_add_epi32(s4, _mm_shuffle_epi32(s4, 0x4E));
+                    s4 = _mm_add_epi32(s4, _mm_shuffle_epi32(s4, 0xB1));
+                    const int32_t s = _mm_cvtsi128_si32(s4);
+                    acc += d * a[t]->scale[2 * b + c] * (2.0f * (float) s - 0.5f * (float) a[t]->sum[2 * b + c]);
+                }
+            }
+            out[t][r] = acc;
+        }
+    }
+}
+
 }  // namespace strata::kernels::cpu

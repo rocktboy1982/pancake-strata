@@ -888,7 +888,8 @@ bool miss_skip_weights_on();
 /// STRATA_ADAPT_PROB_MASS=1 (opt-in; LEADS.md Part B B134): the tier's routing counts add router probability x k.
 bool adapt_prob_mass_on();
 /// STRATA_SHADOW_MISS=<gguf> with STRATA_SHADOW_MISS_W=<share> (opt-in, lossy; LEADS.md A27): CPU misses under the share
-/// read the sub-2-bit shadow's gate/up rows (expert_source.cpp shadow_fmt).
+/// read the sub-2-bit shadow's gate/up rows (expert_source.cpp shadow_fmt); also true for STRATA_SLICE_MISS=<share> < 1
+/// (LEADS.md SliceMoE: misses under the share read the 1-bit slice of their Q2_0 down rows).
 bool shadow_miss_weights_on();
 /// The verifier publishes the window's routing weights to the pool (GpuPlanSink::skip_w) when either of the above wants them.
 bool pool_weights_wanted();

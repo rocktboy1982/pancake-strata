@@ -5087,8 +5087,23 @@ ShadowMiss& shadow_miss() {
     }();
     return *s;
 }
+// LEADS.md SliceMoE (Matryoshka expert slices: the low-bit expert is a shifted view of the high-bit bytes, no duplicate
+// copy), STRATA_SLICE_MISS=<share> (opt-in, lossy; read once): a CPU miss whose opening entry has a router share under
+// <share> (1 = every miss; the weights come from the verifier's sink) computes its Q2_0 down rows from the 1-bit slice of
+// the same rows (each code's high bit; expert.hpp kQ2HiBlock: 10 of 18 bytes a block read), built once per expert and
+// kept up to STRATA_SLICE_MISS_MB.  Only the Q2_0 down projection has the slice; gate/up keep their rows.
+float slice_miss_share() {
+    static const float s = [] {
+        const char* v = std::getenv("STRATA_SLICE_MISS");
+        const double x = v != nullptr ? std::atof(v) : 0.0;
+        return x > 0.0 && x <= 1.0 ? (float) x : 0.0f;
+    }();
+    return s;
+}
 }  // namespace
-bool shadow_miss_weights_on() { return shadow_miss().on && shadow_miss().w_share > 0.0f; }
+bool shadow_miss_weights_on() {
+    return (shadow_miss().on && shadow_miss().w_share > 0.0f) || (slice_miss_share() > 0.0f && slice_miss_share() < 1.0f);
+}
 namespace {
 // The per-job format of a shadow read of (layer, expert), whose model blob is `blob` with format `mf`; false = keep the
 // model's rows.  `f` gets the shadow's gate/up type and rows, the up and down offsets relative to the shadow gate rows
@@ -5824,6 +5839,21 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                         }
                     }
                 }
+                nj.slice = nullptr;
+                if (native && slice_miss_share() > 0.0f) {   // STRATA_SLICE_MISS (opt-in, lossy; LEADS.md SliceMoE)
+                    // the opening entry's router share under the switch's value (no weights published: every miss)
+                    const float* sw = d.plan != nullptr ? d.plan->skip_w : nullptr;
+                    bool want = slice_miss_share() >= 1.0f || sw == nullptr;
+                    if (!want) {
+                        float sum = 0.0f;
+                        for (int64_t j2 = 0; j2 < k; ++j2) sum += sw[t * k + j2];
+                        want = sum > 0.0f && sw[i] == sw[i] && sw[i] < slice_miss_share() * sum;
+                    }
+                    const strata::kernels::cpu::NativeFmt& jf = nj.fmt != nullptr ? *nj.fmt : lay.fmt[(size_t) d.layers];
+                    if (want && strata::kernels::cpu::q2_native_kernels(jf.d_type) && jf.n_ff % 64 == 0)
+                        nj.slice = strata::kernels::cpu::q2_hi_plane_cached(nj.blob + jf.down_off, jf.d_row,
+                                                                            (int) (jf.n_ff / 64), (int) jf.n_embd);
+                }
             }
             if (d.jobs_multi[(size_t) jo].nt == MAXT) {
                 // a window of 9..16 rows routes more than MAXT tokens to this expert: the kernels and the pool's scratch
@@ -5834,6 +5864,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 ExpertJobMulti& nj = d.jobs_multi[(size_t) jo];
                 nj.blob = d.jobs_multi[(size_t) prev].blob;
                 nj.fmt = d.jobs_multi[(size_t) prev].fmt;
+                nj.slice = d.jobs_multi[(size_t) prev].slice;   // (STRATA_SLICE_MISS)
                 nj.nt = 0;
             }
             ExpertJobMulti& jb = d.jobs_multi[(size_t) jo];

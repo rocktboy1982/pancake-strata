@@ -7,7 +7,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -558,6 +560,84 @@ void q2_rows_skip(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* c
     if (first)   // every block skipped: the rows are zero
         for (int t = 0; t < nt; ++t)
             for (int r = r0; r < r1; ++r) out[t][r] = 0.0f;
+}
+
+// LEADS.md SliceMoE (STRATA_SLICE_MISS; expert.hpp kQ2HiBlock): the 1-bit Matryoshka slice of Q2_0 rows.  Q2_0 codes:
+// value i of a block in byte i/4, bits 2*(i%4); its high bit is bit 2*(i%4)+1.
+void q2_hi_plane_build(const uint8_t* w, size_t row_bytes, int nblocks, int rows, uint8_t* dst) {
+    for (int r = 0; r < rows; ++r)
+        for (int b = 0; b < nblocks; ++b) {
+            const uint8_t* blk = w + (size_t) r * row_bytes + (size_t) b * 18;
+            uint8_t* o = dst + ((size_t) r * (size_t) nblocks + (size_t) b) * kQ2HiBlock;
+            o[0] = blk[0];
+            o[1] = blk[1];
+            std::memset(o + 2, 0, 8);
+            for (int i = 0; i < 64; ++i)
+                if ((blk[2 + i / 4] >> (2 * (i % 4) + 1)) & 1) o[2 + i / 8] |= (uint8_t) (1u << (i % 8));
+        }
+}
+
+namespace {
+float hi_f16(const uint8_t* p) {   // IEEE half -> float (the block's d)
+    const uint32_t h = (uint32_t) p[0] | ((uint32_t) p[1] << 8);
+    const uint32_t s = (h & 0x8000u) << 16, e = (h >> 10) & 0x1f, m = h & 0x3ff;
+    uint32_t f;
+    if (e == 0) {
+        if (m == 0) f = s;
+        else { int k = -1; uint32_t mm = m; do { mm <<= 1; ++k; } while (!(mm & 0x400)); f = s | ((uint32_t) (127 - 15 - k) << 23) | ((mm & 0x3ff) << 13); }
+    } else if (e == 31) f = s | 0x7f800000u | (m << 13);
+    else f = s | ((e + 112) << 23) | (m << 13);
+    float out;
+    std::memcpy(&out, &f, 4);
+    return out;
+}
+}  // namespace
+
+// out[t][r] = sum_b d_b x sum over the block's two 32-value chunks c of scale_c x (2 x sum_{hi bit set} q - 0.5 x sum_c q),
+// i.e. sum_i d x ((code_i & 2) + 0.5 - 1) x scale x q_i: the high-bit slice of row_multi's d x (code - 1).
+void q2_hi_rows_scalar(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1) {
+    for (int r = r0; r < r1; ++r)
+        for (int t = 0; t < nt; ++t) {
+            float acc = 0.0f;
+            for (int b = 0; b < nblocks; ++b) {
+                const uint8_t* o = planes + ((size_t) r * (size_t) nblocks + (size_t) b) * kQ2HiBlock;
+                const float d = hi_f16(o);
+                int32_t s[2] = {0, 0};
+                for (int i = 0; i < 64; ++i)
+                    if ((o[2 + i / 8] >> (i % 8)) & 1) s[i / 32] += a[t]->q[b * 64 + i];
+                for (int c = 0; c < 2; ++c)
+                    acc += d * a[t]->scale[2 * b + c] * (2.0f * (float) s[c] - 0.5f * (float) a[t]->sum[2 * b + c]);
+            }
+            out[t][r] = acc;
+        }
+}
+
+void q2_hi_rows_any(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1) {
+    if (cpu_avx2_ok()) q2_hi_rows_avx2(planes, nblocks, a, nt, out, r0, r1);
+    else q2_hi_rows_scalar(planes, nblocks, a, nt, out, r0, r1);
+}
+
+// The slice of the Q2_0 matrix at `w` (rows x nblocks), built on first use and kept for the process (keyed by the
+// address; the arena does not move).  Bounded by STRATA_SLICE_MISS_MB (default 2048 MiB): past it, nullptr (the caller
+// reads the full rows).
+const uint8_t* q2_hi_plane_cached(const uint8_t* w, size_t row_bytes, int nblocks, int rows) {
+    static std::mutex mu;
+    static std::unordered_map<const uint8_t*, std::vector<uint8_t>> cache;
+    static size_t used = 0;
+    static const size_t cap = [] {
+        const char* v = std::getenv("STRATA_SLICE_MISS_MB");
+        const long long mb = v != nullptr ? std::atoll(v) : 2048;
+        return (size_t) (mb > 0 ? mb : 2048) << 20;
+    }();
+    std::lock_guard<std::mutex> lk(mu);
+    auto it = cache.find(w);
+    if (it != cache.end()) return it->second.data();
+    const size_t need = (size_t) rows * (size_t) nblocks * kQ2HiBlock;
+    if (used + need > cap) return nullptr;
+    std::vector<uint8_t> v(need);
+    q2_hi_plane_build(w, row_bytes, nblocks, rows, v.data());
+    used += need;
+    return cache.emplace(w, std::move(v)).first->second.data();
 }
 
 #if !defined(STRATA_NATIVE_EXPERTS)
