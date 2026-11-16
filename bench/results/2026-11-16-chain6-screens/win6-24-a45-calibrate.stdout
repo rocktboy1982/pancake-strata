@@ -1,0 +1,27 @@
+rep 0 base                 short 115.0 short 116.6 edit 143.8 edit 178.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('python', 1)]  gpu 1850/1249 MHz 54C 144W gtt 21M cpu 3746MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 calibrate            short 99.8 short 92.4 edit 123.4 edit 101.2  foreign CPU 2% [('claude', 2), ('kcompactd0', 0), ('rsyslogd', 0)]  gpu 2060/1249 MHz 54C 151W gtt 21M cpu 3638MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 static-default       short 104.7 short 90.6 edit 137.8 edit 148.1  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 2064/1249 MHz 54C 143W gtt 21M cpu 3634MHz 48C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.8 +-  10.2  (n=2)
+                              drafts accepted 0.69
+  short  calibrate                96.1 +-  47.0  (n=2)   vs base: -17.0% +- 49.4%  -> no difference
+                              drafts accepted 0.70
+  short  static-default           97.7 +-  89.6  (n=2)   vs base: -15.7% +- 86.2%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    161.3 +- 222.4  (n=2)
+                              drafts accepted 0.90
+  edit   calibrate               112.3 +- 141.1  (n=2)   vs base: -30.4% +- 225.4%  -> no difference
+                              drafts accepted 0.93
+  edit   static-default          142.9 +-  65.5  (n=2)   vs base: -11.4% +- 97.3%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  calibrate            DIFFERENT text -> lossy or placement-dependent: quality gate
+  static-default       DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  calibrate            short -17.0%  edit -30.4%  -> drop
+  static-default       short -15.7%  edit -11.4%  -> drop

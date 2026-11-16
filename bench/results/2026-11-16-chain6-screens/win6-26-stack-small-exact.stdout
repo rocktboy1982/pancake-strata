@@ -1,0 +1,19 @@
+  WARNING: only 11 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 114.9 short 116.5 edit 144.4 edit 178.3  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('dbus-daemon', 0)]  gpu 2039/1249 MHz 55C 160W gtt 21M cpu 4093MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 stack                short 122.0 short 124.3 edit 145.9 edit 182.4  foreign CPU 2% [('claude', 2), ('systemd-journal', 0), ('dbus-daemon', 0)]  gpu 2053/1249 MHz 54C 160W gtt 21M cpu 3761MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.7 +-  10.2  (n=2)
+                              drafts accepted 0.69
+  short  stack                   123.2 +-  14.6  (n=2)   vs base:  +6.4% +-  3.8%  -> better
+                              drafts accepted 0.69
+  edit   base                    161.4 +- 215.4  (n=2)
+                              drafts accepted 0.90
+  edit   stack                   164.2 +- 232.0  (n=2)   vs base:  +1.7% +- 10.2%  -> no difference
+                              drafts accepted 0.91
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  stack                identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  stack                short +6.4%  edit +1.7%  -> PROMOTE to confirm

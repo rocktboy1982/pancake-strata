@@ -1,0 +1,26 @@
+rep 0 base                 short 108.7 short 92.6 edit 88.1 edit 97.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 2004/1249 MHz 54C 153W gtt 21M cpu 3493MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 0 idle-copy-kb1g       short 111.4 short 115.1 edit 113.6 edit 174.1  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kcompactd0', 0)]  gpu 2056/1249 MHz 54C 155W gtt 21M cpu 3740MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 85.4 short 110.0 edit 114.4 edit 112.5  foreign CPU 2% [('claude', 1), ('2.1.325', 1), ('upowerd', 0)]  gpu 2060/1249 MHz 54C 133W gtt 21M cpu 3714MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    100.7 +- 102.3  (n=2)
+                              drafts accepted 0.68
+  short  idle-copy-kb1g          113.2 +-  23.5  (n=2)   vs base: +12.5% +- 125.0%  -> no difference
+                              drafts accepted 0.69
+  short  base-late                97.7 +- 156.3  (n=2)   vs base:  -2.9% +- 257.0%  -> no difference
+                              drafts accepted 0.67
+  edit   base                     92.9 +-  61.6  (n=2)
+                              drafts accepted 0.94
+  edit   idle-copy-kb1g          143.8 +- 384.5  (n=2)   vs base: +54.8% +- 347.3%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               113.5 +-  12.1  (n=2)   vs base: +22.1% +- 79.3%  -> no difference
+                              drafts accepted 0.92
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  idle-copy-kb1g       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -2.9%  edit +22.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  idle-copy-kb1g       short +14.2%  edit +39.4%  -> PROMOTE to confirm

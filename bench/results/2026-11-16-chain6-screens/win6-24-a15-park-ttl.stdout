@@ -1,0 +1,26 @@
+rep 0 base                 short 115.0 short 116.6 edit 143.7 edit 177.7  foreign CPU 1% [('claude', 1), ('rcu_preempt', 0), ('systemd-journal', 0)]  gpu 1977/1249 MHz 54C 157W gtt 21M cpu 3786MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ttl30                short 115.0 short 116.5 edit 144.7 edit 178.5  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('systemd-journal', 0)]  gpu 1925/1249 MHz 54C 152W gtt 21M cpu 3924MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 ttl5                 short 115.2 short 116.8 edit 144.9 edit 178.2  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 1888/1249 MHz 54C 148W gtt 21M cpu 3712MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.8 +-  10.2  (n=2)
+                              drafts accepted 0.69
+  short  ttl30                   115.8 +-   9.5  (n=2)   vs base:  -0.0% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  short  ttl5                    116.0 +-  10.2  (n=2)   vs base:  +0.2% +-  0.0%  -> better
+                              drafts accepted 0.69
+  edit   base                    160.7 +- 216.1  (n=2)
+                              drafts accepted 0.90
+  edit   ttl30                   161.6 +- 214.8  (n=2)   vs base:  +0.6% +-  0.8%  -> no difference
+                              drafts accepted 0.90
+  edit   ttl5                    161.6 +- 211.6  (n=2)   vs base:  +0.5% +-  2.8%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ttl30                identical on every case -> exact
+  ttl5                 identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  ttl30                short -0.0%  edit +0.6%  -> PROMOTE to confirm
+  ttl5                 short +0.2%  edit +0.5%  -> PROMOTE to confirm

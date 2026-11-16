@@ -1,0 +1,43 @@
+sampling: {'temperature': 0.1} (sampled text is not reproducible: the text-hash check below is not meaningful)
+rep 0 base                 short 123.3 short 116.5 edit 145.3 edit 172.8  foreign CPU 2% [('claude', 1), ('dbus-daemon', 0), ('upowerd', 0)]  gpu 2055/1249 MHz 55C 164W gtt 21M cpu 3892MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 coupled              short 112.1 short 119.2 edit 146.7 edit 176.3  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1952/1249 MHz 54C 143W gtt 21M cpu 4011MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 gumbel               short 117.5 short 117.6 edit 143.5 edit 171.9  foreign CPU 3% [('claude', 2), ('rcu_preempt', 0), ('upowerd', 0)]  gpu 2003/1249 MHz 54C 161W gtt 21M cpu 3722MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 f6-dt050             short 102.4 short 111.5 edit 122.4 edit 167.7  foreign CPU 2% [('claude', 1), ('rcu_preempt', 0), ('localsearch-3', 0)]  gpu 2047/1249 MHz 55C 166W gtt 21M cpu 3592MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 f6-min07             short 76.1 short 104.9 edit 108.0 edit 132.4  foreign CPU 3% [('claude', 8), ('rcu_preempt', 0), ('accounts-daemon', 0)]  gpu 1865/1249 MHz 53C 143W gtt 21M cpu 3647MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    119.9 +-  43.2  (n=2)
+                              drafts accepted 0.72
+  short  coupled                 115.7 +-  45.1  (n=2)   vs base:  -3.5% +- 73.7%  -> no difference
+                              drafts accepted 0.63
+  short  gumbel                  117.5 +-   0.6  (n=2)   vs base:  -2.0% +- 36.6%  -> no difference
+                              drafts accepted 0.71
+  short  f6-dt050                107.0 +-  57.8  (n=2)   vs base: -10.8% +- 84.3%  -> no difference
+                              drafts accepted 0.59
+  short  f6-min07                 90.5 +- 183.0  (n=2)   vs base: -24.5% +- 188.7%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    159.1 +- 174.8  (n=2)
+                              drafts accepted 0.91
+  edit   coupled                 161.5 +- 188.1  (n=2)   vs base:  +1.5% +-  8.4%  -> no difference
+                              drafts accepted 0.90
+  edit   gumbel                  157.7 +- 180.5  (n=2)   vs base:  -0.8% +-  3.6%  -> no difference
+                              drafts accepted 0.89
+  edit   f6-dt050                145.1 +- 287.9  (n=2)   vs base:  -8.8% +- 71.1%  -> no difference
+                              drafts accepted 0.92
+  edit   f6-min07                120.2 +- 155.1  (n=2)   vs base: -24.4% +- 12.4%  -> worse
+                              drafts accepted 0.87
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  coupled              DIFFERENT text -> lossy or placement-dependent: quality gate
+  gumbel               DIFFERENT text -> lossy or placement-dependent: quality gate
+  f6-dt050             DIFFERENT text -> lossy or placement-dependent: quality gate
+  f6-min07             DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  coupled              short -3.5%  edit +1.5%  -> drop
+  gumbel               short -2.0%  edit -0.8%  -> drop
+  f6-dt050             short -10.8%  edit -8.8%  -> drop
+  f6-min07             short -24.5%  edit -24.4%  -> drop

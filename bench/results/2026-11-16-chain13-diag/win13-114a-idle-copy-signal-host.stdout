@@ -1,0 +1,26 @@
+rep 0 base                 short 109.1 short 111.0 edit 144.3 edit 171.4  foreign CPU 2% [('localsearch-3', 1), ('kworker/u65:15-ttm', 1), ('claude', 0)]  gpu 2046/1249 MHz 55C 161W gtt 21M cpu 4070MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 idle-copy-sighost    short 116.0 short 117.4 edit 147.3 edit 180.5  foreign CPU 2% [('claude', 1), ('localsearch-3', 0), ('kworker/u65:10-KFD IH', 0)]  gpu 1990/1249 MHz 54C 152W gtt 21M cpu 3767MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 113.7 short 114.6 edit 146.8 edit 171.8  foreign CPU 1% [('localsearch-3', 1), ('kworker/u65:1-ttm', 1), ('migration/14', 0)]  gpu 2048/1249 MHz 54C 161W gtt 21M cpu 3988MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    110.0 +-  12.1  (n=2)
+                              drafts accepted 0.68
+  short  idle-copy-sighost       116.7 +-   8.9  (n=2)   vs base:  +6.0% +-  2.9%  -> better
+                              drafts accepted 0.69
+  short  base-late               114.2 +-   5.7  (n=2)   vs base:  +3.7% +-  5.8%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    157.9 +- 172.2  (n=2)
+                              drafts accepted 0.89
+  edit   idle-copy-sighost       163.9 +- 211.0  (n=2)   vs base:  +3.8% +- 24.6%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               159.3 +- 158.9  (n=2)   vs base:  +0.9% +-  8.5%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  idle-copy-sighost    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +3.7%  edit +0.9%
+  idle-copy-sighost    short +4.1%  edit +3.4%  -> PROMOTE to confirm

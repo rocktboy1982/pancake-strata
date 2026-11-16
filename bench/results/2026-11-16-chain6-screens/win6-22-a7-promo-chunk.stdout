@@ -1,0 +1,34 @@
+rep 0 async                short 106.4 short 90.1 edit 136.1 edit 107.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2060/1249 MHz 55C 147W gtt 21M cpu 3531MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 async-chunk256k      short 104.5 short 70.1 edit 125.4 edit 134.4  foreign CPU 8% [('claude', 14), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 2068/1249 MHz 53C 142W gtt 21M cpu 3689MHz 52C igpu 1%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 async-chunk512k      short 109.6 short 104.4 edit 70.1 edit 127.7  foreign CPU 2% [('udisksd', 3), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1997/1249 MHz 54C 148W gtt 21M cpu 3817MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 async-kmiss28-chunk256k short 119.2 short 110.2 edit 126.2 edit 135.8  foreign CPU 2% [('claude', 1), ('rsyslogd', 0), ('dbus-daemon', 0)]  gpu 2055/1249 MHz 53C 156W gtt 21M cpu 4052MHz 52C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  async                    98.2 +- 103.6  (n=2)
+                              drafts accepted 0.69
+  short  async-chunk256k          87.3 +- 218.6  (n=2)   vs async: -11.1% +- 117.1%  -> no difference
+                              drafts accepted 0.71
+  short  async-chunk512k         107.0 +-  33.0  (n=2)   vs async:  +8.9% +- 71.8%  -> no difference
+                              drafts accepted 0.68
+  short  async-kmiss28-chunk256k    114.7 +-  57.2  (n=2)   vs async: +16.7% +- 47.2%  -> no difference
+                              drafts accepted 0.72
+  edit   async                   121.5 +- 184.9  (n=2)
+                              drafts accepted 0.91
+  edit   async-chunk256k         129.9 +-  57.2  (n=2)   vs async:  +6.9% +- 199.2%  -> no difference
+                              drafts accepted 0.90
+  edit   async-chunk512k          98.9 +- 366.0  (n=2)   vs async: -18.6% +- 453.3%  -> no difference
+                              drafts accepted 0.96
+  edit   async-kmiss28-chunk256k    131.0 +-  61.0  (n=2)   vs async:  +7.8% +- 202.3%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  async-chunk256k      DIFFERENT text -> lossy or placement-dependent: quality gate
+  async-chunk512k      DIFFERENT text -> lossy or placement-dependent: quality gate
+  async-kmiss28-chunk256k DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  async-chunk256k      short -11.1%  edit +6.9%  -> drop
+  async-chunk512k      short +8.9%  edit -18.6%  -> drop
+  async-kmiss28-chunk256k short +16.7%  edit +7.8%  -> PROMOTE to confirm

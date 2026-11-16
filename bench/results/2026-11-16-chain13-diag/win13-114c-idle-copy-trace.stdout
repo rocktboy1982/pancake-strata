@@ -1,0 +1,26 @@
+rep 0 base                 short 114.0 short 112.3 edit 147.0 edit 169.1  foreign CPU 2% [('localsearch-3', 1), ('kworker/u65:4-KFD IH', 1), ('migration/15', 0)]  gpu 2058/1249 MHz 56C 165W gtt 21M cpu 3846MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 idle-copy-trace      short 99.2 short 99.2 edit 139.7 edit 162.6  foreign CPU 3% [('claude', 5), ('localsearch-3', 1), ('rtkit-daemon', 0)]  gpu 2056/1249 MHz 54C 162W gtt 21M cpu 3967MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 84.8 short 76.2 edit 110.6 edit 133.3  foreign CPU 2% [('claude', 2), ('kworker/u65:8-ttm', 1), ('localsearch-3', 0)]  gpu 2047/1249 MHz 54C 165W gtt 21M cpu 3847MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    113.2 +-  10.8  (n=2)
+                              drafts accepted 0.68
+  short  idle-copy-trace          99.2 +-   0.0  (n=2)   vs base: -12.3% +-  9.5%  -> worse
+                              drafts accepted 0.68
+  short  base-late                80.5 +-  54.7  (n=2)   vs base: -28.9% +- 38.8%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    158.1 +- 140.4  (n=2)
+                              drafts accepted 0.89
+  edit   idle-copy-trace         151.1 +- 145.5  (n=2)   vs base:  -4.4% +-  3.2%  -> worse
+                              drafts accepted 0.90
+  edit   base-late               122.0 +- 144.3  (n=2)   vs base: -22.8% +-  2.4%  -> worse
+                              drafts accepted 0.88
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  idle-copy-trace      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -28.9%  edit -22.8%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  idle-copy-trace      short +2.5%  edit +8.0%  -> PROMOTE to confirm

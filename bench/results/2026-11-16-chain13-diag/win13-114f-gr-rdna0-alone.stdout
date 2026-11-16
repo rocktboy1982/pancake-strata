@@ -1,0 +1,25 @@
+rep 0 base                 short 115.1 short 116.6 edit 144.5 edit 178.2  foreign CPU 2% [('claude', 1), ('kworker/u65:7-KFD IH', 1), ('rcu_preempt', 0)]  gpu 1857/1249 MHz 55C 145W gtt 21M cpu 3985MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 gr-rdna0             short 101.9 short 100.9 edit 129.2 edit 157.6  foreign CPU 3% [('claude', 1), ('kworker/u65:14-KFD IH', 1), ('accounts-daemon', 0)]  gpu 2054/1249 MHz 55C 165W gtt 21M cpu 3797MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 92.2 short 92.5 edit 110.9 edit 86.5  foreign CPU 11% [('claude', 19), ('ptyxis', 4), ('gnome-remote-de', 2)]  gpu 2067/1249 MHz 54C 147W gtt 21M cpu 3484MHz 50C igpu 1%/vcn 1% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.8 +-   9.5  (n=2)
+                              drafts accepted 0.69
+  short  gr-rdna0                101.4 +-   6.4  (n=2)   vs base: -12.5% +- 13.7%  -> no difference
+                              drafts accepted 0.66
+  short  base-late                92.3 +-   1.9  (n=2)   vs base: -20.3% +-  6.6%  -> worse
+                              drafts accepted 0.69
+  edit   base                    161.3 +- 214.2  (n=2)
+                              drafts accepted 0.90
+  edit   gr-rdna0                143.4 +- 180.5  (n=2)   vs base: -11.1% +- 20.9%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late                98.7 +- 155.1  (n=2)   vs base: -38.8% +- 228.8%  -> no difference
+                              drafts accepted 0.91
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  gr-rdna0             DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -20.3%  edit -38.8%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  gr-rdna0             short -2.6%  edit +10.3%  -> PROMOTE to confirm

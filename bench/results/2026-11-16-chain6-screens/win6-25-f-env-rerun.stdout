@@ -1,0 +1,59 @@
+rep 0 base                 short 115.1 short 116.9 edit 144.6 edit 177.7  foreign CPU 2% [('claude', 1), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 1926/1249 MHz 55C 153W gtt 21M cpu 3743MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 lookahead0           short 113.9 short 114.4 edit 146.2 edit 170.8  foreign CPU 2% [('gnome-shell', 1), ('localsearch-3', 1), ('kworker/u65:11-ttm', 1)]  gpu 2053/1249 MHz 55C 165W gtt 21M cpu 3953MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 dedupe               short 115.0 short 116.6 edit 144.7 edit 177.8  foreign CPU 2% [('claude', 1), ('upowerd', 0), ('kworker/u65:15-KFD IH', 0)]  gpu 1988/1249 MHz 54C 148W gtt 21M cpu 4017MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 routed               short 115.1 short 116.7 edit 144.8 edit 178.2  foreign CPU 2% [('claude', 1), ('dbus-daemon', 0), ('localsearch-3', 0)]  gpu 1955/1249 MHz 54C 155W gtt 21M cpu 3871MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 routed-dedupe        short 109.2 short 109.5 edit 147.1 edit 170.3  foreign CPU 2% [('claude', 1), ('2.1.325', 1), ('localsearch-3', 0)]  gpu 2040/1249 MHz 55C 161W gtt 21M cpu 3827MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 gdn-pp2              short 114.8 short 116.5 edit 144.4 edit 178.0  foreign CPU 8% [('claude', 18), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 1944/1249 MHz 54C 153W gtt 21M cpu 3855MHz 51C igpu 1%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 specminp07           short 117.4 short 121.3 edit 150.2 edit 176.1  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('migration/6', 0)]  gpu 2053/1249 MHz 54C 161W gtt 21M cpu 3736MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.0 +-  11.4  (n=2)
+                              drafts accepted 0.69
+  short  lookahead0              114.2 +-   3.2  (n=2)   vs base:  -1.6% +-  7.1%  -> no difference
+                              drafts accepted 0.68
+  short  dedupe                  115.8 +-  10.2  (n=2)   vs base:  -0.2% +-  1.1%  -> no difference
+                              drafts accepted 0.69
+  short  routed                  115.9 +-  10.2  (n=2)   vs base:  -0.1% +-  1.1%  -> no difference
+                              drafts accepted 0.69
+  short  routed-dedupe           109.3 +-   1.9  (n=2)   vs base:  -5.7% +-  8.2%  -> no difference
+                              drafts accepted 0.67
+  short  gdn-pp2                 115.7 +-  10.8  (n=2)   vs base:  -0.3% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  short  specminp07              119.3 +-  24.8  (n=2)   vs base:  +2.9% +- 11.5%  -> no difference
+                              drafts accepted 0.85
+  edit   base                    161.1 +- 210.4  (n=2)
+                              drafts accepted 0.90
+  edit   lookahead0              158.5 +- 156.3  (n=2)   vs base:  -1.6% +- 33.5%  -> no difference
+                              drafts accepted 0.89
+  edit   dedupe                  161.2 +- 210.4  (n=2)   vs base:  +0.1% +-  0.0%  -> better
+                              drafts accepted 0.90
+  edit   routed                  161.5 +- 212.3  (n=2)   vs base:  +0.2% +-  1.2%  -> no difference
+                              drafts accepted 0.90
+  edit   routed-dedupe           158.7 +- 147.4  (n=2)   vs base:  -1.5% +- 39.0%  -> no difference
+                              drafts accepted 0.89
+  edit   gdn-pp2                 161.2 +- 213.5  (n=2)   vs base:  +0.0% +-  2.0%  -> no difference
+                              drafts accepted 0.90
+  edit   specminp07              163.1 +- 164.6  (n=2)   vs base:  +1.2% +- 28.4%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  lookahead0           DIFFERENT text -> lossy or placement-dependent: quality gate
+  dedupe               identical on every case -> exact
+  routed               identical on every case -> exact
+  routed-dedupe        DIFFERENT text -> lossy or placement-dependent: quality gate
+  gdn-pp2              identical on every case -> exact
+  specminp07           DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  lookahead0           short -1.6%  edit -1.6%  -> drop
+  dedupe               short -0.2%  edit +0.1%  -> PROMOTE to confirm
+  routed               short -0.1%  edit +0.2%  -> PROMOTE to confirm
+  routed-dedupe        short -5.7%  edit -1.5%  -> drop
+  gdn-pp2              short -0.3%  edit +0.0%  -> PROMOTE to confirm
+  specminp07           short +2.9%  edit +1.2%  -> PROMOTE to confirm

@@ -1,0 +1,51 @@
+sampling: {'temperature': 0.2} (sampled text is not reproducible: the text-hash check below is not meaningful)
+rep 0 base                 short 109.5 short 115.6 edit 138.0 edit 179.6  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-oomd', 0)]  gpu 2059/1249 MHz 55C 164W gtt 21M cpu 3782MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 turbo                short 110.7 short 112.7 edit 176.7 edit 186.4  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('rsyslogd', 0)]  gpu 2047/1249 MHz 55C 175W gtt 21M cpu 3813MHz 47C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 turbo-guards         short 112.5 short 106.9 edit 145.1 edit 178.5  foreign CPU 2% [('claude', 2), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 2061/1249 MHz 55C 162W gtt 21M cpu 3962MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 turbo-l07-guards     short 110.9 short 118.0 edit 165.8 edit 173.8  foreign CPU 2% [('claude', 1), ('gnome-shell', 1), ('localsearch-3', 1)]  gpu 2051/1249 MHz 54C 166W gtt 21M cpu 4031MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 tailskip7            short 120.1 short 113.7 edit 158.8 edit 185.9  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 2059/1249 MHz 54C 161W gtt 21M cpu 4149MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 tailskip6            short 120.8 short 115.8 edit 160.0 edit 190.6  foreign CPU 4% [('claude', 7), ('ptyxis', 1), ('localsearch-3', 1)]  gpu 2050/1249 MHz 55C 166W gtt 21M cpu 3706MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    112.5 +-  38.8  (n=2)
+                              drafts accepted 0.66
+  short  turbo                   111.7 +-  12.7  (n=2)   vs base:  -0.8% +- 23.2%  -> no difference
+                              drafts accepted 0.67
+  short  turbo-guards            109.7 +-  35.6  (n=2)   vs base:  -2.5% +- 66.1%  -> no difference
+                              drafts accepted 0.67
+  short  turbo-l07-guards        114.5 +-  45.1  (n=2)   vs base:  +1.7% +-  5.6%  -> no difference
+                              drafts accepted 0.72
+  short  tailskip7               116.9 +-  40.7  (n=2)   vs base:  +3.9% +- 70.6%  -> no difference
+                              drafts accepted 0.67
+  short  tailskip6               118.3 +-  31.8  (n=2)   vs base:  +5.1% +- 62.7%  -> no difference
+                              drafts accepted 0.73
+  edit   base                    158.8 +- 264.4  (n=2)
+                              drafts accepted 0.90
+  edit   turbo                   181.6 +-  61.6  (n=2)   vs base: +14.3% +- 127.7%  -> no difference
+                              drafts accepted 0.89
+  edit   turbo-guards            161.8 +- 212.3  (n=2)   vs base:  +1.9% +- 32.8%  -> no difference
+                              drafts accepted 0.88
+  edit   turbo-l07-guards        169.8 +-  50.8  (n=2)   vs base:  +6.9% +- 134.5%  -> no difference
+                              drafts accepted 0.90
+  edit   tailskip7               172.4 +- 172.2  (n=2)   vs base:  +8.5% +- 58.0%  -> no difference
+                              drafts accepted 0.88
+  edit   tailskip6               175.3 +- 194.5  (n=2)   vs base: +10.4% +- 44.0%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  turbo                DIFFERENT text -> lossy or placement-dependent: quality gate
+  turbo-guards         DIFFERENT text -> lossy or placement-dependent: quality gate
+  turbo-l07-guards     DIFFERENT text -> lossy or placement-dependent: quality gate
+  tailskip7            DIFFERENT text -> lossy or placement-dependent: quality gate
+  tailskip6            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  turbo                short -0.8%  edit +14.3%  -> PROMOTE to confirm
+  turbo-guards         short -2.5%  edit +1.9%  -> PROMOTE to confirm
+  turbo-l07-guards     short +1.7%  edit +6.9%  -> PROMOTE to confirm
+  tailskip7            short +3.9%  edit +8.5%  -> PROMOTE to confirm
+  tailskip6            short +5.1%  edit +10.4%  -> PROMOTE to confirm

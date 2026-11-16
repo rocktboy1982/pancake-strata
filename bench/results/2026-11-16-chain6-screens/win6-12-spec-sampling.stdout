@@ -1,0 +1,28 @@
+sampling: {'temperature': 1.0, 'top_p': 0.95} (sampled text is not reproducible: the text-hash check below is not meaningful)
+rep 0 base                 short 107.7 short 98.2 edit 139.1 edit 164.4  foreign CPU 3% [('claude', 9), ('systemd-journal', 0), ('upowerd', 0)]  gpu 2054/1249 MHz 54C 167W gtt 21M cpu 4221MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 f6-dt100             short 108.6 short 97.6 edit 122.1 edit 163.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('fwupd', 0)]  gpu 2056/1249 MHz 54C 166W gtt 21M cpu 3953MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 f6-dt085             short 81.6 short 87.6 edit 101.6 edit 197.2  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('python', 0)]  gpu 1878/1249 MHz 53C 144W gtt 21M cpu 3616MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    103.0 +-  60.4  (n=2)
+                              drafts accepted 0.61
+  short  f6-dt100                103.1 +-  69.9  (n=2)   vs base:  +0.1% +-  9.3%  -> no difference
+                              drafts accepted 0.68
+  short  f6-dt085                 84.6 +-  38.1  (n=2)   vs base: -17.8% +- 95.7%  -> no difference
+                              drafts accepted 0.64
+  edit   base                    151.8 +- 160.8  (n=2)
+                              drafts accepted 0.92
+  edit   f6-dt100                142.9 +- 265.0  (n=2)   vs base:  -5.8% +- 68.7%  -> no difference
+                              drafts accepted 0.95
+  edit   f6-dt085                149.4 +- 607.5  (n=2)   vs base:  -1.5% +- 294.4%  -> no difference
+                              drafts accepted 0.97
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  f6-dt100             DIFFERENT text -> lossy or placement-dependent: quality gate
+  f6-dt085             DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  f6-dt100             short +0.1%  edit -5.8%  -> drop
+  f6-dt085             short -17.8%  edit -1.5%  -> drop

@@ -1,0 +1,19 @@
+rep 0 base                 short 115.2 short 116.1 edit 149.9 edit 178.3  foreign CPU 2% [('localsearch-3', 1), ('kworker/u65:3-ttm', 1), ('polkitd', 0)]  gpu 1784/1249 MHz 54C 143W gtt 21M cpu 3666MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 dump                 short 115.2 short 116.8 edit 149.3 edit 170.6  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1919/1249 MHz 54C 151W gtt 21M cpu 3564MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.7 +-   5.7  (n=2)
+                              drafts accepted 0.69
+  short  dump                    116.0 +-  10.2  (n=2)   vs base:  +0.3% +-  3.8%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    164.1 +- 180.5  (n=2)
+                              drafts accepted 0.93
+  edit   dump                    159.9 +- 135.4  (n=2)   vs base:  -2.5% +- 27.5%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  dump                 DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  dump                 short +0.3%  edit -2.5%  -> PROMOTE to confirm
