@@ -1,0 +1,30 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "pf-ahead": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_AHEAD": "1"
+      }
+    },
+    "pf-ahead-depth2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_AHEAD": "1",
+        "STRATA_PF_AHEAD_DEPTH": "2"
+      }
+    },
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    }
+  },
+  "note": "NOT RUN, the depth-2 code has NEVER BEEN BUILT (prefill.cpp does not compile without the GPU headers here; MOD_PLAN.md section 6 item 47): STRATA_PF_AHEAD_DEPTH=2 splits the STRATA_PF_AHEAD pool into two sets (layer l in set l & 1) and issues layer l + 2 after layer l's combine, so two layers are in flight. Judge against pf-ahead (STRATA_PF_AHEAD=1 alone), not base: same pool bytes, half the slots a layer. The log line 'strata prefill timing: STRATA_PF_AHEAD pool ... read from the pool' gives the pool use. One H2D copy engine on the card: expect the copies for l + 2 to queue behind l + 1 and the gain to be nil or negative. Exact for the output bits as STRATA_PF_AHEAD is (a lossy flag only because spec 103's pf-ahead arms carry it). Stop pancake.service first."
+}

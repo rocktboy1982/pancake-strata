@@ -12,6 +12,7 @@
 #endif
 #include "strata/prefill/warm_policy.hpp"
 #include "strata/prefill/share_rules.hpp"
+#include "strata/prefill/pf_ahead_rule.hpp"
 #include "strata/prefill/stop_rule.hpp"
 #include "strata/core/arch_defaults.hpp"
 #include <atomic>
@@ -1401,8 +1402,11 @@ struct Prefill::Impl {
     cudaEvent_t pf_copied[kPfAheadMax] = {};
     cudaEvent_t pf_free = nullptr;                 // on cs: the work that reads the pool's current contents is queued
     int64_t pf_chunk_seq = 0;                      // chunks read so far: the pool's contents are this chunk's
-    int64_t pf_tag = -1;                           // pf_chunk_seq * 4096 + the layer the pool holds (-1: nothing)
-    std::vector<int16_t> pf_slot;                  // n_expert: that layer's expert's pool slot (-1: not in the pool)
+    // STRATA_PF_AHEAD_DEPTH=2 (pf_ahead_rule.hpp): the pool is two sets of slots, layer l's experts in set (l & 1); one set (index 0)
+    // and the same two members as before when the depth is unset
+    int pf_sets = 1;
+    int64_t pf_tags[2] = {-1, -1};                 // per set: pf_chunk_seq * 4096 + the layer it holds (-1: nothing)
+    std::vector<int16_t> pf_slots[2];              // per set, n_expert: that layer's expert's (absolute) pool slot (-1: not in the pool)
     std::vector<std::vector<int32_t>> pf_pred;     // per layer: the GPU-streamed experts of the last chunk, most tokens first
     const int32_t* split_res = nullptr;            // set_split_residency (null: the split reads host_res)
     // layer split: the device, and the hand-off to the next stage (two pinned chunk buffers, used in turn)
@@ -2509,12 +2513,14 @@ bool Prefill::carve(size_t T, void* alloc) {
     // STRATA_PF_AHEAD (0xluk 896481c943): the staged walk's prefetch pool, last (bytes_needed_impl takes the same)
     m.pf_dev = nullptr;
     m.pf_n = 0;
-    m.pf_tag = -1;
+    m.pf_sets = 1;
+    m.pf_tags[0] = m.pf_tags[1] = -1;
     if (const int pf = pf_pool_slots(T, m.src != nullptr); pf > 0) {
         m.pf_dev = o.take<uint8_t>((size_t) pf * (size_t) MAXBLOB(), ok);
         if (m.pf_dev != nullptr) {
             m.pf_n = pf;
-            m.pf_slot.assign((size_t) g.n_expert, (int16_t) -1);
+            m.pf_sets = strata::prefill::pf_ahead::sets_of(strata::prefill::pf_ahead::depth_from_env(), pf);   // STRATA_PF_AHEAD_DEPTH
+            for (int st = 0; st < m.pf_sets; ++st) m.pf_slots[st].assign((size_t) g.n_expert, (int16_t) -1);
         }
     }
     m.T = (int64_t) T;
@@ -3971,7 +3977,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
 #endif
         ++stats_.chunks;
         ++m.pf_chunk_seq;   // STRATA_PF_AHEAD (0xluk 896481c943): a new chunk - nothing the pool holds is for it yet
-        m.pf_tag = -1;
+        m.pf_tags[0] = m.pf_tags[1] = -1;
         pt.mark(kPfStart, cs);
         const auto tsetup = Clock::now();
         // ---- embeddings, broadcast to the four streams - or, in a later stage of a layer split, the rows the
@@ -4700,8 +4706,12 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
         // first) that are not resident and are page-locked, and copies them in expert order - the order the walk reads
         // them.  `qsa_index` is ln's QSA ordinal at both call sites (the chunk's first layer; after layer ln - 1's halves).
         // Off (pf_n == 0, no pool carved): returns at once, nothing is recorded or queued.
-        auto pf_issue = [&](int64_t ln) {
-            m.pf_tag = -1;
+        // STRATA_PF_AHEAD_DEPTH=2: `ln` goes to set (ln & 1) (pf_ahead_rule.hpp); `with_kv` false for the second layer ahead, whose QSA
+        // ordinal this lambda does not know (its K/V staging then stays where it was: in the layer).  Depth unset: set 0, the whole pool.
+        auto pf_issue = [&](int64_t ln, bool with_kv = true) {
+            namespace pfr = strata::prefill::pf_ahead;
+            const int pset = pfr::set_of(m.pf_sets, ln), pcap = pfr::set_cap(m.pf_sets, m.pf_n), pbase = pfr::set_base(m.pf_sets, m.pf_n, pset);
+            m.pf_tags[pset] = -1;
             if (stream_all || m.pf_n <= 0 || ln >= LE || m.src == nullptr) return;
             if (m.pf_free == nullptr && cudaEventCreateWithFlags(&m.pf_free, cudaEventDisableTiming) != cudaSuccess) {
                 (void) cudaGetLastError();
@@ -4710,7 +4720,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
             }
             cudaEventRecord(m.pf_free, m.cs);
             cudaStreamWaitEvent(m.copy, m.pf_free, 0);
-            if (pf_ahead_kv() && !kv_prefetch && p0 > 0 && kv_pending < 0 && core::is_qsa_layer(g, ln)) {
+            if (with_kv && pf_ahead_kv() && !kv_prefetch && p0 > 0 && kv_pending < 0 && core::is_qsa_layer(g, ln)) {
                 const core::QsaState& kst = ss.qsa_states[qsa_index];   // ln's ordinal: the QSA layers before it
                 if (kst.kv_mode == 1) {
                     strata::kernels::kv_stage_from_host(pools_of(m.stage, m.ident_table), kst.host, core::qsa_kv_format(kst),
@@ -4720,11 +4730,11 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                 }
             }
             if (m.pf_pred.size() != (size_t) g.n_layers || m.pf_pred[(size_t) ln].empty()) return;
-            std::fill(m.pf_slot.begin(), m.pf_slot.end(), (int16_t) -1);
+            std::fill(m.pf_slots[pset].begin(), m.pf_slots[pset].end(), (int16_t) -1);
             std::vector<int32_t> pick;
-            pick.reserve((size_t) m.pf_n);
+            pick.reserve((size_t) pcap);
             for (const int32_t e : m.pf_pred[(size_t) ln]) {
-                if ((int) pick.size() >= m.pf_n) break;
+                if ((int) pick.size() >= pcap) break;
                 if (m.host_res && m.cache && m.host_res[(size_t) ln * g.n_expert + e] >= 0) continue;
                 if (!m.src->pinned(ln, e)) continue;   // the stager's host copies stay the walk's
                 pick.push_back(e);
@@ -4735,20 +4745,22 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
             for (const int32_t e : pick) {
                 const uint8_t* b = m.src->blob_stable(ln, e);
                 if (b == nullptr) continue;
-                if (!m.pf_copied[sn] && cudaEventCreateWithFlags(&m.pf_copied[sn], cudaEventDisableTiming) != cudaSuccess) {
+                const int abs_slot = pbase + sn;   // absolute in the pool (the copy events and the address are the pool's)
+                if (!m.pf_copied[abs_slot] && cudaEventCreateWithFlags(&m.pf_copied[abs_slot], cudaEventDisableTiming) != cudaSuccess) {
                     (void) cudaGetLastError();
-                    m.pf_copied[sn] = nullptr;
+                    m.pf_copied[abs_slot] = nullptr;
                     break;
                 }
-                cudaMemcpyAsync(m.pf_dev + (size_t) sn * (size_t) MAXBLOB(), b, bytes, cudaMemcpyHostToDevice, m.copy);
-                cudaEventRecord(m.pf_copied[sn], m.copy);
-                m.pf_slot[(size_t) e] = (int16_t) sn;
+                cudaMemcpyAsync(m.pf_dev + (size_t) abs_slot * (size_t) MAXBLOB(), b, bytes, cudaMemcpyHostToDevice, m.copy);
+                cudaEventRecord(m.pf_copied[abs_slot], m.copy);
+                m.pf_slots[pset][(size_t) e] = (int16_t) abs_slot;
                 ++sn;
             }
             stats_.pf_issued += sn;
-            if (sn > 0) m.pf_tag = m.pf_chunk_seq * 4096 + ln;
+            if (sn > 0) m.pf_tags[pset] = pfr::tag_of(m.pf_chunk_seq, ln);
         };
         pf_issue(LB);   // the first layer's, behind the chunk's embedding
+        if (m.pf_sets == 2) pf_issue(LB + 1, false);   // STRATA_PF_AHEAD_DEPTH=2: and the second layer's, into the other set
         for (int64_t l = LB; l < LE; ++l) {
             core::progress_beat();   // the serve watchdog: a prompt chunk of 8192 tokens is still moving
             // STRATA_STOP_LAYERS (LEADS.md Part H): a Stop is also polled between layers, not only at the chunk start
@@ -6550,11 +6562,12 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                         // STRATA_PF_AHEAD (0xluk 896481c943): order[j]'s pool slot, when the pool holds this layer (-1: not
                         // in it).  Empty unless it is on and pf_issue filled the pool for this chunk's layer l.
                         std::vector<int> pf_of;
-                        if (!stream_all && m.pf_n > 0 && m.pf_tag == m.pf_chunk_seq * 4096 + l) {
+                        const int pf_set = strata::prefill::pf_ahead::set_of(m.pf_sets, l);   // STRATA_PF_AHEAD_DEPTH=2: layer l's set
+                        if (!stream_all && m.pf_n > 0 && m.pf_tags[pf_set] == strata::prefill::pf_ahead::tag_of(m.pf_chunk_seq, l)) {
                             pf_of.assign(order.size(), -1);
                             for (size_t j = 0; j < order.size(); ++j)
                                 if (!(m.host_res && m.cache && m.host_res[(size_t) l * m.g->n_expert + order[j]] >= 0))
-                                    pf_of[j] = m.pf_slot[(size_t) order[j]];
+                                    pf_of[j] = m.pf_slots[pf_set][(size_t) order[j]];
                         }
                         auto stage_one = [&](size_t j) -> bool {
                             const int32_t e = order[j];
@@ -7157,7 +7170,10 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     // STRATA_PF_AHEAD (0xluk 896481c943): the next layer's pool copies go behind this layer's combine
                     // uploads (the CPU rows' H2D on the compute stream): queued before them they would hold the combine up
                     // on the one H2D engine
-                    if (!stream_all && m.pf_n > 0) pf_issue(l + 1);
+                    if (!stream_all && m.pf_n > 0) {
+                        if (m.pf_sets == 2) pf_issue(strata::prefill::pf_ahead::issue_after(m.pf_sets, l), false);   // STRATA_PF_AHEAD_DEPTH=2: l + 2 into l's set
+                        else pf_issue(l + 1);
+                    }
                     // no reading from a layer the share could not change (nothing taken) or with one-time costs
                     if (cpu_set >= 0 && n_stream > 0 && (!cpu_arm || n_cpu > 0) && !cpu_cold) {
                         cudaEventRecord(m.cpu_wall[2 * cpu_set + 1], m.cs);
