@@ -1056,3 +1056,19 @@ Profile basis (short case, fast-hip preset minus deferral, `--spec 4 --spec-min-
 - hipStreamWaitValue32 is supported on the 7900 XT (attribute = 1); only its benefit is unmeasured (ceiling 0.3%).
 - No paper measures this overhead on a single RDNA card; all literature numbers are abstract/excerpt only.
 - Fused sampler (SonicSampler) is near-zero on the greedy path.
+
+## Part G: placement-statistics leads (web research 2026-11-16, for MOD_PLAN.md section 6 items 19 and 26)
+
+Read as search-result summaries only (abstract / page level, not the papers); every number is the authors' hardware, label `[paper]`, details `[unverified]`. Simulator policies named here are in `tools/pancake/tier_laws.py` (MOD_PLAN.md item 19) when marked so.
+
+| lead | number + hw | exact/lossy | in our src |
+|---|---|---|---|
+| LeCaR (Vietri et al., HotStorage 2018, usenix.org/conference/hotstorage18/presentation/vietri): cache replacement as online learning over two rules (LRU, LFU); weights follow regret, a miss on a recently evicted page is the regret signal; beats ARC with two base rules `[paper]` | no MoE number | exact | not in the engine; simulator policy `lecar` (the owner's upgrade commit, MOD_PLAN.md item 19) |
+| OLeCaR (arXiv 2009.11330): LeCaR with the learning rate set from a regret bound, vanishing regret over time `[paper]` | no MoE number | exact | simulator: the learning rate of `lecar` is a parameter of the evolutionary search |
+| CACHEUS (FAST 2021): LeCaR-style adaptive mix of scan-resistant LRU (SR-LRU) and churn-resistant LFU (CR-LFU), no static hyper-parameters, best on 30 workload x size cells `[paper]` | no MoE number | exact | simulator: SR-LRU / CR-LFU as extra rules of `lecar` if the first version helps |
+| ARC (Megiddo and Modha, FAST 2003): recency and frequency lists with ghost lists; a ghost hit moves the split `[paper]` (background) | no MoE number | exact | simulator policy `ghost` (adaptive protect fraction) |
+| MoE-CORE (arXiv 2610.01950): domain-informed cache initialization, routing-history-aware replacement, cross-layer prefetch, NONUNIFORM cache capacity per layer; optional score-based substitution for low-score misses; prefill stages whole layers in alternating buffers `[paper]` | TPOT 38.0-44.8 ms vs 1268.9 ms (vLLM prefetch), DeepSeek-V4-Flash W4A8, an 84 GB NPU appliance; no hit rate on the page | exact main path; substitution lossy | `STRATA_CONV_WORKSET`, `DOMAIN_PROFILES`, `STRATA_SUBFIT_*` cover the pieces; per-layer capacity: ours comes from the profile split, untested against a fitted one (simulator: layer budgets as a search parameter) |
+| DAOP (arXiv 2501.10375): data-aware offloading with predictive pre-calculation `[paper]` | not read | exact | not compared; read before porting `[unverified]` |
+| Two-Stage Expert Offloading for Domain-Aware MoE Inference (ResearchGate 400888358): domain-aware prefill, locality-aware prediction and preemptive load of upcoming experts during decode `[paper]` | not read | exact | `STRATA_CONV_WORKSET_MATCH`, item 26 V4 (lead time) tests the same claim on our traces |
+| vLLM RFC #38256 "Incremental MoE expert offloading": fixed-size GPU expert cache, pluggable eviction policy, conversation-level domain shifts `[paper]` (issue text) | reports 97-100% hit rate with temporal prediction, conditions not given | exact | none; compare only as a design |
+| Cache-Aware Joint Router Adaptation (arXiv 2609.04895): adapts the model with light auxiliary cache routers, native top-K at inference `[paper]` | not read | model change | not applicable without training: parked (model-side) |
