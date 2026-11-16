@@ -171,7 +171,7 @@ miss.
 1. **RUNNING: chain 6** `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
    `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
    step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);
-   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609). Left in the chain: 87-101, then
+   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609), 87 (T-612: 16 PROMOTE, 17 DROP). Left in the chain: 88-101, then
    the never-run specs of item 5 (26, 12, a21, 24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards).
    strata-poly failed (T-603); the fix 5b867bf3a is not built yet: after `WINCHAIN6_DONE`, sync with `tar xmf` and build
    strata-poly as its own job. Earlier chains (specs 60-65 overnight, T-587..T-596; win-chain2/3/4/5b, aborted or untrusted,
