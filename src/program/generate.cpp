@@ -17560,6 +17560,24 @@ int main(int argc, char** argv) {
                 std::fflush(stdout);
                 continue;
             }
+            // SLEEP / WAKE (LEADS.md B74, basalt 64167ba73 "sleep in place", jesdga95/basalt, Jesus Gulfo; the server's
+            // opt-in --idle-sleep sends them): between requests the expert cache gives its VRAM back down to its
+            // smallest size (every expert keeps its RAM copy and the slot it held is remembered, #533's vram_evicted),
+            // so the server can have the driver suspend the process with little VRAM left to save; WAKE maps the cache
+            // again and puts each expert back in its slot.  The same path as `VRAM <huge>` / `VRAM`: a segmented cache
+            // (--vram-elastic) is needed, and the resident low-RAM mode and --peer-device are refused as for VRAM (so
+            // basalt's peer-tier sleep and its RAM-copy re-registration have nothing to do here).  Reply: a VRAM line,
+            // or ERR.  A server that never sends them changes nothing.
+            if (line == "SLEEP" || line == "WAKE") {
+                std::string verr;
+                if (batch_on()) verr = line + ": not while batch slots are decoding";
+                else if (!vram_command(line == "SLEEP" ? "VRAM " + std::to_string(1ll << 30) : std::string("VRAM"), verr) &&
+                         verr.rfind("VRAM", 0) == 0)
+                    verr = line + verr.substr(4);   // "SLEEP: ..." / "WAKE: ..." instead of "VRAM: ..."
+                if (!verr.empty()) std::printf("ERR %s\n", verr.c_str());
+                std::fflush(stdout);
+                continue;
+            }
             // a command may touch the expert cache (a request lends slots, a K/V growth moves them, a session restore
             // quiesces it): a round of the asynchronous tier that the batch windows left in flight lands first
             if (!adapt_tick(true)) {
