@@ -974,6 +974,12 @@ Credits, in the order the stack was built:
   prefetch, the shortlist output head, the expert-union draft-length cost and the near-tie quality gate were read and written up in
   LEADS.md Part J. kindi is AGPL, so no code was taken and none was copied; `tools/pancake/head_cluster.py` and the placement
   comparison in `tools/pancake/tier_laws.py` are our own code from the description of the idea.
+- **Helldez** (BigMoeOnEdge, Apache-2.0, commit `85a0a5c`), for the structure of its `--auto` planner, adapted with attribution and written as our
+  own code, not copied: a pure rule set that declines instead of guessing, a lever that must win by a margin (their 10%), a memory ledger with a
+  kill-class margin and a model-derived cache floor (the token cycle), nothing lossy hiding in a plan, and the interleaved first-answer knob
+  trial (`KnobTrial`). It is `tools/pancake/plan_auto.py` (offline, our flags and `STRATA_*` names) and the trial spec
+  `bench/specs/127-plan-auto-trial.json`; the other ideas (route-ahead, range-relative substitution, the predictor control) are in
+  LEADS.md Part I as default-off switches to build. Their numbers are theirs, on phones and laptops, and none was reproduced here.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
 - **kvcache-ai** (KTransformers), **sgl-project** (SGLang), **vllm-project** (vLLM), **NVIDIA** (TensorRT-LLM),
   **flashinfer-ai** (FlashInfer), for ideas and reference points.
