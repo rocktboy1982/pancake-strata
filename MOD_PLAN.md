@@ -194,7 +194,7 @@ miss.
 1. **RUNNING: chain 6** `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
    `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
    step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);
-   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609), 87 (T-612: 16 PROMOTE, 17 DROP), 88 aborted at adapt-idle-copy (T-613), 89 (T-614), 90 (T-615), 91 (T-616); 92 running since 15:22. Left in the chain: 92-101, then
+   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609), 87 (T-612: 16 PROMOTE, 17 DROP), 88 aborted at adapt-idle-copy (T-613), 89 (T-614), 90 (T-615), 91 (T-616), 92 (T-617); 93 running. Left in the chain: 93-101, then
    the never-run specs of item 5 (26, 12, a21, 24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards).
    strata-poly failed (T-603); the fix 5b867bf3a is not built yet: after `WINCHAIN6_DONE`, sync with `tar xmf` and build
    strata-poly as its own job. Earlier chains (specs 60-65 overnight, T-587..T-596; win-chain2/3/4/5b, aborted or untrusted,
@@ -219,11 +219,13 @@ miss.
    - Spec 90 (T-615, q36 model), into the 107-auto confirm specs: `DENSE_MMQ` (long32k +7.2%, n=1; the author's +43% not
      reproduced), `Q36_EXPERTS_USED=7` / `=6` (short/edit +8..+18%, lossy by design: quality gate with KLD), `Q36_ATT_GROUPED`
      (long32k +4.3%), `Q36_ATT_GROUPED`+`Q36_FA` (long32k +13.5%, n=1). The base short/edit spread is +-55..69: confirm decides.
+   - Spec 92 (T-617), into the 107-auto confirm specs: `EXPERTS_SEQ_READAHEAD`, `IO_URING=32` (both within +-0.3% with identical
+     text: confirm must first show from the engine log that the switch acted, else the arm is void).
    - Dropped at screen (section 9): spec 81 `TOPK_REGKEYS`+`TOPK_SCAN`, `ATTN_MERGE_BOUND`, `GRUP_PF`, `GDN_SPLIT`+`GDN_NORM128`,
      `ADAPT_COPY2`, `WAIT_FUSE_ROWS` alone; spec 82 all (DMA_FLAG_WRITE, PCIE_FORK, DALI); spec 83 `PF_COPY2`; spec 84 the
      `PF_GU_EXACT` family; spec 80 J=32 rolled MMQ; spec 87 `Q2_FAST`, `POOL_ROW_SPLIT` 64 / 256, `POOL_TOUCH_NEXT`,
      `FUSE_SWIGLU_DOWN`, `MMVF_ROWS` alone, the device-plan path and its fusions (`VERIFY_DEVICE_PLAN`, `FUSE_PLAN`, `_COMBINE`,
-     `_SHGATE`), `EXPDEC_V2`, `SAMPLER_X8`, `MMVF_ROWS1`, `LOOKAHEAD_AFTER_PUB`, `GDN_SPECLA=2`; spec 89 `PF_SEL_BATCH=64`, `KV_PF_RESIDENT`; spec 90 `Q36_ATTN_GQA`; spec 91 all (`QSA_PARTIAL_TOPK`, `QSA_PAGE_SEL` 16 / 32, -3..-31% decode, exact text); spec 85 `MMVQ_IL_PLAIN` crashes (T-602, defect for the box agent).
+     `_SHGATE`), `EXPDEC_V2`, `SAMPLER_X8`, `MMVF_ROWS1`, `LOOKAHEAD_AFTER_PUB`, `GDN_SPECLA=2`; spec 89 `PF_SEL_BATCH=64`, `KV_PF_RESIDENT`; spec 90 `Q36_ATTN_GQA`; spec 92 (T-617) `ACTQ_SKIP` (+`_NOCPU`), `POOL_GUIDED`, `CPU_POOL_COST`, `POOL_DAG=2`, `SLOTS_WARP`, `ROWS_ACC2`, `MTP_SPIN_US=50`, `MTP_HC_Q8`, `DRAFT_SCALE`, `LOOKAHEAD_SKIP_RES`, `LOOKUP_OLDER=8`, `SPEC_DEPTH_DECAY=0.9`, `SPEC_LOOKUP_Q=0.9`, `PCIE0_NO_STAGING`, `CKPT_MOVE_PARK`; spec 91 all (`QSA_PARTIAL_TOPK`, `QSA_PAGE_SEL` 16 / 32, -3..-31% decode, exact text); spec 85 `MMVQ_IL_PLAIN` crashes (T-602, defect for the box agent).
    **QUEUED: chain 7** `/home/dan/clone-of-d/src/win-chain7.sh` (started 2026-11-16 13:37, waits for `WINCHAIN6_DONE`, then
    for 3 minutes with no client on 11437 before it stops pancake.service; log `/home/dan/clone-of-d/src/win-chain7.log`, results
    `/home/dan/auto-runs/win7-<spec>.*`): strata-poly build (5b867bf3a synced), specs 102 and 103 at confirm, the item 4
