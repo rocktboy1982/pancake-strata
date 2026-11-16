@@ -139,7 +139,8 @@ python -m pytest tests/terminal
   `python tools/pancake/abtest.py SPEC.json --out bench/results/<day>-<name>.jsonl`. Run 1 is warm-up and is
   discarded; keep the second pass. Screen: promote from 0% up, drop if any case is below -3% (owner rule 2026-11-13); decide at confirm with the bar
   >= 2% end to end (>= 3% for lossy). Start with `--tier screen`;
-  confirm with `--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9`.
+  confirm with `--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5` (owner, 2026-11-16: 5 reps, not 9;
+  9 reps made the night confirm round 10+ hours).
 - Lossy arms also need `tools/pancake/quality_gate.py` (token forcing); for close variants use
   `tools/pancake/task_gate.py` (KLD/top-1 agreement alone does not predict task score).
 - Before any A/B, run `python tools/pancake/spec_lint.py` against `bench/specs/`: it flags arm `STRATA_*` env keys and

@@ -374,6 +374,7 @@ ports and fusion (section 7, items 2-3), the CPU bucket shrinks with cache admis
 
 Everything below is additive vs upstream Strata v0.2.12. Unless marked lossy, every switch is exact (the same tokens).
 The census: 65 new `STRATA_*` variables on the main line, plus the side-branch families and the server-side set.
+Added 2026-11-17: one row for each of the 133 switches coded 2026-11-16/17 (rows at the end of 6A-6F; all default off; the exact/lossy word comes from the class in `src/core/conversation_disk_env.def` and the ledger, the status from `TEST_LEDGER.md`). An older switch with no row here is still listed in `conversation_disk_env.def`.
 
 ### 6A. RDNA3/HIP kernels (ported from Strata-rdna3, the gfx1100 half)
 
@@ -392,8 +393,26 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_RDNA_MMVQ_WAVE` | `native_mmvq.cu` | unset | exact | wave-shaped multi-row GEMV (preset uses 3) | in the fast-hip preset |
 | `STRATA_RDNA_KQ_ALL` | `rdna_mmvq.cu` | off | tuning | allow the KQ kernel below 4 columns | tuning |
 | `STRATA_MMVQ_R` | `native_mmvq.cu` | 1 | exact | rows per wave (2/4), shared activation loads | tuning |
-| `STRATA_HIP_WMMA_Q4=1` | `qsa_prompt_attn.cu` (`prompt_attn_wmma_q4_kernel`, MOD_PLAN F22; fork bsorensen110 `19fc0e48`, gfx12-only there) | off | rounding-level vs today's Q4 path (FP32-level with `STRATA_PA_FAST=0`; the preset's `PA_FAST=1` makes it FP16 attention like the int8 kernel); unset: byte-identical | with `--kv q4_0`, the prompt's QSA attention on matrix cores (gfx11 and gfx12) instead of the FP32 decode kernel 32 queries at a time: the int8 WMMA kernel with one partial per q4_0 block times its scale. The gfx11 build uses the int8 kernel's duplicated-half fragment layout; no FP8, no gfx12 instruction. Follows `STRATA_PA_TRIM` / `STRATA_PA_RPF` (same bits). Only matters with Q4 KV: the daily preset is `--kv int8` | coded on `work/f22-wmma-q4-gfx11`, not built or measured yet; parity `hip_prompt_attn_wmma` (q4_0 cases), screen `bench/specs/18-f22-wmma-q4-gfx11.json`. Fork: parity PASS, 7.2-7.9x the FP32 kernel on gfx1200. `--kv q4_0` at `--kv-resident 32768` frees ~180 MiB VRAM (~131 expert slots) but is lossy (bench/results/2026-09-27-kv-q4) |
+| `STRATA_HIP_WMMA_Q4=1` | `qsa_prompt_attn.cu` (`prompt_attn_wmma_q4_kernel`, MOD_PLAN F22; fork bsorensen110 `19fc0e48`, gfx12-only there) | off | rounding-level vs today's Q4 path (FP32-level with `STRATA_PA_FAST=0`; the preset's `PA_FAST=1` makes it FP16 attention like the int8 kernel); unset: byte-identical | with `--kv q4_0`, the prompt's QSA attention on matrix cores (gfx11 and gfx12) instead of the FP32 decode kernel 32 queries at a time: the int8 WMMA kernel with one partial per q4_0 block times its scale. The gfx11 build uses the int8 kernel's duplicated-half fragment layout; no FP8, no gfx12 instruction. Follows `STRATA_PA_TRIM` / `STRATA_PA_RPF` (same bits). Only matters with Q4 KV: the daily preset is `--kv int8` | coded on `work/f22-wmma-q4-gfx11`; screened 2026-11-16 on the 7900 XT (T-768): DROP by the rule (slower than the FP32 kernel at 32K; the one lead is 64K and up, a length-gated path is untested); parity `hip_prompt_attn_wmma` (q4_0 cases), screen `bench/specs/18-f22-wmma-q4-gfx11.json`. Fork: parity PASS, 7.2-7.9x the FP32 kernel on gfx1200. `--kv q4_0` at `--kv-resident 32768` frees ~180 MiB VRAM (~131 expert slots) but is lossy (bench/results/2026-09-27-kv-q4) |
 | `STRATA_PCIE_OFF` | `generate.cpp` | off | tuning | force the PCIe share off | Round A: +6/+13% with `--pcie-frac 0` |
+| `STRATA_ATTN_VWIN` | `qsa_decode_attn.cu` | off | exact (bitwise, `qsa_merge_daily_parity`) | verify-window attention: two queries per chunk block share one read of the pool row K/V (LEADS A50) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_EXPDEC_NT` | `iq_kernels.cu` | off | exact (bitwise, `iq_multi_parity`) | LEADS B139: the IQ2_XS expdec gate/up weights are read with non-temporal loads; timing only | coded 2026-11-16, engine not built, not measured |
+| `STRATA_GRAPH_LINEAR` | `verify.cpp` | off | exact (same bytes) | layer-split handoff: the three copies as one launch (MOD_PLAN item 45) | coded 2026-11-17; T-736 NOT MEASURED (the path is not on the 7900 XT box) |
+| `STRATA_HC_GATED16` | `prefill.cpp` | off | exact (same bits, `hip_gated16_parity`) | jstamagal/Strata-gfx1030: the HIP FP16 prompt path keeps the gated value in FP16 and widens it in `gr_mix_r` | coded 2026-11-16; arm of spec 97, which aborted (T-630): not measured |
+| `STRATA_HEAD_ARGMAX_FUSED` | `verify.cpp` | off | exact (bitwise, `head_argmax_parity`) | the greedy pick is folded into the output-head GEMV (MOD_PLAN item 17 part 18) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_HEAD_SHORTLIST_GATHER` | `verify.cpp` | off | exact vs its own reference form | an IQ4_XS head computes only the rows of the kept clusters (needs `STRATA_HEAD_SHORTLIST`); the logits equal the masked reference bit for bit | coded 2026-11-17; T-759 host contract PASS; T-761 NOT MEASURED (queued) |
+| `STRATA_HEAD_WIDE_GRID` | `head_wide.cu` | off | exact (bitwise at any grid, `head_wide_parity`) | jstamagal `ef00764552`: workgroup count of the `STRATA_HEAD_WIDE` output-head kernel | coded 2026-11-16, engine not built, not measured |
+| `STRATA_HEAD_WIDE_V` | `head_wide.cu` | off | exact (bitwise, `head_wide_parity`) | jstamagal `ef00764552`: kernel variant 2 or 3 of `STRATA_HEAD_WIDE` | coded 2026-11-16, engine not built, not measured |
+| `STRATA_MOE_MAX_BM` | `moe_f16_common.cuh` | off | exact (same bits as `PF_F16_VAR_BM`, `moe_tile_rule_test`) | caps the token tile of the F16 prompt-expert kernels: 32 = half a tile, 16 = a quarter | coded 2026-11-16; T-659 NOT MEASURED |
+| `STRATA_PF_AHEAD_DEPTH` | `pf_ahead_rule.hpp` | off | exact (the same experts are copied, only earlier) | `2` splits the `STRATA_PF_AHEAD` pool in two sets and issues layer l+2 after layer l | coded 2026-11-17; T-740 host rule PASS, engine code never built; T-741 NOT MEASURED (queued) |
+| `STRATA_PF_COMBINE_WRITE` | `prefill.cpp` | off | exact (bitwise, `combine_write_parity`) | zsariboga `21107e9d05` (FK-36): the prompt MoE combine fused with the HC write and the next half-layer norm | coded 2026-11-16; T-630: the arm ended its first request (503), defect open (T-658), not measured |
+| `STRATA_PF_COPY_BATCH` | `pf_ahead_rule.hpp` | off | exact (same bytes) | B141: consecutive `PF_AHEAD` pool copies at a constant host stride as one 2D copy | coded 2026-11-17; T-744 host rule PASS, engine code never built; T-745 NOT MEASURED (queued) |
+| `STRATA_PF_F16_VAR_BM` | `moe_f16_common.cuh` | off | exact (bitwise by construction: WMMA columns are independent) | Indigoshores `12d7cde5`: F16 prompt-expert kernels on half tiles (32 token rows) when an expert gets few rows | coded 2026-11-16; T-659 NOT MEASURED (spec 118 queued) |
+| `STRATA_PF_F16_VAR_BM16` | `moe_f16_common.cuh` | off | exact (same argument, host rule tested) | the same on quarter tiles (16 token rows) | coded 2026-11-17, GPU kernel never built, not measured (T-659 family) |
+| `STRATA_PF_SWIGLU_Q8` | `moe_mmq.cu` | off | exact (same q8_1 bytes) | zsariboga `21107e9d05` (FK-36): `mmq::swiglu_quant` allowed on HIP | coded 2026-11-16; arm of spec 97, aborted (T-630): not measured |
+| `STRATA_PREFILL_SWIGLU_QUANT` | `prefill.cpp` | off | exact (same bytes, `prefill_swiglu_quant_test`) | zsariboga `21107e9d05` (FK-36): MMQ group SwiGLU and the q8_1 image of H in one kernel | coded 2026-11-16; arm of spec 97, aborted (T-630): not measured |
+| `STRATA_QSA_WAVE32` | `qsa_decode_attn.cu` | off | exact (bitwise, `hip_qsa_wave32_parity`) | dardeaw `580e251e69`: PR #540 decode chunk kernel, LDS-only barriers and merge v2 on gfx11/gfx12 | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SAMPLE_ASYNC` | `verify.cpp` | off | exact (same kernels and inputs) | bsorensen110 `cd3a3ded7b`: the row draws of a batch window are queued before the final stream sync | coded 2026-11-16, engine not built, not measured |
 
 ### 6B. Expert cache, routing and deferral
 
@@ -416,6 +435,63 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_SEED_SCALE=S` / `STRATA_SEED_HOLD=R` | `expert_seed.hpp` | 2 / 16 | exact | domain-seed top score / tier rounds | `replay_seeding.py` |
 | `STRATA_LOOKAHEAD_GPU` | `generate.cpp` | **on** (=0 to disable) | exact | router lookahead runs on GPU instead of a CPU thread | +10% decode on mmap'd experts |
 | `STRATA_ARENA_WARM` | `expert_source.hpp/cpp` | off | exact | lookahead thread pulls the next layer's predicted CPU experts | **measured worse** (L3 prefetch); stays off |
+| `STRATA_ADAPT_FORECAST` | `tier_policy_score.hpp` | off | exact (placement only) | the tier ranks experts by a forecast reuse probability (SeqMoE style, LEADS B126) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ADAPT_LEARNED` | `tier_policy_score.hpp` | off | exact (placement only) | the tier ranks experts by an online logistic reuse model (LEADS A46) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ADAPT_PROTECT` | `tier_protect.hpp` | off | exact (placement only) | the tier never evicts the first ceil(f x slots) slots (MOD_PLAN items 19 and 26) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ADAPT_SIEVE` | `tier_policy_score.hpp` | off | exact (placement only) | the tier ranks experts by SIEVE (1) or S3-FIFO (2) (LEADS B11) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ADAPT_SIEVE_SMALL` | `tier_policy_score.hpp` | off | exact (placement only) | S3-FIFO small-queue length in tier rounds | coded 2026-11-16, engine not built, not measured |
+| `STRATA_COMPLEMENT_HUGETLB` | `expert_source.cpp` | off | exact (same bytes, page size only) | svgop `511bece612`: the RAM expert complement on a `MAP_HUGETLB` mapping via the paced path | coded 2026-11-16, engine not built, not measured |
+| `STRATA_EXPERT_ENTROPY` | `generate.cpp` | off | diagnostic | samples experts, codes them losslessly and logs the ratio at load (LEADS A29) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_EXPERT_ENTROPY_TIER` | `expert_source.cpp` | off | exact (lossless, every byte read is the original) | cold arena blobs kept entropy-coded in RAM and decoded on demand (LEADS A29; MOD_PLAN D9) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_EXPERT_ENTROPY_TIER_GIB` | `expert_source.cpp` | off | exact | raw GiB the entropy tier may code (0 = all eligible) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_EXPERT_ENTROPY_TIER_MIN` | `expert_source.cpp` | off | exact | least saving fraction for a blob to be coded | coded 2026-11-16, engine not built, not measured |
+| `STRATA_EXPERT_ENTROPY_TIER_SLOTS` | `expert_source.cpp` | off | exact | staging-ring slots for on-demand decodes | coded 2026-11-16, engine not built, not measured |
+| `STRATA_EXPERT_ENTROPY_TIER_THREADS` | `expert_source.cpp` | off | exact | decode helper threads | coded 2026-11-16, engine not built, not measured |
+| `STRATA_FRAGILE_BRAKE` | `verify.cpp` | off | **lossy** | HotRod: per-request budget brake of the fragile re-check (0 = off) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_FRAGILE_K0` | `verify.cpp` | off | **lossy** | HotRod: pins the close-call factor of the fragile re-check | coded 2026-11-16, engine not built, not measured |
+| `STRATA_LOOKAHEAD_B` | `expert_source.cpp` | off | exact (prefetch only) | most experts the trained predictor warms per layer | coded 2026-11-16; see `LOOKAHEAD_WEIGHTS` (T-704, T-710) |
+| `STRATA_LOOKAHEAD_CTRL` | `generate.cpp` | off | diagnostic | BigMoeOnEdge I2: look-ahead control and per-layer overlap log lines, no arithmetic | coded 2026-11-16; T-700 rule and parser PASS; T-711 control run NOT MEASURED (queued) |
+| `STRATA_LOOKAHEAD_SKIP_DROPPED` | `expert_source.cpp` | off | exact (prefetch only) | BigMoeOnEdge I6: experts the miss-skip rule would drop are not warmed | coded 2026-11-16; T-701 rule PASS; T-709 NOT MEASURED (queued) |
+| `STRATA_LOOKAHEAD_TAU` | `expert_source.cpp` | off | exact (prefetch only) | probability floor of an expert the trained predictor warms | coded 2026-11-16; see `LOOKAHEAD_WEIGHTS` (T-704, T-710) |
+| `STRATA_LOOKAHEAD_WEIGHTS` | `expert_source.cpp` | off | exact (prefetch only) | a trained look-ahead predictor file (LKW1) replaces the router in the CPU look-ahead thread (ElXreno `2c1219eb`) | coded 2026-11-16; T-704 logic PASS on synthetic data; data run and fit T-710 NOT MEASURED (queued) |
+| `STRATA_MISS_BUDGET` | `expert_source.cpp` | off | **lossy** | skips the lightest missed experts of a token inside a weight-share budget (MOD_PLAN item 20) | coded 2026-11-17; T-732 rule PASS; T-733 NOT MEASURED (queued) |
+| `STRATA_MOBILE` | `expert_source.cpp` | off | **lossy** | MoBiLE "little mode": a confident token's lower-half missed experts are skipped | coded 2026-11-16, engine not built, not measured |
+| `STRATA_OEA` | `verify.cpp` | off | **lossy** | OEA: verify-window rows are re-routed to keep top-k0 plus the experts the window already uses | coded 2026-11-16, engine not built, not measured |
+| `STRATA_PLE_WARM` | `generate.cpp` | off | exact (page cache only) | BigMoeOnEdge I7: reads the PLE shard sequentially on a background thread | coded 2026-11-17; T-750 rule PASS; T-751 NOT MEASURED |
+| `STRATA_PRED_DUMP` | `expert_source.cpp` | off | diagnostic | directory that gets the per-layer MoE input / routing trace (RPD2) for the predictor fit | coded 2026-11-16; T-710 data run NOT MEASURED (queued) |
+| `STRATA_PREFETCH_PREV` | `expert_source.cpp` | off | exact (prefetch only) | BigMoeOnEdge I1: the look-ahead thread also warms the previous token's experts of the next K layers | coded 2026-11-16; T-703 rule PASS; T-707 NOT MEASURED (queued) |
+| `STRATA_PREFILL_STANDIN` | `prefill.cpp` | off | **lossy** | HotRod: the stand-in rule on prompt chunks | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ROUTE_BUDGET_AUTO` | `verify.cpp` | off | **lossy** | HotRod: one decode stand-in budget searched by speed | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ROUTE_BUDGET_AUTO_B0` | `verify.cpp` | off | **lossy** | start budget of `ROUTE_BUDGET_AUTO` | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ROUTE_BUDGET_TAIL` | `verify.cpp` | off | **lossy** | HotRod: floor-rank experts take a stand-in within a weight x gap budget | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ROUTE_PRIOR_ERANK` | `route_prior.cu` | off | **lossy** | AcceptMoE effective-rank set: the router's first ceil(x exp(H)) picks are protected per token | coded 2026-11-16, engine not built, not measured |
+| `STRATA_ROUTE_RANGE` | `route_prior.cu` | off | **lossy** (needs `STRATA_ROUTE_PRIOR`) | BigMoeOnEdge I4: the route-prior bonus counted in units of the token's own logit range | coded 2026-11-16; T-702 host reference PASS, kernel unbuilt; T-708 NOT MEASURED (queued) |
+| `STRATA_SELECT_SPLIT2` | `qsa_select.cu` | off | **lossy** (near-tie selections can flip) | bsorensen110 `ebc1265241`: the QSA block scorer on WMMA with hi/mid pieces only | coded 2026-11-16; T-616 / T-629 screens: DROP |
+| `STRATA_SHADOW_MISS` | `expert_source.cpp` | off | **lossy** | CPU misses read gate/up from a sub-2-bit shadow GGUF (LEADS A27) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SHADOW_MISS_W` | `expert_source.cpp` | off | **lossy** | `SHADOW_MISS` only under this router share | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SLICE_MISS` | `expert_source.cpp` | off | **lossy** | CPU misses under a router share read the 1-bit slice of their Q2_0 down rows (SliceMoE) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SLICE_MISS_MB` | `expert_layout.cpp` | off | **lossy** | cap (MB) on the `SLICE_MISS` slice cache; past it the full rows are read | coded 2026-11-16, engine not built, not measured |
+| `STRATA_STAGER_PROBE` | `prefill.cpp` | off | exact (same bytes) | LEADS B69 (Maya): stager and io-prefetch thread counts chosen from a start-up drive timing | coded 2026-11-16, engine not built, not measured |
+| `STRATA_STANDIN_APPLY` | `verify.cpp` | off | **lossy** | HotRod: stand-in weights scaled by the learned scale | coded 2026-11-16, engine not built, not measured |
+| `STRATA_STANDIN_LEARN` | `verify.cpp` | off | exact (observe only: same picks and weights) | HotRod: the stand-in scale learner on the CPU | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SUBFIT_APPLY` | `verify.cpp` | off | **lossy** | HotRod substitute fit: fitted per-pair corrections of stand-in outputs (modes dynamic, all, flip) | coded 2026-11-16; T-632 screen: DROP, the live learner halves decode speed (see the ledger row) |
+| `STRATA_SUBFIT_GAIN_FIT` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: held-out gain bar to apply a fit | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_SUBFIT_GAIN_REVOKE` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: held-out gain bar to revoke a fit | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_SUBFIT_LADDER` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: (layer, expert) and layer fallback fits | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_SUBFIT_LEARN` | `verify.cpp` | off | exact (observe only without `SUBFIT_APPLY`) | HotRod substitute fit: the live per-pair ridge learner | coded 2026-11-16; T-632 screen: DROP (the learner halves decode speed and fits nothing in a short request) |
+| `STRATA_SUBFIT_PAIRS` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: pair groups the learner keeps | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_SUBFIT_PAIR_MIN_SEEN` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: sightings before a pair learns | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_SUBFIT_PROBE_EVERY` | `verify.cpp` | off | diagnostic | HotRod substitute fit: decode windows per probe window of the sample log | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SUBFIT_RANK` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: rank of the corrections | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_SUBFIT_SHADOW` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: shadow samples per re-check cut | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_SUBFIT_SHADOW_CPU_YE` | `verify.cpp` | off | **lossy** (shapes what `SUBFIT_APPLY` applies) | HotRod substitute fit: shadow samples with the true pick on the CPU | coded 2026-11-16; a knob of `SUBFIT_APPLY` (T-632: DROP) |
+| `STRATA_TIER_MISS_BUDGET` | `tier_miss_budget.hpp` | off | exact (placement only; unset = byte-identical) | per layer, the experts with the least gate importance (cumulative share <= b) are never admitted to the tier | coded 2026-11-16; T-666 CODED, NOT MEASURED |
+| `STRATA_TIER_MISS_FILE` | `expert_source.cpp` | off | exact (placement only) | the gate-importance table that `STRATA_TIER_MISS_BUDGET` reads (`gate_importance.py --emit-importance`) | coded 2026-11-16; T-666 NOT MEASURED |
+| `STRATA_VERIFY_ECAP_MAX_ROWS` | `verify.cpp` | off | **lossy** | ECAP acts only in windows of this many rows or fewer | coded 2026-11-16, engine not built, not measured |
+| `STRATA_VERIFY_ECAP_MINP` | `verify.cpp` | off | **lossy** | ECAP v2: a draft row below this MTP probability gets cap 0 | coded 2026-11-16; T-723 parse rule PASS, not measured |
+| `STRATA_VERIFY_ECAP_ROWS` | `verify.cpp` | off | **lossy** | ECAP v2: expert cap per window row, comma list, last value repeats, -1 = uncapped | coded 2026-11-16; T-723 parse rule PASS, not measured |
+| `STRATA_VRAM_CALIB_MARGIN_MIB` | `generate.cpp` | off | exact (cache size only) | margin in MiB for `STRATA_VRAM_CALIB` | coded 2026-11-16, engine not built, not measured |
+| `STRATA_WINDOW_POLICY` | `verify.cpp` | off | **lossy** | ECAP row list chosen per window from the last N windows (causal rule) | coded 2026-11-17; T-725 rule PASS; T-726 NOT MEASURED (queued) |
 
 ### 6C. Verify/combine data path and draft
 
@@ -442,6 +518,30 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_IC_WARM_MB=<cap>` | `verify.cpp`, `verify.hpp` (item 47) | off | exact | warms the Infinity Cache with the next layer's pre-doorbell weights during the CPU wait | coded (`269a06ed9`) |
 | `STRATA_SPEC_COST_TABLE` | `generate.cpp`, `spec/draft_policy.{hpp,cpp}` (item 43) | opt-in, default off | exact | seeds the draft window cost table from window traces (`tools/pancake/trace/draft_costs.py`) | coded (`663107a56`); not measured yet |
 | `STRATA_MTP_EAGER=1` | `mtp.cpp` (item 74) | off | exact | launches every draft step at once with `--spec-min-p` and cuts the chain on the host (no host round-trip per step); passes the draft counts to `window_trace().drafts()` (item 5) | coded (`5dcd5a83c`) |
+| `STRATA_ADAPT_IDLE_COPY_TRACE` | `verify.cpp` | off | diagnostic | log lines around the adaptive gate's wait (layer, counters, signal mode, host queue, ms) | coded 2026-11-16; diagnostic for the T-613 defect (T-713 rules PASS) |
+| `STRATA_CAPTURE_BEAT` | `verify.cpp` | off | diagnostic (no arithmetic) | ElXreno / 0FL01 `d3a7502d`: watchdog heartbeat after a window-graph capture | coded 2026-11-16; T-654 CODED, ctest pending on the box |
+| `STRATA_DEVICE_ACCEPT` | `verify.cpp` | off | exact (same commit record, `device_accept_parity`) | the greedy accept + commit graph is queued behind the window (MOD_PLAN item 17 part 17) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_DISCO_ENTROPY` | `mtp.cpp` | off | exact (verify unchanged) | the drafts' entropy stops the MTP chain / feeds DISCO (LEADS B24) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_DRAFT_ENTROPY` | `window_rule.hpp` | off | exact | the draft head also computes entropies (trace record 7, stop rules) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_DRAFT_SUFFIX_SKIP` | `generate.cpp` | off | exact (greedy output unchanged) | mandoof1 `868841cb32`: the MTP chain ends after draft 0 before a forecast suffix window, resumed on a miss | coded 2026-11-16, engine not built, not measured |
+| `STRATA_DRAFT_UFAC` | `draft_policy.cpp` | off | exact (greedy output unchanged) | union-cost fit prices window widths that were never measured | coded 2026-11-17; T-762 rule PASS; T-763 skeleton, not queued |
+| `STRATA_HEAD_DUMP` | `verify.cpp` | off | diagnostic | debug tap: the window's final hidden rows written to a file (MOD_PLAN item 46) | coded 2026-11-17, debug only |
+| `STRATA_HEAD_DUMP_MAX_ROWS` | `verify.cpp` | off | diagnostic | row cap of `STRATA_HEAD_DUMP` | coded 2026-11-17, debug only |
+| `STRATA_HEAD_SHORTLIST` | `verify.cpp` | off | **lossy** (changes the output) | kindi idea (LEADS Part J): the greedy pick runs over the rows of the best clusters of a SHL1 table only | coded 2026-11-16; T-672 offline half only, T-694 syntax only: NOT MEASURED on the model |
+| `STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED` | `head_shortlist.hpp` | off | **lossy** | how many clusters `STRATA_HEAD_SHORTLIST` keeps (default ceil(0.13 K)) | coded 2026-11-16; see `HEAD_SHORTLIST` |
+| `STRATA_HYDRA_TOP2` | `recycle_drafts.cpp` | off | exact (the tokens change, given state does not) | Hydra top-2 branch among the outcomes `STRATA_SSD_LITE` prepared | coded 2026-11-16, engine not built, not measured |
+| `STRATA_LAUNCH_CHECK_VERBOSE` | `kernels.cu` | off | diagnostic | one more log line (error name, kernel, grid, block) before the prompt path ends on a launch error | coded 2026-11-16; diagnostic for the T-630 defect (T-713 rules PASS) |
+| `STRATA_LQER` | `ffn_sparse.hpp` | off | **lossy** | low-rank error correction of requantized BF16 projections (LQER) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_LQER_MATCH` | `ffn_sparse.hpp` | off | **lossy** | which tensors `STRATA_LQER` corrects | coded 2026-11-16, engine not built, not measured |
+| `STRATA_MTP_IN_VERIFY` | `mtp.cpp` | off | exact (same drafts) | LEADS B28: the MTP round queued behind the device accept + commit on the window's stream | coded 2026-11-16, engine not built, not measured |
+| `STRATA_MTP_ONE_GRAPH` | `mtp.cpp` | off | exact (same kernels, same order) | LEADS B28: eager MTP chain, round + steps in one captured graph | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SPEC_MISS_WIN` | `window_rule.hpp` | off | exact | B25: miss-aware window length | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SPEC_REASON` | `spec_reason.hpp` | off | **lossy** | SpecReason: whole draft steps inside the thinking are accepted though the target would not pick them | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SPEC_REASON_FLOOR` | `spec_reason.hpp` | off | **lossy** | per-draft floor of `STRATA_SPEC_REASON` | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SSD_LITE` | `recycle_drafts.cpp` | off | exact | next-round lookup drafts prepared on a worker during verify | coded 2026-11-16, engine not built, not measured |
+| `STRATA_TEAL_UNION` | `ffn_sparse.hpp` | off | **lossy** | BlockFFN union mask over the window's rows | coded 2026-11-16, engine not built, not measured |
+| `STRATA_TOKEN_RECYCLE` | `recycle_drafts.cpp` | off | exact | Token Recycling: matrix drafts | coded 2026-11-16, engine not built, not measured |
+| `STRATA_TYPICAL_THINK` | `window_rule.hpp` | off | **lossy** | Medusa typical acceptance inside the thinking | coded 2026-11-16, engine not built, not measured |
 
 ### 6D. CPU thread pool and sync
 
@@ -460,6 +560,13 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_IQ2S_PAIR` | `iq_avx2.cpp` | off | exact | IQ2_S decodes both 64-value halves from one table load | **neutral** (2026-11-08) |
 | `STRATA_ACT_DUMP_RAW[_MAX]` | `pool.cpp` (item 13) | off | research | dump raw CPU expert activations for the sparsity study | enabled item 13's closure |
 | `STRATA_POOL_TAIL4=1` | `pool.cpp` (basalt ports, `e29bac539`) | off | exact | quarter-size tail tasks, plus down-row prefetch while a fused down task waits | basalt `553e9290d` / `4e6841265` ports |
+| `STRATA_CPU_ACT_SPARSE` | `pool.cpp` | off | **lossy** | TEAL style: the smallest-norm 64-blocks of the down input are zeroed and skipped on the CPU experts (LEADS B1) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_CPU_ACT_SPARSE_UNION` | `pool.cpp` | off | **lossy** | `CPU_ACT_SPARSE` keeps the union of the window's kept blocks (BlockFFN, LEADS B2) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_CPU_IQ_OWN1` | `native_expert.cpp` | off | exact (bitwise vs ggml AVX2, `iq_own1_parity_test`) | pszeder `b2d00855` idea, own code: one-token IQ2_XXS / IQ2_XS rows; acts only where ggml is AVX2 without AVX-512 | coded 2026-11-17; T-730 parity PASS, not faster on the Windows host; T-731 NOT MEASURED (queued) |
+| `STRATA_CPU_R4` | `native_expert.cpp` | off | exact (bitwise, `iq_r4_parity`) | IQ2_XS gate/up rows from a row-interleaved R4 copy (ik_llama `_R4`) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_POOL_MICRO_Q2FMA2` | `q2_avx2.cpp` | off | rounding-level lossy (reassociated sum) | B110: the one-token Q2_0 CPU row with two accumulator chains | coded 2026-11-17; T-716 parity PASS; T-717 NOT MEASURED (queued) |
+| `STRATA_POOL_MICRO_SWIGLU` | `q2_avx2.cpp` | off | rounding-level lossy (exp within a few ulp) | B110: 8-lane exp in the one-token IQ gate/up SwiGLU (AVX-512 + iq512 gather only) | coded 2026-11-17; T-716 parity PASS; T-718 NOT MEASURED (queued) |
+| `STRATA_ROWS_ACC2` | `iq_avx2_rows.inl` | off | exact (integer sums, bitwise) | AVX2 IQ row dots with two int32 accumulators per token for NT <= 2; timing only | coded 2026-11-16, engine not built, not measured |
 
 ### 6E. `strata-poly` kernels and research
 
@@ -473,6 +580,15 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_CPU_STATS` | `src/poly/cpu_experts.cpp` | off | print what CPU experts read + timing at exit |
 | `STRATA_FATTN=1` | `src/poly/fattn.cu`, `fattn_mma.cuh`, `qwen35.cpp` (MOD_PLAN F17; RandoTeam `79b1e756`) | off | Qwen3.6 prompt batches through llama.cpp's flash-attention MMA kernel (causal mask in the kernel, q8_0 blocks dequantized into the existing 64 MiB score scratch, no new VRAM; 4,096-row elastic batches in two slices). Ampere+ NVIDIA, heads of 256; else the old path. Rounding-level (sums in halves): KL gate (`tools/pancake/poly_kl.py`) before a default. Fork (RTX 3070): prompt +27% at 32K, +69% at 103K; not built or measured here |
 | `STRATA_FDEC=1` (+ `STRATA_FDEC_FROM=N`, default 4096, 0 = always) | `src/poly/fattn.cu`, `qwen35.cpp` (MOD_PLAN F17; RandoTeam `67f60c12`) | off | Qwen3.6 decode attention on the tensor cores: blocks of 1,024 keys for up to 4 tokens (K/V read once per 4 tokens), in launches sized for more than N rows. Same bits alone or in a window. Rounding-level: KL gate. The fork's 1.60x at 118K was against the kernels without `--attn-split`; the qwen36 preset already runs that, so expect less (more on 3+-token windows). Not built or measured here |
+| `STRATA_Q36_ATTN_GQA` | `q36_engine.cu` | off | storm-ace `4fe0284da5`: GQA decode partials in the q36 engine (exact (bitwise)); coded 2026-11-16; q36 engine only |
+| `STRATA_Q36_ATT_GROUPED` | `q36_engine.cu` | off | storm-ace `f74984a171`: grouped prompt-attention GEMMs in the q36 engine (FP16-GEMM level); coded 2026-11-16; q36 engine only |
+| `STRATA_Q36_FA` | `q36_engine.cu` | off | storm-ace `e4fc07ee57`: WMMA flash prompt attention in the q36 engine (**lossy** (FP16 level)); coded 2026-11-16; q36 engine only |
+| `STRATA_Q36_SPEC_SAMPLE` | `q36_engine.cu` | off | storm-ace `f74984a171`: MTP drafts for sampled requests in the q36 engine (same distribution, other random stream); coded 2026-11-16; q36 engine only |
+| `STRATA_Q36_SWIGLU_SKIM` | `native_expert.cpp` | off | gputier's name for `STRATA_SWIGLU_SKIM` (read when that one is unset) (**lossy**); coded 2026-11-16; T-634 screen: PROMOTE, inside noise, text differs (quality gate needed) |
+| `STRATA_XATTN` | `xattn.hpp` | off | XAttention block-sparse prompt attention in the q36 engine (**lossy**); coded 2026-11-16; T-631 screen: DROP (no effect measured; not a test above 64K) |
+| `STRATA_XATTN_MIN` | `xattn.hpp` | off | XAttention knob (minimum) (**lossy**); coded 2026-11-16, engine not built, not measured |
+| `STRATA_XATTN_STRIDE` | `xattn.hpp` | off | XAttention knob (stride) (**lossy**); coded 2026-11-16, engine not built, not measured |
+| `STRATA_XATTN_TAU` | `xattn.hpp` | off | XAttention knob (threshold) (**lossy**); coded 2026-11-16, engine not built, not measured |
 
 ### 6F. Window trace and side-branch switches
 
@@ -485,6 +601,24 @@ The census: 65 new `STRATA_*` variables on the main line, plus the side-branch f
 | `STRATA_CONTEXT_DEDUP=1` | `feat/contextpilot` | lossy block dedup of repeated context | 1.6% on 40 real sessions; **keep off** |
 | `STRATA_ATTN_WMMA=1` | `feat/bitdecoding-hip` | BitDecoding-style decode attention on gfx11 matrix cores | neutral; not adopted |
 | `STRATA_ATTN_WINDOW=1` | `work/f11-attn-window` (`src/qwen35/q36_engine.cu` `k_attn_window`, MOD_PLAN F11, from Asofwar/Strata-Turbo) | Qwen3.6 engine only: decode and verify-window attention reads each K/V chunk once per KV head and pair of rows (a decode step once instead of 8 times, a 3-row MTP window twice instead of 24 times); meant to be bit-for-bit the old kernel (bitwise in a host emulation), CUDA and HIP; not read by Flash-Next (its QSA selection already caps attention at 2,051 cells) | not built or measured; spec `bench/specs/18-f11-attn-window.json` (decode after 32K / 64K / 120K prompts). Fork claim (RTX 5080, int8 tensor cores, main-engine port): 200K decode 48.6 -> 88.9 tok/s |
+| `STRATA_CACHE_ROOT_PAST` | main line (`generate.cpp`) | ElXreno `00be27a0`: the prompt-cache root is taken at or past `--prompt-cache-root` (exact (a checkpoint position)) | coded 2026-11-16; T-652 CODED; T-665 A/B NOT MEASURED |
+| `STRATA_CKPT_STRIDE` | main line (`generate.cpp`) | periodic checkpoints at a fixed small stride from the resume point (exact (same state)) | coded 2026-11-17; T-727 plan rule PASS; T-729 NOT MEASURED |
+| `STRATA_CKPT_STRIDE_MAX` | main line (`generate.cpp`) | at most this many stride checkpoints per request (exact) | coded 2026-11-17; T-727 plan rule PASS; T-729 NOT MEASURED |
+| `STRATA_CONV_DISK_ONLY` | main line (`generate.cpp`) | ElXreno `2271ee21a1`: switched-away conversations are streamed to the disk tier and restored by the two-pass restore (exact (same bytes, `conversation_disk_tier_test`)) | coded 2026-11-16; T-651 CODED, ctest pending on the box |
+| `STRATA_CONV_DISK_WANTS` | main line (`generate.cpp`) | the disk-only save obeys `--conversation-cache-min-tokens` (ElXreno `3da39ce1`) (exact (which conversations are written, never their bytes)) | coded 2026-11-16; T-651 CODED, ctest pending on the box |
+| `STRATA_CONV_DUAL_PARK` | main line (`generate.cpp`) | a park also writes the conversation to the disk tier; the RAM image stays (exact (same bytes)) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_DISK_NO_DRAFT` | main line (`generate.cpp`) | disk save / restore without a draft layer when no `--mtp` layer is loaded (a path that failed before) (exact (main layers identical)) | coded 2026-11-16; T-657 CODED, ctest pending on the box |
+| `STRATA_FORK_FIX_TEST` | main line ((test hook)) | test hook of `fork_bugfix_rules_test` (diagnostic) | test hook only |
+| `STRATA_RKV` | main line (`rkv.hpp`) | R-KV eviction from the QSA selection (**lossy**) | coded 2026-11-16; T-629 screen: DROP |
+| `STRATA_RKV_BUFFER` | main line (`rkv.hpp`) | R-KV knob (buffer) (**lossy**) | coded 2026-11-16; knob of `STRATA_RKV` (T-629: DROP) |
+| `STRATA_RKV_LAMBDA` | main line (`rkv.hpp`) | R-KV knob (lambda) (**lossy**) | coded 2026-11-16; knob of `STRATA_RKV` (T-629: DROP) |
+| `STRATA_RKV_RECENT` | main line (`rkv.hpp`) | R-KV knob (recent) (**lossy**) | coded 2026-11-16; knob of `STRATA_RKV` (T-629: DROP) |
+| `STRATA_RKV_SINK` | main line (`rkv.hpp`) | R-KV knob (sink) (**lossy**) | coded 2026-11-16; knob of `STRATA_RKV` (T-629: DROP) |
+| `STRATA_SESSION_KEEP_ROOT` | main line (`conversation_file.cpp`) | the session file (SAVE / QUIT) also keeps the root checkpoint (B116) (exact (same state, more bytes on disk)) | coded 2026-11-17; T-734 rule PASS; T-735 NOT MEASURED |
+| `STRATA_SESSION_STREAMED` | main line (`generate.cpp`) | ElXreno `9c18aed118`: session restore in two passes, K/V streamed 16 MiB at a time (exact (same bytes, `conversation_file_test`)) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_SESSION_TWO_PASS` | main line (`generate.cpp`) | ElXreno `7efef35d0d`: session save and restore stream the running state and checkpoint too (implies `SESSION_STREAMED`) (exact (same file format and bytes)) | coded 2026-11-16, engine not built, not measured |
+| `STRATA_STOP_LAYERS` | main line (`stop_rule.hpp`) | adambenhassen `ef156accf1`: a Stop is also polled between the layers of a prompt chunk (exact (only a cancelled read ends earlier)) | coded 2026-11-16; T-695 rule PASS, engine edit syntax-unchecked |
+| `STRATA_WINDOW_EVICT_LONG` | main line (`verify.cpp`) | ElXreno `c01bb2a4`: window-graph eviction under VRAM pressure also covers `kVerifyLongT` (diagnostic (which cached graphs are freed)) | coded 2026-11-16; T-653 CODED, ctest pending on the box |
 
 ### 6G. Server env vars (`serve/`)
 
@@ -980,6 +1114,8 @@ Credits, in the order the stack was built:
   trial (`KnobTrial`). It is `tools/pancake/plan_auto.py` (offline, our flags and `STRATA_*` names) and the trial spec
   `bench/specs/127-plan-auto-trial.json`; the other ideas (route-ahead, range-relative substitution, the predictor control) are in
   LEADS.md Part I as default-off switches to build. Their numbers are theirs, on phones and laptops, and none was reproduced here.
+- The fork scan of 2026-11-16 (LEADS.md Part H; default-off switches, the diffs were read through the GitHub API and the code is written here): **adambenhassen** (`ef156accf1`, `61f3e6176f`: `STRATA_STOP_LAYERS`; `3faf5f04a0`, `54ef684d05`: `STRATA_TOOL_ADDITION`, `STRATA_TOOLSEARCH_PASSTHROUGH`), **ElXreno** (`2c1219eb`, `6e4126cd`, `e8c82e8f`: the trained look-ahead predictor, `STRATA_LOOKAHEAD_WEIGHTS`; `4373596a`: `STRATA_SIDE_QUERY_ONESHOT`; `3da39ce1`, `00be27a0`, `c01bb2a4`: the disk-only, cache-root and window-graph fixes), **Indigoshores** (`12d7cde5`, `0c398d60`: `STRATA_PF_F16_VAR_BM`, `STRATA_MOE_MAX_BM`), **pszeder** (`b2d00855`: `STRATA_CPU_IQ_OWN1`), **0FL01** (`d3a7502d`: `STRATA_CAPTURE_BEAT`), **xszwow** (`e0f97dbf7e`: `STRATA_PF_DM16`, already ours) and **serboox** (`d1eea56e6b`: the norm-bound head idea behind `tools/pancake/head_bound.py`). Author numbers in LEADS.md are theirs; none was reproduced here unless the ledger says so.
+- **tensward** (u/tensward, a LocalLLM post read second-hand from the owner's paste, not fetched), for the finding that llama.cpp copies the GPU state of a hybrid (recurrent-state) model to the host for every request's context checkpoint (LEADS.md Part K): it set up the state-saving cost tool `tools/pancake/state_cost.py` and spec 128 (T-688). Their numbers (H100, 16 clients) are theirs, not measured here; no code taken.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
 - **kvcache-ai** (KTransformers), **sgl-project** (SGLang), **vllm-project** (vLLM), **NVIDIA** (TensorRT-LLM),
   **flashinfer-ai** (FlashInfer), for ideas and reference points.

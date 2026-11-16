@@ -61,7 +61,7 @@ tier-0 (offline) step if the replay shows < 3% of window time to win.
 Measurement (the full text is in AGENTS.md "Measurement rules"):
 1. Paired A B B A runs, run 1 discarded, quiet machine (`abtest.py` waits and refuses beside a running server). Bar:
    >=2% end to end exact, >=3% lossy; TTFT bar >=0.1 s per warm turn or >=2% on long prompts. Screen, then confirm
-   (`--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9`). Owner rule since 2026-11-13: promote from 0% up
+   (`--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5`; owner 2026-11-16: 5 reps, not 9 (9 reps made the night round 10+ hours)). Owner rule since 2026-11-13: promote from 0% up
    at screen, decide at confirm; "test, never judge by reading".
 2. Text identity is not an exactness proof (stock-vs-stock greedy noise is 1.2-1.3% of tokens; the base arm gave 6
    hashes in 6 runs). Lossy arms need token forcing (`quality_gate.py`, 20 requests x 300 tokens, 2 stock arms; it
@@ -202,7 +202,7 @@ miss.
    strata-poly failed in chain 6 (T-603); the fix 5b867bf3a is built and passes (T-683, chain 7a, exit 0). Earlier chains (specs 60-65 overnight, T-587..T-596; win-chain2/3/4/5b, aborted or untrusted,
    T-600, T-601) are closed.
 2. **Promoted to confirm (screen PROMOTE, nothing adopted yet).** Confirm with `--tier confirm --block 3 --warmup 1 --outlier
-   robust --reclaim-max 3 --reps 9`, bar >= 2% end to end; every arm below gave text different from base, so each also needs
+   robust --reclaim-max 3 --reps 5` (owner 2026-11-16: 5 reps, not 9; 9 reps made the night round 10+ hours), bar >= 2% end to end; every arm below gave text different from base, so each also needs
    `quality_gate.py` before it can enter fast-hip.
    - Spec 102 (decode, from T-604): `MULTI_BLOCK_ARGMAX`, `MTP_SELECT_WIDE`, `SCAN_UNROLL`, `GRUP_WIDE`, `DOWN_SWIGLU`,
      `GDN_SPLIT`, `ADAPT_OVERLAP=0`, `ADAPT_OVERLAP=0`+`ADAPT_LAYERWAIT`, `FUSE_HITS`, `GR_FUSE`, `WAIT_COMBINE` (with
