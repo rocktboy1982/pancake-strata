@@ -103,8 +103,30 @@ int file_tier_prefers_direct_cases() {
     return fail;
 }
 
+// STRATA_STAGER_PROBE (LEADS.md B69): the per-drive depth pick
+int drive_probe_depth_cases() {
+    using strata::platform::drive_probe_depth;
+    const int qd[] = {2, 4, 8, 16};
+    struct Case { const char* what; double bps[4]; int want; };
+    const Case cases[] = {
+        {"a SATA SSD: flat from 2", {0.50e9, 0.52e9, 0.53e9, 0.53e9}, 2},
+        {"an NVMe that scales to 8", {1.2e9, 2.1e9, 3.4e9, 3.5e9}, 8},
+        {"an NVMe that scales to 16", {1.0e9, 1.9e9, 3.0e9, 3.6e9}, 16},
+        {"over 90% at 4", {1.0e9, 2.75e9, 3.0e9, 2.9e9}, 4},
+        {"a failed deeper run (0) keeps the measured ones", {1.0e9, 2.0e9, 0.0, 0.0}, 4},
+        {"nothing measured", {0.0, 0.0, 0.0, 0.0}, 0},
+    };
+    int fail = 0;
+    for (const Case& c : cases) {
+        const int got = drive_probe_depth(qd, c.bps, 4);
+        std::printf("drive_probe_depth %-52s -> %d%s\n", c.what, got, got == c.want ? "" : "   <-- WRONG");
+        fail |= got != c.want;
+    }
+    return fail;
+}
+
 int main() {
-    int fail_keeps = file_cache_keeps_cases() | file_tier_prefers_direct_cases();
+    int fail_keeps = file_cache_keeps_cases() | file_tier_prefers_direct_cases() | drive_probe_depth_cases();
     const uint64_t bytes = 256ull << 20;
     void* p = std::malloc(bytes);
     if (p == nullptr) return 2;

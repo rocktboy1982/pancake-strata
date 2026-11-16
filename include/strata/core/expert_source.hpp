@@ -893,6 +893,11 @@ bool adapt_prob_mass_on();
 bool shadow_miss_weights_on();
 /// The verifier publishes the window's routing weights to the pool (GpuPlanSink::skip_w) when either of the above wants them.
 bool pool_weights_wanted();
+/// STRATA_STAGER_PROBE=1 (opt-in; LEADS.md B69, Project Maya's per-drive reader count): the prompt path's stager threads
+/// from a start-up timing of each drive that holds one of `paths` (O_DIRECT reads at 2-16 in flight, the smallest depth
+/// within 90% of the drive's best, summed over drives, in [2, 32]).  Once per process; 0 (and `note`) when it cannot be
+/// measured (not Linux, nothing takes O_DIRECT).  Timing only.
+int stager_drive_probe_threads(const std::vector<std::string>& paths, std::string& note);
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic = strata::kernels::cpu::NativeArithmetic::Default);

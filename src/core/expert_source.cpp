@@ -1026,6 +1026,97 @@ bool file_tier_unbuffered(const std::vector<std::string>& paths, uint64_t arena_
 
 }  // namespace
 
+// STRATA_STAGER_PROBE=1 (opt-in; LEADS.md B69 "Maya parallel direct expert reads": Project Maya (Peasant Smith et al.)
+// MAYA_EXPERT_STAGERS 2-16 readers, probed per drive).  Each drive (st_dev) that holds one of `paths` is timed once:
+// O_DIRECT preads of 512 KiB at random places of its largest file, with 2, 4, 8 and 16 reads in flight (one thread
+// each), ~200 ms per depth.  A drive's depth is the smallest that reaches 90% of its best throughput
+// (platform::drive_probe_depth); the threads are the sum over the drives, in [2, 32].  Once per process; 0 (and a
+// note) when it cannot be measured - not Linux, no file, O_DIRECT refused - and the caller keeps its own count.
+// Timing only: the stager copies the same bytes with any number of threads.
+int stager_drive_probe_threads(const std::vector<std::string>& paths, std::string& note) {
+    static std::mutex mu;
+    static bool done = false;
+    static int memo = 0;
+    static std::string memo_note;
+    std::lock_guard<std::mutex> lk(mu);
+    if (done) { note = memo_note; return memo; }
+    done = true;
+#if defined(__linux__)
+    struct Drive { dev_t dev; std::string path; uint64_t size; };
+    std::vector<Drive> drives;
+    for (const std::string& p : paths) {
+        struct stat st{};
+        if (::stat(p.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;
+        bool seen = false;
+        for (Drive& d : drives)
+            if (d.dev == st.st_dev) {
+                seen = true;
+                if ((uint64_t) st.st_size > d.size) { d.size = (uint64_t) st.st_size; d.path = p; }
+            }
+        if (!seen) drives.push_back({st.st_dev, p, (uint64_t) st.st_size});
+    }
+    constexpr uint64_t kRead = 512ull << 10;
+    constexpr int kDepths[] = {2, 4, 8, 16};
+    constexpr int kN = (int) (sizeof kDepths / sizeof kDepths[0]);
+    int total = 0;
+    std::string per;
+    for (const Drive& d : drives) {
+        if (d.size < 64 * kRead) continue;
+        const int fd = ::open(d.path.c_str(), O_RDONLY | O_DIRECT | O_CLOEXEC);
+        if (fd < 0) continue;
+        double bps[kN] = {};
+        uint64_t seed = (uint64_t) std::chrono::steady_clock::now().time_since_epoch().count() * 6364136223846793005ull + 1;
+        for (int k = 0; k < kN; ++k) {
+            std::atomic<uint64_t> bytes{0};
+            std::atomic<int> failed{0};
+            const auto t0 = std::chrono::steady_clock::now();
+            const auto deadline = t0 + std::chrono::milliseconds(200);
+            std::vector<std::thread> th;
+            for (int t = 0; t < kDepths[k]; ++t) {
+                const uint64_t s0 = seed + (uint64_t) (k * 64 + t) * 0x9E3779B97F4A7C15ull;
+                th.emplace_back([&, s0] {
+                    void* buf = nullptr;
+                    if (posix_memalign(&buf, 4096, kRead) != 0) { failed = 1; return; }
+                    uint64_t s = s0;
+                    while (std::chrono::steady_clock::now() < deadline) {
+                        s = s * 6364136223846793005ull + 1442695040888963407ull;
+                        const uint64_t off = ((s >> 17) % (d.size / kRead - 1)) * kRead;
+                        const ssize_t r = ::pread(fd, buf, (size_t) kRead, (off_t) off);
+                        if (r < 0 && errno == EINTR) continue;
+                        if (r <= 0) { failed = 1; break; }
+                        bytes.fetch_add((uint64_t) r);
+                    }
+                    std::free(buf);
+                });
+            }
+            for (std::thread& x : th) x.join();
+            const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            if (failed.load() != 0 || secs <= 0) break;
+            bps[k] = (double) bytes.load() / secs;
+        }
+        ::close(fd);
+        const int depth = strata::platform::drive_probe_depth(kDepths, bps, kN);
+        if (depth <= 0) continue;
+        total += depth;
+        char b[160];
+        std::snprintf(b, sizeof b, "%s%s: %d (%.2f / %.2f / %.2f / %.2f GB/s at 2 / 4 / 8 / 16)", per.empty() ? "" : "; ",
+                      d.path.c_str(), depth, bps[0] / 1e9, bps[1] / 1e9, bps[2] / 1e9, bps[3] / 1e9);
+        per += b;
+    }
+    if (total > 0) {
+        memo = std::clamp(total, 2, 32);
+        memo_note = "per-drive probe: " + per;
+    } else {
+        memo_note = "per-drive probe: nothing measurable (no expert file takes O_DIRECT reads)";
+    }
+#else
+    (void) paths;
+    memo_note = "per-drive probe: Linux only";
+#endif
+    note = memo_note;
+    return memo;
+}
+
 // ================================ THE FILE-BACKED SOURCE ================================
 
 FileExpertSource::~FileExpertSource() { close(); }

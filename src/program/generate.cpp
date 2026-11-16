@@ -8386,7 +8386,20 @@ int main(int argc, char** argv) {
 #endif
         if (io_pf_default || (io_pf_env != nullptr && std::atoi(io_pf_env) != 0)) {
             const char* th = std::getenv("STRATA_IO_PF_THREADS");
-            src.set_io_prefetch(true, th != nullptr ? std::atoi(th) : 0);
+            int io_threads = th != nullptr ? std::atoi(th) : 0;
+            // STRATA_STAGER_PROBE=1 (opt-in; LEADS.md B69, Project Maya MAYA_EXPERT_STAGERS "probed per drive"): the
+            // decode I/O threads from the per-drive timing too, when STRATA_IO_PF_THREADS is unset (else its 8)
+            if (const char* sp = std::getenv("STRATA_STAGER_PROBE"); sp != nullptr && sp[0] == '1' && th == nullptr) {
+                std::vector<std::string> paths;
+                for (const auto& in : src.model_inputs())
+                    if (std::find(paths.begin(), paths.end(), in.second) == paths.end()) paths.push_back(in.second);
+                std::string note;
+                const int probed = strata::core::stager_drive_probe_threads(paths, note);
+                if (probed > 0) io_threads = probed;
+                std::fprintf(stderr, "strata generate: STRATA_STAGER_PROBE: %d io prefetch threads (%s)\n",
+                             io_threads > 0 ? io_threads : 8, note.c_str());
+            }
+            src.set_io_prefetch(true, io_threads);
             io_pf_by_default = io_pf_default && src.io_prefetch();
             if (src.io_prefetch() && io_pf_default) {
                 const char* cv = std::getenv("STRATA_COLD_OVERLAP");
@@ -12992,7 +13005,11 @@ int main(int argc, char** argv) {
                     const strata::core::OnDevice on(v.device());
                     if (!v.capture_all(e)) return false;
                 }
-            if (!mtp.prepare_prefill(e)) return false;
+            // LEADS.md "bugs 5.5-5.10", 5.6 (rpcribari 7293b8590d): the pipelined read hands the drafter windows of
+            // o.spec rows, not prepare_prefill's max_t; reserve_prefill sizes the input records (and the pinned upload
+            // slots) for them now, so the first larger window neither frees nor allocates while the device waits on
+            // the host's doorbell service.  Allocation sizes only: the same bytes come out.
+            if (!mtp.reserve_prefill(o.spec, e)) return false;
             if (o.pipeline_windows >= 2 && pl_snap_ok && !mtp.prepare_chain(e)) return false;
             const strata::core::OnDevice on(mtp.device());
             for (cudaEvent_t& ev : pl_mtp_ev)
@@ -13329,10 +13346,25 @@ int main(int argc, char** argv) {
         else if (disk_only)
             std::fprintf(stderr, "strata serve: conversation disk: disk-only (STRATA_CONV_DISK_ONLY): conversations "
                                  "switched away from are streamed to disk, no RAM image\n");
+        // STRATA_CONV_DUAL_PARK=1 (opt-in; LEADS.md "disk conversation cache + RAM/disk dual-park"): a park writes the
+        // conversation to the disk tier too (disk_save_live, streamed from its pools before the RAM capture) and keeps
+        // its RAM image as before; the tier then skips an eviction of an image it holds (set_dual_park).  Exact: the
+        // same bytes are parked, restored and written; only when the disk write happens changes.  Unset: as before.
+        static const bool dual_park_env = [] { const char* v = std::getenv("STRATA_CONV_DUAL_PARK"); return v != nullptr && v[0] == '1'; }();
+        const bool dual_park = dual_park_env && !disk_only && disk_tier.on() && conversations.enabled() && stages.empty();
+        if (dual_park) {
+            disk_tier.set_dual_park(true);
+            std::fprintf(stderr, "strata serve: conversation disk: dual park (STRATA_CONV_DUAL_PARK): a parked "
+                                 "conversation is written to disk at park time and kept in RAM\n");
+        } else if (dual_park_env) {
+            std::fprintf(stderr, "strata serve: conversation disk: STRATA_CONV_DUAL_PARK needs the disk tier and the RAM "
+                                 "conversation cache (one GPU, no --batch, not STRATA_CONV_DISK_ONLY); it is off\n");
+        }
         bool disk_continuing = false;
         uint64_t disk_keep_serial = 0;
         auto disk_save_live = [&](const char* why) {
-            if (!disk_only || !disk_tier.on() || !live_ok || live.empty()) return;
+            if (!(disk_only || dual_park) || !disk_tier.on() || !live_ok || live.empty()) return;
+            if (dual_park && !disk_only && disk_tier.holds(live, live_imgs, cvec_cached)) return;   // written already
             try {
                 std::string e;
                 if (!ver.wait_commit(e)) {
@@ -13729,6 +13761,7 @@ int main(int argc, char** argv) {
                 return true;
             }
             if (!conversations.enabled() || !live_ok || live.empty()) return true;
+            if (dual_park) disk_save_live("dual park");   // STRATA_CONV_DUAL_PARK: to disk first, then the RAM park below
             const size_t n_st = stages.size();
             ParkSource src{live, live_imgs, checks, cvec_cached, ss, {},
                            (n_st > 0 && !mtp_first) || !use_mtp ? nullptr : &mtp.kv_state(),
@@ -16348,8 +16381,12 @@ int main(int argc, char** argv) {
         int64_t bt_windows = 0, bt_rows = 0, bt_tokens = 0, bt_accepted = 0;   // bt_accepted: --batch-mtp proposals taken
         int64_t pipe_rows = 0;   // the pipelined groups' rows, never reset (bt_rows restarts when the slots go idle)
         // per stage (0 = CUDA0's verifier): the GPU-reach wait and pool time when the timed windows began; and the routed
-        // (token, expert) entries the CPU and the PCIe share had served by then (bt_hits0 holds the VRAM entries)
-        std::vector<double> bt_stage_wait0, bt_stage_pool0;
+        // (token, expert) entries the CPU and the PCIe share had served by then (bt_hits0 holds the VRAM entries).
+        // LEADS.md "bugs 5.5-5.10", 5.7 (svgop c45eeb2a17): sized here, never empty - the idle stats flush of batch_step
+        // reads them per stage, and the pipelined path's first window (below) armed the other baselines but not these, so
+        // a flush after pipelined windows indexed an empty vector.  A flush without its arming path is now a wrong
+        // number, never a fault.
+        std::vector<double> bt_stage_wait0(stages.size() + 1, 0.0), bt_stage_pool0(stages.size() + 1, 0.0);
         int64_t bt_cpu_ent0 = 0, bt_off_ent0 = 0;
         // the adaptive VRAM tier in batch windows: windows seen since the engine started (--adapt-every counts them), and,
         // since the last timing line, its rounds, the experts it swapped in and the ms a window waited for it
@@ -17215,6 +17252,14 @@ int main(int argc, char** argv) {
                 p4.span_start(bt_start);
                 bt_wait0 = ver.ms_wait; bt_pool0 = ver.ms_pool;
                 bt_miss0 = drive.d.multi_misses; bt_hits0 = drive.d.cache_hits; bt_pcie0 = drive.d.pcie_experts;
+                // 5.7 (svgop c45eeb2a17): the stage baselines too, as batch_step arms them
+                bt_stage_wait0.assign(stages.size() + 1, 0.0);
+                bt_stage_pool0.assign(stages.size() + 1, 0.0);
+                for (size_t k = 0; k <= stages.size(); ++k) {
+                    bt_stage_wait0[k] = stage_verifier((int) k).ms_wait;
+                    bt_stage_pool0[k] = stage_verifier((int) k).ms_pool;
+                }
+                bt_cpu_ent0 = drive.d.multi_entries; bt_off_ent0 = drive.d.offload_entries;
                 if (pc.on()) pc.begin(pc_ex(), (int) g.n_layers);
             }
             for (int k = 0; k < n_pipe; ++k) {
@@ -17512,6 +17557,24 @@ int main(int argc, char** argv) {
                 std::string verr;
                 if (batch_on()) verr = "VRAM: not while batch slots are decoding";
                 else vram_command(line, verr);
+                if (!verr.empty()) std::printf("ERR %s\n", verr.c_str());
+                std::fflush(stdout);
+                continue;
+            }
+            // SLEEP / WAKE (LEADS.md B74, basalt 64167ba73 "sleep in place", jesdga95/basalt, Jesus Gulfo; the server's
+            // opt-in --idle-sleep sends them): between requests the expert cache gives its VRAM back down to its
+            // smallest size (every expert keeps its RAM copy and the slot it held is remembered, #533's vram_evicted),
+            // so the server can have the driver suspend the process with little VRAM left to save; WAKE maps the cache
+            // again and puts each expert back in its slot.  The same path as `VRAM <huge>` / `VRAM`: a segmented cache
+            // (--vram-elastic) is needed, and the resident low-RAM mode and --peer-device are refused as for VRAM (so
+            // basalt's peer-tier sleep and its RAM-copy re-registration have nothing to do here).  Reply: a VRAM line,
+            // or ERR.  A server that never sends them changes nothing.
+            if (line == "SLEEP" || line == "WAKE") {
+                std::string verr;
+                if (batch_on()) verr = line + ": not while batch slots are decoding";
+                else if (!vram_command(line == "SLEEP" ? "VRAM " + std::to_string(1ll << 30) : std::string("VRAM"), verr) &&
+                         verr.rfind("VRAM", 0) == 0)
+                    verr = line + verr.substr(4);   // "SLEEP: ..." / "WAKE: ..." instead of "VRAM: ..."
                 if (!verr.empty()) std::printf("ERR %s\n", verr.c_str());
                 std::fflush(stdout);
                 continue;
@@ -20620,9 +20683,30 @@ int main(int argc, char** argv) {
                                                                 std::min<int64_t>(tool_marks_max, o.prompt_cache - 3));
             }
             auto is_tool_at = [&](int64_t p) { return std::find(tool_at.begin(), tool_at.end(), p) != tool_at.end(); };
+            // STRATA_CACHE_FORK_POINT=1 (opt-in; LEADS.md FK-27 "fork-point", eddoursul/Lamina ab808b133e): two more
+            // checkpointed cuts where agents' prompts part - where this prompt leaves the previous request's, and 4 tokens
+            // before the last message's <|im_end|> (fork_checkpoint_points) - each over 256 tokens past `resume`.  Same
+            // budget and retention as the other checkpoints; not on a layer split, not with ckpt=0 or pictures.  Exact:
+            // a checkpoint is a copy of the state.  Unset: no cut is added and no prompt is kept.
+            static const bool fork_points_on = [] {
+                const char* e = std::getenv("STRATA_CACHE_FORK_POINT");
+                return e != nullptr && std::atoi(e) != 0;
+            }();
+            static std::vector<int64_t> fork_prev;   // the previous request's prompt
+            std::array<int64_t, 2> fork_at = {-1, -1};
+            if (fork_points_on && req_imgs.empty()) {
+                if (req_ckpt && !multi_gpu && o.prompt_cache >= 3 && o.turn_token >= 0)
+                    fork_at = strata::program::fork_checkpoint_points(fork_prev, ids, resume, last_turn, 248046);
+                fork_prev.assign(ids.begin(), ids.end());
+                if (trace && (fork_at[0] >= 0 || fork_at[1] >= 0))
+                    std::fprintf(stderr, "strata serve: fork-point checkpoints (STRATA_CACHE_FORK_POINT): fork %lld, message "
+                                         "end %lld\n", (long long) fork_at[0], (long long) fork_at[1]);
+            }
+            auto is_fork_at = [&](int64_t p) { return p >= 0 && (p == fork_at[0] || p == fork_at[1]); };
             std::vector<int64_t> cuts = {reread_to, root_at, message_at, turn_at, n - 1};
-            if (pin_at >= 0 || !tool_at.empty()) {
+            if (pin_at >= 0 || !tool_at.empty() || fork_at[0] >= 0 || fork_at[1] >= 0) {
                 if (pin_at >= 0) cuts.push_back(pin_at);
+                for (int64_t f : fork_at) if (f >= 0) cuts.push_back(f);
                 cuts.insert(cuts.end(), tool_at.begin(), tool_at.end());
                 std::sort(cuts.begin(), cuts.end());   // the skipped -1s first, n - 1 still last
             }
@@ -20715,7 +20799,7 @@ int main(int argc, char** argv) {
                     break;
                 }
                 at = to;
-                if ((to == turn_at || to == root_at || to == message_at || to == pin_at || is_tool_at(to)) &&
+                if ((to == turn_at || to == root_at || to == message_at || to == pin_at || is_tool_at(to) || is_fork_at(to)) &&
                     !checkpoint_at(to, nullptr, to == message_at && to != turn_at && to != root_at && to != pin_at)) {   // the tail kind leaves first
                     if (!ckpt_why.empty() || !checkpoint_failure_is_survivable()) {   // #3350: only an unwell GPU ends the request
                         std::printf("ERR saving a conversation checkpoint failed%s\n", ckpt_why.c_str());
@@ -21256,6 +21340,14 @@ int main(int argc, char** argv) {
                 };
                 auto pl_apply = [&]() {
                     if (exch_wait) {
+#if defined(STRATA_USE_HIP)
+                        // LEADS.md "bugs 5.5-5.10", 5.6 (rpcribari 7293b8590d): hipHostUnregister (unpin_blobs) waits for
+                        // the windows that still need this host to serve their flags; with pinned blobs live and a
+                        // window in flight, apply again on the next round instead of blocking under it
+                        if (!pin_live.empty())
+                            for (int st = 0; st < n_stages; ++st)
+                                if (stage_ver_p(st, 0).in_flight() || stage_ver_p(st, 1).in_flight()) return;
+#endif
                         if (stage_passed(exch_ev)) pl_release();
                         return;
                     }

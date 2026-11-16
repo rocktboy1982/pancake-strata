@@ -77,6 +77,21 @@ inline bool file_tier_prefers_direct(double held_fraction, double direct_bps, do
     return held_fraction < 0.3 ? ratio >= 1.3 : ratio >= 1.5;
 }
 
+/// STRATA_STAGER_PROBE (opt-in; LEADS.md B69 "Maya parallel direct expert reads", Project Maya MAYA_EXPERT_STAGERS
+/// "probed per drive"): of the queue depths `qd[0..n)` a drive was timed at (`bps[i]`: bytes/s with qd[i] reads in
+/// flight), the smallest depth that reaches `frac` of the best throughput - more readers past that point only queue on
+/// the drive.  0 when no depth has a positive figure.
+inline int drive_probe_depth(const int* qd, const double* bps, int n, double frac = 0.9) {
+    double best = 0.0;
+    for (int i = 0; i < n; ++i)
+        if (bps[i] > best) best = bps[i];
+    if (!(best > 0.0)) return 0;
+    int pick = 0;
+    for (int i = 0; i < n; ++i)
+        if (bps[i] >= frac * best && (pick == 0 || qd[i] < pick)) pick = qd[i];
+    return pick;
+}
+
 /// Whether `advise_willneed` asks the OS for anything: not on Windows, nor with STRATA_READ_AHEAD=0.
 bool read_ahead_enabled();
 /// Asks the OS to start reading [p, p + bytes) of a file mapping, without waiting.  Linux reads at most one

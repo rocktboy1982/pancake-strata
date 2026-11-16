@@ -229,6 +229,29 @@ EFFORT_TEXT = {"low": "Reasoning effort is set to low. Keep your thinking brief 
                "xhigh": "Reasoning effort is set to xhigh. Please think carefully through the task, validate key "
                         "assumptions, consider plausible alternatives, and prioritize correctness, consistency, and "
                         "clarity in the final answer."}
+
+
+def _trailing_reminder(messages):
+    """STRATA_TRAILING_REMINDER=1 (opt-in; LEADS.md FK-27 "trailing reminder", Ben1078 8b90ab8077): the text of a final
+    user message that holds nothing but <system-reminder> blocks (None otherwise, and always None when unset).  Some
+    agent clients (Qwen Code) append such a transient message to every request and drop it on the next one;
+    render_prompt then moves it into the trailing system turn that --tail-role-token checkpoints in front of, so the
+    conversation part is reused.  The reminder's text stays in the prompt, in a system turn before the answer."""
+    if os.environ.get("STRATA_TRAILING_REMINDER", "0") != "1" or not isinstance(messages, list) or len(messages) < 3:
+        return None
+    last = messages[-1]
+    if not isinstance(last, dict) or last.get("role") != "user":
+        return None
+    c = last.get("content")
+    if isinstance(c, list) and all(isinstance(x, dict) and x.get("type") == "text" for x in c):
+        c = "".join(x.get("text") or "" for x in c)
+    if not isinstance(c, str) or "<system-reminder>" not in c:
+        return None
+    if re.sub(r"<system-reminder>[\s\S]*?</system-reminder>", "", c).strip():
+        return None
+    return c.strip()
+
+
 VISION_START = "<|vision_start|>"
 # #606: a reply that repeats one token this many times in a row is ended there ("length"): a model in a loop, or a
 # broken state that answers one token forever (an issue saw 36,689 tokens of "!"). The config's "repeat_stop_tokens"
@@ -1804,21 +1827,74 @@ class StrataEngine:
         expert cache until that much VRAM is free, or grows it back when more is free; None: back to the reserve it
         started with.  -> the engine's figures (expert_slots, expert_cache_mib, vram_free_mib, ...); raises ValueError
         with the engine's reason (e.g. it was not started with --vram-elastic), EngineDied when it ended."""
+        return self._vram_command("VRAM" + ("" if reserve_mib is None else f" {int(reserve_mib)}"), timeout)
+
+    # ---- LEADS.md B74, sleep in place (opt-in: --idle-sleep / "idle_sleep_s"; basalt 64167ba73, jesdga95/basalt).  The
+    # engine's SLEEP gives its expert cache's VRAM back (every expert stays in RAM), then the driver suspends the rest
+    # of the process's GPU state (serve/suspend.py: CUDA's process checkpoint, Linux + NVIDIA only); the next request's
+    # wake restores it and WAKE refills the cache.  Never used unless the server is started with --idle-sleep.
+    asleep = False                   # its GPU state suspended by the driver
+    restore_s = 0.0                  # the driver's part of the last wake
+    _sleep_lock = threading.RLock()  # sleep, wake and close never overlap
+
+    def can_sleep(self) -> bool:
+        from serve import suspend
+        return suspend.available()
+
+    def sleep(self, ram_check=None, timeout: float = 120.0) -> dict:
+        """SLEEP, then the driver's suspend.  `ram_check()`, asked once the cache is down, says why the rest would not
+        fit in RAM (None: it fits).  Caller holds the service FIFO and the control lines.  ValueError: not asleep (the
+        engine is as it was)."""
+        from serve import suspend
+        with self._sleep_lock:
+            out = self._vram_command("SLEEP", timeout)
+            why = ram_check() if ram_check is not None else None
+            if why is None:
+                why = suspend.suspend(self.proc.pid)
+            if why is not None:
+                self._vram_command("WAKE", timeout)
+                raise ValueError(why)
+            self.asleep = True
+            return out
+
+    def wake(self, timeout: float = 120.0) -> dict:
+        """The driver puts the GPU state back, then WAKE refills the expert cache from RAM.  EngineDied when it cannot
+        come back (the engine is ended, so the next request starts it again)."""
+        from serve import suspend
+        with self._sleep_lock:
+            t = time.time()
+            why = suspend.resume(self.proc.pid)
+            self.restore_s = time.time() - t
+            self.asleep = False
+            if why is None:
+                try:
+                    return self._vram_command("WAKE", timeout)
+                except ValueError as e:              # its cache could not come back: start it again
+                    why = str(e)
+            try:
+                self.close()
+            except EngineStuck:
+                pass
+            raise EngineDied(why)
+
+    def _vram_command(self, command: str, timeout: float) -> dict:
+        """Send a VRAM, SLEEP or WAKE line and read the engine's VRAM answer."""
+        what = command.split()[0]
         if not self.alive():
             raise EngineDied("the engine is not running")
-        self.proc.stdin.write("VRAM" + ("" if reserve_mib is None else f" {int(reserve_mib)}") + "\n")
+        self.proc.stdin.write(command + "\n")
         self.proc.stdin.flush()
         deadline = time.time() + timeout
         while True:
             try:
                 line = self.lines.get(timeout=max(0.1, deadline - time.time()))
             except queue.Empty:
-                raise EngineDied("the engine did not answer the VRAM command") from None
+                raise EngineDied(f"the engine did not answer the {what} command") from None
             if line is None:
                 raise EngineDied("the engine ended")
             line = line.strip()
             if line.startswith("ERR"):
-                raise ValueError(line[4:].strip() or "the engine refused the VRAM command")
+                raise ValueError(line[4:].strip() or f"the engine refused the {what} command")
             if line.startswith("VRAM "):
                 out = {}
                 for kv in line.split()[1:]:
@@ -1828,7 +1904,7 @@ class StrataEngine:
                 self.info["vram"] = out
                 return out
             if time.time() > deadline:
-                raise EngineDied("the engine did not answer the VRAM command")
+                raise EngineDied(f"the engine did not answer the {what} command")
 
     def pen_from_key(self, orig_len: int, prompt_len: int) -> str:
         """` pen_from=N` for a leg that continues a request (prompt + what it generated): where the reply began, Strata's penalty window start. The all-cards split engine
@@ -3375,6 +3451,11 @@ class StrataEngine:
         EngineStuck when it still runs after all three."""
         if self.proc is None:
             return
+        with self._sleep_lock:                       # B74 (--idle-sleep): a sleep in progress ends first, and a
+            if self.asleep:                          # sleeping engine gets its GPU state back first (QUIT runs GPU calls)
+                self.asleep = False
+                from serve import suspend
+                suspend.resume(self.proc.pid)
         try:
             if self.proc.poll() is None:
                 try:
@@ -5662,6 +5743,8 @@ class Service:
     def ensure_loaded(self):
         """Start the engine if it is not running (unloaded, or it died - issue #27), after the before_load hook and
         the free-VRAM check.  The caller holds self.fifo."""
+        if getattr(self.engine, "asleep", False) is True:   # B74 (--idle-sleep): a sleeping engine wakes first
+            self._wake()
         if self.loaded() and not self._vision_down():
             return
         hook_failed = None
@@ -5858,7 +5941,7 @@ class Service:
         """POST /load and every generation request: start the engine now if it is unloaded (raises GpuBusy)."""
         # a request is on its way: the idle thread must not unload between this and the request's own start
         self.last_request_at = time.time()
-        if self.loaded() and not self._vision_down():
+        if self.loaded() and not self._vision_down() and getattr(self.engine, "asleep", False) is not True:
             return
         trace = getattr(self.request_trace, "record", None)
         waiting = time.perf_counter()
@@ -5933,6 +6016,8 @@ class Service:
                     return "busy"
             if idle_for is not None and time.time() - (self.last_request_at or self.started_at) < idle_for:
                 return "busy"
+            if getattr(self.engine, "asleep", False) is True:   # B74: its GPU state back before it is ended
+                self._wake()
             self.engine.unload()
             if self.vision is not None and hasattr(self.vision, "unload"):
                 self.vision.unload()
@@ -5955,6 +6040,112 @@ class Service:
                     self.unload(idle_for=self.idle_unload_s)
                 except EngineStuck as e:                # tried again at the next turn; the thread keeps running
                     print(f"[strata] idle unload: {e}", flush=True)
+        threading.Thread(target=loop, daemon=True).start()
+
+    # ---- LEADS.md B74, sleep in place (opt-in: --idle-sleep SECONDS / "idle_sleep_s"; basalt 64167ba73, jesdga95/basalt,
+    # Jesus Gulfo).  After that long without requests the engine gives its expert cache's VRAM back (SLEEP) and the
+    # driver suspends the rest of its GPU state (serve/suspend.py); its process, RAM copy, conversations and learned
+    # placement stay, and the next request wakes it.  Needs the engine's segmented cache (--vram-elastic) and the CUDA
+    # driver's process checkpoint (Linux + NVIDIA): elsewhere the server says so once and stays awake.  0: off.
+    idle_sleep_s = 0
+    SLEEP_RAM_MARGIN_MIB = 8192                          # RAM left free once the GPU state is in host memory
+
+    def _wake(self):
+        """Wake a sleeping engine (caller holds fifo); a failed wake ends it, and the next start loads it again."""
+        t = time.time()
+        try:
+            self.engine.wake()
+        except (ValueError, EngineDied) as e:
+            print(f"[strata] warning: waking the model failed ({e}); loading it again", flush=True)
+            return
+        print(f"[strata] model awake in {time.time() - t:.1f} s (driver restore {self.engine.restore_s:.1f} s)",
+              flush=True)
+
+    def sleep(self, idle_for: float | None = None) -> str:
+        """Put the engine to sleep between requests: "asleep", "not loaded", "busy", "no ram" or "unsupported"."""
+        if not hasattr(self.engine, "sleep") or not self.engine.can_sleep():
+            return "unsupported"
+        if not self.fifo.acquire(blocking=False):
+            return "busy"
+        ctl = getattr(self.engine, "ctl", None) if getattr(self.engine, "batch", 0) else None
+        if ctl is not None and not ctl.acquire(blocking=False):
+            self.fifo.release()
+            return "busy"
+        if ctl is not None:
+            self.engine._ctl_held = True
+        try:
+            if not self.engine.alive():
+                return "not loaded"
+            if getattr(self.engine, "asleep", False) is True:
+                return "asleep"
+            with self.status_lock:
+                if self.status.get("busy") or self.status.get("queued"):
+                    return "busy"
+            if idle_for is not None and time.time() - (self.last_request_at or self.started_at) < idle_for:
+                return "busy"
+            t = time.time()
+            try:
+                self.engine.sleep(ram_check=self._sleep_fits)
+            except ValueError as e:
+                print(f"[strata] warning: the model stays awake ({e})", flush=True)
+                return "no ram" if "RAM" in str(e) else "unsupported"
+            print(f"[strata] model asleep{f' after {idle_for:.0f} s idle' if idle_for else ''} in {time.time() - t:.1f} s: "
+                  "its VRAM is free, the next request wakes it", flush=True)
+            return "asleep"
+        finally:
+            if ctl is not None:
+                self.engine._ctl_held = False
+                ctl.release()
+            self.fifo.release()
+
+    def _sleep_fits(self) -> str | None:
+        """Whether the GPU memory still in use fits in RAM with the margin left; None if so, else why not."""
+        used = 0
+        try:
+            from serve.telemetry import gpu_reader
+            for i in getattr(self, "gpu_indices", None) or [int(getattr(self, "gpu_index", 0) or 0)]:
+                g = gpu_reader(int(i))
+                m = g.read().get("mem_used") if g.ok() else None
+                if m is None:
+                    used = None
+                    break
+                used += int(m) >> 20
+        except Exception:
+            used = None
+        avail = None
+        try:
+            with open("/proc/meminfo", encoding="ascii") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        avail = int(line.split()[1]) >> 10
+                        break
+        except (OSError, ValueError, IndexError):
+            pass
+        if avail is None:
+            return "RAM unreadable"
+        if used is not None and avail - used < self.SLEEP_RAM_MARGIN_MIB:
+            return f"RAM: {avail} MiB free, {used} MiB of GPU state to hold and {self.SLEEP_RAM_MARGIN_MIB} MiB to keep"
+        return None
+
+    def start_idle_sleep(self):
+        if not self.idle_sleep_s or not hasattr(self.engine, "sleep"):
+            return
+        if not self.engine.can_sleep():
+            print("[strata] warning: idle sleep is not available here (the driver cannot suspend a process: Linux with "
+                  "an NVIDIA card only); use idle_unload", flush=True)
+            return
+        print(f"[strata] the model sleeps after {self.idle_sleep_s:g} s without requests", flush=True)
+
+        def loop():
+            while True:
+                time.sleep(max(1.0, min(30.0, self.idle_sleep_s / 4)))
+                try:
+                    if self.sleep(idle_for=self.idle_sleep_s) == "unsupported":
+                        print("[strata] idle sleep: off for this run (the engine or the driver refused it; see above)",
+                              flush=True)
+                        return
+                except (EngineDied, EngineStuck) as e:  # the next request starts it again
+                    print(f"[strata] warning: idle sleep failed ({e})", flush=True)
         threading.Thread(target=loop, daemon=True).start()
 
     def set_shared(self, defaults) -> dict:
@@ -6132,6 +6323,8 @@ class Service:
             state = "generating"
         elif not self.loaded():
             state = "unloaded"
+        elif getattr(self.engine, "asleep", False) is True:   # B74 (--idle-sleep)
+            state = "asleep"
         else:
             state = "idle"
         live = {"state": state, "queued": s.get("queued", 0), "phase": s.get("phase") if s.get("busy") else None,
@@ -6415,7 +6608,13 @@ class Service:
         empty thinking block).  The engine (--tail-role-token) checkpoints in front of that turn."""
         effort = kwargs.get("reasoning_effort")
         off = kwargs.get("enable_thinking") is False
-        if not self.effort_end or (not off and effort in (None, "", "xhigh", "high")):
+        # STRATA_TRAILING_REMINDER=1 (opt-in; Ben1078 8b90ab8077): a reminder-only LAST user message goes into the
+        # trailing system turn instead, so the engine checkpoints the conversation in front of it.  Unset: None here,
+        # and everything below runs as before.
+        reminder = _trailing_reminder(messages) if self.effort_end else None
+        if reminder is not None:
+            messages = messages[:-1]
+        if not self.effort_end or (reminder is None and not off and effort in (None, "", "xhigh", "high")):
             return self.template.render(messages, tools=tools, **kwargs)
         base = {k: v for k, v in kwargs.items() if k not in ("reasoning_effort", "enable_thinking")}
         history = self.template.render(messages, tools=tools, add_generation_prompt=False, **base)
@@ -6423,7 +6622,15 @@ class Service:
         mine = self.template.render(messages, tools=tools, add_generation_prompt=False, **kwargs)
         if not full.startswith(mine):                  # a template this cannot take apart: rendered as asked
             return full
-        tail = "" if off else EFFORT_TURN.format(EFFORT_TEXT.get(effort, EFFORT_TEXT["medium"]))
+        if reminder is None:
+            tail = "" if off else EFFORT_TURN.format(EFFORT_TEXT.get(effort, EFFORT_TEXT["medium"]))
+            return history + tail + full[len(mine):]
+        texts = [reminder]
+        if not off and effort not in (None, "", "xhigh", "high"):
+            texts.append(EFFORT_TEXT.get(effort, EFFORT_TEXT["medium"]))
+        tail = EFFORT_TURN.format("\n\n".join(texts))
+        if not texts[1:] and not off:
+            history = mine                             # default effort: the history exactly as a default request renders
         return history + tail + full[len(mine):]
 
     def encode_prompt(self, messages, tools, kwargs, store: bool = True) -> list[int]:
@@ -8895,6 +9102,7 @@ def make_handler(svc: Service):
         record = None                                       # #332: this request's monitor record, if kept
         capture = None                                      # M4: this request's STRATA_REQUEST_CAPTURE entry, if any
         watch_done = None                                   # #430 #431: stops this request's disconnect watcher
+        watch_lock = None                                   # 5.10: set with watch_done (_watch_client)
         cancel_event = None                                 # active generation owned by this handler
         body_read = False                                   # whether a handler took this request's body
         DRAIN_SECONDS = 5                                   # the longest an unread body is read and dropped
@@ -9065,6 +9273,10 @@ def make_handler(svc: Service):
             was done.  Every 0.5 s: the socket readable with nothing to read (EOF) means the client closed it.  A
             request is HTTP/1.0 and fully read here, so no later bytes are expected - data is not a hang-up."""
             done = self.watch_done = threading.Event()
+            # LEADS.md "bugs 5.5-5.10", 5.10 (aktalascloud/strata-legacy-gpu 3da17a80fe): one lock serializes the
+            # watcher's EOF decision with _json retiring a finished response, so a client that closes right after
+            # the last body byte is not logged (and cancelled) as "disconnected"
+            self.watch_lock = threading.Lock()
             self.cancel_event = cancel
             with svc.status_lock:
                 svc.active_cancels.add(cancel)
@@ -9079,9 +9291,12 @@ def make_handler(svc: Service):
                         gone = True
                     except (OSError, ValueError):            # the socket was closed here: the request has ended
                         return
-                    if gone and not done.is_set():
-                        self._note(outcome="disconnected")
-                        svc.note_client_disconnect(cancel)
+                    if gone:
+                        with self.watch_lock:                # 5.10: decided against a retiring _json
+                            if done.is_set():
+                                return
+                            self._note(outcome="disconnected")
+                            svc.note_client_disconnect(cancel)
                         return
 
             threading.Thread(target=watch, daemon=True, name="strata-client-watch").start()
@@ -9132,6 +9347,11 @@ def make_handler(svc: Service):
                         if key in obj:
                             self.record[key] = obj[key]
             body = json.dumps(obj, ensure_ascii=False).encode()
+            # 5.10: the response is complete; a client may close right after its last Content-Length byte, so the
+            # watcher retires first (a failed send still reaches do_POST's own disconnect handling)
+            if self.watch_done is not None:
+                with self.watch_lock:
+                    self.watch_done.set()
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
             for k, v in (headers or {}).items():
@@ -11490,6 +11710,11 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
                     help="unload the model after this many seconds without requests, so other programs (games, other "
                          "model servers) can use the VRAM; the next request loads it again (also \"idle_unload_s\" "
                          "in the config; default: never)")
+    ap.add_argument("--idle-sleep", type=float, default=None, metavar="SECONDS",
+                    help="put the model to sleep after this many seconds without requests: its VRAM is freed, its RAM "
+                         "copy, conversations and learned expert placement stay, and the next request wakes it (also "
+                         "\"idle_sleep_s\" in the config; default: never).  Needs --vram-elastic and the CUDA driver's "
+                         "process checkpoint (Linux, NVIDIA); elsewhere the model stays awake")
     ap.add_argument("--min-free-vram-mib", type=int, default=None,
                     help="load an unloaded model only when this much VRAM is free, else answer 503 (also "
                          "\"min_free_vram_mib\" in the config; default: always load)")
@@ -11879,6 +12104,7 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
               + ("" if svc.api_key or "*" not in svc.cors_origins else
                  " - WARNING: any web page may use the model (no API key)"), flush=True)
     svc.idle_unload_s = a.idle_unload if a.idle_unload is not None else float(cfg.get("idle_unload_s") or 0)
+    svc.idle_sleep_s = a.idle_sleep if a.idle_sleep is not None else float(cfg.get("idle_sleep_s") or 0)   # B74
     svc.min_free_vram_mib = a.min_free_vram_mib if a.min_free_vram_mib is not None else \
         int(cfg.get("min_free_vram_mib") or 0)
     svc.before_load = a.before_load or cfg.get("before_load") or None
@@ -12036,6 +12262,7 @@ def _main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> i
     httpd = serve(svc, host=a.host, port=a.port)
     bound_port = httpd.server_address[1]               # --port 0: report the port the OS actually assigned
     svc.start_idle_unload()
+    svc.start_idle_sleep()
     svc.start_vision_idle()
     here = "[::1]" if a.host == "::" else "127.0.0.1" if a.host in ("0.0.0.0", "") else f"[{a.host}]" if ":" in a.host else a.host
     print(f"ready: http://{here}:{bound_port}/v1  (OpenAI: /v1/chat/completions, Anthropic: /v1/messages, "

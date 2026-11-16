@@ -578,6 +578,14 @@ bool ConversationDiskTier::keep_hot(const SavedConversation& image) const {
     return conversation_ended_in_tool_call(image.live.ids, s_.turn_token, s_.tool_token);
 }
 
+bool ConversationDiskTier::holds(const std::vector<int32_t>& ids, const std::vector<ConversationImageKey>& imgs,
+                                 bool cvec) const {
+    std::lock_guard<std::mutex> g(m_);
+    for (const auto& e : entries_)
+        if (e.cvec == cvec && e.live.ids == ids && e.live.imgs == imgs) return true;
+    return false;
+}
+
 void ConversationDiskTier::spill(SavedConversation&& image) {
     // the copies that may still fill the image land here, on the calling (device) thread: the writer thread runs
     // no device call
@@ -589,6 +597,15 @@ void ConversationDiskTier::spill(SavedConversation&& image) {
         std::lock_guard<std::mutex> g(m_);
         ++totals_.skipped;
         return;
+    }
+    if (dual_park_) {   // STRATA_CONV_DUAL_PARK: written at park time already (the same tokens are the same state)
+        std::lock_guard<std::mutex> g(m_);
+        for (auto& e : entries_)
+            if (e.cvec == image.cvec && e.live.ids == image.live.ids && e.live.imgs == image.live.imgs) {
+                e.stamp = now_ns();
+                ++totals_.skipped;
+                return;
+            }
     }
     Job j;
     const std::vector<size_t> keep = conversation_disk_checkpoints(image.checkpoints);

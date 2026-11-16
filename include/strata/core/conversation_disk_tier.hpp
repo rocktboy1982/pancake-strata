@@ -219,6 +219,18 @@ public:
     /// The keep-hot rule for ConversationCache::set_disk_tier: true while the image's last reply ended in a tool call.
     bool keep_hot(const SavedConversation& image) const;
 
+    // ---- STRATA_CONV_DUAL_PARK=1 (opt-in; LEADS.md "disk conversation cache + RAM/disk dual-park", the gfx906 box's
+    // dual park): a conversation is written to the tier when it is PARKED (spill_streamed from its pools), while its
+    // RAM image stays in the conversation cache as before.  A restart, a crash or a RAM shed then finds it on disk
+    // without waiting for an eviction, and an eviction of an image the tier already holds writes nothing again.
+    // Unused when the switch is unset.
+
+    /// spill() drops an image whose live state (tokens, pictures, steering) the tier holds already, instead of writing
+    /// it a second time; the entry becomes the most recently used one.
+    void set_dual_park(bool on) { dual_park_ = on; }
+    /// An entry's live state is exactly these tokens and pictures with this steering.
+    bool holds(const std::vector<int32_t>& ids, const std::vector<ConversationImageKey>& imgs, bool cvec) const;
+
     size_t entries() const;
     uint64_t bytes() const;   ///< this subfolder's files
     struct Totals {
@@ -250,6 +262,7 @@ private:
     std::filesystem::path sub_;
     uint64_t key_hash_ = 0, next_serial_ = 1;
     bool open_ = false;
+    bool dual_park_ = false;   // STRATA_CONV_DUAL_PARK
     std::atomic<bool> broken_{false};
     void* lock_ = nullptr;
     std::vector<ConversationDiskEntry> entries_;   // under m_
