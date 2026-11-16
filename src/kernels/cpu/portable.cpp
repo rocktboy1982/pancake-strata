@@ -117,6 +117,10 @@ void q2_0_gguf_rows_multi_avx2_fast_v(bool, const uint8_t*, size_t, int, const A
                                       int) {
     unsupported("the Q2_0 GGUF row kernel");
 }
+// STRATA_SLICE_MISS: q2_hi_rows_any takes q2_hi_rows_scalar where cpu_avx2_ok() is false (always, here)
+void q2_hi_rows_avx2(const uint8_t*, int, const ActQ* const*, int, float* const*, int, int) {
+    unsupported("the AVX-2 Q2_0 1-bit slice kernel");
+}
 void s2_expert_scalar(const uint8_t*, const float*, float*, bool) { unsupported("the Q2_0 scalar oracle"); }
 
 void iq512_gu_rows(int, const uint8_t*, size_t, size_t, int, const void* const*, int, float* const*, int, int) {
