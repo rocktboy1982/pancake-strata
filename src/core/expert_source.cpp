@@ -1,5 +1,6 @@
 // src/core/expert_source.cpp - the adapter.  See the header for the three clauses of the contract.
 #include "strata/core/expert_source.hpp"
+#include "strata/program/lookahead_weights.hpp"   // STRATA_LOOKAHEAD_WEIGHTS, STRATA_PRED_DUMP
 #include "strata/program/prefetch_prev.hpp"   // STRATA_PREFETCH_PREV
 #include "strata/program/lookahead_skip.hpp"   // STRATA_LOOKAHEAD_SKIP_DROPPED (MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I))
 #include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER
@@ -3335,6 +3336,40 @@ bool RouterLookahead::start(std::vector<std::vector<uint16_t>> routers, int64_t 
             std::fprintf(stderr, "strata lookahead: STRATA_LOOKAHEAD_SKIP_DROPPED ignored: neither STRATA_MISS_SKIP_W nor STRATA_MISS_SKIP_CUM is set\n");
         }
     }
+    // STRATA_LOOKAHEAD_WEIGHTS=<file> (opt-in, read once; MOD_PLAN.md section 6 item 29): a trained per-layer predictor (LKW1,
+    // include/strata/program/lookahead_weights.hpp) takes the router's place in the CPU thread; _B the most experts warmed
+    // per layer (default 8), _TAU a probability floor.  A file of another shape is refused.
+    if (const char* wpath = std::getenv("STRATA_LOOKAHEAD_WEIGHTS"); wpath != nullptr && wpath[0] != '\0') {
+        std::FILE* f = std::fopen(wpath, "rb");
+        uint32_t head[4] = {0, 0, 0, 0};
+        if (f == nullptr || std::fread(head, sizeof head, 1, f) != 1 ||
+            !strata::program::lkw_header_ok(head, (uint64_t) routers_.size(), (uint64_t) n_expert, (uint64_t) n_embd)) {
+            if (f != nullptr) std::fclose(f);
+            err = std::string("RouterLookahead: STRATA_LOOKAHEAD_WEIGHTS ") + wpath + " is not a predictor for this model";
+            return false;
+        }
+        learned_.assign(routers_.size(), std::vector<uint16_t>((size_t) (n_embd * n_expert)));
+        bias_.assign(routers_.size(), std::vector<float>((size_t) n_expert, 0.0f));
+        bool ok = true;
+        for (size_t l = 0; l < routers_.size() && ok; ++l)
+            ok = std::fread(learned_[l].data(), 2, learned_[l].size(), f) == learned_[l].size() &&
+                 std::fread(bias_[l].data(), 4, bias_[l].size(), f) == bias_[l].size();
+        std::fclose(f);
+        if (!ok) {
+            learned_.clear();
+            bias_.clear();
+            err = std::string("RouterLookahead: STRATA_LOOKAHEAD_WEIGHTS ") + wpath + " is short";
+            return false;
+        }
+        const char* bv = std::getenv("STRATA_LOOKAHEAD_B");
+        budget_ = bv != nullptr && std::atoi(bv) > 0 ? std::atoi(bv) : 8;
+        const char* tv = std::getenv("STRATA_LOOKAHEAD_TAU");
+        tau_ = tv != nullptr && std::atof(tv) > 0.0 ? (float) std::atof(tv) : 0.0f;
+        k_ = std::min<int>(budget_, (int) n_expert);
+        budget_ = k_;
+        std::fprintf(stderr, "strata lookahead: trained predictor %s: up to %d non-resident experts of the next layer%s\n", wpath, budget_,
+                     tau_ > 0.0f ? (" above probability " + std::to_string(tau_)).c_str() : " by the window's best score");
+    }
     // STRATA_PREFETCH_PREV=K (opt-in, read once; LEADS.md Part I I1): see include/strata/program/prefetch_prev.hpp
     if (const int pk = strata::program::prefetch_prev_parse(std::getenv("STRATA_PREFETCH_PREV")); pk > 0) {
         prev_k_ = pk;
@@ -3578,19 +3613,19 @@ void RouterLookahead::run() {
                 }
         } else
 #if defined(__aarch64__) && !defined(STRATA_GPU_METAL)   // Metal (Apple silicon) keeps the plain loop below: its bf16_rows_dot_multi is a stub
-        strata::kernels::cpu::bf16_rows_dot_multi(routers_[(size_t) layer].data(), (int) n_expert_, (int) n_embd_,
+        strata::kernels::cpu::bf16_rows_dot_multi(lrw(layer), (int) n_expert_, (int) n_embd_,
                                                   x_.data(), (int) nt, logits.data());
 #else
         if (strata::kernels::cpu::cpu_avx2_ok()) {
-            strata::kernels::cpu::bf16_rows_dot_multi(routers_[(size_t) layer].data(), (int) n_expert_, (int) n_embd_,
+            strata::kernels::cpu::bf16_rows_dot_multi(lrw(layer), (int) n_expert_, (int) n_embd_,
                                                       x_.data(), (int) nt, logits.data());
         } else if (strata::kernels::cpu::cpu_avx1_ok()) {
-            strata::kernels::cpu::bf16_rows_dot_multi_avx1(routers_[(size_t) layer].data(), (int) n_expert_,
+            strata::kernels::cpu::bf16_rows_dot_multi_avx1(lrw(layer), (int) n_expert_,
                                                            (int) n_embd_, x_.data(), (int) nt, logits.data());
         } else {
             // a mul and an add, not std::fma: without an FMA instruction that is a libm call per element (74x
             // slower on a Xeon E5-2665, measured by the fork)
-            const uint16_t* rw = routers_[(size_t) layer].data();
+            const uint16_t* rw = lrw(layer);
             for (int64_t r = 0; r < n_expert_; ++r) {
                 const uint16_t* wr = rw + (size_t) r * (size_t) n_embd_;
                 for (int64_t t = 0; t < nt; ++t) {
@@ -3624,6 +3659,28 @@ void RouterLookahead::run() {
         const int ks[3] = {std::min(k_, kmax), (int) std::min<int64_t>(k_ + 4, kmax), kmax};
         std::vector<uint64_t> sm;
         if (stats_on_) sm.assign((size_t) (3 * words_), 0);
+        if (budget_ > 0) {   // STRATA_LOOKAHEAD_WEIGHTS: the trained predictor's picks (best score over the window's tokens, bias, floor)
+            std::vector<int32_t> pw, rk;
+            std::vector<float> pc;
+            strata::program::lookahead_weights_pick(logits.data(), (int) nt, (int) n_expert_, bias_[(size_t) layer].data(),
+                                                    host_res != nullptr ? host_res + (size_t) ((layer - layer0) * n_expert_) : nullptr,
+                                                    budget_, tau_, kmax, pw, pc, rk);
+            for (size_t i = 0; i < pw.size(); ++i) { want.push_back(pw[i]); wconf.push_back(pc[i]); }
+            if (stats_on_ && dj == 0)
+                for (size_t j = 0; j < rk.size(); ++j)
+                    for (int s = 0; s < 3; ++s)
+                        if ((int) j < ks[s]) sm[(size_t) (s * words_ + (rk[j] >> 6))] |= 1ull << (rk[j] & 63);
+            if (ctrl_on_ && dj == 0) {   // CTRL: the predictor's own top picks per token (bias included)
+                std::vector<float> biased((size_t) n_expert_);
+                for (int64_t t = 0; t < nt && t < 8; ++t) {
+                    for (int64_t e = 0; e < n_expert_; ++e) biased[(size_t) e] = logits[(size_t) (t * n_expert_ + e)] + bias_[(size_t) layer][(size_t) e];
+                    int32_t* dst = ptok_.data() + (size_t) ((layer * 8 + t) * ctrl_k_);
+                    std::vector<int32_t> tk((size_t) ctrl_k_);
+                    const int nc = strata::program::ctrl_topk(biased.data(), (int) n_expert_, ctrl_k_, tk.data());
+                    for (int j = 0; j < ctrl_k_; ++j) dst[j] = j < nc ? tk[(size_t) j] : -1;
+                }
+            }
+        } else
         for (int64_t t = 0; t < nt; ++t) {
             const float* lt = logits.data() + (size_t) (t * n_expert_);
             for (int64_t e = 0; e < n_expert_; ++e) order[(size_t) e] = (int32_t) e;
@@ -5553,6 +5610,56 @@ bool adapt_prob_mass_on() {
     static const bool on = [] { const char* v = std::getenv("STRATA_ADAPT_PROB_MASS"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
+namespace {
+// STRATA_PRED_DUMP=<dir> (measurement, opt-in, read once; MOD_PLAN.md section 6 item 29): every verify-window layer's MoE input
+// (bf16), routing, residency and residency bitmap appended to <dir>/trace.bin (RPD2, include/strata/program/lookahead_weights.hpp),
+// the data tools/pancake/fit_lookahead.py trains the look-ahead predictor on.  Slows the window: for a data run only.
+struct PredDump {
+    std::FILE* f = nullptr;
+    uint64_t window = 0;
+    std::vector<uint16_t> x;
+    std::vector<int16_t> ids;
+    std::vector<uint8_t> res, map;
+    PredDump() {
+        const char* dir = std::getenv("STRATA_PRED_DUMP");
+        if (dir == nullptr || dir[0] == '\0') return;
+        const std::string path = std::string(dir) + "/trace.bin";
+        f = std::fopen(path.c_str(), "ab");
+        if (f != nullptr) std::setvbuf(f, nullptr, _IOFBF, 16u << 20);
+        std::fprintf(stderr, "strata: STRATA_PRED_DUMP: %s %s\n", path.c_str(), f != nullptr ? "open" : "FAILED");
+    }
+    ~PredDump() { if (f != nullptr) std::fclose(f); }
+    void write(int64_t layer, const float* x_f, int64_t n_tok, const int32_t* routed, int64_t k, const int32_t* host_res, int64_t n_expert) {
+        if (f == nullptr || n_tok < 1 || k < 1) return;
+        if (layer == 0) { ++window; std::fflush(f); }
+        const int64_t h = strata::kernels::cpu::H;
+        x.resize((size_t) (n_tok * h));
+        for (int64_t i = 0; i < n_tok * h; ++i) x[(size_t) i] = strata::program::pred_bf16(x_f[i]);
+        ids.resize((size_t) (n_tok * k));
+        res.resize((size_t) (n_tok * k));
+        for (int64_t i = 0; i < n_tok * k; ++i) {
+            const int32_t e = routed[i];
+            ids[(size_t) i] = (int16_t) e;
+            res[(size_t) i] = host_res != nullptr && e >= 0 && e < n_expert && host_res[(size_t) (layer * n_expert + e)] >= 0;
+        }
+        map.assign((size_t) ((n_expert + 7) / 8), 0);
+        if (host_res != nullptr)
+            for (int64_t e = 0; e < n_expert; ++e)
+                if (host_res[(size_t) (layer * n_expert + e)] >= 0) map[(size_t) (e >> 3)] |= (uint8_t) (1u << (e & 7));
+        uint32_t head[7];
+        strata::program::pred_head(head, (uint32_t) layer, (uint32_t) n_tok, (uint32_t) k, window, (uint32_t) n_expert);
+        std::fwrite(head, sizeof head, 1, f);
+        std::fwrite(x.data(), 2, x.size(), f);
+        std::fwrite(ids.data(), 2, ids.size(), f);
+        std::fwrite(res.data(), 1, res.size(), f);
+        std::fwrite(map.data(), 1, map.size(), f);
+    }
+};
+PredDump& pred_dump() {
+    static PredDump p;
+    return p;
+}
+}  // namespace
 bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on() || shadow_miss_weights_on() || ser_on(); }
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
@@ -5571,6 +5678,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     // so the GPU's share starts that much sooner.  The prediction reads the same rows; it only warms layer + 1 (the
     // outputs do not depend on it).  The stats keep their place.  Unset: the submit here, as before.
     static const bool la_after_pub = [] { const char* v = std::getenv("STRATA_LOOKAHEAD_AFTER_PUB"); return v != nullptr && v[0] == '1'; }();
+    pred_dump().write(d.layers, x_f, n_tok, ids, k, d.host_res, d.n_expert);   // STRATA_PRED_DUMP (off: one null check)
     if (d.lookahead != nullptr) {
         if (d.lookahead->prev_on() && n_tok >= 1) d.lookahead->record_routing(d.layers, ids + (n_tok - 1) * k, k);   // STRATA_PREFETCH_PREV
         if (d.lookahead->stats_on()) {

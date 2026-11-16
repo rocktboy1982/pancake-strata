@@ -363,6 +363,8 @@ public:
     int64_t predicted() const { return predicted_.load(std::memory_order_relaxed); }
     int64_t skipped() const { return skipped_.load(std::memory_order_relaxed); }
     bool skip_dropped() const { return skip_dropped_; }
+    /// STRATA_LOOKAHEAD_WEIGHTS: a trained predictor replaces the router in the CPU thread (the GPU look-ahead cannot take it)
+    bool has_weights() const { return budget_ > 0; }
     /// STRATA_PREFETCH_PREV=K: the dispatch thread hands over the last token's routed ids of `layer` (before its submit); the
     /// predictor thread warms them for the layers ahead on the next submit.  No-op unless the switch is on.
     bool prev_on() const { return prev_k_ > 0; }
@@ -406,6 +408,12 @@ private:
     uint64_t st_windows_ = 0;
     uint64_t st_vhit_[3] = {0, 0, 0}, st_vpred_[3] = {0, 0, 0}, st_pch_ = 0, st_pcov_[3] = {0, 0, 0};
     static constexpr int kVoteN = 16;
+    // STRATA_LOOKAHEAD_WEIGHTS (MOD_PLAN.md section 6 item 29): routers_ stays the model's (control, shares); learned_ replaces it in run()
+    std::vector<std::vector<uint16_t>> learned_;
+    std::vector<std::vector<float>> bias_;
+    int budget_ = 0;                     ///< most experts warmed per layer (0: no trained predictor)
+    float tau_ = 0.0f;                   ///< probability floor (0: none)
+    const uint16_t* lrw(int64_t l) const { return (learned_.empty() ? routers_ : learned_)[(size_t) l].data(); }
     // STRATA_PREFETCH_PREV=K (opt-in): warm the previous token's experts of layers l+1 .. l+K
     int prev_k_ = 0;
     std::unique_ptr<std::atomic<int32_t>[]> prev_ids_;   // [layer][kPrefetchPrevMaxIds], -1 = none (relaxed: a stale id only wastes a warm)

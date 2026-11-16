@@ -12722,7 +12722,8 @@ int main(int argc, char** argv) {
         // from the CPU experts' cores).  Measured on an RTX 3060 + Ryzen 7 5700G, mmap'd experts: decode 67.0 -> 73.8 tok/s,
         // every run faster; the same picks.  On by default; STRATA_LOOKAHEAD_GPU=0 keeps the CPU thread.  One stage only
         // (a layer split's other cards would need tables of their own).
-        if (drive.d.lookahead != nullptr && n_stages == 1 && [] { const char* v = std::getenv("STRATA_LOOKAHEAD_GPU"); return v == nullptr || std::atoi(v) != 0; }()) {
+        // (STRATA_LOOKAHEAD_WEIGHTS: the trained predictor runs in the CPU thread, the GPU path would ignore it)
+        if (drive.d.lookahead != nullptr && !lookahead.has_weights() && n_stages == 1 && [] { const char* v = std::getenv("STRATA_LOOKAHEAD_GPU"); return v == nullptr || std::atoi(v) != 0; }()) {
             const int64_t stride = (int64_t) batch_max_t() * 10;
             const size_t bytes = (size_t) (g.n_layers * stride) * sizeof(int32_t);
             void* dptr = nullptr;

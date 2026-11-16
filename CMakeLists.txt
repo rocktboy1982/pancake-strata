@@ -2419,6 +2419,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(tier_miss_budget_test src/program/tier_miss_budget_test.cpp)   # MOD_PLAN.md section 6 item 20: STRATA_TIER_MISS_BUDGET
   target_include_directories(tier_miss_budget_test PRIVATE include)
   add_test(NAME tier_miss_budget_test COMMAND tier_miss_budget_test)
+  add_executable(lookahead_weights_test src/program/lookahead_weights_test.cpp)   # MOD_PLAN.md section 6 item 29: STRATA_LOOKAHEAD_WEIGHTS / STRATA_PRED_DUMP
+  target_include_directories(lookahead_weights_test PRIVATE include)
+  add_test(NAME lookahead_weights_test COMMAND lookahead_weights_test)
   add_executable(prefetch_prev_test src/program/prefetch_prev_test.cpp)   # MOD_PLAN.md section 6 (BigMoeOnEdge switches): STRATA_PREFETCH_PREV
   target_include_directories(prefetch_prev_test PRIVATE include)
   add_test(NAME prefetch_prev_test COMMAND prefetch_prev_test)
@@ -3945,6 +3948,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     recycle_drafts_test
+    lookahead_weights_test
     prefetch_prev_test
     route_range_test
     lookahead_skip_test
