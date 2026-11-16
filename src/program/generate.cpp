@@ -20454,6 +20454,7 @@ int main(int argc, char** argv) {
             // emit), no coupled drafts with penalties, one stage.  Unset: draft_long as before.
             static const bool draft_early = [] { const char* e = std::getenv("STRATA_DRAFT_EARLY"); return e != nullptr && e[0] == '1'; }();
             int64_t early_windows = 0;
+            int64_t dsk_windows = 0, dsk_resumed = 0;   // STRATA_DRAFT_SUFFIX_SKIP: chains ended after draft 0, of them resumed
             int64_t defer_auto_windows = 0, defer_auto_deferred = 0;   // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: the request's
                                                                          // decode windows, and those that deferred
             int64_t t2_rej[8] = {}, t2_hit[8] = {};   // STRATA_MTP_TOP2: rejections inside the MTP drafts by depth, runner-up hits
@@ -21348,9 +21349,48 @@ int main(int argc, char** argv) {
             auto draft_df2 = [&](int) -> bool { return false; };
 #endif
             if (df2_trace != nullptr) std::fprintf(df2_trace, "# request prompt %lld df2 %d spec %d\n", (long long) n, req_df2 ? 1 : 0, S_mtp);
+            // STRATA_DRAFT_SUFFIX_SKIP=1 (mandoof1 868841cb32, LEADS.md FK-33; opt-in, exact): on a window whose successor
+            // will be a suffix window, the MTP chain ends after draft 0 - its later steps were computed and thrown away.
+            // The forecast is the policy's own choose(), which must pick the lookup (with one window size) for EVERY MTP
+            // window size the chain could have produced; the loop's top checks the same thing on the policy as it stands
+            // then and resumes the chain's remaining steps when the forecast missed, so the window it verifies is the one
+            // the plain loop would have verified.  Only where the top's lookup pick depends on nothing else (no gated
+            // proposal, DFlash2, DISCO, SSD-lite, token recycle, cross-session index, probabilistic or coupled drafts,
+            // trace-nopick, early draft).  Off: nothing below runs.
+            static const bool draft_sfx_skip = [] {
+                const char* e = std::getenv("STRATA_DRAFT_SUFFIX_SKIP");
+                return e != nullptr && e[0] != '\0' && e[0] != '0';
+            }();
+            auto sfx_all_lookup = [&](const strata::spec::DraftPolicy& pol, int k, int match) -> bool {
+                const strata::spec::DraftPolicy::Pick p1 = pol.choose(1, k, match);
+                if (!p1.lookup) return false;
+                for (int t = 2; t <= S_mtp; ++t) {
+                    const strata::spec::DraftPolicy::Pick pt = pol.choose(t, k, match);
+                    if (!pt.lookup || pt.t != p1.t) return false;
+                }
+                return true;
+            };
+            std::vector<int32_t> skbuf(draft_sfx_skip ? (size_t) std::max(S, S_look) : 0, 0);   // the predicate's own proposal buffer
+            bool draft_skipped = false;
             while (!pl_ran && !cancelled && produced_n < max_new) {
                 int T = 1;
                 policy.set_context(p);
+                if (draft_skipped) {
+                    // STRATA_DRAFT_SUFFIX_SKIP: the last chain ended after draft 0 on this top's forecast.  The policy as it
+                    // stands now: the same suffix pick for every MTP window size, or the chain's remaining steps first, as
+                    // draft() would have run them, and the plain rule below from there
+                    draft_skipped = false;
+                    const int k = sfx.propose(S_look - 1, skbuf.data());
+                    if (k > 0 && skbuf[0] == drafts[0] && sfx_all_lookup(policy, k, sfx.last_match())) {
+                        ++dsk_windows;
+                    } else {
+                        ++dsk_resumed;
+                        if (!mtp.draft_resume(drafts.data(), err, dprob.data())) {
+                            std::printf("ERR %s\n", err.c_str());
+                            return 1;
+                        }
+                    }
+                }
                 const bool merged = first_window && merge_T > 0;   // the prompt's last tokens and the first token
                 bool from_sfx = false;
                 bool from_sidx = false;   // A24: the lookup draft in sbuf is the cross-session index's
@@ -22125,12 +22165,39 @@ int main(int argc, char** argv) {
                     const int spec_lk_n = spec_lookup_q > 0.0 && sfx_on ? sfx.propose(std::min(8, S_mtp), spec_lk) : 0;
                     disco.set_stop_hint(spec_lk, spec_lk_n, spec_lookup_q, spec_depth_decay > 0.0 ? spec_depth_decay : 1.0);
                 }
+                // STRATA_DRAFT_SUFFIX_SKIP: the forecast draft 0 is judged by - the top of this loop takes the suffix lookup
+                // whatever the chain drafts: the same choose() it makes there, for every MTP window size it could see, on the
+                // policy as it will be then (this round observed with its time so far, the next window's position; the real
+                // observation adds the chain's last fraction of a millisecond, which is why the top checks again)
+                std::function<bool(int32_t, float)> sfx_skip_pred;
+                if (draft_sfx_skip && use_mtp && draft_on && !req_df2 && !draft_launched && !gated_proposal && !disco.enabled() &&
+                    o.suffix_draft > 0 && sfx_on && !eos && produced_n < max_new && !rd_ssd && !rd_recycle && sidx == nullptr &&
+                    !mtp.prob() && !mtp.coupled() && !trace_nopick) {
+                    sfx_skip_pred = [&](int32_t draft0, float) -> bool {
+                        const int k = sfx.propose(S_look - 1, skbuf.data());
+                        if (k <= 0 || skbuf[0] != draft0) return false;
+                        const int m = sfx.last_match();
+                        strata::spec::DraftPolicy pol = policy;
+                        const double ms = std::chrono::duration<double, std::milli>(Clock::now() - round0).count();
+                        if (timed_round && chain_n == 0) pol.observe(from_sfx, T, a, sfx_match, ms);
+                        else if (timed_round) pol.observe_chain(T_mtp, chain_n, a, cm, ms);
+                        pol.set_context(p + a + 1);
+                        return sfx_all_lookup(pol, k, m);
+                    };
+                    mtp.set_skip_after_first(
+                        [](void* u, int32_t d0, float p0) -> bool { return (*static_cast<std::function<bool(int32_t, float)>*>(u))(d0, p0); },
+                        &sfx_skip_pred);
+                }
                 // (STRATA_DRAFT_EARLY: a launched round is always finished here, so the drafter never keeps one across windows)
                 const bool drafted = draft_launched
                                          ? mtp.draft_finish(drafts.data(), err, dprob.data(), &mtp_nd)
                                          : !draft_on || eos || produced_n >= max_new ||
                                      (req_df2 ? ((!merged && defer_df2(a)) || draft_df2(a)) : mtp.draft_long(T, outv.data(), p, a, drafts.data(), err, dprob.data(), (float) req_spec_min_p,
                                                                                &mtp_nd, gated_proposal ? &generation : nullptr));
+                if (sfx_skip_pred) {   // STRATA_DRAFT_SUFFIX_SKIP: the predicate is one-shot and must not outlive this scope
+                    mtp.set_skip_after_first(nullptr, nullptr);
+                    draft_skipped = drafted && mtp.draft_resumable();
+                }
                 {
                     const Clock::time_point tw3 = Clock::now();
                     auto msd = [](Clock::time_point a0, Clock::time_point b0) { return std::chrono::duration<double, std::milli>(b0 - a0).count(); };
@@ -22825,6 +22892,10 @@ int main(int argc, char** argv) {
             if (draft_early && early_windows > 0)
                 std::fprintf(stderr, "strata serve: STRATA_DRAFT_EARLY: the draft round was launched before the commit on %lld of "
                                      "%lld windows\n", (long long) early_windows, (long long) dec_windows);
+            if (dsk_windows + dsk_resumed > 0)
+                std::fprintf(stderr, "strata serve: STRATA_DRAFT_SUFFIX_SKIP: %lld chains ended after draft 0 before a suffix "
+                                     "window, %lld resumed (the forecast missed)\n",
+                             (long long) dsk_windows, (long long) dsk_resumed);
             if (std::getenv("STRATA_SPEC_DEPTH") != nullptr)
                 std::fprintf(stderr, "strata serve: spec depth: accepted/tested %lld/%lld %lld/%lld %lld/%lld %lld/%lld %lld/%lld\n",
                              (long long) dp_ok[0], (long long) dp_tested[0], (long long) dp_ok[1], (long long) dp_tested[1],

@@ -1837,6 +1837,7 @@ bool MtpDrafter::prefill(const float* R_rows, const int32_t* next_tokens, int64_
     const OnDevice on_device(device_);
     const Clock::time_point t0 = Clock::now();
     const int64_t HCN = g_->hc * g_->n_embd;
+    resume_.valid = false;   // (STRATA_DRAFT_SUFFIX_SKIP: a prompt's rows end any chain left to resume)
     // cells the window can never reach again need no K/V
     const int64_t first_needed = this->first_needed();
     // E-4: every group's token / step / position records uploaded at once; each group is then device copies and a
@@ -2014,6 +2015,7 @@ bool MtpDrafter::draft_launch(int T, const int32_t* tokens, int64_t p, int a, fl
     if (run_.live) { err = "mtp: a draft round is already launched"; return false; }
     if (T < 1 || T > max_t_ || a < 0 || a >= T) { err = "mtp: draft arguments out of range"; return false; }
     if (chain_live_) { err = "mtp: a pipelined chain is still in flight"; return false; }
+    resume_.valid = false;   // (STRATA_DRAFT_SUFFIX_SKIP: a new round ends any chain left to resume)
     // #783 PR-i (stuchapin909): the round runs for the cells up to the accepted row a (T = a + 1): the K/V of the rejected
     // rows is not caught up - no later read reaches a cell past the one being drafted and the next round writes it first
     if (!mtp_catchup_all()) T = a + 1;
@@ -2124,6 +2126,11 @@ bool MtpDrafter::draft_finish(int32_t* drafts, std::string& err, float* probs, i
     const OnDevice on_device(device_);
     if (!run_.live) { err = "mtp: no draft round is launched"; return false; }
     run_.live = false;
+    // STRATA_DRAFT_SUFFIX_SKIP: this round's predicate (one-shot)
+    const SkipAfterFirstFn skip_fn = skip_fn_;
+    void* const skip_user = skip_user_;
+    skip_fn_ = nullptr;
+    skip_user_ = nullptr;
     const Clock::time_point tf0 = Clock::now();
     const bool cp = run_.cp;
     const int max_steps = run_.max_steps;
@@ -2193,7 +2200,12 @@ bool MtpDrafter::draft_finish(int32_t* drafts, std::string& err, float* probs, i
         n = 1;
         // STRATA_SPEC_ENTROPY: draft j - 1's entropy is in the mapped row (copied before its token was published, same stream)
         auto ent_keep = [&](int jj) { return !ent_stop_.on() || ent_stop_.keep((double) ((volatile float*) h_ent_)[jj]); };
-        for (int j = 1; j < max_steps && (chain_rule_ ? chain_rule_(j - 1, pj) : pj >= min_p) && ent_keep(j - 1); ++j) {
+        // STRATA_DRAFT_SUFFIX_SKIP (mandoof1 868841cb32): asked only where the plain min_p rule would launch step 1 (no
+        // chain rule, no entropy stop: their calls change state); true ends the chain here - the steps stay unlaunched,
+        // their inputs and staged rows untouched, so draft_resume can run them
+        const bool skip = skip_fn != nullptr && !chain_rule_ && !ent_stop_.on() && max_steps > 1 && pj >= min_p &&
+                          skip_fn(skip_user, drafts[0], pj);
+        for (int j = 1; !skip && j < max_steps && (chain_rule_ ? chain_rule_(j - 1, pj) : pj >= min_p) && ent_keep(j - 1); ++j) {
             if (dt) cudaEventRecord(g_dt.eb[j], cs_);
             tl = Clock::now();
             if (cudaGraphLaunch(cp ? step_exec_c_[j] : step_exec_[j], cs_) != cudaSuccess) {
@@ -2214,6 +2226,17 @@ bool MtpDrafter::draft_finish(int32_t* drafts, std::string& err, float* probs, i
         }
         if (chain_rule_ && n >= max_steps) (void) chain_rule_(n - 1, pj);   // the last step of a full chain
         ple_prefetch(drafts[n - 1]);
+        if (skip) {   // STRATA_DRAFT_SUFFIX_SKIP: the chain's state for draft_resume (the PLE prefetch has seen tokens[a] and draft 0)
+            resume_.valid = true;
+            resume_.cp = cp;
+            resume_.do_ple = run_.do_ple;
+            resume_.max_steps = max_steps;
+            resume_.tok0 = drafts[0];
+            resume_.p0 = pj;
+            resume_.min_p = min_p;
+            resume_.ple_prev[0] = run_.ple_prev[0];
+            resume_.ple_prev[1] = run_.ple_prev[1];
+        }
         const Clock::time_point t_pre_sync = Clock::now();
         if (cudaStreamSynchronize(cs_) != cudaSuccess) {
             err = std::string("mtp draft: ") + cudaGetErrorString(cudaGetLastError());
@@ -2250,6 +2273,75 @@ bool MtpDrafter::draft_finish(int32_t* drafts, std::string& err, float* probs, i
     ms_draft += run_.ms_launch + ms_since(tf0);
     ++rounds;
     return true;
+}
+
+// STRATA_DRAFT_SUFFIX_SKIP (mandoof1 868841cb32; LEADS.md FK-33): the steps a draft_finish() ended before
+// (set_skip_after_first), run as its host loop would have run them.  Step j's graph copies its row from the mapped step
+// records draft_launch staged and reads the residual and token the round left in the step inputs; nothing has touched
+// them since - a round or a prefill clears resume_ first.  The mapped outputs past draft 0 still read -1 from
+// draft_launch's reset.
+bool MtpDrafter::draft_resume(int32_t* drafts, std::string& err, float* probs, int* n_drafts) {
+#if defined(STRATA_GPU_METAL)
+    (void) drafts; (void) probs; (void) n_drafts;
+    err = "mtp: no chain to resume";
+    return false;
+#else
+    const OnDevice on_device(device_);
+    if (!resume_.valid) { err = "mtp: no chain to resume"; return false; }
+    resume_.valid = false;
+    if (!decode_ready(err)) return false;
+    if (run_.live || chain_live_) { err = "mtp: a round is still in flight"; return false; }
+    const Clock::time_point t0 = Clock::now();
+    const bool cp = resume_.cp;
+    const int max_steps = resume_.max_steps;
+    const float min_p = resume_.min_p;
+    run_.do_ple = resume_.do_ple;   // the PLE history where the chain stopped (ple_prefetch reads run_)
+    run_.ple_prev[0] = resume_.ple_prev[0];
+    run_.ple_prev[1] = resume_.ple_prev[1];
+    auto wait_step = [&](int j) {
+        uint32_t spins = 0;
+        while (((volatile int32_t*) h_out_)[j] < 0) {
+#if defined(_WIN32) || defined(__x86_64__)
+            strata_cpu_pause();
+#endif
+            if ((++spins & 1023u) == 0 && cudaStreamQuery(cs_) != cudaErrorNotReady) break;
+        }
+        strata_load_fence();
+    };
+    drafts[0] = resume_.tok0;
+    float pj = resume_.p0;
+    if (probs) probs[0] = pj;
+    int n = 1;
+    progress_at("mtp draft: waiting for the GPU");
+    for (int j = 1; j < max_steps && pj >= min_p; ++j) {
+        if (cudaGraphLaunch(cp ? step_exec_c_[j] : step_exec_[j], cs_) != cudaSuccess) {
+            err = std::string("mtp draft step: ") + cudaGetErrorString(cudaGetLastError());
+            return false;
+        }
+        (void) cudaStreamQuery(cs_);
+        if (j > 1) ple_prefetch(drafts[j - 1]);   // (draft 0 was prefetched when the chain stopped)
+        wait_step(j);
+        drafts[j] = ((volatile int32_t*) h_out_)[j];
+        pj = ((volatile float*) h_prob_)[j];
+        if (probs) probs[j] = pj;
+        ++n;
+    }
+    if (n > 1) ple_prefetch(drafts[n - 1]);
+    if (cudaStreamSynchronize(cs_) != cudaSuccess) {
+        err = std::string("mtp draft: ") + cudaGetErrorString(cudaGetLastError());
+        return false;
+    }
+    for (int j = n; j < max_t_ - 1; ++j) { drafts[j] = 0; if (probs) probs[j] = 0.0f; }
+    if (h_ent_ != nullptr)   // STRATA_DRAFT_ENTROPY: the resumed round's entropies, as draft_finish copies them
+        for (int j = 0; j < 16; ++j) {
+            const bool have = j < n && j < max_t_;
+            round_ent_[j] = have ? ((volatile float*) h_ent_)[j] : std::numeric_limits<float>::quiet_NaN();
+            round_top2_[j] = have ? ((volatile float*) h_top2_)[j] : std::numeric_limits<float>::quiet_NaN();
+        }
+    if (n_drafts) *n_drafts = n;
+    ms_draft += ms_since(t0);
+    return true;
+#endif
 }
 
 bool MtpDrafter::draft_long(int T, const int32_t* tokens, int64_t p, int a, int32_t* drafts, std::string& err,

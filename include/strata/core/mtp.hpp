@@ -152,6 +152,20 @@ public:
                       DraftResult* result = nullptr);
     bool draft_launched() const { return run_.live; }
 
+    /// ---- STRATA_DRAFT_SUFFIX_SKIP (mandoof1 868841cb32; LEADS.md FK-33; the serve loop): a chain that ends after draft 0
+    /// when the next window will take the suffix lookup whatever the chain would draft.  `fn` is asked once draft 0 and
+    /// its probability are known and the host rule (min_p) would go on; true ends the round there: no step graph is
+    /// launched, the drafts past 0 read 0, and the chain's state (the step inputs, the staged step rows) is kept so
+    /// draft_resume() can still run the steps.  One-shot: the next draft_finish() takes and clears it.  Only on the
+    /// step-by-step path without a chain rule or an entropy stop (their calls have side effects); elsewhere never asked.
+    typedef bool (*SkipAfterFirstFn)(void* user, int32_t draft0, float p0);
+    void set_skip_after_first(SkipAfterFirstFn fn, void* user) { skip_fn_ = fn; skip_user_ = user; }
+    /// True after a draft() that ended on the predicate: draft_resume() may follow (before the next draft()).
+    bool draft_resumable() const { return resume_.valid; }
+    /// The steps the last draft() left out, by the same host rule, into `drafts` / `probs` (draft 0 is written again):
+    /// what that draft() would have returned had the predicate said no.
+    bool draft_resume(int32_t* drafts, std::string& err, float* probs = nullptr, int* n_drafts = nullptr);
+
     /// --lookup-max-t: draft() for a window of up to kVerifyLongT rows (T may pass max_t()).  When the last accepted
     /// row is past max_t() rows, rows 0..a-1 are caught up as prefill() does and row a runs as a one-row round, so the
     /// drafter's K/V holds every accepted cell and its graphs keep max_t() rows.
@@ -338,6 +352,16 @@ private:
         int32_t ple_prev[2] = {0, 0};    ///< the PLE prefetch's history along the chain
     } run_;
     void ple_prefetch(int32_t tok);      ///< a PLE page prefetch hint for one token of the round's chain (run_.ple_prev)
+    // STRATA_DRAFT_SUFFIX_SKIP: the predicate, and the chain a draft() ended after draft 0 (draft_resume)
+    SkipAfterFirstFn skip_fn_ = nullptr;
+    void* skip_user_ = nullptr;
+    struct ResumeState {
+        bool valid = false, cp = false, do_ple = false;
+        int max_steps = 0;
+        int32_t tok0 = 0;
+        float p0 = 0.0f, min_p = 0.0f;
+        int32_t ple_prev[2] = {0, 0};
+    } resume_;
     bool force_on_ = false, chain_live_ = false;
     const float* src_R_ = nullptr;
     int32_t *h_force_ = nullptr, *m_force_ = nullptr;   ///< the forced tokens (mapped), -1 = the step's own pick
