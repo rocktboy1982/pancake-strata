@@ -9,6 +9,7 @@
 // where the engine idles between layers; it is judged by spec 147 against STRATA_PF_AHEAD=1.
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -51,6 +52,45 @@ inline std::vector<Issue> plan(int sets, int64_t lb, int64_t le) {
         if (t < le) v.push_back({l, t});
     }
     return v;
+}
+
+/// STRATA_PF_COPY_BATCH=N (MOD_PLAN.md item 48, LEADS.md B141, spec 149, default off): the pool's per-expert H2D copies of consecutive picks
+/// whose host blobs lie at a constant positive stride (>= the blob's bytes) go out as ONE 2D copy (pitch = the stride on the host,
+/// the pool's slot stride on the device), at most N experts a copy.  Same bytes, fewer copy calls (the DMA engine's per-copy
+/// cost, an SDMA queue entry on ROCm); a run's events all follow its copy, so the first expert of a run waits for the whole run.
+/// 0 / 1 / unset: off (the loop of single copies, as before).
+inline int parse_copy_batch(const char* v) {
+    const int n = v != nullptr ? std::atoi(v) : 0;
+    return n >= 2 ? (n > 64 ? 64 : n) : 0;
+}
+inline int copy_batch_from_env() {
+    static const int n = parse_copy_batch(std::getenv("STRATA_PF_COPY_BATCH"));
+    return n;
+}
+struct Run {
+    int start;       // index of the run's first blob in `ptrs`
+    int count;       // blobs in the run (1: a single copy)
+    int64_t stride;  // host stride between consecutive blobs (count >= 2), else 0
+};
+/// Split the picks' host blob addresses (in copy order) into runs of at most `max_run` at a constant positive stride >= `bytes`.
+inline std::vector<Run> copy_runs(const std::vector<std::intptr_t>& ptrs, int64_t bytes, int max_run) {
+    std::vector<Run> runs;
+    const int n = (int) ptrs.size();
+    for (int i = 0; i < n;) {
+        int cnt = 1;
+        int64_t stride = 0;
+        if (max_run >= 2 && i + 1 < n) {
+            const int64_t d = (int64_t) (ptrs[(size_t) i + 1] - ptrs[(size_t) i]);
+            if (d >= bytes) {
+                stride = d;
+                cnt = 2;
+                while (cnt < max_run && i + cnt < n && (int64_t) (ptrs[(size_t) i + cnt] - ptrs[(size_t) i + cnt - 1]) == d) ++cnt;
+            }
+        }
+        runs.push_back({i, cnt, cnt >= 2 ? stride : 0});
+        i += cnt;
+    }
+    return runs;
 }
 
 }  // namespace strata::prefill::pf_ahead

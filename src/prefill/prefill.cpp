@@ -4742,6 +4742,39 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
             std::sort(pick.begin(), pick.end());
             const size_t bytes = (size_t) lay0.blob_bytes(ln);
             int sn = 0;
+            if (const int cbatch = pfr::copy_batch_from_env(); cbatch >= 2) {
+                // STRATA_PF_COPY_BATCH=N (LEADS.md B141): runs of picks at a constant host stride go out as one 2D copy
+                std::vector<std::pair<int32_t, const uint8_t*>> got;
+                for (const int32_t e : pick)
+                    if (const uint8_t* b = m.src->blob_stable(ln, e)) got.emplace_back(e, b);
+                std::vector<std::intptr_t> ptrs;
+                ptrs.reserve(got.size());
+                for (const auto& gb : got) ptrs.push_back((std::intptr_t) gb.second);
+                bool ev_ok = true;
+                for (const pfr::Run& r : pfr::copy_runs(ptrs, (int64_t) bytes, cbatch)) {
+                    for (int i = 0; i < r.count && ev_ok; ++i) {
+                        cudaEvent_t& ev = m.pf_copied[pbase + sn + i];
+                        if (!ev && cudaEventCreateWithFlags(&ev, cudaEventDisableTiming) != cudaSuccess) {
+                            (void) cudaGetLastError();
+                            ev = nullptr;
+                            ev_ok = false;
+                        }
+                    }
+                    if (!ev_ok) break;
+                    uint8_t* dst = m.pf_dev + (size_t) (pbase + sn) * (size_t) MAXBLOB();
+                    if (r.count == 1)
+                        cudaMemcpyAsync(dst, got[(size_t) r.start].second, bytes, cudaMemcpyHostToDevice, m.copy);
+                    else
+                        cudaMemcpy2DAsync(dst, (size_t) MAXBLOB(), got[(size_t) r.start].second, (size_t) r.stride, bytes, (size_t) r.count,
+                                          cudaMemcpyHostToDevice, m.copy);
+                    for (int i = 0; i < r.count; ++i) {
+                        cudaEventRecord(m.pf_copied[pbase + sn + i], m.copy);
+                        m.pf_slots[pset][(size_t) got[(size_t) (r.start + i)].first] = (int16_t) (pbase + sn + i);
+                    }
+                    sn += r.count;
+                }
+                pick.clear();   // the batched branch took the picks; the single-copy loop below has none left
+            }
             for (const int32_t e : pick) {
                 const uint8_t* b = m.src->blob_stable(ln, e);
                 if (b == nullptr) continue;

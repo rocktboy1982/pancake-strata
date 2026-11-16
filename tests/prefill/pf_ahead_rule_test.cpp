@@ -58,6 +58,29 @@ int main() {
             apply(l);
         }
     }
+    // STRATA_PF_COPY_BATCH: parse and the runs (constant positive host stride >= bytes, at most max_run a copy)
+    CHECK(p::parse_copy_batch(nullptr) == 0 && p::parse_copy_batch("0") == 0 && p::parse_copy_batch("1") == 0 && p::parse_copy_batch("8") == 8 &&
+          p::parse_copy_batch("1000") == 64 && p::parse_copy_batch("x") == 0);
+    {
+        auto addr = [](std::vector<long> v) { std::vector<std::intptr_t> o; for (long x : v) o.push_back((std::intptr_t) x); return o; };
+        const auto r1 = p::copy_runs(addr({1000, 1100, 1200, 1300, 5000, 9000, 9100}), 100, 8);   // stride 100 x4, a pair at 4000, a lone one
+        CHECK(r1.size() == 3 && r1[0].start == 0 && r1[0].count == 4 && r1[0].stride == 100);
+        CHECK(r1[1].start == 4 && r1[1].count == 2 && r1[1].stride == 4000);
+        CHECK(r1[2].start == 6 && r1[2].count == 1 && r1[2].stride == 0);
+        const auto r2 = p::copy_runs(addr({0, 128, 256, 384, 512}), 100, 2);                       // capped at 2 a copy
+        CHECK(r2.size() == 3 && r2[0].count == 2 && r2[1].count == 2 && r2[2].count == 1 && r2[0].stride == 128);
+        const auto r3 = p::copy_runs(addr({0, 50, 100}), 100, 8);                                  // stride 50 < bytes: overlapping, never batched
+        CHECK(r3.size() == 3 && r3[0].count == 1 && r3[1].count == 1 && r3[2].count == 1);
+        const auto r4 = p::copy_runs(addr({300, 200, 100}), 50, 8);                                // descending: never batched
+        CHECK(r4.size() == 3);
+        const auto r5 = p::copy_runs(addr({0, 100, 300, 400}), 100, 8);                            // stride changes: 2 + 2
+        CHECK(r5.size() == 2 && r5[0].count == 2 && r5[1].count == 2 && r5[1].stride == 100);
+        CHECK(p::copy_runs(addr({}), 100, 8).empty());
+        CHECK(p::copy_runs(addr({7}), 100, 8).size() == 1);
+        CHECK(p::copy_runs(addr({0, 100, 200}), 100, 0).size() == 3);                              // max_run 0 / 1: off
+        // coverage: every index once, in order
+        for (const auto& rr : {r1, r2, r5}) { int next = 0; for (const auto& r : rr) { CHECK(r.start == next); next += r.count; } }
+    }
     std::printf("pf_ahead_rule_test: %s\n", fails ? "FAILED" : "ok");
     return fails ? 1 : 0;
 }

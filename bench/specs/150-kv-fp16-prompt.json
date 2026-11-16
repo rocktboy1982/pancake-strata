@@ -1,0 +1,27 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "long3k",
+    "long64k",
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "kv-int8-ctx64k": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--max-context": "65536"
+      }
+    },
+    "kv-fp16-ctx64k": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--max-context": "65536",
+        "--kv": "fp16"
+      }
+    }
+  },
+  "note": "NOT RUN (MOD_PLAN.md section 6 item 49; LEADS.md Part H dardeaw b1212e15 STRATA_PROMPT_ATTN_F16): the fork's fp16-KV WMMA prompt attention (gfx1151: attention 1584 -> 485 ms) fires on an fp16 KV pool only, and the daily preset is --kv int8. This spec is the first half of the question and needs no new kernel: what does --kv fp16 alone do to the prompt and to a 64K context on the 7900 XT (K/V is twice the size: the arm may not start at all, or may lose resident cache slots)? Both arms use --max-context 65536 so the fp16 pool can fit. Lossy (the K/V is stored differently from int8: drift_check not set, compare the text by eye). The prompt-attention kernel itself is NOT written: our qsa_prompt_attn.cu is NVIDIA mma.sync code (KV_MODE 0 = fp16 values exists there) and a gfx11 WMMA version is a new kernel. Stop pancake.service first."
+}

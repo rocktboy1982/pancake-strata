@@ -1,0 +1,37 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "pf-ahead": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_AHEAD": "1"
+      }
+    },
+    "pf-ahead-batch4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_AHEAD": "1",
+        "STRATA_PF_COPY_BATCH": "4"
+      }
+    },
+    "pf-ahead-batch16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_AHEAD": "1",
+        "STRATA_PF_COPY_BATCH": "16"
+      }
+    },
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    }
+  },
+  "note": "NOT RUN, the batched copy code has NEVER BEEN BUILT (MOD_PLAN.md section 6 item 48; LEADS.md B141): STRATA_PF_COPY_BATCH=N turns the STRATA_PF_AHEAD pool's per-expert H2D copies of consecutive picks at a constant host stride into one cudaMemcpy2DAsync of at most N experts. It acts ONLY inside pf_issue (the pool path, so it needs STRATA_PF_AHEAD=1) and only where the host blobs of consecutive picks lie at a constant stride >= the blob size (see the stats line, not logged yet: look at the copy count in a profile); the staged ring's copies and the streamed walk are not batched. Judge against pf-ahead, not base. A run's events all follow its copy: the first expert of a run waits for the whole run, so a long run can cost overlap. Exact (same bytes). Whether hipMemcpy2DAsync uses the SDMA engine like a plain copy is NOT known: HSA_ENABLE_SDMA is not touched. Stop pancake.service first."
+}
