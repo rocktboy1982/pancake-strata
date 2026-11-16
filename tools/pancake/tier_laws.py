@@ -71,7 +71,7 @@ precision of those predictions.
 
     python tools/pancake/tier_laws.py PROFILE.bin SLOTS TRACE --cuts 11,96,157 --names read4k,short,edit,long
            [--protect 0,0.5,0.75,0.9] [--policies P ...] [--interleave 8] [--turns F.json] [--convs a,b,a,c]
-           [--validate-conv] [--seed-file F.npz] [--parts] [--json OUT.json]
+           [--validate-conv] [--seed-file F.npz] [--parts] [--init-policy profile|count|share] [--json OUT.json]
 """
 import argparse
 import bisect
@@ -113,6 +113,24 @@ def init_residents(init, nl, ne):
     res = np.zeros((nl, ne), bool)
     res[init[:, 0], init[:, 1]] = True
     return res
+
+
+def placement_from_counts(C, slots, mode):
+    """Initial placement (rank-ordered [slots, 2] (layer, expert) pairs) from per-layer routed counts C [layers, experts].
+    mode "count": the top slots by raw count over all layers (global rank).  mode "share": kindi/moe.py plan() (LEADS.md
+    Part J): the next card slot goes to the layer whose next expert has the largest share of THAT layer's picks, i.e. the
+    pairs sorted by count / (layer total); with equal expert size this is a plain sort, because the greedy walks each
+    layer's own order, which share keeps.  Ties break by (layer, expert).  Equal layer totals make the two identical."""
+    C = np.asarray(C, float)
+    key = C
+    if mode == "share":
+        tot = C.sum(axis=1)
+        tot[tot == 0] = 1.0
+        key = C / tot[:, None]
+    elif mode != "count":
+        raise ValueError(mode)
+    order = np.argsort(-key.ravel(), kind="stable")[:slots]
+    return np.stack(np.divmod(order, C.shape[1]), 1).astype(np.uint16)
 
 
 def protect_slots(f, slots):
@@ -1275,12 +1293,17 @@ def main(argv=None):
     ap.add_argument("--cap", type=int, default=-1, help="swaps per window for every policy (default: tier 32, others none)")
     ap.add_argument("--parts", action="store_true", help="also run every cut part as a trace of its own")
     ap.add_argument("--no-holdout", action="store_true")
+    ap.add_argument("--init-policy", default="profile", choices=["profile", "count", "share"],
+                    help="initial placement: the profile's rank order (default, what the engine reads), or built from the "
+                         "trace's per-layer counts, count = global rank, share = kindi per-layer share (whole-trace rows are "
+                         "IN-SAMPLE, the hold-out fits on the first half)")
     ap.add_argument("--seed-file", default="")
     ap.add_argument("--validate-conv", action="store_true")
     ap.add_argument("--json", default="")
     a = ap.parse_args(argv)
 
     init = rp.load_profile(a.profile, a.slots)
+    init_ho = init
     ranked = rp.load_profile(a.profile, 10 ** 9)
     nl, ne = rp.NL, rp.NE
     budgets = np.bincount(init[:, 0], minlength=nl)
@@ -1293,6 +1316,9 @@ def main(argv=None):
 
     whole = cl.Layered.from_windows(rp.load_trace(a.trace)[0])
     D = dense(whole, ne)
+    if a.init_policy != "profile":
+        init = placement_from_counts(D.sum(0), a.slots, a.init_policy)
+        init_ho = placement_from_counts(D[:D.shape[0] // 2].sum(0), a.slots, a.init_policy)
     scen = []     # (name, D, turns)
     cuts = [int(x) for x in a.cuts.split(",")] if a.cuts else []
     names = a.names.split(",") if a.names else [f"part{i}" for i in range(len(cuts) + 1)]
@@ -1338,7 +1364,7 @@ def main(argv=None):
             print(thrash_table(f"{name}, protect {f:g}", res))
         if not a.no_holdout:
             for hname, hd, htt in [(f"whole ({whole.n} windows)", D, turns)] + ([(syn[0], syn[1], syn[2])] if syn else []):
-                ho, hist = run_holdout(hd, init, specs, ctx, n_prot, htt, a.cap)
+                ho, hist = run_holdout(hd, init_ho, specs, ctx, n_prot, htt, a.cap)
                 rep[f"holdout {hname}"] = ho
                 rep[f"layerdecay_choice {hname}"] = hist
                 print(table(f"holdout: second half of {hname}, decay / phases fitted on the first half, protect {f:g}", ho, a.alpha))

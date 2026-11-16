@@ -1,0 +1,41 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit",
+  "long3k",
+  "long64k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "kindi-static": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--adapt-every": "0"
+   }
+  },
+  "kindi-static-tracecount": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--adapt-every": "0",
+    "--expert-profile": "<REPO>/data/expert-profile-pancake-tracecount.bin"
+   }
+  },
+  "kindi-stack": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--adapt-every": "0",
+    "--expert-profile": "<REPO>/data/expert-profile-pancake-tracecount.bin"
+   },
+   "env": {
+    "STRATA_PF_AHEAD": "1"
+   }
+  }
+ },
+ "note": "Kindi way of working (LEADS.md Part J; kindi is AGPL, ideas only): STATIC expert placement, misses computed on the CPU in place, prefetch only on prompt chunks. kindi-static = --adapt-every 0 alone (no per-window swaps at decode; the tier stays at the profile's startup fill). kindi-static-tracecount = the same with data/expert-profile-pancake-tracecount.bin (tools/make_profile.py bench/prefetch/routing.bin --base data/expert-profile-pancake.bin --reorder --out ...: the ranking is the trace's per-layer share, which equals its global count rank because every layer has the same pick total, T-671 offline; IN-SAMPLE on the 2026-11-08 routing trace). kindi-stack = that plus STRATA_PF_AHEAD=1 (prompt prefetch of the next layer from the last chunk's routing; depth 2 NOT coded, shortlist head NOT coded, expert-union draft length not coded: the engine already prices windows by measured per-width cost). All four arms are exact by design (placement and scheduling only; the CPU/GPU expert split changes which kernel computes an expert, as in spec 116); drift_check true reads any text difference. Run: python3 tools/pancake/abtest.py bench/specs/126-kindi-style.json --tier screen. The profile file must be copied to the box (data/expert-profile-pancake-tracecount.bin, 197 KB) before the run."
+}

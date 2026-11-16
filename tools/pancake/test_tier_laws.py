@@ -201,3 +201,15 @@ def test_kmiss_with_cap_keeps_its_lists_consistent_with_the_cache():
     r, _, promo, hist = tl.run(d, init_pairs([0, 1, 6, 7]), pol, 0, None, record=True)
     assert hist[5, :, 2:6].sum() <= 2                        # one swap a window: windows 3 and 4 admitted at most 2 by window 5
     assert hist[-1, :, 2:6].all()                            # but all four hot experts arrive over the windows
+
+
+def test_layer_share_placement_equals_global_rank_when_layer_totals_are_equal_and_differs_when_not():
+    # equal totals (every layer sees the same picks, like the real trace): share order == count order
+    C = np.array([[9, 1, 0, 0], [5, 4, 1, 0]], float)
+    assert (tl.placement_from_counts(C, 3, "share") == tl.placement_from_counts(C, 3, "count")).all()
+    # unequal totals: layer 1 has only 10 picks, so its expert 1 (4/10 = 0.4) beats layer 0's expert 1 (30/100... 0.3)
+    C = np.array([[70, 30, 0, 0], [6, 4, 0, 0]], float)
+    count = {tuple(p) for p in tl.placement_from_counts(C, 3, "count").tolist()}
+    share = {tuple(p) for p in tl.placement_from_counts(C, 3, "share").tolist()}
+    assert count == {(0, 0), (0, 1), (1, 0)} and share == {(0, 0), (1, 0), (1, 1)}
+    assert tl.placement_from_counts(C, 3, "share")[0].tolist() == [0, 0]       # highest share first (0.7), rank order kept

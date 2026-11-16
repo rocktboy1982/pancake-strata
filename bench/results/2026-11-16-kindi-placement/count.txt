@@ -1,0 +1,29 @@
+
+######## protect 0: 0 of 10909 slots are a static core ########
+== whole (219 windows), protect 0
+policy                       hit %   miss/w  promo/w  CPU ms/w  vs kmiss 2/8  vs static
+static                      88.37%    235.9      0.0     11.49         -4.62      +0.00
+tier                        85.48%    280.6     24.3     15.09         -1.03      +3.60
+kmiss 2/8                   83.89%    295.3     29.7     16.11         +0.00      +4.62
+   hit points vs kmiss 2/8: static +4.48, tier +1.60, kmiss 2/8 +0.00
+   hit points vs static:    static +0.00, tier -2.89, kmiss 2/8 -4.48
+== whole (219 windows), protect 0: thrash and landing pads
+policy                      evict/w  back<=1  back<=4  back<=16  net us/promo  neg %  gap miss/w  saved P16     P32     P64
+static                          0.0     0.0%     0.0%      0.0%           0.0   0.0%        0.00       0.00    0.00    0.00
+tier                           24.3     2.3%     8.7%     25.6%         330.8  23.7%        0.57       0.32    0.57    0.57
+kmiss 2/8                      29.7     2.5%     9.0%     27.4%         492.1  21.9%        0.75       0.36    0.75    0.75
+== holdout: second half of whole (219 windows), decay / phases fitted on the first half, protect 0
+policy                       hit %   miss/w  promo/w  CPU ms/w  vs kmiss 2/8  vs static
+static                      73.31%    513.3      0.0     25.00         +4.86      +0.00
+tier                        81.44%    384.0     28.8     20.38         +0.24      -4.62
+kmiss 2/8                   81.39%    376.9     30.7     20.14         +0.00      -4.86
+layerdecay                  80.82%    396.1     27.2     20.88         +0.73      -4.12
+   hit points vs kmiss 2/8: static -8.08, tier +0.05, kmiss 2/8 +0.00, layerdecay -0.57
+   hit points vs static:    static +0.00, tier +8.13, kmiss 2/8 +8.08, layerdecay +7.51
+== holdout whole (219 windows), protect 0: thrash and landing pads
+policy                      evict/w  back<=1  back<=4  back<=16  net us/promo  neg %  gap miss/w  saved P16     P32     P64
+static                          0.0     0.0%     0.0%      0.0%           0.0   0.0%        0.00       0.00    0.00    0.00
+tier                           28.8     2.3%     7.9%     22.1%         294.5  23.3%        0.65       0.30    0.65    0.65
+kmiss 2/8                      30.7     2.2%     7.6%     21.4%         283.0  25.2%        0.66       0.35    0.66    0.66
+layerdecay                     27.2     2.6%     8.2%     21.8%         292.8  23.9%        0.71       0.35    0.71    0.71
+   layerdecay picks (layers per decay): {'0.3': 27, '0.5': 9, '0.7': 6, '0.85': 5, '0.95': 1}
