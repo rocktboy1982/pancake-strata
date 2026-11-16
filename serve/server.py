@@ -94,6 +94,10 @@ from serve import loop_guard  # noqa: E402  (ported from Project Maya, MIT)
 from serve import rumination  # noqa: E402  (pancake item 34: 5-gram repetition rate in the thinking)
 from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache-2.0; lossy opt-in)
 from serve import lifeline  # noqa: E402
+from serve.conv_router import config as conv_router_cfg  # noqa: E402
+from serve import prompt_kind  # noqa: E402
+from serve import tool_idle  # noqa: E402
+from serve import async_compact  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
 from serve.responses import ResponsesError, error_body as responses_error_body  # noqa: E402
@@ -1767,6 +1771,33 @@ class StrataEngine:
     def vram(self, reserve_mib: int | None, timeout: float = 120.0) -> dict:
         with self._exclusive_control():
             return self._vram(reserve_mib, timeout)
+
+    def tune(self, settings: dict, timeout: float = 60.0) -> dict:
+        """STRATA_TUNE / STRATA_CONV_ROUTE (opt-in; Strata PR #5516, serve/conv_router.py): `TUNE k=v ...` between
+        requests (the caller holds the service's FIFO, as for vram()).  -> {"applied": {...}, "refused": [...]};
+        ValueError on ERR, EngineDied when the engine is gone or silent."""
+        from serve import conv_router
+        line_out = conv_router.tune_line(settings)
+        with self._exclusive_control():
+            if not self.alive():
+                raise EngineDied("the engine is not running")
+            self.proc.stdin.write(line_out + "\n")
+            self.proc.stdin.flush()
+            deadline = time.time() + timeout
+            while True:
+                try:
+                    line = self.lines.get(timeout=max(0.1, deadline - time.time()))
+                except queue.Empty:
+                    raise EngineDied("the engine did not answer the TUNE command") from None
+                if line is None:
+                    raise EngineDied("the engine ended")
+                line = line.strip()
+                if line.startswith("ERR"):
+                    raise ValueError(line[4:].strip() or "the engine refused the TUNE command")
+                if line.startswith("TUNED"):
+                    return conv_router.parse_tuned(line)
+                if time.time() > deadline:
+                    raise EngineDied("the engine did not answer the TUNE command")
 
     def _vram(self, reserve_mib: int | None, timeout: float = 120.0) -> dict:
         """#533: `VRAM <reserve_mib>` between requests (the caller holds the service's FIFO): the engine shrinks its
@@ -5722,6 +5753,66 @@ class Service:
 
     vram_wait_s = 300.0                                  # #533: how long POST /v1/vram waits for a running request
 
+    def tune(self, settings: dict, wait_s: float = 5.0) -> dict:
+        """STRATA_TUNE=1 POST /v1/tune and STRATA_CONV_ROUTE (opt-in; Strata PR #5516): change settings of the RUNNING
+        engine between requests (no restart, no reload, no session reset).  ModelBusy when the FIFO (and on --batch
+        the engine's control lines) stay taken for `wait_s`."""
+        if not hasattr(self.engine, "tune"):
+            raise ValueError("this engine cannot retune in place")
+        if not self.loaded():
+            raise ValueError("the model is not loaded")
+        if not self.fifo.acquire(timeout=wait_s):
+            raise ModelBusy("a request is still running; try again when it has finished")
+        ctl = getattr(self.engine, "ctl", None) if getattr(self.engine, "batch", 0) else None
+        if ctl is not None and not ctl.acquire(timeout=wait_s):
+            self.fifo.release()
+            raise ModelBusy("a request is still running; try again when it has finished")
+        if ctl is not None:
+            self.engine._ctl_held = True                 # engine.tune() must not wait for the lines this call holds
+        try:
+            return self.engine.tune(settings)
+        finally:
+            if ctl is not None:
+                self.engine._ctl_held = False
+                ctl.release()
+            self.fifo.release()
+
+    def conv_route_decide(self, req) -> None:
+        """STRATA_CONV_ROUTE=shadow|on (opt-in; Strata PR #5516, serve/conv_router.py): classify this request by
+        traffic shape and, in `on`, retune the engine's prompt_cache before it runs.  Off (the default): returns at
+        once.  A retune that cannot get the FIFO within 1 s is skipped and counted; it never delays the request."""
+        from serve import conv_router
+        cfg = conv_router.config()
+        if cfg["mode"] == "off" or not isinstance(req, dict):
+            return
+        router = self.__dict__.get("conv_router")
+        if router is None:
+            router = self.conv_router = conv_router.Router(cache_on=cfg["cache_on"], batch_after=cfg["batch_after"])
+            self.conv_route_stats = {"switches": 0, "refused": 0, "last": ""}
+            print(f"[strata] conv route: {cfg['mode']} (prompt_cache {router.cache_on}, batch after "
+                  f"{router.batch_after} single-shot requests)", flush=True)
+        decision = router.decide(req.get("messages"), req.get("tools"))
+        if not decision.changed:
+            return
+        if cfg["mode"] == "shadow":
+            if self.conv_route_stats["last"] != str(decision):
+                self.conv_route_stats["last"] = str(decision)
+                print(f"[strata] conv route: would switch to {decision}", flush=True)
+            return
+        try:
+            reply = self.tune({"prompt_cache": decision.wanted_cache}, wait_s=1.0)
+        except (ModelBusy, ValueError, EngineDied) as e:
+            router.revert()                              # the engine still has the previous value
+            self.conv_route_stats["refused"] += 1
+            print(f"[strata] conv route: retune skipped ({type(e).__name__}: {e})", flush=True)
+            return
+        if "prompt_cache" in (reply.get("applied") or {}):
+            self.conv_route_stats["switches"] += 1
+            print(f"[strata] conv route: {decision}", flush=True)
+        else:
+            router.revert()
+            self.conv_route_stats["refused"] += 1
+
     def vram(self, reserve_mib: int | None) -> dict:
         """#533, POST /v1/vram: keep `reserve_mib` of VRAM free for other programs (None: the reserve the engine
         started with), applied between requests - a request that is running finishes first (up to wait_s).  Only an
@@ -5899,11 +5990,15 @@ class Service:
                 if req.get("reasoning_effort") in (None, "") and not req.get("reasoning") and \
                         "enable_thinking" not in ctk and "reasoning_effort" not in ctk:
                     req["reasoning_effort"] = effort
+                    if prompt_kind.policy_mode() != "off":   # STRATA_THINKING_POLICY: the server's, not the client's
+                        req["_effort_from_shared"] = True
             elif not req.get("thinking") and not req.get("output_config"):
                 if effort == "none":
                     req["thinking"] = {"type": "disabled"}
                 else:
                     req["output_config"] = {"effort": effort}
+                if prompt_kind.policy_mode() != "off":
+                    req["_effort_from_shared"] = True
         return req
 
     def start_telemetry(self):
@@ -6374,6 +6469,12 @@ class Service:
         """-> (ids, thinking, max_new). An unset or non-positive max_new (some clients send -1) means "unlimited":
         the rest of the context.  `force` (forced_call): without thinking the reply starts with it, so it ends the
         prompt; with thinking, Service.run writes it once the thinking is over."""
+        # STRATA_THINKING_POLICY (opt-in; Strata PR #5512, serve/prompt_kind.py): before the render, so the template
+        # and the parser share the kwargs.  Off (the default): returns at once.
+        prompt_kind.apply_thinking_policy(messages, kwargs, req)
+        if async_compact.enabled():                      # STRATA_ASYNC_COMPACT (opt-in; Slipstream, LEADS.md A39)
+            async_compact.install(tool_idle.tracker())
+            async_compact.on_prepare(messages, tools, kwargs)
         # `cancel` (#1999): set when the client hangs up; the downloads, the wait for the turn and the encodes stop
         # between pictures and raise ClientGone
         # Cached tool images are references in browser history, never arbitrary file paths or huge base64 strings.
@@ -7002,7 +7103,13 @@ class Service:
         if ka is not None:
             ka.acquire()
         try:
-            events = self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            # STRATA_ASYNC_COMPACT (opt-in): a compaction summary made in an idle window replaces the run
+            cached = async_compact.take_cached(len(ids)) if async_compact.enabled() else None
+            events = cached if cached is not None else \
+                self._run(ids, thinking, tools, max_new, sampling, cancel, force, declared_only, deferred)
+            idle = tool_idle.tracker()                  # STRATA_TOOL_IDLE (opt-in): None when off
+            if idle is not None and not tool_idle.background():
+                events = idle.wrap(self, ids, events, getattr(tool_idle._LOCAL, "prepared", None))
             keeper = self.reasoning_keeper
             yield from (events if keeper is None else self._kept(events, keeper))
         finally:
@@ -8088,6 +8195,18 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
     total, rounds, done = 0, 0, None
     finalizing = False
     messages = list(messages)
+    from serve import mcp_async
+    # STRATA_MCP_ASYNC=1 (opt-in; AsyncFC, LEADS.md A40): a call starts when its tool_call event is complete, while
+    # the rest of the answer is still decoding.  None (the default): calls start after the answer, as before.
+    from serve import mcp_spec
+    # STRATA_MCP_SPEC=N (opt-in; PASTE / Atomix, LEADS.md): the predicted next read-only call runs ahead; a call the
+    # model then writes exactly takes its result.  None (the default): no call runs before the model writes it.
+    spec = mcp_spec.Speculator(hub, cancel) if mcp_spec.enabled() else None
+    futures = mcp_async.Futures(hub, cancel, spec) if mcp_async.enabled() else None
+    from serve import early_stop
+    # STRATA_MCP_EARLY_STOP=N (opt-in; EarlyEval / EET, LEADS.md): N rounds in a row with no new call and no new
+    # result go to the final answer.  None (the default): only max_rounds ends the loop.
+    progress = early_stop.Progress(early_stop.patience()) if early_stop.patience() else None
     while True:
         text, reasoning, calls, own_calls = [], [], [], 0
         for kind, x in svc.run(ids, thinking, tools, max_new, sampling, cancel, declared_only=True):
@@ -8101,6 +8220,8 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
                         yield "mcp", {"event": "start", "id": ev.call.id, "name": ev.call.name}
                     elif ev.kind == "tool_call":
                         calls.append(ev.call)
+                        if futures is not None and not finalizing:
+                            futures.start(ev.call)       # STRATA_MCP_ASYNC: runs while the answer goes on
                     continue                             # its argument pieces are not streamed to the client
                 if ev.kind == "tool_call":
                     own_calls += 1
@@ -8112,6 +8233,8 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
         total += done["completion_tokens"]
         run_them = calls and not own_calls and not finalizing and done["finish"] == "stop" and not cancel.is_set()
         if not run_them:
+            if futures is not None:
+                futures.clear()                          # STRATA_MCP_ASYNC: started early; results dropped
             for c in calls:                              # announced, never run: close them in the client's view
                 yield "mcp", {"event": "result", "id": c.id, "ok": False, "skipped": True, "text": "not run",
                               "chars": 0, "truncated": False, "ms": 0}
@@ -8124,15 +8247,21 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
                           "tool": tool, "arguments": c.arguments, "round": rounds}
             # The call runs on a thread while this generator keeps yielding heartbeats: they reach the client as
             # keep-alives, which is how a client that went away (the web app's Stop) is noticed during a slow tool.
-            box = {}
+            started = futures.take(c) if futures is not None else None
+            if started is not None:                      # STRATA_MCP_ASYNC: already running (or done)
+                worker, box = started
+            elif spec is not None:                       # STRATA_MCP_SPEC: may take the speculative result
+                worker, box = mcp_async.start_call(hub, c, cancel, spec)
+            else:
+                box = {}
 
-            def work(c=c, box=box):
-                try:
-                    box["r"] = hub.call(c.name, c.arguments, cancel)
-                except McpCancelled:
-                    box["cancelled"] = True
-            worker = threading.Thread(target=work, daemon=True)
-            worker.start()
+                def work(c=c, box=box):
+                    try:
+                        box["r"] = hub.call(c.name, c.arguments, cancel)
+                    except McpCancelled:
+                        box["cancelled"] = True
+                worker = threading.Thread(target=work, daemon=True)
+                worker.start()
             try:
                 while worker.is_alive():
                     worker.join(1.0)
@@ -8167,11 +8296,20 @@ def run_with_mcp(svc: Service, hub, messages, tools, kw, ids, thinking, max_new,
                 "reply. Answer the user's original request in their language using the results already obtained. "
                 "Explain any gaps in the available evidence. Do not request or emit further tool calls."})
             yield "mcp", {"event": "limit", "max_rounds": max_rounds}
+        elif progress is not None and progress.round(calls, results):
+            finalizing = True                            # STRATA_MCP_EARLY_STOP: no progress for N rounds
+            tools = None
+            system_end = next((index for index, message in enumerate(messages)
+                               if message.get("role") not in ("system", "developer")), len(messages))
+            messages.insert(system_end, {"role": "system", "content": early_stop.NOTE})
+            yield "mcp", {"event": "early_stop", "rounds": rounds, "stale": progress.stale}
         try:
             ids, thinking, max_new = svc.prepare(messages, tools, kw, max_req, cancel=cancel)
         except ClientGone:                                      # #1999: the client left while a picture was prepared
             done = {**done, "finish": "cancel"}
             break
+    if spec is not None:
+        spec.close()                                     # predictions the model never made are dropped
     yield "done", {**done, "completion_tokens": total, "prompt_tokens": len(ids)}
 
 
@@ -9504,7 +9642,22 @@ def make_handler(svc: Service):
                     except EngineDied as e:
                         self._json(503, {"error": {"type": "server_error", "message": str(e)}})
                     return
+                if path == "/v1/tune" and conv_router_cfg()["tune"]:   # STRATA_TUNE=1 (opt-in; Strata PR #5516)
+                    if not self._own_page("the engine settings can be changed"):
+                        return
+                    settings = req.get("settings")
+                    if not isinstance(settings, dict) or not settings:
+                        raise ValueError("settings: an object of key: value, e.g. {\"spec_min_p\": 0.4}")
+                    try:
+                        self._json(200, svc.tune(settings))
+                    except ModelBusy as e:
+                        self._json(409, {"error": {"type": "busy", "message": str(e)}})
+                    except EngineDied as e:
+                        self._json(503, {"error": {"type": "server_error", "message": str(e)}})
+                    return
                 if path in ("/v1/chat/completions", "/v1/messages", "/v1/responses"):
+                    svc.conv_route_decide(req)               # STRATA_CONV_ROUTE (opt-in): may retune prompt_cache
+                    tool_idle.on_request(req)                # STRATA_TOOL_IDLE (opt-in): closes a tool window
                     self.record = svc.begin_request(path, req)
                 self.capture = svc.request_capture.begin(path, req, self.headers) if svc.request_capture else None
                 if path == "/v1/responses":
