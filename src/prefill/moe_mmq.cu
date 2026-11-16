@@ -149,7 +149,8 @@ __global__ void swiglu_kernel(const float* __restrict__ gu, float* __restrict__ 
     h[i] = g / (1.0f + __expf(-g)) * u;
 }
 
-#if !defined(__HIPCC__) && defined(STRATA_EXPERIMENTAL_SM60)
+#if (!defined(__HIPCC__) && defined(STRATA_EXPERIMENTAL_SM60)) || (defined(__HIPCC__) && !defined(STRATA_HIP_GFX906))
+// (HIP, wave32 builds: STRATA_PF_SWIGLU_Q8=1, zsariboga 21107e9d05 / LEADS.md FK-36, checked by prefill_swiglu_quant_test)
 // swiglu_kernel (n_ff 640), then quantize_mmq_q8_1<D4>'s rows of its output, in one pass: a block per row (128
 // threads, 4 values each, blockIdx.y the row's 512-value half), H never stored.  Each value is swiglu_kernel's
 // expression and each 32-value block quantize_mmq_q8_1's (the same unit and flags: the same bits).
@@ -811,6 +812,11 @@ bool swiglu_quant_ok(int t) {
 #if !defined(__HIPCC__) && defined(STRATA_EXPERIMENTAL_SM60)
     // the q8_1 D4 rows quantize() writes for a down product's H (K 640)
     return supported(t) && !fp4_activations(t) && mmq_get_q8_1_ds_layout((ggml_type) t) == MMQ_Q8_1_DS_LAYOUT_D4;
+#elif defined(__HIPCC__) && !defined(STRATA_HIP_GFX906)
+    // STRATA_PF_SWIGLU_Q8=1 (opt-in, read once): the fused kernel on the HIP build (the same expressions as ggml's
+    // quantize_mmq_q8_1 there; prefill_swiglu_quant_test checks the bytes)
+    static const bool on = [] { const char* v = std::getenv("STRATA_PF_SWIGLU_Q8"); return v != nullptr && v[0] == '1'; }();
+    return on && supported(t) && !fp4_activations(t) && mmq_get_q8_1_ds_layout((ggml_type) t) == MMQ_Q8_1_DS_LAYOUT_D4;
 #else
     (void) t;
     return false;   // HIP: not checked against the HIP build's quantizer; outside the SM60 build: not built
@@ -818,7 +824,7 @@ bool swiglu_quant_ok(int t) {
 }
 
 void swiglu_quant(const float* gu, void* hq, int64_t rows, bool interleaved, void* stream) {
-#if !defined(__HIPCC__) && defined(STRATA_EXPERIMENTAL_SM60)
+#if (!defined(__HIPCC__) && defined(STRATA_EXPERIMENTAL_SM60)) || (defined(__HIPCC__) && !defined(STRATA_HIP_GFX906))
     if (rows <= 0) return;
     const dim3 grid((unsigned) rows, 2);
     if (interleaved) swiglu_quant_kernel<true><<<grid, 128, 0, (cudaStream_t) stream>>>(gu, (block_q8_1_mmq*) hq, rows);

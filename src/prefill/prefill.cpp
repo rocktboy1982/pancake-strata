@@ -6809,7 +6809,19 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                 if (direct) gu.tab = &tgu;
                                 if (ngx <= MMQ_GROUP) gu.host_rows = lin_rows;   // read only with STRATA_MMQ_LINEAR=1
                                 m.mmq_ctx->run(gu, m.cs);
-                                if (lay.native && lay.fmt[(size_t) l].tail_off)   // gate/up scales applied as read
+                                // FK-36 STRATA_PREFILL_SWIGLU_QUANT=1 (zsariboga 21107e9d05, opt-in, the same bytes; read once):
+                                // the group's swiglu and H's q8_1 rows in one kernel where the down type reads D4 rows
+                                // (swiglu_quant_ok; on HIP also STRATA_PF_SWIGLU_Q8=1), not with the gate/up scales read in,
+                                // a Hadamard on H, FP4 activations or STRATA_DBG_NAN (it reads H in floats)
+                                static const bool sq_env = [] {
+                                    const char* v = std::getenv("STRATA_PREFILL_SWIGLU_QUANT");
+                                    return v != nullptr && v[0] == '1' && std::getenv("STRATA_DBG_NAN") == nullptr;
+                                }();
+                                const bool sq = sq_env && !(lay.native && lay.fmt[(size_t) l].tail_off) && !had_d &&
+                                                !mmq::fp4_activations(mmq_dt) && mmq::swiglu_quant_ok(mmq_dt);
+                                if (sq)
+                                    mmq::swiglu_quant(m.GU + r0 * 1280, m.Hq, nr, !lay.native, m.cs);
+                                else if (lay.native && lay.fmt[(size_t) l].tail_off)   // gate/up scales applied as read
                                     mmq::swiglu_scaled(m.GU + r0 * 1280, m.H + r0 * 640, nr, 640, m.bounds_dev + j0, ngx,
                                                        m.grp_tail, r0, m.cs);
                                 else
@@ -6817,7 +6829,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                 if (had_d)
                                     strata::kernels::hadamard_rows(m.H + r0 * 640, m.H + r0 * 640, nr, 640, had_block, had_sh, m.cs);
                                 pt.mark(kPfGemmD, cs);
-                                mmq::quantize(m.H + r0 * 640, nullptr, m.Hq, mmq_dt, 640, 640, nr, m.cs, m.Hscale);
+                                if (!sq) mmq::quantize(m.H + r0 * 640, nullptr, m.Hq, mmq_dt, 640, 640, nr, m.cs, m.Hscale);
                                 mmq::Product dn;
                                 dn.w = m.grp_d; dn.type = mmq_dt; dn.w_rows = N; dn.w_cols = 640; dn.expert_bytes = mmq_db;
                                 dn.n = ngx; dn.xq = m.Hq; dn.bounds = m.bounds_dev + n + 1 + g * (MMQ_GROUP + 1);
