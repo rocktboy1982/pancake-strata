@@ -286,24 +286,36 @@ void check_grouped(int gu, int dt, int64_t H, int64_t FF, cudaStream_t s, std::m
     ed_p.lut_dup = 8;
     k::native_expert_set_expdec_params(ed_p);
     const auto f = G.result(false, s);
+    // LEADS.md B139 (STRATA_EXPDEC_NT): the IQ2_XS gate/up weights read with non-temporal loads, at R 1 (F12 off) and
+    // R 2 (F12 on); the other formats run their plain kernels again
+    ed_p.lut_dup = 0;
+    ed_p.nt = 1;
+    k::native_expert_set_expdec_params(ed_p);
+    const auto g1 = G.result(false, s);
+    ed_p.gu_rows_per_lane = 2;
+    ed_p.sign_fast = 1;
+    k::native_expert_set_expdec_params(ed_p);
+    const auto g2 = G.result(false, s);
     k::native_expert_set_expdec(saved_ed);
     k::native_expert_set_expdec_params(saved_p);
-    size_t diff = 0, diff_ed = 0, diff_sf = 0, diff_dup = 0;
+    size_t diff = 0, diff_ed = 0, diff_sf = 0, diff_dup = 0, diff_nt = 0;
     bool finite = true;
     for (size_t i = 0; i < a.size(); ++i) {
         diff += std::memcmp(&a[i], &b[i], 4) != 0;
         diff_ed += std::memcmp(&a[i], &c[i], 4) != 0;
         diff_sf += std::memcmp(&a[i], &d[i], 4) != 0;
         diff_dup += (std::memcmp(&a[i], &e[i], 4) != 0) + (std::memcmp(&a[i], &f[i], 4) != 0);
+        diff_nt += (std::memcmp(&a[i], &g1[i], 4) != 0) + (std::memcmp(&a[i], &g2[i], 4) != 0);
         if (i < (size_t) G.n_ent * H) { finite = finite && std::isfinite(b[i]) && std::isfinite(c[i]) && std::isfinite(d[i]); }
     }
-    const bool ok = diff == 0 && diff_ed == 0 && diff_sf == 0 && diff_dup == 0 && finite;
+    const bool ok = diff == 0 && diff_ed == 0 && diff_sf == 0 && diff_dup == 0 && diff_nt == 0 && finite;
     std::printf("%-8s/%-7s %5lld x %4lld  native_expert_grouped, %d groups, %d entries: %s\n", name_of(gu),
                 name_of(dt), (long long) H, (long long) FF, G.n_groups, G.n_ent,
                 ok ? "bitwise equal to the old kernels" : "FAIL");
     if (!ok) {
-        std::printf("  %zu (multi) / %zu (expdec) / %zu (expdec + F12 sign form) / %zu (expdec + A37 codebook copies, 16 and 8) of "
-                    "%zu floats differ%s\n", diff, diff_ed, diff_sf, diff_dup, a.size(), finite ? "" : ", non-finite outputs");
+        std::printf("  %zu (multi) / %zu (expdec) / %zu (expdec + F12 sign form) / %zu (expdec + A37 codebook copies, 16 and 8) / "
+                    "%zu (expdec + B139 non-temporal loads, R 1 and R 2) of %zu floats differ%s\n", diff, diff_ed, diff_sf, diff_dup,
+                    diff_nt, a.size(), finite ? "" : ", non-finite outputs");
         ++g_fail;
     }
 }
