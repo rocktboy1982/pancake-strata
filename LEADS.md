@@ -78,7 +78,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-23 bit-exact Q2_0 AVX2 fast unpack | 1.11-1.45x on 1 thread; all-Q2_0 layer -17% in a 7-worker pool (imanu86) | exact | q2_avx2.cpp:60 (`unpack64_fast`, opt-in `STRATA_Q2_FAST`, :247) |
 | FK-24 Q2_0 down 4-lane fold `EXP9_DOWN` | down 0.47-0.96x of mode 8, +1.6-2.0% e2e (KhaledElzarw, RTX 3090) | exact | iq_kernels.cu:6500 |
 | FK-26 fill-stall grid padding | empty 384x256 launch 14-16 us; trim to 96 blocks +6% decode (unimatrix099, 2x XTX) | exact | 2026-11-15: CODED STRATA_FETCH_BLOCKS |
-| FK-27 cache bundle: `PARK_REWIND_MAX` / skip-tail / fork-point / borrow / trailing reminder | 12 turns 10.4 to 6.3 s (Xiaomi2008, RTX 5090); 6 tasks 412 to 369 s, switch 3.00 to 0.67 s (Lamina, RTX 3060) | exact | 2026-11-15: partial: PARK_REWIND_MAX (fork-point / borrow / reminder left) |
+| FK-27 cache bundle: `PARK_REWIND_MAX` / skip-tail / fork-point / borrow / trailing reminder | 12 turns 10.4 to 6.3 s (Xiaomi2008, RTX 5090); 6 tasks 412 to 369 s, switch 3.00 to 0.67 s (Lamina, RTX 3060) | exact | 2026-11-16: CODED PARK_REWIND_MAX, STRATA_CACHE_FORK_POINT, STRATA_TRAILING_REMINDER (serve); borrow already conversation_cache.hpp:359 |
 | FK-28 `STRATA_ADAPT_PROMPT` | est. +2-5% first decode tokens; RandoTeam counter -3% prompt (RTX 5090) | exact | 2026-11-15: CODED STRATA_ADAPT_PROMPT (FK-28) |
 | FK-30 IQ2 grid-sign expansion | IQ2_XXS gate/up -29%, IQ2_S down -35% per kernel (yqYo1, RX 7900 XT, GLM engine) | exact | iq_kernels.cu:91 (`STRATA_IQ_SIGN_FAST`) |
 | FK-31 sub-warp grouped expert kernels | +5.7-8.3% e2e (Lamina, RTX 3090 + 5070 Ti); est. 0-1% on XT | exact | 2026-11-16: already iq_kernels.cu sub-warp kernels (default, GU_SWIGLU, EXP_MODE=10) |
@@ -140,7 +140,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | rdna3 unported prompt kernels `1799c0a3a`/`3dbb40516`/`1f4b77d72` | expert GEMM -6..-9%; HC half-layer -7.4..-9.1%; colskip 1-GPU unchanged (XTX) | exact | 2026-11-16: CODED STRATA_HC_WN4, STRATA_NW_COLSKIP |
 | `STRATA_VRAM_CALIB` (PR #5691) | +314/+166 slots, free 884 to 300 MiB (2x RX 6900 XT, HIP) | exact | 2026-11-16: CODED STRATA_VRAM_CALIB |
 | `STRATA_PROMPT_STAGE_MEMO` | short turns +14-20% (gfx906) | ~exact | 2026-11-15: left |
-| disk conversation cache + RAM/disk dual-park | 12,175 tok restore 0.32-0.51 s vs 42-45 s cold (gfx906 box) | exact | 2026-11-15: left |
+| disk conversation cache + RAM/disk dual-park | 12,175 tok restore 0.32-0.51 s vs 42-45 s cold (gfx906 box) | exact | 2026-11-16: CODED STRATA_CONV_DUAL_PARK |
 | `DQ8` + `HC_GATED16`, `KV_PF_RESIDENT` | IQ3_S prompt +6%; +7-9% at 16-128K (2x PRO V620) | exact | 2026-11-16: CODED STRATA_HC_GATED16, STRATA_KV_PF_RESIDENT; DQ8 already |
 | gfx1030 decode: `MMVQ_ROW/SET`, `NORM_ROPE=2`, `HEAD_WIDE/ROUTE_PLAN/HEAD_SAMPLE` | 119.2 to 122.1, one run (+1%) | exact | 2026-11-16: CODED STRATA_NORM_ROPE, STRATA_MMVQ_SET, STRATA_HEAD_WIDE, STRATA_ROUTE_PLAN, STRATA_HEAD_SAMPLE; MMVQ_ROW = RDNA_MMVQ_WAVE |
 | `__launch_bounds__` / occupancy audit | QSA value -10.9%, 128K prefill +1.45% (P40) | exact | 2026-11-15: method |
@@ -182,7 +182,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | uniform fewer experts K=9/8 (`EXPERTS_USED`) | K=7/8 +14.4%, 6/8 +18.7%; KLD 0.0254 at K=7; HumanEval flat (RTX 3050 laptop, Qwen3.6 IQ4_XS) | lossy | 2026-11-16: CODED STRATA_Q36_EXPERTS_USED |
 | `gdn_gate_kernel` computes only first token | latent (callers pass n_tokens=1) | fix | elementwise.cu:43 (bug present) |
 | temperature < 1e-30 / NaN treated as greedy | gap | fix | sampler.cu:869 `<= 0.0f` only |
-| bugs 5.5-5.10 (spec-split B flag, pipeline-windows rows, stats-flush crash, iq_embed grid.y, conv-cache publish, JSON watcher) | latent | fix | 2026-11-15: partial: iq_embed grid.y fixed; five AF bugs left (report text not in repo) |
+| bugs 5.5-5.10 (spec-split B flag, pipeline-windows rows, stats-flush crash, iq_embed grid.y, conv-cache publish, JSON watcher) | latent | fix | 2026-11-16: FIXED 5.6, 5.7, 5.9, 5.10 (tests); 5.5 already (verify.cpp:4912) |
 | layer-major group scratch `G = m.T*K` ignores group_cap (precondition for LAYER_MAJOR test) | latent | fix | 2026-11-15: already prefill.cpp:7596 |
 | `STRATA_ARENA_REUSE` (#3509) + 0xluk GGUF arenas `e2ffeef8da` | startup only | exact | 2026-11-15: already expert_source.cpp shared-arena state word |
 
@@ -334,12 +334,12 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B66 | #5471 faster Q4_K/Q5_K decode GEMVs (DS4 path) | - | exact | - |
 | B67 | #3925 q36 load of K-quant/IQ4_XS `ssm_alpha`/`ssm_beta` | pack coverage | exact | - |
 | B68 | #3509 `STRATA_ARENA_REUSE=1` shared arena across restarts | restart 28-65 s on 33 GiB | exact | 2026-11-15: already expert_source.cpp shared arena |
-| B69 | Maya parallel direct expert reads `MAYA_EXPERT_DIRECT`/`STAGERS` (2-16 O_DIRECT threads) | +26% decode RAM-poor PC | exact | 2026-11-15: partial: open_direct + STAGER_THREADS (per-drive probe left) |
+| B69 | Maya parallel direct expert reads `MAYA_EXPERT_DIRECT`/`STAGERS` (2-16 O_DIRECT threads) | +26% decode RAM-poor PC | exact | 2026-11-16: CODED STRATA_STAGER_PROBE (+ open_direct, STAGER_THREADS) |
 | B70 | #5516 in-place TUNE + conversation-cache routing by traffic shape | - | exact | - |
 | B71 | Maya weight-based miss skip `MAYA_GLM_MISS_SKIP_W` | +7-13% decode at KL 0.037-0.052, GLM | lossy | 2026-11-15: CODED STRATA_MISS_SKIP_W |
 | B72 | #5566 opt-in cold store for expert arena | memory elasticity | exact | - |
 | B73 | #5623 immutable host KV prefixes shared between sessions | 5.4-6.1 GiB parked | exact | - |
-| B74 | basalt sleep-in-place `--idle-sleep` (64167ba73, ~815 lines) | - | exact | 2026-11-15: left (scope, MOD_PLAN 8) |
+| B74 | basalt sleep-in-place `--idle-sleep` (64167ba73, ~815 lines) | - | exact | 2026-11-16: CODED --idle-sleep (acts on CUDA only; ROCm has no process checkpoint: prints unavailable) |
 | B75 | Trellis "S" 2-bit quant (#3384, alesha-pro) evaluate offline | - | lossy | - |
 | B76 | Maya leftovers: `--calibrate` startup sweep, drafter auto-keep | - | exact | - |
 | B77 | Maya prompt memo | ~6% of follow-up TTFT | exact | - |
@@ -917,7 +917,7 @@ Dropped as irrelevant to a single 7900 XT box: NVIDIA-only kernels (#31802, #315
 | lead | number + hw | exact/lossy | in our src |
 |---|---|---|---|
 | Strata PR #5561 `madvise(MADV_SEQUENTIAL)` on expert mmap (`STRATA_EXPERTS_SEQ_READAHEAD`) | follow-ups 65-76 s -> 23-28 s, decode 33-44 -> 42-52 t/s; RX 6900 XT, 32 GB RAM | exact (byte-identical) | 2026-11-15: CODED STRATA_EXPERTS_SEQ_READAHEAD |
-| Maya direct parallel expert reads (`MAYA_EXPERT_DIRECT`, `MAYA_EXPERT_STAGERS` 2-16, probed per drive) | decode +26% RAM-short (V100, 30 GB RAM); probed readers +5% | exact | 2026-11-15: partial: open_direct + STAGER_THREADS |
+| Maya direct parallel expert reads (`MAYA_EXPERT_DIRECT`, `MAYA_EXPERT_STAGERS` 2-16, probed per drive) | decode +26% RAM-short (V100, 30 GB RAM); probed readers +5% | exact | 2026-11-16: CODED STRATA_STAGER_PROBE (+ open_direct, STAGER_THREADS) |
 | Out-of-core O_DIRECT streaming #31469 / #25294 | TG 1.5 -> 16-22 t/s, 68 GB on 16 GB RAM; NVIDIA | exact | 2026-11-15: already UNBUFFERED_LOAD + SEQ_READAHEAD |
 | Registered-RAM expert arena (Avalon 03c749e/213b569) / hot-expert mlock #26414 | none measured | exact | yes (arena; mlock note `conversation_memory.hpp:25`) |
 | Router-predicted next-layer `pread` prefetch (`STRATA_IO_PREFETCH`) | not isolated | exact | yes `include/strata/core/expert_source.hpp:341` |
