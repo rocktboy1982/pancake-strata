@@ -1,0 +1,61 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit",
+  "long3k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "no-conv-cache": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--conversation-cache-mib": "0"
+   }
+  },
+  "no-ckpt-periodic": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--prompt-cache-every": "0"
+   }
+  },
+  "no-prompt-cache": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--prompt-cache": "0"
+   }
+  },
+  "no-state": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--conversation-cache-mib": "0",
+    "--prompt-cache": "0"
+   }
+  },
+  "disk-on": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--conversation-disk-dir": "auto"
+   }
+  }
+ },
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+  "arms": [
+   "base",
+   "no-conv-cache",
+   "no-ckpt-periodic",
+   "no-prompt-cache",
+   "no-state",
+   "disk-on"
+  ],
+  "reps": 3
+ },
+ "note": "MOD_PLAN.md section 6 item 41, TEST_LEDGER.md T-686 (the question: llama.cpp copied 643 MB GPU->host per request for context checkpoints; --cache-ram 0 --ctx-checkpoints 0 nearly doubled its 16-client throughput but cost ~20% on a returning-conversation test; LEADS.md Part K). Our state copies, all derived in MOD_PLAN.md item 41: a PROMPT CHECKPOINT (GDN state of 36 layers = 112.2 MiB, GPU->RAM, synchronous on HIP, at the last turn boundary of every request, up to --prompt-cache 6 kept), a PARK of the outgoing conversation at the next request's start when it is not an exact continuation (K/V 14,208 B/token + GDN 112.2 MiB + the checkpoint copies; synchronous unless STRATA_PARK_ASYNC=1), a RESTORE of a parked one (RAM->GPU), and the opt-in disk tier (--conversation-disk-dir; the committed preset does not set it, so there is no 'no-disk-save' arm: disk-on measures what turning it on costs). The arms use the real flags only: no-conv-cache = --conversation-cache-mib 0 (parks and restores off); no-ckpt-periodic = --prompt-cache-every 0 (only the every-16384-token checkpoints of a long cold read off; the turn-boundary and root checkpoints stay); no-prompt-cache = --prompt-cache 0 (no checkpoint of any kind, help: 'read every prompt from the start'); no-state = both (the analogue of --cache-ram 0 --ctx-checkpoints 0). There is no separate flag for the turn-boundary checkpoint alone except the per-request key strata_checkpoint:false, which a client sends and the preset does not. Text is exact for all arms (state placement only): drift_check true reads any difference. TWO PARTS. (1) abtest, screen: python3 tools/pancake/abtest.py bench/specs/128-state-saving-cost.json --tier screen. Its short / edit / long3k cases are independent one-shot requests, so they show only what a checkpoint and a park cost the decode and the prompt of a single request (a one-shot request still saves one checkpoint at its end and parks the previous conversation at its start): decode screens CANNOT show what the cache gives back. (2) the test that matters, the returning conversation: python3 tools/pancake/replay_turns.py bench/specs/128-state-saving-cost.json --out bench/results/<day>-128-state-saving-cost (live replay of the 2026-11-09 16:13-16:43 agent session, 75 requests, the same form as specs 105 / 106 / 123; about 13 min per arm and rep, 6 arms x 3 reps = about 4 h, set replay.reps to 2 for 2.7 h; stop pancake.service first). Read: total prompt time, agent prompt time, cold re-reads and their seconds, parked/restored counts, turn time. The prediction to test (MOD_PLAN.md item 41, from T-183 and T-563): no-conv-cache and no-state LOSE tens of seconds per cold re-read (T-183: base 3 cold re-reads = about 80 s; preset 0), so the saving of state is worth far more than it costs in this one-request-at-a-time server; the abtest part should show at most a few percent either way. After the run: python3 tools/pancake/state_cost.py <engine log of the base arm, STRATA_TRACE=1 set for the checkpoint lines> --turns <turn log slice> gives the park / restore / checkpoint ms and bytes per request."
+}
