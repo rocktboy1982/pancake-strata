@@ -1,0 +1,54 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "protect-50": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROTECT": "0.5"
+      }
+    },
+    "protect-75": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROTECT": "0.75"
+      }
+    },
+    "protect-90": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROTECT": "0.9"
+      }
+    },
+    "protect-50-kmiss24": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROTECT": "0.5",
+        "STRATA_ADAPT_KMISS": "2,4"
+      }
+    },
+    "protect-75-kmiss24": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROTECT": "0.75",
+        "STRATA_ADAPT_KMISS": "2,4"
+      }
+    },
+    "protect-50-kmiss12": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROTECT": "0.5",
+        "STRATA_ADAPT_KMISS": "1,2"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 items 19 and 26: STRATA_ADAPT_PROTECT=f (coded, tier_protect.hpp): the first ceil(f x slots) cache slots (the profile's top share, slots are filled in rank order and a swap reuses the victim's slot) are never evicted by the serve tier, the rest trades by usage; victims with count 0 are free slots in effect, so protect + tier = the owner's 'static core plus empty slots that fill on demand'. Arms: protect 50 / 75 / 90 on the preset's tier; protect-50 / -75 with STRATA_ADAPT_KMISS=2,4; protect-50-kmiss12 = STRATA_ADAPT_KMISS=1,2 (admit on the first miss, the owner idea). Placement only (same math, GPU vs CPU), so not lossy: outputs unchanged up to GPU / CPU rounding. Offline reference: tools/pancake/tier_laws.py (bench/results/2026-11-16-tier-laws/). Stop pancake.service first. Run at screen, then confirm."
+}
