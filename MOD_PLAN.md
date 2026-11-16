@@ -261,6 +261,12 @@ miss.
    abtest run; results `/home/dan/auto-runs/win13-*`.
    **QUEUED: chain 14** `win-chain14.sh` (after `WINCHAIN13_DONE`): the first weekly trend run, spec 115 at confirm (`--reps 5
    --no-early-stop`; section 1 "Trend goal"); results `/home/dan/auto-runs/win14-115-trend-weekly.*`.
+   **QUEUED: chain 15** `win-chain15.sh` (after `WINCHAIN14_DONE`, started 2026-11-16 17:40): applies `chain15-stage.tar` (STRATA_ADAPT_PROTECT in
+   generate.cpp, `tier_protect_test`, spec 116), rebuilds build-win (`generate.cpp` was never compiled whole on Windows: a build
+   failure skips the spec), ctest `tier_protect_test` and `-L cpu`, then spec 116 (protect 0.5 / 0.75 / 0.9, with `ADAPT_KMISS` 2,4 and 1,2) at
+   screen; results `/home/dan/auto-runs/win15-116-tier-protect.*`. OFFLINE EXPECTATION (T-618..T-621, simulator, not the engine): a protected
+   core does NOT lower CPU ms a window on the one real trace (tier 18.46 / 18.54 / 18.23 / 18.69 ms at protect 0 / 0.5 / 0.75 / 0.9; kmiss 2/8
+   16.89 -> 23.19 ms), and kmiss 2/4 at protect 0 is best (16.78 ms): spec 116 is the check that the engine agrees.
    **Queue changes 2026-11-16 (Linux session):** (a) my own confirm queue (`/home/dan/auto-runs/confirm-queue.sh`, specs 81/83/86
    subsets, default confirm settings) is CANCELLED, never ran (log `/home/dan/auto-runs/confirm-queue.log`, script kept as
    `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
