@@ -660,6 +660,8 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/elementwise.cu
                           src/kernels/cuda/bf16_gemv.cu
                           src/kernels/cuda/native_mmvq.cu
+                          src/kernels/cuda/head_wide.cu
+                          src/kernels/cuda/route_plan.cu
                           src/kernels/cuda/native_bf16.cu
                           src/kernels/cuda/native_gr_norm.cu
                           src/kernels/cuda/native_moe.cu
@@ -2046,6 +2048,28 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME rdna_mmvq_parity COMMAND rdna_mmvq_parity)
     # the sweep goes to 32 columns; the kernel takes 17..32 only with this (default limit 16): 193 false FAILs without it
     set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 ENVIRONMENT "STRATA_RDNA_KQ_MAXCOLS=32")
+    # STRATA_MMVQ_SET (jstamagal/Strata-gfx1030 324081287b): the one-launch projection set bitwise native_mmvq, both reductions
+    add_executable(mmvq_set_parity src/kernels/mmvq_set_parity.cpp)
+    target_include_directories(mmvq_set_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(mmvq_set_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME mmvq_set_parity COMMAND mmvq_set_parity)
+    add_test(NAME mmvq_set_parity_tsum COMMAND mmvq_set_parity)
+    set_tests_properties(mmvq_set_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    set_tests_properties(mmvq_set_parity_tsum PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 ENVIRONMENT "STRATA_TSUM=1")
+    # STRATA_HEAD_WIDE / STRATA_HEAD_SAMPLE / STRATA_ROUTE_PLAN (jstamagal/Strata-gfx1030 ef00764552): the wide head, the
+    # staged sampler and the one-launch route plan bitwise the kernels they replace
+    add_executable(head_wide_parity src/kernels/head_wide_parity.cpp)
+    target_include_directories(head_wide_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(head_wide_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME head_wide_parity COMMAND head_wide_parity)
+    add_test(NAME head_wide_parity_tsum COMMAND head_wide_parity)
+    set_tests_properties(head_wide_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+    set_tests_properties(head_wide_parity_tsum PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 ENVIRONMENT "STRATA_TSUM=1")
+    add_executable(route_plan_parity src/kernels/route_plan_parity.cpp)
+    target_include_directories(route_plan_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(route_plan_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME route_plan_parity COMMAND route_plan_parity)
+    set_tests_properties(route_plan_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
   endif()
   if(STRATA_HIP_GFX906)
     # the S6 router (STRATA_HIP_ROUTER_FAST=1 on gfx906) against the portable kernel, bitwise, on wave64
