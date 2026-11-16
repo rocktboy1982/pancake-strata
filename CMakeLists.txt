@@ -237,6 +237,9 @@ if(STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(conversation_split_failure_test src/core/conversation_split_failure_test.cpp)
   target_include_directories(conversation_split_failure_test PRIVATE include)
   add_test(NAME conversation_split_failure_test COMMAND conversation_split_failure_test)
+  add_executable(conversation_cache_publication_test src/core/conversation_cache_publication_test.cpp)
+  target_include_directories(conversation_cache_publication_test PRIVATE include)
+  add_test(NAME conversation_cache_publication_test COMMAND conversation_cache_publication_test)
   add_executable(conversation_memory_test src/core/conversation_memory_test.cpp src/core/conversation_memory.cpp)
   target_include_directories(conversation_memory_test PRIVATE include)
   add_test(NAME conversation_memory_test COMMAND conversation_memory_test)
@@ -3849,7 +3852,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     bfla_cpu_test
     lqer_test
     # CUDA / conversation-only builds: these hide the GPU themselves (CUDA_VISIBLE_DEVICES=-1) or are CPU-only by design
-    conversation_cache_test conversation_split_failure_test conversation_memory_test conversation_file_test
+    conversation_cache_test conversation_split_failure_test conversation_cache_publication_test conversation_memory_test conversation_file_test
     session_save_reclaim_test conversation_validation_test conversation_transfer_test split_lend_complement_test
   )
   # model files: ple_parity reads the Flash-Next Q2_0 GGUF + pack/full + bench/micro fixtures (a hard error when absent,

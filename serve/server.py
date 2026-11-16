@@ -8895,6 +8895,7 @@ def make_handler(svc: Service):
         record = None                                       # #332: this request's monitor record, if kept
         capture = None                                      # M4: this request's STRATA_REQUEST_CAPTURE entry, if any
         watch_done = None                                   # #430 #431: stops this request's disconnect watcher
+        watch_lock = None                                   # 5.10: set with watch_done (_watch_client)
         cancel_event = None                                 # active generation owned by this handler
         body_read = False                                   # whether a handler took this request's body
         DRAIN_SECONDS = 5                                   # the longest an unread body is read and dropped
@@ -9065,6 +9066,10 @@ def make_handler(svc: Service):
             was done.  Every 0.5 s: the socket readable with nothing to read (EOF) means the client closed it.  A
             request is HTTP/1.0 and fully read here, so no later bytes are expected - data is not a hang-up."""
             done = self.watch_done = threading.Event()
+            # LEADS.md "bugs 5.5-5.10", 5.10 (aktalascloud/strata-legacy-gpu 3da17a80fe): one lock serializes the
+            # watcher's EOF decision with _json retiring a finished response, so a client that closes right after
+            # the last body byte is not logged (and cancelled) as "disconnected"
+            self.watch_lock = threading.Lock()
             self.cancel_event = cancel
             with svc.status_lock:
                 svc.active_cancels.add(cancel)
@@ -9079,9 +9084,12 @@ def make_handler(svc: Service):
                         gone = True
                     except (OSError, ValueError):            # the socket was closed here: the request has ended
                         return
-                    if gone and not done.is_set():
-                        self._note(outcome="disconnected")
-                        svc.note_client_disconnect(cancel)
+                    if gone:
+                        with self.watch_lock:                # 5.10: decided against a retiring _json
+                            if done.is_set():
+                                return
+                            self._note(outcome="disconnected")
+                            svc.note_client_disconnect(cancel)
                         return
 
             threading.Thread(target=watch, daemon=True, name="strata-client-watch").start()
@@ -9132,6 +9140,11 @@ def make_handler(svc: Service):
                         if key in obj:
                             self.record[key] = obj[key]
             body = json.dumps(obj, ensure_ascii=False).encode()
+            # 5.10: the response is complete; a client may close right after its last Content-Length byte, so the
+            # watcher retires first (a failed send still reaches do_POST's own disconnect handling)
+            if self.watch_done is not None:
+                with self.watch_lock:
+                    self.watch_done.set()
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
             for k, v in (headers or {}).items():

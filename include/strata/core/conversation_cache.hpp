@@ -622,9 +622,21 @@ public:
         if (!enabled() || held > budget_ || n > budget_ - held) return false;   // make_room's refusal, first
         drop_superseded(image.live.ids, image.live.imgs, image.checkpoints, image.cvec);
         if (!make_room(n, held)) return false;
-        entries_.push_back(std::move(image));
-        serials_.push_back(next_serial_++);
-        parked_at_.push_back(park_ttl_.enabled() ? now_ms() : 0);
+        // LEADS.md "bugs 5.5-5.10", 5.9 (aktalascloud d2fb1b9e4c, upstream PR #5530): published as one transaction.  The
+        // small records go first and are undone when a later push throws; the image moves last (a deque's push_back has
+        // no effect when its allocation throws, so the caller keeps its image); the serial advances only when all three
+        // are in.  Before, a bad_alloc after entries_.push_back left entries_ and serials_ out of step while the server
+        // caught it and served on.  Same state as before on success.
+        serials_.push_back(next_serial_);
+        try {
+            parked_at_.push_back(park_ttl_.enabled() ? now_ms() : 0);
+            try { entries_.push_back(std::move(image)); }
+            catch (...) { parked_at_.pop_back(); throw; }
+        } catch (...) {
+            serials_.pop_back();
+            throw;
+        }
+        ++next_serial_;
         bytes_ += n;
         return true;
     }

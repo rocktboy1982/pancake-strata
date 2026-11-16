@@ -12991,7 +12991,11 @@ int main(int argc, char** argv) {
                     const strata::core::OnDevice on(v.device());
                     if (!v.capture_all(e)) return false;
                 }
-            if (!mtp.prepare_prefill(e)) return false;
+            // LEADS.md "bugs 5.5-5.10", 5.6 (rpcribari 7293b8590d): the pipelined read hands the drafter windows of
+            // o.spec rows, not prepare_prefill's max_t; reserve_prefill sizes the input records (and the pinned upload
+            // slots) for them now, so the first larger window neither frees nor allocates while the device waits on
+            // the host's doorbell service.  Allocation sizes only: the same bytes come out.
+            if (!mtp.reserve_prefill(o.spec, e)) return false;
             if (o.pipeline_windows >= 2 && pl_snap_ok && !mtp.prepare_chain(e)) return false;
             const strata::core::OnDevice on(mtp.device());
             for (cudaEvent_t& ev : pl_mtp_ev)
@@ -16347,8 +16351,12 @@ int main(int argc, char** argv) {
         int64_t bt_windows = 0, bt_rows = 0, bt_tokens = 0, bt_accepted = 0;   // bt_accepted: --batch-mtp proposals taken
         int64_t pipe_rows = 0;   // the pipelined groups' rows, never reset (bt_rows restarts when the slots go idle)
         // per stage (0 = CUDA0's verifier): the GPU-reach wait and pool time when the timed windows began; and the routed
-        // (token, expert) entries the CPU and the PCIe share had served by then (bt_hits0 holds the VRAM entries)
-        std::vector<double> bt_stage_wait0, bt_stage_pool0;
+        // (token, expert) entries the CPU and the PCIe share had served by then (bt_hits0 holds the VRAM entries).
+        // LEADS.md "bugs 5.5-5.10", 5.7 (svgop c45eeb2a17): sized here, never empty - the idle stats flush of batch_step
+        // reads them per stage, and the pipelined path's first window (below) armed the other baselines but not these, so
+        // a flush after pipelined windows indexed an empty vector.  A flush without its arming path is now a wrong
+        // number, never a fault.
+        std::vector<double> bt_stage_wait0(stages.size() + 1, 0.0), bt_stage_pool0(stages.size() + 1, 0.0);
         int64_t bt_cpu_ent0 = 0, bt_off_ent0 = 0;
         // the adaptive VRAM tier in batch windows: windows seen since the engine started (--adapt-every counts them), and,
         // since the last timing line, its rounds, the experts it swapped in and the ms a window waited for it
@@ -17214,6 +17222,14 @@ int main(int argc, char** argv) {
                 p4.span_start(bt_start);
                 bt_wait0 = ver.ms_wait; bt_pool0 = ver.ms_pool;
                 bt_miss0 = drive.d.multi_misses; bt_hits0 = drive.d.cache_hits; bt_pcie0 = drive.d.pcie_experts;
+                // 5.7 (svgop c45eeb2a17): the stage baselines too, as batch_step arms them
+                bt_stage_wait0.assign(stages.size() + 1, 0.0);
+                bt_stage_pool0.assign(stages.size() + 1, 0.0);
+                for (size_t k = 0; k <= stages.size(); ++k) {
+                    bt_stage_wait0[k] = stage_verifier((int) k).ms_wait;
+                    bt_stage_pool0[k] = stage_verifier((int) k).ms_pool;
+                }
+                bt_cpu_ent0 = drive.d.multi_entries; bt_off_ent0 = drive.d.offload_entries;
                 if (pc.on()) pc.begin(pc_ex(), (int) g.n_layers);
             }
             for (int k = 0; k < n_pipe; ++k) {
@@ -21254,6 +21270,14 @@ int main(int argc, char** argv) {
                 };
                 auto pl_apply = [&]() {
                     if (exch_wait) {
+#if defined(STRATA_USE_HIP)
+                        // LEADS.md "bugs 5.5-5.10", 5.6 (rpcribari 7293b8590d): hipHostUnregister (unpin_blobs) waits for
+                        // the windows that still need this host to serve their flags; with pinned blobs live and a
+                        // window in flight, apply again on the next round instead of blocking under it
+                        if (!pin_live.empty())
+                            for (int st = 0; st < n_stages; ++st)
+                                if (stage_ver_p(st, 0).in_flight() || stage_ver_p(st, 1).in_flight()) return;
+#endif
                         if (stage_passed(exch_ev)) pl_release();
                         return;
                     }
