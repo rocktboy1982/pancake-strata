@@ -161,6 +161,7 @@ STRATA_ENV("STRATA_SELECT_ALT_MIN_TOKENS", KeyIfSet, "context length from which 
 STRATA_ENV("STRATA_SELECT_OLD", KeyIfSet, "warp scorer instead of the 3xTF32 tensor-core one (not bitwise)")
 STRATA_ENV("STRATA_SELECT_SIMT", KeyIfSet, "FP32 tiled scorer, another summation order")
 STRATA_ENV("STRATA_SELECT_WMMA", KeyIfSet, "matrix-core block scorer (not bitwise, cutoff cells flip)")
+STRATA_ENV("STRATA_SELECT_SPLIT2", KeyIfSet, "bsorensen110 ebc1265241: WMMA block scorer with hi/mid pieces only; near-tie selections can flip (lossy)")
 STRATA_ENV("STRATA_SM120_PERF", KeyIfSet, "gates sm_120 defaults incl. GR_V3 (another summation order)")
 STRATA_ENV("STRATA_SM121_PERF", KeyIfSet, "gates the sm_121 table: PF_FUSED, PREFILL_NVFP4=w4a4 (round differently)")
 STRATA_ENV("STRATA_ROUTE_TAIL_SKIP_LAYERS", KeyIfSet, "per-layer rank of ROUTE_TAIL_SKIP (HookMoE layer-dependent skip; changes the output)")
