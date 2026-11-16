@@ -1,0 +1,21 @@
+
+######## protect 0: 0 of 768 slots are a static core ########
+== whole (48 windows), protect 0
+policy                       hit %   miss/w  promo/w  CPU ms/w  vs kmiss 2/8  vs static
+tier                        14.81%    408.9     19.5     21.05           n/a        n/a
+conv w1                     14.77%    409.1     27.2     21.51           n/a        n/a
+== whole (48 windows), protect 0: thrash and landing pads
+policy                      evict/w  back<=1  back<=4  back<=16  net us/promo  neg %  gap miss/w  saved P16     P32     P64
+tier                           19.5    10.8%    35.5%     63.9%          -1.3  68.4%        2.10       1.19    2.10    2.10
+conv w1                        27.2     5.0%    22.9%     65.3%         -12.9  76.1%        1.35       0.77    1.35    1.35
+== V1-V4 validation: real turn structure (8 turns, conversations A, B, C)
+V1 top-N-per-layer Jaccard: same conversation adjacent 0.259 (n 5), different conversation adjacent 0.000 (n 7), different conversation all pairs 0.000 (n 21)
+V2 tier plain 14.81% / 21.05 ms/w, conv-seeded (w 1) 14.77% / 21.51 ms/w: lift -0.05 hit points, -0.46 ms/w
+V3 first-m-windows Jaccard vs previous turn's set, m:     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16
+   after switch  (n  7)          0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+   after resume  (n  5)          0.135 0.249 0.270 0.256 0.246 0.259 0.259 0.259 0.259 0.259 0.259 0.259 0.259 0.259 0.259 0.259
+V4 lead time (top-4 non-resident per layer by the conversation's decayed counts):
+   H 1: covers  10.4% of the CPU misses at t, precision  23.3% (predicted expert missed at t),  25.2% (routed at t); misses 19332, predicted 8639
+   H 2: covers   9.1% of the CPU misses at t, precision  21.5% (predicted expert missed at t),  24.7% (routed at t); misses 19057, predicted 8063
+   H 4: covers   8.7% of the CPU misses at t, precision  23.3% (predicted expert missed at t),  25.1% (routed at t); misses 18472, predicted 6911
+   H 8: covers   8.0% of the CPU misses at t, precision  23.5% (predicted expert missed at t),  24.2% (routed at t); misses 16940, predicted 5760

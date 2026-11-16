@@ -153,6 +153,44 @@ def test_lecar_weights_and_rules_run():
         assert rr["thrash"]["promotions"] >= 1 and rr["hits"] > go(rows, [0, 1, 2, 3], tl.Static())[0]["hits"]
 
 
+def final_residents(rows, rule, per_layer=(0, 1, 2, 3)):
+    d = tl.dense(layered(rows), NE)
+    _, _, _, hist = tl.run(d, init_pairs(list(per_layer)), rule, 0, None, record=True)
+    # hist[t] is the residency at the START of window t; add one empty window so the last decision shows
+    d2 = tl.dense(layered(rows + [[]]), NE)
+    _, _, _, hist = tl.run(d2, init_pairs(list(per_layer)), rule, 0, None, record=True)
+    return set(np.flatnonzero(hist[-1][0]).tolist())
+
+
+def test_srlru_evicts_the_unrepeated_newcomer_before_the_scan_resistant_residents():
+    rows = [[6], [6], [7], [7], [7]]
+    # plain LRU-ordered rule: 6 was admitted after window 1 (its last = 1), the initial residents are older, so 1 goes for 7
+    assert final_residents(rows, tl.KMissRule(2, 8)) == {6, 7, 2, 3}
+    # SR-LRU: 6 sits in R (never routed again while resident), the profile residents are SR: 6 leaves for 7
+    assert final_residents(rows, tl.SRLruRule(2, 8)) == {7, 1, 2, 3}
+
+
+def test_crlfu_breaks_frequency_ties_toward_the_most_recent():
+    rows = [[0], [0], [0], [1], [1], [6], [6]]
+    # LRU order: expert 2 is the oldest idle resident; CR-LFU: 2 and 3 both have 0 uses, the tie goes to the MRU, expert 3
+    assert 2 in final_residents(rows, tl.CRLfuRule(2, 8)) and 3 not in final_residents(rows, tl.CRLfuRule(2, 8))
+    assert 3 in final_residents(rows, tl.KMissRule(2, 8)) and 2 not in final_residents(rows, tl.KMissRule(2, 8))
+
+
+def test_cacheus_runs_adapts_its_rate_and_honours_the_cap():
+    rows = ([[2, 3]] * 6 + [[4, 5]] * 6 + [[2, 3]] * 6 + [[0, 5]] * 6) * 3
+    d = tl.dense(layered(rows), NE)
+    pol = tl.Cacheus(lr=0.5, H=4)
+    pol.cap = 1
+    r, _, promo, _ = tl.run(d, init_pairs([0, 1, 2, 3]), pol, 0, None)
+    assert promo.sum() > 0 and r["promo_w"] <= NL * 1.0 + 1e-9        # cap 1 swap a window, a window has swaps in both layers
+    cc = r["cacheus"]
+    assert 0.001 <= cc["lr_min"] <= cc["lr_final"] <= cc["lr_max"] <= 1.0 and cc["lr_max"] != cc["lr_min"]
+    assert abs(sum(r["lecar"]["mean_weight"]) - 1.0) < 0.02 and r["lecar"]["rules"] == ["srlru", "crlfu"]
+    assert r["hits"] > go(rows, [0, 1, 2, 3], tl.Static())[0]["hits"]
+    assert tl.parse_policy("cacheus:0.2,4", {}).name == "cacheus lr0.2 H4"
+
+
 def test_kmiss_with_cap_keeps_its_lists_consistent_with_the_cache():
     # 4 hot experts are missing at once and the cap lets 2 swaps through a window: before the 2026-11-16 fix the policy's own
     # LRU list assumed every proposal was applied and run() tripped its residency assertion

@@ -1,0 +1,49 @@
+
+######## protect 0: 0 of 10909 slots are a static core ########
+== whole (219 windows), protect 0
+policy                       hit %   miss/w  promo/w  CPU ms/w  vs kmiss 2/8  vs static
+tier                        81.17%    346.9     26.8     18.46         +0.13        n/a
+kmiss 2/8                   81.01%    340.3     30.1     18.33         +0.00        n/a
+srlru 2/8                   79.98%    358.9     30.3     19.24         +0.91        n/a
+crlfu 2/8                   78.93%    376.4     29.4     20.05         +1.71        n/a
+cacheus lr0.5 H8            80.03%    358.4     29.9     19.20         +0.86        n/a
+cacheus lr0.1 H8            80.03%    358.4     29.9     19.20         +0.86        n/a
+cacheus lr1 H4              79.96%    358.9     30.0     19.23         +0.90        n/a
+   hit points vs kmiss 2/8: tier +0.17, kmiss 2/8 +0.00, srlru 2/8 -1.02, crlfu 2/8 -2.08, cacheus lr0.5 H8 -0.98, cacheus lr0.1 H8 -0.98, cacheus lr1 H4 -1.04
+== whole (219 windows), protect 0: thrash and landing pads
+policy                      evict/w  back<=1  back<=4  back<=16  net us/promo  neg %  gap miss/w  saved P16     P32     P64
+tier                           26.8     1.7%     6.8%     22.2%         493.9  16.9%        0.44       0.24    0.44    0.44
+kmiss 2/8                      30.1     2.0%     7.5%     23.6%         505.9  17.3%        0.60       0.33    0.60    0.60
+srlru 2/8                      30.3     5.2%    14.9%     34.5%         353.7  40.7%        1.57       0.75    1.57    1.57
+crlfu 2/8                      29.4     8.8%    23.1%     44.0%         257.3  54.4%        2.58       1.43    2.58    2.58
+cacheus lr0.5 H8               29.9     5.1%    14.8%     33.7%         320.7  42.2%        1.51       0.75    1.51    1.51
+                             lecar: {'rules': ['srlru', 'crlfu'], 'mean_weight': [0.501, 0.499], 'leader_share': [0.772, 0.228], 'weights_every_20_windows': [[0.5, 0.5], [0.465, 0.535], [0.504, 0.496], [0.499, 0.501], [0.508, 0.492], [0.514, 0.486], [0.501, 0.499], [0.502, 0.498], [0.5, 0.5], [0.528, 0.472], [0.508, 0.492]]}
+cacheus lr0.1 H8               29.9     5.1%    14.8%     33.7%         320.7  42.2%        1.51       0.75    1.51    1.51
+                             lecar: {'rules': ['srlru', 'crlfu'], 'mean_weight': [0.5, 0.5], 'leader_share': [0.772, 0.228], 'weights_every_20_windows': [[0.5, 0.5], [0.493, 0.507], [0.501, 0.499], [0.5, 0.5], [0.502, 0.498], [0.503, 0.497], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.506, 0.494], [0.502, 0.498]]}
+cacheus lr1 H4                 30.0     5.6%    15.5%     34.3%         326.1  42.9%        1.68       0.87    1.68    1.68
+                             lecar: {'rules': ['srlru', 'crlfu'], 'mean_weight': [0.505, 0.495], 'leader_share': [0.758, 0.242], 'weights_every_20_windows': [[0.5, 0.5], [0.533, 0.467], [0.496, 0.504], [0.524, 0.476], [0.505, 0.495], [0.49, 0.51], [0.502, 0.498], [0.528, 0.472], [0.507, 0.493], [0.501, 0.499], [0.501, 0.499]]}
+== holdout: second half of whole (219 windows), decay / phases fitted on the first half, protect 0
+policy                       hit %   miss/w  promo/w  CPU ms/w  vs kmiss 2/8  vs static
+tier                        77.82%    428.4     25.5     22.35         -0.41        n/a
+kmiss 2/8                   77.10%    432.8     28.8     22.76         +0.00        n/a
+srlru 2/8                   76.15%    451.3     29.8     23.72         +0.96        n/a
+crlfu 2/8                   76.37%    442.0     26.5     23.07         +0.31        n/a
+cacheus lr0.5 H8            76.13%    451.4     29.7     23.72         +0.96        n/a
+cacheus lr0.1 H8            76.13%    451.4     29.7     23.72         +0.96        n/a
+cacheus lr1 H4              76.17%    450.6     29.7     23.68         +0.92        n/a
+layerdecay                  77.48%    430.5     28.0     22.60         -0.16        n/a
+   hit points vs kmiss 2/8: tier +0.72, kmiss 2/8 +0.00, srlru 2/8 -0.95, crlfu 2/8 -0.73, cacheus lr0.5 H8 -0.97, cacheus lr0.1 H8 -0.97, cacheus lr1 H4 -0.93, layerdecay +0.37
+== holdout whole (219 windows), protect 0: thrash and landing pads
+policy                      evict/w  back<=1  back<=4  back<=16  net us/promo  neg %  gap miss/w  saved P16     P32     P64
+tier                           25.5     2.7%     9.3%     29.1%         327.7  25.1%        0.68       0.32    0.68    0.68
+kmiss 2/8                      28.8     2.1%     8.0%     25.6%         338.6  24.9%        0.62       0.30    0.62    0.62
+srlru 2/8                      29.8     4.5%    13.2%     31.9%         279.4  36.4%        1.33       0.60    1.33    1.33
+crlfu 2/8                      26.5     8.2%    20.7%     40.6%         178.9  53.5%        2.18       1.41    2.18    2.18
+cacheus lr0.5 H8               29.7     4.6%    14.0%     33.7%         272.0  38.0%        1.36       0.72    1.36    1.36
+                             lecar: {'rules': ['srlru', 'crlfu'], 'mean_weight': [0.507, 0.493], 'leader_share': [0.864, 0.136], 'weights_every_20_windows': [[0.5, 0.5], [0.5, 0.5], [0.511, 0.489], [0.499, 0.501], [0.51, 0.49], [0.499, 0.501]]}
+cacheus lr0.1 H8               29.7     4.6%    14.0%     33.7%         272.0  38.0%        1.36       0.72    1.36    1.36
+                             lecar: {'rules': ['srlru', 'crlfu'], 'mean_weight': [0.501, 0.499], 'leader_share': [0.864, 0.136], 'weights_every_20_windows': [[0.5, 0.5], [0.5, 0.5], [0.502, 0.498], [0.5, 0.5], [0.502, 0.498], [0.5, 0.5]]}
+cacheus lr1 H4                 29.7     5.3%    14.2%     33.3%         269.3  38.7%        1.56       0.82    1.56    1.56
+                             lecar: {'rules': ['srlru', 'crlfu'], 'mean_weight': [0.509, 0.491], 'leader_share': [0.809, 0.191], 'weights_every_20_windows': [[0.5, 0.5], [0.505, 0.495], [0.502, 0.498], [0.542, 0.458], [0.501, 0.499], [0.499, 0.501]]}
+layerdecay                     28.0     2.4%     9.5%     27.9%         297.0  27.2%        0.68       0.30    0.68    0.68
+   layerdecay picks (layers per decay): {'0.3': 3, '0.5': 4, '0.7': 4, '0.85': 24, '0.95': 13}

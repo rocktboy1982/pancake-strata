@@ -1,0 +1,8 @@
+341 agent turns from C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/pancake-turns.jsonl
+  avail 0.50 rewarm 0 ms (after gaps >= 30 s): 339 turns, first token s p50 0.761 -> 0.756, p90 1.257 -> 1.209, mean 1.709 -> 1.462 (-14.4% mean); pre-read helps 167 turns (83.6 s), re-warm 0 turns (0.0 s)
+  avail 0.50 rewarm 200 ms (after gaps >= 30 s): 339 turns, first token s p50 0.780 -> 0.756, p90 1.275 -> 1.209, mean 1.717 -> 1.462 (-14.8% mean); pre-read helps 167 turns (83.6 s), re-warm 14 turns (2.8 s)
+  avail 0.50 rewarm 500 ms (after gaps >= 30 s): 339 turns, first token s p50 0.787 -> 0.756, p90 1.306 -> 1.209, mean 1.730 -> 1.462 (-15.4% mean); pre-read helps 167 turns (83.6 s), re-warm 14 turns (7.0 s)
+  avail 1.00 rewarm 0 ms (after gaps >= 30 s): 339 turns, first token s p50 0.761 -> 0.740, p90 1.257 -> 1.137, mean 1.709 -> 1.283 (-24.9% mean); pre-read helps 167 turns (144.3 s), re-warm 0 turns (0.0 s)
+  avail 1.00 rewarm 200 ms (after gaps >= 30 s): 339 turns, first token s p50 0.780 -> 0.740, p90 1.275 -> 1.137, mean 1.717 -> 1.283 (-25.3% mean); pre-read helps 167 turns (144.3 s), re-warm 14 turns (2.8 s)
+  avail 1.00 rewarm 500 ms (after gaps >= 30 s): 339 turns, first token s p50 0.787 -> 0.740, p90 1.306 -> 1.137, mean 1.730 -> 1.283 (-25.8% mean); pre-read helps 167 turns (144.3 s), re-warm 14 turns (7.0 s)
+  ms per read token 426 per 1k (fitted on the log); upper bound: the whole gap is usable

@@ -40,6 +40,10 @@ the others uncapped like cache_learn's kmiss):
                    fitted): every rule proposes on the one real cache, the highest-weight rule's swaps are applied, an expert
                    its evictions removed that is missed again within H windows is its regret, w *= exp(-lr x regret share);
                    prints mean weight, leader share and the weight timeline
+  cacheus:lr,H     U3, CACHEUS-style (LEADS.md Part G): LeCaR's regret weights over two rules, SR-LRU (scan-resistant: residents routed
+                   again while resident form a protected class, victims come from the others first) and CR-LFU (churn-resistant:
+                   lowest routed-window count first, ties to the most recently routed), the learning rate adapted every H windows
+                   by a one-step hit-share gradient rule instead of fixed; admission k-th miss 2/8; reports the learning-rate range
   seedfile:w       law 5 (cross-layer / prompt-fed signals) CANNOT be simulated here: there is no prompt data in the trace.  It is
                    the same seeding machinery fed from --seed-file FILE.npz (key "counts", per layer and expert, shape
                    (layers, experts)): usage += w x counts at window 0 and at every turn start.  Whoever has prompt-derived or
@@ -713,7 +717,7 @@ class LeCaR(Policy):
 
     def _make(self):
         mk = {"tier": lambda: Tier(), "kmiss": lambda: KMissRule(2, 8), "ghost": lambda: GhostRule(),
-              "phase": lambda: Phase(self.K, 4)}
+              "phase": lambda: Phase(self.K, 4), "srlru": lambda: SRLruRule(2, 8), "crlfu": lambda: CRLfuRule(2, 8)}
         return [mk[n]() for n in self.rule_names]
 
     def fit(self, Dtr, turns_tr):
@@ -781,6 +785,130 @@ class LeCaR(Policy):
         n = max(1, self.n)
         return {"lecar": {"rules": list(self.rule_names), "mean_weight": [round(float(x), 3) for x in self.wsum / n],
                           "leader_share": [round(float(x) / n, 3) for x in self.lead], "weights_every_20_windows": self.timeline}}
+
+
+class KeyedRule(KMissRule):
+    """A k-th-miss admission proposer whose victims are chosen by a policy-specific key (lowest key goes first, among the
+    unprotected residents not routed this window); the pair gain is kmiss_tier.hpp's score, 1000 x misses in the window + the
+    window's count, so a swap cap keeps the best candidates like the engine does."""
+
+    def victim_key(self, l, vi):
+        return self.last[l, vi]
+
+    def on_window(self, t, C, res):
+        pass
+
+    def on_swap(self, l, c, v):
+        pass
+
+    def swaps(self, t, C, res, prot):
+        self.on_window(t, C, res)
+        cand, used = self.propose(t, C, res, prot)
+        vict = res & ~prot & ~used
+        out = []
+        for l in np.flatnonzero(cand.any(1) & vict.any(1)):
+            ci = np.flatnonzero(cand[l])
+            ci = ci[np.lexsort((-C[l, ci], -POP8[self.bits[l, ci]]))]
+            vi = np.flatnonzero(vict[l])
+            vi = vi[np.argsort(self.victim_key(l, vi), kind="stable")]
+            for c, v in zip(ci[:len(vi)], vi):
+                out.append((1000.0 * float(POP8[self.bits[l, c]]) + float(C[l, c]), int(l), int(c), int(v)))
+                self.bits[l, c] = 0
+                self.on_swap(int(l), int(c), int(v))
+        return out
+
+
+class SRLruRule(KeyedRule):
+    """CACHEUS' scan-resistant LRU as a rule: residents split into R (admitted, not routed again since) and SR (routed again
+    while resident; the profile's initial residents start in SR); victims come from R first, least recently routed first,
+    then SR.  A scan (a one-window burst of experts) fills R and leaves SR alone."""
+
+    def __init__(self, k=2, W=8):
+        super().__init__(k, W)
+        self.name = f"srlru {k}/{W}"
+
+    def start(self, nl, ne, res, prot, init):
+        super().start(nl, ne, res, prot, init)
+        self.sr = res.copy()
+
+    def on_window(self, t, C, res):
+        self.sr |= (C > 0) & res
+
+    def on_swap(self, l, c, v):
+        self.sr[l, v] = False
+        self.sr[l, c] = False
+
+    def victim_key(self, l, vi):
+        return self.sr[l, vi] * 10 ** 9 + self.last[l, vi]
+
+
+class CRLfuRule(KeyedRule):
+    """CACHEUS' churn-resistant LFU as a rule: victims are the least frequently routed residents (windows routed while
+    resident; a promotion starts at 0), ties go to the MOST recently routed, so the older, steadier residents stay."""
+
+    def __init__(self, k=2, W=8):
+        super().__init__(k, W)
+        self.name = f"crlfu {k}/{W}"
+
+    def start(self, nl, ne, res, prot, init):
+        super().start(nl, ne, res, prot, init)
+        self.freq = np.zeros((nl, ne))
+
+    def on_window(self, t, C, res):
+        self.freq += (C > 0) & res
+
+    def on_swap(self, l, c, v):
+        self.freq[l, v] = 0.0
+        self.freq[l, c] = 0.0
+
+    def victim_key(self, l, vi):
+        return self.freq[l, vi] * 10 ** 6 - self.last[l, vi]
+
+
+class Cacheus(LeCaR):
+    """CACHEUS (FAST 2021) reading, simplified: LeCaR's regret-weighted choice between SR-LRU and CR-LFU rules (above) with the
+    learning rate adapted online instead of fixed: every H windows the hit share of the epoch is compared with the last epoch's;
+    the rate keeps moving the way it moved while the hit share rose and turns round when it fell (a one-step gradient rule,
+    step 10% of the rate, floor 0.001, ceiling 1).  No fit, so it runs on the whole trace and on the hold-out half.
+    [derived] from the paper's description; the original also keeps its own history sizes and has no promotion cost."""
+    RULES = ("srlru", "crlfu")
+    needs_fit = False      # neither rule is fitted: whole-trace run as well as hold-out
+
+    def __init__(self, lr=0.5, H=8, K=8):
+        super().__init__(lr, H, K, rules=("srlru", "crlfu"))
+        self.name = f"cacheus lr{lr:g} H{int(H)}"
+        self.lr0 = lr
+
+    def _make(self):
+        return [SRLruRule(2, 8), CRLfuRule(2, 8)]
+
+    def start(self, nl, ne, res, prot, init):
+        super().start(nl, ne, res, prot, init)
+        self.lr = self.lr0
+        self.ep_hit = self.ep_all = 0
+        self.prev_hr = None
+        self.prev_lr = None
+        self.dir = 1.0
+        self.lr_trace = []
+
+    def swaps(self, t, C, res, prot):
+        self.ep_hit += int(C[res].sum())
+        self.ep_all += int(C.sum())
+        if (t + 1) % self.H == 0 and self.ep_all:
+            hr = self.ep_hit / self.ep_all
+            if self.prev_hr is not None and hr < self.prev_hr:
+                self.dir = -self.dir
+            self.prev_hr = hr
+            self.lr = float(np.clip(self.lr * (1.0 + 0.1 * self.dir), 0.001, 1.0))
+            self.ep_hit = self.ep_all = 0
+            self.lr_trace.append(round(self.lr, 4))
+        return super().swaps(t, C, res, prot)
+
+    def extra(self):
+        e = super().extra()
+        e["cacheus"] = {"lr_final": round(self.lr, 4), "lr_min": min(self.lr_trace or [self.lr]),
+                        "lr_max": max(self.lr_trace or [self.lr])}
+        return e
 
 
 def ctx_sequence(n, turns):
@@ -925,6 +1053,11 @@ def parse_policy(spec, ctx):
     if name == "lecar":
         v = f + [2.0, 8, 8][len(f):]
         return LeCaR(v[0], v[1], v[2])
+    if name in ("srlru", "crlfu"):   # the two CACHEUS rules alone (k-th miss k/W, default 2/8)
+        return (SRLruRule if name == "srlru" else CRLfuRule)(int(f[0]) if f else 2, int(f[1]) if len(f) > 1 else 8)
+    if name == "cacheus":
+        v = f + [0.5, 8][len(f):]
+        return Cacheus(v[0], v[1])
     if name == "seedfile":
         if ctx.get("seed") is None:
             return None
@@ -943,7 +1076,7 @@ def pick_layer_decay(D1, init, n_prot):
     return np.array(DECAYS)[cost.argmin(0)]
 
 
-def run_holdout(D, init, specs, ctx, n_prot, turns=None):
+def run_holdout(D, init, specs, ctx, n_prot, turns=None, cap=-1):
     """Law 3 / law 7 honest hold-out: decays picked and phases fitted on the first half, every policy reported on the second
     half (cold start from the profile)."""
     h = D.shape[0] // 2
@@ -957,6 +1090,8 @@ def run_holdout(D, init, specs, ctx, n_prot, turns=None):
         p = parse_policy(spec, ctx)
         if p is None:
             continue
+        if cap >= 0:
+            p.cap = cap
         if getattr(p, "needs_fit", False):
             p.fit(d1, t1)
         out[p.name] = run(d2, init, p, n_prot, t2)[0]
@@ -1203,7 +1338,7 @@ def main(argv=None):
             print(thrash_table(f"{name}, protect {f:g}", res))
         if not a.no_holdout:
             for hname, hd, htt in [(f"whole ({whole.n} windows)", D, turns)] + ([(syn[0], syn[1], syn[2])] if syn else []):
-                ho, hist = run_holdout(hd, init, specs, ctx, n_prot, htt)
+                ho, hist = run_holdout(hd, init, specs, ctx, n_prot, htt, a.cap)
                 rep[f"holdout {hname}"] = ho
                 rep[f"layerdecay_choice {hname}"] = hist
                 print(table(f"holdout: second half of {hname}, decay / phases fitted on the first half, protect {f:g}", ho, a.alpha))
