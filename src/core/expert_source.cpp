@@ -4005,6 +4005,7 @@ bool FileExpertSource::pin_cache_complement(
         }
 #else
         const bool huge_try = false;
+        (void) huge_try;
 #endif
         if (pin && !paced) {
             const cudaError_t allocated = cudaHostAlloc(&arena, (size_t) bytes,
