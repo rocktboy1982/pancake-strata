@@ -121,7 +121,7 @@ Test tiers (`abtest.py --tier`; answer each item at the cheapest tier that can):
 | drafting | `--spec 4` (official MTP depth; spec 2 -5%, spec 5/6 flat, T-118/T-149), `--spec-min-p 0.5`, `--lookup-max-t 12` (edit +8.8% +-6.8, quality PASS, T-126/T-127), English draft vocab |
 | prompt path | hipBLASLt 100401 table (1,345 -> 1,850-1,920 tok/s, T-096), `PF_GEMM`, `PF_F16=2`, `PF_FUSED=1` (see section 7: no HIP A/B recorded), `PF_PAD`, `PREFILL_AUTO_MAX=32768`, `PREFILL_CPU_SHARE=0.6`/`_MAX=4096`, `PREFILL_RING=192`, `SELECT_WMMA`, `HIP_WMMA=1`, Speedy opt-ins `PF_GROUP_SCRATCH`, `PF_HC_REGION`, `PROMPT_ATTN_IMMA`, `KV_PREFETCH` (taken from Speedy's numbers, no HIP A/B recorded) |
 | attention / KV | `--kv int8 --kv-resident 32768 --max-context 131072`, `ATTN_DAILY`, `QSA_ROWS`, `PA_FAST`, `KV_HOST_DMA` |
-| ECAP and cache (adopted 2026-11-15, owner) | `STRATA_VERIFY_ECAP=1` (edit +33.5% +-14.3, token forcing PASS +0.29 pts, T-270, T-310; with it the base edit prompt decodes 147.6 tok/s, T-560), `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` (prompt time -21.6%, T-183); sampling default temperature 0.1, top_p 0.95, top_k 20 |
+| ECAP and cache (adopted 2026-11-15, owner; ECAP changed to the gated arm 2026-11-16) | `STRATA_VERIFY_ECAP=0` with `STRATA_VERIFY_ECAP_MIN_ROWS=9` (cap 0 only in windows of 9 or more rows: edit 165.3 +-6.2 tok/s = +41.7% +-5.6 over no ECAP, short +2.8% +-2.6, T-588; token forcing PASS -0.011 pts, T-589; tool-call gate PASS, T-591; before: cap 1, edit +33.5% +-14.3, T-270, T-310, base edit prompt 147.6 tok/s, T-560), `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` (prompt time -21.6%, T-183); sampling default temperature 0.1, top_p 0.95, top_k 20 |
 | deferral | `VERIFY_DEFER_CPU` OFF (owner decision 17.1; contested, section 4) |
 | server | grammar on (spec decoding mask 0.1-0.2% of a window, T-315), thinking caps `reasoning_budget_grace: 512` + close retry, `env_to_user`, `effort_position: end`, loop guard, tolerant tool calls, turn log, `AGENT_COUNTERS=1` (log only, T-513) |
 
@@ -154,7 +154,7 @@ miss.
 
 | # | decision | data | what is missing |
 |---|---|---|---|
-| D1 | `STRATA_VERIFY_ECAP=1`: ADOPTED into fast-hip on 2026-11-15 (owner) | edit +33.5% +-14.3 (T-270); token forcing PASS (T-310); stack add-ons dropped (T-555, T-561). `ECAP=0` REJECT (+0.95 pts, T-271, T-311); window-gated variants: spec 60 has five arms (no ECAP, cap 1 = preset, cap 0, cap 0 from 9-row windows, cap 0 from 6-row windows; `STRATA_VERIFY_ECAP_MIN_ROWS`), spec 61 the quality gate for the gated arms. Spec 60 was STOPPED by the owner at 19:39 local after about 17 of 30 runs (T-572, no summary): partial edit means ecap1 141.6, ecap0 167.2, cap 0 from 9 rows 143.8, cap 0 from 6 rows 161.2 tok/s, so the 6-row gate is the interesting one and the 9-row gate loses the gain; specs 60 (full run) and 61 (quality gate) still to run | still missing: tool-call task gate on real agent prompts (a too-tight cap broke tool calls elsewhere; owner order: after the branch consolidation, now done, so it runs after the spec 60-62 chain); token forcing scores greedy tokens while the served default samples at temperature 0.1 |
+| D1 | ECAP: cap 1 was adopted into fast-hip on 2026-11-15 (owner); REPLACED on 2026-11-16 by cap 0 from 9-row windows (`STRATA_VERIFY_ECAP=0`, `STRATA_VERIFY_ECAP_MIN_ROWS=9`, T-588, T-589, T-591; autonomous overnight run under the owner's rules: gated arm over cap 1 by +20.7% edit and +17.8% short means, quality gate PASS, task gate PASS; revert = set `STRATA_VERIFY_ECAP` back to 1 and drop MIN_ROWS). Old text: | edit +33.5% +-14.3 (T-270); token forcing PASS (T-310); stack add-ons dropped (T-555, T-561). `ECAP=0` REJECT (+0.95 pts, T-271, T-311); window-gated variants: spec 60 has five arms (no ECAP, cap 1 = preset, cap 0, cap 0 from 9-row windows, cap 0 from 6-row windows; `STRATA_VERIFY_ECAP_MIN_ROWS`), spec 61 the quality gate for the gated arms. Spec 60 was STOPPED by the owner at 19:39 local after about 17 of 30 runs (T-572, no summary): partial edit means ecap1 141.6, ecap0 167.2, cap 0 from 9 rows 143.8, cap 0 from 6 rows 161.2 tok/s, so the 6-row gate is the interesting one and the 9-row gate loses the gain (WRONG: the full run T-588 shows the 9-row gate best and tightest); specs 60 and 61 have now run (T-588, T-589) | still missing: tool-call task gate on real agent prompts (a too-tight cap broke tool calls elsewhere; owner order: after the branch consolidation, now done, so it runs after the spec 60-62 chain); token forcing scores greedy tokens while the served default samples at temperature 0.1 |
 | D2 | cache levers: `--conversation-cache-mib 2048 --conversation-cache-min-tokens 8192` ADOPTED 2026-11-15 (owner); `STRATA_PARK_TRUNCATE` 1280 not adopted | -21.6% +-14.8 prompt time (T-183), -23.1% +-11.8 for park-truncate (T-184); one recorded session | combined replay of both levers queued (spec 62) |
 | D3 | deferral on IQ2_XS | night retest: off vs on -0.9% overall, code -7.2%, prose -3.2% (T-260); Q2_0: off +8.9% (T-261); first A/B edit +15.8% (T-222) | 5-repeat edit-window A/B on the IQ2_XS preset; until then 17.1 (OFF) stands |
 | D4 | A24 `STRATA_SUFFIX_INDEX` | screen: short +26.8% +-34.4 (outlier), edit -0.0% (T-161); offline -2.44% rounds, sub-agents -7.5% (T-424); half the gain is from outputs older than a 30-min pause, so use the persistent `STRATA_SUFFIX_INDEX_FILE` (4 MiB -1.00%, 16 MiB -1.71%) | confirm + quality gate with the file on the daily server |
@@ -168,7 +168,7 @@ miss.
 
 ## 5. Run next: coded, never measured (GPU queue, in this order)
 
-1. **STOPPED by the owner at 19:39 local (spec 60 at about 17 of 30 runs, T-572; specs 61 and 62 never started); nothing is running on the box.** Re-run from spec 60 when the owner says so. **Results of the box chain** `pancake-docs/research/bench/results-2026-11-15/run-scripts-afternoon/auto-chain15.sh` (started
+1. **RAN 2026-11-15 21:58 to 2026-11-16 01:06 (autonomous overnight chain): specs 62, 60, 61 (T-587..T-589), the CPU probe (T-590), spec 65 (T-591); spec 64 was invalid (T-592) and is re-run.** **Results of the box chain** `pancake-docs/research/bench/results-2026-11-15/run-scripts-afternoon/auto-chain15.sh` (started
    18:22 local on 2026-11-15; spec 60 from 19:07, ~19:55 ETA): spec 60 (five ECAP arms, see D1), 61 (quality gate of the gated
    arms), 62 (the two cache levers combined on the replay): add them as ledger rows. Box rule while the chain runs: no builds
    and no memory-bandwidth benches. Then, in the box's order: (a) build, parity-check and measure the IQ4_XS matrix-core
@@ -302,14 +302,23 @@ Code:
 - FIXED (T-576): `gdn_gate_kernel` computed only the first token (latent, every caller passes 1 token).
 - FIXED (T-575): upstream #5273 guard (`if (stream_all)`) at the three KVA exits (4252/4396/4527); 5029 is inside the
   `fused_l` branch (needs `stream_all`) and 6215 tests `stream_all` itself. Research path only, no test exercises it.
-- Phase 17 review: R1 fixed (24de1106); R2 (`diverge_at` in conv_cache.hpp) and R3 (`max_cells` rule in kv_ring.hpp)
-  are not in the code. OPEN: the review text that defines what they must do is not in the repo (grep finds `diverge_at` only in a
-  server log), so they are not coded; needs the original review wording.
+- Phase 17 review R2 / R3: no review text exists (repo, git messages, session transcript searched 2026-11-15). Resolved by reading the
+  code the names point at: R2 `diverge_at` is not in conv_cache.hpp, it is the field of the PARK_DIVERGENCE_LOG diagnostic
+  (serve/park_divergence.py: first index where the new prompt and the previous prompt + reply differ; no behavior), and the one
+  behavior that uses the divergence point, `STRATA_PARK_TRUNCATE`, tested no difference (spec 62: -1.7% +-40.8%, cold re-reads 0 vs 0).
+  R3 `max_cells` is the ring rule of kv_ring.hpp (`kv_ring_adapt`: cap when cells_needed >= 2 x cap, else floor; the upstream page
+  rounding of cells_needed is deliberately left out); `STRATA_KV_RING_ADAPT` was measured and DROPPED (T-291). Both CLOSED as
+  moot: compared = the code and the two tests; not compared = the original review wording, which does not exist here.
 - A37 `IQ_LUT_DUP` (d11a9ca09): code read 2026-11-15: default off (iq_kernels.hpp, 0 = off); stays as an opt-in bench knob, not reverted.
 - `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it: opt-in, off, classified in disk_env;
   left in (removing it needs a Mac-side check nobody can run here). OPEN, low.
-- `STRATA_PSI_SHED` (Speedy item 8.3) was never ported though the old plan counted it done. OPEN: the repo holds no description of
-  what it sheds (only the PSI guard in platform/mem_pressure.hpp and its three Inert env names); needs the Speedy item text before any port.
+- `STRATA_PSI_SHED` (Speedy C4, idea from Basalt PR #113; Speedy SPEEDY.md / CHANGELOG 0.1.0 / TUNING-HISTORY read 2026-11-15): opt-in
+  `STRATA_PSI_SHED=<avg10 %>`, off by default: under PSI memory pressure the engine drops PARKED CONVERSATIONS; no numbers upstream
+  (test name `memory_pressure_test`, robustness only). Ours has the park half (`STRATA_PSI_PARK_PCT`, skip parking) and no shed half.
+  Port design: `memory_pressure_sheds(&why)` beside `memory_pressure_blocks_parking` (mem_pressure.cpp:297, same probe, threshold from
+  `STRATA_PSI_SHED`), and at each served request start in generate.cpp one `conversations.evict_oldest()` while it is true (the avg10
+  figure lags, so one entry per request); exact (a cache miss re-reads the prompt, same tokens); disk_env entry Inert like PSI_PARK_PCT;
+  unit test with a fake PSI file (`loader_pressure_begin_with` Paths); credit Speedy and Basalt #113 in README 9 and the findings table.
 - Tools: FIXED (T-577): `night_queue.py` zero-measurement real passes are now failed; `abtest.py` text_check accepts any base
   pass. OPEN: `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` (a `--fill` run with the stock arm, GPU hours) and
   `quality_gate.py:161` stays on `set.json` until then (by design, see its comment); all `taskgate-*` specs use `bench/tasks/default.json`: left as is on purpose
