@@ -1,0 +1,22 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "prefill": true,
+ "cases": [
+  "long1k",
+  "long3k",
+  "long64k",
+  "short",
+  "edit"
+ ],
+ "reps": 5,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "base-again": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  }
+ },
+ "note": "Weekly trend run (MOD_PLAN.md section 1 'Trend goal'): the daily preset against itself, same binary. The base numbers are the trend point of the week (decode short / edit, prompt long1k / long3k / long64k); the base-again arm is the noise floor of the box that week (any 'difference' it shows is noise). Run once a week on a quiet box with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --no-early-stop, rebuild build-win from the line's HEAD first, one TEST_LEDGER.md row per run."
+}
