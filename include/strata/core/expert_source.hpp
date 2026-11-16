@@ -363,6 +363,11 @@ public:
     int64_t predicted() const { return predicted_.load(std::memory_order_relaxed); }
     int64_t skipped() const { return skipped_.load(std::memory_order_relaxed); }
     bool skip_dropped() const { return skip_dropped_; }
+    /// STRATA_PREFETCH_PREV=K: the dispatch thread hands over the last token's routed ids of `layer` (before its submit); the
+    /// predictor thread warms them for the layers ahead on the next submit.  No-op unless the switch is on.
+    bool prev_on() const { return prev_k_ > 0; }
+    void record_routing(int64_t layer, const int32_t* ids, int64_t k);
+    uint64_t prev_warmed() const { return prev_warmed_.load(std::memory_order_relaxed); }
     uint64_t skip_dropped_entries() const { return sd_dropped_.load(std::memory_order_relaxed); }
     double busy_ms() const { return (double) busy_us_.load(std::memory_order_relaxed) / 1000.0; }
 
@@ -401,6 +406,10 @@ private:
     uint64_t st_windows_ = 0;
     uint64_t st_vhit_[3] = {0, 0, 0}, st_vpred_[3] = {0, 0, 0}, st_pch_ = 0, st_pcov_[3] = {0, 0, 0};
     static constexpr int kVoteN = 16;
+    // STRATA_PREFETCH_PREV=K (opt-in): warm the previous token's experts of layers l+1 .. l+K
+    int prev_k_ = 0;
+    std::unique_ptr<std::atomic<int32_t>[]> prev_ids_;   // [layer][kPrefetchPrevMaxIds], -1 = none (relaxed: a stale id only wastes a warm)
+    std::atomic<uint64_t> prev_warmed_{0};
     // STRATA_LOOKAHEAD_SKIP_DROPPED (opt-in; with STRATA_MISS_SKIP_W / _CUM): predicted experts the miss-skip rule would drop stay cold
     bool skip_dropped_ = false;
     float sd_w_ = 0.0f, sd_cum_ = 0.0f;

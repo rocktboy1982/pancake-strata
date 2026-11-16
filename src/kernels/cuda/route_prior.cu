@@ -14,6 +14,7 @@
 // the whole kernel off for a window: it returns at once and the router's own top-10, already in ids / weights, stands.
 // STRATA_ROUTE_PRIOR_ERANK (AcceptMoE's effective-rank utility set size, LEADS.md) makes `protect` a per-token number.
 #include "strata/kernels/route_prior.hpp"
+#include "strata/program/route_range.hpp"   // STRATA_ROUTE_RANGE (route_range_parse)
 
 #include <cuda_runtime.h>
 
@@ -68,7 +69,8 @@ __global__ void route_prior_delta_k(const float* __restrict__ logits, int n_tok,
 // one warp per token; 512 experts = 16 values per lane (as the native router)
 __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* __restrict__ res, float lambda,
                                   int32_t* __restrict__ ids, float* __restrict__ weights, float depth_acc, int row0,
-                                  const float* gate, int protect, float keep_p, int delta_layer, float erank) {
+                                  const float* gate, int protect, float keep_p, int delta_layer, float erank,
+                                  int range_mode) {
     if (gate != nullptr) {   // STRATA_ROUTE_PRIOR_SCOPE: this window's scale, 0 = out of scope (a tool call, a code fence, ...)
         const float g = *(volatile const float*) gate;
         if (!(g > 0.0f)) return;   // the router's own top-10 stands (whole warp, before any shuffle)
@@ -95,7 +97,14 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
         mx = fmaxf(mx, v);
     }
     mx = wmax(mx);
-    if (delta_layer >= 0) {   // STRATA_ROUTE_PRIOR_DELTA: lambda in units of the layer's Delta_avg (the token's own range first)
+    if (range_mode != 0) {   // STRATA_ROUTE_RANGE=L: lambda (= L) in units of THIS token's own range, max - min of its 512 logits
+        float mn = INFINITY;
+#pragma unroll
+        for (int i = 0; i < 16; ++i) mn = fminf(mn, p[i]);
+        mn = wmin(mn);
+        const float r = mx - mn;
+        lambda *= (r >= 0.0f && r <= FLT_MAX) ? r : 0.0f;   // (a non-finite span gives no bonus, as route_range_bonus)
+    } else if (delta_layer >= 0) {   // STRATA_ROUTE_PRIOR_DELTA: lambda in units of the layer's Delta_avg (the token's own range first)
         float mn = INFINITY;
 #pragma unroll
         for (int i = 0; i < 16; ++i) mn = fminf(mn, p[i]);
@@ -222,7 +231,11 @@ void route_prior_top10(const float* logits, const int32_t* res_layer, float lamb
     if (n_tok <= 0) return;
     // STRATA_ROUTE_PRIOR_DELTA=1 (opt-in, read once): the bonus scaled by the layer's running logit range (see above)
     static const bool delta_on = [] { const char* v = std::getenv("STRATA_ROUTE_PRIOR_DELTA"); return v != nullptr && v[0] == '1'; }();
-    const int dl = delta_on && layer >= 0 && layer < kDeltaLayers ? layer : -1;
+    // STRATA_ROUTE_RANGE=L (opt-in, lossy, read once; MOD_PLAN.md section 6, LEADS.md Part I I4, include/strata/program/route_range.hpp):
+    // the bonus is L x the token's own logit range; it replaces lambda (STRATA_ROUTE_PRIOR only has to be set) and wins over _DELTA
+    static const float range_l = strata::program::route_range_parse(std::getenv("STRATA_ROUTE_RANGE"));
+    if (range_l > 0.0f) lambda = range_l;
+    const int dl = range_l <= 0.0f && delta_on && layer >= 0 && layer < kDeltaLayers ? layer : -1;
     // STRATA_ROUTE_PRIOR_ERANK=x (opt-in, read once; x > 0, e.g. 1): AcceptMoE's effective-rank utility set (see the kernel)
     if (g_prior_erank < 0.0f) {
         const char* v = std::getenv("STRATA_ROUTE_PRIOR_ERANK");
@@ -230,7 +243,8 @@ void route_prior_top10(const float* logits, const int32_t* res_layer, float lamb
         g_prior_erank = x > 0.0f && x <= 10.0f ? x : 0.0f;
     }
     route_prior_k<<<n_tok, 32, 0, (cudaStream_t) stream>>>(logits, res_layer, lambda, ids, weights, depth_acc, row0,
-                                                           g_prior_gate, g_prior_protect, g_prior_keep_p, dl, g_prior_erank);
+                                                           g_prior_gate, g_prior_protect, g_prior_keep_p, dl, g_prior_erank,
+                                                           range_l > 0.0f ? 1 : 0);
     if (dl >= 0) route_prior_delta_k<<<1, 32, 0, (cudaStream_t) stream>>>(logits, n_tok, dl);
 }
 

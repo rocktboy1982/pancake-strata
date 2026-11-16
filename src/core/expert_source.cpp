@@ -1,5 +1,6 @@
 // src/core/expert_source.cpp - the adapter.  See the header for the three clauses of the contract.
 #include "strata/core/expert_source.hpp"
+#include "strata/program/prefetch_prev.hpp"   // STRATA_PREFETCH_PREV
 #include "strata/program/lookahead_skip.hpp"   // STRATA_LOOKAHEAD_SKIP_DROPPED (MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I))
 #include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER
 #include "strata/core/defer_rank.hpp"
@@ -3334,6 +3335,14 @@ bool RouterLookahead::start(std::vector<std::vector<uint16_t>> routers, int64_t 
             std::fprintf(stderr, "strata lookahead: STRATA_LOOKAHEAD_SKIP_DROPPED ignored: neither STRATA_MISS_SKIP_W nor STRATA_MISS_SKIP_CUM is set\n");
         }
     }
+    // STRATA_PREFETCH_PREV=K (opt-in, read once; LEADS.md Part I I1): see include/strata/program/prefetch_prev.hpp
+    if (const int pk = strata::program::prefetch_prev_parse(std::getenv("STRATA_PREFETCH_PREV")); pk > 0) {
+        prev_k_ = pk;
+        const size_t cells = routers_.size() * (size_t) strata::program::kPrefetchPrevMaxIds;
+        prev_ids_.reset(new std::atomic<int32_t>[cells]);
+        for (size_t i = 0; i < cells; ++i) prev_ids_[i].store(-1, std::memory_order_relaxed);
+        std::fprintf(stderr, "strata lookahead: PREFETCH_PREV on: the previous token's experts of the next %d layer(s) are warmed (warming tiers only)\n", pk);
+    }
     x_.assign((size_t) (8 * n_embd), 0.f);
     thread_ = std::thread([this] {
         strata::platform::name_this_thread("strata-lookahead");
@@ -3367,7 +3376,7 @@ void RouterLookahead::submit(int64_t layer, const float* x, int64_t n_tok, const
         layer_ = layer + 1;
         has_res_ = host_res != nullptr;
         if (has_res_) {   // the rows of layer + 1 .. + depth, as they are now: the table changes while this runs
-            const int64_t l1 = std::min<int64_t>(layer_ + depth_, (int64_t) routers_.size());
+            const int64_t l1 = std::min<int64_t>(layer_ + std::max(depth_, prev_k_), (int64_t) routers_.size());   // (PREFETCH_PREV reads K rows)
             res_.assign(host_res + (size_t) (layer_ * n_expert_), host_res + (size_t) (l1 * n_expert_));
         }
         sub_gen_ = gen_.load(std::memory_order_relaxed);
@@ -3385,6 +3394,13 @@ void RouterLookahead::enable_stats(int64_t n_layers) {
     pvote_.reset(new std::atomic<int32_t>[(size_t) (n_layers * kVoteN)]);
     for (int64_t i = 0; i < n_layers * kVoteN; ++i) pvote_[(size_t) i].store(0, std::memory_order_relaxed);
     stats_on_ = true;
+}
+
+void RouterLookahead::record_routing(int64_t layer, const int32_t* ids, int64_t k) {
+    if (prev_k_ <= 0 || layer < 0 || layer >= (int64_t) routers_.size() || ids == nullptr || k < 1) return;
+    std::atomic<int32_t>* dst = prev_ids_.get() + (size_t) layer * (size_t) strata::program::kPrefetchPrevMaxIds;
+    for (int i = 0; i < strata::program::kPrefetchPrevMaxIds; ++i)
+        dst[i].store(i < k ? ids[i] : -1, std::memory_order_relaxed);
 }
 
 void RouterLookahead::enable_ctrl(int64_t n_layers) {
@@ -3503,6 +3519,9 @@ void RouterLookahead::stats_score(int64_t layer, const int32_t* ids, int64_t n, 
                          st_pch_ ? (double) st_pcov_[s] / (double) st_pch_ : 0.0,
                          scored ? (double) st_pch_ / (double) scored : 0.0);
         std::fprintf(stderr, "\n");
+        if (prev_k_ > 0)
+            std::fprintf(stderr, "strata lookahead prev-prefetch: %llu experts warmed from the previous token\n",
+                         (unsigned long long) prev_warmed_.load(std::memory_order_relaxed));
         if (skip_dropped_)
             std::fprintf(stderr, "strata lookahead skip-dropped: %llu predicted entries left cold by the miss-skip rule\n",
                          (unsigned long long) sd_dropped_.load(std::memory_order_relaxed));
@@ -3682,6 +3701,22 @@ void RouterLookahead::run() {
         if (fs != nullptr && dj == 0)   // the next layer only: a deeper guess is too often wrong to spend a copy on
             for (const int64_t e : want) fs->predict(src_, layer, (int32_t) e);
         predicted_.fetch_add((int64_t) want.size(), std::memory_order_relaxed);
+        }
+        if (prev_k_ > 0 && src_ != nullptr && src_->read_ahead_open()) {   // STRATA_PREFETCH_PREV: the last token's experts of l+1 .. l+K
+            int32_t pv[strata::program::kPrefetchPrevMaxIds], pc[strata::program::kPrefetchPrevMaxIds];
+            std::vector<int64_t> pw;
+            for (int q = 0; q < prev_k_ && layer0 + q < (int64_t) routers_.size(); ++q) {
+                const int64_t lq = layer0 + q;
+                for (int i = 0; i < strata::program::kPrefetchPrevMaxIds; ++i)
+                    pv[i] = prev_ids_[(size_t) lq * (size_t) strata::program::kPrefetchPrevMaxIds + (size_t) i].load(std::memory_order_relaxed);
+                const int n = strata::program::prefetch_prev_collect(pv, strata::program::kPrefetchPrevMaxIds,
+                                                                     host_res != nullptr ? host_res + (size_t) (q * n_expert_) : nullptr,
+                                                                     (int) n_expert_, pc);
+                if (n == 0) continue;
+                pw.assign(pc, pc + n);
+                src_->warm(lq, pw.data(), (int64_t) n);
+                prev_warmed_.fetch_add((uint64_t) n, std::memory_order_relaxed);
+            }
         }
         busy_us_.fetch_add((uint64_t) std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count(),
                            std::memory_order_relaxed);
@@ -5537,6 +5572,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     // outputs do not depend on it).  The stats keep their place.  Unset: the submit here, as before.
     static const bool la_after_pub = [] { const char* v = std::getenv("STRATA_LOOKAHEAD_AFTER_PUB"); return v != nullptr && v[0] == '1'; }();
     if (d.lookahead != nullptr) {
+        if (d.lookahead->prev_on() && n_tok >= 1) d.lookahead->record_routing(d.layers, ids + (n_tok - 1) * k, k);   // STRATA_PREFETCH_PREV
         if (d.lookahead->stats_on()) {
             if (d.layers == 0) d.lookahead->stats_window_start();
             d.lookahead->stats_score(d.layers, ids, n_tok * k, d.host_res, d.pcie_num, x_f, k);
