@@ -1,4 +1,4 @@
-// include/strata/platform/hip_compat/cuda.h - copied from FastStrata df91582 include/strata/hip_compat/cuda.h with the rest of the
+// include/strata/hip_compat/cuda.h - copied from FastStrata df91582 include/strata/hip_compat/cuda.h with the rest of the
 // strata-poly port (README section 9 FastStrata credit); it was left out then, so strata-poly did not compile on HIP (cuda.h).
 #pragma once
 // Included only by STRATA_ENABLE_HIP builds (the hip_compat directory precedes the ROCm includes on the

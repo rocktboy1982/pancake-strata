@@ -10,6 +10,7 @@
 #define CUBLAS_COMPUTE_32F rocblas_datatype_f32_r
 #define CUBLAS_DEFAULT_MATH 0
 #define CUBLAS_GEMM_DEFAULT rocblas_gemm_algo_standard
+#define CUBLAS_GEMM_DEFAULT_TENSOR_OP CUBLAS_GEMM_DEFAULT  // CUDA deprecated alias of the default (strata-poly)
 #define CUBLAS_OP_N rocblas_operation_none
 #define CUBLAS_OP_T rocblas_operation_transpose
 #define CUBLAS_STATUS_SUCCESS rocblas_status_success
@@ -19,6 +20,7 @@
 #define cublasCreate rocblas_create_handle
 #define cublasDestroy rocblas_destroy_handle
 #define cublasHandle_t rocblas_handle
+#define cublasGetStream rocblas_get_stream                 // strata-poly kernels.cu
 #define cublasSetStream rocblas_set_stream
 #define cublasSetWorkspace rocblas_set_workspace
 #define cublasStatus_t rocblas_status
@@ -43,6 +45,7 @@ inline rocblas_status cublasGemmEx(rocblas_handle h, rocblas_operation trans_a,
 #define CUBLAS_COMPUTE_32F HIPBLAS_COMPUTE_32F
 #define CUBLAS_DEFAULT_MATH HIPBLAS_DEFAULT_MATH
 #define CUBLAS_GEMM_DEFAULT HIPBLAS_GEMM_DEFAULT
+#define CUBLAS_GEMM_DEFAULT_TENSOR_OP CUBLAS_GEMM_DEFAULT  // CUDA deprecated alias of the default (strata-poly)
 #define CUBLAS_OP_N HIPBLAS_OP_N
 #define CUBLAS_OP_T HIPBLAS_OP_T
 #define CUBLAS_STATUS_SUCCESS HIPBLAS_STATUS_SUCCESS
@@ -57,6 +60,7 @@ inline rocblas_status cublasGemmEx(rocblas_handle h, rocblas_operation trans_a,
 #define cublasGemmStridedBatchedEx hipblasGemmStridedBatchedEx    // (the Qwen3.6 prompt attention, FP16)
 #define cublasHandle_t hipblasHandle_t
 #define cublasSetMathMode hipblasSetMathMode
+#define cublasGetStream hipblasGetStream                   // strata-poly kernels.cu
 #define cublasSetStream hipblasSetStream
 #define cublasSetWorkspace hipblasSetWorkspace
 #define cublasStatus_t hipblasStatus_t
