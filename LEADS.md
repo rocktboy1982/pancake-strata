@@ -27,7 +27,7 @@ Tags: author numbers are on the author's hardware, not ours; "exact" = bit-ident
 | routed-id out-of-range message with layer/entry/id | diagnostics | exact | 2026-11-15: CODED routed-id error message (no switch) |
 | rdna3 `791cca4b` + `5906629d`: `PREFILL_AUTO_MAX` up to 49152 + `STRATA_PREFILL_EQUAL_TAIL_MAX` | fixes 49-57K chunk reads; 49,152 grid est. 2-4%, +0.6 GiB loan, needs refill head `2b19d510` (`REFILL_HEAD_BIG`), 2 GiB R-buffer limit | exact | AUTO_MAX yes, EQUAL_TAIL_MAX no; our equal-tail rule differs (their 49K trap cannot happen at our 32K ceiling) |
 | rdna3 `f557b544`: prefill CPU share retries the pool at every layer | - | exact | no |
-| rdna3 `88686782`/`877bf971` `STRATA_PREFILL_TIMING` CPU-share thread time + host wait; `7df6538d` slim prompt-only GGUF | diagnostics | exact | 2026-11-15: left |
+| rdna3 `88686782`/`877bf971` `STRATA_PREFILL_TIMING` CPU-share thread time + host wait; `7df6538d` slim prompt-only GGUF | diagnostics | exact | 2026-11-16: CODED STRATA_GR_UPPRE, PREFILL_TIMING CPU-share line, nvfp4 slim |
 | Juud_engine CPU tweaks: shorter worker spin, no activation quant for GPU-resident tokens; env-only test: `STRATA_POOL_SPIN_US` sweep (#4625: 0 means zero, pool.cpp:794) | +9.6-15.6% (4090); 15.1 -> 12.6 ms/token | exact | 2026-11-15: CODED STRATA_ACTQ_SKIP_NOCPU |
 | #4005 Vop3p sparse copy events + slot-wait dedup in prefill (PR closed unmerged) | +36% HIP prompt at 4K (RDNA2) | exact | 2026-11-15: already prefill.cpp COPY_EVENT_EVERY / COPY_WAIT_DEDUPE |
 | `SELECT_TWO_PASS` on HIP (never checked) | <3% at 100K | exact | yes (untested on HIP) |
@@ -38,7 +38,7 @@ Tags: author numbers are on the author's hardware, not ours; "exact" = bit-ident
 | havok2-htwo/StrataQ38FN agent-switch re-read patch | 25 s -> 1.5 s (author) | unknown | 2026-11-15: left |
 | storm-ace q36 GQA decode, sampled MTP, `Q36_FA` WMMA prompt attention | pp32768 360 -> 517 -> 938 tok/s | FP16-level lossy | 2026-11-15: left |
 | svgop hugetlb pool for the expert copy | +4.9% IQ2_XS (CUDA) | exact | 2026-11-15: left (svgop 511bece612 located) |
-| deferred activation quantization in the pool + sample-async | +6.5% / +3.9% bundles (R9700) | exact | 2026-11-15: left |
+| deferred activation quantization in the pool + sample-async | +6.5% / +3.9% bundles (R9700) | exact | 2026-11-16: CODED STRATA_POOL_DEFER_ACTQ (sample-async in progress) |
 | GatherGroup fix `b13ffdabd0` for `ROUTED_STREAM`; dardeaw exact wave32 QSA decode kernels; `STRATA_FUSE_SHGATE` (this-cute-world) | - | exact | 2026-11-15: left |
 | watch list: Infernix (+23% at 262K, 5090); Qwen3.6 issues #5069 #2464 #5551 #1402 | - | - | 2026-11-15: method |
 
@@ -85,24 +85,24 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-32 `WAIT_COPY256` + 16 B plan reads | host-write-to-plan 4.47 to 3.57 us (android-imdad, XTX) | exact | switch_report.hpp:31 |
 | FK-32b `STRATA_ADAPT_COPY2` (2 DMA engines) | 48 x 2.2 MB copies 4.00 to 3.70 ms (android-imdad, XTX) | exact | no |
 | FK-32c MULTI_BLOCK_ARGMAX on gfx1100 | 12 to 5.6 us a pick (android-imdad, XTX) | exact | verify_kernels.cu:1026 (gfx12 only) |
-| FK-33 `DRAFT_EARLY` + `DRAFT_SUFFIX_SKIP` | no number; draft step 2.2-2.5 ms caps it ~1% | exact | 2026-11-15: left (mandoof1 868841cb32 / b8004eb8d7 fetched) |
-| FK-34 `--light-expert-cpu` byte-aware placement | est. 0-2% (IQ2_XS file only) | exact | 2026-11-15: left |
-| FK-35 shared n-gram pool `NGRAM_MOD` | 234/234 drafts on a copy fixture, no tok/s (tctien342) | exact | 2026-11-15: left |
+| FK-33 `DRAFT_EARLY` + `DRAFT_SUFFIX_SKIP` | no number; draft step 2.2-2.5 ms caps it ~1% | exact | 2026-11-16: CODED STRATA_DRAFT_EARLY (SUFFIX_SKIP in progress) |
+| FK-34 `--light-expert-cpu` byte-aware placement | est. 0-2% (IQ2_XS file only) | exact | 2026-11-16: CODED STRATA_LIGHT_EXPERT_CPU |
+| FK-35 shared n-gram pool `NGRAM_MOD` | 234/234 drafts on a copy fixture, no tok/s (tctien342) | exact | 2026-11-16: CODED STRATA_NGRAM_MOD |
 | FK-36 prefill combine + write_norm fusion | 234 to 203 ms; 32K -4.0% (zsariboga, RTX 5090) | exact | 2026-11-15: left |
 | FK-36b `PF_DQ_OVERLAP` side-stream dequant | prompts +7-11% at 8K chunks, 0 at 32K + DOWN_STREAMS (android-imdad, XTX) | exact | no |
-| FK-40 post-READY warm-up replay | first turn after restart only (svgop) | exact | 2026-11-15: left |
+| FK-40 post-READY warm-up replay | first turn after restart only (svgop) | exact | 2026-11-16: CODED STRATA_WARMUP_REPLAY (serve) |
 | FK-41 arena mlock vs HMM userptr stalls | queue stalls under memory pressure (Ben1078, XTX) | exact | 2026-11-15: method |
 | FK-50 `STRATA_VERIFY_ECAP` tail expert cap | +2.8% pooled, +11.5% drift-paired; tight cap broke 12/20 tool turns (jmnargi, 2x V100) | lossy | expert_source.cpp:4989; verify_ecap.hpp |
 | FK-51 route-prior guards `PROTECT/KEEP_P/SCOPE` | 0 alone; lets turbo run lambda >0.5 (ours turbo 0.5: +25-34%) | lossy | route_prior.cu:10-13 |
-| logit-range-scaled prior bias (`--cache-prior`), SER | no number (gputier) | lossy | 2026-11-15: left |
+| logit-range-scaled prior bias (`--cache-prior`), SER | no number (gputier) | lossy | 2026-11-16: CODED STRATA_ROUTE_PRIOR_DELTA |
 | turbo vs uniform tail skip at equal KL | uniform top-k beat miss-targeted dropping (lighttransport, MiniMax) | lossy method | ROUTE_TAIL_SKIP expert_source.hpp:670 |
-| FK-52 sub-2-bit shadow store for CPU misses | +2.9% solo, +20.8% concurrent; tmpfs/hugetlb +5.5% (svgop, RTX 5090) | lossy | 2026-11-15: left |
+| FK-52 sub-2-bit shadow store for CPU misses | +2.9% solo, +20.8% concurrent; tmpfs/hugetlb +5.5% (svgop, RTX 5090) | lossy | 2026-11-16: already STRATA_SHADOW_MISS |
 | FK-53 ISTA Coder pack 256/512 | +7.8/+10.0/+11.1% masked-router analogue (svgop, RTX 5090) | lossy | 2026-11-15: method |
 | FK-54 window decode attention | 200K decode 48.6 to 68.2 exact, 88.9 fp16 (Asofwar, RTX 5080); Flash-Next capped ~1% | rounding | q36_engine.cu:363 (`STRATA_ATTN_WINDOW`, q36 only) |
 | FK-55 Qwen3.6 on HIP: storm-ace WMMA flash prompt + GQA decode | pp32768 360 to 938 tok/s (storm-ace, gfx1151) | fp16 | 2026-11-15: left |
 | FK-57 requant study UD-IQ2_XS vs our GSQ IQ2_XS | est. up to -20% expert bytes | lossy | 2026-11-15: method |
-| FK-58 typical acceptance in thinking only | unknown; thinking ~6.6% of turn time | lossy | 2026-11-15: left |
-| FK-59 fp16 rocWMMA QSA select arm / `SELECT_SPLIT2` | fp16 arm 1.64x select at 128K (xyzzing, gfx1100) | exact / lossy | 2026-11-15: left |
+| FK-58 typical acceptance in thinking only | unknown; thinking ~6.6% of turn time | lossy | 2026-11-16: already STRATA_TYPICAL_THINK |
+| FK-59 fp16 rocWMMA QSA select arm / `SELECT_SPLIT2` | fp16 arm 1.64x select at 128K (xyzzing, gfx1100) | exact / lossy | 2026-11-16: CODED STRATA_SELECT_SPLIT2 (gfx12 scorer gate) |
 | android-imdad exact decode bundle `TOPK_REGKEYS/TOPK_SCAN/MTP_SELECT_WIDE/GDN_NORM128/ATTN_MERGE_BOUND` | bundle (with ROUTE_FAST etc.) short chat 86.8 to 95.8 (+10%), agent +11%, KL 0 (XTX IQ3_S); no per-switch split | exact | no |
 | `PF_GU_EXACT` Tensile gfx1100 prompt GEMM | 26.5 vs 12.9 TFLOPS; 16K 13.05 to 10.05 s, 64K 40.1 to 31.5 s, KL 0 (android-imdad, XTX) | exact | no |
 | `PF_DOWN_STREAMS=4` (down over 4 streams) | prompts 2K -3..-4%, 16/32K -2% (android-imdad, XTX) | exact | no |
@@ -135,10 +135,10 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | DraftPolicy cost-outlier clip (`PL_POLICY_CLIP`) | one 31 ms stall flips MTP T3 to lookup T8, persists (gfx1030, CPU tests) | exact | 2026-11-15: already STRATA_DRAFT_CLIP |
 | HotRod weight x logit-gap budget (`ROUTE_BUDGET`) | ranks 3-9: 44.7 vs 46.4 tok/s, 12/12 JSON (RTX 3060) | lossy | 2026-11-15: left |
 | skip non-resident experts < 10% weight (`SKIP_MINW`) | 20 to 25 tok/s, KL 0.016-0.022 vs floor 0.013 (RTX 5090, GLM) | lossy | 2026-11-15: already STRATA_MISS_SKIP_W |
-| balanced chunks (+1/32 rows) | small, not isolated (asahi) | exact | 2026-11-15: left |
+| balanced chunks (+1/32 rows) | small, not isolated (asahi) | exact | 2026-11-16: already STRATA_PREFILL_EQUAL / _EQUAL_TAIL |
 | HotRod fragile-token re-verify + auto budget + brake | 1-3% windows cut; 27/27 clean at 37-48 tok/s (RTX 3060, NVMe) | lossy guard | 2026-11-15: left |
-| rdna3 unported prompt kernels `1799c0a3a`/`3dbb40516`/`1f4b77d72` | expert GEMM -6..-9%; HC half-layer -7.4..-9.1%; colskip 1-GPU unchanged (XTX) | exact | 2026-11-15: left |
-| `STRATA_VRAM_CALIB` (PR #5691) | +314/+166 slots, free 884 to 300 MiB (2x RX 6900 XT, HIP) | exact | 2026-11-15: left |
+| rdna3 unported prompt kernels `1799c0a3a`/`3dbb40516`/`1f4b77d72` | expert GEMM -6..-9%; HC half-layer -7.4..-9.1%; colskip 1-GPU unchanged (XTX) | exact | 2026-11-16: CODED STRATA_HC_WN4, STRATA_NW_COLSKIP |
+| `STRATA_VRAM_CALIB` (PR #5691) | +314/+166 slots, free 884 to 300 MiB (2x RX 6900 XT, HIP) | exact | 2026-11-16: CODED STRATA_VRAM_CALIB |
 | `STRATA_PROMPT_STAGE_MEMO` | short turns +14-20% (gfx906) | ~exact | 2026-11-15: left |
 | disk conversation cache + RAM/disk dual-park | 12,175 tok restore 0.32-0.51 s vs 42-45 s cold (gfx906 box) | exact | 2026-11-15: left |
 | `DQ8` + `HC_GATED16`, `KV_PF_RESIDENT` | IQ3_S prompt +6%; +7-9% at 16-128K (2x PRO V620) | exact | 2026-11-15: left |
@@ -146,7 +146,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | `__launch_bounds__` / occupancy audit | QSA value -10.9%, 128K prefill +1.45% (P40) | exact | 2026-11-15: method |
 | HotRod prompt stand-ins (`PREFILL_STANDIN`) | 76-118 tok prompts 35-45% faster; 8.5K 15.8 to 15.1 s (RTX 3060) | lossy | 2026-11-15: left |
 | `--adapt-async 1` (swaps on own thread) | short chat 24.9-26.0 to 28.7-30.1 (Strata-GLM, RTX 5090) | exact | adapt_async_default.hpp:1 |
-| `STRATA_NT_COPY` non-temporal blob copies | DMA 46.6 GB/s alone vs 17.0 beside 4 memcpy threads (Strata-GLM) | exact | 2026-11-15: left |
+| `STRATA_NT_COPY` non-temporal blob copies | DMA 46.6 GB/s alone vs 17.0 beside 4 memcpy threads (Strata-GLM) | exact | 2026-11-16: CODED STRATA_NT_COPY |
 | hipBLASLt table auto only on gfx1151 after v0.2.13 (`343b8eae6`) | 131K prefill 926 to 1,687 with right table (XTX community); ours table +38% prompt | rebase hazard | gemm.cu:375 (`STRATA_HIPBLASLT_TABLE`) |
 | bimodal: per-run AnonHugePages, `compact_memory` vs `NO_ARENA_THP` | ours: 38 starts "THP NOT requested" (6 GiB free 2 MiB blocks of 33) | method | 2026-11-15: method |
 | bimodal: DPM clock ramp | first request -26% (59.3 vs 80.4, XTX) | method | 2026-11-15: method |
@@ -175,7 +175,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | `STRATA_EXPDEC_V2` grouped expert kernels | expdec_gu<22> 69.1 to 52.5 us, down 48.2 to 38.5 us, 672 bit-identical (R9700) | exact | no |
 | `STRATA_POOL_DAG=2` | pool 5.197 to 4.788 ms/window; engine neutral (9950X DDR5) | exact | 2026-11-15: CODED STRATA_POOL_DAG=2 |
 | launch fusions `FUSE_COMBINE/SWIGLU_DOWN/SHGATE/PLAN/ROUTEBELL/QGEMV` | 2,648 to 2,248 kernels/window, no tok/s (R9700) | exact | no |
-| deferred / parallel act quant in pool + sample-async | +6.5% / +3.9% bundles (R9700) | exact | 2026-11-15: left (needs bsorensen110 defer_act_quant base) |
+| deferred / parallel act quant in pool + sample-async | +6.5% / +3.9% bundles (R9700) | exact | 2026-11-16: CODED STRATA_POOL_DEFER_ACTQ |
 | hugetlb CPU expert copy + RAM budget fix | IQ2_XS solo +4.9%, lane +7.2% (svgop, CUDA) | exact | 2026-11-15: already pinned.cu MAP_HUGETLB (svgop file-source complement left) |
 | two-pass session restore | 198,830 tok (3.05 GiB) restored 3.4-3.5 s (ElXreno) | exact | 2026-11-15: left (ElXreno 7efef35d0d) |
 | `STRATA_CPU_POOL_COST` longest-first | code +6.54%, geomean +1.95% (gfx936 DCU) | exact | 2026-11-15: CODED STRATA_CPU_POOL_COST |
@@ -197,7 +197,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | down-row prefetch during fready wait (basalt 4e6841265) | basalt down phase -6% | exact | 2026-11-15: already STRATA_POOL_TAIL4 |
 | SpinWait (pause 50 us then yield) in MTP draft wait | est. 0-1% | exact | 2026-11-15: CODED STRATA_MTP_SPIN_US |
 | DraftPolicy cost = shared scale x per-size base | 0-2% | exact | 2026-11-15: CODED STRATA_DRAFT_SCALE |
-| commit queued behind MTP draft launch (basalt 1fd53a447) | idea | exact | 2026-11-15: left |
+| commit queued behind MTP draft launch (basalt 1fd53a447) | idea | exact | 2026-11-16: CODED STRATA_DRAFT_EARLY |
 | file-cache floor rule (>= 1 chunk + 2 layers, >= 4 GiB) | design for RAM_KEEP/mmap tier | n/a | 2026-11-15: method |
 | key saved sessions by lossy routing switches (llamAmpere) | correctness | n/a | conversation_disk_env.def (KeyIfSet scheme) |
 | Qwen official sampling presets (thinking T 1.0 / top_p 0.95 / top_k 20; non-thinking T 0.7, presence 1.5) | fact; makes FK-01 relevant if opencode keeps T 1.0 | n/a | n/a |
@@ -261,8 +261,8 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 
 | # | lead | number + hw | exact/lossy | in our src |
 |---|---|---|---|---|
-| B1 | CPU-expert activation sparsity masks (Berkeley gate / TEAL / CATS / CHESS / SpAx), item 13 | 84.5-87.4% sparsity Qwen3.5 MoE (paper); ceiling 1.25x, est. +10-20% | lossy | 2026-11-15: left |
-| B2 | Union sparsity over verify window w=1/2/4/8 (BlockFFN) column mandatory | 80% -> 71% at w=8 (Asia) | lossy | 2026-11-15: left |
+| B1 | CPU-expert activation sparsity masks (Berkeley gate / TEAL / CATS / CHESS / SpAx), item 13 | 84.5-87.4% sparsity Qwen3.5 MoE (paper); ceiling 1.25x, est. +10-20% | lossy | 2026-11-16: CODED STRATA_CPU_ACT_SPARSE |
+| B2 | Union sparsity over verify window w=1/2/4/8 (BlockFFN) column mandatory | 80% -> 71% at w=8 (Asia) | lossy | 2026-11-16: CODED STRATA_CPU_ACT_SPARSE_UNION |
 | B3 | turbo-hip `STRATA_ROUTE_PRIOR 0.5` (Cache-Conditional Experts) | 149-169 vs 128.7 tok/s, 7900XT; 2.89% mismatch 3060 | lossy | src/core/conversation_disk_env.def:36 |
 | B4 | AcceptMoE depth-graded prior, pos 0 exact (item 23) | 2.06x vs SD under offload, RTX 5090, -0.27 pp; est. 5-15% over fast-hip | lossy | include/strata/kernels/route_prior.hpp:12 |
 | B5 | OEA sibling-aware bonus in verify window | idea, low ceiling | lossy | no |
@@ -271,7 +271,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B8 | Admission on k-th miss `STRATA_ADAPT_KMISS` (item 14) | sim +5..16% edit; replay hit 76.7->86.5% edits | exact | include/strata/core/epoch_bandit.hpp:9 |
 | B9 | `--adapt-every 1 --adapt-swaps 64/96/160` tier at every window | replay 79.6% -> 85.0% VRAM hits; sim +4..9% | exact | include/strata/core/adapt_async_default.hpp:24 |
 | B10 | Keep decode cache through long prompts / lend sweep (item 2) | 9,412 slots 12.6 GiB borrowed; 125->105 tok/s; +20% after-long turns | exact | 2026-11-15: already PREFILL_LEND_PCT + TIER_REWARM |
-| B11 | SIEVE / S3-FIFO, OpenEvolve/ADRS, Hawkeye, Harmonia, MoE-Infinity as cache policy | Belady-bounded; only if sim >=5% | exact | 2026-11-15: left |
+| B11 | SIEVE / S3-FIFO, OpenEvolve/ADRS, Hawkeye, Harmonia, MoE-Infinity as cache policy | Belady-bounded; only if sim >=5% | exact | 2026-11-16: CODED STRATA_ADAPT_SIEVE |
 | B12 | ProMoE planner / reordered execution (cache -> in flight -> CPU) | 1.09x over LRU, PCIe 4.0 | exact | - |
 | B13 | Next-expert predictors (Fate/HOBBIT/SmallThinker/SP-MoE) recall test | local recall 19-29%; ProMoE 1.09x | exact | - |
 | B14 | Seeds `STRATA_DOMAIN_PROFILES` / `STRATA_CONV_WORKSET` (items 3-4) | +0.6-1.5 hit pts | exact | include/strata/program/expert_seed.hpp:7,13 |
@@ -284,11 +284,11 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B21 | `STRATA_POOL_PREREAD` (tandem.cpp) | A/B queued | exact | include/strata/core/epoch_bandit.hpp:10 |
 | B22 | Athena epoch bandit for pre-read / mixed opt-ins | - | exact | include/strata/core/epoch_bandit.hpp |
 | B23 | DISCO learned chain stop (item 15/36, `feat/disco`) | 0-10% combined | exact | include/strata/core/row_miss.hpp:2 |
-| B24 | Drafter entropy (MiMo, Entropy Sentinel) as DISCO feature | - | exact | 2026-11-15: left (needs retrained DISCO) |
+| B24 | Drafter entropy (MiMo, Entropy Sentinel) as DISCO feature | - | exact | 2026-11-16: CODED STRATA_DISCO_ENTROPY |
 | B25 | SpecFit / DraftExpert / EcoSpec miss-aware window (new experts per position) | DraftExpert verify-cost 2.35x->1.48x, RTX 4090; est. +3-8% over SPEC_COST | exact | 2026-11-15: partial: VERIFY_ECAP (window-length form left) |
 | B26 | Cross-session suffix index (SuffixDecoding) | `--simulate` first; A24 spec 45 | exact | include/strata/spec/suffix_index.hpp:114 |
 | B27 | `--lookup-max-t 12/16` | +1% first test | exact | include/strata/core/lookup_default.hpp:1 |
-| B28 | MTP draft inside captured verify graph (item 10) | 1-3% est. | exact | 2026-11-15: left |
+| B28 | MTP draft inside captured verify graph (item 10) | 1-3% est. | exact | 2026-11-16: partial: STRATA_MTP_ONE_GRAPH (verify-graph fold in progress) |
 | B29 | `--mtp-q4` | queued | exact? | include/strata/core/mtp.hpp:64 |
 | B30 | ReplaySSM / SpecLA audit of GDN replay (item 20) | 1-3% decode | exact | - |
 | B31 | SSD-lite (Saguaro): draft while GPU verifies | CPU already busy | exact | - |
@@ -329,7 +329,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B61 | #5595 grouped Q4_K down-expert kernel (q36) | q36 only | exact | - |
 | B62 | StrataGP 16 packaged patches | +5-15% decode, +42-49% prompt, RTX 5090 | mixed | - |
 | B63 | Juud_engine: shorter worker spin after expert batch + skip activation quant for GPU-resident tokens | +9.6-15.6% decode, RTX 4090 | exact | 2026-11-15: CODED STRATA_ACTQ_SKIP_NOCPU (+ POOL_SPIN_US) |
-| B64 | #5475 `STRATA_HC_PERSIST_Q8` int8 persistent HC read | - | exact? | 2026-11-15: left |
+| B64 | #5475 `STRATA_HC_PERSIST_Q8` int8 persistent HC read | - | exact? | 2026-11-16: CODED STRATA_HC_PERSIST_Q8 |
 | B65 | #5535 int8-WMMA prompt attention on gfx1100 with recipe | attention 6.7% of 42K prompt | exact? | - |
 | B66 | #5471 faster Q4_K/Q5_K decode GEMVs (DS4 path) | - | exact | - |
 | B67 | #3925 q36 load of K-quant/IQ4_XS `ssm_alpha`/`ssm_beta` | pack coverage | exact | - |
@@ -403,10 +403,10 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B120 | Reuse-aware admission with H2D DMA scheduled into CPU-idle phases (attention/GDN) | est. +10-18% over Tier 1; SeqMoE +8.5 pts vs LRU | exact | 2026-11-15: CODED STRATA_ADAPT_IDLE_COPY |
 | B121 | Exact tail-row truncation mid-window (novel) | 23% of misses only for last row, 47% last two (local) | exact | - |
 | B122 | CPU pool bandwidth push: 2 fused phases/layer across all missed experts, row-chunk work split, touch next expert early | 33 -> 38-42 GB/s est., +5-12% | exact | 2026-11-15: CODED STRATA_POOL_ROW_SPLIT / TOUCH_NEXT |
-| B123 | Row-interleaved R4/R8 repack of CPU arena (ik_llama `_R4`) | 5-15% CPU part (qualitative) | exact | 2026-11-15: left |
+| B123 | Row-interleaved R4/R8 repack of CPU arena (ik_llama `_R4`) | 5-15% CPU part (qualitative) | exact | 2026-11-16: CODED STRATA_CPU_R4 |
 | B124 | Fused T-row GDN verify kernel with lazy commit (FlashInfer gated_delta_rule_mtp / ReplaySSM) | write only final state + per-token k/v/g; small unless T full-state writes today | exact (sequential form) | - |
 | B125 | Prefill: bigger chunks / decode tier resident during prefill (SLP, MoE-Gen) | est. 1.3-1.8x prefill at 16-32K; ~75 ms saved per resident GB per pass | exact | - |
-| B126 | SeqMoE learned multi-step forecaster + probabilistic-Belady eviction | 96.97% vs 88.50% LRU at 45% residency, RTX 4090/5090 | exact | 2026-11-15: left |
+| B126 | SeqMoE learned multi-step forecaster + probabilistic-Belady eviction | 96.97% vs 88.50% LRU at 45% residency, RTX 4090/5090 | exact | 2026-11-16: CODED STRATA_ADAPT_FORECAST |
 | B127 | Prompt-family expert profiles (FineMoE / MoE-Sieve) | FineMoE -47% latency, +39% hit (6-GPU) | exact | expert_seed.hpp:7 |
 | B128 | DFlash2 workload-gated drafter only | +4% short, -9% after-long, 7900XT | exact | src/core/verify.cpp:77 |
 | B129 | In-graph CPU flag polling with two HW queues | KT CUDA graph up to 1.23x | exact | src/core/mtp.cpp:514 (priority queues) |
@@ -485,9 +485,9 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 | A2 depth-graded prior (our geometric bonus) | "+5-15%" unsourced | lossy | include/strata/kernels/route_prior.hpp:12 |
 | HOBBIT cumulative gate-score rule (T1 0.6 / T2 0.9) as skip/defer rule, no low-bit copy | Mixtral 67/30/3% split; dyn loading 1.19-1.57x (4090, Orin) | lossy | 2026-11-15: CODED STRATA_MISS_SKIP_CUM |
 | A4 rank guard `_TOP/_BELOW/_FOLD` | vs deferral: edit -2.6 to -4.2%, short ~0 (n=2) -> HOLD | lossy-small | src/core/verify.cpp:985; include/strata/core/defer_rank.hpp:48 |
-| A27 sub-2-bit copy on CPU miss | ~25% bytes/miss (IQ2_XS->IQ1_M, from memory); IQ1_M expert error 0.55-0.91 | lossy | 2026-11-15: left |
-| SliceMoE Matryoshka slices (low-bit = shifted high-bit, no duplicate bytes) | 2-bit ppl 10.85 vs 4-bit 8.09 (Qwen1.5); up to 1.81x on simulated mobile SoC | lossy | 2026-11-15: left |
-| MoBiLE big/little (half experts, confidence gate 0.7) | 1.72x/1.60x RTX 4080; OLMoE GSM8K -6.7 pt | lossy | 2026-11-15: left |
+| A27 sub-2-bit copy on CPU miss | ~25% bytes/miss (IQ2_XS->IQ1_M, from memory); IQ1_M expert error 0.55-0.91 | lossy | 2026-11-16: CODED STRATA_SHADOW_MISS |
+| SliceMoE Matryoshka slices (low-bit = shifted high-bit, no duplicate bytes) | 2-bit ppl 10.85 vs 4-bit 8.09 (Qwen1.5); up to 1.81x on simulated mobile SoC | lossy | 2026-11-16: CODED STRATA_SLICE_MISS |
+| MoBiLE big/little (half experts, confidence gate 0.7) | 1.72x/1.60x RTX 4080; OLMoE GSM8K -6.7 pt | lossy | 2026-11-16: CODED STRATA_MOBILE |
 | Routing dump with gate weights (unblocks A4/A27/A32/A46 replays) | existing 219-window trace has 0 weights | n/a | src/program/generate.cpp:1150 (`--dump-routing` writes ids+weights) |
 | A7 chunked promotions + drop queued speculative + reordered exec | ProMoE 1.09x (max 1.17x) llama.cpp decode vs LRU, 4090 PCIe 4.0; our sim +4.6% | exact | include/strata/program/promo_chunk.hpp:2 |
 | ProMoE per-layer MLP predictor + stride prefetch | 84.7% acc; stride +1 layer at ~5% acc cost | exact | router lookahead exists: include/strata/core/expert_source.hpp:544 |
@@ -499,8 +499,8 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 | Athena reward correction (subtract workload-driven term) + state features for bandit | state +1.4/+1.7/+0.8/+0.1, reward +1.0 pt (CPU sim) | policy | 2026-11-15: CODED STRATA_BANDIT_CORRECT |
 | A45 start-up calibration probe | expected share 0 on this box (raw ~0.28 < 0.35) | exact | src/program/generate.cpp:8366 |
 | DALI per-layer per-step greedy CPU/GPU assignment (vs static share) | assignment alone +23% vs HybriMoE; decode 1.32-3.97x (EPYC 7532 + 3090, PCIe 4.0) | exact | 2026-11-15: CODED STRATA_DALI |
-| A46 learned cache policy | Belady 94.7 vs LRU 89.5 vs engine 79.6%; best online +3.2 pt but 2-3x promotions | exact | 2026-11-15: left |
-| A29 expert-byte entropy coding | bound 11.7-12.0% Q2_0, zstd 8.0%; IQ ~0% | exact | 2026-11-15: left |
+| A46 learned cache policy | Belady 94.7 vs LRU 89.5 vs engine 79.6%; best online +3.2 pt but 2-3x promotions | exact | 2026-11-16: CODED STRATA_ADAPT_LEARNED |
+| A29 expert-byte entropy coding | bound 11.7-12.0% Q2_0, zstd 8.0%; IQ ~0% | exact | 2026-11-16: partial: coder + STRATA_EXPERT_ENTROPY measure (compressed tier in progress) |
 | A28 ISTA-DASLab GSQ-RCO Coder | SWE-bench 95.7% retained (card); 58.4 GB Qwen / 111 GB DeepSeek | lossy (50% expert pruning + quant) | 2026-11-15: left (owner 2026-11-13: do not test GSQ) |
 | ExpertCache task-specific expert preload (RL) | Qwen3-235B, BigCodeBench (snippet) | exact (placement) | 2026-11-15: already STRATA_DOMAIN_PROFILES |
 
@@ -509,13 +509,13 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 | lead | number + hw | exact/lossy | in our src |
 |---|---|---|---|
 | A9 pre-stage experts during tool gaps | bound 2-4% of wall | exact | src/program/generate.cpp:14928 (`STRATA_IDLE_ADAPT`) |
-| TokenCake: offload idle KV during function calls, predictive upload | up to 47.06% e2e latency, memory-constrained (abstract) | exact | 2026-11-15: left |
+| TokenCake: offload idle KV during function calls, predictive upload | up to 47.06% e2e latency, memory-constrained (abstract) | exact | 2026-11-16: CODED STRATA_TOOL_IDLE_PREWARM (serve) |
 | A11 tool-boundary checkpoints + FLOP-aware eviction (Marconi) | eviction-only +19.0-219.7% hit vs LRU (7B hybrid, 4xA100); ours 0.5-0.8% | exact | include/strata/program/conv_cache.hpp:99 (`--prompt-cache-spread`) |
 | A12 pinned system+tools prefix | -1.3% modelled on Qwen | exact | include/strata/core/conversation_cache.hpp:533 |
 | Pinned-entry eviction fix (prereq for A12) | pinned parked entries never evicted | exact | 2026-11-15: already STRATA_AUTO_PIN |
 | A15 park TTL for sub-agents | Continuum gain is queueing term, ~0 single user | exact | include/strata/core/conversation_cache.hpp:494 |
 | Rank-3 eviction bug (evicts whole held set on byte shortfall; take smallest covering entry) | 6 of 7 cold re-reads were over-budget skips | exact | 2026-11-15: already fixed conversation_cache.hpp:783-789 |
-| MORI: idleness from tool durations, cross-tier KV migration | 20-71% thpt, 18-43% TTFT (search summary, unverified) | exact | 2026-11-15: left |
+| MORI: idleness from tool durations, cross-tier KV migration | 20-71% thpt, 18-43% TTFT (search summary, unverified) | exact | 2026-11-16: CODED STRATA_TOOL_IDLE (serve) |
 | A14 restore check: teacher-forced / second recompute control arm | paper 34/36 -> 36/36; CPU reload TTFT -46-64% | exact | tools (restore_check.py --control) |
 
 ### 3. Speculative decoding
@@ -523,11 +523,11 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 | lead | number + hw | exact/lossy | in our src |
 |---|---|---|---|
 | A21 exact sampled speculation + `STRATA_SPEC_MIN_TEMP=0.7` | +5.5% B70 at T1.0; +13.4% 5090 DT 0.85; loses below T~0.7 | exact (distribution) | include/strata/core/spec_prob.hpp:64 |
-| A22 entropy chain stop (AdaEDL) | vs top-1 stop +0.2-9.3% (mean 3.2%); vs best static +4.4-10.5% (Llama2-7B, A100, T0.7) | exact | no (include/strata/spec/disco.hpp:30: entropy not available) |
+| A22 entropy chain stop (AdaEDL) | vs top-1 stop +0.2-9.3% (mean 3.2%); vs best static +4.4-10.5% (Llama2-7B, A100, T0.7) | exact | 2026-11-16: CODED STRATA_SPEC_ENTROPY=adaedl |
 | Top-1 confidence stop (Max-Confidence baseline) | AdaEDL's main baseline; MTP returns top-1 already | exact | include/strata/spec/window_rule.hpp:25 (`--spec-min-p`); src/spec/disco.cpp:106 (`SPEC_CUM`) |
 | DISCO learned stop | 10.3% vs best static, 31.4% vs heuristic (4-dataset avg, A100, greedy) | exact | src/spec/disco.cpp:107 |
-| SVIP entropy-bound draft length | +17% MT-Bench 8K, +22% QwQ (snippet) | exact | 2026-11-15: left |
-| Drafter top-k + entropy on device (extend record 4) | build only if entropy beats top-1 on replay | exact | 2026-11-15: left |
+| SVIP entropy-bound draft length | +17% MT-Bench 8K, +22% QwQ (snippet) | exact | 2026-11-16: CODED STRATA_SPEC_ENTROPY=svip |
+| Drafter top-k + entropy on device (extend record 4) | build only if entropy beats top-1 on replay | exact | 2026-11-16: CODED STRATA_DRAFT_ENTROPY (+ STRATA_DISCO_ENTROPY) |
 | Record 6 target p(d) / Leviathan EAR min(1,p/q) (A56) | metric | exact | include/strata/core/window_trace.hpp:29,125 |
 | A24 cross-session suffix index | replay +2.0% accepted, -2.4% rounds (sub-agents +6.0% / -7.5%); paper 5.3x SQL, 2.5x SWE | exact | src/spec/suffix_index.cpp:279 |
 | A25 position-decay check (draft_report.py) | 0-5% est. | exact | tools only |
@@ -560,12 +560,12 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 | A17 per-effort caps / graceful close | up to 60% drop on late updates; s1 cap is a quality tool | lossy | serve (presets) |
 | A18 effort per task (time-to-success) | "-20-40%" unsourced | lossy | serve (turn log effort) |
 | A20 rumination + entropy close | r=0.91 one model; host logprobs 1.84 ms/token | lossy | serve/server.py:7940 |
-| A40 decode during tools (AsyncFC futures) | 1.40x SWE-bench Lite vs sequential (hosted); our bound 5.4% of span | lossy | 2026-11-15: left |
-| Speculative read-only tool execution (Atomix, PASTE, speculative actions) | PASTE -48.5% task time (unverified) | lossy/side effects | 2026-11-15: left |
-| Agent-run early termination (EarlyEval, EET) | EarlyEval stops 35% runs, -26% steps, -30% tokens; EET -19 to -55% cost, <=0.2 pt (unverified) | lossy | 2026-11-15: left |
+| A40 decode during tools (AsyncFC futures) | 1.40x SWE-bench Lite vs sequential (hosted); our bound 5.4% of span | lossy | 2026-11-16: CODED STRATA_MCP_ASYNC (serve) |
+| Speculative read-only tool execution (Atomix, PASTE, speculative actions) | PASTE -48.5% task time (unverified) | lossy/side effects | 2026-11-16: CODED STRATA_MCP_SPEC (serve) |
+| Agent-run early termination (EarlyEval, EET) | EarlyEval stops 35% runs, -26% steps, -30% tokens; EET -19 to -55% cost, <=0.2 pt (unverified) | lossy | 2026-11-16: CODED STRATA_MCP_EARLY_STOP (serve) |
 | A41 ECLoop hard hold (read-before-edit, test-before-done) | +4.8 to +11.8 pp SWE-bench Verified (hosted); 33/339 edits had no prior read | lossy | hook registered warn-only on the box 2026-11-15 (MOD_PLAN.md D10, T-562) |
 | A38 behaviour counters | pilot 11/21 edit sessions no test after last edit | exact (log) | serve/agent_loop.py:11 |
-| A39 async compaction (Slipstream) | -11.3 to -39.7% vs sync (H100, 9B-36B) | lossy | 2026-11-15: left |
+| A39 async compaction (Slipstream) | -11.3 to -39.7% vs sync (H100, 9B-36B) | lossy | 2026-11-16: CODED STRATA_ASYNC_COMPACT (serve) |
 | A42 externalize big tool output | RLM vs CC+offload 0/+8.7/+16.7% (cross-model); read+bash = 37% of output chars | lossy | serve/agent_loop.py:20 |
 | A43 oldString check | 0 of 339 edits failed | lossy (constraint) / exact (log) | serve/agent_loop.py:24 |
 
@@ -645,8 +645,8 @@ Box: RX 7900 XT (gfx1100, 20 GB) + Ryzen 7 5700G (Zen 3, AVX2, no VNNI) + DDR4 +
 | Expert-cache policy headroom | replay at 44%: engine tier 79.6%, every-window x160 85.0%, per-layer LRU 89.5%, Belady 94.7% | exact | adaptive tier (n/a) |
 | ClassLRU decay (llama.cpp CPU share) | within 0.5 pt hit rate in replay | exact | 2026-11-15: CODED STRATA_ADAPT_CLASSLRU |
 | HybriMoE dynamic intra-layer CPU/GPU split | 1.70x decode / 1.33x prefill over prior hybrid | exact | PcieAuto include/strata/core/pcie_share_rule.hpp:2 |
-| SpecReason step-level speculation | 1.4-3.0x (paper) | lossy | 2026-11-15: left |
-| Reasoning KV compression (R-KV, ThinKV, TIP) | eviction can lengthen traces; TIP needs a trained model | lossy | 2026-11-15: left (TIP part park: trained model) |
+| SpecReason step-level speculation | 1.4-3.0x (paper) | lossy | 2026-11-16: CODED STRATA_SPEC_REASON |
+| Reasoning KV compression (R-KV, ThinKV, TIP) | eviction can lengthen traces; TIP needs a trained model | lossy | 2026-11-16: CODED STRATA_RKV (TIP part park: trained model) |
 
 ### B. Data path (CPU/RAM, PCIe, NVMe, GPU sync)
 
@@ -757,7 +757,7 @@ Dropped as off-target: cluster/batch systems (DeepEP, EPLB, MegaScale, Comet, Mo
 | Per-expert barriers + fused combine in CPU pool | est 1-4% exact; plan measured +2.5% edit | E | include/strata/kernels/cpu/pool.hpp:382 (`STRATA_POOL_FUSE_PHASES`) |
 | Cache-conditional routing (= `turbo`/`STRATA_ROUTE_PRIOR`) | up to 2x phones; ours 111.7->149.3 tok/s 7900 XT, 2.9% diff tokens (3060) | L | include/strata/kernels/route_prior.hpp:12 |
 | AcceptMoE depth-graded verify prior | 1.29x resident / 2.06x offload, traffic -74-77%, -0.27 pts (SGLang) | L | route_prior.hpp:12 (`STRATA_ROUTE_PRIOR_DEPTH`) |
-| OEA sibling-aware routing in verify window | -39% latency at batch 16 | L | 2026-11-15: left |
+| OEA sibling-aware routing in verify window | -39% latency at batch 16 | L | 2026-11-16: CODED STRATA_OEA |
 | HybriMoE / AdapMoE / MoBiLE / BuddyMoE (turbo-family variants) | 1.70x; 1.60-1.72x; BuddyMoE -5% ARC | L | 2026-11-15: CODED STRATA_BUDDY (+ MISS_SKIP_W, DALI) |
 | Cost-aware Belady ceiling (Baleen method) | promo ~115 us vs ~42 us CPU per 1.4 MB expert | - | tools only (time_ceiling.py) |
 | k-th-miss admission (SIEVE/S3-FIFO probation) | SIEVE miss -1.5% avg (up to 63%) | E (rounding) | include/strata/core/epoch_bandit.hpp:9 (`STRATA_ADAPT_KMISS`) |
@@ -771,10 +771,10 @@ Dropped as off-target: cluster/batch systems (DeepEP, EPLB, MegaScale, Comet, Mo
 | FreeToken q* CPU/PCIe split vs `--pcie-frac` | q*~0.36m; ours pcie-frac 0 best (+6/+13%) | E | include/strata/core/calibrate_ratio.hpp:14 |
 | Fiddler token-count threshold for CPU share (prefill/verify) | - | E (rounding) | include/strata/core/arch_defaults.hpp:30 (`PREFILL_CPU_SHARE`) |
 | Athena epoch bandit for mixed opt-ins / POOL_PREREAD | 0-3% | E | include/strata/core/epoch_bandit.hpp:10 |
-| Activation sparsity masks (Berkeley gate / TEAL / CATS / SpAx / CHESS / per-family) | Berkeley 84.5-87.4% Qwen3.5; TEAL 40% PPL 6.21 vs 5.87; SpAx 2.06x@4bit | L | 2026-11-15: left |
-| BlockFFN union-over-window sparsity column | 80% -> 71% at 8-token union | - | 2026-11-15: left |
+| Activation sparsity masks (Berkeley gate / TEAL / CATS / SpAx / CHESS / per-family) | Berkeley 84.5-87.4% Qwen3.5; TEAL 40% PPL 6.21 vs 5.87; SpAx 2.06x@4bit | L | 2026-11-16: CODED STRATA_TEAL |
+| BlockFFN union-over-window sparsity column | 80% -> 71% at 8-token union | - | 2026-11-16: CODED STRATA_TEAL_UNION |
 | CETT-PPL-1% per-layer threshold (Sparsing Law) | - | - | 2026-11-15: method |
-| Transposed n_ff-major down layout (PowerInfer) | prereq for any column skip | E | 2026-11-15: left |
+| Transposed n_ff-major down layout (PowerInfer) | prereq for any column skip | E | 2026-11-16: CODED STRATA_DOWN_T |
 | T-MAC LUT GEMV / Q2_0 kernel micro-bench | T-MAC up to 6.6x vs 2024 llama.cpp | E | 2026-11-15: method |
 | HOBBIT/MC-MoE low-precision copy for misses | MC-MoE 2.54 bit, <0.6% loss; HOBBIT <=1% GSM8K | L | include/strata/artifact/shadow_pack.hpp:1 (A27) |
 | IQ3-hot / IQ2-cold per-tensor mix from two GGUFs (Precision scaling law + LQ-LoRA ILP) | PTQ loss grows with pretrain tokens (<=1.7B fit) | L | 2026-11-15: method |
@@ -792,15 +792,15 @@ Dropped as off-target: cluster/batch systems (DeepEP, EPLB, MegaScale, Comet, Mo
 | Draft source as learned action (bandit) | 0-5% est | E | include/strata/spec/draft_source.hpp:1 (source, not learned) |
 | SuffixDecoding cross-session index + frequency scoring | up to 3.9x SWE-Bench, ~2.2x vs EAGLE-2/3 | E | include/strata/spec/suffix_index.hpp:1 (A24) |
 | MTP per-position decay check (SD Illusion) | 0.92/0.68/0.38; verify 42-95% of time | E | 2026-11-15: already spec depth + accepted_hist |
-| Typical acceptance on thinking only (Medusa) | est 5-15% on thinking | L | 2026-11-15: left |
+| Typical acceptance on thinking only (Medusa) | est 5-15% on thinking | L | 2026-11-16: CODED STRATA_TYPICAL_THINK |
 | Cactus KL-budget acceptance | acc 4.27->5.44, 1.88x vs 1.81x (T>0) | L | 2026-11-15: park: MOD_PLAN 8 scope |
-| AdaSD adaptive length rule (as DISCO check) | - | L (relaxed accept) | 2026-11-15: left |
-| Token Recycling drafter | ~2x SpecBench, <2 MB matrix | E | 2026-11-15: left |
-| SSD-lite (Saguaro): precompute ngram drafts on CPU during verify | Saguaro ~30% over best SD (dedicated H100 drafter) | E | 2026-11-15: left |
-| Staged SD / Hydra top-2 tree | Hydra 1.31x vs Medusa; staged 3.16x GPT-2-L | E | 2026-11-15: left |
+| AdaSD adaptive length rule (as DISCO check) | - | L (relaxed accept) | 2026-11-16: CODED STRATA_SPEC_ENTROPY=adasd (length rule) |
+| Token Recycling drafter | ~2x SpecBench, <2 MB matrix | E | 2026-11-16: CODED STRATA_TOKEN_RECYCLE |
+| SSD-lite (Saguaro): precompute ngram drafts on CPU during verify | Saguaro ~30% over best SD (dedicated H100 drafter) | E | 2026-11-16: CODED STRATA_SSD_LITE |
+| Staged SD / Hydra top-2 tree | Hydra 1.31x vs Medusa; staged 3.16x GPT-2-L | E | 2026-11-16: CODED STRATA_HYDRA_TOP2 |
 | ReplaySSM audit of GDN replay (u ring buffer) | 1.87-1.96x batched vLLM; ours est 1-3% decode, 0-8% spec | E | 2026-11-15: method (superseded by GDN_SPECLA) |
 | SpecLA: recover accepted GDN states from verify factors (no replay) | - | E | 2026-11-15: CODED STRATA_GDN_SPECLA |
-| LongSpec/Hybrid Tree: verify rows read prefix KV once | ~75% less attn latency vs HF | E | 2026-11-15: left |
+| LongSpec/Hybrid Tree: verify rows read prefix KV once | ~75% less attn latency vs HF | E | 2026-11-16: CODED STRATA_ATTN_QMAJOR |
 | Exact speculative sampling for T>0 requests | - | E | include/strata/core/coupled_draft.hpp:65 (`STRATA_SPEC_PROB`) |
 
 ### GPU kernels, attention, prefill
@@ -810,14 +810,14 @@ Dropped as off-target: cluster/batch systems (DeepEP, EPLB, MegaScale, Comet, Mo
 | Gated Residual small-M fusion (SGLang M=4) | Mix 2.05x, Combine 1.96x; +7.6% / +5.49% e2e (B200) | E | include/strata/core/switch_report.hpp:35 (`STRATA_EXPDEC_SWIGLU`); GR_FUSED in conversation_disk_env.def:418 |
 | GDN prefill chunk 64 + 16x16 block inverse + fused prep (gfx11 path is chunk 16) | est 5-11% prefill (GDN 22% of prefill) | E (FP16 parity) | include/strata/prefill/gdn_chunk.hpp:1 (sm_70 only, chunk 64) |
 | BFLA sparse prefill on QSA layers (measured on Flash-Next) | 1.342-1.435x TTFT @128-256K, LongBench 57.32=57.32 (H200) | L | include/strata/kernels/bfla.hpp:1 |
-| XAttention block-sparse prefill >64K | up to 13.5x @256K vs FA | L | 2026-11-15: left |
+| XAttention block-sparse prefill >64K | up to 13.5x @256K vs FA | L | 2026-11-16: CODED STRATA_XATTN (q36) |
 | Quest / Twilight sparse decode attention | Quest 2.23x self-attn | L | 2026-11-15: CODED STRATA_QSA_PAGE_SEL |
 | FLUTE duplicated LUT in LDS (bank conflicts) | 0-10% GPU expert time if conflicts | E | include/strata/kernels/iq_kernels.hpp:136 (`STRATA_IQ_LUT_DUP`) |
 | UFMG coordinate-descent launch/tile sweep | 5.5-8.5% untuned (A100); est 1-3% ours | E | 2026-11-15: method |
 | SageAttention/SpargeAttn | CUDA only | L | 2026-11-15: park: CUDA only |
 | XGrammar-2 TagDispatch (grammar masks only after tag) | - | E | 2026-11-15: already grammar/guard.hpp:36 |
 | QuaRot folded Hadamard (if rotated GGUF appears) | Llama2-70B 4-bit <=0.47 PPL | E (runtime) | include/strata/kernels/cpu/expert_layout.hpp:109 (hadamard path) |
-| LQER/QERA low-rank error correction | - | L | 2026-11-15: left |
+| LQER/QERA low-rank error correction | - | L | 2026-11-16: CODED STRATA_LQER |
 | QTIP / IQ*_KT | ~0.2 bpw gain (ik) | - | src/kernels/cpu/tq_computed.hpp:7 |
 | YAQA KL-based imatrix | -30% KL, needs backward | - | 2026-11-15: method |
 
@@ -898,10 +898,10 @@ Dropped as irrelevant to a single 7900 XT box: NVIDIA-only kernels (#31802, #315
 | lead | number + hw | exact/lossy | in our src |
 |---|---|---|---|
 | llama.cpp #31751 `#pragma unroll 1` stops J=32 MMQ register spills (Q8_0-layout types) | PP17 +36.5%, PP32 +36.1%; W7800 gfx1100, ROCm 10.1, Q8_0 | exact | 2026-11-15: CODED STRATA_MMQ_RDNA3_J32_ROLLED |
-| llama.cpp #31746 D256 MMA FA tune for gfx1100 | attn op 0.70-0.84x of master; W7800 ROCm 10.1 | exact (rounding) | 2026-11-15: left |
-| llama.cpp #31234 / #30792 native q4/q8 KV in FA tile kernel | q4_0 tg +13% @64k, +24% @131k; R9700 RDNA4 | exact | 2026-11-15: left |
+| llama.cpp #31746 D256 MMA FA tune for gfx1100 | attn op 0.70-0.84x of master; W7800 ROCm 10.1 | exact (rounding) | 2026-11-16: CODED build macro STRATA_PA_SCHED_FENCE |
+| llama.cpp #31234 / #30792 native q4/q8 KV in FA tile kernel | q4_0 tg +13% @64k, +24% @131k; R9700 RDNA4 | exact | 2026-11-16: already qsa_decode_attn.cu int8 / q4_0 KV |
 | llama.cpp #29948/#31188 (+#30489) gate/up+GLU (+Q8_1 quant) fused in one launch | pp16384 +6-17% NVIDIA; gfx906 -15..-50% (#31599) | exact | yes, own: `src/kernels/cuda/s_gemv_pair.cu:1` |
-| llama.cpp #31047 linearized MoE layout / tile tuning | 2-4%; NVIDIA | exact | 2026-11-15: left |
+| llama.cpp #31047 linearized MoE layout / tile tuning | 2-4%; NVIDIA | exact | 2026-11-16: CODED STRATA_MMQ_LINEAR |
 | llama.cpp #31443 / #31660 qwen4exp conv-state copies (tail w/o cont; snapshots in one set_rows) | "free 2%" QFN gen; NVIDIA | exact | 2026-11-15: already gdn_conv_commit |
 | llama.cpp #31625 HIP fast-math | none given | lossy-risk | 2026-11-15: CODED cmake STRATA_HIP_FAST_MATH |
 | llama.cpp #31838 fixed rocBLAS workspace (= U4 432433637) | untested | exact | N/A (rocBLAS opt-in only; hipBLASLt workspace once) |
@@ -962,8 +962,8 @@ Dropped as irrelevant to a single 7900 XT box: NVIDIA-only kernels (#31802, #315
 | Disk prompt cache #28092 | avoids ~70 s cold prefill @131k | exact | yes (conversation disk tier) |
 | #30188 `cache_prompt:false` title requests do not evict agent prompt | none | exact | unchecked (serve has `strata_checkpoint` per request) |
 | Multi-slot #30992 / #30970 / #29738 | latency only | exact | n/a |
-| Strata thinking skip for short answers (PR #5512) | 0/6 -> 5/6 answered @max_tokens 24; median 0.72 -> 0.50 s | lossy (behaviour) | 2026-11-15: left |
-| Strata `POST /v1/tune` + `--conv-route` (PR #5516) | single-shot TTFT -42%; prefill +10.1% code w/ cache off | exact | 2026-11-15: left |
+| Strata thinking skip for short answers (PR #5512) | 0/6 -> 5/6 answered @max_tokens 24; median 0.72 -> 0.50 s | lossy (behaviour) | 2026-11-16: CODED STRATA_THINKING_POLICY (serve) |
+| Strata `POST /v1/tune` + `--conv-route` (PR #5516) | single-shot TTFT -42%; prefill +10.1% code w/ cache off | exact | 2026-11-16: CODED STRATA_TUNE, STRATA_CONV_ROUTE (serve) |
 | Maya prompt memo (incremental re-tokenize of re-sent history) | follow-up -6% @115K; 3x V100 GLM | exact | yes `serve/loop_guard.py:365` (STRATA_PROMPT_MEMO) |
 | Keep-alive after streamed response #30492 | 1 TCP reconnect/turn saved | exact | unchecked |
 | Tolerant tool-call recovery (98.3% vs 92.9% of 1,462 turns) + Maya unclosed `<parameter=` | Strata corpus, Qwen3.8 | exact | yes `serve/frontend.py:1406` |
@@ -1030,8 +1030,8 @@ Profile basis (short case, fast-hip preset minus deferral, `--spec 4 --spec-min-
 | Item 14 ROUTER_FUSE w/o deferral | ~0.6-1%; TASKS: lossy, needs quality gate | check output | yes |
 | Item 15 PIPED_MTP: inert without `--batch-mtp` + layer-split stages (generate.cpp:7194/7245/7406) | AMUSD 29% (paper excerpt) | claimed exact | yes |
 | Item 16 `hipStreamWaitValue32` replacing spin kernels; `hipDeviceAttributeCanUseStreamWaitValue`=1 on 7900 XT (ROCm core-10.0) | ceiling ~0.3% node cost, latency unchanged; must honour `release_gpu_waits` UINT32_MAX watchdog (verify.cpp:612-625) | exact | symbol referenced (3 files) |
-| Item 17 commit into window graph, device-side accept | <=2.6% + one launch | exact iff accept matches | 2026-11-15: left (MOD_PLAN 6 item 17) |
-| Item 18 fused argmax+accept (SonicSampler 2607.20475) | ~0 on greedy; host head sync verify.cpp:4228/4234 only for sampled | exact if tie-breaks match | 2026-11-15: left (MOD_PLAN 6 item 17) |
+| Item 17 commit into window graph, device-side accept | <=2.6% + one launch | exact iff accept matches | 2026-11-16: CODED STRATA_DEVICE_ACCEPT |
+| Item 18 fused argmax+accept (SonicSampler 2607.20475) | ~0 on greedy; host head sync verify.cpp:4228/4234 only for sampled | exact if tie-breaks match | 2026-11-16: CODED STRATA_HEAD_ARGMAX_FUSED (needs -DSTRATA_HIP_HEAD_FMT=ON) |
 | Item 19 VERIFY_DEFER_CPU | +15.8% +-3.9 edit, short n.s.; DEFER_AUTO -1.2..-12.5% | LOSSY | yes |
 | Item 20 Mirror-SD (2.8-5.8x, +30% vs EAGLE3) / PipeSpec (2.25 vs 1.5) / AMUSD (29%) / Speculative Aggregation | papers, datacenter GPUs, need 2nd draft model | claimed exact | 2026-11-15: park: second accelerator |
 | Consumer-HW spec-decode caution (Apple silicon: best 1.61x, 3 of 5 configs slower) arXiv:2607.17283 | Apple M-series | exact (chi2 p=0.976) | n/a |

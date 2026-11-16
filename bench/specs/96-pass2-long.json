@@ -1,0 +1,33 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "longdec10k",
+    "longdec32k"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "rkv": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_RKV": "64"
+      }
+    },
+    "attn-qmajor": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ATTN_QMAJOR": "1"
+      }
+    },
+    "select-split2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SELECT_SPLIT2": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 18, second pass, long-context decode: R-KV cache compression (lossy), LongSpec query-major decode attention (exact), SELECT_SPLIT2 (acts only where the WMMA scorer runs). Stop pancake.service first."
+}

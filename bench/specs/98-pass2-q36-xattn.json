@@ -1,0 +1,21 @@
+{
+  "base": "configs/pancake/qwen36-ud-q4_k_xl-q36.json",
+  "lossy": true,
+  "cases": [
+    "longdec32k",
+    "longdec64k"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "xattn": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_XATTN": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 18, second pass: XAttention (> 64K, strata-q36 only; lossy). Stop pancake.service first."
+}
