@@ -2422,6 +2422,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(knob_trial_test src/program/knob_trial_test.cpp)   # MOD_PLAN.md section 6 item 36: STRATA_KNOB_TRIAL decision rule
   target_include_directories(knob_trial_test PRIVATE include)
   add_test(NAME knob_trial_test COMMAND knob_trial_test)
+  add_executable(ckpt_async_plan_test src/program/ckpt_async_plan_test.cpp)   # MOD_PLAN.md section 6 item 37: STRATA_CKPT_ASYNC on HIP
+  target_include_directories(ckpt_async_plan_test PRIVATE include)
+  add_test(NAME ckpt_async_plan_test COMMAND ckpt_async_plan_test)
   add_executable(diag_rules_test src/core/diag_rules_test.cpp)   # MOD_PLAN.md section 7: T-602 guard rule, T-613 / T-630 diagnostic lines
   target_include_directories(diag_rules_test PRIVATE include)
   add_test(NAME diag_rules_test COMMAND diag_rules_test)
@@ -3960,6 +3963,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     recycle_drafts_test
     knob_trial_test
+    ckpt_async_plan_test
     diag_rules_test
     lookahead_weights_test
     prefetch_prev_test

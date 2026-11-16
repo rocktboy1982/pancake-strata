@@ -1,6 +1,7 @@
 #include "strata/core/conversation_snapshot.hpp"
 #include "conversation_checked.hpp"
 #include "conversation_copy.hpp"
+#include "strata/program/ckpt_async_plan.hpp"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -282,13 +283,20 @@ VramSlot* vram_slot_for(size_t n, int dev) {
     }
     return best;
 }
-bool ckpt_async_on() {
-#if defined(STRATA_USE_HIP) || defined(STRATA_HIP_GFX906) || defined(STRATA_GPU_METAL)
-    return false;
+// MOD_PLAN.md section 6 item 37: HIP too (the compat header maps the stream / pinned / event calls); the rules are in
+// strata/program/ckpt_async_plan.hpp.  Unset: off everywhere, as before.
+#if defined(STRATA_GPU_METAL)
+constexpr strata::program::CkptBackend kCkptBackend = strata::program::CkptBackend::Metal;
+#elif defined(STRATA_HIP_GFX906)
+constexpr strata::program::CkptBackend kCkptBackend = strata::program::CkptBackend::HipGfx906;
+#elif defined(STRATA_USE_HIP)
+constexpr strata::program::CkptBackend kCkptBackend = strata::program::CkptBackend::Hip;
 #else
-    static const bool on = [] { const char* v = std::getenv("STRATA_CKPT_ASYNC"); return v != nullptr && v[0] == '1'; }();
-    return on;
+constexpr strata::program::CkptBackend kCkptBackend = strata::program::CkptBackend::Cuda;
 #endif
+bool ckpt_async_on() {
+    static const bool on = strata::program::ckpt_async_allowed(kCkptBackend, std::getenv("STRATA_CKPT_ASYNC"));
+    return on;
 }
 // STRATA_CKPT_GATHER=1 (CUDA, opt-in): the small running-state vectors (ple, then each layer's indexer tail, dead row
 // and block position: 1 + 3 x layers pieces) are gathered device to device into one buffer, allocated once, and
@@ -389,7 +397,11 @@ bool checkpoint_save(ConversationCheckpoint& c, const SessionState& ss, const Mo
             (void) cudaStreamDestroy(a.stream); (void) cudaSetDevice(cur);
             a.stage = a.host = nullptr; a.stream = nullptr; a.cap = 0;
         }
-        if (a.stage == nullptr) {
+        size_t stage_free = 0, stage_total = 0;   // (HIP: the one-time stage buffer needs room beside the decode's VRAM)
+        const bool stage_room = a.stage != nullptr || kCkptBackend != strata::program::CkptBackend::Hip ||
+            (cudaMemGetInfo(&stage_free, &stage_total) == cudaSuccess &&
+             strata::program::ckpt_stage_room_ok(kCkptBackend, stage_free, c.gdn.size()));
+        if (a.stage == nullptr && stage_room) {
             if (cudaMalloc(&a.stage, c.gdn.size()) == cudaSuccess && cudaMallocHost(&a.host, c.gdn.size()) == cudaSuccess &&
                 cudaStreamCreateWithFlags(&a.stream, cudaStreamNonBlocking) == cudaSuccess) { a.cap = c.gdn.size(); a.dev = dev; }
             else { if (a.stage) (void) cudaFree(a.stage); if (a.host) (void) cudaFreeHost(a.host); a.stage = a.host = nullptr; }
