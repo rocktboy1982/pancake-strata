@@ -1,0 +1,52 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "preread": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1"
+      }
+    },
+    "preread-skipw05": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_MISS_SKIP_W": "0.05"
+      }
+    },
+    "preread-skipw05-skipdropped": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_MISS_SKIP_W": "0.05",
+        "STRATA_LOOKAHEAD_SKIP_DROPPED": "1"
+      }
+    },
+    "preread-skipcum90": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_MISS_SKIP_CUM": "0.9"
+      }
+    },
+    "preread-skipcum90-skipdropped": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_MISS_SKIP_CUM": "0.9",
+        "STRATA_LOOKAHEAD_SKIP_DROPPED": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 39, LEADS.md Part I I6: STRATA_LOOKAHEAD_SKIP_DROPPED=1 (coded, lookahead_skip.hpp): with the miss-skip rule on (STRATA_MISS_SKIP_W / _CUM, spec 88 values, LOSSY by that rule), the look-ahead leaves unwarmed the predicted experts the rule would drop (predicted shares = softmax of the host router's top-k logits). The pair that isolates the switch is `preread-skipw05` vs `preread-skipw05-skipdropped` (and the cum90 pair); `preread` is the look-ahead without any skip. The switch changes only what is warmed, so the two arms of a pair emit the same text (drift_check / DIFFERENT would be a bug). Expected effect: small (fewer wasted warms); in our engine a warm does not make an expert GPU-resident, so the 'un-drop' mechanism of BigMoeOnEdge applies only with STRATA_FS_SLOTS. The log line 'strata lookahead: SKIP_DROPPED on' shows it acted, 'skip-dropped: N predicted entries left cold' (with STRATA_LOOKAHEAD_STATS=1) how often. Stop pancake.service first."
+}

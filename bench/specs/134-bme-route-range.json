@@ -1,0 +1,43 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "prior-0.5": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PRIOR": "0.5"
+      }
+    },
+    "range-0.05": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PRIOR": "1",
+        "STRATA_ROUTE_RANGE": "0.05"
+      }
+    },
+    "range-0.15": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PRIOR": "1",
+        "STRATA_ROUTE_RANGE": "0.15"
+      }
+    },
+    "range-0.30": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PRIOR": "1",
+        "STRATA_ROUTE_RANGE": "0.30"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 39, LEADS.md Part I I4: STRATA_ROUTE_RANGE=L (coded, route_range.hpp + route_prior.cu; LOSSY): the route-prior bonus is L x the token's own logit range (max - min of its 512 router logits) instead of lambda in raw logit units; STRATA_ROUTE_PRIOR only has to be set (any value above 0), L replaces lambda. BigMoeOnEdge's own --expert-substitute: L=0.15 decode +62% at perplexity +1-4% on their host, L=0.30 perplexity +25% (theirs, not reproduced). Arms: range 0.05 / 0.15 / 0.30 against `prior-0.5` (STRATA_ROUTE_PRIOR=0.5, the absolute-lambda arm of T-294: +25% decode, token mismatch +1.66 points on the 3060). A PROMOTE needs the quality gate before any adoption: python tools/pancake/quality_gate.py with the arm's env (token forcing), and the task gate for a lossy preset. The route prior acts on 512-expert, top-10 routers only (the kernel's NE == 512 && K == 10 guard): read the switch report that it acted. Stop pancake.service first. Screen, then confirm."
+}

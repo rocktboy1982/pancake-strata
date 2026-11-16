@@ -1,0 +1,47 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "preread": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1"
+      }
+    },
+    "preread-trained-b8": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_LOOKAHEAD_WEIGHTS": "<REPO>/data/lookahead-weights.lkw",
+        "STRATA_LOOKAHEAD_B": "8"
+      }
+    },
+    "preread-trained-b16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_LOOKAHEAD_WEIGHTS": "<REPO>/data/lookahead-weights.lkw",
+        "STRATA_LOOKAHEAD_B": "16"
+      }
+    },
+    "preread-trained-b8-tau": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_LOOKAHEAD_WEIGHTS": "<REPO>/data/lookahead-weights.lkw",
+        "STRATA_LOOKAHEAD_B": "8",
+        "STRATA_LOOKAHEAD_TAU": "0.05"
+      }
+    }
+  },
+  "note": "SKELETON, cannot run until the predictor file exists. MOD_PLAN.md section 6 item 29 (fork ElXreno 2c1219eb, e8c82e8f): a trained per-layer look-ahead predictor in place of the router (STRATA_LOOKAHEAD_WEIGHTS, _B budget, _TAU probability floor; the GPU look-ahead is switched off when weights load). Make the file on the box: (1) a data run with STRATA_PRED_DUMP=<dir> on a served workload (short, edit, an agent replay; the trace is large: n_embd x 2 bytes per token per layer), (2) python tools/pancake/fit_lookahead.py <dir> --n-embd N --n-layers 48 --n-expert 512 --out data/lookahead-weights.lkw (prints held-out overlap and non-resident recall per layer), (3) this spec. Compare against `preread` (the router-based look-ahead on the same warming source), not base. Before the A/B read the fit's per-layer table: if the held-out non-resident recall is not far above the router's 19-29% (MOD_PLAN.md item 29), do not run it. Exact: prefetch only. Stop pancake.service first."
+}

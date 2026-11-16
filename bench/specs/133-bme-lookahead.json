@@ -1,0 +1,43 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "preread": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1"
+      }
+    },
+    "preread-prev1": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_PREFETCH_PREV": "1"
+      }
+    },
+    "preread-prev2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_PREFETCH_PREV": "2"
+      }
+    },
+    "preread-prev4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_PREFETCH_PREV": "4"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 39, LEADS.md Part I I1: STRATA_PREFETCH_PREV=K (coded, prefetch_prev.hpp; the look-ahead thread also warms the previous token's experts of layers l+1..l+K). The look-ahead thread only exists when the expert source warms or STRATA_FS_SLOTS / STRATA_LOOKAHEAD_STATS is set, and the daily preset's arena warms only under STRATA_POOL_PREREAD=1: so the arms that matter are judged against `preread`, NOT against `base` (base has no look-ahead thread, so the prev arms differ from it by the whole thread). BigMoeOnEdge measured the previous-token prefetch as a loss where a miss is a flash read (gpt-oss, 2x slower); ours are RAM/PCIe misses, so this is an arm, not a prediction. Exact: prefetch only, outputs unchanged (drift_check reads it). Read the engine log line 'strata lookahead: PREFETCH_PREV on' to see the switch acted, and run once with STRATA_LOOKAHEAD_STATS=1 to read 'prev-prefetch: N experts warmed'. Stop pancake.service first. Screen, then confirm."
+}
