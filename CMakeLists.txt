@@ -2419,7 +2419,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(tier_miss_budget_test src/program/tier_miss_budget_test.cpp)   # MOD_PLAN.md section 6 item 20: STRATA_TIER_MISS_BUDGET
   target_include_directories(tier_miss_budget_test PRIVATE include)
   add_test(NAME tier_miss_budget_test COMMAND tier_miss_budget_test)
-  add_executable(lookahead_ctrl_test src/program/lookahead_ctrl_test.cpp)   # MOD_PLAN.md section 6 item @BME@: STRATA_LOOKAHEAD_CTRL
+  add_executable(lookahead_skip_test src/program/lookahead_skip_test.cpp)   # MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I): STRATA_LOOKAHEAD_SKIP_DROPPED
+  target_include_directories(lookahead_skip_test PRIVATE include)
+  add_test(NAME lookahead_skip_test COMMAND lookahead_skip_test)
+  add_executable(lookahead_ctrl_test src/program/lookahead_ctrl_test.cpp)   # MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I): STRATA_LOOKAHEAD_CTRL
   target_include_directories(lookahead_ctrl_test PRIVATE include)
   add_test(NAME lookahead_ctrl_test COMMAND lookahead_ctrl_test)
   # MOD_PLAN A15 / F1: a recorded request trace through the real ConversationCache (tools/pancake/park_sim.py drives it offline)
@@ -3936,6 +3939,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     recycle_drafts_test
+    lookahead_skip_test
     lookahead_ctrl_test
     draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test head_shortlist_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test

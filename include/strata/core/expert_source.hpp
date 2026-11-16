@@ -26,6 +26,7 @@
 #include "strata/core/exchange_storage.hpp"
 #include "strata/core/hit_hook.hpp"
 #include "strata/kernels/cpu/pool.hpp"
+#include "strata/program/lookahead_ctrl.hpp"   // STRATA_LOOKAHEAD_CTRL (MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I))
 
 #include <algorithm>
 #include <array>
@@ -346,10 +347,23 @@ public:
     /// dispatch score it against the experts the next layer really routes outside the GPU cache.
     void enable_stats(int64_t n_layers);
     bool stats_on() const { return stats_on_; }
-    void stats_window_start() { gen_.fetch_add(1, std::memory_order_relaxed); }
-    void stats_score(int64_t layer, const int32_t* ids, int64_t n, const int32_t* host_res, int pcie_num = 0);
+    void stats_window_start() {
+        gen_.fetch_add(1, std::memory_order_relaxed);
+        if (ctrl_on_) ++ctl_.windows;
+    }
+    /// `x_true` (the layer's own MoE input rows, host floats) and `k_routed` feed the STRATA_LOOKAHEAD_CTRL control and
+    /// the all-slots overlap; null / 0: only the miss-recall stats.
+    void stats_score(int64_t layer, const int32_t* ids, int64_t n, const int32_t* host_res, int pcie_num = 0,
+                     const float* x_true = nullptr, int64_t k_routed = 0);
+    /// STRATA_LOOKAHEAD_CTRL=1 (measurement only, after enable_stats): the predictor control and the per-layer table
+    /// (include/strata/program/lookahead_ctrl.hpp).  Adds a router GEMV per layer on the dispatch thread and one on the
+    /// predictor thread, so it is for a measurement run only.
+    void enable_ctrl(int64_t n_layers);
+    bool ctrl_on() const { return ctrl_on_; }
     int64_t predicted() const { return predicted_.load(std::memory_order_relaxed); }
     int64_t skipped() const { return skipped_.load(std::memory_order_relaxed); }
+    bool skip_dropped() const { return skip_dropped_; }
+    uint64_t skip_dropped_entries() const { return sd_dropped_.load(std::memory_order_relaxed); }
     double busy_ms() const { return (double) busy_us_.load(std::memory_order_relaxed) / 1000.0; }
 
 private:
@@ -387,6 +401,17 @@ private:
     uint64_t st_windows_ = 0;
     uint64_t st_vhit_[3] = {0, 0, 0}, st_vpred_[3] = {0, 0, 0}, st_pch_ = 0, st_pcov_[3] = {0, 0, 0};
     static constexpr int kVoteN = 16;
+    // STRATA_LOOKAHEAD_SKIP_DROPPED (opt-in; with STRATA_MISS_SKIP_W / _CUM): predicted experts the miss-skip rule would drop stay cold
+    bool skip_dropped_ = false;
+    float sd_w_ = 0.0f, sd_cum_ = 0.0f;
+    std::atomic<uint64_t> sd_dropped_{0};   ///< predicted entries (token x rank) left unwarmed by the rule
+    // STRATA_LOOKAHEAD_CTRL
+    bool ctrl_on_ = false;
+    int ctrl_k_ = 0;                       ///< capacity of one token's stored prediction (k_ when enabled)
+    strata::program::LookaheadCtrlTally ctl_;
+    std::vector<int32_t> ptok_, ctok_;     ///< [layer][8 tokens][ctrl_k_]: stale prediction (what fed the thread / the host BF16 router), -1 = none
+    std::vector<float> ctl_logits_;        ///< 8 x n_expert, the control's router output (dispatch thread)
+    std::vector<float> cpu_logits_;        ///< 8 x n_expert, the predictor thread's host router output
 };
 
 /// Plan v0.3 P6: what the GPU computes in a verify window's layer, written by the pool (mapped host memory) right

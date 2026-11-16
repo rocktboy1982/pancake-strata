@@ -1,5 +1,6 @@
 // src/core/expert_source.cpp - the adapter.  See the header for the three clauses of the contract.
 #include "strata/core/expert_source.hpp"
+#include "strata/program/lookahead_skip.hpp"   // STRATA_LOOKAHEAD_SKIP_DROPPED (MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I))
 #include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/verify_ecap.hpp"
@@ -3257,6 +3258,37 @@ static inline int la_pc64(uint64_t x) {   // (portable: no compiler builtin)
     return n;
 }
 
+// STRATA_LOOKAHEAD_CTRL: the router GEMV on the host, nt rows of x -> logits [nt][n_expert].  The same dispatch as the
+// predictor thread's own (AVX2 / AVX1 / plain), kept separate so that thread's loop is untouched.
+static void la_router_logits(const uint16_t* rw, int64_t n_expert, int64_t n_embd, const float* x, int64_t nt, float* logits) {
+#if defined(__aarch64__) && !defined(STRATA_GPU_METAL)
+    strata::kernels::cpu::bf16_rows_dot_multi(rw, (int) n_expert, (int) n_embd, x, (int) nt, logits);
+#else
+    if (strata::kernels::cpu::cpu_avx2_ok()) {
+        strata::kernels::cpu::bf16_rows_dot_multi(rw, (int) n_expert, (int) n_embd, x, (int) nt, logits);
+    } else if (strata::kernels::cpu::cpu_avx1_ok()) {
+        strata::kernels::cpu::bf16_rows_dot_multi_avx1(rw, (int) n_expert, (int) n_embd, x, (int) nt, logits);
+    } else {
+        for (int64_t r = 0; r < n_expert; ++r) {
+            const uint16_t* wr = rw + (size_t) r * (size_t) n_embd;
+            for (int64_t t = 0; t < nt; ++t) {
+                const float* xr = x + (size_t) t * (size_t) n_embd;
+                float acc = 0.0f;
+                for (int64_t c = 0; c < n_embd; ++c) {
+                    const uint32_t bits = (uint32_t) wr[c] << 16;
+                    float wf;
+                    std::memcpy(&wf, &bits, sizeof wf);
+                    acc += wf * xr[c];
+                }
+                logits[(size_t) t * (size_t) n_expert + (size_t) r] = acc;
+            }
+        }
+    }
+#endif
+}
+
+namespace { float miss_skip_w(); float miss_skip_cum(); }   // defined with the miss-skip block below (STRATA_LOOKAHEAD_SKIP_DROPPED)
+
 RouterLookahead::~RouterLookahead() {
     {
         std::lock_guard<std::mutex> lk(mu_);
@@ -3288,6 +3320,20 @@ bool RouterLookahead::start(std::vector<std::vector<uint16_t>> routers, int64_t 
     n_expert_ = n_expert;
     k_ = k < 1 ? 1 : k > (int) n_expert ? (int) n_expert : k;
     src_ = src;
+    // STRATA_LOOKAHEAD_SKIP_DROPPED=1 (opt-in, read once; MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I), LEADS.md I6): predicted experts the
+    // miss-skip rule (STRATA_MISS_SKIP_W / _CUM) would drop are not warmed.  Needs the rule on; else a note and no effect.
+    if (const char* v = std::getenv("STRATA_LOOKAHEAD_SKIP_DROPPED"); v != nullptr && v[0] == '1') {
+        sd_w_ = miss_skip_w();
+        sd_cum_ = miss_skip_cum();
+        skip_dropped_ = sd_w_ > 0.0f || sd_cum_ > 0.0f;
+        if (skip_dropped_) {
+            cpu_logits_.assign((size_t) (8 * n_expert_), 0.f);
+            std::fprintf(stderr, "strata lookahead: SKIP_DROPPED on (miss-skip share < %.3f, cumulative >= %.3f): predicted experts the rule drops stay cold\n",
+                         (double) sd_w_, (double) sd_cum_);
+        } else {
+            std::fprintf(stderr, "strata lookahead: STRATA_LOOKAHEAD_SKIP_DROPPED ignored: neither STRATA_MISS_SKIP_W nor STRATA_MISS_SKIP_CUM is set\n");
+        }
+    }
     x_.assign((size_t) (8 * n_embd), 0.f);
     thread_ = std::thread([this] {
         strata::platform::name_this_thread("strata-lookahead");
@@ -3316,7 +3362,7 @@ void RouterLookahead::submit(int64_t layer, const float* x, int64_t n_tok, const
         n_tok_ = std::min<int64_t>(n_tok, 8);
         if (gpu_table_ != nullptr)
             gids_.assign(gpu_table_ + layer * gpu_stride_, gpu_table_ + layer * gpu_stride_ + n_tok_ * gpu_k_);
-        else
+        if (gpu_table_ == nullptr || ctrl_on_ || skip_dropped_)   // CTRL / SKIP_DROPPED: the host router needs the rows beside the GPU's picks
             std::memcpy(x_.data(), x, (size_t) (n_tok_ * n_embd_) * sizeof(float));
         layer_ = layer + 1;
         has_res_ = host_res != nullptr;
@@ -3341,13 +3387,48 @@ void RouterLookahead::enable_stats(int64_t n_layers) {
     stats_on_ = true;
 }
 
+void RouterLookahead::enable_ctrl(int64_t n_layers) {
+    if (!stats_on_ || n_layers <= 0) return;
+    ctrl_k_ = k_;
+    ctl_.init((int) n_layers);
+    ptok_.assign((size_t) n_layers * 8 * (size_t) ctrl_k_, -1);
+    ctok_.assign((size_t) n_layers * 8 * (size_t) ctrl_k_, -1);
+    ctl_logits_.assign((size_t) (8 * n_expert_), 0.f);
+    cpu_logits_.assign((size_t) (8 * n_expert_), 0.f);
+    ctrl_on_ = true;
+}
+
 // the dispatch thread: score the prediction made for `layer` against the experts it routes outside the GPU cache
-void RouterLookahead::stats_score(int64_t layer, const int32_t* ids, int64_t n, const int32_t* host_res, int pcie_num) {
+void RouterLookahead::stats_score(int64_t layer, const int32_t* ids, int64_t n, const int32_t* host_res, int pcie_num,
+                                  const float* x_true, int64_t k_routed) {
     if (!stats_on_ || layer < 1 || layer >= (int64_t) routers_.size()) return;
     ++st_layers_;
+    const bool ctrl = ctrl_on_ && x_true != nullptr && k_routed > 0 && n >= k_routed && layer < (int64_t) ctl_.n_layers;
+    const int64_t ctok_n = ctrl ? std::min<int64_t>(n / k_routed, 8) : 0;
+    if (ctrl) {   // control: this layer's router on its OWN true input must give the routing it just made; prev: the token before
+        la_router_logits(routers_[(size_t) layer].data(), n_expert_, n_embd_, x_true, ctok_n, ctl_logits_.data());
+        int32_t top[64];
+        const int kc = (int) std::min<int64_t>(k_routed, 64);
+        for (int64_t t = 0; t < ctok_n; ++t) {
+            const int nc = strata::program::ctrl_topk(ctl_logits_.data() + (size_t) (t * n_expert_), (int) n_expert_, kc, top);
+            ctl_.add((int) layer, strata::program::CtrlKind::Control, top, nc, ids + (size_t) (t * k_routed), (int) k_routed, (int) n_expert_);
+            if (t > 0)
+                ctl_.add((int) layer, strata::program::CtrlKind::Prev, ids + (size_t) ((t - 1) * k_routed), (int) k_routed,
+                         ids + (size_t) (t * k_routed), (int) k_routed, (int) n_expert_);
+        }
+    }
     if (pstamp_[(size_t) layer].load(std::memory_order_acquire) != gen_.load(std::memory_order_relaxed) + 1) {
         ++st_nopred_;
         return;
+    }
+    if (ctrl) {   // all-slots overlap of the stale prediction (equal size to the true k) with the true routing
+        const int np = (int) std::min<int64_t>(k_routed, ctrl_k_);
+        for (int64_t t = 0; t < ctok_n; ++t) {
+            ctl_.add((int) layer, strata::program::CtrlKind::StaleGpu, ptok_.data() + (size_t) ((layer * 8 + t) * ctrl_k_), np,
+                     ids + (size_t) (t * k_routed), (int) k_routed, (int) n_expert_);
+            ctl_.add((int) layer, strata::program::CtrlKind::StaleCpu, ctok_.data() + (size_t) ((layer * 8 + t) * ctrl_k_), np,
+                     ids + (size_t) (t * k_routed), (int) k_routed, (int) n_expert_);
+        }
     }
     std::vector<uint64_t> act((size_t) words_, 0);
     for (int64_t i = 0; i < n; ++i) {
@@ -3422,6 +3503,13 @@ void RouterLookahead::stats_score(int64_t layer, const int32_t* ids, int64_t n, 
                          st_pch_ ? (double) st_pcov_[s] / (double) st_pch_ : 0.0,
                          scored ? (double) st_pch_ / (double) scored : 0.0);
         std::fprintf(stderr, "\n");
+        if (skip_dropped_)
+            std::fprintf(stderr, "strata lookahead skip-dropped: %llu predicted entries left cold by the miss-skip rule\n",
+                         (unsigned long long) sd_dropped_.load(std::memory_order_relaxed));
+        if (ctrl_on_) {   // STRATA_LOOKAHEAD_CTRL: the summary and one line per layer (tools/pancake/lookahead_ctrl.py reads them)
+            std::fprintf(stderr, "%s\n", ctl_.summary_line().c_str());
+            for (int l = 1; l < ctl_.n_layers; ++l) std::fprintf(stderr, "%s\n", ctl_.layer_line(l).c_str());
+        }
     }
 }
 
@@ -3500,6 +3588,18 @@ void RouterLookahead::run() {
             }
         }
 #endif
+        // SKIP_DROPPED: the predicted shares come from the host router's logits (the GPU table only carries ranks)
+        const float* share_logits = nullptr;
+        bool cpu_done = false;
+        if (skip_dropped_) {
+            if (gpu_table_ != nullptr) {
+                la_router_logits(routers_[(size_t) layer].data(), n_expert_, n_embd_, x_.data(), nt, cpu_logits_.data());
+                share_logits = cpu_logits_.data();
+                cpu_done = true;
+            } else share_logits = logits.data();
+        }
+        std::vector<float> sd_top, sd_share;
+        if (skip_dropped_) { sd_top.resize((size_t) k_); sd_share.resize((size_t) k_); }
         int kmax = stats_on_ ? (int) std::min<int64_t>(k_ + 10, n_expert_) : k_;
         if (gpu_table_ != nullptr) kmax = std::min(kmax, gpu_k_);   // the GPU publishes its top-gpu_k_ only
         const int ks[3] = {std::min(k_, kmax), (int) std::min<int64_t>(k_ + 4, kmax), kmax};
@@ -3510,10 +3610,23 @@ void RouterLookahead::run() {
             for (int64_t e = 0; e < n_expert_; ++e) order[(size_t) e] = (int32_t) e;
             std::partial_sort(order.begin(), order.begin() + kmax, order.end(),
                               [&](int32_t a, int32_t b) { return lt[(size_t) a] > lt[(size_t) b]; });
+            if (ctrl_on_ && dj == 0 && t < 8) {   // CTRL: this token's stale top picks (the stamp below publishes them)
+                int32_t* dst = ptok_.data() + (size_t) ((layer * 8 + t) * ctrl_k_);
+                for (int j = 0; j < ctrl_k_; ++j) dst[j] = j < kmax ? order[(size_t) j] : -1;
+            }
+            if (skip_dropped_) {   // this token's predicted shares: softmax of the host logits of its top k_ picks
+                const float* sl = share_logits + (size_t) (t * n_expert_);
+                const int kk = std::min(k_, kmax);
+                for (int j = 0; j < kk; ++j) sd_top[(size_t) j] = sl[(size_t) order[(size_t) j]];
+                strata::program::lookahead_shares(sd_top.data(), kk, sd_share.data());
+            }
             for (int j = 0; j < kmax; ++j) {
                 const int64_t e = order[(size_t) j];
                 if (host_res != nullptr && host_res[(size_t) ((layer - layer0) * n_expert_ + e)] >= 0) continue;   // on the GPU
-                if (j < k_) {
+                const bool sd_drop = skip_dropped_ && j < k_ && j < kmax &&
+                                     strata::program::lookahead_would_drop(sd_share.data(), std::min(k_, kmax), j, sd_w_, sd_cum_);
+                if (sd_drop) sd_dropped_.fetch_add(1, std::memory_order_relaxed);
+                if (j < k_ && !sd_drop) {
                     const auto it = std::find(want.begin(), want.end(), e);
                     // confidence: 1 for a token's top pick down to 1/k_ for its k_-th, the best over the window's tokens,
                     // halved for every layer further ahead than the next (a deeper guess is less often right)
@@ -3524,6 +3637,20 @@ void RouterLookahead::run() {
                 if (stats_on_ && dj == 0)
                     for (int s = 0; s < 3; ++s)
                         if (j < ks[s]) sm[(size_t) (s * words_ + (e >> 6))] |= 1ull << (e & 63);
+            }
+        }
+        if (ctrl_on_ && dj == 0) {   // CTRL: the host BF16 router on the same rows (the FATE definition), next to the GPU's picks
+            for (int64_t t = nt; t < 8; ++t) {
+                std::fill_n(ptok_.data() + (size_t) ((layer * 8 + t) * ctrl_k_), ctrl_k_, -1);
+                std::fill_n(ctok_.data() + (size_t) ((layer * 8 + t) * ctrl_k_), ctrl_k_, -1);
+            }
+            if (gpu_table_ != nullptr && !cpu_done) la_router_logits(routers_[(size_t) layer].data(), n_expert_, n_embd_, x_.data(), nt, cpu_logits_.data());
+            const float* cl = gpu_table_ != nullptr ? cpu_logits_.data() : logits.data();
+            std::vector<int32_t> tk((size_t) ctrl_k_);
+            for (int64_t t = 0; t < nt; ++t) {
+                const int nc = strata::program::ctrl_topk(cl + (size_t) (t * n_expert_), (int) n_expert_, ctrl_k_, tk.data());
+                int32_t* dst = ctok_.data() + (size_t) ((layer * 8 + t) * ctrl_k_);
+                for (int j = 0; j < ctrl_k_; ++j) dst[j] = j < nc ? tk[(size_t) j] : -1;
             }
         }
         if (stats_on_ && dj == 0) {
@@ -5412,7 +5539,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     if (d.lookahead != nullptr) {
         if (d.lookahead->stats_on()) {
             if (d.layers == 0) d.lookahead->stats_window_start();
-            d.lookahead->stats_score(d.layers, ids, n_tok * k, d.host_res, d.pcie_num);
+            d.lookahead->stats_score(d.layers, ids, n_tok * k, d.host_res, d.pcie_num, x_f, k);
         }
         if (!la_after_pub) d.lookahead->submit(d.layers, x_f, n_tok, d.host_res);   // CS-T: warm layer + 1
     }
