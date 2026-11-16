@@ -1,0 +1,44 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 5,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": null
+   }
+  },
+  "sidx-file-4mib": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1",
+    "STRATA_SUFFIX_INDEX_MB": "4",
+    "STRATA_SUFFIX_INDEX_FILE": "/home/dan/clone-of-d/src/d4-confirm-4mib.sxi"
+   }
+  },
+  "sidx-file-16mib": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1",
+    "STRATA_SUFFIX_INDEX_MB": "16",
+    "STRATA_SUFFIX_INDEX_FILE": "/home/dan/clone-of-d/src/d4-confirm-16mib.sxi"
+   }
+  }
+ },
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+  "arms": [
+   "base",
+   "sidx-file-4mib",
+   "sidx-file-16mib"
+  ],
+  "reps": 3
+ },
+ "note": "MOD_PLAN.md section 4 D4 (A24, LEADS.md A24): STRATA_SUFFIX_INDEX=1 with the persistent log STRATA_SUFFIX_INDEX_FILE (suffix_index.cpp attach_log: append-only log of the inserted outputs, reloaded at start) and the ring size STRATA_SUFFIX_INDEX_MB (the 4 MiB / 16 MiB of T-458: -1.00% / -1.71% rounds offline; code default 64). Offline: T-424 (-2.44% rounds), T-458. The preset does not set STRATA_SUFFIX_INDEX (off); base removes it. Drafts only, but speculative rounding can differ: lossy true (a text hash is not an exactness proof). CAVEAT: the log lives across engine starts and abtest repeats the same short / edit prompts, so from the second start on the file arms can draft from an earlier start's identical output and overstate the gain on these two cases: delete /home/dan/clone-of-d/src/d4-confirm-*.sxi before the run, read the first start's rows separately, and treat the replay of a real session (replay_turns.py reads the replay block; the log then fills with different turns) as the honest test. Confirm: python3 tools/pancake/abtest.py bench/specs/121-d4-suffix-index-file.json --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --out bench/results/<day>-121-d4-suffix-index-file.jsonl. Replay: python3 tools/pancake/replay_turns.py bench/specs/121-d4-suffix-index-file.json --out bench/results/<day>-121-d4-replay. Quality gate: spec 121b (own log files). Stop pancake.service first."
+}

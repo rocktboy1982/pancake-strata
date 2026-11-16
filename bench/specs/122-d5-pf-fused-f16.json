@@ -1,0 +1,37 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "long3k",
+  "long",
+  "long32k",
+  "long64k"
+ ],
+ "reps": 1,
+ "arms": {
+  "preset": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "fused0": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_FUSED": "0"
+   }
+  },
+  "f16-1": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "f16-0": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_F16": "0"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 4 D5: the HIP preset carries STRATA_PF_FUSED=1 and STRATA_PF_F16=2 (flashnext-iq2_xs-fast-hip.json); the only A/B was T-093 (pre-HIP preset: 42K -7%, 5K +12% TTFT). Code facts: moe_f16_common.cuh requested() takes the F16 prompt kernels only when STRATA_PF_F16 starts with '1' (and arch_defaults.cpp:185 sets it to 1 by default on gfx1151 only, not on gfx1100), so the preset's value 2 is NOT the F16 kernels: it behaves like unset / 0 (the int8 fused path), to be confirmed in the engine log; STRATA_PF_FUSED is on only for '1'. Arms: preset (as served); fused0 = STRATA_PF_FUSED=0 (the F16 kernels sit on top of the fused path); f16-1 = the F16 matrix-core kernels (rounding differs from int8: lossy); f16-0 = PF_F16 explicitly off, expected to equal preset (a check that 2 is a no-op: a difference there is noise). Cases (prompt tok/s of a cold prompt, one request each at screen; TTFT ~ prompt tokens / prompt tok/s): abtest.py has no 5K or 42K case (LONG_TARGET: long1k, long3k, long ~12K, long32k, long64k), so long3k stands for the 5K end and long32k / long64k bracket 42K; adding long5k / long42k to LONG_TARGET and MAXTOK in tools/pancake/abtest.py is a two-line change if the exact sizes are wanted. Needs --max-context above 64K (the preset has 131072). Run: python3 tools/pancake/abtest.py bench/specs/122-d5-pf-fused-f16.json --tier screen --out bench/results/<day>-122-d5-pf-fused-f16.jsonl, then --tier confirm on an arm that wins. Stop pancake.service first."
+}

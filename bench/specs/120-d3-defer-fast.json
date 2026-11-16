@@ -1,0 +1,24 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": null
+   }
+  },
+  "defer": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_VERIFY_DEFER_CPU": "1"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 4 D3: deferral (STRATA_VERIFY_DEFER_CPU, verify.cpp, lossy) on the IQ2_XS daily preset. The preset does not set it (off); base removes it explicitly, defer = 1. Existing data: T-222 edit +15.8% +-3.9 (short -1.9%), T-260 -0.9% overall (code -7.2%, prose -3.2%). FAST TEST by owner request: 2 runs per arm (one A B B A pair), edit window case plus short. TWO RUNS PER ARM GIVE NO 2% CLAIM: the interval is too wide to prove or reject a 2% effect, so read the result as a direction only (compare with T-222 / T-260) and run the full confirm (--reps 9 --block 3 --warmup 1 --outlier robust) before any decision. Run: python3 tools/pancake/abtest.py bench/specs/120-d3-defer-fast.json --tier confirm --reps 2 --no-early-stop --out bench/results/<day>-120-d3-defer-fast.jsonl. Stop pancake.service first. Lossy: token forcing (quality_gate.py on this spec) only if the direction is worth a confirm."
+}

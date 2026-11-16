@@ -1,0 +1,30 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short"
+ ],
+ "reps": 3,
+ "arms": {
+  "preset": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "root-past": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_CACHE_ROOT_PAST": "1"
+   }
+  }
+ },
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+  "arms": [
+   "preset",
+   "root-past"
+  ],
+  "reps": 3,
+  "shared_system": 1024
+ },
+ "note": "TEST_LEDGER.md T-652: STRATA_CACHE_ROOT_PAST=1 (generate.cpp cache_root_past_env, fork_bugfix_rules.hpp prompt_cache_root_at, ElXreno 00be27a0): the prompt-cache root checkpoint is the first turn boundary at or past --prompt-cache-root (default 2048, the preset does not set it) instead of only the first boundary when that one is past it; with a short system prompt (< 2048 tokens) the old rule gives no root at all. Only a checkpoint position (the K/V of the same tokens is the same): exact. Needs --prompt-cache > 0 (default 6). abtest cannot express a multi-turn cache scenario (its short / edit cases are one-shot requests), so the real test is the replay: shared_system 1024 puts a 1K-token system prompt in front of every conversation (below the 2048 root minimum, the case the switch changes). Reads prompt time per turn and reused tokens; compare total prompt time and cold re-reads vs preset. Run: python3 tools/pancake/replay_turns.py bench/specs/123-cache-root-past.json --out bench/results/<day>-123-cache-root-past (about 13 min per arm and rep). The abtest form (--tier screen) only checks that the switch costs no decode speed on short. Stop pancake.service first."
+}

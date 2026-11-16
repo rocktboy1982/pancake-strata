@@ -1,0 +1,34 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": null
+   }
+  },
+  "sidx-file-4mib": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1",
+    "STRATA_SUFFIX_INDEX_MB": "4",
+    "STRATA_SUFFIX_INDEX_FILE": "/home/dan/clone-of-d/src/d4-gate-4mib.sxi"
+   }
+  },
+  "sidx-file-16mib": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1",
+    "STRATA_SUFFIX_INDEX_MB": "16",
+    "STRATA_SUFFIX_INDEX_FILE": "/home/dan/clone-of-d/src/d4-gate-16mib.sxi"
+   }
+  }
+ },
+ "note": "Token-forcing gate for spec 121 (MOD_PLAN.md section 4 D4; same arms, own log files d4-gate-*.sxi so that the gate does not read the confirm run's logs; the first arm is the stock and is scored twice). Run: python3 tools/pancake/quality_gate.py bench/specs/121b-d4-suffix-index-file-quality.json --out bench/quality-hip/<day>-121b-d4-suffix-index-file (rm /home/dan/clone-of-d/src/d4-gate-*.sxi first; default set bench/quality/set-v2.json). The gate forces fixed tokens, so a PASS says the index leaves the model output unchanged up to rounding; the speed is spec 121's."
+}
