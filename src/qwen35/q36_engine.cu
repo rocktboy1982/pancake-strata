@@ -20,6 +20,7 @@
 #include "strata/core/experts_used.hpp"
 #include "strata/core/family_layout.hpp"
 #include "strata/kernels/bfla.hpp"
+#include "strata/kernels/xattn.hpp"   // STRATA_XATTN
 #include "strata/kernels/fused_gdn.hpp"
 #include "strata/kernels/iq_kernels.hpp"
 #include "strata/kernels/native_mmvq.hpp"
@@ -1333,6 +1334,9 @@ struct Engine {
     size_t bfla_bytes = 0;
     int64_t bfla_end = 0;
     bool bfla_ok = false, bfla_acted = false;
+    void* xattn_scratch = nullptr;   // STRATA_XATTN (xattn.hpp)
+    size_t xattn_bytes = 0;
+    bool xattn_ok = false, xattn_acted = false;
     // the prompt's MMQ experts
     bool use_mmq = false;
     std::unique_ptr<MMQ::Context> mctx;
@@ -1536,6 +1540,15 @@ struct Engine {
                 std::fprintf(stderr, "strata switch: %s will not act: needs head dim 256, 4 / 8 / 16 query heads a KV head and "
                                      "a gfx11 GPU (or its scratch did not fit)\n",
                              strata::kernels::bfla_switch_name(bm));
+        }
+        // STRATA_XATTN=1 (opt-in, lossy; xattn.hpp, LEADS.md "XAttention block-sparse prefill >64K"): the selection scratch
+        if (const auto& xc = strata::kernels::xattn_config(); xc.on) {
+            xattn_bytes = strata::kernels::xattn_scratch_bytes(T, ctx, (int) g.n_head, xc.stride);
+            xattn_ok = cudaMalloc(&xattn_scratch, xattn_bytes) == cudaSuccess;
+            if (!xattn_ok) { (void) cudaGetLastError(); xattn_scratch = nullptr; }
+            std::fprintf(stderr, xattn_ok ? "strata-q36: STRATA_XATTN on (tau %.3g, stride %d, from %lld positions)\n"
+                                          : "strata switch: STRATA_XATTN will not act: its scratch did not fit (tau %.3g, stride %d, %lld)\n",
+                         (double) xc.tau, xc.stride, (long long) xc.min_len);
         }
         use_mmq = MMQ::built() && std::getenv("STRATA_Q36_NO_MMQ") == nullptr;
         auto mmq_ok = [&](const Layer& L) {
@@ -2144,6 +2157,20 @@ struct Engine {
                         bfla_acted = true;
                         std::fprintf(stderr, "strata switch: %s acted: prompt attention of positions %lld..%d by the fused kernel\n",
                                      strata::kernels::bfla_switch_name(bc.mode), (long long) p0, P - 1);
+                    }
+                }
+                // STRATA_XATTN=1 (opt-in, lossy): XAttention's antidiagonal block selection and the block-sparse attention
+                // for chunks reaching STRATA_XATTN_MIN (BFLA first when both are set; false: the GEMM path below)
+                if (!bfla_done && xattn_ok && !rows_mode && !verify && P >= strata::kernels::xattn_config().min_len) {
+                    bfla_done = strata::kernels::xattn_prefill_attn(reinterpret_cast<const uint16_t*>(q16),
+                                                                    reinterpret_cast<const uint16_t*>(k16),
+                                                                    reinterpret_cast<const uint16_t*>(v16), T, p0, H, HKV, HD,
+                                                                    strata::kernels::xattn_config(), xattn_scratch, xattn_bytes,
+                                                                    att, st);
+                    if (bfla_done && !xattn_acted) {
+                        xattn_acted = true;
+                        std::fprintf(stderr, "strata switch: STRATA_XATTN acted: prompt attention of positions %lld..%d\n",
+                                     (long long) p0, P - 1);
                     }
                 }
                 for (int t0 = 0; t0 < T && !bfla_done; t0 += tq) {

@@ -20,6 +20,7 @@
 // an FP32 sigmoid. Native projection overrides independently select CUDA Q8_1 MMVQ and FP32 SwiGLU.
 #include "strata/kernels/shared_expert.hpp"
 #include "strata/kernels/fuse_decode.hpp"
+#include "strata/kernels/ffn_sparse.hpp"   // STRATA_TEAL / STRATA_TEAL_UNION / STRATA_DOWN_T
 #include "strata/kernels/bf16_gemv.hpp"
 #include "strata/kernels/bf16_bits.hpp"
 #include "strata/kernels/f16_bits.hpp"
@@ -233,6 +234,22 @@ void shared_expert_multi(int n_tok, const float* x, const uint16_t* x_bf16, cons
         native_mmvq(nw.up_type, nw.up_data, x_q8_1, up, (int) n_embd, (int) n_ff, n_tok, stream);
     }
     const int n = (int) (n_ff * n_tok);
+    // STRATA_TEAL=<tau> / STRATA_TEAL_UNION=1 / STRATA_DOWN_T=1 (opt-in, lossy; ffn_sparse.hpp, LEADS.md "Activation sparsity
+    // masks", "BlockFFN union-over-window", "Transposed n_ff-major down layout"): the SwiGLU product in F32, the small entries
+    // zeroed (TEAL, or BlockFFN's union over the window's rows), then the down either from the transposed FP16 copy over the
+    // active columns only, or quantized and through the MMVQ as before.  Neither switch set: the paths below, unchanged.
+    const float teal_tau = teal_threshold();
+    if (teal_tau > 0.0f || (nw.down_t != nullptr && nw.down_t_idx != nullptr)) {
+        native_swiglu_kernel<<<(unsigned) ((n + THREADS - 1) / THREADS), THREADS, 0, cs>>>(gate, up, gate, n);
+        if (nw.down_t != nullptr && nw.down_t_idx != nullptr) {
+            teal_sparsify(gate, (int) n_ff, n_tok, teal_tau, teal_union(), nw.down_t_idx, nw.down_t_idx + n_ff, stream);
+            down_t_gemv(nw.down_t, gate, nw.down_t_idx, nw.down_t_idx + n_ff, out, (int) n_ff, (int) n_embd, n_tok, stream);
+        } else {
+            teal_sparsify(gate, (int) n_ff, n_tok, teal_tau, teal_union(), nullptr, nullptr, stream);
+            native_quantize_q8_1(gate, nw.q8_1, (int) n_ff, n_tok, stream);
+            native_mmvq(nw.down_type, nw.down_data, nw.q8_1, out, (int) n_ff, (int) n_embd, n_tok, stream);
+        }
+    } else {
     if (fused_swiglu_q81_enabled()) {
         native_swiglu_quantize_q8_1(gate, up, nw.q8_1, (int) n_ff, n_tok, stream);
     } else {
@@ -240,6 +257,7 @@ void shared_expert_multi(int n_tok, const float* x, const uint16_t* x_bf16, cons
         native_quantize_q8_1(gate, nw.q8_1, (int) n_ff, n_tok, stream);
     }
     native_mmvq(nw.down_type, nw.down_data, nw.q8_1, out, (int) n_ff, (int) n_embd, n_tok, stream);
+    }
     if (gate_deferred) {   // the caller computed g (raw) with the router and scales `out` in the combine
         const cudaError_t e = cudaGetLastError();
         if (e != cudaSuccess) throw std::runtime_error(std::string("shared_expert_multi: ") + cudaGetErrorString(e));

@@ -184,6 +184,14 @@ void q2_0_gguf_rows_multi(const uint8_t* w, size_t row_bytes, int nblocks, const
 /// The same two for CPUs without AVX-512 (src/kernels/cpu/q2_avx2.cpp, compiled for AVX2 only).
 void q2_0_gguf_rows_multi_avx2(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
                                float* const* out, int r0, int r1);
+/// LEADS.md SliceMoE (STRATA_SLICE_MISS, opt-in, lossy): the Matryoshka 1-bit slice of a Q2_0 matrix - each code's high
+/// bit only, a weight of d x (-0.5 | +1.5) (the midpoints of the code pairs {0,1} and {2,3} of d x (code - 1)) - stored
+/// as 10 bytes per 64-weight block (fp16 d, then 8 bytes, bit i = value i's high bit; kQ2HiBlock).  Build it from the
+/// rows once; then the rows read 10 of the 18 bytes.  q2_hi_rows_avx2 is in q2_avx2.cpp (AVX2 only).
+inline constexpr int kQ2HiBlock = 10;
+void q2_hi_plane_build(const uint8_t* w, size_t row_bytes, int nblocks, int rows, uint8_t* dst);
+void q2_hi_rows_scalar(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1);
+void q2_hi_rows_avx2(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1);
 /// STRATA_Q2_BITPLANE=1 (read once): the AVX-2 Q2_0 kernel reads the bit-plane image instead of the legacy one.
 bool q2_bitplane_enabled();
 /// The pre-bit-plane AVX-2 kernel (the default), kept for A/B and parity.

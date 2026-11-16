@@ -281,7 +281,20 @@ struct Harness {
                 daily_same = false;
             }
         }
-        return same && nan == 0 && entry_same && daily_same;
+        // LEADS.md "LongSpec/Hybrid Tree" (STRATA_ATTN_QMAJOR): the default chunk kernel's blocks launched query-fastest
+        // (chunk kernel 2), merged by the upstream merger: bit for bit the reference
+        bool qmajor_same = true;
+        ck(cudaMemset(scratch, 0xFF, scratch_bytes), "scratch NaN refill (qmajor)");
+        k::qsa_decode_attn_chunks_only(q, pools.view(c.fmt, table), ids, steps, c.cap, s, scratch, c.n_q, 2, nullptr);
+        ck(cudaMemset(attn_new, 0x7F, n * 4), "attn_new refill (qmajor)");
+        k::qsa_decode_attn_merge_only(steps, c.cap, s, scratch, attn_new, c.n_q, 0, nullptr);
+        ck(cudaDeviceSynchronize(), "qmajor chunk sync");
+        ck(cudaMemcpy(b.data(), attn_new, n * 4, cudaMemcpyDeviceToHost), "qmajor chunk output");
+        if (std::memcmp(a.data(), b.data(), n * 4) != 0) {
+            std::puts("FAIL query-major chunk kernel (STRATA_ATTN_QMAJOR) differs from upstream reference");
+            qmajor_same = false;
+        }
+        return same && nan == 0 && entry_same && daily_same && qmajor_same;
     }
 };
 

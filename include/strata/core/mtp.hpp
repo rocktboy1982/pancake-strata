@@ -23,6 +23,7 @@
 #include "strata/core/pinned_ring.hpp"
 #include "strata/core/session.hpp"
 #include "strata/kernels/sampler.hpp"
+#include "strata/spec/window_rule.hpp"   // EntropyStop (STRATA_SPEC_ENTROPY)
 
 #include <cuda_runtime.h>
 
@@ -30,7 +31,9 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <string>
+#include <map>
 #include <vector>
 
 namespace strata::core {
@@ -161,6 +164,19 @@ public:
     void set_chain_rule(std::function<bool(int, float)> f) { chain_rule_ = std::move(f); }
     /// Inside a chain rule call (index j): draft j's token, as draft() reads it (STRATA_SPEC_LOOKUP_Q).  -1: none.
     int32_t chain_draft(int j) const { return h_out_ != nullptr && j >= 0 ? ((const volatile int32_t*) h_out_)[j] : -1; }
+    /// LEADS.md section 3 (STRATA_DRAFT_ENTROPY=1 / STRATA_SPEC_ENTROPY): the last draft() round's entropy (nats) and runner-up
+    /// probability of draft j (window row j + 1), copied when the round returned.  NaN when the switch is off, for a row past the
+    /// round's drafts, or for a draft drawn without the full softmax (coupled sampling).
+    float draft_entropy(int j) const { return h_ent_ != nullptr && j >= 0 && j < 16 ? round_ent_[j] : std::numeric_limits<float>::quiet_NaN(); }
+    float draft_top2(int j) const { return h_top2_ != nullptr && j >= 0 && j < 16 ? round_top2_[j] : std::numeric_limits<float>::quiet_NaN(); }
+    /// STRATA_SPEC_ENTROPY (window_rule.hpp EntropyStop): a rule decides, after each draft, whether the chain goes on.
+    bool entropy_stop_on() const { return ent_stop_.on(); }
+    /// After a verified plain MTP window whose `n` drafts came from the last draft() round, `a` of them held (AdaEDL's
+    /// threshold, AdaSD's rejected-entropy mean).  A no-op without a rule.
+    void entropy_observe(int n, int a) { if (ent_stop_.on()) ent_stop_.observe(std::min(n, 16), a, round_ent_); }
+    /// LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): inside a chain rule call, draft j's softmax entropy under the draft
+    /// head (nats).  -1: unknown (switch off, the proxy or coupled pick, which never form the full softmax).
+    float chain_entropy(int j) const { return h_dent_ != nullptr && j >= 0 ? ((const volatile float*) h_dent_)[j] : -1.0f; }
 
     bool draft_first(int T, const float* R_row, int32_t token, int64_t cell, int32_t* drafts, std::string& err,
                      float* probs = nullptr, float min_p = 0.0f, int* n_drafts = nullptr, DraftResult* result = nullptr);
@@ -264,6 +280,9 @@ private:
     bool capture_round(int T, bool coupled, std::string& err);
     bool capture_step(int j, bool coupled, std::string& err);
     cudaGraphExec_t step_exec_[9] = {};
+    /// LEADS.md B28 (STRATA_MTP_ONE_GRAPH=1): the round and steps 1..steps-1 in one graph, keyed by (coupled, T, steps)
+    bool capture_chain(int T, int steps, bool coupled, std::string& err);
+    std::map<int, cudaGraphExec_t> chain_exec_;
     // coupled draft sampling: its own round/step graphs (the argmax ones stay as they were), the request's
     // parameters and the penalty ring (mapped staging + device copies), the split scratch, token id -> subset index
     bool setup_coupled(std::string& err);
@@ -362,6 +381,15 @@ private:
     int32_t *h_pos_ = nullptr, *m_pos_ = nullptr, *h_row_ = nullptr, *m_row_ = nullptr;
     int32_t *h_out_ = nullptr, *m_out_ = nullptr;
     float *h_prob_ = nullptr, *m_prob_ = nullptr;   // each draft's probability under the draft layer
+    // STRATA_DRAFT_ENTROPY (LEADS.md section 3): each draft's entropy / runner-up probability, mapped like h_prob_ (null: off),
+    // their device rows (row_entropy), the last round's host copies, and the STRATA_SPEC_ENTROPY stop rule
+    float *h_ent_ = nullptr, *m_ent_ = nullptr, *h_top2_ = nullptr, *m_top2_ = nullptr;
+    float *ents_ = nullptr, *top2s_ = nullptr;
+    float round_ent_[16] = {}, round_top2_[16] = {};   // (NaN-filled when the buffers are made)
+    strata::spec::EntropyStop ent_stop_;
+    // LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): each draft's softmax entropy (mapped; -1 = unknown) and the rows' (device)
+    float *h_dent_ = nullptr, *m_dent_ = nullptr;
+    float* dent_ = nullptr;
     // the draft head: the main head's rows for a token subset (rt/draft_vocab.bin), or the whole head
     uint8_t* dhead_ = nullptr;
     int32_t* dvocab_ = nullptr;

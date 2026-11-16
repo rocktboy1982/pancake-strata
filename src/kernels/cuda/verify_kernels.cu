@@ -910,6 +910,152 @@ __global__ void row_top_prob_unroll_kernel(const float* __restrict__ logits, int
     }
 }
 
+// LEADS.md section 3 (A22 AdaEDL, SVIP, AdaSD stop rules; "drafter top-k + entropy on device", STRATA_DRAFT_ENTROPY=1):
+// row_top_prob_kernel's scan (one 1024-thread block a row, the row's argmax ids[t] as the reference value) with two more
+// sums and a max: S = sum e^(l_i - m), U = sum e^(l_i - m) (l_i - m), M2 = the largest logit other than ids[t].
+// ent[t] = log S - U / S (the softmax entropy in nats), top2[t] = e^(M2 - m) / S (the runner-up's probability; may be null).
+// A NaN logit makes the row's entropy NaN (the stop rules then keep the draft).  A separate kernel: row_top_prob is untouched.
+__global__ void row_entropy_kernel(const float* __restrict__ logits, int n_vocab, const int32_t* __restrict__ ids,
+                                   float* __restrict__ ent, float* __restrict__ top2) {
+    __shared__ float part_s[32], part_u[32], part_m[32];
+    const int t = blockIdx.x;
+    const float* l = logits + (size_t) t * n_vocab;
+    const int top = ids[t];
+    const float m = l[top];
+    float s = 0.0f, u = 0.0f, m2 = __int_as_float(0xff800000);
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) {
+        const float x = l[i];
+        const float d = x - m;
+        const float e = __expf(d);
+        s += e;
+        if (e > 0.0f || e != e) u += e * d;   // e == 0 (d = -inf): the term is 0, and 0 * -inf would be NaN
+        if (i != top && x > m2) m2 = x;
+    }
+    for (int o = 16; o > 0; o >>= 1) {
+        s += __shfl_xor_sync(0xffffffffu, s, o);
+        u += __shfl_xor_sync(0xffffffffu, u, o);
+        m2 = fmaxf(m2, __shfl_xor_sync(0xffffffffu, m2, o));
+    }
+    if ((threadIdx.x & 31) == 0) {
+        part_s[threadIdx.x >> 5] = s;
+        part_u[threadIdx.x >> 5] = u;
+        part_m[threadIdx.x >> 5] = m2;
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float ts = 0.0f, tu = 0.0f, tm = __int_as_float(0xff800000);
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) {
+            ts += part_s[w];
+            tu += part_u[w];
+            tm = fmaxf(tm, part_m[w]);
+        }
+        ent[t] = __logf(ts) - tu / ts;
+        if (top2 != nullptr) top2[t] = __expf(tm - m) / ts;
+    }
+}
+
+// LEADS.md section 3, Medusa typical acceptance (Cai et al., arXiv 2401.10774, section 2.3.1; STRATA_TYPICAL_THINK): row t of
+// the verify head at temperature `temp` accepts the candidate cand[t] (the draft at row t + 1; < 0: none) when
+// p_t(cand) > min(eps, alpha * exp(-H(p_t))).  One 1024-thread block a row: the max of z = l / temp, then S = sum e^(z - mz),
+// U = sum e^(z - mz) (z - mz); H = log S - U / S, p = e^(z_c - mz) / S.  ok[t] = 1 / 0; pc / hc (may be null): p and H, for
+// the parity test.  NaN logits are skipped by the max and make S NaN: the row then accepts nothing (NaN > x is false).
+__global__ void typical_accept_rows_kernel(const float* __restrict__ logits, int n_vocab, const int32_t* __restrict__ cand,
+                                           float inv_temp, float eps, float alpha, int32_t* __restrict__ ok,
+                                           float* __restrict__ pc, float* __restrict__ hc) {
+    __shared__ float part_s[32], part_u[32];
+    __shared__ float row_max;
+    const int t = blockIdx.x;
+    const float* l = logits + (size_t) t * n_vocab;
+    float mx = __int_as_float(0xff800000);
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) mx = fmaxf(mx, l[i] * inv_temp);
+    for (int o = 16; o > 0; o >>= 1) mx = fmaxf(mx, __shfl_xor_sync(0xffffffffu, mx, o));
+    if ((threadIdx.x & 31) == 0) part_s[threadIdx.x >> 5] = mx;
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float tm = __int_as_float(0xff800000);
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) tm = fmaxf(tm, part_s[w]);
+        row_max = tm;
+    }
+    __syncthreads();
+    const float m = row_max;
+    float s = 0.0f, u = 0.0f;
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) {
+        const float d = l[i] * inv_temp - m;
+        const float e = __expf(d);
+        s += e;
+        if (e > 0.0f || e != e) u += e * d;
+    }
+    for (int o = 16; o > 0; o >>= 1) {
+        s += __shfl_xor_sync(0xffffffffu, s, o);
+        u += __shfl_xor_sync(0xffffffffu, u, o);
+    }
+    __syncthreads();   // (part_s is reused)
+    if ((threadIdx.x & 31) == 0) {
+        part_s[threadIdx.x >> 5] = s;
+        part_u[threadIdx.x >> 5] = u;
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float ts = 0.0f, tu = 0.0f;
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) {
+            ts += part_s[w];
+            tu += part_u[w];
+        }
+        const float H = __logf(ts) - tu / ts;
+        const int c = cand[t];
+        const float p = c >= 0 && c < n_vocab ? __expf(l[c] * inv_temp - m) / ts : 0.0f;
+        const float thr = fminf(eps, alpha * __expf(-H));
+        ok[t] = c >= 0 && c < n_vocab && p > thr ? 1 : 0;
+        if (pc != nullptr) pc[t] = p;
+        if (hc != nullptr) hc[t] = H;
+    }
+// LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): the softmax entropy of each row, H = log Z - sum e^(l-M) (l-M) / Z with
+// Z = sum e^(l-M), M = the row max; one block a row.  logits == nullptr: -1 (unknown) in every row.
+__global__ void row_entropy_disco_kernel(const float* __restrict__ logits, int n_vocab, float* __restrict__ ent) {
+    __shared__ float part[32], part2[32];
+    __shared__ float smax;
+    const int t = blockIdx.x;
+    if (logits == nullptr) { if (threadIdx.x == 0) ent[t] = -1.0f; return; }
+    const float* l = logits + (size_t) t * n_vocab;
+    float m = -3.4e38f;
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) m = fmaxf(m, l[i]);
+    for (int o = 16; o > 0; o >>= 1) m = fmaxf(m, __shfl_xor_sync(0xffffffffu, m, o));
+    if ((threadIdx.x & 31) == 0) part[threadIdx.x >> 5] = m;
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float mm = -3.4e38f;
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) mm = fmaxf(mm, part[w]);
+        smax = mm;
+    }
+    __syncthreads();
+    m = smax;
+    float s = 0.0f, se = 0.0f;
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) {
+        const float d = l[i] - m;
+        const float e = __expf(d);
+        s += e;
+        se += e * d;
+    }
+    for (int o = 16; o > 0; o >>= 1) {
+        s += __shfl_xor_sync(0xffffffffu, s, o);
+        se += __shfl_xor_sync(0xffffffffu, se, o);
+    }
+    __syncthreads();
+    if ((threadIdx.x & 31) == 0) { part[threadIdx.x >> 5] = s; part2[threadIdx.x >> 5] = se; }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float tot = 0.0f, tot2 = 0.0f;
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) { tot += part[w]; tot2 += part2[w]; }
+        ent[t] = tot > 0.0f ? logf(tot) - tot2 / tot : -1.0f;
+    }
+}
+
+// out (mapped) [j] = ent[*row_dev]: draft j's entropy, written before mtp_select publishes the token
+__global__ void pick_entropy_kernel(const float* __restrict__ ent, const int32_t* __restrict__ row_dev, float* out, int j) {
+    ((volatile float*) out)[j] = ent[row_dev != nullptr ? *row_dev : 0];
+    __threadfence_system();
+}
+
 __global__ void mtp_select_kernel(const float* __restrict__ R_src, int64_t stride, const int32_t* __restrict__ ids,
                                   const int32_t* __restrict__ row_dev, float* __restrict__ R_dst,
                                   int32_t* __restrict__ tok_dst, int32_t* out, int j, const float* probs, float* out_p) {
@@ -1025,6 +1171,143 @@ void mtp_select(const float* R_src, int64_t R_stride, const int32_t* ids, const 
     check("mtp_select");
 }
 
+// MOD_PLAN.md section 6 item 17, open part 17 (STRATA_DEVICE_ACCEPT, LEADS.md "Item 17 commit into window graph, device-side
+// accept"): the greedy accept rule of the decode loops (generate.cpp: `while (a < T - 1 && window[a + 1] == out[a]) ++a`)
+// on the device, writing Verifier::commit's record [n_keep, n_keep - 1, cells pos0 .. pos0 + n_keep - 1, then -1] into the
+// mapped commit words the commit graph copies first - so that graph can run right behind the window, stream-ordered, with no
+// host round trip in between.  One block; thread 0 scans (T <= 64), all threads write the cells.
+namespace {
+__global__ void device_accept_commit_kernel(const int32_t* __restrict__ tok, const int32_t* out, int T, int pos0, int max_t,
+                                            DeviceAcceptBound bound, int32_t* commit) {
+    __shared__ int keep_s;
+    if (threadIdx.x == 0) {
+        int a = 0;
+        while (a < T - 1 && tok[a + 1] == ((const volatile int32_t*) out)[a]) ++a;
+        int keep = a + 1;
+        if (bound.on) {   // serve_stop_bound (serve_stop_bound.hpp): at most `remaining` rows, none after an EOS pick
+            const int count = keep < bound.remaining ? keep : (bound.remaining > 0 ? bound.remaining : 0);
+            keep = count;
+            for (int i = 0; i < count; ++i) {
+                const int32_t y = ((const volatile int32_t*) out)[i];
+                bool eos = false;
+                for (int k = 0; k < bound.n_eos; ++k) eos = eos || y == bound.eos[k];
+                if (eos) { keep = i + 1; break; }
+            }
+            if (keep < 1) keep = 1;   // (the caller's commit(0) is refused before it compares)
+        }
+        keep_s = keep;
+        ((volatile int32_t*) commit)[0] = keep;
+        ((volatile int32_t*) commit)[1] = keep - 1;
+    }
+    __syncthreads();
+    const int keep = keep_s;
+    for (int t = (int) threadIdx.x; t < max_t; t += (int) blockDim.x) ((volatile int32_t*) commit)[2 + t] = t < keep ? pos0 + t : -1;
+    __threadfence_system();
+}
+}  // namespace
+
+void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos0, int max_t, const DeviceAcceptBound& bound,
+                          int32_t* commit, void* stream) {
+    device_accept_commit_kernel<<<1, 64, 0, (cudaStream_t) stream>>>(tok, out, T, pos0, max_t, bound, commit);
+    check("device_accept_commit");
+}
+
+// LEADS.md "OEA sibling-aware routing in verify window" (Opportunistic Expert Activation, Oncescu et al., arXiv 2511.02237):
+// a decode batch is memory-bound on the DISTINCT experts it loads.  Phase 1: every row keeps its own top-k0 (by router
+// logit, ties to the lower id).  Phase 2: its remaining k - k0 slots take, in logit order, only experts some row of the
+// window already chose in phase 1 ("piggybacking": no new expert loads).  A slot left with no candidate repeats the row's
+// first expert at weight 0.  Weights as router_top10: softmax over all experts, gathered, renormalised over the kept
+// slots with the 2^-14 lower clamp.  One block; warp r handles row r (n <= 16, n_expert <= 1024, k <= 16).
+namespace {
+__device__ __forceinline__ void oea_take(float ov, int oi, float& bv, int& bi) {
+    if (ov > bv || (ov == bv && oi < bi)) { bv = ov; bi = oi; }
+}
+__global__ void oea_route_window_kernel(const float* __restrict__ logits, int n, int ne, int k, int k0,
+                                        int32_t* __restrict__ ids, float* __restrict__ w) {
+    __shared__ unsigned umask[32];          // phase-1 union, 1024 experts
+    __shared__ unsigned rmask[16][32];      // per row: already taken
+    __shared__ int sid[16][16];             // per row: the slots' experts (written to `ids` at the end)
+    const int lane = (int) (threadIdx.x & 31), r = (int) (threadIdx.x >> 5);
+    if (threadIdx.x < 32) umask[threadIdx.x] = 0u;
+    if (r < 16) rmask[r][lane] = 0u;
+    __syncthreads();
+    const float* l = logits + (size_t) (r < n ? r : 0) * ne;
+    int* ri = sid[r < 16 ? r : 0];
+    float* rw = w + (size_t) r * k;
+    // one pass: the best expert of this row with (union-only?) restriction, not yet taken; -1 when none
+    auto pick = [&](bool union_only) -> int {
+        float bv = __int_as_float(0xff800000);
+        int bi = ne;
+        for (int e = lane; e < ne; e += 32) {
+            if (rmask[r][e >> 5] & (1u << (e & 31))) continue;
+            if (union_only && !(umask[e >> 5] & (1u << (e & 31)))) continue;
+            const float v = l[e];
+            if (v > bv) { bv = v; bi = e; }
+        }
+        for (int o = 16; o > 0; o >>= 1) {
+            const float ov = __shfl_xor_sync(0xffffffffu, bv, o);
+            const int oi = __shfl_xor_sync(0xffffffffu, bi, o);
+            oea_take(ov, oi, bv, bi);
+        }
+        return bi < ne ? bi : -1;
+    };
+    if (r < n) {
+        for (int s = 0; s < k0; ++s) {
+            const int e = pick(false);
+            if (lane == 0) {
+                ri[s] = e < 0 ? 0 : e;
+                if (e >= 0) { rmask[r][e >> 5] |= 1u << (e & 31); atomicOr(&umask[e >> 5], 1u << (e & 31)); }
+            }
+            __syncwarp();
+        }
+    }
+    __syncthreads();
+    if (r >= n) return;
+    int dummy = 0;   // bit s: slot s is a weight-0 repeat
+    for (int s = k0; s < k; ++s) {
+        const int e = pick(true);
+        if (lane == 0) {
+            if (e >= 0) { ri[s] = e; rmask[r][e >> 5] |= 1u << (e & 31); }
+            else ri[s] = ri[0];
+        }
+        if (e < 0) dummy |= 1 << s;
+        __syncwarp();
+    }
+    // weights: p = softmax over all experts (max = slot 0's logit, the row's best), renormalised over the real slots
+    const float m = l[ri[0]];
+    float z = 0.0f;
+    for (int e = lane; e < ne; e += 32) z += __expf(l[e] - m);
+    for (int o = 16; o > 0; o >>= 1) z += __shfl_xor_sync(0xffffffffu, z, o);
+    if (lane == 0) {
+        float sum = 0.0f;
+        for (int s = 0; s < k; ++s)
+            if (!(dummy & (1 << s))) sum += __expf(l[ri[s]] - m) / z;
+        const float den = fmaxf(sum, 6.103515625e-05f);   // 2^-14
+        for (int s = 0; s < k; ++s) {
+            rw[s] = (dummy & (1 << s)) ? 0.0f : (__expf(l[ri[s]] - m) / z) / den;
+            ids[(size_t) r * k + s] = ri[s];
+        }
+    }
+}
+}  // namespace
+
+void oea_route_window(const float* logits, int n, int n_expert, int k, int k0, int32_t* ids, float* w, void* stream) {
+    if (n < 1 || n > 16 || n_expert < 1 || n_expert > 1024 || k < 1 || k > 16 || k0 < 1 || k0 > k) {
+        std::fprintf(stderr, "oea_route_window: shape out of range\n");
+        std::exit(1);
+    }
+    oea_route_window_kernel<<<1, 512, 0, (cudaStream_t) stream>>>(logits, n, n_expert, k, k0, ids, w);
+    check("oea_route_window");
+void row_entropy(const float* logits, int n_rows, int n_vocab, float* ent, void* stream) {
+    row_entropy_disco_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ent);
+    check("row_entropy");
+}
+
+void pick_entropy(const float* ent, const int32_t* row_dev, float* out, int j, void* stream) {
+    pick_entropy_kernel<<<1, 1, 0, (cudaStream_t) stream>>>(ent, row_dev, out, j);
+    check("pick_entropy");
+}
+
 void force_token(int32_t* tok, const int32_t* force, int j, void* stream) {
     force_token_kernel<<<1, 1, 0, (cudaStream_t) stream>>>(tok, force, j);
     check("force_token");
@@ -1054,6 +1337,21 @@ void row_top_prob(const float* logits, int n_rows, int n_vocab, const int32_t* i
     else
         row_top_prob_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ids, probs);
     check("row_top_prob");
+}
+
+void row_entropy(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* ent, float* top2, void* stream) {
+    if (n_rows <= 0) return;
+    row_entropy_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ids, ent, top2);
+    check("row_entropy");
+}
+
+void typical_accept_rows(const float* logits, int n_rows, int n_vocab, const int32_t* cand, float temperature, float eps,
+                         float alpha, int32_t* ok, float* pc, float* hc, void* stream) {
+    if (n_rows <= 0) return;
+    const float inv_temp = temperature > 0.0f ? 1.0f / temperature : 1.0f;
+    typical_accept_rows_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, cand, inv_temp, eps, alpha, ok,
+                                                                           pc, hc);
+    check("typical_accept_rows");
 }
 
 #if !defined(STRATA_HIP_GFX906)   // wave32 kernels (CUDA and RDNA HIP; wave64 gfx906 keeps the one-block kernels)

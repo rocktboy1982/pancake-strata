@@ -44,8 +44,14 @@ typedef float f8 __attribute__((ext_vector_type(8)));
 
 // gfx11 wave32 16x16x16 layout: A lane l holds row l % 16, all 16 k (lanes 16..31 repeat 0..15); B lane l holds
 // column l % 16, all 16 k; C/D lane l holds D[2 * i + l / 16][l % 16], i = 0..7.
+// STRATA_PA_SCHED_FENCE=1 (compile time, opt-in): a scheduling barrier after every WMMA (llama.cpp PR #31746, ravel7524;
+// see qsa_prompt_attn.cu's wmma_f16).  Same bits.
 __device__ __forceinline__ f8 wmma(h16 a, h16 b, f8 c) {
-#if STRATA_DW_GFX11
+#if STRATA_DW_GFX11 && defined(STRATA_PA_SCHED_FENCE)
+    const f8 d = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a, b, c);
+    __builtin_amdgcn_sched_barrier(0);
+    return d;
+#elif STRATA_DW_GFX11
     return __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a, b, c);
 #else
     __builtin_trap();

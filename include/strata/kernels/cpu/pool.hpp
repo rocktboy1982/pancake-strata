@@ -67,6 +67,9 @@ struct ExpertJobMulti {
     /// 149-cold: this job's own layout (null: the layer's) - the GGUF read in place, where gate / up / down are three
     /// tensors: `blob` is the gate rows and the offsets reach the expert's up and down rows in the mapping.
     const NativeFmt* fmt = nullptr;
+    /// LEADS.md SliceMoE (STRATA_SLICE_MISS, opt-in, lossy): the 1-bit slice of this job's Q2_0 down rows (kQ2HiBlock
+    /// layout, all n_embd rows); null = the full rows.
+    const uint8_t* slice = nullptr;
 };
 
 /// How worker threads are allocated across physical/logical CPU cores (#272).  `All` is the layout the pool has
@@ -411,6 +414,7 @@ private:
         alignas(64) float ff[MAXT][FF];
         ActQ a2[MAXT];
         alignas(64) uint8_t hq[MAXT][kNativeHBytes];   // plan v0.3 P6: native down activations
+        uint64_t skip = 0;   // STRATA_CPU_ACT_SPARSE (opt-in): bit b = 64-block b of h is zero in every token (0 = off)
         // STRATA_POOL_DEFER_ACTQ: per token, its down input is 0 not quantized, 1 being quantized, 2 ready (lazy_q_ only)
         std::atomic<uint8_t> q_state[MAXT];
         SplitBufMulti() noexcept {
@@ -418,6 +422,7 @@ private:
         }
         SplitBufMulti(SplitBufMulti&& o) noexcept {   // (std::vector's resize; the buffers' contents are scratch)
             for (int t = 0; t < MAXT; ++t) q_state[t].store(o.q_state[t].load(std::memory_order_relaxed), std::memory_order_relaxed);
+            skip = o.skip;
         }
     };
     const NativeFmt* nfmt_ = nullptr;

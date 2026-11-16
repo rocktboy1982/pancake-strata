@@ -224,6 +224,24 @@ void mtp_select(const float* R_src, int64_t R_stride, const int32_t* ids, const 
 /// --pipeline-windows, the drafter's chain teacher forced: `*tok = force[j]` when force[j] >= 0 (`force` is mapped
 /// host memory, read when the kernel runs), else `*tok` is left as it is.
 void force_token(int32_t* tok, const int32_t* force, int j, void* stream);
+/// STRATA_DEVICE_ACCEPT (MOD_PLAN.md section 6 item 17, part 17): the greedy accept a = the leading drafts with
+/// tok[j + 1] == out[j] (j < T - 1), keep = a + 1, then (bound.on) serve_stop_bound's limit: at most `remaining` rows and
+/// none after the first EOS pick among them (at least 1); commit[0] = keep, commit[1] = keep - 1, commit[2 + t] = pos0 + t
+/// for t < keep, -1 for the rest of max_t - Verifier::commit's record.  `out` and `commit` may be mapped host memory.
+struct DeviceAcceptBound {
+    int on = 0;
+    int remaining = 0;
+    int n_eos = 0;
+    int32_t eos[4] = {-1, -1, -1, -1};
+};
+void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos0, int max_t, const DeviceAcceptBound& bound,
+                          int32_t* commit, void* stream);
+/// STRATA_OEA=k0 (LEADS.md "OEA sibling-aware routing", arXiv 2511.02237): the window's n rows re-routed from their router
+/// logits (n, n_expert): each row keeps its top-k0 (ties to the lower id), then fills slots k0..k-1 in logit order with
+/// experts some row kept in that first phase (no new expert loads); a slot with no candidate repeats slot 0 at weight 0.
+/// Weights: softmax over all experts, renormalised over the real slots (2^-14 clamp), as router_top10.  ids/w (n, k).
+/// n <= 16, n_expert <= 1024, k <= 16, 1 <= k0 <= k.
+void oea_route_window(const float* logits, int n, int n_expert, int k, int k0, int32_t* ids, float* w, void* stream);
 /// Row *row_dev of a, b and c (a_n, b_n, c_n floats a row) copied to their row 0 (the draft layer's rest runs on
 /// row 0).  Graph-capturable: the row is read on the device.
 void copy_row_to_first(const int32_t* row_dev, float* a, int64_t a_n, float* b, int64_t b_n, float* c, int64_t c_n,
@@ -234,6 +252,19 @@ void gather_rows(const uint8_t* src, int64_t row_bytes, const int32_t* ids, int6
 void map_ids(int32_t* ids, const int32_t* table, int n, void* stream);
 /// probs[t] = softmax(logits[t])[ids[t]] for n_rows rows of n_vocab (the probability of each row's argmax).
 void row_top_prob(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* probs, void* stream);
+/// LEADS.md section 3 (STRATA_DRAFT_ENTROPY=1: the AdaEDL / SVIP / AdaSD draft stop rules, window-trace record 7): for n_rows
+/// rows of n_vocab with ids[t] the row's argmax, ent[t] = the softmax entropy in nats and top2[t] (may be null) = the
+/// probability of the largest logit other than ids[t].  row_top_prob's scan order, FP32 with __expf (not bitwise any host sum).
+void row_entropy(const float* logits, int n_rows, int n_vocab, const int32_t* ids, float* ent, float* top2, void* stream);
+/// LEADS.md section 3, Medusa typical acceptance (STRATA_TYPICAL_THINK): ok[t] = 1 when p_t(cand[t]) > min(eps, alpha *
+/// exp(-H(p_t))) with p_t = softmax(row t / temperature) (temperature <= 0: 1), else 0 (cand[t] < 0: 0).  pc / hc (may be
+/// null): p_t(cand[t]) and H(p_t).  All device memory.  Not graph-captured by its caller (one launch after a sampled window).
+void typical_accept_rows(const float* logits, int n_rows, int n_vocab, const int32_t* cand, float temperature, float eps,
+                         float alpha, int32_t* ok, float* pc, float* hc, void* stream);
+/// LEADS.md B24 (STRATA_DISCO_ENTROPY): ent[t] = the softmax entropy (nats) of row t; logits == nullptr writes -1 (unknown).
+void row_entropy(const float* logits, int n_rows, int n_vocab, float* ent, void* stream);
+/// out[j] = ent[*row_dev] (row 0 when row_dev is null); `out` may be mapped host memory.  Graph-capturable.
+void pick_entropy(const float* ent, const int32_t* row_dev, float* out, int j, void* stream);
 /// out[t] = the argmax of row t (n floats a row; ties to the lowest index, NaN never picked, 0 when no value is above
 /// -inf): bitwise sample_tokens' greedy pick.  Up to 128 blocks a row scan slices of it, the row's last block merges
 /// their picks.  `scratch`: argmax_rows_scratch_bytes(n_rows), zero before the first launch (each launch leaves it
