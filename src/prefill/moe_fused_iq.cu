@@ -2166,13 +2166,17 @@ void experts_native(const Batch& b, const NativeGeom& g, int n_expert, int64_t n
         // f16_gu / f16_d (gfx12's WMMA layout differs, so it keeps the int8 kernels)
         const bool f16 = !d.w12 && f16::requested();
         const bool f16_q8d = !f16 && g.d_type == T_Q8_0 && q8d_f16_default(d);   // (the Q8_0 down only)
-        const bool f16_wide = f16::pick_bn(n, n_expert) == 2 * kTileRows;
+        const int f16_bn = f16::pick_bn(n, n_expert);
+        const bool f16_wide = f16_bn == 2 * kTileRows, f16_half = f16_bn == f16::kHalfTile;   // (half tiles: STRATA_PF_F16_VAR_BM / STRATA_MOE_MAX_BM)
         // STRATA_PF_DM16 (the prompt path asks per call): when this layer's down runs on an F16 kernel its rows go to `dm` as FP16 (moe_combine16 reads them)
         const bool d16 = g_dm16_want && ((f16 && (f16kq::covers_down(g.d_type) || f16_d(g.d_type))) || f16_q8d);
         g_dm16_used = d16;
 #define STRATA_F16_LAUNCH(T, GU, NFB, ACT, OUT, DM) do { \
-    const unsigned grid_f = (unsigned) std::max<int64_t>(1, tiles * (NFB)); \
-    if (d16 && !(GU)) { \
+    const unsigned grid_f = (unsigned) std::max<int64_t>(1, tiles * (NFB) * f16::grid_mul(f16_bn)); \
+    if (f16_half) { \
+        if (d16 && !(GU)) native_f16_kernel<T, GU, f16::kHalfTile, !(GU)><<<grid_f, f16::THREADS, 0, s>>>(b, g, tb, ACT, src, OUT, DM); \
+        else native_f16_kernel<T, GU, f16::kHalfTile><<<grid_f, f16::THREADS, 0, s>>>(b, g, tb, ACT, src, OUT, DM); \
+    } else if (d16 && !(GU)) { \
         if (f16_wide) native_f16_kernel<T, GU, 2 * kTileRows, !(GU)><<<grid_f, f16::THREADS, 0, s>>>(b, g, tb, ACT, src, OUT, DM); \
         else native_f16_kernel<T, GU, kTileRows, !(GU)><<<grid_f, f16::THREADS, 0, s>>>(b, g, tb, ACT, src, OUT, DM); \
     } else if (f16_wide) native_f16_kernel<T, GU, 2 * kTileRows><<<grid_f, f16::THREADS, 0, s>>>(b, g, tb, ACT, src, OUT, DM); \

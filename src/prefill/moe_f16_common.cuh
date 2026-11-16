@@ -33,6 +33,7 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
+#include "moe_tile_rule.hpp"
 #include "strata/prefill/moe_fused.hpp"
 
 #if defined(__HIPCC__) && (defined(__gfx1100__) || defined(__gfx1101__) || defined(__gfx1102__) || \
@@ -63,15 +64,38 @@ inline bool requested() {
 /// experts, one 128-expert launch, ms (64 / 128): 1024 tokens 1.22 / 1.28, 2048 1.51 / 1.64, 4096 2.73 / 2.48, 8192
 /// 4.76 / 4.59, 16384 9.19 / 8.46; Q5_1 down 2048 1.02 / 1.04, 4096 1.61 / 1.48, 16384 5.29 / 4.83.
 /// STRATA_PF_F16_BN=64|128 forces one.
+/// Half a tile (kHalfTile = 32 rows; Indigoshores 12d7cde5 / 0c398d60, LEADS.md Part H; default off): a 64-row tile
+/// becomes two work items of 32 rows (work_item), the second one empty and gone at once for an expert of 32 rows or
+/// fewer, so a block stages and keeps half the activation rows (LDS, fetch) where a prompt of 100-1000 tokens leaves
+/// 2-20 rows an expert.  The token columns are independent in the WMMA, so every output is bitwise the 64-row kernel's.
+///   STRATA_PF_F16_VAR_BM=1: half tiles when the average rows per expert is at most 8 (a value above 1: that average)
+///   STRATA_MOE_MAX_BM=32: half tiles always (the screen's upper bound; 16 is not built: the activation stage's
+///   fetch is BN * 8 / 256 chunks a thread, 0 for BN 16); 64 or unset: no cap.
+/// STRATA_PF_F16_BN, when set to 64 or 128, wins over both.
+constexpr int kHalfTile = kTileRows / 2;
+static_assert(kHalfTile == kHalfTileRule && kTileRows == kTileRowsRule, "moe_tile_rule.hpp mirrors kTileRows");
+/// The rule behind pick_bn (moe_tile_rule.hpp, host-tested by moe_tile_rule_test): `forced` is STRATA_PF_F16_BN (0
+/// unset), `var_avg` the STRATA_PF_F16_VAR_BM average threshold (0 off), `max_bm` STRATA_MOE_MAX_BM.
 inline int pick_bn(int64_t n, int n_expert) {
     static const int forced = [] {
         const char* v = std::getenv("STRATA_PF_F16_BN");
         const int t = v ? std::atoi(v) : 0;
         return t == kTileRows || t == 2 * kTileRows ? t : 0;
     }();
-    if (forced) return forced;
-    return (double) n / (n_expert > 0 ? n_expert : 1) >= kTileRows ? 2 * kTileRows : kTileRows;
+    static const double var_avg = [] {
+        const char* v = std::getenv("STRATA_PF_F16_VAR_BM");
+        if (!v || !v[0] || v[0] == '0') return 0.0;
+        const double a = std::atof(v);
+        return a > 1.0 ? a : 8.0;
+    }();
+    static const int max_bm = [] {
+        const char* v = std::getenv("STRATA_MOE_MAX_BM");
+        return v ? std::atoi(v) : 0;
+    }();
+    return pick_bn_rule(n, n_expert, forced, var_avg, max_bm);
 }
+/// Work items per (tile, feature block) for a tile width: two for half tiles.
+constexpr int grid_mul(int bn) { return bn < kTileRows ? 2 : 1; }
 
 using v16h = __attribute__((__vector_size__(16 * sizeof(_Float16)))) _Float16;
 using v8f = __attribute__((__vector_size__(8 * sizeof(float)))) float;
@@ -90,7 +114,9 @@ __device__ __forceinline__ v8f wmma_f16(v16h a, v16h b, v8f c) {
 template <int BN, int NFB>
 __device__ __forceinline__ bool work_item(const Batch& b, const int32_t* ts, const int2* tiles, const int32_t* off, int w,
                                           int& fb, int& e, int& row0, int& nrows) {
-    static_assert(BN == kTileRows || BN == 2 * kTileRows, "one tile or a pair");
+    static_assert(BN == kHalfTile || BN == kTileRows || BN == 2 * kTileRows, "half a tile, one tile or a pair");
+    int half = 0;
+    if constexpr (BN < kTileRows) { half = w & 1; w >>= 1; }   // a half-tile launch has two items a (tile, feature block)
     const int t0 = ts[b.e0];
     if (w >= (ts[b.e1] - t0) * NFB) return false;
     const int2 tl = tiles[t0 + w / NFB];
@@ -98,6 +124,10 @@ __device__ __forceinline__ bool work_item(const Batch& b, const int32_t* ts, con
     e = tl.x;
     row0 = tl.y;
     if (BN > kTileRows && ((t0 + w / NFB - ts[e]) & 1)) return false;
+    if constexpr (BN < kTileRows) {   // the half's rows (moe_tile_rule.hpp half_tile_rows)
+        half_tile_rows(row0, off[e + 1], half, BN, row0, nrows);
+        return nrows > 0;
+    }
     nrows = min(BN, off[e + 1] - row0);
     return true;
 }

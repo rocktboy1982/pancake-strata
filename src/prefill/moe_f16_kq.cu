@@ -313,9 +313,13 @@ void gate_up(const Batch& b, const NativeGeom& g, const int32_t* ts, const int2*
              int n_expert, int64_t work_bound, const uint8_t* act, const int32_t* src, uint8_t* out, cudaStream_t s) {
     // one block per work item, the grid the batch's bound (gufo's launch: the hardware balances the blocks; the items
     // of a tile are consecutive, so they meet its activations in L2)
-    const unsigned grid = (unsigned) std::max<int64_t>(1, work_bound * GU_NFB);
+    const int bn = pick_bn(n, n_expert);
+    const unsigned grid = (unsigned) std::max<int64_t>(1, work_bound * GU_NFB * grid_mul(bn));
     const bool q5k = g.gu_type == T_Q5_K;
-    if (pick_bn(n, n_expert) == 2 * kTileRows) {
+    if (bn == kHalfTile) {
+        if (q5k) gate_up_kernel<T_Q5_K, kHalfTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
+        else gate_up_kernel<T_Q4_K, kHalfTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
+    } else if (bn == 2 * kTileRows) {
         if (q5k) gate_up_kernel<T_Q5_K, 2 * kTileRows><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
         else gate_up_kernel<T_Q4_K, 2 * kTileRows><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
     } else {
@@ -326,8 +330,12 @@ void gate_up(const Batch& b, const NativeGeom& g, const int32_t* ts, const int2*
 
 void down(const Batch& b, const NativeGeom& g, const int32_t* ts, const int2* tiles, const int32_t* off, int64_t n, int n_expert,
           int64_t work_bound, const uint8_t* h, float* dm, cudaStream_t s, bool d16) {
-    const unsigned grid = (unsigned) std::max<int64_t>(1, work_bound * D_NFB);
-    if (pick_bn(n, n_expert) == 2 * kTileRows) {
+    const int bn = pick_bn(n, n_expert);
+    const unsigned grid = (unsigned) std::max<int64_t>(1, work_bound * D_NFB * grid_mul(bn));
+    if (bn == kHalfTile) {
+        if (d16) down_kernel<kHalfTile, true><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
+        else down_kernel<kHalfTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
+    } else if (bn == 2 * kTileRows) {
         if (d16) down_kernel<2 * kTileRows, true><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
         else down_kernel<2 * kTileRows><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
     } else {

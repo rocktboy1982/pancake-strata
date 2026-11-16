@@ -1,0 +1,45 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "prefill": true,
+  "cases": [
+    "long1k",
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "f16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1"
+      }
+    },
+    "f16-var-bm": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1",
+        "STRATA_PF_F16_VAR_BM": "1"
+      }
+    },
+    "f16-var-bm-16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1",
+        "STRATA_PF_F16_VAR_BM": "16"
+      }
+    },
+    "f16-max-bm32": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1",
+        "STRATA_MOE_MAX_BM": "32"
+      }
+    },
+    "int8": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    }
+  },
+  "note": "MOD_PLAN.md section 6 (fork lead, LEADS.md Part H Indigoshores 12d7cde5 / 0c398d60): STRATA_PF_F16_VAR_BM / STRATA_MOE_MAX_BM, half-tile (32 token rows) work items in the F16 prompt-expert kernels (moe_f16_common.cuh work_item, moe_tile_rule.hpp). Default off, byte-identical unset. The F16 kernels need STRATA_PF_F16=1 (on by default on gfx1151 only, not on gfx1100), so the base arm is f16 (PF_F16=1) and the three arms differ from it in the tile width only: var-bm = half tiles at <= 8 rows an expert on average, var-bm-16 at <= 16, max-bm32 always. The token columns of the WMMA are independent, so the output must match the f16 arm bit for bit (drift_check, text equal); int8 is the reference arm without PF_F16 (rounding differs from F16, information only). Prompt tok/s on short / edit (100-1000 token prompts, the target) and long1k. The engine was not built when this spec was written. Stop pancake.service first. Run at screen, then confirm."
+}
