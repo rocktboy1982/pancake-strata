@@ -1956,6 +1956,14 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_include_directories(rope_parity PRIVATE ${_strata_gpu_include_directories})
   target_link_libraries(rope_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME rope_parity COMMAND rope_parity --selftest)
+  if(STRATA_ENABLE_HIP)
+    # STRATA_NORM_ROPE=2 / 3 (jstamagal/Strata-gfx1030): check 6 (fused norm + rope bitwise the two kernels) with the
+    # rotation written as `apply` (2) or with contraction off (3); the form that passes on a card is the one to run
+    add_test(NAME rope_parity_form2 COMMAND rope_parity --selftest)
+    set_tests_properties(rope_parity_form2 PROPERTIES ENVIRONMENT "STRATA_NORM_ROPE=2")
+    add_test(NAME rope_parity_form3 COMMAND rope_parity --selftest)
+    set_tests_properties(rope_parity_form3 PROPERTIES ENVIRONMENT "STRATA_NORM_ROPE=3")
+  endif()
 
   add_executable(quantize_act_parity src/kernels/quantize_act_parity.cpp)
   target_include_directories(quantize_act_parity PRIVATE ${_strata_gpu_include_directories})
