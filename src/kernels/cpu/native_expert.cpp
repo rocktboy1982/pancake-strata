@@ -17,6 +17,7 @@
 #include "ggml-cpu.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -236,7 +237,67 @@ void init_once() {
     std::call_once(once, [] { ggml_cpu_init(); });
 }
 
+// STRATA_SWIGLU_SKIM (opt-in, lossy; LEADS.md gputier/StrataGP 803f98afdc, #110): the totals, and one call's own count, added to
+// them once when the call ends (no atomic per neuron; a call with the skim off has seen nothing and adds nothing).
+std::atomic<uint64_t> skim_seen_total{0}, skim_cut_total{0};
+struct SkimTally {
+    uint64_t seen = 0, cut = 0;
+    ~SkimTally() {
+        if (seen == 0) return;
+        skim_seen_total.fetch_add(seen, std::memory_order_relaxed);
+        skim_cut_total.fetch_add(cut, std::memory_order_relaxed);
+    }
+};
+// counts the neuron, and cuts it (ff = 0) when its gate's |silu| is below tau
+inline bool skim_cut(float g, float tau, float& ff, SkimTally& t) {
+    ++t.seen;
+    if (!swiglu_skim(g, tau)) return false;
+    ff = 0.f;
+    ++t.cut;
+    return true;
+}
+// one line per covered path and process, naming the path the skim runs on
+void announce_skim(std::once_flag& once, float tau, const char* path) {
+    std::call_once(once, [tau, path] {
+        std::fprintf(stderr, "strata: STRATA_SWIGLU_SKIM %g (lossy): gate/up rows on %s\n", (double) tau, path);
+    });
+}
+// the process-end line (only when the skim is on and saw a neuron)
+struct SkimReport {
+    ~SkimReport() {
+        const uint64_t s = skim_seen_total.load(std::memory_order_relaxed), c = skim_cut_total.load(std::memory_order_relaxed);
+        if (s > 0)
+            std::fprintf(stderr, "strata: swiglu skim %.1f %% of %llu covered neurons\n", 100.0 * (double) c / (double) s,
+                         (unsigned long long) s);
+    }
+};
+
 }  // namespace
+
+float native_swiglu_skim_tau() {
+    static const float tau = [] {
+        const char* v = std::getenv("STRATA_SWIGLU_SKIM");
+        if (v == nullptr || v[0] == '\0') v = std::getenv("STRATA_Q36_SWIGLU_SKIM");
+        if (v == nullptr || v[0] == '\0') return 0.f;
+        char* end = nullptr;
+        const float t = std::strtof(v, &end);
+        if (end == v || !std::isfinite(t) || t < 0.f) {
+            std::fprintf(stderr, "strata: STRATA_SWIGLU_SKIM=%s is not a finite number >= 0: the skim stays off\n", v);
+            return 0.f;
+        }
+        if (t > 0.f) {
+            static SkimReport report;
+            (void) report;
+        }
+        return t;
+    }();
+    return tau;
+}
+
+void native_swiglu_skim_totals(uint64_t& seen, uint64_t& cut) {
+    seen = skim_seen_total.load(std::memory_order_relaxed);
+    cut = skim_cut_total.load(std::memory_order_relaxed);
+}
 
 bool native_experts_available() noexcept { return true; }
 
@@ -689,6 +750,15 @@ void native_gu_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* co
         return;
     }
     const ggml_vec_dot_t dot = traits(f.gu_type)->vec_dot;
+    // STRATA_SWIGLU_SKIM (opt-in, lossy; gputier 803f98afdc): the neuron is cut on its gate, after the up row was read as without
+    // the skim.  Only this ggml-cpu dot path is covered (the multi-token IQ kernels write silu(g) * u and keep no gate value), as
+    // in gputier's port; the covered count says how much it saw.  Unset: tau = 0 and the branch never runs.
+    const float tau = native_swiglu_skim_tau();
+    SkimTally skim;
+    if (tau > 0.f) {
+        static std::once_flag announced;
+        announce_skim(announced, tau, "ggml-cpu's dot");
+    }
     for (int r = r0; r < r1; ++r) {
         const uint8_t* gr = blob + (size_t) r * f.gu_row;
         const uint8_t* ur = blob + f.up_off + (size_t) r * f.gu_row;
@@ -698,6 +768,7 @@ void native_gu_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* co
             dot(n, &u, 0, ur, 0, act[t], 0, 1);
             g *= sg;
             u *= su;
+            if (tau > 0.f && skim_cut(g, tau, ff[t][r], skim)) continue;
             ff[t][r] = (g / (1.f + std::exp(-g))) * u;
         }
     }

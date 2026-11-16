@@ -5240,6 +5240,12 @@ const SerCfg& ser_cfg() {
     return c;
 }
 bool ser_on() { return ser_cfg().kmin > 0; }
+// STRATA_SER_POOL=1 (opt-in, with STRATA_SER; LEADS.md gputier/StrataGP 5f7c616102 / 2bf56b19a1 --ser-pool): SER cuts only the picks
+// outside the VRAM tier - a resident expert is never cut, so SER saves only copies / CPU jobs.  Read once.
+bool ser_pool() {
+    static const bool p = [] { const char* v = std::getenv("STRATA_SER_POOL"); return v != nullptr && v[0] == '1' && v[1] == 0; }();
+    return p;
+}
 // STRATA_SER_LAYERS="a-b:K[,c:K2...]" (opt-in, with STRATA_SER; gputier/StrataGP 0715a99871 / 2619066878's per-layer SER
 // table, STRATA_Q36_SER_TABLE, here in STRATA_ROUTE_TAIL_SKIP_LAYERS's form): the listed layers (inclusive ranges) take
 // Kmin K (1..9; 10 = no SER on those layers) instead of STRATA_SER's.  Layers not listed keep it.  Read once.
@@ -5608,8 +5614,10 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             for (int q = 0; q < nd; ++q) {
                 const int32_t e = ids[distinct[q]];
                 if (keep[q] || skip_d[q] || e < 0 || e >= d.n_expert) continue;
+                const bool resident = d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] >= 0;
+                if (resident && ser_pool()) continue;   // STRATA_SER_POOL: the VRAM tier is never cut
                 skip_d[q] = true;
-                if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0) --nmiss;   // (a resident one was no miss)
+                if (!resident) --nmiss;   // (a resident one was no miss)
                 ++d.wskip_experts;
             }
         }

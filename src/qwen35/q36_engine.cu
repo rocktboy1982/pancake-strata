@@ -32,6 +32,7 @@
 #include "strata/qwen35/engine.hpp"
 #include "strata/qwen35/sampling.hpp"
 #include "q36_kernels.cuh"
+#include "q36_prompt_swaps.hpp"   // STRATA_Q36_PROMPT_SWAPS
 #if defined(STRATA_Q36_CPU_POOL)
 #include "strata/kernels/cpu/native_expert.hpp"
 #include "strata/kernels/cpu/pool.hpp"
@@ -3278,7 +3279,14 @@ struct Engine {
         b.imgs = a.imgs;
         if (dst == cur) load_cur();
     }
-    int hybrid_swaps_after_prompt = 2048;
+    // STRATA_Q36_PROMPT_SWAPS (opt-in; LEADS.md gputier 5f7c616102 / 819b1dba79): the cap of the rebalance after a prompt, read
+    // once; unset keeps 2048 (q36_prompt_swaps.hpp)
+    int hybrid_swaps_after_prompt = [] {
+        std::string err;
+        const int n = strata::q36::prompt_swaps_from_env(std::getenv("STRATA_Q36_PROMPT_SWAPS"), &err);
+        if (!err.empty()) std::fprintf(stderr, "strata-q36: %s\n", err.c_str());
+        return n;
+    }();
     /// the MTP seed rows of a prompt chunk: a buffer the block's own forward does not use (`moe_out`, [tmax][N])
     float* mtp_seed() { return moe_out; }
 

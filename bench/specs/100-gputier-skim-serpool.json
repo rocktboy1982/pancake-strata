@@ -1,0 +1,40 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "swiglu-skim-001": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SWIGLU_SKIM": "0.01"
+      }
+    },
+    "swiglu-skim-005": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SWIGLU_SKIM": "0.05"
+      }
+    },
+    "ser-6-01": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SER": "6,0.1"
+      }
+    },
+    "ser-pool-6-01": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SER": "6,0.1",
+        "STRATA_SER_POOL": "1"
+      }
+    }
+  },
+  "note": "LEADS.md gputier/StrataGP. STRATA_SWIGLU_SKIM=<tau> (803f98afdc, #110): CPU-pool expert neurons with |silu(gate)| < tau cut on the ggml-cpu dot path only (single tokens below the multi-token rule); the up row is still read, so this is a quality measurement first: the engine prints 'swiglu skim X % of N covered neurons' at exit. STRATA_SER_POOL=1 (5f7c616102 --ser-pool): STRATA_SER never cuts a resident expert. Lossy: quality_gate.py token forcing needed before any adoption."
+}

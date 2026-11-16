@@ -1,0 +1,35 @@
+{
+  "base": "configs/pancake/qwen36-ud-q4_k_xl-q36.json",
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "prompt-swaps-4096": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_PROMPT_SWAPS": "4096"
+      }
+    },
+    "prompt-swaps-nocap": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_PROMPT_SWAPS": "0"
+      }
+    },
+    "q36-swiglu-skim-001": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_SWIGLU_SKIM": "0.01"
+      }
+    }
+  },
+  "note": "Qwen3.6-35B-A3B (q36 engine). LEADS.md gputier/StrataGP: STRATA_Q36_PROMPT_SWAPS (5f7c616102 / 819b1dba79, the swap cap of the hybrid rebalance after a prompt; ours 2048 unset, gputier measured 4096 on Ornith-1.5-122B; exact, only acts in hybrid expert mode) and STRATA_Q36_SWIGLU_SKIM (803f98afdc; lossy, CPU pool's ggml-cpu dot path)."
+}

@@ -7,6 +7,7 @@
 // controls whether grouping tokens may change the selected row arithmetic.
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -72,5 +73,14 @@ void native_gu_rows_invariant(const NativeFmt& f, const uint8_t* blob, const voi
                               float* const* ff, int r0, int r1);
 void native_down_rows_invariant(const NativeFmt& f, const uint8_t* blob, const void* const* hq, int nt,
                                 float* const* out, int r0, int r1);
+
+/// STRATA_SWIGLU_SKIM=<tau> (opt-in, lossy; LEADS.md gputier/StrataGP 803f98afdc STRATA_Q36_SWIGLU_SKIM, #110): a neuron of a
+/// CPU-pool expert is cut (ff = 0) when |silu(g)| < tau, g being its gate value alone.  tau <= 0 cuts nothing, and a NaN g or tau
+/// is never cut (the comparison is false).  The up row is still read: a quality measurement first, not a speed change.
+inline bool swiglu_skim(float g, float tau) { return std::fabs(g / (1.f + std::exp(-g))) < tau; }
+/// The threshold, read once (STRATA_SWIGLU_SKIM, or gputier's name STRATA_Q36_SWIGLU_SKIM); 0 when unset or not a finite value >= 0.
+float native_swiglu_skim_tau();
+/// The skim's totals since the start: neurons seen on the paths that apply it, and neurons cut.  Each call adds once, when it ends.
+void native_swiglu_skim_totals(uint64_t& seen, uint64_t& cut);
 
 }  // namespace strata::kernels::cpu

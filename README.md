@@ -931,7 +931,8 @@ Credits, in the order the stack was built:
   AdaSD (`STRATA_SPEC_ENTROPY`), SpecReason, R-KV, OEA, TEAL / BlockFFN / PowerInfer (`STRATA_TEAL`, `STRATA_DOWN_T`, CPU
   activation sparsity), Medusa typical acceptance, Token Recycling, Hydra, LongSpec (`STRATA_ATTN_QMAJOR`), XAttention, LQER,
   SIEVE / S3-FIFO, SeqMoE, MoBiLE, SliceMoE, TokenCake, MORI and AsyncFC.
-- **gputier** (StrataGP), for `STRATA_SER` / `STRATA_SER_LAYERS` (`88a9b1a26c`, `0715a99871`, `2619066878`); **sangharshadhyeta**
+- **gputier** (StrataGP), for `STRATA_SER` / `STRATA_SER_LAYERS` (`88a9b1a26c`, `0715a99871`, `2619066878`), `STRATA_SER_POOL`
+  (`5f7c616102`, `2bf56b19a1`), `STRATA_Q36_PROMPT_SWAPS` (`5f7c616102`, `819b1dba79`) and `STRATA_SWIGLU_SKIM` (`803f98afdc`); **sangharshadhyeta**
   (Strata-HotRod), for the stand-in system, routing budget and fragile re-check (`STRATA_STANDIN`, `STRATA_ROUTE_BUDGET`,
   `STRATA_FRAGILE_RECHECK`, `a2ef1638cf`); **jstamagal** (Strata-gfx1030), for `STRATA_MMVQ_SET`, `STRATA_HEAD_WIDE`,
   `STRATA_ROUTE_PLAN`, `STRATA_HEAD_SAMPLE`, `STRATA_NORM_ROPE`, `STRATA_KV_PF_RESIDENT`; **storm-ace**, for the q36 GQA and WMMA

@@ -2280,6 +2280,13 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   add_executable(qwen35_sampling_test src/qwen35/sampling_test.cpp)
   target_include_directories(qwen35_sampling_test PRIVATE include)
   add_test(NAME qwen35_sampling_test COMMAND qwen35_sampling_test)
+  # LEADS.md gputier 5f7c616102: STRATA_Q36_PROMPT_SWAPS's parse; header-only, CPU
+  add_executable(q36_prompt_swaps_test src/qwen35/q36_prompt_swaps_test.cpp)
+  add_test(NAME q36_prompt_swaps_test COMMAND q36_prompt_swaps_test)
+  # LEADS.md gputier 803f98afdc: STRATA_SWIGLU_SKIM's rule (native_expert.hpp, inline); CPU
+  add_executable(swiglu_skim_test src/kernels/cpu/swiglu_skim_test.cpp)
+  target_include_directories(swiglu_skim_test PRIVATE include)
+  add_test(NAME swiglu_skim_test COMMAND swiglu_skim_test)
 
   # The GPU test runs ON THE TARGET PC. `--selftest` allocates
   # and writes real VRAM, so a machine without a device fails this test rather than skipping it silently -
@@ -3857,7 +3864,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     switch_report_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
-    ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test arch_defaults_test
+    ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test q36_prompt_swaps_test swiglu_skim_test arch_defaults_test
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     recycle_drafts_test
