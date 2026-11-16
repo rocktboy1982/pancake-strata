@@ -139,6 +139,7 @@ STRATA_ENV("STRATA_NV_KQ_DEFAULT", KeyIfSet, "sets MMQ_KQ=1 on NVIDIA (first-tok
 STRATA_ENV("STRATA_OEA", KeyIfSet, "LEADS.md OEA: verify-window rows re-routed to keep top-k0 + piggyback on the window's experts (lossy routing)")
 STRATA_ENV("STRATA_HEAD_SHORTLIST", KeyIfSet, "MOD_PLAN.md section 6 item 38 / LEADS.md Part J: greedy pick over the rows of the best clusters of a SHL1 table only (reference form: masked logits) - LOSSY, changes the output")
 STRATA_ENV("STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED", KeyIfSet, "STRATA_HEAD_SHORTLIST: how many clusters are kept (default ceil(0.13 K)) - LOSSY")
+STRATA_ENV("STRATA_HEAD_SHORTLIST_GATHER", Speed, "STRATA_HEAD_SHORTLIST: an IQ4_XS head computes only the kept clusters rows; the logits are bit for bit the reference form (MOD_PLAN 6.38)")
 STRATA_ENV("STRATA_PA_FAST", KeyIfSet, "single FP16 q and p prompt attention (rounding level)")
 STRATA_ENV("STRATA_PA_V2T", KeyIfSet, "Turing v2 attention with register staging (changes answers)")
 STRATA_ENV("STRATA_PF_FUSED", KeyIfSet, "fused int8 prompt experts (rounds differently from MMQ)")

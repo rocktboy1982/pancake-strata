@@ -23,4 +23,10 @@ std::size_t head_shortlist_scratch_bytes(int ncols, int k);
 void head_shortlist_mask(const float* hidden, const float* centre, const int32_t* cluster, float* logits, int n_embd, int vocab,
                          int k, int n_keep, int ncols, float* scratch, void* stream);
 
+/// STRATA_HEAD_SHORTLIST_GATHER: the same centre scores and selection as head_shortlist_mask, but the result is the keep flags
+/// only: keep[j * k + c] = 1 when column j keeps cluster c (ncols * k bytes of device memory), scratch as for the mask.  The
+/// gathered head (head_fmt.hpp iq4xs_head_gather) reads them.  Same shape limits and exceptions as head_shortlist_mask.
+void head_shortlist_keep(const float* hidden, const float* centre, int n_embd, int k, int n_keep, int ncols, float* scratch,
+                         unsigned char* keep, void* stream);
+
 }  // namespace strata::kernels

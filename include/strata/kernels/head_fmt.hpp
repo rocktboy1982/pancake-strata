@@ -26,6 +26,14 @@ bool iq4xs_head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in
 bool q6k_head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, void* stream);
 bool q4k_head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, void* stream);
 
+/// STRATA_HEAD_SHORTLIST_GATHER (MOD_PLAN.md section 6 item 38, LOSSY with the shortlist): the IQ4_XS head GEMV over the rows
+/// whose cluster some column of the chunk keeps, -inf for every other logit and for each column's unkept clusters: bit for
+/// bit the full head then head_shortlist_mask (kernels/head_gather_ref.hpp states it, head_gather_parity.cu checks it on the
+/// device).  cluster: [n_out] int32, keep: [ncols * k] bytes (head_shortlist_keep), device pointers.  False: an unsupported
+/// shape, nothing launched.
+bool iq4xs_head_gather(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, const int32_t* cluster,
+                       const unsigned char* keep, int k, void* stream);
+
 /// STRATA_HEAD_ARGMAX_FUSED (MOD_PLAN.md section 6 item 17, part 18): the same GEMVs (the same y, bit for bit) that also
 /// fold column j's greedy pick into keys[j] (atomicMax of a 64-bit (value, row) key; ties to the lower row, NaN and -inf
 /// never picked).  `keys` (ncols entries, device memory) must be 0 before the first chunk of a window;

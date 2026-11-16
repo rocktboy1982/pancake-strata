@@ -31,6 +31,31 @@ __global__ void head_shortlist_score_kernel(const float* __restrict__ hidden, co
     if (i == 0) scratch[(size_t) j * k + c] = lane[0];
 }
 
+// the selection of shortlist_select for cluster c: kept when fewer than n_keep clusters sort before it
+__device__ __forceinline__ bool shortlist_kept(const float* score, int c, int k, int n_keep) {
+    const float sc = score[c];
+    const bool cn = sc != sc;
+    int rank = 0;
+    for (int o = 0; o < k && rank < n_keep; ++o) {
+        if (o == c) continue;
+        const float so = score[o];
+        const bool on = so != so;
+        const bool before = on != cn ? cn : (on ? o < c : (so > sc || (so == sc && o < c)));
+        rank += before ? 1 : 0;
+    }
+    return rank < n_keep;
+}
+
+// the keep flags alone, for the gathered head: keep[j * k + c] (grid ncols, 256 threads), the selection of the mask kernel
+__global__ void head_shortlist_keep_kernel(const float* __restrict__ scratch, unsigned char* __restrict__ keep, int k, int n_keep) {
+    extern __shared__ unsigned char smem[];
+    float* score = reinterpret_cast<float*>(smem);
+    const int j = blockIdx.x, i = threadIdx.x;
+    for (int c = i; c < k; c += 256) score[c] = scratch[(size_t) j * k + c];
+    __syncthreads();
+    for (int c = i; c < k; c += 256) keep[(size_t) j * k + c] = shortlist_kept(score, c, k, n_keep) ? 1 : 0;
+}
+
 __global__ void head_shortlist_mask_kernel(const float* __restrict__ scratch, const int32_t* __restrict__ cluster,
                                            float* __restrict__ logits, int vocab, int k, int n_keep) {
     extern __shared__ unsigned char smem[];
@@ -39,19 +64,7 @@ __global__ void head_shortlist_mask_kernel(const float* __restrict__ scratch, co
     const int j = blockIdx.x, i = threadIdx.x;
     for (int c = i; c < k; c += 256) score[c] = scratch[(size_t) j * k + c];
     __syncthreads();
-    for (int c = i; c < k; c += 256) {
-        const float sc = score[c];
-        const bool cn = sc != sc;
-        int rank = 0;
-        for (int o = 0; o < k && rank < n_keep; ++o) {
-            if (o == c) continue;
-            const float so = score[o];
-            const bool on = so != so;
-            const bool before = on != cn ? cn : (on ? o < c : (so > sc || (so == sc && o < c)));
-            rank += before ? 1 : 0;
-        }
-        keep[c] = rank < n_keep ? 1 : 0;
-    }
+    for (int c = i; c < k; c += 256) keep[c] = shortlist_kept(score, c, k, n_keep) ? 1 : 0;
     __syncthreads();
     float* row = logits + (size_t) j * vocab;
     for (int v = i; v < vocab; v += 256)
@@ -71,6 +84,17 @@ void head_shortlist_mask(const float* hidden, const float* centre, const int32_t
     head_shortlist_score_kernel<<<dim3(unsigned(k), unsigned(ncols)), 256, 0, s>>>(hidden, centre, scratch, n_embd, k);
     head_shortlist_mask_kernel<<<unsigned(ncols), 256, (size_t) k * (sizeof(float) + 1), s>>>(scratch, cluster, logits, vocab, k, n_keep);
     if (cudaGetLastError() != cudaSuccess) throw std::runtime_error("head_shortlist_mask: launch failed");
+}
+
+void head_shortlist_keep(const float* hidden, const float* centre, int n_embd, int k, int n_keep, int ncols, float* scratch,
+                         unsigned char* keep, void* stream) {
+    if (n_embd <= 0 || k <= 0 || k > kHeadShortlistMaxK || ncols <= 0 || ncols > kHeadShortlistMaxCols)
+        throw std::invalid_argument("head_shortlist_keep: unsupported shape");
+    n_keep = n_keep < 1 ? 1 : (n_keep > k ? k : n_keep);
+    cudaStream_t s = static_cast<cudaStream_t>(stream);
+    head_shortlist_score_kernel<<<dim3(unsigned(k), unsigned(ncols)), 256, 0, s>>>(hidden, centre, scratch, n_embd, k);
+    head_shortlist_keep_kernel<<<unsigned(ncols), 256, (size_t) k * sizeof(float), s>>>(scratch, keep, k, n_keep);
+    if (cudaGetLastError() != cudaSuccess) throw std::runtime_error("head_shortlist_keep: launch failed");
 }
 
 }  // namespace strata::kernels

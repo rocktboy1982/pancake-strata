@@ -471,6 +471,93 @@ bool head_mmvq(const void* weights, const void* x_q8_1, float* y, int n_in, int 
     return true;
 }
 
+// ---------------------------------------------------------------------------- STRATA_HEAD_SHORTLIST_GATHER (item 38)
+// The head GEMV of head_kernel over the rows whose cluster some column keeps (the UNION of the chunk's kept clusters), every
+// other logit written -inf: bit for bit the full head followed by head_shortlist_mask (head_gather_test.cpp states the
+// contract on the host, head_gather_parity.cu checks the device).  The sums of a computed row are row_dot's, the same code
+// the plain head runs, so they equal native_mmvq's.  A block of WPB rows whose rows are all outside the union loads no
+// activations and does nothing but write its -inf (one __syncthreads_or decides for the whole block).  keep[j * k + c]:
+// column j keeps cluster c; a computed row's column that does not keep its cluster gets -inf too.
+template <class F, int NC>
+__global__ void __launch_bounds__(WPB * WARP) head_gather_kernel(const typename F::Block* __restrict__ w,
+                                                                const Q81Block* __restrict__ x, float* __restrict__ y,
+                                                                int n_in, int n_out, const int32_t* __restrict__ cluster,
+                                                                const unsigned char* __restrict__ keep, int k) {
+    extern __shared__ int sx_raw[];
+    const int qb = n_in / 32;
+    const int lane = threadIdx.x % WARP;
+    const int row = blockIdx.x * WPB + threadIdx.x / WARP;
+    const bool valid = row < n_out;
+    const int c = valid ? cluster[row] : 0;
+    bool any = false;
+    if (valid) {
+#pragma unroll
+        for (int j = 0; j < NC; ++j) any = any || keep[(size_t) j * k + c] != 0;
+    }
+    float s[NC];
+#pragma unroll
+    for (int j = 0; j < NC; ++j) s[j] = 0.0f;
+    if (__syncthreads_or(any ? 1 : 0)) {   // the whole block takes this branch or none of it
+        const int words = NC * qb * (int) (sizeof(Q81Block) / 4);
+        const int* src = reinterpret_cast<const int*>(x);
+        for (int i = threadIdx.x; i < words; i += blockDim.x) sx_raw[i] = __ldg(src + i);
+        __syncthreads();
+        if (any) row_dot<F, NC>(w + (size_t) row * (n_in / 256), reinterpret_cast<const Q81Block*>(sx_raw), qb, n_in / 256, lane, s);
+    }
+    if (valid && lane == 0) {
+#pragma unroll
+        for (int j = 0; j < NC; ++j)
+            y[(size_t) j * n_out + row] = (any && keep[(size_t) j * k + c] != 0) ? s[j] : -__int_as_float(0x7f800000);
+    }
+}
+
+template <class F, int NC>
+bool launch_gather(const void* w, const void* x, float* y, int n_in, int n_out, const int32_t* cluster,
+                   const unsigned char* keep, int k, cudaStream_t s) {
+    const size_t smem = (size_t) NC * (n_in / 32) * sizeof(Q81Block);
+#if defined(__HIPCC__)
+    if (smem > 64 * 1024) return false;
+#else
+    if (smem > 48 * 1024) {
+        static bool asked = false;
+        if (!asked) {
+            if (cudaFuncSetAttribute(head_gather_kernel<F, NC>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                     (int) ((size_t) 8 * (kMaxIn / 32) * sizeof(Q81Block))) != cudaSuccess)
+                return false;
+            asked = true;
+        }
+    }
+#endif
+    head_gather_kernel<F, NC><<<(unsigned) ((n_out + WPB - 1) / WPB), WPB * WARP, smem, s>>>(
+        (const typename F::Block*) w, (const Q81Block*) x, y, n_in, n_out, cluster, keep, k);
+    return true;
+}
+
+template <class F>
+bool head_gather(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, const int32_t* cluster,
+                 const unsigned char* keep, int k, void* stream) {
+    if (!head_fmt_supported(n_in, ncols) || n_out <= 0 || k <= 0 || cluster == nullptr || keep == nullptr) return false;
+    const auto s = static_cast<cudaStream_t>(stream);
+    bool ok = false;
+    switch (ncols) {
+    case 1: ok = launch_gather<F, 1>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    case 2: ok = launch_gather<F, 2>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    case 3: ok = launch_gather<F, 3>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    case 4: ok = launch_gather<F, 4>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    case 5: ok = launch_gather<F, 5>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    case 6: ok = launch_gather<F, 6>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    case 7: ok = launch_gather<F, 7>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    default: ok = launch_gather<F, 8>(weights, x_q8_1, y, n_in, n_out, cluster, keep, k, s); break;
+    }
+    if (!ok) return false;
+    const cudaError_t e = cudaGetLastError();
+    if (e != cudaSuccess) {
+        klog_error("head_gather: %s", cudaGetErrorString(e));
+        return false;
+    }
+    return true;
+}
+
 // basalt's 2-bit proxy: one thread per 32-weight group of a 2560-wide row into the copy
 template <class F>
 __global__ void proxy_pack_kernel(const uint8_t* __restrict__ rows, int64_t row0, int64_t n, uint4* __restrict__ wq,
@@ -561,6 +648,11 @@ bool q6k_head_mmvq(const void* w, const void* x, float* y, int n_in, int n_out, 
 }
 bool q4k_head_mmvq(const void* w, const void* x, float* y, int n_in, int n_out, int ncols, void* s) {
     return head_mmvq<Q4K>(w, x, y, n_in, n_out, ncols, s);
+}
+
+bool iq4xs_head_gather(const void* w, const void* x, float* y, int n_in, int n_out, int ncols, const int32_t* cluster,
+                       const unsigned char* keep, int k, void* s) {
+    return head_gather<IQ4XS>(w, x, y, n_in, n_out, ncols, cluster, keep, k, s);
 }
 
 bool iq4xs_head_mmvq_argmax(const void* w, const void* x, float* y, int n_in, int n_out, int ncols,

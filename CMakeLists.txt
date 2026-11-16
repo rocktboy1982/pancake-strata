@@ -741,12 +741,18 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(head_argmax_parity PRIVATE strata_kernels)
     add_test(NAME head_argmax_parity COMMAND head_argmax_parity)
     set_tests_properties(head_argmax_parity PROPERTIES SKIP_RETURN_CODE 77)
+    # item 38 STRATA_HEAD_SHORTLIST_GATHER: the gathered IQ4_XS head vs the full head + mask, bitwise (card needed)
+    add_executable(head_gather_parity src/kernels/cuda/head_gather_parity.cu)
+    target_include_directories(head_gather_parity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(head_gather_parity PRIVATE strata_kernels)
+    add_test(NAME head_gather_parity COMMAND head_gather_parity)
+    set_tests_properties(head_gather_parity PROPERTIES SKIP_RETURN_CODE 77)
   endif()
   # MOD_PLAN.md section 6 item 17 part 18: the head-format GEMVs on HIP, for STRATA_HEAD_ARGMAX_FUSED (opt-in build switch;
   # run head_argmax_parity on the card - bitwise vs native_mmvq - before setting the env switch)
   option(STRATA_HIP_HEAD_FMT "Build head_fmt.cu on HIP (STRATA_HEAD_ARGMAX_FUSED)" OFF)
   if(STRATA_ENABLE_HIP AND STRATA_HIP_HEAD_FMT AND NOT STRATA_HIP_GFX906)
-    set_source_files_properties(src/kernels/cuda/head_fmt.cu src/kernels/cuda/head_argmax_parity.cu PROPERTIES LANGUAGE HIP)
+    set_source_files_properties(src/kernels/cuda/head_fmt.cu src/kernels/cuda/head_argmax_parity.cu src/kernels/cuda/head_gather_parity.cu PROPERTIES LANGUAGE HIP)
     target_sources(strata_kernels PRIVATE src/kernels/cuda/head_fmt.cu)
     target_compile_definitions(strata_kernels PUBLIC STRATA_HAVE_HEAD_FMT=1)
     add_executable(head_argmax_parity src/kernels/cuda/head_argmax_parity.cu)
@@ -754,6 +760,11 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(head_argmax_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
     add_test(NAME head_argmax_parity COMMAND head_argmax_parity)
     set_tests_properties(head_argmax_parity PROPERTIES SKIP_RETURN_CODE 77)
+    add_executable(head_gather_parity src/kernels/cuda/head_gather_parity.cu)
+    target_include_directories(head_gather_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(head_gather_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME head_gather_parity COMMAND head_gather_parity)
+    set_tests_properties(head_gather_parity PROPERTIES SKIP_RETURN_CODE 77)
   endif()
   # LEADS.md "LongSpec/Hybrid Tree" (STRATA_ATTN_QMAJOR): the decode attention parity harness on HIP too (the CUDA build
   # registers it as qsa_merge_daily_parity*): chunk kernel 2 and the production entry with the query-major launch on
@@ -2419,6 +2430,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(head_shortlist_test src/program/head_shortlist_test.cpp)   # MOD_PLAN.md section 6 item 38: STRATA_HEAD_SHORTLIST
   target_include_directories(head_shortlist_test PRIVATE include)
   add_test(NAME head_shortlist_test COMMAND head_shortlist_test)
+  add_executable(head_gather_test src/core/head_gather_test.cpp)   # item 38: STRATA_HEAD_SHORTLIST_GATHER, the gathered head against the full head + mask (host)
+  target_include_directories(head_gather_test PRIVATE include)
+  add_test(NAME head_gather_test COMMAND head_gather_test)
   add_executable(tier_miss_budget_test src/program/tier_miss_budget_test.cpp)   # MOD_PLAN.md section 6 item 20: STRATA_TIER_MISS_BUDGET
   target_include_directories(tier_miss_budget_test PRIVATE include)
   add_test(NAME tier_miss_budget_test COMMAND tier_miss_budget_test)
@@ -4000,7 +4014,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test
-    draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test head_shortlist_test tier_miss_budget_test expert_entropy_test
+    draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
     spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test miss_budget_test fragile_recheck_test kv_ring_test

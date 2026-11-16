@@ -1,0 +1,39 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 6,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+  },
+  "ref-134": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+   "env": {
+    "STRATA_HEAD_SHORTLIST": "/home/dan/clone-of-d/src/head-k1024.shl",
+    "STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED": "134"
+   }
+  },
+  "gather-134": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+   "env": {
+    "STRATA_HEAD_SHORTLIST": "/home/dan/clone-of-d/src/head-k1024.shl",
+    "STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED": "134",
+    "STRATA_HEAD_SHORTLIST_GATHER": "1"
+   }
+  },
+  "gather-256": {
+   "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+   "env": {
+    "STRATA_HEAD_SHORTLIST": "/home/dan/clone-of-d/src/head-k1024.shl",
+    "STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED": "256",
+    "STRATA_HEAD_SHORTLIST_GATHER": "1"
+   }
+  }
+ },
+ "note": "STRATA_HEAD_SHORTLIST_GATHER (MOD_PLAN section 6 item 38): the gathered-rows IQ4_XS head against the reference form (ref-134: full GEMV then mask, no speed gain) and the plain head (base). gather-* logits are bit for bit ref-*'s (head_gather_parity first: it is NOT RUN yet; build with -DSTRATA_HIP_HEAD_FMT=ON on HIP). Needs the table head-k1024.shl of spec 131 (head_cluster.py) and its quality gate PASS before any use: LOSSY. Expected gain 1-2% (MOD_PLAN item 38 ceiling arithmetic), the lossy bar is >= 3% end to end, so a no-gain verdict is the likely outcome. The preset's head must be IQ4_XS (type 23) or the arm runs the reference form."
+}

@@ -676,11 +676,33 @@ inline const char* head_shortlist_path() {
     static const char* v = [] { const char* e = std::getenv("STRATA_HEAD_SHORTLIST"); return (e != nullptr && e[0] != ' ') ? e : nullptr; }();
     return v;
 }
+// STRATA_HEAD_SHORTLIST_GATHER=1 (opt-in with STRATA_HEAD_SHORTLIST, LOSSY exactly as it is; MOD_PLAN.md section 6 item 38): an
+// IQ4_XS head computes only the rows of the clusters some column of its chunk keeps (head_fmt.hpp iq4xs_head_gather), so the
+// window reads that share of the head instead of all of it; the logits are bit for bit the reference form's (full GEMV, then
+// the mask).  Any other head type, a shape the kernel refuses, or a failed allocation keeps the reference form.
+inline bool head_shortlist_gather_on() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_HEAD_SHORTLIST_GATHER"); return e != nullptr && e[0] == '1'; }();
+    return v;
+}
 struct HeadShortlistDev {   // the table on the device, made once by the last stage's verifier
+    unsigned char* keep = nullptr;   // gathered form: ncols * k keep flags (head_shortlist_keep)
     int32_t* cluster = nullptr; float* centre = nullptr; float* scratch = nullptr;
     int k = 0, n_keep = 0; bool ready = false, failed = false;
 };
 static HeadShortlistDev g_shl;
+#if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
+// one chunk of the gathered head (STRATA_HEAD_SHORTLIST_GATHER): the keep flags, then the gathered GEMV; false when the head is
+// not IQ4_XS or the kernel refuses the shape (nothing launched for the GEMV then: the caller runs the full head and the mask)
+template <class H>
+static bool shl_gather_chunk(const H* head, const float* mixed, const void* xq, float* hl, int n_in, int vocab, int ht, void* cs) {
+    if (head == nullptr || head->type() != 23 || ht < 1 || ht > 8 || !strata::kernels::head_fmt_supported(n_in, ht)) return false;
+    strata::kernels::head_shortlist_keep(mixed, g_shl.centre, n_in, g_shl.k, g_shl.n_keep, ht, g_shl.scratch, g_shl.keep, cs);
+    return strata::kernels::iq4xs_head_gather(head->weights(), xq, hl, n_in, vocab, ht, g_shl.cluster, g_shl.keep, g_shl.k, cs);
+}
+#else
+template <class H>
+static bool shl_gather_chunk(const H*, const float*, const void*, float*, int, int, int, void*) { return false; }
+#endif
 inline bool head_argmax_fused_on() {
 #if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
     static const bool v = [] { const char* e = std::getenv("STRATA_HEAD_ARGMAX_FUSED"); return e != nullptr && e[0] == '1' && head_shortlist_path() == nullptr; }();
@@ -1558,8 +1580,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_ROWS=%s is not a list of up to %d caps in -1..63: off\n",
                          rv, strata::core::kEcapRowsMax);
         if (mp == -2.0f)
-            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_MINP is not a probability in (0, 1]: off
-");
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_MINP is not a probability in (0, 1]: off\n");
         {   // STRATA_WINDOW_POLICY (opt-in, changes the output)
             const char* wv = std::getenv("STRATA_WINDOW_POLICY");
             const strata::spec::WindowPolicyCfg wc = strata::spec::window_policy_parse(wv);
@@ -1907,11 +1928,11 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             } else if (cudaMalloc((void**) &g_shl.cluster, (size_t) tb.vocab * 4) != cudaSuccess ||
                        cudaMalloc((void**) &g_shl.centre, tb.centre.size() * 4) != cudaSuccess ||
                        cudaMalloc((void**) &g_shl.scratch, strata::kernels::head_shortlist_scratch_bytes(cols, (int) tb.k)) != cudaSuccess ||
+                       (head_shortlist_gather_on() && cudaMalloc((void**) &g_shl.keep, (size_t) 8 * tb.k) != cudaSuccess) ||
                        cudaMemcpy(g_shl.cluster, tb.cluster.data(), (size_t) tb.vocab * 4, cudaMemcpyHostToDevice) != cudaSuccess ||
                        cudaMemcpy(g_shl.centre, tb.centre.data(), tb.centre.size() * 4, cudaMemcpyHostToDevice) != cudaSuccess) {
                 (void) cudaGetLastError();
-                std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST: device allocation failed (switch off)
-");
+                std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST: device allocation failed (switch off)\n");
                 g_shl.failed = true;
             } else {
                 g_shl.k = (int) tb.k;
@@ -1920,6 +1941,9 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                 std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST=%s (LOSSY): %d clusters, the best %d scored; REFERENCE form "
                                      "(full head GEMV, then the logits outside the kept clusters set to -inf: no speed gain)\n",
                              head_shortlist_path(), g_shl.k, g_shl.n_keep);
+                if (g_shl.keep != nullptr)
+                    std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST_GATHER=1: an IQ4_XS head reads only the rows of the kept "
+                                         "clusters (the union of a chunk's columns; same logits as the reference form)\n");
             }
         }
         if (head_wide_scratch_ == nullptr && strata::kernels::head_wide_enabled() && head_shortlist_path() == nullptr &&
@@ -4072,6 +4096,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                         *hu = wt.find("output_hc_up.weight");
         if (!hn || !hd || !hu) { err = "verify: an output_hc_* weight is missing"; return false; }
         int head_am_cols = 0;   // STRATA_HEAD_ARGMAX_FUSED: the columns whose pick the head GEMV folded into head_am_keys_
+        int shl_gathered_cols = 0;   // STRATA_HEAD_SHORTLIST_GATHER: the columns the gathered head already masked
         // STRATA_HEAD_WIDE=1 (opt-in; jstamagal/Strata-gfx1030 ef00764552, LEADS.md "gfx1030 decode"): each chunk's logits
         // (native_mmvq's bits), its greedy picks and its non-finite flags in two launches (kernels/head_wide.hpp); the
         // pick and the flag passes after the chunks are then skipped.  Off (no scratch): the head below as before.
@@ -4160,6 +4185,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                                m_out_ + h0,
                                                nan_guard_on() ? m_nf_ + (size_t) h0 * strata::kernels::kNonfiniteBlocks : nullptr,
                                                cs);
+                } else if (g_shl.ready && g_shl.keep != nullptr &&
+                           shl_gather_chunk(head_, head_mixed_ + (size_t) h0 * N, xq_, hl, (int) N, (int) n_vocab_, (int) HT, cs)) {
+                    shl_gathered_cols += (int) HT;   // the kept clusters' rows only; every other logit is -inf already
                 } else {
 #if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
                 // MOD_PLAN.md section 6 item 17, part 18 (STRATA_HEAD_ARGMAX_FUSED=1, opt-in; LEADS.md "Item 18 fused
@@ -4224,7 +4252,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
       }   // the head's column chunks
         // STRATA_HEAD_SHORTLIST (opt-in, LOSSY): the window's logits outside each column's best clusters become -inf, so the pick
         // and the margins below read the shortlist; head_mixed_ is the head's input (the fused / wide picks are off with it)
-        if (g_shl.ready && head_ != nullptr && head_->loaded() && head_am_cols == 0 && !head_wide_win) {
+        if (g_shl.ready && head_ != nullptr && head_->loaded() && head_am_cols == 0 && !head_wide_win && shl_gathered_cols < T) {
             try {
                 for (int c0 = 0; c0 < T; c0 += strata::kernels::kHeadShortlistMaxCols) {
                     const int cn = std::min(T - c0, (int) strata::kernels::kHeadShortlistMaxCols);
