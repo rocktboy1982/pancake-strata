@@ -365,7 +365,8 @@ __global__ void k_attn_merge(const float* pacc, const float* pm, const float* pl
 /// of one KV head in one block: every K / V cell is read once for the G heads instead of once per head (the GQA group
 /// shares it), the arithmetic per head in k_attn_part's order (its bits).  Same partials and layout, so k_attn_merge
 /// follows unchanged.  Unlike k_attn_window it takes batch rows (RowSel) and G = 2, 4, 8, 16.
-/// grid (n_chunk, n_tokens * HKV), block 256, HD == 256.
+/// grid (n_tokens * HKV, n_chunk), block 256, HD == 256: the rows of a window (verify, batch) on the same chunk are
+/// neighbours in the launch order, so they meet its cells in the cache (storm-ace f74984a171).
 template <int G>
 __global__ void __launch_bounds__(256) k_attn_part_gqa(const float* q, const float* kc, const float* vc, const int32_t* pos0,
                                                        int t0, int H, int HKV, int ctx, float scale, int n_chunk,
@@ -379,7 +380,7 @@ __global__ void __launch_bounds__(256) k_attn_part_gqa(const float* q, const flo
     constexpr int TI = 16;
 #endif
     __shared__ float qs[G][HD], sc[G][kChunkCells], sh[kThreads], kt[kChunkCells][TI + 1];
-    const int c = blockIdx.x, tl = blockIdx.y / HKV, kvh = blockIdx.y % HKV;
+    const int c = blockIdx.y, tl = blockIdx.x / HKV, kvh = blockIdx.x % HKV;
     const int t = t0 + tl;
     const int npos = (rs.cell ? rs.cell[t] : *pos0 + t) + 1;
     if (rs.kc) {
@@ -674,6 +675,48 @@ __global__ void k_attn_softmax16(const float* S, __half* S16, int ld, int T, int
 __global__ void k_gate_mul(float* att, const float* gate, int64_t n) {
     const int64_t i = (int64_t) blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) att[i] *= sigm(gate[i]);
+}
+// ---- STRATA_Q36_ATT_GROUPED=1 (storm-ace f74984a171, opt-in; FP16-GEMM-level differences: other GEMM shapes): the
+// prompt attention's G query heads of a KV head as ONE product of nt * G columns instead of G narrow ones.
+/// The prompt's queries as FP16 in GQA groups: q [t][h][HD] -> q16 [kvh][t][g][HD] (h = kvh * G + g), so the G heads of
+/// a KV head are the consecutive columns (t, g) of one product.  grid1(T * H * HD).
+__global__ void k_q_f16_grouped(const float* q, __half* q16, int T, int H, int HKV, int HD) {
+    const int64_t i = (int64_t) blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (int64_t) T * H * HD) return;
+    const int G = H / HKV;
+    const int d = (int) (i % HD);
+    const int64_t col = i / HD;   // (kvh, t, g)
+    const int g = (int) (col % G), t = (int) ((col / G) % T), kvh = (int) (col / ((int64_t) G * T));
+    q16[i] = __float2half(q[((size_t) t * H + kvh * G + g) * HD + d]);
+}
+/// k_attn_softmax16 over the grouped rows: row (kvh, n) of S with n = t * G + g, query t at cell pos0 + t; the row's
+/// probabilities over the cells [0, pos0 + t], 0 past them up to P.  grid (N, HKV), block 256.
+__global__ void k_attn_softmax16g(const float* S, __half* S16, int ld, int P, int pos0, int G, float scale) {
+    __shared__ float sh[kThreads];
+    const size_t r = (size_t) blockIdx.y * gridDim.x + blockIdx.x;
+    const int t = (int) blockIdx.x / G;
+    const float* row = S + r * ld;
+    __half* out = S16 + r * ld;
+    const int n = min(P, pos0 + t + 1);
+    float mx = -INFINITY;
+    for (int p = threadIdx.x; p < n; p += blockDim.x) mx = fmaxf(mx, row[p] * scale);
+    mx = block_max(mx, sh);
+    float sum = 0.f;
+    for (int p = threadIdx.x; p < n; p += blockDim.x) sum += expf(row[p] * scale - mx);
+    sum = block_sum(sum, sh);
+    const float inv = 1.0f / sum;
+    for (int p = threadIdx.x; p < P; p += blockDim.x) out[p] = __float2half(p < n ? expf(row[p] * scale - mx) * inv : 0.f);
+}
+/// att [t][h][HD] = att2 [kvh][t][g][HD] * sigmoid(gate), the grouped product's output back in head order.  grid1(T * H * HD).
+__global__ void k_att_ungroup_gate(const float* att2, const float* gate, float* att, int T, int H, int HKV, int HD) {
+    const int64_t i = (int64_t) blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (int64_t) T * H * HD) return;
+    const int G = H / HKV;
+    const int d = (int) (i % HD);
+    const int64_t col = i / HD;
+    const int g = (int) (col % G), t = (int) ((col / G) % T), kvh = (int) (col / ((int64_t) G * T));
+    const size_t o = ((size_t) t * H + kvh * G + g) * HD + d;
+    att[o] = att2[i] * sigm(gate[o]);
 }
 
 /// Picture rows over the embeddings of a chunk: x[r] = img[map[r]] for the rows with map[r] >= 0 (the rows of a picture's
@@ -1408,6 +1451,9 @@ struct Engine {
     float* sk_part = nullptr;          // the split-K partials of the F32 projections: [kSplitK][tmax][<= 257]
     __half* att_p16 = nullptr;         // the probabilities in FP16 (kAttScoreFloats halves)
     __half *k16 = nullptr, *v16 = nullptr, *q16 = nullptr;   // the prompt attention's FP16 operands
+    // STRATA_Q36_ATT_GROUPED=1 (storm-ace f74984a171, opt-in): the prompt attention's G heads of a KV head as one product
+    bool att_grouped = [] { const char* v = std::getenv("STRATA_Q36_ATT_GROUPED"); return v != nullptr && v[0] == '1'; }();
+    float* att2 = nullptr;   // the grouped prompt attention's output [kvh][t][g][HD]
     size_t kAttScoreFloats = (size_t) 64 << 20;   // 256 MB (16 M floats when the experts' fit is close)
     // pancake, opt-in (strata/kernels/bfla.hpp): the prompt attention of long chunks as the fused gfx11 kernel, over every
     // block (STRATA_BFLA_DENSE=1, exact) or block-sparse (STRATA_BFLA_SPARSE=1, BFLA, lossy); the selection scratch
@@ -1609,6 +1655,7 @@ struct Engine {
         k16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         v16 = dalloc_t<__half>((size_t) g.n_head_kv * ctx * g.head_dim);
         q16 = dalloc_t<__half>(T * g.n_head * g.head_dim);
+        if (att_grouped) att2 = dalloc(T * g.n_head * g.head_dim);
         if (const int bm = strata::kernels::bfla_config().mode; bm != 0) {
             bfla_ok = strata::kernels::bfla_supported((int) g.n_head, (int) g.n_head_kv, (int) g.head_dim);
             if (bfla_ok && bm == 1) {
@@ -1853,7 +1900,7 @@ struct Engine {
     /// KV head and chunk) when the group size has an instance; false leaves them to k_attn_part.
     bool attn_part_gqa(int G, int nc, int nt, int HKV, const float* q_, const float* kc_, const float* vc_, const int32_t* pos0,
                        int t0, int H, int ctx_, float scale, const RowSel& rs) {
-        const dim3 grid(nc, nt * HKV);
+        const dim3 grid(nt * HKV, nc);
         switch (G) {
             case 2: k_attn_part_gqa<2><<<grid, kChunkCells, 0, st>>>(q_, kc_, vc_, pos0, t0, H, HKV, ctx_, scale, n_chunk, pacc, pm, pl, rs); return true;
             case 4: k_attn_part_gqa<4><<<grid, kChunkCells, 0, st>>>(q_, kc_, vc_, pos0, t0, H, HKV, ctx_, scale, n_chunk, pacc, pm, pl, rs); return true;
@@ -2273,7 +2320,34 @@ struct Engine {
                                      (long long) p0, P - 1);
                     }
                 }
-                for (int t0 = 0; t0 < T && !bfla_done; t0 += tq) {
+                // STRATA_Q36_ATT_GROUPED=1 (storm-ace f74984a171): the G query heads of a KV head as one product - columns
+                // (t, g) of q16 [kvh][t][g][HD], one GEMM per KV head (a batch of HKV) of N = nt * G columns instead of G
+                // narrow ones; each slice only over the cells its rows see.  Not after BFLA / XATTN took the chunk.
+                const bool grouped = att_grouped && att2 != nullptr && !bfla_done;
+                if (grouped) {
+                    k_q_f16_grouped<<<grid1((int64_t) T * H * HD), kThreads, 0, st>>>(q, q16, T, H, HKV, HD);
+                    for (int t0 = 0; t0 < T; t0 += tq) {
+                        const int nt = std::min(tq, T - t0), N = nt * G, Ps = (int) p0 + t0 + nt;
+                        if (cublasGemmStridedBatchedEx(blas, CUBLAS_OP_T, CUBLAS_OP_N, Ps, N, HD, &one, k16, CUDA_R_16F, HD,
+                                                       (long long) P * HD, q16 + (size_t) t0 * G * HD, CUDA_R_16F, HD,
+                                                       (long long) T * G * HD, &zero, att_s, CUDA_R_32F, ldp, (long long) N * ldp,
+                                                       HKV, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT) != CUBLAS_STATUS_SUCCESS) {
+                            std::fprintf(stderr, "strata-q36: attention scores GEMM failed\n");
+                            std::exit(1);
+                        }
+                        k_attn_softmax16g<<<dim3(N, HKV), kThreads, 0, st>>>(att_s, att_p16, ldp, Ps, (int) p0 + t0, G,
+                                                                            1.0f / sqrtf((float) HD));
+                        if (cublasGemmStridedBatchedEx(blas, CUBLAS_OP_N, CUBLAS_OP_N, HD, N, Ps, &one, v16, CUDA_R_16F, HD,
+                                                       (long long) P * HD, att_p16, CUDA_R_16F, ldp, (long long) N * ldp, &zero,
+                                                       att2 + (size_t) t0 * G * HD, CUDA_R_32F, HD, (long long) T * G * HD, HKV,
+                                                       CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT) != CUBLAS_STATUS_SUCCESS) {
+                            std::fprintf(stderr, "strata-q36: attention values GEMM failed\n");
+                            std::exit(1);
+                        }
+                    }
+                    k_att_ungroup_gate<<<grid1((int64_t) T * H * HD), kThreads, 0, st>>>(att2, gate, att, T, H, HKV, HD);
+                }
+                for (int t0 = 0; t0 < T && !bfla_done && !grouped; t0 += tq) {
                     const int nt = std::min(tq, T - t0);
                     for (int kvh = 0; kvh < HKV; ++kvh) {
                         const __half* Kh = k16 + (size_t) kvh * P * HD;
@@ -2302,6 +2376,7 @@ struct Engine {
                         }
                     }
                 }
+                if (!grouped)   // (the grouped path applied the gate as it put the heads back in order)
                 k_gate_mul<<<grid1((int64_t) T * H * HD), kThreads, 0, st>>>(att, gate, (int64_t) T * H * HD);
             } else {
                 // split-K over 256-cell chunks; the chunk grid covers every cell a row can see (graph mode: the whole
@@ -3054,8 +3129,12 @@ struct Engine {
     /// `cancel`: a stop asked for before the state moves keeps only x (the caller then emits no draft), so that a request
     /// stopped mid-answer leaves the state at the tokens it has shown: a conversation that continues from them (the server's
     /// hand-over of a stopped request to a batch slot) reuses it instead of reading them again.
+    /// `judge` (a sampled request, STRATA_Q36_SPEC_SAMPLE=1; storm-ace f74984a171): decides the window from the rows'
+    /// logits instead of the greedy picks - it writes picks 0 .. a and returns a, the drafts it kept (row i's logits:
+    /// host_logits_row(i)).  Null: the greedy rule, as before.
+    using Judge = std::function<int(const std::vector<int32_t>& drafts, int32_t* picks)>;
     int spec_step(int x_tok, const std::vector<int32_t>& fix, int D, std::vector<int32_t>& drafts, int32_t* picks,
-                  const std::atomic<bool>* cancel = nullptr) {
+                  const std::atomic<bool>* cancel = nullptr, const Judge* judge = nullptr) {
         const int N = (int) m->g.n_embd;
         if (main_hybrid) D = std::min<int>(D, (int) (kRebalanceEvery - pos % kRebalanceEvery) - 1);
         const int T0 = (int) fix.size() + 1;   // the redo rows and the row of x
@@ -3105,9 +3184,14 @@ struct Engine {
         CK(cudaMemcpyAsync(hpin + 2, pick, (size_t) T * 4, cudaMemcpyDeviceToHost, st));
         CK(cudaStreamSynchronize(st));
         int a = 0;
-        while (a < D && hpin[2 + a] == drafts[(size_t) a]) ++a;
-        if (cancel != nullptr && cancel->load()) a = 0;
-        for (int i = 0; i <= a; ++i) picks[i] = hpin[2 + i];
+        if (judge != nullptr) {   // STRATA_Q36_SPEC_SAMPLE: the sampled rule writes the picks
+            a = (*judge)(drafts, picks);
+            if (cancel != nullptr && cancel->load()) a = 0;
+        } else {
+            while (a < D && hpin[2 + a] == drafts[(size_t) a]) ++a;
+            if (cancel != nullptr && cancel->load()) a = 0;
+            for (int i = 0; i <= a; ++i) picks[i] = hpin[2 + i];
+        }
         commit(a + 1);
         CK(cudaMemcpyAsync(hlast, hmain + (size_t) a * N, (size_t) N * 4, cudaMemcpyDeviceToDevice, st));
         pos += a + 1;
@@ -3379,6 +3463,51 @@ bool place_experts(Model& m, Engine& E, double vram_gib, int threads, int hybrid
 
 // ------------------------------------------------------------------------------------------------ sampling
 using strata::qwen35::Sampling;
+
+/// STRATA_Q36_SPEC_SAMPLE (storm-ace f74984a171): the sampled token for a row a draft proposed `draft` for (speculative
+/// sampling with a one-token draft): the draft is kept with the probability p(draft) of the distribution `sample` draws
+/// from, else the token is drawn from that distribution without the draft.  The result has exactly `sample`'s
+/// distribution (not its random stream); it returns `draft` when kept.
+int sample_spec(std::vector<float>& lg, const Sampling& s, const std::vector<int32_t>& hist, std::mt19937_64& rng, int draft) {
+    strata::qwen35::apply_penalties(lg, s, hist);
+    if (s.temperature <= 0.f) return (int) (std::max_element(lg.begin(), lg.end()) - lg.begin());
+    const int kk = std::max(1, std::min(s.top_k > 0 ? s.top_k : 64, (int) lg.size()));
+    std::vector<int> idx(lg.size());
+    for (size_t i = 0; i < idx.size(); ++i) idx[i] = (int) i;
+    std::partial_sort(idx.begin(), idx.begin() + kk, idx.end(), [&](int a, int b) { return lg[a] > lg[b]; });
+    idx.resize((size_t) kk);
+    std::vector<double> p(idx.size());
+    const double mx = lg[(size_t) idx[0]];
+    double sum = 0;
+    for (size_t i = 0; i < idx.size(); ++i) sum += (p[i] = std::exp((lg[(size_t) idx[i]] - mx) / s.temperature));
+    size_t keep = idx.size();
+    double cum = 0;
+    for (size_t i = 0; i < idx.size(); ++i) {
+        if (p[i] / sum < s.min_p * (p[0] / sum)) { keep = i; break; }
+        cum += p[i] / sum;
+        if (cum >= s.top_p) { keep = i + 1; break; }
+    }
+    keep = std::max<size_t>(1, keep);
+    double tot = 0, pd = 0;
+    size_t di = keep;
+    for (size_t i = 0; i < keep; ++i) {
+        tot += p[i];
+        if (idx[i] == draft) { pd = p[i]; di = i; }
+    }
+    std::uniform_real_distribution<double> u01(0.0, 1.0);
+    if (di < keep && u01(rng) < pd / tot) return draft;
+    const double rest = tot - pd;   // the rest of the distribution, the draft left out
+    if (rest <= 0) return draft;    // (only the draft has weight: kept above, here for rounding)
+    std::uniform_real_distribution<double> u(0.0, rest);
+    double r = u(rng);
+    for (size_t i = 0; i < keep; ++i) {
+        if (i == di) continue;
+        if ((r -= p[i]) <= 0) return idx[i];
+    }
+    for (size_t i = keep; i-- > 0;)
+        if (i != di) return idx[i];
+    return draft;
+}
 
 int sample(std::vector<float>& lg, const Sampling& s, const std::vector<int32_t>& hist, std::mt19937_64& rng) {
     strata::qwen35::apply_penalties(lg, s, hist);
@@ -3942,10 +4071,28 @@ struct Serve {
         const char* finish = "length";
         // greedy requests alone with the MTP block: speculative steps of mtp_d drafts (verified, so the text is the greedy
         // text); sampled ones, and requests beside others, one token at a time
-        const bool spec = E.mtp_d > 0 && !smp.needs_logits() && !adm;
+        // STRATA_Q36_SPEC_SAMPLE=1 (storm-ace f74984a171, opt-in; read once): a sampled request alone with the MTP block takes
+        // speculative steps too - each draft kept with its probability under the request's sampler (sample_spec), so its
+        // tokens have the plain sampler's distribution (not its random stream).  Unset: sampled requests one token a time.
+        static const bool spec_sample = [] { const char* v = std::getenv("STRATA_Q36_SPEC_SAMPLE"); return v != nullptr && v[0] == '1'; }();
+        const bool sampled = smp.needs_logits();
+        const bool spec = E.mtp_d > 0 && !adm && (!sampled || spec_sample);
         std::vector<int32_t> fix, drafts;
         int32_t picks[16];
         int nx = smp.needs_logits() ? -1 : E.greedy();
+        bool have_nx = false;   // a speculative step already sampled nx
+        Engine::Judge judge = [&](const std::vector<int32_t>& dr, int32_t* pk) {
+            std::vector<int32_t> h2 = hist;   // hist ends with the window's first token
+            for (int i = 0; i < (int) dr.size(); ++i) {
+                E.host_logits_row(i, lg);
+                pk[i] = sample_spec(lg, smp, h2, rng, dr[(size_t) i]);
+                if (pk[i] != dr[(size_t) i]) return i;
+                h2.push_back(dr[(size_t) i]);
+            }
+            E.host_logits_row((int) dr.size(), lg);
+            pk[dr.size()] = sample(lg, smp, h2, rng);
+            return (int) dr.size();
+        };
         if (adm) {
             if (smp.needs_logits()) {
                 E.host_logits(lg);
@@ -3981,10 +4128,11 @@ struct Serve {
             return;
         }
         for (;;) {
-            if (smp.needs_logits()) {
+            if (smp.needs_logits() && !have_nx) {
                 E.host_logits(lg);
                 nx = sample(lg, smp, hist, rng);
             }
+            have_nx = false;
             auto emit = [&](int t) {   // false: the answer ends here
                 std::printf("T %d\n", t);
                 std::fflush(stdout);
@@ -3998,7 +4146,7 @@ struct Serve {
             if (!emit(nx)) break;
             if (n_active > 0) window();
             if (spec && n_active == 0 && E.pos + E.mtp_d + 1 <= E.ctx) {
-                const int a = E.spec_step(nx, fix, E.mtp_d, drafts, picks, &stop);
+                const int a = E.spec_step(nx, fix, E.mtp_d, drafts, picks, &stop, sampled ? &judge : nullptr);
                 offered += E.mtp_d;
                 accepted += a;
                 // the state now holds x and every accepted draft, whether or not the answer ends inside them (an end of
@@ -4013,6 +4161,7 @@ struct Serve {
                     if (!emit(drafts[(size_t) i])) ended = true;
                 if (ended) break;
                 nx = picks[a];
+                have_nx = sampled;   // (STRATA_Q36_SPEC_SAMPLE: the judge sampled it)
                 continue;
             }
             if (E.pos + 1 > E.ctx) break;
