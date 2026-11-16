@@ -17459,6 +17459,14 @@ int main(int argc, char** argv) {
             if (!heat.empty() && line != "QUIT" && o.expert_profile_save_min > 0 &&
                 Clock::now() - profile_saved_at >= std::chrono::duration<double>(o.expert_profile_save_min * 60.0))
                 save_profile("periodic");
+            if (line != "QUIT" && !line.empty()) {   // STRATA_PSI_SHED (Speedy C4, Basalt PR #113; off by default)
+                if (std::string why; strata::platform::memory_pressure_sheds(&why)) {
+                    strata::core::conversation_park_join();   // (STRATA_PARK_ASYNC: no background copy into an entry about to go)
+                    if (conversations.evict_oldest())
+                        std::fprintf(stderr, "strata serve: conversation cache: shed 1 parked conversation (%s; STRATA_PSI_SHED)\n",
+                                     why.c_str());
+                }
+            }
             if (line == "QUIT") {
                 if (disk_tier.on()) {   // item 39: what is parked goes to disk too, for the next engine
                     strata::core::conversation_checkpoint_join(nullptr);

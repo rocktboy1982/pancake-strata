@@ -1009,6 +1009,7 @@ __global__ void typical_accept_rows_kernel(const float* __restrict__ logits, int
         if (pc != nullptr) pc[t] = p;
         if (hc != nullptr) hc[t] = H;
     }
+}
 // LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): the softmax entropy of each row, H = log Z - sum e^(l-M) (l-M) / Z with
 // Z = sum e^(l-M), M = the row max; one block a row.  logits == nullptr: -1 (unknown) in every row.
 __global__ void row_entropy_disco_kernel(const float* __restrict__ logits, int n_vocab, float* __restrict__ ent) {
@@ -1298,6 +1299,7 @@ void oea_route_window(const float* logits, int n, int n_expert, int k, int k0, i
     }
     oea_route_window_kernel<<<1, 512, 0, (cudaStream_t) stream>>>(logits, n, n_expert, k, k0, ids, w);
     check("oea_route_window");
+}
 void row_entropy(const float* logits, int n_rows, int n_vocab, float* ent, void* stream) {
     row_entropy_disco_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ent);
     check("row_entropy");

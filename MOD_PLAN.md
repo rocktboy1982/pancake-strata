@@ -317,7 +317,7 @@ Code:
 - A37 `IQ_LUT_DUP` (d11a9ca09): code read 2026-11-15: default off (iq_kernels.hpp, 0 = off); stays as an opt-in bench knob, not reverted.
 - `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it: opt-in, off, classified in disk_env;
   left in (removing it needs a Mac-side check nobody can run here). OPEN, low.
-- `STRATA_PSI_SHED` (Speedy C4, idea from Basalt PR #113; Speedy SPEEDY.md / CHANGELOG 0.1.0 / TUNING-HISTORY read 2026-11-15): opt-in
+- CODED 2026-11-16 (T-595, off by default, README 9 credit, LEADS B104): `STRATA_PSI_SHED` (Speedy C4, idea from Basalt PR #113; Speedy SPEEDY.md / CHANGELOG 0.1.0 / TUNING-HISTORY read 2026-11-15): opt-in
   `STRATA_PSI_SHED=<avg10 %>`, off by default: under PSI memory pressure the engine drops PARKED CONVERSATIONS; no numbers upstream
   (test name `memory_pressure_test`, robustness only). Ours has the park half (`STRATA_PSI_PARK_PCT`, skip parking) and no shed half.
   Port design: `memory_pressure_sheds(&why)` beside `memory_pressure_blocks_parking` (mem_pressure.cpp:297, same probe, threshold from

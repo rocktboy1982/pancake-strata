@@ -379,7 +379,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B101 | 81 GDN scan 48 WG on 84 CUs: split value columns | - | bits change | src/prefill/kernels.cu:1809 |
 | B102 | 82 `STRATA_PREFILL_TIMING=1` + `STRATA_TRACE=1` run on 7900XT | never run | diag | include/strata/prefill/timer_marks.hpp:1 |
 | B103 | 38 Linux O_DIRECT in `load_experts_gguf` (16 readers, FADV_DONTNEED stop-gap) | 31-41 s -> est. 12-15 s; likely oomd cause | exact | 2026-11-15: already STRATA_UNBUFFERED_LOAD |
-| B104 | 86 deterministic conversation-cache RAM budget + PSI-paused readers | cache 4,096-6,144 MiB today | exact | env.def:964 (`STRATA_PSI_GUARD`) |
+| B104 | 86 deterministic conversation-cache RAM budget + PSI-paused readers | cache 4,096-6,144 MiB today | exact | env.def:964 (`STRATA_PSI_GUARD`); CODED 2026-11-16: `STRATA_PSI_SHED` (Speedy C4, basalt #113), opt-in |
 | B105 | 85 THP collapse in background, pipelined registration | Windows/5070 -10% decode | exact | src/core/pinned.cu:110 |
 | B106 | 89 grammar on Anthropic/Responses paths | real bug | exact | serve:server.py:10057, 10122 (fixed) |
 | B107 | 90 `pin_sibling` threshold (`STRATA_PIN_PARK_TOKENS`) before Qwen auto-pin | full re-read of 19-41K parent | exact | src/program/generate.cpp:17642; env.def:582 |
