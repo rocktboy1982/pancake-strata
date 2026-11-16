@@ -1,0 +1,31 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 2,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "pf-combine-write": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_COMBINE_WRITE": "1"
+      }
+    },
+    "pf-combine-write-serial": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_COMBINE_WRITE": "1",
+        "AMD_SERIALIZE_KERNEL": "3",
+        "HIP_LAUNCH_BLOCKING": "1"
+      }
+    }
+  },
+  "note": "Defect T-630 diagnosis (MOD_PLAN.md section 7): STRATA_PF_COMBINE_WRITE=1 (spec 97, FK-36) ended its first request (HTTP 503, no engine log kept). One switch per spec, short prompts first. The serial arm runs the same switch with serialized launches so the engine log names the failing kernel (prefill check() prints 'prefill moe_combine_write_norm_rs: ...' and exits). Keep each arm's engine log. Run combine_write_parity (ctest, hip_combine_write_parity on HIP) first: it now covers the engine's T 64 / 7 shapes. Stop pancake.service first."
+}

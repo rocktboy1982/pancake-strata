@@ -96,6 +96,10 @@ int main() {
     fails += run_case(1000, D, false, true, false, 3);
     fails += run_case(517, D + 64, true, false, false, 4);   // the padded token stride (hc_pad)
     fails += run_case(256, D, false, false, true, 5);        // the FP16 image
+    // T-630: the shapes of the engine's first request (a 64-token chunk, then the 7-token tail), the padded stride, the NVFP4 row scales and the lo image together
+    fails += run_case(64, D + 64, true, true, false, 6);
+    fails += run_case(7, D + 64, true, true, false, 7);
+    fails += run_case(64, D, false, true, true, 8);
     std::printf("combine_write_parity: %s\n", fails ? "FAILED" : "ok");
     return fails ? 1 : 0;
 }
