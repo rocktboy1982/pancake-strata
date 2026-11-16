@@ -391,7 +391,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B113 | 84 seeds inert under KMISS: virtual miss bits | placement | exact | - |
 | B114 | 53 ForesightSwap stuck slot on failed copy: generation stamp | bounded | exact | - |
 | B115 | Loop-guard `collapse` rewrites history -> deep re-read each turn while active | perf risk | exact | serve:loop_guard.py |
-| B116 | Session files keep only deepest checkpoint (root lost after restore) | matters for 39 | exact | include/strata/core/conversation_file.hpp:189 |
+| B116 | Session files keep only deepest checkpoint (root lost after restore) | matters for 39 | exact | include/strata/core/conversation_file.hpp:189; CODED 2026-11-17 as `STRATA_SESSION_KEEP_ROOT=1` for SAVE / QUIT (the disk tier already kept root + deepest): T-734, spec 145 queued T-735, MOD_PLAN.md section 6 item 44, nothing measured |
 
 ### 5. moe-speedup (window model + literature)
 

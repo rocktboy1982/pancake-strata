@@ -203,6 +203,17 @@ bool session_file_write(const std::string& path, const SessionSaveSources& save,
 std::vector<ConversationCheckpoint> session_checkpoints_to_save(const std::vector<ConversationCheckpoint>& chain);
 // The same choice without a copy (nullptr for an empty chain).
 const ConversationCheckpoint* session_deepest_checkpoint(const std::vector<ConversationCheckpoint>& chain);
+// STRATA_SESSION_KEEP_ROOT=1 (default off, MOD_PLAN.md section 6 item 43, LEADS.md B116): a session file (client SAVE, the
+// QUIT hand-over) also keeps the chain's ROOT checkpoint (the shallowest, the shared system prompt), so a new chat
+// after a restore reads only what follows it instead of everything.  Costs one more ~118 MB checkpoint on disk and in the
+// save's RAM preflight.  The disk tier of evicted conversations already keeps root + deepest (conversation_disk_checkpoints).
+bool session_keep_root_env();
+// The shallowest checkpoint whose tokens differ from `deepest`'s (nullptr: none, or only one distinct checkpoint).
+const ConversationCheckpoint* session_root_checkpoint(const std::vector<ConversationCheckpoint>& chain,
+                                                      const ConversationCheckpoint* deepest);
+// What a save keeps, shallow first: {deepest} (keep_root false: the old choice exactly), or {root, deepest}.
+std::vector<const ConversationCheckpoint*> session_checkpoints_kept(const std::vector<ConversationCheckpoint>& chain,
+                                                                    bool keep_root);
 
 // What a SAVE copies into RAM besides what the engine already holds, for its RAM preflight.
 struct SessionSaveLive {
@@ -214,6 +225,8 @@ struct SessionSaveLive {
 // one inside the captured image), the copied live state with its token and image lists, the K/V source directory,
 // the 16 MiB write buffer and 1 MiB for the small vectors.
 uint64_t session_save_peak_bytes(const ConversationCheckpoint* deepest, const SessionSaveLive& live);
+// The same for several kept checkpoints (STRATA_SESSION_KEEP_ROOT): two copies of each.
+uint64_t session_save_peak_bytes(const std::vector<const ConversationCheckpoint*>& kept, const SessionSaveLive& live);
 // The SAVE's RAM PREFLIGHT, BEFORE anything is copied: `admit` is asked for session_save_peak_bytes; only when it
 // agrees is the deepest checkpoint copied into `out`.  On a refusal nothing was allocated, `out` is empty, `chain`
 // and the live state are untouched and no file was opened.  Not a reservation.

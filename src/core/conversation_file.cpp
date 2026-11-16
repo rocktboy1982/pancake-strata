@@ -1336,6 +1336,37 @@ const ConversationCheckpoint* session_deepest_checkpoint(const std::vector<Conve
     return deepest;
 }
 
+bool session_keep_root_env() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_SESSION_KEEP_ROOT"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+
+const ConversationCheckpoint* session_root_checkpoint(const std::vector<ConversationCheckpoint>& chain,
+                                                      const ConversationCheckpoint* deepest) {
+    const ConversationCheckpoint* root = nullptr;
+    for (const auto& c : chain)
+        if ((!root || c.ids.size() < root->ids.size())) root = &c;
+    if (!root || !deepest || root == deepest || root->ids == deepest->ids) return nullptr;
+    return root;
+}
+
+std::vector<const ConversationCheckpoint*> session_checkpoints_kept(const std::vector<ConversationCheckpoint>& chain,
+                                                                    bool keep_root) {
+    std::vector<const ConversationCheckpoint*> out;
+    const ConversationCheckpoint* deepest = session_deepest_checkpoint(chain);
+    if (!deepest) return out;
+    if (keep_root)
+        if (const ConversationCheckpoint* root = session_root_checkpoint(chain, deepest)) out.push_back(root);
+    out.push_back(deepest);
+    return out;
+}
+
+uint64_t session_save_peak_bytes(const std::vector<const ConversationCheckpoint*>& kept, const SessionSaveLive& live) {
+    uint64_t n = session_save_peak_bytes(static_cast<const ConversationCheckpoint*>(nullptr), live);
+    for (const ConversationCheckpoint* c : kept) n = sat_add(n, sat_mul(2, c->bytes()));
+    return n;
+}
+
 uint64_t session_save_peak_bytes(const ConversationCheckpoint* deepest, const SessionSaveLive& live) {
     uint64_t n = sat_add(kBlock, uint64_t(1) << 20);                          // write buffer, small vectors
     if (deepest) n = sat_add(n, sat_mul(2, deepest->bytes()));                // the list and the image's copy
@@ -1350,9 +1381,10 @@ bool session_save_checkpoints(const std::vector<ConversationCheckpoint>& chain, 
                               const std::function<bool(uint64_t need_bytes, std::string& why)>& admit,
                               std::vector<ConversationCheckpoint>& out, std::string& why) {
     out.clear();
-    const ConversationCheckpoint* deepest = session_deepest_checkpoint(chain);
-    if (admit && !admit(session_save_peak_bytes(deepest, live), why)) return false;
-    if (deepest) out.push_back(*deepest);
+    const std::vector<const ConversationCheckpoint*> kept = session_checkpoints_kept(chain, session_keep_root_env());
+    if (admit && !admit(kept.size() == 1 ? session_save_peak_bytes(kept[0], live) : session_save_peak_bytes(kept, live), why))
+        return false;   // (one kept: the old call, byte for byte)
+    for (const ConversationCheckpoint* c : kept) out.push_back(*c);
     return true;
 }
 
@@ -1367,7 +1399,7 @@ bool session_save_stream_checkpoints(const std::vector<ConversationCheckpoint>& 
                                      std::vector<const ConversationCheckpoint*>& out, std::string& why) {
     out.clear();
     if (admit && !admit(session_save_stream_peak_bytes(live), why)) return false;
-    if (const ConversationCheckpoint* deepest = session_deepest_checkpoint(chain)) out.push_back(deepest);
+    for (const ConversationCheckpoint* c : session_checkpoints_kept(chain, session_keep_root_env())) out.push_back(c);
     return true;
 }
 

@@ -1,0 +1,26 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TRACE": "1"
+   }
+  },
+  "keep-root": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TRACE": "1",
+    "STRATA_SESSION_KEEP_ROOT": "1"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 6 item 44 (LEADS.md B116), STRATA_SESSION_KEEP_ROOT=1 (default off, exact: state placement only). A session file (client SAVE, the QUIT hand-over; the disk tier of evicted conversations already keeps root + deepest) now keeps the chain's root checkpoint besides the deepest, so after a restore a NEW chat that shares the system prompt (>= --prompt-cache-root tokens) resumes at the root instead of reading from 0. Cost: one more ~118 MB checkpoint in the file, in the RAM preflight and on the disk write. Rule + host test src/core/session_keep_root_test.cpp (ctest session_keep_root_test, run with the switch off and on). The abtest screen above shows only that nothing changes for ordinary requests (the switch is read only on a SAVE / QUIT). THE TEST THAT MATTERS has no tool yet: (1) start the engine with STRATA_SESSION_KEEP_ROOT=1 and STRATA_TRACE=1, serve a long agent conversation (ttft_bench.py --scenario b) so the chain holds the root and a turn checkpoint, send SAVE; (2) restart the engine, RESTORE the file, then send a NEW chat with the same system prompt and tools; read the engine log: 'session saved N tokens, K of M checkpoints' (K = 2 with the switch, 1 without) and the new chat's 'RESUME n' (the root's length with the switch, 0 without) and its prompt_ms; repeat with the switch off. Equivalence: STRATA_SESSION_KEEP_ROOT=1 python3 tools/pancake/restore_check.py --disk --control. NOT MEASURED (queued)."
+}
