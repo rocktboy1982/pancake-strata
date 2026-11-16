@@ -599,6 +599,8 @@ STRATA_ENV("STRATA_OLD_SAMPLER", Speed, "sampling path: tokens change, the state
 STRATA_ENV("STRATA_PARK_ASYNC", Speed, "cache/threads/park policy")
 STRATA_ENV("STRATA_NGRAM_MOD", Speed, "tctien342 05c5a841e9 / llama.cpp ngram-mod: shared n-gram table as a --lookup-chain draft source; drafting only")
 STRATA_ENV("STRATA_NT_COPY", Speed, "host expert-blob copies into pinned buffers with streaming stores; the same bytes")
+STRATA_ENV("STRATA_VRAM_CALIB", Speed, "upstream PR #5691: expert-cache reserve from a measured per-config file; cache size only, no output bit")
+STRATA_ENV("STRATA_VRAM_CALIB_MARGIN_MIB", Speed, "STRATA_VRAM_CALIB margin; cache size only")
 STRATA_ENV("STRATA_POOL_DEFER_ACTQ", Speed, "bsorensen110 e06154af0e: window input and down activations quantized by the pool threads; same calls on the same rows (bitwise, pool_tasks_test_defer_actq)")
 STRATA_ENV("STRATA_POOL_GUIDED", Speed, "cache/threads/park policy: guided row ranges for the native pool phases; each row computed once by the same call, bitwise (zsariboga fc5b2a7829)")
 STRATA_ENV("STRATA_POOL_GUIDED_MIN", Speed, "cache/threads/park policy: STRATA_POOL_GUIDED's smallest range (rows)")

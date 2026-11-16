@@ -449,6 +449,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(stage_reserve_test tests/program/stage_reserve_test.cpp)
   target_include_directories(stage_reserve_test PRIVATE include)
   add_test(NAME stage_reserve_test COMMAND stage_reserve_test)
+  # STRATA_VRAM_CALIB (upstream PR #5691): the measured VRAM reserve's header-only arithmetic, no GPU
+  add_executable(vram_calib_test tests/program/vram_calib_test.cpp)
+  target_include_directories(vram_calib_test PRIVATE include)
+  add_test(NAME vram_calib_test COMMAND vram_calib_test)
 
   # the layer split's spill walk (header-only arithmetic: who is short, which step comes next)
   add_executable(split_walk_test tests/program/split_walk_test.cpp)
@@ -3661,7 +3665,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   # there is no GPU (vmm_test, pin_budget_test) stay gpu, so they get real coverage in the GPU run.
   set(_strata_tests_cpu
     batch_telemetry_test logit_bias_test gguf_reader_test gguf_split_test model_family_test batch_read_test
-    gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test
+    gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test vram_calib_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
     routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test route_prior_auto_test defer_rank_test defer_auto_test think_probe_test run_manifest_test
     host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test conversation_disk_env_test file_expert_source_test
