@@ -1,0 +1,40 @@
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 308% [('clang-23', 300), ('gnome-remote-de', 3), ('pipewire', 2)], reclaim 0.0%
+  waiting for a quiet machine: load 0.00, foreign CPU 106% [('cc1plus', 100), ('gnome-remote-de', 2), ('pipewire', 2)], reclaim 0.0%
+  waiting for a quiet machine: load 0.00, foreign CPU 105% [('cc1plus', 100), ('pipewire', 2), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 146 s
+rep 0 base                 short 101.4 edit 144.0  foreign CPU 65% [('qsa_scores_gfx1', 100), ('kswapd0', 1), ('pipewire', 1)]  gpu 2045/1249 MHz 61C 184W gtt 27M cpu 3760MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 105% [('bfla_test', 100), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 20 s
+Traceback (most recent call last):
+  File "/home/dan/clone-of-d/src/Strata/tools/pancake/abtest.py", line 1057, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/dan/clone-of-d/src/Strata/tools/pancake/abtest.py", line 1004, in main
+    res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       passes, a.warmup)
+                       ^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata/tools/pancake/abtest.py", line 588, in run_arm
+    request(url, P["short"])                          # warm-up, not counted
+    ~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata/tools/pancake/abtest.py", line 480, in request
+    r = json.load(urllib.request.urlopen(req, timeout=1800))
+                  ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 503: Service Unavailable

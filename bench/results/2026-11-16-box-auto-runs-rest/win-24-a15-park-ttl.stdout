@@ -1,0 +1,4 @@
+abtest: another test or engine is already running on this machine: not starting (a second run would disturb it, and its numbers would be wrong).  Running:
+  pid 575156: /home/dan/clone-of-d/src/Strata/.venv/bin/python serve/server.py --engine strata --config bench/results/2026-11-16-taskgate-ecap/ecap1.json --port 8080
+  pid 575208: /home/dan/clone-of-d/src/Strata/build-hip/strata --serve --pack /home/dan/clone-of-d/Strata-data/packs/iq2_xs --native /home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-
+Wait for it, or stop it yourself if it is a leftover of a crashed run (abtest never stops what it did not start).  --force-busy starts anyway (fake-engine tests only).

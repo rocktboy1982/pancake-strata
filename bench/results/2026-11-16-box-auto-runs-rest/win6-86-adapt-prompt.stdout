@@ -1,0 +1,72 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 long1k 94.6/621p 1029t long3k 112.9/1109p 2933t edit 143.6 edit 173.5 short 106.6 short 118.3  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2051/1249 MHz 55C 163W gtt 21M cpu 4027MHz 51C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 adapt-prompt         long1k 99.6/624p 1029t long3k 111.1/1115p 2933t edit 149.6 edit 172.6 short 109.1 short 119.9  foreign CPU 11% [('gnome-shell', 29), ('claude', 7), ('pipewire', 1)]  gpu 2051/1249 MHz 55C 164W gtt 21M cpu 3939MHz 51C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 tier-rewarm          long1k 114.2/614p 1029t long3k 111.0/1118p 2933t edit 148.8 edit 180.4 short 107.4 short 113.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:9-KFD IH', 1)]  gpu 1851/1249 MHz 54C 154W gtt 21M cpu 3794MHz 52C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 tier-rewarm-decode-only long1k 104.5/615p 1029t long3k 124.9/1112p 2933t edit 143.1 edit 169.5 short 107.4 short 123.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1789/1249 MHz 55C 145W gtt 21M cpu 3648MHz 52C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 refill-async         long1k 92.4/623p 1029t long3k 110.3/1112p 2934t edit 146.3 edit 172.1 short 108.3 short 115.5  foreign CPU 5% [('claude', 6), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 55C 163W gtt 21M cpu 3709MHz 52C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-ahead-refill-async long1k 99.0/611p 1030t long3k 101.6/1135p 2934t edit 145.5 edit 180.0 short 111.6 short 121.5  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2054/1249 MHz 55C 158W gtt 21M cpu 3624MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k base                    620.6 +-   nan  (n=1)
+  long1k adapt-prompt            624.2 +-   nan  (n=1)   vs base:  +0.6% +-  nan%  -> no difference
+  long1k tier-rewarm             614.3 +-   nan  (n=1)   vs base:  -1.0% +-  nan%  -> no difference
+  long1k tier-rewarm-decode-only    614.8 +-   nan  (n=1)   vs base:  -0.9% +-  nan%  -> no difference
+  long1k refill-async            622.8 +-   nan  (n=1)   vs base:  +0.4% +-  nan%  -> no difference
+  long1k pf-ahead-refill-async    610.8 +-   nan  (n=1)   vs base:  -1.6% +-  nan%  -> no difference
+  long3k base                   1108.9 +-   nan  (n=1)
+  long3k adapt-prompt           1115.2 +-   nan  (n=1)   vs base:  +0.6% +-  nan%  -> no difference
+  long3k tier-rewarm            1118.3 +-   nan  (n=1)   vs base:  +0.8% +-  nan%  -> no difference
+  long3k tier-rewarm-decode-only   1111.5 +-   nan  (n=1)   vs base:  +0.2% +-  nan%  -> no difference
+  long3k refill-async           1112.0 +-   nan  (n=1)   vs base:  +0.3% +-  nan%  -> no difference
+  long3k pf-ahead-refill-async   1135.4 +-   nan  (n=1)   vs base:  +2.4% +-  nan%  -> no difference
+  edit   base                    158.6 +- 190.0  (n=2)
+                              drafts accepted 0.88
+  edit   adapt-prompt            161.1 +- 146.2  (n=2)   vs base:  +1.6% +- 27.7%  -> no difference
+                              drafts accepted 0.88
+  edit   tier-rewarm             164.6 +- 200.8  (n=2)   vs base:  +3.8% +-  6.8%  -> no difference
+                              drafts accepted 0.90
+  edit   tier-rewarm-decode-only    156.3 +- 167.8  (n=2)   vs base:  -1.4% +- 14.0%  -> no difference
+                              drafts accepted 0.88
+  edit   refill-async            159.2 +- 164.0  (n=2)   vs base:  +0.4% +- 16.4%  -> no difference
+                              drafts accepted 0.89
+  edit   pf-ahead-refill-async    162.8 +- 219.2  (n=2)   vs base:  +2.6% +- 18.4%  -> no difference
+                              drafts accepted 0.91
+  short  base                    112.4 +-  74.4  (n=2)
+                              drafts accepted 0.68
+  short  adapt-prompt            114.5 +-  68.6  (n=2)   vs base:  +1.8% +-  5.1%  -> no difference
+                              drafts accepted 0.71
+  short  tier-rewarm             110.5 +-  38.8  (n=2)   vs base:  -1.8% +- 31.6%  -> no difference
+                              drafts accepted 0.70
+  short  tier-rewarm-decode-only    115.2 +-  99.8  (n=2)   vs base:  +2.5% +- 22.6%  -> no difference
+                              drafts accepted 0.72
+  short  refill-async            111.9 +-  45.8  (n=2)   vs base:  -0.5% +- 25.4%  -> no difference
+                              drafts accepted 0.68
+  short  pf-ahead-refill-async    116.5 +-  62.9  (n=2)   vs base:  +3.6% +- 10.2%  -> no difference
+                              drafts accepted 0.76
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  adapt-prompt         DIFFERENT text -> lossy or placement-dependent: quality gate
+  tier-rewarm          DIFFERENT text -> lossy or placement-dependent: quality gate
+  tier-rewarm-decode-only DIFFERENT text -> lossy or placement-dependent: quality gate
+  refill-async         DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-ahead-refill-async DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  adapt-prompt         long1k +0.6%  long3k +0.6%  edit +1.6%  short +1.8%  -> PROMOTE to confirm
+  tier-rewarm          long1k -1.0%  long3k +0.8%  edit +3.8%  short -1.8%  -> PROMOTE to confirm
+  tier-rewarm-decode-only long1k -0.9%  long3k +0.2%  edit -1.4%  short +2.5%  -> PROMOTE to confirm
+  refill-async         long1k +0.4%  long3k +0.3%  edit +0.4%  short -0.5%  -> PROMOTE to confirm
+  pf-ahead-refill-async long1k -1.6%  long3k +2.4%  edit +2.6%  short +3.6%  -> PROMOTE to confirm

@@ -1,0 +1,13 @@
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base: FAILED (server died before ready)
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base: FAILED (server died before ready)
+ABORT: the server died twice before ready (free RAM in 2 MiB blocks: 18 GiB; fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                 no clean runs
+  short  il-build             no clean runs
+  short  il-plain             no clean runs
+  edit   base                 no clean runs
+  edit   il-build             no clean runs
+  edit   il-plain             no clean runs

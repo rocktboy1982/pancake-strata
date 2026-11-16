@@ -1,0 +1,25 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 fp16-ref: FAILED (server died before ready)
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 36% [('gnome-shell', 25), ('claude', 3), ('gnome-remote-de', 3)], reclaim 0.0%
+  quiet after 10 s
+rep 0 fp16-ref: FAILED (server died before ready)
+ABORT: the server died twice before ready (free RAM in 2 MiB blocks: 18 GiB; fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k fp16-ref             no clean runs
+  long1k gu-exact             no clean runs
+  long1k gu-exact-dqov        no clean runs
+  long1k gu-exact-down4       no clean runs
+  long1k gu-exact-all         no clean runs
+  long1k fp16-dq-fast         no clean runs
+  long1k preset               no clean runs
+  long3k fp16-ref             no clean runs
+  long3k gu-exact             no clean runs
+  long3k gu-exact-dqov        no clean runs
+  long3k gu-exact-down4       no clean runs
+  long3k gu-exact-all         no clean runs
+  long3k fp16-dq-fast         no clean runs
+  long3k preset               no clean runs

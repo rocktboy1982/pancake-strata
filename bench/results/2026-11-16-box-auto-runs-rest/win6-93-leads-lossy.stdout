@@ -1,0 +1,68 @@
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 110.0 short 96.7 edit 105.8 edit 144.8  foreign CPU 5% [('kworker/8:1-events_freezable', 6), ('pipewire', 1), ('kcompactd0', 1)]  gpu 1918/1249 MHz 56C 137W gtt 21M cpu 3526MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 buddy4               short 90.0 short 78.9 edit 155.0 edit 131.3  foreign CPU 6% [('kworker/8:2-events_freezable', 3), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 54C 171W gtt 21M cpu 3886MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 tail-skip-layers     short 118.8 short 93.1 edit 95.2 edit 174.3  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2060/1249 MHz 54C 145W gtt 21M cpu 3557MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 tier-lru05           short 119.2 short 112.9 edit 130.1 edit 163.0  foreign CPU 6% [('kworker/0:0-events_freezable', 4), ('kcompactd0', 2), ('pipewire', 2)]  gpu 1975/1249 MHz 55C 155W gtt 21M cpu 4032MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 adapt-classlru4      short 114.1 short 115.3 edit 145.0 edit 172.2  foreign CPU 4% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2046/1249 MHz 54C 161W gtt 21M cpu 3878MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 adapt-prob-mass      short 107.7 short 108.1 edit 138.8 edit 142.6  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 54C 155W gtt 21M cpu 3794MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 link-defaults        short 115.3 short 117.1 edit 144.4 edit 177.4  foreign CPU 3% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1940/1249 MHz 54C 154W gtt 21M cpu 3639MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 think-brake          short 115.3 short 116.9 edit 149.3 edit 170.9  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1795/1249 MHz 54C 140W gtt 21M cpu 3564MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    103.3 +-  84.5  (n=2)
+                              drafts accepted 0.72
+  short  buddy4                   84.5 +-  70.5  (n=2)   vs base: -18.3% +- 13.5%  -> worse
+                              drafts accepted 0.72
+  short  tail-skip-layers        105.9 +- 163.3  (n=2)   vs base:  +2.5% +- 76.2%  -> no difference
+                              drafts accepted 0.71
+  short  tier-lru05              116.1 +-  40.0  (n=2)   vs base: +12.3% +- 43.0%  -> no difference
+                              drafts accepted 0.70
+  short  adapt-classlru4         114.7 +-   7.6  (n=2)   vs base: +11.0% +- 89.2%  -> no difference
+                              drafts accepted 0.73
+  short  adapt-prob-mass         107.9 +-   2.5  (n=2)   vs base:  +4.4% +- 84.2%  -> no difference
+                              drafts accepted 0.71
+  short  link-defaults           116.2 +-  11.4  (n=2)   vs base: +12.4% +- 92.9%  -> no difference
+                              drafts accepted 0.69
+  short  think-brake             116.1 +-  10.2  (n=2)   vs base: +12.3% +- 91.6%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    125.3 +- 247.8  (n=2)
+                              drafts accepted 0.95
+  edit   buddy4                  143.2 +- 150.6  (n=2)   vs base: +14.2% +- 318.0%  -> no difference
+                              drafts accepted 0.90
+  edit   tail-skip-layers        134.8 +- 502.7  (n=2)   vs base:  +7.5% +- 203.4%  -> no difference
+                              drafts accepted 0.87
+  edit   tier-lru05              146.6 +- 209.1  (n=2)   vs base: +17.0% +- 30.9%  -> no difference
+                              drafts accepted 0.95
+  edit   adapt-classlru4         158.6 +- 172.9  (n=2)   vs base: +26.6% +- 59.8%  -> no difference
+                              drafts accepted 0.89
+  edit   adapt-prob-mass         140.7 +-  24.1  (n=2)   vs base: +12.3% +- 178.5%  -> no difference
+                              drafts accepted 0.89
+  edit   link-defaults           160.9 +- 209.7  (n=2)   vs base: +28.4% +- 30.4%  -> no difference
+                              drafts accepted 0.90
+  edit   think-brake             160.1 +- 137.3  (n=2)   vs base: +27.8% +- 88.2%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  buddy4               DIFFERENT text -> lossy or placement-dependent: quality gate
+  tail-skip-layers     DIFFERENT text -> lossy or placement-dependent: quality gate
+  tier-lru05           DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-classlru4      DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-prob-mass      DIFFERENT text -> lossy or placement-dependent: quality gate
+  link-defaults        DIFFERENT text -> lossy or placement-dependent: quality gate
+  think-brake          DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  buddy4               short -18.3%  edit +14.2%  -> drop
+  tail-skip-layers     short +2.5%  edit +7.5%  -> PROMOTE to confirm
+  tier-lru05           short +12.3%  edit +17.0%  -> PROMOTE to confirm
+  adapt-classlru4      short +11.0%  edit +26.6%  -> PROMOTE to confirm
+  adapt-prob-mass      short +4.4%  edit +12.3%  -> PROMOTE to confirm
+  link-defaults        short +12.4%  edit +28.4%  -> PROMOTE to confirm
+  think-brake          short +12.3%  edit +27.8%  -> PROMOTE to confirm

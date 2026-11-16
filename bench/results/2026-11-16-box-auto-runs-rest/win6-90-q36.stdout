@@ -1,0 +1,75 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+  long32k: 31395 prompt tokens by count_tokens (target 32000)
+rep 0 base                 long3k 64.2/876p 2893t long32k 41.0/1002p 31421t short 58.7 short 69.5 edit 50.9 edit 59.6  foreign CPU 6% [('kworker/0:2-events_freezable', 14), ('kcompactd0', 9), ('kworker/8:1-events', 3)]  gpu 2028/1249 MHz 57C 145W gtt 21M cpu 3336MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 8 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+  long32k: 31395 prompt tokens by count_tokens (target 32000)
+rep 0 dense-mmq            long3k 66.9/876p 2893t long32k 42.1/1074p 31421t short 59.5 short 69.6 edit 53.4 edit 61.1  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 2)]  gpu 2057/1249 MHz 57C 136W gtt 21M cpu 3290MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 8 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+  long32k: 31395 prompt tokens by count_tokens (target 32000)
+rep 0 experts-k7           long3k 70.4/875p 2893t long32k 44.1/1027p 31421t short 62.9 short 75.6 edit 56.7 edit 64.2  foreign CPU 5% [('claude', 3), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2062/1249 MHz 59C 146W gtt 21M cpu 3306MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 8 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+  long32k: 31395 prompt tokens by count_tokens (target 32000)
+rep 0 experts-k6           long3k 73.2/876p 2893t long32k 44.6/1031p 31421t short 69.2 short 79.8 edit 61.3 edit 68.7  foreign CPU 5% [('claude', 7), ('gnome-remote-de', 1), ('pipewire', 1)]  gpu 2048/1249 MHz 59C 151W gtt 21M cpu 3291MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 8 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+  long32k: 31395 prompt tokens by count_tokens (target 32000)
+rep 0 q36-attn-gqa         long3k 61.8/876p 2893t long32k 45.9/1022p 31422t short 54.7 short 64.5 edit 49.8 edit 58.1  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 2)]  gpu 2057/1249 MHz 61C 146W gtt 21M cpu 3246MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 8 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+  long32k: 31395 prompt tokens by count_tokens (target 32000)
+rep 0 q36-att-grouped      long3k 63.8/876p 2894t long32k 42.1/1045p 31422t short 57.9 short 69.7 edit 53.2 edit 59.6  foreign CPU 7% [('kworker/3:1-events_freezable', 13), ('kworker/10:1-events', 13), ('kcompactd0', 2)]  gpu 2058/1249 MHz 61C 146W gtt 21M cpu 3320MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 8 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+  long32k: 31395 prompt tokens by count_tokens (target 32000)
+rep 0 q36-fa               long3k 65.3/875p 2894t long32k 41.9/1137p 31422t short 58.7 short 69.0 edit 49.1 edit 60.1  foreign CPU 7% [('kworker/0:0-events', 12), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2023/1249 MHz 58C 130W gtt 21M cpu 3353MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long3k base                    875.9 +-   nan  (n=1)
+  long3k dense-mmq               875.8 +-   nan  (n=1)   vs base:  -0.0% +-  nan%  -> no difference
+  long3k experts-k7              874.8 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  long3k experts-k6              876.4 +-   nan  (n=1)   vs base:  +0.1% +-  nan%  -> no difference
+  long3k q36-attn-gqa            875.8 +-   nan  (n=1)   vs base:  -0.0% +-  nan%  -> no difference
+  long3k q36-att-grouped         876.3 +-   nan  (n=1)   vs base:  +0.0% +-  nan%  -> no difference
+  long3k q36-fa                  875.3 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  long32k base                   1001.8 +-   nan  (n=1)
+  long32k dense-mmq              1074.0 +-   nan  (n=1)   vs base:  +7.2% +-  nan%  -> no difference
+  long32k experts-k7             1026.7 +-   nan  (n=1)   vs base:  +2.5% +-  nan%  -> no difference
+  long32k experts-k6             1031.2 +-   nan  (n=1)   vs base:  +2.9% +-  nan%  -> no difference
+  long32k q36-attn-gqa           1022.4 +-   nan  (n=1)   vs base:  +2.1% +-  nan%  -> no difference
+  long32k q36-att-grouped        1045.3 +-   nan  (n=1)   vs base:  +4.3% +-  nan%  -> no difference
+  long32k q36-fa                 1137.3 +-   nan  (n=1)   vs base: +13.5% +-  nan%  -> no difference
+  short  base                     64.1 +-  68.6  (n=2)
+  short  dense-mmq                64.5 +-  64.2  (n=2)   vs base:  +0.7% +-  6.9%  -> no difference
+  short  experts-k7               69.2 +-  80.7  (n=2)   vs base:  +8.0% +- 18.8%  -> no difference
+  short  experts-k6               74.5 +-  67.4  (n=2)   vs base: +16.2% +-  2.0%  -> better
+  short  q36-attn-gqa             59.6 +-  62.3  (n=2)   vs base:  -7.0% +-  9.9%  -> no difference
+  short  q36-att-grouped          63.8 +-  75.0  (n=2)   vs base:  -0.5% +-  9.9%  -> no difference
+  short  q36-fa                   63.9 +-  65.5  (n=2)   vs base:  -0.4% +-  5.0%  -> no difference
+  edit   base                     55.2 +-  55.3  (n=2)
+  edit   dense-mmq                57.2 +-  48.9  (n=2)   vs base:  +3.6% +- 11.5%  -> no difference
+  edit   experts-k7               60.5 +-  47.7  (n=2)   vs base:  +9.4% +- 13.8%  -> no difference
+  edit   experts-k6               65.0 +-  47.0  (n=2)   vs base: +17.6% +- 15.0%  -> better
+  edit   q36-attn-gqa             54.0 +-  52.7  (n=2)   vs base:  -2.4% +-  4.6%  -> no difference
+  edit   q36-att-grouped          56.4 +-  40.7  (n=2)   vs base:  +2.1% +- 26.5%  -> no difference
+  edit   q36-fa                   54.6 +-  69.9  (n=2)   vs base:  -1.2% +- 26.5%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  dense-mmq            DIFFERENT text -> lossy or placement-dependent: quality gate
+  experts-k7           DIFFERENT text -> lossy or placement-dependent: quality gate
+  experts-k6           DIFFERENT text -> lossy or placement-dependent: quality gate
+  q36-attn-gqa         DIFFERENT text -> lossy or placement-dependent: quality gate
+  q36-att-grouped      DIFFERENT text -> lossy or placement-dependent: quality gate
+  q36-fa               DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  dense-mmq            long3k -0.0%  long32k +7.2%  short +0.7%  edit +3.6%  -> PROMOTE to confirm
+  experts-k7           long3k -0.1%  long32k +2.5%  short +8.0%  edit +9.4%  -> PROMOTE to confirm
+  experts-k6           long3k +0.1%  long32k +2.9%  short +16.2%  edit +17.6%  -> PROMOTE to confirm
+  q36-attn-gqa         long3k -0.0%  long32k +2.1%  short -7.0%  edit -2.4%  -> drop
+  q36-att-grouped      long3k +0.0%  long32k +4.3%  short -0.5%  edit +2.1%  -> PROMOTE to confirm
+  q36-fa               long3k -0.1%  long32k +13.5%  short -0.4%  edit -1.2%  -> PROMOTE to confirm

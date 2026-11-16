@@ -1,0 +1,33 @@
+WARNING: 1-minute load average is 5.90 (> 2.0); other work is running, so the timings are not clean
+A 30000 run 1 (discarded): 29862 tokens, TTFT 14.918 s, engine prompt 14872.5 ms
+A 30000 run 2: 29865 tokens, TTFT 13.034 s, engine prompt 12999.6 ms
+A 30000 run 3: 29867 tokens, TTFT 13.255 s, engine prompt 13220.0 ms
+A 34000 run 1 (discarded): 33959 tokens, TTFT 15.53 s, engine prompt 15492.8 ms
+A 34000 run 2: 33957 tokens, TTFT 15.242 s, engine prompt 15205.2 ms
+A 34000 run 3: 33959 tokens, TTFT 15.298 s, engine prompt 15261.0 ms
+A 60000 run 1 (discarded): 59796 tokens, TTFT 24.921 s, engine prompt 24871.3 ms
+A 60000 run 2: 59799 tokens, TTFT 25.088 s, engine prompt 25039.2 ms
+A 60000 run 3: 59795 tokens, TTFT 24.869 s, engine prompt 24819.8 ms
+A 66500 run 1 (discarded): 66472 tokens, TTFT 28.104 s, engine prompt 28050.0 ms
+A 66500 run 2: 66466 tokens, TTFT 28.133 s, engine prompt 28079.5 ms
+A 66500 run 3: 66466 tokens, TTFT 28.135 s, engine prompt 28082.2 ms
+A 70000 run 1 (discarded): 69949 tokens, TTFT 30.431 s, engine prompt 30376.6 ms
+A 70000 run 2: 69947 tokens, TTFT 30.454 s, engine prompt 30399.4 ms
+A 70000 run 3: 69949 tokens, TTFT 30.459 s, engine prompt 30404.6 ms
+A 99997 run 1 (discarded): 99851 tokens, TTFT 42.125 s, engine prompt 42053.7 ms
+A 99997 run 2: 99857 tokens, TTFT 42.62 s, engine prompt 42547.4 ms
+A 99997 run 3: 99854 tokens, TTFT 42.552 s, engine prompt 42480.9 ms
+
+TTFT bench: equal-tail-off  (http://127.0.0.1:11501, model qwen3.8-flash-next-iq2_xs, think off)
+load average 1 min: start 5.90, end 3.44  WARNING: above 2.0, the numbers are not clean
+
+A. single long prompts (run 1 discarded, median of the rest; TTFT = client, stream=true)
+  size prompt tok   TTFT s     min-max s  engine ms engine tok/s  reused  status
+ 30000      29866    13.14 13.03-13.26        13110         2278       0  measured
+ 34000      33958    15.27 15.24-15.30        15233         2229       0  measured
+ 60000      59797    24.98 24.87-25.09        24930         2399       0  measured
+ 66500      66466    28.13 28.13-28.14        28081         2367       0  measured
+ 70000      69948    30.46 30.45-30.46        30402         2301       0  measured
+ 99997      99856    42.59 42.55-42.62        42514         2349       0  measured
+
+written: /home/dan/auto-runs/win7-equal-tail-off.json

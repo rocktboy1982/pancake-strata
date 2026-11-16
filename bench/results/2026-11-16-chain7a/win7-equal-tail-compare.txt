@@ -1,0 +1,12 @@
+TTFT compare: A = equal-tail-off   B = equal-tail-on   (negative change = B is faster)
+WARNING: run A (equal-tail-off) had a 1-minute load average above 2.0
+WARNING: run B (equal-tail-on) had a 1-minute load average above 2.0
+
+A. single long prompts: median TTFT in seconds
+  size    A tok    B tok   A TTFT   B TTFT   change A eng tok/s B eng tok/s
+ 30000    29866    29866    13.14    13.29    +1.1%        2278        2254
+ 34000    33958    33958    15.27    15.29    +0.1%        2229        2229
+ 60000    59797    59802    24.98    24.99    +0.0%        2399        2398
+ 66500    66466    66466    28.13    27.66    -1.7%        2367        2408
+ 70000    69948    69948    30.46    30.40    -0.2%        2301        2305
+ 99997    99856    99852    42.59    41.97    -1.4%        2349        2383

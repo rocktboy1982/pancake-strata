@@ -1,0 +1,36 @@
+rep 0 base                 short 107.8 short 92.2 edit 91.2 edit 122.4  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2066/1249 MHz 53C 139W gtt 21M cpu 3660MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 exp9-down-42-10      short 106.9 short 109.3 edit 137.0 edit 172.2  foreign CPU 6% [('gnome-remote-de', 2), ('claude', 2), ('pipewire', 2)]  gpu 2052/1249 MHz 54C 173W gtt 21M cpu 3880MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 route-prior-auto     short 106.7 short 96.6 edit 89.6 edit 136.1  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2061/1249 MHz 53C 142W gtt 21M cpu 3508MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-decay-05       short 112.7 short 109.1 edit 144.2 edit 171.6  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2053/1249 MHz 54C 163W gtt 21M cpu 4164MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-decay-09       short 117.4 short 110.4 edit 145.5 edit 178.6  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2030/1249 MHz 54C 161W gtt 21M cpu 3836MHz 51C igpu 0%/vcn 0% fclk 1600
+Traceback (most recent call last):
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 1057, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 1004, in main
+    res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       passes, a.warmup)
+                       ^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 588, in run_arm
+    request(url, P["short"])                          # warm-up, not counted
+    ~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 480, in request
+    r = json.load(urllib.request.urlopen(req, timeout=1800))
+                  ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request

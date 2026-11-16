@@ -1,0 +1,253 @@
+rep 0 base                 short 110.0 short 111.8 edit 143.3 edit 168.0  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2059/1249 MHz 54C 164W gtt 21M cpu 3970MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 q2-fast              short 110.5 short 117.5 edit 122.6 edit 111.2  foreign CPU 20% [('gnome-shell', 19), ('ptyxis', 8), ('claude', 5)]  gpu 2059/1249 MHz 54C 157W gtt 21M cpu 3726MHz 50C igpu 1%/vcn 0% fclk 1600
+rep 0 wait-copy256         short 112.1 short 117.0 edit 97.1 edit 142.5  foreign CPU 25% [('gnome-shell', 27), ('ptyxis', 5), ('claude', 3)]  gpu 2045/1249 MHz 54C 167W gtt 21M cpu 4153MHz 50C igpu 5%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 wait-copy256         short 116.4 short 118.1 edit 143.8 edit 177.3  foreign CPU 13% [('gnome-shell', 19), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 1892/1249 MHz 54C 142W gtt 21M cpu 3733MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 attn-lanecell        short 115.3 short 117.1 edit 144.6 edit 180.1  foreign CPU 5% [('claude', 9), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1832/1249 MHz 54C 145W gtt 21M cpu 3652MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 select-two-pass      short 115.0 short 117.0 edit 144.6 edit 178.8  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('kworker/u65:3-ttm', 1)]  gpu 1866/1249 MHz 54C 146W gtt 21M cpu 3770MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 idle-adapt           short 109.3 short 110.0 edit 143.1 edit 169.2  foreign CPU 5% [('kcompactd0', 2), ('kworker/11:0-events_freezable', 2), ('pipewire', 1)]  gpu 2047/1249 MHz 54C 162W gtt 21M cpu 3938MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 spin0                short 108.7 short 110.5 edit 142.0 edit 170.2  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('kcompactd0', 1)]  gpu 2044/1249 MHz 54C 160W gtt 21M cpu 3755MHz 47C igpu 0%/vcn 0% fclk 1600
+rep 0 spin50               short 114.7 short 116.3 edit 144.4 edit 176.8  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1936/1249 MHz 54C 149W gtt 21M cpu 3560MHz 47C igpu 0%/vcn 0% fclk 1600
+rep 0 spin200              short 109.0 short 110.5 edit 144.2 edit 170.1  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2040/1249 MHz 54C 158W gtt 21M cpu 3686MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 0 spin1000             short 108.7 short 110.8 edit 143.6 edit 169.5  foreign CPU 5% [('kcompactd0', 2), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 2037/1249 MHz 54C 159W gtt 21M cpu 3853MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 lookup-chain3        short 125.7 short 110.5 edit 146.4 edit 172.2  foreign CPU 17% [('gnome-shell', 13), ('claude', 7), ('ptyxis', 2)]  gpu 1766/1249 MHz 54C 137W gtt 21M cpu 3748MHz 51C igpu 2%/vcn 0% fclk 1600
+rep 0 pool-row-split64     short 112.1 short 116.1 edit 147.1 edit 131.4  foreign CPU 23% [('gnome-shell', 19), ('ptyxis', 6), ('claude', 5)]  gpu 2056/1249 MHz 53C 163W gtt 21M cpu 4102MHz 51C igpu 4%/vcn 0% fclk 1600
+rep 0 pool-row-split256    short 106.7 short 77.2 edit 129.1 edit 109.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1935/1249 MHz 54C 142W gtt 21M cpu 3765MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 pool-touch-next      short 110.1 short 119.5 edit 112.3 edit 91.4  foreign CPU 15% [('claude', 7), ('ptyxis', 3), ('gnome-remote-de', 2)]  gpu 1839/1249 MHz 54C 151W gtt 21M cpu 3796MHz 58C igpu 4%/vcn 0% fclk 1600
+rep 0 pool-split256-touch  short 112.2 short 113.2 edit 143.5 edit 172.0  foreign CPU 25% [('gnome-shell', 32), ('claude', 6), ('gnome-remote-de', 2)]  gpu 2053/1249 MHz 54C 162W gtt 21M cpu 4037MHz 52C igpu 3%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 pool-split256-touch  short 89.8 short 89.3 edit 79.5 edit 127.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('kcompactd0', 1)]  gpu 2058/1249 MHz 54C 136W gtt 21M cpu 3609MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 fuse-swiglu-down     short 87.8 short 111.6 edit 93.5 edit 141.5  foreign CPU 6% [('claude', 8), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2065/1249 MHz 54C 148W gtt 21M cpu 3738MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 mmvf-rows            short 105.0 short 90.1 edit 140.7 edit 173.1  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1982/1249 MHz 54C 158W gtt 21M cpu 3843MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 mmvf-rows-qgemv      short 114.5 short 116.2 edit 144.4 edit 178.5  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1957/1249 MHz 54C 154W gtt 21M cpu 3954MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 devplan              short 104.8 short 104.1 edit 136.5 edit 159.1  foreign CPU 6% [('claude', 8), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2056/1249 MHz 54C 164W gtt 21M cpu 4171MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 devplan-fuse-plan    short 85.3 short 75.4 edit 134.0 edit 164.8  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('kworker/u65:10-KFD IH', 1)]  gpu 2061/1249 MHz 54C 150W gtt 21M cpu 4187MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 devplan-fuse-combine short 102.8 short 86.7 edit 132.7 edit 167.1  foreign CPU 5% [('kswapd0', 2), ('pipewire', 2), ('kworker/9:1-events_freezable', 2)]  gpu 2049/1249 MHz 54C 154W gtt 21M cpu 4070MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 devplan-fuse-shgate  short 107.0 short 107.6 edit 133.0 edit 165.3  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2017/1249 MHz 54C 151W gtt 21M cpu 3669MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 devplan-fuse-all     short 103.4 short 101.6 edit 134.9 edit 121.2  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1877/1249 MHz 54C 143W gtt 21M cpu 3750MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 expdec-v2            short 111.3 short 113.3 edit 119.2 edit 134.8  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1986/1249 MHz 53C 163W gtt 21M cpu 3617MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 sampler-x8           short 88.9 short 110.4 edit 110.2 edit 131.1  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2059/1249 MHz 54C 163W gtt 21M cpu 3735MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 mmvf-rows1           short 76.1 short 91.1 edit 143.8 edit 171.0  foreign CPU 7% [('claude', 12), ('ptyxis', 2), ('pipewire', 1)]  gpu 2063/1249 MHz 55C 145W gtt 21M cpu 3676MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 lookahead-after-pub  short 85.5 short 89.8 edit 143.8 edit 123.7  foreign CPU 5% [('claude', 6), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2017/1249 MHz 54C 161W gtt 21M cpu 3909MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 gdn-specla2          short 107.6 short 75.9 edit 110.4 edit 179.3  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2030/1249 MHz 53C 133W gtt 21M cpu 3515MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 gdn-specla4          short 111.9 short 113.3 edit 148.7 edit 176.8  foreign CPU 5% [('claude', 6), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2048/1249 MHz 54C 162W gtt 21M cpu 3783MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 draft-clip3          short 115.0 short 116.8 edit 141.9 edit 171.2  foreign CPU 5% [('pipewire', 2), ('kcompactd0', 1), ('gnome-remote-de', 1)]  gpu 2008/1249 MHz 54C 155W gtt 21M cpu 4098MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 fs-stale-drop        short 109.2 short 111.0 edit 144.9 edit 171.7  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2058/1249 MHz 55C 166W gtt 21M cpu 3987MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 warm-cu-mask         short 115.4 short 117.0 edit 149.3 edit 170.3  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1996/1249 MHz 54C 154W gtt 21M cpu 3826MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 dma-coalesce         short 109.3 short 110.9 edit 143.8 edit 170.0  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2046/1249 MHz 54C 161W gtt 21M cpu 3932MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 arena-populate       short 115.4 short 116.8 edit 143.2 edit 178.1  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1946/1249 MHz 54C 154W gtt 21M cpu 3728MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    110.9 +-  11.4  (n=2)
+                              drafts accepted 0.69
+  short  q2-fast                 114.0 +-  44.5  (n=2)   vs base:  +2.8% +- 29.8%  -> no difference
+                              drafts accepted 0.73
+  short  wait-copy256            117.2 +-  10.8  (n=2)   vs base:  +5.7% +-  0.6%  -> better
+                              drafts accepted 0.69
+  short  attn-lanecell           116.2 +-  11.4  (n=2)   vs base:  +4.8% +-  0.0%  -> better
+                              drafts accepted 0.69
+  short  select-two-pass         116.0 +-  12.7  (n=2)   vs base:  +4.6% +-  1.1%  -> better
+                              drafts accepted 0.69
+  short  idle-adapt              109.7 +-   4.4  (n=2)   vs base:  -1.1% +-  6.3%  -> no difference
+                              drafts accepted 0.67
+  short  spin0                   109.6 +-  11.4  (n=2)   vs base:  -1.2% +-  0.0%  -> worse
+                              drafts accepted 0.68
+  short  spin50                  115.5 +-  10.2  (n=2)   vs base:  +4.1% +-  1.1%  -> better
+                              drafts accepted 0.69
+  short  spin200                 109.8 +-   9.5  (n=2)   vs base:  -1.0% +-  1.7%  -> no difference
+                              drafts accepted 0.68
+  short  spin1000                109.8 +-  13.3  (n=2)   vs base:  -1.0% +-  1.7%  -> no difference
+                              drafts accepted 0.68
+  short  lookup-chain3           118.1 +-  96.6  (n=2)   vs base:  +6.5% +- 97.4%  -> no difference
+                              drafts accepted 0.73
+  short  pool-row-split64        114.1 +-  25.4  (n=2)   vs base:  +2.9% +- 12.6%  -> no difference
+                              drafts accepted 0.75
+  short  pool-row-split256        92.0 +- 187.5  (n=2)   vs base: -17.1% +- 179.4%  -> no difference
+                              drafts accepted 0.70
+  short  pool-touch-next         114.8 +-  59.7  (n=2)   vs base:  +3.5% +- 43.6%  -> no difference
+                              drafts accepted 0.72
+  short  pool-split256-touch      89.5 +-   3.2  (n=2)   vs base: -19.3% +- 13.2%  -> worse
+                              drafts accepted 0.67
+  short  fuse-swiglu-down         99.7 +- 151.2  (n=2)   vs base: -10.1% +- 126.1%  -> no difference
+                              drafts accepted 0.72
+  short  mmvf-rows                97.5 +-  94.7  (n=2)   vs base: -12.0% +- 95.7%  -> no difference
+                              drafts accepted 0.67
+  short  mmvf-rows-qgemv         115.3 +-  10.8  (n=2)   vs base:  +4.0% +-  0.6%  -> better
+                              drafts accepted 0.69
+  short  devplan                 104.4 +-   4.4  (n=2)   vs base:  -5.8% +- 14.3%  -> no difference
+                              drafts accepted 0.69
+  short  devplan-fuse-plan        80.3 +-  62.9  (n=2)   vs base: -27.5% +- 67.0%  -> no difference
+                              drafts accepted 0.73
+  short  devplan-fuse-combine     94.8 +- 102.3  (n=2)   vs base: -14.6% +- 102.6%  -> no difference
+                              drafts accepted 0.68
+  short  devplan-fuse-shgate     107.3 +-   3.8  (n=2)   vs base:  -3.2% +-  6.9%  -> no difference
+                              drafts accepted 0.75
+  short  devplan-fuse-all        102.5 +-  11.4  (n=2)   vs base:  -7.6% +- 20.6%  -> no difference
+                              drafts accepted 0.69
+  short  expdec-v2               112.3 +-  12.7  (n=2)   vs base:  +1.3% +-  1.1%  -> better
+                              drafts accepted 0.68
+  short  sampler-x8               99.7 +- 136.6  (n=2)   vs base: -10.1% +- 112.9%  -> no difference
+                              drafts accepted 0.68
+  short  mmvf-rows1               83.6 +-  95.3  (n=2)   vs base: -24.6% +- 75.6%  -> no difference
+                              drafts accepted 0.66
+  short  lookahead-after-pub      87.7 +-  27.3  (n=2)   vs base: -21.0% +- 14.3%  -> worse
+                              drafts accepted 0.67
+  short  gdn-specla2              91.8 +- 201.5  (n=2)   vs base: -17.3% +- 192.0%  -> no difference
+                              drafts accepted 0.69
+  short  gdn-specla4             112.6 +-   8.9  (n=2)   vs base:  +1.5% +-  2.3%  -> no difference
+                              drafts accepted 0.69
+  short  draft-clip3             115.9 +-  11.4  (n=2)   vs base:  +4.5% +-  0.0%  -> better
+                              drafts accepted 0.69
+  short  fs-stale-drop           110.1 +-  11.4  (n=2)   vs base:  -0.7% +-  0.0%  -> worse
+                              drafts accepted 0.68
+  short  warm-cu-mask            116.2 +-  10.2  (n=2)   vs base:  +4.8% +-  1.1%  -> better
+                              drafts accepted 0.69
+  short  dma-coalesce            110.1 +-  10.2  (n=2)   vs base:  -0.7% +-  1.1%  -> no difference
+                              drafts accepted 0.68
+  short  arena-populate          116.1 +-   8.9  (n=2)   vs base:  +4.7% +-  2.3%  -> better
+                              drafts accepted 0.69
+  edit   base                    155.7 +- 157.0  (n=2)
+                              drafts accepted 0.89
+  edit   q2-fast                 116.9 +-  72.4  (n=2)   vs base: -24.9% +- 147.4%  -> no difference
+                              drafts accepted 0.90
+  edit   wait-copy256            160.6 +- 212.9  (n=2)   vs base:  +3.1% +- 35.9%  -> no difference
+                              drafts accepted 0.90
+  edit   attn-lanecell           162.3 +- 225.6  (n=2)   vs base:  +4.3% +- 44.1%  -> no difference
+                              drafts accepted 0.90
+  edit   select-two-pass         161.7 +- 217.3  (n=2)   vs base:  +3.9% +- 38.8%  -> no difference
+                              drafts accepted 0.90
+  edit   idle-adapt              156.1 +- 165.9  (n=2)   vs base:  +0.3% +-  5.7%  -> no difference
+                              drafts accepted 0.89
+  edit   spin0                   156.1 +- 179.2  (n=2)   vs base:  +0.3% +- 14.3%  -> no difference
+                              drafts accepted 0.88
+  edit   spin50                  160.6 +- 205.9  (n=2)   vs base:  +3.2% +- 31.4%  -> no difference
+                              drafts accepted 0.90
+  edit   spin200                 157.1 +- 164.6  (n=2)   vs base:  +1.0% +-  4.9%  -> no difference
+                              drafts accepted 0.88
+  edit   spin1000                156.6 +- 164.6  (n=2)   vs base:  +0.6% +-  4.9%  -> no difference
+                              drafts accepted 0.88
+  edit   lookup-chain3           159.3 +- 164.0  (n=2)   vs base:  +2.3% +-  4.5%  -> no difference
+                              drafts accepted 0.91
+  edit   pool-row-split64        139.2 +-  99.8  (n=2)   vs base: -10.5% +- 164.9%  -> no difference
+                              drafts accepted 0.92
+  edit   pool-row-split256       119.3 +- 123.9  (n=2)   vs base: -23.3% +- 180.5%  -> no difference
+                              drafts accepted 0.92
+  edit   pool-touch-next         101.8 +- 132.8  (n=2)   vs base: -34.6% +- 186.2%  -> no difference
+                              drafts accepted 0.92
+  edit   pool-split256-touch     103.5 +- 304.4  (n=2)   vs base: -33.5% +- 94.7%  -> no difference
+                              drafts accepted 0.92
+  edit   fuse-swiglu-down        117.5 +- 305.0  (n=2)   vs base: -24.5% +- 95.1%  -> no difference
+                              drafts accepted 0.89
+  edit   mmvf-rows               156.9 +- 205.9  (n=2)   vs base:  +0.8% +- 31.4%  -> no difference
+                              drafts accepted 0.89
+  edit   mmvf-rows-qgemv         161.4 +- 216.7  (n=2)   vs base:  +3.7% +- 38.4%  -> no difference
+                              drafts accepted 0.90
+  edit   devplan                 147.8 +- 143.6  (n=2)   vs base:  -5.0% +-  8.6%  -> no difference
+                              drafts accepted 0.88
+  edit   devplan-fuse-plan       149.4 +- 195.7  (n=2)   vs base:  -4.0% +- 24.9%  -> no difference
+                              drafts accepted 0.90
+  edit   devplan-fuse-combine    149.9 +- 218.6  (n=2)   vs base:  -3.7% +- 39.6%  -> no difference
+                              drafts accepted 0.91
+  edit   devplan-fuse-shgate     149.2 +- 205.3  (n=2)   vs base:  -4.2% +- 31.0%  -> no difference
+                              drafts accepted 0.90
+  edit   devplan-fuse-all        128.1 +-  87.1  (n=2)   vs base: -17.7% +- 156.8%  -> no difference
+                              drafts accepted 0.93
+  edit   expdec-v2               127.0 +-  99.1  (n=2)   vs base: -18.4% +- 37.2%  -> no difference
+                              drafts accepted 0.89
+  edit   sampler-x8              120.7 +- 132.8  (n=2)   vs base: -22.5% +- 15.5%  -> worse
+                              drafts accepted 0.90
+  edit   mmvf-rows1              157.4 +- 172.9  (n=2)   vs base:  +1.1% +- 10.2%  -> no difference
+                              drafts accepted 0.89
+  edit   lookahead-after-pub     133.8 +- 127.7  (n=2)   vs base: -14.1% +- 182.9%  -> no difference
+                              drafts accepted 0.88
+  edit   gdn-specla2             144.9 +- 437.9  (n=2)   vs base:  -6.9% +- 180.5%  -> no difference
+                              drafts accepted 0.88
+  edit   gdn-specla4             162.8 +- 178.6  (n=2)   vs base:  +4.6% +- 13.9%  -> no difference
+                              drafts accepted 0.93
+  edit   draft-clip3             156.6 +- 186.2  (n=2)   vs base:  +0.6% +- 18.8%  -> no difference
+                              drafts accepted 0.90
+  edit   fs-stale-drop           158.3 +- 170.3  (n=2)   vs base:  +1.7% +-  8.6%  -> no difference
+                              drafts accepted 0.88
+  edit   warm-cu-mask            159.8 +- 133.5  (n=2)   vs base:  +2.7% +- 15.1%  -> no difference
+                              drafts accepted 0.90
+  edit   dma-coalesce            156.9 +- 166.5  (n=2)   vs base:  +0.8% +-  6.1%  -> no difference
+                              drafts accepted 0.88
+  edit   arena-populate          160.6 +- 221.8  (n=2)   vs base:  +3.2% +- 41.6%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  q2-fast              DIFFERENT text -> lossy or placement-dependent: quality gate
+  wait-copy256         DIFFERENT text -> lossy or placement-dependent: quality gate
+  attn-lanecell        DIFFERENT text -> lossy or placement-dependent: quality gate
+  select-two-pass      DIFFERENT text -> lossy or placement-dependent: quality gate
+  idle-adapt           DIFFERENT text -> lossy or placement-dependent: quality gate
+  spin0                DIFFERENT text -> lossy or placement-dependent: quality gate
+  spin50               DIFFERENT text -> lossy or placement-dependent: quality gate
+  spin200              DIFFERENT text -> lossy or placement-dependent: quality gate
+  spin1000             DIFFERENT text -> lossy or placement-dependent: quality gate
+  lookup-chain3        DIFFERENT text -> lossy or placement-dependent: quality gate
+  pool-row-split64     DIFFERENT text -> lossy or placement-dependent: quality gate
+  pool-row-split256    DIFFERENT text -> lossy or placement-dependent: quality gate
+  pool-touch-next      DIFFERENT text -> lossy or placement-dependent: quality gate
+  pool-split256-touch  DIFFERENT text -> lossy or placement-dependent: quality gate
+  fuse-swiglu-down     DIFFERENT text -> lossy or placement-dependent: quality gate
+  mmvf-rows            DIFFERENT text -> lossy or placement-dependent: quality gate
+  mmvf-rows-qgemv      DIFFERENT text -> lossy or placement-dependent: quality gate
+  devplan              DIFFERENT text -> lossy or placement-dependent: quality gate
+  devplan-fuse-plan    DIFFERENT text -> lossy or placement-dependent: quality gate
+  devplan-fuse-combine DIFFERENT text -> lossy or placement-dependent: quality gate
+  devplan-fuse-shgate  DIFFERENT text -> lossy or placement-dependent: quality gate
+  devplan-fuse-all     DIFFERENT text -> lossy or placement-dependent: quality gate
+  expdec-v2            DIFFERENT text -> lossy or placement-dependent: quality gate
+  sampler-x8           DIFFERENT text -> lossy or placement-dependent: quality gate
+  mmvf-rows1           DIFFERENT text -> lossy or placement-dependent: quality gate
+  lookahead-after-pub  DIFFERENT text -> lossy or placement-dependent: quality gate
+  gdn-specla2          DIFFERENT text -> lossy or placement-dependent: quality gate
+  gdn-specla4          DIFFERENT text -> lossy or placement-dependent: quality gate
+  draft-clip3          DIFFERENT text -> lossy or placement-dependent: quality gate
+  fs-stale-drop        DIFFERENT text -> lossy or placement-dependent: quality gate
+  warm-cu-mask         identical on every case -> exact
+  dma-coalesce         DIFFERENT text -> lossy or placement-dependent: quality gate
+  arena-populate       DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  q2-fast              short +2.8%  edit -24.9%  -> drop
+  wait-copy256         short +5.7%  edit +3.1%  -> PROMOTE to confirm
+  attn-lanecell        short +4.8%  edit +4.3%  -> PROMOTE to confirm
+  select-two-pass      short +4.6%  edit +3.9%  -> PROMOTE to confirm
+  idle-adapt           short -1.1%  edit +0.3%  -> PROMOTE to confirm
+  spin0                short -1.2%  edit +0.3%  -> PROMOTE to confirm
+  spin50               short +4.1%  edit +3.2%  -> PROMOTE to confirm
+  spin200              short -1.0%  edit +1.0%  -> PROMOTE to confirm
+  spin1000             short -1.0%  edit +0.6%  -> PROMOTE to confirm
+  lookup-chain3        short +6.5%  edit +2.3%  -> PROMOTE to confirm
+  pool-row-split64     short +2.9%  edit -10.5%  -> drop
+  pool-row-split256    short -17.1%  edit -23.3%  -> drop
+  pool-touch-next      short +3.5%  edit -34.6%  -> drop
+  pool-split256-touch  short -19.3%  edit -33.5%  -> drop
+  fuse-swiglu-down     short -10.1%  edit -24.5%  -> drop
+  mmvf-rows            short -12.0%  edit +0.8%  -> drop
+  mmvf-rows-qgemv      short +4.0%  edit +3.7%  -> PROMOTE to confirm
+  devplan              short -5.8%  edit -5.0%  -> drop
+  devplan-fuse-plan    short -27.5%  edit -4.0%  -> drop
+  devplan-fuse-combine short -14.6%  edit -3.7%  -> drop
+  devplan-fuse-shgate  short -3.2%  edit -4.2%  -> drop
+  devplan-fuse-all     short -7.6%  edit -17.7%  -> drop
+  expdec-v2            short +1.3%  edit -18.4%  -> drop
+  sampler-x8           short -10.1%  edit -22.5%  -> drop
+  mmvf-rows1           short -24.6%  edit +1.1%  -> drop
+  lookahead-after-pub  short -21.0%  edit -14.1%  -> drop
+  gdn-specla2          short -17.3%  edit -6.9%  -> drop
+  gdn-specla4          short +1.5%  edit +4.6%  -> PROMOTE to confirm
+  draft-clip3          short +4.5%  edit +0.6%  -> PROMOTE to confirm
+  fs-stale-drop        short -0.7%  edit +1.7%  -> PROMOTE to confirm
+  warm-cu-mask         short +4.8%  edit +2.7%  -> PROMOTE to confirm
+  dma-coalesce         short -0.7%  edit +0.8%  -> PROMOTE to confirm
+  arena-populate       short +4.7%  edit +3.2%  -> PROMOTE to confirm

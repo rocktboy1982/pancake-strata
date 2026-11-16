@@ -1,0 +1,38 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+  WARNING: only 7 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 base                 longdec10k 107.3/1477p 10364t longdec32k 99.7/1803p 31463t  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2036/1249 MHz 56C 193W gtt 25M cpu 3334MHz 61C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 partial-topk         longdec10k 95.1/1480p 10364t longdec32k 93.9/1803p 31463t  foreign CPU 4% [('claude', 1), ('kswapd0', 1), ('pipewire', 1)]  gpu 2025/1249 MHz 58C 187W gtt 25M cpu 3297MHz 62C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 page-sel16           longdec10k 103.1/1480p 10364t longdec32k 97.0/1334p 31463t  foreign CPU 8% [('claude', 16), ('pipewire', 2), ('ptyxis', 2)]  gpu 2037/1249 MHz 57C 190W gtt 25M cpu 3297MHz 61C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 page-sel32           longdec10k 73.7/1139p 10364t longdec32k 93.7/1391p 31463t  foreign CPU 4% [('kworker/8:2-events_freezable', 2), ('kswapd0', 1), ('pipewire', 1)]  gpu 2048/1249 MHz 56C 169W gtt 25M cpu 3096MHz 60C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  longdec10k base                    107.3 +-   nan  (n=1)
+  longdec10k partial-topk             95.1 +-   nan  (n=1)   vs base: -11.4% +-  nan%  -> no difference
+  longdec10k page-sel16              103.1 +-   nan  (n=1)   vs base:  -3.9% +-  nan%  -> no difference
+  longdec10k page-sel32               73.7 +-   nan  (n=1)   vs base: -31.3% +-  nan%  -> no difference
+  longdec32k base                     99.7 +-   nan  (n=1)
+  longdec32k partial-topk             93.9 +-   nan  (n=1)   vs base:  -5.8% +-  nan%  -> no difference
+  longdec32k page-sel16               97.0 +-   nan  (n=1)   vs base:  -2.7% +-  nan%  -> no difference
+  longdec32k page-sel32               93.7 +-   nan  (n=1)   vs base:  -6.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  partial-topk         identical on every case -> exact
+  page-sel16           identical on every case -> exact
+  page-sel32           identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  partial-topk         longdec10k -11.4%  longdec32k -5.8%  -> drop
+  page-sel16           longdec10k -3.9%  longdec32k -2.7%  -> drop
+  page-sel32           longdec10k -31.3%  longdec32k -6.0%  -> drop

@@ -1,0 +1,39 @@
+rep 0 base                 short 114.9 short 116.9 edit 144.8 edit 177.3  foreign CPU 6% [('claude', 6), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1964/1249 MHz 55C 145W gtt 21M cpu 4011MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 0 mtp-q4-all           short 109.5 short 121.5 edit 147.9 edit 172.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1980/1249 MHz 54C 157W gtt 21M cpu 3664MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 host-core-sibling    short 115.3 short 116.9 edit 144.5 edit 177.7  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('systemd-journal', 1)]  gpu 1952/1249 MHz 54C 155W gtt 21M cpu 3742MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 mtp-window-4096      short 122.4 short 112.2 edit 145.6 edit 180.6  foreign CPU 4% [('pipewire', 1), ('localsearch-3', 1), ('dbus-daemon', 1)]  gpu 1935/1249 MHz 54C 148W gtt 21M cpu 3835MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 108.9 short 108.6 edit 79.2 edit 173.8  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 54C 156W gtt 21M cpu 3676MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.9 +-  12.7  (n=2)
+                              drafts accepted 0.69
+  short  mtp-q4-all              115.5 +-  76.3  (n=2)   vs base:  -0.3% +- 54.8%  -> no difference
+                              drafts accepted 0.71
+  short  host-core-sibling       116.1 +-  10.2  (n=2)   vs base:  +0.2% +-  2.2%  -> no difference
+                              drafts accepted 0.69
+  short  mtp-window-4096         117.3 +-  64.8  (n=2)   vs base:  +1.2% +- 66.9%  -> no difference
+                              drafts accepted 0.73
+  short  base-late               108.8 +-   1.9  (n=2)   vs base:  -6.2% +- 12.6%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    161.1 +- 206.5  (n=2)
+                              drafts accepted 0.90
+  edit   mtp-q4-all              160.2 +- 156.3  (n=2)   vs base:  -0.5% +- 31.2%  -> no difference
+                              drafts accepted 0.89
+  edit   host-core-sibling       161.1 +- 211.0  (n=2)   vs base:  +0.0% +-  2.8%  -> no difference
+                              drafts accepted 0.90
+  edit   mtp-window-4096         163.1 +- 222.4  (n=2)   vs base:  +1.3% +-  9.9%  -> no difference
+                              drafts accepted 0.91
+  edit   base-late               126.5 +- 601.2  (n=2)   vs base: -21.5% +- 245.0%  -> no difference
+                              drafts accepted 0.87
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  mtp-q4-all           DIFFERENT text -> lossy or placement-dependent: quality gate
+  host-core-sibling    identical on every case -> exact
+  mtp-window-4096      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -6.2%  edit -21.5%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  mtp-q4-all           short +2.8%  edit +11.4%  -> PROMOTE to confirm
+  host-core-sibling    short +3.4%  edit +12.1%  -> PROMOTE to confirm
+  mtp-window-4096      short +4.4%  edit +13.4%  -> PROMOTE to confirm

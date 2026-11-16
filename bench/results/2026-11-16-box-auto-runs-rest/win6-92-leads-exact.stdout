@@ -1,0 +1,156 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 115.3 short 117.2 edit 145.1 edit 177.4  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1813/1249 MHz 55C 143W gtt 21M cpu 3596MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 actq-skip-nocpu      short 115.2 short 116.8 edit 149.1 edit 171.0  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1970/1249 MHz 54C 148W gtt 21M cpu 3790MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 actq-skip            short 115.4 short 116.8 edit 144.5 edit 178.0  foreign CPU 5% [('claude', 2), ('pipewire', 1), ('udisksd', 1)]  gpu 1883/1249 MHz 54C 148W gtt 21M cpu 3839MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pool-guided          short 109.5 short 110.8 edit 144.7 edit 170.6  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2060/1249 MHz 55C 161W gtt 21M cpu 3856MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 cpu-pool-cost        short 114.9 short 116.9 edit 138.6 edit 171.5  foreign CPU 5% [('claude', 6), ('kcompactd0', 1), ('pipewire', 1)]  gpu 1932/1249 MHz 54C 143W gtt 21M cpu 4058MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pool-dag2            short 112.2 short 114.3 edit 142.4 edit 177.7  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2060/1249 MHz 55C 163W gtt 21M cpu 3953MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 slots-warp           short 77.4 short 114.9 edit 149.6 edit 166.1  foreign CPU 4% [('claude', 2), ('gnome-remote-de', 1), ('pipewire', 1)]  gpu 2060/1249 MHz 54C 165W gtt 21M cpu 3835MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 rows-acc2            short 107.7 short 90.1 edit 93.1 edit 118.0  foreign CPU 5% [('kcompactd0', 2), ('kworker/13:1-mm_percpu_wq', 2), ('pipewire', 1)]  gpu 2062/1249 MHz 54C 150W gtt 21M cpu 3626MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 mtp-spin50           short 108.5 short 119.2 edit 112.1 edit 149.7  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2062/1249 MHz 54C 153W gtt 21M cpu 3788MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 mtp-hc-q8            short 112.3 short 117.8 edit 137.4 edit 159.5  foreign CPU 14% [('gnome-shell', 22), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2048/1249 MHz 54C 163W gtt 21M cpu 4146MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 draft-scale          short 115.1 short 116.7 edit 137.3 edit 165.8  foreign CPU 6% [('kworker/8:1-events', 3), ('kworker/8:0-events', 3), ('kcompactd0', 2)]  gpu 1990/1249 MHz 55C 154W gtt 21M cpu 4003MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 lookahead-skip-res   short 115.1 short 116.9 edit 144.0 edit 178.3  foreign CPU 10% [('claude', 19), ('ptyxis', 4), ('gnome-shell', 4)]  gpu 1890/1249 MHz 54C 148W gtt 21M cpu 3848MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 lookup-older8        short 114.2 short 114.6 edit 144.9 edit 171.1  foreign CPU 9% [('gnome-shell', 9), ('claude', 3), ('pipewire', 2)]  gpu 2054/1249 MHz 55C 162W gtt 21M cpu 3949MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 spec-depth-decay     short 109.3 short 111.8 edit 145.7 edit 170.3  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2062/1249 MHz 55C 166W gtt 21M cpu 3978MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 spec-lookup-q        short 115.1 short 116.7 edit 142.6 edit 178.0  foreign CPU 14% [('claude', 20), ('ptyxis', 2), ('gnome-shell', 2)]  gpu 1944/1249 MHz 54C 152W gtt 21M cpu 3914MHz 52C igpu 1%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 experts-seq-readahead short 115.3 short 117.0 edit 144.5 edit 178.5  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1862/1249 MHz 54C 146W gtt 21M cpu 3648MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 io-uring32           short 115.2 short 116.9 edit 144.3 edit 178.5  foreign CPU 5% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1865/1249 MHz 54C 150W gtt 21M cpu 3663MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pcie0-no-staging     short 110.1 short 112.0 edit 124.2 edit 177.5  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2048/1249 MHz 54C 162W gtt 21M cpu 3588MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ckpt-move-park       short 103.0 short 86.5 edit 147.5 edit 172.3  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2052/1249 MHz 54C 137W gtt 21M cpu 3266MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.2 +-  12.1  (n=2)
+                              drafts accepted 0.69
+  short  actq-skip-nocpu         116.0 +-  10.2  (n=2)   vs base:  -0.2% +-  1.6%  -> no difference
+                              drafts accepted 0.69
+  short  actq-skip               116.1 +-   8.9  (n=2)   vs base:  -0.1% +-  2.7%  -> no difference
+                              drafts accepted 0.69
+  short  pool-guided             110.2 +-   8.3  (n=2)   vs base:  -5.2% +-  3.3%  -> worse
+                              drafts accepted 0.68
+  short  cpu-pool-cost           115.9 +-  12.7  (n=2)   vs base:  -0.3% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  short  pool-dag2               113.2 +-  13.3  (n=2)   vs base:  -2.6% +-  1.1%  -> worse
+                              drafts accepted 0.69
+  short  slots-warp               96.2 +- 238.3  (n=2)   vs base: -17.3% +- 194.6%  -> no difference
+                              drafts accepted 0.73
+  short  rows-acc2                98.9 +- 111.8  (n=2)   vs base: -14.9% +- 106.6%  -> no difference
+                              drafts accepted 0.68
+  short  mtp-spin50              113.8 +-  68.0  (n=2)   vs base:  -2.1% +- 48.1%  -> no difference
+                              drafts accepted 0.71
+  short  mtp-hc-q8               115.0 +-  35.0  (n=2)   vs base:  -1.0% +- 19.7%  -> no difference
+                              drafts accepted 0.69
+  short  draft-scale             115.9 +-  10.2  (n=2)   vs base:  -0.3% +-  1.6%  -> no difference
+                              drafts accepted 0.69
+  short  lookahead-skip-res      116.0 +-  11.4  (n=2)   vs base:  -0.2% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  short  lookup-older8           114.4 +-   2.5  (n=2)   vs base:  -1.6% +-  8.2%  -> no difference
+                              drafts accepted 0.68
+  short  spec-depth-decay        110.5 +-  15.9  (n=2)   vs base:  -4.9% +-  3.3%  -> worse
+                              drafts accepted 0.67
+  short  spec-lookup-q           115.9 +-  10.2  (n=2)   vs base:  -0.3% +-  1.6%  -> no difference
+                              drafts accepted 0.69
+  short  experts-seq-readahead    116.2 +-  10.8  (n=2)   vs base:  -0.1% +-  1.1%  -> no difference
+                              drafts accepted 0.69
+  short  io-uring32              116.1 +-  10.8  (n=2)   vs base:  -0.2% +-  1.1%  -> no difference
+                              drafts accepted 0.69
+  short  pcie0-no-staging        111.0 +-  12.1  (n=2)   vs base:  -4.5% +-  0.0%  -> worse
+                              drafts accepted 0.69
+  short  ckpt-move-park           94.8 +- 104.9  (n=2)   vs base: -18.5% +- 100.6%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    161.2 +- 205.3  (n=2)
+                              drafts accepted 0.90
+  edit   actq-skip-nocpu         160.1 +- 139.2  (n=2)   vs base:  -0.7% +- 41.0%  -> no difference
+                              drafts accepted 0.90
+  edit   actq-skip               161.2 +- 212.9  (n=2)   vs base:  +0.0% +-  4.7%  -> no difference
+                              drafts accepted 0.90
+  edit   pool-guided             157.6 +- 164.6  (n=2)   vs base:  -2.2% +- 25.2%  -> no difference
+                              drafts accepted 0.88
+  edit   cpu-pool-cost           155.1 +- 209.1  (n=2)   vs base:  -3.8% +-  2.4%  -> worse
+                              drafts accepted 0.89
+  edit   pool-dag2               160.1 +- 224.3  (n=2)   vs base:  -0.7% +- 11.8%  -> no difference
+                              drafts accepted 0.90
+  edit   slots-warp              157.8 +- 104.9  (n=2)   vs base:  -2.1% +- 62.3%  -> no difference
+                              drafts accepted 0.88
+  edit   rows-acc2               105.5 +- 158.2  (n=2)   vs base: -34.5% +- 29.2%  -> worse
+                              drafts accepted 0.91
+  edit   mtp-spin50              130.9 +- 238.9  (n=2)   vs base: -18.8% +- 20.9%  -> no difference
+                              drafts accepted 0.90
+  edit   mtp-hc-q8               148.4 +- 140.4  (n=2)   vs base:  -7.9% +- 40.2%  -> no difference
+                              drafts accepted 0.89
+  edit   draft-scale             151.6 +- 181.1  (n=2)   vs base:  -6.0% +- 15.0%  -> no difference
+                              drafts accepted 0.90
+  edit   lookahead-skip-res      161.2 +- 218.0  (n=2)   vs base:  -0.1% +-  7.9%  -> no difference
+                              drafts accepted 0.90
+  edit   lookup-older8           158.0 +- 166.5  (n=2)   vs base:  -2.0% +- 24.0%  -> no difference
+                              drafts accepted 0.88
+  edit   spec-depth-decay        158.0 +- 156.3  (n=2)   vs base:  -2.0% +- 30.3%  -> no difference
+                              drafts accepted 0.89
+  edit   spec-lookup-q           160.3 +- 225.0  (n=2)   vs base:  -0.6% +- 12.2%  -> no difference
+                              drafts accepted 0.90
+  edit   experts-seq-readahead    161.5 +- 216.1  (n=2)   vs base:  +0.2% +-  6.7%  -> no difference
+                              drafts accepted 0.90
+  edit   io-uring32              161.4 +- 217.3  (n=2)   vs base:  +0.1% +-  7.5%  -> no difference
+                              drafts accepted 0.90
+  edit   pcie0-no-staging        150.8 +- 338.7  (n=2)   vs base:  -6.4% +- 82.8%  -> no difference
+                              drafts accepted 0.88
+  edit   ckpt-move-park          159.9 +- 157.6  (n=2)   vs base:  -0.8% +- 29.6%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  actq-skip-nocpu      DIFFERENT text -> lossy or placement-dependent: quality gate
+  actq-skip            identical on every case -> exact
+  pool-guided          DIFFERENT text -> lossy or placement-dependent: quality gate
+  cpu-pool-cost        DIFFERENT text -> lossy or placement-dependent: quality gate
+  pool-dag2            identical on every case -> exact
+  slots-warp           DIFFERENT text -> lossy or placement-dependent: quality gate
+  rows-acc2            DIFFERENT text -> lossy or placement-dependent: quality gate
+  mtp-spin50           DIFFERENT text -> lossy or placement-dependent: quality gate
+  mtp-hc-q8            DIFFERENT text -> lossy or placement-dependent: quality gate
+  draft-scale          identical on every case -> exact
+  lookahead-skip-res   identical on every case -> exact
+  lookup-older8        DIFFERENT text -> lossy or placement-dependent: quality gate
+  spec-depth-decay     DIFFERENT text -> lossy or placement-dependent: quality gate
+  spec-lookup-q        identical on every case -> exact
+  experts-seq-readahead identical on every case -> exact
+  io-uring32           identical on every case -> exact
+  pcie0-no-staging     DIFFERENT text -> lossy or placement-dependent: quality gate
+  ckpt-move-park       DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  actq-skip-nocpu      short -0.2%  edit -0.7%  -> drop
+  actq-skip            short -0.1%  edit +0.0%  -> drop
+  pool-guided          short -5.2%  edit -2.2%  -> drop
+  cpu-pool-cost        short -0.3%  edit -3.8%  -> drop
+  pool-dag2            short -2.6%  edit -0.7%  -> drop
+  slots-warp           short -17.3%  edit -2.1%  -> drop
+  rows-acc2            short -14.9%  edit -34.5%  -> drop
+  mtp-spin50           short -2.1%  edit -18.8%  -> drop
+  mtp-hc-q8            short -1.0%  edit -7.9%  -> drop
+  draft-scale          short -0.3%  edit -6.0%  -> drop
+  lookahead-skip-res   short -0.2%  edit -0.1%  -> drop
+  lookup-older8        short -1.6%  edit -2.0%  -> drop
+  spec-depth-decay     short -4.9%  edit -2.0%  -> drop
+  spec-lookup-q        short -0.3%  edit -0.6%  -> drop
+  experts-seq-readahead short -0.1%  edit +0.2%  -> PROMOTE to confirm
+  io-uring32           short -0.2%  edit +0.1%  -> PROMOTE to confirm
+  pcie0-no-staging     short -4.5%  edit -6.4%  -> drop
+  ckpt-move-park       short -18.5%  edit -0.8%  -> drop

@@ -1,0 +1,458 @@
+Test project /home/dan/clone-of-d/src/build-win
+        Start  42: qsa_scores_gfx1100_parity
+  1/135 Test  #42: qsa_scores_gfx1100_parity ....................   Passed   28.92 sec
+        Start  43: bfla_test
+  2/135 Test  #43: bfla_test ....................................   Passed   15.85 sec
+        Start  44: qsa_select_bench
+  3/135 Test  #44: qsa_select_bench .............................   Passed    0.61 sec
+        Start  45: qsa_select_bench_fp32_tiled
+  4/135 Test  #45: qsa_select_bench_fp32_tiled ..................   Passed    0.63 sec
+        Start  46: qsa_page_select_recall
+  5/135 Test  #46: qsa_page_select_recall .......................   Passed    0.92 sec
+        Start  51: vmm_test
+  6/135 Test  #51: vmm_test .....................................   Passed    0.11 sec
+        Start  55: native_dense_ple_key_test
+  7/135 Test  #55: native_dense_ple_key_test ....................   Passed    0.11 sec
+        Start  56: expert_cache_per_layer_test
+  8/135 Test  #56: expert_cache_per_layer_test ..................   Passed    0.08 sec
+        Start  57: expert_cache_segmented_test
+  9/135 Test  #57: expert_cache_segmented_test ..................***Skipped   0.05 sec
+        Start  58: expert_cache_slot_guard_test
+ 10/135 Test  #58: expert_cache_slot_guard_test .................   Passed    0.09 sec
+        Start  59: conversation_snapshot_test
+ 11/135 Test  #59: conversation_snapshot_test ...................   Passed    0.49 sec
+        Start  60: conversation_snapshot_test_ckpt_async
+ 12/135 Test  #60: conversation_snapshot_test_ckpt_async ........   Passed    1.69 sec
+        Start  61: conversation_snapshot_test_ckpt_vram_slots
+ 13/135 Test  #61: conversation_snapshot_test_ckpt_vram_slots ...   Passed    1.64 sec
+        Start  66: hip_prefill_gemm
+ 14/135 Test  #66: hip_prefill_gemm .............................   Passed    4.36 sec
+        Start  67: hip_gemm_f16_io_parity
+ 15/135 Test  #67: hip_gemm_f16_io_parity .......................   Passed    0.63 sec
+        Start  68: hip_q2_zero
+ 16/135 Test  #68: hip_q2_zero ..................................   Passed    0.14 sec
+        Start  69: hip_qsa_nr_parity
+ 17/135 Test  #69: hip_qsa_nr_parity ............................   Passed   11.10 sec
+        Start  70: hip_pf_cover_test
+ 18/135 Test  #70: hip_pf_cover_test ............................   Passed   40.28 sec
+        Start  71: hip_expert_cache_staging
+ 19/135 Test  #71: hip_expert_cache_staging .....................   Passed    0.08 sec
+        Start  72: hip_intrinsics
+ 20/135 Test  #72: hip_intrinsics ...............................   Passed    0.10 sec
+        Start  73: hip_handoff
+ 21/135 Test  #73: hip_handoff ..................................   Passed    0.12 sec
+        Start  74: hip_wait_copy
+ 22/135 Test  #74: hip_wait_copy ................................   Passed    0.27 sec
+        Start  75: hip_wait_copy_256
+ 23/135 Test  #75: hip_wait_copy_256 ............................   Passed    0.27 sec
+        Start  76: hip_mapped_alias
+ 24/135 Test  #76: hip_mapped_alias .............................   Passed    0.08 sec
+        Start  77: hip_native_qsa_score
+ 25/135 Test  #77: hip_native_qsa_score .........................   Passed    0.09 sec
+        Start  78: hip_prefill_native_batch
+ 26/135 Test  #78: hip_prefill_native_batch .....................   Passed    0.29 sec
+        Start  79: hip_gdn_rec_head
+ 27/135 Test  #79: hip_gdn_rec_head .............................   Passed    1.72 sec
+        Start  80: hip_flag_order_test
+ 28/135 Test  #80: hip_flag_order_test ..........................   Passed    0.56 sec
+        Start  81: hip_gdn_chunked
+ 29/135 Test  #81: hip_gdn_chunked ..............................   Passed    7.50 sec
+        Start  82: hip_gdn_chunked_off
+ 30/135 Test  #82: hip_gdn_chunked_off ..........................   Passed    1.45 sec
+        Start  83: hip_gdn_chunked_default
+ 31/135 Test  #83: hip_gdn_chunked_default ......................   Passed    1.46 sec
+        Start  84: hip_prefill_wmma_gemm_parity
+ 32/135 Test  #84: hip_prefill_wmma_gemm_parity .................   Passed    0.85 sec
+        Start  85: hip_prefill_hcd_exact_parity
+ 33/135 Test  #85: hip_prefill_hcd_exact_parity .................***Skipped   0.09 sec
+        Start  86: hip_router_fast
+ 34/135 Test  #86: hip_router_fast ..............................   Passed    0.94 sec
+        Start  87: hip_prompt_attn_wmma
+ 35/135 Test  #87: hip_prompt_attn_wmma .........................   Passed   34.20 sec
+        Start  88: hip_decode_attn_wmma_parity
+ 36/135 Test  #88: hip_decode_attn_wmma_parity ..................   Passed    0.45 sec
+        Start  89: hip_prefill_hipblaslt_gemm
+ 37/135 Test  #89: hip_prefill_hipblaslt_gemm ...................***Skipped   0.09 sec
+        Start  90: hip_prefill_rocblas_gemm
+ 38/135 Test  #90: hip_prefill_rocblas_gemm .....................***Skipped   0.09 sec
+        Start  91: dequant_s2_parity
+ 39/135 Test  #91: dequant_s2_parity ............................   Passed    0.18 sec
+        Start  92: s2_gemv_parity
+ 40/135 Test  #92: s2_gemv_parity ...............................   Passed    0.09 sec
+        Start  93: iq_parity_fixtures
+ 41/135 Test  #93: iq_parity_fixtures ...........................***Skipped   0.07 sec
+        Start  94: iq_parity
+ 42/135 Test  #94: iq_parity ....................................***Skipped   0.08 sec
+        Start  95: iq_multi_parity
+ 43/135 Test  #95: iq_multi_parity ..............................   Passed    2.23 sec
+        Start  96: tq_pascal_bench
+ 44/135 Test  #96: tq_pascal_bench ..............................   Passed    1.40 sec
+        Start  97: iq_multi_parity_kq_nov2k
+ 45/135 Test  #97: iq_multi_parity_kq_nov2k .....................   Passed    2.26 sec
+        Start  98: iq_multi_parity_kq_swiglu
+ 46/135 Test  #98: iq_multi_parity_kq_swiglu ....................   Passed    2.28 sec
+        Start  99: iq_multi_parity_kq_nosub16
+ 47/135 Test  #99: iq_multi_parity_kq_nosub16 ...................   Passed    2.26 sec
+        Start 100: iq_multi_parity_expdec_swiglu
+ 48/135 Test #100: iq_multi_parity_expdec_swiglu ................   Passed    2.26 sec
+        Start 101: native_grouped_parity
+ 49/135 Test #101: native_grouped_parity ........................   Passed    4.45 sec
+        Start 102: mmvf_rows_parity
+ 50/135 Test #102: mmvf_rows_parity .............................   Passed    1.88 sec
+        Start 103: shared_expert_parity
+ 51/135 Test #103: shared_expert_parity .........................   Passed    0.29 sec
+        Start 104: verify_parity
+ 52/135 Test #104: verify_parity ................................   Passed    0.22 sec
+        Start 105: gr_parity
+ 53/135 Test #105: gr_parity ....................................   Passed    2.50 sec
+        Start 106: gdn_parity
+ 54/135 Test #106: gdn_parity ...................................   Passed    2.07 sec
+        Start 107: gdn_parity_split
+ 55/135 Test #107: gdn_parity_split .............................   Passed    1.68 sec
+        Start 108: s2_gemv_q8_parity
+ 56/135 Test #108: s2_gemv_q8_parity ............................   Passed    0.09 sec
+        Start 109: sampler_parity
+ 57/135 Test #109: sampler_parity ...............................   Passed    0.98 sec
+        Start 110: spec_verify_parity
+ 58/135 Test #110: spec_verify_parity ...........................   Passed    3.28 sec
+        Start 111: spec_proposal_parity
+ 59/135 Test #111: spec_proposal_parity .........................   Passed    0.11 sec
+        Start 112: sampler_parity_one_block
+ 60/135 Test #112: sampler_parity_one_block .....................   Passed    1.36 sec
+        Start 113: sampler_parity_old
+ 61/135 Test #113: sampler_parity_old ...........................   Passed    6.57 sec
+        Start 114: rope_parity
+ 62/135 Test #114: rope_parity ..................................   Passed    0.11 sec
+        Start 115: quantize_act_parity
+ 63/135 Test #115: quantize_act_parity ..........................   Passed    0.15 sec
+        Start 116: route_window_parity
+ 64/135 Test #116: route_window_parity ..........................   Passed    0.14 sec
+        Start 117: route_resident_parity
+ 65/135 Test #117: route_resident_parity ........................   Passed    0.24 sec
+        Start 118: router_top10_parity
+ 66/135 Test #118: router_top10_parity ..........................   Passed    0.09 sec
+        Start 119: native_multi_parity
+ 67/135 Test #119: native_multi_parity ..........................   Passed    0.24 sec
+        Start 120: kv_steps_parity
+ 68/135 Test #120: kv_steps_parity ..............................   Passed    0.21 sec
+        Start 121: resident_plan_parity
+ 69/135 Test #121: resident_plan_parity .........................   Passed    0.13 sec
+        Start 122: gr_multi_parity
+ 70/135 Test #122: gr_multi_parity ..............................   Passed    0.21 sec
+        Start 123: hc_persist_parity
+ 71/135 Test #123: hc_persist_parity ............................   Passed    0.55 sec
+        Start 124: hc_persist_default_off
+ 72/135 Test #124: hc_persist_default_off .......................   Passed    0.55 sec
+        Start 125: rdna_gr_parity
+ 73/135 Test #125: rdna_gr_parity ...............................   Passed    0.56 sec
+        Start 126: rdna_gr_parity_rw1
+ 74/135 Test #126: rdna_gr_parity_rw1 ...........................   Passed    0.55 sec
+        Start 127: rdna_gr_parity_rw4
+ 75/135 Test #127: rdna_gr_parity_rw4 ...........................   Passed    0.55 sec
+        Start 128: rdna_gr_parity_q8
+ 76/135 Test #128: rdna_gr_parity_q8 ............................   Passed    0.52 sec
+        Start 129: rdna_gr_parity_a8
+ 77/135 Test #129: rdna_gr_parity_a8 ............................   Passed    0.51 sec
+        Start 130: rdna_gr_parity_a8_injup
+ 78/135 Test #130: rdna_gr_parity_a8_injup ......................   Passed    0.51 sec
+        Start 131: rdna_gr_parity_a8_fused
+ 79/135 Test #131: rdna_gr_parity_a8_fused ......................   Passed    0.50 sec
+        Start 132: rdna_mmvq_parity
+ 80/135 Test #132: rdna_mmvq_parity .............................   Passed    0.40 sec
+        Start 133: s_gemv_parity
+ 81/135 Test #133: s_gemv_parity ................................   Passed    0.10 sec
+        Start 134: elementwise_parity
+ 82/135 Test #134: elementwise_parity ...........................   Passed    0.12 sec
+        Start 135: bf16_gemv_parity
+ 83/135 Test #135: bf16_gemv_parity .............................   Passed    0.21 sec
+        Start 136: s_gemv_q8k_parity
+ 84/135 Test #136: s_gemv_q8k_parity ............................   Passed    0.10 sec
+        Start 137: qsa_parity
+ 85/135 Test #137: qsa_parity ...................................   Passed    0.75 sec
+        Start 138: qsa_topk_parity
+ 86/135 Test #138: qsa_topk_parity ..............................   Passed    0.97 sec
+        Start 139: qsa_topk_parity_reg_always
+ 87/135 Test #139: qsa_topk_parity_reg_always ...................   Passed    0.85 sec
+        Start 141: ple_iq4nl_dequant_test
+ 88/135 Test #141: ple_iq4nl_dequant_test .......................   Passed    0.11 sec
+        Start 142: kv_q8_parity
+ 89/135 Test #142: kv_q8_parity .................................   Passed    0.19 sec
+        Start 143: route_prior_test
+ 90/135 Test #143: route_prior_test .............................   Passed    0.09 sec
+        Start 144: kv_stream_parity
+ 91/135 Test #144: kv_stream_parity .............................   Passed   39.91 sec
+        Start 145: kv_window_parity
+ 92/135 Test #145: kv_window_parity .............................   Passed    7.69 sec
+        Start 146: kv_hybrid_parity
+ 93/135 Test #146: kv_hybrid_parity .............................   Passed    0.31 sec
+        Start 147: kv_q4_parity
+ 94/135 Test #147: kv_q4_parity .................................   Passed    0.13 sec
+        Start 148: verify_batch_parity
+ 95/135 Test #148: verify_batch_parity ..........................   Passed    0.13 sec
+        Start 149: batch_rows_parity
+ 96/135 Test #149: batch_rows_parity ............................   Passed    2.25 sec
+        Start 150: cvec_parity
+ 97/135 Test #150: cvec_parity ..................................   Passed    0.20 sec
+        Start 151: s2_expert_grouped_parity
+ 98/135 Test #151: s2_expert_grouped_parity .....................   Passed    0.28 sec
+        Start 153: pin_budget_test
+ 99/135 Test #153: pin_budget_test ..............................   Passed    0.30 sec
+        Start 154: pinned_alias_test
+100/135 Test #154: pinned_alias_test ............................***Skipped   0.05 sec
+        Start 155: conversation_copy_streams_test
+101/135 Test #155: conversation_copy_streams_test ...............   Passed    0.23 sec
+        Start 162: hip_device_selftest
+102/135 Test #162: hip_device_selftest ..........................   Passed    0.19 sec
+        Start 231: hip_prefill_fused_moe
+103/135 Test #231: hip_prefill_fused_moe ........................   Passed    3.00 sec
+        Start 232: hip_prefill_fused_iq
+104/135 Test #232: hip_prefill_fused_iq .........................***Failed   41.42 sec
+IQ2_S / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 236, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 5.431e-05  worst 1.327e-03
+  MMQ   vs FP32 reference: rel RMS 1.493e-02  worst row max rel 2.797e-02
+  fused vs FP32 reference: rel RMS 1.493e-02  worst row max rel 2.797e-02
+  fused vs MMQ           : rel RMS 3.037e-04  worst row max rel 3.662e-03
+IQ2_XXS / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 234, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 4.163e-05  worst 1.012e-03
+  MMQ   vs FP32 reference: rel RMS 1.452e-02  worst row max rel 2.782e-02
+  fused vs FP32 reference: rel RMS 1.452e-02  worst row max rel 2.782e-02
+  fused vs MMQ           : rel RMS 3.437e-05  worst row max rel 1.013e-03
+IQ2_XS / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 235, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 6.776e-05  worst 1.709e-03
+  MMQ   vs FP32 reference: rel RMS 1.460e-02  worst row max rel 2.525e-02
+  fused vs FP32 reference: rel RMS 1.460e-02  worst row max rel 2.525e-02
+  fused vs MMQ           : rel RMS 1.951e-04  worst row max rel 3.609e-03
+IQ3_XXS / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 225, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 3.184e-05  worst 6.709e-04
+  MMQ   vs FP32 reference: rel RMS 1.446e-02  worst row max rel 2.482e-02
+  fused vs FP32 reference: rel RMS 1.446e-02  worst row max rel 2.482e-02
+  fused vs MMQ           : rel RMS 2.145e-04  worst row max rel 3.722e-03
+IQ3_S / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 230, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 6.998e-05  worst 9.498e-04
+  MMQ   vs FP32 reference: rel RMS 1.454e-02  worst row max rel 2.304e-02
+  fused vs FP32 reference: rel RMS 1.454e-02  worst row max rel 2.304e-02
+  fused vs MMQ           : rel RMS 2.938e-04  worst row max rel 3.538e-03
+IQ4_XS / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 234, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 8.646e-05  worst 2.000e-03
+  MMQ   vs FP32 reference: rel RMS 1.454e-02  worst row max rel 2.799e-02
+  fused vs FP32 reference: rel RMS 1.453e-02  worst row max rel 2.799e-02
+  fused vs MMQ           : rel RMS 1.823e-04  worst row max rel 4.469e-03
+IQ2_S / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 230, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 5.486e-05  worst 1.350e-03
+  MMQ   vs FP32 reference: rel RMS 1.478e-02  worst row max rel 2.357e-02
+  fused vs FP32 reference: rel RMS 1.478e-02  worst row max rel 2.357e-02
+  fused vs MMQ           : rel RMS 7.806e-05  worst row max rel 1.350e-03
+IQ3_XXS / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 226, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 9.125e-05  worst 2.204e-03
+  MMQ   vs FP32 reference: rel RMS 1.435e-02  worst row max rel 2.665e-02
+  fused vs FP32 reference: rel RMS 1.435e-02  worst row max rel 2.665e-02
+  fused vs MMQ           : rel RMS 6.561e-05  worst row max rel 8.491e-04
+IQ3_S / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 231, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 5.527e-05  worst 1.247e-03
+  MMQ   vs FP32 reference: rel RMS 1.457e-02  worst row max rel 2.664e-02
+  fused vs FP32 reference: rel RMS 1.457e-02  worst row max rel 2.664e-02
+  fused vs MMQ           : rel RMS 1.066e-04  worst row max rel 3.034e-03
+IQ4_XS / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 226, experts without rows 4
+  fused vs thprefill fused MoE (native formats) parity failed: cudaMalloc: out of memory
+e int8-rounded model (same activation / H rounding, double sums): rel RMS 4.707e-05  worst 1.415e-03
+  MMQ   vs FP32 reference: rel RMS 1.468e-02  worst row max rel 2.594e-02
+  fused vs FP32 reference: rel RMS 1.468e-02  worst row max rel 2.594e-02
+  fused vs MMQ           : rel RMS 2.259e-04  worst row max rel 3.475e-03
+IQ3_XXS / Q5_0: not set up on this device (skipped)
+IQ4_XS / Q5_0: not set up on this device (skipped)
+Q2_0 / Q2_0: not set up on this device (skipped)
+
+        Start 233: hip_prefill_fused_iq_f16
+105/135 Test #233: hip_prefill_fused_iq_f16 .....................***Failed  109.39 sec
+IQ2_S / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 236, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.632e-03  worst 6.975e-03
+  MMQ   vs FP32 reference: rel RMS 1.493e-02  worst row max rel 2.797e-02
+  fused vs FP32 reference: rel RMS 1.493e-02  worst row max rel 2.821e-02
+  fused vs MMQ           : rel RMS 2.639e-03  worst row max rel 6.337e-03
+IQ2_XXS / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 234, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.639e-03  worst 6.436e-03
+  MMQ   vs FP32 reference: rel RMS 1.452e-02  worst row max rel 2.782e-02
+  fused vs FP32 reference: rel RMS 1.454e-02  worst row max rel 2.716e-02
+  fused vs MMQ           : rel RMS 2.639e-03  worst row max rel 6.436e-03
+IQ2_XS / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 235, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.628e-03  worst 6.485e-03
+  MMQ   vs FP32 reference: rel RMS 1.460e-02  worst row max rel 2.525e-02
+  fused vs FP32 reference: rel RMS 1.462e-02  worst row max rel 2.489e-02
+  fused vs MMQ           : rel RMS 2.630e-03  worst row max rel 6.485e-03
+IQ3_XXS / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 225, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.642e-03  worst 7.481e-03
+  MMQ   vs FP32 reference: rel RMS 1.446e-02  worst row max rel 2.482e-02
+  fused vs FP32 reference: rel RMS 1.447e-02  worst row max rel 2.594e-02
+  fused vs MMQ           : rel RMS 2.643e-03  worst row max rel 7.481e-03
+IQ3_S / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 230, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.675e-03  worst 5.762e-03
+  MMQ   vs FP32 reference: rel RMS 1.454e-02  worst row max rel 2.304e-02
+  fused vs FP32 reference: rel RMS 1.456e-02  worst row max rel 2.436e-02
+  fused vs MMQ           : rel RMS 2.680e-03  worst row max rel 5.762e-03
+IQ4_XS / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 234, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.666e-03  worst 5.832e-03
+  MMQ   vs FP32 reference: rel RMS 1.454e-02  worst row max rel 2.799e-02
+  fused vs FP32 reference: rel RMS 1.456e-02  worst row max rel 2.784e-02
+  fused vs MMQ           : rel RMS 2.670e-03  worst row max rel 5.832e-03
+IQ2_S / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 230, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.665e-03  worst 6.727e-03
+  MMQ   vs FP32 reference: rel RMS 1.478e-02  worst row max rel 2.357e-02
+  fused vs FP32 reference: rel RMS 1.479e-02  worst row max rel 2.396e-02
+  fused vs MMQ           : rel RMS 2.665e-03  worst row max rel 6.727e-03
+IQ3_XXS / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 226, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.665e-03  worst 5.616e-03
+  MMQ   vs FP32 reference: rel RMS 1.435e-02  worst row max rel 2.665e-02
+  fused vs FP32 reference: rel RMS 1.437e-02  worst row max rel 2.639e-02
+  fused vs MMQ           : rel RMS 2.666e-03  worst row max rel 5.616e-03
+IQ3_S / Q2_0 - reference part: 256 tokens, 64 experts, rows per expert: max 231, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.672e-03  worst 6.038e-03
+  MMQ   vs FP32 reference: rel RMS 1.457e-02  worst row max rel 2.664e-02
+  fused vs FP32 reference: rel RMS 1.457e-02  worst row max rel 2.558e-02
+  fused vs MMQ           : rel RMS 2.672e-03  worst row max rel 6.038e-03
+IQ4_XS / IQ4_NL - reference part: 256 tokens, 64 experts, rows per expert: max 226, experts without rows 4
+  fused vs the int8-rounded model (same activation / H rounding, double sums): rel RMS 2.663e-03  worst 6.090e-03
+  MMQ   vs FP32 reference: rel RMS 1.468e-02  worst row max rel 2.594e-02
+  fused vs FP32 reference: rel RMS 1.469e-02  worst row max rel 2.642e-02
+  fused vs MMQ           : rel RMS 2.664e-03  worst row max rel 6.090e-03
+IQ3_XXS / Q5_0: not set up on this device (skipped)
+IQ4_XS / Q5_0: not set up on this device (skipped)
+Q2_0 / Q2_0: not set up on this device (skipped)
+  (MMQ's products alone, no gathers: 12.040 ms - fused 1.90x)
+  (fused back to back: median 6.347 ms, min 6.342; alternating min 6.345; MMQ min 15.735)
+  fused output bits hash 790d669caa4522c1
+IQ2_S / Q2_0 - timing part: 2048 tokens x top 10 over 512 experts, one layer: MMQ path 15.754 ms, fused 6.349 ms (2.48x); fused vs MMQ rel RMS 2.656e-03 worst row 6.422e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.455e-02 worst 2.036e-02, fused rel RMS 1.464e-02 worst 1.937e-02
+  (MMQ's products alone, no gathers: 16.907 ms - fused 1.83x)
+  (fused back to back: median 9.223 ms, min 9.205; alternating min 9.192; MMQ min 20.646)
+  fused output bits hash 0d58f23e387d579c
+IQ2_S / Q2_0 - timing part: 3584 tokens x top 10 over 512 experts, one layer: MMQ path 20.674 ms, fused 9.243 ms (2.24x); fused vs MMQ rel RMS 2.662e-03 worst row 6.424e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.514e-02 worst 2.411e-02, fused rel RMS 1.508e-02 worst 2.429e-02
+  (MMQ's products alone, no gathers: 33.608 ms - fused 1.72x)
+  (fused back to back: median 19.469 ms, min 19.205; alternating min 19.269; MMQ min 37.367)
+  fused output bits hash 1a0f1360f6084e83
+IQ2_S / Q2_0 - timing part: 8192 tokens x top 10 over 512 experts, one layer: MMQ path 37.481 ms, fused 19.512 ms (1.92x); fused vs MMQ rel RMS 2.669e-03 worst row 6.405e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.449e-02 worst 2.338e-02, fused rel RMS 1.453e-02 worst 2.339e-02
+  (MMQ's products alone, no gathers: 10.400 ms - fused 1.70x)
+  (fused back to back: median 6.111 ms, min 6.103; alternating min 6.112; MMQ min 13.888)
+  fused output bits hash 58a0ecb2e31b2502
+IQ2_XXS / Q2_0 - timing part: 2048 tokens x top 10 over 512 experts, one layer: MMQ path 13.911 ms, fused 6.120 ms (2.27x); fused vs MMQ rel RMS 2.653e-03 worst row 6.274e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.465e-02 worst 2.273e-02, fused rel RMS 1.462e-02 worst 2.322e-02
+  (MMQ's products alone, no gathers: 15.247 ms - fused 1.70x)
+  (fused back to back: median 8.963 ms, min 8.936; alternating min 8.927; MMQ min 18.647)
+  fused output bits hash 3ff047d474b43691
+IQ2_XXS / Q2_0 - timing part: 3584 tokens x top 10 over 512 experts, one layer: MMQ path 18.658 ms, fused 8.950 ms (2.08x); fused vs MMQ rel RMS 2.647e-03 worst row 6.319e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.477e-02 worst 2.178e-02, fused rel RMS 1.479e-02 worst 2.151e-02
+  (MMQ's products alone, no gathers: 29.328 ms - fused 1.55x)
+  (fused back to back: median 18.812 ms, min 18.751; alternating min 18.716; MMQ min 32.780)
+  fused output bits hash 81c75225acb01710
+IQ2_XXS / Q2_0 - timing part: 8192 tokens x top 10 over 512 experts, one layer: MMQ path 32.802 ms, fused 18.942 ms (1.73x); fused vs MMQ rel RMS 2.656e-03 worst row 6.795e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.474e-02 worst 2.098e-02, fused rel RMS 1.462e-02 worst 2.151e-02
+  (MMQ's products alone, no gathers: 10.450 ms - fused 1.63x)
+  (fused back to back: median 6.395 ms, min 6.389; alternating min 6.384; MMQ min 15.043)
+  fused output bits hash 3e1e6b3d035f9389
+IQ3_S / IQ4_NL - timing part: 2048 tokens x top 10 over 512 experts, one layer: MMQ path 15.058 ms, fused 6.397 ms (2.35x); fused vs MMQ rel RMS 2.708e-03 worst row 6.214e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.483e-02 worst 2.591e-02, fused rel RMS 1.482e-02 worst 2.498e-02
+  (MMQ's products alone, no gathers: 15.478 ms - fused 1.68x)
+  (fused back to back: median 9.242 ms, min 9.189; alternating min 9.194; MMQ min 19.987)
+  fused output bits hash 1b02bb9c636e3f95
+IQ3_S / Iprefill fused MoE (native formats) parity failed: cudaMalloc: out of memory
+Q4_NL - timing part: 3584 tokens x top 10 over 512 experts, one layer: MMQ path 20.004 ms, fused 9.236 ms (2.17x); fused vs MMQ rel RMS 2.696e-03 worst row 6.214e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.473e-02 worst 2.942e-02, fused rel RMS 1.472e-02 worst 2.830e-02
+  (MMQ's products alone, no gathers: 29.409 ms - fused 1.51x)
+  (fused back to back: median 19.350 ms, min 19.228; alternating min 19.297; MMQ min 34.024)
+  fused output bits hash 59f9ec4c176358e2
+IQ3_S / IQ4_NL - timing part: 8192 tokens x top 10 over 512 experts, one layer: MMQ path 34.055 ms, fused 19.444 ms (1.75x); fused vs MMQ rel RMS 2.674e-03 worst row 6.214e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.472e-02 worst 2.591e-02, fused rel RMS 1.473e-02 worst 2.497e-02
+  (MMQ's products alone, no gathers: 10.546 ms - fused 1.71x)
+  (fused back to back: median 6.173 ms, min 6.161; alternating min 6.160; MMQ min 14.937)
+  fused output bits hash dc0f724a09486eb0
+IQ3_XXS / IQ4_NL - timing part: 2048 tokens x top 10 over 512 experts, one layer: MMQ path 14.964 ms, fused 6.170 ms (2.43x); fused vs MMQ rel RMS 2.670e-03 worst row 6.585e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.429e-02 worst 2.267e-02, fused rel RMS 1.431e-02 worst 2.220e-02
+  (MMQ's products alone, no gathers: 15.164 ms - fused 1.70x)
+  (fused back to back: median 8.889 ms, min 8.875; alternating min 8.849; MMQ min 19.497)
+  fused output bits hash 3adc779d7ee79c99
+IQ3_XXS / IQ4_NL - timing part: 3584 tokens x top 10 over 512 experts, one layer: MMQ path 19.537 ms, fused 8.899 ms (2.20x); fused vs MMQ rel RMS 2.661e-03 worst row 6.585e-03
+  sample of 96 pairs vs FP32 reference: MMQ rel RMS 1.450e-02 worst 2.267e-02, fused rel RMS 1.449e-02 worst 2.201e-02
+
+        Start 234: hip_prefill_mmq_parity
+106/135 Test #234: hip_prefill_mmq_parity .......................   Passed   23.48 sec
+        Start 236: native_expert_parity_new_iq1_m_q2_0
+107/135 Test #236: native_expert_parity_new_iq1_m_q2_0 ..........   Passed   13.15 sec
+        Start 237: native_expert_parity_new_iq1_m_iq4_nl
+108/135 Test #237: native_expert_parity_new_iq1_m_iq4_nl ........   Passed   12.98 sec
+        Start 238: native_expert_parity_new_iq1_m_q5_0
+109/135 Test #238: native_expert_parity_new_iq1_m_q5_0 ..........   Passed   12.77 sec
+        Start 239: native_expert_parity_new_iq1_m_q8_0
+110/135 Test #239: native_expert_parity_new_iq1_m_q8_0 ..........   Passed   13.14 sec
+        Start 240: native_expert_parity_new_iq2_xxs_q2_0
+111/135 Test #240: native_expert_parity_new_iq2_xxs_q2_0 ........   Passed    2.89 sec
+        Start 241: native_expert_parity_new_iq2_xxs_iq4_nl
+112/135 Test #241: native_expert_parity_new_iq2_xxs_iq4_nl ......   Passed    2.35 sec
+        Start 242: native_expert_parity_new_iq2_xxs_q5_0
+113/135 Test #242: native_expert_parity_new_iq2_xxs_q5_0 ........   Passed    2.07 sec
+        Start 243: native_expert_parity_new_iq2_xxs_q8_0
+114/135 Test #243: native_expert_parity_new_iq2_xxs_q8_0 ........   Passed    2.06 sec
+        Start 244: native_expert_parity_new_iq2_xs_q2_0
+115/135 Test #244: native_expert_parity_new_iq2_xs_q2_0 .........   Passed    3.91 sec
+        Start 245: native_expert_parity_new_iq2_xs_iq4_nl
+116/135 Test #245: native_expert_parity_new_iq2_xs_iq4_nl .......   Passed    4.25 sec
+        Start 246: native_expert_parity_new_iq2_xs_q5_0
+117/135 Test #246: native_expert_parity_new_iq2_xs_q5_0 .........   Passed    3.93 sec
+        Start 247: native_expert_parity_new_iq2_xs_q8_0
+118/135 Test #247: native_expert_parity_new_iq2_xs_q8_0 .........   Passed    3.96 sec
+        Start 248: native_expert_parity_new_iq2_s_q2_0
+119/135 Test #248: native_expert_parity_new_iq2_s_q2_0 ..........   Passed    4.34 sec
+        Start 249: native_expert_parity_new_iq2_s_iq4_nl
+120/135 Test #249: native_expert_parity_new_iq2_s_iq4_nl ........   Passed    4.67 sec
+        Start 250: native_expert_parity_new_iq2_s_q5_0
+121/135 Test #250: native_expert_parity_new_iq2_s_q5_0 ..........   Passed    4.37 sec
+        Start 251: native_expert_parity_new_iq2_s_q8_0
+122/135 Test #251: native_expert_parity_new_iq2_s_q8_0 ..........   Passed    4.37 sec
+        Start 252: native_expert_parity_new_q2_0_q2_0
+123/135 Test #252: native_expert_parity_new_q2_0_q2_0 ...........   Passed    0.29 sec
+        Start 253: native_expert_parity_new_q2_0_iq4_nl
+124/135 Test #253: native_expert_parity_new_q2_0_iq4_nl .........   Passed    0.60 sec
+        Start 254: native_expert_parity_new_q2_0_q5_0
+125/135 Test #254: native_expert_parity_new_q2_0_q5_0 ...........   Passed    0.29 sec
+        Start 255: native_expert_parity_new_q2_0_q8_0
+126/135 Test #255: native_expert_parity_new_q2_0_q8_0 ...........   Passed    0.31 sec
+        Start 256: native_expert_parity_new_iq3_xxs_q2_0
+127/135 Test #256: native_expert_parity_new_iq3_xxs_q2_0 ........   Passed    1.49 sec
+        Start 257: native_expert_parity_new_iq3_xxs_iq4_nl
+128/135 Test #257: native_expert_parity_new_iq3_xxs_iq4_nl ......   Passed    1.78 sec
+        Start 258: native_expert_parity_new_iq3_xxs_q5_0
+129/135 Test #258: native_expert_parity_new_iq3_xxs_q5_0 ........   Passed    1.48 sec
+        Start 259: native_expert_parity_new_iq3_xxs_q8_0
+130/135 Test #259: native_expert_parity_new_iq3_xxs_q8_0 ........   Passed    1.49 sec
+        Start 260: native_expert_parity_new_iq4_xs_q2_0
+131/135 Test #260: native_expert_parity_new_iq4_xs_q2_0 .........   Passed    0.89 sec
+        Start 261: native_expert_parity_new_iq4_xs_iq4_nl
+132/135 Test #261: native_expert_parity_new_iq4_xs_iq4_nl .......   Passed    1.21 sec
+        Start 262: native_expert_parity_new_iq4_xs_q5_0
+133/135 Test #262: native_expert_parity_new_iq4_xs_q5_0 .........   Passed    0.89 sec
+        Start 263: native_expert_parity_new_iq4_xs_q8_0
+134/135 Test #263: native_expert_parity_new_iq4_xs_q8_0 .........   Passed    0.91 sec
+        Start 264: native_dense_types_parity
+135/135 Test #264: native_dense_types_parity ....................   Passed    2.79 sec
+
+99% tests passed, 2 tests failed out of 135
+
+Label Time Summary:
+cpu    =   0.07 sec*proc (1 test)
+gpu    = 545.72 sec*proc (134 tests)
+
+Total Test time (real) = 602.68 sec
+
+The following tests did not run:
+	 57 - expert_cache_segmented_test (Skipped)
+	 85 - hip_prefill_hcd_exact_parity (Skipped)
+	 89 - hip_prefill_hipblaslt_gemm (Skipped)
+	 90 - hip_prefill_rocblas_gemm (Skipped)
+	 93 - iq_parity_fixtures (Skipped)
+	 94 - iq_parity (Skipped)
+	154 - pinned_alias_test (Skipped)
+
+The following tests FAILED:
+	232 - hip_prefill_fused_iq (Failed)                     gpu
+	233 - hip_prefill_fused_iq_f16 (Failed)                 gpu
+Errors while running CTest

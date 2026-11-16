@@ -1,0 +1,27 @@
+#!/bin/sh
+# Confirm-tier runs of the arms the screens of win6-81/83/86 promoted (Linux session, 2026-11-16).
+# Waits for win-chain6 (WINCHAIN6_DONE), stops pancake.service (a server beside a benchmark disturbs it), runs abtest --tier confirm
+# per spec on the same tree and build the chain used (Strata-win, build-win), then starts pancake.service again.
+# Spec 84 is not queued: its first arm is the FP16 reference, so its preset arm's +50% is int8 against FP16, not a gain.
+# Log: /home/dan/auto-runs/confirm-queue.log   Results: /home/dan/auto-runs/win6c-<spec>.jsonl (+ .stdout)
+S=/home/dan/clone-of-d/src; L=/home/dan/auto-runs/confirm-queue.log; C=/home/dan/auto-runs/confirm
+export PATH=/home/dan/clone-of-d/src/Strata/.venv/bin:$PATH LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib
+echo "QUEUED $(date +%F_%T)" >> $L
+busy() { pgrep -f "[c]make --build|[n]inja|[c]lang|[c]c1plus|[c]test|[a]btest.py|[t]ask_gate.py|[r]eplay_turns.py|[q]uality_gate.py|[n]ight_queue.py|[a]uto-chain|[a]uto-post|[w]in-chain" >/dev/null; }
+until grep -q WINCHAIN6_DONE $S/win-chain6.log 2>/dev/null; do sleep 120; done
+echo "chain6 done $(date +%T)" >> $L
+systemctl --user stop pancake.service; sleep 5
+q=0; while [ $q -lt 3 ]; do if busy; then q=0; echo "WAIT busy $(date +%T)" >> $L; sleep 60; else q=$((q+1)); sleep 60; fi; done
+cd $S/Strata-win
+for sp in 81-new-exact-switches 83-prompt-exact-switches 86-adapt-prompt; do
+  tries=0
+  while :; do
+    echo "START $sp $(date +%F_%T)" >> $L
+    python3 tools/pancake/abtest.py $C/$sp.json --tier confirm --out /home/dan/auto-runs/win6c-$sp.jsonl > /home/dan/auto-runs/win6c-$sp.stdout 2>&1; rc=$?
+    echo "END $sp exit=$rc $(date +%T)" >> $L
+    if [ $rc -eq 3 ] && grep -q "already running" /home/dan/auto-runs/win6c-$sp.stdout && [ $tries -lt 12 ]; then tries=$((tries+1)); echo "BUSY retry $tries in 300 s" >> $L; sleep 300; continue; fi
+    break
+  done
+done
+systemctl --user start pancake.service; echo "service started $(date +%T)" >> $L
+echo CONFIRMQ_DONE >> $L

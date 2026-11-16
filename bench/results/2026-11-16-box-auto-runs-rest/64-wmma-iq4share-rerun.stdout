@@ -1,0 +1,65 @@
+rep 0 base                 short 121.3 edit 161.0  foreign CPU 9% [('claude', 15), ('gnome-shell', 2), ('pipewire', 1)]  gpu 2053/1249 MHz 54C 162W gtt 21M cpu 3883MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 wmma9                short 115.0 edit 163.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2053/1249 MHz 53C 163W gtt 21M cpu 4248MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 wmma9-share          short 75.2 edit 166.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('rsyslogd', 1)]  gpu 1864/1249 MHz 52C 108W gtt 21M cpu 3386MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 wmma9-share          short 105.9 edit 169.0  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2062/1249 MHz 53C 164W gtt 21M cpu 3866MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 wmma9                short 115.2 edit 162.7  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2053/1249 MHz 53C 171W gtt 21M cpu 3730MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 base                 short 121.4 edit 155.9  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 53C 162W gtt 21M cpu 4149MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 2 base                 short 120.5 edit 156.1  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 53C 165W gtt 21M cpu 3949MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 2 wmma9                short 115.3 edit 160.9  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2053/1249 MHz 53C 163W gtt 21M cpu 4042MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 2 wmma9-share          short 115.1 edit 163.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 2053/1249 MHz 53C 163W gtt 21M cpu 4007MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 wmma9-share          short 111.8 edit 161.2  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 52C 160W gtt 21M cpu 3829MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 wmma9                short 111.3 edit 160.9  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2062/1249 MHz 52C 162W gtt 21M cpu 3996MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 base                 short 118.3 edit 109.4  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2080/1249 MHz 53C 132W gtt 21M cpu 3475MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 base                 short 99.3 edit 81.0  foreign CPU 6% [('claude', 6), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2078/1249 MHz 53C 134W gtt 21M cpu 3556MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 wmma9                short 112.0 edit 172.0  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2053/1249 MHz 52C 161W gtt 21M cpu 3845MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 wmma9-share          short 115.4 edit 164.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2054/1249 MHz 53C 163W gtt 21M cpu 4045MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 wmma9-share          short 112.5 edit 107.6  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2076/1249 MHz 52C 136W gtt 21M cpu 3698MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 wmma9                short 108.3 edit 123.5  foreign CPU 5% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2066/1249 MHz 53C 156W gtt 21M cpu 3929MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 base                 short 81.4 edit 134.8  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 2068/1249 MHz 53C 134W gtt 21M cpu 3522MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 6 base                 short 117.2 edit 163.8  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2062/1249 MHz 53C 158W gtt 21M cpu 4238MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 6 wmma9                short 107.2 edit 71.6  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2078/1249 MHz 53C 138W gtt 21M cpu 3647MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 6 wmma9-share          short 107.5 edit 158.8  foreign CPU 6% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2067/1249 MHz 52C 158W gtt 21M cpu 3866MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 7 wmma9-share          short 75.9 edit 116.7  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2066/1249 MHz 53C 156W gtt 21M cpu 3560MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 7 wmma9                short 106.8 edit 97.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2050/1249 MHz 53C 147W gtt 21M cpu 3673MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 7 base                 short 114.6 edit 164.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:15-KFD IH', 1)]  gpu 2005/1249 MHz 53C 139W gtt 21M cpu 3513MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.8 +-  11.9  (n=8)
+                              drafts accepted 0.75
+  short  wmma9                   111.4 +-   3.0  (n=8)   vs base:  -0.3% +-  9.8%  -> no difference
+                              drafts accepted 0.70
+  short  wmma9-share             102.4 +-  14.1  (n=8)   vs base:  -8.4% +- 19.1%  -> no difference
+                              drafts accepted 0.70
+  edit   base                    140.9 +-  25.6  (n=8)
+                              drafts accepted 0.90
+  edit   wmma9                   139.0 +-  31.1  (n=8)   vs base:  -1.3% +- 34.8%  -> no difference
+                              drafts accepted 0.88
+  edit   wmma9-share             151.0 +-  20.3  (n=8)   vs base:  +7.2% +- 24.7%  -> no difference
+                              drafts accepted 0.88
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  wmma9                DIFFERENT text -> lossy or placement-dependent: quality gate
+  wmma9-share          DIFFERENT text -> lossy or placement-dependent: quality gate

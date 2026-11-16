@@ -1,0 +1,21 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 40% [('localsearch-3', 28), ('claude', 6), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 10 s
+rep 0 base                 short 114.4 short 114.7 edit 144.7 edit 172.0  foreign CPU 4% [('gnome-remote-de', 2), ('pipewire', 1), ('gnome-shell', 1)]  gpu 2014/1249 MHz 54C 156W gtt 21M cpu 4012MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 rows-loads-first     short 109.3 short 112.4 edit 145.8 edit 171.9  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2048/1249 MHz 54C 163W gtt 21M cpu 4001MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 mb-argmax            short 115.1 short 116.8 edit 144.3 edit 171.0  foreign CPU 6% [('bash', 3), ('gnome-shell', 2), ('pipewire', 1)]  gpu 2023/1249 MHz 54C 158W gtt 21M cpu 3920MHz 51C igpu 0%/vcn 0% fclk 1600
+Traceback (most recent call last):
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 1057, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 1004, in main
+    res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       passes, a.warmup)
+                       ^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 582, in run_arm
+    srv, err = start_server(cfg_path, log_out, port)
+               ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 549, in start_server
+    time.sleep(3)
+    ~~~~~~~~~~^^^
+KeyboardInterrupt

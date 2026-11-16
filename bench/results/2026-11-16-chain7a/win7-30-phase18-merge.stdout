@@ -1,0 +1,25 @@
+rep 0 base                 short 113.1 short 112.0 edit 144.6 edit 170.0  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2060/1249 MHz 56C 166W gtt 21M cpu 3928MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 separate-copies      short 109.0 short 110.6 edit 145.3 edit 171.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2044/1249 MHz 56C 162W gtt 21M cpu 4006MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 115.4 short 114.4 edit 144.2 edit 178.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2018/1249 MHz 55C 160W gtt 21M cpu 3938MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    112.5 +-   7.0  (n=2)
+                              drafts accepted 0.68
+  short  separate-copies         109.8 +-  10.2  (n=2)   vs base:  -2.4% +- 15.2%  -> no difference
+                              drafts accepted 0.68
+  short  base-late               114.9 +-   6.4  (n=2)   vs base:  +2.1% +-  0.6%  -> better
+                              drafts accepted 0.69
+  edit   base                    157.3 +- 161.4  (n=2)
+                              drafts accepted 0.88
+  edit   separate-copies         158.4 +- 165.9  (n=2)   vs base:  +0.7% +-  2.8%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               161.3 +- 218.0  (n=2)   vs base:  +2.6% +- 36.0%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  separate-copies      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +2.1%  edit +2.6%
+  separate-copies      short -3.5%  edit -0.6%  -> drop

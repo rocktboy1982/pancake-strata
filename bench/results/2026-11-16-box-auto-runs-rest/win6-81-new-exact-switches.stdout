@@ -1,0 +1,137 @@
+rep 0 base                 short 115.1 short 116.6 edit 142.8 edit 169.8  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2034/1249 MHz 55C 160W gtt 21M cpu 4071MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 rows-loads-first     short 115.0 short 116.9 edit 142.7 edit 168.4  foreign CPU 5% [('claude', 6), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2018/1249 MHz 54C 156W gtt 21M cpu 3984MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 mb-argmax            short 115.4 short 117.1 edit 143.1 edit 178.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1963/1249 MHz 54C 144W gtt 21M cpu 3812MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 mtp-wide             short 115.3 short 117.1 edit 144.4 edit 178.2  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1966/1249 MHz 54C 145W gtt 21M cpu 3788MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 scan-unroll          short 115.6 short 117.5 edit 143.1 edit 170.5  foreign CPU 4% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1955/1249 MHz 54C 149W gtt 21M cpu 3776MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 topk                 short 109.7 short 110.9 edit 145.1 edit 170.7  foreign CPU 4% [('claude', 2), ('gnome-shell', 1), ('pipewire', 1)]  gpu 2056/1249 MHz 55C 164W gtt 21M cpu 4059MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 merge-bound          short 110.6 short 112.2 edit 144.6 edit 171.1  foreign CPU 4% [('gnome-remote-de', 1), ('gnome-shell', 1), ('claude', 1)]  gpu 2062/1249 MHz 55C 161W gtt 21M cpu 3871MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 grup-wide            short 115.4 short 117.2 edit 144.0 edit 178.1  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1969/1249 MHz 54C 144W gtt 21M cpu 3906MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 grup-pf              short 109.4 short 111.4 edit 144.8 edit 170.9  foreign CPU 5% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2059/1249 MHz 55C 166W gtt 21M cpu 3866MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 down-swiglu          short 115.1 short 116.1 edit 147.7 edit 170.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('gnome-shell', 1)]  gpu 1948/1249 MHz 54C 142W gtt 21M cpu 3936MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 gdn-split            short 113.3 short 114.3 edit 145.6 edit 173.0  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2060/1249 MHz 55C 162W gtt 21M cpu 4007MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 gdn-split-norm128    short 107.4 short 108.6 edit 145.0 edit 172.1  foreign CPU 4% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2032/1249 MHz 54C 160W gtt 21M cpu 3770MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-ov0            short 115.3 short 116.9 edit 144.3 edit 178.4  foreign CPU 5% [('claude', 5), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1886/1249 MHz 54C 148W gtt 21M cpu 3746MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-ov0-copy2      short 109.4 short 111.1 edit 150.2 edit 168.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('gnome-shell', 1)]  gpu 2062/1249 MHz 55C 161W gtt 21M cpu 4074MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-layerwait      short 115.7 short 117.3 edit 144.7 edit 179.3  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('gnome-shell', 1)]  gpu 1990/1249 MHz 54C 150W gtt 21M cpu 3901MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 fuse-hits            short 115.4 short 116.9 edit 144.4 edit 178.4  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1900/1249 MHz 54C 150W gtt 21M cpu 3558MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 gr-fuse              short 115.3 short 114.2 edit 144.1 edit 177.7  foreign CPU 4% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1948/1249 MHz 54C 149W gtt 21M cpu 3733MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 wait-fuse-rows       short 108.8 short 110.2 edit 143.5 edit 171.4  foreign CPU 5% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2044/1249 MHz 55C 162W gtt 21M cpu 3954MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 wait-combine         short 115.2 short 117.0 edit 144.2 edit 178.3  foreign CPU 5% [('gnome-shell', 2), ('claude', 2), ('pipewire', 1)]  gpu 2041/1249 MHz 54C 159W gtt 21M cpu 3915MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.8 +-   9.5  (n=2)
+                              drafts accepted 0.69
+  short  rows-loads-first        116.0 +-  12.1  (n=2)   vs base:  +0.1% +-  2.2%  -> no difference
+                              drafts accepted 0.69
+  short  mb-argmax               116.2 +-  10.8  (n=2)   vs base:  +0.3% +-  1.1%  -> no difference
+                              drafts accepted 0.69
+  short  mtp-wide                116.2 +-  11.4  (n=2)   vs base:  +0.3% +-  1.6%  -> no difference
+                              drafts accepted 0.69
+  short  scan-unroll             116.5 +-  12.1  (n=2)   vs base:  +0.6% +-  2.2%  -> no difference
+                              drafts accepted 0.69
+  short  topk                    110.3 +-   7.6  (n=2)   vs base:  -4.8% +-  1.6%  -> worse
+                              drafts accepted 0.68
+  short  merge-bound             111.4 +-  10.2  (n=2)   vs base:  -3.8% +-  0.5%  -> worse
+                              drafts accepted 0.68
+  short  grup-wide               116.3 +-  11.4  (n=2)   vs base:  +0.4% +-  1.6%  -> no difference
+                              drafts accepted 0.69
+  short  grup-pf                 110.4 +-  12.7  (n=2)   vs base:  -4.7% +-  2.7%  -> worse
+                              drafts accepted 0.68
+  short  down-swiglu             115.6 +-   6.4  (n=2)   vs base:  -0.2% +-  2.7%  -> no difference
+                              drafts accepted 0.69
+  short  gdn-split               113.8 +-   6.4  (n=2)   vs base:  -1.8% +-  2.7%  -> no difference
+                              drafts accepted 0.68
+  short  gdn-split-norm128       108.0 +-   7.6  (n=2)   vs base:  -6.8% +-  1.6%  -> worse
+                              drafts accepted 0.68
+  short  adapt-ov0               116.1 +-  10.2  (n=2)   vs base:  +0.2% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  short  adapt-ov0-copy2         110.2 +-  10.8  (n=2)   vs base:  -4.8% +-  1.1%  -> worse
+                              drafts accepted 0.68
+  short  adapt-layerwait         116.5 +-  10.2  (n=2)   vs base:  +0.6% +-  0.5%  -> better
+                              drafts accepted 0.69
+  short  fuse-hits               116.2 +-   9.5  (n=2)   vs base:  +0.3% +-  0.0%  -> better
+                              drafts accepted 0.69
+  short  gr-fuse                 114.8 +-   7.0  (n=2)   vs base:  -0.9% +- 14.3%  -> no difference
+                              drafts accepted 0.69
+  short  wait-fuse-rows          109.5 +-   8.9  (n=2)   vs base:  -5.5% +-  0.5%  -> worse
+                              drafts accepted 0.68
+  short  wait-combine            116.1 +-  11.4  (n=2)   vs base:  +0.2% +-  1.6%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    156.3 +- 171.6  (n=2)
+                              drafts accepted 0.89
+  edit   rows-loads-first        155.6 +- 163.3  (n=2)   vs base:  -0.5% +-  5.3%  -> no difference
+                              drafts accepted 0.88
+  edit   mb-argmax               160.8 +- 225.0  (n=2)   vs base:  +2.9% +- 34.2%  -> no difference
+                              drafts accepted 0.90
+  edit   mtp-wide                161.3 +- 214.8  (n=2)   vs base:  +3.2% +- 27.6%  -> no difference
+                              drafts accepted 0.90
+  edit   scan-unroll             156.8 +- 174.1  (n=2)   vs base:  +0.3% +-  1.6%  -> no difference
+                              drafts accepted 0.88
+  edit   topk                    157.9 +- 162.7  (n=2)   vs base:  +1.0% +-  5.7%  -> no difference
+                              drafts accepted 0.89
+  edit   merge-bound             157.8 +- 168.4  (n=2)   vs base:  +1.0% +-  2.0%  -> no difference
+                              drafts accepted 0.88
+  edit   grup-wide               161.1 +- 216.7  (n=2)   vs base:  +3.0% +- 28.9%  -> no difference
+                              drafts accepted 0.90
+  edit   grup-pf                 157.9 +- 165.9  (n=2)   vs base:  +1.0% +-  3.7%  -> no difference
+                              drafts accepted 0.88
+  edit   down-swiglu             159.1 +- 145.5  (n=2)   vs base:  +1.8% +- 16.7%  -> no difference
+                              drafts accepted 0.90
+  edit   gdn-split               159.3 +- 174.1  (n=2)   vs base:  +1.9% +-  1.6%  -> better
+                              drafts accepted 0.89
+  edit   gdn-split-norm128       158.6 +- 172.2  (n=2)   vs base:  +1.4% +-  0.4%  -> better
+                              drafts accepted 0.88
+  edit   adapt-ov0               161.4 +- 216.7  (n=2)   vs base:  +3.2% +- 28.9%  -> no difference
+                              drafts accepted 0.90
+  edit   adapt-ov0-copy2         159.4 +- 116.9  (n=2)   vs base:  +2.0% +- 35.0%  -> no difference
+                              drafts accepted 0.91
+  edit   adapt-layerwait         162.0 +- 219.9  (n=2)   vs base:  +3.6% +- 30.9%  -> no difference
+                              drafts accepted 0.90
+  edit   fuse-hits               161.4 +- 216.1  (n=2)   vs base:  +3.3% +- 28.5%  -> no difference
+                              drafts accepted 0.90
+  edit   gr-fuse                 160.9 +- 213.5  (n=2)   vs base:  +2.9% +- 26.8%  -> no difference
+                              drafts accepted 0.90
+  edit   wait-fuse-rows          157.4 +- 177.3  (n=2)   vs base:  +0.7% +-  3.7%  -> no difference
+                              drafts accepted 0.88
+  edit   wait-combine            161.2 +- 216.7  (n=2)   vs base:  +3.2% +- 28.9%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  rows-loads-first     identical on every case -> exact
+  mb-argmax            DIFFERENT text -> lossy or placement-dependent: quality gate
+  mtp-wide             DIFFERENT text -> lossy or placement-dependent: quality gate
+  scan-unroll          identical on every case -> exact
+  topk                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  merge-bound          DIFFERENT text -> lossy or placement-dependent: quality gate
+  grup-wide            DIFFERENT text -> lossy or placement-dependent: quality gate
+  grup-pf              DIFFERENT text -> lossy or placement-dependent: quality gate
+  down-swiglu          DIFFERENT text -> lossy or placement-dependent: quality gate
+  gdn-split            DIFFERENT text -> lossy or placement-dependent: quality gate
+  gdn-split-norm128    DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-ov0            DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-ov0-copy2      DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-layerwait      DIFFERENT text -> lossy or placement-dependent: quality gate
+  fuse-hits            DIFFERENT text -> lossy or placement-dependent: quality gate
+  gr-fuse              DIFFERENT text -> lossy or placement-dependent: quality gate
+  wait-fuse-rows       DIFFERENT text -> lossy or placement-dependent: quality gate
+  wait-combine         DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  rows-loads-first     short +0.1%  edit -0.5%  -> PROMOTE to confirm
+  mb-argmax            short +0.3%  edit +2.9%  -> PROMOTE to confirm
+  mtp-wide             short +0.3%  edit +3.2%  -> PROMOTE to confirm
+  scan-unroll          short +0.6%  edit +0.3%  -> PROMOTE to confirm
+  topk                 short -4.8%  edit +1.0%  -> drop
+  merge-bound          short -3.8%  edit +1.0%  -> drop
+  grup-wide            short +0.4%  edit +3.0%  -> PROMOTE to confirm
+  grup-pf              short -4.7%  edit +1.0%  -> drop
+  down-swiglu          short -0.2%  edit +1.8%  -> PROMOTE to confirm
+  gdn-split            short -1.8%  edit +1.9%  -> PROMOTE to confirm
+  gdn-split-norm128    short -6.8%  edit +1.4%  -> drop
+  adapt-ov0            short +0.2%  edit +3.2%  -> PROMOTE to confirm
+  adapt-ov0-copy2      short -4.8%  edit +2.0%  -> drop
+  adapt-layerwait      short +0.6%  edit +3.6%  -> PROMOTE to confirm
+  fuse-hits            short +0.3%  edit +3.3%  -> PROMOTE to confirm
+  gr-fuse              short -0.9%  edit +2.9%  -> PROMOTE to confirm
+  wait-fuse-rows       short -5.5%  edit +0.7%  -> drop
+  wait-combine         short +0.2%  edit +3.2%  -> PROMOTE to confirm

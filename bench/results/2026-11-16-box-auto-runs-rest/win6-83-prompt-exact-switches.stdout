@@ -1,0 +1,69 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 long1k 103.3/377p 1031t long3k 118.8/788p 2935t short 89.0 short 115.4  foreign CPU 5% [('pipewire', 2), ('gnome-shell', 2), ('gnome-remote-de', 1)]  gpu 1866/1249 MHz 54C 154W gtt 21M cpu 3765MHz 49C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-lean              long1k 98.8/378p 1031t long3k 112.4/790p 2935t short 108.7 short 111.7  foreign CPU 5% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2055/1249 MHz 55C 168W gtt 21M cpu 3995MHz 49C igpu 0%/vcn 1% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-copy2             long1k 107.1/376p 1031t long3k 45.2/793p 2935t short 89.3 short 74.4  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('dbus-daemon', 1)]  gpu 1891/1249 MHz 53C 144W gtt 21M cpu 3666MHz 48C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-lean-copy2        long1k 97.7/377p 1031t long3k 107.3/797p 2935t short 94.5 short 124.6  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('dbus-daemon', 1)]  gpu 2056/1249 MHz 54C 168W gtt 21M cpu 4102MHz 48C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 dq-fast              long1k 107.4/684p 1031t long3k 117.1/1176p 2936t short 114.4 short 114.6  foreign CPU 5% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 54C 172W gtt 21M cpu 4020MHz 50C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-ahead             long1k 94.1/603p 1032t long3k 112.4/1137p 2936t short 114.2 short 115.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 2054/1249 MHz 54C 170W gtt 21M cpu 4048MHz 49C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-gg-defer          long1k 105.0/617p 1032t long3k 124.2/1109p 2936t short 115.8 short 112.3  foreign CPU 5% [('gnome-shell', 3), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2003/1249 MHz 54C 167W gtt 21M cpu 3972MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k base                    377.0 +-   nan  (n=1)
+  long1k pf-lean                 378.5 +-   nan  (n=1)   vs base:  +0.4% +-  nan%  -> no difference
+  long1k pf-copy2                376.1 +-   nan  (n=1)   vs base:  -0.2% +-  nan%  -> no difference
+  long1k pf-lean-copy2           377.0 +-   nan  (n=1)   vs base:  +0.0% +-  nan%  -> no difference
+  long1k dq-fast                 684.5 +-   nan  (n=1)   vs base: +81.6% +-  nan%  -> no difference
+  long1k pf-ahead                603.0 +-   nan  (n=1)   vs base: +59.9% +-  nan%  -> no difference
+  long1k pf-gg-defer             617.1 +-   nan  (n=1)   vs base: +63.7% +-  nan%  -> no difference
+  long3k base                    788.2 +-   nan  (n=1)
+  long3k pf-lean                 789.5 +-   nan  (n=1)   vs base:  +0.2% +-  nan%  -> no difference
+  long3k pf-copy2                793.4 +-   nan  (n=1)   vs base:  +0.7% +-  nan%  -> no difference
+  long3k pf-lean-copy2           796.6 +-   nan  (n=1)   vs base:  +1.1% +-  nan%  -> no difference
+  long3k dq-fast                1175.8 +-   nan  (n=1)   vs base: +49.2% +-  nan%  -> no difference
+  long3k pf-ahead               1137.4 +-   nan  (n=1)   vs base: +44.3% +-  nan%  -> no difference
+  long3k pf-gg-defer            1108.9 +-   nan  (n=1)   vs base: +40.7% +-  nan%  -> no difference
+  short  base                    102.2 +- 167.8  (n=2)
+                              drafts accepted 0.70
+  short  pf-lean                 110.2 +-  19.1  (n=2)   vs base:  +7.8% +- 145.5%  -> no difference
+                              drafts accepted 0.72
+  short  pf-copy2                 81.8 +-  94.7  (n=2)   vs base: -19.9% +- 256.8%  -> no difference
+                              drafts accepted 0.67
+  short  pf-lean-copy2           109.5 +- 191.3  (n=2)   vs base:  +7.2% +- 23.0%  -> no difference
+                              drafts accepted 0.75
+  short  dq-fast                 114.5 +-   1.3  (n=2)   vs base: +12.0% +- 162.9%  -> no difference
+                              drafts accepted 0.70
+  short  pf-ahead                114.9 +-   8.9  (n=2)   vs base: +12.4% +- 155.5%  -> no difference
+                              drafts accepted 0.69
+  short  pf-gg-defer             114.0 +-  22.2  (n=2)   vs base: +11.6% +- 185.9%  -> no difference
+                              drafts accepted 0.70
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pf-lean              DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-copy2             DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-lean-copy2        DIFFERENT text -> lossy or placement-dependent: quality gate
+  dq-fast              DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-ahead             DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-gg-defer          DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  pf-lean              long1k +0.4%  long3k +0.2%  short +7.8%  -> PROMOTE to confirm
+  pf-copy2             long1k -0.2%  long3k +0.7%  short -19.9%  -> drop
+  pf-lean-copy2        long1k +0.0%  long3k +1.1%  short +7.2%  -> PROMOTE to confirm
+  dq-fast              long1k +81.6%  long3k +49.2%  short +12.0%  -> PROMOTE to confirm
+  pf-ahead             long1k +59.9%  long3k +44.3%  short +12.4%  -> PROMOTE to confirm
+  pf-gg-defer          long1k +63.7%  long3k +40.7%  short +11.6%  -> PROMOTE to confirm

@@ -1,0 +1,24 @@
+  waiting for a quiet machine: load 0.00, foreign CPU 111% [('cc1plus', 100), ('claude', 3), ('ptyxis', 2)], reclaim 0.0%
+  quiet after 20 s
+rep 0 base                 short 114.2 short 114.7 edit 144.6 edit 171.0  foreign CPU 15% [('claude', 12), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 2057/1249 MHz 55C 160W gtt 21M cpu 4343MHz 52C igpu 3%/vcn 0% fclk 1600
+rep 0 rows-loads-first     short 109.7 short 110.9 edit 140.2 edit 168.3  foreign CPU 17% [('claude', 15), ('ptyxis', 3), ('gnome-shell', 2)]  gpu 2063/1249 MHz 54C 159W gtt 21M cpu 4178MHz 58C igpu 3%/vcn 0% fclk 1600
+  waiting for a quiet machine: load 0.00, foreign CPU 320% [('cc1plus', 299), ('claude', 6), ('pipewire', 4)], reclaim 0.0%
+  quiet after 75 s
+rep 0 mb-argmax            short 116.2 short 118.1 edit 145.5 edit 178.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1912/1249 MHz 53C 141W gtt 21M cpu 3818MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 mtp-wide             short 116.2 short 117.8 edit 144.5 edit 171.5  foreign CPU 6% [('claude', 11), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 1932/1249 MHz 53C 148W gtt 21M cpu 3554MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 scan-unroll          short 110.5 short 111.8 edit 144.9 edit 171.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2066/1249 MHz 55C 162W gtt 21M cpu 3934MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 topk                 short 116.0 short 117.7 edit 145.1 edit 178.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1762/1249 MHz 54C 137W gtt 21M cpu 3809MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 merge-bound          short 115.9 short 116.4 edit 146.1 edit 173.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 1843/1249 MHz 54C 141W gtt 21M cpu 3672MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 grup-wide            short 115.9 short 117.6 edit 144.0 edit 178.7  foreign CPU 10% [('gnome-shell', 18), ('claude', 5), ('gnome-remote-de', 2)]  gpu 1850/1249 MHz 54C 143W gtt 21M cpu 3717MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 29% [('gnome-shell', 12), ('ptyxis', 6), ('claude', 6)], reclaim 0.0%
+  quiet after 10 s
+rep 0 grup-pf              short 114.9 short 115.3 edit 145.9 edit 171.0  foreign CPU 5% [('gnome-shell', 4), ('claude', 2), ('pipewire', 1)]  gpu 2036/1249 MHz 54C 157W gtt 21M cpu 3738MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 down-swiglu          short 112.0 short 115.4 edit 144.8 edit 173.9  foreign CPU 6% [('gnome-shell', 12), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 2064/1249 MHz 55C 162W gtt 21M cpu 3863MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)

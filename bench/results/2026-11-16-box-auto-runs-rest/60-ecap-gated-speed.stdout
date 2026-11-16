@@ -1,0 +1,104 @@
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 noecap               short 113.8 edit 105.8  foreign CPU 130% [('clang-23', 100), ('cc1plus', 99), ('pipewire', 2)]  gpu 1770/1249 MHz 65C 145W gtt 21M cpu 3798MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 106% [('cc1plus', 100), ('gnome-remote-de', 2), ('pipewire', 2)], reclaim 0.0%
+  quiet after 10 s
+rep 0 noecap               short 114.0 edit 113.9  foreign CPU 106% [('cc1plus', 101), ('pipewire', 3), ('gnome-remote-de', 2)]  gpu 2057/1249 MHz 60C 160W gtt 21M cpu 3911MHz 56C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 noecap               short 115.9 edit 117.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2055/1249 MHz 58C 157W gtt 21M cpu 4290MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ecap1                short 113.9 edit 135.9  foreign CPU 230% [('clang-23', 199), ('claude', 23), ('gnome-remote-de', 4)]  gpu 2052/1249 MHz 57C 164W gtt 21M cpu 4255MHz 60C igpu 4%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 213% [('clang-23', 200), ('claude', 5), ('gnome-remote-de', 3)], reclaim 0.0%
+  quiet after 100 s
+rep 0 ecap1                short 102.0 edit 135.3  foreign CPU 118% [('cc1plus', 198), ('claude', 8), ('ptyxis', 7)]  gpu 1605/1249 MHz 53C 132W gtt 21M cpu 4103MHz 59C igpu 3%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 120% [('cc1plus', 98), ('claude', 7), ('gnome-remote-de', 3)], reclaim 0.0%
+  quiet after 60 s
+rep 0 ecap1                short 109.0 edit 136.7  foreign CPU 186% [('ple_reader_stre', 374), ('claude', 6), ('ptyxis', 3)]  gpu 2048/1249 MHz 53C 159W gtt 21M cpu 4231MHz 58C igpu 3%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 ecap1: every attempt noisy, keeping the quietest (118% foreign CPU)
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ecap0                short 117.7 edit 177.9  foreign CPU 40% [('poly_cpu_kernel', 105), ('claude', 3), ('pipewire', 2)]  gpu 2050/1249 MHz 54C 169W gtt 21M cpu 4204MHz 58C igpu 2%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ecap0                short 115.7 edit 176.5  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2049/1249 MHz 54C 170W gtt 21M cpu 4050MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ecap0-min9           short 121.6 edit 162.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2053/1249 MHz 54C 164W gtt 21M cpu 3998MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ecap0-min6           short 95.5 edit 173.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1648/1249 MHz 53C 136W gtt 21M cpu 3843MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 ecap0-min6           short 117.1 edit 121.5  foreign CPU 5% [('gnome-remote-de', 2), ('pipewire', 2), ('claude', 1)]  gpu 2052/1249 MHz 53C 163W gtt 21M cpu 4040MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 ecap0-min9           short 114.3 edit 162.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 2060/1249 MHz 53C 162W gtt 21M cpu 4054MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 ecap0                short 91.7 edit 175.5  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1886/1249 MHz 53C 138W gtt 21M cpu 3474MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 ecap1                short 87.3 edit 146.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2012/1249 MHz 53C 156W gtt 21M cpu 4057MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 noecap               short 115.8 edit 117.6  foreign CPU 6% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2055/1249 MHz 52C 155W gtt 21M cpu 4025MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 2 noecap               short 115.3 edit 117.3  foreign CPU 8% [('claude', 9), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2055/1249 MHz 52C 155W gtt 21M cpu 3991MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 2 ecap1                short 91.7 edit 106.2  foreign CPU 7% [('claude', 7), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1906/1249 MHz 53C 129W gtt 21M cpu 3227MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 2 ecap0                short 114.4 edit 177.8  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2062/1249 MHz 53C 164W gtt 21M cpu 3994MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 2 ecap0-min9           short 121.1 edit 161.7  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 53C 161W gtt 21M cpu 4002MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 2 ecap0-min6           short 121.7 edit 161.7  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 53C 162W gtt 21M cpu 3923MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 ecap0-min6           short 120.5 edit 162.0  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2052/1249 MHz 53C 163W gtt 21M cpu 3929MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 ecap0-min9           short 115.8 edit 170.6  foreign CPU 6% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2053/1249 MHz 53C 162W gtt 21M cpu 3816MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 ecap0                short 112.1 edit 75.8  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 1914/1249 MHz 54C 148W gtt 21M cpu 3830MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 ecap1                short 89.1 edit 141.2  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1995/1249 MHz 53C 158W gtt 21M cpu 3706MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 3 noecap               short 111.0 edit 117.9  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2073/1249 MHz 53C 139W gtt 21M cpu 3750MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 noecap               short 113.7 edit 115.2  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1702/1249 MHz 52C 132W gtt 21M cpu 3482MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 ecap1                short 115.6 edit 146.0  foreign CPU 5% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 53C 167W gtt 21M cpu 3910MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 ecap0                short 118.3 edit 176.9  foreign CPU 6% [('pipewire', 2), ('systemd', 2), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 54C 169W gtt 21M cpu 4006MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 ecap0-min9           short 116.4 edit 174.8  foreign CPU 7% [('claude', 10), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 53C 167W gtt 21M cpu 4089MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 4 ecap0-min6           short 116.6 edit 173.8  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 53C 166W gtt 21M cpu 3748MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 ecap0-min6           short 122.1 edit 160.5  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2053/1249 MHz 53C 163W gtt 21M cpu 4085MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 ecap0-min9           short 118.7 edit 160.2  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2053/1249 MHz 53C 161W gtt 21M cpu 3910MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 ecap0                short 118.4 edit 177.3  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2037/1249 MHz 54C 172W gtt 21M cpu 4093MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 ecap1                short 115.8 edit 146.0  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 53C 165W gtt 21M cpu 3911MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 5 noecap               short 116.6 edit 114.8  foreign CPU 6% [('pipewire', 2), ('gnome-remote-de', 2), ('systemd-journal', 1)]  gpu 2055/1249 MHz 53C 157W gtt 21M cpu 3986MHz 52C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  noecap                  114.7 +-   2.2  (n=6)
+                              drafts accepted 0.74
+  short  ecap1                   100.2 +-  13.6  (n=6)   vs noecap: -12.6% +- 11.5%  -> worse
+                              drafts accepted 0.68
+  short  ecap0                   111.8 +-  10.6  (n=6)   vs noecap:  -2.6% +-  9.6%  -> no difference
+                              drafts accepted 0.73
+  short  ecap0-min9              118.0 +-   3.1  (n=6)   vs noecap:  +2.8% +-  2.6%  -> better
+                              drafts accepted 0.74
+  short  ecap0-min6              115.6 +-  10.6  (n=6)   vs noecap:  +0.8% +-  9.9%  -> no difference
+                              drafts accepted 0.74
+  edit   noecap                  116.6 +-   1.4  (n=6)
+                              drafts accepted 0.90
+  edit   ecap1                   136.9 +-  16.5  (n=6)   vs noecap: +17.4% +- 14.6%  -> better
+                              drafts accepted 0.91
+  edit   ecap0                   160.0 +-  43.3  (n=6)   vs noecap: +37.1% +- 37.7%  -> no difference
+                              drafts accepted 0.88
+  edit   ecap0-min9              165.3 +-   6.2  (n=6)   vs noecap: +41.7% +-  5.6%  -> better
+                              drafts accepted 0.92
+  edit   ecap0-min6              158.8 +-  20.2  (n=6)   vs noecap: +36.2% +- 17.8%  -> better
+                              drafts accepted 0.91
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ecap1                DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap0                DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap0-min9           DIFFERENT text -> lossy or placement-dependent: quality gate
+  ecap0-min6           DIFFERENT text -> lossy or placement-dependent: quality gate

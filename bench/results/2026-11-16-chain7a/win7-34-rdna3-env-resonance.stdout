@@ -1,0 +1,25 @@
+rep 0 base                 short 109.7 short 110.9 edit 144.7 edit 171.2  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 55C 166W gtt 21M cpu 3965MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 pf-switch-min-t      short 114.6 short 116.3 edit 143.2 edit 172.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2038/1249 MHz 55C 161W gtt 21M cpu 3842MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 114.6 short 116.4 edit 143.4 edit 177.5  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2000/1249 MHz 54C 158W gtt 21M cpu 3616MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    110.3 +-   7.6  (n=2)
+                              drafts accepted 0.68
+  short  pf-switch-min-t         115.4 +-  10.8  (n=2)   vs base:  +4.7% +-  2.9%  -> better
+                              drafts accepted 0.69
+  short  base-late               115.5 +-  11.4  (n=2)   vs base:  +4.7% +-  3.5%  -> better
+                              drafts accepted 0.69
+  edit   base                    157.9 +- 168.4  (n=2)
+                              drafts accepted 0.88
+  edit   pf-switch-min-t         157.6 +- 183.0  (n=2)   vs base:  -0.2% +-  9.3%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               160.4 +- 216.7  (n=2)   vs base:  +1.6% +- 30.6%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pf-switch-min-t      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +4.7%  edit +1.6%
+  pf-switch-min-t      short +2.3%  edit -1.0%  -> PROMOTE to confirm

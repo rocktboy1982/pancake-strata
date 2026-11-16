@@ -1,0 +1,55 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 fp16-ref             long1k 87.0/409p 1032t long3k 111.3/796p 2936t  foreign CPU 6% [('claude', 5), ('pipewire', 1), ('kworker/u65:7-KFD IH', 1)]  gpu 2016/1249 MHz 54C 148W gtt 21M cpu 3810MHz 51C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 gu-exact             long1k 92.6/408p 1032t long3k 117.0/791p 2936t  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('kworker/u65:12-KFD IH', 1)]  gpu 1946/1249 MHz 52C 138W gtt 21M cpu 3714MHz 52C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 gu-exact-dqov        long1k 104.9/406p 1032t long3k 122.3/789p 2936t  foreign CPU 6% [('pipewire', 2), ('gnome-shell', 2), ('gnome-remote-de', 1)]  gpu 2004/1249 MHz 52C 146W gtt 21M cpu 3196MHz 52C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 gu-exact-down4       long1k 104.8/290p 1032t long3k 126.2/792p 2936t  foreign CPU 6% [('gnome-shell', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2066/1249 MHz 52C 150W gtt 21M cpu 3900MHz 50C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 gu-exact-all         long1k 111.3/288p 1032t long3k 119.5/787p 2937t  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2066/1249 MHz 52C 150W gtt 21M cpu 3432MHz 49C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 fp16-dq-fast         long1k 102.5/310p 1033t long3k 94.9/842p 2937t  foreign CPU 5% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2065/1249 MHz 52C 148W gtt 21M cpu 3558MHz 51C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 preset               long1k 94.1/615p 1033t long3k 114.1/1111p 2937t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2025/1249 MHz 52C 167W gtt 21M cpu 3767MHz 48C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k fp16-ref                409.2 +-   nan  (n=1)
+  long1k gu-exact                408.2 +-   nan  (n=1)   vs fp16-ref:  -0.2% +-  nan%  -> no difference
+  long1k gu-exact-dqov           405.5 +-   nan  (n=1)   vs fp16-ref:  -0.9% +-  nan%  -> no difference
+  long1k gu-exact-down4          289.8 +-   nan  (n=1)   vs fp16-ref: -29.2% +-  nan%  -> no difference
+  long1k gu-exact-all            288.1 +-   nan  (n=1)   vs fp16-ref: -29.6% +-  nan%  -> no difference
+  long1k fp16-dq-fast            309.9 +-   nan  (n=1)   vs fp16-ref: -24.3% +-  nan%  -> no difference
+  long1k preset                  615.4 +-   nan  (n=1)   vs fp16-ref: +50.4% +-  nan%  -> no difference
+  long3k fp16-ref                796.1 +-   nan  (n=1)
+  long3k gu-exact                791.2 +-   nan  (n=1)   vs fp16-ref:  -0.6% +-  nan%  -> no difference
+  long3k gu-exact-dqov           789.3 +-   nan  (n=1)   vs fp16-ref:  -0.9% +-  nan%  -> no difference
+  long3k gu-exact-down4          791.7 +-   nan  (n=1)   vs fp16-ref:  -0.6% +-  nan%  -> no difference
+  long3k gu-exact-all            787.0 +-   nan  (n=1)   vs fp16-ref:  -1.1% +-  nan%  -> no difference
+  long3k fp16-dq-fast            842.0 +-   nan  (n=1)   vs fp16-ref:  +5.8% +-  nan%  -> no difference
+  long3k preset                 1111.1 +-   nan  (n=1)   vs fp16-ref: +39.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  gu-exact             identical on every case -> exact
+  gu-exact-dqov        identical on every case -> exact
+  gu-exact-down4       identical on every case -> exact
+  gu-exact-all         identical on every case -> exact
+  fp16-dq-fast         identical on every case -> exact
+  preset               identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  gu-exact             long1k -0.2%  long3k -0.6%  -> drop
+  gu-exact-dqov        long1k -0.9%  long3k -0.9%  -> drop
+  gu-exact-down4       long1k -29.2%  long3k -0.6%  -> drop
+  gu-exact-all         long1k -29.6%  long3k -1.1%  -> drop
+  fp16-dq-fast         long1k -24.3%  long3k +5.8%  -> drop
+  preset               long1k +50.4%  long3k +39.6%  -> PROMOTE to confirm

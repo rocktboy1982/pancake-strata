@@ -1,0 +1,73 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 c71bc199ba81, target 64000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 base                 long1k 97.1/620p 1031t long3k 96.2/1106p 2935t long64k 91.0/1980p 65194t short 115.5 short 112.3  foreign CPU 5% [('kswapd0', 10), ('kcompactd0', 1), ('gnome-remote-de', 1)]  gpu 2010/1249 MHz 59C 189W gtt 25M cpu 3333MHz 62C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 pool-retry           long1k 93.5/622p 1031t long3k 110.7/1108p 2935t long64k 109.9/1981p 65194t short 109.3 short 116.3  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2020/1249 MHz 59C 191W gtt 25M cpu 3407MHz 62C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 auto-max-49152       long1k 96.3/619p 1031t long3k 110.4/1105p 2935t long64k 104.5/1981p 65194t short 111.8 short 112.5  foreign CPU 10% [('claude', 17), ('pipewire', 1), ('ptyxis', 1)]  gpu 2017/1249 MHz 59C 189W gtt 25M cpu 3540MHz 62C igpu 1%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 kv-stage-req         long1k 97.5/622p 1032t long3k 101.4/1118p 2936t long64k 84.3/1983p 65195t short 114.3 short 117.4  foreign CPU 4% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2010/1249 MHz 59C 190W gtt 25M cpu 3464MHz 62C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 pf-sel-batch64       long1k 98.8/615p 1032t long3k 97.6/1102p 2936t long64k 89.9/1956p 65195t short 111.6 short 111.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:15-KFD IH', 1)]  gpu 1979/1249 MHz 59C 185W gtt 25M cpu 3366MHz 62C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 kv-pf-resident       long1k 112.7/613p 1032t long3k 122.8/1105p 2936t long64k 89.5/1978p 65195t short 112.8 short 111.2  foreign CPU 4% [('kcompactd0', 3), ('kworker/10:2-events_freezable', 2), ('claude', 2)]  gpu 2016/1249 MHz 59C 190W gtt 25M cpu 3543MHz 62C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k base                    620.2 +-   nan  (n=1)
+  long1k pool-retry              621.8 +-   nan  (n=1)   vs base:  +0.3% +-  nan%  -> no difference
+  long1k auto-max-49152          619.2 +-   nan  (n=1)   vs base:  -0.2% +-  nan%  -> no difference
+  long1k kv-stage-req            622.0 +-   nan  (n=1)   vs base:  +0.3% +-  nan%  -> no difference
+  long1k pf-sel-batch64          614.8 +-   nan  (n=1)   vs base:  -0.9% +-  nan%  -> no difference
+  long1k kv-pf-resident          613.4 +-   nan  (n=1)   vs base:  -1.1% +-  nan%  -> no difference
+  long3k base                   1106.1 +-   nan  (n=1)
+  long3k pool-retry             1107.8 +-   nan  (n=1)   vs base:  +0.2% +-  nan%  -> no difference
+  long3k auto-max-49152         1104.6 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  long3k kv-stage-req           1118.1 +-   nan  (n=1)   vs base:  +1.1% +-  nan%  -> no difference
+  long3k pf-sel-batch64         1101.7 +-   nan  (n=1)   vs base:  -0.4% +-  nan%  -> no difference
+  long3k kv-pf-resident         1104.8 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  long64k base                   1980.3 +-   nan  (n=1)
+  long64k pool-retry             1980.6 +-   nan  (n=1)   vs base:  +0.0% +-  nan%  -> no difference
+  long64k auto-max-49152         1981.3 +-   nan  (n=1)   vs base:  +0.1% +-  nan%  -> no difference
+  long64k kv-stage-req           1982.9 +-   nan  (n=1)   vs base:  +0.1% +-  nan%  -> no difference
+  long64k pf-sel-batch64         1956.5 +-   nan  (n=1)   vs base:  -1.2% +-  nan%  -> no difference
+  long64k kv-pf-resident         1977.9 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  short  base                    113.9 +-  20.3  (n=2)
+                              drafts accepted 0.72
+  short  pool-retry              112.8 +-  44.5  (n=2)   vs base:  -1.0% +- 56.9%  -> no difference
+                              drafts accepted 0.71
+  short  auto-max-49152          112.2 +-   4.4  (n=2)   vs base:  -1.5% +- 21.8%  -> no difference
+                              drafts accepted 0.68
+  short  kv-stage-req            115.8 +-  19.7  (n=2)   vs base:  +1.7% +- 35.2%  -> no difference
+                              drafts accepted 0.70
+  short  pf-sel-batch64          111.5 +-   0.6  (n=2)   vs base:  -2.1% +- 17.3%  -> no difference
+                              drafts accepted 0.66
+  short  kv-pf-resident          112.0 +-  10.2  (n=2)   vs base:  -1.7% +-  8.9%  -> no difference
+                              drafts accepted 0.71
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pool-retry           DIFFERENT text -> lossy or placement-dependent: quality gate
+  auto-max-49152       DIFFERENT text -> lossy or placement-dependent: quality gate
+  kv-stage-req         DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-sel-batch64       DIFFERENT text -> lossy or placement-dependent: quality gate
+  kv-pf-resident       DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  pool-retry           long1k +0.3%  long3k +0.2%  long64k +0.0%  short -1.0%  -> PROMOTE to confirm
+  auto-max-49152       long1k -0.2%  long3k -0.1%  long64k +0.1%  short -1.5%  -> PROMOTE to confirm
+  kv-stage-req         long1k +0.3%  long3k +1.1%  long64k +0.1%  short +1.7%  -> PROMOTE to confirm
+  pf-sel-batch64       long1k -0.9%  long3k -0.4%  long64k -1.2%  short -2.1%  -> drop
+  kv-pf-resident       long1k -1.1%  long3k -0.1%  long64k -0.1%  short -1.7%  -> drop

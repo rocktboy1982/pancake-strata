@@ -1,0 +1,28 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 long1k 103.4/620p 1031t long3k 114.7/1107p 2935t short 115.2 short 116.3 edit 145.8 edit 170.6  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2055/1249 MHz 55C 166W gtt 21M cpu 3917MHz 51C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 j32-rolled           long1k 100.8/625p 1031t long3k 117.7/1109p 2935t short 116.1 short 113.8 edit 139.5 edit 163.3  foreign CPU 5% [('claude', 3), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 1856/1249 MHz 55C 156W gtt 21M cpu 3964MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k base                    619.5 +-   nan  (n=1)
+  long1k j32-rolled              625.1 +-   nan  (n=1)   vs base:  +0.9% +-  nan%  -> no difference
+  long3k base                   1107.4 +-   nan  (n=1)
+  long3k j32-rolled             1109.1 +-   nan  (n=1)   vs base:  +0.2% +-  nan%  -> no difference
+  short  base                    115.8 +-   7.0  (n=2)
+                              drafts accepted 0.70
+  short  j32-rolled              114.9 +-  14.6  (n=2)   vs base:  -0.7% +- 18.7%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    158.2 +- 157.6  (n=2)
+                              drafts accepted 0.89
+  edit   j32-rolled              151.4 +- 151.2  (n=2)   vs base:  -4.3% +-  4.0%  -> worse
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  j32-rolled           DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  j32-rolled           long1k +0.9%  long3k +0.2%  short -0.7%  edit -4.3%  -> drop

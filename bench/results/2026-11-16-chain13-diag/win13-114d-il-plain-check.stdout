@@ -1,0 +1,28 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 115.1 short 116.7 edit 144.1 edit 178.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1837/1249 MHz 55C 143W gtt 21M cpu 3889MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 il-plain-check       short 115.2 short 116.7 edit 143.6 edit 178.0  foreign CPU 7% [('claude', 5), ('gnome-remote-de', 2), ('pipewire', 2)]  gpu 2013/1249 MHz 55C 156W gtt 21M cpu 4063MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 68.4 short 85.2 edit 139.5 edit 179.4  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2059/1249 MHz 54C 143W gtt 21M cpu 3689MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.9 +-  10.2  (n=2)
+                              drafts accepted 0.69
+  short  il-plain-check          116.0 +-   9.5  (n=2)   vs base:  +0.0% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  short  base-late                76.8 +- 106.8  (n=2)   vs base: -33.7% +- 83.3%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    161.3 +- 219.2  (n=2)
+                              drafts accepted 0.90
+  edit   il-plain-check          160.8 +- 218.6  (n=2)   vs base:  -0.3% +-  0.4%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               159.4 +- 253.6  (n=2)   vs base:  -1.2% +- 21.3%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  il-plain-check       identical on every case -> exact
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -33.7%  edit -1.2%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  il-plain-check       short +20.3%  edit +0.2%  -> PROMOTE to confirm

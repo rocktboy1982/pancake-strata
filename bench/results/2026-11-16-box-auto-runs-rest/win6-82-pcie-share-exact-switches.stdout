@@ -1,0 +1,53 @@
+rep 0 pcie015              short 111.8 short 107.5 edit 144.6 edit 165.3  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2044/1249 MHz 55C 157W gtt 21M cpu 3952MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 pcie015-dmaflag      short 88.2 short 106.4 edit 120.7 edit 145.3  foreign CPU 5% [('claude', 5), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2040/1249 MHz 54C 153W gtt 21M cpu 3602MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 pcie015-fork         short 105.7 short 86.9 edit 108.1 edit 156.2  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('gnome-shell', 2)]  gpu 2062/1249 MHz 54C 151W gtt 21M cpu 3772MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 pcie015-both         short 108.8 short 88.0 edit 141.5 edit 165.3  foreign CPU 4% [('gnome-remote-de', 2), ('pipewire', 1), ('claude', 1)]  gpu 1973/1249 MHz 53C 142W gtt 21M cpu 3592MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 preset               short 113.0 short 116.6 edit 91.5 edit 182.9  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1944/1249 MHz 54C 157W gtt 21M cpu 3755MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 pcie015-dali         short 89.0 short 85.5 edit 110.2 edit 154.8  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1953/1249 MHz 54C 146W gtt 21M cpu 3737MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 pcie030-dali         short 74.7 short 85.5 edit 136.0 edit 94.9  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2069/1249 MHz 54C 136W gtt 21M cpu 3607MHz 48C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  pcie015                 109.7 +-  27.3  (n=2)
+                              drafts accepted 0.71
+  short  pcie015-dmaflag          97.3 +- 115.7  (n=2)   vs pcie015: -11.3% +- 130.4%  -> no difference
+                              drafts accepted 0.73
+  short  pcie015-fork             96.3 +- 119.5  (n=2)   vs pcie015: -12.2% +- 84.0%  -> no difference
+                              drafts accepted 0.69
+  short  pcie015-both             98.4 +- 132.2  (n=2)   vs pcie015: -10.3% +- 95.6%  -> no difference
+                              drafts accepted 0.71
+  short  preset                  114.8 +-  22.9  (n=2)   vs pcie015:  +4.7% +- 45.8%  -> no difference
+                              drafts accepted 0.69
+  short  pcie015-dali             87.2 +-  22.2  (n=2)   vs pcie015: -20.4% +-  4.6%  -> worse
+                              drafts accepted 0.67
+  short  pcie030-dali             80.1 +-  68.6  (n=2)   vs pcie015: -26.9% +- 87.5%  -> no difference
+                              drafts accepted 0.68
+  edit   pcie015                 154.9 +- 131.5  (n=2)
+                              drafts accepted 0.88
+  edit   pcie015-dmaflag         133.0 +- 156.3  (n=2)   vs pcie015: -14.2% +- 16.0%  -> no difference
+                              drafts accepted 0.91
+  edit   pcie015-fork            132.1 +- 305.7  (n=2)   vs pcie015: -14.7% +- 112.4%  -> no difference
+                              drafts accepted 0.93
+  edit   pcie015-both            153.4 +- 151.2  (n=2)   vs pcie015:  -1.0% +- 12.7%  -> no difference
+                              drafts accepted 0.88
+  edit   preset                  137.2 +- 580.8  (n=2)   vs pcie015: -11.5% +- 290.0%  -> no difference
+                              drafts accepted 0.89
+  edit   pcie015-dali            132.5 +- 283.4  (n=2)   vs pcie015: -14.5% +- 98.0%  -> no difference
+                              drafts accepted 0.90
+  edit   pcie030-dali            115.5 +- 261.2  (n=2)   vs pcie015: -25.5% +- 253.5%  -> no difference
+                              drafts accepted 0.87
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pcie015-dmaflag      DIFFERENT text -> lossy or placement-dependent: quality gate
+  pcie015-fork         DIFFERENT text -> lossy or placement-dependent: quality gate
+  pcie015-both         identical on every case -> exact
+  preset               DIFFERENT text -> lossy or placement-dependent: quality gate
+  pcie015-dali         DIFFERENT text -> lossy or placement-dependent: quality gate
+  pcie030-dali         DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  pcie015-dmaflag      short -11.3%  edit -14.2%  -> drop
+  pcie015-fork         short -12.2%  edit -14.7%  -> drop
+  pcie015-both         short -10.3%  edit -1.0%  -> drop
+  preset               short +4.7%  edit -11.5%  -> drop
+  pcie015-dali         short -20.4%  edit -14.5%  -> drop
+  pcie030-dali         short -26.9%  edit -25.5%  -> drop

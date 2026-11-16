@@ -1,0 +1,153 @@
+
+=== device 0: AMD Radeon RX 7900 XT (sm_110, L2 6144 KB), 200 reps, median ms per call, B = rows mode 1 ===
+case               cols      A ms      B ms   A +col   B +col  bitwise B=A, A=1col, B=1col
+gdn qkv Q6_K          1    0.0408    0.0408   0.0000   0.0000  ok ok ok
+gdn qkv Q6_K          2    0.0412    0.0412   0.0004   0.0005  ok ok ok
+gdn qkv Q6_K          3    0.0423    0.0423   0.0008   0.0008  ok ok ok
+gdn qkv Q6_K          4    0.0447    0.0447   0.0013   0.0013  ok ok ok
+gdn qkv Q6_K          5    0.0454    0.0454   0.0011   0.0011  ok ok ok
+gdn qkv Q6_K          8    0.0534    0.0535   0.0018   0.0018  ok ok ok
+gdn qkv Q6_K         12    0.0853    0.0854   0.0041   0.0041  ok ok ok
+gdn qkv Q6_K         16    0.1052    0.1052   0.0043   0.0043  ok ok ok
+gdn qkv Q6_K         24    0.2766    0.2764   0.0103   0.0102  ok ok ok
+gdn qkv Q6_K         32    0.3491    0.3481   0.0099   0.0099  ok ok ok
+gdn qkv Q4_K          1    0.0856    0.0862   0.0000   0.0000  ok ok ok
+gdn qkv Q4_K          2    0.0866    0.0865   0.0010   0.0003  ok ok ok
+gdn qkv Q4_K          3    0.0866    0.0866   0.0005   0.0002  ok ok ok
+gdn qkv Q4_K          4    0.0870    0.0870   0.0005   0.0003  ok ok ok
+gdn qkv Q4_K          5    0.0874    0.0874   0.0005   0.0003  ok ok ok
+gdn qkv Q4_K          8    0.0878    0.0878   0.0003   0.0002  ok ok ok
+gdn qkv Q4_K         12    0.0884    0.0884   0.0003   0.0002  ok ok ok
+gdn qkv Q4_K         16    0.0891    0.0891   0.0002   0.0002  ok ok ok
+gdn qkv Q4_K         24    0.1358    0.1357   0.0022   0.0022  ok ok ok
+gdn qkv Q4_K         32    0.1375    0.1375   0.0017   0.0017  ok ok ok
+gdn qkv Q5_K          1    0.0897    0.0898   0.0000   0.0000  ok ok ok
+gdn qkv Q5_K          2    0.0901    0.0901   0.0004   0.0003  ok ok ok
+gdn qkv Q5_K          3    0.0903    0.0903   0.0003   0.0003  ok ok ok
+gdn qkv Q5_K          4    0.0906    0.0904   0.0003   0.0002  ok ok ok
+gdn qkv Q5_K          5    0.0907    0.0906   0.0003   0.0002  ok ok ok
+gdn qkv Q5_K          8    0.0913    0.0913   0.0002   0.0002  ok ok ok
+gdn qkv Q5_K         12    0.0917    0.0917   0.0002   0.0002  ok ok ok
+gdn qkv Q5_K         16    0.0924    0.0924   0.0002   0.0002  ok ok ok
+gdn qkv Q5_K         24    0.1378    0.1379   0.0021   0.0021  ok ok ok
+gdn qkv Q5_K         32    0.1396    0.1396   0.0016   0.0016  ok ok ok
+gdn qkv IQ4_XS        1    0.0319    0.0320   0.0000   0.0000  ok ok ok
+gdn qkv IQ4_XS        2    0.0340    0.0340   0.0021   0.0020  ok ok ok
+gdn qkv IQ4_XS        3    0.0388    0.0388   0.0034   0.0034  ok ok ok
+gdn qkv IQ4_XS        4    0.0428    0.0428   0.0037   0.0036  ok ok ok
+gdn qkv IQ4_XS        5    0.0445    0.0444   0.0032   0.0031  ok ok ok
+gdn qkv IQ4_XS        8    0.0562    0.0563   0.0035   0.0035  ok ok ok
+gdn qkv IQ4_XS       12    0.0876    0.0876   0.0051   0.0051  ok ok ok
+gdn qkv IQ4_XS       16    0.1078    0.1078   0.0051   0.0051  ok ok ok
+gdn qkv IQ4_XS       24    0.2228    0.2229   0.0083   0.0083  ok ok ok
+gdn qkv IQ4_XS       32    0.2772    0.2771   0.0079   0.0079  ok ok ok
+gdn gate Q6_K         1    0.0290    0.0291   0.0000   0.0000  ok ok ok
+gdn gate Q6_K         2    0.0296    0.0296   0.0006   0.0005  ok ok ok
+gdn gate Q6_K         3    0.0303    0.0305   0.0006   0.0007  ok ok ok
+gdn gate Q6_K         4    0.0322    0.0322   0.0011   0.0010  ok ok ok
+gdn gate Q6_K         5    0.0323    0.0324   0.0008   0.0008  ok ok ok
+gdn gate Q6_K         8    0.0381    0.0381   0.0013   0.0013  ok ok ok
+gdn gate Q6_K        12    0.0546    0.0546   0.0023   0.0023  ok ok ok
+gdn gate Q6_K        16    0.0667    0.0666   0.0025   0.0025  ok ok ok
+gdn gate Q6_K        24    0.1846    0.1849   0.0068   0.0068  ok ok ok
+gdn gate Q6_K        32    0.2367    0.2366   0.0067   0.0067  ok ok ok
+gdn out Q6_K          1    0.0308    0.0309   0.0000   0.0000  ok ok ok
+gdn out Q6_K          2    0.0311    0.0311   0.0003   0.0002  ok ok ok
+gdn out Q6_K          3    0.0307    0.0307  -0.0001  -0.0001  ok ok ok
+gdn out Q6_K          4    0.0318    0.0317   0.0003   0.0003  ok ok ok
+gdn out Q6_K          5    0.0328    0.0328   0.0005   0.0005  ok ok ok
+gdn out Q6_K          8    0.0392    0.0393   0.0012   0.0012  ok ok ok
+gdn out Q6_K         12    0.0562    0.0562   0.0023   0.0023  ok ok ok
+gdn out Q6_K         16    0.0697    0.0697   0.0026   0.0026  ok ok ok
+gdn out Q6_K         24    0.1789    0.1790   0.0064   0.0064  ok ok ok
+gdn out Q6_K         32    0.2272    0.2272   0.0063   0.0063  ok ok ok
+gdn out IQ4_XS        1    0.0223    0.0223   0.0000   0.0000  ok ok ok
+gdn out IQ4_XS        2    0.0253    0.0255   0.0030   0.0032  ok ok ok
+gdn out IQ4_XS        3    0.0275    0.0274   0.0026   0.0026  ok ok ok
+gdn out IQ4_XS        4    0.0300    0.0299   0.0026   0.0025  ok ok ok
+gdn out IQ4_XS        5    0.0316    0.0316   0.0023   0.0023  ok ok ok
+gdn out IQ4_XS        8    0.0386    0.0386   0.0023   0.0023  ok ok ok
+gdn out IQ4_XS       12    0.0552    0.0552   0.0030   0.0030  ok ok ok
+gdn out IQ4_XS       16    0.0673    0.0674   0.0030   0.0030  ok ok ok
+gdn out IQ4_XS       24    0.1342    0.1342   0.0049   0.0049  ok ok ok
+gdn out IQ4_XS       32    0.1723    0.1722   0.0048   0.0048  ok ok ok
+gdn out Q4_K          1    0.1297    0.1294   0.0000   0.0000  ok ok ok
+gdn out Q4_K          2    0.1297    0.1298  -0.0000   0.0003  ok ok ok
+gdn out Q4_K          3    0.1307    0.1307   0.0005   0.0006  ok ok ok
+gdn out Q4_K          4    0.1310    0.1310   0.0004   0.0005  ok ok ok
+gdn out Q4_K          5    0.1308    0.1308   0.0003   0.0003  ok ok ok
+gdn out Q4_K          8    0.1317    0.1318   0.0003   0.0003  ok ok ok
+gdn out Q4_K         12    0.1322    0.1322   0.0002   0.0003  ok ok ok
+gdn out Q4_K         16    0.1336    0.1334   0.0003   0.0003  ok ok ok
+gdn out Q4_K         24    0.2202    0.2201   0.0039   0.0039  ok ok ok
+gdn out Q4_K         32    0.2224    0.2224   0.0030   0.0030  ok ok ok
+qsa q IQ4_XS          1    0.0355    0.0356   0.0000   0.0000  ok ok ok
+qsa q IQ4_XS          2    0.0381    0.0381   0.0026   0.0025  ok ok ok
+qsa q IQ4_XS          3    0.0437    0.0438   0.0041   0.0041  ok ok ok
+qsa q IQ4_XS          4    0.0486    0.0486   0.0044   0.0043  ok ok ok
+qsa q IQ4_XS          5    0.0504    0.0505   0.0037   0.0037  ok ok ok
+qsa q IQ4_XS          8    0.0645    0.0645   0.0041   0.0041  ok ok ok
+qsa q IQ4_XS         12    0.1009    0.1009   0.0059   0.0059  ok ok ok
+qsa q IQ4_XS         16    0.1249    0.1250   0.0060   0.0060  ok ok ok
+qsa q IQ4_XS         24    0.2601    0.2600   0.0098   0.0098  ok ok ok
+qsa q IQ4_XS         32    0.3225    0.3223   0.0093   0.0093  ok ok ok
+qsa q Q6_K            1    0.0462    0.0464   0.0000   0.0000  ok ok ok
+qsa q Q6_K            2    0.0470    0.0469   0.0008   0.0004  ok ok ok
+qsa q Q6_K            3    0.0482    0.0482   0.0010   0.0009  ok ok ok
+qsa q Q6_K            4    0.0510    0.0509   0.0016   0.0015  ok ok ok
+qsa q Q6_K            5    0.0513    0.0513   0.0013   0.0012  ok ok ok
+qsa q Q6_K            8    0.0609    0.0609   0.0021   0.0021  ok ok ok
+qsa q Q6_K           12    0.0980    0.0980   0.0047   0.0047  ok ok ok
+qsa q Q6_K           16    0.1216    0.1216   0.0050   0.0050  ok ok ok
+qsa q Q6_K           24    0.3254    0.3245   0.0121   0.0121  ok ok ok
+qsa q Q6_K           32    0.4108    0.4107   0.0118   0.0118  ok ok ok
+shexp up IQ3_S        1    0.0102    0.0102   0.0000   0.0000  ok ok ok
+shexp up IQ3_S        2    0.0102    0.0102   0.0000   0.0000  ok ok ok
+shexp up IQ3_S        3    0.0104    0.0104   0.0001   0.0001  ok ok ok
+shexp up IQ3_S        4    0.0108    0.0108   0.0002   0.0002  ok ok ok
+shexp up IQ3_S        5    0.0112    0.0112   0.0003   0.0003  ok ok ok
+shexp up IQ3_S        8    0.0151    0.0152   0.0007   0.0007  ok ok ok
+shexp up IQ3_S       12    0.0254    0.0254   0.0014   0.0014  ok ok ok
+shexp up IQ3_S       16    0.0254    0.0254   0.0010   0.0010  ok ok ok
+shexp up IQ3_S       24    0.0354    0.0355   0.0011   0.0011  ok ok ok
+shexp up IQ3_S       32    0.0458    0.0458   0.0012   0.0011  ok ok ok
+shexp gate Q4_K       1    0.0564    0.0564   0.0000   0.0000  ok ok ok
+shexp gate Q4_K       2    0.0575    0.0575   0.0011   0.0011  ok ok ok
+shexp gate Q4_K       3    0.0578    0.0578   0.0007   0.0007  ok ok ok
+shexp gate Q4_K       4    0.0582    0.0581   0.0006   0.0006  ok ok ok
+shexp gate Q4_K       5    0.0585    0.0586   0.0005   0.0005  ok ok ok
+shexp gate Q4_K       8    0.0588    0.0589   0.0004   0.0004  ok ok ok
+shexp gate Q4_K      12    0.0591    0.0590   0.0002   0.0002  ok ok ok
+shexp gate Q4_K      16    0.0596    0.0596   0.0002   0.0002  ok ok ok
+shexp gate Q4_K      24    0.1035    0.1036   0.0021   0.0021  ok ok ok
+shexp gate Q4_K      32    0.1056    0.1056   0.0016   0.0016  ok ok ok
+shexp down IQ4_NL     1    0.0132    0.0132   0.0000   0.0000  ok ok ok
+shexp down IQ4_NL     2    0.0142    0.0142   0.0010   0.0010  ok ok ok
+shexp down IQ4_NL     3    0.0154    0.0154   0.0011   0.0011  ok ok ok
+shexp down IQ4_NL     4    0.0168    0.0168   0.0012   0.0012  ok ok ok
+shexp down IQ4_NL     5    0.0214    0.0255   0.0020   0.0031  ok ok ok
+shexp down IQ4_NL     8    0.0255    0.0255   0.0018   0.0018  ok ok ok
+shexp down IQ4_NL    12    0.0360    0.0360   0.0021   0.0021  ok ok ok
+shexp down IQ4_NL    16    0.0470    0.0470   0.0023   0.0023  ok ok ok
+shexp down IQ4_NL    24    0.0674    0.0674   0.0024   0.0024  ok ok ok
+shexp down IQ4_NL    32    0.0864    0.0864   0.0024   0.0024  ok ok ok
+router BF16           1    0.0108    0.0108   0.0000   0.0000  ok ok ok
+router BF16           2    0.0113    0.0113   0.0005   0.0004  ok ok ok
+router BF16           3    0.0116    0.0117   0.0004   0.0004  ok ok ok
+router BF16           4    0.0120    0.0121   0.0004   0.0004  ok ok ok
+router BF16           5    0.0124    0.0124   0.0004   0.0004  ok ok ok
+router BF16           8    0.0356    0.0356   0.0035   0.0035  ok ok ok
+router BF16          12    0.0166    0.0198   0.0005   0.0008  ok ok ok
+router BF16          16    0.0254    0.0254   0.0010   0.0010  ok ok ok
+head Q5_K             1    1.2184    1.2162   0.0000   0.0000  ok ok ok
+head Q5_K             2    1.2254    1.2254   0.0070   0.0092  ok ok ok
+head Q5_K             3    1.2324    1.2320   0.0070   0.0079  ok ok ok
+head Q5_K             4    1.2394    1.2393   0.0070   0.0077  ok ok ok
+head Q5_K             5    1.2469    1.2470   0.0071   0.0077  ok ok ok
+head Q5_K             8    1.2650    1.2655   0.0067   0.0070  ok ok ok
+head Q5_K            12    1.2878    1.2875   0.0063   0.0065  ok ok ok
+head Q5_K            16    1.3118    1.3118   0.0062   0.0064  ok ok ok
+head Q5_K            24    2.1874    2.1873   0.0421   0.0422  ok ok ok
+head Q5_K            32    2.2429    2.2437   0.0330   0.0331  ok ok ok
+
+b6_mmvq_bench: ok (0 case/width comparisons failed)

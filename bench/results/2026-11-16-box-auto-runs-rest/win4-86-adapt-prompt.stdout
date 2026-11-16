@@ -1,0 +1,33 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base: FAILED (server died before ready)
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base: FAILED (server died before ready)
+ABORT: the server died twice before ready (free RAM in 2 MiB blocks: 18 GiB; fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k base                 no clean runs
+  long1k adapt-prompt         no clean runs
+  long1k tier-rewarm          no clean runs
+  long1k tier-rewarm-decode-only no clean runs
+  long1k refill-async         no clean runs
+  long1k pf-ahead-refill-async no clean runs
+  long3k base                 no clean runs
+  long3k adapt-prompt         no clean runs
+  long3k tier-rewarm          no clean runs
+  long3k tier-rewarm-decode-only no clean runs
+  long3k refill-async         no clean runs
+  long3k pf-ahead-refill-async no clean runs
+  edit   base                 no clean runs
+  edit   adapt-prompt         no clean runs
+  edit   tier-rewarm          no clean runs
+  edit   tier-rewarm-decode-only no clean runs
+  edit   refill-async         no clean runs
+  edit   pf-ahead-refill-async no clean runs
+  short  base                 no clean runs
+  short  adapt-prompt         no clean runs
+  short  tier-rewarm          no clean runs
+  short  tier-rewarm-decode-only no clean runs
+  short  refill-async         no clean runs
+  short  pf-ahead-refill-async no clean runs
