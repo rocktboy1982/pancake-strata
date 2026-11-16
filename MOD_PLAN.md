@@ -509,6 +509,7 @@ xxxliqu1dxxx and its 3 commits, merged as 8aeff515b, 15 of 15 status-page tests)
 
 ## 9. Do not repeat (measured and dropped; numbers in TEST_LEDGER.md)
 
+- F22 `STRATA_HIP_WMMA_Q4` and the Q4 KV cache on this box (spec 18-f22, chain 8a 2026-11-16, clean run, base drift 0.1%; `/home/dan/auto-runs/win8-18-f22-wmma-q4-gfx11.stdout`): the matrix-core Q4 prompt kernel is 19-24% SLOWER at long32k and 10-17% slower on edit than today's Q4 path, and only faster at long64k (+31..34%, staged). The daily preset's `--kv int8` (arm `int8-daily`) beats `--kv q4_0` by +25.2% long32k and +37.0% long64k prompt, edit -2.9%: the int8 KV stays the daily choice (owner 2026-11-16: "int8-daily promote it"; it is already what fast-hip runs, so no config change). Do not retry Q4 KV on gfx1100 without a decode-side reason.
 - Decode kernels: wave32 MMVQ mode 1 (T-072), occupancy/waves_per_eu (T-074, spill already at the VGPR limit), matrix-core
   few-column GEMV (T-083, T-084: -1.7% short, -5.4% edit; built, off), wide-tile int8 prompt kernel (T-107, -18..-42%,
   reverted), `WAIT_FUSE` off / fuse-wait (T-077), combine-poll1 (T-064), `VERIFY_DEVICE_PLAN` (T-066), `ROUTE_FAST` and
