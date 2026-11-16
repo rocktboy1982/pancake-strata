@@ -416,6 +416,9 @@ bool batch_self_commit_on() { static const bool v = env_on("STRATA_BATCH_SELF_CO
 // streamed KV cache (a row's block resolve could evict the blocks an earlier row of the same slot selected).
 bool qsa_slots_on() { static const bool v = env_on("STRATA_QSA_SLOTS"); return v; }
 #define g_qsa_slots (qsa_slots_on())
+// STRATA_SAMPLE_ASYNC=1 (bsorensen110 cd3a3ded7b; opt-in, exact): run_slot_rows queues the sampled rows' draws before
+// the window's final stream sync instead of after it (one host sync per batch window less where a slot samples)
+bool sample_async_env() { static const bool v = env_on("STRATA_SAMPLE_ASYNC"); return v; }
 
 // every row of a batch window is another slot's (no slot has proposal rows)
 bool one_row_per_slot(const int* rows, int S) {
@@ -5938,13 +5941,16 @@ bool Verifier::run_slot_rows(const int* rows, int S, const int32_t* tokens, cons
             strata_store_fence();
             *flag = 1;
         }
+        // STRATA_SAMPLE_ASYNC=1 (bsorensen110 cd3a3ded7b; opt-in, exact): the sampled rows' draws are queued behind the
+        // window on the same stream before its one sync, not after it with a second sync (same kernels, same inputs)
+        if (sample_async_env() && le_ >= g.n_layers && !sample_rows(S, err, false)) return false;
         const cudaError_t se = cudaStreamSynchronize(cs_);
         if (se != cudaSuccess) { err = std::string("verify batch: ") + cudaGetErrorString(se); return false; }
         cudaStreamSynchronize(copy_);
         if (prof_on_) collect_profile();
         ++windows;
         if (le_ < g.n_layers) return next_ == nullptr || next_->run_slot_rows(rows, S, tokens, pos, pool, next_user_, out, err);
-        if (!sample_rows(S, err)) return false;
+        if (!sample_async_env() && !sample_rows(S, err)) return false;
         for (int t = 0; t < S; ++t) out[t] = ((volatile int32_t*) h_out_)[t];
         note_nonfinite(S, last_pos_b_);
         progress_at("decode");
@@ -6007,13 +6013,14 @@ bool Verifier::run_slot_rows(const int* rows, int S, const int32_t* tokens, cons
         ms_wait += std::chrono::duration<double, std::milli>(b - a).count();
         ms_pool += ms_since(b);
     }
+    if (sample_async_env() && le_ >= g.n_layers && !sample_rows(S, err, false)) return false;   // STRATA_SAMPLE_ASYNC (above)
     const cudaError_t se = cudaStreamSynchronize(cs_);
     if (se != cudaSuccess) { err = std::string("verify batch: ") + cudaGetErrorString(se); return false; }
     cudaStreamSynchronize(copy_);
     if (prof_on_) collect_profile();
     ++windows;
     if (le_ < g.n_layers) return next_ == nullptr || next_->run_slot_rows(rows, S, tokens, pos, pool, next_user_, out, err);
-    if (!sample_rows(S, err)) return false;
+    if (!sample_async_env() && !sample_rows(S, err)) return false;
     for (int t = 0; t < S; ++t) out[t] = ((volatile int32_t*) h_out_)[t];
     note_nonfinite(S, last_pos_b_);
     progress_at("decode");
@@ -6131,14 +6138,18 @@ int Verifier::slot_row_draw(int S, int t, strata::kernels::SamplerParams& sp, co
     return 1;
 }
 
-bool Verifier::sample_rows(int S, std::string& err) {
+bool Verifier::sample_rows(int S, std::string& err, bool sync) {
 #if defined(STRATA_GPU_METAL)
     (void) S;
+    (void) sync;
     err = "verify batch: sample_rows is the CUDA / HIP path";
     return false;
 #else
     bool any = false;
-    std::vector<int32_t> hrows;
+    // STRATA_SAMPLE_ASYNC (sync false): the rows' host staging outlives this call (the copies are still queued when it
+    // returns); the synchronous default keeps its local vector
+    std::vector<int32_t> hrows_local;
+    std::vector<int32_t>& hrows = sync ? hrows_local : slot_hrows_;
     for (int t = 0; t < S; ++t) {
         strata::kernels::SamplerParams sp;
         const int32_t* hist = nullptr;
