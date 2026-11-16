@@ -1,0 +1,90 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "mb-argmax": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MULTI_BLOCK_ARGMAX": "1"
+      }
+    },
+    "mtp-wide": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MTP_SELECT_WIDE": "1"
+      }
+    },
+    "scan-unroll": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SCAN_UNROLL": "1"
+      }
+    },
+    "grup-wide": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GRUP_WIDE": "1"
+      }
+    },
+    "down-swiglu": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DOWN_SWIGLU": "1"
+      }
+    },
+    "gdn-split": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GDN_SPLIT": "1"
+      }
+    },
+    "adapt-ov0": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_OVERLAP": "0"
+      }
+    },
+    "adapt-layerwait": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_OVERLAP": "0",
+        "STRATA_ADAPT_LAYERWAIT": "1"
+      }
+    },
+    "fuse-hits": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_FUSE_HITS": "1"
+      }
+    },
+    "gr-fuse": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GR_FUSE": "1"
+      }
+    },
+    "wait-combine": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WAIT_FUSE_ROWS": "1",
+        "STRATA_FUSE_HITS": "1",
+        "STRATA_WAIT_COMBINE": "1"
+      }
+    },
+    "rows-loads-first": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROWS_LOADS_FIRST": "1"
+      }
+    }
+  },
+  "note": "Confirm of the spec 81 screen PROMOTE arms (TEST_LEDGER.md T-604; MOD_PLAN.md section 5). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9 on build-win. Screen: every arm read edit +1.8..+3.6% against one base whose edit mean was low (n=2), so the common lift may be base noise; short within +-2%. All arms gave text different from base although designed exact (placement-dependent or not exact): any arm that clears the >= 2% bar also needs tools/pancake/quality_gate.py before adoption ('lossy': true). Stop pancake.service first."
+}

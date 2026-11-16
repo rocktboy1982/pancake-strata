@@ -1,0 +1,82 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "dq-fast": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DQ_FAST": "1"
+      }
+    },
+    "pf-lean": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_LEAN_ISSUE": "1"
+      }
+    },
+    "pf-lean-copy2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_LEAN_ISSUE": "1",
+        "STRATA_PF_COPY2": "1"
+      }
+    },
+    "pf-ahead": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_AHEAD": "1"
+      }
+    },
+    "pf-gg-defer": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_GG_DEFER": "1"
+      }
+    },
+    "adapt-prompt": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROMPT": "1"
+      }
+    },
+    "tier-rewarm": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_REWARM": "1",
+        "STRATA_TIER_REWARM_MIN": "800"
+      }
+    },
+    "tier-rewarm-decode-only": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_REWARM": "1",
+        "STRATA_TIER_REWARM_MIN": "800",
+        "STRATA_ADAPT_PROMPT": "0"
+      }
+    },
+    "refill-async": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_REFILL_ASYNC": "1"
+      }
+    },
+    "pf-ahead-refill-async": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_REFILL_ASYNC": "1",
+        "STRATA_PF_AHEAD": "1"
+      }
+    }
+  },
+  "note": "Confirm of the spec 83 and 86 screen PROMOTE arms (TEST_LEDGER.md T-606, T-608; MOD_PLAN.md section 5). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9 on build-win. Spec 83's screen base and its first three arms ran in a slow window (long1k 377 tok/s against 615-620 for the same preset in specs 80 and 84), so its +40..+82% prompt reads are order effects; against the other specs' preset only dq-fast is above (684 vs ~617 long1k, 1176 vs ~1110 long3k, n=1). Blocked order (--block 3) is required here. Spec 86 arms were all inside noise (+-4%). Every arm's text differed from base: lossy-flagged, quality_gate.py before adoption. Stop pancake.service first."
+}

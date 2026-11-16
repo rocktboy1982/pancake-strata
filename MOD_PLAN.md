@@ -168,41 +168,29 @@ miss.
 
 ## 5. Run next: coded, never measured (GPU queue, in this order)
 
-1. **RAN 2026-11-15 21:58 to 2026-11-16 01:06 (autonomous overnight chain): specs 62, 60, 61 (T-587..T-589), the CPU probe (T-590), spec 65 (T-591); spec 64 was invalid (T-592); its rerun 02:39-03:21 shows no gain (T-596).** **Results of the box chain** `pancake-docs/research/bench/results-2026-11-15/run-scripts-afternoon/auto-chain15.sh` (started
-   18:22 local on 2026-11-15; spec 60 from 19:07, ~19:55 ETA): spec 60 (five ECAP arms, see D1), 61 (quality gate of the gated
-   arms), 62 (the two cache levers combined on the replay): add them as ledger rows. Box rule while the chain runs: no builds
-   and no memory-bandwidth benches. Then, in the box's order: (a) build, parity-check and measure the IQ4_XS matrix-core
-   variant that shares the nibble-LUT decode between lane halves (DONE: committed off by default, parity 384/384 T-578, engine A/B
-   no gain T-596, so the matrix-core kernels stay off); (b) the P4 byte-bound probe for IQ2_XS rows = the existing
-   `iq_avx2_parity --bench` (IQ pairs, `--nt` thread counts, `--mb` working set; already built); (c) the ECAP tool-call task
-   gate (D1). Then **spec 30** (D7). Fix the base path in specs 33 and 34 first
-   (`pancake-flashnext-iq2_xs-fast-hip.json` does not exist; use `configs/pancake/flashnext-iq2_xs-fast-hip.json`),
-   then run spec 33 (MTP bundle: `--mtp-q4 all --mtp-window 4096 --host-core sibling`) and spec 34's `pf-switch-min-t`
-   arm (its `mmvq-wave1` arm is answered by T-072, `kv-grow` by T-391).
-2. **NIGHT QUEUE, RE-RUN: `/home/dan/clone-of-d/src/win-chain4.sh`** (started 2026-11-16 02:03; log `/home/dan/clone-of-d/src/win-chain4.log`, results
-   `/home/dan/auto-runs/win4-<spec>.jsonl`): win-chain2/3 built everything (build-win, build-win-il, build-win-j32 exit 0, ctest -L cpu
-   pass) but every spec exited 3 at 01:01 because the box job `/home/dan/auto-post17.sh` (taskgate server, then
-   pancake.service restart) held the card; its GPU ctest (2 failures: hip_prefill_fused_iq, _f16) also overlapped that job.
-   Chain 4 stops pancake.service, re-runs ctest -L gpu and mmvq_il_parity, then specs 81-86, 80, 87-93 and the never-run specs
-   of item 5 (a busy card is retried every 5 min, 12 times), then starts pancake.service again. The Windows-session specs
-   were renumbered 64-77 -> 80-93 (the box took 64 and 65).
-   First chain-4 pass (02:12-02:18): ctest -L gpu 135/135 and mmvq_il_parity passed on the free card (the 2 earlier
-   failures were the overlap); every spec then aborted "server died before ready" because the clone had no `.venv`
-   (`Strata-win/.venv` is now a link to `../Strata/.venv`; the 2 MiB-block RAM warning was not the cause). Re-run from
-   spec 81 at 02:20 with `echo 1 | sudo -n tee /proc/sys/vm/compact_memory` first; spec 81 base read short 114 / edit 145-171
-   tok/s, so the servers start. Earlier text: `/home/dan/clone-of-d/src/win-chain2.sh`, started 22:09, waits for the box
-   chain16 (`CHAIN16_DONE` in `/home/dan/auto-chain16.log`: specs 63-park, 62, 60, 61) and for no abtest / replay running, then:
-   builds `build-win`, `build-win-il` (-DSTRATA_HIP_MMVQ_IL) and `build-win-j32` in the clone `/home/dan/clone-of-d/src/Strata-win`;
-   `ctest -L cpu`, `ctest -L gpu` (134 tests), `mmvq_il_parity`; then specs 81 (decode exact opt-ins), 66 (PCIe share +
-   DMA_FLAG_WRITE / PCIE_FORK), 67 (prompt opt-ins), 68 (PF_GU_EXACT family on the exact FP16 path), 69 (MMVQ_IL_PLAIN), 70
-   (FK-28 ADAPT_PROMPT), 64 (#31751), all `--tier screen`, results `/home/dan/auto-runs/win-<spec>.jsonl`, log
-   `/home/dan/clone-of-d/src/win-chain2.log`. Caution for chain16: the Windows session's builds ran 21:58-22:08 beside its spec 62
-   replay (started 21:58): treat that replay's numbers as possibly noisy.
-   **Then `/home/dan/clone-of-d/src/win-chain3.sh`** (waits for `WINCHAIN2_DONE`; no spec starts between 10:00 and 22:00):
-   specs 87 (exact coded backlog of item 6), 72 (lossy backlog of item 6), then the never-run specs of item 5 (26, 12, a21,
-   24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards) on `build-win` (the clone's `build-hip`
-   is a link to it). Log `/home/dan/clone-of-d/src/win-chain3.log`. Left out: 08-build (its own build and preset), taskgate-*
-   (repoint to `bench/tasks/repo-history.json` first), HIP_GLOBAL_WEIGHTS (build macro), HIP_WMMA_Q4 (needs --kv q4_0), --batch 2.
+1. **RUNNING: chain 6** `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
+   `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
+   step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);
+   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609). Left in the chain: 87-101, then
+   the never-run specs of item 5 (26, 12, a21, 24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards).
+   strata-poly failed (T-603); the fix 5b867bf3a is not built yet: after `WINCHAIN6_DONE`, sync with `tar xmf` and build
+   strata-poly as its own job. Earlier chains (specs 60-65 overnight, T-587..T-596; win-chain2/3/4/5b, aborted or untrusted,
+   T-600, T-601) are closed.
+2. **Promoted to confirm (screen PROMOTE, nothing adopted yet).** Confirm with `--tier confirm --block 3 --warmup 1 --outlier
+   robust --reclaim-max 3 --reps 9`, bar >= 2% end to end; every arm below gave text different from base, so each also needs
+   `quality_gate.py` before it can enter fast-hip.
+   - Spec 102 (decode, from T-604): `MULTI_BLOCK_ARGMAX`, `MTP_SELECT_WIDE`, `SCAN_UNROLL`, `GRUP_WIDE`, `DOWN_SWIGLU`,
+     `GDN_SPLIT`, `ADAPT_OVERLAP=0`, `ADAPT_OVERLAP=0`+`ADAPT_LAYERWAIT`, `FUSE_HITS`, `GR_FUSE`, `WAIT_COMBINE` (with
+     `WAIT_FUSE_ROWS`+`FUSE_HITS`), `ROWS_LOADS_FIRST`. Screen edit +1.8..+3.6% on all of them against one low base mean: expect
+     most to fall back to noise.
+   - Spec 103 (prompt and tier, from T-606, T-608): `DQ_FAST` (the one real-looking lead: +10% long1k / +6% long3k against the
+     same preset in specs 80 and 84, n=1), `PF_LEAN_ISSUE`, `PF_LEAN_ISSUE`+`PF_COPY2`, `PF_AHEAD`, `PF_GG_DEFER` (spec 83's
+     +40..+82% is an order effect: its base ran in a slow window), `ADAPT_PROMPT`, `TIER_REWARM` (two forms), `REFILL_ASYNC`,
+     `PF_AHEAD`+`REFILL_ASYNC` (all inside noise at screen).
+   - Dropped at screen (section 9): spec 81 `TOPK_REGKEYS`+`TOPK_SCAN`, `ATTN_MERGE_BOUND`, `GRUP_PF`, `GDN_SPLIT`+`GDN_NORM128`,
+     `ADAPT_COPY2`, `WAIT_FUSE_ROWS` alone; spec 82 all (DMA_FLAG_WRITE, PCIE_FORK, DALI); spec 83 `PF_COPY2`; spec 84 the
+     `PF_GU_EXACT` family; spec 80 J=32 rolled MMQ; spec 85 `MMVQ_IL_PLAIN` crashes (T-602, defect for the box agent).
+   Order after chain 6: strata-poly build, then specs 102, 103, then the chain 6 PROMOTE arms of specs 87-101.
 3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
@@ -267,19 +255,19 @@ miss.
 
 | # | item | expected | exact/lossy |
 |---|---|---|---|
-| 1 | CODED 2026-11-15 (`STRATA_ADAPT_PROMPT=1`, weight `STRATA_ADAPT_PROMPT_W`; next: spec 86). FK-28 prompt-fed tier counts, redesigned: the old dead `set_usage` hook was deleted (T-575); built fresh. Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
-| 2 | CODED 2026-11-15 (`STRATA_PF_AHEAD=1`, `_SLOTS` 160; `STRATA_REFILL_ASYNC=1`, lossy for the reply; next: specs 83 / 86). 0xluk `PF_AHEAD` + `REFILL_ASYNC` for the staged path of agent deltas < 4,096 tokens | +35% agent prefill (2x 3060, PCIe 3) | exact |
-| 3 | CODED 2026-11-15 (opt-in build switch `STRATA_MMQ_RDNA3_J32_ROLLED`, `cmake/strata_ggml_rdna3_j32.cmake`): llama.cpp #31751 RDNA3 MMQ J=32 rolled k01 loop on the pinned ggml; acts on the staged prompt chunks (< 4096 tokens, agent deltas) for Q2_0 down / IQ2_XXS / IQ4_XS. Static check T-579: J=32 kernel 256 VGPRs + spill, occupancy 5 -> 137 VGPRs, no spill, occupancy 10. Next: spec 80 (build-vs-build) | author +36% at 17-32-token batches, gfx1100 | exact |
-| 4 | android-imdad bundle caa9b00115 + the PF_GU_EXACT series (90434843b4, ac7e5aff59, 9caad8f2bb, 876c3af7e6, 8a2f38aaad): PORTED 2026-11-15, every switch default-off (owner: every lead followed). Decode: `MULTI_BLOCK_ARGMAX` on gfx11, `MTP_SELECT_WIDE`, `SCAN_UNROLL`, `TOPK_REGKEYS`, `TOPK_SCAN`, `ATTN_MERGE_BOUND`, `ATTN_PRE75_NC`, `GRUP_WIDE`, `GRUP_PF`, `DOWN_SWIGLU`, `GDN_NORM128` (split path), `ADAPT_COPY2`, `ADAPT_LAYERWAIT`, `DMA_FLAG_WRITE`, `PCIE_FORK`; prompt: `DQ_FAST`, `PF_LEAN_ISSUE`, `PF_COPY2`, `PF_GU_EXACT` (+ Tensile kernel, startup self-check), `PF_DOWN_STREAMS`, `PF_DQ_OVERLAP`; test knob `EXPERT_SLOTS_MAX`. `GR_FUSE` and `MMVQ_IL_PLAIN` callers wired (IL_PLAIN needs a -DSTRATA_HIP_MMVQ_IL build). Code-checked equal to ours: `ROUTE_PUB` = `ROUTE_PUBLISH` (route_publish_res: same top-10 + doorbell_publish_res in one launch, same session conditions); `COMBINE_HITS` = `STRATA_FUSE_HITS` (combine_k10_vec4_hits; default only on gfx12, so spec 81 arm fuse-hits). `WAIT_COMBINE` = `COMBINE_CPU` + `WAIT_FUSE` (combine_cpu_k10_vec4: every block spins on the flag, reads the mapped CPU rows) except one gap: ours refuses when the shared expert is not native BF16 or the CPU experts are not in the native layout (verify.cpp cfuse_off), the fork's needs only aligned buffers: port that relaxation if the engine log shows COMBINE_CPU refused on the preset. Next: specs 81-84 | bundle +10% chat, +11% agent, KL 0, 7900 XTX; GU_EXACT 26.5 vs 12.9 TFLOPS | exact |
-| 5 | DONE: ported with item 4 (also on the layer-major walk; `STRATA_PF_GU_EXACT_MINT`); next: spec 84. `PF_GU_EXACT` Tensile prompt GEMM for gfx1100 | 26.5 vs 12.9 TFLOPS; 64K prompt 40.1 -> 31.5 s (XTX) | exact |
+| 1 | CODED 2026-11-15 (`STRATA_ADAPT_PROMPT=1`, weight `STRATA_ADAPT_PROMPT_W`; spec 86 screen inside noise, T-608; confirm spec 103). FK-28 prompt-fed tier counts, redesigned: the old dead `set_usage` hook was deleted (T-575); built fresh. Feed `drive.d.usage` from the existing `sp.on_routes` callback in generate.cpp (as ram_adapt2 does, ~14963), weighted like RAM_ADAPT2 (`prompt_w*20*K/n`), env gate + disk_env entry | unmeasured (oracle own-counts +2.9 hit pts offline, T-417) | exact routing input, tier only |
+| 2 | CODED 2026-11-15 (`STRATA_PF_AHEAD=1`, `_SLOTS` 160; `STRATA_REFILL_ASYNC=1`, lossy for the reply; screen T-606 order effect, T-608 noise; confirm spec 103). 0xluk `PF_AHEAD` + `REFILL_ASYNC` for the staged path of agent deltas < 4,096 tokens | +35% agent prefill (2x 3060, PCIe 3) | exact |
+| 3 | CODED 2026-11-15 (opt-in build switch `STRATA_MMQ_RDNA3_J32_ROLLED`, `cmake/strata_ggml_rdna3_j32.cmake`): llama.cpp #31751 RDNA3 MMQ J=32 rolled k01 loop on the pinned ggml; acts on the staged prompt chunks (< 4096 tokens, agent deltas) for Q2_0 down / IQ2_XXS / IQ4_XS. Static check T-579: J=32 kernel 256 VGPRs + spill, occupancy 5 -> 137 VGPRs, no spill, occupancy 10. DROPPED at screen 2026-11-16: edit -4.3% (T-609) | author +36% at 17-32-token batches, gfx1100 | exact |
+| 4 | android-imdad bundle caa9b00115 + the PF_GU_EXACT series (90434843b4, ac7e5aff59, 9caad8f2bb, 876c3af7e6, 8a2f38aaad): PORTED 2026-11-15, every switch default-off (owner: every lead followed). Decode: `MULTI_BLOCK_ARGMAX` on gfx11, `MTP_SELECT_WIDE`, `SCAN_UNROLL`, `TOPK_REGKEYS`, `TOPK_SCAN`, `ATTN_MERGE_BOUND`, `ATTN_PRE75_NC`, `GRUP_WIDE`, `GRUP_PF`, `DOWN_SWIGLU`, `GDN_NORM128` (split path), `ADAPT_COPY2`, `ADAPT_LAYERWAIT`, `DMA_FLAG_WRITE`, `PCIE_FORK`; prompt: `DQ_FAST`, `PF_LEAN_ISSUE`, `PF_COPY2`, `PF_GU_EXACT` (+ Tensile kernel, startup self-check), `PF_DOWN_STREAMS`, `PF_DQ_OVERLAP`; test knob `EXPERT_SLOTS_MAX`. `GR_FUSE` and `MMVQ_IL_PLAIN` callers wired (IL_PLAIN needs a -DSTRATA_HIP_MMVQ_IL build). Code-checked equal to ours: `ROUTE_PUB` = `ROUTE_PUBLISH` (route_publish_res: same top-10 + doorbell_publish_res in one launch, same session conditions); `COMBINE_HITS` = `STRATA_FUSE_HITS` (combine_k10_vec4_hits; default only on gfx12, so spec 81 arm fuse-hits). `WAIT_COMBINE` = `COMBINE_CPU` + `WAIT_FUSE` (combine_cpu_k10_vec4: every block spins on the flag, reads the mapped CPU rows) except one gap: ours refuses when the shared expert is not native BF16 or the CPU experts are not in the native layout (verify.cpp cfuse_off), the fork's needs only aligned buffers: port that relaxation if the engine log shows COMBINE_CPU refused on the preset. Screen 2026-11-16: 12 decode arms to confirm (spec 102), 6 dropped (T-604); prompt opt-ins T-606 (spec 103); IL_PLAIN crashes (T-602) | bundle +10% chat, +11% agent, KL 0, 7900 XTX; GU_EXACT 26.5 vs 12.9 TFLOPS | exact |
+| 5 | DROPPED 2026-11-16: spec 84, -0.2..-29.6% prompt on the 7900 XT (T-607); ported with item 4 (also on the layer-major walk; `STRATA_PF_GU_EXACT_MINT`). `PF_GU_EXACT` Tensile prompt GEMM for gfx1100 | 26.5 vs 12.9 TFLOPS; 64K prompt 40.1 -> 31.5 s (XTX) | exact |
 | 6 | CODED 2026-11-15 (`STRATA_ADAPT_IDLE_COPY=1`, `_KB` slice; host-paced queue, serial decode loop with ADAPT_OVERLAP; next: spec 88). schedule H2D admission copies into CPU-idle phases (attention/GDN) | est. +10-18% | exact |
 | 7 | CODED 2026-11-15: `STRATA_POOL_ROW_SPLIT=N`, `STRATA_POOL_TOUCH_NEXT=B` (bitwise, pool_tasks_test; next: spec 87); fused phases = existing `POOL_FUSE_PHASES`; imanu86 862c18aaea HiSpread is already the default in iq_avx2.cpp (port of sanastasiou 9233f998, parity in iq_avx2_parity). CPU pool bandwidth push (two fused phases per layer, row-chunk split, touch the next expert early); imanu86 IQ2_S/IQ3_S AVX2 decode without per-index shifts (pool on IQ2_S layers 20-33% faster) | est. 33 -> 38-42 GB/s, +5-12% | exact |
-| 8 | CODED 2026-11-15 (`STRATA_TIER_REWARM=1`, `_MIN` 2048, `_MAX`; serve path; protect variant not built: the refill restores the same slots, no clean choice point; next: spec 86). re-warm or protect the decode tier after a long prompt (decode 92.5 vs 111.7 tok/s after prefill) | up to the gap | exact |
+| 8 | CODED 2026-11-15 (`STRATA_TIER_REWARM=1`, `_MIN` 2048, `_MAX`; serve path; protect variant not built: the refill restores the same slots, no clean choice point; spec 86 screen inside noise, T-608; confirm spec 103). re-warm or protect the decode tier after a long prompt (decode 92.5 vs 111.7 tok/s after prefill) | up to the gap | exact |
 | 9 | CODED 2026-11-15 (this-cute-world: `STRATA_FUSE_PLAN`, `_COMBINE`, `_SHGATE` on the device-plan path, `_QGEMV` with MMVF_ROWS, `_SWIGLU_DOWN`; ROUTEBELL = our ROUTE_PUBLISH; next: spec 87). launch fusions (`FUSE_SHGATE/COMBINE/SWIGLU_DOWN/PLAN/ROUTEBELL/QGEMV`): launches cost ~14-16 us on gfx1100 | -400 launches/window (R9700) | exact |
 | 10 | CODED 2026-11-15: `STRATA_EXPDEC_V2`, `STRATA_MMVQ_WAVE_ROWS` (table spec; no RDNA3 cells yet), `STRATA_SAMPLER_X8`, `STRATA_MMVF_ROWS1`, `STRATA_LOOKAHEAD_AFTER_PUB` (next: spec 87; WAVE_ROWS needs a sweep spec). `EXPDEC_V2` remainder; `MMVQ_WAVE_ROWS` table; small exact bundle: copy_rows loads-first CODED 2026-11-15 (`STRATA_ROWS_LOADS_FIRST=1`, next: spec 81); sampler x8 loads (waits for the box's sampler fix); single-token MMVF_ROWS; lookahead submit after publish (deferred: ~10-25 us a window) | -20-24% expdec kernel time; +4% MI50; several us per launch | exact |
 | 11 | CODED 2026-11-15 (`STRATA_KV_STAGE_REQ`, `STRATA_PF_SEL_BATCH`: spec 89; `STRATA_TOOL_STEP_SPLIT=1` / `canonical_tools` in serve/, unit tests serve/test_tool_steps.py, test_canonical_tools.py). Speedy `KV_STAGE_REQ` + `PF_SEL_BATCH` (long-context loan sizing, VRAM); `TOOL_STEP_SPLIT` + `canonical_tools` (serve only) | 300K cold prompt 466 -> 1527 t/s (2x 3080); turn-2 cache reuse | exact |
 | 12 | CODED 2026-11-15 (49152 AUTO_MAX ceiling, `STRATA_PREFILL_EQUAL_TAIL_MAX`, `STRATA_PREFILL_POOL_RETRY`; `2b19d510` not ported: no late-refill code here, 2-GPU only; next: spec 89). rdna3 `791cca4b`/`5906629d` (AUTO_MAX 49152 + refill head `2b19d510`), `f557b544` (CPU share retries per layer) | 2-4% at 49K | exact |
-| 13 | CODED 2026-11-15 (`STRATA_DALI=1`, `_EVERY`; per-layer row-weighted cost fits over the PCIe share; STRATA_PCIE_BALANCE is the one-fit count-only predecessor, expert_source.hpp:453; next: spec 82). DALI per-layer per-step CPU/GPU assignment instead of the static A45 probe | +23% over HybriMoE (3090) | exact |
+| 13 | CODED 2026-11-15 (`STRATA_DALI=1`, `_EVERY`; per-layer row-weighted cost fits over the PCIe share; STRATA_PCIE_BALANCE is the one-fit count-only predecessor, expert_source.hpp:453; spec 82 2026-11-16: DROPPED, -14..-27%, T-605). DALI per-layer per-step CPU/GPU assignment instead of the static A45 probe | +23% over HybriMoE (3090) | exact |
 | 14 | CODED 2026-11-15 (`STRATA_QSA_PARTIAL_TOPK=1` exact; `STRATA_QSA_PAGE_SEL=N` + `_TOPP` lossy; test qsa_page_select_recall; next: spec 91). QSA long-prompt selection cost (Quest page-level or partial top-k) | after-12K gap 2.18 ms/token | lossy-ish |
 | 15 | CODED 2026-11-15 (`STRATA_Q36_EXPERTS_USED` from serboox f8fb28ca1f / 0f040ef5e8: spec 90; `STRATA_MISS_SKIP_W`, `STRATA_MISS_SKIP_CUM`: spec 88; --dump-routing exists, generate.cpp:3840). uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
 | 16 | CODED 2026-11-15 (`STRATA_GDN_SPECLA=N`: per-row state checkpoints in the window kernels, commit from the nearest; bitwise, gdn_parity section 7; same commit traffic, saves the serial replay loop; next: spec 87). SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
@@ -375,7 +363,9 @@ xxxliqu1dxxx and its 3 commits, merged as 8aeff515b, 15 of 15 status-page tests)
   reverted), `WAIT_FUSE` off / fuse-wait (T-077), combine-poll1 (T-064), `VERIFY_DEVICE_PLAN` (T-066), `ROUTE_FAST` and
   `DOORBELL_STORE` (T-068), IQ2_S pair decode (T-008), upstream group-A switches (T-013), upstream `HC_Q8` on HIP (T-012),
   `PF_WMMA` (T-094), graph fork/join, persistent expert launch, DEQUANT_WIDE (T-528), LUT dup (T-060), BitDecoding WMMA
-  decode attention (attention ~3% of decode, T-019).
+  decode attention (attention ~3% of decode, T-019); chain 6 screen 2026-11-16: `TOPK_REGKEYS`+`TOPK_SCAN`, `ATTN_MERGE_BOUND`,
+  `GRUP_PF`, `GDN_NORM128`, `ADAPT_COPY2`, `WAIT_FUSE_ROWS` alone (T-604), `PF_GU_EXACT` family (T-607), MMQ J=32 rolled
+  (T-609), `PF_COPY2` (T-606), PCIe share with `DMA_FLAG_WRITE` / `PCIE_FORK` / `DALI` (T-605).
 - Drafting: `--spec 2/3/5/6` (T-118, T-149, T-159, T-160), DFlash2 (T-119), `SPEC_COST` (T-120), full / zh60k draft vocab
   (T-121, T-123), real-code draft vocab (T-146, T-151), mtp-window 4096 alone (T-122), `MTP_EAGER` (T-136, T-145, T-159),
   `--mtp-q4` head (T-143), `MTP_HIP_PRIO` (T-140..T-142), EcoSpec (T-148), A22 DISCO chain stop and FK-21 `SPEC_CUM`
