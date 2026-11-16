@@ -17,7 +17,21 @@ if ! "$_py" "$repo/tools/pancake/spec_lint.py" --quiet >/dev/null 2>&1; then
   "$_py" "$repo/tools/pancake/spec_lint.py" >&2 || true
   echo "pre-push: fix the spec (or SKIP_BUILD_MATRIX=1 to push anyway for once)." >&2
 fi
+# syntax_check (T-599): the matrix only configures, so a lost brace or a real line break inside a string literal in a merge reached
+# origin and broke the daily HIP build (T-586, T-594, T-598).  Compile-only (-fsyntax-only, the HIP build's own flags) of the C++/HIP
+# files this push changes, a few seconds; BLOCKS on an error.  Needs build-hip configured; says so and passes when it is not.
+while read -r _lref lsha _rref rsha; do
+  [ -z "$lsha" ] && continue
+  case "$lsha" in 0000000*) continue ;; esac
+  case "$rsha" in 0000000*) _range="" ;; *) _range="$rsha..$lsha" ;; esac
+  [ -z "$_range" ] && continue
+  if ! "$_py" -I "$repo/tools/pancake/syntax_check.py" --range "$_range" >&2; then
+    echo "pre-push: a changed file does not compile (syntax_check.py above). Fix it, or SKIP_BUILD_MATRIX=1 to push anyway for once." >&2
+    exit 1
+  fi
+done
 if [ "${PANCAKE_PUSH_FULL:-0}" = 1 ]; then
   exec "$repo/tools/pancake/build_matrix.sh" --head
 fi
+[ "${PANCAKE_HOOK_TEST:-0}" = 1 ] && exit 0
 exec "$repo/tools/pancake/build_matrix.sh" --head --configure-only
