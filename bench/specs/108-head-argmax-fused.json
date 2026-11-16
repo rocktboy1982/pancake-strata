@@ -1,0 +1,24 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "hf-build": {
+      "exe": "/home/dan/clone-of-d/src/build-win-hf/strata"
+    },
+    "head-argmax-fused": {
+      "exe": "/home/dan/clone-of-d/src/build-win-hf/strata",
+      "env": {
+        "STRATA_HEAD_ARGMAX_FUSED": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 17 part 18 (LEADS.md 'Item 18 fused argmax+accept', SonicSampler arXiv 2607.20475): STRATA_HEAD_ARGMAX_FUSED folds the verify head's greedy pick into the head-format GEMV (verify.cpp ~4058, head_fmt.cu head_argmax_kernel). Needs the opt-in build -DSTRATA_HIP_HEAD_FMT=ON (build-win-hf, made by win-chain10.sh); run head_argmax_parity (bitwise vs native_mmvq) on the card first. Arms: base = build-win; hf-build = the head-format build with the switch unset (should equal base: the keys are only allocated with the env); head-argmax-fused = the switch on. Exact by design: text must match base. Screen first (--tier screen); the expected gain is small (one launch and a logits pass per window)."
+}

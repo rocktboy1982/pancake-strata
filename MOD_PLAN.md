@@ -203,6 +203,12 @@ miss.
    105 (park-async) and 106 (`CONV_WORKSET`, `PARK_REWIND_MAX=2048`, `--prompt-cache-spread`), then the confirm specs
    `bench/specs/107-auto-confirm-*.json` that promote_confirm.py writes from chain 6's screen PROMOTE arms (written on the box:
    commit them with the results). Left for the owner after chain 8: quality gate on confirm winners, adoption decisions.
+   **QUEUED: chain 9** `win-chain9.sh` (after `WINCHAIN8_DONE`): probes 4.2.4 `q2_rows_bench` and 4.2.1 `empty_grid_probe`
+   (`-DSTRATA_BUILD_PROBES=ON` on build-win, EXCLUDE_FROM_ALL targets), then TTFT M1 (8K/32K/64K/100K, `STRATA_PREFILL_TIMING=1`),
+   M2 (scenario C, side requests after turns 3 and 6, sub-agent switch after 5) and M5 (scenario E at 32K and 64K) on one served
+   preset (port 11502); results `/home/dan/auto-runs/win9-*`. **QUEUED: chain 10** `win-chain10.sh` (after `WINCHAIN9_DONE`):
+   configures build-win-hf (build-win's options + `-DSTRATA_HIP_HEAD_FMT=ON`), runs `head_argmax_parity` on the card, and only
+   if it passes spec 108 (`STRATA_HEAD_ARGMAX_FUSED`) at screen; results `/home/dan/auto-runs/win10-*`.
    **Queue changes 2026-11-16 (Linux session):** (a) my own confirm queue (`/home/dan/auto-runs/confirm-queue.sh`, specs 81/83/86
    subsets, default confirm settings) is CANCELLED, never ran (log `/home/dan/auto-runs/confirm-queue.log`, script kept as
    `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
@@ -245,12 +251,12 @@ miss.
    predictive expert prefetch replay on the gate-weight trace; medium R3 hybrid tiers, R4 KV eviction under parallel
    agents; low R5 MiniMax read-ahead, R6 elastic KV, R7 QEngine MTP; R8 multi-GPU parked; R9 orchestration not now):
    R1 then R2 were promised and not done.
-8. **Measure before code (TTFT, M1-M5)**: M1 8/32/64/100K with prompt_ms, TTFB, park, chunk plan, file-tier/KV lines,
+8. **QUEUED in chain 9 (M1, M2, M5; M3/M4 need recorded client traffic). Measure before code (TTFT, M1-M5)**: M1 8/32/64/100K with prompt_ms, TTFB, park, chunk plan, file-tier/KV lines,
    PREFILL_TIMING (each size twice, fresh state or park reported apart); M2 10-turn session x3 (alone; side request +
    sub-agent switch; `--conversation-cache-mib 1280`); M3 divergence; M4 opencode/Copilot request bodies; M5 deltas
    100/300/1000/3000 at 32K/64K. Unexplained so far: a 3.4 s turn after a 34K cold read, 4.8 s / 36 s waits outside
    the timer, the cause of 13% checkpoint fallbacks.
-9. **Probes before ports** (`tools/pancake/probes/`; each header has question/build/run; `-DSTRATA_BUILD_PROBES=ON`,
+9. **QUEUED in chain 9 (4.2.1, 4.2.4; 4.2.2 / 4.2.3 need a rocprofv3 trace). Probes before ports** (`tools/pancake/probes/`; each header has question/build/run; `-DSTRATA_BUILD_PROBES=ON`,
    CMakeLists.txt ~3124, EXCLUDE_FROM_ALL). Run with the GPU idle; under rocprofv3 decode is ~1.6x slower, so read shares.
    - 4.2.1 empty-launch cost vs block count on 42 WGPs (F20, never run): `hipcc -O2 --offload-arch=gfx1100
      tools/pancake/probes/empty_grid.hip.cpp -o /tmp/empty_grid && HIP_VISIBLE_DEVICES=0 /tmp/empty_grid --csv /tmp/sweep.csv`
@@ -295,7 +301,7 @@ miss.
 | 14 | CODED 2026-11-15 (`STRATA_QSA_PARTIAL_TOPK=1` exact; `STRATA_QSA_PAGE_SEL=N` + `_TOPP` lossy; test qsa_page_select_recall; next: spec 91). QSA long-prompt selection cost (Quest page-level or partial top-k) | after-12K gap 2.18 ms/token | lossy-ish |
 | 15 | CODED 2026-11-15 (`STRATA_Q36_EXPERTS_USED` from serboox f8fb28ca1f / 0f040ef5e8: spec 90; `STRATA_MISS_SKIP_W`, `STRATA_MISS_SKIP_CUM`: spec 88; --dump-routing exists, generate.cpp:3840). uniform K experts (`Q36_EXPERTS_USED`, 35B); weight-based miss skip (`SKIP_MINW` / Maya `MISS_SKIP_W` / HOBBIT cumulative-gate, replay offline on a `--dump-routing` run first) | +14-19%; +7-13% | lossy |
 | 16 | CODED 2026-11-15 (`STRATA_GDN_SPECLA=N`: per-row state checkpoints in the window kernels, commit from the nearest; bitwise, gdn_parity section 7; same commit traffic, saves the serial replay loop; next: spec 87). SpecLA: recover accepted GDN states from the verify-pass factors instead of replaying | unmeasured | exact |
-| 17 | PARTLY CODED 2026-11-15: `STRATA_DRAFT_CLIP=x` (spec 87), `STRATA_EVENT_WAIT=1` (acts only in DFlash2 builds with --draft auto: no arm on the preset); item 10 already in the tree (mtp.cpp:1821-1840); OPEN, to build on the box with a compiler: 17 device accept (needs the commit inside the window graph), 18 fused argmax (exact tie/NaN match in the head GEMVs), 20 branch rollout (needs a second draft model), A19 stop rule (needs spec 16-a19 first). Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); DraftPolicy cost-outlier clip | unmeasured | exact |
+| 17 | CODED 2026-11-16 except 20 and A19: `STRATA_DRAFT_CLIP=x` (spec 87), `STRATA_EVENT_WAIT=1` (acts only in DFlash2 builds with --draft auto: no arm on the preset); item 10 already in the tree (mtp.cpp:1821-1840); 17 device accept CODED (`STRATA_DEVICE_ACCEPT`, device_accept_parity; arm in spec 94); 18 fused argmax CODED (`STRATA_HEAD_ARGMAX_FUSED`, head_argmax_parity, opt-in build `-DSTRATA_HIP_HEAD_FMT=ON`; spec 108 in chain 10); 20 branch rollout parked (needs a second draft model, LEADS.md item 20); A19 stop rule waits for spec 16-a19 (chain 6). Phase 18 items 10 (pre-stage host records), 12 (event wait vs stream sync), 17/18/20 (device accept, fused argmax, branch rollout); A19 stop rule (after 16-a19); DraftPolicy cost-outlier clip | unmeasured | exact |
 | 18 | CODED 2026-11-16 (four passes): every LEADS.md row has a status ("2026-11-15/16: ..."); all portable leads are coded as default-off switches except PROMPT_STAGE_MEMO (no source, no description), GSQ (owner decision 2026-11-13), nothing else: the stand-in ridge correction is coded 2026-11-16 as HotRod substitute-fit (STRATA_SUBFIT_LOG / _LEARN / _APPLY=dynamic|all|flip / _LADDER / _SHADOW..., spec 99; compiled single-file for gfx1100 and sm_86, not linked or run). The gputier patches are coded 2026-11-16: STRATA_Q36_PROMPT_SWAPS, STRATA_SWIGLU_SKIM, STRATA_SER_POOL (specs 100, 101); the cores list was already in the tree (--pool-cores). Compiled up to T-594/T-595 (box agent build); everything after needs the next build in an idle box window; specs 94-98 (+ arms in 80-93) wait for it | per lead | mixed |
 
 Not packages any more (their parts are separate items above or in LEADS.md): 63 capability probe (`STRATA_PROBE` never
