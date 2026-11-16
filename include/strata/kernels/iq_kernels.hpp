@@ -140,12 +140,16 @@ int native_expert_expdec();
 /// `v2` (STRATA_EXPDEC_V2, MOD_PLAN.md section 6 item 10, default off, HIP wave32 builds only): the V2 grouped expert
 /// kernels (IQ2_S / IQ3_XXS / IQ3_S gate/up at R 1, IQ4_NL default down, Q2_0 EXPDEC down), bitwise the same outputs.
 /// 0 = off, 1 = on, < 0 keeps the current value.
+/// `nt` (STRATA_EXPDEC_NT, LEADS.md B139, default off): the IQ2_XS EXPDEC gate/up kernels (expdec_gu, item 48's SwiGLU
+/// form) read the weights with non-temporal loads (HIP builds; CUDA builds compile plain loads), bitwise the same
+/// outputs.  0 = off, 1 = on, < 0 keeps the current value.
 struct NativeExpertExpdecParams {
     int gu_rows_per_lane = 0, down_rows_per_lane = 0, gu_min_blocks_per_sm = 0, down_iq4_nl = -1, down = -1;
     int gu_rows_per_block = -1, down_rows_per_block = -1, min_blocks = 0;
     int sign_fast = -1;
     int lut_dup = -1;
     int v2 = -1;
+    int nt = -1;
 };
 void native_expert_set_expdec_params(const NativeExpertExpdecParams& p);
 NativeExpertExpdecParams native_expert_expdec_params();

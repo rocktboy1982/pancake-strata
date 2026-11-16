@@ -80,6 +80,21 @@ __device__ __forceinline__ int get_int_b2(const void* x, const int& i32) {
     return x32;
 }
 __device__ __forceinline__ int get_int_b4(const void* x, const int& i32) { return ((const int*) x)[i32]; }
+// LEADS.md B139 (STRATA_EXPDEC_NT, Split<17>::load_nt): get_int_b2 and the byte / half reads as non-temporal loads on
+// HIP (the same values; CUDA builds compile plain loads)
+#if defined(__HIPCC__)
+#define STRATA_ED_NT_LOAD(p) __builtin_nontemporal_load(p)
+#else
+#define STRATA_ED_NT_LOAD(p) (*(p))
+#endif
+__device__ __forceinline__ int ed_nt_u16(const uint16_t* p) { return (int) STRATA_ED_NT_LOAD(p); }
+__device__ __forceinline__ int ed_nt_u8(const uint8_t* p) { return (int) STRATA_ED_NT_LOAD(p); }
+__device__ __forceinline__ int ed_nt_b2(const void* x, int i32) {
+    const uint16_t* x16 = (const uint16_t*) x;
+    int x32 = ed_nt_u16(x16 + 2 * i32 + 0) << 0;
+    x32 |= ed_nt_u16(x16 + 2 * i32 + 1) << 16;
+    return x32;
+}
 __device__ __forceinline__ uint32_t unpack_ksigns(const uint8_t v) {
     const uint32_t p = __popc(v) & 1;
     const uint32_t s = v ^ p << 7;
@@ -1078,6 +1093,31 @@ template<> struct Split<17> : SplitLs2 {   // IQ2_XS
             r.g[l0 + 1] = iq_signed<SF>(grid_pos.y, signs & 0x80402010);
         }
         r.dw = __half2float(bq2->d);
+        return r;
+    }
+    // LEADS.md B139 (STRATA_EXPDEC_NT=1, opt-in, exact): `load<true, SF>` with every weight read (qs, scales, d) a
+    // non-temporal load (HIP: __builtin_nontemporal_load, the slc/nt bits on gfx1100), so a streamed expert's bytes,
+    // read once a window, do not push the GDN state / KV out of the MALL.  The same bytes are read and the same
+    // operations follow, so the words and sums are bitwise those of `load`.  The idea as the S26 EXPERT_V2 kernels
+    // (STRATA_NT_LOAD below) and native_mmvq.cu's STRATA_Q8P_LOAD already use; CUDA builds take plain loads.
+    template<bool SF = false>
+    __device__ static W load_nt(const void* __restrict__ vbq, int kbx, int iqs, const uint32_t* __restrict__ s_grid) {
+        const block_iq2_xs* bq2 = (const block_iq2_xs*) vbq + kbx;
+        const int2 q2_packed = make_int2(ed_nt_b2(bq2->qs, iqs + 0), ed_nt_b2(bq2->qs, iqs + 1));
+        const uint16_t* q2 = (const uint16_t*) &q2_packed;
+        const uint2* grid_lut = (const uint2*) s_grid;
+        W r;
+        const int sc = ed_nt_u8(bq2->scales + iqs / 2);
+        r.ls0 = sc & 0x0F;
+        r.ls1 = sc >> 4;
+#pragma unroll
+        for (int l0 = 0; l0 < 8; l0 += 2) {
+            const uint2 grid_pos = grid_lut[q2[l0 / 2] & 0x1FF];
+            const uint32_t signs = unpack_ksigns(q2[l0 / 2] >> 9);
+            r.g[l0 + 0] = iq_signed<SF>(grid_pos.x, signs & 0x08040201);
+            r.g[l0 + 1] = iq_signed<SF>(grid_pos.y, signs & 0x80402010);
+        }
+        r.dw = __half2float(__ushort_as_half((unsigned short) ed_nt_u16(reinterpret_cast<const uint16_t*>(&bq2->d))));
         return r;
     }
 };
@@ -2600,7 +2640,7 @@ __device__ __forceinline__ void ed_load_u(const int4* __restrict__ s_u, int c, i
 // per row and the entry's block loaded once per NC x R products.  SF: Split<TG>::load<true, SF>, the F12 sign form
 // (STRATA_IQ_SIGN_FAST; the same words, so the same sums).  DUPB > 0 (A37, STRATA_IQ_LUT_DUP, IQ2_XXS only): s_grid is
 // the lane's copy of the duplicated codebook (lut_dup_slot; the same words, so the same sums).
-template<int TG, int R, int NC, bool SF = false, int DUPB = 0>
+template<int TG, int R, int NC, bool SF = false, int DUPB = 0, bool NTL = false>
 __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4* __restrict__ s_u,
                                            const float* __restrict__ s_ds, const uint32_t* __restrict__ s_grid, int t,
                                            float (&s)[R][NC]) {
@@ -2619,6 +2659,7 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
 #pragma unroll
         for (int r = 0; r < R; ++r) {
             if constexpr (DUPB > 0) w[r] = S::template load<true, SF, DUPB>(wr[r], kbx, iqs, s_grid);
+            else if constexpr (NTL) w[r] = S::template load_nt<SF>(wr[r], kbx, iqs, s_grid);
             else w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
         }
 #pragma unroll
@@ -2638,6 +2679,7 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
 #pragma unroll
         for (int r = 0; r < R; ++r) {
             if constexpr (DUPB > 0) w[r] = S::template load<true, SF, DUPB>(wr[r], kbx, iqs, s_grid);
+            else if constexpr (NTL) w[r] = S::template load_nt<SF>(wr[r], kbx, iqs, s_grid);
             else w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
         }
 #pragma unroll
@@ -2664,7 +2706,9 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
 // SF: the F12 sign form (STRATA_IQ_SIGN_FAST; instantiated for IQ2_XXS / IQ2_XS / IQ2_S only, kIqSignFast below).
 // DUPC (A37, STRATA_IQ_LUT_DUP; IQ2_XXS at R 1 only): 1 = the plain staged codebook; 8 / 16 = that many copies
 // (ed_grid_copy_dup_iq2xxs), lane t of a sub-warp reading copy t / (16 / DUPC) - bitwise the same outputs, more LDS.
-template<int TG, int R, int MINB, bool SF = false, int DUPC = 1>
+// NTL (LEADS.md B139, STRATA_EXPDEC_NT; IQ2_XS only, DUPC 1): the weight reads non-temporal (Split<17>::load_nt) - the
+// same words, so bitwise the same outputs.
+template<int TG, int R, int MINB, bool SF = false, int DUPC = 1, bool NTL = false>
 #if defined(__HIPCC__)
 __global__ void __launch_bounds__(256, MINB * 2) expdec_gu_kernel(
 #else
@@ -2679,6 +2723,7 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_kernel(
     const int ng = *n_groups;
     if (blockIdx.y >= ng) return;
     static_assert(DUPC == 1 || ((DUPC == 8 || DUPC == 16) && TG == 16 && R == 1), "A37: the duplicated codebook is IQ2_XXS, R 1");
+    static_assert(!NTL || (TG == 17 && DUPC == 1), "B139: the non-temporal load is IQ2_XS's (Split<17>::load_nt)");
     constexpr int DUPB = DUPC == 1 ? 0 : 16 / DUPC;   // lut_dup_slot's bank pairs per copy (0: plain layout)
     __shared__ alignas(16) int4 s_u[ED_NC * 2 * ED_XB];
     __shared__ float s_ds[ED_NC * ED_XB];
@@ -2712,7 +2757,7 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_kernel(
                 auto run = [&](auto nc) {
                     constexpr int NC = decltype(nc)::value;
                     float s[R][NC];
-                    ed_gu_rows<TG, R, NC, SF, DUPB>(wr, s_u, s_ds, s_grid_lane, t, s);
+                    ed_gu_rows<TG, R, NC, SF, DUPB, NTL>(wr, s_u, s_ds, s_grid_lane, t, s);
 #pragma unroll
                     for (int c = 0; c < NC; ++c)
                         if (t == c)
@@ -2738,7 +2783,7 @@ __device__ __forceinline__ void q8_1_store(const float xi, block_q8_1* __restric
 // into one q8_1 block with q8_1_store - the product rounded on its own (contract off), the warp's lanes the block's 32
 // values in order: bit for bit the separate kernels' blocks.  Needs n_ff % 32 == 0 and 16 R | 32 (R 1 or 2).
 // SF: as expdec_gu_kernel.
-template<int TG, int R, int MINB, bool SF = false>
+template<int TG, int R, int MINB, bool SF = false, bool NTL = false>   // NTL: as expdec_gu_kernel (B139, IQ2_XS only)
 #if defined(__HIPCC__)
 __global__ void __launch_bounds__(256, MINB * 2) expdec_gu_swiglu_kernel(
 #else
@@ -2754,6 +2799,7 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_swiglu_kernel(
 #pragma clang fp contract(off)
 #endif
     static_assert(32 % (16 * R) == 0, "a pass must tile the block's 32 columns");
+    static_assert(!NTL || TG == 17, "B139: the non-temporal load is IQ2_XS's (Split<17>::load_nt)");
     constexpr int PH = 32 / (16 * R);   // passes per half (gate, then up)
     const int ng = *n_groups;
     if (blockIdx.y >= ng) return;
@@ -2783,7 +2829,7 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_swiglu_kernel(
                 auto run = [&](auto nc) {
                     constexpr int NC = decltype(nc)::value;
                     float sres[R][NC];
-                    ed_gu_rows<TG, R, NC, SF>(wr, s_u, s_ds, s_grid_buf, t, sres);
+                    ed_gu_rows<TG, R, NC, SF, 0, NTL>(wr, s_u, s_ds, s_grid_buf, t, sres);
 #pragma unroll
                     for (int c = 0; c < NC; ++c)
                         if (t == c)
@@ -4898,6 +4944,13 @@ int g_expdec_minblk = env_int_or("STRATA_EXPDEC_MINBLK", 800);   // auto: the mo
 // STRATA_EXPDEC_V2=1 (opt-in, read once; MOD_PLAN.md section 6 item 10, ryan4yin a67b3790d5 / 522f76739a / 92983a7405): the
 // V2 kernels above (HIP wave32 builds; elsewhere the knob does nothing).  native_expert_set_expdec_params (v2) overrides.
 int g_expdec_v2 = env_int_or("STRATA_EXPDEC_V2", 0) != 0 ? 1 : 0;
+// LEADS.md B139 (STRATA_EXPDEC_NT=1, opt-in, read once, exact): the IQ2_XS (type 17) EXPDEC gate/up kernels
+// (expdec_gu_kernel and item 48's expdec_gu_swiglu_kernel, with or without the F12 sign form) read the weight blocks
+// with non-temporal loads (Split<17>::load_nt; HIP: __builtin_nontemporal_load), so the streamed expert bytes, each
+// read once a window, are not kept in the MALL / L2 in place of the GDN state and the KV.  The same bytes, so bitwise
+// the same outputs (iq_multi_parity's EXPDEC case runs it).  Other formats, the A37 copies (IQ2_XXS) and EXPDEC_V2
+// ignore it.  native_expert_set_expdec_params (nt) overrides.  Set before graph capture.
+int g_expdec_nt = env_int_or("STRATA_EXPDEC_NT", 0) != 0 ? 1 : 0;
 int expdec_r() { return g_expdec_r == 2 ? 2 : 1; }
 int expdec_dr() { return g_expdec_dr == 1 || g_expdec_dr == 2 ? g_expdec_dr : 4; }
 
@@ -5018,6 +5071,13 @@ void expdec_gu_r(int64_t gy, int64_t cap_groups, cudaStream_t s, const unsigned 
             return;
         }
     }
+    if constexpr (TG == 17) {   // B139: STRATA_EXPDEC_NT (the F12 sign form combines with it)
+        if (g_expdec_nt) {
+            if (iq_sign_fast(TG)) expdec_gu_kernel<TG, R, MINB, true, 1, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+            else expdec_gu_kernel<TG, R, MINB, false, 1, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
+            return;
+        }
+    }
     if constexpr (kIqSignFast<TG>) {
         if (iq_sign_fast(TG)) {
             expdec_gu_kernel<TG, R, MINB, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, gate, up, rb);
@@ -5030,6 +5090,13 @@ template<int TG, int R, int MINB>
 void expdec_gu_swiglu_l(dim3 grid, cudaStream_t s, const unsigned long long* grp_ptr, const int32_t* grp_start,
                         const int32_t* n_groups, const int32_t* ent_tok, const block_q8_1* X, const NativeExpertLayout& L,
                         block_q8_1* hq) {
+    if constexpr (TG == 17) {   // B139: STRATA_EXPDEC_NT
+        if (g_expdec_nt) {
+            if (iq_sign_fast(TG)) expdec_gu_swiglu_kernel<TG, R, MINB, true, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+            else expdec_gu_swiglu_kernel<TG, R, MINB, false, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
+            return;
+        }
+    }
     if constexpr (kIqSignFast<TG>) {
         if (iq_sign_fast(TG)) {
             expdec_gu_swiglu_kernel<TG, R, MINB, true><<<grid, 256, 0, s>>>(grp_ptr, grp_start, n_groups, ent_tok, X, L, hq);
@@ -5115,9 +5182,10 @@ void expdec_note(const NativeExpertLayout& L, bool gu, bool taken, cudaStream_t 
         const char* dup_note = dup == 0 ? "" : R != 1 ? ", STRATA_IQ_LUT_DUP ignored at R 2 (plain codebook)"
                                      : dup == 16 ? ", codebook x16 in LDS (STRATA_IQ_LUT_DUP)" : ", codebook x8 in LDS (STRATA_IQ_LUT_DUP)";
         std::fprintf(stderr, "strata expdec: CUDA%d gate/up type %d: expdec_gu_kernel R %d MINB %d, %d rows per block, grid %d x %lld "
-                             "(cap %lld groups)%s%s%s\n", dev, ty, R, g_expdec_minb >= 4 ? 4 : 2, rb, (2 * (int) L.n_ff + rb - 1) / rb,
+                             "(cap %lld groups)%s%s%s%s\n", dev, ty, R, g_expdec_minb >= 4 ? 4 : 2, rb, (2 * (int) L.n_ff + rb - 1) / rb,
                      (long long) gy, (long long) cap_groups, cs != cudaStreamCaptureStatusNone ? ", captured into a graph" : "",
-                     iq_sign_fast(ty) ? ", F12 sign form (STRATA_IQ_SIGN_FAST)" : "", dup_note);
+                     iq_sign_fast(ty) ? ", F12 sign form (STRATA_IQ_SIGN_FAST)" : "", dup_note,
+                     ty == 17 && g_expdec_nt ? ", non-temporal weight loads (STRATA_EXPDEC_NT)" : "");
     } else {
         const int R = expdec_dr(), lanes = ty == 20 ? 8 : 16;
         const int rb = expdec_rows_per_block((int) L.n_embd, (256 / lanes) * R, cap_groups, g_expdec_drb);
@@ -7461,6 +7529,7 @@ void native_expert_set_expdec_params(const NativeExpertExpdecParams& p) {
     if (p.sign_fast >= 0) g_iq_sign_fast = p.sign_fast == 1 ? kIqSignFastAll : ((uint32_t) p.sign_fast & kIqSignFastAll);
     if (p.lut_dup >= 0) g_iq_lut_dup = iq_lut_dup_norm(p.lut_dup);   // A37
     if (p.v2 >= 0) g_expdec_v2 = p.v2 != 0 ? 1 : 0;                  // STRATA_EXPDEC_V2
+    if (p.nt >= 0) g_expdec_nt = p.nt != 0 ? 1 : 0;                  // B139: STRATA_EXPDEC_NT
 }
 NativeExpertExpdecParams native_expert_expdec_params() {
     NativeExpertExpdecParams p;
@@ -7475,6 +7544,7 @@ NativeExpertExpdecParams native_expert_expdec_params() {
     p.sign_fast = (int) iq_sign_fast_mask();
     p.lut_dup = iq_lut_dup();
     p.v2 = g_expdec_v2;
+    p.nt = g_expdec_nt;
     return p;
 }
 bool native_expert_expdec_takes(const NativeExpertLayout& L, bool& gu, bool& down) {

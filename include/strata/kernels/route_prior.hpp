@@ -26,4 +26,10 @@ void route_prior_top10(const float* logits, const int32_t* res_layer, float lamb
 ///    displaced either (an adaptive rank: more are protected when the router is sure).  0: off.
 void route_prior_configure(const float* gate, int protect, float keep_p);
 
+/// STRATA_ROUTE_PRIOR_ERANK=x (LEADS.md, AcceptMoE's effective-rank utility set; opt-in, lossy): per token the router's
+/// first k = ceil(x exp(H)) picks are protected (H: entropy of its top-10 probabilities renormalised; k in 1..10, the
+/// larger of k and `protect` holds).  The env value is read at the first route_prior_top10; this setter overrides it
+/// (tests).  <= 0: off.  Set before any window graph is captured.
+void route_prior_set_erank(float scale);
+
 }  // namespace strata::kernels

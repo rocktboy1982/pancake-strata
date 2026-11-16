@@ -116,6 +116,19 @@
         "STRATA_STANDIN": "1",
         "STRATA_FRAGILE_RECHECK": "1"
       }
+    },
+    "route-prior-erank": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PRIOR": "1",
+        "STRATA_ROUTE_PRIOR_ERANK": "1"
+      }
+    },
+    "ser": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SER": "6,0.1"
+      }
     }
   },
   "note": "MOD_PLAN.md section 6 item 18, second pass: lossy switches (activation sparsity CPU / TEAL / BlockFFN, transposed down, OEA, route-prior delta, MoBiLE, SliceMoE, typical acceptance and SpecReason inside thinking, HC_PERSIST_Q8, LQER). STRATA_SHADOW_MISS needs a sub-2-bit pack (not built yet): not here. Speed screen; promoted arms need a quality gate. Stop pancake.service first. HotRod (sangharshadhyeta/Strata-HotRod): stand-ins for missed experts, weight x logit-gap budget, fragile-token re-verify (+ brake), auto budget."

@@ -931,6 +931,13 @@ Credits, in the order the stack was built:
   AdaSD (`STRATA_SPEC_ENTROPY`), SpecReason, R-KV, OEA, TEAL / BlockFFN / PowerInfer (`STRATA_TEAL`, `STRATA_DOWN_T`, CPU
   activation sparsity), Medusa typical acceptance, Token Recycling, Hydra, LongSpec (`STRATA_ATTN_QMAJOR`), XAttention, LQER,
   SIEVE / S3-FIFO, SeqMoE, MoBiLE, SliceMoE, TokenCake, MORI and AsyncFC.
+- **gputier** (StrataGP), for `STRATA_SER` / `STRATA_SER_LAYERS` (`88a9b1a26c`, `0715a99871`, `2619066878`); **sangharshadhyeta**
+  (Strata-HotRod), for the stand-in system, routing budget and fragile re-check (`STRATA_STANDIN`, `STRATA_ROUTE_BUDGET`,
+  `STRATA_FRAGILE_RECHECK`, `a2ef1638cf`); **jstamagal** (Strata-gfx1030), for `STRATA_MMVQ_SET`, `STRATA_HEAD_WIDE`,
+  `STRATA_ROUTE_PLAN`, `STRATA_HEAD_SAMPLE`, `STRATA_NORM_ROPE`, `STRATA_KV_PF_RESIDENT`; **storm-ace**, for the q36 GQA and WMMA
+  prompt attention (`4fe0284da5`, `f74984a171`, `e4fc07ee57`, `161309c707`); **ElXreno**, for the streamed / two-pass session
+  restore and the disk-only cache (`9c18aed118`, `7efef35d0d`, `2271ee21a1`); **svgop** (`511bece612`), **dardeaw** (`580e251e69`),
+  **bsorensen110** (`cd3a3ded7b`) and **zsariboga** (`21107e9d05`). Ported 2026-11-16, default off.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.

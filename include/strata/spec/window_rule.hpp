@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
+#include <mutex>
 #include <string>
 
 namespace strata::spec {
@@ -58,6 +59,64 @@ inline int df2_lookup_skip_min(int build_default) {
     return v;
 }
 
+/// LEADS.md B25 (SpecFit / DraftExpert / EcoSpec miss-aware window, the window-length form of MOD_PLAN F5's STRATA_VERIFY_ECAP;
+/// STRATA_SPEC_MISS_WIN=<n>, opt-in): the verify window stops before the first draft row whose rows bring, on average, more than
+/// n missed experts per layer that the rows before it do not read anyway (a row's "new misses": the experts it routes that are
+/// not in VRAM and that no earlier row of the window routes - each costs a PCIe copy or a CPU job).  The expert pool's plan
+/// (expert_source.cpp) adds each layer-window's per-row counts; at the next window's first layer the window's per-layer means
+/// update an EWMA per row (`a` 0.25).  Rows past the window (not verified, so not measured) decay towards 0 (x 0.9 a window) so
+/// the window can grow back.  Only how many drafts are verified changes: greedy text is the same.  Unset / <= 0: off.
+/// Header only, thread-safe (the pool's thread writes, the serve loop reads); one instance per process (miss_window()).
+struct MissWindow {
+    static constexpr int R = 16;   // rows tracked (a longer window is capped by row 15's estimate onwards)
+    double ewma[R] = {};
+    bool seen[R] = {};
+    double sum[R] = {};            // the open window: new misses per row summed over its layers
+    int layers = 0, rows = 0;      // the open window's layers so far and its rows
+    double alpha = 0.25, decay = 0.9;
+    std::mutex mu;
+    /// one layer of a window of n_tok rows: new_miss[r] for r in [0, n_tok) (row 0 is committed, never capped)
+    void add_layer(int64_t layer, int n_tok, const int* new_miss) {
+        std::lock_guard<std::mutex> g(mu);
+        if (layer == 0 && layers > 0) close_locked();
+        if (layers == 0) { rows = std::min(n_tok, R); for (int r = 0; r < R; ++r) sum[r] = 0.0; }
+        for (int r = 0; r < rows && r < n_tok; ++r) sum[r] += (double) new_miss[r];
+        ++layers;
+    }
+    void close_locked() {
+        for (int r = 1; r < R; ++r) {
+            if (r < rows) {
+                const double m = sum[r] / (double) layers;
+                ewma[r] = seen[r] ? (1.0 - alpha) * ewma[r] + alpha * m : m;
+                seen[r] = true;
+            } else if (seen[r]) {
+                ewma[r] *= decay;
+            }
+        }
+        layers = 0;
+        rows = 0;
+    }
+    /// the widest window (<= cap) whose draft rows all stay at or under n new misses per layer
+    int cap_rows(int cap, double n) {
+        std::lock_guard<std::mutex> g(mu);
+        int T = 1;
+        while (T < cap && (!seen[std::min(T, R - 1)] || ewma[std::min(T, R - 1)] <= n)) ++T;
+        return T;
+    }
+};
+inline double spec_miss_win_n() {
+    static const double v = [] {
+        const char* e = std::getenv("STRATA_SPEC_MISS_WIN");
+        const double x = e != nullptr && e[0] != '\0' ? std::atof(e) : 0.0;
+        return x > 0.0 ? x : 0.0;
+    }();
+    return v;
+}
+inline MissWindow& miss_window() {
+    static MissWindow* w = new MissWindow;   // (never destroyed: the pool's threads may still write at exit)
+    return *w;
+}
+
 inline int choose_window(const WindowRuleIn& in) {
     int T = in.start;
     if (cost_window_applies(in.use_mtp, in.spec_cost, in.df2_active, in.first_window)) {
@@ -71,6 +130,8 @@ inline int choose_window(const WindowRuleIn& in) {
         double chain = 1.0;
         while (T < in.cap && (chain *= (double) in.dprob[T - 1]) >= in.draft_conf) ++T;
     }
+    // B25 STRATA_SPEC_MISS_WIN (opt-in): no wider than the rows whose measured new misses stay under n (MissWindow above)
+    if (in.draft_on && !in.first_window && spec_miss_win_n() > 0.0) T = std::min(T, miss_window().cap_rows(in.cap, spec_miss_win_n()));
     return T;
 }
 

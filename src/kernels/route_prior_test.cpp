@@ -39,6 +39,33 @@ void reference(const float* lg, const std::vector<int32_t>& res, float lambda, i
     for (int k = 0; k < kK; ++k) sum += std::exp(lg[order[k]] - mx);
     for (int k = 0; k < kK; ++k) { ids[k] = order[k]; w[k] = (float) (std::exp(lg[order[k]] - mx) / sum); }
 }
+
+// STRATA_ROUTE_PRIOR_ERANK=x: the router's first k = ceil(x exp(H)) picks (its own order, lower id first on ties) kept,
+// the rest by the biased score.  Returns false when x exp(H) is within 1e-3 of an integer (the GPU's expf / logf may
+// round to the other side; the row's ids are then not compared).
+bool reference_erank(const float* lg, const std::vector<int32_t>& res, float lambda, float x, int32_t* ids, float* w) {
+    std::vector<int> own(kE);
+    std::iota(own.begin(), own.end(), 0);
+    std::stable_sort(own.begin(), own.end(), [&](int a, int b) { return lg[a] > lg[b]; });
+    const float mx = *std::max_element(lg, lg + kE);
+    double qs = 0.0, ql = 0.0;
+    for (int k = 0; k < kK; ++k) { const double q = std::exp((double) lg[own[k]] - mx); qs += q; ql += q * std::log(q); }
+    const double h = std::max(0.0, std::log(qs) - ql / qs), kf = x * std::exp(h);
+    const bool clear = std::fabs(kf - std::round(kf)) > 1e-3;
+    const int keep = std::min(10, std::max(1, (int) std::ceil(kf)));
+    std::vector<int> order(own.begin(), own.begin() + keep), rest(kE);
+    std::iota(rest.begin(), rest.end(), 0);
+    auto score = [&](int e) { return lg[e] + (res[e] >= 0 ? lambda : 0.0f); };
+    std::stable_sort(rest.begin(), rest.end(), [&](int a, int b) { return score(a) > score(b); });
+    for (int e : rest) {
+        if ((int) order.size() == kK) break;
+        if (std::find(order.begin(), order.end(), e) == order.end()) order.push_back(e);
+    }
+    double sum = 0.0;
+    for (int k = 0; k < kK; ++k) sum += std::exp(lg[order[k]] - mx);
+    for (int k = 0; k < kK; ++k) { ids[k] = order[k]; w[k] = (float) (std::exp(lg[order[k]] - mx) / sum); }
+    return clear;
+}
 }  // namespace
 
 int main() {
@@ -101,6 +128,27 @@ int main() {
             }
         }
     }
+    // STRATA_ROUTE_PRIOR_ERANK (AcceptMoE's effective-rank utility set, LEADS.md): x = 1 and x = 0.5, then off again
+    for (const float x : {1.0f, 0.5f}) {
+        strata::kernels::route_prior_set_erank(x);
+        strata::kernels::route_prior_top10(d_lg, d_res, lambda, d_ids, d_w, n_tok, nullptr);
+        ck(cudaGetLastError(), "launch");
+        ck(cudaDeviceSynchronize(), "sync");
+        ck(cudaMemcpy(ids.data(), d_ids, ids.size() * sizeof(int32_t), cudaMemcpyDeviceToHost), "down");
+        ck(cudaMemcpy(w.data(), d_w, w.size() * sizeof(float), cudaMemcpyDeviceToHost), "down");
+        for (int t = 0; t < n_tok; ++t) {
+            std::set<int> seen(ids.begin() + t * kK, ids.begin() + (t + 1) * kK);
+            check((int) seen.size() == kK && *seen.begin() >= 0 && *seen.rbegin() < kE, "erank: 10 distinct ids", t);
+            if (t < 4) continue;   // rows 0-3: degenerate or all equal (checked above without the set size)
+            int32_t rid[kK]; float rw[kK];
+            if (!reference_erank(&lg[(size_t) t * kE], res, lambda, x, rid, rw)) continue;
+            for (int k = 0; k < kK; ++k) {
+                check(ids[t * kK + k] == rid[k], "erank: id matches the host reference", t);
+                check(std::fabs(w[t * kK + k] - rw[k]) < 1e-5f, "erank: weight matches the host reference", t);
+            }
+        }
+    }
+    strata::kernels::route_prior_set_erank(0.0f);
     for (void* p : {(void*) d_lg, (void*) d_res, (void*) d_ids, (void*) d_w}) ck(cudaFree(p), "free");
     std::printf("route_prior_test: %d checks passed\n", checks);
     return 0;

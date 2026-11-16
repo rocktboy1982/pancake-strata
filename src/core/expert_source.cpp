@@ -3,6 +3,7 @@
 #include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/verify_ecap.hpp"
+#include "strata/spec/window_rule.hpp"   // LEADS.md B25 STRATA_SPEC_MISS_WIN (MissWindow)
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_memory.hpp"
 #include "strata/core/foresight_swap.hpp"
@@ -5127,6 +5128,58 @@ float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_C
 // model - its lower-half experts are dropped - where that saves a copy or a CPU job (missed experts only, skipped like
 // MISS_SKIP_W).  Every other token keeps all k experts (the paper's "big" model).  Value in (0, 1); else off.  Read once.
 float mobile_gate() { static const float g = miss_skip_env("STRATA_MOBILE"); return g; }
+// STRATA_SER="Kmin,t" (opt-in, lossy, read once; LEADS.md gputier/StrataGP 88a9b1a26c --ser, after ik_llama.cpp PR 239's
+// smart expert reduction): a pick of rank >= Kmin (0-based, the router's order) whose weight is not above t x the
+// token's top weight is dropped - RESIDENT experts too, as their patch drops every such pick, not only missed ones.
+// Kmin in 1..9, t in (0, 1]; anything else (unset too) is off.
+struct SerCfg { int kmin = 0; float t = 0.0f; };
+const SerCfg& ser_cfg() {
+    static const SerCfg c = [] {
+        SerCfg r;
+        const char* v = std::getenv("STRATA_SER");
+        if (v == nullptr || v[0] == '\0') return r;
+        char* e = nullptr;
+        const long km = std::strtol(v, &e, 10);
+        if (e == v || *e != ',') return r;
+        const float t = (float) std::atof(e + 1);
+        if (km >= 1 && km <= 9 && t > 0.0f && t <= 1.0f) { r.kmin = (int) km; r.t = t; }
+        else std::fprintf(stderr, "strata: STRATA_SER=%s is not Kmin,t with 1 <= Kmin <= 9 and 0 < t <= 1: off\n", v);
+        return r;
+    }();
+    return c;
+}
+bool ser_on() { return ser_cfg().kmin > 0; }
+// STRATA_SER_LAYERS="a-b:K[,c:K2...]" (opt-in, with STRATA_SER; gputier/StrataGP 0715a99871 / 2619066878's per-layer SER
+// table, STRATA_Q36_SER_TABLE, here in STRATA_ROUTE_TAIL_SKIP_LAYERS's form): the listed layers (inclusive ranges) take
+// Kmin K (1..9; 10 = no SER on those layers) instead of STRATA_SER's.  Layers not listed keep it.  Read once.
+int ser_kmin_layer(int64_t layer) {
+    static const std::vector<int8_t> table = [] {
+        std::vector<int8_t> t;
+        const char* v = std::getenv("STRATA_SER_LAYERS");
+        if (v == nullptr || v[0] == 0) return t;
+        const char* p = v;
+        while (*p != 0) {
+            char* e = nullptr;
+            const long a = std::strtol(p, &e, 10);
+            if (e == p) break;
+            long b = a;
+            p = e;
+            if (*p == '-') { b = std::strtol(p + 1, &e, 10); if (e == p + 1) break; p = e; }
+            if (*p != ':') break;
+            const long r = std::strtol(p + 1, &e, 10);
+            if (e == p + 1) break;
+            p = e;
+            if (a >= 0 && b >= a && b < 4096 && r >= 1 && r <= 10) {
+                if ((size_t) b >= t.size()) t.resize((size_t) b + 1, (int8_t) -1);
+                for (long l = a; l <= b; ++l) t[(size_t) l] = (int8_t) r;
+            }
+            if (*p == ',') ++p; else break;
+        }
+        return t;
+    }();
+    if (layer < 0 || (size_t) layer >= table.size() || table[(size_t) layer] < 0) return ser_cfg().kmin;
+    return table[(size_t) layer];
+}
 
 // LEADS.md A27 (sub-2-bit copy on a CPU miss; HOBBIT / MC-MoE low-precision miss copies), STRATA_SHADOW_MISS=<gguf>
 // (opt-in, lossy; read once): a CPU-computed (missed) expert reads its gate/up rows from the shadow GGUF that
@@ -5241,7 +5294,7 @@ bool adapt_prob_mass_on() {
     static const bool on = [] { const char* v = std::getenv("STRATA_ADAPT_PROB_MASS"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
-bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on() || shadow_miss_weights_on(); }
+bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on() || shadow_miss_weights_on() || ser_on(); }
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic) {
@@ -5435,6 +5488,40 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 ++d.wskip_experts;
             }
         }
+        // STRATA_SER="Kmin,t" (opt-in, lossy; gputier/StrataGP 88a9b1a26c --ser, ik_llama.cpp PR 239; LEADS.md): an entry of
+        // rank i % k >= Kmin whose published weight is not above t x its token's largest weight qualifies; an expert every
+        // entry of which qualifies is skipped like a tail expert above (kind -2: neither copied nor computed, a zero row),
+        // RESIDENT ones included - unlike the skips above, which keep every resident expert.  Deviation from the patch: no
+        // renormalisation of the kept weights (the GPU combine applies the router's weights as published), and the rule is
+        // per expert over the window, as our other skips.  Counted with the weight skips (wskip_experts, tail_skipped rows).
+        // Not with a peer or helper GPU, as the tail skip.  Unset: nothing runs.
+        if (ser_on() && d.plan->skip_w != nullptr && d.peer == nullptr && d.remote_count == 0) {
+            const float* sw2 = d.plan->skip_w;
+            const int kmin = ser_kmin_layer(d.layers);   // STRATA_SER_LAYERS, else STRATA_SER's Kmin
+            const float st = ser_cfg().t;
+            int q_of[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
+            bool keep[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) keep[q] = false;
+            for (int64_t i = 0; i < n; ++i) {
+                const int q = q_of[first_of[i]];
+                if (keep[q] || skip_d[q]) continue;
+                const int64_t t0 = (i / k) * k;
+                float wmax = 0.0f;
+                for (int64_t j = t0; j < t0 + k; ++j)
+                    if (sw2[j] > wmax) wmax = sw2[j];   // (NaN never compares above)
+                const float wi = sw2[i];
+                const bool drop = (int) (i % k) >= kmin && wi == wi && wmax > 0.0f && !(wi > st * wmax);
+                if (!drop) keep[q] = true;
+            }
+            for (int q = 0; q < nd; ++q) {
+                const int32_t e = ids[distinct[q]];
+                if (keep[q] || skip_d[q] || e < 0 || e >= d.n_expert) continue;
+                skip_d[q] = true;
+                if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0) --nmiss;   // (a resident one was no miss)
+                ++d.wskip_experts;
+            }
+        }
         // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the verifier sets
         // plan->ecap only for a decode window's draft rows (never row 0, a prompt read, a merged first window, a batch or
         // a pipelined window, or a span the request's grammar enforces).  Each draft row reads at most n missed experts
@@ -5463,6 +5550,21 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 for (int64_t i = 0; i < n; ++i)
                     if (ecap_drop[i]) ecap_bits[i >> 6] |= 1ull << (i & 63);
             }
+        }
+        // LEADS.md B25 STRATA_SPEC_MISS_WIN=<n> (opt-in; spec/window_rule.hpp MissWindow): each row's new misses - the
+        // experts not in VRAM, not skipped above, whose first entry in the window is in that row - go to the window-length
+        // rule, which keeps the next windows to the rows that stay under n per layer.  Counting only: this window's plan
+        // is not changed.  Not with a peer or helper GPU (their experts are no misses here).  Unset: nothing runs.
+        if (strata::spec::spec_miss_win_n() > 0.0 && d.peer == nullptr && d.remote_count == 0) {
+            int nm[strata::spec::MissWindow::R] = {};
+            for (int q = 0; q < nd; ++q) {
+                const int64_t i0 = distinct[q];
+                const int32_t e = ids[i0];
+                const int64_t r = i0 / k;
+                if (skip_d[q] || e < 0 || e >= d.n_expert || r >= strata::spec::MissWindow::R) continue;
+                if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0) ++nm[r];
+            }
+            strata::spec::miss_window().add_layer(d.layers, (int) n_tok, nm);
         }
         // STRATA_ROUTE_DUMP=<file> (bench only, off by default): one text line per layer-window, "layer n_tok nd nmiss | e:rows:res ..." in routing
         // order (res 1 = resident in the GPU cache, 0 = a miss the CPU computes unless the PCIe share takes it, 2 = tail-skipped), for replaying placement

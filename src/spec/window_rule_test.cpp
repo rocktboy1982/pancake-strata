@@ -179,6 +179,23 @@ int main() {
         const float ninf[3] = {1.0f, -INFINITY, -INFINITY};
         check(row_entropy_ref(ninf, 3, 0, &t2) == 0.0 && t2 == 0.0, "row_entropy_ref: -inf entries add nothing (no NaN)");
     }
+    {   // 7. LEADS.md B25 STRATA_SPEC_MISS_WIN: the window-length form of the miss cap (MissWindow)
+        MissWindow w;
+        check(w.cap_rows(5, 1.0) == 5, "miss window: nothing measured yet: the whole cap");
+        const int lay[5] = {3, 0, 1, 4, 0};   // row 0 (committed) 3, row 1 0, row 2 1, row 3 4 new misses per layer
+        for (int l = 0; l < 2; ++l) w.add_layer(l, 4, lay);
+        w.add_layer(0, 4, lay);               // the next window's first layer closes the first one
+        check(w.cap_rows(5, 1.0) == 3, "miss window: row 3 (4 per layer > 1) ends the window at 3 rows");
+        check(w.cap_rows(5, 4.0) == 5, "miss window: n 4: every measured row is under it, row 4 unmeasured");
+        check(w.cap_rows(2, 1.0) == 2, "miss window: never wider than the cap");
+        check(w.cap_rows(5, 0.5) == 2, "miss window: n 0.5: row 2 (1 per layer) ends it at 2 rows");
+        // windows of 2 rows only: row 3 is not measured and decays (4 x 0.9^k) until it is under 1 again
+        const int two[2] = {3, 0};
+        int windows = 0;
+        while (w.cap_rows(5, 1.0) == 3 && windows < 40) { w.add_layer(0, 2, two); ++windows; }
+        check(windows > 5 && windows < 40 && w.cap_rows(5, 1.0) == 5, "miss window: an unmeasured row decays and the window grows back");
+        check(spec_miss_win_n() == 0.0 || std::getenv("STRATA_SPEC_MISS_WIN") != nullptr, "miss window: unset is off");
+    }
     std::printf("%s\n", g_fail == 0 ? "window_rule_test: ok" : "window_rule_test: FAILED");
     return g_fail == 0 ? 0 : 1;
 }

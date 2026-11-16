@@ -16,7 +16,7 @@ Tags: author numbers are on the author's hardware, not ours; "exact" = bit-ident
 | uniform K experts (`STRATA_Q36_EXPERTS_USED`) | +14.4% K=7/8, +18.7% K=6/8, KLD 0.0254 at K=7; RTX 3050 laptop, Qwen3.6 IQ4_XS | lossy | 2026-11-16: CODED STRATA_Q36_EXPERTS_USED |
 | `EXPDEC_V2` remainder (issue-first loads, 24-bit multiplies) | expdec_gu<22> 69.1 -> 52.5 us, down 48.2 -> 38.5 us; R9700 | exact | 2026-11-16: CODED STRATA_EXPDEC_V2 |
 | phoenixclyde `STRATA_MMVQ_WAVE_ROWS` per-shape table | +4.0% decode, 46.8 -> 48.6 tok/s; MI50 | bitwise | 2026-11-16: CODED STRATA_MMVQ_WAVE_ROWS |
-| gputier/StrataGP 16 packaged patches | +5-15% decode, +42-49% prompt; RTX 5090 | mixed | 2026-11-16: partial: cache-prior = ROUTE_PRIOR_DELTA; --ser partly (missed experts only) |
+| gputier/StrataGP 16 packaged patches | +5-15% decode, +42-49% prompt; RTX 5090 | mixed | 2026-11-16: CODED STRATA_SER, STRATA_SER_LAYERS, ROUTE_PRIOR_DELTA (q36 swap cap / SWIGLU_SKIM / cores list left) |
 | Maya `MAYA_GLM_MISS_SKIP_W` (skip a missed expert by gate-weight share) | +7-13% decode at KL 0.037-0.052; GLM | lossy | 2026-11-16: CODED STRATA_MISS_SKIP_W |
 | small exact bundle: `copy_rows_from_mapped` loads before stores (elementwise.cu:255-259); sampler/verify 8 logit loads in flight; single-token `MMVF_ROWS`; RouterLookahead submit after plan publish | 4.7-5.7 -> 2.4-3.9 us/launch (5090); ~110 us/argmax round (gfx906); 25.8 -> 10.2 us (R9700); part of +6.5% (R9700) | exact | 2026-11-16: CODED ROWS_LOADS_FIRST, SAMPLER_X8, MMVF_ROWS1, LOOKAHEAD_AFTER_PUB |
 | two-pass session restore; `CKPT_MOVE_PARK` port | 198,830-token session restored in 3.4-3.5 s; ~92 ms/park (MI50) | exact | 2026-11-15: CODED STRATA_CKPT_MOVE_PARK (two-pass restore left) |
@@ -285,7 +285,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B22 | Athena epoch bandit for pre-read / mixed opt-ins | - | exact | include/strata/core/epoch_bandit.hpp |
 | B23 | DISCO learned chain stop (item 15/36, `feat/disco`) | 0-10% combined | exact | include/strata/core/row_miss.hpp:2 |
 | B24 | Drafter entropy (MiMo, Entropy Sentinel) as DISCO feature | - | exact | 2026-11-16: CODED STRATA_DISCO_ENTROPY |
-| B25 | SpecFit / DraftExpert / EcoSpec miss-aware window (new experts per position) | DraftExpert verify-cost 2.35x->1.48x, RTX 4090; est. +3-8% over SPEC_COST | exact | 2026-11-15: partial: VERIFY_ECAP (window-length form left) |
+| B25 | SpecFit / DraftExpert / EcoSpec miss-aware window (new experts per position) | DraftExpert verify-cost 2.35x->1.48x, RTX 4090; est. +3-8% over SPEC_COST | exact | 2026-11-16: CODED STRATA_SPEC_MISS_WIN (+ VERIFY_ECAP) |
 | B26 | Cross-session suffix index (SuffixDecoding) | `--simulate` first; A24 spec 45 | exact | include/strata/spec/suffix_index.hpp:114 |
 | B27 | `--lookup-max-t 12/16` | +1% first test | exact | include/strata/core/lookup_default.hpp:1 |
 | B28 | MTP draft inside captured verify graph (item 10) | 1-3% est. | exact | 2026-11-16: CODED STRATA_MTP_IN_VERIFY (+ MTP_ONE_GRAPH, DEVICE_ACCEPT) |
@@ -419,7 +419,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B136 | Quest page-level / partial top-k / fused select+attn for QSA after long prompt | gap 2.18 ms/token at 12K; est. recover most of 20% | exact (b,c,d) / lossy (a) | - |
 | B137 | Streamed KV (>32K) at 4-bit, int8 resident | halves PCIe bytes at 64-131K (est.) | lossy | include/strata/kernels/kv_q4.hpp:9 (`--kv-q4`) |
 | B138 | Per-layer persistent super-kernels + "productive spin" MALL/L2 prefetch of next layer dense weights | est. 1-2.4 ms (4-10%) only after CPU wait hidden; Alpindale 905->1000 tok/s 5090 | exact | - |
-| B139 | Non-temporal (slc/nt) GPU loads for streaming weights to keep MALL for GDN state/KV | low single-digit; evict-first -8% on 5090 | exact | 2026-11-15: partial: EXPERT_V2 / native_mmvq nt loads (IQ2_XS expdec left) |
+| B139 | Non-temporal (slc/nt) GPU loads for streaming weights to keep MALL for GDN state/KV | low single-digit; evict-first -8% on 5090 | exact | 2026-11-16: CODED STRATA_EXPDEC_NT (+ EXPERT_V2 / native_mmvq nt loads) |
 | B140 | Remove graph-internal memset/memcpy nodes; linear-chain graph to avoid barrier-AND packets | unsourced; ceiling ~2.4 ms/window (1000 nodes x 2.4 us) | exact | - |
 | B141 | Batch per-layer contiguous expert copies on SDMA for prefill | low single digits | exact | verify.cpp:1294 (logs HSA_ENABLE_SDMA) |
 | B142 | Software prefetch in Q2_0 `row_multi` (item 40) | IQ prefetch -1.3% ms/round Zen 3 | exact | - |
@@ -481,7 +481,7 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 |---|---|---|---|
 | A1 cache-conditional routing (bonus on resident-expert logits) | miss 35->16% Qwen1.5, 2x vs LRU (Snapdragon, CPU llama.cpp); ours +30-50% before deferral | lossy (ppl +0.1-3%; "2.9%" is Mixtral ppl, not token diff) | src/core/verify.cpp:296 |
 | Cache-Prior top-J guarantee (top experts load regardless of cache) as A1 guard | paper Sec 3.3; lambda 0.8 over-uses cache | lossy guard | 2026-11-15: already STRATA_ROUTE_PRIOR_PROTECT |
-| AcceptMoE residency-aware utility set (root anchor, effective-rank size, reroute non-resident) | 2.06x vs standard SD, H2D -73.6-77.1%, RTX 5090 48 slots; acc -0.27 pt mean | lossy | 2026-11-15: partial: route prior + ROUTE_RESIDENT (effective-rank set left) |
+| AcceptMoE residency-aware utility set (root anchor, effective-rank size, reroute non-resident) | 2.06x vs standard SD, H2D -73.6-77.1%, RTX 5090 48 slots; acc -0.27 pt mean | lossy | 2026-11-16: CODED STRATA_ROUTE_PRIOR_ERANK |
 | A2 depth-graded prior (our geometric bonus) | "+5-15%" unsourced | lossy | include/strata/kernels/route_prior.hpp:12 |
 | HOBBIT cumulative gate-score rule (T1 0.6 / T2 0.9) as skip/defer rule, no low-bit copy | Mixtral 67/30/3% split; dyn loading 1.19-1.57x (4090, Orin) | lossy | 2026-11-15: CODED STRATA_MISS_SKIP_CUM |
 | A4 rank guard `_TOP/_BELOW/_FOLD` | vs deferral: edit -2.6 to -4.2%, short ~0 (n=2) -> HOLD | lossy-small | src/core/verify.cpp:985; include/strata/core/defer_rank.hpp:48 |
@@ -547,7 +547,7 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 | A36 hit-path ceiling | +1.99% if all VRAM-hit work vanished | n/a (paper FP8 lossy) | 2026-11-15: method |
 | A48 Q2_0 vs 2-bit GEMV bench | 1.23x 1 thread, 1.03x 8 threads (DDR4-bound) | exact | tools (q2_rows_bench) |
 | A49 attention share vs context | decode flat with context within noise | measurement | n/a |
-| A50 verify-window attention, prefix K/V read once | F11 200K 48.6 -> 88.9 tok/s (5080); ~0 short | exact | 2026-11-15: partial: q36 STRATA_ATTN_WINDOW (Flash-Next verify kernel left) |
+| A50 verify-window attention, prefix K/V read once | F11 200K 48.6 -> 88.9 tok/s (5080); ~0 short | exact | 2026-11-16: CODED STRATA_ATTN_VWIN (Flash-Next), q36 STRATA_ATTN_WINDOW |
 | A51 Quest/Twilight sparse decode attention | Quest 7.03x attn, 2.23x e2e (4-bit); Twilight 3.9x vs FlashInfer | lossy | 2026-11-15: CODED STRATA_QSA_PAGE_SEL |
 
 ### 5. Agent loop and thinking (client/server side)
