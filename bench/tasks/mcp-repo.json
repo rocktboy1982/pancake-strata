@@ -1,0 +1,143 @@
+{
+ "name": "mcp-repo",
+ "version": 1,
+ "about": "Read-only repository look-ups through the server's own MCP tool loop (tools/pancake/mcp_bench_server.py; MOD_PLAN.md section 5 item 2): each answer needs list_dir / read_file / grep calls, so STRATA_MCP_ASYNC, STRATA_MCP_SPEC and STRATA_MCP_EARLY_STOP have work to do. Answers checked against the tree on 2026-11-16.",
+ "tasks": [
+  {
+   "id": "mcp-equal-tail-min",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "In include/strata/program/prefill_plan.hpp, what is the value of kEqualTailMinTail?",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**256\\b"
+   },
+   "reference": {
+    "content": "ANSWER: 256"
+   },
+   "wrong": {
+    "content": "ANSWER: 128"
+   }
+  },
+  {
+   "id": "mcp-rdna-cols",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "In src/kernels/cuda/rdna_mmvq.cu, what is kRdnaDefaultCols set to?",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**16\\b"
+   },
+   "reference": {
+    "content": "ANSWER: 16"
+   },
+   "wrong": {
+    "content": "ANSWER: 8"
+   }
+  },
+  {
+   "id": "mcp-fetch-blocks",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "The PCIe share copy kernels in src/kernels/cuda/verify_kernels.cu launch how many blocks when STRATA_FETCH_BLOCKS is unset?",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**384\\b"
+   },
+   "reference": {
+    "content": "ANSWER: 384"
+   },
+   "wrong": {
+    "content": "ANSWER: 96"
+   }
+  },
+  {
+   "id": "mcp-robust-z",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "What is ROBUST_Z in tools/pancake/abtest.py?",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**3\\.5\\b"
+   },
+   "reference": {
+    "content": "ANSWER: 3.5"
+   },
+   "wrong": {
+    "content": "ANSWER: 2.5"
+   }
+  },
+  {
+   "id": "mcp-service-port",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "Which TCP port does tools/pancake/pancake.service serve on?",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**11437\\b"
+   },
+   "reference": {
+    "content": "ANSWER: 11437"
+   },
+   "wrong": {
+    "content": "ANSWER: 8080"
+   }
+  },
+  {
+   "id": "mcp-protocol",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "Which MCP protocol revision string does serve/mcp.py ask for (the PROTOCOL constant)?",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**\\\"?2025-06-18"
+   },
+   "reference": {
+    "content": "ANSWER: 2025-06-18"
+   },
+   "wrong": {
+    "content": "ANSWER: \"2024-11-05\""
+   }
+  },
+  {
+   "id": "mcp-nonfinite",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "Find where kNonfiniteBlocks is defined in include/ and give its value.",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**16\\b"
+   },
+   "reference": {
+    "content": "ANSWER: 16"
+   },
+   "wrong": {
+    "content": "ANSWER: 32"
+   }
+  },
+  {
+   "id": "mcp-long-cpt",
+   "kind": "qa",
+   "mcp": true,
+   "system": "You answer questions about the source repository you can read with the tools list_dir, read_file and grep. Look the answer up with the tools; do not guess. End with one line 'ANSWER: <value>'.",
+   "prompt": "In tools/pancake/abtest.py, how many characters per token does LONG_CPT assume?",
+   "max_tokens": 1024,
+   "expect": {
+    "answer_re": "ANSWER:\\s*\\**3\\.2\\b"
+   },
+   "reference": {
+    "content": "ANSWER: 3.2"
+   },
+   "wrong": {
+    "content": "ANSWER: 4.0"
+   }
+  }
+ ]
+}

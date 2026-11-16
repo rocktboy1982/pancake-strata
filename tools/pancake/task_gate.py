@@ -661,6 +661,8 @@ def chat(url, task, spec, rep, timeout):
     if task.get("tools"):
         body["tools"] = task["tools"]
         body["tool_choice"] = "auto"
+    if task.get("mcp"):                              # the server runs its own MCP tools (spec "mcp_servers", serve/mcp.py)
+        body["strata_mcp"] = True
     req = urllib.request.Request(url + "/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
     t0 = time.time()
     try:
@@ -738,6 +740,23 @@ def regrade(runs, tasks):
             if t:
                 g = r["error"] and {"ok": False, "valid": False if t["kind"] == "tool_call" else None} or grade(t, r["message"])
                 r["ok"], r["valid"] = g["ok"], g["valid"]
+
+
+def add_mcp_servers(cfg_path, spec):
+    """The spec's optional "mcp_servers" block (serve/mcp.py's run-config form) into one arm's rendered config, with
+    <REPO> and <PYTHON> filled in; tasks with "mcp": true then ask the server to run those tools itself (the
+    STRATA_MCP_* switches act only there).  No block: the config stays as make_config wrote it."""
+    servers = spec.get("mcp_servers")
+    if not servers:
+        return
+    text = json.dumps(servers).replace("<REPO>", str(ROOT).replace("\\", "/")).replace("<PYTHON>", sys.executable.replace("\\", "/"))
+    with open(cfg_path, encoding="utf-8") as f:
+        cfg = json.load(f)
+    cfg["mcp_servers"] = json.loads(text)
+    if spec.get("mcp"):
+        cfg["mcp"] = spec["mcp"]
+    with open(cfg_path, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2)
 
 
 def conf(spec_path):
@@ -881,6 +900,7 @@ def main():
             abtest.quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             cfg_path = str(out / f"{arm}.json")
             abtest.make_config(base, spec["arms"][arm], cfg_path)
+            add_mcp_servers(cfg_path, spec)
             print(f"{label}: starting server (attempt {attempt + 1})", flush=True)
             srv, err = abtest.start_server(cfg_path, str(out / f"{label.replace('#', '-')}-a{attempt}.out"), a.port)
             if err:

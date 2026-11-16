@@ -214,9 +214,11 @@ miss.
    (`STRATA_PA_SCHED_FENCE=1`), then spec 109 (FETCH_BLOCKS, FS_AFFINITY, CONV_WORKSET_MATCH, BANDIT_CORRECT, PREFILL_STANDIN;
    screen), 112 (the three builds; screen), replay 110 (SESSION_STREAMED, WARMUP_REPLAY, TOOL_IDLE(_PREWARM),
    SERVE_ASYNC_STREAM, ASYNC_COMPACT) and task gate 111 (TOOL_SNIP, THINKING_POLICY, TURN_MARGINS, RF_TOPLEVEL_SCHEMA);
-   results `/home/dan/auto-runs/win11-*`. Still without a test: MCP_ASYNC, MCP_SPEC, MCP_EARLY_STOP (act only in the server's
-   own MCP tool loop; no task set drives it: an MCP task set is to be written), TUNE (adds /v1/tune only), ENV_DUMP and
-   SUBFIT_LOG (diagnostics), EVENT_WAIT (DFlash2 builds only).
+   results `/home/dan/auto-runs/win11-*`. Not tested by design: TUNE (adds /v1/tune only), ENV_DUMP and SUBFIT_LOG
+   (diagnostics), EVENT_WAIT (DFlash2 builds only).
+   **QUEUED: chain 12** `win-chain12.sh` (after `WINCHAIN11_DONE`): spec 113, the server-side MCP switches (MCP_ASYNC,
+   MCP_SPEC=2, both, MCP_EARLY_STOP=2) through task_gate.py on bench/tasks/mcp-repo.json (8 read-only repository look-ups served
+   by tools/pancake/mcp_bench_server.py; T-611); results `/home/dan/auto-runs/win12-113`.
    **Queue changes 2026-11-16 (Linux session):** (a) my own confirm queue (`/home/dan/auto-runs/confirm-queue.sh`, specs 81/83/86
    subsets, default confirm settings) is CANCELLED, never ran (log `/home/dan/auto-runs/confirm-queue.log`, script kept as
    `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
