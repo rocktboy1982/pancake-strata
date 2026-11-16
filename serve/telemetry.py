@@ -164,12 +164,32 @@ class _Amd:
         except (OSError, ValueError, TypeError):
             return None
 
+    # The amdgpu driver leaves product_name empty on many consumer cards (the RX 7900 XT on the Linux box, MOD_PLAN.md
+    # section 7), so the PCI device id (and revision, which splits the Navi 31 cards) names the common ones.
+    _PCI_NAMES = {(0x744C, 0xC8): "AMD Radeon RX 7900 XTX", (0x744C, 0xCC): "AMD Radeon RX 7900 XT",
+                  (0x744C, 0xCE): "AMD Radeon RX 7900 GRE", (0x744C, None): "AMD Radeon RX 7900 series",
+                  (0x7448, None): "AMD Radeon PRO W7900", (0x747E, None): "AMD Radeon RX 7800 XT / 7700 XT",
+                  (0x7480, None): "AMD Radeon RX 7600 series", (0x7550, None): "AMD Radeon RX 9070 series",
+                  (0x73BF, None): "AMD Radeon RX 6800 / 6900 series", (0x73DF, None): "AMD Radeon RX 6700 series",
+                  (0x66AF, None): "AMD Radeon VII", (0x66A1, None): "AMD Instinct MI50 / MI60"}
+
+    def _hex(self, leaf):
+        try:
+            with open(os.path.join(self.dev, leaf), encoding="utf-8") as f:
+                return int(f.read().strip(), 16)
+        except (OSError, TypeError, ValueError):
+            return None
+
     def name(self):
         try:
             with open(os.path.join(self.dev, "product_name"), encoding="utf-8") as f:
-                return f.read().strip() or "AMD Radeon"
+                n = f.read().strip()
         except (OSError, TypeError):
-            return "AMD Radeon"
+            n = ""
+        if n:
+            return n
+        dev, rev = self._hex("device"), self._hex("revision")
+        return self._PCI_NAMES.get((dev, rev)) or self._PCI_NAMES.get((dev, None)) or "AMD Radeon"
 
     @staticmethod
     def _gen(text):

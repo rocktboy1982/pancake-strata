@@ -1,0 +1,29 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "preset": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "park-async": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PARK_ASYNC": "1"
+      }
+    }
+  },
+  "replay": {
+    "session": "2026-11-09T16:13/2026-11-09T16:43",
+    "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+    "arms": [
+      "preset",
+      "park-async"
+    ],
+    "reps": 3
+  },
+  "note": "Rerun of spec 63 (TEST_LEDGER.md T-583, interrupted, every park-async attempt noisy) on build-win after STRATA_PARK_ASYNC was committed as an opt-in on HIP (2026-11-16, conversation_snapshot.cpp park_async_on / on_device via hipPointerGetAttributes; unset = synchronous parks as before). Live replay of the 11-09 16:13-16:43 agent session from the box's main turn log; run with python3 tools/pancake/replay_turns.py bench/specs/105-park-async-hip-replay.json --out <dir> on a quiet machine (MOD_PLAN.md section 7). Reads prompt time per turn; exact (the park path moves the same bytes)."
+}

@@ -159,7 +159,7 @@ miss.
 | D3 | deferral on IQ2_XS | night retest: off vs on -0.9% overall, code -7.2%, prose -3.2% (T-260); Q2_0: off +8.9% (T-261); first A/B edit +15.8% (T-222) | 5-repeat edit-window A/B on the IQ2_XS preset; until then 17.1 (OFF) stands |
 | D4 | A24 `STRATA_SUFFIX_INDEX` | screen: short +26.8% +-34.4 (outlier), edit -0.0% (T-161); offline -2.44% rounds, sub-agents -7.5% (T-424); half the gain is from outputs older than a 30-min pause, so use the persistent `STRATA_SUFFIX_INDEX_FILE` (4 MiB -1.00%, 16 MiB -1.71%) | confirm + quality gate with the file on the daily server |
 | D5 | `PF_FUSED=1` / `PF_F16=2` in every HIP preset | the only A/B (T-093, pre-HIP preset): 42K -7% but 5K +12% TTFT | either a HIP A/B (spec) or a recorded owner decision |
-| D6 | 9-16 column RDNA K-quant kernels are now the code default (`kRdnaDefaultCols=16`, `kRdnaMaxCols=32`) | parity 192/192 (tolerance); engine +3.7/+3.8% screen, +1.8% +-7.8 / +4.3% +-5.0 confirm (T-081): inside noise. The bitwise bench check fails: IQ4_XS multi-column output differs from 1-column calls at 12-32 cols (T-558), which can explain the short-case text variance of spec 51 | accept as default (it is a kernel default change, measured not worse) or gate behind `STRATA_RDNA_KQ_MAXCOLS` |
+| D6 | 9-16 column RDNA K-quant kernels are now the code default (`kRdnaDefaultCols=16`, `kRdnaMaxCols=32`) | parity 192/192 (tolerance); engine +3.7/+3.8% screen, +1.8% +-7.8 / +4.3% +-5.0 confirm (T-081): inside noise. The bitwise bench check fails: IQ4_XS multi-column output differs from 1-column calls at 12-32 cols (T-558), which can explain the short-case text variance of spec 51 | the gate exists (`STRATA_RDNA_KQ_MAXCOLS=8` = before 9..16); spec 104 (confirm, maxcols8 vs default) queued in chain 8: keep 16 unless maxcols8 is >= 2% faster |
 | D7 | Phase 18 item 9 merged the window-input copies on the DEFAULT path (`copy_from_mapped_multi`, on unless `STRATA_MTP_MULTI_COPY=0`) | pure copies, `verify_parity` covers both modes; spec 30 never ran | spec 30 rewritten 2026-11-16 as an env A/B (`STRATA_MTP_MULTI_COPY=0` = the old separate copies, one binary): queued in chain 7 (section 5 item 2) |
 | D8 | Q2_0 vs IQ2_XS as the daily file | 15 screen +8.6% +-46.3 (T-382); 15c run unusable (T-384) | 15c redo |
 | D9 | A29 entropy-coded miss path | owner chose BUILD on 2026-11-13 06:58, with deep research and a plan update before any code; offline bound 8-12% (T-282) | research + design note in this file, then code |
@@ -196,6 +196,13 @@ miss.
    EQUAL_TAIL TTFT A/B (`ttft_bench.py --scenario a`, sizes 30000/34000/60000/66500/70000/99997, `STRATA_TRACE=1`, port
    11501), then specs 30 (D7), 33, 34 at screen; restarts pancake.service, writes `WINCHAIN7_DONE`. Next after it: confirm
    specs for the chain 6 PROMOTE arms of specs 87-101, quality gate on any confirm winner.
+   **QUEUED: chain 8** `/home/dan/clone-of-d/src/win-chain8.sh` (started 2026-11-16 14:03, waits for `WINCHAIN7_DONE`, same
+   service rule; log `win-chain8.log`, results `/home/dan/auto-runs/win8-*`): applies `chain8-stage.tar` (PARK_ASYNC on HIP,
+   status-page label / name, `tools/pancake/promote_confirm.py`, specs 104-106; T-610), rebuilds build-win (strata
+   strata_tests), ctest cpu / gpu, then spec 104 (D6) at confirm, 18-f22 (F22 `HIP_WMMA_Q4` on `--kv q4_0`) at screen, replays
+   105 (park-async) and 106 (`CONV_WORKSET`, `PARK_REWIND_MAX=2048`, `--prompt-cache-spread`), then the confirm specs
+   `bench/specs/107-auto-confirm-*.json` that promote_confirm.py writes from chain 6's screen PROMOTE arms (written on the box:
+   commit them with the results). Left for the owner after chain 8: quality gate on confirm winners, adoption decisions.
    **Queue changes 2026-11-16 (Linux session):** (a) my own confirm queue (`/home/dan/auto-runs/confirm-queue.sh`, specs 81/83/86
    subsets, default confirm settings) is CANCELLED, never ran (log `/home/dan/auto-runs/confirm-queue.log`, script kept as
    `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
@@ -303,7 +310,7 @@ Code:
 - Default path changed without an A/B: Phase 18 item 9 (D7); RDNA 9-16 column kernels (D6).
 - `STRATA_PARK_ASYNC` cannot act on HIP (`park_async_on()` false, conversation_snapshot.cpp:231): parks are synchronous
   inside TTFT. TRIED 2026-11-15 (T-583): enabled as an opt-in env and replayed (spec 63): no gain seen, noisy arm, one stall;
-  inconclusive; the change is not committed. Re-test only on a quiet machine with the full 3 reps.
+  inconclusive. CODED 2026-11-16 (T-610): committed as the opt-in (`STRATA_PARK_ASYNC=1` on HIP, hipPointerGetAttributes); quiet rerun = spec 105 in chain 8.
 - RESOLVED, no engine change (T-574): the fence theory is not supported; see the ledger row. Original note: Possible fence bug: the staging readers after `wait_flag_ge_or` (verify_kernels.cu ~1619-1650) may lack the
   `__threadfence_system()` the flag-order test needed (test fix: after the spin and after the store, flag_order_test.cu
   26-29; its segfault was a ROCm runtime mismatch, fix `LD_LIBRARY_PATH=/opt/rocm/core-10.0/lib`; failures 57x1 / 101x2
@@ -343,8 +350,9 @@ Code:
 
 The box plan entry of 2026-11-15 "FK-28 A/B was already run (spec 28)" is wrong: spec 28 (`28-phase18-draft.json`) arms
 `--spec 3/5` and `MTP_EAGER`, not `STRATA_ADAPT_PROMPT`; the dead hook was then deleted (T-575), FK-28 is unbuilt (section 6 item 1).
-- Status page on the HIP box: GPU name null and backend labelled CUDA (cosmetic); the amdgpu sysfs reader (8a9c5bce7)
-  now supplies VRAM, temperature and power.
+- FIXED 2026-11-16 (T-610): status page on the HIP box: GPU name null and backend labelled CUDA (cosmetic); the amdgpu sysfs reader (8a9c5bce7)
+  now supplies VRAM, temperature and power; the name comes from the PCI id when product_name is empty (the 7900 XT's is) and the
+  label is HIP when the readings come from the sysfs reader (`backend_label`, display only).
 
 Plan claims corrected (all now reflected above): Q2_0 is not the daily file (IQ2_XS is); FK-22 is F9 `ROUTE_FAST`,
 coded and dropped at confirm (T-068); FK-24 is F14, coded; `EXPDEC_DOWN` was measured and adopted; the 7 upstream picks

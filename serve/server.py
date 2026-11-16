@@ -6498,6 +6498,16 @@ class Service:
                 "ram": {"used_gib": scaled(hw.get("ram_used"), 2 ** 30, 1),
                         "total_gib": scaled(hw.get("ram_total"), 2 ** 30, 1)} if hw.get("ram_total") else None}}
 
+    def backend_label(self) -> str:
+        """The status page's backend: the config's "backend", else HIP when the GPU readings come from the amdgpu sysfs
+        reader (the repo's *-hip presets carry no "backend" key, so the page said CUDA on the AMD box, MOD_PLAN.md
+        section 7), else CUDA.  Display only: nothing else reads it."""
+        b = getattr(self, "backend", None)
+        if not b:
+            g = getattr(getattr(self, "telemetry", None), "gpu", None)
+            b = "hip" if type(g).__name__ == "_Amd" and g.ok() else "cuda"
+        return str(b).upper()
+
     def pancake_status(self) -> dict:
         """GET /status.json: the whole engine status page's data in one object - what is running, the hardware, the
         model, the active switches, the live request, the totals, the loop guard and the last turns.  Numbers only:
@@ -6510,7 +6520,7 @@ class Service:
         proc = getattr(eng, "proc", None)
         info = dict(getattr(eng, "info", {}) or {})
         engine = {"binary": os.path.basename(str(spawn[0])) if spawn else None,
-                  "version": info.get("version"), "backend": (getattr(self, "backend", None) or "cuda").upper(),
+                  "version": info.get("version"), "backend": self.backend_label(),
                   "pid": proc.pid if proc is not None else None,
                   "uptime_s": int(time.time() - self.started_at), "max_context": getattr(eng, "max_context", None),
                   "config_path": self.config_path, "args": spawn_args, "info": info}

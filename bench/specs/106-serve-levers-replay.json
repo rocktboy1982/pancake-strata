@@ -1,0 +1,43 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "preset": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "conv-workset": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CONV_WORKSET": "1"
+      }
+    },
+    "park-rewind-2048": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PARK_REWIND_MAX": "2048"
+      }
+    },
+    "prompt-cache-spread": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--prompt-cache-spread": ""
+      }
+    }
+  },
+  "replay": {
+    "session": "2026-11-09T16:13/2026-11-09T16:43",
+    "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+    "arms": [
+      "preset",
+      "conv-workset",
+      "park-rewind-2048",
+      "prompt-cache-spread"
+    ],
+    "reps": 3
+  },
+  "note": "MOD_PLAN.md section 5 item 6, the serve-side levers coded with no spec: items 3 seed STRATA_CONV_WORKSET=1 (routing counts of the last 8 conversations seed the tier; offline 81.17 -> 82.86% hits, TEST_LEDGER.md T-398), FK-27 STRATA_PARK_REWIND_MAX=2048 (skip a park when the rewind is at most 2048 tokens; LEADS.md FK-27), FK-02 --prompt-cache-spread (checkpoints spread back from the end). Live replay of the 11-09 16:13-16:43 agent session; run with python3 tools/pancake/replay_turns.py bench/specs/106-serve-levers-replay.json --out <dir>. Reads prompt time per turn. STRATA_DOMAIN_PROFILES (item 4) is left out: it needs per-domain profile files that were never written. Exact for the tokens (placement / parking only)."
+}

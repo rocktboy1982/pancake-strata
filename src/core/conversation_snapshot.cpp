@@ -229,17 +229,23 @@ struct ParkAsync {
 ParkAsync& park_async() { static ParkAsync a; return a; }
 constexpr size_t kParkPiece = (size_t) 4 << 20;
 bool park_async_on() {
-#if defined(STRATA_USE_HIP) || defined(STRATA_HIP_GFX906) || defined(STRATA_GPU_METAL)
+#if defined(STRATA_HIP_GFX906) || defined(STRATA_GPU_METAL)
     return false;
 #else
+    // HIP (gfx11/12) since 2026-11-16: the same opt-in as CUDA (MOD_PLAN.md section 7; TEST_LEDGER.md T-583 tried it
+    // uncommitted and was interrupted); unset = synchronous parks, as before
     static const bool on = [] { const char* v = std::getenv("STRATA_PARK_ASYNC"); return v != nullptr && v[0] == '1'; }();
     return on;
 #endif
 }
 bool on_device(const void* p) {
-#if defined(STRATA_USE_HIP) || defined(STRATA_HIP_GFX906) || defined(STRATA_GPU_METAL)
+#if defined(STRATA_HIP_GFX906) || defined(STRATA_GPU_METAL)
     (void) p;   // (no pointer-attribute query in the shims: the slot takes no part, as when the query fails)
     return false;
+#elif defined(STRATA_USE_HIP)
+    hipPointerAttribute_t at{};
+    if (hipPointerGetAttributes(&at, p) != hipSuccess) { (void) hipGetLastError(); return false; }
+    return at.type == hipMemoryTypeDevice;
 #else
     cudaPointerAttributes at{};
     if (cudaPointerGetAttributes(&at, p) != cudaSuccess) { cudaGetLastError(); return false; }

@@ -5215,6 +5215,31 @@ class AmdTelemetry(unittest.TestCase):
                 (hw / "power1_input").write_text("120000000\n")
             (hw / "power1_cap").write_text("300000000\n")
 
+    def test_name_from_pci_id_when_product_name_is_empty(self):
+        """MOD_PLAN.md section 7: the RX 7900 XT's amdgpu product_name is empty; the PCI id + revision name it, an
+        unknown id stays "AMD Radeon", a non-empty product_name wins; the status label is HIP for the sysfs reader."""
+        from serve import telemetry
+        with tempfile.TemporaryDirectory() as d:
+            a = telemetry.gpu_reader(0, amd=True)
+            a.dev = d
+            (Path(d) / "product_name").write_text("\n")
+            (Path(d) / "device").write_text("0x744c\n")
+            (Path(d) / "revision").write_text("0xcc\n")
+            self.assertEqual(a.name(), "AMD Radeon RX 7900 XT")
+            (Path(d) / "revision").write_text("0x01\n")
+            self.assertEqual(a.name(), "AMD Radeon RX 7900 series")
+            (Path(d) / "device").write_text("0x1234\n")
+            self.assertEqual(a.name(), "AMD Radeon")
+            (Path(d) / "product_name").write_text("AMD Radeon AI PRO R9700\n")
+            self.assertEqual(a.name(), "AMD Radeon AI PRO R9700")
+            from serve.server import Service
+            fake = SimpleNamespace(backend=None, telemetry=SimpleNamespace(gpu=a))
+            self.assertEqual(Service.backend_label(fake), "HIP")
+            fake.telemetry.gpu = SimpleNamespace(ok=lambda: True)
+            self.assertEqual(Service.backend_label(fake), "CUDA")
+            fake.backend = "sycl"
+            self.assertEqual(Service.backend_label(fake), "SYCL")
+
     def test_pcie_link_is_the_narrowest_slowest_hop(self):
         """#1733: the link is the slowest/narrowest hop between the root port and the card; the bottleneck is only
         claimed when every hop could be read (pcie_path says how many were)."""
