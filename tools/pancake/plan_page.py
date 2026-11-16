@@ -93,6 +93,21 @@ def bullets(lines, stop=None):
     return items
 
 
+def defect_status(b):
+    """MOD_PLAN section 7 bullet -> status: its own marker (FIXED / RESOLVED / CLOSED / CODED, a code read or a
+    measurement at the start) is done; an explicit OPEN, an inconclusive try or a cosmetic gap still needs a fix."""
+    head = b[:80]
+    if re.search(r'\b(FIXED|RESOLVED|CLOSED|CODED)\b', head) or 'code read' in head or re.search(r'measured 20\d\d', head):
+        return 'done'
+    if re.search(r'\bOPEN\b', b) or 'TRIED' in b or 'cosmetic' in b:
+        return 'fix'
+    if 'CLOSED' in b:
+        return 'done'
+    if 'not applicable' in b:
+        return 'parked'
+    return 'fix'
+
+
 def short(s, n=120):
     return s[:n] + ('...' if len(s) > n else '')
 
@@ -119,11 +134,13 @@ def plan_items(plan):
         if r and re.match(r'^\d+$', r[0]):
             body = r[1] + '<br><b>Expected:</b> ' + (r[2] if len(r) > 2 else '') + (' (' + r[3] + ')' if len(r) > 3 else '')
             # a row's own marker wins: "PARTLY CODED" in progress, "CODED" / "PORTED" / "DONE" queued for measurement
-            st = ('progress' if r[1].startswith(('PARTLY CODED', 'IN PROGRESS')) else
+            # "DROPPED" (measured and dropped, upper case) wins over the coded markers
+            st = ('dropped' if 'DROPPED' in r[1] else
+                  'progress' if r[1].startswith(('PARTLY CODED', 'IN PROGRESS')) else
                   'queued' if re.match(r'^(CODED|PORTED|DONE)[ :]', r[1]) or 'PORTED 2026' in r[1][:200] else 'notstarted')
             add('Code to write', st, '#%s %s' % (r[0], short(r[1], 110)), body, 'MOD_PLAN 6')
     for b in bullets(S.get(7, []), stop=lambda l: l.startswith('Plan claims corrected')):
-        add('Defects', 'fix', short(b), b, 'MOD_PLAN 7')
+        add('Defects', defect_status(b), short(b), b, 'MOD_PLAN 7')
     for b in bullets(S.get(8, [])):
         add('Parked', 'parked', short(b), b, 'MOD_PLAN 8')
     for b in bullets(S.get(9, [])):
