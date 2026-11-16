@@ -196,6 +196,18 @@ miss.
    EQUAL_TAIL TTFT A/B (`ttft_bench.py --scenario a`, sizes 30000/34000/60000/66500/70000/99997, `STRATA_TRACE=1`, port
    11501), then specs 30 (D7), 33, 34 at screen; restarts pancake.service, writes `WINCHAIN7_DONE`. Next after it: confirm
    specs for the chain 6 PROMOTE arms of specs 87-101, quality gate on any confirm winner.
+   **Queue changes 2026-11-16 (Linux session):** (a) my own confirm queue (`/home/dan/auto-runs/confirm-queue.sh`, specs 81/83/86
+   subsets, default confirm settings) is CANCELLED, never ran (log `/home/dan/auto-runs/confirm-queue.log`, script kept as
+   `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
+   --warmup 1 --outlier robust --reps 9`) and both queues wait for `WINCHAIN6_DONE` and stop pancake.service, so two queues
+   would have overlapped. Spec 84 is not confirmed on purpose: its reference arm is the FP16 path (`fp16-ref`), so its `preset`
+   +50% is int8 against FP16, not a gain. (b) After `WINCHAIN7_DONE`, in this order, one job at a time: rebuild `build-hip` on the
+   pulled tree (the strata-poly compat fix 5b867bf3a) and restart pancake.service; diagnose the spec 85 crash
+   (`STRATA_MMVQ_IL_PLAIN=1`: `verify: layer 0 never rang (an illegal memory access was encountered)`, T-602) with
+   `mmvq_il_parity` under `HIP_LAUNCH_BLOCKING=1` / `compute-sanitizer`, code in verify.cpp:2577-2643 and native_mmvq.cu:2527
+   (`launch_il_plain`); `quality_gate.py` (set-v2, the default since T-597) for every spec 102/103 arm that reaches the 2% bar;
+   then the confirm specs for the PROMOTE arms of specs 87-101. Nothing of this runs before chain 7 is done (no GPU job beside
+   a chain).
 3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
