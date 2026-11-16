@@ -325,8 +325,7 @@ Code:
   figure lags, so one entry per request); exact (a cache miss re-reads the prompt, same tokens); disk_env entry Inert like PSI_PARK_PCT;
   unit test with a fake PSI file (`loader_pressure_begin_with` Paths); credit Speedy and Basalt #113 in README 9 and the findings table.
 - Tools: FIXED (T-577): `night_queue.py` zero-measurement real passes are now failed; `abtest.py` text_check accepts any base
-  pass. OPEN: `bench/quality/set-v2.json` has 28 of 48 items with `cont: null` (a `--fill` run with the stock arm, GPU hours) and
-  `quality_gate.py:161` stays on `set.json` until then (by design, see its comment); all `taskgate-*` specs use `bench/tasks/default.json`: left as is on purpose
+  pass. FIXED (T-597): `bench/quality/set-v2.json` is complete (the T-310 `--fill` output, 0 of 48 without continuation) and is now the `quality_gate.py` default; all `taskgate-*` specs use `bench/tasks/default.json`: left as is on purpose
   (checked 2026-11-15): default.json is the only set with the 7 tool-call tasks the pending ECAP tool-call gate needs;
   `repo-history.json` is 150 code-edit tasks only. Point a spec at repo-history only when it is about code-edit quality.
 - Item 38 O_DIRECT loader: CLOSED 2026-11-15 by code read: built (184e68e83, expert_source.cpp:852 and 2522, `STRATA_UNBUFFERED_LOAD`);
