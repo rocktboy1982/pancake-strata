@@ -15,6 +15,7 @@
 //      nothing and `n > workers` is the real case (10 experts, 5 workers).
 #include "strata/kernels/cpu/pool.hpp"
 #include "strata/kernels/cpu/expert.hpp"
+#include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29: the --entropy path
 
 #include <algorithm>
 #include <chrono>
@@ -53,14 +54,16 @@ double now_ms() {
 
 int main(int argc, char** argv) {
     bool selftest = false;
+    bool entropy = false;   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER: the pool on blobs decoded from the tier's coded form
     const char* path = "pack/full/experts.bin";
     long long layer = 0;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--selftest") selftest = true;
+        else if (a == "--entropy") entropy = true;
         else if (a == "--file" && i + 1 < argc) path = argv[++i];
         else if (a == "--layer" && i + 1 < argc) layer = std::atoll(argv[++i]);
-        else { std::fprintf(stderr, "usage: pool_test [--selftest] [--file P] [--layer N]\n"); return 2; }
+        else { std::fprintf(stderr, "usage: pool_test [--selftest] [--entropy] [--file P] [--layer N]\n"); return 2; }
     }
 
     const cpu::CpuFeatures feat = cpu::cpu_features();
@@ -144,6 +147,39 @@ int main(int argc, char** argv) {
                 diff ? "*** NO ***" : "yes", diff, NEXP * cpu::H, (double) worst);
     if (diff) ++bad;
 
+    // ---- LEADS.md A29 (--entropy): the real blobs through the compressed tier's coder - segmented, decoded by the decode
+    //      pool into staging buffers (as ArenaExpertSource's ring does) - must come back bit for bit, and the pool run on
+    //      the decoded copies must give the serial reference's bits exactly.
+    if (entropy) {
+        strata::core::entropy::SegDecodePool dec(3);
+        std::vector<std::vector<uint8_t>> staged((size_t) NEXP);
+        uint64_t raw_b = 0, coded_b = 0;
+        int bytes_bad = 0;
+        for (int e = 0; e < NEXP; ++e) {
+            const std::vector<uint8_t>& b = blobs[(size_t) e];
+            const std::vector<uint8_t> c = strata::core::entropy::encode_segmented(b.data(), b.size());
+            staged[(size_t) e].assign(b.size(), 0xEE);
+            if (!dec.decode(c.data(), c.size(), staged[(size_t) e].data(), b.size()) || staged[(size_t) e] != b) ++bytes_bad;
+            raw_b += b.size();
+            coded_b += c.size();
+        }
+        std::printf("  %-44s %s (%.4f of the raw bytes)\n", "tier round trip of the real blobs",
+                    bytes_bad ? "*** NO ***" : "yes", raw_b ? (double) coded_b / (double) raw_b : 0.0);
+        if (bytes_bad) ++bad;
+        for (int e = 0; e < NEXP; ++e) {
+            jobs[(size_t) e].blob = staged[(size_t) e].data();
+            std::fill(jobs[(size_t) e].out, jobs[(size_t) e].out + cpu::H, SENTINEL);
+        }
+        pool.run(jobs.data(), NEXP);
+        long long ediff = 0;
+        for (int e = 0; e < NEXP; ++e)
+            for (int i = 0; i < cpu::H; ++i)
+                if (std::memcmp(&ref[(size_t) e * cpu::H + i], &got[(size_t) e * cpu::H + i], 4) != 0) ++ediff;
+        std::printf("  %-44s %s (%lld of %d differ)\n", "pool on decoded blobs = serial on raw",
+                    ediff ? "*** NO ***" : "yes", ediff, NEXP * cpu::H);
+        if (ediff) ++bad;
+        for (int e = 0; e < NEXP; ++e) jobs[(size_t) e].blob = blobs[(size_t) e].data();
+    }
     // ---- 3: repeated batches.  A park protocol that works once and corrupts on the second call is the
     //        exact failure this loop is here to catch.
     {

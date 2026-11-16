@@ -1552,8 +1552,36 @@ public:
     double load_read_seconds() const { return load_read_s_; }
     double load_copy_seconds() const { return load_copy_s_; }
 
+    /// LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER=1 (opt-in; after open): the compressed tier.  Cold blobs - not
+    /// registered with the GPU (pinned() false), lowest pin priority first, up to STRATA_EXPERT_ENTROPY_TIER_GIB of raw
+    /// bytes (unset or 0: all of them), each only when the lossless coder saves at least
+    /// STRATA_EXPERT_ENTROPY_TIER_MIN (a fraction, default 0.03) - are kept entropy-coded in RAM and their arena pages
+    /// handed back to the OS (munlock + MADV_DONTNEED; Linux, a private RAM arena only).  blob() then decodes a coded
+    /// blob on demand into a page-locked staging ring (STRATA_EXPERT_ENTROPY_TIER_SLOTS slots, default 32; decoded by
+    /// STRATA_EXPERT_ENTROPY_TIER_THREADS helper threads plus the caller, default 3), copy_blob() decodes straight into
+    /// the caller's buffer, and a caller that keeps the pointer (blob_stable / blob_at: the adaptive tier's copies)
+    /// gets the blob decoded back into its arena pages for good.  Every byte the engine reads is the original byte.
+    /// Returns false (nothing changed) when the tier cannot run here; `note` says what it did or why not.
+    bool entropy_tier_build(std::string& note);
+    bool transient(int64_t layer, int64_t expert) const override;
+    double cached_share(int64_t samples) const override;
+    bool copy_blob(int64_t layer, int64_t expert, uint8_t* dst) override;
+    const uint8_t* blob_stable(int64_t layer, int64_t expert) override;
+    void begin_layer(int64_t layer, const int32_t* ids, int64_t k) override;
+    void note_async_read(const uint8_t* blob, void* stream) override;
+    /// the tier's counters for the exit line ("" when the tier is off)
+    std::string entropy_tier_summary() const;
+
 private:
-    void* arena_ = nullptr;          ///< the PinnedArena, owned
+    struct EntropyTier;              ///< STRATA_EXPERT_ENTROPY_TIER state (expert_source.cpp); null = the tier is off
+    EntropyTier* et_ = nullptr;      ///< owned (a raw pointer, as arena_: the type is complete only in the .cpp); close() frees it
+    /// the coded blob's raw bytes back in its arena pages (state -> raw); false on a decode failure
+    bool entropy_restore(int64_t idx) const;
+    /// blob() of a coded blob: decoded into a staging slot of the ring (or restored when every slot may still be read)
+    const uint8_t* entropy_ring(int64_t idx);
+    /// whether blob `idx` is coded right now (its arena pages handed back)
+    bool entropy_coded(int64_t idx) const;
+    void* arena_ = nullptr;         ///< the PinnedArena, owned
     void* map_ = nullptr;            ///< STRATA_ARENA_MMAP: the arena file, mapped read-only (not the PinnedArena)
     uint64_t map_bytes_ = 0;
     std::vector<const uint8_t*> dev_slice_;   ///< device alias of each registered slice (or of the whole range)

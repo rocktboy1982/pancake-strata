@@ -13,6 +13,17 @@
 
 #include <cstdint>
 
+// pancake-strata (MOD_PLAN.md section 6 item 17 part 18, -DSTRATA_HIP_HEAD_FMT=ON): HIP has no __ldcs / __ldcg (CUDA's
+// streaming / L2-only cache hints).  Every load here reads either constant data (the 2-bit copy) or data an EARLIER kernel
+// wrote (cand / part, from score_kernel), so a plain load sees the same bits: the hints only steer the cache.
+#if defined(__HIPCC__)
+#define STRATA_PX_LDCS(p) (*(p))
+#define STRATA_PX_LDCG(p) (*(p))
+#else
+#define STRATA_PX_LDCS(p) __ldcs(p)
+#define STRATA_PX_LDCG(p) __ldcg(p)
+#endif
+
 namespace strata::kernels::px {
 namespace {
 
@@ -103,8 +114,8 @@ __global__ void __launch_bounds__(128) score_kernel(const uint4* __restrict__ wq
     uint32_t s[10];
 #pragma unroll
     for (int j = 0; j < 10; ++j) {   // constant data: read before the wait
-        w[j] = __ldcs(wq + base + (size_t) j * 32);
-        s[j] = __ldcs(sc + base + (size_t) j * 32);
+        w[j] = STRATA_PX_LDCS(wq + base + (size_t) j * 32);
+        s[j] = STRATA_PX_LDCS(sc + base + (size_t) j * 32);
     }
     const int row = tile * 32 + lane;
     const int32_t id = (warp == 0 && row < n_rows) ? __ldg(map + row) : 0;
@@ -198,7 +209,7 @@ __device__ __forceinline__ unsigned long long kth_key(Final& f, int nc, const fl
         __syncthreads();
         const unsigned long long want = f.want;
         for (int i = tid; i < nc; i += 512) {
-            const float2 c = __ldcg(&cand[i]);
+            const float2 c = STRATA_PX_LDCG(&cand[i]);
             if (!(c.x > ninf && c.x >= m - kDelta)) continue;
             const unsigned long long k = cand_key(c);
             if ((k & mask) == want) atomicAdd(&f.hist[(int) ((k >> shift) & 255u)], 1);
@@ -238,7 +249,7 @@ __device__ __forceinline__ int collect(Final& f, int n_tiles, const int32_t* __r
     const int tid = threadIdx.x, lane = tid & 31, warp = tid >> 5;
     const int nc = n_tiles * kPer;
     float m = __int_as_float(0xff800000);
-    for (int i = tid; i < nc; i += 512) m = fmaxf(m, __ldcg(&cand[i].x));
+    for (int i = tid; i < nc; i += 512) m = fmaxf(m, STRATA_PX_LDCG(&cand[i].x));
 #pragma unroll
     for (int o = 16; o; o >>= 1) m = fmaxf(m, __shfl_xor_sync(0xffffffffu, m, o));
     if (lane == 0) f.wmax[warp] = m;
@@ -251,7 +262,7 @@ __device__ __forceinline__ int collect(Final& f, int n_tiles, const int32_t* __r
         return 0;
     }
     for (int i = tid; i < nc; i += 512) {
-        const float2 c = __ldcg(&cand[i]);
+        const float2 c = STRATA_PX_LDCG(&cand[i]);
         if (c.x > ninf && c.x >= m - kDelta) {
             const int p = atomicAdd(&f.cnt, 1);
             if (p < kMaxCand) { f.list[p] = __float_as_int(c.y); f.lp[p] = c.x; }
@@ -264,7 +275,7 @@ __device__ __forceinline__ int collect(Final& f, int n_tiles, const int32_t* __r
         if (tid == 0) f.cnt = 0;
         __syncthreads();
         for (int i = tid; i < nc; i += 512) {
-            const float2 c = __ldcg(&cand[i]);
+            const float2 c = STRATA_PX_LDCG(&cand[i]);
             if (c.x > ninf && c.x >= m - kDelta && cand_key(c) >= kth) {
                 const int p = atomicAdd(&f.cnt, 1);
                 if (p < kMaxCand) { f.list[p] = __float_as_int(c.y); f.lp[p] = c.x; }
@@ -305,7 +316,7 @@ __device__ __forceinline__ void pick(const Final& f, int n, int n_tiles, const i
     }
     float sum = 0.0f;
     for (int t = lane; t < n_tiles; t += 32) {
-        const float2 p = __ldcg(&part[t]);
+        const float2 p = STRATA_PX_LDCG(&part[t]);
         if (p.y > 0.0f) sum += p.y * __expf(p.x - bv);
     }
     for (int c = lane; c < n; c += 32) sum += __expf(f.ex[c] - bv) - __expf(f.lp[c] - bv);
