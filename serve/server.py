@@ -96,6 +96,7 @@ from serve import context_dedup  # noqa: E402  (ported from ContextPilot, Apache
 from serve import lifeline  # noqa: E402
 from serve.conv_router import config as conv_router_cfg  # noqa: E402
 from serve import prompt_kind  # noqa: E402
+from serve import knob_trial  # noqa: E402  (STRATA_KNOB_TRIAL=1: MOD_PLAN item 36, per-request knob trial; default off)
 from serve import tool_idle  # noqa: E402
 from serve import async_compact  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
@@ -5148,6 +5149,9 @@ def slot_save_dir(value, base: str | None = None) -> str:
         raise ValueError(f"slot_save_path {path} is not a directory")
     return path
 
+KNOB_TRIAL = knob_trial.from_env(os.environ)   # None unless STRATA_KNOB_TRIAL=1: then nothing below changes
+
+
 class Service:
     def __init__(self, engine: Engine, tokenizer, template: ChatTemplate, model_name: str = "qwen3.8-flash-next",
                  vision: Vision | None = None, sampling_defaults: dict | None = None,
@@ -7493,6 +7497,9 @@ class Service:
         img_keys, self.embeddings.keys = getattr(self.embeddings, "keys", None), None
         if emb and img_keys:
             sampling = {**(sampling or {}), "strata_img_keys": img_keys}   # #2228: sent beside the embeddings file
+        trial_arm = None
+        if KNOB_TRIAL is not None:                      # STRATA_KNOB_TRIAL=1 (opt-in): this request is a trial window
+            sampling, trial_arm = KNOB_TRIAL.assign(sampling)
         # Only a DONE line replaces engine.last, so a request that died, errored or was disconnected must not have
         # the PREVIOUS request's decode figures recorded as its own: each pass keeps its own DONE (a segment) if
         # one arrived.  A reasoning-budget continuation is another native generation, not another API request,
@@ -8234,6 +8241,8 @@ class Service:
                             el = now - st.get("started", now)
                             ft = st.get("first_token")
                             rate = answer_speed(last, n, now - ft if ft else None)
+                            if trial_arm is not None and finish in ("stop", "length", "tool_calls") and not cancel.is_set():
+                                KNOB_TRIAL.feed(trial_arm, n, rate, hit_rate)
                             hit_msg = f", expert cache {hit_rate*100:.1f}% hit" if hit_rate is not None else ""
                             if hit_msg and pcie_share:
                                 hit_msg += f" (+{pcie_share*100:.1f}% of the routed experts over PCIe)"

@@ -1,0 +1,24 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 8,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "knob-trial": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_KNOB_TRIAL": "1",
+    "STRATA_KNOB_TRIAL_MIN_TOKENS": "8",
+    "STRATA_KNOB_TRIAL_CANDIDATES": "[{\"spec_min_p\": 0.3}]"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 6 item 36 / LEADS.md I10, STRATA_KNOB_TRIAL=1 wired into serve/server.py (serve/knob_trial.py, serve/test_knob_trial.py; default off, exact knobs only: spec_min_p changes which drafts are proposed, not the verified tokens). The trial runs between requests (the engine has no per-window live-knob path): one answer is one window, I0 C1 I1 C2 I2 C3 I3, each ratio = candidate rate / mean of the incumbents on both sides, adopted for later requests without their own strata_tune only if the median wins by 10%. reps 8 per case so a verdict (8 windows: 2 settle + 6) is reached inside the first case. Read the SERVER log (the abtest arm log) for 'strata knob trial: spec_min_p default -> spec_min_p=0.3: WIN|LOSE ratio ...' and compare the arm's tok/s with base after the adoption (the later reps). The candidate value 0.3 is a placeholder, not a measured one; per-request content differences move the rate too (the bracket cancels drift only), so a WIN here is a screen, not proof: confirm with an abtest arm that sets spec_min_p fixed. NOT MEASURED (queued)."
+}
