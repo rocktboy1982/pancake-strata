@@ -504,12 +504,28 @@ void native_route_resident(const float* logits, int32_t* ids, float* weights, co
 //    w * max(gap, 0) over this launch's moves (added to the row's earlier layers unless zero_shift).
 //  - STRATA_STANDIN_APPLY: after the softmax over the selected logits, a stand-in's weight is multiplied by scale[replaced expert].
 //  - STRATA_STANDIN_LEARN: orig_out[t][r] = the replaced expert, -1 for a kept pick (host-mapped; the CPU pool's host reads it).
+//  - LEADS.md HotRod substitute fit (STRATA_SUBFIT_APPLY, sub.lut non-null; 9514498fe9 / b7bd02f5bf): a move whose pair (replaced
+//    expert, stand-in) has a fitted slot (the pair's LUT entry, else the ladder's expert / layer slot) is decided by
+//    subfit_rule::decide with the move's own bound as the cap (this tree has no per-row shift cap): dynamic takes a fitted move the
+//    bound refuses, corrected; all corrects every fitted move; flip takes fitted moves, corrected, in a held row only (the re-check's
+//    exact re-decision; held rows otherwise keep the router's picks).  A corrected move adds w * max(gap, 0) * resid to the row's shift,
+//    keeps the router's renormalised weight (no STRATA_STANDIN_APPLY scale), and is flagged for subfit_apply.  sub.orig / sub.flag get
+//    every rank (-1 / 0 for a kept pick); sub.list the row's substitutions (shadow samples); sub.rec the row's first layer with a move.
+//    sub.lut null (the default): the decision is the bound test above, unchanged.
 // One warp per token; lane 0 writes every output.
+__device__ __forceinline__ int subfit_slot(const SubfitRoute& sub, int e, int s) {
+    const int E = sub.n_experts;
+    if (sub.lut == nullptr || e < 0 || e >= E || s < 0 || s >= E) return -1;
+    int slot = (int) sub.lut[(size_t) e * E + s];                       // the ladder: the pair,
+    if (slot < 0 && sub.elut != nullptr) slot = (int) sub.elut[e];      // else the (layer, expert) group,
+    if (slot < 0 && sub.llut != nullptr) slot = (int) sub.llut[0];      // else the layer's group
+    return slot;
+}
 __global__ void route_resident_ex_k(const float* __restrict__ logits, int32_t* __restrict__ ids, float* __restrict__ weights,
                                     const int32_t* __restrict__ res, int n_tok, float margin, int lo, int hi,
                                     unsigned long long* __restrict__ stats, const RouteStandinDyn* dyn, int row_base,
                                     float* __restrict__ row_shift, int zero_shift, const float* __restrict__ scale,
-                                    int32_t* __restrict__ orig_out) {
+                                    int32_t* __restrict__ orig_out, const SubfitRoute sub) {
     const int t = blockIdx.x;
     if (t >= n_tok) return;
     const int lane = (int) threadIdx.x;
@@ -518,17 +534,23 @@ __global__ void route_resident_ex_k(const float* __restrict__ logits, int32_t* _
     const volatile RouteStandinDyn* vd = (const volatile RouteStandinDyn*) dyn;
     const float budget = vd->budget, budget_tail = vd->budget_tail;
     const bool held = row_base + t < vd->hold;   // uniform across the warp
+    // LEADS.md HotRod substitute fit (uniform across the warp): on with a table; a held row runs the loop only in mode flip
+    const bool sub_on = sub.lut != nullptr && sub.mode != 0;
+    const bool flip_held = held && sub_on && sub.mode == strata::core::subfit_rule::kModeFlip;
     int32_t my[10], orig[10];
+    uint8_t corr[10];
     for (int r = 0; r < 10; ++r) {
         my[r] = id[r];
         orig[r] = -1;
+        corr[r] = 0;
     }
     int swaps = 0, tail = 0, before = 0;
+    int n_corr = 0, n_refused = 0;   // substitute fit: corrected moves, moves past the bound with no fit (lane 0's counts)
     float shift = 0.0f;
     if (lane == 0)
         for (int r = 0; r < 10; ++r) before += res[my[r]] < 0;
     const bool bud = budget > 0.0f;
-    for (int r = bud ? 0 : lo; r <= hi && r < 10 && !held; ++r) {
+    for (int r = bud ? 0 : lo; r <= hi && r < 10 && (!held || flip_held); ++r) {
         const int e = my[r];
         if (res[e] >= 0) continue;                      // already resident: uniform across the warp
         const bool brank = bud && r < lo;               // uniform
@@ -553,12 +575,55 @@ __global__ void route_resident_ex_k(const float* __restrict__ logits, int32_t* _
         bi = __shfl_sync(0xffffffffu, bi, 0);
         const float gap = l[e] - bv;
         const float wg = weights[(size_t) t * 10 + r] * fmaxf(gap, 0.0f);   // the weights are still the router's here
-        const bool take = bi >= 0 && (brank ? wg <= budget : trank ? wg <= budget_tail : gap <= margin);
+        bool take = bi >= 0 && (brank ? wg <= budget : trank ? wg <= budget_tail : gap <= margin);
+        bool cor = false;
+        float add = wg;
+        if (sub_on && bi >= 0) {   // LEADS.md HotRod substitute fit (uniform: the same table entry in every lane)
+            const int fslot = subfit_slot(sub, e, bi);
+            const float resid = (fslot >= 0 && sub.resid != nullptr) ? sub.resid[fslot] : 1.0f;
+            if (held) {   // mode flip, the held row: only a fitted move, and corrected
+                take = fslot >= 0;
+                cor = take;
+            } else {
+                const float bound = brank ? budget : trank ? budget_tail : margin;
+                const float meas = (brank || trank) ? wg : gap;
+                const strata::core::subfit_rule::Move mv =
+                    strata::core::subfit_rule::decide(0.0f, bound, true, meas, fslot >= 0, resid, sub.mode, false);
+                if (meas == meas) {   // (a NaN measure keeps the bound test's answer: refused)
+                    if (!mv.take) ++n_refused;
+                    take = mv.take;
+                    cor = mv.take && mv.corrected;
+                }
+            }
+            if (cor) add = wg * resid;
+        }
         if (take) {
             orig[r] = e;
             my[r] = bi;
+            corr[r] = cor ? 1 : 0;
             ++swaps;
-            shift += wg;
+            n_corr += cor ? 1 : 0;
+            shift += add;
+            // shadow samples: the row's substitutions (reservoir past the cap; one writer per row: lane 0 of its block, launches in order)
+            if (lane == 0 && sub.list != nullptr && sub.list_n != nullptr && sub.list_cap > 0) {
+                const unsigned q = sub.list_n[t];
+                sub.list_n[t] = q + 1u;
+                unsigned j = q;
+                if (q >= (unsigned) sub.list_cap) {
+                    unsigned h = q * 2654435761u ^ (unsigned) sub.layer * 40503u ^ (unsigned) r * 97u ^ sub.salt;
+                    h ^= h >> 15;
+                    h *= 2246822519u;
+                    h ^= h >> 13;
+                    j = h % (q + 1u);
+                }
+                if (j < (unsigned) sub.list_cap) {
+                    int32_t* o = sub.list + ((size_t) t * (size_t) sub.list_cap + j) * 4;
+                    o[0] = sub.layer;
+                    o[1] = r;
+                    o[2] = e;
+                    o[3] = bi;
+                }
+            }
         }
     }
     if (lane == 0) {
@@ -571,7 +636,7 @@ __global__ void route_resident_ex_k(const float* __restrict__ logits, int32_t* _
             for (int r = 0; r < 10; ++r) { ex[r] = expf(l[my[r]] - m); sum += ex[r]; }
             for (int r = 0; r < 10; ++r) {
                 float w = ex[r] / sum;
-                if (scale != nullptr && orig[r] >= 0) w *= scale[orig[r]];
+                if (scale != nullptr && orig[r] >= 0 && corr[r] == 0) w *= scale[orig[r]];   // (a corrected move: its fit's own scalar)
                 weights[(size_t) t * 10 + r] = w;
             }
         }
@@ -579,6 +644,18 @@ __global__ void route_resident_ex_k(const float* __restrict__ logits, int32_t* _
         if (row_shift != nullptr) row_shift[t] = (zero_shift ? 0.0f : row_shift[t]) + shift;
         if (orig_out != nullptr)
             for (int r = 0; r < 10; ++r) orig_out[(size_t) t * 10 + r] = orig[r];
+        if (sub.orig != nullptr && sub.flag != nullptr)   // substitute fit: every rank (the apply consumes and resets them)
+            for (int r = 0; r < 10; ++r) {
+                sub.orig[(size_t) t * 10 + r] = (int16_t) orig[r];
+                sub.flag[(size_t) t * 10 + r] = corr[r];
+            }
+        if (sub.rec != nullptr && swaps > 0 && sub.rec[t] < 0) sub.rec[t] = sub.layer;   // the probe's clean test
+        if (sub.stats != nullptr && (swaps > 0 || n_refused > 0)) {
+            atomicAdd(sub.stats + 0, (unsigned long long) n_corr);
+            atomicAdd(sub.stats + 1, (unsigned long long) swaps);
+            atomicAdd(sub.stats + 2, (unsigned long long) n_refused);
+            if (held) atomicAdd(sub.stats + 3, (unsigned long long) n_corr);
+        }
         if (stats) {
             atomicAdd(stats + 0, (unsigned long long) tail);
             atomicAdd(stats + 1, (unsigned long long) swaps);
@@ -592,7 +669,7 @@ void native_route_resident_ex(const float* logits, int32_t* ids, float* weights,
     if (!stream || n_tok < 1 || !res_layer || a.dyn == nullptr) throw std::invalid_argument("native_route_resident_ex: bad arguments");
     route_resident_ex_k<<<(unsigned) n_tok, 32, 0, static_cast<cudaStream_t>(stream)>>>(
         logits, ids, weights, res_layer, n_tok, margin, rank_lo, rank_hi, stats, a.dyn, a.row_base, a.row_shift, a.zero_shift,
-        a.scale, a.orig_out);
+        a.scale, a.orig_out, a.sub);
     const auto error = cudaGetLastError();
     if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
 }

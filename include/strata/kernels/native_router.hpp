@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
 
+#include "strata/kernels/subfit_apply.hpp"   // SubfitRoute (LEADS.md HotRod substitute fit)
+
 namespace strata::kernels {
 // Configure before session capture. Existing graphs retain their selected kernels.
 // This experiment is off by default and does not modify the legacy router.
@@ -56,6 +58,9 @@ struct RouteStandinArgs {
     int zero_shift = 0;            ///< 1: row_shift[t] starts at 0 in this launch (the window's first routed layer)
     const float* scale = nullptr;  ///< STRATA_STANDIN_APPLY: the layer's [512] learned scale of a replaced expert's stand-in weight
     int32_t* orig_out = nullptr;   ///< STRATA_STANDIN_LEARN: [n_tok][10] the replaced expert per rank (-1: the router's own pick kept)
+    /// LEADS.md HotRod substitute fit (STRATA_SUBFIT_APPLY / _LEARN / _LOG): the fitted pairs' table, the moves' orig / flag rows, the
+    /// shadow list and the probe's first-move row (subfit_apply.hpp).  All null (the default): the kernel is exactly as before.
+    SubfitRoute sub;
 };
 /// STRATA_ROUTE_RESIDENT / STRATA_STANDIN with the HotRod additions (512 x 10 only): native_route_resident's rule for ranks lo..hi
 /// (or the tail budget), plus ranks below lo under the budget; a token without a move keeps the router's exact bits.

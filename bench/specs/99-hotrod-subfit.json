@@ -1,0 +1,59 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1"
+      }
+    },
+    "subfit-learn": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1"
+      }
+    },
+    "subfit-dynamic": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1",
+        "STRATA_SUBFIT_APPLY": "dynamic"
+      }
+    },
+    "subfit-all": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1",
+        "STRATA_SUBFIT_APPLY": "all"
+      }
+    },
+    "subfit-flip": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1",
+        "STRATA_SUBFIT_APPLY": "flip"
+      }
+    }
+  },
+  "note": "LEADS.md HotRod (sangharshadhyeta/Strata-HotRod) substitute fit: per-pair ridge / low-rank corrections of stand-in expert outputs. Base = the HotRod stand-ins as spec 95's route-budget and standin-recheck arms set them (STRATA_ROUTE_RESIDENT=1 margin, STRATA_ROUTE_BUDGET=0.5, STRATA_FRAGILE_RECHECK=1: the re-check gives the shadow samples and the held rows flip needs). subfit-learn: the live learner, observe only (same picks and weights; its cost). dynamic: a fitted move past its bound (budget or margin) is taken corrected instead of refused. all: every fitted move corrected. flip: fitted moves corrected in the re-check's held row only. The learner keeps its state in subfit-learn-<fp>.bin beside the expert profile across runs: delete it before the run for a cold start, or run the subfit-learn arm first to warm it. Speed screen; a promoted arm needs a quality gate (lossy). Stop pancake.service first."
+}

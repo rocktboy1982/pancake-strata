@@ -934,7 +934,13 @@ Credits, in the order the stack was built:
 - **gputier** (StrataGP), for `STRATA_SER` / `STRATA_SER_LAYERS` (`88a9b1a26c`, `0715a99871`, `2619066878`), `STRATA_SER_POOL`
   (`5f7c616102`, `2bf56b19a1`), `STRATA_Q36_PROMPT_SWAPS` (`5f7c616102`, `819b1dba79`) and `STRATA_SWIGLU_SKIM` (`803f98afdc`); **sangharshadhyeta**
   (Strata-HotRod), for the stand-in system, routing budget and fragile re-check (`STRATA_STANDIN`, `STRATA_ROUTE_BUDGET`,
-  `STRATA_FRAGILE_RECHECK`, `a2ef1638cf`); **jstamagal** (Strata-gfx1030), for `STRATA_MMVQ_SET`, `STRATA_HEAD_WIDE`,
+  `STRATA_FRAGILE_RECHECK`, `a2ef1638cf`), and for the substitute fit - the sample logger, the live per-pair ridge / low-rank
+  learner with its fallback ladder, pair admission and held-out gain bars, the shadow samples, the probe, the apply kernel and
+  its modes, the pinned-host tables and the offline tool `tools/subfit_fit` (`STRATA_SUBFIT_LOG`, `_LEARN`, `_APPLY`,
+  `_LADDER`, `_PAIR_MIN_SEEN`, `_GAIN_FIT`, `_GAIN_REVOKE`, `_SHADOW_CPU_YE`, `_PROBE_EVERY`; `870e32b4b3`, `d8bcc6f7bc`,
+  `7c567e0ddb`, `9514498fe9`, `aa797a1065`, `b7bd02f5bf`, `d3b34a33a1`, `fb9b442422`, `9883ee5dc4`, `b919a6db8a`, `850ddf0781`;
+  the author's stage-1 numbers, on their pack and card: stand-in vs true expert output median cosine 0.38, relative error 1.27
+  as is and 0.99 after the best scalar); **jstamagal** (Strata-gfx1030), for `STRATA_MMVQ_SET`, `STRATA_HEAD_WIDE`,
   `STRATA_ROUTE_PLAN`, `STRATA_HEAD_SAMPLE`, `STRATA_NORM_ROPE`, `STRATA_KV_PF_RESIDENT`; **storm-ace**, for the q36 GQA and WMMA
   prompt attention (`4fe0284da5`, `f74984a171`, `e4fc07ee57`, `161309c707`); **ElXreno**, for the streamed / two-pass session
   restore and the disk-only cache (`9c18aed118`, `7efef35d0d`, `2271ee21a1`); **svgop** (`511bece612`), **dardeaw** (`580e251e69`),

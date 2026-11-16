@@ -694,6 +694,8 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/qsa_select.cu
                           src/kernels/cuda/qsa_pattn.cu
                           src/kernels/cuda/verify_kernels.cu
+                          src/kernels/cuda/subfit_apply.cu     # LEADS.md HotRod substitute fit (STRATA_SUBFIT_APPLY)
+                          src/kernels/cuda/subfit_capture.cu   # ... its probe / shadow captures (STRATA_SUBFIT_LOG / _LEARN)
                           src/kernels/cuda/dflash2.cu
                           src/kernels/cuda/iq_kernels.cu
                           src/kernels/ngram.cpp
@@ -778,6 +780,15 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     enable_testing()
     add_test(NAME bfla_test COMMAND bfla_test)
     set_tests_properties(bfla_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
+  endif()
+  # LEADS.md HotRod substitute fit: subfit_apply (+ the table allocation) against a CPU reference in modes all / dynamic / flip and at
+  # 512 and 256 experts per layer (GPU, synthetic, no model; label gpu; skips with 77 without a device).  CUDA and HIP.
+  if(STRATA_BUILD_TESTS)
+    add_executable(subfit_apply_test tests/cuda/subfit_apply_test.cu)
+    target_include_directories(subfit_apply_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${_strata_gpu_include_directories})
+    target_link_libraries(subfit_apply_test PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME subfit_apply_test COMMAND subfit_apply_test)
+    set_tests_properties(subfit_apply_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
   endif()
   # perf-review D-1: the tensor-core prompt attention vs the FP32 kernel and FP64 (GPU, synthetic, no model); with
   # the tests, or alone with -DSTRATA_PARITY_PROMPT_ATTN=ON.  CUDA only: HIP compiles the tensor-core kernel out.
@@ -974,9 +985,18 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     src/core/expert_cache.cpp src/core/native_head.cpp src/core/native_dense.cpp src/core/verify.cpp src/core/mtp.cpp src/core/dflash2.cpp
     src/core/conversation_snapshot.cpp src/core/conversation_state.cpp src/core/conversation_memory.cpp src/core/peer_experts.cpp
     src/core/arch_defaults.cpp src/core/nv_defaults.cpp src/core/vmm.cpp src/core/conversation_file.cpp
-    src/core/conversation_disk_tier.cpp)
+    src/core/conversation_disk_tier.cpp
+    src/core/subfit_learn.cpp src/core/subfit_samples.cpp src/core/subfit_shadow.cpp)   # LEADS.md HotRod substitute fit (host side)
   target_include_directories(strata_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
   target_link_libraries(strata_engine PUBLIC strata_core strata_kernels strata_kernels_cpu ${_strata_gpu_runtime_target})
+  # LEADS.md HotRod substitute fit: the offline fit tool (reads a STRATA_SUBFIT_LOG sample file, the pack and the expert profile; CPU
+  # expert kernels only, no GPU work).  Optional: -DSTRATA_BUILD_SUBFIT_FIT=ON, then --target subfit_fit
+  option(STRATA_BUILD_SUBFIT_FIT "Build tools/subfit_fit (the HotRod substitute fit's offline fit)" OFF)
+  if(STRATA_BUILD_SUBFIT_FIT)
+    add_executable(subfit_fit tools/subfit_fit/subfit_fit.cpp tools/subfit_fit/fit_math.cpp)
+    target_include_directories(subfit_fit PRIVATE tools/subfit_fit ${_strata_gpu_include_directories})
+    target_link_libraries(subfit_fit PRIVATE strata_engine strata_kernels_cpu ${_strata_gpu_runtime_target})
+  endif()
   if(STRATA_BUILD_TESTS AND STRATA_ENABLE_CUDA AND NOT STRATA_HIP_GFX906)
     add_executable(host_graph_launch_test tests/core/host_graph_launch_test.cu)
     target_include_directories(host_graph_launch_test PRIVATE include)
@@ -2509,6 +2529,24 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(fragile_recheck_test src/core/fragile_recheck_test.cpp)
   target_include_directories(fragile_recheck_test PRIVATE include)
   add_test(NAME fragile_recheck_test COMMAND fragile_recheck_test)
+  # LEADS.md HotRod substitute fit (sangharshadhyeta/Strata-HotRod's tests, CPU only): the sample file, the live ridge learner, the
+  # fallback ladder + the shadow queue, the bound rule + the upload packer (+ a non-512 expert count), the offline tool's algebra
+  add_executable(subfit_samples_test tests/core/subfit_samples_test.cpp src/core/subfit_samples.cpp)
+  target_include_directories(subfit_samples_test PRIVATE include)
+  add_test(NAME subfit_samples_test COMMAND subfit_samples_test)
+  add_executable(subfit_learn_test tests/core/subfit_learn_test.cpp src/core/subfit_learn.cpp)
+  target_include_directories(subfit_learn_test PRIVATE include)
+  add_test(NAME subfit_learn_test COMMAND subfit_learn_test)
+  add_executable(subfit_ladder_test tests/core/subfit_ladder_test.cpp src/core/subfit_learn.cpp src/core/subfit_shadow.cpp)
+  target_include_directories(subfit_ladder_test PRIVATE include)
+  target_link_libraries(subfit_ladder_test PRIVATE Threads::Threads)
+  add_test(NAME subfit_ladder_test COMMAND subfit_ladder_test)
+  add_executable(subfit_apply_host_test tests/core/subfit_apply_host_test.cpp src/core/subfit_learn.cpp)
+  target_include_directories(subfit_apply_host_test PRIVATE include)
+  add_test(NAME subfit_apply_host_test COMMAND subfit_apply_host_test)
+  add_executable(subfit_fit_math_test tests/tools/subfit_fit_math_test.cpp tools/subfit_fit/fit_math.cpp)
+  target_include_directories(subfit_fit_math_test PRIVATE tools/subfit_fit)
+  add_test(NAME subfit_fit_math_test COMMAND subfit_fit_math_test)
   # STRATA_KV_RING_ADAPT: the depth-adaptive resident K/V ring's sizing rule (header-only, CPU)
   add_executable(kv_ring_test src/core/kv_ring_test.cpp)
   target_include_directories(kv_ring_test PRIVATE include)
@@ -3872,6 +3910,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
     spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test fragile_recheck_test kv_ring_test
+    subfit_samples_test subfit_learn_test subfit_ladder_test subfit_apply_host_test subfit_fit_math_test
     bf16_bits_test batch_rows_test batch_groups_test dequant_q5_1_test native_arithmetic_parity
     native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
     native_arithmetic_parity_no512 native_arithmetic_parity_ggml native_arithmetic_parity_nvfp4_avx2

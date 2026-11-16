@@ -31,6 +31,8 @@
 #include "strata/kernels/sampler.hpp"
 #include "strata/kernels/window_limits.hpp"
 #include "strata/kernels/verify_kernels.hpp"
+#include "strata/kernels/subfit_apply.hpp"     // LEADS.md HotRod substitute fit (SubfitTables, SubfitRoute)
+#include "strata/kernels/subfit_capture.hpp"   // (SubfitProbeBufs)
 
 #include <cuda_runtime.h>
 
@@ -177,6 +179,19 @@ public:
     static std::string standin_request_line();
     /// STRATA_STANDIN_LEARN: the expert source the learner's CPU worker reads blobs from (copy_blob); null stops it.
     static void set_standin_source(ExpertSource* src);
+    /// LEADS.md HotRod substitute fit (sangharshadhyeta/Strata-HotRod; every switch opt-in): STRATA_SUBFIT_LOG=1 (the sample file:
+    /// the stand-in learner's CPU replays as tag 1, one probe window in STRATA_SUBFIT_PROBE_EVERY as tag 2), STRATA_SUBFIT_LEARN=1 (the
+    /// live per-pair ridge learner, + STRATA_SUBFIT_LADDER / _PAIR_MIN_SEEN / _GAIN_FIT / _GAIN_REVOKE / _RANK / _PAIRS, and the shadow
+    /// samples of STRATA_FRAGILE_RECHECK's exact successors, + STRATA_SUBFIT_SHADOW / _SHADOW_CPU_YE), STRATA_SUBFIT_APPLY=dynamic|all|flip
+    /// (the fitted corrections applied; lossy).  All need the HotRod stand-ins (standin_ex_on()).  Read once.
+    static bool subfit_on();       ///< any of the three is on (with the stand-ins)
+    /// After a decode window's run() (and fragile_after_window), on the first stage: collects a probe / shadow window's buffers, then sets
+    /// the next window's gate (a shadow capture after a cut, else a probe window every STRATA_SUBFIT_PROBE_EVERY).  cut: the re-check's
+    /// cut row (-1 none); merged: a prompt window (nothing is collected; the gate is cleared).
+    void subfit_after_window(int cut, bool merged);
+    /// The files beside the expert profile, keyed to the model fingerprint fp: the sample file (STRATA_SUBFIT_LOG) and the learner's
+    /// state (STRATA_SUBFIT_LEARN, loaded here, saved at each request's end with new samples).  Empty: not kept.
+    static void subfit_set_files(const std::string& samples, const std::string& learner, uint64_t fp);
     /// The most tokens one window holds (`init`'s `max_t`; 0 before it).
     int max_t() const { return max_t_; }
     /// The sampling the verify window's head applies (temperature / top_p / top_k / seed).  Set per
@@ -822,6 +837,35 @@ private:
     int64_t rr_first_l_ = -1;             ///< record_window: the first layer routed in the capture (its launch zeroes the moves)
     void standin_dyn_write(float budget, float budget_tail, int hold);   ///< every stage of the chain
     void standin_learn_sample(int64_t layer, int tb, int n);            ///< run(): this group's stand-ins to the learner
+    // LEADS.md HotRod substitute fit (subfit_on(); all null / off when unset): the apply's tables and orig / flag rows (STRATA_SUBFIT_APPLY),
+    // the probe's buffers (STRATA_SUBFIT_LOG), the shadow capture's list and buffers (STRATA_SUBFIT_LEARN + STRATA_FRAGILE_RECHECK), the
+    // mapped gate the predicated capture kernels read (gate[3]: 1 probe, 2 shadow capture) and the rows' first move layer (device)
+    strata::kernels::SubfitTables sub_tab_;
+    bool sub_on_ = false;                 ///< the apply runs in this stage (mode != off and the tables exist)
+    int sub_mode_ = 0;                    ///< strata::core::subfit_rule::kMode*
+    bool sub_parts_ = false;              ///< post(): the parts are complete before the combine (the fused combines that skip them are off)
+    int16_t* sub_orig_ = nullptr;         ///< device [T][K]
+    uint8_t* sub_flag_ = nullptr;         ///< device [T][K]
+    unsigned long long* sub_stats_ = nullptr;   ///< device [4] (SubfitRoute::stats)
+    int32_t* h_sgate_ = nullptr;  int32_t* m_sgate_ = nullptr;   ///< mapped [8]
+    int32_t* sub_rec_ = nullptr;          ///< device [T] (STRATA_SUBFIT_LOG: -1 none)
+    bool sp_on_ = false;                  ///< the probe's kernels are recorded
+    strata::kernels::SubfitProbeBufs sp_;
+    bool shd_on_ = false;                 ///< the shadow capture's kernels are recorded
+    int shd_cap_ = 0;                     ///< substitutions listed per row (STRATA_SUBFIT_SHADOW)
+    int32_t* shd_list_ = nullptr;         ///< device [T][shd_cap_][4]
+    uint32_t* shd_n_ = nullptr;           ///< device [T]
+    int32_t* shd_ids_ = nullptr;          ///< device [L][K]
+    float* shd_x_ = nullptr;              ///< device [L][N]
+    float* shd_y_ = nullptr;              ///< device [L][K][N]
+    strata::kernels::SubfitRoute subfit_route_(int64_t l, int tb) const;
+    bool subfit_init_(int64_t T, int64_t K, int64_t N, const ModelGeometry& g, std::string& err);
+    void subfit_free_();
+    void subfit_gate_all_(int v);         ///< gate[3] = v on every stage
+    void subfit_reset_rows_();            ///< every stage: the list counts and the first-move rows reset (between windows)
+    void subfit_probe_collect_();         ///< after a probe window, every stage
+    void subfit_shadow_collect_();        ///< after the exact successor of a cut, every stage
+    static void subfit_tables_sync_all_(bool full);   ///< the learner's changes (full: its whole state) into every stage's tables
     int nf_row_ = -1;                     ///< nonfinite_row()
     int64_t nf_pos_ = -1;                 ///< nonfinite_pos()
     uint32_t nf_mask_ = 0;                ///< nonfinite_in(): bit t = row t
