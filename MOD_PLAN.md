@@ -114,6 +114,9 @@ Test tiers (`abtest.py --tier`; answer each item at the cheapest tier that can):
   code 41f4f6231), drop if any case < -3%; decide at confirm (bar >= 2% exact, >= 3% lossy).
   Spec key `"prefill": true` keeps the `long*` cases (one cold request each, judged on prompt tok/s). ~2-3 min/arm.
   A screen promote is only a hint: n=2 gave intervals of +-100..+450 tok/s.
+  `abtest.py --drift-check` (or `"drift_check": true` in the spec; coded 2026-11-16, in the 114a-f / 116 / 30 / 33 / 34 / 18-f22 / 108 / 109 / 112 specs): the base arm runs a second time
+  at the end (arm `base-late`), every arm is judged against the mean of both base runs and the verdict block prints the base drift; above 5% it says ORDER EFFECT
+  (a screen runs the base first: specs 83 and 93 had a base 11-40% low and every arm looked like a gain, T-606, T-622). Off by default.
 - 2 confirm: A B B A with early stop (every arm/case decided or interval < 1.5% of base). For a decision use rule 1's
   flags with `--no-early-stop` and the same tier for every arm. Exact items need 12+ pairs to prove 2% at a paired SD of 1.5%.
 - 3 rigorous (lossy, preset-default change, text differs from base, long-context claim): confirm + `quality_gate.py` +

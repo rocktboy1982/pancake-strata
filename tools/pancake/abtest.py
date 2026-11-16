@@ -848,14 +848,40 @@ def print_selection(used, dropped, robust, passes=1):
               for t, v in sorted(tiers.items())) + "): compare same-tier runs only (promote.py rejects mixed-tier pairs)")
 
 
-def screen_verdict(results, arms, cases):
+DRIFT_ARM = "base-late"
+DRIFT_WARN = 5.0   # % between the early and the late base run above which the screen verdict is not trusted
+
+
+def base_drift(results, arms, cases):
+    """{case: % of the late base run against the early one} (empty without a late base run)."""
+    if DRIFT_ARM not in arms:
+        return {}
+    out = {}
+    for c in cases:
+        key = metric(c)
+        e = [r[key] for res in results.get(arms[0], []) for r in res["rows"] if r["case"] == c]
+        l = [r[key] for res in results.get(DRIFT_ARM, []) for r in res["rows"] if r["case"] == c]
+        if e and l:
+            out[c] = (sum(l) / len(l)) / (sum(e) / len(e)) * 100 - 100
+    return out
+
+
+def screen_verdict(results, arms, cases, drift=False):
     base = arms[0]
     print("\nscreen verdict (promote: > 0% on a case and no case below -3%; else drop)")
+    bases = [base, DRIFT_ARM] if drift and DRIFT_ARM in arms else [base]
+    if len(bases) > 1:
+        d = base_drift(results, arms, cases)
+        print("  base drift (late base run vs early): " + "  ".join(f"{c} {v:+.1f}%" for c, v in d.items())
+              + (f"  -> ORDER EFFECT (more than {DRIFT_WARN:g}%): arms are judged against the mean of both base runs, "
+                 "treat every PROMOTE below as unconfirmed" if d and max(abs(v) for v in d.values()) > DRIFT_WARN else ""))
     for a in arms[1:]:
+        if a == DRIFT_ARM:
+            continue
         deltas = {}
         for c in cases:
             key = metric(c)
-            b = [r[key] for res in results.get(base, []) for r in res["rows"] if r["case"] == c]
+            b = [r[key] for bn in bases for res in results.get(bn, []) for r in res["rows"] if r["case"] == c]
             x = [r[key] for res in results.get(a, []) for r in res["rows"] if r["case"] == c]
             if b and x:
                 deltas[c] = (sum(x) / len(x)) / (sum(b) / len(b)) * 100 - 100
@@ -932,12 +958,19 @@ def main():
     ap.add_argument("--outlier", choices=("gate", "robust"), default="gate",
                     help="gate: repeat an attempt the noise proxies call noisy (default); robust: keep every attempt, drop only "
                          "a pass in which a request's tok/s is a robust outlier within its arm (median / MAD, see the module doc)")
+    ap.add_argument("--drift-check", action="store_true",
+                    help="--tier screen only: run the base arm a second time at the end (arm 'base-late', same config) and judge every "
+                         "arm against the mean of both base runs; prints the base drift.  A screen has one start per arm and the base "
+                         "always ran first: in specs 83 and 93 (TEST_LEDGER.md T-606, T-622) the base ran 11-40%% below the same preset's "
+                         "usual level and every arm looked like a gain.  Off: nothing changes")
     ap.add_argument("--force-busy", action="store_true",
                     help="start although another abtest / restore_check / engine runs (only for the fake-engine tests: it stops "
                          "its own servers only, but a real run beside it is disturbed all the same)")
     a = ap.parse_args()
     if a.tier == "screen" and (a.block or a.outlier == "robust"):
         ap.error("--block and --outlier robust are for --tier confirm (a screen has one start and 1-2 values per arm)")
+    if a.drift_check and a.tier != "screen":
+        ap.error("--drift-check is for --tier screen (a confirm already runs the base A B B A)")
     busy = busy_processes()
     if busy and not a.force_busy:
         print("abtest: another test or engine is already running on this machine: not starting (a second run would disturb it, and "
@@ -950,6 +983,10 @@ def main():
     RECLAIM_MAX = a.reclaim_max
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
+    drift = a.drift_check or (a.tier == "screen" and bool(spec.get("drift_check")))   # (a spec may ask for it: "drift_check": true)
+    if drift:   # the base arm again, last: screen_verdict compares every arm with both
+        spec["arms"][DRIFT_ARM] = dict(spec["arms"][arms[0]])
+        arms.append(DRIFT_ARM)
     cases = spec.get("cases", ["short", "edit", "long"])
     reps = a.reps or spec.get("reps", 3)
     per_run = 1
@@ -1048,7 +1085,7 @@ def main():
     summary(results, arms, cases, deff)
     text_check(results, arms, cases)
     if a.tier == "screen":
-        screen_verdict(results, arms, cases)
+        screen_verdict(results, arms, cases, drift=drift)
 
 
 if __name__ == "__main__":
