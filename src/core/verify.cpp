@@ -15,6 +15,8 @@
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/epoch_bandit.hpp"
 #include "strata/core/verify_ecap.hpp"
+#include "strata/core/fragile_recheck.hpp"   // LEADS.md HotRod: STRATA_FRAGILE_RECHECK
+#include "strata/core/standin_pool.hpp"      // LEADS.md HotRod: STRATA_STANDIN_LEARN
 #include "strata/core/switch_report.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
@@ -71,6 +73,8 @@
 #include "strata/kernels/quantize_act.hpp"
 #include "strata/kernels/rope.hpp"
 #include "strata/kernels/s2_expert_grouped.hpp"
+#include "strata/kernels/head_wide.hpp"
+#include "strata/kernels/route_plan.hpp"
 #include "strata/kernels/sampler.hpp"
 #include "strata/core/progress.hpp"
 #include "strata/kernels/shared_expert.hpp"
@@ -81,7 +85,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <condition_variable>
+#include <deque>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <mutex>
 #include <string>
@@ -94,6 +101,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <initializer_list>
+#include <utility>
 #include "strata/platform/cpu_relax.hpp"
 
 #if defined(STRATA_GPU_METAL)
@@ -177,12 +186,207 @@ struct RouteResidentCfg {
 RouteResidentCfg& route_resident_cfg() {
     static RouteResidentCfg c;
     static const bool parsed = [] {
+        // LEADS.md HotRod (sangharshadhyeta/Strata-HotRod, opt-in, lossy): STRATA_STANDIN=1 - every non-resident pick of every rank
+        // gets the best resident expert, whatever its score (an unlimited margin over ranks 0-9).  An explicit
+        // STRATA_ROUTE_RESIDENT / _RANKS still wins.  Unset: nothing changes.
+        if (const char* si = std::getenv("STRATA_STANDIN"); si != nullptr && std::atoi(si) != 0) { c.margin = 1e30f; c.lo = 0; c.hi = 9; }
         if (const char* v = std::getenv("STRATA_ROUTE_RESIDENT")) c.margin = (float) std::atof(v);
         if (const char* v = std::getenv("STRATA_ROUTE_RESIDENT_RANKS")) std::sscanf(v, "%d-%d", &c.lo, &c.hi);
         return true;
     }();
     (void) parsed;
     return c;
+}
+
+// ---- LEADS.md "HotRod" stand-in system (sangharshadhyeta/Strata-HotRod; every switch opt-in and lossy; unset: nothing below runs)
+// STRATA_ROUTE_BUDGET=<b> / STRATA_ROUTE_BUDGET_TAIL=<b> (024f644789): a missed pick takes the best resident stand-in when its router
+// weight times its logit gap to the stand-in is within the budget (ranks below lo / ranks lo..hi instead of the margin).
+// STRATA_FRAGILE_RECHECK=1 (024f644789, opt-in since a2ef1638cf): a decode window is cut before a row the stand-ins moved whose output
+// top-1 minus top-2 gap is below k times the move, and that row is re-decided with the router's own picks (core/fragile_recheck.hpp).
+// STRATA_FRAGILE_BRAKE (on with it, =0 off) scales the request's budgets down on flips; STRATA_FRAGILE_K0=<k> pins k.
+// STRATA_STANDIN_LEARN=<n> (the 8-9 Nov stand-in learner / substitute fit, its scalar stage): every n-th stand-in move (1 = each) is
+// replayed on the CPU worker - both experts on the same input - and the (layer, replaced expert) scale num / den is pooled
+// (core/standin_pool.hpp).  STRATA_STANDIN_APPLY=1 multiplies a stand-in's weight by that scale once it is ready (>= 32 samples).
+// All need the stand-ins on (STRATA_ROUTE_RESIDENT=<margin> > 0 or STRATA_STANDIN=1) and the 512 x 10 router.
+struct StandinCfg {
+    float budget = 0.0f, budget_tail = 0.0f;
+    bool fragile = false, apply = false;
+    int learn_every = 0;
+    bool auto_on = false;     // STRATA_ROUTE_BUDGET_AUTO=1 (needs STRATA_FRAGILE_RECHECK): one decode budget searched by speed
+    float auto_b0 = 0.1f;     // STRATA_ROUTE_BUDGET_AUTO_B0=<b>: its start
+    bool ex = false;   // the extended stand-in launch replaces native_route_resident
+};
+const StandinCfg& standin_cfg() {
+    static const StandinCfg c = [] {
+        StandinCfg s;
+        auto fpos = [](const char* name) {
+            const char* v = std::getenv(name);
+            const float f = v != nullptr ? (float) std::atof(v) : 0.0f;
+            return f > 0.0f ? f : 0.0f;
+        };
+        s.budget = fpos("STRATA_ROUTE_BUDGET");
+        s.budget_tail = fpos("STRATA_ROUTE_BUDGET_TAIL");
+        if (const char* v = std::getenv("STRATA_FRAGILE_RECHECK")) s.fragile = std::atoi(v) != 0;
+        if (const char* v = std::getenv("STRATA_STANDIN_LEARN")) s.learn_every = std::max(0, std::atoi(v));
+        if (const char* v = std::getenv("STRATA_STANDIN_APPLY")) s.apply = std::atoi(v) != 0;
+        if (s.apply && s.learn_every == 0) s.learn_every = 1;   // the scale has to be learned to be applied
+        if (const char* v = std::getenv("STRATA_ROUTE_BUDGET_AUTO")) s.auto_on = std::atoi(v) != 0;
+        if (const char* v = std::getenv("STRATA_ROUTE_BUDGET_AUTO_B0")) {
+            const float b0 = (float) std::atof(v);
+            if (b0 > 0.0f) s.auto_b0 = std::min(4.0f, std::max(0.02f, b0));
+        }
+        if (s.auto_on && !s.fragile) {
+            std::fprintf(stderr, "strata verify: STRATA_ROUTE_BUDGET_AUTO needs STRATA_FRAGILE_RECHECK=1 (its quality guard): off\n");
+            s.auto_on = false;
+        }
+        const bool want = s.budget > 0.0f || s.budget_tail > 0.0f || s.fragile || s.learn_every > 0;
+        if (want && !(route_resident_cfg().margin > 0.0f)) {
+            std::fprintf(stderr, "strata verify: STRATA_ROUTE_BUDGET / _TAIL / STRATA_FRAGILE_RECHECK / STRATA_STANDIN_LEARN need the "
+                                 "stand-ins (STRATA_ROUTE_RESIDENT=<margin> > 0 or STRATA_STANDIN=1): off\n");
+            s = StandinCfg{};
+        } else if (want) {
+            s.ex = true;
+            std::fprintf(stderr, "strata verify: HotRod stand-ins (LEADS.md, lossy): margin %g ranks %d-%d, budget %g, tail budget %g, "
+                                 "fragile re-check %s, auto budget %s, learner %s%s\n", (double) route_resident_cfg().margin,
+                         route_resident_cfg().lo, route_resident_cfg().hi, (double) s.budget, (double) s.budget_tail,
+                         s.fragile ? "on" : "off", s.auto_on ? "on" : "off", s.learn_every > 0 ? "on" : "off",
+                         s.apply ? " (scale applied)" : "");
+        }
+        return s;
+    }();
+    return c;
+}
+AutoBudget& auto_budget() {
+    static AutoBudget a = [] {
+        AutoBudget x;
+        x.on = standin_cfg().auto_on;
+        x.b = standin_cfg().auto_b0;
+        return x;
+    }();
+    return a;
+}
+FragileState& fragile_state() {
+    static FragileState s = [] {
+        FragileState f;
+        if (const char* v = std::getenv("STRATA_FRAGILE_BRAKE")) f.brake_on = std::atoi(v) != 0;
+        if (const char* v = std::getenv("STRATA_FRAGILE_K0")) {
+            const float k0 = (float) std::atof(v);
+            if (k0 > 0.0f) { f.k = k0; f.k_set = true; f.k_pinned = true; }
+        }
+        return f;
+    }();
+    return s;
+}
+
+// STRATA_STANDIN_LEARN: the CPU worker.  run() hands it (layer, replaced expert e, stand-in s, the expert input x) between the
+// doorbell and the CPU pool; the worker copies both blobs from the expert source, runs both experts on the CPU (the native kernels,
+// the pool's own arithmetic) and adds the sample to the pair, its (layer, e) group and its layer.  A bounded queue: a full queue
+// drops the sample (counted).  The worker never touches the GPU.  The (layer, e) scales go to a host table; run() copies a newer
+// table into each stage's mapped copy between windows.
+struct StandinLearner {
+    struct Job {
+        int32_t layer, e, s;
+        std::vector<float> x;
+    };
+    std::mutex mu;
+    std::condition_variable cv;
+    std::deque<Job> q;
+    std::thread th;
+    bool stop = false;
+    ExpertSource* src = nullptr;
+    int64_t n_layers = 0;
+    std::vector<standin::Sums> layer_g, exp_g;     // [layers], [layers * 512]
+    std::unordered_map<uint64_t, standin::Pair> pairs;
+    std::vector<float> table;                      // [layers * 512], 1 until ready
+    std::atomic<uint64_t> version{0};
+    long long seen = 0, queued = 0, dropped = 0, done = 0, failed = 0;   // (under mu)
+    long long req_samples = 0;
+    ~StandinLearner() {
+        {
+            std::lock_guard<std::mutex> lk(mu);
+            stop = true;
+        }
+        cv.notify_all();
+        if (th.joinable()) th.join();
+    }
+    void ensure(int64_t layers) {   // under mu
+        if (n_layers == layers) return;
+        n_layers = layers;
+        layer_g.assign((size_t) layers, standin::Sums{});
+        exp_g.assign((size_t) layers * 512, standin::Sums{});
+        table.assign((size_t) layers * 512, 1.0f);
+        if (!th.joinable()) th = std::thread([this] { loop(); });
+    }
+    bool expert_out(const strata::kernels::cpu::NativeFmt& f, const uint8_t* blob, const float* x, float* y,
+                    std::vector<uint8_t>& act, std::vector<float>& ff, std::vector<uint8_t>& hq) {
+        using namespace strata::kernels::cpu;
+        act.resize(std::max<size_t>(f.act_bytes, 1));
+        ff.resize((size_t) f.n_ff);
+        hq.resize(std::max<size_t>(f.h_bytes, 1));
+        native_quant_act(f, x, act.data());
+        const void* a[1] = {act.data()};
+        float* ffp[1] = {ff.data()};
+        native_gu_rows(f, blob, a, 1, ffp, 0, (int) f.n_ff);
+        native_quant_h(f, ff.data(), hq.data());
+        const void* h[1] = {hq.data()};
+        float* yp[1] = {y};
+        native_down_rows(f, blob, h, 1, yp, 0, (int) f.n_embd);
+        return true;
+    }
+    void loop() {
+        std::vector<uint8_t> be, bs, act, hq;
+        std::vector<float> ff, ye, ys;
+        for (;;) {
+            Job j;
+            ExpertSource* s = nullptr;
+            {
+                std::unique_lock<std::mutex> lk(mu);
+                cv.wait(lk, [&] { return stop || !q.empty(); });
+                if (stop) return;
+                j = std::move(q.front());
+                q.pop_front();
+                s = src;
+            }
+            const auto& lay = strata::kernels::cpu::expert_layout();
+            bool ok = s != nullptr && lay.native && j.layer >= 0 && (size_t) j.layer < lay.fmt.size();
+            if (ok) {
+                const strata::kernels::cpu::NativeFmt& f = lay.fmt[(size_t) j.layer];
+                ok = f.tail_off == 0 && f.n_embd == (int64_t) j.x.size() && f.bytes > 0;
+                if (ok) {
+                    be.resize(f.bytes);
+                    bs.resize(f.bytes);
+                    ye.resize((size_t) f.n_embd);
+                    ys.resize((size_t) f.n_embd);
+                    ok = s->copy_blob(j.layer, j.e, be.data()) && s->copy_blob(j.layer, j.s, bs.data()) &&
+                         expert_out(f, be.data(), j.x.data(), ye.data(), act, ff, hq) &&
+                         expert_out(f, bs.data(), j.x.data(), ys.data(), act, ff, hq);
+                }
+            }
+            double sxy = 0.0, sxx = 0.0, syy = 0.0;
+            if (ok) standin::sample_dots(ys.data(), ye.data(), (int64_t) ys.size(), sxy, sxx, syy);
+            std::lock_guard<std::mutex> lk(mu);
+            if (!ok || !std::isfinite(sxy) || !std::isfinite(sxx) || !std::isfinite(syy)) { ++failed; continue; }
+            const size_t li = (size_t) j.layer, ei = li * 512 + (size_t) j.e;
+            standin::Pair& p = pairs[((uint64_t) j.layer << 40) | ((uint64_t) j.e << 20) | (uint64_t) j.s];
+            standin::add_sample(p, sxy, sxx, syy);
+            standin::add_sample(exp_g[ei], sxy, sxx, syy);
+            standin::add_sample(layer_g[li], sxy, sxx, syy);
+            if (pairs.size() > 200000) pairs.clear();   // (a bound; the groups keep every sample)
+            ++done;
+            ++req_samples;
+            // the (layer, e) scale: an empty pair's pooled estimate is its parent's (the expert group once ready, else the layer's)
+            const standin::Est est = standin::estimate(standin::Pair{}, &exp_g[ei], &layer_g[li]);
+            const float c = est.ready ? (float) est.c : 1.0f;
+            if (table[ei] != c) {
+                table[ei] = c;
+                version.fetch_add(1, std::memory_order_release);
+            }
+        }
+    }
+};
+StandinLearner& standin_learner() {
+    static StandinLearner l;
+    return l;
 }
 inline bool g_lfuse_gate() { static const bool on = [] { const char* v = std::getenv("STRATA_LFUSE_GATE"); return v == nullptr || v[0] != '0'; }(); return on; }
 inline bool g_lfuse_pair() { static const bool on = [] { const char* v = std::getenv("STRATA_LFUSE_PAIR"); return v == nullptr || v[0] != '0'; }(); return on; }
@@ -888,6 +1092,9 @@ Verifier::~Verifier() {
     for (cudaEvent_t e : df_join_)
         if (e) cudaEventDestroy(e);
     if (arena_) cudaFree(arena_);
+    if (head_wide_scratch_) cudaFree(head_wide_scratch_);   // STRATA_HEAD_WIDE
+    if (sp_scratch_) cudaFree(sp_scratch_);                 // STRATA_HEAD_SAMPLE
+    if (sp_dev_) cudaFree(sp_dev_);
     if (hcount_d_) cudaFree(hcount_d_);
     if (presum_vram_) cudaFree(presum_vram_);
     if (warm_segs_) cudaFree(warm_segs_);
@@ -895,9 +1102,11 @@ Verifier::~Verifier() {
     if (warm_fork_) cudaEventDestroy(warm_fork_);
     if (warm_join_) cudaEventDestroy(warm_join_);
     void* hosts[] = {h_tok_, h_step_, h_pos_, h_commit_, h_ple_, h_out_, h_x_, h_ids_, h_w_, h_seq_, h_flag_, h_ymiss_,
-                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_, h_top_};
+                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_, h_top_, h_sp_,
+                     h_sdyn_, h_gap_, h_top1_, h_orig_, h_sscale_};   // (the last five: LEADS.md HotRod stand-ins)
     for (void* h : hosts)
         if (h) cudaFreeHost(h);
+    if (rshift_d_) cudaFree(rshift_d_);
 }
 
 int Verifier::tap_total() const {
@@ -1215,6 +1424,36 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                mapped(64, (void**) &h_top_, (void**) &m_top_));
     if (!ok) { err = "verify: mapped staging allocation failed " + strata::core::pin_exhausted_hint(); return false; }
     if (h_top_ != nullptr) *(volatile int32_t*) h_top_ = strata::core::defer_top();   // (as captured, until a window stages it)
+    // LEADS.md HotRod stand-ins (opt-in): the extended stand-in launch's mapped values and buffers (nothing when off)
+    if (standin_cfg().ex && h_sdyn_ == nullptr && g.n_expert == 512 && K == 10) {
+        const StandinCfg& sc = standin_cfg();
+        bool sok = mapped(sizeof(strata::kernels::RouteStandinDyn), &h_sdyn_, &m_sdyn_);
+        if (sok && sc.fragile)
+            sok = cudaMalloc((void**) &rshift_d_, (size_t) T * sizeof(float)) == cudaSuccess &&
+                  cudaMemset(rshift_d_, 0, (size_t) T * sizeof(float)) == cudaSuccess &&
+                  mapped((size_t) T * 4, (void**) &h_gap_, (void**) &m_gap_) &&
+                  mapped((size_t) T * 4, (void**) &h_top1_, (void**) &m_top1_);
+        if (sok && sc.learn_every > 0) sok = mapped((size_t) T * K * 4, (void**) &h_orig_, (void**) &m_orig_);
+        if (sok && sc.apply) {
+            sok = mapped((size_t) g.n_layers * 512 * 4, (void**) &h_sscale_, (void**) &m_sscale_);
+            if (sok)
+                for (int64_t i = 0; i < g.n_layers * 512; ++i) h_sscale_[i] = 1.0f;
+        }
+        if (!sok) {
+            (void) cudaGetLastError();
+            err = "verify: the HotRod stand-ins' buffers could not be allocated " + strata::core::pin_exhausted_hint();
+            return false;
+        }
+        auto* d = (strata::kernels::RouteStandinDyn*) h_sdyn_;
+        d->budget = sc.budget;
+        d->budget_tail = sc.budget_tail;
+        d->hold = 0;
+        d->pad = 0;
+        if (sc.learn_every > 0) {
+            std::lock_guard<std::mutex> lk(standin_learner().mu);
+            standin_learner().ensure(g.n_layers);
+        }
+    }
     if (const char* wm = std::getenv("STRATA_IC_WARM_MB"); wm != nullptr && std::atoi(wm) > 0 && warm_segs_ == nullptr) {
         // item 47: per layer, the matrices its window reads before the doorbell (mixer projections, router), as the kernels
         // read them (the native GGUF copy where there is one)
@@ -1460,6 +1699,44 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         return false;
     }
     cudaMemset(arena_, 0, count.used);
+    // STRATA_HEAD_WIDE=1 / STRATA_HEAD_SAMPLE=1 (opt-in, the last stage only; jstamagal/Strata-gfx1030 ef00764552, LEADS.md
+    // "gfx1030 decode"): their own small allocations, so the arena above is the same bytes with them off.  A failed
+    // allocation leaves the switch off for this verifier.
+    if (le_ == g.n_layers && head_ != nullptr && head_->loaded()) {
+        if (head_wide_scratch_ == nullptr && strata::kernels::head_wide_enabled() &&
+            strata::kernels::head_wide_supported(head_->type(), (int) N, (int) n_vocab_, 1)) {
+            if (cudaMalloc(&head_wide_scratch_, strata::kernels::head_wide_scratch_bytes()) != cudaSuccess) {
+                (void) cudaGetLastError();
+                head_wide_scratch_ = nullptr;
+            } else {
+                std::fprintf(stderr, "strata verify: STRATA_HEAD_WIDE=1: the output head keeps its activations in "
+                                     "registers, the greedy pick and the finite check ride in its launch\n");
+            }
+        }
+        static const bool head_sample_env = [] {
+            const char* e = std::getenv("STRATA_HEAD_SAMPLE");
+            return e != nullptr && e[0] == '1' && e[1] == '\0';
+        }();
+        const size_t sb = head_sample_env && sp_scratch_ == nullptr
+                              ? strata::kernels::sample_tokens_staged_scratch_bytes((int) T, (int) n_vocab_) : 0;
+        if (sb > 0) {
+            const size_t words = (sizeof(strata::kernels::SamplerParams) + 3) / 4;
+            if (cudaMalloc(&sp_scratch_, sb) != cudaSuccess || cudaMalloc((void**) &sp_dev_, words * 4 + 64) != cudaSuccess ||
+                !mapped(words * 4 + 64, (void**) &h_sp_, (void**) &m_sp_)) {
+                (void) cudaGetLastError();
+                if (sp_scratch_) cudaFree(sp_scratch_);
+                if (sp_dev_) cudaFree(sp_dev_);
+                sp_scratch_ = nullptr; sp_dev_ = nullptr; h_sp_ = m_sp_ = nullptr;
+            } else {
+                strata::kernels::SamplerParams off;
+                off.greedy = true;
+                off.temperature = 0.0f;
+                std::memcpy(h_sp_, &off, sizeof off);
+                std::fprintf(stderr, "strata verify: STRATA_HEAD_SAMPLE=1: a sampled request's draws are nodes of the "
+                                     "window's graph (no penalties, no logit bias; those sample after it as before)\n");
+            }
+        }
+    }
     if (hflag_out_d_ != nullptr && hcount_d_ == nullptr) {   // the overlapped split's hand-off counter
         if (cudaMalloc((void**) &hcount_d_, 64) != cudaSuccess) { err = "verify: hand-off counter allocation failed"; return false; }
         cudaMemset(hcount_d_, 0, 64);
@@ -1768,6 +2045,7 @@ const float* Verifier::final_R(int t) const { return R_ + (size_t) t * (size_t) 
 // state), never A's experts, so nothing waits that did not wait before.  Every token's arithmetic is unchanged.
 bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     using namespace strata::kernels;
+    rr_first_l_ = -1;   // LEADS.md HotRod STRATA_FRAGILE_RECHECK: the first routed layer of this recording zeroes the rows' moves
     const ModelGeometry& g = *g_;
     const WeightTable& wt = *wt_;
     SessionState& ss = *ss_;
@@ -2218,6 +2496,22 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 native_mmvq(w->native_type, w->native_data, xq_, out, n_in, n_out, n, cs);
             }
         };
+        // STRATA_MMVQ_SET=1 (opt-in, wave32 HIP; jstamagal/Strata-gfx1030 324081287b, LEADS.md "gfx1030 decode"): the
+        // projections that read the layer's input together in one launch (GDN: qkv and gate; QSA: k, v and q), bitwise
+        // their own calls.  Not under the stage profiler (its stamps sit between them), not where mm would take an
+        // interleaved kernel, and not for a projection already on a side stream.  Off: false, mm as before.
+        bool set_done = false;
+        auto mm_set = [&](std::initializer_list<std::pair<const WeightRef*, std::pair<float*, int>>> ms) -> bool {
+            if (!strata::kernels::native_mmvq_set_enabled() || prof_on_ || (g_il_plain() && n >= 2 && n <= 4)) return false;
+            strata::kernels::NativeMmvqItem it[3];
+            int k = 0;
+            for (const auto& m : ms) {
+                if (k == 3 || (g_mmvq_il() && strata::kernels::native_mmvq_il_supported(m.first->native_type, n, m.second.second)))
+                    return false;
+                it[k++] = {m.first->native_type, m.first->native_data, m.second.first, m.second.second};
+            }
+            return strata::kernels::native_mmvq_set(it, k, xq_, (int) N, n, cs);
+        };
         try {
             if (!is_qsa_layer(g, l)) {
                 // ======================= GDN =======================
@@ -2274,7 +2568,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 const bool fuse_ab = fuse_convab_on() && !br && !batch_rec_ && !prof_on_ && !sidem;   // the side mixer computes the gates on its branch
                 strata::dispatch::notef("gdn layer: side_gates=%ld side_proj=%ld df_branch=%ld", (long) sidem, (long) side_proj, (long) br);
                 strata::dispatch::notef("gdn layer: conv+ab fused=%ld batch_rows=%ld", (long) fuse_ab, (long) batch_rec_);
-                if (!side_proj) mm(wqkv, qkv + (size_t) tb * C, (int) N, (int) C);   // with side_proj: above, first
+                // STRATA_MMVQ_SET: qkv and gate in one launch (not with STRATA_DF_BRANCH / the side projection: gate is on a branch)
+                set_done = !br && !side_proj && mm_set({{wqkv, {qkv + (size_t) tb * C, (int) C}}, {wg, {z_ + (size_t) tb * ZV, (int) ZV}}});
+                if (!side_proj && !set_done) mm(wqkv, qkv + (size_t) tb * C, (int) N, (int) C);   // with side_proj: above, first
                 stamp(l, 2, grp);
                 if (batch_rec_) {   // contiguous rows may be proposals for the same slot
                     for (int t = tb; t < te;) {
@@ -2307,7 +2603,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                              (const float*) wsa->data, gate + (size_t) tb * HV, beta + (size_t) tb * HV, (int) N, (int) HV,
                              n, cs);
                 stamp(l, 4, grp);
-                if (!side_proj) mm(wg, z_ + (size_t) tb * ZV, (int) N, (int) ZV);
+                if (!side_proj && !set_done) mm(wg, z_ + (size_t) tb * ZV, (int) N, (int) ZV);
                 stamp(l, 5, grp);
                 if (side_proj && cudaStreamWaitEvent(cs, pjoin_, 0) != cudaSuccess) {
                     err = "verify: the gate projection's branch could not join";
@@ -2519,8 +2815,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 // split with norm and RoPE, the rotation
                 const bool q_il = side_proj && g_mmvq_il() &&
                                   strata::kernels::native_mmvq_il_supported(wq->native_type, n, (int) (NH * 2 * HD));
+                bool q_set_done = false;   // STRATA_MMVQ_SET computed q with k and v
                 auto q_chain = [&](cudaStream_t ns) -> bool {
-                    if (ns == cs) mm(wq, qfull_ + tb * NH * 2 * HD, (int) N, (int) (NH * 2 * HD));
+                    if (ns == cs) { if (!q_set_done) mm(wq, qfull_ + tb * NH * 2 * HD, (int) N, (int) (NH * 2 * HD)); }
                     else if (q_il) strata::kernels::native_mmvq_il(wq->native_type, wq->native_data, xq_, xil_,
                                                                    qfull_ + tb * NH * 2 * HD, (int) N, (int) (NH * 2 * HD), n, ns);
                     else native_mmvq(wq->native_type, wq->native_data, xq_, qfull_ + tb * NH * 2 * HD, (int) N,
@@ -2574,8 +2871,19 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 }
                 if (!sidem) idx_key(cs);
                 stamp(l, 7, grp);
+                // STRATA_MMVQ_SET: k, v (and q when no branch computes it) in one launch; q_chain then skips its mm
+                {
+                    const std::pair<const WeightRef*, std::pair<float*, int>> mk{wk, {kcur_ + tb * NKV * HD, (int) (NKV * HD)}},
+                        mv{wv, {vcur_ + tb * NKV * HD, (int) (NKV * HD)}}, mq{wq, {qfull_ + tb * NH * 2 * HD, (int) (NH * 2 * HD)}};
+                    const bool q_here = !side_proj && !qbr;
+                    set_done = q_here && mm_set({mk, mv, mq});
+                    q_set_done = set_done;
+                    if (!set_done) set_done = mm_set({mk, mv});
+                }
+                if (!set_done) {
                 mm(wk, kcur_ + tb * NKV * HD, (int) N, (int) (NKV * HD));
                 mm(wv, vcur_ + tb * NKV * HD, (int) N, (int) (NKV * HD));
+                }
                 if (qb) norm_rope(kcur_ + tb * NKV * HD, wkn, (int) (n * NKV), (int) HD, pos_k + tb * NKV);
                 else for (int t = tb; t < te; ++t) norm_rope(kcur_ + t * NKV * HD, wkn, (int) NKV, (int) HD, pos_ + t * NH);
                 if (st.kv_rot) {   // K and V rotated before they are stored (kv_q4.hpp)
@@ -2840,6 +3148,21 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #endif
             ;
         bool rfuse = false, rdone = false, rows_on_host = false;
+        // STRATA_ROUTE_PLAN=1 (opt-in; jstamagal/Strata-gfx1030 ef00764552, LEADS.md "gfx1030 decode"): the top-10 and the
+        // all-resident plan in one launch (kernels/route_plan.hpp: the two kernels' ids, weights and plan bytes).  Only
+        // where nothing sits between them: the zero-doorbell graph, no STRATA_ROUTE_PRIOR, no STRATA_ROUTE_RESIDENT, no
+        // STRATA_OEA, 1..8 rows.  Off: false, the router and resident_plan below as before.
+        const bool route_plan = strata::kernels::route_plan_enabled() && ar_on() && w_router != nullptr &&
+                                native_router_enabled() && NE == 512 && K == 10 && n <= 8 && hits_.d_res != nullptr &&
+                                !g_route_prior_set && !(route_resident_cfg().margin > 0.0f) && g_oea_k0() <= 0;
+        bool planned = false;   // the plan was written with the routing
+        auto route_plan_launch = [&] {
+            strata::kernels::native_route_plan(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n,
+                                               hits_.d_res + l * g.n_expert, (int) g.n_expert, hits_.cache_base, slot_off_d_,
+                                               (long long) hits_.blob, plan_ + (size_t) grp * (size_t) (plan_i32_ + 16),
+                                               (long long) max_t_ * K, m_plan_err_, cs);
+            planned = true;
+        };
         bool qgemv_done = false;              // STRATA_FUSE_QGEMV took the router GEMV
         const void* sh_q8_ready = nullptr;    // ... and the MoE input's q8_1 image it made there
         if (dec_batch && n > 1 && w_router != nullptr && native_router_enabled() && NE == 512 && K == 10) {
@@ -2890,8 +3213,16 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                                                     hits_.d_res != nullptr ? (hits_.d_res + l * g.n_expert) : nullptr,
                                                     (int) g.n_expert, (int64_t) n * N, m_x_ + tb * N, m_ids_ + tb * K,
                                                     m_seq_, cs);
+                else if (route_plan)   // STRATA_ROUTE_PLAN: the top-10 and the plan in one launch
+                    route_plan_launch();
                 else
                 native_router_top10_multi(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, n, cs);
+            } catch (const std::exception& e) { err = "verify router: " + std::string(e.what()); return false; }
+        } else if (route_plan && n == 1 && w_sgi == nullptr && strata::core::layer_native_bf16()) {
+            // STRATA_ROUTE_PLAN, a one-token group: moe_route's projection (project_bf16's native call), then the one launch
+            try {
+                bf16_gemv_fp32_mmvf(mixed_ + tb * N, (const uint16_t*) w_router->data, logits_ + tb * NE, N, NE, cs);
+                route_plan_launch();
             } catch (const std::exception& e) { err = "verify router: " + std::string(e.what()); return false; }
 #if defined(STRATA_HIP_GFX906)
         } else if (dec_batch) {
@@ -2970,6 +3301,21 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         if (route_resident_cfg().margin > 0.0f && NE == 512 && K == 10 && hits_.d_res != nullptr) {
             // STRATA_ROUTE_RESIDENT: after the router, before the plan/doorbell read ids_/w_ (opt-in, changes the output)
             try {
+                if (m_sdyn_ != nullptr) {
+                    // LEADS.md HotRod stand-ins (STRATA_ROUTE_BUDGET / _TAIL, STRATA_FRAGILE_RECHECK, STRATA_STANDIN_LEARN / _APPLY):
+                    // the extended launch (the same rule for ranks lo..hi when none of its additions acts)
+                    if (rr_first_l_ < 0) rr_first_l_ = l;
+                    RouteStandinArgs sa;
+                    sa.dyn = (const RouteStandinDyn*) m_sdyn_;
+                    sa.row_base = (int) tb;
+                    sa.row_shift = rshift_d_ != nullptr ? rshift_d_ + tb : nullptr;
+                    sa.zero_shift = l == rr_first_l_ ? 1 : 0;
+                    sa.scale = m_sscale_ != nullptr ? m_sscale_ + l * 512 : nullptr;
+                    sa.orig_out = m_orig_ != nullptr ? m_orig_ + tb * K : nullptr;
+                    native_route_resident_ex(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, hits_.d_res + l * g.n_expert, n,
+                                             route_resident_cfg().margin, route_resident_cfg().lo, route_resident_cfg().hi,
+                                             rr_stats_ != nullptr ? rr_stats_ + (n <= 8 ? 4 : 0) : nullptr, sa, cs);
+                } else
                 native_route_resident(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, hits_.d_res + l * g.n_expert, n,
                                       route_resident_cfg().margin, route_resident_cfg().lo, route_resident_cfg().hi,
                                       rr_stats_ != nullptr ? rr_stats_ + (n <= 8 ? 4 : 0) : nullptr, cs);
@@ -2983,6 +3329,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         if (rs_on_ && G == 1 && n <= 16 && T <= 16)
             strata::kernels::route_marginal_stats(ids_ + tb * K, n, (int) K, rs_dev_ + ((size_t) T * (size_t) g.n_layers + (size_t) l) * 16, cs);
         if (ar_on()) {
+            if (!planned)   // (STRATA_ROUTE_PLAN: written with the routing)
             resident_plan(ids_ + tb * K, n * (int) K, (int) K, hits_.d_res + l * g.n_expert, (int) g.n_expert,
                           hits_.cache_base, slot_off_d_, (long long) hits_.blob,
                           plan_ + (size_t) grp * (size_t) (plan_i32_ + 16), (long long) max_t_ * K, nullptr, 0, cs, m_plan_err_);
@@ -3441,6 +3788,12 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                         *hu = wt.find("output_hc_up.weight");
         if (!hn || !hd || !hu) { err = "verify: an output_hc_* weight is missing"; return false; }
         int head_am_cols = 0;   // STRATA_HEAD_ARGMAX_FUSED: the columns whose pick the head GEMV folded into head_am_keys_
+        // STRATA_HEAD_WIDE=1 (opt-in; jstamagal/Strata-gfx1030 ef00764552, LEADS.md "gfx1030 decode"): each chunk's logits
+        // (native_mmvq's bits), its greedy picks and its non-finite flags in two launches (kernels/head_wide.hpp); the
+        // pick and the flag passes after the chunks are then skipped.  Off (no scratch): the head below as before.
+        const bool head_wide_win = head_wide_scratch_ != nullptr && head_ != nullptr && head_->loaded() &&
+                                   strata::kernels::head_wide_supported(head_->type(), (int) N, (int) n_vocab_,
+                                                                        std::min(T, kFusedGrMaxT));
       for (int h0 = 0; h0 < T; h0 += kFusedGrMaxT) {
         const int HT = std::min(T - h0, kFusedGrMaxT);   // this chunk's columns: h0 .. h0 + HT
         // S25 (STRATA_HC_Q8=1): the final mixer from the GGUF's Q8_0 projections too, through the same multi read
@@ -3518,6 +3871,12 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             try {
                 float* const hl = head_logits_ + (size_t) h0 * (size_t) n_vocab_;
                 if (!q8_head) native_quantize_q8_1(head_mixed_ + (size_t) h0 * N, xq_, (int) N, HT, cs);   // (else the fused read wrote this chunk's image at xq_)
+                if (head_wide_win) {   // STRATA_HEAD_WIDE: the logits, picks and flags of this chunk
+                    strata::kernels::head_wide(head_->weights(), xq_, hl, (int) N, (int) n_vocab_, HT, head_wide_scratch_,
+                                               m_out_ + h0,
+                                               nan_guard_on() ? m_nf_ + (size_t) h0 * strata::kernels::kNonfiniteBlocks : nullptr,
+                                               cs);
+                } else {
 #if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
                 // MOD_PLAN.md section 6 item 17, part 18 (STRATA_HEAD_ARGMAX_FUSED=1, opt-in; LEADS.md "Item 18 fused
                 // argmax+accept", SonicSampler arXiv 2607.20475): the head format's GEMV (the same logits, bitwise
@@ -3572,6 +3931,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
                 }   // !head_am_done
 #endif
+                }   // !head_wide_win
             } catch (const std::exception& e) {
                 err = std::string("verify head: ") + e.what();
                 return false;
@@ -3588,6 +3948,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         if (head_am_cols == T) {
         } else
 #endif
+        if (head_wide_win) {
+            // (STRATA_HEAD_WIDE: the picks and the flags were written by head_wide)
+        } else {
         if (argmax_rows_wanted()) {   // sm_80 to sm_89 (sm_7x opt-in): the pick over many blocks a row (bitwise the one-block kernel's)
             argmax_rows(head_logits_, T, (int) n_vocab_, arg_scratch_, m_out_, cs);
         } else {
@@ -3598,6 +3961,22 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         }
         // #879: whether each row's logits are all finite, beside the pick (read after the window's own sync)
         if (nan_guard_on()) strata::kernels::logits_nonfinite_rows(head_logits_, T, (int) n_vocab_, m_nf_, cs);
+        }   // !head_wide_win
+        // STRATA_HEAD_SAMPLE=1 (opt-in; jstamagal/Strata-gfx1030 ef00764552): a sampled request's draws, after the greedy
+        // pick (whose tokens a greedy request keeps): the staged parameters copied from the mapped words, then the split
+        // sampler reading them.  Not in a recorded batch window, whose rows are different requests.
+        if (sp_scratch_ != nullptr && !batch_rec_) {
+            copy_i32_from_mapped(sp_dev_, m_sp_, (int64_t) ((sizeof(SamplerParams) + 3) / 4), cs);
+            strata::kernels::sample_tokens_staged(head_logits_, T, (int) n_vocab_, (const SamplerParams*) sp_dev_,
+                                                  sp_scratch_, m_out_, cs);
+        }
+        // LEADS.md HotRod STRATA_FRAGILE_RECHECK (opt-in): each row's top-1 minus top-2 logit and its top-1 id, read after the
+        // window's own sync (fragile_after_window)
+        if (m_gap_ != nullptr && m_top1_ != nullptr) {
+            try {
+                strata::kernels::logits_margin_rows(head_logits_, T, (int) n_vocab_, m_gap_, m_top1_, cs);
+            } catch (const std::exception& e) { err = "verify fragile re-check margins: " + std::string(e.what()); return false; }
+        }
     }
     stamp(g.n_layers, 1, 0);
     if (tap_on_ && !batch_rec_ && tap_file_ != nullptr) copy_from_mapped(m_tap_, tap_dev_, (int64_t) T * (int64_t) tap_layers_.size() * N, cs);
@@ -4077,6 +4456,22 @@ void Verifier::stage_inputs(int T, const int32_t* tokens, int64_t pos0) {
         for (int64_t h = 0; h < g.n_head_kv; ++h) pk[t * g.n_head_kv + h] = pos_t;
         for (int64_t h = 0; h < g.idx_q_heads; ++h) pi[t * g.idx_q_heads + h] = pos_t;
     }
+    if (h_sp_ != nullptr) {
+        // STRATA_HEAD_SAMPLE=1 (jstamagal/Strata-gfx1030 ef00764552): this window's sampling parameters for the graph's
+        // sampler nodes; `greedy` for a request the graph does not sample (greedy, penalties, a logit bias, STRATA_SPEC_PROB's
+        // judged windows, a proposal measurement)
+        strata::kernels::SamplerParams sp = sampling_;
+        sp.counter = (uint64_t) pos0;
+        sp_in_graph_ = head_sampling_ && !sp.greedy && sp.temperature >= strata::kernels::kSamplerMinTemperature &&
+                       hist_d_ == nullptr && sp.logit_bias == nullptr && !spec_measure_ &&
+                       !(spec_q_ != nullptr && spec_nq_ > 0 && T > 1);
+        if (!sp_in_graph_) { sp.greedy = true; sp.temperature = 0.0f; }
+        sp.logit_bias = nullptr;
+        std::memcpy(h_sp_, &sp, sizeof sp);
+        if (sp_in_graph_ && sp_graph_windows_++ == 0)
+            std::fprintf(stderr, "strata verify: STRATA_HEAD_SAMPLE: the first window sampled in its graph (position %lld, "
+                                 "%d tokens)\n", (long long) pos0, T);
+    }
     *(volatile uint32_t*) h_seq_ = 0;
     *(volatile uint32_t*) h_flag_ = 0;
     *(volatile uint32_t*) h_flagA_ = 0;
@@ -4357,6 +4752,16 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     }
     VDBG("captured; staging\n");
     const Clock::time_point t0 = Clock::now();
+    // LEADS.md HotRod STRATA_STANDIN_APPLY (opt-in): a newer learned scale table into this stage's mapped copy, between windows
+    if (h_sscale_ != nullptr) {
+        StandinLearner& sl = standin_learner();
+        const uint64_t ver = sl.version.load(std::memory_order_acquire);
+        if (ver != sscale_ver_) {
+            std::lock_guard<std::mutex> lk(sl.mu);
+            if (sl.table.size() == (size_t) g.n_layers * 512) std::memcpy(h_sscale_, sl.table.data(), sl.table.size() * sizeof(float));
+            sscale_ver_ = ver;
+        }
+    }
     if (!pre && !staged_) stage_inputs(T, tokens, pos0);
     staged_ = false;
     const bool do_ple = ss.ple.ready() && ple_stage();
@@ -4585,6 +4990,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
             sink_.partial = split ? &Verifier::raise_partial : nullptr;
         }
+        if (h_orig_ != nullptr) standin_learn_sample(l, tb, n);   // LEADS.md HotRod STRATA_STANDIN_LEARN (opt-in)
         if (pool != nullptr)
             pool(user, h_x_ + (size_t) tb * g.n_embd, h_ids_ + (size_t) tb * ss.k, n, ss.k,
                  h_ymiss_ + (size_t) tb * ss.k * g.n_embd, l);
@@ -4731,6 +5137,10 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         return next_ == nullptr || next_->run(T, tokens, pos0, pool, next_user_, out, err);
     }
     const bool sampled = !sampling_.greedy && sampling_.temperature > 0.0f;
+    if (sp_in_graph_) {   // STRATA_HEAD_SAMPLE=1: the graph sampled this window (stage_inputs); the picks hold the draws
+        spec_q_ = nullptr;
+        spec_nq_ = 0;
+    } else
     if (head_sampling_ && (sampled || hist_d_ != nullptr || sampling_.logit_bias != nullptr)) {
         SamplerParams sp = sampling_;
         sp.counter = (uint64_t) pos0;
@@ -6323,6 +6733,181 @@ int Verifier::batch_poll(PoolMultiFn pool, void* user, std::string& err) {
 }
 
 // #879: STRATA_NAN_GUARD=0 turns the guard off (no kernel is recorded; the graphs are captured once, so it is read once)
+// ---- LEADS.md "HotRod" stand-in system (see standin_cfg above; every switch opt-in)
+bool Verifier::standin_ex_on() { return standin_cfg().ex; }
+bool Verifier::fragile_on() { return standin_cfg().ex && standin_cfg().fragile; }
+
+void Verifier::standin_dyn_write(float budget, float budget_tail, int hold) {
+    for (Verifier* v = this; v != nullptr; v = v->next_) {
+        if (v->h_sdyn_ == nullptr) continue;
+        auto* d = (volatile strata::kernels::RouteStandinDyn*) v->h_sdyn_;
+        d->budget = budget;
+        d->budget_tail = budget_tail;
+        d->hold = hold;
+    }
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+    strata_store_fence();
+}
+
+namespace {
+// STRATA_FRAGILE_BRAKE: the request's budgets.  A tail budget braked to 0 would fall back to the margin rule (more moves, not
+// fewer), so it stops at 1e-30 (HotRod's exact successor used the same floor).  The margin rule itself is not braked.
+void standin_budgets(const FragileState& s, float& budget, float& tail) {
+    const StandinCfg& sc = standin_cfg();
+    const float k = s.brake_on ? s.req_scale : 1.0f;
+    const AutoBudget& a = auto_budget();
+    const float b0 = a.on ? auto_arm_b(a, a.arm) : sc.budget;          // STRATA_ROUTE_BUDGET_AUTO: the running arm's one budget
+    const float t0 = a.on ? auto_arm_b(a, a.arm) : sc.budget_tail;
+    budget = b0 * k;
+    tail = t0 > 0.0f ? std::max(t0 * k, 1e-30f) : 0.0f;
+}
+Clock::time_point& standin_window_clock() {   // STRATA_ROUTE_BUDGET_AUTO: the previous decode window's end
+    static Clock::time_point t = Clock::now();
+    return t;
+}
+}  // namespace
+
+int Verifier::fragile_after_window(int n_rows, bool merged) {
+    if (!fragile_on() || h_sdyn_ == nullptr) return -1;
+    FragileState& s = fragile_state();
+    const Verifier* last = this;
+    while (last->next_ != nullptr) last = last->next_;
+    int cut = -1;
+    if (!merged && last->h_gap_ != nullptr && last->h_top1_ != nullptr && n_rows >= 1) {
+        const volatile float* gp = last->h_gap_;
+        const volatile int32_t* tp = last->h_top1_;
+        // the pending cut's row was this window's row 0, decided with the router's own picks: a flip is a changed top-1 id
+        if (s.pend) {
+            const int pend_arm = auto_budget().pend_arm;
+            const int f = fragile_settle(s, tp[0]);
+            if (f >= 0 && auto_budget().on) {   // STRATA_ROUTE_BUDGET_AUTO: the verdict counts for the cut window's arm
+                ++auto_budget().rc[pend_arm];
+                auto_budget().fl[pend_arm] += f;
+            }
+        }
+        const int n = std::min(n_rows, max_t_);
+        std::vector<float> gap((size_t) n), shift((size_t) n, 0.0f), part((size_t) n);
+        for (int r = 0; r < n; ++r) gap[(size_t) r] = gp[r];
+        bool ok = true;
+        for (Verifier* v = this; v != nullptr && ok; v = v->next_) {   // every stage's moves (its layers), summed
+            if (v->rshift_d_ == nullptr) continue;
+            const OnDevice on(v->device_);
+            ok = cudaMemcpyAsync(part.data(), v->rshift_d_, (size_t) n * sizeof(float), cudaMemcpyDeviceToHost, v->cs_) == cudaSuccess &&
+                 cudaStreamSynchronize(v->cs_) == cudaSuccess;
+            if (ok)
+                for (int r = 0; r < n; ++r) shift[(size_t) r] += part[(size_t) r];
+        }
+        if (!ok) {
+            (void) cudaGetLastError();
+        } else {
+            bool explore = false;
+            const int r = fragile_first(s, gap.data(), shift.data(), n, &explore);
+            if (r >= 1 && shift[(size_t) r] > 0.0f) {
+                fragile_cut(s, gap[(size_t) r] / shift[(size_t) r], tp[r], explore);
+                auto_budget().pend_arm = auto_budget().arm;
+                cut = r;
+            }
+        }
+        fragile_window_done(s, cut >= 1 ? cut : n);
+        const Clock::time_point now = Clock::now();
+        const double secs = std::chrono::duration<double>(now - standin_window_clock()).count();
+        standin_window_clock() = now;
+        if (auto_budget().on && auto_window(auto_budget(), cut >= 1 ? cut : n, secs)) {
+            const AutoBudget& a = auto_budget();
+            std::fprintf(stderr, "strata serve: auto budget: test %lld: base %.3f (%lld moves won), step %.3f\n", a.tests, (double) a.b,
+                         a.wins, (double) a.step);
+        }
+    } else {
+        standin_window_clock() = Clock::now();   // a merged (prompt) window is not timed
+    }
+    float b = 0.0f, bt = 0.0f;
+    standin_budgets(s, b, bt);
+    standin_dyn_write(b, bt, cut >= 1 ? 1 : 0);   // a cut: the next window's row 0 keeps the router's picks
+    return cut;
+}
+
+void Verifier::fragile_request_begin() {
+    if (!fragile_on()) return;
+    FragileState& s = fragile_state();
+    strata::core::fragile_request_begin(s);
+    float b = 0.0f, bt = 0.0f;
+    standin_budgets(s, b, bt);
+    standin_dyn_write(b, bt, 0);
+}
+
+std::string Verifier::standin_request_line() {
+    std::string out;
+    char buf[512];
+    if (standin_cfg().ex && standin_cfg().fragile) {
+        FragileState& s = fragile_state();
+        std::snprintf(buf, sizeof buf,
+                      "strata serve: fragile recheck: %lld windows cut (%lld explore), %lld rows moved by stand-ins, %lld flipped "
+                      "(k %.4f%s, budget scale %.3f, %lld brakes; %lld re-checks, %lld flips since the start)\n",
+                      s.req_cuts, s.req_explores, s.req_moved, s.req_flips, (double) s.k, s.k_set ? "" : ", learning",
+                      (double) (s.brake_on ? s.req_scale : 1.0f), s.req_brakes, s.rechecks, s.flips);
+        out += buf;
+        if (auto_budget().on) {
+            std::snprintf(buf, sizeof buf, "strata serve: auto budget: %.3f at end (%lld tests, %lld won)\n", (double) auto_budget().b,
+                          auto_budget().tests, auto_budget().wins);
+            out += buf;
+        }
+        s.req_cuts = s.req_explores = s.req_moved = s.req_flips = 0;
+    }
+    if (standin_cfg().ex && standin_cfg().learn_every > 0) {
+        StandinLearner& L = standin_learner();
+        std::lock_guard<std::mutex> lk(L.mu);
+        long long ready = 0;
+        for (size_t i = 0; i < L.table.size(); ++i) ready += L.exp_g[i].n >= standin::kReady;
+        std::snprintf(buf, sizeof buf,
+                      "strata serve: stand-in learner: %lld samples this request (%lld in all, %lld queued, %lld dropped, %lld failed; "
+                      "%lld experts ready, scale %s)\n",
+                      L.req_samples, L.done, L.queued, L.dropped, L.failed, ready, standin_cfg().apply ? "applied" : "observed");
+        out += buf;
+        L.req_samples = 0;
+    }
+    return out;
+}
+
+void Verifier::set_standin_source(ExpertSource* src) {
+    StandinLearner& L = standin_learner();
+    std::lock_guard<std::mutex> lk(L.mu);
+    L.src = src;
+}
+
+void Verifier::standin_learn_sample(int64_t layer, int tb, int n) {
+    const StandinCfg& sc = standin_cfg();
+    if (sc.learn_every <= 0 || h_orig_ == nullptr || g_ == nullptr || ss_ == nullptr) return;
+    StandinLearner& L = standin_learner();
+    const int64_t N = g_->n_embd, K = ss_->k;
+    const volatile int32_t* o = h_orig_ + (size_t) tb * (size_t) K;
+    const volatile int32_t* ids = h_ids_ + (size_t) tb * (size_t) K;
+    bool notify = false;
+    {
+        std::lock_guard<std::mutex> lk(L.mu);
+        if (L.src == nullptr) return;
+        for (int t = 0; t < n; ++t)
+            for (int64_t r = 0; r < K; ++r) {
+                const int32_t e = o[(size_t) t * (size_t) K + (size_t) r];
+                if (e < 0 || e >= 512) continue;
+                if (L.seen++ % sc.learn_every != 0) continue;
+                if (L.q.size() >= 64) {
+                    ++L.dropped;
+                    continue;
+                }
+                StandinLearner::Job j;
+                j.layer = (int32_t) layer;
+                j.e = e;
+                j.s = ids[(size_t) t * (size_t) K + (size_t) r];
+                const float* x = h_x_ + (size_t) (tb + t) * (size_t) N;
+                j.x.assign(x, x + N);
+                L.q.push_back(std::move(j));
+                ++L.queued;
+                notify = true;
+            }
+    }
+    if (notify) L.cv.notify_one();
+}
+
 bool Verifier::nan_guard_on() {
     static const bool on = [] {
         const char* v = std::getenv("STRATA_NAN_GUARD");
@@ -6656,6 +7241,7 @@ int Verifier::service(PoolMultiFn pool, void* user, std::string& err) {
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
             sink_.partial = split ? &Verifier::raise_partial : nullptr;
         }
+        if (h_orig_ != nullptr) standin_learn_sample(l, tb, n);   // LEADS.md HotRod STRATA_STANDIN_LEARN (opt-in)
         if (pool != nullptr)
             pool(user, h_x_ + (size_t) tb * g.n_embd, h_ids_ + (size_t) tb * ss.k, n, ss.k,
                  h_ymiss_ + (size_t) tb * ss.k * g.n_embd, l);
@@ -6715,6 +7301,9 @@ bool Verifier::pl_finish(int32_t* out, std::string& err) {
     if (le_ < g.n_layers) return true;   // an earlier stage: the hand-off is written
     const int T = fl_T_;
     const bool sampled = !sampling_.greedy && sampling_.temperature > 0.0f;
+    if (sp_in_graph_) {
+        // STRATA_HEAD_SAMPLE=1: the graph sampled this window (stage_inputs); the picks hold the draws
+    } else
     if (head_sampling_ && (sampled || hist_d_ != nullptr || sampling_.logit_bias != nullptr)) {   // run()'s host-side sampling, Philox(seed, pos0 + t)
         SamplerParams sp = sampling_;
         sp.counter = (uint64_t) last_pos0_;

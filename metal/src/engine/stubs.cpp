@@ -284,6 +284,9 @@ namespace strata::kernels { void native_qsa_rms_norm_weighted(const float * p0, 
 namespace strata::kernels { void native_quantize_q8_1(const float * p0, void * p1, int p2, int p3, void * p4) { strata::metal_engine::missing("strata::kernels::native_quantize_q8_1"); } }
 namespace strata::kernels { void native_rope_apply(const float * p0, float * p1, int p2, int p3, int p4, const RopeScaling & p5, const int * p6, void * p7) { strata::metal_engine::missing("strata::kernels::native_rope_apply"); } }
 namespace strata::kernels { void native_route_resident(const float * p0, int32_t * p1, float * p2, const int32_t * p3, int p4, float p5, int p6, int p7, unsigned long long * p8, void * p9) { strata::metal_engine::missing("strata::kernels::native_route_resident"); } }
+// LEADS.md HotRod stand-ins (hand-edited): the extended stand-in launch and the head rows' margin are CUDA / HIP only
+namespace strata::kernels { void native_route_resident_ex(const float * p0, int32_t * p1, float * p2, const int32_t * p3, int p4, float p5, int p6, int p7, unsigned long long * p8, const RouteStandinArgs & p9, void * p10) { strata::metal_engine::missing("strata::kernels::native_route_resident_ex"); } }
+namespace strata::kernels { void logits_margin_rows(const float * p0, int p1, int p2, float * p3, int32_t * p4, void * p5) { strata::metal_engine::missing("strata::kernels::logits_margin_rows"); } }
 namespace strata::kernels { void native_router_top10(const float * p0, int32_t * p1, float * p2, void * p3) { strata::metal_engine::missing("strata::kernels::native_router_top10"); } }
 namespace strata::kernels { void native_router_top10_multi(const float * p0, int32_t * p1, float * p2, int p3, void * p4) { strata::metal_engine::missing("strata::kernels::native_router_top10_multi"); } }
 // programmatic dependent launch is a CUDA sm_90 feature: Metal never has it (hand-edited; the batch window asks this first, #3981)
@@ -368,6 +371,7 @@ namespace strata::prefill { void rms_rows(float * p0, const float * p1, int64_t 
 namespace strata::prefill { void rope(float * p0, int64_t p1, int64_t p2, int64_t p3, int64_t p4, int64_t p5, const strata::kernels::RopeScaling & p6, void * p7) { strata::metal_engine::missing("strata::prefill::rope"); } }
 namespace strata::prefill { void round_f16(const float * p0, float * p1, int64_t p2, void * p3) { strata::metal_engine::missing("strata::prefill::round_f16"); } }
 namespace strata::prefill { void route(const float * p0, int32_t * p1, float * p2, int64_t p3, int64_t p4, void * p5) { strata::metal_engine::missing("strata::prefill::route"); } }
+namespace strata::prefill { void standin_route(const float * p0, int32_t * p1, float * p2, int64_t p3, int64_t p4, const int32_t * p5, int p6, int p7, float p8, float p9, float p10, void * p11) { strata::metal_engine::missing("strata::prefill::standin_route"); } }   // LEADS.md HotRod (hand-edited)
 namespace strata::prefill { void split_q(const float * p0, float * p1, int64_t p2, void * p3) { strata::metal_engine::missing("strata::prefill::split_q"); } }
 namespace strata::prefill { void sums_to_f16(const float * p0, uint16_t * p1, int64_t p2, void * p3) { strata::metal_engine::missing("strata::prefill::sums_to_f16"); } }
 namespace strata::prefill { void swiglu_interleaved(const float * p0, uint16_t * p1, int64_t p2, void * p3) { strata::metal_engine::missing("strata::prefill::swiglu_interleaved"); } }

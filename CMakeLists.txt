@@ -660,6 +660,8 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/cuda/elementwise.cu
                           src/kernels/cuda/bf16_gemv.cu
                           src/kernels/cuda/native_mmvq.cu
+                          src/kernels/cuda/head_wide.cu
+                          src/kernels/cuda/route_plan.cu
                           src/kernels/cuda/native_bf16.cu
                           src/kernels/cuda/native_gr_norm.cu
                           src/kernels/cuda/native_moe.cu
@@ -2046,6 +2048,28 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME rdna_mmvq_parity COMMAND rdna_mmvq_parity)
     # the sweep goes to 32 columns; the kernel takes 17..32 only with this (default limit 16): 193 false FAILs without it
     set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 ENVIRONMENT "STRATA_RDNA_KQ_MAXCOLS=32")
+    # STRATA_MMVQ_SET (jstamagal/Strata-gfx1030 324081287b): the one-launch projection set bitwise native_mmvq, both reductions
+    add_executable(mmvq_set_parity src/kernels/mmvq_set_parity.cpp)
+    target_include_directories(mmvq_set_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(mmvq_set_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME mmvq_set_parity COMMAND mmvq_set_parity)
+    add_test(NAME mmvq_set_parity_tsum COMMAND mmvq_set_parity)
+    set_tests_properties(mmvq_set_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    set_tests_properties(mmvq_set_parity_tsum PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 ENVIRONMENT "STRATA_TSUM=1")
+    # STRATA_HEAD_WIDE / STRATA_HEAD_SAMPLE / STRATA_ROUTE_PLAN (jstamagal/Strata-gfx1030 ef00764552): the wide head, the
+    # staged sampler and the one-launch route plan bitwise the kernels they replace
+    add_executable(head_wide_parity src/kernels/head_wide_parity.cpp)
+    target_include_directories(head_wide_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(head_wide_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME head_wide_parity COMMAND head_wide_parity)
+    add_test(NAME head_wide_parity_tsum COMMAND head_wide_parity)
+    set_tests_properties(head_wide_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+    set_tests_properties(head_wide_parity_tsum PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 ENVIRONMENT "STRATA_TSUM=1")
+    add_executable(route_plan_parity src/kernels/route_plan_parity.cpp)
+    target_include_directories(route_plan_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(route_plan_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME route_plan_parity COMMAND route_plan_parity)
+    set_tests_properties(route_plan_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
   endif()
   if(STRATA_HIP_GFX906)
     # the S6 router (STRATA_HIP_ROUTER_FAST=1 on gfx906) against the portable kernel, bitwise, on wave64
@@ -2471,6 +2495,10 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(verify_ecap_test src/core/verify_ecap_test.cpp)
   target_include_directories(verify_ecap_test PRIVATE include)
   add_test(NAME verify_ecap_test COMMAND verify_ecap_test)
+  # LEADS.md HotRod stand-ins: STRATA_FRAGILE_RECHECK's rules and the stand-in learner's estimate (header-only, CPU)
+  add_executable(fragile_recheck_test src/core/fragile_recheck_test.cpp)
+  target_include_directories(fragile_recheck_test PRIVATE include)
+  add_test(NAME fragile_recheck_test COMMAND fragile_recheck_test)
   # STRATA_KV_RING_ADAPT: the depth-adaptive resident K/V ring's sizing rule (header-only, CPU)
   add_executable(kv_ring_test src/core/kv_ring_test.cpp)
   target_include_directories(kv_ring_test PRIVATE include)
@@ -3833,7 +3861,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
-    spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test kv_ring_test
+    spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test fragile_recheck_test kv_ring_test
     bf16_bits_test batch_rows_test batch_groups_test dequant_q5_1_test native_arithmetic_parity
     native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
     native_arithmetic_parity_no512 native_arithmetic_parity_ggml native_arithmetic_parity_nvfp4_avx2

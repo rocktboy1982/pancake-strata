@@ -3659,6 +3659,65 @@ struct KvaTap {
 };
 }  // namespace
 
+namespace {
+// LEADS.md "HotRod prompt stand-ins" (STRATA_PREFILL_STANDIN=1, opt-in, lossy; sangharshadhyeta/Strata-HotRod src/prefill/prefill.cpp
+// PrefillStandin, 21 Oct, budgets 024f644789): the decode stand-in rule applied to every prompt chunk's router top-10 before the picks
+// are counted, grouped and dispatched, so the prompt reads fewer non-resident experts.  The same environment as decode: STRATA_STANDIN=1
+// (margin unlimited, ranks 0-9), STRATA_ROUTE_RESIDENT=<margin> (> 0 required), STRATA_ROUTE_RESIDENT_RANKS=lo-hi (default 6-9),
+// STRATA_ROUTE_BUDGET / STRATA_ROUTE_BUDGET_TAIL.  Unset (or 0): nothing here runs.  The residency row is a device buffer of its own
+// (n_layers x n_expert int32), one layer's row uploaded before its stand-ins, freed when the run ends.
+struct PrefillStandin {
+    bool on = false;
+    float margin = 0.0f, budget = 0.0f, budget_tail = 0.0f;
+    int lo = 6, hi = 9;
+    int32_t* res = nullptr;
+    PrefillStandin(int64_t n_layers, int64_t ne, bool residency) {
+        static const bool want = [] {
+            const char* v = std::getenv("STRATA_PREFILL_STANDIN");
+            return v != nullptr && std::atoi(v) != 0;
+        }();
+        if (!want) return;
+        if (const char* v = std::getenv("STRATA_STANDIN"); v != nullptr && std::atoi(v) != 0) { margin = 1e30f; lo = 0; hi = 9; }
+        if (const char* v = std::getenv("STRATA_ROUTE_RESIDENT")) margin = (float) std::atof(v);
+        if (const char* v = std::getenv("STRATA_ROUTE_RESIDENT_RANKS")) std::sscanf(v, "%d-%d", &lo, &hi);
+        if (const char* v = std::getenv("STRATA_ROUTE_BUDGET")) budget = std::max(0.0f, (float) std::atof(v));
+        if (const char* v = std::getenv("STRATA_ROUTE_BUDGET_TAIL")) budget_tail = std::max(0.0f, (float) std::atof(v));
+        static bool said = false;
+        if (!residency || !(margin > 0.0f) || ne != 512) {   // (the prompt path's K is 10)
+            if (!said) {
+                said = true;
+                std::fprintf(stderr, "strata prefill: STRATA_PREFILL_STANDIN needs the expert cache, a 512 x 10 router and "
+                                     "STRATA_ROUTE_RESIDENT=<margin> > 0 (or STRATA_STANDIN=1): off
+");
+            }
+            return;
+        }
+        if (cudaMalloc((void**) &res, (size_t) n_layers * (size_t) ne * sizeof(int32_t)) != cudaSuccess) {
+            (void) cudaGetLastError();
+            res = nullptr;
+            if (!said) {
+                said = true;
+                std::fprintf(stderr, "strata prefill: STRATA_PREFILL_STANDIN: the residency buffer could not be allocated; off
+");
+            }
+            return;
+        }
+        if (!said) {
+            said = true;
+            std::fprintf(stderr, "strata prefill: STRATA_PREFILL_STANDIN (LEADS.md HotRod, lossy): prompt stand-ins, margin %g ranks %d-%d, "
+                                 "budget %g, tail budget %g
+", (double) margin, lo, hi, (double) budget, (double) budget_tail);
+        }
+        on = true;
+    }
+    ~PrefillStandin() {
+        if (res != nullptr) cudaFree(res);
+    }
+    PrefillStandin(const PrefillStandin&) = delete;
+    PrefillStandin& operator=(const PrefillStandin&) = delete;
+};
+}  // namespace
+
 bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::string& err) {
     err.clear();
     // force_chunk is for this run only: taken before any early return can leave it to the next one
@@ -3672,6 +3731,8 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
     core::SessionState& ss = *m.ss;
     const auto t_start = Clock::now();
     const int64_t LB = stage_lb_, LE = stage_le_;
+    // LEADS.md HotRod STRATA_PREFILL_STANDIN (opt-in; off = nothing below runs): the stand-ins of each MoE layer's chunk
+    PrefillStandin sa(g.n_layers, g.n_expert, m.host_res != nullptr && m.cache != nullptr);
     // STRATA_KVA: the approximate-prefix plan of this run, if it qualifies (a cold read of one long prompt, one
     // stage, no capture).  Positions [0, kva_frontier) are approximated in the layers at and after the split.
     const KvaConfig& kva = kva_config();
@@ -5358,6 +5419,12 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     pt.mark(kPfRouter, cs);
                     if (!bf16_proj(m.gemm, wr, m.mixed_bf, m.logits, T, v.name("ffn_gate_inp.weight"), err, 0, m.mixed_bf_lo)) return false;
                     route(m.logits, m.ids, m.w, T, m.g->n_expert, m.cs);
+                    if (sa.on) {   // LEADS.md HotRod STRATA_PREFILL_STANDIN: before anything counts or groups the picks
+                        cudaMemcpyAsync(sa.res + (size_t) l * (size_t) m.g->n_expert, m.host_res + (size_t) l * (size_t) m.g->n_expert,
+                                        (size_t) m.g->n_expert * sizeof(int32_t), cudaMemcpyHostToDevice, m.cs);
+                        standin_route(m.logits, m.ids, m.w, T, m.g->n_expert, sa.res + (size_t) l * (size_t) m.g->n_expert, sa.lo,
+                                      sa.hi, sa.margin, sa.budget, sa.budget_tail, m.cs);
+                    }
                     // RESEARCH HOOK (141-research, opt-in, never on by default): STRATA_DBG_FEAT=<file> dumps, per MoE layer and chunk,
                     // the routed ids + weights (and for the layers in STRATA_DBG_FEAT_LAYERS the router-input hidden state, bf16);
                     // STRATA_DBG_ROUTE_OVERRIDE=<file> replaces the routing of the layers listed in that file with the file's ids + weights.

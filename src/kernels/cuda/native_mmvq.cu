@@ -2742,6 +2742,119 @@ __global__ void native_mmvq_wave_exact_kernel(const typename F::Block* __restric
         if (lane == 0) y[std::size_t(j) * n_out + row] = v;
     }
 }
+
+// ---- STRATA_MMVQ_SET=1 (opt-in, wave32 HIP; LEADS.md "gfx1030 decode", jstamagal/Strata-gfx1030 324081287b): two or
+// three matrices that read the SAME q8_1 activations (a GDN layer's qkv and gate, a QSA layer's k, v and q) in ONE
+// launch.  The grid is the matrices' row blocks one after the other; a block (one wavefront) picks its matrix and format
+// at run time.  A wavefront does R rows: lane x plays the four threads (wavefront v = 0..3, lane x) of the default
+// native_mmvq_multi_kernel layout one after the other (the same weight blocks kbx = tid / T, stride BPI, the same
+// F::load / F::apply), adds the four partial sums in the order wavefront 0 adds the LDS partials, then the same
+// butterfly (or STRATA_TSUM's reduction).  So every output is meant to be BITWISE the default kernels' (mmvq_set_parity
+// checks it).  The fork's STRATA_MMVQ_ROW (the same body as a one-matrix launch) is our STRATA_RDNA_MMVQ_WAVE=3 and is
+// not duplicated here.  gfx1030 and gfx11 are both wave32 RDNA.
+template<typename F, int NCOLS, int R, bool TS>
+__device__ __forceinline__ void mmvq_set_row_body(const typename F::Block* __restrict__ w, const Q81Block* __restrict__ x,
+                                                  float* __restrict__ y, int n_in, int n_out, int row0, int lane) {
+    const int blocks_per_row = n_in / F::DIV;
+    const int x_stride = n_in / Q8K;
+    float tot[NCOLS][R];
+#pragma unroll
+    for (int v = 0; v < WARPS; ++v) {                 // the default layout's wavefront v, lane `lane`
+        const int tid = WARP * v + lane;
+        const int kqs = F::kqs(tid);
+        float tmp[NCOLS][R] = {};
+        for (int kbx = tid / F::T; kbx < blocks_per_row; kbx += F::BPI) {
+            const int kby = kbx * F::KBY;
+#pragma unroll
+            for (int i = 0; i < R; ++i) {
+                if (row0 + i < n_out) {
+                    const typename F::W wv = F::load(w + std::size_t(row0 + i) * blocks_per_row + kbx, kqs);
+#pragma unroll
+                    for (int j = 0; j < NCOLS; ++j) tmp[j][i] += F::apply(wv, x + std::size_t(j) * x_stride + kby, kqs);
+                }
+            }
+        }
+#pragma unroll
+        for (int j = 0; j < NCOLS; ++j)
+#pragma unroll
+            for (int i = 0; i < R; ++i) tot[j][i] = v == 0 ? tmp[j][i] : tot[j][i] + tmp[j][i];
+    }
+    if constexpr (TS) {
+        constexpr int V = NCOLS * R, P = s26ts::pow2_ceil(V);
+        float vv[P];
+#pragma unroll
+        for (int k = 0; k < P; ++k) vv[k] = k < V ? tot[k / R][k % R] : 0.0f;
+        const float sum = s26ts::tsum<P>(vv, lane);
+        const int k = s26ts::tsum_token<P>(lane);
+        const int j = k / R, i = k % R;
+        if (lane == s26ts::tsum_lane<P>(k) && k < V && row0 + i < n_out) y[std::size_t(j) * n_out + row0 + i] = sum;
+        return;
+    }
+#pragma unroll
+    for (int j = 0; j < NCOLS; ++j)
+#pragma unroll
+        for (int i = 0; i < R; ++i) {
+            const float sum = warp_sum(tot[j][i]);
+            if (lane == 0 && row0 + i < n_out) y[std::size_t(j) * n_out + row0 + i] = sum;
+        }
+}
+// Rows a wavefront, the fork's gfx1030 table (kind 2: 1 row up to 3 columns; kind 1: up to 2 columns; else 2 rows).
+template<typename F> struct MmvqSetKind { static constexpr int kind = 0; };
+template<> struct MmvqSetKind<Q6KTraits> { static constexpr int kind = 2; };
+template<> struct MmvqSetKind<Q5KTraits> { static constexpr int kind = 1; };
+template<> struct MmvqSetKind<Q4KTraits> { static constexpr int kind = 1; };
+template<> struct MmvqSetKind<IQ4XSTraits> { static constexpr int kind = 1; };
+template<> struct MmvqSetKind<SmallTraits<Q40Block, 4>> { static constexpr int kind = 1; };
+template<typename F> constexpr int mmvq_set_rows(int ncols) {
+    return MmvqSetKind<F>::kind == 0 ? 2 : ncols <= (MmvqSetKind<F>::kind == 2 ? 3 : 2) ? 1 : 2;
+}
+struct MmvqSetArgs {
+    const void* w[3];
+    float* y[3];
+    int n_out[3], type[3], end[3];   // end[i]: one past matrix i's last block
+};
+template<typename F, int NCOLS, bool TS>
+__device__ __forceinline__ void mmvq_set_item(const MmvqSetArgs& a, int it, int blk, const Q81Block* __restrict__ x, int n_in,
+                                              int lane) {
+    constexpr int R = mmvq_set_rows<F>(NCOLS);
+    const int row0 = blk * R;
+    if (row0 >= a.n_out[it]) return;
+    mmvq_set_row_body<F, NCOLS, R, TS>(static_cast<const typename F::Block*>(a.w[it]), x, a.y[it], n_in, a.n_out[it], row0,
+                                       lane);
+}
+template<int NCOLS, bool TS>
+__launch_bounds__(WARP)
+__global__ void native_mmvq_set_kernel(MmvqSetArgs a, const Q81Block* __restrict__ x, int n_in) {
+    int blk = int(blockIdx.x);
+    const int it = blk < a.end[0] ? 0 : blk < a.end[1] ? 1 : 2;
+    if (it > 0) blk -= a.end[it - 1];
+    const int lane = int(threadIdx.x);
+    switch (a.type[it]) {
+        case 14: mmvq_set_item<Q6KTraits, NCOLS, TS>(a, it, blk, x, n_in, lane); break;
+        case 13: mmvq_set_item<Q5KTraits, NCOLS, TS>(a, it, blk, x, n_in, lane); break;
+        case 12: mmvq_set_item<Q4KTraits, NCOLS, TS>(a, it, blk, x, n_in, lane); break;
+        case 23: mmvq_set_item<IQ4XSTraits, NCOLS, TS>(a, it, blk, x, n_in, lane); break;
+        case 2: mmvq_set_item<SmallTraits<Q40Block, 4>, NCOLS, TS>(a, it, blk, x, n_in, lane); break;
+        default: mmvq_set_item<SmallTraits<Q80Block, 8>, NCOLS, TS>(a, it, blk, x, n_in, lane); break;   // 8
+    }
+}
+int mmvq_set_rows_of(int type, int ncols) {
+    switch (type) {
+        case 14: return mmvq_set_rows<Q6KTraits>(ncols);
+        case 13: return mmvq_set_rows<Q5KTraits>(ncols);
+        case 12: return mmvq_set_rows<Q4KTraits>(ncols);
+        case 23: return mmvq_set_rows<IQ4XSTraits>(ncols);
+        case 2: return mmvq_set_rows<SmallTraits<Q40Block, 4>>(ncols);
+        case 8: return mmvq_set_rows<SmallTraits<Q80Block, 8>>(ncols);
+        default: return 0;
+    }
+}
+template<int NCOLS>
+void mmvq_set_launch(const MmvqSetArgs& a, const Q81Block* x, int n_in, unsigned blocks, cudaStream_t s) {
+    if (s26_tsum_on()) native_mmvq_set_kernel<NCOLS, true><<<blocks, WARP, 0, s>>>(a, x, n_in);
+    else native_mmvq_set_kernel<NCOLS, false><<<blocks, WARP, 0, s>>>(a, x, n_in);
+}
+int g_mmvq_set_force = -1;   // native_mmvq_set_tune: -1 = the environment
 #endif
 
 // STRATA_MMVQ_WAVE_ROWS (opt-in, read once; MOD_PLAN.md section 6 item 10, LEADS.md): a per-shape rows-per-wave table for
@@ -3544,6 +3657,65 @@ void native_q6_k_unpack(const void* weights) {
 void native_mmvq_set_multi_exact(bool exact) { g_multi_exact = exact; }
 bool native_mmvq_multi_exact() { return g_multi_exact; }
 void native_mmvq_set_b6_rows(int mode) { g_b6_rows = mode; }
+
+// STRATA_MMVQ_SET (opt-in; jstamagal/Strata-gfx1030 324081287b; LEADS.md "gfx1030 decode"): see native_mmvq_set_kernel.
+void native_mmvq_set_tune(int on) {
+#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)
+    g_mmvq_set_force = on;
+#else
+    (void) on;
+#endif
+}
+bool native_mmvq_set_enabled() {
+#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)
+    static const bool env = [] { const char* v = std::getenv("STRATA_MMVQ_SET"); return v != nullptr && std::atoi(v) != 0; }();
+    return g_mmvq_set_force >= 0 ? g_mmvq_set_force != 0 : env;
+#else
+    return false;
+#endif
+}
+bool native_mmvq_set(const NativeMmvqItem* items, int n_items, const void* x_q8_1, int n_in, int ncols, void* stream) {
+#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)
+    if (!native_mmvq_set_enabled()) return false;
+    // the default layout is what the set reproduces: not with another layout switched on (RDNA wave kernels, B6 rows,
+    // the non-exact multi-column layout), and not past 8 columns
+    if (items == nullptr || n_items < 2 || n_items > 3 || ncols < 1 || ncols > 8 || n_in <= 0 || n_in % QK != 0 ||
+        x_q8_1 == nullptr || stream == nullptr || !g_multi_exact || !g_wave_off || b6_rows_mode() > 0)
+        return false;
+    MmvqSetArgs a{};
+    long long blocks = 0;
+    for (int i = 0; i < 3; ++i) {
+        if (i < n_items) {
+            const NativeMmvqItem& it = items[i];
+            const int r = mmvq_set_rows_of(it.type, ncols);
+            // a matrix with a packed copy registered (STRATA_Q8_PACKED / STRATA_Q6_PACKED) keeps its own kernel
+            if (r == 0 || it.weights == nullptr || it.y == nullptr || it.n_out <= 0 ||
+                q8_packed_registry().count(it.weights) != 0 || q6_packed_registry().count(it.weights) != 0)
+                return false;
+            a.w[i] = it.weights; a.y[i] = it.y; a.n_out[i] = it.n_out; a.type[i] = it.type;
+            blocks += (it.n_out + r - 1) / r;
+        }
+        a.end[i] = (int) blocks;
+    }
+    const auto* x = static_cast<const Q81Block*>(x_q8_1);
+    const auto s = static_cast<cudaStream_t>(stream);
+    switch (ncols) {
+        case 1: mmvq_set_launch<1>(a, x, n_in, (unsigned) blocks, s); break;
+        case 2: mmvq_set_launch<2>(a, x, n_in, (unsigned) blocks, s); break;
+        case 3: mmvq_set_launch<3>(a, x, n_in, (unsigned) blocks, s); break;
+        case 4: mmvq_set_launch<4>(a, x, n_in, (unsigned) blocks, s); break;
+        case 5: mmvq_set_launch<5>(a, x, n_in, (unsigned) blocks, s); break;
+        case 6: mmvq_set_launch<6>(a, x, n_in, (unsigned) blocks, s); break;
+        case 7: mmvq_set_launch<7>(a, x, n_in, (unsigned) blocks, s); break;
+        default: mmvq_set_launch<8>(a, x, n_in, (unsigned) blocks, s); break;
+    }
+    launch_check();
+    return true;
+#else
+    (void) items; (void) n_items; (void) x_q8_1; (void) n_in; (void) ncols; (void) stream;
+    return false;
+#endif
+}
 
 std::size_t native_q8_1_bytes(int n_in, int ncols) {
     validate_shape(n_in, ncols);
