@@ -13796,7 +13796,8 @@ int main(int argc, char** argv) {
         };
         auto park_current_body = [&](size_t held) -> bool {
             if (disk_only) {   // STRATA_CONV_DISK_ONLY: to disk from the pools instead of a parked image
-                if (!disk_continuing) disk_save_live("switch");
+                if (!disk_continuing && strata::program::disk_only_save_allowed(conv_disk_wants_env(), conversations.wants((int64_t) live.size())))
+                    disk_save_live("switch");
                 return true;
             }
             if (!conversations.enabled() || !live_ok || live.empty()) return true;
@@ -17678,7 +17679,8 @@ int main(int argc, char** argv) {
                 if (disk_only) {   // STRATA_CONV_DISK_ONLY: the live conversation goes to disk too
                     disk_continuing = false;
                     disk_keep_serial = 0;
-                    disk_save_live("shutdown");
+                    if (strata::program::disk_only_save_allowed(conv_disk_wants_env(), conversations.wants((int64_t) live.size())))
+                        disk_save_live("shutdown");
                 }
                 if (disk_tier.on()) {   // item 39: what is parked goes to disk too, for the next engine
                     strata::core::conversation_checkpoint_join(nullptr);
