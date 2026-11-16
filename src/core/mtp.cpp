@@ -4,6 +4,7 @@
 #include "strata/kernels/qsa_prompt_attn.hpp"
 #include "strata/core/coupled_draft.hpp"
 #include "strata/core/spec_prob.hpp"
+#include "strata/core/verify_ecap.hpp"
 #include "strata/core/on_device.hpp"
 #include "strata/core/progress.hpp"
 
@@ -2371,6 +2372,12 @@ bool MtpDrafter::draft_finish(int32_t* drafts, std::string& err, float* probs, i
             round_ent_[j] = have ? ((volatile float*) h_ent_)[j] : std::numeric_limits<float>::quiet_NaN();
             round_top2_[j] = have ? ((volatile float*) h_top2_)[j] : std::numeric_limits<float>::quiet_NaN();
         }
+    if (strata::core::verify_ecap_minp_enabled()) {   // ECAP v2 (STRATA_VERIFY_ECAP_MINP): the drafts' probabilities for the verifier
+        float pr[8];
+        const int np = n < 8 ? n : 8;
+        for (int i = 0; i < np; ++i) pr[i] = ((volatile float*) h_prob_)[i];
+        strata::core::ecap_conf_publish(pr, np);
+    }
     if (n_drafts) *n_drafts = n;
     if (result) *result = {n, max_steps};
     ms_draft += run_.ms_launch + ms_since(tf0);
@@ -2441,6 +2448,12 @@ bool MtpDrafter::draft_resume(int32_t* drafts, std::string& err, float* probs, i
             round_ent_[j] = have ? ((volatile float*) h_ent_)[j] : std::numeric_limits<float>::quiet_NaN();
             round_top2_[j] = have ? ((volatile float*) h_top2_)[j] : std::numeric_limits<float>::quiet_NaN();
         }
+    if (strata::core::verify_ecap_minp_enabled()) {   // ECAP v2 (STRATA_VERIFY_ECAP_MINP): the drafts' probabilities for the verifier
+        float pr[8];
+        const int np = n < 8 ? n : 8;
+        for (int i = 0; i < np; ++i) pr[i] = ((volatile float*) h_prob_)[i];
+        strata::core::ecap_conf_publish(pr, np);
+    }
     if (n_drafts) *n_drafts = n;
     ms_draft += ms_since(t0);
     return true;
@@ -2564,6 +2577,7 @@ int MtpDrafter::chain_outputs_ready(std::string& err) {
         chain_prob_[steps_seen_] = ((volatile float*) h_prob_)[steps_seen_];
         ++steps_seen_;
     }
+    if (strata::core::verify_ecap_minp_enabled()) strata::core::ecap_conf_publish(chain_prob_, steps_seen_);   // ECAP v2
     return steps_seen_;
 }
 
@@ -2579,6 +2593,7 @@ int MtpDrafter::chain_poll(std::string& err) {
         chain_prob_[j] = ((volatile float*) h_prob_)[j];
     }
     for (int j = chain_n_; j < 8; ++j) { chain_tok_[j] = 0; chain_prob_[j] = 0.0f; }
+    if (strata::core::verify_ecap_minp_enabled()) strata::core::ecap_conf_publish(chain_prob_, chain_n_);   // ECAP v2
     return 1;
 }
 

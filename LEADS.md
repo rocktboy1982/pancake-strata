@@ -92,7 +92,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-36b `PF_DQ_OVERLAP` side-stream dequant | prompts +7-11% at 8K chunks, 0 at 32K + DOWN_STREAMS (android-imdad, XTX) | exact | 2026-11-16: CODED STRATA_PF_DQ_OVERLAP |
 | FK-40 post-READY warm-up replay | first turn after restart only (svgop) | exact | 2026-11-16: CODED STRATA_WARMUP_REPLAY (serve) |
 | FK-41 arena mlock vs HMM userptr stalls | queue stalls under memory pressure (Ben1078, XTX) | exact | 2026-11-15: method |
-| FK-50 `STRATA_VERIFY_ECAP` tail expert cap | +2.8% pooled, +11.5% drift-paired; tight cap broke 12/20 tool turns (jmnargi, 2x V100) | lossy | expert_source.cpp:4989; verify_ecap.hpp |
+| FK-50 `STRATA_VERIFY_ECAP` tail expert cap | +2.8% pooled, +11.5% drift-paired; tight cap broke 12/20 tool turns (jmnargi, 2x V100) | lossy | expert_source.cpp:4989; verify_ecap.hpp; 2026-11-17: ECAP v2 CODED (`STRATA_VERIFY_ECAP_ROWS`, `_MINP`, `_MAX_ROWS`, MOD_PLAN section 6 item 41, T-723, spec 139 queued T-724) |
 | FK-51 route-prior guards `PROTECT/KEEP_P/SCOPE` | 0 alone; lets turbo run lambda >0.5 (ours turbo 0.5: +25-34%) | lossy | route_prior.cu:10-13 |
 | logit-range-scaled prior bias (`--cache-prior`), SER | no number (gputier) | lossy | 2026-11-16: CODED STRATA_ROUTE_PRIOR_DELTA |
 | turbo vs uniform tail skip at equal KL | uniform top-k beat miss-targeted dropping (lighttransport, MiniMax) | lossy method | ROUTE_TAIL_SKIP expert_source.hpp:670 |

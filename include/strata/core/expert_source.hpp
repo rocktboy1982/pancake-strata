@@ -488,6 +488,16 @@ struct GpuPlanSink {
     /// -1 (the default, and every prompt, batch and pipelined window): off.
     int ecap = -1;
     int ecap_first = 1;
+    /// ECAP v2 (core/verify_ecap.hpp verify_ecap_drop_rows): the per-window-row cap list (the last value repeats; it
+    /// replaces `ecap` for every row), the window row of this group's local row 0, and the MTP draft probabilities
+    /// (conf[r]: window row r + 1) with the gate.  Defaults: the scalar rule, as before.  The pool acts when `ecap >= 0`
+    /// or a list or gate is set.
+    const int8_t* ecap_rows = nullptr;
+    int ecap_rows_n = 0;
+    int ecap_base = 0;
+    const float* ecap_conf = nullptr;
+    int ecap_conf_n = 0;
+    float ecap_minp = -1.0f;
 };
 
 /// Verifier::set_pcie_balance: a verify window's costs, fitted to each layer's measured times (ms, least squares with

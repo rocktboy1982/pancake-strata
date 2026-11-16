@@ -28,6 +28,7 @@
 #include "strata/core/flag_order.hpp"
 #include "strata/core/layer.hpp"
 #include "strata/core/session.hpp"
+#include "strata/core/verify_ecap.hpp"
 #include "strata/kernels/sampler.hpp"
 #include "strata/kernels/window_limits.hpp"
 #include "strata/kernels/verify_kernels.hpp"
@@ -260,8 +261,9 @@ public:
     /// is enforcing (a tool call or a JSON reply in progress).  A borrow for that run only, like set_spec_q: run clears it
     /// on every path, so a window whose caller says nothing (a prompt read, a batch or pipelined window) is never capped.
     void set_ecap_window(bool drafts) { ecap_next_ = drafts; if (next_) next_->set_ecap_window(drafts); }
-    /// STRATA_VERIFY_ECAP as init took it: the cap per draft row, -1 off.
-    int ecap() const { return ecap_; }
+    /// STRATA_VERIFY_ECAP as init took it: the cap per draft row, -1 off.  With STRATA_VERIFY_ECAP_ROWS (ECAP v2) and no
+    /// scalar it reads 0, so a caller that only tests `ecap() >= 0` opens the window for the per-row list as well.
+    int ecap() const { return ecap_ >= 0 ? ecap_ : (ecap_rows_n_ > 0 || ecap_minp_ > 0.0f ? 0 : -1); }
 
     /// MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO=1 (opt-in, changes the output only through the deferral;
     /// core/defer_auto.hpp): the NEXT run defers its light CPU rows as STRATA_VERIFY_DEFER_CPU configures.  A borrow for
@@ -956,6 +958,13 @@ private:
     // captured graphs do not change, so it costs no new capture and composes with the deferral above
     int ecap_ = -1;                        ///< init: the cap per draft row, -1 off
     bool ecap_next_ = false;               ///< set_ecap_window: the next run's draft rows may be capped
+    // ECAP v2 (verify_ecap.hpp): STRATA_VERIFY_ECAP_ROWS=c1,c2,... (the cap per window row, the last value repeating) and
+    // STRATA_VERIFY_ECAP_MINP=<p> (a draft row whose MTP probability is below p gets cap 0), STRATA_VERIFY_ECAP_MAX_ROWS=N
+    int8_t ecap_rows_[strata::core::kEcapRowsMax] = {};
+    int ecap_rows_n_ = 0;                  ///< init: values in ecap_rows_, 0 off
+    float ecap_minp_ = -1.0f;              ///< init: the confidence gate, <= 0 off
+    float ecap_conf_[8] = {};              ///< this run's draft probabilities (the board, taken in run)
+    int ecap_conf_n_ = 0;
 
     // device
     void* arena_ = nullptr;

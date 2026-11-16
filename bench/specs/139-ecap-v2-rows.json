@@ -1,0 +1,49 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 6,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "rows3": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "",
+        "STRATA_VERIFY_ECAP_ROWS": "-1,-1,0",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "4",
+        "STRATA_VERIFY_ECAP_MAX_ROWS": "5"
+      }
+    },
+    "rows3-all": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "",
+        "STRATA_VERIFY_ECAP_ROWS": "-1,-1,0",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "4"
+      }
+    },
+    "rows5": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "",
+        "STRATA_VERIFY_ECAP_ROWS": "-1,-1,-1,-1,0",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "6"
+      }
+    },
+    "minp05": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_VERIFY_ECAP": "",
+        "STRATA_VERIFY_ECAP_MINP": "0.5",
+        "STRATA_VERIFY_ECAP_MIN_ROWS": "4"
+      }
+    }
+  },
+  "note": "ECAP v2 (MOD_PLAN section 6 queue item 1; core/verify_ecap.hpp). base = the preset (ECAP=0 from 9-row windows). rows3: cap 0 for window rows >= 3 only in 4-5 row windows (rows 1 and 2 uncapped); rows3-all: the same in every window of 4 rows or more; rows5: cap 0 for rows >= 5 from 6-row windows; minp05: a draft row whose MTP probability is below 0.5 gets cap 0 (needs the MTP drafter to publish the probabilities; the preset's drafter does). Each arm replaces the preset's scalar cap. Lossy: quality_gate.py and the tool-call task gate (T-589, T-591 precedent) first; owner bar >= 3% on edit and short. A bad list or probability prints a line and the arm runs as base: check the log for 'STRATA_VERIFY_ECAP v2'."
+}

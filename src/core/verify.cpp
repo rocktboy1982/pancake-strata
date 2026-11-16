@@ -1547,6 +1547,28 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                          pool_gpu_helper() != nullptr ? pool_gpu_helper() : "--remote-expert-opt");
         else
             ecap_ = c;
+        // ECAP v2: the per-row list and the confidence gate (opt-in, changes the output).  Not with a helper GPU or the
+        // remote expert path, as the scalar cap.
+        ecap_rows_n_ = 0;
+        ecap_minp_ = -1.0f;
+        const char* rv = std::getenv("STRATA_VERIFY_ECAP_ROWS");
+        const int rn = strata::core::verify_ecap_rows_parse(rv, ecap_rows_);
+        const float mp = strata::core::verify_ecap_minp_parse(std::getenv("STRATA_VERIFY_ECAP_MINP"));
+        if (rn == -2)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_ROWS=%s is not a list of up to %d caps in -1..63: off
+",
+                         rv, strata::core::kEcapRowsMax);
+        if (mp == -2.0f)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_MINP is not a probability in (0, 1]: off
+");
+        if ((rn > 0 || mp > 0.0f) && (pool_gpu_helper() != nullptr || remote_opt_ != nullptr))
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_ROWS/_MINP are not taken with %s: off
+",
+                         pool_gpu_helper() != nullptr ? pool_gpu_helper() : "--remote-expert-opt");
+        else {
+            if (rn > 0) ecap_rows_n_ = rn;
+            if (mp > 0.0f) ecap_minp_ = mp;
+        }
     }
     // ---- mapped staging
     bool ok = mapped(T * 4, (void**) &h_tok_, (void**) &m_tok_) &&
@@ -2203,6 +2225,18 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                              "ones join late\n", defer_heavy_, below_set ? "" : " (the default)", defer_heavy_);
     else if (defer_ && below >= 1.0f)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_DEFER_CPU_BELOW=%g: every CPU row joins late\n", below);
+    if (ecap_rows_n_ > 0 || ecap_minp_ > 0.0f) {
+        char list[96] = "";
+        size_t at = 0;
+        for (int i = 0; i < ecap_rows_n_ && at + 5 < sizeof(list); ++i)
+            at += (size_t) std::snprintf(list + at, sizeof(list) - at, "%s%d", i ? "," : "", (int) ecap_rows_[i]);
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP v2 (changes the output): per-row caps [%s] (window row 1 "
+                             "first, the last value repeats, -1 uncapped; %s), confidence gate %g (a draft row whose MTP "
+                             "probability is below it gets cap 0; 0 = off).  Same windows as STRATA_VERIFY_ECAP
+",
+                     list, ecap_rows_n_ > 0 ? "replaces STRATA_VERIFY_ECAP" : "no list: the scalar cap",
+                     ecap_minp_ > 0.0f ? (double) ecap_minp_ : 0.0);
+    }
     if (ecap_ >= 0)
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d (changes the output; MOD_PLAN F5): in a decode window each "
                              "draft row (rows 1..T-1, never row 0) reads at most %d CPU expert(s) that row 0 and the rows "
@@ -4921,8 +4955,25 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         const int n = v != nullptr ? std::atoi(v) : 2;
         return n < 2 ? 2 : n;
     }();
-    const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= ecap_min_rows && head_sampling_;
+    static const int ecap_max_rows = [] {   // STRATA_VERIFY_ECAP_MAX_ROWS=N (ECAP v2, default off): only windows of N rows or fewer
+        const char* v = std::getenv("STRATA_VERIFY_ECAP_MAX_ROWS");
+        const int n = v != nullptr ? std::atoi(v) : 0;
+        return n < 2 ? 0 : n;
+    }();
+    const bool ecap_win = ecap_next_ && ecap() >= 0 && T >= ecap_min_rows && (ecap_max_rows == 0 || T <= ecap_max_rows) &&
+                          head_sampling_;
     ecap_next_ = false;
+    // ECAP v2: take the MTP draft probabilities of this window (the board is cleared on every run); they count only when
+    // the board holds at least this window's draft count
+    ecap_conf_n_ = 0;
+    {
+        strata::core::EcapConfBoard& cb = strata::core::ecap_conf_board();
+        if (ecap_minp_ > 0.0f && cb.n >= T - 1 && T - 1 <= 8) {
+            for (int i = 0; i < T - 1; ++i) ecap_conf_[i] = cb.p[i];
+            ecap_conf_n_ = T - 1;
+        }
+        cb.n = 0;
+    }
     // LEADS.md B28 STRATA_MTP_IN_VERIFY: the after-commit hook is this run's borrow, taken here so it never reaches a later window
     AfterCommitFn after_commit = std::move(ac_fn_);
     ac_fn_ = nullptr;
@@ -5242,6 +5293,12 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         // MOD_PLAN F5 STRATA_VERIFY_ECAP: this group's draft rows; the window's row 0 (committed) leads the group at tb 0
         sink_.ecap = ecap_win ? ecap_ : -1;
         sink_.ecap_first = tb == 0 ? 1 : 0;
+        sink_.ecap_rows = ecap_win && ecap_rows_n_ > 0 ? ecap_rows_ : nullptr;   // ECAP v2
+        sink_.ecap_rows_n = ecap_win ? ecap_rows_n_ : 0;
+        sink_.ecap_base = (int) tb;
+        sink_.ecap_conf = ecap_win && ecap_conf_n_ > 0 ? ecap_conf_ : nullptr;
+        sink_.ecap_conf_n = ecap_win ? ecap_conf_n_ : 0;
+        sink_.ecap_minp = ecap_win ? ecap_minp_ : -1.0f;
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW: this layer's split, if post(l) waits for it
             const bool split = heavy_layer(T, l);
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
@@ -6675,6 +6732,7 @@ bool Verifier::run_slot_rows(const int* rows, int S, const int32_t* tokens, cons
         sink_.partial = nullptr;
         sink_.skip_w = strata::core::pool_weights_wanted() ? h_w_ : nullptr;   // STRATA_MISS_SKIP_W / _CUM (rows 0..S-1)
         sink_.ecap = -1;           // (MOD_PLAN F5 STRATA_VERIFY_ECAP: a batch window's rows are every slot's committed row)
+        sink_.ecap_rows = nullptr; sink_.ecap_rows_n = 0; sink_.ecap_conf = nullptr; sink_.ecap_conf_n = 0; sink_.ecap_minp = -1.0f;   // (ECAP v2 fields too)
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, l);
         if (remote_opt_) remote_opt_->end();
         progress_tick();
@@ -6899,6 +6957,7 @@ int Verifier::batch_serve(PoolMultiFn pool, void* user) {
         sink_.partial = nullptr;
         sink_.skip_w = strata::core::pool_weights_wanted() ? h_w_ : nullptr;   // STRATA_MISS_SKIP_W / _CUM (as run_slot_rows)
         sink_.ecap = -1;
+        sink_.ecap_rows = nullptr; sink_.ecap_rows_n = 0; sink_.ecap_conf = nullptr; sink_.ecap_conf_n = 0; sink_.ecap_minp = -1.0f;   // (ECAP v2 fields too)
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, lb_ + k);
         if (remote_opt_) remote_opt_->end();
         progress_tick();
@@ -7953,6 +8012,7 @@ int Verifier::service(PoolMultiFn pool, void* user, std::string& err) {
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window (pipelined): the CPU experts of layer", l);
         sink_.ecap = -1;   // MOD_PLAN F5 STRATA_VERIFY_ECAP: not here (no decode loop opts a pipelined window in)
+        sink_.ecap_rows = nullptr; sink_.ecap_rows_n = 0; sink_.ecap_conf = nullptr; sink_.ecap_conf_n = 0; sink_.ecap_minp = -1.0f;   // (ECAP v2 fields too)
         sink_.skip_w = strata::core::pool_weights_wanted() ? h_w_ + (size_t) tb * ss.k : nullptr;   // STRATA_MISS_SKIP_W / _CUM
         if (defer_heavy_ > 0.0f) {   // STRATA_VERIFY_DEFER_CPU_BELOW (as run)
             const bool split = heavy_layer(T, l);

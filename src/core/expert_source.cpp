@@ -5900,7 +5900,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         // So the deferral path (STRATA_VERIFY_DEFER_CPU) sees a zero row there, written before any flag, whether post(l)
         // takes it on time or late_add takes it a layer later, and its heavy/light split counts only the CPU jobs left.
         // Not with a peer or helper GPU (their rows are claimed outside this plan), as the tail skip.
-        if (d.plan->ecap >= 0 && n_tok > d.plan->ecap_first && d.peer == nullptr && d.remote_count == 0) {
+        if ((d.plan->ecap >= 0 || d.plan->ecap_rows_n > 0 || d.plan->ecap_minp > 0.0f) && n_tok > d.plan->ecap_first &&
+            d.peer == nullptr && d.remote_count == 0) {
             int q_of[kMaxWindowEntries];
             for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
             bool missed[kMaxWindowEntries], ecap_read[kMaxWindowEntries], ecap_drop[kMaxWindowEntries];
@@ -5909,8 +5910,10 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 missed[i] = e >= 0 && e < d.n_expert && !skip_d[q_of[first_of[i]]] &&
                             d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0;
             }
-            if (strata::core::verify_ecap_drop(first_of, missed, n_tok, k, d.plan->ecap_first, d.plan->ecap, ecap_read,
-                                               ecap_drop) > 0) {
+            if (strata::core::verify_ecap_drop_rows(first_of, missed, n_tok, k, d.plan->ecap_first, d.plan->ecap_base,
+                                                    d.plan->ecap, d.plan->ecap_rows, d.plan->ecap_rows_n,
+                                                    d.plan->ecap_conf, d.plan->ecap_conf_n, d.plan->ecap_minp, ecap_read,
+                                                    ecap_drop) > 0) {
                 for (int q = 0; q < nd; ++q)
                     if (ecap_drop[distinct[q]]) {   // (every entry of the expert is dropped with its first one)
                         skip_d[q] = true;
