@@ -114,6 +114,7 @@
 #include "strata/program/adapt_decay.hpp"
 #include "strata/program/classlru_score.hpp"
 #include "strata/program/tier_policy_score.hpp"
+#include "strata/core/expert_entropy.hpp"
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
 #include "strata/core/window_trace.hpp"
@@ -8382,6 +8383,40 @@ int main(int argc, char** argv) {
         srcp = &arena_src;
     }
     }   // the arena / file pass loop (#4846)
+    // LEADS.md A29 STRATA_EXPERT_ENTROPY=N (opt-in, measurement only; read once): N sample experts per layer (1..64) coded
+    // with the lossless order-0 coder (core/expert_entropy.hpp, decoded back and compared), the coded / raw bytes per
+    // layer and in total: the measured bound for an entropy-coded expert tier.  Nothing the engine computes changes.
+    if (const char* ee = std::getenv("STRATA_EXPERT_ENTROPY"); ee != nullptr && std::atoi(ee) > 0 && srcp != nullptr) {
+        const int ns = std::min(64, std::atoi(ee));
+        const auto& el = strata::kernels::cpu::expert_layout();
+        uint64_t raw_all = 0, coded_all = 0;
+        bool bad = false;
+        for (int64_t l = 0; l < el.n_layers && !bad; ++l) {
+            uint64_t raw = 0, coded = 0;
+            for (int s = 0; s < ns; ++s) {
+                const int64_t e = ns == 1 ? 0 : (int64_t) s * (el.n_expert - 1) / (ns - 1);
+                const uint8_t* b = srcp->blob(l, e);
+                if (b == nullptr) continue;
+                const uint64_t nb = el.blob_bytes(l);
+                const std::vector<uint8_t> c = strata::core::entropy::encode(b, nb);
+                std::vector<uint8_t> back;
+                if (!strata::core::entropy::decode(c.data(), c.size(), back) || back.size() != nb ||
+                    std::memcmp(back.data(), b, nb) != 0) { bad = true; break; }
+                raw += nb;
+                coded += c.size();
+            }
+            raw_all += raw;
+            coded_all += coded;
+            if (raw > 0)
+                std::fprintf(stderr, "strata: STRATA_EXPERT_ENTROPY layer %lld: %.4f of the raw bytes (%d experts)\n",
+                             (long long) l, (double) coded / (double) raw, ns);
+        }
+        if (bad) std::fprintf(stderr, "strata: STRATA_EXPERT_ENTROPY: a round trip differed - the coder is wrong, ignore the ratios\n");
+        else if (raw_all > 0)
+            std::fprintf(stderr, "strata: STRATA_EXPERT_ENTROPY total: %.4f of %llu raw bytes (saving %.2f%%)\n",
+                         (double) coded_all / (double) raw_all, (unsigned long long) raw_all,
+                         100.0 * (1.0 - (double) coded_all / (double) raw_all));
+    }
 #if defined(__linux__)
     // 0.1.43.1: on by default (STRATA_ADAPT_CALLBACK_WARMUP=0 turns it off).  Linux threads inherit the creator's CPU mask, and
     // the host pins itself to one CPU later; a callback thread the driver creates lazily after that would run on the
