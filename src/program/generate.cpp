@@ -36,6 +36,7 @@
 #include "strata/core/dma_batch.hpp"
 #include "strata/program/adaptive_range.hpp"
 #include "strata/program/promo_chunk.hpp"
+#include "strata/program/ckpt_stride.hpp"
 #include "strata/program/route_prior_scope.hpp"
 #include "strata/program/route_prior_auto.hpp"
 #include "strata/program/think_probe.hpp"
@@ -2513,6 +2514,14 @@ uint64_t fnv1a(const void* data, size_t n, uint64_t h = 1469598103934665603ull) 
 }
 
 using ConvStateSizes = strata::core::ConversationStateSizes;
+
+/// STRATA_CKPT_STRIDE=N / STRATA_CKPT_STRIDE_MAX (MOD_PLAN.md section 6 item 42, default off): the periodic checkpoint
+/// distance of a request that resumed inside the cache (include/strata/program/ckpt_stride.hpp).  Read once.
+const strata::program::CkptStride& ckpt_stride_cfg() {
+    static const strata::program::CkptStride c =
+        strata::program::ckpt_stride_from_env(std::getenv("STRATA_CKPT_STRIDE"), std::getenv("STRATA_CKPT_STRIDE_MAX"));
+    return c;
+}
 
 ConvStateSizes conv_state_sizes(const strata::core::ModelGeometry& g, const strata::core::SessionState& ss) {
     ConvStateSizes z;
@@ -14156,7 +14165,7 @@ int main(int argc, char** argv) {
                     std::fprintf(stderr, "strata serve: checkpoint at %lld skipped: its state could not be copied out (see "
                                          "above); the request goes on without it\n", (long long) done);
                 }
-                if (periodic_checkpoint) pp_next_check = done + o.prompt_cache_every;
+                if (periodic_checkpoint) pp_next_check = strata::program::ckpt_next_check(ckpt_stride_cfg(), pp_from, done, o.prompt_cache_every);
                 if (tail_checkpoint) pp_tail_saved = true;
             }
             return true;
@@ -19502,7 +19511,8 @@ int main(int argc, char** argv) {
             pp_reached = read_from;
             pp_exact = true;   // a restore, a checkpoint mount or a zeroed session: the state is exactly at read_from
             pp_t0 = r0;
-            pp_next_check = reread_to > 0 || !req_ckpt ? INT64_MAX : resume + o.prompt_cache_every;   // ckpt=0: none
+            pp_next_check = reread_to > 0 || !req_ckpt ? INT64_MAX
+                                                       : strata::program::ckpt_next_check(ckpt_stride_cfg(), resume, resume, o.prompt_cache_every);   // ckpt=0: none
             pp_tail_saved = reread_to > 0 || !req_ckpt;   // ckpt=0 (#861): no tail checkpoint either
             {
                 std::lock_guard<std::mutex> lk(part_mu);

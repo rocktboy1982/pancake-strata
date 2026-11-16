@@ -1,0 +1,34 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit",
+  "long3k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TRACE": "1"
+   }
+  },
+  "stride4k": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TRACE": "1",
+    "STRATA_CKPT_STRIDE": "4096"
+   }
+  },
+  "stride2k": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TRACE": "1",
+    "STRATA_CKPT_STRIDE": "2048"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 6 item 42 (LEADS.md Part J, kindi checkpoint_every), STRATA_CKPT_STRIDE=N (default off, state placement only: exact text). A request that resumed at R takes its periodic checkpoints at R+N, R+2N, R+3N (STRATA_CKPT_STRIDE_MAX, default 3) instead of every --prompt-cache-every (16384) tokens, so a later request that edits the middle of the prefix resumes from the nearest checkpoint below the edit. Rule: include/strata/program/ckpt_stride.hpp (host test ckpt_stride_test, T-727). THE TEST THAT MATTERS is the mid-prefix edit: python3 tools/pancake/mid_edit_bench.py --port <p> --label base --out mid-base.json on an engine started with the base command, then again with STRATA_CKPT_STRIDE=4096 (--label stride4k) and python3 tools/pancake/mid_edit_bench.py --compare mid-base.json mid-stride4k.json: per edit position (25/50/75% of a 32K conversation) the reused tokens, the tokens read again and TTFT; 3 rounds each (pytest tools/pancake/test_mid_edit_bench.py, T-728). The abtest screen (python3 tools/pancake/abtest.py bench/specs/142-ckpt-stride.json --tier screen) shows only the COST of the extra checkpoints (each is a 112.2 MiB GDN copy, STRATA_TRACE prints 'checkpoint at N: sync X ms, save Y ms'; long3k reads 3K tokens so the stride arms add 0-1 checkpoint there). It pays only when turns diverge inside the prefix; the share of such requests is NOT recorded (M3 not recorded), so a gain on mid_edit_bench is an upper bound for real traffic. The extra checkpoints share the --prompt-cache slots (6): read the root / turn checkpoints' survival in the log. NOT MEASURED (queued)."
+}
