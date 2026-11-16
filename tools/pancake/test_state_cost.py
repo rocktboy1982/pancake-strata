@@ -87,3 +87,18 @@ def test_main_with_files(tmp_path, capsys):
     assert sc.main([str(lg), "--turns", str(tl), "--json", str(out)]) == 0
     assert "turn log:     1 requests" in capsys.readouterr().out
     assert json.loads(out.read_text())["parks"]["n"] == 2
+
+
+def test_replay_park_estimate():
+    lines = [
+        "rep 0 arm base (attempt 0)",
+        "  [  1/75] agent    A#0   69995 tok (plan  70082) reused      0 prompt  40.3 s ttft  40.2 s decode  79.5 tok/s wall  57.7 s [parked 70 (226 MiB); parked 70904 (1783 MiB)]",
+        "  [  2/75] side    s0#0      67 tok (plan     65) reused      0 prompt   0.7 s ttft   0.7 s decode  52.0 tok/s wall   0.8 s []",
+        "  [  3/75] agent    A#1   71664 tok (plan  71788) reused  71391 prompt   1.7 s ttft   1.7 s decode  90.1 tok/s wall   4.7 s [skip (70 tokens, below the 8192 minimum; parked=0)]",
+        "  [  4/75] agent    B#24  57763 tok (plan  57763) reused      0 prompt  25.9 s ttft  25.9 s decode 106.8 tok/s wall  33.4 s [parked 463 (231 MiB)]  COLD RE-READ",
+        "rep 0 base: prompt 100.0 s (agent 80.0), turn 200.0 s, cold re-reads 3 (80.6 s), min avail 13.0 GiB, peak RSS 41.61 GiB, foreign CPU 4%",
+    ]
+    r = sc.replay_park_estimate(lines, rate_gib_s=1.0)
+    assert len(r) == 1 and r[0]["parks"] == 3 and r[0]["mib"] == 2240 and r[0]["requests"] == 4
+    assert abs(r[0]["est_park_s"] - 2240 / 1024.0) < 1e-9
+    assert abs(r[0]["share_of_prompt"] - (2240 / 1024.0) / 100.0) < 1e-9 and abs(r[0]["share_of_turn"] - (2240 / 1024.0) / 200.0) < 1e-9

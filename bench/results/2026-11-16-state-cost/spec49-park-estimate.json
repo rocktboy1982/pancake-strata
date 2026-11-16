@@ -1,0 +1,110 @@
+[
+ {
+  "arm": "base",
+  "rep": 0,
+  "parks": 53,
+  "mib": 28182,
+  "requests": 75,
+  "prompt_s": 275.1,
+  "turn_s": 515.6,
+  "est_park_s": 15.816945043103448,
+  "share_of_prompt": 0.057495256427129944,
+  "share_of_turn": 0.030676774715095903
+ },
+ {
+  "arm": "base",
+  "rep": 1,
+  "parks": 51,
+  "mib": 25379,
+  "requests": 75,
+  "prompt_s": 314.4,
+  "turn_s": 531.0,
+  "est_park_s": 14.243781429597702,
+  "share_of_prompt": 0.04530464831296979,
+  "share_of_turn": 0.026824447136718835
+ },
+ {
+  "arm": "base",
+  "rep": 2,
+  "parks": 54,
+  "mib": 29639,
+  "requests": 75,
+  "prompt_s": 286.6,
+  "turn_s": 555.7,
+  "est_park_s": 16.634675826149426,
+  "share_of_prompt": 0.05804143693701823,
+  "share_of_turn": 0.02993463348236355
+ },
+ {
+  "arm": "cache2048-min8192",
+  "rep": 0,
+  "parks": 12,
+  "mib": 19889,
+  "requests": 75,
+  "prompt_s": 221.9,
+  "turn_s": 506.0,
+  "est_park_s": 11.162558369252874,
+  "share_of_prompt": 0.05030445412011209,
+  "share_of_turn": 0.022060392034096588
+ },
+ {
+  "arm": "cache2048-min8192",
+  "rep": 1,
+  "parks": 8,
+  "mib": 13413,
+  "requests": 75,
+  "prompt_s": 231.2,
+  "turn_s": 439.3,
+  "est_park_s": 7.527949892241379,
+  "share_of_prompt": 0.032560336904158216,
+  "share_of_turn": 0.017136239226590893
+ },
+ {
+  "arm": "cache2048-min8192",
+  "rep": 2,
+  "parks": 9,
+  "mib": 14753,
+  "requests": 75,
+  "prompt_s": 233.8,
+  "turn_s": 408.3,
+  "est_park_s": 8.280015265804598,
+  "share_of_prompt": 0.035414949810969196,
+  "share_of_turn": 0.020279243854529998
+ },
+ {
+  "arm": "park-truncate1280",
+  "rep": 0,
+  "parks": 10,
+  "mib": 11985,
+  "requests": 75,
+  "prompt_s": 220.2,
+  "turn_s": 428.5,
+  "est_park_s": 6.726495150862069,
+  "share_of_prompt": 0.030547207769582516,
+  "share_of_turn": 0.015697771647286043
+ },
+ {
+  "arm": "park-truncate1280",
+  "rep": 1,
+  "parks": 13,
+  "mib": 15669,
+  "requests": 75,
+  "prompt_s": 232.0,
+  "turn_s": 497.2,
+  "est_park_s": 8.794113685344827,
+  "share_of_prompt": 0.037905662436831154,
+  "share_of_turn": 0.017687276116944546
+ },
+ {
+  "arm": "park-truncate1280",
+  "rep": 2,
+  "parks": 9,
+  "mib": 10701,
+  "requests": 75,
+  "prompt_s": 221.6,
+  "turn_s": 368.5,
+  "est_park_s": 6.005859375,
+  "share_of_prompt": 0.02710225349729242,
+  "share_of_turn": 0.016298125848032564
+ }
+]

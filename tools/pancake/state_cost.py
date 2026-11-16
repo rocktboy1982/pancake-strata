@@ -19,6 +19,11 @@ A prompt checkpoint's bytes are not in the log; they are the GDN state of every 
 Flash-Next geometry (include/strata/core/geometry.hpp: gdn_state_bytes()).  The disk tier's saves (background) print no ms and are
 not counted.
 
+--replay-stdout FILE [--rate-gib-s 1.74]: a replay_turns.py stdout (the archived spec 48 / 49 runs): per arm and rep, the number of parks
+and the parked snapshot MiB that the per-request lines print ("[parked N (X MiB)]"), and an ESTIMATE of the park time = MiB / rate (the rate
+is one measured figure, T-172: 1258 MiB in 706 ms = 1.74 GiB/s; the snapshot bytes are an upper bound of what crosses PCIe, because the
+K/V of an unchanged prefix and the checkpoint copies are not copied from the GPU) against the run's prompt and turn seconds.
+
 With --turns (the server's turn log) the totals are put against the summed request time (duration_s) and prompt time (prompt_ms) of
 the turns in the log's span, and per request.  Without it, only the totals and per-event means.
 """
@@ -182,12 +187,62 @@ def render(s):
     return "\n".join(out)
 
 
+RE_REP_ARM = re.compile(r"^rep (\d+) arm (\S+) \(attempt")
+RE_REP_END = re.compile(r"^rep (\d+) (\S+): prompt ([\d.]+) s .*?turn ([\d.]+) s")
+RE_REQ = re.compile(r"^\s+\[\s*\d+/\d+\] .*\[([^\]]*)\]\s*(?:COLD RE-READ)?\s*$")
+RE_PARKED = re.compile(r"parked (\d+) \((\d+) MiB\)")
+
+
+def replay_park_estimate(lines, rate_gib_s=1.74):
+    """Per (arm, rep): parks, snapshot MiB, estimated park seconds against the run's prompt and turn seconds."""
+    runs, cur = {}, None
+    for line in lines:
+        m = RE_REP_ARM.match(line)
+        if m:
+            cur = (m.group(2), int(m.group(1)))
+            runs[cur] = {"parks": 0, "mib": 0, "requests": 0}
+            continue
+        m = RE_REP_END.match(line)
+        if m and (m.group(2), int(m.group(1))) in runs:
+            runs[(m.group(2), int(m.group(1)))].update(prompt_s=float(m.group(3)), turn_s=float(m.group(4)))
+            continue
+        m = RE_REQ.match(line)
+        if m and cur is not None:
+            runs[cur]["requests"] += 1
+            for pk in RE_PARKED.finditer(m.group(1)):
+                runs[cur]["parks"] += 1
+                runs[cur]["mib"] += int(pk.group(2))
+    out = []
+    for (arm, rep), r in sorted(runs.items()):
+        if "prompt_s" not in r:
+            continue
+        est = r["mib"] / (rate_gib_s * 1024.0)
+        out.append({"arm": arm, "rep": rep, **r, "est_park_s": est, "share_of_prompt": est / r["prompt_s"],
+                    "share_of_turn": est / r["turn_s"]})
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("log", help="engine stderr log")
+    ap.add_argument("log", nargs="?", help="engine stderr log")
+    ap.add_argument("--replay-stdout", help="a replay_turns.py stdout: estimate the park time per arm from its parked lines")
+    ap.add_argument("--rate-gib-s", type=float, default=1.74, help="park throughput for --replay-stdout (default 1.74, T-172)")
     ap.add_argument("--turns", help="the server's turn log (pancake-turns.jsonl) for the same requests")
     ap.add_argument("--json", help="write the summary here")
     a = ap.parse_args(argv)
+    if a.replay_stdout:
+        with open(a.replay_stdout, encoding="utf-8", errors="replace") as f:
+            rows = replay_park_estimate(f, a.rate_gib_s)
+        print("arm                  rep  requests   parks   snapshot MiB  est park s  of prompt  of turn   (estimate: MiB / %.2f GiB/s)" % a.rate_gib_s)
+        for r in rows:
+            print("%-20s %3d  %8d  %5d  %12d  %9.1f  %8.1f%%  %6.1f%%" % (r["arm"], r["rep"], r["requests"], r["parks"], r["mib"],
+                  r["est_park_s"], 100 * r["share_of_prompt"], 100 * r["share_of_turn"]))
+        if a.json:
+            with open(a.json, "w", encoding="utf-8") as f:
+                json.dump(rows, f, indent=1)
+        return 0
+    if not a.log:
+        ap.error("an engine log or --replay-stdout is needed")
     with open(a.log, encoding="utf-8", errors="replace") as f:
         ev = parse_log(f)
     s = summarize(ev, load_turns(a.turns) if a.turns else None)
