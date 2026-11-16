@@ -29,6 +29,7 @@
 #include "strata/core/layer.hpp"
 #include "strata/core/session.hpp"
 #include "strata/core/verify_ecap.hpp"
+#include "strata/spec/window_policy.hpp"
 #include "strata/kernels/sampler.hpp"
 #include "strata/kernels/window_limits.hpp"
 #include "strata/kernels/verify_kernels.hpp"
@@ -263,7 +264,7 @@ public:
     void set_ecap_window(bool drafts) { ecap_next_ = drafts; if (next_) next_->set_ecap_window(drafts); }
     /// STRATA_VERIFY_ECAP as init took it: the cap per draft row, -1 off.  With STRATA_VERIFY_ECAP_ROWS (ECAP v2) and no
     /// scalar it reads 0, so a caller that only tests `ecap() >= 0` opens the window for the per-row list as well.
-    int ecap() const { return ecap_ >= 0 ? ecap_ : (ecap_rows_n_ > 0 || ecap_minp_ > 0.0f ? 0 : -1); }
+    int ecap() const { return ecap_ >= 0 ? ecap_ : (ecap_rows_n_ > 0 || ecap_minp_ > 0.0f || wpol_.on() ? 0 : -1); }
 
     /// MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO=1 (opt-in, changes the output only through the deferral;
     /// core/defer_auto.hpp): the NEXT run defers its light CPU rows as STRATA_VERIFY_DEFER_CPU configures.  A borrow for
@@ -965,6 +966,12 @@ private:
     float ecap_minp_ = -1.0f;              ///< init: the confidence gate, <= 0 off
     float ecap_conf_[8] = {};              ///< this run's draft probabilities (the board, taken in run)
     int ecap_conf_n_ = 0;
+    // STRATA_WINDOW_POLICY=N[,margin[,cap]] (spec/window_policy.hpp, MOD_PLAN section 6 item 21): the causal last-N-windows
+    // controller picks the ECAP row list of each window; it replaces the list and the scalar cap while on
+    strata::spec::WindowPolicy wpol_;
+    int8_t wp_rows_[strata::core::kEcapRowsMax] = {};   ///< this run's list from wpol_
+    int wp_rows_n_ = 0;
+    int64_t wp_windows_ = 0, wp_capped_ = 0;            ///< windows decided / windows with a cap
 
     // device
     void* arena_ = nullptr;

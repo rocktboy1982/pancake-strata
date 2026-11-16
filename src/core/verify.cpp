@@ -1555,15 +1555,32 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         const int rn = strata::core::verify_ecap_rows_parse(rv, ecap_rows_);
         const float mp = strata::core::verify_ecap_minp_parse(std::getenv("STRATA_VERIFY_ECAP_MINP"));
         if (rn == -2)
-            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_ROWS=%s is not a list of up to %d caps in -1..63: off
-",
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_ROWS=%s is not a list of up to %d caps in -1..63: off\n",
                          rv, strata::core::kEcapRowsMax);
         if (mp == -2.0f)
             std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_MINP is not a probability in (0, 1]: off
 ");
+        {   // STRATA_WINDOW_POLICY (opt-in, changes the output)
+            const char* wv = std::getenv("STRATA_WINDOW_POLICY");
+            const strata::spec::WindowPolicyCfg wc = strata::spec::window_policy_parse(wv);
+            wpol_ = strata::spec::WindowPolicy();
+            if (wc.n < 0)
+                std::fprintf(stderr, "strata verify: STRATA_WINDOW_POLICY=%s is not N[,margin[,cap]] (N 1..64, margin "
+                                     "0..16, cap 0..63): off\n", wv);
+            else if (wc.n > 0 && (pool_gpu_helper() != nullptr || remote_opt_ != nullptr))
+                std::fprintf(stderr, "strata verify: STRATA_WINDOW_POLICY is not taken with %s: off\n",
+                             pool_gpu_helper() != nullptr ? pool_gpu_helper() : "--remote-expert-opt");
+            else if (wc.n > 0) {
+                wpol_ = strata::spec::WindowPolicy(wc);
+                std::fprintf(stderr, "strata verify: STRATA_WINDOW_POLICY=%d,%d,%d (changes the output; MOD_PLAN section 6 "
+                                     "item 21): each decode window keeps ceil(mean accepted drafts of the last %d windows) "
+                                     "+ 1 + %d rows and caps the CPU experts of the later draft rows at %d each (the ECAP "
+                                     "row rule; replaces STRATA_VERIFY_ECAP and _ROWS; the first window keeps every row)\n",
+                             wc.n, wc.margin, wc.cap, wc.n, wc.margin, wc.cap);
+            }
+        }
         if ((rn > 0 || mp > 0.0f) && (pool_gpu_helper() != nullptr || remote_opt_ != nullptr))
-            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_ROWS/_MINP are not taken with %s: off
-",
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP_ROWS/_MINP are not taken with %s: off\n",
                          pool_gpu_helper() != nullptr ? pool_gpu_helper() : "--remote-expert-opt");
         else {
             if (rn > 0) ecap_rows_n_ = rn;
@@ -1884,8 +1901,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             const int cols = (int) std::min<int64_t>((int64_t) T, strata::kernels::kHeadShortlistMaxCols);
             if (!strata::program::shortlist_load(head_shortlist_path(), tb, terr) || tb.vocab != (uint32_t) n_vocab_ ||
                 tb.n_embd != (uint32_t) N || tb.k > (uint32_t) strata::kernels::kHeadShortlistMaxK) {
-                std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST %s: %s (switch off)
-", head_shortlist_path(),
+                std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST %s: %s (switch off)\n", head_shortlist_path(),
                              terr.empty() ? "vocab, n_embd or cluster count does not fit this head" : terr.c_str());
                 g_shl.failed = true;
             } else if (cudaMalloc((void**) &g_shl.cluster, (size_t) tb.vocab * 4) != cudaSuccess ||
@@ -1902,8 +1918,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                 g_shl.n_keep = strata::program::shortlist_clusters_scored_from_env(g_shl.k);
                 g_shl.ready = true;
                 std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST=%s (LOSSY): %d clusters, the best %d scored; REFERENCE form "
-                                     "(full head GEMV, then the logits outside the kept clusters set to -inf: no speed gain)
-",
+                                     "(full head GEMV, then the logits outside the kept clusters set to -inf: no speed gain)\n",
                              head_shortlist_path(), g_shl.k, g_shl.n_keep);
             }
         }
@@ -2232,8 +2247,7 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             at += (size_t) std::snprintf(list + at, sizeof(list) - at, "%s%d", i ? "," : "", (int) ecap_rows_[i]);
         std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP v2 (changes the output): per-row caps [%s] (window row 1 "
                              "first, the last value repeats, -1 uncapped; %s), confidence gate %g (a draft row whose MTP "
-                             "probability is below it gets cap 0; 0 = off).  Same windows as STRATA_VERIFY_ECAP
-",
+                             "probability is below it gets cap 0; 0 = off).  Same windows as STRATA_VERIFY_ECAP\n",
                      list, ecap_rows_n_ > 0 ? "replaces STRATA_VERIFY_ECAP" : "no list: the scalar cap",
                      ecap_minp_ > 0.0f ? (double) ecap_minp_ : 0.0);
     }
@@ -4963,6 +4977,16 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     const bool ecap_win = ecap_next_ && ecap() >= 0 && T >= ecap_min_rows && (ecap_max_rows == 0 || T <= ecap_max_rows) &&
                           head_sampling_;
     ecap_next_ = false;
+    // STRATA_WINDOW_POLICY: this window's row list from the last windows' acceptance (observed at the end of the run)
+    wp_rows_n_ = 0;
+    if (ecap_win && wpol_.on()) {
+        wp_rows_n_ = wpol_.rows_list(T, wp_rows_, strata::core::kEcapRowsMax);
+        ++wp_windows_;
+        if (wp_rows_n_ > 1 || wp_rows_[0] >= 0) ++wp_capped_;
+        if ((wp_windows_ & 255) == 0)
+            std::fprintf(stderr, "strata verify: STRATA_WINDOW_POLICY: %lld windows decided, %lld with a cap\n",
+                         (long long) wp_windows_, (long long) wp_capped_);
+    }
     // ECAP v2: take the MTP draft probabilities of this window (the board is cleared on every run); they count only when
     // the board holds at least this window's draft count
     ecap_conf_n_ = 0;
@@ -5293,8 +5317,8 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         // MOD_PLAN F5 STRATA_VERIFY_ECAP: this group's draft rows; the window's row 0 (committed) leads the group at tb 0
         sink_.ecap = ecap_win ? ecap_ : -1;
         sink_.ecap_first = tb == 0 ? 1 : 0;
-        sink_.ecap_rows = ecap_win && ecap_rows_n_ > 0 ? ecap_rows_ : nullptr;   // ECAP v2
-        sink_.ecap_rows_n = ecap_win ? ecap_rows_n_ : 0;
+        sink_.ecap_rows = ecap_win && wp_rows_n_ > 0 ? wp_rows_ : (ecap_win && ecap_rows_n_ > 0 ? ecap_rows_ : nullptr);   // ECAP v2
+        sink_.ecap_rows_n = ecap_win ? (wp_rows_n_ > 0 ? wp_rows_n_ : ecap_rows_n_) : 0;
         sink_.ecap_base = (int) tb;
         sink_.ecap_conf = ecap_win && ecap_conf_n_ > 0 ? ecap_conf_ : nullptr;
         sink_.ecap_conf_n = ecap_win ? ecap_conf_n_ : 0;
@@ -5503,6 +5527,11 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             }
     }
     for (int t = 0; t < T; ++t) out[t] = ((volatile int32_t*) h_out_)[t];
+    if (ecap_win && wpol_.on()) {   // STRATA_WINDOW_POLICY: the accepted drafts of this window (the matching prefix)
+        int acc = 0;
+        while (acc < T - 1 && out[acc] == tokens[acc + 1]) ++acc;
+        wpol_.observe(acc);
+    }
     if (tap_file_ != nullptr && !batch_rec_) tap_write(T, tokens, pos0);
     note_nonfinite(T, nullptr);
     // STRATA_LOGITS_DUMP=<path> (debug tap, off by default): the window's logits as the sampler saw them, written

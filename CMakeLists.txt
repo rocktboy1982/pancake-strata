@@ -2477,6 +2477,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(window_rule_test src/spec/window_rule_test.cpp)   # which rule picks the window / whose q judges it, by the active draft source
   target_include_directories(window_rule_test PRIVATE include)
   add_test(NAME window_rule_test COMMAND window_rule_test)
+  # MOD_PLAN section 6 item 21 STRATA_WINDOW_POLICY: the causal last-N-windows rule against tools/pancake/window_policy.py (header-only, CPU)
+  add_executable(window_policy_test src/spec/window_policy_test.cpp)
+  target_include_directories(window_policy_test PRIVATE include)
+  add_test(NAME window_policy_test COMMAND window_policy_test)
   add_executable(draft_vocab_test src/spec/draft_vocab_test.cpp)   # the DFlash2-alone start's draft-vocabulary choice (a build's packaged default subset; the error elsewhere)
   target_include_directories(draft_vocab_test PRIVATE include)
   add_test(NAME draft_vocab_test COMMAND draft_vocab_test)
@@ -3960,7 +3964,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     grammar_guard_test iq_parity_fixtures platform_memory_test pinned_shared_test ple_reader_selftest
     ple_reader_stress ple_residency_test auto_cache_test qwen35_sampling_test q36_prompt_swaps_test swiglu_skim_test arch_defaults_test
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
-    adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
+    adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test window_policy_test disco_test row_miss_test
     recycle_drafts_test
     knob_trial_test
     ckpt_async_plan_test
