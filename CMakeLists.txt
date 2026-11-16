@@ -2375,6 +2375,8 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_test(NAME tier_policy_score_test COMMAND tier_policy_score_test)
   add_executable(expert_entropy_test src/core/expert_entropy_test.cpp)   # LEADS.md A29 lossless expert-byte coder
   target_include_directories(expert_entropy_test PRIVATE include)
+  find_package(Threads REQUIRED)
+  target_link_libraries(expert_entropy_test PRIVATE Threads::Threads)   # the tier's decode pool (STRATA_EXPERT_ENTROPY_TIER)
   add_test(NAME expert_entropy_test COMMAND expert_entropy_test)
   # the window limits (8 rows, or 16 in a wide CUDA / HIP build) and the pipelined-window probe (header-only, CPU)
   add_executable(window_limits_test src/core/window_limits_test.cpp)
@@ -3426,6 +3428,8 @@ if(STRATA_BUILD_TESTS)
   add_executable(pool_test src/kernels/cpu/pool_test.cpp)
   target_link_libraries(pool_test PRIVATE strata_kernels_cpu)
   strata_add_pack_test(pool_test pack/full/experts.bin pool_test --selftest)
+  # LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER: the real blobs through the tier's coder and decode pool, then the pool on the decoded copies
+  strata_add_pack_test(pool_test_entropy pack/full/experts.bin pool_test --selftest --entropy)
   # where the workers are placed (one per physical core by default) and --pool-cores (real pools, no model)
   add_executable(pool_cores_test src/kernels/cpu/pool_cores_test.cpp)
   target_link_libraries(pool_cores_test PRIVATE strata_kernels_cpu)
@@ -3798,7 +3802,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
     q2_bitplane_parity q2_fast_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2
-    expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
+    expert_parity pool_test pool_test_entropy pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test
     poly_mxfp4_test
     gpu_rewrite_parity_test

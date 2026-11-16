@@ -1,5 +1,6 @@
 // src/core/expert_source.cpp - the adapter.  See the header for the three clauses of the contract.
 #include "strata/core/expert_source.hpp"
+#include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/verify_ecap.hpp"
 #include "strata/core/expert_nibble.hpp"
@@ -4936,8 +4937,14 @@ void expert_pool_dispatch(void* user, const float* x_f, const int32_t* ids, cons
             d.fail_expert = e;
             return;
         }
-        const uint8_t* b = d.src->blob(d.layers, e);
-        if (b == nullptr) {
+        // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER: a GPU hit's blob is never read below, so a coded one (transient) is not
+        // decoded for nothing.  Unset: blob() for every entry, as before.
+        static const bool a29_tier = [] { const char* v = std::getenv("STRATA_EXPERT_ENTROPY_TIER"); return v != nullptr && v[0] == '1'; }();
+        const bool a29_skip = a29_tier && use_hits && d.src->transient(d.layers, e) &&
+                              (graph_hits ? d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] >= 0
+                                          : d.is_hit[(size_t) i] != 0);
+        const uint8_t* b = a29_skip ? nullptr : d.src->blob(d.layers, e);
+        if (b == nullptr && !a29_skip) {
             // The one failure the loop cannot see.  Leaving `out` at its previous contents would feed the NEXT
             // layer a stale expert vector, which `moe_combine` would weight and add - the token would still be
             // finite and would still be wrong, 48 layers deep.
@@ -6732,6 +6739,347 @@ LoadStats load_experts_gguf(const std::string& gguf, uint8_t* dst, const strata:
     return st;
 }
 
+// ---- LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER=1 (opt-in): the compressed tier of the arena --------------------------
+// Cold blobs live entropy-coded (core/expert_entropy_tier.hpp, lossless) and their arena pages go back to the OS.  Every
+// path that reads a blob goes through blob / blob_at / blob_stable / copy_blob / warm below, and none of them ever hands
+// out a handed-back page: a coded blob is decoded first (into the staging ring, into the caller's buffer, or back into
+// its own arena pages for good).  With the switch unset et_ stays null and every function below is the old one.
+struct ArenaExpertSource::EntropyTier {
+    std::vector<std::vector<uint8_t>> coded;          ///< per blob index; empty = never coded (kept until close)
+    std::unique_ptr<std::atomic<uint8_t>[]> state;    ///< 1: coded, its arena pages handed back; 0: raw in the arena
+    uint64_t page = 4096;
+    std::mutex restore_mu;
+    // the staging ring blob() decodes into (page-locked when cudaHostAlloc allows; see note_async_read)
+    std::mutex ring_mu;
+    std::vector<uint8_t*> slot_ptr;
+    std::vector<uint8_t> slot_pinned;                 ///< 1: cudaHostAlloc, 0: std::malloc
+    std::vector<strata::core::entropy::SlotState> slot;
+    std::vector<void*> slot_ev;                       ///< cudaEvent_t of the last copy queued out of the slot, lazily made
+    uint64_t slot_bytes = 0;
+    std::atomic<uint64_t> seq{1};                     ///< begin_layer count: a slot is reused only `keep` layers later
+    uint64_t keep = 4;
+    std::unique_ptr<strata::core::entropy::SegDecodePool> dec;
+    // counters (the exit line)
+    std::atomic<uint64_t> n_ring{0}, n_hit{0}, n_copy{0}, n_restore{0}, n_full{0}, n_fail{0}, n_wait{0};
+    uint64_t coded_blobs = 0, raw_bytes = 0, coded_bytes = 0, released_bytes = 0, skipped = 0;
+    ~EntropyTier() {
+        for (size_t i = 0; i < slot_ptr.size(); ++i) {
+            if (i < slot_ev.size() && slot_ev[i] != nullptr) (void) cudaEventDestroy((cudaEvent_t) slot_ev[i]);
+            if (slot_ptr[i] == nullptr) continue;
+            if (slot_pinned[i]) (void) cudaFreeHost(slot_ptr[i]);
+            else std::free(slot_ptr[i]);
+        }
+        (void) cudaGetLastError();
+    }
+};
+
+bool ArenaExpertSource::entropy_coded(int64_t idx) const {
+    return et_ != nullptr && idx >= 0 && idx < blobs_ && et_->state[(size_t) idx].load(std::memory_order_acquire) != 0;
+}
+
+bool ArenaExpertSource::entropy_tier_build(std::string& note) {
+    namespace ent = strata::core::entropy;
+    if (et_ != nullptr) { note = "already on"; return true; }
+#if !defined(__linux__)
+    note = "off: the arena pages are handed back with munlock + madvise (Linux only)";
+    return false;
+#else
+    PinnedArena* a = (PinnedArena*) arena_;
+    if (base_ == nullptr || a == nullptr || map_ != nullptr) { note = "off: not a RAM arena (STRATA_ARENA_MMAP, or no arena)"; return false; }
+    if (a->shared_state != nullptr) { note = "off: a shared arena file (other engines map the same pages)"; return false; }
+    if (a->backing == PageBacking::LargePages) { note = "off: 2 MB pages cannot be handed back per blob"; return false; }
+    const auto& lay = strata::kernels::cpu::expert_layout();
+    const auto envd = [](const char* k, double d) { const char* v = std::getenv(k); return v != nullptr && v[0] != '\0' ? std::atof(v) : d; };
+    const double gib = std::max(0.0, envd("STRATA_EXPERT_ENTROPY_TIER_GIB", 0.0));
+    const double min_save = std::clamp(envd("STRATA_EXPERT_ENTROPY_TIER_MIN", 0.03), 0.0, 0.9);
+    const int n_slots = std::clamp((int) envd("STRATA_EXPERT_ENTROPY_TIER_SLOTS", 32.0), 4, 1024);
+    const int helpers = std::clamp((int) envd("STRATA_EXPERT_ENTROPY_TIER_THREADS", 3.0), 0, 32);
+    const uint64_t budget = gib > 0.0 ? (uint64_t) (gib * 1073741824.0) : 0;
+    auto t = std::make_unique<EntropyTier>();
+    const long ps = sysconf(_SC_PAGESIZE);
+    t->page = ps > 0 ? (uint64_t) ps : 4096;
+    t->coded.resize((size_t) blobs_);
+    t->state.reset(new std::atomic<uint8_t>[(size_t) blobs_]);
+    for (int64_t i = 0; i < blobs_; ++i) t->state[(size_t) i].store(0, std::memory_order_relaxed);
+    // the order: experts no pin priority names first (the profile never routed them), then the ranked pairs from the
+    // lowest priority up (the GPU-resident ones come last in set_pin_priority's list, so they go first here)
+    std::vector<int64_t> order;
+    order.reserve((size_t) blobs_);
+    {
+        std::vector<uint8_t> ranked((size_t) blobs_, 0);
+        for (const auto& p : pin_pairs_) {
+            const int64_t i = (int64_t) p.first * n_expert_ + p.second;
+            if (i >= 0 && i < blobs_) ranked[(size_t) i] = 1;
+        }
+        for (int64_t i = 0; i < blobs_; ++i) if (!ranked[(size_t) i]) order.push_back(i);
+        for (size_t k = pin_pairs_.size(); k-- > 0;) {
+            const int64_t i = (int64_t) pin_pairs_[k].first * n_expert_ + pin_pairs_[k].second;
+            if (i >= 0 && i < blobs_ && ranked[(size_t) i] == 1) { order.push_back(i); ranked[(size_t) i] = 2; }
+        }
+    }
+    // pages registered with the GPU driver are never handed back: the by-need ranges (even when their device aliases were
+    // dropped), else the registered prefix
+    const auto registered = [&](uint64_t off, uint64_t end) {
+        if (a->by_need) {
+            for (const auto& r : a->pin_ranges)
+                if (off < r.first + r.second && r.first < end) return true;
+            return false;
+        }
+        return off < a->registered_bytes;
+    };
+    std::atomic<size_t> next{0};
+    std::atomic<uint64_t> taken{0}, coded_b{0}, raw_b{0}, released_b{0}, n_coded{0}, n_skip{0}, n_bad{0};
+    uint8_t* const base = const_cast<uint8_t*>(base_);
+    auto work = [&] {
+        std::vector<uint8_t> back;
+        for (;;) {
+            const size_t k = next.fetch_add(1, std::memory_order_relaxed);
+            if (k >= order.size()) break;
+            if (budget > 0 && taken.load(std::memory_order_relaxed) >= budget) break;
+            const int64_t idx = order[k];
+            const int64_t l = idx / n_expert_, e = idx % n_expert_;
+            if (pinned(l, e)) continue;
+            const uint64_t nb = lay.blob_bytes(l);
+            const uint64_t boff = arena_off(l, e);
+            const uint64_t off_a = (boff + t->page - 1) / t->page * t->page;
+            const uint64_t end_a = (boff + nb) / t->page * t->page;
+            if (end_a <= off_a || registered(off_a, end_a)) continue;
+            const uint8_t* raw = base_ + boff;
+            std::vector<uint8_t> enc = ent::encode_segmented(raw, nb);
+            if ((double) enc.size() > (double) nb * (1.0 - min_save)) { n_skip.fetch_add(1, std::memory_order_relaxed); continue; }
+            back.resize((size_t) nb);
+            if (!ent::decode_segmented(enc.data(), enc.size(), back.data(), nb) || std::memcmp(back.data(), raw, (size_t) nb) != 0) {
+                n_bad.fetch_add(1, std::memory_order_relaxed);
+                continue;
+            }
+            if (budget > 0 && taken.fetch_add(nb, std::memory_order_relaxed) >= budget) break;
+            // the blob's whole pages back to the OS: unlocked first (the holes are locked resident), then dropped; a refusal
+            // leaves the pages and their bytes as they were, and the blob stays raw
+            (void) munlock(base + off_a, (size_t) (end_a - off_a));
+            if (madvise(base + off_a, (size_t) (end_a - off_a), MADV_DONTNEED) != 0) continue;
+            coded_b.fetch_add(enc.size(), std::memory_order_relaxed);
+            raw_b.fetch_add(nb, std::memory_order_relaxed);
+            released_b.fetch_add(end_a - off_a, std::memory_order_relaxed);
+            n_coded.fetch_add(1, std::memory_order_relaxed);
+            t->coded[(size_t) idx] = std::move(enc);
+            t->state[(size_t) idx].store(1, std::memory_order_release);
+        }
+    };
+    {
+        const int hw = (int) std::thread::hardware_concurrency();
+        const int nt = std::clamp(hw - 1, 1, 16);
+        std::vector<std::thread> th;
+        for (int i = 1; i < nt; ++i) th.emplace_back(work);
+        work();
+        for (auto& x : th) x.join();
+    }
+    t->coded_blobs = n_coded.load();
+    t->raw_bytes = raw_b.load();
+    t->coded_bytes = coded_b.load();
+    t->released_bytes = released_b.load();
+    t->skipped = n_skip.load();
+    // the staging ring
+    t->slot_bytes = (uint64_t) lay.max_blob;
+    int pinned_slots = 0;
+    for (int i = 0; i < n_slots && t->coded_blobs > 0; ++i) {
+        void* p = nullptr;
+        uint8_t pin = 0;
+        if (cudaHostAlloc(&p, (size_t) t->slot_bytes, cudaHostAllocDefault) == cudaSuccess && p != nullptr) {
+            pin = 1;
+            ++pinned_slots;
+        } else {
+            (void) cudaGetLastError();
+            p = std::malloc((size_t) t->slot_bytes);
+        }
+        if (p == nullptr) break;
+        t->slot_ptr.push_back((uint8_t*) p);
+        t->slot_pinned.push_back(pin);
+        t->slot.push_back({});
+        t->slot_ev.push_back(nullptr);
+    }
+    if (t->coded_blobs > 0) t->dec = std::make_unique<ent::SegDecodePool>(helpers);
+    char buf[512];
+    std::snprintf(buf, sizeof buf,
+                  "%llu blobs coded (%.2f GiB raw -> %.2f GiB coded), %.2f GiB of arena pages handed back; %llu skipped (saving "
+                  "below %.0f%%)%s; staging ring %zu x %.1f MiB (%d page-locked), %d decode helper threads",
+                  (unsigned long long) t->coded_blobs, (double) t->raw_bytes / 1073741824.0, (double) t->coded_bytes / 1073741824.0,
+                  (double) t->released_bytes / 1073741824.0, (unsigned long long) t->skipped, min_save * 100.0,
+                  n_bad.load() ? ", A ROUND TRIP DIFFERED (those blobs stay raw)" : "", t->slot_ptr.size(),
+                  (double) t->slot_bytes / 1048576.0, pinned_slots, helpers);
+    note = buf;
+    if (t->coded_blobs == 0) return false;   // nothing coded: the tier stays off (et_ null), the arena untouched
+    if (t->slot_ptr.empty()) {
+        // no staging memory at all: put every coded blob back (blob() could not hand any of them out)
+        et_ = t.release();
+        for (int64_t i = 0; i < blobs_; ++i) if (entropy_coded(i)) (void) entropy_restore(i);
+        delete et_;
+        et_ = nullptr;
+        note += " - no staging memory, every blob restored, tier off";
+        return false;
+    }
+    et_ = t.release();
+    return true;
+#endif
+}
+
+bool ArenaExpertSource::entropy_restore(int64_t idx) const {
+    EntropyTier& t = *et_;
+    std::lock_guard<std::mutex> lk(t.restore_mu);
+    if (t.state[(size_t) idx].load(std::memory_order_acquire) == 0) return true;
+    const int64_t l = idx / n_expert_, e = idx % n_expert_;
+    const uint64_t nb = strata::kernels::cpu::expert_layout().blob_bytes(l);
+    const std::vector<uint8_t>& c = t.coded[(size_t) idx];
+    std::vector<uint8_t> tmp((size_t) nb);
+    if (!strata::core::entropy::decode_segmented(c.data(), c.size(), tmp.data(), nb)) {
+        t.n_fail.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+    // only the pages that were handed back are written (the partial pages at the ends were never dropped, and a
+    // neighbour's reader may be on them)
+    const uint64_t boff = arena_off(l, e);
+    const uint64_t off_a = (boff + t.page - 1) / t.page * t.page;
+    const uint64_t end_a = (boff + nb) / t.page * t.page;
+    if (end_a > off_a) std::memcpy(const_cast<uint8_t*>(base_) + off_a, tmp.data() + (off_a - boff), (size_t) (end_a - off_a));
+    t.state[(size_t) idx].store(0, std::memory_order_release);
+    t.n_restore.fetch_add(1, std::memory_order_relaxed);
+    return true;
+}
+
+const uint8_t* ArenaExpertSource::entropy_ring(int64_t idx) {
+    namespace ent = strata::core::entropy;
+    EntropyTier& t = *et_;
+    const int64_t l = idx / n_expert_, e = idx % n_expert_;
+    const uint64_t nb = strata::kernels::cpu::expert_layout().blob_bytes(l);
+    {
+        std::lock_guard<std::mutex> lk(t.ring_mu);
+        if (!entropy_coded(idx)) return base_ + arena_off(l, e);   // restored meanwhile
+        // slots whose last queued copy has finished are free again (FileExpertSource's stage buffers do the same, #1237)
+        for (size_t i = 0; i < t.slot.size(); ++i) {
+            if (!t.slot[i].busy || t.slot_ev[i] == nullptr) { t.slot[i].busy = false; continue; }
+            const cudaError_t q = cudaEventQuery((cudaEvent_t) t.slot_ev[i]);
+            if (q == cudaErrorNotReady) continue;
+            if (q != cudaSuccess) (void) cudaGetLastError();
+            t.slot[i].busy = false;
+        }
+        const uint64_t now = t.seq.load(std::memory_order_relaxed);
+        int hit = 0;
+        int s = ent::pick_slot(t.slot.data(), (int) t.slot.size(), idx, now, t.keep, &hit);
+        if (s < 0) {   // every old-enough slot is under a copy: wait for the oldest such copy
+            for (size_t i = 0; i < t.slot.size(); ++i)
+                if (t.slot[i].busy && now >= t.slot[i].seq && now - t.slot[i].seq >= t.keep &&
+                    (s < 0 || t.slot[i].seq < t.slot[(size_t) s].seq)) s = (int) i;
+            if (s >= 0) {
+                (void) cudaEventSynchronize((cudaEvent_t) t.slot_ev[(size_t) s]);
+                (void) cudaGetLastError();
+                t.slot[(size_t) s].busy = false;
+                t.n_wait.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
+        if (s >= 0) {
+            ent::SlotState& ss = t.slot[(size_t) s];
+            if (hit) {
+                ss.seq = now;
+                t.n_hit.fetch_add(1, std::memory_order_relaxed);
+                return t.slot_ptr[(size_t) s];
+            }
+            ss.idx = -1;   // (a failed decode leaves the slot empty, never half-written under a valid tag)
+            const std::vector<uint8_t>& c = t.coded[(size_t) idx];
+            if (nb <= t.slot_bytes && t.dec->decode(c.data(), c.size(), t.slot_ptr[(size_t) s], nb)) {
+                ss.idx = idx;
+                ss.seq = now;
+                ss.busy = false;
+                t.n_ring.fetch_add(1, std::memory_order_relaxed);
+                return t.slot_ptr[(size_t) s];
+            }
+            t.n_fail.fetch_add(1, std::memory_order_relaxed);
+            return nullptr;
+        }
+        t.n_full.fetch_add(1, std::memory_order_relaxed);
+    }
+    // every slot may still be read: the blob goes back into its arena pages for good (always correct, it only gives up
+    // this blob's saving); STRATA_EXPERT_ENTROPY_TIER_SLOTS sizes the ring
+    if (!entropy_restore(idx)) return nullptr;
+    return base_ + arena_off(l, e);
+}
+
+bool ArenaExpertSource::transient(int64_t layer, int64_t expert) const {
+    if (et_ == nullptr || layer < 0 || expert < 0 || expert >= n_expert_) return false;
+    return entropy_coded(layer * n_expert_ + expert);   // CS-T: a coded blob comes out of a reused staging slot
+}
+
+double ArenaExpertSource::cached_share(int64_t samples) const {
+    (void) samples;
+    return et_ != nullptr ? 1.0 : -1.0;   // the coded blobs are in RAM: the prompt stager keeps its RAM profile
+}
+
+bool ArenaExpertSource::copy_blob(int64_t layer, int64_t expert, uint8_t* dst) {
+    if (et_ != nullptr && layer >= 0 && expert >= 0 && expert < n_expert_ && entropy_coded(layer * n_expert_ + expert)) {
+        // decoded straight into the caller's buffer on the calling thread (the prompt stager's threads decode in parallel)
+        const int64_t idx = layer * n_expert_ + expert;
+        const std::vector<uint8_t>& c = et_->coded[(size_t) idx];
+        reads_.fetch_add(1, std::memory_order_relaxed);
+        if (strata::core::entropy::decode_segmented(c.data(), c.size(), dst, strata::kernels::cpu::expert_layout().blob_bytes(layer))) {
+            et_->n_copy.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }
+        et_->n_fail.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+    return ExpertSource::copy_blob(layer, expert, dst);
+}
+
+const uint8_t* ArenaExpertSource::blob_stable(int64_t layer, int64_t expert) {
+    if (et_ != nullptr && layer >= 0 && expert >= 0 && expert < n_expert_ && entropy_coded(layer * n_expert_ + expert))
+        if (!entropy_restore(layer * n_expert_ + expert)) return nullptr;   // a kept pointer: the blob back in its pages
+    return blob(layer, expert);
+}
+
+void ArenaExpertSource::begin_layer(int64_t layer, const int32_t* ids, int64_t k) {
+    (void) layer; (void) ids; (void) k;
+    if (et_ != nullptr) et_->seq.fetch_add(1, std::memory_order_relaxed);
+}
+
+void ArenaExpertSource::note_async_read(const uint8_t* blob, void* stream) {
+    if (et_ == nullptr || blob == nullptr) return;
+    EntropyTier& t = *et_;
+    std::lock_guard<std::mutex> lk(t.ring_mu);
+    for (size_t i = 0; i < t.slot_ptr.size(); ++i) {
+        if (t.slot_ptr[i] != blob) continue;
+        if (!t.slot_pinned[i]) return;   // pageable: the driver copied it before the call returned
+        if (t.slot_ev[i] == nullptr) {
+            cudaEvent_t ev = nullptr;
+            if (cudaEventCreateWithFlags(&ev, cudaEventDisableTiming) != cudaSuccess) {
+                (void) cudaGetLastError();
+                (void) cudaStreamSynchronize((cudaStream_t) stream);   // no event: wait for the copy itself
+                return;
+            }
+            t.slot_ev[i] = ev;
+        }
+        if (cudaEventRecord((cudaEvent_t) t.slot_ev[i], (cudaStream_t) stream) != cudaSuccess) {
+            (void) cudaGetLastError();
+            (void) cudaStreamSynchronize((cudaStream_t) stream);
+            return;
+        }
+        t.slot[i].busy = true;
+        return;
+    }
+}
+
+std::string ArenaExpertSource::entropy_tier_summary() const {
+    if (et_ == nullptr) return {};
+    const EntropyTier& t = *et_;
+    uint64_t still = 0;
+    for (int64_t i = 0; i < blobs_; ++i) still += entropy_coded(i) ? 1 : 0;
+    char buf[400];
+    std::snprintf(buf, sizeof buf,
+                  "STRATA_EXPERT_ENTROPY_TIER: %llu of %llu coded blobs still coded; decodes: %llu into the ring (%llu slot hits, "
+                  "%llu waits), %llu into callers' buffers, %llu restored for good (%llu with the ring full), %llu failed",
+                  (unsigned long long) still, (unsigned long long) t.coded_blobs, (unsigned long long) t.n_ring.load(),
+                  (unsigned long long) t.n_hit.load(), (unsigned long long) t.n_wait.load(), (unsigned long long) t.n_copy.load(),
+                  (unsigned long long) t.n_restore.load(), (unsigned long long) t.n_full.load(), (unsigned long long) t.n_fail.load());
+    return buf;
+}
+
 ArenaExpertSource::~ArenaExpertSource() { close(); }
 
 bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int64_t n_expert, int threads,
@@ -7252,6 +7600,11 @@ bool ArenaExpertSource::open(const std::string& pack_dir, int64_t n_layers, int6
 }
 
 void ArenaExpertSource::close() {
+    if (et_ != nullptr) {   // LEADS.md A29: the tier's counters, then its memory (before the arena it points into)
+        std::fprintf(stderr, "strata: %s\n", entropy_tier_summary().c_str());
+        delete et_;
+        et_ = nullptr;
+    }
 #if !defined(_WIN32)
     if (map_ != nullptr) munmap(map_, (size_t) map_bytes_);
 #endif
@@ -7294,7 +7647,8 @@ void ArenaExpertSource::warm(int64_t layer, const int64_t* experts, int64_t n) {
             const uint8_t* ptrs[strata::kernels::cpu::ExpertPool::kPrereadMax];
             int m = 0;
             for (int64_t i = 0; i < n && m < strata::kernels::cpu::ExpertPool::kPrereadMax; ++i)
-                if (experts[i] >= 0 && experts[i] < n_expert_) ptrs[m++] = blob_at(layer, experts[i]);
+                if (experts[i] >= 0 && experts[i] < n_expert_ && !entropy_coded(layer * n_expert_ + experts[i]))   // (A29: a coded blob is not read ahead)
+                    ptrs[m++] = blob_at(layer, experts[i]);
             pool->post_preread(ptrs, m, (size_t) bytes);
         }
     }
@@ -7371,6 +7725,7 @@ const uint8_t* ArenaExpertSource::blob(int64_t layer, int64_t expert) {
     const int64_t idx = layer * n_expert_ + expert;
     if (idx < 0 || idx >= blobs_) return nullptr;
     reads_.fetch_add(1, std::memory_order_relaxed);
+    if (et_ != nullptr && entropy_coded(idx)) return entropy_ring(idx);   // LEADS.md A29: decoded into the staging ring
     // Pointer arithmetic into resident memory.  No fault, no copy, no mapping - which is the entire point of
     // this class over `FileExpertSource`.
     return base_ + arena_off(layer, expert);
@@ -7380,6 +7735,8 @@ const uint8_t* ArenaExpertSource::blob_at(int64_t layer, int64_t expert) const {
     if (base_ == nullptr || layer < 0 || expert < 0 || expert >= n_expert_) return nullptr;
     const int64_t idx = layer * n_expert_ + expert;
     if (idx < 0 || idx >= blobs_) return nullptr;
+    // LEADS.md A29: the callers keep this pointer (the adaptive tier's chunked copies): a coded blob goes back into its pages
+    if (et_ != nullptr && entropy_coded(idx) && !entropy_restore(idx)) return nullptr;
     return base_ + arena_off(layer, expert);   // (the padded layout of pin by need too)
 }
 

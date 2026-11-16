@@ -9459,6 +9459,18 @@ int main(int argc, char** argv) {
                          sl.size(), copy_ok ? "" : ", A READ-BACK FAILED");
         }
     }
+    // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER=1 (opt-in, read once; exact): the arena's cold blobs entropy-coded in RAM, their
+    // pages handed back, decoded on demand (ArenaExpertSource::entropy_tier_build).  After the profile fill on purpose: the
+    // fill keeps blob_stable pointers, which would decode every GPU-resident blob back into its pages.
+    if (const char* et = std::getenv("STRATA_EXPERT_ENTROPY_TIER"); et != nullptr && et[0] == '1' && srcp == &arena_src) {
+        std::string et_note;
+        const auto t0 = std::chrono::steady_clock::now();
+        const bool on = arena_src.entropy_tier_build(et_note);
+        std::fprintf(stderr, "strata generate: STRATA_EXPERT_ENTROPY_TIER %s: %s (%.1f s)\n", on ? "on" : "off", et_note.c_str(),
+                     std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count());
+    } else if (et != nullptr && et[0] == '1') {
+        std::fprintf(stderr, "strata generate: STRATA_EXPERT_ENTROPY_TIER off: the experts are not in the arena (it codes the arena's blobs)\n");
+    }
 
     for (auto& stp : stages) {
         GpuStage& st = *stp;
