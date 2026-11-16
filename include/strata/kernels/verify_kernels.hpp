@@ -261,6 +261,10 @@ void row_entropy(const float* logits, int n_rows, int n_vocab, const int32_t* id
 /// null): p_t(cand[t]) and H(p_t).  All device memory.  Not graph-captured by its caller (one launch after a sampled window).
 void typical_accept_rows(const float* logits, int n_rows, int n_vocab, const int32_t* cand, float temperature, float eps,
                          float alpha, int32_t* ok, float* pc, float* hc, void* stream);
+/// LEADS.md B24 (STRATA_DISCO_ENTROPY): ent[t] = the softmax entropy (nats) of row t; logits == nullptr writes -1 (unknown).
+void row_entropy(const float* logits, int n_rows, int n_vocab, float* ent, void* stream);
+/// out[j] = ent[*row_dev] (row 0 when row_dev is null); `out` may be mapped host memory.  Graph-capturable.
+void pick_entropy(const float* ent, const int32_t* row_dev, float* out, int j, void* stream);
 /// out[t] = the argmax of row t (n floats a row; ties to the lowest index, NaN never picked, 0 when no value is above
 /// -inf): bitwise sample_tokens' greedy pick.  Up to 128 blocks a row scan slices of it, the row's last block merges
 /// their picks.  `scratch`: argmax_rows_scratch_bytes(n_rows), zero before the first launch (each launch leaves it

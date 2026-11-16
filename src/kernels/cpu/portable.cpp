@@ -159,6 +159,17 @@ void iq256_gu_rows(int, const uint8_t*, size_t, size_t, int, const void* const*,
 void iq256_rows(int, const uint8_t*, size_t, int, const void* const*, int, float* const*, int, int) {
     unsupported("the AVX-2 i-quant kernel");
 }
+void r4_repack_rows(const uint8_t* src, size_t row_bytes, size_t block_bytes, int nrows, uint8_t* dst) noexcept {
+    const size_t nb = row_bytes / block_bytes;   // (STRATA_CPU_R4: the layout is portable, the kernel is not)
+    for (int r = 0; r < nrows; ++r)
+        for (size_t i = 0; i < nb; ++i)
+            std::memcpy(dst + (size_t) (r / 4) * 4 * row_bytes + (i * 4 + (size_t) (r % 4)) * block_bytes,
+                        src + (size_t) r * row_bytes + i * block_bytes, block_bytes);
+}
+bool iq256_r4_supported(int) noexcept { return false; }
+void iq256_gu_rows_r4(int, const uint8_t*, size_t, size_t, int, const void* const*, int, float* const*, int, int) {
+    unsupported("the AVX-2 R4 i-quant kernel");
+}
 void iq4nl256_down_rows_v(int, const uint8_t*, size_t, int, const void* const*, int, float* const*, int, int) {
     unsupported("the AVX-2 IQ4_NL kernel");
 }

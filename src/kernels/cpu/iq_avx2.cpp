@@ -565,6 +565,32 @@ void iq256_rows(int type, const uint8_t* w, size_t row_bytes, int n, const void*
     iq256_rows_v(iq256_variant(), type, w, row_bytes, n, act, nt, out, r0, r1);
 }
 
+// STRATA_CPU_R4 (opt-in, LEADS.md B123): ik_llama.cpp's row-interleaved layout (ikawrakow, the "_R4" types), the first
+// version for IQ2_XS gate/up (the daily pack's experts)
+void r4_repack_rows(const uint8_t* src, size_t row_bytes, size_t block_bytes, int nrows, uint8_t* dst) noexcept {
+    const size_t nb = row_bytes / block_bytes;
+    for (int r = 0; r < nrows; ++r) {
+        uint8_t* g4 = dst + (size_t) (r / 4) * 4 * row_bytes;
+        for (size_t i = 0; i < nb; ++i)
+            std::memcpy(g4 + (i * 4 + (size_t) (r % 4)) * block_bytes, src + (size_t) r * row_bytes + i * block_bytes,
+                        block_bytes);
+    }
+}
+
+bool iq256_r4_supported(int type) noexcept { return type == 17; }
+
+void iq256_gu_rows_r4(int type, const uint8_t* blob4, size_t gu_row, size_t up_off, int n, const void* const* act, int nt,
+                      float* const* ff, int r0, int r1) {
+    if (type != 17) return;
+#if STRATA_AVXVNNI
+    if (iq256_variant() & kIq256Vnni) {   // as iq256_gu_rows: the VNNI copy where the core has it (integer sums, same bits)
+        vnni::gu_rows_r4_nt(nt, blob4, gu_row, up_off, n, act, ff, r0, r1);
+        return;
+    }
+#endif
+    plain::gu_rows_r4_nt(nt, blob4, gu_row, up_off, n, act, ff, r0, r1);
+}
+
 bool iq256x_supported(int type) noexcept { return type == 16 || type == 17 || type == 18 || type == 21 || type == 22 || type == 29; }
 
 void iq256x_rows(int type, const uint8_t* w, size_t row_bytes, int n, const void* const* act, int nt, float* const* out,

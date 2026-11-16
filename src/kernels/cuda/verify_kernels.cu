@@ -1009,6 +1009,51 @@ __global__ void typical_accept_rows_kernel(const float* __restrict__ logits, int
         if (pc != nullptr) pc[t] = p;
         if (hc != nullptr) hc[t] = H;
     }
+// LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): the softmax entropy of each row, H = log Z - sum e^(l-M) (l-M) / Z with
+// Z = sum e^(l-M), M = the row max; one block a row.  logits == nullptr: -1 (unknown) in every row.
+__global__ void row_entropy_disco_kernel(const float* __restrict__ logits, int n_vocab, float* __restrict__ ent) {
+    __shared__ float part[32], part2[32];
+    __shared__ float smax;
+    const int t = blockIdx.x;
+    if (logits == nullptr) { if (threadIdx.x == 0) ent[t] = -1.0f; return; }
+    const float* l = logits + (size_t) t * n_vocab;
+    float m = -3.4e38f;
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) m = fmaxf(m, l[i]);
+    for (int o = 16; o > 0; o >>= 1) m = fmaxf(m, __shfl_xor_sync(0xffffffffu, m, o));
+    if ((threadIdx.x & 31) == 0) part[threadIdx.x >> 5] = m;
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float mm = -3.4e38f;
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) mm = fmaxf(mm, part[w]);
+        smax = mm;
+    }
+    __syncthreads();
+    m = smax;
+    float s = 0.0f, se = 0.0f;
+    for (int i = threadIdx.x; i < n_vocab; i += blockDim.x) {
+        const float d = l[i] - m;
+        const float e = __expf(d);
+        s += e;
+        se += e * d;
+    }
+    for (int o = 16; o > 0; o >>= 1) {
+        s += __shfl_xor_sync(0xffffffffu, s, o);
+        se += __shfl_xor_sync(0xffffffffu, se, o);
+    }
+    __syncthreads();
+    if ((threadIdx.x & 31) == 0) { part[threadIdx.x >> 5] = s; part2[threadIdx.x >> 5] = se; }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        float tot = 0.0f, tot2 = 0.0f;
+        for (int w = 0; w < (int) (blockDim.x >> 5); ++w) { tot += part[w]; tot2 += part2[w]; }
+        ent[t] = tot > 0.0f ? logf(tot) - tot2 / tot : -1.0f;
+    }
+}
+
+// out (mapped) [j] = ent[*row_dev]: draft j's entropy, written before mtp_select publishes the token
+__global__ void pick_entropy_kernel(const float* __restrict__ ent, const int32_t* __restrict__ row_dev, float* out, int j) {
+    ((volatile float*) out)[j] = ent[row_dev != nullptr ? *row_dev : 0];
+    __threadfence_system();
 }
 
 __global__ void mtp_select_kernel(const float* __restrict__ R_src, int64_t stride, const int32_t* __restrict__ ids,
@@ -1253,6 +1298,14 @@ void oea_route_window(const float* logits, int n, int n_expert, int k, int k0, i
     }
     oea_route_window_kernel<<<1, 512, 0, (cudaStream_t) stream>>>(logits, n, n_expert, k, k0, ids, w);
     check("oea_route_window");
+void row_entropy(const float* logits, int n_rows, int n_vocab, float* ent, void* stream) {
+    row_entropy_disco_kernel<<<n_rows, 1024, 0, (cudaStream_t) stream>>>(logits, n_vocab, ent);
+    check("row_entropy");
+}
+
+void pick_entropy(const float* ent, const int32_t* row_dev, float* out, int j, void* stream) {
+    pick_entropy_kernel<<<1, 1, 0, (cudaStream_t) stream>>>(ent, row_dev, out, j);
+    check("pick_entropy");
 }
 
 void force_token(int32_t* tok, const int32_t* force, int j, void* stream) {

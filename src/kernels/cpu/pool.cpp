@@ -1337,6 +1337,28 @@ bool pool_dag2() {
     static const bool on = [] { const char* v = std::getenv("STRATA_POOL_DAG"); return v != nullptr && v[0] == '2' && v[1] == '\0'; }();
     return on;
 }
+// LEADS.md B1 (CPU-expert activation sparsity masks: TEAL, Liu et al. arXiv 2408.14690; CATS, Lee et al. arXiv 2404.08763;
+// CHESS, Zhang et al. arXiv 2409.01366; MOD_PLAN.md item 13) and B2 (union sparsity over the verify window, BlockFFN, Song
+// et al. arXiv 2507.08771).  STRATA_CPU_ACT_SPARSE=p (opt-in, lossy, 0 < p <= 0.95, read once; unset/0 = off, bit for bit
+// as before): per CPU expert and token, the 64-wide blocks of the down input h with the smallest L2 norm are zeroed, a
+// fraction p of the blocks (TEAL's magnitude rule at the granularity of the Q2_0 down block, so the zeroed part can be
+// skipped: a block that is zero in every token of the window is not read in the down rows, q2_rows_skip).
+// STRATA_CPU_ACT_SPARSE_UNION=1 (B2): the blocks kept are the union of every token's kept blocks (BlockFFN's
+// chunk-level sparsity over the window): the same blocks are skipped, fewer values are zeroed.  The native (non-Q2_0)
+// down formats get the zeros but no skip.
+float act_sparse_p() {
+    static const float p = [] {
+        const char* v = std::getenv("STRATA_CPU_ACT_SPARSE");
+        const double x = v != nullptr ? std::atof(v) : 0.0;
+        return x > 0.0 && x <= 0.95 ? (float) x : 0.0f;
+    }();
+    return p;
+}
+bool act_sparse_union() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_CPU_ACT_SPARSE_UNION"); return v != nullptr && v[0] == '1'; }();
+    return on;
+}
+// act_sparse_apply / q2_rows_skip: expert_layout.cpp
 // STRATA_CPU_POOL_COST=1 (opt-in, read once; idea of dys0re/strata-dcu abc9047d77 "cost-weighted parts and longest
 // expert first", LEADS.md A3, re-built for our row-range phases since this tree has no STRATA_CPU_EXPERT_PIPELINE): in the
 // native phases (5/6 and the fused 7), the experts are taken longest first (most tokens in the window) and the tasks are
@@ -1504,6 +1526,12 @@ void ExpertPool::drain(int id, ExpertScratch& scratch, uint32_t epoch) {
                     // Q2_0 down (most IQ layers): the AVX-512 kernel, ggml-cpu has only a scalar one on x86
                     const ActQ* a2[MAXT];
                     for (int t = 0; t < mjobs_[e].nt; ++t) a2[t] = &sb.a2[t];
+                    if (mjobs_[e].slice != nullptr)   // STRATA_SLICE_MISS (opt-in, LEADS.md SliceMoE): the 1-bit slice
+                        q2_hi_rows_any(mjobs_[e].slice, (int) (nfmt->n_ff / 64), a2, mjobs_[e].nt, mjobs_[e].out, r0, r1);
+                    else if (sb.skip != 0)   // STRATA_CPU_ACT_SPARSE (opt-in, LEADS.md B1/B2): the all-zero blocks left out
+                        q2_rows_skip(mjobs_[e].blob + nfmt->down_off, nfmt->d_row, (int) (nfmt->n_ff / 64), a2,
+                                     mjobs_[e].nt, mjobs_[e].out, r0, r1, sb.skip);
+                    else
                     q2_rows_any(mjobs_[e].blob + nfmt->down_off, nfmt->d_row, (int) (nfmt->n_ff / 64), a2,
                                 mjobs_[e].nt, mjobs_[e].out, r0, r1);
                 } else {
@@ -1702,6 +1730,14 @@ void ExpertPool::quant_down_act(int e) {
         } else {
             for (int t = 0; t < mjobs_[e].nt; ++t) raw_dump().put(nf->layer, nullptr, sb.ff[t], nff);
         }
+    }
+    sb.skip = 0;
+    if (act_sparse_p() > 0.0f) {   // STRATA_CPU_ACT_SPARSE (opt-in, LEADS.md B1/B2): zero the small blocks of h
+        const NativeFmt* const nf = mjobs_[e].fmt != nullptr ? mjobs_[e].fmt : nfmt_;
+        float* ffp[MAXT];
+        for (int t = 0; t < mjobs_[e].nt; ++t) ffp[t] = sb.ff[t];
+        const uint64_t s = act_sparse_apply(ffp, mjobs_[e].nt, (int) nf->n_ff, act_sparse_p(), act_sparse_union());
+        if (q2_native_kernels(nf->d_type)) sb.skip = s;
     }
     for (int t = 0; t < mjobs_[e].nt; ++t)
         if (q2_native_kernels(nfmt_->d_type)) act_quant_any(sb.ff[t], FF, sb.a2[t]);

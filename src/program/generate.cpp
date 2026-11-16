@@ -113,6 +113,8 @@
 #include "strata/core/native_dense.hpp"
 #include "strata/program/adapt_decay.hpp"
 #include "strata/program/classlru_score.hpp"
+#include "strata/program/tier_policy_score.hpp"
+#include "strata/core/expert_entropy.hpp"
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
 #include "strata/core/window_trace.hpp"
@@ -8383,6 +8385,40 @@ int main(int argc, char** argv) {
         srcp = &arena_src;
     }
     }   // the arena / file pass loop (#4846)
+    // LEADS.md A29 STRATA_EXPERT_ENTROPY=N (opt-in, measurement only; read once): N sample experts per layer (1..64) coded
+    // with the lossless order-0 coder (core/expert_entropy.hpp, decoded back and compared), the coded / raw bytes per
+    // layer and in total: the measured bound for an entropy-coded expert tier.  Nothing the engine computes changes.
+    if (const char* ee = std::getenv("STRATA_EXPERT_ENTROPY"); ee != nullptr && std::atoi(ee) > 0 && srcp != nullptr) {
+        const int ns = std::min(64, std::atoi(ee));
+        const auto& el = strata::kernels::cpu::expert_layout();
+        uint64_t raw_all = 0, coded_all = 0;
+        bool bad = false;
+        for (int64_t l = 0; l < el.n_layers && !bad; ++l) {
+            uint64_t raw = 0, coded = 0;
+            for (int s = 0; s < ns; ++s) {
+                const int64_t e = ns == 1 ? 0 : (int64_t) s * (el.n_expert - 1) / (ns - 1);
+                const uint8_t* b = srcp->blob(l, e);
+                if (b == nullptr) continue;
+                const uint64_t nb = el.blob_bytes(l);
+                const std::vector<uint8_t> c = strata::core::entropy::encode(b, nb);
+                std::vector<uint8_t> back;
+                if (!strata::core::entropy::decode(c.data(), c.size(), back) || back.size() != nb ||
+                    std::memcmp(back.data(), b, nb) != 0) { bad = true; break; }
+                raw += nb;
+                coded += c.size();
+            }
+            raw_all += raw;
+            coded_all += coded;
+            if (raw > 0)
+                std::fprintf(stderr, "strata: STRATA_EXPERT_ENTROPY layer %lld: %.4f of the raw bytes (%d experts)\n",
+                             (long long) l, (double) coded / (double) raw, ns);
+        }
+        if (bad) std::fprintf(stderr, "strata: STRATA_EXPERT_ENTROPY: a round trip differed - the coder is wrong, ignore the ratios\n");
+        else if (raw_all > 0)
+            std::fprintf(stderr, "strata: STRATA_EXPERT_ENTROPY total: %.4f of %llu raw bytes (saving %.2f%%)\n",
+                         (double) coded_all / (double) raw_all, (unsigned long long) raw_all,
+                         100.0 * (1.0 - (double) coded_all / (double) raw_all));
+    }
 #if defined(__linux__)
     // 0.1.43.1: on by default (STRATA_ADAPT_CALLBACK_WARMUP=0 turns it off).  Linux threads inherit the creator's CPU mask, and
     // the host pins itself to one CPU later; a callback thread the driver creates lazily after that would run on the
@@ -14372,6 +14408,10 @@ int main(int argc, char** argv) {
         // ClassLRU keep score 2^class / (1 + age) instead of the raw decayed counts (classlru_score.hpp).  Off: no change.
         strata::program::ClassLruScore clru = strata::program::ClassLruScore::from_env(o.adapt_decay);
         std::vector<float> clru_saved;
+        // STRATA_ADAPT_SIEVE / STRATA_ADAPT_FORECAST / STRATA_ADAPT_LEARNED (opt-in, LEADS.md B11 / B126 / A46): the tier
+        // ranks by SIEVE / S3-FIFO, a forecast reuse probability or an online learned one (tier_policy_score.hpp).
+        strata::program::TierPolicyScore tpol = strata::program::TierPolicyScore::from_env(o.adapt_decay);
+        std::vector<float> tpol_saved;
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
@@ -14390,6 +14430,7 @@ int main(int argc, char** argv) {
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
             if (clru.on()) { clru_saved = drive.d.usage; clru.transform(drive.d.usage); }   // STRATA_ADAPT_CLASSLRU (restored below)
+            if (tpol.on()) { tpol_saved = drive.d.usage; tpol.transform(drive.d.usage, host_res.data()); }   // (restored below)
             if (remote_opt && !remote_opt->adapt(drive.d.usage, host_res, pending, o.adapt_swaps, *srcp)) return false;
             struct Swap { float gain; int32_t layer, in, out; };
             std::vector<Swap> swaps;
@@ -14650,6 +14691,7 @@ int main(int argc, char** argv) {
             // #477: the routing counted since the start (each count adds up to 1 / (1 - --adapt-decay) over its
             // decays: the sum is proportional to the routing itself) - only with --expert-profile-save, else `heat`
             // is empty
+            if (tpol.on()) drive.d.usage.swap(tpol_saved);   // STRATA_ADAPT_SIEVE/_FORECAST/_LEARNED: the counts back
             if (clru.on()) drive.d.usage.swap(clru_saved);   // STRATA_ADAPT_CLASSLRU: the raw counts back before heat/decay
             for (size_t i = 0; i < heat.size(); ++i) heat[i] += (double) drive.d.usage[i];
             if (peer.valid()) {                   // multi-GPU: the peer takes the next most-routed CPU misses
@@ -15105,6 +15147,7 @@ int main(int argc, char** argv) {
                     if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp, as in adapt())
                     a_usage = drive.d.usage;
                     clru.transform(a_usage);   // STRATA_ADAPT_CLASSLRU (opt-in; off: returns at once): the snapshot the pick ranks
+                    tpol.transform(a_usage, host_res.data());   // STRATA_ADAPT_SIEVE/_FORECAST/_LEARNED (opt-in; off: returns)
                     a_res = host_res;
                     // #477: the routing counted, as adapt() counts it (--expert-profile-save; else `heat` is empty)
                     for (size_t i = 0; i < heat.size(); ++i) heat[i] += (double) drive.d.usage[i];
@@ -15774,6 +15817,7 @@ int main(int argc, char** argv) {
         }
         if (disco_on)
             mtp.set_chain_rule([&](int idx, float pj) {
+                disco.set_entropy(idx, mtp.chain_entropy(idx));   // STRATA_DISCO_ENTROPY (LEADS.md B24; -1 when off)
                 const bool k = disco.keep_draft(idx, pj, S_mtp, mtp.chain_draft(idx));   // (the token: STRATA_SPEC_LOOKUP_Q)
                 chain_rows = disco.rows();
                 return k;
@@ -17182,6 +17226,74 @@ int main(int argc, char** argv) {
                                  n, n == 1 ? "" : "s");
                 }
                 break;
+            }
+            // Runtime retune between requests (Strata PR #5516, rwkeyes e929c26411, LEADS.md "POST /v1/tune + --conv-route"):
+            // `TUNE k=v ...` -> `TUNED k=v ... [refused: k=v(why) ...]`.  Not a request, so it is handled before the
+            // busy scope and touches no session.  Only fields read out of `o` when they are used are accepted; keys
+            // that size memory at load (--spec, --kv*, --max-context, --expert-cache, tiers, --pcie-mode, graph and
+            // native flags) are refused per key.  prefill_chunk may only go down (its buffers were sized at start).
+            // Opt-in by protocol: the server sends TUNE only for POST /v1/tune (STRATA_TUNE=1) or
+            // STRATA_CONV_ROUTE; an engine that never reads a TUNE line behaves exactly as before.
+            if (line.rfind("TUNE", 0) == 0 && (line.size() == 4 || line[4] == ' ')) {
+                static const int64_t tune_prefill_max = o.prefill_chunk > 0 ? o.prefill_chunk : 0;
+                if (batch_on()) {
+                    std::printf("ERR TUNE: not while batch slots are decoding\n");
+                    std::fflush(stdout);
+                    continue;
+                }
+                std::string applied, refused;
+                std::istringstream tin(line.size() > 4 ? line.substr(5) : std::string());
+                std::string kv;
+                while (tin >> kv) {
+                    const size_t eq = kv.find('=');
+                    const std::string k = eq == std::string::npos ? kv : kv.substr(0, eq);
+                    char* end = nullptr;
+                    const double v = eq == std::string::npos ? 0.0 : std::strtod(kv.c_str() + eq + 1, &end);
+                    // a value must be a number and must be there: "adapt_swaps=abc" is a typo, not a request for 0
+                    const bool known = eq != std::string::npos && end != nullptr && end != kv.c_str() + eq + 1 &&
+                                       *end == '\0' && v >= 0.0;
+                    if (known && k == "adapt_every") {
+                        o.adapt_every = std::max(1, (int) v);
+                        applied += " adapt_every=" + std::to_string(o.adapt_every);
+                    } else if (known && k == "adapt_swaps") {
+                        o.adapt_swaps = (int) v;
+                        applied += " adapt_swaps=" + std::to_string(o.adapt_swaps);
+                    } else if (known && k == "adapt_decay") {
+                        o.adapt_decay = (float) std::clamp(v, 0.0, 1.0);
+                        applied += " adapt_decay=" + std::to_string(o.adapt_decay);
+                    } else if (known && k == "adapt_min_gain") {
+                        o.adapt_min_gain = (float) std::clamp(v, 0.0, 16.0);
+                        applied += " adapt_min_gain=" + std::to_string(o.adapt_min_gain);
+                    } else if (known && k == "prefill_chunk") {
+                        o.prefill_chunk = tune_prefill_max > 0 ? std::min<int64_t>((int64_t) v, tune_prefill_max)
+                                                               : (int64_t) v;
+                        applied += " prefill_chunk=" + std::to_string((long long) o.prefill_chunk);
+                        if (tune_prefill_max > 0 && (int64_t) v > tune_prefill_max)
+                            applied += "(capped at the startup chunk)";
+                    } else if (known && k == "pcie_frac") {
+                        o.pcie_frac = std::clamp(v, 0.0, 1.0);
+                        applied += " pcie_frac=" + std::to_string(o.pcie_frac);
+                    } else if (known && k == "spec_min_p") {
+                        o.spec_min_p = std::clamp(v, 0.0, 1.0);
+                        applied += " spec_min_p=" + std::to_string(o.spec_min_p);
+                    } else if (known && k == "prompt_cache") {
+                        o.prompt_cache = (int) v;
+                        applied += " prompt_cache=" + std::to_string(o.prompt_cache);
+                    } else if (known && k == "prompt_cache_every") {
+                        o.prompt_cache_every = (int64_t) v;
+                        applied += " prompt_cache_every=" + std::to_string((long long) o.prompt_cache_every);
+                    } else if (known && k == "short_read") {
+                        o.short_read = (int64_t) v;
+                        applied += " short_read=" + std::to_string((long long) o.short_read);
+                    } else {
+                        refused += " " + kv + "(unknown key, or a value it cannot take)";
+                    }
+                }
+                std::string tout = applied.empty() ? std::string("TUNED none") : ("TUNED" + applied);
+                if (!refused.empty()) tout += " refused:" + refused;
+                std::printf("%s\n", tout.c_str());
+                std::fflush(stdout);
+                continue;
             }
             // the watchdog watches a request from here until this iteration ends, whichever way it ends
             struct BusyScope {
@@ -23315,6 +23427,7 @@ int main(int argc, char** argv) {
             });
         if (disco_on)   // DISCO's rule replaces the cost rule and --spec-min-p for the MTP chain (DraftPolicy still picks lookup vs MTP)
             mtp.set_chain_rule([&](int idx, float pj) {
+                disco.set_entropy(idx, mtp.chain_entropy(idx));   // STRATA_DISCO_ENTROPY (LEADS.md B24; -1 when off)
                 const bool k = disco.keep_draft(idx, pj, S_mtp);
                 chain_rows = disco.rows();
                 return k;

@@ -6762,6 +6762,10 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                 const int64_t r0 = m.bounds_host[j0], nr = m.bounds_host[j + 1] - r0;
                                 int64_t maxr = 0;
                                 for (size_t i = j0; i <= j; ++i) maxr = std::max<int64_t>(maxr, m.cnt[(size_t) order[i]]);
+                                // STRATA_MMQ_LINEAR (opt-in, llama.cpp #31047): each expert's rows for the split launches
+                                int32_t lin_rows[MMQ_GROUP];
+                                for (size_t i = j0; i <= j && i - j0 < (size_t) MMQ_GROUP; ++i)
+                                    lin_rows[i - j0] = (int32_t) m.cnt[(size_t) order[i]];
                                 pt.mark(kPfGemmGU, cs);
                                 if (wmma_l) {   // pf_wmma: gate/up, SwiGLU to FP16, down - the group in 2 tile launches
                                     const int32_t* dnb = m.bounds_dev + n + 1 + g * (MMQ_GROUP + 1);
@@ -6791,6 +6795,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                 gu.total_rows = T * K; gu.max_rows = maxr; gu.dst = m.GU; gu.ld_dst = 1280;
                                 gu.y_scale = mmq::fp4_activations(mmq_gt) ? m.Xscale : nullptr;
                                 if (direct) gu.tab = &tgu;
+                                if (ngx <= MMQ_GROUP) gu.host_rows = lin_rows;   // read only with STRATA_MMQ_LINEAR=1
                                 m.mmq_ctx->run(gu, m.cs);
                                 if (lay.native && lay.fmt[(size_t) l].tail_off)   // gate/up scales applied as read
                                     mmq::swiglu_scaled(m.GU + r0 * 1280, m.H + r0 * 640, nr, 640, m.bounds_dev + j0, ngx,
@@ -6808,6 +6813,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                 dn.ld_dst = N;
                                 dn.y_scale = mmq::fp4_activations(mmq_dt) ? m.Hscale : nullptr;
                                 if (direct) dn.tab = &td;
+                                if (ngx <= MMQ_GROUP) dn.host_rows = lin_rows;   // read only with STRATA_MMQ_LINEAR=1
                                 m.mmq_ctx->run(dn, m.cs);
                                 if (lay.native && lay.fmt[(size_t) l].tail_off)   // s_down: applied by the combine
                                     mmq::down_row_scales(m.row_sd + r0, dn.bounds, ngx, m.grp_tail, nr, m.cs);

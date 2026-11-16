@@ -32,6 +32,7 @@
 #include <functional>
 #include <limits>
 #include <string>
+#include <map>
 #include <vector>
 
 namespace strata::core {
@@ -160,6 +161,9 @@ public:
     /// After a verified plain MTP window whose `n` drafts came from the last draft() round, `a` of them held (AdaEDL's
     /// threshold, AdaSD's rejected-entropy mean).  A no-op without a rule.
     void entropy_observe(int n, int a) { if (ent_stop_.on()) ent_stop_.observe(std::min(n, 16), a, round_ent_); }
+    /// LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): inside a chain rule call, draft j's softmax entropy under the draft
+    /// head (nats).  -1: unknown (switch off, the proxy or coupled pick, which never form the full softmax).
+    float chain_entropy(int j) const { return h_dent_ != nullptr && j >= 0 ? ((const volatile float*) h_dent_)[j] : -1.0f; }
 
     bool draft_first(int T, const float* R_row, int32_t token, int64_t cell, int32_t* drafts, std::string& err,
                      float* probs = nullptr, float min_p = 0.0f, int* n_drafts = nullptr, DraftResult* result = nullptr);
@@ -263,6 +267,9 @@ private:
     bool capture_round(int T, bool coupled, std::string& err);
     bool capture_step(int j, bool coupled, std::string& err);
     cudaGraphExec_t step_exec_[9] = {};
+    /// LEADS.md B28 (STRATA_MTP_ONE_GRAPH=1): the round and steps 1..steps-1 in one graph, keyed by (coupled, T, steps)
+    bool capture_chain(int T, int steps, bool coupled, std::string& err);
+    std::map<int, cudaGraphExec_t> chain_exec_;
     // coupled draft sampling: its own round/step graphs (the argmax ones stay as they were), the request's
     // parameters and the penalty ring (mapped staging + device copies), the split scratch, token id -> subset index
     bool setup_coupled(std::string& err);
@@ -357,6 +364,9 @@ private:
     float *ents_ = nullptr, *top2s_ = nullptr;
     float round_ent_[16] = {}, round_top2_[16] = {};   // (NaN-filled when the buffers are made)
     strata::spec::EntropyStop ent_stop_;
+    // LEADS.md B24 (STRATA_DISCO_ENTROPY, opt-in): each draft's softmax entropy (mapped; -1 = unknown) and the rows' (device)
+    float *h_dent_ = nullptr, *m_dent_ = nullptr;
+    float* dent_ = nullptr;
     // the draft head: the main head's rows for a token subset (rt/draft_vocab.bin), or the whole head
     uint8_t* dhead_ = nullptr;
     int32_t* dvocab_ = nullptr;

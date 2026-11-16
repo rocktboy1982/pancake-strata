@@ -1973,6 +1973,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(hc_persist_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME hc_persist_parity COMMAND hc_persist_parity)
   add_test(NAME hc_persist_default_off COMMAND hc_persist_parity --off)
+  add_test(NAME hc_persist_q8_parity COMMAND hc_persist_parity --q8)   # STRATA_HC_PERSIST_Q8 (LEADS.md B64)
   # MOD_PLAN item 93: pancake's RDNA3 kernels against the generic ones on random inputs (bounded, two runs bitwise;
   # 77 = skip on a wave64 card).  rdna_gr.cu: one test per kernel variant the environment selects (the BF16 read with
   # 1 / 2 / 4 rows per wave, the int8 read, its int8-activation A8 form, A8 with the inject rows in their own blocks,
@@ -2356,6 +2357,12 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(adapt_decay_test src/program/adapt_decay_test.cpp)
   target_include_directories(adapt_decay_test PRIVATE include)
   add_test(NAME adapt_decay_test COMMAND adapt_decay_test)
+  add_executable(tier_policy_score_test src/program/tier_policy_score_test.cpp)   # LEADS.md B11/B126/A46 tier policies
+  target_include_directories(tier_policy_score_test PRIVATE include)
+  add_test(NAME tier_policy_score_test COMMAND tier_policy_score_test)
+  add_executable(expert_entropy_test src/core/expert_entropy_test.cpp)   # LEADS.md A29 lossless expert-byte coder
+  target_include_directories(expert_entropy_test PRIVATE include)
+  add_test(NAME expert_entropy_test COMMAND expert_entropy_test)
   # the window limits (8 rows, or 16 in a wide CUDA / HIP build) and the pipelined-window probe (header-only, CPU)
   add_executable(window_limits_test src/core/window_limits_test.cpp)
   target_include_directories(window_limits_test PRIVATE include)
@@ -2679,6 +2686,9 @@ if(STRATA_NATIVE_EXPERTS)
   # against ggml-cpu's dot, on random blocks; --bench: ms per expert on one thread, the weights streamed from DRAM
   add_executable(iq_avx2_parity src/kernels/cpu/iq_avx2_parity.cpp)
   target_link_libraries(iq_avx2_parity PRIVATE strata_kernels_cpu)
+  # STRATA_CPU_R4 (LEADS.md B123): the IQ2_XS gate/up rows on the row-interleaved R4 copy bit for bit against the plain rows
+  add_executable(iq_r4_parity src/kernels/cpu/iq_r4_parity.cpp)
+  target_link_libraries(iq_r4_parity PRIVATE strata_kernels_cpu)
   # the 512-bit i-quant rows against ggml-cpu's dot: the exact rows bit for bit at 1-4 tokens, the engine's multi-token rows to float
   # rounding, with the grid lookups as scalar loads and as gathers (SKIP without AVX-512)
   add_executable(iq512_gather_parity src/kernels/cpu/iq512_gather_parity.cpp)
@@ -2699,6 +2709,8 @@ if(STRATA_NATIVE_EXPERTS)
   if(STRATA_BUILD_TESTS)
     add_test(NAME iq_avx2_parity COMMAND iq_avx2_parity)
     add_test(NAME iq_avx2_parity_iq3s_mt1 COMMAND ${CMAKE_COMMAND} -E env STRATA_IQ3S_MT1=1 $<TARGET_FILE:iq_avx2_parity>)
+    add_test(NAME iq_r4_parity COMMAND iq_r4_parity)
+    set_tests_properties(iq_r4_parity PROPERTIES SKIP_RETURN_CODE 77)
   endif()
   # the older CPUs' AVX1 expert rows (iq_avx1.cpp) against ggml-cpu's dots and against their own one-token
   # rows at every width; --bench: ms per expert, the weights streamed from DRAM.  Runs on any AVX CPU:
@@ -2962,6 +2974,11 @@ if(STRATA_NATIVE_EXPERTS)
       target_link_libraries(prefill_mmq_scatter_test PRIVATE strata_mmq ggml-base ${_strata_gpu_runtime_target})
       add_test(NAME prefill_mmq_scatter_test COMMAND prefill_mmq_scatter_test)
       set_tests_properties(prefill_mmq_scatter_test PROPERTIES TIMEOUT 120)
+      # STRATA_MMQ_LINEAR (llama.cpp #31047, host-side form): the split launches against the one launch
+      add_executable(prefill_mmq_linear_test tests/cuda/prefill_mmq_linear_test.cpp)
+      target_link_libraries(prefill_mmq_linear_test PRIVATE strata_mmq ggml-base ${_strata_gpu_runtime_target})
+      add_test(NAME prefill_mmq_linear_test COMMAND prefill_mmq_linear_test)
+      set_tests_properties(prefill_mmq_linear_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
       if(STRATA_EXPERIMENTAL_SM60)
         # mmq::swiglu_quant: swiglu + the down product's q8_1 rows in one kernel against the two, byte for byte
         add_executable(prefill_swiglu_quant_test tests/cuda/prefill_swiglu_quant_test.cpp)
@@ -3131,6 +3148,13 @@ if(STRATA_NATIVE_EXPERTS)
     add_test(NAME hip_prefill_mmq_parity COMMAND hip_prefill_mmq_parity)
     set_tests_properties(hip_prefill_mmq_parity PROPERTIES TIMEOUT 120)
     list(APPEND _strata_hip_tests hip_prefill_mmq_parity)
+    # STRATA_MMQ_LINEAR (llama.cpp #31047, host-side form): the split launches against the one launch (exit 77 without a card)
+    add_executable(hip_prefill_mmq_linear tests/cuda/prefill_mmq_linear_test.cpp)
+    target_include_directories(hip_prefill_mmq_linear PRIVATE "${_strata_gg}/include")
+    target_link_libraries(hip_prefill_mmq_linear PRIVATE strata_mmq ggml-base strata_hip_runtime)
+    add_test(NAME hip_prefill_mmq_linear COMMAND hip_prefill_mmq_linear)
+    set_tests_properties(hip_prefill_mmq_linear PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    list(APPEND _strata_hip_tests hip_prefill_mmq_linear)
   endif()
   if(STRATA_ENABLE_HIP)
     # Optional real-model diagnostic: pass the GGUF shard containing the native PLE key.
@@ -3322,6 +3346,14 @@ if(STRATA_BUILD_TESTS)
     target_link_libraries(q2_fast_parity_test PRIVATE strata_kernels_cpu)
     add_test(NAME q2_fast_parity_test COMMAND q2_fast_parity_test)
     set_tests_properties(q2_fast_parity_test PROPERTIES SKIP_RETURN_CODE 77)   # no AVX2: skipped
+    # LEADS.md B1/B2: STRATA_CPU_ACT_SPARSE's block mask and the Q2_0 rows with the zero blocks skipped vs the full rows
+    add_executable(q2_skip_parity src/kernels/cpu/q2_skip_parity.cpp)
+    target_link_libraries(q2_skip_parity PRIVATE strata_kernels_cpu)
+    add_test(NAME q2_skip_parity COMMAND q2_skip_parity)
+    # LEADS.md SliceMoE: STRATA_SLICE_MISS's 1-bit slice of Q2_0 rows (build, scalar vs reference, AVX2 vs scalar, cache)
+    add_executable(q2_hi_parity src/kernels/cpu/q2_hi_parity.cpp)
+    target_link_libraries(q2_hi_parity PRIVATE strata_kernels_cpu)
+    add_test(NAME q2_hi_parity COMMAND q2_hi_parity)
   endif()
   # MOD_PLAN F12: STRATA_IQ_SIGN_FAST's sign step (iq_signs.hpp) vs llama.cpp's __vcmpne4/__vsub4 form, CUDA semantics
   # and the HIP emulation, every codebook word x every one-bit-per-byte sign word (host only, no GPU)
@@ -3729,7 +3761,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     pcie_share_rule_test calibrate_ratio_test amd_community_test amd_community_test_dot_off gfx12_extra_test nv_defaults_test kva_test
     adapt_async_default_test epoch_bandit_test park_replay_sim_test uma_cache_test suffix_drafter_test suffix_index_test controller_test draft_policy_test window_rule_test disco_test row_miss_test
     recycle_drafts_test
-    draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test
+    draft_vocab_test spec_start_test message_boundary_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
     spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test verify_ecap_test kv_ring_test
@@ -3737,9 +3769,9 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
     native_arithmetic_parity_no512 native_arithmetic_parity_ggml native_arithmetic_parity_nvfp4_avx2
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test pool_tasks_test_row_split pool_tasks_test_fuse_row_split router_dot_parity router_dot_parity_avx
-    iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
+    iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_r4_parity iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity q2_fast_parity_test iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
+    q2_bitplane_parity q2_fast_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test

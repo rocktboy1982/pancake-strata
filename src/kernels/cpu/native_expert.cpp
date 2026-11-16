@@ -451,6 +451,71 @@ int native_gu_mt_min(int gu_type) {
     return iq3s_one && gu_type == 21 ? 1 : mt_min;
 }
 
+namespace {
+// STRATA_CPU_R4=MiB (opt-in, LEADS.md B123; ik_llama.cpp's row-interleaved "_R4" layouts, ikawrakow): an IQ2_XS expert's
+// gate/up rows served from a copy interleaved four rows at a time (r4_repack_rows), made the first time the multi-token
+// kernel meets the expert and kept up to MiB of RAM.  The arena blob itself is never changed (it also feeds the GPU
+// copies); the copies are keyed by the blob's address, which is fixed for the arena's life, and the weights are
+// read-only.  The R4 kernel gives the same bits as iq256_gu_rows (iq_r4_parity).  Unset or 0: never consulted.
+struct R4Cache {
+    std::mutex mu;
+    std::map<const uint8_t*, std::vector<uint8_t>> copies;
+    size_t bytes = 0;
+    bool full_said = false;
+};
+size_t r4_budget() {
+    static const size_t b = [] {
+        const char* e = std::getenv("STRATA_CPU_R4");
+        const long long v = e != nullptr ? std::atoll(e) : 0;
+        return v > 0 ? (size_t) v << 20 : (size_t) 0;
+    }();
+    return b;
+}
+const uint8_t* r4_copy(const NativeFmt& f, const uint8_t* blob) {
+    static R4Cache c;
+    const size_t gate_bytes = (size_t) f.n_ff * f.gu_row;
+    const size_t need = f.up_off + gate_bytes;
+    if (f.n_ff % 4 != 0 || f.up_off < gate_bytes || f.gu_row % 74 != 0) return nullptr;
+    // a source that reuses a buffer for another expert would give the same address: on every hit, eight blocks (the
+    // first and last block of the first and last gate and up rows) are compared with the copy, and a copy that no longer
+    // matches is made again from the blob
+    auto matches = [&](const std::vector<uint8_t>& v) {
+        const size_t nb = f.gu_row / 74;
+        const int rows[2] = {0, (int) f.n_ff - 1};
+        const size_t blks[2] = {0, nb - 1};
+        for (size_t part : {(size_t) 0, f.up_off})
+            for (int r : rows)
+                for (size_t i : blks)
+                    if (std::memcmp(blob + part + (size_t) r * f.gu_row + i * 74,
+                                    v.data() + part + (size_t) (r / 4) * 4 * f.gu_row + (i * 4 + (size_t) (r % 4)) * 74, 74) != 0)
+                        return false;
+        return true;
+    };
+    std::lock_guard<std::mutex> lk(c.mu);
+    const auto it = c.copies.find(blob);
+    if (it != c.copies.end()) {
+        if (!matches(it->second)) {
+            r4_repack_rows(blob, f.gu_row, 74, (int) f.n_ff, it->second.data());
+            r4_repack_rows(blob + f.up_off, f.gu_row, 74, (int) f.n_ff, it->second.data() + f.up_off);
+        }
+        return it->second.data();
+    }
+    if (c.bytes + need > r4_budget()) {
+        if (!c.full_said) {
+            c.full_said = true;
+            std::fprintf(stderr, "strata cpu: STRATA_CPU_R4: %zu MiB of R4 copies (%zu experts), the budget is full; the "
+                                 "other experts keep the plain rows\n", c.bytes >> 20, c.copies.size());
+        }
+        return nullptr;
+    }
+    std::vector<uint8_t> v(need, 0);
+    r4_repack_rows(blob, f.gu_row, 74, (int) f.n_ff, v.data());
+    r4_repack_rows(blob + f.up_off, f.gu_row, 74, (int) f.n_ff, v.data() + f.up_off);
+    c.bytes += need;
+    return c.copies.emplace(blob, std::move(v)).first->second.data();
+}
+}  // namespace
+
 template <NativeArithmetic Arithmetic>
 void native_gu_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* const* act, int nt, float* const* ff,
                     int r0, int r1) {
@@ -584,6 +649,12 @@ void native_gu_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* co
                 return;
             }
             if (avx2 && iq256_supported(f.gu_type)) {
+                if (r4_budget() > 0 && f.tail_off == 0 && iq256_r4_supported(f.gu_type)) {   // STRATA_CPU_R4 (opt-in)
+                    if (const uint8_t* b4 = r4_copy(f, blob)) {
+                        iq256_gu_rows_r4(f.gu_type, b4, f.gu_row, f.up_off, (int) f.n_embd, act, nt, ff, r0, r1);
+                        return;
+                    }
+                }
                 iq256_gu_rows(f.gu_type, blob, f.gu_row, f.up_off, (int) f.n_embd, act, nt, ff, r0, r1);
                 return;
             }

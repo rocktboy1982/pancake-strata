@@ -2,11 +2,15 @@
 #include "strata/kernels/cpu/expert_layout.hpp"
 #include "strata/kernels/cpu/hadamard.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #if defined(_MSC_VER)
 #include <intrin.h>
 #include <immintrin.h>
@@ -483,6 +487,157 @@ void act_quant_any(const float* x, int n, ActQ& a) {
     if (cpu_vnni_ok()) act_quant_q8_1(x, n, a);
     else if (cpu_avx2_ok()) act_quant_q8_1_avx2(x, n, a);
     else act_quant_q8_1_avx1(x, n, a);   // issue #1699
+}
+
+// LEADS.md B1/B2, STRATA_CPU_ACT_SPARSE / STRATA_CPU_ACT_SPARSE_UNION (pool.cpp reads the switches; TEAL arXiv 2408.14690,
+// BlockFFN arXiv 2507.08771).  Per token, the floor(p x nblk) 64-blocks of h with the smallest L2 norm are zeroed (with
+// `uni`, only the blocks no token keeps); returns the mask of the blocks zero in every token.
+uint64_t act_sparse_apply(float* const* ff, int nt, int nff, float p, bool uni) {
+    const int nblk = nff / 64;
+    if (nblk <= 1 || nblk > 64 || nt <= 0 || nt > MAXT) return 0;
+    const int drop = (int) ((float) nblk * p);
+    if (drop <= 0) return 0;
+    float norm[64];
+    int ord[64];
+    uint64_t keep_any = 0;
+    uint64_t keep_tok[MAXT];
+    for (int t = 0; t < nt; ++t) {
+        for (int b = 0; b < nblk; ++b) {
+            double s = 0.0;
+            for (int i = 0; i < 64; ++i) { const double x = ff[t][b * 64 + i]; s += x * x; }
+            norm[b] = (float) s;
+            ord[b] = b;
+        }
+        std::stable_sort(ord, ord + nblk, [&](int x, int y) { return norm[x] < norm[y]; });
+        uint64_t k = 0;
+        for (int j = drop; j < nblk; ++j) k |= 1ull << ord[j];
+        keep_tok[t] = k;
+        keep_any |= k;
+    }
+    for (int t = 0; t < nt; ++t) {
+        const uint64_t k = uni ? keep_any : keep_tok[t];
+        for (int b = 0; b < nblk; ++b)
+            if (!(k >> b & 1)) std::memset(ff[t] + b * 64, 0, 64 * sizeof(float));
+    }
+    const uint64_t all = nblk == 64 ? ~0ull : ((1ull << nblk) - 1ull);
+    return all & ~keep_any;
+}
+
+// The Q2_0 rows with the blocks in `skip` left out: one q2_rows_any call per run of kept blocks, each on a copy of the
+// activations shifted to the run's first block (bit-plane image off), the runs' results added.  The skipped blocks must
+// be zero in every token; then the sum is the full one up to the order of the additions (q2_skip_parity checks it).
+void q2_rows_skip(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt, float* const* out,
+                  int r0, int r1, uint64_t skip) {
+    if (skip == 0 || nblocks > 64 || nt > MAXT) { q2_rows_any(w, row_bytes, nblocks, a, nt, out, r0, r1); return; }
+    thread_local ActQ sh[MAXT];
+    thread_local std::vector<float> acc[MAXT];
+    const ActQ* ap[MAXT];
+    float* op[MAXT];
+    bool first = true;
+    for (int b0 = 0; b0 < nblocks;) {
+        if (skip >> b0 & 1) { ++b0; continue; }
+        int b1 = b0;
+        while (b1 < nblocks && !(skip >> b1 & 1)) ++b1;
+        const int n = b1 - b0;
+        for (int t = 0; t < nt; ++t) {
+            std::memcpy(sh[t].q, a[t]->q + b0 * 64, (size_t) n * 64);
+            std::memcpy(sh[t].scale, a[t]->scale + 2 * b0, (size_t) n * 2 * sizeof(float));
+            std::memcpy(sh[t].sum, a[t]->sum + 2 * b0, (size_t) n * 2 * sizeof(int32_t));
+            std::memcpy(sh[t].hx, a[t]->hx + 2 * b0, (size_t) n * 2 * sizeof(float));
+            sh[t].nchunks = 2 * n;
+            sh[t].bp_pairs = 0;
+            ap[t] = &sh[t];
+            if (!first && acc[t].size() < (size_t) r1) acc[t].resize((size_t) r1);
+            op[t] = first ? out[t] : acc[t].data();
+        }
+        q2_rows_any(w + (size_t) b0 * 18, row_bytes, n, ap, nt, op, r0, r1);
+        if (!first)
+            for (int t = 0; t < nt; ++t)
+                for (int r = r0; r < r1; ++r) out[t][r] += acc[t][(size_t) r];
+        first = false;
+        b0 = b1;
+    }
+    if (first)   // every block skipped: the rows are zero
+        for (int t = 0; t < nt; ++t)
+            for (int r = r0; r < r1; ++r) out[t][r] = 0.0f;
+}
+
+// LEADS.md SliceMoE (STRATA_SLICE_MISS; expert.hpp kQ2HiBlock): the 1-bit Matryoshka slice of Q2_0 rows.  Q2_0 codes:
+// value i of a block in byte i/4, bits 2*(i%4); its high bit is bit 2*(i%4)+1.
+void q2_hi_plane_build(const uint8_t* w, size_t row_bytes, int nblocks, int rows, uint8_t* dst) {
+    for (int r = 0; r < rows; ++r)
+        for (int b = 0; b < nblocks; ++b) {
+            const uint8_t* blk = w + (size_t) r * row_bytes + (size_t) b * 18;
+            uint8_t* o = dst + ((size_t) r * (size_t) nblocks + (size_t) b) * kQ2HiBlock;
+            o[0] = blk[0];
+            o[1] = blk[1];
+            std::memset(o + 2, 0, 8);
+            for (int i = 0; i < 64; ++i)
+                if ((blk[2 + i / 4] >> (2 * (i % 4) + 1)) & 1) o[2 + i / 8] |= (uint8_t) (1u << (i % 8));
+        }
+}
+
+namespace {
+float hi_f16(const uint8_t* p) {   // IEEE half -> float (the block's d)
+    const uint32_t h = (uint32_t) p[0] | ((uint32_t) p[1] << 8);
+    const uint32_t s = (h & 0x8000u) << 16, e = (h >> 10) & 0x1f, m = h & 0x3ff;
+    uint32_t f;
+    if (e == 0) {
+        if (m == 0) f = s;
+        else { int k = -1; uint32_t mm = m; do { mm <<= 1; ++k; } while (!(mm & 0x400)); f = s | ((uint32_t) (127 - 15 - k) << 23) | ((mm & 0x3ff) << 13); }
+    } else if (e == 31) f = s | 0x7f800000u | (m << 13);
+    else f = s | ((e + 112) << 23) | (m << 13);
+    float out;
+    std::memcpy(&out, &f, 4);
+    return out;
+}
+}  // namespace
+
+// out[t][r] = sum_b d_b x sum over the block's two 32-value chunks c of scale_c x (2 x sum_{hi bit set} q - 0.5 x sum_c q),
+// i.e. sum_i d x ((code_i & 2) + 0.5 - 1) x scale x q_i: the high-bit slice of row_multi's d x (code - 1).
+void q2_hi_rows_scalar(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1) {
+    for (int r = r0; r < r1; ++r)
+        for (int t = 0; t < nt; ++t) {
+            float acc = 0.0f;
+            for (int b = 0; b < nblocks; ++b) {
+                const uint8_t* o = planes + ((size_t) r * (size_t) nblocks + (size_t) b) * kQ2HiBlock;
+                const float d = hi_f16(o);
+                int32_t s[2] = {0, 0};
+                for (int i = 0; i < 64; ++i)
+                    if ((o[2 + i / 8] >> (i % 8)) & 1) s[i / 32] += a[t]->q[b * 64 + i];
+                for (int c = 0; c < 2; ++c)
+                    acc += d * a[t]->scale[2 * b + c] * (2.0f * (float) s[c] - 0.5f * (float) a[t]->sum[2 * b + c]);
+            }
+            out[t][r] = acc;
+        }
+}
+
+void q2_hi_rows_any(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1) {
+    if (cpu_avx2_ok()) q2_hi_rows_avx2(planes, nblocks, a, nt, out, r0, r1);
+    else q2_hi_rows_scalar(planes, nblocks, a, nt, out, r0, r1);
+}
+
+// The slice of the Q2_0 matrix at `w` (rows x nblocks), built on first use and kept for the process (keyed by the
+// address; the arena does not move).  Bounded by STRATA_SLICE_MISS_MB (default 2048 MiB): past it, nullptr (the caller
+// reads the full rows).
+const uint8_t* q2_hi_plane_cached(const uint8_t* w, size_t row_bytes, int nblocks, int rows) {
+    static std::mutex mu;
+    static std::unordered_map<const uint8_t*, std::vector<uint8_t>> cache;
+    static size_t used = 0;
+    static const size_t cap = [] {
+        const char* v = std::getenv("STRATA_SLICE_MISS_MB");
+        const long long mb = v != nullptr ? std::atoll(v) : 2048;
+        return (size_t) (mb > 0 ? mb : 2048) << 20;
+    }();
+    std::lock_guard<std::mutex> lk(mu);
+    auto it = cache.find(w);
+    if (it != cache.end()) return it->second.data();
+    const size_t need = (size_t) rows * (size_t) nblocks * kQ2HiBlock;
+    if (used + need > cap) return nullptr;
+    std::vector<uint8_t> v(need);
+    q2_hi_plane_build(w, row_bytes, nblocks, rows, v.data());
+    used += need;
+    return cache.emplace(w, std::move(v)).first->second.data();
 }
 
 #if !defined(STRATA_NATIVE_EXPERTS)

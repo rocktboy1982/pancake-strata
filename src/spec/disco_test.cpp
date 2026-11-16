@@ -151,6 +151,23 @@ int main() {
         pol.end_round(r);   // a no-op
         check(pol.recent() == 0.7, "inactive policy keeps no state");
     }
+    {   // LEADS.md B24 STRATA_DISCO_ENTROPY: a draft above the entropy threshold ends the chain; -1 (unknown) never does
+        DiscoPolicy pol;
+        pol.set_model(DiscoModel::cumulative(1e-9));
+        pol.set_entropy_rule(2.0, false);
+        pol.set_entropy(0, 0.5f);
+        check(pol.keep_draft(0, 0.3f, 6) && pol.rows() == 2, "entropy: 0.5 nats under 2 kept (p does not matter)");
+        pol.set_entropy(1, -1.0f);
+        check(pol.keep_draft(1, 0.3f, 6) && pol.rows() == 3, "entropy: unknown kept");
+        pol.set_entropy(2, 3.0f);
+        check(!pol.keep_draft(2, 0.99f, 6) && pol.rows() == 3, "entropy: 3 nats over 2 stops the chain");
+        DiscoModel m;
+        std::string err;
+        check(m.parse("disco 2\nw 1 0 0 0 0 0 0 0 0\nwent -2\n", err) && m.went == -2.0, "went line parsed");
+        float x[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+        check(std::fabs(m.score_h(x, 1.0f) - 1.0 / (1.0 + std::exp(2.0))) < 1e-9, "score_h adds went x H");
+        check(m.score_h(x, -1.0f) == m.score(x), "score_h: unknown entropy adds nothing");
+    }
     {   // F8 STRATA_SPEC_CUM: the chain stops where p_0 * .. * p_j < s (a model on the chain feature alone)
         DiscoPolicy pol;
         pol.set_model(DiscoModel::cumulative(0.5));
