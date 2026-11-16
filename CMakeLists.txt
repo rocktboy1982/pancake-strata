@@ -495,6 +495,11 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(timer_marks_test PRIVATE include)
   add_test(NAME timer_marks_test COMMAND timer_marks_test)
 
+  # STRATA_STOP_LAYERS (LEADS.md Part H): the prompt read polls a Stop between layers (header-only, no GPU)
+  add_executable(stop_rule_test tests/prefill/stop_rule_test.cpp)
+  target_include_directories(stop_rule_test PRIVATE include)
+  add_test(NAME stop_rule_test COMMAND stop_rule_test)
+
   # PR #5108: the MMQ row table's over-read margin follows the backend tile bound; every fixup read stays inside (header-only, no GPU)
   add_executable(mmq_ids_margin_test tests/prefill/mmq_ids_margin_test.cpp)
   target_include_directories(mmq_ids_margin_test PRIVATE include)

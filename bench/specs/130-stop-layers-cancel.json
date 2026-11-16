@@ -1,0 +1,21 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "prefill": true,
+ "cases": [
+  "long32k"
+ ],
+ "reps": 3,
+ "arms": {
+  "preset": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "stop-layers": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_STOP_LAYERS": "1"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 6 item 27 (LEADS.md Part H, adambenhassen ef156accf1): STRATA_STOP_LAYERS=1 polls a Stop between the layers of a prompt chunk (include/strata/prefill/stop_rule.hpp, prefill.cpp batched layer loop), not only at the chunk start. SKELETON: abtest sends no Stop, so this spec only checks that the switch costs no prefill speed and leaves the finished read's tokens identical (cases long32k, exact). The cancel timing itself needs a client that sends a serve Stop mid-prompt and times the next request's first token (author: 17.9 s -> 1.1 s on 2 x P100); no such tool exists in tools/ yet. Engine not built, NOT MEASURED (queued). Stop pancake.service first."
+}

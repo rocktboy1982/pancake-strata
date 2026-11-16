@@ -1,0 +1,28 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "long1k",
+  "long3k",
+  "long"
+ ],
+ "reps": 3,
+ "arms": {
+  "f16": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "f16-dm16": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_F16": "1",
+    "STRATA_PF_DM16": "1"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 6 item 30 (LEADS.md Part H, xszwow e0f97dbf7e): STRATA_PF_DM16=1 writes the down rows of the F16 fused expert kernels to the combine as FP16 (moe_fused_iq.cu:2123, prefill.cpp:666; arch_defaults.cpp:189 sets it on gfx1151 only). It acts only when the layer runs an F16 kernel, so the base arm is STRATA_PF_F16=1 (the preset's value 2 is not the F16 kernels, spec 122) and the two arms differ in the down-row precision only. Not bit-exact (FP16 rows): lossy, read the drift check and first-token KL as information. Never run on gfx1100 (the 7900 XT): NOT MEASURED (queued). Stop pancake.service first."
+}

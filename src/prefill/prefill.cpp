@@ -12,6 +12,7 @@
 #endif
 #include "strata/prefill/warm_policy.hpp"
 #include "strata/prefill/share_rules.hpp"
+#include "strata/prefill/stop_rule.hpp"
 #include "strata/core/arch_defaults.hpp"
 #include <atomic>
 #if defined(__cpp_lib_atomic_wait)
@@ -4750,6 +4751,9 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
         pf_issue(LB);   // the first layer's, behind the chunk's embedding
         for (int64_t l = LB; l < LE; ++l) {
             core::progress_beat();   // the serve watchdog: a prompt chunk of 8192 tokens is still moving
+            // STRATA_STOP_LAYERS (LEADS.md Part H): a Stop is also polled between layers, not only at the chunk start
+            if (strata::prefill::stop_rule::poll_before_layer(strata::prefill::stop_rule::enabled_from_env(), (bool) should_stop, l, LB) &&
+                should_stop()) { err = "cancelled"; return false; }
             if (l > LB) pf_step("reading the prompt (batched, step sync): the experts and the rest of layer", l - 1);
             core::progress_at("reading the prompt (batched): layer", l, p0);   // #251: a stall names layer and chunk
             const core::LayerView v(*m.wt, l);

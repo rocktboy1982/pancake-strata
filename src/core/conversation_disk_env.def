@@ -343,6 +343,7 @@ STRATA_ENV("STRATA_WS_FAST", Unsure, "weight-staged fast path (opt-in)")
 STRATA_ENV("STRATA_KV_ROT", InConfig, "covered by the config fingerprint (session_identity: c.kv_rot)")
 
 // ---- Speed: no deliberate change of arithmetic (placement, scheduling, drafting policy) or documented bit-identical; must not be in the key (542) ----
+STRATA_ENV("STRATA_STOP_LAYERS", Speed, "a Stop is also polled between the layers of a prompt chunk: only when a cancelled read ends, a finished read is byte-identical (LEADS.md Part H)")
 STRATA_ENV("STRATA_CONV_DISK_WANTS", Speed, "disk-only save obeys --conversation-cache-min-tokens: only which conversations are written, never their bytes (LEADS.md Part H)")
 STRATA_ENV("STRATA_CACHE_ROOT_PAST", Speed, "where the prompt-cache root checkpoint is taken (a split point; the K/V of the same tokens is the same, LEADS.md Part H)")
 STRATA_ENV("STRATA_DISK_NO_DRAFT", Speed, "no draft layer in the disk save / restore when no --mtp layer is loaded: main layers identical, only a path that failed before (LEADS.md Part H)")
