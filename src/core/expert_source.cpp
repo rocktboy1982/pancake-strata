@@ -5127,6 +5127,27 @@ float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_C
 // model - its lower-half experts are dropped - where that saves a copy or a CPU job (missed experts only, skipped like
 // MISS_SKIP_W).  Every other token keeps all k experts (the paper's "big" model).  Value in (0, 1); else off.  Read once.
 float mobile_gate() { static const float g = miss_skip_env("STRATA_MOBILE"); return g; }
+// STRATA_SER="Kmin,t" (opt-in, lossy, read once; LEADS.md gputier/StrataGP 88a9b1a26c --ser, after ik_llama.cpp PR 239's
+// smart expert reduction): a pick of rank >= Kmin (0-based, the router's order) whose weight is not above t x the
+// token's top weight is dropped - RESIDENT experts too, as their patch drops every such pick, not only missed ones.
+// Kmin in 1..9, t in (0, 1]; anything else (unset too) is off.
+struct SerCfg { int kmin = 0; float t = 0.0f; };
+const SerCfg& ser_cfg() {
+    static const SerCfg c = [] {
+        SerCfg r;
+        const char* v = std::getenv("STRATA_SER");
+        if (v == nullptr || v[0] == '\0') return r;
+        char* e = nullptr;
+        const long km = std::strtol(v, &e, 10);
+        if (e == v || *e != ',') return r;
+        const float t = (float) std::atof(e + 1);
+        if (km >= 1 && km <= 9 && t > 0.0f && t <= 1.0f) { r.kmin = (int) km; r.t = t; }
+        else std::fprintf(stderr, "strata: STRATA_SER=%s is not Kmin,t with 1 <= Kmin <= 9 and 0 < t <= 1: off\n", v);
+        return r;
+    }();
+    return c;
+}
+bool ser_on() { return ser_cfg().kmin > 0; }
 
 // LEADS.md A27 (sub-2-bit copy on a CPU miss; HOBBIT / MC-MoE low-precision miss copies), STRATA_SHADOW_MISS=<gguf>
 // (opt-in, lossy; read once): a CPU-computed (missed) expert reads its gate/up rows from the shadow GGUF that
@@ -5241,7 +5262,7 @@ bool adapt_prob_mass_on() {
     static const bool on = [] { const char* v = std::getenv("STRATA_ADAPT_PROB_MASS"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
-bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on() || shadow_miss_weights_on(); }
+bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on() || shadow_miss_weights_on() || ser_on(); }
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic) {
@@ -5432,6 +5453,40 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] >= 0) continue;   // resident: never skipped
                 skip_d[q] = true;
                 --nmiss;
+                ++d.wskip_experts;
+            }
+        }
+        // STRATA_SER="Kmin,t" (opt-in, lossy; gputier/StrataGP 88a9b1a26c --ser, ik_llama.cpp PR 239; LEADS.md): an entry of
+        // rank i % k >= Kmin whose published weight is not above t x its token's largest weight qualifies; an expert every
+        // entry of which qualifies is skipped like a tail expert above (kind -2: neither copied nor computed, a zero row),
+        // RESIDENT ones included - unlike the skips above, which keep every resident expert.  Deviation from the patch: no
+        // renormalisation of the kept weights (the GPU combine applies the router's weights as published), and the rule is
+        // per expert over the window, as our other skips.  Counted with the weight skips (wskip_experts, tail_skipped rows).
+        // Not with a peer or helper GPU, as the tail skip.  Unset: nothing runs.
+        if (ser_on() && d.plan->skip_w != nullptr && d.peer == nullptr && d.remote_count == 0) {
+            const float* sw2 = d.plan->skip_w;
+            const int kmin = ser_cfg().kmin;
+            const float st = ser_cfg().t;
+            int q_of[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
+            bool keep[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) keep[q] = false;
+            for (int64_t i = 0; i < n; ++i) {
+                const int q = q_of[first_of[i]];
+                if (keep[q] || skip_d[q]) continue;
+                const int64_t t0 = (i / k) * k;
+                float wmax = 0.0f;
+                for (int64_t j = t0; j < t0 + k; ++j)
+                    if (sw2[j] > wmax) wmax = sw2[j];   // (NaN never compares above)
+                const float wi = sw2[i];
+                const bool drop = (int) (i % k) >= kmin && wi == wi && wmax > 0.0f && !(wi > st * wmax);
+                if (!drop) keep[q] = true;
+            }
+            for (int q = 0; q < nd; ++q) {
+                const int32_t e = ids[distinct[q]];
+                if (keep[q] || skip_d[q] || e < 0 || e >= d.n_expert) continue;
+                skip_d[q] = true;
+                if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0) --nmiss;   // (a resident one was no miss)
                 ++d.wskip_experts;
             }
         }
