@@ -4044,6 +4044,19 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                             hflag_out_d_, cs, g_test_drop > 0 ? hdrop_d_ : nullptr);   // the test word only with the hook on
             return true;
         }
+        // STRATA_GRAPH_LINEAR=1 (opt-in, exact: the same words to the same places, MOD_PLAN section 6 item 42): the three
+        // handoff copies as one launch (the multi-copy kernel the window's input staging above already uses), so the
+        // captured graph of a layer split's earlier stage holds one kernel node instead of three
+        static const bool graph_linear = [] { const char* e = std::getenv("STRATA_GRAPH_LINEAR"); return e != nullptr && e[0] == '1'; }();
+        if (graph_linear) {
+            const MappedCopy hc[3] = {
+                {hout, R_, (int64_t) T * HC * N},
+                {hout + (size_t) T * HC * N, bo_, (int64_t) T * N},
+                {hout + (size_t) T * (HC + 1) * N, inj2_, (int64_t) T * HC}
+            };
+            copy_from_mapped_multi(hc, 3, cs);
+            return true;
+        }
         copy_from_mapped(hout, R_, (int64_t) T * HC * N, cs);
         copy_from_mapped(hout + (size_t) T * HC * N, bo_, (int64_t) T * N, cs);
         copy_from_mapped(hout + (size_t) T * (HC + 1) * N, inj2_, (int64_t) T * HC, cs);
