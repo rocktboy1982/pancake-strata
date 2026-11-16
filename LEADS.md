@@ -141,7 +141,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | `STRATA_VRAM_CALIB` (PR #5691) | +314/+166 slots, free 884 to 300 MiB (2x RX 6900 XT, HIP) | exact | 2026-11-16: CODED STRATA_VRAM_CALIB |
 | `STRATA_PROMPT_STAGE_MEMO` | short turns +14-20% (gfx906) | ~exact | 2026-11-15: left |
 | disk conversation cache + RAM/disk dual-park | 12,175 tok restore 0.32-0.51 s vs 42-45 s cold (gfx906 box) | exact | 2026-11-15: left |
-| `DQ8` + `HC_GATED16`, `KV_PF_RESIDENT` | IQ3_S prompt +6%; +7-9% at 16-128K (2x PRO V620) | exact | 2026-11-16: CODED STRATA_HC_GATED16; DQ8 already; KV_PF_RESIDENT left |
+| `DQ8` + `HC_GATED16`, `KV_PF_RESIDENT` | IQ3_S prompt +6%; +7-9% at 16-128K (2x PRO V620) | exact | 2026-11-16: CODED STRATA_HC_GATED16, STRATA_KV_PF_RESIDENT; DQ8 already |
 | gfx1030 decode: `MMVQ_ROW/SET`, `NORM_ROPE=2`, `HEAD_WIDE/ROUTE_PLAN/HEAD_SAMPLE` | 119.2 to 122.1, one run (+1%) | exact | 2026-11-16: CODED STRATA_NORM_ROPE=2/3; MMVQ_ROW = RDNA_MMVQ_WAVE; MMVQ_SET / HEAD_WIDE / ROUTE_PLAN / HEAD_SAMPLE left |
 | `__launch_bounds__` / occupancy audit | QSA value -10.9%, 128K prefill +1.45% (P40) | exact | 2026-11-15: method |
 | HotRod prompt stand-ins (`PREFILL_STANDIN`) | 76-118 tok prompts 35-45% faster; 8.5K 15.8 to 15.1 s (RTX 3060) | lossy | 2026-11-15: left |
@@ -177,7 +177,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | launch fusions `FUSE_COMBINE/SWIGLU_DOWN/SHGATE/PLAN/ROUTEBELL/QGEMV` | 2,648 to 2,248 kernels/window, no tok/s (R9700) | exact | no |
 | deferred / parallel act quant in pool + sample-async | +6.5% / +3.9% bundles (R9700) | exact | 2026-11-16: CODED STRATA_POOL_DEFER_ACTQ |
 | hugetlb CPU expert copy + RAM budget fix | IQ2_XS solo +4.9%, lane +7.2% (svgop, CUDA) | exact | 2026-11-15: already pinned.cu MAP_HUGETLB (svgop file-source complement left) |
-| two-pass session restore | 198,830 tok (3.05 GiB) restored 3.4-3.5 s (ElXreno) | exact | 2026-11-15: left (ElXreno 7efef35d0d) |
+| two-pass session restore | 198,830 tok (3.05 GiB) restored 3.4-3.5 s (ElXreno) | exact | 2026-11-16: CODED STRATA_SESSION_STREAMED, STRATA_SESSION_TWO_PASS (a3eeb917c4 = our disk tier; 2271ee21a1 disk-only in progress) |
 | `STRATA_CPU_POOL_COST` longest-first | code +6.54%, geomean +1.95% (gfx936 DCU) | exact | 2026-11-15: CODED STRATA_CPU_POOL_COST |
 | uniform fewer experts K=9/8 (`EXPERTS_USED`) | K=7/8 +14.4%, 6/8 +18.7%; KLD 0.0254 at K=7; HumanEval flat (RTX 3050 laptop, Qwen3.6 IQ4_XS) | lossy | no |
 | `gdn_gate_kernel` computes only first token | latent (callers pass n_tokens=1) | fix | elementwise.cu:43 (bug present) |

@@ -36,7 +36,13 @@
       "env": {
         "STRATA_PF_SEL_BATCH": "64"
       }
+    },
+    "kv-pf-resident": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_KV_PF_RESIDENT": "1"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 item 12: Strata-rdna3 f557b544 (STRATA_PREFILL_POOL_RETRY=1: the prompt CPU share retries the pool at every layer; grouped-host site only) and 791cca4b (an AUTO_MAX ask >= 40960 now gets an 8192-grid ceiling up to 49152, the loan fit still decides; author est. 2-4% at 49K). pool-retry is judged on long1k / long3k (the CPU-share window), auto-max-49152 on long64k (prompt tok/s, the chunk plan line in the engine log). Lossy (KeyIfSet: CPU share changes which rows the CPU computes). Stop pancake.service first. Speedy (DevDock-AI) 0ccf981153 STRATA_KV_STAGE_REQ (K/V staging pool sized by the request, the startup loan moves to the auto prompt chunk; author 300K cold prompt 466 -> 1527 t/s) and 8f0d2e38da STRATA_PF_SEL_BATCH (QSA selection batch; VRAM) - judged on long64k prompt tok/s and the chunk plan line; both exact by design."
+  "note": "MOD_PLAN.md section 6 item 12: Strata-rdna3 f557b544 (STRATA_PREFILL_POOL_RETRY=1: the prompt CPU share retries the pool at every layer; grouped-host site only) and 791cca4b (an AUTO_MAX ask >= 40960 now gets an 8192-grid ceiling up to 49152, the loan fit still decides; author est. 2-4% at 49K). pool-retry is judged on long1k / long3k (the CPU-share window), auto-max-49152 on long64k (prompt tok/s, the chunk plan line in the engine log). Lossy (KeyIfSet: CPU share changes which rows the CPU computes). Stop pancake.service first. Speedy (DevDock-AI) 0ccf981153 STRATA_KV_STAGE_REQ (K/V staging pool sized by the request, the startup loan moves to the auto prompt chunk; author 300K cold prompt 466 -> 1527 t/s) and 8f0d2e38da STRATA_PF_SEL_BATCH (QSA selection batch; VRAM) - judged on long64k prompt tok/s and the chunk plan line; both exact by design. kv-pf-resident (jstamagal a83a9f11b6 + e0475c65b9): the prompt path resolves resident K/V ranges instead of re-streaming them (exact); needs the next build."
 }
