@@ -151,7 +151,21 @@
       "env": {
         "STRATA_ADAPT_LEARNED": "0.05"
       }
+    },
+    "mtp-in-verify": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DEVICE_ACCEPT": "1",
+        "STRATA_MTP_ONE_GRAPH": "1",
+        "STRATA_MTP_IN_VERIFY": "1"
+      }
+    },
+    "expert-entropy-tier": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_EXPERT_ENTROPY_TIER": "1"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 item 18, second pass of the LEADS.md wave (2026-11-16): exact / policy-only switches. Values are first guesses for a screen. adapt-* change tier placement only (CPU vs GPU rows may round differently: a text difference there is a placement effect, not a bug). Stop pancake.service first."
+  "note": "MOD_PLAN.md section 6 item 18, second pass of the LEADS.md wave (2026-11-16): exact / policy-only switches. Values are first guesses for a screen. adapt-* change tier placement only (CPU vs GPU rows may round differently: a text difference there is a placement effect, not a bug). Stop pancake.service first. mtp-in-verify (LEADS B28): the next MTP round staged on the device from the commit words and launched on the window stream (needs DEVICE_ACCEPT + MTP_ONE_GRAPH; judge against device-accept). expert-entropy-tier (A29): cold arena blobs Huffman-coded in RAM, decoded on demand; lossless; near 0% saving on IQ2_XS by the lead's own bound (the engine log reports the coded ratio)."
 }

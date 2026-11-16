@@ -288,7 +288,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B25 | SpecFit / DraftExpert / EcoSpec miss-aware window (new experts per position) | DraftExpert verify-cost 2.35x->1.48x, RTX 4090; est. +3-8% over SPEC_COST | exact | 2026-11-15: partial: VERIFY_ECAP (window-length form left) |
 | B26 | Cross-session suffix index (SuffixDecoding) | `--simulate` first; A24 spec 45 | exact | include/strata/spec/suffix_index.hpp:114 |
 | B27 | `--lookup-max-t 12/16` | +1% first test | exact | include/strata/core/lookup_default.hpp:1 |
-| B28 | MTP draft inside captured verify graph (item 10) | 1-3% est. | exact | 2026-11-16: partial: STRATA_MTP_ONE_GRAPH (verify-graph fold in progress) |
+| B28 | MTP draft inside captured verify graph (item 10) | 1-3% est. | exact | 2026-11-16: CODED STRATA_MTP_IN_VERIFY (+ MTP_ONE_GRAPH, DEVICE_ACCEPT) |
 | B29 | `--mtp-q4` | queued | exact? | include/strata/core/mtp.hpp:64 |
 | B30 | ReplaySSM / SpecLA audit of GDN replay (item 20) | 1-3% decode | exact | - |
 | B31 | SSD-lite (Saguaro): draft while GPU verifies | CPU already busy | exact | - |
@@ -500,7 +500,7 @@ Partial or "~" (12): B69, B80, B118, B120, B122, B124, B125, B126, B133, B136, B
 | A45 start-up calibration probe | expected share 0 on this box (raw ~0.28 < 0.35) | exact | src/program/generate.cpp:8366 |
 | DALI per-layer per-step greedy CPU/GPU assignment (vs static share) | assignment alone +23% vs HybriMoE; decode 1.32-3.97x (EPYC 7532 + 3090, PCIe 4.0) | exact | 2026-11-15: CODED STRATA_DALI |
 | A46 learned cache policy | Belady 94.7 vs LRU 89.5 vs engine 79.6%; best online +3.2 pt but 2-3x promotions | exact | 2026-11-16: CODED STRATA_ADAPT_LEARNED |
-| A29 expert-byte entropy coding | bound 11.7-12.0% Q2_0, zstd 8.0%; IQ ~0% | exact | 2026-11-16: partial: coder + STRATA_EXPERT_ENTROPY measure (compressed tier in progress) |
+| A29 expert-byte entropy coding | bound 11.7-12.0% Q2_0, zstd 8.0%; IQ ~0% | exact | 2026-11-16: CODED STRATA_EXPERT_ENTROPY_TIER (lossless; coder + tier) |
 | A28 ISTA-DASLab GSQ-RCO Coder | SWE-bench 95.7% retained (card); 58.4 GB Qwen / 111 GB DeepSeek | lossy (50% expert pruning + quant) | 2026-11-15: left (owner 2026-11-13: do not test GSQ) |
 | ExpertCache task-specific expert preload (RL) | Qwen3-235B, BigCodeBench (snippet) | exact (placement) | 2026-11-15: already STRATA_DOMAIN_PROFILES |
 
@@ -1031,7 +1031,7 @@ Profile basis (short case, fast-hip preset minus deferral, `--spec 4 --spec-min-
 | Item 15 PIPED_MTP: inert without `--batch-mtp` + layer-split stages (generate.cpp:7194/7245/7406) | AMUSD 29% (paper excerpt) | claimed exact | yes |
 | Item 16 `hipStreamWaitValue32` replacing spin kernels; `hipDeviceAttributeCanUseStreamWaitValue`=1 on 7900 XT (ROCm core-10.0) | ceiling ~0.3% node cost, latency unchanged; must honour `release_gpu_waits` UINT32_MAX watchdog (verify.cpp:612-625) | exact | symbol referenced (3 files) |
 | Item 17 commit into window graph, device-side accept | <=2.6% + one launch | exact iff accept matches | 2026-11-16: CODED STRATA_DEVICE_ACCEPT |
-| Item 18 fused argmax+accept (SonicSampler 2607.20475) | ~0 on greedy; host head sync verify.cpp:4228/4234 only for sampled | exact if tie-breaks match | 2026-11-16: CODED STRATA_HEAD_ARGMAX_FUSED (needs -DSTRATA_HIP_HEAD_FMT=ON) |
+| Item 18 fused argmax+accept (SonicSampler 2607.20475) | ~0 on greedy; host head sync verify.cpp:4228/4234 only for sampled | exact if tie-breaks match | 2026-11-16: CODED STRATA_HEAD_ARGMAX_FUSED (HIP build path fixed, -DSTRATA_HIP_HEAD_FMT=ON) |
 | Item 19 VERIFY_DEFER_CPU | +15.8% +-3.9 edit, short n.s.; DEFER_AUTO -1.2..-12.5% | LOSSY | yes |
 | Item 20 Mirror-SD (2.8-5.8x, +30% vs EAGLE3) / PipeSpec (2.25 vs 1.5) / AMUSD (29%) / Speculative Aggregation | papers, datacenter GPUs, need 2nd draft model | claimed exact | 2026-11-15: park: second accelerator |
 | Consumer-HW spec-decode caution (Apple silicon: best 1.61x, 3 of 5 configs slower) arXiv:2607.17283 | Apple M-series | exact (chi2 p=0.976) | n/a |
