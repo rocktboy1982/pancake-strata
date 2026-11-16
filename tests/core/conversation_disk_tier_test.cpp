@@ -501,6 +501,38 @@ void test_disk_only() {
     fs::remove_all(temp_dir("diskonly2"), ec);
 }
 
+// STRATA_CONV_DUAL_PARK (LEADS.md "RAM/disk dual-park"): the park writes the conversation (streamed), the RAM image's
+// later eviction finds it on disk and writes nothing again; another conversation's eviction is still written
+void test_dual_park() {
+    const fs::path dir = temp_dir("dual");
+    const auto conv = conversation(40, 200, true);
+    ConversationDiskTier t;
+    check(t.open(settings(dir)) && t.on(), "dual park: opens");
+    t.set_dual_park(true);
+    SavedConversation s = image(conv, {41, 100, 200, 150}, 6);
+    check(!t.holds(s.live.ids, s.live.imgs, s.cvec), "dual park: nothing held before the park");
+    size_t bytes = 0;
+    std::string why;
+    check(t.spill_streamed(streamed_save(s, conversation_disk_checkpoints(s.checkpoints)), s.checkpoints, 0, bytes, why),
+          "dual park: the park's streamed write");
+    check(t.holds(s.live.ids, s.live.imgs, s.cvec), "dual park: the tier holds the parked state");
+    check(!t.holds(s.live.ids, s.live.imgs, !s.cvec), "dual park: another steering is another state");
+    const auto written = t.totals().written;
+    t.spill(image(conv, {41, 100, 200, 150}, 6));   // the RAM image's eviction
+    t.drain();
+    check(t.totals().written == written && t.totals().skipped == 1 && t.entries() == 1 && files_like(dir, ".strs") == 1,
+          "dual park: the eviction of a held image writes nothing");
+    t.spill(image(conversation(40, 100, false, 70000), {41}, 7));   // another conversation
+    t.drain();
+    check(t.totals().written == written + 1 && t.entries() == 2, "dual park: another conversation's eviction is written");
+    t.set_dual_park(false);
+    t.spill(image(conv, {41, 100, 200, 150}, 6));   // switch off: the old rule (written again, superseding the copy)
+    t.drain();
+    check(t.totals().written == written + 2 && t.entries() == 2, "dual park: off, an eviction is written as before");
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+}
+
 void test_tier_cap() {
     const fs::path dir = temp_dir("cap");
     // each image is ~25 KB on disk; a cap of three of them keeps the newest three, across keys too
@@ -562,6 +594,7 @@ int main() {
     test_cache_hooks();
     test_tier_round_trip();
     test_disk_only();
+    test_dual_park();
     test_tier_cap();
     std::printf("conversation_disk_tier_test: %d checks passed\n", checks);
     return 0;

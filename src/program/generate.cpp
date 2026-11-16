@@ -13345,10 +13345,25 @@ int main(int argc, char** argv) {
         else if (disk_only)
             std::fprintf(stderr, "strata serve: conversation disk: disk-only (STRATA_CONV_DISK_ONLY): conversations "
                                  "switched away from are streamed to disk, no RAM image\n");
+        // STRATA_CONV_DUAL_PARK=1 (opt-in; LEADS.md "disk conversation cache + RAM/disk dual-park"): a park writes the
+        // conversation to the disk tier too (disk_save_live, streamed from its pools before the RAM capture) and keeps
+        // its RAM image as before; the tier then skips an eviction of an image it holds (set_dual_park).  Exact: the
+        // same bytes are parked, restored and written; only when the disk write happens changes.  Unset: as before.
+        static const bool dual_park_env = [] { const char* v = std::getenv("STRATA_CONV_DUAL_PARK"); return v != nullptr && v[0] == '1'; }();
+        const bool dual_park = dual_park_env && !disk_only && disk_tier.on() && conversations.enabled() && stages.empty();
+        if (dual_park) {
+            disk_tier.set_dual_park(true);
+            std::fprintf(stderr, "strata serve: conversation disk: dual park (STRATA_CONV_DUAL_PARK): a parked "
+                                 "conversation is written to disk at park time and kept in RAM\n");
+        } else if (dual_park_env) {
+            std::fprintf(stderr, "strata serve: conversation disk: STRATA_CONV_DUAL_PARK needs the disk tier and the RAM "
+                                 "conversation cache (one GPU, no --batch, not STRATA_CONV_DISK_ONLY); it is off\n");
+        }
         bool disk_continuing = false;
         uint64_t disk_keep_serial = 0;
         auto disk_save_live = [&](const char* why) {
-            if (!disk_only || !disk_tier.on() || !live_ok || live.empty()) return;
+            if (!(disk_only || dual_park) || !disk_tier.on() || !live_ok || live.empty()) return;
+            if (dual_park && !disk_only && disk_tier.holds(live, live_imgs, cvec_cached)) return;   // written already
             try {
                 std::string e;
                 if (!ver.wait_commit(e)) {
@@ -13745,6 +13760,7 @@ int main(int argc, char** argv) {
                 return true;
             }
             if (!conversations.enabled() || !live_ok || live.empty()) return true;
+            if (dual_park) disk_save_live("dual park");   // STRATA_CONV_DUAL_PARK: to disk first, then the RAM park below
             const size_t n_st = stages.size();
             ParkSource src{live, live_imgs, checks, cvec_cached, ss, {},
                            (n_st > 0 && !mtp_first) || !use_mtp ? nullptr : &mtp.kv_state(),
