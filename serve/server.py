@@ -6001,6 +6001,39 @@ class Service:
                     req["_effort_from_shared"] = True
         return req
 
+    def start_warmup_replay(self):
+        """STRATA_WARMUP_REPLAY=N (opt-in; LEADS.md FK-40, svgop's post-READY warm-up): once the engine is up, one short
+        request of N prompt tokens (1 = 64) and 16 generated tokens runs in the background, holding the request FIFO, so
+        the first real turn after a restart does not pay for the first window graphs, the first expert loads and the
+        cold kernels.  Its output is dropped.  The prompt is a fixed run of token ids (no tokenizer involved), so it is
+        never a prefix of a real conversation.  Unset or 0: nothing runs."""
+        v = os.environ.get("STRATA_WARMUP_REPLAY", "").strip()
+        try:
+            n = int(v) if v else 0
+        except ValueError:
+            n = 0
+        if n <= 0:
+            return
+        n = 64 if n == 1 else min(n, 4096)
+
+        def run():
+            try:
+                with self.fifo:
+                    eng = self.engine
+                    if not getattr(eng, "alive", lambda: False)():
+                        return
+                    t0 = time.monotonic()
+                    got = 0
+                    for t in eng.generate([1000 + (i % 997) for i in range(n)], 16, {}, threading.Event()):
+                        if t is not None:
+                            got += 1
+                    print(f"strata serve: STRATA_WARMUP_REPLAY: {n} prompt tokens + {got} generated in "
+                          f"{time.monotonic() - t0:.1f} s (output dropped)", file=sys.stderr, flush=True)
+            except Exception as e:  # noqa: BLE001 - a warm-up must never stop the server
+                print(f"strata serve: STRATA_WARMUP_REPLAY failed: {e}", file=sys.stderr, flush=True)
+
+        threading.Thread(target=run, name="strata-warmup", daemon=True).start()
+
     def start_telemetry(self):
         """The hardware sampler behind GET /metrics (serve/telemetry.py), recording this server's tok/s too."""
         if getattr(self, "telemetry", None) is None:
@@ -10629,6 +10662,7 @@ def origin_allowed(origin: str, host, names, origins=()) -> bool:
 def serve(svc: Service, host="127.0.0.1", port=8095) -> ThreadingHTTPServer:
     svc.host_names = host_names_for(host, svc.allowed_hosts, svc.trusted_origins)
     svc.start_telemetry()
+    svc.start_warmup_replay()   # STRATA_WARMUP_REPLAY (opt-in): one dropped request so the first real turn is warm
     httpd = Server((host, port), make_handler(svc))
     httpd.svc = svc
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
