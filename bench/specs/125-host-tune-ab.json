@@ -1,0 +1,22 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "prefill": true,
+ "cases": [
+  "short",
+  "edit",
+  "long1k",
+  "long3k"
+ ],
+ "reps": 2,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "base-again": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  }
+ },
+ "note": "MOD_PLAN.md section 5 (host tuning A/B): the daily preset against itself on the same binary, so the arms never differ. The HOST differs between runs: tools/pancake/host_tune_ab.sh applies one tools/pancake/host_tune.sh step (nvme_ra, thp, swappiness, cpu_perf, amd_pstate, gpu_dpm, aspm, cstate, or all), runs this spec at --tier screen, reverts the step, and writes /home/dan/auto-runs/winH-<step>.stdout; a baseline run (no step) comes first and last. Judge a step by its base arm against the baseline's base arm; the base-again arm of the same file is that file's noise floor and drift_check flags a base-vs-base-again gap. Cases: short and edit = decode tok/s, long1k and long3k = prompt tok/s of a cold prompt (the first-token cost of a cold prompt; abtest has no separate cold-load case, the cold pack load is timed by tools/pancake/load_time.py inside host_tune_ab.sh for the NVMe step). No STRATA_* switch is used, so spec_lint has nothing to check. Stop pancake.service first (host_tune_ab.sh does it after 3 idle minutes)."
+}
