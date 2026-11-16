@@ -156,9 +156,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("spec")
     ap.add_argument("--out", required=True)
-    # once --fill has run and a complete bench/quality/set-v2.json is committed, make that the default (test_phase.sh passes no --set);
+    # set-v2.json is complete (filled 2026-11-15, T-310) and is the default; test_phase.sh passes no --set
     # keep it a plain string literal: spec_lint.py reads it from this line
-    ap.add_argument("--set", default="bench/quality/set.json")
+    ap.add_argument("--set", default="bench/quality/set-v2.json")
     ap.add_argument("--fill", action="store_true", help="generate the missing continuations of the set with the stock arm first (see above)")
     ap.add_argument("--dry-run", action="store_true", help="check the spec and the set, print the plan; no engine")
     ap.add_argument("--max-load", type=float, default=0.0)
