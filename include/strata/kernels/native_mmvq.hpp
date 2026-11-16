@@ -229,4 +229,16 @@ bool native_q8_1_il_check_init(int max_in);
 void native_q8_1_il_check(const void* x_q8_1, const void* x_il, int n_in, int ncols, void* stream);
 void native_q8_1_il_check_report();
 
+// STRATA_MMVQ_SET=1 (wave32 HIP, opt-in; jstamagal/Strata-gfx1030 324081287b, LEADS.md "gfx1030 decode"): 2 or 3
+// matrices that read the same q8_1 activations (n_in, ncols) in one launch; each y[c * n_out + r] is meant to be bitwise
+// its own native_mmvq call's (mmvq_set_parity).  False (nothing launched: call native_mmvq for each) when the switch is
+// off, the build is not wave32 HIP, a type is not Q4_0 / Q8_0 / Q4_K / Q5_K / Q6_K / IQ4_XS, n_in is not a multiple of
+// 256, ncols > 8, another layout switch is on (STRATA_RDNA_MMVQ_WAVE, STRATA_B6_MMVQ_ROWS, the non-exact multi layout),
+// or a matrix has a packed copy registered.
+struct NativeMmvqItem { int type; const void* weights; float* y; int n_out; };
+bool native_mmvq_set(const NativeMmvqItem* items, int n_items, const void* x_q8_1, int n_in, int ncols, void* stream);
+bool native_mmvq_set_enabled();
+// Tests: 1 / 0 = on / off whatever the environment says, -1 = the environment again.
+void native_mmvq_set_tune(int on);
+
 } // namespace strata::kernels

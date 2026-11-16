@@ -94,6 +94,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <initializer_list>
+#include <utility>
 #include "strata/platform/cpu_relax.hpp"
 
 #if defined(STRATA_GPU_METAL)
@@ -2218,6 +2220,22 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 native_mmvq(w->native_type, w->native_data, xq_, out, n_in, n_out, n, cs);
             }
         };
+        // STRATA_MMVQ_SET=1 (opt-in, wave32 HIP; jstamagal/Strata-gfx1030 324081287b, LEADS.md "gfx1030 decode"): the
+        // projections that read the layer's input together in one launch (GDN: qkv and gate; QSA: k, v and q), bitwise
+        // their own calls.  Not under the stage profiler (its stamps sit between them), not where mm would take an
+        // interleaved kernel, and not for a projection already on a side stream.  Off: false, mm as before.
+        bool set_done = false;
+        auto mm_set = [&](std::initializer_list<std::pair<const WeightRef*, std::pair<float*, int>>> ms) -> bool {
+            if (!strata::kernels::native_mmvq_set_enabled() || prof_on_ || (g_il_plain() && n >= 2 && n <= 4)) return false;
+            strata::kernels::NativeMmvqItem it[3];
+            int k = 0;
+            for (const auto& m : ms) {
+                if (k == 3 || (g_mmvq_il() && strata::kernels::native_mmvq_il_supported(m.first->native_type, n, m.second.second)))
+                    return false;
+                it[k++] = {m.first->native_type, m.first->native_data, m.second.first, m.second.second};
+            }
+            return strata::kernels::native_mmvq_set(it, k, xq_, (int) N, n, cs);
+        };
         try {
             if (!is_qsa_layer(g, l)) {
                 // ======================= GDN =======================
@@ -2274,7 +2292,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 const bool fuse_ab = fuse_convab_on() && !br && !batch_rec_ && !prof_on_ && !sidem;   // the side mixer computes the gates on its branch
                 strata::dispatch::notef("gdn layer: side_gates=%ld side_proj=%ld df_branch=%ld", (long) sidem, (long) side_proj, (long) br);
                 strata::dispatch::notef("gdn layer: conv+ab fused=%ld batch_rows=%ld", (long) fuse_ab, (long) batch_rec_);
-                if (!side_proj) mm(wqkv, qkv + (size_t) tb * C, (int) N, (int) C);   // with side_proj: above, first
+                // STRATA_MMVQ_SET: qkv and gate in one launch (not with STRATA_DF_BRANCH / the side projection: gate is on a branch)
+                set_done = !br && !side_proj && mm_set({{wqkv, {qkv + (size_t) tb * C, (int) C}}, {wg, {z_ + (size_t) tb * ZV, (int) ZV}}});
+                if (!side_proj && !set_done) mm(wqkv, qkv + (size_t) tb * C, (int) N, (int) C);   // with side_proj: above, first
                 stamp(l, 2, grp);
                 if (batch_rec_) {   // contiguous rows may be proposals for the same slot
                     for (int t = tb; t < te;) {
@@ -2307,7 +2327,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                              (const float*) wsa->data, gate + (size_t) tb * HV, beta + (size_t) tb * HV, (int) N, (int) HV,
                              n, cs);
                 stamp(l, 4, grp);
-                if (!side_proj) mm(wg, z_ + (size_t) tb * ZV, (int) N, (int) ZV);
+                if (!side_proj && !set_done) mm(wg, z_ + (size_t) tb * ZV, (int) N, (int) ZV);
                 stamp(l, 5, grp);
                 if (side_proj && cudaStreamWaitEvent(cs, pjoin_, 0) != cudaSuccess) {
                     err = "verify: the gate projection's branch could not join";
@@ -2519,8 +2539,9 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 // split with norm and RoPE, the rotation
                 const bool q_il = side_proj && g_mmvq_il() &&
                                   strata::kernels::native_mmvq_il_supported(wq->native_type, n, (int) (NH * 2 * HD));
+                bool q_set_done = false;   // STRATA_MMVQ_SET computed q with k and v
                 auto q_chain = [&](cudaStream_t ns) -> bool {
-                    if (ns == cs) mm(wq, qfull_ + tb * NH * 2 * HD, (int) N, (int) (NH * 2 * HD));
+                    if (ns == cs) { if (!q_set_done) mm(wq, qfull_ + tb * NH * 2 * HD, (int) N, (int) (NH * 2 * HD)); }
                     else if (q_il) strata::kernels::native_mmvq_il(wq->native_type, wq->native_data, xq_, xil_,
                                                                    qfull_ + tb * NH * 2 * HD, (int) N, (int) (NH * 2 * HD), n, ns);
                     else native_mmvq(wq->native_type, wq->native_data, xq_, qfull_ + tb * NH * 2 * HD, (int) N,
@@ -2574,8 +2595,19 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 }
                 if (!sidem) idx_key(cs);
                 stamp(l, 7, grp);
+                // STRATA_MMVQ_SET: k, v (and q when no branch computes it) in one launch; q_chain then skips its mm
+                {
+                    const std::pair<const WeightRef*, std::pair<float*, int>> mk{wk, {kcur_ + tb * NKV * HD, (int) (NKV * HD)}},
+                        mv{wv, {vcur_ + tb * NKV * HD, (int) (NKV * HD)}}, mq{wq, {qfull_ + tb * NH * 2 * HD, (int) (NH * 2 * HD)}};
+                    const bool q_here = !side_proj && !qbr;
+                    set_done = q_here && mm_set({mk, mv, mq});
+                    q_set_done = set_done;
+                    if (!set_done) set_done = mm_set({mk, mv});
+                }
+                if (!set_done) {
                 mm(wk, kcur_ + tb * NKV * HD, (int) N, (int) (NKV * HD));
                 mm(wv, vcur_ + tb * NKV * HD, (int) N, (int) (NKV * HD));
+                }
                 if (qb) norm_rope(kcur_ + tb * NKV * HD, wkn, (int) (n * NKV), (int) HD, pos_k + tb * NKV);
                 else for (int t = tb; t < te; ++t) norm_rope(kcur_ + t * NKV * HD, wkn, (int) NKV, (int) HD, pos_ + t * NH);
                 if (st.kv_rot) {   // K and V rotated before they are stored (kv_q4.hpp)
