@@ -1907,6 +1907,7 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(hc_persist_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME hc_persist_parity COMMAND hc_persist_parity)
   add_test(NAME hc_persist_default_off COMMAND hc_persist_parity --off)
+  add_test(NAME hc_persist_q8_parity COMMAND hc_persist_parity --q8)   # STRATA_HC_PERSIST_Q8 (LEADS.md B64)
   # MOD_PLAN item 93: pancake's RDNA3 kernels against the generic ones on random inputs (bounded, two runs bitwise;
   # 77 = skip on a wave64 card).  rdna_gr.cu: one test per kernel variant the environment selects (the BF16 read with
   # 1 / 2 / 4 rows per wave, the int8 read, its int8-activation A8 form, A8 with the inject rows in their own blocks,
@@ -2607,6 +2608,9 @@ if(STRATA_NATIVE_EXPERTS)
   # against ggml-cpu's dot, on random blocks; --bench: ms per expert on one thread, the weights streamed from DRAM
   add_executable(iq_avx2_parity src/kernels/cpu/iq_avx2_parity.cpp)
   target_link_libraries(iq_avx2_parity PRIVATE strata_kernels_cpu)
+  # STRATA_CPU_R4 (LEADS.md B123): the IQ2_XS gate/up rows on the row-interleaved R4 copy bit for bit against the plain rows
+  add_executable(iq_r4_parity src/kernels/cpu/iq_r4_parity.cpp)
+  target_link_libraries(iq_r4_parity PRIVATE strata_kernels_cpu)
   # the 512-bit i-quant rows against ggml-cpu's dot: the exact rows bit for bit at 1-4 tokens, the engine's multi-token rows to float
   # rounding, with the grid lookups as scalar loads and as gathers (SKIP without AVX-512)
   add_executable(iq512_gather_parity src/kernels/cpu/iq512_gather_parity.cpp)
@@ -2627,6 +2631,8 @@ if(STRATA_NATIVE_EXPERTS)
   if(STRATA_BUILD_TESTS)
     add_test(NAME iq_avx2_parity COMMAND iq_avx2_parity)
     add_test(NAME iq_avx2_parity_iq3s_mt1 COMMAND ${CMAKE_COMMAND} -E env STRATA_IQ3S_MT1=1 $<TARGET_FILE:iq_avx2_parity>)
+    add_test(NAME iq_r4_parity COMMAND iq_r4_parity)
+    set_tests_properties(iq_r4_parity PROPERTIES SKIP_RETURN_CODE 77)
   endif()
   # the older CPUs' AVX1 expert rows (iq_avx1.cpp) against ggml-cpu's dots and against their own one-token
   # rows at every width; --bench: ms per expert, the weights streamed from DRAM.  Runs on any AVX CPU:
@@ -2890,6 +2896,11 @@ if(STRATA_NATIVE_EXPERTS)
       target_link_libraries(prefill_mmq_scatter_test PRIVATE strata_mmq ggml-base ${_strata_gpu_runtime_target})
       add_test(NAME prefill_mmq_scatter_test COMMAND prefill_mmq_scatter_test)
       set_tests_properties(prefill_mmq_scatter_test PROPERTIES TIMEOUT 120)
+      # STRATA_MMQ_LINEAR (llama.cpp #31047, host-side form): the split launches against the one launch
+      add_executable(prefill_mmq_linear_test tests/cuda/prefill_mmq_linear_test.cpp)
+      target_link_libraries(prefill_mmq_linear_test PRIVATE strata_mmq ggml-base ${_strata_gpu_runtime_target})
+      add_test(NAME prefill_mmq_linear_test COMMAND prefill_mmq_linear_test)
+      set_tests_properties(prefill_mmq_linear_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
       if(STRATA_EXPERIMENTAL_SM60)
         # mmq::swiglu_quant: swiglu + the down product's q8_1 rows in one kernel against the two, byte for byte
         add_executable(prefill_swiglu_quant_test tests/cuda/prefill_swiglu_quant_test.cpp)
@@ -3059,6 +3070,13 @@ if(STRATA_NATIVE_EXPERTS)
     add_test(NAME hip_prefill_mmq_parity COMMAND hip_prefill_mmq_parity)
     set_tests_properties(hip_prefill_mmq_parity PROPERTIES TIMEOUT 120)
     list(APPEND _strata_hip_tests hip_prefill_mmq_parity)
+    # STRATA_MMQ_LINEAR (llama.cpp #31047, host-side form): the split launches against the one launch (exit 77 without a card)
+    add_executable(hip_prefill_mmq_linear tests/cuda/prefill_mmq_linear_test.cpp)
+    target_include_directories(hip_prefill_mmq_linear PRIVATE "${_strata_gg}/include")
+    target_link_libraries(hip_prefill_mmq_linear PRIVATE strata_mmq ggml-base strata_hip_runtime)
+    add_test(NAME hip_prefill_mmq_linear COMMAND hip_prefill_mmq_linear)
+    set_tests_properties(hip_prefill_mmq_linear PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    list(APPEND _strata_hip_tests hip_prefill_mmq_linear)
   endif()
   if(STRATA_ENABLE_HIP)
     # Optional real-model diagnostic: pass the GGUF shard containing the native PLE key.
@@ -3672,7 +3690,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
     native_arithmetic_parity_no512 native_arithmetic_parity_ggml native_arithmetic_parity_nvfp4_avx2
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test pool_tasks_test_row_split pool_tasks_test_fuse_row_split router_dot_parity router_dot_parity_avx
-    iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_avx1_parity
+    iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_r4_parity iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
     q2_bitplane_parity q2_fast_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2

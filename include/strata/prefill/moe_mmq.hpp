@@ -83,6 +83,8 @@ struct Product {
     /// set: expert z's matrix starts at tab->p[z] (w and expert_bytes are not used for addressing).  CUDA only,
     /// and only where `tab_fits` said so.
     const WeightTab* tab = nullptr;
+    /// STRATA_MMQ_LINEAR=1 (opt-in): the host's row count of each of the n experts (null: one launch, as always).
+    const int32_t* host_rows = nullptr;
 };
 
 /// The launch context (llama.cpp's MMQ keeps a small scratch pool for its stream-k fixup).  One per prompt path.
@@ -93,6 +95,12 @@ public:
     Context(const Context&) = delete;
     Context& operator=(const Context&) = delete;
     void run(const Product& p, void* stream);
+    /// STRATA_MMQ_LINEAR=1 (opt-in; `run` calls it when the switch is set and p.host_rows is given): the group cut into
+    /// runs of consecutive experts whose row counts are within 2x of each other, one MMQ launch a run sized by the
+    /// run's own largest expert, so a launch does not carry empty tiles for its small experts up to the group's
+    /// largest one.  Host-side form of llama.cpp PR #31047's linearized MoE tile layout (JohannesGaessler).  Public
+    /// for prefill_mmq_linear_test.
+    void run_linear(const Product& p, void* stream);
 
 private:
     void* ctx_ = nullptr;

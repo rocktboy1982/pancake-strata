@@ -470,8 +470,50 @@ Context::Context() {
 }
 Context::~Context() { delete (ggml_backend_cuda_context*) ctx_; }
 
+namespace {
+// STRATA_MMQ_LINEAR=1 (opt-in, LEADS.md row "llama.cpp #31047"): read once
+bool mmq_linear_on() {
+    static const bool on = [] { const char* e = std::getenv("STRATA_MMQ_LINEAR"); return e != nullptr && e[0] == '1'; }();
+    return on;
+}
+}  // namespace
+
+void Context::run_linear(const Product& p, void* stream) {
+    // llama.cpp PR #31047 (JohannesGaessler, "CUDA: linearize MoE data layout for MMQ/MMF") gives each expert only the
+    // tiles its own rows need, instead of the group's largest expert's tile count for every expert.  Without touching
+    // the pinned MMQ kernel: consecutive experts whose row counts are within 2x of each other share a launch sized by
+    // their own largest one.  Each launch reads its experts at w + z0 * expert_bytes with bounds + z0 (the bounds are
+    // absolute rows, so the rows, the ids and the destination stay where they were).
+    int z0 = 0;
+    while (z0 < p.n) {
+        int64_t mx = p.host_rows[z0], mn = mx;
+        int z1 = z0 + 1;
+        for (; z1 < p.n; ++z1) {
+            const int64_t r = p.host_rows[z1];
+            const int64_t nmx = std::max(mx, r), nmn = std::min(mn, r);
+            if (nmx > 2 * std::max<int64_t>(nmn, 1)) break;
+            mx = nmx;
+            mn = nmn;
+        }
+        if (mx > 0) {
+            Product q = p;
+            q.w = (const char*) p.w + (size_t) z0 * p.expert_bytes;
+            q.bounds = p.bounds + z0;
+            q.n = z1 - z0;
+            q.max_rows = std::min<int64_t>(mx, p.max_rows);
+            q.host_rows = nullptr;
+            run(q, stream);
+        }
+        z0 = z1;
+    }
+}
+
 void Context::run(const Product& p, void* stream) {
     if (p.n <= 0 || p.max_rows <= 0) return;
+    if (p.host_rows != nullptr && p.tab == nullptr && p.n > 1 && mmq_linear_on()) {   // STRATA_MMQ_LINEAR (opt-in)
+        run_linear(p, stream);
+        return;
+    }
 #if !defined(GGML_USE_HIP)
     // STRATA_IQ4_W4A8=1 (opt-in; =2: the IQ4_NL down products only): IQ4_XS / IQ4_NL products through the pipelined int8
     // kernel of moe_iq4_w4a8.cu where it gives MMQ's tiling-mode bits (sm_80..sm_88, no stream-k split); it declines

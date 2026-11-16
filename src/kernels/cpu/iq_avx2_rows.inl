@@ -688,5 +688,144 @@ STRATA_ROWS_FN void iq4nl_nt(const uint8_t* w, size_t row_bytes, int n, const bl
     }
 }
 
+// ---- STRATA_CPU_R4 (opt-in, LEADS.md B123: ik_llama.cpp's row-interleaved "_R4" layouts): IQ2_XS gate/up rows read from a
+// copy whose rows are interleaved four at a time block by block - block i of rows 4g .. 4g+3 lie next to each other
+// (r4_repack_rows) - so a pass over a group streams one contiguous run instead of four rows 740 bytes apart.  Each row's
+// arithmetic is row_dot_iq2xs<NT, false>'s, step for step (the same integer chains, the same float order per block), so
+// the rows are the same bits as iq256_gu_rows' (iq_r4_parity checks it).  One block of one row into accf[0..NT).
+template <int NT> STRATA_ROWS_FN
+inline void iq2xs_block_r4(const uint8_t* blk, int i, const block_q8_K* const* y, __m256* accf) {
+    static const uint8_t bit_sel[32] = {
+        1, 2, 4, 8, 16, 32, 64, (uint8_t) 0x80, 1, 2, 4, 8, 16, 32, 64, (uint8_t) 0x80,
+        1, 2, 4, 8, 16, 32, 64, (uint8_t) 0x80, 1, 2, 4, 8, 16, 32, 64, (uint8_t) 0x80 };
+    static const char shuf_even[32] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2,
+        4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6 };
+    static const char shuf_odd[32] = {
+        8, 8, 8, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 10, 10, 10,
+        12, 12, 12, 12, 12, 12, 12, 12, 14, 14, 14, 14, 14, 14, 14, 14 };
+    static const uint8_t bit_help[32] = {
+        0x00, (uint8_t) 0x80, (uint8_t) 0x80, 0x00, (uint8_t) 0x80, 0x00, 0x00, (uint8_t) 0x80,
+        (uint8_t) 0x80, 0x00, 0x00, (uint8_t) 0x80, 0x00, (uint8_t) 0x80, (uint8_t) 0x80, 0x00,
+        0x00, (uint8_t) 0x80, (uint8_t) 0x80, 0x00, (uint8_t) 0x80, 0x00, 0x00, (uint8_t) 0x80,
+        (uint8_t) 0x80, 0x00, 0x00, (uint8_t) 0x80, 0x00, (uint8_t) 0x80, (uint8_t) 0x80, 0x00 };
+    static const uint8_t k_sc_shuffle[128] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+        2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
+        4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
+        6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7,
+        8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9,
+        10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+        12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13,
+        14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15 };
+    const __m256i bsel = _mm256_loadu_si256((const __m256i*) bit_sel);
+    const __m256i shev = _mm256_loadu_si256((const __m256i*) shuf_even);
+    const __m256i shod = _mm256_loadu_si256((const __m256i*) shuf_odd);
+    const __m256i bhelp = _mm256_loadu_si256((const __m256i*) bit_help);
+    const __m256i m511 = _mm256_set1_epi16(511);
+    const __m128i m4 = _mm_set1_epi8(0xf), m1 = _mm_set1_epi8(1);
+    const __m256i one8 = _mm256_set1_epi8(1);
+    __m128i st = _mm_set1_epi64x((long long) u64(blk + 66));
+    st = _mm_unpacklo_epi8(_mm_and_si128(st, m4), _mm_and_si128(_mm_srli_epi16(st, 4), m4));
+    const __m128i scales = _mm_add_epi8(_mm_slli_epi16(st, 1), m1);
+    __m256i acc[NT][2];
+    for (int t = 0; t < NT; ++t)
+        for (int c = 0; c < 2; ++c) acc[t][c] = _mm256_setzero_si256();
+    for (int jj = 0; jj < 2; ++jj) {
+        const __m256i q2 = _mm256_loadu_si256((const __m256i*) (blk + 2 + 32 * jj));
+        const __m256i p7 = _mm256_srli_epi16(q2, 9);
+        const __m256i p3 = _mm256_srli_epi16(q2, 13);
+        const __m256i fsb = _mm256_or_si256(p7, _mm256_shuffle_epi8(bhelp, _mm256_xor_si256(p7, p3)));
+        const __m256i s01 = _mm256_broadcastsi128_si256(_mm256_castsi256_si128(fsb));
+        const __m256i s23 = _mm256_broadcastsi128_si256(_mm256_extracti128_si256(fsb, 1));
+        alignas(32) uint16_t gi[16];
+        _mm256_store_si256((__m256i*) gi, _mm256_and_si256(q2, m511));
+        for (int h = 0; h < 4; ++h) {
+            const int H = 4 * jj + h;
+            const __m256i g = _mm256_set_epi64x((long long) iq2xs_grid[gi[4 * h + 3]], (long long) iq2xs_grid[gi[4 * h + 2]],
+                                               (long long) iq2xs_grid[gi[4 * h + 1]], (long long) iq2xs_grid[gi[4 * h]]);
+            const __m256i sb = _mm256_shuffle_epi8(h < 2 ? s01 : s23, (h & 1) ? shod : shev);
+            const __m256i sgn = _mm256_or_si256(_mm256_cmpeq_epi8(_mm256_and_si256(sb, bsel), bsel), one8);
+            const __m256i sc = _mm256_cvtepi8_epi16(_mm_shuffle_epi8(scales, _mm_loadu_si128((const __m128i*) k_sc_shuffle + H)));
+            const int off = 128 * jj + 32 * h;
+            for (int t = 0; t < NT; ++t) {
+                const __m256i yv = _mm256_loadu_si256((const __m256i*) (y[t][i].qs + off));
+                const __m256i ys = _mm256_sign_epi8(yv, sgn);
+                acc[t][h % 2] = madd_add(acc[t][h % 2], _mm256_maddubs_epi16(g, ys), sc);
+            }
+        }
+    }
+    for (int t = 0; t < NT; ++t) {
+        const float d = h2f(u16(blk)) * 0.125f;
+        const float scale = d * y[t][i].d;
+        accf[t] = _mm256_fmadd_ps(_mm256_set1_ps(scale), _mm256_cvtepi32_ps(_mm256_add_epi32(acc[t][0], acc[t][1])), accf[t]);
+    }
+}
+
+// rows [r0, r1) of one matrix in the R4 copy at `w4` (row_bytes a row, 74-byte blocks): a whole group of four rows in one
+// block-major pass, a row of a partial group alone (its blocks are 4 * 74 bytes apart)
+template <int NT> STRATA_ROWS_FN
+void iq2xs_rows_r4(const uint8_t* w4, size_t row_bytes, int nb, const block_q8_K* const* y, float (*res)[NT], int r0,
+                   int r1, int out0) {
+    constexpr size_t B = 74;
+    const int pf = prefetch_distance();
+    int r = r0;
+    while (r < r1) {
+        const int g = r / 4, k0 = r - 4 * g;
+        const uint8_t* g4 = w4 + (size_t) g * 4 * row_bytes;
+        if (k0 == 0 && r + 4 <= r1) {
+            __m256 accf[4][NT];
+            for (int k = 0; k < 4; ++k)
+                for (int t = 0; t < NT; ++t) accf[k][t] = _mm256_setzero_ps();
+            for (int i = 0; i < nb; ++i) {
+                const uint8_t* b4 = g4 + (size_t) i * 4 * B;
+                rows_ahead(b4, pf);
+                for (int k = 0; k < 4; ++k) iq2xs_block_r4<NT>(b4 + (size_t) k * B, i, y, accf[k]);
+            }
+            for (int k = 0; k < 4; ++k)
+                for (int t = 0; t < NT; ++t) res[r + k - out0][t] = hsum8(accf[k][t]);
+            r += 4;
+        } else {
+            __m256 accf[NT];
+            for (int t = 0; t < NT; ++t) accf[t] = _mm256_setzero_ps();
+            for (int i = 0; i < nb; ++i) iq2xs_block_r4<NT>(g4 + ((size_t) i * 4 + (size_t) k0) * B, i, y, accf);
+            for (int t = 0; t < NT; ++t) res[r - out0][t] = hsum8(accf[t]);
+            ++r;
+        }
+    }
+}
+
+// ff[t][r] = silu(gate_r . a[t]) * (up_r . a[t]) for an R4 copy (gate rows at blob4, up rows at blob4 + up_off), in chunks
+// of 64 rows so the scratch stays on the stack
+template <int NT> STRATA_ROWS_FN
+void gu_rows_r4(const uint8_t* blob4, size_t gu_row, size_t up_off, int n, const void* const* act, float* const* ff,
+                int r0, int r1) {
+    const block_q8_K* y[NT];
+    for (int t = 0; t < NT; ++t) y[t] = (const block_q8_K*) act[t];
+    const int nb = n / QK_K;
+    float g[64][NT], u[64][NT];
+    for (int c0 = r0; c0 < r1; c0 += 64) {
+        const int c1 = c0 + 64 < r1 ? c0 + 64 : r1;
+        iq2xs_rows_r4<NT>(blob4, gu_row, nb, y, g, c0, c1, c0);
+        iq2xs_rows_r4<NT>(blob4 + up_off, gu_row, nb, y, u, c0, c1, c0);
+        for (int r = c0; r < c1; ++r)
+            for (int t = 0; t < NT; ++t) ff[t][r] = (g[r - c0][t] / (1.f + std::exp(-g[r - c0][t]))) * u[r - c0][t];
+    }
+}
+
+STRATA_ROWS_FN void gu_rows_r4_nt(int nt, const uint8_t* blob4, size_t gu_row, size_t up_off, int n, const void* const* act,
+                                  float* const* ff, int r0, int r1) {
+    switch (nt) {   // as gu_rows_nt
+        case 1: gu_rows_r4<1>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+        case 2: gu_rows_r4<2>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+        case 3: gu_rows_r4<3>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+        case 4: gu_rows_r4<4>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+        case 5: gu_rows_r4<5>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+        case 6: gu_rows_r4<6>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+        case 7: gu_rows_r4<7>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+        default: gu_rows_r4<8>(blob4, gu_row, up_off, n, act, ff, r0, r1); break;
+    }
+}
+
 #undef STRATA_ROWS_VNNI
 #undef STRATA_ROWS_FN
