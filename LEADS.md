@@ -10,23 +10,23 @@ Tags: author numbers are on the author's hardware, not ours; "exact" = bit-ident
 
 | lead | number + hw | exact/lossy | in our src |
 |---|---|---|---|
-| 0xluk `STRATA_PF_AHEAD` + `STRATA_REFILL_ASYNC`: prefetch the next chunk's experts into an N-slot pool from the loan while attention runs (the copy engine idles through attention on a warm turn); split must ignore the pool; log `refilled ... ms` before porting REFILL_ASYNC | agent prefill +35%, TTFT 4.97 -> 3.67 s (bundle); refill ~143 ms off TTFT; 2x RTX 3060 PCIe 3 | exact | no (only the unrelated `STRATA_IO_PF_AHEAD`); code in 0xluk `flashnext-pcie3` `896481c943`, `f9b14a4965` |
+| 0xluk `STRATA_PF_AHEAD` + `STRATA_REFILL_ASYNC`: prefetch the next chunk's experts into an N-slot pool from the loan while attention runs (the copy engine idles through attention on a warm turn); split must ignore the pool; log `refilled ... ms` before porting REFILL_ASYNC | agent prefill +35%, TTFT 4.97 -> 3.67 s (bundle); refill ~143 ms off TTFT; 2x RTX 3060 PCIe 3 | exact | 2026-11-16: CODED STRATA_PF_AHEAD + STRATA_REFILL_ASYNC |
 | llama.cpp #31751: one pragma fixes RDNA3 MMQ J=32 register spills | +36% at 17-32-token batches, gfx1100 | exact | CODED 2026-11-15 as opt-in build switch (MOD_PLAN.md section 6 item 3, T-579) |
-| launch fusions `FUSE_SHGATE/COMBINE/SWIGLU_DOWN/PLAN/ROUTEBELL/QGEMV` | 2,648 -> 2,248 kernels/window, R9700 | exact | no |
-| uniform K experts (`STRATA_Q36_EXPERTS_USED`) | +14.4% K=7/8, +18.7% K=6/8, KLD 0.0254 at K=7; RTX 3050 laptop, Qwen3.6 IQ4_XS | lossy | no (rank tail skip only) |
-| `EXPDEC_V2` remainder (issue-first loads, 24-bit multiplies) | expdec_gu<22> 69.1 -> 52.5 us, down 48.2 -> 38.5 us; R9700 | exact | partial (flat-load cast, F12 signs exist) |
-| phoenixclyde `STRATA_MMVQ_WAVE_ROWS` per-shape table | +4.0% decode, 46.8 -> 48.6 tok/s; MI50 | bitwise | no |
+| launch fusions `FUSE_SHGATE/COMBINE/SWIGLU_DOWN/PLAN/ROUTEBELL/QGEMV` | 2,648 -> 2,248 kernels/window, R9700 | exact | 2026-11-16: CODED STRATA_FUSE_* (this-cute-world) |
+| uniform K experts (`STRATA_Q36_EXPERTS_USED`) | +14.4% K=7/8, +18.7% K=6/8, KLD 0.0254 at K=7; RTX 3050 laptop, Qwen3.6 IQ4_XS | lossy | 2026-11-16: CODED STRATA_Q36_EXPERTS_USED |
+| `EXPDEC_V2` remainder (issue-first loads, 24-bit multiplies) | expdec_gu<22> 69.1 -> 52.5 us, down 48.2 -> 38.5 us; R9700 | exact | 2026-11-16: CODED STRATA_EXPDEC_V2 |
+| phoenixclyde `STRATA_MMVQ_WAVE_ROWS` per-shape table | +4.0% decode, 46.8 -> 48.6 tok/s; MI50 | bitwise | 2026-11-16: CODED STRATA_MMVQ_WAVE_ROWS |
 | gputier/StrataGP 16 packaged patches | +5-15% decode, +42-49% prompt; RTX 5090 | mixed | 2026-11-16: partial: cache-prior = ROUTE_PRIOR_DELTA; --ser partly (missed experts only) |
-| Maya `MAYA_GLM_MISS_SKIP_W` (skip a missed expert by gate-weight share) | +7-13% decode at KL 0.037-0.052; GLM | lossy | no |
-| small exact bundle: `copy_rows_from_mapped` loads before stores (elementwise.cu:255-259); sampler/verify 8 logit loads in flight; single-token `MMVF_ROWS`; RouterLookahead submit after plan publish | 4.7-5.7 -> 2.4-3.9 us/launch (5090); ~110 us/argmax round (gfx906); 25.8 -> 10.2 us (R9700); part of +6.5% (R9700) | exact | no |
+| Maya `MAYA_GLM_MISS_SKIP_W` (skip a missed expert by gate-weight share) | +7-13% decode at KL 0.037-0.052; GLM | lossy | 2026-11-16: CODED STRATA_MISS_SKIP_W |
+| small exact bundle: `copy_rows_from_mapped` loads before stores (elementwise.cu:255-259); sampler/verify 8 logit loads in flight; single-token `MMVF_ROWS`; RouterLookahead submit after plan publish | 4.7-5.7 -> 2.4-3.9 us/launch (5090); ~110 us/argmax round (gfx906); 25.8 -> 10.2 us (R9700); part of +6.5% (R9700) | exact | 2026-11-16: CODED ROWS_LOADS_FIRST, SAMPLER_X8, MMVF_ROWS1, LOOKAHEAD_AFTER_PUB |
 | two-pass session restore; `CKPT_MOVE_PARK` port | 198,830-token session restored in 3.4-3.5 s; ~92 ms/park (MI50) | exact | 2026-11-15: CODED STRATA_CKPT_MOVE_PARK (two-pass restore left) |
 | Speedy `STRATA_KV_STAGE_REQ`: size the streamed K/V staging pool by the request, not `--max-context` (moves the startup loan to the auto prompt chunk) | 1M ctx: auto chunk 512 -> 4608; 300K cold prompt 466 -> 1527 t/s (2x RTX 3080) | exact || CODED 2026-11-15 (MOD_PLAN.md section 6 item 11) |
 | Speedy `STRATA_PF_SEL_BATCH` (QSA selection batch 16-256) | VRAM 256 -> 64 MiB per card at 1M cells | exact || CODED 2026-11-15 (MOD_PLAN.md section 6 item 11) |
 | Speedy `STRATA_TOOL_STEP_SPLIT` + `"canonical_tools"` (re-split client-merged tool steps, stable tool render order; serve/ only) | turn-2 cache reuse; no tok/s given | exact || CODED 2026-11-15 (MOD_PLAN.md section 6 item 11) |
-| upstream #5273 short-chunk ring release (`give_back(consumed)` only when `stream_all`) | correctness | exact | partial: one site guarded (prefill.cpp:6215), not 4252/4396/4527/5029 |
+| upstream #5273 short-chunk ring release (`give_back(consumed)` only when `stream_all`) | correctness | exact | 2026-11-16: already fixed (T-575) |
 | routed-id out-of-range message with layer/entry/id | diagnostics | exact | 2026-11-15: CODED routed-id error message (no switch) |
 | rdna3 `791cca4b` + `5906629d`: `PREFILL_AUTO_MAX` up to 49152 + `STRATA_PREFILL_EQUAL_TAIL_MAX` | fixes 49-57K chunk reads; 49,152 grid est. 2-4%, +0.6 GiB loan, needs refill head `2b19d510` (`REFILL_HEAD_BIG`), 2 GiB R-buffer limit | exact | AUTO_MAX yes, EQUAL_TAIL_MAX no; our equal-tail rule differs (their 49K trap cannot happen at our 32K ceiling) |
-| rdna3 `f557b544`: prefill CPU share retries the pool at every layer | - | exact | no |
+| rdna3 `f557b544`: prefill CPU share retries the pool at every layer | - | exact | 2026-11-16: CODED STRATA_PREFILL_POOL_RETRY |
 | rdna3 `88686782`/`877bf971` `STRATA_PREFILL_TIMING` CPU-share thread time + host wait; `7df6538d` slim prompt-only GGUF | diagnostics | exact | 2026-11-16: CODED STRATA_GR_UPPRE, PREFILL_TIMING CPU-share line, nvfp4 slim |
 | Juud_engine CPU tweaks: shorter worker spin, no activation quant for GPU-resident tokens; env-only test: `STRATA_POOL_SPIN_US` sweep (#4625: 0 means zero, pool.cpp:794) | +9.6-15.6% (4090); 15.1 -> 12.6 ms/token | exact | 2026-11-15: CODED STRATA_ACTQ_SKIP_NOCPU |
 | #4005 Vop3p sparse copy events + slot-wait dedup in prefill (PR closed unmerged) | +36% HIP prompt at 4K (RDNA2) | exact | 2026-11-15: already prefill.cpp COPY_EVENT_EVERY / COPY_WAIT_DEDUPE |
@@ -83,13 +83,13 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-30 IQ2 grid-sign expansion | IQ2_XXS gate/up -29%, IQ2_S down -35% per kernel (yqYo1, RX 7900 XT, GLM engine) | exact | iq_kernels.cu:91 (`STRATA_IQ_SIGN_FAST`) |
 | FK-31 sub-warp grouped expert kernels | +5.7-8.3% e2e (Lamina, RTX 3090 + 5070 Ti); est. 0-1% on XT | exact | 2026-11-15: left |
 | FK-32 `WAIT_COPY256` + 16 B plan reads | host-write-to-plan 4.47 to 3.57 us (android-imdad, XTX) | exact | switch_report.hpp:31 |
-| FK-32b `STRATA_ADAPT_COPY2` (2 DMA engines) | 48 x 2.2 MB copies 4.00 to 3.70 ms (android-imdad, XTX) | exact | no |
+| FK-32b `STRATA_ADAPT_COPY2` (2 DMA engines) | 48 x 2.2 MB copies 4.00 to 3.70 ms (android-imdad, XTX) | exact | 2026-11-16: CODED STRATA_ADAPT_COPY2 |
 | FK-32c MULTI_BLOCK_ARGMAX on gfx1100 | 12 to 5.6 us a pick (android-imdad, XTX) | exact | verify_kernels.cu:1026 (gfx12 only) |
 | FK-33 `DRAFT_EARLY` + `DRAFT_SUFFIX_SKIP` | no number; draft step 2.2-2.5 ms caps it ~1% | exact | 2026-11-16: CODED STRATA_DRAFT_EARLY + STRATA_DRAFT_SUFFIX_SKIP |
 | FK-34 `--light-expert-cpu` byte-aware placement | est. 0-2% (IQ2_XS file only) | exact | 2026-11-16: CODED STRATA_LIGHT_EXPERT_CPU |
 | FK-35 shared n-gram pool `NGRAM_MOD` | 234/234 drafts on a copy fixture, no tok/s (tctien342) | exact | 2026-11-16: CODED STRATA_NGRAM_MOD |
 | FK-36 prefill combine + write_norm fusion | 234 to 203 ms; 32K -4.0% (zsariboga, RTX 5090) | exact | 2026-11-16: CODED STRATA_PF_COMBINE_WRITE + STRATA_PF_SWIGLU_Q8 / PREFILL_SWIGLU_QUANT |
-| FK-36b `PF_DQ_OVERLAP` side-stream dequant | prompts +7-11% at 8K chunks, 0 at 32K + DOWN_STREAMS (android-imdad, XTX) | exact | no |
+| FK-36b `PF_DQ_OVERLAP` side-stream dequant | prompts +7-11% at 8K chunks, 0 at 32K + DOWN_STREAMS (android-imdad, XTX) | exact | 2026-11-16: CODED STRATA_PF_DQ_OVERLAP |
 | FK-40 post-READY warm-up replay | first turn after restart only (svgop) | exact | 2026-11-16: CODED STRATA_WARMUP_REPLAY (serve) |
 | FK-41 arena mlock vs HMM userptr stalls | queue stalls under memory pressure (Ben1078, XTX) | exact | 2026-11-15: method |
 | FK-50 `STRATA_VERIFY_ECAP` tail expert cap | +2.8% pooled, +11.5% drift-paired; tight cap broke 12/20 tool turns (jmnargi, 2x V100) | lossy | expert_source.cpp:4989; verify_ecap.hpp |
@@ -103,11 +103,11 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-57 requant study UD-IQ2_XS vs our GSQ IQ2_XS | est. up to -20% expert bytes | lossy | 2026-11-15: method |
 | FK-58 typical acceptance in thinking only | unknown; thinking ~6.6% of turn time | lossy | 2026-11-16: already STRATA_TYPICAL_THINK |
 | FK-59 fp16 rocWMMA QSA select arm / `SELECT_SPLIT2` | fp16 arm 1.64x select at 128K (xyzzing, gfx1100) | exact / lossy | 2026-11-16: CODED STRATA_SELECT_SPLIT2 (gfx12 scorer gate) |
-| android-imdad exact decode bundle `TOPK_REGKEYS/TOPK_SCAN/MTP_SELECT_WIDE/GDN_NORM128/ATTN_MERGE_BOUND` | bundle (with ROUTE_FAST etc.) short chat 86.8 to 95.8 (+10%), agent +11%, KL 0 (XTX IQ3_S); no per-switch split | exact | no |
-| `PF_GU_EXACT` Tensile gfx1100 prompt GEMM | 26.5 vs 12.9 TFLOPS; 16K 13.05 to 10.05 s, 64K 40.1 to 31.5 s, KL 0 (android-imdad, XTX) | exact | no |
-| `PF_DOWN_STREAMS=4` (down over 4 streams) | prompts 2K -3..-4%, 16/32K -2% (android-imdad, XTX) | exact | no |
+| android-imdad exact decode bundle `TOPK_REGKEYS/TOPK_SCAN/MTP_SELECT_WIDE/GDN_NORM128/ATTN_MERGE_BOUND` | bundle (with ROUTE_FAST etc.) short chat 86.8 to 95.8 (+10%), agent +11%, KL 0 (XTX IQ3_S); no per-switch split | exact | 2026-11-16: CODED android-imdad caa9b00115 bundle |
+| `PF_GU_EXACT` Tensile gfx1100 prompt GEMM | 26.5 vs 12.9 TFLOPS; 16K 13.05 to 10.05 s, 64K 40.1 to 31.5 s, KL 0 (android-imdad, XTX) | exact | 2026-11-16: CODED STRATA_PF_GU_EXACT |
+| `PF_DOWN_STREAMS=4` (down over 4 streams) | prompts 2K -3..-4%, 16/32K -2% (android-imdad, XTX) | exact | 2026-11-16: CODED STRATA_PF_DOWN_STREAMS |
 | `HIP_POST_SPLIT` / persistent FFN half | +3.5% (needs PCIe share); FFN-half floor 67 vs 150 us/layer, est. +10-14% (unimatrix099, 2x XTX) | exact | 2026-11-15: park: 2 GPUs |
-| `HIP_FRONT_FUSE` / `FUSE_SHGATE` (shared gate into router GEMV) | +2.7% decode, 15 to 11 kernels/layer (unimatrix099, 2x XTX) | exact | no |
+| `HIP_FRONT_FUSE` / `FUSE_SHGATE` (shared gate into router GEMV) | +2.7% decode, 15 to 11 kernels/layer (unimatrix099, 2x XTX) | exact | 2026-11-16: CODED STRATA_FUSE_SHGATE |
 | `PCIE_USAGE` + `PCIE_KEEP=96` swap-ahead ring | +4.1%, copy wait 1.2-1.7 to 0.2-0.5 ms (android-imdad, XTX, pcie-frac 0.35) | exact | 2026-11-15: already ADAPT_FETCH |
 | IQ2_S/IQ3_S AVX2 decode without shifts (HiSpread, imanu86 862c18aaea) | IQ2_S layers pool -20..-33%/window | exact | yes: iq_avx2.cpp HiSpread / Fmt32<22>, <21>, <121> are the default AVX2 row path (checked 2026-11-15; iq_avx2_parity covers 21, 22) |
 | pool spin ~10 ms before nap | CPU experts 15.1 to 12.6 ms/token (Jackwwg83, Zen 5 laptop) | exact | `STRATA_POOL_SPIN_US` pool.hpp:291 (value sweep unverified) |
@@ -167,19 +167,19 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | global (not flat) loads for expert weights | 0-9% kernel time, 0/460 diffs (Lamina, RTX 5070 Ti / 5060 Ti); ours flat_load 13,119 to 108 | exact | iq_kernels.cu:30 (build macro `STRATA_HIP_GLOBAL_WEIGHTS`) |
 | LDS-only barrier on gfx11 | no number | exact | 2026-11-15: CODED build macro STRATA_HIP_LDS_SYNC |
 | DPP / ds_swizzle for constant-mask `__shfl_xor` | ~4 us/token HC (gfx906); shexp down 6.23 to 5.86 us but head +1.6% slower (R9700) | exact | 2026-11-15: already intrinsics.hpp:119-152 (shfl_down variants left) |
-| sampler / verify 8 logit loads in flight | argmax ~110 us/round, latency-bound (gfx906) | exact | no |
+| sampler / verify 8 logit loads in flight | argmax ~110 us/round, latency-bound (gfx906) | exact | 2026-11-16: CODED STRATA_SAMPLER_X8 |
 | `STRATA_ACTQ_SKIP` | tier-5 bundle +4.0% (RTX 3090), no isolated | exact | 2026-11-15: CODED STRATA_ACTQ_SKIP |
-| `copy_rows_from_mapped` loads before stores | 4.7-5.7 to 2.4-3.9 us/launch (RTX 5090) | exact | no |
+| `copy_rows_from_mapped` loads before stores | 4.7-5.7 to 2.4-3.9 us/launch (RTX 5090) | exact | 2026-11-16: CODED STRATA_ROWS_LOADS_FIRST |
 | RouterLookahead submit after publish + skip when resident | part of +6.5% bundle (R9700) | exact | 2026-11-15: CODED STRATA_LOOKAHEAD_AFTER_PUB, STRATA_LOOKAHEAD_SKIP_RES |
-| `STRATA_PF_AHEAD` + `STRATA_REFILL_ASYNC` (staged path, <4,096-tok deltas) | agent prefill 512 to 692 tok/s, TTFT 4.97 to 3.67 s in bundle; refill -143 ms (0xluk, 2x RTX 3060, PCIe 3.0) | exact | no |
-| `STRATA_EXPDEC_V2` grouped expert kernels | expdec_gu<22> 69.1 to 52.5 us, down 48.2 to 38.5 us, 672 bit-identical (R9700) | exact | no |
+| `STRATA_PF_AHEAD` + `STRATA_REFILL_ASYNC` (staged path, <4,096-tok deltas) | agent prefill 512 to 692 tok/s, TTFT 4.97 to 3.67 s in bundle; refill -143 ms (0xluk, 2x RTX 3060, PCIe 3.0) | exact | 2026-11-16: CODED STRATA_PF_AHEAD + STRATA_REFILL_ASYNC |
+| `STRATA_EXPDEC_V2` grouped expert kernels | expdec_gu<22> 69.1 to 52.5 us, down 48.2 to 38.5 us, 672 bit-identical (R9700) | exact | 2026-11-16: CODED STRATA_EXPDEC_V2 |
 | `STRATA_POOL_DAG=2` | pool 5.197 to 4.788 ms/window; engine neutral (9950X DDR5) | exact | 2026-11-15: CODED STRATA_POOL_DAG=2 |
-| launch fusions `FUSE_COMBINE/SWIGLU_DOWN/SHGATE/PLAN/ROUTEBELL/QGEMV` | 2,648 to 2,248 kernels/window, no tok/s (R9700) | exact | no |
+| launch fusions `FUSE_COMBINE/SWIGLU_DOWN/SHGATE/PLAN/ROUTEBELL/QGEMV` | 2,648 to 2,248 kernels/window, no tok/s (R9700) | exact | 2026-11-16: CODED STRATA_FUSE_* launch fusions |
 | deferred / parallel act quant in pool + sample-async | +6.5% / +3.9% bundles (R9700) | exact | 2026-11-16: CODED STRATA_POOL_DEFER_ACTQ |
 | hugetlb CPU expert copy + RAM budget fix | IQ2_XS solo +4.9%, lane +7.2% (svgop, CUDA) | exact | 2026-11-15: already pinned.cu MAP_HUGETLB (svgop file-source complement left) |
 | two-pass session restore | 198,830 tok (3.05 GiB) restored 3.4-3.5 s (ElXreno) | exact | 2026-11-16: CODED STRATA_SESSION_STREAMED, STRATA_SESSION_TWO_PASS, STRATA_CONV_DISK_ONLY (a3eeb917c4 = our disk tier) |
 | `STRATA_CPU_POOL_COST` longest-first | code +6.54%, geomean +1.95% (gfx936 DCU) | exact | 2026-11-15: CODED STRATA_CPU_POOL_COST |
-| uniform fewer experts K=9/8 (`EXPERTS_USED`) | K=7/8 +14.4%, 6/8 +18.7%; KLD 0.0254 at K=7; HumanEval flat (RTX 3050 laptop, Qwen3.6 IQ4_XS) | lossy | no |
+| uniform fewer experts K=9/8 (`EXPERTS_USED`) | K=7/8 +14.4%, 6/8 +18.7%; KLD 0.0254 at K=7; HumanEval flat (RTX 3050 laptop, Qwen3.6 IQ4_XS) | lossy | 2026-11-16: CODED STRATA_Q36_EXPERTS_USED |
 | `gdn_gate_kernel` computes only first token | latent (callers pass n_tokens=1) | fix | elementwise.cu:43 (bug present) |
 | temperature < 1e-30 / NaN treated as greedy | gap | fix | sampler.cu:869 `<= 0.0f` only |
 | bugs 5.5-5.10 (spec-split B flag, pipeline-windows rows, stats-flush crash, iq_embed grid.y, conv-cache publish, JSON watcher) | latent | fix | 2026-11-15: partial: iq_embed grid.y fixed; five AF bugs left (report text not in repo) |
@@ -202,7 +202,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | key saved sessions by lossy routing switches (llamAmpere) | correctness | n/a | conversation_disk_env.def (KeyIfSet scheme) |
 | Qwen official sampling presets (thinking T 1.0 / top_p 0.95 / top_k 20; non-thinking T 0.7, presence 1.5) | fact; makes FK-01 relevant if opencode keeps T 1.0 | n/a | n/a |
 | ggml vendoring + STRATA_GEOMETRY rebase hazard (upstream 067b4dda5 etc.) | hand-port only | n/a | 2026-11-15: method |
-| this-cute-world `FUSE_SHGATE`; dardeaw exact wave32 QSA decode kernels | no number | exact | 2026-11-15: partial: FUSE_SHGATE ported (dardeaw 580e251e69 left) |
+| this-cute-world `FUSE_SHGATE`; dardeaw exact wave32 QSA decode kernels | no number | exact | 2026-11-16: CODED STRATA_FUSE_SHGATE, STRATA_QSA_WAVE32 (dardeaw) |
 | fork-KB refresh `tools/forks/fork_kb.py` weekly | method | n/a | n/a |
 
 ### Closed questions (conclusions that close a lead; do not re-queue without a new reason)
@@ -265,7 +265,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B2 | Union sparsity over verify window w=1/2/4/8 (BlockFFN) column mandatory | 80% -> 71% at w=8 (Asia) | lossy | 2026-11-16: CODED STRATA_CPU_ACT_SPARSE_UNION |
 | B3 | turbo-hip `STRATA_ROUTE_PRIOR 0.5` (Cache-Conditional Experts) | 149-169 vs 128.7 tok/s, 7900XT; 2.89% mismatch 3060 | lossy | src/core/conversation_disk_env.def:36 |
 | B4 | AcceptMoE depth-graded prior, pos 0 exact (item 23) | 2.06x vs SD under offload, RTX 5090, -0.27 pp; est. 5-15% over fast-hip | lossy | include/strata/kernels/route_prior.hpp:12 |
-| B5 | OEA sibling-aware bonus in verify window | idea, low ceiling | lossy | no |
+| B5 | OEA sibling-aware bonus in verify window | idea, low ceiling | lossy | 2026-11-16: CODED STRATA_OEA |
 | B6 | Tail skip `STRATA_ROUTE_TAIL_SKIP 7` / tail-row drop w/ MTP confidences (item 5) | 129.7 tok/s 7900XT (skip) | lossy (skip) / exact (row drop, per plan) | include/strata/core/expert_source.hpp:670 |
 | B7 | ISTA Coder variant 256/512 experts (item 25) | 29.6 GB resident; one-evening A/B | different model | - |
 | B8 | Admission on k-th miss `STRATA_ADAPT_KMISS` (item 14) | sim +5..16% edit; replay hit 76.7->86.5% edits | exact | include/strata/core/epoch_bandit.hpp:9 |
@@ -373,7 +373,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B95 | 76 `hipDeviceScheduleSpin` A/B (`STRATA_DEVICE_SPIN`) | 0.2-0.6% est.; ~3% polling cost on CUDA | exact | env.def:354 |
 | B96 | Deferral turns off `ROUTE_PUBLISH` (verify.cpp:2355): +48 launches/window bias in 8/28 A/B | - | note | include/strata/core/defer_auto.hpp:16 |
 | B97 | 78 staged prefill path for <4096-token agent deltas (CPU_SHARE 0.6 + MAX 4096; per-layer sync) | 4K 1,757 vs 32K 2,580 tok/s, 7900XT; est. 0-15% of re-reads | exact | 2026-11-15: CODED STRATA_PF_AHEAD + STRATA_REFILL_ASYNC |
-| B98 | 0xluk `STRATA_PF_AHEAD` + `STRATA_REFILL_ASYNC` on the staged path | agent prefill +35%, TTFT 4.97->3.67 s, 2x3060 PCIe3 | exact | no |
+| B98 | 0xluk `STRATA_PF_AHEAD` + `STRATA_REFILL_ASYNC` on the staged path | agent prefill +35%, TTFT 4.97->3.67 s, 2x3060 PCIe3 | exact | 2026-11-16: CODED STRATA_PF_AHEAD + STRATA_REFILL_ASYNC |
 | B99 | 79 PLE gather at request admission, multi-threaded decode | 3060: 10.6% GPU timeline at 42K; est. 3-10% cold 16-32K | exact | - |
 | B100 | 80 hipBLASLt descriptor cache + tuning table beyond T=8192 | est. 7-20 ms host/chunk | exact | - |
 | B101 | 81 GDN scan 48 WG on 84 CUs: split value columns | - | bits change | src/prefill/kernels.cu:1809 |
@@ -414,7 +414,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B131 | Deterministic cache-aware routing (Prefetch-Steered Routing) | PSR 2.2-2.3x vs exact LRU, OLMoE RTX 4090 | lossy | 2026-11-15: already STRATA_ROUTE_PRIOR |
 | B132 | Lower-bit CPU copies of cold experts (HOBBIT; F4 shadow pack) | ~25-30% fewer CPU bytes; F4: -18.2% bytes, +17.6 GB RAM | lossy | - |
 | B133 | Layer-dependent expert skip (HookMoE, ik `-ser`) | HookMoE 1.42x prefill, -2.5% quality | lossy | 2026-11-15: CODED STRATA_ROUTE_TAIL_SKIP_LAYERS |
-| B134 | Router-probability-mass EWMA / LFRU (freq-age, hub experts) scoring | +1-3 hit pts (est.) | exact | no |
+| B134 | Router-probability-mass EWMA / LFRU (freq-age, hub experts) scoring | +1-3 hit pts (est.) | exact | 2026-11-16: CODED STRATA_ADAPT_PROB_MASS (+ STRATA_ADAPT_CLASSLRU) |
 | B135 | Per-layer marginal-gain budget allocation | +0.5-2 pts | exact | 2026-11-15: CODED STRATA_ADAPT_PROB_MASS |
 | B136 | Quest page-level / partial top-k / fused select+attn for QSA after long prompt | gap 2.18 ms/token at 12K; est. recover most of 20% | exact (b,c,d) / lossy (a) | - |
 | B137 | Streamed KV (>32K) at 4-bit, int8 resident | halves PCIe bytes at 64-131K (est.) | lossy | include/strata/kernels/kv_q4.hpp:9 (`--kv-q4`) |
