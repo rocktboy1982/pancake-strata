@@ -789,6 +789,7 @@ STRATA_ENV("STRATA_QSA_EARLY_EXIT", Speed, "bitwise: documented (docs/README/cod
 STRATA_ENV("STRATA_QSA_FUSE_NR", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_QSA_ROWS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_QSA_SLOTS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_QSA_WAVE32", Speed, "dardeaw 580e251e69: PR #540 decode chunk kernel + LDS-only barriers + merge v2 on gfx11/gfx12; bitwise (hip_qsa_wave32_parity)")
 STRATA_ENV("STRATA_RAM_ADAPT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_RAM_ADAPT2", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_RAM_ADAPT_CACHED_W", Speed, "placement/tiering of experts (same math, GPU vs CPU)")

@@ -101,6 +101,14 @@ double rel_l2(const float* a, const double* ref, int n) {
 
 int main(int argc, char** argv) {
     const bool bench = argc > 1 && std::strcmp(argv[1], "--bench") == 0;
+    // --dump FILE: also write the default (FP32) kernel's outputs of every case, in order, to FILE (raw floats).  The
+    // STRATA_QSA_WAVE32 parity test (cmake/qsa_wave32_parity.cmake) runs this twice, with and without the switch,
+    // and compares the two files byte for byte (dardeaw 580e251e69: the wave32 set is exact).
+    std::FILE* dump = nullptr;
+    if (argc > 2 && std::strcmp(argv[1], "--dump") == 0) {
+        dump = std::fopen(argv[2], "wb");
+        if (dump == nullptr) { std::fprintf(stderr, "cannot write %s\n", argv[2]); return 2; }
+    }
     int n_dev = 0;
     if (cudaGetDeviceCount(&n_dev) != cudaSuccess || n_dev == 0) { std::printf("no GPU: skipped\n"); return 77; }
     cudaDeviceProp prop{};
@@ -237,6 +245,7 @@ int main(int argc, char** argv) {
             ck(cudaMemcpy(ow.data(), d_ow, ow.size() * 4, cudaMemcpyDeviceToHost), "dl");
             ck(cudaMemcpy(ow2.data(), d_ow2, ow2.size() * 4, cudaMemcpyDeviceToHost), "dl");
             const bool det = std::memcmp(ow.data(), ow2.data(), ow.size() * 4) == 0;
+            if (dump != nullptr && std::fwrite(o32.data(), 4, o32.size(), dump) != o32.size()) { std::fclose(dump); return 2; }
             // FP64 reference
             double e_w = 0, e_f = 0, e_wmax = 0;
             bool bad = !det;
@@ -313,5 +322,6 @@ int main(int argc, char** argv) {
     }
     std::printf("%s: %d failing case(s); worst rel L2 vs FP64: wmma %.2e, fp32 kernel %.2e\n", fails ? "FAIL" : "PASS",
                 fails, worst_w, worst_f);
+    if (dump != nullptr) std::fclose(dump);
     return fails ? 1 : 0;
 }

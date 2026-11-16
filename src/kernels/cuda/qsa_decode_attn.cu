@@ -6,7 +6,7 @@
 #include "strata/core/geometry.hpp"
 #include "strata/kernels/kv_q8.hpp"
 #include "strata/kernels/kv_q4.hpp"
-#if defined(STRATA_HIP_GFX906)
+#if defined(__HIPCC__)   // (gfx906 builds and STRATA_QSA_WAVE32's gfx11 / gfx12 check, dardeaw 580e251e69)
 #include "strata/kernels/gfx_arch.hpp"
 #endif
 
@@ -569,7 +569,21 @@ __device__ __forceinline__ float load_v1(const QsaAttnPools& p, long long row, i
     }
 }
 
-template <int KV_MODE, int NC_ = 2, bool DPP_ = false>
+// STRATA_QSA_WAVE32=1 (dardeaw 580e251e69, gfx12 upstream; here gfx11 and gfx12, opt-in, exact): the LDS-only workgroup
+// barrier.  __syncthreads() also drains in-flight global loads and (gfx12) invalidates the L0 vector cache; the three
+// barriers of PR #540's kernel only order shared memory, so waiting for the LDS counter alone gives the same values.
+template <bool LDSB>
+__device__ __forceinline__ void qda_sync_lds() {
+#if defined(__HIP_DEVICE_COMPILE__) && (defined(__gfx1200__) || defined(__gfx1201__))
+    if constexpr (LDSB) { __asm__ volatile("s_wait_dscnt 0x0\n\ts_barrier_signal -1\n\ts_barrier_wait -1" ::: "memory"); return; }
+#elif defined(__HIP_DEVICE_COMPILE__) && (defined(__gfx1030__) || defined(__gfx1100__) || defined(__gfx1101__) || \
+    defined(__gfx1102__) || defined(__gfx1103__) || defined(__gfx1150__) || defined(__gfx1151__))
+    if constexpr (LDSB) { __asm__ volatile("s_waitcnt lgkmcnt(0)\n\ts_barrier" ::: "memory"); return; }
+#endif
+    __syncthreads();
+}
+
+template <int KV_MODE, int NC_ = 2, bool DPP_ = false, bool LDSB_ = false>
 __global__ void __launch_bounds__(THREADS) attn_chunk_kernel_pre75(const float* __restrict__ q, QsaAttnPools p,
                                                              const int32_t* __restrict__ ids,
                                                              const int32_t* __restrict__ step, int n_kv_heads,
@@ -613,7 +627,7 @@ __global__ void __launch_bounds__(THREADS) attn_chunk_kernel_pre75(const float* 
         }
         srow[t] = r;
     }
-    __syncthreads();
+    qda_sync_lds<LDSB_>();
     // scores: each warp takes cells warp, warp+8, ...; each lane holds 8 of the 256 dimensions.  NC cells per step
     // (warp + 8 * (i + j)): a lane's q slice comes out of shared memory once for all of them, which cuts the traffic
     // that bounds this phase (24 x 16 B per lane per cell, against the FMAs) by NC; every dot product is the same
@@ -673,7 +687,7 @@ __global__ void __launch_bounds__(THREADS) attn_chunk_kernel_pre75(const float* 
             }
         }
     }
-    __syncthreads();
+    qda_sync_lds<LDSB_>();
     // per-head chunk max and exp-sum: warp w handles heads w and w+8.
     for (int h = warp; h < G; h += WARPS) {
         const float a = sp[h][lane], b = sp[h][lane + 32];
@@ -685,7 +699,7 @@ __global__ void __launch_bounds__(THREADS) attn_chunk_kernel_pre75(const float* 
         const float l = warp_sum_x<DPP_>(ea + eb);
         if (lane == 0) { part_m[slot * G + h] = m; part_l[slot * G + h] = l; }
     }
-    __syncthreads();
+    qda_sync_lds<LDSB_>();
     // values: thread t owns dimension t for all 12 heads.
     float acc[G];
 #pragma unroll
@@ -921,9 +935,40 @@ bool query_swizzle_gfx906_device() {
 #endif
 }
 
+// STRATA_QSA_WAVE32=1 (dardeaw 580e251e69, opt-in, exact; HIP only): the wave32 QSA decode set upstream turns on by
+// default for gfx12, here behind a switch on gfx11 (RDNA3 / RDNA3.5) and gfx12: PR #540's chunk kernel (as
+// STRATA_ATTN_PRE75=1), its LDS-only barriers (qda_sync_lds, the 8-cell kernel), and attn_merge_v2_kernel (as
+// STRATA_ATTN_MERGE_V2=1; bitwise the same output).  STRATA_ATTN_PRE75=0 / STRATA_ATTN_MERGE_V2=0 still win.  Read once.
+[[maybe_unused]] bool qsa_wave32_env() {
+#if defined(__HIPCC__)
+    static const bool on = [] { const char* v = std::getenv("STRATA_QSA_WAVE32"); return v != nullptr && v[0] == '1'; }();
+    return on;
+#else
+    return false;
+#endif
+}
+// the current HIP device is gfx11 or gfx12 (per device: a layer split can mix cards); false elsewhere
+[[maybe_unused]] bool qsa_wave32_device() {
+#if defined(__HIPCC__)
+    static int g[64] = {};   // 0 unknown, 1 no, 2 yes
+    int dev = 0;
+    if (hipGetDevice(&dev) != hipSuccess || dev < 0 || dev >= 64) { (void) hipGetLastError(); return false; }
+    if (g[dev] == 0) {
+        hipDeviceProp_t prop{};
+        if (hipGetDeviceProperties(&prop, dev) != hipSuccess) { (void) hipGetLastError(); return false; }
+        g[dev] = (strata::kernels::gfx_arch_is_gfx11_wmma(prop.gcnArchName) ||
+                  strata::kernels::gfx_arch_is_gfx12(prop.gcnArchName)) && prop.warpSize == 32 ? 2 : 1;
+    }
+    return g[dev] == 2;
+#else
+    return false;
+#endif
+}
+[[maybe_unused]] bool qsa_wave32_on() { return qsa_wave32_env() && qsa_wave32_device(); }
+
 #if defined(STRATA_ATTN_PRE75_BUILT)
 // CUDA: the current device is below sm_75 (experimental build) or STRATA_ATTN_DAILY=1 (any card); HIP: it is gfx103x
-// (per device: a layer split can mix cards).
+// (per device: a layer split can mix cards), or gfx11 / gfx12 with STRATA_QSA_WAVE32=1.
 // STRATA_ATTN_PRE75=0 turns PR #540's kernel off (A/B); on HIP =1 also runs it on another wave32 card.
 bool pre75_attn() {
     static const int env = [] {
@@ -946,7 +991,7 @@ bool pre75_attn() {
         if (hipGetDeviceProperties(&prop, dev) != hipSuccess) { (void) hipGetLastError(); return false; }
         cc[dev] = std::strncmp(prop.gcnArchName, "gfx103", 6) == 0 ? 2 : 1;
     }
-    return env == 1 || cc[dev] == 2;
+    return env == 1 || cc[dev] == 2 || qsa_wave32_on();
 #else
     if (cc[dev] == 0) {
         int major = 0, minor = 0;
@@ -976,7 +1021,9 @@ int pre75_nc() {
     }();
     return nc;
 }
+// (STRATA_QSA_WAVE32=1: the 8-cell kernel with the LDS-only barriers)
 #define STRATA_ATTN_CHUNK_SEL(M, PRE) (!(PRE) ? attn_chunk_kernel<M>                                              \
+                                       : pre75_nc() == 8 && qsa_wave32_on() ? attn_chunk_kernel_pre75<M, 8, true, true> \
                                        : pre75_nc() == 4 ? attn_chunk_kernel_pre75<M, 4, true>                  \
                                        : pre75_nc() == 2 ? attn_chunk_kernel_pre75<M, 2, true>                  \
                                        : pre75_nc() == 1 ? attn_chunk_kernel_pre75<M, 1, true>                  \
@@ -1008,6 +1055,7 @@ int attn_merge_v2() {
         const char* v = std::getenv("STRATA_ATTN_MERGE_V2");
         return v != nullptr && *v != '\0' ? (std::atoi(v) != 0 ? 1 : 0) : -1;
     }();
+    if (env < 0 && qsa_wave32_on()) return 1;   // STRATA_QSA_WAVE32 (dardeaw 580e251e69): on with the wave32 set
     return env >= 0 ? env : (daily_attn() ? 1 : 0);
 }
 

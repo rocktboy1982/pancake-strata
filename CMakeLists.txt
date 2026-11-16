@@ -1519,6 +1519,11 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME hip_decode_attn_wmma_parity COMMAND hip_decode_attn_wmma_parity)
     set_tests_properties(hip_decode_attn_wmma_parity PROPERTIES TIMEOUT 300 SKIP_RETURN_CODE 77)
     list(APPEND _strata_hip_tests hip_decode_attn_wmma_parity)
+    # STRATA_QSA_WAVE32 (dardeaw 580e251e69): the wave32 decode set against the default kernel, bit for bit
+    add_test(NAME hip_qsa_wave32_parity COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:hip_decode_attn_wmma_parity>
+             -DOUT=${CMAKE_BINARY_DIR}/qsa-wave32-parity -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/qsa_wave32_parity.cmake)
+    # (not in _strata_hip_tests: its 60 s timeout would cut the two runs short)
+    set_tests_properties(hip_qsa_wave32_parity PROPERTIES TIMEOUT 600 SKIP_REGULAR_EXPRESSION "SKIP: no gfx11 device")
     if(STRATA_HIPBLASLT_AVAILABLE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/hip/prefill_hipblaslt_gemm.cpp")
       add_executable(hip_prefill_hipblaslt_gemm tests/hip/prefill_hipblaslt_gemm.cpp)
       target_include_directories(hip_prefill_hipblaslt_gemm PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/prefill")
