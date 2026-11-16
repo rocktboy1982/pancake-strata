@@ -20,6 +20,10 @@
 //   STRATA_PSI_RESUME_PCT=10       resume below this
 //   STRATA_PSI_MAX_PAUSE_MS=30000  the longest the readers are held in one load, in all
 //   STRATA_PSI_PARK_PCT=20         skip parking a conversation while `some avg10` is at or above this
+//   STRATA_PSI_SHED=<pct>          off by default (unset, empty, 0, negative or over 100): at the start of each served request, while
+//                                  `some avg10` is at or above this, drop the OLDEST parked conversation (one per request: avg10
+//                                  lags).  Speedy C4 (DevDock-AI/Speedy), idea from Basalt PR #113.  The tokens are the same: a
+//                                  dropped conversation is read again from its prompt.
 // Other systems than Linux: no PSI files, every call is a no-op.
 #pragma once
 
@@ -93,11 +97,15 @@ struct PressureConfig {
     double resume_pct = 10.0;
     uint64_t max_pause_ms = 30000;
     double park_pct = 20.0;
+    double shed_pct = 0.0;   ///< STRATA_PSI_SHED; 0 = off
 };
 
 /// From the switches' values (null = unset); a value that is not a number keeps the default; resume is kept below pause.
 PressureConfig pressure_config(const char* guard, const char* pause_pct, const char* resume_pct, const char* max_pause_ms,
-                               const char* park_pct);
+                               const char* park_pct, const char* shed_pct = nullptr);
+
+/// The shed rule: on (shed_pct > 0) and `some avg10` at or above it.
+inline bool pressure_sheds(double avg10, double shed_pct) { return shed_pct > 0.0 && avg10 >= shed_pct; }
 /// The same from the environment.
 PressureConfig pressure_config_from_env();
 
@@ -126,5 +134,10 @@ struct LoaderPressureScope {
 /// --serve parking: true when memory pressure (some avg10) is at or above STRATA_PSI_PARK_PCT; `why` says the figures.
 /// False when the guard is off, PSI cannot be read, or on another system.  Thread safe.
 bool memory_pressure_blocks_parking(std::string* why);
+
+/// --serve, STRATA_PSI_SHED: true when memory pressure (some avg10) is at or above STRATA_PSI_SHED, so the caller drops one parked
+/// conversation.  False when the switch is off (the default), the guard is off (STRATA_PSI_GUARD=0), PSI cannot be read, or on
+/// another system.  `why` says the figures.  Thread safe.
+bool memory_pressure_sheds(std::string* why);
 
 }  // namespace strata::platform

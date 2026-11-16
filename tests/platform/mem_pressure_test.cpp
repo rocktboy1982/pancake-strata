@@ -77,6 +77,20 @@ int main() {
     c = pressure_config(nullptr, "abc", "-1", "x", "200");
     check(near(c.pause_pct, 20) && near(c.resume_pct, 10) && c.max_pause_ms == 30000 && near(c.park_pct, 20), "config: junk keeps defaults");
 
+    // 4b. STRATA_PSI_SHED: off unless a percent in (0, 100]
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr).shed_pct, 0.0), "shed config: unset is off");
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr, "").shed_pct, 0.0), "shed config: empty is off");
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr, "0").shed_pct, 0.0), "shed config: 0 is off");
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr, "-5").shed_pct, 0.0), "shed config: negative is off");
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr, "150").shed_pct, 0.0), "shed config: over 100 is off");
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr, "abc").shed_pct, 0.0), "shed config: junk is off");
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr, "25").shed_pct, 25.0), "shed config: 25 is on");
+    check(near(pressure_config(nullptr, nullptr, nullptr, nullptr, nullptr, "0.5").shed_pct, 0.5), "shed config: a fraction is on");
+    check(pressure_config("1", "40", "15", "5000", "30").shed_pct == 0.0 && near(pressure_config("1", "40", "15", "5000", "30", "10").park_pct, 30),
+          "shed config: independent of the park figure");
+    check(!pressure_sheds(99.0, 0.0) && !pressure_sheds(99.0, -1.0), "shed rule: off never sheds");
+    check(pressure_sheds(20.0, 20.0) && pressure_sheds(35.5, 20.0) && !pressure_sheds(19.9, 20.0), "shed rule: at or above the figure");
+
     // 5. the probe on fixture files
     const auto dir = std::filesystem::temp_directory_path() / ("strata_psi_test_" + std::to_string((long long) std::chrono::steady_clock::now().time_since_epoch().count()));
     std::filesystem::remove_all(dir);
@@ -93,6 +107,7 @@ int main() {
     PressureReading r = probe.read();
     check(r.known && near(r.avg10, 35.5) && r.recent < 0.0, "probe: first read: max avg10, no recent");
     check(r.where == "system 2.0% / cgroup 35.5%", "probe: where");
+    check(pressure_sheds(r.avg10, 30.0) && !pressure_sheds(r.avg10, 40.0) && !pressure_sheds(r.avg10, 0.0), "probe: shed rule on the fixture's 35.5%");
     write_file(dir / "cg" / "scope.x" / "memory.pressure", "some avg10=36.00 avg60=10 avg300=2 total=1005000\n");
     r = probe.read();
     check(r.known && r.recent > 0.0, "probe: second read has a recent figure");

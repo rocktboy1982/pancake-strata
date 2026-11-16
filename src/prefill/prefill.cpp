@@ -7371,8 +7371,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                              "waiting for each chunk %.0f ms, after each chunk (the draft layer, progress) %.0f ms, "
                              "PLE %.0f ms\n", host_setup_ms, host_sync_ms, host_chunk_ms, stats_.ms_ple);
         if (m.cs_rows > 0) {   // rdna3 88686782: the CPU share's thread time against the host's wait for it
-            std::fprintf(stderr, "strata prefill timing: CPU share: %lld rows, CPU thread %.0f ms, the host waited %.0f ms for it
-",
+            std::fprintf(stderr, "strata prefill timing: CPU share: %lld rows, CPU thread %.0f ms, the host waited %.0f ms for it\n",
                          (long long) m.cs_rows, m.cs_cpu_ms, m.cs_wait_ms);
             m.cs_rows = 0; m.cs_cpu_ms = m.cs_wait_ms = 0;
         }

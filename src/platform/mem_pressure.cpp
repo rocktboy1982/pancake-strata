@@ -135,7 +135,7 @@ PressureReading MemoryPressureProbe::read() {
 }
 
 PressureConfig pressure_config(const char* guard, const char* pause_pct, const char* resume_pct, const char* max_pause_ms,
-                               const char* park_pct) {
+                               const char* park_pct, const char* shed_pct) {
     PressureConfig c;
     if (guard != nullptr && guard[0] == '0') c.on = false;
     double v = 0.0;
@@ -145,13 +145,14 @@ PressureConfig pressure_config(const char* guard, const char* pause_pct, const c
     if (c.resume_pct >= c.pause_pct) c.resume_pct = c.pause_pct / 2.0;
     if (parse_double(max_pause_ms, v)) c.max_pause_ms = (uint64_t) v;
     if (parse_double(park_pct, v) && v > 0.0 && v <= 100.0) c.park_pct = v;
+    if (parse_double(shed_pct, v) && v > 0.0 && v <= 100.0) c.shed_pct = v;   // STRATA_PSI_SHED: anything else is off
     return c;
 }
 
 PressureConfig pressure_config_from_env() {
     return pressure_config(std::getenv("STRATA_PSI_GUARD"), std::getenv("STRATA_PSI_PAUSE_PCT"),
                            std::getenv("STRATA_PSI_RESUME_PCT"), std::getenv("STRATA_PSI_MAX_PAUSE_MS"),
-                           std::getenv("STRATA_PSI_PARK_PCT"));
+                           std::getenv("STRATA_PSI_PARK_PCT"), std::getenv("STRATA_PSI_SHED"));
 }
 
 #if defined(__linux__)
@@ -311,6 +312,23 @@ bool memory_pressure_blocks_parking(std::string* why) {
     return true;
 }
 
+bool memory_pressure_sheds(std::string* why) {
+    static std::mutex mu;
+    static std::optional<MemoryPressureProbe> probe;
+    static PressureConfig cfg;
+    std::lock_guard<std::mutex> lk(mu);
+    if (!probe) { probe.emplace(); cfg = pressure_config_from_env(); }
+    if (!cfg.on || cfg.shed_pct <= 0.0 || !probe->usable()) return false;
+    const PressureReading r = probe->read();
+    if (!r.known || !pressure_sheds(r.avg10, cfg.shed_pct)) return false;
+    if (why != nullptr) {
+        char buf[64];
+        std::snprintf(buf, sizeof buf, " >= %.0f%%", cfg.shed_pct);
+        *why = "memory pressure some avg10 " + r.where + buf;
+    }
+    return true;
+}
+
 #else   // no PSI: nothing to watch
 
 void loader_pressure_begin(const char*) {}
@@ -319,6 +337,7 @@ void loader_pressure_check() {}
 void loader_pressure_end() {}
 LoaderPressureStats loader_pressure_last() { return {}; }
 bool memory_pressure_blocks_parking(std::string*) { return false; }
+bool memory_pressure_sheds(std::string*) { return false; }
 
 #endif
 
