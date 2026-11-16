@@ -200,6 +200,8 @@ STRATA_ENV("STRATA_ROUTE_BUDGET_TAIL", KeyIfSet, "LEADS.md HotRod: floor ranks t
 STRATA_ENV("STRATA_FRAGILE_RECHECK", KeyIfSet, "LEADS.md HotRod: close calls of stand-in rows re-decided exactly (changes the output)")
 STRATA_ENV("STRATA_FRAGILE_BRAKE", KeyIfSet, "LEADS.md HotRod: the re-check's per-request budget brake (=0 off; changes the output)")
 STRATA_ENV("STRATA_FRAGILE_K0", KeyIfSet, "LEADS.md HotRod: pins the re-check's close-call factor (changes the output)")
+STRATA_ENV("STRATA_ROUTE_BUDGET_AUTO", KeyIfSet, "LEADS.md HotRod: one decode stand-in budget searched by speed (lossy)")
+STRATA_ENV("STRATA_ROUTE_BUDGET_AUTO_B0", KeyIfSet, "LEADS.md HotRod: ROUTE_BUDGET_AUTO's start budget (lossy)")
 STRATA_ENV("STRATA_STANDIN_LEARN", Speed, "LEADS.md HotRod: stand-in scale learner on the CPU, observe only (the same picks and weights)")
 STRATA_ENV("STRATA_STANDIN_APPLY", KeyIfSet, "LEADS.md HotRod: stand-in weights scaled by the learned scale (lossy)")
 STRATA_ENV("STRATA_PREFILL_STANDIN", KeyIfSet, "LEADS.md HotRod: the stand-in rule on prompt chunks (lossy)")

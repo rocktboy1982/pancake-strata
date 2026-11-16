@@ -208,6 +208,8 @@ struct StandinCfg {
     float budget = 0.0f, budget_tail = 0.0f;
     bool fragile = false, apply = false;
     int learn_every = 0;
+    bool auto_on = false;     // STRATA_ROUTE_BUDGET_AUTO=1 (needs STRATA_FRAGILE_RECHECK): one decode budget searched by speed
+    float auto_b0 = 0.1f;     // STRATA_ROUTE_BUDGET_AUTO_B0=<b>: its start
     bool ex = false;   // the extended stand-in launch replaces native_route_resident
 };
 const StandinCfg& standin_cfg() {
@@ -224,6 +226,15 @@ const StandinCfg& standin_cfg() {
         if (const char* v = std::getenv("STRATA_STANDIN_LEARN")) s.learn_every = std::max(0, std::atoi(v));
         if (const char* v = std::getenv("STRATA_STANDIN_APPLY")) s.apply = std::atoi(v) != 0;
         if (s.apply && s.learn_every == 0) s.learn_every = 1;   // the scale has to be learned to be applied
+        if (const char* v = std::getenv("STRATA_ROUTE_BUDGET_AUTO")) s.auto_on = std::atoi(v) != 0;
+        if (const char* v = std::getenv("STRATA_ROUTE_BUDGET_AUTO_B0")) {
+            const float b0 = (float) std::atof(v);
+            if (b0 > 0.0f) s.auto_b0 = std::min(4.0f, std::max(0.02f, b0));
+        }
+        if (s.auto_on && !s.fragile) {
+            std::fprintf(stderr, "strata verify: STRATA_ROUTE_BUDGET_AUTO needs STRATA_FRAGILE_RECHECK=1 (its quality guard): off\n");
+            s.auto_on = false;
+        }
         const bool want = s.budget > 0.0f || s.budget_tail > 0.0f || s.fragile || s.learn_every > 0;
         if (want && !(route_resident_cfg().margin > 0.0f)) {
             std::fprintf(stderr, "strata verify: STRATA_ROUTE_BUDGET / _TAIL / STRATA_FRAGILE_RECHECK / STRATA_STANDIN_LEARN need the "
@@ -232,13 +243,23 @@ const StandinCfg& standin_cfg() {
         } else if (want) {
             s.ex = true;
             std::fprintf(stderr, "strata verify: HotRod stand-ins (LEADS.md, lossy): margin %g ranks %d-%d, budget %g, tail budget %g, "
-                                 "fragile re-check %s, learner %s%s\n", (double) route_resident_cfg().margin, route_resident_cfg().lo,
-                         route_resident_cfg().hi, (double) s.budget, (double) s.budget_tail, s.fragile ? "on" : "off",
-                         s.learn_every > 0 ? "on" : "off", s.apply ? " (scale applied)" : "");
+                                 "fragile re-check %s, auto budget %s, learner %s%s\n", (double) route_resident_cfg().margin,
+                         route_resident_cfg().lo, route_resident_cfg().hi, (double) s.budget, (double) s.budget_tail,
+                         s.fragile ? "on" : "off", s.auto_on ? "on" : "off", s.learn_every > 0 ? "on" : "off",
+                         s.apply ? " (scale applied)" : "");
         }
         return s;
     }();
     return c;
+}
+AutoBudget& auto_budget() {
+    static AutoBudget a = [] {
+        AutoBudget x;
+        x.on = standin_cfg().auto_on;
+        x.b = standin_cfg().auto_b0;
+        return x;
+    }();
+    return a;
 }
 FragileState& fragile_state() {
     static FragileState s = [] {
@@ -6590,8 +6611,15 @@ namespace {
 void standin_budgets(const FragileState& s, float& budget, float& tail) {
     const StandinCfg& sc = standin_cfg();
     const float k = s.brake_on ? s.req_scale : 1.0f;
-    budget = sc.budget * k;
-    tail = sc.budget_tail > 0.0f ? std::max(sc.budget_tail * k, 1e-30f) : 0.0f;
+    const AutoBudget& a = auto_budget();
+    const float b0 = a.on ? auto_arm_b(a, a.arm) : sc.budget;          // STRATA_ROUTE_BUDGET_AUTO: the running arm's one budget
+    const float t0 = a.on ? auto_arm_b(a, a.arm) : sc.budget_tail;
+    budget = b0 * k;
+    tail = t0 > 0.0f ? std::max(t0 * k, 1e-30f) : 0.0f;
+}
+Clock::time_point& standin_window_clock() {   // STRATA_ROUTE_BUDGET_AUTO: the previous decode window's end
+    static Clock::time_point t = Clock::now();
+    return t;
 }
 }  // namespace
 
@@ -6605,7 +6633,14 @@ int Verifier::fragile_after_window(int n_rows, bool merged) {
         const volatile float* gp = last->h_gap_;
         const volatile int32_t* tp = last->h_top1_;
         // the pending cut's row was this window's row 0, decided with the router's own picks: a flip is a changed top-1 id
-        if (s.pend) (void) fragile_settle(s, tp[0]);
+        if (s.pend) {
+            const int pend_arm = auto_budget().pend_arm;
+            const int f = fragile_settle(s, tp[0]);
+            if (f >= 0 && auto_budget().on) {   // STRATA_ROUTE_BUDGET_AUTO: the verdict counts for the cut window's arm
+                ++auto_budget().rc[pend_arm];
+                auto_budget().fl[pend_arm] += f;
+            }
+        }
         const int n = std::min(n_rows, max_t_);
         std::vector<float> gap((size_t) n), shift((size_t) n, 0.0f), part((size_t) n);
         for (int r = 0; r < n; ++r) gap[(size_t) r] = gp[r];
@@ -6625,10 +6660,21 @@ int Verifier::fragile_after_window(int n_rows, bool merged) {
             const int r = fragile_first(s, gap.data(), shift.data(), n, &explore);
             if (r >= 1 && shift[(size_t) r] > 0.0f) {
                 fragile_cut(s, gap[(size_t) r] / shift[(size_t) r], tp[r], explore);
+                auto_budget().pend_arm = auto_budget().arm;
                 cut = r;
             }
         }
         fragile_window_done(s, cut >= 1 ? cut : n);
+        const Clock::time_point now = Clock::now();
+        const double secs = std::chrono::duration<double>(now - standin_window_clock()).count();
+        standin_window_clock() = now;
+        if (auto_budget().on && auto_window(auto_budget(), cut >= 1 ? cut : n, secs)) {
+            const AutoBudget& a = auto_budget();
+            std::fprintf(stderr, "strata serve: auto budget: test %lld: base %.3f (%lld moves won), step %.3f\n", a.tests, (double) a.b,
+                         a.wins, (double) a.step);
+        }
+    } else {
+        standin_window_clock() = Clock::now();   // a merged (prompt) window is not timed
     }
     float b = 0.0f, bt = 0.0f;
     standin_budgets(s, b, bt);
@@ -6656,6 +6702,11 @@ std::string Verifier::standin_request_line() {
                       s.req_cuts, s.req_explores, s.req_moved, s.req_flips, (double) s.k, s.k_set ? "" : ", learning",
                       (double) (s.brake_on ? s.req_scale : 1.0f), s.req_brakes, s.rechecks, s.flips);
         out += buf;
+        if (auto_budget().on) {
+            std::snprintf(buf, sizeof buf, "strata serve: auto budget: %.3f at end (%lld tests, %lld won)\n", (double) auto_budget().b,
+                          auto_budget().tests, auto_budget().wins);
+            out += buf;
+        }
         s.req_cuts = s.req_explores = s.req_moved = s.req_flips = 0;
     }
     if (standin_cfg().ex && standin_cfg().learn_every > 0) {

@@ -101,6 +101,26 @@ int main() {
         const Est q = estimate(p, nullptr, nullptr);
         CHECK(q.ready && std::fabs(q.c - 2.0) < 1e-9 && q.err < 1e-6);
     }
+    {   // STRATA_ROUTE_BUDGET_AUTO: runs of 8 alternate the arms; a faster candidate moves b, a slower one turns the direction
+        AutoBudget a;
+        a.on = true;
+        a.b = 0.1f;
+        CHECK(std::fabs(auto_arm_b(a, 1) - 0.15f) < 1e-6f);
+        bool ended = false;
+        for (int w = 0; w < 2 * AutoBudget::kPerArm && !ended; ++w) {
+            CHECK(a.arm == (w / AutoBudget::kRun) % 2);
+            ended = auto_window(a, a.arm == 1 ? 6 : 5, 0.01);   // the candidate keeps more tokens a window
+        }
+        CHECK(ended && a.tests == 1 && a.wins == 1);
+        CHECK(std::fabs(a.b - 0.15f) < 1e-6f);
+        ended = false;
+        for (int w = 0; w < 2 * AutoBudget::kPerArm && !ended; ++w) ended = auto_window(a, a.arm == 1 ? 4 : 5, 0.01);
+        CHECK(ended && a.tests == 2 && a.wins == 1 && a.dir == -1);
+        CHECK(std::fabs(a.b - 0.15f) < 1e-6f);
+        CHECK(auto_arm_b(a, 1) < a.b);
+        AutoBudget off;
+        CHECK(!auto_window(off, 5, 0.01));
+    }
     {   // Wilson bounds
         double lo = 0, hi = 0;
         fragile_wilson90(0, 0, lo, hi);

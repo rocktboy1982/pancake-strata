@@ -164,6 +164,59 @@ inline void fragile_window_done(FragileState& s, int kept) {
     s.req_scale = s.req_scale <= 0.0f ? 0.25f : std::min(1.0f, s.req_scale * 1.25f);
 }
 
+/// STRATA_ROUTE_BUDGET_AUTO=1 (with the re-check; HotRod 024f644789 "self-tuning budget", simplified): one decode budget b for the
+/// ranks below lo and the floor ranks alike, searched by measured speed.  Decode windows alternate in runs of kRun between the base
+/// arm (b) and a candidate (b x (1 + step), or / (1 + step) going down); after kPerArm windows of each arm the candidate wins when
+/// its kept tokens per second beat the base by kBar and its flips per kept token are not clearly worse (Wilson 90%: the candidate's
+/// lower bound above twice the base's upper bound loses).  A win moves b there (step x 1.25, at most 1); a loss turns the direction
+/// and shrinks the step (x 0.7, at least 0.05).  b stays in [0.02, 4].  STRATA_ROUTE_BUDGET_AUTO_B0=<b> starts it (default 0.1).
+struct AutoBudget {
+    enum { kRun = 8, kPerArm = 96 };
+    static constexpr double kBar = 0.02;
+    bool on = false;
+    float b = 0.1f, step = 0.5f;
+    int dir = 1, arm = 0, run_left = kRun, pend_arm = 0;
+    double tok[2] = {0.0, 0.0}, sec[2] = {0.0, 0.0};
+    long long win[2] = {0, 0}, fl[2] = {0, 0}, rc[2] = {0, 0};
+    long long tests = 0, wins = 0;
+};
+inline float auto_arm_b(const AutoBudget& a, int arm) {
+    if (arm == 0) return a.b;
+    const float c = a.dir > 0 ? a.b * (1.0f + a.step) : a.b / (1.0f + a.step);
+    return std::min(4.0f, std::max(0.02f, c));
+}
+/// One decode window of the running arm: kept tokens and its seconds.  Returns true when a test ended (b may have moved).
+inline bool auto_window(AutoBudget& a, int kept, double secs) {
+    if (!a.on || !(secs > 0.0)) return false;
+    a.tok[a.arm] += kept;
+    a.sec[a.arm] += secs;
+    ++a.win[a.arm];
+    if (--a.run_left <= 0) {
+        a.arm ^= 1;
+        a.run_left = AutoBudget::kRun;
+    }
+    if (a.win[0] < AutoBudget::kPerArm || a.win[1] < AutoBudget::kPerArm) return false;
+    const double r0 = a.sec[0] > 0.0 ? a.tok[0] / a.sec[0] : 0.0, r1 = a.sec[1] > 0.0 ? a.tok[1] / a.sec[1] : 0.0;
+    double lo0 = 0.0, hi0 = 0.0, lo1 = 0.0, hi1 = 0.0;
+    fragile_wilson90(a.fl[0], (long long) a.tok[0], lo0, hi0);
+    fragile_wilson90(a.fl[1], (long long) a.tok[1], lo1, hi1);
+    const bool worse = lo1 > 2.0 * hi0;
+    if (r1 > r0 * (1.0 + AutoBudget::kBar) && !worse) {
+        a.b = auto_arm_b(a, 1);
+        a.step = std::min(1.0f, a.step * 1.25f);
+        ++a.wins;
+    } else {
+        a.dir = -a.dir;
+        a.step = std::max(0.05f, a.step * 0.7f);
+    }
+    ++a.tests;
+    a.tok[0] = a.tok[1] = a.sec[0] = a.sec[1] = 0.0;
+    a.win[0] = a.win[1] = a.fl[0] = a.fl[1] = a.rc[0] = a.rc[1] = 0;
+    a.arm = 0;
+    a.run_left = AutoBudget::kRun;
+    return true;
+}
+
 /// A request's start: the brake's scale and the request's counts start over (a pending cut of the last request is dropped).
 inline void fragile_request_begin(FragileState& s) {
     s.pend = false;
