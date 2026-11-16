@@ -160,7 +160,7 @@ miss.
 | D4 | A24 `STRATA_SUFFIX_INDEX` | screen: short +26.8% +-34.4 (outlier), edit -0.0% (T-161); offline -2.44% rounds, sub-agents -7.5% (T-424); half the gain is from outputs older than a 30-min pause, so use the persistent `STRATA_SUFFIX_INDEX_FILE` (4 MiB -1.00%, 16 MiB -1.71%) | confirm + quality gate with the file on the daily server |
 | D5 | `PF_FUSED=1` / `PF_F16=2` in every HIP preset | the only A/B (T-093, pre-HIP preset): 42K -7% but 5K +12% TTFT | either a HIP A/B (spec) or a recorded owner decision |
 | D6 | 9-16 column RDNA K-quant kernels are now the code default (`kRdnaDefaultCols=16`, `kRdnaMaxCols=32`) | parity 192/192 (tolerance); engine +3.7/+3.8% screen, +1.8% +-7.8 / +4.3% +-5.0 confirm (T-081): inside noise. The bitwise bench check fails: IQ4_XS multi-column output differs from 1-column calls at 12-32 cols (T-558), which can explain the short-case text variance of spec 51 | accept as default (it is a kernel default change, measured not worse) or gate behind `STRATA_RDNA_KQ_MAXCOLS` |
-| D7 | Phase 18 item 9 merged the window-input copies on the DEFAULT path (`copy_from_mapped_multi`, on unless `STRATA_MTP_MULTI_COPY=0`) | pure copies, `verify_parity` covers both modes; spec 30 never ran | run spec 30 (build-vs-build) or flip the default back |
+| D7 | Phase 18 item 9 merged the window-input copies on the DEFAULT path (`copy_from_mapped_multi`, on unless `STRATA_MTP_MULTI_COPY=0`) | pure copies, `verify_parity` covers both modes; spec 30 never ran | spec 30 rewritten 2026-11-16 as an env A/B (`STRATA_MTP_MULTI_COPY=0` = the old separate copies, one binary): queued in chain 7 (section 5 item 2) |
 | D8 | Q2_0 vs IQ2_XS as the daily file | 15 screen +8.6% +-46.3 (T-382); 15c run unusable (T-384) | 15c redo |
 | D9 | A29 entropy-coded miss path | owner chose BUILD on 2026-11-13 06:58, with deep research and a plan update before any code; offline bound 8-12% (T-282) | research + design note in this file, then code |
 | D10 | housekeeping | done 2026-11-15: worktrees 107 -> 14 (28 GB freed), local branches 166 -> 9 (tip map `pancake-docs/research/bench/branch-tips-2026-11-15.tsv`), 200 of 202 refs were already contained and the last one (`optimize-kernel-hip`) recorded as merged; remote branches untouched. A41 hook registered warn-only (T-562): user-scope `~/.claude/settings.json` on the box, PreToolUse for `Edit|MultiEdit|Write`, command `RBE_MODE=warn python3 -I /home/dan/bin/read_before_edit_hook.py` (timeout 10 s; repo copy `tools/pancake/a41/`; settings backup `~/.claude/settings.json.bak-a41-2026-11-15`; `RBE_MODE=hold` blocks). Box decisions taken without a test, waiting for owner confirmation: `fuse-wait` slow mode closed (it lost on average, T-077); `pancake.service` NOT enabled at boot (it would hold the GPU during tests). Open: the remaining dirty worktrees, remote branch deletion, the box's `PANCAKE_STATUS.md` (still edited there 2026-11-15 16:15 UTC; delete it on the box after pulling, rule 2), stale upstream/HEAD ref; GPU clock back to auto after pinned runs; disk-tier cap (D at 76%); `PARK_REWIND_MAX` default; cron `--night-only 23-07 --drop-cache`, `--reclaim-max 3.0`; sudo rules via `visudo`; Avalon 32K+ (shrink its context or drop the comparison: it OOMs at 32K+, T-174); delete `origin/NetworkPancake` (moved out of the repo to `C:\Users\iancu\NetworkPancake`) | owner |
@@ -190,11 +190,16 @@ miss.
    - Dropped at screen (section 9): spec 81 `TOPK_REGKEYS`+`TOPK_SCAN`, `ATTN_MERGE_BOUND`, `GRUP_PF`, `GDN_SPLIT`+`GDN_NORM128`,
      `ADAPT_COPY2`, `WAIT_FUSE_ROWS` alone; spec 82 all (DMA_FLAG_WRITE, PCIE_FORK, DALI); spec 83 `PF_COPY2`; spec 84 the
      `PF_GU_EXACT` family; spec 80 J=32 rolled MMQ; spec 85 `MMVQ_IL_PLAIN` crashes (T-602, defect for the box agent).
-   Order after chain 6: strata-poly build, then specs 102, 103, then the chain 6 PROMOTE arms of specs 87-101.
+   **QUEUED: chain 7** `/home/dan/clone-of-d/src/win-chain7.sh` (started 2026-11-16 13:37, waits for `WINCHAIN6_DONE`, then
+   for 3 minutes with no client on 11437 before it stops pancake.service; log `/home/dan/clone-of-d/src/win-chain7.log`, results
+   `/home/dan/auto-runs/win7-<spec>.*`): strata-poly build (5b867bf3a synced), specs 102 and 103 at confirm, the item 4
+   EQUAL_TAIL TTFT A/B (`ttft_bench.py --scenario a`, sizes 30000/34000/60000/66500/70000/99997, `STRATA_TRACE=1`, port
+   11501), then specs 30 (D7), 33, 34 at screen; restarts pancake.service, writes `WINCHAIN7_DONE`. Next after it: confirm
+   specs for the chain 6 PROMOTE arms of specs 87-101, quality gate on any confirm winner.
 3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
-4. **EQUAL_TAIL** (`STRATA_PREFILL_EQUAL_TAIL`, `_MIN` 256): est. -1.5..-2.5 s of ~40 s at 100K, ~-1 s at 66.5K, up to
+4. **QUEUED in chain 7 (item 2). EQUAL_TAIL** (`STRATA_PREFILL_EQUAL_TAIL`, `_MIN` 256): est. -1.5..-2.5 s of ~40 s at 100K, ~-1 s at 66.5K, up to
    -2.5 s at 34K. Use prompt sizes 30000, 34000, 60000, 66500, 70000, 100000 (the ttft_bench defaults sit on chunk
    boundaries); plus the #5539 check: 99,997 tokens -> chunks 0/32768/65536/98304 (with EQUAL_TAIL 0/25088/50176/75264),
    ~98,400 tokens, `STRATA_TRACE=1`, a lent line, a reply, no fault.
