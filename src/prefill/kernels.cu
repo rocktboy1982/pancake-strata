@@ -2430,6 +2430,68 @@ __global__ void moe_combine4_kernel(const float* __restrict__ Dm, const int32_t*
     bo[i] = make_float4(s.x + sh.x * g, s.y + sh.y * g, s.z + sh.z * g, s.w + sh.w * g);
 }
 
+// FK-36, STRATA_PF_COMBINE_WRITE=1 (zsariboga 21107e9d05, opt-in; CUDA and HIP): moe_combine4_kernel's sum for one
+// token, then gr_write_norm_rs_kernel for its four rows (t, c): a block per token, bo kept in registers (each thread's
+// elements d = tid + 256 k, the mapping gr_write_norm_rs_kernel uses) instead of written and read back.  Every value is
+// the two kernels' expression in their order (the slot sum k = 0..9 by fmaf, the NVFP4 row scale first, then
+// + shared * g; the write, the block_sum and the image as gr_write_norm_rs_kernel): the same R, rs and xn16 / xn16_lo.
+__global__ void __launch_bounds__(256) moe_combine_write_norm_rs_kernel(
+    const float* __restrict__ Dm, const int32_t* __restrict__ slot, const float* __restrict__ w,
+    const float* __restrict__ shared, const float* __restrict__ sg, const float* __restrict__ row_sd,
+    float* __restrict__ R, const float* __restrict__ inj, int64_t inj_ld, const float* __restrict__ wn, float eps,
+    float* __restrict__ rs_out, uint16_t* __restrict__ xn16, uint16_t* __restrict__ xn16_lo, int64_t ldx, int f16img) {
+    __shared__ float sh[32];
+    __shared__ int64_t s_row[10];
+    __shared__ float s_w[10], s_sd[10];
+    const int64_t t = blockIdx.x;
+    if (threadIdx.x < 10) {
+        s_row[threadIdx.x] = slot[t * 10 + threadIdx.x];
+        s_w[threadIdx.x] = w[t * 10 + threadIdx.x];
+        s_sd[threadIdx.x] = row_sd ? row_sd[s_row[threadIdx.x]] : 1.0f;
+    }
+    __syncthreads();
+    const float g = sigm(sg[t]);
+    float bo[GRW_PER];
+    int k = 0;
+#pragma unroll
+    for (int d = threadIdx.x; d < N; d += 256, ++k) {
+        float s = 0.0f;
+#pragma unroll
+        for (int q = 0; q < 10; ++q) {
+            const float v = row_sd ? Dm[s_row[q] * N + d] * s_sd[q] : Dm[s_row[q] * N + d];
+            s = fmaf(s_w[q], v, s);
+        }
+        bo[k] = s + shared[t * N + d] * g;
+    }
+#pragma unroll 1
+    for (int c = 0; c < HC; ++c) {
+        const int64_t row = t * HC + c;
+        float* r = R + row * N;
+        const int64_t xo = t * ldx + (int64_t) c * N;
+        const float sc = 2.0f * sigm(inj[t * inj_ld + c] / (float) HC);
+        float v[GRW_PER];
+        float ss = 0.0f;
+        k = 0;
+#pragma unroll
+        for (int d = threadIdx.x; d < N; d += 256, ++k) {
+            const float x = fmaf(bo[k], sc, r[d]);
+            r[d] = x;
+            v[k] = x;
+            ss += x * x;
+        }
+        const float rs = rsqrtf(block_sum(ss, sh) / (float) N + eps);
+        if (threadIdx.x == 0) rs_out[row] = rs;
+        k = 0;
+#pragma unroll
+        for (int d = threadIdx.x; d < N; d += 256, ++k) {
+            const float x = v[k] * rs * wn[c * N + d];
+            const uint16_t h = act16(x);
+            xn16[xo + d] = f16img ? bf_to_hf_conv(h) : h;
+            if (xn16_lo) xn16_lo[xo + d] = bf_lo(x, h);
+        }
+    }
+}
+
 // moe_combine4_kernel with the expert rows as FP16 (fused::dm_f16_used(): the down kernels wrote 2,560 halves a row): the same fmaf order, the rows
 // widened to FP32 first.  Half the bytes of the layer's rows, read once.  (Round 0215, from the Strix dm16 patch.)
 __global__ void moe_combine16_kernel(const uint16_t* __restrict__ Dm, const int32_t* __restrict__ slot,
@@ -3446,6 +3508,27 @@ void moe_combine(const float* Dm, const int32_t* slot, const float* w, const flo
 #endif
     moe_combine_kernel<<<blocks_for(T * N), 256, 0, (cudaStream_t) stream>>>(Dm, slot, w, shared, sg, bo, T, row_sd);
     check("moe_combine");
+}
+bool moe_combine_write_norm_rs(const float* Dm, const int32_t* slot, const float* w, const float* shared, const float* sg,
+                               float* R, const float* inj, int64_t inj_ld, const float* w_norm_next, float eps, float* rs,
+                               uint16_t* xn16, int64_t T, void* stream, uint16_t* xn16_lo, int64_t ldx, bool f16img,
+                               const float* row_sd) {
+#ifndef STRATA_W_NO_COMB
+    // FK-36 (zsariboga 21107e9d05): where moe_combine takes moe_combine4_kernel (16-byte aligned Dm and shared; bo is
+    // not written here), the expression this kernel copies
+    if (((reinterpret_cast<uintptr_t>(Dm) | reinterpret_cast<uintptr_t>(shared)) & 15) == 0) {
+        if (T > 0) {
+            moe_combine_write_norm_rs_kernel<<<(unsigned) T, 256, 0, (cudaStream_t) stream>>>(
+                Dm, slot, w, shared, sg, row_sd, R, inj, inj_ld, w_norm_next, eps, rs, xn16, xn16_lo, ldx > 0 ? ldx : D,
+                f16img ? 1 : 0);
+            check("moe_combine_write_norm_rs");
+        }
+        return true;
+    }
+#endif
+    (void) Dm; (void) slot; (void) w; (void) shared; (void) sg; (void) R; (void) inj; (void) inj_ld; (void) w_norm_next;
+    (void) eps; (void) rs; (void) xn16; (void) T; (void) stream; (void) xn16_lo; (void) ldx; (void) f16img; (void) row_sd;
+    return false;   // STRATA_W_NO_COMB: moe_combine_kernel's path; the caller runs the two kernels
 }
 void moe_combine16(const uint16_t* Dm16, const int32_t* slot, const float* w, const float* shared, const float* sg, float* bo, int64_t T,
                    void* stream) {

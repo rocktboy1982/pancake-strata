@@ -4799,6 +4799,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                 else if (!normed) gr_norm_rs(m.R, (const float*) wn->data, EPS, m.grs, m.xn16, T, m.cs, m.xn16_lo, ldx, xf16);
                 normed = false;
                 pt.mark(kPfHcDown, cs);   // STRATA_PREFILL_TIMING: the hyper-connection read's parts on their own lines (norm stays on "hc read")
+                bool moe_wrote = false;   // FK-36: the MoE half's combine also did the write below (moe_combine_write_norm_rs)
                 bool hcd = false;
                 bool hdown = false;
                 if (wd->q8_scale == nullptr && ldx != D && !pf_hcdown()) {   // not with STRATA_HC_REQ8's int8 rows   // STRATA_HCD_EXACT: the exact-order down kernel when hipBLASLt would take 1176 / 1177
@@ -7053,9 +7054,27 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                         moe_combine_peer(m.Dm, m.slot_dev, m.w, m.shared, m.sg, m.pp->host_sum, m.pp->back_at, m.bo, T, m.cs);
                     else if (dm16_used && rows_cpu == 0)
                         moe_combine16(reinterpret_cast<const uint16_t*>(m.Dm), m.slot_dev, m.w, m.shared, m.sg, m.bo, T, m.cs);
-                    else
-                        moe_combine(m.Dm, m.slot_dev, m.w, m.shared, m.sg, m.bo, T, m.cs,
-                                    use_mmq && !fused_l && lay.native && lay.fmt[(size_t) l].tail_off ? m.row_sd : nullptr);
+                    else {
+                        const float* comb_sd = use_mmq && !fused_l && lay.native && lay.fmt[(size_t) l].tail_off ? m.row_sd : nullptr;
+                        // FK-36, STRATA_PF_COMBINE_WRITE=1 (zsariboga 21107e9d05; opt-in, exact; read once): the combine and the
+                        // write below in one kernel where that write is the plain gr_write_norm_rs (the same conditions: not
+                        // steered, a next layer, not before layer 1's PLE block, not unfused): bo never stored, the same bits.
+                        // Not with STRATA_DBG_NAN (it reads bo).
+                        static const bool combine_write = [] {
+                            const char* e = std::getenv("STRATA_PF_COMBINE_WRITE");
+                            return e != nullptr && e[0] == '1' && std::getenv("STRATA_DBG_NAN") == nullptr;
+                        }();
+                        if (combine_write && half == 1 && !strata::kernels::cvec().covers(l) && !gr_unfused() && l + 1 < LE &&
+                            !(l + 1 == 1 && ple_on)) {
+                            const core::LayerView vn_c(*m.wt, l + 1);
+                            const core::WeightRef* wnn_c = need(vn_c, "hc_attn_norm.weight", err);
+                            if (!wnn_c) return false;
+                            moe_wrote = moe_combine_write_norm_rs(m.Dm, m.slot_dev, m.w, m.shared, m.sg, m.R, m.inj, HC,
+                                                                  (const float*) wnn_c->data, EPS, m.grs, m.xn16, T, m.cs,
+                                                                  m.xn16_lo, ldx, xf16, comb_sd);
+                        }
+                        if (!moe_wrote) moe_combine(m.Dm, m.slot_dev, m.w, m.shared, m.sg, m.bo, T, m.cs, comb_sd);
+                    }
                     // debug: STRATA_DBG_NAN=1 reports the first layer of a chunk whose MoE produced non-finite values
                     if (static const bool dbg = std::getenv("STRATA_DBG_NAN") != nullptr; dbg) {
                         cudaStreamSynchronize(m.cs);
@@ -7138,8 +7157,9 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                           T, m.cs, m.xn16_lo, ldx, xf16);
                     normed = true;
                 } else if (wnn) {
-                    gr_write_norm_rs(m.R, m.bo, m.inj, HC, (const float*) wnn->data, EPS, m.grs, m.xn16, T, m.cs,
-                                     m.xn16_lo, ldx, xf16);
+                    if (!moe_wrote)   // (FK-36: the combine above did this write)
+                        gr_write_norm_rs(m.R, m.bo, m.inj, HC, (const float*) wnn->data, EPS, m.grs, m.xn16, T, m.cs,
+                                         m.xn16_lo, ldx, xf16);
                     normed = true;
                 } else {
                     gr_write(m.R, m.bo, m.inj, HC, T, m.cs);

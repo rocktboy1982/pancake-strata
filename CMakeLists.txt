@@ -1765,6 +1765,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(gr_wn4_parity PRIVATE strata_prefill )
     add_test(NAME gr_wn4_parity COMMAND gr_wn4_parity)
     set_tests_properties(gr_wn4_parity PROPERTIES SKIP_RETURN_CODE 77)
+    # FK-36, STRATA_PF_COMBINE_WRITE (zsariboga 21107e9d05): the combine fused with the write + next-half norm against
+    # moe_combine + gr_write_norm_rs, bitwise (GPU, synthetic, no model)
+    add_executable(combine_write_parity src/prefill/combine_write_parity.cu)
+    target_link_libraries(combine_write_parity PRIVATE strata_prefill )
+    add_test(NAME combine_write_parity COMMAND combine_write_parity)
+    set_tests_properties(combine_write_parity PROPERTIES SKIP_RETURN_CODE 77)
     # the two kernels of the layer-major prompt path (STRATA_PREFILL_LAYER_MAJOR=1, #3976): moe_shared_init and
     # moe_scatter_add against a host reference, bitwise for the scatter (GPU, synthetic, no model)
     add_executable(lm_kernels_parity src/prefill/lm_kernels_parity.cu)
