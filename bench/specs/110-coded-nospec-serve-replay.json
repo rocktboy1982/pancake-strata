@@ -1,0 +1,64 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "preset": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "session-streamed": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SESSION_STREAMED": "1"
+      }
+    },
+    "warmup-replay": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WARMUP_REPLAY": "1"
+      }
+    },
+    "tool-idle": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TOOL_IDLE": "1"
+      }
+    },
+    "tool-idle-prewarm": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TOOL_IDLE_PREWARM": "1"
+      }
+    },
+    "serve-async-stream": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SERVE_ASYNC_STREAM": "1"
+      }
+    },
+    "async-compact": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ASYNC_COMPACT": "1"
+      }
+    }
+  },
+  "replay": {
+    "session": "2026-11-09T16:13/2026-11-09T16:43",
+    "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+    "arms": [
+      "preset",
+      "session-streamed",
+      "warmup-replay",
+      "tool-idle",
+      "tool-idle-prewarm",
+      "serve-async-stream",
+      "async-compact"
+    ],
+    "reps": 3
+  },
+  "note": "MOD_PLAN.md section 5 item 2 (2026-11-16 sweep): serve / cache switches coded with no spec, on the live replay of the 11-09 agent session (python3 tools/pancake/replay_turns.py bench/specs/110-coded-nospec-serve-replay.json --out <dir>): SESSION_STREAMED (two-pass restore, same bytes), WARMUP_REPLAY=1 (first-turn warm-up; acts at start), TOOL_IDLE / TOOL_IDLE_PREWARM (idle-window work between tool calls), SERVE_ASYNC_STREAM, ASYNC_COMPACT=1 (Slipstream; acts only on compaction requests, which this session may not contain: an equal arm is then 'not exercised', not 'no gain'). Reads prompt time per turn."
+}

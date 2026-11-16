@@ -21,7 +21,7 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(HERE))
 SEP = re.compile(r'(?<!\\)\|')
-DECISION_STATUS = {'D1': 'done', 'D2': 'done', 'D9': 'notstarted', 'D10': 'progress'}
+DECISION_STATUS = {'D1': 'done', 'D2': 'done', 'D9': 'queued', 'D10': 'progress'}   # D9 coded 2026-11-16, arm in spec 94
 
 
 def cells(line):

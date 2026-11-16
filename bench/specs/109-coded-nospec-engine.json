@@ -1,0 +1,72 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "fetch-blocks-96": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_FETCH_BLOCKS": "96"
+      }
+    },
+    "pcie015": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--pcie-frac": "0.15"
+      }
+    },
+    "pcie015-fetch96": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--pcie-frac": "0.15"
+      },
+      "env": {
+        "STRATA_FETCH_BLOCKS": "96"
+      }
+    },
+    "fs-affinity-4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_FS_AFFINITY": "4"
+      }
+    },
+    "conv-workset-match": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CONV_WORKSET": "1",
+        "STRATA_CONV_WORKSET_MATCH": "0.5"
+      }
+    },
+    "bandit-top": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_BANDIT": "top",
+        "STRATA_BANDIT_LOG": "1"
+      }
+    },
+    "bandit-top-correct": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_BANDIT": "top",
+        "STRATA_BANDIT_LOG": "1",
+        "STRATA_BANDIT_CORRECT": "1"
+      }
+    },
+    "prefill-standin": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PREFILL_STANDIN": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 5 item 2 (2026-11-16 sweep): engine switches that LEADS.md marks CODED but no spec ran. FETCH_BLOCKS=96 (FK-26, bitwise; acts on the PCIe share copy kernels, so also on --pcie-frac 0.15 against its own pcie015 arm), FS_AFFINITY=4 (ExFlow, bytes only), CONV_WORKSET_MATCH=0.5 (fMoE histogram match, needs CONV_WORKSET), BANDIT_CORRECT (Athena reward correction; compare bandit-top-correct with bandit-top, the bandit picks lossy arms), PREFILL_STANDIN (HotRod prompt stand-ins, lossy: judge on long1k/long3k, quality_gate.py before any use). Screen (--tier screen); 'lossy' because the bandit and stand-in arms are."
+}

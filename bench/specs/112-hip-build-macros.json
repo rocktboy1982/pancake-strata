@@ -1,0 +1,26 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "hip-fast-math": {
+      "exe": "/home/dan/clone-of-d/src/build-win-fm/strata"
+    },
+    "lds-sync": {
+      "exe": "/home/dan/clone-of-d/src/build-win-lds/strata"
+    },
+    "sched-fence": {
+      "exe": "/home/dan/clone-of-d/src/build-win-psf/strata"
+    }
+  },
+  "note": "MOD_PLAN.md section 5 item 2 (2026-11-16 sweep): compile-time switches with no spec, build-vs-build (win-chain11.sh makes the dirs from build-win's options): build-win-fm -DSTRATA_HIP_FAST_MATH=ON (llama.cpp #31625 fast-math on the prompt MMQ, lossy risk), build-win-lds -DCMAKE_HIP_FLAGS=-DSTRATA_HIP_LDS_SYNC=1 (gfx11 LDS barriers in moe_fused_iq.cu), build-win-psf -DCMAKE_HIP_FLAGS=-DSTRATA_PA_SCHED_FENCE=1 (llama.cpp #31746 scheduling barrier after every WMMA in the attention kernels). Screen; text check decides whether a quality gate is due."
+}
