@@ -1,0 +1,17 @@
+
+######## protect 0: 0 of 10909 slots are a static core ########
+== whole (219 windows), protect 0
+policy                       hit %   miss/w  promo/w  CPU ms/w  vs kmiss 2/8  vs static
+tier                        81.17%    346.9     26.8     18.46         +0.13        n/a
+kmiss 2/4                   80.89%    343.7     29.0     18.43         +0.10        n/a
+kmiss 2/8                   81.01%    340.3     30.1     18.33         +0.00        n/a
+kmiss 1/2                   80.75%    348.4     31.5     18.80         +0.47        n/a
+kmiss 3/8                   80.51%    348.4     24.9     18.42         +0.09        n/a
+   hit points vs kmiss 2/8: tier +0.17, kmiss 2/4 -0.11, kmiss 2/8 +0.00, kmiss 1/2 -0.25, kmiss 3/8 -0.50
+== whole (219 windows), protect 0: thrash and landing pads
+policy                      evict/w  back<=1  back<=4  back<=16  net us/promo  neg %  gap miss/w  saved P16     P32     P64
+tier                           26.8     1.7%     6.8%     22.2%         493.9  16.9%        0.44       0.24    0.44    0.44
+kmiss 2/4                      29.0     2.0%     7.3%     23.4%         506.7  16.8%        0.58       0.31    0.58    0.58
+kmiss 2/8                      30.1     2.0%     7.5%     23.6%         505.9  17.3%        0.60       0.33    0.60    0.60
+kmiss 1/2                      31.5     2.3%     8.0%     23.7%         482.8  19.2%        0.72       0.38    0.72    0.72
+kmiss 3/8                      24.9     1.9%     7.0%     22.7%         530.4  15.4%        0.47       0.24    0.47    0.47

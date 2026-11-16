@@ -151,3 +151,15 @@ def test_lecar_weights_and_rules_run():
     for rule in (tl.KMissRule(1, 2), tl.GhostRule(k=1)):
         rr = go(rows, [0, 1, 2, 3], rule)[0]
         assert rr["thrash"]["promotions"] >= 1 and rr["hits"] > go(rows, [0, 1, 2, 3], tl.Static())[0]["hits"]
+
+
+def test_kmiss_with_cap_keeps_its_lists_consistent_with_the_cache():
+    # 4 hot experts are missing at once and the cap lets 2 swaps through a window: before the 2026-11-16 fix the policy's own
+    # LRU list assumed every proposal was applied and run() tripped its residency assertion
+    rows = [[0, 1]] * 3 + [[2, 3, 4, 5]] * 10
+    d = tl.dense(layered(rows), NE)
+    pol = tl.KMiss(1, 1)
+    pol.cap = 1                                              # per layer 1 swap would be 2 swaps in a window of 2 layers
+    r, _, promo, hist = tl.run(d, init_pairs([0, 1, 6, 7]), pol, 0, None, record=True)
+    assert hist[5, :, 2:6].sum() <= 2                        # one swap a window: windows 3 and 4 admitted at most 2 by window 5
+    assert hist[-1, :, 2:6].all()                            # but all four hot experts arrive over the windows

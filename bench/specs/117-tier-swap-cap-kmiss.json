@@ -1,0 +1,51 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 9,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "swaps64": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--adapt-swaps": "64"
+   }
+  },
+  "swaps96": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--adapt-swaps": "96"
+   }
+  },
+  "kmiss24": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ADAPT_KMISS": "2,4"
+   }
+  },
+  "kmiss24-swaps64": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--adapt-swaps": "64"
+   },
+   "env": {
+    "STRATA_ADAPT_KMISS": "2,4"
+   }
+  },
+  "kmiss24-swaps96": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--adapt-swaps": "96"
+   },
+   "env": {
+    "STRATA_ADAPT_KMISS": "2,4"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 6 item 19: tier rule vs k-th-miss admission at equal and higher swap caps. The offline simulator (T-625) shows that with the engine's cap of 32 swaps per round kmiss 2/4 and 2/8 equal the count tier (18.43 / 18.33 vs 18.46 ms per window) and the +1.7 ms of the uncapped runs (T-618..T-621) was the cap: uncapped kmiss makes 81.6 promotions per window. So the question for the engine is the CAP together with the rule: swaps 64 / 96 with and without STRATA_ADAPT_KMISS=2,4 (earlier swap-budget screens: swaps64 edit +4.9% +-4.3 at confirm T-059, swaps96 edit +30.0% screen n=4 T-263, both inconclusive). Run at confirm with --no-early-stop; lossy (placement-dependent text), so quality_gate.py before adoption. Stop pancake.service first."
+}

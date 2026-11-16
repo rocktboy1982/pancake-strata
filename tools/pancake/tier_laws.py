@@ -260,12 +260,11 @@ class KMiss(Policy):
         self.recent = [dict() for _ in range(nl)]
 
     def swaps(self, t, C, res, prot):
-        out = []
+        out, cands = [], []
         for l in range(self.nl):
             u = np.flatnonzero(C[l]).tolist()
             lst = self.lists[l]
             inres = set(lst)
-            cur = set(u)
             for e in u:
                 if e in inres:
                     lst.remove(e)
@@ -277,17 +276,25 @@ class KMiss(Policy):
                 r = [x for x in rec.get(e, []) if x > t - self.W] + [t]
                 rec[e] = r
                 if len(r) >= self.k:
-                    victim = next((x for x in lst if x not in cur and not prot[l, x]), None)
-                    if victim is None:
-                        victim = next((x for x in lst if not prot[l, x]), None)
-                    if victim is None:
-                        continue
-                    lst.remove(victim)
-                    lst.append(e)
-                    inres.discard(victim)
-                    inres.add(e)
-                    out.append((0.0, l, e, victim))
-                    rec.pop(e, None)
+                    # the engine's candidate score (kmiss_tier.hpp): 1000 x misses in the window + the usage this round
+                    cands.append((1000.0 * len(r) + float(C[l, e]), l, e))
+        # --cap: the engine sorts every layer's swaps by that score and keeps the best swap_cap() of them (generate.cpp
+        # 14843-14844); only the kept swaps change the LRU lists, a dropped candidate keeps its miss history
+        cands.sort(key=lambda x: -x[0])
+        if self.cap:
+            cands = cands[:self.cap]
+        for g, l, e in cands:
+            lst = self.lists[l]
+            cur = set(np.flatnonzero(C[l]).tolist())
+            victim = next((x for x in lst if x not in cur and not prot[l, x]), None)
+            if victim is None:
+                victim = next((x for x in lst if not prot[l, x]), None)
+            if victim is None:
+                continue
+            lst.remove(victim)
+            lst.append(e)
+            self.recent[l].pop(e, None)
+            out.append((g, l, e, victim))
         return out
 
 
