@@ -48,5 +48,38 @@ int main() {
             !same(tool_checkpoint_marks({6000}, 0, 30000, {6000}, 0, 0, 2), {}))                      // already held
             return 1;
     }
+    {   // STRATA_CACHE_FORK_POINT (LEADS.md FK-27, Lamina ab808b133e): fork_checkpoint_points
+        using strata::program::fork_checkpoint_points;
+        using A = std::array<int64_t, 2>;
+        constexpr int64_t im_end = 248046;
+        auto same = [&](const A& got, const A& want) { ++checks; return got == want; };
+        // a 6,100-token shared context, then two different questions: [im_end \n im_start] user ... im_end \n im_start(turn)
+        auto prompt = [&](int64_t tail_tok) {
+            std::vector<int64_t> v(6100, 5);
+            v.push_back(im_end); v.push_back(10); v.push_back(token);   // the context's message ends at 6100
+            for (int i = 0; i < 40; ++i) v.push_back(tail_tok);        // the question
+            v.push_back(im_end); v.push_back(10); v.push_back(token); v.push_back(77);   // the reply's turn header
+            return v;
+        };
+        const auto a = prompt(31), b = prompt(32);
+        const int64_t turn_b = (int64_t) b.size() - 2, end_b = turn_b - 2;   // the turn token, the question's im_end
+        // the second question parts from the first at 6103 (the first question token); the message end 4 before its im_end
+        if (!same(fork_checkpoint_points(a, b, 0, turn_b, im_end), A{6103, end_b - 4}) ||
+            // a resume past the fork (by min_gap): no fork point
+            !same(fork_checkpoint_points(a, b, 6000, turn_b, im_end), A{-1, -1}) ||
+            // no previous prompt: the message end alone
+            !same(fork_checkpoint_points({}, b, 0, turn_b, im_end), A{-1, end_b - 4}) ||
+            // the same prompt again: it does not part before its last token
+            !same(fork_checkpoint_points(b, b, 0, turn_b, im_end), A{-1, end_b - 4}) ||
+            // no im_end token known: the fork alone
+            !same(fork_checkpoint_points(a, b, 0, turn_b, -1), A{6103, -1}) ||
+            // a smaller gap rule still needs the point past resume
+            !same(fork_checkpoint_points(a, b, 6102, turn_b, im_end, 0), A{6103, end_b - 4}) ||
+            !same(fork_checkpoint_points(a, b, 6103, turn_b, im_end, 0), A{-1, end_b - 4}) ||
+            // no turn given: searched below the prompt's end
+            !same(fork_checkpoint_points(a, b, 0, -1, im_end), A{6103, end_b - 4}) ||
+            !same(fork_checkpoint_points(a, {}, 0, -1, im_end), A{-1, -1}))
+            return 1;
+    }
     std::printf("message_boundary_test OK (%d checks)\n", checks);
 }

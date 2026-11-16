@@ -380,6 +380,7 @@ STRATA_ENV("STRATA_BATCH_MTP", Speed, "drafting/stop policy: the tokens change, 
 STRATA_ENV("STRATA_BATCH_MTP_SERIAL", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_BATCH_SELF_COMMIT", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_BATCH_YIELD_CHUNKS", Speed, "multi-GPU / batch / layer-split planning (the disk tier needs one GPU and no --batch)")
+STRATA_ENV("STRATA_CACHE_FORK_POINT", Speed, "LEADS.md FK-27 fork-point (Lamina ab808b133e): two more prompt checkpoints; cache/park policy, same state")
 STRATA_ENV("STRATA_CACHE_MESSAGE_BOUNDARY", Speed, "cache/threads/park policy")
 STRATA_ENV("STRATA_CACHE_TOOL_BOUNDARY", Speed, "cache/threads/park policy")
 STRATA_ENV("STRATA_CACHE_TOOL_BOUNDARY_GAP", Speed, "cache/threads/park policy")

@@ -229,6 +229,29 @@ EFFORT_TEXT = {"low": "Reasoning effort is set to low. Keep your thinking brief 
                "xhigh": "Reasoning effort is set to xhigh. Please think carefully through the task, validate key "
                         "assumptions, consider plausible alternatives, and prioritize correctness, consistency, and "
                         "clarity in the final answer."}
+
+
+def _trailing_reminder(messages):
+    """STRATA_TRAILING_REMINDER=1 (opt-in; LEADS.md FK-27 "trailing reminder", Ben1078 8b90ab8077): the text of a final
+    user message that holds nothing but <system-reminder> blocks (None otherwise, and always None when unset).  Some
+    agent clients (Qwen Code) append such a transient message to every request and drop it on the next one;
+    render_prompt then moves it into the trailing system turn that --tail-role-token checkpoints in front of, so the
+    conversation part is reused.  The reminder's text stays in the prompt, in a system turn before the answer."""
+    if os.environ.get("STRATA_TRAILING_REMINDER", "0") != "1" or not isinstance(messages, list) or len(messages) < 3:
+        return None
+    last = messages[-1]
+    if not isinstance(last, dict) or last.get("role") != "user":
+        return None
+    c = last.get("content")
+    if isinstance(c, list) and all(isinstance(x, dict) and x.get("type") == "text" for x in c):
+        c = "".join(x.get("text") or "" for x in c)
+    if not isinstance(c, str) or "<system-reminder>" not in c:
+        return None
+    if re.sub(r"<system-reminder>[\s\S]*?</system-reminder>", "", c).strip():
+        return None
+    return c.strip()
+
+
 VISION_START = "<|vision_start|>"
 # #606: a reply that repeats one token this many times in a row is ended there ("length"): a model in a loop, or a
 # broken state that answers one token forever (an issue saw 36,689 tokens of "!"). The config's "repeat_stop_tokens"
@@ -6415,7 +6438,13 @@ class Service:
         empty thinking block).  The engine (--tail-role-token) checkpoints in front of that turn."""
         effort = kwargs.get("reasoning_effort")
         off = kwargs.get("enable_thinking") is False
-        if not self.effort_end or (not off and effort in (None, "", "xhigh", "high")):
+        # STRATA_TRAILING_REMINDER=1 (opt-in; Ben1078 8b90ab8077): a reminder-only LAST user message goes into the
+        # trailing system turn instead, so the engine checkpoints the conversation in front of it.  Unset: None here,
+        # and everything below runs as before.
+        reminder = _trailing_reminder(messages) if self.effort_end else None
+        if reminder is not None:
+            messages = messages[:-1]
+        if not self.effort_end or (reminder is None and not off and effort in (None, "", "xhigh", "high")):
             return self.template.render(messages, tools=tools, **kwargs)
         base = {k: v for k, v in kwargs.items() if k not in ("reasoning_effort", "enable_thinking")}
         history = self.template.render(messages, tools=tools, add_generation_prompt=False, **base)
@@ -6423,7 +6452,15 @@ class Service:
         mine = self.template.render(messages, tools=tools, add_generation_prompt=False, **kwargs)
         if not full.startswith(mine):                  # a template this cannot take apart: rendered as asked
             return full
-        tail = "" if off else EFFORT_TURN.format(EFFORT_TEXT.get(effort, EFFORT_TEXT["medium"]))
+        if reminder is None:
+            tail = "" if off else EFFORT_TURN.format(EFFORT_TEXT.get(effort, EFFORT_TEXT["medium"]))
+            return history + tail + full[len(mine):]
+        texts = [reminder]
+        if not off and effort not in (None, "", "xhigh", "high"):
+            texts.append(EFFORT_TEXT.get(effort, EFFORT_TEXT["medium"]))
+        tail = EFFORT_TURN.format("\n\n".join(texts))
+        if not texts[1:] and not off:
+            history = mine                             # default effort: the history exactly as a default request renders
         return history + tail + full[len(mine):]
 
     def encode_prompt(self, messages, tools, kwargs, store: bool = True) -> list[int]:

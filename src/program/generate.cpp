@@ -20664,9 +20664,30 @@ int main(int argc, char** argv) {
                                                                 std::min<int64_t>(tool_marks_max, o.prompt_cache - 3));
             }
             auto is_tool_at = [&](int64_t p) { return std::find(tool_at.begin(), tool_at.end(), p) != tool_at.end(); };
+            // STRATA_CACHE_FORK_POINT=1 (opt-in; LEADS.md FK-27 "fork-point", eddoursul/Lamina ab808b133e): two more
+            // checkpointed cuts where agents' prompts part - where this prompt leaves the previous request's, and 4 tokens
+            // before the last message's <|im_end|> (fork_checkpoint_points) - each over 256 tokens past `resume`.  Same
+            // budget and retention as the other checkpoints; not on a layer split, not with ckpt=0 or pictures.  Exact:
+            // a checkpoint is a copy of the state.  Unset: no cut is added and no prompt is kept.
+            static const bool fork_points_on = [] {
+                const char* e = std::getenv("STRATA_CACHE_FORK_POINT");
+                return e != nullptr && std::atoi(e) != 0;
+            }();
+            static std::vector<int64_t> fork_prev;   // the previous request's prompt
+            std::array<int64_t, 2> fork_at = {-1, -1};
+            if (fork_points_on && req_imgs.empty()) {
+                if (req_ckpt && !multi_gpu && o.prompt_cache >= 3 && o.turn_token >= 0)
+                    fork_at = strata::program::fork_checkpoint_points(fork_prev, ids, resume, last_turn, 248046);
+                fork_prev.assign(ids.begin(), ids.end());
+                if (trace && (fork_at[0] >= 0 || fork_at[1] >= 0))
+                    std::fprintf(stderr, "strata serve: fork-point checkpoints (STRATA_CACHE_FORK_POINT): fork %lld, message "
+                                         "end %lld\n", (long long) fork_at[0], (long long) fork_at[1]);
+            }
+            auto is_fork_at = [&](int64_t p) { return p >= 0 && (p == fork_at[0] || p == fork_at[1]); };
             std::vector<int64_t> cuts = {reread_to, root_at, message_at, turn_at, n - 1};
-            if (pin_at >= 0 || !tool_at.empty()) {
+            if (pin_at >= 0 || !tool_at.empty() || fork_at[0] >= 0 || fork_at[1] >= 0) {
                 if (pin_at >= 0) cuts.push_back(pin_at);
+                for (int64_t f : fork_at) if (f >= 0) cuts.push_back(f);
                 cuts.insert(cuts.end(), tool_at.begin(), tool_at.end());
                 std::sort(cuts.begin(), cuts.end());   // the skipped -1s first, n - 1 still last
             }
@@ -20759,7 +20780,7 @@ int main(int argc, char** argv) {
                     break;
                 }
                 at = to;
-                if ((to == turn_at || to == root_at || to == message_at || to == pin_at || is_tool_at(to)) &&
+                if ((to == turn_at || to == root_at || to == message_at || to == pin_at || is_tool_at(to) || is_fork_at(to)) &&
                     !checkpoint_at(to, nullptr, to == message_at && to != turn_at && to != root_at && to != pin_at)) {   // the tail kind leaves first
                     if (!ckpt_why.empty() || !checkpoint_failure_is_survivable()) {   // #3350: only an unwell GPU ends the request
                         std::printf("ERR saving a conversation checkpoint failed%s\n", ckpt_why.c_str());

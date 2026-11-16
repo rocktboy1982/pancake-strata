@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -16,6 +17,32 @@ inline int64_t message_checkpoint_boundary(const std::vector<int64_t>& ids, int6
         if (ids[std::size_t(i)] == turn_token) return i >= min_prefix ? i : -1;
     }
     return -1;
+}
+
+/// STRATA_CACHE_FORK_POINT (opt-in; LEADS.md FK-27 "fork-point", eddoursul/Lamina ab808b133e): two more checkpoints
+/// where agents' prompts part.  Agents send one long prefix again and again with a different tail (a classifier's, a
+/// coder's, a critic's question after the same context; a transcript growing inside one user message), and none of the
+/// usual cuts falls there.  [0] (fork): where this prompt leaves the previous request's `prev` - the next request
+/// sharing that prefix resumes there; [1] (message end): 4 tokens before the last <|im_end|> (`im_end`) below the
+/// reply's turn `turn_at` (or the prompt's end when there is none) - a transcript appended to inside one message parts
+/// there on the very next request, the margin covering a seam that tokenizes differently once text follows it.  Each
+/// lies more than `min_gap` tokens past `resume` and before the prompt's last token; -1 for none.  The two differ.
+inline std::array<int64_t, 2> fork_checkpoint_points(const std::vector<int64_t>& prev, const std::vector<int64_t>& ids,
+        int64_t resume, int64_t turn_at, int64_t im_end, int64_t min_gap = 256) {
+    std::array<int64_t, 2> out = {-1, -1};
+    const int64_t n = (int64_t) ids.size();
+    if (n < 2 || resume < 0) return out;
+    const int64_t lim = std::min<int64_t>((int64_t) prev.size(), n - 1);
+    int64_t d = 0;
+    while (d < lim && prev[std::size_t(d)] == ids[std::size_t(d)]) ++d;
+    if (d > resume + min_gap && d < n - 1 && d != turn_at) out[0] = d;
+    if (im_end >= 0)
+        for (int64_t i = (turn_at > 0 && turn_at < n ? turn_at : n - 1) - 1; i > resume; --i)
+            if (ids[std::size_t(i)] == im_end) {
+                if (i - 4 > resume + min_gap && i - 4 != out[0]) out[1] = i - 4;
+                break;
+            }
+    return out;
 }
 
 /// MOD_PLAN 16 (STRATA_CACHE_TOOL_BOUNDARY): which of the server's `marks=` positions (a Qwen prompt's tool-call and
