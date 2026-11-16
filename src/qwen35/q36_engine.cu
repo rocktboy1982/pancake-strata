@@ -361,6 +361,89 @@ __global__ void k_attn_merge(const float* pacc, const float* pm, const float* pl
     const size_t gi = ((size_t) t * H + h) * HD + d;
     out[gi] = num / den * sigm(gate[gi]);
 }
+/// STRATA_Q36_ATTN_GQA=1 (storm-ace 4fe0284da5, LEADS.md FK-55; opt-in here, exact): k_attn_part for the G query heads
+/// of one KV head in one block: every K / V cell is read once for the G heads instead of once per head (the GQA group
+/// shares it), the arithmetic per head in k_attn_part's order (its bits).  Same partials and layout, so k_attn_merge
+/// follows unchanged.  Unlike k_attn_window it takes batch rows (RowSel) and G = 2, 4, 8, 16.
+/// grid (n_chunk, n_tokens * HKV), block 256, HD == 256.
+template <int G>
+__global__ void __launch_bounds__(256) k_attn_part_gqa(const float* q, const float* kc, const float* vc, const int32_t* pos0,
+                                                       int t0, int H, int HKV, int ctx, float scale, int n_chunk,
+                                                       float* pacc, float* pm, float* pl, RowSel rs) {
+    constexpr int HD = 256;
+    // K dims per tile: the chunk's cells x TI staged in LDS, read coalesced.  CUDA keeps 16 (its 48 KiB static shared
+    // limit); the tile width does not change any sum's order
+#if defined(__HIPCC__)
+    constexpr int TI = G <= 8 ? 32 : 16;
+#else
+    constexpr int TI = 16;
+#endif
+    __shared__ float qs[G][HD], sc[G][kChunkCells], sh[kThreads], kt[kChunkCells][TI + 1];
+    const int c = blockIdx.x, tl = blockIdx.y / HKV, kvh = blockIdx.y % HKV;
+    const int t = t0 + tl;
+    const int npos = (rs.cell ? rs.cell[t] : *pos0 + t) + 1;
+    if (rs.kc) {
+        kc = rs.kc[rs.slot[t]];
+        vc = rs.vc[rs.slot[t]];
+    }
+    const int p0 = c * kChunkCells;
+    if (p0 >= npos) return;
+    const int j = threadIdx.x;
+#pragma unroll
+    for (int g = 0; g < G; ++g) qs[g][j] = q[((size_t) t * H + kvh * G + g) * HD + j];
+    __syncthreads();
+    const int p = p0 + j;
+    float a[G];
+#pragma unroll
+    for (int g = 0; g < G; ++g) a[g] = 0.f;
+    // each thread still sums its own cell over i = 0..HD-1 in order (k_attn_part's bits); only the loads are shared
+    const float* kbase = kc + ((size_t) kvh * ctx + p0) * HD;
+    for (int i0 = 0; i0 < HD; i0 += TI) {
+#pragma unroll
+        for (int r = 0; r < TI; ++r) {
+            const int idx = r * kChunkCells + j, cell = idx / TI, d = idx % TI;
+            kt[cell][d] = p0 + cell < npos ? kbase[(size_t) cell * HD + i0 + d] : 0.f;
+        }
+        __syncthreads();
+        if (p < npos) {
+#pragma unroll
+            for (int d = 0; d < TI; ++d) {
+                const float kv = kt[j][d];
+#pragma unroll
+                for (int g = 0; g < G; ++g) a[g] += qs[g][i0 + d] * kv;
+            }
+        }
+        __syncthreads();
+    }
+    float m[G], l[G];
+#pragma unroll
+    for (int g = 0; g < G; ++g) {
+        const float s = p < npos ? a[g] * scale : -INFINITY;
+        m[g] = block_max(s, sh);
+        const float e = p < npos ? expf(s - m[g]) : 0.f;
+        sc[g][j] = e;
+        l[g] = block_sum(e, sh);
+    }
+    const int n = min(kChunkCells, npos - p0);
+    float acc[G];
+#pragma unroll
+    for (int g = 0; g < G; ++g) acc[g] = 0.f;
+    const float* vp = vc + ((size_t) kvh * ctx + p0) * HD + j;
+    for (int k = 0; k < n; ++k) {
+        const float v = vp[(size_t) k * HD];
+#pragma unroll
+        for (int g = 0; g < G; ++g) acc[g] += sc[g][k] * v;
+    }
+#pragma unroll
+    for (int g = 0; g < G; ++g) {
+        const size_t o = ((size_t) tl * H + kvh * G + g) * n_chunk + c;
+        pacc[o * HD + j] = acc[g];
+        if (j == 0) {
+            pm[o] = m[g];
+            pl[o] = l[g];
+        }
+    }
+}
 
 /// STRATA_ATTN_WINDOW=1 (opt-in, MOD_PLAN F11; the idea of Asofwar/Strata-Turbo's window decode attention, 6ebe841e2e /
 /// 540f801a9a, MIT, no code taken): k_attn_part's partials for the G query heads of one KV head in NR consecutive rows
@@ -1764,6 +1847,23 @@ struct Engine {
     bool fast_k = std::getenv("STRATA_Q36_OLD_KERNELS") == nullptr;
     bool verify_k = std::getenv("STRATA_Q36_VERIFY") != nullptr;
     float* vbuf = nullptr;                       // verify scratch
+    float* vatt = nullptr;                       // STRATA_Q36_ATTN_GQA verify scratch of the attention output
+    size_t vatt_n = 0;
+    /// STRATA_Q36_ATTN_GQA (storm-ace 4fe0284da5): the decode attention's partials with the GQA kernel (one block per
+    /// KV head and chunk) when the group size has an instance; false leaves them to k_attn_part.
+    bool attn_part_gqa(int G, int nc, int nt, int HKV, const float* q_, const float* kc_, const float* vc_, const int32_t* pos0,
+                       int t0, int H, int ctx_, float scale, const RowSel& rs) {
+        const dim3 grid(nc, nt * HKV);
+        switch (G) {
+            case 2: k_attn_part_gqa<2><<<grid, kChunkCells, 0, st>>>(q_, kc_, vc_, pos0, t0, H, HKV, ctx_, scale, n_chunk, pacc, pm, pl, rs); return true;
+            case 4: k_attn_part_gqa<4><<<grid, kChunkCells, 0, st>>>(q_, kc_, vc_, pos0, t0, H, HKV, ctx_, scale, n_chunk, pacc, pm, pl, rs); return true;
+            case 8: k_attn_part_gqa<8><<<grid, kChunkCells, 0, st>>>(q_, kc_, vc_, pos0, t0, H, HKV, ctx_, scale, n_chunk, pacc, pm, pl, rs); return true;
+#if defined(__HIPCC__)   // (its shared memory passes CUDA's 48 KiB static limit)
+            case 16: k_attn_part_gqa<16><<<grid, kChunkCells, 0, st>>>(q_, kc_, vc_, pos0, t0, H, HKV, ctx_, scale, n_chunk, pacc, pm, pl, rs); return true;
+#endif
+            default: return false;
+        }
+    }
     long long v_calls = 0, v_bad = 0;
     std::map<std::string, long long> v_by;   // mismatches per check
     void verify_cmp(const char* what, const float* a, const float* b, size_t n, const std::string& tag = "") {
@@ -2226,10 +2326,38 @@ struct Engine {
                     else if (window)
                         k_attn_window<8, 1><<<dim3(nc, HKV, nt), kThreads, 0, st>>>(
                             q, kc[li], vc[li], dpos, t0, nt, H, ctx, 1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl);
-                    else
-                    k_attn_part<<<dim3(nc, nt * H), kChunkCells, 0, st>>>(q, rows_mode ? nullptr : kc[li],
-                                                                         rows_mode ? nullptr : vc[li], dpos, t0, H, HKV, ctx,
-                                                                         1.0f / sqrtf((float) HD), n_chunk, pacc, pm, pl, rs);
+                    else {
+                    // STRATA_Q36_ATTN_GQA=1 (storm-ace 4fe0284da5, opt-in, exact; read once): the GQA kernel's partials
+                    // (each K / V cell read once per KV head), batch rows too; STRATA_Q36_VERIFY=1 checks it against
+                    // k_attn_part bit for bit.  Unset: the k_attn_part launch below, unchanged.
+                    static const bool attn_gqa = [] {
+                        const char* v = std::getenv("STRATA_Q36_ATTN_GQA");
+                        return v != nullptr && v[0] == '1';
+                    }();
+                    const float* kcl = rows_mode ? nullptr : kc[li];
+                    const float* vcl = rows_mode ? nullptr : vc[li];
+                    const float scale = 1.0f / sqrtf((float) HD);
+                    const bool gqa = attn_gqa && fast_k && HD == 256 &&
+                                     attn_part_gqa(H / HKV, nc, nt, HKV, q, kcl, vcl, dpos, t0, H, ctx, scale, rs);
+                    if (!gqa)
+                    k_attn_part<<<dim3(nc, nt * H), kChunkCells, 0, st>>>(q, kcl, vcl, dpos, t0, H, HKV, ctx,
+                                                                         scale, n_chunk, pacc, pm, pl, rs);
+                    if (gqa && verify_k) {   // the per-head kernel into scratch, compared bit for bit
+                        k_attn_merge<<<nt * H, HD, 0, st>>>(pacc, pm, pl, gate, dpos, t0, H, n_chunk, att, rs);
+                        const size_t need = (size_t) T * H * HD;
+                        if (vatt_n < need) {
+                            if (vatt) CK(cudaFree(vatt));
+                            CK(cudaMalloc((void**) &vatt, need * 4));
+                            vatt_n = need;
+                        }
+                        k_attn_part<<<dim3(nc, nt * H), kChunkCells, 0, st>>>(q, kcl, vcl, dpos, t0, H, HKV, ctx, scale,
+                                                                             n_chunk, pacc, pm, pl, rs);
+                        k_attn_merge<<<nt * H, HD, 0, st>>>(pacc, pm, pl, gate, dpos, t0, H, n_chunk, vatt, rs);
+                        const size_t off = (size_t) t0 * H * HD;
+                        verify_cmp("attn_part_gqa", att + off, vatt + off, (size_t) nt * H * HD, " T " + std::to_string(T));
+                        continue;   // (att already holds the GQA kernel's output)
+                    }
+                    }
                     k_attn_merge<<<nt * H, HD, 0, st>>>(pacc, pm, pl, gate, dpos, t0, H, n_chunk, att, rs);
                 }
             }
