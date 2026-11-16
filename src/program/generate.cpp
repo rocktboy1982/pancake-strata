@@ -13339,6 +13339,10 @@ int main(int argc, char** argv) {
         // A prompt that continues a disk entry deeper than the live session, a batch slot (`have`) and every parked
         // conversation (by STRATA_CONVERSATION_DISK_MIN_GAIN tokens) reads it back through /slots RESTORE's checks and
         // parks it: the parked-restore path below validates it and takes or borrows it as any parked conversation.
+        // STRATA_DISK_NO_DRAFT: no draft layer in a disk save / read / restore when no --mtp layer is loaded (else the draft state)
+        auto disk_draft = [&]() -> const strata::core::QsaState* {
+            return strata::program::disk_draft_is_null(disk_no_draft_env(), use_mtp) ? nullptr : &mtp.kv_state();
+        };
         auto disk_fetch = [&](const auto& prompt, const std::vector<ImgKey>& imgs, bool cvec, int64_t have) {
             if (!disk_tier.on()) return;
             const auto m = disk_tier.best(prompt, imgs, cvec);
@@ -13357,7 +13361,7 @@ int main(int argc, char** argv) {
             size_t bytes = 0;
             std::string why;
             try {
-                if (!strata::core::conversation_session_read_limits(limits, ss, g, mtp.kv_state(), (uint64_t) o.max_context,
+                if (!strata::core::conversation_session_read_limits(limits, ss, g, disk_draft(), (uint64_t) o.max_context,
                                                                     (uint64_t) std::max(o.prompt_cache, 1), why) ||
                     !disk_tier.load(m, limits, image, bytes, why)) {
                     std::fprintf(stderr, "strata serve: conversation disk: cannot read the %lld-token match back (%s)\n",
@@ -13415,7 +13419,7 @@ int main(int argc, char** argv) {
                 for (size_t i : strata::core::conversation_disk_checkpoints(checks)) keep.push_back(&checks[i]);
                 const strata::core::ConversationStreamView view{live, live_imgs, keep, cvec_cached};
                 strata::core::SessionSaveSources save;
-                if (!strata::core::conversation_snapshot_stream(save, view, ss, g, mtp.kv_state(), e)) {
+                if (!strata::core::conversation_snapshot_stream(save, view, ss, g, disk_draft(), e)) {
                     std::fprintf(stderr, "strata serve: conversation disk: disk-only save skipped (%s)\n", e.c_str());
                     return;
                 }
@@ -17941,7 +17945,7 @@ int main(int argc, char** argv) {
                             const strata::core::ConversationStreamView view{live, live_imgs, disk_ptrs, cvec_cached};
                             strata::core::SessionSaveSources sources;
                             blocking("capture", 0);   // the device sync; the state itself moves with the file
-                            if (!strata::core::conversation_snapshot_stream(sources, view, ss, g, mtp.kv_state(), err)) {
+                            if (!strata::core::conversation_snapshot_stream(sources, view, ss, g, disk_draft(), err)) {
                                 refuse(err, strata::core::SessionError::io);
                                 continue;
                             }
@@ -17977,7 +17981,7 @@ int main(int argc, char** argv) {
                         std::vector<strata::core::SessionKvSource> sources;
                         // the live running state comes off the device in one synchronous copy
                         blocking("capture", sl.state_bytes == UINT64_MAX ? 0 : sl.state_bytes);
-                        if (!strata::core::conversation_snapshot_sources(meta, sources, view, ss, g, mtp.kv_state(),
+                        if (!strata::core::conversation_snapshot_sources(meta, sources, view, ss, g, disk_draft(),
                                                                          err)) {
                             refuse(err, strata::core::SessionError::io);
                             continue;
@@ -18032,7 +18036,7 @@ int main(int argc, char** argv) {
                             return false;
                         };
                         if (!strata::core::conversation_session_read_limits(
-                                limits, ss, g, mtp.kv_state(), (uint64_t) o.max_context,
+                                limits, ss, g, disk_draft(), (uint64_t) o.max_context,
                                 (uint64_t) std::max(o.prompt_cache, 1), err)) {
                             refuse(err, strata::core::SessionError::io);
                             continue;
@@ -18054,8 +18058,9 @@ int main(int argc, char** argv) {
                     // another geometry or extent is refused here, by its header
                     blocking("validate", bytes);
                     if (two_pass ? !strata::core::conversation_snapshot_validate_stream(image, file_layout.live_state, ss,
-                                                                                        g, mtp.kv_state(), err)
-                                 : !strata::core::conversation_snapshot_validate_meta(image, ss, g, mtp.kv_state(), err)) {
+                                                                                        g, disk_draft(), err)
+                                 : !(disk_draft() ? strata::core::conversation_snapshot_validate_meta(image, ss, g, *disk_draft(), err)
+                                         : strata::core::conversation_snapshot_validate_meta(image, ss, g, nullptr, err))) {
                         refuse(err);
                         continue;
                     }
@@ -18068,7 +18073,7 @@ int main(int argc, char** argv) {
                     // bind every layer's authoritative pool (validated above; this cannot fail for a good image)
                     std::vector<strata::core::ConversationKvTarget> targets;
                     strata::core::ConversationStateTarget state_target;
-                    if (!strata::core::conversation_kv_targets(image, ss, g, mtp.kv_state(), targets, err) ||
+                    if (!strata::core::conversation_kv_targets(image, ss, g, disk_draft(), targets, err) ||
                         (two_pass && !strata::core::conversation_state_target(image, file_layout.live_state, ss, g,
                                                                               state_target, err))) {
                         refuse(err);
@@ -18173,7 +18178,7 @@ int main(int argc, char** argv) {
                             return false;
                         };
                         if (!strata::core::conversation_session_read_limits(
-                                limits, ss, g, mtp.kv_state(), (uint64_t) o.max_context,
+                                limits, ss, g, disk_draft(), (uint64_t) o.max_context,
                                 (uint64_t) std::max(o.prompt_cache, 1), err)) {
                             refuse(err, strata::core::SessionError::io);
                             continue;
@@ -18190,7 +18195,8 @@ int main(int argc, char** argv) {
                     const double read_ms = ms();
                     // the whole image against this engine, still without any device write
                     blocking("validate", bytes);
-                    if (!strata::core::conversation_snapshot_validate(image, ss, g, mtp.kv_state(), err)) {
+                    if (!(disk_draft() ? strata::core::conversation_snapshot_validate(image, ss, g, *disk_draft(), err)
+                            : strata::core::conversation_snapshot_validate(image, ss, g, nullptr, err))) {
                         refuse(err);
                         continue;
                     }
@@ -18203,7 +18209,8 @@ int main(int argc, char** argv) {
                     live_ok = false;
                     // host -> device in synchronous copies of the whole state: one bounded allowance
                     blocking("transfer", bytes);
-                    if (strata::core::conversation_snapshot_restore(image, ss, g, mtp.kv_state(), err) !=
+                    if ((disk_draft() ? strata::core::conversation_snapshot_restore(image, ss, g, *disk_draft(), err)
+                         : strata::core::conversation_snapshot_restore(image, ss, g, nullptr, err)) !=
                         strata::core::ConversationRestore::restored) {
                         // validated above: a failure here is a transfer failure, after device writes began - never
                         // decode from a partial state; the server starts the engine again
@@ -18807,14 +18814,14 @@ int main(int argc, char** argv) {
                     std::string le;
                     strata::core::SessionStatus st;
                     bool read_ok = strata::core::conversation_session_read_limits(
-                        limits, ss, g, mtp.kv_state(), (uint64_t) o.max_context, (uint64_t) std::max(o.prompt_cache, 2), le);
+                        limits, ss, g, disk_draft(), (uint64_t) o.max_context, (uint64_t) std::max(o.prompt_cache, 2), le);
                     if (!read_ok) st.error = strata::core::SessionError::memory;   // a runtime limit, not the file: keep it
                     else read_ok = strata::core::session_file_read_streamed(disk_in_path, disk_tier.identity(), disk_meta,
                                                                             disk_in_bytes, le, limits, disk_layout, &st);
                     if (!read_ok && st.error != strata::core::SessionError::invalid) {
                         std::fprintf(stderr, "strata serve: conversation disk: disk hit skipped (%s)\n", le.c_str());
                     } else if (!read_ok || !strata::core::conversation_snapshot_validate_stream(
-                                               disk_meta, disk_layout.live_state, ss, g, mtp.kv_state(), le)) {
+                                               disk_meta, disk_layout.live_state, ss, g, disk_draft(), le)) {
                         std::fprintf(stderr, "strata serve: conversation disk: discard unusable disk conversation (%s)\n",
                                      le.c_str());
                         disk_tier.discard(disk_match.serial);
@@ -19126,7 +19133,7 @@ int main(int argc, char** argv) {
                 strata::core::ConversationStateTarget state_target;
                 if (!kvg_ensure((int64_t) disk_meta.live.ids.size() + 256, kv_quiesce)) {
                     std::fprintf(stderr, "strata serve: conversation disk: disk hit skipped (the K/V cannot grow to it)\n");
-                } else if (!strata::core::conversation_kv_targets(disk_meta, ss, g, mtp.kv_state(), targets, err) ||
+                } else if (!strata::core::conversation_kv_targets(disk_meta, ss, g, disk_draft(), targets, err) ||
                            !strata::core::conversation_state_target(disk_meta, disk_layout.live_state, ss, g,
                                                                     state_target, err)) {
                     std::fprintf(stderr, "strata serve: conversation disk: disk hit skipped (%s)\n", err.c_str());

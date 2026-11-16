@@ -174,6 +174,23 @@ void full_session(int fmt, int mode, int experts) {
         std::vector<SessionKvSource> sources;
         check(conversation_snapshot_sources(meta,sources,view,ss,g,draft.state,err),"disk-save sources");
         check(meta.kv.empty() && sources.size()==b.kv.size(),"one source per K/V layer, none captured");
+        {
+            // STRATA_DISK_NO_DRAFT (no --mtp): a null draft gives the main layers only; a non-null pointer equals the reference form
+            SavedConversation meta_nd, meta_ptr;
+            std::vector<SessionKvSource> src_nd, src_ptr;
+            check(conversation_snapshot_sources(meta_nd,src_nd,view,ss,g,(const QsaState*) nullptr,err),"disk-save sources without draft");
+            check(src_nd.size()+1==sources.size(),"no draft: one source per main layer only");
+            check(conversation_snapshot_sources(meta_ptr,src_ptr,view,ss,g,&draft.state,err) && src_ptr.size()==sources.size(),
+                  "pointer form with a draft equals the reference form");
+            SessionReadLimits lim_ref, lim_ptr, lim_nd;
+            check(conversation_session_read_limits(lim_ref,ss,g,draft.state,(uint64_t) ss.max_cells,8,err) &&
+                  conversation_session_read_limits(lim_ptr,ss,g,&draft.state,(uint64_t) ss.max_cells,8,err) &&
+                  lim_ref.max_kv_layers==lim_ptr.max_kv_layers && lim_ref.max_kv_bytes==lim_ptr.max_kv_bytes,
+                  "read limits: pointer form with a draft equals the reference form");
+            check(conversation_session_read_limits(lim_nd,ss,g,(const QsaState*) nullptr,(uint64_t) ss.max_cells,8,err) &&
+                  lim_nd.max_kv_layers+1==lim_ref.max_kv_layers && lim_nd.max_kv_bytes.size()==lim_nd.max_kv_layers,
+                  "read limits without draft: main layers only");
+        }
         const SessionFileIdentity id{1,2};
         namespace fs=std::filesystem;
         const fs::path dir=fs::temp_directory_path()/("strata-snap-test-"+std::to_string(experts)+"-"+
