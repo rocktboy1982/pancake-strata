@@ -6,6 +6,7 @@
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/kernels/router_top10.hpp"
 #include "strata/core/emulate.hpp"
+#include "strata/core/diag_rules.hpp"   // T-630: launch_error_line
 
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
@@ -99,9 +100,17 @@ __device__ float block_sum(float v, float* sh) {
     __syncthreads();
     return sh[0];
 }
-void check(const char* what) {
+// grid_x / block_x (optional): the launch's size, for STRATA_LAUNCH_CHECK_VERBOSE=1 (default off, T-630): one more line with the
+// error name, the kernel and its grid / block before the process ends; the line the default run prints is unchanged.
+void check(const char* what, unsigned grid_x = 0, unsigned block_x = 0) {
     const cudaError_t e = cudaGetLastError();
-    if (e != cudaSuccess) { std::fprintf(stderr, "prefill %s: %s\n", what, cudaGetErrorString(e)); std::exit(1); }
+    if (e != cudaSuccess) {
+        std::fprintf(stderr, "prefill %s: %s\n", what, cudaGetErrorString(e));
+        static const bool verbose = [] { const char* v = std::getenv("STRATA_LAUNCH_CHECK_VERBOSE"); return v != nullptr && v[0] == '1'; }();
+        if (verbose)
+            std::fprintf(stderr, "%s\n", strata::core::diag::launch_error_line(what, cudaGetErrorName(e), cudaGetErrorString(e), grid_x, block_x).c_str());
+        std::exit(1);
+    }
 }
 unsigned blocks_for(int64_t n, int t = 256) { return (unsigned) ((n + t - 1) / t); }
 
@@ -3594,7 +3603,7 @@ bool moe_combine_write_norm_rs(const float* Dm, const int32_t* slot, const float
             moe_combine_write_norm_rs_kernel<<<(unsigned) T, 256, 0, (cudaStream_t) stream>>>(
                 Dm, slot, w, shared, sg, row_sd, R, inj, inj_ld, w_norm_next, eps, rs, xn16, xn16_lo, ldx > 0 ? ldx : D,
                 f16img ? 1 : 0);
-            check("moe_combine_write_norm_rs");
+            check("moe_combine_write_norm_rs", (unsigned) T, 256);
         }
         return true;
     }

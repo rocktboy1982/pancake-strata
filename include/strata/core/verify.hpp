@@ -85,6 +85,9 @@ struct AdaptGate {
     /// (before the gate waits for it), 2 all of them (the window's end).  false: a copy failed.  null: off.
     bool (*pace)(void* user, int32_t layer, int mode) = nullptr;
     void* pace_user = nullptr;
+    /// STRATA_ADAPT_IDLE_COPY_TRACE=1 (diagnostics only, T-613): the host queue's depth and the layer of its first step; null: not kept.
+    int64_t (*queued)(void* user, int32_t* front_layer) = nullptr;
+    void* queued_user = nullptr;
 };
 
 class NativeHead;

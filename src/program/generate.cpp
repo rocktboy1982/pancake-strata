@@ -10791,7 +10791,17 @@ int main(int argc, char** argv) {
         if (equal_tail_min > 0) {
             const int64_t c = strata::program::prefill_plan::equal_tail_chunk(
                 tokens, max_chunk, strata::prefill::Prefill::stream_all_min_tokens(), equal_tail_min);
-            if (c > 0) return c;
+            if (c > 0) {
+                // D13 (MOD_PLAN.md section 6): one stderr line each time the plan differs from the default (the same segment again prints once)
+                thread_local int64_t seen_tokens = -1, seen_cap = -1;
+                if (tokens != seen_tokens || max_chunk != seen_cap) {
+                    seen_tokens = tokens;
+                    seen_cap = max_chunk;
+                    std::fprintf(stderr, "%s\n", strata::program::prefill_plan::describe_equal_tail(
+                                                     tokens, max_chunk, plain, c, strata::prefill::Prefill::stream_all_min_tokens()).c_str());
+                }
+                return c;
+            }
         }
         if (!equal_chunks || tokens <= 0 || max_chunk <= 0) return plain;
         const int64_t n = tokens / max_chunk + (tokens % max_chunk != 0);
@@ -14565,6 +14575,13 @@ int main(int argc, char** argv) {
                     return (*(std::function<bool(int32_t, int)>*) u)(layer, mode);
                 };
                 agate.pace_user = &idle_pace;
+                agate.queued_user = &idleq;
+                agate.queued = [](void* u, int32_t* front) -> int64_t {   // STRATA_ADAPT_IDLE_COPY_TRACE: the queue's depth and first layer
+                    IdleQueue& q = *(IdleQueue*) u;
+                    std::lock_guard<std::mutex> lk(q.mu);
+                    *front = q.ops.empty() ? -1 : q.ops.front().layer;
+                    return (int64_t) q.ops.size();
+                };
                 std::fprintf(stderr, "strata serve: STRATA_ADAPT_IDLE_COPY=1: the adaptive tier's copies go out in the window's "
                                      "CPU-idle phases (attention / GDN mixer, the commit and the draft), %zu KiB a phase "
                                      "(STRATA_ADAPT_IDLE_COPY_KB); same bytes into the same slots\n", idle_copy_slice / 1024u);

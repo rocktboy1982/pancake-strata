@@ -636,3 +636,33 @@ def test_text_check_accepts_any_base_pass(capsys):
     out = capsys.readouterr().out
     assert "same" in out and "identical on every case -> exact" in out.split("other")[0]
     assert "DIFFERENT text" in out.split("other")[1]
+
+
+def test_run_arm_keeps_the_engine_log_when_a_request_fails(monkeypatch, tmp_path):
+    # T-630: the first request ended with an HTTP error (the engine exited): the engine log of that start must still be saved
+    log = tmp_path / "engine.log"
+    log.write_text("old start\n")
+
+    class Srv:
+        pid = 1
+
+        def poll(self):
+            return None
+
+    def fake_start(cfg_path, log_out, port, ready_wait=900):
+        with open(log, "a") as f:
+            f.write("strata: ready\nprefill moe_combine_write_norm_rs: an illegal memory access was encountered\n")
+        return Srv(), None
+
+    def fake_request(url, text, max_tokens=512):
+        raise OSError("HTTP Error 503")
+
+    monkeypatch.setattr(A, "start_server", fake_start)
+    monkeypatch.setattr(A, "request", fake_request)
+    monkeypatch.setattr(A, "big_free_gib", lambda: 40.0)
+    monkeypatch.setattr(A, "token_check", lambda *a, **k: None)
+    out = tmp_path / "arm-r0-a0.out"
+    with pytest.raises(OSError):
+        A.run_arm("arm", "cfg.json", {"log": str(log)}, ["short"], {"short": "hi"}, str(out), 1)
+    saved = (tmp_path / "arm-r0-a0.engine.log").read_text()
+    assert "illegal memory access" in saved and "old start" not in saved

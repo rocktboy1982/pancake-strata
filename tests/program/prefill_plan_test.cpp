@@ -1,6 +1,7 @@
 // The prompt planner's host-memory model (#2824): no GPU, no model.
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 #include "strata/program/prefill_plan.hpp"
@@ -201,6 +202,13 @@ int main() {
     CHECK(equal_tail_min_from("1", "1") == 1);
     CHECK(equal_tail_min_from("1", "0") == kEqualTailMinTail);
     CHECK(equal_tail_min_from("1", "x") == kEqualTailMinTail);
+    // D13: the log line of a changed plan (99997 tokens, cap 32768: 32768 x 3 + 1,693 staged -> 25,088 x 4 chunks)
+    {
+        const std::string l = describe_equal_tail(99997, C, C, 25088, S);
+        CHECK(l.rfind("strata: prefill equal tail: 99997 tokens (cap 32768): default 32768 x 4 chunks, last 1693 (staged", 0) == 0);
+        CHECK(l.find("-> equal 25088 x 4 chunks, last 24733 (tail +23040 tokens)") != std::string::npos);
+        CHECK(l.find('\n') == std::string::npos);
+    }
     std::printf("%s\n", failed ? "FAILED" : "prefill_plan_test: ok");
     return failed ? 1 : 0;
 }

@@ -573,7 +573,22 @@ def n_requests(c, per_run):
     return 1 if is_long(c) else per_run
 
 
-def run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1, passes=1, warmup=0):
+def run_arm(name, cfg_path, cfg, cases, P, log_out, port, *args, **kw):
+    """_run_arm; when it raises (a request fails with HTTP 503 after the engine exited, T-630) the attempt's engine log is
+    still copied to <arm>-r<rep>-a<attempt>.engine.log before the error goes on: it used to be lost with the crash."""
+    log = cfg.get("log")
+    s0 = len(log_lines(log))   # as _run_arm: this start's lines come after s0
+    try:
+        return _run_arm(name, cfg_path, cfg, cases, P, log_out, port, *args, **kw)
+    except BaseException:
+        try:
+            save_engine_log(log, s0, Path(log_out).with_suffix(".engine.log"))
+        except OSError:
+            pass
+        raise
+
+
+def _run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1, passes=1, warmup=0):
     """One engine start: warmup throwaway passes, then `passes` measured passes (a pass = every case once, n_requests each).
     warmup 0: the single short warm-up request instead (as before)."""
     log = cfg.get("log")

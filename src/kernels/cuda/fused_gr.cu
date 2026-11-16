@@ -4,6 +4,7 @@
 #include "strata/core/sm120_series.hpp"
 #include "strata/core/dispatch_stats.hpp"
 #include "strata/core/defaults_026.hpp"
+#include "strata/core/diag_rules.hpp"   // T-602: il_copy_generic_read_ok
 #define STRATA_Q81_FASTMATH_DIV 1   // #3948: the q8_1 tails divide as native_mmvq.cu (--use_fast_math) does, see q8_1_finite.hpp
 #include "strata/kernels/q8_1_finite.hpp"   // #606: q8_1_ds
 #include "strata/core/geometry.hpp"
@@ -3273,6 +3274,17 @@ static bool fused_gr_read_multi_slice(const FusedGrArgs* a, int n_tok, float* xn
     // gr_q8_tail (so only with its counters; null for every token but 0 - token 0's pointer is the one used)
     for (int t = 1; t < n_tok; ++t) m.a[t].q8_il = nullptr;
     if (!q8 || n_tok < 2 || n_tok > 4 || a[0].q8_cnt == nullptr) m.a[0].q8_il = nullptr;
+    // T-602 (MOD_PLAN.md section 7; found by code reading, not yet run on the box): the read that writes the interleaved copy is
+    // the generic one, and it reads w_down / w_up.  With STRATA_GR_RDNA=1 + STRATA_GR_RDNA_Q8=1 (the fast-hip preset) those BF16
+    // rows are never loaded (generate.cpp skips them): only the int8 copies exist, and the generic kernels would read a null
+    // pointer at layer 0.  Refuse the copy then (once, one line): the RDNA read below runs and the caller reads plain columns.
+    // q8_il is only ever set under STRATA_MMVQ_IL_PLAIN=1, so every other run is unchanged.
+    if (m.a[0].q8_il != nullptr && !strata::core::diag::il_copy_generic_read_ok(a[0].w_down != nullptr, a[0].w_up != nullptr,
+                                                                               a[0].r8_down != nullptr, a[0].r8_up != nullptr)) {
+        static std::once_flag il_refused;
+        std::call_once(il_refused, [] { std::fprintf(stderr, "%s\n", strata::core::diag::il_copy_refused_line()); });
+        m.a[0].q8_il = nullptr;
+    }
     m.xn = xn_scratch;
     m.T = n_tok;
     m.sync = gr_sync;

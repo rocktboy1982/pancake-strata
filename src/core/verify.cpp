@@ -11,6 +11,7 @@
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/kernels/rkv.hpp"   // STRATA_RKV
 #include "strata/core/verify.hpp"
+#include "strata/core/diag_rules.hpp"   // T-613 / T-630 diagnostics lines
 #include "strata/artifact/gguf_reader.hpp"
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/epoch_bandit.hpp"
@@ -4821,10 +4822,23 @@ bool Verifier::adapt_gate_wait(int32_t layer, std::string& err) {
     const bool wait_main = ag.last >= 0 && ((size_t) layer >= ag.has.size() || ag.has[(size_t) layer] != 0);
     const bool wait_peer = ag.peer_last >= 0 && ((size_t) layer >= ag.peer_has.size() || ag.peer_has[(size_t) layer] != 0);
     bool announced = false;   // the watchdog's label is set only once the wait really starts: no cost when the copies landed
+    // STRATA_ADAPT_IDLE_COPY_TRACE=1 (default off, T-613): a line when a wait starts, when it ends and when it times out: the layer,
+    // what the counter reached, the signal mode, the host queue (depth, first layer) and the elapsed time.  Nothing else changes.
+    static const bool idle_trace = [] { const char* v = std::getenv("STRATA_ADAPT_IDLE_COPY_TRACE"); return v != nullptr && v[0] == '1'; }();
+    auto trace_gate = [&](const char* phase) {
+        static std::atomic<int> said{0};   // the first 400 waits and every timeout: a long run does not fill the log
+        if (phase[0] != 't' && said.fetch_add(1) >= 400) return;
+        int32_t front = -1;
+        const int64_t q = ag.queued != nullptr ? ag.queued(ag.queued_user, &front) : 0;
+        std::fprintf(stderr, "%s\n", strata::core::diag::gate_trace_line(phase, layer, want, ag.reached(), ag.landed.load(),
+                                                                          ag.hland != nullptr ? (int32_t) *ag.hland : -2,
+                                                                          ag.hland != nullptr, q, front, (double) ms_since(t0)).c_str());
+    };
     while ((wait_main && ag.reached() < want) || (wait_peer && ag.peer_reached() < want_peer)) {
         if (!announced) {
             progress_at("verify window: waiting for the adaptive tier's copies of layer", layer);
             announced = true;
+            if (idle_trace) trace_gate("wait");
         }
         strata_cpu_pause();
         if ((++spins & 1023u) != 0) continue;
@@ -4835,6 +4849,7 @@ bool Verifier::adapt_gate_wait(int32_t layer, std::string& err) {
             const int32_t reach = adapt_gate_->reached(), land = adapt_gate_->landed.load();
             const int32_t hl = adapt_gate_->hland != nullptr ? *adapt_gate_->hland : -2;
             if (g_trace) trace_ev("GATE-TIMEOUT", -1, layer, reach);
+            if (idle_trace) trace_gate("timeout");
             std::fprintf(stderr, "strata verify: the adaptive gate waited %lld ms for layer %d: reached %d "
                                  "(atomic %d, copy signal %d) - the tier's copy stream was not drained by the release\n",
                          (long long) ms_since(t0), (int) layer, (int) reach, (int) land, (int) hl);
@@ -4847,6 +4862,7 @@ bool Verifier::adapt_gate_wait(int32_t layer, std::string& err) {
             return false;
         }
     }
+    if (idle_trace && announced) trace_gate("landed");
     ms_gate += ms_since(t0);
     return true;
 }

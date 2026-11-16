@@ -204,6 +204,23 @@ inline int64_t equal_tail_min_from(const char* on, const char* min_tail) {
     return v >= 1 ? (int64_t) v : kEqualTailMinTail;
 }
 
+/// MOD_PLAN.md section 6 D13: the one log line printed when STRATA_PREFILL_EQUAL_TAIL changed a segment's chunk plan
+/// (`chosen` is equal_tail_chunk's answer, > 0; `plain` the chunk the default plan would read in): both plans' chunk
+/// size, chunk count and last (tail) chunk.  Logging only; the chunks are equal_tail_chunk's.
+inline std::string describe_equal_tail(int64_t tokens, int64_t cap, int64_t plain, int64_t chosen, int64_t stream_min) {
+    const auto count = [](int64_t t, int64_t c) { return c > 0 ? t / c + (t % c != 0) : int64_t(0); };
+    const int64_t n0 = count(tokens, plain), n1 = count(tokens, chosen);
+    const int64_t last0 = n0 > 0 ? tokens - (n0 - 1) * plain : 0, last1 = n1 > 0 ? tokens - (n1 - 1) * chosen : 0;
+    char b[384];
+    std::snprintf(b, sizeof b,
+                  "strata: prefill equal tail: %lld tokens (cap %lld): default %lld x %lld chunks, last %lld (%s, streams from %lld) -> "
+                  "equal %lld x %lld chunks, last %lld (tail %+lld tokens)",
+                  (long long) tokens, (long long) cap, (long long) plain, (long long) n0, (long long) last0,
+                  last0 < stream_min ? "staged" : "streams", (long long) stream_min, (long long) chosen, (long long) n1,
+                  (long long) last1, (long long) (last1 - last0));
+    return b;
+}
+
 /// One log line: what was chosen, why, and the reads it expects per prompt.
 inline std::string describe(const Pick& p, const Host& h, int64_t tokens) {
     char b[768];
