@@ -42,9 +42,30 @@ WORKERS = int(os.getenv("WORKERS", "5"))
 FULL = os.getenv("FULL", "0") == "1"
 LIMIT = int(os.getenv("LIMIT", "0"))
 
-TOKEN = os.getenv("GITHUB_TOKEN")
+for _s in (sys.stdout, sys.stderr):   # a Windows console is cp1252 / cp1250: a fork's name or a commit message must not crash the run
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
+
+def _gh_token():
+    """The token of the GitHub CLI (`gh auth token`), looked up on PATH and at its default Windows install path; "" if none."""
+    import subprocess
+    for exe in ("gh", r"C:\Program Files\GitHub CLI\gh.exe", "/usr/bin/gh", "/usr/local/bin/gh"):
+        try:
+            out = subprocess.run([exe, "auth", "token"], capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    return ""
+
+
+TOKEN = os.getenv("GITHUB_TOKEN") or _gh_token()
 if not TOKEN:
-    sys.exit("Setează GITHUB_TOKEN înainte de rulare, de ex.: GITHUB_TOKEN=$(gh auth token) python3 fork_kb.py")
+    sys.exit("Set GITHUB_TOKEN before running, or log in with the GitHub CLI (`gh auth login`): "
+             "GITHUB_TOKEN=$(gh auth token) python3 tools/forks/fork_kb.py")
 
 BASE_URL = "https://api.github.com"
 HEADERS = {
