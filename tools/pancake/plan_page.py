@@ -97,7 +97,7 @@ def defect_status(b):
     """MOD_PLAN section 7 bullet -> status: its own marker (FIXED / RESOLVED / CLOSED / CODED, a code read or a
     measurement at the start) is done; an explicit OPEN, an inconclusive try or a cosmetic gap still needs a fix."""
     head = b[:80]
-    if re.search(r'\b(FIXED|RESOLVED|CLOSED|CODED)\b', head) or 'code read' in head or re.search(r'measured 20\d\d', head):
+    if re.search(r'\b(FIXED|RESOLVED|CLOSED|CODED|DONE)\b', head) or 'code read' in head or re.search(r'measured 20\d\d', head):
         return 'done'
     if re.search(r'\bQUEUED\b', head):   # its A/B is in a running chain
         return 'queued'
@@ -141,6 +141,7 @@ def plan_items(plan):
             # "DROPPED" (measured and dropped, upper case) wins over the coded markers
             st = ('dropped' if 'DROPPED' in r[1] else
                   'progress' if r[1].startswith(('PARTLY CODED', 'IN PROGRESS')) else
+                  'progress' if re.search(r'FIRST STEP DONE|STEP 1 (TOOL )?CODED', r[1][:900]) else
                   'queued' if re.match(r'^(CODED|PORTED|DONE)[ :]', r[1]) or 'PORTED 2026' in r[1][:200] else 'notstarted')
             add('Code to write', st, '#%s %s' % (r[0], short(r[1], 110)), body, 'MOD_PLAN 6')
     for b in bullets(S.get(7, []), stop=lambda l: l.startswith('Plan claims corrected')):
