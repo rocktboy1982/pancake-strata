@@ -3552,6 +3552,11 @@ if(STRATA_BUILD_TESTS)
     target_link_libraries(pool_micro_parity_test PRIVATE strata_kernels_cpu)
     add_test(NAME pool_micro_parity_test COMMAND pool_micro_parity_test)
     set_tests_properties(pool_micro_parity_test PROPERTIES SKIP_RETURN_CODE 77)
+    # STRATA_CPU_IQ_OWN1 (pszeder b2d00855, own code): the one-token IQ2_XXS / IQ2_XS rows bit for bit against the exact rows
+    add_executable(iq_own1_parity_test tests/core/iq_own1_parity_test.cpp)
+    target_link_libraries(iq_own1_parity_test PRIVATE strata_kernels_cpu)
+    add_test(NAME iq_own1_parity_test COMMAND iq_own1_parity_test)
+    set_tests_properties(iq_own1_parity_test PROPERTIES SKIP_RETURN_CODE 77)
     # LEADS.md B1/B2: STRATA_CPU_ACT_SPARSE's block mask and the Q2_0 rows with the zero blocks skipped vs the full rows
     add_executable(q2_skip_parity src/kernels/cpu/q2_skip_parity.cpp)
     target_link_libraries(q2_skip_parity PRIVATE strata_kernels_cpu)
@@ -3989,7 +3994,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test pool_tasks_test_row_split pool_tasks_test_fuse_row_split pool_tasks_test_defer_actq router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_r4_parity iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
+    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test iq_own1_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_test_entropy pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test

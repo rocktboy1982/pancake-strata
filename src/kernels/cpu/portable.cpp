@@ -151,6 +151,8 @@ void iq512_reference_gu_rows(int, const uint8_t*, size_t, size_t, int, const voi
 void iq512_fused_gu_rows(int, const uint8_t*, size_t, size_t, int, const void* const*, int, float* const*, int, int) {
     unsupported("the AVX-512 fused gate/up kernel");
 }
+bool iq_own1_supported(int) noexcept { return false; }
+void iq_own1_rows(int, const uint8_t*, size_t, int, const void*, float*, int, int) {}
 bool iq256x_supported(int) noexcept { return false; }   // (the DeepSeek CPU lane's multi-token rows: ggml-cpu's NEON dots instead)
 void iq256x_rows(int, const uint8_t*, size_t, int, const void* const*, int, float* const*, int, int) {
     unsupported("the AVX2 multi-token i-quant rows");

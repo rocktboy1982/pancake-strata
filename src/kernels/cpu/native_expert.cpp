@@ -577,6 +577,24 @@ const uint8_t* r4_copy(const NativeFmt& f, const uint8_t* blob) {
 }
 }  // namespace
 
+// STRATA_CPU_IQ_OWN1=1 (opt-in; LEADS.md Part H, pszeder b2d00855, own code): ONE token of IQ2_XXS / IQ2_XS rows (gate/up and down) on
+// iq_own1_rows, which gives ggml-cpu's AVX2 vec_dot's bits (tests/core/iq_own1_parity_test.cpp against the exact rows).  It acts where
+// ggml's dot (or ALL_EXACT1's exact rows) would run at one token, below the multi-token rule, and only where those bits are ggml's:
+// ggml-cpu built for AVX2 and not AVX-512, on a CPU without the 512-bit tier.  Unset: never.
+namespace {
+bool own1_on(int type, int nt) {
+    static const bool gate = [] {
+        const char* v = std::getenv("STRATA_CPU_IQ_OWN1");
+        return v != nullptr && v[0] == '1' && v[1] == 0 && cpu_avx2_ok() && !cpu_avx512_ok() && ggml_cpu_has_avx2() &&
+               ggml_cpu_has_fma() && ggml_cpu_has_f16c() && !ggml_cpu_has_avx512();
+    }();
+    if (!gate || nt != 1 || nt >= native_gu_mt_min(type) || !iq_own1_supported(type)) return false;
+    static std::once_flag announced;
+    std::call_once(announced, [] { std::fprintf(stderr, "strata ab: GATE=STRATA_CPU_IQ_OWN1 active=1\n"); });
+    return true;
+}
+}  // namespace
+
 template <NativeArithmetic Arithmetic>
 void native_gu_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* const* act, int nt, float* const* ff,
                     int r0, int r1) {
@@ -612,6 +630,16 @@ void native_gu_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* co
     }();
     // only where ggml's dot runs today (below the #152 multi-token rule): with STRATA_IQ_MT_MIN=1 a lone token keeps the
     // multi-token kernel, so a token's rows still do not depend on how many tokens share its expert
+    if (f.tail_off == 0 && own1_on(f.gu_type, nt)) {   // STRATA_CPU_IQ_OWN1: the same bits as ggml's dot and the exact rows below
+        float g[64], u[64];
+        for (int c0 = r0; c0 < r1; c0 += 64) {
+            const int c1 = std::min(r1, c0 + 64);
+            iq_own1_rows(f.gu_type, blob + (size_t) c0 * f.gu_row, f.gu_row, (int) f.n_embd, act[0], g, 0, c1 - c0);
+            iq_own1_rows(f.gu_type, blob + f.up_off + (size_t) c0 * f.gu_row, f.gu_row, (int) f.n_embd, act[0], u, 0, c1 - c0);
+            for (int r = c0; r < c1; ++r) ff[0][r] = (g[r - c0] / (1.f + std::exp(-g[r - c0]))) * u[r - c0];
+        }
+        return;
+    }
     if (exact_one && nt == 1 && nt < native_gu_mt_min(f.gu_type) && avx2 && !cpu_avx512_ok() &&
         (f.gu_type == 16 || f.gu_type == 17 || f.gu_type == 18 || f.gu_type == 21 || f.gu_type == 22)) {
         static std::once_flag announced;
@@ -836,6 +864,15 @@ void native_down_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* 
     static const bool nvfp4_256 = cpu_avx2_ok() && std::getenv("STRATA_NO_NVFP4_256") == nullptr;   // see above
     if (f.d_type == kNvfp4Type && nvfp4_256 && nvfp4_256_fits(n)) {
         nvfp4_256_rows(blob + f.down_off, f.d_row, n, hq, nt, out, r0, r1, sd);
+        return;
+    }
+    if (f.tail_off == 0 && own1_on(f.d_type, nt)) {   // STRATA_CPU_IQ_OWN1 (see the gate/up rows)
+        float s[64];
+        for (int c0 = r0; c0 < r1; c0 += 64) {
+            const int c1 = std::min(r1, c0 + 64);
+            iq_own1_rows(f.d_type, blob + f.down_off + (size_t) c0 * f.d_row, f.d_row, n, hq[0], s, 0, c1 - c0);
+            for (int r = c0; r < c1; ++r) out[0][r] = s[r - c0];
+        }
         return;
     }
     const ggml_vec_dot_t dot = traits(f.d_type)->vec_dot;

@@ -591,6 +591,133 @@ void iq256_gu_rows_r4(int type, const uint8_t* blob4, size_t gu_row, size_t up_o
     plain::gu_rows_r4_nt(nt, blob4, gu_row, up_off, n, act, ff, r0, r1);
 }
 
+// ---- STRATA_CPU_IQ_OWN1 (fork pszeder b2d00855, LEADS.md Part H; own code): ONE token of an IQ2_XXS (16) / IQ2_XS (17) row
+// range, the exact rows' bits (iq256x_rows at nt == 1, which is ggml-cpu's AVX2 vec_dot: the same int32 lanes, f16(d) * y.d,
+// one fmadd a block, 0.125 * ggml's hsum), the block decoded differently: the grid rows of four groups come from one load
+// plus three broadcast-blends (not four scalar loads into set_epi64x), and the signs are made by SIMD from the 7-bit
+// indices (the parity bit by a pshufb table) instead of loads from the even-signs / ksigns tables.  Integer sums are
+// associative, so the chain assignment does not change a bit; tests/core/iq_own1_parity_test.cpp compares with iq256x_rows.
+namespace own1 {
+inline float hsum8(__m256 x) {
+    __m128 s = _mm_add_ps(_mm256_extractf128_ps(x, 1), _mm256_castps256_ps128(x));
+    s = _mm_add_ps(s, _mm_movehl_ps(s, s));
+    s = _mm_add_ss(s, _mm_movehdup_ps(s));
+    return _mm_cvtss_f32(s);
+}
+// four 8-byte grid rows of `grid`: one load and three broadcast + blend
+inline __m256i grid4(const uint64_t* grid, uint32_t i0, uint32_t i1, uint32_t i2, uint32_t i3) {
+    __m256i g = _mm256_castsi128_si256(_mm_loadl_epi64((const __m128i*) (grid + i0)));
+    g = _mm256_blend_epi32(g, _mm256_set1_epi64x((long long) grid[i1]), 0x0c);
+    g = _mm256_blend_epi32(g, _mm256_set1_epi64x((long long) grid[i2]), 0x30);
+    g = _mm256_blend_epi32(g, _mm256_set1_epi64x((long long) grid[i3]), 0xc0);
+    return g;
+}
+inline __m256i bit_select() {
+    return _mm256_setr_epi8(1, 2, 4, 8, 16, 32, 64, (char) 0x80, 1, 2, 4, 8, 16, 32, 64, (char) 0x80,
+                            1, 2, 4, 8, 16, 32, 64, (char) 0x80, 1, 2, 4, 8, 16, 32, 64, (char) 0x80);
+}
+inline __m256i spread_bytes() {
+    return _mm256_setr_epi8(0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+                            2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3);
+}
+// 0x80 for a nibble of odd popcount: bit 7 of ksigns_iq2xs (the even parity of the 7-bit index)
+inline __m128i parity_table() {
+    return _mm_setr_epi8(0, (char) 0x80, (char) 0x80, 0, (char) 0x80, 0, 0, (char) 0x80,
+                         (char) 0x80, 0, 0, (char) 0x80, 0, (char) 0x80, (char) 0x80, 0);
+}
+// the sign vector (-1 / +1 bytes for _mm256_sign_epi8) of 4 groups of 8 whose 7-bit sign indices are bytes 0..3 of idx
+inline __m256i sign_vec4(__m128i idx, __m128i ptab, __m256i bsel) {
+    const __m128i par = _mm_shuffle_epi8(ptab, _mm_and_si128(_mm_xor_si128(idx, _mm_srli_epi16(idx, 4)), _mm_set1_epi8(0x0f)));
+    const __m128i fsb = _mm_or_si128(idx, par);
+    const __m256i bits = _mm256_shuffle_epi8(_mm256_broadcastsi128_si256(fsb), spread_bytes());
+    return _mm256_or_si256(_mm256_cmpeq_epi8(_mm256_and_si256(bits, bsel), bsel), _mm256_set1_epi8(1));
+}
+
+float dot_xxs(const uint8_t* row, int nb, const block_q8_K* y) {
+    const __m256i bsel = bit_select();
+    const __m128i ptab = parity_table();
+    const __m128i m7f = _mm_set1_epi32(127);
+    const __m128i shifts = _mm_setr_epi32(0, 7, 14, 21);
+    const __m128i pack4 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    const int pf = prefetch_distance();
+    __m256 accf = _mm256_setzero_ps();
+    for (int i = 0; i < nb; ++i) {
+        const uint8_t* blk = row + (size_t) i * 66;
+        if (pf > 0) {
+            _mm_prefetch((const char*) blk + pf, _MM_HINT_T0);
+            _mm_prefetch((const char*) blk + pf + 64, _MM_HINT_T0);
+        }
+        __m256i acc[4] = {_mm256_setzero_si256(), _mm256_setzero_si256(), _mm256_setzero_si256(), _mm256_setzero_si256()};
+        for (int c = 0; c < 8; ++c) {   // sub-block c: 32 weights, 4 grid index bytes then 4 x 7 sign bits and the scale
+            const uint8_t* q = blk + 2 + 8 * c;
+            const uint32_t w0 = u32(q), w1 = u32(q + 4);
+            const __m256i g = grid4(iq2xxs_grid, w0 & 255, (w0 >> 8) & 255, (w0 >> 16) & 255, w0 >> 24);
+            __m128i idx = _mm_and_si128(_mm_srlv_epi32(_mm_set1_epi32((int) w1), shifts), m7f);
+            idx = _mm_shuffle_epi8(idx, pack4);   // the four 7-bit indices as bytes 0..3
+            const __m256i sgn = sign_vec4(idx, ptab, bsel);
+            const __m256i sc = _mm256_set1_epi16((short) (2 * (int) (w1 >> 28) + 1));
+            const __m256i yv = _mm256_loadu_si256((const __m256i*) (y[i].qs + 32 * c));
+            const __m256i p = _mm256_maddubs_epi16(g, _mm256_sign_epi8(yv, sgn));
+            acc[c & 3] = _mm256_add_epi32(acc[c & 3], _mm256_madd_epi16(p, sc));
+        }
+        const __m256i s = _mm256_add_epi32(_mm256_add_epi32(acc[0], acc[1]), _mm256_add_epi32(acc[2], acc[3]));
+        accf = _mm256_fmadd_ps(_mm256_set1_ps(h2f(u16(blk)) * y[i].d), _mm256_cvtepi32_ps(s), accf);
+    }
+    return 0.125f * hsum8(accf);
+}
+
+float dot_xs(const uint8_t* row, int nb, const block_q8_K* y) {
+    const __m256i bsel = bit_select();
+    const __m128i ptab = parity_table();
+    const __m128i m4 = _mm_set1_epi8(0xf), m1 = _mm_set1_epi8(1);
+    const int pf = prefetch_distance();
+    __m256 accf = _mm256_setzero_ps();
+    for (int i = 0; i < nb; ++i) {
+        const uint8_t* blk = row + (size_t) i * 74;
+        if (pf > 0) {
+            _mm_prefetch((const char*) blk + pf, _MM_HINT_T0);
+            _mm_prefetch((const char*) blk + pf + 64, _MM_HINT_T0);
+        }
+        // the 8 scale bytes: low nibble then high nibble of each, 2 * s + 1: byte 2h is a (values 0-15 of half h), 2h + 1 is b
+        long long sraw;
+        std::memcpy(&sraw, blk + 66, 8);
+        __m128i st = _mm_set1_epi64x(sraw);
+        st = _mm_unpacklo_epi8(_mm_and_si128(st, m4), _mm_and_si128(_mm_srli_epi16(st, 4), m4));
+        alignas(16) uint8_t sc8[16];
+        _mm_store_si128((__m128i*) sc8, _mm_add_epi8(_mm_slli_epi16(st, 1), m1));
+        __m256i acc[4] = {_mm256_setzero_si256(), _mm256_setzero_si256(), _mm256_setzero_si256(), _mm256_setzero_si256()};
+        for (int h = 0; h < 8; ++h) {   // half h: 32 weights = 4 groups of 8, u16 qs[4h .. 4h + 3]
+            uint64_t t;
+            std::memcpy(&t, blk + 2 + 8 * h, 8);   // four u16: 9-bit grid index + 7-bit sign index
+            const __m256i g = grid4(iq2xs_grid, (uint32_t) t & 511u, (uint32_t) (t >> 16) & 511u, (uint32_t) (t >> 32) & 511u,
+                                    (uint32_t) (t >> 48) & 511u);
+            const __m128i sidx = _mm_srli_epi16(_mm_cvtsi64_si128((long long) t), 9);   // the four 7-bit indices, as u16
+            const __m256i sgn = sign_vec4(_mm_packus_epi16(sidx, sidx), ptab, bsel);
+            const __m256i sc = _mm256_inserti128_si256(_mm256_castsi128_si256(_mm_set1_epi16((short) sc8[2 * h])),
+                                                       _mm_set1_epi16((short) sc8[2 * h + 1]), 1);
+            const __m256i yv = _mm256_loadu_si256((const __m256i*) (y[i].qs + 32 * h));
+            const __m256i p = _mm256_maddubs_epi16(g, _mm256_sign_epi8(yv, sgn));
+            acc[h & 3] = _mm256_add_epi32(acc[h & 3], _mm256_madd_epi16(p, sc));
+        }
+        const __m256i s = _mm256_add_epi32(_mm256_add_epi32(acc[0], acc[1]), _mm256_add_epi32(acc[2], acc[3]));
+        accf = _mm256_fmadd_ps(_mm256_set1_ps(h2f(u16(blk)) * y[i].d), _mm256_cvtepi32_ps(s), accf);
+    }
+    return 0.125f * hsum8(accf);
+}
+}  // namespace own1
+
+bool iq_own1_supported(int type) noexcept { return type == 16 || type == 17; }
+
+void iq_own1_rows(int type, const uint8_t* w, size_t row_bytes, int n, const void* act, float* out, int r0, int r1) {
+    const auto* y = (const block_q8_K*) act;
+    const int nb = n / 256;
+    if (type == 16) {
+        for (int r = r0; r < r1; ++r) out[r - r0] = own1::dot_xxs(w + (size_t) r * row_bytes, nb, y);
+    } else if (type == 17) {
+        for (int r = r0; r < r1; ++r) out[r - r0] = own1::dot_xs(w + (size_t) r * row_bytes, nb, y);
+    }
+}
+
 bool iq256x_supported(int type) noexcept { return type == 16 || type == 17 || type == 18 || type == 21 || type == 22 || type == 29; }
 
 void iq256x_rows(int type, const uint8_t* w, size_t row_bytes, int n, const void* const* act, int nt, float* const* out,

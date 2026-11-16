@@ -460,6 +460,7 @@ STRATA_ENV("STRATA_CONV_WORKSET_MATCH", Speed, "placement: fMoE-style histogram-
 STRATA_ENV("STRATA_CONV_WORKSET_TOKENS", Speed, "cache/threads/park policy")
 STRATA_ENV("STRATA_COPY_HIP_PRIO", Speed, "graph/stream/doorbell plumbing")
 STRATA_ENV("STRATA_CPU_IQ_ALL_EXACT1", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_CPU_IQ_OWN1", Speed, "bitwise: one-token IQ2_XXS / IQ2_XS rows equal iq256x_rows = ggml-cpu AVX2 dot (iq_own1_parity_test); acts only where ggml is AVX2 without AVX-512")
 STRATA_ENV("STRATA_CVEC_FUSE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_DALI", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_DEC_BATCH", Speed, "bitwise: documented (docs/README/code comment/parity test)")

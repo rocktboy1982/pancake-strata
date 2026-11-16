@@ -1,0 +1,35 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "all-exact1": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CPU_IQ_ALL_EXACT1": "1"
+      }
+    },
+    "own1": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CPU_IQ_OWN1": "1"
+      }
+    },
+    "own1-all-exact1": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CPU_IQ_OWN1": "1",
+        "STRATA_CPU_IQ_ALL_EXACT1": "1"
+      }
+    }
+  },
+  "note": "NOT RUN. LEADS.md Part H (pszeder b2d00855), MOD_PLAN.md section 6 item 43: STRATA_CPU_IQ_OWN1 (own code, bit-exact one-token IQ2_XXS / IQ2_XS rows for gate/up AND down, vs STRATA_CPU_IQ_ALL_EXACT1 which covers gate/up only). Acts only at one token per expert below the multi-token rule, and only where ggml-cpu is AVX2 without AVX-512 and the CPU has no 512-bit tier (check the log line 'strata ab: GATE=STRATA_CPU_IQ_OWN1 active=1'; absent = the arm did nothing on this box CPU). Exact: drift_check must show no text change. Host timing (T-730) showed own1 10-30% SLOWER than the exact rows when L2-resident on the Windows host: expect no gain; the fork claim (31 -> 21 ns/block, +2% DRAM-bound) is on Broadwell. Stop pancake.service first."
+}
