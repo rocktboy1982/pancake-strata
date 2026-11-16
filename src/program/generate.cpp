@@ -8386,7 +8386,20 @@ int main(int argc, char** argv) {
 #endif
         if (io_pf_default || (io_pf_env != nullptr && std::atoi(io_pf_env) != 0)) {
             const char* th = std::getenv("STRATA_IO_PF_THREADS");
-            src.set_io_prefetch(true, th != nullptr ? std::atoi(th) : 0);
+            int io_threads = th != nullptr ? std::atoi(th) : 0;
+            // STRATA_STAGER_PROBE=1 (opt-in; LEADS.md B69, Project Maya MAYA_EXPERT_STAGERS "probed per drive"): the
+            // decode I/O threads from the per-drive timing too, when STRATA_IO_PF_THREADS is unset (else its 8)
+            if (const char* sp = std::getenv("STRATA_STAGER_PROBE"); sp != nullptr && sp[0] == '1' && th == nullptr) {
+                std::vector<std::string> paths;
+                for (const auto& in : src.model_inputs())
+                    if (std::find(paths.begin(), paths.end(), in.second) == paths.end()) paths.push_back(in.second);
+                std::string note;
+                const int probed = strata::core::stager_drive_probe_threads(paths, note);
+                if (probed > 0) io_threads = probed;
+                std::fprintf(stderr, "strata generate: STRATA_STAGER_PROBE: %d io prefetch threads (%s)\n",
+                             io_threads > 0 ? io_threads : 8, note.c_str());
+            }
+            src.set_io_prefetch(true, io_threads);
             io_pf_by_default = io_pf_default && src.io_prefetch();
             if (src.io_prefetch() && io_pf_default) {
                 const char* cv = std::getenv("STRATA_COLD_OVERLAP");

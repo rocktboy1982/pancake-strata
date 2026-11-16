@@ -2200,7 +2200,20 @@ bool Prefill::init(const core::WeightTable& wt, const core::ModelGeometry& g, co
                 std::fprintf(stderr, "prefill: the GGUF experts are %.0f%% in the page cache; the stager takes the RAM profile\n", warm * 100.0);
             }
         }
-        const int threads = stv ? std::clamp(std::atoi(stv), 1, 32) : files ? 32 : std::max(2, std::min(4, hw / 4));
+        int threads = stv ? std::clamp(std::atoi(stv), 1, 32) : files ? 32 : std::max(2, std::min(4, hw / 4));
+        // STRATA_STAGER_PROBE=1 (opt-in; LEADS.md B69, Project Maya MAYA_EXPERT_STAGERS "probed per drive"): with the
+        // SSD profile and no STRATA_STAGER_THREADS, the thread count comes from a start-up timing of each drive the
+        // expert files sit on instead of the fixed 32 (the ring follows it below).  Unset: as before.
+        static const bool stager_probe = [] { const char* v = std::getenv("STRATA_STAGER_PROBE"); return v != nullptr && v[0] == '1'; }();
+        if (stager_probe && files && !stv) {
+            std::vector<std::string> paths;
+            for (const auto& in : src->model_inputs())
+                if (std::find(paths.begin(), paths.end(), in.second) == paths.end()) paths.push_back(in.second);
+            std::string note;
+            const int probed = strata::core::stager_drive_probe_threads(paths, note);
+            if (probed > 0) threads = probed;
+            std::fprintf(stderr, "prefill: STRATA_STAGER_PROBE: %d stager threads (%s)\n", threads, note.c_str());
+        }
         if (files && std::getenv("STRATA_STAGER_RING") == nullptr) m.stager->kRing = 4 * threads;
         // pp-opt: with files, each thread claims runs of neighbouring blobs and reads them as one request (copy_blobs);
         // STRATA_STAGER_BATCH=1 is the A/B arm (one blob per request, as before)

@@ -899,6 +899,7 @@ STRATA_ENV("STRATA_STACK_ISOLATE", Speed, "multi-GPU / batch / layer-split plann
 STRATA_ENV("STRATA_STAGER_BATCH", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_STAGER_RING", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_STAGER_SLEEP", Speed, "prompt path scheduling/staging/chunk sizing")
+STRATA_ENV("STRATA_STAGER_PROBE", Speed, "LEADS.md B69 (Maya per-drive probe): stager and io prefetch thread counts from a start-up drive timing; same bytes")
 STRATA_ENV("STRATA_STAGER_SSD", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_STAGER_THREADS", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_STAGE_PIN", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
