@@ -385,7 +385,7 @@ Dropped as irrelevant (2-GPU / multi-user / non-HIP hardware): Strata-DualGPU + 
 | B107 | 90 `pin_sibling` threshold (`STRATA_PIN_PARK_TOKENS`) before Qwen auto-pin | full re-read of 19-41K parent | exact | src/program/generate.cpp:17642; env.def:582 |
 | B108 | 92/93/94/95/95b build matrix, tests dir, flags.def registry, main() split, stubs | 872 STRATA_* names, 18,361-line main | n/a | tools/pancake/build_matrix.sh; include/strata/prefill/moe_fused_iq.hpp:47 |
 | B109 | dan-99 list: drop trailing `wait_parked` (pool.cpp:1373) | est. 0.2-0.5 ms/window | exact | include/strata/kernels/cpu/pool.hpp:308 |
-| B110 | dan-99 list: `row_multi<1>` FMA chain split, per-window getenv, serial activation quant, scalar exp SwiGLU | 0-3% each | exact / not bit-identical (FMA) | - |
+| B110 | dan-99 list: `row_multi<1>` FMA chain split, per-window getenv, serial activation quant, scalar exp SwiGLU | 0-3% each | exact / not bit-identical (FMA) | 2026-11-17: CODED default off, host-tested, NOT RUN on the box: `STRATA_POOL_MICRO_Q2FMA2` (two accumulator chains in the one-token Q2_0 row, rounding class) and `STRATA_POOL_MICRO_SWIGLU` (8-lane exp, one-token IQ512 gather site only), T-716, specs 137 / 138 (MOD_PLAN.md item 40); serial activation quant = `STRATA_POOL_DEFER_ACTQ` (already coded); per-window getenv: not found in the one-token path (reads are once-static) |
 | B111 | dan-99 list: MWAITX instead of pause-spin | 0-3% est. | exact | src/core/conversation_disk_env.def:615 |
 | B112 | Fusion targets: swiglu+quant as `expdec_gu` epilogue (~49 launches/window), router GEMV + `route_publish_res` | - | exact | - |
 | B113 | 84 seeds inert under KMISS: virtual miss bits | placement | exact | - |

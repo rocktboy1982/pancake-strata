@@ -634,7 +634,12 @@ void native_gu_rows_impl(const NativeFmt& f, const uint8_t* blob, const void* co
             const int c1 = std::min(r1, c0 + 64);
             iq512x_rows(f.gu_type, blob + (size_t) c0 * f.gu_row, f.gu_row, n1, act, 1, gp, 0, c1 - c0);
             iq512x_rows(f.gu_type, blob + f.up_off + (size_t) c0 * f.gu_row, f.gu_row, n1, act, 1, up, 0, c1 - c0);
-            for (int r = c0; r < c1; ++r) ff[0][r] = (g[r - c0] / (1.f + std::exp(-g[r - c0]))) * u[r - c0];
+            static const bool vec_swiglu = swiglu_vec_enabled() && cpu_avx2_ok();   // STRATA_POOL_MICRO_SWIGLU
+            if (vec_swiglu) {
+                swiglu_mul_avx2(g, u, ff[0] + c0, c1 - c0);
+            } else {
+                for (int r = c0; r < c1; ++r) ff[0][r] = (g[r - c0] / (1.f + std::exp(-g[r - c0]))) * u[r - c0];
+            }
         }
         return;
     }

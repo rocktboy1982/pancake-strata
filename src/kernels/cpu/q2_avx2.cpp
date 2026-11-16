@@ -90,6 +90,11 @@ int q2_prefetch_bytes() {
     }();
     return v;
 }
+// STRATA_POOL_MICRO_Q2FMA2=1 (opt-in, read once; lead B110): the one-token row with two accumulator chains (not bit-identical)
+bool q2_micro_fma2() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_POOL_MICRO_Q2FMA2"); return e != nullptr && e[0] == '1'; }();
+    return v;
+}
 }  // namespace
 
 // ---- the row kernel, twice: the AVX2 form and the AVX-VNNI one (q2_avx2_rows.inl)
@@ -270,6 +275,58 @@ void q2_0_gguf_rows_multi_avx2_v(bool vnni_rows, const uint8_t* w, size_t row_by
 #endif
     (void) vnni_rows;
     plain::rows_nt(w, row_bytes, nblocks, a, nt, out, r0, r1);
+}
+
+bool q2_micro_fma2_enabled() { return q2_micro_fma2(); }
+
+// STRATA_POOL_MICRO_SWIGLU=1 (opt-in, read once; lead B110): out[i] = silu(g[i]) * u[i] with an 8-lane exp (Cephes expf:
+// range reduction by ln2 in two steps, a degree-5 polynomial, 2^n by the exponent bits) instead of std::exp per element.
+// Not bit-identical to g / (1 + std::exp(-g)) * u (a few ulp in exp); the division and the products are exact IEEE.
+bool swiglu_vec_enabled() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_POOL_MICRO_SWIGLU"); return e != nullptr && e[0] == '1'; }();
+    return v;
+}
+
+namespace {
+inline __m256 exp256(__m256 x) {
+    x = _mm256_min_ps(_mm256_max_ps(x, _mm256_set1_ps(-87.3f)), _mm256_set1_ps(88.3f));
+    const __m256 n = _mm256_round_ps(_mm256_mul_ps(x, _mm256_set1_ps(1.44269504088896341f)),
+                                     _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    __m256 r = _mm256_fnmadd_ps(n, _mm256_set1_ps(0.693359375f), x);
+    r = _mm256_fnmadd_ps(n, _mm256_set1_ps(-2.12194440e-4f), r);
+    __m256 p = _mm256_set1_ps(1.9875691500e-4f);
+    p = _mm256_fmadd_ps(p, r, _mm256_set1_ps(1.3981999507e-3f));
+    p = _mm256_fmadd_ps(p, r, _mm256_set1_ps(8.3334519073e-3f));
+    p = _mm256_fmadd_ps(p, r, _mm256_set1_ps(4.1665795894e-2f));
+    p = _mm256_fmadd_ps(p, r, _mm256_set1_ps(1.6666665459e-1f));
+    p = _mm256_fmadd_ps(p, r, _mm256_set1_ps(5.0000001201e-1f));
+    p = _mm256_fmadd_ps(_mm256_mul_ps(p, _mm256_mul_ps(r, r)), _mm256_set1_ps(1.f), _mm256_add_ps(r, _mm256_set1_ps(1.f)));
+    const __m256i e = _mm256_slli_epi32(_mm256_add_epi32(_mm256_cvtps_epi32(n), _mm256_set1_epi32(127)), 23);
+    return _mm256_mul_ps(p, _mm256_castsi256_ps(e));
+}
+}  // namespace
+
+void swiglu_mul_avx2(const float* g, const float* u, float* out, int n) {
+    int i = 0;
+    const __m256 one = _mm256_set1_ps(1.f), zero = _mm256_setzero_ps();
+    for (; i + 8 <= n; i += 8) {
+        const __m256 gv = _mm256_loadu_ps(g + i);
+        const __m256 e = exp256(_mm256_sub_ps(zero, gv));
+        _mm256_storeu_ps(out + i, _mm256_mul_ps(_mm256_div_ps(gv, _mm256_add_ps(one, e)), _mm256_loadu_ps(u + i)));
+    }
+    for (; i < n; ++i) out[i] = (g[i] / (1.f + std::exp(-g[i]))) * u[i];
+}
+
+void q2_0_gguf_rows_one_split_avx2_v(bool vnni_rows, const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* a,
+                                     float* out, int r0, int r1) {
+#if STRATA_AVXVNNI
+    if (vnni_rows) {
+        vnni::rows_split1(w, row_bytes, nblocks, a, out, r0, r1);
+        return;
+    }
+#endif
+    (void) vnni_rows;
+    plain::rows_split1(w, row_bytes, nblocks, a, out, r0, r1);
 }
 
 void q2_0_gguf_rows_multi_avx2_legacy(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,

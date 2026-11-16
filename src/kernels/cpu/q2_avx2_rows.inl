@@ -40,6 +40,37 @@ inline void row_multi(const uint8_t* row, const ActQ* const* a, int nblocks, flo
     }
 }
 
+// STRATA_POOL_MICRO_Q2FMA2=1 (lead B110, LEADS.md; opt-in, not bit-identical): the one-token row with two accumulator chains
+// (the low and the high 32 codes of a block) instead of one chain of two dependent FMAs per block, so a block costs
+// one FMA latency instead of two.  The sum is reassociated: acc0 + acc1 differs from the single chain in the last bits
+// (class "rounding", tolerance test tests/core/pool_micro_parity_test.cpp).  Only nt == 1 (rows_nt case 1).
+STRATA_ROWS_FN
+inline float row_one_split(const uint8_t* row, const ActQ* a, int nblocks) {
+    __m256 acc0 = _mm256_setzero_ps(), acc1 = _mm256_setzero_ps();
+    float corr = 0.f;
+    for (int b = 0; b < nblocks; ++b) {
+        const uint8_t* blk = row + (size_t) b * 18;
+        const float d = h2f(blk);
+        __m256i lo, hi;
+        unpack64(blk + 2, lo, hi);
+        const int8_t* q = a->q + b * 64;
+        const __m256i s0 = dot4(lo, _mm256_loadu_si256((const __m256i*) q));
+        const __m256i s1 = dot4(hi, _mm256_loadu_si256((const __m256i*) (q + 32)));
+        acc0 = _mm256_fmadd_ps(_mm256_set1_ps(d * a->scale[2 * b]), _mm256_cvtepi32_ps(s0), acc0);
+        acc1 = _mm256_fmadd_ps(_mm256_set1_ps(d * a->scale[2 * b + 1]), _mm256_cvtepi32_ps(s1), acc1);
+        corr += d * (a->hx[2 * b] + a->hx[2 * b + 1]);
+    }
+    const __m256 acc = _mm256_add_ps(acc0, acc1);
+    const __m128 h = _mm_add_ps(_mm256_castps256_ps128(acc), _mm256_extractf128_ps(acc, 1));
+    const __m128 s = _mm_add_ps(h, _mm_movehl_ps(h, h));
+    return _mm_cvtss_f32(_mm_add_ss(s, _mm_movehdup_ps(s))) - corr;
+}
+
+STRATA_ROWS_FN
+void rows_split1(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* a, float* out, int r0, int r1) {
+    for (int r = r0; r < r1; ++r) out[r] = row_one_split(w + (size_t) r * row_bytes, a, nblocks);
+}
+
 template <int NT> STRATA_ROWS_FN
 void rows(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, float* const* out, int r0, int r1) {
     float res[NT];
@@ -149,7 +180,10 @@ void rows_fast_nt(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* c
 STRATA_ROWS_FN void rows_nt(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
                             float* const* out, int r0, int r1) {
     switch (nt) {
-        case 1: rows<1>(w, row_bytes, nblocks, a, out, r0, r1); break;
+        case 1:
+            if (q2_micro_fma2()) rows_split1(w, row_bytes, nblocks, a[0], out[0], r0, r1);   // STRATA_POOL_MICRO_Q2FMA2
+            else rows<1>(w, row_bytes, nblocks, a, out, r0, r1);
+            break;
         case 2: rows<2>(w, row_bytes, nblocks, a, out, r0, r1); break;
         case 3: rows<3>(w, row_bytes, nblocks, a, out, r0, r1); break;
         case 4: rows<4>(w, row_bytes, nblocks, a, out, r0, r1); break;

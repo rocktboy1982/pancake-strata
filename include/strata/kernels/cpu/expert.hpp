@@ -194,6 +194,15 @@ void q2_hi_rows_scalar(const uint8_t* planes, int nblocks, const ActQ* const* a,
 void q2_hi_rows_avx2(const uint8_t* planes, int nblocks, const ActQ* const* a, int nt, float* const* out, int r0, int r1);
 /// STRATA_Q2_BITPLANE=1 (read once): the AVX-2 Q2_0 kernel reads the bit-plane image instead of the legacy one.
 bool q2_bitplane_enabled();
+/// STRATA_POOL_MICRO_Q2FMA2=1 (read once; opt-in, lead B110): the one-token row of rows_nt runs two accumulator chains.
+/// Reassociated, so not bit-identical (rounding class); the entry below is that row kernel for tests and benches.
+bool q2_micro_fma2_enabled();
+/// STRATA_POOL_MICRO_SWIGLU=1 (read once; opt-in, lead B110): swiglu_mul_avx2 writes out[i] = silu(g[i]) * u[i] with a vector exp
+/// (not bit-identical, a few ulp); the caller falls back to std::exp when off.  AVX2 CPUs only (check cpu_avx2_ok()).
+bool swiglu_vec_enabled();
+void swiglu_mul_avx2(const float* g, const float* u, float* out, int n);
+void q2_0_gguf_rows_one_split_avx2_v(bool vnni, const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* a, float* out,
+                                     int r0, int r1);
 /// The pre-bit-plane AVX-2 kernel (the default), kept for A/B and parity.
 void q2_0_gguf_rows_multi_avx2_legacy(const uint8_t* w, size_t row_bytes, int nblocks, const ActQ* const* a, int nt,
                                       float* const* out, int r0, int r1);

@@ -109,6 +109,12 @@ void q2_0_gguf_rows_multi_avx2_v(bool, const uint8_t*, size_t, int, const ActQ* 
     unsupported("the Q2_0 GGUF row kernel");
 }
 bool q2_fast_enabled() { return false; }
+bool q2_micro_fma2_enabled() { return false; }
+bool swiglu_vec_enabled() { return false; }
+void swiglu_mul_avx2(const float*, const float*, float*, int) { unsupported("the AVX-2 SwiGLU"); }
+void q2_0_gguf_rows_one_split_avx2_v(bool, const uint8_t*, size_t, int, const ActQ*, float*, int, int) {
+    unsupported("the Q2_0 GGUF row kernel");
+}
 int q2_fast_corr_form(bool) { return -1; }
 void q2_0_gguf_rows_multi_avx2_fast(const uint8_t*, size_t, int, const ActQ* const*, int, float* const*, int, int) {
     unsupported("the Q2_0 GGUF row kernel");

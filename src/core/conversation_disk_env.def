@@ -46,6 +46,8 @@ STRATA_ENV("STRATA_VERIFY_DEFER_CPU_TOP", Key, "deferral top-k")
 
 // ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (100) ----
 STRATA_ENV("STRATA_AMD_COMMUNITY_TUNING", KeyIfSet, "makes SELECT_SIMT=2 the default on gfx103x (other summation order, KL 0.0256) and loads community GEMM tables")
+STRATA_ENV("STRATA_POOL_MICRO_Q2FMA2", KeyIfSet, "B110: one-token Q2_0 CPU row with two accumulator chains; reassociated sum, rounding class (pool_micro_parity_test)")
+STRATA_ENV("STRATA_POOL_MICRO_SWIGLU", KeyIfSet, "B110: 8-lane exp in the one-token IQ gate/up SwiGLU; exp within a few ulp of std::exp (pool_micro_parity_test)")
 STRATA_ENV("STRATA_BFLA", Inert, "old BFLA switch, split in two: turns nothing on, prints a note")
 STRATA_ENV("STRATA_BUDDY", KeyIfSet, "BuddyMoE substitution: a missed expert computed with a resident buddy's weights (lossy; LEADS.md Part E)")
 STRATA_ENV("STRATA_BUDDY_MIN", KeyIfSet, "BuddyMoE co-activation threshold")
