@@ -64,6 +64,8 @@
 #include "strata/kernels/native_mmvq.hpp"
 #include "strata/kernels/q5k_head.hpp"
 #include "strata/kernels/head_fmt.hpp"
+#include "strata/kernels/head_shortlist.hpp"
+#include "strata/program/head_shortlist.hpp"
 #include "strata/core/dispatch_stats.hpp"
 #include "strata/kernels/native_gr_postops.hpp"
 #include "strata/kernels/native_ple_postops.hpp"
@@ -667,9 +669,20 @@ inline int g_gdn_specla_rows(int max_t) {
 // MOD_PLAN.md section 6 item 17 part 18, STRATA_HEAD_ARGMAX_FUSED=1 (opt-in, read once, exact): the verify head's greedy
 // pick folded into the head format's GEMV (head_fmt.hpp, head_argmax_parity).  Only builds with the head kernels
 // (CUDA's STRATA_HAVE_Q5K_HEAD, or HIP configured with -DSTRATA_HIP_HEAD_FMT=ON); elsewhere false.
+// MOD_PLAN.md section 6 item 38, STRATA_HEAD_SHORTLIST=<file.shl> (opt-in, LOSSY, read once): the greedy pick (and any sample) is
+// taken over the rows of the best clusters only (head_shortlist.hpp); the fused / wide head picks are off while it is set.
+inline const char* head_shortlist_path() {
+    static const char* v = [] { const char* e = std::getenv("STRATA_HEAD_SHORTLIST"); return (e != nullptr && e[0] != ' ') ? e : nullptr; }();
+    return v;
+}
+struct HeadShortlistDev {   // the table on the device, made once by the last stage's verifier
+    int32_t* cluster = nullptr; float* centre = nullptr; float* scratch = nullptr;
+    int k = 0, n_keep = 0; bool ready = false, failed = false;
+};
+static HeadShortlistDev g_shl;
 inline bool head_argmax_fused_on() {
 #if defined(STRATA_HAVE_Q5K_HEAD) || defined(STRATA_HAVE_HEAD_FMT)
-    static const bool v = [] { const char* e = std::getenv("STRATA_HEAD_ARGMAX_FUSED"); return e != nullptr && e[0] == '1'; }();
+    static const bool v = [] { const char* e = std::getenv("STRATA_HEAD_ARGMAX_FUSED"); return e != nullptr && e[0] == '1' && head_shortlist_path() == nullptr; }();
     return v;
 #else
     return false;
@@ -1841,7 +1854,37 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
     // "gfx1030 decode"): their own small allocations, so the arena above is the same bytes with them off.  A failed
     // allocation leaves the switch off for this verifier.
     if (le_ == g.n_layers && head_ != nullptr && head_->loaded()) {
-        if (head_wide_scratch_ == nullptr && strata::kernels::head_wide_enabled() &&
+        // STRATA_HEAD_SHORTLIST: the table to the device (this verifier has the head; a failure leaves the switch off)
+        if (head_shortlist_path() != nullptr && !g_shl.ready && !g_shl.failed) {
+            strata::program::ShortlistTable tb;
+            std::string terr;
+            const int cols = (int) std::min<int64_t>((int64_t) T, strata::kernels::kHeadShortlistMaxCols);
+            if (!strata::program::shortlist_load(head_shortlist_path(), tb, terr) || tb.vocab != (uint32_t) n_vocab_ ||
+                tb.n_embd != (uint32_t) N || tb.k > (uint32_t) strata::kernels::kHeadShortlistMaxK) {
+                std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST %s: %s (switch off)
+", head_shortlist_path(),
+                             terr.empty() ? "vocab, n_embd or cluster count does not fit this head" : terr.c_str());
+                g_shl.failed = true;
+            } else if (cudaMalloc((void**) &g_shl.cluster, (size_t) tb.vocab * 4) != cudaSuccess ||
+                       cudaMalloc((void**) &g_shl.centre, tb.centre.size() * 4) != cudaSuccess ||
+                       cudaMalloc((void**) &g_shl.scratch, strata::kernels::head_shortlist_scratch_bytes(cols, (int) tb.k)) != cudaSuccess ||
+                       cudaMemcpy(g_shl.cluster, tb.cluster.data(), (size_t) tb.vocab * 4, cudaMemcpyHostToDevice) != cudaSuccess ||
+                       cudaMemcpy(g_shl.centre, tb.centre.data(), tb.centre.size() * 4, cudaMemcpyHostToDevice) != cudaSuccess) {
+                (void) cudaGetLastError();
+                std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST: device allocation failed (switch off)
+");
+                g_shl.failed = true;
+            } else {
+                g_shl.k = (int) tb.k;
+                g_shl.n_keep = strata::program::shortlist_clusters_scored_from_env(g_shl.k);
+                g_shl.ready = true;
+                std::fprintf(stderr, "strata verify: STRATA_HEAD_SHORTLIST=%s (LOSSY): %d clusters, the best %d scored; REFERENCE form "
+                                     "(full head GEMV, then the logits outside the kept clusters set to -inf: no speed gain)
+",
+                             head_shortlist_path(), g_shl.k, g_shl.n_keep);
+            }
+        }
+        if (head_wide_scratch_ == nullptr && strata::kernels::head_wide_enabled() && head_shortlist_path() == nullptr &&
             strata::kernels::head_wide_supported(head_->type(), (int) N, (int) n_vocab_, 1)) {
             if (cudaMalloc(&head_wide_scratch_, strata::kernels::head_wide_scratch_bytes()) != cudaSuccess) {
                 (void) cudaGetLastError();
@@ -4117,6 +4160,21 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             }
         }
       }   // the head's column chunks
+        // STRATA_HEAD_SHORTLIST (opt-in, LOSSY): the window's logits outside each column's best clusters become -inf, so the pick
+        // and the margins below read the shortlist; head_mixed_ is the head's input (the fused / wide picks are off with it)
+        if (g_shl.ready && head_ != nullptr && head_->loaded() && head_am_cols == 0 && !head_wide_win) {
+            try {
+                for (int c0 = 0; c0 < T; c0 += strata::kernels::kHeadShortlistMaxCols) {
+                    const int cn = std::min(T - c0, (int) strata::kernels::kHeadShortlistMaxCols);
+                    strata::kernels::head_shortlist_mask(head_mixed_ + (size_t) c0 * N, g_shl.centre, g_shl.cluster,
+                                                         head_logits_ + (size_t) c0 * (size_t) n_vocab_, (int) N, (int) n_vocab_,
+                                                         g_shl.k, g_shl.n_keep, cn, g_shl.scratch, cs);
+                }
+            } catch (const std::exception& e) {
+                err = std::string("verify head shortlist: ") + e.what();
+                return false;
+            }
+        }
         // Greedy, the default, is recorded here as before (no extra launch or sync per window). A request that
         // samples or penalizes is sampled again host-side after the replay (run()) with its own parameters and a
         // fresh draw counter: a captured sampler would bake them in and replay the same draws forever.

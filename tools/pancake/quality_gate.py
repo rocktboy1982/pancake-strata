@@ -9,6 +9,7 @@ placement-only switch) does not need this; lossy ones (route prior, deferral ran
     python tools/pancake/quality_gate.py SPEC.json --out bench/quality-hip/<day>-<name> [--set bench/quality/set.json]
     python tools/pancake/quality_gate.py SPEC.json --out ... --set bench/quality/set-v2.json --fill     first use of a grown set
     python tools/pancake/quality_gate.py SPEC.json --out ... --set bench/quality/set-v2.json --dry-run  the plan and the set, no engine
+    python tools/pancake/quality_gate.py SPEC.json --out ... --near-tie                                  also the near-tie column (below)
 
 The 20-request set (5,322 tokens) is INCONCLUSIVE 22% of the time for an arm identical to stock (TEST_LEDGER.md);
 bench/quality/set-v2.json (tools/pancake/build_quality_set.py: the 20 old requests + 28 agent-shaped ones, ~11K scored tokens) is the grown set.  Its
@@ -33,6 +34,33 @@ ROOT = abtest.ROOT
 PY = abtest.PY
 VOCAB = 248320                  # Qwen3.x tokenizer: every prompt / continuation id must be below this
 MS_START, MS_PER_PROMPT_TOKEN, MS_PER_NEW_TOKEN = 1600.0, 0.375, 10.0   # prefill: percache_sim.py's fit (1583 ms + 0.375 ms/token); decode: ~100 tok/s, the median of the 2026-11-11 short/edit rows
+
+
+# ------------------------------------------------------------------------------------------------ near-tie column (pure)
+NEAR_TIE_MARGIN = 0.75      # kindi's gate (LEADS.md Part J): every difference from the reference is a near-tie, reference top-2 margin <= 0.75
+NEAR_TIE_AGREE_PCT = 98.5   # ... and top-1 agreement >= 98.5%
+
+
+def near_tie_columns(ref, cand, margin=NEAR_TIE_MARGIN, agree_pct=NEAR_TIE_AGREE_PCT):
+    """Report column, default off (--near-tie).  ref, cand: {request id: [(is_mismatch, margin, top2_margin), ...]} as
+    tools/force_check.py load_arm returns them; ref is the stock arm scored on the same forced tokens, so the rows line up.
+    A position where cand's argmax is not the forced token is a DIFFERENCE; it is a near-tie when the reference's own top-2
+    log-probability margin at that position is <= `margin` (a NaN margin is not a near-tie).  -> dict with the top-1 agreement,
+    the differences, how many are near-ties, and the kindi gate (agreement >= agree_pct AND no difference outside a near-tie)."""
+    tokens = diffs = near = 0
+    for rid, rows in cand.items():
+        if rid not in ref:
+            continue
+        for i, (mis, _, _) in enumerate(rows[:len(ref[rid])]):
+            tokens += 1
+            if mis:
+                diffs += 1
+                top2 = ref[rid][i][2]
+                near += 1 if top2 == top2 and top2 <= margin else 0
+    agree = 100.0 * (tokens - diffs) / tokens if tokens else 0.0
+    return {"tokens": tokens, "differences": diffs, "near_ties": near, "not_near_ties": diffs - near,
+            "top1_agreement_pct": round(agree, 3), "margin": margin,
+            "gate": "PASS" if tokens and agree >= agree_pct and diffs == near else "FAIL"}
 
 
 # ------------------------------------------------------------------------------------------------ the set (pure)
@@ -162,6 +190,8 @@ def main():
     ap.add_argument("--fill", action="store_true", help="generate the missing continuations of the set with the stock arm first (see above)")
     ap.add_argument("--dry-run", action="store_true", help="check the spec and the set, print the plan; no engine")
     ap.add_argument("--max-load", type=float, default=0.0)
+    ap.add_argument("--near-tie", action="store_true", help="report kindi's near-tie column per arm against stock 1 (top-1 agreement, "
+                    "differences with reference top-2 margin <= 0.75); a report only, the verdict above does not change")
     ap.add_argument("--ear", action="store_true", help="A56: also report EAR (SLQ) and the same-top-token rate of every arm against stock 1; "
                     "scores with the top-10 ids per position (--topk 10) so EAR has SLQ's K")
     a = ap.parse_args()
@@ -220,6 +250,13 @@ def main():
         verdicts[arm] = {0: "PASS", 1: "REJECT", 2: "INCONCLUSIVE"}.get(r.returncode, f"error {r.returncode}")
         (out / f"{arm}.verdict.txt").write_text(r.stdout)
         print(f"{arm:24s} {verdicts[arm]}\n" + "\n".join("    " + x for x in r.stdout.strip().splitlines()[-6:]), flush=True)
+        if a.near_tie:
+            sys.path.insert(0, str(ROOT / "tools"))
+            import force_check  # noqa: E402
+            nt = near_tie_columns(force_check.load_arm(stock[0]), force_check.load_arm(tsv[arm][0]))
+            json.dump(nt, open(out / f"{arm}.neartie.json", "w"), indent=1)
+            print(f"    near-tie: top-1 agreement {nt['top1_agreement_pct']}%, {nt['differences']} differences, "
+                  f"{nt['near_ties']} near-ties (margin <= {nt['margin']}): {nt['gate']}", flush=True)
     json.dump(verdicts, open(out / "verdicts.json", "w"), indent=1)
     return 0
 

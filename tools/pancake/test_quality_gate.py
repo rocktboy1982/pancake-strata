@@ -206,3 +206,28 @@ def test_the_committed_grown_set():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def test_near_tie_column_is_a_pure_report():
+    nan = float("nan")
+    ref = {"a": [(False, 0.0, 3.0)] * 98 + [(False, 0.0, 0.5), (False, 0.0, 0.2)], "b": [(False, 0.0, 2.0)] * 100}
+    same = {k: [(False, 0.0, 0.0)] * len(v) for k, v in ref.items()}
+    r = G.near_tie_columns(ref, same)
+    assert (r["tokens"], r["differences"], r["top1_agreement_pct"], r["gate"]) == (200, 0, 100.0, "PASS")
+    # two differences, both where the reference's top-2 margin is <= 0.75: 99.0% agreement, every one a near-tie -> PASS
+    cand = {"a": [(False, 0.0, 0.0)] * 98 + [(True, 0.3, 0.0), (True, 0.1, 0.0)], "b": same["b"]}
+    r = G.near_tie_columns(ref, cand)
+    assert (r["differences"], r["near_ties"], r["not_near_ties"], r["gate"]) == (2, 2, 0, "PASS")
+    # one more difference where the reference was confident (margin 3.0): not a near-tie -> FAIL even at 99.5%
+    cand["a"][0] = (True, 0.4, 0.0)
+    r = G.near_tie_columns(ref, cand)
+    assert (r["differences"], r["near_ties"], r["not_near_ties"], r["gate"]) == (3, 2, 1, "FAIL")
+    # agreement below 98.5% fails even when every difference is a near-tie (the margin is exactly 0.75)
+    ref2 = {"c": [(False, 0.0, 0.75)] * 100}
+    cand2 = {"c": [(True, 0.1, 0.0)] * 2 + [(False, 0.0, 0.0)] * 98}
+    r = G.near_tie_columns(ref2, cand2)
+    assert (r["near_ties"], r["top1_agreement_pct"], r["gate"]) == (2, 98.0, "FAIL")
+    # a NaN reference margin is not a near-tie; a request missing from the reference is skipped; nothing scored fails
+    r = G.near_tie_columns({"d": [(False, 0.0, nan)]}, {"d": [(True, 0.1, 0.0)], "zz": [(True, 0.1, 0.0)]})
+    assert (r["tokens"], r["near_ties"], r["not_near_ties"]) == (1, 0, 1)
+    assert G.near_tie_columns({}, {"x": [(False, 0.0, 0.0)]})["gate"] == "FAIL"

@@ -1,0 +1,33 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_HEAD_SHORTLIST": null,
+    "STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED": null
+   }
+  },
+  "shortlist-134of1024": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_HEAD_SHORTLIST": "/home/dan/clone-of-d/src/head-k1024.shl",
+    "STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED": "134"
+   }
+  },
+  "shortlist-256of1024": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_HEAD_SHORTLIST": "/home/dan/clone-of-d/src/head-k1024.shl",
+    "STRATA_HEAD_SHORTLIST_CLUSTERS_SCORED": "256"
+   }
+  }
+ },
+ "note": "Token-forcing gate for STRATA_HEAD_SHORTLIST (MOD_PLAN.md section 6 item 38, LEADS.md Part J; LOSSY). REFERENCE form only: the full head GEMV runs and the logits outside the kept clusters are set to -inf, so these arms measure QUALITY and have no speed claim; a speed A/B needs the gathered-rows kernel, which is not written. The table head-k1024.shl does not exist yet: export the dequantized head rows (output.weight, 248,320 x 2,560) to a .npy, then `python tools/pancake/head_cluster.py cluster ROWS.npy --k 1024 --out /home/dan/clone-of-d/src/head-k1024.shl`; STRATA_HIDDEN_DUMP gives the real hidden states for `head_cluster.py eval` (offline agreement) before the gate. Needs a build of src/core/verify.cpp + kernels/cuda/head_shortlist.cu (unbuilt when this spec was written). Run: python3 tools/pancake/quality_gate.py bench/specs/130-head-shortlist-quality.json --out bench/quality-hip/<day>-130-head-shortlist --near-tie (default set bench/quality/set-v2.json). PROMOTE only on a quality_gate PASS (rate rule and event rule) AND a later speed A/B of the gathered kernel at >= 3% (lossy bar); the kindi gate (top-1 agreement >= 98.5%, every difference a near-tie, margin <= 0.75) is the --near-tie column."
+}
