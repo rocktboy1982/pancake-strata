@@ -96,6 +96,12 @@ void gdn_recurrence_state_only(float* state, const float* h, const float* gate, 
 // ---- MoE
 /// softmax over 512, top-10 (ties to the lower id), weights renormalised over the ten (the native router).
 void route(const float* logits, int32_t* ids, float* weights, int64_t T, int64_t n_expert, void* stream);
+/// LEADS.md "HotRod prompt stand-ins" (STRATA_PREFILL_STANDIN=1, opt-in, lossy): the decode stand-in rule (route_resident_k) on the
+/// chunk's top-10 in place (n_expert 512, ten picks), ranks lo..hi within `margin` logits; budget > 0 (STRATA_ROUTE_BUDGET): ranks
+/// below lo when w * max(gap, 0) <= budget; budget_tail > 0 (STRATA_ROUTE_BUDGET_TAIL): ranks lo..hi by that test instead of the
+/// margin.  `res` is the layer's residency row (slot or -1, device).  Tokens without a swap keep the router's weights.
+void standin_route(const float* logits, int32_t* ids, float* weights, int64_t T, int64_t n_expert, const int32_t* res, int lo,
+                   int hi, float margin, float budget, float budget_tail, void* stream);
 /// Expert blob (Strata pack layout, Q2_0) -> BF16 matrices: gate/up interleaved [1280, 2560], down [2560, 640].
 void blob_dequant(const uint8_t* blob, uint16_t* gu16, uint16_t* down16, void* stream);
 /// h16[n, r] = fp16(silu(gu[n, 2r]) * gu[n, 2r + 1])   (the interleaved expert gate/up)

@@ -492,6 +492,155 @@ void native_route_resident(const float* logits, int32_t* ids, float* weights, co
     const auto error = cudaGetLastError();
     if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
 }
+
+// LEADS.md "HotRod" stand-in system (opt-in, lossy; ported from sangharshadhyeta/Strata-HotRod: route_resident_k's budget rule
+// 024f644789, the per-row move for STRATA_FRAGILE_RECHECK, the stand-in learner's scale 4e0b5d18dd / 9 Nov).  The same scan and
+// tie rules as route_resident_k above (a strictly greater logit wins, the smaller expert breaks ties), then:
+//  - STRATA_ROUTE_BUDGET (dyn->budget > 0): the loop starts at rank 0, and a rank below lo is replaced when w * max(gap, 0) <=
+//    budget (w: the router's renormalised weight on the pick, read before any swap changes the weights; gap: the pick's logit
+//    minus the stand-in's).  Ranks lo..hi keep the margin rule, or with STRATA_ROUTE_BUDGET_TAIL (dyn->budget_tail > 0) the
+//    same w * max(gap, 0) test against their own bound instead of the margin.
+//  - STRATA_FRAGILE_RECHECK: rows row_base + t < dyn->hold keep the router's picks (no move); row_shift[t] gets the sum of
+//    w * max(gap, 0) over this launch's moves (added to the row's earlier layers unless zero_shift).
+//  - STRATA_STANDIN_APPLY: after the softmax over the selected logits, a stand-in's weight is multiplied by scale[replaced expert].
+//  - STRATA_STANDIN_LEARN: orig_out[t][r] = the replaced expert, -1 for a kept pick (host-mapped; the CPU pool's host reads it).
+// One warp per token; lane 0 writes every output.
+__global__ void route_resident_ex_k(const float* __restrict__ logits, int32_t* __restrict__ ids, float* __restrict__ weights,
+                                    const int32_t* __restrict__ res, int n_tok, float margin, int lo, int hi,
+                                    unsigned long long* __restrict__ stats, const RouteStandinDyn* dyn, int row_base,
+                                    float* __restrict__ row_shift, int zero_shift, const float* __restrict__ scale,
+                                    int32_t* __restrict__ orig_out) {
+    const int t = blockIdx.x;
+    if (t >= n_tok) return;
+    const int lane = (int) threadIdx.x;
+    const float* l = logits + (size_t) t * 512;
+    int32_t* id = ids + (size_t) t * 10;
+    const volatile RouteStandinDyn* vd = (const volatile RouteStandinDyn*) dyn;
+    const float budget = vd->budget, budget_tail = vd->budget_tail;
+    const bool held = row_base + t < vd->hold;   // uniform across the warp
+    int32_t my[10], orig[10];
+    for (int r = 0; r < 10; ++r) {
+        my[r] = id[r];
+        orig[r] = -1;
+    }
+    int swaps = 0, tail = 0, before = 0;
+    float shift = 0.0f;
+    if (lane == 0)
+        for (int r = 0; r < 10; ++r) before += res[my[r]] < 0;
+    const bool bud = budget > 0.0f;
+    for (int r = bud ? 0 : lo; r <= hi && r < 10 && !held; ++r) {
+        const int e = my[r];
+        if (res[e] >= 0) continue;                      // already resident: uniform across the warp
+        const bool brank = bud && r < lo;               // uniform
+        const bool trank = budget_tail > 0.0f && r >= lo;
+        if (lane == 0) ++tail;
+        float bv = -INFINITY;
+        int bi = -1;
+        for (int f = lane; f < 512; f += 32) {
+            if (res[f] < 0) continue;
+            bool used = false;
+            for (int q = 0; q < 10; ++q) used |= my[q] == f;
+            if (used) continue;
+            if (l[f] > bv) { bv = l[f]; bi = f; }
+        }
+        #pragma unroll
+        for (int off = 16; off > 0; off >>= 1) {
+            const float ov = __shfl_down_sync(0xffffffffu, bv, off);
+            const int oi = __shfl_down_sync(0xffffffffu, bi, off);
+            if (ov > bv || (ov == bv && oi >= 0 && (bi < 0 || oi < bi))) { bv = ov; bi = oi; }
+        }
+        bv = __shfl_sync(0xffffffffu, bv, 0);           // every lane decides the same way from here
+        bi = __shfl_sync(0xffffffffu, bi, 0);
+        const float gap = l[e] - bv;
+        const float wg = weights[(size_t) t * 10 + r] * fmaxf(gap, 0.0f);   // the weights are still the router's here
+        const bool take = bi >= 0 && (brank ? wg <= budget : trank ? wg <= budget_tail : gap <= margin);
+        if (take) {
+            orig[r] = e;
+            my[r] = bi;
+            ++swaps;
+            shift += wg;
+        }
+    }
+    if (lane == 0) {
+        int after = 0;
+        for (int r = 0; r < 10; ++r) after += res[my[r]] < 0;
+        if (swaps) {
+            float m = -INFINITY;
+            for (int r = 0; r < 10; ++r) m = fmaxf(m, l[my[r]]);
+            float ex[10], sum = 0.0f;
+            for (int r = 0; r < 10; ++r) { ex[r] = expf(l[my[r]] - m); sum += ex[r]; }
+            for (int r = 0; r < 10; ++r) {
+                float w = ex[r] / sum;
+                if (scale != nullptr && orig[r] >= 0) w *= scale[orig[r]];
+                weights[(size_t) t * 10 + r] = w;
+            }
+        }
+        for (int r = 0; r < 10; ++r) id[r] = my[r];
+        if (row_shift != nullptr) row_shift[t] = (zero_shift ? 0.0f : row_shift[t]) + shift;
+        if (orig_out != nullptr)
+            for (int r = 0; r < 10; ++r) orig_out[(size_t) t * 10 + r] = orig[r];
+        if (stats) {
+            atomicAdd(stats + 0, (unsigned long long) tail);
+            atomicAdd(stats + 1, (unsigned long long) swaps);
+            atomicAdd(stats + 2, (unsigned long long) before);
+            atomicAdd(stats + 3, (unsigned long long) after);
+        }
+    }
+}
+void native_route_resident_ex(const float* logits, int32_t* ids, float* weights, const int32_t* res_layer, int n_tok, float margin,
+                              int rank_lo, int rank_hi, unsigned long long* stats, const RouteStandinArgs& a, void* stream) {
+    if (!stream || n_tok < 1 || !res_layer || a.dyn == nullptr) throw std::invalid_argument("native_route_resident_ex: bad arguments");
+    route_resident_ex_k<<<(unsigned) n_tok, 32, 0, static_cast<cudaStream_t>(stream)>>>(
+        logits, ids, weights, res_layer, n_tok, margin, rank_lo, rank_hi, stats, a.dyn, a.row_base, a.row_shift, a.zero_shift,
+        a.scale, a.orig_out);
+    const auto error = cudaGetLastError();
+    if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
+}
+
+namespace {
+// STRATA_FRAGILE_RECHECK (HotRod verify_kernels.cu logits_margin_kernel, 024f644789): one block per row.  Each thread keeps the
+// two largest values of its strided slice (an equal value counts again, as in a sorted list); a tree over the block's (first,
+// second) pairs leaves the row's top two in slot 0.  Shared memory only, so it runs the same on CUDA and HIP.
+constexpr int kMarginThreads = 256;
+__global__ void logits_margin_k(const float* __restrict__ logits, int n, float* gap, int32_t* top1) {
+    __shared__ float s1[kMarginThreads], s2[kMarginThreads];
+    __shared__ int i1[kMarginThreads];
+    const float* l = logits + (size_t) blockIdx.x * (size_t) n;
+    float m1 = -INFINITY, m2 = -INFINITY;
+    int j1 = -1;
+    for (int v = (int) threadIdx.x; v < n; v += kMarginThreads) {
+        const float x = l[v];
+        if (x > m1 || j1 < 0) { m2 = m1; m1 = x; j1 = v; }
+        else if (x > m2) m2 = x;
+    }
+    s1[threadIdx.x] = m1;
+    s2[threadIdx.x] = m2;
+    i1[threadIdx.x] = j1;
+    for (int s = kMarginThreads / 2; s > 0; s >>= 1) {
+        __syncthreads();
+        if ((int) threadIdx.x < s) {
+            const float a1 = s1[threadIdx.x], a2 = s2[threadIdx.x], b1 = s1[threadIdx.x + s], b2 = s2[threadIdx.x + s];
+            const int ai = i1[threadIdx.x], bi = i1[threadIdx.x + s];
+            // the top-1 id: the larger first value; on a tie the smaller id (the same rule in every window)
+            const bool take_b = b1 > a1 || (b1 == a1 && bi >= 0 && (ai < 0 || bi < ai));
+            i1[threadIdx.x] = take_b ? bi : ai;
+            s1[threadIdx.x] = fmaxf(a1, b1);
+            s2[threadIdx.x] = fmaxf(fminf(a1, b1), fmaxf(a2, b2));
+        }
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        gap[blockIdx.x] = s1[0] - s2[0];
+        top1[blockIdx.x] = i1[0];
+    }
+}
+}  // namespace
+void logits_margin_rows(const float* logits, int n_rows, int n, float* gap, int32_t* top1, void* stream) {
+    if (n_rows <= 0 || n <= 0) return;
+    logits_margin_k<<<dim3((unsigned) n_rows), kMarginThreads, 0, static_cast<cudaStream_t>(stream)>>>(logits, n, gap, top1);
+    const auto error = cudaGetLastError();
+    if (error != cudaSuccess) throw std::runtime_error(cudaGetErrorString(error));
+}
 void native_router_top10_publish_res(const float* logits, int32_t* ids, float* weights, int n_tok, const float* x,
                                      const int32_t* d_res, int n_expert, int64_t n, float* x_out, int32_t* ids_out,
                                      uint32_t* seq, void* stream) {

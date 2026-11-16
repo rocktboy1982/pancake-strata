@@ -3339,6 +3339,71 @@ void gdn_recurrence_state_only(float* state, const float* h, const float* gate, 
     gdn_recurrence_impl(head && !serial ? 1 : 0, state, h, gate, beta, nullptr, nullptr, 0.0f, y, nullptr, T,
                         stream, 0, /*with_out=*/false);
 }
+namespace {
+// LEADS.md "HotRod prompt stand-ins" (STRATA_PREFILL_STANDIN=1, opt-in, lossy; sangharshadhyeta/Strata-HotRod src/prefill/kernels.cu
+// standin_route_k, 21 Oct, budgets 024f644789): the decode stand-in rule (native_router.cu route_resident_k) on a prompt chunk's
+// top-10, one warp per token, in place.  A pick at rank r in [lo, hi] that is not resident (res < 0) is replaced by the best-scoring
+// resident expert not already among the ten when its logit is within `margin` of the pick's; with budget > 0 the loop starts at rank
+// 0 and a rank below lo is replaced when w * max(gap, 0) <= budget (w: the router's weight on the pick, read before any swap); with
+// budget_tail > 0 the ranks lo..hi take that test against budget_tail instead of the margin.  Ranks are visited in order (a swap
+// changes the set already picked).  A token with a swap gets its ten weights again as the softmax of the chosen logits; a token
+// without one keeps the router's weights.
+__global__ void standin_route_k(const float* __restrict__ logits, int32_t* __restrict__ ids, float* __restrict__ weights,
+                                const int32_t* __restrict__ res, int n_expert, int lo, int hi, float margin, float budget,
+                                float budget_tail) {
+    const int t = blockIdx.x;
+    const int lane = threadIdx.x;   // one warp
+    const float* l = logits + (size_t) t * n_expert;
+    int32_t* id = ids + (size_t) t * 10;
+    int32_t my[10];
+    for (int r = 0; r < 10; ++r) my[r] = id[r];
+    const bool bud = budget > 0.f;
+    int swaps = 0;
+    for (int r = bud ? 0 : lo; r <= hi && r < 10; ++r) {
+        const int e = my[r];
+        if (res[e] >= 0) continue;   // resident: uniform across the warp
+        const bool brank = bud && r < lo;                  // uniform across the warp
+        const bool trank = budget_tail > 0.f && r >= lo;   // uniform across the warp
+        float bv = -INFINITY;
+        int bi = -1;
+        for (int f = lane; f < n_expert; f += 32) {
+            if (res[f] < 0) continue;
+            bool used = false;
+            for (int q = 0; q < 10; ++q) used |= my[q] == f;
+            if (!used && l[f] > bv) { bv = l[f]; bi = f; }
+        }
+#pragma unroll
+        for (int off = 16; off > 0; off >>= 1) {
+            const float ov = __shfl_down_sync(0xffffffffu, bv, off);
+            const int oi = __shfl_down_sync(0xffffffffu, bi, off);
+            if (ov > bv || (ov == bv && oi >= 0 && (bi < 0 || oi < bi))) { bv = ov; bi = oi; }
+        }
+        bv = __shfl_sync(0xffffffffu, bv, 0);   // every lane decides the same way from here
+        bi = __shfl_sync(0xffffffffu, bi, 0);
+        const float gap = l[e] - bv;
+        const float wg = weights[(size_t) t * 10 + r] * fmaxf(gap, 0.f);
+        const bool take = brank ? wg <= budget : trank ? wg <= budget_tail : gap <= margin;
+        if (bi >= 0 && take) { my[r] = bi; ++swaps; }
+    }
+    if (lane == 0) {
+        if (swaps) {
+            float m = -INFINITY;
+            for (int r = 0; r < 10; ++r) m = fmaxf(m, l[my[r]]);
+            float ex[10], sum = 0.0f;
+            for (int r = 0; r < 10; ++r) { ex[r] = expf(l[my[r]] - m); sum += ex[r]; }
+            for (int r = 0; r < 10; ++r) weights[(size_t) t * 10 + r] = ex[r] / sum;
+        }
+        for (int r = 0; r < 10; ++r) id[r] = my[r];
+    }
+}
+}  // namespace
+void standin_route(const float* logits, int32_t* ids, float* weights, int64_t T, int64_t n_expert, const int32_t* res, int lo,
+                   int hi, float margin, float budget, float budget_tail, void* stream) {
+    if (T <= 0) return;
+    standin_route_k<<<(unsigned) T, 32, 0, (cudaStream_t) stream>>>(logits, ids, weights, res, (int) n_expert, lo, hi, margin,
+                                                                   budget, budget_tail);
+    check("standin_route");
+}
 void route(const float* logits, int32_t* ids, float* weights, int64_t T, int64_t n_expert, void* stream) {
     if (n_expert == 512)
         route_kernel<16><<<(unsigned) ((T + 7) / 8), 256, 0, (cudaStream_t) stream>>>(logits, ids, weights, T);

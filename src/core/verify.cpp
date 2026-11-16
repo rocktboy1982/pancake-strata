@@ -15,6 +15,8 @@
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/epoch_bandit.hpp"
 #include "strata/core/verify_ecap.hpp"
+#include "strata/core/fragile_recheck.hpp"   // LEADS.md HotRod: STRATA_FRAGILE_RECHECK
+#include "strata/core/standin_pool.hpp"      // LEADS.md HotRod: STRATA_STANDIN_LEARN
 #include "strata/core/switch_report.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/window_evict.hpp"
@@ -81,7 +83,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <condition_variable>
+#include <deque>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <mutex>
 #include <string>
@@ -177,12 +182,186 @@ struct RouteResidentCfg {
 RouteResidentCfg& route_resident_cfg() {
     static RouteResidentCfg c;
     static const bool parsed = [] {
+        // LEADS.md HotRod (sangharshadhyeta/Strata-HotRod, opt-in, lossy): STRATA_STANDIN=1 - every non-resident pick of every rank
+        // gets the best resident expert, whatever its score (an unlimited margin over ranks 0-9).  An explicit
+        // STRATA_ROUTE_RESIDENT / _RANKS still wins.  Unset: nothing changes.
+        if (const char* si = std::getenv("STRATA_STANDIN"); si != nullptr && std::atoi(si) != 0) { c.margin = 1e30f; c.lo = 0; c.hi = 9; }
         if (const char* v = std::getenv("STRATA_ROUTE_RESIDENT")) c.margin = (float) std::atof(v);
         if (const char* v = std::getenv("STRATA_ROUTE_RESIDENT_RANKS")) std::sscanf(v, "%d-%d", &c.lo, &c.hi);
         return true;
     }();
     (void) parsed;
     return c;
+}
+
+// ---- LEADS.md "HotRod" stand-in system (sangharshadhyeta/Strata-HotRod; every switch opt-in and lossy; unset: nothing below runs)
+// STRATA_ROUTE_BUDGET=<b> / STRATA_ROUTE_BUDGET_TAIL=<b> (024f644789): a missed pick takes the best resident stand-in when its router
+// weight times its logit gap to the stand-in is within the budget (ranks below lo / ranks lo..hi instead of the margin).
+// STRATA_FRAGILE_RECHECK=1 (024f644789, opt-in since a2ef1638cf): a decode window is cut before a row the stand-ins moved whose output
+// top-1 minus top-2 gap is below k times the move, and that row is re-decided with the router's own picks (core/fragile_recheck.hpp).
+// STRATA_FRAGILE_BRAKE (on with it, =0 off) scales the request's budgets down on flips; STRATA_FRAGILE_K0=<k> pins k.
+// STRATA_STANDIN_LEARN=<n> (the 8-9 Nov stand-in learner / substitute fit, its scalar stage): every n-th stand-in move (1 = each) is
+// replayed on the CPU worker - both experts on the same input - and the (layer, replaced expert) scale num / den is pooled
+// (core/standin_pool.hpp).  STRATA_STANDIN_APPLY=1 multiplies a stand-in's weight by that scale once it is ready (>= 32 samples).
+// All need the stand-ins on (STRATA_ROUTE_RESIDENT=<margin> > 0 or STRATA_STANDIN=1) and the 512 x 10 router.
+struct StandinCfg {
+    float budget = 0.0f, budget_tail = 0.0f;
+    bool fragile = false, apply = false;
+    int learn_every = 0;
+    bool ex = false;   // the extended stand-in launch replaces native_route_resident
+};
+const StandinCfg& standin_cfg() {
+    static const StandinCfg c = [] {
+        StandinCfg s;
+        auto fpos = [](const char* name) {
+            const char* v = std::getenv(name);
+            const float f = v != nullptr ? (float) std::atof(v) : 0.0f;
+            return f > 0.0f ? f : 0.0f;
+        };
+        s.budget = fpos("STRATA_ROUTE_BUDGET");
+        s.budget_tail = fpos("STRATA_ROUTE_BUDGET_TAIL");
+        if (const char* v = std::getenv("STRATA_FRAGILE_RECHECK")) s.fragile = std::atoi(v) != 0;
+        if (const char* v = std::getenv("STRATA_STANDIN_LEARN")) s.learn_every = std::max(0, std::atoi(v));
+        if (const char* v = std::getenv("STRATA_STANDIN_APPLY")) s.apply = std::atoi(v) != 0;
+        if (s.apply && s.learn_every == 0) s.learn_every = 1;   // the scale has to be learned to be applied
+        const bool want = s.budget > 0.0f || s.budget_tail > 0.0f || s.fragile || s.learn_every > 0;
+        if (want && !(route_resident_cfg().margin > 0.0f)) {
+            std::fprintf(stderr, "strata verify: STRATA_ROUTE_BUDGET / _TAIL / STRATA_FRAGILE_RECHECK / STRATA_STANDIN_LEARN need the "
+                                 "stand-ins (STRATA_ROUTE_RESIDENT=<margin> > 0 or STRATA_STANDIN=1): off\n");
+            s = StandinCfg{};
+        } else if (want) {
+            s.ex = true;
+            std::fprintf(stderr, "strata verify: HotRod stand-ins (LEADS.md, lossy): margin %g ranks %d-%d, budget %g, tail budget %g, "
+                                 "fragile re-check %s, learner %s%s\n", (double) route_resident_cfg().margin, route_resident_cfg().lo,
+                         route_resident_cfg().hi, (double) s.budget, (double) s.budget_tail, s.fragile ? "on" : "off",
+                         s.learn_every > 0 ? "on" : "off", s.apply ? " (scale applied)" : "");
+        }
+        return s;
+    }();
+    return c;
+}
+FragileState& fragile_state() {
+    static FragileState s = [] {
+        FragileState f;
+        if (const char* v = std::getenv("STRATA_FRAGILE_BRAKE")) f.brake_on = std::atoi(v) != 0;
+        if (const char* v = std::getenv("STRATA_FRAGILE_K0")) {
+            const float k0 = (float) std::atof(v);
+            if (k0 > 0.0f) { f.k = k0; f.k_set = true; f.k_pinned = true; }
+        }
+        return f;
+    }();
+    return s;
+}
+
+// STRATA_STANDIN_LEARN: the CPU worker.  run() hands it (layer, replaced expert e, stand-in s, the expert input x) between the
+// doorbell and the CPU pool; the worker copies both blobs from the expert source, runs both experts on the CPU (the native kernels,
+// the pool's own arithmetic) and adds the sample to the pair, its (layer, e) group and its layer.  A bounded queue: a full queue
+// drops the sample (counted).  The worker never touches the GPU.  The (layer, e) scales go to a host table; run() copies a newer
+// table into each stage's mapped copy between windows.
+struct StandinLearner {
+    struct Job {
+        int32_t layer, e, s;
+        std::vector<float> x;
+    };
+    std::mutex mu;
+    std::condition_variable cv;
+    std::deque<Job> q;
+    std::thread th;
+    bool stop = false;
+    ExpertSource* src = nullptr;
+    int64_t n_layers = 0;
+    std::vector<standin::Sums> layer_g, exp_g;     // [layers], [layers * 512]
+    std::unordered_map<uint64_t, standin::Pair> pairs;
+    std::vector<float> table;                      // [layers * 512], 1 until ready
+    std::atomic<uint64_t> version{0};
+    long long seen = 0, queued = 0, dropped = 0, done = 0, failed = 0;   // (under mu)
+    long long req_samples = 0;
+    ~StandinLearner() {
+        {
+            std::lock_guard<std::mutex> lk(mu);
+            stop = true;
+        }
+        cv.notify_all();
+        if (th.joinable()) th.join();
+    }
+    void ensure(int64_t layers) {   // under mu
+        if (n_layers == layers) return;
+        n_layers = layers;
+        layer_g.assign((size_t) layers, standin::Sums{});
+        exp_g.assign((size_t) layers * 512, standin::Sums{});
+        table.assign((size_t) layers * 512, 1.0f);
+        if (!th.joinable()) th = std::thread([this] { loop(); });
+    }
+    bool expert_out(const strata::kernels::cpu::NativeFmt& f, const uint8_t* blob, const float* x, float* y,
+                    std::vector<uint8_t>& act, std::vector<float>& ff, std::vector<uint8_t>& hq) {
+        using namespace strata::kernels::cpu;
+        act.resize(std::max<size_t>(f.act_bytes, 1));
+        ff.resize((size_t) f.n_ff);
+        hq.resize(std::max<size_t>(f.h_bytes, 1));
+        native_quant_act(f, x, act.data());
+        const void* a[1] = {act.data()};
+        float* ffp[1] = {ff.data()};
+        native_gu_rows(f, blob, a, 1, ffp, 0, (int) f.n_ff);
+        native_quant_h(f, ff.data(), hq.data());
+        const void* h[1] = {hq.data()};
+        float* yp[1] = {y};
+        native_down_rows(f, blob, h, 1, yp, 0, (int) f.n_embd);
+        return true;
+    }
+    void loop() {
+        std::vector<uint8_t> be, bs, act, hq;
+        std::vector<float> ff, ye, ys;
+        for (;;) {
+            Job j;
+            ExpertSource* s = nullptr;
+            {
+                std::unique_lock<std::mutex> lk(mu);
+                cv.wait(lk, [&] { return stop || !q.empty(); });
+                if (stop) return;
+                j = std::move(q.front());
+                q.pop_front();
+                s = src;
+            }
+            const auto& lay = strata::kernels::cpu::expert_layout();
+            bool ok = s != nullptr && lay.native && j.layer >= 0 && (size_t) j.layer < lay.fmt.size();
+            if (ok) {
+                const strata::kernels::cpu::NativeFmt& f = lay.fmt[(size_t) j.layer];
+                ok = f.tail_off == 0 && f.n_embd == (int64_t) j.x.size() && f.bytes > 0;
+                if (ok) {
+                    be.resize(f.bytes);
+                    bs.resize(f.bytes);
+                    ye.resize((size_t) f.n_embd);
+                    ys.resize((size_t) f.n_embd);
+                    ok = s->copy_blob(j.layer, j.e, be.data()) && s->copy_blob(j.layer, j.s, bs.data()) &&
+                         expert_out(f, be.data(), j.x.data(), ye.data(), act, ff, hq) &&
+                         expert_out(f, bs.data(), j.x.data(), ys.data(), act, ff, hq);
+                }
+            }
+            double sxy = 0.0, sxx = 0.0, syy = 0.0;
+            if (ok) standin::sample_dots(ys.data(), ye.data(), (int64_t) ys.size(), sxy, sxx, syy);
+            std::lock_guard<std::mutex> lk(mu);
+            if (!ok || !std::isfinite(sxy) || !std::isfinite(sxx) || !std::isfinite(syy)) { ++failed; continue; }
+            const size_t li = (size_t) j.layer, ei = li * 512 + (size_t) j.e;
+            standin::Pair& p = pairs[((uint64_t) j.layer << 40) | ((uint64_t) j.e << 20) | (uint64_t) j.s];
+            standin::add_sample(p, sxy, sxx, syy);
+            standin::add_sample(exp_g[ei], sxy, sxx, syy);
+            standin::add_sample(layer_g[li], sxy, sxx, syy);
+            if (pairs.size() > 200000) pairs.clear();   // (a bound; the groups keep every sample)
+            ++done;
+            ++req_samples;
+            // the (layer, e) scale: an empty pair's pooled estimate is its parent's (the expert group once ready, else the layer's)
+            const standin::Est est = standin::estimate(standin::Pair{}, &exp_g[ei], &layer_g[li]);
+            const float c = est.ready ? (float) est.c : 1.0f;
+            if (table[ei] != c) {
+                table[ei] = c;
+                version.fetch_add(1, std::memory_order_release);
+            }
+        }
+    }
+};
+StandinLearner& standin_learner() {
+    static StandinLearner l;
+    return l;
 }
 inline bool g_lfuse_gate() { static const bool on = [] { const char* v = std::getenv("STRATA_LFUSE_GATE"); return v == nullptr || v[0] != '0'; }(); return on; }
 inline bool g_lfuse_pair() { static const bool on = [] { const char* v = std::getenv("STRATA_LFUSE_PAIR"); return v == nullptr || v[0] != '0'; }(); return on; }
@@ -895,9 +1074,11 @@ Verifier::~Verifier() {
     if (warm_fork_) cudaEventDestroy(warm_fork_);
     if (warm_join_) cudaEventDestroy(warm_join_);
     void* hosts[] = {h_tok_, h_step_, h_pos_, h_commit_, h_ple_, h_out_, h_x_, h_ids_, h_w_, h_seq_, h_flag_, h_ymiss_,
-                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_, h_top_};
+                     h_flagA_, h_plan_, h_flagB_, h_plan_err_, h_nf_, herr_h_, hdrop_h_, h_bal_, h_pflag_, h_top_,
+                     h_sdyn_, h_gap_, h_top1_, h_orig_, h_sscale_};   // (the last five: LEADS.md HotRod stand-ins)
     for (void* h : hosts)
         if (h) cudaFreeHost(h);
+    if (rshift_d_) cudaFree(rshift_d_);
 }
 
 int Verifier::tap_total() const {
@@ -1215,6 +1396,36 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
                mapped(64, (void**) &h_top_, (void**) &m_top_));
     if (!ok) { err = "verify: mapped staging allocation failed " + strata::core::pin_exhausted_hint(); return false; }
     if (h_top_ != nullptr) *(volatile int32_t*) h_top_ = strata::core::defer_top();   // (as captured, until a window stages it)
+    // LEADS.md HotRod stand-ins (opt-in): the extended stand-in launch's mapped values and buffers (nothing when off)
+    if (standin_cfg().ex && h_sdyn_ == nullptr && g.n_expert == 512 && K == 10) {
+        const StandinCfg& sc = standin_cfg();
+        bool sok = mapped(sizeof(strata::kernels::RouteStandinDyn), &h_sdyn_, &m_sdyn_);
+        if (sok && sc.fragile)
+            sok = cudaMalloc((void**) &rshift_d_, (size_t) T * sizeof(float)) == cudaSuccess &&
+                  cudaMemset(rshift_d_, 0, (size_t) T * sizeof(float)) == cudaSuccess &&
+                  mapped((size_t) T * 4, (void**) &h_gap_, (void**) &m_gap_) &&
+                  mapped((size_t) T * 4, (void**) &h_top1_, (void**) &m_top1_);
+        if (sok && sc.learn_every > 0) sok = mapped((size_t) T * K * 4, (void**) &h_orig_, (void**) &m_orig_);
+        if (sok && sc.apply) {
+            sok = mapped((size_t) g.n_layers * 512 * 4, (void**) &h_sscale_, (void**) &m_sscale_);
+            if (sok)
+                for (int64_t i = 0; i < g.n_layers * 512; ++i) h_sscale_[i] = 1.0f;
+        }
+        if (!sok) {
+            (void) cudaGetLastError();
+            err = "verify: the HotRod stand-ins' buffers could not be allocated " + strata::core::pin_exhausted_hint();
+            return false;
+        }
+        auto* d = (strata::kernels::RouteStandinDyn*) h_sdyn_;
+        d->budget = sc.budget;
+        d->budget_tail = sc.budget_tail;
+        d->hold = 0;
+        d->pad = 0;
+        if (sc.learn_every > 0) {
+            std::lock_guard<std::mutex> lk(standin_learner().mu);
+            standin_learner().ensure(g.n_layers);
+        }
+    }
     if (const char* wm = std::getenv("STRATA_IC_WARM_MB"); wm != nullptr && std::atoi(wm) > 0 && warm_segs_ == nullptr) {
         // item 47: per layer, the matrices its window reads before the doorbell (mixer projections, router), as the kernels
         // read them (the native GGUF copy where there is one)
@@ -1768,6 +1979,7 @@ const float* Verifier::final_R(int t) const { return R_ + (size_t) t * (size_t) 
 // state), never A's experts, so nothing waits that did not wait before.  Every token's arithmetic is unchanged.
 bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     using namespace strata::kernels;
+    rr_first_l_ = -1;   // LEADS.md HotRod STRATA_FRAGILE_RECHECK: the first routed layer of this recording zeroes the rows' moves
     const ModelGeometry& g = *g_;
     const WeightTable& wt = *wt_;
     SessionState& ss = *ss_;
@@ -2970,6 +3182,21 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         if (route_resident_cfg().margin > 0.0f && NE == 512 && K == 10 && hits_.d_res != nullptr) {
             // STRATA_ROUTE_RESIDENT: after the router, before the plan/doorbell read ids_/w_ (opt-in, changes the output)
             try {
+                if (m_sdyn_ != nullptr) {
+                    // LEADS.md HotRod stand-ins (STRATA_ROUTE_BUDGET / _TAIL, STRATA_FRAGILE_RECHECK, STRATA_STANDIN_LEARN / _APPLY):
+                    // the extended launch (the same rule for ranks lo..hi when none of its additions acts)
+                    if (rr_first_l_ < 0) rr_first_l_ = l;
+                    RouteStandinArgs sa;
+                    sa.dyn = (const RouteStandinDyn*) m_sdyn_;
+                    sa.row_base = (int) tb;
+                    sa.row_shift = rshift_d_ != nullptr ? rshift_d_ + tb : nullptr;
+                    sa.zero_shift = l == rr_first_l_ ? 1 : 0;
+                    sa.scale = m_sscale_ != nullptr ? m_sscale_ + l * 512 : nullptr;
+                    sa.orig_out = m_orig_ != nullptr ? m_orig_ + tb * K : nullptr;
+                    native_route_resident_ex(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, hits_.d_res + l * g.n_expert, n,
+                                             route_resident_cfg().margin, route_resident_cfg().lo, route_resident_cfg().hi,
+                                             rr_stats_ != nullptr ? rr_stats_ + (n <= 8 ? 4 : 0) : nullptr, sa, cs);
+                } else
                 native_route_resident(logits_ + tb * NE, ids_ + tb * K, w_ + tb * K, hits_.d_res + l * g.n_expert, n,
                                       route_resident_cfg().margin, route_resident_cfg().lo, route_resident_cfg().hi,
                                       rr_stats_ != nullptr ? rr_stats_ + (n <= 8 ? 4 : 0) : nullptr, cs);
@@ -3598,6 +3825,13 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         }
         // #879: whether each row's logits are all finite, beside the pick (read after the window's own sync)
         if (nan_guard_on()) strata::kernels::logits_nonfinite_rows(head_logits_, T, (int) n_vocab_, m_nf_, cs);
+        // LEADS.md HotRod STRATA_FRAGILE_RECHECK (opt-in): each row's top-1 minus top-2 logit and its top-1 id, read after the
+        // window's own sync (fragile_after_window)
+        if (m_gap_ != nullptr && m_top1_ != nullptr) {
+            try {
+                strata::kernels::logits_margin_rows(head_logits_, T, (int) n_vocab_, m_gap_, m_top1_, cs);
+            } catch (const std::exception& e) { err = "verify fragile re-check margins: " + std::string(e.what()); return false; }
+        }
     }
     stamp(g.n_layers, 1, 0);
     if (tap_on_ && !batch_rec_ && tap_file_ != nullptr) copy_from_mapped(m_tap_, tap_dev_, (int64_t) T * (int64_t) tap_layers_.size() * N, cs);
@@ -4357,6 +4591,16 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     }
     VDBG("captured; staging\n");
     const Clock::time_point t0 = Clock::now();
+    // LEADS.md HotRod STRATA_STANDIN_APPLY (opt-in): a newer learned scale table into this stage's mapped copy, between windows
+    if (h_sscale_ != nullptr) {
+        StandinLearner& sl = standin_learner();
+        const uint64_t ver = sl.version.load(std::memory_order_acquire);
+        if (ver != sscale_ver_) {
+            std::lock_guard<std::mutex> lk(sl.mu);
+            if (sl.table.size() == (size_t) g.n_layers * 512) std::memcpy(h_sscale_, sl.table.data(), sl.table.size() * sizeof(float));
+            sscale_ver_ = ver;
+        }
+    }
     if (!pre && !staged_) stage_inputs(T, tokens, pos0);
     staged_ = false;
     const bool do_ple = ss.ple.ready() && ple_stage();
@@ -4585,6 +4829,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
             sink_.partial = split ? &Verifier::raise_partial : nullptr;
         }
+        if (h_orig_ != nullptr) standin_learn_sample(l, tb, n);   // LEADS.md HotRod STRATA_STANDIN_LEARN (opt-in)
         if (pool != nullptr)
             pool(user, h_x_ + (size_t) tb * g.n_embd, h_ids_ + (size_t) tb * ss.k, n, ss.k,
                  h_ymiss_ + (size_t) tb * ss.k * g.n_embd, l);
@@ -6323,6 +6568,151 @@ int Verifier::batch_poll(PoolMultiFn pool, void* user, std::string& err) {
 }
 
 // #879: STRATA_NAN_GUARD=0 turns the guard off (no kernel is recorded; the graphs are captured once, so it is read once)
+// ---- LEADS.md "HotRod" stand-in system (see standin_cfg above; every switch opt-in)
+bool Verifier::standin_ex_on() { return standin_cfg().ex; }
+bool Verifier::fragile_on() { return standin_cfg().ex && standin_cfg().fragile; }
+
+void Verifier::standin_dyn_write(float budget, float budget_tail, int hold) {
+    for (Verifier* v = this; v != nullptr; v = v->next_) {
+        if (v->h_sdyn_ == nullptr) continue;
+        auto* d = (volatile strata::kernels::RouteStandinDyn*) v->h_sdyn_;
+        d->budget = budget;
+        d->budget_tail = budget_tail;
+        d->hold = hold;
+    }
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+    strata_store_fence();
+}
+
+namespace {
+// STRATA_FRAGILE_BRAKE: the request's budgets.  A tail budget braked to 0 would fall back to the margin rule (more moves, not
+// fewer), so it stops at 1e-30 (HotRod's exact successor used the same floor).  The margin rule itself is not braked.
+void standin_budgets(const FragileState& s, float& budget, float& tail) {
+    const StandinCfg& sc = standin_cfg();
+    const float k = s.brake_on ? s.req_scale : 1.0f;
+    budget = sc.budget * k;
+    tail = sc.budget_tail > 0.0f ? std::max(sc.budget_tail * k, 1e-30f) : 0.0f;
+}
+}  // namespace
+
+int Verifier::fragile_after_window(int n_rows, bool merged) {
+    if (!fragile_on() || h_sdyn_ == nullptr) return -1;
+    FragileState& s = fragile_state();
+    const Verifier* last = this;
+    while (last->next_ != nullptr) last = last->next_;
+    int cut = -1;
+    if (!merged && last->h_gap_ != nullptr && last->h_top1_ != nullptr && n_rows >= 1) {
+        const volatile float* gp = last->h_gap_;
+        const volatile int32_t* tp = last->h_top1_;
+        // the pending cut's row was this window's row 0, decided with the router's own picks: a flip is a changed top-1 id
+        if (s.pend) (void) fragile_settle(s, tp[0]);
+        const int n = std::min(n_rows, max_t_);
+        std::vector<float> gap((size_t) n), shift((size_t) n, 0.0f), part((size_t) n);
+        for (int r = 0; r < n; ++r) gap[(size_t) r] = gp[r];
+        bool ok = true;
+        for (Verifier* v = this; v != nullptr && ok; v = v->next_) {   // every stage's moves (its layers), summed
+            if (v->rshift_d_ == nullptr) continue;
+            const OnDevice on(v->device_);
+            ok = cudaMemcpyAsync(part.data(), v->rshift_d_, (size_t) n * sizeof(float), cudaMemcpyDeviceToHost, v->cs_) == cudaSuccess &&
+                 cudaStreamSynchronize(v->cs_) == cudaSuccess;
+            if (ok)
+                for (int r = 0; r < n; ++r) shift[(size_t) r] += part[(size_t) r];
+        }
+        if (!ok) {
+            (void) cudaGetLastError();
+        } else {
+            bool explore = false;
+            const int r = fragile_first(s, gap.data(), shift.data(), n, &explore);
+            if (r >= 1 && shift[(size_t) r] > 0.0f) {
+                fragile_cut(s, gap[(size_t) r] / shift[(size_t) r], tp[r], explore);
+                cut = r;
+            }
+        }
+        fragile_window_done(s, cut >= 1 ? cut : n);
+    }
+    float b = 0.0f, bt = 0.0f;
+    standin_budgets(s, b, bt);
+    standin_dyn_write(b, bt, cut >= 1 ? 1 : 0);   // a cut: the next window's row 0 keeps the router's picks
+    return cut;
+}
+
+void Verifier::fragile_request_begin() {
+    if (!fragile_on()) return;
+    FragileState& s = fragile_state();
+    strata::core::fragile_request_begin(s);
+    float b = 0.0f, bt = 0.0f;
+    standin_budgets(s, b, bt);
+    standin_dyn_write(b, bt, 0);
+}
+
+std::string Verifier::standin_request_line() {
+    std::string out;
+    char buf[512];
+    if (standin_cfg().ex && standin_cfg().fragile) {
+        FragileState& s = fragile_state();
+        std::snprintf(buf, sizeof buf,
+                      "strata serve: fragile recheck: %lld windows cut (%lld explore), %lld rows moved by stand-ins, %lld flipped "
+                      "(k %.4f%s, budget scale %.3f, %lld brakes; %lld re-checks, %lld flips since the start)\n",
+                      s.req_cuts, s.req_explores, s.req_moved, s.req_flips, (double) s.k, s.k_set ? "" : ", learning",
+                      (double) (s.brake_on ? s.req_scale : 1.0f), s.req_brakes, s.rechecks, s.flips);
+        out += buf;
+        s.req_cuts = s.req_explores = s.req_moved = s.req_flips = 0;
+    }
+    if (standin_cfg().ex && standin_cfg().learn_every > 0) {
+        StandinLearner& L = standin_learner();
+        std::lock_guard<std::mutex> lk(L.mu);
+        long long ready = 0;
+        for (size_t i = 0; i < L.table.size(); ++i) ready += L.exp_g[i].n >= standin::kReady;
+        std::snprintf(buf, sizeof buf,
+                      "strata serve: stand-in learner: %lld samples this request (%lld in all, %lld queued, %lld dropped, %lld failed; "
+                      "%lld experts ready, scale %s)\n",
+                      L.req_samples, L.done, L.queued, L.dropped, L.failed, ready, standin_cfg().apply ? "applied" : "observed");
+        out += buf;
+        L.req_samples = 0;
+    }
+    return out;
+}
+
+void Verifier::set_standin_source(ExpertSource* src) {
+    StandinLearner& L = standin_learner();
+    std::lock_guard<std::mutex> lk(L.mu);
+    L.src = src;
+}
+
+void Verifier::standin_learn_sample(int64_t layer, int tb, int n) {
+    const StandinCfg& sc = standin_cfg();
+    if (sc.learn_every <= 0 || h_orig_ == nullptr || g_ == nullptr || ss_ == nullptr) return;
+    StandinLearner& L = standin_learner();
+    const int64_t N = g_->n_embd, K = ss_->k;
+    const volatile int32_t* o = h_orig_ + (size_t) tb * (size_t) K;
+    const volatile int32_t* ids = h_ids_ + (size_t) tb * (size_t) K;
+    bool notify = false;
+    {
+        std::lock_guard<std::mutex> lk(L.mu);
+        if (L.src == nullptr) return;
+        for (int t = 0; t < n; ++t)
+            for (int64_t r = 0; r < K; ++r) {
+                const int32_t e = o[(size_t) t * (size_t) K + (size_t) r];
+                if (e < 0 || e >= 512) continue;
+                if (L.seen++ % sc.learn_every != 0) continue;
+                if (L.q.size() >= 64) {
+                    ++L.dropped;
+                    continue;
+                }
+                StandinLearner::Job j;
+                j.layer = (int32_t) layer;
+                j.e = e;
+                j.s = ids[(size_t) t * (size_t) K + (size_t) r];
+                const float* x = h_x_ + (size_t) (tb + t) * (size_t) N;
+                j.x.assign(x, x + N);
+                L.q.push_back(std::move(j));
+                ++L.queued;
+                notify = true;
+            }
+    }
+    if (notify) L.cv.notify_one();
+}
+
 bool Verifier::nan_guard_on() {
     static const bool on = [] {
         const char* v = std::getenv("STRATA_NAN_GUARD");
@@ -6656,6 +7046,7 @@ int Verifier::service(PoolMultiFn pool, void* user, std::string& err) {
             sink_.weights = split ? h_w_ + (size_t) tb * ss.k : nullptr;
             sink_.partial = split ? &Verifier::raise_partial : nullptr;
         }
+        if (h_orig_ != nullptr) standin_learn_sample(l, tb, n);   // LEADS.md HotRod STRATA_STANDIN_LEARN (opt-in)
         if (pool != nullptr)
             pool(user, h_x_ + (size_t) tb * g.n_embd, h_ids_ + (size_t) tb * ss.k, n, ss.k,
                  h_ymiss_ + (size_t) tb * ss.k * g.n_embd, l);

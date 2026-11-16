@@ -12682,6 +12682,7 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "strata serve: %s\n", err.c_str());
             return 1;
         }
+        if (strata::core::Verifier::standin_ex_on()) strata::core::Verifier::set_standin_source(srcp);   // LEADS.md HotRod STRATA_STANDIN_LEARN
         if (prefill_head_alias_bound) mtp.set_window_R(ver.final_R_all());
 #if defined(STRATA_HAVE_DFLASH2)
 #if defined(STRATA_HAVE_DFLASH2)
@@ -20422,6 +20423,7 @@ int main(int argc, char** argv) {
             strata::core::MtpDrafter::DraftResult generation;
             strata::core::gated::Packet proposal; // immutable through the synchronous verifier call
             bool first_window = true;
+            ver.fragile_request_begin();   // LEADS.md HotRod STRATA_FRAGILE_RECHECK (opt-in): the brake and the counts start over
             int64_t produced_n = 0, sfx_windows = 0, sfx_drafts = 0, sfx_ok = 0;
             // STRATA_FOLLOW=<file> (token forcing, measurement only, off by default; tools/force_check.py): one line per request in the order the
             // engine decodes them, comma-separated token ids (an empty line: that request is not forced).  The serial decode windows below
@@ -21788,6 +21790,7 @@ int main(int argc, char** argv) {
                 // greedy prefix rule (+ the HIP stop bound) when it is not merged, no grammar guard and no forced continuation run:
                 // the verifier may then run the accept and the commit on the GPU right behind the window (commit() checks n_keep)
                 if (strata::core::Verifier::device_accept_env() && T >= 2 && !merged && !(gguard != nullptr && gguard->on()) &&
+                    !strata::core::Verifier::fragile_on() &&   // LEADS.md HotRod: a fragile cut shortens the accept on the host
                     fol == nullptr && !gated_proposal && !typ_req.on && !(sr_tau > 0.0)) {   // (TYPICAL_THINK / SPEC_REASON extend the accept)
 #if defined(STRATA_USE_HIP)
                     const bool da_bound = stop_bound;
@@ -21841,6 +21844,14 @@ int main(int argc, char** argv) {
                 }
                 int a = merged ? T - 1 : 0;   // a merged window commits every row, as the prompt windows do
                 while (a < T - 1 && window[(size_t) a + 1] == outv[(size_t) a]) ++a;
+                // LEADS.md HotRod STRATA_FRAGILE_RECHECK (opt-in, sangharshadhyeta/Strata-HotRod 024f644789 / a2ef1638cf): a window whose
+                // stand-ins moved a row r >= 1 with a top-1 minus top-2 gap below k times the move is cut before it: rows 0..r-1 are kept
+                // and the next window re-decides row r as its row 0 with the router's own picks.  Off: -1, nothing changes.
+                int fr_cut = -1;
+                if (strata::core::Verifier::fragile_on()) {
+                    fr_cut = ver.fragile_after_window(a + 1, merged);
+                    if (fr_cut >= 1) a = std::min(a, fr_cut - 1);
+                }
                 if (rd_observe) rd_rec.observe(window.data(), outv.data(), T);   // STRATA_TOKEN_RECYCLE / HYDRA_TOP2: every row a pair
                 // LEADS.md section 3 STRATA_TYPICAL_THINK (lossy, sampled requests only): inside the thinking, the first rejected draft
                 // is kept anyway when the target gives it p > min(eps, alpha e^-H) (Medusa's typical acceptance), and the rule goes on
@@ -21919,6 +21930,7 @@ int main(int argc, char** argv) {
                         ++grammar_resamples;
                     }
                 }
+                if (fr_cut >= 1) a = std::min(a, fr_cut - 1);   // LEADS.md HotRod: TYPICAL_THINK / SPEC_REASON never keep a cut row
                 if (fol != nullptr && fol_lp != nullptr) {   // rows 0..a have valid logits (their inputs are the accepted tokens)
                     std::vector<int32_t> fol_tg((size_t) a + 1, -1);
                     for (int i = 0; i <= a; ++i) {
@@ -22757,6 +22769,10 @@ int main(int argc, char** argv) {
                 std::fprintf(stderr, "strata serve: decode expert cache hit rate: %.1f%% (%lld hits / %lld lookups)%s\n",
                              100.0 * (double) req_hits / (double) req_look,
                              (long long) req_hits, (long long) req_look, off);
+            }
+            {   // LEADS.md HotRod STRATA_FRAGILE_RECHECK / STRATA_STANDIN_LEARN (opt-in): this request's lines (empty when off)
+                const std::string sl = strata::core::Verifier::standin_request_line();
+                if (!sl.empty()) std::fputs(sl.c_str(), stderr);
             }
             if (drive.d.tail_experts > 0)   // STRATA_ROUTE_TAIL_SKIP, cumulative
                 std::fprintf(stderr, "strata serve: route tail skip: %lld missed experts skipped (%lld entries) since the "

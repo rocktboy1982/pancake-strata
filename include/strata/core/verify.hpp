@@ -159,6 +159,24 @@ public:
         return t >= 0 && t < 32 && ((nf_mask_ >> t) & 1u) != 0;
     }
     static bool nan_guard_on();
+    /// LEADS.md "HotRod" stand-in system (sangharshadhyeta/Strata-HotRod; every switch opt-in, lossy): STRATA_STANDIN=1 (every
+    /// non-resident pick of ranks 0-9 takes the best resident expert), STRATA_ROUTE_BUDGET=<b> / STRATA_ROUTE_BUDGET_TAIL=<b>
+    /// (w x logit-gap budgets), STRATA_FRAGILE_RECHECK=1 (+ STRATA_FRAGILE_BRAKE, STRATA_FRAGILE_K0) and STRATA_STANDIN_LEARN=<n> /
+    /// STRATA_STANDIN_APPLY=1 (the stand-in scale learned on the CPU).  True when the extended stand-in launch replaces
+    /// STRATA_ROUTE_RESIDENT's (some of these are set and the stand-ins are on).  Read once.
+    static bool standin_ex_on();
+    static bool fragile_on();      ///< STRATA_FRAGILE_RECHECK=1 with the stand-ins on
+    /// STRATA_FRAGILE_RECHECK, after a non-merged decode window's run(): settles the pending cut (this window's row 0 was its exact
+    /// re-decision), then returns the first close call among the window's rows 0..n_rows-1 (n_rows = the accepted rows + 1), r >= 1,
+    /// or -1.  A cut makes the next window hold its row 0 (the router's own picks).  Merged windows: pass merged = true (no cut;
+    /// the hold is cleared).  Call on the first stage; it reads every stage's moves and the last stage's gaps.
+    int fragile_after_window(int n_rows, bool merged);
+    /// STRATA_FRAGILE_RECHECK: a request's start (the brake's scale and the request's counts start over).
+    void fragile_request_begin();
+    /// STRATA_FRAGILE_RECHECK / STRATA_STANDIN_LEARN: this request's line (empty when off); takes and resets the request's counts.
+    static std::string standin_request_line();
+    /// STRATA_STANDIN_LEARN: the expert source the learner's CPU worker reads blobs from (copy_blob); null stops it.
+    static void set_standin_source(ExpertSource* src);
     /// The most tokens one window holds (`init`'s `max_t`; 0 before it).
     int max_t() const { return max_t_; }
     /// The sampling the verify window's head applies (temperature / top_p / top_k / seed).  Set per
@@ -791,6 +809,19 @@ private:
     std::FILE* tap_file_ = nullptr;
     void tap_write(int T, const int32_t* tokens, int64_t pos0);
     uint32_t* h_nf_ = nullptr;   uint32_t* m_nf_ = nullptr;     // #879: kVerifyMaxT * kNonfiniteBlocks flags
+    // LEADS.md HotRod stand-ins (standin_ex_on(); all null when off): the mapped RouteStandinDyn the extended stand-in kernel reads,
+    // the rows' moves (device, STRATA_FRAGILE_RECHECK), the head rows' gap / top-1 (mapped), the replaced experts per pick (mapped,
+    // STRATA_STANDIN_LEARN) and the learned scale per (layer, expert) (mapped, STRATA_STANDIN_APPLY)
+    void* h_sdyn_ = nullptr;     void* m_sdyn_ = nullptr;
+    float* rshift_d_ = nullptr;
+    float* h_gap_ = nullptr;     float* m_gap_ = nullptr;
+    int32_t* h_top1_ = nullptr;  int32_t* m_top1_ = nullptr;
+    int32_t* h_orig_ = nullptr;  int32_t* m_orig_ = nullptr;
+    float* h_sscale_ = nullptr;  float* m_sscale_ = nullptr;
+    uint64_t sscale_ver_ = 0;             ///< the learner's table version this stage's mapped copy holds
+    int64_t rr_first_l_ = -1;             ///< record_window: the first layer routed in the capture (its launch zeroes the moves)
+    void standin_dyn_write(float budget, float budget_tail, int hold);   ///< every stage of the chain
+    void standin_learn_sample(int64_t layer, int tb, int n);            ///< run(): this group's stand-ins to the learner
     int nf_row_ = -1;                     ///< nonfinite_row()
     int64_t nf_pos_ = -1;                 ///< nonfinite_pos()
     uint32_t nf_mask_ = 0;                ///< nonfinite_in(): bit t = row t

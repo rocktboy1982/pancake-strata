@@ -38,4 +38,30 @@ void native_router_top10_publish_fast(const float* logits, int32_t* ids, float* 
 /// `stats` is nullptr or 4 device uint64 counters: tail entries seen, swaps, non-resident before, non-resident after.
 void native_route_resident(const float* logits, int32_t* ids, float* weights, const int32_t* res_layer, int n_tok, float margin,
                            int rank_lo, int rank_hi, unsigned long long* stats, void* stream);
+
+/// LEADS.md "HotRod" stand-in system (sangharshadhyeta/Strata-HotRod 024f644789 / a2ef1638cf / the 8-9 Nov stand-in learner,
+/// all opt-in, lossy): the values native_route_resident_ex reads at every launch from host-mapped memory (graph-safe; the host
+/// writes them between windows only).
+struct RouteStandinDyn {
+    float budget;        ///< STRATA_ROUTE_BUDGET: ranks below lo take a stand-in when w * max(gap, 0) <= budget (0 = they stay exact)
+    float budget_tail;   ///< STRATA_ROUTE_BUDGET_TAIL: ranks lo..hi take one when w * max(gap, 0) <= budget_tail (0 = the margin rule)
+    int32_t hold;        ///< STRATA_FRAGILE_RECHECK: window rows row_base + t < hold keep the router's picks (a cut row's exact re-decision)
+    int32_t pad;
+};
+/// The extended stand-in launch's arguments.  dyn is required (the device alias of the mapped RouteStandinDyn); the rest may be null.
+struct RouteStandinArgs {
+    const RouteStandinDyn* dyn = nullptr;
+    int row_base = 0;              ///< the first window row of this launch (the hold compares row_base + t)
+    float* row_shift = nullptr;    ///< STRATA_FRAGILE_RECHECK: device [n_tok]; each move adds w * max(gap, 0) to its row
+    int zero_shift = 0;            ///< 1: row_shift[t] starts at 0 in this launch (the window's first routed layer)
+    const float* scale = nullptr;  ///< STRATA_STANDIN_APPLY: the layer's [512] learned scale of a replaced expert's stand-in weight
+    int32_t* orig_out = nullptr;   ///< STRATA_STANDIN_LEARN: [n_tok][10] the replaced expert per rank (-1: the router's own pick kept)
+};
+/// STRATA_ROUTE_RESIDENT / STRATA_STANDIN with the HotRod additions (512 x 10 only): native_route_resident's rule for ranks lo..hi
+/// (or the tail budget), plus ranks below lo under the budget; a token without a move keeps the router's exact bits.
+void native_route_resident_ex(const float* logits, int32_t* ids, float* weights, const int32_t* res_layer, int n_tok, float margin,
+                              int rank_lo, int rank_hi, unsigned long long* stats, const RouteStandinArgs& a, void* stream);
+/// STRATA_FRAGILE_RECHECK: per row of n floats, gap[r] = the largest minus the second largest value and top1[r] = its index
+/// (ties: the smaller index).  gap / top1 may be host-mapped.  One block per row.
+void logits_margin_rows(const float* logits, int n_rows, int n, float* gap, int32_t* top1, void* stream);
 }
