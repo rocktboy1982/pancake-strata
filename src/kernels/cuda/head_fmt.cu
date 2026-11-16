@@ -311,6 +311,11 @@ __global__ void __launch_bounds__(WPB * WARP) head_kernel(const typename F::Bloc
 template <class F, int NC>
 bool launch_head(const void* w, const void* x, float* y, int n_in, int n_out, cudaStream_t s) {
     const size_t smem = (size_t) NC * (n_in / 32) * sizeof(Q81Block);
+#if defined(__HIPCC__)
+    // -DSTRATA_HIP_HEAD_FMT=ON: a gfx1100 workgroup has 64 KB of LDS and needs no opt-in attribute; a larger image
+    // (n_in > 7168 at 8 columns) is refused and the caller keeps its usual head kernel
+    if (smem > 64 * 1024) return false;
+#else
     if (smem > 48 * 1024) {
         static bool asked = false;
         if (!asked) {
@@ -320,6 +325,7 @@ bool launch_head(const void* w, const void* x, float* y, int n_in, int n_out, cu
             asked = true;
         }
     }
+#endif
     head_kernel<F, NC><<<(unsigned) ((n_out + WPB - 1) / WPB), WPB * WARP, smem, s>>>(
         (const typename F::Block*) w, (const Q81Block*) x, y, n_in, n_out);
     return true;
@@ -388,6 +394,10 @@ template <class F, int NC>
 bool launch_head_argmax(const void* w, const void* x, float* y, int n_in, int n_out, unsigned long long* keys,
                         cudaStream_t s) {
     const size_t smem = (size_t) NC * (n_in / 32) * sizeof(Q81Block);
+#if defined(__HIPCC__)
+    // as launch_head: 64 KB of LDS a workgroup on gfx1100, the static bk[][] included
+    if (smem > 64 * 1024 - sizeof(unsigned long long) * WPB * 8) return false;
+#else
     if (smem > 48 * 1024 - sizeof(unsigned long long) * WPB * 8) {
         static bool asked = false;
         if (!asked) {
@@ -397,6 +407,7 @@ bool launch_head_argmax(const void* w, const void* x, float* y, int n_in, int n_
             asked = true;
         }
     }
+#endif
     head_argmax_kernel<F, NC><<<(unsigned) ((n_out + WPB - 1) / WPB), WPB * WARP, smem, s>>>(
         (const typename F::Block*) w, (const Q81Block*) x, y, n_in, n_out, keys);
     return true;
