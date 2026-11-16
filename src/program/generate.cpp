@@ -20684,11 +20684,7 @@ int main(int argc, char** argv) {
             if (!req_ckpt) turn_at = -1;
             int64_t root_at = -1;
             if (o.prompt_cache > 0 && o.turn_token >= 0 && o.prompt_cache_root > 0 && (read_from == 0 || resumed_from0))
-                for (int64_t i = 1; i < last_turn; ++i)
-                    if (ids[(size_t) i] == o.turn_token) {
-                        if (i >= o.prompt_cache_root) root_at = i;
-                        break;
-                    }
+                root_at = strata::program::prompt_cache_root_at(ids, last_turn, o.turn_token, o.prompt_cache_root, cache_root_past_env());
             static const bool message_checkpoint = [] {
                 const char* e = std::getenv("STRATA_CACHE_MESSAGE_BOUNDARY");
                 return e != nullptr && std::atoi(e) != 0;
