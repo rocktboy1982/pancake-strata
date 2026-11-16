@@ -185,7 +185,12 @@ miss.
    pancake.service restart) held the card; its GPU ctest (2 failures: hip_prefill_fused_iq, _f16) also overlapped that job.
    Chain 4 stops pancake.service, re-runs ctest -L gpu and mmvq_il_parity, then specs 81-86, 80, 87-93 and the never-run specs
    of item 5 (a busy card is retried every 5 min, 12 times), then starts pancake.service again. The Windows-session specs
-   were renumbered 64-77 -> 80-93 (the box took 64 and 65). Earlier text: `/home/dan/clone-of-d/src/win-chain2.sh`, started 22:09, waits for the box
+   were renumbered 64-77 -> 80-93 (the box took 64 and 65).
+   First chain-4 pass (02:12-02:18): ctest -L gpu 135/135 and mmvq_il_parity passed on the free card (the 2 earlier
+   failures were the overlap); every spec then aborted "server died before ready" because the clone had no `.venv`
+   (`Strata-win/.venv` is now a link to `../Strata/.venv`; the 2 MiB-block RAM warning was not the cause). Re-run from
+   spec 81 at 02:20 with `echo 1 | sudo -n tee /proc/sys/vm/compact_memory` first; spec 81 base read short 114 / edit 145-171
+   tok/s, so the servers start. Earlier text: `/home/dan/clone-of-d/src/win-chain2.sh`, started 22:09, waits for the box
    chain16 (`CHAIN16_DONE` in `/home/dan/auto-chain16.log`: specs 63-park, 62, 60, 61) and for no abtest / replay running, then:
    builds `build-win`, `build-win-il` (-DSTRATA_HIP_MMVQ_IL) and `build-win-j32` in the clone `/home/dan/clone-of-d/src/Strata-win`;
    `ctest -L cpu`, `ctest -L gpu` (134 tests), `mmvq_il_parity`; then specs 81 (decode exact opt-ins), 66 (PCIe share +
