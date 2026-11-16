@@ -1,0 +1,167 @@
+capped: tier=mmap keep_gib=12 big_free_gib=18
+[strata] sampling defaults from the config: temperature=0.1, top_p=0.95, top_k=20
+loading the model (the first start takes a minute or two) ...
+[strata] effort_position end: a request's non-default reasoning effort goes right before the answer, so changing it keeps the cached conversation
+[strata] starting the engine: reading the model's weights ...
+[strata] loading the experts into RAM (about 39 GB) and locking part of them for the GPU.
+         YOUR PC CAN BE SLOW OR STOP RESPONDING FOR 1-3 MINUTES NOW - this is normal.
+         Please wait and don't close this window; the server says when it is ready.
+[strata] still starting (25 s) - please wait ...
+[strata] experts loaded: 33.02 GiB at 1.12 GiB/s (44 s so far)
+[strata] filling the GPU's expert cache (10610 experts, 14.21 GiB of VRAM) ...
+[strata] almost ready ...
+[strata] per-turn log: /home/dan/clone-of-d/src/Strata/pancake-turns.jsonl (numbers only, no prompt or answer text)
+[strata] thinking budget: closed at a sentence or line end, at most 512 tokens past it (reasoning_budget_grace)
+ready: http://127.0.0.1:8080/v1  (OpenAI: /v1/chat/completions, Anthropic: /v1/messages, context 131072 tokens)
+       open http://127.0.0.1:8080/ in a browser to chat; close this window to stop the model
+[strata] done: 10 tokens in 1 s (67.0 tok/s) (stop, cancel=False), expert cache 65.9% hit
+[strata] answering: 33 of max 1024 tokens, 122.9 tok/s, 1 s
+[strata] done: 49 tokens in 1 s (115.4 tok/s) (stop, cancel=False), expert cache 79.9% hit
+[strata] done: 36 tokens in 1 s (147.2 tok/s) (stop, cancel=False), expert cache 88.3% hit
+[strata] done: 27 tokens in 1 s (129.3 tok/s) (stop, cancel=False), expert cache 89.2% hit
+[strata] done: 53 tokens in 1 s (140.7 tok/s) (stop, cancel=False), expert cache 88.5% hit
+[strata] answering: 41 of max 1024 tokens, 140.5 tok/s, 1 s
+[strata] done: 61 tokens in 1 s (140.3 tok/s) (stop, cancel=False), expert cache 91.8% hit
+[strata] answering: 46 of max 1024 tokens, 151.1 tok/s, 1 s
+[strata] done: 86 tokens in 1 s (146.4 tok/s) (stop, cancel=False), expert cache 91.0% hit
+[strata] answering: 50 of max 1024 tokens, 164.1 tok/s, 1 s
+[strata] done: 94 tokens in 1 s (145.9 tok/s) (stop, cancel=False), expert cache 88.7% hit
+[strata] answering: 55 of max 1024 tokens, 169.1 tok/s, 1 s
+[strata] done: 104 tokens in 1 s (153.3 tok/s) (stop, cancel=False), expert cache 90.2% hit
+[strata] reading the prompt: 336 of 337 tokens, 1 s so far
+[strata] done: 41 tokens in 2 s (86.1 tok/s) (stop, cancel=False), expert cache 72.2% hit
+[strata] reading the prompt: 492 of 493 tokens, 1 s so far
+[strata] done: 82 tokens in 2 s (90.8 tok/s) (stop, cancel=False), expert cache 77.9% hit
+[strata] writing a tool call: get_weather: 10 of max 1024 tokens, 40.0 tok/s, 1 s
+[strata] done: 53 tokens in 1 s (95.9 tok/s) (stop, cancel=False), expert cache 82.7% hit
+[strata] reading the prompt: 432 of 433 tokens, 1 s so far
+[strata] done: 26 tokens in 1 s (97.0 tok/s) (stop, cancel=False), expert cache 84.6% hit
+[strata] answering: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 4 tokens in 1 s (53.8 tok/s) (stop, cancel=False), expert cache 80.9% hit
+[strata] reading the prompt: 493 of 494 tokens, 1 s so far
+[strata] done: 28 tokens in 1 s (88.6 tok/s) (stop, cancel=False), expert cache 84.0% hit
+[strata] reading the prompt: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 62 tokens in 2 s (102.9 tok/s) (stop, cancel=False), expert cache 85.9% hit
+[strata] done: 4 tokens in 1 s (87.5 tok/s) (stop, cancel=False), expert cache 83.2% hit
+[strata] done: 3 tokens in 1 s (38.8 tok/s) (stop, cancel=False), expert cache 84.6% hit
+[strata] done: 3 tokens in 1 s (41.0 tok/s) (stop, cancel=False), expert cache 85.9% hit
+[strata] done: 49 tokens in 1 s (147.6 tok/s) (stop, cancel=False), expert cache 86.9% hit
+[strata] done: 36 tokens in 1 s (121.3 tok/s) (stop, cancel=False), expert cache 90.5% hit
+[strata] done: 27 tokens in 1 s (142.9 tok/s) (stop, cancel=False), expert cache 93.7% hit
+[strata] done: 53 tokens in 1 s (151.4 tok/s) (stop, cancel=False), expert cache 92.0% hit
+[strata] answering: 52 of max 1024 tokens, 163.1 tok/s, 1 s
+[strata] done: 61 tokens in 1 s (159.2 tok/s) (stop, cancel=False), expert cache 93.9% hit
+[strata] answering: 30 of max 1024 tokens, 120.0 tok/s, 1 s
+[strata] done: 86 tokens in 1 s (149.6 tok/s) (stop, cancel=False), expert cache 93.5% hit
+[strata] answering: 47 of max 1024 tokens, 147.8 tok/s, 1 s
+[strata] done: 94 tokens in 1 s (159.6 tok/s) (stop, cancel=False), expert cache 91.2% hit
+[strata] answering: 50 of max 1024 tokens, 158.7 tok/s, 1 s
+[strata] done: 104 tokens in 1 s (142.7 tok/s) (stop, cancel=False), expert cache 92.3% hit
+[strata] reading the prompt: 6 of max 1024 tokens, 24.0 tok/s, 1 s
+[strata] done: 41 tokens in 1 s (104.9 tok/s) (stop, cancel=False), expert cache 81.0% hit
+[strata] reading the prompt: 492 of 493 tokens, 1 s so far
+[strata] done: 82 tokens in 2 s (103.5 tok/s) (stop, cancel=False), expert cache 83.4% hit
+[strata] answering: 4 of max 1024 tokens, 16.0 tok/s, 1 s
+[strata] done: 62 tokens in 2 s (101.6 tok/s) (stop, cancel=False), expert cache 85.1% hit
+[strata] reading the prompt: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 26 tokens in 1 s (119.5 tok/s) (stop, cancel=False), expert cache 86.6% hit
+[strata] answering: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 4 tokens in 1 s (89.9 tok/s) (stop, cancel=False), expert cache 83.6% hit
+[strata] reading the prompt: 493 of 494 tokens, 1 s so far
+[strata] done: 28 tokens in 1 s (108.3 tok/s) (stop, cancel=False), expert cache 85.5% hit
+[strata] reading the prompt: 2 of max 1024 tokens, 8.0 tok/s, 1 s
+[strata] done: 62 tokens in 2 s (117.4 tok/s) (stop, cancel=False), expert cache 89.3% hit
+[strata] done: 4 tokens in 1 s (83.7 tok/s) (stop, cancel=False), expert cache 83.9% hit
+[strata] done: 3 tokens in 1 s (43.5 tok/s) (stop, cancel=False), expert cache 87.9% hit
+[strata] done: 3 tokens in 1 s (43.6 tok/s) (stop, cancel=False), expert cache 88.6% hit
+[strata] answering: 38 of max 1024 tokens, 118.6 tok/s, 1 s
+[strata] done: 49 tokens in 1 s (146.4 tok/s) (stop, cancel=False), expert cache 86.2% hit
+[strata] done: 36 tokens in 1 s (140.1 tok/s) (stop, cancel=False), expert cache 90.2% hit
+[strata] done: 27 tokens in 1 s (141.4 tok/s) (stop, cancel=False), expert cache 93.5% hit
+[strata] done: 53 tokens in 1 s (151.1 tok/s) (stop, cancel=False), expert cache 91.8% hit
+[strata] answering: 49 of max 1024 tokens, 156.8 tok/s, 1 s
+[strata] done: 61 tokens in 1 s (152.3 tok/s) (stop, cancel=False), expert cache 93.8% hit
+[strata] answering: 46 of max 1024 tokens, 150.0 tok/s, 1 s
+[strata] done: 86 tokens in 1 s (147.7 tok/s) (stop, cancel=False), expert cache 93.6% hit
+[strata] answering: 47 of max 1024 tokens, 150.7 tok/s, 1 s
+[strata] done: 94 tokens in 1 s (161.2 tok/s) (stop, cancel=False), expert cache 91.2% hit
+[strata] answering: 50 of max 1024 tokens, 162.5 tok/s, 1 s
+[strata] done: 103 tokens in 1 s (152.5 tok/s) (stop, cancel=False), expert cache 92.5% hit
+[strata] reading the prompt: 6 of max 1024 tokens, 24.0 tok/s, 1 s
+[strata] done: 41 tokens in 1 s (107.6 tok/s) (stop, cancel=False), expert cache 82.4% hit
+[strata] reading the prompt: 492 of 493 tokens, 1 s so far
+[strata] done: 82 tokens in 2 s (108.8 tok/s) (stop, cancel=False), expert cache 84.5% hit
+[strata] writing a tool call: get_weather: 10 of max 1024 tokens, 40.0 tok/s, 1 s
+[strata] done: 53 tokens in 1 s (126.2 tok/s) (stop, cancel=False), expert cache 87.8% hit
+[strata] reading the prompt: 432 of 433 tokens, 1 s so far
+[strata] done: 26 tokens in 1 s (120.0 tok/s) (stop, cancel=False), expert cache 86.7% hit
+[strata] answering: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 4 tokens in 1 s (54.3 tok/s) (stop, cancel=False), expert cache 84.9% hit
+[strata] reading the prompt: 493 of 494 tokens, 1 s so far
+[strata] done: 28 tokens in 1 s (110.4 tok/s) (stop, cancel=False), expert cache 85.8% hit
+[strata] reading the prompt: 407 of 408 tokens, 1 s so far
+[strata] done: 62 tokens in 2 s (117.0 tok/s) (stop, cancel=False), expert cache 89.7% hit
+[strata] done: 4 tokens in 1 s (83.9 tok/s) (stop, cancel=False), expert cache 85.1% hit
+[strata] done: 3 tokens in 1 s (43.9 tok/s) (stop, cancel=False), expert cache 88.6% hit
+[strata] done: 3 tokens in 1 s (43.1 tok/s) (stop, cancel=False), expert cache 89.6% hit
+[strata] done: 49 tokens in 1 s (162.8 tok/s) (stop, cancel=False), expert cache 86.9% hit
+[strata] done: 36 tokens in 1 s (137.4 tok/s) (stop, cancel=False), expert cache 90.7% hit
+[strata] done: 27 tokens in 1 s (141.9 tok/s) (stop, cancel=False), expert cache 93.6% hit
+[strata] done: 53 tokens in 1 s (150.4 tok/s) (stop, cancel=False), expert cache 92.1% hit
+[strata] answering: 52 of max 1024 tokens, 165.3 tok/s, 1 s
+[strata] done: 61 tokens in 1 s (161.1 tok/s) (stop, cancel=False), expert cache 93.8% hit
+[strata] answering: 50 of max 1024 tokens, 164.3 tok/s, 1 s
+[strata] done: 86 tokens in 1 s (161.8 tok/s) (stop, cancel=False), expert cache 93.6% hit
+[strata] answering: 47 of max 1024 tokens, 150.6 tok/s, 1 s
+[strata] done: 94 tokens in 1 s (162.2 tok/s) (stop, cancel=False), expert cache 91.1% hit
+[strata] answering: 50 of max 1024 tokens, 163.4 tok/s, 1 s
+[strata] done: 104 tokens in 1 s (148.5 tok/s) (stop, cancel=False), expert cache 92.4% hit
+[strata] reading the prompt: 6 of max 1024 tokens, 24.0 tok/s, 1 s
+[strata] done: 41 tokens in 1 s (108.4 tok/s) (stop, cancel=False), expert cache 82.8% hit
+[strata] reading the prompt: 492 of 493 tokens, 1 s so far
+[strata] done: 82 tokens in 2 s (108.5 tok/s) (stop, cancel=False), expert cache 84.4% hit
+[strata] answering: 5 of max 1024 tokens, 20.0 tok/s, 1 s
+[strata] done: 64 tokens in 2 s (104.4 tok/s) (stop, cancel=False), expert cache 86.0% hit
+[strata] reading the prompt: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 26 tokens in 1 s (111.8 tok/s) (stop, cancel=False), expert cache 86.3% hit
+[strata] reading the prompt: 397 of 398 tokens, 1 s so far
+[strata] done: 4 tokens in 1 s (54.1 tok/s) (stop, cancel=False), expert cache 84.7% hit
+[strata] reading the prompt: 493 of 494 tokens, 1 s so far
+[strata] done: 28 tokens in 1 s (110.7 tok/s) (stop, cancel=False), expert cache 86.2% hit
+[strata] reading the prompt: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 62 tokens in 2 s (116.8 tok/s) (stop, cancel=False), expert cache 89.8% hit
+[strata] done: 4 tokens in 1 s (87.1 tok/s) (stop, cancel=False), expert cache 85.2% hit
+[strata] done: 3 tokens in 1 s (43.4 tok/s) (stop, cancel=False), expert cache 88.2% hit
+[strata] done: 3 tokens in 1 s (43.0 tok/s) (stop, cancel=False), expert cache 89.6% hit
+[strata] done: 49 tokens in 1 s (158.0 tok/s) (stop, cancel=False), expert cache 85.7% hit
+[strata] done: 36 tokens in 1 s (138.6 tok/s) (stop, cancel=False), expert cache 89.7% hit
+[strata] done: 27 tokens in 1 s (141.7 tok/s) (stop, cancel=False), expert cache 93.3% hit
+[strata] done: 53 tokens in 1 s (149.3 tok/s) (stop, cancel=False), expert cache 91.8% hit
+[strata] answering: 47 of max 1024 tokens, 156.5 tok/s, 1 s
+[strata] done: 61 tokens in 1 s (156.7 tok/s) (stop, cancel=False), expert cache 93.6% hit
+[strata] answering: 49 of max 1024 tokens, 160.6 tok/s, 1 s
+[strata] done: 86 tokens in 1 s (154.2 tok/s) (stop, cancel=False), expert cache 93.6% hit
+[strata] answering: 47 of max 1024 tokens, 146.8 tok/s, 1 s
+[strata] done: 94 tokens in 1 s (156.6 tok/s) (stop, cancel=False), expert cache 91.1% hit
+[strata] answering: 41 of max 1024 tokens, 132.8 tok/s, 1 s
+[strata] done: 104 tokens in 1 s (132.6 tok/s) (stop, cancel=False), expert cache 92.3% hit
+[strata] reading the prompt: 6 of max 1024 tokens, 24.0 tok/s, 1 s
+[strata] done: 41 tokens in 1 s (109.4 tok/s) (stop, cancel=False), expert cache 83.4% hit
+[strata] reading the prompt: 492 of 493 tokens, 1 s so far
+[strata] done: 82 tokens in 2 s (103.2 tok/s) (stop, cancel=False), expert cache 83.9% hit
+[strata] writing a tool call: get_weather: 10 of max 1024 tokens, 40.0 tok/s, 1 s
+[strata] done: 53 tokens in 1 s (127.8 tok/s) (stop, cancel=False), expert cache 88.5% hit
+[strata] reading the prompt: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 26 tokens in 1 s (117.4 tok/s) (stop, cancel=False), expert cache 86.4% hit
+[strata] answering: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 4 tokens in 1 s (55.9 tok/s) (stop, cancel=False), expert cache 85.9% hit
+[strata] reading the prompt: 493 of 494 tokens, 1 s so far
+[strata] done: 28 tokens in 1 s (110.6 tok/s) (stop, cancel=False), expert cache 85.9% hit
+[strata] reading the prompt: 1 of max 1024 tokens, 4.0 tok/s, 1 s
+[strata] done: 62 tokens in 2 s (119.4 tok/s) (stop, cancel=False), expert cache 89.9% hit
+[strata] done: 4 tokens in 1 s (87.1 tok/s) (stop, cancel=False), expert cache 85.9% hit
+[strata] done: 3 tokens in 1 s (42.7 tok/s) (stop, cancel=False), expert cache 88.7% hit
+[strata] done: 3 tokens in 1 s (44.2 tok/s) (stop, cancel=False), expert cache 89.6% hit
+
+[strata] stopping (Ctrl+C again to end the engine at once) ...
+[strata] stopped

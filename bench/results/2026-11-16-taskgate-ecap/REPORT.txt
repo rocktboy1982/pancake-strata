@@ -1,0 +1,9 @@
+arm                     runs     success (95% Wilson) tool valid t_success med s/success  vs base
+ecap0                    180  99.4% [96.9,  99.9]     100.0%          1.3s      2.0s
+                       time-AUC 0.993 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 99.4% / 99.4% / 99.4% / 99.4%)
+                       by kind: code_edit 99% (n=80)  tool_call 100% (n=70)  qa 100% (n=30)  request errors 1
+ecap1                     90 100.0% [95.9, 100.0]     100.0%          1.2s      1.1s  success  +0.6 pts [ +0.0,  +2.2] PASS; validity  +0.0 [ +0.0,  +0.0] PASS  => PASS
+                       time-AUC 0.999 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 100.0% / 100.0% / 100.0% / 100.0%)  vs base +0.006 [+0.000, +0.023]
+                       by kind: code_edit 100% (n=40)  tool_call 100% (n=35)  qa 100% (n=15)
+base run 2 vs run 1: +1.1 pts [+0.0, +5.6]
+verdict: success non-inferior within 5 pts, tool-call validity within 3 pts; paired by task, bootstrap over tasks and repetitions
