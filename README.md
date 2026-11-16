@@ -837,6 +837,26 @@ tools/pancake/pre-push.sh            # what to run before pushing
 An exact switch must decode the same tokens as stock. A lossy switch must pass the quality gate: no large-margin
 errors, and a token-difference rate explained against the 1.2-1.3% stock run-to-run noise.
 
+### Host tuning (Linux, optional, reversible)
+
+`tools/pancake/host_tune.sh` checks and tunes the host settings that matter for the engine's big memory-mapped model files and
+locked expert arena: NVMe read-ahead, transparent huge pages, swappiness, the memlock limit, CPU governor / EPP, `amd_pstate`, AMD GPU
+power level, PCIe ASPM and the deepest C-states (`iommu=pt` and the headless target are only reported, never applied).
+
+```sh
+tools/pancake/host_tune.sh --check              # read-only report of every step, no sudo
+tools/pancake/host_tune.sh --list               # target and risk of each step (idle power, reserved RAM, reboot)
+tools/pancake/host_tune.sh --apply nvme_ra,thp  # this boot only; the previous values go to ~/.local/state/pancake-host-tune/
+tools/pancake/host_tune.sh --revert all         # puts back exactly the saved values
+tools/pancake/host_tune.sh --mlock-check        # would the engine's mlock fail ('raise ulimit -l')?
+```
+
+Nothing persists across a reboot unless you add `--persist` (small `pancake-*` files in udev / sysctl.d / tmpfiles.d / limits.d,
+removed again by `--revert`). Run it as your user (writes go through `sudo tee`) or as `sudo`. It never edits sudoers, permissions or the
+boot loader, writes only a whitelist of kernel files, and `--dry-run` shows what it would write. Which step helps the engine is measured
+by `tools/pancake/host_tune_ab.sh` (`MOD_PLAN.md` section 5 item 13; results in `TEST_LEDGER.md`): do not expect a gain from any step until
+its ledger row says so.
+
 ## 9. License & Credits
 
 `pancake-strata` keeps Strata's license: **MIT**, Copyright (c) 2026 Niko1221 and the Strata contributors. See
@@ -869,6 +889,7 @@ Credits, in the order the stack was built:
   numbers, our test is `memory_pressure_test`). **Avalon**, for the hipBLASLt table report.
 - **imanu86** (Strata fork), for the faster bit-exact Q2_0 AVX-2 kernel (`STRATA_Q2_FAST`, commit `c3fc8f34d3`).
 - **PolyStrata** (simplexai-labs), whose strata-poly `SuffixIndex` is reused by the cross-session suffix index (`STRATA_SUFFIX_INDEX`, A24).
+- **bramvanoploo** (strata-performance-setup, MIT, https://github.com/bramvanoploo/strata-performance-setup), for the list of host settings (NVMe read-ahead, THP, swappiness, memlock, CPU / GPU / PCIe power) behind `tools/pancake/host_tune.sh`; read as a list only, no code copied, ported 2026-11-16 as a step-by-step script with a state file for every revert.
 - **Strata upstream** (Niko1221 and contributors, e.g. pjgmobile for #5531), for the bug fixes synced on 2026-11-10 (TEST_LEDGER.md).
 - **zsariboga** (Strata fork), for the route-prior guards (`STRATA_ROUTE_PRIOR_PROTECT`, `_KEEP_P`, `_SCOPE`, commit `8d7042ad97`), and **mandoof1**
   (Strata fork), for `STRATA_ROUTE_PRIOR_KEEP` (commit `3e0489e118`); **lighttransport** (Strata fork), whose MiniMax study (commit `2ea0c1e042`) set the
