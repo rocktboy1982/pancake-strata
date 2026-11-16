@@ -1,0 +1,111 @@
+Rationale (one line per knob: basis, rule, value):
+  --kv = int8   [CARRIED, lossy, R6a carried]
+      int8 KV: < 0.00012 KL vs fp16 (the preset lists it lossy)
+      evidence: MOD_PLAN.md section 10, T-276
+  --kv-resident = 32768   [CARRIED, exact, R6b carried]
+      32768 resident cells cost 396 MiB of the card (charged to the tier in R1)
+      evidence: T-276 (131072 lost), T-277 (8192 not better)
+  --expert-cache = auto   [DERIVED, exact, R1 vram-tier + P5 token-cycle floor]
+      the card has 20464 MiB; dense+session 3966, resident KV 396, reserve 700, draft head 200, late 256 leave 14946 MiB = 10909 slots of 1.37 MiB (44.4% of the 24576 experts). The token cycle is 658 MiB (48 layers x top-10 x 1.37); the tier is 22.7x it, so it has use.
+      evidence: T-618 (10909 slots, 71.9% static / 81.2% tier hit offline)
+  --pcie-frac = 0   [DERIVED, exact, R2 pcie-share window model + margin]
+      per expert the CPU pool takes 80.6 us and the link 114.6 us, so the engine's balance rule says 0.413 -> 0.4 (min share 0.35), which measured 17-30% slower than 0. Window model: best share 0.1 saves 4.6% of the weighted window time (short windows are GPU-bound, the share cannot help them); the margin is 10% (P2), so it is declined: 0.
+      evidence: T-197, T-268 (0.15/0.3/0.55 all slower), T-640 (the probe's 0.40 lost 17-30%)
+  --adapt-every = 1   [CARRIED, exact, R3a carried]
+      adapt every window (the tier follows the conversation at the same rate the windows run)
+      evidence: T-199
+  --adapt-swaps = 32   [ANCHORED, exact, R3b break-even scaled swaps]
+      a promotion repays after 1.61 reuses here (copy 114.6 us / (CPU 80.6 - GPU read 9.6 us)); the anchor is 32 swaps at 1.61, so 32. No rule over facts decides this number; the trial does.
+      evidence: T-199 (e1, 32), T-248 (16/64/96 screen), spec 117 queued
+  --pool-workers = (engine default 0)   [DERIVED, exact, R4a cores-1]
+      8 physical cores (16 threads): 7 workers + the host thread joining the drain = 8 participating; no SMT siblings (bandwidth-bound pool). Equals the engine's default 0, so nothing is emitted.
+      evidence: T-195 (4/5/6 workers lost 1-11%), T-202 (12 lost)
+  --pool-affinity = (engine default all)   [DERIVED, exact, R4b non-hybrid]
+      uniform cores: `measure` times all vs p-cores and is documented for hybrid CPUs only; nothing to choose
+      evidence: generate.cpp usage
+  --prefill = auto   [DERIVED, exact, R5a chunk auto]
+      the engine picks the chunk per prompt under the loan rule
+      evidence: T-096 (hipBLASLt table, 1,850-1,920 tok/s)
+  STRATA_PREFILL_AUTO_MAX = 32768   [DERIVED, lossy, R5b loan within 90% of the tier]
+      a chunk of T tokens lends 0.2873 slots/token, so 90% of 10909 slots admits 34178 tokens; the engine's grid (8192/16384/32768, 49152 only from 40960) gives 32768; loan 9413 slots = 86% of the tier. Listed lossy in the preset (a bigger chunk changes the rounding of the prompt GEMMs).
+      evidence: T-106 (24576: short -0.4%, dropped), T-614 (49152 inside noise)
+  STRATA_PREFILL_CPU_SHARE = 0.6   [CARRIED, lossy, R5c carried]
+      carried. A bandwidth-ratio formula would give 0.70; it is not used, an unmeasured number may not justify a move (P1).
+      evidence: T-108 (share0/auto/max 1024/2048 all lost), MOD_PLAN.md section 3
+  STRATA_PREFILL_CPU_SHARE_MAX = 4096   [CARRIED, exact, R5d carried]
+      chunks of 4096 tokens or more stream every expert; below it the staged path shares rows with the CPU
+      evidence: T-108
+  --max-context = 131072   [DERIVED, exact, R7a RAM ledger]
+      largest of 32768/65536/131072/262144 (capped at the preset's 131072) whose host KV fits: held 42.3 GiB of a 43.2 GiB budget (54 GiB cap less 20%); arena 32.9, conversation cache 2.0, parked 4.2, host KV 1.16, misc 2.0
+      evidence: pancake.service MemoryMax=54G, T-627 (agent prompts p90 54,313 tokens)
+  --conversation-cache-mib = 2048   [CARRIED, exact, R7b carried]
+      2 GiB conversation cache; it fits the ledger above, its size is a TTFT trade measured, not derived
+      evidence: T-178
+  --conversation-cache-min-tokens = 8192   [CARRIED, exact, R7c carried]
+      conversations shorter than this are not worth a cache slot
+      evidence: T-178, T-627
+  --spec = 4   [CARRIED, exact, R8a carried]
+      the model's official MTP depth (depth 2 lost 5%, 5/6 flat)
+      evidence: T-118, T-149
+  --spec-min-p = 0.5   [CARRIED, exact, R8b carried]
+      live per-request key (strata_tune spec_min_p): the one decode knob a trial can switch without a restart
+      evidence: T-389 (0.7 dropped), T-153/T-154 (0 measured on prose)
+  --lookup-max-t = 12   [CARRIED, exact, R8c carried]
+      lookup window rows; edit +8.8% +-6.8, quality PASS
+      evidence: T-126, T-127
+
+Ledger:
+{
+ "vram": {
+  "total_mib": 20464,
+  "dense_and_session_mib": 3966,
+  "kv_resident_mib": 396.0,
+  "reserve_mib": 700,
+  "late_alloc_mib": 256,
+  "draft_head_mib": 200,
+  "expert_tier_mib": 14945.3,
+  "expert_tier_slots": 10909,
+  "min_slots_for_loan": 202,
+  "resident_share_of_experts": 0.444
+ },
+ "prompt_loan": {
+  "chunk_tokens": 32768,
+  "loan_slots": 9413,
+  "loan_share_of_tier": 0.863,
+  "max_tokens_at_90pct": 34178
+ },
+ "ram": {
+  "cap_gib": 54,
+  "margin": 0.2,
+  "budget_gib": 43.2,
+  "expert_arena_gib": 32.88,
+  "conversation_cache_gib": 2.0,
+  "parked_conversations_gib": 4.25,
+  "engine_misc_gib": 2.0,
+  "host_kv_gib": 1.16,
+  "held_gib": 42.29,
+  "fits": true,
+  "ple_page_cache_gib_not_held": 28.8,
+  "ram_total_gib": 57
+ }
+}
+
+Proposal vs the preset (effective values):
+  = --kv: preset int8 / proposal int8   [CARRIED]
+  = --kv-resident: preset 32768 / proposal 32768   [CARRIED]
+  = --expert-cache: preset auto / proposal auto   [DERIVED]
+  = --pcie-frac: preset 0 / proposal 0   [DERIVED]
+  = --adapt-every: preset 1 / proposal 1   [CARRIED]
+  = --adapt-swaps: preset 32 / proposal 32   [ANCHORED]
+  = --pool-workers: preset 0 / proposal 0   [DERIVED]
+  ! --pool-affinity: preset measure / proposal all   [DERIVED]
+  = --prefill: preset auto / proposal auto   [DERIVED]
+  = STRATA_PREFILL_AUTO_MAX: preset 32768 / proposal 32768   [DERIVED]
+  = STRATA_PREFILL_CPU_SHARE: preset 0.6 / proposal 0.6   [CARRIED]
+  = STRATA_PREFILL_CPU_SHARE_MAX: preset 4096 / proposal 4096   [CARRIED]
+  = --max-context: preset 131072 / proposal 131072   [DERIVED]
+  = --conversation-cache-mib: preset 2048 / proposal 2048   [CARRIED]
+  = --conversation-cache-min-tokens: preset 8192 / proposal 8192   [CARRIED]
+  = --spec: preset 4 / proposal 4   [CARRIED]
+  = --spec-min-p: preset 0.5 / proposal 0.5   [CARRIED]
+  = --lookup-max-t: preset 12 / proposal 12   [CARRIED]

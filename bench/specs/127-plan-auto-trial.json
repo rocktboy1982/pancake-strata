@@ -1,0 +1,47 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "drift_check": true,
+ "cases": [
+  "short",
+  "edit",
+  "long1k",
+  "long3k"
+ ],
+ "reps": 4,
+ "arms": {
+  "base": {},
+  "adapt-swaps-16": {
+   "args": {
+    "--adapt-swaps": "16"
+   }
+  },
+  "adapt-swaps-64": {
+   "args": {
+    "--adapt-swaps": "64"
+   }
+  },
+  "pool-workers-6": {
+   "args": {
+    "--pool-workers": "6"
+   }
+  },
+  "pool-workers-8": {
+   "args": {
+    "--pool-workers": "8"
+   }
+  },
+  "prefill-cpu-share-0.4": {
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE": "0.4"
+   }
+  },
+  "prefill-cpu-share-0.8": {
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE": "0.8"
+   }
+  }
+ },
+ "note": "Written by tools/pancake/plan_auto.py --trial-spec (MOD_PLAN.md section 6 items 35 and 36): the neighbours of the three knobs whose best value depends on this box's CPU/link/core costs (--adapt-swaps, --pool-workers, STRATA_PREFILL_CPU_SHARE). short/edit judge the decode arms, long1k/long3k the prompt-share arms. Screen first; a PROMOTE needs confirm."
+}
