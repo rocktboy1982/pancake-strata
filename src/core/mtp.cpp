@@ -195,6 +195,7 @@ MtpDrafter::~MtpDrafter() {
     for (auto& e : round_exec_c_) if (e) cudaGraphExecDestroy(e);
     for (auto& e : step_exec_c_) if (e) cudaGraphExecDestroy(e);
     for (auto& kv : chain_exec_) if (kv.second) cudaGraphExecDestroy(kv.second);   // STRATA_MTP_ONE_GRAPH
+    if (iv_ev_) cudaEventDestroy(iv_ev_);   // STRATA_MTP_IN_VERIFY
     if (cparams_) cudaFree(cparams_);
     if (cring_) cudaFree(cring_);
     if (dinv_) cudaFree(dinv_);
@@ -2120,6 +2121,108 @@ bool MtpDrafter::draft_launch(int T, const int32_t* tokens, int64_t p, int a, fl
     return true;
 }
 
+// ---- LEADS.md B28 STRATA_MTP_IN_VERIFY=1 (opt-in; needs STRATA_DEVICE_ACCEPT=1 and STRATA_MTP_ONE_GRAPH=1): the next round in
+// the verify window's stream.  STRATA_MTP_ONE_GRAPH made the eager chain one graph and STRATA_DEVICE_ACCEPT put the accept and
+// the commit on the device behind the window; here the round's staged inputs are written on the device from that accept
+// (mtp_stage_from_accept: the same values draft_launch stages on the host) and the chain graph is queued behind the commit, so
+// one host sync covers verify, commit and draft.  The round runs the window's T rows (draft_launch runs a + 1 unless
+// STRATA_MTP_CATCHUP_ALL): row a reads only cells <= p + a, and the cells past it are written again by draft j before any read
+// (#783), so the drafts are the same.  Greedy windows only (the device accept's own rule).
+bool MtpDrafter::in_verify_env() {
+    static const bool on = [] { const char* e = std::getenv("STRATA_MTP_IN_VERIFY"); return e != nullptr && e[0] == '1'; }();
+    return on;
+}
+
+bool MtpDrafter::iv_prepare(int T, int64_t p, float min_p, std::string& err) {
+    iv_ = IvState{};
+    if (!in_verify_env()) return false;
+    static const bool one_graph = [] { const char* e = std::getenv("STRATA_MTP_ONE_GRAPH"); return e && e[0] == '1'; }();
+    static const bool eager = [] { const char* e = std::getenv("STRATA_MTP_EAGER"); return e && e[0] == '1'; }();
+    if (!one_graph || run_.live || chain_live_ || coupled_active_ || T < 2 || T > max_t_) return false;
+    if (!((min_p <= 0.0f || eager) && !chain_rule_ && !ent_stop_.on())) return false;   // draft_launch's eager path only
+    if (!decode_ready(err)) return false;
+    const OnDevice on_device(device_);
+    // every draft cell p + a + j (a <= T - 1) inside the K/V, so the step count does not depend on a
+    const int max_steps = (int) std::min<int64_t>(std::min(max_t_ - 1, max_drafts_), st_.max_cells - (p + T - 1));
+    if (max_steps < 1 || max_steps > 63 || max_steps != std::min(max_t_ - 1, max_drafts_)) return false;
+    if (!capture_round(T, false, err)) return false;
+    for (int j = 1; j < max_steps; ++j)
+        if (!capture_step(j, false, err)) return false;
+    if (!capture_chain(T, max_steps, false, err)) return false;
+    if (iv_ev_ == nullptr && cudaEventCreateWithFlags(&iv_ev_, cudaEventDisableTiming) != cudaSuccess) {
+        (void) cudaGetLastError();
+        iv_ev_ = nullptr;
+        return false;
+    }
+    iv_.armed = true;
+    iv_.T = T;
+    iv_.p = p;
+    iv_.max_steps = max_steps;
+    iv_.min_p = min_p;
+    iv_.key = (0 * 64 + T) * 64 + max_steps;   // capture_chain's key, not coupled
+    return true;
+}
+
+bool MtpDrafter::iv_enqueue(void* stream, const int32_t* d_out, const int32_t* d_commit, std::string& err) {
+    if (!iv_.armed) return true;
+    const OnDevice on_device(device_);
+    cudaStream_t vs = (cudaStream_t) stream;
+    const auto it = chain_exec_.find(iv_.key);
+    if (it == chain_exec_.end() || it->second == nullptr) { err = "mtp: the in-verify chain graph is missing"; return false; }
+    // anything still queued on the drafter's own stream lands first
+    if (cudaEventRecord(iv_ev_, cs_) != cudaSuccess || cudaStreamWaitEvent(vs, iv_ev_, 0) != cudaSuccess) {
+        err = std::string("mtp in-verify: ordering: ") + cudaGetErrorString(cudaGetLastError());
+        return false;
+    }
+    strata::kernels::mtp_stage_from_accept(d_out, d_commit, iv_.T, iv_.p, max_t_, iv_.max_steps, (int) g_->n_head, m_tok_, m_step_,
+                                           m_pos_, m_row_, m_out_, h_ent_ != nullptr ? m_ent_ : nullptr,
+                                           h_ent_ != nullptr ? m_top2_ : nullptr, h_force_ != nullptr ? m_force_ : nullptr, vs);
+    if (src_R_ != nullptr && src_R_ != window_R_ &&   // stage_source_R, on the window's stream
+        cudaMemcpyAsync((void*) window_R_, src_R_, (size_t) iv_.T * (size_t) (g_->hc * g_->n_embd) * sizeof(float),
+                        cudaMemcpyDeviceToDevice, vs) != cudaSuccess) {
+        err = "mtp in-verify: staging the window's residual rows failed";
+        return false;
+    }
+    if (cudaGraphLaunch(it->second, vs) != cudaSuccess) {
+        err = std::string("mtp in-verify chain: ") + cudaGetErrorString(cudaGetLastError());
+        return false;
+    }
+    // the drafter's own stream (draft_finish's sync, the next round) after the round
+    if (cudaEventRecord(iv_ev_, vs) != cudaSuccess || cudaStreamWaitEvent(cs_, iv_ev_, 0) != cudaSuccess) {
+        err = std::string("mtp in-verify: ordering: ") + cudaGetErrorString(cudaGetLastError());
+        return false;
+    }
+    iv_.queued = true;
+    run_.t0 = Clock::now();
+    return true;
+}
+
+bool MtpDrafter::iv_adopt(const int32_t* tokens, int a, const int32_t* committed, int n_committed, std::string& err) {
+    (void) err;
+    const IvState iv = iv_;
+    iv_ = IvState{};
+    if (!iv.queued || run_.live || a < 0 || a >= iv.T) return false;
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+    if (((volatile int32_t*) h_row_)[0] != a) return false;   // the device drafted from another row: not this caller's round
+    SessionState* const pss = ple_ss_ ? ple_ss_ : ss_;
+    const bool do_ple = pss != nullptr && pss->ple.ready() && pss->ple.table != nullptr;
+    run_.do_ple = do_ple;
+    run_.ple_prev[0] = do_ple ? pss->ple_prev[0] : 0;
+    run_.ple_prev[1] = do_ple ? pss->ple_prev[1] : 0;
+    for (int t = 0; do_ple && committed != nullptr && t < n_committed; ++t) {   // as draft_launch: the commit's advance, ahead of it
+        run_.ple_prev[0] = run_.ple_prev[1];
+        run_.ple_prev[1] = committed[t];
+    }
+    run_.T = iv.T;
+    run_.cp = false;
+    run_.max_steps = iv.max_steps;
+    run_.min_p = iv.min_p;
+    run_.ms_launch = 0.0;
+    run_.eager_path = true;
+    ple_prefetch(tokens[a]);
+    run_.live = true;
+    return true;
+}
 // draft()'s second half: the host rule over the steps (min_p, the chain rule), the final wait and the outputs - what
 // follows the round's launch in draft()
 bool MtpDrafter::draft_finish(int32_t* drafts, std::string& err, float* probs, int* n_drafts, DraftResult* result) {

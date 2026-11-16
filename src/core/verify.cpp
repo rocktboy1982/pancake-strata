@@ -4271,6 +4271,10 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
     }();
     const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= ecap_min_rows && head_sampling_;
     ecap_next_ = false;
+    // LEADS.md B28 STRATA_MTP_IN_VERIFY: the after-commit hook is this run's borrow, taken here so it never reaches a later window
+    AfterCommitFn after_commit = std::move(ac_fn_);
+    ac_fn_ = nullptr;
+    ac_ran_ = false;
     // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: set_defer_window is this run's borrow too.  stage_inputs reads it below
     // (or prelaunch read it already, for a stage the previous one launched), so it is cleared at the exit of every path,
     // not here - for this stage and the later ones, whose runs and prelaunch helper (joined by NextLaunch, which is
@@ -4690,6 +4694,13 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             const cudaError_t le = cudaGraphLaunch(commit_exec_, cs_);
             if (le != cudaSuccess) { err = std::string("verify: device-accept commit launch: ") + cudaGetErrorString(le); return false; }
             da_committed_ = true;
+            // LEADS.md B28 STRATA_MTP_IN_VERIFY=1: the MTP drafter's next round queued right behind the commit, on this stream; its
+            // inputs (the picks, the accepted row) are read on the device, so the sync below covers verify, commit and draft
+            if (after_commit) {
+                std::string ae;
+                if (!after_commit(cs_, m_out_, m_commit_, ae)) { err = "verify: STRATA_MTP_IN_VERIFY: " + ae; return false; }
+                ac_ran_ = true;
+            }
         }
     }
     trace_ev("SYNC", -1, -1, 0);

@@ -923,6 +923,14 @@ Credits, in the order the stack was built:
   behind `STRATA_TIER_LRU` (HOBBIT, arXiv 2411.01433), `STRATA_BANDIT_CORRECT` (Athena), `STRATA_THINK_BRAKE` (arXiv 2510.00546),
   `STRATA_BUDDY` (BuddyMoE), `STRATA_FS_AFFINITY` (ExFlow), `STRATA_CONV_WORKSET_MATCH` (fMoE), `STRATA_TOOL_SNIP` (ContextSniper),
   `STRATA_QSA_PAGE_SEL` (Quest) and `STRATA_ROUTE_TAIL_SKIP_LAYERS` (HookMoE).
+- The second LEADS.md pass of 2026-11-16 (default-off switches, sources in the code comments): **nicejunjie** (Strata-rdna3
+  `88686782`, `877bf971`, `7df6538d`: `STRATA_GR_UPPRE`, `STRATA_HC_WN4`, `STRATA_NW_COLSKIP`), **tctien342** (`STRATA_NGRAM_MOD`,
+  `05c5a841e9`, `7163271373`), **mandoof1** (`STRATA_DRAFT_EARLY`, `868841cb32`), **gputier** (`STRATA_ROUTE_PRIOR_DELTA`, `abcbc67e60`),
+  the upstream Strata PRs #5691 (`STRATA_VRAM_CALIB`), #5475 (`STRATA_HC_PERSIST_Q8`), #5512 / #5516 (serve thinking policy, tune /
+  conv-route) and llama.cpp #31047 / #31746 (`STRATA_MMQ_LINEAR`, `STRATA_PA_SCHED_FENCE`), and the papers behind AdaEDL / SVIP /
+  AdaSD (`STRATA_SPEC_ENTROPY`), SpecReason, R-KV, OEA, TEAL / BlockFFN / PowerInfer (`STRATA_TEAL`, `STRATA_DOWN_T`, CPU
+  activation sparsity), Medusa typical acceptance, Token Recycling, Hydra, LongSpec (`STRATA_ATTN_QMAJOR`), XAttention, LQER,
+  SIEVE / S3-FIFO, SeqMoE, MoBiLE, SliceMoE, TokenCake, MORI and AsyncFC.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.

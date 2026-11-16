@@ -165,6 +165,19 @@ public:
     /// The steps the last draft() left out, by the same host rule, into `drafts` / `probs` (draft 0 is written again):
     /// what that draft() would have returned had the predicate said no.
     bool draft_resume(int32_t* drafts, std::string& err, float* probs = nullptr, int* n_drafts = nullptr);
+    /// LEADS.md B28 STRATA_MTP_IN_VERIFY=1 (opt-in, exact under greedy; needs STRATA_DEVICE_ACCEPT=1 and STRATA_MTP_ONE_GRAPH=1): the
+    /// next round rides the verify window's stream.  iv_prepare (before the window, host): true when this window's round can
+    /// - the eager chain (min_p 0 or STRATA_MTP_EAGER, no chain rule, no entropy stop), not coupled, T <= max_t(), the whole
+    /// chain inside the K/V - and the chain graph is captured.  iv_enqueue is the Verifier's after-commit hook: the staged
+    /// inputs written on the device from the accepted row (mtp_stage_from_accept), then the chain graph, behind the commit on
+    /// the window's stream.  iv_adopt (after the window, host): the queued round becomes the launched round draft_finish
+    /// collects (as draft_launch's), when the device drafted from the caller's accepted row `a`; iv_drop forgets a round
+    /// nobody collects (the request ended).  The round covers the window's T rows, as STRATA_MTP_CATCHUP_ALL does.
+    static bool in_verify_env();
+    bool iv_prepare(int T, int64_t p, float min_p, std::string& err);
+    bool iv_enqueue(void* stream, const int32_t* d_out, const int32_t* d_commit, std::string& err);
+    bool iv_adopt(const int32_t* tokens, int a, const int32_t* committed, int n_committed, std::string& err);
+    void iv_drop() { iv_ = IvState{}; }
 
     /// --lookup-max-t: draft() for a window of up to kVerifyLongT rows (T may pass max_t()).  When the last accepted
     /// row is past max_t() rows, rows 0..a-1 are caught up as prefill() does and row a runs as a one-row round, so the
@@ -351,6 +364,13 @@ private:
         double ms_launch = 0.0;          ///< the launch half's host time (ms_draft counts both halves, not what lies between)
         int32_t ple_prev[2] = {0, 0};    ///< the PLE prefetch's history along the chain
     } run_;
+    struct IvState {   ///< STRATA_MTP_IN_VERIFY: the round armed for / queued behind the current window
+        bool armed = false, queued = false;
+        int T = 0, max_steps = 0, key = 0;
+        int64_t p = 0;
+        float min_p = 0.0f;
+    } iv_;
+    cudaEvent_t iv_ev_ = nullptr;   ///< STRATA_MTP_IN_VERIFY: orders the drafter's own stream around the round
     void ple_prefetch(int32_t tok);      ///< a PLE page prefetch hint for one token of the round's chain (run_.ple_prev)
     // STRATA_DRAFT_SUFFIX_SKIP: the predicate, and the chain a draft() ended after draft 0 (draft_resume)
     SkipAfterFirstFn skip_fn_ = nullptr;

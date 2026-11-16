@@ -1,0 +1,171 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "device-accept": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DEVICE_ACCEPT": "1"
+      }
+    },
+    "draft-early": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DRAFT_EARLY": "1"
+      }
+    },
+    "mtp-one-graph": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MTP_ONE_GRAPH": "1"
+      }
+    },
+    "attn-qmajor": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ATTN_QMAJOR": "1"
+      }
+    },
+    "token-recycle": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TOKEN_RECYCLE": "1"
+      }
+    },
+    "ssd-lite": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SSD_LITE": "1"
+      }
+    },
+    "ssd-lite-hydra": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SSD_LITE": "1",
+        "STRATA_HYDRA_TOP2": "1"
+      }
+    },
+    "draft-entropy": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DRAFT_ENTROPY": "1"
+      }
+    },
+    "spec-entropy-adaedl": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_ENTROPY": "adaedl"
+      }
+    },
+    "spec-entropy-svip": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_ENTROPY": "svip"
+      }
+    },
+    "spec-entropy-adasd": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_ENTROPY": "adasd"
+      }
+    },
+    "disco-entropy": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DISCO_ENTROPY": "2.0"
+      }
+    },
+    "ngram-mod": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NGRAM_MOD": "1"
+      },
+      "args": {
+        "--lookup-chain": "3"
+      }
+    },
+    "gr-uppre": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GR_UPPRE": "1"
+      }
+    },
+    "hc-wn4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_HC_WN4": "1"
+      }
+    },
+    "nt-copy": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NT_COPY": "1"
+      }
+    },
+    "pool-defer-actq": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_DEFER_ACTQ": "1"
+      }
+    },
+    "cpu-r4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CPU_R4": "2048"
+      }
+    },
+    "light-expert-cpu": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_LIGHT_EXPERT_CPU": "1"
+      }
+    },
+    "vram-calib": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_VRAM_CALIB": "1"
+      }
+    },
+    "adapt-sieve": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_SIEVE": "1"
+      }
+    },
+    "adapt-forecast": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_FORECAST": "8"
+      }
+    },
+    "adapt-learned": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_LEARNED": "0.05"
+      }
+    },
+    "mtp-in-verify": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DEVICE_ACCEPT": "1",
+        "STRATA_MTP_ONE_GRAPH": "1",
+        "STRATA_MTP_IN_VERIFY": "1"
+      }
+    },
+    "expert-entropy-tier": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_EXPERT_ENTROPY_TIER": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 18, second pass of the LEADS.md wave (2026-11-16): exact / policy-only switches. Values are first guesses for a screen. adapt-* change tier placement only (CPU vs GPU rows may round differently: a text difference there is a placement effect, not a bug). Stop pancake.service first. mtp-in-verify (LEADS B28): the next MTP round staged on the device from the commit words and launched on the window stream (needs DEVICE_ACCEPT + MTP_ONE_GRAPH; judge against device-accept). expert-entropy-tier (A29): cold arena blobs Huffman-coded in RAM, decoded on demand; lossless; near 0% saving on IQ2_XS by the lead's own bound (the engine log reports the coded ratio)."
+}

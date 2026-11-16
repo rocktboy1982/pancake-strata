@@ -1,0 +1,29 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "prefill": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "mmq-linear": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MMQ_LINEAR": "1"
+      }
+    },
+    "nw-colskip": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NW_COLSKIP": "1"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 18, second pass, prompt path: STRATA_MMQ_LINEAR (#31047 host-side linearized MoE; keyed), STRATA_NW_COLSKIP (rdna3 prompt kernels). Prompt tok/s on long1k / long3k. Stop pancake.service first."
+}

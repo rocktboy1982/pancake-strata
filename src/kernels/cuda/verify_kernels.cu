@@ -1213,6 +1213,56 @@ void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos
     check("device_accept_commit");
 }
 
+// LEADS.md B28 STRATA_MTP_IN_VERIFY (with STRATA_DEVICE_ACCEPT + STRATA_MTP_ONE_GRAPH): the MTP round's staged inputs written on
+// the device from the accepted row the commit words hold, so the round's graph can run right behind the window's commit on the
+// same stream.  The values are draft_launch's host staging (put(), the -1 outputs, the NaN entropies, row = {a, 0}); the
+// buffers are the drafter's mapped staging, which the round graph copies in first.  One block.
+namespace {
+__device__ __forceinline__ void mtp_put_cell(int32_t* step, int32_t* pos, int n_head, int row, int64_t cell, int tid, int nt) {
+    if (tid == 0) {
+        ((volatile int32_t*) step)[row * 4 + 0] = (int32_t) cell;
+        ((volatile int32_t*) step)[row * 4 + 1] = (int32_t) (cell + 1);
+        ((volatile int32_t*) step)[row * 4 + 2] = (int32_t) ((cell + 1) / 4);
+        ((volatile int32_t*) step)[row * 4 + 3] = (int32_t) (cell + 1);
+    }
+    for (int h = tid; h < n_head; h += nt) ((volatile int32_t*) pos)[(int64_t) row * n_head + h] = (int32_t) cell;
+}
+
+__global__ void mtp_stage_from_accept_kernel(const int32_t* out, const int32_t* commit, int T, int64_t p, int max_t, int steps,
+                                             int n_head, int32_t* tok, int32_t* step, int32_t* pos, int32_t* row,
+                                             int32_t* mtp_out, float* ent, float* top2, int32_t* force) {
+    const int tid = (int) threadIdx.x, nt = (int) blockDim.x;
+    const int a = ((const volatile int32_t*) commit)[1];
+    for (int t = 0; t < T; ++t) {
+        if (tid == 0) ((volatile int32_t*) tok)[t] = ((const volatile int32_t*) out)[t];
+        mtp_put_cell(step, pos, n_head, t, p + t, tid, nt);
+    }
+    mtp_put_cell(step, pos, n_head, 2 * max_t - 1, p + a, tid, nt);   // coupled_draft_cell(p, a, 0)
+    for (int j = 1; j < steps; ++j) mtp_put_cell(step, pos, n_head, max_t + j - 1, p + a + j, tid, nt);
+    const float qnan = __int_as_float(0x7fc00000);
+    for (int j = tid; j < steps; j += nt) {
+        ((volatile int32_t*) mtp_out)[j] = -1;
+        if (ent != nullptr) ((volatile float*) ent)[j] = qnan;
+        if (top2 != nullptr) ((volatile float*) top2)[j] = qnan;
+    }
+    if (tid == 0) {
+        ((volatile int32_t*) row)[0] = a;
+        ((volatile int32_t*) row)[1] = 0;
+    }
+    if (force != nullptr)
+        for (int j = tid; j < 16; j += nt) ((volatile int32_t*) force)[j] = -1;
+    __threadfence_system();
+}
+}  // namespace
+
+void mtp_stage_from_accept(const int32_t* out, const int32_t* commit, int T, int64_t p, int max_t, int steps, int n_head,
+                           int32_t* tok, int32_t* step, int32_t* pos, int32_t* row, int32_t* mtp_out, float* ent, float* top2,
+                           int32_t* force, void* stream) {
+    mtp_stage_from_accept_kernel<<<1, 64, 0, (cudaStream_t) stream>>>(out, commit, T, p, max_t, steps, n_head, tok, step, pos, row,
+                                                                      mtp_out, ent, top2, force);
+    check("mtp_stage_from_accept");
+}
+
 // LEADS.md "OEA sibling-aware routing in verify window" (Opportunistic Expert Activation, Oncescu et al., arXiv 2511.02237):
 // a decode batch is memory-bound on the DISTINCT experts it loads.  Phase 1: every row keeps its own top-k0 (by router
 // logit, ties to the lower id).  Phase 2: its remaining k - k0 slots take, in logit order, only experts some row of the

@@ -288,6 +288,14 @@ public:
         da_armed_ = true;
     }
     static bool device_accept_env();
+    /// LEADS.md B28 STRATA_MTP_IN_VERIFY=1 (opt-in, with STRATA_DEVICE_ACCEPT and STRATA_MTP_ONE_GRAPH): a hook the NEXT run()
+    /// calls right after it queued the device accept and the commit graph, on the window's stream - (stream, the window's
+    /// picks m_out_, the commit words m_commit_ [n_keep, n_keep - 1, ...], err).  The MTP drafter queues its round there, so
+    /// no host round trip separates the verify and the draft.  Not called when the window does not commit on the device;
+    /// after_commit_ran() says whether it was.  A borrow of one run(): every run() drops it.
+    using AfterCommitFn = std::function<bool(void* stream, const int32_t* d_out, const int32_t* d_commit, std::string& err)>;
+    void arm_after_commit(AfterCommitFn fn) { ac_fn_ = std::move(fn); }
+    bool after_commit_ran() const { return ac_ran_; }
 
     // ================================ SEVERAL SEQUENCES IN ONE WINDOW ================================
     //
@@ -848,6 +856,8 @@ private:
     // when the window's commit graph already ran behind it (commit() then only checks n_keep)
     bool da_armed_ = false;
     bool da_committed_ = false;
+    AfterCommitFn ac_fn_;          ///< STRATA_MTP_IN_VERIFY: arm_after_commit's hook (taken by run())
+    bool ac_ran_ = false;
     strata::kernels::DeviceAcceptBound da_bound_{};
     // STRATA_VERIFY_DEFER_CPU_BELOW=<w> (with =1 or =check; 0.1 when unset, 0 when w >= 1): the pool computes the CPU
     // rows whose routing weight is >= w first and raises h_pflag_; post(l) of a deferred layer waits for that and

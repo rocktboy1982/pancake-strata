@@ -1,0 +1,95 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "cpu-act-sparse": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CPU_ACT_SPARSE": "0.3"
+      }
+    },
+    "cpu-act-sparse-union": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_CPU_ACT_SPARSE": "0.3",
+        "STRATA_CPU_ACT_SPARSE_UNION": "1"
+      }
+    },
+    "teal": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TEAL": "0.05"
+      }
+    },
+    "teal-union": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TEAL": "0.05",
+        "STRATA_TEAL_UNION": "1"
+      }
+    },
+    "down-t": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DOWN_T": "1"
+      }
+    },
+    "oea": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_OEA": "8"
+      }
+    },
+    "route-prior-delta": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PRIOR_DELTA": "1"
+      }
+    },
+    "mobile": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MOBILE": "0.1"
+      }
+    },
+    "slice-miss": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SLICE_MISS": "0.05"
+      }
+    },
+    "typical-think": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TYPICAL_THINK": "0.3"
+      }
+    },
+    "spec-reason": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_REASON": "0.7"
+      }
+    },
+    "hc-persist-q8": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_HC_PERSIST_Q8": "1"
+      }
+    },
+    "lqer8": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_LQER": "8"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 18, second pass: lossy switches (activation sparsity CPU / TEAL / BlockFFN, transposed down, OEA, route-prior delta, MoBiLE, SliceMoE, typical acceptance and SpecReason inside thinking, HC_PERSIST_Q8, LQER). STRATA_SHADOW_MISS needs a sub-2-bit pack (not built yet): not here. Speed screen; promoted arms need a quality gate. Stop pancake.service first."
+}
