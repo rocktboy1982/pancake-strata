@@ -949,6 +949,10 @@ Credits, in the order the stack was built:
   (basalt `64167ba73`, `--idle-sleep`), ported 2026-11-16, default off.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**
   (gpu-unlock), **JustVugg** (colibri) and the other forks surveyed along the way.
+- **ahtx** (kindi, AGPL-3.0, commit `dce89df`), for ideas only: the per-layer-share expert placement, the look-two-layers-ahead prompt
+  prefetch, the shortlist output head, the expert-union draft-length cost and the near-tie quality gate were read and written up in
+  LEADS.md Part J. kindi is AGPL, so no code was taken and none was copied; `tools/pancake/head_cluster.py` and the placement
+  comparison in `tools/pancake/tier_laws.py` are our own code from the description of the idea.
 - **ggml-org** (llama.cpp / ggml, MIT) and **ikawrakow** (ik_llama.cpp, MIT), for the formats and kernels underneath.
 - **kvcache-ai** (KTransformers), **sgl-project** (SGLang), **vllm-project** (vLLM), **NVIDIA** (TensorRT-LLM),
   **flashinfer-ai** (FlashInfer), for ideas and reference points.
