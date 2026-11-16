@@ -941,7 +941,9 @@ bool Gemm::native_mmq(const uint16_t* X, int type, const void* W, float* Y, int6
     return true;
 }
 #endif
-void Gemm::f16_inplace(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_t N, int64_t K, int64_t ldy) {
+void Gemm::f16_inplace(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_t N, int64_t K, int64_t ldy,
+                       bool keep_f16) {
+    (void) keep_f16;   // (STRATA_HC_GATED16 is the HIP path's; SYCL always widens)
 #if defined(__HIPCC__)
     const float one = 1.0f, zero = 0.0f;
     ck(cublasGemmEx((cublasHandle_t) handle_, CUBLAS_OP_T, CUBLAS_OP_N, (int) N, (int) T, (int) K, &one, W, CUDA_R_16F,

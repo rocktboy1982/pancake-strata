@@ -519,6 +519,7 @@ STRATA_ENV("STRATA_GU_SWIGLU", Speed, "bitwise: documented (docs/README/code com
 STRATA_ENV("STRATA_HANDOFF_PIPE", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_HANDOFF_PIPE_WORKER", Speed, "prompt path scheduling/staging/chunk sizing")
 STRATA_ENV("STRATA_HCD_EXACT", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_HC_GATED16", Speed, "jstamagal/Strata-gfx1030: HIP FP16 prompt path, gated left FP16 and widened in gr_mix_r; same bits (hip_gated16_parity)")
 STRATA_ENV("STRATA_HC_PERSIST", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_HC_WN4", Speed, "rdna3 3dbb40516: prompt HC write+norm with 16-byte accesses; same bits (gr_wn4_parity)")
 STRATA_ENV("STRATA_HEAD_ARGMAX_FUSED", Speed, "MOD_PLAN.md section 6 item 17 part 18: greedy pick folded into the head GEMV; bitwise (head_argmax_parity)")

@@ -168,3 +168,7 @@ namespace strata::prefill { bool gemm_dequant_side() { return false; } }
 auto strata::prefill::Gemm::set_dequant_side(uint16_t* p0, std::string& p1) -> bool { if (p0 == nullptr) return true; strata::metal_engine::missing("strata::prefill::Gemm::set_dequant_side"); return false; }
 // STRATA_QSA_PAGE_SEL (opt-in, CUDA / HIP decode select): off on Metal; layer.cpp and verify.cpp keep the full selection.
 namespace strata::kernels { bool qsa_page_select(const float*, const float*, const float*, const int32_t*, int64_t, int64_t, int64_t, const QsaShapes&, int32_t*, void*) { return false; } }
+// FK-36 STRATA_PF_COMBINE_WRITE (opt-in, CUDA / HIP prompt path): off on Metal - "not taken", the caller runs the two kernels.
+namespace strata::prefill { bool moe_combine_write_norm_rs(const float*, const int32_t*, const float*, const float*, const float*, float*, const float*, int64_t, const float*, float, float*, uint16_t*, int64_t, void*, uint16_t*, int64_t, bool, const float*) { return false; } }
+// STRATA_HC_GATED16 (opt-in, HIP FP16 prompt path) added gr_mix_r's g_f16 argument.
+namespace strata::prefill { void gr_mix_r(const float*, const float*, const float*, const float*, float*, uint16_t*, int64_t, void*, uint16_t*, uint16_t*, bool) { strata::metal_engine::missing("strata::prefill::gr_mix_r"); } }

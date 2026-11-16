@@ -4845,7 +4845,14 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                            m.mixed, m.mixed_bf, m.mixed_h, T, m.cs);
                     }
                 }
+                // STRATA_HC_GATED16=1 (jstamagal/Strata-gfx1030, LEADS.md; opt-in, HIP FP16 prompt path, the same bits):
+                // the up projection's output stays FP16 and gr_mix_r widens it as it reads - T x 10240 values are not
+                // widened in place and read back.  Gemm::kept_f16 says whether the GEMM did so (else the plain read).
+                static const bool hc_gated16 = [] { const char* e = std::getenv("STRATA_HC_GATED16"); return e && e[0] == '1'; }();
+                const bool want_g16 = hc_gated16 && !upmixed && !gr_unfused() && !m.lo16_lo && wu->q8_scale == nullptr;
+                if (want_g16) m.gemm.keep_f16_next();
                 if (!upmixed && !bf16_proj(m.gemm, wu, m.lo16, m.gated, T, su, err, 0, m.lo16_lo, 0, m.cs)) return false;
+                const bool g16 = want_g16 && m.gemm.kept_f16();
                 pt.mark(kPfHcInj, cs);
                 if (!hcd && !bf16_proj(m.gemm, wi, m.xn16, m.inj, T, si, err, 0, m.xn16_lo, ldx != D ? ldx : 0, m.cs, xf16)) return false;
                 pt.mark(kPfHcMix, cs);
@@ -4854,7 +4861,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                     gr_mix(m.xn, m.gated, m.mixed, m.mixed_bf, T, m.cs, m.mixed_h, m.mixed_bf_lo);
                 } else {
                     gr_mix_r(m.R, m.grs, (const float*) wn->data, m.gated, m.mixed, m.mixed_bf, T, m.cs, m.mixed_h,
-                             m.mixed_bf_lo);
+                             m.mixed_bf_lo, g16);
                 }
 
                 if (wd_q8.data) {   // the HC GEMMs that read the scratch are enqueued: the next user waits for them

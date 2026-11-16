@@ -2323,7 +2323,7 @@ void gr_norm_rs(const float* R, const float* w_norm, float eps, float* rs, uint1
     check("gr_norm_rs");
 }
 void gr_mix_r(const float* R, const float* rs, const float* w_norm, const float* gated, float* mixed, uint16_t* mixed16,
-              int64_t T, void* stream, uint16_t* mixed_h, uint16_t* mixed16_lo) {
+              int64_t T, void* stream, uint16_t* mixed_h, uint16_t* mixed16_lo, bool /*g_f16: HIP only*/) {
     {
         auto exp_props = sycl::ext::oneapi::experimental::properties{
             sycl::ext::oneapi::experimental::use_root_sync};
