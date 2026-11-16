@@ -96,6 +96,14 @@ public:
     /// moves slowly, so a drift of the card's speed (context growth, a cache refill) reaches the sizes not used lately too.
     /// Off (the default): the per-size EMA alone, and the scale tables are never touched.  Output unchanged either way.
     void set_shared_scale(bool on) { scale_on_ = on; }
+    /// STRATA_DRAFT_UFAC=u1,u2,...,un (opt-in, LEADS.md "Expert-union draft-length cost", kindi's cost(k) = ms0 + ms1 k + ms2 ufac(k + 1)):
+    /// u_m = the measured mean number of distinct CPU experts per forward of m positions (tools/pancake/trace/draft_costs.py).
+    /// A width never measured is priced by the weighted least-squares fit cost(t) = a + b t + c u(t) over the widths measured so far
+    /// (at least 3 distinct widths and a well-conditioned fit; else the kShape scaling as before) instead of by that scaling.
+    /// Measured widths are never touched.  u beyond n continues with the last step.  The policy reads the env itself in its
+    /// constructor, so no caller changes; unset: nothing differs.  Output unchanged either way (it only prices window sizes).
+    void set_ufac(const double* u, int n);
+    bool ufac_on() const { return ufac_n_ > 0; }
 
     /// The window sizes a lookup or chained window may use, as a bit mask (bit t = size t; bit 1 is always kept).
     void set_sizes(unsigned mask);
@@ -149,6 +157,10 @@ private:
     // STRATA_DRAFT_SCALE (set_shared_scale): the shared scale and the per-size bases, by context bucket; untouched while off
     bool scale_on_ = false;
     std::array<double, kCtxBuckets> scale_{};
+    std::array<double, kMaxT + 1> ufac_{};   // STRATA_DRAFT_UFAC: u_m, m = 1..ufac_n_ (index 0 unused)
+    int ufac_n_ = 0;
+    double ufac_at(int t) const;
+    bool ufac_fit(int t, double* out) const;   // the fitted cost of width t from the measured widths of bucket bk_
     std::array<std::array<double, kMaxT + 1>, kCtxBuckets> sbase_{}, sbase_n_{};
     void scale_sample(int t, double ms);   // one round time into the scale and the base of its size (bucket bk_)
     static constexpr int kPBuckets = 8;

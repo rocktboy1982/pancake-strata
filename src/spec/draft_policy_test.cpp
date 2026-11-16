@@ -8,6 +8,7 @@
 //   5. the policy never proposes a window beyond its cap.
 #include "strata/spec/draft_policy.hpp"
 
+#include <cmath>
 #include <cstdio>
 
 using strata::spec::DraftPolicy;
@@ -211,6 +212,42 @@ int main() {
         for (int i = 0; i < 4; ++i) shift.observe(false, 3, 2, 0, 20.0);
         for (int i = 0; i < 80; ++i) shift.observe(false, 3, 2, 0, 100.0);   // a lasting change: the median follows it
         check(shift.cost_ms(3) > 99.0, "clip: a lasting cost change is learned");
+    }
+    {   // STRATA_DRAFT_UFAC (set_ufac): a width never measured is priced by the fit a + b t + c u(t) over the measured widths
+        const double u[8] = {8.0, 12.0, 15.0, 17.0, 18.5, 19.5, 20.0, 20.2};
+        auto truth = [&](int t) { return 5.0 + 2.0 * t + 3.0 * (t <= 8 ? u[t - 1] : 20.2); };
+        DraftPolicy off(8), on(8), few(8), flat(8);
+        on.set_ufac(u, 8);
+        few.set_ufac(u, 8);
+        flat.set_ufac(u, 8);
+        for (int rep = 0; rep < 3; ++rep)
+            for (int t : {1, 2, 3, 5}) {   // widths 1, 2, 3, 5 measured; 4, 6, 7, 8 not
+                off.observe(false, t, 0, 0, truth(t));
+                on.observe(false, t, 0, 0, truth(t));
+            }
+        check(!off.ufac_on() && on.ufac_on(), "ufac: on only after set_ufac");
+        for (int t : {1, 2, 3, 5})
+            check(std::abs(on.cost_ms(t) - off.cost_ms(t)) < 1e-12, "ufac: a measured width is never touched");
+        for (int t : {4, 6, 7, 8})
+            check(std::abs(on.cost_ms(t) - truth(t)) < 1e-6, "ufac: an unmeasured width gets the exact fit on exact data");
+        bool differs = false;
+        for (int t : {4, 6, 7, 8}) differs = differs || std::abs(off.cost_ms(t) - truth(t)) > 0.5;
+        check(differs, "ufac: the kShape scaling alone is not that fit (so the switch changes the pricing)");
+        // fewer than 3 widths measured: the old scaling
+        for (int t : {1, 2}) few.observe(false, t, 0, 0, truth(t));
+        DraftPolicy off2(8);
+        for (int t : {1, 2}) off2.observe(false, t, 0, 0, truth(t));
+        check(std::abs(few.cost_ms(5) - off2.cost_ms(5)) < 1e-12, "ufac: under 3 measured widths the scaling stands");
+        // a bad list is refused
+        const double bad[3] = {1.0, -2.0, 3.0};
+        DraftPolicy b(8);
+        b.set_ufac(bad, 3);
+        check(!b.ufac_on(), "ufac: a non-positive value turns it off");
+        b.set_ufac(u, 1);
+        check(!b.ufac_on(), "ufac: one value is not a curve");
+        // beyond the list the last step continues: u(10) = 20.2 + 2 * 0.2
+        for (int t : {1, 2, 3, 5, 7}) flat.observe(false, t, 0, 0, 5.0 + 2.0 * t + 3.0 * (t <= 8 ? u[t - 1] : 20.2));
+        check(flat.cost_ms(8) > 0.0, "ufac: a width at the end of the list is priced");
     }
     std::printf(g_fail ? "FAIL\n" : "PASS\n");
     return g_fail ? 1 : 0;

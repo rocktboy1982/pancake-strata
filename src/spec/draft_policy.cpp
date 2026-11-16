@@ -2,6 +2,7 @@
 #include "strata/spec/draft_policy.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -30,7 +31,79 @@ constexpr double kStaleRounds = 300.0;
 }  // namespace
 
 DraftPolicy::DraftPolicy(int max_t, double margin)
-    : max_t_(std::clamp(max_t, 1, kMaxT)), margin_(margin) {}
+    : max_t_(std::clamp(max_t, 1, kMaxT)), margin_(margin) {
+    // STRATA_DRAFT_UFAC=u1,u2,...: the union-cost fit for widths not measured yet (set_ufac); unset or not a list of positive numbers: off
+    const char* e = std::getenv("STRATA_DRAFT_UFAC");
+    if (e != nullptr && e[0] != '\0') {
+        double u[kMaxT];
+        int n = 0;
+        const char* p = e;
+        bool ok = true;
+        while (ok && n < kMaxT) {
+            char* end = nullptr;
+            const double v = std::strtod(p, &end);
+            if (end == p || !(v > 0.0)) { ok = false; break; }
+            u[n++] = v;
+            if (*end == '\0') break;
+            if (*end != ',') { ok = false; break; }
+            p = end + 1;
+        }
+        if (ok && n >= 2) set_ufac(u, n);
+        else std::fprintf(stderr, "strata spec: STRATA_DRAFT_UFAC=%s is not a list of 2..%d positive numbers: off\n", e, kMaxT);
+    }
+}
+
+void DraftPolicy::set_ufac(const double* u, int n) {
+    ufac_n_ = 0;
+    if (u == nullptr || n < 2) return;
+    n = std::min(n, kMaxT);
+    for (int m = 1; m <= n; ++m) {
+        if (!(u[m - 1] > 0.0)) return;
+        ufac_[(size_t) m] = u[m - 1];
+    }
+    ufac_n_ = n;
+}
+
+double DraftPolicy::ufac_at(int t) const {
+    if (t <= ufac_n_) return ufac_[(size_t) t];
+    const double step = ufac_[(size_t) ufac_n_] - ufac_[(size_t) ufac_n_ - 1];
+    return ufac_[(size_t) ufac_n_] + step * (double) (t - ufac_n_);
+}
+
+// weighted least squares of cost(u) = a + b u + c ufac(u) over the measured widths of the current bucket (weight = samples, at
+// most 20, as the scaling below); false when fewer than 3 widths are measured or the 3x3 system is ill-conditioned
+bool DraftPolicy::ufac_fit(int t, double* out) const {
+    double s[3][4] = {};
+    int widths = 0;
+    for (int w = 1; w <= kMaxT; ++w) {
+        if (cost_n_[bk_][w] <= 0) continue;
+        ++widths;
+        const double wt = std::min(cost_n_[bk_][w], 20.0);
+        const double x[3] = {1.0, (double) w, ufac_at(w)};
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) s[i][j] += wt * x[i] * x[j];
+            s[i][3] += wt * x[i] * cost_[bk_][w];
+        }
+    }
+    if (widths < 3) return false;
+    for (int col = 0; col < 3; ++col) {   // Gauss-Jordan with partial pivoting
+        int piv = col;
+        for (int r = col + 1; r < 3; ++r)
+            if (std::abs(s[r][col]) > std::abs(s[piv][col])) piv = r;
+        if (std::abs(s[piv][col]) < 1e-9) return false;
+        for (int k = 0; k < 4; ++k) std::swap(s[col][k], s[piv][k]);
+        for (int r = 0; r < 3; ++r) {
+            if (r == col) continue;
+            const double f = s[r][col] / s[col][col];
+            for (int k = col; k < 4; ++k) s[r][k] -= f * s[col][k];
+        }
+    }
+    const double a = s[0][3] / s[0][0], b = s[1][3] / s[1][1], c = s[2][3] / s[2][2];
+    const double v = a + b * (double) t + c * ufac_at(t);
+    if (!(v > 0.0) || !std::isfinite(v)) return false;
+    *out = v;
+    return true;
+}
 
 void DraftPolicy::set_sizes(unsigned mask) { sizes_ = mask | 2u; }
 
@@ -79,6 +152,10 @@ double DraftPolicy::cost_ms(int t) const {
         if (den > 0) return scale_[bk_] * num / den;
     }
     if (cost_n_[bk_][t] > 0) return cost_[bk_][t];
+    if (ufac_n_ > 0) {   // STRATA_DRAFT_UFAC: the union-cost fit prices a width not measured yet
+        double fitted = 0.0;
+        if (ufac_fit(t, &fitted)) return fitted;
+    }
     // scale from the measured sizes, weighting each by how often it was seen
     double num = 0.0, den = 0.0;
     for (int u = 1; u <= kMaxT; ++u)

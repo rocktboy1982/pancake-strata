@@ -504,6 +504,7 @@ STRATA_ENV("STRATA_DOWN_SWIGLU", Speed, "android-imdad caa9b00115: SwiGLU+q8_1 s
 STRATA_ENV("STRATA_DOWN_WS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_DQ_FAST", Speed, "bitwise: Q6_K/IQ4_XS warp dequant, group32's expression per value (android-imdad caa9b00115)")
 STRATA_ENV("STRATA_DRAFT_SCALE", Speed, "drafting policy: window cost = shared scale x per-size base; greedy output unchanged")
+STRATA_ENV("STRATA_DRAFT_UFAC", Speed, "drafting policy: union-cost fit prices unmeasured window widths; greedy output unchanged")
 STRATA_ENV("STRATA_DRAFT_CLIP", Speed, "drafting policy: round-time outliers clipped before the DraftPolicy cost update; greedy output unchanged (MOD_PLAN.md section 6 item 17)")
 STRATA_ENV("STRATA_DRAFT_EARLY", Speed, "mandoof1 b8004eb8d7: MTP draft round launched before the commit/emit, finished after; same drafts, greedy output unchanged")
 STRATA_ENV("STRATA_DRAFT_SUFFIX_SKIP", Speed, "mandoof1 868841cb32: MTP chain ends after draft 0 before a forecast suffix window, resumed on a miss; drafting policy, greedy output unchanged")
