@@ -426,8 +426,18 @@ bool park_move_env() {
 // the session file in two passes (session_file_read_streamed validates it without the K/V, session_file_apply_streamed
 // copies the K/V into the pools 16 MiB at a time), so the K/V is never held in RAM.  Unset: the whole-image restore as
 // before.  The bytes that reach the pools are the file's bytes either way (exact).
+bool session_two_pass_env();
 bool session_streamed_env() {
     static const bool on = [] { const char* v = std::getenv("STRATA_SESSION_STREAMED"); return v != nullptr && v[0] == '1'; }();
+    return on || session_two_pass_env();
+}
+// STRATA_SESSION_TWO_PASS=1 (opt-in; ElXreno/Strata 7efef35d0d, LEADS.md "two-pass session restore"): on top of the
+// streamed restore (it implies STRATA_SESSION_STREAMED), the live running state streams too: a SAVE writes the state,
+// the deepest checkpoint and the K/V straight from where they live (conversation_snapshot_stream, no host copy) and a
+// RESTORE keeps only the tokens and checkpoints from its read pass, applies the K/V, then the running state in a last
+// pass (session_file_apply_state_streamed).  Same file format and bytes (exact).  Unset: as before.
+bool session_two_pass_env() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_SESSION_TWO_PASS"); return v != nullptr && v[0] == '1'; }();
     return on;
 }
 bool ckpt_pool_env() {
@@ -17705,9 +17715,14 @@ int main(int argc, char** argv) {
                             sl.kv_layers = (uint64_t) std::max<int64_t>(ss.qsa_alloc, 0) + 1;
                         }
                         const uint64_t floor = (uint64_t) o.conversation_cache_min_free_mib << 20;
+                        // STRATA_SESSION_TWO_PASS: nothing but the token lists is copied, so the preflight asks for less
+                        const bool two_pass = session_two_pass_env();
                         if (o.session_save_reclaim) {
-                            const auto freed = strata::core::session_save_reclaim(
-                                checks, conversations, sl, floor, [&] { disk_tier.drain(); return strata::core::available_host_bytes(); });
+                            auto probe = [&] { disk_tier.drain(); return strata::core::available_host_bytes(); };
+                            const auto freed = two_pass
+                                ? strata::core::session_save_reclaim(
+                                      checks, conversations, strata::core::session_save_stream_peak_bytes(sl), floor, probe)
+                                : strata::core::session_save_reclaim(checks, conversations, sl, floor, probe);
                             if (freed.bytes || freed.checkpoints || freed.parked) {
                                 // A removed tail must not mark a later checkpoint at this length as a tail.
                                 if (tail_ckpt_len >= 0 && std::none_of(checks.begin(), checks.end(), [&](const auto& c) {
@@ -17728,6 +17743,44 @@ int main(int argc, char** argv) {
                                   " MiB needed, " + ram_note(mem) + ")";
                             return false;
                         };
+                        if (two_pass) {
+                            // ElXreno 7efef35d0d: the deepest checkpoint by reference, the running state and the K/V
+                            // read in place as the file is written; the session stays untouched until it is written
+                            std::vector<const ConvCheckpoint*> disk_ptrs;
+                            std::string why;
+                            strata::core::conversation_checkpoint_join(nullptr);   // STRATA_CKPT_ASYNC: the last copy landed
+                            if (!strata::core::session_save_stream_checkpoints(checks, sl, admit, disk_ptrs, why)) {
+                                refuse(why, strata::core::SessionError::memory);
+                                continue;
+                            }
+                            kept = disk_ptrs.size();
+                            const strata::core::ConversationStreamView view{live, live_imgs, disk_ptrs, cvec_cached};
+                            strata::core::SessionSaveSources sources;
+                            blocking("capture", 0);   // the device sync; the state itself moves with the file
+                            if (!strata::core::conversation_snapshot_stream(sources, view, ss, g, mtp.kv_state(), err)) {
+                                refuse(err, strata::core::SessionError::io);
+                                continue;
+                            }
+                            capture_ms = ms();
+                            strata::core::SessionWriteOptions wo;
+                            wo.min_free_bytes = (uint64_t) o.session_min_free_mib << 20;
+                            wo.progress = moving;
+                            wo.phase = blocking;
+                            strata::core::SessionStatus st;
+                            if (!strata::core::session_file_write(path, sources, id, bytes, err, wo, &st)) {
+                                refuse(err, st.error, st.published);
+                                continue;
+                            }
+                            if (st.dir_flush_unsupported)
+                                std::fprintf(stderr, "strata serve: session saved to %s; this filesystem cannot flush a "
+                                                     "folder, so the new name is not flushed\n", path.c_str());
+                            std::fprintf(stderr, "strata serve: session saved %zu tokens, %zu of %zu checkpoints, %zu bytes "
+                                         "to %s in %.1f ms (state %.1f ms)\n", live.size(), kept, checks.size(), bytes,
+                                         path.c_str(), ms(), capture_ms);
+                            std::printf("SAVED %zu %zu %.1f\n", live.size(), bytes, ms());
+                            std::fflush(stdout);
+                            continue;
+                        }
                         std::vector<ConvCheckpoint> disk_checks;
                         std::string why;
                         if (!strata::core::session_save_checkpoints(checks, sl, admit, disk_checks, why)) {
@@ -17773,6 +17826,10 @@ int main(int argc, char** argv) {
                     // 16 MiB blocks and the running state - not the snapshot.
                     strata::core::SavedConversation image;   // running state + K/V headers; the K/V buffers stay empty
                     std::vector<std::array<uint64_t, 5>> file_kv;   // the K/V sizes exactly as the read pass parsed them
+                    // STRATA_SESSION_TWO_PASS (ElXreno 7efef35d0d): the read pass keeps the tokens and checkpoints
+                    // only; the live running state streams in after the K/V (file_layout replaces file_kv)
+                    const bool two_pass = session_two_pass_env();
+                    strata::core::SessionStreamLayout file_layout;
                     size_t bytes = 0;
                     try {
                         // bounds this session can ever restore (geometry, layer range, tokens, checkpoints, every
@@ -17797,7 +17854,10 @@ int main(int argc, char** argv) {
                             continue;
                         }
                         strata::core::SessionStatus st;
-                        if (!strata::core::session_file_read_streamed(path, id, image, bytes, err, limits, &file_kv, &st)) {
+                        if (two_pass ? !strata::core::session_file_read_streamed(path, id, image, bytes, err, limits,
+                                                                                 file_layout, &st)
+                                     : !strata::core::session_file_read_streamed(path, id, image, bytes, err, limits,
+                                                                                 &file_kv, &st)) {
                             refuse(err, st.error);
                             continue;
                         }
@@ -17809,7 +17869,9 @@ int main(int argc, char** argv) {
                     // the whole running state against this engine, still without any device write; a K/V layer of
                     // another geometry or extent is refused here, by its header
                     blocking("validate", bytes);
-                    if (!strata::core::conversation_snapshot_validate_meta(image, ss, g, mtp.kv_state(), err)) {
+                    if (two_pass ? !strata::core::conversation_snapshot_validate_stream(image, file_layout.live_state, ss,
+                                                                                        g, mtp.kv_state(), err)
+                                 : !strata::core::conversation_snapshot_validate_meta(image, ss, g, mtp.kv_state(), err)) {
                         refuse(err);
                         continue;
                     }
@@ -17821,7 +17883,10 @@ int main(int argc, char** argv) {
                     }
                     // bind every layer's authoritative pool (validated above; this cannot fail for a good image)
                     std::vector<strata::core::ConversationKvTarget> targets;
-                    if (!strata::core::conversation_kv_targets(image, ss, g, mtp.kv_state(), targets, err)) {
+                    strata::core::ConversationStateTarget state_target;
+                    if (!strata::core::conversation_kv_targets(image, ss, g, mtp.kv_state(), targets, err) ||
+                        (two_pass && !strata::core::conversation_state_target(image, file_layout.live_state, ss, g,
+                                                                              state_target, err))) {
                         refuse(err);
                         continue;
                     }
@@ -17834,7 +17899,10 @@ int main(int argc, char** argv) {
                     // disk -> host pool in blocks of at most 16 MiB: one bounded allowance; the apply pass is bound
                     // to the K/V sizes the read pass validated and fail-stops once it has written the first block,
                     // while a clean refusal sets the live session back
-                    blocking("transfer", bytes);
+                    uint64_t state_bytes = 0;
+                    if (two_pass)
+                        for (uint64_t b : file_layout.live_state) state_bytes += b;
+                    blocking("transfer", bytes + state_bytes);
                     bool touched = false;
                     auto sink = [&](size_t layer, size_t part, uint64_t offset, const void* data, size_t n) {
                         // belt-and-braces: the apply pass is bound to the read pass (file_kv), so this layer index
@@ -17848,7 +17916,8 @@ int main(int argc, char** argv) {
                         return targets[layer].apply(part, offset, data, n, err);
                     };
                     strata::core::SessionStatus st2;
-                    if (!strata::core::session_file_apply_streamed(path, id, sink, file_kv, err, &st2)) {
+                    if (two_pass ? !strata::core::session_file_apply_streamed(path, id, sink, file_layout, err, &st2)
+                                 : !strata::core::session_file_apply_streamed(path, id, sink, file_kv, err, &st2)) {
                         if (!touched) {
                             // the file changed or failed before the first block: the session is as it was
                             live_ok = true;
@@ -17870,7 +17939,12 @@ int main(int argc, char** argv) {
                             std::fflush(stdout);
                             return 1;
                         }
-                    if (!strata::core::conversation_checkpoint_restore(image.live, ss, g, err)) {
+                    auto state_sink = [&](size_t part, uint64_t offset, const void* data, size_t n) {
+                        return state_target.apply(part, offset, data, n, err);
+                    };
+                    if (two_pass ? (!strata::core::session_file_apply_state_streamed(path, id, state_sink, file_layout, err) ||
+                                    !state_target.finish(image.live.ids, err))
+                                 : !strata::core::conversation_checkpoint_restore(image.live, ss, g, err)) {
                         std::fprintf(stderr, "strata serve: session restore %s: running-state restore failed: %s\n",
                                      path.c_str(), err.c_str());
                         std::printf("FATAL restoring the session file failed after the device state was changed: %s\n",

@@ -840,6 +840,7 @@ STRATA_ENV("STRATA_SELECT_LONG_AT", Speed, "bitwise: documented (docs/README/cod
 STRATA_ENV("STRATA_SELECT_TWO_PASS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_SELECT_TWO_PASS_MIN", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_SESSION_STREAMED", Speed, "ElXreno 9c18aed118: session restore in two passes, K/V streamed from the file into the pools 16 MiB at a time; same bytes (conversation_file_test)")
+STRATA_ENV("STRATA_SESSION_TWO_PASS", Speed, "ElXreno 7efef35d0d: session save/restore stream the running state and checkpoint too (implies SESSION_STREAMED); same file format and bytes (conversation_file_test)")
 STRATA_ENV("STRATA_SERVE_STOP_BOUND", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SH_FORK_LATE", Speed, "graph/stream/doorbell plumbing")
 STRATA_ENV("STRATA_SH_STREAM", Speed, "graph/stream/doorbell plumbing")
