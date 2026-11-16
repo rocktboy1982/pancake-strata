@@ -3700,8 +3700,7 @@ struct PrefillStandin {
             if (!said) {
                 said = true;
                 std::fprintf(stderr, "strata prefill: STRATA_PREFILL_STANDIN needs the expert cache, a 512 x 10 router and "
-                                     "STRATA_ROUTE_RESIDENT=<margin> > 0 (or STRATA_STANDIN=1): off
-");
+                                     "STRATA_ROUTE_RESIDENT=<margin> > 0 (or STRATA_STANDIN=1): off\n");
             }
             return;
         }
@@ -3710,16 +3709,14 @@ struct PrefillStandin {
             res = nullptr;
             if (!said) {
                 said = true;
-                std::fprintf(stderr, "strata prefill: STRATA_PREFILL_STANDIN: the residency buffer could not be allocated; off
-");
+                std::fprintf(stderr, "strata prefill: STRATA_PREFILL_STANDIN: the residency buffer could not be allocated; off\n");
             }
             return;
         }
         if (!said) {
             said = true;
             std::fprintf(stderr, "strata prefill: STRATA_PREFILL_STANDIN (LEADS.md HotRod, lossy): prompt stand-ins, margin %g ranks %d-%d, "
-                                 "budget %g, tail budget %g
-", (double) margin, lo, hi, (double) budget, (double) budget_tail);
+                                 "budget %g, tail budget %g\n", (double) margin, lo, hi, (double) budget, (double) budget_tail);
         }
         on = true;
     }
