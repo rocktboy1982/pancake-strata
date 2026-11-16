@@ -1483,29 +1483,52 @@ bool read_impl(const std::string& path, const SessionFileIdentity& id, SavedConv
     error.clear();
     st = {};
     st.error = SessionError::invalid;   // every refusal below, unless the step says otherwise
-    ReadFile rf;
+    // The default (whole-image) read, kept step for step as it was before the streamed restore port: the read
+    // buffer is allocated only after the file opened and its size passed (ReadFile, used by the streamed reads,
+    // allocates it first).  The header checks are the same lines, moved into header_ok.
+    RawFile raw;
+    uint64_t size = 0;
+    if (!raw.open_session(path, size)) {
+        st.error = raw.refused() ? SessionError::invalid : raw.kind();
+        error = "session file: " + path + ": " + raw.error();
+        return false;
+    }
+    if (size < kHeader + kTrailer) { error = "session file: size " + std::to_string(size) + " is below the minimum"; return false; }
+    const uint64_t max_size = session_read_max_file_bytes(limits);
+    if (size > max_size || size > (uint64_t) std::numeric_limits<size_t>::max()) {
+        error = "session file: size " + std::to_string(size) + " exceeds this engine's limit" +
+                (max_size == UINT64_MAX ? std::string() : " of " + std::to_string(max_size));
+        return false;
+    }
+    FileSource f(raw);
+    if (!f.ok()) { st.error = SessionError::memory; error = "session file: " + f.error(); return false; }
+    // installed before the first block (the header's) is read: every block reports, the first one included
+    if (limits.progress) f.progress.emplace(limits.progress);
+    f.expected = size;
+    uint8_t h[kHeader];
+    if (!f.read(h, kHeader)) { st.error = f.kind(); error = "session file: header read error: " + f.error(); return false; }
     uint64_t payload = 0;
-    if (!rf.open(path, id, limits, payload, error, st)) return false;
+    if (!header_ok(h, size, id, payload, error)) return false;
     if (limits.admit) {
         std::string why;
-        if (!limits.admit(session_read_peak_bytes(rf.size), why)) {
+        if (!limits.admit(session_read_peak_bytes(size), why)) {
             st.error = SessionError::memory;
             error = "session file: " + why;
             return false;
         }
     }
     SavedConversation parsed;
-    In in{&rf.source, SessionHasher(0), payload, error, limits};
+    In in{&f, SessionHasher(0), payload, error, limits};
     if (!get_payload(in, parsed)) { st.error = in.kind; return false; }
     if (in.left) { error = "session file: payload has " + std::to_string(in.left) + " unparsed bytes"; return false; }
     uint8_t t[kTrailer];
-    if (!rf.source.read(t, kTrailer)) { st.error = rf.source.kind(); error = "session file: trailer read error: " + rf.source.error(); return false; }
+    if (!f.read(t, kTrailer)) { st.error = f.kind(); error = "session file: trailer read error: " + f.error(); return false; }
     uint64_t ph = 0;
     std::memcpy(&ph, t, 8);
     if (ph != in.hash.digest()) { error = "session file: payload checksum mismatch"; return false; }
     if (std::memcmp(t + 8, kEnd, 8) != 0) { error = "session file: bad end marker"; return false; }
     image = std::move(parsed);
-    bytes = (size_t) rf.size;
+    bytes = (size_t) size;
     st.error = SessionError::none;
     return true;
 }
