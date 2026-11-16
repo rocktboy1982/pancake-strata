@@ -1898,10 +1898,13 @@ void ExpertPool::run_split_multi_native(const NativeFmt& f, ExpertJobMulti* jobs
         clear_act_quant();   // STRATA_POOL_DEFER_ACTQ: taken by the phase's threads
         const auto b = std::chrono::steady_clock::now();
         // STRATA_POOL_DEFER_ACTQ: the down inputs in the down phase (not with the raw activation dump, quant_down_act's)
-        const bool lazy = defer_actq_on() && n_ > 1 && !raw_dump().want(f.layer);
+        // (nor with STRATA_CPU_ACT_SPARSE, whose block skip quant_down_act computes)
+        const bool lazy = defer_actq_on() && n_ > 1 && !raw_dump().want(f.layer) && act_sparse_p() <= 0.0f;
         if (lazy) {
-            for (int e = 0; e < nb; ++e)
+            for (int e = 0; e < nb; ++e) {
+                split_multi_[(size_t) e].skip = 0;
                 for (int t = 0; t < mjobs_[e].nt; ++t) split_multi_[(size_t) e].q_state[t].store(0, std::memory_order_relaxed);
+            }
         } else {
             for (int e = 0; e < nb; ++e) quant_down_act(e);
         }
