@@ -1,0 +1,36 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/qwen36-ud-q4_k_xl-q36.json",
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit",
+    "long3k",
+    "long32k"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "fast-candidate": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DENSE_MMQ": "1",
+        "STRATA_Q36_ATT_GROUPED": "1",
+        "STRATA_Q36_FA": "1"
+      }
+    },
+    "fast-lossy-candidate": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DENSE_MMQ": "1",
+        "STRATA_Q36_ATT_GROUPED": "1",
+        "STRATA_Q36_FA": "1",
+        "STRATA_Q36_EXPERTS_USED": "6"
+      }
+    }
+  },
+  "note": "MOD_PLAN.md section 6 item 25 (R&D-G q36 fast preset), confirm of the stacked arms that screened PROMOTE in T-615 (spec 90, n=1..2): fast-candidate = configs/pancake/qwen36-35b-a3b-fast-candidate.json (STRATA_DENSE_MMQ=1 + STRATA_Q36_ATT_GROUPED=1 + STRATA_Q36_FA=1), fast-lossy-candidate = configs/pancake/qwen36-35b-a3b-fast-lossy-candidate.json (the same plus STRATA_Q36_EXPERTS_USED=6; K=6 was the better screen arm, K=7 is the milder fallback). The arm env here equals the candidate preset's env (abtest overlays env on one base preset). DENSE_MMQ and Q36_FA are lossy rounding (T-615 text DIFFERENT), so 'exact' means no dropped experts, not byte-identical text: read the stack as a quality-gate candidate, nothing is adopted. Judge long32k prompt tok/s and short/edit decode; the stack must beat each single arm, not only base. Needs the build with the q36 arms (T-615 ran them). Stop pancake.service first. Adopt only after confirm and the quality gate."
+}

@@ -1,0 +1,68 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1"
+      }
+    },
+    "standin-learn": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_STANDIN_LEARN": "1"
+      }
+    },
+    "subfit-learn": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1"
+      }
+    },
+    "subfit-learn-every16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1",
+        "STRATA_STANDIN_LEARN": "16"
+      }
+    },
+    "subfit-learn-every256": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1",
+        "STRATA_STANDIN_LEARN": "256"
+      }
+    },
+    "subfit-learn-trace": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5",
+        "STRATA_FRAGILE_RECHECK": "1",
+        "STRATA_SUBFIT_LEARN": "1",
+        "STRATA_SUBFIT_TRACE": "1"
+      }
+    }
+  },
+  "note": "TEST_LEDGER.md T-632 follow-up (spec 99: STRATA_SUBFIT_LEARN alone cut decode 44-50% and fitted nothing). UNCONFIRMED static analysis (MOD_PLAN.md section 6 item 20): the learner's CPU worker replays every stand-in move (STRATA_STANDIN_LEARN unset means every move) with two blob copies (the replaced expert is not resident: a file read) and two CPU expert evaluations, competing with the CPU expert pool for cores and memory/disk bandwidth. Arms: standin-learn = the stand-in learner without the substitute fit (does the cost come from the replay worker, not the ridge learner?); subfit-learn = spec 99's arm again; every16 / every256 = the replay sampled one move in 16 / 256 (if the cost is the replay worker, decode should recover toward base roughly in proportion); subfit-learn-trace = adds STRATA_SUBFIT_TRACE=1, one 'subfit trace' line per request in the engine log with the worker's microseconds per replay by phase (needs the build that has subfit_trace.hpp; arms without the trace do not need it). Observe only: every arm must give base's text. Screen first."
+}

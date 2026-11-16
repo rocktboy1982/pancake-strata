@@ -217,6 +217,7 @@ STRATA_ENV("STRATA_SUBFIT_APPLY", KeyIfSet, "LEADS.md HotRod substitute fit: fit
 STRATA_ENV("STRATA_SUBFIT_LEARN", Speed, "LEADS.md HotRod substitute fit: the live ridge learner, observe only without SUBFIT_APPLY (same picks and weights)")
 STRATA_ENV("STRATA_SUBFIT_LOG", Speed, "LEADS.md HotRod substitute fit: sample file of stand-in replays and probe windows (observe only)")
 STRATA_ENV("STRATA_SUBFIT_PROBE_EVERY", Inert, "LEADS.md HotRod substitute fit: decode windows per probe window of SUBFIT_LOG (a log rate)")
+STRATA_ENV("STRATA_SUBFIT_TRACE", Inert, "LEADS.md HotRod substitute fit: a timing line of the stand-in learner worker per request (diagnostic, T-632)")
 STRATA_ENV("STRATA_SUBFIT_RANK", KeyIfSet, "LEADS.md HotRod substitute fit: the corrections' rank (shapes what SUBFIT_APPLY applies)")
 STRATA_ENV("STRATA_SUBFIT_PAIRS", KeyIfSet, "LEADS.md HotRod substitute fit: pair groups the learner keeps (shapes what SUBFIT_APPLY applies)")
 STRATA_ENV("STRATA_SUBFIT_LADDER", KeyIfSet, "LEADS.md HotRod substitute fit: (layer, expert) and layer fallback fits (shapes what SUBFIT_APPLY applies)")

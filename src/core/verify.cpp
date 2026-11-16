@@ -21,6 +21,7 @@
 #include "strata/core/subfit_learn.hpp"      // LEADS.md HotRod substitute fit: STRATA_SUBFIT_LEARN / _APPLY
 #include "strata/core/subfit_rule.hpp"
 #include "strata/core/subfit_samples.hpp"    // ... STRATA_SUBFIT_LOG
+#include "strata/core/subfit_trace.hpp"      // ... STRATA_SUBFIT_TRACE (worker timing line, default off)
 #include "strata/core/subfit_shadow.hpp"     // ... the shadow samples
 #include "strata/kernels/subfit_apply.hpp"
 #include "strata/kernels/subfit_capture.hpp"
@@ -373,6 +374,13 @@ std::vector<int32_t> g_shd_pend;                                    // the cut r
 std::mt19937_64 g_sub_rng(0x5ab17ull);                             // the probe's candidate draw (a fixed seed, as HotRod)
 int64_t g_sub_layers = 0, g_sub_n = 0, g_sub_k = 0;                 // the geometry the state was made for (the first stage's init)
 
+// STRATA_SUBFIT_TRACE=1 (diagnostic, default off): the stand-in learner worker's time per phase of a replay (subfit_trace.hpp)
+strata::core::subfit_trace::Tally g_sf_trace;
+const bool g_sf_trace_on = strata::core::subfit_trace::on_env(std::getenv("STRATA_SUBFIT_TRACE"));
+inline uint64_t sf_trace_us(std::chrono::steady_clock::time_point a) {
+    return (uint64_t) std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - a).count();
+}
+
 // a stage's device buffer to the host, on its window stream (between windows only)
 bool subfit_d2h(int device, cudaStream_t cs, void* dst, const void* src, size_t bytes) {
     const OnDevice on(device);
@@ -475,15 +483,36 @@ struct StandinLearner {
                     bs.resize(f.bytes);
                     ye.resize((size_t) f.n_embd);
                     ys.resize((size_t) f.n_embd);
-                    ok = s->copy_blob(j.layer, j.e, be.data()) && s->copy_blob(j.layer, j.s, bs.data()) &&
-                         expert_out(f, be.data(), j.x.data(), ye.data(), act, ff, hq) &&
-                         expert_out(f, bs.data(), j.x.data(), ys.data(), act, ff, hq);
+                    if (!g_sf_trace_on) {
+                        ok = s->copy_blob(j.layer, j.e, be.data()) && s->copy_blob(j.layer, j.s, bs.data()) &&
+                             expert_out(f, be.data(), j.x.data(), ye.data(), act, ff, hq) &&
+                             expert_out(f, bs.data(), j.x.data(), ys.data(), act, ff, hq);
+                    } else {   // the same calls in the same order, each timed (STRATA_SUBFIT_TRACE)
+                        using strata::core::subfit_trace::Phase;
+                        auto t0 = std::chrono::steady_clock::now();
+                        ok = s->copy_blob(j.layer, j.e, be.data());
+                        g_sf_trace.add(Phase::kCopyE, sf_trace_us(t0));
+                        t0 = std::chrono::steady_clock::now();
+                        ok = ok && s->copy_blob(j.layer, j.s, bs.data());
+                        g_sf_trace.add(Phase::kCopyS, sf_trace_us(t0));
+                        t0 = std::chrono::steady_clock::now();
+                        ok = ok && expert_out(f, be.data(), j.x.data(), ye.data(), act, ff, hq);
+                        g_sf_trace.add(Phase::kExpertE, sf_trace_us(t0));
+                        t0 = std::chrono::steady_clock::now();
+                        ok = ok && expert_out(f, bs.data(), j.x.data(), ys.data(), act, ff, hq);
+                        g_sf_trace.add(Phase::kExpertS, sf_trace_us(t0));
+                        g_sf_trace.job();
+                    }
                 }
             }
             double sxy = 0.0, sxx = 0.0, syy = 0.0;
             if (ok) standin::sample_dots(ys.data(), ye.data(), (int64_t) ys.size(), sxy, sxx, syy);
             // LEADS.md HotRod substitute fit (STRATA_SUBFIT_LOG / _LEARN, opt-in): the same replay as a sample (not under mu)
-            if (ok && (subfit_cfg().log || subfit_cfg().learn)) subfit_on_replay(j.layer, j.e, j.s, j.rank, j.x.data(), ys.data(), ye.data());
+            if (ok && (subfit_cfg().log || subfit_cfg().learn)) {
+                const auto t0 = std::chrono::steady_clock::now();
+                subfit_on_replay(j.layer, j.e, j.s, j.rank, j.x.data(), ys.data(), ye.data());
+                if (g_sf_trace_on) g_sf_trace.add(strata::core::subfit_trace::kSink, sf_trace_us(t0));
+            }
             std::lock_guard<std::mutex> lk(mu);
             if (!ok || !std::isfinite(sxy) || !std::isfinite(sxx) || !std::isfinite(syy)) { ++failed; continue; }
             const size_t li = (size_t) j.layer, ei = li * 512 + (size_t) j.e;
@@ -7297,6 +7326,7 @@ std::string Verifier::standin_request_line() {
     // LEADS.md HotRod substitute fit (opt-in): the request's end, between windows - the shadow samples finished since the last end feed
     // the learner, the pairs with new samples refit (the held-out gate moves), the changes go into every stage's tables; then the lines
     const SubfitEnv& sf = subfit_cfg();
+    if (g_sf_trace_on && (sf.learn || sf.log)) out += strata::core::subfit_trace::line(g_sf_trace);
     if (sf.learn) {
         namespace sl = strata::core::subfit_learn;
         std::lock_guard<std::mutex> lk(g_sub_mu);
