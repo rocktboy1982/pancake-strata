@@ -1,0 +1,54 @@
+case long32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 2d89a604455c, target 64000 tokens (a unique run line is prepended to every request)
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65178 prompt tokens by count_tokens (target 64000)
+rep 0 q4-fp32              edit 149.9 edit 173.8 long32k 90.7/1282p 31464t long64k 86.6/1725p 65205t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2025/1249 MHz 59C 192W gtt 25M cpu 3174MHz 63C igpu 0%/vcn 0% fclk 1600
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65178 prompt tokens by count_tokens (target 64000)
+rep 0 q4-wmma              edit 117.6 edit 175.1 long32k 91.4/1038p 31464t long64k 77.7/2307p 65205t  foreign CPU 6% [('gnome-shell', 17), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 1954/1249 MHz 60C 178W gtt 25M cpu 3261MHz 62C igpu 0%/vcn 0% fclk 1600
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65178 prompt tokens by count_tokens (target 64000)
+rep 0 q4-wmma-split        edit 145.7 edit 123.6 long32k 81.2/975p 31464t long64k 77.5/2268p 65205t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('systemd', 1)]  gpu 1896/1249 MHz 60C 184W gtt 25M cpu 3196MHz 63C igpu 0%/vcn 0% fclk 1600
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65178 prompt tokens by count_tokens (target 64000)
+rep 0 int8-daily           edit 143.9 edit 171.6 long32k 85.7/1598p 31464t long64k 76.2/2294p 65205t  foreign CPU 6% [('kcompactd0', 15), ('kworker/0:1-events', 4), ('kworker/10:0-events_freezable', 3)]  gpu 2015/1249 MHz 60C 191W gtt 25M cpu 3193MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65178 prompt tokens by count_tokens (target 64000)
+rep 0 int8-daily           edit 145.0 edit 169.3 long32k 87.8/1605p 31464t long64k 79.5/2365p 65206t  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2022/1249 MHz 61C 197W gtt 25M cpu 3282MHz 62C igpu 0%/vcn 0% fclk 1600
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65178 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            edit 149.2 edit 174.5 long32k 80.2/1281p 31465t long64k 75.1/1727p 65206t  foreign CPU 4% [('kworker/10:1-mm_percpu_wq', 2), ('pipewire', 1), ('systemd', 1)]  gpu 2024/1249 MHz 62C 192W gtt 25M cpu 3258MHz 63C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  edit   q4-fp32                 161.9 +- 151.9  (n=2)
+                              drafts accepted 0.89
+  edit   q4-wmma                 146.3 +- 365.4  (n=2)   vs q4-fp32:  -9.6% +- 131.9%  -> no difference
+                              drafts accepted 0.91
+  edit   q4-wmma-split           134.6 +- 140.4  (n=2)   vs q4-fp32: -16.8% +- 180.6%  -> no difference
+                              drafts accepted 0.91
+  edit   int8-daily              157.2 +- 154.4  (n=2)   vs q4-fp32:  -2.9% +-  1.6%  -> worse
+                              drafts accepted 0.88
+  edit   base-late               161.8 +- 160.8  (n=2)   vs q4-fp32:  -0.0% +-  5.5%  -> no difference
+                              drafts accepted 0.89
+  long32k q4-fp32                1281.5 +-   nan  (n=1)
+  long32k q4-wmma                1038.1 +-   nan  (n=1)   vs q4-fp32: -19.0% +-  nan%  -> no difference
+  long32k q4-wmma-split           975.0 +-   nan  (n=1)   vs q4-fp32: -23.9% +-  nan%  -> no difference
+  long32k int8-daily             1604.6 +-   nan  (n=1)   vs q4-fp32: +25.2% +-  nan%  -> no difference
+  long32k base-late              1280.8 +-   nan  (n=1)   vs q4-fp32:  -0.1% +-  nan%  -> no difference
+  long64k q4-fp32                1725.0 +-   nan  (n=1)
+  long64k q4-wmma                2306.7 +-   nan  (n=1)   vs q4-fp32: +33.7% +-  nan%  -> no difference
+  long64k q4-wmma-split          2268.0 +-   nan  (n=1)   vs q4-fp32: +31.5% +-  nan%  -> no difference
+  long64k int8-daily             2364.8 +-   nan  (n=1)   vs q4-fp32: +37.1% +-  nan%  -> no difference
+  long64k base-late              1726.9 +-   nan  (n=1)   vs q4-fp32:  +0.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  q4-wmma              DIFFERENT text -> lossy or placement-dependent: quality gate
+  q4-wmma-split        identical on every case -> exact
+  int8-daily           identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): edit -0.0%  long32k -0.1%  long64k +0.1%
+  q4-wmma              edit -9.6%  long32k -19.0%  long64k +33.6%  -> drop
+  q4-wmma-split        edit -16.8%  long32k -23.9%  long64k +31.4%  -> drop
+  int8-daily           edit -2.9%  long32k +25.2%  long64k +37.0%  -> PROMOTE to confirm
