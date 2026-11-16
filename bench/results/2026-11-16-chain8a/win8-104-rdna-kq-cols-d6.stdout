@@ -1,0 +1,24 @@
+rep 0 base                 short 111.2 edit 152.4 short 110.9 edit 148.8 short 109.1 edit 158.3  foreign CPU 6% [('claude', 4), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2046/1249 MHz 56C 162W gtt 21M cpu 4048MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 0 maxcols8             short 102.9 edit 148.5 short 110.5 edit 146.9 short 107.5 edit 154.8  foreign CPU 5% [('pipewire', 1), ('kworker/9:0-events', 1), ('gnome-remote-de', 1)]  gpu 2056/1249 MHz 55C 156W gtt 21M cpu 3959MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 1 maxcols8             short 100.0 edit 147.2 short 109.2 edit 150.3 short 119.4 edit 151.8  foreign CPU 5% [('kworker/9:0-events', 3), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2043/1249 MHz 55C 160W gtt 21M cpu 3877MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 111.4 edit 151.2 short 114.9 edit 146.6 short 109.6 edit 141.3  foreign CPU 19% [('claude', 16), ('ptyxis', 4), ('kworker/9:2-events', 3)]  gpu 2040/1249 MHz 56C 161W gtt 21M cpu 4182MHz 54C igpu 2%/vcn 0% fclk 1600
+rep 2 base                 short 113.8 edit 151.9 short 109.4 edit 150.6 short 107.5 edit 153.3  foreign CPU 10% [('claude', 12), ('ptyxis', 4), ('gnome-shell', 2)]  gpu 2049/1249 MHz 56C 163W gtt 21M cpu 4142MHz 53C igpu 1%/vcn 0% fclk 1600
+rep 2 maxcols8             short 103.0 edit 148.6 short 110.3 edit 150.6 short 108.5 edit 149.1  foreign CPU 7% [('gnome-shell', 9), ('pipewire', 2), ('gnome-remote-de', 2)]  gpu 2044/1249 MHz 56C 156W gtt 21M cpu 4031MHz 53C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 0 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 1 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  maxcols8             rep 1 attempt 0 pass 3: short 119.4 outside [98.1, 118.9], edit 151.8
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    110.9 +-   2.5  (n=9)
+                              drafts accepted 0.71
+  short  maxcols8                106.5 +-   4.6  (n=8)   vs base:  -4.1% +-  5.4%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    150.5 +-   5.0  (n=9)
+                              drafts accepted 0.90
+  edit   maxcols8                149.5 +-   2.9  (n=8)   vs base:  -1.4% +-  2.1%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  maxcols8             DIFFERENT text -> lossy or placement-dependent: quality gate
