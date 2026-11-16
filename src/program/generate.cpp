@@ -13211,6 +13211,25 @@ int main(int argc, char** argv) {
             id.config = *config_fp;
             return true;
         };
+        // LEADS.md HotRod substitute fit (STRATA_SUBFIT_LOG / STRATA_SUBFIT_LEARN, opt-in): the sample file and the learner's state beside
+        // the expert profile, one per model fingerprint (subfit-samples-<fp>.bin, subfit-learn-<fp>.bin).  Off: nothing here runs.
+        if (strata::core::Verifier::subfit_on()) {
+            const std::string& prof = !o.expert_profile.empty() ? o.expert_profile : o.expert_profile_save;
+            strata::core::SessionFileIdentity sid;
+            std::string se;
+            if (prof.empty()) {
+                std::fprintf(stderr, "strata serve: subfit: nothing kept (no expert profile directory: --expert-profile)\n");
+            } else if (session_identity(sid, se, {})) {
+                char hex[17];
+                std::snprintf(hex, sizeof hex, "%016llx", (unsigned long long) sid.model);
+                const std::filesystem::path pdir = std::filesystem::path(prof).parent_path();
+                const std::filesystem::path dir = pdir.empty() ? std::filesystem::path(".") : pdir;
+                strata::core::Verifier::subfit_set_files((dir / ("subfit-samples-" + std::string(hex) + ".bin")).string(),
+                                                         (dir / ("subfit-learn-" + std::string(hex) + ".bin")).string(), sid.model);
+            } else {
+                std::fprintf(stderr, "strata serve: subfit: nothing kept (%s)\n", se.c_str());
+            }
+        }
         // MOD_PLAN item 39 (opt-in: --conversation-disk-dir / STRATA_CONVERSATION_DISK_DIR): the cache's evictions go to
         // disk in the background (root + deepest checkpoint, conversation_disk_tier.hpp) instead of being freed, a
         // final-answer conversation before a tool-call one, and a prompt that continues a disk entry deeper than RAM holds
@@ -22343,6 +22362,9 @@ int main(int argc, char** argv) {
                     fr_cut = ver.fragile_after_window(a + 1, merged);
                     if (fr_cut >= 1) a = std::min(a, fr_cut - 1);
                 }
+                // LEADS.md HotRod substitute fit (STRATA_SUBFIT_LOG / _LEARN, opt-in): a probe / shadow window's capture is collected and
+                // the next window's gate set (a shadow capture of the cut row's re-decision, or a probe window).  Off: nothing runs.
+                if (strata::core::Verifier::subfit_on()) ver.subfit_after_window(fr_cut, merged);
                 if (rd_observe) rd_rec.observe(window.data(), outv.data(), T);   // STRATA_TOKEN_RECYCLE / HYDRA_TOP2: every row a pair
                 // LEADS.md section 3 STRATA_TYPICAL_THINK (lossy, sampled requests only): inside the thinking, the first rejected draft
                 // is kept anyway when the target gives it p > min(eps, alpha e^-H) (Medusa's typical acceptance), and the rule goes on

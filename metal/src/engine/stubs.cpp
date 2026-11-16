@@ -32,6 +32,7 @@
 #include "strata/kernels/native_qsa_score.hpp"
 #include "strata/kernels/native_rope.hpp"
 #include "strata/kernels/native_router.hpp"
+#include "strata/kernels/subfit_capture.hpp"   // (subfit_apply.hpp comes with native_router.hpp)
 #include "strata/kernels/ngram.hpp"
 #include "strata/kernels/pdl.hpp"
 #include "strata/kernels/ple.hpp"
@@ -286,6 +287,16 @@ namespace strata::kernels { void native_rope_apply(const float * p0, float * p1,
 namespace strata::kernels { void native_route_resident(const float * p0, int32_t * p1, float * p2, const int32_t * p3, int p4, float p5, int p6, int p7, unsigned long long * p8, void * p9) { strata::metal_engine::missing("strata::kernels::native_route_resident"); } }
 // LEADS.md HotRod stand-ins (hand-edited): the extended stand-in launch and the head rows' margin are CUDA / HIP only
 namespace strata::kernels { void native_route_resident_ex(const float * p0, int32_t * p1, float * p2, const int32_t * p3, int p4, float p5, int p6, int p7, unsigned long long * p8, const RouteStandinArgs & p9, void * p10) { strata::metal_engine::missing("strata::kernels::native_route_resident_ex"); } }
+// LEADS.md HotRod substitute fit (hand-edited): the apply and the capture kernels are CUDA / HIP only; on Metal the tables never allocate
+// (subfit_tables_alloc false: no correction) and the capture entry points are not ported
+namespace strata::kernels { void subfit_apply(const SubfitApplyArgs & p0, void * p1) { strata::metal_engine::missing("strata::kernels::subfit_apply"); } }
+namespace strata::kernels { bool subfit_tables_alloc(SubfitTables & p0, int p1, int p2, int p3, int p4, int p5) { return false; } }
+namespace strata::kernels { void subfit_tables_free(SubfitTables & p0) { p0 = SubfitTables{}; } }
+namespace strata::kernels { void subfit_probe_pre(const int32_t * p0, const int32_t * p1, const int32_t * p2, int p3, int p4, int32_t * p5, int32_t * p6, int32_t * p7, void * p8) { strata::metal_engine::missing("strata::kernels::subfit_probe_pre"); } }
+namespace strata::kernels { void subfit_probe_post(const int32_t * p0, const float * p1, const int32_t * p2, const int32_t * p3, const int32_t * p4, const int32_t * p5, const float * p6, int p7, int p8, int64_t p9, float * p10, float * p11, int32_t * p12, void * p13) { strata::metal_engine::missing("strata::kernels::subfit_probe_post"); } }
+namespace strata::kernels { void subfit_probe_y(const float * p0, const int32_t * p1, int64_t p2, float * p3, void * p4) { strata::metal_engine::missing("strata::kernels::subfit_probe_y"); } }
+namespace strata::kernels { void subfit_shadow_xi(const int32_t * p0, const float * p1, const int32_t * p2, int p3, int p4, int64_t p5, int32_t * p6, float * p7, void * p8) { strata::metal_engine::missing("strata::kernels::subfit_shadow_xi"); } }
+namespace strata::kernels { void subfit_shadow_y(const float * p0, const int32_t * p1, int p2, int64_t p3, float * p4, void * p5) { strata::metal_engine::missing("strata::kernels::subfit_shadow_y"); } }
 namespace strata::kernels { void logits_margin_rows(const float * p0, int p1, int p2, float * p3, int32_t * p4, void * p5) { strata::metal_engine::missing("strata::kernels::logits_margin_rows"); } }
 namespace strata::kernels { void native_router_top10(const float * p0, int32_t * p1, float * p2, void * p3) { strata::metal_engine::missing("strata::kernels::native_router_top10"); } }
 namespace strata::kernels { void native_router_top10_multi(const float * p0, int32_t * p1, float * p2, int p3, void * p4) { strata::metal_engine::missing("strata::kernels::native_router_top10_multi"); } }
