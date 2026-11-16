@@ -3,6 +3,7 @@
 #include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/verify_ecap.hpp"
+#include "strata/spec/window_rule.hpp"   // LEADS.md B25 STRATA_SPEC_MISS_WIN (MissWindow)
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_memory.hpp"
 #include "strata/core/foresight_swap.hpp"
@@ -5518,6 +5519,21 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 for (int64_t i = 0; i < n; ++i)
                     if (ecap_drop[i]) ecap_bits[i >> 6] |= 1ull << (i & 63);
             }
+        }
+        // LEADS.md B25 STRATA_SPEC_MISS_WIN=<n> (opt-in; spec/window_rule.hpp MissWindow): each row's new misses - the
+        // experts not in VRAM, not skipped above, whose first entry in the window is in that row - go to the window-length
+        // rule, which keeps the next windows to the rows that stay under n per layer.  Counting only: this window's plan
+        // is not changed.  Not with a peer or helper GPU (their experts are no misses here).  Unset: nothing runs.
+        if (strata::spec::spec_miss_win_n() > 0.0 && d.peer == nullptr && d.remote_count == 0) {
+            int nm[strata::spec::MissWindow::R] = {};
+            for (int q = 0; q < nd; ++q) {
+                const int64_t i0 = distinct[q];
+                const int32_t e = ids[i0];
+                const int64_t r = i0 / k;
+                if (skip_d[q] || e < 0 || e >= d.n_expert || r >= strata::spec::MissWindow::R) continue;
+                if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0) ++nm[r];
+            }
+            strata::spec::miss_window().add_layer(d.layers, (int) n_tok, nm);
         }
         // STRATA_ROUTE_DUMP=<file> (bench only, off by default): one text line per layer-window, "layer n_tok nd nmiss | e:rows:res ..." in routing
         // order (res 1 = resident in the GPU cache, 0 = a miss the CPU computes unless the PCIe share takes it, 2 = tail-skipped), for replaying placement

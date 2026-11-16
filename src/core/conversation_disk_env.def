@@ -872,6 +872,7 @@ STRATA_ENV("STRATA_SPEC_CUM", Speed, "drafting/stop policy: the tokens change, t
 STRATA_ENV("STRATA_SPEC_LOOKUP_Q", Speed, "drafting/stop policy (with SPEC_CUM): lookup-agreeing drafts count q in the chain product; the state of given tokens does not change (android-imdad ef42c2fde9)")
 STRATA_ENV("STRATA_SPEC_DEPTH_DECAY", Speed, "drafting/stop policy (with SPEC_CUM): other drafts count p * d^j; the state of given tokens does not change (android-imdad ef42c2fde9)")
 STRATA_ENV("STRATA_SPEC_ENTROPY", Speed, "drafting/stop policy (AdaEDL / SVIP / AdaSD entropy stop, LEADS.md section 3): the tokens change, the state of given tokens does not")
+STRATA_ENV("STRATA_SPEC_MISS_WIN", Speed, "drafting/stop policy (B25 miss-aware window length, LEADS.md): the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_DRAFT_ENTROPY", Speed, "the draft head also computes entropies (trace record 7, stop rules); drafts only, no state of given tokens")
 STRATA_ENV("STRATA_SPEC_DEPTH", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_SPEC_GUMBEL", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
