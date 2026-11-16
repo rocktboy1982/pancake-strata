@@ -402,6 +402,7 @@ STRATA_ENV("STRATA_COMBINE_HITS", Speed, "bitwise: documented (docs/README/code 
 STRATA_ENV("STRATA_COMBINE_POLL1", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_COMMIT_BATCH", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_COMMIT_SYNC", Speed, "graph/stream/doorbell plumbing")
+STRATA_ENV("STRATA_COMPLEMENT_HUGETLB", Speed, "svgop 511bece612: RAM expert complement on a MAP_HUGETLB mapping via the paced path; same bytes, page size only")
 STRATA_ENV("STRATA_CONV_BUDGET", Speed, "cache/threads/park policy")
 STRATA_ENV("STRATA_CONV_BUDGET_CAP_MIB", Speed, "cache/threads/park policy")
 STRATA_ENV("STRATA_CONV_BUDGET_MARGIN_MIB", Speed, "cache/threads/park policy")

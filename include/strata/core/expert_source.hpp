@@ -1426,6 +1426,7 @@ private:
     bool complement_registered_ = false;      ///< the arena is ordinary memory registered with cudaHostRegister (not cudaHostAlloc)
     uint64_t complement_pin_limit_ = 0;
     uint64_t complement_lock_off_ = 0;        ///< the working-set lock covers [lock_off, lock_off + locked)
+    uint64_t complement_huge_bytes_ = 0;      ///< STRATA_COMPLEMENT_HUGETLB: the arena is a MAP_HUGETLB mapping of this size (munmap)
     bool complement_ready_ = false;
     uint64_t complement_locked_ = 0;          ///< bytes held in the working set (pin refused)
     int64_t complement_lent_slots_ = 0;

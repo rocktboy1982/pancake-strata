@@ -1651,9 +1651,14 @@ void FileExpertSource::close() {
             if (complement_registered_) (void) cudaHostUnregister(complement_arena_);
             if (complement_locked_ > 0)
                 strata::platform::unlock_resident((uint8_t*) complement_arena_ + complement_lock_off_, complement_locked_);
+#if defined(__linux__)
+            if (complement_huge_bytes_ > 0) (void) munmap(complement_arena_, (size_t) complement_huge_bytes_);
+            else
+#endif
             std::free(complement_arena_);
         }
     }
+    complement_huge_bytes_ = 0;
     if (xstage_ != nullptr) {
         if (xstage_pinned_) (void) cudaFreeHost(xstage_);
         else std::free(xstage_);
@@ -3878,6 +3883,7 @@ bool FileExpertSource::pin_cache_complement(
     uint64_t partial_pin = 0;   ///< CS-T: a registered prefix of a locked arena
     uint64_t lock_off = 0;      ///< where the working-set lock starts (after the registered prefix)
     std::string note;
+    uint64_t huge_bytes = 0;    ///< STRATA_COMPLEMENT_HUGETLB: the arena is a MAP_HUGETLB mapping of this many bytes (0: malloc'd)
 #if defined(__linux__)
     NumaComplementPlacement numa;   ///< STRATA_NUMA_SPLIT step B; inert unless the live pool split on real nodes
 #endif
@@ -3887,9 +3893,14 @@ bool FileExpertSource::pin_cache_complement(
         else {
             if (partial_pin > 0) (void) cudaHostUnregister(arena);
             if (locked > 0) strata::platform::unlock_resident((uint8_t*) arena + lock_off, locked);
+#if defined(__linux__)
+            if (huge_bytes > 0) (void) munmap(arena, (size_t) huge_bytes);
+            else
+#endif
             std::free(arena);
         }
         arena = nullptr;
+        huge_bytes = 0;
     };
 #if defined(__linux__)
     // #1250: the cached pages of the model files this source maps (the engine read them itself), given back
@@ -3976,6 +3987,25 @@ bool FileExpertSource::pin_cache_complement(
                                  "nothing placed\n");
         }
 #endif
+        // STRATA_COMPLEMENT_HUGETLB=1 (svgop 511bece612, opt-in; LEADS.md): when the reserved 2 MiB pool (HugePages_Free,
+        // read now: the CPU expert arena may have drawn on it) covers the complement whole, take the PACED path with a
+        // MAP_HUGETLB mapping instead of one-shot cudaHostAlloc (4 KiB page-locked pages): the 2 MiB pages fault before
+        // the one registration, as the hugetlb CPU arena does.  The bytes copied are the same; only the page size moves.
+#if defined(__linux__)
+        static const bool complement_hugetlb = [] {
+            const char* e = std::getenv("STRATA_COMPLEMENT_HUGETLB");
+            return e != nullptr && e[0] == '1';
+        }();
+        const bool huge_try = complement_hugetlb && pin && !numa.place &&
+                              detail::hugetlb_arena_credit(bytes, "/proc/meminfo") == bytes;
+        if (huge_try && !paced) {
+            paced = true;
+            std::fprintf(stderr, "FileExpertSource: STRATA_COMPLEMENT_HUGETLB=1: the complement takes the paced 2 MiB "
+                                 "pool path (the reserved pool covers it whole)\n");
+        }
+#else
+        const bool huge_try = false;
+#endif
         if (pin && !paced) {
             const cudaError_t allocated = cudaHostAlloc(&arena, (size_t) bytes,
                                                          cudaHostAllocMapped | cudaHostAllocPortable);
@@ -4011,6 +4041,26 @@ bool FileExpertSource::pin_cache_complement(
 #if !defined(_WIN32)
                 void* aligned = nullptr;
                 const uint64_t page = 4096;
+#if defined(__linux__)
+                if (huge_try) {   // STRATA_COMPLEMENT_HUGETLB (above): all or nothing per mapping; else the 4 KiB arena below
+                    const uint64_t hpage = 2ull << 20, hbytes = (bytes + hpage - 1) / hpage * hpage;
+#ifndef MAP_HUGE_2MB
+#define MAP_HUGE_2MB (21 << 26)
+#endif
+                    void* hp = mmap(nullptr, (size_t) hbytes, PROT_READ | PROT_WRITE,
+                                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_HUGE_2MB, -1, 0);
+                    if (hp != MAP_FAILED) {
+                        arena = hp;
+                        huge_bytes = hbytes;
+                        note += std::string(note.empty() ? "" : "; ") + "hugetlb 2 MB pages (STRATA_COMPLEMENT_HUGETLB)";
+                    } else {
+                        std::fprintf(stderr, "FileExpertSource: STRATA_COMPLEMENT_HUGETLB: MAP_HUGETLB failed (errno %d); "
+                                             "4 KiB pages\n", errno);
+                        errno = 0;
+                    }
+                }
+                if (arena == nullptr)
+#endif
                 if (posix_memalign(&aligned, (size_t) page, (size_t) ((bytes + page - 1) / page * page)) == 0) arena = aligned;
 #endif
 #if defined(__linux__)
@@ -4308,6 +4358,7 @@ bool FileExpertSource::pin_cache_complement(
     }
 
     complement_arena_ = arena;
+    complement_huge_bytes_ = huge_bytes;
     complement_host_ = host;
     complement_device_ = device;
     complement_bytes_ = bytes;
