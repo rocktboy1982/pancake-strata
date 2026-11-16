@@ -5149,6 +5149,37 @@ const SerCfg& ser_cfg() {
     return c;
 }
 bool ser_on() { return ser_cfg().kmin > 0; }
+// STRATA_SER_LAYERS="a-b:K[,c:K2...]" (opt-in, with STRATA_SER; gputier/StrataGP 0715a99871 / 2619066878's per-layer SER
+// table, STRATA_Q36_SER_TABLE, here in STRATA_ROUTE_TAIL_SKIP_LAYERS's form): the listed layers (inclusive ranges) take
+// Kmin K (1..9; 10 = no SER on those layers) instead of STRATA_SER's.  Layers not listed keep it.  Read once.
+int ser_kmin_layer(int64_t layer) {
+    static const std::vector<int8_t> table = [] {
+        std::vector<int8_t> t;
+        const char* v = std::getenv("STRATA_SER_LAYERS");
+        if (v == nullptr || v[0] == 0) return t;
+        const char* p = v;
+        while (*p != 0) {
+            char* e = nullptr;
+            const long a = std::strtol(p, &e, 10);
+            if (e == p) break;
+            long b = a;
+            p = e;
+            if (*p == '-') { b = std::strtol(p + 1, &e, 10); if (e == p + 1) break; p = e; }
+            if (*p != ':') break;
+            const long r = std::strtol(p + 1, &e, 10);
+            if (e == p + 1) break;
+            p = e;
+            if (a >= 0 && b >= a && b < 4096 && r >= 1 && r <= 10) {
+                if ((size_t) b >= t.size()) t.resize((size_t) b + 1, (int8_t) -1);
+                for (long l = a; l <= b; ++l) t[(size_t) l] = (int8_t) r;
+            }
+            if (*p == ',') ++p; else break;
+        }
+        return t;
+    }();
+    if (layer < 0 || (size_t) layer >= table.size() || table[(size_t) layer] < 0) return ser_cfg().kmin;
+    return table[(size_t) layer];
+}
 
 // LEADS.md A27 (sub-2-bit copy on a CPU miss; HOBBIT / MC-MoE low-precision miss copies), STRATA_SHADOW_MISS=<gguf>
 // (opt-in, lossy; read once): a CPU-computed (missed) expert reads its gate/up rows from the shadow GGUF that
@@ -5466,7 +5497,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
         // Not with a peer or helper GPU, as the tail skip.  Unset: nothing runs.
         if (ser_on() && d.plan->skip_w != nullptr && d.peer == nullptr && d.remote_count == 0) {
             const float* sw2 = d.plan->skip_w;
-            const int kmin = ser_cfg().kmin;
+            const int kmin = ser_kmin_layer(d.layers);   // STRATA_SER_LAYERS, else STRATA_SER's Kmin
             const float st = ser_cfg().t;
             int q_of[kMaxWindowEntries];
             for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
