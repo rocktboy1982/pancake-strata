@@ -2962,7 +2962,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 return a > 0.0f && a < 1.0f ? a : 0.0f;
             }();
             route_prior_top10(logits_ + tb * NE, hits_.d_res + l * g.n_expert, route_prior, ids_ + tb * K, w_ + tb * K, n, cs,
-                              depth_acc, (int) tb);
+                              depth_acc, (int) tb, (int) l);   // (l: STRATA_ROUTE_PRIOR_DELTA's per-layer range)
         }
         if (route_resident_cfg().margin > 0.0f && NE == 512 && K == 10 && hits_.d_res != nullptr) {
             // STRATA_ROUTE_RESIDENT: after the router, before the plan/doorbell read ids_/w_ (opt-in, changes the output)

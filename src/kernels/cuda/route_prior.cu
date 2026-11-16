@@ -18,6 +18,7 @@
 
 #include <cfloat>
 #include <cmath>
+#include <cstdlib>
 
 namespace strata::kernels {
 namespace {
@@ -33,10 +34,40 @@ __device__ __forceinline__ float wsum(float v) {
     return v;
 }
 
+__device__ __forceinline__ float wmin(float v) {
+#pragma unroll
+    for (int m = 16; m; m >>= 1) v = fminf(v, __shfl_xor_sync(0xffffffffu, v, m, 32));
+    return v;
+}
+
+// STRATA_ROUTE_PRIOR_DELTA=1 (opt-in, lossy; the --cache-prior rule of gputier/StrataGP 88a9b1a26c / abcbc67e60, arXiv
+// 2412.00099 Eq. 9-10): the bonus is lambda x Delta_avg, the layer's running mean of max(z) - min(z) over the router
+// logits seen so far, instead of lambda in raw logit units, so one lambda means the same thing in every layer.  The mean
+// (cumulative, no decay, not finite ranges skipped) lives here, per layer, on each card; route_prior_k reads the value
+// before its launch (a layer with no rows yet uses the token's own range) and route_prior_delta_k then adds the launch's
+// rows in row order, so the result does not depend on block scheduling.  The mean is not reset between requests.
+constexpr int kDeltaLayers = 256;
+__device__ float g_delta_mean[kDeltaLayers];
+__device__ float g_delta_count[kDeltaLayers];
+
+__global__ void route_prior_delta_k(const float* __restrict__ logits, int n_tok, int layer) {
+    float mean = g_delta_mean[layer], count = g_delta_count[layer];
+    const int lane = threadIdx.x;
+    for (int t = 0; t < n_tok; ++t) {
+        const float* lg = logits + (size_t) t * 512;
+        float mx = -INFINITY, mn = INFINITY;
+#pragma unroll
+        for (int i = 0; i < 16; ++i) { const float v = lg[lane + 32 * i]; mx = fmaxf(mx, v); mn = fminf(mn, v); }
+        const float range = wmax(mx) - wmin(mn);
+        if (range >= 0.0f && range <= FLT_MAX && count < 16777216.0f) { count += 1.0f; mean += (range - mean) / count; }
+    }
+    if (lane == 0) { g_delta_mean[layer] = mean; g_delta_count[layer] = count; }
+}
+
 // one warp per token; 512 experts = 16 values per lane (as the native router)
 __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* __restrict__ res, float lambda,
                                   int32_t* __restrict__ ids, float* __restrict__ weights, float depth_acc, int row0,
-                                  const float* gate, int protect, float keep_p) {
+                                  const float* gate, int protect, float keep_p, int delta_layer) {
     if (gate != nullptr) {   // STRATA_ROUTE_PRIOR_SCOPE: this window's scale, 0 = out of scope (a tool call, a code fence, ...)
         const float g = *(volatile const float*) gate;
         if (!(g > 0.0f)) return;   // the router's own top-10 stands (whole warp, before any shuffle)
@@ -63,6 +94,14 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
         mx = fmaxf(mx, v);
     }
     mx = wmax(mx);
+    if (delta_layer >= 0) {   // STRATA_ROUTE_PRIOR_DELTA: lambda in units of the layer's Delta_avg (the token's own range first)
+        float mn = INFINITY;
+#pragma unroll
+        for (int i = 0; i < 16; ++i) mn = fminf(mn, p[i]);
+        mn = wmin(mn);
+        const float c = g_delta_count[delta_layer];
+        lambda *= c > 0.0f ? g_delta_mean[delta_layer] : mx - mn;
+    }
     float sum = 0.0f;
 #pragma unroll
     for (int i = 0; i < 16; ++i) {
@@ -140,10 +179,14 @@ void route_prior_configure(const float* gate, int protect, float keep_p) {
 }
 
 void route_prior_top10(const float* logits, const int32_t* res_layer, float lambda, int32_t* ids, float* weights,
-                             int n_tok, void* stream, float depth_acc, int row0) {
+                             int n_tok, void* stream, float depth_acc, int row0, int layer) {
     if (n_tok <= 0) return;
+    // STRATA_ROUTE_PRIOR_DELTA=1 (opt-in, read once): the bonus scaled by the layer's running logit range (see above)
+    static const bool delta_on = [] { const char* v = std::getenv("STRATA_ROUTE_PRIOR_DELTA"); return v != nullptr && v[0] == '1'; }();
+    const int dl = delta_on && layer >= 0 && layer < kDeltaLayers ? layer : -1;
     route_prior_k<<<n_tok, 32, 0, (cudaStream_t) stream>>>(logits, res_layer, lambda, ids, weights, depth_acc, row0,
-                                                           g_prior_gate, g_prior_protect, g_prior_keep_p);
+                                                           g_prior_gate, g_prior_protect, g_prior_keep_p, dl);
+    if (dl >= 0) route_prior_delta_k<<<1, 32, 0, (cudaStream_t) stream>>>(logits, n_tok, dl);
 }
 
 }  // namespace strata::kernels

@@ -13,7 +13,7 @@ namespace strata::kernels {
 /// in the verify window, lambda * (1 - depth_acc^pos) with pos = row0 + the row's index - 0 at position 0 (the token
 /// every window commits stays exactly routed), towards lambda for deep rows that are rarely kept.  0: lambda everywhere.
 void route_prior_top10(const float* logits, const int32_t* res_layer, float lambda, int32_t* ids, float* weights,
-                       int n_tok, void* stream, float depth_acc = 0.0f, int row0 = 0);
+                       int n_tok, void* stream, float depth_acc = 0.0f, int row0 = 0, int layer = -1);
 
 /// MOD_PLAN F13 (route-prior guards, all opt-in; call once at start-up, BEFORE any window graph is captured: the kernel's launch
 /// arguments are baked into a captured graph).  Not calling it, or calling it with (nullptr, 0, 0), leaves the kernel as it was.
