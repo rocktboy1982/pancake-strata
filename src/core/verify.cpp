@@ -4463,6 +4463,10 @@ bool Verifier::capture(int T, std::string& err) {
     std::fprintf(stderr, "strata verify: captured the %d-token window (upload %s, sync %s) in %.1f ms\n", T,
                  cudaGetErrorString(ue), cudaGetErrorString(us),
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - cap_t0).count());
+    // STRATA_CAPTURE_BEAT=1 (opt-in; 0FL01/Strata d3a7502d): a graph that uploaded and synchronized is progress for the request
+    // watchdog (a first request captures every window size in turn).  Unset: no beat, as before.
+    static const bool capture_beat = strata::program::fork_fix_env("STRATA_CAPTURE_BEAT");
+    if (strata::program::capture_beats(capture_beat, ue == cudaSuccess, us == cudaSuccess)) progress_beat();
     // The upload only warms the graph; the first launch does it otherwise. A failed one (out of memory on a full card)
     // must not stay pending: the next kernel wrapper's cudaGetLastError would read it and end the engine (#3702).
     if (ue != cudaSuccess || us != cudaSuccess) {
