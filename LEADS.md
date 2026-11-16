@@ -81,7 +81,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-27 cache bundle: `PARK_REWIND_MAX` / skip-tail / fork-point / borrow / trailing reminder | 12 turns 10.4 to 6.3 s (Xiaomi2008, RTX 5090); 6 tasks 412 to 369 s, switch 3.00 to 0.67 s (Lamina, RTX 3060) | exact | 2026-11-15: partial: PARK_REWIND_MAX (fork-point / borrow / reminder left) |
 | FK-28 `STRATA_ADAPT_PROMPT` | est. +2-5% first decode tokens; RandoTeam counter -3% prompt (RTX 5090) | exact | 2026-11-15: CODED STRATA_ADAPT_PROMPT (FK-28) |
 | FK-30 IQ2 grid-sign expansion | IQ2_XXS gate/up -29%, IQ2_S down -35% per kernel (yqYo1, RX 7900 XT, GLM engine) | exact | iq_kernels.cu:91 (`STRATA_IQ_SIGN_FAST`) |
-| FK-31 sub-warp grouped expert kernels | +5.7-8.3% e2e (Lamina, RTX 3090 + 5070 Ti); est. 0-1% on XT | exact | 2026-11-15: left |
+| FK-31 sub-warp grouped expert kernels | +5.7-8.3% e2e (Lamina, RTX 3090 + 5070 Ti); est. 0-1% on XT | exact | 2026-11-16: already iq_kernels.cu sub-warp kernels (default, GU_SWIGLU, EXP_MODE=10) |
 | FK-32 `WAIT_COPY256` + 16 B plan reads | host-write-to-plan 4.47 to 3.57 us (android-imdad, XTX) | exact | switch_report.hpp:31 |
 | FK-32b `STRATA_ADAPT_COPY2` (2 DMA engines) | 48 x 2.2 MB copies 4.00 to 3.70 ms (android-imdad, XTX) | exact | 2026-11-16: CODED STRATA_ADAPT_COPY2 |
 | FK-32c MULTI_BLOCK_ARGMAX on gfx1100 | 12 to 5.6 us a pick (android-imdad, XTX) | exact | verify_kernels.cu:1026 (gfx12 only) |
@@ -133,18 +133,18 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | Argon AVX2: 2 accumulators, 32/16-row granularity, `row_dot_pair` | no isolated A/B (MI50 + AVX2 Xeon, 27.8 tok/s) | exact | 2026-11-15: CODED STRATA_ROWS_ACC2 |
 | `STRATA_IQ_ZEN3` gather-free IQ decode | +0.8% (119.5 to 120.5, RTX 3090 + Zen 3) | ~exact | 2026-11-16: already iq_avx2.cpp:521 iq256_variant (Zen 3 decodes gather-free) |
 | DraftPolicy cost-outlier clip (`PL_POLICY_CLIP`) | one 31 ms stall flips MTP T3 to lookup T8, persists (gfx1030, CPU tests) | exact | 2026-11-15: already STRATA_DRAFT_CLIP |
-| HotRod weight x logit-gap budget (`ROUTE_BUDGET`) | ranks 3-9: 44.7 vs 46.4 tok/s, 12/12 JSON (RTX 3060) | lossy | 2026-11-15: left |
+| HotRod weight x logit-gap budget (`ROUTE_BUDGET`) | ranks 3-9: 44.7 vs 46.4 tok/s, 12/12 JSON (RTX 3060) | lossy | 2026-11-16: CODED STRATA_ROUTE_BUDGET / _TAIL, STRATA_STANDIN |
 | skip non-resident experts < 10% weight (`SKIP_MINW`) | 20 to 25 tok/s, KL 0.016-0.022 vs floor 0.013 (RTX 5090, GLM) | lossy | 2026-11-15: already STRATA_MISS_SKIP_W |
 | balanced chunks (+1/32 rows) | small, not isolated (asahi) | exact | 2026-11-16: already STRATA_PREFILL_EQUAL / _EQUAL_TAIL |
-| HotRod fragile-token re-verify + auto budget + brake | 1-3% windows cut; 27/27 clean at 37-48 tok/s (RTX 3060, NVMe) | lossy guard | 2026-11-15: left |
+| HotRod fragile-token re-verify + auto budget + brake | 1-3% windows cut; 27/27 clean at 37-48 tok/s (RTX 3060, NVMe) | lossy guard | 2026-11-16: CODED STRATA_FRAGILE_RECHECK (+ BRAKE, K0), STRATA_ROUTE_BUDGET_AUTO, STRATA_STANDIN_LEARN / _APPLY (ridge part left) |
 | rdna3 unported prompt kernels `1799c0a3a`/`3dbb40516`/`1f4b77d72` | expert GEMM -6..-9%; HC half-layer -7.4..-9.1%; colskip 1-GPU unchanged (XTX) | exact | 2026-11-16: CODED STRATA_HC_WN4, STRATA_NW_COLSKIP |
 | `STRATA_VRAM_CALIB` (PR #5691) | +314/+166 slots, free 884 to 300 MiB (2x RX 6900 XT, HIP) | exact | 2026-11-16: CODED STRATA_VRAM_CALIB |
 | `STRATA_PROMPT_STAGE_MEMO` | short turns +14-20% (gfx906) | ~exact | 2026-11-15: left |
 | disk conversation cache + RAM/disk dual-park | 12,175 tok restore 0.32-0.51 s vs 42-45 s cold (gfx906 box) | exact | 2026-11-15: left |
 | `DQ8` + `HC_GATED16`, `KV_PF_RESIDENT` | IQ3_S prompt +6%; +7-9% at 16-128K (2x PRO V620) | exact | 2026-11-16: CODED STRATA_HC_GATED16, STRATA_KV_PF_RESIDENT; DQ8 already |
-| gfx1030 decode: `MMVQ_ROW/SET`, `NORM_ROPE=2`, `HEAD_WIDE/ROUTE_PLAN/HEAD_SAMPLE` | 119.2 to 122.1, one run (+1%) | exact | 2026-11-16: CODED STRATA_NORM_ROPE=2/3; MMVQ_ROW = RDNA_MMVQ_WAVE; MMVQ_SET / HEAD_WIDE / ROUTE_PLAN / HEAD_SAMPLE left |
+| gfx1030 decode: `MMVQ_ROW/SET`, `NORM_ROPE=2`, `HEAD_WIDE/ROUTE_PLAN/HEAD_SAMPLE` | 119.2 to 122.1, one run (+1%) | exact | 2026-11-16: CODED STRATA_NORM_ROPE, STRATA_MMVQ_SET, STRATA_HEAD_WIDE, STRATA_ROUTE_PLAN, STRATA_HEAD_SAMPLE; MMVQ_ROW = RDNA_MMVQ_WAVE |
 | `__launch_bounds__` / occupancy audit | QSA value -10.9%, 128K prefill +1.45% (P40) | exact | 2026-11-15: method |
-| HotRod prompt stand-ins (`PREFILL_STANDIN`) | 76-118 tok prompts 35-45% faster; 8.5K 15.8 to 15.1 s (RTX 3060) | lossy | 2026-11-15: left |
+| HotRod prompt stand-ins (`PREFILL_STANDIN`) | 76-118 tok prompts 35-45% faster; 8.5K 15.8 to 15.1 s (RTX 3060) | lossy | 2026-11-16: CODED STRATA_PREFILL_STANDIN |
 | `--adapt-async 1` (swaps on own thread) | short chat 24.9-26.0 to 28.7-30.1 (Strata-GLM, RTX 5090) | exact | adapt_async_default.hpp:1 |
 | `STRATA_NT_COPY` non-temporal blob copies | DMA 46.6 GB/s alone vs 17.0 beside 4 memcpy threads (Strata-GLM) | exact | 2026-11-16: CODED STRATA_NT_COPY |
 | hipBLASLt table auto only on gfx1151 after v0.2.13 (`343b8eae6`) | 131K prefill 926 to 1,687 with right table (XTX community); ours table +38% prompt | rebase hazard | gemm.cu:375 (`STRATA_HIPBLASLT_TABLE`) |

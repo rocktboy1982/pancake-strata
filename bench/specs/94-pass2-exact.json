@@ -201,6 +201,24 @@
       "env": {
         "STRATA_NORM_ROPE": "3"
       }
+    },
+    "mmvq-set": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MMVQ_SET": "1"
+      }
+    },
+    "head-sample": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_HEAD_SAMPLE": "1"
+      }
+    },
+    "route-plan": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_PLAN": "1"
+      }
     }
   },
   "note": "MOD_PLAN.md section 6 item 18, second pass of the LEADS.md wave (2026-11-16): exact / policy-only switches. Values are first guesses for a screen. adapt-* change tier placement only (CPU vs GPU rows may round differently: a text difference there is a placement effect, not a bug). Stop pancake.service first. mtp-in-verify (LEADS B28): the next MTP round staged on the device from the commit words and launched on the window stream (needs DEVICE_ACCEPT + MTP_ONE_GRAPH; judge against device-accept). expert-entropy-tier (A29): cold arena blobs Huffman-coded in RAM, decoded on demand; lossless; near 0% saving on IQ2_XS by the lead's own bound (the engine log reports the coded ratio). Third pass (2026-11-16): DRAFT_SUFFIX_SKIP (mandoof1 868841cb32), SAMPLE_ASYNC (bsorensen110 cd3a3ded7b), COMPLEMENT_HUGETLB (svgop 511bece612), QSA_WAVE32 (dardeaw 580e251e69, gfx11 allowed), NORM_ROPE=2/3 (jstamagal gfx1030 set)."
