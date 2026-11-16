@@ -360,6 +360,7 @@ STRATA_ENV("STRATA_ARGMAX_ROWS_SM70", Speed, "bitwise: documented (docs/README/c
 STRATA_ENV("STRATA_ATTN_DAILY", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_ATTN_LANECELL", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_ATTN_QMAJOR", Speed, "LEADS.md LongSpec/Hybrid Tree: decode attention chunk blocks launched query-fastest; bitwise (qsa_merge_daily_parity chunk kernel 2)")
+STRATA_ENV("STRATA_ATTN_VWIN", Speed, "LEADS.md A50 verify-window attention: two queries a chunk block, a shared pool row K/V read once; bitwise (qsa_merge_daily_parity chunk kernel 3)")
 STRATA_ENV("STRATA_ATTN_MERGE_BOUND", Speed, "bitwise: merge stops at the last filled chunk (android-imdad caa9b00115)")
 STRATA_ENV("STRATA_ATTN_MERGE_V2", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_ATTN_PRE75", Speed, "bitwise: documented (docs/README/code comment/parity test)")

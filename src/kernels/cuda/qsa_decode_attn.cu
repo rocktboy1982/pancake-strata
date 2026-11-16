@@ -355,6 +355,163 @@ bool attn_qmajor_on() {
     return v;
 }
 
+// One value of a cell's V row (dimension t) as attn_chunk_body's value loop reads it, per KV_MODE (the same expressions).
+template <int KV_MODE>
+__device__ __forceinline__ float attn_load_v(const QsaAttnPools& p, long long row, int t) {
+    if constexpr (KV_MODE == 0) {
+        return __half2float(__ushort_as_half(p.v_pool[row * HD + t]));
+    } else if constexpr (KV_MODE == 1) {
+        const float sc = __half2float(__ushort_as_half(p.v_scale[row * (HD / KV_Q8_GROUP) + t / KV_Q8_GROUP]));
+        return (float) p.v_q[row * HD + t] * sc;
+    } else {
+        constexpr int bytes_per_head = (HD / QK4_0) * sizeof(block_q4_0);
+        const int b = t / QK4_0;
+        const int rem = t % QK4_0;
+        const block_q4_0* blk = reinterpret_cast<const block_q4_0*>(p.v_q4 + row * bytes_per_head) + b;
+        const float d = __half2float(__ushort_as_half(blk->d));
+        const int j = rem < 16 ? rem : (rem - 16);
+        const uint8_t byte = blk->qs[j];
+        const int nibble = (rem < 16) ? ((byte & 0x0F) - 8) : ((byte >> 4) - 8);
+        return (float) nibble * d;
+    }
+}
+
+// LEADS.md A50 (verify-window attention, prefix K/V read once; the idea of q36's STRATA_ATTN_WINDOW,
+// k_attn_window, after Asofwar/Strata-Turbo 6ebe841e2e / 540f801a9a, on the Flash-Next QSA verify kernel).
+// STRATA_ATTN_VWIN=1 (opt-in, exact): one block per (chunk, KV head, group of NR = 2 consecutive queries) instead of one
+// per (chunk, KV head, query).  The window's rows select from a largely common, position-sorted prefix, so at a cell
+// index where the rows' selections name the same pool row, its K row (8 dims a lane) and V value are loaded once for
+// both rows; where they differ each row loads its own.  Every (row, head)'s arithmetic is attn_chunk_body's default form
+// (no lane-cell, swizzle or reduce12) in its order: the 8-term dot and warp_sum, * scale, -FLT_MAX for a masked cell,
+// the warp max / __expf / warp_sum softmax over the same lanes, the fmaf value sum over the row's cells ascending.  So
+// the partials are attn_chunk_kernel's bit for bit (qsa_merge_daily_parity, chunk kernel 3).  LDS 31 KB a block (NR 2).
+template <int KV_MODE, int NR>
+__global__ void __launch_bounds__(THREADS) attn_chunk_window_kernel(const float* __restrict__ q, QsaAttnPools p,
+                                                                    const int32_t* __restrict__ ids,
+                                                                    const int32_t* __restrict__ step, int n_kv_heads,
+                                                                    int page_size, float scale,
+                                                                    float* __restrict__ part_acc,
+                                                                    float* __restrict__ part_m,
+                                                                    float* __restrict__ part_l, int n_chunks, int cap,
+                                                                    long long scratch_stride, int n_q) {
+    __shared__ __align__(16) float sq[NR][G][HD];
+    __shared__ float sp[NR][G][CHUNK];
+    __shared__ long long srow[NR][CHUNK];
+    const int chunk = (int) blockIdx.x, kvh = (int) blockIdx.y, z0 = (int) blockIdx.z * NR;
+    const int t = threadIdx.x, lane = t & 31, warp = t >> 5;
+    const int c0 = chunk * CHUNK;
+    const int slot = kvh * n_chunks + chunk;
+    int n_here[NR];
+    bool live[NR];
+    bool any = false;
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr) {
+        const int qz = z0 + rr;
+        n_here[rr] = qz < n_q ? min(CHUNK, __ldg(step + (size_t) qz * kStepCount + kStepWidth) - c0) : 0;
+        live[rr] = n_here[rr] > 0;
+        any = any || live[rr];
+        if (qz < n_q && !live[rr] && t < G) {   // attn_chunk_body's empty chunk
+            part_m[(size_t) qz * (size_t) scratch_stride + slot * G + t] = -FLT_MAX;
+            part_l[(size_t) qz * (size_t) scratch_stride + slot * G + t] = 0.0f;
+        }
+    }
+    if (!any) return;   // (uniform over the block)
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr) {
+        if (!live[rr]) continue;
+        const float* qq = q + (size_t) (z0 + rr) * (size_t) (n_kv_heads * G) * HD;
+        for (int i = t; i < G * HD; i += THREADS) sq[rr][i / HD][i % HD] = qq[(size_t) (kvh * G) * HD + i];
+    }
+    if (t < CHUNK) {
+#pragma unroll
+        for (int rr = 0; rr < NR; ++rr) {
+            long long r = -1;
+            if (live[rr] && t < n_here[rr]) {
+                const int cell = ids[(size_t) (z0 + rr) * (size_t) cap + c0 + t];
+                const long long page = (long long) p.page_table[cell / page_size];
+                if (page >= 0) r = (page * n_kv_heads + kvh) * page_size + (cell % page_size);
+            }
+            srow[rr][t] = r;
+        }
+    }
+    __syncthreads();
+    // scores: warp w takes cells w, w + 8, ...; a K row already in k8 (the previous row's, same pool row) is not reloaded
+    for (int c = warp; c < CHUNK; c += WARPS) {
+        float k8[8];
+        long long kr = -2;   // the pool row whose K is in k8 (-2: none yet)
+#pragma unroll
+        for (int rr = 0; rr < NR; ++rr) {
+            if (!live[rr]) continue;
+            const long long r = srow[rr][c];
+            if (c >= n_here[rr] || r < 0) {
+                if (lane < G) sp[rr][lane][c] = -FLT_MAX;
+                continue;
+            }
+            if (r != kr) { load8<KV_MODE>(p, false, r, lane * 8, k8); kr = r; }
+#pragma unroll
+            for (int h = 0; h < G; ++h) {
+                const float4 qa = *reinterpret_cast<const float4*>(&sq[rr][h][lane * 8]);
+                const float4 qb = *reinterpret_cast<const float4*>(&sq[rr][h][lane * 8 + 4]);
+                float s = k8[0] * qa.x + k8[1] * qa.y + k8[2] * qa.z + k8[3] * qa.w +
+                          k8[4] * qb.x + k8[5] * qb.y + k8[6] * qb.z + k8[7] * qb.w;
+                s = warp_sum(s);
+                if (lane == 0) sp[rr][h][c] = s * scale;
+            }
+        }
+    }
+    __syncthreads();
+    // per (row, head) chunk max and exp-sum: warp w takes pairs w, w + 8, ... (attn_chunk_body's per-head code)
+    for (int ph = warp; ph < NR * G; ph += WARPS) {
+        const int rr = ph / G, h = ph % G;
+        if (!live[rr]) continue;
+        const float a = sp[rr][h][lane], b = sp[rr][h][lane + 32];
+        const float m = warp_max(fmaxf(a, b));
+        const float ea = (lane < n_here[rr] && srow[rr][lane] >= 0) ? __expf(a - m) : 0.0f;
+        const float eb = (lane + 32 < n_here[rr] && srow[rr][lane + 32] >= 0) ? __expf(b - m) : 0.0f;
+        sp[rr][h][lane] = ea;
+        sp[rr][h][lane + 32] = eb;
+        const float l = warp_sum(ea + eb);
+        if (lane == 0) {
+            part_m[(size_t) (z0 + rr) * (size_t) scratch_stride + slot * G + h] = m;
+            part_l[(size_t) (z0 + rr) * (size_t) scratch_stride + slot * G + h] = l;
+        }
+    }
+    __syncthreads();
+    // values: thread t owns dimension t for every row's 12 heads; a V value already loaded (same pool row) is reused
+    float acc[NR][G];
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr)
+#pragma unroll
+        for (int h = 0; h < G; ++h) acc[rr][h] = 0.0f;
+    int cmax = 0;
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr) cmax = max(cmax, live[rr] ? n_here[rr] : 0);
+    for (int c = 0; c < cmax; ++c) {
+        float v = 0.0f;
+        long long vr = -2;
+#pragma unroll
+        for (int rr = 0; rr < NR; ++rr) {
+            if (!live[rr] || c >= n_here[rr]) continue;
+            const long long r = srow[rr][c];
+            if (r < 0) continue;   // masked above, weight 0
+            if (r != vr) { v = attn_load_v<KV_MODE>(p, r, t); vr = r; }
+#pragma unroll
+            for (int h = 0; h < G; ++h) acc[rr][h] = fmaf(sp[rr][h][c], v, acc[rr][h]);
+        }
+    }
+#pragma unroll
+    for (int rr = 0; rr < NR; ++rr) {
+        if (!live[rr]) continue;
+        float* pa = part_acc + (size_t) (z0 + rr) * (size_t) scratch_stride;
+#pragma unroll
+        for (int h = 0; h < G; ++h) pa[((size_t) slot * G + h) * HD + t] = acc[rr][h];
+    }
+}
+bool attn_vwin_on() {
+    static const bool v = [] { const char* e = std::getenv("STRATA_ATTN_VWIN"); return e != nullptr && e[0] == '1'; }();
+    return v;
+}
+
 #if !defined(__HIPCC__)
 // Turing (INT8 pools): attn_chunk_kernel<1> bit for bit, rearranged for the SM's shared-memory pipe, which the
 // default kernel saturates (its time grew with the queries even with the SMs half empty).  Three changes, none to an
@@ -1127,6 +1284,34 @@ void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_
     // STRATA_ATTN_QMAJOR=1 (opt-in, bitwise; LEADS.md "LongSpec/Hybrid Tree"): the default chunk kernel's blocks, query
     // fastest (attn_chunk_qmajor_kernel); kernel 2 = the parity harness's name for it.  Where another variant would run
     // (lane-cell, the pre-sm_75 kernel, the Turing v3 kernel, the gfx906 swizzle) the switch stands aside.
+    // STRATA_ATTN_VWIN=1 (opt-in, bitwise; LEADS.md A50): two queries a block, a shared pool row's K / V read
+    // once for both (attn_chunk_window_kernel); kernel 3 = the parity harness's name for it.  It stands aside where
+    // QMAJOR does, and is asked first (with both set, VWIN runs).
+    {
+        bool vwin = kernel == 3;
+        if (kernel < 0 && n_q > 1 && attn_vwin_on() && !lane_cell) {
+            vwin = true;
+#if defined(STRATA_ATTN_PRE75_BUILT)
+            if (pre) vwin = false;
+#endif
+#if defined(STRATA_HIP_GFX906)
+            if (use_query_swizzle) vwin = false;
+#endif
+#if !defined(__HIPCC__)
+            if (kv_mode == 1 && attn_v3_on()) vwin = false;
+#endif
+        }
+        if (vwin) {
+            const dim3 gw((unsigned) n_chunks, (unsigned) s.n_head_kv, (unsigned) ((n_q + 1) / 2));
+#define STRATA_ATTN_VW(M) attn_chunk_window_kernel<M, 2><<<gw, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride, (int) n_q)
+            if (kv_mode == 3) STRATA_ATTN_VW(3);
+            else if (kv_mode == 2) STRATA_ATTN_VW(2);
+            else if (kv_mode == 1) STRATA_ATTN_VW(1);
+            else STRATA_ATTN_VW(0);
+#undef STRATA_ATTN_VW
+            return;
+        }
+    }
     {
         bool qmajor = kernel == 2;
         if (kernel < 0 && n_q > 1 && attn_qmajor_on() && !lane_cell) {
@@ -1421,7 +1606,7 @@ void qsa_decode_attn_chunks_only(const float* q, const QsaAttnPools& pools, cons
                                  int64_t cap, const QsaShapes& s, float* scratch, int64_t n_q, int daily_chunk,
                                  void* stream) {
     if (n_q <= 0 || n_q > 65535 || s.head_dim != HD || s.n_head != (int64_t) G * s.n_head_kv || cap <= 0 || !scratch ||
-        !q || !ids || !steps || !pools.page_table || daily_chunk < 0 || daily_chunk > 2) {
+        !q || !ids || !steps || !pools.page_table || daily_chunk < 0 || daily_chunk > 3) {
         std::fprintf(stderr, "qsa_decode_attn_chunks_only: unsupported geometry or missing buffers\n");
         std::exit(1);
     }

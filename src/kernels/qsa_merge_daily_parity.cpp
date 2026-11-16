@@ -294,7 +294,43 @@ struct Harness {
             std::puts("FAIL query-major chunk kernel (STRATA_ATTN_QMAJOR) differs from upstream reference");
             qmajor_same = false;
         }
-        return same && nan == 0 && entry_same && daily_same && qmajor_same;
+        // LEADS.md A50 (STRATA_ATTN_VWIN): two queries a block, a shared pool row read once (chunk kernel 3),
+        // merged by the upstream merger: bit for bit the reference.  Then again with every odd query's selection made its
+        // even neighbour's (the window's shared prefix: the K / V reuse path), against chunk kernel 0 on those ids.
+        bool vwin_same = true;
+        ck(cudaMemset(scratch, 0xFF, scratch_bytes), "scratch NaN refill (vwin)");
+        k::qsa_decode_attn_chunks_only(q, pools.view(c.fmt, table), ids, steps, c.cap, s, scratch, c.n_q, 3, nullptr);
+        ck(cudaMemset(attn_new, 0x7F, n * 4), "attn_new refill (vwin)");
+        k::qsa_decode_attn_merge_only(steps, c.cap, s, scratch, attn_new, c.n_q, 0, nullptr);
+        ck(cudaDeviceSynchronize(), "vwin chunk sync");
+        ck(cudaMemcpy(b.data(), attn_new, n * 4, cudaMemcpyDeviceToHost), "vwin chunk output");
+        if (std::memcmp(a.data(), b.data(), n * 4) != 0) {
+            std::puts("FAIL verify-window chunk kernel (STRATA_ATTN_VWIN) differs from upstream reference");
+            vwin_same = false;
+        }
+        if (c.n_q > 1) {
+            for (int i = 1; i < c.n_q; i += 2)
+                ck(cudaMemcpy(ids + (size_t) i * c.cap, ids + (size_t) (i - 1) * c.cap, (size_t) c.cap * 4,
+                              cudaMemcpyDeviceToDevice), "vwin shared selection");
+            std::vector<float> a2(n);
+            ck(cudaMemset(scratch, 0xFF, scratch_bytes), "scratch NaN refill (vwin ref)");
+            k::qsa_decode_attn_chunks_only(q, pools.view(c.fmt, table), ids, steps, c.cap, s, scratch, c.n_q, 0, nullptr);
+            ck(cudaMemset(attn_new, 0x7F, n * 4), "attn_new refill (vwin ref)");
+            k::qsa_decode_attn_merge_only(steps, c.cap, s, scratch, attn_new, c.n_q, 0, nullptr);
+            ck(cudaDeviceSynchronize(), "vwin ref sync");
+            ck(cudaMemcpy(a2.data(), attn_new, n * 4, cudaMemcpyDeviceToHost), "vwin ref output");
+            ck(cudaMemset(scratch, 0xFF, scratch_bytes), "scratch NaN refill (vwin shared)");
+            k::qsa_decode_attn_chunks_only(q, pools.view(c.fmt, table), ids, steps, c.cap, s, scratch, c.n_q, 3, nullptr);
+            ck(cudaMemset(attn_new, 0x7F, n * 4), "attn_new refill (vwin shared)");
+            k::qsa_decode_attn_merge_only(steps, c.cap, s, scratch, attn_new, c.n_q, 0, nullptr);
+            ck(cudaDeviceSynchronize(), "vwin shared sync");
+            ck(cudaMemcpy(b.data(), attn_new, n * 4, cudaMemcpyDeviceToHost), "vwin shared output");
+            if (std::memcmp(a2.data(), b.data(), n * 4) != 0) {
+                std::puts("FAIL verify-window chunk kernel (STRATA_ATTN_VWIN) with shared selections differs from chunk kernel 0");
+                vwin_same = false;
+            }
+        }
+        return same && nan == 0 && entry_same && daily_same && qmajor_same && vwin_same;
     }
 };
 
