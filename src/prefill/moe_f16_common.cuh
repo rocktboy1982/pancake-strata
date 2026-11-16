@@ -69,10 +69,15 @@ inline bool requested() {
 /// fewer, so a block stages and keeps half the activation rows (LDS, fetch) where a prompt of 100-1000 tokens leaves
 /// 2-20 rows an expert.  The token columns are independent in the WMMA, so every output is bitwise the 64-row kernel's.
 ///   STRATA_PF_F16_VAR_BM=1: half tiles when the average rows per expert is at most 8 (a value above 1: that average)
-///   STRATA_MOE_MAX_BM=32: half tiles always (the screen's upper bound; 16 is not built: the activation stage's
-///   fetch is BN * 8 / 256 chunks a thread, 0 for BN 16); 64 or unset: no cap.
+///   STRATA_MOE_MAX_BM=32: half tiles always (the screen's upper bound); 64 or unset: no cap.
+///   Quarter tiles (kQuarterTile = 16 rows, one WMMA token tile; default off, NEVER BUILT OR RUN on a GPU): four work items a
+///   (tile, feature block); the activation stage keeps its 128 chunks on half the threads (ActStage PARTIAL).
+///   STRATA_MOE_MAX_BM=16: quarter tiles always; STRATA_PF_F16_VAR_BM16=1: quarter tiles when the average rows per expert is
+///   at most 2 (a value above 1: that average), ahead of VAR_BM.
 /// STRATA_PF_F16_BN, when set to 64 or 128, wins over both.
 constexpr int kHalfTile = kTileRows / 2;
+constexpr int kQuarterTile = kTileRows / 4;
+static_assert(kQuarterTile == kQuarterTileRule, "moe_tile_rule.hpp mirrors kTileRows");
 static_assert(kHalfTile == kHalfTileRule && kTileRows == kTileRowsRule, "moe_tile_rule.hpp mirrors kTileRows");
 /// The rule behind pick_bn (moe_tile_rule.hpp, host-tested by moe_tile_rule_test): `forced` is STRATA_PF_F16_BN (0
 /// unset), `var_avg` the STRATA_PF_F16_VAR_BM average threshold (0 off), `max_bm` STRATA_MOE_MAX_BM.
@@ -92,10 +97,16 @@ inline int pick_bn(int64_t n, int n_expert) {
         const char* v = std::getenv("STRATA_MOE_MAX_BM");
         return v ? std::atoi(v) : 0;
     }();
-    return pick_bn_rule(n, n_expert, forced, var_avg, max_bm);
+    static const double var16_avg = [] {
+        const char* v = std::getenv("STRATA_PF_F16_VAR_BM16");
+        if (!v || !v[0] || v[0] == '0') return 0.0;
+        const double a = std::atof(v);
+        return a > 1.0 ? a : 2.0;
+    }();
+    return pick_bn_rule(n, n_expert, forced, var_avg, max_bm, var16_avg);
 }
-/// Work items per (tile, feature block) for a tile width: two for half tiles.
-constexpr int grid_mul(int bn) { return bn < kTileRows ? 2 : 1; }
+/// Work items per (tile, feature block) for a tile width: two for half tiles, four for quarter tiles.
+constexpr int grid_mul(int bn) { return bn < kTileRows ? kTileRows / bn : 1; }
 
 using v16h = __attribute__((__vector_size__(16 * sizeof(_Float16)))) _Float16;
 using v8f = __attribute__((__vector_size__(8 * sizeof(float)))) float;
@@ -114,9 +125,9 @@ __device__ __forceinline__ v8f wmma_f16(v16h a, v16h b, v8f c) {
 template <int BN, int NFB>
 __device__ __forceinline__ bool work_item(const Batch& b, const int32_t* ts, const int2* tiles, const int32_t* off, int w,
                                           int& fb, int& e, int& row0, int& nrows) {
-    static_assert(BN == kHalfTile || BN == kTileRows || BN == 2 * kTileRows, "half a tile, one tile or a pair");
+    static_assert(BN == kQuarterTile || BN == kHalfTile || BN == kTileRows || BN == 2 * kTileRows, "a quarter, half a tile, one tile or a pair");
     int half = 0;
-    if constexpr (BN < kTileRows) { half = w & 1; w >>= 1; }   // a half-tile launch has two items a (tile, feature block)
+    if constexpr (BN < kTileRows) { constexpr int NS = kTileRows / BN; half = w % NS; w /= NS; }   // a sub-tile launch has NS items a (tile, feature block): 2 (half) or 4 (quarter)
     const int t0 = ts[b.e0];
     if (w >= (ts[b.e1] - t0) * NFB) return false;
     const int2 tl = tiles[t0 + w / NFB];
@@ -136,7 +147,9 @@ __device__ __forceinline__ bool work_item(const Batch& b, const int32_t* ts, con
 /// sub = kb * 4 + quarter, into LDS [sub][row] (stride BN + 1) - the B fragments' layout of the F16 WMMA.  A row past
 /// the item's end is zero.
 template <int BN> struct ActStage {
-    static constexpr int FETCH = BN * 8 / THREADS, STRIDE = BN + 1, BYTES = 2 * 4 * STRIDE * 16;
+    // BN 16 (quarter tile): 128 chunks on 256 threads - one fetch slot, the upper half of the threads idle (PARTIAL)
+    static constexpr int CHUNKS = BN * 8, FETCH = (CHUNKS + THREADS - 1) / THREADS, STRIDE = BN + 1, BYTES = 2 * 4 * STRIDE * 16;
+    static constexpr bool PARTIAL = CHUNKS % THREADS != 0;
     const uint8_t* src[FETCH];
     int slot[FETCH], sub[FETCH];
     uint2 codes[FETCH];
@@ -146,6 +159,9 @@ template <int BN> struct ActStage {
 #pragma unroll
         for (int i = 0; i < FETCH; ++i) {
             const int chunk = tid + i * THREADS, t = chunk >> 3, c = chunk & 7;
+            if constexpr (PARTIAL) {
+                if (chunk >= CHUNKS) { src[i] = nullptr; slot[i] = -1; sub[i] = 0; continue; }   // no chunk: no LDS write in commit
+            }
             src[i] = rows[t] >= 0 ? base + (size_t) rows[t] * ld : nullptr;
             slot[i] = c * STRIDE + t;
             sub[i] = c;
@@ -167,6 +183,9 @@ template <int BN> struct ActStage {
     __device__ __forceinline__ void commit(uint4* s_act) const {
 #pragma unroll
         for (int i = 0; i < FETCH; ++i) {
+            if constexpr (PARTIAL) {
+                if (slot[i] < 0) continue;
+            }
             const uint32_t ws[2] = {codes[i].x, codes[i].y};
             __half2 h[4];
 #pragma unroll

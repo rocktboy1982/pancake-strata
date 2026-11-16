@@ -56,6 +56,51 @@ int main() {
         }
         CHECK(covered == off[E]);
     }
+    // quarter tiles (STRATA_MOE_MAX_BM=16, STRATA_PF_F16_VAR_BM16): the rule and the four-way split
+    CHECK(f::pick_bn_rule(100, 512, 0, 0.0, 16) == 16);              // MAX_BM 16: always a quarter
+    CHECK(f::pick_bn_rule(16384 * 10, 512, 0, 0.0, 16) == 16);
+    CHECK(f::pick_bn_rule(100, 512, 64, 8.0, 16) == 64);             // forced wins
+    CHECK(f::pick_bn_rule(512 * 2, 512, 0, 0.0, 0, 2.0) == 16);      // VAR_BM16: exactly 2 rows an expert
+    CHECK(f::pick_bn_rule(512 * 3, 512, 0, 0.0, 0, 2.0) == 64);      // 3: the old rule
+    CHECK(f::pick_bn_rule(512 * 3, 512, 0, 8.0, 0, 2.0) == 32);      // 3: VAR_BM's half tile
+    CHECK(f::pick_bn_rule(512 * 2, 512, 0, 8.0, 0, 2.0) == 16);      // VAR_BM16 ahead of VAR_BM
+    CHECK(f::pick_bn_rule(512 * 3, 512, 0, 0.0, 0) == 64);           // unset: unchanged
+    CHECK(f::items_per_tile(16) == 4 && f::items_per_tile(32) == 2 && f::items_per_tile(64) == 1 && f::items_per_tile(128) == 1);
+    for (int it = 0; it < 200; ++it) {   // the quarter split covers the rows of the 64-row tile exactly once, 16 at most each
+        const int E = 1 + (int) (rng() % 40);
+        std::vector<int> off(E + 1, 0);
+        for (int e = 0; e < E; ++e) off[e + 1] = off[e] + (int) (rng() % 4 == 0 ? 0 : rng() % 200);
+        std::vector<char> seen((size_t) off[E], 0);
+        long covered = 0;
+        for (int e = 0; e < E; ++e)
+            for (int row0 = off[e]; row0 < off[e + 1]; row0 += 64)
+                for (int w = 0; w < f::items_per_tile(16); ++w) {   // work items 4 * tile + quarter: the device's w % NS, w / NS
+                    const int item = 4 * 7 + w, q = item % 4;       // (tile 7, any: the split does not depend on the tile index)
+                    int r0, nr;
+                    f::half_tile_rows(row0, off[e + 1], q, f::kQuarterTileRule, r0, nr);
+                    if (nr <= 0) continue;
+                    CHECK(nr <= 16 && r0 >= row0 && r0 + nr <= off[e + 1] && r0 + nr <= row0 + 64);
+                    for (int r = r0; r < r0 + nr; ++r) { CHECK(!seen[(size_t) r]); seen[(size_t) r] = 1; ++covered; }
+                }
+        CHECK(covered == off[E]);
+    }
+    {   // ActStage<16> (moe_f16_common.cuh): 128 chunks on 256 threads, thread tid < 128 -> chunk tid, the upper half none;
+        // every (row t < 16, chunk c < 8) slot c * 17 + t is written once and none outside 8 * 17 slots (and for BN 32 / 64 / 128 as before)
+        for (int bn : {16, 32, 64, 128}) {
+            const int threads = 256, chunks = bn * 8, fetch = (chunks + threads - 1) / threads, stride = bn + 1;
+            std::vector<int> hit((size_t) 8 * stride, 0);
+            for (int tid = 0; tid < threads; ++tid)
+                for (int i = 0; i < fetch; ++i) {
+                    const int chunk = tid + i * threads, t = chunk >> 3, c = chunk & 7;
+                    if (chunk >= chunks) continue;   // PARTIAL: slot -1, no write
+                    CHECK(t < bn);
+                    ++hit[(size_t) c * stride + t];
+                }
+            for (int c = 0; c < 8; ++c)
+                for (int t = 0; t < bn; ++t) CHECK(hit[(size_t) c * stride + t] == 1);
+            CHECK(fetch == (bn <= 32 ? 1 : bn / 32));   // BN 16 / 32: one slot; 64: 2; 128: 4 (the old BN * 8 / 256)
+        }
+    }
     std::printf("moe_tile_rule_test: %s\n", fails ? "FAILED" : "ok");
     return fails ? 1 : 0;
 }

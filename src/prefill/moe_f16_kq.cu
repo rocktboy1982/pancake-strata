@@ -316,7 +316,10 @@ void gate_up(const Batch& b, const NativeGeom& g, const int32_t* ts, const int2*
     const int bn = pick_bn(n, n_expert);
     const unsigned grid = (unsigned) std::max<int64_t>(1, work_bound * GU_NFB * grid_mul(bn));
     const bool q5k = g.gu_type == T_Q5_K;
-    if (bn == kHalfTile) {
+    if (bn == kQuarterTile) {   // STRATA_MOE_MAX_BM=16 / STRATA_PF_F16_VAR_BM16 (never built on a GPU)
+        if (q5k) gate_up_kernel<T_Q5_K, kQuarterTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
+        else gate_up_kernel<T_Q4_K, kQuarterTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
+    } else if (bn == kHalfTile) {
         if (q5k) gate_up_kernel<T_Q5_K, kHalfTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
         else gate_up_kernel<T_Q4_K, kHalfTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, act, src, out);
     } else if (bn == 2 * kTileRows) {
@@ -332,7 +335,10 @@ void down(const Batch& b, const NativeGeom& g, const int32_t* ts, const int2* ti
           int64_t work_bound, const uint8_t* h, float* dm, cudaStream_t s, bool d16) {
     const int bn = pick_bn(n, n_expert);
     const unsigned grid = (unsigned) std::max<int64_t>(1, work_bound * D_NFB * grid_mul(bn));
-    if (bn == kHalfTile) {
+    if (bn == kQuarterTile) {   // STRATA_MOE_MAX_BM=16 / STRATA_PF_F16_VAR_BM16 (never built on a GPU)
+        if (d16) down_kernel<kQuarterTile, true><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
+        else down_kernel<kQuarterTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
+    } else if (bn == kHalfTile) {
         if (d16) down_kernel<kHalfTile, true><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
         else down_kernel<kHalfTile><<<grid, THREADS, 0, s>>>(b, g, ts, tiles, off, h, dm);
     } else if (bn == 2 * kTileRows) {

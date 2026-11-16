@@ -1,0 +1,50 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "prefill": true,
+  "cases": [
+    "long1k",
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "f16-max-bm32": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1",
+        "STRATA_MOE_MAX_BM": "32"
+      }
+    },
+    "f16-max-bm16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1",
+        "STRATA_MOE_MAX_BM": "16"
+      }
+    },
+    "f16-var-bm16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1",
+        "STRATA_PF_F16_VAR_BM16": "1"
+      }
+    },
+    "f16-var-bm16-bm": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1",
+        "STRATA_PF_F16_VAR_BM16": "2",
+        "STRATA_PF_F16_VAR_BM": "8"
+      }
+    },
+    "f16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_F16": "1"
+      }
+    }
+  },
+  "note": "NOT RUN, the quarter-tile kernels have NEVER BEEN BUILT on a GPU (MOD_PLAN.md section 6 item 45; fork Indigoshores 12d7cde5 BM 16, LEADS.md Part H): STRATA_MOE_MAX_BM=16 / STRATA_PF_F16_VAR_BM16 (quarter tiles of 16 token rows: four work items a tile in moe_f16_common.cuh work_item, ActStage PARTIAL for the 128 chunks on 256 threads). Judge against the half-tile arm (spec 118 arms) and f16: the fork's 38.0 -> 41.3 TFLOPS is a gfx1151 APU number. Exact: every token column is independent in the WMMA, so drift_check must show no text change. First step on the box: build the HIP target; a compile error in the BN 16 instantiation voids the arms. Stop pancake.service first."
+}
