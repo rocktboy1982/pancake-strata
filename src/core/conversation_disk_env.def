@@ -378,6 +378,8 @@ STRATA_ENV("STRATA_ADAPT_PROB_MASS", Speed, "placement/tiering of experts (same 
 STRATA_ENV("STRATA_ADAPT_PROMPT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_PROMPT_W", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_PROTECT", Speed, "placement/tiering of experts (same math, GPU vs CPU): the tier never evicts the first ceil(f x slots) slots (MOD_PLAN.md section 6 items 19 and 26)")
+STRATA_ENV("STRATA_TIER_MISS_BUDGET", Speed, "placement/tiering of experts (same math, GPU vs CPU): per layer the experts with the least gate importance (cumulative share <= b, from STRATA_TIER_MISS_FILE) are never admitted to the tier and leave it first (MOD_PLAN.md section 6 item 20)")
+STRATA_ENV("STRATA_TIER_MISS_FILE", Speed, "placement/tiering of experts: the gate importance table STRATA_TIER_MISS_BUDGET reads (gate_importance.py --emit-importance)")
 STRATA_ENV("STRATA_ADAPT_SIGNAL", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_ADAPT_SWAPS_AUTO", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_HYDRA_TOP2", Speed, "drafting policy (Hydra top-2 branch among STRATA_SSD_LITE's prepared outcomes): the tokens change, the state of given tokens does not")

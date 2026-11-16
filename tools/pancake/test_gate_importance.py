@@ -131,6 +131,45 @@ def test_inputs_npz_and_dump_routing():
         assert rep["rows"] == 96 and rep["cpu"][0.03]["cpu_entries"] == 960   # no placement: every entry counted CPU
 
 
+def test_may_stay_out_matches_the_cpp_rule_table():
+    # the same table as src/program/tier_miss_budget_test.cpp: layer 0 shares .05 .05 .30 .60, layer 1 zero, layer 2 uniform
+    imp = np.array([[1, 1, 6, 12], [0, 0, 0, 0], [1, 1, 1, 1]], float)
+    assert not G.may_stay_out(imp, 0.0).any() and not G.may_stay_out(imp, 0.04).any()
+    m = G.may_stay_out(imp, 0.10)
+    assert m[0].tolist() == [True, True, False, False] and not m[1].any() and not m[2].any()
+    m = G.may_stay_out(imp, 0.45)
+    assert m[0].tolist() == [True, True, True, False] and m[2].tolist() == [True, False, False, False] and m.sum() == 4
+    assert G.may_stay_out(imp, 0.999)[0].tolist() == [True, True, True, False]
+
+
+def test_emit_importance_roundtrip_and_counts():
+    ids = np.array([[0, 1], [0, 2]])
+    w = np.array([[0.75, 0.25], [0.5, 0.5]])
+    tr = trace_with([ids], [w], [np.full(ids.shape, -1)], [10.0])
+    tr.n_expert = 4
+    imp = G.expert_importance(tr)
+    assert np.allclose(imp[0], [1.25, 0.25, 0.5, 0.0])
+    assert np.allclose(G.expert_importance(tr, counts=True)[0], [2, 1, 1, 0])
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "imp.txt"
+        G.write_importance(f, imp)
+        assert f.read_text().startswith("strata-gate-importance 1 1 4\n")
+        assert np.allclose(G.read_importance(f), imp)
+        f.write_text("junk 1 1 1\n1\n")
+        try:
+            G.read_importance(f)
+            raise AssertionError("bad table accepted")
+        except ValueError:
+            pass
+    tr.windows[0].layers[0].weights = None
+    try:
+        G.expert_importance(tr)
+        raise AssertionError("weights required without --counts")
+    except ValueError:
+        pass
+    assert np.allclose(G.expert_importance(tr, counts=True)[0], [2, 1, 1, 0])
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -27,7 +27,13 @@ Inputs (one of):
     --npz FILE                 arrays w [N, k] (one row per token-layer) and optional out_norm [N, k], ids [N, k],
                                kind [N, k], group [N] (the window-layer of each row; default one group)
 
+  emit       (--emit-importance FILE) the per-expert gate importance table the engine's STRATA_TIER_MISS_BUDGET reads
+             (MOD_PLAN.md section 6 item 20; include/strata/program/tier_miss_budget.hpp): per layer and expert the sum of
+             the normalised gate weights of the entries routed to it (with --counts: the entry count, for a trace without
+             weights).  Text: line 1 "strata-gate-importance 1 <layers> <experts>", then one line per layer.
+
     python tools/pancake/gate_importance.py TRACE.stwt [--t1 0.6 --t2 0.9] [--budgets 0.01,0.03,0.05] [--us-per-miss 40]
+    python tools/pancake/gate_importance.py TRACE.stwt --emit-importance imp.txt [--counts]
     python -m pytest tools/pancake/test_gate_importance.py
 """
 import argparse
@@ -154,6 +160,60 @@ def from_trace(tr):
     return np.concatenate(rows), groups, ms or None
 
 
+def expert_importance(tr, counts=False):
+    """A wtrace Trace -> [n_layers, n_expert] float64: per (layer, expert) the sum of the entries' normalised gate weights
+    (counts=True: the number of entries, the only choice for a trace without weights)."""
+    imp = np.zeros((tr.n_layers, tr.n_expert), np.float64)
+    for win in tr.windows:
+        for l, lay in win.layers.items():
+            ids = lay.ids.astype(np.int64)
+            if counts or lay.weights is None:
+                if lay.weights is None and not counts:
+                    raise ValueError("the trace has no routing weights (use --counts for entry counts)")
+                np.add.at(imp[l], ids.ravel(), 1.0)
+                continue
+            ws, ids_s = sort_rows(lay.weights, ids)
+            np.add.at(imp[l], ids_s.ravel(), ws.ravel())
+    return imp
+
+
+def write_importance(path, imp):
+    imp = np.asarray(imp, np.float64)
+    with open(path, "w", newline="\n") as f:
+        f.write(f"strata-gate-importance 1 {imp.shape[0]} {imp.shape[1]}\n")
+        for row in imp:
+            f.write(" ".join(f"{v:.9g}" for v in row) + "\n")
+
+
+def read_importance(path):
+    toks = Path(path).read_text().split()
+    if len(toks) < 4 or toks[0] != "strata-gate-importance" or toks[1] != "1":
+        raise ValueError(f"{path}: not a gate importance table")
+    nl, ne = int(toks[2]), int(toks[3])
+    vals = np.array([float(t) for t in toks[4:]], np.float64)
+    if vals.size != nl * ne or (vals < 0).any() or not np.isfinite(vals).all():
+        raise ValueError(f"{path}: bad table body")
+    return vals.reshape(nl, ne)
+
+
+def may_stay_out(imp, budget):
+    """The engine rule (tier_miss_budget.hpp) in numpy: bool [n_layers, n_expert].  Per layer the lowest-importance
+    experts (ties by id) whose cumulative share of the layer's importance is <= budget; an all-zero layer marks nothing."""
+    imp = np.asarray(imp, np.float32).astype(np.float64)
+    out = np.zeros(imp.shape, bool)
+    if not budget > 0:
+        return out
+    for l, row in enumerate(imp):
+        tot = row.sum()
+        if not tot > 0:
+            continue
+        order = np.argsort(row, kind="stable")
+        cum = np.cumsum(row[order] / tot)
+        n = int(np.searchsorted(cum, budget + 1e-6, side="right"))
+        out[l, order[:n]] = True
+    return out
+
+
 def from_npz(path):
     z = np.load(path)
     w = z["w"]
@@ -201,6 +261,8 @@ def main(argv=None):
     ap.add_argument("--budgets", default="0.01,0.03,0.05")
     ap.add_argument("--us-per-miss", type=float, default=40.0)
     ap.add_argument("--gate", type=float, default=0.02)
+    ap.add_argument("--emit-importance", help="write the per-expert gate importance table (STRATA_TIER_MISS_FILE) here")
+    ap.add_argument("--counts", action="store_true", help="--emit-importance: entry counts instead of gate weights")
     a = ap.parse_args(argv)
     budgets = tuple(float(x) for x in a.budgets.split(","))
     norm = groups = ms = None
@@ -209,6 +271,15 @@ def main(argv=None):
     elif a.dump_routing or a.trace:
         import wtrace
         tr = wtrace.from_dump_routing(a.dump_routing) if a.dump_routing else wtrace.read(a.trace)
+        if a.emit_importance:
+            imp = expert_importance(tr, a.counts)
+            write_importance(a.emit_importance, imp)
+            print(f"wrote {a.emit_importance}: {imp.shape[0]} layers x {imp.shape[1]} experts, "
+                  f"{'entry counts' if a.counts else 'gate weight sums'}")
+            for b in budgets:
+                m = may_stay_out(imp, b)
+                print(f"  budget {b:.0%}: {int(m.sum())} of {m.size} experts may stay out ({m.mean():.1%})")
+            return imp
         w, groups, ms = from_trace(tr)
     else:
         ap.error("give a TRACE.stwt, --dump-routing FILE or --npz FILE")

@@ -120,6 +120,7 @@
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
 #include "strata/program/tier_protect.hpp"
+#include "strata/program/tier_miss_budget.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/row_miss.hpp"
 #include "strata/program/expert_seed.hpp"
@@ -14819,6 +14820,32 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "strata serve: STRATA_ADAPT_PROTECT=%g: the tier never evicts the first %lld of %lld slots "
                                  "(the other Swap loops are untouched)\n", protect_f, (long long) protect_n,
                          (long long) xcache.slots());
+        // MOD_PLAN.md section 6 item 20, STRATA_TIER_MISS_BUDGET=b + STRATA_TIER_MISS_FILE=<gate importance table>
+        // (opt-in, tier_miss_budget.hpp): per layer the experts with the least gate importance (cumulative share <= b)
+        // may stay out of tier 0: this adapt() never admits them and evicts a resident one first.  Placement only.
+        strata::program::TierMissBudget miss_budget;
+        {
+            const double mb = strata::program::TierMissBudget::budget_from_env();
+            const char* mf = std::getenv("STRATA_TIER_MISS_FILE");
+            if (mb > 0.0) {
+                if (mf == nullptr || mf[0] == ' ' || !miss_budget.load_file(mf))
+                    std::fprintf(stderr, "strata serve: STRATA_TIER_MISS_BUDGET needs STRATA_TIER_MISS_FILE (a gate importance "
+                                         "table from gate_importance.py --emit-importance): off
+");
+                else if (!miss_budget.shape_matches(g.n_layers, g.n_expert)) {
+                    std::fprintf(stderr, "strata serve: STRATA_TIER_MISS_FILE is %lld x %lld, the model %lld x %lld: off
+",
+                                 (long long) miss_budget.layers(), (long long) miss_budget.experts(), (long long) g.n_layers,
+                                 (long long) g.n_expert);
+                    miss_budget.clear();
+                } else {
+                    miss_budget.build(mb);
+                    std::fprintf(stderr, "strata serve: STRATA_TIER_MISS_BUDGET=%g: %lld experts may stay out of tier 0 "
+                                         "(never admitted; a resident one is evicted first)
+", mb, (long long) miss_budget.n_stay_out());
+                }
+            }
+        }
         // the VRAM tier follows the conversation (the same rule as the speculative loop below)
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
@@ -14852,7 +14879,7 @@ int main(int argc, char** argv) {
                 if (kmiss.admits()) {   // (A44: on() unless STRATA_BANDIT paused it between windows)
                     kmiss.select(l, g.n_expert, u, r, [&](int32_t e) {
                         return !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) &&
-                               !(fetched && srcp->pinned(l, e));
+                               !(fetched && srcp->pinned(l, e)) && !miss_budget.may_stay_out(l, e);   // (STRATA_TIER_MISS_BUDGET)
                     }, cand, vict);
                     if (protect_n > 0)   // STRATA_ADAPT_PROTECT: the core's slots are never victims
                         vict.erase(std::remove_if(vict.begin(), vict.end(), [&](const std::pair<float, int32_t>& v) {
@@ -14863,8 +14890,9 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
-                    if (r[e] < 0) { if (u[e] >= 2.0f && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) && !(fetched && srcp->pinned(l, e))) cand.emplace_back(u[e], e); }
-                    else if (!strata::program::tier_protect_holds(r[e], protect_n)) vict.emplace_back(u[e], e);   // (STRATA_ADAPT_PROTECT)
+                    if (r[e] < 0) { if (u[e] >= 2.0f && !miss_budget.may_stay_out(l, e) && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) && !(fetched && srcp->pinned(l, e))) cand.emplace_back(u[e], e); }
+                    else if (!strata::program::tier_protect_holds(r[e], protect_n))   // (STRATA_ADAPT_PROTECT)
+                        vict.emplace_back(miss_budget.may_stay_out(l, e) ? -1.0f : u[e], e);   // (STRATA_TIER_MISS_BUDGET: first out)
                 }
                 if (tier_lru_w > 0.0f && !vict.empty()) {   // STRATA_TIER_LRU (HOBBIT): LFU + w x recency, in the layer's usage unit
                     double mean_u = 0.0;

@@ -1,0 +1,45 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "miss-budget-05": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_MISS_BUDGET": "0.05",
+        "STRATA_TIER_MISS_FILE": "/home/dan/clone-of-d/bench/results/gate-importance.txt"
+      }
+    },
+    "miss-budget-10": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_MISS_BUDGET": "0.10",
+        "STRATA_TIER_MISS_FILE": "/home/dan/clone-of-d/bench/results/gate-importance.txt"
+      }
+    },
+    "miss-budget-20": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_MISS_BUDGET": "0.20",
+        "STRATA_TIER_MISS_FILE": "/home/dan/clone-of-d/bench/results/gate-importance.txt"
+      }
+    },
+    "miss-budget-10-kmiss24": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_MISS_BUDGET": "0.10",
+        "STRATA_TIER_MISS_FILE": "/home/dan/clone-of-d/bench/results/gate-importance.txt",
+        "STRATA_ADAPT_KMISS": "2,4"
+      }
+    }
+  },
+  "note": "SKELETON, not runnable until the table exists (MOD_PLAN.md section 6 item 20). STRATA_TIER_MISS_BUDGET=b + STRATA_TIER_MISS_FILE (tier_miss_budget.hpp, coded, host-tested, engine not built): per layer the experts with the least gate importance (cumulative share <= b of the layer's gate weight) are never admitted to the serve tier and are evicted first; placement only, so exact up to GPU / CPU rounding. Needs a table from a served run: record --dump-routing on the box, then python tools/pancake/gate_importance.py <dump> --emit-importance bench/results/gate-importance.txt (the dump does not carry the model's n_layers x n_expert: it reads the 48 x 512 defaults of wtrace.from_dump_routing, which must match the model). Arms: budget 5 / 10 / 20 percent on the preset tier; miss-budget-10-kmiss24 with STRATA_ADAPT_KMISS=2,4 (kmiss branch: admission filter only). A win needs the usual bar (MOD_PLAN.md rules); the lossy skip / substitute half of item 20 is NOT part of this switch."
+}
