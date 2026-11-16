@@ -2431,6 +2431,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(ckpt_stride_test src/program/ckpt_stride_test.cpp)   # MOD_PLAN.md section 6 item 42: STRATA_CKPT_STRIDE
   target_include_directories(ckpt_stride_test PRIVATE include)
   add_test(NAME ckpt_stride_test COMMAND ckpt_stride_test)
+  add_executable(ple_warm_test src/program/ple_warm_test.cpp)   # MOD_PLAN.md section 6 item 50: STRATA_PLE_WARM
+  target_include_directories(ple_warm_test PRIVATE include)
+  add_test(NAME ple_warm_test COMMAND ple_warm_test)
   add_executable(session_keep_root_test src/core/session_keep_root_test.cpp src/core/conversation_file.cpp)   # MOD_PLAN.md section 6 item 44: STRATA_SESSION_KEEP_ROOT
   target_include_directories(session_keep_root_test PRIVATE include)
   add_test(NAME session_keep_root_test COMMAND session_keep_root_test)
@@ -3989,6 +3992,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     knob_trial_test
     ckpt_async_plan_test
     ckpt_stride_test
+    ple_warm_test
     session_keep_root_test
     diag_rules_test
     lookahead_weights_test

@@ -1,0 +1,23 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "prefill": true,
+ "cases": [
+  "long3k",
+  "long64k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "gdn-pp2": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_GDN_PP": "2"
+   }
+  }
+ },
+ "note": "STRATA_GDN_PP=2 on gfx1100 (preset has 1; the default is 2 only on gfx12 / gfx1151, arch_defaults.cpp). T-474 / T-527 / T-642 measured it only on the decode cases short / edit (-0.3% / +0.0%, identical text, inside noise); its PROMPT effect was never read, so this spec uses the long prompt cases. NOT MEASURED (queued)."
+}

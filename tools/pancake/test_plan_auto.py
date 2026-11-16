@@ -121,3 +121,45 @@ def test_cli_writes_files(tmp_path):
     assert pa.main(["--out", str(out), "--trial-spec", str(ts)]) == 0
     assert json.loads(out.read_text())["args"]
     assert "arms" in json.loads(ts.read_text())
+
+
+# ---- LEADS.md I11: predicted vs measured and the scaled next prediction (bookkeeping only; the planner predicts no speed)
+def test_scale_is_one_without_runs_and_the_prediction_is_unscaled():
+    assert pa.scale_factor([]) == 1.0
+    lines, run = pa.predicted_vs_measured_lines(27.0, None, [])
+    assert run is None and "unscaled" in lines[0]
+
+
+def test_measured_vs_predicted_ratio_is_recorded_and_scales_the_next_prediction(tmp_path):
+    f = tmp_path / "scale.json"
+    lines, run = pa.predicted_vs_measured_lines(27.0, 9.35, [], "phone")      # BigMoeOnEdge's shape: measured about 2.9x slower
+    assert run["ratio"] == round(9.35 / 27.0, 4) and "slower than predicted" in lines[-1]
+    runs = pa.record_run(str(f), run)
+    assert len(runs) == 1 and pa.scale_state(str(f))[0]["tag"] == "phone"
+    lines, _ = pa.predicted_vs_measured_lines(30.0, None, pa.scale_state(str(f)))
+    assert "x0.346" in lines[0] and "expects 10.4" in lines[0]
+
+
+def test_scale_is_the_geometric_mean_of_the_last_five_runs():
+    runs = [{"predicted": 10.0, "measured": 5.0}] * 3 + [{"predicted": 10.0, "measured": 20.0}] * 5
+    assert abs(pa.scale_factor(runs) - 2.0) < 1e-9          # only the last five count
+    assert abs(pa.scale_factor([{"predicted": 10.0, "measured": 5.0}, {"predicted": 10.0, "measured": 20.0}]) - 1.0) < 1e-9
+
+
+def test_a_measurement_without_a_prediction_records_nothing(tmp_path):
+    f = tmp_path / "scale.json"
+    lines, run = pa.predicted_vs_measured_lines(None, 12.0, [])
+    assert run is None and "nothing to compare" in lines[0] and not f.exists()
+    assert pa.scale_state(str(tmp_path / "missing.json")) == []
+    (tmp_path / "bad.json").write_text("not json")
+    assert pa.scale_state(str(tmp_path / "bad.json")) == []
+
+
+def test_cli_prints_the_comparison_and_records_it(tmp_path, capsys):
+    f = tmp_path / "scale.json"
+    assert pa.main(["--predicted-tok-s", "20", "--measured-tok-s", "10", "--scale-file", str(f), "--run-tag", "t1"]) == 0
+    out = capsys.readouterr().out
+    assert "Predicted vs measured" in out and "0.50 x the prediction" in out and "recorded in" in out
+    assert pa.main(["--predicted-tok-s", "40", "--scale-file", str(f)]) == 0
+    assert "expects 20" in capsys.readouterr().out
+    assert pa.main([]) == 0 and "Predicted vs measured" not in capsys.readouterr().out    # no flag: the old output only

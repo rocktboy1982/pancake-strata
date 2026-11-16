@@ -37,6 +37,7 @@
 #include "strata/program/adaptive_range.hpp"
 #include "strata/program/promo_chunk.hpp"
 #include "strata/program/ckpt_stride.hpp"
+#include "strata/program/ple_warm.hpp"
 #include "strata/program/route_prior_scope.hpp"
 #include "strata/program/route_prior_auto.hpp"
 #include "strata/program/think_probe.hpp"
@@ -6249,6 +6250,33 @@ int main(int argc, char** argv) {
                                  "(STRATA_SSD_KEEPALIVE=0 turns it off)\n", pio.keepalive_ms, pio.keepalive_window_s);
         else if (pio.mode == strata::kernels::PleIo::Direct)
             std::fprintf(stderr, "strata generate: SSD keep-alive off: the SSD may fall asleep between reads\n");
+        // STRATA_PLE_WARM=1 (MOD_PLAN.md section 6 item 50, default off): one sequential read of the PLE shard on a
+        // background thread, for a MAPPED table that is not locked (include/strata/program/ple_warm.hpp decides; direct
+        // reads bypass the page cache, a locked table is resident).  It only reads the file.
+        if (const char* warm = std::getenv("STRATA_PLE_WARM"); warm != nullptr && warm[0] == '1') {
+            uint64_t experts_ram = 0;
+            const auto& elay = strata::kernels::cpu::expert_layout();
+            for (int64_t l = 0; l < elay.n_layers; ++l)
+                experts_ram += elay.blob_bytes(l) * (uint64_t) elay.n_expert;
+            std::error_code warm_ec;
+            const uint64_t file_bytes = (uint64_t) std::filesystem::file_size(o.ple_gguf, warm_ec);
+            const auto available = strata::core::available_host_bytes();
+            const strata::program::PleWarmPlan wp = strata::program::ple_warm_plan(
+                true, pio.mode == strata::kernels::PleIo::Mmap, ple_table.locked(), warm_ec ? 0 : file_bytes,
+                available ? *available : 0, experts_ram, 8ull << 30);
+            if (!wp.run) {
+                std::fprintf(stderr, "strata generate: STRATA_PLE_WARM: not warming the PLE shard: %s\n", wp.why);
+            } else {
+                std::fprintf(stderr, "strata generate: STRATA_PLE_WARM: reading %.1f GiB of the PLE shard in the background (%s)\n",
+                             (double) wp.bytes / (1ull << 30), wp.why);
+                std::thread([path = o.ple_gguf, bytes = wp.bytes] {
+                    const auto t0 = Clock::now();
+                    const uint64_t got = strata::program::ple_warm_read(path, bytes);
+                    std::fprintf(stderr, "strata generate: STRATA_PLE_WARM: read %.1f GiB in %.1f s\n", (double) got / (1ull << 30),
+                                 std::chrono::duration<double>(Clock::now() - t0).count());
+                }).detach();
+            }
+        }
         const strata::core::WeightRef* wk = wt.find("blk.1.ple_key.weight");
         const strata::core::WeightRef* wv = wt.find("blk.1.ple_value.weight");
         const strata::core::WeightRef* wnk = wt.find("blk.1.ple_norm_key.weight");

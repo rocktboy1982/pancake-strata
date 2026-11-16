@@ -1,0 +1,23 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "prefill": true,
+ "cases": [
+  "long3k",
+  "long64k"
+ ],
+ "reps": 3,
+ "arms": {
+  "ring192": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "ring96": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PREFILL_RING": "96"
+   }
+  }
+ },
+ "note": "LEADS.md prefill ring 96 vs 192 (R9700: 192 cost 1.3%); the daily preset has STRATA_PREFILL_RING=192. Prompt-only exact switch: read prompt tok/s of long3k / long64k, ring192 is the preset (base). NOT MEASURED (queued)."
+}

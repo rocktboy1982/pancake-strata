@@ -1,0 +1,28 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "long3k"
+ ],
+ "reps": 3,
+ "arms": {
+  "ple-mmap": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--ple-io": "mmap"
+   }
+  },
+  "ple-mmap-warm": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "args": {
+    "--ple-io": "mmap"
+   },
+   "env": {
+    "STRATA_PLE_WARM": "1"
+   }
+  }
+ },
+ "note": "MOD_PLAN.md section 6 item 48 (LEADS.md I7), STRATA_PLE_WARM=1: one sequential read of the PLE shard on a background thread after the table is opened, only for a mapped, unlocked table (include/strata/program/ple_warm.hpp; host test ple_warm_test). Both arms force --ple-io mmap because the default direct reads bypass the page cache (the engine then logs 'not warming ... direct'). It judges the FIRST request after the engine starts, which abtest's warm-up may hide: read the first rep of short / long3k per arm and the engine log lines 'STRATA_PLE_WARM: read N GiB in S s'; also watch the page cache (28.8 GB) against MemoryMax=54G and the expert load time. NOT MEASURED (queued)."
+}

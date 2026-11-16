@@ -461,6 +461,57 @@ def trial_spec(plan, base_path="configs/pancake/flashnext-iq2_xs-fast-hip.json")
     }
 
 
+# ---------------------------------------------------------------------------------------------- predicted vs measured
+# LEADS.md I11 (BigMoeOnEdge: "0.037 predicted vs 0.107 s/token measured on a phone", then the next plan scaled by the ratio).
+# This planner predicts nothing about speed (P1: it declines instead of guessing), so the PREDICTION is an input of the caller
+# (`--predicted-tok-s`: a probe's cost model, a hand estimate); what lives here is the bookkeeping: the printout of predicted
+# against measured, a small file of the ratios, and the scaled prediction for the next plan.  The scale is the geometric mean
+# of the last SCALE_WINDOW ratios (measured / predicted); with no recorded run it is 1.0 and the line says "unscaled".
+SCALE_WINDOW = 5
+
+
+def scale_state(path):
+    """The recorded runs ([] when the file is absent or unreadable)."""
+    if not path or not Path(path).is_file():
+        return []
+    try:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+    except ValueError:
+        return []
+    runs = d.get("runs") if isinstance(d, dict) else None
+    return [r for r in (runs or []) if isinstance(r, dict) and r.get("predicted", 0) > 0 and r.get("measured", 0) > 0]
+
+
+def scale_factor(runs):
+    """Geometric mean of measured / predicted over the last SCALE_WINDOW runs; 1.0 with none."""
+    rs = [r["measured"] / r["predicted"] for r in runs[-SCALE_WINDOW:]]
+    return math.exp(sum(math.log(x) for x in rs) / len(rs)) if rs else 1.0
+
+
+def predicted_vs_measured_lines(predicted, measured, runs, tag=""):
+    """The printout.  predicted / measured in tokens per second; either may be None.  Returns (lines, run or None)."""
+    lines, run = [], None
+    scale = scale_factor(runs)
+    if predicted is not None and predicted > 0:
+        lines.append(f"predicted {predicted:.3g} tok/s; scaled by the {len(runs[-SCALE_WINDOW:])} earlier run(s) "
+                     f"(x{scale:.3f}) the next plan expects {predicted * scale:.3g} tok/s" if runs else
+                     f"predicted {predicted:.3g} tok/s (no earlier run recorded: unscaled)")
+    if predicted is not None and predicted > 0 and measured is not None and measured > 0:
+        ratio = measured / predicted
+        lines.append(f"measured {measured:.3g} tok/s = {ratio:.2f} x the prediction ({'faster' if ratio > 1 else 'slower'} than predicted)")
+        run = {"predicted": predicted, "measured": measured, "ratio": round(ratio, 4), "tag": tag}
+    elif measured is not None:
+        lines.append(f"measured {measured:.3g} tok/s; no prediction given, nothing to compare or record")
+    return lines, run
+
+
+def record_run(path, run):
+    runs = scale_state(path) + [run]
+    Path(path).write_text(json.dumps({"note": "tools/pancake/plan_auto.py predicted vs measured (LEADS.md I11)", "runs": runs},
+                                     indent=1) + "\n", encoding="utf-8")
+    return runs
+
+
 # ---------------------------------------------------------------------------------------------- output
 def render(plan, rows):
     out = []
@@ -499,6 +550,10 @@ def main(argv=None):
     ap.add_argument("--trial-spec", help="write the abtest trial spec here")
     ap.add_argument("--no-lossy", action="store_true", help="leave the lossy knobs out (P4)")
     ap.add_argument("--json", action="store_true", help="print the rationale and the diff as JSON")
+    ap.add_argument("--predicted-tok-s", type=float, help="the caller's prediction of decode tok/s for this plan (the planner predicts none)")
+    ap.add_argument("--measured-tok-s", type=float, help="decode tok/s measured for a run of this plan (with --predicted-tok-s: recorded)")
+    ap.add_argument("--scale-file", help="JSON of recorded predicted/measured runs; the next prediction is scaled by their ratio")
+    ap.add_argument("--run-tag", default="", help="a label stored with the recorded run")
     a = ap.parse_args(argv)
     hw = load_override(a.hw, BOX)
     model = load_override(a.model, FLASHNEXT_IQ2XS)
@@ -514,6 +569,15 @@ def main(argv=None):
         print(json.dumps({"rationale": [k.__dict__ for k in plan.knobs], "ledger": plan.ledger, "diff": rows}, indent=1, default=str))
     else:
         print(render(plan, rows))
+    if a.predicted_tok_s is not None or a.measured_tok_s is not None:
+        runs = scale_state(a.scale_file)
+        lines, run = predicted_vs_measured_lines(a.predicted_tok_s, a.measured_tok_s, runs, a.run_tag)
+        print("\nPredicted vs measured (LEADS.md I11):")
+        for ln in lines:
+            print("  " + ln)
+        if run is not None and a.scale_file:
+            n = len(record_run(a.scale_file, run))
+            print(f"  recorded in {a.scale_file} ({n} run(s))")
     return 0
 
 
