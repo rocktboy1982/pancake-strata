@@ -165,7 +165,43 @@
       "env": {
         "STRATA_EXPERT_ENTROPY_TIER": "1"
       }
+    },
+    "draft-suffix-skip": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DRAFT_SUFFIX_SKIP": "1"
+      }
+    },
+    "sample-async": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SAMPLE_ASYNC": "1"
+      }
+    },
+    "complement-hugetlb": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_COMPLEMENT_HUGETLB": "1"
+      }
+    },
+    "qsa-wave32": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_QSA_WAVE32": "1"
+      }
+    },
+    "norm-rope2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NORM_ROPE": "2"
+      }
+    },
+    "norm-rope3": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NORM_ROPE": "3"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 item 18, second pass of the LEADS.md wave (2026-11-16): exact / policy-only switches. Values are first guesses for a screen. adapt-* change tier placement only (CPU vs GPU rows may round differently: a text difference there is a placement effect, not a bug). Stop pancake.service first. mtp-in-verify (LEADS B28): the next MTP round staged on the device from the commit words and launched on the window stream (needs DEVICE_ACCEPT + MTP_ONE_GRAPH; judge against device-accept). expert-entropy-tier (A29): cold arena blobs Huffman-coded in RAM, decoded on demand; lossless; near 0% saving on IQ2_XS by the lead's own bound (the engine log reports the coded ratio)."
+  "note": "MOD_PLAN.md section 6 item 18, second pass of the LEADS.md wave (2026-11-16): exact / policy-only switches. Values are first guesses for a screen. adapt-* change tier placement only (CPU vs GPU rows may round differently: a text difference there is a placement effect, not a bug). Stop pancake.service first. mtp-in-verify (LEADS B28): the next MTP round staged on the device from the commit words and launched on the window stream (needs DEVICE_ACCEPT + MTP_ONE_GRAPH; judge against device-accept). expert-entropy-tier (A29): cold arena blobs Huffman-coded in RAM, decoded on demand; lossless; near 0% saving on IQ2_XS by the lead's own bound (the engine log reports the coded ratio). Third pass (2026-11-16): DRAFT_SUFFIX_SKIP (mandoof1 868841cb32), SAMPLE_ASYNC (bsorensen110 cd3a3ded7b), COMPLEMENT_HUGETLB (svgop 511bece612), QSA_WAVE32 (dardeaw 580e251e69, gfx11 allowed), NORM_ROPE=2/3 (jstamagal gfx1030 set)."
 }

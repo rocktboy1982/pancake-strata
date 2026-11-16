@@ -23,7 +23,19 @@
       "env": {
         "STRATA_NW_COLSKIP": "1"
       }
+    },
+    "pf-combine-write": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_COMBINE_WRITE": "1"
+      }
+    },
+    "hc-gated16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_HC_GATED16": "1"
+      }
     }
   },
-  "note": "MOD_PLAN.md section 6 item 18, second pass, prompt path: STRATA_MMQ_LINEAR (#31047 host-side linearized MoE; keyed), STRATA_NW_COLSKIP (rdna3 prompt kernels). Prompt tok/s on long1k / long3k. Stop pancake.service first."
+  "note": "MOD_PLAN.md section 6 item 18, second pass, prompt path: STRATA_MMQ_LINEAR (#31047 host-side linearized MoE; keyed), STRATA_NW_COLSKIP (rdna3 prompt kernels). Prompt tok/s on long1k / long3k. Stop pancake.service first. Third pass: PF_COMBINE_WRITE (zsariboga 21107e9d05, FK-36), HC_GATED16."
 }
