@@ -272,6 +272,7 @@ miss.
    simulator at the engine's cap shows no kmiss gain, T-625, so the cap with the rule is the open question), then a REAL routing trace of interleaved
    conversations (`conv_trace.py`, `--dump-routing`, about 10 min) and `tier_laws.py --validate-conv` on it (V1-V4 on real turns); results
    `/home/dan/auto-runs/win16-117.*` and `/home/dan/auto-runs/win16-conv/`.
+   **QUEUED: chain 17** `win-chain17.sh` (after `WINCHAIN16_DONE`): `gate_importance.py` (item 20, miss budget, tier-0 step) on the real routing trace chain 16 records; `bench/prefetch/routing.bin` holds no gate weights (the weight columns are all zero: `wtrace.from_dump_routing` returns none), so T-432 (synthetic routers) is the only skip analysis until then; result `/home/dan/auto-runs/win17-gate-importance.txt`.
    **Queue changes 2026-11-16 (Linux session):** (a) my own confirm queue (`/home/dan/auto-runs/confirm-queue.sh`, specs 81/83/86
    subsets, default confirm settings) is CANCELLED, never ran (log `/home/dan/auto-runs/confirm-queue.log`, script kept as
    `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
