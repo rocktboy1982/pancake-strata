@@ -138,3 +138,16 @@ def test_phase_markov_learns_alternating_phases():
     r = tl.run(d[10:], init_pairs([0, 1, 2, 3]), p, 0, None)[0]
     acc = r["phase_acc"]["continue"]
     assert acc["n"] > 0 and acc["top1"] == 1.0
+
+
+def test_lecar_weights_and_rules_run():
+    rows = ([[2, 3]] * 6 + [[4, 5]] * 6 + [[2, 3]] * 6 + [[0, 5]] * 6) * 2
+    d = tl.dense(layered(rows), NE)
+    pol = tl.LeCaR(lr=2.0, H=4, K=2).fit(d[:24], None)
+    r = tl.run(d[24:], init_pairs([0, 1, 2, 3]), pol, 0, None)[0]
+    lc = r["lecar"]
+    assert abs(sum(lc["mean_weight"]) - 1.0) < 0.02 and abs(sum(lc["leader_share"]) - 1.0) < 0.01
+    assert 0.0 <= r["hits"] <= 1.0
+    for rule in (tl.KMissRule(1, 2), tl.GhostRule(k=1)):
+        rr = go(rows, [0, 1, 2, 3], rule)[0]
+        assert rr["thrash"]["promotions"] >= 1 and rr["hits"] > go(rows, [0, 1, 2, 3], tl.Static())[0]["hits"]

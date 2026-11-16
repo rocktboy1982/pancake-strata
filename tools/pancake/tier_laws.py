@@ -36,6 +36,10 @@ the others uncapped like cache_learn's kmiss):
                    transition matrix split into continue / switch (turn structure), predicted demand of the next window =
                    sum P(next phase | phase, ctx) x phase profile, admit iff demand x H >= theta; prints the top-1 next-phase
                    accuracy for continue vs switch (and the stay-in-phase baseline)
+  lecar:lr,H,K     U2, LeCaR-style online weights over the rule set {tier, kmiss, phase K, ghost} (hold-out only, the phase rule is
+                   fitted): every rule proposes on the one real cache, the highest-weight rule's swaps are applied, an expert
+                   its evictions removed that is missed again within H windows is its regret, w *= exp(-lr x regret share);
+                   prints mean weight, leader share and the weight timeline
   seedfile:w       law 5 (cross-layer / prompt-fed signals) CANNOT be simulated here: there is no prompt data in the trace.  It is
                    the same seeding machinery fed from --seed-file FILE.npz (key "counts", per layer and expert, shape
                    (layers, experts)): usage += w x counts at window 0 and at every turn start.  Whoever has prompt-derived or
@@ -86,7 +90,7 @@ DECAYS = (0.3, 0.5, 0.7, 0.85, 0.95)
 DEFAULT_POLICIES = ["static", "tier", "tier-any", "kmiss:2,4", "kmiss:2,8", "kmiss:1,1", "kmiss:1,2",
                     "breakeven:4,0.25", "breakeven:8,0.25", "breakeven:16,0.25", "bayes:8,4,1.0,0.6,0.9",
                     "bayes:16,4,1.0,0.6,0.9", "survival:4", "survival:8", "conv:0.5", "conv:1", "conv:2", "ghost:0.02,8,2,8", "ghost:0.05,4,2,8",
-                    "phase:4", "phase:8", "phase:16"]
+                    "phase:4", "phase:8", "phase:16", "lecar:2,8,8"]
 
 
 # ------------------------------------------------------------------------------------------------ data
@@ -590,6 +594,188 @@ class Phase(Policy):
                               for c, a in self.acc.items()}}
 
 
+POP8 = np.array([bin(i).count("1") for i in range(256)], np.int16)
+
+
+class KMissRule(Policy):
+    """k-th-miss admission as a stateless-in-residency proposer (for LeCaR: it must work on a cache another rule shaped): the
+    experts missed in >= k of the last W windows (W <= 8) replace the unprotected residents idle for the longest."""
+
+    def __init__(self, k=2, W=8):
+        self.k, self.W, self.name = k, W, f"kmiss-rule {k}/{W}"
+
+    def start(self, nl, ne, res, prot, init):
+        super().start(nl, ne, res, prot, init)
+        self.bits = np.zeros((nl, ne), np.int16)
+        self.last = np.zeros((nl, ne), int)
+        for l in range(nl):
+            lst = [int(e) for e in init[init[:, 0] == l][:, 1]]
+            for pos, e in enumerate(lst):
+                self.last[l, e] = -len(lst) + pos          # the profile order = the initial LRU order (front evicted first)
+
+    def propose(self, t, C, res, prot, admit_extra=None):
+        used = C > 0
+        missed = used & ~res
+        self.bits = (((self.bits << 1) | missed) & ((1 << self.W) - 1)).astype(np.int16)
+        self.last = np.where(used, t, self.last)
+        cand = missed & (POP8[self.bits] >= self.k)
+        if admit_extra is not None:
+            cand |= missed & admit_extra
+        return cand, used
+
+    def swaps(self, t, C, res, prot):
+        cand, used = self.propose(t, C, res, prot)
+        return self.pair(cand, used, res, prot, C)
+
+    def pair(self, cand, used, res, prot, C, protect_more=None):
+        vict = res & ~prot & ~used
+        if protect_more is not None:
+            vict &= ~protect_more
+        out = []
+        for l in np.flatnonzero(cand.any(1) & vict.any(1)):
+            ci = np.flatnonzero(cand[l])
+            ci = ci[np.lexsort((-C[l, ci], -POP8[self.bits[l, ci]]))]
+            vi = np.flatnonzero(vict[l])
+            vi = vi[np.argsort(self.last[l, vi], kind="stable")]
+            for c, v in zip(ci[:len(vi)], vi):
+                out.append((0.0, int(l), int(c), int(v)))
+                self.bits[l, c] = 0
+        return out
+
+
+class GhostRule(KMissRule):
+    """The ghost-list rule as a proposer: a miss on a ghost (an expert the cache evicted recently, whoever decided) is admitted
+    at once and raises the layer's adaptive protect fraction; others by the k-th-miss rule.  note_eviction() feeds the list."""
+
+    def __init__(self, delta=0.02, quiet=8, k=2, W=8):
+        super().__init__(k, W)
+        self.delta, self.quiet, self.name = delta, int(quiet), f"ghost-rule d{delta:g} q{int(quiet)}"
+
+    def start(self, nl, ne, res, prot, init):
+        super().start(nl, ne, res, prot, init)
+        from collections import OrderedDict
+        self.gl = [OrderedDict() for _ in range(nl)]
+        self.gmask = np.zeros((nl, ne), bool)
+        self.budget = np.bincount(init[:, 0], minlength=nl)
+        self.core_rank = np.full((nl, ne), 10 ** 9)
+        for l in range(nl):
+            for pos, e in enumerate(init[init[:, 0] == l][:, 1]):
+                self.core_rank[l, int(e)] = pos
+        self.f = np.zeros(nl)
+        self.run_q = np.zeros(nl, int)
+
+    def note_eviction(self, l, v):
+        g = self.gl[l]
+        g[v] = True
+        self.gmask[l, v] = True
+        while len(g) > self.budget[l]:
+            old, _ = g.popitem(last=False)
+            self.gmask[l, old] = False
+
+    def swaps(self, t, C, res, prot):
+        used = C > 0
+        hit = (used & ~res & self.gmask).any(1)
+        cand, used = self.propose(t, C, res, prot, admit_extra=self.gmask)
+        adaptive = self.core_rank < np.ceil(self.f * self.budget - 1e-9)[:, None]
+        out = self.pair(cand, used, res, prot, C, protect_more=adaptive)
+        for _g, l, c, v in out:
+            if self.gmask[l, c]:
+                self.gmask[l, c] = False
+                self.gl[l].pop(c, None)
+        self.f = np.where(hit, np.minimum(1.0, self.f + self.delta), self.f)
+        self.run_q = np.where(hit, 0, self.run_q + 1)
+        low = self.run_q >= self.quiet
+        self.f = np.where(low, np.maximum(0.0, self.f - self.delta), self.f)
+        self.run_q = np.where(low, 0, self.run_q)
+        return out
+
+
+class LeCaR(Policy):
+    """U2, LeCaR-style online rule weights.  The rule set {tier, kmiss, phase, ghost} proposes swaps on the one real cache every
+    window; the highest-weight rule's swaps are applied.  Its evictions go to a history keyed by the rule; an expert of that history
+    missed again within H windows is the rule's regret.  After each window w_r *= exp(-lr x regret_r), regret_r = the share of
+    rule r's evictions of the last H windows that were missed again; weights are renormalised (floor 0.01).  Reports the mean
+    weight, the leader share and the weight timeline.  Needs fit (the phase rule): hold-out only."""
+    needs_fit = True
+    RULES = ("tier", "kmiss", "phase", "ghost")
+
+    def __init__(self, lr=2.0, H=8, K=8, rules=None):
+        self.lr, self.H, self.K = lr, int(H), int(K)
+        self.rule_names = tuple(rules) if rules else self.RULES
+        self.name = f"lecar lr{lr:g} H{int(H)}"
+
+    def _make(self):
+        mk = {"tier": lambda: Tier(), "kmiss": lambda: KMissRule(2, 8), "ghost": lambda: GhostRule(),
+              "phase": lambda: Phase(self.K, 4)}
+        return [mk[n]() for n in self.rule_names]
+
+    def fit(self, Dtr, turns_tr):
+        self.rules = self._make()
+        for r in self.rules:
+            if getattr(r, "needs_fit", False):
+                r.fit(Dtr, turns_tr)
+        return self
+
+    def start(self, nl, ne, res, prot, init):
+        super().start(nl, ne, res, prot, init)
+        if not hasattr(self, "rules"):
+            self.rules = self._make()
+        for r in self.rules:
+            r.start(nl, ne, res, prot, init)
+        R = len(self.rules)
+        self.w = np.full(R, 1.0 / R)
+        self.hist = {}
+        self.evlog = []                       # per window: evictions per rule
+        self.wsum, self.lead, self.n, self.timeline = np.zeros(R), np.zeros(R, int), 0, []
+
+    def turn_start(self, t, conv):
+        for r in self.rules:
+            r.turn_start(t, conv)
+
+    def swaps(self, t, C, res, prot):
+        R = len(self.rules)
+        missed = (C > 0) & ~res
+        hits = np.zeros(R)
+        for (l, v), (r, te) in list(self.hist.items()):
+            if t - te > self.H:
+                del self.hist[(l, v)]
+            elif missed[l, v]:
+                hits[r] += 1
+                del self.hist[(l, v)]
+        recent = np.sum(self.evlog[-self.H:], axis=0) if self.evlog else np.zeros(R)
+        reg = hits / np.maximum(recent, 1.0)
+        self.w = np.maximum(self.w * np.exp(-self.lr * reg), 0.01)
+        self.w /= self.w.sum()
+        props = []
+        for r in self.rules:
+            r.ctx_next = self.ctx_next
+            sw = r.swaps(t, C, res, prot)
+            if getattr(r, "cap", 0) and len(sw) > r.cap:
+                sw = sorted(sw, key=lambda x: -x[0])[:r.cap]
+            props.append(sw)
+        lead = int(np.argmax(self.w))
+        sw = props[lead]
+        ev = np.zeros(R)
+        for _g, l, c, v in sw:
+            self.hist[(l, v)] = (lead, t)
+            ev[lead] += 1
+            for r in self.rules:
+                if isinstance(r, GhostRule):
+                    r.note_eviction(l, v)
+        self.evlog.append(ev)
+        self.wsum += self.w
+        self.lead[lead] += 1
+        self.n += 1
+        if t % 20 == 0:
+            self.timeline.append([round(float(x), 3) for x in self.w])
+        return sw
+
+    def extra(self):
+        n = max(1, self.n)
+        return {"lecar": {"rules": list(self.rule_names), "mean_weight": [round(float(x), 3) for x in self.wsum / n],
+                          "leader_share": [round(float(x) / n, 3) for x in self.lead], "weights_every_20_windows": self.timeline}}
+
+
 def ctx_sequence(n, turns):
     """ctx[t] = "switch" if window t+1 starts a turn of another conversation than window t's, else "continue"."""
     ctx = ["continue"] * n
@@ -617,7 +803,7 @@ PADS = (16, 32, 64)
 SWAPBACK = (1, 4, 16)
 
 
-def run(D, init, policy, n_prot, turns=None, record=False):
+def run(D, init, policy, n_prot, turns=None, record=False, metrics=True):
     """Replay D ([windows, layers, experts] counts) from the profile's residents.  Returns the stats dict (hits fraction,
     miss_w, promo_w, plus "thrash": eviction swap-back rates and the net benefit per promotion, "gap": the CPU misses on the
     previous round's victims and what landing pads would save, and the policy's own extras), per-layer miss / promo arrays,
@@ -682,6 +868,9 @@ def run(D, init, policy, n_prot, turns=None, record=False):
     for (l, c), tp in since.items():
         promos.append((tp, None, l, c))
     r = cl.stats(hits, ent, miss, promo)
+    if not metrics:
+        r.update(policy.extra())
+        return r, miss_l, promo_l, hist
     cum = np.cumsum(D > 0, axis=0, dtype=np.int32) if (evictions or promos) else None
     th = {"evictions": len(evictions), "promotions": len(promos)}
     for N in SWAPBACK:
@@ -726,6 +915,9 @@ def parse_policy(spec, ctx):
         return Ghost(v[0], v[1], v[2], v[3])
     if name == "phase":
         return Phase(int(f[0]) if f else 8, f[1] if len(f) > 1 else 4)
+    if name == "lecar":
+        v = f + [2.0, 8, 8][len(f):]
+        return LeCaR(v[0], v[1], v[2])
     if name == "seedfile":
         if ctx.get("seed") is None:
             return None
@@ -794,7 +986,7 @@ def thrash_table(name, res):
                      f"{th['swapback16'] * 100:8.1f}% {th['net_us_mean']:13.1f} {th['neg_share'] * 100:5.1f}% "
                      f"{g['gap_per_w']:11.2f} {g['saved_per_w']['16']:10.2f} {g['saved_per_w']['32']:7.2f} "
                      f"{g['saved_per_w']['64']:7.2f}")
-        for key in ("protect_frac", "phase_acc"):
+        for key in ("protect_frac", "phase_acc", "lecar"):
             if key in r:
                 lines.append(f"{'':26s}   {key}: {r[key]}")
     return "\n".join(lines)
