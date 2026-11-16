@@ -847,12 +847,50 @@ def _anthropic_tool(t: dict) -> dict:
     return {"name": t["name"], "description": t.get("description", ""), "parameters": t.get("input_schema", {})}
 
 
+def _switch_on(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _tool_addition(block) -> dict | None:
+    """STRATA_TOOL_ADDITION=1 (upstream #5952, LEADS.md Part H): a `tool_addition` block's tool definition
+    ({"name", "description", "input_schema"}), or None when the block carries none.  Claude Code sends some tools (MCP
+    servers that connect after the session started) this way, in a system message inside `messages`, instead of in the
+    top-level `tools`: {"type": "tool_addition", "tool": {"type": "tool_definition", "definition": {...}}}."""
+    tool = block.get("tool") if isinstance(block, dict) else None
+    d = tool.get("definition") if isinstance(tool, dict) else None
+    if (isinstance(d, dict) and isinstance(d.get("name"), str) and d["name"]
+            and isinstance(d.get("input_schema", {}), dict)):
+        return d
+    return None
+
+
+def _tool_additions(req: dict) -> list[dict]:
+    """Every tool definition the conversation adds with a `tool_addition` block, in order."""
+    out = []
+    messages = req.get("messages")
+    for m in messages if isinstance(messages, list) else []:
+        content = m.get("content") if isinstance(m, dict) else None
+        for block in content if isinstance(content, list) else []:
+            if isinstance(block, dict) and block.get("type") == "tool_addition":
+                d = _tool_addition(block)
+                if d is not None:
+                    out.append(d)
+    return out
+
+
 def anthropic_tools(req: dict) -> tuple[list[dict] | None, bool]:
     """#4663, Anthropic's tool search: (every tool the request declared, the `defer_loading` ones included, whether any
     tool is deferred).  A deferred tool is callable although the prompt does not list it.  A client that defers tools
     (Claude Code) holds back more than it declares - it names the rest in the conversation and runs a call for any of
     them - so with one deferred tool a call for an undeclared name is a call too (OutputParser's `deferred`)."""
     tools = _tool_list(req.get("tools"), None)
+    if _switch_on("STRATA_TOOL_ADDITION"):           # a tool added in the conversation is callable as well; the request's list is not changed
+        tools = list(tools)
+        names = {t["name"] for t in tools}
+        for d in _tool_additions(req):
+            if d["name"] not in names:
+                names.add(d["name"])
+                tools.append(d)
     return [_anthropic_tool(t) for t in tools] or None, any(t.get("defer_loading") for t in tools)
 
 
@@ -877,6 +915,9 @@ def anthropic_to_messages(req: dict, think_unasked: bool = True,
     declared = _tool_list(req.get("tools"), None)
     # #4663: a `defer_loading` tool stays out of the prompt's tool list until a tool_reference loads it
     deferred = {t["name"]: _anthropic_tool(t) for t in declared if t.get("defer_loading")}
+    # STRATA_TOOL_ADDITION=1: the names the prompt already shows the model (its tool list); an addition of one of them adds nothing
+    add_on = _switch_on("STRATA_TOOL_ADDITION")
+    shown = {t["name"] for t in declared if t["name"] not in deferred}
     messages = []
     system = req.get("system")
     if system:
@@ -901,6 +942,15 @@ def anthropic_to_messages(req: dict, think_unasked: bool = True,
                 parts.append(block)
             elif kind == "thinking":
                 reasoning.append(block.get("thinking", ""))
+            elif kind == "tool_addition" and add_on:
+                # the added tool's definition where the client added it, in the form a tool_reference loads one
+                # (_tool_references): the prompt's start (its tool list) stays the same, and so does its cache
+                d = _tool_addition(block)
+                if d is not None and d["name"] not in shown:
+                    shown.add(d["name"])
+                    added = "<tools>\n" + json.dumps(_anthropic_tool(d), ensure_ascii=False) + "\n</tools>"
+                    text.append(added)
+                    parts.append({"type": "text", "text": added})
             elif kind == "tool_use":
                 calls.append({"function": {"name": block.get("name"), "arguments": tool_arguments(block.get("input"))},
                               "_call_id": block.get("id")})
@@ -1414,6 +1464,9 @@ def parse_tool_call(body: str, schema: dict | None = None, notes: list | None = 
 RCALL_MAX = 32768        # the most of a `<tool_call>` inside the reasoning that is held while waiting for its end (#804)
 
 
+_TOOL_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_.:-]{0,127}")
+
+
 class OutputParser:
     """Incremental parser of the model's text. Feed deltas; get events. A tag split across deltas is held back
     until it is complete, so clients never see `<tool_` or `</thi`."""
@@ -1529,7 +1582,13 @@ class OutputParser:
         none declared, only where `declared_only` is off."""
         if not self.schemas:
             return not self.declared_only
-        return name in self.schemas or name in self.aliases or self.deferred
+        if name in self.schemas or name in self.aliases or self.deferred:
+            return True
+        # STRATA_TOOLSEARCH_PASSTHROUGH=1 (fork adambenhassen 54ef684d05, LEADS.md Part H): a client that declares
+        # ToolSearch (Claude Code with tool search on) holds deferred tools it did not declare and runs them by name,
+        # or answers an unknown one with an error the model can act on; as text the call reaches neither.
+        return ("ToolSearch" in self.schemas and _switch_on("STRATA_TOOLSEARCH_PASSTHROUGH")
+                and _TOOL_NAME.fullmatch(name) is not None)
 
     def _loose_open(self, after: str):
         """#3441: `after` (text after a `<tool_call>`, whitespace dropped) opens a call in a drifted form that names a

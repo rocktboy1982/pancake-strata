@@ -5037,6 +5037,19 @@ def batch_slots_on(engine) -> bool:
 NO_LINE = object()                                   # StrataEngine.generate: no line held after a token
 
 
+def mark_side_query(req: dict) -> None:
+    """STRATA_SIDE_QUERY_ONESHOT=1 (fork ElXreno 4373596a, LEADS.md Part H; default off): an Anthropic request with no
+    tools and a single user message (Claude Code's WebFetch summary, a title) is a side query no later request extends:
+    it goes as strata_checkpoint false, so it neither parks nor saves a root.  A client's own strata_checkpoint wins."""
+    if os.environ.get("STRATA_SIDE_QUERY_ONESHOT", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return
+    if "strata_checkpoint" in req or req.get("tools"):
+        return
+    messages = req.get("messages")
+    if isinstance(messages, list) and len(messages) == 1 and isinstance(messages[0], dict) and messages[0].get("role") == "user":
+        req["strata_checkpoint"] = False
+
+
 def stop_strings(req: dict) -> list[str]:
     """The request's stop strings: OpenAI's `stop` (a string or a list of up to 4) or Anthropic's `stop_sequences`
     (a list).  Empty strings are left out.  A bad value is a ValueError, so a 400 before anything is generated."""
@@ -10556,6 +10569,7 @@ def make_handler(svc: Service):
         def _anthropic(self, req):
             svc.load()
             req = svc.with_shared(req, "anthropic")
+            mark_side_query(req)                              # STRATA_SIDE_QUERY_ONESHOT (default off)
             messages, tools, kw = anthropic_to_messages(req, svc.anthropic_think_unasked, svc.reasoning_keeper)
             self._no_local_images(messages)
             callable_tools, deferred = anthropic_tools(req)     # #4663: the deferred tools are callable, unlisted
