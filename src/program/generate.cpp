@@ -119,6 +119,7 @@
 #include "strata/core/expert_entropy.hpp"
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
+#include "strata/program/tier_protect.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/row_miss.hpp"
 #include "strata/program/expert_seed.hpp"
@@ -14779,6 +14780,21 @@ int main(int argc, char** argv) {
         if (kmiss.on() && o.adapt_every > 0 && o.adapt_swaps > 0)
             std::fprintf(stderr, "strata serve: STRATA_ADAPT_KMISS=%d,%d: the tier admits an expert after %d misses in %d "
                                  "rounds and evicts the least recently routed\n", kmiss.k(), kmiss.w(), kmiss.k(), kmiss.w());
+        // MOD_PLAN.md section 6 items 19 / 26, STRATA_ADAPT_PROTECT=f (opt-in, tier_protect.hpp): the residents in slots
+        // below ceil(f x slots) are never victims of this tier (the startup fill hands the slots out in profile rank order
+        // and a swap reuses the victim's slot, so the profile's top share stays a static core).  Placement only.  Only this
+        // adapt() honours it: the other Swap loops (the speculative loop, the RAM tier's) are untouched.
+        const double protect_f = strata::program::tier_protect_from_env();
+        int64_t protect_n = strata::program::tier_protect_slots(protect_f, xcache.slots());
+        if (protect_n > 0 && xcache.per_layer_admission()) {
+            std::fprintf(stderr, "strata serve: STRATA_ADAPT_PROTECT is ignored with per-layer admission "
+                                 "(--expert-cache-per-layer: the slot order is not the profile rank order)\n");
+            protect_n = 0;
+        }
+        if (protect_n > 0 && o.adapt_every > 0 && o.adapt_swaps > 0)
+            std::fprintf(stderr, "strata serve: STRATA_ADAPT_PROTECT=%g: the tier never evicts the first %lld of %lld slots "
+                                 "(the other Swap loops are untouched)\n", protect_f, (long long) protect_n,
+                         (long long) xcache.slots());
         // the VRAM tier follows the conversation (the same rule as the speculative loop below)
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
@@ -14814,13 +14830,17 @@ int main(int argc, char** argv) {
                         return !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) &&
                                !(fetched && srcp->pinned(l, e));
                     }, cand, vict);
+                    if (protect_n > 0)   // STRATA_ADAPT_PROTECT: the core's slots are never victims
+                        vict.erase(std::remove_if(vict.begin(), vict.end(), [&](const std::pair<float, int32_t>& v) {
+                            return strata::program::tier_protect_holds(r[v.second], protect_n);
+                        }), vict.end());
                     const size_t nc = std::min(cand.size(), vict.size());
                     for (size_t i = 0; i < nc; ++i) swaps.push_back({cand[i].first, (int32_t) l, cand[i].second, vict[i].second});
                     continue;
                 }
                 for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
                     if (r[e] < 0) { if (u[e] >= 2.0f && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) && !(fetched && srcp->pinned(l, e))) cand.emplace_back(u[e], e); }
-                    else vict.emplace_back(u[e], e);
+                    else if (!strata::program::tier_protect_holds(r[e], protect_n)) vict.emplace_back(u[e], e);   // (STRATA_ADAPT_PROTECT)
                 }
                 if (tier_lru_w > 0.0f && !vict.empty()) {   // STRATA_TIER_LRU (HOBBIT): LFU + w x recency, in the layer's usage unit
                     double mean_u = 0.0;
