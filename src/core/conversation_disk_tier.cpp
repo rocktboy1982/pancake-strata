@@ -732,6 +732,137 @@ bool ConversationDiskTier::load(const ConversationDiskMatch& m, const SessionRea
     return true;
 }
 
+// STRATA_CONV_DISK_ONLY (ElXreno 2271ee21a1): write_job's steps for a conversation streamed from where it lives, on
+// the calling thread, with the superseded entries removed after the new file is whole (upstream's order).
+bool ConversationDiskTier::spill_streamed(const SessionSaveSources& save, const std::vector<ConversationCheckpoint>& chain,
+                                          uint64_t keep_serial, size_t& bytes, std::string& error) {
+    bytes = 0;
+    error.clear();
+    if (!on()) { error = "the disk tier is off"; return false; }
+    drain();   // no background write runs meanwhile (the evictions of a RAM cache, when there is one)
+    const SavedConversation& m = save.meta;
+    if ((int64_t) m.live.ids.size() < s_.min_tokens || m.live.ids.empty() || !m.stage_images.empty()) {
+        std::lock_guard<std::mutex> g(m_);
+        ++totals_.skipped;
+        error = "too short or a layer split";
+        return false;
+    }
+    const auto t0 = Clock::now();
+    ConversationDiskEntry entry;
+    entry.cvec = m.cvec;
+    entry.live = marks_of(m.live);
+    for (const ConversationCheckpoint* c : save.checkpoints) {
+        if (c == nullptr) { error = "a checkpoint to save is missing"; return false; }
+        entry.marks.push_back(marks_of(*c));
+    }
+    entry.tool = conversation_ended_in_tool_call(m.live.ids, s_.turn_token, s_.tool_token);
+    // the chain as conversation_disk_superseded reads it: tokens and pictures only
+    SavedConversation probe;
+    probe.cvec = m.cvec;
+    probe.live = marks_of(m.live);
+    for (const auto& c : chain) probe.checkpoints.push_back(marks_of(c));
+    // the file's size, as near as the sources say (the cap is checked again with the exact size afterwards)
+    uint64_t estimate = 4096 + (uint64_t) m.live.ids.size() * 4 + (uint64_t) m.live.imgs.size() * 16;
+    for (size_t p = 0; p < 5; ++p) estimate += save.state.sizes[p];
+    for (const ConversationCheckpoint* c : save.checkpoints)
+        estimate += c->ids.size() * 4 + c->imgs.size() * 16 + c->gdn.size() + c->ple.size() + c->tails.size() +
+                    c->dead.size() + c->block_pos.size();
+    for (const auto& k : save.kv)
+        for (size_t p = 0; p < 5; ++p) estimate += k.sizes[p];
+    uint64_t serial = 0;
+    std::vector<uint64_t> superseded;
+    {
+        std::lock_guard<std::mutex> g(m_);
+        for (size_t i : conversation_disk_superseded(entries_, probe))
+            if (entries_[i].serial != keep_serial) superseded.push_back(entries_[i].serial);
+        // the entry about to be restored is the most recently used one while the cap makes room
+        uint64_t kept_stamp = 0;
+        for (auto& e : entries_) if (keep_serial != 0 && e.serial == keep_serial) { kept_stamp = e.stamp; e.stamp = UINT64_MAX; }
+        const bool room = make_room_locked(estimate);
+        for (auto& e : entries_) if (keep_serial != 0 && e.serial == keep_serial) e.stamp = kept_stamp;
+        if (!room) {
+            ++totals_.skipped;
+            error = "larger than the cap";
+            say("skip a " + std::to_string(estimate >> 20) + " MiB conversation: larger than the cap");
+            return false;
+        }
+        serial = next_serial_++;
+    }
+    SessionWriteOptions wo;
+    wo.min_free_bytes = s_.min_free_bytes;
+    wo.durable = s_.durable;
+    SessionStatus st;
+    const fs::path path = strs_path(serial);
+    if (!session_file_write(path.string(), save, s_.id, bytes, error, wo, &st)) {
+        std::lock_guard<std::mutex> g(m_);
+        ++totals_.failed;
+        if (st.published) remove_quiet(path);
+        if (st.error == SessionError::storage) {
+            broken_.store(true);
+            say("no room on the disk (" + error + "): the tier is off for this run");
+        } else {
+            say("streamed write failed (" + error + "); the conversation is read again when it returns");
+        }
+        return false;
+    }
+    entry.serial = serial;
+    entry.file_bytes = bytes;
+    entry.stamp = now_ns();
+    if (!write_index(entry, error)) {
+        std::lock_guard<std::mutex> g(m_);
+        ++totals_.failed;
+        remove_quiet(path);
+        say("index write failed (" + error + "); the conversation is dropped");
+        return false;
+    }
+    const double ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+    std::lock_guard<std::mutex> g(m_);
+    const int64_t tokens = entry.tokens();
+    entries_.push_back(std::move(entry));
+    size_t dropped = 0;
+    for (uint64_t s : superseded)
+        for (size_t i = 0; i < entries_.size(); ++i)
+            if (entries_[i].serial == s) { remove_entry_locked(i); ++totals_.superseded; ++dropped; break; }
+    if (keep_serial != 0)
+        for (auto& e : entries_) if (e.serial == keep_serial) e.stamp = now_ns();   // keep it off the cap below
+    make_room_locked(0);
+    ++totals_.written;
+    totals_.write_bytes += bytes;
+    totals_.write_ms += ms;
+    char line[256];
+    std::snprintf(line, sizeof line, "disk-only: streamed %lld tokens, %.1f MiB in %.1f ms; %zu older cop%s dropped; "
+                  "on disk %zu conversation%s", (long long) tokens, bytes / 1048576.0, ms, dropped,
+                  dropped == 1 ? "y" : "ies", entries_.size(), entries_.size() == 1 ? "" : "s");
+    say(line);
+    return true;
+}
+
+bool ConversationDiskTier::path_of(const ConversationDiskMatch& m, std::string& path) const {
+    std::lock_guard<std::mutex> g(m_);
+    const auto it = std::find_if(entries_.begin(), entries_.end(), [&](const auto& e) { return e.serial == m.serial; });
+    if (it == entries_.end()) return false;
+    path = strs_path(m.serial).string();
+    return true;
+}
+
+void ConversationDiskTier::mark_used(uint64_t serial) {
+    std::lock_guard<std::mutex> g(m_);
+    const auto it = std::find_if(entries_.begin(), entries_.end(), [&](const auto& e) { return e.serial == serial; });
+    if (it == entries_.end()) return;
+    ++totals_.loaded;
+    it->stamp = now_ns();
+    std::string why;
+    if (!write_index(*it, why)) say("cannot refresh " + idx_path(it->serial).string() + " (" + why + ")");
+}
+
+void ConversationDiskTier::discard(uint64_t serial) {
+    std::lock_guard<std::mutex> g(m_);
+    const auto it = std::find_if(entries_.begin(), entries_.end(), [&](const auto& e) { return e.serial == serial; });
+    if (it == entries_.end()) return;
+    ++totals_.failed;
+    remove_entry_locked((size_t) (it - entries_.begin()));
+}
+
 size_t ConversationDiskTier::entries() const {
     std::lock_guard<std::mutex> g(m_);
     return entries_.size();

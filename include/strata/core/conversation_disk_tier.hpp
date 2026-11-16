@@ -112,6 +112,7 @@ struct ConversationDiskMatch {
     size_t index = SIZE_MAX;
     int64_t tokens = 0;
     uint64_t serial = 0;
+    bool live = false;   ///< the match is the entry's live state (else one of its kept checkpoints)
 };
 /// The deepest entry state (live or kept checkpoint) this prompt continues: conversation_prefix's rule (same tokens,
 /// same pictures below, shorter than the prompt), same steering.  Ties prefer the most recently used entry.
@@ -124,15 +125,15 @@ ConversationDiskMatch conversation_disk_best(const std::vector<ConversationDiskE
     for (size_t i = 0; i < entries.size(); ++i) {
         const auto& e = entries[i];
         if (e.cvec != cvec) continue;
-        auto consider = [&](const ConversationCheckpoint& c) {
+        auto consider = [&](const ConversationCheckpoint& c, bool live) {
             const int64_t n = conversation_prefix(c, prompt, images);
             if (n > best.tokens || (n > 0 && n == best.tokens && e.stamp > best_stamp)) {
-                best = {i, n, e.serial};
+                best = {i, n, e.serial, live};
                 best_stamp = e.stamp;
             }
         };
-        consider(e.live);
-        for (const auto& c : e.marks) consider(c);
+        consider(e.live, true);
+        for (const auto& c : e.marks) consider(c, false);
     }
     return best;
 }
@@ -193,6 +194,27 @@ public:
     /// that fails to read is deleted with its index.
     bool load(const ConversationDiskMatch& m, const SessionReadLimits& limits, SavedConversation& image, size_t& bytes,
               std::string& error, SessionStatus* status = nullptr);
+
+    // ---- STRATA_CONV_DISK_ONLY=1 (opt-in; ElXreno/Strata 2271ee21a1 "--conversation-cache-disk-only", rewired onto
+    // this tier; LEADS.md "two-pass session restore").  The conversation cache on disk with no RAM budget: a
+    // conversation switched away from is streamed from where it lives into a tier file on the calling thread (no
+    // parked image in RAM), and a returning one is streamed back with the two-pass restore (conversation_file.hpp:
+    // session_file_read_streamed / session_file_apply_streamed).  Unused when the switch is unset.
+
+    /// Writes the live conversation now: `save` reads the running state, the kept checkpoints (normally
+    /// conversation_disk_checkpoints of the chain: root and deepest) and the K/V in place.  `chain` is the whole live
+    /// checkpoint chain: the entries it supersedes (#342) are removed AFTER the new file is whole, so a failed write
+    /// loses nothing.  `keep_serial` (0 = none) is an entry the caller is about to restore: it is neither superseded
+    /// nor chosen first by the size cap.  False when skipped (tier off, too short) or failed; `error` says why.
+    bool spill_streamed(const SessionSaveSources& save, const std::vector<ConversationCheckpoint>& chain,
+                        uint64_t keep_serial, size_t& bytes, std::string& error);
+    /// The file of a match (false when the entry is gone), and the identity tier files are bound to.
+    bool path_of(const ConversationDiskMatch& m, std::string& path) const;
+    const SessionFileIdentity& identity() const { return s_.id; }
+    /// A streamed restore of the entry finished: it becomes the most recently used one (as load() does).
+    void mark_used(uint64_t serial);
+    /// A streamed restore found the entry's file unusable: file and index go.
+    void discard(uint64_t serial);
 
     /// The keep-hot rule for ConversationCache::set_disk_tier: true while the image's last reply ended in a tool call.
     bool keep_hot(const SavedConversation& image) const;

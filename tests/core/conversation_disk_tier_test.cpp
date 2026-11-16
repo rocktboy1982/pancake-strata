@@ -3,6 +3,7 @@
 #include "strata/core/conversation_cache.hpp"
 #include "strata/core/conversation_disk_tier.hpp"
 
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -386,6 +387,120 @@ void test_tier_round_trip() {
     fs::remove_all(dir, ec);
 }
 
+// STRATA_CONV_DISK_ONLY (ElXreno 2271ee21a1): the live conversation streamed into the tier from where it lives
+// (SessionSaveSources, here over a host image standing in for the pools) and read back by the two-pass restore.
+SessionSaveSources streamed_save(const SavedConversation& s, const std::vector<size_t>& keep) {
+    SessionSaveSources save;
+    save.meta.geometry = s.geometry;
+    save.meta.layer_lo = s.layer_lo; save.meta.layer_hi = s.layer_hi;
+    save.meta.cvec = s.cvec;
+    save.meta.live.ids = s.live.ids; save.meta.live.imgs = s.live.imgs; save.meta.live.used = s.live.used;
+    save.state = session_state_source(s.live);
+    for (size_t i : keep) save.checkpoints.push_back(&s.checkpoints[i]);
+    for (const auto& k : s.kv) {
+        SessionKvSource src;
+        src.format = k.format; src.cells = k.cells; src.heads = k.heads; src.head_dim = k.head_dim;
+        src.page_size = k.page_size; src.pooled_rows = k.pooled_rows; src.idx_dim = k.idx_dim;
+        const std::array<const ConversationBuffer*, 5> parts = {&k.k, &k.v, &k.k_scale, &k.v_scale, &k.pooled};
+        for (size_t i = 0; i < 5; ++i) src.sizes[i] = parts[i]->size();
+        src.read = [parts](size_t part, size_t offset, void* dst, size_t n) { return parts[part]->read(dst, offset, n); };
+        save.kv.push_back(std::move(src));
+    }
+    return save;
+}
+
+void test_disk_only() {
+    const fs::path dir = temp_dir("diskonly");
+    const auto conv = conversation(40, 200, true);
+    std::vector<int64_t> prompt(conv.begin(), conv.end());
+    prompt.push_back(9);
+    ConversationDiskTier t;
+    check(t.open(settings(dir)) && t.on(), "disk-only: opens");
+    SavedConversation s = image(conv, {41, 100, 200, 150}, 3);
+    // K/V bytes that differ from zero, so a lost block shows
+    check(s.kv[0].k.visit(0, s.kv[0].k.size(), [](uint8_t* p, size_t c, size_t at) {
+              for (size_t i = 0; i < c; ++i) p[i] = uint8_t((at + i) * 13u + 5u);
+              return true;
+          }), "disk-only: fill K");
+    const std::vector<size_t> keep = conversation_disk_checkpoints(s.checkpoints);
+    size_t bytes = 0;
+    std::string why;
+    check(t.spill_streamed(streamed_save(s, keep), s.checkpoints, 0, bytes, why) && bytes > 0, "disk-only: streamed write");
+    check(t.entries() == 1 && files_like(dir, ".strs") == 1 && files_like(dir, ".idx") == 1, "disk-only: one entry");
+    const auto m = t.best(prompt, {}, true);
+    check(m.tokens == (int64_t) conv.size() && m.live, "disk-only: the prompt matches the live state");
+    std::vector<int64_t> sib(conv.begin(), conv.begin() + 41);
+    sib.push_back(-1);
+    const auto ms = t.best(sib, {}, true);
+    check(ms.tokens == 41 && !ms.live, "disk-only: a sibling matches the kept root, not the live state");
+    std::string path;
+    check(t.path_of(m, path), "disk-only: the match has a file");
+    // the file equals what the whole-image write of the same pruned image gives: the default reader returns it exactly
+    SavedConversation back;
+    size_t n = 0;
+    check(session_file_read(path, t.identity(), back, n, why), "disk-only: the whole-image reader accepts the file");
+    check(back.live.ids == s.live.ids && back.live.gdn == s.live.gdn && back.live.dead == s.live.dead &&
+          back.checkpoints.size() == 2 && back.checkpoints[0].ids == s.checkpoints[0].ids &&
+          back.checkpoints[0].gdn == s.checkpoints[0].gdn && back.checkpoints[1].ids == s.checkpoints[2].ids &&
+          back.checkpoints[1].block_pos == s.checkpoints[2].block_pos, "disk-only: live, root and deepest come back exact");
+    // the two-pass restore: the read pass keeps no K/V, the apply pass hands every byte over in order
+    SavedConversation meta;
+    SessionStreamLayout layout;
+    check(session_file_read_streamed(path, t.identity(), meta, n, why, {}, layout), "disk-only: read pass");
+    check(meta.live.ids == s.live.ids && meta.live.gdn.empty() && meta.kv.size() == 1 && meta.kv[0].k.size() == 0,
+          "disk-only: the read pass holds tokens and headers only");
+    std::vector<uint8_t> k_back;
+    check(session_file_apply_streamed(path, t.identity(),
+          [&](size_t layer, size_t part, uint64_t offset, const void* data, size_t len) {
+              if (layer != 0 || part != 0) return true;
+              if (offset != k_back.size()) return false;
+              const uint8_t* p = static_cast<const uint8_t*>(data);
+              k_back.insert(k_back.end(), p, p + len);
+              return true;
+          }, layout, why), "disk-only: K/V apply pass");
+    std::vector<uint8_t> k_want(s.kv[0].k.size());
+    check(s.kv[0].k.read(k_want.data(), 0, k_want.size()) && k_back == k_want, "disk-only: the K/V comes back byte for byte");
+    std::vector<uint8_t> gdn_back;
+    check(session_file_apply_state_streamed(path, t.identity(),
+          [&](size_t part, uint64_t offset, const void* data, size_t len) {
+              if (part != 0) return true;
+              if (offset != gdn_back.size()) return false;
+              const uint8_t* p = static_cast<const uint8_t*>(data);
+              gdn_back.insert(gdn_back.end(), p, p + len);
+              return true;
+          }, layout, why) && gdn_back == s.live.gdn, "disk-only: the running state comes back byte for byte");
+    t.mark_used(m.serial);
+    check(t.totals().loaded == 1, "disk-only: a finished restore counts as a load");
+    // a later turn supersedes the older copy after its own file is whole; an entry being restored is kept
+    auto later = conv;
+    for (int i = 0; i < 50; ++i) later.push_back(3000 + i);
+    SavedConversation s2 = image(later, {41, 200, 240}, 4);
+    check(t.spill_streamed(streamed_save(s2, conversation_disk_checkpoints(s2.checkpoints)), s2.checkpoints, m.serial,
+                           bytes, why) && t.entries() == 2, "disk-only: the entry being restored is not superseded");
+    SavedConversation s3 = image(later, {41, 200, 240}, 5);
+    check(t.spill_streamed(streamed_save(s3, conversation_disk_checkpoints(s3.checkpoints)), s3.checkpoints, 0,
+                           bytes, why) && t.entries() == 1 && files_like(dir, ".strs") == 1,
+          "disk-only: the later turn supersedes the older copies");
+    // a short conversation is skipped; a discarded entry goes with its files
+    {
+        auto st = settings(temp_dir("diskonly2"));
+        st.min_tokens = 100000;
+        ConversationDiskTier t2;
+        check(t2.open(st), "disk-only: a second folder opens");
+        check(!t2.spill_streamed(streamed_save(s, keep), s.checkpoints, 0, bytes, why) && t2.entries() == 0 &&
+              t2.totals().skipped == 1, "disk-only: a conversation below min_tokens is not written");
+    }
+    std::vector<int64_t> lp(later.begin(), later.end());
+    lp.push_back(1);
+    const auto ml = t.best(lp, {}, true);
+    t.discard(ml.serial);
+    check(t.entries() == 0 && files_like(dir, ".strs") == 0 && files_like(dir, ".idx") == 0,
+          "disk-only: a discarded entry is deleted");
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+    fs::remove_all(temp_dir("diskonly2"), ec);
+}
+
 void test_tier_cap() {
     const fs::path dir = temp_dir("cap");
     // each image is ~25 KB on disk; a cap of three of them keeps the newest three, across keys too
@@ -446,6 +561,7 @@ int main() {
     test_best_superseded_victims();
     test_cache_hooks();
     test_tier_round_trip();
+    test_disk_only();
     test_tier_cap();
     std::printf("conversation_disk_tier_test: %d checks passed\n", checks);
     return 0;
