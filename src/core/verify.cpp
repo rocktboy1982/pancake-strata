@@ -6216,8 +6216,11 @@ bool Verifier::evict_batch_graph(const std::vector<int>& keep, bool& evicted, st
 bool Verifier::evict_window_graph(int keep_t, bool& evicted, std::string& err) {
     evicted = false;
     if (no_window_eviction_ || keep_t < 1) return true;
-    bool have[strata::kernels::kWindowMaxT + 1] = {};
-    const int top = std::min<int>(max_t_, strata::kernels::kWindowMaxT);
+    // STRATA_WINDOW_EVICT_LONG=1 (opt-in; ElXreno/Strata c01bb2a4): the sizes past kWindowMaxT (--lookup-max-t, up to
+    // kVerifyLongT) are eviction candidates too.  Unset: kWindowMaxT, as before.
+    static const bool evict_long = strata::program::fork_fix_env("STRATA_WINDOW_EVICT_LONG");
+    bool have[strata::kernels::kVerifyLongT + 1] = {};
+    const int top = strata::program::window_evict_top(max_t_, strata::kernels::kWindowMaxT, strata::kernels::kVerifyLongT, evict_long);
     for (int t = 1; t <= top; ++t) have[t] = (ar_off_ ? exec_nr_[sel_long_][t] : exec_[sel_long_][t]) != nullptr;
     const int victim = strata::core::pick_window_victim(have, top, keep_t, prelaunched_);
     if (victim == 0) return true;
