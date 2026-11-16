@@ -1,0 +1,22 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "idle-copy-kb1g": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ADAPT_IDLE_COPY": "1",
+    "STRATA_ADAPT_IDLE_COPY_KB": "1048576"
+   }
+  }
+ },
+ "note": "Defect T-613 diagnosis (MOD_PLAN.md section 7): STRATA_ADAPT_IDLE_COPY=1 ended the first request of spec 88 with 'the adaptive tier's copies for layer 25 never landed' (reached 14). One arm per spec so a crash ends only this run. Question: does issuing late (inside the window) cause it? KB=1048576 issues every queued copy in the round-end slice, i.e. at the same time as the default path, through the same queue code. Runs = the late issue stalls; crash = a queue bug (order, INT32_MAX record, leftover ops)."
+}

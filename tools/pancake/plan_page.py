@@ -99,6 +99,10 @@ def defect_status(b):
     head = b[:80]
     if re.search(r'\b(FIXED|RESOLVED|CLOSED|CODED)\b', head) or 'code read' in head or re.search(r'measured 20\d\d', head):
         return 'done'
+    if re.search(r'\bQUEUED\b', head):   # its A/B is in a running chain
+        return 'queued'
+    if re.search(r'\bPARKED\b', b):      # hardware this box does not have
+        return 'parked'
     if re.search(r'\bOPEN\b', b) or 'TRIED' in b or 'cosmetic' in b:
         return 'fix'
     if 'CLOSED' in b:

@@ -1,0 +1,22 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "idle-copy-sighost": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ADAPT_IDLE_COPY": "1",
+    "STRATA_ADAPT_SIGNAL": "host"
+   }
+  }
+ },
+ "note": "Defect T-613 diagnosis (MOD_PLAN.md section 7): STRATA_ADAPT_IDLE_COPY=1 ended the first request of spec 88 with 'the adaptive tier's copies for layer 25 never landed' (reached 14). One arm per spec so a crash ends only this run. Question: is the stream-ordered D2H landing signal (agate.hland, issued from idle_pace while the window's kernels hold the GPU) the part that stalls? STRATA_ADAPT_SIGNAL=host raises the counter with a host function instead. Runs = signal suspect; crash = not the signal."
+}

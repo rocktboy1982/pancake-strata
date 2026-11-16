@@ -1,0 +1,24 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "il-plain-check": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_MMVQ_IL_PLAIN": "1",
+    "STRATA_MMVQ_IL_CHECK": "1",
+    "AMD_SERIALIZE_KERNEL": "3",
+    "HIP_LAUNCH_BLOCKING": "1"
+   }
+  }
+ },
+ "note": "Defect T-602 diagnosis (MOD_PLAN.md section 7): STRATA_MMVQ_IL_PLAIN=1 (spec 85) gave 'verify: layer 0 never rang (an illegal memory access was encountered)'. On gfx1100 the plain-column table is all 0, so the plain path falls back to native_mmvq; the new part that runs is the HC read writing the interleaved copy (fused_gr.cu gr_q8_tail, q8_il) and, with q8_il set, the RDNA read (STRATA_GR_RDNA) is bypassed for launch_q8 / the generic read. One arm per spec. Serialized launches name the faulting kernel; STRATA_MMVQ_IL_CHECK=1 compares the read's copy with native_q8_1_interleave. Diagnostic: read the arm's .out file."
+}

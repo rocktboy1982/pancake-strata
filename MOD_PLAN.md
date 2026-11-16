@@ -230,6 +230,9 @@ miss.
    **QUEUED: chain 12** `win-chain12.sh` (after `WINCHAIN11_DONE`): spec 113, the server-side MCP switches (MCP_ASYNC,
    MCP_SPEC=2, both, MCP_EARLY_STOP=2) through task_gate.py on bench/tasks/mcp-repo.json (8 read-only repository look-ups served
    by tools/pancake/mcp_bench_server.py; T-611); results `/home/dan/auto-runs/win12-113`.
+   **QUEUED: chain 13** `win-chain13.sh` (after `WINCHAIN12_DONE`, started 2026-11-16 15:47): one-arm diagnostic specs for the two
+   crashes (section 7): 114a-c for T-613 (`ADAPT_IDLE_COPY`), 114f, 114e, 114d for T-602 (`MMVQ_IL_PLAIN`), screen, each its own
+   abtest run; results `/home/dan/auto-runs/win13-*`.
    **Queue changes 2026-11-16 (Linux session):** (a) my own confirm queue (`/home/dan/auto-runs/confirm-queue.sh`, specs 81/83/86
    subsets, default confirm settings) is CANCELLED, never ran (log `/home/dan/auto-runs/confirm-queue.log`, script kept as
    `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
@@ -334,9 +337,10 @@ typed flag registry, 95 split `generate.cpp main()` (hygiene, no speed).
 Code:
 - FIXED 2026-11-15 (T-575): the FK-28 dead hook (`Prefill::set_usage`, `usage_`, its count loop) is deleted; the feature
   is section 6 item 1 (feed `drive.d.usage` from `sp.on_routes`).
-- Default path changed without an A/B: Phase 18 item 9 (D7); RDNA 9-16 column kernels (D6).
-- `STRATA_PARK_ASYNC` cannot act on HIP (`park_async_on()` false, conversation_snapshot.cpp:231): parks are synchronous
-  inside TTFT. TRIED 2026-11-15 (T-583): enabled as an opt-in env and replayed (spec 63): no gain seen, noisy arm, one stall;
+- QUEUED 2026-11-16 (A/B in chains 7 and 8): default path changed without an A/B: Phase 18 item 9 (D7, spec 30 env A/B
+  `STRATA_MTP_MULTI_COPY=0`, chain 7); RDNA 9-16 column kernels (D6, spec 104 `STRATA_RDNA_KQ_MAXCOLS=8` vs 16 at confirm, chain 8).
+- CODED 2026-11-16 (T-610), quiet rerun = spec 105 in chain 8: `STRATA_PARK_ASYNC` could not act on HIP (`park_async_on()` false,
+  conversation_snapshot.cpp:231): parks were synchronous inside TTFT. TRIED 2026-11-15 (T-583): enabled as an opt-in env and replayed (spec 63): no gain seen, noisy arm, one stall;
   inconclusive. CODED 2026-11-16 (T-610): committed as the opt-in (`STRATA_PARK_ASYNC=1` on HIP, hipPointerGetAttributes); quiet rerun = spec 105 in chain 8.
 - RESOLVED, no engine change (T-574): the fence theory is not supported; see the ledger row. Original note: Possible fence bug: the staging readers after `wait_flag_ge_or` (verify_kernels.cu ~1619-1650) may lack the
   `__threadfence_system()` the flag-order test needed (test fix: after the spin and after the store, flag_order_test.cu
@@ -355,7 +359,7 @@ Code:
   moot: compared = the code and the two tests; not compared = the original review wording, which does not exist here.
 - A37 `IQ_LUT_DUP` (d11a9ca09): code read 2026-11-15: default off (iq_kernels.hpp, 0 = off); stays as an opt-in bench knob, not reverted.
 - `STRATA_DF2_GATE` is still read (window_rule.hpp, generate.cpp) although upstream retired it: opt-in, off, classified in disk_env;
-  left in (removing it needs a Mac-side check nobody can run here). OPEN, low.
+  left in (removing it needs a Mac-side check nobody can run here). PARKED (hardware: needs a Mac), low.
 - CODED 2026-11-16 (T-595, off by default, README 9 credit, LEADS B104): `STRATA_PSI_SHED` (Speedy C4, idea from Basalt PR #113; Speedy SPEEDY.md / CHANGELOG 0.1.0 / TUNING-HISTORY read 2026-11-15): opt-in
   `STRATA_PSI_SHED=<avg10 %>`, off by default: under PSI memory pressure the engine drops PARKED CONVERSATIONS; no numbers upstream
   (test name `memory_pressure_test`, robustness only). Ours has the park half (`STRATA_PSI_PARK_PCT`, skip parking) and no shed half.
@@ -377,6 +381,20 @@ Code:
 
 The box plan entry of 2026-11-15 "FK-28 A/B was already run (spec 28)" is wrong: spec 28 (`28-phase18-draft.json`) arms
 `--spec 3/5` and `MTP_EAGER`, not `STRATA_ADAPT_PROMPT`; the dead hook was then deleted (T-575), FK-28 is unbuilt (section 6 item 1).
+- OPEN 2026-11-16 (T-613): `STRATA_ADAPT_IDLE_COPY=1` (opt-in, off by default) fails the first served request: `verify: the
+  adaptive tier's copies for layer 25 never landed` (the copy stream reached 14). Code read (unconfirmed static analysis): the
+  idle path issues the copies and each layer's landing signal (a stream-ordered D2H copy into the pinned `agate.hland`,
+  generate.cpp ~14982) from `idle_pace` while the window's kernels run, where the default path issues them all at the round's
+  end; the queue itself is in layer order (swaps stable-sorted by layer, generate.cpp 14846). Diagnosis queued as chain 13
+  (`/home/dan/clone-of-d/src/win-chain13.sh`, after `WINCHAIN12_DONE`, results `/home/dan/auto-runs/win13-*`): spec 114a
+  (`STRATA_ADAPT_SIGNAL=host`: the host-function signal instead), 114b (`STRATA_ADAPT_IDLE_COPY_KB=1048576`: every copy at the
+  round's end through the same queue), 114c (`STRATA_VERIFY_TRACE=1`: where the stream stopped). The fix follows from which arm runs.
+- OPEN 2026-11-16 (T-602): `STRATA_MMVQ_IL_PLAIN=1` (opt-in) crashes at layer 0 (`an illegal memory access`). Code read
+  (unconfirmed static analysis): on gfx1100 the plain-column rows table is all 0, so the projections fall back to native_mmvq;
+  what changes is the HC read: with `q8_il` set, fused_gr.cu skips the RDNA read (`STRATA_GR_RDNA=1` in fast-hip) and the 32-column
+  up kernels for the generic read + `gr_q8_tail`, which writes the interleaved copy. Chain 13 also runs 114f (`STRATA_GR_RDNA=0`
+  alone), 114e (IL_PLAIN with `GR_RDNA=0`) and 114d (IL_PLAIN with `STRATA_MMVQ_IL_CHECK=1`, `AMD_SERIALIZE_KERNEL=3`,
+  `HIP_LAUNCH_BLOCKING=1`: names the faulting kernel). The box agent's `mmvq_il_parity` run (section 5 item 2) stays as planned.
 - FIXED 2026-11-16 (T-610): status page on the HIP box: GPU name null and backend labelled CUDA (cosmetic); the amdgpu sysfs reader (8a9c5bce7)
   now supplies VRAM, temperature and power; the name comes from the PCI id when product_name is empty (the 7900 XT's is) and the
   label is HIP when the readings come from the sysfs reader (`backend_label`, display only).

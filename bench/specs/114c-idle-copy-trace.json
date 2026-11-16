@@ -1,0 +1,22 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 2,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "idle-copy-trace": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ADAPT_IDLE_COPY": "1",
+    "STRATA_VERIFY_TRACE": "1"
+   }
+  }
+ },
+ "note": "Defect T-613 diagnosis (MOD_PLAN.md section 7): STRATA_ADAPT_IDLE_COPY=1 ended the first request of spec 88 with 'the adaptive tier's copies for layer 25 never landed' (reached 14). One arm per spec so a crash ends only this run. Expected to crash again: STRATA_VERIFY_TRACE=1 prints the gate's breadcrumbs (GATE-TIMEOUT, where the copy stream stopped) into the arm's .out file. Diagnostic only, no verdict."
+}
