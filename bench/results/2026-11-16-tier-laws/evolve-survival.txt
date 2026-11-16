@@ -1,0 +1,11 @@
+seed 0, 10 generations x 16, fitness = cpu ms/w + 0.005 x promo/w, fit on the first half, hold-out = the second half
+== survival on whole (219 windows) (151 evaluations, best fitness per generation 16.63 16.63 16.63 16.63 16.63 16.63 16.63 16.63 16.63 16.63)
+   evolved  H=2, protect=0.0157
+   fit half     cpu ms/w: evolved  16.23 (85.80% hit,   80.5 promo/w)  defaults  19.23 (88.71%,  171.2)
+   HOLD-OUT     cpu ms/w: evolved  23.85 (84.97% hit,  156.3 promo/w)  defaults  26.04 (87.49%,  237.7)
+   overfit gap +0.81 ms/w (evolved hold-out minus fit-half, less the defaults'); hold-out gain over defaults +2.19 ms/w -> BETTER held out
+== survival on SYNTHETIC interleave 8-window turns (219 windows) (142 evaluations, best fitness per generation 20.18 20.18 20.18 20.18 20.15 20.15 20.15 20.15 20.11 20.10)
+   evolved  H=1, protect=0.164
+   fit half     cpu ms/w: evolved  19.85 (80.13% hit,   49.7 promo/w)  defaults  28.86 (85.26%,  262.0)
+   HOLD-OUT     cpu ms/w: evolved  22.09 (79.98% hit,   73.5 promo/w)  defaults  34.03 (82.43%,  312.3)
+   overfit gap -2.94 ms/w (evolved hold-out minus fit-half, less the defaults'); hold-out gain over defaults +11.94 ms/w -> BETTER held out

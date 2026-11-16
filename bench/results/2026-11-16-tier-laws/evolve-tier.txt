@@ -1,0 +1,11 @@
+seed 0, 10 generations x 16, fitness = cpu ms/w + 0.005 x promo/w, fit on the first half, hold-out = the second half
+== tier on whole (219 windows) (160 evaluations, best fitness per generation 15.57 15.54 15.38 15.36 15.36 15.35 15.35 15.35 15.34 15.34)
+   evolved  decay=0.853, mingain=0.389, protect=0.0225
+   fit half     cpu ms/w: evolved  15.20 (83.33% hit,   29.1 promo/w)  defaults  15.44 (82.89%,   25.9)
+   HOLD-OUT     cpu ms/w: evolved  22.18 (78.02% hit,   26.7 promo/w)  defaults  22.35 (77.82%,   25.5)
+   overfit gap +0.08 ms/w (evolved hold-out minus fit-half, less the defaults'); hold-out gain over defaults +0.17 ms/w -> BETTER held out
+== tier on SYNTHETIC interleave 8-window turns (219 windows) (160 evaluations, best fitness per generation 18.92 18.78 18.78 18.78 18.74 18.74 18.74 18.74 18.74 18.74)
+   evolved  decay=0.97, mingain=2.58, protect=0.136
+   fit half     cpu ms/w: evolved  18.58 (81.06% hit,   31.3 promo/w)  defaults  18.87 (80.22%,   26.5)
+   HOLD-OUT     cpu ms/w: evolved  19.46 (80.13% hit,   31.5 promo/w)  defaults  19.78 (79.32%,   27.1)
+   overfit gap -0.04 ms/w (evolved hold-out minus fit-half, less the defaults'); hold-out gain over defaults +0.33 ms/w -> BETTER held out

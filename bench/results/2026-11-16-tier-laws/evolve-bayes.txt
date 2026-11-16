@@ -1,0 +1,11 @@
+seed 0, 10 generations x 16, fitness = cpu ms/w + 0.005 x promo/w, fit on the first half, hold-out = the second half
+== bayes on whole (219 windows) (160 evaluations, best fitness per generation 15.98 15.89 15.89 15.89 15.85 15.85 15.85 15.78 15.73 15.73)
+   evolved  H=12.9, a0=7.41, z=1.2, pmax=0.814, d=0.956, protect=0.294
+   fit half     cpu ms/w: evolved  15.50 (84.08% hit,   45.2 promo/w)  defaults  16.48 (87.45%,  107.4)
+   HOLD-OUT     cpu ms/w: evolved  20.46 (84.77% hit,   92.5 promo/w)  defaults  22.55 (88.12%,  185.8)
+   overfit gap -1.12 ms/w (evolved hold-out minus fit-half, less the defaults'); hold-out gain over defaults +2.09 ms/w -> BETTER held out
+== bayes on SYNTHETIC interleave 8-window turns (219 windows) (160 evaluations, best fitness per generation 18.10 18.10 18.10 18.10 18.10 18.10 18.10 18.10 18.10 18.10)
+   evolved  H=8.19, a0=7.56, z=1.22, pmax=0.948, d=0.892, protect=0.0026
+   fit half     cpu ms/w: evolved  17.92 (82.19% hit,   36.9 promo/w)  defaults  21.70 (86.60%,  155.9)
+   HOLD-OUT     cpu ms/w: evolved  19.81 (80.62% hit,   43.3 promo/w)  defaults  26.45 (84.05%,  203.7)
+   overfit gap -2.87 ms/w (evolved hold-out minus fit-half, less the defaults'); hold-out gain over defaults +6.65 ms/w -> BETTER held out

@@ -1,0 +1,6 @@
+seed 0, 10 generations x 16, fitness = cpu ms/w + 0.005 x promo/w, fit on the first half, hold-out = the second half
+== kmiss on whole (219 windows) (160 evaluations, best fitness per generation 15.72 15.54 15.54 15.54 15.54 15.54 15.54 15.54 15.54 15.54)
+   evolved  k=3, W=8, protect=0.263
+   fit half     cpu ms/w: evolved  15.35 (83.44% hit,   37.2 promo/w)  defaults  15.60 (85.80%,   73.1)
+   HOLD-OUT     cpu ms/w: evolved  20.11 (82.35% hit,   51.6 promo/w)  defaults  20.14 (85.23%,   98.0)
+   overfit gap +0.21 ms/w (evolved hold-out minus fit-half, less the defaults'); hold-out gain over defaults +0.03 ms/w -> NOT better held out
