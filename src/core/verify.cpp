@@ -5576,6 +5576,42 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             }
         }
     }
+    // STRATA_HEAD_DUMP=<path> (debug tap, off by default, MOD_PLAN section 6 item 46): the window's final hidden rows (the
+    // head's input, head_mixed_, T rows of n_embd floats) after the window, for tools/pancake/head_bound.py.  Written like
+    // STRATA_LOGITS_DUMP (the stream is synchronised above): "HDMP", u32 version 1, u32 n_embd, u32 n_vocab, then per window
+    // {u32 T, i64 pos0, T * n_embd f32}.  STRATA_HEAD_DUMP_MAX_ROWS=<n> (default 20000) stops it after n rows.  Nothing
+    // else changes: a plain copy after the picks, no effect on the output.
+    static const char* const g_head_dump = std::getenv("STRATA_HEAD_DUMP");
+    if (g_head_dump != nullptr && g_head_dump[0] != '\0' && head_mixed_ != nullptr && head_sampling_) {
+        static std::FILE* hf = std::fopen(g_head_dump, "wb");
+        static int64_t hrows = 0;
+        static const int64_t hmax = [] { const char* e = std::getenv("STRATA_HEAD_DUMP_MAX_ROWS"); const long long n = e != nullptr ? std::atoll(e) : 0; return n > 0 ? (int64_t) n : (int64_t) 20000; }();
+        const int64_t hn = g_->n_embd;
+        if (hf != nullptr && hrows < hmax) {
+            static bool hdr = false;
+            if (!hdr) {
+                const uint32_t h4[4] = {0x504D4448u /*"HDMP"*/, 1u, (uint32_t) hn, (uint32_t) n_vocab_};
+                std::fwrite(h4, sizeof h4, 1, hf);
+                hdr = true;
+            }
+            std::vector<float> hh((size_t) T * (size_t) hn);
+            if (cudaMemcpy(hh.data(), head_mixed_, hh.size() * sizeof(float), cudaMemcpyDeviceToHost) == cudaSuccess) {
+                const uint32_t tt = (uint32_t) T;
+                const int64_t hpos = pos0;
+                std::fwrite(&tt, sizeof tt, 1, hf);
+                std::fwrite(&hpos, sizeof hpos, 1, hf);
+                std::fwrite(hh.data(), sizeof(float), hh.size(), hf);
+                std::fflush(hf);
+                hrows += T;
+            } else {
+                static bool said = false;
+                if (!said) {
+                    said = true;
+                    std::fprintf(stderr, "strata verify: STRATA_HEAD_DUMP copy failed: %s\n", cudaGetErrorString(cudaGetLastError()));
+                }
+            }
+        }
+    }
     // STRATA_WINDOW_TRACE_TARGET=1 (opt-in, MOD_PLAN A56): the TARGET's probability of each drafted token, for the window
     // trace's record 6.  Logging only: the logits are read back after the window; the argmax / sampling path is untouched.
     // Entry j-1 is softmax(logits of row j-1)[tokens[j]] over the raw logits (temperature 1).

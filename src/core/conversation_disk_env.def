@@ -663,6 +663,8 @@ STRATA_ENV("STRATA_MTP_HIP_PRIO", Speed, "drafting/stop policy: the tokens chang
 STRATA_ENV("STRATA_MTP_KEEP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_MULTI_COPY", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_GRAPH_LINEAR", Speed, "layer-split handoff: three copies as one launch; same bytes (MOD_PLAN 6.45)")
+STRATA_ENV("STRATA_HEAD_DUMP", Inert, "debug tap: the window's final hidden rows to a file (MOD_PLAN 6.46)")
+STRATA_ENV("STRATA_HEAD_DUMP_MAX_ROWS", Inert, "row cap of STRATA_HEAD_DUMP")
 STRATA_ENV("STRATA_ACTQ_SKIP", Speed, "CPU activation quant skipped for tokens with no CPU expert entry (the jobs read the same values)")
 STRATA_ENV("STRATA_MTP_ONE_GRAPH", Speed, "eager MTP chain: round + steps in one captured graph, same kernels in the same order (LEADS.md B28)")
 STRATA_ENV("STRATA_MTP_IN_VERIFY", Speed, "LEADS.md B28: the MTP round queued behind the device accept + commit on the window's stream, inputs staged on the device; same drafts")
