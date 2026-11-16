@@ -3249,6 +3249,24 @@ class PromptProgress(unittest.TestCase):
         self.assertNotIn("prompt_progress", text)
         self.assertIn(": keep-alive", text, "the PP line still keeps the connection alive as it used to")
 
+    def test_keepalive_data_chunks_are_off_by_default_and_on_with_the_switch(self):
+        # STRATA_KEEPALIVE_DATA (touch869/Strata 29bbdb4f): unset, a progress chunk is as before (no keepalive marker);
+        # set, it is a real data chunk a gateway waiting for the first one can flush its headers on
+        marker = "strata_keepalive"
+        with mock.patch.dict(os.environ):
+            os.environ.pop("STRATA_KEEPALIVE_DATA", None)
+            self.assertNotIn(marker, self.stream(return_progress=True), "unset: the old chunks")
+        with mock.patch.dict(os.environ, {"STRATA_KEEPALIVE_DATA": "1"}):
+            text = self.stream(return_progress=True)
+            steps = [json.loads(line[6:]) for line in text.splitlines() if line.startswith("data: ") and marker in line]
+            self.assertTrue(steps, "set: a data chunk per ping")
+            self.assertTrue(all(s["choices"][0]["delta"].get("provider_specific_fields") == {marker: True} for s in steps))
+            self.assertTrue(all(s["choices"][0]["delta"].get("content", "") == "" for s in steps), "no content in it")
+            self.assertTrue(all("prompt_progress" in s for s in steps), "the progress stays in it")
+            self.assertNotIn(marker, self.stream(), "a client that did not ask still gets the comment only")
+        with mock.patch.dict(os.environ, {"STRATA_KEEPALIVE_DATA": "0"}):
+            self.assertNotIn(marker, self.stream(return_progress=True), "0 is off")
+
     def test_the_line_that_says_the_prompt_is_read_is_dropped(self):
         # the batched path leaves up to --short-read tokens to the verify windows, so its last PP stops short of the
         # prompt.  A prompt under one --prefill chunk sends only that line, and it would show a bar already full.

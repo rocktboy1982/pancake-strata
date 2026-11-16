@@ -8707,6 +8707,11 @@ class LogprobEntries:
             e["logprob"] = own["logprob"]           # (it used to copy the first alternative's, another token's)
         return e
 
+def keepalive_data_chunks() -> bool:
+    """STRATA_KEEPALIVE_DATA=1 (default off, read each time): the keepalive ping of a client that asked for progress is a data chunk."""
+    return os.environ.get("STRATA_KEEPALIVE_DATA", "") not in ("", "0")
+
+
 def prompt_progress(svc: Service):
     """The last PP line as llama.cpp's `prompt_progress`, so a client written for llama.cpp reads both servers: the
     same four fields, `time_ms` elapsed since prompt reading started, and `processed` counting from token 0 so that a
@@ -8758,7 +8763,16 @@ def openai_chunks(svc: Service, req: dict, ids, thinking, tools, max_new, cancel
             # a PP line: the prompt is being read and there is nothing to say yet.  It used to be only the SSE comment;
             # now it carries the progress when the client asked, and stays the comment when there is nothing to report.
             pp = prompt_progress(svc) if want_progress else None
-            yield None if pp is None else {**chunk({}), "prompt_progress": pp}
+            if want_progress and keepalive_data_chunks():
+                # STRATA_KEEPALIVE_DATA=1 (touch869/Strata 29bbdb4f): a client that asked for progress gets a real data chunk even
+                # with no PP line to report: a gateway such as litellm sends its response headers at the first data chunk and
+                # drops SSE comments, so a comment alone leaves it waiting through a long queue / prefill.
+                c = chunk({"provider_specific_fields": {"strata_keepalive": True}})
+                if pp is not None:
+                    c["prompt_progress"] = pp
+                yield c
+            else:
+                yield None if pp is None else {**chunk({}), "prompt_progress": pp}
         elif kind == "mcp":
             c = chunk({})
             c["strata_mcp"] = x
