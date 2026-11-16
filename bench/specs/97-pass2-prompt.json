@@ -35,6 +35,13 @@
       "env": {
         "STRATA_HC_GATED16": "1"
       }
+    },
+    "swiglu-q8": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_SWIGLU_Q8": "1",
+        "STRATA_PREFILL_SWIGLU_QUANT": "1"
+      }
     }
   },
   "note": "MOD_PLAN.md section 6 item 18, second pass, prompt path: STRATA_MMQ_LINEAR (#31047 host-side linearized MoE; keyed), STRATA_NW_COLSKIP (rdna3 prompt kernels). Prompt tok/s on long1k / long3k. Stop pancake.service first. Third pass: PF_COMBINE_WRITE (zsariboga 21107e9d05, FK-36), HC_GATED16."

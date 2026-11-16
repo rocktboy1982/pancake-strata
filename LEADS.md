@@ -34,9 +34,9 @@ Tags: author numbers are on the author's hardware, not ours; "exact" = bit-ident
 | prefill ring 96 vs 192 | ~1% (R9700: 192 cost 1.3%) | exact | yes (`PREFILL_RING=192`) |
 | `PREFILL_ROUTED_STREAM` matters only just above 4,096 tokens; CPU share 0.6/0.7/auto only for <=400-token deltas (-0.05..-0.15 s) | - | exact | yes |
 | upstream PRs not yet triaged: #3925, #5566, #4876, #5593, #4972, #5637/#5437, #5588, #2392, #5643, #5470/#5596/#5453/#5472, #5545, #5517, #5471 (Q4_K/Q5_K decode GEMVs, DeepSeek path), #5623 (shared immutable host KV prefixes), #5609 (verify q36 MTP block loads but never drafts is fixed in our base), server #5516/#5512/#3971/#5628/#4777/#5466/#5518, bahooo22 q36 #5595/#5467/#5468, #5475 `HC_PERSIST_Q8`, #5535 int8-WMMA prompt attention on gfx1100, #3509 `ARENA_REUSE` + 0xluk `e2ffeef8da`, alesha-pro trellis "S" quant #3384 (lossy) | - | - | 2026-11-16: method: triage list (each PR its own row) |
-| Maya `MAYA_EXPERT_DIRECT`, Maya prompt memo, `--calibrate`, drafter auto-keep, Private_Context_COW | +26%; ~6% TTFT | - | 2026-11-15: left |
-| havok2-htwo/StrataQ38FN agent-switch re-read patch | 25 s -> 1.5 s (author) | unknown | 2026-11-15: left |
-| storm-ace q36 GQA decode, sampled MTP, `Q36_FA` WMMA prompt attention | pp32768 360 -> 517 -> 938 tok/s | FP16-level lossy | 2026-11-15: left |
+| Maya `MAYA_EXPERT_DIRECT`, Maya prompt memo, `--calibrate`, drafter auto-keep, Private_Context_COW | +26%; ~6% TTFT | - | 2026-11-16: already: O_DIRECT miss reads + PromptEncoder (Private_Context_COW: no source) |
+| havok2-htwo/StrataQ38FN agent-switch re-read patch | 25 s -> 1.5 s (author) | unknown | 2026-11-16: park: 2+ GPUs (layer-split borrow) |
+| storm-ace q36 GQA decode, sampled MTP, `Q36_FA` WMMA prompt attention | pp32768 360 -> 517 -> 938 tok/s | FP16-level lossy | 2026-11-16: CODED STRATA_Q36_ATTN_GQA, Q36_ATT_GROUPED, Q36_SPEC_SAMPLE, Q36_FA (storm-ace) |
 | svgop hugetlb pool for the expert copy | +4.9% IQ2_XS (CUDA) | exact | 2026-11-16: CODED STRATA_COMPLEMENT_HUGETLB |
 | deferred activation quantization in the pool + sample-async | +6.5% / +3.9% bundles (R9700) | exact | 2026-11-16: CODED STRATA_POOL_DEFER_ACTQ + STRATA_SAMPLE_ASYNC |
 | GatherGroup fix `b13ffdabd0` for `ROUTED_STREAM`; dardeaw exact wave32 QSA decode kernels; `STRATA_FUSE_SHGATE` (this-cute-world) | - | exact | 2026-11-16: CODED PF_GG_DEFER, FUSE_SHGATE, STRATA_QSA_WAVE32 (dardeaw) |
@@ -88,7 +88,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-33 `DRAFT_EARLY` + `DRAFT_SUFFIX_SKIP` | no number; draft step 2.2-2.5 ms caps it ~1% | exact | 2026-11-16: CODED STRATA_DRAFT_EARLY + STRATA_DRAFT_SUFFIX_SKIP |
 | FK-34 `--light-expert-cpu` byte-aware placement | est. 0-2% (IQ2_XS file only) | exact | 2026-11-16: CODED STRATA_LIGHT_EXPERT_CPU |
 | FK-35 shared n-gram pool `NGRAM_MOD` | 234/234 drafts on a copy fixture, no tok/s (tctien342) | exact | 2026-11-16: CODED STRATA_NGRAM_MOD |
-| FK-36 prefill combine + write_norm fusion | 234 to 203 ms; 32K -4.0% (zsariboga, RTX 5090) | exact | 2026-11-16: CODED STRATA_PF_COMBINE_WRITE (swiglu_quant on HIP left) |
+| FK-36 prefill combine + write_norm fusion | 234 to 203 ms; 32K -4.0% (zsariboga, RTX 5090) | exact | 2026-11-16: CODED STRATA_PF_COMBINE_WRITE + STRATA_PF_SWIGLU_Q8 / PREFILL_SWIGLU_QUANT |
 | FK-36b `PF_DQ_OVERLAP` side-stream dequant | prompts +7-11% at 8K chunks, 0 at 32K + DOWN_STREAMS (android-imdad, XTX) | exact | no |
 | FK-40 post-READY warm-up replay | first turn after restart only (svgop) | exact | 2026-11-16: CODED STRATA_WARMUP_REPLAY (serve) |
 | FK-41 arena mlock vs HMM userptr stalls | queue stalls under memory pressure (Ben1078, XTX) | exact | 2026-11-15: method |
@@ -99,7 +99,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | FK-52 sub-2-bit shadow store for CPU misses | +2.9% solo, +20.8% concurrent; tmpfs/hugetlb +5.5% (svgop, RTX 5090) | lossy | 2026-11-16: already STRATA_SHADOW_MISS |
 | FK-53 ISTA Coder pack 256/512 | +7.8/+10.0/+11.1% masked-router analogue (svgop, RTX 5090) | lossy | 2026-11-15: method |
 | FK-54 window decode attention | 200K decode 48.6 to 68.2 exact, 88.9 fp16 (Asofwar, RTX 5080); Flash-Next capped ~1% | rounding | q36_engine.cu:363 (`STRATA_ATTN_WINDOW`, q36 only) |
-| FK-55 Qwen3.6 on HIP: storm-ace WMMA flash prompt + GQA decode | pp32768 360 to 938 tok/s (storm-ace, gfx1151) | fp16 | 2026-11-15: left |
+| FK-55 Qwen3.6 on HIP: storm-ace WMMA flash prompt + GQA decode | pp32768 360 to 938 tok/s (storm-ace, gfx1151) | fp16 | 2026-11-16: CODED STRATA_Q36_FA (needs Q36_ATT_GROUPED) |
 | FK-57 requant study UD-IQ2_XS vs our GSQ IQ2_XS | est. up to -20% expert bytes | lossy | 2026-11-15: method |
 | FK-58 typical acceptance in thinking only | unknown; thinking ~6.6% of turn time | lossy | 2026-11-16: already STRATA_TYPICAL_THINK |
 | FK-59 fp16 rocWMMA QSA select arm / `SELECT_SPLIT2` | fp16 arm 1.64x select at 128K (xyzzing, gfx1100) | exact / lossy | 2026-11-16: CODED STRATA_SELECT_SPLIT2 (gfx12 scorer gate) |
@@ -131,7 +131,7 @@ AF = active-forks-nov/report.md; B2 = active-forks-nov/notes/batch2.md; KB = for
 | no PCIe staging slots at `--pcie-frac 0` (strata-slim 0003) | ~61 MiB/GPU back to cache (CUDA) | exact | 2026-11-15: CODED STRATA_PCIE0_NO_STAGING |
 | `STRATA_POOL_GUIDED` shrinking tail ranges | 29.6 to 31.3 tok/s with a CPU fix (Core Ultra 285K) | exact | 2026-11-15: CODED STRATA_POOL_GUIDED |
 | Argon AVX2: 2 accumulators, 32/16-row granularity, `row_dot_pair` | no isolated A/B (MI50 + AVX2 Xeon, 27.8 tok/s) | exact | 2026-11-15: CODED STRATA_ROWS_ACC2 |
-| `STRATA_IQ_ZEN3` gather-free IQ decode | +0.8% (119.5 to 120.5, RTX 3090 + Zen 3) | ~exact | 2026-11-15: left |
+| `STRATA_IQ_ZEN3` gather-free IQ decode | +0.8% (119.5 to 120.5, RTX 3090 + Zen 3) | ~exact | 2026-11-16: already iq_avx2.cpp:521 iq256_variant (Zen 3 decodes gather-free) |
 | DraftPolicy cost-outlier clip (`PL_POLICY_CLIP`) | one 31 ms stall flips MTP T3 to lookup T8, persists (gfx1030, CPU tests) | exact | 2026-11-15: already STRATA_DRAFT_CLIP |
 | HotRod weight x logit-gap budget (`ROUTE_BUDGET`) | ranks 3-9: 44.7 vs 46.4 tok/s, 12/12 JSON (RTX 3060) | lossy | 2026-11-15: left |
 | skip non-resident experts < 10% weight (`SKIP_MINW`) | 20 to 25 tok/s, KL 0.016-0.022 vs floor 0.013 (RTX 5090, GLM) | lossy | 2026-11-15: already STRATA_MISS_SKIP_W |

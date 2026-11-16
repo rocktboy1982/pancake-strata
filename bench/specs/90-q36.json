@@ -30,7 +30,26 @@
       "env": {
         "STRATA_Q36_EXPERTS_USED": "6"
       }
+    },
+    "q36-attn-gqa": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_ATTN_GQA": "1"
+      }
+    },
+    "q36-att-grouped": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_ATT_GROUPED": "1"
+      }
+    },
+    "q36-fa": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_ATT_GROUPED": "1",
+        "STRATA_Q36_FA": "1"
+      }
     }
   },
-  "note": "Qwen3.6-35B-A3B (q36 engine; model /home/dan/clone-of-d/models/qwen36-UD-Q4_K_XL). MOD_PLAN.md section 5 item 3: STRATA_DENSE_MMQ=1 (gemm.cu, HIP; author burzumishi 32K prompt 635 -> 910 tok/s on a 7900 XTX), judged on long32k prompt tok/s, lossy rounding. Section 6 item 15: STRATA_Q36_EXPERTS_USED=7 / 6 (serboox f8fb28ca1f / 0f040ef5e8; author +14.4% K=7, +18.7% K=6, KLD 0.0254 at K=7), decode tok/s on short/edit; lossy, a promoted K needs a KL / quality check. Stop pancake.service first."
+  "note": "Qwen3.6-35B-A3B (q36 engine; model /home/dan/clone-of-d/models/qwen36-UD-Q4_K_XL). MOD_PLAN.md section 5 item 3: STRATA_DENSE_MMQ=1 (gemm.cu, HIP; author burzumishi 32K prompt 635 -> 910 tok/s on a 7900 XTX), judged on long32k prompt tok/s, lossy rounding. Section 6 item 15: STRATA_Q36_EXPERTS_USED=7 / 6 (serboox f8fb28ca1f / 0f040ef5e8; author +14.4% K=7, +18.7% K=6, KLD 0.0254 at K=7), decode tok/s on short/edit; lossy, a promoted K needs a KL / quality check. Stop pancake.service first. storm-ace (4fe0284da5, f74984a171, e4fc07ee57, 161309c707): STRATA_Q36_ATTN_GQA (exact), Q36_ATT_GROUPED, Q36_FA (WMMA fp16 flash prompt attention, lossy). These arms need the next build (not in tonight's binary)."
 }
