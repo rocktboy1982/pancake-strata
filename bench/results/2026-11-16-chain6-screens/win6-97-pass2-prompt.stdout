@@ -1,0 +1,47 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 long1k 113.7/624p 1031t long3k 110.9/1110p 2935t short 112.6 short 111.7  foreign CPU 5% [('kworker/11:2-events_freezable', 2), ('kworker/11:1-events', 2), ('pipewire', 1)]  gpu 2055/1249 MHz 55C 166W gtt 21M cpu 3951MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 mmq-linear           long1k 111.5/353p 1031t long3k 122.5/982p 2935t short 86.8 short 109.7  foreign CPU 5% [('pipewire', 1), ('kworker/14:1-events_freezable', 1), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 54C 159W gtt 21M cpu 4055MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 nw-colskip           long1k 96.5/624p 1031t long3k 110.3/788p 2935t short 105.8 short 95.7  foreign CPU 4% [('kworker/8:0-events_freezable', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2053/1249 MHz 54C 162W gtt 21M cpu 4059MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+Traceback (most recent call last):
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 1057, in <module>
+    "opts": opts}
+    ^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 1004, in main
+    P = prompts(cases)
+    
+    for c in cases:
+    ^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 601, in run_arm
+    t = request(url, case_text(P, c, k), MAXTOK.get(c, 512))
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py", line 480, in request
+    r = json.load(urllib.request.urlopen(req, timeout=1800))
+                  ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 503: Service Unavailable

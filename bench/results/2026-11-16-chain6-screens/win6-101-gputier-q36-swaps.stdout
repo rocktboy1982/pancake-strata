@@ -1,0 +1,36 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 base                 long3k 64.6/876p 2893t short 64.4 short 74.8 edit 53.0 edit 60.1  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 2), ('dbus-daemon', 1)]  gpu 2067/1249 MHz 53C 114W gtt 21M cpu 3732MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 10 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 prompt-swaps-4096    long3k 64.4/876p 2893t short 65.5 short 75.7 edit 50.8 edit 60.1  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2086/1249 MHz 53C 115W gtt 21M cpu 3586MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 11 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 prompt-swaps-nocap   long3k 64.1/876p 2893t short 68.5 short 78.4 edit 53.0 edit 61.2  foreign CPU 6% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 2081/1249 MHz 54C 123W gtt 21M cpu 3588MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 11 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 q36-swiglu-skim-001  long3k 64.3/875p 2893t short 67.8 short 76.2 edit 50.6 edit 60.0  foreign CPU 6% [('pipewire', 3), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2084/1249 MHz 54C 116W gtt 21M cpu 3692MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long3k base                    875.9 +-   nan  (n=1)
+  long3k prompt-swaps-4096       876.0 +-   nan  (n=1)   vs base:  +0.0% +-  nan%  -> no difference
+  long3k prompt-swaps-nocap      876.1 +-   nan  (n=1)   vs base:  +0.0% +-  nan%  -> no difference
+  long3k q36-swiglu-skim-001     875.4 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  short  base                     69.6 +-  66.1  (n=2)
+  short  prompt-swaps-4096        70.6 +-  64.8  (n=2)   vs base:  +1.4% +-  1.8%  -> no difference
+  short  prompt-swaps-nocap       73.5 +-  62.9  (n=2)   vs base:  +5.5% +-  4.6%  -> better
+  short  q36-swiglu-skim-001      72.0 +-  53.4  (n=2)   vs base:  +3.4% +- 18.3%  -> no difference
+  edit   base                     56.5 +-  45.1  (n=2)
+  edit   prompt-swaps-4096        55.5 +-  59.1  (n=2)   vs base:  -1.9% +- 24.7%  -> no difference
+  edit   prompt-swaps-nocap       57.1 +-  52.1  (n=2)   vs base:  +1.0% +- 12.4%  -> no difference
+  edit   q36-swiglu-skim-001      55.3 +-  59.7  (n=2)   vs base:  -2.2% +- 25.8%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  prompt-swaps-4096    DIFFERENT text -> lossy or placement-dependent: quality gate
+  prompt-swaps-nocap   DIFFERENT text -> lossy or placement-dependent: quality gate
+  q36-swiglu-skim-001  DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  prompt-swaps-4096    long3k +0.0%  short +1.4%  edit -1.9%  -> PROMOTE to confirm
+  prompt-swaps-nocap   long3k +0.0%  short +5.5%  edit +1.0%  -> PROMOTE to confirm
+  q36-swiglu-skim-001  long3k -0.1%  short +3.4%  edit -2.2%  -> PROMOTE to confirm

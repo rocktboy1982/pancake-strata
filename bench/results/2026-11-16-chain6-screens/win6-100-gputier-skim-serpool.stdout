@@ -1,0 +1,35 @@
+rep 0 base                 short 115.2 short 116.9 edit 144.4 edit 170.2  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1997/1249 MHz 55C 156W gtt 21M cpu 3728MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 swiglu-skim-001      short 116.3 short 113.8 edit 143.5 edit 170.6  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2046/1249 MHz 55C 162W gtt 21M cpu 3948MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 swiglu-skim-005      short 120.0 short 119.2 edit 139.5 edit 159.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2041/1249 MHz 55C 162W gtt 21M cpu 3849MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ser-pool-6-01        short 115.2 short 116.8 edit 143.8 edit 177.8  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('rcu_preempt', 0)]  gpu 1966/1249 MHz 54C 144W gtt 21M cpu 3821MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.1 +-  10.8  (n=2)
+                              drafts accepted 0.69
+  short  swiglu-skim-001         115.0 +-  15.9  (n=2)   vs base:  -0.9% +- 23.0%  -> no difference
+                              drafts accepted 0.68
+  short  swiglu-skim-005         119.6 +-   5.1  (n=2)   vs base:  +3.1% +- 13.7%  -> no difference
+                              drafts accepted 0.74
+  short  ser-pool-6-01           116.0 +-  10.2  (n=2)   vs base:  -0.0% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    157.3 +- 164.0  (n=2)
+                              drafts accepted 0.89
+  edit   swiglu-skim-001         157.1 +- 172.2  (n=2)   vs base:  -0.2% +-  5.3%  -> no difference
+                              drafts accepted 0.89
+  edit   swiglu-skim-005         149.7 +- 129.6  (n=2)   vs base:  -4.8% +- 21.8%  -> no difference
+                              drafts accepted 0.90
+  edit   ser-pool-6-01           160.8 +- 216.1  (n=2)   vs base:  +2.2% +- 33.1%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  swiglu-skim-001      DIFFERENT text -> lossy or placement-dependent: quality gate
+  swiglu-skim-005      DIFFERENT text -> lossy or placement-dependent: quality gate
+  ser-pool-6-01        DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  swiglu-skim-001      short -0.9%  edit -0.2%  -> drop
+  swiglu-skim-005      short +3.1%  edit -4.8%  -> drop
+  ser-pool-6-01        short -0.0%  edit +2.2%  -> PROMOTE to confirm

@@ -197,8 +197,7 @@ miss.
 1. **RUNNING: chain 6** `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
    `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
    step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);
-   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609), 87 (T-612: 16 PROMOTE, 17 DROP), 88 aborted at adapt-idle-copy (T-613), 89 (T-614), 90 (T-615), 91 (T-616), 92 (T-617), 93 (T-622), 94 (T-626); 95 running. Left in the chain: 95-101, then
-   the never-run specs of item 5 (26, 12, a21, 24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards).
+   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609), 87 (T-612: 16 PROMOTE, 17 DROP), 88 aborted at adapt-idle-copy (T-613), 89 (T-614), 90 (T-615), 91 (T-616), 92 (T-617), 93 (T-622), 94 (T-626), 95 (T-628), 96 (T-629), 97 aborted at pf-combine-write (T-630), 98 (T-631), 99 (T-632), 100 (T-633), 101 (T-634). Left in the chain: the never-run specs of item 5 (26, 12, a21, 24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards).
    strata-poly failed (T-603); the fix 5b867bf3a is not built yet: after `WINCHAIN6_DONE`, sync with `tar xmf` and build
    strata-poly as its own job. Earlier chains (specs 60-65 overnight, T-587..T-596; win-chain2/3/4/5b, aborted or untrusted,
    T-600, T-601) are closed.
@@ -226,6 +225,8 @@ miss.
      text: confirm must first show from the engine log that the switch acted, else the arm is void).
    - Spec 93 (T-622), into the 107-auto confirm specs: `ROUTE_TAIL_SKIP_LAYERS=30-47:8`, `TIER_LRU=0.5`, `ADAPT_CLASSLRU=4`, `ADAPT_PROB_MASS`, `LINK_DEFAULTS=20`, `THINK_BRAKE=0.25` (+2..+28% against a base that ran 11-22% below the same preset's base in spec 92: an order effect, expect noise at confirm; the three tier-policy ones, TIER_LRU / ADAPT_CLASSLRU / ADAPT_PROB_MASS, matter for item 19).
    - Spec 94 (T-626), into the 107-auto confirm specs (16 arms, all inside noise at n=2): device-accept, draft-early, attn-qmajor, ssd-lite, spec-entropy-svip, spec-entropy-adasd, disco-entropy, ngram-mod, adapt-sieve, mtp-in-verify, expert-entropy-tier, norm-rope2, norm-rope3, mmvq-set, spec-miss-win, stager-probe. Includes `EXPERT_ENTROPY_TIER` (D9, A29: short +4.9% edit +1.6%) and `SPEC_MISS_WIN=2`; `QSA_WAVE32` was dropped by the rule only because edit -4.1% (short +6.9% +-6.3, better).
+   - Spec 95 (T-628), into the 107-auto confirm specs (5 arms, all inside noise at n=2, all lossy except spec-reason): `SPEC_REASON=0.7` and `SER=6,0.1` (both read within 0.6% of base with the engine log not checked for the switch acting: confirm must first show it acts), `STANDIN` (edit +11.1% +-35.5), `ROUTE_RESIDENT`+`ROUTE_BUDGET=0.5` (+2.4/+7.4), `STANDIN`+`ROUTE_BUDGET_AUTO` (-1.9/+12.5). Dropped: the other 14 arms (T-628), among them `DOWN_T` -50%, `HC_PERSIST_Q8` short -27%, `LQER=8`, `TEAL` +/-`_UNION`, `OEA`, `ROUTE_PRIOR_DELTA`, `ROUTE_PRIOR_ERANK`, `STANDIN`+`FRAGILE_RECHECK`.
+   - Spec 96 (T-629, n=1): `ATTN_QMAJOR` (+6.0/+1.5, exact text; same arm as spec 94: confirm decides). Spec 100 (T-633): `SER=6,0.1`+`SER_POOL` (-0.0/+2.2, lossy, inside noise). Spec 101 (T-634, q36): `Q36_PROMPT_SWAPS` 4096 / 0 and `Q36_SWIGLU_SKIM=0.01` (prompt tok/s unchanged at 876, decode inside noise).
    - Dropped at screen (section 9): spec 81 `TOPK_REGKEYS`+`TOPK_SCAN`, `ATTN_MERGE_BOUND`, `GRUP_PF`, `GDN_SPLIT`+`GDN_NORM128`,
      `ADAPT_COPY2`, `WAIT_FUSE_ROWS` alone; spec 82 all (DMA_FLAG_WRITE, PCIE_FORK, DALI); spec 83 `PF_COPY2`; spec 84 the
      `PF_GU_EXACT` family; spec 80 J=32 rolled MMQ; spec 87 `Q2_FAST`, `POOL_ROW_SPLIT` 64 / 256, `POOL_TOUCH_NEXT`,
@@ -445,6 +446,7 @@ Code:
 
 The box plan entry of 2026-11-15 "FK-28 A/B was already run (spec 28)" is wrong: spec 28 (`28-phase18-draft.json`) arms
 `--spec 3/5` and `MTP_EAGER`, not `STRATA_ADAPT_PROMPT`; the dead hook was then deleted (T-575), FK-28 is unbuilt (section 6 item 1).
+- OPEN 2026-11-16 (T-630): `STRATA_PF_COMBINE_WRITE=1` (spec 97, opt-in) ends its first served request: the engine reached `ready`, logged `reading the prompt: 64 of 71 tokens`, and the client got HTTP 503; abtest died and chain 6 spec 97 exited 1, `hc-gated16` and `swiglu-q8` never ran. No engine log was kept for that arm (only the .out). Rerun the arm alone with its engine log (one-arm spec, like 114a-f) before anything else; `MMQ_LINEAR` (long1k prompt 353 vs 624 tok/s, n=1) and `NW_COLSKIP` (long3k 788 vs 1110) read slower on prompt in the same rep 0 and need the finished screen too.
 - OPEN 2026-11-16 (T-613): `STRATA_ADAPT_IDLE_COPY=1` (opt-in, off by default) fails the first served request: `verify: the
   adaptive tier's copies for layer 25 never landed` (the copy stream reached 14). Code read (unconfirmed static analysis): the
   idle path issues the copies and each layer's landing signal (a stream-ordered D2H copy into the pinned `agate.hland`,
@@ -502,7 +504,7 @@ xxxliqu1dxxx and its 3 commits, merged as 8aeff515b, 15 of 15 status-page tests)
   (T-609), `PF_COPY2` (T-606), PCIe share with `DMA_FLAG_WRITE` / `PCIE_FORK` / `DALI` (T-605); spec 87 (T-612): `Q2_FAST`
   engine A/B (edit -24.9%), `POOL_ROW_SPLIT`, `POOL_TOUCH_NEXT`, `FUSE_SWIGLU_DOWN`, `VERIFY_DEVICE_PLAN` + `FUSE_PLAN` /
   `_COMBINE` / `_SHGATE`, `EXPDEC_V2`, `SAMPLER_X8`, `MMVF_ROWS1`, `LOOKAHEAD_AFTER_PUB`, `GDN_SPECLA=2`; spec 89 (T-614): `PF_SEL_BATCH=64`, `KV_PF_RESIDENT`; spec 90 (T-615):
-  `Q36_ATTN_GQA` (short -7.0%); spec 91 (T-616): `QSA_PARTIAL_TOPK`, `QSA_PAGE_SEL` 16 / 32 (decode -3..-31% at 10K/32K).
+  `Q36_ATTN_GQA` (short -7.0%); spec 91 (T-616): `QSA_PARTIAL_TOPK`, `QSA_PAGE_SEL` 16 / 32 (decode -3..-31% at 10K/32K); spec 99 (T-632): `SUBFIT_LEARN` with every apply mode (-44..-50%: the observe-only learner halves decode speed and fitted nothing); spec 98 (T-631): `XATTN` on q36 (no effect, the 64k case is under the 65,536 start); spec 96 (T-629): `RKV=64`, `SELECT_SPLIT2`; spec 100 (T-633): `SWIGLU_SKIM` 0.01 / 0.05.
 - Drafting: `--spec 2/3/5/6` (T-118, T-149, T-159, T-160), DFlash2 (T-119), `SPEC_COST` (T-120), full / zh60k draft vocab
   (T-121, T-123), real-code draft vocab (T-146, T-151), mtp-window 4096 alone (T-122), `MTP_EAGER` (T-136, T-145, T-159),
   `--mtp-q4` head (T-143), `MTP_HIP_PRIO` (T-140..T-142), EcoSpec (T-148), A22 DISCO chain stop and FK-21 `SPEC_CUM`

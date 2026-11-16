@@ -1,0 +1,41 @@
+  WARNING: only 10 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 97.1 short 111.1 edit 163.2 edit 172.1  foreign CPU 5% [('claude', 7), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 55C 171W gtt 21M cpu 3950MHz 47C igpu 0%/vcn 0% fclk 1600
+rep 0 subfit-learn         short 49.1 short 56.9 edit 76.2 edit 104.4  foreign CPU 4% [('kworker/10:0-events', 4), ('pipewire', 1), ('kcompactd0', 1)]  gpu 1974/1249 MHz 53C 129W gtt 21M cpu 3664MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 subfit-dynamic       short 48.9 short 56.1 edit 90.0 edit 99.0  foreign CPU 4% [('claude', 1), ('kswapd0', 1), ('pipewire', 1)]  gpu 2030/1249 MHz 53C 132W gtt 21M cpu 3639MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 subfit-all           short 48.9 short 55.6 edit 76.8 edit 97.2  foreign CPU 4% [('udisksd', 2), ('claude', 1), ('pipewire', 1)]  gpu 2025/1249 MHz 53C 130W gtt 21M cpu 3752MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 subfit-flip          short 48.7 short 56.1 edit 76.6 edit 97.0  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('rcu_preempt', 0)]  gpu 1957/1249 MHz 53C 126W gtt 21M cpu 3589MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    104.1 +-  89.0  (n=2)
+                              drafts accepted 0.63
+  short  subfit-learn             53.0 +-  49.6  (n=2)   vs base: -49.1% +- 37.8%  -> worse
+                              drafts accepted 0.63
+  short  subfit-dynamic           52.5 +-  45.8  (n=2)   vs base: -49.6% +- 41.5%  -> worse
+                              drafts accepted 0.63
+  short  subfit-all               52.2 +-  42.6  (n=2)   vs base: -49.8% +- 44.6%  -> worse
+                              drafts accepted 0.63
+  short  subfit-flip              52.4 +-  47.0  (n=2)   vs base: -49.7% +- 40.3%  -> worse
+                              drafts accepted 0.63
+  edit   base                    167.6 +-  56.6  (n=2)
+                              drafts accepted 0.85
+  edit   subfit-learn             90.3 +- 179.2  (n=2)   vs base: -46.1% +- 73.2%  -> no difference
+                              drafts accepted 0.85
+  edit   subfit-dynamic           94.5 +-  57.2  (n=2)   vs base: -43.6% +-  0.4%  -> worse
+                              drafts accepted 0.83
+  edit   subfit-all               87.0 +- 129.6  (n=2)   vs base: -48.1% +- 43.6%  -> worse
+                              drafts accepted 0.83
+  edit   subfit-flip              86.8 +- 129.6  (n=2)   vs base: -48.2% +- 43.6%  -> worse
+                              drafts accepted 0.83
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  subfit-learn         identical on every case -> exact
+  subfit-dynamic       DIFFERENT text -> lossy or placement-dependent: quality gate
+  subfit-all           identical on every case -> exact
+  subfit-flip          identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  subfit-learn         short -49.1%  edit -46.1%  -> drop
+  subfit-dynamic       short -49.6%  edit -43.6%  -> drop
+  subfit-all           short -49.8%  edit -48.1%  -> drop
+  subfit-flip          short -49.7%  edit -48.2%  -> drop
