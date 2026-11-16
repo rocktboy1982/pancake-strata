@@ -1,0 +1,84 @@
+START 2026-11-16_10:51:54
+BUILD build-win (strata strata_tests) 10:54:54
+BUILD_END build-win exit=0 10:58:28
+BUILD build-win-il (strata) 11:01:29
+BUILD_END build-win-il exit=0 11:07:02
+BUILD build-win-j32 (strata) 11:10:03
+BUILD_END build-win-j32 exit=0 11:13:29
+BUILD build-win strata-poly (not blocking) 11:16:29
+BUILD_END strata-poly exit=1 11:16:35
+/home/dan/clone-of-d/src/Strata-win/src/poly/engine.cpp:16:10: fatal error: cuda.h: No such file or directory
+/home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp:541:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+/home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp:562:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+/home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp:376:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+/home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp:396:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+CTEST cpu exit=0 100% tests passed, 0 tests failed out of 175
+CTEST gpu exit=0 100% tests passed, 0 tests failed out of 154
+START 81-new-exact-switches 2026-11-16_11:35:45
+END 81-new-exact-switches exit=0 12:02:42
+START 82-pcie-share-exact-switches 2026-11-16_12:05:42
+END 82-pcie-share-exact-switches exit=0 12:19:48
+START 83-prompt-exact-switches 2026-11-16_12:22:48
+END 83-prompt-exact-switches exit=0 12:35:32
+START 84-pf-gu-exact 2026-11-16_12:38:32
+END 84-pf-gu-exact exit=0 12:49:11
+START 85-mmvq-il-plain 2026-11-16_12:52:11
+END 85-mmvq-il-plain exit=1 12:56:01
+START 86-adapt-prompt 2026-11-16_12:59:01
+END 86-adapt-prompt exit=0 13:07:56
+START 80-mmq-rdna3-j32 2026-11-16_13:10:56
+END 80-mmq-rdna3-j32 exit=0 13:13:55
+START 87-coded-exact-backlog 2026-11-16_13:16:55
+END 87-coded-exact-backlog exit=0 14:23:21
+START 88-coded-lossy-backlog 2026-11-16_14:26:21
+END 88-coded-lossy-backlog exit=1 14:37:18
+START 89-rdna3-prefill 2026-11-16_14:40:18
+END 89-rdna3-prefill exit=0 14:51:56
+START 90-q36 2026-11-16_14:54:56
+END 90-q36 exit=0 15:08:35
+START 91-qsa-long-select 2026-11-16_15:11:35
+END 91-qsa-long-select exit=0 15:19:09
+START 92-leads-exact 2026-11-16_15:22:09
+END 92-leads-exact exit=0 15:53:10
+START 93-leads-lossy 2026-11-16_15:56:10
+END 93-leads-lossy exit=0 16:09:36
+START 94-pass2-exact 2026-11-16_16:12:36
+END 94-pass2-exact exit=0 17:24:44
+START 95-pass2-lossy 2026-11-16_17:27:44
+END 95-pass2-lossy exit=0 18:05:13
+START 96-pass2-long 2026-11-16_18:08:13
+END 96-pass2-long exit=0 18:14:36
+START 97-pass2-prompt 2026-11-16_18:17:36
+END 97-pass2-prompt exit=1 18:26:39
+START 98-pass2-q36-xattn 2026-11-16_18:29:39
+END 98-pass2-q36-xattn exit=0 18:36:29
+START 99-hotrod-subfit 2026-11-16_18:39:29
+END 99-hotrod-subfit exit=0 18:48:08
+START 100-gputier-skim-serpool 2026-11-16_18:51:08
+END 100-gputier-skim-serpool exit=0 18:56:46
+START 101-gputier-q36-swaps 2026-11-16_18:59:46
+END 101-gputier-q36-swaps exit=0 19:05:32
+START 26-stack-small-exact 2026-11-16_19:08:32
+END 26-stack-small-exact exit=0 19:11:19
+START 12-spec-sampling 2026-11-16_19:14:19
+END 12-spec-sampling exit=0 19:19:08
+START a21-spec-lowtemp 2026-11-16_19:22:08
+END a21-spec-lowtemp exit=0 19:29:47
+START 24-a15-park-ttl 2026-11-16_19:32:47
+END 24-a15-park-ttl exit=0 19:36:58
+START 22-a7-promo-chunk 2026-11-16_19:39:58
+END 22-a7-promo-chunk exit=0 19:47:53
+START 24-a45-calibrate 2026-11-16_19:50:53
+END 24-a45-calibrate exit=0 19:56:45
+START 16-a19-hidden-dump 2026-11-16_19:59:45
+END 16-a19-hidden-dump exit=0 20:02:32
+START 25-f-env-rerun 2026-11-16_20:05:32
+END 25-f-env-rerun exit=0 20:15:25
+START a33-a35-fusion-retest 2026-11-16_20:18:25
+END a33-a35-fusion-retest exit=0 20:26:54
+START 15-kmiss 2026-11-16_20:29:54
+END 15-kmiss exit=0 20:32:44
+START 19-turbo-guards 2026-11-16_20:35:45
+END 19-turbo-guards exit=0 20:44:12
+service started 20:44:12
+WINCHAIN6_DONE

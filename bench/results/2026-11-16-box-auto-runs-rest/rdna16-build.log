@@ -1,0 +1,176 @@
+[0/2] Re-checking globbed directories...
+[1/7] Building CXX object CMakeFiles/rdna_mmvq_parity.dir/src/kernels/rdna_mmvq_parity.cpp.o
+[2/7] Building CXX object CMakeFiles/b6_mmvq_bench.dir/src/kernels/b6_mmvq_bench.cpp.o
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp: In function ‘double {anonymous}::median_ms(const Case&, const Buf&, int, int, hipStream_t, std::vector<ihipEvent_t*>&)’:
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:107:24: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  107 |         cudaEventRecord(ev[(size_t) 2 * r], s);
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3637:12: note: in call to ‘hipError_t hipEventRecord(hipEvent_t, hipStream_t)’, declared here
+ 3637 | hipError_t hipEventRecord(hipEvent_t event, hipStream_t stream = NULL);
+      |            ^~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:109:24: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  109 |         cudaEventRecord(ev[(size_t) 2 * r + 1], s);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3637:12: note: in call to ‘hipError_t hipEventRecord(hipEvent_t, hipStream_t)’, declared here
+ 3637 | hipError_t hipEventRecord(hipEvent_t event, hipStream_t stream = NULL);
+      |            ^~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:111:26: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  111 |     cudaStreamSynchronize(s);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3124:12: note: in call to ‘hipError_t hipStreamSynchronize(hipStream_t)’, declared here
+ 3124 | hipError_t hipStreamSynchronize(hipStream_t stream);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:113:56: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  113 |     for (int r = 0; r < reps; ++r) cudaEventElapsedTime(&t[(size_t) r], ev[(size_t) 2 * r], ev[(size_t) 2 * r + 1]);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3705:12: note: in call to ‘hipError_t hipEventElapsedTime(float*, hipEvent_t, hipEvent_t)’, declared here
+ 3705 | hipError_t hipEventElapsedTime(float* ms, hipEvent_t start, hipEvent_t stop);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp: In function ‘int main(int, char**)’:
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:130:22: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  130 |         cudaSetDevice(dev);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2405:12: note: in call to ‘hipError_t hipSetDevice(int)’, declared here
+ 2405 | hipError_t hipSetDevice(int deviceId);
+      |            ^~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:132:32: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  132 |         cudaGetDeviceProperties(&pr, dev);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2526:12: note: in call to ‘hipError_t hipGetDevicePropertiesR0600(hipDeviceProp_tR0600*, int)’, declared here
+ 2526 | hipError_t hipGetDeviceProperties(hipDeviceProp_t* prop, int deviceId);
+      |            ^~~~~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:140:43: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  140 |         for (auto& e : ev) cudaEventCreate(&e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3567:12: note: in call to ‘hipError_t hipEventCreate(ihipEvent_t**)’, declared here
+ 3567 | hipError_t hipEventCreate(hipEvent_t* event);
+      |            ^~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:197:27: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  197 |                 cudaMemcpy(ha.data(), ya, ha.size() * 4, cudaMemcpyDeviceToHost);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:198:27: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  198 |                 cudaMemcpy(hb.data(), yb, hb.size() * 4, cudaMemcpyDeviceToHost);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:199:27: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  199 |                 cudaMemcpy(h1.data(), y1, h1.size() * 4, cudaMemcpyDeviceToHost);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:211:41: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  211 |             for (void* d : b.w) cudaFree(d);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:212:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  212 |             cudaFree(b.xq); cudaFree(b.xf); cudaFree(b.y); cudaFree(ya); cudaFree(yb); cudaFree(y1);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:212:37: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  212 |             cudaFree(b.xq); cudaFree(b.xf); cudaFree(b.y); cudaFree(ya); cudaFree(yb); cudaFree(y1);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:212:53: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  212 |             cudaFree(b.xq); cudaFree(b.xf); cudaFree(b.y); cudaFree(ya); cudaFree(yb); cudaFree(y1);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:212:68: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  212 |             cudaFree(b.xq); cudaFree(b.xf); cudaFree(b.y); cudaFree(ya); cudaFree(yb); cudaFree(y1);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:212:82: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  212 |             cudaFree(b.xq); cudaFree(b.xf); cudaFree(b.y); cudaFree(ya); cudaFree(yb); cudaFree(y1);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:212:96: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  212 |             cudaFree(b.xq); cudaFree(b.xf); cudaFree(b.y); cudaFree(ya); cudaFree(yb); cudaFree(y1);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:214:44: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  214 |         for (auto& e : ev) cudaEventDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3657:12: note: in call to ‘hipError_t hipEventDestroy(hipEvent_t)’, declared here
+ 3657 | hipError_t hipEventDestroy(hipEvent_t event);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/b6_mmvq_bench.cpp:215:26: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  215 |         cudaStreamDestroy(s);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3086:12: note: in call to ‘hipError_t hipStreamDestroy(hipStream_t)’, declared here
+ 3086 | hipError_t hipStreamDestroy(hipStream_t stream);
+      |            ^~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[3/7] Building HIP object CMakeFiles/strata_kernels.dir/src/kernels/cuda/rdna_mmvq.cu.o
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/rdna_mmvq.cu:81:33: warning: unused function 'kq_scale' [-Wunused-function]
+   81 | __device__ __forceinline__ void kq_scale(const uint8_t* s, int j, int& sc, int& m) {
+      |                                 ^~~~~~~~
+1 warning generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/rdna_mmvq.cu:81:33: warning: unused function 'kq_scale' [-Wunused-function]
+   81 | __device__ __forceinline__ void kq_scale(const uint8_t* s, int j, int& sc, int& m) {
+      |                                 ^~~~~~~~
+1 warning generated when compiling for host.
+[4/7] Linking HIP static library libstrata_kernels.a
+[5/7] Linking HIP executable b6_mmvq_bench
+[6/7] Linking HIP executable rdna_mmvq_parity
+
+real	0m4.069s
+user	0m4.976s
+sys	0m0.569s

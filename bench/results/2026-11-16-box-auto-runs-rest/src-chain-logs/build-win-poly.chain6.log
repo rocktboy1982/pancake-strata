@@ -1,0 +1,117 @@
+[0/2] Re-checking globbed directories...
+[1/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o
+FAILED: [code=1] CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata-win/include -I/home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat -I/home/dan/clone-of-d/build-int/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o -MF CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o.d -o CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o -c /home/dan/clone-of-d/src/Strata-win/src/poly/engine.cpp
+/home/dan/clone-of-d/src/Strata-win/src/poly/engine.cpp:16:10: fatal error: cuda.h: No such file or directory
+   16 | #include <cuda.h>
+      |          ^~~~~~~~
+compilation terminated.
+[2/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/cpu_kernels_avx2.cpp.o
+[3/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o
+FAILED: [code=1] CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata-win/include -I/home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat -I/home/dan/clone-of-d/build-int/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o -MF CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o.d -o CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o -c /home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp
+In file included from /home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp:5:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp: In member function ‘virtual void strata::poly::DeepSeek4::save_card_rows(int64_t, int64_t, uint8_t*)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp:541:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  541 |                 ck(cudaMemcpy2D(dst + (size_t) (b0 * r + r - 1 - first) * key, (size_t) r * key,
+      |                    ^~~~~~~~~~~~
+      |                    cudaMemcpy
+/home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp: In member function ‘virtual void strata::poly::DeepSeek4::load_card_rows(const uint8_t*, int64_t, int64_t, int64_t, int64_t)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/deepseek4.cpp:562:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  562 |                 ck(cudaMemcpy2D((uint8_t*) cache + (size_t) b0 * key, key, src + (size_t) (b0 * r + r - 1 - from) * key,
+      |                    ^~~~~~~~~~~~
+      |                    cudaMemcpy
+[4/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o
+FAILED: [code=1] CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata-win/include -I/home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat -I/home/dan/clone-of-d/build-int/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o -MF CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o.d -o CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o -c /home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp
+In file included from /home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp:5:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp: In member function ‘virtual void strata::poly::Glm5Next::save_card_rows(int64_t, int64_t, uint8_t*)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp:376:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  376 |             ck(cudaMemcpy2D(dst + (size_t) (p0 * kpool_ + kpool_ - 1 - first) * key, kpool_ * key,
+      |                ^~~~~~~~~~~~
+      |                cudaMemcpy
+/home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp: In member function ‘virtual void strata::poly::Glm5Next::load_card_rows(const uint8_t*, int64_t, int64_t, int64_t, int64_t)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/glm5next.cpp:396:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  396 |             ck(cudaMemcpy2D(B.pool + (size_t) p0 * idx_dim_, key,
+      |                ^~~~~~~~~~~~
+      |                cudaMemcpy
+[5/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/qwen35.cpp.o
+In file included from /home/dan/clone-of-d/src/Strata-win/src/poly/qwen35.cpp:6:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[6/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/cpu_experts.cpp.o
+[7/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/gemma4.cpp.o
+In file included from /home/dan/clone-of-d/src/Strata-win/src/poly/gemma4.cpp:4:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata-win/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[8/15] Building CXX object CMakeFiles/strata-poly.dir/src/poly/main.cpp.o
+/home/dan/clone-of-d/src/Strata-win/src/poly/main.cpp: In function ‘void {anonymous}::usage()’:
+/home/dan/clone-of-d/src/Strata-win/src/poly/main.cpp:881:65: warning: ' ' flag used with ‘%o’ gnu_printf format [-Wformat=]
+  881 |                  "                         instead of fp16, 53% of the VRAM a token (default: fp16)\n"
+      |                                                                 ^
+/home/dan/clone-of-d/src/Strata-win/src/poly/main.cpp:881:65: warning: format ‘%o’ expects a matching ‘unsigned int’ argument [-Wformat=]
+  881 |                  "                         instead of fp16, 53% of the VRAM a token (default: fp16)\n"
+      |                                                               ~~^
+      |                                                                 |
+      |                                                                 unsigned int
+/home/dan/clone-of-d/src/Strata-win/src/poly/main.cpp:883:48: warning: ' ' flag used with ‘%o’ gnu_printf format [-Wformat=]
+  883 |                  "                         41% of fp16's VRAM a token, for a context the card cannot hold with\n"
+      |                                                ^
+/home/dan/clone-of-d/src/Strata-win/src/poly/main.cpp:883:48: warning: format ‘%o’ expects a matching ‘unsigned int’ argument [-Wformat=]
+  883 |                  "                         41% of fp16's VRAM a token, for a context the card cannot hold with\n"
+      |                                              ~~^
+      |                                                |
+      |                                                unsigned int
+/home/dan/clone-of-d/src/Strata-win/src/poly/main.cpp:886:48: warning: ' ' flag used with ‘%o’ gnu_printf format [-Wformat=]
+  886 |                  "                         28% of fp16's VRAM a token\n"
+      |                                                ^
+/home/dan/clone-of-d/src/Strata-win/src/poly/main.cpp:886:48: warning: format ‘%o’ expects a matching ‘unsigned int’ argument [-Wformat=]
+  886 |                  "                         28% of fp16's VRAM a token\n"
+      |                                              ~~^
+      |                                                |
+      |                                                unsigned int
+ninja: build stopped: subcommand failed.

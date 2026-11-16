@@ -1,0 +1,227 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+-- Strata: verify / batch windows hold up to 16 rows
+-- HIP: Using hipcc from relative path: /opt/rocm/core-10.0/bin/hipcc
+-- HIP_PLATFORM using hip_HIPCONFIG_EXECUTABLE: amd
+-- HIP: Using hipcc from relative path: /opt/rocm/core-10.0/bin/hipcc
+-- HIP: Using hipcc from relative path: /opt/rocm/core-10.0/bin/hipcc
+-- Strata: HIP enabled, arch gfx1100
+-- strata: pack/full/experts.bin absent - the expert arena load test is NOT registered
+CMake Warning (dev) at /home/linuxbrew/.linuxbrew/share/cmake/Modules/FetchContent.cmake:1963 (message):
+  Calling FetchContent_Populate(strata_llamacpp) is deprecated, call
+  FetchContent_MakeAvailable(strata_llamacpp) instead.  Policy CMP0169 can be
+  set to OLD to allow FetchContent_Populate(strata_llamacpp) to be called
+  directly for now, but the ability to call it with declared details will be
+  removed completely in a future version.
+Call Stack (most recent call first):
+  CMakeLists.txt:2467 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu: -march=native 
+-- ggml version: 0.24.0
+-- ggml commit:  3cf03257f
+-- trellis MMQ (Gyro prompts): overlay on the pinned ggml-cuda in /home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay
+-- strata tests: 146 cpu, 130 gpu, 1 model (ctest -L <label>); 210 executables in target strata_tests
+-- Configuring done (0.6s)
+-- Generating done (0.2s)
+-- Build files have been written to: /home/dan/clone-of-d/src/Strata/build-hip
+[0/4] Re-checking globbed directories...
+[1/35] Building HIP object CMakeFiles/strata_kernels.dir/src/kernels/cuda/elementwise.cu.o
+[2/35] Building HIP object CMakeFiles/strata_mmq.dir/src/prefill/ggml_cuda_host.cu.o
+/home/dan/clone-of-d/src/Strata/src/prefill/ggml_cuda_host.cu:138:31: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  138 |         for (auto & b : bufs) cudaFree(b.p);
+      |                               ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:69:18: note: expanded from macro 'cudaFree'
+   69 | #define cudaFree hipFree
+      |                  ^
+1 warning generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/prefill/ggml_cuda_host.cu:138:31: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  138 |         for (auto & b : bufs) cudaFree(b.p);
+      |                               ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:69:18: note: expanded from macro 'cudaFree'
+   69 | #define cudaFree hipFree
+      |                  ^
+1 warning generated when compiling for host.
+[3/35] Building CXX object CMakeFiles/strata_engine.dir/src/core/conversation_snapshot.cpp.o
+[4/35] Building HIP object CMakeFiles/strata_mmq.dir/ggml-tq-overlay/quantize.cu.o
+[5/35] Building HIP object CMakeFiles/strata_mmq.dir/src/prefill/moe_f16_kq.cu.o
+[6/35] Building HIP object CMakeFiles/strata_mmq.dir/src/prefill/moe_mmq.cu.o
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:468:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  468 |     cudaGetDevice(&dev);
+      |     ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:71:23: note: expanded from macro 'cudaGetDevice'
+   71 | #define cudaGetDevice hipGetDevice
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:635:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  635 |     cudaGetDevice(&id);
+      |     ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:71:23: note: expanded from macro 'cudaGetDevice'
+   71 | #define cudaGetDevice hipGetDevice
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:708:19: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  708 |         if (tail) cudaMemcpyAsync(tail_dst, tail, 16, cudaMemcpyDeviceToDevice, s);
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:91:25: note: expanded from macro 'cudaMemcpyAsync'
+   91 | #define cudaMemcpyAsync hipMemcpyAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:710:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  710 |             cudaMemsetAsync((uint8_t*) gu_dst + 2 * gu_half_bytes, 0, zero_bytes, s);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:99:25: note: expanded from macro 'cudaMemsetAsync'
+   99 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:711:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  711 |             cudaMemsetAsync((uint8_t*) d_dst + d_bytes, 0, zero_bytes, s);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:99:25: note: expanded from macro 'cudaMemsetAsync'
+   99 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+5 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:468:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  468 |     cudaGetDevice(&dev);
+      |     ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:71:23: note: expanded from macro 'cudaGetDevice'
+   71 | #define cudaGetDevice hipGetDevice
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:635:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  635 |     cudaGetDevice(&id);
+      |     ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:71:23: note: expanded from macro 'cudaGetDevice'
+   71 | #define cudaGetDevice hipGetDevice
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:708:19: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  708 |         if (tail) cudaMemcpyAsync(tail_dst, tail, 16, cudaMemcpyDeviceToDevice, s);
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:91:25: note: expanded from macro 'cudaMemcpyAsync'
+   91 | #define cudaMemcpyAsync hipMemcpyAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:710:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  710 |             cudaMemsetAsync((uint8_t*) gu_dst + 2 * gu_half_bytes, 0, zero_bytes, s);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:99:25: note: expanded from macro 'cudaMemsetAsync'
+   99 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_mmq.cu:711:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  711 |             cudaMemsetAsync((uint8_t*) d_dst + d_bytes, 0, zero_bytes, s);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/build-hip/ggml-tq-overlay/vendors/hip.h:99:25: note: expanded from macro 'cudaMemsetAsync'
+   99 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+5 warnings generated when compiling for host.
+[7/35] Building HIP object CMakeFiles/strata_kernels.dir/src/kernels/cuda/verify_kernels.cu.o
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:190:61: warning: unused parameter 'conv_blocks' [-Wunused-parameter]
+  190 | __global__ void __launch_bounds__(S) gdn_conv_ab_kernel(int conv_blocks, float* hist, const float* __restrict__ qkv,
+      |                                                             ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:1232:16: warning: unused variable 'per_dev' [-Wunused-variable]
+ 1232 |     static int per_dev[64];   // 0 unknown, else bit + 1
+      |                ^~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:1924:25: warning: variable 'g_ic_warm_sink' set but not used [-Wunused-but-set-global]
+ 1924 | __device__ unsigned int g_ic_warm_sink;
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:190:38: warning: loop not unrolled: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering [-Wpass-failed=transform-warning]
+  190 | __global__ void __launch_bounds__(S) gdn_conv_ab_kernel(int conv_blocks, float* hist, const float* __restrict__ qkv,
+      |                                      ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:178:39: warning: loop not unrolled: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering [-Wpass-failed=transform-warning]
+  178 | __global__ void __launch_bounds__(64) gdn_ab_multi_kernel(const float* __restrict__ x, const uint16_t* __restrict__ wa,
+      |                                       ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:491:49: warning: loop not unrolled: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering [-Wpass-failed=transform-warning]
+  491 | __global__ void __launch_bounds__(GS_COLS * RG) gdn_state_replay_kernel(float* __restrict__ state,
+      |                                                 ^
+6 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:190:61: warning: unused parameter 'conv_blocks' [-Wunused-parameter]
+  190 | __global__ void __launch_bounds__(S) gdn_conv_ab_kernel(int conv_blocks, float* hist, const float* __restrict__ qkv,
+      |                                                             ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:1232:16: warning: unused variable 'per_dev' [-Wunused-variable]
+ 1232 |     static int per_dev[64];   // 0 unknown, else bit + 1
+      |                ^~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:1580:17: warning: unused function 'resident_plan_par_kernel' [-Wunused-function]
+ 1580 | __global__ void resident_plan_par_kernel(const int32_t* __restrict__ ids, int n, int k, const int32_t* __restrict__ res,
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:1924:25: warning: variable 'g_ic_warm_sink' set but not used [-Wunused-but-set-global]
+ 1924 | __device__ unsigned int g_ic_warm_sink;
+      |                         ^
+4 warnings generated when compiling for host.
+[8/35] Building CXX object CMakeFiles/strata_engine.dir/src/core/conversation_disk_tier.cpp.o
+[9/35] Linking HIP static library libstrata_kernels.a
+[10/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-q2_0.cu.o
+[11/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-iq2_s.cu.o
+[12/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-iq2_xxs.cu.o
+[13/35] Building HIP object CMakeFiles/strata_mmq.dir/src/prefill/moe_fused_iq.cu.o
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1789:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1789 |     cudaGetDevice(&dev);
+      |     ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:56:23: note: expanded from macro 'cudaGetDevice'
+   56 | #define cudaGetDevice hipGetDevice
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1800:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1800 |         cudaDeviceGetAttribute(&d.sms, cudaDevAttrMultiProcessorCount, dev);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:26:32: note: expanded from macro 'cudaDeviceGetAttribute'
+   26 | #define cudaDeviceGetAttribute hipDeviceGetAttribute
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1813:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1813 |             cudaGetLastError();
+      |             ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1821:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1821 |         cudaGetLastError();
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+4 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1789:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1789 |     cudaGetDevice(&dev);
+      |     ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:56:23: note: expanded from macro 'cudaGetDevice'
+   56 | #define cudaGetDevice hipGetDevice
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1800:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1800 |         cudaDeviceGetAttribute(&d.sms, cudaDevAttrMultiProcessorCount, dev);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:26:32: note: expanded from macro 'cudaDeviceGetAttribute'
+   26 | #define cudaDeviceGetAttribute hipDeviceGetAttribute
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1813:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1813 |             cudaGetLastError();
+      |             ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/prefill/moe_fused_iq.cu:1821:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 1821 |         cudaGetLastError();
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+4 warnings generated when compiling for host.
+[14/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-iq3_xxs.cu.o
+[15/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-iq2_xs.cu.o
+[16/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-iq4_xs.cu.o
+[17/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-iq4_nl.cu.o
+[18/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-iq3_s.cu.o
+[19/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-q8_0.cu.o
+[20/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-q4_k.cu.o
+[21/35] Linking HIP static library libstrata_engine.a
+[22/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-q5_k.cu.o
+[23/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-q6_k.cu.o
+[24/35] Building HIP object CMakeFiles/strata_mmq.dir/_deps/strata_llamacpp-src/ggml/src/ggml-cuda/template-instances/mmq-instance-q5_1.cu.o
+[25/35] Building HIP object CMakeFiles/strata_mmq.dir/ggml-tq-overlay/template-instances/mmq-instance-tq2_t.cu.o
+[26/35] Building HIP object CMakeFiles/strata_mmq.dir/ggml-tq-overlay/template-instances/mmq-instance-tqk6.cu.o
+[27/35] Building HIP object CMakeFiles/strata_mmq.dir/ggml-tq-overlay/template-instances/mmq-instance-tqk7.cu.o
+[28/35] Building HIP object CMakeFiles/strata_mmq.dir/ggml-tq-overlay/template-instances/mmq-instance-tqp5.cu.o
+[29/35] Building HIP object CMakeFiles/strata_mmq.dir/ggml-tq-overlay/template-instances/mmq-instance-tqp6.cu.o
+[30/35] Building HIP object CMakeFiles/strata_mmq.dir/ggml-tq-overlay/template-instances/mmq-instance-tqp7.cu.o
+[31/35] Linking HIP static library libstrata_mmq.a
+[32/35] Linking HIP executable strata
+
+real	0m44.169s
+user	5m53.141s
+sys	0m10.286s

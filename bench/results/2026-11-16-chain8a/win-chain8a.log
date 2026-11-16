@@ -1,0 +1,8 @@
+START 2026-11-16_18:00:19
+chain 7 done 22:40:19
+service stopped (idle) 22:43:22
+stage applied: 9 files
+BUILD build-win (strata strata_tests) 22:46:22
+BUILD_END build-win exit=0 22:47:57
+CTEST cpu exit=0 100% tests passed, 0 tests failed out of 175
+CTEST gpu exit=0 100% tests passed, 0 tests failed out of 154

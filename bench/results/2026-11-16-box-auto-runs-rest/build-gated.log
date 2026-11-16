@@ -1,0 +1,18 @@
+[0/2] Re-checking globbed directories...
+[1/6] Building HIP object CMakeFiles/strata_kernels.dir/src/kernels/cuda/native_bf16.cu.o
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/native_bf16.cu:407:16: warning: unused variable 'per_dev' [-Wunused-variable]
+  407 |     static int per_dev[64];   // 0 unknown, else bit + 1
+      |                ^~~~~~~
+1 warning generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/native_bf16.cu:407:16: warning: unused variable 'per_dev' [-Wunused-variable]
+  407 |     static int per_dev[64];   // 0 unknown, else bit + 1
+      |                ^~~~~~~
+1 warning generated when compiling for host.
+[2/6] Linking HIP static library libstrata_kernels.a
+[3/6] Linking HIP executable rdna_mmvq_parity
+[4/6] Linking HIP executable b6_mmvq_bench
+[5/6] Linking HIP executable strata
+
+real	0m11.866s
+user	0m11.328s
+sys	0m0.649s

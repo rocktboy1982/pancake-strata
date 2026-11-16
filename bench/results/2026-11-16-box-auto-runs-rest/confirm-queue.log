@@ -1,0 +1,2 @@
+QUEUED 2026-11-16_13:39:45
+CANCELLED 13:42:44: chain 7 (win-chain7.sh) already runs confirm specs 102/103 with --block 3 --warmup 1 --outlier robust --reps 9; this queue was a subset with weaker settings and would have collided (both wait for WINCHAIN6_DONE and stop pancake.service)

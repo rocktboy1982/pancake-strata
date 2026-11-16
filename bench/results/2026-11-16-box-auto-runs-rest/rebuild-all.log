@@ -1,0 +1,2079 @@
+[0/2] Re-checking globbed directories...
+[1/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o
+FAILED: [code=1] CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o -MF CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o.d -o CMakeFiles/strata-poly.dir/src/poly/engine.cpp.o -c /home/dan/clone-of-d/src/Strata/src/poly/engine.cpp
+/home/dan/clone-of-d/src/Strata/src/poly/engine.cpp:16:10: fatal error: cuda.h: No such file or directory
+   16 | #include <cuda.h>
+      |          ^~~~~~~~
+compilation terminated.
+[2/303] Building HIP object CMakeFiles/strata-poly.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/strata-poly.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata-poly.dir/src/poly/kernels.cu.o -MF CMakeFiles/strata-poly.dir/src/poly/kernels.cu.o.d -o CMakeFiles/strata-poly.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:780:11: warning: comparison of integers of different signs: 'const int' and 'unsigned long long' [-Wsign-compare]
+  780 |     if (p >= (pos + tok + 1) / kpool) return;   // not a whole pool at this token yet
+      |         ~ ^  ~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+5 warnings and 4 errors generated when compiling for gfx1100.
+[3/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/cpu_kernels_avx2.cpp.o
+[4/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o
+FAILED: [code=1] CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o -MF CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o.d -o CMakeFiles/strata-poly.dir/src/poly/glm5next.cpp.o -c /home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp:5:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp: In member function ‘virtual void strata::poly::Glm5Next::save_card_rows(int64_t, int64_t, uint8_t*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp:376:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  376 |             ck(cudaMemcpy2D(dst + (size_t) (p0 * kpool_ + kpool_ - 1 - first) * key, kpool_ * key,
+      |                ^~~~~~~~~~~~
+      |                cudaMemcpy
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp: In member function ‘virtual void strata::poly::Glm5Next::load_card_rows(const uint8_t*, int64_t, int64_t, int64_t, int64_t)’:
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp:396:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  396 |             ck(cudaMemcpy2D(B.pool + (size_t) p0 * idx_dim_, key,
+      |                ^~~~~~~~~~~~
+      |                cudaMemcpy
+[5/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o
+FAILED: [code=1] CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o -MF CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o.d -o CMakeFiles/strata-poly.dir/src/poly/deepseek4.cpp.o -c /home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp:5:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp: In member function ‘virtual void strata::poly::DeepSeek4::save_card_rows(int64_t, int64_t, uint8_t*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp:541:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  541 |                 ck(cudaMemcpy2D(dst + (size_t) (b0 * r + r - 1 - first) * key, (size_t) r * key,
+      |                    ^~~~~~~~~~~~
+      |                    cudaMemcpy
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp: In member function ‘virtual void strata::poly::DeepSeek4::load_card_rows(const uint8_t*, int64_t, int64_t, int64_t, int64_t)’:
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp:562:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  562 |                 ck(cudaMemcpy2D((uint8_t*) cache + (size_t) b0 * key, key, src + (size_t) (b0 * r + r - 1 - from) * key,
+      |                    ^~~~~~~~~~~~
+      |                    cudaMemcpy
+[6/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/qwen35.cpp.o
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/qwen35.cpp:6:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[7/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/cpu_experts.cpp.o
+[8/303] Building HIP object CMakeFiles/strata-poly.dir/src/poly/kernels_dsv4.cu.o
+[9/303] Building CXX object CMakeFiles/strata-poly.dir/src/core/conversation_memory.cpp.o
+[10/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/gemma4.cpp.o
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/gemma4.cpp:4:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[11/303] Building CXX object CMakeFiles/poly_expert_parity.dir/src/poly/cpu_kernels_avx2.cpp.o
+[12/303] Building HIP object CMakeFiles/poly_expert_parity.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/poly_expert_parity.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_expert_parity.dir/src/poly/kernels.cu.o -MF CMakeFiles/poly_expert_parity.dir/src/poly/kernels.cu.o.d -o CMakeFiles/poly_expert_parity.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:780:11: warning: comparison of integers of different signs: 'const int' and 'unsigned long long' [-Wsign-compare]
+  780 |     if (p >= (pos + tok + 1) / kpool) return;   // not a whole pool at this token yet
+      |         ~ ^  ~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+5 warnings and 4 errors generated when compiling for gfx1100.
+[13/303] Building CXX object CMakeFiles/poly_expert_parity.dir/src/poly/expert_parity.cpp.o
+[14/303] Building CXX object CMakeFiles/strata-poly.dir/src/poly/conversation_disk.cpp.o
+/home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp: In static member function ‘static std::filesystem::__cxx11::path strata::poly::ConversationDisk::subfolder(const std::filesystem::__cxx11::path&, const std::filesystem::__cxx11::path&)’:
+/home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp:184:46: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  184 |     for (const auto ch : model.stem().native()) {
+      |                                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp:184:36: note: ‘std::filesystem::__cxx11::path’ temporary created here
+  184 |     for (const auto ch : model.stem().native()) {
+      |                          ~~~~~~~~~~^~
+In file included from /usr/include/c++/15/string:56,
+                 from /usr/include/c++/15/bits/locale_classes.h:42,
+                 from /usr/include/c++/15/bits/ios_base.h:43,
+                 from /usr/include/c++/15/ios:46,
+                 from /usr/include/c++/15/istream:42,
+                 from /usr/include/c++/15/sstream:42,
+                 from /usr/include/c++/15/chrono:51,
+                 from /home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.hpp:20,
+                 from /home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp:5:
+In member function ‘constexpr std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::size_type std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::size() const [with _CharT = char; _Traits = std::char_traits<char>; _Alloc = std::allocator<char>]’,
+    inlined from ‘constexpr std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::const_iterator std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::end() const [with _CharT = char; _Traits = std::char_traits<char>; _Alloc = std::allocator<char>]’ at /usr/include/c++/15/bits/basic_string.h:1075:53,
+    inlined from ‘static std::filesystem::__cxx11::path strata::poly::ConversationDisk::subfolder(const std::filesystem::__cxx11::path&, const std::filesystem::__cxx11::path&)’ at /home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp:184:46:
+/usr/include/c++/15/bits/basic_string.h:1165:19: warning: using dangling pointer ‘__sz’ to an unnamed temporary [-Wdangling-pointer=]
+ 1165 |         size_type __sz = _M_string_length;
+      |                   ^~~~
+/home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp: In static member function ‘static std::filesystem::__cxx11::path strata::poly::ConversationDisk::subfolder(const std::filesystem::__cxx11::path&, const std::filesystem::__cxx11::path&)’:
+/home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp:184:36: note: unnamed temporary defined here
+  184 |     for (const auto ch : model.stem().native()) {
+      |                          ~~~~~~~~~~^~
+In member function ‘constexpr std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::pointer std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::_M_data() const [with _CharT = char; _Traits = std::char_traits<char>; _Alloc = std::allocator<char>]’,
+    inlined from ‘constexpr std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::const_iterator std::__cxx11::basic_string<_CharT, _Traits, _Alloc>::begin() const [with _CharT = char; _Traits = std::char_traits<char>; _Alloc = std::allocator<char>]’ at /usr/include/c++/15/bits/basic_string.h:1057:38,
+    inlined from ‘static std::filesystem::__cxx11::path strata::poly::ConversationDisk::subfolder(const std::filesystem::__cxx11::path&, const std::filesystem::__cxx11::path&)’ at /home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp:184:46:
+/usr/include/c++/15/bits/basic_string.h:239:28: warning: using a dangling pointer to an unnamed temporary [-Wdangling-pointer=]
+  239 |       { return _M_dataplus._M_p; }
+      |                            ^~~~
+/home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp: In static member function ‘static std::filesystem::__cxx11::path strata::poly::ConversationDisk::subfolder(const std::filesystem::__cxx11::path&, const std::filesystem::__cxx11::path&)’:
+/home/dan/clone-of-d/src/Strata/src/poly/conversation_disk.cpp:184:36: note: unnamed temporary defined here
+  184 |     for (const auto ch : model.stem().native()) {
+      |                          ~~~~~~~~~~^~
+[15/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/engine.cpp.o
+FAILED: [code=1] CMakeFiles/poly_draft_race_test.dir/src/poly/engine.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_draft_race_test.dir/src/poly/engine.cpp.o -MF CMakeFiles/poly_draft_race_test.dir/src/poly/engine.cpp.o.d -o CMakeFiles/poly_draft_race_test.dir/src/poly/engine.cpp.o -c /home/dan/clone-of-d/src/Strata/src/poly/engine.cpp
+/home/dan/clone-of-d/src/Strata/src/poly/engine.cpp:16:10: fatal error: cuda.h: No such file or directory
+   16 | #include <cuda.h>
+      |          ^~~~~~~~
+compilation terminated.
+[16/303] Building CXX object CMakeFiles/poly_expert_parity.dir/src/poly/cpu_experts.cpp.o
+[17/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/draft_race_test.cpp.o
+[18/303] Building CXX object CMakeFiles/poly_cpu_experts_bench.dir/src/poly/cpu_kernels_avx2.cpp.o
+[19/303] Building CXX object CMakeFiles/strata-poly.dir/src/core/conversation_file.cpp.o
+[20/303] Building CXX object CMakeFiles/poly_cpu_experts_bench.dir/src/poly/cpu_experts.cpp.o
+[21/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/glm5next.cpp.o
+FAILED: [code=1] CMakeFiles/poly_draft_race_test.dir/src/poly/glm5next.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_draft_race_test.dir/src/poly/glm5next.cpp.o -MF CMakeFiles/poly_draft_race_test.dir/src/poly/glm5next.cpp.o.d -o CMakeFiles/poly_draft_race_test.dir/src/poly/glm5next.cpp.o -c /home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp:5:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp: In member function ‘virtual void strata::poly::Glm5Next::save_card_rows(int64_t, int64_t, uint8_t*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp:376:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  376 |             ck(cudaMemcpy2D(dst + (size_t) (p0 * kpool_ + kpool_ - 1 - first) * key, kpool_ * key,
+      |                ^~~~~~~~~~~~
+      |                cudaMemcpy
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp: In member function ‘virtual void strata::poly::Glm5Next::load_card_rows(const uint8_t*, int64_t, int64_t, int64_t, int64_t)’:
+/home/dan/clone-of-d/src/Strata/src/poly/glm5next.cpp:396:16: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  396 |             ck(cudaMemcpy2D(B.pool + (size_t) p0 * idx_dim_, key,
+      |                ^~~~~~~~~~~~
+      |                cudaMemcpy
+[22/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/deepseek4.cpp.o
+FAILED: [code=1] CMakeFiles/poly_draft_race_test.dir/src/poly/deepseek4.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_draft_race_test.dir/src/poly/deepseek4.cpp.o -MF CMakeFiles/poly_draft_race_test.dir/src/poly/deepseek4.cpp.o.d -o CMakeFiles/poly_draft_race_test.dir/src/poly/deepseek4.cpp.o -c /home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp:5:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp: In member function ‘virtual void strata::poly::DeepSeek4::save_card_rows(int64_t, int64_t, uint8_t*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp:541:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  541 |                 ck(cudaMemcpy2D(dst + (size_t) (b0 * r + r - 1 - first) * key, (size_t) r * key,
+      |                    ^~~~~~~~~~~~
+      |                    cudaMemcpy
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp: In member function ‘virtual void strata::poly::DeepSeek4::load_card_rows(const uint8_t*, int64_t, int64_t, int64_t, int64_t)’:
+/home/dan/clone-of-d/src/Strata/src/poly/deepseek4.cpp:562:20: error: ‘cudaMemcpy2D’ was not declared in this scope; did you mean ‘cudaMemcpy’?
+  562 |                 ck(cudaMemcpy2D((uint8_t*) cache + (size_t) b0 * key, key, src + (size_t) (b0 * r + r - 1 - from) * key,
+      |                    ^~~~~~~~~~~~
+      |                    cudaMemcpy
+[23/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/cpu_kernels_avx2.cpp.o
+[24/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/qwen35.cpp.o
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/qwen35.cpp:6:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[25/303] Building CXX object CMakeFiles/poly_cpu_experts_bench.dir/src/poly/cpu_experts_bench.cpp.o
+[26/303] Building HIP object CMakeFiles/poly_draft_race_test.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/poly_draft_race_test.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_draft_race_test.dir/src/poly/kernels.cu.o -MF CMakeFiles/poly_draft_race_test.dir/src/poly/kernels.cu.o.d -o CMakeFiles/poly_draft_race_test.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:780:11: warning: comparison of integers of different signs: 'const int' and 'unsigned long long' [-Wsign-compare]
+  780 |     if (p >= (pos + tok + 1) / kpool) return;   // not a whole pool at this token yet
+      |         ~ ^  ~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+5 warnings and 4 errors generated when compiling for gfx1100.
+[27/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/cpu_experts.cpp.o
+[28/303] Building HIP object CMakeFiles/poly_route_test.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/poly_route_test.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_route_test.dir/src/poly/kernels.cu.o -MF CMakeFiles/poly_route_test.dir/src/poly/kernels.cu.o.d -o CMakeFiles/poly_route_test.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 warnings and 4 errors generated when compiling for gfx1100.
+[29/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/core/conversation_memory.cpp.o
+[30/303] Building CXX object CMakeFiles/poly_draft_race_test.dir/src/poly/gemma4.cpp.o
+In file included from /home/dan/clone-of-d/src/Strata/src/poly/gemma4.cpp:4:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp: In function ‘void strata::poly::ck(hipError_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/poly/runtime.hpp:83:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   83 |     cudaGetLastError();
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[31/303] Building HIP object CMakeFiles/poly_gdn_cols_test.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/poly_gdn_cols_test.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_gdn_cols_test.dir/src/poly/kernels.cu.o -MF CMakeFiles/poly_gdn_cols_test.dir/src/poly/kernels.cu.o.d -o CMakeFiles/poly_gdn_cols_test.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 warnings and 4 errors generated when compiling for gfx1100.
+[32/303] Building HIP object CMakeFiles/poly_draft_race_test.dir/src/poly/kernels_dsv4.cu.o
+[33/303] Building HIP object CMakeFiles/poly_route_test.dir/src/poly/route_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:67:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   67 |     cudaMalloc(&d_lg, lg.size() * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:68:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   68 |     cudaMalloc(&d_bias, n_expert * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:69:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   69 |     cudaMalloc(&d_escale, n_expert * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:70:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   70 |     cudaMalloc(&d_w, (size_t) rows * n_used * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:71:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   71 |     cudaMalloc(&d_ids, (size_t) rows * n_used * sizeof(int32_t));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:72:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   72 |     cudaMemcpy(d_lg, lg.data(), lg.size() * sizeof(float), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:73:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   73 |     cudaMemcpy(d_bias, bias.data(), n_expert * sizeof(float), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:74:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   74 |     cudaMemcpy(d_escale, escale.data(), n_expert * sizeof(float), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:79:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   79 |     cudaMemcpy(ids.data(), d_ids, ids.size() * sizeof(int32_t), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:80:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   80 |     cudaMemcpy(w.data(), d_w, w.size() * sizeof(float), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |     ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:21: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                     ^~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:39: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                                       ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:59: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                                                           ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:74: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                                                                          ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+15 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:67:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   67 |     cudaMalloc(&d_lg, lg.size() * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:68:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   68 |     cudaMalloc(&d_bias, n_expert * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:69:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   69 |     cudaMalloc(&d_escale, n_expert * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:70:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   70 |     cudaMalloc(&d_w, (size_t) rows * n_used * sizeof(float));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:71:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   71 |     cudaMalloc(&d_ids, (size_t) rows * n_used * sizeof(int32_t));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:72:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   72 |     cudaMemcpy(d_lg, lg.data(), lg.size() * sizeof(float), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:73:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   73 |     cudaMemcpy(d_bias, bias.data(), n_expert * sizeof(float), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:74:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   74 |     cudaMemcpy(d_escale, escale.data(), n_expert * sizeof(float), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:79:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   79 |     cudaMemcpy(ids.data(), d_ids, ids.size() * sizeof(int32_t), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:80:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   80 |     cudaMemcpy(w.data(), d_w, w.size() * sizeof(float), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |     ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:21: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                     ^~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:39: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                                       ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:59: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                                                           ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/route_test.cu:81:74: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(d_lg), cudaFree(d_bias), cudaFree(d_escale), cudaFree(d_w), cudaFree(d_ids);
+      |                                                                          ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+15 warnings generated when compiling for host.
+[34/303] Building HIP object CMakeFiles/poly_gemm_small_test.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/poly_gemm_small_test.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_gemm_small_test.dir/src/poly/kernels.cu.o -MF CMakeFiles/poly_gemm_small_test.dir/src/poly/kernels.cu.o.d -o CMakeFiles/poly_gemm_small_test.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 warnings and 4 errors generated when compiling for gfx1100.
+[35/303] Building HIP object CMakeFiles/poly_gdn_cols_test.dir/src/poly/gdn_cols_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:68:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   68 |             cudaEventCreate(&e0);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:69:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   69 |             cudaEventCreate(&e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:70:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   70 |             cudaEventRecord(e0, st);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:73:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   73 |             cudaEventRecord(e1, st);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:76:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   76 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |             ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:30: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |                              ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:46: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |                                              ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:62: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |                                                              ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:84:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |             cudaEventDestroy(e0); cudaEventDestroy(e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:84:35: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |             cudaEventDestroy(e0); cudaEventDestroy(e1);
+      |                                   ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+11 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:68:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   68 |             cudaEventCreate(&e0);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:69:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   69 |             cudaEventCreate(&e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:70:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   70 |             cudaEventRecord(e0, st);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:73:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   73 |             cudaEventRecord(e1, st);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:76:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   76 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |             ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:30: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |                              ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:46: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |                                              ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:83:62: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   83 |             cudaFree(d_qkv); cudaFree(d_al); cudaFree(d_be); cudaFree(d_s);
+      |                                                              ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:84:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |             cudaEventDestroy(e0); cudaEventDestroy(e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/gdn_cols_test.cu:84:35: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   84 |             cudaEventDestroy(e0); cudaEventDestroy(e1);
+      |                                   ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+11 warnings generated when compiling for host.
+[36/303] Building HIP object CMakeFiles/poly_attend_split_test.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/poly_attend_split_test.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_attend_split_test.dir/src/poly/kernels.cu.o -MF CMakeFiles/poly_attend_split_test.dir/src/poly/kernels.cu.o.d -o CMakeFiles/poly_attend_split_test.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 warnings and 4 errors generated when compiling for gfx1100.
+[37/303] Building HIP object CMakeFiles/poly_kv_q4_test.dir/src/poly/kernels.cu.o
+FAILED: [code=1] CMakeFiles/poly_kv_q4_test.dir/src/poly/kernels.cu.o 
+/opt/rocm/core-10.0/lib/llvm/bin/clang++  -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -D__HIP_ROCclr__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -O3 -DNDEBUG -std=c++20 --offload-arch=gfx1100 -fPIE -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/poly_kv_q4_test.dir/src/poly/kernels.cu.o -MF CMakeFiles/poly_kv_q4_test.dir/src/poly/kernels.cu.o.d -o CMakeFiles/poly_kv_q4_test.dir/src/poly/kernels.cu.o -x hip -c /home/dan/clone-of-d/src/Strata/src/poly/kernels.cu
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2439:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2439 |         cudaGetLastError();   // or the next launch's check reports it
+      |         ^~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:60:26: note: expanded from macro 'cudaGetLastError'
+   60 | #define cudaGetLastError hipGetLastError
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2442:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2442 |     cudaMemsetAsync(p, 0, n * n * (2 * sizeof(half) + sizeof(float)), cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:109:25: note: expanded from macro 'cudaMemsetAsync'
+  109 | #define cudaMemsetAsync hipMemsetAsync
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2447:52: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 2447 |                                CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+      |                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2448:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2448 |     cudaStreamSynchronize(cs(stream));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:124:31: note: expanded from macro 'cudaStreamSynchronize'
+  124 | #define cudaStreamSynchronize hipStreamSynchronize
+      |                               ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2449:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+ 2449 |     cudaFree(p);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:2484:17: error: use of undeclared identifier 'cublasGetStream'; did you mean 'hipblasGetStream'?
+ 2484 |         blas_ck(cublasGetStream(h, &stream), "cublasGetStream");
+      |                 ^~~~~~~~~~~~~~~
+      |                 hipblasGetStream
+/opt/rocm/core-10.0/include/hipblas/hipblas.h:370:32: note: 'hipblasGetStream' declared here
+  370 | HIPBLAS_EXPORT hipblasStatus_t hipblasGetStream(hipblasHandle_t handle, hipStream_t* streamId);
+      |                                ^
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3026:78: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3026 |                                                kv_heads, CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/poly/kernels.cu:3045:48: error: use of undeclared identifier 'CUBLAS_GEMM_DEFAULT_TENSOR_OP'
+ 3045 |                                                CUBLAS_GEMM_DEFAULT_TENSOR_OP),
+      |                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 warnings and 4 errors generated when compiling for gfx1100.
+[38/303] Building HIP object CMakeFiles/poly_gemm_small_test.dir/src/poly/gemm_small_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:40:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   40 |         cudaMemcpy(dw, w.data(), w.size() * 4, cudaMemcpyHostToDevice);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:41:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   41 |         cudaMemcpy(dx, x.data(), x.size() * 4, cudaMemcpyHostToDevice);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:49:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   49 |                 cudaEventCreate(&e0);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:50:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   50 |                 cudaEventCreate(&e1);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:51:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   51 |                 cudaEventRecord(e0, st);
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:53:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   53 |                 cudaEventRecord(e1, st);
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:56:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   56 |                 cudaEventElapsedTime(&t, e0, e1);
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:58:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   58 |                 cudaEventDestroy(e0);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:59:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   59 |                 cudaEventDestroy(e1);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:63:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   63 |             cudaMemcpy(ys[tiled].data(), dy, ys[tiled].size() * 4, cudaMemcpyDeviceToHost);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:69:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   69 |         cudaFree(dw);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:70:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   70 |         cudaFree(dx);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:71:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   71 |         cudaFree(dy);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+13 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:40:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   40 |         cudaMemcpy(dw, w.data(), w.size() * 4, cudaMemcpyHostToDevice);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:41:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   41 |         cudaMemcpy(dx, x.data(), x.size() * 4, cudaMemcpyHostToDevice);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:49:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   49 |                 cudaEventCreate(&e0);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:50:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   50 |                 cudaEventCreate(&e1);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:51:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   51 |                 cudaEventRecord(e0, st);
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:53:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   53 |                 cudaEventRecord(e1, st);
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:56:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   56 |                 cudaEventElapsedTime(&t, e0, e1);
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:58:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   58 |                 cudaEventDestroy(e0);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:59:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   59 |                 cudaEventDestroy(e1);
+      |                 ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:40:26: note: expanded from macro 'cudaEventDestroy'
+   40 | #define cudaEventDestroy hipEventDestroy
+      |                          ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:63:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   63 |             cudaMemcpy(ys[tiled].data(), dy, ys[tiled].size() * 4, cudaMemcpyDeviceToHost);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:69:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   69 |         cudaFree(dw);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:70:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   70 |         cudaFree(dx);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/gemm_small_test.cu:71:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   71 |         cudaFree(dy);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+13 warnings generated when compiling for host.
+[39/303] Building CXX object CMakeFiles/poly_workers_test.dir/src/poly/workers_test.cpp.o
+[40/303] Building CXX object CMakeFiles/poly_workers_test.dir/src/poly/cpu_kernels_avx2.cpp.o
+[41/303] Building HIP object CMakeFiles/poly_kv_q4_test.dir/src/poly/kv_q4_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:134:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  134 |     cudaFree(x), cudaFree(cache), cudaFree(at);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:134:18: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  134 |     cudaFree(x), cudaFree(cache), cudaFree(at);
+      |                  ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:134:35: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  134 |     cudaFree(x), cudaFree(cache), cudaFree(at);
+      |                                   ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:173:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  173 |     cudaFree(x);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                 ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:31: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                               ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:47: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                                               ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:63: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                                                               ^~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:81: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                                                                                 ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:370:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  370 |             cudaEventCreate(&e0);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:371:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  371 |             cudaEventCreate(&e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:384:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  384 |                             cudaEventRecord(e0, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:386:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  386 |                             cudaEventRecord(e1, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:387:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  387 |                             cudaEventSynchronize(e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:46:30: note: expanded from macro 'cudaEventSynchronize'
+   46 | #define cudaEventSynchronize hipEventSynchronize
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:389:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  389 |                             cudaEventElapsedTime(&t, e0, e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:22: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                      ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:39: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                       ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:56: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                        ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:73: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:87: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                       ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:102: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                                      ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+22 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:134:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  134 |     cudaFree(x), cudaFree(cache), cudaFree(at);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:134:18: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  134 |     cudaFree(x), cudaFree(cache), cudaFree(at);
+      |                  ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:134:35: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  134 |     cudaFree(x), cudaFree(cache), cudaFree(at);
+      |                                   ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:173:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  173 |     cudaFree(x);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:17: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                 ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:31: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                               ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:47: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                                               ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:63: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                                                               ^~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:363:81: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  363 |                 cudaFree(bq), cudaFree(bout), cudaFree(work), cudaFree(bscore), cudaFree(deq);
+      |                                                                                 ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:370:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  370 |             cudaEventCreate(&e0);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:371:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  371 |             cudaEventCreate(&e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:384:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  384 |                             cudaEventRecord(e0, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:386:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  386 |                             cudaEventRecord(e1, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:387:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  387 |                             cudaEventSynchronize(e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:46:30: note: expanded from macro 'cudaEventSynchronize'
+   46 | #define cudaEventSynchronize hipEventSynchronize
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:389:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  389 |                             cudaEventElapsedTime(&t, e0, e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:22: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                      ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:39: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                       ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:56: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                        ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:73: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:87: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                       ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/kv_q4_test.cu:402:102: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  402 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                                      ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+22 warnings generated when compiling for host.
+[42/303] Building HIP object CMakeFiles/poly_expert_list_test.dir/src/poly/expert_list_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:23: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                       ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:42: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                          ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:56: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                                        ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:70: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                                                      ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:84: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                                                                    ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:175:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  175 |         cudaFree(y_slots), cudaFree(y_list);
+      |         ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:175:28: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  175 |         cudaFree(y_slots), cudaFree(y_list);
+      |                            ^~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:176:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  176 |         cudaStreamDestroy(st);
+      |         ^~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:119:27: note: expanded from macro 'cudaStreamDestroy'
+  119 | #define cudaStreamDestroy hipStreamDestroy
+      |                           ^
+9 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:23: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                       ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:42: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                          ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:56: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                                        ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:70: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                                                      ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:174:84: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  174 |         cudaFree(dl), cudaFree(d_slots), cudaFree(dx), cudaFree(dh), cudaFree(xq), cudaFree(hq);
+      |                                                                                    ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:175:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  175 |         cudaFree(y_slots), cudaFree(y_list);
+      |         ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:175:28: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  175 |         cudaFree(y_slots), cudaFree(y_list);
+      |                            ^~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/expert_list_test.cu:176:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  176 |         cudaStreamDestroy(st);
+      |         ^~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:119:27: note: expanded from macro 'cudaStreamDestroy'
+  119 | #define cudaStreamDestroy hipStreamDestroy
+      |                           ^
+9 warnings generated when compiling for host.
+[43/303] Building CXX object CMakeFiles/poly_cpu_kernels_test.dir/src/poly/cpu_kernels_test.cpp.o
+[44/303] Building CXX object CMakeFiles/poly_mxfp4_test.dir/src/poly/mxfp4_test.cpp.o
+[45/303] Building HIP object CMakeFiles/poly_dsv4_test.dir/src/poly/kernels_dsv4.cu.o
+[46/303] Linking CXX executable strata-gguf
+[47/303] Building CXX object CMakeFiles/poly_cpu_kernels_test.dir/src/poly/cpu_kernels_avx2.cpp.o
+[48/303] Linking CXX executable strata-dequant
+[49/303] Linking CXX executable batch_telemetry_test
+[50/303] Building HIP object CMakeFiles/poly_dsv4_test.dir/src/poly/dsv4_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:110:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  110 |     cudaFree(d);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:162:59: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  162 |     for (float* p : {d_kv, d_sc, d_ape, r_kv, r_sc, d_n}) cudaFree(p);
+      |                                                           ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:163:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  163 |     cudaFree(d_c);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:218:109: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  218 |     for (void* p : {(void*) d_q, (void*) d_s, (void*) d_raw, (void*) d_comp, (void*) d_sel, (void*) d_out}) cudaFree(p);
+      |                                                                                                             ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:267:89: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  267 |     for (void* p : {(void*) d_q, (void*) d_w, (void*) d_k, (void*) d_s, (void*) d_sel}) cudaFree(p);
+      |                                                                                         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:35:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   35 |     cudaMalloc(&p, std::max<size_t>(1, v.size()) * sizeof(T));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:91:16: note: in instantiation of function template specialization '(anonymous namespace)::dev<float>' requested here
+   91 |     float* d = dev(x);
+      |                ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:36:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   36 |     cudaMemcpy(p, v.data(), v.size() * sizeof(T), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:43:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   43 |     cudaMemcpy(v.data(), p, n * sizeof(T), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:93:16: note: in instantiation of function template specialization '(anonymous namespace)::host<float>' requested here
+   93 |     auto got = host(d, x.size());
+      |                ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:35:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   35 |     cudaMalloc(&p, std::max<size_t>(1, v.size()) * sizeof(T));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:128:21: note: in instantiation of function template specialization '(anonymous namespace)::dev<unsigned short>' requested here
+  128 |     uint16_t* d_c = dev(zc);
+      |                     ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:36:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   36 |     cudaMemcpy(p, v.data(), v.size() * sizeof(T), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:43:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   43 |     cudaMemcpy(v.data(), p, n * sizeof(T), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:132:23: note: in instantiation of function template specialization '(anonymous namespace)::host<unsigned short>' requested here
+  132 |     for (uint16_t h : host(d_c, zc.size())) got.push_back(f16(h));
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:35:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   35 |     cudaMalloc(&p, std::max<size_t>(1, v.size()) * sizeof(T));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:180:22: note: in instantiation of function template specialization '(anonymous namespace)::dev<int>' requested here
+  180 |     int32_t* d_sel = dev(sel);
+      |                      ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:36:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   36 |     cudaMemcpy(p, v.data(), v.size() * sizeof(T), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:43:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   43 |     cudaMemcpy(v.data(), p, n * sizeof(T), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:238:16: note: in instantiation of function template specialization '(anonymous namespace)::host<int>' requested here
+  238 |     auto sel = host(d_sel, zsel.size());
+      |                ^
+14 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:110:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  110 |     cudaFree(d);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:162:59: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  162 |     for (float* p : {d_kv, d_sc, d_ape, r_kv, r_sc, d_n}) cudaFree(p);
+      |                                                           ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:163:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  163 |     cudaFree(d_c);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:218:109: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  218 |     for (void* p : {(void*) d_q, (void*) d_s, (void*) d_raw, (void*) d_comp, (void*) d_sel, (void*) d_out}) cudaFree(p);
+      |                                                                                                             ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:267:89: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  267 |     for (void* p : {(void*) d_q, (void*) d_w, (void*) d_k, (void*) d_s, (void*) d_sel}) cudaFree(p);
+      |                                                                                         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:35:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   35 |     cudaMalloc(&p, std::max<size_t>(1, v.size()) * sizeof(T));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:91:16: note: in instantiation of function template specialization '(anonymous namespace)::dev<float>' requested here
+   91 |     float* d = dev(x);
+      |                ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:36:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   36 |     cudaMemcpy(p, v.data(), v.size() * sizeof(T), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:43:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   43 |     cudaMemcpy(v.data(), p, n * sizeof(T), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:93:16: note: in instantiation of function template specialization '(anonymous namespace)::host<float>' requested here
+   93 |     auto got = host(d, x.size());
+      |                ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:35:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   35 |     cudaMalloc(&p, std::max<size_t>(1, v.size()) * sizeof(T));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:128:21: note: in instantiation of function template specialization '(anonymous namespace)::dev<unsigned short>' requested here
+  128 |     uint16_t* d_c = dev(zc);
+      |                     ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:36:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   36 |     cudaMemcpy(p, v.data(), v.size() * sizeof(T), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:43:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   43 |     cudaMemcpy(v.data(), p, n * sizeof(T), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:132:23: note: in instantiation of function template specialization '(anonymous namespace)::host<unsigned short>' requested here
+  132 |     for (uint16_t h : host(d_c, zc.size())) got.push_back(f16(h));
+      |                       ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:35:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   35 |     cudaMalloc(&p, std::max<size_t>(1, v.size()) * sizeof(T));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:85:20: note: expanded from macro 'cudaMalloc'
+   85 | #define cudaMalloc hipMalloc
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:180:22: note: in instantiation of function template specialization '(anonymous namespace)::dev<int>' requested here
+  180 |     int32_t* d_sel = dev(sel);
+      |                      ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:36:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   36 |     cudaMemcpy(p, v.data(), v.size() * sizeof(T), cudaMemcpyHostToDevice);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:43:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   43 |     cudaMemcpy(v.data(), p, n * sizeof(T), cudaMemcpyDeviceToHost);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:99:20: note: expanded from macro 'cudaMemcpy'
+   99 | #define cudaMemcpy hipMemcpy
+      |                    ^
+/home/dan/clone-of-d/src/Strata/src/poly/dsv4_test.cu:238:16: note: in instantiation of function template specialization '(anonymous namespace)::host<int>' requested here
+  238 |     auto sel = host(d_sel, zsel.size());
+      |                ^
+14 warnings generated when compiling for host.
+[51/303] Linking CXX executable stream_watch_test
+[52/303] Linking CXX executable gpu_pause_time_test
+[53/303] Linking CXX executable logit_bias_test
+[54/303] Linking CXX executable gguf_reader_test
+[55/303] Linking CXX executable gguf_split_test
+[56/303] Building HIP object CMakeFiles/poly_attend_split_test.dir/src/poly/attend_split_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:81:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(x);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:279:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  279 |             cudaEventCreate(&e0);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:280:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  280 |             cudaEventCreate(&e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:293:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  293 |                             cudaEventRecord(e0, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:295:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  295 |                             cudaEventRecord(e1, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:296:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  296 |                             cudaEventSynchronize(e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:46:30: note: expanded from macro 'cudaEventSynchronize'
+   46 | #define cudaEventSynchronize hipEventSynchronize
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:298:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  298 |                             cudaEventElapsedTime(&t, e0, e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:22: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                      ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:39: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                       ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:56: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                        ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:73: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:87: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                       ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:102: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                                      ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+14 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:81:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   81 |     cudaFree(x);
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:279:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  279 |             cudaEventCreate(&e0);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:280:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  280 |             cudaEventCreate(&e1);
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:293:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  293 |                             cudaEventRecord(e0, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:295:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  295 |                             cudaEventRecord(e1, st);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:296:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  296 |                             cudaEventSynchronize(e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:46:30: note: expanded from macro 'cudaEventSynchronize'
+   46 | #define cudaEventSynchronize hipEventSynchronize
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:298:29: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  298 |                             cudaEventElapsedTime(&t, e0, e1);
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:22: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                      ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:39: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                       ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:56: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                        ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:73: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                         ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:87: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                       ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/poly/attend_split_test.cu:312:102: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  312 |         cudaFree(q), cudaFree(score), cudaFree(out_a), cudaFree(out_b), cudaFree(at), cudaFree(c.k), cudaFree(c.v);
+      |                                                                                                      ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+14 warnings generated when compiling for host.
+[57/303] Linking CXX executable batch_read_test
+[58/303] Linking CXX executable model_family_test
+[59/303] Building CXX object CMakeFiles/poly_workers_test.dir/src/poly/cpu_experts.cpp.o
+[60/303] Linking CXX executable gguf_geometry_test
+[61/303] Linking CXX executable tuning_header_arch_family_test
+[62/303] Linking CXX executable split_rules_test
+[63/303] Linking CXX executable gpu_report_test
+[64/303] Linking CXX executable stage_reserve_test
+[65/303] Linking CXX executable share_rules_test
+[66/303] Linking CXX executable split_walk_test
+[67/303] Linking CXX executable prefill_plan_test
+[68/303] Linking CXX executable qsa_two_pass_status_test
+[69/303] Linking CXX executable qsa_two_pass_test
+[70/303] Linking CXX executable timer_marks_test
+[71/303] Linking CXX executable routed_stream_test
+[72/303] Linking CXX executable mmq_ids_margin_test
+[73/303] Linking CXX executable route_prior_auto_test
+[74/303] Linking CXX executable adaptive_range_test
+[75/303] Linking CXX executable promo_chunk_test
+[76/303] Linking CXX executable route_prior_scope_test
+[77/303] Linking CXX executable expert_seed_test
+[78/303] Linking CXX executable defer_rank_test
+[79/303] Linking CXX executable defer_auto_test
+[80/303] Linking CXX executable conversation_disk_tier_test
+[81/303] Linking CXX executable switch_report_test
+[82/303] Linking CXX executable conversation_disk_env_test
+[83/303] Linking CXX executable io_priority_test
+[84/303] Linking CXX executable gpu_rewrite_parity_test
+[85/303] Linking CXX executable host_limits_test
+[86/303] Linking CXX executable run_manifest_test
+[87/303] Linking CXX executable think_probe_test
+[88/303] Linking HIP executable strata-device
+[89/303] Linking HIP executable strata-load
+[90/303] Linking CXX executable strata-plan
+[91/303] Linking HIP executable strata-concurrent
+[92/303] Linking HIP executable strata-overlap
+[93/303] Linking HIP executable qsa_scores_gfx1100_parity
+[94/303] Linking HIP executable bfla_test
+[95/303] Linking HIP executable qsa_select_bench
+[96/303] Linking HIP executable claude_cpubench
+[97/303] Linking HIP executable claude_bench
+[98/303] Linking CXX executable exchange_storage_test
+[99/303] Linking HIP executable file_expert_source_test
+[100/303] Linking CXX executable mem_pressure_test
+[101/303] Linking CXX executable memory_guard_test
+[102/303] Linking HIP executable vmm_test
+[103/303] Linking HIP executable expert_profile_save_test
+[104/303] Linking HIP executable expert_profile_version_test
+[105/303] Linking HIP executable expert_layout_test
+[106/303] Building CXX object CMakeFiles/poly_mxfp4_test.dir/src/poly/cpu_kernels_avx2.cpp.o
+[107/303] Linking HIP executable expert_cache_per_layer_test
+[108/303] Linking HIP executable native_dense_ple_key_test
+[109/303] Linking HIP executable expert_cache_segmented_test
+[110/303] Linking HIP executable expert_cache_slot_guard_test
+[111/303] Linking CXX executable grammar_test
+[112/303] Linking CXX executable grammar_schema_test
+[113/303] Linking CXX executable grammar_guard_test
+[114/303] Linking HIP executable strata
+[115/303] Linking HIP executable strata-q36ref
+[116/303] Linking HIP executable hip_prefill_gemm
+[117/303] Linking HIP executable strata-q36
+[118/303] Linking HIP executable hip_q2_zero
+[119/303] Linking HIP executable hip_gemm_f16_io_parity
+[120/303] Linking HIP executable hip_expert_cache_staging
+[121/303] Linking HIP executable hip_intrinsics
+[122/303] Linking HIP executable hip_qsa_nr_parity
+[123/303] Linking HIP executable hip_pf_cover_test
+[124/303] Linking HIP executable hip_handoff
+[125/303] Linking HIP executable hip_wait_copy
+[126/303] Linking HIP executable hip_mapped_alias
+[127/303] Linking HIP executable hip_native_qsa_score
+[128/303] Linking HIP executable hip_prefill_native_batch
+[129/303] Linking HIP executable hip_gdn_rec_head
+[130/303] Linking HIP executable hip_gdn_chunked
+[131/303] Linking HIP executable hip_gdn_stage_bench
+[132/303] Linking HIP executable hip_prefill_wmma_gemm_parity
+[133/303] Linking HIP executable hip_router_fast
+[134/303] Linking HIP executable hip_pa_bench
+[135/303] Linking HIP executable hip_prefill_hcd_exact_parity
+[136/303] Linking HIP executable hip_prompt_attn_wmma
+[137/303] Linking HIP executable hip_prefill_gr_write_bench
+[138/303] Linking HIP executable hip_decode_attn_wmma_parity
+[139/303] Linking HIP executable dequant_s2_parity
+[140/303] Linking HIP executable s2_gemv_parity
+[141/303] Linking HIP executable hip_prefill_hipblaslt_gemm
+[142/303] Linking HIP executable hip_prefill_rocblas_gemm
+[143/303] Linking HIP executable iq_parity
+[144/303] Linking HIP executable tq_pascal_bench
+[145/303] Linking HIP executable native_grouped_parity
+[146/303] Linking HIP executable iq_multi_parity
+[147/303] Linking HIP executable mmvf_rows_parity
+[148/303] Linking HIP executable verify_parity
+[149/303] Linking HIP executable gr_v3_screen
+[150/303] Linking HIP executable mmvf_unr_hash
+[151/303] Building CXX object CMakeFiles/poly_cpu_kernels_test.dir/src/poly/cpu_experts.cpp.o
+[152/303] Linking HIP executable shared_expert_parity
+[153/303] Linking HIP executable fused_gr_bench
+[154/303] Linking HIP executable router_chain_bench
+[155/303] Linking HIP executable s2_gemv_q8_parity
+[156/303] Linking HIP executable sampler_parity
+[157/303] Linking HIP executable b6_mmvq_bench
+[158/303] Linking HIP executable gr_parity
+[159/303] Linking HIP executable gdn_parity
+[160/303] Linking HIP executable spec_proposal_parity
+[161/303] Linking HIP executable rope_parity
+[162/303] Linking HIP executable spec_verify_parity
+[163/303] Linking HIP executable quantize_act_parity
+[164/303] Linking HIP executable route_window_parity
+[165/303] Linking HIP executable router_top10_parity
+[166/303] Linking HIP executable native_multi_parity
+[167/303] Linking HIP executable route_resident_parity
+[168/303] Linking HIP executable kv_steps_parity
+[169/303] Linking HIP executable resident_plan_parity
+[170/303] Linking HIP executable gr_multi_parity
+[171/303] Linking HIP executable rdna_gr_parity
+[172/303] Linking HIP executable hc_persist_parity
+[173/303] Linking HIP executable s_gemv_parity
+[174/303] Linking CXX executable tune_rocblas
+[175/303] Linking HIP executable rdna_mmvq_parity
+[176/303] Linking HIP executable s_gemv_q8k_parity
+[177/303] Linking HIP executable bf16_gemv_parity
+[178/303] Linking HIP executable elementwise_parity
+[179/303] Linking HIP executable qsa_parity
+[180/303] Linking HIP executable qsa_topk_parity
+[181/303] Linking CXX executable tune_hipblaslt
+[182/303] Linking HIP executable kv_q8_parity
+[183/303] Linking HIP executable route_prior_test
+[184/303] Linking HIP executable kv_stream_parity
+[185/303] Linking HIP executable kv_hybrid_parity
+[186/303] Linking HIP executable kv_window_parity
+[187/303] Linking HIP executable ple_parity
+[188/303] Linking HIP executable ple_iq4nl_dequant_test
+[189/303] Linking HIP executable kv_q4_parity
+[190/303] Linking HIP executable platform_memory_test
+[191/303] Linking HIP executable pin_budget_test
+[192/303] Linking HIP executable batch_rows_parity
+[193/303] Linking HIP executable s2_expert_grouped_parity
+[194/303] Linking HIP executable cvec_parity
+[195/303] Linking HIP executable pinned_alias_test
+[196/303] Linking HIP executable verify_batch_parity
+[197/303] Linking HIP executable conversation_copy_streams_test
+[198/303] Linking HIP executable pinned_shared_test
+[199/303] Linking HIP executable ple_reader_stress_test
+[200/303] Linking HIP executable ple_reader_test
+[201/303] Linking CXX executable auto_cache_test
+[202/303] Linking CXX executable pcie_share_rule_test
+[203/303] Linking CXX executable ple_residency_test
+[204/303] Building CXX object CMakeFiles/poly_mxfp4_test.dir/src/poly/cpu_experts.cpp.o
+[205/303] Linking CXX executable qwen35_sampling_test
+[206/303] Linking CXX executable amd_community_test
+[207/303] Linking CXX executable arch_defaults_test
+[208/303] Linking CXX executable adapt_async_default_test
+[209/303] Linking CXX executable amd_community_test_dot_off
+[210/303] Linking CXX executable calibrate_ratio_test
+[211/303] Linking CXX executable gfx12_extra_test
+[212/303] Linking CXX executable uma_cache_test
+[213/303] Linking CXX executable nv_defaults_test
+[214/303] Linking CXX executable controller_test
+[215/303] Linking CXX executable kva_test
+[216/303] Linking CXX executable epoch_bandit_test
+[217/303] Linking CXX executable suffix_index_test
+[218/303] Linking CXX executable suffix_drafter_test
+[219/303] Linking CXX executable window_rule_test
+[220/303] Linking CXX executable park_replay_sim
+[221/303] Linking CXX executable draft_policy_test
+[222/303] Linking CXX executable spec_start_test
+[223/303] Linking CXX executable row_miss_test
+[224/303] Linking CXX executable adapt_decay_test
+[225/303] Linking CXX executable disco_test
+[226/303] Linking CXX executable draft_vocab_test
+[227/303] Linking CXX executable message_boundary_test
+[228/303] Linking CXX executable split_ring_test
+[229/303] Linking CXX executable conv_cache_test
+[230/303] Linking CXX executable window_evict_test
+[231/303] Linking CXX executable window_limits_test
+[232/303] Linking CXX executable draft_kv_plan_test
+[233/303] Linking CXX executable serve_stop_bound_test
+[234/303] Linking CXX executable lookup_default_test
+[235/303] Linking CXX executable draft_cap_test
+[236/303] Linking CXX executable coupled_draft_test
+[237/303] Linking CXX executable slot_history_test
+[238/303] Linking CXX executable penalty_window_test
+[239/303] Linking CXX executable spec_prob_test
+[240/303] Linking CXX executable spec_admission_test
+[241/303] Linking CXX executable kv_ring_test
+[242/303] Linking CXX executable bf16_bits_test
+[243/303] Linking CXX executable gated_proposal_test
+[244/303] Linking CXX executable batch_rows_test
+[245/303] Linking CXX executable batch_groups_test
+[246/303] Linking CXX executable verify_ecap_test
+[247/303] Linking CXX executable bfla_cpu_test
+[248/303] Linking CXX executable dequant_q5_1_test
+[249/303] Linking CXX executable router_dot_parity
+[250/303] Linking CXX executable pool_tasks_test
+[251/303] Linking CXX executable native_arithmetic_parity
+[252/303] Linking CXX executable iq_avx2_parity
+[253/303] Linking CXX executable iq512_gather_parity
+[254/303] Linking CXX executable kq_cpu_bench
+[255/303] Linking CXX executable cpu_dispatch_dump
+[256/303] Linking CXX executable kq_window_bench
+[257/303] Linking HIP executable hip_prefill_fused_moe
+[258/303] Linking CXX executable iq_avx1_parity
+[259/303] Linking HIP executable hip_prefill_fused_iq
+[260/303] Linking HIP executable hip_ple_iq4
+[261/303] Linking HIP executable hip_prefill_mmq_parity
+[262/303] Linking HIP executable native_expert_bench
+[263/303] Linking HIP executable q8_gemv_bench
+[264/303] Linking HIP executable native_dense_types_parity
+[265/303] Linking CXX executable q8k_quant_parity
+[266/303] Linking HIP executable native_expert_parity
+[267/303] Linking HIP executable dequant_bf16_test
+[268/303] Linking CXX executable nvfp4_avx512_parity
+[269/303] Linking CXX executable pool_affinity_test
+[270/303] Linking CXX executable iq_sign_fast_test
+[271/303] Linking CXX executable expert_multi_test
+[272/303] Linking CXX executable q2_bitplane_parity
+[273/303] Linking CXX executable strata_shadow_pack
+[274/303] Linking CXX executable q2_fast_parity_test
+[275/303] Linking CXX executable native_hadamard_test
+[276/303] Linking CXX executable shadow_pack_test
+[277/303] Linking CXX executable tq_cpu_parity
+[278/303] Linking CXX executable tqp_cpu_test
+[279/303] Linking CXX executable pool_plan_test
+[280/303] Linking CXX executable numa_pool_test
+[281/303] Linking CXX executable expert_parity
+[282/303] Linking CXX executable warm_policy_test
+[283/303] Linking CXX executable pool_test
+[284/303] Linking CXX executable pool_cores_test
+[285/303] Linking CXX executable copy_events_test
+[286/303] Linking CXX executable aux_cpus_test
+[287/303] Linking CXX executable direct_file_async_test
+[288/303] Linking HIP executable poly_dsv4_test
+[289/303] Linking HIP executable poly_expert_list_test
+[290/303] Linking CXX executable pool_stress
+[291/303] Linking CXX executable poly_cpu_experts_bench
+[292/303] Linking CXX executable poly_workers_test
+[293/303] Linking CXX executable poly_cpu_kernels_test
+[294/303] Linking CXX executable poly_mxfp4_test
+ninja: build stopped: cannot make progress due to previous errors.
+
+real	0m15.109s
+user	1m45.836s
+sys	0m16.024s

@@ -1,0 +1,793 @@
+Test project /home/dan/clone-of-d/src/Strata/build-hip
+        Start  83: iq_parity_fixtures
+        Start  92: mmvf_rows_parity
+        Start 195: bf16_bits_test
+        Start  76: hip_router_fast
+  1/277 Test  #83: iq_parity_fixtures ........................   Passed    0.27 sec
+        Start 125: bf16_gemv_parity
+  2/277 Test #125: bf16_gemv_parity ..........................   Passed    0.22 sec
+        Start 108: router_top10_parity
+  3/277 Test #108: router_top10_parity .......................   Passed    0.09 sec
+        Start 193: verify_ecap_test
+  4/277 Test #193: verify_ecap_test ..........................   Passed    0.04 sec
+        Start 209: router_dot_parity
+  5/277 Test #209: router_dot_parity .........................   Passed    0.04 sec
+        Start 210: router_dot_parity_avx
+  6/277 Test #210: router_dot_parity_avx .....................   Passed    0.04 sec
+        Start  30: conversation_disk_env_test
+  7/277 Test  #30: conversation_disk_env_test ................   Passed    0.09 sec
+        Start   1: batch_telemetry_test
+  8/277 Test   #1: batch_telemetry_test ......................   Passed    0.00 sec
+        Start   2: stream_watch_test
+  9/277 Test   #2: stream_watch_test .........................   Passed    0.00 sec
+        Start   3: gpu_pause_time_test
+ 10/277 Test   #3: gpu_pause_time_test .......................   Passed    0.18 sec
+        Start   4: logit_bias_test
+ 11/277 Test   #4: logit_bias_test ...........................   Passed    0.01 sec
+        Start   5: gguf_reader_test
+ 12/277 Test  #76: hip_router_fast ...........................   Passed    0.99 sec
+        Start   6: gguf_split_test
+ 13/277 Test   #5: gguf_reader_test ..........................   Passed    0.00 sec
+        Start   7: model_family_test
+ 14/277 Test   #6: gguf_split_test ...........................   Passed    0.00 sec
+        Start   8: batch_read_test
+ 15/277 Test   #8: batch_read_test ...........................   Passed    0.00 sec
+        Start   9: gguf_geometry_test
+ 16/277 Test   #9: gguf_geometry_test ........................   Passed    0.02 sec
+        Start  10: tuning_header_arch_family_test
+ 17/277 Test  #10: tuning_header_arch_family_test ............   Passed    0.00 sec
+        Start  11: split_rules_test
+ 18/277 Test  #11: split_rules_test ..........................   Passed    0.00 sec
+        Start  12: gpu_report_test
+ 19/277 Test   #7: model_family_test .........................   Passed    0.06 sec
+        Start  13: stage_reserve_test
+ 20/277 Test  #13: stage_reserve_test ........................   Passed    0.00 sec
+        Start  14: split_walk_test
+ 21/277 Test  #14: split_walk_test ...........................   Passed    0.00 sec
+        Start  15: prefill_plan_test
+ 22/277 Test  #15: prefill_plan_test .........................   Passed    0.00 sec
+        Start  16: share_rules_test
+ 23/277 Test #195: bf16_bits_test ............................   Passed    1.06 sec
+        Start  17: qsa_two_pass_test
+ 24/277 Test  #16: share_rules_test ..........................   Passed    0.00 sec
+        Start  18: qsa_two_pass_status_test
+ 25/277 Test  #18: qsa_two_pass_status_test ..................   Passed    0.00 sec
+        Start  19: routed_stream_test
+ 26/277 Test  #19: routed_stream_test ........................   Passed    0.10 sec
+        Start  20: timer_marks_test
+ 27/277 Test  #20: timer_marks_test ..........................   Passed    0.00 sec
+        Start  21: mmq_ids_margin_test
+ 28/277 Test  #21: mmq_ids_margin_test .......................   Passed    0.00 sec
+        Start  22: adaptive_range_test
+ 29/277 Test  #22: adaptive_range_test .......................   Passed    0.00 sec
+        Start  23: promo_chunk_test
+ 30/277 Test  #23: promo_chunk_test ..........................   Passed    0.12 sec
+        Start  24: expert_seed_test
+ 31/277 Test  #24: expert_seed_test ..........................   Passed    0.00 sec
+        Start  25: route_prior_scope_test
+ 32/277 Test  #25: route_prior_scope_test ....................   Passed    0.00 sec
+        Start  26: route_prior_auto_test
+ 33/277 Test  #26: route_prior_auto_test .....................   Passed    0.00 sec
+        Start  27: defer_rank_test
+ 34/277 Test  #27: defer_rank_test ...........................   Passed    0.03 sec
+        Start  28: defer_auto_test
+ 35/277 Test  #28: defer_auto_test ...........................   Passed    0.01 sec
+        Start  29: conversation_disk_tier_test
+ 36/277 Test  #29: conversation_disk_tier_test ...............   Passed    0.01 sec
+        Start  31: switch_report_test
+ 37/277 Test  #31: switch_report_test ........................   Passed    0.02 sec
+        Start  32: gpu_rewrite_parity_test
+ 38/277 Test  #12: gpu_report_test ...........................   Passed    0.42 sec
+        Start  33: think_probe_test
+ 39/277 Test  #33: think_probe_test ..........................   Passed    0.00 sec
+        Start  34: run_manifest_test
+ 40/277 Test  #34: run_manifest_test .........................   Passed    0.00 sec
+        Start  35: host_limits_test
+ 41/277 Test  #35: host_limits_test ..........................   Passed    0.00 sec
+        Start  36: io_priority_test
+ 42/277 Test  #36: io_priority_test ..........................***Skipped   0.00 sec
+        Start  37: qsa_scores_gfx1100_parity
+ 43/277 Test  #92: mmvf_rows_parity ..........................   Passed    2.05 sec
+        Start  38: bfla_test
+ 44/277 Test  #32: gpu_rewrite_parity_test ...................   Passed    0.94 sec
+        Start  39: qsa_select_bench
+ 45/277 Test  #39: qsa_select_bench ..........................   Passed    0.62 sec
+        Start  40: qsa_select_bench_fp32_tiled
+ 46/277 Test  #17: qsa_two_pass_test .........................   Passed    2.20 sec
+        Start  41: exchange_storage_test
+ 47/277 Test  #40: qsa_select_bench_fp32_tiled ...............   Passed    0.65 sec
+        Start  42: memory_guard_test
+ 48/277 Test  #42: memory_guard_test .........................   Passed    0.02 sec
+        Start  43: mem_pressure_test
+ 49/277 Test  #41: exchange_storage_test .....................   Passed    0.54 sec
+        Start  44: file_expert_source_test
+ 50/277 Test  #44: file_expert_source_test ...................   Passed    0.21 sec
+        Start  45: vmm_test
+ 51/277 Test  #45: vmm_test ..................................   Passed    0.12 sec
+        Start  46: expert_profile_save_test
+ 52/277 Test  #46: expert_profile_save_test ..................   Passed    0.03 sec
+        Start  47: expert_profile_version_test
+ 53/277 Test  #47: expert_profile_version_test ...............   Passed    0.02 sec
+        Start  48: expert_layout_test
+ 54/277 Test  #48: expert_layout_test ........................   Passed    0.28 sec
+        Start  49: native_dense_ple_key_test
+ 55/277 Test  #49: native_dense_ple_key_test .................   Passed    0.11 sec
+        Start  50: expert_cache_per_layer_test
+ 56/277 Test  #50: expert_cache_per_layer_test ...............   Passed    0.08 sec
+        Start  51: expert_cache_segmented_test
+ 57/277 Test  #51: expert_cache_segmented_test ...............***Skipped   0.05 sec
+        Start  52: expert_cache_slot_guard_test
+ 58/277 Test  #52: expert_cache_slot_guard_test ..............   Passed    0.08 sec
+        Start  53: grammar_test
+ 59/277 Test  #53: grammar_test ..............................   Passed    0.00 sec
+        Start  54: grammar_schema_test
+ 60/277 Test  #54: grammar_schema_test .......................   Passed    0.01 sec
+        Start  55: grammar_guard_test
+ 61/277 Test  #55: grammar_guard_test ........................   Passed    0.00 sec
+        Start  56: hip_prefill_gemm
+ 62/277 Test  #43: mem_pressure_test .........................   Passed    1.41 sec
+        Start  57: hip_gemm_f16_io_parity
+ 63/277 Test  #57: hip_gemm_f16_io_parity ....................   Passed    0.67 sec
+        Start  58: hip_q2_zero
+ 64/277 Test  #58: hip_q2_zero ...............................   Passed    0.14 sec
+        Start  59: hip_qsa_nr_parity
+ 65/277 Test  #56: hip_prefill_gemm ..........................   Passed    4.31 sec
+        Start  60: hip_pf_cover_test
+ 66/277 Test  #59: hip_qsa_nr_parity .........................   Passed   11.33 sec
+        Start  61: hip_expert_cache_staging
+ 67/277 Test  #61: hip_expert_cache_staging ..................   Passed    0.11 sec
+        Start  62: hip_intrinsics
+ 68/277 Test  #62: hip_intrinsics ............................   Passed    0.08 sec
+        Start  63: hip_handoff
+ 69/277 Test  #63: hip_handoff ...............................   Passed    0.59 sec
+        Start  64: hip_wait_copy
+ 70/277 Test  #37: qsa_scores_gfx1100_parity .................   Passed   16.50 sec
+        Start  65: hip_wait_copy_256
+ 71/277 Test  #64: hip_wait_copy .............................   Passed    0.27 sec
+        Start  66: hip_mapped_alias
+ 72/277 Test  #38: bfla_test .................................   Passed   16.17 sec
+        Start  67: hip_native_qsa_score
+ 73/277 Test  #65: hip_wait_copy_256 .........................   Passed    0.27 sec
+        Start  68: hip_prefill_native_batch
+ 74/277 Test  #66: hip_mapped_alias ..........................   Passed    0.10 sec
+        Start  69: hip_gdn_rec_head
+ 75/277 Test  #67: hip_native_qsa_score ......................   Passed    0.10 sec
+        Start  70: hip_flag_order_test
+ 76/277 Test  #68: hip_prefill_native_batch ..................   Passed    0.31 sec
+        Start  71: hip_gdn_chunked
+ 77/277 Test  #70: hip_flag_order_test .......................   Passed    0.53 sec
+        Start  72: hip_gdn_chunked_off
+ 78/277 Test  #69: hip_gdn_rec_head ..........................   Passed    1.80 sec
+        Start  73: hip_gdn_chunked_default
+ 79/277 Test  #72: hip_gdn_chunked_off .......................   Passed    1.51 sec
+        Start  74: hip_prefill_wmma_gemm_parity
+ 80/277 Test  #74: hip_prefill_wmma_gemm_parity ..............   Passed    0.81 sec
+        Start  75: hip_prefill_hcd_exact_parity
+ 81/277 Test  #75: hip_prefill_hcd_exact_parity ..............***Skipped   0.09 sec
+        Start  77: hip_prompt_attn_wmma
+ 82/277 Test  #73: hip_gdn_chunked_default ...................   Passed    1.51 sec
+        Start  78: hip_decode_attn_wmma_parity
+ 83/277 Test  #78: hip_decode_attn_wmma_parity ...............   Passed    0.47 sec
+        Start  79: hip_prefill_hipblaslt_gemm
+ 84/277 Test  #79: hip_prefill_hipblaslt_gemm ................***Skipped   0.09 sec
+        Start  80: hip_prefill_rocblas_gemm
+ 85/277 Test  #80: hip_prefill_rocblas_gemm ..................***Skipped   0.09 sec
+        Start  81: dequant_s2_parity
+ 86/277 Test  #81: dequant_s2_parity .........................   Passed    0.19 sec
+        Start  82: s2_gemv_parity
+ 87/277 Test  #82: s2_gemv_parity ............................   Passed    0.10 sec
+        Start  84: iq_parity
+ 88/277 Test  #84: iq_parity .................................   Passed    0.29 sec
+        Start  85: iq_multi_parity
+ 89/277 Test  #85: iq_multi_parity ...........................   Passed    2.50 sec
+        Start  86: tq_pascal_bench
+ 90/277 Test  #71: hip_gdn_chunked ...........................   Passed    7.80 sec
+        Start  87: iq_multi_parity_kq_nov2k
+ 91/277 Test  #86: tq_pascal_bench ...........................   Passed    1.46 sec
+        Start  88: iq_multi_parity_kq_swiglu
+ 92/277 Test  #87: iq_multi_parity_kq_nov2k ..................   Passed    2.34 sec
+        Start  89: iq_multi_parity_kq_nosub16
+ 93/277 Test  #88: iq_multi_parity_kq_swiglu .................   Passed    2.31 sec
+        Start  90: iq_multi_parity_expdec_swiglu
+ 94/277 Test  #77: hip_prompt_attn_wmma ......................   Passed    8.51 sec
+        Start  91: native_grouped_parity
+ 95/277 Test  #89: iq_multi_parity_kq_nosub16 ................   Passed    2.40 sec
+        Start  93: shared_expert_parity
+ 96/277 Test  #93: shared_expert_parity ......................   Passed    0.32 sec
+        Start  94: verify_parity
+ 97/277 Test  #90: iq_multi_parity_expdec_swiglu .............   Passed    2.36 sec
+        Start  95: gr_parity
+ 98/277 Test  #94: verify_parity .............................   Passed    0.22 sec
+        Start  96: gdn_parity
+ 99/277 Test  #96: gdn_parity ................................   Passed    1.08 sec
+        Start  97: gdn_parity_split
+100/277 Test  #97: gdn_parity_split ..........................   Passed    0.74 sec
+        Start  98: s2_gemv_q8_parity
+101/277 Test  #98: s2_gemv_q8_parity .........................   Passed    0.10 sec
+        Start  99: sampler_parity
+102/277 Test  #95: gr_parity .................................   Passed    2.58 sec
+        Start 100: spec_verify_parity
+103/277 Test  #91: native_grouped_parity .....................   Passed    4.66 sec
+        Start 101: spec_proposal_parity
+104/277 Test  #99: sampler_parity ............................   Passed    1.01 sec
+        Start 102: sampler_parity_one_block
+105/277 Test #101: spec_proposal_parity ......................   Passed    0.11 sec
+        Start 103: sampler_parity_old
+106/277 Test #102: sampler_parity_one_block ..................   Passed    1.62 sec
+        Start 104: rope_parity
+107/277 Test #104: rope_parity ...............................   Passed    0.12 sec
+        Start 105: quantize_act_parity
+108/277 Test #105: quantize_act_parity .......................   Passed    0.15 sec
+        Start 106: route_window_parity
+109/277 Test #106: route_window_parity .......................   Passed    0.14 sec
+        Start 107: route_resident_parity
+110/277 Test #107: route_resident_parity .....................   Passed    0.25 sec
+        Start 109: native_multi_parity
+111/277 Test #109: native_multi_parity .......................   Passed    0.24 sec
+        Start 110: kv_steps_parity
+112/277 Test #110: kv_steps_parity ...........................   Passed    0.22 sec
+        Start 111: resident_plan_parity
+113/277 Test #111: resident_plan_parity ......................   Passed    0.13 sec
+        Start 112: gr_multi_parity
+114/277 Test #100: spec_verify_parity ........................   Passed    3.41 sec
+        Start 113: hc_persist_parity
+115/277 Test #112: gr_multi_parity ...........................   Passed    0.21 sec
+        Start 114: hc_persist_default_off
+116/277 Test #113: hc_persist_parity .........................   Passed    0.55 sec
+        Start 115: rdna_gr_parity
+117/277 Test #114: hc_persist_default_off ....................   Passed    0.54 sec
+        Start 116: rdna_gr_parity_rw1
+118/277 Test #115: rdna_gr_parity ............................   Passed    0.56 sec
+        Start 117: rdna_gr_parity_rw4
+119/277 Test #116: rdna_gr_parity_rw1 ........................   Passed    0.55 sec
+        Start 118: rdna_gr_parity_q8
+120/277 Test #117: rdna_gr_parity_rw4 ........................   Passed    0.56 sec
+        Start 119: rdna_gr_parity_a8
+121/277 Test #118: rdna_gr_parity_q8 .........................   Passed    0.52 sec
+        Start 120: rdna_gr_parity_a8_injup
+122/277 Test #119: rdna_gr_parity_a8 .........................   Passed    0.52 sec
+        Start 121: rdna_gr_parity_a8_fused
+123/277 Test #120: rdna_gr_parity_a8_injup ...................   Passed    0.52 sec
+        Start 122: rdna_mmvq_parity
+124/277 Test #122: rdna_mmvq_parity ..........................***Failed    0.38 sec
+Q4_K 2560x1000 cols 1: max relative difference 1.72e-07, finite, two runs bitwise equal  ok
+Q4_K 2560x1000 cols 17: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 18: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 19: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 20: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 21: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 22: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 23: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 24: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 25: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 26: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 27: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 28: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 29: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 30: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 31: the RDNA kernel declined  FAIL
+Q4_K 2560x1000 cols 32: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 1: max relative difference 1.3e-07, finite, two runs bitwise equal  ok
+Q5_K 2560x1000 cols 17: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 18: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 19: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 20: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 21: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 22: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 23: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 24: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 25: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 26: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 27: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 28: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 29: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 30: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 31: the RDNA kernel declined  FAIL
+Q5_K 2560x1000 cols 32: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 1: max relative difference 1.9e-07, finite, two runs bitwise equal  ok
+Q6_K 2560x1000 cols 17: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 18: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 19: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 20: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 21: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 22: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 23: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 24: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 25: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 26: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 27: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 28: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 29: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 30: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 31: the RDNA kernel declined  FAIL
+Q6_K 2560x1000 cols 32: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 1: max relative difference 1.37e-07, finite, two runs bitwise equal  ok
+IQ4_XS 2560x1000 cols 17: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 18: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 19: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 20: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 21: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 22: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 23: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 24: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 25: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 26: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 27: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 28: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 29: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 30: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 31: the RDNA kernel declined  FAIL
+IQ4_XS 2560x1000 cols 32: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 1: max relative difference 1.62e-07, finite, two runs bitwise equal  ok
+Q4_K 4096x257 cols 17: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 18: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 19: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 20: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 21: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 22: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 23: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 24: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 25: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 26: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 27: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 28: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 29: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 30: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 31: the RDNA kernel declined  FAIL
+Q4_K 4096x257 cols 32: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 1: max relative difference 1.53e-07, finite, two runs bitwise equal  ok
+Q5_K 4096x257 cols 17: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 18: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 19: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 20: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 21: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 22: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 23: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 24: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 25: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 26: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 27: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 28: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 29: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 30: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 31: the RDNA kernel declined  FAIL
+Q5_K 4096x257 cols 32: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 1: max relative difference 1.7e-07, finite, two runs bitwise equal  ok
+Q6_K 4096x257 cols 17: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 18: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 19: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 20: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 21: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 22: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 23: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 24: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 25: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 26: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 27: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 28: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 29: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 30: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 31: the RDNA kernel declined  FAIL
+Q6_K 4096x257 cols 32: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 1: max relative difference 1.48e-07, finite, two runs bitwise equal  ok
+IQ4_XS 4096x257 cols 17: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 18: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 19: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 20: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 21: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 22: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 23: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 24: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 25: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 26: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 27: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 28: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 29: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 30: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 31: the RDNA kernel declined  FAIL
+IQ4_XS 4096x257 cols 32: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 1: max relative difference 8.87e-08, finite, two runs bitwise equal  ok
+Q4_K 256x8 cols 17: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 18: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 19: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 20: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 21: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 22: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 23: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 24: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 25: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 26: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 27: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 28: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 29: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 30: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 31: the RDNA kernel declined  FAIL
+Q4_K 256x8 cols 32: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 1: max relative difference 4.45e-08, finite, two runs bitwise equal  ok
+Q5_K 256x8 cols 17: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 18: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 19: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 20: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 21: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 22: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 23: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 24: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 25: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 26: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 27: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 28: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 29: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 30: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 31: the RDNA kernel declined  FAIL
+Q5_K 256x8 cols 32: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 1: max relative difference 1.59e-07, finite, two runs bitwise equal  ok
+Q6_K 256x8 cols 17: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 18: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 19: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 20: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 21: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 22: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 23: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 24: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 25: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 26: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 27: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 28: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 29: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 30: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 31: the RDNA kernel declined  FAIL
+Q6_K 256x8 cols 32: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 1: max relative difference 1.45e-07, finite, two runs bitwise equal  ok
+IQ4_XS 256x8 cols 17: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 18: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 19: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 20: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 21: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 22: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 23: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 24: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 25: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 26: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 27: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 28: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 29: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 30: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 31: the RDNA kernel declined  FAIL
+IQ4_XS 256x8 cols 32: the RDNA kernel declined  FAIL
+FAIL: 192 of 384 rdna_mmvq cases within 1e-4 of native_mmvq
+
+        Start 123: s_gemv_parity
+125/277 Test #121: rdna_gr_parity_a8_fused ...................   Passed    0.56 sec
+        Start 124: elementwise_parity
+126/277 Test #123: s_gemv_parity .............................   Passed    0.10 sec
+        Start 126: s_gemv_q8k_parity
+127/277 Test #124: elementwise_parity ........................   Passed    0.13 sec
+128/277 Test #126: s_gemv_q8k_parity .........................   Passed    0.10 sec
+        Start 127: qsa_parity
+        Start 128: qsa_topk_parity
+129/277 Test #127: qsa_parity ................................   Passed    0.84 sec
+        Start 129: qsa_topk_parity_reg_always
+130/277 Test #103: sampler_parity_old ........................   Passed    6.64 sec
+        Start 130: ple_parity
+131/277 Test #130: ple_parity ................................***Failed    0.03 sec
+ple_parity: required PLE table is missing or incompatible: ../../Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf (cannot open ../../Q2_0/Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf)
+
+        Start 131: ple_iq4nl_dequant_test
+132/277 Test #128: qsa_topk_parity ...........................   Passed    0.89 sec
+        Start 132: kv_q8_parity
+133/277 Test #131: ple_iq4nl_dequant_test ....................   Passed    0.11 sec
+        Start 133: route_prior_test
+134/277 Test #132: kv_q8_parity ..............................   Passed    0.18 sec
+        Start 134: kv_stream_parity
+135/277 Test #133: route_prior_test ..........................   Passed    0.09 sec
+        Start 135: kv_window_parity
+136/277 Test #129: qsa_topk_parity_reg_always ................   Passed    0.90 sec
+        Start 136: kv_hybrid_parity
+137/277 Test #136: kv_hybrid_parity ..........................   Passed    0.34 sec
+        Start 137: kv_q4_parity
+138/277 Test #137: kv_q4_parity ..............................   Passed    0.14 sec
+        Start 138: verify_batch_parity
+139/277 Test #138: verify_batch_parity .......................   Passed    0.14 sec
+        Start 139: batch_rows_parity
+140/277 Test #139: batch_rows_parity .........................   Passed    2.35 sec
+        Start 140: cvec_parity
+141/277 Test #140: cvec_parity ...............................   Passed    0.21 sec
+        Start 141: s2_expert_grouped_parity
+142/277 Test #141: s2_expert_grouped_parity ..................   Passed    0.28 sec
+        Start 142: platform_memory_test
+143/277 Test #142: platform_memory_test ......................***Skipped   0.14 sec
+        Start 143: pin_budget_test
+144/277 Test #143: pin_budget_test ...........................   Passed    0.14 sec
+        Start 144: pinned_alias_test
+145/277 Test #144: pinned_alias_test .........................***Skipped   0.02 sec
+        Start 145: conversation_copy_streams_test
+146/277 Test #145: conversation_copy_streams_test ............   Passed    0.18 sec
+        Start 146: pinned_shared_test
+147/277 Test #146: pinned_shared_test ........................   Passed    0.04 sec
+        Start 147: ple_reader_selftest
+148/277 Test  #60: hip_pf_cover_test .........................   Passed   41.27 sec
+        Start 148: ple_reader_stress
+149/277 Test #135: kv_window_parity ..........................   Passed    9.60 sec
+        Start 149: ple_residency_test
+150/277 Test #149: ple_residency_test ........................   Passed    0.00 sec
+        Start 150: auto_cache_test
+151/277 Test #150: auto_cache_test ...........................   Passed    0.00 sec
+        Start 151: qwen35_sampling_test
+152/277 Test #151: qwen35_sampling_test ......................   Passed    0.00 sec
+        Start 152: hip_device_selftest
+153/277 Test #152: hip_device_selftest .......................   Passed    0.10 sec
+        Start 153: arch_defaults_test
+154/277 Test #153: arch_defaults_test ........................   Passed    0.00 sec
+        Start 154: pcie_share_rule_test
+155/277 Test #154: pcie_share_rule_test ......................   Passed    0.00 sec
+        Start 155: calibrate_ratio_test
+156/277 Test #155: calibrate_ratio_test ......................   Passed    0.00 sec
+        Start 156: amd_community_test
+157/277 Test #156: amd_community_test ........................   Passed    0.00 sec
+        Start 157: amd_community_test_dot_off
+158/277 Test #157: amd_community_test_dot_off ................   Passed    0.00 sec
+        Start 158: gfx12_extra_test
+159/277 Test #158: gfx12_extra_test ..........................   Passed    0.00 sec
+        Start 159: nv_defaults_test
+160/277 Test #159: nv_defaults_test ..........................   Passed    0.00 sec
+        Start 160: kva_test
+161/277 Test #160: kva_test ..................................   Passed    0.00 sec
+        Start 161: adapt_async_default_test
+162/277 Test #161: adapt_async_default_test ..................   Passed    0.00 sec
+        Start 162: epoch_bandit_test
+163/277 Test #162: epoch_bandit_test .........................   Passed    0.00 sec
+        Start 163: park_replay_sim_test
+164/277 Test #163: park_replay_sim_test ......................   Passed    1.91 sec
+        Start 164: uma_cache_test
+165/277 Test #164: uma_cache_test ............................   Passed    0.00 sec
+        Start 165: suffix_drafter_test
+166/277 Test #165: suffix_drafter_test .......................   Passed    0.13 sec
+        Start 166: suffix_index_test
+167/277 Test #166: suffix_index_test .........................   Passed    0.24 sec
+        Start 167: controller_test
+168/277 Test #167: controller_test ...........................   Passed    0.00 sec
+        Start 168: draft_policy_test
+169/277 Test #168: draft_policy_test .........................   Passed    0.00 sec
+        Start 169: disco_test
+170/277 Test #169: disco_test ................................   Passed    0.02 sec
+        Start 170: row_miss_test
+171/277 Test #170: row_miss_test .............................   Passed    0.00 sec
+        Start 171: window_rule_test
+172/277 Test #171: window_rule_test ..........................   Passed    0.00 sec
+        Start 172: draft_vocab_test
+173/277 Test #172: draft_vocab_test ..........................   Passed    0.00 sec
+        Start 173: spec_start_test
+174/277 Test #173: spec_start_test ...........................   Passed    0.00 sec
+        Start 174: message_boundary_test
+175/277 Test #174: message_boundary_test .....................   Passed    0.00 sec
+        Start 175: split_ring_test
+176/277 Test #175: split_ring_test ...........................   Passed    0.00 sec
+        Start 176: conv_cache_test
+177/277 Test #176: conv_cache_test ...........................   Passed    0.00 sec
+        Start 177: adapt_decay_test
+178/277 Test #177: adapt_decay_test ..........................   Passed    0.00 sec
+        Start 178: window_limits_test
+179/277 Test #178: window_limits_test ........................   Passed    0.00 sec
+        Start 179: serve_stop_bound_test
+180/277 Test #179: serve_stop_bound_test .....................   Passed    0.00 sec
+        Start 180: lookup_default_test
+181/277 Test #180: lookup_default_test .......................   Passed    0.00 sec
+        Start 181: window_evict_test
+182/277 Test #181: window_evict_test .........................   Passed    0.00 sec
+        Start 182: draft_kv_plan_test
+183/277 Test #182: draft_kv_plan_test ........................   Passed    0.00 sec
+        Start 183: coupled_draft_test
+184/277 Test #183: coupled_draft_test ........................   Passed    0.00 sec
+        Start 184: penalty_window_test
+185/277 Test #184: penalty_window_test .......................   Passed    0.00 sec
+        Start 185: slot_history_test
+186/277 Test #185: slot_history_test .........................   Passed    0.00 sec
+        Start 186: spec_prob_test
+187/277 Test #134: kv_stream_parity ..........................   Passed   15.83 sec
+        Start 187: gated_proposal_test
+188/277 Test #187: gated_proposal_test .......................   Passed    0.00 sec
+        Start 188: spec_admission_default
+189/277 Test #188: spec_admission_default ....................   Passed    0.01 sec
+        Start 189: spec_admission_pick
+190/277 Test #189: spec_admission_pick .......................   Passed    0.01 sec
+        Start 190: spec_admission_top
+191/277 Test #190: spec_admission_top ........................   Passed    0.01 sec
+        Start 191: spec_admission_exact_top_only
+192/277 Test #191: spec_admission_exact_top_only .............   Passed    0.01 sec
+        Start 192: draft_cap_test
+193/277 Test #192: draft_cap_test ............................   Passed    0.00 sec
+        Start 194: kv_ring_test
+194/277 Test #194: kv_ring_test ..............................   Passed    0.00 sec
+        Start 196: bfla_cpu_test
+195/277 Test #186: spec_prob_test ............................   Passed    4.49 sec
+        Start 197: batch_rows_test
+196/277 Test #197: batch_rows_test ...........................   Passed    0.00 sec
+        Start 198: batch_groups_test
+197/277 Test #198: batch_groups_test .........................   Passed    0.00 sec
+        Start 199: dequant_q5_1_test
+198/277 Test #199: dequant_q5_1_test .........................   Passed    0.00 sec
+        Start 200: native_arithmetic_parity
+199/277 Test #200: native_arithmetic_parity ..................   Passed    0.21 sec
+        Start 201: native_arithmetic_parity_avx
+200/277 Test #196: bfla_cpu_test .............................   Passed    1.21 sec
+        Start 202: native_arithmetic_parity_kq256
+201/277 Test #202: native_arithmetic_parity_kq256 ............   Passed    0.22 sec
+        Start 203: native_arithmetic_parity_mt1
+202/277 Test #203: native_arithmetic_parity_mt1 ..............   Passed    0.20 sec
+        Start 204: native_arithmetic_parity_no512
+203/277 Test #204: native_arithmetic_parity_no512 ............   Passed    0.22 sec
+        Start 205: native_arithmetic_parity_ggml
+204/277 Test #201: native_arithmetic_parity_avx ..............   Passed    0.97 sec
+        Start 206: native_arithmetic_parity_nvfp4_avx2
+205/277 Test #205: native_arithmetic_parity_ggml .............   Passed    0.22 sec
+        Start 207: native_arithmetic_parity_nvfp4_ggml
+206/277 Test #206: native_arithmetic_parity_nvfp4_avx2 .......   Passed    0.19 sec
+        Start 208: pool_tasks_test
+207/277 Test #207: native_arithmetic_parity_nvfp4_ggml .......   Passed    0.18 sec
+        Start 211: iq512_gather_parity_scalar
+208/277 Test #211: iq512_gather_parity_scalar ................   Passed    0.01 sec
+        Start 212: iq512_gather_parity_gather
+209/277 Test #212: iq512_gather_parity_gather ................   Passed    0.01 sec
+        Start 213: iq_avx2_parity
+210/277 Test #213: iq_avx2_parity ............................   Passed    0.16 sec
+        Start 214: iq_avx2_parity_iq3s_mt1
+211/277 Test #147: ple_reader_selftest .......................   Passed   13.77 sec
+        Start 215: iq_avx1_parity
+212/277 Test #214: iq_avx2_parity_iq3s_mt1 ...................   Passed    0.16 sec
+        Start 216: q8k_quant_parity
+213/277 Test #216: q8k_quant_parity ..........................   Passed    0.01 sec
+        Start 217: q8k_quant_parity_avx
+214/277 Test #217: q8k_quant_parity_avx ......................   Passed    0.01 sec
+        Start 218: ggml_tq_overlay
+215/277 Test #215: iq_avx1_parity ............................   Passed    0.12 sec
+        Start 219: hip_prefill_fused_moe
+216/277 Test #218: ggml_tq_overlay ...........................   Passed    0.10 sec
+        Start 220: hip_prefill_fused_iq
+217/277 Test #219: hip_prefill_fused_moe .....................   Passed    5.21 sec
+        Start 221: hip_prefill_fused_iq_f16
+218/277 Test #208: pool_tasks_test ...........................   Passed   23.03 sec
+        Start 222: hip_prefill_mmq_parity
+219/277 Test #148: ple_reader_stress .........................   Passed   52.93 sec
+        Start 223: nvfp4_cpu_parity
+220/277 Test #223: nvfp4_cpu_parity ..........................   Passed    0.29 sec
+        Start 224: native_expert_parity_new_iq1_m_q2_0
+221/277 Test #224: native_expert_parity_new_iq1_m_q2_0 .......   Passed   20.93 sec
+        Start 225: native_expert_parity_new_iq1_m_iq4_nl
+222/277 Test #222: hip_prefill_mmq_parity ....................   Passed   42.13 sec
+        Start 226: native_expert_parity_new_iq1_m_q5_0
+223/277 Test #226: native_expert_parity_new_iq1_m_q5_0 .......   Passed    9.91 sec
+        Start 227: native_expert_parity_new_iq1_m_q8_0
+224/277 Test #225: native_expert_parity_new_iq1_m_iq4_nl .....   Passed   10.19 sec
+        Start 228: native_expert_parity_new_iq2_xxs_q2_0
+225/277 Test #228: native_expert_parity_new_iq2_xxs_q2_0 .....   Passed    2.11 sec
+        Start 229: native_expert_parity_new_iq2_xxs_iq4_nl
+226/277 Test #229: native_expert_parity_new_iq2_xxs_iq4_nl ...   Passed    2.42 sec
+        Start 230: native_expert_parity_new_iq2_xxs_q5_0
+227/277 Test #230: native_expert_parity_new_iq2_xxs_q5_0 .....   Passed    2.12 sec
+        Start 231: native_expert_parity_new_iq2_xxs_q8_0
+228/277 Test #231: native_expert_parity_new_iq2_xxs_q8_0 .....   Passed    2.13 sec
+        Start 232: native_expert_parity_new_iq2_xs_q2_0
+229/277 Test #227: native_expert_parity_new_iq1_m_q8_0 .......   Passed    9.96 sec
+        Start 233: native_expert_parity_new_iq2_xs_iq4_nl
+230/277 Test #232: native_expert_parity_new_iq2_xs_q2_0 ......   Passed    4.08 sec
+        Start 234: native_expert_parity_new_iq2_xs_q5_0
+231/277 Test #233: native_expert_parity_new_iq2_xs_iq4_nl ....   Passed    4.38 sec
+        Start 235: native_expert_parity_new_iq2_xs_q8_0
+232/277 Test #234: native_expert_parity_new_iq2_xs_q5_0 ......   Passed    4.05 sec
+        Start 236: native_expert_parity_new_iq2_s_q2_0
+233/277 Test #235: native_expert_parity_new_iq2_xs_q8_0 ......   Passed    4.08 sec
+        Start 237: native_expert_parity_new_iq2_s_iq4_nl
+234/277 Test #236: native_expert_parity_new_iq2_s_q2_0 .......   Passed    4.48 sec
+        Start 238: native_expert_parity_new_iq2_s_q5_0
+235/277 Test #237: native_expert_parity_new_iq2_s_iq4_nl .....   Passed    4.85 sec
+        Start 239: native_expert_parity_new_iq2_s_q8_0
+236/277 Test #238: native_expert_parity_new_iq2_s_q5_0 .......   Passed    4.49 sec
+        Start 240: native_expert_parity_new_q2_0_q2_0
+237/277 Test #240: native_expert_parity_new_q2_0_q2_0 ........   Passed    0.32 sec
+        Start 241: native_expert_parity_new_q2_0_iq4_nl
+238/277 Test #241: native_expert_parity_new_q2_0_iq4_nl ......   Passed    0.62 sec
+        Start 242: native_expert_parity_new_q2_0_q5_0
+239/277 Test #242: native_expert_parity_new_q2_0_q5_0 ........   Passed    0.31 sec
+        Start 243: native_expert_parity_new_q2_0_q8_0
+240/277 Test #243: native_expert_parity_new_q2_0_q8_0 ........   Passed    0.32 sec
+        Start 244: native_expert_parity_new_iq3_xxs_q2_0
+241/277 Test #239: native_expert_parity_new_iq2_s_q8_0 .......   Passed    4.57 sec
+        Start 245: native_expert_parity_new_iq3_xxs_iq4_nl
+242/277 Test #244: native_expert_parity_new_iq3_xxs_q2_0 .....   Passed    1.52 sec
+        Start 246: native_expert_parity_new_iq3_xxs_q5_0
+243/277 Test #245: native_expert_parity_new_iq3_xxs_iq4_nl ...   Passed    1.87 sec
+        Start 247: native_expert_parity_new_iq3_xxs_q8_0
+244/277 Test #246: native_expert_parity_new_iq3_xxs_q5_0 .....   Passed    1.53 sec
+        Start 248: native_expert_parity_new_iq4_xs_q2_0
+245/277 Test #247: native_expert_parity_new_iq3_xxs_q8_0 .....   Passed    1.53 sec
+        Start 249: native_expert_parity_new_iq4_xs_iq4_nl
+246/277 Test #248: native_expert_parity_new_iq4_xs_q2_0 ......   Passed    0.94 sec
+        Start 250: native_expert_parity_new_iq4_xs_q5_0
+247/277 Test #249: native_expert_parity_new_iq4_xs_iq4_nl ....   Passed    1.27 sec
+        Start 251: native_expert_parity_new_iq4_xs_q8_0
+248/277 Test #250: native_expert_parity_new_iq4_xs_q5_0 ......   Passed    0.94 sec
+        Start 252: native_dense_types_parity
+249/277 Test #251: native_expert_parity_new_iq4_xs_q8_0 ......   Passed    0.95 sec
+        Start 253: pool_affinity_test
+250/277 Test #253: pool_affinity_test ........................   Passed    0.00 sec
+        Start 254: expert_multi_test
+251/277 Test #254: expert_multi_test .........................***Skipped   0.00 sec
+        Start 255: q2_bitplane_parity
+252/277 Test #255: q2_bitplane_parity ........................   Passed    0.00 sec
+        Start 256: q2_fast_parity_test
+253/277 Test #256: q2_fast_parity_test .......................   Passed    0.15 sec
+        Start 257: iq_sign_fast_test
+254/277 Test #257: iq_sign_fast_test .........................   Passed    0.08 sec
+        Start 258: native_hadamard_test
+255/277 Test #258: native_hadamard_test ......................***Skipped   0.00 sec
+        Start 259: shadow_pack_test
+256/277 Test #252: native_dense_types_parity .................   Passed    2.90 sec
+        Start 260: tq_cpu_parity
+257/277 Test #260: tq_cpu_parity .............................***Skipped   0.00 sec
+        Start 261: tq_cpu_parity_avx2
+258/277 Test #261: tq_cpu_parity_avx2 ........................***Skipped   0.01 sec
+        Start 262: tqp_cpu_test
+259/277 Test #262: tqp_cpu_test ..............................   Passed    0.02 sec
+        Start 263: tqp_cpu_test_avx2
+260/277 Test #263: tqp_cpu_test_avx2 .........................   Passed    0.03 sec
+        Start 264: expert_parity
+261/277 Test #264: expert_parity .............................***Skipped   0.00 sec
+        Start 265: pool_test
+262/277 Test #265: pool_test .................................***Skipped   0.00 sec
+        Start 266: pool_cores_test
+263/277 Test #266: pool_cores_test ...........................   Passed    0.04 sec
+        Start 267: pool_plan_test
+264/277 Test #267: pool_plan_test ............................   Passed    0.01 sec
+        Start 268: numa_pool_test
+265/277 Test #268: numa_pool_test ............................   Passed    0.00 sec
+        Start 269: warm_policy_test
+266/277 Test #269: warm_policy_test ..........................   Passed    0.00 sec
+        Start 270: copy_events_test
+267/277 Test #270: copy_events_test ..........................   Passed    0.04 sec
+        Start 271: pool_stress
+268/277 Test #271: pool_stress ...............................   Passed    0.00 sec
+        Start 272: isa_guard_check
+269/277 Test #272: isa_guard_check ...........................   Passed    1.76 sec
+        Start 273: direct_file_async_test
+270/277 Test #273: direct_file_async_test ....................   Passed    0.00 sec
+        Start 274: aux_cpus_test
+271/277 Test #274: aux_cpus_test .............................   Passed    0.01 sec
+        Start 275: poly_workers_test
+272/277 Test #220: hip_prefill_fused_iq ......................   Passed  112.03 sec
+        Start 276: poly_cpu_kernels_test
+273/277 Test #275: poly_workers_test .........................   Passed    0.10 sec
+        Start 277: poly_mxfp4_test
+274/277 Test #277: poly_mxfp4_test ...........................   Passed    0.01 sec
+275/277 Test #221: hip_prefill_fused_iq_f16 ..................   Passed  110.56 sec
+276/277 Test #276: poly_cpu_kernels_test .....................   Passed    4.51 sec
+277/277 Test #259: shadow_pack_test ..........................   Passed   26.85 sec
+
+99% tests passed, 2 tests failed out of 277
+
+Label Time Summary:
+cpu      = 143.12 sec*proc (146 tests)
+gpu      = 576.02 sec*proc (130 tests)
+model    =   0.03 sec*proc (1 test)
+
+Total Test time (real) = 195.02 sec
+
+The following tests did not run:
+	 36 - io_priority_test (Skipped)
+	 51 - expert_cache_segmented_test (Skipped)
+	 75 - hip_prefill_hcd_exact_parity (Skipped)
+	 79 - hip_prefill_hipblaslt_gemm (Skipped)
+	 80 - hip_prefill_rocblas_gemm (Skipped)
+	142 - platform_memory_test (Skipped)
+	144 - pinned_alias_test (Skipped)
+	254 - expert_multi_test (Skipped)
+	258 - native_hadamard_test (Skipped)
+	260 - tq_cpu_parity (Skipped)
+	261 - tq_cpu_parity_avx2 (Skipped)
+	264 - expert_parity (Skipped)
+	265 - pool_test (Skipped)
+
+The following tests FAILED:
+	122 - rdna_mmvq_parity (Failed)                         gpu
+	130 - ple_parity (Failed)                               model
+Errors while running CTest
+CTEST_DONE

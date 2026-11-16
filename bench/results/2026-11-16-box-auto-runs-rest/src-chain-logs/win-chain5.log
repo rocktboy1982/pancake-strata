@@ -1,0 +1,62 @@
+START 2026-11-16_09:22:08
+WAIT busy 09:22:08
+WAIT busy 09:23:08
+WAIT busy 09:24:08
+RESTART idle wait before every step 09:24:37
+START 2026-11-16_09:24:37
+WAIT busy 09:24:37
+WAIT busy 09:25:37
+WAIT busy 09:26:37
+WAIT busy 09:27:37
+WAIT busy 09:28:37
+WAIT busy 09:29:37
+WAIT busy 09:30:37
+WAIT busy 09:31:37
+WAIT busy 09:32:37
+WAIT busy 09:33:37
+WAIT busy 09:34:37
+WAIT busy 09:35:37
+WAIT busy 09:36:37
+WAIT busy 09:37:37
+WAIT busy 09:38:37
+WAIT busy 09:39:37
+WAIT busy 09:40:37
+WAIT busy 09:41:37
+WAIT busy 09:42:37
+WAIT busy 09:43:37
+WAIT busy 09:44:37
+WAIT busy 09:45:37
+WAIT busy 09:46:37
+WAIT busy 09:47:37
+WAIT busy 09:48:37
+WAIT busy 09:49:37
+WAIT busy 09:50:37
+WAIT busy 09:51:37
+WAIT busy 09:52:37
+BUILD build-win 09:56:37
+BUILD_END build-win exit=1 09:59:55
+/home/dan/clone-of-d/src/Strata-win/src/prefill/prefill.cpp:3703:38: error: missing terminating " character
+/home/dan/clone-of-d/src/Strata-win/src/prefill/prefill.cpp:3704:1: error: missing terminating " character
+/home/dan/clone-of-d/src/Strata-win/src/prefill/prefill.cpp:3713:38: error: missing terminating " character
+/home/dan/clone-of-d/src/Strata-win/src/prefill/prefill.cpp:3714:1: error: missing terminating " character
+/home/dan/clone-of-d/src/Strata-win/src/prefill/prefill.cpp:3721:34: error: missing terminating " character
+RERUN after Strata-win prefill.cpp literal fix (3 lines, same as T-598) 10:00:41
+START 2026-11-16_10:00:41
+BUILD build-win 10:03:41
+BUILD_END build-win exit=1 10:06:17
+/home/dan/clone-of-d/src/Strata-win/src/poly/engine.cpp:16:10: fatal error: cuda.h: No such file or directory
+RERUN as win-chain5b.sh (targets strata strata_tests only) 10:06:48
+START 2026-11-16_10:06:48
+WAIT busy 10:06:48
+BUILD build-win 10:10:49
+BUILD_END build-win exit=0 10:10:50
+BUILD build-win-il 10:13:50
+BUILD_END build-win-il exit=1 10:19:25
+ld.lld: error: undefined symbol: strata::spec::SuffixDrafter::propose_after_const(int const*, int, int, int*, int*) const
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+BUILD build-win-j32 10:22:25
+BUILD_END build-win-j32 exit=0 10:25:48
+CTEST cpu exit=0 	310 - expert_parity (Skipped)
+CTEST gpu exit=8 Errors while running CTest
+START 81-new-exact-switches 2026-11-16_10:44:59
+STOPPED by Windows session 10:49:19: stale objects (tar kept Windows mtimes); chain6 rebuilds with fresh mtimes

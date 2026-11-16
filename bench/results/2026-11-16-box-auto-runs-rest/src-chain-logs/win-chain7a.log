@@ -1,0 +1,17 @@
+START 2026-11-16_18:00:19
+chain 6 done 21:40:19
+service stopped (idle) 21:43:22
+BUILD build-win strata-poly 21:46:22
+BUILD_END strata-poly exit=0 21:49:35
+START equal-tail-off 2026-11-16_21:52:36
+END equal-tail-off exit=0 22:01:15
+START equal-tail-on 2026-11-16_22:04:45
+END equal-tail-on exit=0 22:14:15
+START 30-phase18-merge 2026-11-16_22:17:45
+END 30-phase18-merge exit=0 22:22:02
+START 33-gfx1100-mtp-bundle 2026-11-16_22:25:02
+END 33-gfx1100-mtp-bundle exit=0 22:32:47
+START 34-rdna3-env-resonance 2026-11-16_22:35:47
+END 34-rdna3-env-resonance exit=0 22:40:01
+service started 22:40:01
+WINCHAIN7A_DONE

@@ -1,0 +1,1196 @@
+[0/2] Re-checking globbed directories...
+[1/97] Building CXX object CMakeFiles/strata_engine.dir/src/core/mtp.cpp.o
+FAILED: [code=1] CMakeFiles/strata_engine.dir/src/core/mtp.cpp.o 
+/usr/bin/c++ -DSTRATA_HAVE_DFLASH2=1 -DSTRATA_HIP_ARCHS=\"gfx1100\" -DSTRATA_NATIVE_EXPERTS=1 -DSTRATA_Q6K_EXPERTS=1 -DSTRATA_USE_HIP=1 -DSTRATA_VERIFY_MAX_T=16 -DSTRATA_VERSION=\"0.1.58\" -DSTRATA_WMMA_GFX11=1 -DUSE_PROF_API=1 -D__HIP_PLATFORM_AMD__=1 -I/home/dan/clone-of-d/src/Strata/include -I/home/dan/clone-of-d/src/Strata/include/strata/hip_compat -I/home/dan/clone-of-d/src/Strata/build-hip/_deps/strata_llamacpp-src/ggml/src/../include -isystem /opt/rocm/core-10.0/include -O3 -DNDEBUG -std=c++20 -fPIC -Wall -Wextra -include /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h -MD -MT CMakeFiles/strata_engine.dir/src/core/mtp.cpp.o -MF CMakeFiles/strata_engine.dir/src/core/mtp.cpp.o.d -o CMakeFiles/strata_engine.dir/src/core/mtp.cpp.o -c /home/dan/clone-of-d/src/Strata/src/core/mtp.cpp
+In file included from /home/dan/clone-of-d/src/Strata/include/strata/core/mtp.hpp:23,
+                 from /home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2:
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp: In member function ‘void* strata::core::PinnedRing::acquire(size_t)’:
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:51:67: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   51 |         if (cudaGetDevice(&cur) != cudaSuccess) { cudaGetLastError(); return nullptr; }
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:58:79: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   58 |             if (cudaEventSynchronize(sl.ev) != cudaSuccess) { cudaGetLastError(); return nullptr; }
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:61:37: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   61 |             if (sl.p) { cudaFreeHost(sl.p); sl.p = nullptr; sl.cap = 0; }   // idle: its last copy was waited for above
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:64:33: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   64 |                 cudaGetLastError();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:71:29: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   71 |             cudaGetLastError();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp: In member function ‘hipError_t strata::core::PinnedRing::submit(void*, const void*, size_t, hipStream_t)’:
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:91:25: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   91 |         cudaGetLastError();                // no event: the copy is waited for here instead
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp: In member function ‘bool strata::core::PinnedRing::reserve(size_t)’:
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:123:67: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  123 |         if (cudaGetDevice(&cur) != cudaSuccess) { cudaGetLastError(); return false; }
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:130:83: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  130 |                 if (cudaEventSynchronize(sl.ev) != cudaSuccess) { cudaGetLastError(); return false; }
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:133:41: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  133 |                 if (sl.p) { cudaFreeHost(sl.p); sl.p = nullptr; sl.cap = 0; }
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:136:37: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  136 |                     cudaGetLastError();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:143:33: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  143 |                 cudaGetLastError();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp: In member function ‘void strata::core::PinnedRing::release()’:
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:153:58: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  153 |             if (sl.pending && sl.ev) cudaEventSynchronize(sl.ev);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3676:12: note: in call to ‘hipError_t hipEventSynchronize(hipEvent_t)’, declared here
+ 3676 | hipError_t hipEventSynchronize(hipEvent_t event);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:154:40: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  154 |             if (sl.ev) cudaEventDestroy(sl.ev);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3657:12: note: in call to ‘hipError_t hipEventDestroy(hipEvent_t)’, declared here
+ 3657 | hipError_t hipEventDestroy(hipEvent_t event);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:155:35: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  155 |             if (sl.p) cudaFreeHost(sl.p);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/core/pinned_ring.hpp:158:25: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  158 |         cudaGetLastError();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+In file included from /home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:7:
+/home/dan/clone-of-d/src/Strata/include/strata/core/on_device.hpp: In destructor ‘strata::core::OnDevice::~OnDevice()’:
+/home/dan/clone-of-d/src/Strata/include/strata/core/on_device.hpp:17:51: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   17 |     ~OnDevice() { if (previous >= 0) cudaSetDevice(previous); }
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2405:12: note: in call to ‘hipError_t hipSetDevice(int)’, declared here
+ 2405 | hipError_t hipSetDevice(int deviceId);
+      |            ^~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In destructor ‘strata::core::MtpDrafter::~MtpDrafter()’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:187:35: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  187 |     if (cs_) cudaStreamSynchronize(cs_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3124:12: note: in call to ‘hipError_t hipStreamSynchronize(hipStream_t)’, declared here
+ 3124 | hipError_t hipStreamSynchronize(hipStream_t stream);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:188:62: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  188 |     for (auto& e : prefill_exec_) if (e) cudaGraphExecDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:9008:12: note: in call to ‘hipError_t hipGraphExecDestroy(hipGraphExec_t)’, declared here
+ 9008 | hipError_t hipGraphExecDestroy(hipGraphExec_t graphExec);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:189:66: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  189 |     for (auto& e : prefill_dev_exec_) if (e) cudaGraphExecDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:9008:12: note: in call to ‘hipError_t hipGraphExecDestroy(hipGraphExec_t)’, declared here
+ 9008 | hipError_t hipGraphExecDestroy(hipGraphExec_t graphExec);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:190:26: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  190 |     if (pf_dev_) cudaFree(pf_dev_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:191:26: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  191 |     if (dense4_) cudaFree(dense4_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:192:24: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  192 |     if (hcq8_) cudaFree(hcq8_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:193:60: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  193 |     for (auto& e : round_exec_) if (e) cudaGraphExecDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:9008:12: note: in call to ‘hipError_t hipGraphExecDestroy(hipGraphExec_t)’, declared here
+ 9008 | hipError_t hipGraphExecDestroy(hipGraphExec_t graphExec);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:194:59: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  194 |     for (auto& e : step_exec_) if (e) cudaGraphExecDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:9008:12: note: in call to ‘hipError_t hipGraphExecDestroy(hipGraphExec_t)’, declared here
+ 9008 | hipError_t hipGraphExecDestroy(hipGraphExec_t graphExec);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:195:62: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  195 |     for (auto& e : round_exec_c_) if (e) cudaGraphExecDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:9008:12: note: in call to ‘hipError_t hipGraphExecDestroy(hipGraphExec_t)’, declared here
+ 9008 | hipError_t hipGraphExecDestroy(hipGraphExec_t graphExec);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:196:61: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  196 |     for (auto& e : step_exec_c_) if (e) cudaGraphExecDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:9008:12: note: in call to ‘hipError_t hipGraphExecDestroy(hipGraphExec_t)’, declared here
+ 9008 | hipError_t hipGraphExecDestroy(hipGraphExec_t graphExec);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:197:69: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  197 |     for (auto& kv : chain_exec_) if (kv.second) cudaGraphExecDestroy(kv.second);   // STRATA_MTP_ONE_GRAPH
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:9008:12: note: in call to ‘hipError_t hipGraphExecDestroy(hipGraphExec_t)’, declared here
+ 9008 | hipError_t hipGraphExecDestroy(hipGraphExec_t graphExec);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:198:27: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  198 |     if (cparams_) cudaFree(cparams_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:199:25: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  199 |     if (cring_) cudaFree(cring_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:200:24: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  200 |     if (dinv_) cudaFree(dinv_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:201:28: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  201 |     if (cscratch_) cudaFree(cscratch_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:202:33: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  202 |     if (h_cparams_) cudaFreeHost(h_cparams_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:203:31: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  203 |     if (h_chist_) cudaFreeHost(h_chist_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:204:27: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  204 |     if (h_q_) cudaFreeHost(h_q_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:205:31: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  205 |     if (cs_) cudaStreamDestroy(cs_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3086:12: note: in call to ‘hipError_t hipStreamDestroy(hipStream_t)’, declared here
+ 3086 | hipError_t hipStreamDestroy(hipStream_t stream);
+      |            ^~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:206:33: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  206 |     if (side_) cudaStreamDestroy(side_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3086:12: note: in call to ‘hipError_t hipStreamDestroy(hipStream_t)’, declared here
+ 3086 | hipError_t hipStreamDestroy(hipStream_t stream);
+      |            ^~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:207:35: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  207 |     if (sh_fork_) cudaEventDestroy(sh_fork_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3657:12: note: in call to ‘hipError_t hipEventDestroy(hipEvent_t)’, declared here
+ 3657 | hipError_t hipEventDestroy(hipEvent_t event);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:208:35: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  208 |     if (sh_join_) cudaEventDestroy(sh_join_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3657:12: note: in call to ‘hipError_t hipEventDestroy(hipEvent_t)’, declared here
+ 3657 | hipError_t hipEventDestroy(hipEvent_t event);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:212:17: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  212 |         cudaFree(dense_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:214:44: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  214 |     if (owns_weights_ && experts_) cudaFree(experts_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:215:36: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  215 |     if (experts_host_) cudaFreeHost(experts_host_);   // the prompt room's host snapshot (the device copy never left)
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:216:31: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  216 |     if (state_arena_) cudaFree(state_arena_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:217:25: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  217 |     if (arena_) cudaFree(arena_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:218:31: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  218 |     if (head_logits_) cudaFree(head_logits_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:222:17: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  222 |         cudaFree(dhead_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:224:46: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  224 |     if (owns_draft_head_ && dvocab_) cudaFree(dvocab_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:225:25: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  225 |     if (proxy_) cudaFree(proxy_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:226:33: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  226 |     if (proxy_scratch_) cudaFree(proxy_scratch_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:227:36: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  227 |     if (ev_chain_) cudaEventDestroy(ev_chain_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3657:12: note: in call to ‘hipError_t hipEventDestroy(hipEvent_t)’, declared here
+ 3657 | hipError_t hipEventDestroy(hipEvent_t event);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:228:59: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  228 |     for (cudaEvent_t e : ev_step_) if (e) cudaEventDestroy(e);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3657:12: note: in call to ‘hipError_t hipEventDestroy(hipEvent_t)’, declared here
+ 3657 | hipError_t hipEventDestroy(hipEvent_t event);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:230:46: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  230 |     for (void* h : hosts) if (h) cudaFreeHost(h);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4959:12: note: in call to ‘hipError_t hipFreeHost(void*)’, declared here
+ 4959 | hipError_t hipFreeHost(void* ptr);
+      |            ^~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::make_hcq8(std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:269:25: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  269 |         cudaGetLastError();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::make_q4_dense(const std::vector<unsigned char>&, std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:319:15: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  319 |     cudaMemcpy(dense4_, host.data(), (size_t) total, cudaMemcpyHostToDevice);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::load(const std::string&, const strata::core::ModelGeometry&, strata::core::SessionState&, int, std::string&, int64_t, const strata::core::MtpDrafter*)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:373:18: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  373 |     cudaGetDevice(&device_);   // a layer split's last stage on another GPU: the drafter lives there
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2432:12: note: in call to ‘hipError_t hipGetDevice(int*)’, declared here
+ 2432 | hipError_t hipGetDevice(int* deviceId);
+      |            ^~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:420:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  420 |         cudaMemcpy(dense_, blob.data(), blob.size(), cudaMemcpyHostToDevice);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:445:23: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  445 |             cudaMemcpy(experts_ + off, chunk.data(), n, cudaMemcpyHostToDevice);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:493:25: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  493 |         cudaGetLastError();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2909:12: note: in call to ‘hipError_t hipGetLastError()’, declared here
+ 2909 | hipError_t hipGetLastError(void);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:494:17: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  494 |         cudaFree(state_arena_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:504:26: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  504 |     cudaDeviceSynchronize();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2361:12: note: in call to ‘hipError_t hipDeviceSynchronize()’, declared here
+ 2361 | hipError_t hipDeviceSynchronize(void);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:587:15: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  587 |     cudaMemset(arena_, 0, count.used);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5418:12: note: in call to ‘hipError_t hipMemset(void*, int, size_t)’, declared here
+ 5418 | hipError_t hipMemset(void* dst, int value, size_t sizeBytes);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:592:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  592 |         cudaMemset(ents_, 0xFF, (size_t) (T + 4) * sizeof(float));
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5418:12: note: in call to ‘hipError_t hipMemset(void*, int, size_t)’, declared here
+ 5418 | hipError_t hipMemset(void* dst, int value, size_t sizeBytes);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:593:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  593 |         cudaMemset(top2s_, 0xFF, (size_t) (T + 4) * sizeof(float));
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5418:12: note: in call to ‘hipError_t hipMemset(void*, int, size_t)’, declared here
+ 5418 | hipError_t hipMemset(void* dst, int value, size_t sizeBytes);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:600:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  600 |         cudaMemcpy(ident_, id.data(), id.size() * 4, cudaMemcpyHostToDevice);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::setup_coupled(std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:806:15: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  806 |     cudaMemset(cring_, 0xff, ring);   // -1: no token
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5418:12: note: in call to ‘hipError_t hipMemset(void*, int, size_t)’, declared here
+ 5418 | hipError_t hipMemset(void* dst, int value, size_t sizeBytes);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:811:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  811 |         cudaMemcpy(sub.data(), dvocab_, sub.size() * sizeof(int32_t), cudaMemcpyDeviceToHost);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:818:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  818 |         cudaMemcpy(dinv_, inv.data(), inv.size() * sizeof(int32_t), cudaMemcpyHostToDevice);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::bind(const strata::core::WeightTable&, const strata::core::NativeHead*, const float*, std::string&, const strata::core::MtpDrafter*)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:933:23: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  933 |             cudaMemcpy(dvocab_, raw.data(), raw.size(), cudaMemcpyHostToDevice);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:957:38: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  957 |                     if (tmp) cudaFree(tmp);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:958:37: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  958 |                     if (dv) cudaFree(dv);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:964:34: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  964 |             cudaDeviceSynchronize();
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2361:12: note: in call to ‘hipError_t hipDeviceSynchronize()’, declared here
+ 2361 | hipError_t hipDeviceSynchronize(void);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘void strata::core::{anonymous}::MtpProf::init()’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1048:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1048 |         cudaMemset(d, 0, (size_t) kMpSlots * kMpGraphs * 8);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5418:12: note: in call to ‘hipError_t hipMemset(void*, int, size_t)’, declared here
+ 5418 | hipError_t hipMemset(void* dst, int value, size_t sizeBytes);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘void strata::core::{anonymous}::MtpProf::collect(int)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1056:19: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1056 |         cudaMemcpy(h.data(), d, h.size() * 8, cudaMemcpyDeviceToHost);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:5006:12: note: in call to ‘hipError_t hipMemcpy(void*, const void*, size_t, hipMemcpyKind)’, declared here
+ 5006 | hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind kind);
+      |            ^~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘void strata::core::{anonymous}::mtp_list_nodes(hipGraph_t, const char*)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1109:18: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1109 |     MTP_GET_NODES(graph, nullptr, &nn);
+      |                  ^
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:8796:12: note: in call to ‘hipError_t hipGraphGetNodes(hipGraph_t, hipGraphNode**, size_t*)’, declared here
+ 8796 | hipError_t hipGraphGetNodes(hipGraph_t graph, hipGraphNode_t* nodes, size_t* numNodes);
+      |            ^~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1111:18: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1111 |     MTP_GET_NODES(graph, nodes.data(), &nn);
+      |                  ^
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:8796:12: note: in call to ‘hipError_t hipGraphGetNodes(hipGraph_t, hipGraphNode**, size_t*)’, declared here
+ 8796 | hipError_t hipGraphGetNodes(hipGraph_t graph, hipGraphNode_t* nodes, size_t* numNodes);
+      |            ^~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1115:22: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1115 |         MTP_NODE_TYPE(nd, &ty);
+      |                      ^
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:8858:12: note: in call to ‘hipError_t hipGraphNodeGetType(hipGraphNode_t, hipGraphNodeType*)’, declared here
+ 8858 | hipError_t hipGraphNodeGetType(hipGraphNode_t node, hipGraphNodeType* pType);
+      |            ^~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool strata::core::{anonymous}::finish_capture(hipStream_t, bool, hipGraphExec*&, const char*, std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1591:36: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1591 |         if (graph) cudaGraphDestroy(graph);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:8736:12: note: in call to ‘hipError_t hipGraphDestroy(hipGraph_t)’, declared here
+ 8736 | hipError_t hipGraphDestroy(hipGraph_t graph);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1597:36: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1597 |         if (graph) cudaGraphDestroy(graph);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:8736:12: note: in call to ‘hipError_t hipGraphDestroy(hipGraph_t)’, declared here
+ 8736 | hipError_t hipGraphDestroy(hipGraph_t graph);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1603:21: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1603 |     cudaGraphDestroy(graph);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:8736:12: note: in call to ‘hipError_t hipGraphDestroy(hipGraph_t)’, declared here
+ 8736 | hipError_t hipGraphDestroy(hipGraph_t graph);
+      |            ^~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘void strata::core::MtpDrafter::kv_restore(int64_t)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1770:26: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1770 |     cudaStreamSynchronize(cs_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:3124:12: note: in call to ‘hipError_t hipStreamSynchronize(hipStream_t)’, declared here
+ 3124 | hipError_t hipStreamSynchronize(hipStream_t stream);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::prepare_prefill(std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1777:30: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1777 |         if (pf_dev_) cudaFree(pf_dev_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::reserve_prefill(int64_t, std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1820:26: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1820 |     if (pf_dev_) cudaFree(pf_dev_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::prefill(const float*, const int32_t*, int64_t, int64_t, std::string&, bool)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:1856:34: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+ 1856 |             if (pf_dev_) cudaFree(pf_dev_);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::draft(int, const int32_t*, int64_t, int, int32_t*, std::string&, float*, float, int*, DraftResult*)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2020:76: warning: using value of assignment with ‘volatile’-qualified left operand is deprecated [-Wvolatile]
+ 2020 |             ((volatile float*) h_ent_)[j] = ((volatile float*) h_top2_)[j] = std::numeric_limits<float>::quiet_NaN();
+      |                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2001:29: warning: variable ‘t0’ set but not used [-Wunused-but-set-variable]
+ 2001 |     const Clock::time_point t0 = Clock::now();
+      |                             ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2031:10: warning: variable ‘hms’ set but not used [-Wunused-but-set-variable]
+ 2031 |     auto hms = [](Clock::time_point a0) { return std::chrono::duration<double, std::milli>(Clock::now() - a0).count(); };
+      |          ^~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2048:23: warning: unused variable ‘eager’ [-Wunused-variable]
+ 2048 |     static const bool eager = [] { const char* e = std::getenv("STRATA_MTP_EAGER"); return e && e[0] == '1'; }();
+      |                       ^~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2105:7: error: expected unqualified-id before ‘else’
+ 2105 |     } else if (max_steps > 0) {
+      |       ^~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:5: error: expected unqualified-id before ‘for’
+ 2190 |     for (int j = n; j < max_t_ - 1; ++j) { drafts[j] = 0; if (probs) probs[j] = 0.0f; }
+      |     ^~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+ 2190 |     for (int j = n; j < max_t_ - 1; ++j) { drafts[j] = 0; if (probs) probs[j] = 0.0f; }
+      |                         ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:25: error: ‘max_t_’ was not declared in this scope
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:21: error: ‘j’ does not name a type
+ 2190 |     for (int j = n; j < max_t_ - 1; ++j) { drafts[j] = 0; if (probs) probs[j] = 0.0f; }
+      |                     ^
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2190:37: error: expected unqualified-id before ‘++’ token
+ 2190 |     for (int j = n; j < max_t_ - 1; ++j) { drafts[j] = 0; if (probs) probs[j] = 0.0f; }
+      |                                     ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2191:5: error: expected unqualified-id before ‘if’
+ 2191 |     if (h_ent_ != nullptr)   // STRATA_DRAFT_ENTROPY: this round's entropies (the stream is synced); NaN past its drafts
+      |     ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2192:25: error: ‘j’ does not name a type
+ 2192 |         for (int j = 0; j < 16; ++j) {
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2192:33: error: expected unqualified-id before ‘++’ token
+ 2192 |         for (int j = 0; j < 16; ++j) {
+      |                                 ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2197:5: error: expected unqualified-id before ‘if’
+ 2197 |     if (n_drafts) *n_drafts = n;
+      |     ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2198:5: error: expected unqualified-id before ‘if’
+ 2198 |     if (result) *result = {n, max_steps};
+      |     ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2199:5: error: ‘ms_draft’ does not name a type
+ 2199 |     ms_draft += ms_since(t0);
+      |     ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2200:5: error: expected unqualified-id before ‘++’ token
+ 2200 |     ++rounds;
+      |     ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2201:5: error: expected unqualified-id before ‘return’
+ 2201 |     return true;
+      |     ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2204:6: error: ‘MtpDrafter’ has not been declared
+ 2204 | bool MtpDrafter::draft_long(int T, const int32_t* tokens, int64_t p, int a, int32_t* drafts, std::string& err,
+      |      ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2205:71: error: ‘DraftResult’ has not been declared
+ 2205 |                             float* probs, float min_p, int* n_drafts, DraftResult* result) {
+      |                                                                       ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool draft_long(int, const int32_t*, int64_t, int, int32_t*, std::string&, float*, float, int*, int*)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2210:13: error: ‘max_t_’ was not declared in this scope
+ 2210 |     if (a < max_t_) return draft(std::min(T, max_t_), tokens, p, a, drafts, err, probs, min_p, n_drafts, result);
+      |             ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2210:28: error: ‘draft’ was not declared in this scope; did you mean ‘drafts’?
+ 2210 |     if (a < max_t_) return draft(std::min(T, max_t_), tokens, p, a, drafts, err, probs, min_p, n_drafts, result);
+      |                            ^~~~~
+      |                            drafts
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2212:26: error: ‘src_R_’ was not declared in this scope
+ 2212 |     const float* rows = (src_R_ != nullptr && src_R_ != window_R_) ? src_R_ : window_R_;
+      |                          ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2212:57: error: ‘window_R_’ was not declared in this scope
+ 2212 |     const float* rows = (src_R_ != nullptr && src_R_ != window_R_) ? src_R_ : window_R_;
+      |                                                         ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2215:10: error: ‘prefill’ was not declared in this scope; did you mean ‘profil’?
+ 2215 |     if (!prefill(rows, tokens, a, p, err, false)) return false;
+      |          ^~~~~~~
+      |          profil
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2219:44: error: ‘g_’ was not declared in this scope
+ 2219 |     src_R_ = rows + (size_t) a * (size_t) (g_->hc * g_->n_embd);
+      |                                            ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2220:21: error: ‘draft’ was not declared in this scope; did you mean ‘drafts’?
+ 2220 |     const bool ok = draft(1, tokens + a, p + a, 0, drafts, err, probs, min_p, n_drafts, result);
+      |                     ^~~~~
+      |                     drafts
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2225:6: error: ‘MtpDrafter’ has not been declared
+ 2225 | bool MtpDrafter::stage_source_R(int T, std::string& err) {
+      |      ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool stage_source_R(int, std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2226:9: error: ‘src_R_’ was not declared in this scope
+ 2226 |     if (src_R_ == nullptr || src_R_ == window_R_) return true;
+      |         ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2226:40: error: ‘window_R_’ was not declared in this scope
+ 2226 |     if (src_R_ == nullptr || src_R_ == window_R_) return true;
+      |                                        ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2227:11: error: ‘Clock’ does not name a type; did you mean ‘clock_t’?
+ 2227 |     const Clock::time_point t_src = Clock::now();
+      |           ^~~~~
+      |           clock_t
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2228:22: error: ‘MtpDrafter’ does not name a type
+ 2228 |     struct SrcTime { MtpDrafter& d; Clock::time_point t; ~SrcTime() { d.ms_src += ms_since(t); ++d.n_src; } } src_time{*this, t_src};
+      |                      ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2228:37: error: ‘Clock’ does not name a type; did you mean ‘clock_t’?
+ 2228 |     struct SrcTime { MtpDrafter& d; Clock::time_point t; ~SrcTime() { d.ms_src += ms_since(t); ++d.n_src; } } src_time{*this, t_src};
+      |                                     ^~~~~
+      |                                     clock_t
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In destructor ‘stage_source_R(int, std::string&)::SrcTime::~SrcTime()’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2228:71: error: ‘d’ was not declared in this scope
+ 2228 |     struct SrcTime { MtpDrafter& d; Clock::time_point t; ~SrcTime() { d.ms_src += ms_since(t); ++d.n_src; } } src_time{*this, t_src};
+      |                                                                       ^
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2228:92: error: ‘t’ was not declared in this scope
+ 2228 |     struct SrcTime { MtpDrafter& d; Clock::time_point t; ~SrcTime() { d.ms_src += ms_since(t); ++d.n_src; } } src_time{*this, t_src};
+      |                                                                                            ^
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2228:83: error: ‘ms_since’ was not declared in this scope; did you mean ‘strata::core::{anonymous}::ms_since’?
+ 2228 |     struct SrcTime { MtpDrafter& d; Clock::time_point t; ~SrcTime() { d.ms_src += ms_since(t); ++d.n_src; } } src_time{*this, t_src};
+      |                                                                                   ^~~~~~~~
+      |                                                                                   strata::core::{anonymous}::ms_since
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:134:8: note: ‘strata::core::{anonymous}::ms_since’ declared here
+  134 | double ms_since(Clock::time_point t) { return std::chrono::duration<double, std::milli>(Clock::now() - t).count(); }
+      |        ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool stage_source_R(int, std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2228:121: error: invalid use of ‘this’ in non-member function
+ 2228 |     struct SrcTime { MtpDrafter& d; Clock::time_point t; ~SrcTime() { d.ms_src += ms_since(t); ++d.n_src; } } src_time{*this, t_src};
+      |                                                                                                                         ^~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2228:127: error: ‘t_src’ was not declared in this scope
+ 2228 |     struct SrcTime { MtpDrafter& d; Clock::time_point t; ~SrcTime() { d.ms_src += ms_since(t); ++d.n_src; } } src_time{*this, t_src};
+      |                                                                                                                               ^~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2229:33: error: ‘window_R_’ was not declared in this scope
+ 2229 |     if (cudaMemcpyAsync((void*) window_R_, src_R_, (size_t) T * (size_t) (g_->hc * g_->n_embd) * sizeof(float),
+      |                                 ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2229:44: error: ‘src_R_’ was not declared in this scope
+ 2229 |     if (cudaMemcpyAsync((void*) window_R_, src_R_, (size_t) T * (size_t) (g_->hc * g_->n_embd) * sizeof(float),
+      |                                            ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2229:75: error: ‘g_’ was not declared in this scope
+ 2229 |     if (cudaMemcpyAsync((void*) window_R_, src_R_, (size_t) T * (size_t) (g_->hc * g_->n_embd) * sizeof(float),
+      |                                                                           ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2230:51: error: ‘cs_’ was not declared in this scope
+ 2230 |                         cudaMemcpyDeviceToDevice, cs_) != cudaSuccess) {
+      |                                                   ^~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2237:6: error: ‘MtpDrafter’ has not been declared
+ 2237 | bool MtpDrafter::prepare_chain(std::string& err) {
+      |      ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool prepare_chain(std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2238:11: error: ‘OnDevice’ does not name a type
+ 2238 |     const OnDevice on_device(device_);
+      |           ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2239:10: error: ‘force_on_’ was not declared in this scope
+ 2239 |     if (!force_on_ || h_force_ == nullptr) { err = "mtp: chains need set_force_capture before load"; return false; }
+      |          ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2239:23: error: ‘h_force_’ was not declared in this scope
+ 2239 |     if (!force_on_ || h_force_ == nullptr) { err = "mtp: chains need set_force_capture before load"; return false; }
+      |                       ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2240:26: error: ‘max_t_’ was not declared in this scope
+ 2240 |     for (int T = 1; T <= max_t_; ++T)
+      |                          ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2241:14: error: ‘capture_round’ was not declared in this scope
+ 2241 |         if (!capture_round(T, false, err)) return false;
+      |              ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2242:26: error: ‘max_t_’ was not declared in this scope
+ 2242 |     for (int j = 1; j <= max_t_ - 2; ++j)
+      |                          ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2243:14: error: ‘capture_step’ was not declared in this scope
+ 2243 |         if (!capture_step(j, false, err)) return false;
+      |              ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2244:9: error: ‘ev_chain_’ was not declared in this scope
+ 2244 |     if (ev_chain_ == nullptr && cudaEventCreateWithFlags(&ev_chain_, cudaEventDisableTiming) != cudaSuccess) {
+      |         ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2248:27: error: ‘ev_step_’ was not declared in this scope
+ 2248 |     for (cudaEvent_t& e : ev_step_)
+      |                           ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2256:6: error: ‘MtpDrafter’ has not been declared
+ 2256 | bool MtpDrafter::chain_launch(int T, const int32_t* tokens, int64_t p, int a, const int32_t* force, int n_force,
+      |      ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool chain_launch(int, const int32_t*, int64_t, int, const int32_t*, int, int, int, std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2258:11: error: ‘OnDevice’ does not name a type
+ 2258 |     const OnDevice on_device(device_);
+      |           ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2259:10: error: ‘decode_ready’ was not declared in this scope
+ 2259 |     if (!decode_ready(err)) return false;   // the chain's step graphs read the 512 experts
+      |          ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2260:9: error: ‘chain_live_’ was not declared in this scope
+ 2260 |     if (chain_live_) { err = "mtp: a chain is already in flight"; return false; }
+      |         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2261:10: error: ‘force_on_’ was not declared in this scope
+ 2261 |     if (!force_on_ || ev_chain_ == nullptr) { err = "mtp: chains need prepare_chain"; return false; }
+      |          ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2261:23: error: ‘ev_chain_’ was not declared in this scope
+ 2261 |     if (!force_on_ || ev_chain_ == nullptr) { err = "mtp: chains need prepare_chain"; return false; }
+      |                       ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2262:22: error: ‘max_t_’ was not declared in this scope
+ 2262 |     if (T < 1 || T > max_t_ || a < 0 || a >= T || n_out < 1 || n_out > max_t_ - 1 || n_force < 0 || n_force > n_out ||
+      |                      ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2267:9: error: ‘round_exec_’ was not declared in this scope
+ 2267 |     if (round_exec_[T] == nullptr) { err = "mtp: chain graphs not prepared"; return false; }
+      |         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2269:13: error: ‘step_exec_’ was not declared in this scope
+ 2269 |         if (step_exec_[j] == nullptr) { err = "mtp: chain graphs not prepared"; return false; }
+      |             ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2270:11: error: ‘Clock’ does not name a type; did you mean ‘clock_t’?
+ 2270 |     const Clock::time_point t0 = Clock::now();
+      |           ^~~~~
+      |           clock_t
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2271:24: error: ‘g_’ was not declared in this scope
+ 2271 |     const int64_t NH = g_->n_head;
+      |                        ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In lambda function:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2273:9: error: ‘h_step_’ was not declared in this scope
+ 2273 |         h_step_[row * 4 + 0] = (int32_t) cell;
+      |         ^~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2277:42: error: ‘h_pos_’ was not declared in this scope
+ 2277 |         for (int64_t h = 0; h < NH; ++h) h_pos_[row * NH + h] = (int32_t) cell;
+      |                                          ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool chain_launch(int, const int32_t*, int64_t, int, const int32_t*, int, int, int, std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2280:9: error: ‘h_tok_’ was not declared in this scope
+ 2280 |         h_tok_[t] = tokens[t];
+      |         ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2283:13: error: ‘max_t_’ was not declared in this scope
+ 2283 |     put(2 * max_t_ - 1, p + a);                                      // output 0's cell
+      |             ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2285:34: error: ‘h_force_’ was not declared in this scope; did you mean ‘n_force’?
+ 2285 |     for (int j = 0; j < 16; ++j) h_force_[j] = j < n_force ? force[j] : -1;
+      |                                  ^~~~~~~~
+      |                                  n_force
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2286:5: error: ‘h_row_’ was not declared in this scope
+ 2286 |     h_row_[0] = a;
+      |     ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2290:5: error: ‘chain_early_’ was not declared in this scope
+ 2290 |     chain_early_ = std::max(0, std::min(n_early, n_out));
+      |     ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2291:31: error: ‘round_exec_’ was not declared in this scope
+ 2291 |     bool ok = cudaGraphLaunch(round_exec_[T], cs_) == cudaSuccess;
+      |                               ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2291:47: error: ‘cs_’ was not declared in this scope
+ 2291 |     bool ok = cudaGraphLaunch(round_exec_[T], cs_) == cudaSuccess;
+      |                                               ^~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2292:55: error: ‘ev_step_’ was not declared in this scope
+ 2292 |     if (ok && chain_early_ >= 1) ok = cudaEventRecord(ev_step_[0], cs_) == cudaSuccess;
+      |                                                       ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2294:30: error: ‘step_exec_’ was not declared in this scope
+ 2294 |         ok = cudaGraphLaunch(step_exec_[j], cs_) == cudaSuccess;
+      |                              ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2295:58: error: ‘ev_step_’ was not declared in this scope
+ 2295 |         if (ok && j < chain_early_) ok = cudaEventRecord(ev_step_[j], cs_) == cudaSuccess;
+      |                                                          ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2297:32: error: ‘ev_chain_’ was not declared in this scope
+ 2297 |     if (!ok || cudaEventRecord(ev_chain_, cs_) != cudaSuccess) {
+      |                                ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2302:5: error: ‘steps_seen_’ was not declared in this scope
+ 2302 |     steps_seen_ = 0;
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2303:5: error: ‘chain_live_’ was not declared in this scope
+ 2303 |     chain_live_ = true;
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2304:5: error: ‘chain_n_’ was not declared in this scope
+ 2304 |     chain_n_ = n_out;
+      |     ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2305:5: error: ‘ms_draft’ was not declared in this scope
+ 2305 |     ms_draft += ms_since(t0);
+      |     ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2305:26: error: ‘t0’ was not declared in this scope; did you mean ‘y0’?
+ 2305 |     ms_draft += ms_since(t0);
+      |                          ^~
+      |                          y0
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2305:17: error: ‘ms_since’ was not declared in this scope; did you mean ‘strata::core::{anonymous}::ms_since’?
+ 2305 |     ms_draft += ms_since(t0);
+      |                 ^~~~~~~~
+      |                 strata::core::{anonymous}::ms_since
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:134:8: note: ‘strata::core::{anonymous}::ms_since’ declared here
+  134 | double ms_since(Clock::time_point t) { return std::chrono::duration<double, std::milli>(Clock::now() - t).count(); }
+      |        ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2306:7: error: ‘rounds’ was not declared in this scope; did you mean ‘roundl’?
+ 2306 |     ++rounds;
+      |       ^~~~~~
+      |       roundl
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2310:5: error: ‘MtpDrafter’ has not been declared
+ 2310 | int MtpDrafter::chain_outputs_ready(std::string& err) {
+      |     ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘int chain_outputs_ready(std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2311:10: error: ‘chain_live_’ was not declared in this scope
+ 2311 |     if (!chain_live_) return chain_n_;
+      |          ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2311:30: error: ‘chain_n_’ was not declared in this scope
+ 2311 |     if (!chain_live_) return chain_n_;
+      |                              ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2312:11: error: ‘OnDevice’ does not name a type
+ 2312 |     const OnDevice on_device(device_);
+      |           ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2313:26: error: ‘chain_early_’ was not declared in this scope
+ 2313 |     while (steps_seen_ < chain_early_) {
+      |                          ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2313:12: error: ‘steps_seen_’ was not declared in this scope
+ 2313 |     while (steps_seen_ < chain_early_) {
+      |            ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2314:46: error: ‘ev_step_’ was not declared in this scope
+ 2314 |         const cudaError_t q = cudaEventQuery(ev_step_[steps_seen_]);
+      |                                              ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2317:9: error: ‘chain_tok_’ was not declared in this scope
+ 2317 |         chain_tok_[steps_seen_] = ((volatile int32_t*) h_out_)[steps_seen_];
+      |         ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2317:56: error: ‘h_out_’ was not declared in this scope
+ 2317 |         chain_tok_[steps_seen_] = ((volatile int32_t*) h_out_)[steps_seen_];
+      |                                                        ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2318:9: error: ‘chain_prob_’ was not declared in this scope
+ 2318 |         chain_prob_[steps_seen_] = ((volatile float*) h_prob_)[steps_seen_];
+      |         ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2318:55: error: ‘h_prob_’ was not declared in this scope
+ 2318 |         chain_prob_[steps_seen_] = ((volatile float*) h_prob_)[steps_seen_];
+      |                                                       ^~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2321:12: error: ‘steps_seen_’ was not declared in this scope
+ 2321 |     return steps_seen_;
+      |            ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2324:5: error: ‘MtpDrafter’ has not been declared
+ 2324 | int MtpDrafter::chain_poll(std::string& err) {
+      |     ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘int chain_poll(std::string&)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2325:10: error: ‘chain_live_’ was not declared in this scope
+ 2325 |     if (!chain_live_) return 1;
+      |          ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2326:11: error: ‘OnDevice’ does not name a type
+ 2326 |     const OnDevice on_device(device_);
+      |           ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2327:42: error: ‘ev_chain_’ was not declared in this scope
+ 2327 |     const cudaError_t q = cudaEventQuery(ev_chain_);
+      |                                          ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2329:5: error: ‘chain_live_’ was not declared in this scope
+ 2329 |     chain_live_ = false;
+      |     ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2331:25: error: ‘chain_n_’ was not declared in this scope
+ 2331 |     for (int j = 0; j < chain_n_; ++j) {
+      |                         ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2332:9: error: ‘chain_tok_’ was not declared in this scope; did you mean ‘chain_poll’?
+ 2332 |         chain_tok_[j] = ((volatile int32_t*) h_out_)[j];
+      |         ^~~~~~~~~~
+      |         chain_poll
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2332:46: error: ‘h_out_’ was not declared in this scope
+ 2332 |         chain_tok_[j] = ((volatile int32_t*) h_out_)[j];
+      |                                              ^~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2333:9: error: ‘chain_prob_’ was not declared in this scope; did you mean ‘chain_poll’?
+ 2333 |         chain_prob_[j] = ((volatile float*) h_prob_)[j];
+      |         ^~~~~~~~~~~
+      |         chain_poll
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2333:45: error: ‘h_prob_’ was not declared in this scope
+ 2333 |         chain_prob_[j] = ((volatile float*) h_prob_)[j];
+      |                                             ^~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2335:18: error: ‘chain_n_’ was not declared in this scope
+ 2335 |     for (int j = chain_n_; j < 8; ++j) { chain_tok_[j] = 0; chain_prob_[j] = 0.0f; }
+      |                  ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2335:42: error: ‘chain_tok_’ was not declared in this scope; did you mean ‘chain_poll’?
+ 2335 |     for (int j = chain_n_; j < 8; ++j) { chain_tok_[j] = 0; chain_prob_[j] = 0.0f; }
+      |                                          ^~~~~~~~~~
+      |                                          chain_poll
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2335:61: error: ‘chain_prob_’ was not declared in this scope; did you mean ‘chain_poll’?
+ 2335 |     for (int j = chain_n_; j < 8; ++j) { chain_tok_[j] = 0; chain_prob_[j] = 0.0f; }
+      |                                                             ^~~~~~~~~~~
+      |                                                             chain_poll
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2339:6: error: ‘MtpDrafter’ has not been declared
+ 2339 | bool MtpDrafter::draft_first(int T, const float* R_row, int32_t token, int64_t cell, int32_t* drafts, std::string& err,
+      |      ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2340:72: error: ‘DraftResult’ has not been declared
+ 2340 |                              float* probs, float min_p, int* n_drafts, DraftResult* result) {
+      |                                                                        ^~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In function ‘bool draft_first(int, const float*, int32_t, int64_t, int32_t*, std::string&, float*, float, int*, int*)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2342:10: error: ‘decode_ready’ was not declared in this scope
+ 2342 |     if (!decode_ready(err)) return false;   // the first round's steps read the 512 experts
+      |          ^~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2350:11: error: ‘OnDevice’ does not name a type
+ 2350 |     const OnDevice on_device(device_);
+      |           ^~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2352:25: error: ‘g_’ was not declared in this scope
+ 2352 |     const int64_t HCN = g_->hc * g_->n_embd;
+      |                         ^~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2354:33: error: ‘window_R_’ was not declared in this scope
+ 2354 |         if (cudaMemcpy((void*) (window_R_ + (size_t) t * HCN), R_row, (size_t) HCN * sizeof(float),
+      |                                 ^~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2360:12: error: ‘draft’ was not declared in this scope; did you mean ‘drafts’?
+ 2360 |     return draft(T, toks.data(), cell, 0, drafts, err, probs, min_p, n_drafts, result);
+      |            ^~~~~
+      |            drafts
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2363:1: error: expected declaration before ‘}’ token
+ 2363 | }  // namespace strata::core
+      | ^
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: In member function ‘bool strata::core::MtpDrafter::draft(int, const int32_t*, int64_t, int, int32_t*, std::string&, float*, float, int*, DraftResult*)’:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:2105:5: warning: control reaches end of non-void function [-Wreturn-type]
+ 2105 |     } else if (max_steps > 0) {
+      |     ^
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp: At global scope:
+/home/dan/clone-of-d/src/Strata/src/core/mtp.cpp:78:6: warning: ‘bool strata::core::{anonymous}::mtp_proxy_env()’ defined but not used [-Wunused-function]
+   78 | bool mtp_proxy_env() {
+      |      ^~~~~~~~~~~~~
+[2/97] Building HIP object CMakeFiles/strata_kernels.dir/src/kernels/cuda/verify_kernels.cu.o
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:191:61: warning: unused parameter 'conv_blocks' [-Wunused-parameter]
+  191 | __global__ void __launch_bounds__(S) gdn_conv_ab_kernel(int conv_blocks, float* hist, const float* __restrict__ qkv,
+      |                                                             ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:1808:16: warning: unused variable 'per_dev' [-Wunused-variable]
+ 1808 |     static int per_dev[64];   // 0 unknown, else bit + 1
+      |                ^~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:2649:25: warning: variable 'g_ic_warm_sink' set but not used [-Wunused-but-set-global]
+ 2649 | __device__ unsigned int g_ic_warm_sink;
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:191:38: warning: loop not unrolled: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering [-Wpass-failed=transform-warning]
+  191 | __global__ void __launch_bounds__(S) gdn_conv_ab_kernel(int conv_blocks, float* hist, const float* __restrict__ qkv,
+      |                                      ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:179:39: warning: loop not unrolled: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering [-Wpass-failed=transform-warning]
+  179 | __global__ void __launch_bounds__(64) gdn_ab_multi_kernel(const float* __restrict__ x, const uint16_t* __restrict__ wa,
+      |                                       ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:579:49: warning: loop not unrolled: the optimizer was unable to perform the requested transformation; the transformation might be disabled or specified as part of an unsupported transformation ordering [-Wpass-failed=transform-warning]
+  579 | __global__ void __launch_bounds__(GS_COLS * RG) gdn_state_replay_kernel(float* __restrict__ state,
+      |                                                 ^
+6 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:191:61: warning: unused parameter 'conv_blocks' [-Wunused-parameter]
+  191 | __global__ void __launch_bounds__(S) gdn_conv_ab_kernel(int conv_blocks, float* hist, const float* __restrict__ qkv,
+      |                                                             ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:1808:16: warning: unused variable 'per_dev' [-Wunused-variable]
+ 1808 |     static int per_dev[64];   // 0 unknown, else bit + 1
+      |                ^~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:2185:17: warning: unused function 'resident_plan_par_kernel' [-Wunused-function]
+ 2185 | __global__ void resident_plan_par_kernel(const int32_t* __restrict__ ids, int n, int k, const int32_t* __restrict__ res,
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/verify_kernels.cu:2649:25: warning: variable 'g_ic_warm_sink' set but not used [-Wunused-but-set-global]
+ 2649 | __device__ unsigned int g_ic_warm_sink;
+      |                         ^
+4 warnings generated when compiling for host.
+[3/97] Linking HIP static library libstrata_kernels.a
+[4/97] Linking HIP executable qsa_qmajor_parity
+[5/97] Linking HIP executable hip_mapped_alias
+[6/97] Linking HIP executable qsa_page_select_recall
+[7/97] Linking HIP executable qsa_scores_gfx1100_parity
+[8/97] Linking HIP executable hip_router_fast
+[9/97] Linking HIP executable bfla_test
+[10/97] Linking HIP executable hip_native_qsa_score
+[11/97] Linking HIP executable qsa_select_bench
+[12/97] Linking HIP executable hip_wait_copy
+[13/97] Linking HIP executable hip_q2_zero
+[14/97] Linking HIP executable hip_prefill_native_batch
+[15/97] Linking HIP executable hip_handoff
+[16/97] Linking HIP executable dequant_s2_parity
+[17/97] Linking HIP executable hip_prompt_attn_wmma
+[18/97] Linking HIP executable hip_decode_attn_wmma_parity
+[19/97] Linking HIP executable verify_parity
+[20/97] Linking HIP executable s2_gemv_parity
+[21/97] Linking HIP executable mmvf_rows_parity
+[22/97] Linking HIP executable tq_pascal_bench
+[23/97] Linking HIP executable native_grouped_parity
+[24/97] Linking HIP executable iq_parity
+[25/97] Linking HIP executable iq_multi_parity
+[26/97] Linking HIP executable shared_expert_parity
+[27/97] Linking HIP executable sampler_parity
+[28/97] Linking HIP executable s2_gemv_q8_parity
+[29/97] Linking HIP executable gr_parity
+[30/97] Linking HIP executable device_accept_parity
+[31/97] Linking HIP executable spec_verify_parity
+[32/97] Linking HIP executable oea_route_parity
+[33/97] Linking HIP executable spec_proposal_parity
+[34/97] Linking HIP executable gdn_parity
+[35/97] Linking HIP executable ffn_sparse_parity
+[36/97] Linking HIP executable rkv_parity
+[37/97] Linking HIP executable xattn_parity
+[38/97] Linking HIP executable quantize_act_parity
+[39/97] Linking HIP executable rope_parity
+[40/97] Linking HIP executable route_window_parity
+[41/97] Linking HIP executable route_resident_parity
+[42/97] Linking HIP executable native_multi_parity
+[43/97] Linking HIP executable router_top10_parity
+[44/97] Linking HIP executable kv_steps_parity
+[45/97] Linking HIP executable resident_plan_parity
+[46/97] Linking HIP executable rdna_gr_parity
+[47/97] Linking HIP executable hc_persist_parity
+[48/97] Linking HIP executable gr_multi_parity
+[49/97] Linking HIP executable bf16_gemv_parity
+[50/97] Linking HIP executable s_gemv_parity
+[51/97] Linking HIP executable qsa_parity
+[52/97] Linking HIP executable elementwise_parity
+[53/97] Linking HIP executable s_gemv_q8k_parity
+[54/97] Linking HIP executable rdna_mmvq_parity
+[55/97] Linking HIP executable qsa_topk_parity
+[56/97] Linking HIP executable route_prior_test
+[57/97] Linking HIP executable kv_stream_parity
+[58/97] Linking HIP executable kv_q8_parity
+[59/97] Linking HIP executable kv_window_parity
+[60/97] Linking HIP executable ple_parity
+[61/97] Linking HIP executable cvec_parity
+[62/97] Linking HIP executable kv_hybrid_parity
+[63/97] Linking HIP executable kv_q4_parity
+[64/97] Linking HIP executable ple_iq4nl_dequant_test
+[65/97] Linking HIP executable s2_expert_grouped_parity
+[66/97] Linking HIP executable batch_rows_parity
+[67/97] Linking HIP executable ple_reader_test
+[68/97] Linking HIP executable ple_reader_stress_test
+[69/97] Linking HIP executable verify_batch_parity
+[70/97] Linking HIP executable native_dense_types_parity
+ninja: build stopped: cannot make progress due to previous errors.
+
+real	0m6.580s
+user	0m10.071s
+sys	0m3.420s

@@ -1,0 +1,29 @@
+WAIT chain16 22:09:43
+WAIT chain16 22:10:39
+START build-win 2026-11-16_00:39:40
+END build-win exit=0 00:39:40
+START build-il 2026-11-16_00:39:40
+END build-il exit=0 00:47:04
+START build-j32 2026-11-16_00:47:04
+END build-j32 exit=0 00:50:38
+START ctest-cpu 2026-11-16_00:50:38
+END ctest-cpu exit=0 00:51:28
+START ctest-gpu 2026-11-16_00:51:28
+END ctest-gpu exit=8 01:01:30
+START il-parity 2026-11-16_01:01:30
+END il-parity exit=0 01:01:33
+START 65-new-exact-switches 2026-11-16_01:01:33
+END 65-new-exact-switches exit=3 01:01:33
+START 66-pcie-share-exact-switches 2026-11-16_01:01:33
+END 66-pcie-share-exact-switches exit=3 01:01:33
+START 67-prompt-exact-switches 2026-11-16_01:01:33
+END 67-prompt-exact-switches exit=3 01:01:34
+START 68-pf-gu-exact 2026-11-16_01:01:34
+END 68-pf-gu-exact exit=3 01:01:34
+START 69-mmvq-il-plain 2026-11-16_01:01:34
+END 69-mmvq-il-plain exit=3 01:01:34
+START 70-adapt-prompt 2026-11-16_01:01:34
+END 70-adapt-prompt exit=3 01:01:34
+START 64-mmq-rdna3-j32 2026-11-16_01:01:34
+END 64-mmq-rdna3-j32 exit=3 01:01:34
+WINCHAIN2_DONE

@@ -1,0 +1,561 @@
+[0/2] Re-checking globbed directories...
+[1/110] Building CXX object CMakeFiles/route_prior_auto_test.dir/tests/program/route_prior_auto_test.cpp.o
+[2/110] Building CXX object CMakeFiles/promo_chunk_test.dir/tests/program/promo_chunk_test.cpp.o
+[3/110] Building CXX object CMakeFiles/defer_auto_test.dir/tests/core/defer_auto_test.cpp.o
+[4/110] Building CXX object CMakeFiles/prefill_plan_test.dir/tests/program/prefill_plan_test.cpp.o
+[5/110] Building CXX object CMakeFiles/verify_parity.dir/src/kernels/verify_parity.cpp.o
+[6/110] Building CXX object CMakeFiles/spec_proposal_parity.dir/src/kernels/spec_proposal_parity.cpp.o
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_proposal_parity.cpp: In destructor ‘{anonymous}::Device::~Device()’:
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_proposal_parity.cpp:87:36: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   87 |     ~Device(){cudaDeviceSynchronize();cudaFree(logits);cudaFree(out);cudaFree(draft);cudaFree(mu);}
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:2361:12: note: in call to ‘hipError_t hipDeviceSynchronize()’, declared here
+ 2361 | hipError_t hipDeviceSynchronize(void);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_proposal_parity.cpp:87:47: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   87 |     ~Device(){cudaDeviceSynchronize();cudaFree(logits);cudaFree(out);cudaFree(draft);cudaFree(mu);}
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_proposal_parity.cpp:87:64: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   87 |     ~Device(){cudaDeviceSynchronize();cudaFree(logits);cudaFree(out);cudaFree(draft);cudaFree(mu);}
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_proposal_parity.cpp:87:78: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   87 |     ~Device(){cudaDeviceSynchronize();cudaFree(logits);cudaFree(out);cudaFree(draft);cudaFree(mu);}
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_proposal_parity.cpp:87:94: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   87 |     ~Device(){cudaDeviceSynchronize();cudaFree(logits);cudaFree(out);cudaFree(draft);cudaFree(mu);}
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[7/110] Building CXX object CMakeFiles/qwen35_sampling_test.dir/src/qwen35/sampling_test.cpp.o
+[8/110] Building CXX object CMakeFiles/spec_verify_parity.dir/src/kernels/spec_verify_parity.cpp.o
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_verify_parity.cpp: In function ‘int main(int, char**)’:
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_verify_parity.cpp:245:13: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  245 |     cudaFree(d_logits); cudaFree(d_out); cudaFree(d_hist); cudaFree(d_dtok); cudaFree(d_q);
+In file included from /opt/rocm/core-10.0/include/hip/hip_runtime.h:49,
+                 from /home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:12,
+                 from <command-line>:
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_verify_parity.cpp:245:33: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  245 |     cudaFree(d_logits); cudaFree(d_out); cudaFree(d_hist); cudaFree(d_dtok); cudaFree(d_q);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_verify_parity.cpp:245:50: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  245 |     cudaFree(d_logits); cudaFree(d_out); cudaFree(d_hist); cudaFree(d_dtok); cudaFree(d_q);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_verify_parity.cpp:245:68: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  245 |     cudaFree(d_logits); cudaFree(d_out); cudaFree(d_hist); cudaFree(d_dtok); cudaFree(d_q);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/src/kernels/spec_verify_parity.cpp:245:86: warning: ignoring returned value of type ‘hipError_t’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  245 |     cudaFree(d_logits); cudaFree(d_out); cudaFree(d_hist); cudaFree(d_dtok); cudaFree(d_q);
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:4947:12: note: in call to ‘hipError_t hipFree(void*)’, declared here
+ 4947 | hipError_t hipFree(void* ptr);
+      |            ^~~~~~~
+/opt/rocm/core-10.0/include/hip/hip_runtime_api.h:410:3: note: ‘hipError_t’ declared here
+  410 | } hipError_t;
+      |   ^~~~~~~~~~
+[9/110] Building CXX object CMakeFiles/coupled_draft_test.dir/src/core/coupled_draft_test.cpp.o
+[10/110] Building CXX object CMakeFiles/penalty_window_test.dir/src/kernels/penalty_window_test.cpp.o
+[11/110] Linking CXX executable prefill_plan_test
+[12/110] Linking CXX executable promo_chunk_test
+[13/110] Linking CXX executable route_prior_auto_test
+[14/110] Linking CXX executable defer_auto_test
+[15/110] Building CXX object CMakeFiles/slot_history_test.dir/src/kernels/slot_history_test.cpp.o
+[16/110] Linking HIP executable qsa_scores_gfx1100_parity
+[17/110] Linking HIP executable qsa_select_bench
+[18/110] Linking HIP executable file_expert_source_test
+[19/110] Linking HIP executable vmm_test
+[20/110] Linking HIP executable expert_profile_save_test
+[21/110] Linking HIP executable expert_profile_version_test
+[22/110] Linking HIP executable expert_layout_test
+[23/110] Linking HIP executable native_dense_ple_key_test
+[24/110] Linking HIP executable expert_cache_per_layer_test
+[25/110] Linking HIP executable expert_cache_segmented_test
+[26/110] Linking HIP executable expert_cache_slot_guard_test
+[27/110] Linking HIP executable hip_prefill_gemm
+[28/110] Linking HIP executable hip_gemm_f16_io_parity
+[29/110] Linking HIP executable hip_q2_zero
+[30/110] Linking HIP executable hip_qsa_nr_parity
+[31/110] Linking HIP executable hip_pf_cover_test
+[32/110] Linking HIP executable hip_expert_cache_staging
+[33/110] Linking HIP executable hip_handoff
+[34/110] Linking HIP executable hip_wait_copy
+[35/110] Linking HIP executable hip_mapped_alias
+[36/110] Linking HIP executable hip_native_qsa_score
+[37/110] Linking HIP executable hip_prefill_native_batch
+[38/110] Linking HIP executable hip_gdn_rec_head
+[39/110] Linking HIP executable hip_gdn_chunked
+[40/110] Linking HIP executable hip_prefill_wmma_gemm_parity
+[41/110] Linking HIP executable hip_router_fast
+[42/110] Linking HIP executable hip_prefill_hcd_exact_parity
+[43/110] Linking HIP executable hip_prompt_attn_wmma
+[44/110] Linking HIP executable hip_decode_attn_wmma_parity
+[45/110] Linking HIP executable hip_prefill_hipblaslt_gemm
+[46/110] Linking HIP executable hip_prefill_rocblas_gemm
+[47/110] Linking HIP executable dequant_s2_parity
+[48/110] Linking HIP executable s2_gemv_parity
+[49/110] Linking HIP executable iq_parity
+[50/110] Linking HIP executable iq_multi_parity
+[51/110] Linking HIP executable tq_pascal_bench
+[52/110] Linking HIP executable native_grouped_parity
+[53/110] Linking HIP executable mmvf_rows_parity
+[54/110] Linking HIP executable shared_expert_parity
+[55/110] Linking HIP executable verify_parity
+[56/110] Linking HIP executable gr_parity
+[57/110] Linking HIP executable gdn_parity
+[58/110] Linking HIP executable spec_verify_parity
+[59/110] Linking HIP executable s2_gemv_q8_parity
+[60/110] Linking HIP executable rope_parity
+[61/110] Linking HIP executable spec_proposal_parity
+[62/110] Linking HIP executable quantize_act_parity
+[63/110] Linking HIP executable route_window_parity
+[64/110] Linking HIP executable router_top10_parity
+[65/110] Linking HIP executable route_resident_parity
+[66/110] Linking HIP executable kv_steps_parity
+[67/110] Linking HIP executable native_multi_parity
+[68/110] Linking HIP executable resident_plan_parity
+[69/110] Linking HIP executable gr_multi_parity
+[70/110] Linking HIP executable hc_persist_parity
+[71/110] Linking HIP executable rdna_gr_parity
+[72/110] Linking HIP executable s_gemv_parity
+[73/110] Linking HIP executable rdna_mmvq_parity
+[74/110] Building CXX object CMakeFiles/conversation_disk_tier_test.dir/src/core/conversation_disk_tier.cpp.o
+[75/110] Linking HIP executable elementwise_parity
+[76/110] Linking HIP executable bf16_gemv_parity
+[77/110] Building CXX object CMakeFiles/conversation_disk_env_test.dir/src/core/conversation_disk_tier.cpp.o
+[78/110] Linking HIP executable s_gemv_q8k_parity
+[79/110] Linking HIP executable qsa_parity
+[80/110] Building CXX object CMakeFiles/bfla_cpu_test.dir/src/kernels/bfla_cpu_test.cpp.o
+[81/110] Linking CXX executable conversation_disk_tier_test
+[82/110] Linking HIP executable qsa_topk_parity
+[83/110] Linking HIP executable kv_q8_parity
+[84/110] Linking HIP executable ple_parity
+[85/110] Linking CXX executable conversation_disk_env_test
+[86/110] Linking HIP executable route_prior_test
+[87/110] Linking HIP executable ple_iq4nl_dequant_test
+[88/110] Linking HIP executable kv_stream_parity
+[89/110] Linking HIP executable kv_window_parity
+[90/110] Linking HIP executable kv_hybrid_parity
+[91/110] Linking HIP executable kv_q4_parity
+[92/110] Linking HIP executable batch_rows_parity
+[93/110] Linking HIP executable cvec_parity
+[94/110] Linking HIP executable verify_batch_parity
+[95/110] Linking HIP executable s2_expert_grouped_parity
+[96/110] Linking HIP executable ple_reader_test
+[97/110] Linking HIP executable ple_reader_stress_test
+[98/110] Linking CXX executable qwen35_sampling_test
+[99/110] Linking CXX executable penalty_window_test
+[100/110] Linking CXX executable coupled_draft_test
+[101/110] Linking CXX executable slot_history_test
+[102/110] Linking HIP executable hip_prefill_fused_moe
+[103/110] Linking CXX executable bfla_cpu_test
+[104/110] Linking HIP executable hip_prefill_fused_iq
+[105/110] Linking HIP executable native_expert_parity
+[106/110] Linking HIP executable hip_prefill_mmq_parity
+[107/110] Linking HIP executable native_dense_types_parity
+[108/110] Building HIP object CMakeFiles/bfla_test.dir/src/kernels/cuda/bfla_test.cu.o
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:195:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  195 |     cudaFree(x.q);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:196:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  196 |     cudaFree(x.k);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:197:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  197 |     cudaFree(x.v);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:198:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  198 |     cudaFree(x.out);
+      |     ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:199:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  199 |     cudaFree(x.scratch);
+      |     ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:493:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  493 |         cudaFree(att_s);
+      |         ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:494:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  494 |         cudaFree(att_p16);
+      |         ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:550:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  550 |     cudaEventCreate(&e0);
+      |     ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:551:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  551 |     cudaEventCreate(&e1);
+      |     ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:569:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  569 |             cudaEventRecord(e0);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:571:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  571 |             cudaEventRecord(e1);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:573:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  573 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:582:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  582 |         cudaEventRecord(e0);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:584:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  584 |         cudaEventRecord(e1);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:586:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  586 |         cudaEventElapsedTime(&ms, e0, e1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:589:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  589 |         cudaEventRecord(e0);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:591:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  591 |         cudaEventRecord(e1);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:593:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  593 |         cudaEventElapsedTime(&ms, e0, e1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:601:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  601 |             cudaEventRecord(e0);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:603:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  603 |             cudaEventRecord(e1);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:605:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  605 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:617:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  617 |             cudaEventRecord(e0);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:619:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  619 |             cudaEventRecord(e1);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:621:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  621 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:638:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  638 |     cudaFree(kall);
+      |     ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:639:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  639 |     cudaFree(k16);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:640:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  640 |     cudaFree(v16);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:641:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  641 |     cudaFree(q16);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:642:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  642 |     cudaFree(out);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:643:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  643 |     cudaFree(scratch);
+      |     ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+30 warnings generated when compiling for gfx1100.
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:195:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  195 |     cudaFree(x.q);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:196:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  196 |     cudaFree(x.k);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:197:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  197 |     cudaFree(x.v);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:198:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  198 |     cudaFree(x.out);
+      |     ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:199:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  199 |     cudaFree(x.scratch);
+      |     ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:493:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  493 |         cudaFree(att_s);
+      |         ^~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:494:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  494 |         cudaFree(att_p16);
+      |         ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:550:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  550 |     cudaEventCreate(&e0);
+      |     ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:551:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  551 |     cudaEventCreate(&e1);
+      |     ^~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:38:25: note: expanded from macro 'cudaEventCreate'
+   38 | #define cudaEventCreate hipEventCreate
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:569:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  569 |             cudaEventRecord(e0);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:571:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  571 |             cudaEventRecord(e1);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:573:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  573 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:582:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  582 |         cudaEventRecord(e0);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:584:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  584 |         cudaEventRecord(e1);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:586:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  586 |         cudaEventElapsedTime(&ms, e0, e1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:589:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  589 |         cudaEventRecord(e0);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:591:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  591 |         cudaEventRecord(e1);
+      |         ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:593:9: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  593 |         cudaEventElapsedTime(&ms, e0, e1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:601:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  601 |             cudaEventRecord(e0);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:603:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  603 |             cudaEventRecord(e1);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:605:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  605 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:617:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  617 |             cudaEventRecord(e0);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:619:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  619 |             cudaEventRecord(e1);
+      |             ^~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:45:25: note: expanded from macro 'cudaEventRecord'
+   45 | #define cudaEventRecord hipEventRecord
+      |                         ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:621:13: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  621 |             cudaEventElapsedTime(&ms, e0, e1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:43:30: note: expanded from macro 'cudaEventElapsedTime'
+   43 | #define cudaEventElapsedTime hipEventElapsedTime
+      |                              ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:638:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  638 |     cudaFree(kall);
+      |     ^~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:639:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  639 |     cudaFree(k16);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:640:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  640 |     cudaFree(v16);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:641:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  641 |     cudaFree(q16);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:642:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  642 |     cudaFree(out);
+      |     ^~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+/home/dan/clone-of-d/src/Strata/src/kernels/cuda/bfla_test.cu:643:5: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+  643 |     cudaFree(scratch);
+      |     ^~~~~~~~~~~~~~~~~
+/home/dan/clone-of-d/src/Strata/include/strata/hip_compat/cuda_runtime.h:48:18: note: expanded from macro 'cudaFree'
+   48 | #define cudaFree hipFree
+      |                  ^
+30 warnings generated when compiling for host.
+[109/110] Linking HIP executable bfla_test
+BUILD_TESTS_DONE
