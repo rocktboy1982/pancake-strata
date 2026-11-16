@@ -6,6 +6,8 @@
 #include "strata/core/expert_entropy_tier.hpp"   // LEADS.md A29 STRATA_EXPERT_ENTROPY_TIER
 #include "strata/core/defer_rank.hpp"
 #include "strata/core/verify_ecap.hpp"
+#include "strata/core/miss_budget.hpp"   // MOD_PLAN section 6 item 20 STRATA_MISS_BUDGET
+#include "strata/program/tier_miss_budget.hpp"   // (its STRATA_TIER_MISS_FILE table, read here only)
 #include "strata/spec/window_rule.hpp"   // LEADS.md B25 STRATA_SPEC_MISS_WIN (MissWindow)
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_memory.hpp"
@@ -5433,6 +5435,29 @@ float miss_skip_env(const char* name) {
 }
 float miss_skip_w() { static const float w = miss_skip_env("STRATA_MISS_SKIP_W"); return w; }
 float miss_skip_cum() { static const float p = miss_skip_env("STRATA_MISS_SKIP_CUM"); return p; }
+// STRATA_MISS_BUDGET=<weight share> (opt-in, lossy; core/miss_budget.hpp, MOD_PLAN.md section 6 item 20): read once, 0 off.
+float miss_budget_b() { static const float b = strata::core::miss_budget_parse(std::getenv("STRATA_MISS_BUDGET")); return b; }
+// The optional candidate table of the budget: STRATA_TIER_MISS_FILE with STRATA_TIER_MISS_BUDGET (item 20 step 1): only the
+// experts it marks low-importance may be skipped.  Loaded once; null (every missed expert is a candidate) when either is unset
+// or the file is bad (one stderr line).  A table of another shape than the model is ignored by the caller.
+const strata::program::TierMissBudget* miss_budget_table() {
+    static strata::program::TierMissBudget t;
+    static const bool ok = [] {
+        const char* f = std::getenv("STRATA_TIER_MISS_FILE");
+        const double tb = strata::program::TierMissBudget::budget_from_env();
+        if (miss_budget_b() <= 0.0f || f == nullptr || f[0] == '\0' || !(tb > 0.0)) return false;
+        if (!t.load_file(f)) {
+            std::fprintf(stderr, "strata pool: STRATA_MISS_BUDGET: cannot read the importance table %s: every missed expert "
+                                 "is a candidate\n", f);
+            return false;
+        }
+        t.build(tb);
+        std::fprintf(stderr, "strata pool: STRATA_MISS_BUDGET=%g with the importance table %s (tier budget %g): %lld "
+                             "experts are candidates\n", (double) miss_budget_b(), f, tb, (long long) t.n_stay_out());
+        return t.on();
+    }();
+    return ok ? &t : nullptr;
+}
 // STRATA_MOBILE=<g> (opt-in, lossy; LEADS.md "MoBiLE big/little": the little model runs half the experts and is accepted
 // when its confidence >= 0.7): a token whose top-k/2 experts already carry >= g of its routed weight runs as the "little"
 // model - its lower-half experts are dropped - where that saves a copy or a CPU job (missed experts only, skipped like
@@ -5660,7 +5685,7 @@ PredDump& pred_dump() {
     return p;
 }
 }  // namespace
-bool pool_weights_wanted() { return miss_skip_weights_on() || adapt_prob_mass_on() || shadow_miss_weights_on() || ser_on(); }
+bool pool_weights_wanted() { return miss_skip_weights_on() || miss_budget_b() > 0.0f || adapt_prob_mass_on() || shadow_miss_weights_on() || ser_on(); }
 
 void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32_t* ids, int64_t n_tok, int64_t k,
                                 float* out, strata::kernels::cpu::NativeArithmetic arithmetic) {
@@ -5851,6 +5876,45 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 const int32_t e = ids[distinct[q]];
                 if (keep[q] || skip_d[q] || e < 0 || e >= d.n_expert) continue;
                 if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] >= 0) continue;   // resident: never skipped
+                skip_d[q] = true;
+                --nmiss;
+                ++d.wskip_experts;
+            }
+        }
+        // STRATA_MISS_BUDGET=<b> (opt-in, lossy, default off; core/miss_budget.hpp, MOD_PLAN.md section 6 item 20): per token the
+        // missed (non-resident) experts, lightest router weight first, are skipped while the skipped weight stays within b of the
+        // token's weight sum; skipped like the tail expert (kind -2, a zero row, no renormalisation).  An expert goes only when
+        // every token of the window that routes it skips it, as SKIP_W above.  With the importance table only its low-importance
+        // experts are candidates.  Weights: the window's doorbell publishes skip_w when the budget is on.  Not with a peer or
+        // helper GPU.  Unset: nothing runs.
+        if (miss_budget_b() > 0.0f && d.plan != nullptr && d.plan->skip_w != nullptr && d.peer == nullptr &&
+            d.remote_count == 0 && k <= 64) {
+            const float* sw = d.plan->skip_w;
+            const strata::program::TierMissBudget* tab = miss_budget_table();
+            if (tab != nullptr && (tab->experts() != (int64_t) d.n_expert || (int64_t) d.layers >= tab->layers())) tab = nullptr;
+            int q_of[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
+            bool keep[kMaxWindowEntries];   // per distinct expert: some token keeps it
+            for (int q = 0; q < nd; ++q) keep[q] = false;
+            for (int64_t t = 0; t < n_tok; ++t) {
+                bool cand[64], sk[64];
+                for (int64_t j = 0; j < k; ++j) {
+                    const int64_t i = t * k + j;
+                    const int32_t e = ids[i];
+                    const int q = q_of[first_of[i]];
+                    cand[j] = e >= 0 && e < d.n_expert && !skip_d[q] &&
+                              d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0 &&
+                              (tab == nullptr || tab->may_stay_out((int64_t) d.layers, e));
+                }
+                (void) strata::core::miss_budget_token(sw + t * k, cand, (int) k, miss_budget_b(), sk);
+                for (int64_t j = 0; j < k; ++j)
+                    if (cand[j] && !sk[j]) keep[q_of[first_of[t * k + j]]] = true;
+            }
+            for (int q = 0; q < nd; ++q) {
+                const int32_t e = ids[distinct[q]];
+                if (keep[q] || skip_d[q] || e < 0 || e >= d.n_expert) continue;
+                if (d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] >= 0) continue;   // resident: never skipped
+                if (tab != nullptr && !tab->may_stay_out((int64_t) d.layers, e)) continue;
                 skip_d[q] = true;
                 --nmiss;
                 ++d.wskip_experts;

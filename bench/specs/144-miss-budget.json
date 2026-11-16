@@ -1,0 +1,28 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 6,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata"
+    },
+    "budget-05": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_MISS_BUDGET": "0.05"
+      }
+    },
+    "budget-10": {
+      "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+      "env": {
+        "STRATA_MISS_BUDGET": "0.10"
+      }
+    }
+  },
+  "note": "STRATA_MISS_BUDGET=<weight share> (MOD_PLAN section 6 item 20 step 2, core/miss_budget.hpp): per token the missed experts are skipped lightest router weight first while the skipped weight stays within the budget of the token's weight sum (the pool's tail skip: zero row, no renormalisation; an expert goes only if every token of the window skips it). Two budgets, no importance table (the STRATA_TIER_MISS_FILE variant needs a table from a --dump-routing run on the box, not available yet). Lossy lane only: quality_gate.py token forcing and the tool-call task gate (T-589, T-591 precedent) before any use; owner bar >= 3%. Compare with the STRATA_MISS_SKIP_W arms of spec 88 (never run, T-613)."
+}

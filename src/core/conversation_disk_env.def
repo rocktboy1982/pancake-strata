@@ -200,6 +200,7 @@ STRATA_ENV("STRATA_SLICE_MISS_MB", KeyIfSet, "cap on the SLICE_MISS slice cache 
 STRATA_ENV("STRATA_MOBILE", KeyIfSet, "MoBiLE little mode: a confident token's lower-half missed experts skipped (lossy; LEADS.md MoBiLE)")
 STRATA_ENV("STRATA_MISS_SKIP_CUM", KeyIfSet, "skips missed experts past a cumulative gate weight (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")
 STRATA_ENV("STRATA_MISS_SKIP_W", KeyIfSet, "skips missed experts under a gate-weight share (lossy, like ROUTE_TAIL_SKIP; MOD_PLAN 6.15)")
+STRATA_ENV("STRATA_MISS_BUDGET", KeyIfSet, "skips the lightest missed experts of a token within a weight-share budget (lossy; MOD_PLAN 6.20)")
 STRATA_ENV("STRATA_STANDIN", KeyIfSet, "LEADS.md HotRod: every non-resident pick of ranks 0-9 takes a resident stand-in (lossy)")
 STRATA_ENV("STRATA_ROUTE_BUDGET", KeyIfSet, "LEADS.md HotRod: ranks below the floor take a stand-in within a w x gap budget (lossy)")
 STRATA_ENV("STRATA_ROUTE_BUDGET_TAIL", KeyIfSet, "LEADS.md HotRod: floor ranks take a stand-in within a w x gap budget (lossy)")
