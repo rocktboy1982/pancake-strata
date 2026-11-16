@@ -20466,6 +20466,10 @@ int main(int argc, char** argv) {
             // emit), no coupled drafts with penalties, one stage.  Unset: draft_long as before.
             static const bool draft_early = [] { const char* e = std::getenv("STRATA_DRAFT_EARLY"); return e != nullptr && e[0] == '1'; }();
             int64_t early_windows = 0;
+            // LEADS.md B28 STRATA_MTP_IN_VERIFY=1 (opt-in, exact under greedy): the round queued behind the device accept + commit on the
+            // window's stream (MtpDrafter::iv_*); needs STRATA_DEVICE_ACCEPT=1 and STRATA_MTP_ONE_GRAPH=1, collected as an early round
+            const bool mtp_in_verify = strata::core::MtpDrafter::in_verify_env() && strata::core::Verifier::device_accept_env();
+            int64_t iv_windows = 0;
             int64_t defer_auto_windows = 0, defer_auto_deferred = 0;   // MOD_PLAN 17.1 note, STRATA_VERIFY_DEFER_AUTO: the request's
                                                                          // decode windows, and those that deferred
             int64_t t2_rej[8] = {}, t2_hit[8] = {};   // STRATA_MTP_TOP2: rejections inside the MTP drafts by depth, runner-up hits
@@ -21751,6 +21755,16 @@ int main(int argc, char** argv) {
                     const bool da_bound = false;
 #endif
                     ver.arm_device_accept(da_bound, max_new - produced_n, o.eos_ids.data(), (int) o.eos_ids.size());
+                    // LEADS.md B28 STRATA_MTP_IN_VERIFY: the next round rides this window's stream (DRAFT_EARLY's plain-window rule,
+                    // the parts known before the window; the rest is checked when the round is adopted below)
+                    if (mtp_in_verify && use_mtp && draft_on && !req_df2 && !disco.enabled() && !(mtp.coupled() && hist_n > 0) &&
+                        n_stages == 1 && T <= mtp.max_t()) {
+                        std::string ie;
+                        if (mtp.iv_prepare(T, p, (float) req_spec_min_p, ie))
+                            ver.arm_after_commit([&mtp](void* s, const int32_t* d_out, const int32_t* d_commit, std::string& e) {
+                                return mtp.iv_enqueue(s, d_out, d_commit, e);
+                            });
+                    }
                 }
                 exit_if_gpu_fatal("");   // (the test hook counts windows here)
                 // STRATA_SSD_LITE: the next round's drafts for this window's outcomes, on the worker while the GPU verifies (sfx and the
@@ -21973,7 +21987,24 @@ int main(int argc, char** argv) {
                 // STRATA_DRAFT_EARLY: the round now, when the emit below will leave a draft to do (the draft call's own
                 // rule: no draft after a stop token or at the request's last token)
                 bool draft_launched = false;
-                if (draft_early && use_mtp && draft_on && !req_df2 && !merged && !gated_proposal && !disco.enabled() &&
+                // LEADS.md B28 STRATA_MTP_IN_VERIFY: a round that ran behind this window's commit is this window's early round, when
+                // DRAFT_EARLY's rule would launch one (no stop token ahead, not the request's last token); otherwise it is dropped
+                if (mtp_in_verify) {
+                    if (ver.after_commit_ran() && use_mtp && draft_on && !merged && a < mtp.max_t()) {
+                        bool eos_ahead = false;
+                        int64_t pn = produced_n;
+                        for (int i = 0; i <= a && pn < max_new && !eos_ahead; ++i) {
+                            ++pn;
+                            eos_ahead = std::find(o.eos_ids.begin(), o.eos_ids.end(), (int64_t) outv[(size_t) i]) != o.eos_ids.end();
+                        }
+                        if (!eos_ahead && pn < max_new && mtp.iv_adopt(outv.data(), a, window.data(), a + 1, err)) {
+                            draft_launched = true;
+                            ++iv_windows;
+                        }
+                    }
+                    mtp.iv_drop();
+                }
+                if (!draft_launched && draft_early && use_mtp && draft_on && !req_df2 && !merged && !gated_proposal && !disco.enabled() &&
                     !(mtp.coupled() && hist_n > 0) && n_stages == 1 && a < mtp.max_t()) {
                     bool eos_ahead = false;
                     int64_t pn = produced_n;
@@ -22837,6 +22868,9 @@ int main(int argc, char** argv) {
             if (draft_early && early_windows > 0)
                 std::fprintf(stderr, "strata serve: STRATA_DRAFT_EARLY: the draft round was launched before the commit on %lld of "
                                      "%lld windows\n", (long long) early_windows, (long long) dec_windows);
+            if (mtp_in_verify && iv_windows > 0)   // LEADS.md B28
+                std::fprintf(stderr, "strata serve: STRATA_MTP_IN_VERIFY: the draft round ran behind the device commit on %lld of %lld windows\n",
+                             (long long) iv_windows, (long long) dec_windows);
             if (std::getenv("STRATA_SPEC_DEPTH") != nullptr)
                 std::fprintf(stderr, "strata serve: spec depth: accepted/tested %lld/%lld %lld/%lld %lld/%lld %lld/%lld %lld/%lld\n",
                              (long long) dp_ok[0], (long long) dp_tested[0], (long long) dp_ok[1], (long long) dp_tested[1],

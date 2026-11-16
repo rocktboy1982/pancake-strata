@@ -236,6 +236,13 @@ struct DeviceAcceptBound {
 };
 void device_accept_commit(const int32_t* tok, const int32_t* out, int T, int pos0, int max_t, const DeviceAcceptBound& bound,
                           int32_t* commit, void* stream);
+/// LEADS.md B28 STRATA_MTP_IN_VERIFY: MtpDrafter::draft_launch's host staging, on the device, from the window's picks `out` and
+/// the commit words `commit` (device_accept_commit's [n_keep, a = n_keep - 1, ...]): tok[t] = out[t] and cells p + t for the
+/// T round rows, draft 0's cell p + a at row 2 * max_t - 1, draft j's cell p + a + j at row max_t + j - 1 (j < steps), the
+/// outputs -1, the entropies NaN (when given), row = {a, 0}, the 16 forced tokens -1 (when given).  Same values as the host.
+void mtp_stage_from_accept(const int32_t* out, const int32_t* commit, int T, int64_t p, int max_t, int steps, int n_head,
+                           int32_t* tok, int32_t* step, int32_t* pos, int32_t* row, int32_t* mtp_out, float* ent, float* top2,
+                           int32_t* force, void* stream);
 /// STRATA_OEA=k0 (LEADS.md "OEA sibling-aware routing", arXiv 2511.02237): the window's n rows re-routed from their router
 /// logits (n, n_expert): each row keeps its top-k0 (ties to the lower id), then fills slots k0..k-1 in logit order with
 /// experts some row kept in that first phase (no new expert loads); a slot with no candidate repeats slot 0 at weight 0.
