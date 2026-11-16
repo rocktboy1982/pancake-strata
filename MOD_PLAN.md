@@ -171,7 +171,7 @@ miss.
 1. **RUNNING: chain 6** `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
    `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
    step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);
-   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609), 87 (T-612: 16 PROMOTE, 17 DROP). Left in the chain: 88-101, then
+   specs 81 (T-604), 82 (T-605), 83 (T-606), 84 (T-607), 85 crash (T-602), 86 (T-608), 80 (T-609), 87 (T-612: 16 PROMOTE, 17 DROP), 88 aborted at adapt-idle-copy (T-613), 89 (T-614), 90 (T-615), 91 (T-616); 92 running since 15:22. Left in the chain: 92-101, then
    the never-run specs of item 5 (26, 12, a21, 24-a15, 22-a7, 24-a45, 16-a19, 25-f-env-rerun, a33-a35, 15-kmiss, 19-turbo-guards).
    strata-poly failed (T-603); the fix 5b867bf3a is not built yet: after `WINCHAIN6_DONE`, sync with `tar xmf` and build
    strata-poly as its own job. Earlier chains (specs 60-65 overnight, T-587..T-596; win-chain2/3/4/5b, aborted or untrusted,
@@ -191,11 +191,16 @@ miss.
      `IDLE_ADAPT`, `POOL_SPIN_US` 0 / 50 / 200 / 1000, `--lookup-chain 3`, `MMVF_ROWS`+`FUSE_QGEMV`, `GDN_SPECLA=4`, `DRAFT_CLIP=3`,
      `FS_STALE_DROP`, `WARM_CU_MASK` (the only exact-text arm), `DMA_COALESCE`, `ARENA_POPULATE`. Many read +3..+6% against one
      base pair (n=2): expect most to fall back to noise.
+   - Spec 89 (T-614), into the 107-auto confirm specs: `PREFILL_POOL_RETRY`, `PREFILL_AUTO_MAX=49152`, `KV_STAGE_REQ` (all within
+     +-1.7% of base: likely noise).
+   - Spec 90 (T-615, q36 model), into the 107-auto confirm specs: `DENSE_MMQ` (long32k +7.2%, n=1; the author's +43% not
+     reproduced), `Q36_EXPERTS_USED=7` / `=6` (short/edit +8..+18%, lossy by design: quality gate with KLD), `Q36_ATT_GROUPED`
+     (long32k +4.3%), `Q36_ATT_GROUPED`+`Q36_FA` (long32k +13.5%, n=1). The base short/edit spread is +-55..69: confirm decides.
    - Dropped at screen (section 9): spec 81 `TOPK_REGKEYS`+`TOPK_SCAN`, `ATTN_MERGE_BOUND`, `GRUP_PF`, `GDN_SPLIT`+`GDN_NORM128`,
      `ADAPT_COPY2`, `WAIT_FUSE_ROWS` alone; spec 82 all (DMA_FLAG_WRITE, PCIE_FORK, DALI); spec 83 `PF_COPY2`; spec 84 the
      `PF_GU_EXACT` family; spec 80 J=32 rolled MMQ; spec 87 `Q2_FAST`, `POOL_ROW_SPLIT` 64 / 256, `POOL_TOUCH_NEXT`,
      `FUSE_SWIGLU_DOWN`, `MMVF_ROWS` alone, the device-plan path and its fusions (`VERIFY_DEVICE_PLAN`, `FUSE_PLAN`, `_COMBINE`,
-     `_SHGATE`), `EXPDEC_V2`, `SAMPLER_X8`, `MMVF_ROWS1`, `LOOKAHEAD_AFTER_PUB`, `GDN_SPECLA=2`; spec 85 `MMVQ_IL_PLAIN` crashes (T-602, defect for the box agent).
+     `_SHGATE`), `EXPDEC_V2`, `SAMPLER_X8`, `MMVF_ROWS1`, `LOOKAHEAD_AFTER_PUB`, `GDN_SPECLA=2`; spec 89 `PF_SEL_BATCH=64`, `KV_PF_RESIDENT`; spec 90 `Q36_ATTN_GQA`; spec 91 all (`QSA_PARTIAL_TOPK`, `QSA_PAGE_SEL` 16 / 32, -3..-31% decode, exact text); spec 85 `MMVQ_IL_PLAIN` crashes (T-602, defect for the box agent).
    **QUEUED: chain 7** `/home/dan/clone-of-d/src/win-chain7.sh` (started 2026-11-16 13:37, waits for `WINCHAIN6_DONE`, then
    for 3 minutes with no client on 11437 before it stops pancake.service; log `/home/dan/clone-of-d/src/win-chain7.log`, results
    `/home/dan/auto-runs/win7-<spec>.*`): strata-poly build (5b867bf3a synced), specs 102 and 103 at confirm, the item 4
@@ -237,7 +242,7 @@ miss.
    (`launch_il_plain`); `quality_gate.py` (set-v2, the default since T-597) for every spec 102/103 arm that reaches the 2% bar;
    then the confirm specs for the PROMOTE arms of specs 87-101; rerun spec 88's six arms that never ran (`adapt-idle-copy-1m`, `miss-skip-w02/w05/cum90/cum95`) without `adapt-idle-copy`, whose first request fails with `the adaptive tier's copies for layer 25 never landed` (T-613, a second crash after T-602). Nothing of this runs before chain 7 is done (no GPU job beside
    a chain).
-3. **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
+3. **MEASURED at screen (T-615, spec 90): long32k +7.2%, n=1, PROMOTE to confirm (item 2).** **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
    Lossy rounding: token forcing.
 4. **QUEUED in chain 7 (item 2). EQUAL_TAIL** (`STRATA_PREFILL_EQUAL_TAIL`, `_MIN` 256): est. -1.5..-2.5 s of ~40 s at 100K, ~-1 s at 66.5K, up to
@@ -414,7 +419,8 @@ xxxliqu1dxxx and its 3 commits, merged as 8aeff515b, 15 of 15 status-page tests)
   `GRUP_PF`, `GDN_NORM128`, `ADAPT_COPY2`, `WAIT_FUSE_ROWS` alone (T-604), `PF_GU_EXACT` family (T-607), MMQ J=32 rolled
   (T-609), `PF_COPY2` (T-606), PCIe share with `DMA_FLAG_WRITE` / `PCIE_FORK` / `DALI` (T-605); spec 87 (T-612): `Q2_FAST`
   engine A/B (edit -24.9%), `POOL_ROW_SPLIT`, `POOL_TOUCH_NEXT`, `FUSE_SWIGLU_DOWN`, `VERIFY_DEVICE_PLAN` + `FUSE_PLAN` /
-  `_COMBINE` / `_SHGATE`, `EXPDEC_V2`, `SAMPLER_X8`, `MMVF_ROWS1`, `LOOKAHEAD_AFTER_PUB`, `GDN_SPECLA=2`.
+  `_COMBINE` / `_SHGATE`, `EXPDEC_V2`, `SAMPLER_X8`, `MMVF_ROWS1`, `LOOKAHEAD_AFTER_PUB`, `GDN_SPECLA=2`; spec 89 (T-614): `PF_SEL_BATCH=64`, `KV_PF_RESIDENT`; spec 90 (T-615):
+  `Q36_ATTN_GQA` (short -7.0%); spec 91 (T-616): `QSA_PARTIAL_TOPK`, `QSA_PAGE_SEL` 16 / 32 (decode -3..-31% at 10K/32K).
 - Drafting: `--spec 2/3/5/6` (T-118, T-149, T-159, T-160), DFlash2 (T-119), `SPEC_COST` (T-120), full / zh60k draft vocab
   (T-121, T-123), real-code draft vocab (T-146, T-151), mtp-window 4096 alone (T-122), `MTP_EAGER` (T-136, T-145, T-159),
   `--mtp-q4` head (T-143), `MTP_HIP_PRIO` (T-140..T-142), EcoSpec (T-148), A22 DISCO chain stop and FK-21 `SPEC_CUM`
