@@ -12,6 +12,7 @@
 // 8d7042ad97) are taken from the router's own order and never displaced; the bonus only reorders what is left.  A
 // per-window `gate` (STRATA_ROUTE_PRIOR_SCOPE: the serve loop writes 1 / 0 into a mapped float before each window) turns
 // the whole kernel off for a window: it returns at once and the router's own top-10, already in ids / weights, stands.
+// STRATA_ROUTE_PRIOR_ERANK (AcceptMoE's effective-rank utility set size, LEADS.md) makes `protect` a per-token number.
 #include "strata/kernels/route_prior.hpp"
 
 #include <cuda_runtime.h>
@@ -67,7 +68,7 @@ __global__ void route_prior_delta_k(const float* __restrict__ logits, int n_tok,
 // one warp per token; 512 experts = 16 values per lane (as the native router)
 __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* __restrict__ res, float lambda,
                                   int32_t* __restrict__ ids, float* __restrict__ weights, float depth_acc, int row0,
-                                  const float* gate, int protect, float keep_p, int delta_layer) {
+                                  const float* gate, int protect, float keep_p, int delta_layer, float erank) {
     if (gate != nullptr) {   // STRATA_ROUTE_PRIOR_SCOPE: this window's scale, 0 = out of scope (a tool call, a code fence, ...)
         const float g = *(volatile const float*) gate;
         if (!(g > 0.0f)) return;   // the router's own top-10 stands (whole warp, before any shuffle)
@@ -120,9 +121,44 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
     // probability is at least `keep_p` of the top one's (p is exp(logit - max): the top one is 1.0) - in the router's
     // order; the first pick that is neither ends the phase and the rest are chosen by the biased score.  Both guards off:
     // own_phase is false from the start (the earlier kernel).  Finite logits select exactly as before.
+    // STRATA_ROUTE_PRIOR_ERANK=x (LEADS.md, AcceptMoE's effective-rank utility set; opt-in, lossy): the router's own
+    // top-10 probabilities q (in its order) give the set size k = ceil(x exp(H)), H the entropy of q renormalised
+    // (H = log S - sum q log q / S, S = sum q), clamped to 1..10: the router's first k picks (the root anchor, rank 0,
+    // always among them) are kept like STRATA_ROUTE_PRIOR_PROTECT, so a sure router keeps few and an unsure one many,
+    // and only the ranks after them are rerouted to resident experts.  The larger of k and `protect` holds.  erank <= 0:
+    // prot = protect (this kernel as before).  Degenerate q (sum not finite or 0): k = 0, no change.
+    int prot = protect;
+    if (erank > 0.0f) {
+        unsigned tk = 0;
+        float qs = 0.0f, ql = 0.0f;
+        for (int rank = 0; rank < 10; ++rank) {
+            float best = -INFINITY, bp = 0.0f;
+            int be = 1 << 30;
+#pragma unroll
+            for (int i = 0; i < 16; ++i) {
+                const float v = p[i] == p[i] ? p[i] : -INFINITY;
+                if (!((tk >> i) & 1u) && (be == (1 << 30) || v > best)) { best = v; be = lane + 32 * i; bp = p[i]; }
+            }
+#pragma unroll
+            for (int m = 16; m; m >>= 1) {
+                const float ob = __shfl_xor_sync(0xffffffffu, best, m, 32);
+                const int oe = __shfl_xor_sync(0xffffffffu, be, m, 32);
+                const float op = __shfl_xor_sync(0xffffffffu, bp, m, 32);
+                if (ob > best || (ob == best && oe < be)) { best = ob; be = oe; bp = op; }
+            }
+            if ((be & 31) == lane) tk |= 1u << (be >> 5);
+            if (bp > 0.0f && bp <= FLT_MAX) { qs += bp; ql += bp * logf(bp); }   // the same on every lane
+        }
+        if (qs > 0.0f && qs <= FLT_MAX) {
+            const float h = logf(qs) - ql / qs;
+            const float kf = ceilf(erank * expf(h > 0.0f ? h : 0.0f));
+            const int k = kf >= 10.0f ? 10 : kf <= 1.0f ? 1 : (int) kf;
+            prot = k > prot ? k : prot;
+        }
+    }
     unsigned taken = 0;
     float sel_p = 0.0f, sel_sum = 0.0f;
-    bool own_phase = protect > 0 || keep_p > 0.0f;
+    bool own_phase = prot > 0 || keep_p > 0.0f;
     for (int rank = 0; rank < 10; ++rank) {
         float best = -INFINITY, bp = 0.0f;
         int be = 1 << 30;
@@ -140,7 +176,7 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
                 const float op = __shfl_xor_sync(0xffffffffu, bp, m, 32);
                 if (ob > best || (ob == best && oe < be)) { best = ob; be = oe; bp = op; }
             }
-            if (rank < protect || (keep_p > 0.0f && bp >= keep_p)) picked = true;   // (the same on every lane)
+            if (rank < prot || (keep_p > 0.0f && bp >= keep_p)) picked = true;   // (the same on every lane)
             else { own_phase = false; best = -INFINITY; bp = 0.0f; be = 1 << 30; }
         }
         if (!picked) {
@@ -169,8 +205,11 @@ __global__ void route_prior_k(const float* __restrict__ logits, const int32_t* _
 const float* g_prior_gate = nullptr;   // set once, before any window graph is captured (launch arguments are baked in)
 int g_prior_protect = 0;
 float g_prior_keep_p = 0.0f;
+float g_prior_erank = -1.0f;   // STRATA_ROUTE_PRIOR_ERANK (< 0: not read yet); route_prior_set_erank overrides
 
 }  // namespace
+
+void route_prior_set_erank(float scale) { g_prior_erank = scale > 0.0f ? scale : 0.0f; }
 
 void route_prior_configure(const float* gate, int protect, float keep_p) {
     g_prior_gate = gate;
@@ -184,8 +223,14 @@ void route_prior_top10(const float* logits, const int32_t* res_layer, float lamb
     // STRATA_ROUTE_PRIOR_DELTA=1 (opt-in, read once): the bonus scaled by the layer's running logit range (see above)
     static const bool delta_on = [] { const char* v = std::getenv("STRATA_ROUTE_PRIOR_DELTA"); return v != nullptr && v[0] == '1'; }();
     const int dl = delta_on && layer >= 0 && layer < kDeltaLayers ? layer : -1;
+    // STRATA_ROUTE_PRIOR_ERANK=x (opt-in, read once; x > 0, e.g. 1): AcceptMoE's effective-rank utility set (see the kernel)
+    if (g_prior_erank < 0.0f) {
+        const char* v = std::getenv("STRATA_ROUTE_PRIOR_ERANK");
+        const float x = v != nullptr ? (float) std::atof(v) : 0.0f;
+        g_prior_erank = x > 0.0f && x <= 10.0f ? x : 0.0f;
+    }
     route_prior_k<<<n_tok, 32, 0, (cudaStream_t) stream>>>(logits, res_layer, lambda, ids, weights, depth_acc, row0,
-                                                           g_prior_gate, g_prior_protect, g_prior_keep_p, dl);
+                                                           g_prior_gate, g_prior_protect, g_prior_keep_p, dl, g_prior_erank);
     if (dl >= 0) route_prior_delta_k<<<1, 32, 0, (cudaStream_t) stream>>>(logits, n_tok, dl);
 }
 
