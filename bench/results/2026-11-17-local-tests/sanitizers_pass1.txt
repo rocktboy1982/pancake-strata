@@ -1,0 +1,239 @@
+=== diag_rules_test (src/core/diag_rules_test.cpp)
+diag_rules_test: 17 checks ok
+RESULT diag_rules_test exit 0
+=== head_gather_test (src/core/head_gather_test.cpp)
+head_gather_test: ok (300 heads, union 80.5% of the rows on average)
+RESULT head_gather_test exit 0
+=== miss_budget_test (src/core/miss_budget_test.cpp)
+miss_budget_test: ok (20000 tokens, 41381 entries skipped)
+RESULT miss_budget_test exit 0
+=== verify_ecap_test (src/core/verify_ecap_test.cpp)
+verify_ecap_test: ok (4000 windows, 50278 entries dropped)
+RESULT verify_ecap_test exit 0
+=== moe_tile_rule_test (src/prefill/moe_tile_rule_test.cpp)
+moe_tile_rule_test: ok
+RESULT moe_tile_rule_test exit 0
+=== ckpt_async_plan_test (src/program/ckpt_async_plan_test.cpp)
+ckpt_async_plan_test: 13 checks passed
+RESULT ckpt_async_plan_test exit 0
+=== ckpt_stride_test (src/program/ckpt_stride_test.cpp)
+ckpt_stride_test: 16 checks passed
+RESULT ckpt_stride_test exit 0
+=== fork_bugfix_rules_test (src/program/fork_bugfix_rules_test.cpp)
+fork_bugfix_rules_test OK (29 checks)
+RESULT fork_bugfix_rules_test exit 0
+=== head_shortlist_test (src/program/head_shortlist_test.cpp)
+head_shortlist_test: 34 checks passed
+RESULT head_shortlist_test exit 0
+=== knob_trial_test (src/program/knob_trial_test.cpp)
+knob_trial_test: 22 checks passed
+RESULT knob_trial_test exit 0
+=== lookahead_ctrl_test (src/program/lookahead_ctrl_test.cpp)
+lookahead_ctrl_test: 17 checks passed
+RESULT lookahead_ctrl_test exit 0
+=== lookahead_skip_test (src/program/lookahead_skip_test.cpp)
+lookahead_skip_test: 16 checks passed
+RESULT lookahead_skip_test exit 0
+=== lookahead_weights_test (src/program/lookahead_weights_test.cpp)
+lookahead_weights_test: 23 checks passed
+RESULT lookahead_weights_test exit 0
+=== ple_warm_test (src/program/ple_warm_test.cpp)
+ple_warm_test: 13 checks passed
+RESULT ple_warm_test exit 0
+=== prefetch_prev_test (src/program/prefetch_prev_test.cpp)
+prefetch_prev_test: 9 checks passed
+RESULT prefetch_prev_test exit 0
+=== route_range_test (src/program/route_range_test.cpp)
+route_range_test: 19 checks passed
+RESULT route_range_test exit 0
+=== tier_miss_budget_test (src/program/tier_miss_budget_test.cpp)
+tier_miss_budget_test: 20 checks ok
+RESULT tier_miss_budget_test exit 0
+=== window_policy_test (src/spec/window_policy_test.cpp)
+window_policy_test: ok
+RESULT window_policy_test exit 0
+=== pf_ahead_rule_test (tests/prefill/pf_ahead_rule_test.cpp)
+pf_ahead_rule_test: ok
+RESULT pf_ahead_rule_test exit 0
+=== stop_rule_test (tests/prefill/stop_rule_test.cpp)
+stop_rule_test OK
+RESULT stop_rule_test exit 0
+=== prefill_plan_test (tests/program/prefill_plan_test.cpp)
+8192: set 15.0 GiB miss 0.51 reads 32.7 GB 111 s | 6144: 13.3 GiB 0.18 13.2 GB 70 s | 4096: 11.5 GiB 0.00 0.0 GB 49 s
+strata: prefill plan: chunk 8192 -> 5120, ring 64 -> 64: today's choice has a 15.0 GiB file set against a 14.5 GiB page cache (about 32.7 GB read from the drive per 28700-token prompt, 111 s); this one 12.4 GiB, about 1.5 GB read, 47 s. --prefill N keeps your own chunk
+strata: prefill plan: chunk 8192, ring 96 kept: file set 19.1 GiB does not fit the page cache 17.0 GiB -> about 62.4 GB read from the drive per 28887-token prompt (4 chunks); no option does better (the set cannot fit: fewest passes win)
+strata: prefill plan: chunk 8192, ring 64 kept: file set 47.6 GiB does not fit the page cache 22.0 GiB -> about 204.4 GB read from the drive per 28700-token prompt (4 chunks); no option does better (the set cannot fit: fewest passes win)
+strata: prefill plan: chunk 8192 -> 8192, ring 64 -> 16: today's choice has a 14.0 GiB file set against a 14.5 GiB page cache (about 19.1 GB read from the drive per 28700-token prompt, 81 s); this one 13.5 GiB, about 13.1 GB read, 68 s. --prefill N keeps your own chunk
+prefill_plan_test: ok
+RESULT prefill_plan_test exit 0
+=== session_keep_root_test (src/core/session_keep_root_test.cpp)
+lld-link: error: undefined symbol: struct strata::core::ConversationCheckpoint const * __cdecl strata::core::session_deepest_checkpoint(class std::vector<struct strata::core::ConversationCheckpoint, class std::allocator<struct strata::core::ConversationCheckpoint>> const &)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:29
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+
+lld-link: error: undefined symbol: struct strata::core::ConversationCheckpoint const * __cdecl strata::core::session_root_checkpoint(class std::vector<struct strata::core::ConversationCheckpoint, class std::allocator<struct strata::core::ConversationCheckpoint>> const &, struct strata::core::ConversationCheckpoint const *)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:31
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+
+lld-link: error: undefined symbol: class std::vector<struct strata::core::ConversationCheckpoint const *, class std::allocator<struct strata::core::ConversationCheckpoint const *>> __cdecl strata::core::session_checkpoints_kept(class std::vector<struct strata::core::ConversationCheckpoint, class std::allocator<struct strata::core::ConversationCheckpoint>> const &, bool)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:33
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:36
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:40
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+>>> referenced 3 more times
+
+lld-link: error: undefined symbol: unsigned __int64 __cdecl strata::core::session_save_peak_bytes(class std::vector<struct strata::core::ConversationCheckpoint const *, class std::allocator<struct strata::core::ConversationCheckpoint const *>> const &, struct strata::core::SessionSaveLive const &)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:52
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:53
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+
+lld-link: error: undefined symbol: unsigned __int64 __cdecl strata::core::session_save_peak_bytes(struct strata::core::ConversationCheckpoint const *, struct strata::core::SessionSaveLive const &)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:52
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:53
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+
+lld-link: error: undefined symbol: bool __cdecl strata::core::session_save_checkpoints(class std::vector<struct strata::core::ConversationCheckpoint, class std::allocator<struct strata::core::ConversationCheckpoint>> const &, struct strata::core::SessionSaveLive const &, class std::function<bool __cdecl(unsigned __int64, class std::basic_string<char, struct std::char_traits<char>, class std::allocator<char>> &)> const &, class std::vector<struct strata::core::ConversationCheckpoint, class std::allocator<struct strata::core::ConversationCheckpoint>> &, class std::basic_string<char, struct std::char_traits<char>, class std::allocator<char>> &)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:59
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+
+lld-link: error: undefined symbol: bool __cdecl strata::core::session_keep_root_env(void)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:59
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:62
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:64
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+
+lld-link: error: undefined symbol: bool __cdecl strata::core::session_save_stream_checkpoints(class std::vector<struct strata::core::ConversationCheckpoint, class std::allocator<struct strata::core::ConversationCheckpoint>> const &, struct strata::core::SessionSaveLive const &, class std::function<bool __cdecl(unsigned __int64, class std::basic_string<char, struct std::char_traits<char>, class std::allocator<char>> &)> const &, class std::vector<struct strata::core::ConversationCheckpoint const *, class std::allocator<struct strata::core::ConversationCheckpoint const *>> &, class std::basic_string<char, struct std::char_traits<char>, class std::allocator<char>> &)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\core\session_keep_root_test.cpp:62
+>>>               C:\Users\iancu\AppData\Local\Temp\session_keep_root_test-0960bc.o:(main)
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+RESULT session_keep_root_test BUILD_FAIL
+=== draft_policy_test (src/spec/draft_policy_test.cpp)
+lld-link: error: undefined symbol: public: __cdecl strata::spec::DraftPolicy::DraftPolicy(int, double)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:28
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:34
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:48
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 19 more times
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::observe(bool, int, int, int, double)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:29
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:35
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:36
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 35 more times
+
+lld-link: error: undefined symbol: public: struct strata::spec::DraftPolicy::Pick __cdecl strata::spec::DraftPolicy::choose(int, int, int) const
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:30
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:39
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:42
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 17 more times
+
+lld-link: error: undefined symbol: public: double __cdecl strata::spec::DraftPolicy::lookup_rate(int) const
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:38
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:41
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::observe_chain(int, int, int, int, double)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:85
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:90
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:99
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 2 more times
+
+lld-link: error: undefined symbol: public: int __cdecl strata::spec::DraftPolicy::chain(int, double, int, int) const
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:86
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:91
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:92
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 5 more times
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::observe_committed(bool, int, int, int)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:131
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:146
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:153
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 2 more times
+
+lld-link: error: undefined symbol: public: double __cdecl strata::spec::DraftPolicy::cost_ms(int) const
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:135
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:135
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:145
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 14 more times
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::defer_cost(__int64, int, double)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:147
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:154
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:160
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::apply_costs(__int64)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:148
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:150
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:155
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 1 more times
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::set_sizes(unsigned int)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:170
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:190
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::disable(int)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:185
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+
+lld-link: error: undefined symbol: public: int __cdecl strata::spec::DraftPolicy::fit(int) const
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:188
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:188
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:188
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+
+lld-link: error: undefined symbol: public: void __cdecl strata::spec::DraftPolicy::set_ufac(double const *, int)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:220
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:221
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\src\spec\draft_policy_test.cpp:222
+>>>               C:\Users\iancu\AppData\Local\Temp\draft_policy_test-df201b.o:(main)
+>>> referenced 2 more times
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+RESULT draft_policy_test BUILD_FAIL
+=== combine_write_rule_test (tests/prefill/combine_write_rule_test.cpp)
+combine_write_rule_test: ok
+RESULT combine_write_rule_test exit 0
+=== subfit_trace_test (src/core/subfit_trace_test.cpp)
+subfit_trace_test: ok
+RESULT subfit_trace_test exit 0
+=== tier_protect_test (src/program/tier_protect_test.cpp)
+tier_protect_test: 15 checks ok
+RESULT tier_protect_test exit 0

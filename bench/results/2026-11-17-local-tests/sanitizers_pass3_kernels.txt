@@ -1,0 +1,26 @@
+=== pool_micro_parity_test
+pool_micro_parity_test: q2 split row: 7470 values, worst error 3.96e-07 of the case max, 0 bad
+pool_micro_parity_test: swiglu: 65533 values, worst relative error 2.24e-07, 0 bad
+pool_micro_parity_test: host timing (L2-resident, 40 blocks/row, informational): one chain 430.0 ns/row, two chains 370.6 ns/row
+pool_micro_parity_test: PASS
+RESULT pool_micro_parity_test exit 0
+=== iq_own1_parity_test
+lld-link: error: undefined symbol: void __cdecl strata::kernels::cpu::iq256x_rows(int, unsigned char const *, unsigned __int64, int, void const *const *, int, float *const *, int, int)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\tests\core\iq_own1_parity_test.cpp:63
+>>>               C:\Users\iancu\AppData\Local\Temp\iq_own1_parity_test-14db6f.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\tests\core\iq_own1_parity_test.cpp:104
+>>>               C:\Users\iancu\AppData\Local\Temp\iq_own1_parity_test-14db6f.o:(main)
+
+lld-link: error: undefined symbol: void __cdecl strata::kernels::cpu::iq_own1_rows(int, unsigned char const *, unsigned __int64, int, void const *, float *, int, int)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\tests\core\iq_own1_parity_test.cpp:64
+>>>               C:\Users\iancu\AppData\Local\Temp\iq_own1_parity_test-14db6f.o:(main)
+>>> referenced by C:\Users\iancu\repos\pancake-strata\tests\core\iq_own1_parity_test.cpp:104
+>>>               C:\Users\iancu\AppData\Local\Temp\iq_own1_parity_test-14db6f.o:(main)
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+RESULT iq_own1_parity_test BUILD_FAIL
+=== iq_own1 retry with iq_avx2.cpp + ggml-common.h
+iq_own1_parity_test: 9362 row outputs (IQ2_XXS, IQ2_XS), 0 differ
+iq_own1_parity_test: host timing type 16 (L2-resident, informational): exact rows 185.0 ns/block, own1 137.9 ns/block
+iq_own1_parity_test: host timing type 17 (L2-resident, informational): exact rows 91.7 ns/block, own1 131.5 ns/block
+iq_own1_parity_test: PASS
+RESULT iq_own1_parity_test exit 0

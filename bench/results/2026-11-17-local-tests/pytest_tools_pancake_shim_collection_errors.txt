@@ -1,0 +1,25 @@
+
+=================================== ERRORS ====================================
+__________ ERROR collecting tools/pancake/test_direct_read_probe.py ___________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tools\pancake\test_direct_read_probe.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\test_direct_read_probe.py:13: in <module>
+    import direct_read_probe as P  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\direct_read_probe.py:23: in <module>
+    import fcntl
+E   ModuleNotFoundError: No module named 'fcntl'
+______________ ERROR collecting tools/pancake/test_spec_lint.py _______________
+tools\pancake\test_spec_lint.py:15: in <module>
+    SCHEMA = S.Schema(S.ROOT)
+             ^^^^^^^^
+E   AttributeError: module 'spec_lint' has no attribute 'Schema'
+=========================== short test summary info ===========================
+ERROR tools/pancake/test_direct_read_probe.py
+ERROR tools/pancake/test_spec_lint.py - AttributeError: module 'spec_lint' ha...
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!
+2 errors in 2.33s

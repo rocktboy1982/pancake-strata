@@ -1,0 +1,58 @@
+=== session_keep_root_test (src/core/session_keep_root_test.cpp src/core/conversation_file.cpp)
+session_keep_root_test: 12 checks passed (keep_root env off)
+RESULT session_keep_root_test exit 0
+=== draft_policy_test (src/spec/draft_policy_test.cpp src/spec/draft_policy.cpp)
+draft_policy_test
+  no proposal: the MTP window                                        ok
+  rejected short-match drafts: their rate falls below 0.15           ok
+  rejected short-match drafts: no longer taken                       ok
+  accepted long-match drafts: their rate rises above 0.9             ok
+  accepted long matches: the full lookup window is taken             ok
+  buckets are separate: short matches still not taken                ok
+  never beyond the window cap                                        ok
+  a mediocre lookup does not replace a strong MTP window             ok
+  an unmeasured size is probed for a confident lookup                ok
+  after the probes, the measured cost decides                        ok
+  a stale wide size is tried again within a few hundred rounds       ok
+  chain: cheap rows, always accepted -> all 3 chained                ok
+  chain: dear rows, never accepted -> none                           ok
+  chain: nothing proposed / no room -> none                          ok
+  chain: the profitable shorter chain initially wins                 ok
+  chain: stale full size is re-probed despite a profitable shorter chain ok
+  chain: stale re-probes retain the MTP confidence gate              ok
+  gated: a frozen copy probes the guessed size every round           ok
+  gated: committed outcomes end the probes after kProbes rounds of the size ok
+  gated: committed outcomes leave the measured costs alone           ok
+  delayed: cheap inherited costs take the full lookup                ok
+  delayed: a time is held while its counters can still be drawn      ok
+  delayed: applied once the committed position passes its last counter ok
+  delayed: dear measured times shorten the lookup window             ok
+  delayed: a held time does not count as another probe               ok
+  sizes: a full 16-token lookup window when it pays                  ok
+  sizes: a 10-token proposal takes the 8-token size                  ok
+  sizes: never a size outside the mask                               ok
+  sizes: a disabled size falls back to the next one                  ok
+  sizes: fit() finds the largest allowed size                        ok
+  sizes: a chained window's total is an allowed size                 ok
+  clip: a stall counts as 3x the median                              ok
+  clip: off, the stall is taken as it is                             ok
+  clip: a lasting cost change is learned                             ok
+  ufac: on only after set_ufac                                       ok
+  ufac: a measured width is never touched                            ok
+  ufac: a measured width is never touched                            ok
+  ufac: a measured width is never touched                            ok
+  ufac: a measured width is never touched                            ok
+  ufac: an unmeasured width gets the exact fit on exact data         ok
+  ufac: an unmeasured width gets the exact fit on exact data         ok
+  ufac: an unmeasured width gets the exact fit on exact data         ok
+  ufac: an unmeasured width gets the exact fit on exact data         ok
+  ufac: the kShape scaling alone is not that fit (so the switch changes the pricing) ok
+  ufac: under 3 measured widths the scaling stands                   ok
+  ufac: a non-positive value turns it off                            ok
+  ufac: one value is not a curve                                     ok
+  ufac: a width at the end of the list is priced                     ok
+PASS
+RESULT draft_policy_test exit 0
+=== session_keep_root_test with STRATA_SESSION_KEEP_ROOT=1
+session_keep_root_test: 12 checks passed (keep_root env on)
+RESULT session_keep_root_test_on exit 0

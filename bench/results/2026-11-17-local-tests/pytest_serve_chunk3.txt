@@ -1,0 +1,10 @@
+.........s............................................................ [ 24%]
+............................................... [ 40%]
+........................................x............................ss......................................................................................... [ 96%]
+...s.....                                                            [100%]
+=========================== short test summary info ===========================
+SKIPPED [1] serve\test_cache_drop.py:12: POSIX only
+SKIPPED [1] serve\test_replicas.py:393: Linux memfd
+SKIPPED [1] serve\test_replicas.py:377: Linux memfd
+SKIPPED [1] serve\test_web_history.py:110: set WEBTEST_MODULES (a folder with node_modules/puppeteer-core) to run the browser tests
+281 passed, 4 skipped, 1 xfailed, 159 subtests passed in 152.67s (0:02:32)

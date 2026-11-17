@@ -1,0 +1,103 @@
+....................F................................................... [ 24%]
+........................................................................ [ 48%]
+...................................................sss..............................ss........F......................... [ 89%]
+.............................s                [100%]
+================================== FAILURES ===================================
+________________ ServiceDedupTest.test_service_default_is_off _________________
+
+self = <serve.test_context_dedup.ServiceDedupTest testMethod=test_service_default_is_off>
+
+    def test_service_default_is_off(self):
+>       self.assertIn("self.context_dedup = False", Path(server.__file__).read_text())
+                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+serve\test_context_dedup.py:185: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\pathlib\__init__.py:788: in read_text
+    return f.read()
+           ^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <encodings.cp1252.IncrementalDecoder object at 0x00000176EF07CF50>
+input = b'"""serve/server.py - plan v0.3 P8: OpenAI and Anthropic endpoints over any engine that maps token ids to tokens.\n\n...                "exit_code": exit_code})\n    return exit_code\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+final = True
+
+    def decode(self, input, final=False):
+>       return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 707989: character maps to <undefined>
+
+C:\Python314\Lib\encodings\cp1252.py:23: UnicodeDecodeError
+_______ Structured.test_the_server_does_not_import_jsonschema_at_start ________
+
+self = <serve.test_structured.Structured testMethod=test_the_server_does_not_import_jsonschema_at_start>
+
+    def test_the_server_does_not_import_jsonschema_at_start(self):
+        import subprocess
+        import sys
+        code = ("import sys; import serve.server; "
+                "sys.exit(1 if any(m == 'jsonschema' or m.startswith('jsonschema.') for m in sys.modules) else 0)")
+        r = subprocess.run([sys.executable, "-c", code], cwd=str(Path(__file__).resolve().parents[1]))
+>       self.assertEqual(r.returncode, 0)
+E       AssertionError: 1 != 0
+
+serve\test_structured.py:245: AssertionError
+---------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys; import serve.server; sys.exit(1 if any(m == 'jsonschema' or m.startswith('jsonschema.') for m in sys.modules) else 0)
+                ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\iancu\repos\pancake-strata\serve\server.py", line 65, in <module>
+    from serve.frontend import (THINK_END, ChatTemplate, Event, OutputParser, ReasoningKeeper, anthropic_to_messages, anthropic_tools,  # noqa: E402
+                                forced_call, images_of, literal_tags, mark_think_literals, openai_to_messages, require_messages,
+                                tool_choice_of, unmark_think_literals, CALL_END)
+  File "C:\Users\iancu\repos\pancake-strata\serve\frontend.py", line 29, in <module>
+    import jinja2
+ModuleNotFoundError: No module named 'jinja2'
+============================== warnings summary ===============================
+serve/test_serve_robustness.py::BlockedConsole::test_the_wrapper_never_blocks_and_keeps_the_newest_lines
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-774 (spam)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\iancu\repos\pancake-strata\serve\test_serve_robustness.py", line 255, in spam
+      w.write(f"[strata] progress line {i} " + "x" * 40 + "\n")
+      ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+serve/test_serve_robustness.py::BlockedConsole::test_the_wrapper_never_blocks_and_keeps_the_newest_lines
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\unraisableexception.py:63: PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.TextIOWrapper name=12 mode='w' encoding='utf-8'>: None
+  
+  OSError: [Errno 22] Invalid argument
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py", line 70, in collect_thread_exception
+      del errors, meta, hook_error
+                  ^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED serve/test_context_dedup.py::ServiceDedupTest::test_service_default_is_off
+FAILED serve/test_structured.py::Structured::test_the_server_does_not_import_jsonschema_at_start
+SKIPPED [1] serve\test_resource_warnings.py:27: reads /proc and /sys
+SKIPPED [1] serve\test_resource_warnings.py:35: reads /proc and /sys
+SKIPPED [1] serve\test_resource_warnings.py:38: reads /proc and /sys
+SKIPPED [1] serve\test_structured.py:89: jsonschema is not installed
+SKIPPED [1] serve\test_structured.py:160: jsonschema is not installed
+SKIPPED [1] serve\test_web_preview.py:72: set WEBTEST_MODULES (a folder with node_modules/puppeteer-core) to run the browser tests
+2 failed, 286 passed, 6 skipped, 2 warnings, 987 subtests passed in 126.53s (0:02:06)

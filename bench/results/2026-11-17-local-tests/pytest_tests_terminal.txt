@@ -1,0 +1,182 @@
+
+=================================== ERRORS ====================================
+___________ ERROR collecting tests/terminal/test_launch_monitor.py ____________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_launch_monitor.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_launch_monitor.py:13: in <module>
+    from strata_cli.launch.monitor_ext import LaunchMonitor
+strata_cli\launch\monitor_ext.py:19: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+____________ ERROR collecting tests/terminal/test_launch_speed.py _____________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_launch_speed.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_launch_speed.py:12: in <module>
+    from strata_cli.launch.app import LaunchApp
+strata_cli\launch\app.py:16: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+_____________ ERROR collecting tests/terminal/test_launch_tui.py ______________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_launch_tui.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_launch_tui.py:15: in <module>
+    from strata_cli.launch.app import Ctx, LaunchApp, run_monitor
+strata_cli\launch\app.py:16: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+___________ ERROR collecting tests/terminal/test_launch_tui_walk.py ___________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_launch_tui_walk.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_launch_tui_walk.py:15: in <module>
+    from strata_cli.launch.app import LaunchApp
+strata_cli\launch\app.py:16: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+____________ ERROR collecting tests/terminal/test_mixed_vendors.py ____________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_mixed_vendors.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_mixed_vendors.py:15: in <module>
+    from strata_cli.launch.screens import flow_for
+strata_cli\launch\screens.py:17: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+___________ ERROR collecting tests/terminal/test_monitor_classic.py ___________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_monitor_classic.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_monitor_classic.py:11: in <module>
+    from rich.console import Console
+E   ModuleNotFoundError: No module named 'rich'
+_______ ERROR collecting tests/terminal/test_monitor_help_0213_qafix.py _______
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_monitor_help_0213_qafix.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_monitor_help_0213_qafix.py:12: in <module>
+    from test_overview import Source, metrics  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_overview.py:10: in <module>
+    from rich.console import Console
+E   ModuleNotFoundError: No module named 'rich'
+______________ ERROR collecting tests/terminal/test_overview.py _______________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_overview.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_overview.py:10: in <module>
+    from rich.console import Console
+E   ModuleNotFoundError: No module named 'rich'
+_________ ERROR collecting tests/terminal/test_tui_stress_screens.py __________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_tui_stress_screens.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_tui_stress_screens.py:17: in <module>
+    from tests.terminal.test_launch_tui import Base, FakeRunner, flat, press, text_of, typed
+tests\terminal\test_launch_tui.py:15: in <module>
+    from strata_cli.launch.app import Ctx, LaunchApp, run_monitor
+strata_cli\launch\app.py:16: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+____________ ERROR collecting tests/terminal/test_tuiqa_launch.py _____________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_tuiqa_launch.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_tuiqa_launch.py:13: in <module>
+    from textual.app import App
+E   ModuleNotFoundError: No module named 'textual'
+____________ ERROR collecting tests/terminal/test_tuiqa_monitor.py ____________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_tuiqa_monitor.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_tuiqa_monitor.py:13: in <module>
+    from strata_cli.launch.monitor_ext import LaunchMonitor
+strata_cli\launch\monitor_ext.py:19: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+____________ ERROR collecting tests/terminal/test_tuiqa_wizard.py _____________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_tuiqa_wizard.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_tuiqa_wizard.py:14: in <module>
+    from strata_cli.launch.app import Ctx, LaunchApp
+strata_cli\launch\app.py:16: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+____________ ERROR collecting tests/terminal/test_update_notice.py ____________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tests\terminal\test_update_notice.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\terminal\test_update_notice.py:29: in <module>
+    from strata_cli.launch import app as launch_app  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+strata_cli\launch\app.py:16: in <module>
+    from rich.text import Text
+E   ModuleNotFoundError: No module named 'rich'
+============================== warnings summary ===============================
+tests\terminal\test_private_files.py:213
+  C:\Users\iancu\repos\pancake-strata\tests\terminal\test_private_files.py:213: SyntaxWarning: "\W" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\W"? A raw string is also an option.
+    self.assertFalse(pf.repair_access(os.environ.get("SystemRoot", "C:\Windows") + "\System32\drivers"))
+
+tests\terminal\test_private_files.py:213
+  C:\Users\iancu\repos\pancake-strata\tests\terminal\test_private_files.py:213: SyntaxWarning: "\S" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\S"? A raw string is also an option.
+    self.assertFalse(pf.repair_access(os.environ.get("SystemRoot", "C:\Windows") + "\System32\drivers"))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR tests/terminal/test_launch_monitor.py
+ERROR tests/terminal/test_launch_speed.py
+ERROR tests/terminal/test_launch_tui.py
+ERROR tests/terminal/test_launch_tui_walk.py
+ERROR tests/terminal/test_mixed_vendors.py
+ERROR tests/terminal/test_monitor_classic.py
+ERROR tests/terminal/test_monitor_help_0213_qafix.py
+ERROR tests/terminal/test_overview.py
+ERROR tests/terminal/test_tui_stress_screens.py
+ERROR tests/terminal/test_tuiqa_launch.py
+ERROR tests/terminal/test_tuiqa_monitor.py
+ERROR tests/terminal/test_tuiqa_wizard.py
+ERROR tests/terminal/test_update_notice.py
+!!!!!!!!!!!!!!!!!! Interrupted: 13 errors during collection !!!!!!!!!!!!!!!!!!!
+2 warnings, 13 errors in 11.52s

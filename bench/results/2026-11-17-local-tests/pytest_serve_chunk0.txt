@@ -1,0 +1,9 @@
+................................s............................ [ 20%]
+.................................................... [ 38%]
+...................................................................................................................................s...................... [ 90%]
+............s................                                                       [100%]
+=========================== short test summary info ===========================
+SKIPPED [1] serve\test_dsv41.py:126: STRATA_DSV41_PACK (the pack's tokenizer folder) not set
+SKIPPED [1] serve\test_stream_ownership.py:303: needs SIGSTOP to freeze the fake engine
+SKIPPED [1] serve\test_vision_elastic_http.py:101: child reaping is checked through /proc
+293 passed, 3 skipped, 154 subtests passed in 476.21s (0:07:56)

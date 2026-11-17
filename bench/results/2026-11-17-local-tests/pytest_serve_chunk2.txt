@@ -1,0 +1,64 @@
+.......................F..F...................................................................................... [ 18%]
+.......................................................................... [ 30%]
+s.................................................................................................. [ 46%]
+..................................................................ss.s................. [ 60%]
+....................................................... [ 69%]
+................................................................................ [ 83%]
+.................... [ 86%]
+....................................................................................                [100%]
+================================== FAILURES ===================================
+___________________________ OldString.test_settings ___________________________
+
+self = <serve.test_agent_loop.OldString testMethod=test_settings>
+
+    def test_settings(self):
+        self.assertFalse(AL.settings({}).active)
+        s = AL.settings({"STRATA_EDIT_OLDSTRING_CHECK": "note", "STRATA_TEST_BEFORE_DONE": "1",
+                         "STRATA_AGENT_COUNTERS": "1", "STRATA_EXTERNALIZE_TOKENS": "2000",
+                         "STRATA_EXTERNALIZE_DIR": "/tmp/x-ext"})
+>       self.assertEqual((s.oldstring, s.finish_nudge, s.counters, s.externalize_tokens, s.externalize_dir),
+                         ("note", True, True, 2000, "/tmp/x-ext"))
+E       AssertionError: Tuples differ: ('note', True, True, 2000, 'C:\\tmp\\x-ext') != ('note', True, True, 2000, '/tmp/x-ext')
+E       
+E       First differing element 4:
+E       'C:\\tmp\\x-ext'
+E       '/tmp/x-ext'
+E       
+E       - ('note', True, True, 2000, 'C:\\tmp\\x-ext')
+E       ?                             ^^^^   ^^
+E       
+E       + ('note', True, True, 2000, '/tmp/x-ext')
+E       ?                             ^   ^
+
+serve\test_agent_loop.py:215: AssertionError
+___________ Externalize.test_a_long_result_is_stored_and_excerpted ____________
+
+self = <serve.test_agent_loop.Externalize testMethod=test_a_long_result_is_stored_and_excerpted>
+
+    def test_a_long_result_is_stored_and_excerpted(self):
+        text = big(600)
+        conv = Conv().bash("git diff", text).bash("ls", "a b c")
+        msgs = conv.template()
+        ext = AL.externalize(msgs, self.cfg)
+        self.assertEqual((ext.count, ext.new_files), (1, 1))
+        got = ext.messages[2]["content"]
+        self.assertTrue(got.startswith("line 00000"))
+        self.assertTrue(got.rstrip().endswith("line 00599 some output of the command, a bit long to be a log line"))
+        self.assertIn(AL.EXTERNALIZED, got)
+        self.assertLess(len(got), len(text) // 5)
+        path = Path(got.split("saved in the file ")[1].split(" - read it")[0])
+        self.assertEqual(path.read_text(), text)                        # the whole result, exactly
+>       self.assertEqual(oct(path.parent.stat().st_mode & 0o777), "0o700")
+E       AssertionError: '0o777' != '0o700'
+E       - 0o777
+E       + 0o700
+
+serve\test_agent_loop.py:252: AssertionError
+=========================== short test summary info ===========================
+FAILED serve/test_agent_loop.py::OldString::test_settings - AssertionError: T...
+FAILED serve/test_agent_loop.py::Externalize::test_a_long_result_is_stored_and_excerpted
+SKIPPED [1] serve\test_responses.py:664: the schema check needs jsonschema
+SKIPPED [1] serve\test_server.py:2889: signals
+SKIPPED [1] serve\test_server.py:2879: signals
+SKIPPED [1] serve\test_server.py:2897: signals
+2 failed, 606 passed, 4 skipped, 813 subtests passed in 355.85s (0:05:55)

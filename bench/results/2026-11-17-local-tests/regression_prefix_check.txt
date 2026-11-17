@@ -1,0 +1,7 @@
+--- old header (expect UBSan report)
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/old\strata/program/ckpt_stride.hpp:40:17: runtime error: signed integer overflow: 1000 + 9223372036854775807 cannot be represented in type 'int64_t' (aka 'long long')
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/old\strata/program/ckpt_stride.hpp:40:17 
+exit 1
+--- fixed header
+ckpt_stride_test:19 checks passed
+exit 0

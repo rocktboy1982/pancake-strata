@@ -198,6 +198,8 @@ miss.
 
 ## 5. Run next: coded, never measured (GPU queue, in this order)
 
+**Local test pass 2026-11-17 (host-only, Windows, no engine, no GPU; T-829..T-833):** serve 1958 passed / 6 failed / 41 skipped (all 6 environment), tools/pancake 754 passed / 53 failed / 26 errors (environment or pre-existing, listed in T-830), tests/terminal not runnable (T-831), the 28 host rule tests clean under ASan+UBSan (T-832), three new fuzz harnesses in tests/fuzz (T-833). Defects found and fixed: TierMissBudget::load_text accepted a header whose layers x experts overflowed (6bb535614), ckpt_next_check overflowed at STRATA_CKPT_STRIDE near INT64_MAX (4e0c302d0, regression 0e002dcf3). Open, not fixed (pre-existing tests): test_promote catalog and every-spec, test_selftune preset_mode, test_spec_lint (stale API).
+
 1. **DONE: chain 6** (`WINCHAIN6_DONE` 2026-11-16 20:44, pancake.service started again) `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
    `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
    step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);

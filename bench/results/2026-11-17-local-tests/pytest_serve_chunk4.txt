@@ -1,0 +1,43 @@
+..sss.........................................ssssssssss............ [ 33%]
+.....................................................................................................................................                [100%]
+============================== warnings summary ===============================
+serve/test_tool_idle.py::TrackerTest::test_prewarm_runs_only_after_an_interleaved_window
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-282 (serve_forever)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\socketserver.py", line 235, in serve_forever
+      ready = selector.select(poll_interval)
+    File "C:\Python314\Lib\selectors.py", line 314, in select
+      r, w, _ = self._select(self._readers, self._writers, [], timeout)
+                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\selectors.py", line 305, in _select
+      r, w, x = select.select(r, w, w, timeout)
+                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  OSError: [WinError 10038] An operation was attempted on something that is not a socket
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] serve\test_anthropic_base_url.py:72: the anthropic package is not installed
+SKIPPED [1] serve\test_anthropic_base_url.py:65: the anthropic package is not installed
+SKIPPED [1] serve\test_anthropic_base_url.py:58: the anthropic package is not installed
+SKIPPED [1] serve\test_iommu_check.py:56: Linux only
+SKIPPED [1] serve\test_iommu_check.py:72: Linux only
+SKIPPED [1] serve\test_iommu_check.py:51: Linux only
+SKIPPED [1] serve\test_iommu_check.py:93: Linux only
+SKIPPED [1] serve\test_iommu_check.py:62: Linux only
+SKIPPED [1] serve\test_iommu_check.py:80: Linux only
+SKIPPED [1] serve\test_iommu_check.py:87: Linux only
+SKIPPED [1] serve\test_iommu_check.py:40: Linux only
+SKIPPED [1] serve\test_iommu_check.py:46: Linux only
+SKIPPED [1] serve\test_iommu_check.py:67: Linux only
+188 passed, 13 skipped, 1 warning, 8928 subtests passed in 115.42s (0:01:55)

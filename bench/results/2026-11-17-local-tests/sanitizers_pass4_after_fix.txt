@@ -1,0 +1,6 @@
+=== ckpt_stride_test (src/program/ckpt_stride_test.cpp)
+ckpt_stride_test: 16 checks passed
+RESULT ckpt_stride_test exit 0
+=== tier_miss_budget_test (src/program/tier_miss_budget_test.cpp)
+tier_miss_budget_test: 24 checks ok
+RESULT tier_miss_budget_test exit 0

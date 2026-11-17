@@ -1,0 +1,96 @@
+.................sss.ss......................... [ 15%]
+...........s.Fss................................................. [ 35%]
+.............................................................ss..F.. [ 57%]
+.......................................s [ 69%]
+................................................................................................               [100%]
+================================== FAILURES ===================================
+____ Lifeline.test_the_child_is_recorded_while_it_runs_and_forgotten_after ____
+
+self = <serve.test_lifeline.Lifeline testMethod=test_the_child_is_recorded_while_it_runs_and_forgotten_after>
+
+    def test_the_child_is_recorded_while_it_runs_and_forgotten_after(self):
+        from strata_control import procs
+        proc, info = self.launch("sleep")
+        base = Path(self.temp.name) / "Strata" / "procs" if not POSIX else Path(self.temp.name) / "strata" / "procs"
+        record = base / f"{info['child']}.json"
+        deadline = time.monotonic() + 5
+        while not record.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+>       data = json.loads(record.read_text(encoding="utf-8"))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+serve\test_lifeline.py:169: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\pathlib\__init__.py:787: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/iancu/AppData/Local/Temp/strata-lifeline-wvebas17/Strata/procs/36840.json')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\iancu\\AppData\\Local\\Temp\\strata-lifeline-wvebas17\\Strata\\procs\\36840.json'
+
+C:\Python314\Lib\pathlib\__init__.py:771: FileNotFoundError
+___________ Unit.test_directory_is_private_and_headers_are_filtered ___________
+
+self = <serve.test_request_capture.Unit testMethod=test_directory_is_private_and_headers_are_filtered>
+
+    def test_directory_is_private_and_headers_are_filtered(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cap = request_capture.from_env({"STRATA_REQUEST_CAPTURE": os.path.join(tmp, "cap")})
+>           self.assertEqual(stat.S_IMODE(os.stat(os.path.join(tmp, "cap")).st_mode), 0o700)
+E           AssertionError: 511 != 448
+
+serve\test_request_capture.py:69: AssertionError
+============================== warnings summary ===============================
+serve/test_request_capture.py::Unit::test_directory_is_private_and_headers_are_filtered
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-998 (serve_forever)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\socketserver.py", line 235, in serve_forever
+      ready = selector.select(poll_interval)
+    File "C:\Python314\Lib\selectors.py", line 314, in select
+      r, w, _ = self._select(self._readers, self._writers, [], timeout)
+                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\selectors.py", line 305, in _select
+      r, w, x = select.select(r, w, w, timeout)
+                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  OSError: [WinError 10038] An operation was attempted on something that is not a socket
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED serve/test_lifeline.py::Lifeline::test_the_child_is_recorded_while_it_runs_and_forgotten_after
+FAILED serve/test_request_capture.py::Unit::test_directory_is_private_and_headers_are_filtered
+SKIPPED [1] serve\test_detok.py:87: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:78: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:74: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:253: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:276: no pack tokenizer here
+SKIPPED [1] serve\test_lifeline.py:147: PR_SET_PDEATHSIG is Linux
+SKIPPED [1] serve\test_lifeline.py:104: the portable watcher is the POSIX path
+SKIPPED [1] serve\test_lifeline.py:108: the portable watcher is the POSIX path
+SKIPPED [1] serve\test_ready_timeout.py:83: the .cmd wrapper keeps the pipe open after the kill (only the wrapper dies), so the close of its stdout waits for the sleeping child; a real engine is one process
+SKIPPED [1] serve\test_ready_timeout.py:92: the .cmd wrapper keeps the pipe open after the kill (only the wrapper dies), so the close of its stdout waits for the sleeping child; a real engine is one process
+SKIPPED [1] serve\test_slots.py:213: symlinks need privileges on Windows
+2 failed, 304 passed, 11 skipped, 1 warning, 3197 subtests passed in 260.40s (0:04:20)

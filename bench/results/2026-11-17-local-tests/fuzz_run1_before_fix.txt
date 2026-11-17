@@ -1,0 +1,11 @@
+=== head_shortlist_fuzz_test
+head_shortlist_fuzz_test: PASS, 5257 cases (1410 accepted, 3847 refused), 0 over-cap allocations
+RESULT exit 0
+=== tier_miss_budget_fuzz_test
+include\strata/program/tier_miss_budget.hpp:49:34: runtime error: signed integer overflow: 4000000000 * 4000000000 cannot be represented in type 'long long'
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior include\strata/program/tier_miss_budget.hpp:49:34 
+RESULT exit 1
+=== env_parsers_fuzz_test
+include\strata/program/ckpt_stride.hpp:40:17: runtime error: signed integer overflow: 1000 + 9223372036854775807 cannot be represented in type 'int64_t' (aka 'long long')
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior include\strata/program/ckpt_stride.hpp:40:17 
+RESULT exit 1

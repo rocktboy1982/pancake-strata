@@ -1,0 +1,253 @@
+
+=================================== ERRORS ====================================
+____________ ERROR collecting tools/pancake/test_ablate_greedy.py _____________
+tools\pancake\test_ablate_greedy.py:23: in <module>
+    import ablate_greedy as A  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\ablate_greedy.py:81: in <module>
+    import abtest  # noqa: E402   (schedule(), make_config(), select(): reads sysfs only)
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+_____________ ERROR collecting tools/pancake/test_abtest_cases.py _____________
+tools\pancake\test_abtest_cases.py:10: in <module>
+    import abtest as A  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+_____________ ERROR collecting tools/pancake/test_abtest_core.py ______________
+tools\pancake\test_abtest_core.py:20: in <module>
+    import abtest as A  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+______________ ERROR collecting tools/pancake/test_abtest_e2e.py ______________
+tools\pancake\test_abtest_e2e.py:32: in <module>
+    import promote  # noqa: E402
+    ^^^^^^^^^^^^^^
+tools\pancake\promote.py:78: in <module>
+    import abtest  # noqa: E402   (metric(): which engine figure judges a case; importing it reads sysfs only)
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+____________ ERROR collecting tools/pancake/test_abtest_render.py _____________
+tools\pancake\test_abtest_render.py:10: in <module>
+    spec.loader.exec_module(abtest)
+<frozen importlib._bootstrap_external>:759: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+__________ ERROR collecting tools/pancake/test_block_reading_sim.py ___________
+tools\pancake\test_block_reading_sim.py:11: in <module>
+    import block_reading_sim as B  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\block_reading_sim.py:27: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+____________ ERROR collecting tools/pancake/test_build_task_set.py ____________
+tools\pancake\test_build_task_set.py:13: in <module>
+    import build_task_set as B  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\build_task_set.py:43: in <module>
+    import task_gate as TG  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\task_gate.py:54: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+____________ ERROR collecting tools/pancake/test_conv_cache_sim.py ____________
+tools\pancake\test_conv_cache_sim.py:12: in <module>
+    import conv_cache_sim as S  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\conv_cache_sim.py:36: in <module>
+    import replay_turns as R  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\replay_turns.py:71: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+__________ ERROR collecting tools/pancake/test_direct_read_probe.py ___________
+ImportError while importing test module 'C:\Users\iancu\repos\pancake-strata\tools\pancake\test_direct_read_probe.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\test_direct_read_probe.py:13: in <module>
+    import direct_read_probe as P  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\direct_read_probe.py:23: in <module>
+    import fcntl
+E   ModuleNotFoundError: No module named 'fcntl'
+_____________ ERROR collecting tools/pancake/test_fake_engine.py ______________
+tools\pancake\test_fake_engine.py:16: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+______________ ERROR collecting tools/pancake/test_gate_power.py ______________
+tools\pancake\test_gate_power.py:8: in <module>
+    import gate_power as P  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\gate_power.py:37: in <module>
+    import task_gate as TG  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\task_gate.py:54: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+_______________ ERROR collecting tools/pancake/test_park_sim.py _______________
+tools\pancake\test_park_sim.py:13: in <module>
+    import replay_turns as RT  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\replay_turns.py:71: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+______________ ERROR collecting tools/pancake/test_power_sim.py _______________
+tools\pancake\test_power_sim.py:17: in <module>
+    import power_sim as P  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\power_sim.py:53: in <module>
+    import abtest  # noqa: E402   (metric(): which engine figure judges a case; the constants of the outlier rule once abtest has them)
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+_______________ ERROR collecting tools/pancake/test_promote.py ________________
+tools\pancake\test_promote.py:16: in <module>
+    import promote as P  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^
+tools\pancake\promote.py:78: in <module>
+    import abtest  # noqa: E402   (metric(): which engine figure judges a case; importing it reads sysfs only)
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+_____________ ERROR collecting tools/pancake/test_quality_gate.py _____________
+tools\pancake\test_quality_gate.py:14: in <module>
+    import build_quality_set as Q  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\build_quality_set.py:37: in <module>
+    import quality_gate as QG  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\quality_gate.py:31: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+____________ ERROR collecting tools/pancake/test_record_session.py ____________
+tools\pancake\test_record_session.py:27: in <module>
+    import replay_turns  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^
+tools\pancake\replay_turns.py:71: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+_____________ ERROR collecting tools/pancake/test_replay_turns.py _____________
+tools\pancake\test_replay_turns.py:7: in <module>
+    import replay_turns as RT  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\replay_turns.py:71: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+______________ ERROR collecting tools/pancake/test_spec_lint.py _______________
+tools\pancake\test_spec_lint.py:15: in <module>
+    SCHEMA = S.Schema(S.ROOT)
+             ^^^^^^^^
+E   AttributeError: module 'spec_lint' has no attribute 'Schema'
+____________ ERROR collecting tools/pancake/test_switch_report.py _____________
+tools\pancake\test_switch_report.py:14: in <module>
+    import promote as P  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^
+tools\pancake\promote.py:78: in <module>
+    import abtest  # noqa: E402   (metric(): which engine figure judges a case; importing it reads sysfs only)
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+______________ ERROR collecting tools/pancake/test_task_gate.py _______________
+tools\pancake\test_task_gate.py:11: in <module>
+    import task_gate as T  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\task_gate.py:54: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+___________ ERROR collecting tools/pancake/test_task_gate_effort.py ___________
+tools\pancake\test_task_gate_effort.py:10: in <module>
+    import abtest  # noqa: E402
+    ^^^^^^^^^^^^^
+tools\pancake\abtest.py:109: in <module>
+    CLK = os.sysconf("SC_CLK_TCK")
+          ^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'sysconf'
+=========================== short test summary info ===========================
+ERROR tools/pancake/test_ablate_greedy.py - AttributeError: module 'os' has n...
+ERROR tools/pancake/test_abtest_cases.py - AttributeError: module 'os' has no...
+ERROR tools/pancake/test_abtest_core.py - AttributeError: module 'os' has no ...
+ERROR tools/pancake/test_abtest_e2e.py - AttributeError: module 'os' has no a...
+ERROR tools/pancake/test_abtest_render.py - AttributeError: module 'os' has n...
+ERROR tools/pancake/test_block_reading_sim.py - AttributeError: module 'os' h...
+ERROR tools/pancake/test_build_task_set.py - AttributeError: module 'os' has ...
+ERROR tools/pancake/test_conv_cache_sim.py - AttributeError: module 'os' has ...
+ERROR tools/pancake/test_direct_read_probe.py
+ERROR tools/pancake/test_fake_engine.py - AttributeError: module 'os' has no ...
+ERROR tools/pancake/test_gate_power.py - AttributeError: module 'os' has no a...
+ERROR tools/pancake/test_park_sim.py - AttributeError: module 'os' has no att...
+ERROR tools/pancake/test_power_sim.py - AttributeError: module 'os' has no at...
+ERROR tools/pancake/test_promote.py - AttributeError: module 'os' has no attr...
+ERROR tools/pancake/test_quality_gate.py - AttributeError: module 'os' has no...
+ERROR tools/pancake/test_record_session.py - AttributeError: module 'os' has ...
+ERROR tools/pancake/test_replay_turns.py - AttributeError: module 'os' has no...
+ERROR tools/pancake/test_spec_lint.py - AttributeError: module 'spec_lint' ha...
+ERROR tools/pancake/test_switch_report.py - AttributeError: module 'os' has n...
+ERROR tools/pancake/test_task_gate.py - AttributeError: module 'os' has no at...
+ERROR tools/pancake/test_task_gate_effort.py - AttributeError: module 'os' ha...
+!!!!!!!!!!!!!!!!!! Interrupted: 21 errors during collection !!!!!!!!!!!!!!!!!!!
+21 errors in 10.95s
