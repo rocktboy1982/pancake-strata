@@ -54,6 +54,13 @@ int main() {
     check(positions(ckpt_stride_from_env("4096", "0"), 0, 40000, 2048, 16384).empty(), "max 0: none");
     // short prompt: nothing past the stride
     check(positions(s, 0, 3000, 1024, 16384).empty(), "prompt shorter than the stride: none");
-    std::printf("ckpt_stride_test: %d checks passed\n", checks);
+    // fuzz regression (local fuzz): a stride or every near INT64_MAX saturates to "none" instead of overflowing done + stride
+    {
+        const int64_t none = INT64_MAX;
+        check(ckpt_next_check(ckpt_stride_from_env("9223372036854775807", nullptr), 0, 1000, 16384) == none, "huge stride: none, no overflow");
+        check(ckpt_next_check(off, 0, 1000, INT64_MAX) == none, "huge every with no stride: none, no overflow");
+        check(ckpt_next_check(off, 0, 1000, 16384) == 1000 + 16384, "old rule unchanged");
+    }
+    std::printf("ckpt_stride_test:%d checks passed\n", checks);
     return 0;
 }
