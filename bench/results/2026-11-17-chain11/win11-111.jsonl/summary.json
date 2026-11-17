@@ -1,0 +1,285 @@
+{
+ "arms": {
+  "base": {
+   "stats": {
+    "n": 180,
+    "ok": 180,
+    "rate": 1.0,
+    "lo": 0.9791037501849418,
+    "hi": 1.0,
+    "kinds": {
+     "code_edit": {
+      "n": 80,
+      "rate": 1.0
+     },
+     "tool_call": {
+      "n": 70,
+      "rate": 1.0
+     },
+     "qa": {
+      "n": 30,
+      "rate": 1.0
+     }
+    },
+    "valid_n": 70,
+    "valid_rate": 1.0,
+    "t_success_median": 1.232,
+    "s_per_success": 1.1857055555555556,
+    "tokens_per_run": 45.666666666666664,
+    "errors": 0
+   },
+   "auc": {
+    "auc": 0.9993412746913579,
+    "within": {
+     "0.25": 1.0,
+     "0.5": 1.0,
+     "0.75": 1.0,
+     "1": 1.0
+    }
+   }
+  },
+  "tool-snip-4000": {
+   "stats": {
+    "n": 90,
+    "ok": 90,
+    "rate": 1.0,
+    "lo": 0.9590629315783191,
+    "hi": 0.9999999999999999,
+    "kinds": {
+     "code_edit": {
+      "n": 40,
+      "rate": 1.0
+     },
+     "tool_call": {
+      "n": 35,
+      "rate": 1.0
+     },
+     "qa": {
+      "n": 15,
+      "rate": 1.0
+     }
+    },
+    "valid_n": 35,
+    "valid_rate": 1.0,
+    "t_success_median": 1.2080000000000002,
+    "s_per_success": 1.154777777777778,
+    "tokens_per_run": 45.833333333333336,
+    "errors": 0
+   },
+   "auc": {
+    "auc": 0.9993584567901235,
+    "within": {
+     "0.25": 1.0,
+     "0.5": 1.0,
+     "0.75": 1.0,
+     "1": 1.0
+    }
+   },
+   "success_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0,
+    "tasks": 18
+   },
+   "auc_diff": {
+    "diff": 1.718209876545091e-05,
+    "lo": -8.518518518660676e-07,
+    "hi": 3.70123456789822e-05
+   },
+   "success_verdict": "PASS",
+   "validity_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "validity_verdict": "PASS",
+   "verdict": "PASS",
+   "task_flips": []
+  },
+  "thinking-policy-on": {
+   "stats": {
+    "n": 90,
+    "ok": 90,
+    "rate": 1.0,
+    "lo": 0.9590629315783191,
+    "hi": 0.9999999999999999,
+    "kinds": {
+     "code_edit": {
+      "n": 40,
+      "rate": 1.0
+     },
+     "tool_call": {
+      "n": 35,
+      "rate": 1.0
+     },
+     "qa": {
+      "n": 15,
+      "rate": 1.0
+     }
+    },
+    "valid_n": 35,
+    "valid_rate": 1.0,
+    "t_success_median": 1.203,
+    "s_per_success": 1.1587555555555555,
+    "tokens_per_run": 46.2,
+    "errors": 0
+   },
+   "auc": {
+    "auc": 0.9993562469135803,
+    "within": {
+     "0.25": 1.0,
+     "0.5": 1.0,
+     "0.75": 1.0,
+     "1": 1.0
+    }
+   },
+   "success_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0,
+    "tasks": 18
+   },
+   "auc_diff": {
+    "diff": 1.497222222221792e-05,
+    "lo": -5.23765432100223e-06,
+    "hi": 3.690432098769131e-05
+   },
+   "success_verdict": "PASS",
+   "validity_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "validity_verdict": "PASS",
+   "verdict": "PASS",
+   "task_flips": []
+  },
+  "turn-margins": {
+   "stats": {
+    "n": 90,
+    "ok": 90,
+    "rate": 1.0,
+    "lo": 0.9590629315783191,
+    "hi": 0.9999999999999999,
+    "kinds": {
+     "code_edit": {
+      "n": 40,
+      "rate": 1.0
+     },
+     "tool_call": {
+      "n": 35,
+      "rate": 1.0
+     },
+     "qa": {
+      "n": 15,
+      "rate": 1.0
+     }
+    },
+    "valid_n": 35,
+    "valid_rate": 1.0,
+    "t_success_median": 1.2320000000000002,
+    "s_per_success": 1.2028999999999999,
+    "tokens_per_run": 45.46666666666667,
+    "errors": 0
+   },
+   "auc": {
+    "auc": 0.9993317222222222,
+    "within": {
+     "0.25": 1.0,
+     "0.5": 1.0,
+     "0.75": 1.0,
+     "1": 1.0
+    }
+   },
+   "success_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0,
+    "tasks": 18
+   },
+   "auc_diff": {
+    "diff": -9.552469135784866e-06,
+    "lo": -4.7361111111131495e-05,
+    "hi": 2.281172839506561e-05
+   },
+   "success_verdict": "PASS",
+   "validity_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "validity_verdict": "PASS",
+   "verdict": "PASS",
+   "task_flips": []
+  },
+  "rf-toplevel-schema": {
+   "stats": {
+    "n": 90,
+    "ok": 90,
+    "rate": 1.0,
+    "lo": 0.9590629315783191,
+    "hi": 0.9999999999999999,
+    "kinds": {
+     "code_edit": {
+      "n": 40,
+      "rate": 1.0
+     },
+     "tool_call": {
+      "n": 35,
+      "rate": 1.0
+     },
+     "qa": {
+      "n": 15,
+      "rate": 1.0
+     }
+    },
+    "valid_n": 35,
+    "valid_rate": 1.0,
+    "t_success_median": 1.2360000000000002,
+    "s_per_success": 1.1769333333333334,
+    "tokens_per_run": 45.855555555555554,
+    "errors": 0
+   },
+   "auc": {
+    "auc": 0.9993461481481482,
+    "within": {
+     "0.25": 1.0,
+     "0.5": 1.0,
+     "0.75": 1.0,
+     "1": 1.0
+    }
+   },
+   "success_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0,
+    "tasks": 18
+   },
+   "auc_diff": {
+    "diff": 4.8734567901405805e-06,
+    "lo": -2.470061728396564e-05,
+    "hi": 3.33364197530729e-05
+   },
+   "success_verdict": "PASS",
+   "validity_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "validity_verdict": "PASS",
+   "verdict": "PASS",
+   "task_flips": []
+  }
+ },
+ "margin": 0.05,
+ "validity_margin": 0.03,
+ "resample_tasks": true,
+ "resample_reps": true,
+ "warnings": [],
+ "auc_horizon_s": 1800.0,
+ "base_noise": {
+  "diff": 0.0,
+  "lo": 0.0,
+  "hi": 0.0
+ }
+}

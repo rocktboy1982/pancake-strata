@@ -1,0 +1,96 @@
+2026-11-17 09:04:05 QUEUE START repo C:\Users\iancu\repos\pancake-strata out C:\Users\iancu\repos\pancake-strata\bench\results\2026-11-17-gtx1660ti-queue now=True window 23:00-06:30
+2026-11-17 09:04:35 idle broken: CPU 36%
+2026-11-17 09:05:41 idle broken: CPU 25%
+2026-11-17 09:07:10 idle broken: CPU 22%
+2026-11-17 09:07:54 idle broken: CPU 30%
+2026-11-17 09:09:00 idle broken: CPU 22%
+2026-11-17 09:09:44 idle broken: CPU 29%
+2026-11-17 09:10:28 idle broken: CPU 23%
+2026-11-17 09:11:12 idle broken: CPU 26%
+2026-11-17 09:14:54 START ITEM 00-build [A] configure (sm_75, Shared CUDA runtime) and build strata-poly plus every target the later items run; skipped when every exe exists and is newer than the source HEAD
+2026-11-17 09:14:54 START 00-build/build: cmd.exe /c C:\Users\iancu\repos\pancake-strata\bench\results\2026-11-17-gtx1660ti-queue\00-build\build_step.cmd
+2026-11-17 09:22:01 END 00-build/build exit 0
+2026-11-17 09:22:01 END ITEM 00-build exit 0
+2026-11-17 09:24:20 idle broken: CPU 30%
+2026-11-17 09:25:48 idle broken: CPU 24%
+2026-11-17 09:27:38 idle broken: CPU 25%
+2026-11-17 09:28:44 idle broken: CPU 24%
+2026-11-17 09:31:41 idle broken: CPU 23%
+2026-11-17 09:40:50 idle broken: CPU 21%
+2026-11-17 09:45:15 START ITEM 01-poly-cpu-tests [A] poly CPU-only unit tests (pool, cpu kernels, MXFP4), no card, no model
+2026-11-17 09:45:15 START 01-poly-cpu-tests/poly_workers_test: C:\Users\iancu\build-latest\build-sm75\poly_workers_test.exe 
+2026-11-17 09:45:16 END 01-poly-cpu-tests/poly_workers_test exit 0
+2026-11-17 09:45:16 START 01-poly-cpu-tests/poly_cpu_kernels_test: C:\Users\iancu\build-latest\build-sm75\poly_cpu_kernels_test.exe 
+2026-11-17 09:45:26 END 01-poly-cpu-tests/poly_cpu_kernels_test exit 0
+2026-11-17 09:45:26 START 01-poly-cpu-tests/poly_mxfp4_test: C:\Users\iancu\build-latest\build-sm75\poly_mxfp4_test.exe 
+2026-11-17 09:45:26 END 01-poly-cpu-tests/poly_mxfp4_test exit 0
+2026-11-17 09:45:26 END ITEM 01-poly-cpu-tests exit 0
+2026-11-17 09:49:10 START ITEM 02-poly-gpu-synthetic [A] poly GPU kernels against host arithmetic on random data (route, gdn cols, small gemm, attention split with its sm_75 m16n8k8 path, expert list, DeepSeek V4 kernels), no model
+2026-11-17 09:49:10 START 02-poly-gpu-synthetic/poly_route_test: C:\Users\iancu\build-latest\build-sm75\poly_route_test.exe 
+2026-11-17 09:49:10 END 02-poly-gpu-synthetic/poly_route_test exit 0
+2026-11-17 09:49:10 START 02-poly-gpu-synthetic/poly_gdn_cols_test: C:\Users\iancu\build-latest\build-sm75\poly_gdn_cols_test.exe 
+2026-11-17 09:49:12 END 02-poly-gpu-synthetic/poly_gdn_cols_test exit 0
+2026-11-17 09:49:12 START 02-poly-gpu-synthetic/poly_gemm_small_test: C:\Users\iancu\build-latest\build-sm75\poly_gemm_small_test.exe 
+2026-11-17 09:49:14 END 02-poly-gpu-synthetic/poly_gemm_small_test exit 0
+2026-11-17 09:49:14 START 02-poly-gpu-synthetic/poly_attend_split_test: C:\Users\iancu\build-latest\build-sm75\poly_attend_split_test.exe 
+2026-11-17 09:49:21 END 02-poly-gpu-synthetic/poly_attend_split_test exit 0
+2026-11-17 09:49:21 START 02-poly-gpu-synthetic/poly_attend_split_time: C:\Users\iancu\build-latest\build-sm75\poly_attend_split_test.exe --time
+2026-11-17 09:49:25 END 02-poly-gpu-synthetic/poly_attend_split_time exit 0
+2026-11-17 09:49:25 START 02-poly-gpu-synthetic/poly_expert_list_test: C:\Users\iancu\build-latest\build-sm75\poly_expert_list_test.exe 
+2026-11-17 09:49:26 END 02-poly-gpu-synthetic/poly_expert_list_test exit 0
+2026-11-17 09:49:26 START 02-poly-gpu-synthetic/poly_expert_list_time: C:\Users\iancu\build-latest\build-sm75\poly_expert_list_test.exe --time
+2026-11-17 09:49:29 END 02-poly-gpu-synthetic/poly_expert_list_time exit 0
+2026-11-17 09:49:29 START 02-poly-gpu-synthetic/poly_dsv4_test: C:\Users\iancu\build-latest\build-sm75\poly_dsv4_test.exe 
+2026-11-17 09:49:29 END 02-poly-gpu-synthetic/poly_dsv4_test exit 0
+2026-11-17 09:49:29 END ITEM 02-poly-gpu-synthetic exit 0
+2026-11-17 09:53:12 START ITEM 03-head-parity [A] head-format kernels: fused argmax and shortlist gather parity (exit 77 = skip), head_fmt_test; synthetic, no model
+2026-11-17 09:53:12 START 03-head-parity/head_argmax_parity: C:\Users\iancu\build-latest\build-sm75\head_argmax_parity.exe 
+2026-11-17 09:53:27 END 03-head-parity/head_argmax_parity exit 0
+2026-11-17 09:53:27 START 03-head-parity/head_gather_parity: C:\Users\iancu\build-latest\build-sm75\head_gather_parity.exe 
+2026-11-17 09:53:31 END 03-head-parity/head_gather_parity exit 0
+2026-11-17 09:53:31 START 03-head-parity/head_fmt_test: C:\Users\iancu\build-latest\build-sm75\head_fmt_test.exe 
+2026-11-17 09:53:41 END 03-head-parity/head_fmt_test exit 0
+2026-11-17 09:53:41 END ITEM 03-head-parity exit 0
+2026-11-17 09:54:27 idle broken: CPU 22%
+2026-11-17 09:55:33 idle broken: CPU 26%
+2026-11-17 09:59:14 idle broken: CPU 25%
+2026-11-17 09:59:58 idle broken: CPU 22%
+2026-11-17 10:01:04 idle broken: CPU 23%
+2026-11-17 10:01:48 idle broken: CPU 29%
+2026-11-17 10:04:46 idle broken: CPU 21%
+2026-11-17 10:08:28 START ITEM 04-compile-fixed-tests [B] tests that did not compile under MSVC in T-552 (poly_kv_q4_test: range-for over a braced list of pairs, kv_q4_test.cu:342; q5k_head_test: no <string>, q5k_head_test.cu:95); each runs only when its source fix has landed and the build produced the exe
+2026-11-17 10:08:28 START 04-compile-fixed-tests/poly_kv_q4_test: C:\Users\iancu\build-latest\build-sm75\poly_kv_q4_test.exe 
+2026-11-17 10:08:43 END 04-compile-fixed-tests/poly_kv_q4_test exit 0
+2026-11-17 10:08:43 START 04-compile-fixed-tests/poly_kv_q4_time: C:\Users\iancu\build-latest\build-sm75\poly_kv_q4_test.exe --time
+2026-11-17 10:08:54 END 04-compile-fixed-tests/poly_kv_q4_time exit 0
+2026-11-17 10:08:54 START 04-compile-fixed-tests/q5k_head_test: C:\Users\iancu\build-latest\build-sm75\q5k_head_test.exe 
+2026-11-17 10:08:58 END 04-compile-fixed-tests/q5k_head_test exit 0
+2026-11-17 10:08:58 END ITEM 04-compile-fixed-tests exit 0
+2026-11-17 10:12:21 START ITEM 05-poly-expert-parity [A] poly_expert_parity on the 11 GB model: GPU and CPU expert products against a double-precision reference for every tensor type in the file
+2026-11-17 10:12:21 START 05-poly-expert-parity/poly_expert_parity: C:\Users\iancu\build-latest\build-sm75\poly_expert_parity.exe C:\Users\iancu\models\Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf
+2026-11-17 10:12:25 END 05-poly-expert-parity/poly_expert_parity exit 0
+2026-11-17 10:12:25 END ITEM 05-poly-expert-parity exit 0
+2026-11-17 10:15:22 idle broken: CPU 24%
+2026-11-17 10:19:04 START ITEM 06-poly-cpu-experts-bench [A] CPU expert read speed against what the RAM gives (no card): 8 and 4 threads, then the --multi path with --check
+2026-11-17 10:19:04 START 06-poly-cpu-experts-bench/cpu_experts_t8: C:\Users\iancu\build-latest\build-sm75\poly_cpu_experts_bench.exe C:\Users\iancu\models\Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf --threads 8 --stream-gib 1
+2026-11-17 10:20:47 END 06-poly-cpu-experts-bench/cpu_experts_t8 exit 0
+2026-11-17 10:20:47 START 06-poly-cpu-experts-bench/cpu_experts_t4: C:\Users\iancu\build-latest\build-sm75\poly_cpu_experts_bench.exe C:\Users\iancu\models\Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf --threads 4 --stream-gib 1
+2026-11-17 10:21:30 END 06-poly-cpu-experts-bench/cpu_experts_t4 exit 0
+2026-11-17 10:21:30 START 06-poly-cpu-experts-bench/cpu_experts_multi_check: C:\Users\iancu\build-latest\build-sm75\poly_cpu_experts_bench.exe C:\Users\iancu\models\Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf --threads 8 --multi --check --skip-stream
+2026-11-17 10:22:18 END 06-poly-cpu-experts-bench/cpu_experts_multi_check exit 0
+2026-11-17 10:22:18 END ITEM 06-poly-cpu-experts-bench exit 0
+2026-11-17 10:22:45 idle broken: CPU 22%
+2026-11-17 10:24:13 idle broken: CPU 22%
+2026-11-17 10:26:04 idle broken: CPU 22%
+2026-11-17 10:28:20 idle broken: CPU 29%
+2026-11-17 10:30:32 idle broken: CPU 21%
+2026-11-17 10:31:38 idle broken: CPU 22%
+2026-11-17 10:34:13 idle broken: CPU 23%
+2026-11-17 10:35:19 idle broken: CPU 24%
+2026-11-17 10:39:00 idle broken: CPU 38%
+2026-11-17 10:42:43 START ITEM 07-poly-draft-race [A] poly_draft_race_test: a read with the draft block repeated 3 times must match bit for bit (exit 3 = SKIP)
+2026-11-17 10:42:43 START 07-poly-draft-race/poly_draft_race_test: C:\Users\iancu\build-latest\build-sm75\poly_draft_race_test.exe C:\Users\iancu\models\Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf 3
+2026-11-17 10:45:25 END 07-poly-draft-race/poly_draft_race_test exit 0
+2026-11-17 10:45:25 END ITEM 07-poly-draft-race exit 0
+2026-11-17 10:45:53 idle broken: CPU 21%
+2026-11-17 10:48:47 idle broken: CPU 100%

@@ -1,0 +1,5 @@
+2048 -> 256, 4096 tokens: plain 11.071 ms, tiled 5.948 ms (x1.86), the same bits
+2048 -> 256, 1037 tokens: plain 2.479 ms, tiled 1.255 ms (x1.98), the same bits
+2048 -> 32, 4096 tokens: plain 1.229 ms, tiled 1.264 ms (x0.97), the same bits
+2048 -> 32, 77 tokens: plain 0.104 ms, tiled 0.118 ms (x0.88), the same bits
+2000 -> 200, 333 tokens: plain 0.715 ms, tiled 0.392 ms (x1.82), the same bits

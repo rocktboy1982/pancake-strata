@@ -1,0 +1,8 @@
+41 MoE layers, 256 experts of 0.90 MiB (n_embd 2048, n_ff 512), 8 threads
+first read of the mapped experts (page faults; from the disk what the file cache lacks): 3.1 GB/s, 3.2 s
+path: multi, gate/up tasks of 32 rows, down tasks of 64 rows
+experts, windows of 1 tokens: 8.00 experts a token-layer distinct (8.0 a layer), 1.95 ms a layer, 80.1 ms a window of 41 layers, 3.9 GB/s
+experts, windows of 2 tokens: 7.88 experts a token-layer distinct (15.8 a layer), 3.13 ms a layer, 128.2 ms a window of 41 layers, 4.8 GB/s
+experts, windows of 4 tokens: 7.64 experts a token-layer distinct (30.5 a layer), 5.01 ms a layer, 205.4 ms a window of 41 layers, 5.9 GB/s
+experts, windows of 8 tokens: 7.18 experts a token-layer distinct (57.4 a layer), 9.37 ms a layer, 384.2 ms a window of 41 layers, 5.9 GB/s
+check: 0 of 32747520 output values differ from the plain path's bits

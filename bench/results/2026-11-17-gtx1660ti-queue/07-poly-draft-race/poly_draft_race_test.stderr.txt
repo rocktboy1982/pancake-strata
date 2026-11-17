@@ -1,0 +1,4 @@
+the read gave the draft block 4 calls on the layer-major path
+run 2: guesses same, probabilities same, state same
+run 3: guesses same, probabilities same, state same
+PASS: 0 of 2 runs differ from the first (split '')

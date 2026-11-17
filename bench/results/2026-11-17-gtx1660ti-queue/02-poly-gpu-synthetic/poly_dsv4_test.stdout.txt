@@ -1,0 +1,13 @@
+rope, normed, YaRN                 6144 values, worst 1.6e-05: ok
+rope back                          6144 values, worst 1.2e-05: ok
+squeeze ratio 4, overlap           1536 values, worst 0.00055: ok
+squeeze ratio 4, overlap           384 values, worst 0.00047: ok
+squeeze ratio 128                  1536 values, worst 0.00094: ok
+attend ratio 128, 5 tokens         20480 values, worst 6.1e-05: ok
+attend ratio 4, picked, 5 tokens   20480 values, worst 2.7e-05: ok
+attend ratio 4, 5 tokens           20480 values, worst 2.7e-05: ok
+attend ratio 128, 40 tokens        245760 values, worst 4.3e-05: ok
+attend ratio 4, picked, 40 tokens  245760 values, worst 5.4e-05: ok
+attend ratio 4, 40 tokens          245760 values, worst 5.7e-05: ok
+indexer pick                       3 tokens: ok
+indexer scores                     300 values, worst 5.1e-06: ok

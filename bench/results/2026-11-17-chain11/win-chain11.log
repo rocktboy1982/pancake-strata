@@ -12,3 +12,8 @@ END 109-coded-nospec-engine exit=0 07:05:10
 START 112-hip-build-macros 2026-11-17_07:08:10
 END 112-hip-build-macros exit=0 07:19:16
 START replay 110 2026-11-17_07:22:16
+END replay 110 exit=0 10:19:38
+START taskgate 111 2026-11-17_10:22:38
+END taskgate 111 exit=0 10:41:06
+service started 10:41:06
+WINCHAIN11_DONE

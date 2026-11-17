@@ -1,0 +1,18 @@
+== q8_0 cache, 16 heads of 256 values in 2 groups, 147456 rows
+pos   2048 tokens 1 room   4096: old     91.9 us, split   158.3 us (  0.6x; split reads the caches at  14.1 GB/s)
+pos   2048 tokens 2 room   4096: old    132.7 us, split   288.0 us (  0.5x; split reads the caches at   7.7 GB/s)
+pos   2048 tokens 4 room   4096: old    260.1 us, split   288.8 us (  0.9x; split reads the caches at   7.7 GB/s)
+pos   2048 tokens 8 room   4096: old    478.0 us, split   544.7 us (  0.9x; split reads the caches at   4.1 GB/s)
+pos  37433 tokens 1 room  65536: old    976.4 us, split   801.2 us (  1.2x; split reads the caches at  50.8 GB/s)
+pos  37433 tokens 2 room  65536: old   1507.3 us, split  1585.2 us (  1.0x; split reads the caches at  25.7 GB/s)
+pos  37433 tokens 4 room  65536: old   3367.4 us, split  2890.6 us (  1.2x; split reads the caches at  14.1 GB/s)
+pos  37433 tokens 8 room  65536: old   6399.9 us, split  5451.5 us (  1.2x; split reads the caches at   7.5 GB/s)
+pos 100000 tokens 1 room 131072: old   2087.0 us, split  1812.1 us (  1.2x; split reads the caches at  60.0 GB/s)
+pos 100000 tokens 2 room 131072: old   3894.6 us, split  3518.5 us (  1.1x; split reads the caches at  30.9 GB/s)
+pos 100000 tokens 4 room 131072: old   8961.8 us, split  6739.3 us (  1.3x; split reads the caches at  16.1 GB/s)
+pos 100000 tokens 8 room 131072: old  17401.7 us, split 13190.7 us (  1.3x; split reads the caches at   8.2 GB/s)
+pos 147000 tokens 1 room 147456: old   3191.8 us, split  2418.8 us (  1.3x; split reads the caches at  66.1 GB/s)
+pos 147000 tokens 2 room 147456: old   5923.8 us, split  4947.9 us (  1.2x; split reads the caches at  32.3 GB/s)
+pos 147000 tokens 4 room 147456: old  15102.0 us, split  9754.6 us (  1.5x; split reads the caches at  16.4 GB/s)
+pos 147000 tokens 8 room 147456: old  31178.8 us, split 19298.7 us (  1.6x; split reads the caches at   8.3 GB/s)
+all cases passed

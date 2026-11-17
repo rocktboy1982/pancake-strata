@@ -1,0 +1,10 @@
+41 MoE layers, 256 experts of 0.90 MiB (n_embd 2048, n_ff 512), 4 threads
+first read of the mapped experts (page faults; from the disk what the file cache lacks): 2.6 GB/s, 4.0 s
+stream, own buffer of 1.0 GiB, 4 KB pages: 28.2 GB/s; prefetching 512 / 2048 / 8192 bytes ahead: 28.3 / 26.7 / 27.0 GB/s
+stream, own buffer, large pages: not tried, the account does not hold SeLockMemoryPrivilege (Lock pages in memory)
+stream, the routed experts in the mapped file (9.4 GiB): 27.5 GB/s; prefetching 2048 bytes ahead: 26.7 GB/s
+path: plain
+experts, windows of 1 tokens: 8.00 experts a token-layer distinct (8.0 a layer), 1.72 ms a layer, 70.5 ms a window of 41 layers, 4.5 GB/s
+experts, windows of 2 tokens: 7.88 experts a token-layer distinct (15.8 a layer), 3.38 ms a layer, 138.7 ms a window of 41 layers, 4.5 GB/s
+experts, windows of 4 tokens: 7.64 experts a token-layer distinct (30.5 a layer), 6.92 ms a layer, 283.6 ms a window of 41 layers, 4.2 GB/s
+experts, windows of 8 tokens: 7.18 experts a token-layer distinct (57.4 a layer), 14.42 ms a layer, 591.4 ms a window of 41 layers, 3.8 GB/s

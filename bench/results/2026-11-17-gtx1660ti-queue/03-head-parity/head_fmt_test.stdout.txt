@@ -1,0 +1,30 @@
+== IQ4_XS (ISTA/Swift IQ2_XS)
+  GEMV 1 col: native 2.154 ms, il -, new 1.535 ms (x1.40 vs the best) - the same bits
+  GEMV 2 col: native 3.457 ms, il -, new 2.093 ms (x1.65 vs the best) - the same bits
+  GEMV 3 col: native 4.614 ms, il -, new 2.810 ms (x1.64 vs the best) - the same bits
+  GEMV 4 col: native 5.917 ms, il -, new 3.404 ms (x1.74 vs the best) - the same bits
+  GEMV 5 col: native 5.737 ms, il -, new 3.299 ms (x1.74 vs the best) - the same bits
+  GEMV 6 col: native 6.467 ms, il -, new 3.967 ms (x1.63 vs the best) - the same bits
+  GEMV 7 col: native 7.595 ms, il -, new 4.486 ms (x1.69 vs the best) - the same bits
+  GEMV 8 col: native 8.326 ms, il -, new 5.675 ms (x1.47 vs the best) - the same bits
+  draft pick (40525 rows): two-stage = exact argmax 200/200; 0.136 ms vs the GEMV alone 0.305 ms (x2.24)
+== Q6_K (ISTA/Swift IQ3_S, Coder IQ1_M, Unsloth UD-IQ4_XS)
+  GEMV 1 col: native 2.848 ms, il -, new 2.324 ms (x1.23 vs the best) - the same bits
+  GEMV 2 col: native 3.541 ms, il -, new 3.344 ms (x1.06 vs the best) - the same bits
+  GEMV 3 col: native 4.565 ms, il -, new 4.429 ms (x1.03 vs the best) - the same bits
+  GEMV 4 col: native 5.700 ms, il -, new 5.376 ms (x1.06 vs the best) - the same bits
+  GEMV 5 col: native 5.546 ms, il -, new 5.520 ms (x1.00 vs the best) - the same bits
+  GEMV 6 col: native 6.677 ms, il -, new 6.779 ms (x0.98 vs the best) - the same bits
+  GEMV 7 col: native 7.414 ms, il -, new 7.421 ms (x1.00 vs the best) - the same bits
+  GEMV 8 col: native 8.318 ms, il -, new 9.285 ms (x0.90 vs the best) - the same bits
+  draft pick (40525 rows): two-stage = exact argmax 200/200; 0.138 ms vs the GEMV alone 0.428 ms (x3.11)
+== Q4_K (Unsloth UD-IQ1_M)
+  GEMV 1 col: native 6.998 ms, il -, new 5.564 ms (x1.26 vs the best) - the same bits
+  GEMV 2 col: native 3.019 ms, il -, new 2.406 ms (x1.25 vs the best) - the same bits
+  GEMV 3 col: native 4.233 ms, il -, new 3.429 ms (x1.23 vs the best) - the same bits
+  GEMV 4 col: native 5.143 ms, il -, new 4.202 ms (x1.22 vs the best) - the same bits
+  GEMV 5 col: native 6.423 ms, il -, new 4.643 ms (x1.38 vs the best) - the same bits
+  GEMV 6 col: native 6.055 ms, il -, new 5.140 ms (x1.18 vs the best) - the same bits
+  GEMV 7 col: native 7.299 ms, il -, new 5.812 ms (x1.26 vs the best) - the same bits
+  GEMV 8 col: native 8.133 ms, il -, new 7.346 ms (x1.11 vs the best) - the same bits
+  draft pick (40525 rows): two-stage = exact argmax 200/200; 0.136 ms vs the GEMV alone 0.309 ms (x2.28)

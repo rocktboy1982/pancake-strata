@@ -1,0 +1,637 @@
+[strata] 2026-11-17 08:57:15 engine started: /home/dan/clone-of-d/src/build-win/strata --serve --pack /home/dan/clone-of-d/Strata-data/packs/iq2_xs --native /home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf --ple-gguf /home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf --expert-profile /home/dan/clone-of-d/src/Strata-win/data/expert-profile-pancake.bin --expert-cache auto --prefill auto --spec 4 --spec-min-p 0.5 --mtp /home/dan/clone-of-d/Strata-data/mtp/rt --max-context 131072 --kv int8 --kv-resident 32768 --mtp-draft-vocab /home/dan/clone-of-d/src/Strata-win/data/draft_vocab_en.bin --adapt-swaps 32 --pool-affinity measure --grammar on --pcie-frac 0 --adapt-every 1 --lookup-max-t 12 --conversation-cache-mib 2048 --conversation-cache-min-tokens 8192 --tail-role-token 8678
+strata generate: memory guard: limit 57.7 GiB (source: meminfo), current 4.0 GiB, reclaimable cache credited 0.0 GiB; available 53.7 GiB (MemAvailable 53.7 GiB), floor 2560 MiB
+strata generate: CPU expert kernels: AVX-2
+strata generate: native pack: /home/dan/clone-of-d/Strata-data/packs/iq2_xs experts (largest blob 1.51 MB), token embedding IQ4_XS in mapped host memory (322 MiB, 0.2 s)
+strata generate: 266 MiB of weights loaded from /home/dan/clone-of-d/Strata-data/packs/iq2_xs in 0.1 s (1326 canonical tensors skipped: served natively)
+strata generate: 494 native projection matrices, 2118.99 MiB of weights, in 2.9 s
+strata generate: PLE direct read probe: 32864 rows/s (fine)
+strata generate: the SSD is kept awake while rows are read: one page of the table after 100 ms without a read, until 60 s after the last request (STRATA_SSD_KEEPALIVE=0 turns it off)
+strata generate: profile /home/dan/clone-of-d/src/Strata-win/data/expert-profile-pancake.bin: 24576 ranked pairs, built for 24576 slots
+strata generate: KV streaming: 32768 of 131072 cells per QSA layer in VRAM, the K/V in 1.55 GiB of pinned RAM
+strata generate: PLE on, table 320001536 rows of /home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf
+strata mtp: draft layer loaded, 837 MiB of VRAM (experts 675, dense 111), files read in 0.48 s (1632 MiB/s)
+strata generate: --grammar on: requests with a grammar are held to it on every window
+strata generate: experimental native Q5_K head, 337715200 bytes, in 0.1 s
+strata generate: GPU 0: AMD Radeon RX 7900 XT (gfx1100)
+strata generate: pin by need: 10708 of the 24576 ranked pairs taken as GPU-resident (STRATA_PIN_BY_NEED_SKIP=<n> sets it), 13868 candidates to pin
+strata generate: --ram-keep-gib 12.00: the expert arena is used only if 12.00 GiB of RAM stay available after it; otherwise the RAM copy of the hottest experts leaves 12.00 GiB free (the larger of that and the 4 GiB safety headroom, STRATA_RESIDENT_HEADROOM_GIB decides when set)
+prefill gemm: hipBLASLt tuning enabled (43 rows, gfx1100, version 100401)
+strata: expert arena: MAP_HUGETLB unavailable (needed 16920 2 MiB pages, vm.nr_hugepages=0); transparent huge pages NOT requested: only 18 GiB of free 2 MiB blocks for a 33 GiB arena, compaction would stall the load (STRATA_ARENA_THP=1 requests them anyway) (#2126)
+strata prefill: warmed the BF16 and FP16 GEMM libraries on GPU 0 in 4311 ms (STRATA_PREFILL_WARM=0 skips)
+strata load: memory pressure during the expert arena load (29.9 s): peak some avg10 0.0% (system 0.0% / cgroup 0.0%), peak over 200 ms 0.0%; readers held 0 times, 0 ms in all
+strata generate: expert arena read unbuffered (18.3 GiB available, 33.0 GiB of arena, 36.5 GiB of files: the file cache cannot keep them)
+strata generate: expert arena load: mode direct (O_DIRECT), 16 threads, 33.02 GiB in 29.94 s (1.10 GiB/s); arena reserved/registered/pinned in 8.86 s before the read
+strata generate: pin by need: 11592 ranges, 18.68 GiB pinned, 100.0 % of the non-resident experts (48 of 48 layers have a PCIe share)
+strata generate: expert arena: mlock of 1 regions (1 MiB of holes); pin by need: 11592 ranges registered (33838 MiB); MAP_HUGETLB unavailable (needed 16920 2 MiB pages, vm.nr_hugepages=0); transparent huge pages NOT requested: only 18 GiB of free 2 MiB blocks for a 33 GiB arena, compaction would stall the load (STRATA_ARENA_THP=1 requests them anyway) (#2126)
+strata generate: loaded 33.02 GiB at 1.10 GiB/s
+strata generate: GPU host-callback thread started before host-core pinning
+strata generate: --pool-affinity measure: this CPU is not a hybrid one; the layout stays all
+strata generate: CPU pool tasks/phase: 24 (automatic), participating threads: 8
+strata generate: CPU pool: 7 workers by default (8 physical cores, 16 logical processors; bounded by every physical core but the host's)
+strata generate: 7 pool workers on logical processors 1,2,3,4,5,6,7, the host thread on 0 (draining too) (--host-core first)
+strata generate: CPU workers on logical processors 1-7 (7 workers, one per physical core; host on 0)
+strata aux cpus: threads that are neither pool workers nor the host go to CPUs 8 (off at start; a request's aux_cpus=1 turns it on)
+strata prefill: STRATA_PF_GROUP_SCRATCH=1 is ignored: the prompt path runs the FP16 path or pf_wmma here, not MMQ
+strata: STRATA_HIP_WMMA: the prompt attention on matrix cores on (gfx1100)
+strata generate: expert cache auto: 15.37 GiB free, 700 MiB reserved (+60 MiB for the draft head, +256 MiB for what is allocated after the cache) -> 10218 slots
+strata generate: expert cache 10733 slots, 14.37 GiB of VRAM; policy is
+strata generate: the GPU computes the experts in the cache; it rounds differently from the CPU,
+                 so a reply can differ slightly from a run without the cache (same quality:
+                 bench/results/2026-09-27-cache-parity).
+                 PROFILE, ranked by routing frequency, no eviction.
+strata generate: pre-filled 10733 of 10733 slots from the profile in 1.9 s (8256 MB/s); slot 0 verified
+strata generate: R4 hit path ON - resident experts are computed on the GPU
+strata generate: 7 expert-pool workers + the host thread
+strata generate: session is up (engine 0.1.58)
+strata generate: token graph hit path: 10733 resident experts, decided on the device
+strata: STRATA_PREFILL_EQUAL_TAIL=1: a prompt segment longer than its chunk whose last chunk would be staged (256 tokens or more, under the staged limit) reads in equal chunks instead (MOD_PLAN 17.5; STRATA_TRACE=1 shows the chunks)
+strata serve: prompt chunk auto: 32768 tokens, a 192-slot ring
+strata serve: the prompt path borrows 9413 CUDA0 cache slots (12.59 GiB)
+prefill gemm: hipBLASLt tuning enabled (43 rows, gfx1100, version 100401)
+strata prefill: chunk 32768 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata hc: CUDA0: the hyper-connection read runs as staged (the norm per token and stream, the down projection's activations staged ahead by cp.async); checked bit for bit against the plain read on this card (STRATA_HC_SPLIT=1 or 0 for the earlier ones)
+strata verify: window up to 12 tokens, 92.0 MiB of device buffers
+strata verify: STRATA_VERIFY_ECAP=0 (changes the output; MOD_PLAN F5): in a decode window each draft row (rows 1..T-1, never row 0) reads at most 0 CPU expert(s) that row 0 and the rows before it do not read anyway, by routing rank; the rest add zero.  Not in a prompt read, a merged first window, a batch or pipelined window, or while the request's grammar is enforcing
+strata mtp: draft head over 40525 tokens (52.6 MiB)
+strata generate: --pcie-frac 0: the verify windows skip the PCIe share path
+strata serve: adaptive overlap signal: stream-ordered copies (STRATA_ADAPT_SIGNAL=host: a host function)
+strata serve: adaptive overlap (STRATA_ADAPT_OVERLAP=0 turns it off): the adaptive tier's copies land while the next window runs (same tokens, a layer waits for its own copies)
+strata serve: 818 MiB of VRAM free with everything loaded
+strata serve: --lookup-max-t 12: MTP windows up to 4 tokens, window sizes 1,2,3,4,5,6,12
+strata verify: capturing the 12-token window (818 MiB of VRAM free)
+strata expdec: CUDA0 gate/up type 22: expdec_gu_kernel R 1 MINB 4, 128 rows per block, grid 10 x 120 (cap 120 groups), captured into a graph
+strata expdec: CUDA0 down type 42: expdec_down_kernel R 4, 256 rows per block, grid 10 x 120 (cap 120 groups), captured into a graph
+strata expdec: CUDA0 gate/up type 16: expdec_gu_kernel R 1 MINB 4, 128 rows per block, grid 10 x 120 (cap 120 groups), captured into a graph
+strata expdec: CUDA0 gate/up type 29 (n_embd 2560, n_ff 640) not covered: the default kernel runs
+strata verify: captured the 12-token window (upload no error, sync no error) in 193.5 ms
+strata verify: capturing the 6-token window (746 MiB of VRAM free)
+strata verify: captured the 6-token window (upload no error, sync no error) in 4.5 ms
+strata verify: capturing the 4-token window (736 MiB of VRAM free)
+strata verify: captured the 4-token window (upload no error, sync no error) in 4.8 ms
+strata verify: capturing the 1-token window (728 MiB of VRAM free)
+strata verify: captured the 1-token window (upload no error, sync no error) in 5.7 ms
+strata verify: capturing the 2-token window (716 MiB of VRAM free)
+strata verify: captured the 2-token window (upload no error, sync no error) in 4.8 ms
+strata serve: prompt 65 tokens = 0 reused + 65 read in 767 ms (84.7 tok/s), 4 generated in 74 ms (54.2 tok/s), drafts accepted 1 of 1, 1 checkpoints
+strata serve: decode expert cache hit rate: 90.9% (1745 hits / 1920 lookups)
+strata serve: KV streaming: 97.22% of 7344 block reads hit VRAM, 0.8 MiB read from RAM
+strata serve: conversation cache: skip parking (68 tokens, below the 8192 minimum; parked=0)
+strata: prompt experts on the fused int8 kernels (STRATA_PF_FUSED=1, #136)
+strata prefill: QSA layers: norm + rope in one pass on, attention gate in the attention epilogue on
+strata KV prefetch: 24 layer prefixes, single existing staging pool
+strata verify: capturing the 3-token window (679 MiB of VRAM free)
+strata verify: captured the 3-token window (upload no error, sync no error) in 4.7 ms
+strata serve: prompt 72482 tokens = 0 reused + 72482 read in 36691 ms (1975.5 tok/s), 888 generated in 10065 ms (88.2 tok/s), drafts accepted 469 of 722, 3 checkpoints
+strata serve: decode expert cache hit rate: 92.4% (500670 hits / 541696 lookups)
+strata serve: STRATA_VERIFY_ECAP: 4725 draft-only CPU experts skipped (5984 entries) since the start
+strata serve: KV streaming: 97.68% of 7055436 block reads hit VRAM, 659.1 MiB read from RAM
+strata serve: suffix drafts: 34 windows, 95 of 190 drafts accepted
+strata serve: conversation cache: parked 73369 tokens in 721.4 ms; parked=1 bytes=1593186112 evictions=0 snapshot_bytes=1593186112 reused_kv_bytes=0
+strata prefill: chunk 1024 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 73386 tokens = 72477 reused + 909 read in 1944 ms (467.5 tok/s), 493 generated in 5380 ms (91.6 tok/s), drafts accepted 277 of 423, 3 checkpoints
+strata serve: decode expert cache hit rate: 93.7% (287252 hits / 306494 lookups)
+strata serve: STRATA_VERIFY_ECAP: 4907 draft-only CPU experts skipped (6210 entries) since the start
+strata serve: KV streaming: 98.05% of 10992960 block reads hit VRAM, 865.0 MiB read from RAM
+strata serve: suffix drafts: 8 windows, 13 of 27 drafts accepted
+strata verify: capturing the 5-token window (661 MiB of VRAM free)
+strata verify: captured the 5-token window (upload no error, sync no error) in 5.5 ms
+strata serve: prompt 73894 tokens = 73878 reused + 16 read in 204 ms (78.4 tok/s), 273 generated in 3082 ms (88.6 tok/s), drafts accepted 141 of 191, 4 checkpoints
+strata serve: decode expert cache hit rate: 91.6% (140735 hits / 153659 lookups)
+strata serve: STRATA_VERIFY_ECAP: 6018 draft-only CPU experts skipped (7591 entries) since the start
+strata serve: KV streaming: 98.12% of 13075692 block reads hit VRAM, 988.1 MiB read from RAM
+strata serve: suffix drafts: 6 windows, 16 of 30 drafts accepted
+strata serve: prompt 74188 tokens = 74166 reused + 22 read in 187 ms (117.8 tok/s), 874 generated in 9268 ms (94.3 tok/s), drafts accepted 483 of 692, 5 checkpoints
+strata serve: decode expert cache hit rate: 94.2% (481912 hits / 511838 lookups)
+strata serve: STRATA_VERIFY_ECAP: 11996 draft-only CPU experts skipped (15593 entries) since the start
+strata serve: KV streaming: 98.30% of 19878540 block reads hit VRAM, 1358.2 MiB read from RAM
+strata serve: suffix drafts: 30 windows, 93 of 166 drafts accepted
+strata serve: conversation cache: dropped 1 superseded copy of this conversation; parked=0
+strata serve: conversation cache: parked 75061 tokens in 484.3 ms; parked=1 bytes=1855738688 evictions=0 snapshot_bytes=1855738688 reused_kv_bytes=0
+strata prefill: chunk 32000 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 31976 tokens = 0 reused + 31976 read in 18790 ms (1701.8 tok/s), 484 generated in 5476 ms (88.4 tok/s), drafts accepted 250 of 358, 1 checkpoints
+strata serve: the graphics driver paused the GPU for 317 ms during this request while Linux moved memory the GPU uses; the request was slower by up to that much
+strata serve: decode expert cache hit rate: 92.9% (263350 hits / 283397 lookups)
+strata serve: STRATA_VERIFY_ECAP: 12616 draft-only CPU experts skipped (16356 entries) since the start
+strata serve: KV streaming: 98.19% of 3672564 block reads hit VRAM, 267.7 MiB read from RAM
+strata serve: suffix drafts: 1 windows, 7 of 11 drafts accepted
+strata prefill: chunk 2048 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 34449 tokens = 32459 reused + 1990 read in 2179 ms (913.4 tok/s), 191 generated in 1829 ms (104.4 tok/s), drafts accepted 115 of 158, 2 checkpoints
+strata serve: decode expert cache hit rate: 95.9% (105825 hits / 110320 lookups)
+strata serve: STRATA_VERIFY_ECAP: 14312 draft-only CPU experts skipped (18356 entries) since the start
+strata serve: KV streaming: 98.57% of 5139120 block reads hit VRAM, 295.6 MiB read from RAM
+strata serve: suffix drafts: 14 windows, 55 of 81 drafts accepted
+strata prefill: chunk 512 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 35128 tokens = 34639 reused + 489 read in 1102 ms (443.8 tok/s), 185 generated in 2129 ms (86.9 tok/s), drafts accepted 81 of 112, 3 checkpoints
+strata serve: decode expert cache hit rate: 96.2% (99717 hits / 103680 lookups)
+strata serve: STRATA_VERIFY_ECAP: 14312 draft-only CPU experts skipped (18356 entries) since the start
+strata serve: KV streaming: 98.78% of 6494748 block reads hit VRAM, 318.8 MiB read from RAM
+strata serve: suffix drafts: 3 windows, 4 of 9 drafts accepted
+strata prefill: chunk 3584 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 38705 tokens = 35312 reused + 3393 read in 3041 ms (1115.8 tok/s), 468 generated in 5273 ms (88.8 tok/s), drafts accepted 228 of 338, 4 checkpoints
+strata serve: decode expert cache hit rate: 95.3% (263448 hits / 276449 lookups)
+strata serve: STRATA_VERIFY_ECAP: 14940 draft-only CPU experts skipped (19347 entries) since the start
+strata serve: KV streaming: 99.07% of 10080996 block reads hit VRAM, 377.1 MiB read from RAM
+strata serve: suffix drafts: 12 windows, 14 of 43 drafts accepted
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 39429 tokens = 39172 reused + 257 read in 844 ms (304.6 tok/s), 486 generated in 5044 ms (96.4 tok/s), drafts accepted 265 of 372, 5 checkpoints
+strata serve: decode expert cache hit rate: 94.9% (268558 hits / 282845 lookups)
+strata serve: STRATA_VERIFY_ECAP: 16303 draft-only CPU experts skipped (21142 entries) since the start
+strata serve: KV streaming: 99.23% of 13759692 block reads hit VRAM, 424.4 MiB read from RAM
+strata serve: suffix drafts: 6 windows, 16 of 33 drafts accepted
+strata prefill: chunk 1280 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 41146 tokens = 39914 reused + 1232 read in 1623 ms (759.1 tok/s), 909 generated in 9318 ms (97.6 tok/s), drafts accepted 501 of 697, 6 checkpoints
+strata serve: decode expert cache hit rate: 95.2% (504066 hits / 529686 lookups)
+strata serve: STRATA_VERIFY_ECAP: 16871 draft-only CPU experts skipped (21856 entries) since the start
+strata serve: KV streaming: 99.32% of 20593356 block reads hit VRAM, 564.5 MiB read from RAM
+strata serve: suffix drafts: 10 windows, 9 of 31 drafts accepted
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 42218 tokens = 42054 reused + 164 read in 765 ms (214.3 tok/s), 424 generated in 4858 ms (87.3 tok/s), drafts accepted 216 of 326, 6 checkpoints
+strata serve: the graphics driver paused the GPU for 202 ms during this request while Linux moved memory the GPU uses; the request was slower by up to that much
+strata serve: decode expert cache hit rate: 93.3% (238613 hits / 255734 lookups)
+strata serve: STRATA_VERIFY_ECAP: 17370 draft-only CPU experts skipped (22442 entries) since the start
+strata serve: KV streaming: 99.31% of 23908488 block reads hit VRAM, 667.5 MiB read from RAM
+strata serve: suffix drafts: 2 windows, 3 of 14 drafts accepted
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 42845 tokens = 42641 reused + 204 read in 810 ms (252.0 tok/s), 514 generated in 5720 ms (89.9 tok/s), drafts accepted 268 of 380, 6 checkpoints
+strata serve: decode expert cache hit rate: 91.9% (275490 hits / 299625 lookups)
+strata serve: STRATA_VERIFY_ECAP: 18083 draft-only CPU experts skipped (23297 entries) since the start
+strata serve: KV streaming: 99.32% of 27790632 block reads hit VRAM, 759.7 MiB read from RAM
+strata serve: suffix drafts: 13 windows, 19 of 45 drafts accepted
+strata serve: prompt 43380 tokens = 43358 reused + 22 read in 220 ms (100.2 tok/s), 160 generated in 1750 ms (91.4 tok/s), drafts accepted 84 of 127, 6 checkpoints
+strata serve: decode expert cache hit rate: 94.2% (91830 hits / 97440 lookups)
+strata serve: STRATA_VERIFY_ECAP: 18083 draft-only CPU experts skipped (23297 entries) since the start
+strata serve: KV streaming: 99.34% of 29170860 block reads hit VRAM, 777.7 MiB read from RAM
+strata serve: suffix drafts: 1 windows, 1 of 2 drafts accepted
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 43658 tokens = 43539 reused + 119 read in 687 ms (173.1 tok/s), 395 generated in 3793 ms (104.2 tok/s), drafts accepted 238 of 313, 6 checkpoints
+strata serve: decode expert cache hit rate: 94.0% (211398 hits / 224929 lookups)
+strata serve: STRATA_VERIFY_ECAP: 18646 draft-only CPU experts skipped (23968 entries) since the start
+strata serve: KV streaming: 99.34% of 32091636 block reads hit VRAM, 857.9 MiB read from RAM
+strata serve: suffix drafts: 7 windows, 20 of 32 drafts accepted
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 44144 tokens = 44052 reused + 92 read in 616 ms (149.4 tok/s), 388 generated in 3978 ms (97.5 tok/s), drafts accepted 213 of 300, 6 checkpoints
+strata serve: decode expert cache hit rate: 95.7% (217735 hits / 227622 lookups)
+strata serve: STRATA_VERIFY_ECAP: 19001 draft-only CPU experts skipped (24346 entries) since the start
+strata serve: KV streaming: 99.38% of 35043276 block reads hit VRAM, 876.6 MiB read from RAM
+strata serve: suffix drafts: 6 windows, 15 of 24 drafts accepted
+strata serve: prompt 44553 tokens = 44531 reused + 22 read in 209 ms (105.0 tok/s), 175 generated in 1847 ms (94.7 tok/s), drafts accepted 97 of 141, 6 checkpoints
+strata serve: decode expert cache hit rate: 93.5% (98251 hits / 105120 lookups)
+strata serve: STRATA_VERIFY_ECAP: 19001 draft-only CPU experts skipped (24346 entries) since the start
+strata serve: KV streaming: 99.36% of 36522180 block reads hit VRAM, 947.8 MiB read from RAM
+strata serve: suffix drafts: 1 windows, 1 of 2 drafts accepted
+strata serve: prompt 44777 tokens = 44727 reused + 50 read in 355 ms (140.8 tok/s), 637 generated in 6425 ms (99.1 tok/s), drafts accepted 369 of 542, 6 checkpoints
+strata serve: decode expert cache hit rate: 95.0% (366655 hits / 385954 lookups)
+strata serve: STRATA_VERIFY_ECAP: 21303 draft-only CPU experts skipped (27192 entries) since the start
+strata serve: KV streaming: 99.37% of 41815284 block reads hit VRAM, 1060.5 MiB read from RAM
+strata serve: suffix drafts: 11 windows, 32 of 69 drafts accepted
+strata serve: conversation cache: parked 45413 tokens in 185.7 ms; parked=1 bytes=1520870236 evictions=1 snapshot_bytes=1520870236 reused_kv_bytes=0
+strata prefill: chunk 768 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 45426 tokens = 44772 reused + 654 read in 1180 ms (554.3 tok/s), 478 generated in 5083 ms (94.0 tok/s), drafts accepted 278 of 437, 6 checkpoints
+strata serve: decode expert cache hit rate: 93.8% (284779 hits / 303762 lookups)
+strata serve: STRATA_VERIFY_ECAP: 22978 draft-only CPU experts skipped (29190 entries) since the start
+strata serve: KV streaming: 99.36% of 45740532 block reads hit VRAM, 1176.1 MiB read from RAM
+strata serve: suffix drafts: 11 windows, 14 of 58 drafts accepted
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 45988 tokens = 45903 reused + 85 read in 591 ms (143.7 tok/s), 333 generated in 3538 ms (94.1 tok/s), drafts accepted 187 of 261, 6 checkpoints
+strata serve: decode expert cache hit rate: 92.0% (178976 hits / 194633 lookups)
+strata serve: STRATA_VERIFY_ECAP: 23420 draft-only CPU experts skipped (29917 entries) since the start
+strata serve: KV streaming: 99.34% of 48273084 block reads hit VRAM, 1281.3 MiB read from RAM
+strata serve: suffix drafts: 3 windows, 3 of 15 drafts accepted
+strata prefill: chunk 1024 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 47228 tokens = 46320 reused + 908 read in 1422 ms (638.7 tok/s), 535 generated in 5372 ms (99.6 tok/s), drafts accepted 311 of 442, 6 checkpoints
+strata serve: decode expert cache hit rate: 94.1% (299424 hits / 318105 lookups)
+strata serve: STRATA_VERIFY_ECAP: 24804 draft-only CPU experts skipped (31492 entries) since the start
+strata serve: KV streaming: 99.35% of 52401564 block reads hit VRAM, 1368.1 MiB read from RAM
+strata serve: suffix drafts: 16 windows, 50 of 64 drafts accepted
+strata prefill: chunk 768 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 48338 tokens = 47762 reused + 576 read in 1195 ms (482.1 tok/s), 278 generated in 2743 ms (101.3 tok/s), drafts accepted 161 of 225, 6 checkpoints
+strata serve: decode expert cache hit rate: 95.7% (157160 hits / 164160 lookups)
+strata serve: STRATA_VERIFY_ECAP: 24804 draft-only CPU experts skipped (31492 entries) since the start
+strata serve: KV streaming: 99.37% of 54533556 block reads hit VRAM, 1391.1 MiB read from RAM
+strata serve: suffix drafts: 4 windows, 5 of 11 drafts accepted
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 49239 tokens = 48615 reused + 624 read in 1231 ms (506.9 tok/s), 717 generated in 7208 ms (99.5 tok/s), drafts accepted 424 of 587, 6 checkpoints
+strata serve: decode expert cache hit rate: 93.7% (393790 hits / 420136 lookups)
+strata serve: STRATA_VERIFY_ECAP: 26686 draft-only CPU experts skipped (33756 entries) since the start
+strata serve: KV streaming: 99.32% of 59980764 block reads hit VRAM, 1632.7 MiB read from RAM
+strata serve: suffix drafts: 9 windows, 26 of 58 drafts accepted
+strata prefill: chunk 1024 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 50741 tokens = 49955 reused + 786 read in 1362 ms (577.1 tok/s), 216 generated in 2121 ms (101.8 tok/s), drafts accepted 132 of 190, 6 checkpoints
+strata serve: decode expert cache hit rate: 93.7% (123258 hits / 131520 lookups)
+strata serve: STRATA_VERIFY_ECAP: 26686 draft-only CPU experts skipped (33756 entries) since the start
+strata serve: KV streaming: 99.32% of 61693788 block reads hit VRAM, 1694.2 MiB read from RAM
+strata serve: suffix drafts: 4 windows, 7 of 12 drafts accepted
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 51041 tokens = 50956 reused + 85 read in 613 ms (138.8 tok/s), 241 generated in 2364 ms (101.9 tok/s), drafts accepted 147 of 188, 6 checkpoints
+strata serve: decode expert cache hit rate: 91.4% (123716 hits / 135360 lookups)
+strata serve: STRATA_VERIFY_ECAP: 26686 draft-only CPU experts skipped (33756 entries) since the start
+strata serve: KV streaming: 99.31% of 63456084 block reads hit VRAM, 1762.7 MiB read from RAM
+strata serve: suffix drafts: 2 windows, 1 of 5 drafts accepted
+strata prefill: chunk 768 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 51910 tokens = 51281 reused + 629 read in 1112 ms (565.6 tok/s), 234 generated in 2296 ms (101.9 tok/s), drafts accepted 139 of 198, 6 checkpoints
+strata serve: decode expert cache hit rate: 94.7% (133212 hits / 140640 lookups)
+strata serve: STRATA_VERIFY_ECAP: 26686 draft-only CPU experts skipped (33756 entries) since the start
+strata serve: KV streaming: 99.31% of 65286204 block reads hit VRAM, 1814.2 MiB read from RAM
+strata serve: suffix drafts: 4 windows, 5 of 8 drafts accepted
+strata prefill: chunk 512 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 52582 tokens = 52143 reused + 439 read in 1003 ms (437.7 tok/s), 326 generated in 3242 ms (100.6 tok/s), drafts accepted 190 of 265, 6 checkpoints
+strata serve: decode expert cache hit rate: 94.5% (181973 hits / 192480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 26686 draft-only CPU experts skipped (33756 entries) since the start
+strata serve: KV streaming: 99.32% of 67781856 block reads hit VRAM, 1867.0 MiB read from RAM
+strata serve: suffix drafts: 4 windows, 5 of 10 drafts accepted
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 53101 tokens = 52907 reused + 194 read in 820 ms (236.7 tok/s), 760 generated in 5053 ms (150.4 tok/s), drafts accepted 600 of 666, 6 checkpoints
+strata serve: decode expert cache hit rate: 95.5% (358076 hits / 375079 lookups)
+strata serve: STRATA_VERIFY_ECAP: 45095 draft-only CPU experts skipped (55157 entries) since the start
+strata serve: KV streaming: 99.31% of 72896412 block reads hit VRAM, 2018.7 MiB read from RAM
+strata serve: suffix drafts: 41 windows, 379 of 392 drafts accepted
+strata serve: conversation cache: parked 53860 tokens in 219.6 ms; parked=1 bytes=1649954836 evictions=2 snapshot_bytes=1649954836 reused_kv_bytes=0
+strata prefill: chunk 2048 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 1809 tokens = 0 reused + 1809 read in 2357 ms (767.5 tok/s), 400 generated in 2598 ms (154.0 tok/s), drafts accepted 321 of 346, 1 checkpoints
+strata serve: decode expert cache hit rate: 90.6% (158260 hits / 174687 lookups)
+strata serve: STRATA_VERIFY_ECAP: 66304 draft-only CPU experts skipped (84470 entries) since the start
+strata serve: KV streaming: 99.74% of 2542080 block reads hit VRAM, 26.8 MiB read from RAM
+strata serve: suffix drafts: 24 windows, 258 of 264 drafts accepted
+strata serve: conversation cache: skip parking (2208 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 1809 tokens = 1804 reused + 5 read in 38 ms (131.9 tok/s), 400 generated in 4014 ms (99.6 tok/s), drafts accepted 215 of 263, 1 checkpoints
+strata serve: decode expert cache hit rate: 92.3% (196985 hits / 213310 lookups)
+strata serve: STRATA_VERIFY_ECAP: 67728 draft-only CPU experts skipped (86200 entries) since the start
+strata serve: KV streaming: 99.87% of 5223780 block reads hit VRAM, 26.8 MiB read from RAM
+strata serve: suffix drafts: 5 windows, 30 of 38 drafts accepted
+strata serve: conversation cache: skip parking (2208 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 1809 tokens = 1804 reused + 5 read in 34 ms (147.0 tok/s), 400 generated in 3862 ms (103.6 tok/s), drafts accepted 213 of 275, 1 checkpoints
+strata serve: decode expert cache hit rate: 95.5% (210612 hits / 220519 lookups)
+strata serve: STRATA_VERIFY_ECAP: 68848 draft-only CPU experts skipped (87441 entries) since the start
+strata serve: KV streaming: 99.92% of 7991556 block reads hit VRAM, 26.8 MiB read from RAM
+strata serve: suffix drafts: 4 windows, 28 of 35 drafts accepted
+strata serve: conversation cache: skip parking (2208 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 3328 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 3180 tokens = 0 reused + 3180 read in 3049 ms (1042.9 tok/s), 1 generated in 16 ms (63.6 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: the graphics driver paused the GPU for 594 ms during this request while Linux moved memory the GPU uses; the request was slower by up to that much
+strata serve: decode expert cache hit rate: 98.1% (471 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 68848 draft-only CPU experts skipped (87441 entries) since the start
+strata serve: KV streaming: 74.43% of 30804 block reads hit VRAM, 31.7 MiB read from RAM
+strata serve: conversation cache: skip parking (3180 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 3180 tokens = 3175 reused + 5 read in 33 ms (149.7 tok/s), 1 generated in 16 ms (64.4 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.2% (476 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 68848 draft-only CPU experts skipped (87441 entries) since the start
+strata serve: KV streaming: 87.18% of 61608 block reads hit VRAM, 31.8 MiB read from RAM
+strata serve: conversation cache: skip parking (3180 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 3180 tokens = 3175 reused + 5 read in 34 ms (146.8 tok/s), 1 generated in 16 ms (63.1 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.0% (475 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 68848 draft-only CPU experts skipped (87441 entries) since the start
+strata serve: KV streaming: 91.44% of 92412 block reads hit VRAM, 31.9 MiB read from RAM
+strata serve: conversation cache: skip parking (3180 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 3180 tokens = 3175 reused + 5 read in 33 ms (150.9 tok/s), 1 generated in 16 ms (63.8 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.4% (477 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 68848 draft-only CPU experts skipped (87441 entries) since the start
+strata serve: KV streaming: 93.57% of 123216 block reads hit VRAM, 31.9 MiB read from RAM
+strata serve: conversation cache: skip parking (3180 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 3180 tokens = 3175 reused + 5 read in 33 ms (151.3 tok/s), 1 generated in 16 ms (63.7 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.6% (478 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 68848 draft-only CPU experts skipped (87441 entries) since the start
+strata serve: KV streaming: 94.85% of 154020 block reads hit VRAM, 31.9 MiB read from RAM
+strata serve: conversation cache: skip parking (3180 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 3180 tokens = 3175 reused + 5 read in 33 ms (151.3 tok/s), 1 generated in 16 ms (64.3 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.8% (479 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 68848 draft-only CPU experts skipped (87441 entries) since the start
+strata serve: KV streaming: 95.71% of 184824 block reads hit VRAM, 32.0 MiB read from RAM
+strata serve: conversation cache: skip parking (3180 tokens, below the 8192 minimum; parked=0)
+strata serve: conversation cache: restored 53860 tokens (live) in 85.5 ms; parked=0 bytes=822345904
+strata serve: prompt 53882 tokens = 53860 reused + 22 read in 234 ms (94.2 tok/s), 624 generated in 6323 ms (98.7 tok/s), drafts accepted 387 of 522, 6 checkpoints
+strata serve: decode expert cache hit rate: 90.4% (328059 hits / 362956 lookups)
+strata serve: STRATA_VERIFY_ECAP: 70014 draft-only CPU experts skipped (88805 entries) since the start
+strata serve: KV streaming: 97.52% of 4806408 block reads hit VRAM, 479.7 MiB read from RAM
+strata serve: suffix drafts: 11 windows, 27 of 51 drafts accepted
+strata serve: conversation cache: parked 54505 tokens in 254.7 ms; parked=1 bytes=1752737164 evictions=2 snapshot_bytes=1752737164 reused_kv_bytes=822114816
+strata prefill: chunk 768 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 54506 tokens = 53877 reused + 629 read in 1259 ms (499.5 tok/s), 488 generated in 2483 ms (196.6 tok/s), drafts accepted 429 of 433, 6 checkpoints
+strata serve: decode expert cache hit rate: 96.7% (207565 hits / 214610 lookups)
+strata serve: STRATA_VERIFY_ECAP: 87788 draft-only CPU experts skipped (110355 entries) since the start
+strata serve: KV streaming: 97.90% of 7838112 block reads hit VRAM, 661.9 MiB read from RAM
+strata serve: suffix drafts: 35 windows, 367 of 367 drafts accepted
+strata serve: conversation cache: dropped 1 superseded copy of this conversation; parked=0
+strata serve: conversation cache: parked 54993 tokens in 365.6 ms; parked=1 bytes=1667305692 evictions=2 snapshot_bytes=1667305692 reused_kv_bytes=0
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 72 tokens = 0 reused + 72 read in 950 ms (75.8 tok/s), 31 generated in 438 ms (70.7 tok/s), drafts accepted 18 of 27, 1 checkpoints
+strata serve: decode expert cache hit rate: 72.6% (13934 hits / 19200 lookups)
+strata serve: STRATA_VERIFY_ECAP: 87788 draft-only CPU experts skipped (110355 entries) since the start
+strata serve: KV streaming: 97.38% of 11904 block reads hit VRAM, 1.3 MiB read from RAM
+strata serve: conversation cache: skip parking (102 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 6912 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 6831 tokens = 0 reused + 6831 read in 4739 ms (1441.4 tok/s), 1 generated in 18 ms (55.1 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 78.3% (376 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 87788 draft-only CPU experts skipped (110355 entries) since the start
+strata serve: KV streaming: 68.41% of 30804 block reads hit VRAM, 39.2 MiB read from RAM
+strata serve: conversation cache: skip parking (6831 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 3328 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 3250 tokens = 0 reused + 3250 read in 2908 ms (1117.6 tok/s), 1 generated in 16 ms (61.3 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 84.0% (403 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 87788 draft-only CPU experts skipped (110355 entries) since the start
+strata serve: KV streaming: 74.26% of 30816 block reads hit VRAM, 32.0 MiB read from RAM
+strata serve: conversation cache: skip parking (3250 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 4608 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 4479 tokens = 0 reused + 4479 read in 3679 ms (1217.6 tok/s), 1 generated in 16 ms (62.7 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 90.2% (433 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 87788 draft-only CPU experts skipped (110355 entries) since the start
+strata serve: KV streaming: 71.24% of 30804 block reads hit VRAM, 35.7 MiB read from RAM
+strata serve: conversation cache: skip parking (4479 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 55 tokens = 0 reused + 55 read in 440 ms (125.1 tok/s), 1000 generated in 10579 ms (94.5 tok/s), drafts accepted 485 of 641, 1 checkpoints
+strata serve: decode expert cache hit rate: 92.1% (511192 hits / 554880 lookups)
+strata serve: STRATA_VERIFY_ECAP: 87788 draft-only CPU experts skipped (110355 entries) since the start
+strata serve: KV streaming: 99.84% of 1935636 block reads hit VRAM, 12.8 MiB read from RAM
+strata serve: suffix drafts: 28 windows, 17 of 65 drafts accepted
+strata serve: conversation cache: skip parking (1054 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 73 tokens = 0 reused + 73 read in 503 ms (145.2 tok/s), 1000 generated in 9684 ms (103.3 tok/s), drafts accepted 541 of 678, 1 checkpoints
+strata serve: decode expert cache hit rate: 93.5% (509954 hits / 545460 lookups)
+strata serve: STRATA_VERIFY_ECAP: 88056 draft-only CPU experts skipped (110655 entries) since the start
+strata serve: KV streaming: 99.84% of 1969608 block reads hit VRAM, 13.0 MiB read from RAM
+strata serve: suffix drafts: 9 windows, 14 of 28 drafts accepted
+strata serve: conversation cache: skip parking (1072 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 62 tokens = 0 reused + 62 read in 438 ms (141.6 tok/s), 92 generated in 930 ms (98.9 tok/s), drafts accepted 47 of 69, 1 checkpoints
+strata serve: decode expert cache hit rate: 95.5% (52263 hits / 54720 lookups)
+strata serve: STRATA_VERIFY_ECAP: 88056 draft-only CPU experts skipped (110655 entries) since the start
+strata serve: KV streaming: 98.94% of 44040 block reads hit VRAM, 1.9 MiB read from RAM
+strata serve: conversation cache: skip parking (153 tokens, below the 8192 minimum; parked=1)
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 75 tokens = 0 reused + 75 read in 506 ms (148.4 tok/s), 697 generated in 5533 ms (126.0 tok/s), drafts accepted 459 of 535, 1 checkpoints
+strata serve: decode expert cache hit rate: 93.9% (340638 hits / 362704 lookups)
+strata serve: STRATA_VERIFY_ECAP: 95472 draft-only CPU experts skipped (118991 entries) since the start
+strata serve: KV streaming: 99.76% of 967200 block reads hit VRAM, 9.3 MiB read from RAM
+strata serve: suffix drafts: 20 windows, 154 of 161 drafts accepted
+strata serve: conversation cache: skip parking (771 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 768 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 706 tokens = 70 reused + 636 read in 911 ms (697.9 tok/s), 150 generated in 662 ms (226.4 tok/s), drafts accepted 136 of 143, 1 checkpoints
+strata serve: decode expert cache hit rate: 98.3% (69160 hits / 70380 lookups)
+strata serve: STRATA_VERIFY_ECAP: 100201 draft-only CPU experts skipped (123971 entries) since the start
+strata serve: KV streaming: 99.81% of 1337172 block reads hit VRAM, 10.4 MiB read from RAM
+strata serve: suffix drafts: 13 windows, 136 of 143 drafts accepted
+strata serve: conversation cache: skip parking (855 tokens, below the 8192 minimum; parked=1)
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 789 tokens = 70 reused + 719 read in 952 ms (755.6 tok/s), 157 generated in 673 ms (233.2 tok/s), drafts accepted 143 of 143, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.4% (71714 hits / 72165 lookups)
+strata serve: STRATA_VERIFY_ECAP: 103278 draft-only CPU experts skipped (127166 entries) since the start
+strata serve: KV streaming: 99.84% of 1746240 block reads hit VRAM, 11.5 MiB read from RAM
+strata serve: suffix drafts: 13 windows, 143 of 143 drafts accepted
+strata serve: conversation cache: skip parking (945 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 1024 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 873 tokens = 70 reused + 803 read in 1003 ms (800.6 tok/s), 190 generated in 1645 ms (115.5 tok/s), drafts accepted 129 of 160, 1 checkpoints
+strata serve: decode expert cache hit rate: 90.5% (95394 hits / 105455 lookups)
+strata serve: STRATA_VERIFY_ECAP: 103790 draft-only CPU experts skipped (127791 entries) since the start
+strata serve: KV streaming: 99.87% of 2390556 block reads hit VRAM, 12.9 MiB read from RAM
+strata serve: suffix drafts: 2 windows, 11 of 13 drafts accepted
+strata serve: conversation cache: skip parking (1062 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 88 tokens = 0 reused + 88 read in 537 ms (163.9 tok/s), 1000 generated in 9753 ms (102.5 tok/s), drafts accepted 545 of 665, 1 checkpoints
+strata serve: decode expert cache hit rate: 92.2% (491075 hits / 532411 lookups)
+strata serve: STRATA_VERIFY_ECAP: 108234 draft-only CPU experts skipped (132980 entries) since the start
+strata serve: KV streaming: 99.83% of 1976028 block reads hit VRAM, 13.2 MiB read from RAM
+strata serve: suffix drafts: 22 windows, 92 of 135 drafts accepted
+strata serve: conversation cache: skip parking (1087 tokens, below the 8192 minimum; parked=1)
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 70 tokens = 0 reused + 70 read in 504 ms (139.0 tok/s), 669 generated in 6881 ms (97.2 tok/s), drafts accepted 356 of 465, 1 checkpoints
+strata serve: decode expert cache hit rate: 90.9% (339632 hits / 373440 lookups)
+strata serve: STRATA_VERIFY_ECAP: 108234 draft-only CPU experts skipped (132980 entries) since the start
+strata serve: KV streaming: 99.76% of 934272 block reads hit VRAM, 8.9 MiB read from RAM
+strata serve: suffix drafts: 2 windows, 2 of 4 drafts accepted
+strata serve: conversation cache: skip parking (738 tokens, below the 8192 minimum; parked=0)
+strata serve: conversation cache: restored 54993 tokens (live) in 85.2 ms; parked=0 bytes=839684196
+strata serve: prompt 55009 tokens = 54993 reused + 16 read in 225 ms (71.2 tok/s), 339 generated in 1826 ms (185.7 tok/s), drafts accepted 298 of 305, 6 checkpoints
+strata serve: decode expert cache hit rate: 92.4% (124055 hits / 134283 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 95.99% of 2224488 block reads hit VRAM, 359.1 MiB read from RAM
+strata serve: suffix drafts: 25 windows, 262 of 266 drafts accepted
+strata serve: conversation cache: parked 55347 tokens in 101.6 ms; parked=1 bytes=1772256884 evictions=2 snapshot_bytes=1772256884 reused_kv_bytes=839397888
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 75 tokens = 0 reused + 75 read in 621 ms (120.8 tok/s), 27 generated in 244 ms (110.5 tok/s), drafts accepted 18 of 21, 1 checkpoints
+strata serve: decode expert cache hit rate: 86.0% (12379 hits / 14400 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 96.67% of 9360 block reads hit VRAM, 1.3 MiB read from RAM
+strata serve: conversation cache: skip parking (101 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 6144 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 5973 tokens = 0 reused + 5973 read in 4225 ms (1413.6 tok/s), 1 generated in 16 ms (63.3 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 97.3% (467 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 69.40% of 30816 block reads hit VRAM, 38.0 MiB read from RAM
+strata serve: conversation cache: skip parking (5973 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 73 tokens = 0 reused + 73 read in 506 ms (144.2 tok/s), 380 generated in 4126 ms (92.1 tok/s), drafts accepted 183 of 247, 1 checkpoints
+strata serve: decode expert cache hit rate: 90.9% (193647 hits / 213120 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 99.62% of 358284 block reads hit VRAM, 5.5 MiB read from RAM
+strata serve: suffix drafts: 2 windows, 1 of 5 drafts accepted
+strata serve: conversation cache: skip parking (452 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 4096 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 3881 tokens = 0 reused + 3881 read in 3190 ms (1216.6 tok/s), 1 generated in 16 ms (61.3 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.8% (479 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 72.59% of 30816 block reads hit VRAM, 34.0 MiB read from RAM
+strata serve: conversation cache: skip parking (3881 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 5888 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 5811 tokens = 0 reused + 5811 read in 3878 ms (1498.3 tok/s), 1 generated in 16 ms (63.8 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 99.4% (477 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 70.02% of 30804 block reads hit VRAM, 37.2 MiB read from RAM
+strata serve: conversation cache: skip parking (5811 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 56 tokens = 0 reused + 56 read in 390 ms (143.6 tok/s), 400 generated in 4263 ms (93.8 tok/s), drafts accepted 190 of 262, 1 checkpoints
+strata serve: decode expert cache hit rate: 93.4% (211522 hits / 226560 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 99.63% of 371196 block reads hit VRAM, 5.5 MiB read from RAM
+strata serve: suffix drafts: 3 windows, 2 of 7 drafts accepted
+strata serve: conversation cache: skip parking (455 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 71 tokens = 0 reused + 71 read in 491 ms (144.5 tok/s), 400 generated in 3992 ms (100.2 tok/s), drafts accepted 205 of 258, 1 checkpoints
+strata serve: decode expert cache hit rate: 93.9% (204229 hits / 217440 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 99.62% of 374628 block reads hit VRAM, 5.8 MiB read from RAM
+strata serve: suffix drafts: 5 windows, 7 of 10 drafts accepted
+strata serve: conversation cache: skip parking (470 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 63 tokens = 0 reused + 63 read in 373 ms (168.7 tok/s), 400 generated in 4077 ms (98.1 tok/s), drafts accepted 200 of 266, 1 checkpoints
+strata serve: decode expert cache hit rate: 94.2% (210716 hits / 223680 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131348 draft-only CPU experts skipped (164777 entries) since the start
+strata serve: KV streaming: 99.64% of 381384 block reads hit VRAM, 5.6 MiB read from RAM
+strata serve: suffix drafts: 5 windows, 4 of 12 drafts accepted
+strata serve: conversation cache: skip parking (462 tokens, below the 8192 minimum; parked=1)
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 73 tokens = 0 reused + 73 read in 496 ms (147.2 tok/s), 400 generated in 3833 ms (104.3 tok/s), drafts accepted 219 of 286, 1 checkpoints
+strata serve: decode expert cache hit rate: 94.2% (210992 hits / 223940 lookups)
+strata serve: STRATA_VERIFY_ECAP: 131482 draft-only CPU experts skipped (164997 entries) since the start
+strata serve: KV streaming: 99.62% of 377268 block reads hit VRAM, 5.8 MiB read from RAM
+strata serve: suffix drafts: 6 windows, 5 of 21 drafts accepted
+strata serve: conversation cache: skip parking (472 tokens, below the 8192 minimum; parked=0)
+strata serve: conversation cache: restored 55347 tokens (live) in 84.7 ms; parked=0 bytes=944619516
+strata prefill: chunk 512 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 55651 tokens = 55347 reused + 304 read in 978 ms (310.9 tok/s), 358 generated in 2949 ms (121.4 tok/s), drafts accepted 289 of 346, 6 checkpoints
+strata serve: decode expert cache hit rate: 86.1% (155443 hits / 180483 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 96.92% of 2581884 block reads hit VRAM, 320.0 MiB read from RAM
+strata serve: suffix drafts: 25 windows, 177 of 219 drafts accepted
+strata serve: prompt 56011 tokens = 56008 reused + 3 read in 23 ms (131.4 tok/s), 4 generated in 45 ms (89.3 tok/s), drafts accepted 2 of 3, 6 checkpoints
+strata serve: decode expert cache hit rate: 90.9% (2181 hits / 2400 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 96.97% of 2625024 block reads hit VRAM, 320.6 MiB read from RAM
+strata serve: conversation cache: parked 56014 tokens in 95.2 ms; parked=1 bytes=1772274516 evictions=2 snapshot_bytes=1772274516 reused_kv_bytes=844770816
+strata prefill: chunk 5888 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 5786 tokens = 0 reused + 5786 read in 4078 ms (1418.9 tok/s), 1 generated in 16 ms (61.8 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 92.7% (445 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 69.65% of 30816 block reads hit VRAM, 37.7 MiB read from RAM
+strata serve: conversation cache: skip parking (5786 tokens, below the 8192 minimum; parked=0)
+strata serve: conversation cache: restored 56014 tokens (live) in 85.7 ms; parked=0 bytes=944622184
+strata prefill: chunk 1024 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 56980 tokens = 56014 reused + 966 read in 1479 ms (652.9 tok/s), 589 generated in 6075 ms (97.0 tok/s), drafts accepted 353 of 465, 6 checkpoints
+strata serve: decode expert cache hit rate: 90.5% (304651 hits / 336480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 97.50% of 4344240 block reads hit VRAM, 438.0 MiB read from RAM
+strata serve: suffix drafts: 3 windows, 4 of 7 drafts accepted
+strata serve: conversation cache: parked 57568 tokens in 143.0 ms; parked=1 bytes=1772298324 evictions=2 snapshot_bytes=1772298324 reused_kv_bytes=854967168
+strata prefill: chunk 5888 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 5786 tokens = 0 reused + 5786 read in 3312 ms (1746.9 tok/s), 1 generated in 18 ms (56.5 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 81.7% (392 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 69.68% of 30816 block reads hit VRAM, 37.6 MiB read from RAM
+strata serve: conversation cache: skip parking (5786 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 4608 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 4509 tokens = 0 reused + 4509 read in 3762 ms (1198.6 tok/s), 1 generated in 17 ms (59.8 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 88.1% (423 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 71.29% of 30816 block reads hit VRAM, 35.6 MiB read from RAM
+strata serve: conversation cache: skip parking (4509 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 3840 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 3792 tokens = 0 reused + 3792 read in 2954 ms (1283.5 tok/s), 1 generated in 16 ms (62.6 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 93.1% (447 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 73.20% of 30804 block reads hit VRAM, 33.3 MiB read from RAM
+strata serve: conversation cache: skip parking (3792 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 4352 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 4199 tokens = 0 reused + 4199 read in 3214 ms (1306.5 tok/s), 1 generated in 16 ms (63.3 tok/s), drafts accepted 0 of 0, 1 checkpoints
+strata serve: decode expert cache hit rate: 96.0% (461 hits / 480 lookups)
+strata serve: STRATA_VERIFY_ECAP: 146629 draft-only CPU experts skipped (183714 entries) since the start
+strata serve: KV streaming: 70.90% of 30804 block reads hit VRAM, 36.1 MiB read from RAM
+strata serve: conversation cache: skip parking (4199 tokens, below the 8192 minimum; parked=0)
+strata serve: conversation cache: restored 57568 tokens (live) in 96.1 ms; parked=0 bytes=944628400
+strata serve: prompt 57590 tokens = 57568 reused + 22 read in 239 ms (92.2 tok/s), 400 generated in 2905 ms (137.7 tok/s), drafts accepted 312 of 348, 6 checkpoints
+strata serve: decode expert cache hit rate: 92.3% (183673 hits / 199103 lookups)
+strata serve: STRATA_VERIFY_ECAP: 155324 draft-only CPU experts skipped (193891 entries) since the start
+strata serve: KV streaming: 96.54% of 2816088 block reads hit VRAM, 393.0 MiB read from RAM
+strata serve: suffix drafts: 20 windows, 154 of 168 drafts accepted
+strata serve: conversation cache: parked 57989 tokens in 132.0 ms; parked=1 bytes=1772317964 evictions=2 snapshot_bytes=1772317964 reused_kv_bytes=878713728
+strata prefill: chunk 2560 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 2457 tokens = 0 reused + 2457 read in 2465 ms (996.7 tok/s), 2 generated in 50 ms (39.7 tok/s), drafts accepted 0 of 3, 1 checkpoints
+strata serve: decode expert cache hit rate: 77.7% (1865 hits / 2400 lookups)
+strata serve: STRATA_VERIFY_ECAP: 155324 draft-only CPU experts skipped (193891 entries) since the start
+strata serve: KV streaming: 87.15% of 55464 block reads hit VRAM, 28.7 MiB read from RAM
+strata serve: conversation cache: skip parking (2458 tokens, below the 8192 minimum; parked=0)
+strata serve: conversation cache: restored 57989 tokens (live) in 99.0 ms; parked=0 bytes=944630084
+strata serve: prompt 58011 tokens = 57989 reused + 22 read in 263 ms (83.7 tok/s), 339 generated in 1702 ms (199.2 tok/s), drafts accepted 301 of 306, 6 checkpoints
+strata serve: decode expert cache hit rate: 96.6% (142515 hits / 147463 lookups)
+strata serve: STRATA_VERIFY_ECAP: 170005 draft-only CPU experts skipped (211548 entries) since the start
+strata serve: KV streaming: 95.59% of 2249124 block reads hit VRAM, 399.9 MiB read from RAM
+strata serve: suffix drafts: 25 windows, 275 of 275 drafts accepted
+strata serve: conversation cache: parked 58349 tokens in 132.0 ms; parked=1 bytes=1772335920 evictions=2 snapshot_bytes=1772335920 reused_kv_bytes=885128832
+strata prefill: chunk 6144 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 5965 tokens = 0 reused + 5965 read in 3380 ms (1764.8 tok/s), 2 generated in 44 ms (45.6 tok/s), drafts accepted 0 of 3, 1 checkpoints
+strata serve: decode expert cache hit rate: 88.8% (2130 hits / 2400 lookups)
+strata serve: STRATA_VERIFY_ECAP: 170005 draft-only CPU experts skipped (211548 entries) since the start
+strata serve: KV streaming: 80.64% of 55464 block reads hit VRAM, 43.3 MiB read from RAM
+strata serve: conversation cache: skip parking (5966 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 4096 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 4040 tokens = 0 reused + 4040 read in 3445 ms (1172.8 tok/s), 2 generated in 46 ms (43.7 tok/s), drafts accepted 0 of 3, 1 checkpoints
+strata serve: decode expert cache hit rate: 93.2% (2237 hits / 2400 lookups)
+strata serve: STRATA_VERIFY_ECAP: 170005 draft-only CPU experts skipped (211548 entries) since the start
+strata serve: KV streaming: 83.59% of 55452 block reads hit VRAM, 36.6 MiB read from RAM
+strata serve: conversation cache: skip parking (4041 tokens, below the 8192 minimum; parked=1)
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 4012 tokens = 0 reused + 4012 read in 3599 ms (1114.8 tok/s), 2 generated in 41 ms (48.3 tok/s), drafts accepted 0 of 3, 1 checkpoints
+strata serve: decode expert cache hit rate: 94.7% (2272 hits / 2400 lookups)
+strata serve: STRATA_VERIFY_ECAP: 170005 draft-only CPU experts skipped (211548 entries) since the start
+strata serve: KV streaming: 82.81% of 55452 block reads hit VRAM, 38.4 MiB read from RAM
+strata serve: conversation cache: skip parking (4013 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 512 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 338 tokens = 0 reused + 338 read in 864 ms (391.2 tok/s), 400 generated in 2855 ms (140.1 tok/s), drafts accepted 305 of 341, 1 checkpoints
+strata serve: decode expert cache hit rate: 89.6% (165230 hits / 184491 lookups)
+strata serve: STRATA_VERIFY_ECAP: 188240 draft-only CPU experts skipped (236337 entries) since the start
+strata serve: KV streaming: 99.69% of 715200 block reads hit VRAM, 8.9 MiB read from RAM
+strata serve: suffix drafts: 22 windows, 232 of 242 drafts accepted
+strata serve: conversation cache: skip parking (737 tokens, below the 8192 minimum; parked=1)
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 0 layer prefixes, single existing staging pool
+strata serve: prompt 141 tokens = 0 reused + 141 read in 637 ms (221.4 tok/s), 400 generated in 3762 ms (106.3 tok/s), drafts accepted 239 of 301, 1 checkpoints
+strata serve: decode expert cache hit rate: 90.4% (193545 hits / 214005 lookups)
+strata serve: STRATA_VERIFY_ECAP: 193727 draft-only CPU experts skipped (244092 entries) since the start
+strata serve: KV streaming: 99.66% of 480408 block reads hit VRAM, 6.5 MiB read from RAM
+strata serve: suffix drafts: 9 windows, 70 of 91 drafts accepted
+strata serve: conversation cache: skip parking (540 tokens, below the 8192 minimum; parked=1)
+strata serve: prompt 56 tokens = 0 reused + 56 read in 404 ms (138.6 tok/s), 400 generated in 4316 ms (92.7 tok/s), drafts accepted 187 of 254, 1 checkpoints
+strata serve: decode expert cache hit rate: 92.2% (206722 hits / 224160 lookups)
+strata serve: STRATA_VERIFY_ECAP: 193727 draft-only CPU experts skipped (244092 entries) since the start
+strata serve: KV streaming: 99.63% of 364968 block reads hit VRAM, 5.5 MiB read from RAM
+strata serve: suffix drafts: 8 windows, 8 of 23 drafts accepted
+strata serve: conversation cache: skip parking (455 tokens, below the 8192 minimum; parked=0)
+strata serve: conversation cache: restored 58349 tokens (live) in 103.9 ms; parked=0 bytes=944631524
+strata prefill: chunk 1280 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 59422 tokens = 58349 reused + 1073 read in 1647 ms (651.6 tok/s), 463 generated in 4827 ms (95.9 tok/s), drafts accepted 283 of 381, 6 checkpoints
+strata serve: decode expert cache hit rate: 89.3% (240371 hits / 269280 lookups)
+strata serve: STRATA_VERIFY_ECAP: 193727 draft-only CPU experts skipped (244092 entries) since the start
+strata serve: KV streaming: 97.46% of 3481512 block reads hit VRAM, 355.8 MiB read from RAM
+strata serve: suffix drafts: 2 windows, 2 of 4 drafts accepted
+strata prefill: chunk 2816 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 62521 tokens = 59884 reused + 2637 read in 2504 ms (1053.1 tok/s), 339 generated in 2987 ms (113.5 tok/s), drafts accepted 229 of 272, 6 checkpoints
+strata serve: decode expert cache hit rate: 91.4% (167610 hits / 183360 lookups)
+strata serve: STRATA_VERIFY_ECAP: 193727 draft-only CPU experts skipped (244092 entries) since the start
+strata serve: KV streaming: 98.20% of 5860020 block reads hit VRAM, 424.7 MiB read from RAM
+strata serve: suffix drafts: 3 windows, 6 of 8 drafts accepted
+strata prefill: chunk 256 tokens: STRATA_PF_HC_REGION on (the hyper-connection read's scratch is in the shared region);
+strata KV prefetch: 12 layer prefixes, single existing staging pool
+strata serve: prompt 62930 tokens = 62859 reused + 71 read in 538 ms (132.0 tok/s), 677 generated in 6477 ms (104.5 tok/s), drafts accepted 410 of 529, 6 checkpoints
+strata serve: decode expert cache hit rate: 94.0% (359218 hits / 382080 lookups)
+strata serve: STRATA_VERIFY_ECAP: 193727 draft-only CPU experts skipped (244092 entries) since the start
+strata serve: KV streaming: 98.33% of 10789644 block reads hit VRAM, 724.6 MiB read from RAM
+strata serve: suffix drafts: 9 windows, 14 of 23 drafts accepted

@@ -1,0 +1,8 @@
+1 column(s): native_mmvq 2.154 ms, native_mmvq_il - ms, q5k_head 1.724 ms (254 GB/s, x1.25) - the same bits
+2 column(s): native_mmvq 3.121 ms, native_mmvq_il - ms, q5k_head 2.002 ms (218 GB/s, x1.56) - the same bits
+3 column(s): native_mmvq 4.067 ms, native_mmvq_il - ms, q5k_head 2.571 ms (170 GB/s, x1.58) - the same bits
+4 column(s): native_mmvq 5.065 ms, native_mmvq_il - ms, q5k_head 3.260 ms (134 GB/s, x1.55) - the same bits
+5 column(s): native_mmvq 5.655 ms, native_mmvq_il - ms, q5k_head 3.549 ms (123 GB/s, x1.59) - the same bits
+6 column(s): native_mmvq 6.464 ms, native_mmvq_il - ms, q5k_head 4.070 ms (107 GB/s, x1.59) - the same bits
+7 column(s): native_mmvq 7.594 ms, native_mmvq_il - ms, q5k_head 4.518 ms (97 GB/s, x1.68) - the same bits
+8 column(s): native_mmvq 9.287 ms, native_mmvq_il - ms, q5k_head 5.703 ms (77 GB/s, x1.63) - the same bits

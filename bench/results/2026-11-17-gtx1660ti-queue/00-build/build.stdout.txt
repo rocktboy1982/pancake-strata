@@ -1,0 +1,1969 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.0
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+-- Strata: verify / batch windows hold up to 8 rows
+-- Strata: CUDA enabled, arch 75
+-- strata: pack/full/experts.bin absent - the expert arena load test is NOT registered
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: AMD64
+-- CMAKE_GENERATOR_PLATFORM: 
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu: /arch:AVX2 GGML_AVX2;GGML_FMA;GGML_F16C
+-- ggml version: 0.24.0
+-- ggml commit:  3cf03257f
+-- trellis MMQ (Gyro prompts): overlay on the pinned ggml-cuda in C:/Users/iancu/build-latest/build-sm75/ggml-tq-overlay
+-- strata tests: 188 cpu, 187 gpu, 1 model (ctest -L <label>); 273 executables in target strata_tests
+-- Configuring done (19.5s)
+-- Generating done (2.4s)
+-- Build files have been written to: C:/Users/iancu/build-latest/build-sm75
+ninja: no work to do.
+ninja: no work to do.
+ninja: no work to do.
+ninja: no work to do.
+[1/3] Building CUDA object CMakeFiles\poly_route_test.dir\src\poly\route_test.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\route_test.cu(27): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\route_test.cu(43): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[best] = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\route_test.cu(27): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\route_test.cu(43): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[best] = -((float)(1e+300));
+                         ^
+
+route_test.cu
+tmpxft_00013c18_00000000-7_route_test.cudafe1.cpp
+[2/3] Building CUDA object CMakeFiles\poly_route_test.dir\src\poly\kernels.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_000063b0_00000000-7_kernels.cudafe1.cpp
+[3/3] Linking CUDA executable poly_route_test.exe
+[1/3] Building CUDA object CMakeFiles\poly_gdn_cols_test.dir\src\poly\gdn_cols_test.cu.obj
+gdn_cols_test.cu
+tmpxft_00006784_00000000-7_gdn_cols_test.cudafe1.cpp
+[2/3] Building CUDA object CMakeFiles\poly_gdn_cols_test.dir\src\poly\kernels.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_000050bc_00000000-7_kernels.cudafe1.cpp
+[3/3] Linking CUDA executable poly_gdn_cols_test.exe
+[1/3] Building CUDA object CMakeFiles\poly_gemm_small_test.dir\src\poly\gemm_small_test.cu.obj
+gemm_small_test.cu
+tmpxft_000049a4_00000000-7_gemm_small_test.cudafe1.cpp
+[2/3] Building CUDA object CMakeFiles\poly_gemm_small_test.dir\src\poly\kernels.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_00010c98_00000000-7_kernels.cudafe1.cpp
+[3/3] Linking CUDA executable poly_gemm_small_test.exe
+[1/3] Building CUDA object CMakeFiles\poly_attend_split_test.dir\src\poly\attend_split_test.cu.obj
+attend_split_test.cu
+tmpxft_000085bc_00000000-7_attend_split_test.cudafe1.cpp
+[2/3] Building CUDA object CMakeFiles\poly_attend_split_test.dir\src\poly\kernels.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_00015410_00000000-7_kernels.cudafe1.cpp
+[3/3] Linking CUDA executable poly_attend_split_test.exe
+[1/2] Building CUDA object CMakeFiles\poly_expert_list_test.dir\src\poly\expert_list_test.cu.obj
+expert_list_test.cu
+tmpxft_000174ac_00000000-7_expert_list_test.cudafe1.cpp
+[2/2] Linking CXX executable poly_expert_list_test.exe
+[1/3] Building CUDA object CMakeFiles\poly_dsv4_test.dir\src\poly\kernels_dsv4.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(181): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(444): warning #221-D: floating-point value does not fit in required floating-point type
+          float s = -((float)(1e+300));
+                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(181): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(444): warning #221-D: floating-point value does not fit in required floating-point type
+          float s = -((float)(1e+300));
+                      ^
+
+kernels_dsv4.cu
+tmpxft_00009b58_00000000-7_kernels_dsv4.cudafe1.cpp
+[2/3] Building CUDA object CMakeFiles\poly_dsv4_test.dir\src\poly\dsv4_test.cu.obj
+dsv4_test.cu
+tmpxft_0000d96c_00000000-7_dsv4_test.cudafe1.cpp
+[3/3] Linking CUDA executable poly_dsv4_test.exe
+[1/3] Building CUDA object CMakeFiles\poly_kv_q4_test.dir\src\poly\kv_q4_test.cu.obj
+kv_q4_test.cu
+tmpxft_00005e38_00000000-7_kv_q4_test.cudafe1.cpp
+[2/3] Building CUDA object CMakeFiles\poly_kv_q4_test.dir\src\poly\kernels.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_0000cf3c_00000000-7_kernels.cudafe1.cpp
+[3/3] Linking CUDA executable poly_kv_q4_test.exe
+[1/5] Building CXX object CMakeFiles\poly_expert_parity.dir\src\poly\cpu_kernels_avx2.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[2/5] Building CXX object CMakeFiles\poly_expert_parity.dir\src\poly\cpu_experts.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[3/5] Building CXX object CMakeFiles\poly_expert_parity.dir\src\poly\expert_parity.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[4/5] Building CUDA object CMakeFiles\poly_expert_parity.dir\src\poly\kernels.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_00006608_00000000-7_kernels.cudafe1.cpp
+[5/5] Linking CXX executable poly_expert_parity.exe
+[1/4] Building CXX object CMakeFiles\poly_cpu_experts_bench.dir\src\poly\cpu_kernels_avx2.cpp.obj
+[2/4] Building CXX object CMakeFiles\poly_cpu_experts_bench.dir\src\poly\cpu_experts.cpp.obj
+[3/4] Building CXX object CMakeFiles\poly_cpu_experts_bench.dir\src\poly\cpu_experts_bench.cpp.obj
+[4/4] Linking CXX executable poly_cpu_experts_bench.exe
+[1/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\draft_race_test.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[2/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\qwen35.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\qwen35.cpp(183): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\qwen35.cpp(184): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\qwen35.cpp(197): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+[3/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\glm5next.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[4/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\gemma4.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[5/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\cpu_kernels_avx2.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[6/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\cpu_experts.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[7/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\deepseek4.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+[8/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\poly\engine.cpp.obj
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(41): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\cpu_experts.hpp(42): warning C4324: 'strata::poly::Workers': structure was padded due to alignment specifier
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(181): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(186): warning C4996: 'fscanf': This function or variable may be unsafe. Consider using fscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(294): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(389): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(396): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(1461): warning C4457: declaration of 'bytes' hides function parameter
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(1407): note: see declaration of 'bytes'
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(1832): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(2048): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(2617): warning C4456: declaration of 'at' hides previous local declaration
+C:\Users\iancu\build-latest\src\src\poly\engine.cpp(2584): note: see declaration of 'at'
+[9/12] Building CXX object CMakeFiles\poly_draft_race_test.dir\src\core\conversation_memory.cpp.obj
+[10/12] Building CUDA object CMakeFiles\poly_draft_race_test.dir\src\poly\kernels_dsv4.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(181): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(444): warning #221-D: floating-point value does not fit in required floating-point type
+          float s = -((float)(1e+300));
+                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(181): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels_dsv4.cu(444): warning #221-D: floating-point value does not fit in required floating-point type
+          float s = -((float)(1e+300));
+                      ^
+
+kernels_dsv4.cu
+tmpxft_0000ff78_00000000-7_kernels_dsv4.cudafe1.cpp
+[11/12] Building CUDA object CMakeFiles\poly_draft_race_test.dir\src\poly\kernels.cu.obj
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(268): warning #221-D: floating-point value does not fit in required floating-point type
+                  float mx = -((float)(1e+300));
+                               ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(660): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(689): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1073): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1077): warning #221-D: floating-point value does not fit in required floating-point type
+          p[k] = e < n_expert ? lg[e] * in_scale : -((float)(1e+300));
+                                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1102): warning #221-D: floating-point value does not fit in required floating-point type
+          pick[k] = e < n_expert ? p[k] + (bias ? bias[e] : 0.0f) : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1107): warning #221-D: floating-point value does not fit in required floating-point type
+          float best = -((float)(1e+300));
+                         ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1121): warning #221-D: floating-point value does not fit in required floating-point type
+              if (lane + k * WARP == at) pw = p[k], pick[k] = -((float)(1e+300));
+                                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1480): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1745): warning #221-D: floating-point value does not fit in required floating-point type
+          m0[k] = m1[k] = -((float)(1e+300));
+                            ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1791): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x0 = ra <= pa[k] ? s[k][0] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1792): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x1 = ra <= pb[k] ? s[k][1] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1793): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x2 = rb <= pa[k] ? s[k][2] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1794): warning #221-D: floating-point value does not fit in required floating-point type
+              const float x3 = rb <= pb[k] ? s[k][3] * scale_log2 : -((float)(1e+300));
+                                                                      ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1803): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a0 = n0 == -((float)(1e+300)) ? 1.0f : exp2f(m0[k] - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1804): warning #221-D: floating-point value does not fit in required floating-point type
+              const float a1 = n1 == -((float)(1e+300)) ? 1.0f : exp2f(m1[k] - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1805): warning #221-D: floating-point value does not fit in required floating-point type
+              const float z0 = n0 == -((float)(1e+300)) ? 0.0f : n0, z1 = n1 == -((float)(1e+300)) ? 0.0f : n1;
+                                                                                  ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1876): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f0 = m0[k] == -((float)(1e+300)) ? 0.0f : exp2f(m0[k] - n0);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1877): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g0 = ma == -((float)(1e+300)) ? 0.0f : exp2f(ma - n0);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1878): warning #221-D: floating-point value does not fit in required floating-point type
+              const float f1 = m1[k] == -((float)(1e+300)) ? 0.0f : exp2f(m1[k] - n1);
+                                          ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1879): warning #221-D: floating-point value does not fit in required floating-point type
+              const float g1 = mb == -((float)(1e+300)) ? 0.0f : exp2f(mb - n1);
+                                       ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_0000c250_00000000-7_kernels.cudafe1.cpp
+[12/12] Linking CXX executable poly_draft_race_test.exe
+ninja: no work to do.
+ninja: no work to do.
+[1/2] Building CUDA object CMakeFiles\head_fmt_test.dir\src\kernels\cuda\head_fmt_test.cu.obj
+head_fmt_test.cu
+tmpxft_000123dc_00000000-7_head_fmt_test.cudafe1.cpp
+[2/2] Linking CXX executable head_fmt_test.exe
+[1/2] Building CUDA object CMakeFiles\q5k_head_test.dir\src\kernels\cuda\q5k_head_test.cu.obj
+q5k_head_test.cu
+tmpxft_00013bac_00000000-7_q5k_head_test.cudafe1.cpp
+[2/2] Linking CXX executable q5k_head_test.exe

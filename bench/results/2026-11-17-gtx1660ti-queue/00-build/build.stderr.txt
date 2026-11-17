@@ -1,0 +1,12 @@
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+CMake Warning (author) at C:/Program Files/CMake/share/cmake-4.4/Modules/FetchContent.cmake:1968 (message):
+  Calling FetchContent_Populate(strata_llamacpp) is deprecated, call
+  FetchContent_MakeAvailable(strata_llamacpp) instead.  Policy CMP0169 can be
+  set to OLD to allow FetchContent_Populate(strata_llamacpp) to be called
+  directly for now, but the ability to call it with declared details will be
+  removed completely in a future version.
+Call Stack (most recent call first):
+  CMakeLists.txt:2802 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-author to suppress it.
+

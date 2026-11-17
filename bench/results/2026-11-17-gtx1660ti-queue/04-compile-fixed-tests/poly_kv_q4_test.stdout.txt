@@ -1,0 +1,102 @@
+store_q4: 0 of 4800 blocks differ from ggml's Q4_0 on the host; the values read back are 8.2% off (RMS)
+== keys and values q4_0, 16 heads of 256 values in 2 groups, 20000 rows
+pos      0 tokens 1: max |old - doubles| 0.00e+00, |split - doubles| 7.32e-04 of 2.396; split alone differs for 0 of 1 tokens
+pos      0 tokens 3: max |old - doubles| 5.00e-07, |split - doubles| 1.37e-03 of 3.108; split alone differs for 0 of 3 tokens
+pos      0 tokens 8: max |old - doubles| 4.87e-07, |split - doubles| 1.59e-03 of 2.521; split alone differs for 0 of 8 tokens
+pos      5 tokens 1: max |old - doubles| 4.37e-07, |split - doubles| 1.91e-03 of 2.702; split alone differs for 0 of 1 tokens
+pos      5 tokens 3: max |old - doubles| 7.18e-07, |split - doubles| 1.91e-03 of 2.923; split alone differs for 0 of 3 tokens
+pos      5 tokens 8: max |old - doubles| 4.37e-07, |split - doubles| 1.91e-03 of 2.702; split alone differs for 0 of 8 tokens
+pos    255 tokens 1: max |old - doubles| 9.22e-07, |split - doubles| 8.49e-04 of 1.975; split alone differs for 0 of 1 tokens
+pos    255 tokens 3: max |old - doubles| 9.22e-07, |split - doubles| 8.49e-04 of 1.975; split alone differs for 0 of 3 tokens
+pos    255 tokens 8: max |old - doubles| 9.22e-07, |split - doubles| 1.07e-03 of 2.152; split alone differs for 0 of 8 tokens
+pos    256 tokens 1: max |old - doubles| 8.41e-07, |split - doubles| 8.48e-04 of 1.974; split alone differs for 0 of 1 tokens
+pos    256 tokens 3: max |old - doubles| 8.41e-07, |split - doubles| 8.49e-04 of 1.974; split alone differs for 0 of 3 tokens
+pos    256 tokens 8: max |old - doubles| 8.41e-07, |split - doubles| 1.14e-03 of 2.151; split alone differs for 0 of 8 tokens
+pos    300 tokens 1: max |old - doubles| 8.84e-07, |split - doubles| 8.04e-04 of 1.826; split alone differs for 0 of 1 tokens
+pos    300 tokens 3: max |old - doubles| 8.84e-07, |split - doubles| 9.61e-04 of 1.826; split alone differs for 0 of 3 tokens
+pos    300 tokens 8: max |old - doubles| 8.84e-07, |split - doubles| 1.07e-03 of 1.936; split alone differs for 0 of 8 tokens
+pos   4100 tokens 1: max |old - doubles| 5.47e-07, |split - doubles| 4.36e-04 of 0.576; split alone differs for 0 of 1 tokens
+pos   4100 tokens 3: max |old - doubles| 5.47e-07, |split - doubles| 6.28e-04 of 0.645; split alone differs for 0 of 3 tokens
+pos   4100 tokens 8: max |old - doubles| 1.27e-06, |split - doubles| 4.72e-04 of 1.413; split alone differs for 0 of 8 tokens
+pos  19991 tokens 1: max |old - doubles| 2.38e-07, |split - doubles| 2.35e-04 of 0.351; split alone differs for 0 of 1 tokens
+pos  19991 tokens 3: max |old - doubles| 4.66e-07, |split - doubles| 3.04e-04 of 0.507; split alone differs for 0 of 3 tokens
+pos  19991 tokens 8: max |old - doubles| 6.03e-07, |split - doubles| 3.07e-04 of 0.565; split alone differs for 0 of 8 tokens
+batch from pos      0, 700 tokens: max |batch - doubles| 1.34e-03 of 2.396
+batch from pos   4100, 64 tokens: max |batch - doubles| 5.85e-04 of 1.842
+batch from pos  19960, 40 tokens: max |batch - doubles| 2.85e-04 of 0.563
+== keys q8_0, values q4_0, 16 heads of 256 values in 2 groups, 20000 rows
+pos      0 tokens 1: max |old - doubles| 0.00e+00, |split - doubles| 7.32e-04 of 2.396; split alone differs for 0 of 1 tokens
+pos      0 tokens 3: max |old - doubles| 4.93e-07, |split - doubles| 2.46e-03 of 3.102; split alone differs for 0 of 3 tokens
+pos      0 tokens 8: max |old - doubles| 4.75e-07, |split - doubles| 1.96e-03 of 2.516; split alone differs for 0 of 8 tokens
+pos      5 tokens 1: max |old - doubles| 7.13e-07, |split - doubles| 1.58e-03 of 2.688; split alone differs for 0 of 1 tokens
+pos      5 tokens 3: max |old - doubles| 7.13e-07, |split - doubles| 1.58e-03 of 2.895; split alone differs for 0 of 3 tokens
+pos      5 tokens 8: max |old - doubles| 7.13e-07, |split - doubles| 1.58e-03 of 2.688; split alone differs for 0 of 8 tokens
+pos    255 tokens 1: max |old - doubles| 9.24e-07, |split - doubles| 1.40e-03 of 1.993; split alone differs for 0 of 1 tokens
+pos    255 tokens 3: max |old - doubles| 9.24e-07, |split - doubles| 1.40e-03 of 1.993; split alone differs for 0 of 3 tokens
+pos    255 tokens 8: max |old - doubles| 9.24e-07, |split - doubles| 1.40e-03 of 2.077; split alone differs for 0 of 8 tokens
+pos    256 tokens 1: max |old - doubles| 7.17e-07, |split - doubles| 1.39e-03 of 1.992; split alone differs for 0 of 1 tokens
+pos    256 tokens 3: max |old - doubles| 7.29e-07, |split - doubles| 1.39e-03 of 1.992; split alone differs for 0 of 3 tokens
+pos    256 tokens 8: max |old - doubles| 7.17e-07, |split - doubles| 1.39e-03 of 2.076; split alone differs for 0 of 8 tokens
+pos    300 tokens 1: max |old - doubles| 1.04e-06, |split - doubles| 1.03e-03 of 1.836; split alone differs for 0 of 1 tokens
+pos    300 tokens 3: max |old - doubles| 1.04e-06, |split - doubles| 1.03e-03 of 1.836; split alone differs for 0 of 3 tokens
+pos    300 tokens 8: max |old - doubles| 1.04e-06, |split - doubles| 1.10e-03 of 1.875; split alone differs for 0 of 8 tokens
+pos   4100 tokens 1: max |old - doubles| 5.50e-07, |split - doubles| 5.76e-04 of 0.759; split alone differs for 0 of 1 tokens
+pos   4100 tokens 3: max |old - doubles| 5.50e-07, |split - doubles| 5.76e-04 of 0.772; split alone differs for 0 of 3 tokens
+pos   4100 tokens 8: max |old - doubles| 5.50e-07, |split - doubles| 6.87e-04 of 1.413; split alone differs for 0 of 8 tokens
+pos  19991 tokens 1: max |old - doubles| 3.20e-07, |split - doubles| 3.13e-04 of 0.357; split alone differs for 0 of 1 tokens
+pos  19991 tokens 3: max |old - doubles| 3.25e-07, |split - doubles| 3.24e-04 of 0.559; split alone differs for 0 of 3 tokens
+pos  19991 tokens 8: max |old - doubles| 3.81e-07, |split - doubles| 4.32e-04 of 0.572; split alone differs for 0 of 8 tokens
+batch from pos      0, 700 tokens: max |batch - doubles| 8.01e-04 of 2.396
+batch from pos   4100, 64 tokens: max |batch - doubles| 6.56e-04 of 1.861
+batch from pos  19960, 40 tokens: max |batch - doubles| 3.64e-04 of 0.515
+== keys and values q4_0, 16 heads of 128 values in 4 groups, 9000 rows
+pos      0 tokens 1: max |old - doubles| 0.00e+00, |split - doubles| 7.32e-04 of 2.396; split alone differs for 0 of 1 tokens
+pos      0 tokens 3: max |old - doubles| 2.84e-07, |split - doubles| 1.07e-03 of 2.669; split alone differs for 0 of 3 tokens
+pos      0 tokens 8: max |old - doubles| 4.30e-07, |split - doubles| 1.48e-03 of 2.679; split alone differs for 0 of 8 tokens
+pos      5 tokens 1: max |old - doubles| 6.22e-07, |split - doubles| 1.71e-03 of 3.061; split alone differs for 0 of 1 tokens
+pos      5 tokens 3: max |old - doubles| 6.22e-07, |split - doubles| 1.71e-03 of 3.061; split alone differs for 0 of 3 tokens
+pos      5 tokens 8: max |old - doubles| 6.22e-07, |split - doubles| 1.71e-03 of 3.061; split alone differs for 0 of 8 tokens
+pos    255 tokens 1: max |old - doubles| 7.23e-07, |split - doubles| 5.52e-04 of 1.421; split alone differs for 0 of 1 tokens
+pos    255 tokens 3: max |old - doubles| 7.23e-07, |split - doubles| 9.98e-04 of 1.421; split alone differs for 0 of 3 tokens
+pos    255 tokens 8: max |old - doubles| 7.23e-07, |split - doubles| 1.65e-03 of 2.217; split alone differs for 0 of 8 tokens
+pos    256 tokens 1: max |old - doubles| 7.08e-07, |split - doubles| 5.52e-04 of 1.420; split alone differs for 0 of 1 tokens
+pos    256 tokens 3: max |old - doubles| 7.08e-07, |split - doubles| 9.98e-04 of 1.420; split alone differs for 0 of 3 tokens
+pos    256 tokens 8: max |old - doubles| 8.61e-07, |split - doubles| 1.64e-03 of 2.217; split alone differs for 0 of 8 tokens
+pos    300 tokens 1: max |old - doubles| 6.74e-07, |split - doubles| 4.48e-04 of 1.500; split alone differs for 0 of 1 tokens
+pos    300 tokens 3: max |old - doubles| 6.74e-07, |split - doubles| 9.66e-04 of 1.500; split alone differs for 0 of 3 tokens
+pos    300 tokens 8: max |old - doubles| 6.88e-07, |split - doubles| 1.39e-03 of 2.136; split alone differs for 0 of 8 tokens
+pos   4100 tokens 1: max |old - doubles| 4.58e-07, |split - doubles| 6.65e-04 of 0.690; split alone differs for 0 of 1 tokens
+pos   4100 tokens 3: max |old - doubles| 6.11e-07, |split - doubles| 6.65e-04 of 0.690; split alone differs for 0 of 3 tokens
+pos   4100 tokens 8: max |old - doubles| 4.58e-07, |split - doubles| 6.65e-04 of 0.857; split alone differs for 0 of 8 tokens
+pos   8991 tokens 1: max |old - doubles| 4.76e-07, |split - doubles| 3.59e-04 of 0.385; split alone differs for 0 of 1 tokens
+pos   8991 tokens 3: max |old - doubles| 4.76e-07, |split - doubles| 5.85e-04 of 0.538; split alone differs for 0 of 3 tokens
+pos   8991 tokens 8: max |old - doubles| 4.76e-07, |split - doubles| 3.84e-04 of 0.516; split alone differs for 0 of 8 tokens
+batch from pos      0, 700 tokens: max |batch - doubles| 1.28e-03 of 2.396
+batch from pos   4100, 64 tokens: max |batch - doubles| 7.55e-04 of 0.959
+batch from pos   8960, 40 tokens: max |batch - doubles| 6.79e-04 of 1.071
+== keys q8_0, values q4_0, 16 heads of 128 values in 4 groups, 9000 rows
+pos      0 tokens 1: max |old - doubles| 0.00e+00, |split - doubles| 7.32e-04 of 2.396; split alone differs for 0 of 1 tokens
+pos      0 tokens 3: max |old - doubles| 3.33e-07, |split - doubles| 1.25e-03 of 2.665; split alone differs for 0 of 3 tokens
+pos      0 tokens 8: max |old - doubles| 7.32e-07, |split - doubles| 1.67e-03 of 2.518; split alone differs for 0 of 8 tokens
+pos      5 tokens 1: max |old - doubles| 4.29e-07, |split - doubles| 1.53e-03 of 3.063; split alone differs for 0 of 1 tokens
+pos      5 tokens 3: max |old - doubles| 4.29e-07, |split - doubles| 1.88e-03 of 3.063; split alone differs for 0 of 3 tokens
+pos      5 tokens 8: max |old - doubles| 5.74e-07, |split - doubles| 1.53e-03 of 3.063; split alone differs for 0 of 8 tokens
+pos    255 tokens 1: max |old - doubles| 4.02e-07, |split - doubles| 9.42e-04 of 1.424; split alone differs for 0 of 1 tokens
+pos    255 tokens 3: max |old - doubles| 1.32e-06, |split - doubles| 1.01e-03 of 1.446; split alone differs for 0 of 3 tokens
+pos    255 tokens 8: max |old - doubles| 4.85e-07, |split - doubles| 1.55e-03 of 2.319; split alone differs for 0 of 8 tokens
+pos    256 tokens 1: max |old - doubles| 6.37e-07, |split - doubles| 9.42e-04 of 1.396; split alone differs for 0 of 1 tokens
+pos    256 tokens 3: max |old - doubles| 1.42e-06, |split - doubles| 1.01e-03 of 1.446; split alone differs for 0 of 3 tokens
+pos    256 tokens 8: max |old - doubles| 6.37e-07, |split - doubles| 1.55e-03 of 2.319; split alone differs for 0 of 8 tokens
+pos    300 tokens 1: max |old - doubles| 4.80e-07, |split - doubles| 1.29e-03 of 1.489; split alone differs for 0 of 1 tokens
+pos    300 tokens 3: max |old - doubles| 1.43e-06, |split - doubles| 1.29e-03 of 1.489; split alone differs for 0 of 3 tokens
+pos    300 tokens 8: max |old - doubles| 5.25e-07, |split - doubles| 1.47e-03 of 2.256; split alone differs for 0 of 8 tokens
+pos   4100 tokens 1: max |old - doubles| 6.44e-07, |split - doubles| 5.66e-04 of 0.763; split alone differs for 0 of 1 tokens
+pos   4100 tokens 3: max |old - doubles| 7.11e-07, |split - doubles| 5.97e-04 of 0.763; split alone differs for 0 of 3 tokens
+pos   4100 tokens 8: max |old - doubles| 6.44e-07, |split - doubles| 7.01e-04 of 0.822; split alone differs for 0 of 8 tokens
+pos   8991 tokens 1: max |old - doubles| 6.23e-07, |split - doubles| 3.80e-04 of 0.432; split alone differs for 0 of 1 tokens
+pos   8991 tokens 3: max |old - doubles| 6.23e-07, |split - doubles| 3.80e-04 of 0.638; split alone differs for 0 of 3 tokens
+pos   8991 tokens 8: max |old - doubles| 6.23e-07, |split - doubles| 4.27e-04 of 0.507; split alone differs for 0 of 8 tokens
+batch from pos      0, 700 tokens: max |batch - doubles| 9.86e-04 of 2.396
+batch from pos   4100, 64 tokens: max |batch - doubles| 9.09e-04 of 0.925
+batch from pos   8960, 40 tokens: max |batch - doubles| 6.00e-04 of 1.001
+all cases passed

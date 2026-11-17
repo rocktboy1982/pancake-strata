@@ -1,0 +1,4 @@
+gdn_step, 2048 tokens: 1 column a warp 16.786 ms
+  2 columns a warp: 10.107 ms (x1.66), the same bits
+  4 columns a warp: 9.490 ms (x1.77), the same bits
+  8 columns a warp: 12.607 ms (x1.33), the same bits

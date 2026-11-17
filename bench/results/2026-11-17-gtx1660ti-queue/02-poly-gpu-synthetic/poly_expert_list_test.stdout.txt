@@ -1,0 +1,37 @@
+down Q5_K,  1 entries, gate+up: same bits
+down Q5_K,  1 entries, down   : same bits
+down Q5_K,  2 entries, gate+up: same bits
+down Q5_K,  2 entries, down   : same bits
+down Q5_K,  3 entries, gate+up: same bits
+down Q5_K,  3 entries, down   : same bits
+down Q5_K,  5 entries, gate+up: same bits
+down Q5_K,  5 entries, down   : same bits
+down Q5_K,  8 entries, gate+up: same bits
+down Q5_K,  8 entries, down   : same bits
+down Q5_K, 12 entries, gate+up: same bits
+down Q5_K, 12 entries, down   : same bits
+down Q5_K, 17 entries, gate+up: same bits
+down Q5_K, 17 entries, down   : same bits
+down Q5_K, 24 entries, gate+up: same bits
+down Q5_K, 24 entries, down   : same bits
+down Q5_K, 32 entries, gate+up: same bits
+down Q5_K, 32 entries, down   : same bits
+down Q6_K,  1 entries, gate+up: same bits
+down Q6_K,  1 entries, down   : same bits
+down Q6_K,  2 entries, gate+up: same bits
+down Q6_K,  2 entries, down   : same bits
+down Q6_K,  3 entries, gate+up: same bits
+down Q6_K,  3 entries, down   : same bits
+down Q6_K,  5 entries, gate+up: same bits
+down Q6_K,  5 entries, down   : same bits
+down Q6_K,  8 entries, gate+up: same bits
+down Q6_K,  8 entries, down   : same bits
+down Q6_K, 12 entries, gate+up: same bits
+down Q6_K, 12 entries, down   : same bits
+down Q6_K, 17 entries, gate+up: same bits
+down Q6_K, 17 entries, down   : same bits
+down Q6_K, 24 entries, gate+up: same bits
+down Q6_K, 24 entries, down   : same bits
+down Q6_K, 32 entries, gate+up: same bits
+down Q6_K, 32 entries, down   : same bits
+all the same bits

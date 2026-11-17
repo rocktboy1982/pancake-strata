@@ -1,0 +1,37 @@
+down Q5_K,  1 entries, gate+up: same bits; slots 22.5 us, list 20.5 us
+down Q5_K,  1 entries, down   : same bits; slots 23.4 us, list 21.6 us
+down Q5_K,  2 entries, gate+up: same bits; slots 22.0 us, list 25.0 us
+down Q5_K,  2 entries, down   : same bits; slots 22.7 us, list 25.0 us
+down Q5_K,  3 entries, gate+up: same bits; slots 27.6 us, list 30.0 us
+down Q5_K,  3 entries, down   : same bits; slots 31.6 us, list 31.1 us
+down Q5_K,  5 entries, gate+up: same bits; slots 39.0 us, list 43.8 us
+down Q5_K,  5 entries, down   : same bits; slots 43.0 us, list 46.7 us
+down Q5_K,  8 entries, gate+up: same bits; slots 60.1 us, list 65.4 us
+down Q5_K,  8 entries, down   : same bits; slots 65.2 us, list 69.0 us
+down Q5_K, 12 entries, gate+up: same bits; slots 89.8 us, list 94.9 us
+down Q5_K, 12 entries, down   : same bits; slots 98.3 us, list 90.9 us
+down Q5_K, 17 entries, gate+up: same bits; slots 112.3 us, list 123.6 us
+down Q5_K, 17 entries, down   : same bits; slots 136.5 us, list 124.0 us
+down Q5_K, 24 entries, gate+up: same bits; slots 156.6 us, list 178.5 us
+down Q5_K, 24 entries, down   : same bits; slots 183.4 us, list 171.4 us
+down Q5_K, 32 entries, gate+up: same bits; slots 211.9 us, list 239.5 us
+down Q5_K, 32 entries, down   : same bits; slots 256.9 us, list 223.7 us
+down Q6_K,  1 entries, gate+up: same bits; slots 27.8 us, list 25.1 us
+down Q6_K,  1 entries, down   : same bits; slots 23.1 us, list 23.3 us
+down Q6_K,  2 entries, gate+up: same bits; slots 28.9 us, list 32.5 us
+down Q6_K,  2 entries, down   : same bits; slots 30.8 us, list 24.8 us
+down Q6_K,  3 entries, gate+up: same bits; slots 24.1 us, list 25.9 us
+down Q6_K,  3 entries, down   : same bits; slots 24.2 us, list 26.1 us
+down Q6_K,  5 entries, gate+up: same bits; slots 32.6 us, list 36.4 us
+down Q6_K,  5 entries, down   : same bits; slots 39.9 us, list 44.5 us
+down Q6_K,  8 entries, gate+up: same bits; slots 54.0 us, list 59.5 us
+down Q6_K,  8 entries, down   : same bits; slots 65.3 us, list 67.2 us
+down Q6_K, 12 entries, gate+up: same bits; slots 82.8 us, list 87.8 us
+down Q6_K, 12 entries, down   : same bits; slots 99.3 us, list 96.9 us
+down Q6_K, 17 entries, gate+up: same bits; slots 116.1 us, list 124.5 us
+down Q6_K, 17 entries, down   : same bits; slots 142.0 us, list 131.7 us
+down Q6_K, 24 entries, gate+up: same bits; slots 159.6 us, list 176.9 us
+down Q6_K, 24 entries, down   : same bits; slots 194.7 us, list 182.8 us
+down Q6_K, 32 entries, gate+up: same bits; slots 217.5 us, list 236.4 us
+down Q6_K, 32 entries, down   : same bits; slots 257.5 us, list 245.1 us
+all the same bits

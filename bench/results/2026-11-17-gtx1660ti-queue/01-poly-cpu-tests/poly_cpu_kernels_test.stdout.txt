@@ -1,0 +1,3 @@
+kq::rows: 3822 products, ggml's bits
+cpu_experts: 524288 outputs, the plain path's bits
+ok

@@ -1,0 +1,38 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "tasks": "bench/tasks/default.json",
+ "reps": 5,
+ "temperature": 0.2,
+ "margin": 0.05,
+ "auc_horizon_s": 1800,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "tool-snip-4000": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TOOL_SNIP": "4000"
+   }
+  },
+  "thinking-policy-on": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_THINKING_POLICY": "on"
+   }
+  },
+  "turn-margins": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TURN_MARGINS": "1"
+   }
+  },
+  "rf-toplevel-schema": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_RF_TOPLEVEL_SCHEMA": "1"
+   }
+  }
+ },
+ "_note": "MOD_PLAN.md section 5 item 2 (2026-11-16 sweep): serve switches that change prompts or replies, judged on tasks (python3 tools/pancake/task_gate.py bench/specs/111-coded-nospec-taskgate.json): TOOL_SNIP=4000 (ContextSniper rule, lossy prompt text), THINKING_POLICY=on, TURN_MARGINS=1, RF_TOPLEVEL_SCHEMA=1. Not here: MCP_ASYNC / MCP_SPEC / MCP_EARLY_STOP act only in the server's own MCP tool loop, which no task set drives (needs an MCP task set); TUNE adds the /v1/tune endpoint only; ENV_DUMP and SUBFIT_LOG are diagnostics; EVENT_WAIT acts only in DFlash2 builds."
+}

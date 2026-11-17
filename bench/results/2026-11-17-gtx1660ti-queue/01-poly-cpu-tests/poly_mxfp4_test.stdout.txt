@@ -1,0 +1,1 @@
+ok: 10240 blocks, the same values; dot products within 7.12e-08
