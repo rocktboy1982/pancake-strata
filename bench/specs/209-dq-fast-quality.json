@@ -1,0 +1,21 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "dq-fast": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_DQ_FAST": "1"
+   }
+  }
+ },
+ "note": "Token-forcing quality gate for STRATA_DQ_FAST=1 (spec 103 confirm, TEST_LEDGER.md T-846: prompt tok/s long1k +12.0% +-0.9, long3k +7.6% +-0.5, decode unchanged; the text differs from the preset, so the gate was due and never run). Same method as spec 163 (PF_F16, T-828): the first arm is scored twice (run-to-run noise), dq-fast is judged against both (rate rule, event rule, near-tie column). Run: python3 tools/pancake/quality_gate.py bench/specs/209-dq-fast-quality.json --out /home/dan/auto-runs/winT-209/gate --near-tie (default set bench/quality/set-v2.json). Adoption in the daily preset is the owner's decision after PASS. NOT RUN."
+}

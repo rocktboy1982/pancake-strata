@@ -1,0 +1,35 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "standin": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_STANDIN": "1"
+   }
+  },
+  "route-budget-auto": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_STANDIN": "1",
+    "STRATA_ROUTE_BUDGET_AUTO": "1"
+   }
+  },
+  "route-budget": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ROUTE_RESIDENT": "1",
+    "STRATA_ROUTE_BUDGET": "0.5"
+   }
+  }
+ },
+ "note": "Token-forcing quality gate for the route-budget family of spec 107-auto-confirm-1 (TEST_LEDGER.md T-901: standin edit +5.2% +-4.2, route-budget-auto edit +5.2% +-4.3, short below the 3% bar; route-budget n=3). The arms are copied from that spec: standin = STRATA_STANDIN=1; route-budget-auto = STRATA_STANDIN=1 + STRATA_ROUTE_BUDGET_AUTO=1; route-budget = STRATA_ROUTE_RESIDENT=1 + STRATA_ROUTE_BUDGET=0.5. First arm scored twice. Run: python3 tools/pancake/quality_gate.py bench/specs/210-route-budget-quality.json --out /home/dan/auto-runs/winT-210/gate --near-tie. NOT RUN."
+}
