@@ -1,0 +1,29 @@
+WARNING: 1-minute load average is 5.38 (> 2.0); other work is running, so the timings are not clean
+E base: 33169 tokens, TTFT 14.522 s
+E delta    50 repeat 1: prompt 33254, new ~69, read 92, TTFT 0.705 s
+E delta   100 repeat 1: prompt 33385, new ~127, read 128, TTFT 0.607 s
+E delta   300 repeat 1: prompt 33712, new ~323, read 324, TTFT 0.751 s
+E delta  1000 repeat 1: prompt 34667, new ~951, read 952, TTFT 1.102 s
+E delta  3000 repeat 1: prompt 37570, new ~2899, read 2900, TTFT 2.013 s
+E delta    50 repeat 2: prompt 37664, new ~90, read 91, TTFT 0.594 s
+E delta   100 repeat 2: prompt 37799, new ~131, read 132, TTFT 0.631 s
+E delta 300 repeat 2: failed at delta 300 repeat 2: no token streamed
+
+TTFT bench: m5-32k  (http://127.0.0.1:11502, model qwen3.8-flash-next-iq2_xs, think off)
+load average 1 min: start 5.38, end 4.77  WARNING: above 2.0, the numbers are not clean
+
+E. warm-delta sweep: base about 32K tokens built once (actual 33169, TTFT 14.52 s), deltas [50, 100, 300, 1000, 3000] x 3 repeats; status: failed at delta 300 repeat 2: no token streamed
+ delta  n  new tok     read    depth   TTFT s     min-max s  engine ms
+    50  2       80       92    35459     0.65  0.59-0.70           621
+   100  2      129      130    35592     0.62  0.61-0.63           591
+   300  1      323      324    33712     0.75  0.75-0.75           724
+  1000  1      951      952    34667     1.10  1.10-1.10          1074
+  3000  1     2899     2900    37570     2.01  2.01-2.01          1984
+fit (all deltas): TTFT = 0.59 s + 0.495 ms per new token (n=7)
+fit (deltas of 1000+): not enough points
+
+engine log lines attached per request (--prefill-timing-log; the prefill breakdown needs STRATA_PREFILL_TIMING=1)
+  no 'strata prefill timing' line found in the log lines added during the requests: was the engine started with STRATA_PREFILL_TIMING=1, and is this the file its stderr goes to?
+  over 9 requests: 0 prefill timing line(s), 0 park(s), 0 skipped park(s), 0 restore(s); full lines are in the JSON (engine_log per request)
+
+written: /home/dan/auto-runs/win9-ttft-m5-32k.json

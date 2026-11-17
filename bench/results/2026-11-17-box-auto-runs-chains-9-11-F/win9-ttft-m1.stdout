@@ -1,0 +1,29 @@
+WARNING: 1-minute load average is 6.10 (> 2.0); other work is running, so the timings are not clean
+A    8K run 1 (discarded): 8199 tokens, TTFT 5.46 s, engine prompt 5427.1 ms
+A    8K run 2: 8199 tokens, TTFT 4.271 s, engine prompt 4247.0 ms
+A    8K run 3: 8199 tokens, TTFT 4.242 s, engine prompt 4219.4 ms
+A   32K run 1 (discarded): 32422 tokens, TTFT 14.468 s, engine prompt 14431.1 ms
+A   32K run 2: 32424 tokens, TTFT 14.361 s, engine prompt 14325.9 ms
+A   32K run 3: 32422 tokens, TTFT 14.086 s, engine prompt 14051.1 ms
+A   64K run 1 (discarded): 65350 tokens, TTFT 27.199 s, engine prompt 27146.1 ms
+A   64K run 2: 65350 tokens, TTFT 27.403 s, engine prompt 27351.9 ms
+A   64K run 3: 65349 tokens, TTFT 27.104 s, engine prompt 27052.8 ms
+A  100K run 1 (discarded): 102257 tokens, TTFT 43.351 s, engine prompt 43280.2 ms
+A  100K run 2: 102259 tokens, TTFT 42.774 s, engine prompt 42705.3 ms
+A  100K run 3: 102257 tokens, TTFT 42.756 s, engine prompt 42687.0 ms
+
+TTFT bench: m1  (http://127.0.0.1:11502, model qwen3.8-flash-next-iq2_xs, think off)
+load average 1 min: start 6.10, end 2.65  WARNING: above 2.0, the numbers are not clean
+
+A. single long prompts (run 1 discarded, median of the rest; TTFT = client, stream=true)
+  size prompt tok   TTFT s     min-max s  engine ms engine tok/s  reused  status
+    8K       8199     4.26  4.24-4.27          4233         1937       0  measured
+   32K      32423    14.22 14.09-14.36        14188         2285       0  measured
+   64K      65350    27.25 27.10-27.40        27202         2402       0  measured
+  100K     102258    42.77 42.76-42.77        42696         2395       0  measured
+
+engine log lines attached per request (--prefill-timing-log; the prefill breakdown needs STRATA_PREFILL_TIMING=1)
+  no 'strata prefill timing' line found in the log lines added during the requests: was the engine started with STRATA_PREFILL_TIMING=1, and is this the file its stderr goes to?
+  over 12 requests: 0 prefill timing line(s), 0 park(s), 0 skipped park(s), 0 restore(s); full lines are in the JSON (engine_log per request)
+
+written: /home/dan/auto-runs/win9-ttft-m1.json

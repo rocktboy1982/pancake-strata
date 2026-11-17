@@ -1,0 +1,28 @@
+WARNING: 1-minute load average is 4.77 (> 2.0); other work is running, so the timings are not clean
+E base: 65665 tokens, TTFT 28.036 s
+E delta    50 repeat 1: prompt 65766, new ~85, read 86, TTFT 0.636 s
+E delta   100 repeat 1: prompt 65899, new ~117, read 140, TTFT 1.124 s
+E delta   300 repeat 1: prompt 66232, new ~330, read 331, TTFT 0.887 s
+E delta  1000 repeat 1: prompt 67159, new ~924, read 925, TTFT 1.245 s
+E delta  3000 repeat 1: prompt 70101, new ~2939, read 2940, TTFT 2.097 s
+E delta    50 repeat 2: prompt 70187, new ~83, read 84, TTFT 0.663 s
+E delta 100 repeat 2: failed at delta 100 repeat 2: no token streamed
+
+TTFT bench: m5-64k  (http://127.0.0.1:11502, model qwen3.8-flash-next-iq2_xs, think off)
+load average 1 min: start 4.77, end 4.79  WARNING: above 2.0, the numbers are not clean
+
+E. warm-delta sweep: base about 64K tokens built once (actual 65665, TTFT 28.04 s), deltas [50, 100, 300, 1000, 3000] x 3 repeats; status: failed at delta 100 repeat 2: no token streamed
+ delta  n  new tok     read    depth   TTFT s     min-max s  engine ms
+    50  2       84       85    67976     0.65  0.64-0.66           578
+   100  1      117      140    65899     1.12  1.12-1.12          1053
+   300  1      330      331    66232     0.89  0.89-0.89           816
+  1000  1      924      925    67159     1.25  1.25-1.25          1174
+  3000  1     2939     2940    70101     2.10  2.10-2.10          2023
+fit (all deltas): TTFT = 0.77 s + 0.459 ms per new token (n=6)
+fit (deltas of 1000+): not enough points
+
+engine log lines attached per request (--prefill-timing-log; the prefill breakdown needs STRATA_PREFILL_TIMING=1)
+  no 'strata prefill timing' line found in the log lines added during the requests: was the engine started with STRATA_PREFILL_TIMING=1, and is this the file its stderr goes to?
+  over 8 requests: 0 prefill timing line(s), 0 park(s), 0 skipped park(s), 0 restore(s); full lines are in the JSON (engine_log per request)
+
+written: /home/dan/auto-runs/win9-ttft-m5-64k.json

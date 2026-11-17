@@ -1,0 +1,21 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 120.5 edit 160.4  foreign CPU 8% [('claude', 12), ('ptyxis', 2), ('gnome-shell', 1)]  gpu 2048/1249 MHz 54C 165W gtt 21M cpu 4256MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 defer                short 107.4 edit 148.6  foreign CPU 2% [('localsearch-3', 1), ('systemd-journal', 0), ('ptyxis-agent', 0)]  gpu 2036/1249 MHz 53C 166W gtt 21M cpu 3756MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 defer                short 110.3 edit 173.0  foreign CPU 2% [('claude', 1), ('2.1.325', 1), ('localsearch-3', 0)]  gpu 2046/1249 MHz 53C 166W gtt 21M cpu 3662MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 base                 short 120.6 edit 160.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('wpa_supplicant', 0)]  gpu 2049/1249 MHz 53C 166W gtt 21M cpu 3769MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    120.5 +-   0.6  (n=2)
+                              drafts accepted 0.75
+  short  defer                   108.8 +-  18.4  (n=2)   vs base:  -9.7% +- 14.8%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    160.2 +-   2.5  (n=2)
+                              drafts accepted 0.92
+  edit   defer                   160.8 +- 155.1  (n=2)   vs base:  +0.4% +- 98.4%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  defer                DIFFERENT text -> lossy or placement-dependent: quality gate

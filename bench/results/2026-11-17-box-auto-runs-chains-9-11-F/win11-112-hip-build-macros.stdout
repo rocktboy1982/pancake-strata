@@ -1,0 +1,44 @@
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 114.6 short 107.8 edit 122.1 edit 176.0  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 2050/1249 MHz 54C 165W gtt 21M cpu 3472MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 hip-fast-math        short 113.0 short 108.9 edit 164.6 edit 186.0  foreign CPU 2% [('claude', 2), ('systemd-journal', 1), ('localsearch-3', 1)]  gpu 2048/1249 MHz 54C 166W gtt 21M cpu 3770MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 lds-sync             short 91.5 short 93.2 edit 124.7 edit 173.0  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('python', 0)]  gpu 1806/1249 MHz 54C 149W gtt 21M cpu 3516MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 sched-fence          short 115.3 short 106.5 edit 168.6 edit 187.7  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 2049/1249 MHz 54C 167W gtt 21M cpu 3797MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 118.3 short 109.0 edit 168.5 edit 193.0  foreign CPU 2% [('claude', 1), ('gnome-shell', 1), ('upowerd', 0)]  gpu 2054/1249 MHz 54C 161W gtt 21M cpu 4009MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    111.2 +-  43.2  (n=2)
+                              drafts accepted 0.72
+  short  hip-fast-math           111.0 +-  26.1  (n=2)   vs base:  -0.2% +- 15.4%  -> no difference
+                              drafts accepted 0.72
+  short  lds-sync                 92.3 +-  10.8  (n=2)   vs base: -17.0% +- 48.6%  -> no difference
+                              drafts accepted 0.75
+  short  sched-fence             110.9 +-  55.9  (n=2)   vs base:  -0.3% +- 11.4%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               113.7 +-  59.1  (n=2)   vs base:  +2.2% +- 14.3%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    149.1 +- 342.5  (n=2)
+                              drafts accepted 0.86
+  edit   hip-fast-math           175.3 +- 136.0  (n=2)   vs base: +17.6% +- 138.6%  -> no difference
+                              drafts accepted 0.90
+  edit   lds-sync                148.8 +- 306.9  (n=2)   vs base:  -0.1% +- 23.9%  -> no difference
+                              drafts accepted 0.84
+  edit   sched-fence             178.1 +- 121.4  (n=2)   vs base: +19.5% +- 148.4%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               180.8 +- 155.7  (n=2)   vs base: +21.3% +- 125.4%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  hip-fast-math        DIFFERENT text -> lossy or placement-dependent: quality gate
+  lds-sync             DIFFERENT text -> lossy or placement-dependent: quality gate
+  sched-fence          DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +2.2%  edit +21.3%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  hip-fast-math        short -1.3%  edit +6.3%  -> PROMOTE to confirm
+  lds-sync             short -17.9%  edit -9.7%  -> drop
+  sched-fence          short -1.4%  edit +8.0%  -> PROMOTE to confirm
