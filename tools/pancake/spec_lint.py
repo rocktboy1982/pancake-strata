@@ -89,6 +89,60 @@ def walk_specs(spec_dir: Path) -> list[tuple[Path, str, dict]]:
             yield spec_file, arm, body
 
 
+def effective_args(preset_args: list, arm_args: dict) -> list:
+    """The preset's argv with an arm's `args` applied the way abtest.py does it: a key replaces the flag (and its value),
+    "" is a bare switch, null removes."""
+    a = [str(x) for x in preset_args]
+    for k, v in (arm_args or {}).items():
+        if k in a:
+            i = a.index(k)
+            n = 2 if i + 1 < len(a) and not a[i + 1].startswith("--") else 1
+            del a[i:i + n]
+        if v is not None:
+            a += [k] + ([str(v)] if v != "" else [])
+    return a
+
+
+def flag_value(a: list, flag: str):
+    """The value after `flag` in argv `a` (None: the flag is absent; "": a bare switch)."""
+    if flag not in a:
+        return None
+    i = a.index(flag)
+    return a[i + 1] if i + 1 < len(a) and not a[i + 1].startswith("--") else ""
+
+
+def inert_gate(preset_args: list, arm: dict) -> str | None:
+    """A reason when the arm turns on a switch that the engine silently leaves off under the arm's own other flags.
+    Rule 1 (T-391 found it late): `--kv-grow` / STRATA_KV_GROW=1 needs the whole K/V in VRAM, and the engine says
+    "--kv-grow is off" under `--kv-resident N` (generate.cpp, `o.kv_resident <= 0`); an arm that adds it to the daily
+    preset (which carries --kv-resident 32768) measures nothing."""
+    a = effective_args(preset_args, arm.get("args"))
+    env = arm.get("env") or {}
+    ev = env.get("STRATA_KV_GROW")
+    asked = (ev not in (None, "", "0")) if "STRATA_KV_GROW" in env else ("--kv-grow" in a and "--no-kv-grow" not in a)
+    res = flag_value(a, "--kv-resident")
+    if asked and res not in (None, "", "0"):
+        return f"--kv-grow is off under --kv-resident {res} (the elastic K/V needs the whole K/V in VRAM): the arm is the base"
+    return None
+
+
+def preset_argv(spec_file: Path):
+    """The `args`-style argv list of the spec's base preset, or None when it cannot be read."""
+    try:
+        data = json.loads(spec_file.read_text(encoding="utf-8"))
+        base = data.get("base")
+        if not base:
+            return None
+        pp = Path(base) if os.path.isabs(base) else ROOT / base
+        preset = json.loads(pp.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    for key in ("args", "argv", "engine_args"):
+        if isinstance(preset.get(key), list):
+            return preset[key]
+    return preset if isinstance(preset, list) else None
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dir", default=str(ROOT / "bench" / "specs"))
@@ -106,7 +160,16 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     missing = 0
+    inert = 0
+    presets: dict = {}
     for spec_file, arm, body in walk_specs(spec_dir):
+        if spec_file not in presets:
+            presets[spec_file] = preset_argv(spec_file)
+        if presets[spec_file] is not None:
+            why = inert_gate(presets[spec_file], body)
+            if why:
+                inert += 1
+                print(f"INERT-GATE   {spec_file.name} arm({arm}): {why}")
         env = body.get("env") or {}
         flags = body.get("args") or {}
         for key in env:
@@ -121,6 +184,9 @@ def main(argv: list[str] | None = None) -> int:
             if not check_arm(spec_file, arm, flag, "args", sources, args.quiet):
                 missing += 1
                 print(f"PHANTOM-FLAG {spec_file.name} arm({arm}) {flag}: not parsed in generate.cpp/serve")
+    if inert and not args.quiet:
+        print(f"spec_lint: {inert} arm(s) turn on a switch the engine leaves off under the arm's own flags (warning only)",
+              file=sys.stderr)
     if missing:
         if not args.quiet:
             print(f"spec_lint: {missing} phantom arm reference(s) found (see above)", file=sys.stderr)

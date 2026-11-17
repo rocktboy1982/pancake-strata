@@ -7501,9 +7501,27 @@ int main(int argc, char** argv) {
                             strata::core::vmm_available() &&
                             // the batch slots carve their own K/V and --vram-elastic's cache is not one VMM range
                             o.batch == 0 && !o.vram_elastic && o.peer_device < 0;
-            if (asked && !on)
+            if (asked && !on) {
                 std::fprintf(stderr, "strata generate: --kv-grow is off (one GPU, a profile, the whole K/V in VRAM, "
                                      "every expert in RAM, no --batch, --vram-elastic or --peer-device)\n");
+                // which of them failed: a spec arm that added --kv-grow to a preset with --kv-resident measured the base twice
+                // (spec 31 / 31c, tools/pancake/spec_lint.py INERT-GATE)
+                std::string why;
+                auto add = [&](bool failed, const char* what) {
+                    if (failed) why += (why.empty() ? "" : "; ") + std::string(what);
+                };
+                add(multi_gpu, "a layer split");
+                add(o.kv_resident > 0, "--kv-resident is set (the K/V ring streams from the host)");
+                add(o.expert_profile.empty(), "no --expert-profile");
+                add(o.resident_cpu_experts, "resident CPU experts");
+                add(o.expert_cache == 0, "--expert-cache 0");
+                add(remote, "helper caches on other GPUs");
+                add(!strata::core::vmm_available(), "no virtual memory management on this device or driver");
+                add(o.batch != 0, "--batch");
+                add(o.vram_elastic, "--vram-elastic");
+                add(o.peer_device >= 0, "--peer-device");
+                std::fprintf(stderr, "strata generate: --kv-grow is off because: %s\n", why.c_str());
+            }
             const char* iv = std::getenv("STRATA_KV_GROW_INIT");
             strata::core::qsa_set_kv_elastic(on, iv != nullptr && std::atoll(iv) > 0 ? std::atoll(iv) : 16384);
             strata::core::ExpertCache::set_vmm(on);

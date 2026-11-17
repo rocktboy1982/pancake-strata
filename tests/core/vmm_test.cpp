@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <thread>
 #include <vector>
 
@@ -25,6 +26,7 @@ int main() {
     VmmRange a, b;
     CHECK(a.reserve(8 * G + 1));   // rounds up
     CHECK(a.chunks() == 9);
+    CHECK(!a.zero_backed() && !b.zero_backed());   // default: byte-identical to before, nothing is mapped until asked
     CHECK(b.reserve(4 * G));
     CHECK(a.mapped_count() == 0);
     CHECK(a.map_range(0, 6, [] { return (VmmChunk) 0; }));
@@ -66,6 +68,45 @@ int main() {
     }
     CHECK(f1 >= f0 + 8 * G);   // 7 + 2 chunks went back (the driver may round)
     CHECK(cudaGetLastError() == cudaSuccess);
+
+    // STRATA_VMM_ZERO_BACK=1 (LEADS.md Part L lead L6, kvcached's zero page): unmapped chunks read zeros through one shared
+    // read-only chunk, a real chunk mapped over one hides it, and an unmapped chunk reads zeros again (never the bytes the
+    // real chunk held).  Needs the same memory as a plain range (one extra chunk).
+#ifdef _WIN32
+    _putenv_s("STRATA_VMM_ZERO_BACK", "1");
+#else
+    setenv("STRATA_VMM_ZERO_BACK", "1", 1);
+#endif
+    {
+        VmmRange z;
+        CHECK(z.reserve(4 * G) && z.zero_backed());
+        CHECK(z.mapped_count() == 0 && !z.mapped(0));   // the zero chunk is not a real chunk
+        std::vector<uint8_t> zb(4 * G, 0xAB);
+        CHECK(cudaMemcpy(zb.data(), z.base(), 4 * G, cudaMemcpyDeviceToHost) == cudaSuccess);   // reading is legal, all zeros
+        bool zeros = true;
+        for (const uint8_t v : zb) zeros = zeros && v == 0;
+        CHECK(zeros);
+        CHECK(z.map_range(1, 2, [] { return (VmmChunk) 0; }) && z.mapped_count() == 1 && z.mapped(1));
+        CHECK(cudaMemset(z.base() + G, 9, G) == cudaSuccess && cudaDeviceSynchronize() == cudaSuccess);
+        CHECK(cudaMemcpy(zb.data(), z.base(), 4 * G, cudaMemcpyDeviceToHost) == cudaSuccess);
+        bool shape = true;   // chunk 1 holds 9s, the others still zeros
+        for (uint64_t i = 0; i < 4 * G; ++i) shape = shape && zb[i] == (i / G == 1 ? 9 : 0);
+        CHECK(shape);
+        const VmmChunk c1 = z.unmap(1);
+        CHECK(c1 != 0 && z.mapped_count() == 0);
+        CHECK(cudaMemcpy(zb.data(), z.base() + G, G, cudaMemcpyDeviceToHost) == cudaSuccess);
+        zeros = true;
+        for (uint64_t i = 0; i < G; ++i) zeros = zeros && zb[i] == 0;
+        CHECK(zeros);   // the 9s went away with the chunk
+        strata::core::vmm_chunk_free(c1);
+        z.release();
+        CHECK(cudaGetLastError() == cudaSuccess);
+    }
+#ifdef _WIN32
+    _putenv_s("STRATA_VMM_ZERO_BACK", "");
+#else
+    unsetenv("STRATA_VMM_ZERO_BACK");
+#endif
     std::printf("vmm_test: %s\n", fails ? "FAILED" : "ok");
     return fails ? 1 : 0;
 }

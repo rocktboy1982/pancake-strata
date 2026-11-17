@@ -103,6 +103,30 @@ def test_usage_errors_exit_2():
             assert S.main(["--dir", str(t.specs)]) == 2                                          # no sources
 
 
+PRESET = ["--kv", "int8", "--kv-resident", "32768", "--max-context", "131072"]
+
+
+def test_inert_gate_kv_grow_under_kv_resident():
+    assert "--kv-resident 32768" in S.inert_gate(PRESET, {"args": {"--kv-grow": ""}})
+    assert "--kv-resident" in S.inert_gate(PRESET, {"env": {"STRATA_KV_GROW": "1"}})
+    assert S.inert_gate(PRESET, {}) is None                                                    # the base arm
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": "", "--kv-resident": None}}) is None    # ring removed: the switch can act
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": "", "--kv-resident": "0"}}) is None
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": ""}, "env": {"STRATA_KV_GROW": "0"}}) is None   # the env wins, as in the engine
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": "", "--no-kv-grow": ""}}) is None
+
+
+def test_inert_gate_is_a_warning_not_a_failure():
+    with tree() as d, Tree(d) as t:
+        t.src.write_text(t.src.read_text(encoding="utf-8") + 'if (a == "--kv-grow") {}' + chr(10), encoding="utf-8")
+        preset = Path(d) / "p.json"
+        preset.write_text(json.dumps({"args": PRESET}), encoding="utf-8")
+        (t.specs / "a.json").write_text(json.dumps({"base": str(preset), "arms": {"base": {}, "g": {"args": {"--kv-grow": ""}}}}), encoding="utf-8")
+        code, out, err = run_main(t)
+        assert code == 0 and "INERT-GATE   a.json arm(g)" in out and "INERT-GATE   a.json arm(base)" not in out
+        assert "1 arm(s)" in err
+
+
 def test_real_specs_walk_without_crashing():
     n = 0
     for _spec, arm, body in S.walk_specs(S.ROOT / "bench/specs"):
