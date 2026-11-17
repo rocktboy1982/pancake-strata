@@ -1,0 +1,571 @@
+device 0: AMD Radeon RX 7900 XT (gfx1100), 42 CUs (21 WGPs on RDNA), 256 threads/block, chain of 200, best of 5
+     1 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.97 us  stream   7.60 us
+     2 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.97 us  stream   7.61 us
+     3 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.97 us  stream   7.62 us
+     4 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.99 us  stream   7.62 us
+     5 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+     6 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+     7 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.97 us  stream   7.63 us
+     8 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+     9 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    10 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    11 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    12 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+    13 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    14 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    15 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    16 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    17 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    18 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    19 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    20 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.97 us  stream   7.63 us
+    21 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    22 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    23 blocks x 256: empty   2.99 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    24 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    25 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    26 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    27 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    28 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    29 blocks x 256: empty   2.99 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    30 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    31 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    32 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    33 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    34 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    35 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    36 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    37 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    38 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    39 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    40 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    41 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    42 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    43 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    44 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    45 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    46 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+    47 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    48 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+    49 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    50 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    51 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    52 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    53 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    54 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    55 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    56 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    57 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    58 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    59 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    60 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    61 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    62 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.97 us  stream   7.63 us
+    63 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    64 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    65 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    66 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    67 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    68 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    69 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    70 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    71 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    72 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    73 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    74 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    75 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    76 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+    77 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+    78 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    79 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    80 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    81 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    82 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    83 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    84 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    85 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    86 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    87 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    88 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    89 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    90 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    91 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    92 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    93 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    94 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    95 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    96 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    97 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+    98 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+    99 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   100 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.99 us  stream   7.62 us
+   101 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   102 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   103 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   104 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   105 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   106 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   107 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   108 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   109 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   110 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   111 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   112 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   113 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.97 us  stream   7.63 us
+   114 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   115 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   116 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   117 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   118 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   119 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   120 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   121 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   122 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   123 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   124 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   125 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   126 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   127 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   128 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   129 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   130 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   131 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   132 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   133 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   134 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   135 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   136 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   137 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   138 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   139 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   140 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   141 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   142 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   143 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   144 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   145 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   146 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   147 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   148 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   149 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   150 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   151 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   152 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   153 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   154 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   155 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   156 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   157 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   158 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   159 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   160 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   161 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   162 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   163 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   164 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   165 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   166 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   167 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   168 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   169 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   170 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   171 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   172 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   173 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   174 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   175 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   176 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   177 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   178 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   179 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   180 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   181 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   182 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   183 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   184 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   185 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   186 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   187 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   188 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   189 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   190 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   191 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   192 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   193 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   194 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   195 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   196 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   197 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   198 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   199 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   200 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   201 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   202 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   203 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   204 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   205 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   206 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   207 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   208 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   209 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   210 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   211 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   212 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   213 blocks x 256: empty   2.99 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   214 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   215 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   216 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   217 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   218 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   219 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   220 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.99 us  stream   7.63 us
+   221 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   222 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   223 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   224 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   225 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   226 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   227 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   228 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   229 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   230 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   231 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   232 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   233 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   234 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   235 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   236 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   237 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   238 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   239 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   240 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   241 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   242 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   243 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   244 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   245 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   246 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   247 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   248 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   249 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   250 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   251 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   252 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   253 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   254 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   255 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   256 blocks x 256: empty   2.97 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   257 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.99 us  stream   7.63 us
+   258 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   259 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   260 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   261 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   262 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   263 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   264 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   265 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   266 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   267 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   268 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   269 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   270 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   271 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   272 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   273 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   274 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   275 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   276 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   277 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   278 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   279 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   280 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.64 us
+   281 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   282 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   283 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.62 us
+   284 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   285 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   286 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   287 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   288 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.98 us  stream   7.63 us
+   289 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.99 us  stream   7.63 us
+   290 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.99 us  stream   7.63 us
+   291 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.99 us  stream   7.63 us
+   292 blocks x 256: empty   2.98 us  fetch_like(count 0)   2.99 us  stream   7.63 us
+   293 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.00 us  stream   7.63 us
+   294 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.00 us  stream   7.62 us
+   295 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.01 us  stream   7.63 us
+   296 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.01 us  stream   7.63 us
+   297 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.01 us  stream   7.63 us
+   298 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.01 us  stream   7.63 us
+   299 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.01 us  stream   7.63 us
+   300 blocks x 256: empty   2.98 us  fetch_like(count 0)   3.01 us  stream   7.63 us
+   301 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   302 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   303 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   304 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   305 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.67 us
+   306 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   307 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   308 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   309 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   310 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   311 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   312 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   313 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   314 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   315 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   316 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   317 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   318 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   319 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   320 blocks x 256: empty   3.01 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   321 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   322 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   323 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.66 us
+   324 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.01 us  stream   7.65 us
+   325 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.03 us  stream   7.65 us
+   326 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.03 us  stream   7.66 us
+   327 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.03 us  stream   7.66 us
+   328 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.03 us  stream   7.66 us
+   329 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.03 us  stream   7.65 us
+   330 blocks x 256: empty   3.00 us  fetch_like(count 0)   3.03 us  stream   7.64 us
+   331 blocks x 256: empty   3.01 us  fetch_like(count 0)   3.03 us  stream   7.66 us
+   332 blocks x 256: empty   3.01 us  fetch_like(count 0)   3.03 us  stream   7.67 us
+   333 blocks x 256: empty   3.01 us  fetch_like(count 0)   3.03 us  stream   7.67 us
+   334 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.03 us  stream   7.67 us
+   335 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.03 us  stream   7.67 us
+   336 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.03 us  stream   7.68 us
+   337 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.23 us  stream   7.68 us
+   338 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.23 us  stream   7.68 us
+   339 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.23 us  stream   7.69 us
+   340 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.23 us  stream   7.68 us
+   341 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.23 us  stream   7.67 us
+   342 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.23 us  stream   7.67 us
+   343 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.23 us  stream   7.68 us
+   344 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.67 us
+   345 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.68 us
+   346 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.68 us
+   347 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.67 us
+   348 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.67 us
+   349 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.67 us
+   350 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.67 us
+   351 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.67 us
+   352 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.67 us
+   353 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.68 us
+   354 blocks x 256: empty   3.02 us  fetch_like(count 0)   3.24 us  stream   7.68 us
+   355 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   356 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   357 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   358 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   359 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   360 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   361 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   362 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   363 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.69 us
+   364 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.70 us
+   365 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.24 us  stream   7.70 us
+   366 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   367 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.25 us  stream   7.69 us
+   368 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   369 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   370 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   371 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   372 blocks x 256: empty   3.04 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   373 blocks x 256: empty   3.05 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   374 blocks x 256: empty   3.05 us  fetch_like(count 0)   3.25 us  stream   7.70 us
+   375 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.25 us  stream   7.71 us
+   376 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.25 us  stream   7.71 us
+   377 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.25 us  stream   7.71 us
+   378 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.25 us  stream   7.72 us
+   379 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.25 us  stream   7.72 us
+   380 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   381 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.71 us
+   382 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   383 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   384 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   385 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   386 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   387 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   388 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.27 us  stream   7.72 us
+   389 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.27 us  stream   7.72 us
+   390 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.26 us  stream   7.72 us
+   391 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.27 us  stream   7.72 us
+   392 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.27 us  stream   7.72 us
+   393 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.27 us  stream   7.72 us
+   394 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.27 us  stream   7.72 us
+   395 blocks x 256: empty   3.06 us  fetch_like(count 0)   3.27 us  stream   7.72 us
+   396 blocks x 256: empty   3.07 us  fetch_like(count 0)   3.27 us  stream   7.73 us
+   397 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.74 us
+   398 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.73 us
+   399 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.74 us
+   400 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.73 us
+   401 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.73 us
+   402 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.74 us
+   403 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.75 us
+   404 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.74 us
+   405 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.74 us
+   406 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.74 us
+   407 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.73 us
+   408 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.74 us
+   409 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.27 us  stream   7.73 us
+   410 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.28 us  stream   7.74 us
+   411 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.28 us  stream   7.74 us
+   412 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.28 us  stream   7.74 us
+   413 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.28 us  stream   7.73 us
+   414 blocks x 256: empty   3.08 us  fetch_like(count 0)   3.28 us  stream   7.74 us
+   415 blocks x 256: empty   3.09 us  fetch_like(count 0)   3.28 us  stream   7.75 us
+   416 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.75 us
+   417 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.75 us
+   418 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.76 us
+   419 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.76 us
+   420 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.75 us
+   421 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.75 us
+   422 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   423 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.75 us
+   424 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   425 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   426 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.75 us
+   427 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.75 us
+   428 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.75 us
+   429 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   430 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.75 us
+   431 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.28 us  stream   7.76 us
+   432 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.75 us
+   433 blocks x 256: empty   3.11 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   434 blocks x 256: empty   3.11 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   435 blocks x 256: empty   3.11 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   436 blocks x 256: empty   3.10 us  fetch_like(count 0)   3.29 us  stream   7.75 us
+   437 blocks x 256: empty   3.11 us  fetch_like(count 0)   3.29 us  stream   7.76 us
+   438 blocks x 256: empty   3.11 us  fetch_like(count 0)   3.29 us  stream   7.77 us
+   439 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   440 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   441 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   442 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.78 us
+   443 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.78 us
+   444 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.78 us
+   445 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   446 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   447 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   448 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.78 us
+   449 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   450 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.31 us  stream   7.77 us
+   451 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.31 us  stream   7.77 us
+   452 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.31 us  stream   7.78 us
+   453 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.77 us
+   454 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.30 us  stream   7.79 us
+   455 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.31 us  stream   7.77 us
+   456 blocks x 256: empty   3.12 us  fetch_like(count 0)   3.31 us  stream   7.77 us
+   457 blocks x 256: empty   3.13 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   458 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   459 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.80 us
+   460 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   461 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   462 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   463 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   464 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   465 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   466 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.80 us
+   467 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.80 us
+   468 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.80 us
+   469 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   470 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.80 us
+   471 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.31 us  stream   7.79 us
+   472 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.32 us  stream   7.80 us
+   473 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.32 us  stream   7.79 us
+   474 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.32 us  stream   7.79 us
+   475 blocks x 256: empty   3.14 us  fetch_like(count 0)   3.32 us  stream   7.80 us
+   476 blocks x 256: empty   3.15 us  fetch_like(count 0)   3.32 us  stream   7.80 us
+   477 blocks x 256: empty   3.15 us  fetch_like(count 0)   3.32 us  stream   7.81 us
+   478 blocks x 256: empty   3.15 us  fetch_like(count 0)   3.32 us  stream   7.80 us
+   479 blocks x 256: empty   3.15 us  fetch_like(count 0)   3.33 us  stream   7.80 us
+   480 blocks x 256: empty   3.15 us  fetch_like(count 0)   3.32 us  stream   7.81 us
+   481 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.82 us
+   482 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   483 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.32 us  stream   7.82 us
+   484 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.32 us  stream   7.82 us
+   485 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.32 us  stream   7.81 us
+   486 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   487 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.32 us  stream   7.82 us
+   488 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   489 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   490 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   491 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   492 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   493 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.80 us
+   494 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.82 us
+   495 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   496 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   497 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.81 us
+   498 blocks x 256: empty   3.16 us  fetch_like(count 0)   3.33 us  stream   7.82 us
+   499 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   500 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   501 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   502 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   503 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   504 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   505 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.84 us
+   506 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   507 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   508 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   509 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   510 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.83 us
+   511 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.34 us  stream   7.84 us
+   512 blocks x 256: empty   3.18 us  fetch_like(count 0)   3.35 us  stream   7.84 us
+
+summary (graph chain, empty kernel): floor = median = 2.98 us
+block counts more than 2 us above the floor:
+  none -> launch cost does not depend on the block count here
+mean cost by (blocks mod 42), 0 = a whole number of WGP sets:
+  0:3.03 1:3.02 2:3.02 3:3.03 4:3.02 5:3.02 6:3.02 7:3.03 8:3.03 9:3.01 10:3.01 11:3.01 12:3.01 13:3.01 14:3.02 15:3.01 16:3.01 17:3.01 18:3.02 19:3.02 20:3.02 21:3.02 22:3.02 23:3.02 24:3.02 25:3.02 26:3.02 27:3.02 28:3.02 29:3.02 30:3.02 31:3.02 32:3.02 33:3.02 34:3.02 35:3.02 36:3.02 37:3.03 38:3.03 39:3.03 40:3.03 41:3.03 
+literal launch sites (kernel, blocks, threads, file): grids built from expressions are NOT listed;
+use a trace for the real shapes
+
+       1 x 128  copy_i32_unless_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 32   coupled_merge_kernel  (src/kernels/cuda/sampler.cu)
+       1 x 1024 coupled_penalize_kernel  (src/kernels/cuda/sampler.cu)
+       1 x 256  coupled_stage_kernel  (src/kernels/cuda/sampler.cu)
+       1 x 64   dense_steps_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 64   device_accept_commit_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1024 doorbell_publish_kernel  (src/kernels/cuda/elementwise.cu)
+       1 x 1024 doorbell_publish_res_kernel  (src/kernels/cuda/elementwise.cu)
+       1 x 1024 doorbell_publish_value_kernel  (src/kernels/cuda/elementwise.cu)
+       1 x 1    doorbell_ring_kernel  (src/kernels/cuda/elementwise.cu)
+       1 x 1    doorbell_wait_kernel  (src/kernels/cuda/elementwise.cu)
+       1 x 1    force_token_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1    gpu_stamp_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 128  group_resident_kernel  (src/kernels/cuda/s2_expert_grouped.cu)
+       1 x 64   head_argmax_finish_kernel  (src/kernels/cuda/head_fmt.cu)
+       1 x 32   hit_select_kernel  (src/kernels/cuda/s2_expert_grouped.cu)
+       1 x 128  hit_select_multi_kernel  (src/kernels/cuda/s2_expert_grouped.cu)
+       1 x 1024 ident_hits_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 256  inj_check  (src/kernels/cuda/rdna_gr.cu)
+       1 x 256  is  (src/kernels/cuda/shared_expert.cu)
+       1 x 32   k_probe_pre  (src/kernels/cuda/subfit_capture.cu)
+       1 x 64   map_ids_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 64   mtp_stage_from_accept_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1    native_scalar_sigmoid_kernel  (src/kernels/cuda/shared_expert.cu)
+       1 x 32   noop_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 512  oea_route_window_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1    pick_entropy_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 128  rebase_ptrs_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 64   rope_inv_kernel  (src/kernels/cuda/dflash2.cu)
+       1 x 32   route_marginal_stats_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 32   route_prior_delta_k  (src/kernels/cuda/route_prior.cu)
+       1 x 256  scalar_gate_kernel  (src/kernels/cuda/shared_expert.cu)
+       1 x 256  select_kernel  (src/kernels/cuda/dflash2.cu)
+       1 x 32   spec_draft_merge_kernel  (src/kernels/cuda/sampler.cu)
+       1 x 128  wait_copy_i32_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 128  wait_copy_i32_unless_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 256  wait_copy_i32_wide_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 128  wait_flag_copy_i32_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1    wait_flag_ge_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1    wait_flag_ge_or_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1    wait_flag_ge_stamped_kernel  (src/kernels/cuda/verify_kernels.cu)
+       1 x 1    wait_handoff_kernel  (src/kernels/cuda/verify_kernels.cu)
+      16 x 256  copy_row_to_first_kernel  (src/kernels/cuda/verify_kernels.cu)
+      64 x 256  ic_warm_kernel  (src/kernels/cuda/verify_kernels.cu)
+      64 x 256  ring_kernel  (src/kernels/cuda/kv_stream.cu)
+      96 x 128  copy_kernel  (src/kernels/cuda/kv_stream.cu)
+     128 x 256  reset_kernel  (src/kernels/cuda/kv_stream.cu)
+
+literal block counts: 1x46, 16x1, 64x2, 96x2, 128x1

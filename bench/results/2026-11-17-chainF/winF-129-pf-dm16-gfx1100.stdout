@@ -1,0 +1,37 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long: 40378 chars, sha1 886c307ab46b (a unique run line is prepended to every request)
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+rep 0 f16                  long1k 92.8/624p 1029t long3k 114.7/1108p 2933t long 94.2/1790p 14284t  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:1-ttm', 0)]  gpu 1813/1249 MHz 55C 171W gtt 25M cpu 3310MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+rep 0 f16-dm16             long1k 92.0/626p 1029t long3k 113.7/1111p 2933t long 95.1/1801p 14284t  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('kworker/u65:15-ttm', 1)]  gpu 1767/1249 MHz 56C 168W gtt 25M cpu 3077MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+rep 0 base-late            long1k 82.9/617p 1029t long3k 102.9/1111p 2933t long 94.1/1792p 14284t  foreign CPU 2% [('claude', 1), ('kworker/u65:3-KFD IH', 1), ('rcu_preempt', 0)]  gpu 2034/1249 MHz 56C 190W gtt 25M cpu 3525MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k f16                     624.1 +-   nan  (n=1)
+  long1k f16-dm16                626.5 +-   nan  (n=1)   vs f16:  +0.4% +-  nan%  -> no difference
+  long1k base-late               617.3 +-   nan  (n=1)   vs f16:  -1.1% +-  nan%  -> no difference
+  long3k f16                    1108.4 +-   nan  (n=1)
+  long3k f16-dm16               1111.3 +-   nan  (n=1)   vs f16:  +0.3% +-  nan%  -> no difference
+  long3k base-late              1110.7 +-   nan  (n=1)   vs f16:  +0.2% +-  nan%  -> no difference
+  long   f16                    1790.1 +-   nan  (n=1)
+  long   f16-dm16               1800.8 +-   nan  (n=1)   vs f16:  +0.6% +-  nan%  -> no difference
+  long   base-late              1792.1 +-   nan  (n=1)   vs f16:  +0.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  f16-dm16             identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): long1k -1.1%  long3k +0.2%  long +0.1%
+  f16-dm16             long1k +0.9%  long3k +0.2%  long +0.5%  -> PROMOTE to confirm

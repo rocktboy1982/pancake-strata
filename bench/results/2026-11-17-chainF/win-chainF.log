@@ -12,3 +12,21 @@ CTEST cpu exit=0 100% tests passed, 0 tests failed out of 197
 START 119-pf-combine-write-alone 2026-11-17_03:22:45
 END 119-pf-combine-write-alone exit=1 03:25:33
 START 118-f16-var-bm 2026-11-17_03:28:33
+END 118-f16-var-bm exit=0 03:41:39
+START 120-d3-defer-fast 2026-11-17_03:44:39
+END 120-d3-defer-fast exit=0 03:49:50
+START 122-d5-pf-fused-f16 2026-11-17_03:52:50
+END 122-d5-pf-fused-f16 exit=0 04:04:52
+START 129-pf-dm16-gfx1100 2026-11-17_04:07:52
+END 129-pf-dm16-gfx1100 exit=0 04:12:04
+START 132-stop-layers-cancel 2026-11-17_04:15:04
+END 132-stop-layers-cancel exit=0 04:19:11
+START 133-bme-lookahead 2026-11-17_04:22:11
+END 133-bme-lookahead exit=0 04:31:18
+START 134-bme-route-range 2026-11-17_04:34:19
+END 134-bme-route-range exit=0 04:44:49
+START 135-bme-skip-dropped 2026-11-17_04:47:50
+END 135-bme-skip-dropped exit=0 05:00:13
+USB move skipped: /mnt/pancake not mounted or file gone
+service started 05:00:13
+WINCHAINF_DONE

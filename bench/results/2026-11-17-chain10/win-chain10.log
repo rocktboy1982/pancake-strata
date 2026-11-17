@@ -1,0 +1,10 @@
+START 2026-11-16_18:00:19
+chain 9 done 06:00:19
+service stopped (idle) 06:03:22
+CONFIGURE+BUILD build-win-hf 06:06:22
+BUILD_END build-win-hf exit=0 06:09:58
+head_argmax_parity exit=0 head_argmax_parity: PASS
+START 108-head-argmax-fused 2026-11-17_06:16:06
+END 108-head-argmax-fused exit=0 06:21:41
+service started 06:21:41
+WINCHAIN10_DONE

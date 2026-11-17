@@ -1,0 +1,68 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long: 40378 chars, sha1 886c307ab46b (a unique run line is prepended to every request)
+case long32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 cc86179c48f0, target 64000 tokens (a unique run line is prepended to every request)
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 preset               long3k 97.8/975p 2935t long 93.3/1618p 14286t long32k 102.0/1670p 31463t long64k 95.0/2374p 65194t  foreign CPU 2% [('claude', 1), ('kworker/u65:12-ttm', 1), ('localsearch-3', 1)]  gpu 1892/1249 MHz 60C 179W gtt 25M cpu 3235MHz 63C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 fused0               long3k 93.0/976p 2935t long 91.7/1589p 14286t long32k 99.2/1683p 31463t long64k 89.7/2402p 65194t  foreign CPU 2% [('kworker/12:0-events_freezable', 2), ('localsearch-3', 1), ('kcompactd0', 0)]  gpu 1921/1249 MHz 60C 178W gtt 21M cpu 3015MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 f16-1                long3k 88.5/979p 2935t long 93.1/1791p 14287t long32k 99.3/1853p 31464t long64k 86.0/2767p 65195t  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:13-KFD IH', 1)]  gpu 1943/1249 MHz 61C 187W gtt 25M cpu 3260MHz 62C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 f16-0                long3k 109.4/975p 2936t long 89.9/1622p 14287t long32k 103.5/1503p 31464t long64k 85.7/2371p 65195t  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('upowerd', 0)]  gpu 1950/1249 MHz 61C 181W gtt 25M cpu 3002MHz 62C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            long3k 97.3/973p 2936t long 71.5/1189p 14287t long32k 101.4/1154p 31464t long64k 89.1/2277p 65195t  foreign CPU 2% [('kworker/3:1-events', 2), ('localsearch-3', 1), ('claude', 1)]  gpu 2031/1249 MHz 61C 185W gtt 25M cpu 3176MHz 62C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long3k preset                  975.1 +-   nan  (n=1)
+  long3k fused0                  976.2 +-   nan  (n=1)   vs preset:  +0.1% +-  nan%  -> no difference
+  long3k f16-1                   978.6 +-   nan  (n=1)   vs preset:  +0.4% +-  nan%  -> no difference
+  long3k f16-0                   975.3 +-   nan  (n=1)   vs preset:  +0.0% +-  nan%  -> no difference
+  long3k base-late               972.6 +-   nan  (n=1)   vs preset:  -0.3% +-  nan%  -> no difference
+  long   preset                 1618.4 +-   nan  (n=1)
+  long   fused0                 1589.1 +-   nan  (n=1)   vs preset:  -1.8% +-  nan%  -> no difference
+  long   f16-1                  1791.3 +-   nan  (n=1)   vs preset: +10.7% +-  nan%  -> no difference
+  long   f16-0                  1621.9 +-   nan  (n=1)   vs preset:  +0.2% +-  nan%  -> no difference
+  long   base-late              1189.1 +-   nan  (n=1)   vs preset: -26.5% +-  nan%  -> no difference
+  long32k preset                 1670.2 +-   nan  (n=1)
+  long32k fused0                 1682.6 +-   nan  (n=1)   vs preset:  +0.7% +-  nan%  -> no difference
+  long32k f16-1                  1853.2 +-   nan  (n=1)   vs preset: +11.0% +-  nan%  -> no difference
+  long32k f16-0                  1502.7 +-   nan  (n=1)   vs preset: -10.0% +-  nan%  -> no difference
+  long32k base-late              1154.2 +-   nan  (n=1)   vs preset: -30.9% +-  nan%  -> no difference
+  long64k preset                 2373.5 +-   nan  (n=1)
+  long64k fused0                 2402.1 +-   nan  (n=1)   vs preset:  +1.2% +-  nan%  -> no difference
+  long64k f16-1                  2767.0 +-   nan  (n=1)   vs preset: +16.6% +-  nan%  -> no difference
+  long64k f16-0                  2370.9 +-   nan  (n=1)   vs preset:  -0.1% +-  nan%  -> no difference
+  long64k base-late              2277.2 +-   nan  (n=1)   vs preset:  -4.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  fused0               identical on every case -> exact
+  f16-1                identical on every case -> exact
+  f16-0                identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): long3k -0.3%  long -26.5%  long32k -30.9%  long64k -4.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  fused0               long3k +0.2%  long +13.2%  long32k +19.1%  long64k +3.3%  -> PROMOTE to confirm
+  f16-1                long3k +0.5%  long +27.6%  long32k +31.2%  long64k +19.0%  -> PROMOTE to confirm
+  f16-0                long3k +0.1%  long +15.5%  long32k +6.4%  long64k +2.0%  -> PROMOTE to confirm

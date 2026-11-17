@@ -1,0 +1,12 @@
+START 2026-11-17_03:42:50
+chain F done 05:02:50
+service stopped (idle) 05:05:53
+stage applied: 177 files
+BUILD build-win 05:08:53
+BUILD_END exit=0 05:12:33
+CTEST combine_write exit=0 100% tests passed, 0 tests failed out of 2
+CTEST cpu exit=0 100% tests passed, 0 tests failed out of 197
+START 119 2026-11-17_05:22:27
+END 119 exit=0 05:31:35
+service started 05:31:36
+WINCHAINF3_DONE

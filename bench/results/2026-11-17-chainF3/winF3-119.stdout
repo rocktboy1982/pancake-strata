@@ -1,0 +1,46 @@
+rep 0 base                 short 118.8 short 112.2 edit 169.0 edit 192.1  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 1989/1249 MHz 55C 155W gtt 21M cpu 3736MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 pf-combine-write     short 121.0 short 112.4 edit 168.3 edit 189.6  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('kworker/u65:1-ttm', 1)]  gpu 2016/1249 MHz 54C 158W gtt 21M cpu 3869MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 pf-combine-write-serial short 121.1 short 112.3 edit 160.1 edit 191.3  foreign CPU 2% [('kcompactd0', 1), ('localsearch-3', 1), ('claude', 1)]  gpu 2002/1249 MHz 55C 156W gtt 21M cpu 3415MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 0 pf-combine-write-no-hc-region short 121.0 short 112.5 edit 171.4 edit 191.9  foreign CPU 2% [('claude', 2), ('systemd-journal', 0), ('2.1.325', 0)]  gpu 2026/1249 MHz 54C 158W gtt 21M cpu 3800MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 pf-combine-write-serial-edit short 121.1 short 112.5 edit 169.7 edit 184.5  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 1963/1249 MHz 54C 152W gtt 21M cpu 3660MHz 48C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 113.1 short 105.3 edit 98.3 edit 178.7  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2063/1249 MHz 54C 146W gtt 21M cpu 3751MHz 48C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.5 +-  41.9  (n=2)
+                              drafts accepted 0.72
+  short  pf-combine-write        116.7 +-  54.7  (n=2)   vs base:  +1.0% +- 11.0%  -> no difference
+                              drafts accepted 0.72
+  short  pf-combine-write-serial    116.7 +-  55.9  (n=2)   vs base:  +1.0% +- 12.1%  -> no difference
+                              drafts accepted 0.72
+  short  pf-combine-write-no-hc-region    116.8 +-  54.0  (n=2)   vs base:  +1.1% +- 10.5%  -> no difference
+                              drafts accepted 0.72
+  short  pf-combine-write-serial-edit    116.8 +-  54.7  (n=2)   vs base:  +1.1% +- 11.0%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               109.2 +-  49.6  (n=2)   vs base:  -5.5% +-  6.6%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    180.6 +- 146.8  (n=2)
+                              drafts accepted 0.90
+  edit   pf-combine-write        178.9 +- 135.4  (n=2)   vs base:  -0.9% +-  6.3%  -> no difference
+                              drafts accepted 0.89
+  edit   pf-combine-write-serial    175.7 +- 198.3  (n=2)   vs base:  -2.7% +- 28.5%  -> no difference
+                              drafts accepted 0.89
+  edit   pf-combine-write-no-hc-region    181.7 +- 130.3  (n=2)   vs base:  +0.6% +-  9.2%  -> no difference
+                              drafts accepted 0.90
+  edit   pf-combine-write-serial-edit    177.1 +-  94.1  (n=2)   vs base:  -1.9% +- 29.2%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               138.5 +- 510.9  (n=2)   vs base: -23.3% +- 201.7%  -> no difference
+                              drafts accepted 0.88
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pf-combine-write     DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-combine-write-serial identical on every case -> exact
+  pf-combine-write-no-hc-region identical on every case -> exact
+  pf-combine-write-serial-edit DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -5.5%  edit -23.3%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  pf-combine-write     short +3.9%  edit +12.2%  -> PROMOTE to confirm
+  pf-combine-write-serial short +3.9%  edit +10.1%  -> PROMOTE to confirm
+  pf-combine-write-no-hc-region short +3.9%  edit +13.9%  -> PROMOTE to confirm
+  pf-combine-write-serial-edit short +4.0%  edit +11.0%  -> PROMOTE to confirm

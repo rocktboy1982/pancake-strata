@@ -1,0 +1,31 @@
+Q2_0 row kernels, one thread, nt=1, chunk=64 rows, AVX-VNNI no; dispatcher picks LEGACY (STRATA_Q2_FAST / STRATA_Q2_LEGACY)
+
+down  (640 values, 10 blocks, 180 B/row), L2-hot, 256 KB: 1456 rows, fast vs legacy bitwise equal: yes
+  floor         5.45 ns/row at 33.0 GB/s (row bytes / DDR4 bandwidth)
+  legacy       29.27 ns/row    34.17 Mrows/s    6.15 GB/s of weights   5.37 x floor
+  fast         18.71 ns/row    53.45 Mrows/s    9.62 GB/s of weights   3.43 x floor   x1.56 vs legacy
+  dispatch     28.95 ns/row    34.54 Mrows/s    6.22 GB/s of weights   5.31 x floor   x1.01 vs legacy
+  read only     1.88 ns/row   530.72 Mrows/s   95.53 GB/s of weights   0.35 x floor
+
+down  (640 values, 10 blocks, 180 B/row), DRAM, 256 MB: 1491308 rows, fast vs legacy bitwise equal: yes
+  floor         5.45 ns/row at 33.0 GB/s (row bytes / DDR4 bandwidth)
+  legacy       29.12 ns/row    34.35 Mrows/s    6.18 GB/s of weights   5.34 x floor
+  fast         19.72 ns/row    50.71 Mrows/s    9.13 GB/s of weights   3.62 x floor   x1.48 vs legacy
+  dispatch     29.10 ns/row    34.36 Mrows/s    6.19 GB/s of weights   5.34 x floor   x1.00 vs legacy
+  read only     7.37 ns/row   135.61 Mrows/s   24.41 GB/s of weights   1.35 x floor
+
+gate/up (2560 values, 40 blocks, 720 B/row), L2-hot, 256 KB: 364 rows, fast vs legacy bitwise equal: yes
+  floor        21.82 ns/row at 33.0 GB/s (row bytes / DDR4 bandwidth)
+  legacy      102.15 ns/row     9.79 Mrows/s    7.05 GB/s of weights   4.68 x floor
+  fast         81.03 ns/row    12.34 Mrows/s    8.89 GB/s of weights   3.71 x floor   x1.26 vs legacy
+  dispatch    101.86 ns/row     9.82 Mrows/s    7.07 GB/s of weights   4.67 x floor   x1.00 vs legacy
+  read only     7.52 ns/row   132.96 Mrows/s   95.73 GB/s of weights   0.34 x floor
+
+gate/up (2560 values, 40 blocks, 720 B/row), DRAM, 256 MB: 372827 rows, fast vs legacy bitwise equal: yes
+  floor        21.82 ns/row at 33.0 GB/s (row bytes / DDR4 bandwidth)
+  legacy      103.34 ns/row     9.68 Mrows/s    6.97 GB/s of weights   4.74 x floor
+  fast         84.25 ns/row    11.87 Mrows/s    8.55 GB/s of weights   3.86 x floor   x1.23 vs legacy
+  dispatch    103.39 ns/row     9.67 Mrows/s    6.96 GB/s of weights   4.74 x floor   x1.00 vs legacy
+  read only    29.51 ns/row    33.88 Mrows/s   24.40 GB/s of weights   1.35 x floor
+
+bitwise equal on all shapes: yes

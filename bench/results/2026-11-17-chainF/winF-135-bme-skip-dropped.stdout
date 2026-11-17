@@ -1,0 +1,60 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 121.2 short 112.1 edit 165.9 edit 192.5  foreign CPU 4% [('claude', 6), ('kworker/8:2-events', 2), ('kcompactd0', 1)]  gpu 2029/1249 MHz 55C 157W gtt 21M cpu 3843MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread              short 116.8 short 107.9 edit 163.1 edit 188.7  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1917/1249 MHz 54C 154W gtt 21M cpu 3811MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread-skipw05      short 116.9 short 108.4 edit 164.1 edit 187.9  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('kworker/u65:2-KFD IH', 1)]  gpu 1899/1249 MHz 54C 152W gtt 21M cpu 3760MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread-skipw05-skipdropped short 94.8 short 81.5 edit 71.9 edit 130.4  foreign CPU 2% [('kworker/9:2-events_freezable', 2), ('kcompactd0', 1), ('dbus-daemon', 1)]  gpu 1999/1249 MHz 54C 134W gtt 21M cpu 3583MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread-skipcum90    short 87.8 short 91.6 edit 97.1 edit 111.0  foreign CPU 2% [('udisksd', 1), ('localsearch-3', 1), ('2.1.325', 1)]  gpu 2020/1249 MHz 54C 134W gtt 21M cpu 3466MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread-skipcum90-skipdropped short 113.2 short 87.4 edit 150.4 edit 105.4  foreign CPU 2% [('claude', 1), ('kworker/u65:4-KFD IH', 1), ('rcu_preempt', 0)]  gpu 2061/1249 MHz 54C 148W gtt 21M cpu 3419MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 121.0 short 109.0 edit 167.0 edit 193.5  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2040/1249 MHz 54C 158W gtt 21M cpu 3869MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.7 +-  57.8  (n=2)
+                              drafts accepted 0.72
+  short  preread                 112.3 +-  56.6  (n=2)   vs base:  -3.7% +-  1.1%  -> worse
+                              drafts accepted 0.72
+  short  preread-skipw05         112.7 +-  54.0  (n=2)   vs base:  -3.4% +-  3.3%  -> worse
+                              drafts accepted 0.72
+  short  preread-skipw05-skipdropped     88.2 +-  84.5  (n=2)   vs base: -24.4% +- 22.9%  -> worse
+                              drafts accepted 0.70
+  short  preread-skipcum90        89.7 +-  24.1  (n=2)   vs base: -23.1% +- 70.3%  -> no difference
+                              drafts accepted 0.70
+  short  preread-skipcum90-skipdropped    100.3 +- 164.0  (n=2)   vs base: -14.0% +- 91.0%  -> no difference
+                              drafts accepted 0.74
+  short  base-late               115.0 +-  76.3  (n=2)   vs base:  -1.4% +- 15.8%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    179.2 +- 169.0  (n=2)
+                              drafts accepted 0.90
+  edit   preread                 175.9 +- 162.7  (n=2)   vs base:  -1.8% +-  3.5%  -> no difference
+                              drafts accepted 0.90
+  edit   preread-skipw05         176.0 +- 151.2  (n=2)   vs base:  -1.8% +-  9.9%  -> no difference
+                              drafts accepted 0.90
+  edit   preread-skipw05-skipdropped    101.2 +- 371.8  (n=2)   vs base: -43.6% +- 113.1%  -> no difference
+                              drafts accepted 0.94
+  edit   preread-skipcum90       104.0 +-  88.3  (n=2)   vs base: -41.9% +- 45.0%  -> no difference
+                              drafts accepted 0.95
+  edit   preread-skipcum90-skipdropped    127.9 +- 286.0  (n=2)   vs base: -28.6% +- 253.9%  -> no difference
+                              drafts accepted 0.92
+  edit   base-late               180.2 +- 168.4  (n=2)   vs base:  +0.6% +-  0.4%  -> better
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  preread              identical on every case -> exact
+  preread-skipw05      identical on every case -> exact
+  preread-skipw05-skipdropped DIFFERENT text -> lossy or placement-dependent: quality gate
+  preread-skipcum90    DIFFERENT text -> lossy or placement-dependent: quality gate
+  preread-skipcum90-skipdropped DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -1.4%  edit +0.6%
+  preread              short -3.0%  edit -2.1%  -> drop
+  preread-skipw05      short -2.7%  edit -2.1%  -> drop
+  preread-skipw05-skipdropped short -23.9%  edit -43.7%  -> drop
+  preread-skipcum90    short -22.6%  edit -42.1%  -> drop
+  preread-skipcum90-skipdropped short -13.4%  edit -28.8%  -> drop

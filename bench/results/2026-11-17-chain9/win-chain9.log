@@ -1,0 +1,18 @@
+START 2026-11-16_18:00:19
+START 2026-11-16_21:57:50
+START 2026-11-17_03:42:50
+chain 8 done 05:32:50
+service stopped (idle) 05:35:53
+BUILD probes 05:38:53
+BUILD_END probes exit=0 05:38:56
+START probe 4.2.4 q2_rows_bench 05:41:56
+END q2_rows_bench exit=0 05:42:03
+START probe 4.2.1 empty_grid 05:45:03
+END empty_grid exit=0 05:45:12
+START serve for M1/M2/M5 2026-11-17_05:48:12
+END M1 exit=0 05:53:36
+END M2 exit=0 05:55:53
+END M5 32k exit=0 05:56:18
+END M5 64k exit=0 05:56:57
+service started 05:57:27
+WINCHAIN9_DONE
