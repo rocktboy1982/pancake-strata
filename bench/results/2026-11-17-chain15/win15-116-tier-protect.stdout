@@ -1,0 +1,68 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 110.1 short 93.0 edit 111.2 edit 137.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 2063/1249 MHz 54C 151W gtt 21M cpu 3716MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 protect-50           short 121.1 short 109.9 edit 131.6 edit 96.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 2054/1249 MHz 53C 154W gtt 21M cpu 3652MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 protect-75           short 113.7 short 91.6 edit 118.6 edit 93.3  foreign CPU 2% [('localsearch-3', 1), ('systemd-journal', 1), ('claude', 1)]  gpu 2052/1249 MHz 53C 141W gtt 21M cpu 3491MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 protect-90           short 108.5 short 110.0 edit 108.6 edit 128.3  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 2055/1249 MHz 54C 164W gtt 21M cpu 4002MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 protect-50-kmiss24   short 105.4 short 111.9 edit 90.4 edit 172.1  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-oomd', 0)]  gpu 2057/1249 MHz 54C 154W gtt 21M cpu 3921MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 protect-75-kmiss24   short 74.9 short 106.1 edit 144.0 edit 157.3  foreign CPU 2% [('claude', 1), ('systemd-journal', 0), ('gsd-housekeepin', 0)]  gpu 2052/1249 MHz 54C 164W gtt 21M cpu 3836MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 protect-50-kmiss12   short 88.8 short 84.4 edit 152.3 edit 127.4  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 2048/1249 MHz 53C 151W gtt 21M cpu 3657MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 114.1 short 114.7 edit 146.2 edit 171.3  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2027/1249 MHz 54C 157W gtt 21M cpu 3824MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    101.5 +- 108.7  (n=2)
+                              drafts accepted 0.70
+  short  protect-50              115.5 +-  71.2  (n=2)   vs base: +13.7% +- 36.9%  -> no difference
+                              drafts accepted 0.74
+  short  protect-75              102.7 +- 140.4  (n=2)   vs base:  +1.1% +- 31.3%  -> no difference
+                              drafts accepted 0.72
+  short  protect-90              109.2 +-   9.5  (n=2)   vs base:  +7.6% +- 116.4%  -> no difference
+                              drafts accepted 0.73
+  short  protect-50-kmiss24      108.7 +-  41.3  (n=2)   vs base:  +7.0% +- 147.7%  -> no difference
+                              drafts accepted 0.67
+  short  protect-75-kmiss24       90.5 +- 198.3  (n=2)   vs base: -10.9% +- 302.3%  -> no difference
+                              drafts accepted 0.73
+  short  protect-50-kmiss12       86.6 +-  28.0  (n=2)   vs base: -14.7% +- 79.5%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               114.4 +-   3.8  (n=2)   vs base: +12.7% +- 110.8%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    124.1 +- 164.0  (n=2)
+                              drafts accepted 0.89
+  edit   protect-50              114.2 +- 221.2  (n=2)   vs base:  -8.0% +- 310.3%  -> no difference
+                              drafts accepted 0.91
+  edit   protect-75              105.9 +- 160.8  (n=2)   vs base: -14.6% +- 261.7%  -> no difference
+                              drafts accepted 0.93
+  edit   protect-90              118.5 +- 125.2  (n=2)   vs base:  -4.6% +- 31.2%  -> no difference
+                              drafts accepted 0.92
+  edit   protect-50-kmiss24      131.2 +- 519.2  (n=2)   vs base:  +5.8% +- 286.3%  -> no difference
+                              drafts accepted 0.91
+  edit   protect-75-kmiss24      150.7 +-  84.5  (n=2)   vs base: +21.4% +- 64.0%  -> no difference
+                              drafts accepted 0.89
+  edit   protect-50-kmiss12      139.9 +- 158.2  (n=2)   vs base: +12.7% +- 259.6%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               158.8 +- 159.5  (n=2)   vs base: +27.9% +-  3.6%  -> better
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  protect-50           DIFFERENT text -> lossy or placement-dependent: quality gate
+  protect-75           DIFFERENT text -> lossy or placement-dependent: quality gate
+  protect-90           DIFFERENT text -> lossy or placement-dependent: quality gate
+  protect-50-kmiss24   DIFFERENT text -> lossy or placement-dependent: quality gate
+  protect-75-kmiss24   DIFFERENT text -> lossy or placement-dependent: quality gate
+  protect-50-kmiss12   DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +12.7%  edit +27.9%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  protect-50           short +7.0%  edit -19.3%  -> drop
+  protect-75           short -4.9%  edit -25.1%  -> drop
+  protect-90           short +1.2%  edit -16.2%  -> drop
+  protect-50-kmiss24   short +0.6%  edit -7.2%  -> drop
+  protect-75-kmiss24   short -16.2%  edit +6.5%  -> drop
+  protect-50-kmiss12   short -19.8%  edit -1.1%  -> drop

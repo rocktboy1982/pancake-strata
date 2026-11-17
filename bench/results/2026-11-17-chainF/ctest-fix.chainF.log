@@ -1,0 +1,77 @@
+Test project /home/dan/clone-of-d/src/build-win
+      Start  22: prefill_plan_test
+ 1/34 Test  #22: prefill_plan_test ............................   Passed    0.00 sec
+      Start  28: stop_rule_test
+ 2/34 Test  #28: stop_rule_test ...............................   Passed    0.00 sec
+      Start  29: pf_ahead_rule_test
+ 3/34 Test  #29: pf_ahead_rule_test ...........................   Passed    0.00 sec
+      Start  38: conversation_disk_tier_test
+ 4/34 Test  #38: conversation_disk_tier_test ..................   Passed    0.01 sec
+      Start  39: conversation_disk_env_test
+ 5/34 Test  #39: conversation_disk_env_test ...................   Passed    0.11 sec
+      Start  65: conversation_snapshot_test
+ 6/34 Test  #65: conversation_snapshot_test ...................   Passed    0.62 sec
+      Start  66: conversation_snapshot_test_ckpt_async
+ 7/34 Test  #66: conversation_snapshot_test_ckpt_async ........   Passed    1.97 sec
+      Start  67: conversation_snapshot_test_ckpt_vram_slots
+ 8/34 Test  #67: conversation_snapshot_test_ckpt_vram_slots ...   Passed    1.98 sec
+      Start  87: hip_combine_write_parity
+ 9/34 Test  #87: hip_combine_write_parity .....................   Passed    6.61 sec
+      Start 197: tier_protect_test
+10/34 Test #197: tier_protect_test ............................   Passed    0.00 sec
+      Start 198: head_shortlist_test
+11/34 Test #198: head_shortlist_test ..........................   Passed    0.00 sec
+      Start 199: head_gather_test
+12/34 Test #199: head_gather_test .............................   Passed    0.04 sec
+      Start 200: tier_miss_budget_test
+13/34 Test #200: tier_miss_budget_test ........................   Passed    0.00 sec
+      Start 201: knob_trial_test
+14/34 Test #201: knob_trial_test ..............................   Passed    0.00 sec
+      Start 202: ckpt_async_plan_test
+15/34 Test #202: ckpt_async_plan_test .........................   Passed    0.00 sec
+      Start 203: ckpt_stride_test
+16/34 Test #203: ckpt_stride_test .............................   Passed    0.00 sec
+      Start 204: ple_warm_test
+17/34 Test #204: ple_warm_test ................................   Passed    0.01 sec
+      Start 205: session_keep_root_test
+18/34 Test #205: session_keep_root_test .......................   Passed    0.00 sec
+      Start 206: session_keep_root_test_on
+19/34 Test #206: session_keep_root_test_on ....................   Passed    0.00 sec
+      Start 207: diag_rules_test
+20/34 Test #207: diag_rules_test ..............................   Passed    0.00 sec
+      Start 208: lookahead_weights_test
+21/34 Test #208: lookahead_weights_test .......................   Passed    0.00 sec
+      Start 209: prefetch_prev_test
+22/34 Test #209: prefetch_prev_test ...........................   Passed    0.00 sec
+      Start 210: route_range_test
+23/34 Test #210: route_range_test .............................   Passed    0.00 sec
+      Start 211: lookahead_skip_test
+24/34 Test #211: lookahead_skip_test ..........................   Passed    0.00 sec
+      Start 212: lookahead_ctrl_test
+25/34 Test #212: lookahead_ctrl_test ..........................   Passed    0.00 sec
+      Start 220: draft_policy_test
+26/34 Test #220: draft_policy_test ............................   Passed    0.00 sec
+      Start 224: window_policy_test
+27/34 Test #224: window_policy_test ...........................   Passed    0.00 sec
+      Start 228: fork_bugfix_rules_test
+28/34 Test #228: fork_bugfix_rules_test .......................   Passed    0.00 sec
+      Start 229: moe_tile_rule_test
+29/34 Test #229: moe_tile_rule_test ...........................   Passed    0.00 sec
+      Start 233: tier_policy_score_test
+30/34 Test #233: tier_policy_score_test .......................   Passed    0.00 sec
+      Start 251: verify_ecap_test
+31/34 Test #251: verify_ecap_test .............................   Passed    0.05 sec
+      Start 252: miss_budget_test
+32/34 Test #252: miss_budget_test .............................   Passed    0.01 sec
+      Start 330: pool_micro_parity_test
+33/34 Test #330: pool_micro_parity_test .......................   Passed    0.34 sec
+      Start 331: iq_own1_parity_test
+34/34 Test #331: iq_own1_parity_test ..........................   Passed    0.50 sec
+
+100% tests passed, 0 tests failed out of 34
+
+Label Time Summary:
+cpu    =   1.10 sec*proc (27 tests)
+gpu    =  11.19 sec*proc (7 tests)
+
+Total Test time (real) =  12.31 sec

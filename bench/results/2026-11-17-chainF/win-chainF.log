@@ -1,0 +1,14 @@
+START 2026-11-16_21:57:50
+START 2026-11-16_22:10:41
+START 2026-11-16_23:59:42
+START 2026-11-17_00:43:13
+chain 15 done and stage ready 03:03:13
+service stopped (idle) 03:06:16
+stage applied: 165 files
+BUILD build-win 03:09:17
+BUILD_END exit=0 03:12:56
+CTEST fixes exit=0 100% tests passed, 0 tests failed out of 34
+CTEST cpu exit=0 100% tests passed, 0 tests failed out of 197
+START 119-pf-combine-write-alone 2026-11-17_03:22:45
+END 119-pf-combine-write-alone exit=1 03:25:33
+START 118-f16-var-bm 2026-11-17_03:28:33

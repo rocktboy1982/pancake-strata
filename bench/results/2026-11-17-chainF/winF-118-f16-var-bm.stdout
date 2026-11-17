@@ -1,0 +1,5 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 f16                  long1k 88.1/627p 1031t short 115.7 short 111.2 edit 168.2 edit 187.2  foreign CPU 2% [('localsearch-3', 1), ('systemd-journal', 0), ('systemd', 0)]  gpu 2047/1249 MHz 56C 171W gtt 21M cpu 4064MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
