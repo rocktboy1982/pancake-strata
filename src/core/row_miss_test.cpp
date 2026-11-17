@@ -198,6 +198,9 @@ int main() {
         check(b[off] == 2, "record 6: the second window follows, with no record 6 (no target call)");
         std::remove(path.c_str());
     }
+#if defined(_WIN32)
+    std::puts("row_miss_test: part 4 (A53, fake sysfs trees named like 0000:12:00.0) skipped: a colon is not valid in a Windows folder name");
+#else
     {   // 4. A53: the IOMMU start-up note, on fake sysfs trees
         namespace fs = std::filesystem;
         const fs::path root = fs::path("iommu_note_sys");
@@ -225,6 +228,7 @@ int main() {
         check(strata::platform::iommu_gpu_note((root / "missing").string()).empty(), "A53: no sysfs gives no note");
         fs::remove_all(root);
     }
+#endif
     if (g_fail == 0) std::printf("row_miss_test: all passed\n");
     return g_fail == 0 ? 0 : 1;
 }
