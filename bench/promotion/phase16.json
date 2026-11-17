@@ -442,7 +442,6 @@
    "arms": [
     "coupled",
     "gumbel",
-    "f6-dt100",
     "f6-dt050",
     "f6-min07"
    ],
