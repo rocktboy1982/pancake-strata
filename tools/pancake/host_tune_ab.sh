@@ -93,6 +93,10 @@ drop_caches() { run sync; if [ "$DRY" = 1 ]; then say "[dry-run] echo 3 | sudo t
 
 coldload() {   # $1 = tag: three cold starts (page cache dropped before each); load_time.py prints start seconds and the load line
   tag=$1
+  # 2026-11-17 (chain H): the first cold start ran the Strata-win build-hip engine, which never became ready (start_s n/a after 600 s), its
+  # server was left running on port 8080 (orphan) and every later start died with 'port 8080 is already in use', while this runner kept waiting
+  # for no `strata --serve`.  Off by default now; AB_COLDLOAD=1 enables it (make sure the engine in the config starts first).
+  if [ "${AB_COLDLOAD:-0}" != 1 ]; then say "cold pack load: $tag skipped (AB_COLDLOAD=1 enables it)"; return 0; fi
   say "cold pack load: $tag (3 starts)"
   for i in 1 2 3; do
     drop_caches
