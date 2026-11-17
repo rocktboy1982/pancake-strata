@@ -1,0 +1,70 @@
+WARNING: 1-minute load average is 2.65 (> 2.0); other work is running, so the timings are not clean
+B turn 1: prompt 3632, reused 0, read 3632, TTFT 4.054 s
+B turn 2: prompt 6958, reused 3695, read 3263, TTFT 3.611 s
+B turn 3: prompt 11389, reused 7021, read 4368, TTFT 3.673 s
+C side request after turn 3: prompt 164, reused 0, TTFT 1.008 s
+B turn 4: prompt 14424, reused 11452, read 2972, TTFT 3.312 s
+B turn 5: prompt 17679, reused 14487, read 3192, TTFT 3.296 s
+C sub-agent turn 1: prompt 3618, reused 0, TTFT 3.741 s
+C sub-agent turn 2: prompt 6142, reused 3649, TTFT 2.942 s
+B turn 6: prompt 20978, reused 17742, read 3236, TTFT 3.254 s
+C side request after turn 6: prompt 164, reused 0, TTFT 0.914 s
+B turn 7: prompt 24872, reused 21039, read 3833, TTFT 3.721 s
+B turn 8: prompt 28328, reused 24918, read 3410, TTFT 3.459 s
+B turn 9: prompt 31942, reused 28390, read 3552, TTFT 3.525 s
+B turn 10: prompt 33463, reused 31992, read 1471, TTFT 2.07 s
+B turn 1: prompt 3635, reused 0, read 3635, TTFT 2.946 s
+B turn 2: prompt 6961, reused 3698, read 3263, TTFT 2.434 s
+B turn 3: prompt 11392, reused 7024, read 4368, TTFT 2.815 s
+C side request after turn 3: prompt 166, reused 0, TTFT 0.899 s
+B turn 4: prompt 14427, reused 11455, read 2972, TTFT 2.347 s
+B turn 5: prompt 17673, reused 14482, read 3191, TTFT 2.382 s
+C sub-agent turn 1: prompt 3617, reused 0, TTFT 2.845 s
+C sub-agent turn 2: prompt 6141, reused 3648, TTFT 2.077 s
+B turn 6: prompt 20960, reused 17725, read 3235, TTFT 2.475 s
+C side request after turn 6: prompt 166, reused 0, TTFT 0.958 s
+B turn 7: prompt 24857, reused 21023, read 3834, TTFT 2.824 s
+B turn 8: prompt 28294, reused 24884, read 3410, TTFT 2.542 s
+B turn 9: prompt 31890, reused 28338, read 3552, TTFT 2.62 s
+B turn 10: prompt 33396, reused 31925, read 1471, TTFT 1.59 s
+B turn 1: prompt 3635, reused 0, read 3635, TTFT 2.971 s
+B turn 2: prompt 6961, reused 3698, read 3263, TTFT 2.44 s
+B turn 3: prompt 11392, reused 7024, read 4368, TTFT 2.822 s
+C side request after turn 3: prompt 165, reused 0, TTFT 0.881 s
+B turn 4: prompt 14418, reused 11447, read 2971, TTFT 2.339 s
+B turn 5: prompt 17672, reused 14481, read 3191, TTFT 2.385 s
+C sub-agent turn 1: prompt 3617, reused 0, TTFT 2.8 s
+C sub-agent turn 2: prompt 6141, reused 3648, TTFT 2.074 s
+B turn 6: prompt 20960, reused 17725, read 3235, TTFT 2.464 s
+C side request after turn 6: prompt 163, reused 0, TTFT 0.867 s
+B turn 7: prompt 24810, reused 20977, read 3833, TTFT 2.787 s
+B turn 8: prompt 28254, reused 24844, read 3410, TTFT 2.545 s
+B turn 9: prompt 31839, reused 28287, read 3552, TTFT 2.615 s
+B turn 10: prompt 33331, reused 31860, read 1471, TTFT 1.578 s
+
+TTFT bench: m2  (http://127.0.0.1:11502, model qwen3.8-flash-next-iq2_xs, think off)
+load average 1 min: start 2.65, end 5.38  WARNING: above 2.0, the numbers are not clean
+
+C. session with side requests: 10 turns x about 1500 words, side requests after turn(s) 3,6 (1 message(s), 60 words), sub-agent switch after turn 5 for 2 turns; 3 session(s)
+turn  after   prompt   reused     read  re-read  reuse %   TTFT s
+   1      -     3635        0     3635        -      0.0     2.97
+   2      -     6961     3698     3263        1     53.1     2.44
+   3      -    11392     7024     4368        1     61.7     2.82
+   4   side    14424    11452     2972        1     79.4     2.35
+   5      -    17673    14482     3191        1     81.9     2.38
+   6 switch    20960    17725     3235        1     84.6     2.48
+   7   side    24857    21023     3833        1     84.6     2.82
+   8      -    28294    24884     3410        1     87.9     2.54
+   9      -    31890    28338     3552        1     88.9     2.62
+  10      -    33396    31925     1471        1     95.6     1.59
+total TTFT over the main turns (median of 3 complete): 24.98 s
+  turns 2+ plain        n=18: median TTFT 2.58 s, read 3336, re-read 1 tokens
+  turns 2+ after_side   n= 6: median TTFT 2.81 s, read 3402, re-read 1 tokens
+  turns 2+ after_switch n= 3: median TTFT 2.48 s, read 3235, re-read 1 tokens
+  side requests: n=6 median TTFT 0.91 s; sub-agent turns: n=6 median TTFT 2.82 s; failed 0
+
+engine log lines attached per request (--prefill-timing-log; the prefill breakdown needs STRATA_PREFILL_TIMING=1)
+  no 'strata prefill timing' line found in the log lines added during the requests: was the engine started with STRATA_PREFILL_TIMING=1, and is this the file its stderr goes to?
+  over 42 requests: 0 prefill timing line(s), 0 park(s), 0 skipped park(s), 0 restore(s); full lines are in the JSON (engine_log per request)
+
+written: /home/dan/auto-runs/win9-ttft-m2.json

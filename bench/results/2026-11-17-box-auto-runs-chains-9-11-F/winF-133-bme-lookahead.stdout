@@ -1,0 +1,52 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 120.6 short 112.4 edit 171.8 edit 193.0  foreign CPU 2% [('claude', 1), ('systemd-journal', 0), ('dbus-daemon', 0)]  gpu 2024/1249 MHz 55C 160W gtt 21M cpu 3871MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread              short 116.8 short 108.1 edit 164.6 edit 188.9  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 1867/1249 MHz 54C 149W gtt 21M cpu 3761MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread-prev1        short 117.0 short 105.3 edit 165.6 edit 188.8  foreign CPU 3% [('udisksd', 2), ('localsearch-3', 1), ('kcompactd0', 0)]  gpu 1934/1249 MHz 54C 154W gtt 21M cpu 3884MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread-prev2        short 117.3 short 108.3 edit 159.9 edit 189.2  foreign CPU 2% [('kworker/11:2-events_freezable', 2), ('localsearch-3', 1), ('kworker/u65:14-KFD IH', 1)]  gpu 1873/1249 MHz 54C 148W gtt 21M cpu 3827MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 preread-prev4        short 117.2 short 107.9 edit 165.5 edit 189.1  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 1857/1249 MHz 54C 149W gtt 21M cpu 3785MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 86.1 short 114.7 edit 129.7 edit 185.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:6-ttm', 1)]  gpu 1930/1249 MHz 53C 157W gtt 21M cpu 3486MHz 48C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.5 +-  52.1  (n=2)
+                              drafts accepted 0.72
+  short  preread                 112.4 +-  55.3  (n=2)   vs base:  -3.5% +-  2.7%  -> worse
+                              drafts accepted 0.72
+  short  preread-prev1           111.2 +-  74.4  (n=2)   vs base:  -4.6% +- 19.1%  -> no difference
+                              drafts accepted 0.72
+  short  preread-prev2           112.8 +-  57.2  (n=2)   vs base:  -3.2% +-  4.4%  -> no difference
+                              drafts accepted 0.72
+  short  preread-prev4           112.6 +-  59.1  (n=2)   vs base:  -3.4% +-  6.0%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               100.4 +- 181.8  (n=2)   vs base: -13.8% +- 200.7%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    182.4 +- 134.7  (n=2)
+                              drafts accepted 0.90
+  edit   preread                 176.8 +- 154.4  (n=2)   vs base:  -3.1% +- 10.8%  -> no difference
+                              drafts accepted 0.90
+  edit   preread-prev1           177.2 +- 147.4  (n=2)   vs base:  -2.9% +-  7.0%  -> no difference
+                              drafts accepted 0.90
+  edit   preread-prev2           174.6 +- 186.2  (n=2)   vs base:  -4.3% +- 28.2%  -> no difference
+                              drafts accepted 0.90
+  edit   preread-prev4           177.3 +- 150.0  (n=2)   vs base:  -2.8% +-  8.4%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               157.8 +- 356.5  (n=2)   vs base: -13.5% +- 121.6%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  preread              identical on every case -> exact
+  preread-prev1        identical on every case -> exact
+  preread-prev2        identical on every case -> exact
+  preread-prev4        identical on every case -> exact
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -13.8%  edit -13.5%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  preread              short +3.7%  edit +3.9%  -> PROMOTE to confirm
+  preread-prev1        short +2.5%  edit +4.2%  -> PROMOTE to confirm
+  preread-prev2        short +4.0%  edit +2.6%  -> PROMOTE to confirm
+  preread-prev4        short +3.8%  edit +4.2%  -> PROMOTE to confirm

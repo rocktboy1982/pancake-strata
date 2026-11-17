@@ -1,0 +1,52 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 121.3 short 112.5 edit 169.7 edit 193.1  foreign CPU 2% [('localsearch-3', 1), ('kworker/u65:5-ttm', 1), ('2.1.325', 1)]  gpu 2019/1249 MHz 55C 159W gtt 21M cpu 3802MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 prior-0.5            short 108.6 short 111.9 edit 148.9 edit 154.8  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2054/1249 MHz 55C 168W gtt 21M cpu 3904MHz 47C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 range-0.05           short 108.8 short 92.2 edit 123.2 edit 134.8  foreign CPU 2% [('kworker/u65:3-ttm', 1), ('dbus-daemon', 0), ('localsearch-3', 0)]  gpu 2061/1249 MHz 54C 148W gtt 21M cpu 3370MHz 47C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 range-0.15           short 109.3 short 105.9 edit 176.2 edit 195.4  foreign CPU 2% [('claude', 1), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 1786/1249 MHz 55C 154W gtt 21M cpu 3504MHz 47C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 range-0.30           short 112.2 short 117.1 edit 142.0 edit 184.4  foreign CPU 2% [('claude', 1), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 2018/1249 MHz 54C 148W gtt 21M cpu 3500MHz 45C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 121.0 short 112.4 edit 170.9 edit 193.3  foreign CPU 2% [('claude', 1), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 2022/1249 MHz 54C 159W gtt 21M cpu 4131MHz 49C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.9 +-  55.9  (n=2)
+                              drafts accepted 0.72
+  short  prior-0.5               110.2 +-  21.0  (n=2)   vs base:  -5.7% +- 65.8%  -> no difference
+                              drafts accepted 0.69
+  short  range-0.05              100.5 +- 105.5  (n=2)   vs base: -14.0% +- 42.4%  -> no difference
+                              drafts accepted 0.70
+  short  range-0.15              107.6 +-  21.6  (n=2)   vs base:  -8.0% +- 29.4%  -> no difference
+                              drafts accepted 0.68
+  short  range-0.30              114.7 +-  31.1  (n=2)   vs base:  -1.9% +- 74.5%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               116.7 +-  54.7  (n=2)   vs base:  -0.2% +-  1.1%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    181.4 +- 148.7  (n=2)
+                              drafts accepted 0.90
+  edit   prior-0.5               151.9 +-  37.5  (n=2)   vs base: -16.3% +- 61.3%  -> no difference
+                              drafts accepted 0.94
+  edit   range-0.05              129.0 +-  73.7  (n=2)   vs base: -28.9% +- 41.3%  -> no difference
+                              drafts accepted 0.87
+  edit   range-0.15              185.8 +- 122.0  (n=2)   vs base:  +2.4% +- 14.7%  -> no difference
+                              drafts accepted 0.92
+  edit   range-0.30              163.2 +- 269.5  (n=2)   vs base: -10.0% +- 66.6%  -> no difference
+                              drafts accepted 0.91
+  edit   base-late               182.1 +- 142.4  (n=2)   vs base:  +0.4% +-  3.5%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  prior-0.5            DIFFERENT text -> lossy or placement-dependent: quality gate
+  range-0.05           DIFFERENT text -> lossy or placement-dependent: quality gate
+  range-0.15           DIFFERENT text -> lossy or placement-dependent: quality gate
+  range-0.30           DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.2%  edit +0.4%
+  prior-0.5            short -5.6%  edit -16.5%  -> drop
+  range-0.05           short -14.0%  edit -29.0%  -> drop
+  range-0.15           short -7.9%  edit +2.2%  -> drop
+  range-0.30           short -1.8%  edit -10.2%  -> drop

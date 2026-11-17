@@ -1,0 +1,32 @@
+rep 0 base                 short 115.4 short 115.2 edit 175.2 edit 190.9  foreign CPU 3% [('claude', 3), ('gnome-shell', 1), ('ptyxis', 1)]  gpu 2018/1249 MHz 56C 168W gtt 21M cpu 3895MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 hf-build             short 121.2 short 112.4 edit 169.3 edit 193.4  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('kworker/u65:11-KFD IH', 0)]  gpu 2020/1249 MHz 55C 159W gtt 21M cpu 3799MHz 49C igpu 0%/vcn 0% fclk 1600
+rep 0 head-argmax-fused    short 117.2 short 108.2 edit 167.5 edit 189.7  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-oomd', 0)]  gpu 2053/1249 MHz 54C 156W gtt 21M cpu 3911MHz 50C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 118.1 short 109.1 edit 168.3 edit 193.5  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 2052/1249 MHz 54C 159W gtt 21M cpu 3930MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    115.3 +-   1.3  (n=2)
+                              drafts accepted 0.72
+  short  hf-build                116.8 +-  55.9  (n=2)   vs base:  +1.3% +- 47.4%  -> no difference
+                              drafts accepted 0.72
+  short  head-argmax-fused       112.7 +-  57.2  (n=2)   vs base:  -2.3% +- 48.5%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               113.6 +-  57.2  (n=2)   vs base:  -1.5% +- 48.5%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    183.1 +-  99.8  (n=2)
+                              drafts accepted 0.90
+  edit   hf-build                181.4 +- 153.2  (n=2)   vs base:  -0.9% +- 29.2%  -> no difference
+                              drafts accepted 0.90
+  edit   head-argmax-fused       178.6 +- 141.1  (n=2)   vs base:  -2.4% +- 22.6%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               180.9 +- 160.1  (n=2)   vs base:  -1.2% +- 33.0%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  hf-build             DIFFERENT text -> lossy or placement-dependent: quality gate
+  head-argmax-fused    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -1.5%  edit -1.2%
+  hf-build             short +2.1%  edit -0.3%  -> PROMOTE to confirm
+  head-argmax-fused    short -1.5%  edit -1.9%  -> drop
