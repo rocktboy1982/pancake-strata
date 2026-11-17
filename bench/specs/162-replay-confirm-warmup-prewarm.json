@@ -1,0 +1,36 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short"
+ ],
+ "reps": 5,
+ "arms": {
+  "preset": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "warmup-replay": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_WARMUP_REPLAY": "1"
+   }
+  },
+  "tool-idle-prewarm": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_TOOL_IDLE_PREWARM": "1"
+   }
+  }
+ },
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+  "arms": [
+   "preset",
+   "warmup-replay",
+   "tool-idle-prewarm"
+  ],
+  "reps": 5
+ },
+ "note": "Confirm of the two replay arms of spec 110 that pointed faster (T-818, 3 reps, intervals spanning 0 because the preset's own reps spread 15%): `STRATA_WARMUP_REPLAY=1` (-11.1% +-20.7 total prompt time) and `STRATA_TOOL_IDLE_PREWARM=1` (-6.3% +-7.4), against the preset, on the same live replay of the 2026-11-09 16:13-16:43 agent session, 5 reps. Run: python3 tools/pancake/replay_turns.py bench/specs/162-replay-confirm-warmup-prewarm.json --out /home/dan/auto-runs/winR-162 (about 13 min per arm and rep, 3 arms x 5 reps = about 3.3 h). Adopt only at >= 2% total prompt time end to end with a resolved interval."
+}
