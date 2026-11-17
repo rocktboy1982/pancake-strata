@@ -1,0 +1,12 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": ["short", "edit"],
+  "reps": 3,
+  "arms": {
+    "base": {},
+    "lanecell": {"env": {"STRATA_ATTN_LANECELL": "1"}},
+    "lanecell-w12": {"env": {"STRATA_ATTN_LANECELL": "1", "STRATA_ATTN_LANECELL_W12": "1"}}
+  },
+  "note": "LEADS.md Part L lead L7 (SILVERTHRONE32/llama.cpp-rdna3-int4, MIT): STRATA_ATTN_LANECELL_W12=1 runs the lane-cell chunk kernels of src/kernels/cuda/qsa_decode_attn.cu under amdgpu_waves_per_eu(12). Compile-only evidence (hip_resources.py, ROCm 6.2 clang, gfx1100, nothing run on a GPU): the lane-cell kernels use 124-126 VGPRs = 10 waves per SIMD, 4-6 above the 12-wave step at 120; with the attribute KV modes 1-3 land at 109-110 VGPRs, 12 waves, no spill (KV mode 0 spills 32 bytes a lane and stays on the plain kernel). Allocation only, so output is bit for bit STRATA_ATTN_LANECELL's: judge lanecell-w12 AGAINST lanecell (base shows whether LANECELL itself acts, spec 87 screened it PROMOTE, T-612), exact text. The switch only acts where the daily decode runs the QSA chunk kernels (attn_chunk_kernel via qsa_decode_attn_batch / _slots); check the engine log shows them, else the arm is inert. The attention part is under 1 percent of the window in the author's 27B profile (0.7%), so expect a result inside noise: it is run because the owner rule is test, not judge (AGENTS.md rule 8). Stop pancake.service first."
+}

@@ -69,7 +69,7 @@ int main() {
     CHECK(f1 >= f0 + 8 * G);   // 7 + 2 chunks went back (the driver may round)
     CHECK(cudaGetLastError() == cudaSuccess);
 
-    // STRATA_VMM_ZERO_BACK=1 (LEADS.md Part L lead L6, kvcached's zero page): unmapped chunks read zeros through one shared
+    // STRATA_VMM_ZERO_BACK=1 (LEADS.md Part N lead N6, kvcached's zero page): unmapped chunks read zeros through one shared
     // read-only chunk, a real chunk mapped over one hides it, and an unmapped chunk reads zeros again (never the bytes the
     // real chunk held).  Needs the same memory as a plain range (one extra chunk).
 #ifdef _WIN32

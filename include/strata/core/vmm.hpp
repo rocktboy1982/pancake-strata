@@ -40,7 +40,7 @@ public:
     template <class Take> bool map_range(int64_t lo, int64_t hi, Take take);
     /// Unmaps chunk i and hands back its physical chunk (0 when it was not mapped).
     VmmChunk unmap(int64_t i);
-    /// STRATA_VMM_ZERO_BACK=1 when reserve() ran (kvcached's `FTensor::init_with_zero_`, LEADS.md Part L, lead L6): every chunk
+    /// STRATA_VMM_ZERO_BACK=1 when reserve() ran (kvcached's `FTensor::init_with_zero_`, LEADS.md Part N, lead N6): every chunk
     /// that holds no physical memory of its own is mapped, read-only, to ONE shared zero-filled chunk, so a kernel that reads
     /// beyond the grown cells sees zeros instead of faulting the GPU.  mapped() and mapped_count() count real chunks only.
     bool zero_backed() const { return zero_ != 0; }

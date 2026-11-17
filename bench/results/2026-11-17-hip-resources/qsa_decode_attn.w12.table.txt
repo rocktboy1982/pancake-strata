@@ -1,0 +1,43 @@
+kernel                                                        VGPR  SGPR scratch    LDS occ model  flags
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi1ELb1E   126    41       0  15872  10    10  CLIFF -6 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi   126    41       0  15872  10    10  CLIFF -6 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi0ELb1E   125    38       0  15872  10    10  CLIFF -5 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi3ELb1E   125    40       0  15872  10    10  CLIFF -5 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi   125    38       0  15872  10    10  CLIFF -5 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi   125    40       0  15872  10    10  CLIFF -5 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi2ELb1E   124    38       0  15872  10    10  CLIFF -4 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi   124    38       0  15872  10    10  CLIFF -4 VGPR -> 12 waves
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_lc12_kernelILi0   120    38      32  15872  12    12  SPILL
+_ZN6strata7kernels12_GLOBAL__N_128attn_chunk_slots_lc12_kern   120    38      32  15872  12    12  SPILL
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_lc12_kernelILi1   110    41       0  15872  12    12  
+_ZN6strata7kernels12_GLOBAL__N_128attn_chunk_slots_lc12_kern   110    41       0  15872  12    12  
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_lc12_kernelILi2   109    38       0  15872  12    12  
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_lc12_kernelILi3   109    40       0  15872  12    12  
+_ZN6strata7kernels12_GLOBAL__N_128attn_chunk_slots_lc12_kern   109    38       0  15872  12    12  
+_ZN6strata7kernels12_GLOBAL__N_128attn_chunk_slots_lc12_kern   109    40       0  15872  12    12  
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi1ELb0E    72    44       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_window_kernelIL    46    40       0  31744   8    16  held by LDS/launch bounds
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_window_kernelIL    46    46       0  31744   8    16  held by LDS/launch bounds
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_window_kernelIL    46    42       0  31744   8    16  held by LDS/launch bounds
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_window_kernelIL    44    38       0  31744   8    16  held by LDS/launch bounds
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi1ELb0E    39    44       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_120attn_merge_v2_kernelILi16E    39    64       0      0  16    16  
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi1ELb0E    38    44       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi3ELb0E    38    50       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_rows_kernelILi1    38    42       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_rows_kernelILi3    38    50       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi    38    42       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi    38    50       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_qmajor_kernelIL    38    44       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_qmajor_kernelIL    38    50       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi0ELb0E    36    40       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_rows_kernelILi0    36    38       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi    36    38       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_qmajor_kernelIL    36    40       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_117attn_chunk_kernelILi2ELb0E    34    50       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_122attn_chunk_rows_kernelILi2    34    50       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_123attn_chunk_slots_kernelILi    34    50       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_124attn_chunk_qmajor_kernelIL    34    38       0  15872  16    16  
+_ZN6strata7kernels12_GLOBAL__N_117attn_merge_kernelEPKfS3_S3     9    26       0      0  16    16  
+_ZN6strata7kernels12_GLOBAL__N_123attn_merge_bound_kernelEPK     9    26       0      0  16    16  
+41 kernels: occupancy model agrees on 37, held lower by another limit on 4, contradicted on 0; 2 with spills; 8 within 8 VGPRs of a step

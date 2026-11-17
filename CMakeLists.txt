@@ -3546,6 +3546,13 @@ if(STRATA_BUILD_PROBES)
     add_executable(empty_grid_probe EXCLUDE_FROM_ALL tools/pancake/probes/empty_grid.hip.cpp)
     set_source_files_properties(tools/pancake/probes/empty_grid.hip.cpp PROPERTIES LANGUAGE HIP)
     target_link_libraries(empty_grid_probe PRIVATE strata_hip_runtime)
+    add_executable(wmma_rate_probe EXCLUDE_FROM_ALL tools/pancake/probes/wmma_rate.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/wmma_rate.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(wmma_rate_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L2: f16 / iu8 / iu4 WMMA rate, needs a gfx11 GPU
+    add_executable(int4_wmma_probe EXCLUDE_FROM_ALL tools/pancake/probes/int4_wmma.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/int4_wmma.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_include_directories(int4_wmma_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(int4_wmma_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L3: rotated-INT4 iu4 GEMM parity + bench, needs a gfx11 GPU
   endif()
 endif()
 
@@ -3607,6 +3614,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(iq_sign_fast_test tests/core/iq_sign_fast_test.cpp)
   target_include_directories(iq_sign_fast_test PRIVATE include third_party/ggml)
   add_test(NAME iq_sign_fast_test COMMAND iq_sign_fast_test)
+  # LEADS.md Part L L1 / L3: host reference of the rotated-INT4 pipeline (rotation, A8 / A4 codes, int4 GEMM), synthetic, header only
+  add_executable(int4_rot_test src/kernels/cpu/int4_rot_test.cpp)
+  target_include_directories(int4_rot_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  add_test(NAME int4_rot_test COMMAND int4_rot_test)
 
   if(STRATA_NATIVE_EXPERTS)
     # APR port: a Hadamard-folded trellis expert (TQ2_T / TQK6 / TQK7) on the CPU path vs llama.cpp's graph for the
@@ -4032,7 +4043,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test pool_tasks_test_row_split pool_tasks_test_fuse_row_split pool_tasks_test_defer_actq router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_r4_parity iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test iq_own1_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
+    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test iq_own1_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test int4_rot_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_test_entropy pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test

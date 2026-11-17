@@ -318,6 +318,36 @@ __global__ void __launch_bounds__(THREADS) attn_chunk_slots_kernel(const float* 
                                                       part_acc, part_m, part_l, n_chunks, cap, scratch_stride);
 }
 
+// LEADS.md Part L (L7, SILVERTHRONE32/llama.cpp-rdna3-int4, MIT: "every variant of the rotation matvec that went from 112 to 128
+// VGPRs lost 1-5%"): STRATA_ATTN_LANECELL_W12=1 (opt-in, bitwise) runs the lane-cell chunk kernels under
+// amdgpu_waves_per_eu(12).  Their VGPR counts are 124-126 (tools/pancake/hip_resources.py on this file for gfx1100: occupancy 10 waves
+// per SIMD, 4-6 VGPRs above the 12-wave step at 120); the attribute makes the register allocator fit the step.  Only the allocation
+// changes, so the output is bit for bit attn_chunk_kernel<KV_MODE, true>'s; if the allocator spills to get there the report of
+// hip_resources.py shows SPILL and the switch is not worth running.  HIP only (the attribute is AMDGPU's); on CUDA the two kernels
+// are the same code.  KV mode 0 (f16 / f32 pools) is left on the plain kernel: at 12 waves it spills 32 bytes a lane (hip_resources.py).
+#if defined(__HIPCC__)
+#define STRATA_WAVES12 __attribute__((amdgpu_waves_per_eu(12)))
+#else
+#define STRATA_WAVES12
+#endif
+template <int KV_MODE>
+__global__ void __launch_bounds__(THREADS) STRATA_WAVES12 attn_chunk_lc12_kernel(
+    const float* __restrict__ q, QsaAttnPools p, const int32_t* __restrict__ ids, const int32_t* __restrict__ step,
+    int n_kv_heads, int page_size, float scale, float* __restrict__ part_acc, float* __restrict__ part_m,
+    float* __restrict__ part_l, int n_chunks, int cap = 0, long long scratch_stride = 0) {
+    attn_chunk_body<KV_MODE, true, false, false>(q, p, ids, step, n_kv_heads, page_size, scale, part_acc, part_m, part_l,
+                                                 n_chunks, cap, scratch_stride);
+}
+
+template <int KV_MODE>
+__global__ void __launch_bounds__(THREADS) STRATA_WAVES12 attn_chunk_slots_lc12_kernel(
+    const float* __restrict__ q, QsaAttnSlotPools ps, const int32_t* __restrict__ ids, const int32_t* __restrict__ step,
+    int n_kv_heads, int page_size, float scale, float* __restrict__ part_acc, float* __restrict__ part_m,
+    float* __restrict__ part_l, int n_chunks, int cap, long long scratch_stride) {
+    attn_chunk_body<KV_MODE, true, false, false>(q, ps.p[blockIdx.z], ids, step, n_kv_heads, page_size, scale, part_acc,
+                                                 part_m, part_l, n_chunks, cap, scratch_stride);
+}
+
 // Batch windows: query blockIdx.z attends over its own slot's pools (rows.p[z]); the default kernel otherwise.
 template <int KV_MODE>
 __global__ void __launch_bounds__(THREADS) attn_chunk_rows_kernel(const float* __restrict__ q, QsaAttnPoolsRows rows,
@@ -1194,6 +1224,12 @@ int pre75_nc() {
 #define STRATA_ATTN_CHUNK(M) attn_chunk_kernel<M>
 #endif
 
+// STRATA_ATTN_LANECELL_W12=1: the lane-cell chunk kernels under amdgpu_waves_per_eu(12) (attn_chunk_lc12_kernel); only with LANECELL
+bool lane_cell_w12() {
+    static const bool on = [] { const char* v = std::getenv("STRATA_ATTN_LANECELL_W12"); return v && v[0] == '1'; }();
+    return on;
+}
+
 // S25: STRATA_ATTN_LANECELL=1 - the score phase one cell per thread (bit-identical scores, no shuffle reductions)
 bool lane_cell_attn() {
     static const bool on = [] { const char* v = std::getenv("STRATA_ATTN_LANECELL"); return v && v[0] == '1'; }();
@@ -1337,7 +1373,7 @@ void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_
             return;
         }
     }
-#define STRATA_ATTN_LC(M) attn_chunk_kernel<M, true><<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
+#define STRATA_ATTN_LC(M) ((lane_cell_w12() && (M) != 0) ? attn_chunk_lc12_kernel<M> : attn_chunk_kernel<M, true>)<<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
     if (lane_cell) {
         if (kv_mode == 3) STRATA_ATTN_LC(3);
         else if (kv_mode == 2) STRATA_ATTN_LC(2);
@@ -1466,7 +1502,7 @@ bool qsa_decode_attn_slots(const float* q, const QsaAttnSlotPools& pools, const 
     const float scale = 1.0f / sqrtf((float) HD);
     const dim3 grid((unsigned) n_chunks, (unsigned) s.n_head_kv, (unsigned) n_q);
     cudaStream_t st = (cudaStream_t) stream;
-#define STRATA_ATTN_SLOTS(M, LC) attn_chunk_slots_kernel<M, LC><<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
+#define STRATA_ATTN_SLOTS(M, LC) (((LC) && lane_cell_w12() && (M) != 0) ? attn_chunk_slots_lc12_kernel<M> : attn_chunk_slots_kernel<M, LC>)<<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
     if (lane_cell) {
         if (kv_mode == 3) STRATA_ATTN_SLOTS(3, true);
         else if (kv_mode == 2) STRATA_ATTN_SLOTS(2, true);

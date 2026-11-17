@@ -13,7 +13,7 @@
 //      the same through both;
 //   6. a device-to-device copy over a mapped range runs as fast as over a hipMalloc range (the question kvcached's
 //      layout study raised: a mapped range of 2 MiB chunks must not cost attention reads).
-// The idea list comes from ovg-project/kvcached (Apache-2.0, LEADS.md Part L); this file is our own code from the API.
+// The idea list comes from ovg-project/kvcached (Apache-2.0, LEADS.md Part N); this file is our own code from the API.
 //
 // Build:  hipcc -O2 -std=c++17 tools/pancake/vmm_probe.cpp -o vmm_probe          (any ROCm 6+; add --offload-arch=gfx1100)
 // Run:    ./vmm_probe [chunks=64] [copy_mib=512]
