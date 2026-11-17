@@ -16,10 +16,11 @@ class Fake:
     'none' (usage without any reuse field).  A prefix cache over whitespace tokens, one slot."""
 
     def __init__(self, style="strata", first_delay=0.05, tail_delay=0.2, slow_first=0.0, max_prompt=None, tokens_per_word=1.0,
-                 log_path=None, per_token=0.0):
+                 log_path=None, per_token=0.0, empty_requests=()):
         self.style, self.first_delay, self.tail_delay = style, first_delay, tail_delay
         self.slow_first, self.max_prompt, self.tpw = slow_first, max_prompt, tokens_per_word
         self.requests, self.bodies, self.prev = 0, [], []
+        self.empty_requests = set(empty_requests)    # request numbers answered with no content token at all (a one-token reply)
         self.per_token = per_token    # extra seconds before the first token per token read (a known slope)
         self.log_path = log_path     # an engine log the fake appends to, the way the engine prints while serving
         self.lock = threading.Lock()
@@ -79,9 +80,12 @@ class Fake:
                     self.wfile.flush()
                 send({"choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}}]})   # must not count as a token
                 time.sleep((fake.slow_first if n == 1 and fake.slow_first else fake.first_delay) + fake.per_token * (n_prompt - cached))
-                send({"choices": [{"index": 0, "delta": {"content": "ok"}}]})
-                time.sleep(fake.tail_delay)
-                send({"choices": [{"index": 0, "delta": {"content": " done"}, "finish_reason": "stop"}]})
+                if n in fake.empty_requests:
+                    send({"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
+                else:
+                    send({"choices": [{"index": 0, "delta": {"content": "ok"}}]})
+                    time.sleep(fake.tail_delay)
+                    send({"choices": [{"index": 0, "delta": {"content": " done"}, "finish_reason": "stop"}]})
                 usage = {"prompt_tokens": n_prompt, "completion_tokens": 2, "total_tokens": n_prompt + 2}
                 last = {"choices": [], "usage": usage}
                 if fake.style == "strata":
@@ -482,6 +486,44 @@ def test_scenario_e_sizes_repeats_order_and_unique_content():
     per = e["summary"]["per_delta"]
     assert [p["delta"] for p in per] == [50, 100, 300] and all(p["n"] == 3 for p in per)
     assert e["summary"]["fit_ge_1000"] is None and e["summary"]["fit_all"] is not None
+
+
+def test_scenario_e_delta_asks_for_a_real_reply_unless_min_reply_is_off():
+    for min_reply, want, other in ((True, T.REPLY_MIN, T.REPLY_ONE_WORD), (False, T.REPLY_ONE_WORD, T.REPLY_MIN)):
+        f = Fake(first_delay=0.0, tail_delay=0.0)
+        try:
+            e = T.run_e(client(f), 400, [50], 2, 1.0, 16, 4, log=quiet, min_reply=min_reply)
+        finally:
+            f.close()
+        deltas = [b["messages"][-1]["content"] for b in f.bodies[1:]]
+        assert len(deltas) == 2 and all(d.endswith("\n" + want) and other not in d for d in deltas)
+        assert e["min_reply"] is min_reply and e["empty_replies"] == 0
+    assert T.REPLY_MIN == "Answer in at least two full sentences."
+    assert T.build_parser().parse_args([]).min_reply is True
+    assert T.build_parser().parse_args(["--no-min-reply"]).min_reply is False
+
+
+def test_scenario_e_empty_reply_is_recorded_and_the_sweep_goes_on():
+    f = Fake(first_delay=0.0, tail_delay=0.0, empty_requests={3})      # request 1 is the base, request 3 the second delta
+    try:
+        e = T.run_e(client(f), 400, [50, 100, 200], 2, 1.0, 16, 4, log=quiet)
+    finally:
+        f.close()
+    assert e["status"] == "measured" and e["empty_replies"] == 1
+    assert len(e["rows"]) == 6 and f.requests == 7                       # every delta of every round was sent
+    bad = [r for r in e["rows"] if r.get("empty_reply")]
+    assert [(r["delta_target"], r["repeat"]) for r in bad] == [(100, 1)] and bad[0]["ttft_s"] is None and not bad[0]["ok"]
+    per = {p["delta"]: p["n"] for p in e["summary"]["per_delta"]}
+    assert per == {50: 2, 100: 1, 200: 2}                                # the empty point is left out of the medians
+
+
+def test_scenario_e_other_failures_still_end_the_sweep():
+    f = Fake(first_delay=0.0, tail_delay=0.0, max_prompt=900)
+    try:
+        e = T.run_e(client(f), 700, [50, 1000], 2, 1.0, 16, 3, log=quiet)
+    finally:
+        f.close()
+    assert e["status"].startswith("skipped: context limit") and e["empty_replies"] == 0
 
 
 def test_scenario_e_fit_recovers_floor_and_slope():

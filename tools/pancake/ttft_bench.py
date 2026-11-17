@@ -645,21 +645,30 @@ def linfit(points: list[tuple[float, float]]) -> dict | None:
     return {"n": n, "slope_ms_per_token": rnd(b * 1000, 4), "intercept_s": rnd(my - b * mx, 3)}
 
 
+REPLY_ONE_WORD = "Reply with one word."
+REPLY_MIN = "Answer in at least two full sentences."
+
+
 def run_e(cl: Client, base_tokens: int, deltas: list[int], repeats: int, tpw: float, max_tokens: int, seed: int,
-          log=print) -> dict:
+          log=print, min_reply: bool = True) -> dict:
     """Scenario E, warm-delta sweep (TTFT_LEVERS M5).  One long conversation (about base_tokens) is built once; then, in
     `repeats` rounds, each delta size (ascending) is appended as a new user message with unique content and the reply
     is kept, so every request is the live warm path of an agent turn.  The conversation grows by the deltas and
     replies, so depth drifts upward over rounds (prompt_tokens is recorded per request); a round runs every size once, so
     sizes are compared at nearly the same depth.  new_tokens_est = prompt_tokens - (previous prompt_tokens + previous
-    generated tokens): the new message plus a few chat-template tokens, client-side, valid for every server."""
+    generated tokens): the new message plus a few chat-template tokens, client-side, valid for every server.
+    min_reply (default on; --min-reply / --no-min-reply): every delta ends with "Answer in at least two full sentences."
+    instead of "Reply with one word.", because a one-token reply streamed no content token and aborted the sweep (T-810, T-816).
+    A request that still streams no token is recorded as an empty reply (row flag empty_reply, no TTFT) and the sweep goes on;
+    any other failure, and a context limit, still end it."""
     rng = random.Random(seed)
     nonce = uuid.uuid4().hex[:12]
     words = max(10, round((base_tokens - PROMPT_OVERHEAD_TOKENS) / tpw))
     msgs = [{"role": "system", "content": f"(session {nonce})\n{SYSTEM}"},
             {"role": "user", "content": unique_variant(words, rng)}]
+    instruction = REPLY_MIN if min_reply else REPLY_ONE_WORD
     out: dict = {"base_target_tokens": base_tokens, "deltas": deltas, "repeats": repeats, "max_tokens": max_tokens,
-                 "status": "measured", "base": None, "rows": [],
+                 "status": "measured", "base": None, "rows": [], "min_reply": min_reply, "empty_replies": 0,
                  "note": "new_tokens_est includes a few chat-template tokens; depth grows by the deltas and replies"}
     r, d = tapped(cl, msgs, max_tokens, tools=TOOLS)
     d["words"] = words
@@ -678,12 +687,20 @@ def run_e(cl: Client, base_tokens: int, deltas: list[int], repeats: int, tpw: fl
         for size in deltas:
             w = max(1, round(size / ratio))
             msgs.append({"role": "user", "content": f"Further notes {uuid.UUID(int=rng.getrandbits(128)).hex[:12]}: "
-                                                    f"{random_words(w, rng)}\nReply with one word."})
+                                                    f"{random_words(w, rng)}\n{instruction}"})
             r, d = tapped(cl, msgs, max_tokens, tools=TOOLS)
             d.update(delta_target=size, repeat=rep, words=w)
             if d["prompt_tokens"] is not None and prev_prompt is not None:
                 d["new_tokens_est"] = d["prompt_tokens"] - (prev_prompt + prev_gen)
             out["rows"].append(d)
+            if not d["ok"] and not d["context_limit"] and d["err"] == "no token streamed":
+                d["empty_reply"] = True
+                out["empty_replies"] += 1
+                log(f"E delta {size:>5} repeat {rep}: empty reply (no token streamed), point recorded, sweep goes on")
+                msgs.append({"role": "assistant", "content": r["text"] or "Understood."})
+                if d["prompt_tokens"] is not None:
+                    prev_prompt, prev_gen = d["prompt_tokens"], d["generated_tokens"] or 0
+                continue
             if not d["ok"]:
                 out["status"] = ("skipped: context limit: " if d["context_limit"] else f"failed at delta {size} repeat {rep}: ") \
                     + (d["err"] or "")[:160]
@@ -1030,6 +1047,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--deltas", default=DEFAULT_DELTAS, help="scenario E: new tokens per request (default %(default)s)")
     ap.add_argument("--delta-repeats", type=int, default=3, help="scenario E: repeats of each delta (default 3)")
     ap.add_argument("--delta-max-tokens", type=int, default=16, help="scenario E max_tokens (default 16)")
+    ap.add_argument("--min-reply", action=argparse.BooleanOptionalAction, default=True,
+                    help="scenario E: end each delta with 'Answer in at least two full sentences.' (default on; --no-min-reply "
+                         "sends 'Reply with one word.', which can stream no token); an empty reply is recorded and the sweep goes on")
     ap.add_argument("--note-cache-budget-mib", type=int, default=None, metavar="N",
                     help="scenario D (tight budget): record the server's conversation-cache budget in MiB in the JSON, "
                          "and print it in --compare; the harness cannot set or read it")
@@ -1089,7 +1109,8 @@ def main(argv=None) -> int:
         res["scenario_c"] = run_c(cl, a.turns, a.agent_words, a.agent_max_tokens, a.sessions, side_after, a.side_messages,
                                   a.side_words, a.switch_after, a.subagent_turns, seed)
     if a.scenario in ("e", "all"):
-        res["scenario_e"] = run_e(cl, delta_base, deltas, a.delta_repeats, a.tokens_per_word, a.delta_max_tokens, seed)
+        res["scenario_e"] = run_e(cl, delta_base, deltas, a.delta_repeats, a.tokens_per_word, a.delta_max_tokens, seed,
+                               min_reply=a.min_reply)
     load1 = load_avg()
     res["load"]["end"] = rnd(load1, 2)
     res["load"]["warning"] = any(x is not None and x > LOAD_WARN for x in (load0, load1))
