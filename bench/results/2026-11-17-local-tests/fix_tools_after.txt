@@ -1,0 +1,90 @@
+.........................sss............................................ [  8%]
+.................sss..........ssssssssssssssssssssssxss................. [ 16%]
+ss.sss........................................s......sssss..ss.......... [ 25%]
+........ss.............................................................. [ 33%]
+........................................................................ [ 42%]
+......................sssss.sssssssss......s............................ [ 50%]
+........................................................................ [ 59%]
+....................ssssss...........s..........................sss..... [ 67%]
+........................s............................................... [ 76%]
+......................................................................ss [ 84%]
+ss......s............s.................................................. [ 92%]
+............................................................             [100%]
+=========================== short test summary info ===========================
+SKIPPED [1] tools\pancake\test_direct_read_probe.py:12: direct_read_probe needs fcntl and O_DIRECT (Linux)
+SKIPPED [1] tools\pancake\test_ablate_greedy.py:167: needs /proc (fake-engine busy check)
+SKIPPED [1] tools\pancake\test_ablate_greedy.py:199: needs /proc (fake-engine busy check)
+SKIPPED [1] tools\pancake\test_ablate_greedy.py:220: needs /proc (fake-engine busy check)
+SKIPPED [1] tools\pancake\test_abtest_core.py:477: needs /proc and POSIX process groups/signals
+SKIPPED [1] tools\pancake\test_abtest_core.py:515: needs /proc and POSIX process groups/signals
+SKIPPED [1] tools\pancake\test_abtest_core.py:538: needs /proc and POSIX process groups/signals
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:151: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:178: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:192: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:201: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:215: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:230: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:248: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:266: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:280: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:297: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:309: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:321: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:341: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [3] tools\pancake\test_abtest_e2e.py:367: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:388: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:402: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:425: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:470: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:481: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:500: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_e2e.py:529: needs /proc and POSIX signals (fake-engine end-to-end)
+SKIPPED [1] tools\pancake\test_abtest_render.py:24: render_preset splices the raw repo path into JSON text: Linux paths only
+SKIPPED [1] tools\pancake\test_build_task_set.py:122: needs the POSIX resource module (task_gate sandbox)
+SKIPPED [1] tools\pancake\test_build_task_set.py:134: needs the POSIX resource module (task_gate sandbox)
+SKIPPED [1] tools\pancake\test_build_task_set.py:194: needs the POSIX resource module (task_gate sandbox)
+SKIPPED [1] tools\pancake\test_build_task_set.py:226: needs the POSIX resource module (task_gate sandbox)
+SKIPPED [1] tools\pancake\test_build_task_set.py:235: needs the POSIX resource module (task_gate sandbox)
+SKIPPED [1] tools\pancake\test_disco_parity.py:42: no g++
+SKIPPED [1] tools\pancake\test_drop_cache.py:35: needs os.posix_fadvise / os.getuid (Linux)
+SKIPPED [1] tools\pancake\test_drop_cache.py:47: needs os.posix_fadvise / os.getuid (Linux)
+SKIPPED [1] tools\pancake\test_drop_cache.py:58: needs os.posix_fadvise / os.getuid (Linux)
+SKIPPED [1] tools\pancake\test_drop_cache.py:69: needs os.posix_fadvise / os.getuid (Linux)
+SKIPPED [1] tools\pancake\test_drop_cache.py:82: needs os.posix_fadvise / os.getuid (Linux)
+SKIPPED [1] tools\pancake\test_drop_cache.py:113: needs os.posix_fadvise / os.getuid (Linux)
+SKIPPED [1] tools\pancake\test_drop_cache.py:126: needs os.posix_fadvise / os.getuid (Linux)
+SKIPPED [1] tools\pancake\test_fake_engine.py:108: needs /proc and a POSIX venv layout
+SKIPPED [1] tools\pancake\test_fake_engine.py:126: needs /proc and a POSIX venv layout
+SKIPPED [1] tools\pancake\test_night_queue.py:160: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:191: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:226: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:247: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:257: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:300: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:327: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:345: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:360: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:372: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:381: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:395: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:405: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_night_queue.py:428: needs /proc, POSIX signals and shell scripts (fake-engine night queue)
+SKIPPED [1] tools\pancake\test_park_sim.py:88: park_replay_sim is not built
+SKIPPED [1] tools\pancake\test_prose_gap.py:102: needs os.getloadavg (Linux)
+SKIPPED [1] tools\pancake\test_prose_gap.py:129: needs os.getloadavg (Linux)
+SKIPPED [1] tools\pancake\test_prose_gap.py:140: needs os.getloadavg (Linux)
+SKIPPED [1] tools\pancake\test_prose_gap.py:149: needs os.getloadavg (Linux)
+SKIPPED [1] tools\pancake\test_prose_gap.py:157: needs os.getloadavg (Linux)
+SKIPPED [1] tools\pancake\test_prose_gap.py:171: needs os.getloadavg (Linux)
+SKIPPED [1] tools\pancake\test_quality_gate.py:178: the model's tokenizer directory is not on this machine
+SKIPPED [1] tools\pancake\test_record_session.py:410: abtest.make_config splices the raw repo path into JSON text: Linux paths only
+SKIPPED [1] tools\pancake\test_record_session.py:437: abtest.make_config splices the raw repo path into JSON text: Linux paths only
+SKIPPED [1] tools\pancake\test_record_session.py:474: abtest.make_config splices the raw repo path into JSON text: Linux paths only
+SKIPPED [1] tools\pancake\test_restore_check.py:120: needs a pack's tokenizer folder (STRATA_TEST_TOKENIZER)
+SKIPPED [1] tools\pancake\test_syntax_check.py:32: needs a c++ compiler on PATH
+SKIPPED [1] tools\pancake\test_syntax_check.py:36: needs a c++ compiler on PATH
+SKIPPED [1] tools\pancake\test_syntax_check.py:40: needs a c++ compiler on PATH
+SKIPPED [1] tools\pancake\test_task_gate.py:18: needs the POSIX resource module (task_gate sandbox)
+SKIPPED [1] tools\pancake\test_task_gate.py:103: needs the POSIX resource module (task_gate sandbox)
+SKIPPED [1] tools\pancake\test_task_gate_effort.py:73: abtest.make_config splices the raw repo path into JSON text: Linux paths only
+774 passed, 78 skipped, 1 xfailed in 278.15s (0:04:38)

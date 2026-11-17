@@ -1,0 +1,3020 @@
+.........................EEE............................................ [  8%]
+.................FFF..........EEEEEEEEEEEEEEEEEEEEEExEF................. [ 17%]
+FF.FFF........................................s......FFFFF..FF.......... [ 25%]
+........FF.............................................................. [ 34%]
+........................................................................ [ 42%]
+.................F.FFFFF.FFFFFFFFF......s............................... [ 51%]
+........................................................................ [ 60%]
+.......FF.......FFFFFF...........s..........................FFF....F.... [ 68%]
+....................s................................................... [ 77%]
+..F........................................................FFFF......F.. [ 85%]
+..........FF............................................................ [ 94%]
+..............................................                           [100%]
+=================================== ERRORS ====================================
+_ ERROR at setup of test_fake_loop_picks_the_winner_then_the_better_of_a_substitute_pair_and_leaves_the_loser _
+
+    @pytest.fixture(scope="module", autouse=False)
+    def fake_ok():
+>       busy = F.real_run_active()
+               ^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_ablate_greedy.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_fake_lossy_item_is_flagged_and_routed_to_the_quality_gate_not_promoted _
+
+    @pytest.fixture(scope="module", autouse=False)
+    def fake_ok():
+>       busy = F.real_run_active()
+               ^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_ablate_greedy.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_fake_run_refuses_to_reuse_a_started_out_dir_without_resume _
+
+    @pytest.fixture(scope="module", autouse=False)
+    def fake_ok():
+>       busy = F.real_run_active()
+               ^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_ablate_greedy.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_________ ERROR at setup of test_old_mode_order_schema_text_and_gain __________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_screen_tier_asks_every_case_twice_and_the_second_edit_is_faster _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+__________ ERROR at setup of test_early_stop_after_two_decided_reps ___________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_a_server_that_dies_once_is_retried_and_twice_aborts __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+__ ERROR at setup of test_the_gate_keeps_a_slow_start_that_no_proxy_flagged ___
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_block_mode_passes_per_start_in_abba_order_and_cold_passes _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_promote_reads_a_block_start_as_one_pair_so_three_starts_per_arm_are_needed _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+____________ ERROR at setup of test_warmup_passes_are_thrown_away _____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_robust_rule_runs_a_slow_start_again_where_the_gate_keeps_it _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_robust_rule_tells_the_slow_start_apart_with_two_starts_per_arm _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_tier_is_recorded_from_the_engine_line_and_capped_sh __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_every_start_keeps_its_engine_log_with_the_switch_lines _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_two_abtests_side_by_side_stop_only_their_own_server __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_abtest_refuses_to_start_while_another_test_or_engine_runs[abtest-python3 tools/pancake/abtest.py] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_abtest_refuses_to_start_while_another_test_or_engine_runs[restore-python3 tools/pancake/restore_check.py] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_abtest_refuses_to_start_while_another_test_or_engine_runs[engine-/opt/x/build-hip/strata] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_a_shell_that_only_mentions_abtest_does_not_stop_a_start _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+____ ERROR at setup of test_a_leftover_server_is_reported_and_never_killed ____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+____ ERROR at setup of test_sigterm_ends_abtest_and_the_server_it_started _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+__ ERROR at setup of test_queue_dry_run_prints_the_commands_and_runs_nothing __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_ ERROR at setup of test_queue_runs_two_specs_then_skips_them_on_a_second_call _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+_________ ERROR at setup of test_queue_stops_while_another_test_runs __________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+__________ ERROR at setup of test_queue_night_window_and_drop_cache ___________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x00000260D849CE90>, _basetemp=WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def root(tmp_path_factory):
+>       refuse_when_real_run()
+
+tools\pancake\test_abtest_e2e.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_abtest_e2e.py:45: in refuse_when_real_run
+    busy = F.real_run_active()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+================================== FAILURES ===================================
+____________ test_busy_processes_lists_others_but_not_its_own_tree ____________
+
+    def test_busy_processes_lists_others_but_not_its_own_tree():
+>       pid = orphan("python3 tools/pancake/abtest.py")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_abtest_core.py:478: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+argv0 = 'python3 tools/pancake/abtest.py'
+
+    def orphan(argv0):
+        """pid of a `sleep` whose command line starts with argv0 and whose parent is gone: it is not a child of this process."""
+        r = subprocess.run(["bash", "-c", f"exec -a '{argv0}' sleep 60 > /dev/null 2>&1 & echo $!"], capture_output=True, text=True, timeout=10)
+>       return int(r.stdout)
+               ^^^^^^^^^^^^^
+E       ValueError: invalid literal for int() with base 10: "W\x00i\x00n\x00d\x00o\x00w\x00s\x00 \x00S\x00u\x00b\x00s\x00y\x00s\x00t\x00e\x00m\x00 \x00f\x00o\x00r\x00 \x00L\x00i\x00n\x00u\x00x\x00 \x00h\x00a\x00s\x00 \x00n\x00o\x00 \x00i\x00n\x00s\x00t\x00a\x0
+
+tools\pancake\test_abtest_core.py:474: ValueError
+_ test_stop_servers_ends_its_own_server_and_the_engine_below_it_and_nothing_else _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000260E899B230>
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_stop_servers_ends_its_own0')
+
+    def test_stop_servers_ends_its_own_server_and_the_engine_below_it_and_nothing_else(monkeypatch, tmp_path):
+        foreign_server = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "serve/server.py", "--engine", "strata"])
+        (tmp_path / "strata").write_text(f"#!{sys.executable}\nimport time\ntime.sleep(60)\n")
+        (tmp_path / "strata").chmod(0o755)
+>       foreign_engine = subprocess.Popen([str(tmp_path / "strata")])   # a process named strata: the old wait looked for these
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_abtest_core.py:518: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\subprocess.py:1038: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: None args: ['C:\\Users\\iancu\\AppData\\Local\\Temp\\pyt...>
+args = 'C:\\Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_stop_servers_ends_its_own0\\strata'
+executable = None, preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = None, env = None
+startupinfo = <subprocess.STARTUPINFO object at 0x00000260E89D1310>
+creationflags = 0, shell = False, p2cread = -1, p2cwrite = -1, c2pread = -1
+c2pwrite = -1, errread = -1, errwrite = -1, unused_restore_signals = True
+unused_gid = None, unused_gids = None, unused_uid = None, unused_umask = -1
+unused_start_new_session = False, unused_process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       unused_restore_signals,
+                       unused_gid, unused_gids, unused_uid,
+                       unused_umask,
+                       unused_start_new_session, unused_process_group):
+        """Execute program (MS Windows version)"""
+    
+        assert not pass_fds, "pass_fds not supported on Windows."
+    
+        if isinstance(args, str):
+            pass
+        elif isinstance(args, bytes):
+            if shell:
+                raise TypeError('bytes args is not allowed on Windows')
+            args = list2cmdline([args])
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = list2cmdline([args])
+        else:
+            args = list2cmdline(args)
+    
+        if executable is not None:
+            executable = os.fsdecode(executable)
+    
+        # Process startup details
+        if startupinfo is None:
+            startupinfo = STARTUPINFO()
+        else:
+            # bpo-34044: Copy STARTUPINFO since it is modified above,
+            # so the caller can reuse it multiple times.
+            startupinfo = startupinfo.copy()
+    
+        use_std_handles = -1 not in (p2cread, c2pwrite, errwrite)
+        if use_std_handles:
+            startupinfo.dwFlags |= _winapi.STARTF_USESTDHANDLES
+            startupinfo.hStdInput = p2cread
+            startupinfo.hStdOutput = c2pwrite
+            startupinfo.hStdError = errwrite
+    
+        attribute_list = startupinfo.lpAttributeList
+        have_handle_list = bool(attribute_list and
+                                "handle_list" in attribute_list and
+                                attribute_list["handle_list"])
+    
+        # If we were given an handle_list or need to create one
+        if have_handle_list or (use_std_handles and close_fds):
+            if attribute_list is None:
+                attribute_list = startupinfo.lpAttributeList = {}
+            handle_list = attribute_list["handle_list"] = \
+                list(attribute_list.get("handle_list", []))
+    
+            if use_std_handles:
+                handle_list += [int(p2cread), int(c2pwrite), int(errwrite)]
+    
+            handle_list[:] = self._filter_handle_list(handle_list)
+    
+            if handle_list:
+                if not close_fds:
+                    warnings.warn("startupinfo.lpAttributeList['handle_list'] "
+                                  "overriding close_fds", RuntimeWarning)
+    
+                # When using the handle_list we always request to inherit
+                # handles but the only handles that will be inherited are
+                # the ones in the handle_list
+                close_fds = False
+    
+        if shell:
+            startupinfo.dwFlags |= _winapi.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = _winapi.SW_HIDE
+            if not executable:
+                # gh-101283: without a fully-qualified path, before Windows
+                # checks the system directories, it first looks in the
+                # application directory, and also the current directory if
+                # NeedCurrentDirectoryForExePathW(ExeName) is true, so try
+                # to avoid executing unqualified "cmd.exe".
+                comspec = os.environ.get('ComSpec')
+                if not comspec:
+                    system_root = os.environ.get('SystemRoot', '')
+                    comspec = os.path.join(system_root, 'System32', 'cmd.exe')
+                    if not os.path.isabs(comspec):
+                        raise FileNotFoundError('shell not found: neither %ComSpec% nor %SystemRoot% is set')
+                if os.path.isabs(comspec):
+                    executable = comspec
+            else:
+                comspec = executable
+    
+            args = '{} /c "{}"'.format (comspec, args)
+    
+        if cwd is not None:
+            cwd = os.fsdecode(cwd)
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        # Start the process
+        try:
+>           hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                                     # no special security
+                                     None, None,
+                                     int(not close_fds),
+                                     creationflags,
+                                     env,
+                                     cwd,
+                                     startupinfo)
+E                                    OSError: [WinError 193] %1 is not a valid Win32 application
+
+C:\Python314\Lib\subprocess.py:1552: OSError
+_ test_stop_servers_kills_its_own_server_that_ignores_sigterm_after_the_wait __
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000260E8A6E820>
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260D86B3890>
+
+    def test_stop_servers_kills_its_own_server_that_ignores_sigterm_after_the_wait(monkeypatch, capsys):
+        stuck, _ = start_own(monkeypatch, STUCK_SCRIPT)
+>       A.stop_servers(wait=2)
+
+tools\pancake\test_abtest_core.py:538: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\abtest.py:454: in stop_servers
+    below = tree(proc_table(), [p.pid for p in servers]) - {p.pid for p in servers} if servers else set()   # the engine exe
+                 ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def proc_table():
+        out = {}
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\abtest.py:183: FileNotFoundError
+_______________ RenderPreset.test_default_repo_is_the_checkout ________________
+
+self = <test_abtest_render.RenderPreset testMethod=test_default_repo_is_the_checkout>
+
+    def test_default_repo_is_the_checkout(self):
+        out = abtest.render_preset('{"a": "<REPO>"}')
+>       self.assertTrue(os.path.isdir(json.loads(out)["a"]))
+                                      ^^^^^^^^^^^^^^^
+
+tools\pancake\test_abtest_render.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\json\__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x00000260D5F54D70>
+s = '{"a": "C:\\Users\\iancu\\repos\\pancake-strata"}', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Invalid \escape: line 1 column 10 (char 9)
+
+C:\Python314\Lib\json\decoder.py:361: JSONDecodeError
+_____________ test_record_marks_what_is_not_stable_or_not_literal _____________
+
+    def test_record_marks_what_is_not_stable_or_not_literal():
+        cases = [{"args": ["3"], "kwargs": {}}]
+>       assert B.record("", "def f(a):\n    return a * 2", "f", cases) == [["ok", "6"]]
+E       AssertionError: assert None == [['ok', '6']]
+E        +  where None = <function record at 0x00000260E6F283B0>('', 'def f(a):\n    return a * 2', 'f', [{'args': ['3'], 'kwargs': {}}])
+E        +    where <function record at 0x00000260E6F283B0> = B.record
+
+tools\pancake\test_build_task_set.py:122: AssertionError
+______ test_checker_text_accepts_the_reference_and_rejects_a_broken_one _______
+
+    def test_checker_text_accepts_the_reference_and_rejects_a_broken_one():
+        cases = [{"args": ["3"], "kwargs": {}}, {"args": ["'x'"], "kwargs": {}}, {"args": ["2.5"], "kwargs": {"k": "2"}}]
+        ref = "def f(a, k=1):\n    if isinstance(a, str):\n        raise ValueError(a)\n    return {'v': [a * k, (a,)]}"
+        kept = B.stable_cases("", ref, "f", cases)
+>       assert [r[0] for _, r in kept] == ["ok", "raises", "ok"]
+E       AssertionError: assert [] == ['ok', 'raises', 'ok']
+E         
+E         Right contains 3 more items, first extra item: 'ok'
+E         Use -v to get more diff
+
+tools\pancake\test_build_task_set.py:135: AssertionError
+___ test_build_on_a_throw_away_repository_makes_valid_tasks_of_every_family ___
+
+    def test_build_on_a_throw_away_repository_makes_valid_tasks_of_every_family():
+        with tempfile.TemporaryDirectory() as d:
+            root = make_repo(d)
+            rev, tasks, cnt = B.build(args_for(root))
+            fams = {t["meta"]["family"] for t in tasks}
+>           assert fams == set(B.FAMILIES), (fams, dict(cnt))
+E           AssertionError: (set(), {'modules': 1, 'functions_with_literal_calls': 2, 'functions': 2, 'with_tests': 2, ...})
+E           assert set() == {'bugfix', 'h..., 'implement'}
+E             
+E             Extra items in the right set:
+E             'history'
+E             'bugfix'
+E             'implement'
+E             Use -v to get more diff
+
+tools\pancake\test_build_task_set.py:195: AssertionError
+______________ test_setup_runs_before_the_answer_and_is_optional ______________
+
+    def test_setup_runs_before_the_answer_and_is_optional():
+        task = {"id": "t", "kind": "code_edit", "prompt": "p", "expect": {"setup": "K = 5", "test": "assert f() == 5"},
+                "reference": {"content": "```python\ndef f(a=0):\n    return K\n```"}, "wrong": {"content": "```python\ndef f(a=0):\n    return 4\n```"}}
+>       assert TG.validate_tasks([task]) == [] and TG.selftest([task]) == []
+E       assert ([] == []
+E         
+E         Use -v to get more diff and ["t: referenc... 'resource')"] == []
+E         
+E         Left contains one more item: "t: reference answer fails its checker (ModuleNotFoundError: No module named 'resource')"
+E         Use -v to get more diff)
+
+tools\pancake\test_build_task_set.py:224: AssertionError
+_______ test_the_committed_task_set_is_valid_and_has_at_least_100_tasks _______
+
+    def test_the_committed_task_set_is_valid_and_has_at_least_100_tasks():
+        path = B.ROOT / "bench/tasks/repo-history.json"
+        if not path.exists():
+            return
+        ts, tasks = TG.load_tasks(path)
+        assert len(tasks) >= 100 and TG.validate_tasks(tasks) == []
+        assert {t["meta"]["family"] for t in tasks} == set(B.FAMILIES)
+        assert len({t["id"] for t in tasks}) == len(tasks)
+        sample = tasks[::max(1, len(tasks) // 12)]
+>       assert TG.selftest(sample) == []
+E       assert ["bug-launch-...ource')", ...] == []
+E         
+E         Left contains 13 more items, first extra item: "bug-launch-settings-parse-context-2: reference answer fails its checker (ModuleNotFoundError: No module named 'resource')"
+E         Use -v to get more diff
+
+tools\pancake\test_build_task_set.py:238: AssertionError
+_______ test_hints_big_owned_regular_files_recursively_and_nothing_else _______
+
+    def test_hints_big_owned_regular_files_recursively_and_nothing_else():
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_tree(root)
+>           with mock.patch("os.posix_fadvise") as fadvise:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_drop_cache.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\unittest\mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x00000260D8758590>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'os' (frozen)> does not have the attribute 'posix_fadvise'
+
+C:\Python314\Lib\unittest\mock.py:1473: AttributeError
+_______________ test_dry_run_counts_the_same_and_sends_no_hint ________________
+
+    def test_dry_run_counts_the_same_and_sends_no_hint():
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_tree(root)
+>           with mock.patch("os.posix_fadvise") as fadvise:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_drop_cache.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\unittest\mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x00000260E6F99450>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'os' (frozen)> does not have the attribute 'posix_fadvise'
+
+C:\Python314\Lib\unittest\mock.py:1473: AttributeError
+________________________ test_other_owners_are_skipped ________________________
+
+    def test_other_owners_are_skipped():
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_tree(root)
+>           other = os.getuid() + 1                                   # not our uid: a file of someone else
+                    ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'getuid'. Did you mean: 'getpid'?
+
+tools\pancake\test_drop_cache.py:59: AttributeError
+_____________________ test_nothing_is_modified_or_removed _____________________
+
+    def test_nothing_is_modified_or_removed():
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_tree(root)
+            before = {p: (p.stat().st_mtime_ns, p.stat().st_size, p.is_symlink()) for p in root.rglob("*")}
+            contents = (root / "big.bin").read_bytes()
+>           D.hint_tree([str(root)])                                  # real syscalls, no mock
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_drop_cache.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+roots = ['C:\\Users\\iancu\\AppData\\Local\\Temp\\tmphrxkuevv'], dry_run = False
+uid = None
+
+    def hint_tree(roots, dry_run=False, uid=None):
+        """Hint every big regular file under roots that belongs to uid (default: us).  Returns (files, bytes): the files
+        hinted, or that would be hinted with dry_run."""
+>       uid = os.getuid() if uid is None else uid
+              ^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'getuid'. Did you mean: 'getpid'?
+
+tools\pancake\drop_cache.py:49: AttributeError
+____________ test_symlink_to_a_big_file_is_not_hinted_or_followed _____________
+
+    def test_symlink_to_a_big_file_is_not_hinted_or_followed():
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            big = make_file(root / "real" / "big.bin", 5 * MIB)
+            (root / "link.bin").symlink_to(big)
+>           with mock.patch("os.posix_fadvise") as fadvise:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_drop_cache.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\unittest\mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x00000260D86B2850>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'os' (frozen)> does not have the attribute 'posix_fadvise'
+
+C:\Python314\Lib\unittest\mock.py:1473: AttributeError
+_________________ test_cli_dry_run_prints_before_and_no_after _________________
+
+    def test_cli_dry_run_prints_before_and_no_after():
+        with tempfile.TemporaryDirectory() as tmp:
+            make_tree(Path(tmp))
+            out = io.StringIO()
+>           with contextlib.redirect_stdout(out), mock.patch("os.posix_fadvise") as fadvise:
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_drop_cache.py:111: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\unittest\mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x00000260E8A8F100>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'os' (frozen)> does not have the attribute 'posix_fadvise'
+
+C:\Python314\Lib\unittest\mock.py:1473: AttributeError
+______________________ test_cli_hints_then_prints_after _______________________
+
+    def test_cli_hints_then_prints_after():
+        with tempfile.TemporaryDirectory() as tmp:
+            make_tree(Path(tmp))
+            out = io.StringIO()
+>           with contextlib.redirect_stdout(out), mock.patch("os.posix_fadvise") as fadvise:
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_drop_cache.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\unittest\mock.py:1503: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x00000260E8A8E780>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'os' (frozen)> does not have the attribute 'posix_fadvise'
+
+C:\Python314\Lib\unittest\mock.py:1473: AttributeError
+_______________ test_real_run_active_looks_at_argv_not_at_text ________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_real_run_active_looks_at_0')
+
+    def test_real_run_active_looks_at_argv_not_at_text(tmp_path):
+>       if F.real_run_active():
+           ^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_fake_engine.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def real_run_active():
+        """The first real abtest / engine / queue found on this machine (argv checked, not substrings: a shell that only mentions them
+        does not count), else None.  Processes of this test run's own tree are not looked at: call it before starting any."""
+        me = os.getpid()
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\probes\fake_engine.py:315: FileNotFoundError
+____________________________ test_fake_root_layout ____________________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_fake_root_layout0')
+
+    def test_fake_root_layout(tmp_path):
+        root = F.make_fake_root(tmp_path / "r")
+        clean_env = {"PATH": os.environ["PATH"]}
+        assert (root / "tools/pancake/abtest.py").read_text() == (HERE / "abtest.py").read_text() and (root / "tools/pancake/queue_run.sh").exists()
+        assert not list((root / "tools/pancake").glob("test_*"))
+        assert (root / "serve/server.py").is_symlink() and (root / "serve/server.py").resolve() == Path(F.__file__).resolve()
+>       out = subprocess.run([str(root / ".venv/bin/python"), "-c", "import os, time; print(os.environ['FAKE_TIME_SCALE']); t = time.time(); time.sleep(2); "
+                              "print(round(time.time() - t, 1))"], capture_output=True, text=True, timeout=30, env=clean_env).stdout.split()
+
+tools\pancake\test_fake_engine.py:131: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\subprocess.py:554: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\subprocess.py:1038: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: None args: ['C:\\Users\\iancu\\AppData\\Local\\Temp\\pyt...>
+args = 'C:\\Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_fake_root_layout0\\r\\.venv\\bin\\python -c ...rt os, time; print(os.environ[\'FAKE_TIME_SCALE\']); t = time.time(); time.sleep(2); print(round(time.time() - t, 1))"'
+executable = None, preexec_fn = None, close_fds = False, pass_fds = ()
+cwd = None
+env = {'PATH': 'C:\\Users\\iancu\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program Files\\Git\\usr\\local\\bin;C:\\Progr...ta\\Local\\GitHubCopilotCLI;C:\\Program Files\\Git\\usr\\bin\\vendor_perl;C:\\Program Files\\Git\\usr\\bin\\core_perl'}
+startupinfo = <subprocess.STARTUPINFO object at 0x00000260E8D5EAD0>
+creationflags = 0, shell = False, p2cread = Handle(852), p2cwrite = -1
+c2pread = 11, c2pwrite = Handle(868), errread = 12, errwrite = Handle(880)
+unused_restore_signals = True, unused_gid = None, unused_gids = None
+unused_uid = None, unused_umask = -1, unused_start_new_session = False
+unused_process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       unused_restore_signals,
+                       unused_gid, unused_gids, unused_uid,
+                       unused_umask,
+                       unused_start_new_session, unused_process_group):
+        """Execute program (MS Windows version)"""
+    
+        assert not pass_fds, "pass_fds not supported on Windows."
+    
+        if isinstance(args, str):
+            pass
+        elif isinstance(args, bytes):
+            if shell:
+                raise TypeError('bytes args is not allowed on Windows')
+            args = list2cmdline([args])
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = list2cmdline([args])
+        else:
+            args = list2cmdline(args)
+    
+        if executable is not None:
+            executable = os.fsdecode(executable)
+    
+        # Process startup details
+        if startupinfo is None:
+            startupinfo = STARTUPINFO()
+        else:
+            # bpo-34044: Copy STARTUPINFO since it is modified above,
+            # so the caller can reuse it multiple times.
+            startupinfo = startupinfo.copy()
+    
+        use_std_handles = -1 not in (p2cread, c2pwrite, errwrite)
+        if use_std_handles:
+            startupinfo.dwFlags |= _winapi.STARTF_USESTDHANDLES
+            startupinfo.hStdInput = p2cread
+            startupinfo.hStdOutput = c2pwrite
+            startupinfo.hStdError = errwrite
+    
+        attribute_list = startupinfo.lpAttributeList
+        have_handle_list = bool(attribute_list and
+                                "handle_list" in attribute_list and
+                                attribute_list["handle_list"])
+    
+        # If we were given an handle_list or need to create one
+        if have_handle_list or (use_std_handles and close_fds):
+            if attribute_list is None:
+                attribute_list = startupinfo.lpAttributeList = {}
+            handle_list = attribute_list["handle_list"] = \
+                list(attribute_list.get("handle_list", []))
+    
+            if use_std_handles:
+                handle_list += [int(p2cread), int(c2pwrite), int(errwrite)]
+    
+            handle_list[:] = self._filter_handle_list(handle_list)
+    
+            if handle_list:
+                if not close_fds:
+                    warnings.warn("startupinfo.lpAttributeList['handle_list'] "
+                                  "overriding close_fds", RuntimeWarning)
+    
+                # When using the handle_list we always request to inherit
+                # handles but the only handles that will be inherited are
+                # the ones in the handle_list
+                close_fds = False
+    
+        if shell:
+            startupinfo.dwFlags |= _winapi.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = _winapi.SW_HIDE
+            if not executable:
+                # gh-101283: without a fully-qualified path, before Windows
+                # checks the system directories, it first looks in the
+                # application directory, and also the current directory if
+                # NeedCurrentDirectoryForExePathW(ExeName) is true, so try
+                # to avoid executing unqualified "cmd.exe".
+                comspec = os.environ.get('ComSpec')
+                if not comspec:
+                    system_root = os.environ.get('SystemRoot', '')
+                    comspec = os.path.join(system_root, 'System32', 'cmd.exe')
+                    if not os.path.isabs(comspec):
+                        raise FileNotFoundError('shell not found: neither %ComSpec% nor %SystemRoot% is set')
+                if os.path.isabs(comspec):
+                    executable = comspec
+            else:
+                comspec = executable
+    
+            args = '{} /c "{}"'.format (comspec, args)
+    
+        if cwd is not None:
+            cwd = os.fsdecode(cwd)
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        # Start the process
+        try:
+>           hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                                     # no special security
+                                     None, None,
+                                     int(not close_fds),
+                                     creationflags,
+                                     env,
+                                     cwd,
+                                     startupinfo)
+E                                    OSError: [WinError 193] %1 is not a valid Win32 application
+
+C:\Python314\Lib\subprocess.py:1552: OSError
+_______ test_dry_run_prints_order_commands_and_total_and_writes_nothing _______
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_dry_run_prints_order_comm0')
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260E88E3A70>
+
+    def test_dry_run_prints_order_commands_and_total_and_writes_nothing(tmp_path, capsys):
+        plan = make_plan(tmp_path, free_port())
+        rd = tmp_path / "run"
+        rc = NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--dry-run", "--repo", str(REPO)])
+        out = capsys.readouterr().out
+        assert rc == 0
+        pos = [out.index(f"] {n} ") for n in ("dfr-01A", "dfr-02B", "dfr-03B", "dfr-04A", "later")]
+        assert pos == sorted(pos)
+>       assert "nq_clients.py decode" in out and "client pass 3" in out and "client pass 3" in out.split("later")[0]
+E       assert ('nq_clients.py decode' in "night queue plan 't': 5 jobs\nrun dir: C:\\Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_dry_r...n314\\python.exe\n\nestimated total: 0 h 22 min (22 min)  (per group: g1 0 h 18 min (18 min), g2 0 h 04 min (4 min))\n")
+
+tools\pancake\test_night_queue.py:138: AssertionError
+___________________ test_fake_run_all_jobs_results_and_arms ___________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_fake_run_all_jobs_results0')
+
+    def test_fake_run_all_jobs_results_and_arms(tmp_path):
+        plan = make_plan(tmp_path, free_port())
+>       rc, rd = run_main(tmp_path, plan)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_night_queue.py:80: in run_main
+    return NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--fake", "--repo", str(REPO), *extra]), rd
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:1163: in main
+    return q.run(jobs)
+           ^^^^^^^^^^^
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:609: in run_job
+    rec["stop"] = stop_session(proc, self.probe, term_wait=3 if self.fake else 90, member_wait=3 if self.fake else 45,
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E7160410>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:03] night queue: 5 of 5 selected jobs to run, estimated 0 h 22 min (22 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_fake_run_all_jobs_results0\run
+[2026-11-17 16:57:03] START dfr-01A (est 4 min, timeout 30 min): 'C:\Python314\python.exe' 'C:\Users\iancu\repos\pancake-strata\tools\pancake\night_queue.py' --fake-server --port 54092 --fake-config 'C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_fake_run_all_jobs_results0\run\configs\dfr-01A.json'
+[2026-11-17 16:57:05]   pass 1 (pass 1): rc 0, 0.6 s
+[2026-11-17 16:57:05]   pass 2 (pass 2): rc 0, 0.6 s
+[2026-11-17 16:57:06]   pass 3 (pass 3): rc 0, 0.6 s
+__________________ test_fake_run_other_clients_and_post_step __________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_fake_run_other_clients_an0')
+
+    def test_fake_run_other_clients_and_post_step(tmp_path):
+        port = free_port()
+        py = "{py}"
+        cl = HERE / "nq_clients.py"
+        jobs = [
+            {"name": "tt", "group": "g", "engine": "fake-a",
+             "client": {"kind": "ttft", "cmd": [py, str(HERE / "ttft_bench.py"), "--port", "{port}", "--label", "{job}", "--out", "{out}", "--sizes", "1k",
+                                                  "--runs", "2", "--scenario", "both", "--turns", "2", "--sessions", "1", "--agent-words", "100"]}},
+            {"name": "se", "group": "g", "engine": "fake-a",
+             "client": {"kind": "session", "cmd": [py, str(cl), "session", "--port", "{port}", "--out", "{out}", "--turns", "3", "--sessions", "2",
+                                                     "--side", "1", "--words", "100"]},
+             "post": [[py, "-c", "print('post', '{job}')"]]},
+            {"name": "de", "group": "g", "engine": "fake-a",
+             "client": {"kind": "depth", "cmd": [py, str(cl), "depth", "--port", "{port}", "--out", "{out}", "--sizes", "1k,2k", "--runs", "2",
+                                                   "--max-tokens", "16"]}},
+            {"name": "pr", "group": "g", "engine": "fake-a",
+             "client": {"kind": "prose", "cmd": [py, str(HERE / "prose_gap.py"), "--port", "{port}", "--label", "{label}", "--out", "{out}", "--runs", "3"],
+                        "passes": [{"label": "story", "extra": ["--prompt-name", "story"]}, {"label": "js", "extra": ["--prompt-name", "js"]}]}},
+        ]
+        plan = make_plan(tmp_path, port, jobs=jobs)
+>       rc, rd = run_main(tmp_path, plan)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:210: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_night_queue.py:80: in run_main
+    return NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--fake", "--repo", str(REPO), *extra]), rd
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:1163: in main
+    return q.run(jobs)
+           ^^^^^^^^^^^
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:609: in run_job
+    rec["stop"] = stop_session(proc, self.probe, term_wait=3 if self.fake else 90, member_wait=3 if self.fake else 45,
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E88DE8B0>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:06] night queue: 4 of 4 selected jobs to run, estimated 0 h 17 min (17 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_fake_run_other_clients_an0\run
+[2026-11-17 16:57:06] START tt (est 4 min, timeout 30 min): 'C:\Python314\python.exe' 'C:\Users\iancu\repos\pancake-strata\tools\pancake\night_queue.py' --fake-server --port 54118 --fake-config 'C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_fake_run_other_clients_an0\run\configs\tt.json'
+[2026-11-17 16:57:07]   pass 1 (pass 1): rc 0, 0.6 s
+____________ test_resume_skips_finished_jobs_and_state_file_guards ____________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_resume_skips_finished_job0')
+
+    def test_resume_skips_finished_jobs_and_state_file_guards(tmp_path):
+        plan = make_plan(tmp_path, free_port())
+>       rc, rd = run_main(tmp_path, plan, ["--only", "dfr-01A,dfr-02B"])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_night_queue.py:80: in run_main
+    return NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--fake", "--repo", str(REPO), *extra]), rd
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:1163: in main
+    return q.run(jobs)
+           ^^^^^^^^^^^
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:609: in run_job
+    rec["stop"] = stop_session(proc, self.probe, term_wait=3 if self.fake else 90, member_wait=3 if self.fake else 45,
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E88DE650>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:07] night queue: 2 of 2 selected jobs to run, estimated 0 h 09 min (9 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_resume_skips_finished_job0\run
+[2026-11-17 16:57:07] START dfr-01A (est 4 min, timeout 30 min): 'C:\Python314\python.exe' 'C:\Users\iancu\repos\pancake-strata\tools\pancake\night_queue.py' --fake-server --port 54141 --fake-config 'C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_resume_skips_finished_job0\run\configs\dfr-01A.json'
+[2026-11-17 16:57:09]   pass 1 (pass 1): rc 0, 0.6 s
+[2026-11-17 16:57:10]   pass 2 (pass 2): rc 0, 0.6 s
+[2026-11-17 16:57:10]   pass 3 (pass 3): rc 0, 0.6 s
+_____________________ test_resume_without_state_and_fresh _____________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_resume_without_state_and_0')
+
+    def test_resume_without_state_and_fresh(tmp_path):
+        plan = make_plan(tmp_path, free_port())
+        assert run_main(tmp_path, plan, ["--resume", "--only", "later"])[0] == 2
+>       rc, rd = run_main(tmp_path, plan, ["--only", "later"])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:247: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_night_queue.py:80: in run_main
+    return NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--fake", "--repo", str(REPO), *extra]), rd
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:1163: in main
+    return q.run(jobs)
+           ^^^^^^^^^^^
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:609: in run_job
+    rec["stop"] = stop_session(proc, self.probe, term_wait=3 if self.fake else 90, member_wait=3 if self.fake else 45,
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E899F9B0>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:10] night queue: 1 of 1 selected jobs to run, estimated 0 h 04 min (4 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_resume_without_state_and_0\run
+[2026-11-17 16:57:10] START later (est 4 min, timeout 30 min): 'C:\Python314\python.exe' 'C:\Users\iancu\repos\pancake-strata\tools\pancake\night_queue.py' --fake-server --port 54179 --fake-config 'C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_resume_without_state_and_0\run\configs\later.json'
+[2026-11-17 16:57:11]   pass 1 (pass 1): rc 0, 0.6 s
+[2026-11-17 16:57:12]   pass 2 (pass 2): rc 0, 0.6 s
+---------------------------- Captured stderr call -----------------------------
+--resume: no state file in C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_resume_without_state_and_0\run
+_________ test_failed_job_is_finished_for_resume_unless_retry_failed __________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_failed_job_is_finished_fo0')
+
+    def test_failed_job_is_finished_for_resume_unless_retry_failed(tmp_path):
+        port = free_port()
+        jobs = [{"name": "bad", "group": "g", "engine": "dead", "client": {"kind": "decode", "cmd": ["{py}", "-c", "pass"]}},
+                {"name": "after", "group": "g", "engine": "real-fake", "client": {"kind": "decode", "cmd": [
+                    "{py}", str(HERE / "nq_clients.py"), "decode", "--port", "{port}", "--out", "{out}", "--max-tokens", "8"], "passes": 2}}]
+        engines = {"dead": {"argv": [sys.executable, "-c", "import sys; sys.exit(3)"], "cwd": str(REPO), "port": port},
+                   "real-fake": {"argv": [sys.executable, str(HERE / "night_queue.py"), "--fake-server", "--port", "{port}"], "cwd": str(REPO),
+                                 "port": port}}
+        plan = make_plan(tmp_path, port, jobs=jobs, engines=engines)
+        rd = tmp_path / "run"
+        # real (non-fake) launch path with the guard off: the first engine dies before /health, the queue goes on
+>       rc = NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--repo", str(REPO), "--no-guard", "--skip-preflight", "--start-timeout-min", "0.2"])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:264: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\night_queue.py:1163: in main
+    return q.run(jobs)
+           ^^^^^^^^^^^
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:609: in run_job
+    rec["stop"] = stop_session(proc, self.probe, term_wait=3 if self.fake else 90, member_wait=3 if self.fake else 45,
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E8AFE360>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:12] night queue: 2 of 2 selected jobs to run, estimated 0 h 13 min (13 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_failed_job_is_finished_fo0\run
+[2026-11-17 16:57:12] START bad (est 6 min, timeout 30 min): 'C:\Python314\python.exe' -c 'import sys; sys.exit(3)'
+____________ test_guard_waits_until_the_machine_is_quiet_then_runs ____________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_guard_waits_until_the_mac0')
+
+    def test_guard_waits_until_the_machine_is_quiet_then_runs(tmp_path):
+        plan = NQ.load_plan(make_plan(tmp_path, free_port(), jobs=[
+            {"name": "one", "group": "g", "engine": "fake-a",
+             "client": {"kind": "decode", "cmd": ["{py}", str(HERE / "nq_clients.py"), "decode", "--port", "{port}", "--out", "{out}",
+                                                    "--max-tokens", "8"], "passes": 2}}]))
+        probe = FakeProbe(loads=[3.0, 3.0, 1.5, 0.2], busy=[("strata", ["strata"])])
+        q = NQ.Queue(plan, tmp_path / "run", args_for(["--fake", "--guard", "--guard-wait-min", "5", "--guard-poll-s", "1", "--repo", str(REPO)]),
+                     probe=probe)
+        # the busy process disappears after two polls, the load after three
+        real = probe.processes
+        state = {"n": 0}
+    
+        def procs():
+            state["n"] += 1
+            if state["n"] > 2:
+                probe.busy = []
+            return real()
+        probe.processes = procs
+        q.run_dir.mkdir()
+>       rc = q.run(plan["_jobs"])
+             ^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:314: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:576: in run_job
+    quiet, reasons = self.guard.wait(r.port, self.guard_wait_s, self.guard_poll_s, self.log)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:171: in wait
+    last = self.reasons(port)
+           ^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:153: in reasons
+    busy = busy_processes(self.probe.processes(), os.getpid())
+                          ^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\test_night_queue.py:311: in procs
+    return real()
+           ^^^^^^
+tools\pancake\test_night_queue.py:47: in processes
+    return super().processes() + extra
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_night_queue.FakeProbe object at 0x00000260E8AF0AD0>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:16] night queue: 1 of 1 selected jobs to run, estimated 0 h 05 min (5 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_guard_waits_until_the_mac0\run
+__________ test_guard_skips_a_job_when_the_machine_never_gets_quiet ___________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_guard_skips_a_job_when_th0')
+
+    def test_guard_skips_a_job_when_the_machine_never_gets_quiet(tmp_path):
+        plan = NQ.load_plan(make_plan(tmp_path, free_port()))
+        probe = FakeProbe(loads=[5.0], mems=[20.0])
+        q = NQ.Queue(plan, tmp_path / "run", args_for(["--fake", "--guard", "--guard-wait-min", "0.05", "--guard-poll-s", "1", "--repo", str(REPO)]),
+                     probe=probe)
+        q.run_dir.mkdir()
+>       rc = q.run([j for j in plan["_jobs"] if j["name"] in ("dfr-01A", "later")])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:327: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:576: in run_job
+    quiet, reasons = self.guard.wait(r.port, self.guard_wait_s, self.guard_poll_s, self.log)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:171: in wait
+    last = self.reasons(port)
+           ^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:153: in reasons
+    busy = busy_processes(self.probe.processes(), os.getpid())
+                          ^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\test_night_queue.py:47: in processes
+    return super().processes() + extra
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_night_queue.FakeProbe object at 0x00000260E6F99450>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:17] night queue: 2 of 2 selected jobs to run, estimated 0 h 08 min (8 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_guard_skips_a_job_when_th0\run
+_________________________ test_guard_sees_a_busy_port _________________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_guard_sees_a_busy_port0')
+
+    def test_guard_sees_a_busy_port(tmp_path):
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+        try:
+            g = NQ.Guard(FakeProbe(), 1.0, 48.0)
+>           assert any(f"port {port} is in use" in r for r in g.reasons(port))
+                                                              ^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:345: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\night_queue.py:153: in reasons
+    busy = busy_processes(self.probe.processes(), os.getpid())
+                          ^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\test_night_queue.py:47: in processes
+    return super().processes() + extra
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_night_queue.FakeProbe object at 0x00000260E70639D0>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+____________ test_stop_session_ends_children_by_pid_and_the_leader ____________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_stop_session_ends_childre0')
+
+    def test_stop_session_ends_children_by_pid_and_the_leader(tmp_path):
+        marker = f"nq-test-{os.getpid()}-{time.time_ns()}"
+        proc = subprocess.Popen(["sh", "-c", f"sleep 120 & sleep 120 & wait # {marker}"], start_new_session=True)
+        time.sleep(0.3)
+        probe = NQ.Probe()
+>       assert len(NQ.session_pids(probe.processes(), proc.pid)) >= 3
+                                   ^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:357: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E89E5750>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+___________ test_stop_session_kills_a_process_that_ignores_sigterm ____________
+
+    def test_stop_session_kills_a_process_that_ignores_sigterm():
+        proc = subprocess.Popen([sys.executable, "-c", "import signal,time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+                                 "print('up', flush=True)\ntime.sleep(120)"], start_new_session=True, stdout=subprocess.PIPE)
+        proc.stdout.readline()
+>       info = NQ.stop_session(proc, NQ.Probe(), term_wait=0.5, member_wait=0.5, kill_wait=5, poll=0.05)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:367: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E89E6750>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+______________ test_job_timeout_stops_the_client_and_the_engine _______________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_job_timeout_stops_the_cli0')
+
+    def test_job_timeout_stops_the_client_and_the_engine(tmp_path):
+        port = free_port()
+        jobs = [{"name": "slow", "group": "g", "engine": "fake-a", "timeout_min": 0.03,
+                 "client": {"kind": "decode", "cmd": ["{py}", "-c", "import time; time.sleep(60)"], "passes": 2}}]
+        plan = make_plan(tmp_path, port, jobs=jobs)
+        t0 = time.time()
+>       rc, rd = run_main(tmp_path, plan)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:377: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_night_queue.py:80: in run_main
+    return NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--fake", "--repo", str(REPO), *extra]), rd
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:1163: in main
+    return q.run(jobs)
+           ^^^^^^^^^^^
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:609: in run_job
+    rec["stop"] = stop_session(proc, self.probe, term_wait=3 if self.fake else 90, member_wait=3 if self.fake else 45,
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E887E990>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:18] night queue: 1 of 1 selected jobs to run, estimated 0 h 05 min (5 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_job_timeout_stops_the_cli0\run
+[2026-11-17 16:57:18] START slow (est 5 min, timeout 0 min): 'C:\Python314\python.exe' 'C:\Users\iancu\repos\pancake-strata\tools\pancake\night_queue.py' --fake-server --port 62184 --fake-config 'C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_job_timeout_stops_the_cli0\run\configs\slow.json'
+____________________ test_results_only_rewrites_from_state ____________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_results_only_rewrites_fro0')
+
+    def test_results_only_rewrites_from_state(tmp_path):
+        plan = make_plan(tmp_path, free_port())
+>       rc, rd = run_main(tmp_path, plan, ["--only", "later"])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_night_queue.py:386: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_night_queue.py:80: in run_main
+    return NQ.main(["--plan", str(plan), "--run-dir", str(rd), "--fake", "--repo", str(REPO), *extra]), rd
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\night_queue.py:1163: in main
+    return q.run(jobs)
+           ^^^^^^^^^^^
+tools\pancake\night_queue.py:705: in run
+    self.run_job(j)
+tools\pancake\night_queue.py:609: in run_job
+    rec["stop"] = stop_session(proc, self.probe, term_wait=3 if self.fake else 90, member_wait=3 if self.fake else 45,
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E84B2120>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stdout call -----------------------------
+[2026-11-17 16:57:20] night queue: 1 of 1 selected jobs to run, estimated 0 h 04 min (4 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_results_only_rewrites_fro0\run
+[2026-11-17 16:57:20] START later (est 4 min, timeout 30 min): 'C:\Python314\python.exe' 'C:\Users\iancu\repos\pancake-strata\tools\pancake\night_queue.py' --fake-server --port 62190 --fake-config 'C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_results_only_rewrites_fro0\run\configs\later.json'
+[2026-11-17 16:57:21]   pass 1 (pass 1): rc 0, 0.8 s
+[2026-11-17 16:57:22]   pass 2 (pass 2): rc 0, 0.6 s
+___________ test_fake_server_speaks_the_decode_and_stream_protocol ____________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_fake_server_speaks_the_de0')
+
+    def test_fake_server_speaks_the_decode_and_stream_protocol(tmp_path):
+        port = free_port()
+        cfg = tmp_path / "c.json"
+        cfg.write_text(json.dumps({"env": {}}))
+        p = subprocess.Popen([sys.executable, str(HERE / "night_queue.py"), "--fake-server", "--port", str(port), "--fake-config", str(cfg)],
+                             start_new_session=True)
+        try:
+            for _ in range(100):
+                if NQ.http_ok(port):
+                    break
+                time.sleep(0.05)
+            out = tmp_path / "d.json"
+            r = subprocess.run([sys.executable, str(HERE / "nq_clients.py"), "decode", "--port", str(port), "--out", str(out), "--max-tokens", "16"],
+                               capture_output=True, text=True, timeout=60)
+            assert r.returncode == 0, r.stderr
+            rows = json.loads(out.read_text())["rows"]
+            assert [x["class"] for x in rows] == ["prose", "code", "prose", "prose", "code"]
+            assert all(x["tps"] and x["accepted"] is not None for x in rows)
+        finally:
+>           NQ.stop_session(p, NQ.Probe(), term_wait=5, member_wait=2, kill_wait=2, poll=0.05)
+
+tools\pancake\test_night_queue.py:412: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\night_queue.py:442: in stop_session
+    rest = [x for x in alive()]
+                       ^^^^^^^
+tools\pancake\night_queue.py:426: in alive
+    return session_pids(probe.processes(), sid)
+                        ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <night_queue.Probe object at 0x00000260E88FC910>
+
+    def processes(self) -> list[dict]:
+        """[{pid, ppid, sid, comm, argv}] from /proc."""
+        out = []
+>       for d in os.listdir("/proc"):
+                 ^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [WinError 3] The system cannot find the path specified: '/proc'
+
+tools\pancake\night_queue.py:90: FileNotFoundError
+---------------------------- Captured stderr call -----------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 62215)
+Traceback (most recent call last):
+  File "C:\Python314\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Python314\Lib\http\server.py", line 498, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\http\server.py", line 464, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Python314\Lib\socket.py", line 725, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+________ test_sigterm_stops_the_engine_gracefully_and_resume_finishes _________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_sigterm_stops_the_engine_0')
+
+    def test_sigterm_stops_the_engine_gracefully_and_resume_finishes(tmp_path):
+        port = free_port()
+        marker = tmp_path / "marker"
+        # the first run of this client creates the marker and hangs; the second one returns at once
+        hang = ("import os, sys, time\nm = sys.argv[1]\nif not os.path.exists(m):\n    open(m, 'w').close()\n    time.sleep(60)\n")
+        jobs = [{"name": "slow", "group": "g", "engine": "fake-a", "client": {"kind": "decode", "cmd": ["{py}", "-c", hang, str(marker)], "passes": 1}},
+                {"name": "quick", "group": "g", "engine": "fake-a", "client": {"kind": "decode", "cmd": [
+                    "{py}", str(HERE / "nq_clients.py"), "decode", "--port", "{port}", "--out", "{out}", "--max-tokens", "8"], "passes": 2}}]
+        plan = make_plan(tmp_path, port, jobs=jobs)
+        rd = tmp_path / "run"
+        q = subprocess.Popen([sys.executable, str(HERE / "night_queue.py"), "--plan", str(plan), "--run-dir", str(rd), "--fake", "--repo", str(REPO)],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        for _ in range(400):
+            if marker.exists():
+                break
+            time.sleep(0.05)
+        assert marker.exists()
+        q.send_signal(signal.SIGTERM)
+        out, _ = q.communicate(timeout=60)
+>       assert q.returncode == 130, out
+E       AssertionError: [2026-11-17 16:57:24] night queue: 2 of 2 selected jobs to run, estimated 0 h 09 min (9 min); run dir C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_sigterm_stops_the_engine_0\run
+E         [2026-11-17 16:57:24] START slow (est 4 min, timeout 30 min): 'C:\Python314\python.exe' 'C:\Users\iancu\repos\pancake-strata\tools\pancake\night_queue.py' --fake-server --port 62223 --fake-config 'C:\Users\iancu\AppData\Local\Temp\pytest-of-iancu\pytest-31\test_sigterm_stops_the_engine_0\run\configs\slow.json'
+E         
+E       assert 1 == 130
+E        +  where 1 = <Popen: returncode: 1 args: ['C:\\Python314\\python.exe', 'C:\\Users\\iancu\...>.returncode
+
+tools\pancake\test_night_queue.py:434: AssertionError
+_____________________ test_the_catalog_matches_the_specs ______________________
+
+    def test_the_catalog_matches_the_specs():
+        cat = json.loads((P.ROOT / "bench/promotion/phase16.json").read_text())["items"]
+        names = [i["name"] for i in cat]
+        assert len(names) == len(set(names)) and len(names) >= 30
+        for i in cat:
+>           P.validate(i, P.ROOT)                       # arms, claim cases, vs, hashes, branch, exact flag
+            ^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_promote.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+item = {'name': 'A21-spec-lowtemp', 'spec': 'bench/specs/a21-spec-lowtemp.json', 'exact': True, 'branch': 'dev/batch-2', ...}
+root = WindowsPath('C:/Users/iancu/repos/pancake-strata')
+
+    def validate(item, root):
+        for k in ("name", "spec", "exact", "branch", "commits"):
+            if k not in item:
+                raise ValueError(f"item {item.get('name', '?')}: key {k!r} missing")
+        if not isinstance(item["exact"], bool) or not NAME.fullmatch(item["branch"]) or not all(HEX.fullmatch(c) for c in item["commits"]):
+            raise ValueError(f"item {item['name']}: exact must be true/false, branch a branch name, commits hex hashes")
+        spec = json.loads((root / item["spec"]).read_text())
+        arms = list(spec["arms"])
+        if not item.get("arms") and len(arms) < 2:
+            raise ValueError(f"item {item['name']}: {item['spec']} has only the reference arm, nothing to judge")
+        if "vs" in item and item["vs"] not in arms:
+            raise ValueError(f"item {item['name']}: vs {item['vs']!r} is not an arm of {item['spec']}")
+        for k in item.get("arms", []):
+            if k not in arms[1:]:
+>               raise ValueError(f"item {item['name']}: arm {k!r} is not a non-reference arm of {item['spec']} ({', '.join(arms[1:])})")
+E               ValueError: item A21-spec-lowtemp: arm 'f6-dt100' is not a non-reference arm of bench/specs/a21-spec-lowtemp.json (coupled, gumbel, f6-dt050, f6-min07)
+
+tools\pancake\promote.py:551: ValueError
+_____________ test_every_spec_is_valid_json_in_the_abtest_format ______________
+
+    def test_every_spec_is_valid_json_in_the_abtest_format():
+        keys = {"env", "args", "drafting", "config", "exe", "request"}
+        for f in sorted((P.ROOT / "bench/specs").glob("*.json")):
+            s = json.loads(f.read_text())
+>           assert "base" in s and s["arms"], f.name
+E           AssertionError: 159-gtx1660ti-poly-flags.json
+E           assert ('base' in {'runner': 'bench_win_ab', 'runs': 3, 'warmup': 3, 'measured': 3, ...})
+
+tools\pancake\test_promote.py:636: AssertionError
+_______________ test_series_pancake_discards_run1_and_snapshots _______________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_series_pancake_discards_r0')
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260E8D83F50>
+
+    def test_series_pancake_discards_run1_and_snapshots(tmp_path, capsys):
+        with Fake(True, [50.0, 100.0, 110.0, 90.0, 100.0]) as f:
+            out = tmp_path / "p.json"
+>           rc = pg.main(["--port", str(f.port), "--label", "pc", "--runs", "5", "--out", str(out)])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_prose_gap.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\prose_gap.py:322: in main
+    res = run_series(args)
+          ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+args = Namespace(port=55595, host='127.0.0.1', label='pc', runs=5, max_tokens=512, prompt_name='story', prompt=None, engine='...Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_series_pancake_discards_r0\\p.json', compare=None)
+
+    def run_series(args) -> dict:
+        base = f"http://{args.host}:{args.port}"
+        prompt = args.prompt or PROMPTS[args.prompt_name]
+        kind = {"auto": None, "pancake": "pancake", "llama": "llama"}[args.engine]
+        if kind is None:
+            kind = "pancake" if is_pancake(base, args.key) else "llama"
+>       load0 = os.getloadavg()
+                ^^^^^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'getloadavg'
+
+tools\pancake\prose_gap.py:262: AttributeError
+_____________________ test_series_llama_takes_no_snapshot _____________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_series_llama_takes_no_sna0')
+
+    def test_series_llama_takes_no_snapshot(tmp_path):
+        with Fake(False, [100.0]) as f:
+            out = tmp_path / "a.json"
+>           assert pg.main(["--port", str(f.port), "--label", "av", "--runs", "3", "--prompt-name", "tips", "--out", str(out)]) == 0
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_prose_gap.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\prose_gap.py:322: in main
+    res = run_series(args)
+          ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+args = Namespace(port=55597, host='127.0.0.1', label='av', runs=3, max_tokens=512, prompt_name='tips', prompt=None, engine='a...Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_series_llama_takes_no_sna0\\a.json', compare=None)
+
+    def run_series(args) -> dict:
+        base = f"http://{args.host}:{args.port}"
+        prompt = args.prompt or PROMPTS[args.prompt_name]
+        kind = {"auto": None, "pancake": "pancake", "llama": "llama"}[args.engine]
+        if kind is None:
+            kind = "pancake" if is_pancake(base, args.key) else "llama"
+>       load0 = os.getloadavg()
+                ^^^^^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'getloadavg'
+
+tools\pancake\prose_gap.py:262: AttributeError
+____________________ test_engine_flag_overrides_detection _____________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_engine_flag_overrides_det0')
+
+    def test_engine_flag_overrides_detection(tmp_path):
+        with Fake(False, [100.0]) as f:                           # a server that does not say "strata", forced to pancake mode
+            out = tmp_path / "x.json"
+>           assert pg.main(["--port", str(f.port), "--runs", "2", "--engine", "pancake", "--out", str(out)]) == 0
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_prose_gap.py:140: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\prose_gap.py:322: in main
+    res = run_series(args)
+          ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+args = Namespace(port=55599, host='127.0.0.1', label='engine', runs=2, max_tokens=512, prompt_name='story', prompt=None, engi...Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_engine_flag_overrides_det0\\x.json', compare=None)
+
+    def run_series(args) -> dict:
+        base = f"http://{args.host}:{args.port}"
+        prompt = args.prompt or PROMPTS[args.prompt_name]
+        kind = {"auto": None, "pancake": "pancake", "llama": "llama"}[args.engine]
+        if kind is None:
+            kind = "pancake" if is_pancake(base, args.key) else "llama"
+>       load0 = os.getloadavg()
+                ^^^^^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'getloadavg'
+
+tools\pancake\prose_gap.py:262: AttributeError
+_______________________ test_unreachable_server_exit_2 ________________________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260D856F890>
+
+    def test_unreachable_server_exit_2(capsys):
+        with Fake(False, [100.0]) as f:
+            port = f.port
+>       assert pg.main(["--port", str(port), "--runs", "2", "--timeout", "2"]) == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_prose_gap.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\prose_gap.py:322: in main
+    res = run_series(args)
+          ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+args = Namespace(port=55600, host='127.0.0.1', label='engine', runs=2, max_tokens=512, prompt_name='story', prompt=None, engine='auto', server_log=None, key='', timeout=2.0, out=None, compare=None)
+
+    def run_series(args) -> dict:
+        base = f"http://{args.host}:{args.port}"
+        prompt = args.prompt or PROMPTS[args.prompt_name]
+        kind = {"auto": None, "pancake": "pancake", "llama": "llama"}[args.engine]
+        if kind is None:
+            kind = "pancake" if is_pancake(base, args.key) else "llama"
+>       load0 = os.getloadavg()
+                ^^^^^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'getloadavg'
+
+tools\pancake\prose_gap.py:262: AttributeError
+________________________________ test_compare _________________________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_compare0')
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260E82BEFC0>
+
+    def test_compare(tmp_path, capsys):
+        with Fake(False, [100.0, 100.0], accepted=300) as a, Fake(True, [90.0, 90.0], accepted=250) as b:
+            pa, pb = tmp_path / "a.json", tmp_path / "b.json"
+>           assert pg.main(["--port", str(a.port), "--label", "avalon", "--runs", "3", "--out", str(pa)]) == 0
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_prose_gap.py:155: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\prose_gap.py:322: in main
+    res = run_series(args)
+          ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+args = Namespace(port=55602, host='127.0.0.1', label='avalon', runs=3, max_tokens=512, prompt_name='story', prompt=None, engi...ut=1800, out='C:\\Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_compare0\\a.json', compare=None)
+
+    def run_series(args) -> dict:
+        base = f"http://{args.host}:{args.port}"
+        prompt = args.prompt or PROMPTS[args.prompt_name]
+        kind = {"auto": None, "pancake": "pancake", "llama": "llama"}[args.engine]
+        if kind is None:
+            kind = "pancake" if is_pancake(base, args.key) else "llama"
+>       load0 = os.getloadavg()
+                ^^^^^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'getloadavg'
+
+tools\pancake\prose_gap.py:262: AttributeError
+_______________________ test_server_log_mean_len_parsed _______________________
+
+tmp_path = WindowsPath('C:/Users/iancu/AppData/Local/Temp/pytest-of-iancu/pytest-31/test_server_log_mean_len_parse0')
+
+    def test_server_log_mean_len_parsed(tmp_path):
+        log = tmp_path / "svc.log"
+        old = "0.1 I slot print_timing: id  0 | task 1 | draft acceptance = 0.10000 (    1 accepted /    10 generated), mean len =  1.10\n"
+        new = "9.9 I slot print_timing: id  0 | task 9 | draft acceptance = 0.57234 (  275 accepted /  471 generated), mean len =  2.15\n"
+        log.write_text("old line\n" + old)
+        with Fake(False, [100.0]) as f:
+            # a server that appends its line to the log for every request, as llama-server does
+            orig = f.httpd.RequestHandlerClass.do_POST
+    
+            def do_POST(self):
+                orig(self)
+                with open(log, "a") as fh:
+                    fh.write(new)
+    
+            f.httpd.RequestHandlerClass.do_POST = do_POST
+            out = tmp_path / "l.json"
+>           assert pg.main(["--port", str(f.port), "--runs", "3", "--server-log", str(log), "--out", str(out)]) == 0
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_prose_gap.py:181: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\prose_gap.py:322: in main
+    res = run_series(args)
+          ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+args = Namespace(port=55605, host='127.0.0.1', label='engine', runs=3, max_tokens=512, prompt_name='story', prompt=None, engi...Users\\iancu\\AppData\\Local\\Temp\\pytest-of-iancu\\pytest-31\\test_server_log_mean_len_parse0\\l.json', compare=None)
+
+    def run_series(args) -> dict:
+        base = f"http://{args.host}:{args.port}"
+        prompt = args.prompt or PROMPTS[args.prompt_name]
+        kind = {"auto": None, "pancake": "pancake", "llama": "llama"}[args.engine]
+        if kind is None:
+            kind = "pancake" if is_pancake(base, args.key) else "llama"
+>       load0 = os.getloadavg()
+                ^^^^^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'getloadavg'
+
+tools\pancake\prose_gap.py:262: AttributeError
+_____________ test_plan_builds_the_config_and_prints_the_command ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000260EB0083D0>
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260EAF4B650>
+
+    def test_plan_builds_the_config_and_prints_the_command(monkeypatch, capsys):
+        repo = fake_repo()
+        called = []
+        monkeypatch.setattr(rs.subprocess, "run", lambda *a, **k: called.append(a) or type("R", (), {"stdout": "abc1234\n"})())
+        out = repo.parent / "rec1"
+>       assert rs.main(plan_args(repo, out, "--port", "8123", "--hidden-dump", "32")) == 0
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_record_session.py:415: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\record_session.py:444: in main
+    return a.fn(a)
+           ^^^^^^^
+tools\pancake\record_session.py:175: in cmd_plan
+    cfg, path, left = load_preset(a.preset, repo, Path(a.data), Path(a.models))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\record_session.py:61: in load_preset
+    return json.loads(text), p, sorted(set(re.findall(r"<[A-Z_]+>", text)))
+           ^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x00000260D5F54D70>
+s = '{"exe": "C:\\Users\\iancu\\AppData\\Local\\Temp\\tmp3dcbqiq7\\repo/build-hip/strata", "args": ["--pack", "C:\\Users\\.../pancake-turns.jsonl", "port": 8080, "gpu": 0, "env": {"STRATA_VERIFY_DEFER_CPU": "1", "STRATA_ROUTE_TAIL_SKIP": "0"}}'
+idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Invalid \escape: line 1 column 12 (char 11)
+
+C:\Python314\Lib\json\decoder.py:361: JSONDecodeError
+_______________________ test_plan_options_and_refusals ________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000260E8DBDB00>
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260EB466850>
+
+    def test_plan_options_and_refusals(monkeypatch, capsys):
+        monkeypatch.setattr(rs.subprocess, "run", lambda *a, **k: type("R", (), {"stdout": ""})())
+        repo = fake_repo(env={"STRATA_ROUTE_TAIL_SKIP": "0"})
+        out = repo.parent / "r2"
+>       assert rs.main(plan_args(repo, out, "--every", "2", "--max-mb", "100", "--no-routing-dump", "--no-agent-counters", "--norms",
+                                 "--publish-weights")) == 0
+
+tools\pancake\test_record_session.py:440: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\record_session.py:444: in main
+    return a.fn(a)
+           ^^^^^^^
+tools\pancake\record_session.py:175: in cmd_plan
+    cfg, path, left = load_preset(a.preset, repo, Path(a.data), Path(a.models))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\record_session.py:61: in load_preset
+    return json.loads(text), p, sorted(set(re.findall(r"<[A-Z_]+>", text)))
+           ^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x00000260D5F54D70>
+s = '{"exe": "C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpwuci274c\\repo/build-hip/strata", "args": ["--pack", "C:\\Users\\...\\Local\\Temp\\tmpwuci274c\\repo/pancake-turns.jsonl", "port": 8080, "gpu": 0, "env": {"STRATA_ROUTE_TAIL_SKIP": "0"}}'
+idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Invalid \escape: line 1 column 12 (char 11)
+
+C:\Python314\Lib\json\decoder.py:361: JSONDecodeError
+______________ test_plan_run_starts_the_server_once_then_checks _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000260E8DDB2A0>
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260EB46BB50>
+
+    def test_plan_run_starts_the_server_once_then_checks(monkeypatch, capsys):
+        repo = fake_repo()
+        calls = []
+    
+        def fake_run(cmd, **kw):
+            if cmd[0] == "git":
+                return type("R", (), {"stdout": "abc\n"})()
+            calls.append((cmd, kw))
+            out = Path(cmd[cmd.index("--config") + 1]).parent   # the "session": the recorders' files appear
+            data, wins = session(np.random.default_rng(13), 20)
+            (out / "session.stwt").write_bytes(data)
+            (out / "turns.jsonl").write_text("\n".join(turn_line(1000 + 10 * i) for i in range(6)) + "\n")
+            return type("R", (), {"returncode": 0})()
+        monkeypatch.setattr(rs.subprocess, "run", fake_run)
+        out = repo.parent / "run1"
+>       code = rs.main(plan_args(repo, out, "--run", "--min-windows", "5", "--no-routing-dump"))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_record_session.py:487: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\record_session.py:444: in main
+    return a.fn(a)
+           ^^^^^^^
+tools\pancake\record_session.py:175: in cmd_plan
+    cfg, path, left = load_preset(a.preset, repo, Path(a.data), Path(a.models))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\pancake\record_session.py:61: in load_preset
+    return json.loads(text), p, sorted(set(re.findall(r"<[A-Z_]+>", text)))
+           ^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x00000260D5F54D70>
+s = '{"exe": "C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpt7yl2iy1\\repo/build-hip/strata", "args": ["--pack", "C:\\Users\\.../pancake-turns.jsonl", "port": 8080, "gpu": 0, "env": {"STRATA_VERIFY_DEFER_CPU": "1", "STRATA_ROUTE_TAIL_SKIP": "0"}}'
+idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Invalid \escape: line 1 column 12 (char 11)
+
+C:\Python314\Lib\json\decoder.py:361: JSONDecodeError
+________ test_convert_cli_writes_the_replay_inputs_and_prints_commands ________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x00000260EB46B9D0>
+
+    def test_convert_cli_writes_the_replay_inputs_and_prints_commands(capsys):
+        d, _ = recording(norms=True)
+        assert rs.main(["convert", str(d)]) == 0
+        text = capsys.readouterr().out
+        r = d / "replay"
+        for name in ("routing.bin", "session.stwt", "turns.jsonl", "act_norm.npy", "convert.json"):
+            assert (r / name).exists(), name
+        info = json.loads((r / "convert.json").read_text())
+        assert info["weights"] == "valid" and info["cuts"] == [9, 18] and info["turns"]["turns"] == 8
+>       assert f"time_ceiling.py {r}/routing.bin data/expert-profile-pancake.bin 10909 --validate" in text
+E       AssertionError: assert 'time_ceiling.py C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpdrjfjmyr\\rec\\replay/routing.bin data/expert-profile-pancake.bin 10909 --validate' in '== convert C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpdrjfjmyr\\rec -> C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpdrj...json --out DIR --turns C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpdrjfjmyr\\rec\\replay\\turns.jsonl --list-sessions\n'
+
+tools\pancake\test_record_session.py:584: AssertionError
+___________________ test_preset_mode_reads_the_base_config ____________________
+
+    def test_preset_mode_reads_the_base_config():
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "cfg.json"
+            p.write_text(json.dumps({"env": {"STRATA_VERIFY_DEFER_CPU": "1", "STRATA_POOL_FUSE_PHASES": "1"}}))
+            assert st.preset_mode(str(p))[:2] == ("defer", True)
+            p.write_text(json.dumps({"env": {}}))
+            assert st.preset_mode(str(p))[:2] == ("serial", False)
+        assert st.preset_mode("no-such-config-anywhere.json") == ("defer", True, None)
+>       assert st.preset_mode("pancake-flashnext-iq2_xs-fast-hip.json")[:2] == ("defer", True)   # the repo's own preset
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert ('serial', True) == ('defer', True)
+E         
+E         At index 0 diff: 'serial' != 'defer'
+E         Use -v to get more diff
+
+tools\pancake\test_selftune.py:132: AssertionError
+________________________ Compile.test_good_file_passes ________________________
+
+self = <test_syntax_check.Compile testMethod=test_good_file_passes>
+
+    def test_good_file_passes(self):
+>       self.assertEqual(self.run_cc('#include <cstdio>\nint main(){ std::fprintf(stderr, "a\\n"); }\n'), 0)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_syntax_check.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_syntax_check.py:29: in run_cc
+    return subprocess.run(S.syntax_command(f"c++ -c {f} -o {f}.o"), capture_output=True, text=True).returncode
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\subprocess.py:554: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\subprocess.py:1038: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: None args: ['c++', 'C:UsersiancuAppDataLocalTempsc-bchac...>
+args = 'c++ C:UsersiancuAppDataLocalTempsc-bchacvsbf.cpp -fsyntax-only'
+executable = None, preexec_fn = None, close_fds = False, pass_fds = ()
+cwd = None, env = None
+startupinfo = <subprocess.STARTUPINFO object at 0x00000260EBA8F450>
+creationflags = 0, shell = False, p2cread = Handle(1392), p2cwrite = -1
+c2pread = 11, c2pwrite = Handle(1236), errread = 12, errwrite = Handle(1364)
+unused_restore_signals = True, unused_gid = None, unused_gids = None
+unused_uid = None, unused_umask = -1, unused_start_new_session = False
+unused_process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       unused_restore_signals,
+                       unused_gid, unused_gids, unused_uid,
+                       unused_umask,
+                       unused_start_new_session, unused_process_group):
+        """Execute program (MS Windows version)"""
+    
+        assert not pass_fds, "pass_fds not supported on Windows."
+    
+        if isinstance(args, str):
+            pass
+        elif isinstance(args, bytes):
+            if shell:
+                raise TypeError('bytes args is not allowed on Windows')
+            args = list2cmdline([args])
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = list2cmdline([args])
+        else:
+            args = list2cmdline(args)
+    
+        if executable is not None:
+            executable = os.fsdecode(executable)
+    
+        # Process startup details
+        if startupinfo is None:
+            startupinfo = STARTUPINFO()
+        else:
+            # bpo-34044: Copy STARTUPINFO since it is modified above,
+            # so the caller can reuse it multiple times.
+            startupinfo = startupinfo.copy()
+    
+        use_std_handles = -1 not in (p2cread, c2pwrite, errwrite)
+        if use_std_handles:
+            startupinfo.dwFlags |= _winapi.STARTF_USESTDHANDLES
+            startupinfo.hStdInput = p2cread
+            startupinfo.hStdOutput = c2pwrite
+            startupinfo.hStdError = errwrite
+    
+        attribute_list = startupinfo.lpAttributeList
+        have_handle_list = bool(attribute_list and
+                                "handle_list" in attribute_list and
+                                attribute_list["handle_list"])
+    
+        # If we were given an handle_list or need to create one
+        if have_handle_list or (use_std_handles and close_fds):
+            if attribute_list is None:
+                attribute_list = startupinfo.lpAttributeList = {}
+            handle_list = attribute_list["handle_list"] = \
+                list(attribute_list.get("handle_list", []))
+    
+            if use_std_handles:
+                handle_list += [int(p2cread), int(c2pwrite), int(errwrite)]
+    
+            handle_list[:] = self._filter_handle_list(handle_list)
+    
+            if handle_list:
+                if not close_fds:
+                    warnings.warn("startupinfo.lpAttributeList['handle_list'] "
+                                  "overriding close_fds", RuntimeWarning)
+    
+                # When using the handle_list we always request to inherit
+                # handles but the only handles that will be inherited are
+                # the ones in the handle_list
+                close_fds = False
+    
+        if shell:
+            startupinfo.dwFlags |= _winapi.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = _winapi.SW_HIDE
+            if not executable:
+                # gh-101283: without a fully-qualified path, before Windows
+                # checks the system directories, it first looks in the
+                # application directory, and also the current directory if
+                # NeedCurrentDirectoryForExePathW(ExeName) is true, so try
+                # to avoid executing unqualified "cmd.exe".
+                comspec = os.environ.get('ComSpec')
+                if not comspec:
+                    system_root = os.environ.get('SystemRoot', '')
+                    comspec = os.path.join(system_root, 'System32', 'cmd.exe')
+                    if not os.path.isabs(comspec):
+                        raise FileNotFoundError('shell not found: neither %ComSpec% nor %SystemRoot% is set')
+                if os.path.isabs(comspec):
+                    executable = comspec
+            else:
+                comspec = executable
+    
+            args = '{} /c "{}"'.format (comspec, args)
+    
+        if cwd is not None:
+            cwd = os.fsdecode(cwd)
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        # Start the process
+        try:
+>           hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                                     # no special security
+                                     None, None,
+                                     int(not close_fds),
+                                     creationflags,
+                                     env,
+                                     cwd,
+                                     startupinfo)
+E                                    FileNotFoundError: [WinError 2] The system cannot find the file specified
+
+C:\Python314\Lib\subprocess.py:1552: FileNotFoundError
+_______________ Compile.test_line_break_in_string_literal_fails _______________
+
+self = <test_syntax_check.Compile testMethod=test_line_break_in_string_literal_fails>
+
+    def test_line_break_in_string_literal_fails(self):
+>       self.assertNotEqual(self.run_cc('#include <cstdio>\nint main(){ std::fprintf(stderr, "a\n"); }\n'), 0)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_syntax_check.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_syntax_check.py:29: in run_cc
+    return subprocess.run(S.syntax_command(f"c++ -c {f} -o {f}.o"), capture_output=True, text=True).returncode
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\subprocess.py:554: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\subprocess.py:1038: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: None args: ['c++', 'C:UsersiancuAppDataLocalTempsc-9pwmm...>
+args = 'c++ C:UsersiancuAppDataLocalTempsc-9pwmmmghf.cpp -fsyntax-only'
+executable = None, preexec_fn = None, close_fds = False, pass_fds = ()
+cwd = None, env = None
+startupinfo = <subprocess.STARTUPINFO object at 0x00000260EBAAF550>
+creationflags = 0, shell = False, p2cread = Handle(1200), p2cwrite = -1
+c2pread = 11, c2pwrite = Handle(1064), errread = 12, errwrite = Handle(1332)
+unused_restore_signals = True, unused_gid = None, unused_gids = None
+unused_uid = None, unused_umask = -1, unused_start_new_session = False
+unused_process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       unused_restore_signals,
+                       unused_gid, unused_gids, unused_uid,
+                       unused_umask,
+                       unused_start_new_session, unused_process_group):
+        """Execute program (MS Windows version)"""
+    
+        assert not pass_fds, "pass_fds not supported on Windows."
+    
+        if isinstance(args, str):
+            pass
+        elif isinstance(args, bytes):
+            if shell:
+                raise TypeError('bytes args is not allowed on Windows')
+            args = list2cmdline([args])
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = list2cmdline([args])
+        else:
+            args = list2cmdline(args)
+    
+        if executable is not None:
+            executable = os.fsdecode(executable)
+    
+        # Process startup details
+        if startupinfo is None:
+            startupinfo = STARTUPINFO()
+        else:
+            # bpo-34044: Copy STARTUPINFO since it is modified above,
+            # so the caller can reuse it multiple times.
+            startupinfo = startupinfo.copy()
+    
+        use_std_handles = -1 not in (p2cread, c2pwrite, errwrite)
+        if use_std_handles:
+            startupinfo.dwFlags |= _winapi.STARTF_USESTDHANDLES
+            startupinfo.hStdInput = p2cread
+            startupinfo.hStdOutput = c2pwrite
+            startupinfo.hStdError = errwrite
+    
+        attribute_list = startupinfo.lpAttributeList
+        have_handle_list = bool(attribute_list and
+                                "handle_list" in attribute_list and
+                                attribute_list["handle_list"])
+    
+        # If we were given an handle_list or need to create one
+        if have_handle_list or (use_std_handles and close_fds):
+            if attribute_list is None:
+                attribute_list = startupinfo.lpAttributeList = {}
+            handle_list = attribute_list["handle_list"] = \
+                list(attribute_list.get("handle_list", []))
+    
+            if use_std_handles:
+                handle_list += [int(p2cread), int(c2pwrite), int(errwrite)]
+    
+            handle_list[:] = self._filter_handle_list(handle_list)
+    
+            if handle_list:
+                if not close_fds:
+                    warnings.warn("startupinfo.lpAttributeList['handle_list'] "
+                                  "overriding close_fds", RuntimeWarning)
+    
+                # When using the handle_list we always request to inherit
+                # handles but the only handles that will be inherited are
+                # the ones in the handle_list
+                close_fds = False
+    
+        if shell:
+            startupinfo.dwFlags |= _winapi.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = _winapi.SW_HIDE
+            if not executable:
+                # gh-101283: without a fully-qualified path, before Windows
+                # checks the system directories, it first looks in the
+                # application directory, and also the current directory if
+                # NeedCurrentDirectoryForExePathW(ExeName) is true, so try
+                # to avoid executing unqualified "cmd.exe".
+                comspec = os.environ.get('ComSpec')
+                if not comspec:
+                    system_root = os.environ.get('SystemRoot', '')
+                    comspec = os.path.join(system_root, 'System32', 'cmd.exe')
+                    if not os.path.isabs(comspec):
+                        raise FileNotFoundError('shell not found: neither %ComSpec% nor %SystemRoot% is set')
+                if os.path.isabs(comspec):
+                    executable = comspec
+            else:
+                comspec = executable
+    
+            args = '{} /c "{}"'.format (comspec, args)
+    
+        if cwd is not None:
+            cwd = os.fsdecode(cwd)
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        # Start the process
+        try:
+>           hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                                     # no special security
+                                     None, None,
+                                     int(not close_fds),
+                                     creationflags,
+                                     env,
+                                     cwd,
+                                     startupinfo)
+E                                    FileNotFoundError: [WinError 2] The system cannot find the file specified
+
+C:\Python314\Lib\subprocess.py:1552: FileNotFoundError
+____________________ Compile.test_lost_closing_brace_fails ____________________
+
+self = <test_syntax_check.Compile testMethod=test_lost_closing_brace_fails>
+
+    def test_lost_closing_brace_fails(self):
+>       self.assertNotEqual(self.run_cc("int f(){ if (1) { return 1; }\n"), 0)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_syntax_check.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\test_syntax_check.py:29: in run_cc
+    return subprocess.run(S.syntax_command(f"c++ -c {f} -o {f}.o"), capture_output=True, text=True).returncode
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\subprocess.py:554: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\subprocess.py:1038: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: None args: ['c++', 'C:UsersiancuAppDataLocalTempsc-9xkk0...>
+args = 'c++ C:UsersiancuAppDataLocalTempsc-9xkk0z2pf.cpp -fsyntax-only'
+executable = None, preexec_fn = None, close_fds = False, pass_fds = ()
+cwd = None, env = None
+startupinfo = <subprocess.STARTUPINFO object at 0x00000260EAF5C9D0>
+creationflags = 0, shell = False, p2cread = Handle(1148), p2cwrite = -1
+c2pread = 11, c2pwrite = Handle(668), errread = 12, errwrite = Handle(640)
+unused_restore_signals = True, unused_gid = None, unused_gids = None
+unused_uid = None, unused_umask = -1, unused_start_new_session = False
+unused_process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       unused_restore_signals,
+                       unused_gid, unused_gids, unused_uid,
+                       unused_umask,
+                       unused_start_new_session, unused_process_group):
+        """Execute program (MS Windows version)"""
+    
+        assert not pass_fds, "pass_fds not supported on Windows."
+    
+        if isinstance(args, str):
+            pass
+        elif isinstance(args, bytes):
+            if shell:
+                raise TypeError('bytes args is not allowed on Windows')
+            args = list2cmdline([args])
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = list2cmdline([args])
+        else:
+            args = list2cmdline(args)
+    
+        if executable is not None:
+            executable = os.fsdecode(executable)
+    
+        # Process startup details
+        if startupinfo is None:
+            startupinfo = STARTUPINFO()
+        else:
+            # bpo-34044: Copy STARTUPINFO since it is modified above,
+            # so the caller can reuse it multiple times.
+            startupinfo = startupinfo.copy()
+    
+        use_std_handles = -1 not in (p2cread, c2pwrite, errwrite)
+        if use_std_handles:
+            startupinfo.dwFlags |= _winapi.STARTF_USESTDHANDLES
+            startupinfo.hStdInput = p2cread
+            startupinfo.hStdOutput = c2pwrite
+            startupinfo.hStdError = errwrite
+    
+        attribute_list = startupinfo.lpAttributeList
+        have_handle_list = bool(attribute_list and
+                                "handle_list" in attribute_list and
+                                attribute_list["handle_list"])
+    
+        # If we were given an handle_list or need to create one
+        if have_handle_list or (use_std_handles and close_fds):
+            if attribute_list is None:
+                attribute_list = startupinfo.lpAttributeList = {}
+            handle_list = attribute_list["handle_list"] = \
+                list(attribute_list.get("handle_list", []))
+    
+            if use_std_handles:
+                handle_list += [int(p2cread), int(c2pwrite), int(errwrite)]
+    
+            handle_list[:] = self._filter_handle_list(handle_list)
+    
+            if handle_list:
+                if not close_fds:
+                    warnings.warn("startupinfo.lpAttributeList['handle_list'] "
+                                  "overriding close_fds", RuntimeWarning)
+    
+                # When using the handle_list we always request to inherit
+                # handles but the only handles that will be inherited are
+                # the ones in the handle_list
+                close_fds = False
+    
+        if shell:
+            startupinfo.dwFlags |= _winapi.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = _winapi.SW_HIDE
+            if not executable:
+                # gh-101283: without a fully-qualified path, before Windows
+                # checks the system directories, it first looks in the
+                # application directory, and also the current directory if
+                # NeedCurrentDirectoryForExePathW(ExeName) is true, so try
+                # to avoid executing unqualified "cmd.exe".
+                comspec = os.environ.get('ComSpec')
+                if not comspec:
+                    system_root = os.environ.get('SystemRoot', '')
+                    comspec = os.path.join(system_root, 'System32', 'cmd.exe')
+                    if not os.path.isabs(comspec):
+                        raise FileNotFoundError('shell not found: neither %ComSpec% nor %SystemRoot% is set')
+                if os.path.isabs(comspec):
+                    executable = comspec
+            else:
+                comspec = executable
+    
+            args = '{} /c "{}"'.format (comspec, args)
+    
+        if cwd is not None:
+            cwd = os.fsdecode(cwd)
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        # Start the process
+        try:
+>           hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                                     # no special security
+                                     None, None,
+                                     int(not close_fds),
+                                     creationflags,
+                                     env,
+                                     cwd,
+                                     startupinfo)
+E                                    FileNotFoundError: [WinError 2] The system cannot find the file specified
+
+C:\Python314\Lib\subprocess.py:1552: FileNotFoundError
+________________ test_default_task_set_is_valid_and_selftests _________________
+
+    def test_default_task_set_is_valid_and_selftests():
+        _, tasks = T.load_tasks(DEFAULT)
+        assert 10 <= len(tasks) <= 20
+        assert {t["kind"] for t in tasks} == set(T.KINDS)
+        assert T.validate_tasks(tasks) == []
+>       assert T.selftest(tasks) == []
+E       assert ["ce-window-s...ource')", ...] == []
+E         
+E         Left contains 8 more items, first extra item: "ce-window-sum: reference answer fails its checker (ModuleNotFoundError: No module named 'resource')"
+E         Use -v to get more diff
+
+tools\pancake\test_task_gate.py:21: AssertionError
+___________________________ test_run_python_limits ____________________________
+
+    def test_run_python_limits():
+        rc, _ = T.run_python("print(1)")
+>       assert rc == 0
+E       assert 1 == 0
+
+tools\pancake\test_task_gate.py:102: AssertionError
+_____ test_make_config_sets_server_config_keys_and_leaves_old_arms_alone ______
+
+    def test_make_config_sets_server_config_keys_and_leaves_old_arms_alone():
+        base = T.ROOT / "configs/pancake/flashnext-iq2_xs-fast-hip.json"
+        with tempfile.TemporaryDirectory() as d:
+>           plain = abtest.make_config(str(base), {"env": {}}, str(Path(d) / "a.json"))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_task_gate_effort.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\pancake\abtest.py:388: in make_config
+    c = json.loads(render_preset(open(base, encoding="utf-8").read()))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\json\decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x00000260D5F54D70>
+s = '{\n "exe": "C:\\Users\\iancu\\repos\\pancake-strata/build-hip/strata",\n "args": [\n  "--pack",\n  "/home/dan/clone-o...iancu\\repos\\pancake-strata/pancake-turns.jsonl",\n "sampling": {"temperature": 0.1, "top_p": 0.95, "top_k": 20}\n}\n'
+idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Invalid \escape: line 2 column 12 (char 13)
+
+C:\Python314\Lib\json\decoder.py:361: JSONDecodeError
+_____________________ test_the_new_specs_are_well_formed ______________________
+
+    def test_the_new_specs_are_well_formed():
+        for name in ("effort", "caps", "rumination"):
+            spec = json.load(open(SPECS / f"taskgate-{name}.json"))
+            assert list(spec["arms"]) and spec["time_curve"] is True and spec["max_tokens"] >= 4096
+            for arm in spec["arms"].values():
+                assert set(arm.get("request", {})) <= set(T.REQUEST_KEYS)
+                assert isinstance(arm.get("config", {}), dict)
+            assert (T.ROOT / spec["base"]).exists() and (T.ROOT / spec["tasks"]).exists()
+        # every config key an arm sets is one the server reads
+>       server = (T.ROOT / "serve/server.py").read_text()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\pancake\test_task_gate_effort.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\pathlib\__init__.py:788: in read_text
+    return f.read()
+           ^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <encodings.cp1252.IncrementalDecoder object at 0x00000260E8D0BCF0>
+input = b'"""serve/server.py - plan v0.3 P8: OpenAI and Anthropic endpoints over any engine that maps token ids to tokens.\n\n...                "exit_code": exit_code})\n    return exit_code\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+final = True
+
+    def decode(self, input, final=False):
+>       return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 707989: character maps to <undefined>
+
+C:\Python314\Lib\encodings\cp1252.py:23: UnicodeDecodeError
+=========================== short test summary info ===========================
+FAILED tools/pancake/test_abtest_core.py::test_busy_processes_lists_others_but_not_its_own_tree
+FAILED tools/pancake/test_abtest_core.py::test_stop_servers_ends_its_own_server_and_the_engine_below_it_and_nothing_else
+FAILED tools/pancake/test_abtest_core.py::test_stop_servers_kills_its_own_server_that_ignores_sigterm_after_the_wait
+FAILED tools/pancake/test_abtest_render.py::RenderPreset::test_default_repo_is_the_checkout
+FAILED tools/pancake/test_build_task_set.py::test_record_marks_what_is_not_stable_or_not_literal
+FAILED tools/pancake/test_build_task_set.py::test_checker_text_accepts_the_reference_and_rejects_a_broken_one
+FAILED tools/pancake/test_build_task_set.py::test_build_on_a_throw_away_repository_makes_valid_tasks_of_every_family
+FAILED tools/pancake/test_build_task_set.py::test_setup_runs_before_the_answer_and_is_optional
+FAILED tools/pancake/test_build_task_set.py::test_the_committed_task_set_is_valid_and_has_at_least_100_tasks
+FAILED tools/pancake/test_drop_cache.py::test_hints_big_owned_regular_files_recursively_and_nothing_else
+FAILED tools/pancake/test_drop_cache.py::test_dry_run_counts_the_same_and_sends_no_hint
+FAILED tools/pancake/test_drop_cache.py::test_other_owners_are_skipped - Attr...
+FAILED tools/pancake/test_drop_cache.py::test_nothing_is_modified_or_removed
+FAILED tools/pancake/test_drop_cache.py::test_symlink_to_a_big_file_is_not_hinted_or_followed
+FAILED tools/pancake/test_drop_cache.py::test_cli_dry_run_prints_before_and_no_after
+FAILED tools/pancake/test_drop_cache.py::test_cli_hints_then_prints_after - A...
+FAILED tools/pancake/test_fake_engine.py::test_real_run_active_looks_at_argv_not_at_text
+FAILED tools/pancake/test_fake_engine.py::test_fake_root_layout - OSError: [W...
+FAILED tools/pancake/test_night_queue.py::test_dry_run_prints_order_commands_and_total_and_writes_nothing
+FAILED tools/pancake/test_night_queue.py::test_fake_run_all_jobs_results_and_arms
+FAILED tools/pancake/test_night_queue.py::test_fake_run_other_clients_and_post_step
+FAILED tools/pancake/test_night_queue.py::test_resume_skips_finished_jobs_and_state_file_guards
+FAILED tools/pancake/test_night_queue.py::test_resume_without_state_and_fresh
+FAILED tools/pancake/test_night_queue.py::test_failed_job_is_finished_for_resume_unless_retry_failed
+FAILED tools/pancake/test_night_queue.py::test_guard_waits_until_the_machine_is_quiet_then_runs
+FAILED tools/pancake/test_night_queue.py::test_guard_skips_a_job_when_the_machine_never_gets_quiet
+FAILED tools/pancake/test_night_queue.py::test_guard_sees_a_busy_port - FileN...
+FAILED tools/pancake/test_night_queue.py::test_stop_session_ends_children_by_pid_and_the_leader
+FAILED tools/pancake/test_night_queue.py::test_stop_session_kills_a_process_that_ignores_sigterm
+FAILED tools/pancake/test_night_queue.py::test_job_timeout_stops_the_client_and_the_engine
+FAILED tools/pancake/test_night_queue.py::test_results_only_rewrites_from_state
+FAILED tools/pancake/test_night_queue.py::test_fake_server_speaks_the_decode_and_stream_protocol
+FAILED tools/pancake/test_night_queue.py::test_sigterm_stops_the_engine_gracefully_and_resume_finishes
+FAILED tools/pancake/test_promote.py::test_the_catalog_matches_the_specs - Va...
+FAILED tools/pancake/test_promote.py::test_every_spec_is_valid_json_in_the_abtest_format
+FAILED tools/pancake/test_prose_gap.py::test_series_pancake_discards_run1_and_snapshots
+FAILED tools/pancake/test_prose_gap.py::test_series_llama_takes_no_snapshot
+FAILED tools/pancake/test_prose_gap.py::test_engine_flag_overrides_detection
+FAILED tools/pancake/test_prose_gap.py::test_unreachable_server_exit_2 - Attr...
+FAILED tools/pancake/test_prose_gap.py::test_compare - AttributeError: module...
+FAILED tools/pancake/test_prose_gap.py::test_server_log_mean_len_parsed - Att...
+FAILED tools/pancake/test_record_session.py::test_plan_builds_the_config_and_prints_the_command
+FAILED tools/pancake/test_record_session.py::test_plan_options_and_refusals
+FAILED tools/pancake/test_record_session.py::test_plan_run_starts_the_server_once_then_checks
+FAILED tools/pancake/test_record_session.py::test_convert_cli_writes_the_replay_inputs_and_prints_commands
+FAILED tools/pancake/test_selftune.py::test_preset_mode_reads_the_base_config
+FAILED tools/pancake/test_syntax_check.py::Compile::test_good_file_passes - F...
+FAILED tools/pancake/test_syntax_check.py::Compile::test_line_break_in_string_literal_fails
+FAILED tools/pancake/test_syntax_check.py::Compile::test_lost_closing_brace_fails
+FAILED tools/pancake/test_task_gate.py::test_default_task_set_is_valid_and_selftests
+FAILED tools/pancake/test_task_gate.py::test_run_python_limits - assert 1 == 0
+FAILED tools/pancake/test_task_gate_effort.py::test_make_config_sets_server_config_keys_and_leaves_old_arms_alone
+FAILED tools/pancake/test_task_gate_effort.py::test_the_new_specs_are_well_formed
+ERROR tools/pancake/test_ablate_greedy.py::test_fake_loop_picks_the_winner_then_the_better_of_a_substitute_pair_and_leaves_the_loser
+ERROR tools/pancake/test_ablate_greedy.py::test_fake_lossy_item_is_flagged_and_routed_to_the_quality_gate_not_promoted
+ERROR tools/pancake/test_ablate_greedy.py::test_fake_run_refuses_to_reuse_a_started_out_dir_without_resume
+ERROR tools/pancake/test_abtest_e2e.py::test_old_mode_order_schema_text_and_gain
+ERROR tools/pancake/test_abtest_e2e.py::test_screen_tier_asks_every_case_twice_and_the_second_edit_is_faster
+ERROR tools/pancake/test_abtest_e2e.py::test_early_stop_after_two_decided_reps
+ERROR tools/pancake/test_abtest_e2e.py::test_a_server_that_dies_once_is_retried_and_twice_aborts
+ERROR tools/pancake/test_abtest_e2e.py::test_the_gate_keeps_a_slow_start_that_no_proxy_flagged
+ERROR tools/pancake/test_abtest_e2e.py::test_block_mode_passes_per_start_in_abba_order_and_cold_passes
+ERROR tools/pancake/test_abtest_e2e.py::test_promote_reads_a_block_start_as_one_pair_so_three_starts_per_arm_are_needed
+ERROR tools/pancake/test_abtest_e2e.py::test_warmup_passes_are_thrown_away - ...
+ERROR tools/pancake/test_abtest_e2e.py::test_robust_rule_runs_a_slow_start_again_where_the_gate_keeps_it
+ERROR tools/pancake/test_abtest_e2e.py::test_robust_rule_tells_the_slow_start_apart_with_two_starts_per_arm
+ERROR tools/pancake/test_abtest_e2e.py::test_tier_is_recorded_from_the_engine_line_and_capped_sh
+ERROR tools/pancake/test_abtest_e2e.py::test_every_start_keeps_its_engine_log_with_the_switch_lines
+ERROR tools/pancake/test_abtest_e2e.py::test_two_abtests_side_by_side_stop_only_their_own_server
+ERROR tools/pancake/test_abtest_e2e.py::test_abtest_refuses_to_start_while_another_test_or_engine_runs[abtest-python3 tools/pancake/abtest.py]
+ERROR tools/pancake/test_abtest_e2e.py::test_abtest_refuses_to_start_while_another_test_or_engine_runs[restore-python3 tools/pancake/restore_check.py]
+ERROR tools/pancake/test_abtest_e2e.py::test_abtest_refuses_to_start_while_another_test_or_engine_runs[engine-/opt/x/build-hip/strata]
+ERROR tools/pancake/test_abtest_e2e.py::test_a_shell_that_only_mentions_abtest_does_not_stop_a_start
+ERROR tools/pancake/test_abtest_e2e.py::test_a_leftover_server_is_reported_and_never_killed
+ERROR tools/pancake/test_abtest_e2e.py::test_sigterm_ends_abtest_and_the_server_it_started
+ERROR tools/pancake/test_abtest_e2e.py::test_queue_dry_run_prints_the_commands_and_runs_nothing
+ERROR tools/pancake/test_abtest_e2e.py::test_queue_runs_two_specs_then_skips_them_on_a_second_call
+ERROR tools/pancake/test_abtest_e2e.py::test_queue_stops_while_another_test_runs
+ERROR tools/pancake/test_abtest_e2e.py::test_queue_night_window_and_drop_cache
+SKIPPED [1] tools\pancake\test_disco_parity.py:42: no g++
+SKIPPED [1] tools\pancake\test_park_sim.py:88: park_replay_sim is not built
+SKIPPED [1] tools\pancake\test_quality_gate.py:178: the model's tokenizer directory is not on this machine
+SKIPPED [1] tools\pancake\test_restore_check.py:120: needs a pack's tokenizer folder (STRATA_TEST_TOKENIZER)
+53 failed, 754 passed, 4 skipped, 1 xfailed, 26 errors in 311.50s (0:05:11)

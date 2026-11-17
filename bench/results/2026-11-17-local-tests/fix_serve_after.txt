@@ -1,0 +1,158 @@
+...................................................sss...... [  2%]
+...................s............................. [  5%]
+.................................sss.ss................................................... [  9%]
+...............s............................................................................................... [ 15%]
+............................. [ 16%]
+................................................................................................ssssssssss.................................... [ 23%]
+..................s.sss............................ [ 26%]
+............................................... [ 28%]
+................................................................ [ 32%]
+................................................................................................................................. [ 38%]
+........................................................................ [ 42%]
+.......................x......................................................................ss................... [ 47%]
+.............................................. [ 50%]
+..............ss........................s.................sss...................................s........................ [ 56%]
+................................................... [ 58%]
+........................................................................................... [ 63%]
+....................................................................................ss.s....... [ 67%]
+....................................................... [ 70%]
+................................................................................ [ 74%]
+......................................................................................................... [ 79%]
+...................s............................................. [ 83%]
+..................................s.............ss........s.................................. [ 87%]
+......................................................... [ 90%]
+...................................... [ 92%]
+.....................................................s.............................................. [ 97%]
+........s.................. [ 98%]
+......s................                             [100%]
+============================== warnings summary ===============================
+serve/test_reasoning_loop_recovery.py::ReasoningLoopRecovery::test_default_single_token_guard_does_not_detect_passage_loop
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2921 (serve_forever)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\socketserver.py", line 235, in serve_forever
+      ready = selector.select(poll_interval)
+    File "C:\Python314\Lib\selectors.py", line 314, in select
+      r, w, _ = self._select(self._readers, self._writers, [], timeout)
+                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\selectors.py", line 305, in _select
+      r, w, x = select.select(r, w, w, timeout)
+                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  OSError: [WinError 10038] An operation was attempted on something that is not a socket
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+serve/test_serve_robustness.py::BlockedConsole::test_the_console_is_restored_and_drained
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-3561 (spam)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\iancu\repos\pancake-strata\serve\test_serve_robustness.py", line 255, in spam
+      w.write(f"[strata] progress line {i} " + "x" * 40 + "\n")
+      ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+serve/test_serve_robustness.py::BlockedConsole::test_the_console_is_restored_and_drained
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\unraisableexception.py:63: PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.TextIOWrapper name=12 mode='w' encoding='utf-8'>: None
+  
+  OSError: [Errno 22] Invalid argument
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py", line 70, in collect_thread_exception
+      del errors, meta, hook_error
+                  ^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+serve/test_tolerant_tool_calls.py::TheRequestAnswers::test_chat_completions
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-5292 (serve_forever)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\socketserver.py", line 235, in serve_forever
+      ready = selector.select(poll_interval)
+    File "C:\Python314\Lib\selectors.py", line 314, in select
+      r, w, _ = self._select(self._readers, self._writers, [], timeout)
+                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\selectors.py", line 305, in _select
+      r, w, x = select.select(r, w, w, timeout)
+                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  OSError: [WinError 10038] An operation was attempted on something that is not a socket
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] serve\test_anthropic_base_url.py:72: the anthropic package is not installed
+SKIPPED [1] serve\test_anthropic_base_url.py:65: the anthropic package is not installed
+SKIPPED [1] serve\test_anthropic_base_url.py:58: the anthropic package is not installed
+SKIPPED [1] serve\test_cache_drop.py:12: POSIX only
+SKIPPED [1] serve\test_detok.py:87: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:78: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:74: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:253: no pack tokenizer here
+SKIPPED [1] serve\test_detok.py:276: no pack tokenizer here
+SKIPPED [1] serve\test_dsv41.py:126: STRATA_DSV41_PACK (the pack's tokenizer folder) not set
+SKIPPED [1] serve\test_iommu_check.py:56: Linux only
+SKIPPED [1] serve\test_iommu_check.py:72: Linux only
+SKIPPED [1] serve\test_iommu_check.py:51: Linux only
+SKIPPED [1] serve\test_iommu_check.py:93: Linux only
+SKIPPED [1] serve\test_iommu_check.py:62: Linux only
+SKIPPED [1] serve\test_iommu_check.py:80: Linux only
+SKIPPED [1] serve\test_iommu_check.py:87: Linux only
+SKIPPED [1] serve\test_iommu_check.py:40: Linux only
+SKIPPED [1] serve\test_iommu_check.py:46: Linux only
+SKIPPED [1] serve\test_iommu_check.py:67: Linux only
+SKIPPED [1] serve\test_lifeline.py:147: PR_SET_PDEATHSIG is Linux
+SKIPPED [1] serve\test_lifeline.py:161: on Windows procs.command_line() finds nothing once the profile (APPDATA) is redirected to a temp dir, so no record is written
+SKIPPED [1] serve\test_lifeline.py:104: the portable watcher is the POSIX path
+SKIPPED [1] serve\test_lifeline.py:108: the portable watcher is the POSIX path
+SKIPPED [1] serve\test_ready_timeout.py:83: the .cmd wrapper keeps the pipe open after the kill (only the wrapper dies), so the close of its stdout waits for the sleeping child; a real engine is one process
+SKIPPED [1] serve\test_ready_timeout.py:92: the .cmd wrapper keeps the pipe open after the kill (only the wrapper dies), so the close of its stdout waits for the sleeping child; a real engine is one process
+SKIPPED [1] serve\test_replicas.py:393: Linux memfd
+SKIPPED [1] serve\test_replicas.py:377: Linux memfd
+SKIPPED [1] serve\test_request_capture.py:66: POSIX mode bits: Windows reports 0o777 for every directory
+SKIPPED [1] serve\test_resource_warnings.py:27: reads /proc and /sys
+SKIPPED [1] serve\test_resource_warnings.py:35: reads /proc and /sys
+SKIPPED [1] serve\test_resource_warnings.py:38: reads /proc and /sys
+SKIPPED [1] serve\test_responses.py:664: the schema check needs jsonschema
+SKIPPED [1] serve\test_server.py:2889: signals
+SKIPPED [1] serve\test_server.py:2879: signals
+SKIPPED [1] serve\test_server.py:2897: signals
+SKIPPED [1] serve\test_slots.py:213: symlinks need privileges on Windows
+SKIPPED [1] serve\test_stream_ownership.py:303: needs SIGSTOP to freeze the fake engine
+SKIPPED [1] serve\test_structured.py:89: jsonschema is not installed
+SKIPPED [1] serve\test_structured.py:160: jsonschema is not installed
+SKIPPED [1] serve\test_structured.py:239: serve.server needs jinja2, not importable in the isolated subprocess
+SKIPPED [1] serve\test_vision_elastic_http.py:101: child reaping is checked through /proc
+SKIPPED [1] serve\test_web_history.py:110: set WEBTEST_MODULES (a folder with node_modules/puppeteer-core) to run the browser tests
+SKIPPED [1] serve\test_web_preview.py:72: set WEBTEST_MODULES (a folder with node_modules/puppeteer-core) to run the browser tests
+1961 passed, 44 skipped, 1 xfailed, 4 warnings, 14238 subtests passed in 1500.84s (0:25:00)
