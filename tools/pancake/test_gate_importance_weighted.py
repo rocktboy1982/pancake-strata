@@ -74,7 +74,7 @@ def test_unweighted_stwt_fails_without_counts_and_partial_skips_unweighted_layer
         t = Path(d) / "u.stwt"
         write_stwt(t, wins, weighted=False)
         tr = wtrace.read(str(t))
-        assert G.weight_coverage(tr) == (0, 2 * NL)
+        assert G.weight_coverage(tr) == (0, 0, 2 * NL)
         for partial in (False, True):
             try:
                 G.expert_importance(tr, partial=partial)
@@ -83,7 +83,7 @@ def test_unweighted_stwt_fails_without_counts_and_partial_skips_unweighted_layer
                 pass
         write_stwt(t, wins, unweighted_layers={5})
         tr = wtrace.read(str(t))
-        assert G.weight_coverage(tr) == (2 * (NL - 1), 2 * NL)
+        assert G.weight_coverage(tr) == (2 * (NL - 1), 2 * (NL - 1), 2 * NL)
         try:
             G.expert_importance(tr)
             raise AssertionError("mixed trace accepted without partial")
@@ -91,6 +91,74 @@ def test_unweighted_stwt_fails_without_counts_and_partial_skips_unweighted_layer
             pass
         imp = G.expert_importance(tr, partial=True)
         assert imp[5].sum() == 0 and imp[4].sum() > 0
+
+
+def zero_windows(rng):
+    wins = synth(rng, nwin=2)
+    return [(ids, [np.zeros_like(w) for w in ws]) for ids, ws in wins]
+
+
+def test_all_zero_weighted_stwt_is_refused_with_the_cause():
+    """chain W's real2.stwt (T-834): every layer record flagged weighted, every weight 0.0 -> the tools must say why."""
+    rng = np.random.default_rng(9)
+    with tempfile.TemporaryDirectory() as d:
+        t, out = Path(d) / "z.stwt", Path(d) / "imp.txt"
+        write_stwt(t, zero_windows(rng))
+        tr = wtrace.read(str(t))
+        assert G.weight_coverage(tr) == (2 * NL, 0, 2 * NL)   # present, nonzero, all
+        for call in (lambda: G.check_weights(tr), lambda: G.expert_importance(tr), lambda: G.expert_importance(tr, partial=True),
+                     lambda: G.from_trace(tr)):
+            try:
+                call()
+                raise AssertionError("all-zero weights accepted")
+            except ValueError as e:
+                assert "the trace weights are all 0" in str(e) and "section 6 item 20" in str(e)
+        for argv in ([str(t), "--emit-importance", str(out)], [str(t), "--emit-importance", str(out), "--allow-partial"], [str(t)]):
+            try:
+                G.main(argv)
+                raise AssertionError("main accepted all-zero weights")
+            except SystemExit as e:
+                assert e.code == 2
+        assert not out.exists()
+        G.main([str(t), "--emit-importance", str(out), "--counts"])   # counts need only the ids
+        assert G.read_importance(out).sum() > 0
+
+
+def test_weights_not_summing_to_one_are_refused_unless_the_check_is_off():
+    rng = np.random.default_rng(10)
+    wins = [(ids, [w * 3.0 for w in ws]) for ids, ws in synth(rng, nwin=2)]
+    with tempfile.TemporaryDirectory() as d:
+        t, out = Path(d) / "s.stwt", Path(d) / "imp.txt"
+        write_stwt(t, wins)
+        tr = wtrace.read(str(t))
+        try:
+            G.check_weights(tr)
+            raise AssertionError("rows summing to 3 accepted")
+        except ValueError as e:
+            assert "do not sum to 1" in str(e)
+        G.check_weights(tr, tol=0)
+        G.main([str(t), "--emit-importance", str(out), "--weight-sum-tol", "0"])
+        assert out.exists()
+        write_stwt(t, synth(rng, nwin=2))
+        G.check_weights(wtrace.read(str(t)))   # real normalised weights pass
+
+
+def test_zero_records_among_real_ones_count_as_unweighted():
+    rng = np.random.default_rng(11)
+    wins = synth(rng, nwin=2)
+    wins[0][1][3][:] = 0.0   # one layer record flagged but all 0
+    with tempfile.TemporaryDirectory() as d:
+        t = Path(d) / "m.stwt"
+        write_stwt(t, wins)
+        tr = wtrace.read(str(t))
+        assert G.weight_coverage(tr) == (2 * NL, 2 * NL - 1, 2 * NL)
+        G.check_weights(tr)
+        try:
+            G.expert_importance(tr)
+            raise AssertionError("mixed trace accepted without partial")
+        except ValueError:
+            pass
+        assert G.expert_importance(tr, partial=True).sum() > 0
 
 
 def test_conv_trace_engine_env():

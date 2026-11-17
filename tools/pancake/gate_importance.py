@@ -143,6 +143,39 @@ def analyse(w, norm=None, groups=None, window_ms=None, t1=0.6, t2=0.9, budgets=(
     return rep
 
 
+ZERO_CAUSE = ("the trace weights are all 0: the served window trace does not carry router weights, see MOD_PLAN section 6 "
+              "item 20 (record with STRATA_WINDOW_TRACE_WEIGHTS=1 beside STRATA_WINDOW_TRACE, or use --counts)")
+
+
+def has_weights(lay):
+    """A layer record whose weights are present AND not all zero (a flagged-but-unfilled copy reads as 0.0)."""
+    return lay.weights is not None and bool(np.any(np.asarray(lay.weights) != 0))
+
+
+def check_weights(tr, tol=0.05, max_bad=0.01):
+    """Refuse a weighted trace that is not router weights: every weight 0 (the plan sink's copy was never filled), or the
+    rows of the non-zero records do not sum to ~1 (the engine's top-k weights are normalised) for more than max_bad of the
+    rows.  tol <= 0 disables the sum check.  A trace with no weight flags at all is left to the callers' own error."""
+    present, nonzero, _ = weight_coverage(tr)
+    if present == 0:
+        return
+    if nonzero == 0:
+        raise ValueError(ZERO_CAUSE)
+    if not tol > 0:
+        return
+    rows = bad = 0
+    for win in tr.windows:
+        for lay in win.layers.values():
+            if not has_weights(lay):
+                continue
+            sums = np.asarray(lay.weights, np.float64).sum(axis=1)
+            rows += sums.size
+            bad += int(np.sum(~(np.abs(sums - 1.0) <= tol)))
+    if rows and bad / rows > max_bad:
+        raise ValueError(f"the trace weights do not sum to 1 per entry row ({bad} of {rows} rows are off by more than "
+                         f"{tol}): they are not normalised router weights; pass --weight-sum-tol 0 to skip this check")
+
+
 def from_trace(tr):
     """A wtrace Trace -> (w [N, k], groups, total window ms or None); rows without weights are left out."""
     rows, groups, ms = [], [], 0.0
@@ -150,7 +183,7 @@ def from_trace(tr):
         have = False
         for l in sorted(win.layers):
             lay = win.layers[l]
-            if lay.weights is None:
+            if not has_weights(lay):
                 continue
             have = True
             rows.append(lay.weights)
@@ -158,36 +191,41 @@ def from_trace(tr):
         if have and win.ms:
             ms += win.ms
     if not rows:
+        if weight_coverage(tr)[0] > 0:
+            raise ValueError(ZERO_CAUSE)
         raise ValueError("the trace has no routing weights (record with --dump-routing or a window trace with weights)")
     return np.concatenate(rows), groups, ms or None
 
 
 def weight_coverage(tr):
-    """(layer records with weights, all layer records) of a wtrace Trace.  A --dump-routing file written by the served engine
-    has unit weights (read as none); a STRATA_WINDOW_TRACE of a served run carries the published weights where the GPU plan
-    sink had a mapped copy."""
-    have = tot = 0
+    """(present, nonzero, all) layer records of a wtrace Trace: with the weights flag set, with a flag set AND some weight
+    != 0, and all.  A --dump-routing file written by the served engine has unit weights (read as none); a STRATA_WINDOW_TRACE
+    of a served run flags the weights present but they stay 0.0 unless the plan sink's copy was filled (T-834)."""
+    present = nonzero = tot = 0
     for win in tr.windows:
         for lay in win.layers.values():
             tot += 1
-            have += lay.weights is not None
-    return have, tot
+            present += lay.weights is not None
+            nonzero += has_weights(lay)
+    return present, nonzero, tot
 
 
 def expert_importance(tr, counts=False, partial=False):
     """A wtrace Trace -> [n_layers, n_expert] float64: per (layer, expert) the sum of the entries' normalised gate weights
     (counts=True: the number of entries, the only choice for a trace without weights).  partial=True: layer records without
     weights are left out (a window trace of a served run can mix) as long as some have them; see weight_coverage."""
-    if partial and not counts and weight_coverage(tr)[0] == 0:
+    if not counts and weight_coverage(tr)[0] > 0 and weight_coverage(tr)[1] == 0:
+        raise ValueError(ZERO_CAUSE)
+    if partial and not counts and weight_coverage(tr)[1] == 0:
         partial = False   # nothing weighted: the error below
     imp = np.zeros((tr.n_layers, tr.n_expert), np.float64)
     for win in tr.windows:
         for l, lay in win.layers.items():
             ids = lay.ids.astype(np.int64)
-            if partial and lay.weights is None:
+            if partial and not counts and not has_weights(lay):
                 continue
-            if counts or lay.weights is None:
-                if lay.weights is None and not counts:
+            if counts or not has_weights(lay):
+                if not has_weights(lay) and not counts:
                     raise ValueError("the trace has no routing weights (use --counts for entry counts)")
                 np.add.at(imp[l], ids.ravel(), 1.0)
                 continue
@@ -282,6 +320,8 @@ def main(argv=None):
     ap.add_argument("--gate", type=float, default=0.02)
     ap.add_argument("--emit-importance", help="write the per-expert gate importance table (STRATA_TIER_MISS_FILE) here")
     ap.add_argument("--counts", action="store_true", help="--emit-importance: entry counts instead of gate weights")
+    ap.add_argument("--weight-sum-tol", type=float, default=0.05,
+                    help="refuse weighted records whose rows do not sum to 1 within this (default 0.05; 0 = no sum check)")
     ap.add_argument("--allow-partial", action="store_true",
                     help="--emit-importance: leave out layer records without weights (coverage is printed) instead of failing")
     a = ap.parse_args(argv)
@@ -292,10 +332,15 @@ def main(argv=None):
     elif a.dump_routing or a.trace:
         import wtrace
         tr = wtrace.from_dump_routing(a.dump_routing) if a.dump_routing else wtrace.read(a.trace)
+        if not (a.emit_importance and a.counts):
+            try:
+                check_weights(tr, a.weight_sum_tol)
+            except ValueError as e:
+                ap.error(str(e))
         if a.emit_importance:
             imp = expert_importance(tr, a.counts, a.allow_partial)
-            have, tot = weight_coverage(tr)
-            print(f"layer records with weights: {have} of {tot}")
+            have, nz, tot = weight_coverage(tr)
+            print(f"layer records with weights: {nz} nonzero, {have} present, {tot} in all")
             write_importance(a.emit_importance, imp)
             print(f"wrote {a.emit_importance}: {imp.shape[0]} layers x {imp.shape[1]} experts, "
                   f"{'entry counts' if a.counts else 'gate weight sums'}")

@@ -1560,7 +1560,8 @@ void drive_pool_multi_impl(void* user, const float* x_f, const int32_t* ids, int
     // the routing trace for the serve path: the same record format drive_pool writes (layer, k, ids, weights),
     // one record per token.  The multi dispatch fuses the router weights into the kernel and does not surface
     // them, so records carry unit weights: tools/make_profile.py ranks pairs by routed frequency, which is the
-    // signal that matters; a one-shot --dump-routing run records true weights if a weighted ranking is wanted.
+    // signal that matters.  A one-shot --dump-routing run does NOT help on a native pack (it runs verify windows too, so this
+    // function writes it); true weights come from STRATA_WINDOW_TRACE with STRATA_WINDOW_TRACE_WEIGHTS=1 (verify.cpp publishes them).
     // MOD_PLAN item 64 (STRATA_WINDOW_TRACE): the layer's routing, placement and published weights (the GPU plan
     // sink's mapped copy when it has one), buffered until the window commits (window_trace.hpp)
     if (strata::core::window_trace().on()) {

@@ -3403,6 +3403,12 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         // number, as doorbell_publish_value / device_plan_ use it: the host resets the ring to 0 in stage_inputs and
         // waits for k + 1 at step k.  Not with the lookahead router (its rows must be published before the ring).
         static const bool g_rfast = native_router_fast_enabled();
+        // STRATA_WINDOW_TRACE_WEIGHTS=1 (opt-in, with STRATA_WINDOW_TRACE; MOD_PLAN.md section 6 item 20): the plain doorbell_publish
+        // (rows, ids AND the router weights) instead of the weight-less route_publish_res / doorbell_publish_res, so the plan
+        // sink's mapped copy (sink_.route_w -> h_w_) holds the true weights the window trace records.  Without it the daily
+        // preset's publish carries no weights (the trace shows all-zero weights, TEST_LEDGER.md T-834).  Off: byte-identical.
+        static const bool g_trace_w = env_on("STRATA_WINDOW_TRACE_WEIGHTS");
+        const bool trace_w = g_trace_w && strata::core::window_trace().on();
         // item 48 (STRATA_ROUTER_FUSE=1, opt-in): ROUTE_PUBLISH's launch rides in the router GEMV's last block
         static const bool g_rfuse = [] { const char* v = std::getenv("STRATA_ROUTER_FUSE"); return v != nullptr && v[0] == '1'; }();
         // the session conditions both one-launch publishes (ROUTE_FAST's and ROUTE_PUBLISH's) need, the first that fails
@@ -3425,7 +3431,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
         const bool rows_2_8 = n > 1 && n <= 8;
         const bool rfast = g_rfast && rows_2_8 && pub_off == nullptr && la_out_ == nullptr;
         const uint32_t ring_step = (uint32_t) ((l - lb_) * G + grp + 1);
-        const bool rpub = !rfast && g_rpub && rows_2_8 && pub_off == nullptr &&
+        const bool rpub = !rfast && g_rpub && rows_2_8 && pub_off == nullptr && !trace_w &&
                           !defer_   // STRATA_VERIFY_DEFER_CPU: the deferred rows go through the plain publish (bisect 2026-11-09: non-finite logits otherwise)
 #if defined(STRATA_USE_HIP)
                           && !g_doorbell_store
@@ -3646,7 +3652,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
             // #578: the helper GPUs reduce with the routing weights - publish them; set_always_publish: the rows
             // whatever the device's residency table says (pipelined windows)
             // (STRATA_VERIFY_DEFER_CPU_BELOW: the pool reads the weights too)
-            if (remote_opt_ || always_publish_ || heavy)
+            if (remote_opt_ || always_publish_ || heavy || trace_w)
                 doorbell_publish(xm, ids_ + tb * K, w_ + tb * K, (int64_t) n * N, (int64_t) n * K, m_x_ + tb * N,
                                  m_ids_ + tb * K, m_w_ + tb * K, m_seq_, cs);
             else if (!rpub) {
