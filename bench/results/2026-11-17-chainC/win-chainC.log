@@ -1,0 +1,7 @@
+START 2026-11-17_08:55:56
+chain 11 done 10:45:57
+service stopped (idle) 10:49:00
+START 161 2026-11-17_10:52:00
+END 161 exit=0 11:23:48
+service started 11:23:48
+WINCHAINC_DONE

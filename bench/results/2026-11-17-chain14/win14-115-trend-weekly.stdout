@@ -1,0 +1,47 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 cc86179c48f0, target 64000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 base                 long1k 91.7/797p 1028t long3k 115.9/1306p 2932t long64k 72.9/2402p 65191t short 106.8 edit 172.9 long1k 87.6/807p 1028t long3k 111.3/1300p 2932t long64k 74.6/2402p 65191t short 104.6 edit 178.1 long1k 96.0/803p 1029t long3k 101.2/1261p 2933t long64k 84.6/2412p 65192t short 98.8 edit 170.5  foreign CPU 3% [('kcompactd0', 3), ('claude', 1), ('kworker/8:0-events_freezable', 1)]  gpu 2028/1249 MHz 63C 194W gtt 25M cpu 3263MHz 65C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 base-again           long1k 73.9/803p 1029t long3k 96.3/1304p 2933t long64k 70.5/2405p 65192t short 107.6 edit 178.1 long1k 84.7/803p 1029t long3k 105.3/1306p 2933t long64k 84.0/2364p 65192t short 94.0 edit 180.2 long1k 87.2/810p 1029t long3k 106.4/1303p 2933t long64k 89.2/2412p 65192t short 82.7 edit 124.6  foreign CPU 3% [('claude', 8), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 2024/1249 MHz 66C 188W gtt 25M cpu 3231MHz 64C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 1 base-again           long1k 86.9/634p 1029t long3k 104.5/1302p 2933t long64k 69.3/2404p 65192t short 84.0 edit 169.4 long1k 98.7/802p 1029t long3k 97.5/1308p 2933t long64k 89.9/2384p 65192t short 83.9 edit 181.3 long1k 88.7/795p 1029t long3k 105.5/1308p 2933t long64k 83.9/2408p 65192t short 102.2 edit 171.2  foreign CPU 4% [('kcompactd0', 4), ('kworker/6:1-events_freezable', 3), ('kworker/9:2-events_freezable', 3)]  gpu 2020/1249 MHz 66C 190W gtt 25M cpu 3284MHz 65C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 1 base                 long1k 83.0/793p 1029t long3k 105.5/1307p 2933t long64k 91.9/2406p 65192t short 107.6 edit 174.3 long1k 94.9/805p 1029t long3k 102.4/1303p 2933t long64k 88.0/2399p 65192t short 108.6 edit 174.3 long1k 96.9/802p 1029t long3k 103.0/1229p 2933t long64k 70.8/2413p 65192t short 114.8 edit 175.8  foreign CPU 3% [('kcompactd0', 2), ('kworker/10:2-events_freezable', 2), ('kworker/13:0-events_freezable', 1)]  gpu 2023/1249 MHz 68C 191W gtt 25M cpu 3310MHz 65C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 0 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 2 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  base-again           rep 0 attempt 0 pass 3: long1k 809.7, long3k 1303.0, long64k 2412.1, short 82.7, edit 124.6 outside [146.6, 202.7]
+  base-again           rep 1 attempt 0 pass 1: long1k 634.5 outside [732.1, 872.6], long3k 1302.2, long64k 2404.4, short 84.0, edit 169.4
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k base                    801.2 +-   7.8  (n=6)
+  long1k base-again              800.7 +-   8.8  (n=4)   vs base:  -0.3% +-  1.6%  -> no difference
+  long3k base                   1284.2 +-  46.3  (n=6)
+  long3k base-again             1306.7 +-   3.6  (n=4)   vs base:  +1.7% +-  6.4%  -> no difference
+  long64k base                   2405.7 +-   8.5  (n=6)
+  long64k base-again             2389.9 +-  45.0  (n=4)   vs base:  -0.6% +-  1.6%  -> no difference
+  short  base                    106.9 +-   7.6  (n=6)
+                              drafts accepted 0.72
+  short  base-again               96.9 +-  22.6  (n=4)   vs base: -11.0% +- 21.4%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    174.3 +-   3.7  (n=6)
+                              drafts accepted 0.89
+  edit   base-again              177.7 +-   9.9  (n=4)   vs base:  +1.4% +-  6.4%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  base-again           DIFFERENT text -> lossy or placement-dependent: quality gate

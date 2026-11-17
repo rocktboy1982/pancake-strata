@@ -94,3 +94,27 @@
 2026-11-17 10:45:25 END ITEM 07-poly-draft-race exit 0
 2026-11-17 10:45:53 idle broken: CPU 21%
 2026-11-17 10:48:47 idle broken: CPU 100%
+2026-11-17 11:04:10 idle broken: CPU 22%
+2026-11-17 11:05:17 idle broken: CPU 30%
+2026-11-17 11:06:01 idle broken: CPU 21%
+2026-11-17 11:07:51 idle broken: CPU 22%
+2026-11-17 11:08:57 idle broken: CPU 21%
+2026-11-17 11:09:42 idle broken: CPU 21%
+2026-11-17 11:11:09 idle broken: CPU 23%
+2026-11-17 11:14:06 idle broken: CPU 31%
+2026-11-17 11:16:18 idle broken: CPU 22%
+2026-11-17 11:17:24 idle broken: CPU 32%
+2026-11-17 11:21:09 START ITEM 08-spec159-poly-flags [B] spec 159: strata-poly flag arms on the 1660 Ti through bench_win_ab.py (needs the new runner tools/pancake/bench_win_ab.py)
+2026-11-17 11:21:09 START 08-spec159-poly-flags/spec159: C:\Users\iancu\build-latest\venv\Scripts\python.exe C:\Users\iancu\repos\pancake-strata\tools\pancake\bench_win_ab.py C:\Users\iancu\repos\pancake-strata\bench\specs\159-gtx1660ti-poly-flags.json --out C:\Users\iancu\repos\pancake-strata\bench\results\2026-11-17-gtx1660ti-queue\08-spec159-poly-flags\arms
+2026-11-17 12:42:26 QUEUE START repo C:\Users\iancu\repos\pancake-strata out C:\Users\iancu\repos\pancake-strata\bench\results\2026-11-17-gtx1660ti-queue now=True window 23:00-06:30
+2026-11-17 12:42:26 SKIP 00-build: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:42:26 SKIP 01-poly-cpu-tests: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:42:26 SKIP 02-poly-gpu-synthetic: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:42:26 SKIP 03-head-parity: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:42:26 SKIP 04-compile-fixed-tests: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:42:26 SKIP 05-poly-expert-parity: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:42:26 SKIP 06-poly-cpu-experts-bench: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:42:26 SKIP 07-poly-draft-race: exit.txt exists (done earlier; -Force reruns)
+2026-11-17 12:44:03 idle broken: CPU 30%
+2026-11-17 12:46:17 idle broken: CPU 39%
+2026-11-17 12:47:45 idle broken: CPU 21%

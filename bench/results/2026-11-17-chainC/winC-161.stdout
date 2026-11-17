@@ -1,0 +1,62 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long: 40378 chars, sha1 886c307ab46b (a unique run line is prepended to every request)
+case long32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 cc86179c48f0, target 64000 tokens (a unique run line is prepended to every request)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 preset               short 83.3 long3k 98.7/1292p 2933t long 66.3/1893p 14284t long32k 96.9/2168p 31461t long64k 80.7/2383p 65192t short 83.1 long3k 101.2/1295p 2933t long 76.4/2199p 14285t long32k 98.8/2330p 31462t long64k 79.9/2393p 65193t short 73.2 long3k 97.8/1280p 2934t long 88.3/2202p 14285t long32k 83.6/2340p 31462t long64k 90.8/2402p 65193t  foreign CPU 4% [('claude', 8), ('gnome-shell', 3), ('pipewire', 2)]  gpu 2030/1249 MHz 67C 185W gtt 25M cpu 3231MHz 64C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 f16-1                short 83.7 long3k 97.9/1291p 2934t long 88.1/2134p 14285t long32k 92.2/2501p 31462t long64k 83.2/2786p 65193t short 93.4 long3k 118.2/1289p 2934t long 93.1/2183p 14285t long32k 94.8/2731p 31462t long64k 77.2/2801p 65193t short 106.8 long3k 101.9/1298p 2934t long 89.8/2537p 14285t long32k 98.2/2734p 31462t long64k 83.2/2818p 65193t  foreign CPU 7% [('gnome-shell', 41), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 2029/1249 MHz 69C 197W gtt 25M cpu 3171MHz 64C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 1 f16-1                short 103.2 long3k 96.6/1293p 2934t long 96.2/2536p 14285t long32k 105.8/2722p 31462t long64k 92.0/2788p 65193t short 104.9 long3k 108.9/1295p 2934t long 92.3/2537p 14285t long32k 104.3/2732p 31462t long64k 95.4/2790p 65193t short 104.7 long3k 108.5/1290p 2934t long 91.9/2536p 14285t long32k 107.3/2734p 31462t long64k 90.4/2812p 65193t  foreign CPU 5% [('gnome-shell', 8), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2020/1249 MHz 73C 202W gtt 25M cpu 3224MHz 64C igpu 0%/vcn 0% fclk 1600
+rep 0 f16-1: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 f16-1                short 106.8 long3k 110.2/1296p 2934t long 90.6/2537p 14285t long32k 96.4/2721p 31462t long64k 84.2/2784p 65193t short 105.4 long3k 102.5/1294p 2934t long 95.9/2535p 14285t long32k 98.3/2730p 31462t long64k 86.7/2800p 65193t short 108.7 long3k 114.5/1293p 2934t long 98.2/2538p 14285t long32k 95.1/2733p 31462t long64k 77.8/2809p 65193t  foreign CPU 6% [('claude', 11), ('ptyxis', 3), ('pipewire', 1)]  gpu 2025/1249 MHz 75C 206W gtt 25M cpu 3317MHz 64C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 1 preset               short 104.2 long3k 102.4/1289p 2934t long 91.6/2203p 14285t long32k 93.5/2335p 31462t long64k 90.4/2378p 65193t short 108.0 long3k 115.8/1288p 2934t long 94.7/2203p 14285t long32k 111.8/2342p 31462t long64k 86.1/2388p 65193t short 105.9 long3k 111.5/1319p 2934t long 92.0/2214p 14285t long32k 97.4/2342p 31462t long64k 84.7/2384p 65193t  foreign CPU 4% [('kworker/0:2-events_freezable', 3), ('claude', 1), ('kcompactd0', 1)]  gpu 2026/1249 MHz 77C 195W gtt 25M cpu 3190MHz 65C igpu 0%/vcn 0% fclk 1600
+rep 0 preset: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long: 14260 prompt tokens by count_tokens
+  long32k: 31437 prompt tokens by count_tokens (target 32000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 preset               short 105.2 long3k 105.4/1291p 2934t long 92.9/2201p 14285t long32k 98.9/2333p 31462t long64k 93.2/2377p 65193t short 106.8 long3k 117.7/1253p 2934t long 91.2/2201p 14285t long32k 104.2/2340p 31462t long64k 94.0/2387p 65193t short 107.2 long3k 106.4/1295p 2934t long 98.1/2200p 14285t long32k 97.0/2338p 31462t long64k 94.9/2393p 65193t  foreign CPU 4% [('claude', 6), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2026/1249 MHz 78C 197W gtt 25M cpu 3237MHz 62C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 2 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  preset               rep 0 attempt 0 slow start (means): short 79.9, long3k 1288.8, long 2097.8, long32k 2279.4, long64k 2392.8
+  f16-1                rep 0 attempt 0 slow start (means): short 94.6, long3k 1292.4, long 2284.6, long32k 2655.3, long64k 2801.5
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  preset                  106.2 +-   2.0  (n=6)
+                              drafts accepted 0.71
+  short  f16-1                   105.6 +-   2.8  (n=6)   vs preset:  -0.6% +-  2.5%  -> no difference
+                              drafts accepted 0.70
+  long3k preset                 1289.1 +-  30.3  (n=6)
+  long3k f16-1                  1293.5 +-   3.0  (n=6)   vs preset:  +0.3% +-  2.5%  -> no difference
+  long   preset                 2203.7 +-   7.4  (n=6)
+  long   f16-1                  2536.6 +-   1.4  (n=6)   vs preset: +15.1% +-  0.4%  -> better
+  long32k preset                 2338.1 +-   5.3  (n=6)
+  long32k f16-1                  2728.8 +-   8.4  (n=6)   vs preset: +16.7% +-  0.2%  -> better
+  long64k preset                 2384.7 +-   9.0  (n=6)
+  long64k f16-1                  2797.2 +-  16.7  (n=6)   vs preset: +17.3% +-  0.5%  -> better
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  f16-1                DIFFERENT text -> lossy or placement-dependent: quality gate

@@ -1,0 +1,70 @@
+{
+ "spec": "159-gtx1660ti-poly-flags.json",
+ "arms": {
+  "base": {
+   "exit": 0,
+   "wall_s": 846,
+   "cases": {
+    "short": {
+     "decode_tps": 33.46,
+     "ci95": "1.20",
+     "n_runs": 3,
+     "ttft_s": 0.67
+    },
+    "code": {
+     "decode_tps": 31.89,
+     "ci95": "0.81",
+     "n_runs": 3,
+     "ttft_s": 0.57
+    }
+   },
+   "args": [],
+   "env": {}
+  },
+  "threads-4": {
+   "exit": 0,
+   "wall_s": 859,
+   "cases": {
+    "short": {
+     "decode_tps": 33.98,
+     "ci95": "3.16",
+     "n_runs": 3,
+     "ttft_s": 0.72
+    },
+    "code": {
+     "decode_tps": 33.15,
+     "ci95": "1.98",
+     "n_runs": 3,
+     "ttft_s": 0.64
+    }
+   },
+   "args": [
+    "--threads",
+    "4"
+   ],
+   "env": {}
+  },
+  "cpu-multi": {
+   "exit": 0,
+   "wall_s": 831,
+   "cases": {
+    "short": {
+     "decode_tps": 32.48,
+     "ci95": "1.16",
+     "n_runs": 3,
+     "ttft_s": 0.68
+    },
+    "code": {
+     "decode_tps": 32.24,
+     "ci95": "2.55",
+     "n_runs": 3,
+     "ttft_s": 0.58
+    }
+   },
+   "args": [
+    "--cpu-multi"
+   ],
+   "env": {}
+  }
+ }
+}

@@ -1,0 +1,18 @@
+arm                     runs     success (95% Wilson) tool valid t_success med s/success  vs base
+base                      48  95.8% [86.0,  98.8]       n/a           5.6s      6.9s
+                       time-AUC 0.955 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 95.8% / 95.8% / 95.8% / 95.8%)
+                       by kind: qa 96% (n=48)
+mcp-async                 24  95.8% [79.8,  99.3]       n/a           5.5s      7.3s  success  +0.0 pts [ -8.3,  +8.3] INCONCLUSIVE  => INCONCLUSIVE
+                       time-AUC 0.955 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 95.8% / 95.8% / 95.8% / 95.8%)  vs base -0.000 [-0.083, +0.082]
+                       by kind: qa 96% (n=24)
+mcp-spec-2                24  95.8% [79.8,  99.3]       n/a           5.8s      7.5s  success  +0.0 pts [ -8.3,  +8.3] INCONCLUSIVE  => INCONCLUSIVE
+                       time-AUC 0.955 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 95.8% / 95.8% / 95.8% / 95.8%)  vs base -0.000 [-0.083, +0.083]
+                       by kind: qa 96% (n=24)
+mcp-async-spec-2          24  91.7% [74.2,  97.7]       n/a           5.8s      7.4s  success  -4.2 pts [-18.8,  +2.1] INCONCLUSIVE  => INCONCLUSIVE
+                       time-AUC 0.914 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 91.7% / 91.7% / 91.7% / 91.7%)  vs base -0.041 [-0.186, +0.021]
+                       by kind: qa 92% (n=24)
+mcp-early-stop-2          24  91.7% [74.2,  97.7]       n/a           5.7s      8.5s  success  -4.2 pts [-18.8,  +2.1] INCONCLUSIVE  => INCONCLUSIVE
+                       time-AUC 0.913 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 91.7% / 91.7% / 91.7% / 91.7%)  vs base -0.042 [-0.187, +0.021]
+                       by kind: qa 92% (n=24)
+base run 2 vs run 1: +0.0 pts [-12.5, +12.5]
+verdict: success non-inferior within 5 pts, tool-call validity within 3 pts; paired by task, bootstrap over tasks and repetitions

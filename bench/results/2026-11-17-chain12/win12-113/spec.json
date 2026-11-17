@@ -1,0 +1,52 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "tasks": "bench/tasks/mcp-repo.json",
+ "reps": 3,
+ "temperature": 0.2,
+ "margin": 0.05,
+ "auc_horizon_s": 1800,
+ "mcp_servers": {
+  "repo": {
+   "command": "<PYTHON>",
+   "args": [
+    "-I",
+    "<REPO>/tools/pancake/mcp_bench_server.py",
+    "<REPO>"
+   ]
+  }
+ },
+ "mcp": {
+  "max_rounds": 8
+ },
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "mcp-async": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_MCP_ASYNC": "1"
+   }
+  },
+  "mcp-spec-2": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_MCP_SPEC": "2"
+   }
+  },
+  "mcp-async-spec-2": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_MCP_ASYNC": "1",
+    "STRATA_MCP_SPEC": "2"
+   }
+  },
+  "mcp-early-stop-2": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_MCP_EARLY_STOP": "2"
+   }
+  }
+ },
+ "_note": "MOD_PLAN.md section 5 item 2: the server-side MCP switches (AsyncFC STRATA_MCP_ASYNC, PASTE/Atomix STRATA_MCP_SPEC, EarlyEval/EET STRATA_MCP_EARLY_STOP) on read-only repository look-ups; tools/pancake/task_gate.py writes mcp_servers into each arm's config and the tasks send strata_mcp. Judge success and the time-to-success curve (auc_horizon_s); exact switches should keep success equal."
+}
