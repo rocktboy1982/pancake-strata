@@ -2451,6 +2451,12 @@ if(STRATA_BUILD_TESTS)
   add_executable(ple_warm_test src/program/ple_warm_test.cpp)   # MOD_PLAN.md section 6 item 50: STRATA_PLE_WARM
   target_include_directories(ple_warm_test PRIVATE include)
   add_test(NAME ple_warm_test COMMAND ple_warm_test)
+  add_executable(free_settle_test src/program/free_settle_test.cpp)   # LEADS.md Part P L5: STRATA_FREE_SETTLE_MS
+  target_include_directories(free_settle_test PRIVATE include)
+  add_test(NAME free_settle_test COMMAND free_settle_test)
+  add_executable(copy_lane_test src/spec/copy_lane_test.cpp)   # LEADS.md Part P L1: STRATA_LOOKUP_COPYLANE
+  target_include_directories(copy_lane_test PRIVATE include)
+  add_test(NAME copy_lane_test COMMAND copy_lane_test)
   add_executable(session_keep_root_test src/core/session_keep_root_test.cpp src/core/conversation_file.cpp)   # MOD_PLAN.md section 6 item 44: STRATA_SESSION_KEEP_ROOT
   target_include_directories(session_keep_root_test PRIVATE include)
   add_test(NAME session_keep_root_test COMMAND session_keep_root_test)
@@ -4033,6 +4039,8 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     ckpt_async_plan_test
     ckpt_stride_test
     ple_warm_test
+    free_settle_test
+    copy_lane_test
     session_keep_root_test
     diag_rules_test
     lookahead_weights_test

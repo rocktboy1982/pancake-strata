@@ -47,6 +47,7 @@
 #include "strata/core/remote_expert_opt.hpp"
 #include "strata/core/expert_cache.hpp"
 #include "strata/core/expert_tiers.hpp"
+#include "strata/spec/copy_lane.hpp"
 #include "strata/spec/ngram_mod.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_snapshot.hpp"
@@ -16253,6 +16254,18 @@ int main(int argc, char** argv) {
             if (!have) {
                 strata::spec::extra_draft_sources().push_back(std::make_unique<strata::spec::NgramModSource>((int32_t) g.n_vocab));
                 std::fprintf(stderr, "strata serve: STRATA_NGRAM_MOD: shared n-gram table (16 MiB) as a --lookup-chain source\n");
+            }
+        }
+        // STRATA_LOOKUP_COPYLANE=1 (opt-in, LEADS.md Part P L1; hipfire's n-gram copy lane, Apache-2.0, copy_lane.hpp): a verbatim-copy
+        // source for --lookup-chain, keys of 32 / 16 / 8 / 5 tokens (longest first) mapped to the position after their most recent
+        // occurrence, the match checked token for token; the proposal copies up to 63 tokens of earlier text.  Exact: the window checks it.
+        static const bool copy_lane_on = [] { const char* v = std::getenv("STRATA_LOOKUP_COPYLANE"); return v != nullptr && v[0] == '1'; }();
+        if (copy_lane_on && o.lookup_chain > 0) {
+            bool have = false;
+            for (const auto& src : strata::spec::extra_draft_sources()) have = have || (src && std::strcmp(src->name(), "copy-lane") == 0);
+            if (!have) {
+                strata::spec::extra_draft_sources().push_back(std::make_unique<strata::spec::CopyLaneSource>());
+                std::fprintf(stderr, "strata serve: STRATA_LOOKUP_COPYLANE: copy lane (keys 32/16/8/5, 16 MiB) as a --lookup-chain source\n");
             }
         }
         strata::spec::DraftPolicy policy(S);   // MTP or lookup window, learned over the whole process

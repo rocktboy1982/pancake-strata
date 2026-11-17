@@ -1,0 +1,14 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": ["edit", "longdec10k", "short"],
+ "reps": 3,
+ "arms": {
+  "base": {"exe": "/home/dan/clone-of-d/src/build-win/strata"},
+  "chain3": {"exe": "/home/dan/clone-of-d/src/build-win/strata", "args": {"--lookup-chain": "3"}},
+  "chain3-copylane": {"exe": "/home/dan/clone-of-d/src/build-win/strata", "args": {"--lookup-chain": "3"}, "env": {"STRATA_LOOKUP_COPYLANE": "1"}},
+  "chain7-copylane": {"exe": "/home/dan/clone-of-d/src/build-win/strata", "args": {"--lookup-chain": "7"}, "env": {"STRATA_LOOKUP_COPYLANE": "1"}},
+  "chain7-copylane-min8": {"exe": "/home/dan/clone-of-d/src/build-win/strata", "args": {"--lookup-chain": "7", "--lookup-chain-min": "8"}, "env": {"STRATA_LOOKUP_COPYLANE": "1"}}
+ },
+ "note": "LEADS.md Part P lead L1, STRATA_LOOKUP_COPYLANE=1: hipfire's native-MTP n-gram copy lane (crates/hipfire-runtime/src/ngram_mod.rs MtpCopyContext, Apache-2.0; credit README.md section 9, LICENSES/hipfire-Apache-2.0.txt) as a --lookup-chain draft source (include/strata/spec/copy_lane.hpp): keys of 32 / 16 / 8 / 5 tokens, longest first, each mapped to the position after its most recent occurrence, the match checked token for token, the proposal copies up to 63 tokens, tables kept across requests. It only exists behind --lookup-chain (the preset sets neither flag), so chain3 is the control that isolates the source from the chain itself (spec 13 measured the chain alone). The window policy (DraftPolicy::chain) keeps the chained tokens that pay at the measured window costs; --lookup-chain-min 8 asks for a key of at least 8 (the lane's long keys only). Exact: the verify window checks the draft, so every case's text hash must equal base (abtest prints the text check; a difference is a bug, not a result). The lever ran if the engine log has 'STRATA_LOOKUP_COPYLANE: copy lane'. Their numbers (author hardware, Strix Halo / R9700, MTP native): single-file edit +11.6-14.6% / +5.6-7.2% decode; ours edit is already +8.8% from --lookup-max-t 12 (T-126). Run --tier screen, confirm any >= +2% with --tier confirm. NOT MEASURED (coded, untested on a GPU: box run needed)."
+}
