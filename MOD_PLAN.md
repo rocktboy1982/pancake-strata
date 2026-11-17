@@ -312,7 +312,7 @@ miss.
    (`STRATA_MMVQ_IL_PLAIN=1`: `verify: layer 0 never rang (an illegal memory access was encountered)`, T-602) with
    `mmvq_il_parity` under `HIP_LAUNCH_BLOCKING=1` / `compute-sanitizer`, code in verify.cpp:2577-2643 and native_mmvq.cu:2527
    (`launch_il_plain`); `quality_gate.py` (set-v2, the default since T-597) for every spec 102/103 arm that reaches the 2% bar;
-   then the confirm specs for the PROMOTE arms of specs 87-101; rerun spec 88's six arms that never ran (`adapt-idle-copy-1m`, `miss-skip-w02/w05/cum90/cum95`) without `adapt-idle-copy`, whose first request fails with `the adaptive tier's copies for layer 25 never landed` (T-613, a second crash after T-602). Nothing of this runs before chain 7 is done (no GPU job beside
+   then the confirm specs for the PROMOTE arms of specs 87-101; rerun spec 121b (the quality gate of spec 121: it exited 2 on 2026-11-17 12:47 because the box clone had the old set-v2.json with 28 empty continuations, fixed by copying the filled file in), and spec 88's six arms that never ran (`adapt-idle-copy-1m`, `miss-skip-w02/w05/cum90/cum95`) without `adapt-idle-copy`, whose first request fails with `the adaptive tier's copies for layer 25 never landed` (T-613, a second crash after T-602). Nothing of this runs before chain 7 is done (no GPU job beside
    a chain).
 3. **MEASURED at screen (T-615, spec 90): long32k +7.2%, n=1, PROMOTE to confirm (item 2).** **q36 dense MMQ** for Qwen3.6-35B-A3B: env arm `STRATA_DENSE_MMQ=1` (gemm.cu:1377, HIP; prerequisites 14dd746f /
    55b8c26b in HEAD), prompt 8K/32K. Author (burzumishi, strata-q36): 32K prompt 635 -> 910 tok/s on a 7900 XTX.
