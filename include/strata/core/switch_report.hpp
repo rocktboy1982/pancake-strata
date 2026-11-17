@@ -32,6 +32,7 @@ inline Switch wait_copy256{"STRATA_WAIT_COPY256"};               // F21, verify_
 inline Switch route_fast{"STRATA_ROUTE_FAST"};                   // F9, verify.cpp's router step
 inline Switch router_fuse{"STRATA_ROUTER_FUSE"};                 // item 48, verify.cpp's router step
 inline Switch ic_warm{"STRATA_IC_WARM_MB"};                      // item 47, verify.cpp
+inline Switch ic_warm_defer{"STRATA_IC_WARM_DEFER"};             // LEADS.md Part L L14, verify.cpp: the warm fork in the deferral's late wait
 inline Switch expdec_swiglu{"STRATA_EXPDEC_SWIGLU"};             // item 48, iq_kernels.cu
 inline Switch hip_global_weights{"STRATA_HIP_GLOBAL_WEIGHTS"};   // Phase 15, a build macro: iq_kernels.cu at start-up
 inline Switch wait_combine{"STRATA_WAIT_COMBINE"};               // android-imdad caa9b00115, verify.cpp's combine

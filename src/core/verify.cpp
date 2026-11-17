@@ -1695,6 +1695,12 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
     }
     // LEADS.md HotRod substitute fit (opt-in; nothing is allocated when STRATA_SUBFIT_LOG / _LEARN / _APPLY are unset)
     if (h_sdyn_ != nullptr && subfit_on() && m_sgate_ == nullptr && !subfit_init_(T, K, N, g, err)) return false;
+    if (const char* wd = std::getenv("STRATA_IC_WARM_DEFER"); wd != nullptr && std::atoi(wd) > 0) {
+        const char* wm0 = std::getenv("STRATA_IC_WARM_MB");
+        static bool said_warm_defer = false;
+        if ((wm0 == nullptr || std::atoi(wm0) <= 0) && !said_warm_defer && (said_warm_defer = true))
+            std::fprintf(stderr, "strata verify: STRATA_IC_WARM_DEFER=%s ignored (it needs STRATA_IC_WARM_MB=<MiB per layer> for the cap)\n", wd);
+    }
     if (const char* wm = std::getenv("STRATA_IC_WARM_MB"); wm != nullptr && std::atoi(wm) > 0 && warm_segs_ == nullptr) {
         // item 47: per layer, the matrices its window reads before the doorbell (mixer projections, router), as the kernels
         // read them (the native GGUF copy where there is one)
@@ -1754,6 +1760,10 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
             std::fprintf(stderr, "strata verify: STRATA_IC_WARM_MB=%d: the next layer's pre-doorbell weights (%.1f MiB per layer "
                                  "on average) read during the CPU wait (item 47)\n", std::atoi(wm),
                          (double) tot / (double) g.n_layers / 1048576.0);
+            if (const char* wd = std::getenv("STRATA_IC_WARM_DEFER"); wd != nullptr && std::atoi(wd) > 0)
+                std::fprintf(stderr, "strata verify: STRATA_IC_WARM_DEFER=%d: also in the deferral's late wait (layer l + %d's weights while "
+                                     "layer l's CPU rows are awaited; acts only where STRATA_VERIFY_DEFER_CPU does) (LEADS.md L14)\n",
+                             std::atoi(wd), std::atoi(wd));
         }
     }
 #if defined(STRATA_USE_HIP)
@@ -2462,6 +2472,22 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
     // the default by more than its own run-to-run noise has a wrong copy or wrong arithmetic; it does not exercise the
     // host computing layer dl while the GPU runs layer dl+1)
     auto late_add = [&](int64_t dl, int grp) {
+        // STRATA_IC_WARM_DEFER=N (LEADS.md Part L L14, opt-in, exact; needs STRATA_IC_WARM_MB for the cap): STRATA_IC_WARM_MB forks its
+        // reads only beside the fused CPU combine's wait, which STRATA_VERIFY_DEFER_CPU turns off, so on the preset it never ran.  Here the
+        // fork sits at the deferral's own wait: while this late add waits for layer dl's CPU rows, the side stream reads layer dl + N's
+        // pre-doorbell weights (mixer projections, router) into the Infinity Cache, and the stream rejoins after the add (graph capture needs
+        // the join).  Reads only: the same bits.  N = 1 re-reads what layer dl + 1's mixer has just used, N = 2 the layer after it.
+        static const int g_warm_defer = [] { const char* v = std::getenv("STRATA_IC_WARM_DEFER"); return v != nullptr ? std::atoi(v) : 0; }();
+        bool warm_late = false;
+        if (g_warm_defer > 0 && warm_segs_ != nullptr && grp == 0 && dl + g_warm_defer < le_ && !prof_on_ &&
+            cudaEventRecord(warm_fork_, cs) == cudaSuccess && cudaStreamWaitEvent(warm_, warm_fork_, 0) == cudaSuccess) {
+            const size_t wl = (size_t) (dl + g_warm_defer);
+            strata::kernels::ic_warm(warm_segs_ + warm_off_[wl], warm_off_[wl + 1] - warm_off_[wl], warm_cap_, warm_);
+            cudaEventRecord(warm_join_, warm_);
+            warm_late = true;
+            switch_report::acted(switch_report::ic_warm_defer, "layer %lld's pre-doorbell weights read on a side stream during the "
+                                 "late wait for layer %lld's CPU rows (LEADS.md L14)", (long long) wl, (long long) dl);
+        }
         const int tb = tb_[grp], n = te_[grp] - tb_[grp];
         const uint32_t ring_d = (uint32_t) ((dl - lb_) * G + grp + 1);
         const int32_t* pl = plan_ + (size_t) grp * (size_t) (plan_i32_ + 16);   // counts | start | dst: layer dl's plan
@@ -2485,6 +2511,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
 #if !defined(STRATA_GPU_METAL)   // (the Metal window is metal/src/engine/window.cpp: no deferral, no entry point there)
         defer_add_rows(def_parts_, w_ + tb * K, inj2_ + tb * HC, Rt(tb), N, (int) K, (int) HC, n, cs);
 #endif
+        if (warm_late) cudaStreamWaitEvent(cs, warm_join_, 0);   // L14: the side branch rejoins
     };
     // Programmatic dependent launch (pdl.hpp; sm_90+, opt-in: STRATA_DF_PDL=1): the window's quantizations and dense
     // projections may start while the kernel before them finishes, loading their weights before they wait for its

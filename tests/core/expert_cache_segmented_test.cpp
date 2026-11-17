@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -67,6 +68,11 @@ int main() {
             return fail("open", err);
         }
         if (!c.segmented() || c.slots() != kSlots || c.mapped_bytes() < kSlots * kBlob) return fail("open sizes");
+        {   // STRATA_VRAM_ELASTIC_VMMRANGE=1 (ctest expert_cache_segmented_vmmrange_test): the segments must really be on the VmmRange
+            const char* hook = std::getenv("STRATA_VRAM_ELASTIC_VMMRANGE");
+            if (hook != nullptr && hook[0] == '1' && !c.segmented_on_vmm_range()) return fail("VmmRange backend not used");
+            if (!(hook != nullptr && hook[0] == '1') && c.segmented_on_vmm_range()) return fail("VmmRange backend used without the hook");
+        }
         uint8_t* const first = c.device_slot(0);
         if (!fill(c, 0, kSlots, kBlob)) return fail("fill");
         const size_t before = free_vram();

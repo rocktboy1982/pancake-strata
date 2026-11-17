@@ -765,13 +765,17 @@ __device__ __forceinline__ fa_h16 fa_load16(const _Float16* p) {   // 16 halves 
 /// att2 [kvh][T * G][HD] (FP32).  scale_log2 = log2(e) / sqrt(HD).
 __global__ void __launch_bounds__(128) k_attn_fa_wmma(const __half* __restrict__ q16, const __half* __restrict__ k16,
                                                       const __half* __restrict__ v16, float* __restrict__ att2, int T, int G,
-                                                      int P, int p0, float scale_log2) {
+                                                      int P, int p0, float scale_log2, int heavy_first) {
 #if Q36_FA_WMMA
     __shared__ __attribute__((aligned(16))) _Float16 qs[FA_ROWS][FA_LS];
     __shared__ __attribute__((aligned(16))) _Float16 ks[FA_CELLS][FA_LS];
     __shared__ __attribute__((aligned(16))) _Float16 vt[FA_HD][FA_VS];
     __shared__ __attribute__((aligned(16))) _Float16 ps[4][16][FA_PS];
-    const int kvh = blockIdx.y, R = T * G, r0 = blockIdx.x * FA_ROWS;
+    // STRATA_Q36_FA_HEAVY_FIRST=1 (LEADS.md Part L L8): the grid is walked from its last block, the longest under the causal mask, to its
+    // first; a bijection of the blocks (include/strata/kernels/causal_order.hpp block_index, tested on the host), so every block computes the
+    // rows it always did and the output is the same bits, only the order the blocks start in changes
+    const int bx = heavy_first ? (int) gridDim.x - 1 - (int) blockIdx.x : (int) blockIdx.x;
+    const int kvh = blockIdx.y, R = T * G, r0 = bx * FA_ROWS;
     const int tid = threadIdx.x, lane = tid & 31, w = tid >> 5, col = lane & 15, hi = lane >> 4;
     const _Float16* qg = reinterpret_cast<const _Float16*>(q16) + ((size_t) kvh * R + r0) * FA_HD;
     const _Float16* kg = reinterpret_cast<const _Float16*>(k16) + (size_t) kvh * P * FA_HD;
@@ -857,7 +861,7 @@ __global__ void __launch_bounds__(128) k_attn_fa_wmma(const __half* __restrict__
         for (int j = 0; j < 16; ++j) dst[16 * j + col] = o[j][i] * inv;
     }
 #else
-    (void) q16; (void) k16; (void) v16; (void) att2; (void) T; (void) G; (void) P; (void) p0; (void) scale_log2;
+    (void) q16; (void) k16; (void) v16; (void) att2; (void) T; (void) G; (void) P; (void) p0; (void) scale_log2; (void) heavy_first;
 #endif
 }
 
@@ -1599,6 +1603,8 @@ struct Engine {
     // STRATA_Q36_FA=1 (storm-ace e4fc07ee57, opt-in; with ATT_GROUPED): the grouped prompt attention fused on the matrix
     // cores (k_attn_fa_wmma) where the device code has it (RDNA3 / RDNA3.5)
     bool att_fa = false;
+    // STRATA_Q36_FA_HEAVY_FIRST=1 (LEADS.md Part L L8, opt-in, with STRATA_Q36_FA, exact): the flash kernel's blocks start longest first
+    const bool att_fa_heavy = [] { const char* v = std::getenv("STRATA_Q36_FA_HEAVY_FIRST"); return v != nullptr && v[0] == '1'; }();
     size_t kAttScoreFloats = (size_t) 64 << 20;   // 256 MB (16 M floats when the experts' fit is close)
     // pancake, opt-in (strata/kernels/bfla.hpp): the prompt attention of long chunks as the fused gfx11 kernel, over every
     // block (STRATA_BFLA_DENSE=1, exact) or block-sparse (STRATA_BFLA_SPARSE=1, BFLA, lossy); the selection scratch
@@ -1813,6 +1819,9 @@ struct Engine {
                 CK(cudaFree(d_ok));
                 att_fa = ok != 0;
             }
+            if (att_fa_heavy)
+                std::fprintf(stderr, att_fa ? "strata-q36: STRATA_Q36_FA_HEAVY_FIRST=1: the flash attention's blocks start longest first\n"
+                                            : "strata-q36: STRATA_Q36_FA_HEAVY_FIRST=1 ignored (it needs STRATA_Q36_FA=1 acting)\n");
         }
         if (const int bm = strata::kernels::bfla_config().mode; bm != 0) {
             bfla_ok = strata::kernels::bfla_supported((int) g.n_head, (int) g.n_head_kv, (int) g.head_dim);
@@ -2486,7 +2495,7 @@ struct Engine {
                     k_q_f16_grouped<<<grid1((int64_t) T * H * HD), kThreads, 0, st>>>(q, q16, T, H, HKV, HD);
                     if (att_fa)   // STRATA_Q36_FA=1: the flash kernel in place of the two GEMMs and the softmax
                         k_attn_fa_wmma<<<dim3((unsigned) ((T * G + FA_ROWS - 1) / FA_ROWS), (unsigned) HKV), 128, 0, st>>>(
-                            q16, k16, v16, att2, T, G, P, (int) p0, 1.4426950408889634f / sqrtf((float) HD));
+                            q16, k16, v16, att2, T, G, P, (int) p0, 1.4426950408889634f / sqrtf((float) HD), att_fa_heavy ? 1 : 0);
                     for (int t0 = 0; t0 < T && !att_fa; t0 += tq) {
                         const int nt = std::min(tq, T - t0), N = nt * G, Ps = (int) p0 + t0 + nt;
                         if (cublasGemmStridedBatchedEx(blas, CUBLAS_OP_T, CUBLAS_OP_N, Ps, N, HD, &one, k16, CUDA_R_16F, HD,

@@ -1242,7 +1242,7 @@ void usage() {
                  "  --conversation-disk-max-gib N  --serve: the most the disk tier's folder may hold (default 20)\n"
                  "  --session-min-free-mib N  --serve: disk space a SAVE must leave free (default 4096; 0 = no check)\n"
                  "  --session-save-reclaim  --serve: reclaim unpinned host caches if SAVE needs RAM (opt-in)\n"
-                 "  --vram-elastic       --serve (#533, opt-in, NVIDIA): the expert cache in segments (--vram-segment-mib,\n"
+                 "  --vram-elastic       --serve (#533, opt-in, NVIDIA; HIP with STRATA_HIP_VRAM_ELASTIC=1): the expert cache in segments (--vram-segment-mib,\n"
                  "                       default 512), so the command `VRAM <reserve_mib>` (the server's POST /v1/vram) can\n"
                  "                       give VRAM back to other programs between requests and take it back later\n"
                  "  --batch N / --slots N  --serve (opt-in): up to N requests decode together in batch slots (2..8\n"
@@ -9293,7 +9293,12 @@ int main(int argc, char** argv) {
                                       [](int n) { return n > 0; }) ? "the helper caches on other GPUs"
                         : o.vram_segment_mib < 64 ? "--vram-segment-mib is below 64" : nullptr;
 #if defined(STRATA_USE_HIP)
-        if (why == nullptr) why = "it is NVIDIA-only for now";
+        // LEADS.md Part N N4: the segmented cache on VmmRange (hipMem*), opt-in on HIP: STRATA_HIP_VRAM_ELASTIC=1.  The run says which backend.
+        const char* hve = std::getenv("STRATA_HIP_VRAM_ELASTIC");
+        if (why == nullptr && !(hve != nullptr && hve[0] == '1'))
+            why = "it is NVIDIA-only unless STRATA_HIP_VRAM_ELASTIC=1 (segments on the VMM range, LEADS.md Part N N4)";
+        else if (why == nullptr)
+            std::fprintf(stderr, "strata generate: STRATA_HIP_VRAM_ELASTIC=1: --vram-elastic on HIP, segments on the VMM range\n");
 #endif
         if (why != nullptr) {
             std::fprintf(stderr, "strata generate: --vram-elastic is off: %s\n", why);

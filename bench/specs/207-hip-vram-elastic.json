@@ -1,0 +1,22 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit",
+    "long3k"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {},
+    "vram-elastic": {
+      "args": {
+        "--vram-elastic": ""
+      },
+      "env": {
+        "STRATA_HIP_VRAM_ELASTIC": "1"
+      }
+    }
+  },
+  "note": "LEADS.md Part N lead N4: STRATA_HIP_VRAM_ELASTIC=1 lifts the NVIDIA-only gate of --vram-elastic on HIP: the expert cache is built from 512 MiB segments on a VmmRange (hipMem*; src/core/expert_cache.cpp seg_vmm_) instead of one allocation. This spec measures what the segmented arena costs at steady state (exact: placement only, same slots, same bytes; the text must be identical to base): the cost question is whether a range of mapped 2 MiB chunks reads slower than a hipMalloc range (vmm_probe's copy_ratio; LEADS.md N8). The VRAM command and POST /v1/vram resizing are NOT exercised by abtest (run tools/pancake/vmm_probe.cpp and the ctest expert_cache_segmented_vmmrange_test on the box first: ctest -R expert_cache_segmented). Proof: the engine log 'STRATA_HIP_VRAM_ELASTIC=1: --vram-elastic on HIP' and no '--vram-elastic is off' line; if the line says it is off ('it works between requests of --serve'), the arm is inert. Stop pancake.service first."
+}

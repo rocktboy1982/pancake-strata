@@ -1116,6 +1116,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(expert_cache_segmented_test PRIVATE strata_engine)
     add_test(NAME expert_cache_segmented_test COMMAND expert_cache_segmented_test)
     set_tests_properties(expert_cache_segmented_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+    # LEADS.md Part N N4: the same segments test with the arena on VmmRange (the backend of STRATA_HIP_VRAM_ELASTIC=1; the hook selects it on any build)
+    add_test(NAME expert_cache_segmented_vmmrange_test COMMAND expert_cache_segmented_test)
+    set_tests_properties(expert_cache_segmented_vmmrange_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60
+                         ENVIRONMENT "STRATA_VRAM_ELASTIC_VMMRANGE=1")
     # STRATA_MMQ_DIRECT: slot_guard / slot_room / slot_tail on the uniform and the sized cache, and the default
     # (no guard) sized layout unchanged
     add_executable(expert_cache_slot_guard_test tests/core/expert_cache_slot_guard_test.cpp)
@@ -3596,6 +3600,12 @@ if(STRATA_BUILD_PROBES)
     set_source_files_properties(tools/pancake/probes/int4_wmma.hip.cpp PROPERTIES LANGUAGE HIP)
     target_include_directories(int4_wmma_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_link_libraries(int4_wmma_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L3: rotated-INT4 iu4 GEMM parity + bench, needs a gfx11 GPU
+    foreach(_pn int4_moe attn_fold raw_buffer)   # LEADS.md Part L L3 / L4 (Q2_0 expert-gather iu4 GEMM), L9 (folded split-KV merge), L11 (buffer loads)
+      add_executable(${_pn}_probe EXCLUDE_FROM_ALL tools/pancake/probes/${_pn}.hip.cpp)
+      set_source_files_properties(tools/pancake/probes/${_pn}.hip.cpp PROPERTIES LANGUAGE HIP)
+      target_include_directories(${_pn}_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_link_libraries(${_pn}_probe PRIVATE strata_hip_runtime)   # needs a gfx11 GPU
+    endforeach()
   endif()
 endif()
 
@@ -3661,6 +3671,21 @@ if(STRATA_BUILD_TESTS)
   add_executable(int4_rot_test src/kernels/cpu/int4_rot_test.cpp)
   target_include_directories(int4_rot_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
   add_test(NAME int4_rot_test COMMAND int4_rot_test)
+  # LEADS.md Part L L3 / L4: Q2_0 -> int4 exact, IQ2_XS -> odd int4 levels (error measured), the iu4 tile loop with the expert gather
+  # (STRATA_PF_IU4 host side), synthetic, header only
+  add_executable(int4_iq2_test src/kernels/cpu/int4_iq2_test.cpp)
+  target_include_directories(int4_iq2_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ggml)
+  add_test(NAME int4_iq2_test COMMAND int4_iq2_test)
+  # LEADS.md Part L L8 / L9 / L11: the causal block order (bijection + dispatcher model), the fold-the-merge ticket protocol (threads), the
+  # buffer-resource descriptor packing; synthetic, header only
+  foreach(_t causal_order_test fold_merge_test raw_buffer_test kv_ring_live_test)
+    add_executable(${_t} src/kernels/cpu/${_t}.cpp)
+    target_include_directories(${_t} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    add_test(NAME ${_t} COMMAND ${_t})
+  endforeach()
+  find_package(Threads REQUIRED)
+  target_link_libraries(fold_merge_test PRIVATE Threads::Threads)
+  set_tests_properties(fold_merge_test PROPERTIES TIMEOUT 120)
 
   if(STRATA_NATIVE_EXPERTS)
     # APR port: a Hadamard-folded trellis expert (TQ2_T / TQK6 / TQK7) on the CPU path vs llama.cpp's graph for the
@@ -4089,7 +4114,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test pool_tasks_test_row_split pool_tasks_test_fuse_row_split pool_tasks_test_defer_actq router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_r4_parity iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test iq_own1_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test int4_rot_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
+    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test iq_own1_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test int4_rot_test int4_iq2_test causal_order_test fold_merge_test raw_buffer_test kv_ring_live_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_test_entropy pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test

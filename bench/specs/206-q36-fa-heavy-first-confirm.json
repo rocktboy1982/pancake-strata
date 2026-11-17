@@ -1,0 +1,28 @@
+{
+  "base": "configs/pancake/qwen36-ud-q4_k_xl-q36.json",
+  "lossy": false,
+  "prefill": true,
+  "cases": [
+    "long3k",
+    "long32k"
+  ],
+  "reps": 5,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_ATT_GROUPED": "1",
+        "STRATA_Q36_FA": "1"
+      }
+    },
+    "heavy-first": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_ATT_GROUPED": "1",
+        "STRATA_Q36_FA": "1",
+        "STRATA_Q36_FA_HEAVY_FIRST": "1"
+      }
+    }
+  },
+  "note": "Confirm of the previous spec: LEADS.md Part L lead L8: STRATA_Q36_FA_HEAVY_FIRST=1 starts the blocks of k_attn_fa_wmma (src/qwen35/q36_engine.cu) longest first: a bijection of the grid (include/strata/kernels/causal_order.hpp, ctest causal_order_test), so every block computes the rows it always did and the output is bit for bit the base's (both arms carry STRATA_Q36_ATT_GROUPED=1 and STRATA_Q36_FA=1; the base here IS the FA path, so the comparison is exact and the text must be identical). Judged on prompt tok/s of long3k / long32k only (decode does not touch the kernel). Proof: the engine log 'STRATA_Q36_FA_HEAVY_FIRST=1: the flash attention's blocks start longest first' (the other line, 'ignored', means FA did not act). The dispatcher model of the host test says 0% to -13% of attention time depending on the chunk shape (a model, not a measurement); attention is 6.7% of a 42K prompt (MOD_PLAN.md item 49 (b)), so a total gain above 1% is not expected: run because of rule 8. Stop pancake.service first. Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5."
+}

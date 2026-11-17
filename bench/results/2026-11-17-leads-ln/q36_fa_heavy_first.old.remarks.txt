@@ -1,0 +1,22 @@
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark: Function Name: _Z14k_fa_supportedPi [-Rpass-analysis=kernel-resource-usage]
+   21 | __global__ void k_fa_supported(int* out) { *out = Q36_FA_WMMA; }
+      | ^
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     SGPRs: 2 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     VGPRs: 2 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     ScratchSize [bytes/lane]: 0 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     Dynamic Stack: False [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     Occupancy [waves/SIMD]: 16 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     SGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     VGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:21:1: remark:     LDS Size [bytes/block]: 0 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark: Function Name: _Z14k_attn_fa_wmmaPK6__halfS1_S1_Pfiiiif [-Rpass-analysis=kernel-resource-usage]
+   35 |                                                       int P, int p0, float scale_log2) {
+      | ^
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     SGPRs: 40 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     VGPRs: 221 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     ScratchSize [bytes/lane]: 0 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     Dynamic Stack: False [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     Occupancy [waves/SIMD]: 2 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     SGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     VGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+C:/Users/iancu/AppData/Local/Temp/claude/e36035809b4e2d5e/41a44341-031b-4531-9e25-a89e1937486e/scratchpad/ln/fa_old.hip.cpp:35:1: remark:     LDS Size [bytes/block]: 59648 [-Rpass-analysis=kernel-resource-usage]

@@ -121,7 +121,9 @@ public:
     /// management) instead of one cudaMalloc, so `shrink` can give the tail's VRAM back to the driver - for another
     /// program - and `grow` can take it again, while every slot keeps its address (the captured graphs, the verify
     /// plan's pointers and the prompt path's loan all hold addresses into it).  0 (the default): one cudaMalloc, as
-    /// always.  CUDA only: a HIP build refuses it at open.  The slots past `slots()` after a shrink must hold no
+    /// always.  CUDA only unless STRATA_HIP_VRAM_ELASTIC=1 (LEADS.md Part N N4: the same segments built on VmmRange, which has a HIP
+    /// branch; STRATA_VRAM_ELASTIC_VMMRANGE=1 selects that backend on a CUDA build too, for the host's test); a HIP build without the
+    /// switch refuses it at open.  The slots past `slots()` after a shrink must hold no
     /// resident expert and no loan: the CALLER evicts them first (they become CPU misses).
     void set_segment_bytes(int64_t seg_bytes) { seg_req_ = seg_bytes > 0 ? seg_bytes : 0; }
     /// STRATA_MMQ_DIRECT: `open_sized` leaves at least `g` bytes of room after each slot's blob (the prompt MMQ
@@ -135,6 +137,8 @@ public:
     /// A sized slot's arena bytes: the blob plus the guard, 256-byte aligned.
     static int64_t slot_stride(int64_t blob, int64_t guard = 0) { return (blob + guard + 255) / 256 * 256; }
     bool segmented() const { return !segs_.empty(); }
+    /// LEADS.md Part N N4: the segments sit on a VmmRange (STRATA_HIP_VRAM_ELASTIC / STRATA_VRAM_ELASTIC_VMMRANGE), not on raw cuMem* calls.
+    bool segmented_on_vmm_range() const { return seg_vmm_ != nullptr; }
     int64_t segment_bytes() const { return seg_; }
     /// Bytes of the arena backed by VRAM now (a whole number of segments; the arena when not segmented).
     int64_t mapped_bytes() const;
@@ -264,6 +268,7 @@ private:
     std::vector<unsigned long long> segs_;   ///< #533: each segment's physical handle (0: unmapped)
     std::vector<int64_t> seg_size_;     ///< #533: each segment's size (the last one may be shorter)
     int64_t mapped_segs_ = 0;           ///< #533: segments [0, mapped_segs_) are backed
+    std::unique_ptr<VmmRange> seg_vmm_;   ///< LEADS.md Part N N4: the segmented arena on a VmmRange (HIP: STRATA_HIP_VRAM_ELASTIC=1) instead of cuMem*
     std::unique_ptr<VmmRange> vmm_;    ///< the arena's range when it is in VMM (set_vmm)
     std::vector<int32_t> residency_;   ///< [n_layers * n_expert] -> slot or kNotResident
     int64_t slots_ = 0;

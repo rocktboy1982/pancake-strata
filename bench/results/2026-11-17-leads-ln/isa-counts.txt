@@ -1,0 +1,15 @@
+int4_moe _Z11pack_kernelPKaPjx {'v_wmma_i32_16x16x16_iu4': 0}
+int4_moe _Z14gemm_q2_kernelPKhPKiS2_S2_PKjS4_PKfPfiii {'v_wmma_i32_16x16x16_iu4': 4}
+attn_fold _Z12merge_kernelPKfS0_S0_iPf {'global_atomic_add': 0, 'global_load': 1, 's_waitcnt_vscnt': 0}
+attn_fold _Z6next_qPKfS0_Pfi {'global_atomic_add': 0, 'global_load': 2, 's_waitcnt_vscnt': 0}
+attn_fold _Z12chunk_kernelILb0EEvPKfS1_S1_PfS2_S2_iiS2_Pi {'global_atomic_add': 0, 'global_load': 21, 's_waitcnt_vscnt': 0}
+attn_fold _Z12chunk_kernelILb1EEvPKfS1_S1_PfS2_S2_iiS2_Pi {'global_atomic_add': 1, 'global_load': 25, 's_waitcnt_vscnt': 1}
+raw_buffer _Z13stream_kernelILi0EEvPKyPjiiN6strata7kernels6rawbuf4RsrcE {'flat_load': 1, 'global_load_b128': 0, 'buffer_load_b128': 0, 'slc': 0}
+raw_buffer _Z13stream_kernelILi1EEvPKyPjiiN6strata7kernels6rawbuf4RsrcE {'flat_load': 0, 'global_load_b128': 1, 'buffer_load_b128': 0, 'slc': 0}
+raw_buffer _Z13stream_kernelILi2EEvPKyPjiiN6strata7kernels6rawbuf4RsrcE {'flat_load': 1, 'global_load_b128': 0, 'buffer_load_b128': 0, 'slc': 1}
+raw_buffer _Z13stream_kernelILi3EEvPKyPjiiN6strata7kernels6rawbuf4RsrcE {'flat_load': 0, 'global_load_b128': 0, 'buffer_load_b128': 1, 'slc': 0}
+raw_buffer _Z13stream_kernelILi4EEvPKyPjiiN6strata7kernels6rawbuf4RsrcE {'flat_load': 0, 'global_load_b128': 0, 'buffer_load_b128': 1, 'slc': 1}
+fa_old _Z14k_fa_supportedPi {'v_wmma': 0}
+fa_old _Z14k_attn_fa_wmmaPK6__halfS1_S1_Pfiiiif {'v_wmma': 32}
+fa_new _Z14k_fa_supportedPi {'v_wmma': 0}
+fa_new _Z14k_attn_fa_wmmaPK6__halfS1_S1_Pfiiiifi {'v_wmma': 32}

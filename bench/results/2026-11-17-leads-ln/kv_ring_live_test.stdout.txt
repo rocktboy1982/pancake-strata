@@ -1,0 +1,1 @@
+kv_ring_live_test: 200 traces, 48247 resolves, 8044 shrinks, 7816 grows: bijection kept, nothing placed beyond live, every read equals the host copy; PASS

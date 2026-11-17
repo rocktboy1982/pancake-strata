@@ -1,0 +1,4 @@
+fold protocol: 120 launches x 4 groups, 480 merges, every output bit-identical to the sequential merge, counters back at 0
+rule R1: a block that skips its ticket leaves the count at 7 of 8 and the merge never runs (detected)
+rule R2: merging the same 16 partials in reverse order gives different bits (22.2447376 vs 22.2447414)
+fold_merge_test: PASS
