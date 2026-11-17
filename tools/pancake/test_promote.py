@@ -629,10 +629,27 @@ def test_the_catalog_matches_the_specs():
             assert not i["exact"]
 
 
+def is_abtest_spec(s):
+    """A spec for abtest.py: it has arms and no other runner.  A top-level "runner" key (bench_win_ab, ...) or a file without arms
+    (a plan file such as ablation-17-3-plan.json) belongs to another tool and is not held to the abtest format."""
+    return isinstance(s, dict) and "runner" not in s and bool(s.get("arms"))
+
+
+def test_the_abtest_spec_rule_skips_other_runners_and_arms_less_plans():
+    assert is_abtest_spec({"base": "p.json", "arms": {"base": {}, "x": {}}, "cases": ["a"]})
+    assert not is_abtest_spec({"runner": "bench_win_ab", "runs": 3})                                  # other runner, no base
+    assert not is_abtest_spec({"runner": "bench_win_ab", "base": "p.json", "arms": {"base": {}}})    # the marker wins over arms
+    assert not is_abtest_spec({"title": "a plan", "steps": []})                                       # no arms
+    assert not is_abtest_spec({"arms": {}})
+    assert not is_abtest_spec([])
+
+
 def test_every_spec_is_valid_json_in_the_abtest_format():
     keys = {"env", "args", "drafting", "config", "exe", "request"}
     for f in sorted((P.ROOT / "bench/specs").glob("*.json")):
-        s = json.loads(f.read_text())
+        s = json.loads(f.read_text(encoding="utf-8"))
+        if not is_abtest_spec(s):
+            continue
         assert "base" in s and s["arms"], f.name
         for arm, v in s["arms"].items():
             assert set(v) <= keys, (f.name, arm)
