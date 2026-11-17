@@ -1,0 +1,2 @@
+FAILED: [code=2] CMakeFiles/defer_rank_test.dir/tests/core/defer_rank_test.cpp.obj 
+C:\Users\iancu\build-latest\src\tests\core\defer_rank_test.cpp(61): error C3861: 'setenv': identifier not found
