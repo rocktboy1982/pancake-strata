@@ -1,0 +1,5 @@
+500 tokens, 248320 logits, differing against the first read (1024, 128, 1024, 128): 0 (max 0) 0 (max 0) 0 (max 0)
+1000 tokens, 248320 logits, differing against the first read (1024, 128, 1024, 128): 0 (max 0) 0 (max 0) 0 (max 0)
+1800 tokens, 248320 logits, differing against the first read (1024, 128, 1024, 128): 0 (max 0) 0 (max 0) 0 (max 0)
+PASS: stage_ahead 128 and 1024 give the same logits, bit for bit
+RUN_EXIT=0

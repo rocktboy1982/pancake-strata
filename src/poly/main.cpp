@@ -906,7 +906,7 @@ void usage() {
                  "  --stage-mib N          VRAM the experts outside the cache pass through in a prompt batch (default\n"
                  "                         2048, or what a layer's experts take when that is less); with less, more\n"
                  "                         of them are copied after the layer has routed\n"
-                 "  --stage-ahead N        from N tokens, a batch copies those experts before it routes (default 1024,\n"
+                 "  --stage-ahead N        from N tokens, a batch copies those experts before it routes (default 128, 1024 = old,\n"
                  "                         0 = never)\n"
                  "  --stage-next           Qwen3.5 / 3.6 on one card: a prompt of that many tokens or more gets a\n"
                  "                         second such buffer, which the expert cache lends it until the answer\n"

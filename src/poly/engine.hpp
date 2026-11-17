@@ -59,11 +59,15 @@ struct Options {
     int stage_mib = 2048;         ///< the buffer the experts that are not cached pass through: by default about
                                   ///< what a layer of Q2_K experts leaves out of the cache, and never more than
                                   ///< a layer's experts take
-    int stage_ahead = 1024;       ///< from this many tokens, a call routes to most of a layer's experts, and the
+    int stage_ahead = 128;        ///< from this many tokens, a call routes to most of a layer's experts, and the
                                   ///< ones that are not cached start their copy before the layer has routed; in a
                                   ///< read of several calls and this many tokens every call does; 0: never.  Under
-                                  ///< it a call copies only the experts it routes to, which with 8 GB of VRAM was
-                                  ///< the faster of the two up to about 1,000 tokens
+                                  ///< it a call copies only the experts it routes to, with nothing copied ahead.
+                                  ///< The default was 1024 (the faster of the two up to about 1,000 tokens with
+                                  ///< 8 GB of VRAM); on a GTX 1660 Ti with 6 GB 128 reads a 500 or 1,000 token
+                                  ///< prompt about 75% faster (TEST_LEDGER.md T-850), the logits are the same
+                                  ///< bit for bit (poly_stage_ahead_parity_test).  --stage-ahead 1024 restores the
+                                  ///< old behaviour
     bool stage_next = false;      ///< a read of stage_ahead tokens or more has a second staging buffer, which the
                                   ///< expert cache lends it for the read, and the next layer's experts that are not
                                   ///< cached are copied into it, by a thread of their own, while this layer runs
@@ -264,6 +268,8 @@ public:
     bool drafts() const { return next_ ? next_->drafts() : draft_; }
     /// Test only: the calls read()'s layer-major path gave the draft block's rows (draft_rows()) on the card that has
     /// the block, since load.  Two or more in one read are back-to-back refills of its pinned input rows.
+    /// For tests: Options::stage_ahead of the next read on this engine (one card), with the expert cache as it is.
+    void set_stage_ahead_for_test(int n) { opt_.stage_ahead = n; }
     int64_t read_draft_calls_for_test() const { return next_ ? next_->read_draft_calls_for_test() : read_draft_calls_; }
     int32_t draft(int32_t token, int i, float* prob);
     /// Whether a call since the last time this was asked recorded launches for replaying, which takes far longer

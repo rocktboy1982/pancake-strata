@@ -1,0 +1,8 @@
+500 tokens: first load of the process against the next (both 1024): 248320 differ (max 0.534), not judged
+1000 tokens: first load of the process against the next (both 1024): 248320 differ (max 0.364), not judged
+1800 tokens: first load of the process against the next (both 1024): 248319 differ (max 0.21), not judged
+500 tokens (of 248320 logits): 1024 vs 1024: 0 differ (max 0); 128 vs 128: 248320 (max 0.271); 1024 vs 128: 248320 (max 0.271), 0 (max 0), 0 (max 0)
+1000 tokens (of 248320 logits): 1024 vs 1024: 0 differ (max 0); 128 vs 128: 248320 (max 0.361); 1024 vs 128: 248320 (max 0.361), 0 (max 0), 0 (max 0)
+1800 tokens (of 248320 logits): 1024 vs 1024: 0 differ (max 0); 128 vs 128: 248320 (max 0.28); 1024 vs 128: 248320 (max 0.28), 0 (max 0), 0 (max 0)
+FAIL: stage_ahead changes the logits
+RUN_EXIT=1

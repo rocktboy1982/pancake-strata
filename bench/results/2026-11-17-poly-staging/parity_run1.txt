@@ -1,0 +1,4 @@
+500 tokens (of 248320 logits): 1024 vs 1024: 248320 differ (max 0.534); 128 vs 128: 0 (max 0); 1024 vs 128: 248320 (max 0.534), 0 (max 0), 248320 (max 0.534)
+1000 tokens (of 248320 logits): 1024 vs 1024: 248320 differ (max 0.364); 128 vs 128: 0 (max 0); 1024 vs 128: 248320 (max 0.364), 0 (max 0), 248320 (max 0.364)
+1800 tokens (of 248320 logits): 1024 vs 1024: 248319 differ (max 0.21); 128 vs 128: 0 (max 0); 1024 vs 128: 248319 (max 0.21), 0 (max 0), 248319 (max 0.21)
+FAIL: stage_ahead changes the logits

@@ -3861,6 +3861,21 @@ if(STRATA_NATIVE_EXPERTS AND (STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP) AND NOT S
   target_link_libraries(poly_draft_race_test PRIVATE strata_poly_mmq strata_kernels strata_spec ggml-cpu ggml-base
                                                     ${_strata_gpu_blas_target} ${_strata_gpu_runtime_target}
                                                     ${_strata_poly_driver} Threads::Threads)
+  # Options::stage_ahead 1024 against 128: the same logits bit for bit on prompts of 500 / 1000 / 1800 tokens; needs the
+  # model file (env STRATA_POLY_TEST_MODEL or the argument) and a card, SKIP (3) without
+  add_executable(poly_stage_ahead_parity_test src/poly/stage_ahead_parity_test.cpp src/poly/engine.cpp
+                                              src/poly/glm5next.cpp src/poly/qwen35.cpp src/poly/gemma4.cpp
+                                              src/poly/deepseek4.cpp src/poly/cpu_experts.cpp
+                                              src/poly/cpu_kernels_avx2.cpp src/poly/kernels.cu
+                                              src/poly/kernels_dsv4.cu src/core/conversation_memory.cpp)
+  target_include_directories(poly_stage_ahead_parity_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                                                 ${_strata_gpu_include_directories})
+  target_link_libraries(poly_stage_ahead_parity_test PRIVATE strata_poly_mmq strata_kernels strata_spec ggml-cpu
+                                                            ggml-base ${_strata_gpu_blas_target}
+                                                            ${_strata_gpu_runtime_target} ${_strata_poly_driver}
+                                                            Threads::Threads)
+  add_test(NAME poly_stage_ahead_parity_test COMMAND poly_stage_ahead_parity_test)
+  set_tests_properties(poly_stage_ahead_parity_test PROPERTIES SKIP_RETURN_CODE 3 TIMEOUT 1500)
   # a prompt batch's routing on the card against the hosts' routing; needs a card, so it is run by hand
   add_executable(poly_route_test src/poly/route_test.cu src/poly/kernels.cu)
   target_include_directories(poly_route_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include

@@ -1,0 +1,15 @@
+strata-poly: loaded in 32.8 s; 2271 of 10496 routed experts in VRAM (2.0 GiB), 8 CPU threads
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 47538 ms (37.9 tok/s), 16 generated in 8374 ms (1.9 tok/s), drafts accepted 9 of 13
+strata serve: prompt 500 tokens = 0 reused + 500 read in 20611 ms (24.3 tok/s), 16 generated in 4079 ms (3.9 tok/s), drafts accepted 5 of 6
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 14851 ms (67.3 tok/s), 16 generated in 3359 ms (4.8 tok/s), drafts accepted 0 of 0
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 19943 ms (90.3 tok/s), 16 generated in 2176 ms (7.4 tok/s), drafts accepted 0 of 0
+strata serve: prompt 500 tokens = 0 reused + 500 read in 7935 ms (63.0 tok/s), 16 generated in 2996 ms (5.3 tok/s), drafts accepted 1 of 1
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 12975 ms (77.1 tok/s), 16 generated in 4200 ms (3.8 tok/s), drafts accepted 2 of 4
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 9764 ms (184.4 tok/s), 16 generated in 2475 ms (6.5 tok/s), drafts accepted 1 of 1
+strata serve: prompt 500 tokens = 0 reused + 500 read in 11385 ms (43.9 tok/s), 16 generated in 3848 ms (4.2 tok/s), drafts accepted 3 of 5
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 11931 ms (83.8 tok/s), 16 generated in 2058 ms (7.8 tok/s), drafts accepted 0 of 0
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 9571 ms (188.1 tok/s), 16 generated in 1990 ms (8.0 tok/s), drafts accepted 0 of 0
+strata serve: prompt 500 tokens = 0 reused + 500 read in 9309 ms (53.7 tok/s), 16 generated in 1469 ms (10.9 tok/s), drafts accepted 1 of 1
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 9633 ms (103.8 tok/s), 16 generated in 1280 ms (12.5 tok/s), drafts accepted 0 of 0
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 14600 ms (123.3 tok/s), 16 generated in 4088 ms (3.9 tok/s), drafts accepted 2 of 2
+strata-poly: 0 of 15000 prompt tokens were not read again (0.0%); 0 conversations parked in 0 MiB, 0 pushed out; 322 MiB of VRAM free at the end

@@ -1,0 +1,15 @@
+1/4 Test #374: poly_stage_ahead_parity_test .....   Passed  127.82 sec
+    Start 375: poly_workers_test
+2/4 Test #375: poly_workers_test ................   Passed    0.35 sec
+    Start 376: poly_cpu_kernels_test
+3/4 Test #376: poly_cpu_kernels_test ............   Passed   21.25 sec
+    Start 377: poly_mxfp4_test
+4/4 Test #377: poly_mxfp4_test ..................   Passed    0.12 sec
+
+100% tests passed out of 4
+
+Label Time Summary:
+cpu    =  21.73 sec*proc (3 tests)
+gpu    = 127.82 sec*proc (1 test)
+
+Total Test time (real) = 149.62 sec
