@@ -404,6 +404,7 @@ STRATA_ENV("STRATA_ARGMAX_ROWS", Speed, "bitwise: documented (docs/README/code c
 STRATA_ENV("STRATA_ARGMAX_ROWS_SM70", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_ATTN_DAILY", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_ATTN_LANECELL", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_ATTN_LANECELL_W12", Speed, "LEADS.md Part L L7: the lane-cell chunk kernels under amdgpu_waves_per_eu(12) (allocation only, KV modes 1-3); bitwise: same code as STRATA_ATTN_LANECELL")
 STRATA_ENV("STRATA_ATTN_QMAJOR", Speed, "LEADS.md LongSpec/Hybrid Tree: decode attention chunk blocks launched query-fastest; bitwise (qsa_merge_daily_parity chunk kernel 2)")
 STRATA_ENV("STRATA_ATTN_VWIN", Speed, "LEADS.md A50 verify-window attention: two queries a chunk block, a shared pool row K/V read once; bitwise (qsa_merge_daily_parity chunk kernel 3)")
 STRATA_ENV("STRATA_ATTN_MERGE_BOUND", Speed, "bitwise: merge stops at the last filled chunk (android-imdad caa9b00115)")

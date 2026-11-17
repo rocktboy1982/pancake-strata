@@ -1,0 +1,2 @@
+int4_rot_test: A8 rotated 0.1096, A4 rotated 0.1391, A4 plain 0.2930 (relative error of y)
+int4_rot_test: ok
