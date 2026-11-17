@@ -1,0 +1,20 @@
+{
+  "runner": "bench_win_ab",
+  "runs": 3,
+  "warmup": 3,
+  "measured": 3,
+  "max_new": 96,
+  "lossy": false,
+  "arms": {
+    "base": {},
+    "threads-4": {"args": {"--threads": "4"}},
+    "cpu-multi": {"args": {"--cpu-multi": ""}},
+    "attn-split": {"args": {"--attn-split": ""}},
+    "graph-experts": {"args": {"--graph-experts": ""}},
+    "kv-q8": {"args": {"--kv-q8": ""}},
+    "expert-swaps-0": {"args": {"--expert-swaps": "0"}},
+    "vram-reserve-444": {"args": {"--vram-reserve-mib": "444"}},
+    "base-again": {}
+  },
+  "note": "MOD_PLAN.md section 5 item 'CUDA queue on the GTX 1660 Ti' (B group), NOT MEASURED. Windows form of an A/B for strata-poly: run with tools/pancake/bench_win_ab.py (it calls bench_win.py once per arm, base first and base-again last, one server per run: Qwen3.6-35B-A3B UD-IQ2_XXS 11 GB on the GTX 1660 Ti 6 GB sm_75, 13.9 GB RAM). Not an abtest.py spec (abtest.py needs /proc). Reference: T-550 (no extra args, 34.3 +-14.1 short, 34.2 +-12.5 code, n=3 servers: the noise of that run is the bar a screen has to beat). Arms are the flags of MOD_PLAN.md section 10's poly daily line that the T-550 run did not use, plus --threads 4 (the CPU has 4 physical cores; the default is all usable threads, 8 in T-550) and --vram-reserve-mib 444 (the Speedy value for a 10 GB card, tried here on a 6 GB card that also drives the display). bench_win.py fixes --max-context 2048, so nothing here can show a long-context effect. Decode only: a prompt-path switch cannot show. Each arm is a screen (3 servers x 3 measured); a decision needs a confirm. Run order is the spec's order; read base against base-again for drift first."
+}

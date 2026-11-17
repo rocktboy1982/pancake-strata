@@ -1,0 +1,15 @@
+{
+  "runner": "bench_win_ab",
+  "runs": 3,
+  "warmup": 3,
+  "measured": 3,
+  "max_new": 96,
+  "lossy": false,
+  "arms": {
+    "base": {},
+    "softmax-reg-off": {"env": {"STRATA_SOFTMAX_REG": "0"}},
+    "gemm-small-tiled-off": {"env": {"STRATA_GEMM_SMALL_TILED": "0"}},
+    "base-again": {}
+  },
+  "note": "MOD_PLAN.md section 5 item 'CUDA queue on the GTX 1660 Ti' (B group), NOT MEASURED. strata-poly kernel switches that default ON in src/poly/kernels.cu (STRATA_SOFTMAX_REG at line 3029, STRATA_GEMM_SMALL_TILED at line 2470), switched OFF to see what the default is worth on sm_75 (the author measured on sm_86 / sm_120). Same runner and caveats as spec 159 (bench_win_ab.py, decode only, --max-context 2048, screen). STRATA_GDN_COLS (default 4, kernels.cu:3115) is not an arm: it acts on prompt batches, which bench_win.py does not time."
+}
