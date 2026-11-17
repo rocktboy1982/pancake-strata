@@ -36,7 +36,10 @@ def busy_pct(sec):
     return 100.0 * (1 - (i1 - i0) / max(1, t1 - t0))
 
 
-def quiet(max_busy=12.0, wait=180):
+def quiet(max_busy=float(os.environ.get("BENCH_MAX_BUSY", "60")), wait=int(os.environ.get("BENCH_QUIET_WAIT", "180"))):
+    # owner 2026-11-17: the GTX 1660 Ti PC is the owner's own Windows PC and is never quiet (system CPU 15-35% from the desktop,
+    # Defender and other work): the old limit of 12% made every run wait the full 180 s.  The default is now 60% (BENCH_MAX_BUSY=12
+    # restores the old rule); the system CPU measured before every run is printed, so a noisy run can be recognised.
     t0 = time.time(); b = busy_pct(5)
     while b > max_busy and time.time() - t0 < wait:
         print(f"  waiting for quiet: system CPU {b:.0f}%", flush=True); b = busy_pct(5)
