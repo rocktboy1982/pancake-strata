@@ -77,7 +77,9 @@ int run_case(const Fmt& f, int n_in, int n_out, int mode, std::mt19937& rng, cud
     ck(cudaMalloc(&dw, w_bytes + 256), "w");
     ck(cudaMemcpy(dw, w.data(), w_bytes, cudaMemcpyHostToDevice), "upload");
     int bad = 0;
-    for (int nc = 1; nc <= 12; ++nc) {
+    // the build's verify window caps the column count (native_mmvq.cu MAX_NCOLS = max(8, STRATA_VERIFY_MAX_T)): more columns throw
+    constexpr int kMaxCols = (STRATA_VERIFY_MAX_T > 8 ? STRATA_VERIFY_MAX_T : 8) < 12 ? (STRATA_VERIFY_MAX_T > 8 ? STRATA_VERIFY_MAX_T : 8) : 12;
+    for (int nc = 1; nc <= kMaxCols; ++nc) {
         std::vector<float> x((size_t) n_in * nc);
         for (auto& v : x) v = nd(rng);
         float *dx, *ya, *yb, *yc;
