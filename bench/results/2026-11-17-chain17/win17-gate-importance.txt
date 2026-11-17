@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/gate_importance.py", line 292, in <module>
+    main()
+    ~~~~^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/gate_importance.py", line 283, in main
+    w, groups, ms = from_trace(tr)
+                    ~~~~~~~~~~^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/gate_importance.py", line 159, in from_trace
+    raise ValueError("the trace has no routing weights (record with --dump-routing or a window trace with weights)")
+ValueError: the trace has no routing weights (record with --dump-routing or a window trace with weights)

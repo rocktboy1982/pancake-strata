@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/gate_importance.py", line 292, in <module>
+    main()
+    ~~~~^^
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/gate_importance.py", line 275, in main
+    imp = expert_importance(tr, a.counts)
+  File "/home/dan/clone-of-d/src/Strata-win/tools/pancake/gate_importance.py", line 172, in expert_importance
+    raise ValueError("the trace has no routing weights (use --counts for entry counts)")
+ValueError: the trace has no routing weights (use --counts for entry counts)
