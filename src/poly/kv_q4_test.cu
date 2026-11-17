@@ -339,7 +339,8 @@ int main(int argc, char** argv) {
             void* blas = blas_create(nullptr);
             const size_t width = size_t(sh.kv_heads) * sh.dim;
             const int deq_rows = 512;
-            for (const auto& [pos, t_n] : {std::pair<int64_t, int>{0, 700}, {4100, 64}, {cs.rows - 40, 40}}) {
+            const std::pair<int64_t, int> blas_cases[] = {{0, 700}, {4100, 64}, {cs.rows - 40, 40}};
+            for (const auto& [pos, t_n] : blas_cases) {
                 float *bq = nullptr, *bout = nullptr, *work = nullptr, *bscore = nullptr;
                 uint16_t* deq = nullptr;
                 const size_t bqn = size_t(t_n) * sh.n_head * sh.dim, bscore_n = size_t(1) << 21;
