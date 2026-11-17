@@ -1,0 +1,40 @@
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(1942): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2015): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2018): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2026): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);   
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2053): warning #221-D: floating-point value does not fit in required floating-point type
+          v[k] = j >= j0 && j < j1 ? row[j] : -((float)(1e+300));
+                                                ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2055): warning #221-D: floating-point value does not fit in required floating-point type
+      float mx = -((float)(1e+300));
+                   ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2059): warning #221-D: floating-point value does not fit in required floating-point type
+      const float before = fresh ? -((float)(1e+300)) : top[blockIdx.x], now = fmaxf(before, mx);
+                                     ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2072): warning #221-D: floating-point value does not fit in required floating-point type
+      const float f = mx == -((float)(1e+300)) ? 1.0f : expf(before - now);
+                              ^
+
+C:\Users\iancu\build-latest\src\src\poly\kernels.cu(2097): warning #221-D: floating-point value does not fit in required floating-point type
+      float m = -((float)(1e+300));
+                  ^
+
+kernels.cu
+tmpxft_0000c594_00000000-7_kernels.cudafe1.cpp
+[145/145] Linking CXX executable strata-poly.exe

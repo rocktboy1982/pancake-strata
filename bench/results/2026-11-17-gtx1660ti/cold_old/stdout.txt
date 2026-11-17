@@ -1,0 +1,6 @@
+{'req': 1, 'n': 96, 'decode_tps': 5.89, 'wall_tps': 1.62, 'ttft': 42.98}
+{'req': 2, 'n': 96, 'decode_tps': 19.78, 'wall_tps': 19.74, 'ttft': 0.06}
+{'req': 3, 'n': 96, 'decode_tps': 22.54, 'wall_tps': 22.45, 'ttft': 0.06}
+{'req': 4, 'n': 96, 'decode_tps': 29.57, 'wall_tps': 29.4, 'ttft': 0.05}
+{'req': 5, 'n': 96, 'decode_tps': 30.08, 'wall_tps': 29.85, 'ttft': 0.06}
+{'req': 6, 'n': 96, 'decode_tps': 27.45, 'wall_tps': 27.26, 'ttft': 0.06}

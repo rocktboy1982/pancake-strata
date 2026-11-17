@@ -689,6 +689,7 @@ xxxliqu1dxxx and its 3 commits, merged as 8aeff515b, 15 of 15 status-page tests)
   `gemm_w16_parity` (`setenv`), `poly_kv_q4_test` (kv_q4_test.cu:342 range-for). Decode with `tools/pancake/bench_win.py
   RUNS WARMUP MEASURED NEW` (gates only system CPU < 12% before each run). The first requests are ~10x slower: warm up.
   Untested: long context, app, vision, CUDA 13, test_phase, quality gate. Results: T-550..T-552.
+  **STATUS 2026-11-17 (T-794, T-795):** the latest commit (78d504fdd) builds `strata-poly` for sm_75 with MSVC 14.44 and CUDA 12.8 with 0 errors (about 75 min at -j 4, llama.cpp fetched). Decode against the 2026-11-10 binary, paired in time (old, new, old, new; 3 x 3 measured each): about 29 tok/s both, NO CHANGE inside the 2-4 tok/s noise (other processes held system CPU at 30-50%); T-550's 34 tok/s was not reproduced by either binary in this session. This is strata-poly on a Qwen3.6 file, not the daily Flash-Next engine. The new switches cannot act on this card: STRATA_FATTN and STRATA_FDEC need an Ampere GPU, the only other STRATA_* names src/poly reads (SWAP_HALF, SOFTMAX_REG, GEMM_SMALL_TILED, GDN_COLS, ROUTE_TRACE, ROUTE_TAIL_SKIP, CPU_STATS) were not tried here.
 
 ## 11. Where things are
 
