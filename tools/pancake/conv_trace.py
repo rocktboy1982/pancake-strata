@@ -72,6 +72,19 @@ def render(system, user):
     return s + "<|im_start|>user\n" + user + "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
 
 
+def engine_env(pairs, window_trace=None):
+    """--engine-env KEY=VAL (repeated) and --window-trace PATH -> the dict laid over the preset's env."""
+    out = {}
+    for p in pairs or []:
+        k, sep, v = p.partition("=")
+        if not sep or not k:
+            raise SystemExit(f"--engine-env wants KEY=VAL, got {p!r}")
+        out[k] = v
+    if window_trace:
+        out["STRATA_WINDOW_TRACE"] = str(window_trace)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("config")
@@ -79,6 +92,11 @@ def main():
     ap.add_argument("--max-new", type=int, default=384)
     ap.add_argument("--domain-keys", action="store_true")
     ap.add_argument("--tag", default="conv")
+    ap.add_argument("--engine-env", action="append", default=[], metavar="KEY=VAL",
+                    help="an extra engine environment variable (repeatable; default none), applied over the preset's env")
+    ap.add_argument("--window-trace", metavar="PATH",
+                    help="also record STRATA_WINDOW_TRACE=PATH (the served --dump-routing has unit weights; the window trace "
+                         "has the published ones: tools/pancake/gate_importance.py TRACE.stwt --emit-importance)")
     a = ap.parse_args()
     cfg = json.load(open(a.config, encoding="utf-8-sig"))
     out = Path(a.out).resolve()
@@ -88,6 +106,7 @@ def main():
         trace.unlink()
     tok = load_tok(cfg["tokenizer"])
     env = {k: str(v) for k, v in (cfg.get("env") or {}).items()}
+    env.update(engine_env(a.engine_env, a.window_trace))
     libs = ":".join(cfg.get("lib_dirs") or [])
     if libs:
         env["LD_LIBRARY_PATH"] = libs + (":" + os.environ["LD_LIBRARY_PATH"] if os.environ.get("LD_LIBRARY_PATH") else "")

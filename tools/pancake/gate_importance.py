@@ -22,7 +22,9 @@ CPU-missed entries.  This tool measures, on a routing trace, what the 8-expert t
                plan: an engine switch only if that is >= 2% (--gate).
 
 Inputs (one of):
-    TRACE.stwt                 a window trace (STRATA_WINDOW_TRACE; ids, kind, weights per layer)
+    TRACE.stwt                 a window trace (STRATA_WINDOW_TRACE; ids, kind, weights per layer).  Record it on a served run
+                               with conv_trace.py --window-trace PATH: the served --dump-routing file has unit weights
+                               (generate.cpp, drive_pool_multi), the window trace has the published ones
     --dump-routing FILE        the engine's --dump-routing file (ids + weights; no placement: every entry counted CPU)
     --npz FILE                 arrays w [N, k] (one row per token-layer) and optional out_norm [N, k], ids [N, k],
                                kind [N, k], group [N] (the window-layer of each row; default one group)
@@ -160,13 +162,30 @@ def from_trace(tr):
     return np.concatenate(rows), groups, ms or None
 
 
-def expert_importance(tr, counts=False):
+def weight_coverage(tr):
+    """(layer records with weights, all layer records) of a wtrace Trace.  A --dump-routing file written by the served engine
+    has unit weights (read as none); a STRATA_WINDOW_TRACE of a served run carries the published weights where the GPU plan
+    sink had a mapped copy."""
+    have = tot = 0
+    for win in tr.windows:
+        for lay in win.layers.values():
+            tot += 1
+            have += lay.weights is not None
+    return have, tot
+
+
+def expert_importance(tr, counts=False, partial=False):
     """A wtrace Trace -> [n_layers, n_expert] float64: per (layer, expert) the sum of the entries' normalised gate weights
-    (counts=True: the number of entries, the only choice for a trace without weights)."""
+    (counts=True: the number of entries, the only choice for a trace without weights).  partial=True: layer records without
+    weights are left out (a window trace of a served run can mix) as long as some have them; see weight_coverage."""
+    if partial and not counts and weight_coverage(tr)[0] == 0:
+        partial = False   # nothing weighted: the error below
     imp = np.zeros((tr.n_layers, tr.n_expert), np.float64)
     for win in tr.windows:
         for l, lay in win.layers.items():
             ids = lay.ids.astype(np.int64)
+            if partial and lay.weights is None:
+                continue
             if counts or lay.weights is None:
                 if lay.weights is None and not counts:
                     raise ValueError("the trace has no routing weights (use --counts for entry counts)")
@@ -263,6 +282,8 @@ def main(argv=None):
     ap.add_argument("--gate", type=float, default=0.02)
     ap.add_argument("--emit-importance", help="write the per-expert gate importance table (STRATA_TIER_MISS_FILE) here")
     ap.add_argument("--counts", action="store_true", help="--emit-importance: entry counts instead of gate weights")
+    ap.add_argument("--allow-partial", action="store_true",
+                    help="--emit-importance: leave out layer records without weights (coverage is printed) instead of failing")
     a = ap.parse_args(argv)
     budgets = tuple(float(x) for x in a.budgets.split(","))
     norm = groups = ms = None
@@ -272,7 +293,9 @@ def main(argv=None):
         import wtrace
         tr = wtrace.from_dump_routing(a.dump_routing) if a.dump_routing else wtrace.read(a.trace)
         if a.emit_importance:
-            imp = expert_importance(tr, a.counts)
+            imp = expert_importance(tr, a.counts, a.allow_partial)
+            have, tot = weight_coverage(tr)
+            print(f"layer records with weights: {have} of {tot}")
             write_importance(a.emit_importance, imp)
             print(f"wrote {a.emit_importance}: {imp.shape[0]} layers x {imp.shape[1]} experts, "
                   f"{'entry counts' if a.counts else 'gate weight sums'}")
