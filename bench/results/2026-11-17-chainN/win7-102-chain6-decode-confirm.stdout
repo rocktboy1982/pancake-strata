@@ -1,0 +1,117 @@
+rep 0 base                 short 106.5 edit 177.9 short 103.1 edit 175.4 short 105.4 edit 177.1  foreign CPU 10% [('claude', 19), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2048/1249 MHz 56C 169W gtt 21M cpu 3953MHz 53C igpu 1%/vcn 0% fclk 1600
+rep 0 mb-argmax            short 107.3 edit 178.0 short 104.0 edit 175.7 short 106.4 edit 178.8  foreign CPU 5% [('claude', 8), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 56C 166W gtt 21M cpu 3829MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 mtp-wide             short 98.1 edit 175.8 short 81.5 edit 131.8 short 82.9 edit 178.9  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 56C 152W gtt 21M cpu 3972MHz 52C igpu 0%/vcn 0% fclk 1600
+rep 0 scan-unroll          short 93.2 edit 147.2 short 96.5 edit 133.0 short 105.1 edit 141.3  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2052/1249 MHz 55C 153W gtt 21M cpu 3850MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 grup-wide            short 111.4 edit 175.2 short 104.1 edit 169.4 short 105.5 edit 178.1  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2048/1249 MHz 56C 164W gtt 21M cpu 3986MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 down-swiglu          short 111.2 edit 175.4 short 103.5 edit 172.2 short 103.4 edit 178.5  foreign CPU 5% [('claude', 7), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 57C 168W gtt 21M cpu 3968MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 gdn-split            short 110.5 edit 176.4 short 103.8 edit 171.3 short 104.6 edit 178.7  foreign CPU 5% [('udisksd', 2), ('pipewire', 1), ('claude', 1)]  gpu 2050/1249 MHz 57C 163W gtt 21M cpu 4016MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-ov0            short 111.1 edit 175.3 short 104.5 edit 170.0 short 104.6 edit 178.2  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2049/1249 MHz 57C 165W gtt 21M cpu 4050MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-layerwait      short 112.0 edit 176.0 short 104.6 edit 170.1 short 105.2 edit 178.2  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 58C 166W gtt 21M cpu 3964MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 fuse-hits            short 111.2 edit 175.7 short 104.8 edit 169.7 short 103.3 edit 179.6  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2049/1249 MHz 58C 165W gtt 21M cpu 4002MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 gr-fuse              short 111.3 edit 174.0 short 104.2 edit 169.9 short 104.9 edit 177.3  foreign CPU 17% [('claude', 20), ('gnome-shell', 9), ('ptyxis', 4)]  gpu 2046/1249 MHz 58C 165W gtt 21M cpu 4154MHz 54C igpu 2%/vcn 0% fclk 1600
+rep 0 wait-combine         short 107.1 edit 178.8 short 103.8 edit 175.3 short 105.2 edit 178.6  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2041/1249 MHz 58C 166W gtt 21M cpu 3814MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 rows-loads-first     short 111.6 edit 175.1 short 104.6 edit 170.5 short 105.5 edit 178.0  foreign CPU 6% [('claude', 7), ('udisksd', 2), ('pipewire', 2)]  gpu 2048/1249 MHz 58C 166W gtt 21M cpu 3885MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 rows-loads-first     short 111.2 edit 175.1 short 104.7 edit 169.8 short 105.3 edit 177.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2038/1249 MHz 58C 165W gtt 21M cpu 4087MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 wait-combine         short 111.4 edit 176.0 short 104.9 edit 170.6 short 105.4 edit 178.0  foreign CPU 5% [('claude', 8), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2043/1249 MHz 58C 166W gtt 21M cpu 3879MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 gr-fuse              short 111.8 edit 175.2 short 104.7 edit 169.6 short 105.7 edit 178.7  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2048/1249 MHz 58C 166W gtt 21M cpu 3811MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 fuse-hits            short 111.4 edit 176.1 short 104.6 edit 170.5 short 105.2 edit 178.7  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2043/1249 MHz 58C 166W gtt 21M cpu 3744MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 adapt-layerwait      short 70.6 edit 116.1 short 96.6 edit 98.0 short 96.3 edit 81.8  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2056/1249 MHz 57C 150W gtt 21M cpu 3995MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 adapt-layerwait: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 adapt-layerwait      short 97.6 edit 85.3 short 100.9 edit 115.8 short 101.3 edit 144.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2045/1249 MHz 56C 150W gtt 21M cpu 3742MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 adapt-layerwait: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 adapt-layerwait      short 107.3 edit 178.4 short 104.1 edit 175.6 short 106.3 edit 179.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2037/1249 MHz 57C 165W gtt 21M cpu 3920MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 adapt-ov0            short 106.7 edit 180.4 short 105.9 edit 173.1 short 108.4 edit 175.9  foreign CPU 4% [('gnome-remote-de', 2), ('pipewire', 1), ('claude', 1)]  gpu 2044/1249 MHz 57C 163W gtt 21M cpu 4028MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 gdn-split            short 102.2 edit 178.9 short 103.0 edit 175.5 short 104.9 edit 178.7  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2046/1249 MHz 58C 166W gtt 21M cpu 3871MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 down-swiglu          short 106.6 edit 179.7 short 106.4 edit 172.8 short 108.5 edit 175.1  foreign CPU 8% [('gnome-shell', 13), ('gnome-remote-de', 2), ('pipewire', 1)]  gpu 2051/1249 MHz 58C 167W gtt 21M cpu 3842MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 grup-wide            short 111.2 edit 175.4 short 104.7 edit 169.4 short 105.4 edit 177.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2045/1249 MHz 58C 166W gtt 21M cpu 4164MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 scan-unroll          short 109.0 edit 177.0 short 109.7 edit 184.3 short 106.6 edit 184.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1972/1249 MHz 58C 158W gtt 21M cpu 3731MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 scan-unroll: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 scan-unroll          short 111.8 edit 175.7 short 105.2 edit 170.7 short 103.3 edit 180.3  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 58C 168W gtt 21M cpu 4024MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 mtp-wide             short 106.7 edit 180.3 short 106.7 edit 172.4 short 108.8 edit 175.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2050/1249 MHz 58C 164W gtt 21M cpu 4022MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 mtp-wide: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 mtp-wide             short 111.7 edit 176.4 short 105.0 edit 169.6 short 105.7 edit 178.5  foreign CPU 5% [('gnome-remote-de', 2), ('pipewire', 1), ('claude', 1)]  gpu 2044/1249 MHz 58C 166W gtt 21M cpu 3963MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 mb-argmax            short 111.6 edit 175.5 short 105.1 edit 169.9 short 105.6 edit 178.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2049/1249 MHz 58C 166W gtt 21M cpu 3888MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 96.2 edit 111.4 short 79.7 edit 115.4 short 104.7 edit 103.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2058/1249 MHz 56C 149W gtt 21M cpu 3704MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 base: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 base                 short 103.9 edit 103.6 short 91.6 edit 94.0 short 81.0 edit 138.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('kworker/u65:2-KFD IH', 1)]  gpu 2056/1249 MHz 56C 150W gtt 21M cpu 3783MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 base: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 base                 short 99.1 edit 174.6 short 84.6 edit 171.4 short 97.1 edit 174.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 1964/1249 MHz 56C 155W gtt 21M cpu 3979MHz 53C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 7 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  mtp-wide             rep 0 attempt 0 slow start (means): short 87.5, edit 162.2
+  scan-unroll          rep 0 attempt 0 slow start (means): short 98.3, edit 140.5
+  adapt-layerwait      rep 1 attempt 0 slow start (means): short 87.8, edit 98.6
+  adapt-layerwait      rep 1 attempt 1 slow start (means): short 99.9, edit 115.2
+  base                 rep 1 attempt 0 slow start (means): short 93.5, edit 110.1
+  base                 rep 1 attempt 1 slow start (means): short 92.2, edit 111.9
+  base                 rep 1 attempt 2 slow start (means): short 93.6, edit 173.3
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    105.0 +-   5.9  (n=3)
+                              drafts accepted 0.69
+  short  mb-argmax               106.7 +-   3.9  (n=6)   vs base:  +0.9% +-  0.3%  -> better
+                              drafts accepted 0.70
+  short  mtp-wide                107.4 +-   3.5  (n=6)   vs base:  +2.3% +-  8.1%  -> no difference
+                              drafts accepted 0.71
+  short  scan-unroll             107.6 +-   4.5  (n=6)   vs base:  +1.7% +- 12.1%  -> no difference
+                              drafts accepted 0.71
+  short  grup-wide               107.0 +-   4.8  (n=6)   vs base:  +1.9% +-  8.3%  -> no difference
+                              drafts accepted 0.71
+  short  down-swiglu             106.6 +-   4.3  (n=6)   vs base:  +1.0% +- 11.1%  -> no difference
+                              drafts accepted 0.71
+  short  gdn-split               104.8 +-   4.3  (n=6)   vs base:  +1.2% +-  8.0%  -> no difference
+                              drafts accepted 0.70
+  short  adapt-ov0               106.9 +-   3.7  (n=6)   vs base:  +1.7% +-  8.8%  -> no difference
+                              drafts accepted 0.71
+  short  adapt-layerwait         106.6 +-   4.2  (n=6)   vs base:  +2.2% +-  9.5%  -> no difference
+                              drafts accepted 0.70
+  short  fuse-hits               106.8 +-   5.2  (n=6)   vs base:  +1.4% +- 11.1%  -> no difference
+                              drafts accepted 0.71
+  short  gr-fuse                 107.1 +-   5.0  (n=6)   vs base:  +1.7% +-  8.9%  -> no difference
+                              drafts accepted 0.71
+  short  wait-combine            106.3 +-   3.9  (n=6)   vs base:  +0.3% +-  1.6%  -> no difference
+                              drafts accepted 0.70
+  short  rows-loads-first        107.1 +-   4.8  (n=6)   vs base:  +2.1% +-  8.4%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    176.8 +-   4.4  (n=3)
+                              drafts accepted 0.89
+  edit   mb-argmax               176.0 +-   4.7  (n=6)   vs base:  +0.4% +-  1.7%  -> no difference
+                              drafts accepted 0.89
+  edit   mtp-wide                175.5 +-   5.7  (n=6)   vs base:  -1.1% +-  7.0%  -> no difference
+                              drafts accepted 0.89
+  edit   scan-unroll             178.7 +-   7.6  (n=6)   vs base:  -0.7% +-  7.8%  -> no difference
+                              drafts accepted 0.89
+  edit   grup-wide               174.2 +-   5.6  (n=6)   vs base:  -1.5% +-  6.8%  -> no difference
+                              drafts accepted 0.88
+  edit   down-swiglu             175.6 +-   4.3  (n=6)   vs base:  -0.8% +-  4.8%  -> no difference
+                              drafts accepted 0.89
+  edit   gdn-split               176.6 +-   4.3  (n=6)   vs base:  -0.8% +-  5.5%  -> no difference
+                              drafts accepted 0.89
+  edit   adapt-ov0               175.5 +-   5.3  (n=6)   vs base:  -1.3% +-  6.3%  -> no difference
+                              drafts accepted 0.89
+  edit   adapt-layerwait         176.3 +-   4.9  (n=6)   vs base:  -1.2% +-  6.2%  -> no difference
+                              drafts accepted 0.89
+  edit   fuse-hits               175.0 +-   6.0  (n=6)   vs base:  -1.0% +-  8.0%  -> no difference
+                              drafts accepted 0.88
+  edit   gr-fuse                 174.1 +-   5.4  (n=6)   vs base:  -1.7% +-  5.7%  -> no difference
+                              drafts accepted 0.88
+  edit   wait-combine            176.2 +-   4.5  (n=6)   vs base:  +0.4% +-  1.6%  -> no difference
+                              drafts accepted 0.89
+  edit   rows-loads-first        174.3 +-   5.0  (n=6)   vs base:  -1.3% +-  5.7%  -> no difference
+                              drafts accepted 0.88
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  mb-argmax            DIFFERENT text -> lossy or placement-dependent: quality gate
+  mtp-wide             DIFFERENT text -> lossy or placement-dependent: quality gate
+  scan-unroll          DIFFERENT text -> lossy or placement-dependent: quality gate
+  grup-wide            DIFFERENT text -> lossy or placement-dependent: quality gate
+  down-swiglu          DIFFERENT text -> lossy or placement-dependent: quality gate
+  gdn-split            DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-ov0            DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-layerwait      DIFFERENT text -> lossy or placement-dependent: quality gate
+  fuse-hits            DIFFERENT text -> lossy or placement-dependent: quality gate
+  gr-fuse              DIFFERENT text -> lossy or placement-dependent: quality gate
+  wait-combine         DIFFERENT text -> lossy or placement-dependent: quality gate
+  rows-loads-first     DIFFERENT text -> lossy or placement-dependent: quality gate

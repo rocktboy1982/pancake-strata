@@ -1,0 +1,60 @@
+rep 0 base                 short 107.3 edit 178.0 short 103.6 edit 175.4 short 106.3 edit 178.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2046/1249 MHz 56C 164W gtt 21M cpu 3996MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps64              short 86.8 edit 133.0 short 85.5 edit 115.2 short 94.7 edit 106.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2062/1249 MHz 55C 145W gtt 21M cpu 3883MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps96              short 80.2 edit 99.7 short 79.7 edit 167.0 short 102.4 edit 171.0  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('systemd-journal', 1)]  gpu 2048/1249 MHz 56C 149W gtt 21M cpu 3824MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 kmiss24              short 103.6 edit 157.8 short 103.8 edit 155.8 short 104.1 edit 157.5  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2044/1249 MHz 56C 160W gtt 21M cpu 3897MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 kmiss24-swaps64      short 102.7 edit 166.2 short 101.4 edit 168.8 short 101.4 edit 170.7  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2047/1249 MHz 57C 158W gtt 21M cpu 3952MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 kmiss24-swaps96      short 106.6 edit 155.2 short 101.2 edit 159.1 short 99.3 edit 166.8  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2046/1249 MHz 57C 161W gtt 21M cpu 3690MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 kmiss24-swaps96      short 106.8 edit 153.1 short 100.0 edit 158.3 short 97.5 edit 170.8  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2042/1249 MHz 57C 163W gtt 21M cpu 3874MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 kmiss24-swaps64      short 98.0 edit 170.6 short 101.3 edit 167.8 short 98.9 edit 170.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2037/1249 MHz 58C 166W gtt 21M cpu 3812MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 kmiss24              short 103.7 edit 157.7 short 103.7 edit 156.5 short 104.1 edit 157.7  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2038/1249 MHz 58C 158W gtt 21M cpu 3979MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 swaps96              short 106.0 edit 169.9 short 105.2 edit 158.6 short 101.5 edit 156.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2053/1249 MHz 58C 163W gtt 21M cpu 3937MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps96: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 swaps96              short 107.7 edit 155.3 short 100.6 edit 158.4 short 104.5 edit 168.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2058/1249 MHz 57C 157W gtt 21M cpu 4021MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 swaps64              short 104.1 edit 174.9 short 103.8 edit 174.9 short 106.6 edit 172.2  foreign CPU 5% [('claude', 5), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 58C 161W gtt 21M cpu 4101MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps64: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 swaps64              short 98.0 edit 170.9 short 96.4 edit 135.0 short 80.1 edit 176.2  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 1985/1249 MHz 57C 152W gtt 21M cpu 3981MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 swaps64: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 swaps64              short 93.9 edit 90.0 short 96.5 edit 115.0 short 86.8 edit 118.1  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2059/1249 MHz 56C 146W gtt 21M cpu 3868MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 106.9 edit 178.3 short 103.3 edit 175.3 short 105.8 edit 178.0  foreign CPU 6% [('claude', 5), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2049/1249 MHz 57C 165W gtt 21M cpu 3923MHz 54C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 4 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  swaps64              rep 0 attempt 0 slow start (means): short 89.0, edit 118.4
+  swaps64              rep 0 attempt 1 slow start (means): short 91.5, edit 160.7
+  swaps64              rep 0 attempt 2 slow start (means): short 92.4, edit 107.7
+  swaps96              rep 0 attempt 0 slow start (means): short 87.4, edit 145.9
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    105.5 +-   2.5  (n=6)
+                              drafts accepted 0.69
+  short  swaps64                 104.8 +-   5.3  (n=3)   vs base:  -0.5% +-  6.5%  -> no difference
+                              drafts accepted 0.71
+  short  swaps96                 104.2 +-   3.9  (n=6)   vs base:  -1.2% +-  3.1%  -> no difference
+                              drafts accepted 0.72
+  short  kmiss24                 103.8 +-   0.3  (n=6)   vs base:  -1.6% +-  2.3%  -> no difference
+                              drafts accepted 0.68
+  short  kmiss24-swaps64         100.6 +-   2.6  (n=6)   vs base:  -4.7% +-  3.7%  -> worse
+                              drafts accepted 0.71
+  short  kmiss24-swaps96         101.9 +-   5.7  (n=6)   vs base:  -3.4% +-  4.6%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    177.3 +-   2.2  (n=6)
+                              drafts accepted 0.89
+  edit   swaps64                 174.0 +-   5.3  (n=3)   vs base:  -1.8% +-  5.2%  -> no difference
+                              drafts accepted 0.89
+  edit   swaps96                 161.2 +-   9.2  (n=6)   vs base:  -9.1% +-  4.8%  -> worse
+                              drafts accepted 0.89
+  edit   kmiss24                 157.2 +-   1.2  (n=6)   vs base: -11.3% +-  0.7%  -> worse
+                              drafts accepted 0.88
+  edit   kmiss24-swaps64         169.1 +-   2.6  (n=6)   vs base:  -4.6% +-  1.5%  -> worse
+                              drafts accepted 0.90
+  edit   kmiss24-swaps96         160.5 +-   9.9  (n=6)   vs base:  -9.4% +-  5.5%  -> worse
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  swaps64              DIFFERENT text -> lossy or placement-dependent: quality gate
+  swaps96              DIFFERENT text -> lossy or placement-dependent: quality gate
+  kmiss24              DIFFERENT text -> lossy or placement-dependent: quality gate
+  kmiss24-swaps64      DIFFERENT text -> lossy or placement-dependent: quality gate
+  kmiss24-swaps96      DIFFERENT text -> lossy or placement-dependent: quality gate

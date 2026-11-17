@@ -6,3 +6,19 @@ scoring base (b) ...
 scoring sidx-file-4mib ...
   WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
 scoring sidx-file-16mib ...
+sidx-file-4mib           PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+    near-tie: top-1 agreement 98.236%, 166 differences, 151 near-ties (margin <= 0.75): FAIL
+sidx-file-16mib          PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+    near-tie: top-1 agreement 98.385%, 152 differences, 141 near-ties (margin <= 0.75): FAIL

@@ -1,0 +1,65 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit",
+    "long"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {},
+    "dedupe": {
+      "env": {
+        "STRATA_PREFILL_COPY_WAIT_DEDUPE": "1"
+      }
+    },
+    "routed": {
+      "env": {
+        "STRATA_PREFILL_ROUTED_STREAM": "1"
+      }
+    },
+    "gdn-pp2": {
+      "env": {
+        "STRATA_GDN_PP": "2"
+      }
+    },
+    "specminp07": {
+      "args": {
+        "--spec-min-p": "0.7"
+      }
+    },
+    "turbo": {
+      "env": {
+        "STRATA_ROUTE_PRIOR": "0.5"
+      }
+    },
+    "turbo-guards": {
+      "env": {
+        "STRATA_ROUTE_PRIOR": "0.5",
+        "STRATA_ROUTE_PRIOR_PROTECT": "2",
+        "STRATA_ROUTE_PRIOR_KEEP_P": "0.5",
+        "STRATA_ROUTE_PRIOR_SCOPE": "answer"
+      }
+    },
+    "turbo-l07-guards": {
+      "env": {
+        "STRATA_ROUTE_PRIOR": "0.7",
+        "STRATA_ROUTE_PRIOR_PROTECT": "2",
+        "STRATA_ROUTE_PRIOR_KEEP_P": "0.5",
+        "STRATA_ROUTE_PRIOR_SCOPE": "answer"
+      }
+    },
+    "tailskip7": {
+      "env": {
+        "STRATA_ROUTE_TAIL_SKIP": "7"
+      }
+    },
+    "tailskip6": {
+      "env": {
+        "STRATA_ROUTE_TAIL_SKIP": "6"
+      }
+    }
+  },
+  "note": "Confirm of screen PROMOTE arms written by tools/pancake/promote_confirm.py from: 25-f-env-rerun (dedupe, routed, gdn-pp2, specminp07); 19-turbo-guards (turbo, turbo-guards, turbo-l07-guards, tailskip7, tailskip6). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9; bar >= 2% end to end (>= 3% lossy); 'lossy': true means an arm's text differed from base, so quality_gate.py is due before adoption. Stop pancake.service first."
+}

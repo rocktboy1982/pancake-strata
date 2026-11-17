@@ -1,0 +1,21 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "longdec10k",
+    "longdec32k"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "attn-qmajor": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ATTN_QMAJOR": "1"
+      }
+    }
+  },
+  "note": "Confirm of screen PROMOTE arms written by tools/pancake/promote_confirm.py from: 96-pass2-long (attn-qmajor). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9; bar >= 2% end to end (>= 3% lossy); 'lossy': true means an arm's text differed from base, so quality_gate.py is due before adoption. Stop pancake.service first."
+}

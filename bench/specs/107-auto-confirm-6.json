@@ -1,0 +1,63 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {},
+    "stack": {
+      "env": {
+        "STRATA_EXPDEC_SWIGLU": "1",
+        "STRATA_ROUTE_FAST": "1",
+        "STRATA_WAIT_COPY256": "1",
+        "STRATA_IQ_SIGN_FAST": "1",
+        "STRATA_Q2_FAST": "1",
+        "STRATA_POOL_TAIL4": "1",
+        "STRATA_POOL_LAZY_PARK": "1"
+      }
+    },
+    "ttl30": {
+      "env": {
+        "STRATA_PARK_TTL_S": "30",
+        "STRATA_PARK_TTL_SHARE": "512"
+      }
+    },
+    "ttl5": {
+      "env": {
+        "STRATA_PARK_TTL_S": "5",
+        "STRATA_PARK_TTL_SHARE": "512"
+      }
+    },
+    "dump": {
+      "env": {
+        "STRATA_HIDDEN_DUMP": "/home/dan/clone-of-d/Strata-data/a19-dumps,every=64"
+      }
+    },
+    "expdec-swiglu": {
+      "env": {
+        "STRATA_EXPDEC_SWIGLU": "1"
+      }
+    },
+    "nodefer": {
+      "env": {
+        "STRATA_VERIFY_DEFER_CPU": null
+      }
+    },
+    "nodefer+ic-warm32": {
+      "env": {
+        "STRATA_VERIFY_DEFER_CPU": null,
+        "STRATA_IC_WARM_MB": "32"
+      }
+    },
+    "nodefer+ic-warm64": {
+      "env": {
+        "STRATA_VERIFY_DEFER_CPU": null,
+        "STRATA_IC_WARM_MB": "64"
+      }
+    }
+  },
+  "note": "Confirm of screen PROMOTE arms written by tools/pancake/promote_confirm.py from: 26-stack-small-exact (stack); 24-a15-park-ttl (ttl30, ttl5); 16-a19-hidden-dump (dump); a33-a35-fusion-retest (expdec-swiglu, nodefer, nodefer+ic-warm32, nodefer+ic-warm64). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9; bar >= 2% end to end (>= 3% lossy); 'lossy': true means an arm's text differed from base, so quality_gate.py is due before adoption. Stop pancake.service first."
+}

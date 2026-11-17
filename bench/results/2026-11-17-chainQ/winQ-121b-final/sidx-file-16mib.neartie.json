@@ -1,0 +1,9 @@
+{
+ "tokens": 9410,
+ "differences": 152,
+ "near_ties": 141,
+ "not_near_ties": 11,
+ "top1_agreement_pct": 98.385,
+ "margin": 0.75,
+ "gate": "FAIL"
+}

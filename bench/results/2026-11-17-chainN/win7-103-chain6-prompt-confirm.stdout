@@ -1,0 +1,163 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 long1k 87.5/798p 1030t long3k 103.4/1303p 2934t short 106.3 edit 177.4 long1k 88.4/802p 1030t long3k 108.1/1305p 2934t short 105.8 edit 171.4 long1k 93.4/797p 1030t long3k 116.1/1297p 2934t short 107.3 edit 177.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2039/1249 MHz 56C 165W gtt 21M cpu 3789MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 dq-fast              long1k 84.2/920p 1031t long3k 93.6/1403p 2935t short 100.9 edit 121.2 long1k 86.7/910p 1031t long3k 107.6/1393p 2935t short 71.8 edit 112.3 long1k 84.5/886p 1031t long3k 94.3/1384p 2935t short 83.0 edit 119.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2056/1249 MHz 56C 152W gtt 21M cpu 3757MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-lean              long1k 85.5/799p 1031t long3k 111.9/1301p 2935t short 77.7 edit 126.6 long1k 75.9/801p 1031t long3k 98.0/1301p 2935t short 88.7 edit 146.6 long1k 90.8/802p 1031t long3k 99.1/1302p 2935t short 80.0 edit 175.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2047/1249 MHz 56C 157W gtt 21M cpu 3719MHz 53C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-lean-copy2        long1k 89.0/794p 1031t long3k 107.8/1314p 2935t short 106.5 edit 172.1 long1k 89.5/799p 1031t long3k 104.9/1320p 2935t short 107.2 edit 180.8 long1k 86.9/799p 1031t long3k 105.4/1317p 2935t short 106.8 edit 174.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('localsearch-3', 1)]  gpu 2038/1249 MHz 58C 166W gtt 21M cpu 3911MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-ahead             long1k 87.4/687p 1031t long3k 105.2/1316p 2935t short 103.5 edit 179.9 long1k 82.9/664p 1031t long3k 113.3/1315p 2935t short 105.8 edit 174.1 long1k 92.2/670p 1031t long3k 112.2/1311p 2935t short 109.0 edit 177.8  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2041/1249 MHz 58C 166W gtt 21M cpu 3928MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-gg-defer          long1k 88.1/797p 1031t long3k 102.9/1304p 2935t short 112.0 edit 161.7 long1k 96.2/800p 1031t long3k 106.9/1296p 2935t short 107.7 edit 163.5 long1k 98.8/803p 1031t long3k 106.2/1304p 2935t short 105.9 edit 181.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2035/1249 MHz 58C 164W gtt 21M cpu 3867MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 adapt-prompt         long1k 85.6/804p 1031t long3k 107.5/1312p 2935t short 112.3 edit 155.4 long1k 89.8/799p 1031t long3k 101.5/1307p 2935t short 110.2 edit 174.5 long1k 96.7/807p 1031t long3k 103.3/1313p 2935t short 108.7 edit 178.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2039/1249 MHz 59C 167W gtt 21M cpu 3936MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 tier-rewarm          long1k 87.8/778p 1031t long3k 102.6/1308p 2935t short 105.3 edit 164.6 long1k 89.1/792p 1031t long3k 98.2/1310p 2935t short 106.4 edit 178.3 long1k 92.9/792p 1031t long3k 104.7/1318p 2935t short 106.3 edit 182.9  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2043/1249 MHz 59C 164W gtt 21M cpu 3802MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 tier-rewarm-decode-only long1k 84.3/785p 1031t long3k 106.9/1300p 2935t short 109.5 edit 181.6 long1k 88.8/795p 1031t long3k 111.8/1302p 2935t short 106.0 edit 180.1 long1k 95.1/786p 1031t long3k 114.1/1300p 2935t short 107.8 edit 172.1  foreign CPU 5% [('claude', 2), ('gnome-remote-de', 1), ('pipewire', 1)]  gpu 2033/1249 MHz 59C 161W gtt 21M cpu 3891MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 refill-async         long1k 85.9/800p 1031t long3k 104.7/1301p 2935t short 109.2 edit 164.1 long1k 92.6/801p 1031t long3k 107.0/1301p 2935t short 106.6 edit 174.0 long1k 91.5/800p 1031t long3k 105.1/1300p 2935t short 103.6 edit 180.2  foreign CPU 6% [('claude', 7), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2042/1249 MHz 59C 166W gtt 21M cpu 3807MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-ahead-refill-async long1k 84.6/688p 1031t long3k 107.2/1310p 2935t short 108.5 edit 173.9 long1k 88.3/671p 1031t long3k 104.9/1308p 2935t short 117.4 edit 176.7 long1k 82.9/666p 1031t long3k 107.8/1311p 2935t short 103.9 edit 175.4  foreign CPU 5% [('claude', 7), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2043/1249 MHz 59C 162W gtt 21M cpu 3743MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 pf-ahead-refill-async long1k 91.3/679p 1031t long3k 112.2/1314p 2935t short 110.1 edit 160.4 long1k 95.0/674p 1031t long3k 108.2/1313p 2935t short 103.9 edit 175.3 long1k 88.4/671p 1031t long3k 113.5/1312p 2935t short 107.7 edit 182.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2040/1249 MHz 59C 170W gtt 21M cpu 4000MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 refill-async         long1k 87.9/804p 1031t long3k 111.7/1294p 2936t short 106.0 edit 168.6 long1k 94.8/777p 1032t long3k 112.8/1301p 2936t short 103.4 edit 165.5 long1k 88.8/795p 1032t long3k 113.9/1304p 2936t short 108.7 edit 173.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2048/1249 MHz 59C 163W gtt 21M cpu 3836MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 tier-rewarm-decode-only long1k 97.6/772p 1032t long3k 110.3/1300p 2936t short 107.1 edit 178.4 long1k 89.3/783p 1032t long3k 112.1/1302p 2936t short 105.1 edit 181.0 long1k 90.5/776p 1032t long3k 113.9/1298p 2936t short 106.2 edit 179.7  foreign CPU 5% [('udisksd', 3), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2027/1249 MHz 59C 164W gtt 21M cpu 3927MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 tier-rewarm          long1k 91.7/776p 1032t long3k 104.0/1312p 2936t short 105.6 edit 179.5 long1k 92.2/779p 1032t long3k 113.4/1314p 2936t short 106.1 edit 182.0 long1k 89.1/780p 1032t long3k 113.9/1313p 2936t short 110.2 edit 174.8  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('kworker/u65:8-KFD IH', 1)]  gpu 2027/1249 MHz 59C 166W gtt 21M cpu 3906MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 adapt-prompt         long1k 102.2/795p 1032t long3k 119.9/1315p 2936t short 104.0 edit 178.8 long1k 88.9/796p 1032t long3k 108.0/1312p 2936t short 100.0 edit 179.0 long1k 90.0/797p 1032t long3k 110.8/1313p 2936t short 108.3 edit 181.8  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2044/1249 MHz 59C 164W gtt 21M cpu 3836MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 pf-gg-defer          long1k 88.6/792p 1032t long3k 113.7/1304p 2936t short 105.9 edit 169.0 long1k 91.0/788p 1032t long3k 104.6/1302p 2936t short 103.2 edit 180.2 long1k 84.4/791p 1032t long3k 106.7/1302p 2936t short 111.1 edit 180.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2029/1249 MHz 59C 166W gtt 21M cpu 3958MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 pf-ahead             long1k 85.7/679p 1032t long3k 113.4/1318p 2936t short 112.1 edit 172.4 long1k 94.3/669p 1032t long3k 110.6/1316p 2936t short 107.6 edit 181.8 long1k 85.0/660p 1032t long3k 111.6/1314p 2936t short 107.1 edit 173.1  foreign CPU 5% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2043/1249 MHz 59C 167W gtt 21M cpu 4024MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 pf-lean-copy2        long1k 99.7/786p 1032t long3k 114.5/1318p 2936t short 107.3 edit 178.5 long1k 97.0/786p 1032t long3k 116.7/1315p 2936t short 103.1 edit 179.3 long1k 86.4/788p 1032t long3k 112.0/1318p 2936t short 110.2 edit 174.1  foreign CPU 5% [('udisksd', 2), ('pipewire', 2), ('claude', 1)]  gpu 2040/1249 MHz 59C 162W gtt 21M cpu 3936MHz 55C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 pf-lean              long1k 91.7/786p 1032t long3k 113.2/1302p 2936t short 112.8 edit 179.1 long1k 96.6/795p 1032t long3k 107.9/1308p 2936t short 107.1 edit 172.6 long1k 93.2/787p 1032t long3k 106.1/1305p 2936t short 109.4 edit 172.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2039/1249 MHz 59C 160W gtt 21M cpu 3923MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 pf-lean: slow start (more than 8.75% below the arm's other starts): run again
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 pf-lean              long1k 91.5/794p 1032t long3k 105.4/1304p 2936t short 101.0 edit 172.1 long1k 84.4/796p 1032t long3k 112.7/1304p 2936t short 107.2 edit 182.7 long1k 89.4/787p 1032t long3k 115.3/1299p 2936t short 108.9 edit 175.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2051/1249 MHz 59C 157W gtt 21M cpu 3908MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 dq-fast              long1k 93.7/889p 1032t long3k 103.1/1402p 2936t short 104.6 edit 158.9 long1k 92.2/892p 1032t long3k 104.7/1397p 2936t short 109.0 edit 176.8 long1k 99.9/893p 1032t long3k 111.1/1397p 2936t short 109.4 edit 168.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2042/1249 MHz 59C 170W gtt 21M cpu 4026MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 dq-fast: slow start (more than 8.75% below the arm's other starts): run again
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 dq-fast              long1k 91.3/896p 1032t long3k 109.7/1404p 2936t short 109.0 edit 181.7 long1k 89.5/896p 1032t long3k 105.2/1405p 2936t short 107.4 edit 174.2 long1k 88.5/883p 1032t long3k 113.2/1403p 2936t short 108.0 edit 175.6  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:8-ttm', 1)]  gpu 2039/1249 MHz 59C 164W gtt 21M cpu 3805MHz 56C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 base                 long1k 87.4/794p 1032t long3k 111.2/1306p 2936t short 110.9 edit 180.7 long1k 91.9/795p 1032t long3k 106.4/1302p 2936t short 106.7 edit 171.4 long1k 88.1/792p 1032t long3k 105.0/1303p 2936t short 108.8 edit 174.1  foreign CPU 5% [('udisksd', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2042/1249 MHz 59C 162W gtt 21M cpu 3919MHz 55C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 2 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 1 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  dq-fast              rep 0 attempt 0 slow start (means): long1k 905.5, long3k 1393.4, short 85.2, edit 117.5
+  pf-lean              rep 0 attempt 0 slow start (means): long1k 800.7, long3k 1301.3, short 82.1, edit 149.4
+  adapt-prompt         rep 0 attempt 0 pass 1: long1k 804.2, long3k 1311.9, short 112.3, edit 155.4 outside [163.0, 194.2]
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k base                    796.3 +-   4.8  (n=6)
+  long1k dq-fast                 891.5 +-   6.9  (n=6)   vs base: +12.0% +-  0.9%  -> better
+  long1k pf-lean                 790.7 +-   6.7  (n=6)   vs base:  -0.7% +-  0.6%  -> worse
+  long1k pf-lean-copy2           791.9 +-   8.8  (n=6)   vs base:  -0.5% +-  0.7%  -> no difference
+  long1k pf-ahead                671.4 +-  14.6  (n=6)   vs base: -15.7% +-  1.9%  -> worse
+  long1k pf-gg-defer             795.1 +-   8.0  (n=6)   vs base:  -0.2% +-  0.7%  -> no difference
+  long1k adapt-prompt            798.6 +-   8.1  (n=5)   vs base:  +0.3% +-  1.0%  -> no difference
+  long1k tier-rewarm             782.8 +-  10.6  (n=6)   vs base:  -1.7% +-  1.0%  -> worse
+  long1k tier-rewarm-decode-only    782.9 +-  11.6  (n=6)   vs base:  -1.7% +-  0.9%  -> worse
+  long1k refill-async            796.2 +-  14.6  (n=6)   vs base:  -0.0% +-  1.8%  -> no difference
+  long1k pf-ahead-refill-async    674.7 +-  11.0  (n=6)   vs base: -15.3% +-  1.5%  -> worse
+  long3k base                   1302.6 +-   4.5  (n=6)
+  long3k dq-fast                1401.1 +-   4.9  (n=6)   vs base:  +7.6% +-  0.5%  -> better
+  long3k pf-lean                1303.6 +-   4.6  (n=6)   vs base:  +0.1% +-  0.4%  -> no difference
+  long3k pf-lean-copy2          1316.9 +-   3.2  (n=6)   vs base:  +1.1% +-  0.3%  -> better
+  long3k pf-ahead               1314.8 +-   3.1  (n=6)   vs base:  +0.9% +-  0.2%  -> better
+  long3k pf-gg-defer            1302.1 +-   4.4  (n=6)   vs base:  -0.0% +-  0.6%  -> no difference
+  long3k adapt-prompt           1312.0 +-   4.8  (n=5)   vs base:  +0.7% +-  0.6%  -> better
+  long3k tier-rewarm            1312.4 +-   5.2  (n=6)   vs base:  +0.7% +-  0.7%  -> better
+  long3k tier-rewarm-decode-only   1300.2 +-   2.1  (n=6)   vs base:  -0.2% +-  0.4%  -> no difference
+  long3k refill-async           1300.2 +-   5.1  (n=6)   vs base:  -0.2% +-  0.6%  -> no difference
+  long3k pf-ahead-refill-async   1311.5 +-   3.2  (n=6)   vs base:  +0.7% +-  0.4%  -> better
+  short  base                    107.6 +-   2.8  (n=6)
+                              drafts accepted 0.71
+  short  dq-fast                 107.9 +-   2.6  (n=6)   vs base:  +0.2% +-  4.5%  -> no difference
+                              drafts accepted 0.72
+  short  pf-lean                 107.7 +-   5.6  (n=6)   vs base:  +0.1% +-  3.6%  -> no difference
+                              drafts accepted 0.74
+  short  pf-lean-copy2           106.9 +-   3.3  (n=6)   vs base:  -0.7% +-  3.1%  -> no difference
+                              drafts accepted 0.71
+  short  pf-ahead                107.5 +-   4.2  (n=6)   vs base:  -0.1% +-  2.4%  -> no difference
+                              drafts accepted 0.72
+  short  pf-gg-defer             107.6 +-   4.9  (n=6)   vs base:  +0.0% +-  5.4%  -> no difference
+                              drafts accepted 0.71
+  short  adapt-prompt            106.2 +-   7.2  (n=5)   vs base:  -1.5% +-  8.0%  -> no difference
+                              drafts accepted 0.68
+  short  tier-rewarm             106.6 +-   2.6  (n=6)   vs base:  -0.9% +-  3.1%  -> no difference
+                              drafts accepted 0.70
+  short  tier-rewarm-decode-only    107.0 +-   2.3  (n=6)   vs base:  -0.6% +-  3.4%  -> no difference
+                              drafts accepted 0.70
+  short  refill-async            106.2 +-   3.5  (n=6)   vs base:  -1.3% +-  4.1%  -> no difference
+                              drafts accepted 0.71
+  short  pf-ahead-refill-async    108.6 +-   7.2  (n=6)   vs base:  +0.9% +-  7.5%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    175.3 +-   5.3  (n=6)
+                              drafts accepted 0.89
+  edit   dq-fast                 172.5 +-  11.6  (n=6)   vs base:  -1.6% +-  8.4%  -> no difference
+                              drafts accepted 0.90
+  edit   pf-lean                 175.7 +-   6.3  (n=6)   vs base:  +0.2% +-  4.7%  -> no difference
+                              drafts accepted 0.90
+  edit   pf-lean-copy2           176.6 +-   4.9  (n=6)   vs base:  +0.7% +-  4.9%  -> no difference
+                              drafts accepted 0.90
+  edit   pf-ahead                176.5 +-   5.6  (n=6)   vs base:  +0.7% +-  5.0%  -> no difference
+                              drafts accepted 0.91
+  edit   pf-gg-defer             172.7 +-  13.2  (n=6)   vs base:  -1.5% +-  8.6%  -> no difference
+                              drafts accepted 0.89
+  edit   adapt-prompt            178.5 +-   4.5  (n=5)   vs base:  +2.0% +-  4.0%  -> no difference
+                              drafts accepted 0.91
+  edit   tier-rewarm             177.0 +-   9.7  (n=6)   vs base:  +1.0% +-  6.8%  -> no difference
+                              drafts accepted 0.90
+  edit   tier-rewarm-decode-only    178.8 +-   5.0  (n=6)   vs base:  +2.0% +-  4.9%  -> no difference
+                              drafts accepted 0.90
+  edit   refill-async            171.0 +-   8.8  (n=6)   vs base:  -2.5% +-  6.0%  -> no difference
+                              drafts accepted 0.90
+  edit   pf-ahead-refill-async    174.0 +-  10.6  (n=6)   vs base:  -0.8% +-  8.5%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  dq-fast              DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-lean              DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-lean-copy2        DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-ahead             DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-gg-defer          DIFFERENT text -> lossy or placement-dependent: quality gate
+  adapt-prompt         DIFFERENT text -> lossy or placement-dependent: quality gate
+  tier-rewarm          DIFFERENT text -> lossy or placement-dependent: quality gate
+  tier-rewarm-decode-only DIFFERENT text -> lossy or placement-dependent: quality gate
+  refill-async         DIFFERENT text -> lossy or placement-dependent: quality gate
+  pf-ahead-refill-async DIFFERENT text -> lossy or placement-dependent: quality gate

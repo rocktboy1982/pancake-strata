@@ -1,0 +1,300 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "wait-copy256": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WAIT_COPY256": "1"
+      }
+    },
+    "attn-lanecell": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ATTN_LANECELL": "1"
+      }
+    },
+    "select-two-pass": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SELECT_TWO_PASS": "1"
+      }
+    },
+    "idle-adapt": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_IDLE_ADAPT": "1"
+      }
+    },
+    "spin0": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "0"
+      }
+    },
+    "spin50": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "50"
+      }
+    },
+    "spin200": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "200"
+      }
+    },
+    "spin1000": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_POOL_SPIN_US": "1000"
+      }
+    },
+    "lookup-chain3": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "args": {
+        "--lookup-chain": "3"
+      }
+    },
+    "mmvf-rows-qgemv": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MMVF_ROWS": "1",
+        "STRATA_FUSE_QGEMV": "1"
+      }
+    },
+    "gdn-specla4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_GDN_SPECLA": "4"
+      }
+    },
+    "draft-clip3": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DRAFT_CLIP": "3"
+      }
+    },
+    "fs-stale-drop": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_FS_STALE_DROP": "4"
+      }
+    },
+    "warm-cu-mask": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_WARM_CU_MASK": "8"
+      }
+    },
+    "dma-coalesce": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DMA_COALESCE": "1"
+      }
+    },
+    "arena-populate": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ARENA_POPULATE": "8"
+      }
+    },
+    "experts-seq-readahead": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_EXPERTS_SEQ_READAHEAD": "1"
+      }
+    },
+    "io-uring32": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_IO_URING": "32"
+      }
+    },
+    "tail-skip-layers": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_TAIL_SKIP_LAYERS": "30-47:8"
+      }
+    },
+    "tier-lru05": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_TIER_LRU": "0.5"
+      }
+    },
+    "adapt-classlru4": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_CLASSLRU": "4"
+      }
+    },
+    "adapt-prob-mass": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_PROB_MASS": "1"
+      }
+    },
+    "link-defaults": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_LINK_DEFAULTS": "20"
+      }
+    },
+    "think-brake": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_THINK_BRAKE": "0.25"
+      }
+    },
+    "device-accept": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DEVICE_ACCEPT": "1"
+      }
+    },
+    "draft-early": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DRAFT_EARLY": "1"
+      }
+    },
+    "attn-qmajor": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ATTN_QMAJOR": "1"
+      }
+    },
+    "ssd-lite": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SSD_LITE": "1"
+      }
+    },
+    "spec-entropy-svip": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_ENTROPY": "svip"
+      }
+    },
+    "spec-entropy-adasd": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_ENTROPY": "adasd"
+      }
+    },
+    "disco-entropy": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DISCO_ENTROPY": "2.0"
+      }
+    },
+    "ngram-mod": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NGRAM_MOD": "1"
+      },
+      "args": {
+        "--lookup-chain": "3"
+      }
+    },
+    "adapt-sieve": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ADAPT_SIEVE": "1"
+      }
+    },
+    "mtp-in-verify": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_DEVICE_ACCEPT": "1",
+        "STRATA_MTP_ONE_GRAPH": "1",
+        "STRATA_MTP_IN_VERIFY": "1"
+      }
+    },
+    "expert-entropy-tier": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_EXPERT_ENTROPY_TIER": "1"
+      }
+    },
+    "norm-rope2": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NORM_ROPE": "2"
+      }
+    },
+    "norm-rope3": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_NORM_ROPE": "3"
+      }
+    },
+    "mmvq-set": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_MMVQ_SET": "1"
+      }
+    },
+    "spec-miss-win": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_MISS_WIN": "2"
+      }
+    },
+    "stager-probe": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_STAGER_PROBE": "1"
+      }
+    },
+    "spec-reason": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SPEC_REASON": "0.7"
+      }
+    },
+    "standin": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_STANDIN": "1"
+      }
+    },
+    "route-budget": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_ROUTE_RESIDENT": "1",
+        "STRATA_ROUTE_BUDGET": "0.5"
+      }
+    },
+    "route-budget-auto": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_STANDIN": "1",
+        "STRATA_ROUTE_BUDGET_AUTO": "1"
+      }
+    },
+    "ser": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SER": "6,0.1"
+      }
+    },
+    "ser-pool-6-01": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_SER": "6,0.1",
+        "STRATA_SER_POOL": "1"
+      }
+    }
+  },
+  "note": "Confirm of screen PROMOTE arms written by tools/pancake/promote_confirm.py from: 87-coded-exact-backlog (wait-copy256, attn-lanecell, select-two-pass, idle-adapt, spin0, spin50, spin200, spin1000, lookup-chain3, mmvf-rows-qgemv, gdn-specla4, draft-clip3, fs-stale-drop, warm-cu-mask, dma-coalesce, arena-populate); 92-leads-exact (experts-seq-readahead, io-uring32); 93-leads-lossy (tail-skip-layers, tier-lru05, adapt-classlru4, adapt-prob-mass, link-defaults, think-brake); 94-pass2-exact (device-accept, draft-early, attn-qmajor, ssd-lite, spec-entropy-svip, spec-entropy-adasd, disco-entropy, ngram-mod, adapt-sieve, mtp-in-verify, expert-entropy-tier, norm-rope2, norm-rope3, mmvq-set, spec-miss-win, stager-probe); 95-pass2-lossy (spec-reason, standin, route-budget, route-budget-auto, ser); 100-gputier-skim-serpool (ser-pool-6-01). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9; bar >= 2% end to end (>= 3% lossy); 'lossy': true means an arm's text differed from base, so quality_gate.py is due before adoption. Stop pancake.service first."
+}

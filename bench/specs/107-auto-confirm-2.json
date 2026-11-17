@@ -1,0 +1,35 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "long64k",
+    "short"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "pool-retry": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PREFILL_POOL_RETRY": "1"
+      }
+    },
+    "auto-max-49152": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PREFILL_AUTO_MAX": "49152"
+      }
+    },
+    "kv-stage-req": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_KV_STAGE_REQ": "1"
+      }
+    }
+  },
+  "note": "Confirm of screen PROMOTE arms written by tools/pancake/promote_confirm.py from: 89-rdna3-prefill (pool-retry, auto-max-49152, kv-stage-req). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9; bar >= 2% end to end (>= 3% lossy); 'lossy': true means an arm's text differed from base, so quality_gate.py is due before adoption. Stop pancake.service first."
+}

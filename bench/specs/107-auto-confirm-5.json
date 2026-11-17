@@ -1,0 +1,34 @@
+{
+  "base": "configs/pancake/qwen36-ud-q4_k_xl-q36.json",
+  "lossy": true,
+  "cases": [
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata"
+    },
+    "prompt-swaps-4096": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_PROMPT_SWAPS": "4096"
+      }
+    },
+    "prompt-swaps-nocap": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_PROMPT_SWAPS": "0"
+      }
+    },
+    "q36-swiglu-skim-001": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_Q36_SWIGLU_SKIM": "0.01"
+      }
+    }
+  },
+  "note": "Confirm of screen PROMOTE arms written by tools/pancake/promote_confirm.py from: 101-gputier-q36-swaps (prompt-swaps-4096, prompt-swaps-nocap, q36-swiglu-skim-001). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9; bar >= 2% end to end (>= 3% lossy); 'lossy': true means an arm's text differed from base, so quality_gate.py is due before adoption. Stop pancake.service first."
+}

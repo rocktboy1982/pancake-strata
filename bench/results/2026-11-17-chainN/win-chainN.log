@@ -1,0 +1,28 @@
+START 2026-11-16_18:00:19
+START 2026-11-16_21:44:34
+START 2026-11-16_21:57:50
+START 2026-11-16_22:54:10
+START 2026-11-17_17:00:31
+chain 17 done 17:35:31
+RESTART 17:36:46: started on the owner's word 'go n', the 22:00 gate removed (copy: win-chainN.sh.gated-22h)
+START 2026-11-17_17:36:46
+chain 17 done 17:36:47
+night window 17:36:47
+service stopped (idle) 17:39:49
+START 102-chain6-decode-confirm 2026-11-17_17:42:50
+END 102-chain6-decode-confirm exit=0 18:43:55
+START 103-chain6-prompt-confirm 2026-11-17_18:46:55
+END 103-chain6-prompt-confirm exit=0 19:36:26
+START 117-tier-swap-cap-kmiss 2026-11-17_19:39:26
+END 117-tier-swap-cap-kmiss exit=0 20:08:34
+bench/specs/107-auto-confirm-1.json
+bench/specs/107-auto-confirm-2.json
+bench/specs/107-auto-confirm-3.json
+bench/specs/107-auto-confirm-4.json
+bench/specs/107-auto-confirm-5.json
+bench/specs/107-auto-confirm-6.json
+bench/specs/107-auto-confirm-7.json
+bench/specs/107-auto-confirm-8.json
+START 107-auto-confirm-1 2026-11-17_20:11:34
+END 107-auto-confirm-1 exit=0 00:14:11
+START 107-auto-confirm-2 2026-11-18_00:17:11

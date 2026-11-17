@@ -1,0 +1,26 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 9,
+  "arms": {
+    "base": {
+      "args": {
+        "--adapt-async": "1"
+      }
+    },
+    "async-kmiss28-chunk256k": {
+      "args": {
+        "--adapt-async": "1"
+      },
+      "env": {
+        "STRATA_ADAPT_KMISS": "2,8",
+        "STRATA_PROMO_CHUNK": "262144"
+      }
+    }
+  },
+  "note": "Confirm of screen PROMOTE arms written by tools/pancake/promote_confirm.py from: 22-a7-promo-chunk (async-kmiss28-chunk256k). Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 9; bar >= 2% end to end (>= 3% lossy); 'lossy': true means an arm's text differed from base, so quality_gate.py is due before adoption. Stop pancake.service first."
+}
