@@ -129,7 +129,12 @@ def test_preset_mode_reads_the_base_config():
         p.write_text(json.dumps({"env": {}}))
         assert st.preset_mode(str(p))[:2] == ("serial", False)
     assert st.preset_mode("no-such-config-anywhere.json") == ("defer", True, None)
-    assert st.preset_mode("pancake-flashnext-iq2_xs-fast-hip.json")[:2] == ("defer", True)   # the repo's own preset
+    # the repo's own preset: whatever its env says now (deferral has been off since 795be0d89), read here from the file, not hard-coded
+    preset = st.ROOT / "configs/pancake/flashnext-iq2_xs-fast-hip.json"
+    env = json.loads(preset.read_text(encoding="utf-8")).get("env", {})
+    want = ("defer" if env.get("STRATA_VERIFY_DEFER_CPU") == "1" else "serial", env.get("STRATA_POOL_FUSE_PHASES") == "1")
+    got = st.preset_mode("pancake-flashnext-iq2_xs-fast-hip.json")
+    assert got[:2] == want and got[2] is not None and Path(got[2]).samefile(preset)
 
 
 def test_only_decode_windows_are_read():
