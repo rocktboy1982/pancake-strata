@@ -1,0 +1,32 @@
+Test project C:/Users/iancu/build-latest/build-sm75
+    Start 159: ple_reader_selftest
+1/1 Test #159: ple_reader_selftest ..............***Failed  191.49 sec
+ple prefetched-key reuse (reordered, duplicated, subset), Direct vs Mmap bytes: OK
+  table under concurrent use: cache 0 rows, inflight 1
+  table under concurrent use: cache 0 rows, inflight 3
+  table under concurrent use: cache 0 rows, inflight 64
+  table under concurrent use: cache 16 rows, inflight 1
+  table under concurrent use: cache 16 rows, inflight 3
+  table under concurrent use: cache 16 rows, inflight 64
+  table under concurrent use: cache 4096 rows, inflight 1
+  table under concurrent use: cache 4096 rows, inflight 3
+  table under concurrent use: cache 4096 rows, inflight 64
+ple table shared by a prompt thread, a decode window and a single gather, 9 reader configurations, vs the mapped reader: OK
+ple gather_sliced (slices, threads, raw IQ4_NL in direct and mapped mode) vs gather_batch / gather_raw_iq4nl, every format: OK (bit-identical)
+ple formats, both readers vs their dequantizers: IQ4_NL Q5_0 F8_E4M3 Q5_1 Q8_0 Q4_0 BF16 NVFP4: OK
+FAIL C:\Users\iancu\build-latest\src\src\ngram\ple_reader_test.cpp:663: no read was held back
+ple_reader selftest (row_bytes=90): FAILED
+FAIL C:\Users\iancu\build-latest\src\src\ngram\ple_reader_test.cpp:663: no read was held back
+ple_reader selftest (row_bytes=110): FAILED
+
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+cpu    = 191.49 sec*proc (1 test)
+
+Total Test time (real) = 191.75 sec
+
+The following tests FAILED:
+	159 - ple_reader_selftest (Failed)                      cpu
+Errors while running CTest

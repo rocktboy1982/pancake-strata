@@ -1,0 +1,940 @@
+Test project C:/Users/iancu/build-latest/build-sm75
+        Start  22: stop_rule_test
+  1/188 Test  #22: stop_rule_test ............................   Passed    0.11 sec
+        Start  23: pf_ahead_rule_test
+  2/188 Test  #23: pf_ahead_rule_test ........................   Passed    0.14 sec
+        Start  24: combine_write_rule_test
+  3/188 Test  #24: combine_write_rule_test ...................   Passed    0.08 sec
+        Start  41: head_argmax_parity
+  4/188 Test  #41: head_argmax_parity ........................   Passed   25.18 sec
+        Start  42: head_gather_parity
+  5/188 Test  #42: head_gather_parity ........................   Passed    5.65 sec
+        Start  43: subfit_apply_test
+  6/188 Test  #43: subfit_apply_test .........................   Passed    0.44 sec
+        Start  44: qsa_topk_active_parity
+  7/188 Test  #44: qsa_topk_active_parity ....................   Passed    3.77 sec
+        Start  45: qsa_slots_parity
+  8/188 Test  #45: qsa_slots_parity ..........................   Passed   21.87 sec
+        Start  46: qsa_slots_parity_lanecell
+  9/188 Test  #46: qsa_slots_parity_lanecell .................   Passed   21.54 sec
+        Start  47: qsa_merge_daily_parity_default
+ 10/188 Test  #47: qsa_merge_daily_parity_default ............   Passed   10.97 sec
+        Start  48: qsa_merge_daily_parity_daily
+ 11/188 Test  #48: qsa_merge_daily_parity_daily ..............   Passed   11.23 sec
+        Start  49: qsa_merge_daily_parity_qmajor
+ 12/188 Test  #49: qsa_merge_daily_parity_qmajor .............   Passed   11.66 sec
+        Start  50: qsa_scores_parity
+ 13/188 Test  #50: qsa_scores_parity .........................   Passed    6.11 sec
+        Start  51: qsa_two_pass_parity
+ 14/188 Test  #51: qsa_two_pass_parity .......................***Skipped   0.70 sec
+        Start  52: qsa_select_bench
+ 15/188 Test  #52: qsa_select_bench ..........................   Passed    1.05 sec
+        Start  53: qsa_select_bench_fp32_tiled
+ 16/188 Test  #53: qsa_select_bench_fp32_tiled ...............   Passed    1.30 sec
+        Start  54: qsa_page_select_recall
+ 17/188 Test  #54: qsa_page_select_recall ....................   Passed    1.50 sec
+        Start  55: host_graph_launch_test
+ 18/188 Test  #55: host_graph_launch_test ....................   Passed    0.74 sec
+        Start  60: vmm_test
+ 19/188 Test  #60: vmm_test ..................................   Passed    0.53 sec
+        Start  64: native_dense_ple_key_test
+ 20/188 Test  #64: native_dense_ple_key_test .................   Passed    0.76 sec
+        Start  65: expert_cache_per_layer_test
+ 21/188 Test  #65: expert_cache_per_layer_test ...............   Passed    0.54 sec
+        Start  66: expert_cache_segmented_test
+ 22/188 Test  #66: expert_cache_segmented_test ...............   Passed    1.29 sec
+        Start  67: expert_cache_slot_guard_test
+ 23/188 Test  #67: expert_cache_slot_guard_test ..............   Passed    0.45 sec
+        Start  71: dequant_s2_parity
+ 24/188 Test  #71: dequant_s2_parity .........................   Passed    1.07 sec
+        Start  72: s2_gemv_parity
+ 25/188 Test  #72: s2_gemv_parity ............................   Passed    0.59 sec
+        Start  73: iq_parity_fixtures
+ 26/188 Test  #73: iq_parity_fixtures ........................   Passed    2.29 sec
+        Start  74: iq_parity
+ 27/188 Test  #74: iq_parity .................................   Passed    2.36 sec
+        Start  75: mmvq_multi_parity
+ 28/188 Test  #75: mmvq_multi_parity .........................   Passed    4.05 sec
+        Start  76: mmvq_il_parity
+ 29/188 Test  #76: mmvq_il_parity ............................   Passed   12.42 sec
+        Start  77: mmvq_il_parity_89table
+ 30/188 Test  #77: mmvq_il_parity_89table ....................   Passed    0.36 sec
+        Start  78: mmvq_il_parity_pf
+ 31/188 Test  #78: mmvq_il_parity_pf .........................   Passed   19.45 sec
+        Start  79: dequant_wide_parity
+ 32/188 Test  #79: dequant_wide_parity .......................   Passed   26.45 sec
+        Start  80: pdl_parity
+ 33/188 Test  #80: pdl_parity ................................   Passed    2.46 sec
+        Start  81: iq_multi_parity
+ 34/188 Test  #81: iq_multi_parity ...........................   Passed   10.29 sec
+        Start  82: tq_pascal_bench
+ 35/188 Test  #82: tq_pascal_bench ...........................   Passed    8.50 sec
+        Start  83: iq_multi_parity_kq_nov2k
+ 36/188 Test  #83: iq_multi_parity_kq_nov2k ..................   Passed   13.99 sec
+        Start  84: iq_multi_parity_kq_swiglu
+ 37/188 Test  #84: iq_multi_parity_kq_swiglu .................   Passed   10.15 sec
+        Start  85: iq_multi_parity_kq_nosub16
+ 38/188 Test  #85: iq_multi_parity_kq_nosub16 ................   Passed   14.85 sec
+        Start  86: iq_multi_parity_expdec_swiglu
+ 39/188 Test  #86: iq_multi_parity_expdec_swiglu .............   Passed   28.81 sec
+        Start  87: dma_batch_parity
+ 40/188 Test  #87: dma_batch_parity ..........................   Passed   11.68 sec
+        Start  88: flag_order_test
+ 41/188 Test  #88: flag_order_test ...........................   Passed    1.49 sec
+        Start  89: dma_batch_registered_parity
+ 42/188 Test  #89: dma_batch_registered_parity ...............   Passed   13.25 sec
+        Start  90: gdn_rec_parity
+ 43/188 Test  #90: gdn_rec_parity ............................   Passed   32.48 sec
+        Start  91: gdn_rec_parity_selftest_frag
+ 44/188 Test  #91: gdn_rec_parity_selftest_frag ..............***Skipped   0.14 sec
+        Start  92: gdn_harness_smoke
+ 45/188 Test  #92: gdn_harness_smoke .........................   Passed    2.15 sec
+        Start  93: gemm_bf16_parity
+ 46/188 Test  #93: gemm_bf16_parity ..........................   Passed   12.28 sec
+        Start  94: gemm_dequant_side_parity
+ 47/188 Test  #94: gemm_dequant_side_parity ..................   Passed    7.93 sec
+        Start  95: gemm_w16_parity
+ 48/188 Test  #95: gemm_w16_parity ...........................Exit code 0xc0000409***Exception:  46.67 sec
+strata prefill: FP16 weight cache 0 MiB (the card keeps 3072 MiB free; STRATA_PF_W16_CACHE_MIB=0 turns it off)
+strata prefill: FP16 weight cache 0 MiB (the card keeps 3072 MiB free; STRATA_PF_W16_CACHE_MIB=0 turns it off)
+strata prefill: FP16 weight cache 0 MiB (the card keeps 3072 MiB free; STRATA_PF_W16_CACHE_MIB=0 turns it off)
+
+        Start  96: gr_upmix_parity
+ 49/188 Test  #96: gr_upmix_parity ...........................***Skipped   0.78 sec
+        Start  97: gr_wn4_parity
+ 50/188 Test  #97: gr_wn4_parity .............................   Passed    1.84 sec
+        Start  98: combine_write_parity
+ 51/188 Test  #98: combine_write_parity ......................   Passed   17.97 sec
+        Start  99: lm_kernels_parity
+ 52/188 Test  #99: lm_kernels_parity .........................   Passed    4.11 sec
+        Start 100: hc_q8_stream
+ 53/188 Test #100: hc_q8_stream ..............................   Passed    0.58 sec
+        Start 101: native_grouped_parity
+ 54/188 Test #101: native_grouped_parity .....................   Passed   19.77 sec
+        Start 102: mmvf_rows_parity
+ 55/188 Test #102: mmvf_rows_parity ..........................   Passed   14.13 sec
+        Start 103: pf_wmma_parity
+ 56/188 Test #103: pf_wmma_parity ............................***Failed   32.96 sec
+device 0
+IQ2_XXS   1280 x 2560: not launched
+IQ2_S     1280 x 2560: not launched
+IQ1_M     1280 x 2560: not launched
+Q2_0      2560 x  640, 693 rows in 7 experts: max |err| 2.16e-06 of max |ref| 1.12  ok
+IQ4_NL    1280 x 2560: not launched
+IQ3_S     1280 x 2560: not launched
+IQ4_XS    1280 x 2560: not launched
+IQ4_NL    2560 x  640, 693 rows in 7 experts: max |err| 0.000124 of max |ref| 54.6  ok
+pf_wmma_parity: 6 failures on 1 devices
+
+        Start 104: shared_expert_parity
+ 57/188 Test #104: shared_expert_parity ......................   Passed    1.40 sec
+        Start 105: verify_parity
+ 58/188 Test #105: verify_parity .............................   Passed    1.52 sec
+        Start 106: gr_parity
+ 59/188 Test #106: gr_parity .................................   Passed   10.68 sec
+        Start 107: gdn_parity
+ 60/188 Test #107: gdn_parity ................................   Passed    6.79 sec
+        Start 108: gdn_parity_split
+ 61/188 Test #108: gdn_parity_split ..........................   Passed    4.47 sec
+        Start 109: gdn_chunk_parity
+ 62/188 Test #109: gdn_chunk_parity ..........................***Skipped   0.31 sec
+        Start 110: s2_gemv_q8_parity
+ 63/188 Test #110: s2_gemv_q8_parity .........................   Passed    1.39 sec
+        Start 111: sampler_parity
+ 64/188 Test #111: sampler_parity ............................   Passed    3.03 sec
+        Start 112: spec_verify_parity
+ 65/188 Test #112: spec_verify_parity ........................   Passed   11.04 sec
+        Start 113: device_accept_parity
+ 66/188 Test #113: device_accept_parity ......................   Passed    3.01 sec
+        Start 114: oea_route_parity
+ 67/188 Test #114: oea_route_parity ..........................   Passed    1.86 sec
+        Start 115: spec_proposal_parity
+ 68/188 Test #115: spec_proposal_parity ......................   Passed    0.48 sec
+        Start 116: ffn_sparse_parity
+ 69/188 Test #116: ffn_sparse_parity .........................   Passed   21.81 sec
+        Start 117: rkv_parity
+ 70/188 Test #117: rkv_parity ................................   Passed    1.43 sec
+        Start 118: xattn_parity
+ 71/188 Test #118: xattn_parity ..............................   Passed    2.85 sec
+        Start 119: sampler_parity_one_block
+ 72/188 Test #119: sampler_parity_one_block ..................   Passed    4.78 sec
+        Start 120: sampler_parity_old
+ 73/188 Test #120: sampler_parity_old ........................   Passed    7.15 sec
+        Start 121: decode_cluster_parity
+ 74/188 Test #121: decode_cluster_parity .....................   Passed    1.05 sec
+        Start 122: rope_parity
+ 75/188 Test #122: rope_parity ...............................   Passed    0.82 sec
+        Start 123: quantize_act_parity
+ 76/188 Test #123: quantize_act_parity .......................   Passed    0.77 sec
+        Start 124: route_window_parity
+ 77/188 Test #124: route_window_parity .......................   Passed    0.76 sec
+        Start 125: route_resident_parity
+ 78/188 Test #125: route_resident_parity .....................   Passed    1.09 sec
+        Start 126: router_top10_parity
+ 79/188 Test #126: router_top10_parity .......................   Passed    0.56 sec
+        Start 127: native_multi_parity
+ 80/188 Test #127: native_multi_parity .......................   Passed    2.47 sec
+        Start 128: kv_steps_parity
+ 81/188 Test #128: kv_steps_parity ...........................   Passed    0.94 sec
+        Start 129: resident_plan_parity
+ 82/188 Test #129: resident_plan_parity ......................   Passed    1.10 sec
+        Start 130: gr_multi_parity
+ 83/188 Test #130: gr_multi_parity ...........................   Passed    1.50 sec
+        Start 131: hc_persist_parity
+ 84/188 Test #131: hc_persist_parity .........................   Passed    2.46 sec
+        Start 132: hc_persist_default_off
+ 85/188 Test #132: hc_persist_default_off ....................   Passed    1.84 sec
+        Start 133: hc_persist_q8_parity
+ 86/188 Test #133: hc_persist_q8_parity ......................   Passed    1.72 sec
+        Start 134: s_gemv_parity
+ 87/188 Test #134: s_gemv_parity .............................   Passed    1.79 sec
+        Start 135: elementwise_parity
+ 88/188 Test #135: elementwise_parity ........................   Passed    1.87 sec
+        Start 136: bf16_gemv_parity
+ 89/188 Test #136: bf16_gemv_parity ..........................   Passed    1.33 sec
+        Start 137: fusions_parity
+ 90/188 Test #137: fusions_parity ............................   Passed    1.25 sec
+        Start 138: s_gemv_q8k_parity
+ 91/188 Test #138: s_gemv_q8k_parity .........................   Passed    1.74 sec
+        Start 139: qsa_parity
+ 92/188 Test #139: qsa_parity ................................   Passed    3.27 sec
+        Start 140: qsa_topk_parity
+ 93/188 Test #140: qsa_topk_parity ...........................   Passed    3.74 sec
+        Start 141: qsa_topk_parity_reg_always
+ 94/188 Test #141: qsa_topk_parity_reg_always ................   Passed    3.86 sec
+        Start 143: ple_iq4nl_dequant_test
+ 95/188 Test #143: ple_iq4nl_dequant_test ....................   Passed    1.37 sec
+        Start 144: kv_q8_parity
+ 96/188 Test #144: kv_q8_parity ..............................   Passed    0.89 sec
+        Start 145: route_prior_test
+ 97/188 Test #145: route_prior_test ..........................   Passed    0.78 sec
+        Start 146: kv_stream_parity
+ 98/188 Test #146: kv_stream_parity ..........................   Passed   60.52 sec
+        Start 147: kv_window_parity
+ 99/188 Test #147: kv_window_parity ..........................   Passed   47.67 sec
+        Start 148: kv_hybrid_parity
+100/188 Test #148: kv_hybrid_parity ..........................   Passed    1.55 sec
+        Start 149: kv_q4_parity
+101/188 Test #149: kv_q4_parity ..............................   Passed    1.09 sec
+        Start 150: verify_batch_parity
+102/188 Test #150: verify_batch_parity .......................   Passed    1.36 sec
+        Start 151: batch_rows_parity
+103/188 Test #151: batch_rows_parity .........................   Passed    7.62 sec
+        Start 152: cvec_parity
+104/188 Test #152: cvec_parity ...............................   Passed    1.08 sec
+        Start 153: s2_expert_grouped_parity
+105/188 Test #153: s2_expert_grouped_parity ..................   Passed    1.30 sec
+        Start 155: pin_budget_test
+106/188 Test #155: pin_budget_test ...........................   Passed    0.64 sec
+        Start 156: pinned_alias_test
+107/188 Test #156: pinned_alias_test .........................***Skipped   0.16 sec
+        Start 157: conversation_copy_streams_test
+108/188 Test #157: conversation_copy_streams_test ............   Passed    0.83 sec
+        Start 158: pinned_shared_win_test
+109/188 Test #158: pinned_shared_win_test ....................   Passed    0.90 sec
+        Start 166: cuda_device_selftest
+110/188 Test #166: cuda_device_selftest ......................   Passed    0.40 sec
+        Start 186: session_keep_root_test_on
+111/188 Test #186: session_keep_root_test_on .................   Passed    0.45 sec
+        Start 270: prefill_fused_moe_test
+112/188 Test #270: prefill_fused_moe_test ....................***Skipped   0.24 sec
+        Start 271: prefill_fused_iq_test
+113/188 Test #271: prefill_fused_iq_test .....................***Skipped   0.28 sec
+        Start 272: prefill_fused_iq_test_q2n
+114/188 Test #272: prefill_fused_iq_test_q2n .................***Skipped   0.15 sec
+        Start 273: prefill_fused_iq_test_nt256
+115/188 Test #273: prefill_fused_iq_test_nt256 ...............***Skipped   0.18 sec
+        Start 274: prefill_fused_iq_test_f16
+116/188 Test #274: prefill_fused_iq_test_f16 .................***Skipped   0.20 sec
+        Start 275: prefill_fused_iq_test_ws
+117/188 Test #275: prefill_fused_iq_test_ws ..................***Skipped   0.20 sec
+        Start 276: prefill_mmq_v31_test
+118/188 Test #276: prefill_mmq_v31_test ......................   Passed  171.19 sec
+        Start 277: prefill_mmq_scatter_test
+119/188 Test #277: prefill_mmq_scatter_test ..................   Passed    3.35 sec
+        Start 278: prefill_mmq_linear_test
+120/188 Test #278: prefill_mmq_linear_test ...................   Passed    1.32 sec
+        Start 279: prefill_iq4_w4a8_test
+121/188 Test #279: prefill_iq4_w4a8_test .....................***Skipped   0.32 sec
+        Start 280: prefill_mmq_kquant_test
+122/188 Test #280: prefill_mmq_kquant_test ...................   Passed   17.91 sec
+        Start 282: native_expert_parity_q4_K_q5_1
+123/188 Test #282: native_expert_parity_q4_K_q5_1 ............   Passed    1.59 sec
+        Start 283: native_expert_parity_q4_K_q8_0
+124/188 Test #283: native_expert_parity_q4_K_q8_0 ............   Passed    1.24 sec
+        Start 284: native_expert_parity_q5_K_q8_0
+125/188 Test #284: native_expert_parity_q5_K_q8_0 ............   Passed    1.20 sec
+        Start 285: native_expert_parity_q8_0_q8_0
+126/188 Test #285: native_expert_parity_q8_0_q8_0 ............   Passed    0.79 sec
+        Start 286: native_expert_parity_q4_K_q5_0
+127/188 Test #286: native_expert_parity_q4_K_q5_0 ............   Passed    1.18 sec
+        Start 287: native_expert_parity_q5_0_q8_0
+128/188 Test #287: native_expert_parity_q5_0_q8_0 ............   Passed    0.75 sec
+        Start 288: native_expert_parity_q4_0_q4_0
+129/188 Test #288: native_expert_parity_q4_0_q4_0 ............   Passed    0.98 sec
+        Start 289: native_expert_parity_q4_0_q4_1
+130/188 Test #289: native_expert_parity_q4_0_q4_1 ............   Passed    0.80 sec
+        Start 290: native_expert_parity_q6_K_q8_0
+131/188 Test #290: native_expert_parity_q6_K_q8_0 ............   Passed    1.32 sec
+        Start 291: native_expert_parity_q5_1_min
+132/188 Test #291: native_expert_parity_q5_1_min .............   Passed    0.69 sec
+        Start 292: native_expert_parity_v31_iq1_m_q2_0
+133/188 Test #292: native_expert_parity_v31_iq1_m_q2_0 .......   Passed   34.04 sec
+        Start 293: native_expert_parity_v31_iq1_m_iq4_nl
+134/188 Test #293: native_expert_parity_v31_iq1_m_iq4_nl .....   Passed   32.73 sec
+        Start 294: native_expert_parity_v31_iq1_m_q5_0
+135/188 Test #294: native_expert_parity_v31_iq1_m_q5_0 .......   Passed   31.61 sec
+        Start 295: native_expert_parity_v31_iq1_m_q8_0
+136/188 Test #295: native_expert_parity_v31_iq1_m_q8_0 .......   Passed   30.45 sec
+        Start 296: native_expert_parity_v31_iq2_xxs_q2_0
+137/188 Test #296: native_expert_parity_v31_iq2_xxs_q2_0 .....   Passed    6.08 sec
+        Start 297: native_expert_parity_v31_iq2_xxs_iq4_nl
+138/188 Test #297: native_expert_parity_v31_iq2_xxs_iq4_nl ...   Passed    7.39 sec
+        Start 298: native_expert_parity_v31_iq2_xxs_q5_0
+139/188 Test #298: native_expert_parity_v31_iq2_xxs_q5_0 .....   Passed    6.48 sec
+        Start 299: native_expert_parity_v31_iq2_xxs_q8_0
+140/188 Test #299: native_expert_parity_v31_iq2_xxs_q8_0 .....   Passed    7.11 sec
+        Start 300: native_expert_parity_v31_iq2_xs_q2_0
+141/188 Test #300: native_expert_parity_v31_iq2_xs_q2_0 ......   Passed   13.03 sec
+        Start 301: native_expert_parity_v31_iq2_xs_iq4_nl
+142/188 Test #301: native_expert_parity_v31_iq2_xs_iq4_nl ....   Passed   13.09 sec
+        Start 302: native_expert_parity_v31_iq2_xs_q5_0
+143/188 Test #302: native_expert_parity_v31_iq2_xs_q5_0 ......   Passed   13.89 sec
+        Start 303: native_expert_parity_v31_iq2_xs_q8_0
+144/188 Test #303: native_expert_parity_v31_iq2_xs_q8_0 ......   Passed   18.10 sec
+        Start 304: native_expert_parity_v31_iq2_s_q2_0
+145/188 Test #304: native_expert_parity_v31_iq2_s_q2_0 .......   Passed   20.65 sec
+        Start 305: native_expert_parity_v31_iq2_s_iq4_nl
+146/188 Test #305: native_expert_parity_v31_iq2_s_iq4_nl .....   Passed   21.16 sec
+        Start 306: native_expert_parity_v31_iq2_s_q5_0
+147/188 Test #306: native_expert_parity_v31_iq2_s_q5_0 .......   Passed   17.57 sec
+        Start 307: native_expert_parity_v31_iq2_s_q8_0
+148/188 Test #307: native_expert_parity_v31_iq2_s_q8_0 .......   Passed   17.96 sec
+        Start 308: native_expert_parity_v31_iq3_xxs_q2_0
+149/188 Test #308: native_expert_parity_v31_iq3_xxs_q2_0 .....   Passed    4.78 sec
+        Start 309: native_expert_parity_v31_iq3_xxs_iq4_nl
+150/188 Test #309: native_expert_parity_v31_iq3_xxs_iq4_nl ...   Passed    6.70 sec
+        Start 310: native_expert_parity_v31_iq3_xxs_q5_0
+151/188 Test #310: native_expert_parity_v31_iq3_xxs_q5_0 .....   Passed    5.29 sec
+        Start 311: native_expert_parity_v31_iq3_xxs_q8_0
+152/188 Test #311: native_expert_parity_v31_iq3_xxs_q8_0 .....   Passed    4.90 sec
+        Start 312: native_expert_parity_v31_iq4_xs_q2_0
+153/188 Test #312: native_expert_parity_v31_iq4_xs_q2_0 ......   Passed    3.07 sec
+        Start 313: native_expert_parity_v31_iq4_xs_iq4_nl
+154/188 Test #313: native_expert_parity_v31_iq4_xs_iq4_nl ....   Passed    4.54 sec
+        Start 314: native_expert_parity_v31_iq4_xs_q5_0
+155/188 Test #314: native_expert_parity_v31_iq4_xs_q5_0 ......   Passed    3.14 sec
+        Start 315: native_expert_parity_v31_iq4_xs_q8_0
+156/188 Test #315: native_expert_parity_v31_iq4_xs_q8_0 ......   Passed    3.35 sec
+        Start 316: native_dense_parity
+157/188 Test #316: native_dense_parity .......................   Passed   13.03 sec
+        Start 317: native_expert_parity_bf16_embd
+158/188 Test #317: native_expert_parity_bf16_embd ............   Passed    0.74 sec
+        Start 318: native_expert_parity_new_iq1_m_q2_0
+159/188 Test #318: native_expert_parity_new_iq1_m_q2_0 .......   Passed   40.03 sec
+        Start 319: native_expert_parity_new_iq1_m_iq4_nl
+160/188 Test #319: native_expert_parity_new_iq1_m_iq4_nl .....   Passed   36.82 sec
+        Start 320: native_expert_parity_new_iq1_m_q5_0
+161/188 Test #320: native_expert_parity_new_iq1_m_q5_0 .......   Passed   39.89 sec
+        Start 321: native_expert_parity_new_iq1_m_q8_0
+162/188 Test #321: native_expert_parity_new_iq1_m_q8_0 .......   Passed   39.56 sec
+        Start 322: native_expert_parity_new_iq2_xxs_q2_0
+163/188 Test #322: native_expert_parity_new_iq2_xxs_q2_0 .....   Passed    7.99 sec
+        Start 323: native_expert_parity_new_iq2_xxs_iq4_nl
+164/188 Test #323: native_expert_parity_new_iq2_xxs_iq4_nl ...   Passed    8.18 sec
+        Start 324: native_expert_parity_new_iq2_xxs_q5_0
+165/188 Test #324: native_expert_parity_new_iq2_xxs_q5_0 .....   Passed    9.37 sec
+        Start 325: native_expert_parity_new_iq2_xxs_q8_0
+166/188 Test #325: native_expert_parity_new_iq2_xxs_q8_0 .....   Passed    8.65 sec
+        Start 326: native_expert_parity_new_iq2_xs_q2_0
+167/188 Test #326: native_expert_parity_new_iq2_xs_q2_0 ......   Passed   14.74 sec
+        Start 327: native_expert_parity_new_iq2_xs_iq4_nl
+168/188 Test #327: native_expert_parity_new_iq2_xs_iq4_nl ....   Passed   16.79 sec
+        Start 328: native_expert_parity_new_iq2_xs_q5_0
+169/188 Test #328: native_expert_parity_new_iq2_xs_q5_0 ......   Passed   13.90 sec
+        Start 329: native_expert_parity_new_iq2_xs_q8_0
+170/188 Test #329: native_expert_parity_new_iq2_xs_q8_0 ......   Passed   13.28 sec
+        Start 330: native_expert_parity_new_iq2_s_q2_0
+171/188 Test #330: native_expert_parity_new_iq2_s_q2_0 .......   Passed   16.06 sec
+        Start 331: native_expert_parity_new_iq2_s_iq4_nl
+172/188 Test #331: native_expert_parity_new_iq2_s_iq4_nl .....   Passed   17.95 sec
+        Start 332: native_expert_parity_new_iq2_s_q5_0
+173/188 Test #332: native_expert_parity_new_iq2_s_q5_0 .......   Passed   16.78 sec
+        Start 333: native_expert_parity_new_iq2_s_q8_0
+174/188 Test #333: native_expert_parity_new_iq2_s_q8_0 .......   Passed   16.79 sec
+        Start 334: native_expert_parity_new_q2_0_q2_0
+175/188 Test #334: native_expert_parity_new_q2_0_q2_0 ........   Passed    0.79 sec
+        Start 335: native_expert_parity_new_q2_0_iq4_nl
+176/188 Test #335: native_expert_parity_new_q2_0_iq4_nl ......   Passed    1.99 sec
+        Start 336: native_expert_parity_new_q2_0_q5_0
+177/188 Test #336: native_expert_parity_new_q2_0_q5_0 ........   Passed    1.14 sec
+        Start 337: native_expert_parity_new_q2_0_q8_0
+178/188 Test #337: native_expert_parity_new_q2_0_q8_0 ........   Passed    1.15 sec
+        Start 338: native_expert_parity_new_iq3_xxs_q2_0
+179/188 Test #338: native_expert_parity_new_iq3_xxs_q2_0 .....   Passed    5.26 sec
+        Start 339: native_expert_parity_new_iq3_xxs_iq4_nl
+180/188 Test #339: native_expert_parity_new_iq3_xxs_iq4_nl ...   Passed    6.09 sec
+        Start 340: native_expert_parity_new_iq3_xxs_q5_0
+181/188 Test #340: native_expert_parity_new_iq3_xxs_q5_0 .....   Passed    4.89 sec
+        Start 341: native_expert_parity_new_iq3_xxs_q8_0
+182/188 Test #341: native_expert_parity_new_iq3_xxs_q8_0 .....   Passed    5.30 sec
+        Start 342: native_expert_parity_new_iq4_xs_q2_0
+183/188 Test #342: native_expert_parity_new_iq4_xs_q2_0 ......   Passed    3.40 sec
+        Start 343: native_expert_parity_new_iq4_xs_iq4_nl
+184/188 Test #343: native_expert_parity_new_iq4_xs_iq4_nl ....   Passed    4.27 sec
+        Start 344: native_expert_parity_new_iq4_xs_q5_0
+185/188 Test #344: native_expert_parity_new_iq4_xs_q5_0 ......   Passed    2.83 sec
+        Start 345: native_expert_parity_new_iq4_xs_q8_0
+186/188 Test #345: native_expert_parity_new_iq4_xs_q8_0 ......   Passed    2.94 sec
+        Start 346: native_dense_types_parity
+187/188 Test #346: native_dense_types_parity .................   Passed   10.82 sec
+        Start 373: cuda_spill_guard
+188/188 Test #373: cuda_spill_guard ..........................***Failed   24.41 sec
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_kernels.lib: 2799 kernels on sm_75 (2799 entries; 0 vendored ggml entries skipped), 474 use stack / local memory, 474 not allowed
+  VIOLATION void strata::kernels::<unnamed>::proxy_final_kernel<strata::kernels::<unnamed>::Q4K>(const T1::Block *, const strata::kernels::<unnamed>::Q81Block *, int, const sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\head_fmt.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::proxy_final_kernel<strata::kernels::<unnamed>::Q6K>(const T1::Block *, const strata::kernels::<unnamed>::Q81Block *, int, const sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\head_fmt.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::proxy_final_kernel<strata::kernels::<unnamed>::IQ4XS>(const T1::Block *, const strata::kernels::<unnamed>::Q81Block *, int, con sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\head_fmt.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::head_kernel<strata::kernels::<unnamed>::IQ4XS, (int)8>(const T1::Block *, const strata::kernels::<unnamed>::Q81Block *, float * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\head_fmt.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::q5k_proxy_final_kernel(const strata::kernels::<unnamed>::Q5KBlock *, const strata::kernels::<unnamed>::Q81Block *, int, const int *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\q5k_head.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::xattn_attn_kernel(const unsigned short *, const unsigned short *, const unsigned short *, long long, long long, int, int, int, long  sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\xattn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)149, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)149, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)148, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)148, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)147, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)147, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)146, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)146, (bool)1, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)146, (bool)0, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)144, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)144, (bool)1, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)144, (bool)0, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int * sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)40, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)40, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)8, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *,  sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)8, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *,  sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)42, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)42, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)42, (bool)1, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)23, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)23, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)20, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)20, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)20, (bool)1, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)149, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)149, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)148, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)148, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)147, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)147, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)145, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)145, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)145, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)145, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 144 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)144, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)144, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)144, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)144, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const blo sm_75: STACK 176 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)40, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)40, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)8, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)8, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const block sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)13, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)13, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)12, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)12, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)42, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)42, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)29, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)29, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)29, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)29, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)23, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)23, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)22, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)22, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)22, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)22, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)21, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)21, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)21, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)21, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)18, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)18, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)18, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)18, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)17, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)17, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)17, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)17, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)16, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)16, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)16, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_multi_kernel<(int)16, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const bloc sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_swiglu_kernel<(int)21, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const block_q8_1 * sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_gu_swiglu_kernel<(int)21, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block_q8_1 * sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::s27_gu_kernel<(int)13, (bool)1, (int)4, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::s27_gu_kernel<(int)12, (bool)1, (int)4, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)13, (bool)1, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_down_multi_kernel<(int)13, (bool)0, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const int *, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::s26_gu_l_kernel<(bool)1, (bool)1, (int)4, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *,  sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)42, (int)4, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 168 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)42, (int)4, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 288 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)42, (int)2, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 136 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)42, (int)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)20, (int)4, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 288 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)20, (int)4, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 368 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)20, (int)2, (bool)0>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)20, (int)2, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 136 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_down_kernel<(int)20, (int)1, (bool)1>(const unsigned long long *, const int *, const int *, const int *, const block_q8_ sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)22, (int)1, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)22, (int)1, (int)4, (bool)1, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)22, (int)2, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)22, (int)2, (int)4, (bool)1, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)21, (int)1, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)21, (int)2, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)18, (int)1, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)18, (int)2, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)1, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)1, (int)4, (bool)1, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)1, (int)4, (bool)0, (int)1, (bool)1>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)1, (int)4, (bool)1, (int)1, (bool)1>(const unsigned long long *, const int *, const int *, const sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)2, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)2, (int)4, (bool)1, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)2, (int)4, (bool)0, (int)1, (bool)1>(const unsigned long long *, const int *, const int *, const sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)17, (int)2, (int)4, (bool)1, (int)1, (bool)1>(const unsigned long long *, const int *, const int *, const sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)16, (int)1, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)16, (int)1, (int)4, (bool)1, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)16, (int)1, (int)4, (bool)1, (int)8, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)16, (int)1, (int)4, (bool)0, (int)16, (bool)0>(const unsigned long long *, const int *, const int *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)16, (int)1, (int)4, (bool)1, (int)16, (bool)0>(const unsigned long long *, const int *, const int *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)16, (int)2, (int)4, (bool)0, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_kernel<(int)16, (int)2, (int)4, (bool)1, (int)1, (bool)0>(const unsigned long long *, const int *, const int *, const sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)22, (int)1, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)22, (int)1, (int)4, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)22, (int)2, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)22, (int)2, (int)4, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)21, (int)1, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)21, (int)2, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)18, (int)1, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)18, (int)2, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)17, (int)1, (int)4, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)17, (int)1, (int)4, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)17, (int)2, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)17, (int)2, (int)4, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)17, (int)2, (int)4, (bool)0, (bool)1>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)17, (int)2, (int)4, (bool)1, (bool)1>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)16, (int)1, (int)4, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)16, (int)2, (int)4, (bool)0, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::expdec_gu_swiglu_kernel<(int)16, (int)2, (int)4, (bool)1, (bool)0>(const unsigned long long *, const int *, const int *, const  sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::dequant_gu_kernel(int, const void *, const void *, long long, __half *, const float *) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\iq_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gemm8_kernel<(int)4, (bool)1, (int)4>(strata::kernels::<unnamed>::Df2Segs, const signed char *, const float *, int, int) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dflash2.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gemm8_kernel<(int)2, (bool)1, (int)4>(strata::kernels::<unnamed>::Df2Segs, const signed char *, const float *, int, int) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dflash2.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gemm4_rows_kernel<(int)4, (int)1, (int)8>(strata::kernels::<unnamed>::Df2Segs, const signed char *, const float *, int, int) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dflash2.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gemm4_rows_kernel<(int)4, (int)2, (int)4>(strata::kernels::<unnamed>::Df2Segs, const signed char *, const float *, int, int) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dflash2.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::rope_table_inv_kernel(const int *, int, const double *, float *) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dflash2.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::rope_table_kernel(const int *, int, float, float *) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dflash2.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::k_subfit_apply(strata::kernels::SubfitApplyArgs) sm_75: STACK 128 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\subfit_apply.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gdn_step_commit_kernel<(bool)1>(float *, const float *, int, const float *, const float *, int, int, const int *, int) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\verify_kernels.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::device_accept_commit_kernel(const int *, const int *, int, int, int, strata::kernels::DeviceAcceptBound, int *) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\verify_kernels.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::block_topk_reg_kernel<(int)33>(const float *, const int *, long long, long long, int *) sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_select.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::dequant_kernel<(int)11, float, (bool)0>(const unsigned char *, long long, long long, long long, long long, long long, T2 *) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dequant_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::dequant_kernel<(int)11, float, (bool)1>(const unsigned char *, long long, long long, long long, long long, long long, T2 *) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dequant_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::dequant_kernel<(int)11, strata::kernels::<unnamed>::H16, (bool)0>(const unsigned char *, long long, long long, long long, long  sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dequant_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::dequant_kernel<(int)11, strata::kernels::<unnamed>::H16, (bool)1>(const unsigned char *, long long, long long, long long, long  sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dequant_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::dequant_kernel<(int)14, unsigned short, (bool)1>(const unsigned char *, long long, long long, long long, long long, long long,  sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dequant_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::dequant_kernel<(int)11, unsigned short, (bool)0>(const unsigned char *, long long, long long, long long, long long, long long,  sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dequant_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::dequant_kernel<(int)11, unsigned short, (bool)1>(const unsigned char *, long long, long long, long long, long long, long long,  sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\dequant_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_slots_kernel<(int)0, (bool)1>(const float *, strata::kernels::QsaAttnSlotPools, const int *, const int *, int, int,  sm_75: STACK 384 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_slots_kernel<(int)1, (bool)1>(const float *, strata::kernels::QsaAttnSlotPools, const int *, const int *, int, int,  sm_75: STACK 400 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_slots_kernel<(int)2, (bool)1>(const float *, strata::kernels::QsaAttnSlotPools, const int *, const int *, int, int,  sm_75: STACK 384 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_slots_kernel<(int)3, (bool)1>(const float *, strata::kernels::QsaAttnSlotPools, const int *, const int *, int, int,  sm_75: STACK 384 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_kernel<(int)0, (bool)1, (bool)0, (bool)0>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, in sm_75: STACK 400 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_kernel<(int)1, (bool)1, (bool)0, (bool)0>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, in sm_75: STACK 384 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_kernel<(int)2, (bool)1, (bool)0, (bool)0>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, in sm_75: STACK 384 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_kernel<(int)3, (bool)1, (bool)0, (bool)0>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, in sm_75: STACK 384 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_window_kernel<(int)0, (int)2>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, int, int, floa sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_window_kernel<(int)1, (int)2>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, int, int, floa sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_window_kernel<(int)2, (int)2>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, int, int, floa sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::attn_chunk_window_kernel<(int)3, (int)2>(const float *, strata::kernels::QsaAttnPools, const int *, const int *, int, int, floa sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\qsa_decode_attn.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::hcp::persist_kernel<(int)5, (bool)0, (bool)0>(strata::kernels::<unnamed>::hcp::PArgs) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::hcp::persist_kernel<(int)1, (bool)0, (bool)0>(strata::kernels::<unnamed>::hcp::PArgs) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::hcp::persist_kernel<(int)6, (bool)1, (bool)0>(strata::kernels::<unnamed>::hcp::PArgs) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_up_q8_wide_kernel<(int)7, (bool)1, (int)1024>(strata::kernels::<unnamed>::GrMulti, const float *, const float *) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_up_q8_wide_kernel<(int)6, (bool)1, (int)1024>(strata::kernels::<unnamed>::GrMulti, const float *, const float *) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_fused_q8_kernel<(int)6>(strata::kernels::<unnamed>::GrMulti, float *, float *, unsigned int *) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_up_q8_wide_kernel<(int)5, (bool)0, (int)1024>(strata::kernels::<unnamed>::GrMulti, const float *, const float *) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_up_q8_wide_kernel<(int)5, (bool)1, (int)1024>(strata::kernels::<unnamed>::GrMulti, const float *, const float *) sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_fused_q8_kernel<(int)5>(strata::kernels::<unnamed>::GrMulti, float *, float *, unsigned int *) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_down_q8_kernel<(int)4>(strata::kernels::<unnamed>::GrMulti, float *, float *) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_up_q8_wide_kernel<(int)2, (bool)1, (int)512>(strata::kernels::<unnamed>::GrMulti, const float *, const float *) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::gr_up75_kernel<(int)8, (bool)0>(strata::kernels::<unnamed>::GrMulti) sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\fused_gr.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::copy_kernel<(bool)1>(strata::kernels::KvStreamMap, strata::kernels::<unnamed>::Runs, int) sm_75: STACK 88 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\kv_stream.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::copy_kernel<(bool)0>(strata::kernels::KvStreamMap, strata::kernels::<unnamed>::Runs, int) sm_75: STACK 88 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\kv_stream.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::route_topk<(int)256, (int)2>(const float *, int *, float *, int) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::route_topk<(int)256, (int)3>(const float *, int *, float *, int) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::route_topk<(int)256, (int)4>(const float *, int *, float *, int) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::route_topk<(int)256, (int)5>(const float *, int *, float *, int) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::route_topk<(int)256, (int)6>(const float *, int *, float *, int) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::route_topk<(int)256, (int)7>(const float *, int *, float *, int) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::route_topk<(int)256, (int)8>(const float *, int *, float *, int) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::route_publish_fast(const float *, int *, float *, int, const float *, int, int, float *, int *, float *, unsigned int *, unsigned in sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::route_publish_res(const float *, int *, float *, int, const float *, const int *, int, int, float *, int *, unsigned int *) sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::route_multi(const float *, int *, float *, int) sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::route(const float *, int *, float *) sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION strata::kernels::route_resident_ex_k(const float *, int *, float *, const int *, int, float, int, int, unsigned long long *, const strata::kernels::RouteStandin sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION strata::kernels::route_resident_k(const float *, int *, float *, const int *, int, float, int, int, unsigned long long *) sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_router.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)1, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)8, (bool)0>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)8, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)7, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)6, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)5, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)4, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)3, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::bf16_f32_mmvf_multi_kernel<(int)256, (int)2, (bool)1>(const float *, long long, const unsigned short *, float *, long long, int sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_bf16.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::route_plan_kernel(const float *, int *, float *, int, const int *, int, const unsigned char *, const unsigned long long *, long long sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\route_plan.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)5, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 320 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)5, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 104 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)5, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 416 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 256 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 128 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 288 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 104 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 400 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 184 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 272 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)6, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 368 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)6, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 144 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)6, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 224 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)6, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 408 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 128 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 360 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)2, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 328 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)2, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 112 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)1, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 104 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 856 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 368 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 200 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 664 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)4, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 208 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 768 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 280 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 112 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 584 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)2, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 688 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)2, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 160 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)2, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 504 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)1, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 624 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)1, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)1, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 440 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)5, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 88 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)8, (int)1, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)7, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ6K, (int)3, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 528 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 240 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 112 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 400 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 112 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 664 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 408 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 248 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 520 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 240 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 656 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 368 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 208 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 512 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 576 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 296 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 168 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 440 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 144 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 512 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 360 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 456 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 120 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 312 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 464 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 288 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)1, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 432 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)1, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 184 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1336 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 760 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 584 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 608 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1264 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 632 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 488 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1208 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 496 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 536 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 352 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1056 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 368 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)1, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1144 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)1, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 424 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)1, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 200 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)1, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1008 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)1, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 176 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 136 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)5, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)8, (int)1, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 216 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)7, (int)1, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 176 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)6, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 104 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)4, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)3, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ5K, (int)2, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 416 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 200 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 288 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 520 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 352 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 224 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 400 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 504 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 320 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 184 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 376 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 152 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 456 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 256 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 144 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 328 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 128 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 360 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 152 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 232 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 336 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 88 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 176 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)2, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 304 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)2, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)1, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 192 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 1048 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 552 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 408 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 912 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 424 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 968 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 504 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 352 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 824 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 296 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)2, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 936 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)2, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 456 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)2, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 176 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)2, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 800 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)2, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 216 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)1, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 824 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)1, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 240 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)1, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)1, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 688 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)1, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 72 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)5, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 128 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)8, (int)1, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 136 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 24 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)7, (int)1, (int)0, (int)4, (bool)0>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 96 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)6, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, cons sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)4, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlQ4K, (int)3, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, cons sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)5, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 536 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)5, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 248 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)5, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 112 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)5, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 392 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)5, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 128 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 704 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 392 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 224 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 536 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 224 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 648 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 288 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 168 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 456 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 168 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)6, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 560 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)6, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 280 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)6, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 144 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)6, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 408 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)6, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 152 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 512 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 176 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 304 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 488 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 112 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)2, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 264 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)2, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 344 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)2, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 208 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)1, (int)2, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 328 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)1, (int)2, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 120 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 1128 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 592 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 440 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 984 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 432 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 1064 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 464 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 336 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 928 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 328 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 960 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 352 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 216 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 864 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)2, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 216 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)1, (int)4, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 928 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)1, (int)4, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 224 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)1, (int)4, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)1, (int)4, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 800 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)1, (int)4, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 56 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)5, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 88 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 152 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)8, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 208 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 88 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)1, (int)0, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)7, (int)1, (int)0, (int)4, (bool)0>(const T1::F::Block *, co sm_75: STACK 88 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)6, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 120 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)6, (int)1, (int)2, (int)4, (bool)1>(const T1::F::Block *, co sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)4, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 48 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)1, (int)2, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION void strata::kernels::<unnamed>::native_mmvq_il_pf_kernel<strata::kernels::<unnamed>::IlIQ4XS, (int)3, (int)1, (int)0, (int)5, (bool)1>(const T1::F::Block *, co sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\native_mmvq.cu.obj]
+  VIOLATION strata::kernels::<unnamed>::pair_kernel(strata::kernels::<unnamed>::SideArgs, strata::kernels::<unnamed>::SideArgs, float *, long long, long long, int, int) sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_kernels.dir\src\kernels\cuda\s_gemv_pair.cu.obj]
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_core.lib: 1 kernels on sm_75 (1 entries; 0 vendored ggml entries skipped), 0 use stack / local memory, 0 not allowed
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_engine.lib: 2 kernels on sm_75 (2 entries; 0 vendored ggml entries skipped), 0 use stack / local memory, 0 not allowed
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_prefill.lib: 74 kernels on sm_75 (74 entries; 0 vendored ggml entries skipped), 9 use stack / local memory, 9 not allowed
+  VIOLATION void strata::prefill::<unnamed>::rms_rope_rows_kernel<(bool)0>(const float *, long long, long long, float *, long long, const float *, long long, long long, flo sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION void strata::prefill::<unnamed>::rms_rope_rows_kernel<(bool)1>(const float *, long long, long long, float *, long long, const float *, long long, long long, flo sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION void strata::prefill::<unnamed>::rope_kernel<(bool)0>(float *, long long, long long, long long, long long, float, float, float, float, float, float, const int * sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION void strata::prefill::<unnamed>::rope_kernel<(bool)1>(float *, long long, long long, long long, long long, float, float, float, float, float, float, const int * sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION void strata::prefill::<unnamed>::route_kernel<(int)8>(const float *, int *, float *, long long) sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION void strata::prefill::<unnamed>::route_kernel<(int)16>(const float *, int *, float *, long long) sm_75: STACK 64 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION strata::prefill::<unnamed>::moe_combine_write_norm_rs_kernel(const float *, const int *, const float *, const float *, const float *, const float *, float *, co sm_75: STACK 80 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION strata::prefill::<unnamed>::gr_write_cvec_norm_rs_kernel(float *, const float *, const float *, long long, const float *, const float *, const int *, int, const sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+  VIOLATION strata::prefill::<unnamed>::gr_write_norm_rs_kernel(float *, const float *, const float *, long long, const float *, float, float *, unsigned short *, unsigned  sm_75: STACK 40 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_prefill.dir\src\prefill\kernels.cu.obj]
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_qwen35.lib: 87 kernels on sm_75 (87 entries; 0 vendored ggml entries skipped), 15 use stack / local memory, 15 not allowed
+  VIOLATION <unnamed>::k_attn_prep(const float *, const float *, const float *, const float *, const float *, float *, float *, float *, float *, int, int, int, int, const  sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)0, (int)2>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)0, (int)3>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)0, (int)4>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)0, (int)5>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)0, (int)6>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)0, (int)7>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)0, (int)8>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)1, (int)2>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)1, (int)3>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)1, (int)4>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)1, (int)5>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)1, (int)6>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)1, (int)7>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+  VIOLATION void q36k::k_route_group<(bool)1, (int)8>(const float *, int *, float *, int, int, const int *, const unsigned char *, unsigned long long, unsigned long long *, sm_75: STACK 32 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_qwen35.dir\src\qwen35\q36_engine.cu.obj]
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_mmq.lib: 70 kernels on sm_75 (70 entries; 1037 vendored ggml entries skipped), 13 use stack / local memory, 13 not allowed
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)42, (bool)1, (int)2, (int)256, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)42, (bool)0, (int)2, (int)256, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)21, (bool)1, (int)2, (int)256, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)18, (bool)1, (int)2, (int)256, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)22, (bool)1, (int)2, (int)256, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)17, (bool)1, (int)2, (int)256, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)16, (bool)1, (int)2, (int)256, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)22, (bool)1, (int)2, (int)512, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)22, (bool)1, (int)4, (int)512, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)17, (bool)1, (int)2, (int)512, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)17, (bool)1, (int)4, (int)512, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 16 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)42, (bool)1, (int)2, (int)512, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+  VIOLATION void strata::prefill::fused::<unnamed>::native_kernel<(int)42, (bool)1, (int)4, (int)512, (bool)0>(std::conditional<T4==(int)512, strata::prefill::fused::Batch, sm_75: STACK 8 LOCAL 0 (not in ALLOWED) [CMakeFiles\strata_mmq.dir\src\prefill\moe_fused_iq.cu.obj]
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_mmq_w4a4.lib: 1 kernels on sm_75 (1 entries; 77 vendored ggml entries skipped), 0 use stack / local memory, 0 not allowed
+check_cuda_spills: C:/Users/iancu/build-latest/build-sm75/strata_kq.dll: 0 kernels on sm_75 (0 entries; 256 vendored ggml entries skipped), 0 use stack / local memory, 0 not allowed
+
+
+98% tests passed, 3 tests failed out of 188
+
+Label Time Summary:
+cpu    =   2.29 sec*proc (1 test)
+gpu    = 1690.99 sec*proc (187 tests)
+
+Total Test time (real) = 1707.09 sec
+
+The following tests did not run:
+	 51 - qsa_two_pass_parity (Skipped)
+	 91 - gdn_rec_parity_selftest_frag (Skipped)
+	 96 - gr_upmix_parity (Skipped)
+	109 - gdn_chunk_parity (Skipped)
+	156 - pinned_alias_test (Skipped)
+	270 - prefill_fused_moe_test (Skipped)
+	271 - prefill_fused_iq_test (Skipped)
+	272 - prefill_fused_iq_test_q2n (Skipped)
+	273 - prefill_fused_iq_test_nt256 (Skipped)
+	274 - prefill_fused_iq_test_f16 (Skipped)
+	275 - prefill_fused_iq_test_ws (Skipped)
+	279 - prefill_iq4_w4a8_test (Skipped)
+
+The following tests FAILED:
+	 95 - gemm_w16_parity (Exit code 0xc0000409)            gpu
+	103 - pf_wmma_parity (Failed)                           gpu
+	373 - cuda_spill_guard (Failed)                         gpu
+Errors while running CTest

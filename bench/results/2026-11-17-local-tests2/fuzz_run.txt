@@ -1,0 +1,9 @@
+=== head_shortlist_fuzz_test
+head_shortlist_fuzz_test: PASS, 5257 cases (1410 accepted, 3847 refused), 0 over-cap allocations
+RESULT exit 0
+=== tier_miss_budget_fuzz_test
+tier_miss_budget_fuzz_test: PASS, 2804 cases + 5 huge headers (46 accepted), 0 over-cap allocations
+RESULT exit 0
+=== env_parsers_fuzz_test
+env_parsers_fuzz_test: PASS, 27421 cases over 12 text samples + the LKW1 header (497 header hits), 0 over-cap allocations
+RESULT exit 0
