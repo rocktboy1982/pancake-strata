@@ -1,0 +1,448 @@
+capped: tier=mmap keep_gib=12 big_free_gib=21
+[strata] sampling defaults from the config: temperature=0.1, top_p=0.95, top_k=20
+loading the model (the first start takes a minute or two) ...
+[strata] effort_position end: a request's non-default reasoning effort goes right before the answer, so changing it keeps the cached conversation
+[strata] starting the engine: reading the model's weights ...
+[strata] loading the experts into RAM (about 39 GB) and locking part of them for the GPU.
+         YOUR PC CAN BE SLOW OR STOP RESPONDING FOR 1-3 MINUTES NOW - this is normal.
+         Please wait and don't close this window; the server says when it is ready.
+[strata] still starting (25 s) - please wait ...
+[strata] still starting (45 s) - please wait ...
+[strata] still starting (65 s) - please wait ...
+[strata] experts loaded: 33.02 GiB at 0.51 GiB/s (80 s so far)
+[strata] filling the GPU's expert cache (10733 experts, 14.37 GiB of VRAM) ...
+[strata] almost ready ...
+[strata] per-turn log: /home/dan/auto-runs/win8-106-serve-levers-replay/conv-workset-r0.turns.jsonl (numbers only, no prompt or answer text)
+[strata] thinking budget: closed at a sentence or line end, at most 512 tokens past it (reasoning_budget_grace)
+ready: http://127.0.0.1:8080/v1  (OpenAI: /v1/chat/completions, Anthropic: /v1/messages, context 131072 tokens)
+       open http://127.0.0.1:8080/ in a browser to chat; close this window to stop the model
+[strata] reading the prompt: 66 of 67 tokens, 1 s so far
+[strata] done: 4 tokens in 1 s (62.7 tok/s) (length, cancel=False), expert cache 81.5% hit
+[strata] thinking limited to 885 of max_tokens 1397 so the answer has room ("answer_room": false in the config turns this off)
+[strata] reading the prompt: 78,096 tokens, 10 s so far
+[strata] reading the prompt: 78,096 tokens, 20 s so far
+[strata] reading the prompt: 32,768 of 78,096 tokens, 24 s so far
+[strata] reading the prompt: 32,768 of 78,096 tokens, 34 s so far
+[strata] reading the prompt: 65,536 of 78,096 tokens, 37 s so far
+[strata] reading the prompt: 78,091 of 78,096 tokens, 43 s so far
+[strata] reading the prompt: 78,095 of 78,096 tokens, 44 s so far
+[strata] thinking: 78 of budget 885 (max 1397) tokens, 79.3 tok/s, 45 s
+[strata] thinking: 168 of budget 885 (max 1397) tokens, 84.5 tok/s, 46 s
+[strata] thinking: 249 of budget 885 (max 1397) tokens, 82.4 tok/s, 47 s
+[strata] thinking: 329 of budget 885 (max 1397) tokens, 81.6 tok/s, 48 s
+[strata] thinking: 407 of budget 885 (max 1397) tokens, 80.7 tok/s, 49 s
+[strata] thinking: 493 of budget 885 (max 1397) tokens, 80.1 tok/s, 50 s
+[strata] thinking: 582 of budget 885 (max 1397) tokens, 81.4 tok/s, 51 s
+[strata] thinking: 659 of budget 885 (max 1397) tokens, 80.4 tok/s, 52 s
+[strata] thinking: 739 of budget 885 (max 1397) tokens, 73.1 tok/s, 54 s
+[strata] thinking: 850 of budget 885 (max 1397) tokens, 76.4 tok/s, 55 s
+[strata] thinking budget reached (888 tokens, 3 past it to a sentence or line end): wrapping up the thinking
+[strata] answering: 935 of max 1397 tokens, 76.8 tok/s, 56 s
+[strata] answering: 1042 of max 1397 tokens, 79.0 tok/s, 57 s
+[strata] answering: 1133 of max 1397 tokens, 79.9 tok/s, 58 s
+[strata] answering: 1220 of max 1397 tokens, 80.2 tok/s, 59 s
+[strata] answering: 1307 of max 1397 tokens, 80.6 tok/s, 60 s
+[strata] answering: 1392 of max 1397 tokens, 80.9 tok/s, 61 s
+[strata] done: 1397 tokens in 61 s (80.6 tok/s) (length, cancel=False), expert cache 93.4% hit
+[strata] thinking: 56 of max 273 tokens, 71.7 tok/s, 1 s
+[strata] thinking: 126 of max 273 tokens, 70.4 tok/s, 2 s
+[strata] thinking: 212 of max 273 tokens, 75.5 tok/s, 3 s
+[strata] done: 273 tokens in 4 s (77.3 tok/s) (length, cancel=False), expert cache 92.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] the reply ended inside its thinking with no answer: closing the thinking once and continuing (reasoning_close_retry)
+[strata] answering: 61 of max 874 tokens, 75.0 tok/s, 1 s
+[strata] answering: 162 of max 874 tokens, 88.9 tok/s, 2 s
+[strata] answering: 203 of max 874 tokens, 62.6 tok/s, 3 s
+[strata] answering: 303 of max 874 tokens, 71.2 tok/s, 4 s
+[strata] done: 305 tokens in 4 s (70.9 tok/s) (stop, cancel=False), expert cache 93.5% hit
+[strata] reading the prompt: 33,859 tokens, 11 s so far
+[strata] reading the prompt: 32,768 of 33,859 tokens, 19 s so far
+[strata] reading the prompt: 33,854 of 33,859 tokens, 22 s so far
+[strata] reading the prompt: 33,858 of 33,859 tokens, 23 s so far
+[strata] thinking: 80 of max 484 tokens, 80.3 tok/s, 24 s
+[strata] thinking: 152 of max 484 tokens, 72.9 tok/s, 25 s
+[strata] thinking: 235 of max 484 tokens, 76.1 tok/s, 26 s
+[strata] thinking: 317 of max 484 tokens, 77.3 tok/s, 27 s
+[strata] thinking: 408 of max 484 tokens, 79.5 tok/s, 28 s
+[strata] done: 484 tokens in 29 s (80.6 tok/s) (length, cancel=False), expert cache 94.3% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 34,696 of 34,701 tokens, 1 s so far
+[strata] thinking: 88 of max 191 tokens, 95.8 tok/s, 2 s
+[strata] thinking: 191 of max 191 tokens, 99.0 tok/s, 3 s
+[strata] done: 191 tokens in 3 s (98.3 tok/s) (length, cancel=False), expert cache 94.5% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 35,333 of 35,338 tokens, 2 s so far
+[strata] thinking: 70 of max 185 tokens, 80.2 tok/s, 3 s
+[strata] thinking: 159 of max 185 tokens, 83.9 tok/s, 4 s
+[strata] done: 185 tokens in 4 s (83.8 tok/s) (length, cancel=False), expert cache 96.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 38,895 of 38,900 tokens, 5 s so far
+[strata] thinking: 56 of max 468 tokens, 73.3 tok/s, 6 s
+[strata] thinking: 146 of max 468 tokens, 82.7 tok/s, 7 s
+[strata] thinking: 226 of max 468 tokens, 81.5 tok/s, 8 s
+[strata] thinking: 319 of max 468 tokens, 84.1 tok/s, 9 s
+[strata] thinking: 440 of max 468 tokens, 91.4 tok/s, 10 s
+[strata] done: 468 tokens in 10 s (90.8 tok/s) (length, cancel=False), expert cache 96.3% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 39,510 of 39,515 tokens, 2 s so far
+[strata] thinking: 95 of max 486 tokens, 104.6 tok/s, 3 s
+[strata] thinking: 206 of max 486 tokens, 105.5 tok/s, 4 s
+[strata] thinking: 327 of max 486 tokens, 109.1 tok/s, 5 s
+[strata] thinking: 429 of max 486 tokens, 106.8 tok/s, 6 s
+[strata] done: 486 tokens in 6 s (104.9 tok/s) (length, cancel=False), expert cache 92.6% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 41,266 of 41,271 tokens, 2 s so far
+[strata] thinking: 80 of max 909 tokens, 96.9 tok/s, 3 s
+[strata] thinking: 182 of max 909 tokens, 99.4 tok/s, 4 s
+[strata] thinking: 273 of max 909 tokens, 95.5 tok/s, 5 s
+[strata] thinking: 379 of max 909 tokens, 98.0 tok/s, 6 s
+[strata] thinking: 508 of max 909 tokens, 102.9 tok/s, 7 s
+[strata] thinking: 598 of max 909 tokens, 88.0 tok/s, 8 s
+[strata] thinking: 684 of max 909 tokens, 77.8 tok/s, 10 s
+[strata] thinking: 786 of max 909 tokens, 80.3 tok/s, 11 s
+[strata] thinking: 874 of max 909 tokens, 80.9 tok/s, 13 s
+[strata] done: 909 tokens in 13 s (81.3 tok/s) (length, cancel=False), expert cache 92.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 27 of max 424 tokens, 79.4 tok/s, 1 s
+[strata] thinking: 122 of max 424 tokens, 88.6 tok/s, 2 s
+[strata] thinking: 209 of max 424 tokens, 64.5 tok/s, 4 s
+[strata] thinking: 307 of max 424 tokens, 72.1 tok/s, 5 s
+[strata] thinking: 421 of max 424 tokens, 79.7 tok/s, 6 s
+[strata] done: 424 tokens in 6 s (79.6 tok/s) (length, cancel=False), expert cache 93.9% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 24 of max 514 tokens, 75.2 tok/s, 1 s
+[strata] thinking: 138 of max 514 tokens, 104.0 tok/s, 2 s
+[strata] thinking: 234 of max 514 tokens, 100.1 tok/s, 3 s
+[strata] thinking: 323 of max 514 tokens, 96.7 tok/s, 4 s
+[strata] thinking: 417 of max 514 tokens, 95.9 tok/s, 5 s
+[strata] done: 514 tokens in 6 s (96.8 tok/s) (length, cancel=False), expert cache 94.4% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 26 of max 160 tokens, 78.7 tok/s, 1 s
+[strata] thinking: 129 of max 160 tokens, 95.6 tok/s, 2 s
+[strata] done: 160 tokens in 2 s (95.3 tok/s) (length, cancel=False), expert cache 95.2% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 4 of max 395 tokens, 5.0 tok/s, 1 s
+[strata] thinking: 103 of max 395 tokens, 55.4 tok/s, 3 s
+[strata] thinking: 220 of max 395 tokens, 75.4 tok/s, 4 s
+[strata] thinking: 332 of max 395 tokens, 84.0 tok/s, 5 s
+[strata] done: 395 tokens in 5 s (87.2 tok/s) (length, cancel=False), expert cache 94.3% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 25 of max 388 tokens, 93.6 tok/s, 1 s
+[strata] thinking: 139 of max 388 tokens, 109.2 tok/s, 2 s
+[strata] thinking: 244 of max 388 tokens, 107.0 tok/s, 3 s
+[strata] thinking: 361 of max 388 tokens, 107.5 tok/s, 4 s
+[strata] done: 388 tokens in 4 s (106.2 tok/s) (length, cancel=False), expert cache 95.0% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 66 of max 175 tokens, 86.7 tok/s, 1 s
+[strata] thinking: 167 of max 175 tokens, 93.9 tok/s, 2 s
+[strata] done: 175 tokens in 2 s (94.7 tok/s) (length, cancel=False), expert cache 93.2% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking limited to 615 of max_tokens 1127 so the answer has room ("answer_room": false in the config turns this off)
+[strata] thinking: 66 of budget 615 (max 1127) tokens, 79.8 tok/s, 1 s
+[strata] thinking: 168 of budget 615 (max 1127) tokens, 91.5 tok/s, 2 s
+[strata] thinking: 271 of budget 615 (max 1127) tokens, 94.4 tok/s, 3 s
+[strata] thinking: 387 of budget 615 (max 1127) tokens, 99.4 tok/s, 4 s
+[strata] thinking: 520 of budget 615 (max 1127) tokens, 105.5 tok/s, 5 s
+[strata] thinking budget reached (624 tokens, 9 past it to a sentence or line end): wrapping up the thinking
+[strata] thinking: 642 of max 1127 tokens, 92.0 tok/s, 7 s
+[strata] answering: 734 of max 1127 tokens, 92.0 tok/s, 8 s
+[strata] answering: 860 of max 1127 tokens, 95.5 tok/s, 9 s
+[strata] answering: 878 of max 1127 tokens, 86.2 tok/s, 10 s
+[strata] answering: 989 of max 1127 tokens, 88.2 tok/s, 11 s
+[strata] answering: 1099 of max 1127 tokens, 89.8 tok/s, 12 s
+[strata] done: 1127 tokens in 13 s (99.3 tok/s) (length, cancel=False), expert cache 94.7% hit
+[strata] reading the prompt: 46,220 of 46,225 tokens, 2 s so far
+[strata] thinking: 75 of max 333 tokens, 92.1 tok/s, 3 s
+[strata] thinking: 170 of max 333 tokens, 92.7 tok/s, 4 s
+[strata] thinking: 266 of max 333 tokens, 93.0 tok/s, 5 s
+[strata] done: 333 tokens in 5 s (95.9 tok/s) (length, cancel=False), expert cache 90.0% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 47,557 of 47,562 tokens, 1 s so far
+[strata] thinking: 79 of max 535 tokens, 94.6 tok/s, 2 s
+[strata] thinking: 188 of max 535 tokens, 102.0 tok/s, 3 s
+[strata] thinking: 299 of max 535 tokens, 105.2 tok/s, 4 s
+[strata] thinking: 381 of max 535 tokens, 99.0 tok/s, 5 s
+[strata] thinking: 458 of max 535 tokens, 94.1 tok/s, 6 s
+[strata] done: 535 tokens in 7 s (91.6 tok/s) (length, cancel=False), expert cache 93.9% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 48,479 of 48,480 tokens, 1 s so far
+[strata] thinking: 87 of max 278 tokens, 88.3 tok/s, 2 s
+[strata] thinking: 184 of max 278 tokens, 91.8 tok/s, 3 s
+[strata] done: 278 tokens in 4 s (97.6 tok/s) (length, cancel=False), expert cache 94.5% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 49,371 of 49,376 tokens, 1 s so far
+[strata] thinking: 83 of max 717 tokens, 97.6 tok/s, 2 s
+[strata] thinking: 173 of max 717 tokens, 92.7 tok/s, 3 s
+[strata] thinking: 268 of max 717 tokens, 93.3 tok/s, 4 s
+[strata] thinking: 373 of max 717 tokens, 95.9 tok/s, 5 s
+[strata] thinking: 456 of max 717 tokens, 92.5 tok/s, 6 s
+[strata] thinking: 552 of max 717 tokens, 92.9 tok/s, 7 s
+[strata] thinking: 651 of max 717 tokens, 93.6 tok/s, 8 s
+[strata] done: 717 tokens in 9 s (93.7 tok/s) (length, cancel=False), expert cache 93.7% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 51,015 of 51,020 tokens, 1 s so far
+[strata] thinking: 81 of max 216 tokens, 99.0 tok/s, 2 s
+[strata] thinking: 175 of max 216 tokens, 94.9 tok/s, 3 s
+[strata] done: 216 tokens in 4 s (90.7 tok/s) (length, cancel=False), expert cache 94.7% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 59 of max 241 tokens, 77.0 tok/s, 1 s
+[strata] thinking: 154 of max 241 tokens, 86.8 tok/s, 2 s
+[strata] done: 241 tokens in 3 s (95.1 tok/s) (length, cancel=False), expert cache 93.4% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 52,088 of 52,093 tokens, 1 s so far
+[strata] thinking: 95 of max 234 tokens, 113.3 tok/s, 2 s
+[strata] thinking: 224 of max 234 tokens, 115.8 tok/s, 3 s
+[strata] done: 234 tokens in 3 s (114.0 tok/s) (length, cancel=False), expert cache 94.1% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 52,709 of 52,710 tokens, 1 s so far
+[strata] thinking: 92 of max 326 tokens, 93.6 tok/s, 2 s
+[strata] thinking: 190 of max 326 tokens, 95.0 tok/s, 3 s
+[strata] thinking: 286 of max 326 tokens, 95.2 tok/s, 4 s
+[strata] done: 326 tokens in 4 s (97.0 tok/s) (length, cancel=False), expert cache 92.7% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 38 of max 760 tokens, 87.2 tok/s, 1 s
+[strata] thinking: 150 of max 760 tokens, 103.6 tok/s, 2 s
+[strata] thinking: 264 of max 760 tokens, 107.1 tok/s, 3 s
+[strata] thinking: 366 of max 760 tokens, 105.5 tok/s, 4 s
+[strata] thinking: 507 of max 760 tokens, 95.3 tok/s, 6 s
+[strata] thinking: 646 of max 760 tokens, 102.0 tok/s, 7 s
+[strata] done: 760 tokens in 8 s (106.3 tok/s) (length, cancel=False), expert cache 93.1% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 14 of max 400 tokens, 56.0 tok/s, 1 s
+[strata] thinking: 105 of max 400 tokens, 90.8 tok/s, 2 s
+[strata] thinking: 188 of max 400 tokens, 83.9 tok/s, 3 s
+[strata] done: 259 tokens in 4 s (89.0 tok/s) (stop, cancel=False), expert cache 91.4% hit
+[strata] thinking: 97 of max 400 tokens, 100.0 tok/s, 1 s
+[strata] thinking: 187 of max 400 tokens, 93.9 tok/s, 2 s
+[strata] done: 240 tokens in 2 s (98.8 tok/s) (stop, cancel=False), expert cache 95.6% hit
+[strata] thinking: 82 of max 400 tokens, 46.4 tok/s, 2 s
+[strata] done: 180 tokens in 3 s (65.7 tok/s) (stop, cancel=False), expert cache 97.0% hit
+[strata] reading the prompt: 3,913 of 3,918 tokens, 2 s so far
+[strata] done: 1 tokens in 3 s (no speed) (length, cancel=False), expert cache 97.1% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] done: 1 tokens in 0 s (no speed) (length, cancel=False), expert cache 98.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] done: 1 tokens in 0 s (no speed) (length, cancel=False), expert cache 99.2% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] done: 1 tokens in 0 s (no speed) (length, cancel=False), expert cache 100.0% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] done: 1 tokens in 0 s (no speed) (length, cancel=False), expert cache 100.0% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] done: 1 tokens in 0 s (no speed) (length, cancel=False), expert cache 100.0% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking limited to 600 of max_tokens 1112 so the answer has room ("answer_room": false in the config turns this off)
+[strata] reading the prompt: 62,910 of 62,915 tokens, 7 s so far
+[strata] thinking: 49 of budget 600 (max 1112) tokens, 79.8 tok/s, 8 s
+[strata] thinking: 144 of budget 600 (max 1112) tokens, 88.0 tok/s, 9 s
+[strata] thinking: 264 of budget 600 (max 1112) tokens, 99.7 tok/s, 10 s
+[strata] thinking: 288 of budget 600 (max 1112) tokens, 74.9 tok/s, 11 s
+[strata] thinking: 428 of budget 600 (max 1112) tokens, 87.6 tok/s, 12 s
+[strata] thinking: 586 of budget 600 (max 1112) tokens, 97.4 tok/s, 13 s
+[strata] thinking budget reached (608 tokens, 8 past it to a sentence or line end): wrapping up the thinking
+[strata] thinking: 626 of max 1112 tokens, 82.2 tok/s, 15 s
+[strata] answering: 726 of max 1112 tokens, 84.0 tok/s, 16 s
+[strata] answering: 840 of max 1112 tokens, 87.0 tok/s, 17 s
+[strata] answering: 914 of max 1112 tokens, 84.5 tok/s, 18 s
+[strata] answering: 1043 of max 1112 tokens, 88.0 tok/s, 19 s
+[strata] done: 1112 tokens in 19 s (100.4 tok/s) (length, cancel=False), expert cache 93.2% hit
+[strata] reading the prompt: 63 of 64 tokens, 1 s so far
+[strata] done: 31 tokens in 1 s (78.5 tok/s) (length, cancel=False), expert cache 84.9% hit
+[strata] done: 1 tokens in 0 s (no speed) (length, cancel=False), expert cache 82.9% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 5,024 of 5,029 tokens, 3 s so far
+[strata] done: 1 tokens in 3 s (no speed) (length, cancel=False), expert cache 84.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 3,272 of 3,277 tokens, 4 s so far
+[strata] done: 1 tokens in 4 s (no speed) (length, cancel=False), expert cache 90.4% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 6 of max 1000 tokens, 24.0 tok/s, 1 s
+[strata] thinking: 96 of max 1000 tokens, 90.2 tok/s, 2 s
+[strata] thinking: 189 of max 1000 tokens, 91.6 tok/s, 3 s
+[strata] thinking: 281 of max 1000 tokens, 91.5 tok/s, 4 s
+[strata] thinking: 373 of max 1000 tokens, 91.2 tok/s, 5 s
+[strata] answering: 485 of max 1000 tokens, 94.9 tok/s, 6 s
+[strata] done: 497 tokens in 6 s (94.8 tok/s) (stop, cancel=False), expert cache 93.4% hit
+[strata] thinking: 59 of max 1000 tokens, 127.5 tok/s, 1 s
+[strata] thinking: 182 of max 1000 tokens, 123.7 tok/s, 2 s
+[strata] thinking: 289 of max 1000 tokens, 116.8 tok/s, 3 s
+[strata] thinking: 407 of max 1000 tokens, 113.7 tok/s, 4 s
+[strata] thinking: 543 of max 1000 tokens, 112.8 tok/s, 5 s
+[strata] thinking: 670 of max 1000 tokens, 111.5 tok/s, 7 s
+[strata] thinking: 804 of max 1000 tokens, 114.2 tok/s, 8 s
+[strata] thinking: 918 of max 1000 tokens, 114.0 tok/s, 9 s
+[strata] done: 1000 tokens in 10 s (110.9 tok/s) (length, cancel=False), expert cache 93.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 40 of max 92 tokens, 28.2 tok/s, 2 s
+[strata] done: 92 tokens in 2 s (45.9 tok/s) (length, cancel=False), expert cache 95.6% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 47 of max 1000 tokens, 93.2 tok/s, 1 s
+[strata] thinking: 87 of max 1000 tokens, 46.2 tok/s, 2 s
+[strata] thinking: 186 of max 1000 tokens, 64.1 tok/s, 3 s
+[strata] thinking: 291 of max 1000 tokens, 74.3 tok/s, 4 s
+[strata] thinking: 382 of max 1000 tokens, 65.5 tok/s, 6 s
+[strata] thinking: 485 of max 1000 tokens, 70.7 tok/s, 7 s
+[strata] thinking: 602 of max 1000 tokens, 76.4 tok/s, 8 s
+[strata] thinking: 708 of max 1000 tokens, 79.5 tok/s, 9 s
+[strata] thinking: 821 of max 1000 tokens, 82.7 tok/s, 10 s
+[strata] thinking: 922 of max 1000 tokens, 84.0 tok/s, 11 s
+[strata] done: 1000 tokens in 12 s (84.9 tok/s) (length, cancel=False), expert cache 94.7% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 83 of 88 tokens, 1 s so far
+[strata] thinking: 119 of max 1000 tokens, 113.7 tok/s, 3 s
+[strata] thinking: 227 of max 1000 tokens, 110.0 tok/s, 4 s
+[strata] thinking: 334 of max 1000 tokens, 108.7 tok/s, 5 s
+[strata] thinking: 435 of max 1000 tokens, 106.7 tok/s, 6 s
+[strata] thinking: 547 of max 1000 tokens, 107.2 tok/s, 7 s
+[strata] thinking: 666 of max 1000 tokens, 108.7 tok/s, 8 s
+[strata] thinking: 765 of max 1000 tokens, 107.3 tok/s, 9 s
+[strata] thinking: 871 of max 1000 tokens, 106.9 tok/s, 10 s
+[strata] thinking: 911 of max 1000 tokens, 96.4 tok/s, 11 s
+[strata] done: 1000 tokens in 12 s (99.1 tok/s) (length, cancel=False), expert cache 94.5% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 52 of max 1000 tokens, 101.7 tok/s, 1 s
+[strata] thinking: 155 of max 1000 tokens, 101.8 tok/s, 2 s
+[strata] thinking: 258 of max 1000 tokens, 101.7 tok/s, 3 s
+[strata] thinking: 359 of max 1000 tokens, 100.8 tok/s, 4 s
+[strata] thinking: 447 of max 1000 tokens, 98.0 tok/s, 5 s
+[strata] thinking: 545 of max 1000 tokens, 97.6 tok/s, 6 s
+[strata] thinking: 650 of max 1000 tokens, 98.1 tok/s, 7 s
+[strata] thinking: 742 of max 1000 tokens, 97.2 tok/s, 8 s
+[strata] thinking: 851 of max 1000 tokens, 98.3 tok/s, 9 s
+[strata] thinking: 884 of max 1000 tokens, 88.8 tok/s, 10 s
+[strata] thinking: 988 of max 1000 tokens, 90.0 tok/s, 11 s
+[strata] done: 1000 tokens in 12 s (90.1 tok/s) (length, cancel=False), expert cache 95.2% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking limited to 629 of max_tokens 1141 so the answer has room ("answer_room": false in the config turns this off)
+[strata] reading the prompt: 66,181 of 66,186 tokens, 2 s so far
+[strata] thinking: 71 of budget 629 (max 1141) tokens, 89.5 tok/s, 3 s
+[strata] thinking: 153 of budget 629 (max 1141) tokens, 84.8 tok/s, 4 s
+[strata] thinking: 246 of budget 629 (max 1141) tokens, 87.2 tok/s, 5 s
+[strata] thinking: 378 of budget 629 (max 1141) tokens, 96.5 tok/s, 6 s
+[strata] thinking: 509 of budget 629 (max 1141) tokens, 85.6 tok/s, 9 s
+[strata] thinking: 595 of budget 629 (max 1141) tokens, 74.8 tok/s, 11 s
+[strata] thinking budget reached (631 tokens, 2 past it to a sentence or line end): wrapping up the thinking
+[strata] thinking: 649 of max 1141 tokens, 68.7 tok/s, 12 s
+[strata] answering: 775 of max 1141 tokens, 70.7 tok/s, 14 s
+[strata] done: 785 tokens in 14 s (78.2 tok/s) (stop, cancel=False), expert cache 91.0% hit
+[strata] answering: 12 of max 158 tokens, 48.0 tok/s, 1 s
+[strata] answering: 110 of max 158 tokens, 90.8 tok/s, 2 s
+[strata] done: 158 tokens in 3 s (89.4 tok/s) (length, cancel=False), expert cache 90.8% hit
+[strata] done: 1 tokens in 1 s (no speed) (length, cancel=False), expert cache 84.2% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 52 of max 380 tokens, 110.1 tok/s, 1 s
+[strata] thinking: 166 of max 380 tokens, 106.4 tok/s, 2 s
+[strata] thinking: 268 of max 380 tokens, 102.9 tok/s, 3 s
+[strata] done: 380 tokens in 4 s (106.8 tok/s) (length, cancel=False), expert cache 94.6% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 4,261 of 4,266 tokens, 4 s so far
+[strata] done: 1 tokens in 5 s (no speed) (length, cancel=False), expert cache 97.1% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 4,140 of 4,145 tokens, 4 s so far
+[strata] done: 1 tokens in 4 s (no speed) (length, cancel=False), expert cache 99.2% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 61 of max 400 tokens, 95.6 tok/s, 1 s
+[strata] thinking: 165 of max 400 tokens, 98.6 tok/s, 2 s
+[strata] thinking: 253 of max 400 tokens, 94.1 tok/s, 3 s
+[strata] thinking: 346 of max 400 tokens, 93.4 tok/s, 4 s
+[strata] done: 400 tokens in 5 s (92.9 tok/s) (length, cancel=False), expert cache 94.9% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 49 of max 400 tokens, 111.9 tok/s, 1 s
+[strata] thinking: 53 of max 400 tokens, 35.2 tok/s, 2 s
+[strata] thinking: 150 of max 400 tokens, 59.6 tok/s, 3 s
+[strata] thinking: 240 of max 400 tokens, 67.6 tok/s, 4 s
+[strata] thinking: 354 of max 400 tokens, 77.6 tok/s, 5 s
+[strata] done: 400 tokens in 6 s (80.0 tok/s) (length, cancel=False), expert cache 96.0% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 78 of max 400 tokens, 108.9 tok/s, 1 s
+[strata] thinking: 189 of max 400 tokens, 109.3 tok/s, 2 s
+[strata] thinking: 287 of max 400 tokens, 104.4 tok/s, 3 s
+[strata] thinking: 378 of max 400 tokens, 100.6 tok/s, 4 s
+[strata] done: 400 tokens in 4 s (100.1 tok/s) (length, cancel=False), expert cache 95.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 67 of max 400 tokens, 100.4 tok/s, 1 s
+[strata] thinking: 164 of max 400 tokens, 98.2 tok/s, 2 s
+[strata] thinking: 260 of max 400 tokens, 97.0 tok/s, 3 s
+[strata] thinking: 352 of max 400 tokens, 95.3 tok/s, 4 s
+[strata] done: 400 tokens in 5 s (95.2 tok/s) (length, cancel=False), expert cache 96.5% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 67,734 of 67,739 tokens, 2 s so far
+[strata] thinking: 20 of max 793 tokens, 22.6 tok/s, 3 s
+[strata] thinking: 117 of max 793 tokens, 61.5 tok/s, 4 s
+[strata] thinking: 211 of max 793 tokens, 72.7 tok/s, 5 s
+[strata] thinking: 332 of max 793 tokens, 83.0 tok/s, 7 s
+[strata] thinking: 430 of max 793 tokens, 76.1 tok/s, 8 s
+[strata] thinking: 564 of max 793 tokens, 83.0 tok/s, 9 s
+[strata] thinking: 670 of max 793 tokens, 85.5 tok/s, 10 s
+[strata] done: 793 tokens in 11 s (92.3 tok/s) (length, cancel=False), expert cache 90.5% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] done: 1 tokens in 1 s (no speed) (length, cancel=False), expert cache 74.6% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 14 of max 589 tokens, 52.9 tok/s, 1 s
+[strata] thinking: 96 of max 589 tokens, 75.8 tok/s, 2 s
+[strata] thinking: 208 of max 589 tokens, 90.6 tok/s, 3 s
+[strata] thinking: 300 of max 589 tokens, 90.4 tok/s, 4 s
+[strata] thinking: 418 of max 589 tokens, 96.7 tok/s, 5 s
+[strata] thinking: 566 of max 589 tokens, 104.3 tok/s, 6 s
+[strata] done: 589 tokens in 6 s (105.0 tok/s) (length, cancel=False), expert cache 93.2% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] done: 1 tokens in 1 s (no speed) (length, cancel=False), expert cache 70.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 4,677 of 4,682 tokens, 3 s so far
+[strata] done: 1 tokens in 3 s (no speed) (length, cancel=False), expert cache 76.0% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 3,216 of 3,221 tokens, 4 s so far
+[strata] done: 1 tokens in 4 s (no speed) (length, cancel=False), expert cache 80.6% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 5,245 of 5,250 tokens, 4 s so far
+[strata] done: 1 tokens in 5 s (no speed) (length, cancel=False), expert cache 85.8% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] answering: 77 of max 400 tokens, 105.4 tok/s, 1 s
+[strata] answering: 266 of max 400 tokens, 153.6 tok/s, 2 s
+[strata] done: 400 tokens in 3 s (163.5 tok/s) (length, cancel=False), expert cache 91.1% hit
+[strata] done: 2 tokens in 1 s (47.6 tok/s) (length, cancel=False), expert cache 92.6% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking limited to 513 of max_tokens 1025 so the answer has room ("answer_room": false in the config turns this off)
+[strata] reading the prompt: 70,112 of 70,117 tokens, 1 s so far
+[strata] thinking: 75 of budget 513 (max 1025) tokens, 84.0 tok/s, 2 s
+[strata] answering: 255 of max 1025 tokens, 132.3 tok/s, 3 s
+[strata] done: 356 tokens in 4 s (147.8 tok/s) (stop, cancel=False), expert cache 92.9% hit
+[strata] done: 2 tokens in 1 s (45.7 tok/s) (length, cancel=False), expert cache 92.9% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 3,984 of 3,989 tokens, 4 s so far
+[strata] done: 2 tokens in 5 s (48.7 tok/s) (length, cancel=False), expert cache 95.1% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 4,010 of 4,015 tokens, 3 s so far
+[strata] done: 2 tokens in 3 s (45.9 tok/s) (length, cancel=False), expert cache 97.1% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 6 of max 400 tokens, 10.7 tok/s, 1 s
+[strata] thinking: 130 of max 400 tokens, 81.5 tok/s, 2 s
+[strata] thinking: 166 of max 400 tokens, 63.6 tok/s, 3 s
+[strata] thinking: 291 of max 400 tokens, 80.6 tok/s, 4 s
+[strata] thinking: 372 of max 400 tokens, 80.5 tok/s, 5 s
+[strata] done: 400 tokens in 6 s (81.0 tok/s) (length, cancel=False), expert cache 81.7% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 67 of max 400 tokens, 99.0 tok/s, 1 s
+[strata] thinking: 164 of max 400 tokens, 96.8 tok/s, 2 s
+[strata] thinking: 212 of max 400 tokens, 64.7 tok/s, 4 s
+[strata] thinking: 313 of max 400 tokens, 72.9 tok/s, 5 s
+[strata] done: 400 tokens in 5 s (78.1 tok/s) (length, cancel=False), expert cache 93.4% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] thinking: 70 of max 400 tokens, 111.4 tok/s, 1 s
+[strata] thinking: 185 of max 400 tokens, 112.5 tok/s, 2 s
+[strata] thinking: 292 of max 400 tokens, 110.4 tok/s, 3 s
+[strata] thinking: 311 of max 400 tokens, 83.4 tok/s, 4 s
+[strata] done: 400 tokens in 5 s (87.0 tok/s) (length, cancel=False), expert cache 94.6% hit
+[strata] the reply reached max tokens while still thinking, so it has no answer: a thinking budget (reasoning_budget_tokens, in the request or in strata-<model>.json for every request) leaves room to answer
+[strata] reading the prompt: 71,444 of 71,449 tokens, 2 s so far
+[strata] thinking: 84 of max 463 tokens, 90.5 tok/s, 3 s
+[strata] thinking: 130 of max 463 tokens, 55.8 tok/s, 4 s
+[strata] thinking: 251 of max 463 tokens, 74.6 tok/s, 5 s
+[strata] answering: 361 of max 463 tokens, 82.2 tok/s, 6 s
+[strata] done: 463 tokens in 7 s (90.1 tok/s) (length, cancel=False), expert cache 90.9% hit
+[strata] answering: 107 of max 339 tokens, 122.1 tok/s, 1 s
+[strata] done: 132 tokens in 1 s (124.5 tok/s) (stop, cancel=False), expert cache 92.8% hit
+[strata] thinking: 16 of max 677 tokens, 64.0 tok/s, 1 s
+[strata] done: 130 tokens in 2 s (125.4 tok/s) (stop, cancel=False), expert cache 93.4% hit
+
+[strata] stopping (Ctrl+C again to end the engine at once) ...
+[strata] stopped

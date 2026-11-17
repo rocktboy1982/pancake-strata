@@ -1,0 +1,786 @@
+{
+ "label": "2026-11-09 16:15:06 - 2026-11-09 16:31:04 (window 2026-11-09T16:13/2026-11-09T16:43), from /home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+ "arms": [
+  "preset",
+  "conv-workset",
+  "park-rewind-2048",
+  "prompt-cache-spread"
+ ],
+ "reps": 3,
+ "runs": {
+  "preset": [
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 151.76,
+     "prompt_s_agent": 104.58,
+     "prompt_s_side": 47.18,
+     "turn_s": 402.8,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 62.06,
+     "parked": 12,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 1,
+     "run_s": 424.1,
+     "peak_rss_gib": 39.82,
+     "min_avail_gib": 14.59
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.15347721822542,
+    "noise_top": [
+     [
+      "claude",
+      6
+     ],
+     [
+      "kcompactd0",
+      1
+     ],
+     [
+      "localsearch-3",
+      1
+     ]
+    ],
+    "reclaim": 0.06,
+    "gpu": {
+     "sclk": 1994,
+     "mclk": 1249,
+     "t_junc_max": 71,
+     "t_mem_max": 80,
+     "watt": 162,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 129,
+     "vram_mib_max": 20009,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3634,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 20.7,
+    "clean": true,
+    "rep": 0,
+    "arm": "preset",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 141.58,
+     "prompt_s_agent": 97.53,
+     "prompt_s_side": 44.05,
+     "turn_s": 361.1,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 58.7,
+     "parked": 11,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 2,
+     "run_s": 382.1,
+     "peak_rss_gib": 39.81,
+     "min_avail_gib": 14.65
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.138666666666667,
+    "noise_top": [
+     [
+      "kworker/11:1-events_freezable",
+      4
+     ],
+     [
+      "kcompactd0",
+      1
+     ],
+     [
+      "claude",
+      1
+     ]
+    ],
+    "reclaim": 0.06,
+    "gpu": {
+     "sclk": 2004,
+     "mclk": 1249,
+     "t_junc_max": 73,
+     "t_mem_max": 82,
+     "watt": 172,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 117,
+     "vram_mib_max": 20013,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3739,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 20.0,
+    "clean": true,
+    "rep": 1,
+    "arm": "preset",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 144.19,
+     "prompt_s_agent": 100.43,
+     "prompt_s_side": 43.76,
+     "turn_s": 340.1,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 58.63,
+     "parked": 12,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 2,
+     "run_s": 360.8,
+     "peak_rss_gib": 39.81,
+     "min_avail_gib": 14.65
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.129943502824859,
+    "noise_top": [
+     [
+      "kworker/8:1-mm_percpu_wq",
+      5
+     ],
+     [
+      "kcompactd0",
+      4
+     ],
+     [
+      "kworker/9:0-events",
+      3
+     ]
+    ],
+    "reclaim": 0.06,
+    "gpu": {
+     "sclk": 1956,
+     "mclk": 1249,
+     "t_junc_max": 72,
+     "t_mem_max": 82,
+     "watt": 169,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 109,
+     "vram_mib_max": 20014,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3775,
+     "tctl_max": 64,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 18.4,
+    "clean": true,
+    "rep": 2,
+    "arm": "preset",
+    "attempt": 0
+   }
+  ],
+  "conv-workset": [
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 166.54,
+     "prompt_s_agent": 113.3,
+     "prompt_s_side": 53.24,
+     "turn_s": 437.7,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 66.81,
+     "parked": 12,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 2,
+     "run_s": 460.3,
+     "peak_rss_gib": 39.8,
+     "min_avail_gib": 14.67
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.044150110375276,
+    "noise_top": [
+     [
+      "claude",
+      5
+     ],
+     [
+      "localsearch-3",
+      1
+     ],
+     [
+      "dbus-daemon",
+      0
+     ]
+    ],
+    "reclaim": 0.03,
+    "gpu": {
+     "sclk": 2021,
+     "mclk": 1249,
+     "t_junc_max": 71,
+     "t_mem_max": 80,
+     "watt": 164,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 133,
+     "vram_mib_max": 20014,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3693,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 18.5,
+    "clean": true,
+    "rep": 0,
+    "arm": "conv-workset",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 142.92,
+     "prompt_s_agent": 95.55,
+     "prompt_s_side": 47.38,
+     "turn_s": 354.7,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 58.85,
+     "parked": 13,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 43
+     },
+     "evictions": 2,
+     "run_s": 376.3,
+     "peak_rss_gib": 39.94,
+     "min_avail_gib": 14.46
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 3.317073170731707,
+    "noise_top": [
+     [
+      "unattended-upgr",
+      75
+     ],
+     [
+      "claude",
+      2
+     ],
+     [
+      "localsearch-3",
+      1
+     ]
+    ],
+    "reclaim": 0.3,
+    "gpu": {
+     "sclk": 1992,
+     "mclk": 1249,
+     "t_junc_max": 72,
+     "t_mem_max": 82,
+     "watt": 170,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 117,
+     "vram_mib_max": 20011,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3724,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 20.3,
+    "clean": true,
+    "rep": 1,
+    "arm": "conv-workset",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 140.46,
+     "prompt_s_agent": 95.34,
+     "prompt_s_side": 45.12,
+     "turn_s": 389.2,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 59.03,
+     "parked": 11,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 2,
+     "run_s": 412.0,
+     "peak_rss_gib": 39.81,
+     "min_avail_gib": 14.65
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.9283950617283954,
+    "noise_top": [
+     [
+      "claude",
+      25
+     ],
+     [
+      "ptyxis",
+      3
+     ],
+     [
+      "gnome-shell",
+      1
+     ]
+    ],
+    "reclaim": 0.08,
+    "gpu": {
+     "sclk": 2020,
+     "mclk": 1249,
+     "t_junc_max": 73,
+     "t_mem_max": 82,
+     "watt": 173,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 128,
+     "vram_mib_max": 20014,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3746,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 19.4,
+    "clean": true,
+    "rep": 2,
+    "arm": "conv-workset",
+    "attempt": 0
+   }
+  ],
+  "park-rewind-2048": [
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 155.84,
+     "prompt_s_agent": 107.39,
+     "prompt_s_side": 48.46,
+     "turn_s": 405.5,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 69.93,
+     "parked": 8,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 34
+     },
+     "evictions": 1,
+     "run_s": 426.9,
+     "peak_rss_gib": 39.75,
+     "min_avail_gib": 14.62
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.4404761904761907,
+    "noise_top": [
+     [
+      "kcompactd0",
+      3
+     ],
+     [
+      "kworker/0:0-events_freezable",
+      3
+     ],
+     [
+      "kworker/11:0-events_freezable",
+      2
+     ]
+    ],
+    "reclaim": 0.11,
+    "gpu": {
+     "sclk": 1990,
+     "mclk": 1249,
+     "t_junc_max": 72,
+     "t_mem_max": 81,
+     "watt": 168,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 129,
+     "vram_mib_max": 20009,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3688,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 20.8,
+    "clean": true,
+    "rep": 0,
+    "arm": "park-rewind-2048",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 146.5,
+     "prompt_s_agent": 100.04,
+     "prompt_s_side": 46.46,
+     "turn_s": 389.4,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 63.6,
+     "parked": 8,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 34
+     },
+     "evictions": 1,
+     "run_s": 412.0,
+     "peak_rss_gib": 39.86,
+     "min_avail_gib": 14.5
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 3.004938271604938,
+    "noise_top": [
+     [
+      "claude",
+      19
+     ],
+     [
+      "ptyxis",
+      3
+     ],
+     [
+      "gnome-shell",
+      1
+     ]
+    ],
+    "reclaim": 0.15,
+    "gpu": {
+     "sclk": 2001,
+     "mclk": 1249,
+     "t_junc_max": 72,
+     "t_mem_max": 82,
+     "watt": 167,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 123,
+     "vram_mib_max": 20013,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3669,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 19.7,
+    "clean": true,
+    "rep": 1,
+    "arm": "park-rewind-2048",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 175.11,
+     "prompt_s_agent": 120.6,
+     "prompt_s_side": 54.5,
+     "turn_s": 416.3,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 71.75,
+     "parked": 8,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 34
+     },
+     "evictions": 1,
+     "run_s": 439.5,
+     "peak_rss_gib": 39.81,
+     "min_avail_gib": 14.65
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.1990740740740744,
+    "noise_top": [
+     [
+      "kcompactd0",
+      5
+     ],
+     [
+      "kworker/14:2-events_freezable",
+      3
+     ],
+     [
+      "claude",
+      2
+     ]
+    ],
+    "reclaim": 0.11,
+    "gpu": {
+     "sclk": 1940,
+     "mclk": 1249,
+     "t_junc_max": 71,
+     "t_mem_max": 80,
+     "watt": 160,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 131,
+     "vram_mib_max": 20013,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3559,
+     "tctl_max": 64,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 18.4,
+    "clean": true,
+    "rep": 2,
+    "arm": "park-rewind-2048",
+    "attempt": 0
+   }
+  ],
+  "prompt-cache-spread": [
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 158.79,
+     "prompt_s_agent": 112.04,
+     "prompt_s_side": 46.75,
+     "turn_s": 356.8,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 69.02,
+     "parked": 10,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 1,
+     "run_s": 378.8,
+     "peak_rss_gib": 39.72,
+     "min_avail_gib": 14.64
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.220430107526882,
+    "noise_top": [
+     [
+      "kworker/1:2-mm_percpu_wq",
+      5
+     ],
+     [
+      "kcompactd0",
+      4
+     ],
+     [
+      "localsearch-3",
+      1
+     ]
+    ],
+    "reclaim": 0.08,
+    "gpu": {
+     "sclk": 1950,
+     "mclk": 1249,
+     "t_junc_max": 71,
+     "t_mem_max": 80,
+     "watt": 164,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 111,
+     "vram_mib_max": 20010,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3575,
+     "tctl_max": 64,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 20.5,
+    "clean": true,
+    "rep": 0,
+    "arm": "prompt-cache-spread",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 151.53,
+     "prompt_s_agent": 98.45,
+     "prompt_s_side": 53.07,
+     "turn_s": 417.3,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 58.72,
+     "parked": 12,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 1,
+     "run_s": 439.3,
+     "peak_rss_gib": 39.82,
+     "min_avail_gib": 14.57
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.1944444444444446,
+    "noise_top": [
+     [
+      "kcompactd0",
+      3
+     ],
+     [
+      "kworker/10:0-events_freezable",
+      3
+     ],
+     [
+      "kworker/11:2-events",
+      1
+     ]
+    ],
+    "reclaim": 0.12,
+    "gpu": {
+     "sclk": 2002,
+     "mclk": 1249,
+     "t_junc_max": 72,
+     "t_mem_max": 82,
+     "watt": 167,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 130,
+     "vram_mib_max": 20010,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3679,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 19.7,
+    "clean": true,
+    "rep": 1,
+    "arm": "prompt-cache-spread",
+    "attempt": 0
+   },
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 153.47,
+     "prompt_s_agent": 108.0,
+     "prompt_s_side": 45.47,
+     "turn_s": 368.1,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 66.75,
+     "parked": 8,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 1,
+     "run_s": 391.0,
+     "peak_rss_gib": 39.71,
+     "min_avail_gib": 14.64
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 2.1640625,
+    "noise_top": [
+     [
+      "kcompactd0",
+      5
+     ],
+     [
+      "kworker/9:2-events",
+      3
+     ],
+     [
+      "kworker/9:0-mm_percpu_wq",
+      2
+     ]
+    ],
+    "reclaim": 0.08,
+    "gpu": {
+     "sclk": 1982,
+     "mclk": 1249,
+     "t_junc_max": 72,
+     "t_mem_max": 82,
+     "watt": 168,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 117,
+     "vram_mib_max": 20010,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3711,
+     "tctl_max": 63,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 18.6,
+    "clean": true,
+    "rep": 2,
+    "arm": "prompt-cache-spread",
+    "attempt": 0
+   }
+  ]
+ },
+ "recorded": {
+  "prompt_s": 303.0,
+  "prompt_s_agent": 245.7,
+  "prompt_s_side": 57.3,
+  "turn_s": 701.4,
+  "cold_rereads": 7,
+  "cold_reread_s": 162.7,
+  "first_cold": 2,
+  "first_cold_s": 56.4
+ }
+}

@@ -1,0 +1,11 @@
+loaded in 51.7s
+A1 (code): prompt 4394, 384 new, decode 218.9 tok/s, records to 19344
+B1 (prose): prompt 37, 384 new, decode 81.8 tok/s, records to 47376
+A2 (code): prompt 4807, 384 new, decode 215.9 tok/s, records to 67200
+C1 (tool): prompt 194, 53 new, decode 83.3 tok/s, records to 70224
+B2 (prose): prompt 452, 384 new, decode 235.6 tok/s, records to 89088
+D1 (code): prompt 2216, 384 new, decode 91.9 tok/s, records to 114192
+A3 (code): prompt 5218, 384 new, decode 124.6 tok/s, records to 136752
+C2 (tool): prompt 279, 55 new, decode 72.7 tok/s, records to 141264
+D2 (code): prompt 2626, 384 new, decode 98.0 tok/s, records to 165072
+wrote /home/dan/auto-runs/win16-conv/real1.trace and /home/dan/auto-runs/win16-conv/real1.requests.json

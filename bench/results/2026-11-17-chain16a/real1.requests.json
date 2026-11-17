@@ -1,0 +1,101 @@
+[
+ {
+  "end_record": 19344,
+  "conv": "A",
+  "domain": "code",
+  "prompt": 4394,
+  "new": 384,
+  "decode_tok_s": 218.87,
+  "ttft_s": 4.12,
+  "done": "DONE 384 4394 4092.7 1775.4 length 346 359 0 153044 158893 0 0 0.0 4394 0 chunk=4387 experts_streamed=15507",
+  "t": "2026-11-17T02:10:10"
+ },
+ {
+  "end_record": 47376,
+  "conv": "B",
+  "domain": "prose",
+  "prompt": 37,
+  "new": 384,
+  "decode_tok_s": 81.83,
+  "ttft_s": 0.47,
+  "done": "DONE 384 37 451.7 4697.3 length 186 350 0 230514 263040 0 0 0.0 37 0 chunk=0 experts_streamed=0",
+  "t": "2026-11-17T02:10:15"
+ },
+ {
+  "end_record": 67200,
+  "conv": "A",
+  "domain": "code",
+  "prompt": 4807,
+  "new": 384,
+  "decode_tok_s": 215.88,
+  "ttft_s": 3.754,
+  "done": "DONE 384 4807 3736.7 1789.9 length 346 369 0 149223 156948 0 0 0.0 4807 0 chunk=4387 experts_streamed=19302",
+  "t": "2026-11-17T02:10:21"
+ },
+ {
+  "end_record": 70224,
+  "conv": "C",
+  "domain": "tool",
+  "prompt": 194,
+  "new": 53,
+  "decode_tok_s": 83.27,
+  "ttft_s": 0.802,
+  "done": "DONE 53 194 785.6 639.3 stop 36 40 0 19084 27360 0 0 0.0 194 0 chunk=187 experts_streamed=2370",
+  "t": "2026-11-17T02:10:22"
+ },
+ {
+  "end_record": 89088,
+  "conv": "B",
+  "domain": "prose",
+  "prompt": 452,
+  "new": 384,
+  "decode_tok_s": 235.61,
+  "ttft_s": 0.863,
+  "done": "DONE 384 452 845.1 1641.3 length 348 351 0 152453 158601 0 0 0.0 452 0 chunk=445 experts_streamed=2068",
+  "t": "2026-11-17T02:10:25"
+ },
+ {
+  "end_record": 114192,
+  "conv": "D",
+  "domain": "code",
+  "prompt": 2216,
+  "new": 384,
+  "decode_tok_s": 91.87,
+  "ttft_s": 2.605,
+  "done": "DONE 384 2216 2588.0 4184.4 length 232 365 0 213173 245151 0 0 0.0 2216 0 chunk=2209 experts_streamed=6208",
+  "t": "2026-11-17T02:10:32"
+ },
+ {
+  "end_record": 136752,
+  "conv": "A",
+  "domain": "code",
+  "prompt": 5218,
+  "new": 384,
+  "decode_tok_s": 124.64,
+  "ttft_s": 3.94,
+  "done": "DONE 384 5218 3922.7 3087.9 length 301 381 0 180941 204520 0 0 0.0 5218 0 chunk=4387 experts_streamed=20311",
+  "t": "2026-11-17T02:10:39"
+ },
+ {
+  "end_record": 141264,
+  "conv": "C",
+  "domain": "tool",
+  "prompt": 279,
+  "new": 55,
+  "decode_tok_s": 72.67,
+  "ttft_s": 0.83,
+  "done": "DONE 55 279 812.7 759.0 stop 32 65 0 32957 40182 0 0 0.0 279 0 chunk=272 experts_streamed=2603",
+  "t": "2026-11-17T02:10:40"
+ },
+ {
+  "end_record": 165072,
+  "conv": "D",
+  "domain": "code",
+  "prompt": 2626,
+  "new": 384,
+  "decode_tok_s": 98.0,
+  "ttft_s": 2.603,
+  "done": "DONE 384 2626 2585.7 3923.4 length 235 341 0 212177 233344 0 0 0.0 2626 0 chunk=2209 experts_streamed=7696",
+  "t": "2026-11-17T02:10:47"
+ }
+]

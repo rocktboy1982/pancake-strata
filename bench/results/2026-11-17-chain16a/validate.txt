@@ -1,0 +1,26 @@
+
+######## protect 0: 0 of 10909 slots are a static core ########
+== whole (746 windows), protect 0
+policy                       hit %   miss/w  promo/w  CPU ms/w  vs kmiss 2/8  vs static
+tier                        83.75%    280.0     22.0     14.92         +0.03        n/a
+kmiss 2/4                   83.18%    281.4     23.5     15.07         +0.19        n/a
+kmiss 2/8                   83.40%    276.2     24.6     14.89         +0.00        n/a
+conv w1                     84.31%    270.6     21.7     14.45         -0.44        n/a
+   hit points vs kmiss 2/8: tier +0.35, kmiss 2/4 -0.22, kmiss 2/8 +0.00, conv w1 +0.91
+== whole (746 windows), protect 0: thrash and landing pads
+policy                      evict/w  back<=1  back<=4  back<=16  net us/promo  neg %  gap miss/w  saved P16     P32     P64
+tier                           22.0     2.0%     7.0%     20.5%        1174.2  10.6%        0.44       0.22    0.44    0.44
+kmiss 2/4                      23.5     1.9%     6.8%     20.2%        1146.5  11.5%        0.46       0.24    0.46    0.46
+kmiss 2/8                      24.6     2.1%     7.0%     20.1%        1125.4  12.0%        0.52       0.25    0.52    0.52
+conv w1                        21.7     1.2%     4.8%     16.1%        1191.5  10.7%        0.26       0.13    0.26    0.26
+== V1-V4 validation: real turn structure (9 turns, conversations A, B, C, D)
+V1 top-N-per-layer Jaccard: same conversation adjacent 0.651 (n 5), different conversation adjacent 0.335 (n 8), different conversation all pairs 0.353 (n 30)
+V2 tier plain 83.75% / 14.92 ms/w, conv-seeded (w 1) 84.31% / 14.45 ms/w: lift +0.56 hit points, +0.47 ms/w
+V3 first-m-windows Jaccard vs previous turn's set, m:     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16
+   after switch  (n  8)          0.103 0.109 0.126 0.145 0.156 0.166 0.177 0.188 0.200 0.211 0.217 0.223 0.227 0.233 0.239 0.256
+   after resume  (n  5)          0.142 0.144 0.222 0.252 0.282 0.312 0.354 0.385 0.405 0.426 0.430 0.438 0.443 0.456 0.470 0.505
+V4 lead time (top-4 non-resident per layer by the conversation's decayed counts):
+   H 1: covers  11.8% of the CPU misses at t, precision  17.4% (predicted expert missed at t),  22.4% (routed at t); misses 208583, predicted 142302
+   H 2: covers   8.0% of the CPU misses at t, precision  11.8% (predicted expert missed at t),  18.2% (routed at t); misses 208561, predicted 141534
+   H 4: covers   6.0% of the CPU misses at t, precision   8.9% (predicted expert missed at t),  15.6% (routed at t); misses 208330, predicted 139998
+   H 8: covers   4.8% of the CPU misses at t, precision   7.2% (predicted expert missed at t),  14.1% (routed at t); misses 206088, predicted 136926
