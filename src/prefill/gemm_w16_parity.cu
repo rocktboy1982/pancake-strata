@@ -23,6 +23,14 @@
 #include <string>
 #include <vector>
 
+static void set_env(const char* k, const char* v) {
+#if defined(_WIN32)
+    _putenv_s(k, v);
+#else
+    setenv(k, v, 1);
+#endif
+}
+
 namespace {
 __global__ void fill_f16(__half* p, int64_t n, unsigned seed, float scale) {
     const int64_t i = (int64_t) blockIdx.x * blockDim.x + threadIdx.x;
@@ -98,7 +106,7 @@ int main() {
         for (const int64_t T : Ts) {
             std::vector<uint8_t> out[2];
             for (int on = 0; on < 2; ++on) {
-                setenv("STRATA_PF_W16_CACHE_MIB", on ? "auto" : "0", 1);
+                set_env("STRATA_PF_W16_CACHE_MIB", on ? "auto" : "0");
                 strata::prefill::Gemm gemm;          // a fresh one reads the variable at its first native()
                 std::string err;
                 if (!gemm.init(st, scratch_elems, err)) { std::printf("FAIL: %s\n", err.c_str()); return 1; }
