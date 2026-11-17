@@ -1,0 +1,7 @@
+strata-poly: loaded in 20.6 s; 2271 of 10496 routed experts in VRAM (2.0 GiB), 8 CPU threads
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 38087 ms (26.3 tok/s), 16 generated in 4343 ms (3.7 tok/s), drafts accepted 7 of 9
+strata serve: prompt 500 tokens = 0 reused + 500 read in 12053 ms (41.5 tok/s), 16 generated in 1082 ms (14.8 tok/s), drafts accepted 0 of 0
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 8779 ms (113.9 tok/s), 16 generated in 920 ms (17.4 tok/s), drafts accepted 1 of 3
+strata serve: prompt 500 tokens = 0 reused + 500 read in 4353 ms (114.9 tok/s), 16 generated in 1242 ms (12.9 tok/s), drafts accepted 4 of 4
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 6099 ms (164.0 tok/s), 16 generated in 921 ms (17.4 tok/s), drafts accepted 3 of 6
+strata-poly: 0 of 4000 prompt tokens were not read again (0.0%); 0 conversations parked in 0 MiB, 0 pushed out; 314 MiB of VRAM free at the end

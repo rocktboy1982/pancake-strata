@@ -1,0 +1,7 @@
+[p_base] session 0: pre-run system CPU 31%
+{"label": "p_base", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 12052.6, "prompt_tps": 41.484824851069476, "decode_tps": 14.78743068391867, "produced": 16, "ids_hash": "c367cfd669cf", "pre_cpu": 31.25}
+{"label": "p_base", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 8779.5, "prompt_tps": 113.90170283045731, "decode_tps": 17.395085888236576, "produced": 16, "ids_hash": "f9a26c0eb99d", "pre_cpu": 31.25}
+{"label": "p_base", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 4353.2, "prompt_tps": 114.85803546816136, "decode_tps": 12.879336714159221, "produced": 16, "ids_hash": "6fa7d9bcb111", "pre_cpu": 31.25}
+{"label": "p_base", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 6099.2, "prompt_tps": 163.95592864637985, "decode_tps": 17.379969585053225, "produced": 16, "ids_hash": "21a31d72b0f7", "pre_cpu": 31.25}
+[p_base] size 500: prompt 78.2 tok/s sd 51.9 n=2 ['41.5', '114.9']
+[p_base] size 1000: prompt 138.9 tok/s sd 35.4 n=2 ['113.9', '164.0']

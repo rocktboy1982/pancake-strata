@@ -1,0 +1,29 @@
+  waiting for quiet: system CPU 77%
+  waiting for quiet: system CPU 95%
+  waiting for quiet: system CPU 94%
+  waiting for quiet: system CPU 100%
+  waiting for quiet: system CPU 99%
+  waiting for quiet: system CPU 89%
+  waiting for quiet: system CPU 94%
+  waiting for quiet: system CPU 96%
+  waiting for quiet: system CPU 90%
+  waiting for quiet: system CPU 75%
+  waiting for quiet: system CPU 74%
+  waiting for quiet: system CPU 80%
+  waiting for quiet: system CPU 79%
+[ab_off1] session 0: pre-run system CPU 49%
+{"label": "ab_off1", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 14457.6, "prompt_tps": 34.58388667552014, "decode_tps": 8.745080891998251, "produced": 16, "ids_hash": "9daf0f1688af", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 12313.3, "prompt_tps": 81.2129973280924, "decode_tps": 6.923110207260612, "produced": 16, "ids_hash": "b705399dffb5", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 16667.7, "prompt_tps": 107.99330441512626, "decode_tps": 8.233841086867024, "produced": 16, "ids_hash": "19be70fc562c", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 7698.5, "prompt_tps": 64.94771708774437, "decode_tps": 12.847277982977356, "produced": 16, "ids_hash": "22a04db2e456", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 8557.3, "prompt_tps": 116.85928972923703, "decode_tps": 13.619339462036091, "produced": 16, "ids_hash": "038cb6754794", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 8845.2, "prompt_tps": 203.5002035002035, "decode_tps": 9.313696955585307, "produced": 16, "ids_hash": "9d331fee6819", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 7877.0, "prompt_tps": 63.475942617747876, "decode_tps": 7.303934994978545, "produced": 16, "ids_hash": "cfbf50dc0388", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 10233.5, "prompt_tps": 97.71827820393804, "decode_tps": 7.437709185570845, "produced": 16, "ids_hash": "aabde6139266", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 9253.4, "prompt_tps": 194.52309421401864, "decode_tps": 9.707559762164786, "produced": 16, "ids_hash": "9e539c23d9e2", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 5778.8, "prompt_tps": 86.52315359590226, "decode_tps": 12.320961034960728, "produced": 16, "ids_hash": "539767ec8ca2", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 9367.8, "prompt_tps": 106.74864962958219, "decode_tps": 7.720889832553201, "produced": 16, "ids_hash": "0b714779218a", "pre_cpu": 49.10156249999999}
+{"label": "ab_off1", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 9196.9, "prompt_tps": 195.71812241081236, "decode_tps": 13.410443382784344, "produced": 16, "ids_hash": "0c8ec69cb1bc", "pre_cpu": 49.10156249999999}
+[ab_off1] size 500: prompt 62.4 tok/s sd 21.3 n=4 ['34.6', '64.9', '63.5', '86.5']
+[ab_off1] size 1000: prompt 100.6 tok/s sd 15.1 n=4 ['81.2', '116.9', '97.7', '106.7']
+[ab_off1] size 1800: prompt 175.4 tok/s sd 45.1 n=4 ['108.0', '203.5', '194.5', '195.7']

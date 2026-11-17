@@ -49,7 +49,7 @@ def quiet(max_busy=float(os.environ.get("BENCH_MAX_BUSY", "60")), wait=int(os.en
 env = dict(os.environ)
 if CUDA_BIN: env["PATH"] = CUDA_BIN + os.pathsep + env["PATH"]
 rows = []     # dicts
-ctr = 1000 * (abs(hash(LABEL)) % 7)
+ctr = int(os.environ["BENCH_CTR"]) if "BENCH_CTR" in os.environ else 1000 * (abs(hash(LABEL)) % 7)   # BENCH_CTR: same prompts in every arm (ids_hash comparable)
 for sess in range(SESSIONS):
     pre = quiet()
     print(f"[{LABEL}] session {sess}: pre-run system CPU {pre:.0f}%", flush=True)

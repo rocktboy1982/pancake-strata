@@ -1,0 +1,16 @@
+strata-poly: loaded in 22.5 s; 2271 of 10496 routed experts in VRAM (2.0 GiB), 8 CPU threads
+strata-poly: --stage-next: 999 tokens read with a second staging buffer, 39 layers' experts copied into it ahead (0 for nothing); the expert cache lent 352 MiB (2271 -> 1918 experts) in 58 ms and had 2273 again in 134 ms
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 44323 ms (22.6 tok/s), 16 generated in 4856 ms (3.3 tok/s), drafts accepted 2 of 6
+strata-poly: --stage-next: 499 tokens read with a second staging buffer, 39 layers' experts copied into it ahead (0 for nothing); the expert cache lent 338 MiB (2273 -> 1933 experts) in 10 ms and had 2272 again in 144 ms
+strata serve: prompt 500 tokens = 0 reused + 500 read in 22097 ms (22.6 tok/s), 16 generated in 1631 ms (9.8 tok/s), drafts accepted 8 of 18
+strata-poly: --stage-next: 999 tokens read with a second staging buffer, 39 layers' experts copied into it ahead (0 for nothing); the expert cache lent 310 MiB (2272 -> 1964 experts) in 6 ms and had 2272 again in 150 ms
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 6165 ms (162.2 tok/s), 16 generated in 992 ms (16.1 tok/s), drafts accepted 3 of 3
+strata-poly: --stage-next: 499 tokens read with a second staging buffer, 39 layers' experts copied into it ahead (0 for nothing); the expert cache lent 310 MiB (2272 -> 1964 experts) in 13 ms and had 2272 again in 120 ms
+strata serve: prompt 500 tokens = 0 reused + 500 read in 4756 ms (105.1 tok/s), 16 generated in 1295 ms (12.4 tok/s), drafts accepted 1 of 9
+strata-poly: --stage-next: 999 tokens read with a second staging buffer, 39 layers' experts copied into it ahead (0 for nothing); the expert cache lent 310 MiB (2272 -> 1964 experts) in 9 ms and had 2272 again in 160 ms
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 4940 ms (202.4 tok/s), 16 generated in 1217 ms (13.1 tok/s), drafts accepted 3 of 4
+strata-poly: --stage-next: 499 tokens read with a second staging buffer, 39 layers' experts copied into it ahead (0 for nothing); the expert cache lent 310 MiB (2272 -> 1964 experts) in 7 ms and had 2272 again in 124 ms
+strata serve: prompt 500 tokens = 0 reused + 500 read in 3468 ms (144.2 tok/s), 16 generated in 735 ms (21.8 tok/s), drafts accepted 3 of 3
+strata-poly: --stage-next: 999 tokens read with a second staging buffer, 39 layers' experts copied into it ahead (0 for nothing); the expert cache lent 310 MiB (2272 -> 1964 experts) in 5 ms and had 2272 again in 155 ms
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 4868 ms (205.4 tok/s), 16 generated in 850 ms (18.8 tok/s), drafts accepted 0 of 0
+strata-poly: 0 of 5500 prompt tokens were not read again (0.0%); 0 conversations parked in 0 MiB, 0 pushed out; 316 MiB of VRAM free at the end

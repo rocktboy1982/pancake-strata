@@ -1,0 +1,15 @@
+strata-poly: loaded in 33.7 s; 2271 of 10496 routed experts in VRAM (2.0 GiB), 8 CPU threads
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 48692 ms (37.0 tok/s), 16 generated in 7277 ms (2.2 tok/s), drafts accepted 9 of 13
+strata serve: prompt 500 tokens = 0 reused + 500 read in 24121 ms (20.7 tok/s), 16 generated in 1587 ms (10.1 tok/s), drafts accepted 8 of 8
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 6637 ms (150.7 tok/s), 16 generated in 2270 ms (7.0 tok/s), drafts accepted 0 of 0
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 11597 ms (155.2 tok/s), 16 generated in 1712 ms (9.3 tok/s), drafts accepted 0 of 0
+strata serve: prompt 500 tokens = 0 reused + 500 read in 3691 ms (135.5 tok/s), 16 generated in 1707 ms (9.4 tok/s), drafts accepted 8 of 8
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 5059 ms (197.7 tok/s), 16 generated in 1701 ms (9.4 tok/s), drafts accepted 5 of 9
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 8852 ms (203.3 tok/s), 16 generated in 1902 ms (8.4 tok/s), drafts accepted 1 of 3
+strata serve: prompt 500 tokens = 0 reused + 500 read in 3477 ms (143.8 tok/s), 16 generated in 1893 ms (8.5 tok/s), drafts accepted 3 of 5
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 5039 ms (198.5 tok/s), 16 generated in 2209 ms (7.2 tok/s), drafts accepted 4 of 7
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 9141 ms (196.9 tok/s), 16 generated in 2367 ms (6.8 tok/s), drafts accepted 7 of 11
+strata serve: prompt 500 tokens = 0 reused + 500 read in 3396 ms (147.2 tok/s), 16 generated in 1226 ms (13.0 tok/s), drafts accepted 7 of 8
+strata serve: prompt 1000 tokens = 0 reused + 1000 read in 4746 ms (210.7 tok/s), 16 generated in 1944 ms (8.2 tok/s), drafts accepted 6 of 9
+strata serve: prompt 1800 tokens = 0 reused + 1800 read in 9096 ms (197.9 tok/s), 16 generated in 1369 ms (11.7 tok/s), drafts accepted 5 of 5
+strata-poly: 0 of 15000 prompt tokens were not read again (0.0%); 0 conversations parked in 0 MiB, 0 pushed out; 294 MiB of VRAM free at the end

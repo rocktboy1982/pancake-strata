@@ -1,0 +1,51 @@
+  waiting for quiet: system CPU 84%
+  waiting for quiet: system CPU 84%
+  waiting for quiet: system CPU 78%
+  waiting for quiet: system CPU 77%
+  waiting for quiet: system CPU 78%
+  waiting for quiet: system CPU 76%
+  waiting for quiet: system CPU 78%
+  waiting for quiet: system CPU 74%
+  waiting for quiet: system CPU 87%
+  waiting for quiet: system CPU 82%
+  waiting for quiet: system CPU 78%
+  waiting for quiet: system CPU 84%
+  waiting for quiet: system CPU 82%
+  waiting for quiet: system CPU 79%
+  waiting for quiet: system CPU 82%
+  waiting for quiet: system CPU 90%
+  waiting for quiet: system CPU 70%
+  waiting for quiet: system CPU 84%
+  waiting for quiet: system CPU 73%
+  waiting for quiet: system CPU 77%
+  waiting for quiet: system CPU 69%
+  waiting for quiet: system CPU 80%
+  waiting for quiet: system CPU 90%
+  waiting for quiet: system CPU 91%
+  waiting for quiet: system CPU 91%
+  waiting for quiet: system CPU 87%
+  waiting for quiet: system CPU 86%
+  waiting for quiet: system CPU 70%
+  waiting for quiet: system CPU 85%
+  waiting for quiet: system CPU 82%
+  waiting for quiet: system CPU 82%
+  waiting for quiet: system CPU 83%
+  waiting for quiet: system CPU 73%
+  waiting for quiet: system CPU 83%
+  waiting for quiet: system CPU 91%
+[ab_off2] session 0: pre-run system CPU 88%
+{"label": "ab_off2", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 14280.7, "prompt_tps": 35.012289313549054, "decode_tps": 8.328128253175098, "produced": 16, "ids_hash": "d2dd1d308691", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 11097.3, "prompt_tps": 90.11200922746976, "decode_tps": 10.286081645773063, "produced": 16, "ids_hash": "b705399dffb5", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 17163.6, "prompt_tps": 104.87310354471092, "decode_tps": 11.325028312570781, "produced": 16, "ids_hash": "44ed05c42ef6", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 4713.6, "prompt_tps": 106.07603530210454, "decode_tps": 7.880996946113683, "produced": 16, "ids_hash": "22a04db2e456", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 8242.9, "prompt_tps": 121.31652695046647, "decode_tps": 11.530700490054771, "produced": 16, "ids_hash": "038cb6754794", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 9153.0, "prompt_tps": 196.65683382497542, "decode_tps": 12.456208641494745, "produced": 16, "ids_hash": "9d331fee6819", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 5087.3, "prompt_tps": 98.28396202307707, "decode_tps": 11.711316059142145, "produced": 16, "ids_hash": "cfbf50dc0388", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 8125.6, "prompt_tps": 123.06783499064684, "decode_tps": 12.88867407765426, "produced": 16, "ids_hash": "8aac66138c10", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 8814.4, "prompt_tps": 204.2112906153567, "decode_tps": 10.922992900054615, "produced": 16, "ids_hash": "9e539c23d9e2", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 500, "prompt_tokens": 500, "reused": 0, "read": 500, "prompt_ms": 5889.4, "prompt_tps": 84.89829184636805, "decode_tps": 17.83922399375627, "produced": 16, "ids_hash": "1b7a1e396392", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1000, "prompt_tokens": 1000, "reused": 0, "read": 1000, "prompt_ms": 7356.3, "prompt_tps": 135.9379035656512, "decode_tps": 15.275921329005154, "produced": 16, "ids_hash": "760ecfa08c01", "pre_cpu": 87.92364627970393}
+{"label": "ab_off2", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 8830.9, "prompt_tps": 203.8297342286743, "decode_tps": 13.327780091628489, "produced": 16, "ids_hash": "0c8ec69cb1bc", "pre_cpu": 87.92364627970393}
+[ab_off2] size 500: prompt 81.1 tok/s sd 31.9 n=4 ['35.0', '106.1', '98.3', '84.9']
+[ab_off2] size 1000: prompt 117.6 tok/s sd 19.5 n=4 ['90.1', '121.3', '123.1', '135.9']
+[ab_off2] size 1800: prompt 177.4 tok/s sd 48.5 n=4 ['104.9', '196.7', '204.2', '203.8']
