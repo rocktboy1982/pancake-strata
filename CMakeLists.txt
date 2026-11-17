@@ -2474,6 +2474,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(lookahead_ctrl_test src/program/lookahead_ctrl_test.cpp)   # MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I): STRATA_LOOKAHEAD_CTRL
   target_include_directories(lookahead_ctrl_test PRIVATE include)
   add_test(NAME lookahead_ctrl_test COMMAND lookahead_ctrl_test)
+  add_executable(persist_tape_test src/program/persist_tape_test.cpp)   # LEADS.md Part O O7: the persistent-launch protocol (tape, claim, done counters, bases) on a CPU reference
+  target_include_directories(persist_tape_test PRIVATE include)
+  target_link_libraries(persist_tape_test PRIVATE Threads::Threads)
+  add_test(NAME persist_tape_test COMMAND persist_tape_test)
   # MOD_PLAN A15 / F1: a recorded request trace through the real ConversationCache (tools/pancake/park_sim.py drives it offline)
   add_executable(park_replay_sim src/core/park_replay_sim.cpp)
   target_include_directories(park_replay_sim PRIVATE include)
@@ -3546,6 +3550,10 @@ if(STRATA_BUILD_PROBES)
     add_executable(empty_grid_probe EXCLUDE_FROM_ALL tools/pancake/probes/empty_grid.hip.cpp)
     set_source_files_properties(tools/pancake/probes/empty_grid.hip.cpp PROPERTIES LANGUAGE HIP)
     target_link_libraries(empty_grid_probe PRIVATE strata_hip_runtime)
+    add_executable(persist_tape_probe EXCLUDE_FROM_ALL tools/pancake/probes/persist_tape.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/persist_tape.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_include_directories(persist_tape_probe PRIVATE include)
+    target_link_libraries(persist_tape_probe PRIVATE strata_hip_runtime)   # LEADS.md Part O O7: one persistent launch vs one launch per stage, needs a gfx11 GPU
     add_executable(wmma_rate_probe EXCLUDE_FROM_ALL tools/pancake/probes/wmma_rate.hip.cpp)
     set_source_files_properties(tools/pancake/probes/wmma_rate.hip.cpp PROPERTIES LANGUAGE HIP)
     target_link_libraries(wmma_rate_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L2: f16 / iu8 / iu4 WMMA rate, needs a gfx11 GPU
@@ -4032,6 +4040,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test
+    persist_tape_test
     draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test

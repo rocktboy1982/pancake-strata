@@ -1,0 +1,46 @@
+{
+ "md": [
+  "data/dflash2-tuned/NOTICE.md",
+  "data/experimental-speed-projection/README.md",
+  "tools/dflash2/README.md",
+  "tools/dsv41_lab/hip/README.md",
+  "tools/trellis/README.md"
+ ],
+ "refs": [
+  "bench/specs/11-f14-exp9-3060.json",
+  "bench/specs/11-turbo-guards.json",
+  "bench/specs/11-verify-ecap.json",
+  "bench/specs/f12-sign-fast.json",
+  "benchmarks/bench_layout/README.md",
+  "benchmarks/bench_vmm/bench_vmm.cpp",
+  "core/src/engine/knob_trial.h",
+  "csrc/ftensor.cpp",
+  "csrc/gpu_budget.cpp",
+  "csrc/inc/gpu_vmm.hpp",
+  "csrc/page.cpp",
+  "csrc/page_allocator.cpp",
+  "examples/rdna3-int4/quantize_head.cpp",
+  "experiments/27b-494/analyze.py",
+  "ggml/src/ggml-backend.cpp",
+  "kvcached/cli/kvctl.py",
+  "kvcached/kv_geometry.py",
+  "kvcached/prefix_cache_retention.py",
+  "kvcached/vmm_ops.py",
+  "pancake-docs/ROUTE_PRIOR_AUTO.md",
+  "prefill/kernels.cu",
+  "probes/launch_shapes.py",
+  "run-scripts-afternoon/auto-chain15.sh",
+  "spec/window_rule.hpp",
+  "strata/core/kv_ring.hpp",
+  "trace/draft_costs.py",
+  "trace/recording.py"
+ ],
+ "specs": [
+  "015",
+  "016",
+  "018",
+  "022",
+  "024",
+  "025"
+ ]
+}

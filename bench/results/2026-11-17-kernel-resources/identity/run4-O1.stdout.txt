@@ -1,0 +1,12 @@
+kernel                                                     VGPR SGPR  scr  spV  spS    LDS occ  instr
+kernels::combine                                              6   20    0    0    0      0  16    118
+kernels::combine                                             10   22    0    0    0      0  16    150
+kernels::combine                                              6   20    0    0    0      0  16    124
+kernels::combine_cpu_k10_vec4                                48   32    0    0    0     40  16    853
+kernels::combine_cpu_k10_vec4                                49   34    0    0    0     40  16    915
+kernels::combine_k10_vec4                                    46   18    0    0    0      0  16    137
+kernels::combine_k10_vec4_hits                               48   27    0    0    0      4  16    358
+kernels::combine_k10_vec4_hits_mapped                        49   28    0    0    0      8  16    453
+kernels::combine_k10_vec4_hits_mapped                        48   26    0    0    0      8  16    418
+kernels::combine_k10_vec4_hits_mapped                        49   28    0    0    0      8  16    442
+kernels::combine_k10_vec4_hits_mapped                        48   25    0    0    0      8  16    406
