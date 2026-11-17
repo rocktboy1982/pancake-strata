@@ -14886,21 +14886,18 @@ int main(int argc, char** argv) {
             const double mb = strata::program::TierMissBudget::budget_from_env();
             const char* mf = std::getenv("STRATA_TIER_MISS_FILE");
             if (mb > 0.0) {
-                if (mf == nullptr || mf[0] == ' ' || !miss_budget.load_file(mf))
+                if (mf == nullptr || mf[0] == '\0' || !miss_budget.load_file(mf))
                     std::fprintf(stderr, "strata serve: STRATA_TIER_MISS_BUDGET needs STRATA_TIER_MISS_FILE (a gate importance "
-                                         "table from gate_importance.py --emit-importance): off
-");
+                                         "table from gate_importance.py --emit-importance): off\n");
                 else if (!miss_budget.shape_matches(g.n_layers, g.n_expert)) {
-                    std::fprintf(stderr, "strata serve: STRATA_TIER_MISS_FILE is %lld x %lld, the model %lld x %lld: off
-",
+                    std::fprintf(stderr, "strata serve: STRATA_TIER_MISS_FILE is %lld x %lld, the model %lld x %lld: off\n",
                                  (long long) miss_budget.layers(), (long long) miss_budget.experts(), (long long) g.n_layers,
                                  (long long) g.n_expert);
                     miss_budget.clear();
                 } else {
                     miss_budget.build(mb);
                     std::fprintf(stderr, "strata serve: STRATA_TIER_MISS_BUDGET=%g: %lld experts may stay out of tier 0 "
-                                         "(never admitted; a resident one is evicted first)
-", mb, (long long) miss_budget.n_stay_out());
+                                         "(never admitted; a resident one is evicted first)\n", mb, (long long) miss_budget.n_stay_out());
                 }
             }
         }

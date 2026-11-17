@@ -57,6 +57,7 @@
 #define cudaGetDeviceCount hipGetDeviceCount
 #define cudaGetDeviceProperties hipGetDeviceProperties
 #define cudaGetErrorString hipGetErrorString
+#define cudaGetErrorName hipGetErrorName
 #define cudaGetLastError hipGetLastError
 #define cudaGraphDestroy hipGraphDestroy
 #define cudaGraphExecDestroy hipGraphExecDestroy

@@ -702,7 +702,7 @@ inline int g_gdn_specla_rows(int max_t) {
 // MOD_PLAN.md section 6 item 38, STRATA_HEAD_SHORTLIST=<file.shl> (opt-in, LOSSY, read once): the greedy pick (and any sample) is
 // taken over the rows of the best clusters only (head_shortlist.hpp); the fused / wide head picks are off while it is set.
 inline const char* head_shortlist_path() {
-    static const char* v = [] { const char* e = std::getenv("STRATA_HEAD_SHORTLIST"); return (e != nullptr && e[0] != ' ') ? e : nullptr; }();
+    static const char* v = [] { const char* e = std::getenv("STRATA_HEAD_SHORTLIST"); return (e != nullptr && e[0] != '\0') ? e : nullptr; }();
     return v;
 }
 // STRATA_HEAD_SHORTLIST_GATHER=1 (opt-in with STRATA_HEAD_SHORTLIST, LOSSY exactly as it is; MOD_PLAN.md section 6 item 38): an

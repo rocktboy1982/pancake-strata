@@ -84,8 +84,9 @@ __global__ void __launch_bounds__(THREADS) gate_up_kernel(const Batch b, const N
     constexpr int HIGH_BYTES = Q5K ? 2 * ROWS * 4 : 0;
     constexpr int SCALE_BYTES = 2 * ROWS * 4;
     constexpr int STAGE_BYTES = CODE_BYTES + HIGH_BYTES + SCALE_BYTES + ActStage<BN>::BYTES;
-    static_assert(GU_EPI_BYTES <= STAGE_BYTES, "the epilogue fits the stage");
-    __shared__ __attribute__((aligned(16))) uint8_t lds[STAGE_BYTES];
+    // the epilogue reuses the front; the quarter tile (BN 16) has a stage smaller than the epilogue, so size for the larger
+    constexpr int LDS_BYTES = STAGE_BYTES > GU_EPI_BYTES ? STAGE_BYTES : GU_EPI_BYTES;
+    __shared__ __attribute__((aligned(16))) uint8_t lds[LDS_BYTES];
     __shared__ int srow[BN];
     auto* s_codes = reinterpret_cast<uint4*>(lds);
     auto* s_high = reinterpret_cast<uint32_t*>(lds + CODE_BYTES);
