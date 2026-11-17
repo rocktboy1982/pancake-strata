@@ -21,6 +21,11 @@ int main() {
     check(!m.load_text("strata-gate-importance 2 1 2\n1 2\n"), "bad version rejected");
     check(!m.load_text("strata-gate-importance 1 2 2\n1 2\n"), "short table rejected");
     check(!m.load_text("strata-gate-importance 1 1 2\n1 -2\n"), "negative value rejected");
+    // fuzz regression (local fuzz): a header that claims more values than the text can hold, or whose product overflows, is refused
+    check(!m.load_text("strata-gate-importance 1 4000000000 4000000000\n1 2 3"), "4e9 x 4e9 header refused (no overflow, no allocation)");
+    check(!m.load_text("strata-gate-importance 1 3037000500 3037000500\n1"), "product just past int64 refused");
+    check(!m.load_text("strata-gate-importance 1 1 4000000000\n1"), "one layer of 4e9 experts in a tiny file refused");
+    check(!m.on() && m.layers() == 0, "refused header leaves the object off");
     // layer 0: shares 0.05 0.05 0.30 0.60 (scale 20); layer 1: all zero; layer 2: uniform
     check(m.load_text("strata-gate-importance 1 3 4\n1 1 6 12\n0 0 0 0\n1 1 1 1\n"), "table loads");
     check(m.shape_matches(3, 4) && !m.shape_matches(3, 5), "shape check");

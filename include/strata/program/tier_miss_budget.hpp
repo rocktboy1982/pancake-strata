@@ -46,6 +46,9 @@ public:
         int ver = 0;
         long long nl = 0, ne = 0;
         if (!(in >> magic >> ver >> nl >> ne) || magic != "strata-gate-importance" || ver != 1 || nl <= 0 || ne <= 0) return false;
+        // Every value takes at least one character and a separator, so a valid table has layers * experts <= the text size: a header
+        // that claims more is refused before anything is allocated (and before the product can overflow).
+        if (ne > (long long) text.size() || nl > (long long) text.size() / ne) return false;
         imp_.assign((size_t) (nl * ne), 0.0f);
         for (size_t i = 0; i < imp_.size(); ++i) {
             double x;
