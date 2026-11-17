@@ -390,7 +390,7 @@ def make_config(base, arm, path):
         if v is None:
             c["env"].pop(k, None)
         else:
-            c["env"][k] = str(v)
+            c["env"][k] = render_preset(str(v))   # an arm's value may carry <REPO> / <STRATA_DATA> / <MODELS> too (spec 126: the server died "cannot open <REPO>/data/...")
     a = c["args"]
     for k, v in (arm.get("args") or {}).items():
         if k in a:
@@ -398,7 +398,7 @@ def make_config(base, arm, path):
             n = 2 if i + 1 < len(a) and not a[i + 1].startswith("--") else 1
             del a[i:i + n]
         if v is not None:
-            a += [k] + ([str(v)] if v != "" else [])
+            a += [k] + ([render_preset(str(v))] if v != "" else [])
     if arm.get("drafting"):
         c["drafting"] = arm["drafting"]
     for k, v in (arm.get("config") or {}).items():   # server config keys (reasoning_budget_by_effort, rumination_close ...)

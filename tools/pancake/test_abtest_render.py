@@ -25,5 +25,24 @@ class RenderPreset(unittest.TestCase):
         self.assertTrue(os.path.isdir(json.loads(out)["a"]))
 
 
+class ArmValuesAreRendered(unittest.TestCase):
+    """Regression (spec 126, 2026-11-17): an arm's --expert-profile "<REPO>/data/..." reached the engine literally and the server died before ready."""
+    def test_arm_args_and_env_carry_no_placeholder(self):
+        import tempfile
+        d = tempfile.mkdtemp(prefix="mc-")
+        base = os.path.join(d, "base.json")
+        json.dump({"exe": "/x/strata", "args": ["--kv", "int8"], "env": {"A": "1"}}, open(base, "w"))
+        arm = {"args": {"--expert-profile": "<REPO>/data/p.bin"}, "env": {"STRATA_W": "<REPO>/data/w.lkw", "STRATA_D": "<STRATA_DATA>/x"}}
+        out = os.path.join(d, "out.json")
+        c = abtest.make_config(base, arm, out)
+        text = json.dumps(c)
+        self.assertNotIn("<REPO>", text)
+        self.assertNotIn("<STRATA_DATA>", text)
+        i = c["args"].index("--expert-profile")
+        self.assertTrue(c["args"][i + 1].endswith("/data/p.bin"))
+        self.assertTrue(os.path.isabs(c["args"][i + 1]))
+        self.assertTrue(c["env"]["STRATA_W"].endswith("/data/w.lkw"))
+
+
 if __name__ == "__main__":
     unittest.main()
