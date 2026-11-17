@@ -29,6 +29,10 @@
 // The experts rotate over a pool of >= 96 MB of distinct synthetic blobs (random bytes, sane fp16 block scales), so
 // every call reads its weights cold from DRAM as the decode does each layer.
 //
+// Ablation (LEADS.md Part O O14): build the library twice more with -DSTRATA_KERNEL_ABLATE=1 (no-mac: weights loaded and decoded, no dot product) and
+// =2 (same-row: every row reads row 0, so the bytes come from cache), run `expdec_bench 300 -1 20 16/42,17/42,22/42 def,dec` on each build and compare
+// gu_us with the default build's (gu_us default - ablation = the price of what was skipped).  tools/pancake/ablate_expdec.sh does the three builds.
+//
 // One line per cell:  dev T shape gu/d choice all_us gu_us down_us GB/s pct identical|DIFFERENT   (GB/s = groups x blob
 // bytes / all_us; pct = of the peak DRAM bandwidth 2 x memory clock x bus width / 8).  Lines starting with '#' are
 // context.  Exit code 1 if any choice differs or a CUDA error occurred.  GPU time only.
@@ -468,6 +472,11 @@ int main(int argc, char** argv) {
         }
     }
     std::printf("\n# dev T shape gu/d choice all_us gu_us down_us GB/s pct identical|DIFFERENT\n");
+#if defined(STRATA_KERNEL_ABLATE)
+    // LEADS.md Part O O14: a build with -DSTRATA_KERNEL_ABLATE=N (iq_kernels.cu: 1 no-mac, 2 same-row) computes a wrong result on purpose; read gu_us
+    // against the default build's and expect DIFFERENT; the exit code ignores the comparison.
+    std::printf("# STRATA_KERNEL_ABLATE=%d: the gate/up kernel is an ablation build, DIFFERENT is expected, only gu_us is read\n", (int) STRATA_KERNEL_ABLATE);
+#endif
     long long bad = 0;
     bool ok = true;
     for (const Pair& p : pairs) {
@@ -507,6 +516,9 @@ int main(int argc, char** argv) {
                 }
         }
     }
+#if defined(STRATA_KERNEL_ABLATE)
+    bad = 0;
+#endif
     std::printf("\nexpdec_bench: %s (%lld choice comparisons differ%s)\n", (bad || !ok || g_cuda_error) ? "FAILED" : "ok", bad,
                 (!ok || g_cuda_error) ? ", CUDA error" : "");
     return (bad || !ok || g_cuda_error) ? 1 : 0;

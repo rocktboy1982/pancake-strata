@@ -71,6 +71,13 @@ void gdn_conv(float* history, const float* qkv, const float* conv_w, float* h, i
 void gdn_recurrence(float* state, const float* h, const float* gate, const float* beta, const float* z,
                     const float* gamma, float eps, float* y, uint16_t* y16, int64_t T, void* stream,
                     int64_t ld16 = 0);   // ld16: y16's row stride (0 = 6144; S23 STRATA_PF_PAD pads it)
+/// LEADS.md Part O O6 (STRATA_GDN_SNAP_IN_CHUNK, coded, not wired into the prompt loop): `gdn_recurrence_cols` is the pipelined column-split recurrence alone
+/// (state, FP32 output y, no norm); `gdn_recurrence_snapshots` is the same arithmetic that also copies the state after the tokens `snap_pos[k]` (device
+/// pointer, strictly ascending, each in [1, T]) into `snap_out + k * gdn_snapshot_state_floats()`; bit for bit the state of a run of that many tokens.
+void gdn_recurrence_cols(float* state, const float* h, const float* gate, const float* beta, float* y, int64_t T, void* stream);
+void gdn_recurrence_snapshots(float* state, const float* h, const float* gate, const float* beta, float* y, int64_t T,
+                              const int64_t* snap_pos, int n_snap, float* snap_out, void* stream);
+int64_t gdn_snapshot_state_floats();
 /// The kernels behind gdn_recurrence, for the parity test: 0 = the column-split kernels + the norm kernel (or the
 /// one-block-per-head kernel under STRATA_GDN_REC_HEADS), 1 = four lanes per column (no barrier per token) + the grid-stride norm, 2 = the
 /// one-block-per-head kernel (its fused norm rounds differently).  0 and 1 give the same bits.  On HIP, 0 and 1 run the opt-in

@@ -764,6 +764,78 @@ __global__ void __launch_bounds__(CB * RG) gdn_rec_cols_pipe_kernel(float* __res
 #pragma unroll
     for (int r = 0; r < RPG; ++r) base[r * rs] = s[r];
 }
+// LEADS.md Part O O6 (STRATA_GDN_SNAP_IN_CHUNK, caminus' prefill_gdn.hip idea: recurrent-state snapshots at positions INSIDE a chunk, so a checkpoint never
+// forces a chunk boundary): gdn_rec_cols_pipe_kernel (this kernel is its text) that also writes the state after tokens snap_pos[k] (k < n_snap, strictly
+// ascending, 1 <= snap_pos[k] <= T) to snap_out + k * (S * HV * S): the layout of `state`.  A snapshot is the same registers the final write stores,
+// copied when the loop has done that many tokens, so snapshot k is bit for bit the state of a run of snap_pos[k] tokens (gdn_snap_parity checks it
+// against gdn_recurrence_cols).  Only launched through gdn_recurrence_snapshots; no engine path calls it yet.
+__global__ void __launch_bounds__(CB * RG) gdn_rec_cols_snap_kernel(float* __restrict__ state, const float* __restrict__ h,
+                                                                      const float* __restrict__ gate,
+                                                                      const float* __restrict__ beta,
+                                                                      float* __restrict__ oc_out, int64_t T,
+                                                                      const int64_t* __restrict__ snap_pos, int n_snap,
+                                                                      float* __restrict__ snap_out) {
+    constexpr int NT = CB * RG, LPT = S / NT;
+    __shared__ float sk[S], sq[S], red[RG][CB];
+    const int head = blockIdx.x / NCB, cb = blockIdx.x % NCB;
+    const int c = threadIdx.x, rg = threadIdx.y, tid = rg * CB + c, col = cb * CB + c;
+    const int qh = head % HK;
+    float s[RPG];
+    float* base = state + ((size_t) (rg * RPG) * HV + head) * S + col;
+    const size_t rs = (size_t) HV * S;
+    const size_t state_floats = (size_t) S * HV * S;
+#pragma unroll
+    for (int r = 0; r < RPG; ++r) s[r] = base[r * rs];
+    float nq[LPT], nk[LPT], nv = 0.0f, ng = 0.0f, nb = 0.0f;
+    auto fetch = [&](int64_t t) {
+        const float* ht = h + t * C;
+#pragma unroll
+        for (int u = 0; u < LPT; ++u) { nq[u] = ht[qh * S + tid + u * NT]; nk[u] = ht[HK * S + qh * S + tid + u * NT]; }
+        nv = ht[2 * HK * S + head * S + col];
+        ng = gate[t * HV + head];
+        nb = beta[t * HV + head];
+    };
+    if (T > 0) fetch(0);
+    int next_snap = 0;
+    for (int64_t t = 0; t < T; ++t) {
+        float cq[LPT], ck[LPT];
+#pragma unroll
+        for (int u = 0; u < LPT; ++u) { cq[u] = nq[u]; ck[u] = nk[u]; }
+        const float cv = nv, cg = ng, cbt = nb;
+        __syncthreads();
+#pragma unroll
+        for (int u = 0; u < LPT; ++u) { sq[tid + u * NT] = cq[u]; sk[tid + u * NT] = ck[u]; }
+        __syncthreads();
+        if (t + 1 < T) fetch(t + 1);
+        const float g = __expf(cg);
+        float kv = 0.0f;
+#pragma unroll
+        for (int r = 0; r < RPG; ++r) kv = fmaf(s[r], sk[rg * RPG + r], kv);
+        red[rg][c] = kv;
+        __syncthreads();
+        const float kv_col = red[0][c] + red[1][c] + red[2][c] + red[3][c];
+        const float delta = (cv - g * kv_col) * cbt;
+        float o = 0.0f;
+#pragma unroll
+        for (int r = 0; r < RPG; ++r) {
+            s[r] = fmaf(g, s[r], sk[rg * RPG + r] * delta);
+            o = fmaf(s[r], sq[rg * RPG + r], o);
+        }
+        __syncthreads();
+        red[rg][c] = o;
+        __syncthreads();
+        if (rg == 0) oc_out[t * HV * S + head * S + col] = (red[0][c] + red[1][c] + red[2][c] + red[3][c]) * rsqrtf((float) S);
+        // the state after t + 1 tokens: every thread tests the same (block-uniform) condition
+        while (next_snap < n_snap && snap_pos[next_snap] == t + 1) {
+            float* sb = snap_out + (size_t) next_snap * state_floats + ((size_t) (rg * RPG) * HV + head) * S + col;
+#pragma unroll
+            for (int r = 0; r < RPG; ++r) sb[r * rs] = s[r];
+            ++next_snap;
+        }
+    }
+#pragma unroll
+    for (int r = 0; r < RPG; ++r) base[r * rs] = s[r];
+}
 // v100/gdn-chunk: gdn_rec_cols_pipe_kernel with the two 32-deep FMA chains (k^T W and q^T W) split into 4
 // accumulators each.  The chain is the recurrence's per-token floor (a 32-step dependent FFMA chain is ~128
 // cycles before the barriers); the split keeps the load pattern, the barriers and the (S, h_v, S) state
@@ -3313,6 +3385,18 @@ static void gdn_recurrence_impl(int variant, float* state, const float* h, const
     }
     check("gdn_recurrence");
 }
+// LEADS.md Part O O6: the pipelined column-split recurrence alone (no norm), and with snapshots; for gdn_snap_parity and the engine's future in-chunk
+// checkpoint path.  Both launch one layer's 48 value heads over T tokens; `snap_pos` / `snap_out` are device pointers (see gdn_rec_cols_snap_kernel).
+void gdn_recurrence_cols(float* state, const float* h, const float* gate, const float* beta, float* y, int64_t T, void* stream) {
+    if (T <= 0) return;
+    gdn_rec_cols_pipe_kernel<<<HV * NCB, dim3(CB, RG), 0, (cudaStream_t) stream>>>(state, h, gate, beta, y, T);
+}
+void gdn_recurrence_snapshots(float* state, const float* h, const float* gate, const float* beta, float* y, int64_t T,
+                              const int64_t* snap_pos, int n_snap, float* snap_out, void* stream) {
+    if (T <= 0) return;
+    gdn_rec_cols_snap_kernel<<<HV * NCB, dim3(CB, RG), 0, (cudaStream_t) stream>>>(state, h, gate, beta, y, T, snap_pos, n_snap, snap_out);
+}
+int64_t gdn_snapshot_state_floats() { return (int64_t) S * HV * S; }
 void gdn_recurrence_variant(int variant, float* state, const float* h, const float* gate, const float* beta,
                             const float* z, const float* gamma, float eps, float* y, uint16_t* y16, int64_t T,
                             void* stream, int64_t ld16) {

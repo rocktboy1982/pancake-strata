@@ -2640,6 +2640,26 @@ __device__ __forceinline__ void ed_load_u(const int4* __restrict__ s_u, int c, i
 // per row and the entry's block loaded once per NC x R products.  SF: Split<TG>::load<true, SF>, the F12 sign form
 // (STRATA_IQ_SIGN_FAST; the same words, so the same sums).  DUPB > 0 (A37, STRATA_IQ_LUT_DUP, IQ2_XXS only): s_grid is
 // the lane's copy of the duplicated codebook (lut_dup_slot; the same words, so the same sums).
+// LEADS.md Part O O14 (the caminus authors' ablation method: split a kernel's time into loads and arithmetic by compiling variants that skip one;
+// identical bits NOT required, the output is wrong on purpose).  Compile time only, never set in a build that serves: -DSTRATA_KERNEL_ABLATE=N
+// (cmake -DCMAKE_HIP_FLAGS=-DSTRATA_KERNEL_ABLATE=1, the way STRATA_HIP_GLOBAL_WEIGHTS is passed), read with `expdec_bench` (it prints the macro and
+// expects DIFFERENT outputs).  Only the EXPDEC gate/up kernel (expdec_gu_kernel -> ed_gu_rows) has the arms.  Unset the macro is not defined and the
+// preprocessed source is that of the build without this block (checked, TEST_LEDGER.md).
+//   1 no-mac    the weight blocks are loaded and decoded (the loads, the grid lookups, the sign expansion) but the activations are not read and the
+//               dot products are not done: the words of every loaded W are folded into the sum with xor, so the loads stay live
+//   2 same-row  every row of the block reads row 0 of its expert (expdec_gu_kernel below): the same arithmetic on bytes that are in cache after the
+//               first touch, so the DRAM traffic is a sixteenth to a hundredth of the default
+// gu_us(default) - gu_us(1) is the price of the multiply-accumulate and the activation reads; gu_us(default) - gu_us(2) the price of the weight bytes.
+#if defined(STRATA_KERNEL_ABLATE) && STRATA_KERNEL_ABLATE == 1
+template<class Wt>
+__device__ __forceinline__ float ed_ablate_fold(const Wt& w) {
+    const int* p = reinterpret_cast<const int*>(&w);
+    int x = 0;
+#pragma unroll
+    for (int i = 0; i < (int) (sizeof(Wt) / 4); ++i) x ^= p[i];
+    return (float) x;
+}
+#endif
 template<int TG, int R, int NC, bool SF = false, int DUPB = 0, bool NTL = false>
 __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4* __restrict__ s_u,
                                            const float* __restrict__ s_ds, const uint32_t* __restrict__ s_grid, int t,
@@ -2662,6 +2682,12 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
             else if constexpr (NTL) w[r] = S::template load_nt<SF>(wr[r], kbx, iqs, s_grid);
             else w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
         }
+#if defined(STRATA_KERNEL_ABLATE) && STRATA_KERNEL_ABLATE == 1
+#pragma unroll
+        for (int c = 0; c < NC; ++c)
+#pragma unroll
+            for (int r = 0; r < R; ++r) s[r][c] += ed_ablate_fold(w[r]);
+#else
 #pragma unroll
         for (int c = 0; c < NC; ++c) {
             int u[8];
@@ -2670,6 +2696,7 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
 #pragma unroll
             for (int r = 0; r < R; ++r) s[r][c] += S::apply_u(w[r], u, d8);
         }
+#endif
     }
 #pragma unroll
     for (int j = 0; j < 2; ++j) {
@@ -2682,6 +2709,12 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
             else if constexpr (NTL) w[r] = S::template load_nt<SF>(wr[r], kbx, iqs, s_grid);
             else w[r] = S::template load<true, SF>(wr[r], kbx, iqs, s_grid);
         }
+#if defined(STRATA_KERNEL_ABLATE) && STRATA_KERNEL_ABLATE == 1
+#pragma unroll
+        for (int c = 0; c < NC; ++c)
+#pragma unroll
+            for (int r = 0; r < R; ++r) s16[r][c] += ed_ablate_fold(w[r]);
+#else
 #pragma unroll
         for (int c = 0; c < NC; ++c) {
             int u[8];
@@ -2690,6 +2723,7 @@ __device__ __forceinline__ void ed_gu_rows(const uint8_t* const* wr, const int4*
 #pragma unroll
             for (int r = 0; r < R; ++r) s16[r][c] += S::apply_u(w[r], u, d8);
         }
+#endif
     }
 #pragma unroll
     for (int r = 0; r < R; ++r)
@@ -2752,7 +2786,12 @@ __global__ void __launch_bounds__(256, MINB) expdec_gu_kernel(
                 const int r0 = is_up ? row0 - n_ff : row0;
                 const uint8_t* wr[R];
 #pragma unroll
-                for (int r = 0; r < R; ++r) wr[r] = blob + (is_up ? L.up_off : 0) + (size_t) (r0 + r) * L.gu_row;
+                for (int r = 0; r < R; ++r)
+#if defined(STRATA_KERNEL_ABLATE) && STRATA_KERNEL_ABLATE == 2
+                    wr[r] = blob + (is_up ? L.up_off : 0);   // O14 same-row: row 0 for every row (the build is not for serving)
+#else
+                    wr[r] = blob + (is_up ? L.up_off : 0) + (size_t) (r0 + r) * L.gu_row;
+#endif
                 float* dst = is_up ? up : gate;
                 auto run = [&](auto nc) {
                     constexpr int NC = decltype(nc)::value;

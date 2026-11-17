@@ -1,0 +1,46 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit",
+  "longdec10k",
+  "longdec32k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {},
+  "vwin2": {
+   "env": {
+    "STRATA_ATTN_VWIN": "1"
+   }
+  },
+  "vwin4": {
+   "env": {
+    "STRATA_ATTN_VWIN": "1",
+    "STRATA_ATTN_VWIN_ROWS": "4"
+   }
+  }
+ },
+ "note": "LEADS.md Part O O8 and Part A A50, CODED, UNTESTED ON A GPU: the verify-window attention with FOUR queries a block (STRATA_ATTN_VWIN=1 + STRATA_ATTN_VWIN_ROWS=4, HIP only, 62 KB LDS, 73 VGPRs, 0 spills from the SDK compile) against two (STRATA_ATTN_VWIN=1, the A50 kernel) and the default. Exact: bit for bit attn_chunk_kernel (check first with qsa_merge_daily_parity, chunk kernels 3 and 5). The answer to the O8 question is in the code: the default chunk kernel gives every query its own block, so a pool row that several rows' selections share is read once per row; VWIN shares it for pairs, ROWS=4 for four. Needs windows of 2+ rows: the short / edit cases run MTP / lookup windows. Screen: promote from 0%, drop below -3%. Screen.",
+ "predict": [
+  {
+   "arm": "vwin4",
+   "case": "longdec32k",
+   "lo": -2.0,
+   "hi": 6.0,
+   "why": "A50's fork number was 48.6 -> 88.9 tok/s at 200K on another card; at 32K with 10-row windows the K/V reuse is partial; a 4-row block holds one workgroup a CU (LDS 62 KB), which can cost more than the saved loads"
+  },
+  {
+   "arm": "vwin2",
+   "case": "edit",
+   "lo": -1.5,
+   "hi": 2.0,
+   "why": "short context: few shared cells"
+  }
+ ],
+ "stop": [
+  "drop vwin4 if it is below vwin2 on every case",
+  "drop any arm below -3% on any case (screen rule)"
+ ]
+}

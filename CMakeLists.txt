@@ -1774,6 +1774,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_executable(gdn_rec_parity src/prefill/gdn_rec_parity.cu)
     target_link_libraries(gdn_rec_parity PRIVATE ${_strata_gpu_runtime_target})
     add_test(NAME gdn_rec_parity COMMAND gdn_rec_parity)
+    add_executable(gdn_snap_parity src/prefill/gdn_snap_parity.cu)   # LEADS.md Part O O6: the in-chunk snapshot kernel against the plain recurrence, bit for bit
+    target_include_directories(gdn_snap_parity PRIVATE include)
+    target_link_libraries(gdn_snap_parity PRIVATE strata_prefill ${_strata_gpu_runtime_target})
+    add_test(NAME gdn_snap_parity COMMAND gdn_snap_parity)
     # STRATA_GDN_TC=1: the tensor-core helpers of the scan, each on one warp against a double-precision reference.  Any sm_80+
     # card runs them; the scan itself needs 122 KB of shared memory a block (sm_80, sm_90), where gdn_rec_parity prints
     # "not on this card" for the tc variant
@@ -2484,6 +2488,18 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(persist_tape_test PRIVATE include)
   target_link_libraries(persist_tape_test PRIVATE Threads::Threads)
   add_test(NAME persist_tape_test COMMAND persist_tape_test)
+  add_executable(persist_launch_test src/program/persist_launch_test.cpp)   # LEADS.md Part O O7: the flat arrays / carried bases of a persistent launch, the device claim rule run on them
+  target_include_directories(persist_launch_test PRIVATE include)
+  target_link_libraries(persist_launch_test PRIVATE Threads::Threads)
+  add_test(NAME persist_launch_test COMMAND persist_launch_test)
+  add_executable(qsa_split_test src/kernels/qsa_split_test.cpp)   # LEADS.md Part O O9: STRATA_QSA_SPLIT_GRID's blocks-per-head rule and chunk visit order
+  target_include_directories(qsa_split_test PRIVATE include)
+  add_test(NAME qsa_split_test COMMAND qsa_split_test)
+  add_executable(gdn_snap_test src/prefill/gdn_snap_test.cpp)   # LEADS.md Part O O6: in-chunk snapshot chunk plan, layout, host reference of the recurrence
+  target_include_directories(gdn_snap_test PRIVATE include)
+  add_test(NAME gdn_snap_test COMMAND gdn_snap_test)
+  add_executable(act_f16_test src/kernels/act_f16_test.cpp)   # LEADS.md Part O O10: activation rounding error, Q8_1 against fp16, host fixture
+  add_test(NAME act_f16_test COMMAND act_f16_test)
   # MOD_PLAN A15 / F1: a recorded request trace through the real ConversationCache (tools/pancake/park_sim.py drives it offline)
   add_executable(park_replay_sim src/core/park_replay_sim.cpp)
   target_include_directories(park_replay_sim PRIVATE include)
@@ -3563,6 +3579,16 @@ if(STRATA_BUILD_PROBES)
     set_source_files_properties(tools/pancake/probes/persist_tape.hip.cpp PROPERTIES LANGUAGE HIP)
     target_include_directories(persist_tape_probe PRIVATE include)
     target_link_libraries(persist_tape_probe PRIVATE strata_hip_runtime)   # LEADS.md Part O O7: one persistent launch vs one launch per stage, needs a gfx11 GPU
+    add_executable(persist_layer_parity EXCLUDE_FROM_ALL src/kernels/persist_layer_parity.cu)   # LEADS.md Part O O7: the persistent kernel template with a layer-shaped tape, bit for bit
+    set_source_files_properties(src/kernels/persist_layer_parity.cu PROPERTIES LANGUAGE HIP)
+    target_include_directories(persist_layer_parity PRIVATE include)
+    target_link_libraries(persist_layer_parity PRIVATE strata_hip_runtime)
+    add_executable(link_touch_probe EXCLUDE_FROM_ALL tools/pancake/probes/link_touch.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/link_touch.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(link_touch_probe PRIVATE strata_hip_runtime)   # LEADS.md Part O O5: does a sleeping PCIe link delay the pass end, does a touch keep it awake
+    add_executable(act_f16_probe EXCLUDE_FROM_ALL tools/pancake/probes/act_f16.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/act_f16.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(act_f16_probe PRIVATE strata_hip_runtime)   # LEADS.md Part O O10: fp16-activation matvec against the read-only roofline
     add_executable(wmma_rate_probe EXCLUDE_FROM_ALL tools/pancake/probes/wmma_rate.hip.cpp)
     set_source_files_properties(tools/pancake/probes/wmma_rate.hip.cpp PROPERTIES LANGUAGE HIP)
     target_link_libraries(wmma_rate_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L2: f16 / iu8 / iu4 WMMA rate, needs a gfx11 GPU
@@ -4051,7 +4077,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test
-    persist_tape_test
+    persist_tape_test persist_launch_test qsa_split_test gdn_snap_test act_f16_test
     draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test

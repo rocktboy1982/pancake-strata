@@ -68,7 +68,8 @@ bool qsa_decode_attn_slots(const float* q, const QsaAttnSlotPools& pools, const 
 /// says.  `chunks_only` runs the chunk pass into `scratch` with `daily_chunk` 0: attn_chunk_kernel (upstream's default),
 /// 1: the Daily's (attn_chunk_kernel_pre75, what STRATA_ATTN_DAILY=1 picks on CUDA), 2: attn_chunk_kernel's blocks
 /// query-fastest (STRATA_ATTN_QMAJOR, LEADS.md "LongSpec/Hybrid Tree"), 3: two queries a block with a shared pool row's
-/// K / V read once (STRATA_ATTN_VWIN, LEADS.md A50).  `merge_only` merges those
+/// K / V read once (STRATA_ATTN_VWIN, LEADS.md A50), 4: attn_chunk_split_kernel with 3 blocks per (kv head, query)
+/// (STRATA_QSA_SPLIT_GRID, LEADS.md Part O O9).  `merge_only` merges those
 /// partials with `v2` 0: attn_merge_kernel, 1: attn_merge_v2_kernel (STRATA_ATTN_MERGE_V2, on with STRATA_ATTN_DAILY).
 /// Width must not exceed an unaligned cap (the chunk pass keeps its upstream contract); for aligned caps the grid
 /// bounds widths above cap.  One input can go through every pair and the outputs be compared bit for bit.
