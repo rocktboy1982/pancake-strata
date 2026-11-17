@@ -19,7 +19,7 @@ if ! "$_py" "$repo/tools/pancake/spec_lint.py" --quiet >/dev/null 2>&1; then
 fi
 # doc_check (LEADS.md Part O O4): the documentation rules (no new document, no duplicate ledger id / spec number, no path that does not exist); BLOCKS on a
 # new finding.  SKIP_DOC_CHECK=1 skips it once.
-"$repo/tools/pancake/pre-push-doc-check.sh" || exit 1
+bash "$repo/tools/pancake/pre-push-doc-check.sh" || exit 1   # via bash: the script was committed without the execute bit (mode 100644; ntfs3 hides it), so a direct call failed with Permission denied
 # syntax_check (T-599): the matrix only configures, so a lost brace or a real line break inside a string literal in a merge reached
 # origin and broke the daily HIP build (T-586, T-594, T-598).  Compile-only (-fsyntax-only, the HIP build's own flags) of the C++/HIP
 # files this push changes, a few seconds; BLOCKS on an error.  Needs build-hip configured; says so and passes when it is not.
