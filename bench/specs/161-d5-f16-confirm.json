@@ -1,0 +1,26 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "long3k",
+  "long",
+  "long32k",
+  "long64k"
+ ],
+ "reps": 1,
+ "arms": {
+  "preset": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "f16-1": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  }
+ },
+ "note": "D5 confirm (MOD_PLAN section 4 D5, T-803): spec 122 screened STRATA_PF_F16=1 at +10.7 / +11.0 / +16.6% prompt tok/s at long / 32K / 64K (n=1, text identical, ORDER EFFECT flagged on two cases). The daily preset's STRATA_PF_F16=2 is NOT the F16 prompt-expert kernels (moe_f16_common.cuh accepts only a value starting with 1), so the preset arm is the F16-off baseline. Confirm run: python3 tools/pancake/abtest.py bench/specs/161-d5-f16-confirm.json --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --no-early-stop. Adopt (preset STRATA_PF_F16=1) only at >= 2% end to end with text identical (drift_check) and quality gate if the text differs."
+}
