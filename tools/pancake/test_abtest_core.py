@@ -92,7 +92,7 @@ def test_robust_bounds_needs_three_values_and_uses_the_floor():
 
 
 def test_robust_keep_drops_a_slow_attempt_whole_and_keeps_normal_spread():
-    # 25-kern-hip-confirm all3: short 120.9 (-5%, inside the bounds) and edit 101.4 (-29%) in the same start
+    # 186-kern-hip-confirm all3: short 120.9 (-5%, inside the bounds) and edit 101.4 (-29%) in the same start
     used = {"all3": [rec("all3", 0, rows=[row("short", 120.9), row("edit", 101.4)])] +
                     [rec("all3", r, rows=[row("short", 127.3), row("edit", e)]) for r, e in zip(range(1, 6), (145.5, 131.0, 142.5, 144.8, 143.1))],
             "base": [rec("base", r, rows=[row("short", 124.0), row("edit", e)]) for r, e in enumerate((143.9, 136.7, 133.4, 143.8, 143.3, 143.5))]}

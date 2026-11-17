@@ -701,7 +701,7 @@ def schedule(arms, reps, block=0):
 
 ROBUST_Z = 3.5        # modified z-score cut (Iglewicz & Hoaglin 1993: |0.6745 (x - median) / MAD| > 3.5)
 ROBUST_FLOOR = 0.025  # the spread estimate never below 2.5% of the median: the MAD of 4-6 values often sits in one tight cluster
-                      # (base edit 143.3-143.9, MAD 0.3%) while quiet, kept attempts spread more (25-kern-hip-confirm: base edit
+                      # (base edit 143.3-143.9, MAD 0.3%) while quiet, kept attempts spread more (186-kern-hip-confirm: base edit
                       # 133.4-143.9, SD ~2.6%); with the 3.5 cut a value must be ~9% off its median, and the slow engine states
                       # in the 2026-11-11 data are 10-35% off (short 93-111 and edit 93-111 against 124 / 143)
 ROBUST_MIN = 3        # fewer values in a group: nothing is judged (a median of two is no reference)
@@ -741,7 +741,7 @@ def request_slots(rec):
 def robust_keep(used, z=ROBUST_Z, floor=ROBUST_FLOOR, least=ROBUST_MIN):
     """{arm: [attempt]} -> (the same without the outlier passes, [dropped pass]).  A row is judged against the rows of the
     same arm, case and request slot (every start and pass pooled), on its case's metric.  A pass with an outlier row is
-    dropped whole (without --block: the attempt): a slow engine state slows every case of a start (25-kern-hip-confirm,
+    dropped whole (without --block: the attempt): a slow engine state slows every case of a start (186-kern-hip-confirm,
     all3 rep 0: short -5% and edit -29% in the same start)."""
     groups = {}
     for arm, recs in used.items():

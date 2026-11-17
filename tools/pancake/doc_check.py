@@ -35,6 +35,11 @@ ROOT = Path(__file__).resolve().parents[2]
 BASELINE = Path(__file__).resolve().parent / "doc_check_baseline.json"
 
 ALLOWED_MD = {"AGENTS.md", "README.md", "MOD_PLAN.md", "TEST_LEDGER.md", "LEADS.md", "CONTRIBUTING.md", "SECURITY.md"}
+# Inherited upstream files (written by the upstream author Niko1221, not by this fork's agents; found by the first run, 2026-11-17): a licence notice that
+# ships with a data file, the README of a data file, and three research-tool READMEs.  AGENTS.md rule 3 keeps inherited upstream documents as upstream has
+# them, so they are allowed by name; a NEW markdown file beside them is still a failure.
+INHERITED_MD = {"data/dflash2-tuned/NOTICE.md", "data/experimental-speed-projection/README.md", "tools/dflash2/README.md",
+                "tools/dsv41_lab/hip/README.md", "tools/trellis/README.md"}
 ALLOWED_MD_PREFIX = ("bench/results/", "pancake-docs/research/", "data/fork-kb/", "docs/", "third_party/", ".github/", "tests/", "apps/", "packaging/", "integrations/", "ref/", "spark/", "sycl/", "metal/", "docker/")
 REF_DOCS = ("MOD_PLAN.md", "LEADS.md", "TEST_LEDGER.md", "README.md")
 REF_EXT = (".cpp", ".hpp", ".cu", ".cuh", ".h", ".py", ".json", ".md", ".sh", ".def", ".cmake", ".txt", ".hip", ".html", ".ps1", ".bat", ".c")
@@ -51,7 +56,7 @@ def tracked(pattern: str) -> list:
 
 def check_md(files: list) -> list:
     """Tracked markdown files that are neither allowed nor baselined (the names; the caller subtracts the baseline)."""
-    return sorted(f for f in files if f not in ALLOWED_MD and not f.startswith(ALLOWED_MD_PREFIX))
+    return sorted(f for f in files if f not in ALLOWED_MD and f not in INHERITED_MD and not f.startswith(ALLOWED_MD_PREFIX))
 
 
 def ledger_ids(text: str) -> list:

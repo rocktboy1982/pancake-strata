@@ -14,8 +14,17 @@ Does:
 
 Interface:
 ```
-python tools/pancake/spec_lint.py [--dir bench/specs] [--quiet]
+python tools/pancake/spec_lint.py [--dir bench/specs] [--quiet] [--require-predict-from N]
+python tools/pancake/spec_lint.py --score SPEC.json OBSERVED.json
 ```
+
+Pre-registered predictions and stop rules (LEADS.md Part O O13; the idea of writing the expected numbers down before the first timed run and scoring them
+afterwards without rescoring; tool only, no document).  A spec may carry two OPTIONAL top-level keys (abtest.py ignores them):
+  "predict": [{"arm": "x", "case": "short" (optional), "metric": "pct" (optional, default "pct"), "lo": 1.0, "hi": 4.0, "why": "..." (optional)}, ...]
+  "stop":    ["text of a stop rule", ...]      (or [{"if": "...", "then": "..."}])
+The lint checks their shape (arm and case names exist, lo <= hi, numbers) and, with --require-predict-from N, demands both keys on every spec numbered N or
+more (a new spec after N must say what it expects and when to stop).  --score reads an OBSERVED json ({"<arm>/<case>": value} or {"<arm>": value} per
+metric key "pct"; {"<metric>": {"<arm>/<case>": value}} for another) and prints hit / MISS per prediction; the table is the record, nothing is rescored.
 Requires `git` on PATH for stale reference checks; exitable no-phantom on empty env.
 
 Reversible:
@@ -126,6 +135,67 @@ def inert_gate(preset_args: list, arm: dict) -> str | None:
     return None
 
 
+def predict_problems(spec: dict) -> list:
+    """Shape errors of the optional "predict" / "stop" keys of one parsed spec (empty list: fine or absent)."""
+    bad = []
+    arms = set((spec.get("arms") or {}).keys())
+    cases = set()
+    c = spec.get("cases")
+    if isinstance(c, dict):
+        cases = set(c.keys())
+    elif isinstance(c, list):
+        cases = {x.get("name") if isinstance(x, dict) else x for x in c}
+    pr = spec.get("predict")
+    if pr is not None:
+        if not isinstance(pr, list) or not pr:
+            bad.append('"predict" must be a non-empty list')
+        else:
+            for i, e in enumerate(pr):
+                if not isinstance(e, dict):
+                    bad.append(f"predict[{i}] is not an object")
+                    continue
+                if e.get("arm") not in arms:
+                    bad.append(f"predict[{i}] arm {e.get('arm')!r} is not an arm of the spec")
+                if e.get("case") is not None and cases and e["case"] not in cases:
+                    bad.append(f"predict[{i}] case {e['case']!r} is not a case of the spec")
+                lo, hi = e.get("lo"), e.get("hi")
+                if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (lo, hi)):
+                    bad.append(f"predict[{i}] needs numeric lo and hi")
+                elif lo > hi:
+                    bad.append(f"predict[{i}] lo {lo} is above hi {hi}")
+    st = spec.get("stop")
+    if st is not None:
+        if not isinstance(st, list) or not st:
+            bad.append('"stop" must be a non-empty list')
+        else:
+            for i, e in enumerate(st):
+                ok = (isinstance(e, str) and e.strip()) or (isinstance(e, dict) and e.get("if") and e.get("then"))
+                if not ok:
+                    bad.append(f"stop[{i}] must be a text or an object with if and then")
+    return bad
+
+
+def score_predictions(spec: dict, observed: dict) -> list:
+    """[(label, lo, hi, value or None, 'hit' | 'MISS' | 'no data')] for every prediction of the spec against OBSERVED values."""
+    out = []
+    for e in spec.get("predict") or []:
+        metric = e.get("metric", "pct")
+        table = observed.get(metric) if isinstance(observed.get(metric), dict) else (observed if metric == "pct" else {})
+        key = e["arm"] + ("/" + e["case"] if e.get("case") else "")
+        v = table.get(key)
+        label = f"{key} [{metric}]"
+        if not isinstance(v, (int, float)):
+            out.append((label, e["lo"], e["hi"], None, "no data"))
+        else:
+            out.append((label, e["lo"], e["hi"], v, "hit" if e["lo"] <= v <= e["hi"] else "MISS"))
+    return out
+
+
+def spec_number(name: str):
+    m = re.match(r"(\d+)-", name)
+    return int(m.group(1)) if m else None
+
+
 def preset_argv(spec_file: Path):
     """The `args`-style argv list of the spec's base preset, or None when it cannot be read."""
     try:
@@ -147,7 +217,23 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dir", default=str(ROOT / "bench" / "specs"))
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--require-predict-from", type=int, default=None, metavar="N",
+                    help='specs numbered N or more must carry "predict" and "stop" (O13)')
+    ap.add_argument("--score", nargs=2, metavar=("SPEC", "OBSERVED"), help="score the spec's predictions against an observed json and exit")
     args = ap.parse_args(argv)
+
+    if args.score:
+        try:
+            spec = json.loads(Path(args.score[0]).read_text(encoding="utf-8"))
+            obs = json.loads(Path(args.score[1]).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as ex:
+            print(f"spec_lint: {ex}", file=sys.stderr)
+            return 2
+        rows = score_predictions(spec, obs)
+        for label, lo, hi, v, verdict in rows:
+            print(f"{verdict:8s} {label}: predicted [{lo}, {hi}], observed {v}")
+        print(f"spec_lint: {sum(r[4] == 'hit' for r in rows)} hit, {sum(r[4] == 'MISS' for r in rows)} missed, {sum(r[4] == 'no data' for r in rows)} without data")
+        return 0 if all(r[4] == "hit" for r in rows) else 1
 
     spec_dir = Path(args.dir)
     if not spec_dir.is_dir():
@@ -161,6 +247,22 @@ def main(argv: list[str] | None = None) -> int:
 
     missing = 0
     inert = 0
+    pbad = 0
+    for sf in sorted(spec_dir.glob("*.json")):
+        try:
+            sd = json.loads(sf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(sd, dict):
+            continue
+        probs = predict_problems(sd)
+        n = spec_number(sf.name)
+        if args.require_predict_from is not None and n is not None and n >= args.require_predict_from:
+            probs += [f'"{k}" is missing (required from spec {args.require_predict_from})' for k in ("predict", "stop") if k not in sd]
+        for pm in probs:
+            pbad += 1
+            print(f"PREDICT      {sf.name}: {pm}")
+    missing += pbad
     presets: dict = {}
     for spec_file, arm, body in walk_specs(spec_dir):
         if spec_file not in presets:

@@ -10,6 +10,14 @@ def test_md_allowed_and_not():
     files = ["README.md", "MOD_PLAN.md", "docs/QUANTS.md", "bench/results/2026-09-24-x/README.md", "pancake-docs/research/bench/a.md",
              "pancake-docs/NIGHT_RESULTS_X.md", "NEW_REPORT.md", "tools/foo/NOTES.md"]
     assert D.check_md(files) == ["NEW_REPORT.md", "pancake-docs/NIGHT_RESULTS_X.md", "tools/foo/NOTES.md"]
+    # the five inherited upstream files are allowed by name; a new file beside them is not
+    assert D.check_md(["tools/trellis/README.md", "tools/dflash2/README.md", "tools/trellis/NEW.md"]) == ["tools/trellis/NEW.md"]
+
+
+def test_baseline_is_empty_and_hook_exists():
+    assert D.load_baseline() == {}                                  # everything the first run found is fixed; the baseline only shrinks
+    hook = D.ROOT / "tools/pancake/pre-push-doc-check.sh"
+    assert hook.exists() and "doc_check.py" in hook.read_text() and "SKIP_DOC_CHECK" in hook.read_text()
 
 
 def test_ledger_ids_and_duplicates():

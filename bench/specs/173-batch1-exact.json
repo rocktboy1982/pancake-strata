@@ -4,7 +4,7 @@
   "short",
   "edit"
  ],
- "note": "dev/batch-1 exact opt-ins, one screen. 'port' = the daily binary (sanity: same text, same speed as base).",
+ "note": "Renumbered 2026-11-17 from 173-batch1-exact (duplicate spec number); result archives under bench/results keep the old name. dev/batch-1 exact opt-ins, one screen. 'port' = the daily binary (sanity: same text, same speed as base).",
  "arms": {
   "base": {},
   "port": {

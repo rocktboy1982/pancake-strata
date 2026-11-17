@@ -2,7 +2,7 @@
  "items": [
   {
    "name": "A33-expdec-swiglu",
-   "spec": "bench/specs/25-kern-hip-confirm.json",
+   "spec": "bench/specs/186-kern-hip-confirm.json",
    "exact": true,
    "branch": "dev/batch-2",
    "commits": [],
@@ -19,7 +19,7 @@
   },
   {
    "name": "A33-A35-F9-F21-all3",
-   "spec": "bench/specs/25-kern-hip-confirm.json",
+   "spec": "bench/specs/186-kern-hip-confirm.json",
    "exact": true,
    "branch": "dev/p16/kern-hip",
    "commits": [],
