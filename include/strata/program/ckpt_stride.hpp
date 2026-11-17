@@ -34,10 +34,10 @@ inline CkptStride ckpt_stride_from_env(const char* stride, const char* max_count
 inline int64_t ckpt_next_check(const CkptStride& c, int64_t resume, int64_t done, int64_t every) {
     constexpr int64_t none = std::numeric_limits<int64_t>::max();
     if (every <= 0) return none;                    // off stays off
-    if (c.stride <= 0) return done + every;         // the old rule
+    if (c.stride <= 0) return every > none - done ? none : done + every;   // the old rule (saturates: no signed overflow)
     const int64_t taken = done > resume ? (done - resume) / c.stride : 0;
     if (taken >= c.max_count) return none;
-    return done + c.stride;
+    return c.stride > none - done ? none : done + c.stride;   // a huge stride: none, not an overflow
 }
 
 }  // namespace strata::program
