@@ -474,6 +474,7 @@ def orphan(argv0):
     return int(r.stdout)
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX process groups/signals")
 def test_busy_processes_lists_others_but_not_its_own_tree():
     pid = orphan("python3 tools/pancake/abtest.py")
     shell = orphan("bash -c sleep 60  # python3 tools/pancake/abtest.py")                              # a mention
@@ -511,6 +512,7 @@ def start_own(monkeypatch, script):
     return p, first
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX process groups/signals")
 def test_stop_servers_ends_its_own_server_and_the_engine_below_it_and_nothing_else(monkeypatch, tmp_path):
     foreign_server = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "serve/server.py", "--engine", "strata"])
     (tmp_path / "strata").write_text(f"#!{sys.executable}\nimport time\ntime.sleep(60)\n")
@@ -533,6 +535,7 @@ def test_stop_servers_ends_its_own_server_and_the_engine_below_it_and_nothing_el
             p.wait()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX process groups/signals")
 def test_stop_servers_kills_its_own_server_that_ignores_sigterm_after_the_wait(monkeypatch, capsys):
     stuck, _ = start_own(monkeypatch, STUCK_SCRIPT)
     A.stop_servers(wait=2)

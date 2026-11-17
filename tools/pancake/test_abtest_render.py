@@ -1,4 +1,5 @@
 """abtest.render_preset fills the preset placeholders (regression: the server died before ready on a literal <STRATA_DATA>)."""
+import sys
 import importlib.util
 import json
 import os
@@ -20,6 +21,7 @@ class RenderPreset(unittest.TestCase):
         self.assertTrue(d["b"].endswith("Strata-data/packs"))
         self.assertTrue(d["c"].endswith("models/m"))
 
+    @unittest.skipIf(not sys.platform.startswith("linux"), "render_preset splices the raw repo path into JSON text: Linux paths only")
     def test_default_repo_is_the_checkout(self):
         out = abtest.render_preset('{"a": "<REPO>"}')
         self.assertTrue(os.path.isdir(json.loads(out)["a"]))

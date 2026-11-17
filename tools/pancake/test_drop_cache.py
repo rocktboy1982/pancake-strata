@@ -1,6 +1,7 @@
 """Unit tests for drop_cache.py: which files are hinted (owner, regular, size, symlinks), that nothing is modified, the
 dry run, the /proc parsers (fixtures) and the command line.  Temp dirs only, no root, no GPU.
 Run: python -m pytest tools/pancake/test_drop_cache.py   (or python tools/pancake/test_drop_cache.py)"""
+import pytest
 import contextlib
 import io
 import os
@@ -31,6 +32,7 @@ def make_tree(root):
     return big
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.posix_fadvise / os.getuid (Linux)")
 def test_hints_big_owned_regular_files_recursively_and_nothing_else():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -42,6 +44,7 @@ def test_hints_big_owned_regular_files_recursively_and_nothing_else():
         assert all(c.args[1:] == (0, 0, os.POSIX_FADV_DONTNEED) for c in fadvise.call_args_list)   # whole file, DONTNEED
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.posix_fadvise / os.getuid (Linux)")
 def test_dry_run_counts_the_same_and_sends_no_hint():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -52,6 +55,7 @@ def test_dry_run_counts_the_same_and_sends_no_hint():
         fadvise.assert_not_called()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.posix_fadvise / os.getuid (Linux)")
 def test_other_owners_are_skipped():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -62,6 +66,7 @@ def test_other_owners_are_skipped():
         fadvise.assert_not_called()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.posix_fadvise / os.getuid (Linux)")
 def test_nothing_is_modified_or_removed():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -74,6 +79,7 @@ def test_nothing_is_modified_or_removed():
         assert (root / "big.bin").read_bytes() == contents
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.posix_fadvise / os.getuid (Linux)")
 def test_symlink_to_a_big_file_is_not_hinted_or_followed():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -104,6 +110,7 @@ def test_default_roots_exist_only():
     assert all(os.path.isdir(r) for r in roots)
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.posix_fadvise / os.getuid (Linux)")
 def test_cli_dry_run_prints_before_and_no_after():
     with tempfile.TemporaryDirectory() as tmp:
         make_tree(Path(tmp))
@@ -116,6 +123,7 @@ def test_cli_dry_run_prints_before_and_no_after():
         assert "would hint 2 files" in text and "after:" not in text
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.posix_fadvise / os.getuid (Linux)")
 def test_cli_hints_then_prints_after():
     with tempfile.TemporaryDirectory() as tmp:
         make_tree(Path(tmp))

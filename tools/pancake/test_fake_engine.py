@@ -105,6 +105,7 @@ def test_engine_repeat_is_by_exact_text_and_switch_lines_come_once(tmp_path):
     assert first["usage"]["completion_tokens"] == 512 and chat(eng, EDIT, max_tokens=32)["usage"]["completion_tokens"] == 32
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and a POSIX venv layout")
 def test_real_run_active_looks_at_argv_not_at_text(tmp_path):
     if F.real_run_active():
         pytest.skip("a real run is active on this machine")
@@ -122,6 +123,7 @@ def test_real_run_active_looks_at_argv_not_at_text(tmp_path):
         mention.kill()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and a POSIX venv layout")
 def test_fake_root_layout(tmp_path):
     root = F.make_fake_root(tmp_path / "r")
     clean_env = {"PATH": os.environ["PATH"]}

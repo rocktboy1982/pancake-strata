@@ -2,6 +2,7 @@
 engine, no GPU.  It plays two servers: "pancake" (/health says service=strata, has /metrics and /v1/status whose totals
 grow with every request) and "llama" (no /metrics, no /v1/status).
 Run: nice -n 19 python3 -I -m pytest -q tools/pancake/test_prose_gap.py"""
+import pytest
 import json
 import sys
 import threading
@@ -98,6 +99,7 @@ def test_numeric_diff_nested_and_skips():
     assert d == {"a": 3, "b": {"c": 3.5}}
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.getloadavg (Linux)")
 def test_series_pancake_discards_run1_and_snapshots(tmp_path, capsys):
     with Fake(True, [50.0, 100.0, 110.0, 90.0, 100.0]) as f:
         out = tmp_path / "p.json"
@@ -124,6 +126,7 @@ def test_series_pancake_discards_run1_and_snapshots(tmp_path, capsys):
         assert len(text.strip().splitlines()) < 40                # one screen
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.getloadavg (Linux)")
 def test_series_llama_takes_no_snapshot(tmp_path):
     with Fake(False, [100.0]) as f:
         out = tmp_path / "a.json"
@@ -134,6 +137,7 @@ def test_series_llama_takes_no_snapshot(tmp_path):
         assert res["prompt_name"] == "tips" and f.prompts[0] == pg.PROMPTS["tips"]
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.getloadavg (Linux)")
 def test_engine_flag_overrides_detection(tmp_path):
     with Fake(False, [100.0]) as f:                           # a server that does not say "strata", forced to pancake mode
         out = tmp_path / "x.json"
@@ -142,6 +146,7 @@ def test_engine_flag_overrides_detection(tmp_path):
         assert res["engine_kind"] == "pancake" and res["snapshot_after"]["totals"] is None   # endpoints missing: empty, no crash
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.getloadavg (Linux)")
 def test_unreachable_server_exit_2(capsys):
     with Fake(False, [100.0]) as f:
         port = f.port
@@ -149,6 +154,7 @@ def test_unreachable_server_exit_2(capsys):
     assert "no request succeeded" in capsys.readouterr().err
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.getloadavg (Linux)")
 def test_compare(tmp_path, capsys):
     with Fake(False, [100.0, 100.0], accepted=300) as a, Fake(True, [90.0, 90.0], accepted=250) as b:
         pa, pb = tmp_path / "a.json", tmp_path / "b.json"
@@ -162,6 +168,7 @@ def test_compare(tmp_path, capsys):
         assert ja["summary"]["tok_per_window"]["median"] > jb["summary"]["tok_per_window"]["median"]
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs os.getloadavg (Linux)")
 def test_server_log_mean_len_parsed(tmp_path):
     log = tmp_path / "svc.log"
     old = "0.1 I slot print_timing: id  0 | task 1 | draft acceptance = 0.10000 (    1 accepted /    10 generated), mean len =  1.10\n"

@@ -1,6 +1,7 @@
 """Tests for the A18 / A17 / A20 additions of task_gate.py and abtest.make_config: a per-arm request override (thinking level),
 a per-arm server config, and the time-to-success curve.  No server, no GPU.
 python -m pytest tools/pancake/test_task_gate_effort.py"""
+import pytest
 import json
 import sys
 import tempfile
@@ -69,6 +70,7 @@ def test_chat_body_carries_the_effort(monkeypatch=None):
         T.urllib.request.urlopen = real
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="abtest.make_config splices the raw repo path into JSON text: Linux paths only")
 def test_make_config_sets_server_config_keys_and_leaves_old_arms_alone():
     base = T.ROOT / "configs/pancake/flashnext-iq2_xs-fast-hip.json"
     with tempfile.TemporaryDirectory() as d:
@@ -91,7 +93,7 @@ def test_the_new_specs_are_well_formed():
             assert isinstance(arm.get("config", {}), dict)
         assert (T.ROOT / spec["base"]).exists() and (T.ROOT / spec["tasks"]).exists()
     # every config key an arm sets is one the server reads
-    server = (T.ROOT / "serve/server.py").read_text()
+    server = (T.ROOT / "serve/server.py").read_text(encoding="utf-8")
     for name in ("caps", "rumination"):
         for arm in json.load(open(SPECS / f"taskgate-{name}.json"))["arms"].values():
             for key in arm.get("config", {}):

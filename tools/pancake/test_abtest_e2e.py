@@ -148,6 +148,7 @@ def engine_lines(root, name):
 
 
 # ------------------------------------------------------------------------------------------------------------ old mode
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_old_mode_order_schema_text_and_gain(root):
     base = config(root, "old", **LOW_NOISE)
     arms = {"base": {}, "fast": {"env": {"FAKE_GAIN_PCT": "10"}}, "salted": {"env": {"FAKE_TEXT_SALT": "x"}}}
@@ -174,6 +175,7 @@ def test_old_mode_order_schema_text_and_gain(root):
     assert gain["n"] == 2 and 7 < gain["gain"] < 13
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_screen_tier_asks_every_case_twice_and_the_second_edit_is_faster(root):
     base = config(root, "screen", **LOW_NOISE)
     out = root / "screen.jsonl"
@@ -187,6 +189,7 @@ def test_screen_tier_asks_every_case_twice_and_the_second_edit_is_faster(root):
     assert re.search(r"fast\s+short \+\d+\.\d%\s+edit \+\d+\.\d%\s+-> PROMOTE to confirm", r.stdout)
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_early_stop_after_two_decided_reps(root):
     base = config(root, "early", **LOW_NOISE)
     out = root / "early.jsonl"
@@ -195,6 +198,7 @@ def test_early_stop_after_two_decided_reps(root):
     assert len(records(out)) == 4
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_a_server_that_dies_once_is_retried_and_twice_aborts(root):
     one = config(root, "die1", die_starts=[0], **LOW_NOISE)
     out = root / "die1.jsonl"
@@ -208,6 +212,7 @@ def test_a_server_that_dies_once_is_retried_and_twice_aborts(root):
     assert r.returncode == 2 and "ABORT: the server died twice before ready" in r.stdout and not out2.read_text().strip()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_the_gate_keeps_a_slow_start_that_no_proxy_flagged(root):
     """Start 4 of A B B A (base, fast, fast, base, base, ...) runs at 60%: nothing in the old rules sees it (no foreign CPU), so it stays."""
     base = config(root, "slow", slow_starts=[4], slow_factor=0.6, **LOW_NOISE)
@@ -222,6 +227,7 @@ def test_the_gate_keeps_a_slow_start_that_no_proxy_flagged(root):
 
 
 # ------------------------------------------------------------------------------------------------------------ new modes
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_block_mode_passes_per_start_in_abba_order_and_cold_passes(root):
     need(root, "--block")
     base = config(root, "block", **LOW_NOISE)
@@ -239,6 +245,7 @@ def test_block_mode_passes_per_start_in_abba_order_and_cold_passes(root):
     assert summary_n(r.stdout, "edit", "base")[1] == 6
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_promote_reads_a_block_start_as_one_pair_so_three_starts_per_arm_are_needed(root):
     """promote.py pairs by (arm, rep) and averages the rows of a case inside a record: one pair per start.  Its MIN_PAIRS is 3, abtest's
     default is max(2, ceil(reps / N)) starts per arm, so --block 3 --reps 6 can never PROMOTE (2 pairs): ask for reps >= 3 x N."""
@@ -256,6 +263,7 @@ def test_promote_reads_a_block_start_as_one_pair_so_three_starts_per_arm_are_nee
     assert len(found[6]) == 2 < promote.MIN_PAIRS <= len(found[9]) == 3
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_warmup_passes_are_thrown_away(root):
     need(root, "--warmup")
     base = config(root, "warm", cold_pct=[40.0, 10.0], **LOW_NOISE)
@@ -269,6 +277,7 @@ def test_warmup_passes_are_thrown_away(root):
     assert len(engine_lines(root, "warm")) == 4 * (1 + 2) * 2                                # no single short warm-up request in its place
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_robust_rule_runs_a_slow_start_again_where_the_gate_keeps_it(root):
     need(root, "--outlier")
     arms = {"base": {}, "fast": {"env": {"FAKE_GAIN_PCT": "10"}}}
@@ -285,6 +294,7 @@ def test_robust_rule_runs_a_slow_start_again_where_the_gate_keeps_it(root):
     assert all(x["clean"] for x in recs) and "1 slow starts left out" in robust.stdout       # no proxy flagged it: the outcome did
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_robust_rule_tells_the_slow_start_apart_with_two_starts_per_arm(root):
     need(root, "--outlier")
     base = config(root, "robust-two", slow_starts=[3], slow_factor=0.6, **LOW_NOISE)         # base's second start (A B | B A)
@@ -296,6 +306,7 @@ def test_robust_rule_tells_the_slow_start_apart_with_two_starts_per_arm(root):
     assert "1 slow starts left out" in r.stdout and summary_n(r.stdout, "short", "base") == (pytest.approx(121.5 * 1.02, rel=0.03), 4)   # 2 starts x 2 passes
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_tier_is_recorded_from_the_engine_line_and_capped_sh(root):
     need(root, "--block")        # the tier record landed with the block / warm-up / outlier change
     out = root / "tier.jsonl"
@@ -307,6 +318,7 @@ def test_tier_is_recorded_from_the_engine_line_and_capped_sh(root):
     assert (records(out2)[0]["tier"], records(out2)[0]["tier_source"]) == ("mmap", "capped")   # no engine line: capped.sh's guess
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_every_start_keeps_its_engine_log_with_the_switch_lines(root):
     need(root, "--block")
     base = config(root, "sw", **LOW_NOISE)
@@ -326,6 +338,7 @@ def slow(seconds):
     return {"latency_s": seconds / float(SCALE), **LOW_NOISE}
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_two_abtests_side_by_side_stop_only_their_own_server(root):
     """The old stop_servers() ended every `server.py --engine strata` of the machine: B's first stop killed A's server in mid-run."""
     need(root, "--force-busy")
@@ -353,6 +366,7 @@ def test_two_abtests_side_by_side_stop_only_their_own_server(root):
 
 @pytest.mark.parametrize("n, argv0", [("abtest", "python3 tools/pancake/abtest.py"), ("restore", "python3 tools/pancake/restore_check.py"),
                                       ("engine", "/opt/x/build-hip/strata")])
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_abtest_refuses_to_start_while_another_test_or_engine_runs(root, n, argv0):
     need(root, "--force-busy")
     sp, out = spec(root, f"busy-{n}", config(root, f"busy-{n}", **LOW_NOISE), {"base": {}}, reps=1), root / f"busy-{n}.jsonl"
@@ -371,6 +385,7 @@ def test_abtest_refuses_to_start_while_another_test_or_engine_runs(root, n, argv
         decoy.wait()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_a_shell_that_only_mentions_abtest_does_not_stop_a_start(root):
     need(root, "--force-busy")
     decoy = subprocess.Popen(["bash", "-c", "sleep 60; true  # python3 tools/pancake/abtest.py"])
@@ -384,6 +399,7 @@ def test_a_shell_that_only_mentions_abtest_does_not_stop_a_start(root):
         decoy.wait()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_a_leftover_server_is_reported_and_never_killed(root):
     """A `server.py --engine strata` that abtest did not start (a crashed run's, or another session's): reported with its pid, left running."""
     need(root, "--force-busy")
@@ -406,6 +422,7 @@ def test_a_leftover_server_is_reported_and_never_killed(root):
         stale.wait()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_sigterm_ends_abtest_and_the_server_it_started(root):
     """A killed abtest must not leave its server behind: the next start would refuse (a leftover), and before it was killed by name."""
     need(root, "--force-busy")
@@ -450,6 +467,7 @@ def queue_env(root):
     return {}
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_queue_dry_run_prints_the_commands_and_runs_nothing(root, tmp_path):
     items, one, two = queue_items(root, "dry")
     r = queue(root, tmp_path / "out", *items, "no-such-spec.json", flags=["-n"], env=queue_env(root))
@@ -460,6 +478,7 @@ def test_queue_dry_run_prints_the_commands_and_runs_nothing(root, tmp_path):
     assert not list((tmp_path / "out").glob("*.jsonl")) and not list((tmp_path / "out").glob("*.summary.txt"))
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_queue_runs_two_specs_then_skips_them_on_a_second_call(root, tmp_path):
     items, one, two = queue_items(root, "real")
     out, env = tmp_path / "out", queue_env(root)
@@ -478,6 +497,7 @@ def test_queue_runs_two_specs_then_skips_them_on_a_second_call(root, tmp_path):
     assert {p.name: p.read_text() for p in out.glob("*.jsonl")} == before                    # resumable: nothing was run again
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_queue_stops_while_another_test_runs(root, tmp_path):
     if "BUSY_PATTERN" not in (root / "tools/pancake/queue_run.sh").read_text():
         pytest.skip("this queue_run.sh has a fixed busy pattern (BUSY_PATTERN comes with tier-tools' change)")
@@ -506,6 +526,7 @@ def test_queue_busy_check_ignores_a_shell_that_only_mentions_abtest(root, tmp_pa
     assert r.returncode == 0, r.stdout
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc and POSIX signals (fake-engine end-to-end)")
 def test_queue_night_window_and_drop_cache(root, tmp_path):
     text = (root / "tools/pancake/queue_run.sh").read_text()
     if "--night-only" not in text or "--drop-cache" not in text:

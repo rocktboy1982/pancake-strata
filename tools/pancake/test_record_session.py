@@ -407,6 +407,7 @@ def plan_args(repo, out, *extra):
     return ap_args + list(extra)
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="abtest.make_config splices the raw repo path into JSON text: Linux paths only")
 def test_plan_builds_the_config_and_prints_the_command(monkeypatch, capsys):
     repo = fake_repo()
     called = []
@@ -433,6 +434,7 @@ def test_plan_builds_the_config_and_prints_the_command(monkeypatch, capsys):
     assert "STRATA_WINDOW_TRACE" not in json.loads((repo / "configs/pancake/p.json").read_text())["env"]
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="abtest.make_config splices the raw repo path into JSON text: Linux paths only")
 def test_plan_options_and_refusals(monkeypatch, capsys):
     monkeypatch.setattr(rs.subprocess, "run", lambda *a, **k: type("R", (), {"stdout": ""})())
     repo = fake_repo(env={"STRATA_ROUTE_TAIL_SKIP": "0"})
@@ -469,6 +471,7 @@ def test_plan_options_and_refusals(monkeypatch, capsys):
         rs.main(plan_args(repo, repo.parent / "rz")[:2] + ["nosuchpreset"] + plan_args(repo, repo.parent / "rz")[3:])
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="abtest.make_config splices the raw repo path into JSON text: Linux paths only")
 def test_plan_run_starts_the_server_once_then_checks(monkeypatch, capsys):
     repo = fake_repo()
     calls = []
@@ -575,16 +578,17 @@ def test_check_warnings(capsys):
 def test_convert_cli_writes_the_replay_inputs_and_prints_commands(capsys):
     d, _ = recording(norms=True)
     assert rs.main(["convert", str(d)]) == 0
-    text = capsys.readouterr().out
+    text = capsys.readouterr().out.replace("\\", "/")      # Windows paths print with backslashes: compare as posix
     r = d / "replay"
+    rp = r.as_posix()
     for name in ("routing.bin", "session.stwt", "turns.jsonl", "act_norm.npy", "convert.json"):
         assert (r / name).exists(), name
     info = json.loads((r / "convert.json").read_text())
     assert info["weights"] == "valid" and info["cuts"] == [9, 18] and info["turns"]["turns"] == 8
-    assert f"time_ceiling.py {r}/routing.bin data/expert-profile-pancake.bin 10909 --validate" in text
-    assert f"finemoe_replay.py data/expert-profile-pancake.bin 10909 {r}/routing.bin --cuts 9,18" in text
-    assert f"reap_saliency.py {r}/session.stwt" in text and f"--act-norm {r}/act_norm.npy" in text
-    assert f"replay_turns.py SPEC.json --out DIR --turns {r}/turns.jsonl" in text
+    assert f"time_ceiling.py {rp}/routing.bin data/expert-profile-pancake.bin 10909 --validate" in text
+    assert f"finemoe_replay.py data/expert-profile-pancake.bin 10909 {rp}/routing.bin --cuts 9,18" in text
+    assert f"reap_saliency.py {rp}/session.stwt" in text and f"--act-norm {rp}/act_norm.npy" in text
+    assert f"replay_turns.py SPEC.json --out DIR --turns {rp}/turns.jsonl" in text
     d2, _ = recording(weights="zero")
     assert rs.main(["convert", str(d2), "--weights", "auto", "--slots", "5000"]) == 0
     text = capsys.readouterr().out

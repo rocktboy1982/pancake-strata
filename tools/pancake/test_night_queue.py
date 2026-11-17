@@ -135,7 +135,7 @@ def test_dry_run_prints_order_commands_and_total_and_writes_nothing(tmp_path, ca
     assert rc == 0
     pos = [out.index(f"] {n} ") for n in ("dfr-01A", "dfr-02B", "dfr-03B", "dfr-04A", "later")]
     assert pos == sorted(pos)
-    assert "nq_clients.py decode" in out and "client pass 3" in out and "client pass 3" in out.split("later")[0]
+    assert ("nq_clients.py decode" in out or "nq_clients.py' decode" in out) and "client pass 3" in out and "client pass 3" in out.split("later")[0]
     assert '"STRATA_VERIFY_DEFER_CPU": null' in out
     assert "estimated total: " in out and "(" in out.split("estimated total: ")[1]
     assert "quiet" in out or "guard:" in out
@@ -157,6 +157,7 @@ def test_dry_run_total_is_the_sum_of_the_job_estimates(tmp_path, capsys):
 
 
 # ---------------------------------------------------------------------------------------------------------------- full fake run
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_fake_run_all_jobs_results_and_arms(tmp_path):
     plan = make_plan(tmp_path, free_port())
     rc, rd = run_main(tmp_path, plan)
@@ -187,6 +188,7 @@ def test_fake_run_all_jobs_results_and_arms(tmp_path):
     assert (rd / "night_queue.pid").read_text().strip().isdigit()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_fake_run_other_clients_and_post_step(tmp_path):
     port = free_port()
     py = "{py}"
@@ -221,6 +223,7 @@ def test_fake_run_other_clients_and_post_step(tmp_path):
 
 
 # ---------------------------------------------------------------------------------------------------------------- resume / state
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_resume_skips_finished_jobs_and_state_file_guards(tmp_path):
     plan = make_plan(tmp_path, free_port())
     rc, rd = run_main(tmp_path, plan, ["--only", "dfr-01A,dfr-02B"])
@@ -241,6 +244,7 @@ def test_resume_skips_finished_jobs_and_state_file_guards(tmp_path):
     assert all(v["status"] == "done" for v in state["jobs"].values()) and len(state["jobs"]) == 5
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_resume_without_state_and_fresh(tmp_path):
     plan = make_plan(tmp_path, free_port())
     assert run_main(tmp_path, plan, ["--resume", "--only", "later"])[0] == 2
@@ -250,6 +254,7 @@ def test_resume_without_state_and_fresh(tmp_path):
     assert rc == 0 and list(tmp_path.glob("run.old-*"))
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_failed_job_is_finished_for_resume_unless_retry_failed(tmp_path):
     port = free_port()
     jobs = [{"name": "bad", "group": "g", "engine": "dead", "client": {"kind": "decode", "cmd": ["{py}", "-c", "pass"]}},
@@ -292,6 +297,7 @@ def test_busy_processes_detection():
     assert found == ["5", "6", "7", "8", "12"]
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_guard_waits_until_the_machine_is_quiet_then_runs(tmp_path):
     plan = NQ.load_plan(make_plan(tmp_path, free_port(), jobs=[
         {"name": "one", "group": "g", "engine": "fake-a",
@@ -318,6 +324,7 @@ def test_guard_waits_until_the_machine_is_quiet_then_runs(tmp_path):
     assert probe.t >= 3          # it really waited (virtual seconds)
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_guard_skips_a_job_when_the_machine_never_gets_quiet(tmp_path):
     plan = NQ.load_plan(make_plan(tmp_path, free_port()))
     probe = FakeProbe(loads=[5.0], mems=[20.0])
@@ -335,6 +342,7 @@ def test_guard_skips_a_job_when_the_machine_never_gets_quiet(tmp_path):
     assert not q.finished("dfr-01A")
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_guard_sees_a_busy_port(tmp_path):
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -349,6 +357,7 @@ def test_guard_sees_a_busy_port(tmp_path):
 
 
 # ---------------------------------------------------------------------------------------------------------------- stop / timeout
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_stop_session_ends_children_by_pid_and_the_leader(tmp_path):
     marker = f"nq-test-{os.getpid()}-{time.time_ns()}"
     proc = subprocess.Popen(["sh", "-c", f"sleep 120 & sleep 120 & wait # {marker}"], start_new_session=True)
@@ -360,6 +369,7 @@ def test_stop_session_ends_children_by_pid_and_the_leader(tmp_path):
     assert info["sigterm"] >= 1
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_stop_session_kills_a_process_that_ignores_sigterm():
     proc = subprocess.Popen([sys.executable, "-c", "import signal,time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
                              "print('up', flush=True)\ntime.sleep(120)"], start_new_session=True, stdout=subprocess.PIPE)
@@ -368,6 +378,7 @@ def test_stop_session_kills_a_process_that_ignores_sigterm():
     assert info["gone"] and info["sigkill"] >= 1 and proc.returncode == -signal.SIGKILL
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_job_timeout_stops_the_client_and_the_engine(tmp_path):
     port = free_port()
     jobs = [{"name": "slow", "group": "g", "engine": "fake-a", "timeout_min": 0.03,
@@ -381,6 +392,7 @@ def test_job_timeout_stops_the_client_and_the_engine(tmp_path):
     assert not NQ.Probe().port_busy(port)
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_results_only_rewrites_from_state(tmp_path):
     plan = make_plan(tmp_path, free_port())
     rc, rd = run_main(tmp_path, plan, ["--only", "later"])
@@ -390,6 +402,7 @@ def test_results_only_rewrites_from_state(tmp_path):
 
 
 # ---------------------------------------------------------------------------------------------------------------- the fake server itself
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_fake_server_speaks_the_decode_and_stream_protocol(tmp_path):
     port = free_port()
     cfg = tmp_path / "c.json"
@@ -412,6 +425,7 @@ def test_fake_server_speaks_the_decode_and_stream_protocol(tmp_path):
         NQ.stop_session(p, NQ.Probe(), term_wait=5, member_wait=2, kill_wait=2, poll=0.05)
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc, POSIX signals and shell scripts (fake-engine night queue)")
 def test_sigterm_stops_the_engine_gracefully_and_resume_finishes(tmp_path):
     port = free_port()
     marker = tmp_path / "marker"

@@ -164,6 +164,7 @@ def run_fake(tmp_path, plan, extra=()):
     return rc, out
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc (fake-engine busy check)")
 def test_fake_loop_picks_the_winner_then_the_better_of_a_substitute_pair_and_leaves_the_loser(tmp_path, fake_ok):
     cands = [cand("winner", gain=15.0), cand("loser", gain=-3.0), cand("pair-a", gain=9.0, subs=["pair-b"]), cand("pair-b", gain=4.0, subs=["pair-a"])]
     rc, out = run_fake(tmp_path, {"name": "t4", "base": "x.json", "cases": ["short", "edit"], "reps": 6, "block": 2, "warmup": 1, "min_gain": 2.0,
@@ -195,6 +196,7 @@ def test_fake_loop_picks_the_winner_then_the_better_of_a_substitute_pair_and_lea
     assert not (out / "quality-gate-spec.json").exists()                                   # nothing lossy was accepted
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc (fake-engine busy check)")
 def test_fake_lossy_item_is_flagged_and_routed_to_the_quality_gate_not_promoted(tmp_path, fake_ok):
     cands = [cand("exact-one", gain=5.0), cand("lossy-one", gain=8.0, lossy=True)]
     rc, out = run_fake(tmp_path, {"name": "tl", "base": "x.json", "cases": ["short"], "reps": 6, "block": 2, "warmup": 1, "min_gain": 2.0,
@@ -215,6 +217,7 @@ def test_fake_lossy_item_is_flagged_and_routed_to_the_quality_gate_not_promoted(
     assert "quality-gate queue" in md and "NOT promoted by this tool" in md and "lossy-one" in md
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="needs /proc (fake-engine busy check)")
 def test_fake_run_refuses_to_reuse_a_started_out_dir_without_resume(tmp_path, fake_ok):
     plan = {"name": "tr", "base": "x.json", "cases": ["short"], "reps": 4, "block": 2, "warmup": 0, "candidates": [cand("only", gain=6.0)],
             "fake_profile": {"sd_start_pct": 0.3, "sd_request_pct": 0.3}, "final_check": False}

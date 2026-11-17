@@ -1,6 +1,8 @@
 """Tests for build_task_set.py: the context analysis, the mined cases, the mutations, the checker text, a whole build on a throw-away git
 repository (all three families, the history one from a real commit), the selection, and a sample of the committed task set.  No model, no GPU.
 Run: python -m pytest tools/pancake/test_build_task_set.py   (or python tools/pancake/test_build_task_set.py)"""
+import importlib.util
+import pytest
 import argparse
 import ast
 import json
@@ -117,6 +119,7 @@ def test_mutations_change_the_source_and_are_counted():
     assert B.mutate(ast.parse("def f(a):\n    if not a:\n        return 1\n    return 2\n").body[0], 0)[0] in ("negated condition", "dropped `not`")
 
 
+@pytest.mark.skipif(importlib.util.find_spec("resource") is None, reason="needs the POSIX resource module (task_gate sandbox)")
 def test_record_marks_what_is_not_stable_or_not_literal():
     cases = [{"args": ["3"], "kwargs": {}}]
     assert B.record("", "def f(a):\n    return a * 2", "f", cases) == [["ok", "6"]]
@@ -128,6 +131,7 @@ def test_record_marks_what_is_not_stable_or_not_literal():
     assert B.stable_cases("", "def f(a):\n    return a * 2", "f", cases) == [(cases[0], ["ok", "6"])]
 
 
+@pytest.mark.skipif(importlib.util.find_spec("resource") is None, reason="needs the POSIX resource module (task_gate sandbox)")
 def test_checker_text_accepts_the_reference_and_rejects_a_broken_one():
     cases = [{"args": ["3"], "kwargs": {}}, {"args": ["'x'"], "kwargs": {}}, {"args": ["2.5"], "kwargs": {"k": "2"}}]
     ref = "def f(a, k=1):\n    if isinstance(a, str):\n        raise ValueError(a)\n    return {'v': [a * k, (a,)]}"
@@ -187,6 +191,7 @@ def args_for(root, **kw):
     return argparse.Namespace(**a)
 
 
+@pytest.mark.skipif(importlib.util.find_spec("resource") is None, reason="needs the POSIX resource module (task_gate sandbox)")
 def test_build_on_a_throw_away_repository_makes_valid_tasks_of_every_family():
     with tempfile.TemporaryDirectory() as d:
         root = make_repo(d)
@@ -218,6 +223,7 @@ def test_build_on_a_throw_away_repository_makes_valid_tasks_of_every_family():
         assert B.check(str(path), str(root)) > 0
 
 
+@pytest.mark.skipif(importlib.util.find_spec("resource") is None, reason="needs the POSIX resource module (task_gate sandbox)")
 def test_setup_runs_before_the_answer_and_is_optional():
     task = {"id": "t", "kind": "code_edit", "prompt": "p", "expect": {"setup": "K = 5", "test": "assert f() == 5"},
             "reference": {"content": "```python\ndef f(a=0):\n    return K\n```"}, "wrong": {"content": "```python\ndef f(a=0):\n    return 4\n```"}}
@@ -226,6 +232,7 @@ def test_setup_runs_before_the_answer_and_is_optional():
     assert TG.validate_tasks([{**task, "expect": {"setup": 3, "test": "x"}}])
 
 
+@pytest.mark.skipif(importlib.util.find_spec("resource") is None, reason="needs the POSIX resource module (task_gate sandbox)")
 def test_the_committed_task_set_is_valid_and_has_at_least_100_tasks():
     path = B.ROOT / "bench/tasks/repo-history.json"
     if not path.exists():

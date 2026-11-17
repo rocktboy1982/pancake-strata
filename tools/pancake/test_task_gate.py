@@ -1,6 +1,8 @@
 """Unit tests for task_gate.py: schema checks, argument matching, code extraction, the default task set's checkers, the
 statistics and the verdict, and the report from stored runs.  No server, no GPU.
 Run: python -m pytest tools/pancake/test_task_gate.py   (or python tools/pancake/test_task_gate.py)"""
+import importlib.util
+import pytest
 import json
 import random
 import sys
@@ -13,6 +15,7 @@ import task_gate as T  # noqa: E402
 DEFAULT = T.ROOT / T.DEFAULT_TASKS
 
 
+@pytest.mark.skipif(importlib.util.find_spec("resource") is None, reason="needs the POSIX resource module (task_gate sandbox)")
 def test_default_task_set_is_valid_and_selftests():
     _, tasks = T.load_tasks(DEFAULT)
     assert 10 <= len(tasks) <= 20
@@ -97,6 +100,7 @@ def test_extract_code():
     assert T.extract_code("<think>```python\ndef a(): pass\n```</think>nothing") is None
 
 
+@pytest.mark.skipif(importlib.util.find_spec("resource") is None, reason="needs the POSIX resource module (task_gate sandbox)")
 def test_run_python_limits():
     rc, _ = T.run_python("print(1)")
     assert rc == 0

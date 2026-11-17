@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("fcntl", reason="direct_read_probe needs fcntl and O_DIRECT (Linux)")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import direct_read_probe as P  # noqa: E402
 

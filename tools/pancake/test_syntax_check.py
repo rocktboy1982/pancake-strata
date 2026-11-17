@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests for syntax_check.py (pure parts and a real compile with the system compiler). Run: python3 -I tools/pancake/test_syntax_check.py"""
+import shutil
 import os
 import subprocess
 import sys
@@ -28,12 +29,15 @@ class Compile(unittest.TestCase):
         open(f, "w").write(src)
         return subprocess.run(S.syntax_command(f"c++ -c {f} -o {f}.o"), capture_output=True, text=True).returncode
 
+    @unittest.skipIf(shutil.which("c++") is None, "needs a c++ compiler on PATH")
     def test_good_file_passes(self):
         self.assertEqual(self.run_cc('#include <cstdio>\nint main(){ std::fprintf(stderr, "a\\n"); }\n'), 0)
 
+    @unittest.skipIf(shutil.which("c++") is None, "needs a c++ compiler on PATH")
     def test_line_break_in_string_literal_fails(self):
         self.assertNotEqual(self.run_cc('#include <cstdio>\nint main(){ std::fprintf(stderr, "a\n"); }\n'), 0)
 
+    @unittest.skipIf(shutil.which("c++") is None, "needs a c++ compiler on PATH")
     def test_lost_closing_brace_fails(self):
         self.assertNotEqual(self.run_cc("int f(){ if (1) { return 1; }\n"), 0)
 
