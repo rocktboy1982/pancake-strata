@@ -1003,6 +1003,7 @@ Credits, in the order the stack was built:
 - **nicejunjie** (Strata-rdna3), for the RDNA3 kernels this project ported and fused.
   Also from Strata-rdna3: the 49152 prompt-chunk ceiling and `STRATA_PREFILL_EQUAL_TAIL_MAX` (commits `791cca4b`,
   `5906629d`) and the per-layer CPU-share pool retry (`STRATA_PREFILL_POOL_RETRY`, commit `f557b544`), ported 2026-11-15.
+  `STRATA_PREFILL_EQUAL_TAIL` (same commit) has been in the daily fast-hip preset as a trial since 2026-11-17 (owner decision, MOD_PLAN D13; TTFT -1.7%..+1.1%, T-679).
 - **jesdga95** (basalt), for the head kernels, the draft proxy and the grammar path.
 - **mw00** (Project Maya, MIT), for the loop guard, the soft budget close and the tolerant tool calls.
 - **android-imdad** (Strata-7900xtx, MIT), for the 256-thread, 16-byte plan copy (`STRATA_WAIT_COPY256`) and the fast

@@ -81,6 +81,8 @@ Code:
 7. HIP is the benchmark platform; a CUDA-only change must not break HIP. Official model files + SHA-256 only;
    `presence_penalty=0`; no `STRATA_AUTO_PIN` for Qwen; `ROUTE_TAIL_SKIP=7` only by owner decision.
 8. Credit every adopted idea in README section 9 in the same commit (fork, commit, author numbers).
+   Screen reading (T-817, 2026-11-17): in 19 screens with an early and a late base run, 10 drifted > 5% (up to -55%); a screen
+   PROMOTE under about +10%, or with a flagged `ORDER EFFECT`, is not evidence; the confirm tier decides.
 9. Develop by day, run the GPU queue at night (`tools/pancake/night_queue.py`, `--dry-run` first).
 10. Linux box repo on an ntfs3 disk (D): `git config checkout.workers 1`; no `reset --hard`, full checkouts or new
     worktrees there; merge only in the existing worktree.
