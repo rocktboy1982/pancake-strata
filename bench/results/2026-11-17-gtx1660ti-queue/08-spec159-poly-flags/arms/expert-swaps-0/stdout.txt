@@ -1,0 +1,7 @@
+run 0: pre-run system CPU 21%
+run 1: pre-run system CPU 26%
+run 2: pre-run system CPU 18%
+
+extra args: ['--expert-swaps', '0'] | runs=3 warmup=3 measured=3 max_new=96
+short  decode  15.19 +/-  0.77 tok/s (95%, n=3 runs)  per-run ['15.5', '15.3', '14.9']  time-to-first-token 1.56 s
+code   decode  16.11 +/-  1.32 tok/s (95%, n=3 runs)  per-run ['16.6', '16.2', '15.5']  time-to-first-token 1.67 s

@@ -1,72 +1,112 @@
   waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 21%
-  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 17%
   waiting for quiet: system CPU 20%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 23%
   waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 17%
   waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 17%
   waiting for quiet: system CPU 20%
   waiting for quiet: system CPU 22%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 19%
   waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 14%
+run 0: pre-run system CPU 20%
   waiting for quiet: system CPU 20%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 19%
-run 0: pre-run system CPU 19%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 32%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 22%
   waiting for quiet: system CPU 20%
   waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 18%
   waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 17%
   waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 18%
   waiting for quiet: system CPU 17%
   waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 19%
   waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 19%
   waiting for quiet: system CPU 24%
-run 1: pre-run system CPU 17%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 30%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 23%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 12%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 22%
+  waiting for quiet: system CPU 35%
+  waiting for quiet: system CPU 24%
+  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 34%
+run 1: pre-run system CPU 21%
+  waiting for quiet: system CPU 32%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 26%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 22%
+  waiting for quiet: system CPU 32%
+  waiting for quiet: system CPU 22%
+  waiting for quiet: system CPU 23%
+  waiting for quiet: system CPU 28%
+  waiting for quiet: system CPU 43%
+  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 23%
+  waiting for quiet: system CPU 34%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 22%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 19%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 21%
+  waiting for quiet: system CPU 23%
+  waiting for quiet: system CPU 25%
+  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 36%
+run 2: pre-run system CPU 41%
+
+extra args: ['--attn-split'] | runs=3 warmup=3 measured=3 max_new=96
+short  decode  30.36 +/-  4.71 tok/s (95%, n=3 runs)  per-run ['31.5', '28.2', '31.4']  time-to-first-token 0.70 s
+code   decode  29.40 +/-  5.19 tok/s (95%, n=3 runs)  per-run ['31.8', '27.9', '28.5']  time-to-first-token 0.62 s

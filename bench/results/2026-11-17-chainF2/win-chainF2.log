@@ -6,3 +6,13 @@ chain 17 done 12:23:09
 service stopped (idle) 12:26:12
 START 121 2026-11-17_12:29:13
 END 121 exit=0 12:44:49
+START 121b quality 2026-11-17_12:47:49
+END 121b exit=2 12:47:49
+START 123 replay 2026-11-17_12:50:49
+END 123 exit=0 13:43:25
+START 126 kindi-style 2026-11-17_13:46:25
+END 126 exit=2 13:51:03
+START 127 plan-auto-trial 2026-11-17_13:54:03
+END 127 exit=0 14:06:03
+service started 14:06:03
+WINCHAINF2_DONE

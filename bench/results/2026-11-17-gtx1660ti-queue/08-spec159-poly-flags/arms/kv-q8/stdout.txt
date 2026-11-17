@@ -1,0 +1,7 @@
+run 0: pre-run system CPU 21%
+run 1: pre-run system CPU 22%
+run 2: pre-run system CPU 20%
+
+extra args: ['--kv-q8'] | runs=3 warmup=3 measured=3 max_new=96
+short  decode  30.21 +/-  2.05 tok/s (95%, n=3 runs)  per-run ['30.9', '29.3', '30.4']  time-to-first-token 0.74 s
+code   decode  27.08 +/-  8.59 tok/s (95%, n=3 runs)  per-run ['29.2', '29.0', '23.1']  time-to-first-token 0.64 s

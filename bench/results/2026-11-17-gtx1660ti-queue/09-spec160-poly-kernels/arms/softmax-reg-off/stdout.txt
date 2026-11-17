@@ -1,0 +1,7 @@
+run 0: pre-run system CPU 17%
+run 1: pre-run system CPU 18%
+run 2: pre-run system CPU 19%
+
+extra args: (none) | runs=3 warmup=3 measured=3 max_new=96
+short  decode  28.08 +/-  8.64 tok/s (95%, n=3 runs)  per-run ['31.5', '28.1', '24.6']  time-to-first-token 0.72 s
+code   decode  29.02 +/-  4.01 tok/s (95%, n=3 runs)  per-run ['30.8', '27.8', '28.4']  time-to-first-token 0.65 s

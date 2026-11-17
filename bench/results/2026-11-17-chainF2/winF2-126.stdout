@@ -1,0 +1,25 @@
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 118.0 short 109.0 edit 167.5 edit 187.9  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2055/1249 MHz 55C 164W gtt 21M cpu 4124MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 kindi-static         short 96.8 short 98.0 edit 107.7 edit 155.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2070/1249 MHz 54C 143W gtt 21M cpu 3706MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 kindi-static-tracecount: FAILED (server died before ready)
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 kindi-static-tracecount: FAILED (server died before ready)
+ABORT: the server died twice before ready (free RAM in 2 MiB blocks: 19 GiB; fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    113.5 +-  57.2  (n=2)
+                              drafts accepted 0.73
+  short  kindi-static             97.4 +-   7.6  (n=2)   vs base: -14.2% +- 57.1%  -> no difference
+                              drafts accepted 0.75
+  short  kindi-static-tracecount no clean runs
+  short  kindi-stack          no clean runs
+  short  base-late            no clean runs
+  edit   base                    177.7 +- 129.6  (n=2)
+                              drafts accepted 0.89
+  edit   kindi-static            131.6 +- 303.8  (n=2)   vs base: -25.9% +- 98.0%  -> no difference
+                              drafts accepted 0.82
+  edit   kindi-static-tracecount no clean runs
+  edit   kindi-stack          no clean runs
+  edit   base-late            no clean runs

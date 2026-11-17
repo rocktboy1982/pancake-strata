@@ -1,0 +1,7 @@
+run 0: pre-run system CPU 18%
+run 1: pre-run system CPU 31%
+run 2: pre-run system CPU 20%
+
+extra args: ['--graph-experts'] | runs=3 warmup=3 measured=3 max_new=96
+short  decode  30.62 +/-  1.64 tok/s (95%, n=3 runs)  per-run ['30.0', '30.6', '31.3']  time-to-first-token 0.72 s
+code   decode  29.37 +/-  5.91 tok/s (95%, n=3 runs)  per-run ['26.8', '29.9', '31.4']  time-to-first-token 0.62 s

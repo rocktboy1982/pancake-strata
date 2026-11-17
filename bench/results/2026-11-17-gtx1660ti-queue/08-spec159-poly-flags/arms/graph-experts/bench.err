@@ -1,0 +1,15 @@
+strata-poly: --graph-experts: this card or model does not take it; the layers run as without it
+strata-poly: loaded in 17.1 s; 2319 of 10496 routed experts in VRAM (2.1 GiB), 8 CPU threads
+strata serve: prompt 29 tokens = 0 reused + 29 read in 15326 ms (1.9 tok/s), 96 generated in 12483 ms (7.7 tok/s), drafts accepted 50 of 56
+strata serve: prompt 31 tokens = 0 reused + 31 read in 2093 ms (14.8 tok/s), 96 generated in 10586 ms (9.1 tok/s), drafts accepted 51 of 53
+strata serve: prompt 29 tokens = 0 reused + 29 read in 1234 ms (23.5 tok/s), 96 generated in 4560 ms (21.1 tok/s), drafts accepted 55 of 63
+strata serve: prompt 31 tokens = 0 reused + 31 read in 636 ms (48.7 tok/s), 96 generated in 3996 ms (24.0 tok/s), drafts accepted 68 of 77
+strata serve: prompt 29 tokens = 0 reused + 29 read in 765 ms (37.9 tok/s), 96 generated in 2995 ms (32.1 tok/s), drafts accepted 54 of 54
+strata serve: prompt 31 tokens = 0 reused + 31 read in 625 ms (49.6 tok/s), 96 generated in 3024 ms (31.7 tok/s), drafts accepted 58 of 61
+strata serve: prompt 29 tokens = 0 reused + 29 read in 705 ms (41.1 tok/s), 96 generated in 2996 ms (32.0 tok/s), drafts accepted 53 of 55
+strata serve: prompt 31 tokens = 0 reused + 31 read in 599 ms (51.7 tok/s), 96 generated in 3044 ms (31.5 tok/s), drafts accepted 59 of 64
+strata serve: prompt 29 tokens = 0 reused + 29 read in 662 ms (43.8 tok/s), 96 generated in 3088 ms (31.1 tok/s), drafts accepted 53 of 57
+strata serve: prompt 31 tokens = 0 reused + 31 read in 612 ms (50.7 tok/s), 96 generated in 2878 ms (33.4 tok/s), drafts accepted 60 of 63
+strata serve: prompt 29 tokens = 0 reused + 29 read in 694 ms (41.8 tok/s), 96 generated in 3021 ms (31.8 tok/s), drafts accepted 50 of 52
+strata serve: prompt 31 tokens = 0 reused + 31 read in 622 ms (49.8 tok/s), 96 generated in 3158 ms (30.4 tok/s), drafts accepted 63 of 70
+strata-poly: 0 of 360 prompt tokens were not read again (0.0%); 0 conversations parked in 0 MiB, 0 pushed out; 326 MiB of VRAM free at the end

@@ -1,0 +1,4 @@
+arm base: exit 0, {'short': {'decode_tps': 31.43, 'ci95': '3.88', 'n_runs': 3, 'ttft_s': 0.71}, 'code': {'decode_tps': 29.98, 'ci95': '2.82', 'n_runs': 3, 'ttft_s': 0.62}}
+arm softmax-reg-off: exit 0, {'short': {'decode_tps': 28.08, 'ci95': '8.64', 'n_runs': 3, 'ttft_s': 0.72}, 'code': {'decode_tps': 29.02, 'ci95': '4.01', 'n_runs': 3, 'ttft_s': 0.65}}
+arm gemm-small-tiled-off: exit 0, {'short': {'decode_tps': 29.16, 'ci95': '2.23', 'n_runs': 3, 'ttft_s': 0.79}, 'code': {'decode_tps': 27.68, 'ci95': '5.84', 'n_runs': 3, 'ttft_s': 0.68}}
+arm base-again: exit 0, {'short': {'decode_tps': 27.01, 'ci95': '9.90', 'n_runs': 3, 'ttft_s': 0.76}, 'code': {'decode_tps': 26.22, 'ci95': '9.96', 'n_runs': 3, 'ttft_s': 0.67}}

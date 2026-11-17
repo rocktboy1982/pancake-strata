@@ -1,112 +1,100 @@
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 20%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 12%
   waiting for quiet: system CPU 13%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 13%
   waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 14%
-  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 19%
   waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 18%
   waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 13%
   waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 18%
   waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 14%
-run 0: pre-run system CPU 14%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 14%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 20%
-  waiting for quiet: system CPU 14%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 20%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 20%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 19%
   waiting for quiet: system CPU 17%
   waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+run 0: pre-run system CPU 12%
   waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 14%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 14%
-  waiting for quiet: system CPU 19%
-run 1: pre-run system CPU 18%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 15%
   waiting for quiet: system CPU 22%
   waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 14%
   waiting for quiet: system CPU 20%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 14%
   waiting for quiet: system CPU 15%
   waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 20%
   waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 20%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 15%
   waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 16%
+run 1: pre-run system CPU 17%
   waiting for quiet: system CPU 19%
-  waiting for quiet: system CPU 31%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 14%
+  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 18%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 13%
+  waiting for quiet: system CPU 15%
+  waiting for quiet: system CPU 14%
   waiting for quiet: system CPU 18%
   waiting for quiet: system CPU 16%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 13%
   waiting for quiet: system CPU 13%
   waiting for quiet: system CPU 16%
   waiting for quiet: system CPU 17%
   waiting for quiet: system CPU 17%
+  waiting for quiet: system CPU 19%
   waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 14%
-  waiting for quiet: system CPU 15%
-  waiting for quiet: system CPU 18%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 16%
-  waiting for quiet: system CPU 17%
-  waiting for quiet: system CPU 14%
-run 2: pre-run system CPU 16%
+run 2: pre-run system CPU 12%
 
 extra args: (none) | runs=3 warmup=3 measured=3 max_new=96
-short  decode  33.46 +/-  1.20 tok/s (95%, n=3 runs)  per-run ['34.0', '33.4', '33.0']  time-to-first-token 0.67 s
-code   decode  31.89 +/-  0.81 tok/s (95%, n=3 runs)  per-run ['32.3', '31.6', '31.8']  time-to-first-token 0.57 s
+short  decode  33.03 +/-  0.54 tok/s (95%, n=3 runs)  per-run ['33.2', '33.0', '32.8']  time-to-first-token 0.66 s
+code   decode  32.09 +/-  0.57 tok/s (95%, n=3 runs)  per-run ['31.9', '32.0', '32.3']  time-to-first-token 0.60 s
