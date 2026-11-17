@@ -1,0 +1,43 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "edit",
+  "longdec32k",
+  "longdec64k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "wmma": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ATTN_WMMA": "1"
+   }
+  },
+  "wmma-rows2": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ATTN_WMMA": "1",
+    "STRATA_ATTN_WMMA_ROWS": "2"
+   }
+  },
+  "wmma-rows4": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ATTN_WMMA": "1",
+    "STRATA_ATTN_WMMA_ROWS": "4"
+   }
+  },
+  "wmma-rows8": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_ATTN_WMMA": "1",
+    "STRATA_ATTN_WMMA_ROWS": "8"
+   }
+  }
+ },
+ "note": "LEADS.md Part P lead L3, STRATA_ATTN_WMMA_ROWS=2|4|8 (qsa_decode_attn_wmma.cu decode_attn_wmma_rows_kernel; CODED, HIP gfx1100 compile-checked, parity harness hip_decode_attn_wmma_parity extended, NOT RUN on a GPU): up to R query rows of one qsa_decode_attn_batch call per block, bit-identical per row to the one-row WMMA kernel (STRATA_ATTN_WMMA=1: neutral end to end at 36K T-019 / T-032, token forcing PASS T-300); the staged V rows and scales are shared across the rows when their selections are identical for the chunk. This is NOT hipfire's shared-K-scan verify kernel (their rows share a dense KV; ours select their own top-k cells, so K stays per row): the expected gain is the launch count and the V staging of a 3-9 row window, and it can lose (fewer blocks per launch; the int8 rows kernel spills 49 VGPRs against 0 for the one-row kernel). Judge the rows arms against `wmma`, not against `base`: wmma against base is the already measured switch, and a rows arm that does not beat `wmma` is dead whatever it does against `base`. The lever ran if the engine log has 'STRATA_ATTN_WMMA_ROWS='. The text of every wmma arm must equal `wmma`'s (bit-identical kernels); wmma against base may differ (FP32-level, not bitwise). First on the box: the parity harness `hip_decode_attn_wmma_parity` must print no 'NOT bit-identical'. Screen (--tier screen), then confirm with --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5. Lossy because of wmma itself: the token-forcing gate is spec 193."
+}

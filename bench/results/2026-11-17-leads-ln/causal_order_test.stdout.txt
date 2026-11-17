@@ -1,0 +1,8 @@
+model T=512 G=4 p0=0 blocks/head=32 units=48: makespan natural 512, heaviest first 512 cells (0.00%)
+model T=512 G=4 p0=4096 blocks/head=32 units=48: makespan natural 4608, heaviest first 4608 cells (0.00%)
+model T=1024 G=4 p0=65536 blocks/head=64 units=48: makespan natural 132352, heaviest first 131600 cells (-0.57%)
+model T=2048 G=8 p0=0 blocks/head=256 units=48: makespan natural 6528, heaviest first 5664 cells (-13.24%)
+model T=256 G=4 p0=1000 blocks/head=16 units=48: makespan natural 1264, heaviest first 1264 cells (0.00%)
+model T=64 G=4 p0=0 blocks/head=4 units=48: makespan natural 64, heaviest first 64 cells (0.00%)
+model T=4096 G=4 p0=100000 blocks/head=256 units=48: makespan natural 613056, heaviest first 610800 cells (-0.37%)
+causal_order_test: PASS

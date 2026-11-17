@@ -1,0 +1,40 @@
+In file included from tools/pancake/probes/int4_moe.hip.cpp:28:
+In file included from include\strata/kernels/int4_moe.hpp:18:
+include\strata/kernels/int4_iq2.hpp:20:17: warning: nested namespace definition is a C++17 extension; define each namespace separately [-Wc++17-extensions]
+   20 | namespace strata::kernels::int4iq2 {
+      |                 ^~~~~~~~~~~~~~~~~~
+      |                  { namespace kernels { namespace int4iq2
+In file included from tools/pancake/probes/int4_moe.hip.cpp:28:
+In file included from include\strata/kernels/int4_moe.hpp:19:
+include\strata/kernels/int4_rot.hpp:22:17: warning: nested namespace definition is a C++17 extension; define each namespace separately [-Wc++17-extensions]
+   22 | namespace strata::kernels::int4rot {
+      |                 ^~~~~~~~~~~~~~~~~~
+      |                  { namespace kernels { namespace int4rot
+In file included from tools/pancake/probes/int4_moe.hip.cpp:28:
+include\strata/kernels/int4_moe.hpp:21:17: warning: nested namespace definition is a C++17 extension; define each namespace separately [-Wc++17-extensions]
+   21 | namespace strata::kernels::int4moe {
+      |                 ^~~~~~~~~~~~~~~~~~
+      |                  { namespace kernels { namespace int4moe
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark: Function Name: _Z11pack_kernelPKaPjx [-Rpass-analysis=kernel-resource-usage]
+   56 | __global__ void pack_kernel(const int8_t* __restrict__ in, unsigned* __restrict__ out, long long slices) {
+      | ^
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     SGPRs: 18 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     VGPRs: 12 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     ScratchSize [bytes/lane]: 0 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     Dynamic Stack: False [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     Occupancy [waves/SIMD]: 16 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     SGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     VGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:56:1: remark:     LDS Size [bytes/block]: 0 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark: Function Name: _Z14gemm_q2_kernelPKhPKiS2_S2_PKjS4_PKfPfiii [-Rpass-analysis=kernel-resource-usage]
+   69 |                                                      const float* __restrict__ as, float* __restrict__ y, int M, int K, int B) {
+      | ^
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     SGPRs: 34 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     VGPRs: 48 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     ScratchSize [bytes/lane]: 0 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     Dynamic Stack: False [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     Occupancy [waves/SIMD]: 16 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     SGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     VGPRs Spill: 0 [-Rpass-analysis=kernel-resource-usage]
+tools/pancake/probes/int4_moe.hip.cpp:69:1: remark:     LDS Size [bytes/block]: 0 [-Rpass-analysis=kernel-resource-usage]
+3 warnings generated when compiling for gfx1100.

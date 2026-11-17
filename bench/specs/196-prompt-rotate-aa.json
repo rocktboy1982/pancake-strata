@@ -1,0 +1,19 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "pep8",
+  "edit",
+  "short"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "base-again": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  }
+ },
+ "note": "LEADS.md Part P lead L12 (held-out prompts), the A/A control: the same arm twice. Run it twice at confirm, once as usual and once with `abtest.py --rotate-prompts` (the edit and pep8 cases then read a different file of the repo per round, same length, the same text in every arm of a round). Question: does the preset's adaptive machinery (the learned tier, --adapt-every, lookahead, TIER_REWARM, suffix index) read faster on a repeated prompt than on new text? Compare base with base-again in both runs for the noise floor, and the rotated run's tok/s with the plain run's for the in-sample effect (a rotated run slower than the plain one is the gain the repeated prompt gave the adaptive lever; it is not a regression). Text hashes are comparable between the two arms of one run, not between the two runs. pep8 is the Python-layout case (LEADS.md Part P L2). --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5. NOT MEASURED."
+}

@@ -4,6 +4,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include <cstdio>
+#include <cstdlib>
 #include <mutex>
 
 namespace strata::core {
@@ -96,13 +98,53 @@ bool VmmRange::reserve(uint64_t bytes) {
     if (a.reserve(&p, (size_t) (n * a.gran), 0, 0, 0) != CUDA_SUCCESS) return false;
     base_ = (unsigned long long) p;
     h_.assign((size_t) n, 0);
+    // STRATA_VMM_ZERO_BACK=1 (default off): kvcached's zero-page backing, see VmmRange::zero_backed().  Any failure leaves
+    // the range plain (unmapped), as without the switch.
+    if (const char* zb = std::getenv("STRATA_VMM_ZERO_BACK"); zb != nullptr && zb[0] != '\0' && zb[0] != '0') {
+        zero_ = vmm_chunk_new();
+        bool ok = zero_ != 0;
+        int64_t done = 0;
+        for (; ok && done < (int64_t) n; ++done) ok = zero_map(done);
+        if (ok) {   // the shared chunk is cleared through the first mapping, then every mapping is read-only
+            CUmemAccessDesc rwd{};
+            rwd.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
+            rwd.location.id = a.dev;
+            rwd.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
+            ok = a.access(p, (size_t) a.gran, &rwd, 1) == CUDA_SUCCESS &&
+                 cudaMemset((void*) (uintptr_t) p, 0, (size_t) a.gran) == cudaSuccess && cudaDeviceSynchronize() == cudaSuccess;
+            if (ok) ok = set_access_ro(0, (int64_t) n);
+        }
+        if (!ok) {
+            (void) cudaGetLastError();
+            for (int64_t i = 0; i < done; ++i) zero_unmap(i);
+            vmm_chunk_free(zero_);
+            zero_ = 0;
+            std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK could not back the range with a zero chunk; the range stays unmapped\n");
+        }
+    }
     return true;
+}
+
+bool VmmRange::zero_map(int64_t i) {
+    const Api& a = api();
+    return a.map((CUdeviceptr) (base_ + (uint64_t) i * a.gran), (size_t) a.gran, 0, (CUmemGenericAllocationHandle) zero_, 0) ==
+           CUDA_SUCCESS;
+}
+
+void VmmRange::zero_unmap(int64_t i) {
+    const Api& a = api();
+    (void) a.unmap((CUdeviceptr) (base_ + (uint64_t) i * a.gran), (size_t) a.gran);
 }
 
 void VmmRange::release() {
     if (base_ == 0) return;
     const Api& a = api();
     for (int64_t i = 0; i < chunks(); ++i) vmm_chunk_free(unmap(i));
+    if (zero_ != 0) {
+        for (int64_t i = 0; i < chunks(); ++i) zero_unmap(i);   // unmap() above put the zero chunk back on every one
+        vmm_chunk_free(zero_);
+        zero_ = 0;
+    }
     a.free_va((CUdeviceptr) base_, (size_t) ((uint64_t) h_.size() * a.gran));
     base_ = 0;
     h_.clear();
@@ -116,9 +158,12 @@ int64_t VmmRange::mapped_count() const {
 
 bool VmmRange::map_one(int64_t i, VmmChunk h) {
     const Api& a = api();
+    if (zero_ != 0) zero_unmap(i);   // the zero chunk steps aside for the real one
     if (a.map((CUdeviceptr) (base_ + (uint64_t) i * a.gran), (size_t) a.gran, 0, (CUmemGenericAllocationHandle) h, 0) !=
-        CUDA_SUCCESS)
+        CUDA_SUCCESS) {
+        if (zero_ != 0 && zero_map(i)) (void) set_access_ro(i, i + 1);
         return false;
+    }
     h_[(size_t) i] = h;
     return true;
 }
@@ -130,6 +175,17 @@ bool VmmRange::set_access(int64_t lo, int64_t hi) {
     d.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
     d.location.id = a.dev;
     d.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
+    return a.access((CUdeviceptr) (base_ + (uint64_t) lo * a.gran), (size_t) ((uint64_t) (hi - lo) * a.gran), &d, 1) ==
+           CUDA_SUCCESS;
+}
+
+bool VmmRange::set_access_ro(int64_t lo, int64_t hi) {
+    if (hi <= lo) return true;
+    const Api& a = api();
+    CUmemAccessDesc d{};
+    d.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
+    d.location.id = a.dev;
+    d.flags = CU_MEM_ACCESS_FLAGS_PROT_READ;
     return a.access((CUdeviceptr) (base_ + (uint64_t) lo * a.gran), (size_t) ((uint64_t) (hi - lo) * a.gran), &d, 1) ==
            CUDA_SUCCESS;
 }
@@ -146,6 +202,7 @@ VmmChunk VmmRange::unmap(int64_t i) {
     const VmmChunk h = h_[(size_t) i];
     if (a.unmap((CUdeviceptr) (base_ + (uint64_t) i * a.gran), (size_t) a.gran) != CUDA_SUCCESS) return 0;
     h_[(size_t) i] = 0;
+    if (zero_ != 0 && zero_map(i)) (void) set_access_ro(i, i + 1);   // back to reading zeros
     return h;
 }
 
@@ -237,13 +294,53 @@ bool VmmRange::reserve(uint64_t bytes) {
     if (const hipError_t e = hipMemAddressReserve(&p, (size_t) (n * a.gran), 0, nullptr, 0); e != hipSuccess) { fail("hipMemAddressReserve", e); return false; }
     base_ = (unsigned long long) (uintptr_t) p;
     h_.assign((size_t) n, 0);
+    // STRATA_VMM_ZERO_BACK=1 (default off): kvcached's zero-page backing, see VmmRange::zero_backed().  Any failure leaves
+    // the range plain (unmapped), as without the switch.
+    if (const char* zb = std::getenv("STRATA_VMM_ZERO_BACK"); zb != nullptr && zb[0] != '\0' && zb[0] != '0') {
+        zero_ = vmm_chunk_new();
+        bool ok = zero_ != 0;
+        int64_t done = 0;
+        for (; ok && done < (int64_t) n; ++done) ok = zero_map(done);
+        if (ok) {   // the shared chunk is cleared through the first mapping, then every mapping is read-only
+            hipMemAccessDesc rwd{};
+            rwd.location.type = hipMemLocationTypeDevice;
+            rwd.location.id = a.dev;
+            rwd.flags = hipMemAccessFlagsProtReadWrite;
+            ok = hipMemSetAccess(p, (size_t) a.gran, &rwd, 1) == hipSuccess && hipMemset(p, 0, (size_t) a.gran) == hipSuccess &&
+                 hipDeviceSynchronize() == hipSuccess;
+            if (ok) ok = set_access_ro(0, (int64_t) n);
+        }
+        if (!ok) {
+            (void) hipGetLastError();
+            for (int64_t i = 0; i < done; ++i) zero_unmap(i);
+            vmm_chunk_free(zero_);
+            zero_ = 0;
+            std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK could not back the range with a zero chunk; the range stays unmapped\n");
+        }
+    }
     return true;
+}
+
+bool VmmRange::zero_map(int64_t i) {
+    const Api& a = api();
+    return hipMemMap((void*) (uintptr_t) (base_ + (uint64_t) i * a.gran), (size_t) a.gran, 0,
+                     (hipMemGenericAllocationHandle_t) (uintptr_t) zero_, 0) == hipSuccess;
+}
+
+void VmmRange::zero_unmap(int64_t i) {
+    const Api& a = api();
+    (void) hipMemUnmap((void*) (uintptr_t) (base_ + (uint64_t) i * a.gran), (size_t) a.gran);
 }
 
 void VmmRange::release() {
     if (base_ == 0) return;
     const Api& a = api();
     for (int64_t i = 0; i < chunks(); ++i) vmm_chunk_free(unmap(i));
+    if (zero_ != 0) {
+        for (int64_t i = 0; i < chunks(); ++i) zero_unmap(i);   // unmap() above put the zero chunk back on every one
+        vmm_chunk_free(zero_);
+        zero_ = 0;
+    }
     (void) hipMemAddressFree((void*) (uintptr_t) base_, (size_t) ((uint64_t) h_.size() * a.gran));
     base_ = 0;
     h_.clear();
@@ -257,10 +354,12 @@ int64_t VmmRange::mapped_count() const {
 
 bool VmmRange::map_one(int64_t i, VmmChunk h) {
     const Api& a = api();
+    if (zero_ != 0) zero_unmap(i);   // the zero chunk steps aside for the real one
     if (const hipError_t e = hipMemMap((void*) (uintptr_t) (base_ + (uint64_t) i * a.gran), (size_t) a.gran, 0,
                                       (hipMemGenericAllocationHandle_t) (uintptr_t) h, 0);
         e != hipSuccess) {
         fail("hipMemMap", e);
+        if (zero_ != 0 && zero_map(i)) (void) set_access_ro(i, i + 1);
         return false;
     }
     h_[(size_t) i] = h;
@@ -281,6 +380,19 @@ bool VmmRange::set_access(int64_t lo, int64_t hi) {
     return ok;
 }
 
+bool VmmRange::set_access_ro(int64_t lo, int64_t hi) {
+    if (hi <= lo) return true;
+    const Api& a = api();
+    hipMemAccessDesc d{};
+    d.location.type = hipMemLocationTypeDevice;
+    d.location.id = a.dev;
+    d.flags = hipMemAccessFlagsProtRead;
+    const hipError_t e = hipMemSetAccess((void*) (uintptr_t) (base_ + (uint64_t) lo * a.gran), (size_t) ((uint64_t) (hi - lo) * a.gran),
+                                         &d, 1);
+    if (e != hipSuccess) fail("hipMemSetAccess (read-only)", e);
+    return e == hipSuccess;
+}
+
 bool VmmRange::commit_run(int64_t lo, int64_t hi) {
     if (set_access(lo, hi)) return true;
     for (int64_t c = lo; c < hi; ++c) vmm_chunk_free(unmap(c));
@@ -293,6 +405,7 @@ VmmChunk VmmRange::unmap(int64_t i) {
     const VmmChunk h = h_[(size_t) i];
     if (hipMemUnmap((void*) (uintptr_t) (base_ + (uint64_t) i * a.gran), (size_t) a.gran) != hipSuccess) { (void) hipGetLastError(); return 0; }
     h_[(size_t) i] = 0;
+    if (zero_ != 0 && zero_map(i)) (void) set_access_ro(i, i + 1);   // back to reading zeros
     return h;
 }
 }  // namespace strata::core
@@ -310,6 +423,9 @@ int64_t VmmRange::mapped_count() const { return 0; }
 bool VmmRange::map_one(int64_t, VmmChunk) { return false; }
 bool VmmRange::set_access(int64_t, int64_t) { return false; }
 bool VmmRange::commit_run(int64_t, int64_t) { return false; }
+bool VmmRange::set_access_ro(int64_t, int64_t) { return false; }
+bool VmmRange::zero_map(int64_t) { return false; }
+void VmmRange::zero_unmap(int64_t) {}
 VmmChunk VmmRange::unmap(int64_t) { return 0; }
 }  // namespace strata::core
 

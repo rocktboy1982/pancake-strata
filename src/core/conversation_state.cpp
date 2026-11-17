@@ -2,6 +2,7 @@
 #include "conversation_checked.hpp"
 #include "conversation_copy.hpp"
 #include "strata/program/ckpt_async_plan.hpp"
+#include "strata/program/free_settle.hpp"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -393,9 +394,19 @@ bool checkpoint_save(ConversationCheckpoint& c, const SessionState& ss, const Mo
         (void) cudaGetDevice(&dev);
         if (a.stage != nullptr && (a.cap < c.gdn.size() || a.dev != dev)) {
             const int cur = dev;
+            // STRATA_FREE_SETTLE_MS (LEADS.md Part P L5): the stage buffer's size is read from the free figure just below
+            const uint32_t settle_ms = strata::program::free_settle_ms_env();
+            size_t settle_before = 0, settle_total = 0;
+            if (settle_ms != 0) (void) cudaMemGetInfo(&settle_before, &settle_total);
+            const size_t settle_freed = a.cap;
             (void) cudaSetDevice(a.dev); (void) cudaFree(a.stage); (void) cudaFreeHost(a.host);
             (void) cudaStreamDestroy(a.stream); (void) cudaSetDevice(cur);
             a.stage = a.host = nullptr; a.stream = nullptr; a.cap = 0;
+            if (settle_ms != 0 && settle_freed != 0)
+                (void) strata::program::free_settle_after_free(settle_before, settle_freed, settle_ms, [] {
+                    size_t f = 0, t = 0;
+                    return cudaMemGetInfo(&f, &t) == cudaSuccess ? (uint64_t) f : (uint64_t) 0;
+                });
         }
         size_t stage_free = 0, stage_total = 0;   // (HIP: the one-time stage buffer needs room beside the decode's VRAM)
         const bool stage_room = a.stage != nullptr || kCkptBackend != strata::program::CkptBackend::Hip ||

@@ -1,0 +1,2 @@
+expert cache segments: shrink gives VRAM back and keeps the slots, grow maps them again
+rc=0

@@ -1,0 +1,50 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit",
+  "longdec10k",
+  "longdec32k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {},
+  "split-84": {
+   "env": {
+    "STRATA_QSA_SPLIT_GRID": "84"
+   }
+  },
+  "split-168": {
+   "env": {
+    "STRATA_QSA_SPLIT_GRID": "168"
+   }
+  },
+  "split-336": {
+   "env": {
+    "STRATA_QSA_SPLIT_GRID": "336"
+   }
+  }
+ },
+ "note": "LEADS.md Part O O9, CODED, UNTESTED ON A GPU: STRATA_QSA_SPLIT_GRID=N runs the QSA decode chunk pass with about N workgroups in all (include/strata/kernels/qsa_split.hpp): fewer blocks than chunks, each running chunks b, b+blocks, ... through the unchanged attn_chunk_body, so the partials and the output are bit for bit the default's (exact: only the schedule moves; check first with build-hip/qsa_merge_daily_parity, chunk kernel 4). The grid is (chunks, 2 KV heads, queries): N = 84 is one workgroup per CU, 168 and 336 two and four per CU; blocks per (kv head, query) = N / (2 n_q), no split when that reaches the chunk count. Screen: promote from 0%, drop below -3% (AGENTS.md). Applies only where attn_chunk_kernel runs (not with STRATA_ATTN_WMMA, PRE75, VWIN, QMAJOR); the longdec cases are the ones with many chunks. Screen.",
+ "predict": [
+  {
+   "arm": "split-168",
+   "case": "longdec32k",
+   "lo": -1.0,
+   "hi": 4.0,
+   "why": "the authors' 1-4% at 41K depth on a card with one task per CU; our chunks are already 64 cells, so the gain can only be fewer scheduling rounds"
+  },
+  {
+   "arm": "split-168",
+   "case": "short",
+   "lo": -1.0,
+   "hi": 1.0,
+   "why": "short context has few chunks: expect no change"
+  }
+ ],
+ "stop": [
+  "drop the spec if split-84 and split-168 are both below 0% on longdec32k and longdec10k",
+  "drop any arm that is below -3% on any case (screen rule)"
+ ]
+}

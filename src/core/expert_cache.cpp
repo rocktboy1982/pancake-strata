@@ -383,18 +383,73 @@ bool map_segment(const Vmm& v, int dev, CUdeviceptr va, size_t bytes, unsigned l
 }  // namespace
 #endif
 
+// LEADS.md Part N N4 (kvcached's budget layer on our VmmRange): the segmented arena built on VmmRange instead of raw cuMem* calls.  VmmRange has a
+// HIP branch (hipMem*), so this is the --vram-elastic that a HIP build can have.  Selected by STRATA_HIP_VRAM_ELASTIC=1 on a HIP build (default
+// off: HIP refuses --vram-elastic as before) and by STRATA_VRAM_ELASTIC_VMMRANGE=1 on any build (the hook the CUDA host runs the same segments
+// test through, tests/core/expert_cache_segmented_test.cpp).  Placement only: the slots keep their addresses and bytes.
+static bool seg_vmmr_selected() {
+    const char* h = std::getenv("STRATA_HIP_VRAM_ELASTIC");
+    const char* t = std::getenv("STRATA_VRAM_ELASTIC_VMMRANGE");
+#if defined(STRATA_USE_HIP)
+    if (h != nullptr && h[0] == '1') return true;
+#else
+    (void) h;
+#endif
+    return t != nullptr && t[0] == '1';
+}
+
 #if !defined(STRATA_EC_NO_VMM)
 // the driver and this GPU offer the virtual memory functions the segmented arena needs (the check open_segmented makes first)
 static bool segmented_supported() {
+    if (seg_vmmr_selected()) return vmm_available();
     const Vmm& v = vmm();
     int dev = 0, supported = 0;
     CUdevice cu = 0;
     return v.ok && cudaGetDevice(&dev) == cudaSuccess && v.device_get(&cu, dev) == CUDA_SUCCESS &&
            v.attribute(&supported, CU_DEVICE_ATTRIBUTE_VIRTUAL_MEMORY_MANAGEMENT_SUPPORTED, cu) == CUDA_SUCCESS && supported;
 }
+#else
+static bool segmented_supported() { return seg_vmmr_selected() && vmm_available(); }
 #endif
 
 bool ExpertCache::open_segmented(uint64_t want, std::string& err) {
+    if (seg_vmmr_selected()) {   // LEADS.md Part N N4: the segments on a VmmRange (HIP-ready)
+        if (!vmm_available()) {
+            err = "ExpertCache: --vram-elastic needs the driver's virtual memory management, which this GPU or driver "
+                  "does not offer";
+            return false;
+        }
+        const uint64_t g = vmm_granularity();
+        const uint64_t total = (want + g - 1) / g * g;
+        seg_ = (int64_t) (((uint64_t) seg_req_ + g - 1) / g * g);
+        auto r = std::make_unique<VmmRange>();
+        if (!r->reserve(total)) {
+            err = "ExpertCache: cannot reserve the address range of the segmented expert cache";
+            return false;
+        }
+        base_ = r->base();
+        reserved_ = total;
+        for (uint64_t at = 0; at < total; at += (uint64_t) seg_) {
+            segs_.push_back(0);
+            seg_size_.push_back((int64_t) std::min<uint64_t>((uint64_t) seg_, total - at));
+        }
+        seg_vmm_ = std::move(r);
+        for (size_t i = 0; i < segs_.size(); ++i) {
+            const int64_t lo = (int64_t) ((uint64_t) i * (uint64_t) seg_ / g), hi = lo + (int64_t) ((uint64_t) seg_size_[i] / g);
+            if (!seg_vmm_->map_range(lo, hi, [] { return (VmmChunk) 0; })) {
+                char buf[200];
+                std::snprintf(buf, sizeof buf, "ExpertCache: cudaMalloc failed: segment %zu of %zu (%.2f GiB) of the "
+                              "segmented cache could not be allocated", i + 1, segs_.size(),
+                              (double) seg_size_[i] / 1073741824.0);
+                err = buf;   // "cudaMalloc failed": the auto cache's smaller-retry path reads it as an allocation failure
+                release_segmented();
+                return false;
+            }
+            segs_[i] = 1;   // mapped (the physical chunks are held by the range)
+            mapped_segs_ = (int64_t) i + 1;
+        }
+        return true;
+    }
 #if defined(STRATA_EC_NO_VMM)
     (void) want;
     err = "ExpertCache: --vram-elastic (a segmented expert cache) is CUDA-only for now";
@@ -448,7 +503,12 @@ bool ExpertCache::open_segmented(uint64_t want, std::string& err) {
 }
 
 void ExpertCache::release_segmented() {
+    if (seg_vmm_) {   // N4: the range unmaps and frees every chunk it still holds
+        if (base_ != nullptr) cudaDeviceSynchronize();
+        seg_vmm_.reset();
+    } else
 #if !defined(STRATA_EC_NO_VMM)
+    {
     const Vmm& v = vmm();
     if (base_ != nullptr) cudaDeviceSynchronize();
     const CUdeviceptr va = reinterpret_cast<CUdeviceptr>(base_);
@@ -458,6 +518,9 @@ void ExpertCache::release_segmented() {
             v.release((CUmemGenericAllocationHandle) segs_[i]);
         }
     if (base_ != nullptr && reserved_ > 0) v.address_free(va, (size_t) reserved_);
+    }
+#else
+    {}
 #endif
     segs_.clear();
     seg_size_.clear();
@@ -485,6 +548,27 @@ bool ExpertCache::shrink(int64_t keep_bytes, std::string& err) {
     if (segs_.empty()) {
         err = "the expert cache is not segmented (the engine needs --vram-elastic)";
         return false;
+    }
+    if (seg_vmm_) {   // N4: the segments on a VmmRange: unmap each chunk of the dropped segments and free its physical memory
+        int64_t keep = 0, at = 0;
+        while (keep < (int64_t) segs_.size() && at < keep_bytes) at += seg_size_[(size_t) keep++];
+        if (keep >= mapped_segs_) return true;
+        if (cudaDeviceSynchronize() != cudaSuccess) {
+            err = std::string("the device failed before the cache shrank: ") + cudaGetErrorString(cudaGetLastError());
+            return false;
+        }
+        const uint64_t g = vmm_granularity();
+        for (int64_t i = mapped_segs_ - 1; i >= keep; --i) {
+            const int64_t lo = (int64_t) ((uint64_t) i * (uint64_t) seg_ / g), hi = lo + (int64_t) ((uint64_t) seg_size_[(size_t) i] / g);
+            for (int64_t c = lo; c < hi; ++c) {
+                const VmmChunk h = seg_vmm_->unmap(c);
+                if (h != 0) vmm_chunk_free(h);
+            }
+            segs_[(size_t) i] = 0;
+            mapped_segs_ = i;
+        }
+        live_slots_ = slots_within(mapped_bytes());
+        return true;
     }
 #if defined(STRATA_EC_NO_VMM)
     (void) keep_bytes;
@@ -519,6 +603,24 @@ bool ExpertCache::grow(int64_t want_bytes, std::string& err) {
     if (segs_.empty()) {
         err = "the expert cache is not segmented (the engine needs --vram-elastic)";
         return false;
+    }
+    if (seg_vmm_) {   // N4: map the next segments' chunks, new physical memory each, at the same addresses
+        const uint64_t g = vmm_granularity();
+        int64_t at = mapped_bytes();
+        while (mapped_segs_ < (int64_t) segs_.size() && at + seg_size_[(size_t) mapped_segs_] <= want_bytes) {
+            const size_t i = (size_t) mapped_segs_;
+            const int64_t lo = (int64_t) ((uint64_t) i * (uint64_t) seg_ / g), hi = lo + (int64_t) ((uint64_t) seg_size_[i] / g);
+            if (!seg_vmm_->map_range(lo, hi, [] { return (VmmChunk) 0; })) {
+                err = "the driver has no VRAM for another expert-cache segment";
+                live_slots_ = slots_within(mapped_bytes());
+                return false;
+            }
+            segs_[i] = 1;
+            at += seg_size_[i];
+            ++mapped_segs_;
+        }
+        live_slots_ = slots_within(mapped_bytes());
+        return true;
     }
 #if defined(STRATA_EC_NO_VMM)
     (void) want_bytes;

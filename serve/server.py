@@ -70,6 +70,7 @@ from serve import runconfig  # noqa: E402
 from serve import park_divergence  # noqa: E402
 from serve import request_capture  # noqa: E402
 from serve import async_stream  # noqa: E402
+from serve.prompt_normalize import normalize_prompt_newlines, prompt_nl_normalize_enabled  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
 from strata_control import engine_component  # noqa: E402
 from strata_control import tls  # noqa: E402
@@ -6629,6 +6630,12 @@ class Service:
         return turns
 
     def render_prompt(self, messages, tools, kwargs) -> str:
+        """The template rendered; with STRATA_PROMPT_NL_NORMALIZE=1 (opt-in, LEADS.md Part P L2, hipfire prompt_normalize)
+        every run of 3 or more newlines is rendered as 2 (serve/prompt_normalize.py).  Unset: `_render_prompt_raw`."""
+        text = self._render_prompt_raw(messages, tools, kwargs)
+        return normalize_prompt_newlines(text) if prompt_nl_normalize_enabled() else text
+
+    def _render_prompt_raw(self, messages, tools, kwargs) -> str:
         """The template rendered.  #458: with `effort_end`, a request with a non-default effort (low, medium or no
         thinking) is rendered as a default one up to the answer - the same prompt start, so the conversation cache
         keeps it - and its effort follows in a short system turn right before the answer (thinking off: the template's

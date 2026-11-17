@@ -1,0 +1,7 @@
+Q2_0 -> int4: 15360 values, bit-identical to dequantize_q2_0, codes -1..2
+IQ2_XS codebook magnitudes (512 entries x 8): 8 x 2114, 25 x 1142, 43 x 840
+IQ2_XS -> odd int4 levels: step 8.200 rms rel error 0.0389 worst 0.0465; least-squares step 8.4799 rms 0.0205 worst 0.0600
+IQ2_XS block -> int4, step 8.2000: weight rel error 0.0386, y = W x rel error 0.0377 (random blocks)
+IQ2_XS block -> int4, step 8.4799: weight rel error 0.0206, y = W x rel error 0.0192 (random blocks)
+iu4 tile loop (emulated instruction, Q2_0 bytes as operand source, expert gather): 1640 of 1640 outputs bit-equal to gemm_ref
+int4_iq2_test: PASS

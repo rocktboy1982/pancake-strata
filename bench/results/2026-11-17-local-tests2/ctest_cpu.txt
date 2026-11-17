@@ -1,0 +1,473 @@
+Test project C:/Users/iancu/build-latest/build-sm75
+        Start 160: ple_reader_stress
+        Start 159: ple_reader_selftest
+        Start 357: shadow_pack_test
+        Start 258: pool_tasks_test_defer_actq
+  1/188 Test #258: pool_tasks_test_defer_actq ............   Passed   35.21 sec
+        Start 257: pool_tasks_test_fuse_row_split
+  2/188 Test #257: pool_tasks_test_fuse_row_split ........   Passed   31.38 sec
+        Start 256: pool_tasks_test_row_split
+  3/188 Test #256: pool_tasks_test_row_split .............   Passed   45.27 sec
+        Start 255: pool_tasks_test
+  4/188 Test #159: ple_reader_selftest ...................***Timeout 119.72 sec
+ple prefetched-key reuse (reordered, duplicated, subset), Direct vs Mmap bytes: OK
+  table under concurrent use: cache 0 rows, inflight 1
+  table under concurrent use: cache 0 rows, inflight 3
+  table under concurrent use: cache 0 rows, inflight 64
+  table under concurrent use: cache 16 rows, inflight 1
+  table under concurrent use: cache 16 rows, inflight 3
+  table under concurrent use: cache 16 rows, inflight 64
+  table under concurrent use: cache 4096 rows, inflight 1
+  table under concurrent use: cache 4096 rows, inflight 3
+  table under concurrent use: cache 4096 rows, inflight 64
+ple table shared by a prompt thread, a decode window and a single gather, 9 reader configurations, vs the mapped reader: OK
+
+        Start 241: bf16_bits_test
+  5/188 Test #357: shadow_pack_test ......................   Passed  124.02 sec
+        Start  34: conversation_disk_env_test
+  6/188 Test  #34: conversation_disk_env_test ............   Passed   23.43 sec
+        Start 223: spec_prob_test
+  7/188 Test #241: bf16_bits_test ........................   Passed   37.17 sec
+        Start 375: poly_cpu_kernels_test
+  8/188 Test #255: pool_tasks_test .......................   Passed   55.43 sec
+        Start  18: qsa_two_pass_test
+  9/188 Test #223: spec_prob_test ........................   Passed   25.88 sec
+        Start 193: park_replay_sim_test
+ 10/188 Test #375: poly_cpu_kernels_test .................   Passed   26.28 sec
+        Start 242: bfla_cpu_test
+ 11/188 Test  #18: qsa_two_pass_test .....................   Passed   17.41 sec
+        Start 248: native_arithmetic_parity_avx
+ 12/188 Test #193: park_replay_sim_test ..................   Passed   12.66 sec
+        Start  36: gpu_rewrite_parity_test
+ 13/188 Test #242: bfla_cpu_test .........................   Passed    4.90 sec
+        Start  59: file_expert_source_test
+ 14/188 Test #248: native_arithmetic_parity_avx ..........   Passed    4.50 sec
+        Start 214: expert_entropy_test
+ 15/188 Test  #59: file_expert_source_test ...............   Passed    3.47 sec
+        Start  57: memory_guard_test
+ 16/188 Test  #36: gpu_rewrite_parity_test ...............   Passed    6.14 sec
+        Start 352: iq_own1_parity_test
+ 17/188 Test #214: expert_entropy_test ...................   Passed    5.36 sec
+        Start 269: ggml_tq_overlay
+ 18/188 Test #352: iq_own1_parity_test ...................   Passed    3.81 sec
+        Start  12: gpu_report_test
+ 19/188 Test  #12: gpu_report_test .......................   Passed    0.49 sec
+        Start 351: pool_micro_parity_test
+ 20/188 Test  #57: memory_guard_test .....................   Passed    7.12 sec
+        Start  56: exchange_storage_test
+ 21/188 Test #351: pool_micro_parity_test ................   Passed    2.83 sec
+        Start 281: nvfp4_cpu_parity
+ 22/188 Test #269: ggml_tq_overlay .......................   Passed    7.64 sec
+        Start  63: expert_layout_test
+ 23/188 Test #281: nvfp4_cpu_parity ......................   Passed    2.49 sec
+        Start 251: native_arithmetic_parity_no512
+ 24/188 Test  #56: exchange_storage_test .................   Passed    4.62 sec
+        Start 254: native_arithmetic_parity_nvfp4_ggml
+ 25/188 Test  #63: expert_layout_test ....................   Passed    3.57 sec
+        Start 247: native_arithmetic_parity
+ 26/188 Test #251: native_arithmetic_parity_no512 ........   Passed    2.90 sec
+        Start 350: q2_fast_parity_test
+ 27/188 Test #254: native_arithmetic_parity_nvfp4_ggml ...   Passed    2.58 sec
+        Start 252: native_arithmetic_parity_ggml
+ 28/188 Test #350: q2_fast_parity_test ...................   Passed    1.28 sec
+        Start 250: native_arithmetic_parity_mt1
+ 29/188 Test #247: native_arithmetic_parity ..............   Passed    2.08 sec
+        Start 249: native_arithmetic_parity_kq256
+ 30/188 Test #252: native_arithmetic_parity_ggml .........   Passed    1.58 sec
+        Start 253: native_arithmetic_parity_nvfp4_avx2
+ 31/188 Test #250: native_arithmetic_parity_mt1 ..........   Passed    1.30 sec
+        Start 264: iq_avx2_parity_iq3s_mt1
+ 32/188 Test #249: native_arithmetic_parity_kq256 ........   Passed    1.63 sec
+        Start 263: iq_avx2_parity
+ 33/188 Test #253: native_arithmetic_parity_nvfp4_avx2 ...   Passed    1.72 sec
+        Start 231: verify_ecap_test
+ 34/188 Test #263: iq_avx2_parity ........................   Passed    1.71 sec
+ 35/188 Test #264: iq_avx2_parity_iq3s_mt1 ...............   Passed    2.14 sec
+        Start 197: suffix_index_test
+        Start   9: gguf_geometry_test
+ 36/188 Test #231: verify_ecap_test ......................   Passed    2.59 sec
+        Start  20: routed_stream_test
+ 37/188 Test #197: suffix_index_test .....................   Passed    1.21 sec
+        Start   7: model_family_test
+ 38/188 Test   #9: gguf_geometry_test ....................   Passed    0.99 sec
+        Start 266: iq_avx1_parity
+ 39/188 Test   #7: model_family_test .....................   Passed    0.89 sec
+        Start 355: iq_sign_fast_test
+ 40/188 Test #266: iq_avx1_parity ........................   Passed    1.18 sec
+        Start  73: iq_parity_fixtures
+ 41/188 Test #355: iq_sign_fast_test .....................   Passed    1.21 sec
+        Start   6: gguf_split_test
+ 42/188 Test   #6: gguf_split_test .......................   Passed    1.13 sec
+        Start 222: slot_history_test
+ 43/188 Test #222: slot_history_test .....................   Passed    0.70 sec
+        Start  33: conversation_disk_tier_test
+ 44/188 Test  #73: iq_parity_fixtures ....................   Passed    3.21 sec
+        Start 195: suffix_drafter_test
+ 45/188 Test  #20: routed_stream_test ....................   Passed    5.85 sec
+        Start 237: subfit_ladder_test
+ 46/188 Test  #33: conversation_disk_tier_test ...........   Passed    0.99 sec
+        Start 163: qwen35_sampling_test
+ 47/188 Test #195: suffix_drafter_test ...................   Passed    1.54 sec
+        Start 185: session_keep_root_test
+ 48/188 Test #237: subfit_ladder_test ....................   Passed    1.76 sec
+        Start 198: ngram_mod_test
+ 49/188 Test #163: qwen35_sampling_test ..................   Passed    1.92 sec
+        Start 367: numa_pool_test
+ 50/188 Test #185: session_keep_root_test ................   Passed    1.27 sec
+        Start  27: promo_chunk_test
+ 51/188 Test #198: ngram_mod_test ........................   Passed    0.68 sec
+        Start 259: router_dot_parity
+ 52/188 Test #367: numa_pool_test ........................   Passed    0.39 sec
+        Start  25: mmq_ids_margin_test
+ 53/188 Test  #27: promo_chunk_test ......................   Passed    0.94 sec
+        Start 360: tqp_cpu_test
+ 54/188 Test #259: router_dot_parity .....................   Passed    0.98 sec
+        Start  10: tuning_header_arch_family_test
+ 55/188 Test  #25: mmq_ids_margin_test ...................   Passed    0.82 sec
+        Start 246: dequant_q5_1_test
+ 56/188 Test #360: tqp_cpu_test ..........................   Passed    0.88 sec
+        Start 184: ple_warm_test
+ 57/188 Test  #10: tuning_header_arch_family_test ........   Passed    1.55 sec
+        Start 216: serve_stop_bound_test
+ 58/188 Test #246: dequant_q5_1_test .....................   Passed    1.60 sec
+        Start 369: copy_events_test
+ 59/188 Test #184: ple_warm_test .........................   Passed    0.78 sec
+        Start 374: poly_workers_test
+ 60/188 Test #216: serve_stop_bound_test .................   Passed    0.51 sec
+        Start 179: head_gather_test
+ 61/188 Test #369: copy_events_test ......................   Passed    0.36 sec
+        Start 265: iq_r4_parity
+ 62/188 Test #374: poly_workers_test .....................   Passed    0.40 sec
+        Start 361: tqp_cpu_test_avx2
+ 63/188 Test #179: head_gather_test ......................   Passed    0.28 sec
+        Start 260: router_dot_parity_avx
+ 64/188 Test #265: iq_r4_parity ..........................   Passed    0.20 sec
+        Start 347: pool_affinity_test
+ 65/188 Test #260: router_dot_parity_avx .................   Passed    0.31 sec
+        Start 365: pool_cores_test
+ 66/188 Test #361: tqp_cpu_test_avx2 .....................   Passed    0.54 sec
+        Start   1: batch_telemetry_test
+ 67/188 Test #347: pool_affinity_test ....................   Passed    0.41 sec
+        Start 261: iq512_gather_parity_scalar
+ 68/188 Test   #1: batch_telemetry_test ..................   Passed    0.10 sec
+        Start 225: spec_admission_default
+ 69/188 Test #365: pool_cores_test .......................   Passed    0.27 sec
+        Start 201: disco_test
+ 70/188 Test #261: iq512_gather_parity_scalar ............   Passed    0.29 sec
+        Start 154: platform_memory_test
+ 71/188 Test #225: spec_admission_default ................   Passed    0.39 sec
+        Start  37: think_probe_test
+ 72/188 Test #201: disco_test ............................   Passed    0.54 sec
+        Start  38: run_manifest_test
+ 73/188 Test  #37: think_probe_test ......................   Passed    0.45 sec
+ 74/188 Test #154: platform_memory_test ..................   Passed    0.62 sec
+        Start 262: iq512_gather_parity_gather
+        Start 196: recycle_drafts_test
+ 75/188 Test  #38: run_manifest_test .....................   Passed    0.53 sec
+        Start 238: subfit_apply_host_test
+ 76/188 Test #262: iq512_gather_parity_gather ............   Passed    0.57 sec
+        Start   5: gguf_reader_test
+ 77/188 Test #196: recycle_drafts_test ...................   Passed    0.56 sec
+        Start   2: stream_watch_test
+ 78/188 Test #238: subfit_apply_host_test ................   Passed    0.44 sec
+        Start 235: subfit_samples_test
+ 79/188 Test   #5: gguf_reader_test ......................   Passed    0.43 sec
+        Start 236: subfit_learn_test
+ 80/188 Test   #2: stream_watch_test .....................   Passed    0.50 sec
+        Start   4: logit_bias_test
+ 81/188 Test #235: subfit_samples_test ...................   Passed    0.44 sec
+        Start   3: gpu_pause_time_test
+ 82/188 Test #236: subfit_learn_test .....................   Passed    0.34 sec
+        Start  61: expert_profile_save_test
+ 83/188 Test   #4: logit_bias_test .......................   Passed    0.41 sec
+        Start  62: expert_profile_version_test
+ 84/188 Test   #3: gpu_pause_time_test ...................   Passed    0.56 sec
+        Start  69: grammar_schema_test
+ 85/188 Test  #61: expert_profile_save_test ..............   Passed    0.64 sec
+        Start 353: q2_skip_parity
+ 86/188 Test  #62: expert_profile_version_test ...........   Passed    0.64 sec
+        Start 354: q2_hi_parity
+ 87/188 Test  #69: grammar_schema_test ...................   Passed    0.48 sec
+        Start 267: q8k_quant_parity
+ 88/188 Test #353: q2_skip_parity ........................   Passed    0.39 sec
+        Start 167: arch_defaults_test
+ 89/188 Test #354: q2_hi_parity ..........................   Passed    0.43 sec
+        Start 209: moe_tile_rule_test
+ 90/188 Test #267: q8k_quant_parity ......................   Passed    0.50 sec
+        Start 170: amd_community_test
+ 91/188 Test #167: arch_defaults_test ....................   Passed    0.45 sec
+        Start 370: pool_stress
+ 92/188 Test #209: moe_tile_rule_test ....................   Passed    0.43 sec
+        Start 349: q2_bitplane_parity
+ 93/188 Test #170: amd_community_test ....................   Passed    0.40 sec
+        Start 243: lqer_test
+ 94/188 Test #370: pool_stress ...........................   Passed    0.38 sec
+        Start 213: tier_policy_score_test
+ 95/188 Test #349: q2_bitplane_parity ....................   Passed    0.36 sec
+        Start 176: epoch_bandit_test
+ 96/188 Test #243: lqer_test .............................   Passed    0.39 sec
+        Start 232: miss_budget_test
+ 97/188 Test #213: tier_policy_score_test ................   Passed    0.36 sec
+        Start 268: q8k_quant_parity_avx
+ 98/188 Test #176: epoch_bandit_test .....................   Passed    0.22 sec
+        Start 219: draft_kv_plan_test
+ 99/188 Test #232: miss_budget_test ......................   Passed    0.22 sec
+        Start 202: row_miss_test
+100/188 Test #268: q8k_quant_parity_avx ..................   Passed    0.32 sec
+        Start 171: amd_community_test_dot_off
+101/188 Test #219: draft_kv_plan_test ....................   Passed    0.43 sec
+        Start 203: window_rule_test
+102/188 Test #202: row_miss_test .........................   Passed    0.41 sec
+        Start 207: message_boundary_test
+103/188 Test #171: amd_community_test_dot_off ............   Passed    0.43 sec
+        Start  13: stage_reserve_test
+104/188 Test #203: window_rule_test ......................   Passed    0.51 sec
+        Start  58: mem_pressure_test
+105/188 Test #207: message_boundary_test .................   Passed    0.47 sec
+        Start 221: penalty_window_test
+106/188 Test  #13: stage_reserve_test ....................   Passed    0.44 sec
+        Start  68: grammar_test
+107/188 Test  #58: mem_pressure_test .....................   Passed    0.48 sec
+        Start  35: switch_report_test
+108/188 Test #221: penalty_window_test ...................   Passed    0.50 sec
+        Start 172: gfx12_extra_test
+109/188 Test  #68: grammar_test ..........................   Passed    0.53 sec
+        Start 210: split_ring_test
+110/188 Test  #35: switch_report_test ....................   Passed    0.41 sec
+        Start  32: defer_auto_test
+111/188 Test #172: gfx12_extra_test ......................   Passed    0.34 sec
+        Start 217: lookup_default_test
+112/188 Test #210: split_ring_test .......................   Passed    0.30 sec
+        Start  11: split_rules_test
+113/188 Test  #32: defer_auto_test .......................   Passed    0.30 sec
+        Start  31: defer_rank_test
+114/188 Test #217: lookup_default_test ...................   Passed    0.31 sec
+        Start 372: aux_cpus_test
+115/188 Test  #11: split_rules_test ......................   Passed    0.33 sec
+        Start 178: head_shortlist_test
+116/188 Test #372: aux_cpus_test .........................   Passed    0.20 sec
+        Start 204: window_policy_test
+117/188 Test #178: head_shortlist_test ...................   Passed    0.19 sec
+        Start 173: nv_defaults_test
+118/188 Test  #31: defer_rank_test .......................   Passed    0.63 sec
+        Start 174: kva_test
+119/188 Test #204: window_policy_test ....................   Passed    0.39 sec
+        Start 211: conv_cache_test
+120/188 Test #173: nv_defaults_test ......................   Passed    0.35 sec
+        Start 224: gated_proposal_test
+121/188 Test #174: kva_test ..............................   Passed    0.28 sec
+        Start 194: uma_cache_test
+122/188 Test #211: conv_cache_test .......................   Passed    0.26 sec
+        Start 366: pool_plan_test
+123/188 Test #224: gated_proposal_test ...................   Passed    0.30 sec
+        Start 376: poly_mxfp4_test
+124/188 Test #194: uma_cache_test ........................   Passed    0.32 sec
+        Start 215: window_limits_test
+125/188 Test #366: pool_plan_test ........................   Passed    0.32 sec
+        Start 220: coupled_draft_test
+126/188 Test #376: poly_mxfp4_test .......................   Passed    0.27 sec
+        Start 239: subfit_fit_math_test
+127/188 Test #215: window_limits_test ....................   Passed    0.27 sec
+        Start  70: grammar_guard_test
+128/188 Test #220: coupled_draft_test ....................   Passed    0.26 sec
+        Start 169: calibrate_ratio_test
+129/188 Test #239: subfit_fit_math_test ..................   Passed    0.28 sec
+        Start 205: draft_vocab_test
+130/188 Test  #70: grammar_guard_test ....................   Passed    0.29 sec
+        Start 161: ple_residency_test
+131/188 Test #169: calibrate_ratio_test ..................   Passed    0.31 sec
+        Start 228: spec_admission_exact_top_only
+132/188 Test #205: draft_vocab_test ......................   Passed    0.22 sec
+        Start 368: warm_policy_test
+133/188 Test #161: ple_residency_test ....................   Passed    0.24 sec
+        Start 234: fragile_recheck_test
+134/188 Test #228: spec_admission_exact_top_only .........   Passed    0.36 sec
+        Start 181: knob_trial_test
+135/188 Test #368: warm_policy_test ......................   Passed    0.41 sec
+        Start 226: spec_admission_pick
+136/188 Test #234: fragile_recheck_test ..................   Passed    0.20 sec
+        Start 177: tier_protect_test
+137/188 Test #181: knob_trial_test .......................   Passed    0.20 sec
+        Start 227: spec_admission_top
+138/188 Test #177: tier_protect_test .....................   Passed    0.09 sec
+        Start 212: adapt_decay_test
+139/188 Test #226: spec_admission_pick ...................   Passed    0.29 sec
+        Start   8: batch_read_test
+140/188 Test #227: spec_admission_top ....................   Passed    0.28 sec
+141/188 Test #212: adapt_decay_test ......................   Passed    0.22 sec
+        Start  17: share_rules_test
+        Start  26: adaptive_range_test
+142/188 Test   #8: batch_read_test .......................   Passed    0.40 sec
+        Start 230: expert_tiers_test
+143/188 Test  #17: share_rules_test ......................   Passed    0.43 sec
+        Start 233: subfit_trace_test
+144/188 Test  #26: adaptive_range_test ...................   Passed    0.41 sec
+        Start 175: adapt_async_default_test
+145/188 Test #230: expert_tiers_test .....................   Passed    0.34 sec
+        Start  21: timer_marks_test
+146/188 Test #233: subfit_trace_test .....................   Passed    0.31 sec
+        Start 187: diag_rules_test
+147/188 Test #175: adapt_async_default_test ..............   Passed    0.28 sec
+        Start  19: qsa_two_pass_status_test
+148/188 Test  #21: timer_marks_test ......................   Passed    0.27 sec
+        Start 240: kv_ring_test
+149/188 Test #187: diag_rules_test .......................   Passed    0.26 sec
+        Start  15: split_walk_test
+150/188 Test  #19: qsa_two_pass_status_test ..............   Passed    0.26 sec
+        Start 180: tier_miss_budget_test
+151/188 Test #240: kv_ring_test ..........................   Passed    0.28 sec
+        Start 183: ckpt_stride_test
+152/188 Test  #15: split_walk_test .......................   Passed    0.29 sec
+        Start  28: expert_seed_test
+153/188 Test #180: tier_miss_budget_test .................   Passed    0.31 sec
+        Start 168: pcie_share_rule_test
+154/188 Test #183: ckpt_stride_test ......................   Passed    0.28 sec
+        Start 188: lookahead_weights_test
+155/188 Test  #28: expert_seed_test ......................   Passed    0.27 sec
+        Start 208: fork_bugfix_rules_test
+156/188 Test #168: pcie_share_rule_test ..................   Passed    0.28 sec
+        Start 182: ckpt_async_plan_test
+157/188 Test #188: lookahead_weights_test ................   Passed    0.28 sec
+        Start  39: host_limits_test
+158/188 Test #208: fork_bugfix_rules_test ................   Passed    0.27 sec
+        Start 206: spec_start_test
+159/188 Test #182: ckpt_async_plan_test ..................   Passed    0.26 sec
+        Start  30: route_prior_auto_test
+160/188 Test  #39: host_limits_test ......................   Passed    0.31 sec
+        Start 229: draft_cap_test
+161/188 Test #206: spec_start_test .......................   Passed    0.30 sec
+        Start  14: vram_calib_test
+162/188 Test  #30: route_prior_auto_test .................   Passed    0.30 sec
+        Start  16: prefill_plan_test
+163/188 Test #229: draft_cap_test ........................   Passed    0.30 sec
+        Start 165: swiglu_skim_test
+164/188 Test  #14: vram_calib_test .......................   Passed    0.28 sec
+        Start  29: route_prior_scope_test
+165/188 Test  #16: prefill_plan_test .....................   Passed    0.32 sec
+        Start 190: route_range_test
+166/188 Test #165: swiglu_skim_test ......................   Passed    0.36 sec
+        Start 191: lookahead_skip_test
+167/188 Test  #29: route_prior_scope_test ................   Passed    0.38 sec
+        Start 199: controller_test
+168/188 Test #190: route_range_test ......................   Passed    0.36 sec
+        Start 192: lookahead_ctrl_test
+169/188 Test #191: lookahead_skip_test ...................   Passed    0.36 sec
+        Start 164: q36_prompt_swaps_test
+170/188 Test #199: controller_test .......................   Passed    0.34 sec
+        Start 162: auto_cache_test
+171/188 Test #192: lookahead_ctrl_test ...................   Passed    0.37 sec
+        Start  40: io_priority_test
+172/188 Test #164: q36_prompt_swaps_test .................   Passed    0.34 sec
+        Start 189: prefetch_prev_test
+173/188 Test #162: auto_cache_test .......................   Passed    0.39 sec
+        Start 218: window_evict_test
+174/188 Test  #40: io_priority_test ......................   Passed    0.38 sec
+        Start 244: batch_rows_test
+175/188 Test #189: prefetch_prev_test ....................   Passed    0.43 sec
+        Start 245: batch_groups_test
+176/188 Test #218: window_evict_test .....................   Passed    0.38 sec
+        Start 200: draft_policy_test
+177/188 Test #244: batch_rows_test .......................   Passed    0.36 sec
+        Start 348: expert_multi_test
+178/188 Test #245: batch_groups_test .....................   Passed    0.32 sec
+        Start 356: native_hadamard_test
+179/188 Test #200: draft_policy_test .....................   Passed    0.37 sec
+        Start 358: tq_cpu_parity
+180/188 Test #348: expert_multi_test .....................***Skipped   0.41 sec
+        Start 359: tq_cpu_parity_avx2
+181/188 Test #356: native_hadamard_test ..................***Skipped   0.26 sec
+        Start 362: expert_parity
+182/188 Test #362: expert_parity .........................***Skipped   0.06 sec
+        Start 363: pool_test
+183/188 Test #358: tq_cpu_parity .........................***Skipped   0.20 sec
+        Start 364: pool_test_entropy
+184/188 Test #359: tq_cpu_parity_avx2 ....................***Skipped   0.15 sec
+        Start 371: isa_guard_check
+185/188 Test #363: pool_test .............................***Skipped   0.10 sec
+186/188 Test #364: pool_test_entropy .....................***Skipped   0.08 sec
+187/188 Test #371: isa_guard_check .......................***Skipped   0.53 sec
+188/188 Test #160: ple_reader_stress .....................***Timeout 299.82 sec
+ple_reader stress: 7 tables x 15 configurations, 0.3 s each (dir C:\Users\iancu\AppData\Local\Temp\)
+  iq4nl          rb  90 hdr  192 | thread inflight  1 cache     0 clients 4: 51 tickets, 19651 rows, 0.0% cache hits, 2641 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  1 cache    16 clients 4: 49 tickets, 25700 rows, 2.1% cache hits, 7679 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  1 cache 100000 clients 4: 49 tickets, 13042 rows, 61.8% cache hits, 1256 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  2 cache     0 delay keepalive clients 4: 52 tickets, 17662 rows, 0.0% cache hits, 5775 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  2 cache    16 delay keepalive clients 4: 51 tickets, 16405 rows, 3.0% cache hits, 6109 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  2 cache 100000 delay keepalive clients 4: 51 tickets, 20691 rows, 35.3% cache hits, 4118 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  3 cache     0 clients 4: 49 tickets, 12824 rows, 0.0% cache hits, 2290 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  3 cache    16 clients 4: 49 tickets, 25491 rows, 1.2% cache hits, 7387 reads
+  iq4nl          rb  90 hdr  192 | thread inflight  3 cache 100000 clients 4: 49 tickets, 17763 rows, 34.1% cache hits, 1348 reads
+  iq4nl          rb  90 hdr  192 | thread inflight 64 cache     0 delay clients 4: 51 tickets, 14669 rows, 0.0% cache hits, 3980 reads
+  iq4nl          rb  90 hdr  192 | thread inflight 64 cache    16 delay clients 4: 51 tickets, 10307 rows, 4.7% cache hits, 3634 reads
+  iq4nl          rb  90 hdr  192 | thread inflight 64 cache 100000 delay clients 4: 52 tickets, 8370 rows, 32.7% cache hits, 3010 reads
+  iq4nl          rb  90 hdr  192 | caller inflight  1 cache    16 clients 1: 12 tickets, 925 rows, 10.4% cache hits, 462 reads
+  iq4nl          rb  90 hdr  192 | caller inflight  8 cache 100000 clients 1: 14 tickets, 7411 rows, 27.9% cache hits, 1768 reads
+  iq4nl          rb  90 hdr  192 | caller inflight 64 cache     0 delay clients 1: 13 tickets, 1906 rows, 0.0% cache hits, 762 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  1 cache     0 clients 4: 52 tickets, 10233 rows, 0.0% cache hits, 3151 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  1 cache    16 clients 4: 53 tickets, 12995 rows, 0.9% cache hits, 5047 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  1 cache 100000 clients 4: 48 tickets, 24734 rows, 30.3% cache hits, 6536 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  2 cache     0 delay keepalive clients 4: 51 tickets, 14975 rows, 0.0% cache hits, 5944 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  2 cache    16 delay keepalive clients 4: 54 tickets, 19697 rows, 15.2% cache hits, 4859 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  2 cache 100000 delay keepalive clients 4: 53 tickets, 19575 rows, 42.7% cache hits, 5514 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  3 cache     0 clients 4: 50 tickets, 14003 rows, 0.0% cache hits, 5131 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  3 cache    16 clients 4: 51 tickets, 13929 rows, 0.2% cache hits, 4306 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight  3 cache 100000 clients 4: 49 tickets, 10439 rows, 38.4% cache hits, 3716 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight 64 cache     0 delay clients 4: 49 tickets, 17987 rows, 0.0% cache hits, 5725 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight 64 cache    16 delay clients 4: 51 tickets, 14814 rows, 0.5% cache hits, 5423 reads
+  iq4nl+tail     rb  90 hdr  192 | thread inflight 64 cache 100000 delay clients 4: 54 tickets, 13849 rows, 20.2% cache hits, 4188 reads
+  iq4nl+tail     rb  90 hdr  192 | caller inflight  1 cache    16 clients 1: 14 tickets, 7797 rows, 2.1% cache hits, 3669 reads
+  iq4nl+tail     rb  90 hdr  192 | caller inflight  8 cache 100000 clients 1: 12 tickets, 1225 rows, 15.3% cache hits, 542 reads
+  iq4nl+tail     rb  90 hdr  192 | caller inflight 64 cache     0 delay clients 1: 13 tickets, 7838 rows, 0.0% cache hits, 2424 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  1 cache     0 clients 4: 52 tickets, 13762 rows, 0.0% cache hits, 4209 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  1 cache    16 clients 4: 48 tickets, 8563 rows, 3.1% cache hits, 2830 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  1 cache 100000 clients 4: 53 tickets, 16160 rows, 24.1% cache hits, 3546 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  2 cache     0 delay keepalive clients 4: 52 tickets, 21317 rows, 0.0% cache hits, 7298 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  2 cache    16 delay keepalive clients 4: 52 tickets, 33284 rows, 1.2% cache hits, 10110 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  2 cache 100000 delay keepalive clients 4: 53 tickets, 19406 rows, 21.6% cache hits, 4974 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  3 cache     0 clients 4: 51 tickets, 26064 rows, 0.0% cache hits, 9859 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  3 cache    16 clients 4: 49 tickets, 11681 rows, 44.5% cache hits, 1992 reads
+  odd phase      rb  90 hdr 4051 | thread inflight  3 cache 100000 clients 4: 50 tickets, 18795 rows, 26.1% cache hits, 3933 reads
+  odd phase      rb  90 hdr 4051 | thread inflight 64 cache     0 delay clients 4: 49 tickets, 22549 rows, 0.0% cache hits, 7265 reads
+  odd phase      rb  90 hdr 4051 | thread inflight 64 cache    16 delay clients 4: 50 tickets, 32954 rows, 1.1% cache hits, 10253 reads
+  odd phase      rb  90 hdr 4051 | thread inflight 64 cache 100000 delay clients 4: 51 tickets, 29884 rows, 32.5% cache hits, 7757 reads
+  odd phase      rb  90 hdr 4051 | caller inflight  1 cache    16 clients 1: 12 tickets, 3481 rows, 2.9% cache hits, 1167 reads
+  odd phase      rb  90 hdr 4051 | caller inflight  8 cache 100000 clients 1: 12 tickets, 9249 rows, 37.0% cache hits, 1906 reads
+  odd phase      rb  90 hdr 4051 | caller inflight 64 cache     0 delay clients 1: 13 tickets, 6687 rows, 0.0% cache hits, 1764 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  1 cache     0 clients 4: 50 tickets, 18863 rows, 0.0% cache hits, 6685 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  1 cache    16 clients 4: 52 tickets, 6470 rows, 3.2% cache hits, 2754 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  1 cache 100000 clients 4: 51 tickets, 20598 rows, 38.8% cache hits, 5520 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  2 cache     0 delay keepalive clients 4: 50 tickets, 21704 rows, 0.0% cache hits, 6669 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  2 cache    16 delay keepalive clients 4: 50 tickets, 20881 rows, 5.1% cache hits, 6967 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  2 cache 100000 delay keepalive clients 4: 52 tickets, 24067 rows, 33.8% cache hits, 6572 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  3 cache     0 clients 4: 53 tickets, 19879 rows, 0.0% cache hits, 5357 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  3 cache    16 clients 4: 48 tickets, 13523 rows, 5.3% cache hits, 4495 reads
+  q5_0           rb 110 hdr 4000 | thread inflight  3 cache 100000 clients 4: 50 tickets, 15274 rows, 34.9% cache hits, 1922 reads
+  q5_0           rb 110 hdr 4000 | thread inflight 64 cache     0 delay clients 4: 51 tickets, 14482 rows, 0.0% cache hits, 3561 reads
+  q5_0           rb 110 hdr 4000 | thread inflight 64 cache    16 delay clients 4: 52 tickets, 18603 rows, 1.5% cache hits, 6904 reads
+  q5_0           rb 110 hdr 4000 | thread inflight 64 cache 100000 delay clients 4: 50 tickets, 18329 rows, 52.1% cache hits, 5589 reads
+  q5_0           rb 110 hdr 4000 | caller inflight  1 cache    16 clients 1: 14 tickets, 3660 rows, 0.2% cache hits, 1372 reads
+  q5_0           rb 110 hdr 4000 | caller inflight  8 cache 100000 clients 1: 12 tickets, 2897 rows, 12.3% cache hits, 1152 reads
+  q5_0           rb 110 hdr 4000 | caller inflight 64 cache     0 delay clients 1: 18 tickets, 6098 rows, 0.0% cache hits, 1262 reads
+
+
+99% tests passed, 2 tests failed out of 188
+
+Label Time Summary:
+cpu    = 1009.54 sec*proc (188 tests)
+
+Total Test time (real) = 300.14 sec
+
+The following tests did not run:
+	348 - expert_multi_test (Skipped)
+	356 - native_hadamard_test (Skipped)
+	358 - tq_cpu_parity (Skipped)
+	359 - tq_cpu_parity_avx2 (Skipped)
+	362 - expert_parity (Skipped)
+	363 - pool_test (Skipped)
+	364 - pool_test_entropy (Skipped)
+	371 - isa_guard_check (Skipped)
+
+The following tests FAILED:
+	159 - ple_reader_selftest (Timeout)                     cpu
+	160 - ple_reader_stress (Timeout)                       cpu
+Errors while running CTest

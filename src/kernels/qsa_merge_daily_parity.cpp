@@ -294,6 +294,19 @@ struct Harness {
             std::puts("FAIL query-major chunk kernel (STRATA_ATTN_QMAJOR) differs from upstream reference");
             qmajor_same = false;
         }
+        // LEADS.md Part O O9 (STRATA_QSA_SPLIT_GRID): fewer blocks than chunks, each block running chunks b, b + blocks, ... (chunk kernel 4: 3 blocks per
+        // (kv head, query), whenever the case has more than 3 chunks), merged by the upstream merger: bit for bit the reference.
+        bool split_same = true;
+        ck(cudaMemset(scratch, 0xFF, scratch_bytes), "scratch NaN refill (split)");
+        k::qsa_decode_attn_chunks_only(q, pools.view(c.fmt, table), ids, steps, c.cap, s, scratch, c.n_q, 4, nullptr);
+        ck(cudaMemset(attn_new, 0x7F, n * 4), "attn_new refill (split)");
+        k::qsa_decode_attn_merge_only(steps, c.cap, s, scratch, attn_new, c.n_q, 0, nullptr);
+        ck(cudaDeviceSynchronize(), "split chunk sync");
+        ck(cudaMemcpy(b.data(), attn_new, n * 4, cudaMemcpyDeviceToHost), "split chunk output");
+        if (std::memcmp(a.data(), b.data(), n * 4) != 0) {
+            std::puts("FAIL split-grid chunk kernel (STRATA_QSA_SPLIT_GRID) differs from upstream reference");
+            split_same = false;
+        }
         // LEADS.md A50 (STRATA_ATTN_VWIN): two queries a block, a shared pool row read once (chunk kernel 3),
         // merged by the upstream merger: bit for bit the reference.  Then again with every odd query's selection made its
         // even neighbour's (the window's shared prefix: the K / V reuse path), against chunk kernel 0 on those ids.
@@ -330,7 +343,7 @@ struct Harness {
                 vwin_same = false;
             }
         }
-        return same && nan == 0 && entry_same && daily_same && qmajor_same && vwin_same;
+        return same && nan == 0 && entry_same && daily_same && qmajor_same && split_same && vwin_same;
     }
 };
 

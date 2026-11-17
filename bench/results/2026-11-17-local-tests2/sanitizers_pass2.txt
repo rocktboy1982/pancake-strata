@@ -1,0 +1,27 @@
+=== pf_ahead_rule_test
+pf_ahead_rule_test: ok
+RESULT pf_ahead_rule_test exit 0
+=== stop_rule_test
+stop_rule_test OK
+RESULT stop_rule_test exit 0
+=== prefill_plan_test
+strata: prefill plan: chunk 8192, ring 96 kept: file set 19.1 GiB does not fit the page cache 17.0 GiB -> about 62.4 GB read from the drive per 28887-token prompt (4 chunks); no option does better (the set cannot fit: fewest passes win)
+strata: prefill plan: chunk 8192, ring 64 kept: file set 47.6 GiB does not fit the page cache 22.0 GiB -> about 204.4 GB read from the drive per 28700-token prompt (4 chunks); no option does better (the set cannot fit: fewest passes win)
+strata: prefill plan: chunk 8192 -> 8192, ring 64 -> 16: today's choice has a 14.0 GiB file set against a 14.5 GiB page cache (about 19.1 GB read from the drive per 28700-token prompt, 81 s); this one 13.5 GiB, about 13.1 GB read, 68 s. --prefill N keeps your own chunk
+prefill_plan_test: ok
+RESULT prefill_plan_test exit 0
+=== combine_write_rule_test
+combine_write_rule_test: ok
+RESULT combine_write_rule_test exit 0
+=== session_keep_root_test
+session_keep_root_test: 12 checks passed (keep_root env off)
+RESULT session_keep_root_test exit 0
+=== session_keep_root_test_on
+session_keep_root_test: 12 checks passed (keep_root env on)
+RESULT session_keep_root_test_on exit 0
+=== draft_policy_test
+  ufac: a non-positive value turns it off                            ok
+  ufac: one value is not a curve                                     ok
+  ufac: a width at the end of the list is priced                     ok
+PASS
+RESULT draft_policy_test exit 0

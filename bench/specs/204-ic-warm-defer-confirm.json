@@ -1,0 +1,39 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 5,
+  "arms": {
+    "base": {},
+    "defer": {
+      "env": {
+        "STRATA_VERIFY_DEFER_CPU": "1"
+      }
+    },
+    "defer-warm32-d1": {
+      "env": {
+        "STRATA_VERIFY_DEFER_CPU": "1",
+        "STRATA_IC_WARM_MB": "32",
+        "STRATA_IC_WARM_DEFER": "1"
+      }
+    },
+    "defer-warm32-d2": {
+      "env": {
+        "STRATA_VERIFY_DEFER_CPU": "1",
+        "STRATA_IC_WARM_MB": "32",
+        "STRATA_IC_WARM_DEFER": "2"
+      }
+    },
+    "defer-warm64-d2": {
+      "env": {
+        "STRATA_VERIFY_DEFER_CPU": "1",
+        "STRATA_IC_WARM_MB": "64",
+        "STRATA_IC_WARM_DEFER": "2"
+      }
+    }
+  },
+  "note": "Confirm of the previous spec: LEADS.md Part L lead L14, coded 2026-11-17: STRATA_IC_WARM_DEFER=N moves the IC_WARM fork to the deferral's own wait (verify.cpp late_add): while the late add waits for layer l's CPU rows, the side stream reads layer l + N's pre-doorbell weights; needs STRATA_IC_WARM_MB for the cap and acts only where STRATA_VERIFY_DEFER_CPU=1 does. The deferral itself is LOSSY (it is in the conversation-cache key); the warm reads are not, so judge the defer-warm arms AGAINST 'defer' (text identical to it), never against base. Proof lines in the engine log: 'strata switch: STRATA_IC_WARM_DEFER acted' and 'STRATA_IC_WARM_DEFER=N: also in the deferral's late wait'. N = 1 re-reads layer l + 1's router and what its mixer used, N = 2 the layer after it. Quality: the deferral's own gate (tools/pancake/quality_gate.py with the 'defer' arm against base) decides whether deferral is usable at all; the warm arms add no arithmetic, so a text-hash difference between 'defer' and a defer-warm arm is a BUG, not a quality result. Stop pancake.service first. Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5."
+}

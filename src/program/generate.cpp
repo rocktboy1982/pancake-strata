@@ -47,6 +47,7 @@
 #include "strata/core/remote_expert_opt.hpp"
 #include "strata/core/expert_cache.hpp"
 #include "strata/core/expert_tiers.hpp"
+#include "strata/spec/copy_lane.hpp"
 #include "strata/spec/ngram_mod.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_snapshot.hpp"
@@ -1241,7 +1242,7 @@ void usage() {
                  "  --conversation-disk-max-gib N  --serve: the most the disk tier's folder may hold (default 20)\n"
                  "  --session-min-free-mib N  --serve: disk space a SAVE must leave free (default 4096; 0 = no check)\n"
                  "  --session-save-reclaim  --serve: reclaim unpinned host caches if SAVE needs RAM (opt-in)\n"
-                 "  --vram-elastic       --serve (#533, opt-in, NVIDIA): the expert cache in segments (--vram-segment-mib,\n"
+                 "  --vram-elastic       --serve (#533, opt-in, NVIDIA; HIP with STRATA_HIP_VRAM_ELASTIC=1): the expert cache in segments (--vram-segment-mib,\n"
                  "                       default 512), so the command `VRAM <reserve_mib>` (the server's POST /v1/vram) can\n"
                  "                       give VRAM back to other programs between requests and take it back later\n"
                  "  --batch N / --slots N  --serve (opt-in): up to N requests decode together in batch slots (2..8\n"
@@ -7501,9 +7502,27 @@ int main(int argc, char** argv) {
                             strata::core::vmm_available() &&
                             // the batch slots carve their own K/V and --vram-elastic's cache is not one VMM range
                             o.batch == 0 && !o.vram_elastic && o.peer_device < 0;
-            if (asked && !on)
+            if (asked && !on) {
                 std::fprintf(stderr, "strata generate: --kv-grow is off (one GPU, a profile, the whole K/V in VRAM, "
                                      "every expert in RAM, no --batch, --vram-elastic or --peer-device)\n");
+                // which of them failed: a spec arm that added --kv-grow to a preset with --kv-resident measured the base twice
+                // (spec 31 / 31c, tools/pancake/spec_lint.py INERT-GATE)
+                std::string why;
+                auto add = [&](bool failed, const char* what) {
+                    if (failed) why += (why.empty() ? "" : "; ") + std::string(what);
+                };
+                add(multi_gpu, "a layer split");
+                add(o.kv_resident > 0, "--kv-resident is set (the K/V ring streams from the host)");
+                add(o.expert_profile.empty(), "no --expert-profile");
+                add(o.resident_cpu_experts, "resident CPU experts");
+                add(o.expert_cache == 0, "--expert-cache 0");
+                add(remote, "helper caches on other GPUs");
+                add(!strata::core::vmm_available(), "no virtual memory management on this device or driver");
+                add(o.batch != 0, "--batch");
+                add(o.vram_elastic, "--vram-elastic");
+                add(o.peer_device >= 0, "--peer-device");
+                std::fprintf(stderr, "strata generate: --kv-grow is off because: %s\n", why.c_str());
+            }
             const char* iv = std::getenv("STRATA_KV_GROW_INIT");
             strata::core::qsa_set_kv_elastic(on, iv != nullptr && std::atoll(iv) > 0 ? std::atoll(iv) : 16384);
             strata::core::ExpertCache::set_vmm(on);
@@ -9274,7 +9293,12 @@ int main(int argc, char** argv) {
                                       [](int n) { return n > 0; }) ? "the helper caches on other GPUs"
                         : o.vram_segment_mib < 64 ? "--vram-segment-mib is below 64" : nullptr;
 #if defined(STRATA_USE_HIP)
-        if (why == nullptr) why = "it is NVIDIA-only for now";
+        // LEADS.md Part N N4: the segmented cache on VmmRange (hipMem*), opt-in on HIP: STRATA_HIP_VRAM_ELASTIC=1.  The run says which backend.
+        const char* hve = std::getenv("STRATA_HIP_VRAM_ELASTIC");
+        if (why == nullptr && !(hve != nullptr && hve[0] == '1'))
+            why = "it is NVIDIA-only unless STRATA_HIP_VRAM_ELASTIC=1 (segments on the VMM range, LEADS.md Part N N4)";
+        else if (why == nullptr)
+            std::fprintf(stderr, "strata generate: STRATA_HIP_VRAM_ELASTIC=1: --vram-elastic on HIP, segments on the VMM range\n");
 #endif
         if (why != nullptr) {
             std::fprintf(stderr, "strata generate: --vram-elastic is off: %s\n", why);
@@ -16235,6 +16259,18 @@ int main(int argc, char** argv) {
             if (!have) {
                 strata::spec::extra_draft_sources().push_back(std::make_unique<strata::spec::NgramModSource>((int32_t) g.n_vocab));
                 std::fprintf(stderr, "strata serve: STRATA_NGRAM_MOD: shared n-gram table (16 MiB) as a --lookup-chain source\n");
+            }
+        }
+        // STRATA_LOOKUP_COPYLANE=1 (opt-in, LEADS.md Part P L1; hipfire's n-gram copy lane, Apache-2.0, copy_lane.hpp): a verbatim-copy
+        // source for --lookup-chain, keys of 32 / 16 / 8 / 5 tokens (longest first) mapped to the position after their most recent
+        // occurrence, the match checked token for token; the proposal copies up to 63 tokens of earlier text.  Exact: the window checks it.
+        static const bool copy_lane_on = [] { const char* v = std::getenv("STRATA_LOOKUP_COPYLANE"); return v != nullptr && v[0] == '1'; }();
+        if (copy_lane_on && o.lookup_chain > 0) {
+            bool have = false;
+            for (const auto& src : strata::spec::extra_draft_sources()) have = have || (src && std::strcmp(src->name(), "copy-lane") == 0);
+            if (!have) {
+                strata::spec::extra_draft_sources().push_back(std::make_unique<strata::spec::CopyLaneSource>());
+                std::fprintf(stderr, "strata serve: STRATA_LOOKUP_COPYLANE: copy lane (keys 32/16/8/5, 16 MiB) as a --lookup-chain source\n");
             }
         }
         strata::spec::DraftPolicy policy(S);   // MTP or lookup window, learned over the whole process

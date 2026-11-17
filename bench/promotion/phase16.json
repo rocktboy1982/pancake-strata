@@ -2,7 +2,7 @@
  "items": [
   {
    "name": "F1-park-truncate",
-   "spec": "bench/specs/25-f1-park-truncate.json",
+   "spec": "bench/specs/184-f1-park-truncate.json",
    "exact": true,
    "branch": "dev/batch-1",
    "commits": [
@@ -189,7 +189,7 @@
   },
   {
    "name": "A23-spec-cost",
-   "spec": "bench/specs/24-a22-disco.json",
+   "spec": "bench/specs/180-a22-disco.json",
    "exact": true,
    "branch": "dev/batch-1",
    "commits": [],
@@ -270,7 +270,7 @@
   },
   {
    "name": "A11-tool-boundary",
-   "spec": "bench/specs/25-a11-a13-cache.json",
+   "spec": "bench/specs/181-a11-a13-cache.json",
    "exact": true,
    "branch": "dev/batch-1",
    "commits": [],
@@ -288,7 +288,7 @@
   },
   {
    "name": "A12-auto-pin",
-   "spec": "bench/specs/25-a11-a13-cache.json",
+   "spec": "bench/specs/181-a11-a13-cache.json",
    "exact": true,
    "branch": "dev/batch-1",
    "commits": [],
@@ -306,7 +306,7 @@
   },
   {
    "name": "A13-disk-tier",
-   "spec": "bench/specs/25-a11-a13-cache.json",
+   "spec": "bench/specs/181-a11-a13-cache.json",
    "exact": true,
    "branch": "dev/batch-1",
    "commits": [],
@@ -343,7 +343,7 @@
   },
   {
    "name": "A7-promo-chunk",
-   "spec": "bench/specs/22-a7-promo-chunk.json",
+   "spec": "bench/specs/174-a7-promo-chunk.json",
    "exact": false,
    "branch": "dev/batch-2",
    "commits": [],
@@ -359,7 +359,7 @@
   },
   {
    "name": "A8-swaps-auto",
-   "spec": "bench/specs/25-a8-swaps-auto-blocking.json",
+   "spec": "bench/specs/183-a8-swaps-auto-blocking.json",
    "exact": false,
    "branch": "dev/batch-1",
    "commits": [],
@@ -458,7 +458,7 @@
   },
   {
    "name": "A22-disco",
-   "spec": "bench/specs/24-a22-disco.json",
+   "spec": "bench/specs/180-a22-disco.json",
    "exact": true,
    "branch": "dev/batch-2",
    "commits": [],
@@ -473,7 +473,7 @@
   },
   {
    "name": "A24-suffix-index",
-   "spec": "bench/specs/24-a24-suffix-index.json",
+   "spec": "bench/specs/175-a24-suffix-index.json",
    "exact": true,
    "branch": "dev/batch-2",
    "commits": [],
@@ -554,7 +554,7 @@
   },
   {
    "name": "A37-lut-dup",
-   "spec": "bench/specs/24-a37-lut-dup.json",
+   "spec": "bench/specs/178-a37-lut-dup.json",
    "exact": true,
    "branch": "dev/batch-2",
    "commits": [
@@ -573,7 +573,7 @@
   },
   {
    "name": "A44-bandit",
-   "spec": "bench/specs/24-a44-bandit.json",
+   "spec": "bench/specs/179-a44-bandit.json",
    "exact": false,
    "branch": "dev/batch-2",
    "commits": [],
@@ -589,7 +589,7 @@
   },
   {
    "name": "A45-calibrate",
-   "spec": "bench/specs/24-a45-calibrate.json",
+   "spec": "bench/specs/177-a45-calibrate.json",
    "exact": true,
    "branch": "dev/batch-2",
    "commits": [],

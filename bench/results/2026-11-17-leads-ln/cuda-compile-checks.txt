@@ -1,0 +1,2 @@
+/c/Users/iancu/build-ln/man/verify.log:VERIFY_RC=0
+/c/Users/iancu/build-ln/man/q36.log:Q36_RC=0

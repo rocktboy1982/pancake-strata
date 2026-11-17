@@ -1,0 +1,17 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "edit"
+ ],
+ "reps": 60,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "base-again": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  }
+ },
+ "note": "LEADS.md Part O O12 (idea from caminus' design record: its hand-off race hit 2 of 14,396 launches, and only a bitwise shadow compare saw it, KLD did not). Exact-output soak of the CPU-overlap hand-off path: the daily preset against itself, 60 engine starts per arm, the edit case (512 greedy tokens each, about 61,000 tokens in all) whose text hash must agree between every pair of starts. Only the edit case: the preset's short case is known to differ run to run (spec 163 note, T-084), so it cannot serve as an identity check, while the edit hash was identical base vs another arm in T-084. A hash that differs between two starts of the SAME binary is a hand-off / fence defect or a nondeterministic kernel, not a speed result; read the text-check lines, ignore the tok/s, run with --tier confirm --outlier robust --no-early-stop on a quiet box. Ledger row: number of starts whose edit hash differs from the majority. Coded 2026-11-17, NOT run on the box."
+}

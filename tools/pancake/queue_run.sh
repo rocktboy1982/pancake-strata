@@ -3,7 +3,7 @@
 #
 #   tools/pancake/queue_run.sh [-n] [--night-only HH-HH] [--drop-cache] [--reclaim-max X] OUTDIR SPEC[:abtest args...] ...
 #   e.g. tools/pancake/queue_run.sh --night-only 23-07 --drop-cache bench/results/2026-11-11-gpu \
-#            bench/specs/19-turbo-guards.json "bench/specs/25-a8-confirm.json:--no-early-stop" bench/specs/20-verify-ecap.json:--tier=screen
+#            bench/specs/19-turbo-guards.json "bench/specs/187-a8-confirm.json:--no-early-stop" bench/specs/20-verify-ecap.json:--tier=screen
 #
 # One job at a time: it refuses to start while another abtest/strata process runs, waits for MemAvailable >= MIN_GIB
 # (default 30) before each spec, skips a spec that already has a summary in OUTDIR (resumable), and stops the whole queue

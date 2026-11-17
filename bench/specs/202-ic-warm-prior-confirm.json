@@ -1,0 +1,28 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 5,
+  "arms": {
+    "base": {},
+    "warm16": {
+      "env": {
+        "STRATA_IC_WARM_MB": "16"
+      }
+    },
+    "warm32": {
+      "env": {
+        "STRATA_IC_WARM_MB": "32"
+      }
+    },
+    "warm64": {
+      "env": {
+        "STRATA_IC_WARM_MB": "64"
+      }
+    }
+  },
+  "note": "Confirm of the previous spec (screen survivors only): LEADS.md Part L lead L14 (negative results as priors): STRATA_IC_WARM_MB=N reads the NEXT layer's pre-doorbell weights (mixer projections, router; the engine prints their MiB per layer at start) on a side stream while the fused CPU combine waits for the CPU rows, to keep them in the 80 MiB Infinity Cache; N = the cap in MiB per layer. It was never measured where it acts: T-044 found it inert UNDER DEFERRAL (verify.cpp warm_now needs cfuse_on, which STRATA_VERIFY_DEFER_CPU turns off), and the earlier arms (spec 04, a33-a35) ran on bases with reclaim hits or with deferral. The daily preset has STRATA_COMBINE_CPU=1 and no deferral, so cfuse_on holds and the switch should act: PROOF in the engine log, 'strata switch: STRATA_IC_WARM_MB acted' (tools/pancake/switch_report.py); an arm without that line measured nothing. Exact (reads only): the text must be identical to base. PRIOR: the authors' dense decode lost 181 / 136 / 105 against 186 tok/s at 8 / 24 / 40 MB (paper, bandwidth-bound; ours is CPU-wait-bound, so the prior is 'loses or noise'). Screen rule: promote from 0% up, drop if any case is below -3%; confirm bar >= 2%. Stop pancake.service first. Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5."
+}

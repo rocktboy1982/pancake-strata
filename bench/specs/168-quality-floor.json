@@ -1,0 +1,27 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "floor-unfused": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_FUSED": "0"
+   }
+  },
+  "f16-1": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  }
+ },
+ "note": "LEADS.md Part O O11 (idea from caminus' D-281 gate: a change that cannot be bit-identical is held to the engine's OWN legitimate-reordering floor, not to zero). Token-forcing quality gate with a FLOOR arm: floor-unfused (STRATA_PF_FUSED=0) is the same model through the other prompt-expert path (the preset runs PF_FUSED=1), an exact-intent reordering of the prompt arithmetic, so its disagreement with base (rate rule, event rule, near-tie column) is the floor a legitimate change shows; f16-1 (STRATA_PF_F16=1, adopted 2026-11-17, T-828: near-tie column 98.3% FAIL) is the arm to read against it. Run: python3 tools/pancake/quality_gate.py bench/specs/168-quality-floor.json --out /home/dan/auto-runs/winQ-168/gate --near-tie. Reading rule (proposed, the owner decides): an arm whose near-tie column and event rule are no worse than floor-unfused's is inside the floor. Coded 2026-11-17, NOT run on the box."
+}

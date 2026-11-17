@@ -1116,6 +1116,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(expert_cache_segmented_test PRIVATE strata_engine)
     add_test(NAME expert_cache_segmented_test COMMAND expert_cache_segmented_test)
     set_tests_properties(expert_cache_segmented_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+    # LEADS.md Part N N4: the same segments test with the arena on VmmRange (the backend of STRATA_HIP_VRAM_ELASTIC=1; the hook selects it on any build)
+    add_test(NAME expert_cache_segmented_vmmrange_test COMMAND expert_cache_segmented_test)
+    set_tests_properties(expert_cache_segmented_vmmrange_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60
+                         ENVIRONMENT "STRATA_VRAM_ELASTIC_VMMRANGE=1")
     # STRATA_MMQ_DIRECT: slot_guard / slot_room / slot_tail on the uniform and the sized cache, and the default
     # (no guard) sized layout unchanged
     add_executable(expert_cache_slot_guard_test tests/core/expert_cache_slot_guard_test.cpp)
@@ -1774,6 +1778,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_executable(gdn_rec_parity src/prefill/gdn_rec_parity.cu)
     target_link_libraries(gdn_rec_parity PRIVATE ${_strata_gpu_runtime_target})
     add_test(NAME gdn_rec_parity COMMAND gdn_rec_parity)
+    add_executable(gdn_snap_parity src/prefill/gdn_snap_parity.cu)   # LEADS.md Part O O6: the in-chunk snapshot kernel against the plain recurrence, bit for bit
+    target_include_directories(gdn_snap_parity PRIVATE include)
+    target_link_libraries(gdn_snap_parity PRIVATE strata_prefill ${_strata_gpu_runtime_target})
+    add_test(NAME gdn_snap_parity COMMAND gdn_snap_parity)
     # STRATA_GDN_TC=1: the tensor-core helpers of the scan, each on one warp against a double-precision reference.  Any sm_80+
     # card runs them; the scan itself needs 122 KB of shared memory a block (sm_80, sm_90), where gdn_rec_parity prints
     # "not on this card" for the tc variant
@@ -2451,6 +2459,12 @@ if(STRATA_BUILD_TESTS)
   add_executable(ple_warm_test src/program/ple_warm_test.cpp)   # MOD_PLAN.md section 6 item 50: STRATA_PLE_WARM
   target_include_directories(ple_warm_test PRIVATE include)
   add_test(NAME ple_warm_test COMMAND ple_warm_test)
+  add_executable(free_settle_test src/program/free_settle_test.cpp)   # LEADS.md Part P L5: STRATA_FREE_SETTLE_MS
+  target_include_directories(free_settle_test PRIVATE include)
+  add_test(NAME free_settle_test COMMAND free_settle_test)
+  add_executable(copy_lane_test src/spec/copy_lane_test.cpp)   # LEADS.md Part P L1: STRATA_LOOKUP_COPYLANE
+  target_include_directories(copy_lane_test PRIVATE include)
+  add_test(NAME copy_lane_test COMMAND copy_lane_test)
   add_executable(session_keep_root_test src/core/session_keep_root_test.cpp src/core/conversation_file.cpp)   # MOD_PLAN.md section 6 item 44: STRATA_SESSION_KEEP_ROOT
   target_include_directories(session_keep_root_test PRIVATE include)
   add_test(NAME session_keep_root_test COMMAND session_keep_root_test)
@@ -2474,6 +2488,22 @@ if(STRATA_BUILD_TESTS)
   add_executable(lookahead_ctrl_test src/program/lookahead_ctrl_test.cpp)   # MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I): STRATA_LOOKAHEAD_CTRL
   target_include_directories(lookahead_ctrl_test PRIVATE include)
   add_test(NAME lookahead_ctrl_test COMMAND lookahead_ctrl_test)
+  add_executable(persist_tape_test src/program/persist_tape_test.cpp)   # LEADS.md Part O O7: the persistent-launch protocol (tape, claim, done counters, bases) on a CPU reference
+  target_include_directories(persist_tape_test PRIVATE include)
+  target_link_libraries(persist_tape_test PRIVATE Threads::Threads)
+  add_test(NAME persist_tape_test COMMAND persist_tape_test)
+  add_executable(persist_launch_test src/program/persist_launch_test.cpp)   # LEADS.md Part O O7: the flat arrays / carried bases of a persistent launch, the device claim rule run on them
+  target_include_directories(persist_launch_test PRIVATE include)
+  target_link_libraries(persist_launch_test PRIVATE Threads::Threads)
+  add_test(NAME persist_launch_test COMMAND persist_launch_test)
+  add_executable(qsa_split_test src/kernels/qsa_split_test.cpp)   # LEADS.md Part O O9: STRATA_QSA_SPLIT_GRID's blocks-per-head rule and chunk visit order
+  target_include_directories(qsa_split_test PRIVATE include)
+  add_test(NAME qsa_split_test COMMAND qsa_split_test)
+  add_executable(gdn_snap_test src/prefill/gdn_snap_test.cpp)   # LEADS.md Part O O6: in-chunk snapshot chunk plan, layout, host reference of the recurrence
+  target_include_directories(gdn_snap_test PRIVATE include)
+  add_test(NAME gdn_snap_test COMMAND gdn_snap_test)
+  add_executable(act_f16_test src/kernels/act_f16_test.cpp)   # LEADS.md Part O O10: activation rounding error, Q8_1 against fp16, host fixture
+  add_test(NAME act_f16_test COMMAND act_f16_test)
   # MOD_PLAN A15 / F1: a recorded request trace through the real ConversationCache (tools/pancake/park_sim.py drives it offline)
   add_executable(park_replay_sim src/core/park_replay_sim.cpp)
   target_include_directories(park_replay_sim PRIVATE include)
@@ -3546,6 +3576,36 @@ if(STRATA_BUILD_PROBES)
     add_executable(empty_grid_probe EXCLUDE_FROM_ALL tools/pancake/probes/empty_grid.hip.cpp)
     set_source_files_properties(tools/pancake/probes/empty_grid.hip.cpp PROPERTIES LANGUAGE HIP)
     target_link_libraries(empty_grid_probe PRIVATE strata_hip_runtime)
+    add_executable(retained_replay_probe EXCLUDE_FROM_ALL tools/pancake/probes/retained_replay.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/retained_replay.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(retained_replay_probe PRIVATE strata_hip_runtime)   # LEADS.md Part P L13: stream / graph / AQL replay cost per node (add -DSTRATA_PROBE_HSA for the AQL arm)
+    add_executable(persist_tape_probe EXCLUDE_FROM_ALL tools/pancake/probes/persist_tape.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/persist_tape.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_include_directories(persist_tape_probe PRIVATE include)
+    target_link_libraries(persist_tape_probe PRIVATE strata_hip_runtime)   # LEADS.md Part O O7: one persistent launch vs one launch per stage, needs a gfx11 GPU
+    add_executable(persist_layer_parity EXCLUDE_FROM_ALL src/kernels/persist_layer_parity.cu)   # LEADS.md Part O O7: the persistent kernel template with a layer-shaped tape, bit for bit
+    set_source_files_properties(src/kernels/persist_layer_parity.cu PROPERTIES LANGUAGE HIP)
+    target_include_directories(persist_layer_parity PRIVATE include)
+    target_link_libraries(persist_layer_parity PRIVATE strata_hip_runtime)
+    add_executable(link_touch_probe EXCLUDE_FROM_ALL tools/pancake/probes/link_touch.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/link_touch.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(link_touch_probe PRIVATE strata_hip_runtime)   # LEADS.md Part O O5: does a sleeping PCIe link delay the pass end, does a touch keep it awake
+    add_executable(act_f16_probe EXCLUDE_FROM_ALL tools/pancake/probes/act_f16.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/act_f16.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(act_f16_probe PRIVATE strata_hip_runtime)   # LEADS.md Part O O10: fp16-activation matvec against the read-only roofline
+    add_executable(wmma_rate_probe EXCLUDE_FROM_ALL tools/pancake/probes/wmma_rate.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/wmma_rate.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(wmma_rate_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L2: f16 / iu8 / iu4 WMMA rate, needs a gfx11 GPU
+    add_executable(int4_wmma_probe EXCLUDE_FROM_ALL tools/pancake/probes/int4_wmma.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/int4_wmma.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_include_directories(int4_wmma_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(int4_wmma_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L3: rotated-INT4 iu4 GEMM parity + bench, needs a gfx11 GPU
+    foreach(_pn int4_moe attn_fold raw_buffer)   # LEADS.md Part L L3 / L4 (Q2_0 expert-gather iu4 GEMM), L9 (folded split-KV merge), L11 (buffer loads)
+      add_executable(${_pn}_probe EXCLUDE_FROM_ALL tools/pancake/probes/${_pn}.hip.cpp)
+      set_source_files_properties(tools/pancake/probes/${_pn}.hip.cpp PROPERTIES LANGUAGE HIP)
+      target_include_directories(${_pn}_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+      target_link_libraries(${_pn}_probe PRIVATE strata_hip_runtime)   # needs a gfx11 GPU
+    endforeach()
   endif()
 endif()
 
@@ -3607,6 +3667,25 @@ if(STRATA_BUILD_TESTS)
   add_executable(iq_sign_fast_test tests/core/iq_sign_fast_test.cpp)
   target_include_directories(iq_sign_fast_test PRIVATE include third_party/ggml)
   add_test(NAME iq_sign_fast_test COMMAND iq_sign_fast_test)
+  # LEADS.md Part L L1 / L3: host reference of the rotated-INT4 pipeline (rotation, A8 / A4 codes, int4 GEMM), synthetic, header only
+  add_executable(int4_rot_test src/kernels/cpu/int4_rot_test.cpp)
+  target_include_directories(int4_rot_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  add_test(NAME int4_rot_test COMMAND int4_rot_test)
+  # LEADS.md Part L L3 / L4: Q2_0 -> int4 exact, IQ2_XS -> odd int4 levels (error measured), the iu4 tile loop with the expert gather
+  # (STRATA_PF_IU4 host side), synthetic, header only
+  add_executable(int4_iq2_test src/kernels/cpu/int4_iq2_test.cpp)
+  target_include_directories(int4_iq2_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ggml)
+  add_test(NAME int4_iq2_test COMMAND int4_iq2_test)
+  # LEADS.md Part L L8 / L9 / L11: the causal block order (bijection + dispatcher model), the fold-the-merge ticket protocol (threads), the
+  # buffer-resource descriptor packing; synthetic, header only
+  foreach(_t causal_order_test fold_merge_test raw_buffer_test kv_ring_live_test)
+    add_executable(${_t} src/kernels/cpu/${_t}.cpp)
+    target_include_directories(${_t} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    add_test(NAME ${_t} COMMAND ${_t})
+  endforeach()
+  find_package(Threads REQUIRED)
+  target_link_libraries(fold_merge_test PRIVATE Threads::Threads)
+  set_tests_properties(fold_merge_test PROPERTIES TIMEOUT 120)
 
   if(STRATA_NATIVE_EXPERTS)
     # APR port: a Hadamard-folded trellis expert (TQ2_T / TQK6 / TQK7) on the CPU path vs llama.cpp's graph for the
@@ -4029,6 +4108,8 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     ckpt_async_plan_test
     ckpt_stride_test
     ple_warm_test
+    free_settle_test
+    copy_lane_test
     session_keep_root_test
     diag_rules_test
     lookahead_weights_test
@@ -4036,6 +4117,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test
+    persist_tape_test persist_launch_test qsa_split_test gdn_snap_test act_f16_test
     draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
@@ -4047,7 +4129,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     native_arithmetic_parity_nvfp4_ggml pool_tasks_test pool_tasks_test_row_split pool_tasks_test_fuse_row_split pool_tasks_test_defer_actq router_dot_parity router_dot_parity_avx
     iq512_gather_parity_scalar iq512_gather_parity_gather iq_avx2_parity iq_avx2_parity_iq3s_mt1 iq_r4_parity iq_avx1_parity
     q8k_quant_parity q8k_quant_parity_avx ggml_tq_overlay nvfp4_cpu_parity pool_affinity_test expert_multi_test
-    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test iq_own1_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
+    q2_bitplane_parity q2_fast_parity_test pool_micro_parity_test iq_own1_parity_test q2_skip_parity q2_hi_parity iq_sign_fast_test int4_rot_test int4_iq2_test causal_order_test fold_merge_test raw_buffer_test kv_ring_live_test native_hadamard_test shadow_pack_test tq_cpu_parity tq_cpu_parity_avx2
     tqp_cpu_test tqp_cpu_test_avx2
     expert_parity pool_test pool_test_entropy pool_cores_test pool_plan_test numa_pool_test warm_policy_test copy_events_test
     pool_stress isa_guard_check direct_file_async_test aux_cpus_test poly_workers_test poly_cpu_kernels_test

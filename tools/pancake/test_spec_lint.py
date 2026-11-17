@@ -103,6 +103,66 @@ def test_usage_errors_exit_2():
             assert S.main(["--dir", str(t.specs)]) == 2                                          # no sources
 
 
+PRESET = ["--kv", "int8", "--kv-resident", "32768", "--max-context", "131072"]
+
+
+def test_inert_gate_kv_grow_under_kv_resident():
+    assert "--kv-resident 32768" in S.inert_gate(PRESET, {"args": {"--kv-grow": ""}})
+    assert "--kv-resident" in S.inert_gate(PRESET, {"env": {"STRATA_KV_GROW": "1"}})
+    assert S.inert_gate(PRESET, {}) is None                                                    # the base arm
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": "", "--kv-resident": None}}) is None    # ring removed: the switch can act
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": "", "--kv-resident": "0"}}) is None
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": ""}, "env": {"STRATA_KV_GROW": "0"}}) is None   # the env wins, as in the engine
+    assert S.inert_gate(PRESET, {"args": {"--kv-grow": "", "--no-kv-grow": ""}}) is None
+
+
+def test_inert_gate_is_a_warning_not_a_failure():
+    with tree() as d, Tree(d) as t:
+        t.src.write_text(t.src.read_text(encoding="utf-8") + 'if (a == "--kv-grow") {}' + chr(10), encoding="utf-8")
+        preset = Path(d) / "p.json"
+        preset.write_text(json.dumps({"args": PRESET}), encoding="utf-8")
+        (t.specs / "a.json").write_text(json.dumps({"base": str(preset), "arms": {"base": {}, "g": {"args": {"--kv-grow": ""}}}}), encoding="utf-8")
+        code, out, err = run_main(t)
+        assert code == 0 and "INERT-GATE   a.json arm(g)" in out and "INERT-GATE   a.json arm(base)" not in out
+        assert "1 arm(s)" in err
+
+SPEC_P = {"arms": {"base": {}, "x": {}}, "cases": {"short": {}, "edit": {}},
+          "predict": [{"arm": "x", "case": "short", "lo": 1.0, "hi": 4.0}, {"arm": "x", "lo": 0.0, "hi": 2.0, "metric": "kld"}],
+          "stop": ["stop when any case is below -3%", {"if": "kld above 0.01", "then": "drop the arm"}]}
+
+
+def test_predict_shape_ok_and_errors():
+    assert S.predict_problems(SPEC_P) == []
+    assert S.predict_problems({"arms": {"base": {}}}) == []                                   # both keys are optional
+    bad = dict(SPEC_P, predict=[{"arm": "nope", "lo": 1, "hi": 2}, {"arm": "x", "case": "zz", "lo": 1, "hi": 2},
+                                {"arm": "x", "lo": 3, "hi": 2}, {"arm": "x", "lo": "a", "hi": 2}, 5], stop=["", {"if": "a"}])
+    msgs = S.predict_problems(bad)
+    assert len(msgs) == 7, msgs
+
+
+def test_score_predictions_hit_miss_nodata():
+    rows = S.score_predictions(SPEC_P, {"x/short": 5.2, "kld": {"x": 1.0}})
+    assert [r[4] for r in rows] == ["MISS", "hit"]
+    assert S.score_predictions(SPEC_P, {})[0][4] == "no data"
+    assert S.score_predictions(SPEC_P, {"x/short": 2.0})[0][4] == "hit"      # bounds are inclusive
+
+
+def test_require_predict_from_and_score_cli():
+    with tree() as d, Tree(d) as t:
+        (t.specs / "5-old.json").write_text(json.dumps({"base": "p.json", "arms": {"base": {}}}), encoding="utf-8")
+        assert run_main(t, "--require-predict-from", "100")[0] == 0
+        (t.specs / "150-new.json").write_text(json.dumps({"base": "p.json", "arms": {"base": {}}}), encoding="utf-8")
+        code, out, _ = run_main(t, "--require-predict-from", "100")
+        assert code == 1 and '150-new.json: "predict" is missing' in out and "5-old" not in out
+        sp, ob = Path(d) / "s.json", Path(d) / "o.json"
+        sp.write_text(json.dumps(SPEC_P), encoding="utf-8")
+        ob.write_text(json.dumps({"x/short": 2.5, "kld": {"x": 1.5}}), encoding="utf-8")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = S.main(["--score", str(sp), str(ob)])
+        assert code == 0 and "2 hit, 0 missed" in out.getvalue()
+
+
 def test_real_specs_walk_without_crashing():
     n = 0
     for _spec, arm, body in S.walk_specs(S.ROOT / "bench/specs"):

@@ -1,0 +1,3 @@
+ERROR C:\Users\iancu\repos\pancake-strata\src\kernels\cuda\native_mmvq.cu: C:\Users\iancu\repos\pancake-strata\include\strata\platform\hip_compat\strata_hip.h:235:12: error: '__builtin_amdgcn_sdot4' needs target feature dot1-insts; 1 error generated when compiling for gfx1100.
+ERROR C:\Users\iancu\repos\pancake-strata\src\prefill\moe_f16_kq.cu: C:\Users\iancu\repos\pancake-strata\src\prefill\moe_f16_kq.cu:34:10: fatal error: 'ggml.h' file not found; 1 error generated when compiling for gfx1100.
+ERROR C:\Users\iancu\repos\pancake-strata\src\prefill\moe_fused_iq.cu: C:\Users\iancu\repos\pancake-strata\src\prefill\moe_fused_iq.cu:37:10: fatal error: 'ggml.h' file not found; 1 error generated when compiling for gfx1100.
