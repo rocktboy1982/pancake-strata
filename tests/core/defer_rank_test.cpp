@@ -58,7 +58,11 @@ Window random_window(std::mt19937& rng, int n_expert, int k, double p_cpu) {
 
 int main() {
     // the switch is read once: set before the first call
+#if defined(_WIN32)
+    _putenv_s("STRATA_VERIFY_DEFER_CPU_FOLD", "2");
+#else
     setenv("STRATA_VERIFY_DEFER_CPU_FOLD", "2", 1);
+#endif
     CHECK(defer_fold() == 2);
 
     // the weight rule and the rank guard on one window of 2 tokens x 4 entries
