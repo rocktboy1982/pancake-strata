@@ -241,7 +241,9 @@ class Structured(unittest.TestCase):
         import sys
         code = ("import sys; import serve.server; "
                 "sys.exit(1 if any(m == 'jsonschema' or m.startswith('jsonschema.') for m in sys.modules) else 0)")
-        r = subprocess.run([sys.executable, "-c", code], cwd=str(Path(__file__).resolve().parents[1]))
+        r = subprocess.run([sys.executable, "-c", code], cwd=str(Path(__file__).resolve().parents[1]), capture_output=True, text=True)
+        if "No module named 'jinja2'" in r.stderr:   # the repo conftest points APPDATA at a temp dir, which hides a user-site jinja2
+            self.skipTest("serve.server needs jinja2, not importable in the isolated subprocess")
         self.assertEqual(r.returncode, 0)
 
 

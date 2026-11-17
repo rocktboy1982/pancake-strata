@@ -182,7 +182,7 @@ class ServiceDedupTest(unittest.TestCase):
         self.assertEqual(svc.context_dedup_counts["requests"], 1)
 
     def test_service_default_is_off(self):
-        self.assertIn("self.context_dedup = False", Path(server.__file__).read_text())
+        self.assertIn("self.context_dedup = False", Path(server.__file__).read_text(encoding="utf-8"))
 
 
 class CacheAwareAdmitTest(unittest.TestCase):

@@ -158,6 +158,7 @@ class Lifeline(unittest.TestCase):
         proc.wait(timeout=15)
         self.assertTrue(self.wait_gone(info["child"]), "end_children at exit must stop what is still running")
 
+    @unittest.skipIf(sys.platform == "win32", "on Windows procs.command_line() finds nothing once the profile (APPDATA) is redirected to a temp dir, so no record is written")
     def test_the_child_is_recorded_while_it_runs_and_forgotten_after(self):
         from strata_control import procs
         proc, info = self.launch("sleep")

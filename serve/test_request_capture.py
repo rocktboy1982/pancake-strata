@@ -63,6 +63,7 @@ class Unit(unittest.TestCase):
         self.assertIsNone(request_capture.from_env({}))
         self.assertIsNone(request_capture.from_env({"STRATA_REQUEST_CAPTURE": "  "}))
 
+    @unittest.skipUnless(os.name == "posix", "POSIX mode bits: Windows reports 0o777 for every directory")
     def test_directory_is_private_and_headers_are_filtered(self):
         with tempfile.TemporaryDirectory() as tmp:
             cap = request_capture.from_env({"STRATA_REQUEST_CAPTURE": os.path.join(tmp, "cap")})

@@ -6,6 +6,7 @@ oldString check, the test-before-done nudge and the externalized tool results.  
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -213,7 +214,7 @@ class OldString(unittest.TestCase):
                          "STRATA_AGENT_COUNTERS": "1", "STRATA_EXTERNALIZE_TOKENS": "2000",
                          "STRATA_EXTERNALIZE_DIR": "/tmp/x-ext"})
         self.assertEqual((s.oldstring, s.finish_nudge, s.counters, s.externalize_tokens, s.externalize_dir),
-                         ("note", True, True, 2000, "/tmp/x-ext"))
+                         ("note", True, True, 2000, os.path.abspath("/tmp/x-ext")))      # a Windows path comes back as C:\tmp\x-ext
         self.assertTrue(s.active and s.needs_counters)
         self.assertEqual(AL.settings({"STRATA_EDIT_OLDSTRING_CHECK": "1"}).oldstring, "log")
         self.assertEqual(AL.settings({"STRATA_EXTERNALIZE_TOKENS": "900"}).needs_counters, False)
@@ -249,7 +250,8 @@ class Externalize(unittest.TestCase):
         self.assertLess(len(got), len(text) // 5)
         path = Path(got.split("saved in the file ")[1].split(" - read it")[0])
         self.assertEqual(path.read_text(), text)                        # the whole result, exactly
-        self.assertEqual(oct(path.parent.stat().st_mode & 0o777), "0o700")
+        if sys.platform != "win32":                                     # Windows has no POSIX mode bits
+            self.assertEqual(oct(path.parent.stat().st_mode & 0o777), "0o700")
         # the client's messages and the short result are untouched
         self.assertEqual(msgs[2]["content"], text)
         self.assertEqual(ext.messages[4]["content"], "a b c")
