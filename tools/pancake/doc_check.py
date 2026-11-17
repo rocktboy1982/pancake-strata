@@ -68,11 +68,18 @@ def duplicates(ids: list) -> list:
 
 
 def spec_numbers(names: list) -> list:
-    out = []
+    # a box-written family "NNN-auto-confirm-<k>.json" (plan_auto.py) shares one number on purpose: count it once
+    out, family = [], set()
     for n in names:
-        m = re.match(r"(\d+)-", Path(n).name)
-        if m:
-            out.append(int(m.group(1)))
+        base = Path(n).name
+        m = re.match(r"(\d+)-", base)
+        if not m:
+            continue
+        if re.match(r"\d+-auto-confirm-\d+\.json$", base):
+            if int(m.group(1)) in family:
+                continue
+            family.add(int(m.group(1)))
+        out.append(int(m.group(1)))
     return out
 
 

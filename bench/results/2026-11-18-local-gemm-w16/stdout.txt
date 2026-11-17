@@ -1,0 +1,6 @@
+  Q8_0  output head (bigger than the scratch) N 248320 K 2560 T    16 (sliced when uncached): bitwise equal
+  Q8_0  output head (bigger than the scratch) N 248320 K 2560 T    64 (sliced when uncached): bitwise equal
+  Q8_0  output head (bigger than the scratch) N 248320 K 2560 T   512 (sliced when uncached): bitwise equal
+  Q8_0  output head (bigger than the scratch) N 248320 K 2560 T  4096 (sliced when uncached): bitwise equal
+gemm_w16_parity: 100 production (shape, type, T) combinations checked, 0 differ; head (not part of the verdict) equal
+gemm_w16_parity: OK

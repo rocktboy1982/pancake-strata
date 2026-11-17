@@ -59,3 +59,9 @@ def test_baseline_only_shrinks():
 def test_real_tree_has_no_new_failure():
     new, _ = D.apply_baseline(D.run(["ledger", "specs"]), D.load_baseline())
     assert new == {}, new
+
+
+def test_spec_numbers_auto_confirm_family_counts_once():
+    names = [f"bench/specs/107-auto-confirm-{k}.json" for k in range(1, 9)]
+    assert D.duplicates(D.spec_numbers(names)) == []
+    assert D.duplicates(D.spec_numbers(names + ["bench/specs/107-other.json"])) == [107]
