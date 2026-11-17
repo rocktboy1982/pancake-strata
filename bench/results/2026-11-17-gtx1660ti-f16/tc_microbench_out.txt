@@ -1,0 +1,6 @@
+nvcc -O3 -arch=sm_75, GTX 1660 Ti (24 SM, 1455 MHz at idle), 2 runs identical:
+HMMA f16 16x16x16: 1.59 TFLOPS
+IMMA s8 16x16x16: 6.96 TOPS (6.83 second run)
+dp4a: 2.15 TOPS (kernel as written, 8 chains)
+fp32 fma: 0.54 TFLOPS (8 chains, latency bound: not the peak)
+half2 fma: 1.08 TFLOPS (same caveat)

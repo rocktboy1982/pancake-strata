@@ -1,0 +1,1 @@
+[{"label": "nsys", "session": 0, "size": 1800, "prompt_tokens": 1800, "reused": 0, "read": 1800, "prompt_ms": 23093.6, "prompt_tps": 77.9436727058579, "decode_tps": 7.630675314765356, "produced": 4, "ids_hash": "abdcb0485361", "pre_cpu": 35.40445486518171}]
