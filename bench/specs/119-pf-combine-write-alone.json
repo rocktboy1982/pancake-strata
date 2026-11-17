@@ -27,7 +27,25 @@
         "AMD_SERIALIZE_KERNEL": "3",
         "HIP_LAUNCH_BLOCKING": "1"
       }
+    },
+    "pf-combine-write-no-hc-region": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_COMBINE_WRITE": "1",
+        "STRATA_PF_HC_REGION": "0",
+        "STRATA_LAUNCH_CHECK_VERBOSE": "1"
+      }
+    },
+    "pf-combine-write-serial-edit": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_COMBINE_WRITE": "1",
+        "STRATA_PF_HC_REGION": "0",
+        "STRATA_LAUNCH_CHECK_VERBOSE": "1",
+        "AMD_SERIALIZE_KERNEL": "3",
+        "HIP_LAUNCH_BLOCKING": "1"
+      }
     }
   },
-  "note": "Defect T-630 diagnosis (MOD_PLAN.md section 7): STRATA_PF_COMBINE_WRITE=1 (spec 97, FK-36) ended its first request (HTTP 503, no engine log kept). One switch per spec, short prompts first. The serial arm runs the same switch with serialized launches so the engine log names the failing kernel (prefill check() prints 'prefill moe_combine_write_norm_rs: ...' and exits). Keep each arm's engine log. Run combine_write_parity (ctest, hip_combine_write_parity on HIP) first: it now covers the engine's T 64 / 7 shapes. Stop pancake.service first."
+  "note": "Defect T-630 diagnosis (MOD_PLAN.md section 7): STRATA_PF_COMBINE_WRITE=1 (spec 97, FK-36) ended its first request (HTTP 503, no engine log kept). One switch per spec, short prompts first. The serial arm runs the same switch with serialized launches so the engine log names the failing kernel (prefill check() prints 'prefill moe_combine_write_norm_rs: ...' and exits). Keep each arm's engine log. Run combine_write_parity (ctest, hip_combine_write_parity on HIP) first: it now covers the engine's T 64 / 7 shapes. Stop pancake.service first. T-630 update: chain F arm 'pf-combine-write' died at the 2,304-token chunk (illegal memory access). Static reading (unconfirmed until a box run): with STRATA_PF_HC_REGION=1 the xn16 image lies over slot_dev / w / Dm of the same MoE set and the fused kernel writes it while later blocks still read them; the engine now refuses the fused kernel under HC_REGION (so arm 'pf-combine-write' equals base). 'pf-combine-write-no-hc-region' runs the fused kernel with STRATA_PF_HC_REGION=0 (the config sets 1; env overrides) and 'pf-combine-write-serial-edit' is the same with serialized launches (AMD_SERIALIZE_KERNEL=3, HIP_LAUNCH_BLOCKING=1) to name a kernel if it still faults."
 }

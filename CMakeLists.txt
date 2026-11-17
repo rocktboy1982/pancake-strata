@@ -502,6 +502,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(pf_ahead_rule_test tests/prefill/pf_ahead_rule_test.cpp)   # STRATA_PF_AHEAD_DEPTH=2 (MOD_PLAN.md item 47)
   target_include_directories(pf_ahead_rule_test PRIVATE include)
   add_test(NAME pf_ahead_rule_test COMMAND pf_ahead_rule_test)
+  add_executable(combine_write_rule_test tests/prefill/combine_write_rule_test.cpp)   # T-630: STRATA_PF_COMBINE_WRITE vs STRATA_PF_HC_REGION
+  target_include_directories(combine_write_rule_test PRIVATE include)
+  add_test(NAME combine_write_rule_test COMMAND combine_write_rule_test)
 
   # PR #5108: the MMQ row table's over-read margin follows the backend tile bound; every fixup read stays inside (header-only, no GPU)
   add_executable(mmq_ids_margin_test tests/prefill/mmq_ids_margin_test.cpp)

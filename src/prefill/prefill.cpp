@@ -13,6 +13,7 @@
 #include "strata/prefill/warm_policy.hpp"
 #include "strata/prefill/share_rules.hpp"
 #include "strata/prefill/pf_ahead_rule.hpp"
+#include "strata/prefill/combine_write_rule.hpp"
 #include "strata/prefill/stop_rule.hpp"
 #include "strata/core/arch_defaults.hpp"
 #include <atomic>
@@ -7232,11 +7233,13 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                         // write below in one kernel where that write is the plain gr_write_norm_rs (the same conditions: not
                         // steered, a next layer, not before layer 1's PLE block, not unfused): bo never stored, the same bits.
                         // Not with STRATA_DBG_NAN (it reads bo).
+                        // Not with STRATA_PF_HC_REGION=1 (T-630): xn16 is then carved over slot_dev / w / Dm of this very set, and the
+                        // fused kernel writes it while later blocks still read them (combine_write_rule.hpp).
                         static const bool combine_write = [] {
                             const char* e = std::getenv("STRATA_PF_COMBINE_WRITE");
                             return e != nullptr && e[0] == '1' && std::getenv("STRATA_DBG_NAN") == nullptr;
                         }();
-                        if (combine_write && half == 1 && !strata::kernels::cvec().covers(l) && !gr_unfused() && l + 1 < LE &&
+                        if (combine_write && strata::prefill::combine_write::allowed(pf_hc_region()) && half == 1 && !strata::kernels::cvec().covers(l) && !gr_unfused() && l + 1 < LE &&
                             !(l + 1 == 1 && ple_on)) {
                             const core::LayerView vn_c(*m.wt, l + 1);
                             const core::WeightRef* wnn_c = need(vn_c, "hc_attn_norm.weight", err);

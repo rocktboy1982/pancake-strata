@@ -19,6 +19,14 @@ namespace sp = strata::prefill;
 
 namespace {
 constexpr int64_t N = 2560, HC = 4, D = N * HC, K = 10;
+constexpr size_t kGuard = 65536;   // T-630: a canary page after each output of the fused kernel; any byte changed is an overrun
+
+bool guard_intact(const void* base, size_t bytes, const char* what) {
+    std::vector<uint8_t> g(kGuard);
+    cudaMemcpy(g.data(), static_cast<const uint8_t*>(base) + bytes, kGuard, cudaMemcpyDeviceToHost);
+    for (uint8_t b : g) if (b != 0xA5) { std::printf("  %s: the canary after the buffer was overwritten\n", what); return false; }
+    return true;
+}
 
 template <class T> T* dev(const std::vector<T>& h) {
     T* d = nullptr;
@@ -51,13 +59,19 @@ int run_case(int64_t T, int64_t ldx, bool lo, bool sd, bool f16img, uint32_t see
     for (int64_t i = 0; i < T * K; ++i) slot[(size_t) i] = (int32_t) ((i * 7919 + 13) % (T * K));   // a permutation
     float *dDm = dev(Dm), *dsh = dev(shared), *dsg = dev(sg), *dw = dev(w), *dinj = dev(inj), *dwn = dev(wn), *dsd = dev(rsd);
     int32_t* dslot = dev(slot);
-    float *dR0 = dev(R), *dR1 = dev(R), *dbo = nullptr, *drs0 = nullptr, *drs1 = nullptr;
+    float *dR0 = dev(R), *dR1 = nullptr, *dbo = nullptr, *drs0 = nullptr, *drs1 = nullptr;
+    cudaMalloc(&dR1, R.size() * 4 + kGuard);
+    cudaMemcpy(dR1, R.data(), R.size() * 4, cudaMemcpyHostToDevice);
+    cudaMemset(reinterpret_cast<uint8_t*>(dR1) + R.size() * 4, 0xA5, kGuard);
     uint16_t *dx0 = nullptr, *dx1 = nullptr, *dl0 = nullptr, *dl1 = nullptr;
     const size_t nx = (size_t) (T * ldx);
     cudaMalloc(&dbo, (size_t) (T * N) * 4);
-    cudaMalloc(&drs0, (size_t) (T * HC) * 4); cudaMalloc(&drs1, (size_t) (T * HC) * 4);
-    cudaMalloc(&dx0, nx * 2); cudaMalloc(&dx1, nx * 2); cudaMalloc(&dl0, nx * 2); cudaMalloc(&dl1, nx * 2);
+    cudaMalloc(&drs0, (size_t) (T * HC) * 4); cudaMalloc(&drs1, (size_t) (T * HC) * 4 + kGuard);
+    cudaMalloc(&dx0, nx * 2); cudaMalloc(&dx1, nx * 2 + kGuard); cudaMalloc(&dl0, nx * 2); cudaMalloc(&dl1, nx * 2 + kGuard);
     for (uint16_t* p : {dx0, dx1, dl0, dl1}) cudaMemset(p, 0x5a, nx * 2);
+    cudaMemset(reinterpret_cast<uint8_t*>(drs1) + (size_t) (T * HC) * 4, 0xA5, kGuard);
+    cudaMemset(reinterpret_cast<uint8_t*>(dx1) + nx * 2, 0xA5, kGuard);
+    cudaMemset(reinterpret_cast<uint8_t*>(dl1) + nx * 2, 0xA5, kGuard);
     const float* row_sd = sd ? dsd : nullptr;
     sp::moe_combine(dDm, dslot, dw, dsh, dsg, dbo, T, nullptr, row_sd);
     sp::gr_write_norm_rs(dR0, dbo, dinj, HC, dwn, 1e-6f, drs0, dx0, T, nullptr, lo ? dl0 : nullptr, ldx, f16img);
@@ -68,14 +82,16 @@ int run_case(int64_t T, int64_t ldx, bool lo, bool sd, bool f16img, uint32_t see
         std::printf("  T %lld: %s\n", (long long) T, e != cudaSuccess ? cudaGetErrorString(e) : "not taken");
         return 1;
     }
+    const bool guards = guard_intact(dR1, R.size() * 4, "R") & guard_intact(drs1, (size_t) (T * HC) * 4, "rs") &
+                        guard_intact(dx1, nx * 2, "xn16") & guard_intact(dl1, nx * 2, "xn16_lo");
     const auto R0 = host(dR0, (size_t) (T * D)), R1 = host(dR1, (size_t) (T * D));
     const auto rs0 = host(drs0, (size_t) (T * HC)), rs1 = host(drs1, (size_t) (T * HC));
     const auto x0 = host(dx0, nx), x1 = host(dx1, nx), l0 = host(dl0, nx), l1 = host(dl1, nx);
-    const bool same = std::memcmp(R0.data(), R1.data(), R0.size() * 4) == 0 &&
+    const bool same = guards && std::memcmp(R0.data(), R1.data(), R0.size() * 4) == 0 &&
                       std::memcmp(rs0.data(), rs1.data(), rs0.size() * 4) == 0 &&
                       std::memcmp(x0.data(), x1.data(), nx * 2) == 0 && std::memcmp(l0.data(), l1.data(), nx * 2) == 0;
     std::printf("  T %5lld ldx %lld%s%s%s: %s\n", (long long) T, (long long) ldx, lo ? " lo" : "", sd ? " row_sd" : "",
-                f16img ? " f16" : "", same ? "R, rs, xn16, xn16_lo identical" : "DIFFER");
+                f16img ? " f16" : "", same ? "R, rs, xn16, xn16_lo identical, canaries intact" : "DIFFER or overrun");
     for (void* p : std::initializer_list<void*>{dDm, dsh, dsg, dw, dinj, dwn, dsd, dslot, dR0, dR1, dbo, drs0, drs1, dx0,
                                                 dx1, dl0, dl1})
         cudaFree(p);
@@ -100,6 +116,10 @@ int main() {
     fails += run_case(64, D + 64, true, true, false, 6);
     fails += run_case(7, D + 64, true, true, false, 7);
     fails += run_case(64, D, false, true, true, 8);
+    // T-630: the engine's 2,304-token chunk and the 2,245-token edit prompt (not a multiple of the chunk or of 256): padded stride, lo image, row scales; canaries after every output
+    fails += run_case(2304, D + 64, true, true, false, 9);
+    fails += run_case(2245, D + 64, true, true, false, 10);
+    fails += run_case(2304, D, false, false, true, 11);
     std::printf("combine_write_parity: %s\n", fails ? "FAILED" : "ok");
     return fails ? 1 : 0;
 }

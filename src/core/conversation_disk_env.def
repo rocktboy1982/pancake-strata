@@ -748,7 +748,7 @@ STRATA_ENV("STRATA_PF_AHEAD_DEPTH", Speed, "2 splits the STRATA_PF_AHEAD pool in
 STRATA_ENV("STRATA_PF_COPY_BATCH", Speed, "B141: consecutive PF_AHEAD pool copies at a constant host stride as one 2D copy; same bytes (pf_ahead_rule_test)")
 STRATA_ENV("STRATA_PF_AHEAD_KV", Speed, "prompt path scheduling/staging (0: STRATA_PF_AHEAD leaves the K/V staging copy on the compute stream)")
 STRATA_ENV("STRATA_PF_AHEAD_MIN", Speed, "prompt path scheduling/staging (smallest chunk STRATA_PF_AHEAD prefetches for)")
-STRATA_ENV("STRATA_PF_COMBINE_WRITE", Speed, "zsariboga 21107e9d05 (FK-36): prompt MoE combine fused with the HC write + next-half norm; bitwise (combine_write_parity)")
+STRATA_ENV("STRATA_PF_COMBINE_WRITE", Speed, "zsariboga 21107e9d05 (FK-36): prompt MoE combine fused with the HC write + next-half norm; bitwise (combine_write_parity); refused under STRATA_PF_HC_REGION=1 (xn16 aliases the MoE set; combine_write_rule_test)")
 STRATA_ENV("STRATA_PF_SWIGLU_Q8", Speed, "zsariboga 21107e9d05 (FK-36): mmq::swiglu_quant allowed on HIP; same q8_1 bytes (prefill_swiglu_quant_test_hip)")
 STRATA_ENV("STRATA_PREFILL_SWIGLU_QUANT", Speed, "zsariboga 21107e9d05 (FK-36): MMQ group swiglu + H q8_1 in one kernel; same bytes (prefill_swiglu_quant_test)")
 STRATA_ENV("STRATA_PF_AHEAD_SLOTS", Speed, "prompt path scheduling/staging (STRATA_PF_AHEAD's pool size)")
