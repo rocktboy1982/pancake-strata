@@ -2,6 +2,7 @@
 #include "strata/kernels/kv_q4.hpp"
 #include "conversation_checked.hpp"
 #include "conversation_copy.hpp"
+#include "strata/program/free_settle.hpp"
 #include <cuda_runtime.h>
 
 #include <array>
@@ -165,13 +166,23 @@ VramKvSlot* vram_kv_take(size_t need, int dev, const char*& why) {
         if (s->tag == 0 && s->dev == dev && s->cap >= need && (best == nullptr || s->cap < best->cap)) best = s.get();
     if (best == nullptr) {
         size_t held = 0;
+        // STRATA_FREE_SETTLE_MS (LEADS.md Part P L5): the free figure lags a free, so remember it before the frees below
+        const uint32_t settle_ms = strata::program::free_settle_ms_env();
+        size_t settle_before = 0, settle_freed = 0;
+        if (settle_ms != 0) { size_t t0 = 0; (void) cudaMemGetInfo(&settle_before, &t0); }
         for (size_t i = 0; i < v.slots.size();) {
             if (v.slots[i]->tag != 0) { held += v.slots[i]->cap; ++i; continue; }
+            settle_freed += v.slots[i]->cap;
             vram_kv_free(*v.slots[i]);
             v.slots.erase(v.slots.begin() + (std::ptrdiff_t) i);
         }
         const size_t want = (need + ((size_t) 64 << 20) - 1) & ~(((size_t) 64 << 20) - 1);
         if (held > budget || want > budget - held) { why = "budget"; return nullptr; }
+        if (settle_ms != 0 && settle_freed != 0)
+            (void) strata::program::free_settle_after_free(settle_before, settle_freed, settle_ms, [] {
+                size_t f = 0, t = 0;
+                return cudaMemGetInfo(&f, &t) == cudaSuccess ? (uint64_t) f : (uint64_t) 0;
+            });
         size_t fr = 0, tot = 0;
         if (cudaMemGetInfo(&fr, &tot) != cudaSuccess || fr < want + ((size_t) 3 << 29)) {
             (void) cudaGetLastError();

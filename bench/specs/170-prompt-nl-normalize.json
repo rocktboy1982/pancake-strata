@@ -1,11 +1,22 @@
 {
  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
  "lossy": true,
- "cases": ["edit", "short"],
+ "cases": [
+  "pep8",
+  "edit",
+  "short"
+ ],
  "reps": 3,
  "arms": {
-  "base": {"exe": "/home/dan/clone-of-d/src/build-win/strata"},
-  "nl-normalize": {"exe": "/home/dan/clone-of-d/src/build-win/strata", "env": {"STRATA_PROMPT_NL_NORMALIZE": "1"}}
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "nl-normalize": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_PROMPT_NL_NORMALIZE": "1"
+   }
+  }
  },
- "note": "LEADS.md Part P lead L2, STRATA_PROMPT_NL_NORMALIZE=1 (serve/prompt_normalize.py, hook in Service.render_prompt; hipfire AGENTS.md 'Prompt-shape adaptation': every run of 3+ newlines becomes 2 before tokenizing). INERT-CHECK ONLY on abtest's built-in cases: the `edit` prompt has 0 runs of 3+ newlines (counted), the long corpora 10 in 190K characters, so both arms must read the same text and the same speed; a difference here is noise or a bug in the hook. The switch lives in serve/server.py, so the arm needs the SERVER env (abtest starts the engine through serve: check the log for no 'normalize' line; there is none by design). The REAL test needs a PEP-8 style code prompt (2 blank lines between top-level defs; hipfire: +14-27% decode on such prompts, 27B dense DFlash) and a case loader in abtest.py (another agent was editing that file): then judge decode tok/s, the lookup / MTP acceptance, and the edit correctness (an edit tool that quotes the file back must still match). Lossy as to the prompt: also run tools/pancake/quality_gate.py or task_gate.py on the edit case before any adoption. NOT MEASURED."
+ "note": "LEADS.md Part P lead L2, STRATA_PROMPT_NL_NORMALIZE=1 (serve/prompt_normalize.py, hook in Service.render_prompt; hipfire AGENTS.md 'Prompt-shape adaptation': every run of 3+ newlines becomes 2 before tokenizing). CASES: `pep8` (added 2026-11-17: abtest.py PEP8_SRC, 6,100 characters of Python with 12 runs of 3+ newlines, two blank lines between top-level defs) is the case that can show the lever; `edit` and `short` are the inert controls. For those two: inert on abtest's other built-in cases: the `edit` prompt has 0 runs of 3+ newlines (counted), the long corpora 10 in 190K characters, so both arms must read the same text and the same speed; a difference here is noise or a bug in the hook. The switch lives in serve/server.py, so the arm needs the SERVER env (abtest starts the engine through serve: check the log for no 'normalize' line; there is none by design). For pep8 judge (hipfire: +14-27% decode on such prompts, 27B dense DFlash; theirs, not ours) decode tok/s, the lookup / MTP acceptance, and the edit correctness (an edit tool that quotes the file back must still match). Lossy as to the prompt: also run tools/pancake/quality_gate.py or task_gate.py on the edit case before any adoption. NOT MEASURED."
 }

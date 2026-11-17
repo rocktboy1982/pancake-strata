@@ -1,0 +1,29 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 3,
+ "arms": {
+  "park-vram": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_CKPT_ASYNC": "1",
+    "STRATA_PARK_ASYNC": "1",
+    "STRATA_PARK_VRAM_MIB": "2048"
+   }
+  },
+  "park-vram-settle": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_CKPT_ASYNC": "1",
+    "STRATA_PARK_ASYNC": "1",
+    "STRATA_PARK_VRAM_MIB": "2048",
+    "STRATA_FREE_SETTLE_MS": "250"
+   }
+  }
+ },
+ "note": "LEADS.md Part P lead L5, STRATA_FREE_SETTLE_MS=250 WIRED 2026-11-17 at the two sites that free VRAM and then size from the free figure: conversation_snapshot.cpp vram_kv_take (frees the idle K/V slots, then cudaMemGetInfo decides whether a new slot fits) and conversation_state.cpp (frees a too-small checkpoint stage buffer, then the HIP stage-room check reads cudaMemGetInfo). The wait polls the free figure every 200 us until it shows the released bytes (64 MiB slack), at most N ms; exact, it only waits; unset = no query, no sleep, the old path. Both arms keep the park machinery on (STRATA_PARK_VRAM_MIB needs STRATA_PARK_ASYNC; CKPT_ASYNC for the stage buffer), so the question is only whether the wait changes anything: it can only add time (bounded by 250 ms per growth) or avoid a refused slot (a restore from the host instead of a device copy). HONEST LIMIT: abtest's single-request cases free a slot only when a park outgrows its slot, so the sites may never fire in these cases; a flat result reads 'sites not reached', not 'no effect'. The sites are reached by the multi-turn replay (tools/pancake/restore_check.py) with a growing conversation under memory pressure. Exact: text hashes must be equal between arms. --tier screen, then confirm if either case moves. NOT MEASURED (coded and wired, HIP compile-checked, box run needed)."
+}

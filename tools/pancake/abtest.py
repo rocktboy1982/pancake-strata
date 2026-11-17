@@ -118,6 +118,11 @@ LONG_TARGET = {"long32k": 32000, "long64k": 64000,       # prompt tokens (fit th
 LONG_DEC = ("longdec10k", "longdec32k", "longdec64k", "longdec128k")   # long* cases judged on the decode tok/s of the reply after the read
 MAXTOK = {"long32k": 32, "long64k": 32, "long1k": 32, "long3k": 32, "longdec10k": 256,                # prefill-only cases: no 512-token decode at 32K / 64K context
           "longdec32k": 256, "longdec64k": 256, "longdec128k": 256}
+PEP8_ASK = "Rewrite the following Python file, adding type hints to every function. Output only the full code.\n\n"
+EDIT_ASK = "Rewrite the following C++ file, renaming every variable to snake_case. Output only the full code.\n\n"
+PEP8_SRC = [ROOT / "tools/pancake" / n for n in ("abtest_replay.py", "bfla_recall.py", "conv_cache_sim.py", "fit_lookahead.py", "gate_importance.py")]
+ROT_VARIANTS = {}   # --rotate-prompts (LEADS.md Part P L12): case -> same-length texts from different files, filled by prompts()
+ROT = [0, 0]        # [on, the round (rep) of the start being run: every arm of a round reads the same variant]
 SUMMARIZE = "Summarize what each of these source files does, one paragraph per file.\n\n"
 
 
@@ -153,7 +158,13 @@ def prompts(cases=()):
         "short": "Write a detailed explanation of how a hash map works, with an example in Python.",
         "edit": "Rewrite the following C++ file, renaming every variable to snake_case. Output only the full code.\n\n" + src[:6000],
         "long": SUMMARIZE + long_text,
+        # LEADS.md Part P L2: Python in PEP-8 layout (two blank lines between top-level defs = runs of 3 newlines, which
+        # STRATA_PROMPT_NL_NORMALIZE changes); `edit` has none, so only this case can show that lever
+        "pep8": PEP8_ASK + PEP8_SRC[0].read_text(encoding="utf-8", errors="replace")[:6000],
     }
+    ROT_VARIANTS["edit"] = [P["edit"]] + [EDIT_ASK + f.read_text()[:6000] for f in sorted((ROOT / "src/spec").glob("*.cpp"))
+                                          if f.name != "draft_policy.cpp" and f.stat().st_size >= 6000][:4]
+    ROT_VARIANTS["pep8"] = [PEP8_ASK + f.read_text(encoding="utf-8", errors="replace")[:6000] for f in PEP8_SRC]
     want = [c for c in cases if c in LONG_TARGET]   # built only when a spec asks for them (up to 190K characters)
     if want:
         big = corpus(int(max(LONG_TARGET[c] for c in want) * LONG_CPT))
@@ -172,7 +183,10 @@ def case_text(P, c, k=0):
     short / edit: pass 0 as is, pass k >= 1 with a "[pass k]" first line (read cold in the same server, the same text in
     every start)."""
     if not is_long(c):
-        return P[c] if k == 0 else f"[pass {k}]\n" + P[c]
+        text = P[c]
+        if ROT[0] and c in ROT_VARIANTS:   # --rotate-prompts: this round's file, the next file for each later pass
+            text = ROT_VARIANTS[c][(ROT[1] + k) % len(ROT_VARIANTS[c])]
+        return text if k == 0 else f"[pass {k}]\n" + text
     _SEQ[0] += 1
     return f"[run {NONCE}-{_SEQ[0]}]\n" + P[c]
 
@@ -978,6 +992,12 @@ def main():
                          "arm against the mean of both base runs; prints the base drift.  A screen has one start per arm and the base "
                          "always ran first: in specs 83 and 93 (TEST_LEDGER.md T-606, T-622) the base ran 11-40%% below the same preset's "
                          "usual level and every arm looked like a gain.  Off: nothing changes")
+    ap.add_argument("--rotate-prompts", action="store_true",
+                    help="LEADS.md Part P L12: the edit / pep8 cases read a different file per round of starts (same length, same in every "
+                         "arm of a round), so an adaptive lever (learned tier, lookahead, suffix index) is judged on text it has not "
+                         "seen.  Off: one prompt per case as before")
+    ap.add_argument("--receipt", action="store_true",
+                    help="LEADS.md Part P L9: also write <out>.receipt.json (git head, spec / binary / prompt hashes, STRATA_* env, GPU clocks)")
     ap.add_argument("--force-busy", action="store_true",
                     help="start although another abtest / restore_check / engine runs (only for the fake-engine tests: it stops "
                          "its own servers only, but a real run beside it is disturbed all the same)")
@@ -1019,11 +1039,15 @@ def main():
     P = prompts(cases)
     for c in cases:
         if c not in P:
-            raise SystemExit(f"abtest: unknown case {c!r} (short, edit, long, {', '.join(LONG_TARGET)})")
+            raise SystemExit(f"abtest: unknown case {c!r} (short, edit, long, pep8, {', '.join(LONG_TARGET)})")
         if is_long(c):
             print(f"case {c}: {len(P[c])} chars, sha1 {hashlib.sha1(P[c].encode()).hexdigest()[:12]}"
                   + (f", target {LONG_TARGET[c]} tokens" if c in LONG_TARGET else "") + " (a unique run line is prepended to every request)",
                   flush=True)
+    if a.receipt:
+        import receipt
+        print(f"receipt: {receipt.write_receipt(a.out, a.spec, spec=spec, prompts=P, argv=sys.argv)}", flush=True)
+    ROT[0] = int(a.rotate_prompts)
     work =Path(a.out).with_suffix("")
     work.mkdir(parents=True, exist_ok=True)
     order, passes = schedule(arms, reps, a.block)   # A B B A, then B A A B, ... : each arm sees early and late slots equally
@@ -1053,6 +1077,7 @@ def main():
             quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
+            ROT[1] = r
             res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
                                passes, a.warmup)
             if err:

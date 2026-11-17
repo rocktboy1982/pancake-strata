@@ -10,9 +10,11 @@
 // bounded wait over two callables so a host test can drive it; the call sites are NOT wired yet (nothing changes with
 // the switch set until one is).  Header only, no device types.
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <thread>
 
 namespace strata::program {
 
@@ -55,6 +57,15 @@ inline uint32_t free_settle_ms_from_text(const char* text) {
         if (v > 5000) return 5000;
     }
     return (uint32_t) v;
+}
+
+/// The call-site form: `cap_ms` from STRATA_FREE_SETTLE_MS, the real sleep, 200 us polls and a 64 MiB slack (the driver frees
+/// whole granules and other processes allocate).  `free_before` is the free figure read BEFORE the release, `released` the
+/// bytes the caller freed.  Returns at once with cap_ms == 0 (the unset default: no query, no sleep).
+inline FreeSettle free_settle_after_free(uint64_t free_before, uint64_t released, uint32_t cap_ms,
+                                         const std::function<uint64_t()>& query) {
+    return free_settle_wait(free_before, released, (uint64_t) 64 << 20, cap_ms, 200, query,
+                            [](uint32_t us) { std::this_thread::sleep_for(std::chrono::microseconds(us)); });
 }
 
 /// The switch: STRATA_FREE_SETTLE_MS read from the environment (0 = off).

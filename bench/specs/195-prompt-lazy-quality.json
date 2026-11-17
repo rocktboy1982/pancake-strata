@@ -1,0 +1,21 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "lazy2": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy2/strata"
+  },
+  "lazy8": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy8/strata"
+  }
+ },
+ "note": "Token-forcing quality gate for spec 194's lazy-rescale arms (LEADS.md Part P L4): the prompt attention changes rounding only, but the long prompt kernels feed every later token. Run: python3 tools/pancake/quality_gate.py bench/specs/195-prompt-lazy-quality.json --out /home/dan/auto-runs/winQ-195/gate --near-tie. The first arm is scored twice. NOT MEASURED."
+}

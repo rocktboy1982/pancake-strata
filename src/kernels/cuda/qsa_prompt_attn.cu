@@ -7,6 +7,7 @@
 #include "strata/core/gfx12_platform_defaults.hpp"
 #include <cstdlib>
 #include <cstring>
+#include "strata/kernels/lds_barrier.hpp"
 #include "strata/kernels/qsa_prompt_attn.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/kernels/kv_q8.hpp"
@@ -47,6 +48,23 @@ constexpr int QS = HD + 8;        // q row stride in halves (bank-conflict-free 
 #define STRATA_PA_SM80 1
 #else
 #define STRATA_PA_SM80 0
+#endif
+
+// LEADS.md Part P lead L4, build macro STRATA_ATTN_LAZY_RESCALE=T (default 0 = off, the object is the one without it): lazy
+// online-softmax rescale in the two gfx11 matrix-core prompt kernels (prompt_attn_wmma_kernel, prompt_attn_wmma_q4_kernel).
+// The running maximum moves only when a chunk exceeds it by more than T (log2 units), so p = 2^(x - m) stays below 2^T and
+// the accumulator rescale (alpha = 2^(m_old - m_new)) is exactly 1 on most chunks; a wave whose 8 alphas are all 1 adds
+// without the multiply.  The V scale headroom shrinks by 2^T (VTOP) so p * vs * vup still fits FP16 (hipfire's attention_
+// verify_wmma.gfx1100.hip VW_THRESH, Apache-2.0, idea only).  Exact algebra, different rounding; merge kernels see the same
+// (m, l) contract.  T is 1..8.  STRATA_ATTN_LAZY_NOSKIP (with T): the lazy maximum only, the accumulate stays the fmaf (alpha is
+// exactly 1 on most chunks): no extra registers, no skipped multiply - the variant to try if the skip spills (see the ledger).
+#ifndef STRATA_ATTN_LAZY_RESCALE
+#define STRATA_ATTN_LAZY_RESCALE 0
+#endif
+#if STRATA_ATTN_LAZY_RESCALE > 0
+#define STRATA_PA_VTOP (16384.0f / (float) (1 << STRATA_ATTN_LAZY_RESCALE))
+#else
+#define STRATA_PA_VTOP 16384.0f
 #endif
 
 // m16n8k16 with f16 inputs needs sm_80.  Turing (sm_75) has m16n8k8 with the SAME A/B/C register mapping, so the
@@ -2112,7 +2130,7 @@ __device__ __forceinline__ void prompt_attn_wmma_body(const float* __restrict__ 
 #pragma unroll
             for (int i = 0; i < 8; ++i) if (!TR || PA_ROW(i, half) < G) S.part[warp][PA_ROW(i, half)][nt * 16 + col] = s[i] * cd.ksc[nt];
         }
-        __syncthreads();
+        STRATA_BAR();
         // online softmax over the four groups' sum (fixed order): row t/8, 4 cells per thread
         if (!TR || t < G * 8) {   // (TR: the 4th wave has only the padding rows 12..15 and skips: a whole wave, so the shuffles stay uniform)
             const int r = t >> 3, sub = t & 7;
@@ -2128,7 +2146,11 @@ __device__ __forceinline__ void prompt_attn_wmma_body(const float* __restrict__ 
 #pragma unroll
             for (int o = 1; o < 8; o <<= 1) mx = fmaxf(mx, __shfl_xor_sync(0xffffffffu, mx, o));
             const float m_old = S.mrow[r];
+#if STRATA_ATTN_LAZY_RESCALE > 0
+            const float m_new = (m_old == -INFINITY || mx > m_old + (float) STRATA_ATTN_LAZY_RESCALE) ? fmaxf(m_old, mx) : m_old;
+#else
             const float m_new = fmaxf(m_old, mx);
+#endif
             float sum = 0.0f;
 #pragma unroll
             for (int j = 0; j < 4; ++j) {
@@ -2145,13 +2167,13 @@ __device__ __forceinline__ void prompt_attn_wmma_body(const float* __restrict__ 
                 S.mrow[r] = m_new;
             }
         }
-        __syncthreads();
+        STRATA_BAR();
         // p.v over this wave's 64 dims: 4 tiles of 16 dims, 2 k-steps of 16 cells
         {
             float vmax = S.vs[warp][lane];
 #pragma unroll
             for (int o = 16; o > 0; o >>= 1) vmax = fmaxf(vmax, __shfl_xor_sync(0xffffffffu, vmax, o));
-            const float vup = vmax > 0.0f ? 16384.0f / vmax : 0.0f, vdown = vmax * (1.0f / 16384.0f);
+            const float vup = vmax > 0.0f ? STRATA_PA_VTOP / vmax : 0.0f, vdown = vmax * (1.0f / STRATA_PA_VTOP);
             wf8 tmp[4];
 #pragma unroll
             for (int j = 0; j < 4; ++j) tmp[j] = wf8{0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
@@ -2179,10 +2201,28 @@ __device__ __forceinline__ void prompt_attn_wmma_body(const float* __restrict__ 
             float a[8];
 #pragma unroll
             for (int i = 0; i < 8; ++i) a[i] = S.alpha[PA_ROW(i, half)];
+#if STRATA_ATTN_LAZY_RESCALE > 0 && !defined(STRATA_ATTN_LAZY_NOSKIP)
+            int resc = 0;   // wave-uniform: any row of this lane group rescaled (alpha != 1)
+#pragma unroll
+            for (int i = 0; i < 8; ++i) resc |= (!TR || PA_ROW(i, half) < G) && a[i] != 1.0f;   // (the padding rows 12..15 keep alpha 0)
+#pragma unroll
+            for (int o = 16; o > 0; o >>= 1) resc |= __shfl_xor_sync(0xffffffffu, resc, o);
+            if (resc != 0) {   // rare with the lazy maximum: the multiply is skipped on every other chunk
+#pragma unroll
+                for (int j = 0; j < 4; ++j)
+#pragma unroll
+                    for (int i = 0; i < 8; ++i) acc[j][i] *= a[i];
+            }
+#pragma unroll
+            for (int j = 0; j < 4; ++j)
+#pragma unroll
+                for (int i = 0; i < 8; ++i) acc[j][i] += tmp[j][i] * vdown;
+#else
 #pragma unroll
             for (int j = 0; j < 4; ++j)
 #pragma unroll
                 for (int i = 0; i < 8; ++i) acc[j][i] = fmaf(acc[j][i], a[i], tmp[j][i] * vdown);
+#endif
         }
         // no barrier here: `v`/`vs` are this wave's own, and `p`/`alpha`/`valid` are rewritten only after the next
         // chunk's first barrier (which every wave reaches after its p.v)
@@ -2448,7 +2488,7 @@ __global__ void __launch_bounds__(THREADS) prompt_attn_wmma_q4_kernel(const floa
 #pragma unroll
             for (int i = 0; i < 8; ++i) if (!TR || PA_ROW(i, half) < G) S.part[warp][PA_ROW(i, half)][nt * 16 + col] = out[i];
         }
-        __syncthreads();
+        STRATA_BAR();
         // online softmax over the four waves' sum (fixed order): row t/8, 4 cells per thread (the int8 kernel's)
         if (!TR || t < G * 8) {   // (TR: the 4th wave has only the padding rows 12..15 and skips as a whole wave)
             const int r = t >> 3, sub = t & 7;
@@ -2463,7 +2503,11 @@ __global__ void __launch_bounds__(THREADS) prompt_attn_wmma_q4_kernel(const floa
 #pragma unroll
             for (int o = 1; o < 8; o <<= 1) mx = fmaxf(mx, __shfl_xor_sync(0xffffffffu, mx, o));
             const float m_old = S.mrow[r];
+#if STRATA_ATTN_LAZY_RESCALE > 0
+            const float m_new = (m_old == -INFINITY || mx > m_old + (float) STRATA_ATTN_LAZY_RESCALE) ? fmaxf(m_old, mx) : m_old;
+#else
             const float m_new = fmaxf(m_old, mx);
+#endif
             float sum = 0.0f;
 #pragma unroll
             for (int j = 0; j < 4; ++j) {
@@ -2480,13 +2524,13 @@ __global__ void __launch_bounds__(THREADS) prompt_attn_wmma_q4_kernel(const floa
                 S.mrow[r] = m_new;
             }
         }
-        __syncthreads();
+        STRATA_BAR();
         // p.v over this wave's 64 dims: tiles 0-1 are block 2w (its V scale folded into p), tiles 2-3 block 2w + 1
         {
             float vmax = fmaxf(fabsf(S.vs[warp][0][lane]), fabsf(S.vs[warp][1][lane]));
 #pragma unroll
             for (int o = 16; o > 0; o >>= 1) vmax = fmaxf(vmax, __shfl_xor_sync(0xffffffffu, vmax, o));
-            const float vup = vmax > 0.0f ? 16384.0f / vmax : 0.0f, vdown = vmax * (1.0f / 16384.0f);
+            const float vup = vmax > 0.0f ? STRATA_PA_VTOP / vmax : 0.0f, vdown = vmax * (1.0f / STRATA_PA_VTOP);
             wf8 tmp[4];
 #pragma unroll
             for (int j = 0; j < 4; ++j) tmp[j] = wf8{0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
@@ -2517,10 +2561,28 @@ __global__ void __launch_bounds__(THREADS) prompt_attn_wmma_q4_kernel(const floa
             float a[8];
 #pragma unroll
             for (int i = 0; i < 8; ++i) a[i] = S.alpha[PA_ROW(i, half)];
+#if STRATA_ATTN_LAZY_RESCALE > 0 && !defined(STRATA_ATTN_LAZY_NOSKIP)
+            int resc = 0;   // wave-uniform: any row of this lane group rescaled (alpha != 1)
+#pragma unroll
+            for (int i = 0; i < 8; ++i) resc |= (!TR || PA_ROW(i, half) < G) && a[i] != 1.0f;   // (the padding rows 12..15 keep alpha 0)
+#pragma unroll
+            for (int o = 16; o > 0; o >>= 1) resc |= __shfl_xor_sync(0xffffffffu, resc, o);
+            if (resc != 0) {   // rare with the lazy maximum: the multiply is skipped on every other chunk
+#pragma unroll
+                for (int j = 0; j < 4; ++j)
+#pragma unroll
+                    for (int i = 0; i < 8; ++i) acc[j][i] *= a[i];
+            }
+#pragma unroll
+            for (int j = 0; j < 4; ++j)
+#pragma unroll
+                for (int i = 0; i < 8; ++i) acc[j][i] += tmp[j][i] * vdown;
+#else
 #pragma unroll
             for (int j = 0; j < 4; ++j)
 #pragma unroll
                 for (int i = 0; i < 8; ++i) acc[j][i] = fmaf(acc[j][i], a[i], tmp[j][i] * vdown);
+#endif
         }
         // no barrier here, as in the int8 kernel: `v`/`vs` are this wave's own, and `p`/`alpha`/`valid` are rewritten
         // only after the next chunk's first barrier

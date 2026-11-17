@@ -446,6 +446,7 @@ STRATA_ENV("STRATA_CKPT_STRIDE", Speed, "cache/threads/park policy: periodic che
 STRATA_ENV("STRATA_SESSION_KEEP_ROOT", Speed, "session file (SAVE / QUIT) also keeps the root checkpoint; same state, more bytes on disk")
 STRATA_ENV("STRATA_PLE_WARM", Speed, "reads the PLE shard sequentially on a background thread (page cache only); same state")
 STRATA_ENV("STRATA_FREE_SETTLE_MS", Speed, "bounded wait for the free-VRAM figure to show released bytes (LEADS.md Part P L5); waits only, same state")
+STRATA_ENV("STRATA_ATTN_WMMA_ROWS", Speed, "2 / 4 / 8 query rows of a decode attention batch per block in the STRATA_ATTN_WMMA kernel, bit-identical per row to the one-row kernel (LEADS.md Part P L3)")
 STRATA_ENV("STRATA_CKPT_STRIDE_MAX", Speed, "cache/threads/park policy: at most this many stride checkpoints per request")
 STRATA_ENV("STRATA_CKPT_MOVE_PARK", Speed, "cache/threads/park policy: dropped checkpoints move into the parked image instead of a copy; same image bytes (phoenixclyde 406ec78190)")
 STRATA_ENV("STRATA_CKPT_POOL_READY", Speed, "cache/threads/park policy")

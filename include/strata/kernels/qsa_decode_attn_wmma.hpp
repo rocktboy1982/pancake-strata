@@ -39,4 +39,15 @@ bool qsa_decode_attn_wmma_on();
 bool qsa_decode_attn_wmma_chunks(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps,
                                  int64_t cap, const QsaShapes& s, float* scratch, int64_t n_q, void* stream);
 
+/// STRATA_ATTN_WMMA_ROWS=R (LEADS.md Part P L3, default off = 0): 2 / 4 / 8 query rows of one qsa_decode_attn_batch call per
+/// block, sharing the staged V rows when their selections are identical for the chunk.  Read once; values are rounded down
+/// to 2 / 4 / 8, below 2 is 0.  Only used with STRATA_ATTN_WMMA=1.
+int qsa_decode_attn_wmma_rows_env();
+
+/// qsa_decode_attn_wmma_chunks with the rows per block given explicitly (0 or 1: the one-row kernel; 2..: rounded down to
+/// 2 / 4 / 8), for the parity test: its output is expected to be bit-identical to the one-row kernel's.
+bool qsa_decode_attn_wmma_chunks_rows(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps,
+                                      int64_t cap, const QsaShapes& s, float* scratch, int64_t n_q, void* stream,
+                                      int rows_per_block);
+
 }  // namespace strata::kernels

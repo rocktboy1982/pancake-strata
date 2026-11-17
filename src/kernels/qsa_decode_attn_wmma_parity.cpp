@@ -90,6 +90,7 @@ void fill_q4(std::mt19937& rng, int64_t rows, std::vector<uint8_t>& b, std::vect
 
 struct Case {
     std::vector<int> widths;   // one per query
+    bool same = false;         // every query selects the first query's cells (cut to its own width): the shared-stage path of STRATA_ATTN_WMMA_ROWS
 };
 
 double rel_l2(const float* a, const double* ref, int n) {
@@ -182,7 +183,8 @@ int main(int argc, char** argv) {
     for (int64_t i = 256; i < 256 + 32; ++i) table[i] = -1;
     int32_t* d_table = upload(table);
 
-    const std::vector<Case> cases = {{{1}}, {{37}}, {{64}}, {{65}}, {{1000}}, {{2051}}, {{2051, 65, 1}}, {{2051, 2051, 2051}}};
+    const std::vector<Case> cases = {{{1}}, {{37}}, {{64}}, {{65}}, {{1000}}, {{2051}}, {{2051, 65, 1}}, {{2051, 2051, 2051}},
+                                    {{2051, 2051, 2051, 2051, 2051}, true}, {{2051, 2050, 2051, 1000, 65, 64, 2051, 37, 2051}, true}};
     int fails = 0;
     double worst_w = 0, worst_f = 0;
     for (int mode = 1; mode <= 3; ++mode) {
@@ -215,6 +217,7 @@ int main(int argc, char** argv) {
                 std::vector<int32_t> sel(all.begin(), all.begin() + w);
                 if (w == 2051 && z == 1) for (int i = 0; i < w; ++i) sel[i] = 1000 + i;   // dense: hits the 128-cell hole
                 std::sort(sel.begin(), sel.end());
+                if (cs.same && z > 0) std::copy(ids.begin(), ids.begin() + w, sel.begin());   // row 0's cells, cut to this width
                 std::copy(sel.begin(), sel.end(), ids.begin() + (size_t) z * CAP);
                 steps[(size_t) z * k::kStepCount + k::kStepPos] = (int32_t) n_cells - 1;
                 steps[(size_t) z * k::kStepCount + k::kStepNKv] = (int32_t) n_cells;
@@ -239,6 +242,33 @@ int main(int argc, char** argv) {
                 }
                 k::qsa_decode_attn_merge_only(d_steps, CAP, s, d_scr, out, nq, 0, nullptr);
             }
+            // STRATA_ATTN_WMMA_ROWS (LEADS.md Part P L3): 2 / 4 / 8 rows per block must reproduce the one-row kernel bit for bit
+            // (same per-row arithmetic; the shared stage only skips re-reading what is already staged)
+            bool rows_bad = false;
+            std::vector<float> o_one((size_t) nq * NH * HD);
+            ck(cudaDeviceSynchronize(), "sync");
+            ck(cudaMemcpy(o_one.data(), d_ow, o_one.size() * 4, cudaMemcpyDeviceToHost), "dl");
+            if (nq >= 2) {
+                for (int rpb : {2, 4, 8}) {
+                    ck(cudaMemset(d_scr, 0xFF, sf * nq * sizeof(float)), "nan fill");
+                    if (!k::qsa_decode_attn_wmma_chunks_rows(d_q, pools, d_ids, d_steps, CAP, s, d_scr, nq, nullptr, rpb)) {
+                        std::printf("FAIL mode %d: the %d-row WMMA chunk pass did not launch\n", mode, rpb);
+                        return 1;
+                    }
+                    k::qsa_decode_attn_merge_only(d_steps, CAP, s, d_scr, d_ow2, nq, 0, nullptr);
+                    ck(cudaDeviceSynchronize(), "sync");
+                    std::vector<float> o_r(o_one.size());
+                    ck(cudaMemcpy(o_r.data(), d_ow2, o_r.size() * 4, cudaMemcpyDeviceToHost), "dl");
+                    const bool eq = std::memcmp(o_r.data(), o_one.data(), o_r.size() * 4) == 0;
+                    if (!eq) std::printf("  rows %d: NOT bit-identical to the one-row kernel\n", rpb);
+                    rows_bad = rows_bad || !eq;
+                }
+                // d_ow2 is rewritten with the one-row result below by the determinism copy: redo it
+                ck(cudaMemset(d_scr, 0xFF, sf * nq * sizeof(float)), "nan fill");
+                k::qsa_decode_attn_wmma_chunks_rows(d_q, pools, d_ids, d_steps, CAP, s, d_scr, nq, nullptr, 0);
+                k::qsa_decode_attn_merge_only(d_steps, CAP, s, d_scr, d_ow2, nq, 0, nullptr);
+            }
+            fails += rows_bad;
             ck(cudaDeviceSynchronize(), "sync");
             std::vector<float> o32((size_t) nq * NH * HD), ow(o32.size()), ow2(o32.size());
             ck(cudaMemcpy(o32.data(), d_o32, o32.size() * 4, cudaMemcpyDeviceToHost), "dl");

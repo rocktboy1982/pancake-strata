@@ -51,6 +51,16 @@ int main() {
         auto r2 = free_settle_wait(1000, 10, 0, 1, 0, [] { return (uint64_t) 0; }, sleep_fn);
         check(!r2.settled && r2.waited_us == 1000, "step 0 is treated as 1 us and still ends at the cap");
     }
+    {   // the call-site form with the real sleep: off = no query; lagging figure that catches up after 3 polls; never-settling stops at the cap
+        int q = 0;
+        auto r0 = free_settle_after_free(1000 * MiB, 500 * MiB, 0, [&] { ++q; return (uint64_t) 0; });
+        check(r0.settled && q == 0, "after_free cap 0: no query");
+        int n = 0;
+        auto r1 = free_settle_after_free(1000 * MiB, 500 * MiB, 50, [&] { return ++n >= 4 ? (uint64_t) 1500 * MiB : (uint64_t) 1000 * MiB; });
+        check(r1.settled && r1.polls == 4 && r1.waited_us == 600, "after_free: catches up on the 4th poll after 3 sleeps of 200 us");
+        auto r2 = free_settle_after_free(1000 * MiB, 500 * MiB, 3, [] { return (uint64_t) 1000 * MiB; });
+        check(!r2.settled && r2.waited_us == 3000, "after_free: a figure that never moves ends at the cap");
+    }
     check(free_settle_ms_from_text(nullptr) == 0, "unset");
     check(free_settle_ms_from_text("") == 0, "empty");
     check(free_settle_ms_from_text("250") == 250, "250");

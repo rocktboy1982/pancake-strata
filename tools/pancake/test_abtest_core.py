@@ -82,6 +82,40 @@ def test_case_text_prefixes_later_passes_and_keeps_long_cases_unique():
     assert a != b and a.endswith("\nL") and a.startswith("[run ")
 
 
+def test_pep8_case_has_runs_of_three_newlines_and_edit_has_none():
+    P = A.prompts(["pep8"])
+    assert len(re.findall(r"\n{3,}", P["pep8"])) >= 3 and P["pep8"].startswith(A.PEP8_ASK)
+    assert not re.search(r"\n{3,}", P["edit"])   # the existing cases are unchanged (spec 170's note)
+    assert A.metric("pep8") == "decode_tps" and not A.is_long("pep8")
+
+
+def test_rotate_prompts_changes_the_file_per_round_and_off_changes_nothing(monkeypatch):
+    P = A.prompts(["pep8"])
+    monkeypatch.setattr(A, "ROT", [0, 0])
+    assert A.case_text(P, "edit") == P["edit"] and A.case_text(P, "pep8") == P["pep8"]
+    A.ROT[0] = 1
+    seen = set()
+    for rep in range(len(A.ROT_VARIANTS["pep8"])):
+        A.ROT[1] = rep
+        t = A.case_text(P, "pep8")
+        assert t == A.case_text(P, "pep8")   # the same text in every arm of a round
+        seen.add(t)
+    assert len(seen) == len(A.ROT_VARIANTS["pep8"])
+    assert len({len(v) for v in A.ROT_VARIANTS["edit"]}) == 1   # same length: a prompt-size difference is not the lever
+    A.ROT[1] = 0
+    assert A.case_text(P, "edit", 0) == P["edit"] and A.case_text(P, "short") == P["short"]
+
+
+def test_receipt_flag_writes_the_receipt_beside_the_jsonl(tmp_path, monkeypatch):
+    import receipt
+    out = tmp_path / "r.jsonl"
+    spec = tmp_path / "s.json"
+    spec.write_text(json.dumps({"base": "x", "arms": {"a": {"env": {"STRATA_X": "1"}}}}))
+    p = receipt.write_receipt(out, str(spec), spec=json.load(open(spec)), prompts=A.prompts(["pep8"]), argv=["abtest.py"])
+    d = json.load(open(p))
+    assert p.name == "r.jsonl.receipt.json" and d["cases"]["pep8"]["chars"] > 6000 and d["arms"]["a"]["env"] == {"STRATA_X": "1"}
+
+
 # ---------------------------------------------------------------------------------------------------- robust outlier rule
 def test_robust_bounds_needs_three_values_and_uses_the_floor():
     assert A.robust_bounds([100.0, 120.0]) is None

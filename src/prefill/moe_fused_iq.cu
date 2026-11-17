@@ -1609,7 +1609,18 @@ native_f16_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
     constexpr int W_BYTES = ROWS * WLD8 + 2 * ROWS * 4;   // the codes, then the (s0, s1) half2 per row and sub-block
     constexpr int STAGE_BYTES = W_BYTES + ActStage<BN>::BYTES;
     static_assert(GU_EPI_BYTES <= STAGE_BYTES && D_EPI_BYTES <= STAGE_BYTES, "the epilogues fit the stage");
-    __shared__ __align__(16) uint8_t lds[STAGE_BYTES];
+    // LEADS.md Part P L14, build macro STRATA_PF_MOE_XLDS (default off, the object is unchanged): a second stage buffer, so the
+    // commit of stage s + 1 goes to the other buffer while the wave group computes stage s and ONE barrier per stage is left
+    // (two without it).  hipfire's gemm_mq4g256v2_moe_grouped_k2_pm_gfx1100.hip shares the activation tile across waves through
+    // double-buffered LDS too (Apache-2.0, header read to line 22, idea only); here the activation tile was already shared by
+    // all 8 waves (ActStage), so what this adds is the double buffer.  Same arithmetic, same bits; LDS doubles (occupancy may drop).
+#if defined(STRATA_PF_MOE_XLDS)
+    constexpr bool XDB = BN <= kTileRows;   // (the 128-row tile's doubled stage would be 68 KB: over the 64 KB limit, it keeps one buffer)
+#else
+    constexpr bool XDB = false;
+#endif
+    constexpr int XBUF = XDB ? 2 : 1;
+    __shared__ __align__(16) uint8_t lds[XBUF * STAGE_BYTES];
     __shared__ __align__(16) uint8_t sgrid[GB];
     __shared__ __align__(16) uint4 ssign[SGN];
     __shared__ int srow[BN];
@@ -1695,6 +1706,27 @@ native_f16_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
         }
     };
     fetch_stage(0);
+#if defined(STRATA_PF_MOE_XLDS)
+    if constexpr (XDB) {
+    const auto set_buf = [&](int bi) {
+        s_w = lds + bi * STAGE_BYTES;
+        s_sc = reinterpret_cast<uint32_t*>(lds + bi * STAGE_BYTES + ROWS * WLD8);
+        s_act = reinterpret_cast<uint4*>(lds + bi * STAGE_BYTES + W_BYTES);
+    };
+    set_buf(0);
+    commit_stage();
+    __syncthreads();
+    for (int s = 0; s < NS; ++s) {
+        if (s + 1 < NS) fetch_stage(s + 1);
+        set_buf(s & 1);
+        compute_stage();
+        if (s + 1 < NS) {
+            set_buf((s + 1) & 1);
+            commit_stage();
+        }
+        __syncthreads();   // stage s + 1 is in its buffer, and no wave still reads buffer s & 1 once the next stage starts
+    }
+    } else {
     for (int s = 0; s < NS; ++s) {
         commit_stage();
         __syncthreads();
@@ -1702,6 +1734,16 @@ native_f16_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
         compute_stage();
         __syncthreads();
     }
+    }
+#else
+    for (int s = 0; s < NS; ++s) {
+        commit_stage();
+        __syncthreads();
+        if (s + 1 < NS) fetch_stage(s + 1);
+        compute_stage();
+        __syncthreads();
+    }
+#endif
     if constexpr (GU) gu_epilogue<BN>(acc, lds, tid, live_tiles, nrows, row0, fb, out);
     else down_epilogue<BN, D16>(acc, lds, tid, live_tiles, nrows, row0, fb, dm);
 #else

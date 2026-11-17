@@ -1,0 +1,33 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "long3k",
+  "long32k",
+  "long64k"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "ldsbar": {
+   "exe": "/home/dan/clone-of-d/src/build-ldsbar/strata"
+  },
+  "lazy2": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy2/strata"
+  },
+  "lazy2-noskip": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy2ns/strata"
+  },
+  "lazy8": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy8/strata"
+  },
+  "xlds": {
+   "exe": "/home/dan/clone-of-d/src/build-xlds/strata"
+  }
+ },
+ "note": "LEADS.md Part P leads L4 (lazy softmax rescale), L6 (LDS-only barrier) and L14 (double-buffered stage in the F16 prompt-expert kernel): three BUILD MACROS, so every arm is its own binary; CODED, HIP gfx1100 compile-checked (the default build's device code is identical to the previous source: the ISA diff is empty apart from the compilation-unit id), NOT RUN on a GPU. Build each next to build-win with the same cmake line plus CMAKE_HIP_FLAGS: build-ldsbar -DSTRATA_LDS_ONLY_BARRIER (the decode_attn_wmma kernels and the chunk-loop barriers of the two gfx11 prompt attention kernels; exact, scheduling only), build-lazy2 -DSTRATA_ATTN_LAZY_RESCALE=2 and build-lazy8 =8 (lazy running maximum in prompt_attn_wmma_kernel / prompt_attn_wmma_q4_kernel, the accumulator rescale skipped when no row moved; rounding differs; the compile spills VGPRs in the TR=0 kernels, see the ledger), build-lazy2ns -DSTRATA_ATTN_LAZY_RESCALE=2 -DSTRATA_ATTN_LAZY_NOSKIP (the lazy maximum without the skip: same registers as the default), build-xlds -DSTRATA_PF_MOE_XLDS (a second stage buffer in native_f16_kernel: one barrier per K stage instead of two; exact; LDS doubles, occupancy may fall). Prompt cases (prompt tok/s). The F16 prompt-expert kernels must be on in the preset for xlds to matter (STRATA_PF_F16=1, spec 161 / T-820): check the preset env first. ISA check before the run: tools/pancake/kernel_resources.py digest of the default build against HEAD must not change, and on build-ldsbar the `s_waitcnt_vscnt` before the loop barriers must be gone. Lazy arms are lossy: spec 195 is the quality gate. Screen (--tier screen --drift-check), then confirm any arm >= +2% (>= +3% lossy). NOT MEASURED."
+}
