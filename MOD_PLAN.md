@@ -297,7 +297,7 @@ miss.
    `confirm-queue.sh.cancelled`): chain 7's specs 102 and 103 hold every arm of it with the stricter settings (`--block 3
    --warmup 1 --outlier robust --reps 9`) and both queues wait for `WINCHAIN6_DONE` and stop pancake.service, so two queues
    would have overlapped. Spec 84 is not confirmed on purpose: its reference arm is the FP16 path (`fp16-ref`), so its `preset`
-   +50% is int8 against FP16, not a gain. (b) After `WINCHAINN_DONE` (the night chain; the queue was re-ordered the same evening, chain 7 is now 7a + the night chain, so `/home/dan/auto-runs/after7.sh` waits for `win-chainN.log`), in this order, one job at a time: rebuild `build-hip` on the
+   +50% is int8 against FP16, not a gain. (b) After `WINCHAINS_DONE` (the last chain; the queue was re-ordered the same evening, chain 7 is now 7a + the night chain, so `/home/dan/auto-runs/after7.sh` waits for `WINCHAINS_DONE` in `win-chainS.log`, S being the last chain: order N -> G -> S as of 2026-11-17 04:30), in this order, one job at a time: rebuild `build-hip` on the
    pulled tree (the strata-poly compat fix 5b867bf3a) and restart pancake.service; diagnose the spec 85 crash
    (`STRATA_MMVQ_IL_PLAIN=1`: `verify: layer 0 never rang (an illegal memory access was encountered)`, T-602) with
    `mmvq_il_parity` under `HIP_LAUNCH_BLOCKING=1` / `compute-sanitizer`, code in verify.cpp:2577-2643 and native_mmvq.cu:2527
