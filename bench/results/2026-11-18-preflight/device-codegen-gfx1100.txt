@@ -1,0 +1,16 @@
+act_f16.hip.cpp: device codegen gfx1100 -O2 errors=0
+attn_fold.hip.cpp: device codegen gfx1100 -O2 errors=0
+empty_grid.hip.cpp: device codegen gfx1100 -O2 errors=0
+gdn_snap_parity.cu: device codegen gfx1100 -O2 errors=0
+int4_moe.hip.cpp: device codegen gfx1100 -O2 errors=0
+int4_wmma.hip.cpp: device codegen gfx1100 -O2 errors=0
+kernels.cu: device codegen gfx1100 -O2 errors=0
+link_touch.hip.cpp: device codegen gfx1100 -O2 errors=0
+persist_layer_parity.cu: device codegen gfx1100 -O2 errors=0
+persist_tape.hip.cpp: device codegen gfx1100 -O2 errors=0
+qsa_decode_attn.cu: device codegen gfx1100 -O2 errors=0
+qsa_decode_attn_wmma.cu: device codegen gfx1100 -O2 errors=0
+qsa_prompt_attn.cu: device codegen gfx1100 -O2 errors=0
+raw_buffer.hip.cpp: device codegen gfx1100 -O2 errors=0
+retained_replay.hip.cpp: device codegen gfx1100 -O2 errors=0
+wmma_rate.hip.cpp: device codegen gfx1100 -O2 errors=0

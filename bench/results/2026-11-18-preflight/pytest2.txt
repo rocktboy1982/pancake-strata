@@ -1,0 +1,103 @@
+...........................sss.......................................... [  2%]
+......................sss..........ssssssssssssssssssssssxss............ [  4%]
+.....ss.sss........................................s................ssss [  7%]
+s..ss..................ss............................................... [  9%]
+........................................................................ [ 12%]
+............................................................sssss.ssssss [ 14%]
+sss......s.............................................................. [ 17%]
+..............................................................ssssss.... [ 19%]
+.......s..................................sss........................... [ 22%]
+..s..................................................................... [ 24%]
+................................................................ssss.... [ 27%]
+..s............s........................................................ [ 29%]
+........................................................................ [ 31%]
+.................................sss...................... [ 33%]
+...s..............................................................sss [ 36%]
+.ss..................................................................s.. [ 38%]
+.................................................... [ 40%]
+........................................................................................ [ 43%]
+...................................................................... [ 45%]
+........ssssssssss.................................................... [ 48%]
+..s.sss.............................................. [ 50%]
+............................................... [ 51%]
+................................................................ [ 53%]
+............................................... [ 55%]
+.................................................................................. [ 58%]
+........................................................................ [ 60%]
+.....x..............................................................................ss........................................................................... [ 66%]
+....ss........................s.................sss. [ 67%]
+..................................s.................................. [ 70%]
+................................................... [ 72%]
+................................................................................................... [ 75%]
+..................................................................ss.s................. [ 78%]
+....................................................... [ 80%]
+................................................................................ [ 83%]
+.................... [ 83%]
+..............................................................................................s....................................................... [ 88%]
+........................s.............ss........s.......................................... [ 91%]
+........................................................... [ 93%]
+...................................... [ 95%]
+...........................................s......................................................s........................s................                                       [100%]
+============================== warnings summary ===============================
+serve/test_serve_robustness.py::BlockedConsole::test_the_wrapper_never_blocks_and_keeps_the_newest_lines
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-4006 (spam)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\iancu\pf\serve\test_serve_robustness.py", line 255, in spam
+      w.write(f"[strata] progress line {i} " + "x" * 40 + "\n")
+      ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+serve/test_serve_robustness.py::BlockedConsole::test_the_wrapper_never_blocks_and_keeps_the_newest_lines
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\unraisableexception.py:63: PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.TextIOWrapper name=12 mode='w' encoding='utf-8'>: None
+  
+  OSError: [Errno 22] Invalid argument
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py", line 70, in collect_thread_exception
+      del errors, meta, hook_error
+                  ^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+serve/test_tolerant_tool_calls.py::ToolArgumentTypes::test_json_still_first
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-5739 (serve_forever)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\socketserver.py", line 235, in serve_forever
+      ready = selector.select(poll_interval)
+    File "C:\Python314\Lib\selectors.py", line 314, in select
+      r, w, _ = self._select(self._readers, self._writers, [], timeout)
+                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\selectors.py", line 305, in _select
+      r, w, x = select.select(r, w, w, timeout)
+                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  OSError: [WinError 10038] An operation was attempted on something that is not a socket
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2809 passed, 122 skipped, 2 xfailed, 3 warnings, 14238 subtests passed in 1966.58s (0:32:46)
+exit=0

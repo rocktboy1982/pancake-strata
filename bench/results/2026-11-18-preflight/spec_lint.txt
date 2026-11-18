@@ -1,0 +1,4 @@
+spec_lint: 2 arm(s) turn on a switch the engine leaves off under the arm's own flags (warning only)
+INERT-GATE   31-env-both-gpu.json arm(kv-grow): --kv-grow is off under --kv-resident 32768 (the elastic K/V needs the whole K/V in VRAM): the arm is the base
+INERT-GATE   31c-confirm-aux-kvgrow.json arm(kv-grow): --kv-grow is off under --kv-resident 32768 (the elastic K/V needs the whole K/V in VRAM): the arm is the base
+spec_lint: all arm env/flag references resolve against this repo

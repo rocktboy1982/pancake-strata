@@ -1,0 +1,13 @@
+src/kernels/cuda/iq_kernels.cu:2762:16: error: 'alignas' attribute cannot be applied to types
+src/kernels/cuda/iq_kernels.cu:2845:16: error: 'alignas' attribute cannot be applied to types
+src/kernels/cuda/iq_kernels.cu:3102:16: error: 'alignas' attribute cannot be applied to types
+src/kernels/cuda/iq_kernels.cu:3315:16: error: 'alignas' attribute cannot be applied to types
+src/kernels/cuda/iq_kernels.cu:3456:16: error: 'alignas' attribute cannot be applied to types
+src/kernels/cuda/iq_kernels.cu:3569:16: error: 'alignas' attribute cannot be applied to types
+src/prefill/moe_fused_iq.cu:1296:59: error: too many arguments to function call, expected 2, have 3
+src/prefill/moe_fused_iq.cu:1299:59: error: too many arguments to function call, expected 2, have 3
+src/qwen35/q36_engine.cu:288:31: error: no matching function for call to '__ldg'
+src/qwen35/q36_engine.cu:2501:29: error: no matching function for call to 'hipblasGemmStridedBatchedEx'
+src/qwen35/q36_engine.cu:2510:29: error: no matching function for call to 'hipblasGemmStridedBatchedEx'
+src/qwen35/q36_engine.cu:2526:29: error: no matching function for call to 'hipblasGemmStridedBatchedEx'
+src/qwen35/q36_engine.cu:2540:29: error: no matching function for call to 'hipblasGemmStridedBatchedEx'

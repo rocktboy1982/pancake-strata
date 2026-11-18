@@ -1,0 +1,4 @@
+gaussian             mean relative error: Q8_1 activation 2.196e-02, fp16 activation 1.107e-03, ratio 19.8x
+outliers x20         mean relative error: Q8_1 activation 5.884e-02, fp16 activation 1.165e-03, ratio 50.5x
+heavy tail (cubed)   mean relative error: Q8_1 activation 4.271e-02, fp16 activation 8.504e-04, ratio 50.2x
+act_f16_test: ok

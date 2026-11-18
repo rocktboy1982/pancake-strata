@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\iancu\pf\tools\pancake\replay_turns.py", line 974, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\iancu\pf\tools\pancake\replay_turns.py", line 898, in main
+    rows = load_turns(tpath)
+  File "C:\Users\iancu\pf\tools\pancake\replay_turns.py", line 87, in load_turns
+    for line in open(path, errors="replace"):
+                ~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\home\\dan\\clone-of-d\\src\\Strata\\pancake-turns.jsonl'

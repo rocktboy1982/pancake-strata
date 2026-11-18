@@ -1,0 +1,189 @@
+...........................sss.......................................... [  2%]
+......................sss..........ssssssssssssssssssssssxss............ [  4%]
+.....ss.sss........................................s................ssss [  7%]
+s..ss..................ss............................................... [  9%]
+........................................................................ [ 12%]
+............................................................sssss.ssssss [ 14%]
+sss......s.............................................................. [ 17%]
+..............................................................ssssss.... [ 19%]
+.......s..................................sss........................... [ 22%]
+..s..................................................................... [ 24%]
+................................................................ssss.... [ 27%]
+..s............s........................................................ [ 29%]
+........................................................................ [ 31%]
+.................................sss...................... [ 33%]
+...s..............................................................sss [ 36%]
+.ss..................................................................s.. [ 38%]
+.................................................... [ 40%]
+........................................................................................ [ 43%]
+...................................................................... [ 45%]
+........ssssssssss.................................................... [ 48%]
+..s.sss.............................................. [ 50%]
+............................................... [ 51%]
+................................................................ [ 53%]
+............................................... [ 55%]
+.................................................................................. [ 58%]
+........................................................................ [ 60%]
+.....x..............................................................................ss........................................................................... [ 66%]
+....ss........................s.................sss. [ 67%]
+..................................s.................................. [ 70%]
+................................................... [ 72%]
+................................................................................................... [ 75%]
+..................................................................ss.s................. [ 78%]
+....................................................... [ 80%]
+..............................................................F
+================================== FAILURES ===================================
+_________________________ AmdTelemetry.test_readings __________________________
+
+path = 'C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpv2sphs24', dir_fd = None
+onexc = <function TemporaryDirectory._rmtree.<locals>.onexc at 0x00000202D77489E0>
+
+    def _rmtree_unsafe(path, dir_fd, onexc):
+        if dir_fd is not None:
+            raise NotImplementedError("dir_fd unavailable on this platform")
+        try:
+            st = os.lstat(path)
+        except OSError as err:
+            onexc(os.lstat, path, err)
+            return
+        try:
+            if _rmtree_islink(st):
+                # symlinks to directories are forbidden, see bug #1669
+                raise OSError("Cannot call rmtree on a symbolic link")
+        except OSError as err:
+            onexc(os.path.islink, path, err)
+            # can't continue even if onexc hook returns
+            return
+        def onerror(err):
+            if not isinstance(err, FileNotFoundError):
+                onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except FileNotFoundError:
+                    continue
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+>                   os.unlink(fullname)
+E                   PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpv2sphs24\\class\\drm\\renderD129\\device\\hwmon\\hwmon4\\temp1_input'
+
+C:\Python314\Lib\shutil.py:701: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+self = <serve.test_server.AmdTelemetry testMethod=test_readings>
+
+    def test_readings(self):
+        from serve import telemetry
+>       with tempfile.TemporaryDirectory() as d:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+serve\test_server.py:5290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\tempfile.py:971: in __exit__
+    self.cleanup()
+C:\Python314\Lib\tempfile.py:975: in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+C:\Python314\Lib\tempfile.py:955: in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+C:\Python314\Lib\shutil.py:852: in rmtree
+    _rmtree_impl(path, dir_fd, onexc)
+C:\Python314\Lib\shutil.py:705: in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+func = <built-in function unlink>
+path = 'C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpv2sphs24\\class\\drm\\renderD129\\device\\hwmon\\hwmon4\\temp1_input'
+exc = PermissionError(13, 'The process cannot access the file because it is being used by another process')
+
+    def onexc(func, path, exc):
+        if isinstance(exc, PermissionError):
+            if repeated and path == name:
+                if ignore_errors:
+                    return
+                raise
+    
+            try:
+                if path != name:
+                    _resetperms(_os.path.dirname(path))
+                _resetperms(path)
+    
+                try:
+>                   _os.unlink(path)
+E                   PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\iancu\\AppData\\Local\\Temp\\tmpv2sphs24\\class\\drm\\renderD129\\device\\hwmon\\hwmon4\\temp1_input'
+
+C:\Python314\Lib\tempfile.py:930: PermissionError
+============================== warnings summary ===============================
+conftest.py:2
+  C:\Users\iancu\pf\conftest.py:2: SyntaxWarning: "\S" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\S"? A raw string is also an option.
+    (%APPDATA%\Strata\settings.json, ~/.config/strata/settings.json) and can MOVE model files from a folder it finds there.
+
+serve/test_reasoning_loop_recovery.py::ReasoningLoopRecovery::test_disabled_is_one_pass
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-3248 (serve_forever)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\socketserver.py", line 235, in serve_forever
+      ready = selector.select(poll_interval)
+    File "C:\Python314\Lib\selectors.py", line 314, in select
+      r, w, _ = self._select(self._readers, self._writers, [], timeout)
+                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Python314\Lib\selectors.py", line 305, in _select
+      r, w, x = select.select(r, w, w, timeout)
+                ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  OSError: [WinError 10038] An operation was attempted on something that is not a socket
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+serve/test_serve_robustness.py::BlockedConsole::test_the_console_is_restored_and_drained
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py:54: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-3888 (spam)
+  
+  Traceback (most recent call last):
+    File "C:\Python314\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Python314\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\iancu\pf\serve\test_serve_robustness.py", line 255, in spam
+      w.write(f"[strata] progress line {i} " + "x" * 40 + "\n")
+      ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+serve/test_serve_robustness.py::BlockedConsole::test_the_console_is_restored_and_drained
+  C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\unraisableexception.py:63: PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.TextIOWrapper name=12 mode='w' encoding='utf-8'>: None
+  
+  OSError: [Errno 22] Invalid argument
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\iancu\AppData\Roaming\Python\Python314\site-packages\_pytest\threadexception.py", line 70, in collect_thread_exception
+      del errors, meta, hook_error
+                  ^^^^
+  OSError: [Errno 22] Invalid argument
+  
+  
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED serve/test_server.py::AmdTelemetry::test_readings - PermissionError: [...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
