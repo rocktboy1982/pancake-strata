@@ -11,7 +11,7 @@ lines of 122 abtest result files; TEST_LEDGER.md):
   confirm   : --block 3 --warmup 1 --reps 5: 2 starts per arm, 4 passes (1 warm-up + 3 measured, rounded up) of every case, 1 request
               per case and pass; --confirm-share of the non-base arms get one (the rest are dropped at the screen)
   idle      : 3 minutes before every step (old) or 0.5 minute (--quick-idle, after the first one)
-Nothing is measured here; the numbers are an estimate and say so.  Sizes 64k and 100k are the least certain (see CASE_S).
+Nothing is measured here; the numbers are an estimate and say so.  Sizes 64k and 100k are the least certain (see CASE_S; the 64K figures differ per model: flashnext 27 s, Qwen3.6 101 s).
 """
 import argparse
 import json
@@ -19,12 +19,26 @@ import math
 import sys
 
 START_S = 70.0
-# seconds per request.  Measured: short, edit, long1k, long3k, long, long32k, longdec10k, longdec32k, longdec64k (ledger result files);
-# long64k's logged 27 s disagrees with longdec64k's 101 s prefill (the same 64000-token read), so the 101 s is used for both;
-# long10k = measured longdec10k prefill; long100k / longdec100k: NOT measured, 101 s x (100 / 64)^1.4 = 190 s (extrapolation).
+# seconds per request.  Measured: short, edit, long1k, long3k, long, long32k, longdec10k, longdec32k (ledger result files).
+# The 64K figures are PER MODEL (TEST_LEDGER.md T-943): the 27 s of long64k and the 101 s of longdec64k were never one case twice, they are two models.
+# flashnext IQ2_XS (CASE_S, the daily preset): long64k 64000 tokens / 2405.7 tok/s = 26.6 s (T-822 trend point; T-614 1980 tok/s = 32 s);
+# longdec64k = 26.6 + a 12.2 s reply (the q36 reply time stands in: decode at 64K on flashnext is NOT measured) = 38.8 s.
+# Qwen3.6-35B-A3B Q4_K_XL (Q36_S, presets named qwen36*): 65149 prompt tokens at 643 tok/s = 101.3 s + 256 tokens at 21.0 tok/s = 113.5 s (spec 98, T-?; result file
+# bench/results/2026-11-16-chain6-screens/win6-98-pass2-q36-xattn.jsonl), 32K: 31418 tokens at 1015 tok/s = 31.0 s + 256 at 41.2 = 37.2 s.
+# long10k = measured longdec10k prefill; long100k / longdec100k: NOT measured, 101 s x (100 / 64)^1.4 = 190 s (extrapolation from the q36 figures, so an upper bound for flashnext).
 CASE_S = {"short": 5.6, "edit": 9.0, "pep8": 9.0, "long": 11.5, "long1k": 1.9, "long3k": 3.1, "long10k": 5.9, "long32k": 25.2,
-          "long64k": 101.0, "long100k": 190.0, "longdec10k": 8.1, "longdec32k": 17.9, "longdec64k": 113.5, "longdec100k": 202.0,
+          "long64k": 26.6, "long100k": 190.0, "longdec10k": 8.1, "longdec32k": 17.9, "longdec64k": 38.8, "longdec100k": 202.0,
           "longdec128k": 330.0}
+Q36_S = {"long32k": 31.0, "longdec32k": 37.2, "long64k": 101.3, "longdec64k": 113.5}
+
+
+def case_s(spec, c):
+    """Seconds of one request of case C for the model the spec's base preset runs."""
+    if "qwen36" in str(spec.get("base", "")) and c in Q36_S:
+        return Q36_S[c]
+    return CASE_S.get(c, 10.0)
+
+
 LONG_DEC = ("longdec10k", "longdec32k", "longdec64k", "longdec100k", "longdec128k")
 
 
@@ -37,13 +51,13 @@ def screen_hours(spec, drift=None):
     cases = spec.get("cases", ["short", "edit", "long"])
     if not spec.get("prefill"):
         cases = [c for c in cases if not is_long(c) or c in LONG_DEC] or ["short"]
-    per = sum(CASE_S.get(c, 10.0) * (1 if is_long(c) else 2) for c in cases)
+    per = sum(case_s(spec, c) * (1 if is_long(c) else 2) for c in cases)
     return arms * (START_S + per + CASE_S["short"]) / 3600   # + the single warm-up request
 
 
 def confirm_hours(spec, winners):
     cases = spec.get("cases", ["short", "edit", "long"])
-    per = sum(CASE_S.get(c, 10.0) for c in cases) * 4
+    per = sum(case_s(spec, c) for c in cases) * 4
     return (1 + winners) * 2 * (START_S + per) / 3600   # base + the winners, 2 starts each
 
 

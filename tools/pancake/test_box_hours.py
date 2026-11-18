@@ -104,3 +104,14 @@ def test_spec_cost_matches_measured_screens():
     assert SC.screen_hours({"arms": {"a": {}}, "cases": ["short", "long32k"]}) < SC.screen_hours(
         {"arms": {"a": {}}, "cases": ["short", "long32k"], "prefill": True})
     assert SC.confirm_hours(spec, 1) > 0
+
+
+def test_spec_cost_64k_is_per_model():
+    """T-943: long64k 27 s (flashnext IQ2_XS, 2405.7 tok/s) and longdec64k 101 s prefill (Qwen3.6 Q4_K_XL, 643 tok/s) are two models."""
+    flash = {"base": "configs/pancake/flashnext-iq2_xs-fast-hip.json"}
+    q36 = {"base": "configs/pancake/qwen36-ud-q4_k_xl-q36.json"}
+    assert abs(SC.case_s(flash, "long64k") - 64000 / 2405.7) < 0.5
+    assert abs(SC.case_s(q36, "long64k") - 65149 / 643.0) < 0.5
+    assert abs(SC.case_s(q36, "longdec64k") - (65149 / 643.0 + 256 / 21.0)) < 0.5
+    assert SC.case_s(flash, "longdec64k") < SC.case_s(q36, "longdec64k") / 2
+    assert SC.case_s(flash, "short") == SC.case_s(q36, "short")

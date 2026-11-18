@@ -10,11 +10,10 @@ queued with item 1 and the night queue in progress, section 6 code to write unle
 DONE (queued) or PARTLY CODED (in progress), 7 fix needed, 8 parked, 9 dropped). Test verdicts come from
 TEST_LEDGER.md rows as written.
 """
-import datetime
+import hashlib
 import json
 import os
 import re
-import subprocess
 import sys
 from collections import Counter
 
@@ -171,9 +170,13 @@ def ledger_rows(ledger):
 def main():
     plan = open(os.path.join(REPO, 'MOD_PLAN.md'), encoding='utf-8').read()
     ledger = open(os.path.join(REPO, 'TEST_LEDGER.md'), encoding='utf-8').read()
-    commit = subprocess.run(['git', '-C', REPO, 'rev-parse', '--short=9', 'HEAD'], capture_output=True, text=True).stdout.strip()
-    data = {'items': plan_items(plan), 'tests': ledger_rows(ledger), 'commit': commit,
-            'date': datetime.date.today().isoformat()}
+    # Deterministic: the same MOD_PLAN.md + TEST_LEDGER.md give the same bytes (the old header held HEAD and today's date, so a
+    # rebuild in the next commit or the next day always differed by two lines; a commit cannot hold its own hash anyway).
+    commit = hashlib.sha256((plan + '|' + ledger).encode('utf-8')).hexdigest()[:9]
+    tests = ledger_rows(ledger)
+    dates = [m for m in (re.match(r'~?(\d{4}-\d{2}-\d{2})', x['date']) for x in tests) if m]
+    data = {'items': plan_items(plan), 'tests': tests, 'commit': commit,
+            'date': max(m.group(1) for m in dates) if dates else ''}
     page = open(os.path.join(HERE, 'plan_page_template.html'), encoding='utf-8').read()
     page = (page.replace('__DATA__', json.dumps(data, ensure_ascii=True).replace('</', '<\\/'))
                 .replace('__MARKDOWN__', plan.replace('</script', '<\\/script'))

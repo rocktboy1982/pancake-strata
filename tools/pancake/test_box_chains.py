@@ -1,0 +1,537 @@
+"""Control-flow tests of the box chain scripts (tools/pancake/box_chains/) on a PC: every external command (ssh-side tools, the
+engine, pgrep, ss, systemctl, cmake, abtest ...) is a stub, the clock runs fast, the paths are rewritten into a temp dir.  What
+is proved: the marker waits, the busy() pattern (no chain waits for a LATER chain's idle waiter), the pancake.service stop only
+after 3 polls without a client and the start at the end, START / END pairs, the marker after a failed step, the chainT-decide.py
+winner rule, and that S's fallthrough grep matches the verdict wording replay_turns.py really prints.
+Needs a POSIX sh (Git Bash on Windows).  python -m pytest -q tools/pancake/test_box_chains.py"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+HERE = Path(__file__).resolve().parent
+CHAINS = HERE / "box_chains"
+sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(CHAINS))
+SH = shutil.which("sh")
+pytestmark = pytest.mark.skipif(not SH or not shutil.which("grep"), reason="needs a POSIX sh")
+
+import importlib.util  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location("chainT_decide", CHAINS / "chainT-decide.py")
+DECIDE = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(DECIDE)
+
+SPEC_IDS = [128, 164, 165, 166, 167, 168, 169, 170, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205,
+            206, 207, 208, 209, 210, 211, 212, 213]
+ARMS = {192: ["base", "wmma", "wmma-rows"], 164: ["base", "lanecell", "armB"], 203: ["base", "defer", "armB"]}
+PROBES = ["act_f16_probe", "link_touch_probe", "wmma_rate_probe", "int4_wmma_probe", "int4_moe_probe", "attn_fold_probe",
+          "raw_buffer_probe", "persist_tape_probe", "persist_layer_parity", "retained_replay_probe", "expdec_bench"]
+
+PYSTUB = r'''
+import json, os, sys, runpy
+H = os.environ["HWIN"]; REPO = os.environ["REPO_TOOLS"]
+args = sys.argv[1:]
+open(H + "/calls.log", "a").write("PY " + " ".join(args) + "\n")
+fails = [f for f in os.environ.get("STUB_FAIL", "").split(",") if f]
+joined = " ".join(args)
+def fail():
+    return any(f in joined for f in fails)
+def opt(name, default=None):
+    return args[args.index(name) + 1] if name in args else default
+if not args:
+    sys.exit(0)
+a0 = args[0]
+if a0.endswith("chainT-decide.py"):
+    sys.argv = args; runpy.run_path(a0, run_name="__main__")
+if a0 == "-m":
+    sys.exit(1 if fail() else 0)
+name = os.path.basename(a0)
+if name == "abtest.py":
+    spec = json.load(open(args[1]))
+    arms = list(spec["arms"])
+    out = opt("--out")
+    print("abtest stub", joined)
+    for case in ("c1", "c2"):
+        for i, arm in enumerate(arms):
+            mean = float(os.environ.get("STUB_GAIN", "105")) if (i == len(arms) - 1 and i > 0 and case == "c1") else 100.0
+            print(f"  {case} {arm} {mean} +- 1.0 (n=5)")
+    print("generated text vs base")
+    for arm in arms[1:]:
+        print(f"  {arm} identical on every case")
+    print("  vs base: " + arms[-1] + " better 5.0%")
+    sys.exit(1 if fail() else 0)
+if name == "replay_turns.py":
+    sys.path.insert(0, REPO)
+    if not hasattr(os, "sysconf"):
+        os.sysconf = lambda name: 100          # abtest.py reads SC_CLK_TCK at import (tools/pancake/conftest.py does the same)
+    import replay_turns as RT
+    arms = (opt("--arms") or "base,no-state").split(",")
+    reps = int(opt("--reps", "1"))
+    spread = os.environ.get("STUB_REPLAY", "worse")
+    def tot(p):
+        return {"prompt_s": p, "prompt_s_agent": p, "prompt_s_side": 0.0, "turn_s": p + 5, "cold_rereads": 0, "cold_reread_s": 0.0, "first_cold": 1,
+                "first_cold_s": 1.0, "parked": 3, "restored": 3, "skip_park": {}, "min_avail_gib": 10.0, "peak_rss_gib": 5.0,
+                "errors": 0}
+    res = {}
+    for arm in arms:
+        res[arm] = []
+        for r in range(reps):
+            delta = 0.0 if arm == arms[0] else (60.0 if spread == "worse" else (0.0 if r % 2 else 1.0))
+            jitter = (-1.0 if r % 2 else 1.0) * (0.2 if spread == "worse" else 30.0)
+            res[arm].append({"rep": r, "totals": tot(100.0 + delta + jitter), "budget": "b", "clean": True})
+    RT.recorded_totals = lambda plan: None
+    RT.report(res, arms, [])
+    sys.exit(1 if fail() else 0)
+if name == "conv_trace.py":
+    d = args[2]; tag = opt("--tag")
+    for suffix in ("requests.json", "trace", "engine.log"):
+        open(f"{d}/{tag}.{suffix}", "w").write("x\n" * 5)
+    open(opt("--window-trace"), "w").write("x\n" * 5)
+    sys.exit(1 if fail() else 0)
+if name == "replay_fill_transition.py":
+    print("replay header line")
+    for k in ("base", "pm", "pmw", "ff:0.7", "tr:2.0"):
+        print(f"{k} 1.0 2.0")
+    open(opt("--json"), "w").write("{}")
+    sys.exit(1 if fail() else 0)
+if name == "quality_gate.py":
+    print("PASS stub gate")
+    sys.exit(1 if fail() else 0)
+sys.exit(1 if fail() else 0)
+'''
+
+SH_STUBS = {
+    "sleep": 'exec /usr/bin/sleep 0.01\n',
+    "pgrep": 'echo "pgrep $*" >> "$H/calls.log" 2>/dev/null; [ "$1" = -f ] || exit 2; grep -Eq -- "$2" "$H/procs.txt"\n',
+    "ss": ('n=$(head -n1 "$H/clients" 2>/dev/null); [ -n "$n" ] || n=0; sed -i 1d "$H/clients" 2>/dev/null; '
+           'echo "SS $n" >> "$H/calls.log"; i=0; while [ $i -lt $n ]; do echo ESTAB; i=$((i+1)); done\n'),
+    "systemctl": 'echo "SYSTEMCTL $*" >> "$H/calls.log"\n',
+    "sudo": 'cat > /dev/null\n',
+    "git": 'printf "abc123\\trefs/heads/port/rdna3-decode\\n"\n',
+    "curl": 'while [ $# -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done; cp "$H/fake-src.tgz" "$out"\n',
+    "timeout": 'shift; exec "$@"\n',
+    "nice": 'shift 2; exec "$@"\n',
+    "python3": 'exec "$PYREAL" "$H/stub/pystub.py" "$@"\n',
+    "ctest": ('echo "ctest $*" >> "$H/calls.log"\n'
+              'echo " 1/2 Test  #1: qsa_qmajor_parity ......   Passed    1.0 sec"\n'
+              'echo " 2/2 Test  #2: hip_decode_attn_wmma_parity .....   Passed    1.0 sec"\n'
+              'echo "100% tests passed, 0 tests failed out of 2"\n'),
+    "hipcc": 'while [ $# -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done; : > "$out"; chmod +x "$out"\n',
+    "cmake": ('echo "cmake $*" >> "$H/calls.log"\n'
+              'b=; t=; while [ $# -gt 0 ]; do case $1 in --build) b=$2;; -B) b=$2;; --target) t=$2;; esac; shift; done\n'
+              '[ -n "$b" ] && mkdir -p "$b" && [ -n "$t" ] && { : > "$b/$t"; chmod +x "$b/$t"; }\nexit 0\n'),
+}
+
+
+class Box:
+    def __init__(self, tmp):
+        self.h = tmp.as_posix()
+        if os.name == "nt":       # msys tar reads "C:/x" as a remote host: hand the scripts /c/x paths
+            self.h = subprocess.run(["cygpath", "-u", str(tmp)], capture_output=True, text=True).stdout.strip()
+        self.tmp = tmp
+        H = tmp
+        (H / "stub").mkdir()
+        for n, body in SH_STUBS.items():
+            p = H / "stub" / n
+            p.write_text("#!/bin/sh\n" + body, newline="\n")
+        (H / "stub" / "pystub.py").write_text(PYSTUB)
+        S = H / "clone-of-d" / "src"
+        self.S = S
+        R = S / "Strata-win"
+        self.R = R
+        (R / "bench" / "specs").mkdir(parents=True)
+        (R / "tools" / "pancake").mkdir(parents=True)
+        names = {209: "dq-fast-quality", 210: "route-budget-quality", 168: "quality-floor", 193: "wmma-rows-quality",
+                 195: "prompt-lazy-quality", 211: "d4-suffix-index-replay"}
+        for n in SPEC_IDS:
+            arms = {"base": {}, "armA": {"env": {"X": "1"}}, "armB": {"env": {"Y": "1"}}}
+            if n in ARMS:
+                arms = {a: {"env": {"Z": a}} for a in ARMS[n]}
+            (R / "bench" / "specs" / f"{n}-{names.get(n, 'spec')}.json").write_text(json.dumps({"arms": arms, "note": "n"}))
+        shutil.copy(CHAINS / "chainT-decide.py", S / "chainT-decide.py")
+        (R / "tools" / "pancake" / "replay_fill_transition.py").write_text("# --requests\n")
+        (R / "tools" / "pancake" / "conv_trace.py").write_text("# --order\n")
+        (S / "Strata").mkdir()
+        (S / "Strata" / "pancake-flashnext-iq2_xs-fast-hip.json").write_text("{}")
+        B = S / "build-win"
+        B.mkdir()
+        for t in ["strata"] + PROBES:
+            (B / t).write_text("#!/bin/sh\nexit 0\n", newline="\n")
+        (H / "mnt").mkdir()
+        (H / "clone-of-d" / "models" / "qwen36-UD-Q4_K_XL").mkdir(parents=True)
+        (H / "clone-of-d" / "models" / "qwen36-UD-Q4_K_XL" / "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf").write_text("x")
+        (H / "auto-runs" / "win16-conv").mkdir(parents=True)
+        for f in ("real1.trace", "real1.requests.json"):
+            (H / "auto-runs" / "win16-conv" / f).write_text("x\n")
+        (R / "data").mkdir()
+        (R / "data" / "expert-profile-pancake.bin").write_text("x")
+        # a tarball that codeload would serve
+        src = H / "srcdir" / "pancake-strata-abc"
+        src.mkdir(parents=True)
+        (src / "README").write_text("x")
+        subprocess.run(["tar", "czf", (H / "fake-src.tgz").as_posix(), "-C", (H / "srcdir").as_posix(), "pancake-strata-abc"], check=True)
+        (H / "calls.log").write_text("")
+        (H / "procs.txt").write_text("")
+        (H / "clients").write_text("")
+
+    def log(self, name):
+        p = self.S / name
+        return p.read_text().splitlines() if p.exists() else []
+
+    def calls(self):
+        return (self.tmp / "calls.log").read_text().splitlines()
+
+    def script_text(self, name, transform=None):
+        t = (CHAINS / name).read_text()
+        h = self.h
+        t = t.replace("/home/linuxbrew/.linuxbrew/bin", h + "/stub").replace("/opt/rocm/core-10.0/bin", h + "/stub")
+        t = t.replace("/opt/rocm/core-10.0", h + "/rocm").replace("/mnt/pancake", h + "/mnt").replace("/home/dan", h)
+        if transform:
+            t = transform(t)
+        return t
+
+    def start(self, name, transform=None, env=None):
+        sp = self.tmp / ("run-" + name)
+        sp.write_text(self.script_text(name, transform), newline="\n")
+        e = dict(os.environ)
+        e.update({"H": self.h, "HWIN": self.tmp.as_posix(), "PYREAL": sys.executable, "REPO_TOOLS": HERE.as_posix(),
+                  "PATH": str(self.tmp / "stub") + os.pathsep + e["PATH"], "STUB_REPLAY": "worse"})
+        e.update(env or {})
+        return subprocess.Popen([SH, sp.as_posix()], env=e, cwd=self.tmp, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+    def finish(self, p, timeout=120):
+        try:
+            out, _ = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            out, _ = p.communicate()
+            raise AssertionError("script hung:\n" + out[-2000:])
+        return out
+
+
+def append(box, logname, line):
+    with open(box.S / logname, "a") as f:
+        f.write(line + "\n")
+
+
+def assert_start_end_pairs(lines):
+    """After the header START line the START / END lines must alternate (steps are sequential) and end with END."""
+    ev = [l.split(" ", 1)[0] for l in lines[1:] if re.match(r"^(START|END) ", l)]
+    for i, e in enumerate(ev):
+        assert e == ("START" if i % 2 == 0 else "END"), (i, ev, "START/END do not alternate")
+    assert len(ev) % 2 == 0, "a START without END"
+
+
+def assert_service_discipline(box, polls_zero=3):
+    cl = [c for c in box.calls() if c.startswith(("SS ", "SYSTEMCTL "))]
+    stops = [i for i, c in enumerate(cl) if c == "SYSTEMCTL --user stop pancake.service"]
+    starts = [i for i, c in enumerate(cl) if c == "SYSTEMCTL --user start pancake.service"]
+    assert len(stops) == 1 and len(starts) == 1 and stops[0] < starts[0], cl
+    assert cl[-1] == "SYSTEMCTL --user start pancake.service"
+    before = cl[:stops[0]]
+    assert before[-polls_zero:] == ["SS 0"] * polls_zero, before[-5:]
+
+
+# ------------------------------------------------------------------------------------------------ busy() pattern
+def busy_fn(box, name):
+    t = box.script_text(name)
+    return next(l for l in t.splitlines() if l.startswith("busy()"))
+
+
+def busy_result(box, name, procs):
+    (box.tmp / "procs.txt").write_text("\n".join(procs) + "\n")
+    fn = busy_fn(box, name)
+    r = subprocess.run([SH, "-c", fn + "\nif busy; then echo BUSY; else echo IDLE; fi"], capture_output=True, text=True,
+                       env={**os.environ, "H": box.h, "PATH": str(box.tmp / "stub") + os.pathsep + os.environ["PATH"]})
+    return r.stdout.strip()
+
+
+WAITERS = ["sh ./win-chainU.sh", "sh ./win-chainV.sh", "sh ./xtail-chainX.sh", "/bin/sh ./after7.sh"]
+
+
+@pytest.mark.parametrize("name,own", [("win-chainT.sh", "win-chainT.sh"), ("win-chainV.sh", "win-chainV.sh"),
+                                      ("xtail-chainX.sh", "xtail-chainX.sh")])
+def test_busy_ignores_itself_and_later_waiters(tmp_path, name, own):
+    box = Box(tmp_path)
+    later = {"win-chainT.sh": WAITERS, "win-chainV.sh": ["sh ./xtail-chainX.sh", "/bin/sh ./after7.sh"],
+             "xtail-chainX.sh": ["/bin/sh ./after7.sh"]}[name]
+    assert busy_result(box, name, ["sh ./" + own] + later) == "IDLE"
+    assert busy_result(box, name, ["sh ./win-chainH2.sh"]) == "BUSY"
+    assert busy_result(box, name, ["sh ./win-chainS.sh"]) == "BUSY"
+    assert busy_result(box, name, ["python3 tools/pancake/abtest.py x"]) == "BUSY"
+    assert busy_result(box, name, ["cmake --build x"]) == "BUSY"
+    assert busy_result(box, name, ["sh ./win-chainN.sh"]) == "BUSY"
+
+
+def test_busy_s_sees_h2_only_of_the_chains(tmp_path):
+    box = Box(tmp_path)
+    assert busy_result(box, "win-chainS.sh", ["sh ./win-chainH2.sh"]) == "BUSY"
+    assert busy_result(box, "win-chainS.sh", ["sh ./win-chainS.sh"] + WAITERS) == "IDLE"
+
+
+def test_after7_busy_never_sees_the_x_waiter():
+    # after7.sh on the box matches "[w]in-chain"; the tail chain's name must not contain it
+    assert "win-chain" not in "xtail-chainX.sh"
+
+
+# ------------------------------------------------------------------------------------------------ chains end to end
+def run_chain(box, name, pred_log, marker, final_marker, clients=None, transform=None, env=None, timeout=120):
+    """Start NAME, check that it only logs START while the predecessor marker is missing, then release it."""
+    if clients is not None:
+        (box.tmp / "clients").write_text("\n".join(map(str, clients)) + "\n")
+    p = box.start(name, transform, env)
+    log = {"win-chainS.sh": "win-chainS.log", "win-chainT.sh": "win-chainT.log", "win-chainU.sh": "win-chainU.log",
+           "win-chainV.sh": "win-chainV.log", "xtail-chainX.sh": "xtail-chainX.log"}[name]
+    time.sleep(1.5)
+    assert p.poll() is None
+    lines = box.log(log)
+    assert len(lines) == 1 and lines[0].startswith("START "), lines
+    assert not any(c.startswith("SYSTEMCTL") for c in box.calls())
+    append(box, *pred_log) if pred_log[0] != "after7" else (box.tmp / "auto-runs" / "after7.log").open("a").write(marker + "\n")
+    out = box.finish(p, timeout)
+    lines = box.log(log)
+    assert lines[-1] == final_marker, lines[-6:]
+    assert_start_end_pairs(lines)
+    return lines, out
+
+
+def test_chain_t_full_flow(tmp_path):
+    box = Box(tmp_path)
+    (box.tmp / "procs.txt").write_text("\n".join(["sh ./win-chainT.sh"] + WAITERS) + "\n")   # U, V, X, after7 are waiting
+    lines, out = run_chain(box, "win-chainT.sh", ("win-chainS.log", "WINCHAINS_DONE"), "WINCHAINS_DONE", "WINCHAINT_DONE",
+                           clients=[2, 1, 0, 3, 0, 0, 0])
+    assert_service_discipline(box)
+    text = "\n".join(lines)
+    for must in ("chain S done", "SYNC exit=0", "BUILD_END build-win exit=0", "END ctest new", "parity gates: qsa_qmajor_parity=1 "
+                 "hip_decode_attn_wmma_parity=1", "START gate 209", "START gate 168", "START gate 210", "START replay 211 rep 1",
+                 "START 199-screen", "START 197-screen", "START 192-screen", "START 164-screen", "START 169-screen",
+                 "START 201-screen", "START 203-screen", "START 165-screen", "START 207-screen", "START 191-screen",
+                 "START 170-screen", "START 205-screen", "END 199-confirm", "CONFIRM"):
+        assert must in text, must
+    # every step the owner wants kept: spec 192 confirm, replay 211, quality gates 209 / 168 / 210
+    assert "START 192-confirm" in text
+    # the tail items are NOT in T any more
+    for gone in ("START 196", "START 167", "START 194", "START act_f16"):
+        assert gone not in text
+    # a screen is followed by its confirm only for winners: 164 has no sibling but its winner arm still confirms
+    assert text.index("START gate 209") < text.index("START replay 211") < text.index("START 199-screen")
+    assert text.index("START 199-screen") < text.index("START 197-screen") < text.index("START 192-screen")
+    # the first wait is the full 3 idle minutes, the following ones the quick idle (observable through the number of pgrep polls)
+
+
+def test_chain_t_old_busy_pattern_deadlocks(tmp_path):
+    """The pattern chain T had before the fix ([A-SU-Z]: U and V are LATER chains) never goes idle beside their waiters."""
+    box = Box(tmp_path)
+    (box.tmp / "procs.txt").write_text("\n".join(["sh ./win-chainT.sh"] + WAITERS) + "\n")
+    append(box, "win-chainS.log", "WINCHAINS_DONE")
+    old = lambda t: t.replace(r"[w]in-chain[A-Sa-z0-9][A-Za-z0-9]*\.sh", r"[w]in-chain[A-SU-Za-z0-9]*\.sh")
+    p = box.start("win-chainT.sh", old)
+    time.sleep(6)
+    still = p.poll() is None
+    p.kill()
+    p.communicate()
+    assert still, "the old pattern should hang in wait_idle"
+    assert not any("SYNC start" in l for l in box.log("win-chainT.log")), box.log("win-chainT.log")
+
+
+def test_chain_t_failed_steps_still_write_the_marker(tmp_path):
+    box = Box(tmp_path)
+    lines, out = run_chain(box, "win-chainT.sh", ("win-chainS.log", "WINCHAINS_DONE"), "WINCHAINS_DONE", "WINCHAINT_DONE",
+                           clients=[0, 0, 0], env={"STUB_FAIL": "199-screen,quality_gate,replay_turns.py"})
+    text = "\n".join(lines)
+    assert "END 199-screen exit=1" in text and "screen 199 failed or skipped: no confirm" in text
+    assert "END gate 209 exit=1" in text and "END replay 211 rep 1" in text
+    assert_service_discipline(box)
+
+
+def test_chain_t_waits_for_clients(tmp_path):
+    box = Box(tmp_path)
+    run_chain(box, "win-chainT.sh", ("win-chainS.log", "WINCHAINS_DONE"), "WINCHAINS_DONE", "WINCHAINT_DONE",
+              clients=[1, 1, 1, 1, 0, 1, 0, 0, 0])
+    assert_service_discipline(box)
+    assert sum("WAIT service has clients" in l for l in box.log("win-chainT.log")) == 5
+
+
+def test_chain_x_full_flow(tmp_path):
+    box = Box(tmp_path)
+    (box.tmp / "auto-runs").mkdir(exist_ok=True)
+    (box.tmp / "auto-runs" / "after7.log").write_text("QUEUED\n")
+    (box.tmp / "procs.txt").write_text("sh ./xtail-chainX.sh\n")
+    lines, out = run_chain(box, "xtail-chainX.sh", ("after7", ""), "AFTER7_DONE", "WINCHAINX_DONE", clients=[0, 0, 0])
+    assert_service_discipline(box)
+    text = "\n".join(lines)
+    for must in ("after7 done", "ENGINE=1", "START act_f16", "START ablate_default", "BUILD_END", "START 194-screen",
+                 "START 196-plain", "START 196-rotated", "START 167-soak", "START 212-screen", "START int4_moe_gateup",
+                 "vmm_probe"):
+        assert must in text, must
+    assert "vmm_probe skipped" in text            # chain T builds it, not present in this fixture
+    # the queued-job order inside X: probes, ablation, 194 / 195, 196, 167, 212 / 213
+    pos = [text.index(k) for k in ("START act_f16", "START ablate_default", "START 194-screen", "START 196-plain",
+                                   "START 167-soak", "START 212-screen")]
+    assert pos == sorted(pos)
+
+
+def test_chain_x_vmm_probe_runs_when_chain_t_built_it(tmp_path):
+    box = Box(tmp_path)
+    (box.tmp / "mnt" / "chainT").mkdir(parents=True)
+    (box.tmp / "mnt" / "chainT" / "vmm_probe").write_text("#!/bin/sh\nexit 0\n", newline="\n")
+    (box.tmp / "auto-runs").mkdir(exist_ok=True)
+    (box.tmp / "auto-runs" / "after7.log").write_text("QUEUED AFTER7_DONE\n")
+    lines, _ = run_chain(box, "xtail-chainX.sh", ("after7", ""), "AFTER7_DONE", "WINCHAINX_DONE", clients=[0, 0, 0]) \
+        if False else (None, None)
+    p = box.start("xtail-chainX.sh")
+    box.finish(p)
+    text = "\n".join(box.log("xtail-chainX.log"))
+    assert "START vmm_probe" in text and "END vmm_probe exit=0" in text
+
+
+def test_chain_u_marker_chain(tmp_path):
+    box = Box(tmp_path)
+    run_chain(box, "win-chainU.sh", ("win-chainT.log", "WINCHAINT_DONE"), "WINCHAINT_DONE", "WINCHAINU_DONE")
+
+
+def test_chain_v_full_flow(tmp_path):
+    box = Box(tmp_path)
+    lines, out = run_chain(box, "win-chainV.sh", ("win-chainU.log", "WINCHAINU_DONE"), "WINCHAINU_DONE", "WINCHAINV_DONE",
+                           clients=[0, 0, 0])
+    assert_service_discipline(box)
+    text = "\n".join(lines)
+    for must in ("chain U done", "START record real4", "START record real5", "START replay real4-main", "START replay real5-slots5000",
+                 "START replay real1-chain16a", "COPY small outputs"):
+        assert must in text, must
+
+
+def test_chain_s_full_flow_and_fallthrough(tmp_path):
+    box = Box(tmp_path)
+    lines, out = run_chain(box, "win-chainS.sh", ("win-chainH2.log", "WINCHAINH2_DONE"), "WINCHAINH2_DONE", "WINCHAINS_DONE",
+                           clients=[0, 0, 0], env={"STUB_REPLAY": "worse"})
+    assert_service_discipline(box)
+    text = "\n".join(lines)
+    assert "START 128 replay3 single arms" in text and "128 replay3 skipped" not in text
+    assert any(re.search(r"no-state .*-> worse", l) for l in lines)
+
+
+def test_chain_s_skips_replay3_when_no_state_does_not_resolve(tmp_path):
+    box = Box(tmp_path)
+    lines, out = run_chain(box, "win-chainS.sh", ("win-chainH2.log", "WINCHAINH2_DONE"), "WINCHAINH2_DONE", "WINCHAINS_DONE",
+                           clients=[0, 0, 0], env={"STUB_REPLAY": "none"})
+    text = "\n".join(lines)
+    assert "START 128 replay3" not in text and "128 replay3 skipped" in text
+    assert any("no-state" in l and "no difference" in l for l in lines)
+
+
+# ------------------------------------------------------------------------------------------------ S fallthrough wording
+def fake_results(delta, reps=2):
+    def tot(p):
+        return {"prompt_s": p, "prompt_s_agent": p, "prompt_s_side": 0.0, "turn_s": p + 5, "cold_rereads": 0, "cold_reread_s": 0.0, "first_cold": 1,
+                "first_cold_s": 1.0, "parked": 3, "restored": 3, "skip_park": {}, "min_avail_gib": 10.0, "peak_rss_gib": 5.0,
+                "errors": 0}
+    res = {"base": [], "no-state": []}
+    for r in range(reps):
+        j = (-1.0 if r % 2 else 1.0) * 0.2
+        res["base"].append({"rep": r, "totals": tot(100.0 + j), "budget": "b", "clean": True})
+        res["no-state"].append({"rep": r, "totals": tot(100.0 + delta + j), "budget": "b", "clean": True})
+    return res
+
+
+def replay_report(monkeypatch, capsys, res):
+    import replay_turns as RT
+    monkeypatch.setattr(RT, "recorded_totals", lambda plan: None)
+    RT.report(res, list(res), [])
+    return capsys.readouterr().out
+
+
+def s_fallthrough_pattern():
+    t = (CHAINS / "win-chainS.sh").read_text()
+    m = re.search(r'if grep -Eq "([^"]+)" \$O/winS-128-replay2\.stdout', t)
+    assert m, "the fallthrough grep is gone from win-chainS.sh"
+    return m.group(1)
+
+
+@pytest.mark.parametrize("delta,resolves", [(60.0, True), (-60.0, True), (0.0, False)])
+def test_s_grep_matches_the_real_replay_verdict_wording(monkeypatch, capsys, tmp_path, delta, resolves):
+    out = replay_report(monkeypatch, capsys, fake_results(delta))
+    f = tmp_path / "replay2.stdout"
+    f.write_text(out)
+    rc = subprocess.run(["grep", "-Eq", s_fallthrough_pattern(), f.as_posix()]).returncode
+    assert (rc == 0) == resolves, out
+    verdict = [l for l in out.splitlines() if l.lstrip().startswith("no-state") and "->" in l]
+    assert len(verdict) == 1
+    word = re.search(r"-> (better \(less prompt time\)|worse|no difference);", verdict[0]).group(1)
+    assert (word != "no difference") == resolves
+
+
+def test_s_grep_matches_the_stored_run_162_wording(tmp_path):
+    """The line the 162 run printed (bench/results/2026-11-18-box-auto-runs-night-chains/winR-162.stdout) with the arm name swapped."""
+    line = "  no-state                 +25.9 s +-  24.0 (+15.8% +- 14.6%)  -> worse;  cold re-reads [1, 0, 1, 1, 0] vs [0, 0, 0, 0, 0]"
+    f = tmp_path / "x"
+    f.write_text(line + "\n")
+    assert subprocess.run(["grep", "-Eq", s_fallthrough_pattern(), f.as_posix()]).returncode == 0
+    f.write_text(line.replace("-> worse", "-> no difference") + "\n")
+    assert subprocess.run(["grep", "-Eq", s_fallthrough_pattern(), f.as_posix()]).returncode != 0
+    f.write_text(line.replace("-> worse", "-> better (less prompt time)") + "\n")
+    assert subprocess.run(["grep", "-Eq", s_fallthrough_pattern(), f.as_posix()]).returncode == 0
+
+
+# ------------------------------------------------------------------------------------------------ chainT-decide.py
+def screen_text(rows, texts=None):
+    out = []
+    for case, arms in rows.items():
+        for arm, mean in arms.items():
+            out.append(f"  {case}  {arm}  {mean} +- 1.0 (n=5)")
+    out.append("generated text vs base")
+    for arm, same in (texts or {}).items():
+        out.append(f"  {arm}  {'identical on every case' if same else 'DIFFERENT text'}")
+    return "\n".join(out)
+
+
+SPEC = {"arms": {"base": {}, "a": {"e": 1}, "b": {"e": 2}, "base-late": {}}}
+
+
+def test_decide_winner_rule():
+    rows = {"c1": {"base": 100.0, "base-late": 100.0, "a": 103.0, "b": 100.5}, "c2": {"base": 50.0, "base-late": 50.0, "a": 50.0, "b": 50.0}}
+    winners, log = DECIDE.decide(screen_text(rows, {"a": True, "b": True}), SPEC)
+    assert [w[0] for w in winners] == ["a"]                     # +3% >= 2% bar, b +0.5% no
+    # a case below the -3% floor vetoes the win
+    rows["c2"]["a"] = 48.0
+    assert DECIDE.decide(screen_text(rows, {"a": True, "b": True}), SPEC)[0] == []
+    # text differs in an exact spec: lossy bar 3% (a +2.5% fails, +3.0% passes)
+    rows = {"c1": {"base": 100.0, "base-late": 100.0, "a": 102.5, "b": 103.0}}
+    w, _ = DECIDE.decide(screen_text(rows, {"a": False, "b": False}), SPEC)
+    assert [x[0] for x in w] == ["b"] and "quality" in w[0][2]
+    # reference arm other than the first: only that arm is the reference mean
+    rows = {"c1": {"base": 100.0, "a": 110.0, "b": 100.0}}
+    w, _ = DECIDE.decide(screen_text(rows, {"a": True, "b": True}), {"arms": {"base": {}, "a": {}, "b": {}}}, ref="a")
+    assert [x[0] for x in w] == []                               # b is -9% vs a; base is the first arm, skipped
+    assert DECIDE.decide("nothing parsed", SPEC)[1] == ["no summary lines parsed"]
+
+
+def test_decide_writes_the_confirm_spec(tmp_path):
+    rows = {"c1": {"base": 100.0, "base-late": 100.0, "a": 104.0, "b": 100.0}}
+    (tmp_path / "s.stdout").write_text(screen_text(rows, {"a": True, "b": True}))
+    (tmp_path / "spec.json").write_text(json.dumps({"arms": {"base": {}, "a": {"e": 1}, "b": {"e": 2}}, "note": "n"}))
+    (tmp_path / "sib.json").write_text(json.dumps({"arms": {"base": {}, "a": {"e": 1, "more": 2}}, "lossy": False, "note": "sib"}))
+    out = tmp_path / "confirm.json"
+    rc = DECIDE.main([str(tmp_path / "s.stdout"), str(tmp_path / "spec.json"), str(out), "--confirm-spec", str(tmp_path / "sib.json")])
+    assert rc == 0
+    conf = json.loads(out.read_text())
+    assert list(conf["arms"]) == ["base", "a"] and conf["arms"]["a"] == {"e": 1, "more": 2} and "winners a" in conf["note"]
+    out.unlink()
+    rows["c1"]["a"] = 100.0
+    (tmp_path / "s.stdout").write_text(screen_text(rows, {"a": True, "b": True}))
+    assert DECIDE.main([str(tmp_path / "s.stdout"), str(tmp_path / "spec.json"), str(out)]) == 0 and not out.exists()
+    assert DECIDE.main([str(tmp_path / "missing"), str(tmp_path / "spec.json"), str(out)]) == 2
+
+
+def test_decide_parses_the_real_abtest_summary_format():
+    """The LINE / TEXT regexes against a line shaped like abtest.py's summary (arm and case columns)."""
+    import abtest
+    src = Path(abtest.__file__).read_text()
+    assert "generated text vs base" in src and "identical on every case" in src and "DIFFERENT text" in src
