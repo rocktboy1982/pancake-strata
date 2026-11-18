@@ -123,6 +123,7 @@
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
 #include "strata/program/tier_protect.hpp"
+#include "strata/program/tier_stat_policy.hpp"
 #include "strata/program/tier_miss_budget.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/row_miss.hpp"
@@ -14878,6 +14879,12 @@ int main(int argc, char** argv) {
         // ranks by SIEVE / S3-FIFO, a forecast reuse probability or an online learned one (tier_policy_score.hpp).
         strata::program::TierPolicyScore tpol = strata::program::TierPolicyScore::from_env(o.adapt_decay);
         std::vector<float> tpol_saved;
+        // STRATA_ADAPT_FILL_FIRST=f / STRATA_ADAPT_TRANSITION=w (opt-in, LEADS.md B143 / B144, tier_stat_policy.hpp): fill the
+        // empty slots on the first miss and evict nothing until a layer is full; keep the residents the online expert
+        // transition matrix expects next round.  Placement only: outputs unchanged.  Off: returns at once.
+        strata::program::TierStat tstat = strata::program::TierStat::from_env(
+            o.adapt_decay, g.n_layers, g.n_expert, xcache.slots(), xcache.per_layer_admission());
+        std::vector<float> tstat_saved;
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
@@ -14933,8 +14940,11 @@ int main(int argc, char** argv) {
             adapt_prompt_fold();   // FK-28 (STRATA_ADAPT_PROMPT): the prompt's counts, before any tier reads them
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
+            if (tstat.on() && !tier_rewarm.now) tstat.observe(drive.d.usage, host_res.data(), o.adapt_decay);   // raw counts, before any transform
             if (clru.on()) { clru_saved = drive.d.usage; clru.transform(drive.d.usage); }   // STRATA_ADAPT_CLASSLRU (restored below)
             if (tpol.on()) { tpol_saved = drive.d.usage; tpol.transform(drive.d.usage, host_res.data()); }   // (restored below)
+            const bool tstat_applied = tstat.on() && !tier_rewarm.now;
+            if (tstat_applied) { tstat_saved = drive.d.usage; tstat.apply(drive.d.usage, host_res.data()); }   // STRATA_ADAPT_FILL_FIRST / _TRANSITION (restored below)
             if (remote_opt && !remote_opt->adapt(drive.d.usage, host_res, pending, o.adapt_swaps, *srcp)) return false;
             struct Swap { float gain; int32_t layer, in, out; };
             std::vector<Swap> swaps;
@@ -15200,6 +15210,7 @@ int main(int argc, char** argv) {
             // #477: the routing counted since the start (each count adds up to 1 / (1 - --adapt-decay) over its
             // decays: the sum is proportional to the routing itself) - only with --expert-profile-save, else `heat`
             // is empty
+            if (tstat_applied) { drive.d.usage.swap(tstat_saved); tstat.maybe_log(); }   // STRATA_ADAPT_FILL_FIRST / _TRANSITION: the counts back
             if (tpol.on()) drive.d.usage.swap(tpol_saved);   // STRATA_ADAPT_SIEVE/_FORECAST/_LEARNED: the counts back
             if (clru.on()) drive.d.usage.swap(clru_saved);   // STRATA_ADAPT_CLASSLRU: the raw counts back before heat/decay
             for (size_t i = 0; i < heat.size(); ++i) heat[i] += (double) drive.d.usage[i];
@@ -15655,8 +15666,10 @@ int main(int argc, char** argv) {
                     if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // (as in adapt(), before the seeder)
                     if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp, as in adapt())
                     a_usage = drive.d.usage;
+                    if (tstat.on()) tstat.observe(drive.d.usage, host_res.data(), o.adapt_decay);   // raw counts (as in adapt())
                     clru.transform(a_usage);   // STRATA_ADAPT_CLASSLRU (opt-in; off: returns at once): the snapshot the pick ranks
                     tpol.transform(a_usage, host_res.data());   // STRATA_ADAPT_SIEVE/_FORECAST/_LEARNED (opt-in; off: returns)
+                    if (tstat.on()) { tstat.apply(a_usage, host_res.data()); tstat.maybe_log(); }   // STRATA_ADAPT_FILL_FIRST / _TRANSITION (opt-in)
                     a_res = host_res;
                     // #477: the routing counted, as adapt() counts it (--expert-profile-save; else `heat` is empty)
                     for (size_t i = 0; i < heat.size(); ++i) heat[i] += (double) drive.d.usage[i];

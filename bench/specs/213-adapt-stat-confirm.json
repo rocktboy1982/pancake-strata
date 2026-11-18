@@ -1,0 +1,52 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 5,
+  "arms": {
+    "base": {},
+    "pm": {
+      "env": {
+        "STRATA_ADAPT_PROB_MASS": "1"
+      }
+    },
+    "ff70": {
+      "env": {
+        "STRATA_ADAPT_FILL_FIRST": "0.7"
+      }
+    },
+    "tr2": {
+      "env": {
+        "STRATA_ADAPT_TRANSITION": "2"
+      }
+    },
+    "ff70-tr2": {
+      "env": {
+        "STRATA_ADAPT_FILL_FIRST": "0.7",
+        "STRATA_ADAPT_TRANSITION": "2"
+      }
+    },
+    "ff70-pm": {
+      "env": {
+        "STRATA_ADAPT_FILL_FIRST": "0.7",
+        "STRATA_ADAPT_PROB_MASS": "1"
+      }
+    },
+    "tr2-pm": {
+      "env": {
+        "STRATA_ADAPT_TRANSITION": "2",
+        "STRATA_ADAPT_PROB_MASS": "1"
+      }
+    },
+    "ff70-tr2-pm": {
+      "env": {
+        "STRATA_ADAPT_FILL_FIRST": "0.7",
+        "STRATA_ADAPT_TRANSITION": "2",
+        "STRATA_ADAPT_PROB_MASS": "1"
+      }
+    }
+  },
+  "note": "Confirm of spec 212. LEADS.md B143 / B144 (owner proposal 2026-11-16, statistical expert cache), coded 2026-11-18: STRATA_ADAPT_FILL_FIRST=f starts only the first f share of the slots claimed and fills the rest on the first miss with no eviction of a claimed expert while a layer has an empty slot; STRATA_ADAPT_TRANSITION=w keeps the residents an online expert transition matrix (with a conversation-switch term) expects next round. Both are placement only (which expert sits in VRAM, the same math): no quality gate; the drift check is the text hash, which must equal base up to the placement rounding every adaptive-tier spec shows (a text difference beyond that is a BUG to report, not a quality result). pm is STRATA_ADAPT_PROB_MASS alone, the reference for the +pm arms (judge ff70-pm / tr2-pm against pm). Offline replay (T-929, pancake-docs/research/bench/results-2026-11-18/fill-transition-replay.txt) predicts no gain: ff70 -0.09 points, tr2 -0.06 points of hit share (intervals contain 0), so the spec exists to close the leads on hardware. Proof lines in the engine log: 'STRATA_ADAPT_FILL_FIRST=0.7: ...', 'STRATA_ADAPT_TRANSITION=2: ...' and 'tier stat: round N, X us per round' (the overhead). Stop pancake.service first. Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5."
+}

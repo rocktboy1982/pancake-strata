@@ -2575,6 +2575,9 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(tier_policy_score_test src/program/tier_policy_score_test.cpp)   # LEADS.md B11/B126/A46 tier policies
   target_include_directories(tier_policy_score_test PRIVATE include)
   add_test(NAME tier_policy_score_test COMMAND tier_policy_score_test)
+  add_executable(tier_stat_policy_test src/program/tier_stat_policy_test.cpp)   # LEADS.md B143/B144: STRATA_ADAPT_FILL_FIRST / _TRANSITION
+  target_include_directories(tier_stat_policy_test PRIVATE include)
+  add_test(NAME tier_stat_policy_test COMMAND tier_stat_policy_test)
   add_executable(expert_entropy_test src/core/expert_entropy_test.cpp)   # LEADS.md A29 lossless expert-byte coder
   target_include_directories(expert_entropy_test PRIVATE include)
   find_package(Threads REQUIRED)
@@ -4118,7 +4121,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     lookahead_skip_test
     lookahead_ctrl_test
     persist_tape_test persist_launch_test qsa_split_test gdn_snap_test act_f16_test
-    draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
+    draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_stat_policy_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test gated_proposal_test
     spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test miss_budget_test fragile_recheck_test kv_ring_test
