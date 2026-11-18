@@ -1,0 +1,18 @@
+START 2026-11-16_23:17:37
+START 2026-11-17_00:43:13
+START 2026-11-17_10:59:11
+START 2026-11-17_17:38:41
+START 2026-11-18_11:52:41
+chain N done 12:37:41
+service stopped (idle) 12:40:42
+START 128 screen 2026-11-18_12:43:43
+END 128 screen exit=0 12:58:06
+START 128 replay 2026-11-18_12:58:36
+END 128 replay (6 arms x 1 rep) exit=0 15:26:32
+START 128 replay2 base,no-state +2 reps 2026-11-18_15:27:02
+END 128 replay2 exit=0 17:22:25
+  no-state                +687.9 s +- 377.3 (+422.9% +- 232.0%)  -> worse;  cold re-reads [32, 32] vs [0, 0]
+START 128 replay3 single arms +2 reps (no-state resolved) 2026-11-18_17:22:55
+END 128 replay3 exit=143 19:54:27
+service started 19:54:27
+WINCHAINS_DONE

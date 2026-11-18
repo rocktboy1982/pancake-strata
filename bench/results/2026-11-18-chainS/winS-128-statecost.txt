@@ -1,0 +1,7 @@
+arm                  rep  requests   parks   snapshot MiB  est park s  of prompt  of turn   (estimate: MiB / 1.74 GiB/s)
+base                   0        75     15         19035       10.7       5.6%     2.4%
+disk-on                0        75     11         14183        8.0       3.3%     1.7%
+no-ckpt-periodic       0        75     13         16739        9.4       5.2%     2.5%
+no-conv-cache          0        75      0             0        0.0       0.0%     0.0%
+no-prompt-cache        0        75      0             0        0.0       0.0%     0.0%
+no-state               0        75      0             0        0.0       0.0%     0.0%

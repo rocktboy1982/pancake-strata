@@ -1,0 +1,5 @@
+arm                  rep  requests   parks   snapshot MiB  est park s  of prompt  of turn   (estimate: MiB / 1.74 GiB/s)
+base                   0        75     13         17013        9.5       5.3%     2.2%
+base                   1        75     12         15909        8.9       6.1%     2.3%
+no-state               0        75      0             0        0.0       0.0%     0.0%
+no-state               1        75      0             0        0.0       0.0%     0.0%
