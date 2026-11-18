@@ -112,7 +112,10 @@ if [ $ENGINE -eq 1 ]; then
   pstep vmm_test_build $T/vmm_test_build.log nice -n 10 $CM --build $B --target vmm_test; rcv=$?
   if [ $rcv -eq 0 ] && [ -x $B/vmm_test ]; then pstep vmm_test_zero $T/vmm_test_zero.out $B/vmm_test; grep -E "zero-back|vmm_test:|FAIL|strata:" $T/vmm_test_zero.out | head -80 | cut -c1-220 >> $L
   else say "vmm_test_zero skipped: build exit=$rcv"; fi
-  if [ -x /mnt/pancake/chainT/vmm_probe ]; then pstep vmm_probe $T/vmm_probe.out /mnt/pancake/chainT/vmm_probe 64 512; else say "vmm_probe skipped: /mnt/pancake/chainT/vmm_probe (built by chain T) is missing"; fi
+  # the probe is rebuilt from the tree (probe 5b, the zero-back cycle, is new since chain T built its copy); chain T's binary is the fallback
+  VP=/mnt/pancake/chainT/vmm_probe
+  if [ -f $R/tools/pancake/vmm_probe.cpp ] && $HIPCC -O2 -std=c++17 --offload-arch=gfx1100 $R/tools/pancake/vmm_probe.cpp -o $PM/vmm_probe > $T/vmm_probe_build.log 2>&1 && [ -x $PM/vmm_probe ]; then VP=$PM/vmm_probe; say "vmm_probe rebuilt from the tree"; else say "vmm_probe: rebuild failed or missing, using chain T's binary"; fi
+  if [ -x $VP ]; then pstep vmm_probe $T/vmm_probe.out $VP 64 512; else say "vmm_probe skipped: $VP is missing"; fi
   pstep persist_tape $T/persist_tape.out $B/persist_tape_probe --segments 432 --tasks 192 --wbytes 16384 --grids 96,192,288,384 --reps 20
   pstep persist_layer_parity $T/persist_layer_parity.out $B/persist_layer_parity
   pstep retained_replay $T/retained_replay.out $B/retained_replay_probe --n 2248,2648 --blocks 96 --threads 256 --reps 20 --window-ms 24.8
