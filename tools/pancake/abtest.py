@@ -14,8 +14,8 @@ Spec (JSON):
    "arms": {"base": {}, "kmiss": {"env": {"STRATA_ADAPT_KMISS": "2,8"}, "args": {"--adapt-swaps": "96"}}},
    "cases": ["short", "edit", "long"], "reps": 3}
   cases: short, edit (decode tok/s); long (~12K tokens), long32k, long64k (prompt tok/s, see below); longdec32k,
-  longdec64k, longdec128k (decode tok/s AFTER a long cold prompt, see below); long1k, long3k (prompt tok/s of a cold
-  1000- / 3000-token prompt, A30), longdec10k (decode after a 10K read, A49).  "prefill": true marks a spec whose arms
+  longdec64k, longdec128k, longdec100k (decode tok/s AFTER a long cold prompt, see below); long1k, long3k (prompt tok/s of a cold
+  1000- / 3000-token prompt, A30; long10k, long100k: the 10K / 100K members of the standard long set 10K / 32K / 64K / 100K), longdec10k (decode after a 10K read, A49).  "prefill": true marks a spec whose arms
   change prompt reading (see --tier screen).
   args: "--flag": "value" sets, "--flag": "" a bare switch, "--flag": null removes.  env: "KEY": null removes.
   Optional top-level "temperature" (default 0 = greedy), "top_p", "seed": sampling of every request, for arms that only
@@ -112,11 +112,13 @@ T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 
 
 LONG_CPT = 3.2                                           # chars per token of the long corpus (Qwen tokenizer; measured 2026-11-13: 3.09-3.24 on the longdec corpora)
 LONG_TARGET = {"long32k": 32000, "long64k": 64000,       # prompt tokens (fit the 131072 context; 32K stays under --kv-resident 32768)
+               "long10k": 10000, "long100k": 100000,     # owner 2026-11-18: the standard long set is 10K / 32K / 64K / 100K (prompt tok/s;
+               "longdec100k": 100000,                    # longdec100k: decode after the 100K read); 100K goes through the KV spill path
                "long1k": 1000, "long3k": 3000,           # A30: agent-sized prompt deltas (the CPU-share window), prompt tok/s
                "longdec10k": 10000,                      # A49: decode after a 10K read (attention share of the window vs 64K / 128K)
                "longdec32k": 32000, "longdec64k": 64000, "longdec128k": 120000}   # decode after the read (F11)
-LONG_DEC = ("longdec10k", "longdec32k", "longdec64k", "longdec128k")   # long* cases judged on the decode tok/s of the reply after the read
-MAXTOK = {"long32k": 32, "long64k": 32, "long1k": 32, "long3k": 32, "longdec10k": 256,                # prefill-only cases: no 512-token decode at 32K / 64K context
+LONG_DEC = ("longdec10k", "longdec32k", "longdec64k", "longdec100k", "longdec128k")   # long* cases judged on the decode tok/s of the reply after the read
+MAXTOK = {"long32k": 32, "long64k": 32, "long10k": 32, "long100k": 32, "longdec100k": 256, "long1k": 32, "long3k": 32, "longdec10k": 256,                # prefill-only cases: no 512-token decode at 32K / 64K context
           "longdec32k": 256, "longdec64k": 256, "longdec128k": 256}
 PEP8_ASK = "Rewrite the following Python file, adding type hints to every function. Output only the full code.\n\n"
 EDIT_ASK = "Rewrite the following C++ file, renaming every variable to snake_case. Output only the full code.\n\n"
@@ -705,6 +707,38 @@ def decided(results, arms, cases, floor=1.5, least=2, deff=1.0):
     return True
 
 
+def arm_status(results, arms, cases, arm, bar=2.0, floor=-3.0, least=2, deff=1.0):
+    """Where one arm stands against the standing bars, from the paired differences so far: "promote" (some case's interval
+    lies wholly at or above `bar` % of base and no case's lies below `floor` %), "drop" (some case's interval lies wholly below
+    `floor`, or every case's lies below `bar`: the bar cannot be reached any more), else None (undecided)."""
+    base = arms[0]
+    his, los = [], []
+    for c in cases:
+        d = paired(results, arm, base, c)
+        vb = [r[metric(c)] for res in results.get(base, []) for r in res["rows"] if r["case"] == c]
+        if len(d) < least or not vb:
+            return None
+        dm, dh = ci(d)
+        bm = sum(vb) / len(vb)
+        if bm <= 0 or dh != dh:
+            return None
+        dh *= math.sqrt(deff)
+        los.append((dm - dh) / bm * 100)
+        his.append((dm + dh) / bm * 100)
+    if any(h < floor for h in his) or all(h < bar for h in his):
+        return "drop"
+    if any(lo >= bar for lo in los) and all(lo >= floor for lo in los):
+        return "promote"
+    return None
+
+
+def decided_bar(results, arms, cases, bar=2.0, floor=-3.0, least=2, deff=1.0):
+    """--bar-stop: True when every non-base arm is decided against the bar (arm_status), not merely against 0 as `decided`
+    does: an arm whose gain is real but below the bar stays 'no difference' for the old rule until the floor of 1.5% precision
+    is reached, here it stops as soon as its interval cannot reach the bar."""
+    return all(arm_status(results, arms, cases, a, bar, floor, least, deff) for a in arms[1:])
+
+
 def schedule(arms, reps, block=0):
     """([(round, arm)], passes per start): engine starts in A B B A order (every arm once per round, odd rounds reversed, so
     each arm sees early and late slots equally).  block 0: one start per rep.  block N: N passes per start and
@@ -975,6 +1009,11 @@ def main():
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--tier", choices=("screen", "confirm"), default="confirm")
     ap.add_argument("--no-early-stop", action="store_true")
+    ap.add_argument("--bar-stop", type=float, nargs="?", const=-1.0, default=None, metavar="BAR",
+                    help="confirm tier: judge the early stop against the promotion bar (BAR %% of base; a bare flag takes the spec's: 2 exact, "
+                         "3 when the spec has \"lossy\": true) and the -3%% floor instead of against 0: stop when every arm is wholly above the "
+                         "bar or its interval cannot reach it (futility) or crosses the floor.  Falls through to all reps when undecided.  "
+                         "Off: the old rule (interval excludes 0 or is narrower than 1.5%%)")
     ap.add_argument("--max-wait", type=int, default=600, help="seconds to wait for a quiet machine before running anyway")
     ap.add_argument("--reclaim-max", type=float, default=RECLAIM_MAX,
                     help="%% of one core of kswapd/kcompactd above which a run is noisy and repeated (default 1.0; "
@@ -1055,6 +1094,10 @@ def main():
             "foreign_cpu": a.foreign_cpu, "reclaim_max": RECLAIM_MAX, "retries": a.retries, "early_stop": not a.no_early_stop,
             "per_run": per_run}
     robust, deff = a.outlier == "robust", design_effect(passes)
+    bar_stop = None
+    if a.bar_stop is not None:
+        bar_stop = a.bar_stop if a.bar_stop > 0 else (3.0 if spec.get("lossy") else 2.0)
+        opts["bar_stop"] = bar_stop
     records = []   # every attempt of this batch (the jsonl rows); select() picks what the summary uses
     out = open(a.out, "a")
     deaths = 0
@@ -1067,9 +1110,12 @@ def main():
         r, arm = order[i]
         i += 1
         if (not a.no_early_stop and a.tier == "confirm" and r >= 2 and r % 2 == 0 and r not in begun
-                and decided(select(records)[0], arms, cases, least=ROBUST_MIN if robust else 2, deff=deff)):
-            print(f"early stop after {r} {'rounds of starts' if a.block else 'reps'}: every arm/case decided or below 1.5% of base",
-                  flush=True)
+                and (decided_bar(select(records)[0], arms, cases, bar_stop, least=ROBUST_MIN if robust else 2, deff=deff)
+                     if bar_stop is not None else
+                     decided(select(records)[0], arms, cases, least=ROBUST_MIN if robust else 2, deff=deff))):
+            print(f"early stop after {r} {'rounds of starts' if a.block else 'reps'}: "
+                  + (f"every arm decided against the {bar_stop:g}% bar / -3% floor" if bar_stop is not None
+                     else "every arm/case decided or below 1.5% of base"), flush=True)
             break
         begun.add(r)
         quietest = None   # least noisy attempt: kept when every attempt was noisy, so the base never ends with no runs

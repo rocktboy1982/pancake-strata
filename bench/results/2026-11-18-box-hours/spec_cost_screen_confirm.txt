@@ -1,0 +1,17 @@
+128-state-saving-cost.json                   arms  6 screen  0.20 h  confirm(est)  0.23 h
+164-attn-lanecell-w12.json                   arms  3 screen  0.09 h  confirm(est)  0.14 h
+165-kvgrow-whole-kv.json                     arms  5 screen  0.17 h  confirm(est)  0.23 h
+169-lookup-copylane.json                     arms  5 screen  0.16 h  confirm(est)  0.27 h
+170-prompt-nl-normalize.json                 arms  2 screen  0.07 h  confirm(est)  0.18 h
+191-free-settle.json                         arms  2 screen  0.06 h  confirm(est)  0.14 h
+192-wmma-rows.json                           arms  5 screen  0.31 h  confirm(est)  1.05 h
+194-prompt-kernel-macros.json                arms  6 screen  0.36 h  confirm(est)  1.02 h
+196-prompt-rotate-aa.json                    arms  2 screen  0.07 h  confirm(est)  0.18 h
+197-qsa-split-grid-screen.json               arms  4 screen  0.15 h  confirm(est)  0.26 h
+199-vwin-rows-screen.json                    arms  3 screen  0.11 h  confirm(est)  0.26 h
+201-ic-warm-prior.json                       arms  4 screen  0.12 h  confirm(est)  0.14 h
+203-ic-warm-defer.json                       arms  5 screen  0.15 h  confirm(est)  0.21 h
+205-q36-fa-heavy-first.json                  arms  2 screen  0.06 h  confirm(est)  0.20 h
+207-hip-vram-elastic.json                    arms  2 screen  0.06 h  confirm(est)  0.16 h
+212-adapt-stat-screen.json                   arms  8 screen  0.26 h  confirm(est)  0.29 h
+total                                                 screen  2.38 h  confirm(est)  4.98 h

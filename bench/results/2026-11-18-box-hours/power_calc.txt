@@ -1,0 +1,6 @@
+41 confirm files; start-to-start spread of one arm, pooled by case family; SD % = of one paired (arm - base) start difference
+family           n slow   SD % rounds for 2.0%  for 3.0%  for half bar
+edit           606   60   2.69             10         6            31
+long-prompt    332   23   1.27              5         4             9
+longdec         16    0   2.92             11         7            33
+short          630   49   3.22             12         7            40

@@ -1,0 +1,47 @@
+skip bench/results\2026-11-17-chain11\win11-111.jsonl: PermissionError [Errno 13] Permission denied: 'bench/results\\2026-11-17-chain11\\win11-111.jsonl'
+file                                                         arms rounds starts  bar-stop(round ok saved)  zero-stop(round ok saved)
+win14-115-trend-weekly.jsonl                                    2      2      4    2 ok    0          2 ok    0      
+win16-117-tier-swap-cap-kmiss.jsonl                             6      2     15    2 ok    0          2 ok    0      
+win7-102-chain6-decode-confirm.jsonl                           13      2     32    2 ok    0          2 ok    0      
+win7-103-chain6-prompt-confirm.jsonl                           11      2     24    2 ok    0          2 ok    0      
+win8-104-rdna-kq-cols-d6.jsonl                                  2      3      6    3 ok    0          3 ok    0      
+win8-107-auto-confirm-1.jsonl                                  47      2    121    2 ok    0          2 ok    0      
+win8-107-auto-confirm-2.jsonl                                   4      2     12    2 ok    0          2 ok    0      
+win8-107-auto-confirm-3.jsonl                                   6      2     12    2 ok    0          2 ok    0      
+win8-107-auto-confirm-4.jsonl                                   2      2      6    2 ok    0          2 ok    0      
+win8-107-auto-confirm-5.jsonl                                   4      2      8    2 ok    0          2 ok    0      
+win8-107-auto-confirm-6.jsonl                                   9      2     24    2 ok    0          2 ok    0      
+win8-107-auto-confirm-7.jsonl                                   2      2      4    2 ok    0          2 ok    0      
+win8-107-auto-confirm-8.jsonl                                  10      2     29    2 ok    0          2 ok    0      
+winC-161.jsonl                                                  2      2      6    2 ok    0          2 ok    0      
+winF-120-d3-defer-fast.jsonl                                    2      2      4    2 ok    0          2 ok    0      
+winF2-121.jsonl                                                 3      2      8    2 ok    0          2 ok    0      
+44-wait-fuse-12rep.jsonl                                        3     12     36   12 ok    0         12 ok    0      
+45-a24-head.jsonl                                               3      6     18    6 ok    0          6 ok    0      
+46-a30-head.jsonl                                               5      4     20    4 ok    0          4 ok    0      
+47-a56-identity-trace.jsonl                                     3      2      6    2 ok    0          2 ok    0      
+60-ecap-gated-speed.jsonl                                       5      4     19    4 ok    0          4 ok    0      
+60b.jsonl                                                       5      6     35    6 ok    0          6 ok    0      
+64.jsonl                                                        3      8     24    8 ok    0          8 ok    0      
+win8-104-rdna-kq-cols-d6.jsonl                                  2      3      6    3 ok    0          3 ok    0      
+winF-120-d3-defer-fast.jsonl                                    2      2      4    2 ok    0          2 ok    0      
+win14-115-trend-weekly.jsonl                                    2      2      4    2 ok    0          2 ok    0      
+win8-104-rdna-kq-cols-d6.jsonl                                  2      3      6    3 ok    0          3 ok    0      
+winC-161.jsonl                                                  2      2      6    2 ok    0          2 ok    0      
+winF2-121.jsonl                                                 3      2      8    2 ok    0          2 ok    0      
+winF-120-d3-defer-fast.jsonl                                    2      2      4    2 ok    0          2 ok    0      
+win16-117-tier-swap-cap-kmiss.jsonl                             6      2     15    2 ok    0          2 ok    0      
+win7-102-chain6-decode-confirm.jsonl                           13      2     32    2 ok    0          2 ok    0      
+win7-103-chain6-prompt-confirm.jsonl                           11      2     24    2 ok    0          2 ok    0      
+win8-107-auto-confirm-1.jsonl                                  47      2    121    2 ok    0          2 ok    0      
+win8-107-auto-confirm-2.jsonl                                   4      2     12    2 ok    0          2 ok    0      
+win8-107-auto-confirm-3.jsonl                                   6      2     12    2 ok    0          2 ok    0      
+win8-107-auto-confirm-4.jsonl                                   2      2      6    2 ok    0          2 ok    0      
+win8-107-auto-confirm-5.jsonl                                   4      2      8    2 ok    0          2 ok    0      
+win8-107-auto-confirm-6.jsonl                                   9      2     24    2 ok    0          2 ok    0      
+win8-107-auto-confirm-7.jsonl                                   2      2      4    2 ok    0          2 ok    0      
+win8-107-auto-confirm-8.jsonl                                  10      2     29    2 ok    0          2 ok    0      
+
+41 confirm files with >= 2 rounds, 798 starts in all
+bar-stop (new): stops early in 0/41 files; decision equal to the full run in 0/0 of those; saves 0/798 starts = 0%, 0.0 h
+zero-stop (old): stops early in 0/41 files; decision equal to the full run in 0/0 of those; saves 0/798 starts = 0%, 0.0 h
