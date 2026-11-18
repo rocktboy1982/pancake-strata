@@ -1,0 +1,32 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 5,
+  "arms": {
+    "base": {},
+    "spec": {
+      "env": {
+        "STRATA_ADAPT_SPEC_COPY": "1"
+      }
+    },
+    "spec-small": {
+      "env": {
+        "STRATA_ADAPT_SPEC_COPY": "1",
+        "STRATA_ADAPT_SPEC_SLOTS": "2",
+        "STRATA_ADAPT_SPEC_MAX": "4"
+      }
+    },
+    "spec-big": {
+      "env": {
+        "STRATA_ADAPT_SPEC_COPY": "1",
+        "STRATA_ADAPT_SPEC_SLOTS": "8",
+        "STRATA_ADAPT_SPEC_MAX": "32",
+        "STRATA_ADAPT_SPEC_CONF": "0.5"
+      }
+    }
+  },
+  "note": "Confirm of spec 216. LEADS.md B147 (owner idea 2026-11-18, MOD_PLAN.md section 6 item 60), coded 2026-11-18: STRATA_ADAPT_SPEC_COPY=1 predicts, at the end of every adaptive-tier round, the NEXT round's incoming experts on the CPU (the tier's own selection rule on decay x counts + this window's increment) and copies up to STRATA_ADAPT_SPEC_MAX of them into a bounded VRAM staging area (STRATA_ADAPT_SPEC_SLOTS per layer) on a second stream while the window runs; a swap whose expert is staged is a device copy from the staging slot, every other swap is the normal host copy.  Placement and slot bytes are identical to base (no quality gate; the drift check is the text hash, equal to base up to the placement rounding every adaptive-tier spec shows).  Offline replay (TEST_LEDGER.md T-955 .. T-958) says this predictor stages 11-13 % of the incoming experts and wastes about 61 % of the staged copies, a saving of about 0.3 ms per 24.8 ms window (upper bound, all copy time counted as exposed), so the expected effect is BELOW the screen noise: it is run because every lead is run.  Arms: spec = defaults (4 slots, 8 copies a round, gain >= 1.0, age 4); spec-small = 2 slots, 4 copies; spec-big = 8 slots, 32 copies, gain >= 0.5 (more bytes, a higher hit rate in the replay).  Proof lines in the engine log: 'STRATA_ADAPT_SPEC_COPY=1: ...', 'staging area ... MiB of VRAM' and 'spec copy: round N, X us per round, staged S, incoming I of them staged H (P%), staged copies unused W'.  Stop pancake.service first. Confirm of spec 216. Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5."
+}

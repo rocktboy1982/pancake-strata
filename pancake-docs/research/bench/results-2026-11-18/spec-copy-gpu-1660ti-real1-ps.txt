@@ -1,0 +1,28 @@
+tier_spec_copy_gpu_test: NVIDIA GeForce GTX 1660 Ti, sm_75, 6.0 GiB (numbers are for THIS card, not for gfx1100)
+
+(a) one H2D copy of one expert, one at a time, 100 copies per row, GTX 1660 Ti class card (NOT gfx1100); sources rotate over 256 MiB
+blob                         source      mean us    SD us     CV    min us    max us    median     GB/s
+IQ1_M layer 1,177,600 B      pinned        195.8      4.6  0.024     191.9     221.5     195.3     6.01
+IQ1_M layer 1,177,600 B      pageable      305.8     11.5  0.038     285.6     343.0     304.4     3.85
+IQ2_XXS layer 1,305,600 B    pinned        249.4    246.3  0.988     211.9    2681.8     217.1     5.24
+IQ2_XXS layer 1,305,600 B    pageable      363.7     31.1  0.085     322.2     459.0     354.2     3.59
+IQ2_S layer 1,510,400 B      pinned        246.4      4.0  0.016     242.0     264.0     246.0     6.13
+IQ2_S layer 1,510,400 B      pageable      363.2     12.2  0.034     337.9     392.7     364.0     4.16
+poly Q4_K 1,769,472 B        pinned        285.3      3.0  0.011     281.9     301.7     284.9     6.20
+poly Q4_K 1,769,472 B        pageable      406.1     19.7  0.049     379.4     492.5     402.2     4.36
+Q2_0 daily 1,382,400 B       pinned        225.8      3.6  0.016     222.3     243.9     224.2     6.12
+Q2_0 daily 1,382,400 B       pageable      337.0     13.0  0.039     317.8     398.8     335.6     4.10
+IQ2_S layer 1,510,400 B      D2D            56.9     12.7  0.223      41.0     106.4      53.2    26.55  (read + write)
+
+(b) trace-driven schedule: 746 rounds, 22.03 swaps/round, 12.9% of the incoming experts staged (2124 of 16436), 7.26 staged copies/round; 8 slots/layer here, staging 4/layer, host pool 192 pinned blobs; NVIDIA GeForce GTX 1660 Ti (829 MiB VRAM total)
+  window stand-in 24.8 ms; staged scheme: 2124 device copies + 14312 host copies per run (baseline 16436 host copies)
+    baseline: latency until landed        5073.2 us  +-13.1 (95% CI over 7 reps), SD 14.2
+    staged:   latency until landed        4762.5 us  +-43.4 (95% CI over 7 reps), SD 46.9
+    difference staged - baseline          -310.7 us  +-38.6 (95% CI over 7 reps), SD 41.8
+    baseline: latency by events           4960.2 us  +-3.6 (95% CI over 7 reps), SD 3.9
+    staged:   latency by events           4632.3 us  +-26.6 (95% CI over 7 reps), SD 28.7
+    baseline: round wall                 21091.6 us  +-86.6 (95% CI over 7 reps), SD 93.6
+    staged:   round wall                 21105.6 us  +-95.4 (95% CI over 7 reps), SD 103.1
+    paired verdict: staged is -6.1% of the baseline latency [-6.9%, -5.4%]
+  bytes: every slot byte-identical between the baseline and the staged scheme in every run
+tier_spec_copy_gpu_test: ok

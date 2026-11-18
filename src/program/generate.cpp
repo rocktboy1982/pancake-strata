@@ -124,6 +124,7 @@
 #include "strata/program/swap_budget.hpp"
 #include "strata/program/tier_protect.hpp"
 #include "strata/program/tier_stat_policy.hpp"
+#include "strata/program/tier_spec_copy.hpp"
 #include "strata/program/tier_victim.hpp"
 #include "strata/program/tier_miss_budget.hpp"
 #include "strata/core/window_trace.hpp"
@@ -14890,6 +14891,31 @@ int main(int argc, char** argv) {
         // tier_victim.hpp): the victim must be an expert with no use in the last K tier rounds; the swap rewrites the
         // victim's slot with one copy and does not read the victim's host pages back ahead.  Placement only.  Off: no change.
         strata::program::TierVictim tvic = strata::program::TierVictim::from_env(g.n_layers, g.n_expert);
+        // LEADS.md B147, STRATA_ADAPT_SPEC_COPY=1 (+ _SLOTS, _MAX, _CONF, _AGE; opt-in, tier_spec_copy.hpp): at the end of a round the CPU
+        // predicts the next round's incoming experts and copies them from the host into a spare VRAM staging area on spec_stream; a swap
+        // whose expert is staged is a device copy from there, the rest are the normal host copies.  Same slot bytes (lossless).  Off: no change.
+        strata::program::TierSpecCopy tspec = strata::program::TierSpecCopy::from_env(g.n_layers, g.n_expert);
+        uint8_t* spec_buf = nullptr;      // layers x slots x spec_stride bytes
+        size_t spec_stride = 0;
+        cudaStream_t spec_stream = nullptr;
+        cudaEvent_t spec_ev = nullptr, spec_adapt_ev = nullptr;
+        bool spec_issued = false;         // spec_ev holds staged copies the next round must wait for
+        if (tspec.on()) {
+            for (int64_t l = 0; l < g.n_layers; ++l)
+                spec_stride = std::max<size_t>(spec_stride, (size_t) strata::kernels::cpu::expert_layout().blob_bytes(l));
+            spec_stride = (spec_stride + 511) & ~(size_t) 511;
+            if (cudaMalloc((void**) &spec_buf, (size_t) tspec.staging_slots() * spec_stride) != cudaSuccess ||
+                cudaStreamCreateWithFlags(&spec_stream, cudaStreamNonBlocking) != cudaSuccess ||
+                cudaEventCreateWithFlags(&spec_ev, cudaEventDisableTiming) != cudaSuccess ||
+                cudaEventCreateWithFlags(&spec_adapt_ev, cudaEventDisableTiming) != cudaSuccess) {
+                (void) cudaGetLastError();
+                std::fprintf(stderr, "strata serve: STRATA_ADAPT_SPEC_COPY=1: no staging area (%.1f MiB): off\n",
+                             (double) ((size_t) tspec.staging_slots() * spec_stride) / 1048576.0);
+                spec_buf = nullptr;
+            } else
+                std::fprintf(stderr, "strata serve: STRATA_ADAPT_SPEC_COPY=1: staging area %.1f MiB of VRAM (%lld slots x %zu B)\n",
+                             (double) ((size_t) tspec.staging_slots() * spec_stride) / 1048576.0, (long long) tspec.staging_slots(), spec_stride);
+        }
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
@@ -14947,6 +14973,7 @@ int main(int argc, char** argv) {
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
             if (tstat.on() && !tier_rewarm.now) tstat.observe(drive.d.usage, host_res.data(), o.adapt_decay);   // raw counts, before any transform
             if (tvic.unused_on() && !tier_rewarm.now) tvic.observe(drive.d.usage, o.adapt_decay);   // STRATA_ADAPT_VICTIM_UNUSED: raw counts, before any transform
+            if (tspec.on() && spec_buf != nullptr && !tier_rewarm.now) tspec.begin_round(drive.d.usage, o.adapt_decay);   // STRATA_ADAPT_SPEC_COPY: raw counts, before any transform
             if (clru.on()) { clru_saved = drive.d.usage; clru.transform(drive.d.usage); }   // STRATA_ADAPT_CLASSLRU (restored below)
             if (tpol.on()) { tpol_saved = drive.d.usage; tpol.transform(drive.d.usage, host_res.data()); }   // (restored below)
             const bool tstat_applied = tstat.on() && !tier_rewarm.now;
@@ -15090,6 +15117,17 @@ int main(int argc, char** argv) {
             // with STRATA_ADAPT_OVERLAP's gate only (one GPU, unbatched copies: aov's own conditions)
             const bool idle = agate.pace != nullptr && aov && idle_round_ok && !multi_gpu && stages.empty() && dma_mode == 0;
             std::vector<IdleOp> idle_ops;
+            // STRATA_ADAPT_SPEC_COPY: the finalising copies below read the staging area, so adapt_stream first waits for the staged copies of
+            // the last round; only the plain path (one card, unbatched host copies, one stream)
+            const bool spec_use = tspec.on() && spec_buf != nullptr && !tier_rewarm.now && !multi_gpu && stages.empty() && dma_mode == 0 &&
+                                  !idle && !copy2 && !adapt_fence && !peer.valid() && !remote_opt;
+            if (spec_use && spec_issued) cudaStreamWaitEvent(adapt_stream, spec_ev, 0);
+            auto copy_in = [&](int32_t layer, int32_t in_e, void* dst, const uint8_t* blob, size_t bytes, cudaStream_t cs) -> cudaError_t {
+                int64_t si_ = -1;
+                if (spec_use && tspec.consume(layer, in_e, &si_))   // staged: a device copy, no host read, no PCIe now
+                    return cudaMemcpyAsync(dst, spec_buf + (size_t) si_ * spec_stride, bytes, cudaMemcpyDeviceToDevice, cs);
+                return adapt_copy_h2d(dst, blob, bytes, cs);
+            };
             for (size_t si = 0; si < swaps.size(); ++si) {
                 const Swap& s = swaps[si];
                 if (aov && (si == 0 || swaps[si - 1].layer != s.layer)) {
@@ -15129,8 +15167,8 @@ int main(int argc, char** argv) {
                     used2 = true;
                 }
                 if (slot < 0 || b == nullptr ||
-                    (!idle && adapt_copy_h2d(gs ? gs->cache.device_slot(slot) : xcache.device_slot(slot), b,
-                                             (size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer), cst) != cudaSuccess)) {
+                    (!idle && copy_in(s.layer, s.in, gs ? gs->cache.device_slot(slot) : xcache.device_slot(slot), b,
+                                      (size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer), cst) != cudaSuccess)) {
                     std::fprintf(stderr, "strata serve: adaptive swap copy failed (layer %d, slot %d, pinned %d): %s\n",
                                  (int) s.layer, (int) slot, pin_live.empty() ? 0 : 1, cudaGetErrorString(cudaGetLastError()));
                     return false;
@@ -15228,6 +15266,28 @@ int main(int argc, char** argv) {
             // #477: the routing counted since the start (each count adds up to 1 / (1 - --adapt-decay) over its
             // decays: the sum is proportional to the routing itself) - only with --expert-profile-save, else `heat`
             // is empty
+            if (spec_use) {   // STRATA_ADAPT_SPEC_COPY: predict the next round's incoming experts, stage them while the window runs
+                cudaEventRecord(spec_adapt_ev, adapt_stream);                  // after this round's finalising copies
+                cudaStreamWaitEvent(spec_stream, spec_adapt_ev, 0);             // a staging slot is rewritten only after its last read
+                std::vector<int32_t> r0 = host_res;
+                for (const auto& [i, slot] : pending) r0[(size_t) i] = slot;    // swapped into the primary already
+                std::vector<strata::program::TierSpecCopy::Pred> preds;
+                for (int64_t l = 0; l < g.n_layers; ++l)
+                    tspec.predict_layer(l, r0.data() + l * g.n_expert, 2.0f, o.adapt_min_gain, preds);
+                bool any = false;
+                for (const auto& st : tspec.plan(preds)) {
+                    const uint8_t* sb = srcp->blob_stable(st.layer, st.expert);
+                    if (sb == nullptr || adapt_copy_h2d(spec_buf + (size_t) (st.layer * tspec.params().slots + st.slot) * spec_stride, sb,
+                                                         (size_t) strata::kernels::cpu::expert_layout().blob_bytes(st.layer), spec_stream) != cudaSuccess) {
+                        (void) cudaGetLastError();
+                        tspec.unstage(st.layer, st.expert);
+                        continue;
+                    }
+                    any = true;
+                }
+                if (any && cudaEventRecord(spec_ev, spec_stream) == cudaSuccess) spec_issued = true;
+                tspec.maybe_log();
+            }
             tvic.maybe_log();   // STRATA_ADAPT_VICTIM_UNUSED (nothing when off)
             if (tstat_applied) { drive.d.usage.swap(tstat_saved); tstat.maybe_log(); }   // STRATA_ADAPT_FILL_FIRST / _TRANSITION: the counts back
             if (tpol.on()) drive.d.usage.swap(tpol_saved);   // STRATA_ADAPT_SIEVE/_FORECAST/_LEARNED: the counts back
