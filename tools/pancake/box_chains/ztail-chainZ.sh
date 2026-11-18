@@ -2,7 +2,7 @@
 # Tail chain Z (owner order 2026-11-18): the speculative early copy of the adaptive tier's PREDICTED incoming experts (LEADS.md B147, MOD_PLAN.md section 6 item 60, TEST_LEDGER.md T-955..T-960):
 # STRATA_ADAPT_SPEC_COPY (+ _SLOTS, _MAX, _CONF, _AGE): at the end of a round the CPU predicts the next round's incoming experts and copies them into a bounded spare VRAM staging area on a second stream; a swap of a staged expert is a
 # device copy, the others take the normal host copy.  Runs after EVERY other queued job: the queue is T -> U -> V -> after7.sh -> X -> Y, so Z waits for the markers WINCHAINV_DONE (win-chainV.log), AFTER7_DONE (after7.log),
-# WINCHAINX_DONE (xtail-chainX.log) and WINCHAINY_DONE (ytail-chainZ.log) and must not overlap any of them.  The file name has no "win-chain" (chain V's busy() ([A-UW-Z]) and chain X's busy() ([A-Za-z0-9]*) match any
+# WINCHAINX_DONE (xtail-chainX.log) and WINCHAINY_DONE (ytail-chainY.log) and must not overlap any of them.  The file name has no "win-chain" (chain V's busy() ([A-UW-Z]) and chain X's busy() ([A-Za-z0-9]*) match any
 # win-chain<letter>.sh, so a waiter named win-chainZ.sh would deadlock V and X, TEST_LEDGER.md T-944); it is named like chain Y's.
 # TWO-PASS RULE (owner order 2026-11-18): pass 1 = the spec-216 SCREEN, every arm once (3 reps, drift check); pass 2 = the spec-217 CONFIRM (5 reps) only for the arms >= 1 % faster on a case and not below -3 % on any
 # (chainT-decide.py PASS2_BAR); every other arm is dropped after pass 1 and logged so.  Offline first (CPU only, cheap): the routing replay of the staging predictors on every recording the box has (T-955 family) and the unit test.
@@ -22,7 +22,7 @@ freekb() { df -Pk "$1" | awk 'NR==2{print $4}'; }
 say() { echo "$*" >> $L; }
 lowdisk() { [ "$(freekb $S)" -lt 307200 ]; }   # < 300 MB on / : no engine step starts
 
-until grep -q WINCHAINV_DONE $S/win-chainV.log 2>/dev/null && grep -q AFTER7_DONE $O/after7.log 2>/dev/null && grep -q WINCHAINX_DONE $S/xtail-chainX.log 2>/dev/null && grep -q WINCHAINY_DONE $S/ytail-chainZ.log 2>/dev/null; do sleep 300; done
+until grep -q WINCHAINV_DONE $S/win-chainV.log 2>/dev/null && grep -q AFTER7_DONE $O/after7.log 2>/dev/null && grep -q WINCHAINX_DONE $S/xtail-chainX.log 2>/dev/null && grep -q WINCHAINY_DONE $S/ytail-chainY.log 2>/dev/null; do sleep 300; done
 say "chains V, after7, X and Y done $(date +%T)"
 q=0; while [ $q -lt 3 ]; do if [ "$(clients)" -gt 0 ]; then q=0; say "WAIT service has clients $(date +%T)"; else q=$((q+1)); fi; sleep 60; done
 systemctl --user stop pancake.service; say "service stopped (idle) $(date +%T)"
