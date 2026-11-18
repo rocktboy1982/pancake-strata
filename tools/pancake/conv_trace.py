@@ -67,6 +67,20 @@ def conversations():
 ORDER = ["A", "B", "A", "C", "B", "D", "A", "C", "D"]
 
 
+def parse_order(text, convs):
+    """--order LETTERS (e.g. AAABBCCDD: every conversation to its end before the next): each letter is one turn of that conversation;
+    a conversation may not be asked for more turns than it has.  Empty: the default interleaved ORDER."""
+    if not text:
+        return list(ORDER)
+    out = list(text.strip().upper())
+    for n in set(out):
+        if n not in convs:
+            raise SystemExit(f"--order: no conversation {n!r} (have {sorted(convs)})")
+        if out.count(n) > len(convs[n][2]):
+            raise SystemExit(f"--order: conversation {n} has {len(convs[n][2])} turns, {out.count(n)} asked")
+    return out
+
+
 def render(system, user):
     s = f"<|im_start|>system\n{system}<|im_end|>\n" if system else ""
     return s + "<|im_start|>user\n" + user + "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
@@ -92,6 +106,7 @@ def main():
     ap.add_argument("--max-new", type=int, default=384)
     ap.add_argument("--domain-keys", action="store_true")
     ap.add_argument("--tag", default="conv")
+    ap.add_argument("--order", default="", help="turn order as letters of the conversations A-D (default A B A C B D A C D, interleaved; AAABBCCDD = one conversation after the other)")
     ap.add_argument("--engine-env", action="append", default=[], metavar="KEY=VAL",
                     help="an extra engine environment variable (repeatable; default none), applied over the preset's env")
     ap.add_argument("--window-trace", metavar="PATH",
@@ -119,7 +134,7 @@ def main():
     hist = {n: None for n in convs}   # the token ids of the last prompt + its reply
     turn = {n: 0 for n in convs}
     rows = []
-    for n in ORDER:
+    for n in parse_order(a.order, convs):
         dom, system, users = convs[n]
         u = users[turn[n]]
         if hist[n] is None:
