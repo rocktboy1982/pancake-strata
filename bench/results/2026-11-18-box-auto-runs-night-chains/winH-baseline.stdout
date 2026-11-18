@@ -1,42 +1,42 @@
 case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
 case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
-  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
   long1k: 1005 prompt tokens by count_tokens (target 1000)
   long3k: 2909 prompt tokens by count_tokens (target 3000)
-rep 0 base                 short 120.3 short 112.4 edit 168.4 edit 192.8 long1k 79.7/646p 1031t long3k 93.6/1102p 2935t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('kworker/u65:10-KFD IH', 1)]  gpu 2002/1249 MHz 54C 161W gtt 21M cpu 3889MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 base                 short 120.5 short 112.4 edit 168.2 edit 189.6 long1k 86.8/648p 1033t long3k 101.6/1108p 2937t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('dbus-daemon', 1)]  gpu 2016/1249 MHz 56C 162W gtt 21M cpu 3848MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-again           short 121.1 short 112.3 edit 169.0 edit 193.2 long1k 75.1/649p 1033t long3k 96.6/1110p 2937t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2018/1249 MHz 56C 163W gtt 21M cpu 3854MHz 53C igpu 0%/vcn 0% fclk 1600
   WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
   long1k: 1005 prompt tokens by count_tokens (target 1000)
   long3k: 2909 prompt tokens by count_tokens (target 3000)
-rep 0 base-again           short 120.3 short 112.3 edit 169.3 edit 189.3 long1k 86.7/649p 1031t long3k 89.8/1105p 2935t  foreign CPU 5% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2026/1249 MHz 55C 162W gtt 21M cpu 4069MHz 53C igpu 0%/vcn 0% fclk 1600
-  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
-  long1k: 1005 prompt tokens by count_tokens (target 1000)
-  long3k: 2909 prompt tokens by count_tokens (target 3000)
-rep 0 base-late            short 121.0 short 112.3 edit 170.1 edit 193.5 long1k 78.1/650p 1031t long3k 99.4/1106p 2935t  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2012/1249 MHz 56C 162W gtt 21M cpu 3941MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 115.6 short 85.3 edit 155.7 edit 175.2 long1k 82.7/387p 1033t long3k 98.3/792p 2937t  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2056/1249 MHz 56C 145W gtt 21M cpu 3713MHz 52C igpu 0%/vcn 0% fclk 1600
 
 summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
-  short  base                    116.3 +-  50.2  (n=2)
+  short  base                    116.5 +-  51.5  (n=2)
                               drafts accepted 0.72
-  short  base-again              116.3 +-  50.8  (n=2)   vs base:  -0.0% +-  0.5%  -> no difference
+  short  base-again              116.7 +-  55.9  (n=2)   vs base:  +0.2% +-  3.8%  -> no difference
                               drafts accepted 0.72
-  short  base-late               116.7 +-  55.3  (n=2)   vs base:  +0.3% +-  4.4%  -> no difference
-                              drafts accepted 0.72
-  edit   base                    180.6 +- 155.1  (n=2)
-                              drafts accepted 0.90
-  edit   base-again              179.3 +- 127.1  (n=2)   vs base:  -0.7% +- 15.5%  -> no difference
+  short  base-late               100.4 +- 192.6  (n=2)   vs base: -13.7% +- 121.2%  -> no difference
+                              drafts accepted 0.73
+  edit   base                    178.9 +- 136.0  (n=2)
                               drafts accepted 0.89
-  edit   base-late               181.8 +- 148.7  (n=2)   vs base:  +0.7% +-  3.5%  -> no difference
+  edit   base-again              181.1 +- 153.8  (n=2)   vs base:  +1.2% +-  9.9%  -> no difference
                               drafts accepted 0.90
-  long1k base                    645.7 +-   nan  (n=1)
-  long1k base-again              649.0 +-   nan  (n=1)   vs base:  +0.5% +-  nan%  -> no difference
-  long1k base-late               650.5 +-   nan  (n=1)   vs base:  +0.7% +-  nan%  -> no difference
-  long3k base                   1101.6 +-   nan  (n=1)
-  long3k base-again             1104.6 +-   nan  (n=1)   vs base:  +0.3% +-  nan%  -> no difference
-  long3k base-late              1105.8 +-   nan  (n=1)   vs base:  +0.4% +-  nan%  -> no difference
+  edit   base-late               165.4 +- 123.9  (n=2)   vs base:  -7.5% +-  6.7%  -> worse
+                              drafts accepted 0.88
+  long1k base                    647.6 +-   nan  (n=1)
+  long1k base-again              648.8 +-   nan  (n=1)   vs base:  +0.2% +-  nan%  -> no difference
+  long1k base-late               386.7 +-   nan  (n=1)   vs base: -40.3% +-  nan%  -> no difference
+  long3k base                   1108.3 +-   nan  (n=1)
+  long3k base-again             1109.6 +-   nan  (n=1)   vs base:  +0.1% +-  nan%  -> no difference
+  long3k base-late               792.2 +-   nan  (n=1)   vs base: -28.5% +-  nan%  -> no difference
 
 generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
   base-again           DIFFERENT text -> lossy or placement-dependent: quality gate
-  base-late            identical on every case -> exact
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
 
 screen verdict (promote: > 0% on a case and no case below -3%; else drop)
-  base drift (late base run vs early): short +0.3%  edit +0.7%  long1k +0.7%  long3k +0.4%
-  base-again           short -0.2%  edit -1.0%  long1k +0.1%  long3k +0.1%  -> PROMOTE to confirm
+  base drift (late base run vs early): short -13.7%  edit -7.5%  long1k -40.3%  long3k -28.5%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  base-again           short +7.6%  edit +5.2%  long1k +25.5%  long3k +16.8%  -> PROMOTE to confirm

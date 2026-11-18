@@ -1,0 +1,57 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 115.3 short 107.7 edit 167.5 edit 135.3 long1k 31.6/393p 1033t long3k 72.3/1130p 2937t  foreign CPU 10% [('kcompactd0', 39), ('kworker/1:0-mm_percpu_wq', 6), ('kworker/0:1-events', 6)]  gpu 2051/1249 MHz 55C 164W gtt 21M cpu 4020MHz 52C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 110.5 short 78.6 edit 65.4 edit 178.0 long1k 81.8/660p 1033t long3k 79.2/1126p 2937t  foreign CPU 10% [('kcompactd0', 44), ('kworker/0:3-events_freezable', 18), ('kworker/9:0-events', 2)]  gpu 2046/1249 MHz 55C 156W gtt 21M cpu 3953MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 96.1 short 89.8 edit 169.8 edit 190.4 long1k 79.9/398p 1033t long3k 97.9/808p 2937t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1730/1249 MHz 54C 141W gtt 21M cpu 3605MHz 53C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-again           short 92.9 short 77.3 edit 83.8 edit 82.8 long1k 81.1/660p 1033t long3k 92.8/800p 2937t  foreign CPU 8% [('kcompactd0', 26), ('kworker/0:3-events', 6), ('pipewire', 1)]  gpu 2042/1249 MHz 55C 144W gtt 21M cpu 3727MHz 53C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-again           short 119.9 short 109.5 edit 86.0 edit 100.4 long1k 79.0/658p 1033t long3k 84.7/805p 2938t  foreign CPU 11% [('kcompactd0', 45), ('kworker/0:1-events_freezable', 11), ('kworker/8:2-events', 7)]  gpu 1912/1249 MHz 55C 152W gtt 21M cpu 4272MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-again           short 114.8 short 108.8 edit 175.4 edit 141.0 long1k 81.8/665p 1034t long3k 91.1/789p 2938t  foreign CPU 9% [('kcompactd0', 22), ('kworker/0:0+events_freezable', 4), ('kworker/4:1-mm_percpu_wq', 2)]  gpu 2053/1249 MHz 56C 158W gtt 21M cpu 3865MHz 53C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-again: every attempt noisy, keeping the quietest (8% foreign CPU)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-late            short 98.7 short 83.4 edit 169.2 edit 94.5 long1k 73.8/659p 1034t long3k 85.2/798p 2938t  foreign CPU 15% [('kcompactd0', 41), ('kworker/1:2-events', 19), ('kworker/1:1-events', 8)]  gpu 2053/1249 MHz 55C 156W gtt 21M cpu 4059MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  waiting for a quiet machine: load 0.00, foreign CPU 26% [('gnome-shell', 22), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 0.0%
+  quiet after 10 s
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-late            short 121.4 short 112.7 edit 171.9 edit 193.4 long1k 78.6/663p 1034t long3k 105.4/1129p 2938t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('gnome-shell', 1)]  gpu 1979/1249 MHz 56C 160W gtt 21M cpu 4010MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                     92.9 +-  40.0  (n=2)
+                              drafts accepted 0.72
+  short  base-again               85.1 +-  99.1  (n=2)   vs base:  -8.4% +- 63.6%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               117.1 +-  55.3  (n=2)   vs base: +25.9% +- 16.4%  -> better
+                              drafts accepted 0.72
+  edit   base                    180.1 +- 130.9  (n=2)
+                              drafts accepted 0.89
+  edit   base-again               83.3 +-   6.4  (n=2)   vs base: -53.7% +- 76.2%  -> no difference
+                              drafts accepted 0.85
+  edit   base-late               182.7 +- 136.6  (n=2)   vs base:  +1.4% +-  3.2%  -> no difference
+                              drafts accepted 0.90
+  long1k base                    397.8 +-   nan  (n=1)
+  long1k base-again              660.3 +-   nan  (n=1)   vs base: +66.0% +-  nan%  -> no difference
+  long1k base-late               662.8 +-   nan  (n=1)   vs base: +66.6% +-  nan%  -> no difference
+  long3k base                    807.5 +-   nan  (n=1)
+  long3k base-again              799.9 +-   nan  (n=1)   vs base:  -0.9% +-  nan%  -> no difference
+  long3k base-late              1128.6 +-   nan  (n=1)   vs base: +39.8% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  base-again           DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +25.9%  edit +1.4%  long1k +66.6%  long3k +39.8%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  base-again           short -19.0%  edit -54.1%  long1k +24.5%  long3k -17.4%  -> drop

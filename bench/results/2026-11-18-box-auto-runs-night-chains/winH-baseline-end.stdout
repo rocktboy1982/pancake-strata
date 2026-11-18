@@ -1,0 +1,45 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 121.0 short 112.7 edit 169.4 edit 193.4 long1k 82.6/667p 1033t long3k 97.6/1128p 2937t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2001/1249 MHz 56C 160W gtt 21M cpu 4069MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-again           short 118.3 short 109.3 edit 171.3 edit 192.2 long1k 79.4/665p 1033t long3k 97.9/1134p 2937t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('gnome-shell', 1)]  gpu 2051/1249 MHz 56C 165W gtt 21M cpu 4198MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-late            short 118.1 short 112.4 edit 169.8 edit 193.4 long1k 80.8/666p 1033t long3k 98.4/1132p 2937t  foreign CPU 9% [('kcompactd0', 27), ('kworker/1:2-events_freezable', 7), ('kworker/0:1-events', 3)]  gpu 2014/1249 MHz 57C 163W gtt 21M cpu 4028MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-late            short 121.1 short 86.3 edit 167.3 edit 181.2 long1k 85.3/666p 1033t long3k 87.8/1134p 2937t  foreign CPU 12% [('kcompactd0', 26), ('kworker/0:0+events_freezable', 9), ('kworker/8:2-events', 2)]  gpu 2045/1249 MHz 57C 173W gtt 21M cpu 4212MHz 53C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-late            short 121.1 short 112.6 edit 171.7 edit 192.3 long1k 78.0/663p 1033t long3k 97.8/1133p 2938t  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2021/1249 MHz 58C 164W gtt 21M cpu 4083MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.8 +-  52.7  (n=2)
+                              drafts accepted 0.72
+  short  base-again              113.8 +-  57.2  (n=2)   vs base:  -2.6% +-  3.8%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               116.8 +-  54.0  (n=2)   vs base:  -0.0% +-  1.1%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    181.4 +- 152.5  (n=2)
+                              drafts accepted 0.90
+  edit   base-again              181.8 +- 132.8  (n=2)   vs base:  +0.2% +- 10.9%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               182.0 +- 130.9  (n=2)   vs base:  +0.3% +- 11.9%  -> no difference
+                              drafts accepted 0.90
+  long1k base                    667.0 +-   nan  (n=1)
+  long1k base-again              665.1 +-   nan  (n=1)   vs base:  -0.3% +-  nan%  -> no difference
+  long1k base-late               662.6 +-   nan  (n=1)   vs base:  -0.7% +-  nan%  -> no difference
+  long3k base                   1128.0 +-   nan  (n=1)
+  long3k base-again             1133.5 +-   nan  (n=1)   vs base:  +0.5% +-  nan%  -> no difference
+  long3k base-late              1132.7 +-   nan  (n=1)   vs base:  +0.4% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  base-again           identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.0%  edit +0.3%  long1k -0.7%  long3k +0.4%
+  base-again           short -2.6%  edit +0.0%  long1k +0.0%  long3k +0.3%  -> PROMOTE to confirm

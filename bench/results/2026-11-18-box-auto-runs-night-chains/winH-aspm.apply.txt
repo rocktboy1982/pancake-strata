@@ -1,0 +1,9 @@
+== apply aspm: pcie_aspm policy=performance
+   risk: PCIe links never sleep: idle power up; no reboot
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/aspm.state: Permission denied
+  /sys/module/pcie_aspm/parameters/policy: default -> performance
+  runtime: 1 changed, 0 already at target
+== revert memlock
+  note: could not delete /etc/security/limits.d/99-pancake-memlock.conf; emptied it (delete it with sudo rm)
+  removed /etc/security/limits.d/99-pancake-memlock.conf
+rm: cannot remove '/home/dan/.local/state/pancake-host-tune/memlock.state': Permission denied

@@ -1,0 +1,39 @@
+== apply cstate: cpuidle states with latency > 10 us disabled
+   risk: deep core sleep off: idle power up by several W, wake-up faster; no reboot
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu0/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu1/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu10/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu11/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu12/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu13/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu14/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu15/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu2/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu3/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu4/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu5/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu6/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu7/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu8/cpuidle/state2/disable: 0 -> 1
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/cstate.state: Permission denied
+  /sys/devices/system/cpu/cpu9/cpuidle/state2/disable: 0 -> 1
+  runtime: 16 changed, 16 already at target
+== revert memlock
+  note: could not delete /etc/security/limits.d/99-pancake-memlock.conf; emptied it (delete it with sudo rm)
+  removed /etc/security/limits.d/99-pancake-memlock.conf
+rm: cannot remove '/home/dan/.local/state/pancake-host-tune/memlock.state': Permission denied

@@ -1,0 +1,9 @@
+== apply nvme_ra: read_ahead_kb 4096, scheduler none
+   risk: more RAM page cache per read; random expert reads (mmap faults) may over-read; no reboot
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/nvme_ra.state: Permission denied
+  /sys/block/nvme0n1/queue/read_ahead_kb: 128 -> 4096
+  runtime: 1 changed, 1 already at target
+== revert memlock
+  note: could not delete /etc/security/limits.d/99-pancake-memlock.conf; emptied it (delete it with sudo rm)
+  removed /etc/security/limits.d/99-pancake-memlock.conf
+rm: cannot remove '/home/dan/.local/state/pancake-host-tune/memlock.state': Permission denied

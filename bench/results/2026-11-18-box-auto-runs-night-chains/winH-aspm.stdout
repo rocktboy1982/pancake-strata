@@ -1,0 +1,39 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 121.0 short 112.5 edit 171.5 edit 193.8 long1k 77.8/665p 1032t long3k 93.6/1126p 2936t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1964/1249 MHz 55C 159W gtt 21M cpu 3725MHz 53C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-again           short 121.2 short 112.7 edit 172.0 edit 193.4 long1k 82.9/664p 1032t long3k 90.6/1129p 2936t  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2010/1249 MHz 56C 161W gtt 21M cpu 3908MHz 54C igpu 0%/vcn 0% fclk 1600
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base-late            short 118.0 short 109.2 edit 169.7 edit 193.0 long1k 78.5/661p 1032t long3k 93.5/1132p 2936t  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1955/1249 MHz 56C 157W gtt 21M cpu 3955MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.8 +-  54.0  (n=2)
+                              drafts accepted 0.72
+  short  base-again              117.0 +-  54.0  (n=2)   vs base:  +0.2% +-  0.0%  -> better
+                              drafts accepted 0.72
+  short  base-late               113.6 +-  55.9  (n=2)   vs base:  -2.7% +-  1.6%  -> worse
+                              drafts accepted 0.72
+  edit   base                    182.7 +- 141.7  (n=2)
+                              drafts accepted 0.90
+  edit   base-again              182.7 +- 136.0  (n=2)   vs base:  +0.0% +-  3.1%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               181.3 +- 148.1  (n=2)   vs base:  -0.7% +-  3.5%  -> no difference
+                              drafts accepted 0.90
+  long1k base                    665.0 +-   nan  (n=1)
+  long1k base-again              664.3 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  long1k base-late               661.4 +-   nan  (n=1)   vs base:  -0.5% +-  nan%  -> no difference
+  long3k base                   1126.1 +-   nan  (n=1)
+  long3k base-again             1129.3 +-   nan  (n=1)   vs base:  +0.3% +-  nan%  -> no difference
+  long3k base-late              1131.7 +-   nan  (n=1)   vs base:  +0.5% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  base-again           identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -2.7%  edit -0.7%  long1k -0.5%  long3k +0.5%
+  base-again           short +1.5%  edit +0.4%  long1k +0.2%  long3k +0.0%  -> PROMOTE to confirm

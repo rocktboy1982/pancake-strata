@@ -1,0 +1,9 @@
+== apply gpu_dpm: power_dpm_force_performance_level=high (discrete AMD cards)
+   risk: GPU idles at top clocks: idle power, fan noise, heat up; the iGPU is skipped unless --gpu names it; no reboot
+/home/dan/clone-of-d/src/Strata-win/tools/pancake/host_tune.sh: 338: cannot create /home/dan/.local/state/pancake-host-tune/gpu_dpm.state: Permission denied
+  /sys/class/drm/card2/device/power_dpm_force_performance_level: auto -> high
+  runtime: 1 changed, 1 already at target
+== revert memlock
+  note: could not delete /etc/security/limits.d/99-pancake-memlock.conf; emptied it (delete it with sudo rm)
+  removed /etc/security/limits.d/99-pancake-memlock.conf
+rm: cannot remove '/home/dan/.local/state/pancake-host-tune/memlock.state': Permission denied

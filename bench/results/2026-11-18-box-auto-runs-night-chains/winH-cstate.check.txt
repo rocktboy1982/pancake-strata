@@ -1,0 +1,15 @@
+pancake host check (read-only, nothing is written)  root=/
+  kernel: Linux 7.0.0-43-generic   max_map_count: 1048576
+  nvme_ra     at-target      now: 4096 none -> target: 4096 none (2/2 files at target)
+  thp         at-target      now: always defer+madvise -> target: always defer+madvise (2/2 files at target)
+  swappiness  not-at-target  now: 1 -> target: 10 (0/1 files at target)
+  memlock     at-target      this shell: soft unlimited KiB, hard unlimited KiB; limits.d file: present
+              (applied by this script: state file /home/dan/.local/state/pancake-host-tune/memlock.state)
+  cpu_perf    at-target      now: performance -> target: performance (32/32 files at target)
+  amd_pstate  at-target      now: active -> target: active (1/1 files at target)
+  gpu_dpm     at-target      now: high -> target: high (2/2 files at target)
+  aspm        at-target      now: performance -> target: performance (1/1 files at target)
+  cstate      partial        now: 0 1 -> target: 1 (16/32 files at target)
+  iommu       report         iommu=pt not set; 2 GPU card(s) seen (only relevant with 2 or more)
+  headless    report         default target: graphical.target (report only, never changed here)
+Run --list for the risk of each step, --mlock-check for the mlock verdict.
