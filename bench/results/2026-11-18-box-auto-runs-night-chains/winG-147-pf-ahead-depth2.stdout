@@ -1,0 +1,28 @@
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pf-ahead             short 121.0 short 112.5 edit 161.0 edit 193.3  foreign CPU 5% [('kworker/9:0-events_freezable', 2), ('kcompactd0', 1), ('pipewire', 1)]  gpu 1897/1249 MHz 54C 143W gtt 21M cpu 3709MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pf-ahead-depth2      short 121.0 short 112.7 edit 171.4 edit 184.8  foreign CPU 6% [('kswapd0', 4), ('kworker/8:1-events', 1), ('pipewire', 1)]  gpu 1993/1249 MHz 55C 157W gtt 21M cpu 3901MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 118.6 short 109.2 edit 169.0 edit 193.3  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2054/1249 MHz 55C 167W gtt 21M cpu 4217MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  pf-ahead                116.8 +-  54.0  (n=2)
+                              drafts accepted 0.72
+  short  pf-ahead-depth2         116.8 +-  52.7  (n=2)   vs pf-ahead:  +0.1% +-  1.1%  -> no difference
+                              drafts accepted 0.72
+  short  base                    113.9 +-  59.7  (n=2)   vs pf-ahead:  -2.4% +-  4.9%  -> no difference
+                              drafts accepted 0.72
+  edit   pf-ahead                177.2 +- 205.3  (n=2)
+                              drafts accepted 0.89
+  edit   pf-ahead-depth2         178.1 +-  85.2  (n=2)   vs pf-ahead:  +0.5% +- 67.8%  -> no difference
+                              drafts accepted 0.90
+  edit   base                    181.2 +- 154.4  (n=2)   vs pf-ahead:  +2.3% +- 28.7%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pf-ahead-depth2      identical on every case -> exact
+  base                 identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  pf-ahead-depth2      short +0.1%  edit +0.5%  -> PROMOTE to confirm
+  base                 short -2.4%  edit +2.3%  -> PROMOTE to confirm

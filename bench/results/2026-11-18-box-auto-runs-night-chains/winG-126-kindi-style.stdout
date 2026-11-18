@@ -1,0 +1,44 @@
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 120.3 short 112.2 edit 171.2 edit 193.3  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2023/1249 MHz 54C 160W gtt 21M cpu 4016MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 kindi-static         short 97.9 short 98.1 edit 162.8 edit 166.1  foreign CPU 5% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2059/1249 MHz 54C 152W gtt 21M cpu 3700MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 kindi-static-tracecount short 84.8 short 84.9 edit 170.0 edit 164.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1980/1249 MHz 55C 143W gtt 21M cpu 3742MHz 55C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 kindi-stack          short 79.7 short 84.4 edit 126.6 edit 134.8  foreign CPU 5% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2044/1249 MHz 54C 136W gtt 21M cpu 3657MHz 55C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 97.2 short 101.5 edit 160.0 edit 128.0  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('dbus-daemon', 1)]  gpu 2058/1249 MHz 54C 158W gtt 21M cpu 3903MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.2 +-  51.5  (n=2)
+                              drafts accepted 0.72
+  short  kindi-static             98.0 +-   1.3  (n=2)   vs base: -15.7% +- 45.4%  -> no difference
+                              drafts accepted 0.75
+  short  kindi-static-tracecount     84.8 +-   0.6  (n=2)   vs base: -27.0% +- 44.8%  -> no difference
+                              drafts accepted 0.70
+  short  kindi-stack              82.1 +-  29.9  (n=2)   vs base: -29.4% +- 70.0%  -> no difference
+                              drafts accepted 0.69
+  short  base-late                99.3 +-  27.3  (n=2)   vs base: -14.5% +- 67.8%  -> no difference
+                              drafts accepted 0.68
+  edit   base                    182.2 +- 140.4  (n=2)
+                              drafts accepted 0.90
+  edit   kindi-static            164.4 +-  21.0  (n=2)   vs base:  -9.8% +- 65.6%  -> no difference
+                              drafts accepted 0.90
+  edit   kindi-static-tracecount    167.2 +-  35.6  (n=2)   vs base:  -8.3% +- 96.6%  -> no difference
+                              drafts accepted 0.92
+  edit   kindi-stack             130.7 +-  52.1  (n=2)   vs base: -28.3% +- 48.5%  -> no difference
+                              drafts accepted 0.92
+  edit   base-late               144.0 +- 203.4  (n=2)   vs base: -21.0% +- 188.6%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  kindi-static         DIFFERENT text -> lossy or placement-dependent: quality gate
+  kindi-static-tracecount DIFFERENT text -> lossy or placement-dependent: quality gate
+  kindi-stack          DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -14.5%  edit -21.0%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  kindi-static         short -9.1%  edit +0.8%  -> drop
+  kindi-static-tracecount short -21.3%  edit +2.5%  -> drop
+  kindi-stack          short -23.9%  edit -19.9%  -> drop

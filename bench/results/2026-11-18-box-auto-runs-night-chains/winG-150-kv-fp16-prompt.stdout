@@ -1,0 +1,26 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 cc86179c48f0, target 64000 tokens (a unique run line is prepended to every request)
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 kv-int8-ctx64k       long3k 99.1/729p 2937t long64k 65.6/1605p 65196t short 110.0 short 86.7  foreign CPU 4% [('kcompactd0', 5), ('kworker/2:1-mm_percpu_wq', 2), ('kworker/0:1-events', 2)]  gpu 1960/1249 MHz 59C 180W gtt 25M cpu 3432MHz 63C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 kv-fp16-ctx64k       long3k 106.7/664p 2937t long64k 77.1/1264p 65196t short 102.4 short 115.4  foreign CPU 4% [('claude', 6), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2028/1249 MHz 61C 193W gtt 25M cpu 3487MHz 64C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long3k kv-int8-ctx64k          728.7 +-   nan  (n=1)
+  long3k kv-fp16-ctx64k          664.2 +-   nan  (n=1)   vs kv-int8-ctx64k:  -8.9% +-  nan%  -> no difference
+  long64k kv-int8-ctx64k         1605.3 +-   nan  (n=1)
+  long64k kv-fp16-ctx64k         1263.5 +-   nan  (n=1)   vs kv-int8-ctx64k: -21.3% +-  nan%  -> no difference
+  short  kv-int8-ctx64k           98.3 +- 148.1  (n=2)
+                              drafts accepted 0.71
+  short  kv-fp16-ctx64k          108.9 +-  82.6  (n=2)   vs kv-int8-ctx64k: +10.7% +- 234.6%  -> no difference
+                              drafts accepted 0.70
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  kv-fp16-ctx64k       DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  kv-fp16-ctx64k       long3k -8.9%  long64k -21.3%  short +10.7%  -> drop

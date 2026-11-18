@@ -1,0 +1,30 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 cc86179c48f0, target 64000 tokens (a unique run line is prepended to every request)
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 base                 long3k 96.1/974p 2934t long64k 71.4/2249p 65193t  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1888/1249 MHz 59C 193W gtt 25M cpu 3214MHz 64C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 gdn-pp2              long3k 103.5/973p 2934t long64k 96.1/2249p 65193t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1868/1249 MHz 60C 194W gtt 25M cpu 3248MHz 63C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            long3k 109.7/973p 2934t long64k 78.0/2237p 65193t  foreign CPU 5% [('kworker/15:0-events', 2), ('kcompactd0', 2), ('kworker/0:1-events', 2)]  gpu 1894/1249 MHz 61C 190W gtt 25M cpu 3316MHz 63C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long3k base                    974.0 +-   nan  (n=1)
+  long3k gdn-pp2                 973.3 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  long3k base-late               973.0 +-   nan  (n=1)   vs base:  -0.1% +-  nan%  -> no difference
+  long64k base                   2248.6 +-   nan  (n=1)
+  long64k gdn-pp2                2249.1 +-   nan  (n=1)   vs base:  +0.0% +-  nan%  -> no difference
+  long64k base-late              2237.1 +-   nan  (n=1)   vs base:  -0.5% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  gdn-pp2              identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): long3k -0.1%  long64k -0.5%
+  gdn-pp2              long3k -0.0%  long64k +0.3%  -> PROMOTE to confirm

@@ -1,0 +1,9 @@
+[17:19:49] mlock check, idle daily preset (pancake.service), expected arena 33 GiB
+mlock check (engine arena expected ~33 GiB; src/platform/memory.cpp:167,178 'mlock failed (raise ulimit -l)')
+  this shell: ulimit -l soft=8192 hard=8192 (KiB)
+  limits.d: no pancake file
+  pancake.service LimitMEMLOCK: 8388608
+  engine pid 975179: VmLck=1476 KiB, its own limit 'Max locked memory' soft=8388608 bytes
+  VERDICT: mlock FAILED or partial: limit is below the arena and VmLck=1476 KiB.  Fix: host_tune.sh --apply memlock --persist, log in again, restart the engine
+exit 1
+engine log /home/dan/clone-of-d/src/Strata/pancake-service.log (last 600 lines): 0 line(s) with 'mlock failed'

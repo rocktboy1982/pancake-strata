@@ -1,0 +1,65 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 f16-max-bm32         long1k 87.9/617p 1032t short 115.6 short 107.7 edit 151.7 edit 174.0  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('kcompactd0', 0)]  gpu 1775/1249 MHz 54C 147W gtt 21M cpu 3801MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 f16-max-bm16         long1k 89.3/619p 1032t short 115.0 short 118.1 edit 163.8 edit 173.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('kworker/13:2-events_freezable', 2)]  gpu 2054/1249 MHz 55C 170W gtt 21M cpu 3979MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 f16-var-bm16         long1k 94.5/620p 1032t short 113.0 short 113.1 edit 173.3 edit 188.3  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2048/1249 MHz 56C 172W gtt 21M cpu 4148MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 f16-var-bm16-bm      long1k 86.2/617p 1032t short 115.7 short 117.2 edit 160.6 edit 189.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2047/1249 MHz 56C 166W gtt 21M cpu 3974MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 f16                  long1k 97.3/617p 1032t short 109.8 short 116.1 edit 171.0 edit 175.4  foreign CPU 4% [('pipewire', 2), ('kcompactd0', 1), ('gnome-remote-de', 1)]  gpu 1821/1249 MHz 56C 156W gtt 21M cpu 3968MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 base-late            long1k 89.4/618p 1032t short 112.4 short 114.0 edit 166.7 edit 191.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2049/1249 MHz 56C 170W gtt 21M cpu 3824MHz 52C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long1k f16-max-bm32            617.1 +-   nan  (n=1)
+  long1k f16-max-bm16            619.0 +-   nan  (n=1)   vs f16-max-bm32:  +0.3% +-  nan%  -> no difference
+  long1k f16-var-bm16            619.5 +-   nan  (n=1)   vs f16-max-bm32:  +0.4% +-  nan%  -> no difference
+  long1k f16-var-bm16-bm         617.2 +-   nan  (n=1)   vs f16-max-bm32:  +0.0% +-  nan%  -> no difference
+  long1k f16                     616.6 +-   nan  (n=1)   vs f16-max-bm32:  -0.1% +-  nan%  -> no difference
+  long1k base-late               617.9 +-   nan  (n=1)   vs f16-max-bm32:  +0.1% +-  nan%  -> no difference
+  short  f16-max-bm32            111.7 +-  50.2  (n=2)
+                              drafts accepted 0.70
+  short  f16-max-bm16            116.5 +-  19.7  (n=2)   vs f16-max-bm32:  +4.4% +- 62.6%  -> no difference
+                              drafts accepted 0.73
+  short  f16-var-bm16            113.0 +-   0.6  (n=2)   vs f16-max-bm32:  +1.3% +- 45.5%  -> no difference
+                              drafts accepted 0.69
+  short  f16-var-bm16-bm         116.5 +-   9.5  (n=2)   vs f16-max-bm32:  +4.3% +- 53.5%  -> no difference
+                              drafts accepted 0.73
+  short  f16                     112.9 +-  40.0  (n=2)   vs f16-max-bm32:  +1.2% +- 80.8%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               113.2 +-  10.2  (n=2)   vs f16-max-bm32:  +1.4% +- 54.1%  -> no difference
+                              drafts accepted 0.69
+  edit   f16-max-bm32            162.8 +- 141.7  (n=2)
+                              drafts accepted 0.89
+  edit   f16-max-bm16            168.4 +-  59.1  (n=2)   vs f16-max-bm32:  +3.4% +- 50.7%  -> no difference
+                              drafts accepted 0.90
+  edit   f16-var-bm16            180.8 +-  95.3  (n=2)   vs f16-max-bm32: +11.0% +- 28.5%  -> no difference
+                              drafts accepted 0.90
+  edit   f16-var-bm16-bm         174.8 +- 181.1  (n=2)   vs f16-max-bm32:  +7.4% +- 24.2%  -> no difference
+                              drafts accepted 0.89
+  edit   f16                     173.2 +-  28.0  (n=2)   vs f16-max-bm32:  +6.4% +- 69.9%  -> no difference
+                              drafts accepted 0.91
+  edit   base-late               179.1 +- 157.6  (n=2)   vs f16-max-bm32: +10.0% +-  9.8%  -> better
+                              drafts accepted 0.91
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  f16-max-bm16         DIFFERENT text -> lossy or placement-dependent: quality gate
+  f16-var-bm16         DIFFERENT text -> lossy or placement-dependent: quality gate
+  f16-var-bm16-bm      DIFFERENT text -> lossy or placement-dependent: quality gate
+  f16                  DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): long1k +0.1%  short +1.4%  edit +10.0%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  f16-max-bm16         long1k +0.2%  short +3.7%  edit -1.5%  -> PROMOTE to confirm
+  f16-var-bm16         long1k +0.3%  short +0.6%  edit +5.7%  -> PROMOTE to confirm
+  f16-var-bm16-bm      long1k -0.0%  short +3.6%  edit +2.3%  -> PROMOTE to confirm
+  f16                  long1k -0.1%  short +0.5%  edit +1.3%  -> PROMOTE to confirm

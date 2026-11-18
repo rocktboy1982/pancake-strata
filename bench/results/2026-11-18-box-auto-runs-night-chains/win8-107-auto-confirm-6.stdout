@@ -1,0 +1,113 @@
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 101.0 edit 173.0 short 107.5 edit 176.7 short 88.5 edit 180.4  foreign CPU 10% [('kcompactd0', 30), ('kworker/8:1-events', 16), ('kworker/8:2-events_freezable', 16)]  gpu 2005/1249 MHz 56C 154W gtt 21M cpu 3740MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 stack                short 92.5 edit 184.5 short 103.9 edit 133.7 short 103.2 edit 134.9  foreign CPU 8% [('claude', 6), ('gnome-remote-de', 2), ('pipewire', 2)]  gpu 2051/1249 MHz 56C 155W gtt 21M cpu 3611MHz 52C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ttl30                short 99.3 edit 97.2 short 97.5 edit 80.9 short 87.5 edit 114.1  foreign CPU 9% [('claude', 16), ('gnome-shell', 5), ('gnome-remote-de', 4)]  gpu 1968/1249 MHz 55C 147W gtt 21M cpu 3991MHz 54C igpu 1%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ttl5                 short 111.3 edit 175.5 short 104.7 edit 169.8 short 105.7 edit 177.9  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 57C 162W gtt 21M cpu 3995MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 dump                 short 106.6 edit 179.7 short 106.5 edit 172.7 short 108.6 edit 176.0  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 57C 166W gtt 21M cpu 3993MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 expdec-swiglu        short 111.9 edit 176.4 short 105.5 edit 171.2 short 106.4 edit 178.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2045/1249 MHz 57C 164W gtt 21M cpu 3886MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 nodefer              short 102.5 edit 132.7 short 81.6 edit 132.8 short 92.2 edit 186.1  foreign CPU 5% [('gnome-remote-de', 2), ('pipewire', 1), ('localsearch-3', 1)]  gpu 2038/1249 MHz 56C 154W gtt 21M cpu 3930MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 nodefer+ic-warm32    short 78.3 edit 130.3 short 103.4 edit 147.5 short 87.6 edit 178.0  foreign CPU 5% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2059/1249 MHz 56C 150W gtt 21M cpu 3875MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 nodefer+ic-warm64    short 100.8 edit 171.1 short 103.7 edit 172.0 short 101.3 edit 174.3  foreign CPU 5% [('udisksd', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2042/1249 MHz 57C 158W gtt 21M cpu 3908MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 nodefer+ic-warm64    short 111.4 edit 177.2 short 104.0 edit 175.6 short 104.9 edit 178.4  foreign CPU 4% [('claude', 5), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2048/1249 MHz 57C 164W gtt 21M cpu 3950MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 nodefer+ic-warm32    short 108.4 edit 179.4 short 98.5 edit 176.9 short 102.2 edit 177.3  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('gsd-housekeepin', 1)]  gpu 2046/1249 MHz 57C 160W gtt 21M cpu 3848MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 nodefer+ic-warm32: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 14 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 nodefer+ic-warm32    short 108.5 edit 181.0 short 100.8 edit 173.5 short 103.6 edit 179.5  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2046/1249 MHz 58C 163W gtt 21M cpu 4012MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 nodefer              short 107.0 edit 178.5 short 103.7 edit 175.4 short 105.6 edit 177.9  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2053/1249 MHz 58C 166W gtt 21M cpu 3975MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 nodefer: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 nodefer              short 111.3 edit 175.5 short 104.5 edit 169.9 short 105.2 edit 178.1  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2055/1249 MHz 58C 163W gtt 21M cpu 3898MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 expdec-swiglu        short 112.1 edit 175.4 short 105.3 edit 171.0 short 105.9 edit 179.2  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2050/1249 MHz 58C 167W gtt 21M cpu 3884MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 dump                 short 108.7 edit 177.4 short 109.5 edit 184.2 short 108.1 edit 178.5  foreign CPU 5% [('gnome-remote-de', 2), ('pipewire', 1), ('localsearch-3', 1)]  gpu 1938/1249 MHz 58C 150W gtt 21M cpu 3646MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 ttl5                 short 111.2 edit 175.1 short 104.6 edit 170.3 short 105.6 edit 178.0  foreign CPU 11% [('claude', 22), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2054/1249 MHz 58C 166W gtt 21M cpu 3980MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 ttl30                short 111.1 edit 174.9 short 104.7 edit 170.4 short 99.8 edit 179.6  foreign CPU 5% [('claude', 5), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2043/1249 MHz 58C 164W gtt 21M cpu 4073MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 ttl30: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ttl30                short 110.0 edit 174.8 short 104.1 edit 168.8 short 102.0 edit 176.7  foreign CPU 5% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2032/1249 MHz 58C 164W gtt 21M cpu 3878MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 stack                short 116.1 edit 176.4 short 108.7 edit 175.5 short 107.1 edit 185.8  foreign CPU 5% [('pipewire', 2), ('kworker/9:2-events', 2), ('gnome-remote-de', 1)]  gpu 2047/1249 MHz 58C 160W gtt 21M cpu 3805MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 stack: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 stack                short 116.0 edit 181.1 short 110.2 edit 189.4 short 107.3 edit 188.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2048/1249 MHz 58C 165W gtt 21M cpu 3931MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 base                 short 87.9 edit 77.1 short 105.6 edit 138.4 short 96.2 edit 95.3  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2043/1249 MHz 58C 153W gtt 21M cpu 3810MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 1 base: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 base                 short 99.0 edit 109.0 short 81.3 edit 113.4 short 96.1 edit 124.8  foreign CPU 5% [('gnome-remote-de', 2), ('pipewire', 2), ('claude', 1)]  gpu 2053/1249 MHz 57C 152W gtt 21M cpu 3937MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 base: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 1 base                 short 98.7 edit 107.7 short 83.8 edit 116.9 short 103.1 edit 182.3  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1971/1249 MHz 55C 146W gtt 21M cpu 3715MHz 54C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 7 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  stack                rep 0 attempt 0 slow start (means): short 99.9, edit 151.0
+  ttl30                rep 0 attempt 0 slow start (means): short 94.8, edit 97.4
+  nodefer              rep 0 attempt 0 slow start (means): short 92.1, edit 150.5
+  nodefer+ic-warm32    rep 0 attempt 0 slow start (means): short 89.8, edit 151.9
+  base                 rep 1 attempt 0 slow start (means): short 96.6, edit 103.6
+  base                 rep 1 attempt 1 slow start (means): short 92.1, edit 115.7
+  base                 rep 1 attempt 2 slow start (means): short 95.2, edit 135.6
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                     99.0 +-  33.0  (n=3)
+                              drafts accepted 0.70
+  short  stack                   110.9 +-   6.0  (n=6)   vs base: +12.3% +- 29.1%  -> no difference
+                              drafts accepted 0.71
+  short  ttl30                   105.3 +-   6.4  (n=6)   vs base:  +6.4% +- 30.3%  -> no difference
+                              drafts accepted 0.71
+  short  ttl5                    107.2 +-   4.6  (n=6)   vs base:  +8.3% +- 35.1%  -> no difference
+                              drafts accepted 0.71
+  short  dump                    108.0 +-   1.7  (n=6)   vs base:  +8.3% +- 37.3%  -> no difference
+                              drafts accepted 0.72
+  short  expdec-swiglu           107.9 +-   4.7  (n=6)   vs base:  +9.0% +- 34.9%  -> no difference
+                              drafts accepted 0.71
+  short  nodefer                 106.2 +-   3.9  (n=6)   vs base:  +8.1% +- 34.7%  -> no difference
+                              drafts accepted 0.70
+  short  nodefer+ic-warm32       103.7 +-   5.9  (n=6)   vs base:  +5.4% +- 38.2%  -> no difference
+                              drafts accepted 0.72
+  short  nodefer+ic-warm64       104.4 +-   5.5  (n=6)   vs base:  +3.0% +- 30.2%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    176.7 +-  12.7  (n=3)
+                              drafts accepted 0.90
+  edit   stack                   182.7 +-   8.6  (n=6)   vs base:  +5.4% +-  5.4%  -> no difference
+                              drafts accepted 0.89
+  edit   ttl30                   174.2 +-   5.8  (n=6)   vs base:  -1.8% +-  9.4%  -> no difference
+                              drafts accepted 0.88
+  edit   ttl5                    174.4 +-   5.2  (n=6)   vs base:  -1.3% +-  9.1%  -> no difference
+                              drafts accepted 0.88
+  edit   dump                    178.1 +-   5.6  (n=6)   vs base:  -0.3% +- 12.2%  -> no difference
+                              drafts accepted 0.90
+  edit   expdec-swiglu           175.2 +-   5.0  (n=6)   vs base:  -0.8% +-  8.7%  -> no difference
+                              drafts accepted 0.88
+  edit   nodefer                 175.9 +-   4.7  (n=6)   vs base:  -1.2% +-  9.0%  -> no difference
+                              drafts accepted 0.89
+  edit   nodefer+ic-warm32       177.9 +-   3.8  (n=6)   vs base:  +0.7% +- 11.5%  -> no difference
+                              drafts accepted 0.90
+  edit   nodefer+ic-warm64       174.8 +-   4.1  (n=6)   vs base:  -2.4% +-  4.1%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  stack                DIFFERENT text -> lossy or placement-dependent: quality gate
+  ttl30                DIFFERENT text -> lossy or placement-dependent: quality gate
+  ttl5                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  dump                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  expdec-swiglu        DIFFERENT text -> lossy or placement-dependent: quality gate
+  nodefer              DIFFERENT text -> lossy or placement-dependent: quality gate
+  nodefer+ic-warm32    DIFFERENT text -> lossy or placement-dependent: quality gate
+  nodefer+ic-warm64    DIFFERENT text -> lossy or placement-dependent: quality gate

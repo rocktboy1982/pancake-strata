@@ -1,0 +1,12 @@
+{"mode": "default", "cache": "warm", "waited_s": 0.0, "start_s": 51.52, "cached_peak_gib": 7.4, "avail_min_gib": 18.23, "psi_some_s": 0.0, "psi_full_s": 0.0, "loader": null, "why": "16.8 GiB available, 33.0 GiB of arena, 36.5 GiB of files: the file cache cannot keep them", "rep": 0, "after": null}
+
+mode      cache  n     start mean [min-max] s load GiB/s psi some psi full cache +GiB avail min  loader
+default   warm   1     51.5 [51.5-51.5]                 n/a     0.00     0.00        7.4      18.2  ?
+{"mode": "default", "cache": "warm", "waited_s": 600.0, "start_s": null, "cached_peak_gib": 0.01, "avail_min_gib": 18.16, "psi_some_s": 0.0, "psi_full_s": 0.0, "loader": null, "why": null, "rep": 0, "after": null}
+
+mode      cache  n     start mean [min-max] s load GiB/s psi some psi full cache +GiB avail min  loader
+default   warm   1      n/a [n/a-n/a]                   n/a     0.00     0.00        0.0      18.2  ?
+{"mode": "default", "cache": "warm", "waited_s": 600.0, "start_s": null, "cached_peak_gib": 0.01, "avail_min_gib": 18.2, "psi_some_s": 0.0, "psi_full_s": 0.0, "loader": null, "why": null, "rep": 0, "after": null}
+
+mode      cache  n     start mean [min-max] s load GiB/s psi some psi full cache +GiB avail min  loader
+default   warm   1      n/a [n/a-n/a]                   n/a     0.00     0.00        0.0      18.2  ?

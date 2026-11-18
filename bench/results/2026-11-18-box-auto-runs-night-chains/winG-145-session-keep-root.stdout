@@ -1,0 +1,28 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 113.5 short 93.8 edit 97.9 edit 173.7  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1979/1249 MHz 54C 158W gtt 21M cpu 3620MHz 49C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 keep-root            short 98.4 short 100.7 edit 142.4 edit 169.4  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2052/1249 MHz 54C 156W gtt 21M cpu 4019MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 92.2 short 109.2 edit 120.1 edit 132.3  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2075/1249 MHz 54C 129W gtt 21M cpu 3740MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    103.7 +- 125.2  (n=2)
+                              drafts accepted 0.71
+  short  keep-root                99.6 +-  14.6  (n=2)   vs base:  -4.0% +- 134.9%  -> no difference
+                              drafts accepted 0.69
+  short  base-late               100.7 +- 108.0  (n=2)   vs base:  -2.8% +- 225.0%  -> no difference
+                              drafts accepted 0.75
+  edit   base                    135.8 +- 481.7  (n=2)
+                              drafts accepted 0.82
+  edit   keep-root               155.9 +- 171.6  (n=2)   vs base: +14.8% +- 228.4%  -> no difference
+                              drafts accepted 0.92
+  edit   base-late               126.2 +-  77.5  (n=2)   vs base:  -7.1% +- 297.6%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  keep-root            DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -2.8%  edit -7.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  keep-root            short -2.6%  edit +19.0%  -> PROMOTE to confirm

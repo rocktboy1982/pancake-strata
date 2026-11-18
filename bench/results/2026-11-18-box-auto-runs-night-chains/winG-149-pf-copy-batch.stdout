@@ -1,0 +1,36 @@
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pf-ahead             short 121.1 short 112.5 edit 171.4 edit 192.8  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1999/1249 MHz 54C 157W gtt 21M cpu 3992MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pf-ahead-batch4      short 121.2 short 112.5 edit 171.6 edit 192.3  foreign CPU 4% [('pipewire', 2), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2009/1249 MHz 55C 158W gtt 21M cpu 3849MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 pf-ahead-batch16     short 121.2 short 112.6 edit 169.5 edit 192.9  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2013/1249 MHz 56C 158W gtt 21M cpu 3833MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 120.3 short 112.4 edit 171.8 edit 192.7  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2029/1249 MHz 56C 160W gtt 21M cpu 4012MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  pf-ahead                116.8 +-  54.7  (n=2)
+                              drafts accepted 0.72
+  short  pf-ahead-batch4         116.8 +-  55.3  (n=2)   vs pf-ahead:  +0.0% +-  0.5%  -> no difference
+                              drafts accepted 0.72
+  short  pf-ahead-batch16        116.9 +-  54.7  (n=2)   vs pf-ahead:  +0.1% +-  0.0%  -> better
+                              drafts accepted 0.72
+  short  base                    116.3 +-  50.2  (n=2)   vs pf-ahead:  -0.4% +-  3.8%  -> no difference
+                              drafts accepted 0.72
+  edit   pf-ahead                182.1 +- 136.0  (n=2)
+                              drafts accepted 0.90
+  edit   pf-ahead-batch4         181.9 +- 131.5  (n=2)   vs pf-ahead:  -0.1% +-  2.4%  -> no difference
+                              drafts accepted 0.90
+  edit   pf-ahead-batch16        181.2 +- 148.7  (n=2)   vs pf-ahead:  -0.5% +-  7.0%  -> no difference
+                              drafts accepted 0.90
+  edit   base                    182.2 +- 132.8  (n=2)   vs pf-ahead:  +0.1% +-  1.7%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  pf-ahead-batch4      identical on every case -> exact
+  pf-ahead-batch16     identical on every case -> exact
+  base                 identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  pf-ahead-batch4      short +0.0%  edit -0.1%  -> PROMOTE to confirm
+  pf-ahead-batch16     short +0.1%  edit -0.5%  -> PROMOTE to confirm
+  base                 short -0.4%  edit +0.1%  -> PROMOTE to confirm

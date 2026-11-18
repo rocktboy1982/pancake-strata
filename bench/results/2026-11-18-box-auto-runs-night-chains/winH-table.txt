@@ -1,0 +1,5 @@
+file                   arm    short               edit                long1k              long3k            
+baseline               base   116.3               180.6               645.7               1101.6            
+baseline               base-again 116.3 (-0.0%)       179.3 (-0.7%)       649.0 (+0.5%)       1104.6 (+0.3%)    
+short, edit = decode tok/s; long1k, long3k = prompt tok/s; (+x%) = against the base arm of winH-baseline;
+the base-again row of the same file is that file's noise floor: a step counts only above it.

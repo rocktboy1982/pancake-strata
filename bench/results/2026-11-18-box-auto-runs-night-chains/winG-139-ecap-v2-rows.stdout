@@ -1,0 +1,52 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 120.7 short 112.6 edit 167.9 edit 189.5  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('kcompactd0', 1)]  gpu 2000/1249 MHz 54C 156W gtt 21M cpu 3835MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 rows3                short 116.0 short 113.9 edit 109.9 edit 156.3  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2054/1249 MHz 55C 154W gtt 21M cpu 4070MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 rows3-all            short 116.1 short 114.3 edit 111.4 edit 148.7  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2051/1249 MHz 55C 154W gtt 21M cpu 3921MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 rows5                short 111.6 short 91.8 edit 90.3 edit 120.3  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2001/1249 MHz 55C 146W gtt 21M cpu 3682MHz 53C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 minp05               short 107.8 short 104.8 edit 107.1 edit 151.5  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 1974/1249 MHz 55C 153W gtt 21M cpu 3543MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 115.1 short 106.7 edit 166.2 edit 186.2  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2052/1249 MHz 56C 166W gtt 21M cpu 3935MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.7 +-  51.5  (n=2)
+                              drafts accepted 0.72
+  short  rows3                   115.0 +-  13.3  (n=2)   vs base:  -1.5% +- 32.7%  -> no difference
+                              drafts accepted 0.74
+  short  rows3-all               115.2 +-  11.4  (n=2)   vs base:  -1.2% +- 34.3%  -> no difference
+                              drafts accepted 0.74
+  short  rows5                   101.7 +- 125.8  (n=2)   vs base: -12.8% +- 63.7%  -> no difference
+                              drafts accepted 0.74
+  short  minp05                  106.3 +-  19.1  (n=2)   vs base:  -8.9% +- 27.8%  -> no difference
+                              drafts accepted 0.73
+  short  base-late               110.9 +-  53.4  (n=2)   vs base:  -4.9% +-  1.6%  -> worse
+                              drafts accepted 0.72
+  edit   base                    178.7 +- 137.3  (n=2)
+                              drafts accepted 0.89
+  edit   rows3                   133.1 +- 294.9  (n=2)   vs base: -25.5% +- 88.2%  -> no difference
+                              drafts accepted 0.91
+  edit   rows3-all               130.1 +- 237.0  (n=2)   vs base: -27.2% +- 55.8%  -> no difference
+                              drafts accepted 0.90
+  edit   rows5                   105.3 +- 190.7  (n=2)   vs base: -41.1% +- 29.9%  -> worse
+                              drafts accepted 0.90
+  edit   minp05                  129.3 +- 282.2  (n=2)   vs base: -27.6% +- 81.1%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               176.2 +- 127.1  (n=2)   vs base:  -1.4% +-  5.7%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  rows3                DIFFERENT text -> lossy or placement-dependent: quality gate
+  rows3-all            DIFFERENT text -> lossy or placement-dependent: quality gate
+  rows5                DIFFERENT text -> lossy or placement-dependent: quality gate
+  minp05               DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -4.9%  edit -1.4%
+  rows3                short +1.0%  edit -25.0%  -> drop
+  rows3-all            short +1.3%  edit -26.7%  -> drop
+  rows5                short -10.6%  edit -40.7%  -> drop
+  minp05               short -6.6%  edit -27.1%  -> drop

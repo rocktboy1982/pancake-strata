@@ -1,0 +1,41 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 17ee10fbcde0, target 32000 tokens (a unique run line is prepended to every request)
+  WARNING: only 10 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 base                 longdec10k 115.5/2198p 10366t longdec32k 107.2/2697p 31465t longdec10k 104.5/2213p 10366t longdec32k 111.4/2722p 31465t longdec10k 108.6/2226p 10366t longdec32k 104.7/2734p 31465t  foreign CPU 4% [('kswapd0', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2002/1249 MHz 63C 176W gtt 25M cpu 3149MHz 64C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 attn-qmajor          longdec10k 72.8/2195p 10367t longdec32k 66.8/2695p 31466t longdec10k 106.0/2207p 10367t longdec32k 73.4/2720p 31466t longdec10k 103.6/2223p 10367t longdec32k 76.7/2687p 31466t  foreign CPU 5% [('kcompactd0', 9), ('pipewire', 1), ('kworker/0:0-events_freezable', 1)]  gpu 2028/1249 MHz 64C 188W gtt 25M cpu 3040MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 attn-qmajor          longdec10k 58.8/2176p 10367t longdec32k 101.3/2620p 31466t longdec10k 109.2/2104p 10367t longdec32k 104.8/2719p 31466t longdec10k 111.6/2137p 10367t longdec32k 108.5/2733p 31466t  foreign CPU 6% [('kcompactd0', 11), ('kworker/0:0-events', 3), ('pipewire', 1)]  gpu 1974/1249 MHz 63C 172W gtt 25M cpu 3128MHz 65C igpu 0%/vcn 0% fclk 1600
+rep 0 attn-qmajor: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 0 attn-qmajor          longdec10k 112.3/2174p 10367t longdec32k 104.0/2692p 31466t longdec10k 107.0/2186p 10367t longdec32k 111.4/2721p 31466t longdec10k 106.2/2192p 10367t longdec32k 102.8/2734p 31466t  foreign CPU 4% [('kcompactd0', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2045/1249 MHz 65C 187W gtt 25M cpu 3286MHz 64C igpu 0%/vcn 0% fclk 1600
+rep 1 attn-qmajor: slow start (more than 8.75% below the arm's other starts): run again
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 attn-qmajor          longdec10k 110.2/2174p 10367t longdec32k 104.7/2692p 31466t longdec10k 115.0/2194p 10367t longdec32k 107.1/2720p 31466t longdec10k 97.6/2209p 10367t longdec32k 101.8/2721p 31466t  foreign CPU 7% [('claude', 20), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2009/1249 MHz 65C 184W gtt 25M cpu 3172MHz 64C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31437 prompt tokens by count_tokens (target 32000)
+rep 1 base                 longdec10k 101.0/2172p 10367t longdec32k 103.0/2693p 31466t longdec10k 108.0/2167p 10367t longdec32k 107.0/2721p 31466t longdec10k 103.6/2197p 10367t longdec32k 105.3/2704p 31466t  foreign CPU 4% [('kcompactd0', 3), ('claude', 1), ('pipewire', 1)]  gpu 2026/1249 MHz 65C 193W gtt 25M cpu 3305MHz 64C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 2 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  attn-qmajor          rep 0 attempt 0 slow start (means): longdec10k 94.1, longdec32k 72.3
+  attn-qmajor          rep 1 attempt 0 slow start (means): longdec10k 93.2, longdec32k 104.9
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  longdec10k base                    106.9 +-   7.4  (n=6)
+  longdec10k attn-qmajor             108.0 +-   8.8  (n=6)   vs base:  +1.1% +-  8.2%  -> no difference
+  longdec32k base                    106.4 +-   4.2  (n=6)
+  longdec32k attn-qmajor             105.3 +-   5.1  (n=6)   vs base:  -1.1% +-  2.8%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  attn-qmajor          identical on every case -> exact

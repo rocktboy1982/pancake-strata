@@ -1,0 +1,49 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 base                 long3k 60.6/930p 2893t short 60.4 edit 56.0 long3k 60.7/933p 2893t short 61.0 edit 55.9 long3k 63.4/934p 2893t short 61.3 edit 54.3  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 3), ('claude', 2)]  gpu 2085/1249 MHz 54C 111W gtt 21M cpu 3587MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 12 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 7% [('kcompactd0', 4), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 3.8%
+  quiet after 10 s
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 prompt-swaps-4096    long3k 62.0/931p 2893t short 60.8 edit 56.3 long3k 63.2/933p 2893t short 61.3 edit 55.8 long3k 62.7/932p 2893t short 62.2 edit 55.9  foreign CPU 6% [('pipewire', 2), ('claude', 2), ('gnome-remote-de', 1)]  gpu 2087/1249 MHz 56C 112W gtt 21M cpu 3615MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 prompt-swaps-nocap   long3k 63.5/930p 2894t short 60.9 edit 56.9 long3k 62.4/934p 2894t short 61.0 edit 54.0 long3k 62.8/934p 2894t short 61.1 edit 55.7  foreign CPU 6% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 2085/1249 MHz 58C 112W gtt 21M cpu 3532MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 0 q36-swiglu-skim-001  long3k 64.3/929p 2894t short 61.7 edit 56.7 long3k 63.3/934p 2894t short 60.4 edit 55.9 long3k 61.0/933p 2894t short 61.4 edit 55.4  foreign CPU 7% [('gnome-remote-de', 3), ('pipewire', 3), ('claude', 2)]  gpu 2086/1249 MHz 60C 114W gtt 21M cpu 3620MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 1 q36-swiglu-skim-001  long3k 62.7/929p 2894t short 61.8 edit 56.7 long3k 63.1/934p 2894t short 62.6 edit 56.1 long3k 63.1/935p 2894t short 60.4 edit 56.2  foreign CPU 6% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 2)]  gpu 2086/1249 MHz 60C 113W gtt 21M cpu 3681MHz 54C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 1 prompt-swaps-nocap   long3k 61.1/931p 2894t short 60.5 edit 54.2 long3k 63.0/933p 2894t short 59.0 edit 53.6 long3k 61.0/934p 2894t short 60.0 edit 56.0  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 3), ('localsearch-3', 1)]  gpu 2080/1249 MHz 61C 116W gtt 21M cpu 3606MHz 55C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 1 prompt-swaps-4096    long3k 61.1/929p 2894t short 62.3 edit 55.2 long3k 60.9/934p 2894t short 59.6 edit 53.7 long3k 61.4/933p 2894t short 60.5 edit 53.8  foreign CPU 7% [('pipewire', 3), ('gnome-remote-de', 3), ('claude', 2)]  gpu 2081/1249 MHz 62C 117W gtt 21M cpu 3705MHz 55C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2867 prompt tokens by count_tokens (target 3000)
+rep 1 base                 long3k 61.4/930p 2894t short 60.5 edit 54.5 long3k 60.4/934p 2894t short 60.4 edit 54.7 long3k 61.2/934p 2894t short 59.9 edit 54.2  foreign CPU 6% [('pipewire', 3), ('gnome-remote-de', 3), ('claude', 2)]  gpu 2081/1249 MHz 62C 116W gtt 21M cpu 3594MHz 55C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 0 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long3k base                    932.4 +-   3.0  (n=6)
+  long3k prompt-swaps-4096       932.1 +-   2.5  (n=6)   vs base:  -0.0% +-  0.1%  -> no difference
+  long3k prompt-swaps-nocap      932.7 +-   2.5  (n=6)   vs base:  +0.0% +-  0.1%  -> no difference
+  long3k q36-swiglu-skim-001     932.2 +-   3.8  (n=6)   vs base:  -0.0% +-  0.1%  -> no difference
+  short  base                     60.6 +-   0.7  (n=6)
+  short  prompt-swaps-4096        61.1 +-   1.5  (n=6)   vs base:  +0.9% +-  2.0%  -> no difference
+  short  prompt-swaps-nocap       60.4 +-   1.2  (n=6)   vs base:  -0.3% +-  1.5%  -> no difference
+  short  q36-swiglu-skim-001      61.4 +-   1.2  (n=6)   vs base:  +1.3% +-  2.4%  -> no difference
+  edit   base                     54.9 +-   1.2  (n=6)
+  edit   prompt-swaps-4096        55.1 +-   1.6  (n=6)   vs base:  +0.3% +-  2.4%  -> no difference
+  edit   prompt-swaps-nocap       55.1 +-   1.9  (n=6)   vs base:  +0.2% +-  3.9%  -> no difference
+  edit   q36-swiglu-skim-001      56.2 +-   0.7  (n=6)   vs base:  +2.2% +-  2.2%  -> better
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  prompt-swaps-4096    DIFFERENT text -> lossy or placement-dependent: quality gate
+  prompt-swaps-nocap   DIFFERENT text -> lossy or placement-dependent: quality gate
+  q36-swiglu-skim-001  DIFFERENT text -> lossy or placement-dependent: quality gate

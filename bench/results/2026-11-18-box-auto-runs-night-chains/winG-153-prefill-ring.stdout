@@ -1,0 +1,30 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 cc86179c48f0, target 64000 tokens (a unique run line is prepended to every request)
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 ring192              long3k 91.5/640p 2933t long64k 70.5/1672p 65192t  foreign CPU 4% [('kcompactd0', 2), ('claude', 2), ('pipewire', 1)]  gpu 2025/1249 MHz 59C 213W gtt 25M cpu 3322MHz 62C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 ring96               long3k 88.1/716p 2933t long64k 76.8/1685p 65192t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1861/1249 MHz 59C 191W gtt 25M cpu 3218MHz 64C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long64k: 65168 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            long3k 95.3/975p 2933t long64k 88.4/2249p 65192t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2015/1249 MHz 61C 205W gtt 25M cpu 3175MHz 62C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  long3k ring192                 639.5 +-   nan  (n=1)
+  long3k ring96                  716.2 +-   nan  (n=1)   vs ring192: +12.0% +-  nan%  -> no difference
+  long3k base-late               975.4 +-   nan  (n=1)   vs ring192: +52.5% +-  nan%  -> no difference
+  long64k ring192                1671.9 +-   nan  (n=1)
+  long64k ring96                 1684.7 +-   nan  (n=1)   vs ring192:  +0.8% +-  nan%  -> no difference
+  long64k base-late              2249.1 +-   nan  (n=1)   vs ring192: +34.5% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ring96               identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): long3k +52.5%  long64k +34.5%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  ring96               long3k -11.3%  long64k -14.1%  -> drop

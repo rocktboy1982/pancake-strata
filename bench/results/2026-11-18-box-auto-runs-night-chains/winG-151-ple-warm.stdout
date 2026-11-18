@@ -1,0 +1,22 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ple-mmap             short 115.4 short 112.5  foreign CPU 3% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2062/1249 MHz 54C 167W gtt 21M cpu 3839MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ple-mmap-warm        short 100.5 short 81.7  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2062/1249 MHz 54C 168W gtt 21M cpu 3797MHz 48C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 118.0 short 110.8  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2063/1249 MHz 54C 163W gtt 21M cpu 4165MHz 48C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  ple-mmap                114.0 +-  18.4  (n=2)
+                              drafts accepted 0.72
+  short  ple-mmap-warm            91.1 +- 119.5  (n=2)   vs ple-mmap: -20.1% +- 88.7%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               114.4 +-  45.8  (n=2)   vs ple-mmap:  +0.4% +- 24.0%  -> no difference
+                              drafts accepted 0.72
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ple-mmap-warm        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.4%
+  ple-mmap-warm        short -20.2%  -> drop

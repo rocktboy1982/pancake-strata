@@ -1,0 +1,40 @@
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 121.2 short 112.4 edit 157.5 edit 193.4  foreign CPU 6% [('kcompactd0', 7), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2009/1249 MHz 55C 155W gtt 21M cpu 3914MHz 51C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 14 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 118.2 short 108.6 edit 166.3 edit 193.4  foreign CPU 4% [('udisksd', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1812/1249 MHz 55C 146W gtt 21M cpu 3791MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 13 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  waiting for a quiet machine: load 0.00, foreign CPU 8% [('kcompactd0', 4), ('pipewire', 1), ('gnome-remote-de', 1)], reclaim 4.0%
+  quiet after 15 s
+rep 0 ckpt-async           short 121.1 short 112.5 edit 169.4 edit 194.1  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2024/1249 MHz 56C 159W gtt 21M cpu 3829MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 ckpt-async-slots2    short 121.3 short 112.4 edit 171.0 edit 192.7  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2014/1249 MHz 56C 159W gtt 21M cpu 3866MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 121.2 short 112.4 edit 171.0 edit 192.4  foreign CPU 5% [('claude', 2), ('pipewire', 2), ('gnome-remote-de', 1)]  gpu 2023/1249 MHz 56C 159W gtt 21M cpu 3752MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    113.4 +-  61.0  (n=2)
+                              drafts accepted 0.72
+  short  ckpt-async              116.8 +-  54.7  (n=2)   vs base:  +3.0% +-  5.6%  -> no difference
+                              drafts accepted 0.72
+  short  ckpt-async-slots2       116.8 +-  56.6  (n=2)   vs base:  +3.0% +-  3.9%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               116.8 +-  55.9  (n=2)   vs base:  +3.0% +-  4.5%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    179.9 +- 172.2  (n=2)
+                              drafts accepted 0.90
+  edit   ckpt-async              181.8 +- 157.0  (n=2)   vs base:  +1.1% +-  8.5%  -> no difference
+                              drafts accepted 0.90
+  edit   ckpt-async-slots2       181.8 +- 137.9  (n=2)   vs base:  +1.1% +- 19.1%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               181.7 +- 136.0  (n=2)   vs base:  +1.0% +- 20.1%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ckpt-async           identical on every case -> exact
+  ckpt-async-slots2    identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +3.0%  edit +1.0%
+  ckpt-async           short +1.5%  edit +0.5%  -> PROMOTE to confirm
+  ckpt-async-slots2    short +1.5%  edit +0.6%  -> PROMOTE to confirm

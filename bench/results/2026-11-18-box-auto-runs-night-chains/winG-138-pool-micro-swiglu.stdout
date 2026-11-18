@@ -1,0 +1,28 @@
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 121.4 short 112.4 edit 169.3 edit 193.5  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2002/1249 MHz 54C 156W gtt 21M cpu 3849MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 swiglu-vec           short 79.1 short 107.5 edit 170.0 edit 129.7  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1971/1249 MHz 55C 163W gtt 21M cpu 3588MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 92.8 short 106.0 edit 124.3 edit 163.8  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2050/1249 MHz 54C 168W gtt 21M cpu 4011MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.9 +-  57.2  (n=2)
+                              drafts accepted 0.72
+  short  swiglu-vec               93.3 +- 180.5  (n=2)   vs base: -20.2% +- 203.3%  -> no difference
+                              drafts accepted 0.66
+  short  base-late                99.4 +-  83.9  (n=2)   vs base: -15.0% +- 120.7%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    181.4 +- 153.8  (n=2)
+                              drafts accepted 0.90
+  edit   swiglu-vec              149.8 +- 256.1  (n=2)   vs base: -17.4% +- 226.0%  -> no difference
+                              drafts accepted 0.92
+  edit   base-late               144.1 +- 251.0  (n=2)   vs base: -20.6% +- 53.6%  -> no difference
+                              drafts accepted 0.88
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  swiglu-vec           DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -15.0%  edit -20.6%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  swiglu-vec           short -13.7%  edit -7.9%  -> drop

@@ -1,0 +1,44 @@
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 121.1 short 112.3 edit 169.5 edit 194.0  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2011/1249 MHz 54C 158W gtt 21M cpu 3661MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 all-exact1           short 122.3 short 112.9 edit 171.9 edit 193.5  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('claude', 1)]  gpu 1939/1249 MHz 55C 153W gtt 21M cpu 3937MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 own1                 short 71.4 short 101.6 edit 125.7 edit 192.4  foreign CPU 5% [('claude', 5), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2062/1249 MHz 55C 151W gtt 21M cpu 3764MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 own1-all-exact1      short 109.6 short 100.3 edit 140.6 edit 174.4  foreign CPU 5% [('gnome-remote-de', 2), ('pipewire', 1), ('localsearch-3', 1)]  gpu 1940/1249 MHz 55C 162W gtt 21M cpu 3914MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 94.5 short 107.8 edit 148.3 edit 186.3  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2050/1249 MHz 55C 169W gtt 21M cpu 4134MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.7 +-  55.9  (n=2)
+                              drafts accepted 0.72
+  short  all-exact1              117.6 +-  59.7  (n=2)   vs base:  +0.8% +-  3.3%  -> no difference
+                              drafts accepted 0.72
+  short  own1                     86.5 +- 191.9  (n=2)   vs base: -25.9% +- 212.4%  -> no difference
+                              drafts accepted 0.71
+  short  own1-all-exact1         104.9 +-  59.1  (n=2)   vs base: -10.1% +-  2.7%  -> worse
+                              drafts accepted 0.67
+  short  base-late               101.2 +-  84.5  (n=2)   vs base: -13.3% +- 120.3%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    181.8 +- 155.7  (n=2)
+                              drafts accepted 0.90
+  edit   all-exact1              182.7 +- 137.3  (n=2)   vs base:  +0.5% +- 10.1%  -> no difference
+                              drafts accepted 0.90
+  edit   own1                    159.1 +- 423.9  (n=2)   vs base: -12.5% +- 147.6%  -> no difference
+                              drafts accepted 0.89
+  edit   own1-all-exact1         157.5 +- 214.8  (n=2)   vs base: -13.3% +- 32.5%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               167.3 +- 241.5  (n=2)   vs base:  -8.0% +- 47.2%  -> no difference
+                              drafts accepted 0.87
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  all-exact1           identical on every case -> exact
+  own1                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  own1-all-exact1      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -13.3%  edit -8.0%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  all-exact1           short +8.0%  edit +4.7%  -> PROMOTE to confirm
+  own1                 short -20.6%  edit -8.9%  -> drop
+  own1-all-exact1      short -3.6%  edit -9.8%  -> drop

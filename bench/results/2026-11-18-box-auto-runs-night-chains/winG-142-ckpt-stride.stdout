@@ -1,0 +1,36 @@
+  WARNING: only 20 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 120.9 short 108.9 edit 168.5 edit 193.6  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('kworker/u65:0-KFD IH', 1)]  gpu 2054/1249 MHz 54C 160W gtt 21M cpu 3846MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 stride4k             short 120.5 short 112.6 edit 171.9 edit 192.6  foreign CPU 5% [('udisksd', 2), ('pipewire', 1), ('claude', 1)]  gpu 2031/1249 MHz 55C 159W gtt 21M cpu 3924MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 stride2k             short 120.8 short 112.3 edit 170.9 edit 192.0  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2032/1249 MHz 55C 158W gtt 21M cpu 3799MHz 51C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 120.9 short 112.4 edit 171.2 edit 192.2  foreign CPU 5% [('kcompactd0', 3), ('kworker/2:1-events_freezable', 2), ('pipewire', 1)]  gpu 1954/1249 MHz 56C 153W gtt 21M cpu 3932MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    114.9 +-  76.3  (n=2)
+                              drafts accepted 0.72
+  short  stride4k                116.5 +-  50.2  (n=2)   vs base:  +1.4% +- 22.7%  -> no difference
+                              drafts accepted 0.72
+  short  stride2k                116.5 +-  54.0  (n=2)   vs base:  +1.4% +- 19.4%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               116.7 +-  54.0  (n=2)   vs base:  +1.5% +- 19.4%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    181.1 +- 159.5  (n=2)
+                              drafts accepted 0.90
+  edit   stride4k                182.2 +- 131.5  (n=2)   vs base:  +0.7% +- 15.4%  -> no difference
+                              drafts accepted 0.90
+  edit   stride2k                181.4 +- 134.1  (n=2)   vs base:  +0.2% +- 14.0%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               181.7 +- 133.5  (n=2)   vs base:  +0.4% +- 14.4%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  stride4k             identical on every case -> exact
+  stride2k             identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +1.5%  edit +0.4%
+  stride4k             short +0.7%  edit +0.5%  -> PROMOTE to confirm
+  stride2k             short +0.7%  edit +0.0%  -> PROMOTE to confirm

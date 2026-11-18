@@ -1,0 +1,30 @@
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 117.3 short 116.5 edit 113.1 edit 139.1  foreign CPU 8% [('kcompactd0', 8), ('kworker/0:0-mm_percpu_wq', 2), ('kswapd0', 1)]  gpu 2036/1249 MHz 55C 162W gtt 21M cpu 3873MHz 50C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base                 short 118.5 short 116.7 edit 118.7 edit 148.6  foreign CPU 6% [('kcompactd0', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2059/1249 MHz 56C 165W gtt 21M cpu 3835MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 q2fma2               short 112.7 short 121.3 edit 119.9 edit 138.9  foreign CPU 5% [('kswapd0', 2), ('pipewire', 2), ('kworker/14:0-events', 2)]  gpu 2062/1249 MHz 56C 165W gtt 21M cpu 3901MHz 50C igpu 0%/vcn 0% fclk 1600
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+rep 0 base-late            short 118.4 short 116.5 edit 118.0 edit 148.3  foreign CPU 5% [('pipewire', 2), ('gnome-remote-de', 2), ('claude', 1)]  gpu 2049/1249 MHz 56C 163W gtt 21M cpu 3988MHz 50C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    117.6 +-  11.4  (n=2)
+                              drafts accepted 0.69
+  short  q2fma2                  117.0 +-  54.7  (n=2)   vs base:  -0.5% +- 56.2%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               117.5 +-  12.1  (n=2)   vs base:  -0.1% +-  0.5%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    133.7 +- 190.0  (n=2)
+                              drafts accepted 0.93
+  edit   q2fma2                  129.4 +- 120.7  (n=2)   vs base:  -3.2% +- 51.8%  -> no difference
+                              drafts accepted 0.94
+  edit   base-late               133.2 +- 192.6  (n=2)   vs base:  -0.4% +-  1.9%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  q2fma2               DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.1%  edit -0.4%
+  q2fma2               short -0.4%  edit -3.0%  -> drop
