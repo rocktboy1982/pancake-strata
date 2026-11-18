@@ -1,0 +1,11 @@
+scoring base (a) ...
+scoring base (b) ...
+scoring dq-fast ...
+dq-fast                  PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+    near-tie: top-1 agreement 98.363%, 154 differences, 145 near-ties (margin <= 0.75): FAIL

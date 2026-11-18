@@ -1,0 +1,29 @@
+scoring base (a) ...
+scoring base (b) ...
+scoring standin ...
+scoring route-budget-auto ...
+scoring route-budget ...
+standin                  REJECT
+      0
+     ],
+     "events_p": 0.00137,
+     "event_rule": "REJECT",
+     "verdict": "REJECT"
+    }
+    near-tie: top-1 agreement 92.019%, 751 differences, 388 near-ties (margin <= 0.75): FAIL
+route-budget-auto        REJECT
+      0
+     ],
+     "events_p": 0.00137,
+     "event_rule": "REJECT",
+     "verdict": "REJECT"
+    }
+    near-tie: top-1 agreement 92.019%, 751 differences, 388 near-ties (margin <= 0.75): FAIL
+route-budget             REJECT
+      0
+     ],
+     "events_p": 0.01235,
+     "event_rule": "REJECT",
+     "verdict": "REJECT"
+    }
+    near-tie: top-1 agreement 93.231%, 637 differences, 356 near-ties (margin <= 0.75): FAIL

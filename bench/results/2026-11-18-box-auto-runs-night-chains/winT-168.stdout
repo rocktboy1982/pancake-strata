@@ -1,0 +1,20 @@
+scoring base (a) ...
+scoring base (b) ...
+scoring floor-unfused ...
+scoring f16-1 ...
+floor-unfused            PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+    near-tie: top-1 agreement 98.417%, 149 differences, 136 near-ties (margin <= 0.75): FAIL
+f16-1                    PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+    near-tie: top-1 agreement 98.353%, 155 differences, 146 near-ties (margin <= 0.75): FAIL
