@@ -1,0 +1,35 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 5,
+  "arms": {
+    "base": {},
+    "direct": {
+      "env": {
+        "STRATA_ADAPT_DIRECT_SWAP": "1"
+      }
+    },
+    "unused": {
+      "env": {
+        "STRATA_ADAPT_VICTIM_UNUSED": "1"
+      }
+    },
+    "both": {
+      "env": {
+        "STRATA_ADAPT_DIRECT_SWAP": "1",
+        "STRATA_ADAPT_VICTIM_UNUSED": "1"
+      }
+    },
+    "both-ff70": {
+      "env": {
+        "STRATA_ADAPT_DIRECT_SWAP": "1",
+        "STRATA_ADAPT_VICTIM_UNUSED": "1",
+        "STRATA_ADAPT_FILL_FIRST": "0.7"
+      }
+    }
+  },
+  "note": "Confirm of spec 214. LEADS.md B145 / B146 (owner idea 2026-11-18, MOD_PLAN.md section 6 item 59), coded 2026-11-18: STRATA_ADAPT_VICTIM_UNUSED=1 makes the tier's victim an expert with no use in the last K=4 tier rounds (STRATA_ADAPT_VICTIM_K, never the previous round's; with too few unused residents the baseline victim rule fills the rest, STRATA_ADAPT_VICTIM_FALLBACK=skip would swap less); STRATA_ADAPT_DIRECT_SWAP=1 rewrites the victim's slot with the one copy the baseline already issues and skips the victim's host-page readback (ExpertSource::prefetch). Both are placement / copy-path only (the same math): no quality gate; the drift check is the text hash, which must equal base up to the placement rounding every adaptive-tier spec shows. Offline replay (TEST_LEDGER.md T-951 .. T-954) says the baseline victim is already almost never a recently used expert (share of victims used within the last 1 / 2 / 4 rounds 0.000), so `unused` is expected to be a no-op at the daily cache size; `direct` is a timing effect (the copy path), so judge it on the decode time, not on hits. both-ff70 adds STRATA_ADAPT_FILL_FIRST=0.7, the least harmful earlier placement arm in the replays (T-930 +0.04, T-931 +0.05 points; re-pick it if chain X's spec 212 screen names another winner before chain Y runs). Proof lines in the engine log: 'STRATA_ADAPT_VICTIM_UNUSED=1: ...', 'STRATA_ADAPT_DIRECT_SWAP=1: ...' and 'victim unused: round N, X us per round, picks ..., direct swaps ...' (the overhead and the counts). Stop pancake.service first. Run with --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5."
+}

@@ -29,7 +29,7 @@ DECIDE = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(DECIDE)
 
 SPEC_IDS = [128, 164, 165, 166, 167, 168, 169, 170, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205,
-            206, 207, 208, 209, 210, 211, 212, 213]
+            206, 207, 208, 209, 210, 211, 212, 213, 214, 215]
 ARMS = {192: ["base", "wmma", "wmma-rows"], 164: ["base", "lanecell", "armB"], 203: ["base", "defer", "armB"]}
 PROBES = ["act_f16_probe", "link_touch_probe", "wmma_rate_probe", "int4_wmma_probe", "int4_moe_probe", "attn_fold_probe",
           "raw_buffer_probe", "persist_tape_probe", "persist_layer_parity", "retained_replay_probe", "expdec_bench"]
@@ -593,3 +593,107 @@ def test_chain_t_replay_211_pass2_runs_only_the_favourable_arm(tmp_path):
     assert "START replay 211 rep 2 (sidx-16mib,base)" in text and "START replay 211 rep 3 (base,sidx-16mib)" in text
     assert "sidx-4mib" not in "".join(l for l in lines if "rep 2" in l or "rep 3" in l)
     assert "sidx-4mib: " in text and "dropped after pass 1" in text
+
+
+# ------------------------------------------------------------------------------------------------ tail chain Y (victim-unused / direct-swap)
+def test_y_waiter_name_is_invisible_to_every_busy_pattern(tmp_path):
+    """V's busy() ([A-UW-Z]) and X's ([A-Za-z0-9]*) match any win-chain<letter>.sh: a Y waiter named that way would deadlock both."""
+    box = Box(tmp_path)
+    assert "win-chain" not in "ytail-chainY.sh"
+    for name in ("win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh"):
+        assert busy_result(box, name, ["sh ./ytail-chainY.sh"]) == "IDLE", name
+    assert busy_result(box, "ytail-chainY.sh", ["sh ./win-chainH2.sh"]) == "BUSY"
+    assert busy_result(box, "ytail-chainY.sh", ["sh ./win-chainT.sh"]) == "BUSY"
+    assert busy_result(box, "ytail-chainY.sh", ["python3 tools/pancake/abtest.py x"]) == "BUSY"
+    assert busy_result(box, "ytail-chainY.sh", ["sh ./xtail-chainX.sh"]) == "IDLE"      # X is reached through its marker, not through busy()
+
+
+def prepare_y(box):
+    R = box.R
+    (R / "include" / "strata" / "program").mkdir(parents=True)
+    (R / "include" / "strata" / "program" / "tier_victim.hpp").write_text("// x\n")
+    (R / "src" / "core").mkdir(parents=True)
+    (R / "src" / "core" / "conversation_disk_env.def").write_text('STRATA_ENV("STRATA_ADAPT_VICTIM_UNUSED", Speed, "x")\n')
+    (R / "tools" / "pancake" / "replay_fill_transition.py").write_text("# --requests --victim\n")
+    (R / "bench" / "prefetch").mkdir(parents=True)
+    (R / "bench" / "prefetch" / "routing.bin").write_text("x\n")
+    for n in (214, 215):
+        for f in (R / "bench" / "specs").glob(f"{n}-*.json"):
+            f.write_text(json.dumps({"arms": {"base": {}, "direct": {"env": {"A": "1"}}, "unused": {"env": {"B": "1"}},
+                                                 "both": {"env": {"A": "1", "B": "1"}}, "both-ff70": {"env": {"A": "1", "B": "1", "C": "1"}}},
+                                     "note": "n"}))
+    (box.tmp / "auto-runs").mkdir(exist_ok=True)
+    (box.tmp / "auto-runs" / "after7.log").write_text("QUEUED\n")
+    (box.S / "win-chainV.log").write_text("START\n")
+    (box.S / "xtail-chainX.log").write_text("START\n")
+    (box.tmp / "auto-runs" / "winV-conv").mkdir()
+    for t in ("real4", "real5"):
+        for suf in ("trace", "requests.json", "stwt"):
+            (box.tmp / "auto-runs" / "winV-conv" / f"{t}.{suf}").write_text("x\n")
+
+
+def test_chain_y_waits_for_all_three_markers_then_runs_two_pass(tmp_path):
+    box = Box(tmp_path)
+    prepare_y(box)
+    logs = box.tmp / "auto-runs" / "winY-214-screen"        # the abtest stub writes no engine logs: the proof lines are staged
+    logs.mkdir()
+    (logs / "unused-r1-a0.engine.log").write_text("strata serve: STRATA_ADAPT_VICTIM_UNUSED=1: a victim must have had no use\n")
+    (logs / "direct-r1-a0.engine.log").write_text("strata serve: STRATA_ADAPT_DIRECT_SWAP=1: the victim's slot is rewritten\n")
+    (box.tmp / "clients").write_text("0\n0\n0\n")
+    p = box.start("ytail-chainY.sh", env={"STUB_GAIN": "103"})
+    time.sleep(1.5)
+    assert p.poll() is None and len(box.log("ytail-chainY.log")) == 1
+    append(box, "win-chainV.log", "WINCHAINV_DONE")
+    time.sleep(1.0)
+    assert p.poll() is None and len(box.log("ytail-chainY.log")) == 1          # V alone is not enough
+    (box.tmp / "auto-runs" / "after7.log").open("a").write("AFTER7_DONE\n")
+    time.sleep(1.0)
+    assert p.poll() is None and len(box.log("ytail-chainY.log")) == 1          # nor V + after7: it must not overlap X
+    assert not any(c.startswith("SYSTEMCTL") for c in box.calls())
+    append(box, "xtail-chainX.log", "WINCHAINX_DONE")
+    box.finish(p)
+    lines = box.log("ytail-chainY.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINCHAINY_DONE", lines[-6:]
+    assert_start_end_pairs(lines)
+    assert_service_discipline(box)
+    for must in ("chains V, after7 and X done", "SYNC exit=0", "HEADER tier_victim.hpp + env table entries present: 1; replay tool with --victim: 1",
+                 "BUILD_END build-win exit=0", "END ctest tier_victim", "START replay routing-main", "START replay real4-main",
+                 "START replay real5-slots3000", "START replay real1-chain16a-main", "START 214-screen", "CONFIRM", "START 214-confirm"):
+        assert must in text, must
+    assert text.index("START replay routing-main") < text.index("START 214-screen") < text.index("START 214-confirm")
+    cmake = [c for c in box.calls() if c.startswith("cmake --build")]
+    assert any("tier_victim_test" in c and "strata" in c for c in cmake), cmake
+
+
+def test_chain_y_pass2_drops_arms_without_benefit_and_skips_missing_chain_v_traces(tmp_path):
+    box = Box(tmp_path)
+    prepare_y(box)
+    for f in (box.tmp / "auto-runs" / "winV-conv").iterdir():
+        f.unlink()
+    (box.S / "win-chainV.log").write_text("WINCHAINV_DONE\n")
+    (box.S / "xtail-chainX.log").write_text("WINCHAINX_DONE\n")
+    (box.tmp / "auto-runs" / "after7.log").write_text("AFTER7_DONE\n")
+    (box.tmp / "clients").write_text("0\n0\n0\n")
+    p = box.start("ytail-chainY.sh", env={"STUB_GAIN": "100.2"})      # the last arm is only +0.2 %: below the pass-2 bar
+    box.finish(p)
+    lines = box.log("ytail-chainY.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINCHAINY_DONE"
+    assert "SKIP replays of real4" in text and "SKIP replays of real5" in text and "START replay real1-chain16a-main" in text
+    assert "dropped after pass 1" in text or "NONE" in text
+    assert "START 214-confirm" not in text
+
+
+def test_chain_y_skips_the_engine_steps_when_the_synced_tree_lacks_the_code(tmp_path):
+    box = Box(tmp_path)
+    prepare_y(box)
+    (box.R / "include" / "strata" / "program" / "tier_victim.hpp").unlink()
+    (box.S / "win-chainV.log").write_text("WINCHAINV_DONE\n")
+    (box.S / "xtail-chainX.log").write_text("WINCHAINX_DONE\n")
+    (box.tmp / "auto-runs" / "after7.log").write_text("AFTER7_DONE\n")
+    (box.tmp / "clients").write_text("0\n0\n0\n")
+    box.finish(box.start("ytail-chainY.sh"))
+    text = "\n".join(box.log("ytail-chainY.log"))
+    assert "BUILD SKIPPED: the synced tree has no tier_victim.hpp" in text and "START 214-screen" not in text
+    assert box.log("ytail-chainY.log")[-1] == "WINCHAINY_DONE"

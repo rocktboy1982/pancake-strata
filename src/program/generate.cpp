@@ -124,6 +124,7 @@
 #include "strata/program/swap_budget.hpp"
 #include "strata/program/tier_protect.hpp"
 #include "strata/program/tier_stat_policy.hpp"
+#include "strata/program/tier_victim.hpp"
 #include "strata/program/tier_miss_budget.hpp"
 #include "strata/core/window_trace.hpp"
 #include "strata/core/row_miss.hpp"
@@ -14885,6 +14886,10 @@ int main(int argc, char** argv) {
         strata::program::TierStat tstat = strata::program::TierStat::from_env(
             o.adapt_decay, g.n_layers, g.n_expert, xcache.slots(), xcache.per_layer_admission());
         std::vector<float> tstat_saved;
+        // LEADS.md B145 / B146, STRATA_ADAPT_VICTIM_UNUSED=1 (+ _K, _FALLBACK) / STRATA_ADAPT_DIRECT_SWAP=1 (opt-in,
+        // tier_victim.hpp): the victim must be an expert with no use in the last K tier rounds; the swap rewrites the
+        // victim's slot with one copy and does not read the victim's host pages back ahead.  Placement only.  Off: no change.
+        strata::program::TierVictim tvic = strata::program::TierVictim::from_env(g.n_layers, g.n_expert);
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
         strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
@@ -14941,6 +14946,7 @@ int main(int argc, char** argv) {
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
             if (tstat.on() && !tier_rewarm.now) tstat.observe(drive.d.usage, host_res.data(), o.adapt_decay);   // raw counts, before any transform
+            if (tvic.unused_on() && !tier_rewarm.now) tvic.observe(drive.d.usage, o.adapt_decay);   // STRATA_ADAPT_VICTIM_UNUSED: raw counts, before any transform
             if (clru.on()) { clru_saved = drive.d.usage; clru.transform(drive.d.usage); }   // STRATA_ADAPT_CLASSLRU (restored below)
             if (tpol.on()) { tpol_saved = drive.d.usage; tpol.transform(drive.d.usage, host_res.data()); }   // (restored below)
             const bool tstat_applied = tstat.on() && !tier_rewarm.now;
@@ -14975,8 +14981,12 @@ int main(int argc, char** argv) {
                         vict.erase(std::remove_if(vict.begin(), vict.end(), [&](const std::pair<float, int32_t>& v) {
                             return strata::program::tier_protect_holds(r[v.second], protect_n);
                         }), vict.end());
+                    tvic.order_given(l, vict, cand.size());   // STRATA_ADAPT_VICTIM_UNUSED (off: returns at once)
                     const size_t nc = std::min(cand.size(), vict.size());
-                    for (size_t i = 0; i < nc; ++i) swaps.push_back({cand[i].first, (int32_t) l, cand[i].second, vict[i].second});
+                    for (size_t i = 0; i < nc; ++i) {
+                        swaps.push_back({cand[i].first, (int32_t) l, cand[i].second, vict[i].second});
+                        tvic.note_pick(l, vict[i].second);
+                    }
                     continue;
                 }
                 for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
@@ -14992,14 +15002,20 @@ int main(int argc, char** argv) {
                     for (auto& v : vict)
                         v.first += tier_lru_w * (float) mean_u / (1.0f + (float) (tier_lru_round - last[v.second]));
                 }
+                if (tvic.unused_on()) tvic.arrange(l, vict, cand.size());   // STRATA_ADAPT_VICTIM_UNUSED=1, _FALLBACK=skip: the recently used are no victims
                 if (cand.empty() || vict.empty()) continue;
                 std::sort(cand.begin(), cand.end(), [](auto& a, auto& b) { return a.first > b.first; });
                 const size_t nc = std::min(cand.size(), vict.size());
+                if (tvic.unused_on())   // unused residents first, then the score (the baseline order inside each group)
+                    std::partial_sort(vict.begin(), vict.begin() + (ptrdiff_t) nc, vict.end(),
+                                      [&](auto& a, auto& b) { return tvic.before(l, a, b); });
+                else
                 std::partial_sort(vict.begin(), vict.begin() + (ptrdiff_t) nc, vict.end(),
                                   [](auto& a, auto& b) { return a.first < b.first; });
                 for (size_t i = 0; i < nc; ++i) {
                     if (cand[i].first < vict[i].first + o.adapt_min_gain) break;
                     swaps.push_back({cand[i].first - vict[i].first, (int32_t) l, cand[i].second, vict[i].second});
+                    tvic.note_pick(l, vict[i].second);
                 }
             }
             std::sort(swaps.begin(), swaps.end(), [](const Swap& a, const Swap& b) { return a.gain > b.gain; });
@@ -15101,7 +15117,8 @@ int main(int argc, char** argv) {
                     cp_bytes.push_back((size_t) strata::kernels::cpu::expert_layout().blob_bytes(s.layer));
                     main_live = true;
                     host_res[out] = strata::core::kNotResident;
-                    srcp->prefetch(s.layer, s.out);
+                    if (tvic.direct_on()) tvic.note_direct();   // STRATA_ADAPT_DIRECT_SWAP: the victim's pages are not read back ahead
+                    else srcp->prefetch(s.layer, s.out);
                     pending.emplace_back((int32_t) in, slot);
                     if (!drive.d.in_flight.empty()) drive.d.in_flight[in] = 1;   // STRATA_ADAPT_FETCH leaves it alone
                     continue;
@@ -15124,7 +15141,8 @@ int main(int argc, char** argv) {
                 if (gs) gs->adapt_live = true;
                 else main_live = true;
                 host_res[out] = strata::core::kNotResident;   // evicted now: the CPU computes it meanwhile
-                srcp->prefetch(s.layer, s.out);   // a file-backed arena released its pages: read them back ahead
+                if (tvic.direct_on()) tvic.note_direct();   // STRATA_ADAPT_DIRECT_SWAP: one copy over the slot, no readback of the victim
+                else srcp->prefetch(s.layer, s.out);   // a file-backed arena released its pages: read them back ahead
                 pending.emplace_back((int32_t) in, slot);      // resident once the copy has landed
                 if (layered && (si + 1 == swaps.size() || swaps[si + 1].layer != s.layer)) {   // STRATA_ADAPT_LAYERWAIT
                     cudaEvent_t& ev = layer_ev[(size_t) s.layer];
@@ -15210,6 +15228,7 @@ int main(int argc, char** argv) {
             // #477: the routing counted since the start (each count adds up to 1 / (1 - --adapt-decay) over its
             // decays: the sum is proportional to the routing itself) - only with --expert-profile-save, else `heat`
             // is empty
+            tvic.maybe_log();   // STRATA_ADAPT_VICTIM_UNUSED (nothing when off)
             if (tstat_applied) { drive.d.usage.swap(tstat_saved); tstat.maybe_log(); }   // STRATA_ADAPT_FILL_FIRST / _TRANSITION: the counts back
             if (tpol.on()) drive.d.usage.swap(tpol_saved);   // STRATA_ADAPT_SIEVE/_FORECAST/_LEARNED: the counts back
             if (clru.on()) drive.d.usage.swap(clru_saved);   // STRATA_ADAPT_CLASSLRU: the raw counts back before heat/decay

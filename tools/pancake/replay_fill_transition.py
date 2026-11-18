@@ -17,10 +17,16 @@ Variants (a name is a '+'-joined list):
   pmw        the REAL STRATA_ADAPT_PROB_MASS: each entry counts router weight x k (expert_source.cpp); a window without
              weights counts +1 as the engine does.  Needs a trace with nonzero weights: --stwt FILE (a STRATA_WINDOW_TRACE with
              STRATA_WINDOW_TRACE_WEIGHTS=1, matched to the dump by ids) or a dump whose weight column is nonzero
+  vu:K       STRATA_ADAPT_VICTIM_UNUSED=1 with K rounds (include/strata/program/tier_victim.hpp): the victim must have had no use in
+             the last K tier rounds; the unused residents go first (lowest score first), the used ones only fill what is left
+             (fallback "rule").  vus:K is the same with fallback "skip": only as many swaps as there are unused victims
   tr:W       STRATA_ADAPT_TRANSITION=W (its own switch detector, as the engine runs it)
   trb:W      like tr:W, plus the sidecar's true conversation switch fed to the learner as TierStat::boundary() (the engine
              never calls boundary() today: this is the upper bound of a switch signal)
-  ff:F+tr:W, ff:F+pm, tr:W+pm, ff:F+tr:W+pmw ...
+  ff:F+tr:W, ff:F+pm, tr:W+pm, ff:F+tr:W+pmw, ff:F+vu:K, vu:K+pmw ...
+
+STRATA_ADAPT_DIRECT_SWAP is a copy-path change (no readback of the victim's host pages): it moves no expert, so it has no hit-rate
+twin here.  --victim adds the vu / vus variants (alone and with ff / tr / pm / pmw) to the list.
 
 With --requests REQUESTS.json (conv_trace.py's sidecar: end_record, conv per turn) every window gets its turn and conversation;
 a conversation switch is a turn whose conversation differs from the previous turn's.  A third table then gives the share in the
@@ -157,9 +163,76 @@ class Stat:
             u[l] += np.where(res_bool[l], self.w * self.scale * p, 0.0)
 
 
+class VictimUnused:
+    """tier_victim.hpp in numpy: an expert is `recent` when it was used (its count rose over last value x decay) within the last K
+    rounds, the latest round counting as the first."""
+
+    def __init__(self, nl, ne, k):
+        self.k = int(k)
+        self.last_raw = None
+        self.last_used = np.full((nl, ne), -(1 << 30), np.int64)
+        self.round = 0
+
+    def observe(self, raw, decay):
+        if self.last_raw is None:
+            self.last_raw = np.zeros_like(raw)
+        self.round += 1
+        used = raw > self.last_raw * decay + 1e-6
+        self.last_raw = raw.copy()
+        self.last_used[used] = self.round
+
+    @property
+    def recent(self):
+        return self.recent_k(self.k)
+
+    def recent_k(self, k):
+        return (self.round - self.last_used) < int(k)
+
+
+PROBE_KS = (1, 2, 4, 8)
+
+
+def adapt_round_vu(res, usage, pol, recent, skip, stats, probe=None):
+    """replay_cache_policy.adapt_round with the victim order of tier_victim.hpp: unused residents first (then the score); skip
+    drops the recently used ones.  stats: picks, recent_picks, skipped (candidates left without a victim).  probe: a VictimUnused whose
+    K = 1 2 4 8 histories count the picked victims that were recently used (stats["probe"][K]): a diagnostic for ANY victim rule."""
+    sw = []
+    for l in range(R.NL):
+        u = usage[l]
+        r = res[l]
+        cand = np.flatnonzero(~r & (u >= pol.mincand))
+        vict = np.flatnonzero(r)
+        if skip:
+            before = min(len(cand), len(vict))
+            vict = vict[~recent[l, vict]]
+            stats["skipped"] += before - min(len(cand), len(vict))
+        if len(cand) == 0 or len(vict) == 0:
+            continue
+        cand = cand[np.argsort(-u[cand], kind="stable")]
+        vict = vict[np.lexsort((u[vict], recent[l, vict]))]       # recent (False first), then the score
+        n = min(len(cand), len(vict))
+        gain = u[cand[:n]] - u[vict[:n]]
+        ok = u[cand[:n]] >= u[vict[:n]] + pol.margin
+        bad = np.flatnonzero(~ok)
+        n2 = int(bad[0]) if len(bad) else n
+        for i in range(n2):
+            sw.append((gain[i], l, int(cand[i]), int(vict[i])))
+    sw.sort(key=lambda t: -t[0])
+    sw = [t for t in sw if t[0] >= pol.mingain][: pol.swaps]
+    for g, l, i, o in sw:
+        stats["picks"] += 1
+        stats["recent_picks"] += int(recent[l, o])
+        if probe is not None:
+            for k in PROBE_KS:
+                stats["probe"][k] += int(probe.recent_k(k)[l, o])
+        res[l, i] = True
+        res[l, o] = False
+    return len(sw)
+
+
 def parse(name):
     """'ff:0.5+tr:2+pm' -> dict."""
-    cfg = {"pm": False, "pmw": False, "ff": 0.0, "ffs": 0.0, "thr": 1.0, "ffe": 0.0, "tr": 0.0, "trb": False, "lru": False}
+    cfg = {"pm": False, "pmw": False, "ff": 0.0, "ffs": 0.0, "thr": 1.0, "ffe": 0.0, "tr": 0.0, "trb": False, "lru": False, "vu": 0.0, "vus": 0.0}
     for part in name.split("+"):
         if part == "base":
             continue
@@ -174,7 +247,7 @@ def parse(name):
     return cfg
 
 
-def simulate(windows, init, slots, pol, cfg, nl=R.NL, ne=R.NE, pm_r=0.7, lru_decay=0.05, k=10, weights=None, boundaries=()):
+def simulate(windows, init, slots, pol, cfg, nl=R.NL, ne=R.NE, pm_r=0.7, lru_decay=0.05, k=10, weights=None, boundaries=(), with_probe=False):
     """weights: list parallel to windows, each None or {layer: float array shaped like that layer's ids} (for pmw);
     boundaries: window indexes where a new conversation starts (fed to the learner by trb)."""
     decay = lru_decay if cfg["lru"] else pol.decay
@@ -192,6 +265,10 @@ def simulate(windows, init, slots, pol, cfg, nl=R.NL, ne=R.NE, pm_r=0.7, lru_dec
         res[:] = False
         core = init[:core_n]
         res[core[:, 0], core[:, 1]] = True
+    vk = int(cfg["vu"] or cfg["vus"])
+    vu = VictimUnused(nl, ne, vk) if vk > 0 else None
+    vstats = dict(picks=0, recent_picks=0, skipped=0, rounds=0, probe={k: 0 for k in PROBE_KS})
+    probe = vu if vu is not None else (VictimUnused(nl, ne, 1) if with_probe else None)
     stat = None
     if (f > 0 and not ffe) or cfg["tr"] > 0:  # ff / ffs: placeholders
         stat = Stat(nl, ne, decay, core_n=core_n if (f > 0 and not ffe) else 0, trans_w=cfg["tr"])
@@ -229,6 +306,9 @@ def simulate(windows, init, slots, pol, cfg, nl=R.NL, ne=R.NE, pm_r=0.7, lru_dec
             raw = usage.copy()
             slot = np.where(res, np.where(slotidx >= 0, slotidx, 1 << 30), -1)   # (only the first round reads the slot order)
             u = raw
+            if probe is not None:
+                probe.observe(raw, decay)
+                vstats["rounds"] += 1
             if stat is not None:
                 stat.observe(raw, slot, decay, boundary=bpend and bool(cfg["trb"]))
                 u = raw.copy()
@@ -255,11 +335,15 @@ def simulate(windows, init, slots, pol, cfg, nl=R.NL, ne=R.NE, pm_r=0.7, lru_dec
                 uu[~full] = 0.0           # layers with room: no swap, only fills
                 u = uu
             p2 = R.Policy(every=pol.every, decay=pol.decay, swaps=max(budget, 0), margin=pol.margin, mincand=pol.mincand)
-            swaps += R.adapt_round(res, u, p2) if budget > 0 else 0
+            if budget > 0 and probe is not None:
+                none = np.zeros((nl, ne), bool)
+                swaps += adapt_round_vu(res, u, p2, vu.recent if vu is not None else none, cfg["vus"] > 0, vstats, probe)
+            else:
+                swaps += R.adapt_round(res, u, p2) if budget > 0 else 0
             usage *= pol.decay
             bpend = False
     return dict(hits=hits, ents=ents, dh=dh, dn=dn, swaps=swaps / len(windows),
-                tstat_rounds=stat.rounds if stat else 0, switch_s=stat.s if stat else 0.0)
+                tstat_rounds=stat.rounds if stat else 0, switch_s=stat.s if stat else 0.0, vstats=vstats if probe is not None else None)
 
 
 def load_dump(path, nl=None):
@@ -402,6 +486,15 @@ def default_variants(f=0.7, w=2.0, weighted=False, boundaries=False):
     return v
 
 
+def victim_variants(k_list=(1, 2, 4, 8), f=0.7, w=2.0, weighted=False):
+    """The owner idea 2026-11-18: unused-victim rule alone for K = 1 2 4 8 (rule and skip fallback at K = 4) and with the earlier rules."""
+    v = [f"vu:{k}" for k in k_list] + ["vus:1", "vus:4", f"ff:{f}+vu:4", f"tr:{w}+vu:4", "pm+vu:4", f"ff:{f}+tr:{w}+vu:4",
+                                      f"ff:{f}+tr:{w}+pm+vu:4"]
+    if weighted:
+        v += ["pmw+vu:4", f"ff:{f}+pmw+vu:4", f"ff:{f}+tr:{w}+pmw+vu:4"]
+    return v
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("trace")
@@ -409,6 +502,8 @@ def main():
     ap.add_argument("slots", type=int)
     ap.add_argument("--variants", nargs="+", default=None)
     ap.add_argument("--sweep", action="store_true", help="also sweep F in 0.3/0.5/0.7/0.85 and W in 0.5/1/2/4/8")
+    ap.add_argument("--victim", action="store_true", help="also run the unused-victim variants (vu:1/2/4/8, vus, and combined with ff / tr / pm / pmw)")
+    ap.add_argument("--probe", action="store_true", help="with any variant: count how many picked victims were used within K = 1 2 4 8 rounds (how often the rule already evicts a recently used expert)")
     ap.add_argument("--every", type=int, default=4)
     ap.add_argument("--nboot", type=int, default=2000)
     ap.add_argument("--block", type=int, default=8)
@@ -445,6 +540,8 @@ def main():
         names += [f"ff:{f}" for f in (0.3, 0.5, 0.85)] + [f"ffe:{f}" for f in (0.3, 0.5, 0.85)] + [f"tr:{w}" for w in (0.5, 1, 4, 8)]
         if turns:
             names += [f"trb:{w}" for w in (0.5, 1, 4, 8)]
+    if a.victim:
+        names = names + [x for x in victim_variants(weighted=real) if x not in names]
     names = list(dict.fromkeys(names))
     if any(parse(nm)["pmw"] for nm in names) and not real:
         raise SystemExit("pmw needs router weights: pass --stwt (STRATA_WINDOW_TRACE_WEIGHTS=1 recording) or a dump with nonzero weights")
@@ -456,7 +553,7 @@ def main():
             print(f"  turn {t['turn']:2d} conv {t['conv']} ({t['domain']}) first window {t['first']} windows {t['n']}{' SWITCH' if t['switch'] else ''}")
     results = {}
     for nm in names:
-        results[nm] = simulate(windows, init, a.slots, pol, parse(nm), pm_r=a.pm_r, k=k, weights=weights if real else None, boundaries=sw)
+        results[nm] = simulate(windows, init, a.slots, pol, parse(nm), pm_r=a.pm_r, k=k, weights=weights if real else None, boundaries=sw, with_probe=a.probe or a.victim)
     tables = {}
     jobs = [("e", "share of routed entries served", None), ("d", "share of distinct (window, layer) experts served", None)]
     if turns and sw:
@@ -471,6 +568,15 @@ def main():
         for nm in names:
             r = s[nm]
             print(f"{nm:22} {r['share']:7.4f} {r['diff']:+7.2f} {r['lo']:+7.2f} {r['hi']:+7.2f} {r['swaps']:10.2f}")
+    vrows = {nm: results[nm]["vstats"] for nm in names if results[nm].get("vstats")}
+    if vrows:
+        print("\nunused-victim statistics (tier rounds, swaps picked, share of picked victims used within K rounds = the fallback, candidates left without a victim)")
+        print(f"{'variant':22} {'rounds':>7} {'picks':>8} {'recent':>8} {'skipped':>9}   share of victims used within the last K rounds: K=1 K=2 K=4 K=8")
+        for nm, vs in vrows.items():
+            share = vs["recent_picks"] / max(vs["picks"], 1)
+            pr = " ".join(f"{vs['probe'][k] / max(vs['picks'], 1):5.3f}" for k in PROBE_KS)
+            print(f"{nm:22} {vs['rounds']:7d} {vs['picks']:8d} {share:8.3f} {vs['skipped']:9d}   {pr}")
+        tables["victim_stats"] = vrows
     if a.json:
         def clean(o):
             if isinstance(o, dict):

@@ -249,3 +249,95 @@ def test_conv_trace_order_option():
         C.parse_order("AAAA", convs)
     with pytest.raises(SystemExit):
         C.parse_order("AZ", convs)
+
+
+# ---- LEADS.md B145: STRATA_ADAPT_VICTIM_UNUSED (vu / vus), the twin of include/strata/program/tier_victim.hpp ----
+
+def test_parse_victim_variants():
+    assert F.parse("vu:4")["vu"] == 4.0 and F.parse("vus:2")["vus"] == 2.0
+    c = F.parse("ff:0.7+tr:2+pm+vu:4")
+    assert c["vu"] == 4.0 and c["ff"] == 0.7 and c["pm"]
+    assert F.parse("base")["vu"] == 0.0
+
+
+def test_victim_unused_tracker_follows_the_header():
+    vu = F.VictimUnused(1, 8, 2)
+    raw = np.zeros((1, 8))
+    raw[0, [1, 2]] += 1
+    vu.observe(raw, 0.7)
+    assert vu.recent[0, 1] and vu.recent[0, 2] and not vu.recent[0, 3]
+    raw = raw * 0.7
+    raw[0, 1] += 1
+    vu.observe(raw, 0.7)
+    assert vu.recent[0, 1] and vu.recent[0, 2]
+    raw = raw * 0.7
+    raw[0, 4] += 1
+    vu.observe(raw, 0.7)
+    assert not vu.recent[0, 2] and vu.recent[0, 1] and vu.recent[0, 4]       # 2 was last used two rounds ago
+    assert not vu.recent_k(1)[0, 1] and vu.recent_k(1)[0, 4]                 # K = 1: only the latest round
+
+
+def test_adapt_round_vu_without_recency_is_the_baseline_round():
+    rng = np.random.default_rng(3)
+    for _ in range(20):
+        res = np.zeros((NL, NE), bool)
+        for l in range(NL):
+            res[l, rng.choice(NE, 6, replace=False)] = True
+        u = rng.integers(0, 6, size=(NL, NE)).astype(float)
+        a, b = res.copy(), res.copy()
+        pol = R.Policy(every=2, swaps=96)
+        na = R.adapt_round(a, u, pol)
+        nb = F.adapt_round_vu(b, u, pol, np.zeros((NL, NE), bool), False, dict(picks=0, recent_picks=0, skipped=0, probe={}))
+        assert na == nb and (a == b).all()
+
+
+def test_unused_victim_goes_first_even_with_a_higher_score():
+    res = np.zeros((NL, NE), bool)
+    res[0, [0, 1, 2]] = True
+    u = np.zeros((NL, NE))
+    u[0, [0, 1, 2]] = [0.0, 1.0, 2.0]          # 0 is the lowest score but was used in the previous round
+    u[0, 5] = 9.0                              # the candidate
+    recent = np.zeros((NL, NE), bool)
+    recent[0, 0] = True
+    st = dict(picks=0, recent_picks=0, skipped=0, probe={})
+    F.adapt_round_vu(res, u, R.Policy(every=2, swaps=96), recent, False, st)
+    assert res[0, 5] and res[0, 0] and not res[0, 1]      # victim 1 (the lowest unused), not 0
+    assert st["picks"] == 1 and st["recent_picks"] == 0
+
+
+def test_victim_fallback_rule_versus_skip():
+    def one(skip):
+        res = np.zeros((NL, NE), bool)
+        res[0, [0, 1]] = True
+        u = np.zeros((NL, NE))
+        u[0, [0, 1]] = [0.0, 0.5]
+        u[0, 5] = 9.0
+        u[0, 6] = 8.0
+        recent = np.zeros((NL, NE), bool)
+        recent[0, [0, 1]] = True                        # every resident was used recently
+        st = dict(picks=0, recent_picks=0, skipped=0, probe={})
+        n = F.adapt_round_vu(res, u, R.Policy(every=2, swaps=96), recent, skip, st)
+        return n, st, res
+    n, st, res = one(False)
+    assert n == 2 and st["recent_picks"] == 2 and res[0, 5] and res[0, 6]       # rule: the baseline victims
+    n, st, res = one(True)
+    assert n == 0 and st["skipped"] == 2 and not res[0, 5]                       # skip: no swap
+
+
+def test_simulate_victim_variants_and_stats():
+    rng = np.random.default_rng(5)
+    ws = windows_from(lambda wi, l: rng.integers(0, 12, size=(3, K)))(40)
+    base = run(ws, "base")
+    both = F.simulate(ws, init_slots(16), 16, R.Policy(every=2, swaps=96), F.parse("vu:2"), nl=NL, ne=NE, k=K)
+    assert both["vstats"]["rounds"] == 20 and both["vstats"]["picks"] == both["swaps"] * len(ws)
+    sk = F.simulate(ws, init_slots(16), 16, R.Policy(every=2, swaps=96), F.parse("vus:2"), nl=NL, ne=NE, k=K)
+    assert sk["swaps"] <= both["swaps"] and sk["vstats"]["recent_picks"] == 0
+    pr = F.simulate(ws, init_slots(16), 16, R.Policy(every=2, swaps=96), F.parse("base"), nl=NL, ne=NE, k=K, with_probe=True)
+    assert abs(pr["hits"].sum() - base["hits"].sum()) < 1e-9 and pr["vstats"]["picks"] > 0       # the probe changes nothing
+    assert base["vstats"] is None
+
+
+def test_victim_variants_list():
+    names = F.victim_variants()
+    assert "vu:1" in names and "vu:8" in names and "ff:0.7+tr:2.0+vu:4" in names and "pmw+vu:4" not in names
+    assert "pmw+vu:4" in F.victim_variants(weighted=True)
