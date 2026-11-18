@@ -44,6 +44,10 @@ public:
     /// that holds no physical memory of its own is mapped, read-only, to ONE shared zero-filled chunk, so a kernel that reads
     /// beyond the grown cells sees zeros instead of faulting the GPU.  mapped() and mapped_count() count real chunks only.
     bool zero_backed() const { return zero_ != 0; }
+    /// True when STRATA_VMM_ZERO_BACK=1 was set but the zero backing was undone (the start-up read-back or the check after an
+    /// unmap found a chunk that does not read zeros, or an API call failed): the range then works as a plain range, an unmapped
+    /// chunk stays unmapped, and one stderr line says why.  The lever can fall back, it never serves bytes that are not zeros.
+    bool zero_fell_back() const { return zero_fell_back_; }
 
 private:
     bool map_one(int64_t i, VmmChunk h);
@@ -54,8 +58,12 @@ private:
     bool set_access_ro(int64_t lo, int64_t hi);   // read-only [lo, hi)
     bool zero_map(int64_t i);                     // chunk i's addresses -> the shared zero chunk (zero_backed() only)
     void zero_unmap(int64_t i);
+    bool zero_check(int64_t lo, int64_t hi, int64_t* bad_chunk, uint64_t* bad_off, int* bad_val);   // reads zeros (16 B at 3 places per chunk)?
+    bool zero_setup(int64_t n);                   // reserve(): map, clear, read-only, verify; false = nothing is left mapped
+    void zero_disable(const char* why);           // undo the zero backing of the whole range, keep the real chunks
     unsigned long long base_ = 0;
     VmmChunk zero_ = 0;                           // the shared zero chunk, 0 = not zero-backed
+    bool zero_fell_back_ = false;                 // STRATA_VMM_ZERO_BACK was asked for and undone
     std::vector<VmmChunk> h_;   // per chunk: its physical chunk, 0 = unmapped
 };
 

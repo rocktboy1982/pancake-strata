@@ -126,7 +126,7 @@ SH_STUBS = {
     "hipcc": 'while [ $# -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done; : > "$out"; chmod +x "$out"\n',
     "cmake": ('echo "cmake $*" >> "$H/calls.log"\n'
               'b=; t=; while [ $# -gt 0 ]; do case $1 in --build) b=$2;; -B) b=$2;; --target) t=$2;; esac; shift; done\n'
-              '[ -n "$b" ] && mkdir -p "$b" && [ -n "$t" ] && { : > "$b/$t"; chmod +x "$b/$t"; }\nexit 0\n'),
+              '[ -n "$b" ] && mkdir -p "$b" && [ -n "$t" ] && [ ! -e "$b/$t" ] && { : > "$b/$t"; chmod +x "$b/$t"; }\nexit 0\n'),
 }
 
 
@@ -162,7 +162,7 @@ class Box:
         (S / "Strata" / "pancake-flashnext-iq2_xs-fast-hip.json").write_text("{}")
         B = S / "build-win"
         B.mkdir()
-        for t in ["strata"] + PROBES:
+        for t in ["strata", "vmm_test"] + PROBES:
             (B / t).write_text("#!/bin/sh\nexit 0\n", newline="\n")
         (H / "mnt").mkdir()
         (H / "clone-of-d" / "models" / "qwen36-UD-Q4_K_XL").mkdir(parents=True)
@@ -369,7 +369,7 @@ def test_chain_x_full_flow(tmp_path):
     text = "\n".join(lines)
     for must in ("after7 done", "ENGINE=1", "START act_f16", "START ablate_default", "BUILD_END", "START 194-screen",
                  "START 196-plain", "START 196-rotated", "START 167-soak", "START 212-screen", "START int4_moe_gateup",
-                 "vmm_probe"):
+                 "vmm_probe", "START vmm_test_build", "END vmm_test_zero exit=0"):
         assert must in text, must
     assert "vmm_probe skipped" in text            # chain T builds it, not present in this fixture
     # the queued-job order inside X: probes, ablation, 194 / 195, 196, 167, 212 / 213
@@ -390,6 +390,7 @@ def test_chain_x_vmm_probe_runs_when_chain_t_built_it(tmp_path):
     box.finish(p)
     text = "\n".join(box.log("xtail-chainX.log"))
     assert "START vmm_probe" in text and "END vmm_probe exit=0" in text
+    assert text.index("END vmm_test_zero") < text.index("START vmm_probe")   # the ZERO_BACK diagnosis runs first
 
 
 def test_chain_u_marker_chain(tmp_path):

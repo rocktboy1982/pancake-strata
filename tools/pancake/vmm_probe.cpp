@@ -11,6 +11,8 @@
 //   4. data written through a mapped range reads back, and a chunk unmapped and mapped at another address keeps its bytes;
 //   5. one physical chunk mapped at two addresses, the second read-only (the "zero page" trick, STRATA_VMM_ZERO_BACK), reads
 //      the same through both;
+//   5b. the whole zero-back cycle on 4 addresses (zero chunk everywhere, real chunk over one, zero chunk back, read at once / after a
+//      sync / through a device copy / after a remap), each read reported as zeros or NOT ZERO with the first bad byte;
 //   6. a device-to-device copy over a mapped range runs as fast as over a hipMalloc range (the question kvcached's
 //      layout study raised: a mapped range of 2 MiB chunks must not cost attention reads).
 // The idea list comes from ovg-project/kvcached (Apache-2.0, LEADS.md Part N); this file is our own code from the API.
@@ -166,6 +168,66 @@ int main(int argc, char** argv) {
     if (!alias) ++g_fail;
     TRY(hipMemUnmap(va2, G), "unmap second address");
     TRY(hipMemAddressFree(va2, G), "free second address");
+
+    // 5b. the whole STRATA_VMM_ZERO_BACK cycle on 4 addresses, step by step, what vmm_test found failing on gfx1100: one zero chunk at
+    // every address, cleared through address 0, all read-only; a real chunk over address 1 (write 9s, read); the real chunk away and the
+    // zero chunk back at address 1 (read at once, again after a sync, again through a device copy).  Prints which read is not zero.
+    {
+        void* vz = nullptr;
+        hipMemGenericAllocationHandle_t zh{}, rh{};
+        TRY(hipMemAddressReserve(&vz, (size_t) 4 * G, 0, nullptr, 0), "zero cycle: reserve");
+        TRY(hipMemCreate(&zh, G, &ap, 0), "zero cycle: create zero chunk");
+        TRY(hipMemCreate(&rh, G, &ap, 0), "zero cycle: create real chunk");
+        for (int i = 0; i < 4; ++i) TRY(hipMemMap((char*) vz + (size_t) i * G, G, 0, zh, 0), "zero cycle: map zero chunk");
+        TRY(hipMemSetAccess(vz, G, &acc, 1), "zero cycle: read-write at address 0");
+        TRY(hipMemset(vz, 0, G), "zero cycle: clear through address 0");
+        TRY(hipDeviceSynchronize(), "zero cycle: sync");
+        TRY(hipMemSetAccess(vz, (size_t) 4 * G, &ro, 1), "zero cycle: read-only everywhere");
+        auto nonzero = [&](void* p, const char* label) {
+            std::vector<uint8_t> t((size_t) G, 0xAB);
+            if (hipMemcpyDtoH(t.data(), p, G) != hipSuccess) { (void) hipGetLastError(); std::printf("zero_cycle %s: the copy failed\n", label); ++g_fail; return; }
+            size_t bad = 0, first = 0;
+            for (size_t i = 0; i < t.size(); ++i) if (t[i] != 0) { if (!bad) first = i; ++bad; }
+            std::printf("zero_cycle %s: %s", label, bad ? "NOT ZERO" : "zeros");
+            if (bad) { std::printf(" (%zu bytes, first at %zu value 0x%02x)", bad, first, (unsigned) t[first]); ++g_fail; }
+            std::printf("\n");
+        };
+        for (int i = 0; i < 4; ++i) nonzero((char*) vz + (size_t) i * G, i == 0 ? "initial address 0" : i == 1 ? "initial address 1" : i == 2 ? "initial address 2" : "initial address 3");
+        char* a1 = (char*) vz + G;
+        TRY(hipMemUnmap(a1, G), "zero cycle: unmap zero chunk at address 1");
+        TRY(hipMemMap(a1, G, 0, rh, 0), "zero cycle: map real chunk at address 1");
+        TRY(hipMemSetAccess(a1, G, &acc, 1), "zero cycle: read-write at address 1");
+        TRY(hipMemset(a1, 9, G), "zero cycle: write 9s");
+        TRY(hipDeviceSynchronize(), "zero cycle: sync");
+        {
+            std::vector<uint8_t> t((size_t) G);
+            TRY(hipMemcpyDtoH(t.data(), a1, G), "zero cycle: read 9s");
+            std::printf("zero_cycle real chunk at address 1: %s\n", t[0] == 9 && t[G - 1] == 9 ? "holds 9s" : "WRONG");
+        }
+        TRY(hipDeviceSynchronize(), "zero cycle: sync before unmap");
+        TRY(hipMemUnmap(a1, G), "zero cycle: unmap real chunk");
+        TRY(hipMemMap(a1, G, 0, zh, 0), "zero cycle: map zero chunk back at address 1");
+        TRY(hipMemSetAccess(a1, G, &ro, 1), "zero cycle: read-only at address 1");
+        nonzero(a1, "address 1 right after the zero chunk came back");
+        TRY(hipDeviceSynchronize(), "zero cycle: sync");
+        nonzero(a1, "address 1 after a sync");
+        void* scratch = nullptr;
+        if (hipMalloc(&scratch, G) == hipSuccess) {
+            TRY(hipMemcpyDtoD(scratch, a1, G), "zero cycle: device copy");
+            nonzero(scratch, "address 1 through a device-to-device copy");
+            (void) hipFree(scratch);
+        }
+        // the retry the engine uses: drop the zero mapping and map it again
+        TRY(hipMemUnmap(a1, G), "zero cycle: unmap again");
+        TRY(hipMemMap(a1, G, 0, zh, 0), "zero cycle: map again");
+        TRY(hipMemSetAccess(a1, G, &ro, 1), "zero cycle: read-only again");
+        nonzero(a1, "address 1 after unmap + map again (the engine's retry)");
+        nonzero((char*) vz + 2 * G, "address 2 at the end");
+        for (int i = 0; i < 4; ++i) (void) hipMemUnmap((char*) vz + (size_t) i * G, G);
+        (void) hipMemRelease(zh);
+        (void) hipMemRelease(rh);
+        (void) hipMemAddressFree(vz, (size_t) 4 * G);
+    }
 
     // 6. device copy bandwidth, mapped range vs hipMalloc range (only if the range is big enough)
     const size_t avail = (size_t) n * G / 2;

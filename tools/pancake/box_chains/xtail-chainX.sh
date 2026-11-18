@@ -106,6 +106,12 @@ if [ $ENGINE -eq 1 ]; then
   pstep attn_fold $T/attn_fold.out $B/attn_fold_probe --cap 8192 --ctx 8192 --layers 40 --reps 20 --launches 200
   pstep raw_buffer $T/raw_buffer.out $B/raw_buffer_probe --rows 65536 --rowbytes 640 --reps 30; rcp=$?
   [ $rcp -ne 0 ] && pstep raw_buffer_flags2 $T/raw_buffer_flags2.out $B/raw_buffer_probe --rows 65536 --rowbytes 640 --reps 30 --flags 0x31014000
+  # vmm_test alone with the per-step ZERO_BACK diagnostics (T-950; chain T's ctest failed vmm_test on gfx1100): rebuild only that target, run it
+  # directly (not ctest), output in $T/vmm_test_zero.out; the answer is the "zero-back step" lines.  First run of this chain after the tree on the box has the diagnostics.
+  grep -q "ZERO_BACK diag" $R/tests/core/vmm_test.cpp 2>/dev/null || say "vmm_test: the tree on the box has no ZERO_BACK diagnostics (not synced); the old test runs"
+  pstep vmm_test_build $T/vmm_test_build.log nice -n 10 $CM --build $B --target vmm_test; rcv=$?
+  if [ $rcv -eq 0 ] && [ -x $B/vmm_test ]; then pstep vmm_test_zero $T/vmm_test_zero.out $B/vmm_test; grep -E "zero-back|vmm_test:|FAIL|strata:" $T/vmm_test_zero.out | head -80 | cut -c1-220 >> $L
+  else say "vmm_test_zero skipped: build exit=$rcv"; fi
   if [ -x /mnt/pancake/chainT/vmm_probe ]; then pstep vmm_probe $T/vmm_probe.out /mnt/pancake/chainT/vmm_probe 64 512; else say "vmm_probe skipped: /mnt/pancake/chainT/vmm_probe (built by chain T) is missing"; fi
   pstep persist_tape $T/persist_tape.out $B/persist_tape_probe --segments 432 --tasks 192 --wbytes 16384 --grids 96,192,288,384 --reps 20
   pstep persist_layer_parity $T/persist_layer_parity.out $B/persist_layer_parity
