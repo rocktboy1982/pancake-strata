@@ -62,7 +62,7 @@ auto() {  # auto NAME SCREENSPEC SIBLING|- REF|- [screen flags...]: screen, deci
   [ "$rf" != "-" ] && extra="$extra --ref $rf"
   rm -f $T/$nm-confirm.json
   python3 $DEC $O/winX-$nm-screen.stdout $file $T/$nm-confirm.json $extra > $T/$nm-decide.txt 2>&1
-  cat $T/$nm-decide.txt | grep -E "WIN|CONFIRM|NONE" | cut -c1-230 >> $L
+  cat $T/$nm-decide.txt | grep -E "WIN|CONFIRM|NONE|dropped" | cut -c1-230 >> $L
   [ -s $T/$nm-confirm.json ] || return 0
   [ -n "$PG" ] && { proof $O/winX-$nm-screen "$PA" "$PG" "$PB" || say "PROOF $nm: informational only, the confirm still runs"; }
   [ "$PROOF_FAIL" = "1" ] && { say "confirm $nm skipped: the screen's proof line was missing (the arm is the base)"; return 0; }
@@ -188,7 +188,7 @@ if [ $ENGINE -eq 1 ] && spec_ok 212 && spec_ok 213; then
   grep -h "tier stat:" $O/winX-212-screen/*.engine.log 2>/dev/null | sort | uniq -c | sort -rn | head -6 | cut -c1-200 >> $L
   rm -f $T/212-confirm.json
   python3 $DEC $O/winX-212-screen.stdout $SPEC $T/212-confirm.json --confirm-spec $SIB > $T/212-decide.txt 2>&1
-  grep -E "WIN|CONFIRM|NONE" $T/212-decide.txt | cut -c1-230 >> $L
+  grep -E "WIN|CONFIRM|NONE|dropped" $T/212-decide.txt | cut -c1-230 >> $L
   if [ -s $T/212-confirm.json ] && [ $PROOF_FAIL -eq 0 ]; then
     ab $T/212-confirm.json 212-confirm --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5
     grep -E "vs .*(better|worse|no difference)" $O/winX-212-confirm.stdout | cut -c1-200 >> $L

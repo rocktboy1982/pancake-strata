@@ -83,7 +83,7 @@ if name == "replay_turns.py":
     for arm in arms:
         res[arm] = []
         for r in range(reps):
-            delta = 0.0 if arm == arms[0] else (60.0 if spread == "worse" else (0.0 if r % 2 else 1.0))
+            delta = 0.0 if arm == arms[0] else (-60.0 if arm in os.environ.get("STUB_BETTER", "").split(",") else (60.0 if spread == "worse" else (0.0 if r % 2 else 1.0)))
             jitter = (-1.0 if r % 2 else 1.0) * (0.2 if spread == "worse" else 30.0)
             res[arm].append({"rep": r, "totals": tot(100.0 + delta + jitter), "budget": "b", "clean": True})
     RT.recorded_totals = lambda plan: None
@@ -498,12 +498,12 @@ SPEC = {"arms": {"base": {}, "a": {"e": 1}, "b": {"e": 2}, "base-late": {}}}
 def test_decide_winner_rule():
     rows = {"c1": {"base": 100.0, "base-late": 100.0, "a": 103.0, "b": 100.5}, "c2": {"base": 50.0, "base-late": 50.0, "a": 50.0, "b": 50.0}}
     winners, log = DECIDE.decide(screen_text(rows, {"a": True, "b": True}), SPEC)
-    assert [w[0] for w in winners] == ["a"]                     # +3% >= 2% bar, b +0.5% no
+    assert [w[0] for w in winners] == ["a"]                     # +3% >= 1% pass-2 bar, b +0.5% no
     # a case below the -3% floor vetoes the win
     rows["c2"]["a"] = 48.0
     assert DECIDE.decide(screen_text(rows, {"a": True, "b": True}), SPEC)[0] == []
-    # text differs in an exact spec: lossy bar 3% (a +2.5% fails, +3.0% passes)
-    rows = {"c1": {"base": 100.0, "base-late": 100.0, "a": 102.5, "b": 103.0}}
+    # text differs in an exact spec: lossy pass-2 bar 1.5% (a +1.2% fails, +1.6% passes)
+    rows = {"c1": {"base": 100.0, "base-late": 100.0, "a": 101.2, "b": 101.6}}
     w, _ = DECIDE.decide(screen_text(rows, {"a": False, "b": False}), SPEC)
     assert [x[0] for x in w] == ["b"] and "quality" in w[0][2]
     # reference arm other than the first: only that arm is the reference mean
@@ -535,3 +535,60 @@ def test_decide_parses_the_real_abtest_summary_format():
     import abtest
     src = Path(abtest.__file__).read_text()
     assert "generated text vs base" in src and "identical on every case" in src and "DIFFERENT text" in src
+
+
+# ------------------------------------------------------------------------------------------------ two-pass rule (owner order 2026-11-18)
+def test_two_pass_constants_are_half_the_promotion_bars():
+    assert (DECIDE.PROMOTION_BAR, DECIDE.PROMOTION_LOSSY_BAR) == (2.0, 3.0)
+    assert (DECIDE.PASS2_BAR, DECIDE.PASS2_LOSSY_BAR) == (1.0, 1.5)
+
+
+def test_pass2_screen_arms_with_benefit_confirm_flat_and_worse_are_dropped(tmp_path):
+    rows = {"c1": {"base": 100.0, "base-late": 100.0, "good": 101.5, "flat": 100.2, "worse": 96.0, "edge": 100.9},
+            "c2": {"base": 50.0, "base-late": 50.0, "good": 50.0, "flat": 50.0, "worse": 49.5, "edge": 50.0}}
+    spec = {"arms": {"base": {}, "good": {"e": 1}, "flat": {"e": 2}, "worse": {"e": 3}, "edge": {"e": 4}, "base-late": {}}}
+    winners, log = DECIDE.decide(screen_text(rows, {a: True for a in ("good", "flat", "worse", "edge")}), spec)
+    # (abtest means are rates, higher is better) good: +1.5%, edge: +0.9% (< 1% bar), flat and worse: no benefit
+    assert [w[0] for w in winners] == ["good"]
+    dropped = [l for l in log if "dropped after pass 1: no benefit observed (n=1 pass, not a refutation)" in l]
+    assert sorted(l.split(":")[0] for l in dropped) == ["edge", "flat", "worse"]
+    (tmp_path / "s.stdout").write_text(screen_text(rows, {a: True for a in ("good", "flat", "worse", "edge")}))
+    (tmp_path / "spec.json").write_text(json.dumps(spec))
+    out = tmp_path / "confirm.json"
+    assert DECIDE.main([str(tmp_path / "s.stdout"), str(tmp_path / "spec.json"), str(out)]) == 0
+    assert list(json.loads(out.read_text())["arms"]) == ["base", "good"]       # pass 2 runs only the reference and the arm with a benefit
+
+
+def test_pass2_replay_keeps_only_favourable_arms():
+    text = """per arm run
+verdict vs base (total prompt time; paired by rep, 95% interval when reps >= 2)
+  a                       -10.1 s ( -5.3%) prompt time, turn time -71.6 s, cold re-reads 0 vs 1  (one rep: deltas only)
+  b                        +1.0 s ( +0.5%) prompt time, turn time +1.0 s, cold re-reads 0 vs 1  (one rep: deltas only)
+  c                       +51.4 s (+27.0%) prompt time, turn time +16.1 s, cold re-reads 0 vs 1  (one rep: deltas only)
+  d                       -26.0 s +-  24.0 (-15.8% +- 14.6%)  -> better (less prompt time);  cold re-reads [1] vs [0]
+  e                        -1.0 s ( -0.5%) prompt time, turn time +1.0 s, cold re-reads 0 vs 1  (one rep: deltas only)
+"""
+    keep, log = DECIDE.replay_pass2(text)
+    assert keep == ["a", "d"]
+    assert sum("dropped after pass 1" in l for l in log) == 3
+
+
+def test_chain_t_replay_211_pass2_skipped_when_no_arm_benefits(tmp_path):
+    box = Box(tmp_path)
+    lines, out = run_chain(box, "win-chainT.sh", ("win-chainS.log", "WINCHAINS_DONE"), "WINCHAINS_DONE", "WINCHAINT_DONE", clients=[0, 0, 0, 0])
+    text = "\n".join(lines)
+    assert "START replay 211 rep 1 (base,sidx-4mib,sidx-16mib)" in text
+    assert "START replay 211 rep 2" not in text and "START replay 211 rep 3" not in text      # stub: both sidx arms +60 s (worse)
+    assert "replay 211 rep 2 skipped: no arm shows a benefit in rep 1" in text
+    assert "dropped after pass 1: no benefit observed" in text
+
+
+def test_chain_t_replay_211_pass2_runs_only_the_favourable_arm(tmp_path):
+    box = Box(tmp_path)
+    lines, out = run_chain(box, "win-chainT.sh", ("win-chainS.log", "WINCHAINS_DONE"), "WINCHAINS_DONE", "WINCHAINT_DONE", clients=[0, 0, 0, 0],
+                           env={"STUB_BETTER": "sidx-16mib"})
+    text = "\n".join(lines)
+    assert "START replay 211 rep 1 (base,sidx-4mib,sidx-16mib)" in text
+    assert "START replay 211 rep 2 (sidx-16mib,base)" in text and "START replay 211 rep 3 (base,sidx-16mib)" in text
+    assert "sidx-4mib" not in "".join(l for l in lines if "rep 2" in l or "rep 3" in l)
+    assert "sidx-4mib: " in text and "dropped after pass 1" in text

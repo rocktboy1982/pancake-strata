@@ -10,6 +10,7 @@
 # Old order: 0 sync + header | A build | B ctest of the new tests | C probes (cheap first) | D quality gates (DQ_FAST, floor, route-budget family)
 #        | E D4 suffix-index replay | F abtest specs screen -> confirm only for screen winners (>= 2%, lossy >= 3%; chainT-decide.py)
 #        | G the long ones (196 twice, 167 race soak).  Log: win-chainT.log (START / END lines with exit codes); output: /home/dan/auto-runs/chainT/ and winT-*.
+# TWO-PASS RULE (owner order 2026-11-18): pass 1 = one cheap run of every arm; pass 2 (replay reps 2-3, abtest confirm) only for arms with a benefit (thresholds: chainT-decide.py PASS2_*).
 # Completion marker: the last line of win-chainT.log is WINCHAINT_DONE.
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/win-chainT.log; O=/home/dan/auto-runs; T=$O/chainT; PM=/mnt/pancake/chainT
 CM=/home/linuxbrew/.linuxbrew/bin/cmake; CT=/home/linuxbrew/.linuxbrew/bin/ctest; HIPCC=/opt/rocm/core-10.0/bin/hipcc
@@ -107,7 +108,7 @@ auto() {  # auto NAME SCREENSPEC SIBLING|- REF|- [screen flags...]: screen, deci
   [ "$rf" != "-" ] && extra="$extra --ref $rf"
   rm -f $T/$nm-confirm.json
   python3 $DEC $O/winT-$nm-screen.stdout $file $T/$nm-confirm.json $extra > $T/$nm-decide.txt 2>&1
-  cat $T/$nm-decide.txt | grep -E "WIN|CONFIRM|NONE" | cut -c1-230 >> $L
+  cat $T/$nm-decide.txt | grep -E "WIN|CONFIRM|NONE|dropped" | cut -c1-230 >> $L
   [ -s $T/$nm-confirm.json ] || return 0
   [ -n "$PG" ] && { proof $O/winT-$nm-screen "$PA" "$PG" "$PB" || say "PROOF $nm: informational only, the confirm still runs"; }
   [ "$PROOF_FAIL" = "1" ] && { say "confirm $nm skipped: the screen's proof line was missing (the arm is the base)"; return 0; }
@@ -164,11 +165,22 @@ fi
 
 # ------------------------------------------------------------------ E. D4 suffix index on the real-session replay (a fresh index file per rep: no repeated-prompt contamination)
 if [ $ENGINE -eq 1 ] && spec_ok 211; then
+  # TWO-PASS RULE (owner order 2026-11-18): rep 1 runs every arm (pass 1); reps 2 and 3 run base + only the arms whose rep-1 prompt time is <= -1% (chainT-decide.py --replay,
+  # PASS2_REPLAY_PCT); the other arms are dropped after pass 1 (logged).
+  KEEP=base,sidx-4mib,sidx-16mib
   for r in 1 2 3; do
     case $r in 1) ord=base,sidx-4mib,sidx-16mib;; 2) ord=sidx-16mib,sidx-4mib,base;; 3) ord=sidx-4mib,base,sidx-16mib;; esac
+    if [ $r -gt 1 ]; then
+      o2=; for a in $(echo $ord | tr , ' '); do case ",$KEEP," in *",$a,"*) o2="$o2,$a";; esac; done; ord=${o2#,}
+      [ "$ord" = base ] && { say "replay 211 rep $r skipped: no arm shows a benefit in rep 1"; continue; }
+    fi
     sed "s#d4-replay-\([0-9a-z]*\)\.sxi#d4-replay-\1-r$r.sxi#g" $R/bench/specs/211-d4-suffix-index-replay.json > $T/211-r$r.json
     step "replay 211 rep $r ($ord)" $O/winT-211-r$r.stdout python3 tools/pancake/replay_turns.py $T/211-r$r.json --out $O/winT-211-r$r --reps 1 --arms $ord
     grep -E "verdict|total prompt|sidx|base" $O/winT-211-r$r.stdout | tail -8 | cut -c1-200 >> $L
+    if [ $r -eq 1 ]; then
+      python3 $DEC --replay $O/winT-211-r1.stdout > $T/211-pass2.txt 2>&1; grep -E "PASS|NONE|dropped" $T/211-pass2.txt | cut -c1-200 >> $L
+      p2=$(grep '^PASS2 ' $T/211-pass2.txt | cut -d' ' -f2); KEEP=base${p2:+,$p2}
+    fi
   done
 fi
 
@@ -201,7 +213,7 @@ if [ $ENGINE -eq 1 ]; then
     grep -h "elastic K/V" $O/winT-165-screen/*.engine.log 2>/dev/null | sort | uniq -c | head -5 | cut -c1-200 >> $L
     rm -f $T/165-confirm.json
     python3 $DEC $O/winT-165-screen.stdout $(ls $R/bench/specs/165-*.json) $T/165-confirm.json --confirm-spec $(ls $R/bench/specs/166-*.json) > $T/165-decide.txt 2>&1
-    grep -E "WIN|CONFIRM|NONE" $T/165-decide.txt | cut -c1-230 >> $L
+    grep -E "WIN|CONFIRM|NONE|dropped" $T/165-decide.txt | cut -c1-230 >> $L
     if [ -s $T/165-confirm.json ] && [ $PROOF_FAIL -eq 0 ]; then
       ab $T/165-confirm.json 165-confirm --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5
       grep -E "vs .*(better|worse|no difference)" $O/winT-165-confirm.stdout | cut -c1-200 >> $L
