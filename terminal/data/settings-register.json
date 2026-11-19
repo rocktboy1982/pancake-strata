@@ -45406,6 +45406,72 @@
    "retired_in": ""
   },
   {
+   "name": "STRATA_VERIFY_ECAP",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/core/verify.cpp",
+     "line": 981,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": null,
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "spec/verify",
+   "note": "lossy: in a decode verify window each draft row reads at most N CPU-missed experts that row 0 and the earlier rows do not read anyway (0 = none), by routing rank; the rest add zero; host side only; jmnargi Strata-V100 idea (upstream PR 3545), pancake T-588 (edit +41.7% +-5.6 over no ECAP with MIN_ROWS=9), T-589 token forcing PASS, T-591 task gate PASS; the daily preset sets 0 with MIN_ROWS=9",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
+   "name": "STRATA_VERIFY_ECAP_MIN_ROWS",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/core/verify.cpp",
+     "line": 3393,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "int",
+   "default_state": null,
+   "code_default": "2",
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "spec/verify",
+   "note": "with STRATA_VERIFY_ECAP: the cap acts only in windows of this many rows or more (default 2); the daily preset uses 9 (pancake T-588)",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_VERIFY_FIND",
    "backends": [
     "sycl"
