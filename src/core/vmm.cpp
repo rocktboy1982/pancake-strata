@@ -98,93 +98,31 @@ bool VmmRange::reserve(uint64_t bytes) {
     if (a.reserve(&p, (size_t) (n * a.gran), 0, 0, 0) != CUDA_SUCCESS) return false;
     base_ = (unsigned long long) p;
     h_.assign((size_t) n, 0);
-    // STRATA_VMM_ZERO_BACK=1 (default off): kvcached's zero-page backing, see VmmRange::zero_backed().  Any failure, or a chunk
-    // that does not read zeros, undoes it and leaves the range plain (unmapped), as without the switch.
-    zero_fell_back_ = false;
+    // STRATA_VMM_ZERO_BACK=1 (default off): kvcached's zero-page backing, see VmmRange::zero_backed().  Any failure leaves
+    // the range plain (unmapped), as without the switch.
     if (const char* zb = std::getenv("STRATA_VMM_ZERO_BACK"); zb != nullptr && zb[0] != '\0' && zb[0] != '0') {
-        std::fprintf(stderr, "strata: zero-back: granularity %zu B, %lld chunks (%zu MiB of addresses)\n", (size_t) a.gran, (long long) n,
-                     (size_t) ((n * a.gran) >> 20));
-        if (!zero_setup((int64_t) n)) zero_fell_back_ = true;
+        zero_ = vmm_chunk_new();
+        bool ok = zero_ != 0;
+        int64_t done = 0;
+        for (; ok && done < (int64_t) n; ++done) ok = zero_map(done);
+        if (ok) {   // the shared chunk is cleared through the first mapping, then every mapping is read-only
+            CUmemAccessDesc rwd{};
+            rwd.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
+            rwd.location.id = a.dev;
+            rwd.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
+            ok = a.access(p, (size_t) a.gran, &rwd, 1) == CUDA_SUCCESS &&
+                 cudaMemset((void*) (uintptr_t) p, 0, (size_t) a.gran) == cudaSuccess && cudaDeviceSynchronize() == cudaSuccess;
+            if (ok) ok = set_access_ro(0, (int64_t) n);
+        }
+        if (!ok) {
+            (void) cudaGetLastError();
+            for (int64_t i = 0; i < done; ++i) zero_unmap(i);
+            vmm_chunk_free(zero_);
+            zero_ = 0;
+            std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK could not back the range with a zero chunk; the range stays unmapped\n");
+        }
     }
     return true;
-}
-
-// Reads 16 bytes at the start, middle and end of every chunk in [lo, hi) through the mapping and compares them with zero; the first
-// wrong byte (chunk, offset, value) is returned.  A failed copy counts as wrong (value -1).
-bool VmmRange::zero_check(int64_t lo, int64_t hi, int64_t* bad_chunk, uint64_t* bad_off, int* bad_val) {
-    const Api& a = api();
-    const uint64_t offs[3] = {0, (uint64_t) a.gran / 2, (uint64_t) a.gran - 16};
-    (void) hipDeviceSynchronize();
-    for (int64_t i = lo; i < hi; ++i)
-        for (const uint64_t o : offs) {
-            unsigned char buf[16];
-            std::memset(buf, 0xAB, sizeof buf);
-            const hipError_t e = hipMemcpyDtoH(buf, (void*) (uintptr_t) (base_ + (uint64_t) i * a.gran + o), sizeof buf);
-            int bad = -2;
-            if (e != hipSuccess) { (void) hipGetLastError(); bad = -1; }
-            else for (const unsigned char c : buf) if (c != 0) { bad = c; break; }
-            if (bad != -2) { *bad_chunk = i; *bad_off = o; *bad_val = bad; return false; }
-        }
-    return true;
-}
-
-void VmmRange::zero_disable(const char* why) {
-    for (int64_t i = 0; i < chunks(); ++i)
-        if (!mapped(i)) zero_unmap(i);   // only the addresses that hold the shared zero chunk (a real chunk keeps its mapping)
-    (void) hipGetLastError();
-    vmm_chunk_free(zero_);
-    zero_ = 0;
-    zero_fell_back_ = true;
-    std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK undone (%s); the range works as a plain range, unmapped chunks stay unmapped\n", why);
-}
-
-// The start-up sequence, one stderr line per step.  Stage 1 clears the shared chunk through the mapping of chunk 0, stage 2 (only when
-// stage 1 reads back wrong) through every mapping, each time followed by a device sync, read-only access for all, and a read-back
-// of every chunk.  Nothing passing -> everything is unmapped again and the chunk is freed.
-bool VmmRange::zero_setup(int64_t n) {
-    const Api& a = api();
-    zero_ = vmm_chunk_new();
-    std::fprintf(stderr, "strata: zero-back: zero chunk create %s\n", zero_ != 0 ? "ok" : "FAILED");
-    if (zero_ == 0) return false;
-    int64_t maps = 0;
-    for (; maps < n; ++maps)
-        if (!zero_map(maps)) break;
-    std::fprintf(stderr, "strata: zero-back: mapped the zero chunk at %lld of %lld chunk addresses\n", (long long) maps, (long long) n);
-    bool ok = maps == n;
-    const char* why = "mapping the zero chunk failed";
-    for (int stage = 1; ok && stage <= 2; ++stage) {
-        hipMemAccessDesc rwd{};
-        rwd.location.type = hipMemLocationTypeDevice;
-        rwd.location.id = a.dev;
-        rwd.flags = hipMemAccessFlagsProtReadWrite;
-        const int64_t upto = stage == 1 ? 1 : n;   // the addresses that get a write mapping and a clear
-        const hipError_t e_acc = hipMemSetAccess((void*) (uintptr_t) base_, (size_t) ((uint64_t) upto * a.gran), &rwd, 1);
-        hipError_t e_set = hipSuccess;
-        for (int64_t i = 0; e_acc == hipSuccess && i < upto && e_set == hipSuccess; ++i)
-            e_set = hipMemset((void*) (uintptr_t) (base_ + (uint64_t) i * a.gran), 0, (size_t) a.gran);
-        const hipError_t e_syn = hipDeviceSynchronize();
-        std::fprintf(stderr, "strata: zero-back: stage %d read-write access: %s, memset of %lld chunk(s): %s, sync: %s\n", stage, hipGetErrorString(e_acc),
-                     (long long) upto, hipGetErrorString(e_set), hipGetErrorString(e_syn));
-        if (e_acc != hipSuccess || e_set != hipSuccess || e_syn != hipSuccess) { why = "the clear failed"; ok = false; break; }
-        const bool ro = set_access_ro(0, n);
-        std::fprintf(stderr, "strata: zero-back: stage %d read-only access for all chunks: %s\n", stage, ro ? "ok" : "FAILED");
-        if (!ro) { why = "read-only access failed"; ok = false; break; }
-        int64_t bc = 0; uint64_t bo = 0; int bv = 0;
-        if (zero_check(0, n, &bc, &bo, &bv)) {
-            std::fprintf(stderr, "strata: zero-back: stage %d self-check ok (%lld chunks read zeros)\n", stage, (long long) n);
-            return true;
-        }
-        std::fprintf(stderr, "strata: zero-back: stage %d self-check FAILED: chunk %lld offset %llu value %d (-1 = the copy failed)\n", stage, (long long) bc,
-                     (unsigned long long) bo, bv);
-        why = "the zero chunk does not read zeros through every address";
-        ok = stage == 1;   // stage 2 (clear through every mapping) follows only a bad read-back
-    }
-    (void) hipGetLastError();
-    for (int64_t i = 0; i < maps; ++i) zero_unmap(i);
-    vmm_chunk_free(zero_);
-    zero_ = 0;
-    std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK undone (%s); the range stays unmapped\n", why);
-    return false;
 }
 
 bool VmmRange::zero_map(int64_t i) {
@@ -267,6 +205,11 @@ VmmChunk VmmRange::unmap(int64_t i) {
     if (zero_ != 0 && zero_map(i)) (void) set_access_ro(i, i + 1);   // back to reading zeros
     return h;
 }
+
+// The zero-back start-up sequence and its read-back checks exist in the HIP branch only (T-950); CUDA keeps the simple version above.
+bool VmmRange::zero_check(int64_t, int64_t, int64_t*, uint64_t*, int*) { return true; }
+bool VmmRange::zero_setup(int64_t) { return false; }
+void VmmRange::zero_disable(const char*) {}
 
 }  // namespace strata::core
 
@@ -357,31 +300,93 @@ bool VmmRange::reserve(uint64_t bytes) {
     if (const hipError_t e = hipMemAddressReserve(&p, (size_t) (n * a.gran), 0, nullptr, 0); e != hipSuccess) { fail("hipMemAddressReserve", e); return false; }
     base_ = (unsigned long long) (uintptr_t) p;
     h_.assign((size_t) n, 0);
-    // STRATA_VMM_ZERO_BACK=1 (default off): kvcached's zero-page backing, see VmmRange::zero_backed().  Any failure leaves
-    // the range plain (unmapped), as without the switch.
+    // STRATA_VMM_ZERO_BACK=1 (default off): kvcached's zero-page backing, see VmmRange::zero_backed().  Any failure, or a chunk
+    // that does not read zeros, undoes it and leaves the range plain (unmapped), as without the switch.
+    zero_fell_back_ = false;
     if (const char* zb = std::getenv("STRATA_VMM_ZERO_BACK"); zb != nullptr && zb[0] != '\0' && zb[0] != '0') {
-        zero_ = vmm_chunk_new();
-        bool ok = zero_ != 0;
-        int64_t done = 0;
-        for (; ok && done < (int64_t) n; ++done) ok = zero_map(done);
-        if (ok) {   // the shared chunk is cleared through the first mapping, then every mapping is read-only
-            hipMemAccessDesc rwd{};
-            rwd.location.type = hipMemLocationTypeDevice;
-            rwd.location.id = a.dev;
-            rwd.flags = hipMemAccessFlagsProtReadWrite;
-            ok = hipMemSetAccess(p, (size_t) a.gran, &rwd, 1) == hipSuccess && hipMemset(p, 0, (size_t) a.gran) == hipSuccess &&
-                 hipDeviceSynchronize() == hipSuccess;
-            if (ok) ok = set_access_ro(0, (int64_t) n);
-        }
-        if (!ok) {
-            (void) hipGetLastError();
-            for (int64_t i = 0; i < done; ++i) zero_unmap(i);
-            vmm_chunk_free(zero_);
-            zero_ = 0;
-            std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK could not back the range with a zero chunk; the range stays unmapped\n");
-        }
+        std::fprintf(stderr, "strata: zero-back: granularity %zu B, %lld chunks (%zu MiB of addresses)\n", (size_t) a.gran, (long long) n,
+                     (size_t) ((n * a.gran) >> 20));
+        if (!zero_setup((int64_t) n)) zero_fell_back_ = true;
     }
     return true;
+}
+
+// Reads 16 bytes at the start, middle and end of every chunk in [lo, hi) through the mapping and compares them with zero; the first
+// wrong byte (chunk, offset, value) is returned.  A failed copy counts as wrong (value -1).
+bool VmmRange::zero_check(int64_t lo, int64_t hi, int64_t* bad_chunk, uint64_t* bad_off, int* bad_val) {
+    const Api& a = api();
+    const uint64_t offs[3] = {0, (uint64_t) a.gran / 2, (uint64_t) a.gran - 16};
+    (void) hipDeviceSynchronize();
+    for (int64_t i = lo; i < hi; ++i)
+        for (const uint64_t o : offs) {
+            unsigned char buf[16];
+            std::memset(buf, 0xAB, sizeof buf);
+            const hipError_t e = hipMemcpyDtoH(buf, (void*) (uintptr_t) (base_ + (uint64_t) i * a.gran + o), sizeof buf);
+            int bad = -2;
+            if (e != hipSuccess) { (void) hipGetLastError(); bad = -1; }
+            else for (const unsigned char c : buf) if (c != 0) { bad = c; break; }
+            if (bad != -2) { *bad_chunk = i; *bad_off = o; *bad_val = bad; return false; }
+        }
+    return true;
+}
+
+void VmmRange::zero_disable(const char* why) {
+    for (int64_t i = 0; i < chunks(); ++i)
+        if (!mapped(i)) zero_unmap(i);   // only the addresses that hold the shared zero chunk (a real chunk keeps its mapping)
+    (void) hipGetLastError();
+    vmm_chunk_free(zero_);
+    zero_ = 0;
+    zero_fell_back_ = true;
+    std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK undone (%s); the range works as a plain range, unmapped chunks stay unmapped\n", why);
+}
+
+// The start-up sequence, one stderr line per step.  Stage 1 clears the shared chunk through the mapping of chunk 0, stage 2 (only when
+// stage 1 reads back wrong) through every mapping, each time followed by a device sync, read-only access for all, and a read-back
+// of every chunk.  Nothing passing -> everything is unmapped again and the chunk is freed.
+bool VmmRange::zero_setup(int64_t n) {
+    const Api& a = api();
+    zero_ = vmm_chunk_new();
+    std::fprintf(stderr, "strata: zero-back: zero chunk create %s\n", zero_ != 0 ? "ok" : "FAILED");
+    if (zero_ == 0) return false;
+    int64_t maps = 0;
+    for (; maps < n; ++maps)
+        if (!zero_map(maps)) break;
+    std::fprintf(stderr, "strata: zero-back: mapped the zero chunk at %lld of %lld chunk addresses\n", (long long) maps, (long long) n);
+    bool ok = maps == n;
+    const char* why = "mapping the zero chunk failed";
+    for (int stage = 1; ok && stage <= 2; ++stage) {
+        hipMemAccessDesc rwd{};
+        rwd.location.type = hipMemLocationTypeDevice;
+        rwd.location.id = a.dev;
+        rwd.flags = hipMemAccessFlagsProtReadWrite;
+        const int64_t upto = stage == 1 ? 1 : n;   // the addresses that get a write mapping and a clear
+        const hipError_t e_acc = hipMemSetAccess((void*) (uintptr_t) base_, (size_t) ((uint64_t) upto * a.gran), &rwd, 1);
+        hipError_t e_set = hipSuccess;
+        for (int64_t i = 0; e_acc == hipSuccess && i < upto && e_set == hipSuccess; ++i)
+            e_set = hipMemset((void*) (uintptr_t) (base_ + (uint64_t) i * a.gran), 0, (size_t) a.gran);
+        const hipError_t e_syn = hipDeviceSynchronize();
+        std::fprintf(stderr, "strata: zero-back: stage %d read-write access: %s, memset of %lld chunk(s): %s, sync: %s\n", stage, hipGetErrorString(e_acc),
+                     (long long) upto, hipGetErrorString(e_set), hipGetErrorString(e_syn));
+        if (e_acc != hipSuccess || e_set != hipSuccess || e_syn != hipSuccess) { why = "the clear failed"; ok = false; break; }
+        const bool ro = set_access_ro(0, n);
+        std::fprintf(stderr, "strata: zero-back: stage %d read-only access for all chunks: %s\n", stage, ro ? "ok" : "FAILED");
+        if (!ro) { why = "read-only access failed"; ok = false; break; }
+        int64_t bc = 0; uint64_t bo = 0; int bv = 0;
+        if (zero_check(0, n, &bc, &bo, &bv)) {
+            std::fprintf(stderr, "strata: zero-back: stage %d self-check ok (%lld chunks read zeros)\n", stage, (long long) n);
+            return true;
+        }
+        std::fprintf(stderr, "strata: zero-back: stage %d self-check FAILED: chunk %lld offset %llu value %d (-1 = the copy failed)\n", stage, (long long) bc,
+                     (unsigned long long) bo, bv);
+        why = "the zero chunk does not read zeros through every address";
+        ok = stage == 1;   // stage 2 (clear through every mapping) follows only a bad read-back
+    }
+    (void) hipGetLastError();
+    for (int64_t i = 0; i < maps; ++i) zero_unmap(i);
+    vmm_chunk_free(zero_);
+    zero_ = 0;
+    std::fprintf(stderr, "strata: STRATA_VMM_ZERO_BACK undone (%s); the range stays unmapped\n", why);
+    return false;
 }
 
 bool VmmRange::zero_map(int64_t i) {
@@ -500,6 +505,9 @@ bool VmmRange::set_access(int64_t, int64_t) { return false; }
 bool VmmRange::commit_run(int64_t, int64_t) { return false; }
 bool VmmRange::set_access_ro(int64_t, int64_t) { return false; }
 bool VmmRange::zero_map(int64_t) { return false; }
+bool VmmRange::zero_check(int64_t, int64_t, int64_t*, uint64_t*, int*) { return true; }
+bool VmmRange::zero_setup(int64_t) { return false; }
+void VmmRange::zero_disable(const char*) {}
 void VmmRange::zero_unmap(int64_t) {}
 VmmChunk VmmRange::unmap(int64_t) { return 0; }
 }  // namespace strata::core

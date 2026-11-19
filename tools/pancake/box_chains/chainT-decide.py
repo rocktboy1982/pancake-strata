@@ -28,7 +28,7 @@ PASS2_BAR = PROMOTION_BAR / 2         # an arm earns pass 2 when >= 1.0 % faster
 PASS2_LOSSY_BAR = PROMOTION_LOSSY_BAR / 2   # ... >= 1.5 % for lossy arms / differing text
 PASS2_REPLAY_PCT = -1.0      # replays: pass 2 only for arms whose prompt-time delta vs base is <= this many % (negative = less time); flat / worse arms dropped
 
-LINE = re.compile(r"^\s+(\S+)\s+(\S+)\s+(-?[\d.]+) \+-\s+(-?[\d.]+)\s+\(n=(\d+)\)")
+LINE = re.compile(r"^\s+(\S+)\s+(\S+)\s+(-?[\d.]+) \+-\s+(-?[\d.]+|nan)\s+\(n=(\d+)\)")
 TEXT = re.compile(r"^\s+(\S+)\s+(identical on every case|DIFFERENT text)")
 LATE = "base-late"
 
