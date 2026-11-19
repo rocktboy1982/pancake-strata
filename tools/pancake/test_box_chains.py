@@ -1737,14 +1737,16 @@ class BdTF:   # rdna3/tuned_flags.py of updated-strata-rdna3: load_recommended +
                 a += [k, v]
 
 
-def bd_build(tmp_path, rec):
+def bd_build(tmp_path, rec, head_reader=None):
     (tmp_path / "plain" / "rdna3" / "configs").mkdir(parents=True)
     (tmp_path / "plain" / "rdna3" / "configs" / "iq3-1gpu.json").write_text(json.dumps(THEIR_IQ3_1GPU))
     (tmp_path / "preset.json").write_text(json.dumps(BOX_PRESET))
     BdTF.rec = rec
     ps = "/mnt/pancake/benchRD/src-plain"     # the script reads the file below PLAIN_SRC: hand it the tmp copy, then check the paths it writes
+    # default: the model file is not on this PC (head type unreadable: their --mtp-q4 kept, an UNCHECKED line)
     plain, upd, path, log = bd_conf().build(str(tmp_path / "preset.json"), str(tmp_path / "plain"), "/mnt/pancake/benchRD/src-updated",
-                                            "/mnt/pancake/benchRD/build-plain", "/mnt/pancake/benchRD/build-updated", BdTF)
+                                            "/mnt/pancake/benchRD/build-plain", "/mnt/pancake/benchRD/build-updated", BdTF,
+                                            head_reader=head_reader or (lambda p: None))
     js = json.loads(json.dumps([plain, upd]).replace(str(tmp_path / "plain").replace("\\", "\\\\"), ps))
     return js[0], js[1], log
 
@@ -1816,6 +1818,56 @@ def test_bd_conf_updated_is_plain_plus_additions_with_no_override(tmp_path):
         with pytest.raises(SystemExit) as e:
             bd_build(tmp_path / ("b" + str(len(bad["env"]))), bad)
         assert "overrides Strata-rdna3's values" in str(e.value)
+
+
+def write_gguf(path, tensors, kv=()):
+    """A minimal GGUF v3 header: KV pairs (key, type, packed value bytes) and tensor infos (name, dims, ggml type); no data."""
+    import struct as st
+
+    def s(b):
+        return st.pack("<Q", len(b)) + b
+    out = b"GGUF" + st.pack("<IQQ", 3, len(tensors), len(kv))
+    for k, t, v in kv:
+        out += s(k.encode()) + st.pack("<I", t) + v
+    for nm, dims, t in tensors:
+        out += s(nm.encode()) + st.pack("<I", len(dims)) + b"".join(st.pack("<Q", d) for d in dims) + st.pack("<IQ", t, 0)
+    path.write_bytes(out)
+
+
+def test_bd_conf_head_type_reads_the_gguf_header(tmp_path):
+    import struct as st
+    mod = bd_conf()
+    toks = st.pack("<IQ", 8, 3) + b"".join(st.pack("<Q", len(w)) + w for w in (b"a", b"bc", b"def"))   # a string array, like the tokenizer list
+    kv = [("general.architecture", 8, st.pack("<Q", 5) + b"qwen3"), ("tokenizer.ggml.tokens", 9, toks), ("x.u32", 4, st.pack("<I", 7)),
+          ("x.f32s", 9, st.pack("<IQ", 6, 2) + st.pack("<ff", 1.0, 2.0))]
+    write_gguf(tmp_path / "m.gguf", [("token_embd.weight", [2560, 248320], 23), ("output.weight", [2560, 248320], 23)], kv)
+    assert mod.head_type(str(tmp_path / "m.gguf")) == (23, 2560)
+    assert mod.head_type(str(tmp_path / "missing.gguf")) is None
+    (tmp_path / "bad.gguf").write_bytes(b"NOPE")
+    assert mod.head_type(str(tmp_path / "bad.gguf")) is None
+    # the engine's in-place Q4_0 head copy (mtp.cpp make_q4_head): fits Q6_K (their IQ3_S head) and Q4_0-sized types, not IQ4_XS (the IQ2_XS head)
+    assert mod.q4_head_fits((14, 2560)) is True and mod.q4_head_fits((2, 2560)) is True and mod.q4_head_fits((12, 2560)) is True
+    assert mod.q4_head_fits((23, 2560)) is False and mod.q4_head_fits((10, 2560)) is False and mod.q4_head_fits((99, 2560)) is None
+
+
+def test_bd_conf_mtp_q4_head_substituted_only_for_a_head_below_q4_0(tmp_path):
+    # T-987: the IQ2_XS model's output.weight is IQ4_XS (1360 bytes per row < Q4_0's 1440): their --mtp-q4 all -> proj, logged with the reason
+    plain, upd, log = bd_build(tmp_path / "a", bd_arm_rec(), head_reader=lambda p: (23, 2560))
+    assert flags_of(plain["args"])["--mtp-q4"] == "proj" and flags_of(upd["args"])["--mtp-q4"] == "proj"
+    line = [l for l in log if l.startswith("SUBST --mtp-q4")]
+    assert len(line) == 1 and "all -> proj" in line[0] and "IQ4_XS" in line[0] and "1360" in line[0] and "1440" in line[0]
+    assert "writing the draft head" in line[0] and "T-987" in line[0]
+    assert bd_conf().overrides(plain, upd) == []           # the updated arm follows the same base
+    # every other argument of theirs is unchanged
+    p2 = dict(flags_of(plain["args"]))
+    p2.pop("--mtp-q4")
+    plain_q6, _, log_q6 = bd_build(tmp_path / "b", bd_arm_rec(), head_reader=lambda p: (14, 2560))
+    q6 = dict(flags_of(plain_q6["args"]))
+    assert q6.pop("--mtp-q4") == "all" and q6 == p2
+    assert any(l.startswith("CHECKED --mtp-q4 all kept") and "Q6_K" in l for l in log_q6)
+    # unreadable model file: their value kept, said so
+    _, _, log_u = bd_build(tmp_path / "c", bd_arm_rec())
+    assert any(l.startswith("UNCHECKED --mtp-q4 all kept") for l in log_u)
 
 
 def test_bd_spec_arms_overlay_the_plain_config_without_touching_their_values():
