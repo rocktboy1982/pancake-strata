@@ -55,7 +55,7 @@ CANDIDATES: list[dict[str, Any]] = [
     C("STRATA_HIPBLASLT_TUNING", "env", "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt", True, "prompt",
       {"gfx": ("gfx1100",), "hipblaslt": True}, "T-096"),
     C("--pcie-frac", "arg", "0", True, "decode", {"gfx": ANY, "pcie_link": True}, "T-197, T-268"),
-    C("--adapt-every", "arg", "1", True, "decode", {"gfx": ANY}, "T-199"),
+    C("--adapt-every", "arg", "1", True, "decode", {"gfx": ANY}, "T-199 (no gain without --pcie-frac 0)"),
     C("--lookup-max-t", "arg", "12", False, "decode", {"gfx": ANY}, "T-126, T-127", gate="PASS"),
     C("STRATA_PF_F16", "env", "1", False, "prompt", {"gfx": GFX11}, "T-820, T-828", gate="PASS",
       note="rate and event rules of the gate PASS; the near-tie column FAILS (information)"),
@@ -187,7 +187,7 @@ def run(config: str, out: Path, only: list[str] | None, budget_min: float, harne
         else:
             todo.append(c)
     t0 = time.time()
-    per_flag_min = 3.0   # one engine start (1-3 minutes) and two short prompts
+    per_flag_min = 2.5   # one engine start (1-3 minutes, 2 on this box) and two short prompts
     keep, dropped = [], []
     for c in todo:
         (keep if (len(keep) + 2) * per_flag_min <= budget_min else dropped).append(c)   # 2 starts of the default

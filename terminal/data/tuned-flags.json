@@ -20,8 +20,8 @@
      "value": "1",
      "verdict": "GAIN",
      "exact": true,
-     "gain_pct": 11.0,
-     "ledger": "T-009, T-079"
+     "gain_pct": 4.3,
+     "ledger": "T-079 (microbench), T-081 (confirm edit +4.3% +-5.0, text identical; inside noise), T-009"
     },
     {
      "kind": "env",
@@ -39,25 +39,7 @@
      "verdict": "GAIN",
      "exact": true,
      "gain_pct": 6.0,
-     "ledger": "T-197, T-268"
-    },
-    {
-     "kind": "arg",
-     "name": "--adapt-every",
-     "value": "1",
-     "verdict": "GAIN",
-     "exact": true,
-     "gain_pct": 8.0,
-     "ledger": "T-199"
-    },
-    {
-     "kind": "arg",
-     "name": "--adapt-swaps",
-     "value": "32",
-     "verdict": "GAIN",
-     "exact": true,
-     "gain_pct": 8.0,
-     "ledger": "T-199"
+     "ledger": "T-197 (+6% short / +13% edit, one run), T-268 (0.15 / 0.3 / 0.55 worse)"
     },
     {
      "kind": "arg",
