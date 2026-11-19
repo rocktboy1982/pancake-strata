@@ -1655,7 +1655,7 @@ def test_bd_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path
 
 def test_bd_spec_251_arms_and_not_in_the_shipped_file():
     spec = json.loads((HERE.parent.parent / "bench" / "specs" / "251-rdna3-hipblaslt-and-profile.json").read_text())
-    assert set(spec["arms"]) == {"updated", "hipblaslt-100401", "profile-pancake"}
+    assert set(spec["arms"]) == {"updated", "hipblaslt-100401", "profile-pancake", "draft-vocab-en", "max-context-131072", "conversation-cache-2048"}
     assert spec["arms"]["hipblaslt-100401"]["env"]["STRATA_HIPBLASLT_TUNING"].endswith("gfx1100-hipblaslt-100401.txt")
     assert spec["arms"]["profile-pancake"]["args"]["--expert-profile"].endswith("data/expert-profile-pancake.bin")
     rec = HERE.parent.parent / "rdna3" / "recommended-flags" / "gfx1100.json"
@@ -1665,44 +1665,202 @@ def test_bd_spec_251_arms_and_not_in_the_shipped_file():
         assert spec["arms"]["updated"]["env"] == shipped["env"]
 
 
-def test_bd_spec_and_conf(tmp_path):
-    spec = json.loads((HERE.parent.parent / "bench" / "specs" / "250-rdna3-updated-vs-plain.json").read_text())
-    assert set(spec["arms"]) == {"plain", "updated", "updated+pf16-1"} and spec["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
+# Strata-rdna3 8b01b0c85 rdna3/configs/iq3-1gpu.json, byte for byte as the box's synced copy /mnt/pancake/benchRD/src-plain has it (2026-11-19)
+THEIR_IQ3_1GPU = {
+    "exe": "@STRATA@/engine/strata", "cwd": "@STRATA@", "tokenizer": "@DATA@/packs/iq3_s/tokenizer", "model_name": "qwen-flash-iq3", "backend": "hip",
+    "gpu": "@GPUS@", "layer_split": "auto", "host": "127.0.0.1", "open_browser": False, "engine_silence_s": 1800, "lib_dirs": "@ROCM_LIBS@",
+    "args": ["--pack", "@DATA@/packs/iq3_s", "--native", "@DATA@/models/IQ3_S/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-00001-of-00002.gguf",
+             "--expert-profile", "@STRATA@/data/expert-profile.bin", "--prefill", "auto", "--spec", "4", "--spec-min-p", "0.5", "--mtp", "@DATA@/mtp/rt",
+             "--max-context", "262144", "--kv", "int8", "--ple-io", "direct", "--stats", "--vision", "--expert-cache", "auto", "--ple-row-cache", "1048576",
+             "--conversation-cache-mib", "8192", "--conversation-cache-slots", "8", "--mtp-draft-vocab", "@STRATA@/rdna3/draft_vocab_zh60k.bin",
+             "--kv-resident", "32768", "--pcie-frac", "0", "--vram-reserve-mib", "512", "--pool-workers", "12", "--mtp-q4", "all", "--mtp-window", "4096",
+             "--adapt-every", "1", "--adapt-swaps", "32"],
+    "env": {"STRATA_HIPBLASLT_TUNING": "@STRATA@/tools/hip/gfx1100-hipblaslt-100200.txt", "STRATA_RDNA_MMVQ_WAVE": "3", "STRATA_PEER_TRANSPORT": "host",
+            "STRATA_HIP_WMMA": "1", "STRATA_SELECT_WMMA": "1", "STRATA_SH_STREAM": "0", "STRATA_PREFILL_AUTO_MAX": "32768", "STRATA_PREFILL_MMQ_TILE_ROWS": "32",
+            "STRATA_GR_RDNA": "1", "STRATA_GR_RDNA_Q8": "1", "STRATA_RDNA_Q6K": "1", "STRATA_GR_RDNA_A8": "1", "STRATA_QFUSE": "1", "STRATA_COMBINE_CPU": "1",
+            "STRATA_VERIFY_QDEDUP": "1", "STRATA_WAIT_FUSE": "1", "STRATA_ROUTE_PUBLISH": "1", "STRATA_GR_INJ_UP": "1", "STRATA_PF_FUSED": "1",
+            "STRATA_STAGER_RING": "64", "STRATA_PREFILL_CPU_SHARE": "0.6", "STRATA_PREFILL_CPU_SHARE_MAX": "4096", "GPU_MAX_HW_QUEUES": "6",
+            "STRATA_GR_FUSED": "1", "STRATA_GDN_HEAD": "1", "STRATA_GDN_CHUNKED": "1", "STRATA_GDN_CHUNK_GDV": "0", "STRATA_PA_KLDS": "1", "STRATA_GDN_PP": "1",
+            "STRATA_GDN_CONVL2": "1", "STRATA_GDN_NOY": "1", "STRATA_PF_GEMM": "1", "STRATA_PF_PAD": "1", "STRATA_HC_UPMIX": "1", "STRATA_PF_HCDOWN": "1",
+            "STRATA_FUSE_CONVAB": "1", "STRATA_HEAD_MIX_MULTI": "1", "STRATA_PA_FAST": "1", "STRATA_PF_GROUP_RES": "1", "STRATA_PF_F16": "2",
+            "STRATA_PREFILL_RING": "192", "STRATA_KV_HOST_DMA": "1", "STRATA_ADAPT_OVERLAP": "1", "STRATA_TOPK_SPLIT_MIN": "98304", "STRATA_QSA_ROWS": "1",
+            "STRATA_ENGINE_NICE": "0"},
+    "sampling": {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "presence_penalty": 0.0},
+    "vision": {"exe": "@STRATA@/engine/strata-vision", "mmproj": "@DATA@/models/mmproj-Qwen3.8-Flash-Next-BF16.gguf",
+               "model": "@DATA@/models/IQ3_S/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-00001-of-00002.gguf", "gpu": False, "max_tokens": 4096, "threads": 16},
+}
+BOX_DATA = "/home/dan/clone-of-d/Strata-data"
+# the box's pancake preset (/home/dan/clone-of-d/src/Strata/pancake-flashnext-iq2_xs-fast-hip.json, 2026-11-19): what the chain hands the script
+BOX_PRESET = {
+    "exe": "/home/dan/clone-of-d/src/Strata/build-hip/strata",
+    "args": ["--pack", BOX_DATA + "/packs/iq2_xs", "--native", BOX_DATA + "/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf",
+             "--ple-gguf", BOX_DATA + "/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf",
+             "--expert-profile", "/home/dan/clone-of-d/src/Strata/data/expert-profile-pancake.bin", "--expert-cache", "auto", "--prefill", "auto",
+             "--spec", "4", "--spec-min-p", "0.5", "--mtp", BOX_DATA + "/mtp/rt", "--max-context", "131072", "--kv", "int8", "--kv-resident", "32768",
+             "--mtp-draft-vocab", "/home/dan/clone-of-d/src/Strata/data/draft_vocab_en.bin", "--adapt-swaps", "32", "--pool-affinity", "measure",
+             "--grammar", "on", "--pcie-frac", "0", "--adapt-every", "1", "--lookup-max-t", "12", "--conversation-cache-mib", "2048",
+             "--conversation-cache-min-tokens", "8192"],
+    "cwd": "/home/dan/clone-of-d/src/Strata", "tokenizer": BOX_DATA + "/packs/iq2_xs/tokenizer", "model_name": "qwen3.8-flash-next-iq2_xs",
+    "log": "/home/dan/clone-of-d/src/Strata/pancake-flashnext.log", "lib_dirs": ["/opt/rocm/core-10.0/lib"], "port": 8080, "gpu": 0, "gpus_asked": True,
+    "env": {"STRATA_AGENT_COUNTERS": "1", "STRATA_ROUTE_TAIL_SKIP": "0", "STRATA_PIN_BY_NEED": "1", "STRATA_HC_Q8": "0", "STRATA_PF_F16": "1",
+            "STRATA_HIPBLASLT_TUNING": "/home/dan/clone-of-d/src/Strata/tools/hip/gfx1100-hipblaslt-100401.txt", "STRATA_VERIFY_ECAP": "0",
+            "STRATA_VERIFY_ECAP_MIN_ROWS": "9", "STRATA_RDNA_MMVQ_WAVE": "3"},
+    "drafting": "mtp", "env_to_user": True, "effort_position": "end", "reasoning_budget_grace": 512, "reasoning_close_retry": True,
+    "turn_log": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl", "sampling": {"temperature": 0.1, "top_p": 0.95, "top_k": 20},
+}
+SPECS = HERE.parent.parent / "bench" / "specs"
+
+
+def bd_conf():
     spec_ = importlib.util.spec_from_file_location("bd_conf", CHAINS / "bench_updatedRD_conf.py")
     mod = importlib.util.module_from_spec(spec_)
     spec_.loader.exec_module(mod)
+    return mod
 
-    class TF:   # a fake rdna3/tuned_flags.py
-        @staticmethod
-        def load_recommended(hw, d):
-            return {"env": {"STRATA_VERIFY_ECAP": "0"}, "args": {}}, "gfx1100.json"
 
-        @staticmethod
-        def apply_to_config(cfg, rec, env, root):
-            cfg["env"].update(rec["env"])
+class BdTF:   # rdna3/tuned_flags.py of updated-strata-rdna3: load_recommended + apply_to_config (the same overlay rule: env set, an argument replaced or appended)
+    rec = None
 
-    (tmp_path / "rdna3" / "configs").mkdir(parents=True)
-    (tmp_path / "rdna3" / "configs" / "iq3-1gpu.json").write_text(json.dumps({"env": {"STRATA_PF_F16": "2", "X": "@STRATA@/t"}}))
-    preset = tmp_path / "preset.json"
-    preset.write_text(json.dumps({"exe": "e", "args": ["--spec", "4", "--grammar", "on", "--lookup-max-t", "12", "--expert-profile", "/pancake/p.bin", "--kv", "int8"],
-                                  "env": {"STRATA_VERIFY_ECAP": "1"}, "grammar": True, "port": 8080}))
-    plain, upd, path = mod.build(str(preset), str(tmp_path), "/u", "/b/plain", "/b/upd", TF)
-    assert plain["args"] == ["--spec", "4", "--expert-profile", str(tmp_path) + "/data/expert-profile.bin", "--kv", "int8"] and "grammar" not in plain
-    assert plain["env"] == {"STRATA_PF_F16": "2", "X": str(tmp_path) + "/t"}      # the plain build runs with the env of Strata-rdna3's own setup config
-    assert plain["exe"] == "/b/plain/strata" and upd["exe"] == "/b/upd/strata"
-    assert upd["env"]["STRATA_VERIFY_ECAP"] == "0" and "STRATA_VERIFY_ECAP" not in plain["env"]
+    @classmethod
+    def load_recommended(cls, hw, d):
+        return cls.rec, "gfx1100.json"
+
+    @staticmethod
+    def apply_to_config(cfg, rec, env, root):
+        for k, v in rec.get("env", {}).items():
+            cfg["env"][k] = v
+        a = cfg["args"]
+        for k, v in rec.get("args", {}).items():
+            if k in a:
+                a[a.index(k) + 1] = v
+            else:
+                a += [k, v]
+
+
+def bd_build(tmp_path, rec):
+    (tmp_path / "plain" / "rdna3" / "configs").mkdir(parents=True)
+    (tmp_path / "plain" / "rdna3" / "configs" / "iq3-1gpu.json").write_text(json.dumps(THEIR_IQ3_1GPU))
+    (tmp_path / "preset.json").write_text(json.dumps(BOX_PRESET))
+    BdTF.rec = rec
+    ps = "/mnt/pancake/benchRD/src-plain"     # the script reads the file below PLAIN_SRC: hand it the tmp copy, then check the paths it writes
+    plain, upd, path, log = bd_conf().build(str(tmp_path / "preset.json"), str(tmp_path / "plain"), "/mnt/pancake/benchRD/src-updated",
+                                            "/mnt/pancake/benchRD/build-plain", "/mnt/pancake/benchRD/build-updated", BdTF)
+    js = json.loads(json.dumps([plain, upd]).replace(str(tmp_path / "plain").replace("\\", "\\\\"), ps))
+    return js[0], js[1], log
+
+
+def bd_arm_rec():
+    arm = json.loads((SPECS / "250-rdna3-updated-vs-plain.json").read_text())["arms"]["updated"]
+    return {"env": dict(arm["env"]), "args": dict(arm["args"])}
+
+
+def flags_of(args):
+    return bd_conf().argmap(args)
+
+
+def test_bd_conf_plain_is_their_config_except_the_documented_substitutions(tmp_path):
+    plain, upd, log = bd_build(tmp_path, bd_arm_rec())
+    ps, data = "/mnt/pancake/benchRD/src-plain", BOX_DATA
+    theirs = json.loads(json.dumps(THEIR_IQ3_1GPU).replace("@STRATA@", ps).replace("@DATA@", data))
+    # every env key of theirs, every value (only the placeholders filled), nothing else
+    assert plain["env"] == theirs["env"] and len(plain["env"]) == 46
+    # every argument of theirs with their value and in their order; the only differences: the IQ2_XS model's --pack / --native and its --ple-gguf
+    tf, pf = flags_of(theirs["args"]), flags_of(plain["args"])
+    model = {"--pack": data + "/packs/iq2_xs", "--native": data + "/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf",
+             "--ple-gguf": data + "/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf"}
+    assert pf == {**tf, **model}
+    assert [a for a in plain["args"] if a.startswith("--") and a != "--ple-gguf"] == [a for a in theirs["args"] if a.startswith("--")]
+    for k, v in (("--max-context", "262144"), ("--conversation-cache-mib", "8192"), ("--conversation-cache-slots", "8"), ("--mtp-q4", "all"),
+                 ("--mtp-window", "4096"), ("--pool-workers", "12"), ("--vram-reserve-mib", "512"), ("--ple-io", "direct"), ("--ple-row-cache", "1048576"),
+                 ("--mtp-draft-vocab", ps + "/rdna3/draft_vocab_zh60k.bin"), ("--expert-profile", ps + "/data/expert-profile.bin"), ("--stats", None),
+                 ("--vision", None)):
+        assert pf[k] == v, k
+    # their sampling exactly (temperature 0.6, presence_penalty 0.0)
+    assert plain["sampling"] == {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "presence_penalty": 0.0}
+    # the other keys: theirs, except exe (the chain's build), tokenizer (the model), gpu / lib_dirs (placeholders as rdna3/run.py fills them),
+    # the picture-reader section (dropped) and the two harness keys log + drafting
+    subst = {"exe": "/mnt/pancake/benchRD/build-plain/strata", "tokenizer": data + "/packs/iq2_xs/tokenizer", "gpu": [0],
+             "lib_dirs": ["/opt/rocm/core-10.0/lib"]}
+    for k, v in theirs.items():
+        if k in ("args", "env", "vision"):
+            continue
+        assert plain[k] == subst.get(k, v), k
+    assert "vision" not in plain and set(plain) - set(theirs) == {"log", "drafting"} and plain["drafting"] == "mtp"
+    assert plain["cwd"] == ps and plain["model_name"] == "qwen-flash-iq3"
+    assert "@" not in json.dumps(plain)
+    text = "\n".join(log)
+    assert "DROPPED the \"vision\" section" in text and "--vision is KEPT" in text
+    for k in ("STRATA_PF_F16 = 2", "--max-context 262144", "--conversation-cache-mib 8192", "draft_vocab_zh60k.bin", "gfx1100-hipblaslt-100200.txt",
+              "data/expert-profile.bin", '"temperature": 0.6'):
+        assert any(l.startswith("THEIRS-KEPT") and k in l for l in log), k
+
+
+def test_bd_conf_updated_is_plain_plus_additions_with_no_override(tmp_path):
+    rec = bd_arm_rec()
+    plain, upd, log = bd_build(tmp_path, rec)
+    mod = bd_conf()
+    assert mod.overrides(plain, upd) == []
+    assert upd["exe"] == "/mnt/pancake/benchRD/build-updated/strata"
+    assert upd["env"] == {**plain["env"], **rec["env"]} and not set(rec["env"]) & set(plain["env"])
+    assert upd["args"] == plain["args"] + [x for k, v in rec["args"].items() for x in (k, v)]
+    assert {k: v for k, v in upd.items() if k not in ("exe", "env", "args")} == {k: v for k, v in plain.items() if k not in ("exe", "env", "args")}
+    # the owner's list: the 13 env keys + --grammar on, --lookup-max-t 12, --pool-affinity measure, --conversation-cache-min-tokens 8192, and the preset's
+    # remaining explicit values (ROUTE_TAIL_SKIP=0, HC_Q8=0: the engine defaults)
+    assert set(rec["env"]) == {"STRATA_POOL_FUSE_PHASES", "STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS", "STRATA_PIN_BY_NEED", "STRATA_EXPDEC",
+                               "STRATA_EXPDEC_DOWN", "STRATA_EXCHANGE_ROTATE", "STRATA_KV_PREFETCH", "STRATA_PROMPT_ATTN_IMMA", "STRATA_ATTN_DAILY",
+                               "STRATA_PF_GROUP_SCRATCH", "STRATA_PF_HC_REGION", "STRATA_PREFILL_EQUAL_TAIL", "STRATA_ROUTE_TAIL_SKIP", "STRATA_HC_Q8"}
+    assert rec["args"] == {"--grammar": "on", "--lookup-max-t": "12", "--pool-affinity": "measure", "--conversation-cache-min-tokens": "8192"}
+    assert any(l.startswith("NOT-ADDED env STRATA_AGENT_COUNTERS") for l in log)
+    # a recommended file that would change a value of theirs stops the script, naming it
+    for bad in ({"env": {"STRATA_PF_F16": "1"}, "args": {}}, {"env": {}, "args": {"--max-context": "131072"}}):
+        with pytest.raises(SystemExit) as e:
+            bd_build(tmp_path / ("b" + str(len(bad["env"]))), bad)
+        assert "overrides Strata-rdna3's values" in str(e.value)
+
+
+def test_bd_spec_arms_overlay_the_plain_config_without_touching_their_values():
+    """Specs 250 / 251 / 252 run on base = config-plain.json (their config): the updated-family arms only add keys their config does not set; the arms that
+    carry a pancake value for a setting of theirs differ from `updated` in exactly that one key."""
+    theirs_env, theirs_args = set(THEIR_IQ3_1GPU["env"]), set(flags_of(THEIR_IQ3_1GPU["args"]))
+    s250, s251, s252 = (json.loads((SPECS / n).read_text()) for n in ("250-rdna3-updated-vs-plain.json", "251-rdna3-hipblaslt-and-profile.json",
+                                                                       "252-rdna3-updated-exact.json"))
+    upd = s250["arms"]["updated"]
+    assert set(s250["arms"]) == {"plain", "updated", "updated+pf16-1"} and s250["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
+    assert s250["arms"]["plain"] == {"exe": "@PLAIN@/strata"} and s252["arms"]["plain"] == {"exe": "@PLAIN@/strata"}
+    for arm in (upd, s251["arms"]["updated"], s252["arms"]["updated"], s252["arms"]["updated-exact"]):
+        assert not set(arm["env"]) & theirs_env and not set(arm["args"]) & theirs_args, arm
+    assert s251["arms"]["updated"] == upd and s252["arms"]["updated"] == upd
+    exact = {k: v for k, v in upd["env"].items() if k not in ("STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS")}
+    assert s252["arms"]["updated-exact"] == {**upd, "env": exact}
+    assert (upd["env"]["STRATA_VERIFY_ECAP"], upd["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"]) == ("0", "9")
+    one = {("250", "updated+pf16-1"): ("env", "STRATA_PF_F16", "1"),
+           ("251", "hipblaslt-100401"): ("env", "STRATA_HIPBLASLT_TUNING", "@UPDATED_SRC@/tools/hip/gfx1100-hipblaslt-100401.txt"),
+           ("251", "profile-pancake"): ("args", "--expert-profile", "@UPDATED_SRC@/data/expert-profile-pancake.bin"),
+           ("251", "draft-vocab-en"): ("args", "--mtp-draft-vocab", "@UPDATED_SRC@/data/draft_vocab_en.bin"),
+           ("251", "max-context-131072"): ("args", "--max-context", "131072"),
+           ("251", "conversation-cache-2048"): ("args", "--conversation-cache-mib", "2048")}
+    for (sp, name), (kind, key, val) in one.items():
+        arm = (s250 if sp == "250" else s251)["arms"][name]
+        assert key in (theirs_env if kind == "env" else theirs_args), key            # a setting of theirs: never in the updated arm, its own arm
+        assert arm == {**upd, kind: {**upd[kind], key: val}}, name
     rec = HERE.parent.parent / "rdna3" / "recommended-flags" / "gfx1100.json"
-    if rec.exists():       # on the updated-strata-rdna3 branch: the spec's updated arm is exactly the shipped file
-        assert spec["arms"]["updated"]["env"] == json.loads(rec.read_text())["env"]
-        assert spec["arms"]["updated"]["args"] == json.loads(rec.read_text())["args"]
-    # owner rule 2026-11-19: the updated arm is plain + the pancake preset; where both have a value, Strata-rdna3's stays and the pancake value is its own arm
-    upd_env = spec["arms"]["updated"]["env"]
-    assert "STRATA_PF_F16" not in upd_env and spec["arms"]["updated+pf16-1"]["env"] == {**upd_env, "STRATA_PF_F16": "1"}
-    assert (upd_env["STRATA_VERIFY_ECAP"], upd_env["STRATA_VERIFY_ECAP_MIN_ROWS"]) == ("0", "9") and spec["arms"]["updated"]["args"]["--lookup-max-t"] == "12"
-    s251 = json.loads((HERE.parent.parent / "bench" / "specs" / "251-rdna3-hipblaslt-and-profile.json").read_text())
-    assert s251["arms"]["updated"] == spec["arms"]["updated"]
-    assert s251["arms"]["hipblaslt-100401"]["env"] == {**upd_env, "STRATA_HIPBLASLT_TUNING": "@UPDATED_SRC@/tools/hip/gfx1100-hipblaslt-100401.txt"}
-    assert s251["arms"]["profile-pancake"]["args"]["--expert-profile"] == "@UPDATED_SRC@/data/expert-profile-pancake.bin"
+    if rec.exists():       # on the updated-strata-rdna3 branch: the spec's updated arm is exactly the shipped file, which sets nothing of theirs
+        shipped = json.loads(rec.read_text())
+        assert upd["env"] == shipped["env"] and upd["args"] == shipped["args"]
+        assert not set(shipped["env"]) & theirs_env and not set(shipped["args"]) & theirs_args
+
+
+def test_bd_and_rdgate_diag_hand_flag_diag_an_abtest_path_abtest_does_not_take_for_another_test():
+    """The aborted 20:28 RD run: diag-updated gave all 5 flags UNTESTED in 0 s (abtest exit 3): abtest's BUSY pattern matched its parent flag_diag.py,
+    whose command line held "--abtest .../tools/pancake/abtest.py"."""
+    busy = re.search(r'^BUSY = r"(.*)"$', (HERE / "abtest.py").read_text(), re.M).group(1)
+    py = "/home/dan/clone-of-d/src/Strata-win/.venv/bin/python -u /mnt/pancake/benchRD/src-updated/tools/pancake/flag_diag.py run --config c.json"
+    for name, var in ((BD, "$TOOLS"), ("bench-rdgate.sh", "$HN")):
+        t = (CHAINS / name).read_text()
+        assert "--abtest %s/tools/pancake/./abtest.py " % var in t and "--abtest %s/tools/pancake/abtest.py" % var not in t, name
+    assert re.search(busy, py + " --abtest /mnt/pancake/benchRD/src-pancake/tools/pancake/abtest.py --out d")          # the old command line: refused
+    assert not re.search(busy, py + " --abtest /mnt/pancake/benchRD/src-pancake/tools/pancake/./abtest.py --out d")     # the new one: not a test
+    assert re.search(busy, "/x/.venv/bin/python -u /mnt/pancake/benchRD/src-pancake/tools/pancake/abtest.py spec.json")  # a real abtest still is
 
 
 # ------------------------------------------------------------------------------------------------ bench-sched.sh and the short plan (owner order 2026-11-19)
@@ -2023,7 +2181,8 @@ def test_bench_exact_full_flow_order_gate_invocation_and_markers(tmp_path):
             and "/auto-runs/benchexact/gate-us" in qg[0]), qg     # the T-828 settings: default set-v2, near-tie column on
     sp = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252.json").read_text())
     assert sp["arms"]["plain"]["exe"].endswith("/mnt/benchRD/build-plain/strata") and sp["base"].endswith("auto-runs/benchRD/config-plain.json")
-    assert sp["arms"]["updated-exact"]["env"] == {"STRATA_POOL_FUSE_PHASES": "1"}
+    s252 = json.loads((SPECS / "252-rdna3-updated-exact.json").read_text())       # the arms as the spec file has them (T-984 full preset)
+    assert sp["arms"]["updated-exact"]["env"] == s252["arms"]["updated-exact"]["env"] and "STRATA_VERIFY_ECAP" not in sp["arms"]["updated-exact"]["env"]
     conf = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252-confirm.json").read_text())
     assert conf["cases"] == ["short", "edit"] and conf["drift_check"] is False
     assert sum(1 for c in box.calls() if c.startswith("SETSID")) == 5                     # every long step in its own session
@@ -2297,7 +2456,7 @@ def test_bench_rdgate_full_flow_gate_with_the_venv_python_spec_and_marker(tmp_pa
     fd = [c for c in sess if "flag_diag.py run" in c]
     assert len(fd) == 1 and venv + " -u " in fd[0] and "/mnt/benchRD/src-updated/tools/pancake/flag_diag.py" in fd[0], fd
     for k in ("auto-runs/benchRD/config-updated.json", "--flags POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,RDNA_MMVQ_WAVE,KV_HOST_DMA",
-              "/mnt/benchrdgate/harness/tools/pancake/abtest.py", "/auto-runs/benchrdgate/diag", "--ctest ", "/mnt/benchRD/build-updated"):
+              "/mnt/benchrdgate/harness/tools/pancake/./abtest.py", "/auto-runs/benchrdgate/diag", "--ctest ", "/mnt/benchRD/build-updated"):
         assert k in fd[0], k
     assert (box.tmp / "auto-runs" / "benchrdgate" / "diag" / "verdicts.json").exists()
     assert not [c for c in box.calls() if c.startswith("PY ") and "task_gate.py" in c], "no task_gate.py through the PATH python3"

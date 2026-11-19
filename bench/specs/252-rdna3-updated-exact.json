@@ -26,7 +26,9 @@
     "STRATA_ATTN_DAILY": "1",
     "STRATA_PF_GROUP_SCRATCH": "1",
     "STRATA_PF_HC_REGION": "1",
-    "STRATA_PREFILL_EQUAL_TAIL": "1"
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
    },
    "args": {
     "--grammar": "on",
@@ -50,7 +52,9 @@
     "STRATA_ATTN_DAILY": "1",
     "STRATA_PF_GROUP_SCRATCH": "1",
     "STRATA_PF_HC_REGION": "1",
-    "STRATA_PREFILL_EQUAL_TAIL": "1"
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
    },
    "args": {
     "--grammar": "on",
@@ -60,7 +64,7 @@
    }
   }
  },
- "note": "RDNA3 follow-up of spec 250 (owner order 2026-11-19; arms re-made 2026-11-19 night, TEST_LEDGER.md T-984): updated = spec 250's updated arm (Strata-rdna3 + the whole pancake daily preset: exactly rdna3/recommended-flags/gfx1100.json's env + args of updated-strata-rdna3); updated-exact = updated minus its lossy additions, by the convention of spec 222 (the lossy switches of MOD_PLAN.md section 3): STRATA_VERIFY_ECAP and STRATA_VERIFY_ECAP_MIN_ROWS; PF_F16 is no longer an addition (Strata-rdna3's own 2 stays in both arms through the plain config). Both arms run the 16-row build (-DSTRATA_WINDOW_MAX_T=16) with --lookup-max-t 12 (as spec 222 keeps the lookup windows in its exact arm). Exact means relative to the plain config, which carries Strata-rdna3's own lossy defaults in every arm. Driven by tools/pancake/box_chains/bench-exact.sh. NOT MEASURED.",
+ "note": "RDNA3 follow-up of spec 250 (owner order 2026-11-19; arms re-made 2026-11-19 night, TEST_LEDGER.md T-984): updated = spec 250's updated arm (Strata-rdna3 + the whole pancake daily preset: exactly rdna3/recommended-flags/gfx1100.json's env + args of updated-strata-rdna3); updated-exact = updated minus its lossy additions, by the convention of spec 222 (the lossy switches of MOD_PLAN.md section 3): STRATA_VERIFY_ECAP and STRATA_VERIFY_ECAP_MIN_ROWS; PF_F16 is no longer an addition (Strata-rdna3's own 2 stays in both arms through the plain config). Both arms run the 16-row build (-DSTRATA_WINDOW_MAX_T=16) with --lookup-max-t 12 (as spec 222 keeps the lookup windows in its exact arm). The plain config is Strata-rdna3's own setup config exactly (only the model is the box's IQ2_XS; bench_updatedRD_conf.py), and both arms only add to it. Exact means relative to the plain config, which carries Strata-rdna3's own lossy defaults in every arm. Driven by tools/pancake/box_chains/bench-exact.sh. NOT MEASURED.",
  "stop": [
   "an arm whose server dies before ready twice: stop and read the engine log",
   "a DIFFERENT text of updated-exact vs plain on short / edit is placement noise or a build difference, never a quality verdict by itself"

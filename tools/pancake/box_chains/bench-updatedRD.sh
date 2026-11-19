@@ -40,6 +40,16 @@
 # rdna3/recommended-flags/gfx1100.json and spec 250's updated arm are the plain config + every pancake preset setting Strata-rdna3 does not have (owner rule:
 # where both have a value, Strata-rdna3's stays and the pancake value is an arm: 250 updated+pf16-1, 251 hipblaslt-100401 / profile-pancake).  ctest runs by its
 # full path ($CT, not on PATH on the box) and also runs window_limits_test / draft_policy_test / prefill_plan_test (built with the updated engine).
+# 2026-11-19 late (the 20:28 run was ABORTED by the owner after the tune-up: config-plain.json / config-updated.json were the pancake preset's arguments, not
+# Strata-rdna3's: 9 of their arguments dropped, --max-context / --conversation-cache-mib / --mtp-draft-vocab / temperature replaced by ours; TEST_LEDGER.md).
+# Owner order: "use their full flags with their settings and add our remaining flags, don't override their values".  bench_updatedRD_conf.py now writes
+# config-plain.json = rdna3/configs/iq3-1gpu.json of Strata-rdna3 exactly (placeholders filled as rdna3/run.py does, the box's IQ2_XS model, no picture-reader
+# section, the harness keys log + drafting mtp; every substitution is a CONFIG SUBST / DROPPED / HARNESS line in this log) and config-updated.json = that +
+# only what it does not set (the recommended-flags file; the script stops with CONFIG: ... overrides ... when a value of theirs would change).  Spec 251 got
+# the arms for the other values where the preset differs (draft-vocab-en, max-context-131072, conversation-cache-2048).  The same run's diag-updated also
+# showed all 5 flags UNTESTED in 0 s: abtest.py's busy check matched its own parent, flag_diag.py, whose command line carried
+# "--abtest .../tools/pancake/abtest.py" (abtest's BUSY pattern); the path is now passed as .../tools/pancake/./abtest.py (the same file; the pattern needs
+# "tools/pancake/abtest.py" in one piece), so the parent is no longer taken for another test.
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-updatedRD.log; O=/home/dan/auto-runs; T=$O/benchRD; PM=/mnt/pancake/benchRD
 CM=/home/linuxbrew/.linuxbrew/bin/cmake; CT=/home/linuxbrew/.linuxbrew/bin/ctest   # ctest is not on PATH on the box (T-983: "ctest: not found", exit 127)
 PLAIN_SRC=$PM/src-plain; UPD_SRC=$PM/src-updated; TOOLS=$PM/src-pancake
@@ -268,7 +278,7 @@ diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]: one abtest screen per arm (base 
   nf=$(echo "$fl" | tr ',' '\n' | grep -c .); lim=$(( (nf + 1) * (FLAG_TIMEOUT + 90) + ${ct:+$CTEST_TIMEOUT} + 180 ))
   say "START diag-$nm $(date +%F_%T) (limit $lim s: $nf flags x $FLAG_TIMEOUT s per arm + base + margin)"
   ( cd $TOOLS && run_diag_group $lim $O/benchRD-diag-$nm.stdout "$HPY" -u $UPD_SRC/tools/pancake/flag_diag.py run --config $cf --flags $fl \
-      --abtest $TOOLS/tools/pancake/abtest.py --out $O/benchRD-diag-$nm --flag-timeout $FLAG_TIMEOUT --ctest-timeout $CTEST_TIMEOUT ${ct:+--ctest $ct} ); rc=$?
+      --abtest $TOOLS/tools/pancake/./abtest.py --out $O/benchRD-diag-$nm --flag-timeout $FLAG_TIMEOUT --ctest-timeout $CTEST_TIMEOUT ${ct:+--ctest $ct} ); rc=$?
   say "END diag-$nm exit=$rc $(date +%T)"
   cut -c1-200 $O/benchRD-diag-$nm.stdout >> $L
   [ -f $O/benchRD-diag-$nm/verdicts.json ] || say "ERROR diag-$nm wrote no verdicts.json: $(grep -m1 . $O/benchRD-diag-$nm.stdout 2>/dev/null | cut -c1-240) (log $O/benchRD-diag-$nm.stdout; the benchmark goes on)"

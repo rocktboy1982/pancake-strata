@@ -32,6 +32,8 @@
 #      (ctest on PATH now), the harness abtest.py, ABTEST_PYTHON = HPY; before it the reap of the step before and a "no engine running" check (strata --serve,
 #      serve/server.py, abtest.py, task_gate.py: wait <= 120 s, then the diag is skipped with an ERROR naming them; nothing of another job is killed).
 #      Verdicts /home/dan/auto-runs/benchrdgate/diag/verdicts.json (rewritten after every arm, so a cut run keeps what it measured); limit RDGATE_LIM_DIAG = 1500 s
+#      2026-11-19 late: the real cause of that exit=3 (seen again in the aborted 20:28 RD run): abtest.py's busy check matched its own parent flag_diag.py,
+#      whose command line carried "--abtest .../tools/pancake/abtest.py"; the path is now .../tools/pancake/./abtest.py (same file, no BUSY match)
 #   5. task_gate.py --dry-run (spec + task set + every checker, no server, its own session, <= 600 s)
 #   6. task_gate.py (its own session, watchdog, limit RDGATE_LIM_GATE = 4800 s capped at the budget left, then the process-tree reap; same "no engine" check first)
 # Every python of the harness is the box venv interpreter HPY = /home/dan/clone-of-d/src/Strata-win/.venv/bin/python (as bench-updatedAA.sh and the RD fix,
@@ -240,7 +242,7 @@ else
     mkdir -p $DO
     say "START diag $(date +%F_%T) (flag_diag.py run, config $RDU, flags $DIAG_FLAGS, ctest $RDB/build-updated, $FLAG_TIMEOUT s per arm, limit $LIM_DIAG s)"
     run_group diag $LIM_DIAG $O/benchrdgate-diag.stdout sh -c 'cd "$1" && shift && exec "$@"' dg $HN "$HPY" -u $FD run --config $RDU --flags $DIAG_FLAGS \
-      --abtest $HN/tools/pancake/abtest.py --out $DO --flag-timeout $FLAG_TIMEOUT --ctest-timeout $CTEST_TIMEOUT --ctest $RDB/build-updated; rcdg=$?
+      --abtest $HN/tools/pancake/./abtest.py --out $DO --flag-timeout $FLAG_TIMEOUT --ctest-timeout $CTEST_TIMEOUT --ctest $RDB/build-updated; rcdg=$?
     say "END diag exit=$rcdg $(date +%T)"
     cut -c1-200 $O/benchrdgate-diag.stdout | grep -E "UNTESTED|GAIN|LOSS|NEUTRAL|FAIL|EXACT|LOSSY|UNSUPPORTED|exit=|verdict" >> $L
     [ -f $DO/verdicts.json ] || say "ERROR diag wrote no verdicts.json: $(grep -m1 . $O/benchrdgate-diag.stdout 2>/dev/null | cut -c1-240) (log $O/benchrdgate-diag.stdout); the chain goes on"
