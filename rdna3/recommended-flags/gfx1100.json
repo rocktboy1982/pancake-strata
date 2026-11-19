@@ -1,0 +1,30 @@
+{
+ "schema": 1,
+ "key": {
+  "gfx": "gfx1100",
+  "rocm": "",
+  "vram_gib_min": 16
+ },
+ "env": {
+  "STRATA_POOL_FUSE_PHASES": "1",
+  "STRATA_PF_F16": "1"
+ },
+ "args": {},
+ "verdicts": {
+  "STRATA_POOL_FUSE_PHASES": {
+   "verdict": "GAIN",
+   "exact": true,
+   "gain_pct": 2.5,
+   "note": "T-224: edit +2.5% +-1.7, output identical; measured on the pancake base, to be re-measured on this branch"
+  },
+  "STRATA_PF_F16=1": {
+   "verdict": "GAIN",
+   "exact": false,
+   "gate_pass": true,
+   "gain_pct": 15.1,
+   "note": "T-820 prompt +15.1/+16.7/+17.3% at 14K/32K/64K, T-828 rate and event rules PASS (near-tie column FAIL: information)"
+  }
+ },
+ "source": "shipped default: the adopted flags ported from the pancake fork (updated-strata-rdna3); regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark",
+ "note": "STRATA_VERIFY_ECAP is not shipped: its measured gain (T-588) is cap 0 from 9-row windows, and this tree's windows are at most 8 rows (kVerifyMaxT), so the gate would never open; spec 250 arm updated-ecap6 measures cap 0 from 6 rows on this tree, flag_diag.sh re-checks it, and it enters this file only with a measured GAIN"
+}

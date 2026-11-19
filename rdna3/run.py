@@ -5,6 +5,9 @@
     .venv/bin/python rdna3/run.py iq3-1gpu --data ../Strata-data --gpus 1       # HIP device 1
     .venv/bin/python rdna3/run.py q4-2gpu --data ../Strata-data --print-config  # the filled-in config only
 
+Measured per-hardware flags (rdna3/recommended-flags/) are exported before the engine starts; --no-tuned-flags or
+STRATA_TUNED_FLAGS=0 turns that off, and a variable you export yourself always wins.
+
 --data is setup.py's data folder (models/, packs/, mtp/).  The engine is the one `./setup.sh --build` compiled
 (engine/strata, engine/strata-vision; ROCm's library folders come from its engine/BUILD.json).  See rdna3/README.md.
 """
@@ -76,8 +79,14 @@ def main():
     ap.add_argument("--no-vision", action="store_true", help="no image encoder (saves its RAM and start time)")
     ap.add_argument("--log", help="engine log file")
     ap.add_argument("--print-config", action="store_true")
+    ap.add_argument("--no-tuned-flags", action="store_true",
+                    help="the setup's plain defaults: do not export rdna3/recommended-flags/<gfx>.json (same as STRATA_TUNED_FLAGS=0)")
     a = ap.parse_args()
     cfg = config(a.setup, a.data, a.gpus, not a.no_vision)
+    # the measured flags of this hardware (rdna3/tuned_flags.py): a variable you export yourself wins, --no-tuned-flags is plain
+    sys.path.insert(0, str(ROOT / "rdna3"))
+    import tuned_flags
+    tuned_flags.apply_startup(cfg, a.no_tuned_flags)
     if a.log:
         cfg["log"] = str(Path(a.log).resolve())
     if a.print_config:
