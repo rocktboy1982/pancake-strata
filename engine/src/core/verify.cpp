@@ -10,6 +10,7 @@
 #include "strata/core/defaults_026.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/core/verify.hpp"
+#include "strata/core/verify_ecap.hpp"
 #include "strata/core/window_evict.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/pin_budget.hpp"
@@ -976,6 +977,26 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
     const uint64_t TS = (uint64_t) (s.idx_block - 1) * ID;
     const int max_in = (int) std::max<uint64_t>(std::max<uint64_t>(N, ZV), NH * HD);
 
+    {   // STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): host side only
+        const char* v = std::getenv("STRATA_VERIFY_ECAP");
+        const int c = strata::core::verify_ecap_parse(v);
+        ecap_ = -1;
+        if (c == -2)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%s is not a count in 0..63: off\n", v);
+        else if (c >= (int) ss.k)   // a row names k experts: a cap of k or more never drops one
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d: a token routes %d experts, so nothing is ever "
+                                 "capped: off\n", c, (int) ss.k);
+        else if (c >= 0 && remote_opt_ != nullptr)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d is not taken with --remote-expert-opt (its rows are claimed "
+                                 "outside the window's plan): off\n", c);
+        else
+            ecap_ = c;
+        if (ecap_ >= 0)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d (changes the output): in a decode window each draft row "
+                                 "(rows 1..T-1, never row 0) reads at most %d CPU expert(s) that row 0 and the rows before it do "
+                                 "not read anyway, by routing rank; the rest add zero.  Not in a prompt read, a merged first "
+                                 "window, or a batch or pipelined window\n", ecap_, ecap_);
+    }
     // ---- mapped staging
     bool ok = mapped(T * 4, (void**) &h_tok_, (void**) &m_tok_) &&
               mapped(T * strata::kernels::kStepCount * 4, (void**) &h_step_, (void**) &m_step_) &&
@@ -3364,6 +3385,17 @@ static inline void metal_fold_nf(uint32_t nf_mask, uint32_t scan, int T, const i
 
 bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool, void* user, int32_t* out,
                    std::string& err) {
+    // STRATA_VERIFY_ECAP: set_ecap_window is this run's borrow, cleared here on every path.  Never a prompt read (head sampling
+    // off: every row is committed) or a one-token window.  STRATA_VERIFY_ECAP_MIN_ROWS=N (default 2: every window of two rows or
+    // more): the cap acts only in windows of N rows or more; the long lookup windows carry most of the CPU expert work for draft
+    // rows, so a gate at 9 keeps the short windows exact (pancake T-588).
+    static const int ecap_min_rows = [] {
+        const char* v = std::getenv("STRATA_VERIFY_ECAP_MIN_ROWS");
+        const int n = v != nullptr ? std::atoi(v) : 2;
+        return n < 2 ? 2 : n;
+    }();
+    const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= ecap_min_rows && head_sampling_;
+    ecap_next_ = false;
     const bool measure = spec_measure_;
     // Clear this borrow and propagated stage borrows on every exit.
     struct ProposalBorrow {
@@ -3638,6 +3670,8 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         set_plan_slot(grp);
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window: the CPU experts of layer", l);
+        sink_.ecap = ecap_win ? ecap_ : -1;   // STRATA_VERIFY_ECAP: this group's draft rows; the window's row 0 leads the group at tb 0
+        sink_.ecap_first = tb == 0 ? 1 : 0;
         if (remote_opt_) remote_opt_->begin(h_w_ + (size_t) tb * ss.k, tb, n);
         if (pool != nullptr)
             pool(user, h_x_ + (size_t) tb * g.n_embd, h_ids_ + (size_t) tb * ss.k, n, ss.k,
@@ -4963,6 +4997,7 @@ bool Verifier::run_slot_rows(const int* rows, int S, const int32_t* tokens, cons
         // The recorded graph consumes the helper mask and weighted sum just as
         // the solo graph does. Reset both and supply this layer's routing weights.
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
+        sink_.ecap = -1;   // STRATA_VERIFY_ECAP: a batch window's rows are every slot's committed row
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, l);
         if (remote_opt_) remote_opt_->end();
         progress_tick();
@@ -5178,6 +5213,7 @@ int Verifier::batch_serve(PoolMultiFn pool, void* user) {
         cur_layer_ = want - 1;
         set_plan_slot(0);
         if (remote_opt_) remote_opt_->begin(h_w_, 0, S);
+        sink_.ecap = -1;
         if (pool != nullptr) pool(user, h_x_, h_ids_, S, ss_->k, h_ymiss_, lb_ + k);
         if (remote_opt_) remote_opt_->end();
         progress_tick();

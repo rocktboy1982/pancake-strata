@@ -1,5 +1,6 @@
 // src/core/expert_source.cpp - the adapter.  See the header for the three clauses of the contract.
 #include "strata/core/expert_source.hpp"
+#include "strata/core/verify_ecap.hpp"
 #include "strata/core/expert_nibble.hpp"
 #include "strata/core/conversation_memory.hpp"
 #include "strata/core/foresight_swap.hpp"
@@ -4996,6 +4997,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     // Distinct experts in routing order; resident ones and the last pcie_num/256 of the missed ones go to the GPU.
     const int64_t n = n_tok * k;
     int32_t kind[kMaxWindowEntries];       // per entry: -1 CPU, 0 VRAM, 1 PCIe
+    uint64_t ecap_bits[(kMaxWindowEntries + 63) / 64] = {};   // STRATA_VERIFY_ECAP: the entries it skipped
     if (d.plan != nullptr && n <= kMaxWindowEntries && n <= d.plan->cap) {
         int64_t distinct[kMaxWindowEntries], first_of[kMaxWindowEntries];
         int nd = 0, nmiss = 0;
@@ -5040,6 +5042,32 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
                 skip_d[q] = true;
                 --nmiss;
                 ++d.tail_experts;
+            }
+        }
+        // STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the verifier sets plan->ecap only for a decode
+        // window's draft rows (never row 0, a prompt read, a merged first window, a batch or a pipelined window).  Each draft row
+        // reads at most n missed experts that the committed row and the earlier rows do not read anyway; the experts only the rows
+        // over the cap name are skipped like a tail expert above: neither copied nor computed, a zero row (kind -2, below), no
+        // renormalisation.  Not with a peer or helper GPU (their rows are claimed outside this plan), as the tail skip.
+        if (d.plan->ecap >= 0 && n_tok > d.plan->ecap_first && d.peer == nullptr && d.remote_count == 0) {
+            int q_of[kMaxWindowEntries];
+            for (int q = 0; q < nd; ++q) q_of[distinct[q]] = q;
+            bool missed[kMaxWindowEntries], ecap_read[kMaxWindowEntries], ecap_drop[kMaxWindowEntries];
+            for (int64_t i = 0; i < n; ++i) {
+                const int32_t e = ids[i];
+                missed[i] = e >= 0 && e < d.n_expert && !skip_d[q_of[first_of[i]]] &&
+                            d.host_res[(size_t) d.layers * (size_t) d.n_expert + (size_t) e] < 0;
+            }
+            if (strata::core::verify_ecap_drop(first_of, missed, n_tok, k, d.plan->ecap_first, d.plan->ecap, ecap_read,
+                                               ecap_drop) > 0) {
+                for (int q = 0; q < nd; ++q)
+                    if (ecap_drop[distinct[q]]) {   // (every entry of the expert is dropped with its first one)
+                        skip_d[q] = true;
+                        --nmiss;
+                        ++d.ecap_experts;
+                    }
+                for (int64_t i = 0; i < n; ++i)
+                    if (ecap_drop[i]) ecap_bits[i >> 6] |= 1ull << (i & 63);
             }
         }
         // STRATA_ROUTE_DUMP=<file> (bench only, off by default): one text line per layer-window, "layer n_tok nd nmiss | e:rows:res ..." in routing
@@ -5323,7 +5351,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             }
             if (kind[i] == -2) {            // STRATA_ROUTE_TAIL_SKIP: a skipped tail expert contributes zero
                 std::memset(row, 0, (size_t) H * sizeof(float));
-                ++d.tail_skipped;
+                if ((ecap_bits[i >> 6] >> (i & 63)) & 1u) ++d.ecap_entries;   // STRATA_VERIFY_ECAP: draft-only
+                else ++d.tail_skipped;
                 continue;
             }
             if (kind[i] >= 0) {             // CUDA0, PCIe, or a remote/peer result staged into this row below

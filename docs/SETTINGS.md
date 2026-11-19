@@ -10,7 +10,7 @@ debugging and are kept in `terminal/data/settings-register.json`.
 A number or a word is set like any environment variable, for example `STRATA_KVA=1`. In the Terminal, `strata launch --set NAME=value`
 puts it in the model's run configuration.
 
-## Switches you can turn on (279)
+## Switches you can turn on (281)
 
 Off unless you set them. The last column says where each one is described.
 
@@ -290,6 +290,8 @@ Off unless you set them. The last column says where each one is described.
 | `STRATA_UNBUFFERED_LOAD` | on / off | NVIDIA and AMD, Intel Arc | [QUANTS.md](QUANTS.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | `STRATA_VERIFY_ALL_SLOTS` | on / off | Intel Arc | [INTEL.md](INTEL.md) |
 | `STRATA_VERIFY_EARLY_PLE_FLAG` | number | NVIDIA and AMD | [release-notes-0.2.2.md](release-notes-0.2.2.md) |
+| `STRATA_VERIFY_ECAP` | on / off | NVIDIA and AMD | - |
+| `STRATA_VERIFY_ECAP_MIN_ROWS` | number | NVIDIA and AMD | - |
 | `STRATA_VERIFY_NO_HOST` | on / off | Intel Arc | [A770_SPEED_SPEC.md](A770_SPEED_SPEC.md), [INTEL.md](INTEL.md), [INTEL_ARC.md](INTEL_ARC.md) |
 | `STRATA_VRAM_FREE` | on / off | NVIDIA and AMD | [DETAILS.md](DETAILS.md), [release-notes-0.2.7.md](release-notes-0.2.7.md) |
 | `STRATA_WAIT_FUSE` | on / off | NVIDIA and AMD | - |
