@@ -25,6 +25,24 @@
     },
     {
      "kind": "env",
+     "name": "STRATA_GR_RDNA",
+     "value": "1",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 3.0,
+     "ledger": "T-009 (RDNA kernel bundle: decode 87-101 -> 104-108 tok/s; 3.0 = 104 against 101, a bound for the bundle, not a per-flag number)"
+    },
+    {
+     "kind": "env",
+     "name": "STRATA_RDNA_MMVQ_WAVE",
+     "value": "3",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 3.0,
+     "ledger": "T-009 (same bundle bound), T-072 (mode 1 is 4.5% slower than 3 on short)"
+    },
+    {
+     "kind": "env",
      "name": "STRATA_HIPBLASLT_TUNING",
      "value": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
      "verdict": "GAIN",
