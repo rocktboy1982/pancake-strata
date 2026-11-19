@@ -16830,11 +16830,29 @@ int main(int argc, char** argv) {
                 }
                 const Clock::time_point tw1 = Clock::now();
                 auto msx = [](Clock::time_point a0, Clock::time_point b0) { return std::chrono::duration<double, std::milli>(b0 - a0).count(); };
-                std::thread adapt_thr;   // the adaptive tier beside the commit and the draft (as in generate)
+                // pancake item 75 (MOD_PLAN section 3: ADAPT_PERSIST default on): one persistent worker runs the adaptive tier
+                // beside the commit and the draft (a new std::thread per window before; STRATA_ADAPT_PERSIST=0 restores that).
+                // Exact: the same work on another thread.
+                static const bool adapt_persist = [] { const char* e = std::getenv("STRATA_ADAPT_PERSIST"); return !(e && e[0] == '0'); }();
+                static JobThread* adapt_worker = nullptr;   // never freed: lives as long as the server
+                std::thread adapt_thr;
+                bool adapt_posted = false;
+                auto adapt_pending = [&] { return adapt_posted || adapt_thr.joinable(); };
+                auto adapt_join = [&] {
+                    if (adapt_posted) { adapt_worker->wait(); adapt_posted = false; }
+                    if (adapt_thr.joinable()) adapt_thr.join();
+                };
                 bool adapt_ok = true;
                 // (--adapt-async 1: the asynchronous tier above instead, ticked before the window)
-                if (!drive.d.usage.empty() && !ajob && ((rounds + 1) % o.adapt_iv(rounds)) == 0)
-                    adapt_thr = std::thread([&] { strata::platform::name_this_thread("strata-adapt"); strata::aux_cpus::pin_current_thread(); adapt_ok = adapt(); });
+                if (!drive.d.usage.empty() && !ajob && ((rounds + 1) % o.adapt_iv(rounds)) == 0) {
+                    if (adapt_persist) {
+                        if (adapt_worker == nullptr) adapt_worker = new JobThread();
+                        adapt_worker->post([&] { adapt_ok = adapt(); });
+                        adapt_posted = true;
+                    } else {
+                        adapt_thr = std::thread([&] { strata::platform::name_this_thread("strata-adapt"); strata::aux_cpus::pin_current_thread(); adapt_ok = adapt(); });
+                    }
+                }
                 // TENSOR PARALLEL: the two commit graphs' launches (~1.3 ms of host time) go out on a helper thread while
                 // this thread runs the drafter (its own stream; the commit touches neither the final rows nor the ring).
                 // STRATA_TP_COMMIT_THREAD=0: the commit first, as the serial loop does.
@@ -16858,14 +16876,14 @@ int main(int argc, char** argv) {
                     commit_split = true;
                     if (tp_commit_thread) commit_thr = std::thread(commit0);
                 } else if (!dv.commit(a + 1, err)) {
-                    if (adapt_thr.joinable()) adapt_thr.join();
+                    adapt_join();
                     std::printf("ERR %s\n", err.c_str());
                     return 1;
                 }
                 const Clock::time_point tc2 = Clock::now();
                 dt_c_launch += msx(tc1, tc2);
                 if (nf_now) {   // #879: none of its tokens goes out
-                    if (adapt_thr.joinable()) adapt_thr.join();
+                    adapt_join();
                     if (!adapt_ok) {
                         std::printf("ERR an adaptive refill failed\n");
                         return 1;
@@ -16875,7 +16893,7 @@ int main(int argc, char** argv) {
                 }
                 // a merged window: the drafter's rows of the prompt tokens in it, as the prompt windows give them
                 if (merged && use_mtp && !mtp.prefill(ver.final_R_all(), window.data() + 1, T - 1, p, err)) {
-                    if (adapt_thr.joinable()) adapt_thr.join();
+                    adapt_join();
                     std::printf("ERR %s\n", err.c_str());
                     return 1;
                 }
@@ -16913,13 +16931,13 @@ int main(int argc, char** argv) {
                     if (!draft_now && !tp_commit_thread) commit0();   // no draft ran: card 0's commit now
                     if (!tpv[1].commit_one(a + 1, err)) {   // card 1's commit, after the draft
                         if (commit_thr.joinable()) commit_thr.join();
-                        if (adapt_thr.joinable()) adapt_thr.join();
+                        adapt_join();
                         std::printf("ERR %s\n", err.c_str());
                         return 1;
                     }
                     if (commit_thr.joinable()) commit_thr.join();
                     if (!commit_ok) {
-                        if (adapt_thr.joinable()) adapt_thr.join();
+                        adapt_join();
                         std::printf("ERR %s\n", commit_err.c_str());
                         return 1;
                     }
@@ -16931,9 +16949,9 @@ int main(int argc, char** argv) {
                     ++dec_windows; dec_T += merged ? 1 : T;   // a merged window's prompt rows are not decode rows
                 }
                 pcie_auto_step(req_pcie_frac);   // the default share, refined from the CPU pool's speed (PcieAuto); a request's own share is left alone
-                if (adapt_thr.joinable()) {
+                if (adapt_pending()) {
                     const Clock::time_point taj0 = Clock::now();
-                    adapt_thr.join();
+                    adapt_join();
                     dt_adapt_join += std::chrono::duration<double, std::milli>(Clock::now() - taj0).count();
                 }
                 if (!adapt_ok) {
