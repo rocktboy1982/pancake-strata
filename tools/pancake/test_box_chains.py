@@ -960,3 +960,148 @@ def test_updated_vs_upstream_specs_match_the_preset():
         base = {plain["args"][i]: plain["args"][i + 1] for i in range(0, len(plain["args"]), 2)}
         assert arm["args"] == {k: v for k, v in got.items() if k not in base}
     assert plain["env"] == {}
+
+
+# ------------------------------------------------------------------------------------------------ bench-updatedRD.sh
+BD = "bench-updatedRD.sh"
+CMAKE_ALL_TARGETS = ('echo "cmake $*" >> "$H/calls.log"\n'
+                     'b=; mode=; bm=; ts=; while [ $# -gt 0 ]; do case $1 in --build) b=$2; bm=1;; -B) b=$2;; --target) mode=t;; '
+                     '-*) ;; *) [ "$mode" = t ] && ts="$ts $1";; esac; shift; done\n'
+                     '[ "$CMAKE_FAIL" = 1 ] && case "$ts" in *strata*) rm -f "$b/strata"; exit 1;; esac\n'
+                     "[ \"$bm\" = 1 ] && mkdir -p \"$b\" && for t in $ts; do [ -e \"$b/$t\" ] || { printf '#!/bin/sh\nexit 0\n' > \"$b/$t\"; chmod +x \"$b/$t\"; }; done\nexit 0\n")
+
+
+def prepare_bd(box, markers=True):
+    """The chain waits for chain AA and the upstream benchmark; the fake codeload tarball carries what the three synced trees need."""
+    log = box.S / "redo-chainAA.log"
+    log.write_text("WINCHAINAA_DONE\n" if markers else "START\n")
+    (box.S / "bench-updatedAA.log").write_text("WINBENCHUS_DONE\n" if markers else "START\n")
+    (box.tmp / "clients").write_text("0\n0\n0\n")
+    (box.tmp / "stub" / "cmake").write_text("#!/bin/sh\n" + CMAKE_ALL_TARGETS, newline="\n")
+    tree = box.tmp / "srcdir" / "pancake-strata-abc"
+    for rel in ("tools/pancake/box_chains", "tools/pancake", "bench/specs", "rdna3/configs"):
+        (tree / rel).mkdir(parents=True, exist_ok=True)
+    (tree / "tools/pancake/build_updated_rdna3.sh").write_text(
+        "#!/bin/sh\ncmake -S $1 -B $2\ncmake --build $2 -j8 --target strata verify_ecap_test sampler_parity elementwise_parity\n", newline="\n")
+    (tree / "tools/pancake/abtest.py").write_text("# stub\n")
+    (tree / "tools/pancake/flag_diag.py").write_text("# stub\n")
+    shutil.copy(CHAINS / "bench_updatedRD_conf.py", tree / "tools/pancake/box_chains/")
+    shutil.copy(HERE.parent.parent / "bench" / "specs" / "250-rdna3-updated-vs-plain.json", tree / "bench/specs/")
+    subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "srcdir").as_posix(), "pancake-strata-abc"], check=True)
+
+
+def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box, markers=False)
+    p = box.start(BD)
+    time.sleep(1.5)
+    assert p.poll() is None and len(box.log("bench-updatedRD.log")) == 1
+    append(box, "redo-chainAA.log", "WINCHAINAA_DONE")
+    time.sleep(0.8)
+    assert p.poll() is None and len(box.log("bench-updatedRD.log")) == 1, "chain AA alone is not enough: the upstream benchmark must be done too"
+    assert not any(c.startswith("SYSTEMCTL") for c in box.calls())
+    append(box, "bench-updatedAA.log", "WINBENCHUS_DONE")
+    box.finish(p)
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRD_DONE", lines[-8:]
+    assert "ERROR" not in text and "ABORTED" not in text
+    assert_start_end_pairs(lines)
+    assert_service_discipline(box)
+    for must in ("SYNC nicejunjie/Strata-rdna3 8b01b0c8512d388552e8601b3aff6753d05286e0", "SYNC rocktboy1982/pancake-strata updated-strata-rdna3",
+                 "SYNC rocktboy1982/pancake-strata port/rdna3-decode", "BUILD_END plain exit=0", "BUILD_END updated exit=0", "ENGINE plain", "ENGINE updated",
+                 "END ctest exit=0", "CONFIG written", "START diag-updated", "START diag-plain", "START 250-screen", "START 250-confirm"):
+        assert must in text, must
+    order = ["BUILD_END plain exit=0", "BUILD_END updated exit=0", "START ctest", "CONFIG written", "START diag-updated", "START diag-plain",
+             "START 250-screen", "START 250-confirm"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    calls = box.calls()
+    assert any("--tier confirm" in c and "--block 3" in c and "--reps 5" in c for c in calls if c.startswith("PY")), "5-rep blocked confirm"
+    assert any(c.startswith("cmake") and "benchRD/build-plain" in c for c in calls)
+    spec = (box.tmp / "auto-runs" / "benchRD" / "250.json").read_text()
+    assert "@PLAIN@" not in spec and "@UPDATED@" not in spec and "build-plain/strata" in spec and "build-updated/strata" in spec
+    assert str(box.tmp / "mnt") in spec or "/mnt/" in spec, "arms point at /mnt/pancake builds"
+
+
+def test_bd_failed_build_restores_the_binary_logs_error_and_stops(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    bp = box.tmp / "mnt" / "benchRD" / "build-plain"
+    bp.mkdir(parents=True)
+    (bp / "strata").write_text("#!/bin/sh\n# the previous working binary\n", newline="\n")
+    before = (bp / "strata").read_text()
+    (bp / "strata").chmod(0o755)
+    box.finish(box.start(BD, env={"CMAKE_FAIL": "1"}))
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    assert "BUILD_END plain exit=1" in text and "BUILD FAILED: the previous" in text
+    assert any(l.startswith("ERROR BUILD plain FAILED") for l in lines)
+    assert lines[-1] == "WINBENCHRD_DONE" and lines[-3].startswith("WINBENCHRD_ABORTED") and lines[-2].startswith("service started")
+    assert (bp / "strata").read_text() == before
+    for never in ("BUILD_END updated", "START ctest", "START diag", "START 250", "CONFIG written"):
+        assert never not in text, never
+    assert_service_discipline(box)
+
+
+def test_bd_stops_with_error_when_mnt_pancake_is_nearly_full(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, transform=lambda t: t.replace("-ge 2097152", "-ge 99999999999")))
+    lines = box.log("bench-updatedRD.log")
+    assert any(l.startswith("ERROR SYNC:") and "< 2 GB free" in l for l in lines) and lines[-1] == "WINBENCHRD_DONE"
+    assert "BUILD" not in "\n".join(lines)
+    assert_service_discipline(box)
+
+
+def test_bd_stops_with_error_when_a_download_fails(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    (box.tmp / "fake-src.tgz").unlink()
+    box.finish(box.start(BD))
+    lines = box.log("bench-updatedRD.log")
+    assert any(l.startswith("ERROR SYNC: download of") for l in lines) and lines[-1] == "WINBENCHRD_DONE"
+    assert "BUILD" not in "\n".join(lines)
+    assert_service_discipline(box)
+
+
+def test_bd_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path):
+    box = Box(tmp_path)
+    assert "win-chain" not in BD
+    for name in ("win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh", "ztail-chainZ.sh", AA):
+        assert busy_result(box, name, ["sh ./bench-updatedRD.sh"]) == "IDLE", name
+    assert busy_result(box, BD, ["sh ./bench-updatedRD.sh"]) == "IDLE"
+    for other in ("sh ./win-chainT.sh", "sh ./xtail-chainX.sh", "sh ./redo-chainAA.sh", "/bin/sh ./after7.sh", "python3 tools/pancake/abtest.py x",
+                  "cmake --build x"):
+        assert busy_result(box, BD, [other]) == "BUSY", other
+
+
+def test_bd_spec_and_conf(tmp_path):
+    spec = json.loads((HERE.parent.parent / "bench" / "specs" / "250-rdna3-updated-vs-plain.json").read_text())
+    assert set(spec["arms"]) == {"plain", "updated", "updated-ecap6"} and spec["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
+    spec_ = importlib.util.spec_from_file_location("bd_conf", CHAINS / "bench_updatedRD_conf.py")
+    mod = importlib.util.module_from_spec(spec_)
+    spec_.loader.exec_module(mod)
+
+    class TF:   # a fake rdna3/tuned_flags.py
+        @staticmethod
+        def load_recommended(hw, d):
+            return {"env": {"STRATA_VERIFY_ECAP": "0"}, "args": {}}, "gfx1100.json"
+
+        @staticmethod
+        def apply_to_config(cfg, rec, env, root):
+            cfg["env"].update(rec["env"])
+
+    (tmp_path / "rdna3" / "configs").mkdir(parents=True)
+    (tmp_path / "rdna3" / "configs" / "iq3-1gpu.json").write_text(json.dumps({"env": {"STRATA_PF_F16": "2", "X": "@STRATA@/t"}}))
+    preset = tmp_path / "preset.json"
+    preset.write_text(json.dumps({"exe": "e", "args": ["--spec", "4", "--grammar", "on", "--lookup-max-t", "12", "--kv", "int8"],
+                                  "env": {"STRATA_VERIFY_ECAP": "1"}, "grammar": True, "port": 8080}))
+    plain, upd, path = mod.build(str(preset), str(tmp_path), "/u", "/b/plain", "/b/upd", TF)
+    assert plain["args"] == ["--spec", "4", "--kv", "int8"] and "grammar" not in plain
+    assert plain["env"] == {"STRATA_PF_F16": "2", "X": str(tmp_path) + "/t"}      # the plain build runs with the env of Strata-rdna3's own setup config
+    assert plain["exe"] == "/b/plain/strata" and upd["exe"] == "/b/upd/strata"
+    assert upd["env"]["STRATA_VERIFY_ECAP"] == "0" and "STRATA_VERIFY_ECAP" not in plain["env"]
+    rec = HERE.parent.parent / "rdna3" / "recommended-flags" / "gfx1100.json"
+    if rec.exists():       # on the updated-strata-rdna3 branch: the spec's updated arm is exactly the shipped file
+        assert spec["arms"]["updated"]["env"] == json.loads(rec.read_text())["env"]
