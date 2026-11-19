@@ -1,0 +1,35 @@
+{
+ "drift_check": false,
+ "base": "@CONFIG_PLAIN@",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "edit",
+  "long32k"
+ ],
+ "reps": 1,
+ "arms": {
+  "plain": {
+   "exe": "@PLAIN@/strata"
+  },
+  "updated-exact": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1"
+   }
+  },
+  "updated": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_PF_F16": "1"
+   }
+  }
+ },
+ "note": "RDNA3 follow-up of spec 250 (owner order 2026-11-19): updated-exact = the shipped updated-strata-rdna3 flags (rdna3/recommended-flags/gfx1100.json) minus their only lossy flag STRATA_PF_F16=1, i.e. STRATA_POOL_FUSE_PHASES=1 alone (exact: kernels/cpu/pool.cpp fuse_phases, the CPU pool's phase order; TEST_LEDGER.md T-224 output identical on the pancake base); STRATA_PF_F16 then keeps the plain config's value (2: Strata-rdna3's own 128-token F16 items, rdna3/configs/iq3-1gpu.json), so updated-exact differs from plain only by the build and POOL_FUSE_PHASES. STRATA_VERIFY_ECAP is not shipped in that tree and is in no arm. Cases short, edit (decode) and long32k (cold prompt tok/s, where PF_F16 acts). Run by tools/pancake/box_chains/bench-exact.sh on the builds of bench-updatedRD.sh (/mnt/pancake/benchRD, no rebuild), filling @CONFIG_PLAIN@ / @PLAIN@ / @UPDATED@ as that chain does for spec 250. The token-forcing quality gate needs STRATA_FOLLOW (force_check.py score --path decode), which Strata-rdna3 does not read: the chain runs it only when both trees have it. NOT MEASURED.",
+ "stop": [
+  "an arm whose server dies before ready twice: stop and read the engine log",
+  "a DIFFERENT text of updated-exact vs plain on short / edit is placement noise or a build difference, never a quality verdict by itself"
+ ]
+}

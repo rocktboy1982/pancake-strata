@@ -1834,3 +1834,246 @@ def test_bench_rd_budget_over_skips_the_optional_confirms(tmp_path):
     text = chr(10).join(box.log("bench-updatedRD.log"))
     ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c and "benchRD-2" in c]
     assert len(ab) == 2 and "SKIP 250 confirm: only" in text and "251 confirm not run: only" in text, ab
+
+# ------------------------------------------------------------------------------------------------ bench-exact.sh (exact arm + quality gate follow-up)
+BE = "bench-exact.sh"
+BE_PS = ('case "$*" in\n'
+         '  "-eo pid=,ppid=,sid=") [ -f "$H/ptree.txt" ] && sed "s/@SID@/$(cat "$H/sid.txt" 2>/dev/null)/g" "$H/ptree.txt" ;;\n'
+         '  "-o pid=,lstart= -p "*) for p in $(echo "$4" | tr "," " "); do [ -f "$H/lstart.$p" ] && echo "$p $(cat "$H/lstart.$p")"; done ;;\n'
+         '  "-o args= -p "*) echo "args-of-$4" ;;\n'
+         '  "-o stat= -p "*) cat "$H/stat.$4" 2>/dev/null ;;\n'
+         '  "-eo pid=,args=") cat "$H/ps.txt" 2>/dev/null ;;\n'
+         'esac\nexit 0\n')
+# the signal command of the watchdog / reaper: a fake pid (9999xx) "dies" (its start-time file goes), a real one gets the real signal
+BE_REAP = 'echo "REAP $*" >> "$H/calls.log"\ncase $2 in 9999*) rm -f "$H/lstart.$2" ;; *) kill "$1" "$2" 2>/dev/null ;; esac\nexit 0\n'
+# python3: the quality gate can leave an engine of its own session behind (force_check.py starts engines with start_new_session) or hang
+BE_PY = ('case "$*" in *quality_gate.py*)\n'
+         '  [ -n "$GATE_ORPHAN" ] && { echo "999993 @SID@ 999993" > "$H/ptree.txt"; echo "Thu Nov 19 16:00:00 2026" > "$H/lstart.999993"; /usr/bin/sleep 1; }\n'
+         '  [ -n "$GATE_HANG" ] && /usr/bin/sleep "$GATE_HANG" ;;\n'
+         'esac\nexec "$PYREAL" "$H/stub/pystub.py" "$@"\n')
+BE_ENV = {"BENCH_SCHED": "1", "BENCH_PREIDLED": "1", "BENCH_KEEP_SERVICE_DOWN": "1", "SVC_DOWN": "1"}
+
+
+def prepare_be(box, us=True, rd=True, follow=False):
+    for n, body in (("ps", BE_PS), ("reapcmd", BE_REAP), ("python3", BE_PY),
+                    ("setsid", 'echo "SETSID $$ $*" >> "$H/calls.log"; echo $$ > "$H/sid.txt"; exec "$@"\n'),
+                    ("df", 'echo "Filesystem 1K-blocks Used Available Use% Mounted"\necho "x 1 1 ${DF_FREE:-99999999} 1% /"\n')):
+        (box.tmp / "stub" / n).write_text("#!/bin/sh\n" + body, newline="\n")
+    pkg = box.tmp / "be-src" / "x"
+    root = HERE.parents[1]
+    for rel in ("bench/specs/222-updated-exact-vs-upstream-short.json", "bench/specs/223-updated-exact-vs-upstream-long.json",
+                "bench/specs/252-rdna3-updated-exact.json", "configs/pancake/flashnext-iq2_xs-plain-upstream.json"):
+        (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(root / rel, pkg / rel)
+    for rel in ("tools/pancake/abtest.py", "tools/pancake/quality_gate.py", "tools/force_check.py", "bench/quality/set-v2.json"):
+        (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
+        (pkg / rel).write_text("# stub\n")
+    (box.tmp / "fake-src.tgz").unlink()
+    subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "be-src").as_posix(), "x"], check=True)
+    exe = "#!/bin/sh\nexit 0\n"
+    if us:
+        for rel in ("build-up/strata", "build-us/strata", "src-up/terminal/data/expert-profile.bin"):
+            (box.tmp / "mnt" / "benchus" / rel).parent.mkdir(parents=True, exist_ok=True)
+            (box.tmp / "mnt" / "benchus" / rel).write_text(exe, newline="\n")
+    if rd:
+        for rel in ("build-plain/strata", "build-updated/strata"):
+            (box.tmp / "mnt" / "benchRD" / rel).parent.mkdir(parents=True, exist_ok=True)
+            (box.tmp / "mnt" / "benchRD" / rel).write_text(exe, newline="\n")
+        for t in ("src-plain", "src-updated"):
+            g = box.tmp / "mnt" / "benchRD" / t / "src" / "program" / "generate.cpp"
+            g.parent.mkdir(parents=True, exist_ok=True)
+            g.write_text('const char* f = std::getenv("STRATA_FOLLOW");\n' if follow else 'std::getenv("STRATA_LOGPOS");\n')
+        (box.tmp / "auto-runs" / "benchRD").mkdir(parents=True, exist_ok=True)
+        (box.tmp / "auto-runs" / "benchRD" / "config-plain.json").write_text("{}")
+
+
+def be_env(**kw):
+    return {**BE_ENV, "REAPCMD": "reapcmd", **kw}
+
+
+def be_calls(box, tool):
+    return [c for c in box.calls() if c.startswith("PY") and tool in c]
+
+
+def test_bench_exact_full_flow_order_gate_invocation_and_markers(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box)
+    box.finish(box.start(BE, env=be_env()))
+    lines = box.log("bench-exact.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHEXACT_DONE" and "ERROR" not in text and "ABORTED" not in text, text
+    assert_start_end_pairs(lines)
+    order = ["PREREQ US ok", "PREREQ RD ok", "SYNC harness: origin port/rdna3-decode abc123", "START 222-screen", "END 222-screen exit=0",
+             "START gate-us", "END gate-us exit=0", "START 223-screen", "START 252-screen", "SKIP gate-rd: token forcing needs STRATA_FOLLOW",
+             "222: no arm with a benefit in the screen (updated excluded", "START 252-confirm", "SUMMARY spec222 screen exit=0, gate-us exit=0",
+             "service stays down"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    ab = be_calls(box, "abtest.py")
+    assert len(ab) == 4, ab
+    assert "bench/specs/222-updated-exact-vs-upstream-short.json" in ab[0] and "--tier screen" in ab[0] and "--drift-check" in ab[0]
+    assert "bench/specs/223-updated-exact-vs-upstream-long.json" in ab[1] and "--tier screen" in ab[1] and "--drift-check" not in ab[1]
+    assert "work/252.json" in ab[2] and "--tier screen" in ab[2]
+    assert "252-confirm.json" in ab[3] and "--reps 3" in ab[3] and "--block 3" in ab[3] and "--outlier robust" in ab[3] and "--no-early-stop" in ab[3]
+    qg = be_calls(box, "quality_gate.py")
+    assert len(qg) == 1, qg
+    assert ("bench/specs/222-updated-exact-vs-upstream-short.json" in qg[0] and "--set bench/quality/set-v2.json" in qg[0] and "--near-tie" in qg[0]
+            and "/auto-runs/benchexact/gate-us" in qg[0]), qg     # the T-828 settings: default set-v2, near-tie column on
+    sp = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252.json").read_text())
+    assert sp["arms"]["plain"]["exe"].endswith("/mnt/benchRD/build-plain/strata") and sp["base"].endswith("auto-runs/benchRD/config-plain.json")
+    assert sp["arms"]["updated-exact"]["env"] == {"STRATA_POOL_FUSE_PHASES": "1"}
+    conf = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252-confirm.json").read_text())
+    assert conf["cases"] == ["short", "edit"] and conf["drift_check"] is False
+    assert sum(1 for c in box.calls() if c.startswith("SETSID")) == 5                     # every long step in its own session
+    assert not any(c.startswith("SIG") or c.startswith("REAP") for c in box.calls())     # AA is never signalled, nothing to reap
+    assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())   # the service stays down
+
+
+def test_bench_exact_rd_gate_runs_when_both_trees_read_strata_follow(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, follow=True)
+    box.finish(box.start(BE, env=be_env()))
+    text = "\n".join(box.log("bench-exact.log"))
+    qg = be_calls(box, "quality_gate.py")
+    assert len(qg) == 2 and "work/252.json" in qg[1] and "/benchexact/gate-rd" in qg[1] and "--near-tie" in qg[1], qg
+    assert "START gate-rd" in text and "SKIP gate-rd" not in text
+
+
+def test_bench_exact_prereq_missing_us_builds_skips_the_us_part_only(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, us=False)
+    box.finish(box.start(BE, env=be_env()))
+    lines = box.log("bench-exact.log")
+    text = "\n".join(lines)
+    err = [l for l in lines if l.startswith("ERROR PREREQ US part SKIPPED")]
+    assert len(err) == 1 and "benchus/build-up/strata" in err[0] and "benchus/build-us/strata" in err[0], lines
+    assert "START 222-screen" not in text and "START gate-us" not in text and "START 223-screen" not in text
+    assert "START 252-screen" in text and lines[-1] == "WINBENCHEXACT_DONE"
+    assert not be_calls(box, "quality_gate.py")
+
+
+def test_bench_exact_prereq_missing_rd_config_skips_the_rd_part_and_both_missing_aborts(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box)
+    (box.tmp / "auto-runs" / "benchRD" / "config-plain.json").unlink()
+    box.finish(box.start(BE, env=be_env()))
+    lines = box.log("bench-exact.log")
+    text = "\n".join(lines)
+    assert any(l.startswith("ERROR PREREQ RD part SKIPPED") and "config-plain.json" in l for l in lines)
+    assert "START 222-screen" in text and "START gate-us" in text and "START 252-screen" not in text and lines[-1] == "WINBENCHEXACT_DONE"
+    (tmp_path / "b").mkdir()
+    box2 = Box(tmp_path / "b")
+    prepare_be(box2, us=False, rd=False)
+    box2.finish(box2.start(BE, env=be_env()))
+    l2 = box2.log("bench-exact.log")
+    assert any(l.startswith("WINBENCHEXACT_ABORTED: no part can run") for l in l2) and l2[-1] == "WINBENCHEXACT_DONE", l2
+    assert not [c for c in box2.calls() if c.startswith("PY") and ("abtest.py" in c or "quality_gate.py" in c)]
+
+
+def test_bench_exact_budget_default_is_75_minutes_and_an_exhausted_budget_skips_the_optional_steps(tmp_path):
+    t = (CHAINS / BE).read_text()
+    m = re.search(r"BUDGET=\$\{BENCH_BUDGET_S:-(\d+)\}", t)
+    assert m and int(m.group(1)) <= 75 * 60, "the owner's budget is 75 minutes"
+    box = Box(tmp_path)
+    prepare_be(box)
+    box.finish(box.start(BE, env=be_env(BENCH_BUDGET_S="300")))
+    lines = box.log("bench-exact.log")
+    text = "\n".join(lines)
+    for must in ("SKIP gate-us: budget", "SKIP 223-screen: budget", "SKIP RD part: budget"):
+        assert must in text, must
+    assert [c for c in be_calls(box, "abtest.py")] and len(be_calls(box, "abtest.py")) == 1 and not be_calls(box, "quality_gate.py")
+    assert lines[-1] == "WINBENCHEXACT_DONE"
+
+
+def test_bench_exact_gate_engine_left_in_its_own_session_is_reaped_no_orphan(tmp_path):
+    """force_check.py starts its engine with start_new_session: a session reap alone would miss it.  The watchdog records every process the step's
+    tree ever had (pid + start time); after the step the one still alive is killed and logged, and the chain goes on."""
+    box = Box(tmp_path)
+    prepare_be(box)
+    box.finish(box.start(BE, env=be_env(GATE_ORPHAN="1")))
+    lines = box.log("bench-exact.log")
+    text = "\n".join(lines)
+    reap = [l for l in lines if l.startswith("REAP gate-us: still running")]
+    assert len(reap) == 1 and "999993" in reap[0], lines
+    assert "REAP -TERM 999993" in box.calls() and not (box.tmp / "lstart.999993").exists()   # gone: no orphan left
+    assert text.index("REAP gate-us: still running") < text.index("END gate-us") < text.index("START 223-screen")
+    assert "ERROR REAP" not in text and lines[-1] == "WINBENCHEXACT_DONE"
+
+
+def test_bench_exact_step_over_its_limit_gets_term_to_its_tree_and_the_chain_goes_on(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box)
+    box.finish(box.start(BE, env=be_env(GATE_HANG="30", EXACT_LIM_GATE="20")), timeout=180)
+    lines = box.log("bench-exact.log")
+    text = "\n".join(lines)
+    assert any(l.startswith("TIMEOUT gate-us after 20 s (limit 20 s") for l in lines), lines
+    assert any(c.startswith("REAP -TERM") for c in box.calls())
+    assert "END gate-us exit=124" in text and "START 223-screen" in text and lines[-1] == "WINBENCHEXACT_DONE"
+
+
+def test_bench_exact_standalone_waits_for_both_benchmark_markers(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box)
+    p = box.start(BE, env={"SVC_DOWN": "1", "REAPCMD": "reapcmd"})
+    time.sleep(1.5)
+    assert p.poll() is None and len(box.log("bench-exact.log")) == 1
+    append(box, "bench-updatedAA.log", "WINBENCHUS_DONE")
+    time.sleep(0.5)
+    assert p.poll() is None and len(box.log("bench-exact.log")) == 1
+    append(box, "bench-updatedRD.log", "WINBENCHRD_DONE")
+    box.finish(p)
+    lines = box.log("bench-exact.log")
+    assert "both benchmark chains are done" in lines[1] and lines[-1] == "WINBENCHEXACT_DONE", lines[:3]
+
+
+def test_bench_exact_name_is_invisible_to_every_busy_pattern_and_sees_the_benchmark_chains(tmp_path):
+    box = Box(tmp_path)
+    for chain in ("win-chainT.sh", "redo-chainAA.sh", "bench-updatedAA.sh", "bench-updatedRD.sh", "bench-exact.sh"):
+        assert busy_result(box, chain, ["sh ./bench-exact.sh"]) == "IDLE", chain
+    for other in ("sh ./bench-updatedAA.sh", "sh ./bench-updatedRD.v3.sh", "sh ./bench-diagUS.sh", "python3 tools/pancake/quality_gate.py x"):
+        assert busy_result(box, BE, [other]) == "BUSY", other
+
+
+def test_bench_exact_specs_are_the_updated_arm_minus_exactly_the_lossy_switches():
+    root = HERE.parents[1]
+    s220 = json.loads((root / "bench/specs/220-updated-vs-upstream-short.json").read_text())
+    s222 = json.loads((root / "bench/specs/222-updated-exact-vs-upstream-short.json").read_text())
+    s223 = json.loads((root / "bench/specs/223-updated-exact-vs-upstream-long.json").read_text())
+    upd, ex = s220["arms"]["updated"], s222["arms"]["updated-exact"]
+    assert list(s222["arms"]) == ["plain-upstream", "updated-exact", "updated"] and s222["arms"]["updated"] == upd
+    assert s222["arms"]["plain-upstream"] == s220["arms"]["plain-upstream"] and s222["drift_check"] is True and s222["cases"] == ["short", "edit"]
+    assert s223["arms"] == s222["arms"] and s223["cases"] == ["longdec10k", "longdec32k", "longdec64k", "longdec100k"] and s223["drift_check"] is False
+    unset = {"STRATA_GDN_CONVL2", "STRATA_GR_RDNA_A8", "STRATA_GR_RDNA_Q8", "STRATA_HC_UPMIX", "STRATA_PA_FAST", "STRATA_PF_F16", "STRATA_PF_HCDOWN",
+             "STRATA_PREFILL_AUTO_MAX", "STRATA_SELECT_WMMA", "STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS"}
+    assert set(upd["env"]) - set(ex["env"]) == unset and not set(ex["env"]) - set(upd["env"])
+    assert ex["env"]["STRATA_PREFILL_CPU_SHARE"] == "0" and ex["env"]["STRATA_ROUTE_TAIL_SKIP"] == "0"
+    assert {k: v for k, v in ex["env"].items() if k not in ("STRATA_PREFILL_CPU_SHARE",)} == {k: v for k, v in upd["env"].items() if k not in unset | {"STRATA_PREFILL_CPU_SHARE"}}
+    for core in ("STRATA_GR_RDNA", "STRATA_RDNA_MMVQ_WAVE", "STRATA_COMBINE_CPU", "STRATA_WAIT_FUSE", "STRATA_POOL_FUSE_PHASES", "STRATA_RDNA_Q6K", "STRATA_ROUTE_PUBLISH"):
+        assert ex["env"][core] == upd["env"][core], core
+    assert ex["args"] == upd["args"] and ex["exe"] == upd["exe"]
+    s252 = json.loads((root / "bench/specs/252-rdna3-updated-exact.json").read_text())
+    shipped = json.loads((root / "bench/specs/250-rdna3-updated-vs-plain.json").read_text())["arms"]["updated"]["env"]
+    assert s252["arms"]["updated"]["env"] == shipped and s252["arms"]["updated-exact"]["env"] == {k: v for k, v in shipped.items() if k != "STRATA_PF_F16"}
+
+
+def test_sched_bench_extra_runs_the_third_chain_alone_or_after_both(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box)
+    (box.S / "bench-exact.sh").write_text(FAKE_CHAIN.format(name="exact", log=(box.S / "bench-exact.log").as_posix(), marker="WINBENCHEXACT_DONE"), newline="\n")
+    box.finish(box.start(SCHED, env=sched_env(BENCH_ONLY="EXTRA", BENCH_EXTRA="./bench-exact.sh", BENCH_NO_RESUME="1")))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert chains_log(box) == ["exact env: BENCH_SCHED=1 BENCH_PREIDLED=1 KEEP=1 stat=T"], chains_log(box)
+    assert "END EXTRA exit=0 last-log-line=WINBENCHEXACT_DONE" in text and "START US" not in text and "START RD" not in text and "ERROR" not in text
+    assert [c for c in box.calls() if c.startswith("SIG")] == ["SIG -STOP 4242"] and "AA stays frozen" in text   # BENCH_NO_RESUME=1
+    (tmp_path / "b").mkdir()
+    box2 = Box(tmp_path / "b")
+    prepare_sched(box2)
+    (box2.S / "bench-exact.sh").write_text(FAKE_CHAIN.format(name="exact", log=(box2.S / "bench-exact.log").as_posix(), marker="WINBENCHEXACT_DONE"), newline="\n")
+    box2.finish(box2.start(SCHED, env=sched_env(BENCH_EXTRA="./bench-exact.sh")))
+    assert [l.split()[0] for l in chains_log(box2)] == ["us", "rd", "exact"]
+    (tmp_path / "c").mkdir()
+    box3 = Box(tmp_path / "c")
+    prepare_sched(box3)
+    box3.finish(box3.start(SCHED, env=sched_env(BENCH_ONLY="EXTRA")))
+    t3 = "\n".join(box3.log("bench-sched.log"))
+    assert "ERROR BENCH_ONLY=EXTRA without BENCH_EXTRA" in t3 and not chains_log(box3)
