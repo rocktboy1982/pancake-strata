@@ -246,6 +246,7 @@ Off unless you set them. The last column says where each one is described.
 | `STRATA_ROCBLAS_VERBOSE` | text | AMD | [AMD_HIP.md](AMD_HIP.md), [README.md](bench-results/2026-10-05-rdna2-rocblas-table/README.md) |
 | `STRATA_ROUTE_PER_TOKEN` | on / off | NVIDIA and AMD, Intel Arc | [AMD_HIP.md](AMD_HIP.md) |
 | `STRATA_ROUTE_PRIOR` | text | NVIDIA and AMD | [DETAILS.md](DETAILS.md), [release-notes-0.2.0.md](release-notes-0.2.0.md), [release-notes-0.2.7.md](release-notes-0.2.7.md) |
+| `STRATA_ROUTE_PUBLISH` | on / off | NVIDIA and AMD | - |
 | `STRATA_ROUTE_RESIDENT` | on / off | NVIDIA and AMD | [DETAILS.md](DETAILS.md) |
 | `STRATA_ROUTE_RESIDENT_MTP` | number | NVIDIA and AMD | [DETAILS.md](DETAILS.md) |
 | `STRATA_SCORES_HALVE` | number | NVIDIA and AMD | [DETAILS.md](DETAILS.md) |

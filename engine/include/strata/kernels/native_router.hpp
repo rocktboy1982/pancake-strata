@@ -20,6 +20,10 @@ void native_router_top10_multi(const float* logits, int32_t* ids, float* weights
 /// 256 / 8 (Qwen3.6-35B-A3B).  logits [n_tok, n_expert], ids / weights [n_tok, k].  CUDA / HIP.
 bool native_router_topk_supported(int n_expert, int k);
 void native_router_topk(const float* logits, int32_t* ids, float* weights, int n_expert, int k, int n_tok, void* stream);
+/// STRATA_ROUTE_PUBLISH: native_router_top10_multi then doorbell_publish_res(x, ids, d_res, ...) in one launch (1..8 rows)
+void native_router_top10_publish_res(const float* logits, int32_t* ids, float* weights, int n_tok, const float* x,
+                                     const int32_t* d_res, int n_expert, int64_t n, float* x_out, int32_t* ids_out,
+                                     uint32_t* seq, void* stream);
 /// STRATA_ROUTE_RESIDENT: swap non-resident tail-rank experts for resident ones within `margin` logits (see the .cu).
 /// `stats` is nullptr or 4 device uint64 counters: tail entries seen, swaps, non-resident before, non-resident after.
 void native_route_resident(const float* logits, int32_t* ids, float* weights, const int32_t* res_layer, int n_tok, float margin,

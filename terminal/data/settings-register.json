@@ -36855,6 +36855,39 @@
    "retired_in": ""
   },
   {
+   "name": "STRATA_ROUTE_PUBLISH",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/core/verify.cpp",
+     "line": 2262,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "router top-10 and the doorbell publish in one launch (1..8 rows, window decode); pancake T-009 (21.60 to 21.51 ms/window, identical output, nicejunjie 50ec2ade3), T-317 (not with deferral); the daily preset sets 1",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_ROUTE_RESIDENT",
    "backends": [
     "cuda-hip"
