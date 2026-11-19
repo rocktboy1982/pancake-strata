@@ -3,8 +3,10 @@
 This branch (`updated-strata`) is the upstream release `v0.2.16` of [Niko1221/Strata](https://github.com/Niko1221/Strata) plus a small
 set of changes taken from the fork [pancake-strata](https://github.com/rocktboy1982/pancake-strata) (work line `port/rdna3-decode`).
 It is written as the description of a pull request back to upstream. Every performance number below is copied from the fork's
-test ledger (`TEST_LEDGER.md`, ids `T-nnn`) and names the hardware it was measured on. A change without a measured gain is not in
-this branch, and a number without a ledger id is not in this file.
+test ledger (`TEST_LEDGER.md`, ids `T-nnn`) and names the hardware it was measured on. A number without a ledger id is not in this file.
+Every ported switch is default off and its unset path is v0.2.16's code. The switches of sections 2.8 to 2.13 are the adopted core of the
+fork's daily preset; for most of them the ledger holds the bundle's number (T-009, T-378) or a single run, not a confirmed per-switch gain,
+and each section says which. The benchmark of section 4 and `flag_diag.sh` are how this branch settles them on the release build.
 
 Hardware of all ledger numbers unless stated: AMD Radeon RX 7900 XT 20 GB (gfx1100), Linux, ROCm 10.0, model
 Qwen3.8-Flash-Next (`GSQ-RCO-IQ2_XS` GGUF), the fork's `fast-hip` preset. The ledger and the raw result archives live in the
@@ -16,6 +18,8 @@ given below where one exists.
 | capability | what it is | how to run it |
 |---|---|---|
 | RDNA decode GEMVs | multi-column GEMV kernels for Q4_K, Q5_K, Q6_K and IQ4_XS on gfx11 (`engine/src/kernels/cuda/rdna_mmvq.cu`), opt-in `STRATA_RDNA_Q6K=1` | `STRATA_RDNA_Q6K=1 strata ...` (see section 2.1) |
+| Hyper-connection read, wave and fusion kernels | `STRATA_GR_RDNA*`, `STRATA_RDNA_MMVQ_WAVE=3`, `STRATA_COMBINE_CPU`, `STRATA_WAIT_FUSE`, `STRATA_ROUTE_PUBLISH` (gfx1100 decode) | env switches, default off (sections 2.8 to 2.11) |
+| CPU pool and verify-window switches | `STRATA_POOL_FUSE_PHASES`, `STRATA_VERIFY_ECAP` + `STRATA_VERIFY_ECAP_MIN_ROWS` | env switches, default off (sections 2.12, 2.13) |
 | Per-hardware flag diagnostics | `tools/pancake/flag_diag.sh`: detects the hardware and, flag by flag, answers "can it run here, and does it help here" | `tools/pancake/flag_diag.sh hw`, `list`, `run CONFIG OUT_DIR` (section 2.5) |
 | Tuned flags at the normal start | `terminal/strata_control/tuned_flags.py`: measured flags for the detected hardware are added to the run configuration at every start; your own settings always win | automatic; off with `STRATA_TUNED_FLAGS=0` or `--no-tuned-flags` (section 2.4) |
 | Host tuning scripts | `tools/pancake/host_tune.sh`, `host_tune_ab.sh`, `os_tune.sh`, `pcie_link.py`: reversible Linux host settings with a state file | `host_tune.sh --check` (read-only), see section 2.6 |
@@ -94,7 +98,7 @@ to one model family, so it is not part of the automatic tuned flags; it is used 
 
 Where. The normal start of the Terminal, `runtime start` and the app all call `apply_saved_tuning` in
 `terminal/serve/server_parts/http_api.py` before the saved-preset overlay. Two lines were added there; the logic is the new
-module `terminal/strata_control/tuned_flags.py` (tests: `terminal/tests/tuning/test_tuned_flags.py`, 15 tests with fake
+module `terminal/strata_control/tuned_flags.py` (tests: `terminal/tests/tuning/test_tuned_flags.py`, 11 tests with fake
 hardware and fake verdict files).
 
 Rules:
@@ -111,10 +115,16 @@ Rules:
    flag with another verdict.
 5. Unknown hardware (no profile matches, or no card could be read) keeps the plain defaults and prints one line saying so.
 
-The shipped profile holds four flags: `STRATA_RDNA_Q6K=1` (section 2.1), `STRATA_HIPBLASLT_TUNING` (2.2), `--pcie-frac 0`
-(+6 % short, +13 % edit, one run each, T-197; 0.15 / 0.3 / 0.55 were all slower, T-268) and `--lookup-max-t 12` (edit +8.8 % +-6.8,
-text differs, token-forcing quality gate PASS, T-126 / T-127, archive `bench/results/2026-11-10-test-phase/05c-lookup12*`).
-`--adapt-every` / `--adapt-swaps` are not in it: the ledger shows no gain without `--pcie-frac 0` (T-199).
+The shipped profile holds six flags: `STRATA_RDNA_Q6K=1` (section 2.1), `STRATA_GR_RDNA=1` and `STRATA_RDNA_MMVQ_WAVE=3` (2.8, 2.9: the
+T-009 kernel bundle, 3.0 % is the bundle's bound 104 against 101 tok/s, not a per-flag figure), `STRATA_HIPBLASLT_TUNING` (2.2),
+`--pcie-frac 0` (+6 % short, +13 % edit, one run each, T-197; 0.15 / 0.3 / 0.55 were all slower, T-268) and `--lookup-max-t 12` (edit
++8.8 % +-6.8, text differs, token-forcing quality gate PASS, T-126 / T-127, archive `bench/results/2026-11-10-test-phase/05c-lookup12*`).
+`--adapt-every` / `--adapt-swaps` are not in it: the ledger shows no gain without `--pcie-frac 0` (T-199). Also not in it, each for a
+reason in the ledger: `STRATA_GR_RDNA_Q8` / `_A8` / `GR_INJ_UP` / `GR_FUSED` (lossy, no passing quality gate on record),
+`STRATA_ROUTE_PUBLISH` (21.60 to 21.51 ms per window, 0.4 %), `STRATA_WAIT_FUSE` (+1.2 %), `STRATA_COMBINE_CPU` (no single number),
+`STRATA_POOL_FUSE_PHASES` (+2.5 % +-1.7, short -1.3 %), `STRATA_VERIFY_ECAP` (its gates ran with a grammar guard v0.2.16 lacks).
+**None of these entries has run on a HIP build of this branch yet**: the profile applies them to every gfx1100 / ROCm 10.x start, so
+regenerate it from the benchmark's verdicts (`flag_diag.sh --write-recommended`) before relying on it; `STRATA_TUNED_FLAGS=0` removes it.
 
 ### 2.5 Per-flag diagnostics: `tools/pancake/flag_diag.sh`
 
@@ -122,9 +132,10 @@ Read-only on the system (sysfs, proc and rocminfo reads; the engine is started a
 output folder; no sudo, no sysctl writes).
 
 * `flag_diag.sh hw`: gfx architecture, ROCm version, VRAM, PCIe link speed and width, CPU, RAM, hipBLASLt library, VMM hint.
-* `flag_diag.sh list`: the candidate flags (the ones in section 2.1-2.4 plus `STRATA_PF_F16`, `STRATA_HIP_WMMA`,
-  `STRATA_SELECT_WMMA`, `STRATA_PROMPT_ATTN_IMMA`, `STRATA_KV_HOST_DMA`, `STRATA_PREFILL_RING`, `STRATA_STAGER_RING`,
-  `GPU_MAX_HW_QUEUES`) with exact / lossy status and ledger id.
+* `flag_diag.sh list`: the candidate flags (sections 2.1 to 2.13 plus `STRATA_PF_F16`, `STRATA_HIP_WMMA`, `STRATA_SELECT_WMMA`,
+  `STRATA_PROMPT_ATTN_IMMA`, `STRATA_KV_HOST_DMA`, `STRATA_PREFILL_RING`, `STRATA_STAGER_RING`, `GPU_MAX_HW_QUEUES`) with exact / lossy
+  status and ledger id; a candidate that only acts together with others (`GR_FUSED`, `COMBINE_CPU` + `WAIT_FUSE`, `VERIFY_ECAP` +
+  `MIN_ROWS`) carries them in its arm and in the recommended profile.
 * `flag_diag.sh run CONFIG.json OUT_DIR [--only A,B] [--budget-min 15]`: per flag, first a hardware check without starting
   anything (UNSUPPORTED with the reason), then one engine start with the flag next to two starts of the default (the second is the
   noise floor), two short prompts each, through the A/B harness `tools/pancake/abtest.py` of the pancake-strata line
@@ -132,9 +143,10 @@ output folder; no sudo, no sysctl writes).
   differs), NO-GAIN, GAIN (exact >= 2 %, lossy >= 3 %, and above the noise floor) or UNTESTED (budget ended). A lossy flag enters the
   recommended file only with a passing quality gate.
 * `flag_diag.sh --write-recommended OUT_DIR/verdicts.json [FILE] [--merge]` writes the tuned-flags profile from the verdicts.
-* Time: about 2.5 minutes per flag, 15 minutes at the default budget (four flags); the benchmark chain runs it on both builds.
+* Time: about 2.5 minutes per flag, 15 minutes at the default budget (four flags); the benchmark chain runs it on both builds (10 minutes
+  for the two flags the plain release knows, 20 minutes for six of the updated build's).
 
-Tests: `python -m pytest -q tools/pancake/test_flag_diag.py` (13 tests: fake sysfs / proc tree, fake rocminfo, fake A/B output,
+Tests: `python -m pytest -q tools/pancake/test_flag_diag.py` (16 tests: fake sysfs / proc tree, fake rocminfo, fake A/B output,
 the verdict rules, the recommended-file rule). Reproduce the real run with `flag_diag.sh run <config> <out>` on the target machine.
 
 ### 2.6 Host tuning scripts
@@ -156,16 +168,87 @@ AVX2 off), `-ffast-math` / `--use_fast_math` on HIP (the tree sets `-ffp-contrac
 LTO (opt-in `LTO=1`, no claim that it is faster). `BACKEND=cuda` keeps the CUDA build available. The effect of these flags is
 not measured in isolation; the benchmark (section 4) measures the whole updated build against the plain release.
 
+### 2.8 Hyper-connection read kernels (`STRATA_GR_RDNA`, `_Q8`, `_A8`, `STRATA_GR_INJ_UP`, `STRATA_GR_FUSED`)
+
+What it does. The model's two hyper-connection reads per layer (a down and an up projection of a 4 x 2560 state) run in one decode
+window of up to 8 tokens. `rdna_gr.cu` reads them on wave32 gfx11 with a split-K down pass and a partial-folding up pass in another
+summation order than `fused_gr_read_multi`. Four optional layers on top: `GR_RDNA_Q8` keeps int8 + fp16-scale copies of the two
+projections (made at load in `NativeDense` from the GGUF's Q8_0 or BF16 rows) and leaves the BF16 copies off the card;
+`GR_RDNA_A8` uses int8 activations and dot4; `GR_INJ_UP` gives the four inject rows their own blocks; `GR_FUSED` runs both passes in one
+launch with a grid barrier. The geometry is the fork's Flash-Next one (n_embd 2560, hc 4, hc_lr 320) as in `rdna_gr.cu`.
+
+Enable: `STRATA_GR_RDNA=1` (BF16 read); add `STRATA_GR_RDNA_Q8=1` for the int8 weights, then `STRATA_GR_RDNA_A8=1`,
+`STRATA_GR_INJ_UP=1`, `STRATA_GR_FUSED=1` in that order (each needs the one before). Default off; the unset path is v0.2.16's.
+
+Files: `engine/src/kernels/cuda/rdna_gr.cu` (new), `rdna_stub.cpp` (CUDA / gfx906 answers), `engine/src/kernels/rdna_gr_parity.cpp` (new test,
+five variants), `fused_gr.hpp` / `fused_gr.cu` (the `r8_down` / `r8_up` fields and one call in `fused_gr_read_multi`), `weights.hpp`
+(`hc_r8`), `native_dense.cpp` (load of the int8 copies, pricing, `hc_bf16_view` returns a BF16 image from them for the prompt path and the
+single-token read), `prefill.cpp` (two conditions), `verify.cpp` (two pointers), `generate.cpp` (the BF16 copies are not loaded under
+`GR_RDNA` + `GR_RDNA_Q8`, single GPU only). Left out of the fork's version: its debug check, bench selectors and `STRATA_GR_UPPRE`.
+
+Measured (RX 7900 XT, Flash-Next IQ2_XS): decode 87-101 tok/s with the stock Strata kernels, 104-108 with the ported RDNA kernels, about 112 with
+the fusions (T-009, no raw archive; Strata-rdna3 109-119, Avalon 95-100, stock Strata 75-77 in the same row); the round that chose the preset
+stack (T-378: 128.7 short / 103.6 edit, one run). The ledger has no row that isolates `GR_RDNA` from the rest of that bundle, and no passing
+quality gate for the int8 variants (`GR_RDNA_Q8`, `_A8` are in the fork's list of lossy switches); that is why only `GR_RDNA=1` is in the
+shipped profile and the rest is left to the benchmark. `rdna_gr_parity` bounds the BF16 and int8 reads against the default read (1e-4, and 3e-2 for A8).
+
+### 2.9 `STRATA_RDNA_MMVQ_WAVE=3`
+
+One wave per output row that emulates the generic four-warp layout in registers: the same partial sums in the same order, no LDS exchange and
+no block barrier, one kernel for 1 to 16 columns (so a column's result does not depend on how many verify tokens ride along). Upstream's
+wave kernel exists for gfx906 only; this is a new gfx11 branch of the same macro in `native_mmvq.cu`. Short projections take it only for
+`n_in <= 1024` or `(n_in <= 2560 and n_out >= 1024)`, as in the fork. Measured: mode 1 (all shapes, another summation order) was 4.5 % slower
+than mode 3 on short and 2.5 % on edit (T-072, spec 40, screen n = 2); the bundle number is T-009. Enable `STRATA_RDNA_MMVQ_WAVE=3`.
+
+### 2.10 `STRATA_COMBINE_CPU` and `STRATA_WAIT_FUSE`
+
+With CPU experts, the verify window copies the CPU rows from the mapped buffer, adds the GPU hit rows, then combines. `COMBINE_CPU` reads the
+CPU rows straight from the mapped buffer and the GPU's hit rows in one combine kernel and carries the shared expert's gate as an extra block of
+the router GEMV launch: bitwise the launches it replaces. `WAIT_FUSE` (needs `COMBINE_CPU` for its second half) puts the plan wait and the plan
+copy in one launch and the CPU-share wait inside the combine, with a system-scope acquire in every wave. Files: `native_moe.cu` / `.hpp`,
+`native_bf16.cu` (`bf16_f32_mmvf_multi_kernel` gets the aux block), `verify_kernels.cu` / `.hpp`, `verify.cpp`.
+Measured by the fork: `WAIT_FUSE` 21.85 to 21.60 ms per window, byte-identical output (the commit's own measurement on an IQ3 model, nicejunjie);
+turning the fused wait off lost (T-077); the bundle is T-009. v0.2.16 already has a different plan wait + copy (`wait_copy_i32_from_mapped`), which
+stays the default.
+
+### 2.11 `STRATA_ROUTE_PUBLISH`
+
+The router's top-10 and the doorbell publish in one launch for 1 to 8 rows (`native_router_top10_publish_res`). Measured by the fork: 21.60 to
+21.51 ms per window, identical output (0.4 %: below the 2 % bar on its own; T-009). The fork found it unsafe together with expert deferral
+(T-317), which v0.2.16 does not have. Not taken with `STRATA_ROUTE_PRIOR`, a resident-route margin, a device plan, `--remote-expert-opt` or
+`STRATA_DOORBELL_STORE`.
+
+### 2.12 `STRATA_POOL_FUSE_PHASES`
+
+The CPU expert pool runs a layer's gate/up and down phases as one phase: down tasks wait only for their own expert, whose last gate/up task
+quantized the down input. Same row ranges and kernels, output identical. Measured (T-224, spec 03b, confirm 3 reps, RX 7900 XT): edit +2.5 % +-1.7,
+short -1.3 % (not significant); the fork adopted it; by its own interval it is under the 2 % bar. Not with the NUMA split. File: `pool.cpp` / `.hpp`.
+
+### 2.13 `STRATA_VERIFY_ECAP` and `STRATA_VERIFY_ECAP_MIN_ROWS` (lossy)
+
+In a decode verify window each draft row (rows 1 to T-1, never row 0) reads at most N CPU-missed experts that the committed row and the earlier rows
+do not read anyway, kept by routing rank; the others contribute zero (host side only, no graph change). `STRATA_VERIFY_ECAP=0` with
+`STRATA_VERIFY_ECAP_MIN_ROWS=9` is the fork's daily setting: the cap acts only in windows of 9 or more rows (the long lookup windows).
+Measured (RX 7900 XT, spec 60, 6 clean runs per arm and case, T-588): decode edit 165.3 +-6.2 tok/s = +41.7 % +-5.6 over no ECAP, short +2.8 % +-2.6;
+token forcing PASS (mismatch 1.583 % against 1.467 / 1.722 % for the stock arms, -0.011 points, T-589); tool-call task gate PASS (99.4 % success,
+tool-call validity 100 %, T-591). **The two gates ran with the fork's grammar guard, which exempted a tool call or JSON reply in progress from the cap;
+v0.2.16 has no such guard, so on this branch the cap also acts inside a tool call. That is not covered by T-591**; run `quality_gate.py` and the
+task gate on the release build before enabling it by default. Files: `verify_ecap.hpp` (the rule) and `verify_ecap_test.cpp` (built and run on
+the PC: ok), `expert_source.cpp` / `.hpp`, `verify.cpp` / `.hpp`, `generate.cpp`. The fork's ECAP v2 (per-row lists, probability gate, window
+policy) is not ported.
+
 ## 3. Diagnostic tests and results
 
 | test | command | result in this change |
 |---|---|---|
-| tuned flags | `python -m pytest -q terminal/tests/tuning/test_tuned_flags.py` | 15 passed (PC, fake hardware) |
-| flag diagnostics | `python -m pytest -q tools/pancake/test_flag_diag.py` | 13 passed |
+| tuned flags | `python -m pytest -q terminal/tests/tuning/test_tuned_flags.py` | 11 passed (PC, fake hardware) |
+| flag diagnostics | `python -m pytest -q tools/pancake/test_flag_diag.py` | 16 passed |
+| ECAP drop rule | `verify_ecap_test` (built and run with cl on the PC) | ok (4000 random windows, 50,278 entries dropped) |
+| host compile checks of the pass-2 files | `cl /Zs` of `verify.cpp`, `expert_source.cpp`, `pool.cpp`, `native_dense.cpp`; nvcc sm_75 of `fused_gr.cu`, `native_moe.cu`, `native_bf16.cu`, `native_router.cu`, `verify_kernels.cu` | no errors; the compile checks found two real mistakes of the port (`peer_rows_`, a launch argument order), fixed |
 | host tuning | `python -m pytest -q tools/pancake/test_host_tune.py tools/pancake/test_pcie_link.py` | 24 passed |
 | settings register | `python tools/test_settings_register.py` | 8 passed |
 | CUDA path compile | `nvcc -arch=sm_75 ... native_mmvq.cu`, `rdna_stub.cpp` | compiled (CUDA 12.8) |
-| RDNA kernel parity | `rdna_mmvq_parity` (build with `-DSTRATA_BUILD_TESTS=ON`, HIP) | TO BE MEASURED on the box (not run: no gfx1100 card in the PC that prepared the change) |
+| RDNA kernel parity | `rdna_mmvq_parity`, `rdna_gr_parity` (five variants) (build with `-DSTRATA_BUILD_TESTS=ON`, HIP) | TO BE MEASURED on the box (not run: no gfx1100 card in the PC that prepared the change) |
 | per-flag diagnostics on gfx1100 | `flag_diag.sh run ...` (step 3 of the benchmark chain) | TO BE MEASURED |
 
 `terminal/tests/tuning/test_preset_persistence.py` has 3 failures on the Windows PC used for this change, with and without these
@@ -182,8 +265,8 @@ default flags (the documented HIP command of `docs/AMD_HIP.md`, nothing else) an
 * spec `221`: cold prompts of 10K, 32K, 64K and 100K tokens followed by a 256-token reply: prompt tok/s and decode tok/s of every case.
 
 The plain arm gets the model arguments only (`--pack`, `--native`, `--ple-gguf`, `--mtp`, `--max-context 131072`); the updated arm
-gets the same plus the adopted preset (`configs/pancake/flashnext-iq2_xs-updated-hip.json`: the preset's flags that exist in this
-branch). Estimated box time 5.5-7.5 hours.
+gets the same plus the adopted preset (`configs/pancake/flashnext-iq2_xs-updated-hip.json`: the fork's daily fast-hip preset without
+`STRATA_AGENT_COUNTERS` (log only), `STRATA_PREFILL_EQUAL_TAIL` (a trial under the 2 % bar), `--grammar` and `--mtp-draft-vocab`). Estimated box time 5.5-7.5 hours.
 
 Results (RX 7900 XT 20 GB, Qwen3.8-Flash-Next IQ2_XS): **TO BE MEASURED**
 
@@ -207,6 +290,12 @@ licence and credits (pancake-strata `README.md` section 9).
 | item | source | licence | notes |
 |---|---|---|---|
 | RDNA multi-column GEMVs (2.1) | **nicejunjie** (Junjie Li), fork Strata-rdna3: commits `863804599` (2026-10-11, "multi-column Q6_K and IQ4_XS decode GEMV") and `ceb14be4e` (2026-10-11, Q4_K / Q5_K from 4 columns), as they appear in the pancake-strata history | MIT as a fork of MIT Strata; the fork's own licence file was not re-checked for this change: confirm before merging | The kernel design is theirs. pancake-strata (rocktboy1982), original work on top: HIP-only guards and CUDA stubs (`413e1b968`, 2026-11-08), the parity tests (`76f114fa4`, 2026-11-09), the stub file (`20733fb77`, 2026-11-09), the 9 to 16 column extension (`82687a7bd`, 2026-11-15); removal of the unproven variants and the port to upstream's layout in this branch |
+| hyper-connection read kernels (2.8) | **nicejunjie** (Junjie Li), Strata-rdna3: `89da64b93` (2026-10-10, read + DPP shuffles), `042a9ef7b` (2026-10-11, int8 read), `9044c7724` (2026-10-11, A8), `e56ac57e5` (2026-10-11, INJ_UP), `06d959d7a` (2026-10-11, FUSED), as they appear in the pancake-strata history | MIT as a fork of MIT Strata (the fork's licence file not re-checked: confirm before merging) | kernel design is theirs. pancake-strata (rocktboy1982): the q8_1 image for QFUSE (`6d9a1a43b`, 2026-11-08), HIP-only guards and stubs (`413e1b968`, `20733fb77`), the parity test (`76f114fa4`), and the port to upstream's layout in this branch (loader, `hc_bf16_view`, generate.cpp skip) |
+| `STRATA_RDNA_MMVQ_WAVE=3` (2.9) | **nicejunjie**, Strata-rdna3 (the wave32 exact kernel), as in the pancake-strata history | MIT as above | mode selection and the shape rule are the fork's; port by hand into upstream's macro |
+| `STRATA_COMBINE_CPU` (2.10) | **nicejunjie**, Strata-rdna3, ported into pancake-strata as `2745ea818` (rocktboy1982, 2026-11-08) | MIT as above | `STRATA_WAIT_FUSE`: nicejunjie `297243a5e` (2026-10-11), cherry-picked in the fork |
+| `STRATA_ROUTE_PUBLISH` (2.11) | **nicejunjie**, Strata-rdna3: `50ec2ade3` (2026-10-11) | MIT as above | re-applied by hand |
+| `STRATA_POOL_FUSE_PHASES` (2.12) | pancake-strata (rocktboy1982), original work | MIT | first commit `35c512984` (2026-11-09, author rocktboy1982), ledger T-224 |
+| `STRATA_VERIFY_ECAP` (2.13) | idea and rule adapted from **jmnargi** (Strata-V100 `24894e676b`, `7c5041c358`, `376355453f`; upstream PR 3545, MIT as read in the fork's README section 9); the per-draft-row, CPU-missed-only form is pancake-strata's | MIT | `2d44d31ec` (2026-11-10, rocktboy1982), the MIN_ROWS gate `9a4cd7568` (2026-11-15, rocktboy1982); ledger T-588, T-589, T-591 |
 | hipBLASLt table (2.2) | **miskahm**, upstream commit `7984688e3` (2026-10-04) | MIT (upstream) | already in upstream; measured by the fork (T-096) |
 | learned expert profile (2.3) | pancake-strata (rocktboy1982), original work | MIT | first commit `3638b8cee` (2026-11-08); learner `a4f305b82` (2026-11-08); ledger T-194 |
 | tuned flags (2.4), flag_diag (2.5), build script (2.7), benchmark chain and specs (4) | pancake-strata (rocktboy1982) line and this branch, original work | MIT | the benchmark chain follows `redo-chainAA.sh` of the fork; commits of this branch below |
@@ -234,15 +323,16 @@ this branch.
 * Evidence strength. `--pcie-frac 0` rests on one run per case (T-197) plus a confirming rejection of the other values (T-268);
   the hipBLASLt gain is marked provisional in the ledger (T-096); the kernel's end-to-end gain is inside the noise (T-081). The
   benchmark in section 4 is meant to settle these on the release build.
-* Not ported in this change (so a reader does not look for them): the fork's hyper-connection read kernels
-  (`STRATA_GR_RDNA*`, `rdna_gr.cu`), the verify-window expert cap (`STRATA_VERIFY_ECAP`, T-588 / T-589 / T-591), the fused
-  combine and wait switches (`STRATA_COMBINE_CPU`, `STRATA_WAIT_FUSE`, `STRATA_ROUTE_PUBLISH`, T-009) and
-  `STRATA_POOL_FUSE_PHASES` (T-224). They touch `generate.cpp`, `verify.cpp`, `fused_gr.cu` and the weight loader, which differ
-  strongly from upstream's layout, and they cannot be compiled on the PC used for this port (no ROCm). They are candidates for a
-  follow-up with a HIP toolchain. The fork's per-request knob trial (`STRATA_KNOB_TRIAL`) needs engine-side per-request keys that
-  upstream's engine does not have, and has no measured gain, so it is not ported either.
-* Build. The HIP code of this branch has not been compiled by the ROCm compiler yet; the benchmark chain builds it first and stops
-  with an error line if the build fails.
+* Not ported (so a reader does not look for them): the fork's ECAP v2 (per-row lists, probability gate, window policy), `STRATA_GR_UPPRE`, the
+  debug and bench selectors of `rdna_gr.cu`, `STRATA_AGENT_COUNTERS`, `STRATA_PREFILL_EQUAL_TAIL` and the fork's grammar guard. The fork's
+  per-request knob trial (`STRATA_KNOB_TRIAL`) needs engine-side per-request keys upstream's engine does not have and has no measured gain.
+* Where v0.2.16 differs from the fork and the port had to change: no `peer_rows_`, no expert deferral, no grammar guard (so ECAP is not exempted
+  inside a tool call), a different `bf16_f32_mmvf_multi_kernel` signature (the aux launch passes `mmvf_fast()`), and a wave-kernel macro that was
+  gfx906-only.
+* Build. **None of the HIP code of this branch has been compiled by the ROCm compiler yet** (`rdna_mmvq.cu`, `rdna_gr.cu`, the gfx11 wave
+  kernel). It was type-checked with nvcc through stand-ins for the gfx11 builtins, and the host code was compiled with MSVC and nvcc; the
+  `rdna_gr_down_a8` kernel needs 52,736 bytes of shared memory, which fits HIP's 64 KiB and not CUDA's 48 KiB (nvcc's ptxas says so, only in
+  that check). The benchmark chain builds it first, logs the compiler's error lines and stops if the build fails.
 * Licence compatibility. All sources are MIT (see section 5); no AGPL code is included.
 
 ## 7. Commits of this branch
