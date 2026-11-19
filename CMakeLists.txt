@@ -81,6 +81,15 @@ if(STRATA_HIP_GFX906)
 endif()
 option(STRATA_ENABLE_HIP "Build the HIP targets for wave32 AMD GPUs (gfx1100, gfx1201; gfx1012/gfx1030 unvalidated)" OFF)
 option(STRATA_PREFILL_MMQ "Build the optional GGML MMQ prefill path for HIP" OFF)
+# The community-made AMD changes (include/strata/core/amd_community.hpp; pancake-strata 3eb91676d, b130965ca; README-PANCAKE.md 2.16):
+# on by default, as on the pancake line.  This option is the build half of the one switch STRATA_AMD_COMMUNITY_TUNING: OFF compiles
+# the portable signed-byte dot for gfx1010 again (the SDWA sequence of #4855).  The rocBLAS tables and the gfx103x selector default
+# are switched at run time (STRATA_AMD_COMMUNITY_TUNING=0).  The define it adds is read only inside a __gfx1010__ branch of the
+# device code and by the gfx1010 engine log line: gfx1100 code objects are the same either way.
+option(STRATA_AMD_COMMUNITY_TUNING "Compile the community-made gfx1010 SDWA dot product (the runtime switch of the same name controls the gfx1030 rocBLAS tables and the gfx103x selector default)" ON)
+if(NOT STRATA_AMD_COMMUNITY_TUNING)
+  add_compile_definitions(STRATA_AMD_COMMUNITY_DOT_OFF=1)
+endif()
 # The rows one verify / batch window holds (include/strata/kernels/window_limits.hpp): 8, the 0.2.7 window, or 16 (four pipelined
 # groups of 16 slots = 64 slots on a four-card split, docs/BATCHING.md).  Only the CUDA and HIP engines are built from
 # these sources with a wide window; the SYCL and Metal builds never read this variable and keep 8.  A window of up to
@@ -1633,6 +1642,15 @@ if(STRATA_BUILD_TESTS)
   add_executable(arch_defaults_test src/core/arch_defaults_test.cpp src/core/arch_defaults.cpp)
   target_include_directories(arch_defaults_test PRIVATE include)
   add_test(NAME arch_defaults_test COMMAND arch_defaults_test)
+  # STRATA_AMD_COMMUNITY_TUNING: the switch turns each community-made AMD change off (header only; run from the source tree)
+  add_executable(amd_community_test src/core/amd_community_test.cpp)
+  target_include_directories(amd_community_test PRIVATE include)
+  target_compile_definitions(amd_community_test PRIVATE EXPECT_DOT_BUILT=1)
+  add_test(NAME amd_community_test COMMAND amd_community_test WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  add_executable(amd_community_test_dot_off src/core/amd_community_test.cpp)   # the -DSTRATA_AMD_COMMUNITY_TUNING=OFF build
+  target_include_directories(amd_community_test_dot_off PRIVATE include)
+  target_compile_definitions(amd_community_test_dot_off PRIVATE EXPECT_DOT_BUILT=0 STRATA_AMD_COMMUNITY_DOT_OFF=1)
+  add_test(NAME amd_community_test_dot_off COMMAND amd_community_test_dot_off WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   # STRATA_VERIFY_ECAP: the draft-row expert cap's rule against its promises (header-only, CPU)
   add_executable(verify_ecap_test src/core/verify_ecap_test.cpp)
   target_include_directories(verify_ecap_test PRIVATE include)

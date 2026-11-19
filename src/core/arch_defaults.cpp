@@ -1,5 +1,6 @@
 // src/core/arch_defaults.cpp - see include/strata/core/arch_defaults.hpp.
 #include "strata/core/arch_defaults.hpp"
+#include "strata/core/amd_community.hpp"
 
 #include "strata/kernels/gfx_arch.hpp"
 
@@ -162,6 +163,9 @@ static void set_default(const std::pair<std::string, std::string>& kv) {
 std::vector<std::string> apply_arch_defaults(const char* gcn_arch, bool integrated, int n_devices, bool tensor_parallel) {
     std::vector<std::string> set;
     std::vector<std::string> g;   // (the gfx1100 table: its own line, joined to the list at the end)
+    // the community-made gfx1010 / gfx103x changes (amd_community.hpp): one line, and only on those cards (empty for gfx1100)
+    if (const std::string note = strata::amd_community::startup_line(gcn_arch); !note.empty())
+        std::fprintf(stderr, "%s\n", note.c_str());
     {
         for (const auto& kv : gfx1100_default_env(integrated ? nullptr : gcn_arch, n_devices, tensor_parallel)) {
             if (std::getenv(kv.first.c_str()) != nullptr) continue;

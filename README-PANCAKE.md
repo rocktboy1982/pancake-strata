@@ -116,7 +116,7 @@ compare it with `data/expert-profile.bin`. A recommended argument replaces the s
 - `STRATA_AGENT_COUNTERS=1`: a log-only counter of the pancake server's agent loop (`serve/agent_loop.py`, T-513); this tree's server has no such module. No speed effect.
 - The GPU router lookahead (T-192, +10%): it runs only where a look-ahead thread exists (a file tier that warms pages, `STRATA_FS_SLOTS` or `STRATA_LOOKAHEAD_STATS`);
   the pancake daily preset runs none of these on the 7900 XT, so the daily preset does not use it there either.
-- Build option `STRATA_AMD_COMMUNITY_TUNING=ON` of the pancake build: it only compiles a gfx1010 SDWA dot product (and a gfx1030 table switch); nothing for gfx1100.
+- (Since the 2026-11-19 night round `STRATA_AMD_COMMUNITY_TUNING` IS ported, for the users of other AMD cards: section 2.16.)
 - The BF16 router kernels for exactly 7 and 8 columns (micro-benchmark only, not part of the preset).
 TO BE MEASURED on this branch: everything in sections 2.9 to 2.15.
 
@@ -180,10 +180,40 @@ Gap list: the pancake daily preset entry by entry against Strata-rdna3 `8b01b0c8
 | `--lookup-max-t 12` + 16-row windows (`STRATA_VERIFY_MAX_T=16`) | missing (8-row windows) | ported (2.9) | ours added (+ build flag) |
 | RDNA 9-16 column kernels, `ADAPT_PERSIST` (code defaults of the pancake build) | missing | ported (2.10, 2.13) | ours added (code default) |
 | `PF_GROUP_SCRATCH`, `PF_HC_REGION`, `PREFILL_EQUAL_TAIL` | missing | ported (2.11, 2.12) | ours added |
-| `AGENT_COUNTERS`, GPU router lookahead, `AMD_COMMUNITY_TUNING` | missing / inert here | not ported (2.8) | - |
+| `AGENT_COUNTERS`, GPU router lookahead | missing / inert here | not ported (2.8) | - |
+| `AMD_COMMUNITY_TUNING` (build option, ON in both builds) | missing | ported (2.16); no effect on gfx1100 by construction | same as the pancake build |
 
 Build flags: Strata-rdna3's CMake defaults plus `-DSTRATA_WINDOW_MAX_T=16` (ours added: the plain tree has no window option and runs 8 rows; "auto" would also give
 16 for HIP, stated explicitly in `tools/pancake/build_updated_rdna3.sh`).
+
+### 2.16 `STRATA_AMD_COMMUNITY_TUNING` (on by default, as on the pancake line; for gfx1010 and gfx103x, nothing for gfx1100)
+Four AMD changes that contributors made and measured on cards we do not have, under one switch. Each applies only to the card or the exact library build it was
+made for. Ported for the people who run Strata-rdna3 on those cards; it is part of what this branch gives back. Not measured on gfx1100: no effect by construction.
+
+| Change | Applies to | Contributor's numbers (theirs, not reproduced here) |
+| --- | --- | --- |
+| Integer dot product through the SDWA byte-select sequence that gfx1012 already used (#4855, **Keoian**) | gfx1010 only (RX 5700 / 5700 XT), device code | 2x RX 5700 XT, Qwen3.8-Flash-Next Q2_0, decode 22.38 -> 28.77 tok/s (12 of 12 pairs faster), identical greedy text in 6 of 6 fixed-placement runs |
+| `tools/hip/gfx1030-rocblas-5.4.0.ad84daa81c.txt` (#3343, **elightcap**) | gfx1030 with the rocBLAS build `5.4.0.ad84daa81c` (TheRock `gfx103X-all` 7.13.0a20260515 wheels) | RX 6900 XT, UD-Q4_K_XL, `STRATA_HIP_PROMPT_F16=1`: 268-395-token follow-up on a cached conversation 1,851 -> 1,635 ms (median), fresh 745-1,569 tokens -3.3%, fresh 4,859-6,690 tokens -1.0% |
+| `tools/hip/gfx1030-rocblas-5.2.0.dabb6df2b98-dirty.txt` (#3924, **schmittcn**) | gfx1030 with the rocBLAS build `5.2.0.dabb6df2b98-dirty` (Arch Linux ROCm 7.2.4) | RX 6900 XT, Coder IQ1_M, GPU timeline of prompts below 1,152 tokens 12-18% shorter, 1.3K-1.5K tokens 2-4%, 11K-12K tokens 4-9%; 11 of 12 answers identical (one differs by FP16 rounding) |
+| `STRATA_SELECT_SIMT=2` (the simt2 QSA block scorer) as the default, from 28,672 tokens of reach (#3073, **Vop3p**) | gfx103x (RX 6000) only; any `STRATA_SELECT_SIMT` value you set wins | 2x RX 6900 XT, IQ3_S, prompt time -1.35% at 31K and -6.53% at 119K tokens (10 of 10 interleaved cold-start pairs each); another summation order, so values change in the last bits (their KL against main 0.0256) |
+
+How to switch it: `STRATA_AMD_COMMUNITY_TUNING=0` (or off / false / no) at run time turns the two tables and the selector default off. The dot product is device
+code, so only the build can drop it: `-DSTRATA_AMD_COMMUNITY_TUNING=OFF` (CMake, default ON) defines `STRATA_AMD_COMMUNITY_DOT_OFF` and gfx1010 compiles the
+portable loop again. On a gfx1010 or gfx103x card the engine prints one line saying what is active; on any other card it prints nothing. A table loads only when
+the card and the full rocBLAS version string match its header, with `STRATA_HIP_PROMPT_F16=1` and `STRATA_ROCBLAS_TUNING` pointing at `tools/hip`.
+Adapted to this tree: Strata-rdna3's HIP selector had only `STRATA_SELECT_SIMT=1`, so the simt2 launch is added for gfx103x only; an explicit `=2` on any other
+HIP card keeps what this tree ran before (the pancake line runs simt2 there too), and the generic `STRATA_SELECT_ALT_MIN_TOKENS` of the pancake line is not
+ported (only the 28,672-token floor of the community default is).
+
+Why gfx1100 is not affected (read from the code, not measured): (1) the build define is read only inside `#elif (defined(__gfx1012__) || (defined(__gfx1010__)
+&& ...))` of `include/strata/hip_compat/intrinsics.hpp`, which a gfx1100 compile never enters (it takes the `__gfx1100__` sudot4 branch above it), and in
+`dot4_gfx1010_built()`, used only by the gfx1010 part of the log line; the box build passes `ON`, the default, so it adds no define at all. (2) The log line
+returns an empty string unless the card is gfx1010 or gfx103x. (3) The tables are refused by the loader on any architecture but gfx1030, and the new check only
+refuses more. (4) The selector default needs `sel_gfx103_device()`; on gfx1100 `STRATA_SELECT_SIMT` unset, `=1`, `=2` or anything else picks the same scorer
+as before. The one difference in a gfx1100 build is that the simt2 kernel is now also compiled into the HIP code object (never launched on gfx1100), the same
+with the option on or off. Files: `CMakeLists.txt`, `include/strata/core/amd_community.hpp` (new), `include/strata/hip_compat/intrinsics.hpp`,
+`src/core/arch_defaults.cpp`, `src/prefill/gemm.cu`, `src/kernels/cuda/qsa_select.cu`, the two tables in `tools/hip`, `tools/pancake/build_updated_rdna3.sh`;
+test `src/core/amd_community_test.cpp` (CTest `amd_community_test` and `amd_community_test_dot_off`, CPU). Pancake commits `3eb91676d`, `b130965ca`, `55ab701e1`.
 
 ## 3. Diagnostic tests and how to reproduce
 Host checks run for this branch (no GPU needed): `python -m pytest rdna3/test_tuned_flags.py tools/pancake/test_flag_diag.py tools/pancake/test_host_tune.py
@@ -222,6 +252,9 @@ Outside sources (ideas or code), from the pancake README section 9 and LEADS.md:
   `PF_HC_REGION`), hand-ported here.
 - **merbanan** (Strata PRs 4040 and 4039, MIT): the lookup windows past `--spec` and the prompt-path scratch savings those commits port.
 - **bramvanoploo**, strata-performance-setup (MIT): the list of host settings behind `host_tune.sh`; no code copied.
+- **Keoian** (Strata PR #4855, the gfx1010 SDWA dot product), **elightcap** (#3343) and **schmittcn** (#3924) (the two gfx1030 rocBLAS tables), **Vop3p**
+  (#3073, the simt2 selector default on gfx103x): the community AMD changes of 2.16, measured by them on cards we do not have; ported to the pancake line
+  by Niko1221's Strata commits as pancake `3eb91676d`, `b130965ca`, `55ab701e1`, and from there to this branch.
 - **caminus** (jdominick05, AGPL-3.0-or-later): ideas only, none copied; the note that the PCIe link stays awake behind `pcie_link.py`, which is our own code.
 
 Original work of pancake-strata (rocktboy1982), with the record that supports it. Git history of the pancake line: first commit `346709879`, 2026-11-07 17:10 +0200,

@@ -40,6 +40,7 @@
 
 #include "strata/kernels/qsa_select.hpp"
 #include "strata/kernels/gfx_arch.hpp"
+#include "strata/core/amd_community.hpp"
 
 #include <cuda_runtime.h>
 
@@ -1953,17 +1954,42 @@ bool qsa_block_scores_tc(const float* pooled, const float* dead, const float* q_
     }();
     // any HIP card: the FP32 tiled scorer, opt-in as on CUDA (STRATA_SELECT_SIMT=1; another summation order than the
     // warp kernel, so the default keeps the warp kernel).  RX 6900 XT, 256 queries at 128K: 2.71 -> 0.587 ms
-    static const bool simt_on = [] {
+    // STRATA_SELECT_SIMT=2 (block_scores_simt2_kernel, 32 x 128 tiles, the same bits as =1) on gfx103x only: the community switch
+    // (strata/core/amd_community.hpp, STRATA_AMD_COMMUNITY_TUNING, on by default) makes it the default there (RX 6000, where #3073's
+    // contributor measured it: 119K prompt -6.5%), from 28,672 tokens of reach (just under the 31K measured; a shorter read keeps the
+    // warp kernel); any value of the variable wins.  Unset: -1.  On every other HIP card =2 keeps what this tree ran before (not the
+    // simt scorer), so a gfx1100 runs the same code whatever the switch or the variable says.  Pancake-strata b130965ca, 55ab701e1.
+    static const int simt_env = [] {
         const char* v = std::getenv("STRATA_SELECT_SIMT");
-        return v != nullptr && v[0] == '1';
+        return v == nullptr ? -1 : v[0] == '1' ? 1 : v[0] == '2' ? 2 : 0;
     }();
-    if (simt_on && !(wmma_on && sel_gfx12_device())) {
+    static const bool community_on = strata::amd_community::tuning_on();
+    const bool gfx103 = sel_gfx103_device();
+    int simt_v = simt_env >= 0 ? simt_env : (community_on && gfx103 ? 2 : 0);
+    if (simt_v == 2 && !gfx103) simt_v = 0;
+    if (simt_v == 2 && simt_env < 0) {   // the community default only: the 28,672-token floor
+        const int64_t reach_all = active_blocks > 0 && active_blocks < max_blocks ? active_blocks : max_blocks;
+        if (reach_all * R < 28672) return false;
+    }
+    if (simt_v != 0 && !(wmma_on && sel_gfx12_device())) {
         const int64_t reach = active_blocks > 0 && active_blocks < max_blocks ? active_blocks : max_blocks;
-        const bool rdna2 = sel_gfx103_device();
+        const bool rdna2 = gfx103;
         static std::atomic<bool> said{false};
         if (!said.exchange(true))
-            std::fprintf(stderr, "qsa select: FP32 tiled scorer (STRATA_SELECT_SIMT=1), tiles %s\n",
-                         rdna2 ? "32/128/16/8 (gfx103x)" : "32/64/32/4");
+            std::fprintf(stderr, "qsa select: FP32 tiled scorer (STRATA_SELECT_SIMT=%d%s), tiles %s\n", simt_v,
+                         simt_env < 0 ? ", the gfx103x community default (STRATA_AMD_COMMUNITY_TUNING=0 turns it off)" : "",
+                         simt_v == 2 ? "simt2 32x128 (#2071)" : rdna2 ? "32/128/16/8 (gfx103x)" : "32/64/32/4");
+        if (simt_v == 2) {
+            const dim3 grid((unsigned) ((reach + 127) / 128), (unsigned) ((nq + 31) / 32));
+            if (grid.y > 65535) return false;
+            block_scores_simt2_kernel<32, 128><<<grid, 256, 0, (cudaStream_t) stream>>>(pooled, q_idx, steps, nq,
+                                                                                       max_blocks, reach, scores);
+            block_scores_tail_kernel<<<(unsigned) nq, 32, 0, (cudaStream_t) stream>>>(dead, q_idx, steps, max_blocks,
+                                                                                    scores);
+            const cudaError_t e = cudaGetLastError();
+            if (e != cudaSuccess) { std::fprintf(stderr, "qsa_block_scores (simt2): %s\n", cudaGetErrorString(e)); std::exit(1); }
+            return true;
+        }
         return block_scores_simt(pooled, dead, q_idx, steps, nq, max_blocks, reach, scores, (cudaStream_t) stream, rdna2);
     }
     if (wmma_on && sel_gfx12_device()) {

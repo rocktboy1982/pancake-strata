@@ -24,8 +24,9 @@
 #   fast-math                           OFF: -ffast-math / -fno-honor-nans change rounding, NaN handling (the sampler rule) and exactness claims.
 #   hipBLASLt / rocBLAS                 no build-time switch exists in this tree: the lever is the run-time tuning table STRATA_HIPBLASLT_TUNING
 #                                       (tools/hip/gfx1100-hipblaslt-100401.txt), a diagnostic candidate of tools/pancake/flag_diag.sh, not a build flag.
-#   AMD community tuning                the option STRATA_AMD_COMMUNITY_TUNING of the pancake tree does not exist in Strata-rdna3: not passed (it would only be
-#                                       an unused-variable warning).
+#   STRATA_AMD_COMMUNITY_TUNING=ON      ported from the pancake tree (README-PANCAKE.md 2.16) and passed as the pancake box build passes it, so both builds
+#                                       match.  It is the CMake default anyway; OFF would only add STRATA_AMD_COMMUNITY_DOT_OFF, which is read inside a
+#                                       __gfx1010__ branch of the device code and by the gfx1010 log line: the gfx1100 code object is the same either way.
 #   STRATA_ROCWMMA_INCLUDE_DIR          passed when rocWMMA headers are found ($ROCM/include/rocwmma or ROCWMMA_INCLUDE): optional gfx1100 QSA selection kernels.
 #   STRATA_GGML_DIR                     the pinned llama.cpp checkout the box already has (no network during a chain).
 #   STRATA_WINDOW_MAX_T=16              verify windows of up to 16 rows (ported: upstream 9d3c8c366 + 03627326d; "auto" is 16 for HIP too, stated explicitly):
@@ -56,7 +57,8 @@ JOBS=${JOBS:-8}
 CXXF="-O3 -DNDEBUG -mtune=native ${EXTRA_CXX_FLAGS:-}"
 [ "${MARCH_NATIVE:-0}" = 1 ] && CXXF="$CXXF -march=native"
 set -- -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_CXX_FLAGS_RELEASE=$CXXF" -DSTRATA_WERROR=OFF -DSTRATA_BUILD_TESTS=ON \
-       -DSTRATA_NATIVE_EXPERTS=ON -DSTRATA_PREFILL_MMQ=ON -DSTRATA_MMQ_KQUANTS=ON -DSTRATA_MMQ_TQ_OVERLAY=ON -DSTRATA_WINDOW_MAX_T=${WINDOW_MAX_T:-16}
+       -DSTRATA_NATIVE_EXPERTS=ON -DSTRATA_PREFILL_MMQ=ON -DSTRATA_MMQ_KQUANTS=ON -DSTRATA_MMQ_TQ_OVERLAY=ON -DSTRATA_WINDOW_MAX_T=${WINDOW_MAX_T:-16} \
+       -DSTRATA_AMD_COMMUNITY_TUNING=ON
 [ -d "$GGML_DIR" ] && set -- "$@" "-DSTRATA_GGML_DIR=$GGML_DIR"
 [ -n "$NINJA" ] && set -- "$@" "-DCMAKE_MAKE_PROGRAM=$NINJA"
 [ "${LTO:-0}" = 1 ] && set -- "$@" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
