@@ -10,7 +10,7 @@
 #        the standard set bench/quality/set-v2.json, 48 requests / 9,410 forced tokens, --near-tie: the settings of TEST_LEDGER.md T-828)
 #     c. spec 223 long SCREEN (10K / 32K / 64K / 100K, 1 request per case and arm, no drift arm)
 #   RD part (needs /mnt/pancake/benchRD/build-plain/strata, build-updated/strata and /home/dan/auto-runs/benchRD/config-plain.json from bench-updatedRD.sh):
-#     d. spec 252 SCREEN (plain, updated-exact = POOL_FUSE_PHASES only, updated = + PF_F16=1; short, edit, long32k)
+#     d. spec 252 SCREEN (plain, updated-exact = the full-preset updated arm minus VERIFY_ECAP(+MIN_ROWS), updated = spec 250 updated; short, edit, long32k; T-984)
 #     e. RD quality gate (quality_gate.py on spec 252) ONLY when both RD trees read STRATA_FOLLOW (token forcing, force_check.py --path decode); Strata-rdna3
 #        does not (2026-11-19), so it is logged as SKIP with that reason instead of an engine start that cannot score
 #   then, only for an arm whose screen showed a benefit (chainT-decide.py, >= 1.0 % lossless / >= 1.5 % lossy) and only while the budget lasts:

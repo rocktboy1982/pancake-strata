@@ -1667,7 +1667,7 @@ def test_bd_spec_251_arms_and_not_in_the_shipped_file():
 
 def test_bd_spec_and_conf(tmp_path):
     spec = json.loads((HERE.parent.parent / "bench" / "specs" / "250-rdna3-updated-vs-plain.json").read_text())
-    assert set(spec["arms"]) == {"plain", "updated", "updated-ecap6"} and spec["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
+    assert set(spec["arms"]) == {"plain", "updated", "updated+pf16-1"} and spec["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
     spec_ = importlib.util.spec_from_file_location("bd_conf", CHAINS / "bench_updatedRD_conf.py")
     mod = importlib.util.module_from_spec(spec_)
     spec_.loader.exec_module(mod)
@@ -1694,6 +1694,15 @@ def test_bd_spec_and_conf(tmp_path):
     rec = HERE.parent.parent / "rdna3" / "recommended-flags" / "gfx1100.json"
     if rec.exists():       # on the updated-strata-rdna3 branch: the spec's updated arm is exactly the shipped file
         assert spec["arms"]["updated"]["env"] == json.loads(rec.read_text())["env"]
+        assert spec["arms"]["updated"]["args"] == json.loads(rec.read_text())["args"]
+    # owner rule 2026-11-19: the updated arm is plain + the pancake preset; where both have a value, Strata-rdna3's stays and the pancake value is its own arm
+    upd_env = spec["arms"]["updated"]["env"]
+    assert "STRATA_PF_F16" not in upd_env and spec["arms"]["updated+pf16-1"]["env"] == {**upd_env, "STRATA_PF_F16": "1"}
+    assert (upd_env["STRATA_VERIFY_ECAP"], upd_env["STRATA_VERIFY_ECAP_MIN_ROWS"]) == ("0", "9") and spec["arms"]["updated"]["args"]["--lookup-max-t"] == "12"
+    s251 = json.loads((HERE.parent.parent / "bench" / "specs" / "251-rdna3-hipblaslt-and-profile.json").read_text())
+    assert s251["arms"]["updated"] == spec["arms"]["updated"]
+    assert s251["arms"]["hipblaslt-100401"]["env"] == {**upd_env, "STRATA_HIPBLASLT_TUNING": "@UPDATED_SRC@/tools/hip/gfx1100-hipblaslt-100401.txt"}
+    assert s251["arms"]["profile-pancake"]["args"]["--expert-profile"] == "@UPDATED_SRC@/data/expert-profile-pancake.bin"
 
 
 # ------------------------------------------------------------------------------------------------ bench-sched.sh and the short plan (owner order 2026-11-19)
@@ -2183,7 +2192,7 @@ def test_bench_exact_specs_are_the_updated_arm_minus_exactly_the_lossy_switches(
     assert ex["args"] == upd["args"] and ex["exe"] == upd["exe"]
     s252 = json.loads((root / "bench/specs/252-rdna3-updated-exact.json").read_text())
     shipped = json.loads((root / "bench/specs/250-rdna3-updated-vs-plain.json").read_text())["arms"]["updated"]["env"]
-    assert s252["arms"]["updated"]["env"] == shipped and s252["arms"]["updated-exact"]["env"] == {k: v for k, v in shipped.items() if k != "STRATA_PF_F16"}
+    assert s252["arms"]["updated"]["env"] == shipped and s252["arms"]["updated-exact"]["env"] == {k: v for k, v in shipped.items() if k not in ("STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS")}
 
 
 def test_sched_bench_extra_runs_the_third_chain_alone_or_after_both(tmp_path):

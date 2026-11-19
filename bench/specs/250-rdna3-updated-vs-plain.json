@@ -20,34 +20,67 @@
    "exe": "@UPDATED@/strata",
    "env": {
     "STRATA_POOL_FUSE_PHASES": "1",
-    "STRATA_PF_F16": "1"
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
    }
   },
-  "updated-ecap6": {
+  "updated+pf16-1": {
    "exe": "@UPDATED@/strata",
    "env": {
     "STRATA_POOL_FUSE_PHASES": "1",
     "STRATA_VERIFY_ECAP": "0",
-    "STRATA_VERIFY_ECAP_MIN_ROWS": "6",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
     "STRATA_PF_F16": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
    }
   }
  },
- "note": "Strata-rdna3 (plain, its own documented flags and setup env) against updated-strata-rdna3 (selective port of the adopted pancake enhancements, built by tools/pancake/build_updated_rdna3.sh, with the flags of rdna3/recommended-flags/gfx1100.json that the startup script exports). Workloads of the upstream benchmark: short and edit (decode tok/s), long 10000 / 32000 / 64000 / 100000 tokens (prompt tok/s, cold prompts). Text identical to base is reported per case (short, edit; the long cases carry a unique first line and are not compared). The updated arm carries the shipped file (POOL_FUSE_PHASES exact, PF_F16=1 lossy with a passing gate on the pancake base, T-828); updated-ecap6 adds STRATA_VERIFY_ECAP=0 from 6-row windows (lossy; gate T-589 PASS on the pancake base, T-591 with a grammar guard this tree lacks). Driven by tools/pancake/box_chains/bench-updatedRD.sh, which fills @CONFIG_PLAIN@, @PLAIN@ and @UPDATED@. NOT MEASURED.",
+ "note": "Strata-rdna3 (plain: its own build, its setup env rdna3/configs/iq3-1gpu.json and engine defaults, with the pancake preset's model arguments as the chain writes them) against updated-strata-rdna3 = plain + the WHOLE pancake daily preset (owner rule 2026-11-19: settings Strata-rdna3 does not have get the pancake value; where both have one, Strata-rdna3's value stays and the pancake value is its own arm). Build: 16-row verify windows (-DSTRATA_WINDOW_MAX_T=16, tools/pancake/build_updated_rdna3.sh). The updated arm's diff against plain is exactly this spec's env + args, the same as rdna3/recommended-flags/gfx1100.json of that branch: POOL_FUSE_PHASES (T-224), VERIFY_ECAP=0 from 9 rows (T-588/589/591, lossy, grammar guard), --lookup-max-t 12 (T-126/127), --grammar on (T-315), PIN_BY_NEED, EXPDEC, EXPDEC_DOWN (T-040), EXCHANGE_ROTATE, KV_PREFETCH, PROMPT_ATTN_IMMA, ATTN_DAILY (inert on HIP), PF_GROUP_SCRATCH, PF_HC_REGION, PREFILL_EQUAL_TAIL (T-679); code defaults of the branch: RDNA 9-16 column kernels (T-080/081), STRATA_ADAPT_PERSIST. updated+pf16-1 adds the one differing value of the env block: PF_F16=1 (pancake T-820) against Strata-rdna3's own PF_F16=2. Spec 251 carries the two other differing values (hipBLASLt table, expert profile). Driven by tools/pancake/box_chains/bench-updatedRD.sh (fills @CONFIG_PLAIN@, @PLAIN@, @UPDATED@). NOT MEASURED.",
  "predict": [
   {
-   "arm": "updated-ecap6",
+   "arm": "updated",
    "case": "edit",
-   "lo": 0.0,
-   "hi": 40.0,
-   "why": "ECAP cap 0 from 6 rows: edit +36.2% +-17.8 on the pancake base (T-588); the 9-row gate of the daily preset cannot open here (windows are at most 8 rows)"
+   "lo": 5.0,
+   "hi": 50.0,
+   "why": "ECAP cap 0 from 9 rows in the 16-row windows of --lookup-max-t 12: edit +41.7% +-5.6 on the pancake base (T-588), lookup 12 +8.8% (T-126)"
   },
   {
-   "arm": "updated",
+   "arm": "updated+pf16-1",
    "case": "long32k",
-   "lo": 5.0,
+   "lo": -10.0,
    "hi": 20.0,
-   "why": "PF_F16=1: prompt +16.7% at 32K on the pancake base (T-820)"
+   "why": "PF_F16=1: prompt +16.7% at 32K on the pancake base (T-820), but on this tree it replaces Strata-rdna3's own F16 prompt path (PF_F16=2): the first RD screen saw updated (PF_F16=1) slower on prompt"
   }
  ],
  "stop": [
